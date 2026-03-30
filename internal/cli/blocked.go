@@ -48,7 +48,7 @@ func runBlocked(_ *cobra.Command, _ []string) error {
 		statusMap[tf.Tasks[i].ID] = tf.Tasks[i].Status
 	}
 
-	var blocked []blockedTask
+	blocked := make([]blockedTask, 0)
 	for i := range tf.Tasks {
 		t := &tf.Tasks[i]
 		if t.Status != model.StatusOpen {

@@ -86,7 +86,7 @@ func runNext(_ *cobra.Command, _ []string) error {
 	if len(ready) == 0 {
 		// Check if all done or blocked
 		allDone := true
-		var blocked []string
+		blocked := make([]string, 0)
 		for i := range tf.Tasks {
 			if tf.Tasks[i].Status != model.StatusDone {
 				allDone = false
@@ -160,7 +160,7 @@ func runNext(_ *cobra.Command, _ []string) error {
 
 func outputNextTask(tf *model.TaskFile, task *model.Task, specPath string) error {
 	// Compute blocks
-	var blocks []string
+	blocks := make([]string, 0)
 	for i := range tf.Tasks {
 		for _, dep := range tf.Tasks[i].DependsOn {
 			if dep == task.ID {

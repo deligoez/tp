@@ -53,7 +53,7 @@ func runReady(_ *cobra.Command, _ []string) error {
 	}
 
 	// Find ready tasks: open with all deps done
-	var ready []model.Task
+	ready := make([]model.Task, 0)
 	for i := range tf.Tasks {
 		t := &tf.Tasks[i]
 		if t.Status != model.StatusOpen {

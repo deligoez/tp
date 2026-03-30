@@ -146,7 +146,7 @@ func claimBatch(tf *model.TaskFile, taskFilePath string, ids []string) error {
 	}
 
 	claimed := make([]string, 0, len(ids))
-	var failures []claimFailure
+	failures := make([]claimFailure, 0)
 
 	for _, id := range ids {
 		task, _, err := model.FindTask(tf, id)

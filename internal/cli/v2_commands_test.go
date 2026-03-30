@@ -243,6 +243,266 @@ func TestDoneBatchPartialFailure(t *testing.T) {
 	assert.Contains(t, strings.TrimSpace(stdout), "t2")
 }
 
+func TestNilSlicesInJSON(t *testing.T) {
+	dir := setupProject(t)
+
+	// Add 1 task with no dependents → blocks should be []
+	addTask(t, dir, `{"id":"solo","title":"Solo task","depends_on":[],"estimate_minutes":5,"acceptance":"Done","source_sections":["s1"]}`)
+
+	// tp show → blocks should be [] not null
+	stdout, stderr, code := runTP(t, dir, "show", "solo")
+	require.Equal(t, 0, code, "show failed: %s", stderr)
+
+	var showOut map[string]any
+	err := json.Unmarshal([]byte(stdout), &showOut)
+	require.NoError(t, err)
+	blocks, ok := showOut["blocks"].([]any)
+	require.True(t, ok, "blocks should be an array, not null")
+	assert.Empty(t, blocks, "blocks should be empty")
+
+	// Close the solo task so no tasks are ready
+	_, stderr, code = runTP(t, dir, "done", "solo", "Solo task is done and fully verified completely")
+	require.Equal(t, 0, code, "done failed: %s", stderr)
+
+	// tp ready → should be [] not null
+	stdout, _, code = runTP(t, dir, "ready")
+	require.Equal(t, 0, code)
+
+	var readyOut []any
+	err = json.Unmarshal([]byte(stdout), &readyOut)
+	require.NoError(t, err, "ready output should be valid JSON array")
+	assert.Empty(t, readyOut, "ready should be empty array")
+
+	// tp blocked → should be [] not null (no blocked tasks since all done)
+	stdout, _, code = runTP(t, dir, "blocked")
+	require.Equal(t, 0, code)
+
+	var blockedOut []any
+	err = json.Unmarshal([]byte(stdout), &blockedOut)
+	require.NoError(t, err, "blocked output should be valid JSON array")
+	assert.Empty(t, blockedOut, "blocked should be empty array")
+}
+
+func TestImportWorkflow(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create a spec file
+	specPath := filepath.Join(dir, "spec.md")
+	err := os.WriteFile(specPath, []byte("# Test Spec\n\nSome content.\n"), 0o600)
+	require.NoError(t, err)
+
+	// Create a complete task file JSON
+	taskFileJSON := `{
+		"version": 1,
+		"spec": "spec.md",
+		"created_at": "2025-01-01T00:00:00Z",
+		"updated_at": "2025-01-01T00:00:00Z",
+		"workflow": {"quality_gate": "tests_pass"},
+		"coverage": {"total_sections": 1, "mapped_sections": 1, "context_only": [], "unmapped": []},
+		"tasks": [
+			{"id":"imp-1","title":"Import task 1","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"Task 1 done","source_sections":["# Test Spec"],"closed_at":null,"closed_reason":null,"gate_passed_at":null,"commit_sha":null},
+			{"id":"imp-2","title":"Import task 2","status":"open","depends_on":["imp-1"],"estimate_minutes":10,"acceptance":"Task 2 done","source_sections":["# Test Spec"],"closed_at":null,"closed_reason":null,"gate_passed_at":null,"commit_sha":null}
+		]
+	}`
+	importPath := filepath.Join(dir, "import.json")
+	err = os.WriteFile(importPath, []byte(taskFileJSON), 0o600)
+	require.NoError(t, err)
+
+	// tp import file.json
+	_, stderr, code := runTP(t, dir, "import", importPath)
+	require.Equal(t, 0, code, "import failed: %s", stderr)
+
+	// tp status → verify task count matches
+	stdout, stderr, code := runTP(t, dir, "status")
+	require.Equal(t, 0, code, "status failed: %s", stderr)
+
+	var statusOut map[string]any
+	err = json.Unmarshal([]byte(stdout), &statusOut)
+	require.NoError(t, err)
+	assert.Equal(t, float64(2), statusOut["total"])
+}
+
+func TestDoneWithCommitAndGatePassed(t *testing.T) {
+	dir := setupProject(t)
+
+	addTask(t, dir, `{"id":"gated","title":"Gated task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+
+	// tp done with --gate-passed --commit abc123
+	_, stderr, code := runTP(t, dir, "done", "gated", "Task complete and fully verified with all criteria met", "--gate-passed", "--commit", "abc123")
+	require.Equal(t, 0, code, "done failed: %s", stderr)
+
+	// tp show → verify gate_passed_at is not null, commit_sha is "abc123"
+	stdout, stderr, code := runTP(t, dir, "show", "gated")
+	require.Equal(t, 0, code, "show failed: %s", stderr)
+
+	var showOut map[string]any
+	err := json.Unmarshal([]byte(stdout), &showOut)
+	require.NoError(t, err)
+	assert.NotNil(t, showOut["gate_passed_at"], "gate_passed_at should not be null")
+	assert.Equal(t, "abc123", showOut["commit_sha"])
+}
+
+func TestClaimMultipleIDs(t *testing.T) {
+	dir := setupProject(t)
+
+	addTask(t, dir, `{"id":"m1","title":"Multi 1","depends_on":[],"estimate_minutes":5,"acceptance":"Done","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"m2","title":"Multi 2","depends_on":[],"estimate_minutes":5,"acceptance":"Done","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"m3","title":"Multi 3","depends_on":[],"estimate_minutes":5,"acceptance":"Done","source_sections":["s1"]}`)
+
+	// tp claim m1 m2 → should claim both
+	stdout, stderr, code := runTP(t, dir, "claim", "m1", "m2")
+	require.Equal(t, 0, code, "claim failed: %s", stderr)
+
+	var claimOut map[string]any
+	err := json.Unmarshal([]byte(stdout), &claimOut)
+	require.NoError(t, err)
+
+	claimed, ok := claimOut["claimed"].([]any)
+	require.True(t, ok, "claimed should be an array")
+	assert.Len(t, claimed, 2)
+	assert.Contains(t, claimed, "m1")
+	assert.Contains(t, claimed, "m2")
+}
+
+func TestPlanSpecExcerpt(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create a spec with known content at specific lines
+	specContent := "Line one\nLine two\nLine three\nLine four\nLine five\n"
+	specPath := filepath.Join(dir, "spec.md")
+	err := os.WriteFile(specPath, []byte(specContent), 0o600)
+	require.NoError(t, err)
+
+	_, stderr, code := runTP(t, dir, "init", "spec.md")
+	require.Equal(t, 0, code, "init failed: %s", stderr)
+
+	// Add a task with source_lines: "2-4"
+	addTask(t, dir, `{"id":"excerpt","title":"Excerpt task","depends_on":[],"estimate_minutes":5,"acceptance":"Done","source_sections":["s1"],"source_lines":"2-4"}`)
+
+	// tp plan → verify spec_excerpt contains lines 2-4
+	stdout, stderr, code := runTP(t, dir, "plan")
+	require.Equal(t, 0, code, "plan failed: %s", stderr)
+
+	var planOut map[string]any
+	err = json.Unmarshal([]byte(stdout), &planOut)
+	require.NoError(t, err)
+
+	execOrder, ok := planOut["execution_order"].([]any)
+	require.True(t, ok)
+	require.Len(t, execOrder, 1)
+
+	task := execOrder[0].(map[string]any)
+	excerpt, ok := task["spec_excerpt"].(string)
+	require.True(t, ok, "spec_excerpt should be a string")
+	assert.Contains(t, excerpt, "Line two")
+	assert.Contains(t, excerpt, "Line three")
+	assert.Contains(t, excerpt, "Line four")
+}
+
+func TestValidateStrict(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create a spec with NO headings so coverage validation passes cleanly
+	specPath := filepath.Join(dir, "spec.md")
+	err := os.WriteFile(specPath, []byte("Just some plain text content.\n"), 0o600)
+	require.NoError(t, err)
+
+	_, stderr, code := runTP(t, dir, "init", "spec.md")
+	require.Equal(t, 0, code, "init failed: %s", stderr)
+
+	// Add a task with estimate_minutes: 20 (exceeds 15) - no source_sections to avoid coverage issues
+	addTask(t, dir, `{"id":"big","title":"Big task","depends_on":[],"estimate_minutes":20,"acceptance":"Done","source_sections":[]}`)
+
+	// tp validate → should be valid (warnings only)
+	stdout, stderr, code := runTP(t, dir, "validate")
+	require.Equal(t, 0, code, "validate should pass (warnings only): stderr=%s stdout=%s", stderr, stdout)
+
+	var valOut map[string]any
+	err = json.Unmarshal([]byte(stdout), &valOut)
+	require.NoError(t, err)
+	assert.Equal(t, true, valOut["valid"])
+
+	// tp validate --strict → should be invalid (exit 1)
+	stdout, _, code = runTP(t, dir, "validate", "--strict")
+	assert.Equal(t, 1, code, "validate --strict should fail with exit 1")
+
+	err = json.Unmarshal([]byte(stdout), &valOut)
+	require.NoError(t, err)
+	assert.Equal(t, false, valOut["valid"])
+}
+
+func TestDoneBatchAllFail(t *testing.T) {
+	dir := setupProject(t)
+
+	addTask(t, dir, `{"id":"fail1","title":"Fail task 1","depends_on":[],"estimate_minutes":5,"acceptance":"Very specific acceptance criteria that must be fully addressed","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"fail2","title":"Fail task 2","depends_on":[],"estimate_minutes":5,"acceptance":"Another very specific acceptance criteria that must be fully addressed","source_sections":["s1"]}`)
+
+	// Write batch with bad reasons for both
+	ndjsonPath := filepath.Join(dir, "allfail.ndjson")
+	lines := []string{
+		`{"id":"fail1","reason":"bad"}`,
+		`{"id":"fail2","reason":"bad"}`,
+	}
+	err := os.WriteFile(ndjsonPath, []byte(strings.Join(lines, "\n")+"\n"), 0o600)
+	require.NoError(t, err)
+
+	// tp done --batch → closed=0, failed=2, exit 4 (ExitState)
+	stdout, _, code := runTP(t, dir, "done", "--batch", ndjsonPath)
+	assert.Equal(t, 4, code, "all-fail batch should exit with code 4 (ExitState)")
+
+	var batchOut map[string]any
+	err = json.Unmarshal([]byte(stdout), &batchOut)
+	require.NoError(t, err)
+	assert.Equal(t, float64(0), batchOut["closed"])
+	assert.Equal(t, float64(2), batchOut["failed"])
+}
+
+func TestDoneBatchIdempotent(t *testing.T) {
+	dir := setupProject(t)
+
+	addTask(t, dir, `{"id":"idem","title":"Idempotent task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+
+	// Close the task normally
+	_, stderr, code := runTP(t, dir, "done", "idem", "Task complete and fully verified with all acceptance criteria")
+	require.Equal(t, 0, code, "done failed: %s", stderr)
+
+	// Batch close same task again → should be idempotent
+	ndjsonPath := filepath.Join(dir, "idem.ndjson")
+	err := os.WriteFile(ndjsonPath, []byte(`{"id":"idem","reason":"Task complete and fully verified with all acceptance criteria"}`+"\n"), 0o600)
+	require.NoError(t, err)
+
+	stdout, _, code := runTP(t, dir, "done", "--batch", ndjsonPath)
+	require.Equal(t, 0, code, "idempotent batch should succeed")
+
+	var batchOut map[string]any
+	err = json.Unmarshal([]byte(stdout), &batchOut)
+	require.NoError(t, err)
+	assert.Equal(t, float64(1), batchOut["closed"], "closed count should include idempotent re-close")
+	assert.Equal(t, float64(0), batchOut["failed"])
+}
+
+func TestListTagFilter(t *testing.T) {
+	dir := setupProject(t)
+
+	addTask(t, dir, `{"id":"auth1","title":"Auth login","tags":["auth"],"depends_on":[],"estimate_minutes":5,"acceptance":"Done","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"auth2","title":"Auth logout","tags":["auth","api"],"depends_on":[],"estimate_minutes":5,"acceptance":"Done","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"ui1","title":"Dashboard","tags":["ui"],"depends_on":[],"estimate_minutes":5,"acceptance":"Done","source_sections":["s1"]}`)
+
+	// tp list --tag auth → only auth-tagged tasks
+	stdout, stderr, code := runTP(t, dir, "list", "--tag", "auth")
+	require.Equal(t, 0, code, "list --tag failed: %s", stderr)
+
+	var listOut []map[string]any
+	err := json.Unmarshal([]byte(stdout), &listOut)
+	require.NoError(t, err)
+	require.Len(t, listOut, 2)
+
+	ids := []string{listOut[0]["id"].(string), listOut[1]["id"].(string)}
+	assert.Contains(t, ids, "auth1")
+	assert.Contains(t, ids, "auth2")
+	assert.NotContains(t, ids, "ui1")
+}
+
 func TestRemoveForceCleansDepsToEmptyArray(t *testing.T) {
 	dir := setupProject(t)
 

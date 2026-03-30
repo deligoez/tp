@@ -49,7 +49,7 @@ func runShow(_ *cobra.Command, args []string) error {
 	}
 
 	// Compute blocks (reverse deps)
-	var blocks []string
+	blocks := make([]string, 0)
 	for i := range tf.Tasks {
 		for _, dep := range tf.Tasks[i].DependsOn {
 			if dep == task.ID {
