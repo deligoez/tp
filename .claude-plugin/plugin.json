@@ -1,0 +1,20 @@
+{
+  "name": "tp",
+  "version": "1.0.0",
+  "description": "Task Plan: spec-to-task lifecycle for AI agents",
+  "skills": [
+    {
+      "name": "tp",
+      "path": "../skills/tp/SKILL.md",
+      "triggers": [
+        "implement spec",
+        "implement plan",
+        "implement tasks",
+        "tp plan",
+        "tp done",
+        "tp next",
+        "task plan"
+      ]
+    }
+  ]
+}
