@@ -25,7 +25,7 @@ tp done --batch results.ndjson # ONE call: close everything
 
 ```bash
 # Go install
-go install github.com/deligoez/tp@latest
+go install github.com/deligoez/tp/cmd/tp@latest
 
 # Or build from source
 git clone https://github.com/deligoez/tp.git
