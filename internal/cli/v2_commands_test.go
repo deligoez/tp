@@ -242,3 +242,29 @@ func TestDoneBatchPartialFailure(t *testing.T) {
 	require.Equal(t, 0, code)
 	assert.Contains(t, strings.TrimSpace(stdout), "t2")
 }
+
+func TestRemoveForceCleansDepsToEmptyArray(t *testing.T) {
+	dir := setupProject(t)
+
+	addTask(t, dir, `{"id":"base","title":"Base task","estimate_minutes":3,"acceptance":"Base done.","source_sections":["# Test Spec"],"depends_on":[]}`)
+	addTask(t, dir, `{"id":"child","title":"Child task","estimate_minutes":3,"acceptance":"Child done.","source_sections":["# Test Spec"],"depends_on":["base"]}`)
+
+	// remove --force should clean up child's depends_on to [] not null
+	_, _, code := runTP(t, dir, "remove", "base", "--force")
+	require.Equal(t, 0, code)
+
+	// Verify child's depends_on is empty array, not null
+	stdout, _, code := runTP(t, dir, "show", "child")
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	err := json.Unmarshal([]byte(stdout), &result)
+	require.NoError(t, err)
+
+	deps := result["depends_on"]
+	require.NotNil(t, deps, "depends_on should not be null")
+
+	depsArr, ok := deps.([]any)
+	require.True(t, ok, "depends_on should be an array")
+	assert.Empty(t, depsArr, "depends_on should be empty after force remove")
+}

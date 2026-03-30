@@ -73,7 +73,7 @@ func runRemove(_ *cobra.Command, args []string) error {
 		// Force: clean up deps
 		if removeForce {
 			for i := range tf.Tasks {
-				var newDeps []string
+				newDeps := make([]string, 0)
 				for _, dep := range tf.Tasks[i].DependsOn {
 					if dep != args[0] {
 						newDeps = append(newDeps, dep)
