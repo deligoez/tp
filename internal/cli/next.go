@@ -18,7 +18,12 @@ func newNextCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "next",
 		Short: "Get or resume WIP task, or claim next ready (fallback)",
-		RunE:  runNext,
+		Long: `Returns one task with full context. If a WIP task exists, resumes it (idempotent).
+Otherwise claims the highest-priority ready task. Exit 4 when no tasks remain.
+Output: {task, spec_excerpt, blocks, remaining, quality_gate}`,
+		Example: `  tp next --json                  # get task with full context
+  tp next --peek                  # preview without claiming`,
+		RunE: runNext,
 	}
 	cmd.Flags().BoolVar(&nextPeek, "peek", false, "preview next ready without claiming")
 	return cmd

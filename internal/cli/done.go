@@ -27,8 +27,14 @@ func newDoneCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "done <id> [reason]",
 		Short: "Close task with verification (preferred over tp close)",
-		Args:  cobra.RangeArgs(0, 2),
-		RunE:  runDone,
+		Long: `Close a task with closure verification. Implicitly claims open tasks.
+Output: {closed: "id", remaining: {total, open, wip, done, ready}, has_next: bool}
+On error: {error, code, acceptance, hint} on stderr. Task unchanged.`,
+		Example: `  tp done auth-model "Model at app/Models/User.php. Migration runs."
+  tp done auth-model "evidence" --gate-passed --commit abc123
+  tp done --batch results.ndjson     # NDJSON: {"id":"x","reason":"y","gate_passed":true}`,
+		Args: cobra.RangeArgs(0, 2),
+		RunE: runDone,
 	}
 	cmd.Flags().BoolVar(&doneStdin, "stdin", false, "read reason from stdin")
 	cmd.Flags().StringVar(&doneReasonFile, "reason-file", "", "read reason from file")

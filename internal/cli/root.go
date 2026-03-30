@@ -23,7 +23,17 @@ func NewRootCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "tp",
 		Short: "tp — task-plan: spec-to-task lifecycle for AI agents",
-		Long:  "tp manages spec-to-task lifecycle for AI coding agents. Break specs into atomic, dependency-ordered tasks.",
+		Long: `tp — spec-to-task lifecycle for AI agents
+
+WORKFLOW (2 calls per session):
+  1. tp plan --json          Get full execution plan
+  2. [implement each task]
+  3. tp done --batch f.ndjson Close all tasks at once
+
+INCREMENTAL (1 task at a time):
+  tp next                    Get/resume next task
+  [implement]
+  tp done <id> "reason"      Close with verification`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
@@ -41,27 +51,65 @@ func NewRootCmd() *cobra.Command {
 		output.Configure(flagJSON, flagQuiet, flagNoColor)
 	}
 
-	// Register subcommands
-	cmd.AddCommand(newLintCmd())
-	cmd.AddCommand(newValidateCmd())
-	cmd.AddCommand(newInitCmd())
-	cmd.AddCommand(newAddCmd())
-	cmd.AddCommand(newImportCmd())
-	cmd.AddCommand(newReadyCmd())
-	cmd.AddCommand(newShowCmd())
-	cmd.AddCommand(newClaimCmd())
-	cmd.AddCommand(newCloseCmd())
-	cmd.AddCommand(newReopenCmd())
-	cmd.AddCommand(newRemoveCmd())
-	cmd.AddCommand(newSetCmd())
-	cmd.AddCommand(newStatusCmd())
-	cmd.AddCommand(newBlockedCmd())
-	cmd.AddCommand(newGraphCmd())
-	cmd.AddCommand(newStatsCmd())
-	cmd.AddCommand(newPlanCmd())
-	cmd.AddCommand(newDoneCmd())
-	cmd.AddCommand(newNextCmd())
-	cmd.AddCommand(newListCmd())
+	// Command groups
+	planGroup := &cobra.Group{ID: "plan", Title: "Plan Commands (primary workflow):"}
+	stateGroup := &cobra.Group{ID: "state", Title: "Task State Commands:"}
+	queryGroup := &cobra.Group{ID: "query", Title: "Query Commands:"}
+	dataGroup := &cobra.Group{ID: "data", Title: "Data Commands:"}
+	cmd.AddGroup(planGroup, stateGroup, queryGroup, dataGroup)
+
+	// Plan commands
+	planCmd := newPlanCmd()
+	planCmd.GroupID = "plan"
+	doneCmd := newDoneCmd()
+	doneCmd.GroupID = "plan"
+	nextCmd := newNextCmd()
+	nextCmd.GroupID = "plan"
+
+	// State commands
+	claimCmd := newClaimCmd()
+	claimCmd.GroupID = "state"
+	closeCmd := newCloseCmd()
+	closeCmd.GroupID = "state"
+	reopenCmd := newReopenCmd()
+	reopenCmd.GroupID = "state"
+	removeCmd := newRemoveCmd()
+	removeCmd.GroupID = "state"
+	setCmd := newSetCmd()
+	setCmd.GroupID = "state"
+
+	// Query commands
+	listCmd := newListCmd()
+	listCmd.GroupID = "query"
+	statusCmd := newStatusCmd()
+	statusCmd.GroupID = "query"
+	readyCmd := newReadyCmd()
+	readyCmd.GroupID = "query"
+	blockedCmd := newBlockedCmd()
+	blockedCmd.GroupID = "query"
+	showCmd := newShowCmd()
+	showCmd.GroupID = "query"
+	graphCmd := newGraphCmd()
+	graphCmd.GroupID = "query"
+	statsCmd := newStatsCmd()
+	statsCmd.GroupID = "query"
+	lintCmd := newLintCmd()
+	lintCmd.GroupID = "query"
+	validateCmd := newValidateCmd()
+	validateCmd.GroupID = "query"
+
+	// Data commands
+	initCmd := newInitCmd()
+	initCmd.GroupID = "data"
+	addCmd := newAddCmd()
+	addCmd.GroupID = "data"
+	importCmd := newImportCmd()
+	importCmd.GroupID = "data"
+
+	cmd.AddCommand(planCmd, doneCmd, nextCmd)
+	cmd.AddCommand(claimCmd, closeCmd, reopenCmd, removeCmd, setCmd)
+	cmd.AddCommand(listCmd, statusCmd, readyCmd, blockedCmd, showCmd, graphCmd, statsCmd, lintCmd, validateCmd)
+	cmd.AddCommand(initCmd, addCmd, importCmd)
 
 	return cmd
 }

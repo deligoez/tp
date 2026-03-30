@@ -48,7 +48,14 @@ func newPlanCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "plan",
 		Short: "Full execution plan with context (THE primary command)",
-		RunE:  runPlan,
+		Long: `Returns all remaining tasks in dependency-safe order with spec excerpts.
+Output: {workflow, execution_order: [{id, title, acceptance, estimate_minutes, depends_on, spec_excerpt, ...}], summary}
+Exit 4 when all tasks are done.`,
+		Example: `  tp plan --json                  # full plan for agent consumption
+  tp plan --compact               # without spec_excerpts (saves tokens)
+  tp plan --from auth-login       # resume from a specific task
+  tp plan --level 0,1             # only level 0 and 1 (multi-agent)`,
+		RunE: runPlan,
 	}
 	cmd.Flags().StringVar(&planFrom, "from", "", "start from this task ID onward")
 	cmd.Flags().StringVar(&planLevel, "level", "", "filter by parallelism levels (comma-separated: 0,1)")
