@@ -65,5 +65,5 @@ func runImport(_ *cobra.Command, args []string) error {
 	}
 
 	output.Success(fmt.Sprintf("imported %d tasks to %s", len(tf.Tasks), targetPath))
-	return nil
+	return output.JSON(map[string]any{"imported": len(tf.Tasks), "path": targetPath})
 }

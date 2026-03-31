@@ -72,5 +72,5 @@ func runInit(_ *cobra.Command, args []string) error {
 	}
 
 	output.Success(fmt.Sprintf("created %s", taskFilePath))
-	return nil
+	return output.JSON(map[string]string{"created": taskFilePath})
 }
