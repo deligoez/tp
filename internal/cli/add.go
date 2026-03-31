@@ -29,7 +29,7 @@ func newAddCmd() *cobra.Command {
 		RunE:  runAdd,
 	}
 	cmd.Flags().BoolVar(&addStdin, "stdin", false, "read task JSON from stdin")
-	cmd.Flags().StringVar(&addFile, "file", "", "bulk add from NDJSON file")
+	cmd.Flags().StringVar(&addFile, "bulk", "", "bulk add from NDJSON file")
 	cmd.Flags().StringVar(&addSpec, "spec", "", "spec path (required when creating new task file)")
 	return cmd
 }
