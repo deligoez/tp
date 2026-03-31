@@ -316,7 +316,7 @@ ANALYSIS COMMANDS:
 
 DATA COMMANDS:
   tp add <task-json>            Add single task
-  tp add --file <path>          Bulk add from NDJSON
+  tp add --bulk <path>          Bulk add from NDJSON
   tp import <file>              Import complete task file
   tp init <spec.md>             Create empty task file
 
@@ -846,7 +846,7 @@ Add a single task. The JSON is passed as a command argument or via stdin.
 ```bash
 tp add '{"id":"auth-user-model","title":"Create User model",...}'   # as argument
 tp add --stdin                                                       # via stdin
-tp add --file tasks.ndjson                                           # bulk NDJSON
+tp add --bulk tasks.ndjson                                           # bulk NDJSON
 ```
 
 **Behavior:**
@@ -859,7 +859,7 @@ tp add --file tasks.ndjson                                           # bulk NDJS
 
 **Output (--file bulk):** `{"added": 15, "failed": 0}`
 
-**When no task file exists:** `tp add` and `tp add --file` require `--spec <path>` to create a new task file. The tool creates the file with empty coverage and the specified spec path, then adds the task(s). Without `--spec`, these commands error: "No task file found. Use --spec to create one, or run tp init first."
+**When no task file exists:** `tp add` and `tp add --bulk` require `--spec <path>` to create a new task file. The tool creates the file with empty coverage and the specified spec path, then adds the task(s). Without `--spec`, these commands error: "No task file found. Use --spec to create one, or run tp init first."
 
 **Exit codes:** 0 = success, 1 = validation error, 3 = no task file (without --spec).
 

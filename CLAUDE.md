@@ -86,7 +86,7 @@ tp validate                    # Task file validation (--strict)
 ### Data
 ```bash
 tp init <spec.md>              # Create empty task file
-tp add <json>                  # Add task (--stdin, --file for NDJSON bulk)
+tp add <json>                  # Add task (--stdin, --bulk for NDJSON bulk)
 tp import <file>               # Import + validate (--force to overwrite)
 ```
 

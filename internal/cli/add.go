@@ -159,6 +159,6 @@ func addTask(task *model.Task) error {
 		}
 
 		output.Success(fmt.Sprintf("added %s", task.ID))
-		return nil
+		return output.JSON(map[string]string{"added": task.ID})
 	})
 }

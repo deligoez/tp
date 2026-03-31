@@ -64,6 +64,6 @@ func runReopen(_ *cobra.Command, args []string) error {
 		}
 
 		output.Success(fmt.Sprintf("reopened %s", task.ID))
-		return output.JSON(task)
+		return output.JSON(map[string]string{"reopened": task.ID})
 	})
 }

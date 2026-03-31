@@ -93,6 +93,6 @@ func runRemove(_ *cobra.Command, args []string) error {
 		}
 
 		output.Success(fmt.Sprintf("removed %s", args[0]))
-		return nil
+		return output.JSON(map[string]string{"removed": args[0]})
 	})
 }
