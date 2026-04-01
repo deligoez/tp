@@ -93,7 +93,7 @@ tp validate                    # Task file validation (--strict)
 ```bash
 tp init <spec.md>              # Create empty task file
 tp add <json>                  # Add task (--stdin, --bulk for NDJSON bulk)
-tp import <file>               # Import + validate (--force to overwrite)
+tp import <file>               # Import + validate (--force to overwrite, auto-fills coverage)
 ```
 
 ### Global Flags

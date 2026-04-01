@@ -85,13 +85,32 @@ func ValidateLineCoverage(tf *model.TaskFile, specPath string) []Finding {
 		Message:  fmt.Sprintf("line coverage: %d/%d content lines (%.0f%%). %d uncovered lines in %d gap(s)", coveredCount, len(contentLines), pct, len(uncoveredLines), len(gaps)),
 	})
 
-	for _, g := range gaps {
+	// Sort gaps by size (largest first) and show top 5
+	sort.Slice(gaps, func(i, j int) bool {
+		return (gaps[i].End - gaps[i].Start) > (gaps[j].End - gaps[j].Start)
+	})
+
+	maxGaps := 5
+	if len(gaps) < maxGaps {
+		maxGaps = len(gaps)
+	}
+
+	for i := 0; i < maxGaps; i++ {
+		g := gaps[i]
 		findings = append(findings, Finding{
 			Severity: "warning",
 			Rule:     "line-coverage",
 			Line:     g.Start,
 			Message:  fmt.Sprintf("uncovered lines %d-%d (%d lines)", g.Start, g.End, g.End-g.Start+1),
 			Context:  "Verify these spec lines are covered by a task's source_lines or mark as context.",
+		})
+	}
+
+	if len(gaps) > 5 {
+		findings = append(findings, Finding{
+			Severity: "info",
+			Rule:     "line-coverage",
+			Message:  fmt.Sprintf("...and %d more gap(s). Use tp validate --verbose for full list.", len(gaps)-5),
 		})
 	}
 

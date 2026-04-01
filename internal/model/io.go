@@ -19,6 +19,13 @@ func ReadTaskFile(path string) (*TaskFile, error) {
 		return nil, fmt.Errorf("parse task file: %w", err)
 	}
 
+	// Default empty status to "open"
+	for i := range tf.Tasks {
+		if tf.Tasks[i].Status == "" {
+			tf.Tasks[i].Status = StatusOpen
+		}
+	}
+
 	return &tf, nil
 }
 

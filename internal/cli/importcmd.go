@@ -46,8 +46,13 @@ func runImport(_ *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// Validate (strict atomicity unless --force)
+	// Auto-fill coverage if empty and spec exists
 	specPath, specExists := engine.ResolveSpecPath(targetPath, tf.Spec)
+	if specExists && tf.Coverage.TotalSections == 0 {
+		engine.AutoFillCoverage(tf, specPath)
+	}
+
+	// Validate (strict atomicity unless --force)
 	result := engine.Validate(tf, specPath, specExists, !importForce)
 	if !result.Valid {
 		if err := output.JSON(result); err != nil {
