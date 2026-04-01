@@ -11,11 +11,12 @@ import (
 )
 
 type lintResult struct {
-	File     string           `json:"file"`
-	Errors   int              `json:"errors"`
-	Warnings int              `json:"warnings"`
-	Info     int              `json:"info"`
-	Findings []engine.Finding `json:"findings"`
+	File               string                     `json:"file"`
+	Errors             int                        `json:"errors"`
+	Warnings           int                        `json:"warnings"`
+	Info               int                        `json:"info"`
+	Findings           []engine.Finding           `json:"findings"`
+	StructuredElements *engine.StructuredElements `json:"structured_elements,omitempty"`
 }
 
 func newLintCmd() *cobra.Command {
@@ -48,7 +49,11 @@ func runLint(_ *cobra.Command, args []string) error {
 	findings = append(findings, engine.CheckSectionSize(headings, totalLines, 50)...)
 	findings = append(findings, engine.CheckSpecSize(totalLines, 500)...)
 
-	result := lintResult{File: specPath, Findings: findings}
+	// Structured element detection
+	structFindings, structElems := engine.CheckStructuredElements(lines, headings)
+	findings = append(findings, structFindings...)
+
+	result := lintResult{File: specPath, Findings: findings, StructuredElements: structElems}
 	for _, f := range findings {
 		switch f.Severity {
 		case "error":

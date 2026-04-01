@@ -18,9 +18,18 @@ This skill activates when:
 
 ### A: Decompose (spec exists, no .tasks.json)
 
-1. `tp lint <spec.md>` — fix all errors
-2. Read spec, decompose into tasks (JSON), ensure 100% section coverage
-3. `tp import tasks.json` — validates and stores
+1. `tp lint <spec.md>` — fix all errors, review `structured_elements` output
+2. Read spec, decompose into tasks (JSON):
+   - Every task MUST have `source_lines` mapping to spec line ranges (e.g., `"15-42"` or `"15-42,50-60"`)
+   - Every table data row must appear in some task's acceptance criteria
+   - Numbered test lists (#1, #2...) must preserve numbers in acceptance (e.g., "Tests: #26 lifecycle, #27 multi-pause, ...")
+3. **Backward pass** — verify coverage:
+   - For each table in `structured_elements`: does every row map to a task's acceptance?
+   - For each numbered list: does every item have a task or explicit acceptance entry?
+   - If spec has multiple checklists (e.g., "What Gets Added" + "Implementation Order"), take the union — items in one but not the other = potential missing task
+   - Run `tp validate` — check `line_coverage` for uncovered spec line gaps
+4. `tp import tasks.json` — validates and stores
+5. If `tp validate` reports line coverage gaps, inspect uncovered ranges and add missing tasks or expand source_lines
 
 ### B: Execute (tasks exist) — PRIMARY
 
@@ -76,6 +85,8 @@ Before recording a result:
 5. Use `--gate-passed` (or `"gate_passed":true` in batch) to relax keyword matching — evidence like "2559 tests pass" is accepted without needing exact acceptance wording
 
 **Important:** `tp done` auto-claims open tasks — no need for a separate `tp claim` call.
+
+**Code snippets:** When spec contains inline code, validate against the actual codebase (types, casts, method signatures) before implementing. Spec code may be illustrative, not literal.
 
 ## Task File Discovery
 

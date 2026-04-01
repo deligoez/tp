@@ -146,6 +146,9 @@ skills/tp/
 - Managed fields (tp set rejects): status, started_at, closed_at, closed_reason, gate_passed_at, commit_sha
 - Pretty-printed JSON with 2-space indentation
 - spec_excerpt capped at 2000 chars
+- source_lines supports multi-range: "4-10,15-20,25-30"
+- `tp lint` reports structured elements (tables, numbered lists, code blocks)
+- `tp validate` checks line coverage (source_lines vs spec content lines)
 
 ## Manual QA Testing
 

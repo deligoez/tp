@@ -70,7 +70,7 @@ func Validate(tf *model.TaskFile, specPath string, specExists, strict bool) *Val
 		result.Checks["uniqueness"] = "pass"
 	}
 
-	// 6. Coverage
+	// 6. Coverage (section-level)
 	if specExists {
 		covFindings := ValidateCoverage(tf, specPath)
 		result.Findings = append(result.Findings, covFindings...)
@@ -81,6 +81,23 @@ func Validate(tf *model.TaskFile, specPath string, specExists, strict bool) *Val
 		}
 	} else {
 		result.Checks["coverage"] = "skipped (spec not found)"
+	}
+
+	// 7. Line coverage
+	switch {
+	case specExists:
+		lineFindings := ValidateLineCoverage(tf, specPath)
+		result.Findings = append(result.Findings, lineFindings...)
+		switch {
+		case countErrors(lineFindings) > 0:
+			result.Checks["line_coverage"] = fmt.Sprintf("%d errors", countErrors(lineFindings))
+		case countWarnings(lineFindings) > 0:
+			result.Checks["line_coverage"] = fmt.Sprintf("%d warnings", countWarnings(lineFindings))
+		default:
+			result.Checks["line_coverage"] = "pass"
+		}
+	default:
+		result.Checks["line_coverage"] = "skipped (spec not found)"
 	}
 
 	// Count totals
@@ -106,6 +123,16 @@ func countErrors(findings []Finding) int {
 	n := 0
 	for _, f := range findings {
 		if f.Severity == "error" {
+			n++
+		}
+	}
+	return n
+}
+
+func countWarnings(findings []Finding) int {
+	n := 0
+	for _, f := range findings {
+		if f.Severity == "warning" {
 			n++
 		}
 	}
