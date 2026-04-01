@@ -30,6 +30,12 @@ go install github.com/deligoez/tp/cmd/tp@latest
 # Or build from source
 git clone https://github.com/deligoez/tp.git
 cd tp && go build -ldflags="-s -w" -o tp ./cmd/tp
+
+# Install Claude Code skill (first time)
+npx skills add -g deligoez/tp
+
+# Update skill (after tp updates)
+npx skills update -g deligoez/tp
 ```
 
 ## Quick Start
@@ -91,6 +97,7 @@ tp close <id> <reason>         # Low-level close (prefer tp done)
 tp reopen <id>                 # Reset to open
 tp remove <id>                 # Delete task (--force for dep cleanup)
 tp set <id> field=value        # Update field
+tp set --bulk sets.ndjson      # Bulk update from NDJSON {id, field, value}
 ```
 
 ### Query
@@ -118,6 +125,28 @@ tp import file.json            # Import + validate
 --compact    Minimal JSON (~40% smaller)
 --quiet      Suppress info messages
 --file       Explicit task file path
+```
+
+### Task File Discovery
+
+tp finds your `.tasks.json` automatically:
+
+1. `--file` flag (highest priority)
+2. `TP_FILE` environment variable
+3. Auto-detect: scans current directory, then one level of subdirectories
+
+```bash
+# Set once, use everywhere
+export TP_FILE=spec/project.tasks.json
+tp status   # just works
+```
+
+### JSON Field Aliases
+
+`deps` is accepted as shorthand for `depends_on` in task JSON:
+
+```json
+{"id": "api", "deps": ["model"], ...}
 ```
 
 ## Task File Format
@@ -161,6 +190,13 @@ tp done create-model "done"
 tp done create-model "User model at app/Models/User.php with 12 fields. Migration 2024_01_create_users runs clean."
 ```
 
+Use `--gate-passed` to relax keyword matching when the quality gate already passed:
+
+```bash
+# Accepted: agent attests gate passed, exact keyword match not required
+tp done create-model "2559 tests pass, PHPStan level 8 clean" --gate-passed
+```
+
 ## AX (Agent Experience)
 
 tp is designed for AI agents first (AX), not humans (DX):
@@ -175,14 +211,17 @@ tp is designed for AI agents first (AX), not humans (DX):
 
 ## Claude Code Integration
 
-tp ships with a Claude Code skill:
+tp ships with a Claude Code skill via the [Agent Skills](https://agentskills.io) standard:
 
 ```bash
-# Install as Claude Code plugin
-# .claude-plugin/plugin.json + skills/tp/SKILL.md
+# Install skill (first time)
+npx skills add -g deligoez/tp
+
+# Update skill (after tp updates)
+npx skills update -g deligoez/tp
 ```
 
-The skill teaches Claude the 2-call workflow automatically.
+The skill teaches Claude the 2-call workflow, NDJSON format, closure rules, and discovery conventions automatically.
 
 ## Research
 
