@@ -21,6 +21,7 @@ var (
 	doneGatePassed bool
 	doneCommit     string
 	doneBatch      string
+	doneAutoCommit bool
 )
 
 func newDoneCmd() *cobra.Command {
@@ -41,6 +42,7 @@ On error: {error, code, acceptance, hint} on stderr. Task unchanged.`,
 	cmd.Flags().BoolVar(&doneGatePassed, "gate-passed", false, "attest quality gate passed")
 	cmd.Flags().StringVar(&doneCommit, "commit", "", "record implementing commit SHA")
 	cmd.Flags().StringVar(&doneBatch, "batch", "", "batch close from NDJSON file")
+	cmd.Flags().BoolVar(&doneAutoCommit, "auto-commit", false, "stage + commit before closing (structured message)")
 	return cmd
 }
 
@@ -130,6 +132,25 @@ func runDone(_ *cobra.Command, args []string) error {
 			fmt.Fprintln(os.Stderr, string(data))
 			os.Exit(ExitValidation)
 			return nil
+		}
+
+		// Auto-commit if requested
+		if doneAutoCommit && doneCommit == "" {
+			if err := gitStage(""); err != nil {
+				output.Error(ExitFile, fmt.Sprintf("auto-commit: git stage failed: %v", err))
+				os.Exit(ExitFile)
+				return nil
+			}
+			if gitHasStagedChanges() {
+				msg := buildCommitMessage(task, reason)
+				sha, commitErr := gitCommit(msg)
+				if commitErr != nil {
+					output.Error(ExitFile, fmt.Sprintf("auto-commit: git commit failed: %v", commitErr))
+					os.Exit(ExitFile)
+					return nil
+				}
+				doneCommit = sha
+			}
 		}
 
 		now := time.Now().UTC()

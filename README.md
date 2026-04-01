@@ -81,7 +81,10 @@ tp done --batch results.ndjson
 ```bash
 tp plan                        # Full execution plan (THE primary command)
 tp plan --minimal              # Minimal: id + acceptance only (~80% fewer tokens)
+tp commit <id> [reason]        # Stage + structured commit + record SHA
+tp commit <id> --files "*.go"  # Selective file staging
 tp done <id> <reason>          # Close with implicit claim + verification
+tp done <id> --auto-commit     # Commit + close in one call
 tp done --batch file.ndjson    # Batch close from NDJSON
 ```
 
@@ -208,7 +211,8 @@ tp is designed for AI agents first (AX), not humans (DX):
 | **Minimal tokens** | `--minimal` strips ~80%, `--compact` ~40%. 2-call architecture saves ~90% |
 | **Batch parity** | `tp claim --all-ready`, `tp done --batch` |
 | **Actionable errors** | Every error includes `hint` field with recovery action |
-| **Implicit claim** | `tp done` auto-claims open tasks (no separate claim step) |
+| **Structured commits** | `tp commit` generates conventional commit messages with task metadata |
+| **Implicit claim** | `tp done` and `tp commit` auto-claim open tasks (no separate claim step) |
 | **WIP resume** | `tp next` returns existing WIP task (crash recovery) |
 
 ## Claude Code Integration

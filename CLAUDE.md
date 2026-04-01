@@ -48,7 +48,9 @@ go build -ldflags="-s -w" -o tp ./cmd/tp
 ```bash
 tp plan                        # Full execution plan in one call (THE primary command)
 tp plan --minimal              # Minimal: id + acceptance only (~80% fewer tokens)
+tp commit <id> [reason]        # Stage + structured commit + record SHA (--files for selective)
 tp done <id> <reason>          # Close task with implicit claim + verification
+tp done <id> --auto-commit     # Commit + close in one call
 tp done --batch results.ndjson # Batch close from NDJSON (primary close mechanism)
 ```
 

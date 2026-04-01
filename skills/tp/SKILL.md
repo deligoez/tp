@@ -39,18 +39,20 @@ The 2-call architecture minimizes token overhead:
 # Phase 1: Get full plan (ONE call)
 plan=$(tp plan --minimal --json)  # minimal: id + acceptance only (~80% fewer tokens)
 
-# Phase 2: Implement each task (ZERO tp calls)
-# Read task context from plan.execution_order
-# For each task:
-#   1. Read task.acceptance and task.spec_excerpt
+# Phase 2: Implement each task
+# For each task in plan.execution_order:
+#   1. Read task.acceptance
 #   2. Implement the task
 #   3. Run plan.workflow.quality_gate
-#   4. Record: {"id":"<id>","reason":"<evidence>","gate_passed":true,"started_at":"<iso8601>","commit":"<sha>"}
-# Write results to results.ndjson
-# Flush every 6-8 tasks if context is growing
+#   4. tp commit <id> "evidence"           # structured commit, records SHA
+#   5. tp done <id> "evidence" --gate-passed --commit <sha>
 
-# Phase 3: Close all tasks (ONE call)
-tp done --batch results.ndjson
+# Alternative: commit + close in one call per task
+#   tp done <id> "evidence" --gate-passed --auto-commit
+
+# Alternative: batch close (if commits already done)
+#   Record results to results.ndjson
+#   tp done --batch results.ndjson
 ```
 
 If batch reports failures: fix reasons, resubmit `tp done --batch fixes.ndjson`.
@@ -112,7 +114,9 @@ tp done <id> "reason" --gate-passed
 |---------|---------|
 | `tp plan --minimal` | Minimal plan: id + acceptance (~80% fewer tokens) |
 | `tp plan` | Full execution plan |
-| `tp done --batch file` | Batch close (PRIMARY) |
+| `tp commit <id> [reason]` | Stage + structured commit + record SHA |
+| `tp done <id> --auto-commit` | Commit + close in one call |
+| `tp done --batch file` | Batch close |
 | `tp next` | Incremental fallback |
 | `tp done <id> "reason"` | Single close |
 | `tp lint spec.md` | Spec quality check |
