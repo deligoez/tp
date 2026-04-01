@@ -74,6 +74,7 @@ tp list                        # All tasks (--status, --tag, --ids, --compact)
 tp ready                       # Deps-satisfied tasks (--first, --count, --ids)
 tp show <id>                   # Full details + spec_excerpt + blocks
 tp status                      # Progress summary
+tp report                      # Per-task duration and estimation accuracy
 tp blocked                     # Tasks waiting on deps
 tp graph                       # Dependency tree (--tag, --from)
 tp stats                       # Parallelism analysis
@@ -142,7 +143,7 @@ skills/tp/
 - `--compact` omits: description, source_sections, source_lines, tags, closed_reason, spec_excerpt
 - All write operations use flock; reads are lock-free
 - Task status: open -> wip -> done (3 states only, blocked computed from deps)
-- Managed fields (tp set rejects): status, closed_at, closed_reason, gate_passed_at, commit_sha
+- Managed fields (tp set rejects): status, started_at, closed_at, closed_reason, gate_passed_at, commit_sha
 - Pretty-printed JSON with 2-space indentation
 - spec_excerpt capped at 2000 chars
 

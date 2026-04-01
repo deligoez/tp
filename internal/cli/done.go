@@ -101,7 +101,9 @@ func runDone(_ *cobra.Command, args []string) error {
 					return nil
 				}
 			}
+			claimTime := time.Now().UTC()
 			task.Status = model.StatusWIP
+			task.StartedAt = &claimTime
 		}
 
 		if task.Status == model.StatusDone {
@@ -196,10 +198,11 @@ func runDone(_ *cobra.Command, args []string) error {
 }
 
 type batchEntry struct {
-	ID         string `json:"id"`
-	Reason     string `json:"reason"`
-	GatePassed bool   `json:"gate_passed"`
-	Commit     string `json:"commit"`
+	ID         string     `json:"id"`
+	Reason     string     `json:"reason"`
+	GatePassed bool       `json:"gate_passed"`
+	Commit     string     `json:"commit"`
+	StartedAt  *time.Time `json:"started_at"`
 }
 
 type batchFailure struct {
@@ -276,6 +279,11 @@ func runDoneBatch() error {
 					continue
 				}
 				task.Status = model.StatusWIP
+				if entry.StartedAt != nil {
+					task.StartedAt = entry.StartedAt
+				} else {
+					task.StartedAt = &now
+				}
 			}
 
 			// Closure verification

@@ -36,7 +36,7 @@ plan=$(tp plan --minimal --json)  # minimal: id + acceptance only (~80% fewer to
 #   1. Read task.acceptance and task.spec_excerpt
 #   2. Implement the task
 #   3. Run plan.workflow.quality_gate
-#   4. Record: {"id":"<id>","reason":"<evidence>","gate_passed":true,"commit":"<sha>"}
+#   4. Record: {"id":"<id>","reason":"<evidence>","gate_passed":true,"started_at":"<iso8601>","commit":"<sha>"}
 # Write results to results.ndjson
 # Flush every 6-8 tasks if context is growing
 
@@ -58,11 +58,12 @@ Same as B. `tp plan` excludes done tasks, puts WIP first.
 
 One line per task:
 ```
-{"id":"task-id","reason":"Evidence addressing each acceptance criterion.","gate_passed":true,"commit":"abc123"}
+{"id":"task-id","reason":"Evidence addressing each acceptance criterion.","gate_passed":true,"started_at":"2026-04-01T13:00:00Z","commit":"abc123"}
 ```
 
 - `id` and `reason`: required
 - `gate_passed`: set true after quality gate passes
+- `started_at`: ISO 8601 timestamp when you began the task (optional, enables `tp report`)
 - `commit`: git commit SHA (optional)
 
 ## Closure Rules
@@ -108,3 +109,4 @@ tp done <id> "reason" --gate-passed
 | `tp set --bulk file` | Bulk update from NDJSON `{id, field, value}` |
 | `tp list --status open` | Filter tasks |
 | `tp status` | Progress summary |
+| `tp report` | Per-task duration and estimation accuracy |

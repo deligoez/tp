@@ -110,6 +110,7 @@ tp status                      # Progress summary
 tp blocked                     # Waiting on deps
 tp graph                       # Dependency visualization
 tp stats                       # Parallelism analysis
+tp report                      # Per-task duration + estimation accuracy
 ```
 
 ### Spec & Validation

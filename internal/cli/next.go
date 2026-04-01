@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -150,7 +151,9 @@ func runNext(_ *cobra.Command, _ []string) error {
 				os.Exit(ExitState)
 				return nil
 			}
+			now := time.Now().UTC()
 			t.Status = model.StatusWIP
+			t.StartedAt = &now
 			if writeErr := model.WriteTaskFile(taskFilePath, tf2); writeErr != nil {
 				output.Error(ExitFile, writeErr.Error())
 				os.Exit(ExitFile)

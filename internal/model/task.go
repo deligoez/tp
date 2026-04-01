@@ -24,6 +24,7 @@ type Task struct {
 	Acceptance      string     `json:"acceptance"`
 	SourceSections  []string   `json:"source_sections"`
 	SourceLines     string     `json:"source_lines,omitempty"`
+	StartedAt       *time.Time `json:"started_at"`
 	ClosedAt        *time.Time `json:"closed_at"`
 	ClosedReason    *string    `json:"closed_reason"`
 	GatePassedAt    *time.Time `json:"gate_passed_at"`

@@ -99,6 +99,8 @@ INCREMENTAL (1 task at a time):
 	graphCmd.GroupID = "query"
 	statsCmd := newStatsCmd()
 	statsCmd.GroupID = "query"
+	reportCmd := newReportCmd()
+	reportCmd.GroupID = "query"
 	lintCmd := newLintCmd()
 	lintCmd.GroupID = "query"
 	validateCmd := newValidateCmd()
@@ -114,7 +116,7 @@ INCREMENTAL (1 task at a time):
 
 	cmd.AddCommand(planCmd, doneCmd, nextCmd)
 	cmd.AddCommand(claimCmd, closeCmd, reopenCmd, removeCmd, setCmd)
-	cmd.AddCommand(listCmd, statusCmd, readyCmd, blockedCmd, showCmd, graphCmd, statsCmd, lintCmd, validateCmd)
+	cmd.AddCommand(listCmd, statusCmd, readyCmd, blockedCmd, showCmd, graphCmd, statsCmd, reportCmd, lintCmd, validateCmd)
 	cmd.AddCommand(initCmd, addCmd, importCmd)
 
 	return cmd

@@ -51,6 +51,7 @@ func runReopen(_ *cobra.Command, args []string) error {
 		}
 
 		task.Status = model.StatusOpen
+		task.StartedAt = nil
 		task.ClosedAt = nil
 		task.ClosedReason = nil
 		task.GatePassedAt = nil
