@@ -1,6 +1,9 @@
 package model
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // Task status constants.
 const (
@@ -25,6 +28,25 @@ type Task struct {
 	ClosedReason    *string    `json:"closed_reason"`
 	GatePassedAt    *time.Time `json:"gate_passed_at"`
 	CommitSHA       *string    `json:"commit_sha"`
+}
+
+// UnmarshalJSON supports "deps" as an alias for "depends_on".
+func (t *Task) UnmarshalJSON(data []byte) error {
+	type Alias Task
+	aux := &struct {
+		*Alias
+		Deps []string `json:"deps"`
+	}{Alias: (*Alias)(t)}
+
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+
+	// "deps" fills in when "depends_on" is absent
+	if t.DependsOn == nil && aux.Deps != nil {
+		t.DependsOn = aux.Deps
+	}
+	return nil
 }
 
 // ValidTransition returns true if the status transition is allowed.

@@ -64,6 +64,7 @@ tp close <id> <reason>         # wip -> done (low-level, prefer tp done)
 tp reopen <id>                 # done -> open (clears gate_passed_at, commit_sha)
 tp remove <id>                 # Remove task (--force for dep cleanup)
 tp set <id> field=value        # Update field (managed fields protected)
+tp set --bulk sets.ndjson      # Bulk update from NDJSON {id, field, value}
 ```
 
 ### Query

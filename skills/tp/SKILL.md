@@ -50,6 +50,10 @@ If batch reports failures: fix reasons, resubmit `tp done --batch fixes.ndjson`.
 
 Same as B. `tp plan` excludes done tasks, puts WIP first.
 
+## JSON Field Aliases
+
+- `deps` is accepted as an alias for `depends_on` in task JSON (import, add)
+
 ## NDJSON Result Format
 
 One line per task:
@@ -88,5 +92,6 @@ tp done <id> "reason" --gate-passed
 | `tp done <id> "reason"` | Single close |
 | `tp lint spec.md` | Spec quality check |
 | `tp validate` | Task file validation |
+| `tp set --bulk file` | Bulk update from NDJSON `{id, field, value}` |
 | `tp list --status open` | Filter tasks |
 | `tp status` | Progress summary |

@@ -9,7 +9,7 @@ import (
 
 // DiscoverTaskFile finds the task file in the given directory.
 // If explicit is non-empty, it is returned directly (--file flag).
-// Otherwise, scans dir for *.tasks.json files.
+// Otherwise, scans dir for *.tasks.json files, then one level of subdirectories.
 func DiscoverTaskFile(dir, explicit string) (string, error) {
 	if explicit != "" {
 		if _, err := os.Stat(explicit); err != nil {
@@ -18,15 +18,18 @@ func DiscoverTaskFile(dir, explicit string) (string, error) {
 		return explicit, nil
 	}
 
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return "", fmt.Errorf("read directory: %w", err)
-	}
+	matches := findTaskFiles(dir)
 
-	var matches []string
-	for _, e := range entries {
-		if !e.IsDir() && strings.HasSuffix(e.Name(), ".tasks.json") {
-			matches = append(matches, filepath.Join(dir, e.Name()))
+	// If nothing in current dir, try one level of subdirectories
+	if len(matches) == 0 {
+		entries, err := os.ReadDir(dir)
+		if err == nil {
+			for _, e := range entries {
+				if e.IsDir() && !strings.HasPrefix(e.Name(), ".") {
+					subMatches := findTaskFiles(filepath.Join(dir, e.Name()))
+					matches = append(matches, subMatches...)
+				}
+			}
 		}
 	}
 
@@ -38,6 +41,21 @@ func DiscoverTaskFile(dir, explicit string) (string, error) {
 	default:
 		return "", fmt.Errorf("multiple task files found. Use --file to specify: %s", strings.Join(matches, ", "))
 	}
+}
+
+// findTaskFiles returns *.tasks.json files in a single directory (non-recursive).
+func findTaskFiles(dir string) []string {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+	var matches []string
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".tasks.json") {
+			matches = append(matches, filepath.Join(dir, e.Name()))
+		}
+	}
+	return matches
 }
 
 // ResolveSpecPath resolves a spec path relative to the task file's directory.

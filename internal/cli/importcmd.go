@@ -46,9 +46,9 @@ func runImport(_ *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// Validate (strict atomicity for import)
+	// Validate (strict atomicity unless --force)
 	specPath, specExists := engine.ResolveSpecPath(targetPath, tf.Spec)
-	result := engine.Validate(tf, specPath, specExists, true)
+	result := engine.Validate(tf, specPath, specExists, !importForce)
 	if !result.Valid {
 		if err := output.JSON(result); err != nil {
 			output.Error(ExitFile, err.Error())
