@@ -100,6 +100,13 @@ tp import <file>               # Import + validate (--force to overwrite)
 --no-color       Disable colors
 ```
 
+### Task File Discovery
+Priority: `--file` flag > `TP_FILE` env var > auto-detect.
+Auto-detect scans current dir, then one level of subdirectories for `*.tasks.json`.
+
+### JSON Field Aliases
+- `deps` accepted as alias for `depends_on` in task JSON (import, add)
+
 ## Project Structure
 
 ```

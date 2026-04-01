@@ -117,12 +117,12 @@ func runDone(_ *cobra.Command, args []string) error {
 		}
 
 		// Closure verification
-		if verifyErr := engine.VerifyClosure(task.Acceptance, reason); verifyErr != nil {
+		if verifyErr := engine.VerifyClosure(task.Acceptance, reason, doneGatePassed); verifyErr != nil {
 			errOut := map[string]any{
 				"error":      fmt.Sprintf("closure verification failed: %v", verifyErr),
 				"code":       ExitValidation,
 				"acceptance": task.Acceptance,
-				"hint":       "Rewrite reason to address all acceptance criteria, then retry tp done.",
+				"hint":       "Rewrite reason to address all acceptance criteria, then retry tp done. Use --gate-passed to relax keyword matching.",
 			}
 			data, _ := json.Marshal(errOut)
 			fmt.Fprintln(os.Stderr, string(data))
@@ -279,7 +279,7 @@ func runDoneBatch() error {
 			}
 
 			// Closure verification
-			if verifyErr := engine.VerifyClosure(task.Acceptance, entry.Reason); verifyErr != nil {
+			if verifyErr := engine.VerifyClosure(task.Acceptance, entry.Reason, entry.GatePassed); verifyErr != nil {
 				failures = append(failures, batchFailure{
 					ID:         entry.ID,
 					Error:      fmt.Sprintf("closure verification failed: %v", verifyErr),

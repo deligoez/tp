@@ -72,6 +72,18 @@ Before recording a result:
 2. Verify implementation matches FULL spec
 3. Write reason addressing EACH criterion with file paths
 4. Never use: "deferred", "covered by existing" (without proof), single-word reasons
+5. Use `--gate-passed` (or `"gate_passed":true` in batch) to relax keyword matching — evidence like "2559 tests pass" is accepted without needing exact acceptance wording
+
+**Important:** `tp done` auto-claims open tasks — no need for a separate `tp claim` call.
+
+## Task File Discovery
+
+Priority: `--file` flag > `TP_FILE` env var > auto-detect (current dir, then one level of subdirs).
+
+Set `TP_FILE` to avoid repeating `--file` every command:
+```bash
+export TP_FILE=spec/project.tasks.json
+```
 
 ## Incremental Fallback
 

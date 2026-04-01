@@ -1,9 +1,11 @@
 package model
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestValidTransition(t *testing.T) {
@@ -29,6 +31,36 @@ func TestValidTransition(t *testing.T) {
 			assert.Equal(t, tt.want, ValidTransition(tt.from, tt.to))
 		})
 	}
+}
+
+func TestDepsAlias(t *testing.T) {
+	t.Run("deps populates depends_on", func(t *testing.T) {
+		data := `{"id":"t1","title":"T","status":"open","deps":["a","b"],"estimate_minutes":5,"acceptance":"ok","source_sections":[]}`
+		var task Task
+		require.NoError(t, json.Unmarshal([]byte(data), &task))
+		assert.Equal(t, []string{"a", "b"}, task.DependsOn)
+	})
+
+	t.Run("depends_on still works", func(t *testing.T) {
+		data := `{"id":"t1","title":"T","status":"open","depends_on":["x"],"estimate_minutes":5,"acceptance":"ok","source_sections":[]}`
+		var task Task
+		require.NoError(t, json.Unmarshal([]byte(data), &task))
+		assert.Equal(t, []string{"x"}, task.DependsOn)
+	})
+
+	t.Run("depends_on takes precedence over deps", func(t *testing.T) {
+		data := `{"id":"t1","title":"T","status":"open","depends_on":["x"],"deps":["y"],"estimate_minutes":5,"acceptance":"ok","source_sections":[]}`
+		var task Task
+		require.NoError(t, json.Unmarshal([]byte(data), &task))
+		assert.Equal(t, []string{"x"}, task.DependsOn)
+	})
+
+	t.Run("neither present gives nil", func(t *testing.T) {
+		data := `{"id":"t1","title":"T","status":"open","estimate_minutes":5,"acceptance":"ok","source_sections":[]}`
+		var task Task
+		require.NoError(t, json.Unmarshal([]byte(data), &task))
+		assert.Nil(t, task.DependsOn)
+	})
 }
 
 func TestValidStatus(t *testing.T) {

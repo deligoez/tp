@@ -63,8 +63,9 @@ func ExtractKeywords(criterion string) []string {
 }
 
 // VerifyClosure checks that the closure reason addresses all acceptance criteria.
+// When gatePassed is true, keyword matching is relaxed (agent attests quality gate passed).
 // Returns nil if valid, or an error describing what's missing.
-func VerifyClosure(acceptance, reason string) error {
+func VerifyClosure(acceptance, reason string, gatePassed bool) error {
 	if strings.TrimSpace(reason) == "" {
 		return fmt.Errorf("closure reason is required")
 	}
@@ -82,6 +83,13 @@ func VerifyClosure(acceptance, reason string) error {
 	// Check 2: Minimum reason length
 	if len(reason) < len(acceptance)/2 {
 		return fmt.Errorf("closure reason too short (%d chars). Must be at least %d chars (half of acceptance text)", len(reason), len(acceptance)/2)
+	}
+
+	// When gate-passed is attested, skip per-criterion keyword matching.
+	// The agent already verified the quality gate; demanding exact keyword
+	// overlap penalizes valid evidence like "2559 tests pass" for "composer quality passes".
+	if gatePassed {
+		return nil
 	}
 
 	// Check 1: Per-criterion keyword match

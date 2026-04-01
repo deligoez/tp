@@ -103,7 +103,7 @@ func runClose(_ *cobra.Command, args []string) error {
 		}
 
 		// Run closure verification
-		if err := engine.VerifyClosure(task.Acceptance, reason); err != nil {
+		if err := engine.VerifyClosure(task.Acceptance, reason, false); err != nil {
 			output.Error(ExitValidation, fmt.Sprintf("closure verification failed: %v", err))
 			os.Exit(ExitValidation)
 			return nil

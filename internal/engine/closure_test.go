@@ -101,6 +101,7 @@ func TestVerifyClosure(t *testing.T) {
 		name       string
 		acceptance string
 		reason     string
+		gatePassed bool
 		wantErr    bool
 		errMsg     string
 	}{
@@ -131,11 +132,34 @@ func TestVerifyClosure(t *testing.T) {
 			wantErr:    true,
 			errMsg:     "closure reason is required",
 		},
+		{
+			name:       "gate-passed skips keyword matching",
+			acceptance: "Composer quality passes. All tests green.",
+			reason:     "2559 tests pass, 0 failures, PHPStan level 8 clean",
+			gatePassed: true,
+			wantErr:    false,
+		},
+		{
+			name:       "gate-passed still checks forbidden patterns",
+			acceptance: "Something works.",
+			reason:     "deferred to next sprint",
+			gatePassed: true,
+			wantErr:    true,
+			errMsg:     "deferral is forbidden",
+		},
+		{
+			name:       "gate-passed still checks minimum length",
+			acceptance: "The acceptance criteria must be thoroughly addressed with detailed evidence.",
+			reason:     "tests pass",
+			gatePassed: true,
+			wantErr:    true,
+			errMsg:     "too short",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := VerifyClosure(tt.acceptance, tt.reason)
+			err := VerifyClosure(tt.acceptance, tt.reason, tt.gatePassed)
 			if tt.wantErr {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errMsg)

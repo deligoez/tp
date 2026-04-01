@@ -8,7 +8,7 @@ import (
 )
 
 // DiscoverTaskFile finds the task file in the given directory.
-// If explicit is non-empty, it is returned directly (--file flag).
+// Priority: --file flag > TP_FILE env var > directory scan.
 // Otherwise, scans dir for *.tasks.json files, then one level of subdirectories.
 func DiscoverTaskFile(dir, explicit string) (string, error) {
 	if explicit != "" {
@@ -16,6 +16,13 @@ func DiscoverTaskFile(dir, explicit string) (string, error) {
 			return "", fmt.Errorf("task file not found: %s", explicit)
 		}
 		return explicit, nil
+	}
+
+	if envFile := os.Getenv("TP_FILE"); envFile != "" {
+		if _, err := os.Stat(envFile); err != nil {
+			return "", fmt.Errorf("TP_FILE task file not found: %s", envFile)
+		}
+		return envFile, nil
 	}
 
 	matches := findTaskFiles(dir)
