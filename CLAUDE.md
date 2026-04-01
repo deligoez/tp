@@ -154,6 +154,13 @@ skills/tp/
 - Quality gate after every task: `go test ./... && golangci-lint run`
 - One task = one commit = one `tp commit` call
 
+### Continuous Improvement
+- After each implementation cycle, note friction points and AX issues
+- If a tp command is awkward to use during self-development, fix it immediately
+- If a workflow step is error-prone, add tooling or guidance to prevent it
+- Agent feedback from other projects is high-priority — real-world usage reveals blind spots
+- Every improvement should be evaluated: does this reduce token overhead or agent friction?
+
 ## Tech Stack
 
 - **Language:** Go

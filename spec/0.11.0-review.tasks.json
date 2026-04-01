@@ -1,0 +1,184 @@
+{
+  "version": 1,
+  "spec": "spec/0.11.0-review.md",
+  "created_at": "0001-01-01T00:00:00Z",
+  "updated_at": "2026-04-01T18:25:53.524736Z",
+  "workflow": {
+    "quality_gate": "go test ./... \u0026\u0026 golangci-lint run"
+  },
+  "coverage": {
+    "total_sections": 22,
+    "mapped_sections": 10,
+    "context_only": [
+      "# Spec Review — AI-Powered Specification Quality Check",
+      "## Problem",
+      "## Proposed Solution",
+      "## Design Principles",
+      "## Prompt Generation",
+      "### 3 Review Personas",
+      "## Review Loop",
+      "### Round 1 (always runs)",
+      "### Round 2 (conditional)",
+      "### Round 3+",
+      "### Convergence Output",
+      "## What Doesn't Change"
+    ],
+    "unmapped": []
+  },
+  "tasks": [
+    {
+      "id": "review-cmd",
+      "title": "Create tp review command skeleton",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 5,
+      "acceptance": "newReviewCmd registered in root.go. Accepts spec path arg. Parses spec via existing lint infrastructure (parseSpecFile). Returns JSON shell.",
+      "source_sections": [
+        "## Command"
+      ],
+      "source_lines": "33-37",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "implementer-prompt",
+      "title": "Generate implementer review prompt",
+      "status": "open",
+      "depends_on": [
+        "review-cmd"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Prompt generated with: role=implementer, category=completeness. Per-table questions (heading, rows, line). Per-numbered-list questions (items, range). Per-code-block question. Generic edge case question. Spec content embedded.",
+      "source_sections": [
+        "#### 1. Implementer (completeness)"
+      ],
+      "source_lines": "75-86",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "tester-prompt",
+      "title": "Generate tester review prompt",
+      "status": "open",
+      "depends_on": [
+        "review-cmd"
+      ],
+      "estimate_minutes": 5,
+      "acceptance": "Prompt generated with: role=tester, category=ambiguity. Per-table-row testability question. Per-numbered-item boundary question. Vague language detection question.",
+      "source_sections": [
+        "#### 2. Tester (ambiguity + verifiability)"
+      ],
+      "source_lines": "88-97",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "architect-prompt",
+      "title": "Generate architect review prompt",
+      "status": "open",
+      "depends_on": [
+        "review-cmd"
+      ],
+      "estimate_minutes": 5,
+      "acceptance": "Prompt generated with: role=architect, category=consistency. Contradiction check. 'What doesn't change' check. Cross-reference multiple lists. Performance question.",
+      "source_sections": [
+        "#### 3. Architect (consistency + feasibility)"
+      ],
+      "source_lines": "99-110",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "review-output",
+      "title": "Assemble review JSON output",
+      "status": "open",
+      "depends_on": [
+        "implementer-prompt",
+        "tester-prompt",
+        "architect-prompt"
+      ],
+      "estimate_minutes": 5,
+      "acceptance": "tp review outputs JSON with: spec path, structured_elements (from lint), prompts array (3 prompts), review_loop instructions (max_rounds, convergence, instruction text). Finding format documented in each prompt.",
+      "source_sections": [
+        "### Output",
+        "### Finding Format"
+      ],
+      "source_lines": "39-73,112-115",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "review-tests",
+      "title": "Write review command tests",
+      "status": "open",
+      "depends_on": [
+        "review-output"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Tests: basic output structure, 3 prompts generated, spec-aware questions reference tables/lists, empty spec produces minimal prompts, prompts contain spec content, finding format documented in prompt text.",
+      "source_sections": [
+        "## Implementation Order"
+      ],
+      "source_lines": "149-156",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "skill-update",
+      "title": "Update SKILL.md workflow A",
+      "status": "open",
+      "depends_on": [
+        "review-output"
+      ],
+      "estimate_minutes": 3,
+      "acceptance": "Workflow A step 2 is tp review with sub-agent instructions. Review loop described: spawn 3 sub-agents, collect findings, revise if high-severity, converge in 2 rounds.",
+      "source_sections": [
+        "### SKILL.md Update",
+        "## Integration with Existing tp Workflow"
+      ],
+      "source_lines": "137-156",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "docs-update",
+      "title": "Update CLAUDE.md and README",
+      "status": "open",
+      "depends_on": [
+        "review-output"
+      ],
+      "estimate_minutes": 3,
+      "acceptance": "tp review listed in CLAUDE.md commands and self-development workflow. README has tp review in Spec \u0026 Validation section.",
+      "source_sections": [
+        "### Updated Workflow A (Decompose)"
+      ],
+      "source_lines": "127-135",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ]
+}
