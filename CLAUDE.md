@@ -143,7 +143,7 @@ skills/tp/
    - `tp commit <id> "evidence"` — atomic structured commit
    - `tp done <id> "evidence" --gate-passed --commit <sha>`
    - Or: `tp done <id> "evidence" --gate-passed --auto-commit`
-7. **Report**: `tp report` — review timing and estimation accuracy
+7. **Report**: Last `tp done` auto-includes report summary. Or: `tp report` for full details
 8. **Release**: tag, push, `gh release edit` with notes
 
 ### Rules

@@ -57,6 +57,8 @@ plan=$(tp plan --minimal --json)  # minimal: id + acceptance only (~80% fewer to
 
 If batch reports failures: fix reasons, resubmit `tp done --batch fixes.ndjson`.
 
+When the last task is closed, `tp done` automatically includes a `report` summary in its output with total estimated vs actual minutes, estimation accuracy, and fastest/slowest task.
+
 ### C: Resume (some tasks done/wip)
 
 Same as B. `tp plan` excludes done tasks, puts WIP first.

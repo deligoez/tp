@@ -62,14 +62,23 @@ func runReport(_ *cobra.Command, _ []string) error {
 		return nil
 	}
 
+	tasks, summary := computeReport(tf)
+	return output.JSON(map[string]any{
+		"tasks":   tasks,
+		"summary": summary,
+	})
+}
+
+// computeReport builds the full report from a task file.
+func computeReport(tf *model.TaskFile) ([]reportTask, reportSummary) {
 	var (
-		tasks             []reportTask
-		completedCount    int
-		untrackedCount    int
-		totalEstimated    int
-		totalActual       float64
-		fastest           *idDur
-		slowest           *idDur
+		tasks          []reportTask
+		completedCount int
+		untrackedCount int
+		totalEstimated int
+		totalActual    float64
+		fastest        *idDur
+		slowest        *idDur
 	)
 
 	for i := range tf.Tasks {
@@ -87,7 +96,6 @@ func runReport(_ *cobra.Command, _ []string) error {
 		duration := t.ClosedAt.Sub(*t.StartedAt)
 		actualMin := duration.Minutes()
 
-		// Guard against negative duration (clock skew, manual edits)
 		if actualMin < 0 {
 			untrackedCount++
 			continue
@@ -144,10 +152,7 @@ func runReport(_ *cobra.Command, _ []string) error {
 		SlowestTask:           slowest,
 	}
 
-	return output.JSON(map[string]any{
-		"tasks":   tasks,
-		"summary": summary,
-	})
+	return tasks, summary
 }
 
 func roundTo(val float64, places int) float64 {

@@ -222,7 +222,7 @@ func runDone(_ *cobra.Command, args []string) error {
 			}
 		}
 
-		return output.JSON(map[string]any{
+		result := map[string]any{
 			"closed": task.ID,
 			"remaining": map[string]any{
 				"total": len(tf.Tasks),
@@ -232,7 +232,15 @@ func runDone(_ *cobra.Command, args []string) error {
 				"ready": readyCount,
 			},
 			"has_next": readyCount > 0,
-		})
+		}
+
+		// Auto-report when all tasks are done
+		if openCount == 0 && wipCount == 0 {
+			_, summary := computeReport(tf)
+			result["report"] = summary
+		}
+
+		return output.JSON(result)
 	})
 }
 
@@ -412,6 +420,12 @@ func runDoneBatch() error {
 		}
 		if len(failures) > 0 {
 			result["failures"] = failures
+		}
+
+		// Auto-report when all tasks are done
+		if openCount == 0 && wipCount == 0 {
+			_, summary := computeReport(tf)
+			result["report"] = summary
 		}
 
 		if jsonErr := output.JSON(result); jsonErr != nil {
