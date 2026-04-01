@@ -47,6 +47,7 @@ go build -ldflags="-s -w" -o tp ./cmd/tp
 ### Primary (2-call architecture)
 ```bash
 tp plan                        # Full execution plan in one call (THE primary command)
+tp plan --minimal              # Minimal: id + acceptance only (~80% fewer tokens)
 tp done <id> <reason>          # Close task with implicit claim + verification
 tp done --batch results.ndjson # Batch close from NDJSON (primary close mechanism)
 ```

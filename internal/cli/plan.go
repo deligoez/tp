@@ -15,12 +15,18 @@ import (
 var (
 	planFrom  string
 	planLevel string
+	planMinimal bool
 )
 
 type planResult struct {
 	Workflow       model.Workflow `json:"workflow"`
-	ExecutionOrder any            `json:"execution_order"` // []planTask or []output.CompactTaskView
+	ExecutionOrder any            `json:"execution_order"` // []planTask, []output.CompactTaskView, or []agentTask
 	Summary        planSummary   `json:"summary"`
+}
+
+type agentTask struct {
+	ID         string `json:"id"`
+	Acceptance string `json:"acceptance"`
 }
 
 type planTask struct {
@@ -59,6 +65,7 @@ Exit 4 when all tasks are done.`,
 	}
 	cmd.Flags().StringVar(&planFrom, "from", "", "start from this task ID onward")
 	cmd.Flags().StringVar(&planLevel, "level", "", "filter by parallelism levels (comma-separated: 0,1)")
+	cmd.Flags().BoolVar(&planMinimal, "minimal", false, "minimal output: only id + acceptance per task (~80% fewer tokens)")
 	return cmd
 }
 
@@ -160,13 +167,23 @@ func runPlan(_ *cobra.Command, _ []string) error {
 	}
 
 	// Build execution order
-	if flagCompact {
+	switch {
+	case planMinimal:
+		tasks := make([]agentTask, len(sorted))
+		for i := range sorted {
+			tasks[i] = agentTask{
+				ID:         sorted[i].ID,
+				Acceptance: sorted[i].Acceptance,
+			}
+		}
+		result.ExecutionOrder = tasks
+	case flagCompact:
 		compact := make([]output.CompactTaskView, len(sorted))
 		for i := range sorted {
 			compact[i] = output.CompactTask(&sorted[i])
 		}
 		result.ExecutionOrder = compact
-	} else {
+	default:
 		tasks := make([]planTask, len(sorted))
 		for i := range sorted {
 			t := &sorted[i]

@@ -28,7 +28,7 @@ The 2-call architecture minimizes token overhead:
 
 ```
 # Phase 1: Get full plan (ONE call)
-plan=$(tp plan --json)
+plan=$(tp plan --minimal --json)  # minimal: id + acceptance only (~80% fewer tokens)
 
 # Phase 2: Implement each task (ZERO tp calls)
 # Read task context from plan.execution_order
@@ -98,7 +98,8 @@ tp done <id> "reason" --gate-passed
 
 | Command | Purpose |
 |---------|---------|
-| `tp plan` | Full execution plan (PRIMARY) |
+| `tp plan --minimal` | Minimal plan: id + acceptance (~80% fewer tokens) |
+| `tp plan` | Full execution plan |
 | `tp done --batch file` | Batch close (PRIMARY) |
 | `tp next` | Incremental fallback |
 | `tp done <id> "reason"` | Single close |
