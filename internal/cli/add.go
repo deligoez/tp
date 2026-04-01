@@ -113,6 +113,30 @@ func readBulkTasks(path string) []model.Task {
 	return tasks
 }
 
+// computeAccuracyRatio returns estimated/actual ratio from done tasks with timing data.
+// Returns 0 if insufficient data.
+func computeAccuracyRatio(tf *model.TaskFile) float64 {
+	var totalEstimated, totalActual float64
+	tracked := 0
+	for i := range tf.Tasks {
+		t := &tf.Tasks[i]
+		if t.Status != model.StatusDone || t.StartedAt == nil || t.ClosedAt == nil {
+			continue
+		}
+		actual := t.ClosedAt.Sub(*t.StartedAt).Minutes()
+		if actual <= 0 {
+			continue
+		}
+		totalEstimated += float64(t.EstimateMinutes)
+		totalActual += actual
+		tracked++
+	}
+	if tracked < 3 || totalActual == 0 {
+		return 0 // not enough data
+	}
+	return totalEstimated / totalActual
+}
+
 func addTask(task *model.Task) error {
 	taskFilePath, err := engine.DiscoverTaskFile(".", flagFile)
 	if err != nil {
@@ -147,6 +171,14 @@ func addTask(task *model.Task) error {
 				output.Error(ExitState, fmt.Sprintf("task ID already exists: %s (use tp set to update)", task.ID))
 				os.Exit(ExitState)
 				return nil
+			}
+		}
+
+		// Estimation calibration: warn if historical accuracy suggests overestimation
+		if task.EstimateMinutes > 0 {
+			if ratio := computeAccuracyRatio(tf); ratio > 2.0 {
+				output.Info(fmt.Sprintf("estimation calibration: historical accuracy %.1fx — estimate %d min may be high, consider %d min",
+					ratio, task.EstimateMinutes, max(1, int(float64(task.EstimateMinutes)/ratio))))
 			}
 		}
 

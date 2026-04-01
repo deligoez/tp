@@ -85,6 +85,7 @@ Before recording a result:
 3. Write reason addressing EACH criterion with file paths
 4. Never use: "deferred", "covered by existing" (without proof), single-word reasons
 5. Use `--gate-passed` (or `"gate_passed":true` in batch) to relax keyword matching — evidence like "2559 tests pass" is accepted without needing exact acceptance wording
+6. Use `--covered-by <task-id>` when a task is satisfied by work in another done task (not a deferral — work IS done, just in a different task). Batch: `"covered_by":"other-task-id"`
 
 **Important:** `tp done` auto-claims open tasks — no need for a separate `tp claim` call.
 

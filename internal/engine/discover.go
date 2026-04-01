@@ -65,13 +65,32 @@ func findTaskFiles(dir string) []string {
 	return matches
 }
 
-// ResolveSpecPath resolves a spec path relative to the task file's directory.
+// ResolveSpecPath resolves a spec path, trying multiple strategies:
+// 1. Relative to task file's directory
+// 2. Relative to CWD
+// 3. As absolute path
 func ResolveSpecPath(taskFilePath, specField string) (string, bool) {
+	// Strategy 1: relative to task file directory
 	dir := filepath.Dir(taskFilePath)
 	resolved := filepath.Join(dir, specField)
-
-	if _, err := os.Stat(resolved); err != nil {
-		return resolved, false
+	if _, err := os.Stat(resolved); err == nil {
+		return resolved, true
 	}
-	return resolved, true
+
+	// Strategy 2: relative to CWD
+	if _, err := os.Stat(specField); err == nil {
+		absPath, _ := filepath.Abs(specField)
+		return absPath, true
+	}
+
+	// Strategy 3: spec field might be just the filename, try same dir as task file
+	base := filepath.Base(specField)
+	sameDirPath := filepath.Join(dir, base)
+	if sameDirPath != resolved {
+		if _, err := os.Stat(sameDirPath); err == nil {
+			return sameDirPath, true
+		}
+	}
+
+	return resolved, false
 }

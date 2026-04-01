@@ -22,6 +22,7 @@ var (
 	doneCommit     string
 	doneBatch      string
 	doneAutoCommit bool
+	doneCoveredBy  string
 )
 
 func newDoneCmd() *cobra.Command {
@@ -43,6 +44,7 @@ On error: {error, code, acceptance, hint} on stderr. Task unchanged.`,
 	cmd.Flags().StringVar(&doneCommit, "commit", "", "record implementing commit SHA")
 	cmd.Flags().StringVar(&doneBatch, "batch", "", "batch close from NDJSON file")
 	cmd.Flags().BoolVar(&doneAutoCommit, "auto-commit", false, "stage + commit before closing (structured message)")
+	cmd.Flags().StringVar(&doneCoveredBy, "covered-by", "", "close as covered by another done task (skips closure verification)")
 	return cmd
 }
 
@@ -120,8 +122,24 @@ func runDone(_ *cobra.Command, args []string) error {
 			return nil
 		}
 
+		// Verify covered-by reference if provided
+		isCoveredBy := doneCoveredBy != ""
+		if isCoveredBy {
+			ref, _, refErr := model.FindTask(tf, doneCoveredBy)
+			if refErr != nil {
+				output.Error(ExitState, fmt.Sprintf("--covered-by: %v", refErr))
+				os.Exit(ExitState)
+				return nil
+			}
+			if ref.Status != model.StatusDone {
+				output.Error(ExitState, fmt.Sprintf("--covered-by: task %s is %s (must be done)", ref.ID, ref.Status))
+				os.Exit(ExitState)
+				return nil
+			}
+		}
+
 		// Closure verification
-		if verifyErr := engine.VerifyClosure(task.Acceptance, reason, doneGatePassed); verifyErr != nil {
+		if verifyErr := engine.VerifyClosure(task.Acceptance, reason, doneGatePassed, isCoveredBy); verifyErr != nil {
 			errOut := map[string]any{
 				"error":      fmt.Sprintf("closure verification failed: %v", verifyErr),
 				"code":       ExitValidation,
@@ -224,6 +242,7 @@ type batchEntry struct {
 	GatePassed bool       `json:"gate_passed"`
 	Commit     string     `json:"commit"`
 	StartedAt  *time.Time `json:"started_at"`
+	CoveredBy  string     `json:"covered_by"`
 }
 
 type batchFailure struct {
@@ -307,8 +326,22 @@ func runDoneBatch() error {
 				}
 			}
 
+			// Verify covered-by reference if provided
+			isBatchCoveredBy := entry.CoveredBy != ""
+			if isBatchCoveredBy {
+				ref, _, refErr := model.FindTask(tf, entry.CoveredBy)
+				if refErr != nil || ref.Status != model.StatusDone {
+					if refErr != nil {
+						failures = append(failures, batchFailure{ID: entry.ID, Error: fmt.Sprintf("covered_by: %v", refErr)})
+					} else {
+						failures = append(failures, batchFailure{ID: entry.ID, Error: fmt.Sprintf("covered_by: task %s is %s (must be done)", ref.ID, ref.Status)})
+					}
+					continue
+				}
+			}
+
 			// Closure verification
-			if verifyErr := engine.VerifyClosure(task.Acceptance, entry.Reason, entry.GatePassed); verifyErr != nil {
+			if verifyErr := engine.VerifyClosure(task.Acceptance, entry.Reason, entry.GatePassed, isBatchCoveredBy); verifyErr != nil {
 				failures = append(failures, batchFailure{
 					ID:         entry.ID,
 					Error:      fmt.Sprintf("closure verification failed: %v", verifyErr),

@@ -144,14 +144,14 @@ func TestValidateLineCoverage_NoSourceLines(t *testing.T) {
 	}
 
 	findings := ValidateLineCoverage(tf, specPath)
-	hasInfo := false
+	hasWarning := false
 	for _, f := range findings {
-		if f.Rule == "line-coverage" && f.Severity == "info" {
-			hasInfo = true
-			assert.Contains(t, f.Message, "no tasks have source_lines")
+		if f.Rule == "line-coverage" && f.Severity == "warning" {
+			hasWarning = true
+			assert.Contains(t, f.Message, "missing source_lines")
 		}
 	}
-	assert.True(t, hasInfo)
+	assert.True(t, hasWarning)
 }
 
 func TestValidateLineCoverage_SkipsEmptyLines(t *testing.T) {

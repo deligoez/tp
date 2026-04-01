@@ -52,12 +52,12 @@ func ValidateLineCoverage(tf *model.TaskFile, specPath string) []Finding {
 		}
 	}
 
-	// If no tasks have source_lines, skip (can't compute coverage)
+	// If no tasks have source_lines, warn (can't compute coverage)
 	if tasksWithLines == 0 {
 		findings = append(findings, Finding{
-			Severity: "info",
+			Severity: "warning",
 			Rule:     "line-coverage",
-			Message:  "no tasks have source_lines — line coverage not computed",
+			Message:  fmt.Sprintf("%d tasks missing source_lines — line coverage cannot be computed. Add source_lines (e.g. \"15-42\") to each task for spec coverage tracking.", len(tf.Tasks)),
 		})
 		return findings
 	}

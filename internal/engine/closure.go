@@ -64,10 +64,17 @@ func ExtractKeywords(criterion string) []string {
 
 // VerifyClosure checks that the closure reason addresses all acceptance criteria.
 // When gatePassed is true, keyword matching is relaxed (agent attests quality gate passed).
+// When coveredBy is true, forbidden patterns and keyword matching are skipped
+// (task is covered by another done task — not a deferral).
 // Returns nil if valid, or an error describing what's missing.
-func VerifyClosure(acceptance, reason string, gatePassed bool) error {
+func VerifyClosure(acceptance, reason string, gatePassed, coveredBy bool) error {
 	if strings.TrimSpace(reason) == "" {
 		return fmt.Errorf("closure reason is required")
+	}
+
+	// covered-by skips all checks (referenced task already verified)
+	if coveredBy {
+		return nil
 	}
 
 	// Check forbidden patterns first

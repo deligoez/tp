@@ -51,6 +51,7 @@ tp plan --minimal              # Minimal: id + acceptance only (~80% fewer token
 tp commit <id> [reason]        # Stage + structured commit + record SHA (--files for selective)
 tp done <id> <reason>          # Close task with implicit claim + verification
 tp done <id> --auto-commit     # Commit + close in one call
+tp done <id> --covered-by <id> # Close as covered by another done task
 tp done --batch results.ndjson # Batch close from NDJSON (primary close mechanism)
 ```
 
