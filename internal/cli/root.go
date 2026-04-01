@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"runtime/debug"
 
 	"github.com/spf13/cobra"
 
@@ -44,6 +45,11 @@ INCREMENTAL (1 task at a time):
 	cmd.PersistentFlags().BoolVar(&flagQuiet, "quiet", false, "suppress info-level output")
 	cmd.PersistentFlags().BoolVar(&flagNoColor, "no-color", false, "disable colored output")
 
+	if version == "dev" {
+		if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
+			version = info.Main.Version
+		}
+	}
 	cmd.Version = version
 	cmd.SetVersionTemplate("tp version {{.Version}}\n")
 
