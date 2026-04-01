@@ -45,18 +45,22 @@ The 2-call architecture minimizes token overhead:
 plan=$(tp plan --minimal --json)  # minimal: id + acceptance only (~80% fewer tokens)
 
 # Phase 2: Implement each task
+# IMPORTANT: Always note the current time before starting each task.
+# This enables accurate duration tracking in tp report.
+#
 # For each task in plan.execution_order:
-#   1. Read task.acceptance
-#   2. Implement the task
-#   3. Run plan.workflow.quality_gate
-#   4. tp commit <id> "evidence"           # structured commit, records SHA
-#   5. tp done <id> "evidence" --gate-passed --commit <sha>
-
+#   1. Note current time (started_at)
+#   2. Read task.acceptance
+#   3. Implement the task
+#   4. Run plan.workflow.quality_gate
+#   5. tp commit <id> "evidence"           # structured commit, records SHA
+#   6. tp done <id> "evidence" --gate-passed --commit <sha>
+#
 # Alternative: commit + close in one call per task
 #   tp done <id> "evidence" --gate-passed --auto-commit
-
-# Alternative: batch close (if commits already done)
-#   Record results to results.ndjson
+#
+# Alternative: batch close (include started_at for accurate timing)
+#   {"id":"x","reason":"y","gate_passed":true,"started_at":"<iso8601>","commit":"<sha>"}
 #   tp done --batch results.ndjson
 ```
 
