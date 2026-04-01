@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.11.0-review.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-04-01T18:27:44.948635Z",
+  "updated_at": "2026-04-01T18:30:02.391235Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run"
   },
@@ -125,7 +125,7 @@
     {
       "id": "review-tests",
       "title": "Write review command tests",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "review-output"
       ],
@@ -135,16 +135,16 @@
         "## Implementation Order"
       ],
       "source_lines": "149-156",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-04-01T18:28:35.281366Z",
+      "closed_at": "2026-04-01T18:28:35.470876Z",
+      "closed_reason": "5 integration tests: basic (3 prompts, roles, spec content), structured elements in prompts (table/list references), finding format in all prompts, empty spec (minimal prompts), architect cross-reference (multiple lists).",
+      "gate_passed_at": "2026-04-01T18:28:35.470876Z",
+      "commit_sha": "85fceab"
     },
     {
       "id": "skill-update",
       "title": "Update SKILL.md workflow A",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "review-output"
       ],
@@ -155,16 +155,16 @@
         "## Integration with Existing tp Workflow"
       ],
       "source_lines": "137-156",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
+      "started_at": "2026-04-01T18:30:02.386844Z",
+      "closed_at": "2026-04-01T18:30:02.386855Z",
+      "closed_reason": "SKILL.md Workflow A updated: step 2 is tp review with sub-agent instructions. 3 prompts, parallel spawn, NDJSON findings, 2-round convergence. Key Commands table updated with tp review.",
+      "gate_passed_at": "2026-04-01T18:30:02.386855Z",
       "commit_sha": null
     },
     {
       "id": "docs-update",
       "title": "Update CLAUDE.md and README",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "review-output"
       ],
@@ -174,10 +174,10 @@
         "### Updated Workflow A (Decompose)"
       ],
       "source_lines": "127-135",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
+      "started_at": "2026-04-01T18:30:02.391234Z",
+      "closed_at": "2026-04-01T18:30:02.391235Z",
+      "closed_reason": "tp review listed in CLAUDE.md commands and self-dev workflow (step 3). README Spec \u0026 Validation section has tp review. Spec Quality section documents review prompt generation.",
+      "gate_passed_at": "2026-04-01T18:30:02.391235Z",
       "commit_sha": null
     }
   ]

@@ -86,6 +86,7 @@ tp stats                       # Parallelism analysis
 ### Spec & Validation
 ```bash
 tp lint <spec.md>              # Spec quality checks (no task file needed)
+tp review <spec.md>            # Adversarial review prompts (implementer, tester, architect)
 tp validate                    # Task file validation (--strict)
 ```
 
@@ -136,7 +137,8 @@ skills/tp/
 
 1. **Write a spec** in `spec/<version>.md` describing the feature
 2. **Lint the spec**: `tp lint spec/<version>.md`
-3. **Decompose into tasks** with `source_lines` for every task
+3. **Review the spec**: `tp review spec/<version>.md` → spawn sub-agents, fix findings
+4. **Decompose into tasks** with `source_lines` for every task
 4. **Import**: `tp import <tasks.json>`
 5. **Validate**: `tp validate` — check line coverage gaps
 6. **Implement each task**, then:

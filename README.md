@@ -116,8 +116,8 @@ tp report                      # Per-task duration + estimation accuracy
 ### Spec & Validation
 ```bash
 tp lint spec.md                # Spec quality + structured element detection
-tp validate                    # Task file validation (--strict for atomicity errors)
-tp validate                    # Includes line coverage check (source_lines vs spec)
+tp review spec.md              # Adversarial review prompts (3 personas)
+tp validate                    # Task file + line coverage + atomicity (--strict)
 ```
 
 ### Data
@@ -237,6 +237,13 @@ tp done auth-model "evidence" --gate-passed --auto-commit
 
 ```bash
 tp lint spec.md --json | jq .structured_elements
+```
+
+`tp review` generates 3 adversarial review prompts (implementer, tester, architect) that agents feed to sub-agents:
+
+```bash
+tp review spec.md --json | jq '.prompts | length'
+# → 3 (one per persona, each with spec-structure-aware questions)
 ```
 
 `tp validate` checks line coverage — verifying that task `source_lines` cover the entire spec:

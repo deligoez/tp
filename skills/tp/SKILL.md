@@ -18,18 +18,23 @@ This skill activates when:
 
 ### A: Decompose (spec exists, no .tasks.json)
 
-1. `tp lint <spec.md>` — fix all errors, review `structured_elements` output
-2. Read spec, decompose into tasks (JSON):
+1. `tp lint <spec.md>` — fix structural issues, review `structured_elements`
+2. `tp review <spec.md>` — adversarial review loop:
+   - tp generates 3 targeted prompts (implementer, tester, architect)
+   - Spawn sub-agents with each prompt via the Agent tool (can be parallel)
+   - Collect NDJSON findings, fix spec, re-review if high-severity findings
+   - Converge within 2 rounds (stop when no new high-severity)
+3. Read spec, decompose into tasks (JSON):
    - Every task MUST have `source_lines` mapping to spec line ranges (e.g., `"15-42"` or `"15-42,50-60"`)
    - Every table data row must appear in some task's acceptance criteria
-   - Numbered test lists (#1, #2...) must preserve numbers in acceptance (e.g., "Tests: #26 lifecycle, #27 multi-pause, ...")
-3. **Backward pass** — verify coverage:
+   - Numbered test lists (#1, #2...) must preserve numbers in acceptance
+4. **Backward pass** — verify coverage:
    - For each table in `structured_elements`: does every row map to a task's acceptance?
    - For each numbered list: does every item have a task or explicit acceptance entry?
-   - If spec has multiple checklists (e.g., "What Gets Added" + "Implementation Order"), take the union — items in one but not the other = potential missing task
+   - If spec has multiple checklists, take the union — gaps = potential missing task
    - Run `tp validate` — check `line_coverage` for uncovered spec line gaps
-4. `tp import tasks.json` — validates and stores
-5. If `tp validate` reports line coverage gaps, inspect uncovered ranges and add missing tasks or expand source_lines
+5. `tp import tasks.json` — validates and stores (auto-fills coverage)
+6. If `tp validate` reports line coverage gaps, inspect uncovered ranges and add tasks
 
 ### B: Execute (tasks exist) — PRIMARY
 
@@ -122,8 +127,9 @@ tp done <id> "reason" --gate-passed
 | `tp done --batch file` | Batch close |
 | `tp next` | Incremental fallback |
 | `tp done <id> "reason"` | Single close |
-| `tp lint spec.md` | Spec quality check |
-| `tp validate` | Task file validation |
+| `tp lint spec.md` | Spec quality + structured elements |
+| `tp review spec.md` | Adversarial review prompts (3 personas) |
+| `tp validate` | Task file validation + line coverage |
 | `tp set --bulk file` | Bulk update from NDJSON `{id, field, value}` |
 | `tp list --status open` | Filter tasks |
 | `tp status` | Progress summary |
