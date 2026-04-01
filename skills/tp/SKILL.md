@@ -1,3 +1,8 @@
+---
+name: tp
+description: Spec-to-task lifecycle manager for AI coding agents. Decomposes specs into atomic tasks, manages execution order via dependency graph, and batch-closes with evidence.
+---
+
 # tp — Task Plan Skill
 
 Spec-to-task lifecycle for AI agents. Manages atomic task decomposition, execution, and closure.

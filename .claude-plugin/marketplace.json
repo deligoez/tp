@@ -1,0 +1,18 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "tp",
+  "description": "Task Plan: spec-to-task lifecycle for AI agents",
+  "owner": {
+    "name": "Yunus Emre Deligöz"
+  },
+  "plugins": [
+    {
+      "name": "tp",
+      "description": "Spec-to-task lifecycle manager for AI coding agents. Decomposes specs into atomic tasks, manages execution order via dependency graph, and batch-closes with evidence.",
+      "source": "./",
+      "strict": false,
+      "skills": ["./skills/tp"],
+      "category": "development"
+    }
+  ]
+}
