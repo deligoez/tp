@@ -117,17 +117,42 @@ Auto-detect scans current dir, then one level of subdirectories for `*.tasks.jso
 ```
 cmd/tp/              Main entry point
 internal/
-  cli/               Cobra commands (plan, done, next, list, claim, close, ...)
-  engine/            Core logic (toposort, closure, validate, lint, parallel, discover, lock, excerpt)
+  cli/               Cobra commands (plan, done, next, list, claim, close, commit, report, ...)
+  engine/            Core logic (toposort, closure, validate, lint, parallel, discover, lock, excerpt, linecoverage, structured)
   model/             Data types (TaskFile, Task, Workflow, Coverage)
   output/            Formatting (JSON/TTY, compact, colors, hint errors)
-docs/
-  spec.md            Source specification (1431 lines)
+spec/
+  0.1.0.md           Original specification (1431 lines)
+  <version>.md       New feature specs — one file per version/feature
 skills/tp/
-  SKILL.md           Claude Code skill (3 workflows, 2-call pattern)
+  SKILL.md           Claude Code skill (workflows, decomposition rules, commit format)
 .claude-plugin/
-  plugin.json        Skill distribution manifest
+  marketplace.json   Skill distribution manifest
 ```
+
+## Self-Development: tp Uses tp
+
+**tp develops itself using its own workflow.** When implementing new features:
+
+1. **Write a spec** in `spec/<version>.md` describing the feature
+2. **Lint the spec**: `tp lint spec/<version>.md`
+3. **Decompose into tasks** with `source_lines` for every task
+4. **Import**: `tp import <tasks.json>`
+5. **Validate**: `tp validate` — check line coverage gaps
+6. **Implement each task**, then:
+   - `tp commit <id> "evidence"` — atomic structured commit
+   - `tp done <id> "evidence" --gate-passed --commit <sha>`
+   - Or: `tp done <id> "evidence" --gate-passed --auto-commit`
+7. **Report**: `tp report` — review timing and estimation accuracy
+8. **Release**: tag, push, `gh release edit` with notes
+
+### Rules
+- Every task MUST have `source_lines` mapping to spec lines
+- Every table row and numbered list item in spec must appear in a task's acceptance
+- Run backward pass: `tp validate` line coverage + structured element check
+- Use `--covered-by` when a task is satisfied by another task's work
+- Quality gate after every task: `go test ./... && golangci-lint run`
+- One task = one commit = one `tp commit` call
 
 ## Tech Stack
 
