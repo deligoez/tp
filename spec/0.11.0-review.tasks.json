@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.11.0-review.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-04-01T18:25:53.524736Z",
+  "updated_at": "2026-04-01T18:27:44.948635Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run"
   },
@@ -29,7 +29,7 @@
     {
       "id": "review-cmd",
       "title": "Create tp review command skeleton",
-      "status": "open",
+      "status": "done",
       "depends_on": [],
       "estimate_minutes": 5,
       "acceptance": "newReviewCmd registered in root.go. Accepts spec path arg. Parses spec via existing lint infrastructure (parseSpecFile). Returns JSON shell.",
@@ -37,16 +37,16 @@
         "## Command"
       ],
       "source_lines": "33-37",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-04-01T18:27:23.278769Z",
+      "closed_at": "2026-04-01T18:27:23.489304Z",
+      "closed_reason": "newReviewCmd registered in root.go query group. Parses spec via parseSpecFile, generates 3 prompts, returns reviewResult JSON. Structured elements from CheckStructuredElements.",
+      "gate_passed_at": "2026-04-01T18:27:23.489304Z",
+      "commit_sha": "1060ae0"
     },
     {
       "id": "implementer-prompt",
       "title": "Generate implementer review prompt",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "review-cmd"
       ],
@@ -56,16 +56,16 @@
         "#### 1. Implementer (completeness)"
       ],
       "source_lines": "75-86",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
+      "started_at": "2026-04-01T18:27:31.45094Z",
+      "closed_at": "2026-04-01T18:27:31.450942Z",
+      "closed_reason": "generateImplementerPrompt generates role=implementer, category=completeness. Per-table: heading, rows, line, edge case question. Per-numbered-list: items, range, failure question. Generic: happy path failures, implicit assumptions. Spec content embedded.",
+      "gate_passed_at": "2026-04-01T18:27:31.450942Z",
       "commit_sha": null
     },
     {
       "id": "tester-prompt",
       "title": "Generate tester review prompt",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "review-cmd"
       ],
@@ -75,16 +75,16 @@
         "#### 2. Tester (ambiguity + verifiability)"
       ],
       "source_lines": "88-97",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
+      "started_at": "2026-04-01T18:27:38.172648Z",
+      "closed_at": "2026-04-01T18:27:38.172649Z",
+      "closed_reason": "generateTesterPrompt: role=tester, category=ambiguity. Per-table testability, per-list boundary conditions, vague language detection, contradictory interpretation check.",
+      "gate_passed_at": "2026-04-01T18:27:38.172649Z",
       "commit_sha": null
     },
     {
       "id": "architect-prompt",
       "title": "Generate architect review prompt",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "review-cmd"
       ],
@@ -94,16 +94,16 @@
         "#### 3. Architect (consistency + feasibility)"
       ],
       "source_lines": "99-110",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
+      "started_at": "2026-04-01T18:27:38.178149Z",
+      "closed_at": "2026-04-01T18:27:38.178151Z",
+      "closed_reason": "generateArchitectPrompt: role=architect, category=consistency. Contradiction check, What doesn't change check, performance check, cross-reference multiple lists, implementation order vs deps.",
+      "gate_passed_at": "2026-04-01T18:27:38.178151Z",
       "commit_sha": null
     },
     {
       "id": "review-output",
       "title": "Assemble review JSON output",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "implementer-prompt",
         "tester-prompt",
@@ -116,10 +116,10 @@
         "### Finding Format"
       ],
       "source_lines": "39-73,112-115",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
+      "started_at": "2026-04-01T18:27:44.948634Z",
+      "closed_at": "2026-04-01T18:27:44.948635Z",
+      "closed_reason": "tp review outputs JSON: spec path, structured_elements, 3 prompts array (implementer/tester/architect), review_loop with max_rounds=2, convergence criterion, instruction text. Finding format in each prompt as NDJSON.",
+      "gate_passed_at": "2026-04-01T18:27:44.948635Z",
       "commit_sha": null
     },
     {
