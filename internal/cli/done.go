@@ -23,6 +23,7 @@ var (
 	doneBatch      string
 	doneAutoCommit bool
 	doneCoveredBy  string
+	doneFiles      string
 )
 
 func newDoneCmd() *cobra.Command {
@@ -45,6 +46,7 @@ On error: {error, code, acceptance, hint} on stderr. Task unchanged.`,
 	cmd.Flags().StringVar(&doneBatch, "batch", "", "batch close from NDJSON file")
 	cmd.Flags().BoolVar(&doneAutoCommit, "auto-commit", false, "stage + commit before closing (structured message)")
 	cmd.Flags().StringVar(&doneCoveredBy, "covered-by", "", "close as covered by another done task (skips closure verification)")
+	cmd.Flags().StringVar(&doneFiles, "files", "", "file globs to stage for --auto-commit (default: all changes)")
 	return cmd
 }
 
@@ -154,7 +156,7 @@ func runDone(_ *cobra.Command, args []string) error {
 
 		// Auto-commit if requested
 		if doneAutoCommit && doneCommit == "" {
-			if err := gitStage(""); err != nil {
+			if err := gitStage(doneFiles); err != nil {
 				output.Error(ExitFile, fmt.Sprintf("auto-commit: git stage failed: %v", err))
 				os.Exit(ExitFile)
 				return nil

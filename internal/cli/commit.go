@@ -156,6 +156,8 @@ func buildCommitMessage(task *model.Task, reason string) string {
 
 func gitStage(filesFlag string) error {
 	if filesFlag == "" {
+		// Default: tracked modified + new files. Safe — won't grab unrelated untracked files.
+		// Use --files to be more selective, or stage manually before tp commit.
 		return runGit("add", "-A")
 	}
 
