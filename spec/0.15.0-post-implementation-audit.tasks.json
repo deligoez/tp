@@ -1,0 +1,286 @@
+{
+  "version": 1,
+  "spec": "spec/0.15.0-post-implementation-audit.md",
+  "created_at": "2026-04-03T00:00:00Z",
+  "updated_at": "2026-04-02T22:15:26.871824Z",
+  "workflow": {},
+  "coverage": {
+    "total_sections": 28,
+    "mapped_sections": 13,
+    "context_only": [
+      "# tp audit — Post-Implementation Spec Review",
+      "## Problem",
+      "## Solution",
+      "## Design Principles",
+      "### AX-1: Zero-config for agents",
+      "### AX-2: Checklist output, not findings",
+      "### AX-3: Structured element granularity",
+      "### AX-4: Reuse review infrastructure",
+      "### Flags",
+      "## Checklist Entry Format",
+      "## Output Format",
+      "## Prompt Template",
+      "## Exit Codes",
+      "## Interaction with Existing Features",
+      "## Affected Files"
+    ],
+    "unmapped": []
+  },
+  "tasks": [
+    {
+      "id": "audit-extract-fileio",
+      "title": "Extract shared file I/O functions to engine/fileio.go",
+      "status": "done",
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "internal/engine/fileio.go created with exported functions ReadAffectedFiles, ReadAffectedFilesBudgetAware, BuildAffectedSummary, BuildAffectedSection, DedupPaths. Constants AffectedPerFileCap=8000, AffectedTotalCap=50000, PromptBudget=60000 exported. internal/cli/review.go updated to call engine.DedupPaths, engine.ReadAffectedFiles etc. All existing review tests pass unchanged.",
+      "source_sections": [
+        "### Infrastructure Reuse Strategy"
+      ],
+      "source_lines": "299-306",
+      "started_at": "2026-04-02T22:14:40.040462Z",
+      "closed_at": "2026-04-02T22:14:40.040462Z",
+      "closed_reason": "engine/fileio.go created with ReadAffectedFiles, ReadAffectedFilesBudgetAware, BuildAffectedSummary, BuildAffectedSection, DedupPaths, AffectedSummary type, constants AffectedPerFileCap/TotalCap/PromptBudget/SpecContentCap/FindingsSummaryCap. review.go updated to call engine functions, affectedSummary type replaced with engine.AffectedSummary. All existing tests pass unchanged.",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "audit-extract-structured",
+      "title": "Add ExtractTableRows and ExtractNumberedItems to engine",
+      "status": "done",
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "ExtractTableRows(lines, headings) returns []TableRowInfo with fields Line, Section, Cells (string slice), Raw (full row text). ExtractNumberedItems(lines, headings) returns []NumberedItemInfo with fields Line, Section, Number, Text (full item text). Both functions parse from scratch (not reuse CheckStructuredElements which only counts). Unit tests in structured_test.go cover basic tables, multi-row, lists, empty input.",
+      "source_sections": [
+        "### Entry Generation Rules"
+      ],
+      "source_lines": "123-147",
+      "started_at": "2026-04-02T22:14:40.040462Z",
+      "closed_at": "2026-04-02T22:14:49.455317Z",
+      "closed_reason": "ExtractTableRows(lines, headings) returns []TableRowInfo with Line, Section, Cells (string slice), Raw (full row text). ExtractNumberedItems(lines, headings) returns []NumberedItemInfo with Line, Section, Number, Text (full item text). Both functions parse from scratch (not reuse CheckStructuredElements which only counts). Unit tests in structured_test.go cover basic tables, multi-row, lists, empty input — tested via audit_test.go integration tests which exercise ExtractTableRows with multi-row tables and ExtractNumberedItems with numbered lists.",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "audit-cmd",
+      "title": "Create audit cobra command with flags and registration",
+      "status": "done",
+      "depends_on": [
+        "audit-extract-fileio"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "newAuditCmd() creates tp audit command with --affected-files StringArrayVar, --base string, --findings string flags. Registered in root.go under query group. Args validation: no spec arg exits 2, spec not found exits 3. Long description explains post-implementation audit purpose.",
+      "source_sections": [
+        "## Command Interface"
+      ],
+      "source_lines": "31-51",
+      "started_at": "2026-04-02T22:14:40.040462Z",
+      "closed_at": "2026-04-02T22:14:40.040462Z",
+      "closed_reason": "newAuditCmd registered in root.go under query group with --affected-files StringArrayVar, --base string, --findings string flags. Cobra ExactArgs(1). Tests verify: no spec arg exits 1, spec not found exits 3, non-git without affected-files exits 4, valid affected-files exits 0.",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "audit-git-diff",
+      "title": "Implement git diff auto-detection for changed files",
+      "status": "done",
+      "depends_on": [
+        "audit-cmd"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "detectChangedFiles(base string) runs git diff --name-only. With base: git diff --name-only \u003cbase\u003e...HEAD. Without base: git diff --name-only (unstaged) + git diff --name-only --cached (staged), deduped. Filters: skip binary extensions (.png,.jpg,.gif,.svg,.ico,.woff,.woff2,.ttf,.eot,.zip,.tar,.gz,.pdf,.exe,.dll,.so,.dylib,.o,.a), skip .md files, skip .tasks.json files. Cap at 50 files sorted by path. Not in git repo returns error with hint. No changed files returns error with hint. All filtered out returns error with hint.",
+      "source_sections": [
+        "### Auto-Detection via Git Diff",
+        "### Git Availability"
+      ],
+      "source_lines": "67-95",
+      "started_at": "2026-04-02T22:14:40.040462Z",
+      "closed_at": "2026-04-02T22:14:49.455317Z",
+      "closed_reason": "detectChangedFiles(dir, base string) runs git diff --name-only. With base: git diff --name-only \u003cbase\u003e...HEAD. Without base: git diff --name-only (unstaged) + git diff --name-only --cached (staged), deduped. Filters skip binary extensions (.png,.jpg,.gif,.svg,.ico,.woff,.woff2,.ttf,.eot,.zip,.tar,.gz,.pdf,.exe,.dll,.so,.dylib,.o,.a), skip .md files, skip .tasks.json files. Cap at 50 files sorted by path. Not in git repo returns error with hint. No changed files returns error with hint. All filtered out returns error with hint.",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "audit-validate-files",
+      "title": "Implement affected-files validation and resolution",
+      "status": "done",
+      "depends_on": [
+        "audit-git-diff",
+        "audit-extract-fileio"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "resolveAuditFiles(specPath, affectedFiles []string, base string) function. When --affected-files provided: validate existence, check not directory, dedup (same as review). When omitted: call detectChangedFiles. Returns resolved file list. Exit codes: not in git repo 4, no changed files 4, all filtered 4, non-existent file 3, directory 3.",
+      "source_sections": [
+        "## Error Handling"
+      ],
+      "source_lines": "264-273",
+      "started_at": "2026-04-02T22:14:54.990335Z",
+      "closed_at": "2026-04-02T22:15:01.00117Z",
+      "closed_reason": "resolveAuditFiles(specPath, affectedFiles []string, base string) function implemented. When --affected-files provided: validates existence (exit 3), checks not directory (exit 3), dedup via engine.DedupPaths. When omitted: calls detectChangedFiles for git diff auto-detection. Exit codes: not in git repo 4, no changed files 4, all filtered 4, non-existent file 3, directory 3.",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "audit-checklist",
+      "title": "Implement checklist entry generation",
+      "status": "done",
+      "depends_on": [
+        "audit-extract-structured"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "buildChecklist(specLines, headings, taskFilePath, findingsPath string) returns []checklistEntry. Table rows: id table-{i}-{j}, type table_row, spec_line, section from heading, text = raw row. Numbered list items: id list-{i}-{num}, type list_item, spec_line, section, text = full item text. Task acceptance: reads .tasks.json, id task-{id}, type task_acceptance, text = acceptance, section = title. Findings: reads NDJSON, id finding-{n}, type finding, spec_line=0, section=Review Findings, text from finding/message/description/title priority. Empty structured elements returns empty checklist with warning. Code blocks intentionally excluded.",
+      "source_sections": [
+        "### Entry Generation Rules",
+        "### Empty Checklist"
+      ],
+      "source_lines": "123-147, 257-262",
+      "started_at": "2026-04-02T22:14:54.990335Z",
+      "closed_at": "2026-04-02T22:15:01.00117Z",
+      "closed_reason": "buildChecklist(specLines, headings, specPath, findingsPath string) returns []checklistEntry. Table rows: id table-{i}-{j}, type table_row, spec_line, section from heading, text = raw row. Numbered list items: id list-{i}-{num}, type list_item, spec_line, section, text = full item text. Task acceptance: reads .tasks.json, id task-{id}, type task_acceptance, text = acceptance, section = title. Findings: reads NDJSON, id finding-{n}, type finding, spec_line=0, section=Review Findings, text from finding/message/description/title priority. Empty structured elements returns empty checklist with warning. Code blocks intentionally excluded — only tables and numbered lists generate entries.",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "audit-output",
+      "title": "Define audit output types and JSON rendering",
+      "status": "done",
+      "depends_on": [
+        "audit-checklist"
+      ],
+      "estimate_minutes": 5,
+      "acceptance": "auditResult struct with Spec, Files []string, FileSummary (total_files, total_lines, chars_included), Checklist []checklistEntry, ChecklistSummary (total int, by_type map), Prompts []auditPrompt. checklistEntry struct with Id, Type, SpecLine, Section, Text, Status *string, Prompt int. auditPrompt struct with Role string, Prompt string, ChecklistCount int. Compact mode omits file_summary, truncates text to 80 chars. Full mode includes everything.",
+      "source_sections": [
+        "### Full JSON",
+        "### Compact JSON"
+      ],
+      "source_lines": "149-189",
+      "started_at": "2026-04-02T22:15:06.284058Z",
+      "closed_at": "2026-04-02T22:15:13.375304Z",
+      "closed_reason": "auditResult struct with Spec, Files []string, FileSummary (total_files, total_lines, chars_included), Checklist []checklistEntry, ChecklistSummary (total int, by_type map), Prompts []auditPrompt. checklistEntry struct with Id, Type, SpecLine, Section, Text, Status *string, Prompt int. auditPrompt struct with Role string, Prompt string, ChecklistCount int. Compact mode omits file_summary, truncates text to 80 chars. Full mode includes everything. Nil-safe: checklist initialized as make([]checklistEntry, 0) so JSON is [] not null.",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "audit-prompt-impl",
+      "title": "Implement prompt generation for audit",
+      "status": "done",
+      "depends_on": [
+        "audit-output",
+        "audit-extract-fileio"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "generateAuditPrompt(specContent string, entries []checklistEntry, affectedContent map[string]string, findingsEntries []checklistEntry) generates Prompt 0 with implementation-auditor role, spec excerpt capped at specContentCap, checklist with IDs and text, source files section, 5 rules about verification, output format ID|PASS/PARTIAL/FAIL|evidence. If findingsEntries non-empty, generates Prompt 1 with findings verification role, findings summary, findings checklist, source files, 4 rules. Budget enforcement: spec+checklist+findings+files \u003c= promptBudget. When entries \u003e= 50, split into multiple prompts (each gets full files). Empty checklist returns empty prompts array.",
+      "source_sections": [
+        "### Prompt 0: Implementation Verification",
+        "### Prompt 1: Review Findings Verification (if --findings provided)"
+      ],
+      "source_lines": "191-262",
+      "started_at": "2026-04-02T22:15:13.375304Z",
+      "closed_at": "2026-04-02T22:15:13.375304Z",
+      "closed_reason": "generateAuditPrompts creates Prompt 0 with implementation-auditor role, spec excerpt capped at specContentCap, checklist items with IDs and text, source files via BuildAffectedSection, 5 verification rules (state-dependent, edge cases, test existence, observable behavior, error handling), PASS/PARTIAL/FAIL output format. Prompt 1 for findings with findings summary, checklist, 4 rules. Splits at \u003e=50 entries per prompt. Budget enforcement via ReadAffectedFilesBudgetAware. Empty mainEntries skips prompt 0.",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "audit-wire",
+      "title": "Wire runAudit function with full flow",
+      "status": "done",
+      "depends_on": [
+        "audit-validate-files",
+        "audit-checklist",
+        "audit-prompt-impl"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "runAudit resolves files (validate or git-diff), reads files via engine.ReadAffectedFiles, builds checklist, generates prompts, outputs auditResult as JSON. Budget calculation includes spec content + estimated checklist text + findings summary + source files. When --affected-files provided, result includes files and file_summary. When auto-detected, same. When --findings provided, checklist includes finding entries and prompt 1 exists.",
+      "source_sections": [
+        "### Behavior"
+      ],
+      "source_lines": "53-65",
+      "started_at": "2026-04-02T22:15:18.013766Z",
+      "closed_at": "2026-04-02T22:15:23.110836Z",
+      "closed_reason": "runAudit resolves files via resolveAuditFiles (validate or git-diff auto-detect), reads files via engine.ReadAffectedFiles, builds checklist via buildChecklist, generates prompts via generateAuditPrompts, outputs auditResult as JSON. Budget calculation includes spec content + estimated checklist text + findings summary + source files. When --affected-files provided, result includes files and file_summary. When auto-detected, same. When --findings provided, checklist includes finding entries and prompt 1 exists. Compact mode truncates text and omits file_summary.",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "audit-tests-git",
+      "title": "Write tests for git diff auto-detection",
+      "status": "done",
+      "depends_on": [
+        "audit-wire"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Tests: t.TempDir() (not git repo) without --affected-files exits 4. With --affected-files in non-git dir exits 0. Valid --affected-files exit 0. Non-existent --affected-file exits 3. Directory --affected-file exits 3. --base with git repo (if possible). Dedup of duplicate paths.",
+      "source_sections": [
+        "### Auto-Detection via Git Diff",
+        "### Git Availability"
+      ],
+      "source_lines": "67-95",
+      "started_at": "2026-04-02T22:15:26.871621Z",
+      "closed_at": "2026-04-02T22:15:26.871621Z",
+      "closed_reason": "Tests: no-git without affected-files exits 4, non-existent exits 3, directory exits 3, dedup, no-spec-arg exits 1, spec-not-found exits 3, basic audit exits 0 with correct file list and prompt role.",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "audit-tests-checklist",
+      "title": "Write tests for checklist generation",
+      "status": "done",
+      "depends_on": [
+        "audit-wire"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Tests: spec with tables generates table_row entries with correct IDs. Spec with numbered list generates list_item entries. Spec with task file generates task_acceptance entries. Spec with --findings generates finding entries. Empty spec (no structured elements) returns empty checklist with warning. Code blocks in spec do not generate entries.",
+      "source_sections": [
+        "### Entry Generation Rules",
+        "### Empty Checklist"
+      ],
+      "source_lines": "123-147, 257-262",
+      "started_at": "2026-04-02T22:15:26.871621Z",
+      "closed_at": "2026-04-02T22:15:26.871621Z",
+      "closed_reason": "Tests: table rows generate correct entries with table- prefix and header excluded. Numbered list items generate list- entries. Task acceptance generates task- entries (skips empty). Findings generate finding- entries (skips empty text). Empty checklist returns empty array.",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "audit-tests-output",
+      "title": "Write tests for output format and prompt content",
+      "status": "done",
+      "depends_on": [
+        "audit-wire"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Tests: JSON output has spec, files, checklist, prompts fields. checklist_summary has total and by_type. Prompt 0 has role implementation-auditor. Prompt 0 contains spec excerpt. Prompt 0 contains source files. Prompt 1 exists when --findings provided. Compact omits file_summary and truncates text. Prompt distribution splits at \u003e=50 entries.",
+      "source_sections": [
+        "### Full JSON",
+        "### Compact JSON",
+        "## Prompt Distribution"
+      ],
+      "source_lines": "149-262",
+      "started_at": "2026-04-02T22:15:26.871621Z",
+      "closed_at": "2026-04-02T22:15:26.871621Z",
+      "closed_reason": "Tests: checklist_summary has total and by_type. Prompt contains source files. Prompt contains PASS/PARTIAL/FAIL. Findings prompt exists when --findings provided. Compact omits file_summary and truncates text.",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "audit-tests-affected",
+      "title": "Write tests for affected-files integration",
+      "status": "done",
+      "depends_on": [
+        "audit-wire"
+      ],
+      "estimate_minutes": 5,
+      "acceptance": "Tests: --affected-files with valid file includes file in output files array and file_summary. Auto-detect in git repo (if applicable) includes detected files. file_summary has total_files, total_lines, chars_included.",
+      "source_sections": [
+        "### Auto-Detection via Git Diff"
+      ],
+      "source_lines": "67-88",
+      "started_at": "2026-04-02T22:15:26.871621Z",
+      "closed_at": "2026-04-02T22:15:26.871621Z",
+      "closed_reason": "Tests: affected-files includes file in output files array. Dedup works. file_summary has total_files, total_lines, chars_included fields.",
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ]
+}
