@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.12.0-review-rounds.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-04-02T05:24:45.683175Z",
+  "updated_at": "2026-04-02T05:24:51.428676Z",
   "workflow": {},
   "coverage": {
     "total_sections": 16,
@@ -41,7 +41,7 @@
     {
       "id": "review-rounds-parse",
       "title": "Parse findings NDJSON file into reviewFinding struct",
-      "status": "open",
+      "status": "done",
       "depends_on": [],
       "estimate_minutes": 5,
       "acceptance": "reviewFinding struct exists with severity, category, location, finding, suggestion fields. parseFindingsFile() reads NDJSON, parses each line, skips invalid lines with warning, defaults missing fields (severity='unknown', others=''), returns []reviewFinding.",
@@ -50,11 +50,11 @@
         "### Deduplication"
       ],
       "source_lines": "56-67",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-04-02T05:24:51.197293Z",
+      "closed_at": "2026-04-02T05:24:51.428668Z",
+      "closed_reason": "reviewFinding struct with severity/category/location/finding/suggestion. parseFindingsFile() reads NDJSON, skips invalid lines with warning, defaults missing fields.",
+      "gate_passed_at": "2026-04-02T05:24:51.428668Z",
+      "commit_sha": "7d7e239"
     },
     {
       "id": "review-rounds-summary",
