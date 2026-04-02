@@ -2,14 +2,14 @@ package engine
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/gofrs/flock"
 )
 
-// WithFileLock acquires an exclusive lock on path+".lock" and runs fn.
-// The lock is released when fn returns.
 func WithFileLock(path string, fn func() error) error {
-	fl := flock.New(path + ".lock")
+	lockPath := path + ".lock"
+	fl := flock.New(lockPath)
 
 	locked, err := fl.TryLock()
 	if err != nil {
@@ -18,7 +18,10 @@ func WithFileLock(path string, fn func() error) error {
 	if !locked {
 		return fmt.Errorf("task file is locked by another process")
 	}
-	defer func() { _ = fl.Unlock() }()
+	defer func() {
+		_ = fl.Unlock()
+		_ = os.Remove(lockPath)
+	}()
 
 	return fn()
 }

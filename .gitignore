@@ -2,3 +2,4 @@
 .beads/
 /tp
 dist/
+*.tasks.json.lock

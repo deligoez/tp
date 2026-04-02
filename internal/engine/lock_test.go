@@ -24,9 +24,9 @@ func TestWithFileLock_BasicAcquireAndRelease(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, executed, "callback should have been executed")
 
-	// Lock file should exist (created by flock)
+	// Lock file should be cleaned up after WithFileLock
 	_, err = os.Stat(lockTarget + ".lock")
-	assert.NoError(t, err, "lock file should exist after WithFileLock")
+	assert.True(t, os.IsNotExist(err), "lock file should be removed after WithFileLock")
 }
 
 func TestWithFileLock_FnErrorPropagated(t *testing.T) {
