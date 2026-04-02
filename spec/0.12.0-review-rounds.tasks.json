@@ -1,0 +1,139 @@
+{
+  "version": 1,
+  "spec": "spec/0.12.0-review-rounds.md",
+  "created_at": "0001-01-01T00:00:00Z",
+  "updated_at": "2026-04-02T05:20:28.326255Z",
+  "workflow": {},
+  "coverage": {
+    "total_sections": 16,
+    "mapped_sections": 8,
+    "context_only": [
+      "# Review Multi-Round Support",
+      "## Problem",
+      "## Proposed Solution",
+      "## Design Principles",
+      "## Command Changes",
+      "### Behavior Matrix",
+      "## Edge Cases",
+      "## Implementation Order"
+    ],
+    "unmapped": []
+  },
+  "tasks": [
+    {
+      "id": "review-rounds-flags",
+      "title": "Add --round and --findings flags with validation",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 5,
+      "acceptance": "--round flag (int, default 1) and --findings flag (string) exist on tp review command. round \u003c 1 exits with code 2. --findings file missing exits with code 2. --round \u003e 1 without --findings outputs warning hint via output.Warn(). Flags are wired into runReview signature.",
+      "source_sections": [
+        "### New Flags",
+        "### Validation Rules"
+      ],
+      "source_lines": "41-54",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "review-rounds-parse",
+      "title": "Parse findings NDJSON file into reviewFinding struct",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 5,
+      "acceptance": "reviewFinding struct exists with severity, category, location, finding, suggestion fields. parseFindingsFile() reads NDJSON, parses each line, skips invalid lines with warning, defaults missing fields (severity='unknown', others=''), returns []reviewFinding.",
+      "source_sections": [
+        "### Findings Format",
+        "### Deduplication"
+      ],
+      "source_lines": "56-67",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "review-rounds-summary",
+      "title": "Deduplicate findings and build summary string",
+      "status": "open",
+      "depends_on": [
+        "review-rounds-parse"
+      ],
+      "estimate_minutes": 5,
+      "acceptance": "dedupFindings() deduplicates by (category, location). buildFindingsSummary() sorts by severity (critical\u003ehigh\u003emedium\u003elow) then category, abbreviates severity ([CRIT],[HIGH],[MED],[LOW]), formats as '[SEV] category — location: finding', truncates finding to 80 chars, caps at 50 entries with '... and N more' suffix. Returns empty string if no findings.",
+      "source_sections": [
+        "### Findings Summary Injection"
+      ],
+      "source_lines": "69-92",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "review-rounds-inject",
+      "title": "Inject findings summary into prompts with round-aware modifications",
+      "status": "open",
+      "depends_on": [
+        "review-rounds-flags",
+        "review-rounds-summary"
+      ],
+      "estimate_minutes": 5,
+      "acceptance": "When --findings provided: each prompt has findings summary block prepended before spec content. When --round \u003e= 2: prompt opening includes 'This is review round {N} — focus ONLY on issues not previously reported'. Finding format section appends 'Remember: only report NEW issues not covered by the previous findings listed above.' When no findings: prompts unchanged.",
+      "source_sections": [
+        "### Findings Summary Injection",
+        "### Round 2+ Prompt Modification"
+      ],
+      "source_lines": "69-102",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "review-rounds-output",
+      "title": "Update review_loop output with round and previous_findings",
+      "status": "open",
+      "depends_on": [
+        "review-rounds-flags"
+      ],
+      "estimate_minutes": 3,
+      "acceptance": "reviewLoop struct has Round int and PreviousFindings int fields. Output JSON includes round (from --round flag) and previous_findings (count of loaded findings). instruction updated to include '--round N+1 --findings \u003cfile\u003e' guidance when round \u003c max_rounds. Backward compat: round=1, previous_findings=0 when flags not used.",
+      "source_sections": [
+        "### Output Changes"
+      ],
+      "source_lines": "104-124",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "review-rounds-tests",
+      "title": "Add tests for multi-round review",
+      "status": "open",
+      "depends_on": [
+        "review-rounds-inject",
+        "review-rounds-output"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "Test cases pass: (1) Round 1 no findings = backward compat. (2) Round 2 with findings = summary in prompts, review_loop.round=2. (3) Round 2 without findings = warning. (4) Round 0 = exit code 2. (5) Findings file not found = exit code 2. (6) Duplicate (category,location) = deduplicated. (7) \u003e50 findings = capped at 50. (8) Long finding text = truncated 80 chars. (9) Invalid lines = skipped with warning. (10) Empty findings = no injection.",
+      "source_sections": [
+        "## Test Cases"
+      ],
+      "source_lines": "158-169",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ]
+}
