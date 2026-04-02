@@ -27,6 +27,10 @@ This skill activates when:
    - tp auto-injects previous findings summary into prompts, excludes already-reported issues
    - Combine findings files across rounds for `--findings`
    - Converge within 2 rounds (stop when no new high-severity)
+   - **Code-aware review** (optional, for catching state-dependent behaviors):
+     - `tp review spec.md --affected-files src/a.go src/b.vue` — inject source files into prompts
+     - `tp review spec.md --perspective code-audit --affected-files src/a.go` — code audit perspective with C1-C5 checklist
+     - `tp review spec.md --round 2 --final-round --affected-files src/a.go` — force mandatory code read-through
 3. Read spec, decompose into tasks (JSON):
    - Every task MUST have `source_lines` mapping to spec line ranges (e.g., `"15-42"` or `"15-42,50-60"`)
    - Every table data row must appear in some task's acceptance criteria
@@ -136,7 +140,9 @@ tp done <id> "reason" --gate-passed
 | `tp done <id> "reason"` | Single close |
 | `tp lint spec.md` | Spec quality + structured elements |
 | `tp review spec.md` | Adversarial review prompts (3 personas) |
+| `tp review spec.md --perspective code-audit --affected-files src/a.go` | Code audit with source file injection |
 | `tp review spec.md --round N --findings file.ndjson` | Multi-round review with previous findings exclusion |
+| `tp review spec.md --round N --final-round --affected-files src/a.go` | Final round with mandatory code read-through |
 | `tp validate` | Task file validation + line coverage |
 | `tp set --bulk file` | Bulk update from NDJSON `{id, field, value}` |
 | `tp list --status open` | Filter tasks |
