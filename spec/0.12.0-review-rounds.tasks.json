@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.12.0-review-rounds.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-04-02T05:24:51.428676Z",
+  "updated_at": "2026-04-02T05:24:57.749734Z",
   "workflow": {},
   "coverage": {
     "total_sections": 16,
@@ -59,7 +59,7 @@
     {
       "id": "review-rounds-summary",
       "title": "Deduplicate findings and build summary string",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "review-rounds-parse"
       ],
@@ -69,11 +69,11 @@
         "### Findings Summary Injection"
       ],
       "source_lines": "69-92",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-04-02T05:24:57.5229Z",
+      "closed_at": "2026-04-02T05:24:57.749729Z",
+      "closed_reason": "dedupFindings() deduplicates by (category,location). buildFindingsSummary() sorts by severity, abbreviates, truncates to 80 chars, caps at 50. Returns empty string if no findings.",
+      "gate_passed_at": "2026-04-02T05:24:57.749729Z",
+      "commit_sha": "9e7f4aa"
     },
     {
       "id": "review-rounds-inject",
