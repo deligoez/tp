@@ -727,3 +727,465 @@ func TestReviewPerspectiveManyFilesCapped(t *testing.T) {
 	assert.Equal(t, float64(20), ds["total_files"])
 	assert.LessOrEqual(t, ds["reviewed_files"], float64(15))
 }
+
+func TestReviewAffectedFilesValid(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
+	aPath := filepath.Join(dir, "a.go")
+	require.NoError(t, os.WriteFile(aPath, []byte("package main\nfunc main() {}\n"), 0o600))
+
+	stdout, _, code := runTP(t, dir, "review", specPath, "--affected-files", aPath)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	assert.Equal(t, []any{aPath}, result["affected_files"])
+	assert.Contains(t, result["affected_summary"].(map[string]any), "total_files")
+}
+
+func TestReviewAffectedFilesNotFound(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
+
+	_, stderr, code := runTP(t, dir, "review", specPath, "--affected-files", "/nonexistent")
+	assert.Equal(t, 3, code)
+	assert.Contains(t, stderr, "affected file not found")
+}
+
+func TestReviewAffectedFilesDirectory(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	subDir := filepath.Join(dir, "sub")
+	require.NoError(t, os.MkdirAll(subDir, 0o755))
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
+
+	_, stderr, code := runTP(t, dir, "review", specPath, "--affected-files", subDir)
+	assert.Equal(t, 3, code)
+	assert.Contains(t, stderr, "directory, not a file")
+}
+
+func TestReviewAffectedFilesDedup(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
+	aPath := filepath.Join(dir, "a.go")
+	require.NoError(t, os.WriteFile(aPath, []byte("package main\nfunc main() {}\n"), 0o600))
+
+	stdout, _, code := runTP(t, dir, "review", specPath, "--affected-files", aPath, "--affected-files", aPath)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+	assert.Len(t, result["affected_files"].([]any), 1)
+}
+
+func TestReviewAffectedFilesWithRoundFindings(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
+	aPath := filepath.Join(dir, "a.go")
+	require.NoError(t, os.WriteFile(aPath, []byte("package main\nfunc main() {}\n"), 0o600))
+	findingsPath := filepath.Join(dir, "f.ndjson")
+	require.NoError(t, os.WriteFile(findingsPath, []byte(`{"severity":"high","category":"x","location":"y","finding":"z","suggestion":"w"}
+`), 0o600))
+
+	stdout, _, code := runTP(t, dir, "review", specPath, "--affected-files", aPath, "--round", "2", "--findings", findingsPath)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+	assert.Len(t, result["affected_files"].([]any), 1)
+	prompt := result["prompts"].([]any)[0].(map[string]any)["prompt"].(string)
+	assert.Contains(t, prompt, "a.go")
+	assert.Contains(t, prompt, "Previous Review Round")
+}
+
+func TestReviewCodeAuditRequiresAffectedFiles(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
+
+	_, stderr, code := runTP(t, dir, "review", specPath, "--perspective", "code-audit")
+	assert.Equal(t, 2, code)
+	assert.Contains(t, stderr, "code-audit requires")
+}
+
+func TestReviewCodeAuditBasic(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Refactor\nRemove isPhoneCheckInProgress.\n"), 0o600))
+	aPath := filepath.Join(dir, "AddCustomer.vue")
+	require.NoError(t, os.WriteFile(aPath, []byte(`<template>
+  <input :disabled="isFormLocked || isPhoneCheckInProgress" />
+  <input :disabled="isFormLocked" />
+</template>`), 0o600))
+
+	stdout, _, code := runTP(t, dir, "review", specPath, "--perspective", "code-audit", "--affected-files", aPath)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	assert.Equal(t, "code-audit", result["perspective"])
+	assert.Equal(t, []any{aPath}, result["affected_files"])
+	assert.Contains(t, result["affected_summary"].(map[string]any), "total_files")
+
+	prompts := result["prompts"].([]any)
+	require.Len(t, prompts, 1)
+	prompt := prompts[0].(map[string]any)["prompt"].(string)
+	assert.Equal(t, "code-auditor", prompts[0].(map[string]any)["role"].(string))
+	assert.Contains(t, prompt, "C1")
+	assert.Contains(t, prompt, "C5")
+	assert.Contains(t, prompt, "isPhoneCheckInProgress")
+	assert.Contains(t, prompt, "isFormLocked")
+	assert.Contains(t, prompt, "Refactor")
+}
+
+func TestReviewCodeAuditEmptyFiles(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
+
+	stdout, _, code := runTP(t, dir, "review", specPath, "--perspective", "code-audit", "--affected-files", specPath)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+	assert.Len(t, result["prompts"].([]any), 1)
+}
+
+func TestReviewFinalRoundRequiresRound2(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
+
+	_, stderr, code := runTP(t, dir, "review", specPath, "--final-round")
+	assert.Equal(t, 2, code)
+	assert.Contains(t, stderr, "final-round requires --round")
+}
+
+func TestReviewFinalRoundWarning(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
+
+	stdout, _, code := runTP(t, dir, "review", specPath, "--round", "2", "--final-round")
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+	prompt := result["prompts"].([]any)[0].(map[string]any)["prompt"].(string)
+	assert.Contains(t, prompt, "MANDATORY")
+}
+
+func TestReviewFinalRoundWithAffectedFiles(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
+	aPath := filepath.Join(dir, "a.go")
+	require.NoError(t, os.WriteFile(aPath, []byte("package main\nfunc main() {}\n"), 0o600))
+
+	stdout, _, code := runTP(t, dir, "review", specPath, "--round", "2", "--final-round", "--affected-files", aPath)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+	prompt := result["prompts"].([]any)[0].(map[string]any)["prompt"].(string)
+	assert.Contains(t, prompt, "MANDATORY")
+	assert.Contains(t, prompt, "a.go")
+}
+
+func TestReviewAffectedFilesWithPerspectives(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
+	aPath := filepath.Join(dir, "a.go")
+	require.NoError(t, os.WriteFile(aPath, []byte("package main\nfunc main() {}\n"), 0o600))
+	docsDir := filepath.Join(dir, "docs")
+	require.NoError(t, os.MkdirAll(filepath.Join(docsDir, "guide"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(docsDir, "index.md"), []byte("# Docs\n"), 0o600))
+
+	stdoutDoc, _, code := runTP(t, dir, "review", specPath, "--perspective", "documentation", "--docs-path", docsDir, "--affected-files", aPath)
+	require.Equal(t, 0, code)
+	var resultDoc map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdoutDoc), &resultDoc))
+	docPrompt := resultDoc["prompts"].([]any)[0].(map[string]any)["prompt"].(string)
+	assert.Contains(t, docPrompt, "a.go")
+
+	stdoutTest, _, code := runTP(t, dir, "review", specPath, "--perspective", "testing", "--test-path", docsDir, "--affected-files", aPath)
+	require.Equal(t, 0, code)
+	var resultTest map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdoutTest), &resultTest))
+	testPrompt := resultTest["prompts"].([]any)[0].(map[string]any)["prompt"].(string)
+	assert.Contains(t, testPrompt, "a.go")
+}
+
+func TestReviewDefaultPromptWithAffectedFiles(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Feature\n\n## Commands\n\n| Flag | Type |\n|------|------|\n| --batch | string |\n\n## Acceptance\n1. Exit code 0\n"), 0o600))
+	aPath := filepath.Join(dir, "a.go")
+	require.NoError(t, os.WriteFile(aPath, []byte("package main\nfunc main() {}\n"), 0o600))
+
+	stdout, _, code := runTP(t, dir, "review", specPath, "--affected-files", aPath)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	prompts := result["prompts"].([]any)
+	assert.Len(t, prompts, 3)
+	for _, p := range prompts {
+		pm := p.(map[string]any)
+		prompt := pm["prompt"].(string)
+		assert.Contains(t, prompt, "a.go")
+		assert.Contains(t, prompt, "state-dependent")
+	}
+}
+
+func TestReviewFileTruncation(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
+	aPath := filepath.Join(dir, "big.go")
+	bigContent := strings.Repeat("x", 10000)
+	require.NoError(t, os.WriteFile(aPath, []byte(bigContent), 0o600))
+
+	stdout, _, code := runTP(t, dir, "review", specPath, "--affected-files", aPath)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+	summary := result["affected_summary"].(map[string]any)
+	assert.Equal(t, float64(1), summary["total_files"])
+	assert.Less(t, summary["chars_included"].(float64), float64(10000))
+}
+
+func TestReviewBudgetEnforcement(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	bigSpec := "# Spec\n" + strings.Repeat("x", 9900)
+	require.NoError(t, os.WriteFile(specPath, []byte(bigSpec), 0o600))
+	aPath := filepath.Join(dir, "big.go")
+	require.NoError(t, os.WriteFile(aPath, []byte(strings.Repeat("y", 20000)), 0o600))
+
+	stdout, _, code := runTP(t, dir, "review", specPath, "--affected-files", aPath)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+	prompt := result["prompts"].([]any)[0].(map[string]any)["prompt"].(string)
+	assert.Contains(t, prompt, "big.go")
+	assert.Less(t, len(prompt), 40000)
+}
+
+func TestLintAcceptanceQualityRemovalWarning(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\nEmpty.\n"), 0o600))
+
+	taskPath := filepath.Join(dir, "spec.tasks.json")
+	taskData := `{"version":1,"spec":"spec.md","created_at":"0001-01-01T00:00:00Z","updated_at":"0001-01-01T00:00:00Z","workflow":{},"coverage":{"total_sections":0,"mapped_sections":0,"context_only":[],"unmapped":[]},"tasks":[{"id":"t1","title":"T","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"isPhoneCheckInProgress computed was removed","source_sections":[],"source_lines":""}]}`
+	require.NoError(t, os.WriteFile(taskPath, []byte(taskData), 0o600))
+
+	stdout, _, code := runTP(t, dir, "lint", specPath)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	hasWarning := false
+	for _, f := range result["findings"].([]any) {
+		fm := f.(map[string]any)
+		if fm["rule"].(string) == "acceptance-quality" && fm["severity"].(string) == "warning" {
+			hasWarning = true
+			break
+		}
+	}
+	assert.True(t, hasWarning, "should warn on removal-only acceptance")
+}
+
+func TestLintAcceptanceQualityShortAcceptance(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\nEmpty.\n"), 0o600))
+
+	taskPath := filepath.Join(dir, "spec.tasks.json")
+	taskData := `{"version":1,"spec":"spec.md","created_at":"0001-01-01T00:00:00Z","updated_at":"0001-01-01T00:00:00Z","workflow":{},"coverage":{"total_sections":0,"mapped_sections":0,"context_only":[],"unmapped":[]},"tasks":[{"id":"t1","title":"T","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"input disabled only when locked","source_sections":[],"source_lines":""}]}`
+	require.NoError(t, os.WriteFile(taskPath, []byte(taskData), 0o600))
+
+	stdout, _, code := runTP(t, dir, "lint", specPath)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	hasInfo := false
+	for _, f := range result["findings"].([]any) {
+		fm := f.(map[string]any)
+		if fm["rule"].(string) == "acceptance-quality" && fm["severity"].(string) == "info" {
+			hasInfo = true
+			break
+		}
+	}
+	assert.True(t, hasInfo, "should info on short acceptance")
+}
+
+func TestLintAcceptanceQualityNoTaskFile(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\nEmpty.\n"), 0o600))
+
+	stdout, _, code := runTP(t, dir, "lint", specPath)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	findings, ok := result["findings"].([]any)
+	if ok {
+		for _, f := range findings {
+			fm := f.(map[string]any)
+			assert.NotEqual(t, "acceptance-quality", fm["rule"].(string))
+		}
+	}
+}
+
+func TestLintAcceptanceQualityNoWarning(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\nEmpty.\n"), 0o600))
+
+	taskPath := filepath.Join(dir, "spec.tasks.json")
+	taskData := `{"version":1,"spec":"spec.md","created_at":"0001-01-01T00:00:00Z","updated_at":"0001-01-01T00:00:00Z","workflow":{},"coverage":{"total_sections":0,"mapped_sections":0,"context_only":[],"unmapped":[]},"tasks":[{"id":"t1","title":"T","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"input disabled only when form isFormLocked, no other condition applies","source_sections":[],"source_lines":""}]}`
+	require.NoError(t, os.WriteFile(taskPath, []byte(taskData), 0o600))
+
+	stdout, _, code := runTP(t, dir, "lint", specPath)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	findings, ok := result["findings"].([]any)
+	if ok {
+		for _, f := range findings {
+			fm := f.(map[string]any)
+			if fm["rule"].(string) == "acceptance-quality" {
+				assert.NotEqual(t, "warning", fm["severity"].(string), "should not warn on complete acceptance")
+			}
+		}
+	}
+}
+
+func TestLintAffectedFilesScopeWarns(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte(`# Spec
+
+## Affected Files
+
+| File | Action | Scope |
+|------|--------|-------|
+| src/a.go | Modify | |
+| src/b.go | No change | — |
+`), 0o600))
+
+	stdout, _, code := runTP(t, dir, "lint", specPath)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	findings, ok := result["findings"].([]any)
+	require.True(t, ok, "findings should be present")
+
+	hasScopeWarning := false
+	for _, f := range findings {
+		fm := f.(map[string]any)
+		if fm["rule"].(string) == "affected-files-scope" {
+			hasScopeWarning = true
+			assert.Contains(t, fm["message"].(string), "no scope description")
+		}
+	}
+	assert.True(t, hasScopeWarning, "should warn on modify row without scope")
+}
+
+func TestLintAffectedFilesScopePasses(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte(`# Spec
+
+## Affected Files
+
+| File | Action | Scope |
+|------|--------|-------|
+| src/a.go | Modify | Refactor isIdentityCheck only |
+| src/b.go | No change | — |
+`), 0o600))
+
+	stdout, _, code := runTP(t, dir, "lint", specPath)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	findings, ok := result["findings"].([]any)
+	if ok {
+		for _, f := range findings {
+			fm := f.(map[string]any)
+			assert.NotEqual(t, "affected-files-scope", fm["rule"].(string), "should not warn when scope provided")
+		}
+	}
+}
+
+func TestLintAffectedFilesScopeNoTable(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\nNo affected files table here.\n"), 0o600))
+
+	stdout, _, code := runTP(t, dir, "lint", specPath)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	findings, ok := result["findings"].([]any)
+	if ok {
+		for _, f := range findings {
+			fm := f.(map[string]any)
+			assert.NotEqual(t, "affected-files-scope", fm["rule"].(string), "should skip when no affected files table")
+		}
+	}
+}
+
+func TestLintAffectedFilesScopeCaseInsensitive(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte(`# Spec
+
+## Affected Files
+
+| File | Action | Scope |
+|------|--------|-------|
+| src/a.go | Değiştir | Bu dosya için kapsam açıklaması |
+`), 0o600))
+
+	stdout, _, code := runTP(t, dir, "lint", specPath)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	findings, ok := result["findings"].([]any)
+	if ok {
+		for _, f := range findings {
+			fm := f.(map[string]any)
+			if fm["rule"].(string) == "affected-files-scope" {
+				assert.Fail(t, "should not warn when scope provided for Turkish modify action")
+			}
+		}
+	}
+}
