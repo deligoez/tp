@@ -89,6 +89,9 @@ tp lint <spec.md>              # Spec quality checks (no task file needed)
 tp review <spec.md>            # Adversarial review prompts (implementer, tester, architect)
 tp review <spec.md> --perspective code-audit --affected-files <paths>  # Code audit with source files
 tp review <spec.md> --round N --final-round --affected-files <paths>  # Final round: mandatory code read-through
+tp audit <spec.md>              # Post-implementation: verify code matches spec (auto-detects changed files via git diff)
+tp audit <spec.md> --affected-files <paths>  # Manual file selection
+tp audit <spec.md> --findings <file.ndjson>  # Also verify review findings were addressed
 tp validate                    # Task file validation (--strict)
 ```
 
