@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.12.0-review-rounds.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-04-02T05:25:03.332814Z",
+  "updated_at": "2026-04-02T05:25:10.34217Z",
   "workflow": {},
   "coverage": {
     "total_sections": 16,
@@ -78,7 +78,7 @@
     {
       "id": "review-rounds-inject",
       "title": "Inject findings summary into prompts with round-aware modifications",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "review-rounds-flags",
         "review-rounds-summary"
@@ -90,11 +90,11 @@
         "### Round 2+ Prompt Modification"
       ],
       "source_lines": "69-102",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-04-02T05:25:10.129797Z",
+      "closed_at": "2026-04-02T05:25:10.342167Z",
+      "closed_reason": "When --findings: summary block prepended before spec content in all 3 prompts. When --round\u003e=2: round-aware opening with review round N context. Finding format section appends 'only report NEW issues' reminder.",
+      "gate_passed_at": "2026-04-02T05:25:10.342167Z",
+      "commit_sha": "abc9edd"
     },
     {
       "id": "review-rounds-output",
