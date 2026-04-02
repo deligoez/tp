@@ -118,7 +118,9 @@ tp report                      # Per-task duration + estimation accuracy
 ```bash
 tp lint spec.md                # Spec quality + structured element detection
 tp review spec.md              # Adversarial review prompts (3 personas)
+tp review spec.md --perspective code-audit --affected-files src/a.go  # Code audit with source files
 tp review spec.md --round 2 --findings r1.ndjson  # Multi-round with previous findings
+tp review spec.md --round 2 --final-round --affected-files src/a.go  # Final round: mandatory code read-through
 tp validate                    # Task file + line coverage + atomicity (--strict)
 ```
 
@@ -241,11 +243,21 @@ tp done auth-model "evidence" --gate-passed --auto-commit
 tp lint spec.md --json | jq .structured_elements
 ```
 
-`tp review` generates 3 adversarial review prompts (implementer, tester, architect) that agents feed to sub-agents:
+`tp review` generates adversarial review prompts that agents feed to sub-agents:
 
 ```bash
+# Default: 3 prompts (implementer, tester, architect)
 tp review spec.md --json | jq '.prompts | length'
-# → 3 (one per persona, each with spec-structure-aware questions)
+# → 3
+
+# Perspective-specific review
+tp review spec.md --perspective code-audit --affected-files src/a.go --json
+
+# Documentation perspective
+tp review spec.md --perspective documentation --json
+
+# Testing perspective
+tp review spec.md --perspective testing --json
 ```
 
 For multi-round review, use `--round` and `--findings` to auto-exclude previously reported issues:
@@ -257,6 +269,37 @@ tp review spec.md --json > review-r1.json
 # Round 2: tp auto-injects findings summary, prompts focus on new issues only
 tp review spec.md --round 2 --findings findings.ndjson --json > review-r2.json
 ```
+
+### Code-Aware Review
+
+Inject source files into review prompts to catch state-dependent behaviors that specs miss:
+
+```bash
+# Inject files into default review — each prompt gets file content + checklist
+tp review spec.md --affected-files src/form.vue src/api.ts
+
+# Code audit perspective: C1-C5 checklist (state-dependent behaviors, spec coverage, etc.)
+tp review spec.md --perspective code-audit --affected-files src/form.vue
+
+# Final round: force mandatory code read-through to prevent false convergence
+tp review spec.md --round 2 --final-round --affected-files src/form.vue
+```
+
+Files are capped at 8000 chars each (50000 total). Prompt budget enforced at 60000 chars total.
+
+### Lint Checks
+
+`tp lint` detects structured elements and quality issues:
+
+```bash
+tp lint spec.md --json | jq '.findings[] | select(.rule)'
+```
+
+| Rule | Severity | What it checks |
+|------|----------|----------------|
+| `structured-elements` | info | Tables, numbered lists, code blocks in spec |
+| `acceptance-quality` | warning/info | Removal-only acceptance, vague verbs, short acceptance |
+| `affected-files-scope` | warning | Modify rows in affected files table without scope description |
 
 `tp validate` checks line coverage — verifying that task `source_lines` cover the entire spec:
 
