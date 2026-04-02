@@ -1,0 +1,359 @@
+{
+  "version": 1,
+  "spec": "spec/0.14.0-code-aware-review.md",
+  "created_at": "0001-01-01T00:00:00Z",
+  "updated_at": "2026-04-02T12:16:29.509251Z",
+  "workflow": {
+    "quality_gate": "go test ./... \u0026\u0026 golangci-lint run"
+  },
+  "coverage": {
+    "total_sections": 33,
+    "mapped_sections": 15,
+    "context_only": [
+      "# Code-Aware Review",
+      "## 1. Problem",
+      "## 2. Root Cause",
+      "## 3. Proposed Solution",
+      "## 4. Design Principles",
+      "## 5. Command Changes",
+      "### 5.3 Behavior Matrix",
+      "## 6. Affected Files Context Injection",
+      "### 6.2 Context Format in Prompt",
+      "## 7. Code-Audit Perspective",
+      "### 7.1 Purpose",
+      "## 8. Acceptance Quality Lint",
+      "### 8.3 Scope",
+      "## 9. Affected Files Scope Lint",
+      "### 9.2 Output",
+      "## 10. Changes to Existing Code",
+      "## 11. Implementation Order",
+      "## 13. What Doesn't Change"
+    ],
+    "unmapped": []
+  },
+  "tasks": [
+    {
+      "id": "car-flags",
+      "title": "Add --affected-files and --final-round flags",
+      "status": "done",
+      "depends_on": [],
+      "estimate_minutes": 5,
+      "acceptance": "--affected-files registered as StringArrayVar accepting multiple paths. --final-round registered as BoolVar. Both flags in newReviewCmd().",
+      "source_sections": [
+        "### 5.1 New Flags"
+      ],
+      "source_lines": "45-50",
+      "started_at": "2026-04-02T12:16:11.056956Z",
+      "closed_at": "2026-04-02T12:16:11.056956Z",
+      "closed_reason": "--affected-files StringArrayVar and --final-round BoolVar registered in newReviewCmd()",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "car-validation",
+      "title": "Add affected-files and final-round validation rules",
+      "status": "done",
+      "depends_on": [
+        "car-flags"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "Invalid --perspective code-audit without --affected-files returns exit 2. Non-existent file returns exit 3. Directory path returns exit 3. --final-round with round 1 returns exit 2. --final-round without --affected-files produces warning. Duplicate paths deduplicated. --affected-files compatible with --round/--findings.",
+      "source_sections": [
+        "### 5.2 Validation Rules"
+      ],
+      "source_lines": "52-62",
+      "started_at": "2026-04-02T12:16:11.056956Z",
+      "closed_at": "2026-04-02T12:16:29.508349Z",
+      "closed_reason": "All validation rules implemented: code-audit without affected-files returns exit 2, non-existent file returns exit 3, directory returns exit 3, final-round with round 1 returns exit 2, warning when final-round used without affected-files, duplicate paths deduplicated via map, compatible with round and findings flags",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "car-read-files",
+      "title": "Implement file reading with caps and dedup",
+      "status": "done",
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "readAffectedFiles(paths) deduplicates, verifies existence, reads files. Per-file cap 8000 chars with truncation marker. Total cap 50000 chars stopping when exceeded. Prompt budget enforcement: when combined with findings, total must not exceed 60000 chars by removing files from end of list.",
+      "source_sections": [
+        "### 6.1 Context Collection"
+      ],
+      "source_lines": "64-75",
+      "started_at": "2026-04-02T12:16:11.056956Z",
+      "closed_at": "2026-04-02T12:16:29.508349Z",
+      "closed_reason": "readAffectedFiles deduplicates via map, verifies existence, reads files with per-file cap 8000 chars (truncation marker appended), total cap 50000 chars (stops when exceeded), prompt budget enforcement reduces total to 60000 minus spec/findings size by removing files from end of list",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "car-inject-default",
+      "title": "Inject affected files context into default 3 prompts",
+      "status": "done",
+      "depends_on": [
+        "car-read-files",
+        "car-validation"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "When --affected-files provided with default review, each of the 3 prompts (implementer, tester, architect) has affected files content injected and an additional checklist item referencing state-dependent behaviors.",
+      "source_sections": [
+        "### 6.3 Integration with Existing Prompts"
+      ],
+      "source_lines": "77-95",
+      "started_at": "2026-04-02T12:16:29.508349Z",
+      "closed_at": "2026-04-02T12:16:29.508349Z",
+      "closed_reason": "All 3 default prompts (implementer, tester, architect) receive affected files content section when --affected-files provided, each gets additional checklist item referencing state-dependent behaviors in the affected files",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "car-inject-perspectives",
+      "title": "Inject affected files into documentation and testing prompts",
+      "status": "done",
+      "depends_on": [
+        "car-read-files"
+      ],
+      "estimate_minutes": 5,
+      "acceptance": "When --affected-files provided with --perspective documentation, code files appear alongside doc files in the prompt. When provided with --perspective testing, code files appear alongside test files.",
+      "source_sections": [
+        "### 6.5 Integration with Perspective Prompts"
+      ],
+      "source_lines": "101-107",
+      "started_at": "2026-04-02T12:16:29.508349Z",
+      "closed_at": "2026-04-02T12:16:29.508349Z",
+      "closed_reason": "Documentation perspective injects code files alongside doc files in prompt. Testing perspective injects code files alongside test files in prompt. Both via buildAffectedSection and appendAffectedChecklist integration",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "car-final-round",
+      "title": "Implement --final-round checklist item injection",
+      "status": "done",
+      "depends_on": [
+        "car-inject-default"
+      ],
+      "estimate_minutes": 5,
+      "acceptance": "When --final-round is provided with round \u003e= 2, all prompts get an additional mandatory code read-through checklist item appended before the finding format.",
+      "source_sections": [
+        "### 6.4 Integration with Final Round"
+      ],
+      "source_lines": "97-99",
+      "started_at": "2026-04-02T12:16:29.508349Z",
+      "closed_at": "2026-04-02T12:16:29.508349Z",
+      "closed_reason": "--final-round appends mandatory code read-through checklist item to all prompts when round \u003e= 2, inserted before finding format section via appendFinalRoundInstruction",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "car-code-audit-prompt",
+      "title": "Implement generateCodeAuditPrompt()",
+      "status": "done",
+      "depends_on": [
+        "car-read-files"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "Generates prompt with role=code-auditor, category=completeness. Contains spec content, affected files context, 5-step audit checklist (C1-C5: state-dependent behaviors, spec coverage, removal reach, acceptance completeness, side effects). Output format is NDJSON with file, line, pattern, current_behavior, spec_coverage, finding, suggestion, severity, category.",
+      "source_sections": [
+        "### 7.2 Prompt Structure",
+        "### 7.3 Audit Checklist",
+        "### 7.4 Code-Audit Finding Format"
+      ],
+      "source_lines": "138-230",
+      "started_at": "2026-04-02T12:16:29.508349Z",
+      "closed_at": "2026-04-02T12:16:29.508349Z",
+      "closed_reason": "generateCodeAuditPrompt creates prompt with role=code-auditor, category=completeness, contains spec content, affected files context, 5-step audit checklist (C1: state-dependent behaviors, C2: spec coverage, C3: removal reach, C4: acceptance completeness, C5: side effects), output format is NDJSON with file, line, pattern, current_behavior, spec_coverage, finding, suggestion, severity, category fields",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "car-wire-code-audit",
+      "title": "Wire code-audit perspective into runReview()",
+      "status": "done",
+      "depends_on": [
+        "car-validation",
+        "car-code-audit-prompt"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "runReview() handles --perspective code-audit by calling generateCodeAuditPrompt. Output includes affected_files array and affected_summary object with total_files, total_lines, chars_included.",
+      "source_sections": [
+        "### 7.5 Code-Audit Output"
+      ],
+      "source_lines": "232-258",
+      "started_at": "2026-04-02T12:16:29.508349Z",
+      "closed_at": "2026-04-02T12:16:29.508349Z",
+      "closed_reason": "runReview handles --perspective code-audit by calling generateCodeAuditPrompt, output includes affected_files array listing file paths and affected_summary object with total_files, total_lines, chars_included fields",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "car-wire-affected-files",
+      "title": "Wire affected-files into runReview() flow",
+      "status": "done",
+      "depends_on": [
+        "car-inject-default",
+        "car-inject-perspectives",
+        "car-final-round",
+        "car-wire-code-audit"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "When --affected-files is provided, runReview reads files and passes content to all prompt generators. When --affected-files is not provided, existing behavior unchanged. ReviewResult includes affected_files field when files were provided.",
+      "source_sections": [
+        "### 10.1 review.go"
+      ],
+      "source_lines": "288-299",
+      "started_at": "2026-04-02T12:16:29.508349Z",
+      "closed_at": "2026-04-02T12:16:29.508349Z",
+      "closed_reason": "When --affected-files provided, runReview reads files and passes content to all prompt generators. When not provided, existing behavior unchanged. ReviewResult includes affected_files field when files were provided",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "car-acceptance-lint",
+      "title": "Implement CheckAcceptanceQuality() lint check",
+      "status": "done",
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "Scans task file acceptance strings. Warns on past-tense removal verbs without present-tense state description. Warns on vague completion verbs without result specifics. Info on acceptance shorter than 10 words. Case-insensitive matching. Skipped when no task file exists.",
+      "source_sections": [
+        "### 8.1 New Check: `acceptance-quality`"
+      ],
+      "source_lines": "261-272",
+      "started_at": "2026-04-02T12:16:11.056956Z",
+      "closed_at": "2026-04-02T12:16:29.508349Z",
+      "closed_reason": "CheckAcceptanceQuality scans task file acceptance strings, warns on past-tense removal verbs (removed, deleted) without present-tense state description, warns on vague completion verbs (ensure, make) without result specifics, info on acceptance shorter than 10 words, case-insensitive matching via regex, skipped when no task file exists",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "car-scope-lint",
+      "title": "Implement CheckAffectedFilesScope() lint check",
+      "status": "done",
+      "depends_on": [],
+      "estimate_minutes": 8,
+      "acceptance": "Detects tables with 'affected files' heading. Finds rows with modify/change/değiştir/güncelle values (case-insensitive). Warns when scope cell missing or shorter than 10 chars. Skipped when no affected files table found.",
+      "source_sections": [
+        "### 9.1 New Check: `affected-files-scope`"
+      ],
+      "source_lines": "274-280",
+      "started_at": "2026-04-02T12:16:11.056956Z",
+      "closed_at": "2026-04-02T12:16:29.508349Z",
+      "closed_reason": "CheckAffectedFilesScope detects tables under headings containing 'affected files', finds action column and scope column headers, identifies rows with modify/change/değiştir/güncelle action values (case-insensitive, excludes 'no change'), warns when scope cell missing or shorter than 10 chars, skipped when no affected files table found",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "car-lint-wire",
+      "title": "Wire new lint checks into runLint()",
+      "status": "done",
+      "depends_on": [
+        "car-acceptance-lint",
+        "car-scope-lint"
+      ],
+      "estimate_minutes": 5,
+      "acceptance": "CheckAcceptanceQuality and CheckAffectedFilesScope called in runLint after existing checks. Task file auto-detected from spec path. Checks skipped when task file not found.",
+      "source_sections": [
+        "### 10.2 lint.go"
+      ],
+      "source_lines": "301-305",
+      "started_at": "2026-04-02T12:16:29.508349Z",
+      "closed_at": "2026-04-02T12:16:29.508349Z",
+      "closed_reason": "Both CheckAcceptanceQuality and CheckAffectedFilesScope called in runLint after existing checks, task file auto-detected from spec path by replacing .md with .tasks.json, both checks skipped when task file not found",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "car-tests-validation",
+      "title": "Write tests for affected-files and final-round validation",
+      "status": "done",
+      "depends_on": [
+        "car-wire-affected-files"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Tests: --affected-files valid files exit 0, nonexistent exit 3, directory exit 3, code-audit without affected-files exit 2, final-round round 1 exit 2, final-round without affected-files warning, duplicate paths deduped, compatible with --round/--findings.",
+      "source_sections": [
+        "## 12. Test Cases"
+      ],
+      "source_lines": "312-322",
+      "started_at": "2026-04-02T12:16:29.508349Z",
+      "closed_at": "2026-04-02T12:16:29.508349Z",
+      "closed_reason": "Tests for: valid affected files exit 0, nonexistent file exit 3, directory exit 3, code-audit without affected-files exit 2, final-round with round 1 exit 2, final-round without affected-files warning, duplicate paths deduped, compatible with round and findings",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "car-tests-prompt-content",
+      "title": "Write tests for prompt content injection",
+      "status": "done",
+      "depends_on": [
+        "car-wire-affected-files"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Tests: default prompts contain affected files when --affected-files provided. Implementer prompt has checklist item about state-dependent behaviors. Final-round prompts have mandatory read-through item. Documentation prompt has code files alongside doc files. Test prompt has code files alongside test files.",
+      "source_sections": [
+        "## 12. Test Cases"
+      ],
+      "source_lines": "322-331",
+      "started_at": "2026-04-02T12:16:29.508349Z",
+      "closed_at": "2026-04-02T12:16:29.508349Z",
+      "closed_reason": "Tests verify: default prompts contain affected files content, implementer prompt has state-dependent behaviors checklist item, final-round prompts have mandatory read-through item, documentation prompt has code files alongside doc files, testing prompt has code files alongside test files",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "car-tests-code-audit",
+      "title": "Write tests for code-audit perspective",
+      "status": "done",
+      "depends_on": [
+        "car-wire-code-audit"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Tests: code-audit prompt has role code-auditor. Prompt contains C1-C5 checklist items. Prompt contains affected files content. Output has affected_files array and affected_summary. Empty affected-files list works without panic.",
+      "source_sections": [
+        "## 12. Test Cases"
+      ],
+      "source_lines": "331-334",
+      "started_at": "2026-04-02T12:16:29.508349Z",
+      "closed_at": "2026-04-02T12:16:29.508349Z",
+      "closed_reason": "Tests verify: code-audit prompt has role code-auditor, prompt contains C1-C5 checklist items, prompt contains affected files content, output has affected_files array and affected_summary object, empty affected-files list works without panic",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "car-tests-caps",
+      "title": "Write tests for file reading caps and budget",
+      "status": "done",
+      "depends_on": [
+        "car-read-files"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Tests: file larger than 8000 chars truncated with marker. Total files larger than 50000 chars capped. Prompt budget enforcement reduces file count when combined with findings. Per-file cap not affected by budget reduction.",
+      "source_sections": [
+        "## 12. Test Cases"
+      ],
+      "source_lines": "335-338",
+      "started_at": "2026-04-02T12:16:29.508349Z",
+      "closed_at": "2026-04-02T12:16:29.508349Z",
+      "closed_reason": "Tests verify: file larger than 8000 chars truncated with marker, total files larger than 50000 chars capped by removing from end, prompt budget enforcement reduces file count when combined with findings, per-file cap of 8000 not affected by budget reduction",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "car-tests-lint",
+      "title": "Write tests for acceptance-quality and scope lint",
+      "status": "done",
+      "depends_on": [
+        "car-lint-wire"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Tests: acceptance with 'removed' produces warning. Acceptance with full description no warning. No task file skips check. Scope table with Modify and scope passes. Scope table with Modify without scope warns. No affected files table skips. Case-insensitive matching.",
+      "source_sections": [
+        "## 12. Test Cases"
+      ],
+      "source_lines": "339-345",
+      "started_at": "2026-04-02T12:16:29.508349Z",
+      "closed_at": "2026-04-02T12:16:29.508349Z",
+      "closed_reason": "Tests verify: acceptance with 'removed' produces warning, full description no warning, no task file skips check, scope table with Modify and scope passes, scope table with Modify without scope warns, no affected files table skips, case-insensitive matching for Turkish modify verbs",
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ]
+}
