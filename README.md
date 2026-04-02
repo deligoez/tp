@@ -70,6 +70,7 @@ tp commit <id> --files "*.go"  # Selective file staging
 tp done <id> <reason>          # Close with implicit claim + verification
 tp done <id> --gate-passed     # Relax keyword matching (agent attests gate passed)
 tp done <id> --auto-commit     # Stage + commit + close in one call
+tp done <id> --auto-commit --files src/engine/*.go  # Selective staging + commit + close
 tp done <id> --covered-by <id> # Close as covered by another done task
 tp done <id> --commit <sha>    # Record implementing commit SHA
 tp done --batch file.ndjson    # Batch close from NDJSON
@@ -117,6 +118,7 @@ tp report                      # Per-task duration + estimation accuracy
 ```bash
 tp lint spec.md                # Spec quality + structured element detection
 tp review spec.md              # Adversarial review prompts (3 personas)
+tp review spec.md --round 2 --findings r1.ndjson  # Multi-round with previous findings
 tp validate                    # Task file + line coverage + atomicity (--strict)
 ```
 
@@ -244,6 +246,16 @@ tp lint spec.md --json | jq .structured_elements
 ```bash
 tp review spec.md --json | jq '.prompts | length'
 # → 3 (one per persona, each with spec-structure-aware questions)
+```
+
+For multi-round review, use `--round` and `--findings` to auto-exclude previously reported issues:
+
+```bash
+# Round 1: generate prompts, spawn sub-agents, collect findings to findings.ndjson
+tp review spec.md --json > review-r1.json
+
+# Round 2: tp auto-injects findings summary, prompts focus on new issues only
+tp review spec.md --round 2 --findings findings.ndjson --json > review-r2.json
 ```
 
 `tp validate` checks line coverage — verifying that task `source_lines` cover the entire spec:
