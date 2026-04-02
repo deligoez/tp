@@ -108,6 +108,8 @@ INCREMENTAL (1 task at a time):
 	lintCmd.GroupID = "query"
 	reviewCmd := newReviewCmd()
 	reviewCmd.GroupID = "query"
+	auditCmd := newAuditCmd()
+	auditCmd.GroupID = "query"
 	validateCmd := newValidateCmd()
 	validateCmd.GroupID = "query"
 
@@ -121,7 +123,7 @@ INCREMENTAL (1 task at a time):
 
 	cmd.AddCommand(planCmd, doneCmd, nextCmd, commitCmd)
 	cmd.AddCommand(claimCmd, closeCmd, reopenCmd, removeCmd, setCmd)
-	cmd.AddCommand(listCmd, statusCmd, readyCmd, blockedCmd, showCmd, graphCmd, statsCmd, reportCmd, lintCmd, reviewCmd, validateCmd)
+	cmd.AddCommand(listCmd, statusCmd, readyCmd, blockedCmd, showCmd, graphCmd, statsCmd, reportCmd, lintCmd, reviewCmd, auditCmd, validateCmd)
 	cmd.AddCommand(initCmd, addCmd, importCmd)
 
 	return cmd
@@ -139,8 +141,8 @@ func Execute() {
 	}
 }
 
-func GetFileFlag() string    { return flagFile }
-func IsJSONOutput() bool     { return flagJSON }
-func IsQuiet() bool          { return flagQuiet }
-func IsNoColor() bool        { return flagNoColor }
-func IsCompact() bool        { return flagCompact }
+func GetFileFlag() string { return flagFile }
+func IsJSONOutput() bool  { return flagJSON }
+func IsQuiet() bool       { return flagQuiet }
+func IsNoColor() bool     { return flagNoColor }
+func IsCompact() bool     { return flagCompact }
