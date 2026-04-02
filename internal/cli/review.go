@@ -38,12 +38,6 @@ type reviewLoop struct {
 	Instruction      string `json:"instruction"`
 }
 
-type affectedSummary struct {
-	TotalFiles    int `json:"total_files"`
-	TotalLines    int `json:"total_lines"`
-	CharsIncluded int `json:"chars_included"`
-}
-
 type reviewResult struct {
 	Spec               string                     `json:"spec"`
 	StructuredElements *engine.StructuredElements `json:"structured_elements,omitempty"`
@@ -51,7 +45,7 @@ type reviewResult struct {
 	DocsPath           string                     `json:"docs_path,omitempty"`
 	TestPath           string                     `json:"test_path,omitempty"`
 	AffectedFiles      []string                   `json:"affected_files,omitempty"`
-	AffectedSummary    *affectedSummary           `json:"affected_summary,omitempty"`
+	AffectedSummary    *engine.AffectedSummary    `json:"affected_summary,omitempty"`
 	DocsStructure      *docStructure              `json:"docs_structure,omitempty"`
 	TestStructure      *docStructure              `json:"test_structure,omitempty"`
 	Prompts            []reviewPrompt             `json:"prompts"`
@@ -65,11 +59,11 @@ type docStructure struct {
 }
 
 const (
-	specContentCap     = 10000
-	findingsSummaryCap = 5000
-	affectedPerFileCap = 8000
-	affectedTotalCap   = 50000
-	promptBudget       = 60000
+	specContentCap     = engine.SpecContentCap
+	findingsSummaryCap = engine.FindingsSummaryCap
+	affectedPerFileCap = engine.AffectedPerFileCap
+	affectedTotalCap   = engine.AffectedTotalCap
+	promptBudget       = engine.PromptBudget
 )
 
 func newReviewCmd() *cobra.Command {
@@ -167,7 +161,7 @@ func runReview(_ *cobra.Command, specPath string, round int, findingsPath, persp
 		output.Info("final-round without affected-files: agents won't read code")
 	}
 
-	affectedFiles = dedupPaths(affectedFiles)
+	affectedFiles = engine.DedupPaths(affectedFiles)
 	for _, f := range affectedFiles {
 		info, err := os.Stat(f)
 		if err != nil {
@@ -185,8 +179,8 @@ func runReview(_ *cobra.Command, specPath string, round int, findingsPath, persp
 	specContent := readSpecContent(specPath)
 
 	if perspective == "code-audit" {
-		affectedContent := readAffectedFiles(affectedFiles)
-		summary := buildAffectedSummary(affectedFiles, affectedContent)
+		affectedContent := engine.ReadAffectedFiles(affectedFiles)
+		summary := engine.BuildAffectedSummary(affectedFiles, affectedContent)
 		prompt := generateCodeAuditPrompt(specContent, affectedContent)
 		result := reviewResult{
 			Spec:            specPath,
@@ -211,13 +205,13 @@ func runReview(_ *cobra.Command, specPath string, round int, findingsPath, persp
 		ranked := rankFilesBySpecTerms(files, specLines, 15)
 		docContent := readFilesContent(ranked, 5000, 30000)
 		if len(affectedFiles) > 0 {
-			affectedContent := readAffectedFiles(affectedFiles)
+			affectedContent := engine.ReadAffectedFiles(affectedFiles)
 			for path, content := range affectedContent {
 				docContent[path] = content
 			}
 		}
 		prompt := generateDocPlanPrompt(specContent, structureMap, docContent)
-		summary := buildAffectedSummary(affectedFiles, nil)
+		summary := engine.BuildAffectedSummary(affectedFiles, nil)
 		result := reviewResult{
 			Spec:            specPath,
 			Perspective:     perspective,
@@ -247,13 +241,13 @@ func runReview(_ *cobra.Command, specPath string, round int, findingsPath, persp
 		ranked := rankFilesBySpecTerms(files, specLines, 15)
 		testContent := readFilesContent(ranked, 5000, 20000)
 		if len(affectedFiles) > 0 {
-			affectedContent := readAffectedFiles(affectedFiles)
+			affectedContent := engine.ReadAffectedFiles(affectedFiles)
 			for path, content := range affectedContent {
 				testContent[path] = content
 			}
 		}
 		prompt := generateTestPlanPrompt(specContent, structureMap, testContent)
-		summary := buildAffectedSummary(affectedFiles, nil)
+		summary := engine.BuildAffectedSummary(affectedFiles, nil)
 		result := reviewResult{
 			Spec:            specPath,
 			Perspective:     perspective,
@@ -315,9 +309,9 @@ func runReview(_ *cobra.Command, specPath string, round int, findingsPath, persp
 
 	var affectedSection string
 	if len(affectedFiles) > 0 {
-		affectedSection = buildAffectedSection(readAffectedFilesBudgetAware(affectedFiles, summary, specContent))
+		affectedSection = engine.BuildAffectedSection(engine.ReadAffectedFilesBudgetAware(affectedFiles, summary, specContent))
 	} else {
-		affectedSection = buildAffectedSection(readAffectedFiles(affectedFiles))
+		affectedSection = engine.BuildAffectedSection(engine.ReadAffectedFiles(affectedFiles))
 	}
 
 	prompts := []reviewPrompt{
@@ -349,114 +343,10 @@ func runReview(_ *cobra.Command, specPath string, round int, findingsPath, persp
 
 	if len(affectedFiles) > 0 {
 		result.AffectedFiles = affectedFiles
-		result.AffectedSummary = buildAffectedSummary(affectedFiles, readAffectedFiles(affectedFiles))
+		result.AffectedSummary = engine.BuildAffectedSummary(affectedFiles, engine.ReadAffectedFiles(affectedFiles))
 	}
 
 	return output.JSON(result)
-}
-
-func dedupPaths(paths []string) []string {
-	seen := make(map[string]bool, len(paths))
-	result := make([]string, 0, len(paths))
-	for _, p := range paths {
-		if !seen[p] {
-			seen[p] = true
-			result = append(result, p)
-		}
-	}
-	return result
-}
-
-func readAffectedFiles(paths []string) map[string]string {
-	return readAffectedFilesRaw(paths, affectedPerFileCap, affectedTotalCap)
-}
-
-func readAffectedFilesBudgetAware(paths []string, findingsSummary, specContent string) map[string]string {
-	summaryLen := len(findingsSummary)
-	specLen := len(specContent)
-	remaining := promptBudget - specLen - summaryLen
-	if remaining < 0 {
-		remaining = 5000
-	}
-
-	if remaining >= affectedTotalCap {
-		return readAffectedFiles(paths)
-	}
-
-	return readAffectedFilesRaw(paths, affectedPerFileCap, remaining)
-}
-
-func readAffectedFilesRaw(paths []string, maxPerFile, maxTotal int) map[string]string {
-	result := make(map[string]string)
-	total := 0
-	for _, f := range paths {
-		content, err := os.ReadFile(f)
-		if err != nil {
-			continue
-		}
-		lineCount := strings.Count(string(content), "\n") + 1
-		s := string(content)
-		truncated := false
-		if len(s) > maxPerFile {
-			s = s[:maxPerFile] + fmt.Sprintf("\n[...truncated at %d chars]", maxPerFile)
-			truncated = true
-		}
-		if total+len(s) > maxTotal {
-			remaining := maxTotal - total
-			if remaining > 100 {
-				s = s[:remaining] + "\n[...truncated by total cap]"
-				result[f] = s
-			}
-			break
-		}
-		result[f] = s
-		total += len(s)
-		_ = lineCount
-		_ = truncated
-	}
-	return result
-}
-
-func buildAffectedSummary(paths []string, content map[string]string) *affectedSummary {
-	if len(paths) == 0 {
-		return nil
-	}
-	totalLines := 0
-	charsIncluded := 0
-	for _, p := range paths {
-		if c, ok := content[p]; ok {
-			totalLines += strings.Count(c, "\n") + 1
-			charsIncluded += len(c)
-		} else if raw, err := os.ReadFile(p); err == nil {
-			totalLines += strings.Count(string(raw), "\n") + 1
-		}
-	}
-	return &affectedSummary{
-		TotalFiles:    len(paths),
-		TotalLines:    totalLines,
-		CharsIncluded: charsIncluded,
-	}
-}
-
-func buildAffectedSection(content map[string]string) string {
-	if len(content) == 0 {
-		return ""
-	}
-	var b bytes.Buffer
-	b.WriteString("## Affected Files\n\n")
-	sorted := make([]string, 0, len(content))
-	for p := range content {
-		sorted = append(sorted, p)
-	}
-	sort.Strings(sorted)
-	for _, p := range sorted {
-		c := content[p]
-		lineCount := strings.Count(c, "\n") + 1
-		fmt.Fprintf(&b, "### %s (%d lines)\n", filepath.Base(p), lineCount)
-		b.WriteString(c)
-		b.WriteString("\n\n")
-	}
-	return b.String()
 }
 
 const findingFormat = `
