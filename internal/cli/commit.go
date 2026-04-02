@@ -95,6 +95,9 @@ func runCommit(_ *cobra.Command, args []string) error {
 			return nil
 		}
 
+		// Unstage lock files that may have been accidentally staged
+		_ = runGit("reset", "HEAD", "--", "*.lock", "*.tasks.json.lock")
+
 		// Check if there's anything to commit
 		if !gitHasStagedChanges() {
 			output.Error(ExitState, "no changes to commit")
