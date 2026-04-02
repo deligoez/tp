@@ -121,6 +121,9 @@ tp review spec.md              # Adversarial review prompts (3 personas)
 tp review spec.md --perspective code-audit --affected-files src/a.go  # Code audit with source files
 tp review spec.md --round 2 --findings r1.ndjson  # Multi-round with previous findings
 tp review spec.md --round 2 --final-round --affected-files src/a.go  # Final round: mandatory code read-through
+tp audit spec.md               # Post-implementation: verify code matches spec
+tp audit spec.md --affected-files src/a.go  # Manual file selection
+tp audit spec.md --findings review.ndjson  # Also verify review findings
 tp validate                    # Task file + line coverage + atomicity (--strict)
 ```
 
@@ -305,6 +308,28 @@ tp lint spec.md --json | jq '.findings[] | select(.rule)'
 
 ```bash
 tp validate --json | jq .checks.line_coverage
+```
+
+## Post-Implementation Audit
+
+`tp audit` verifies that the spec's requirements actually made it into the code:
+
+```bash
+# Auto-detect changed files via git diff (zero-config)
+tp audit spec.md --json
+
+# Manual file selection
+tp audit spec.md --affected-files src/form.vue src/api.ts
+
+# Also verify review findings were addressed
+tp audit spec.md --findings findings.ndjson
+```
+
+The command parses the spec's structured elements (table rows, numbered lists), task acceptance criteria, and optionally review findings. Each becomes a checklist entry. It reads the changed source files and generates adversarial prompts that verify each requirement against actual code.
+
+```bash
+tp audit spec.md --json | jq '.checklist_summary'
+# → {"total": 12, "by_type": {"table_row": 5, "list_item": 4, "task_acceptance": 3}}
 ```
 
 ## AX (Agent Experience)
