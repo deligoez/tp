@@ -20,9 +20,12 @@ This skill activates when:
 
 1. `tp lint <spec.md>` — fix structural issues, review `structured_elements`
 2. `tp review <spec.md>` — adversarial review loop:
-   - tp generates 3 targeted prompts (implementer, tester, architect)
+   - Round 1: `tp review <spec.md>` generates 3 targeted prompts (implementer, tester, architect)
    - Spawn sub-agents with each prompt via the Agent tool (can be parallel)
-   - Collect NDJSON findings, fix spec, re-review if high-severity findings
+   - Collect NDJSON findings, fix spec
+   - Round 2+: `tp review <spec.md> --round 2 --findings <findings.ndjson>`
+   - tp auto-injects previous findings summary into prompts, excludes already-reported issues
+   - Combine findings files across rounds for `--findings`
    - Converge within 2 rounds (stop when no new high-severity)
 3. Read spec, decompose into tasks (JSON):
    - Every task MUST have `source_lines` mapping to spec line ranges (e.g., `"15-42"` or `"15-42,50-60"`)
@@ -133,6 +136,7 @@ tp done <id> "reason" --gate-passed
 | `tp done <id> "reason"` | Single close |
 | `tp lint spec.md` | Spec quality + structured elements |
 | `tp review spec.md` | Adversarial review prompts (3 personas) |
+| `tp review spec.md --round N --findings file.ndjson` | Multi-round review with previous findings exclusion |
 | `tp validate` | Task file validation + line coverage |
 | `tp set --bulk file` | Bulk update from NDJSON `{id, field, value}` |
 | `tp list --status open` | Filter tasks |
