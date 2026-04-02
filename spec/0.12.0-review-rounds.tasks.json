@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.12.0-review-rounds.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-04-02T05:20:28.326255Z",
+  "updated_at": "2026-04-02T05:24:45.683175Z",
   "workflow": {},
   "coverage": {
     "total_sections": 16,
@@ -23,7 +23,7 @@
     {
       "id": "review-rounds-flags",
       "title": "Add --round and --findings flags with validation",
-      "status": "open",
+      "status": "done",
       "depends_on": [],
       "estimate_minutes": 5,
       "acceptance": "--round flag (int, default 1) and --findings flag (string) exist on tp review command. round \u003c 1 exits with code 2. --findings file missing exits with code 2. --round \u003e 1 without --findings outputs warning hint via output.Warn(). Flags are wired into runReview signature.",
@@ -32,11 +32,11 @@
         "### Validation Rules"
       ],
       "source_lines": "41-54",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-04-02T05:24:45.441561Z",
+      "closed_at": "2026-04-02T05:24:45.683171Z",
+      "closed_reason": "Flags added to newReviewCmd: --round (int, default 1) and --findings (string). Validation: round\u003c1 exits code 2, missing findings file exits code 2, round\u003e1 without --findings outputs info warning.",
+      "gate_passed_at": "2026-04-02T05:24:45.683171Z",
+      "commit_sha": "5007a05"
     },
     {
       "id": "review-rounds-parse",
