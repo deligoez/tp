@@ -87,6 +87,8 @@ tp stats                       # Parallelism analysis
 ```bash
 tp lint <spec.md>              # Spec quality checks (no task file needed)
 tp review <spec.md>            # Adversarial review prompts (implementer, tester, architect)
+tp review <spec.md> --perspective code-audit --affected-files <paths>  # Code audit with source files
+tp review <spec.md> --round N --final-round --affected-files <paths>  # Final round: mandatory code read-through
 tp validate                    # Task file validation (--strict)
 ```
 
@@ -156,6 +158,12 @@ skills/tp/
 - Quality gate after every task: `go test ./... && golangci-lint run`
 - One task = one commit = one `tp commit` call
 - Always use `tp commit` for committing — never raw `git commit`
+- **Update `skills/tp/SKILL.md` before every release** — new commands, flags, lint rules, and workflow changes MUST be reflected in the skill file before creating the release tag
+- **Pre-release checklist** — before running `gh release create`, verify:
+  1. `skills/tp/SKILL.md` reflects all new commands, flags, lint rules, and workflow changes
+  2. `CLAUDE.md` Self-Development Rules reflect any new conventions or process changes
+  3. `README.md` reflects all new commands, flags, and features
+  4. All three files are committed and included in the release tag
 
 ### Continuous Improvement
 - After each implementation cycle, note friction points and AX issues
