@@ -155,6 +155,7 @@ skills/tp/
 - Use `--covered-by` when a task is satisfied by another task's work
 - Quality gate after every task: `go test ./... && golangci-lint run`
 - One task = one commit = one `tp commit` call
+- Always use `tp commit` for committing — never raw `git commit`
 
 ### Continuous Improvement
 - After each implementation cycle, note friction points and AX issues
