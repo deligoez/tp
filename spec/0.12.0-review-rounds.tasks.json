@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.12.0-review-rounds.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-04-02T05:24:57.749734Z",
+  "updated_at": "2026-04-02T05:25:03.332814Z",
   "workflow": {},
   "coverage": {
     "total_sections": 16,
@@ -99,7 +99,7 @@
     {
       "id": "review-rounds-output",
       "title": "Update review_loop output with round and previous_findings",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "review-rounds-flags"
       ],
@@ -109,11 +109,11 @@
         "### Output Changes"
       ],
       "source_lines": "104-124",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-04-02T05:25:03.109758Z",
+      "closed_at": "2026-04-02T05:25:03.332808Z",
+      "closed_reason": "reviewLoop struct has Round and PreviousFindings fields. Output JSON includes round and previous_findings. Instruction updated with --round N+1 --findings guidance. Backward compat maintained.",
+      "gate_passed_at": "2026-04-02T05:25:03.332808Z",
+      "commit_sha": "59910ff"
     },
     {
       "id": "review-rounds-tests",
