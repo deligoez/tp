@@ -38,12 +38,20 @@ type reviewLoop struct {
 	Instruction      string `json:"instruction"`
 }
 
+type affectedSummary struct {
+	TotalFiles    int `json:"total_files"`
+	TotalLines    int `json:"total_lines"`
+	CharsIncluded int `json:"chars_included"`
+}
+
 type reviewResult struct {
 	Spec               string                     `json:"spec"`
 	StructuredElements *engine.StructuredElements `json:"structured_elements,omitempty"`
 	Perspective        string                     `json:"perspective,omitempty"`
 	DocsPath           string                     `json:"docs_path,omitempty"`
 	TestPath           string                     `json:"test_path,omitempty"`
+	AffectedFiles      []string                   `json:"affected_files,omitempty"`
+	AffectedSummary    *affectedSummary           `json:"affected_summary,omitempty"`
 	DocsStructure      *docStructure              `json:"docs_structure,omitempty"`
 	TestStructure      *docStructure              `json:"test_structure,omitempty"`
 	Prompts            []reviewPrompt             `json:"prompts"`
@@ -56,12 +64,22 @@ type docStructure struct {
 	StructureMap  string `json:"structure_map"`
 }
 
+const (
+	specContentCap     = 10000
+	findingsSummaryCap = 5000
+	affectedPerFileCap = 8000
+	affectedTotalCap   = 50000
+	promptBudget       = 60000
+)
+
 func newReviewCmd() *cobra.Command {
 	var round int
 	var findingsPath string
 	var perspective string
 	var docsPath string
 	var testPath string
+	var affectedFiles []string
+	var finalRound bool
 
 	cmd := &cobra.Command{
 		Use:   "review <spec.md>",
@@ -69,31 +87,42 @@ func newReviewCmd() *cobra.Command {
 		Long: `Parses a spec and generates targeted review prompts.
 Default (no --perspective): 3 adversarial prompts (implementer, tester, architect).
 --perspective documentation: single doc change plan prompt.
---perspective testing: single test plan prompt.`,
+--perspective testing: single test plan prompt.
+--perspective code-audit: single code audit prompt (requires --affected-files).`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runReview(cmd, args[0], round, findingsPath, perspective, docsPath, testPath)
+			return runReview(cmd, args[0], round, findingsPath, perspective, docsPath, testPath, affectedFiles, finalRound)
 		},
 	}
 
 	cmd.Flags().IntVar(&round, "round", 1, "Current review round number (1-indexed)")
 	cmd.Flags().StringVar(&findingsPath, "findings", "", "Path to NDJSON file with previous round findings")
-	cmd.Flags().StringVar(&perspective, "perspective", "", "Review perspective: documentation or testing")
+	cmd.Flags().StringVar(&perspective, "perspective", "", "Review perspective: documentation, testing, or code-audit")
 	cmd.Flags().StringVar(&docsPath, "docs-path", "", "Path to documentation directory (required with --perspective documentation)")
 	cmd.Flags().StringVar(&testPath, "test-path", "", "Path to test directory (required with --perspective testing)")
+	cmd.Flags().StringArrayVar(&affectedFiles, "affected-files", nil, "Paths to source files to inject into review context")
+	cmd.Flags().BoolVar(&finalRound, "final-round", false, "Force mandatory code read-through in review prompts (requires round >= 2)")
 
 	return cmd
 }
 
-func runReview(_ *cobra.Command, specPath string, round int, findingsPath, perspective, docsPath, testPath string) error {
-	if perspective != "" && perspective != "documentation" && perspective != "testing" {
-		output.Error(ExitUsage, fmt.Sprintf("invalid perspective: %q (must be 'documentation' or 'testing')", perspective))
+func runReview(_ *cobra.Command, specPath string, round int, findingsPath, perspective, docsPath, testPath string, affectedFiles []string, finalRound bool) error {
+	validPerspectives := map[string]bool{"documentation": true, "testing": true, "code-audit": true}
+
+	if perspective != "" && !validPerspectives[perspective] {
+		output.Error(ExitUsage, fmt.Sprintf("invalid perspective: %q (must be 'documentation', 'testing', or 'code-audit')", perspective))
 		os.Exit(ExitUsage)
 		return nil
 	}
 
-	if perspective != "" && (round != 1 || findingsPath != "") {
-		output.Error(ExitUsage, "--perspective is mutually exclusive with --round/--findings")
+	if perspective != "" && perspective != "code-audit" && (round != 1 || findingsPath != "") {
+		output.Error(ExitUsage, "--perspective is mutually exclusive with --round/--findings (except code-audit)")
+		os.Exit(ExitUsage)
+		return nil
+	}
+
+	if perspective == "code-audit" && len(affectedFiles) == 0 {
+		output.Error(ExitUsage, "--perspective code-audit requires at least one --affected-files")
 		os.Exit(ExitUsage)
 		return nil
 	}
@@ -128,13 +157,124 @@ func runReview(_ *cobra.Command, specPath string, round int, findingsPath, persp
 		}
 	}
 
+	if finalRound && round < 2 {
+		output.Error(ExitUsage, "--final-round requires --round >= 2")
+		os.Exit(ExitUsage)
+		return nil
+	}
+
+	if finalRound && len(affectedFiles) == 0 {
+		output.Info("final-round without affected-files: agents won't read code")
+	}
+
+	affectedFiles = dedupPaths(affectedFiles)
+	for _, f := range affectedFiles {
+		info, err := os.Stat(f)
+		if err != nil {
+			output.Error(ExitFile, fmt.Sprintf("affected file not found: %s", f))
+			os.Exit(ExitFile)
+			return nil
+		}
+		if info.IsDir() {
+			output.Error(ExitFile, fmt.Sprintf("affected path is a directory, not a file: %s", f))
+			os.Exit(ExitFile)
+			return nil
+		}
+	}
+
 	specContent := readSpecContent(specPath)
 
-	if perspective == "documentation" {
-		return runPerspectiveReview(specPath, perspective, docsPath, specContent, ".md", generateDocPlanPrompt)
+	if perspective == "code-audit" {
+		affectedContent := readAffectedFiles(affectedFiles)
+		summary := buildAffectedSummary(affectedFiles, affectedContent)
+		prompt := generateCodeAuditPrompt(specContent, affectedContent)
+		result := reviewResult{
+			Spec:            specPath,
+			Perspective:     perspective,
+			AffectedFiles:   affectedFiles,
+			AffectedSummary: summary,
+			Prompts:         []reviewPrompt{prompt},
+			ReviewLoop: reviewLoop{
+				Round:            round,
+				MaxRounds:        1,
+				Convergence:      "single-pass code audit",
+				PreviousFindings: 0,
+				Instruction:      "Spawn a sub-agent with this prompt. Collect NDJSON findings. Feed findings back into spec revision or task acceptance updates.",
+			},
+		}
+		return output.JSON(result)
 	}
+
+	if perspective == "documentation" {
+		structureMap, files := walkDocTree(docsPath, ".md")
+		specLines := strings.Split(specContent, "\n")
+		ranked := rankFilesBySpecTerms(files, specLines, 15)
+		docContent := readFilesContent(ranked, 5000, 30000)
+		if len(affectedFiles) > 0 {
+			affectedContent := readAffectedFiles(affectedFiles)
+			for path, content := range affectedContent {
+				docContent[path] = content
+			}
+		}
+		prompt := generateDocPlanPrompt(specContent, structureMap, docContent)
+		summary := buildAffectedSummary(affectedFiles, nil)
+		result := reviewResult{
+			Spec:            specPath,
+			Perspective:     perspective,
+			DocsPath:        docsPath,
+			AffectedFiles:   affectedFiles,
+			AffectedSummary: summary,
+			DocsStructure: &docStructure{
+				TotalFiles:    len(files),
+				ReviewedFiles: len(ranked),
+				StructureMap:  structureMap,
+			},
+			Prompts: []reviewPrompt{prompt},
+			ReviewLoop: reviewLoop{
+				Round:            1,
+				MaxRounds:        1,
+				Convergence:      "single-pass plan generation",
+				PreviousFindings: 0,
+				Instruction:      "Spawn a sub-agent with this prompt. Collect the NDJSON plan. Review the plan for completeness, then append the plan to the spec.",
+			},
+		}
+		return output.JSON(result)
+	}
+
 	if perspective == "testing" {
-		return runPerspectiveReview(specPath, perspective, testPath, specContent, "_test.go", generateTestPlanPrompt)
+		structureMap, files := walkDocTree(testPath, "_test.go")
+		specLines := strings.Split(specContent, "\n")
+		ranked := rankFilesBySpecTerms(files, specLines, 15)
+		testContent := readFilesContent(ranked, 5000, 20000)
+		if len(affectedFiles) > 0 {
+			affectedContent := readAffectedFiles(affectedFiles)
+			for path, content := range affectedContent {
+				testContent[path] = content
+			}
+		}
+		prompt := generateTestPlanPrompt(specContent, structureMap, testContent)
+		summary := buildAffectedSummary(affectedFiles, nil)
+		result := reviewResult{
+			Spec:            specPath,
+			Perspective:     perspective,
+			TestPath:        testPath,
+			AffectedFiles:   affectedFiles,
+			AffectedSummary: summary,
+			TestStructure: &docStructure{
+				TotalFiles:    len(files),
+				ReviewedFiles: len(ranked),
+				StructureMap:  structureMap,
+			},
+			Prompts: []reviewPrompt{prompt},
+			ReviewLoop: reviewLoop{
+				Round:            1,
+				MaxRounds:        1,
+				Convergence:      "single-pass plan generation",
+				PreviousFindings: 0,
+				Instruction:      "Spawn a sub-agent with this prompt. Collect the NDJSON plan. Review the plan for completeness, then append the plan to the spec.",
+			},
+		}
+		return output.JSON(result)
 	}
 
 	if round < 1 {
@@ -173,10 +313,17 @@ func runReview(_ *cobra.Command, specPath string, round int, findingsPath, persp
 
 	summary := buildFindingsSummary(findings)
 
+	var affectedSection string
+	if len(affectedFiles) > 0 {
+		affectedSection = buildAffectedSection(readAffectedFilesBudgetAware(affectedFiles, summary, specContent))
+	} else {
+		affectedSection = buildAffectedSection(readAffectedFiles(affectedFiles))
+	}
+
 	prompts := []reviewPrompt{
-		generateImplementerPrompt(elems, specContent, round, summary),
-		generateTesterPrompt(elems, specContent, round, summary),
-		generateArchitectPrompt(elems, specContent, round, summary),
+		generateImplementerPrompt(elems, specContent, round, summary, affectedSection, finalRound),
+		generateTesterPrompt(elems, specContent, round, summary, affectedSection, finalRound),
+		generateArchitectPrompt(elems, specContent, round, summary, affectedSection, finalRound),
 	}
 
 	uniqueCount := len(dedupFindings(findings))
@@ -200,7 +347,116 @@ func runReview(_ *cobra.Command, specPath string, round int, findingsPath, persp
 		},
 	}
 
+	if len(affectedFiles) > 0 {
+		result.AffectedFiles = affectedFiles
+		result.AffectedSummary = buildAffectedSummary(affectedFiles, readAffectedFiles(affectedFiles))
+	}
+
 	return output.JSON(result)
+}
+
+func dedupPaths(paths []string) []string {
+	seen := make(map[string]bool, len(paths))
+	result := make([]string, 0, len(paths))
+	for _, p := range paths {
+		if !seen[p] {
+			seen[p] = true
+			result = append(result, p)
+		}
+	}
+	return result
+}
+
+func readAffectedFiles(paths []string) map[string]string {
+	return readAffectedFilesRaw(paths, affectedPerFileCap, affectedTotalCap)
+}
+
+func readAffectedFilesBudgetAware(paths []string, findingsSummary, specContent string) map[string]string {
+	summaryLen := len(findingsSummary)
+	specLen := len(specContent)
+	remaining := promptBudget - specLen - summaryLen
+	if remaining < 0 {
+		remaining = 5000
+	}
+
+	if remaining >= affectedTotalCap {
+		return readAffectedFiles(paths)
+	}
+
+	return readAffectedFilesRaw(paths, affectedPerFileCap, remaining)
+}
+
+func readAffectedFilesRaw(paths []string, maxPerFile, maxTotal int) map[string]string {
+	result := make(map[string]string)
+	total := 0
+	for _, f := range paths {
+		content, err := os.ReadFile(f)
+		if err != nil {
+			continue
+		}
+		lineCount := strings.Count(string(content), "\n") + 1
+		s := string(content)
+		truncated := false
+		if len(s) > maxPerFile {
+			s = s[:maxPerFile] + fmt.Sprintf("\n[...truncated at %d chars]", maxPerFile)
+			truncated = true
+		}
+		if total+len(s) > maxTotal {
+			remaining := maxTotal - total
+			if remaining > 100 {
+				s = s[:remaining] + "\n[...truncated by total cap]"
+				result[f] = s
+			}
+			break
+		}
+		result[f] = s
+		total += len(s)
+		_ = lineCount
+		_ = truncated
+	}
+	return result
+}
+
+func buildAffectedSummary(paths []string, content map[string]string) *affectedSummary {
+	if len(paths) == 0 {
+		return nil
+	}
+	totalLines := 0
+	charsIncluded := 0
+	for _, p := range paths {
+		if c, ok := content[p]; ok {
+			totalLines += strings.Count(c, "\n") + 1
+			charsIncluded += len(c)
+		} else if raw, err := os.ReadFile(p); err == nil {
+			totalLines += strings.Count(string(raw), "\n") + 1
+		}
+	}
+	return &affectedSummary{
+		TotalFiles:    len(paths),
+		TotalLines:    totalLines,
+		CharsIncluded: charsIncluded,
+	}
+}
+
+func buildAffectedSection(content map[string]string) string {
+	if len(content) == 0 {
+		return ""
+	}
+	var b bytes.Buffer
+	b.WriteString("## Affected Files\n\n")
+	sorted := make([]string, 0, len(content))
+	for p := range content {
+		sorted = append(sorted, p)
+	}
+	sort.Strings(sorted)
+	for _, p := range sorted {
+		c := content[p]
+		lineCount := strings.Count(c, "\n") + 1
+		fmt.Fprintf(&b, "### %s (%d lines)\n", filepath.Base(p), lineCount)
+		b.WriteString(c)
+		b.WriteString("\n\n")
+	}
+	return b.String()
 }
 
 const findingFormat = `
@@ -209,7 +465,17 @@ For each issue found, respond with one JSON object per line (NDJSON):
 
 Only report real issues. Do not generate findings just to appear thorough.`
 
-func generateImplementerPrompt(elems *engine.StructuredElements, specContent string, round int, summary string) reviewPrompt {
+func appendAffectedChecklist(b *strings.Builder, n int, hasAffectedFiles bool) {
+	if hasAffectedFiles {
+		fmt.Fprintf(b, "%d. For each state-dependent behavior in the affected files (disabled, loading, visibility, conditional rendering, error handling), verify the spec addresses it. What controls each condition?\n", n+1)
+	}
+}
+
+func appendFinalRoundInstruction(b *strings.Builder) {
+	b.WriteString("\nMANDATORY: Read every file in the Affected Files section line-by-line. For each state-dependent behavior (disabled, loading, conditional rendering, class binding, error handling), verify the spec explicitly addresses it. Do NOT report \"spec is solid\" unless you have verified every state-dependent element.\n")
+}
+
+func generateImplementerPrompt(elems *engine.StructuredElements, specContent string, round int, summary, affectedSection string, finalRound bool) reviewPrompt {
 	var b strings.Builder
 	if round >= 2 {
 		fmt.Fprintf(&b, "You are a senior engineer who must implement this spec tomorrow. This is review round %d \u2014 focus ONLY on issues not previously reported. Your goal is to find requirements that are missing, underspecified, or impossible to implement as stated.\n\n", round)
@@ -223,6 +489,9 @@ func generateImplementerPrompt(elems *engine.StructuredElements, specContent str
 	b.WriteString("Spec content:\n---\n")
 	b.WriteString(specContent)
 	b.WriteString("\n---\n\n")
+	if affectedSection != "" {
+		b.WriteString(affectedSection)
+	}
 	b.WriteString("Check each of these specifically:\n")
 
 	n := 1
@@ -237,6 +506,12 @@ func generateImplementerPrompt(elems *engine.StructuredElements, specContent str
 	fmt.Fprintf(&b, "%d. What happens when the happy path fails? Where are the error handling gaps?\n", n)
 	n++
 	fmt.Fprintf(&b, "%d. Are there implicit assumptions that should be explicit?\n", n)
+	n++
+	appendAffectedChecklist(&b, n, true)
+
+	if finalRound {
+		appendFinalRoundInstruction(&b)
+	}
 
 	b.WriteString(findingFormat)
 	if summary != "" {
@@ -250,7 +525,7 @@ func generateImplementerPrompt(elems *engine.StructuredElements, specContent str
 	}
 }
 
-func generateTesterPrompt(elems *engine.StructuredElements, specContent string, round int, summary string) reviewPrompt {
+func generateTesterPrompt(elems *engine.StructuredElements, specContent string, round int, summary, affectedSection string, finalRound bool) reviewPrompt {
 	var b strings.Builder
 	if round >= 2 {
 		fmt.Fprintf(&b, "You are a QA engineer who must write tests from this spec. This is review round %d \u2014 focus ONLY on issues not previously reported. Your goal is to find requirements that are ambiguous (two testers would write contradictory tests) or non-verifiable (cannot write a pass/fail test).\n\n", round)
@@ -264,6 +539,9 @@ func generateTesterPrompt(elems *engine.StructuredElements, specContent string, 
 	b.WriteString("Spec content:\n---\n")
 	b.WriteString(specContent)
 	b.WriteString("\n---\n\n")
+	if affectedSection != "" {
+		b.WriteString(affectedSection)
+	}
 	b.WriteString("Check each of these specifically:\n")
 
 	n := 1
@@ -278,6 +556,12 @@ func generateTesterPrompt(elems *engine.StructuredElements, specContent string, 
 	fmt.Fprintf(&b, "%d. Which requirements use vague language ('appropriate', 'reasonable', 'properly', 'should') that prevents writing deterministic tests?\n", n)
 	n++
 	fmt.Fprintf(&b, "%d. Could two engineers interpret any requirement differently enough to produce incompatible implementations?\n", n)
+	n++
+	appendAffectedChecklist(&b, n, true)
+
+	if finalRound {
+		appendFinalRoundInstruction(&b)
+	}
 
 	b.WriteString(findingFormat)
 	if summary != "" {
@@ -291,7 +575,7 @@ func generateTesterPrompt(elems *engine.StructuredElements, specContent string, 
 	}
 }
 
-func generateArchitectPrompt(elems *engine.StructuredElements, specContent string, round int, summary string) reviewPrompt {
+func generateArchitectPrompt(elems *engine.StructuredElements, specContent string, round int, summary, affectedSection string, finalRound bool) reviewPrompt {
 	var b strings.Builder
 	if round >= 2 {
 		fmt.Fprintf(&b, "You are a senior architect reviewing this spec for approval before implementation begins. This is review round %d \u2014 focus ONLY on issues not previously reported. Your goal is to find contradictions between sections, missing backward compatibility analysis, and feasibility issues.\n\n", round)
@@ -305,6 +589,9 @@ func generateArchitectPrompt(elems *engine.StructuredElements, specContent strin
 	b.WriteString("Spec content:\n---\n")
 	b.WriteString(specContent)
 	b.WriteString("\n---\n\n")
+	if affectedSection != "" {
+		b.WriteString(affectedSection)
+	}
 	b.WriteString("Check each of these specifically:\n")
 
 	n := 1
@@ -330,6 +617,12 @@ func generateArchitectPrompt(elems *engine.StructuredElements, specContent strin
 	}
 
 	fmt.Fprintf(&b, "%d. Does the implementation order match the dependency graph? Can any steps be parallelized?\n", n)
+	n++
+	appendAffectedChecklist(&b, n, true)
+
+	if finalRound {
+		appendFinalRoundInstruction(&b)
+	}
 
 	b.WriteString(findingFormat)
 	if summary != "" {
@@ -339,6 +632,39 @@ func generateArchitectPrompt(elems *engine.StructuredElements, specContent strin
 	return reviewPrompt{
 		Role:     "architect",
 		Category: "consistency",
+		Prompt:   b.String(),
+	}
+}
+
+func generateCodeAuditPrompt(specContent string, affectedContent map[string]string) reviewPrompt {
+	var b strings.Builder
+
+	b.WriteString("You are a code auditor. You have a specification and the source files it claims to change. Your goal is to systematically compare code against spec and find state-dependent behaviors the spec doesn't address.\n\n")
+
+	b.WriteString("Spec content:\n---\n")
+	b.WriteString(specContent)
+	b.WriteString("\n---\n\n")
+
+	b.WriteString("## Affected Files\n\n")
+	sorted := make([]string, 0, len(affectedContent))
+	for p := range affectedContent {
+		sorted = append(sorted, p)
+	}
+	sort.Strings(sorted)
+	for _, p := range sorted {
+		c := affectedContent[p]
+		lineCount := strings.Count(c, "\n") + 1
+		fmt.Fprintf(&b, "### %s (%d lines)\n", filepath.Base(p), lineCount)
+		b.WriteString(c)
+		b.WriteString("\n\n")
+	}
+
+	b.WriteString(codeAuditChecklist)
+	b.WriteString(codeAuditOutputFormat)
+
+	return reviewPrompt{
+		Role:     "code-auditor",
+		Category: "completeness",
 		Prompt:   b.String(),
 	}
 }
@@ -440,50 +766,6 @@ func buildFindingsSummary(findings []reviewFinding) string {
 
 const findingFormatRound2 = `
 Remember: only report NEW issues not covered by the previous findings listed above.`
-
-type promptGenerator func(specContent string, structureMap string, fileContents map[string]string) reviewPrompt
-
-func runPerspectiveReview(specPath, perspective, dirPath, specContent, ext string, gen promptGenerator) error {
-	structureMap, files := walkDocTree(dirPath, ext)
-
-	specLines := strings.Split(specContent, "\n")
-	ranked := rankFilesBySpecTerms(files, specLines, 15)
-
-	fileContents := readFilesContent(ranked, 5000, 30000)
-
-	prompt := gen(specContent, structureMap, fileContents)
-
-	result := reviewResult{
-		Spec:        specPath,
-		Perspective: perspective,
-		Prompts:     []reviewPrompt{prompt},
-		ReviewLoop: reviewLoop{
-			Round:            1,
-			MaxRounds:        1,
-			Convergence:      "single-pass plan generation",
-			PreviousFindings: 0,
-			Instruction:      "Spawn a sub-agent with this prompt. Collect the NDJSON plan. Review the plan for completeness, then append the plan to the spec.",
-		},
-	}
-
-	if perspective == "documentation" {
-		result.DocsPath = dirPath
-		result.DocsStructure = &docStructure{
-			TotalFiles:    len(files),
-			ReviewedFiles: len(ranked),
-			StructureMap:  structureMap,
-		}
-	} else {
-		result.TestPath = dirPath
-		result.TestStructure = &docStructure{
-			TotalFiles:    len(files),
-			ReviewedFiles: len(ranked),
-			StructureMap:  structureMap,
-		}
-	}
-
-	return output.JSON(result)
-}
 
 func walkDocTree(root, ext string) (tree string, files []string) {
 	var allFiles []string
@@ -789,6 +1071,53 @@ Priority: must (critical path), should (important coverage), could (nice to have
 Only produce plan items for real tests needed. If no tests needed, respond with an empty array (just []).
 `
 
+const codeAuditChecklist = `
+For EACH affected file, perform these steps in order:
+
+C1. STATE-DEPENDENT BEHAVIORS
+List every state-dependent behavior:
+- Conditional disabling: :disabled, disabled, aria-disabled
+- Loading states: :loading, loading, spinner, skeleton
+- Conditional visibility: v-if, v-show, hidden, display:none, :class with conditions
+- Error/success states: error messages, success indicators, color changes
+- Computed/derived state: values that depend on other state
+For each: what controls it? What are ALL the conditions?
+
+C2. SPEC COVERAGE
+For each state-dependent behavior from C1:
+- Does the spec mention this element or condition?
+- If the spec changes this behavior, does it describe the FINAL state?
+- If the spec removes a condition, does it verify no OTHER code still references it?
+
+C3. REMOVAL REACH
+For each removal described in the spec:
+- Search the affected files for ALL references to the removed item
+- List every reference found
+- Does the spec account for each reference?
+
+C4. ACCEPTANCE COMPLETENESS
+For each state-dependent behavior from C1:
+- What should the acceptance criteria say?
+- Format: "element X shows Y behavior when Z condition, no other condition"
+- Does any task's acceptance describe this final state?
+
+C5. SIDE EFFECTS
+- Could implementing this spec cause unintended behavior changes?
+- Are there shared state dependencies across affected files?
+- Are there implicit contracts that could break?
+`
+
+const codeAuditOutputFormat = `
+Output format — respond with one JSON object per line (NDJSON):
+{"id":"ca-001","file":"path/to/file","line":42,"pattern":":disabled","current_behavior":"isFormLocked || isPhoneCheckInProgress","spec_coverage":"partial","finding":"spec removes isPhoneCheckInProgress but phone input still references it","suggestion":"Add acceptance: phone input :disabled only when isFormLocked","severity":"high","category":"gap"}
+
+Severity: critical, high, medium, low
+Category: gap, drift, side-effect, removal
+spec_coverage: missing, partial, full
+
+Only report real issues. If no issues found, respond with an empty array (just []).
+`
+
 func readSpecContent(path string) string {
 	f, err := os.Open(path)
 	if err != nil {
@@ -802,9 +1131,8 @@ func readSpecContent(path string) string {
 		lines = append(lines, scanner.Text())
 	}
 	content := strings.Join(lines, "\n")
-	// Cap at 10000 chars to keep prompts reasonable
-	if len(content) > 10000 {
-		content = content[:10000] + "\n[...truncated at 10000 chars]"
+	if len(content) > specContentCap {
+		content = content[:specContentCap] + fmt.Sprintf("\n[...truncated at %d chars]", specContentCap)
 	}
 	return content
 }
