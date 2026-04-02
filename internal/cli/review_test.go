@@ -366,3 +366,108 @@ func TestReviewEmptyFindingsFile(t *testing.T) {
 	loop := result["review_loop"].(map[string]any)
 	assert.Equal(t, float64(0), loop["previous_findings"])
 }
+
+func TestReviewRound1WithFindings(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Simple Spec\nDo the thing.\n"), 0o600))
+
+	findingsPath := filepath.Join(dir, "findings.ndjson")
+	require.NoError(t, os.WriteFile(findingsPath, []byte(`{"severity":"high","category":"completeness","location":"## Problem","finding":"Missing edge case","suggestion":"Fix it"}
+`), 0o600))
+
+	stdout, _, code := runTP(t, dir, "review", "--round", "1", "--findings", findingsPath, specPath)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	loop := result["review_loop"].(map[string]any)
+	assert.Equal(t, float64(1), loop["round"])
+	assert.Equal(t, float64(1), loop["previous_findings"])
+
+	implPrompt := result["prompts"].([]any)[0].(map[string]any)["prompt"].(string)
+	assert.Contains(t, implPrompt, "Previous Review Round")
+	assert.Contains(t, implPrompt, "[HIGH] completeness")
+	assert.NotContains(t, implPrompt, "review round 2")
+	assert.Contains(t, implPrompt, "only report NEW issues")
+
+	assert.Contains(t, loop["instruction"].(string), "--round 2 --findings")
+}
+
+func TestReviewSeveritySortOrder(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Simple Spec\nDo the thing.\n"), 0o600))
+
+	findingsPath := filepath.Join(dir, "findings.ndjson")
+	require.NoError(t, os.WriteFile(findingsPath, []byte(`{"severity":"low","category":"ambiguity","location":"L3","finding":"Low finding","suggestion":"Fix"}
+{"severity":"critical","category":"consistency","location":"L1","finding":"Critical finding","suggestion":"Fix"}
+{"severity":"high","category":"completeness","location":"L2","finding":"High finding","suggestion":"Fix"}
+{"severity":"medium","category":"feasibility","location":"L4","finding":"Med finding","suggestion":"Fix"}
+`), 0o600))
+
+	stdout, _, code := runTP(t, dir, "review", "--findings", findingsPath, specPath)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	prompt := result["prompts"].([]any)[0].(map[string]any)["prompt"].(string)
+	critIdx := strings.Index(prompt, "[CRIT]")
+	highIdx := strings.Index(prompt, "[HIGH]")
+	medIdx := strings.Index(prompt, "[MED]")
+	lowIdx := strings.Index(prompt, "[LOW]")
+	assert.Less(t, critIdx, highIdx, "CRIT should come before HIGH")
+	assert.Less(t, highIdx, medIdx, "HIGH should come before MED")
+	assert.Less(t, medIdx, lowIdx, "MED should come before LOW")
+}
+
+func TestReviewNegativeRound(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Simple Spec\nDo the thing.\n"), 0o600))
+
+	_, stderr, code := runTP(t, dir, "review", "--round", "-1", specPath)
+	assert.Equal(t, 2, code)
+	assert.Contains(t, stderr, "round must be")
+}
+
+func TestReviewRound3Instruction(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Simple Spec\nDo the thing.\n"), 0o600))
+
+	stdout, _, code := runTP(t, dir, "review", "--round", "3", specPath)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	loop := result["review_loop"].(map[string]any)
+	assert.Equal(t, float64(3), loop["round"])
+	assert.Contains(t, loop["instruction"].(string), "--round 4 --findings")
+
+	implPrompt := result["prompts"].([]any)[0].(map[string]any)["prompt"].(string)
+	assert.Contains(t, implPrompt, "review round 3")
+}
+
+func TestReviewMissingSeverityDefaultsToUnknown(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Simple Spec\nDo the thing.\n"), 0o600))
+
+	findingsPath := filepath.Join(dir, "findings.ndjson")
+	require.NoError(t, os.WriteFile(findingsPath, []byte(`{"category":"completeness","location":"## Problem","finding":"No severity field","suggestion":"Fix it"}
+`), 0o600))
+
+	stdout, _, code := runTP(t, dir, "review", "--findings", findingsPath, specPath)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	prompt := result["prompts"].([]any)[0].(map[string]any)["prompt"].(string)
+	assert.Contains(t, prompt, "[???] completeness")
+	assert.Equal(t, float64(1), result["review_loop"].(map[string]any)["previous_findings"])
+}
