@@ -108,6 +108,7 @@ func runReview(_ *cobra.Command, specPath string, round int, findingsPath string
 		generateArchitectPrompt(elems, specContent, round, summary),
 	}
 
+	uniqueCount := len(dedupFindings(findings))
 	instruction := "For each prompt, spawn a sub-agent via the Agent tool. Collect JSON findings. If any critical/high severity, revise spec and re-run `tp review`. Stop after 2 rounds or when no new high-severity findings."
 	if round < 2 && len(findings) > 0 {
 		instruction = fmt.Sprintf("For each prompt, spawn a sub-agent via the Agent tool. Collect JSON findings. If any critical/high severity, revise spec and re-run `tp review --round 2 --findings <%s>`. Stop after 2 rounds or when no new high-severity findings.", findingsPath)
@@ -123,7 +124,7 @@ func runReview(_ *cobra.Command, specPath string, round int, findingsPath string
 			Round:            round,
 			MaxRounds:        2,
 			Convergence:      "no new high-severity findings",
-			PreviousFindings: len(findings),
+			PreviousFindings: uniqueCount,
 			Instruction:      instruction,
 		},
 	}
@@ -140,7 +141,7 @@ Only report real issues. Do not generate findings just to appear thorough.`
 func generateImplementerPrompt(elems *engine.StructuredElements, specContent string, round int, summary string) reviewPrompt {
 	var b strings.Builder
 	if round >= 2 {
-		b.WriteString(fmt.Sprintf("You are a senior engineer who must implement this spec tomorrow. This is review round %d \u2014 focus ONLY on issues not previously reported. Your goal is to find requirements that are missing, underspecified, or impossible to implement as stated.\n\n", round))
+		fmt.Fprintf(&b, "You are a senior engineer who must implement this spec tomorrow. This is review round %d \u2014 focus ONLY on issues not previously reported. Your goal is to find requirements that are missing, underspecified, or impossible to implement as stated.\n\n", round)
 	} else {
 		b.WriteString("You are a senior engineer who must implement this spec tomorrow. Your goal is to find requirements that are missing, underspecified, or impossible to implement as stated.\n\n")
 	}
@@ -181,7 +182,7 @@ func generateImplementerPrompt(elems *engine.StructuredElements, specContent str
 func generateTesterPrompt(elems *engine.StructuredElements, specContent string, round int, summary string) reviewPrompt {
 	var b strings.Builder
 	if round >= 2 {
-		b.WriteString(fmt.Sprintf("You are a QA engineer who must write tests from this spec. This is review round %d \u2014 focus ONLY on issues not previously reported. Your goal is to find requirements that are ambiguous (two testers would write contradictory tests) or non-verifiable (cannot write a pass/fail test).\n\n", round))
+		fmt.Fprintf(&b, "You are a QA engineer who must write tests from this spec. This is review round %d \u2014 focus ONLY on issues not previously reported. Your goal is to find requirements that are ambiguous (two testers would write contradictory tests) or non-verifiable (cannot write a pass/fail test).\n\n", round)
 	} else {
 		b.WriteString("You are a QA engineer who must write tests from this spec. Your goal is to find requirements that are ambiguous (two testers would write contradictory tests) or non-verifiable (cannot write a pass/fail test).\n\n")
 	}
@@ -222,7 +223,7 @@ func generateTesterPrompt(elems *engine.StructuredElements, specContent string, 
 func generateArchitectPrompt(elems *engine.StructuredElements, specContent string, round int, summary string) reviewPrompt {
 	var b strings.Builder
 	if round >= 2 {
-		b.WriteString(fmt.Sprintf("You are a senior architect reviewing this spec for approval before implementation begins. This is review round %d \u2014 focus ONLY on issues not previously reported. Your goal is to find contradictions between sections, missing backward compatibility analysis, and feasibility issues.\n\n", round))
+		fmt.Fprintf(&b, "You are a senior architect reviewing this spec for approval before implementation begins. This is review round %d \u2014 focus ONLY on issues not previously reported. Your goal is to find contradictions between sections, missing backward compatibility analysis, and feasibility issues.\n\n", round)
 	} else {
 		b.WriteString("You are a senior architect reviewing this spec for approval before implementation begins. Your goal is to find contradictions between sections, missing backward compatibility analysis, and feasibility issues.\n\n")
 	}
@@ -333,12 +334,12 @@ func buildFindingsSummary(findings []reviewFinding) string {
 		"critical": "[CRIT]", "high": "[HIGH]", "medium": "[MED]", "low": "[LOW]", "unknown": "[???]",
 	}
 
-	cap := 50
+	findingsCap := 50
 	shown := deduped
 	omitted := 0
-	if len(deduped) > cap {
-		shown = deduped[:cap]
-		omitted = len(deduped) - cap
+	if len(deduped) > findingsCap {
+		shown = deduped[:findingsCap]
+		omitted = len(deduped) - findingsCap
 	}
 
 	var b strings.Builder
