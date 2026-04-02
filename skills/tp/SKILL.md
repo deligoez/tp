@@ -143,6 +143,9 @@ tp done <id> "reason" --gate-passed
 | `tp review spec.md --perspective code-audit --affected-files src/a.go` | Code audit with source file injection |
 | `tp review spec.md --round N --findings file.ndjson` | Multi-round review with previous findings exclusion |
 | `tp review spec.md --round N --final-round --affected-files src/a.go` | Final round with mandatory code read-through |
+| `tp audit spec.md` | Post-implementation audit: verify code matches spec (auto-detects changed files) |
+| `tp audit spec.md --affected-files src/a.go` | Manual file selection for audit |
+| `tp audit spec.md --findings review.ndjson` | Also verify review findings were addressed |
 | `tp validate` | Task file validation + line coverage |
 | `tp set --bulk file` | Bulk update from NDJSON `{id, field, value}` |
 | `tp list --status open` | Filter tasks |
