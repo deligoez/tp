@@ -12,6 +12,28 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func setupPerspectiveTestDir(t *testing.T, extraFiles map[string]string) (specPath, docsDir string) {
+	t.Helper()
+	dir := t.TempDir()
+	specPath = filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Batch Closing Feature\n\n## Commands\n\n### tp done --batch\nClose multiple tasks from NDJSON file.\n\n## Validation\n1. Exit code 2 on invalid perspective\n2. Exit code 3 on missing docs path\n"), 0o600))
+
+	docsDir = filepath.Join(dir, "docs")
+	require.NoError(t, os.MkdirAll(filepath.Join(docsDir, "guide"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(docsDir, "reference"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(docsDir, "index.md"), []byte("# My Project\n\n## Features\n- tp plan\n- tp done\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(docsDir, "guide", "getting-started.md"), []byte("# Getting Started\n\nRun `tp plan` to see tasks.\n\n## Commands\n- tp plan\n- tp done\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(docsDir, "reference", "commands.md"), []byte("# Commands Reference\n\n## tp done\nClose a single task.\n"), 0o600))
+
+	for path, content := range extraFiles {
+		fullPath := filepath.Join(docsDir, path)
+		require.NoError(t, os.MkdirAll(filepath.Dir(fullPath), 0o755))
+		require.NoError(t, os.WriteFile(fullPath, []byte(content), 0o600))
+	}
+
+	return specPath, docsDir
+}
+
 func TestReviewBasic(t *testing.T) {
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
@@ -470,4 +492,238 @@ func TestReviewMissingSeverityDefaultsToUnknown(t *testing.T) {
 	prompt := result["prompts"].([]any)[0].(map[string]any)["prompt"].(string)
 	assert.Contains(t, prompt, "[???] completeness")
 	assert.Equal(t, float64(1), result["review_loop"].(map[string]any)["previous_findings"])
+}
+
+func TestReviewPerspectiveDocBasic(t *testing.T) {
+	specPath, docsDir := setupPerspectiveTestDir(t, nil)
+
+	stdout, _, code := runTP(t, filepath.Dir(specPath), "review", specPath, "--perspective", "documentation", "--docs-path", docsDir)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	assert.Equal(t, "documentation", result["perspective"])
+	assert.Equal(t, docsDir, result["docs_path"])
+
+	prompts := result["prompts"].([]any)
+	require.Len(t, prompts, 1)
+	assert.Equal(t, "documentation-planner", prompts[0].(map[string]any)["role"])
+}
+
+func TestReviewPerspectiveTestBasic(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Feature\nNew feature.\n"), 0o600))
+
+	testDir := filepath.Join(dir, "internal")
+	require.NoError(t, os.MkdirAll(testDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(testDir, "cli_review_test.go"), []byte("package cli\n\nfunc TestSomething(t *testing.T) {}\n"), 0o600))
+
+	stdout, _, code := runTP(t, dir, "review", specPath, "--perspective", "testing", "--test-path", testDir)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	assert.Equal(t, "testing", result["perspective"])
+	assert.Equal(t, testDir, result["test_path"])
+
+	prompts := result["prompts"].([]any)
+	require.Len(t, prompts, 1)
+	assert.Equal(t, "test-planner", prompts[0].(map[string]any)["role"])
+}
+
+func TestReviewPerspectiveInvalid(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
+
+	_, stderr, code := runTP(t, dir, "review", specPath, "--perspective", "invalid")
+	assert.Equal(t, 2, code)
+	assert.Contains(t, stderr, "invalid perspective")
+}
+
+func TestReviewPerspectiveMissingDocsPath(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
+
+	_, stderr, code := runTP(t, dir, "review", specPath, "--perspective", "documentation")
+	assert.Equal(t, 2, code)
+	assert.Contains(t, stderr, "--docs-path is required")
+}
+
+func TestReviewPerspectiveMissingTestPath(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
+
+	_, stderr, code := runTP(t, dir, "review", specPath, "--perspective", "testing")
+	assert.Equal(t, 2, code)
+	assert.Contains(t, stderr, "--test-path is required")
+}
+
+func TestReviewPerspectiveDocsPathNotFound(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
+
+	_, stderr, code := runTP(t, dir, "review", specPath, "--perspective", "documentation", "--docs-path", "/nonexistent")
+	assert.Equal(t, 3, code)
+	assert.Contains(t, stderr, "docs path not found")
+}
+
+func TestReviewPerspectiveTestPathNotFound(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
+
+	_, stderr, code := runTP(t, dir, "review", specPath, "--perspective", "testing", "--test-path", "/nonexistent")
+	assert.Equal(t, 3, code)
+	assert.Contains(t, stderr, "test path not found")
+}
+
+func TestReviewPerspectiveMutuallyExclusiveRound(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
+
+	_, stderr, code := runTP(t, dir, "review", specPath, "--perspective", "documentation", "--docs-path", dir, "--round", "2")
+	assert.Equal(t, 2, code)
+	assert.Contains(t, stderr, "mutually exclusive")
+}
+
+func TestReviewPerspectiveMutuallyExclusiveFindings(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
+	findingsPath := filepath.Join(dir, "f.ndjson")
+	require.NoError(t, os.WriteFile(findingsPath, []byte(`{"severity":"high","category":"x","location":"y","finding":"z","suggestion":"w"}
+`), 0o600))
+
+	_, stderr, code := runTP(t, dir, "review", specPath, "--perspective", "testing", "--test-path", dir, "--findings", findingsPath)
+	assert.Equal(t, 2, code)
+	assert.Contains(t, stderr, "mutually exclusive")
+}
+
+func TestReviewPerspectiveDefaultUnchanged(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Simple Spec\nDo the thing.\n"), 0o600))
+
+	stdout, _, code := runTP(t, dir, "review", specPath)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	assert.Empty(t, result["perspective"])
+	prompts := result["prompts"].([]any)
+	assert.Len(t, prompts, 3)
+}
+
+func TestReviewPerspectiveDocPromptContent(t *testing.T) {
+	specPath, docsDir := setupPerspectiveTestDir(t, nil)
+
+	stdout, _, code := runTP(t, filepath.Dir(specPath), "review", specPath, "--perspective", "documentation", "--docs-path", docsDir)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	ds := result["docs_structure"].(map[string]any)
+	assert.Equal(t, float64(3), ds["total_files"])
+	assert.Equal(t, float64(3), ds["reviewed_files"])
+	assert.Contains(t, ds["structure_map"].(string), "index.md")
+
+	prompt := result["prompts"].([]any)[0].(map[string]any)["prompt"].(string)
+	assert.Contains(t, prompt, "Batch Closing Feature")
+	assert.Contains(t, prompt, "A1")
+	assert.Contains(t, prompt, "A5")
+	assert.Contains(t, prompt, "create-page")
+	assert.Contains(t, prompt, "fix-drift")
+	assert.Contains(t, prompt, "update-config")
+	assert.Contains(t, prompt, "add-crossref")
+	assert.Contains(t, prompt, "update-index")
+	assert.Contains(t, prompt, "must|should|could")
+
+	loop := result["review_loop"].(map[string]any)
+	assert.Equal(t, float64(1), loop["round"])
+	assert.Equal(t, float64(1), loop["max_rounds"])
+	assert.Equal(t, "single-pass plan generation", loop["convergence"])
+}
+
+func TestReviewPerspectiveTestPromptContent(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Feature\n\n## Commands\n\n| Flag | Type |\n|------|------|\n| --batch | string |\n\n## Acceptance\n1. Exit code 0 on valid input\n2. Exit code 2 on invalid input\n"), 0o600))
+
+	testDir := filepath.Join(dir, "internal")
+	require.NoError(t, os.MkdirAll(filepath.Join(testDir, "cli"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(testDir, "cli", "review_test.go"), []byte("func TestReview(t *testing.T) {}\n"), 0o600))
+
+	stdout, _, code := runTP(t, dir, "review", specPath, "--perspective", "testing", "--test-path", testDir)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	ts := result["test_structure"].(map[string]any)
+	assert.Equal(t, float64(1), ts["total_files"])
+	assert.Contains(t, ts["structure_map"].(string), "review_test.go")
+
+	prompt := result["prompts"].([]any)[0].(map[string]any)["prompt"].(string)
+	assert.Contains(t, prompt, "Feature")
+	assert.Contains(t, prompt, "T1")
+	assert.Contains(t, prompt, "T7")
+	assert.Contains(t, prompt, "create-test")
+	assert.Contains(t, prompt, "update-test")
+	assert.Contains(t, prompt, "create-fixture")
+}
+
+func TestReviewPerspectiveEmptyDocsDir(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
+
+	docsDir := filepath.Join(dir, "docs")
+	require.NoError(t, os.MkdirAll(docsDir, 0o755))
+
+	stdout, _, code := runTP(t, dir, "review", specPath, "--perspective", "documentation", "--docs-path", docsDir)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	ds := result["docs_structure"].(map[string]any)
+	assert.Equal(t, float64(0), ds["total_files"])
+	assert.Equal(t, float64(0), ds["reviewed_files"])
+
+	prompts := result["prompts"].([]any)
+	require.Len(t, prompts, 1)
+	assert.Contains(t, prompts[0].(map[string]any)["prompt"].(string), "A1")
+}
+
+func TestReviewPerspectiveManyFilesCapped(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Feature\nFeature with many docs pages.\n"), 0o600))
+
+	docsDir := filepath.Join(dir, "docs")
+	for i := 0; i < 20; i++ {
+		subDir := filepath.Join(docsDir, fmt.Sprintf("section%d", i))
+		require.NoError(t, os.MkdirAll(subDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(subDir, "page.md"), []byte(fmt.Sprintf("# Page %d\nFeature content here.\n", i)), 0o600))
+	}
+
+	stdout, _, code := runTP(t, dir, "review", specPath, "--perspective", "documentation", "--docs-path", docsDir)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	ds := result["docs_structure"].(map[string]any)
+	assert.Equal(t, float64(20), ds["total_files"])
+	assert.LessOrEqual(t, ds["reviewed_files"], float64(15))
 }
