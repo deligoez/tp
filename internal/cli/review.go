@@ -2,9 +2,11 @@ package cli
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -38,34 +40,103 @@ type reviewLoop struct {
 
 type reviewResult struct {
 	Spec               string                     `json:"spec"`
-	StructuredElements *engine.StructuredElements `json:"structured_elements"`
+	StructuredElements *engine.StructuredElements `json:"structured_elements,omitempty"`
+	Perspective        string                     `json:"perspective,omitempty"`
+	DocsPath           string                     `json:"docs_path,omitempty"`
+	TestPath           string                     `json:"test_path,omitempty"`
+	DocsStructure      *docStructure              `json:"docs_structure,omitempty"`
+	TestStructure      *docStructure              `json:"test_structure,omitempty"`
 	Prompts            []reviewPrompt             `json:"prompts"`
 	ReviewLoop         reviewLoop                 `json:"review_loop"`
+}
+
+type docStructure struct {
+	TotalFiles    int    `json:"total_files"`
+	ReviewedFiles int    `json:"reviewed_files"`
+	StructureMap  string `json:"structure_map"`
 }
 
 func newReviewCmd() *cobra.Command {
 	var round int
 	var findingsPath string
+	var perspective string
+	var docsPath string
+	var testPath string
 
 	cmd := &cobra.Command{
 		Use:   "review <spec.md>",
-		Short: "Generate adversarial review prompts for spec quality",
-		Long: `Parses a spec and generates 3 targeted review prompts (implementer, tester, architect).
-Agent feeds these to sub-agents for adversarial review. Findings drive spec revision.
-Output: {spec, structured_elements, prompts[], review_loop}`,
+		Short: "Generate review prompts for spec quality or planning",
+		Long: `Parses a spec and generates targeted review prompts.
+Default (no --perspective): 3 adversarial prompts (implementer, tester, architect).
+--perspective documentation: single doc change plan prompt.
+--perspective testing: single test plan prompt.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runReview(cmd, args[0], round, findingsPath)
+			return runReview(cmd, args[0], round, findingsPath, perspective, docsPath, testPath)
 		},
 	}
 
 	cmd.Flags().IntVar(&round, "round", 1, "Current review round number (1-indexed)")
 	cmd.Flags().StringVar(&findingsPath, "findings", "", "Path to NDJSON file with previous round findings")
+	cmd.Flags().StringVar(&perspective, "perspective", "", "Review perspective: documentation or testing")
+	cmd.Flags().StringVar(&docsPath, "docs-path", "", "Path to documentation directory (required with --perspective documentation)")
+	cmd.Flags().StringVar(&testPath, "test-path", "", "Path to test directory (required with --perspective testing)")
 
 	return cmd
 }
 
-func runReview(_ *cobra.Command, specPath string, round int, findingsPath string) error {
+func runReview(_ *cobra.Command, specPath string, round int, findingsPath, perspective, docsPath, testPath string) error {
+	if perspective != "" && perspective != "documentation" && perspective != "testing" {
+		output.Error(ExitUsage, fmt.Sprintf("invalid perspective: %q (must be 'documentation' or 'testing')", perspective))
+		os.Exit(ExitUsage)
+		return nil
+	}
+
+	if perspective != "" && (round != 1 || findingsPath != "") {
+		output.Error(ExitUsage, "--perspective is mutually exclusive with --round/--findings")
+		os.Exit(ExitUsage)
+		return nil
+	}
+
+	if perspective == "documentation" && docsPath == "" {
+		output.Error(ExitUsage, "--docs-path is required when --perspective=documentation")
+		os.Exit(ExitUsage)
+		return nil
+	}
+
+	if perspective == "testing" && testPath == "" {
+		output.Error(ExitUsage, "--test-path is required when --perspective=testing")
+		os.Exit(ExitUsage)
+		return nil
+	}
+
+	if docsPath != "" {
+		info, err := os.Stat(docsPath)
+		if err != nil || !info.IsDir() {
+			output.Error(ExitFile, fmt.Sprintf("docs path not found or not a directory: %s", docsPath))
+			os.Exit(ExitFile)
+			return nil
+		}
+	}
+
+	if testPath != "" {
+		info, err := os.Stat(testPath)
+		if err != nil || !info.IsDir() {
+			output.Error(ExitFile, fmt.Sprintf("test path not found or not a directory: %s", testPath))
+			os.Exit(ExitFile)
+			return nil
+		}
+	}
+
+	specContent := readSpecContent(specPath)
+
+	if perspective == "documentation" {
+		return runPerspectiveReview(specPath, perspective, docsPath, specContent, ".md", generateDocPlanPrompt)
+	}
+	if perspective == "testing" {
+		return runPerspectiveReview(specPath, perspective, testPath, specContent, "_test.go", generateTestPlanPrompt)
+	}
+
 	if round < 1 {
 		output.Error(ExitUsage, "round must be >= 1")
 		os.Exit(ExitUsage)
@@ -93,7 +164,7 @@ func runReview(_ *cobra.Command, specPath string, round int, findingsPath string
 
 	_, elems := engine.CheckStructuredElements(lines, headings)
 
-	specContent := readSpecContent(specPath)
+	specContent = readSpecContent(specPath)
 
 	findings := make([]reviewFinding, 0)
 	if findingsPath != "" {
@@ -369,6 +440,354 @@ func buildFindingsSummary(findings []reviewFinding) string {
 
 const findingFormatRound2 = `
 Remember: only report NEW issues not covered by the previous findings listed above.`
+
+type promptGenerator func(specContent string, structureMap string, fileContents map[string]string) reviewPrompt
+
+func runPerspectiveReview(specPath, perspective, dirPath, specContent, ext string, gen promptGenerator) error {
+	structureMap, files := walkDocTree(dirPath, ext)
+
+	specLines := strings.Split(specContent, "\n")
+	ranked := rankFilesBySpecTerms(files, specLines, 15)
+
+	fileContents := readFilesContent(ranked, 5000, 30000)
+
+	prompt := gen(specContent, structureMap, fileContents)
+
+	result := reviewResult{
+		Spec:        specPath,
+		Perspective: perspective,
+		Prompts:     []reviewPrompt{prompt},
+		ReviewLoop: reviewLoop{
+			Round:            1,
+			MaxRounds:        1,
+			Convergence:      "single-pass plan generation",
+			PreviousFindings: 0,
+			Instruction:      "Spawn a sub-agent with this prompt. Collect the NDJSON plan. Review the plan for completeness, then append the plan to the spec.",
+		},
+	}
+
+	if perspective == "documentation" {
+		result.DocsPath = dirPath
+		result.DocsStructure = &docStructure{
+			TotalFiles:    len(files),
+			ReviewedFiles: len(ranked),
+			StructureMap:  structureMap,
+		}
+	} else {
+		result.TestPath = dirPath
+		result.TestStructure = &docStructure{
+			TotalFiles:    len(files),
+			ReviewedFiles: len(ranked),
+			StructureMap:  structureMap,
+		}
+	}
+
+	return output.JSON(result)
+}
+
+func walkDocTree(root, ext string) (tree string, files []string) {
+	var allFiles []string
+
+	_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
+		}
+		if strings.HasSuffix(strings.ToLower(d.Name()), ext) {
+			allFiles = append(allFiles, path)
+		}
+		return nil
+	})
+
+	if len(allFiles) == 0 {
+		return filepath.Base(root) + "/\n  (empty)\n", allFiles
+	}
+
+	var b bytes.Buffer
+	fmt.Fprintf(&b, "%s/\n", filepath.Base(root))
+	for i, f := range allFiles {
+		rel, _ := filepath.Rel(root, f)
+		prefix := "  ├ "
+		if i == len(allFiles)-1 {
+			prefix = "  └ "
+		}
+		fmt.Fprintf(&b, "%s%s\n", prefix, rel)
+	}
+
+	return b.String(), allFiles
+}
+
+func rankFilesBySpecTerms(files, specLines []string, maxCount int) []string {
+	if len(files) == 0 {
+		return files
+	}
+
+	terms := make(map[string]bool)
+	for _, line := range specLines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "## ") || strings.HasPrefix(trimmed, "### ") {
+			term := strings.TrimLeft(trimmed, "# ")
+			term = strings.TrimSpace(term)
+			words := strings.Fields(term)
+			for _, w := range words {
+				if len(w) > 3 {
+					terms[strings.ToLower(w)] = true
+				}
+			}
+		}
+	}
+
+	type scored struct {
+		path  string
+		score int
+	}
+	var scoredFiles []scored
+
+	alwaysInclude := func(f string) bool {
+		base := filepath.Base(f)
+		if base == "index.md" {
+			return true
+		}
+		lower := strings.ToLower(base)
+		for _, cfg := range []string{"config.js", "config.ts", "config.mts", "config.mjs"} {
+			if lower == cfg {
+				return true
+			}
+		}
+		return false
+	}
+
+	always := make([]string, 0)
+	var rankable []string
+	for _, f := range files {
+		if alwaysInclude(f) {
+			always = append(always, f)
+		} else {
+			rankable = append(rankable, f)
+		}
+	}
+
+	if len(terms) == 0 {
+		result := append([]string(nil), always...)
+		result = append(result, rankable...)
+		if len(result) > maxCount {
+			result = result[:maxCount]
+		}
+		return result
+	}
+
+	for _, f := range rankable {
+		content, err := os.ReadFile(f)
+		if err != nil {
+			continue
+		}
+		lower := strings.ToLower(string(content))
+		score := 0
+		for term := range terms {
+			if strings.Contains(lower, term) {
+				score++
+			}
+		}
+		scoredFiles = append(scoredFiles, scored{path: f, score: score})
+	}
+
+	sort.SliceStable(scoredFiles, func(i, j int) bool {
+		return scoredFiles[i].score > scoredFiles[j].score
+	})
+
+	result := make([]string, 0, len(always)+len(scoredFiles))
+	result = append(result, always...)
+	for _, sf := range scoredFiles {
+		result = append(result, sf.path)
+		if len(result) >= maxCount {
+			break
+		}
+	}
+
+	return result
+}
+
+func readFilesContent(files []string, maxPerFile, maxTotal int) map[string]string {
+	result := make(map[string]string)
+	total := 0
+	for _, f := range files {
+		content, err := os.ReadFile(f)
+		if err != nil {
+			continue
+		}
+		s := string(content)
+		if len(s) > maxPerFile {
+			s = s[:maxPerFile] + "\n[...truncated]"
+		}
+		if total+len(s) > maxTotal {
+			remaining := maxTotal - total
+			if remaining > 100 {
+				s = s[:remaining] + "\n[...truncated by total cap]"
+				result[f] = s
+			}
+			break
+		}
+		result[f] = s
+		total += len(s)
+	}
+	return result
+}
+
+func generateDocPlanPrompt(specContent, structureMap string, fileContents map[string]string) reviewPrompt {
+	var b strings.Builder
+
+	b.WriteString("You are a technical writer planning documentation changes for a new feature. Your goal is to compare the specification against existing documentation and produce a structured plan of changes needed.\n\n")
+
+	b.WriteString("Spec content:\n---\n")
+	b.WriteString(specContent)
+	b.WriteString("\n---\n\n")
+
+	b.WriteString("Documentation structure:\n")
+	b.WriteString(structureMap)
+	b.WriteString("\n")
+
+	if len(fileContents) > 0 {
+		b.WriteString("Existing documentation files (selected by relevance):\n")
+		for path, content := range fileContents {
+			fmt.Fprintf(&b, "--- FILE: %s ---\n", path)
+			b.WriteString(content)
+			b.WriteString("\n--- END FILE ---\n\n")
+		}
+	}
+
+	b.WriteString(docChecklist)
+	b.WriteString(docOutputFormat)
+
+	return reviewPrompt{
+		Role:     "documentation-planner",
+		Category: "completeness",
+		Prompt:   b.String(),
+	}
+}
+
+func generateTestPlanPrompt(specContent, structureMap string, fileContents map[string]string) reviewPrompt {
+	var b strings.Builder
+
+	b.WriteString("You are a QA engineer planning test coverage for a new feature. Your goal is to analyze the specification and produce a structured test plan covering all requirements.\n\n")
+
+	b.WriteString("Spec content:\n---\n")
+	b.WriteString(specContent)
+	b.WriteString("\n---\n\n")
+
+	b.WriteString("Test structure:\n")
+	b.WriteString(structureMap)
+	b.WriteString("\n")
+
+	if len(fileContents) > 0 {
+		b.WriteString("Existing test files (selected by relevance):\n")
+		for path, content := range fileContents {
+			fmt.Fprintf(&b, "--- FILE: %s ---\n", path)
+			b.WriteString(content)
+			b.WriteString("\n--- END FILE ---\n\n")
+		}
+	}
+
+	b.WriteString(testChecklist)
+	b.WriteString(testOutputFormat)
+
+	return reviewPrompt{
+		Role:     "test-planner",
+		Category: "completeness",
+		Prompt:   b.String(),
+	}
+}
+
+const docChecklist = `
+Analyze the spec against the existing documentation. For each step below,
+if an issue or need is found, produce a plan item.
+
+A1. COMPLETENESS — Spec-to-Doc Coverage
+For each ## and ### heading in the spec:
+- Does a corresponding doc page or section exist?
+- If no -> plan "create-page" or "update-section"
+
+A2. TERM COVERAGE — Commands, Flags, Config Keys
+For each command name, CLI flag, config key, type name, or new concept in the spec:
+- Is it documented anywhere in the existing docs?
+- If no -> plan "update-section" in the page covering the same domain
+
+A3. DRIFT — Accuracy of Existing Content
+For each existing doc page that covers the same domain as the spec:
+- Does any statement contradict the spec?
+- Are code examples still valid per the spec?
+- If yes -> plan "fix-drift"
+
+A4. NAVIGATION — Structure and Discovery
+- Does each new or updated page have a place in the navigation structure?
+- Should any index page be updated to reference the new content?
+- If yes -> plan "update-config" or "update-index"
+
+A5. CROSS-REFERENCES — Link Integrity
+- Do related existing pages reference the new feature area?
+- Does the new content reference back to related pages?
+- If no -> plan "add-crossref"
+`
+
+const docOutputFormat = `
+Output format — respond with one JSON object per line (NDJSON):
+{"id":"doc-001","action":"create-page|update-section|fix-drift|update-config|add-crossref|update-index","file":"path/to/file.md","location":"section heading or null","spec_ref":"spec section reference","description":"what needs to change","detail":{},"priority":"must|should|could","depends_on":["doc-000"]}
+
+Action types:
+- create-page: new documentation file needed
+- update-section: add content to existing page
+- fix-drift: correct existing content contradicting spec
+- update-config: update navigation/sidebar config
+- add-crossref: add links between pages
+- update-index: update index/landing page
+
+Priority: must (incorrect without it), should (significantly improves quality), could (nice to have)
+
+Only produce plan items for real changes needed. If no changes needed, respond with an empty array (just []).
+`
+
+const testChecklist = `
+Analyze the spec and plan the test coverage needed. For each step below,
+if a test is needed, produce a plan item.
+
+T1. ACCEPTANCE CRITERIA COVERAGE
+For each numbered list item (acceptance criteria) in the spec:
+- Can this be verified with a test?
+- What test function would verify it?
+
+T2. TABLE ROW COVERAGE
+For each row in each table in the spec:
+- Is there a test that exercises this row's behavior?
+
+T3. HAPPY PATH
+- What is the primary use case?
+- Is it covered by existing tests or does it need a new test?
+
+T4. ERROR PATHS
+- What can go wrong? File not found, invalid input, permission denied, empty input, etc.
+
+T5. EDGE CASES
+- Boundary conditions (empty, single item, very large input)
+- Zero-value / nil / default behavior
+
+T6. INTEGRATION POINTS
+- Does the feature interact with other features or external systems?
+
+T7. FIXTURE / HELPER NEEDS
+- Are new test fixtures, mock data, or helper functions needed?
+`
+
+const testOutputFormat = `
+Output format — respond with one JSON object per line (NDJSON):
+{"id":"test-001","action":"create-test|update-test|create-fixture","file":"path/to/test_file","location":"TestFunctionName","spec_ref":"spec section reference","description":"what to test","detail":{"type":"unit|integration","assertions":["expected behavior 1","expected behavior 2"],"inputs":{}},"priority":"must|should|could","depends_on":["test-000"]}
+
+Action types:
+- create-test: new test function needed
+- update-test: existing test needs modification
+- create-fixture: new test data or helper needed
+
+Priority: must (critical path), should (important coverage), could (nice to have)
+
+Only produce plan items for real tests needed. If no tests needed, respond with an empty array (just []).
+`
 
 func readSpecContent(path string) string {
 	f, err := os.Open(path)
