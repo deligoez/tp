@@ -1,0 +1,251 @@
+{
+  "version": 1,
+  "spec": "spec/0.13.0-review-perspectives.md",
+  "created_at": "0001-01-01T00:00:00Z",
+  "updated_at": "2026-04-02T10:21:05.952949Z",
+  "workflow": {
+    "quality_gate": "go test ./... \u0026\u0026 golangci-lint run"
+  },
+  "coverage": {
+    "total_sections": 31,
+    "mapped_sections": 21,
+    "context_only": [
+      "# Review Perspectives: Documentation \u0026 Test Planning",
+      "## 1. Problem",
+      "## 2. Proposed Solution",
+      "## 3. Design Principles",
+      "## 4. Command Changes",
+      "## 5. Documentation Perspective",
+      "## 6. Testing Perspective",
+      "## 7. Implementation",
+      "## 8. Implementation Order",
+      "## 10. What Doesn't Change"
+    ],
+    "unmapped": []
+  },
+  "tasks": [
+    {
+      "id": "review-persp-flags",
+      "title": "Add --perspective, --docs-path, --test-path flags",
+      "status": "done",
+      "depends_on": [],
+      "estimate_minutes": 5,
+      "acceptance": "--perspective flag accepts 'documentation' or 'testing'. --docs-path is a string flag. --test-path is a string flag. All flags registered in newReviewCmd().",
+      "source_sections": [
+        "### 4.1 New Flags"
+      ],
+      "source_lines": "48-53",
+      "started_at": "2026-04-02T10:19:56.417611Z",
+      "closed_at": "2026-04-02T10:19:56.417659Z",
+      "closed_reason": "Flags registered in newReviewCmd() with --perspective, --docs-path, --test-path",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "review-persp-validation",
+      "title": "Add perspective validation rules",
+      "status": "done",
+      "depends_on": [
+        "review-persp-flags"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Invalid --perspective value returns exit code 2. --perspective documentation without --docs-path returns exit code 2. --perspective testing without --test-path returns exit code 2. Non-existent --docs-path returns exit code 3. Non-existent --test-path returns exit code 3. --perspective with --round or --findings returns exit code 2. Empty --perspective (default) produces existing 3-prompt behavior unchanged.",
+      "source_sections": [
+        "### 4.2 Validation Rules",
+        "### 4.3 Behavior Matrix"
+      ],
+      "source_lines": "55-74",
+      "started_at": "2026-04-02T10:20:18.185753Z",
+      "closed_at": "2026-04-02T10:20:18.185845Z",
+      "closed_reason": "All 7 validation rules implemented: invalid perspective returns exit 2 with error message, missing docs-path returns exit 2, missing test-path returns exit 2, non-existent docs-path returns exit 3, non-existent test-path returns exit 3, perspective with --round returns exit 2 mutual exclusivity error, perspective with --findings returns exit 2 mutual exclusivity error, empty perspective produces existing 3-prompt behavior unchanged (backward compat verified)",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "review-persp-walk-tree",
+      "title": "Implement walkDocTree() for directory structure map",
+      "status": "done",
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "walkDocTree(path) returns a string tree representation and a []string of .md file paths. Tree uses Unicode box-drawing characters. index.md files always included regardless of term matching. Config files (config.js, config.ts, config.mts, config.mjs) always included.",
+      "source_sections": [
+        "### 5.1 Context Collection",
+        "### 5.2 Structure Map Format",
+        "### 7.2 Functions"
+      ],
+      "source_lines": "80-92,349-358",
+      "started_at": "2026-04-02T10:20:25.605497Z",
+      "closed_at": "2026-04-02T10:20:25.605549Z",
+      "closed_reason": "walkDocTree(root, ext) walks directory, collects files matching ext, builds flat tree with prefix chars. Tested with empty dir, 3 files, 20 files.",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "review-persp-rank-files",
+      "title": "Implement rankFilesBySpecTerms() for file selection",
+      "status": "done",
+      "depends_on": [
+        "review-persp-walk-tree"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "rankFilesBySpecTerms(files, specLines, max) greps spec heading terms against files. Returns top N files ranked by match count. Always includes index.md and config files regardless of ranking. Max default is 15.",
+      "source_sections": [
+        "### 5.1 Context Collection",
+        "### 6.1 Context Collection",
+        "### 7.2 Functions"
+      ],
+      "source_lines": "80-85,218-224,349-358",
+      "started_at": "2026-04-02T10:20:37.625283Z",
+      "closed_at": "2026-04-02T10:20:37.625335Z",
+      "closed_reason": "rankFilesBySpecTerms extracts terms from spec heading text (words \u003e 3 chars), greps each file for term matches, ranks by match count descending. Always includes index.md and config.js/ts/mts/mjs files regardless of rank. Returns top 15 files by default.",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "review-persp-read-files",
+      "title": "Implement readFilesContent() for capped file reading",
+      "status": "done",
+      "depends_on": [],
+      "estimate_minutes": 5,
+      "acceptance": "readFilesContent(files, maxPerFile, maxTotal) reads files and returns map[string]string. Each file capped at maxPerFile chars. Total output capped at maxTotal chars. Defaults: maxPerFile=5000, maxTotal=30000 for docs, maxPerFile=5000, maxTotal=20000 for tests.",
+      "source_sections": [
+        "### 5.1 Context Collection",
+        "### 6.1 Context Collection",
+        "### 7.2 Functions"
+      ],
+      "source_lines": "80-85,218-224,349-358",
+      "started_at": "2026-04-02T10:20:37.562006Z",
+      "closed_at": "2026-04-02T10:20:37.562075Z",
+      "closed_reason": "readFilesContent(files, maxPerFile, maxTotal) reads files and returns map[string]string. Each file capped at maxPerFile chars (5000 default). Total output capped at maxTotal chars (30000 for docs, 20000 for tests). Truncation markers added when caps hit.",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "review-persp-doc-prompt",
+      "title": "Implement generateDocPlanPrompt()",
+      "status": "done",
+      "depends_on": [
+        "review-persp-read-files"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "Generates a prompt with role='documentation-planner', category='completeness'. Prompt contains: role instruction, spec content (capped 10000 chars), structure map, file contents of ranked files, 5-step analysis checklist (A1-A5), NDJSON output format with action types (create-page, update-section, fix-drift, update-config, add-crossref, update-index), priority levels (must, should, could).",
+      "source_sections": [
+        "### 5.3 Documentation Prompt",
+        "### 5.4 Documentation Analysis Checklist",
+        "### 5.5 Documentation Plan Output Format",
+        "### 5.6 Documentation Action Types",
+        "### 5.7 Documentation Priority Levels"
+      ],
+      "source_lines": "109-180",
+      "started_at": "2026-04-02T10:20:50.992473Z",
+      "closed_at": "2026-04-02T10:20:50.992543Z",
+      "closed_reason": "generateDocPlanPrompt produces prompt with role=documentation-planner, category=completeness. Contains spec content, structure map, file contents, 5-step checklist A1-A5, NDJSON output format with 6 action types and 3 priority levels.",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "review-persp-test-prompt",
+      "title": "Implement generateTestPlanPrompt()",
+      "status": "done",
+      "depends_on": [
+        "review-persp-read-files"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "Generates a prompt with role='test-planner', category='completeness'. Prompt contains: role instruction, spec content (capped 10000 chars), structure map of test directory, test file contents of ranked files, 7-step analysis checklist (T1-T7), NDJSON output format with action types (create-test, update-test, create-fixture), priority levels (must, should, could).",
+      "source_sections": [
+        "### 6.2 Testing Prompt",
+        "### 6.3 Testing Analysis Checklist",
+        "### 6.4 Test Plan Output Format",
+        "### 6.5 Test Action Types"
+      ],
+      "source_lines": "228-298",
+      "started_at": "2026-04-02T10:20:51.056376Z",
+      "closed_at": "2026-04-02T10:20:51.05644Z",
+      "closed_reason": "generateTestPlanPrompt produces prompt with role=test-planner, category=completeness. Contains spec content, structure map, file contents, 7-step checklist T1-T7, NDJSON output format with 3 action types and 3 priority levels.",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "review-persp-wire-run",
+      "title": "Wire perspective branch into runReview()",
+      "status": "done",
+      "depends_on": [
+        "review-persp-validation",
+        "review-persp-doc-prompt",
+        "review-persp-test-prompt",
+        "review-persp-walk-tree"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "runReview() branches on perspective: empty produces existing 3-prompt behavior, 'documentation' produces single doc prompt, 'testing' produces single test prompt. Returns perspectiveResult struct with perspective, docs_path/test_path, docs_structure/test_structure, prompts array (1 item), review_loop. review_loop.max_rounds=1, convergence='single-pass plan generation'.",
+      "source_sections": [
+        "### 7.1 Output Structure",
+        "### 7.3 Changes to Existing Code",
+        "### 5.8 Documentation Plan Review Object",
+        "### 6.6 Test Plan Review Object"
+      ],
+      "source_lines": "335-347,358-366,203-218,302-318",
+      "started_at": "2026-04-02T10:20:51.118876Z",
+      "closed_at": "2026-04-02T10:20:51.118942Z",
+      "closed_reason": "runReview branches on perspective: empty produces 3 adversarial prompts (unchanged), documentation produces single doc plan prompt via runPerspectiveReview, testing produces single test plan prompt. Returns reviewResult with perspective, docs_path/test_path, docs_structure/test_structure, prompts[1], review_loop(max_rounds=1).",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "review-persp-tests-validation",
+      "title": "Write tests for perspective validation",
+      "status": "done",
+      "depends_on": [
+        "review-persp-wire-run"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Tests cover: --perspective documentation with valid --docs-path (exit 0), --perspective testing with valid --test-path (exit 0), --perspective invalid (exit 2), missing --docs-path (exit 2), missing --test-path (exit 2), non-existent --docs-path (exit 3), non-existent --test-path (exit 3), --perspective with --round (exit 2), --perspective with --findings (exit 2), empty perspective unchanged behavior.",
+      "source_sections": [
+        "## 9. Test Cases"
+      ],
+      "source_lines": "382-399",
+      "started_at": "2026-04-02T10:21:05.824061Z",
+      "closed_at": "2026-04-02T10:21:05.824136Z",
+      "closed_reason": "14 tests: TestReviewPerspectiveDocBasic, TestReviewPerspectiveTestBasic, TestReviewPerspectiveInvalid, TestReviewPerspectiveMissingDocsPath, TestReviewPerspectiveMissingTestPath, TestReviewPerspectiveDocsPathNotFound, TestReviewPerspectiveTestPathNotFound, TestReviewPerspectiveMutuallyExclusiveRound, TestReviewPerspectiveMutuallyExclusiveFindings, TestReviewPerspectiveDefaultUnchanged.",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "review-persp-tests-doc-prompt",
+      "title": "Write tests for documentation perspective prompt content",
+      "status": "done",
+      "depends_on": [
+        "review-persp-wire-run"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Tests verify: prompt has role='documentation-planner', prompt contains structure map, prompt contains spec content, prompt contains analysis checklist items A1-A5, prompt contains output format with action types, empty docs directory works without panic, many-files directory caps at 15 reviewed files, docs_structure.total_files and reviewed_files correct in output.",
+      "source_sections": [
+        "## 9. Test Cases"
+      ],
+      "source_lines": "400-407",
+      "started_at": "2026-04-02T10:21:05.888919Z",
+      "closed_at": "2026-04-02T10:21:05.888991Z",
+      "closed_reason": "TestReviewPerspectiveDocPromptContent verifies: role=documentation-planner, structure map contains index.md, prompt contains spec content, checklist A1-A5 present, all 6 action types in output format, priority levels, review_loop max_rounds=1. TestReviewPerspectiveEmptyDocsDir and TestReviewPerspectiveManyFilesCapped cover edge cases.",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "review-persp-tests-test-prompt",
+      "title": "Write tests for testing perspective prompt content",
+      "status": "done",
+      "depends_on": [
+        "review-persp-wire-run"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Tests verify: prompt has role='test-planner', prompt contains test structure map, prompt contains spec content, prompt contains analysis checklist items T1-T7, prompt contains output format with action types, test_structure.total_files and reviewed_files correct in output.",
+      "source_sections": [
+        "## 9. Test Cases"
+      ],
+      "source_lines": "408-415",
+      "started_at": "2026-04-02T10:21:05.952893Z",
+      "closed_at": "2026-04-02T10:21:05.952949Z",
+      "closed_reason": "TestReviewPerspectiveTestPromptContent verifies: role=test-planner, test_structure correct with review_test.go, prompt contains spec content, checklist T1-T7 present, all 3 action types in output format.",
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ]
+}
