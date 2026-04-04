@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.16.0-review-orchestration.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-04-04T12:40:34.817743Z",
+  "updated_at": "2026-04-04T12:40:58.785677Z",
   "workflow": {},
   "coverage": {
     "total_sections": 64,
@@ -144,7 +144,7 @@
     {
       "id": "resolve-core",
       "title": "Implement resolve: read-modify-write with flock",
-      "status": "wip",
+      "status": "done",
       "tags": [
         "feature-b"
       ],
@@ -159,15 +159,15 @@
       ],
       "source_lines": "121-170",
       "started_at": "2026-04-04T12:32:05.9927Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-04-04T12:40:42.574743Z",
+      "closed_reason": "review_resolve.go: runReviewResolve reads NDJSON, parses into map[string]any array, adds resolved object with status/evidence/resolved_at at target index, acquires flock before read-modify-write, writes in-place. runReviewResolveAll applies to all unresolved, skips already-resolved unless --force. Valid statuses: fixed/wontfix/duplicate. Exit 3 file not found, exit 2 invalid index/status, exit 1 already resolved without --force. Success output: stderr confirmation plus JSON to stdout. 8 tests covering add resolved, already-resolved error, force, resolve-all, invalid cases, preserves fields, omitted evidence.",
+      "gate_passed_at": "2026-04-04T12:40:42.574743Z",
+      "commit_sha": "06394c0"
     },
     {
       "id": "resolve-output",
       "title": "Implement resolve success output",
-      "status": "open",
+      "status": "done",
       "tags": [
         "feature-b"
       ],
@@ -180,9 +180,9 @@
         "### 6.x Output"
       ],
       "source_lines": "171-185",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
+      "started_at": "2026-04-04T12:40:58.785677Z",
+      "closed_at": "2026-04-04T12:40:58.785677Z",
+      "closed_reason": "Resolve success output (stderr confirmation, JSON when piped) was implemented as part of resolve-core task in review_resolve.go. runReviewResolve prints 'resolved finding N as status' to stderr and JSON object to stdout. runReviewResolveAll prints 'resolved N findings as status (M already resolved, skipped)' to stderr and JSON summary to stdout.",
       "gate_passed_at": null,
       "commit_sha": null
     },
