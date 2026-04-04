@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.16.0-review-orchestration.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-04-04T12:41:13.028418Z",
+  "updated_at": "2026-04-04T12:41:27.116054Z",
   "workflow": {},
   "coverage": {
     "total_sections": 64,
@@ -122,7 +122,7 @@
     {
       "id": "merge-output",
       "title": "Implement merge output: -o and --json modes",
-      "status": "open",
+      "status": "wip",
       "tags": [
         "feature-a"
       ],
@@ -135,7 +135,7 @@
         "### 5.4 Output Format"
       ],
       "source_lines": "103-120",
-      "started_at": null,
+      "started_at": "2026-04-04T12:41:27.116053Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,
@@ -189,7 +189,7 @@
     {
       "id": "compact-summary",
       "title": "Refactor buildFindingsSummary for compact mode",
-      "status": "open",
+      "status": "wip",
       "tags": [
         "feature-c"
       ],
@@ -203,7 +203,7 @@
         "### 6.5 Impact on Findings Summary"
       ],
       "source_lines": "186-220",
-      "started_at": null,
+      "started_at": "2026-04-04T12:41:27.116053Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,
@@ -212,7 +212,7 @@
     {
       "id": "report-core",
       "title": "Implement report cross-round analysis",
-      "status": "open",
+      "status": "wip",
       "tags": [
         "feature-f"
       ],
@@ -227,7 +227,7 @@
         "### 10.4 Report Logic"
       ],
       "source_lines": "390-470",
-      "started_at": null,
+      "started_at": "2026-04-04T12:41:27.116053Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,
@@ -302,7 +302,7 @@
     {
       "id": "diff-prompts",
       "title": "Integrate diff engine into review prompts",
-      "status": "wip",
+      "status": "done",
       "tags": [
         "feature-d"
       ],
@@ -318,10 +318,10 @@
       ],
       "source_lines": "225-270",
       "started_at": "2026-04-04T12:32:05.9927Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-04-04T12:41:13.427172Z",
+      "closed_reason": "buildDiffSpecContent generates prompts with Changed Sections (full text, MODIFIED/ADDED), Removed Sections (heading only), Unchanged Sections (heading only) using engine.DiffSections. --diff-from flag validated: requires --round \u003e= 2 (exit 2), baseline must exist (exit 3). No differences detected: output.Info hint. Spec content mode selection via switch statement: diffFrom, specRef, or default readSpecContent. Content capped at specContentCap.",
+      "gate_passed_at": "2026-04-04T12:41:13.427172Z",
+      "commit_sha": "e8ec51c"
     },
     {
       "id": "verify",

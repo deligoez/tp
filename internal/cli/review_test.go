@@ -211,7 +211,7 @@ func TestReviewRound1BackwardCompat(t *testing.T) {
 
 	for _, p := range result["prompts"].([]any) {
 		prompt := p.(map[string]any)["prompt"].(string)
-		assert.NotContains(t, prompt, "Previous Review Round")
+		assert.NotContains(t, prompt, "UNRESOLVED findings from previous rounds")
 	}
 }
 
@@ -237,7 +237,7 @@ func TestReviewRound2WithFindings(t *testing.T) {
 
 	for _, p := range result["prompts"].([]any) {
 		prompt := p.(map[string]any)["prompt"].(string)
-		assert.Contains(t, prompt, "Previous Review Round")
+		assert.Contains(t, prompt, "UNRESOLVED findings from previous rounds")
 		assert.Contains(t, prompt, "[HIGH] completeness")
 		assert.Contains(t, prompt, "[MED] ambiguity")
 		assert.Contains(t, prompt, "review round 2")
@@ -383,7 +383,7 @@ func TestReviewEmptyFindingsFile(t *testing.T) {
 
 	for _, p := range result["prompts"].([]any) {
 		prompt := p.(map[string]any)["prompt"].(string)
-		assert.NotContains(t, prompt, "Previous Review Round")
+		assert.NotContains(t, prompt, "UNRESOLVED findings from previous rounds")
 	}
 
 	loop := result["review_loop"].(map[string]any)
@@ -410,7 +410,7 @@ func TestReviewRound1WithFindings(t *testing.T) {
 	assert.Equal(t, float64(1), loop["previous_findings"])
 
 	implPrompt := result["prompts"].([]any)[0].(map[string]any)["prompt"].(string)
-	assert.Contains(t, implPrompt, "Previous Review Round")
+	assert.Contains(t, implPrompt, "UNRESOLVED findings from previous rounds")
 	assert.Contains(t, implPrompt, "[HIGH] completeness")
 	assert.NotContains(t, implPrompt, "review round 2")
 	assert.Contains(t, implPrompt, "only report NEW issues")
@@ -801,7 +801,7 @@ func TestReviewAffectedFilesWithRoundFindings(t *testing.T) {
 	assert.Len(t, result["affected_files"].([]any), 1)
 	prompt := result["prompts"].([]any)[0].(map[string]any)["prompt"].(string)
 	assert.Contains(t, prompt, "a.go")
-	assert.Contains(t, prompt, "Previous Review Round")
+	assert.Contains(t, prompt, "UNRESOLVED findings from previous rounds")
 }
 
 func TestReviewCodeAuditRequiresAffectedFiles(t *testing.T) {

@@ -17,11 +17,18 @@ import (
 )
 
 type reviewFinding struct {
-	Severity   string `json:"severity"`
-	Category   string `json:"category"`
-	Location   string `json:"location"`
-	Finding    string `json:"finding"`
-	Suggestion string `json:"suggestion"`
+	Severity   string          `json:"severity"`
+	Category   string          `json:"category"`
+	Location   string          `json:"location"`
+	Finding    string          `json:"finding"`
+	Suggestion string          `json:"suggestion"`
+	Resolved   *resolvedStatus `json:"resolved,omitempty"`
+}
+
+type resolvedStatus struct {
+	Status     string `json:"status"`
+	Evidence   string `json:"evidence"`
+	ResolvedAt string `json:"resolved_at"`
 }
 
 type reviewPrompt struct {
@@ -242,11 +249,7 @@ func runReviewVerify(_, _ string, _ []string, _ string, _ bool) error {
 	return nil
 }
 
-func runReviewReport(_ []string) error {
-	output.Error(ExitUsage, "report mode not yet implemented")
-	os.Exit(ExitUsage)
-	return nil
-}
+// runReviewReport — implemented in review_report.go.
 
 func runReview(_ *cobra.Command, specPath string, round int, findingsPath, perspective, docsPath, testPath string, affectedFiles []string, finalRound bool, diffFrom string, specRef bool) error {
 	validPerspectives := map[string]bool{"documentation": true, "testing": true, "code-audit": true}
@@ -828,49 +831,90 @@ func buildFindingsSummary(findings []reviewFinding) string {
 		return ""
 	}
 
+	// Classify findings by resolution status
+	var unresolved, wontfix []reviewFinding
+	resolvedCount := 0
+
+	for _, f := range deduped {
+		if f.Resolved == nil {
+			// No resolved field — treat as unresolved (backward compat)
+			unresolved = append(unresolved, f)
+			continue
+		}
+		switch f.Resolved.Status {
+		case "fixed", "duplicate":
+			resolvedCount++
+		case "wontfix":
+			wontfix = append(wontfix, f)
+		default:
+			unresolved = append(unresolved, f)
+		}
+	}
+
+	// Combine unresolved + wontfix for the detailed listing
+	detailed := make([]reviewFinding, 0, len(unresolved)+len(wontfix))
+	detailed = append(detailed, unresolved...)
+	detailed = append(detailed, wontfix...)
+
 	severityOrder := map[string]int{"critical": 0, "high": 1, "medium": 2, "low": 3, "unknown": 4}
-	sort.SliceStable(deduped, func(i, j int) bool {
-		si, sj := severityOrder[deduped[i].Severity], severityOrder[deduped[j].Severity]
+	sort.SliceStable(detailed, func(i, j int) bool {
+		si, sj := severityOrder[detailed[i].Severity], severityOrder[detailed[j].Severity]
 		if si != sj {
 			return si < sj
 		}
-		return deduped[i].Category < deduped[j].Category
+		return detailed[i].Category < detailed[j].Category
 	})
 
 	sevAbbr := map[string]string{
 		"critical": "[CRIT]", "high": "[HIGH]", "medium": "[MED]", "low": "[LOW]", "unknown": "[???]",
 	}
 
-	findingsCap := 50
-	shown := deduped
-	omitted := 0
-	if len(deduped) > findingsCap {
-		shown = deduped[:findingsCap]
-		omitted = len(deduped) - findingsCap
-	}
-
 	var b strings.Builder
-	b.WriteString("IMPORTANT \u2014 Previous Review Round(s) Found and Addressed:\n")
-	b.WriteString("The following issues were identified in previous round(s) and have been addressed by the spec author.\n")
-	b.WriteString("DO NOT re-report these issues unless the fix introduced a NEW, DIFFERENT problem.\n\n")
 
-	for _, f := range shown {
-		abbr := sevAbbr[f.Severity]
-		if abbr == "" {
-			abbr = "[???]"
+	// Section 1: Unresolved + wontfix findings (full detail)
+	if len(detailed) > 0 {
+		b.WriteString("UNRESOLVED findings from previous rounds — DO NOT re-report:\n")
+
+		findingsCap := 50
+		shown := detailed
+		omitted := 0
+		if len(detailed) > findingsCap {
+			shown = detailed[:findingsCap]
+			omitted = len(detailed) - findingsCap
 		}
-		text := f.Finding
-		if len(text) > 80 {
-			text = text[:80] + "..."
+
+		for _, f := range shown {
+			abbr := sevAbbr[f.Severity]
+			if abbr == "" {
+				abbr = "[???]"
+			}
+			text := f.Finding
+			if len(text) > 80 {
+				text = text[:80] + "..."
+			}
+			if f.Resolved != nil && f.Resolved.Status == "wontfix" {
+				evidence := f.Resolved.Evidence
+				if len(evidence) > 40 {
+					evidence = evidence[:40] + "..."
+				}
+				fmt.Fprintf(&b, "  [WONTFIX] %s — %s: %s (wontfix: %s)\n", f.Category, f.Location, text, evidence)
+			} else {
+				fmt.Fprintf(&b, "  %s %s — %s: %s\n", abbr, f.Category, f.Location, text)
+			}
 		}
-		fmt.Fprintf(&b, "  %s %s \u2014 %s: %s\n", abbr, f.Category, f.Location, text)
+
+		if omitted > 0 {
+			fmt.Fprintf(&b, "\n  ... and %d more (omitted for brevity)\n", omitted)
+		}
+		b.WriteString("\n")
 	}
 
-	if omitted > 0 {
-		fmt.Fprintf(&b, "\n  ... and %d more (omitted for brevity)\n", omitted)
+	// Section 2: Resolved findings (count only)
+	if resolvedCount > 0 {
+		fmt.Fprintf(&b, "Additionally, %d findings from previous rounds were RESOLVED (fixed or duplicate) and are no longer active.\n", resolvedCount)
 	}
 
-	b.WriteString("\nFocus ONLY on issues NOT listed above. If you find no new issues, respond with an empty array (just []).\n")
+	b.WriteString("Do not re-report resolved issues. Focus ONLY on NEW issues in the current spec.\n")
 	return b.String()
 }
 

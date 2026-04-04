@@ -146,18 +146,44 @@ func runReviewMerge(args []string, outputPath string) error {
 	ndjsonOutput := buf.String()
 	duplicatesRemoved := len(allFindings) - len(unique)
 
-	// Write output
+	// Build severity breakdown
+	bySeverity := make(map[string]int)
+	for _, f := range unique {
+		sev, _ := f["severity"].(string)
+		bySeverity[sev]++
+	}
+
+	// Build JSON summary
+	summary := map[string]any{
+		"merged_count":      len(unique),
+		"input_files":       totalFiles,
+		"duplicates_removed": duplicatesRemoved,
+		"by_severity":       bySeverity,
+	}
+
+	// Write output based on mode
 	if outputPath != "" {
+		// -o: NDJSON to file, JSON summary to stdout
 		if err := os.WriteFile(outputPath, []byte(ndjsonOutput), 0o644); err != nil {
 			output.Error(ExitFile, fmt.Sprintf("cannot write output file: %s", err))
 			os.Exit(ExitFile)
 			return nil
 		}
-	} else {
-		fmt.Print(ndjsonOutput)
+		summary["output_path"] = outputPath
+		return output.JSON(summary)
 	}
 
-	// Summary to stderr (always, regardless of --json/--quiet mode)
+	if IsJSONOutput() {
+		// --json without -o: JSON with findings array
+		summary["output_path"] = "stdout"
+		summary["findings"] = unique
+		return output.JSON(summary)
+	}
+
+	// Default: raw NDJSON to stdout
+	fmt.Print(ndjsonOutput)
+
+	// Summary to stderr
 	fmt.Fprintf(os.Stderr, "merged: %d unique findings from %d files (%d duplicates removed)\n",
 		len(unique), totalFiles, duplicatesRemoved)
 

@@ -198,8 +198,10 @@ func TestReviewMergeOutputFile(t *testing.T) {
 	stdout, stderr, code := runTPMerge(t, dir, "review", "--merge", "--output", outPath, f1)
 	require.Equal(t, 0, code, "merge should succeed: %s", stderr)
 
-	// stdout should be empty when -o is used
-	assert.Empty(t, strings.TrimSpace(stdout))
+	// stdout should have JSON summary when -o is used
+	var summary map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &summary))
+	assert.Equal(t, float64(1), summary["merged_count"])
 
 	// Output file should exist and contain the finding
 	content, err := os.ReadFile(outPath)
