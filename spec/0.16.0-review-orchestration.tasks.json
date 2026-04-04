@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.16.0-review-orchestration.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-04-04T12:48:41.451475Z",
+  "updated_at": "2026-04-04T12:52:06.176851Z",
   "workflow": {},
   "coverage": {
     "total_sections": 64,
@@ -326,7 +326,7 @@
     {
       "id": "verify",
       "title": "Implement --verify lightweight verification",
-      "status": "wip",
+      "status": "done",
       "tags": [
         "feature-e"
       ],
@@ -344,15 +344,15 @@
       ],
       "source_lines": "296-388",
       "started_at": "2026-04-04T12:48:41.451475Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-04-04T12:51:58.969538Z",
+      "closed_reason": "review_verify.go: runReviewVerify generates SINGLE prompt with role verifier, category verification. Classifies findings into fixed/wontfix/unresolved via resolvedStatus. Prompt adapts to counts (shows M addressed, W wontfix, U unresolved). Empty categories omitted from prompt. Fixed findings include resolution evidence. Regression category guidance in prompt. Supports --affected-files (budget-aware via ReadAffectedFilesBudgetAware) and --diff-from (uses buildDiffSpecContent) and --spec-ref (uses buildSpecRefContent). review_loop.mode = verification. Instruction says 'If verifier finds 0 issues, review is complete'. Validation: requires --findings exit 2. NDJSON output guidance. 7 tests: all-fixed, mixed, no-findings error, mode field, affected-files, empty categories, regression guidance.",
+      "gate_passed_at": "2026-04-04T12:51:58.969538Z",
+      "commit_sha": "293d9b4"
     },
     {
       "id": "docs-update",
       "title": "Update SKILL.md, README.md, CLAUDE.md",
-      "status": "open",
+      "status": "wip",
       "tags": [
         "docs"
       ],
@@ -371,7 +371,7 @@
         "## 14. Affected Files"
       ],
       "source_lines": "546-565",
-      "started_at": null,
+      "started_at": "2026-04-04T12:52:06.176851Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,

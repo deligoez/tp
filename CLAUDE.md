@@ -89,6 +89,13 @@ tp lint <spec.md>              # Spec quality checks (no task file needed)
 tp review <spec.md>            # Adversarial review prompts (implementer, tester, architect)
 tp review <spec.md> --perspective code-audit --affected-files <paths>  # Code audit with source files
 tp review <spec.md> --round N --final-round --affected-files <paths>  # Final round: mandatory code read-through
+tp review --merge r1.ndjson r2.ndjson -o merged.ndjson  # Merge + dedup findings from NDJSON files
+tp review --resolve findings.ndjson <idx> <disposition> "evidence"  # Mark finding fixed/wontfix/duplicate
+tp review --resolve-all findings.ndjson <disposition> "evidence"  # Mark all unresolved findings
+tp review --verify <spec.md> --findings all.ndjson  # Lightweight verification prompt (verifier role)
+tp review --report r1.ndjson r2.ndjson  # Cross-round convergence report
+tp review <spec.md> --spec-ref <path> --diff-from <old-spec.md>  # Diff-based review (changed sections only)
+tp review ... --force          # Force re-resolve already resolved findings
 tp audit <spec.md>              # Post-implementation: verify code matches spec (auto-detects changed files via git diff)
 tp audit <spec.md> --affected-files <paths>  # Manual file selection
 tp audit <spec.md> --findings <file.ndjson>  # Also verify review findings were addressed

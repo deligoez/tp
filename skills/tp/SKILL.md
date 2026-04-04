@@ -31,6 +31,14 @@ This skill activates when:
      - `tp review spec.md --affected-files src/a.go src/b.vue` — inject source files into prompts
      - `tp review spec.md --perspective code-audit --affected-files src/a.go` — code audit perspective with C1-C5 checklist
      - `tp review spec.md --round 2 --final-round --affected-files src/a.go` — force mandatory code read-through
+   - **Multi-round review lifecycle** (merge, resolve, verify, report):
+     - `tp review --merge r1-*.ndjson -o r1.ndjson` — merge + dedup findings from multiple sub-agents
+     - `tp review --resolve r1.ndjson 3 fixed "evidence"` — mark finding as fixed/wontfix/duplicate
+     - `tp review --resolve-all r1.ndjson wontfix "reason"` — mark all unresolved findings
+     - `tp review --verify spec.md --findings all.ndjson` — lightweight verification prompt (verifier role)
+     - `tp review --report r1.ndjson r2.ndjson` — cross-round convergence report
+     - `tp review spec.md --spec-ref spec.md --diff-from spec-r0.md` — diff-based review (changed sections only)
+     - `--force` — force re-resolve already resolved findings
 3. Read spec, decompose into tasks (JSON):
    - Every task MUST have `source_lines` mapping to spec line ranges (e.g., `"15-42"` or `"15-42,50-60"`)
    - Every table data row must appear in some task's acceptance criteria
@@ -143,6 +151,12 @@ tp done <id> "reason" --gate-passed
 | `tp review spec.md --perspective code-audit --affected-files src/a.go` | Code audit with source file injection |
 | `tp review spec.md --round N --findings file.ndjson` | Multi-round review with previous findings exclusion |
 | `tp review spec.md --round N --final-round --affected-files src/a.go` | Final round with mandatory code read-through |
+| `tp review --merge r1.ndjson r2.ndjson -o merged.ndjson` | Merge + dedup findings from NDJSON files |
+| `tp review --resolve findings.ndjson <idx> <disposition> "evidence"` | Mark finding fixed/wontfix/duplicate |
+| `tp review --resolve-all findings.ndjson <disposition> "reason"` | Mark all unresolved findings |
+| `tp review --verify spec.md --findings all.ndjson` | Lightweight verification (verifier role) |
+| `tp review --report r1.ndjson r2.ndjson` | Cross-round convergence report |
+| `tp review spec.md --diff-from old-spec.md` | Diff-based review (changed sections only) |
 | `tp audit spec.md` | Post-implementation audit: verify code matches spec (auto-detects changed files) |
 | `tp audit spec.md --affected-files src/a.go` | Manual file selection for audit |
 | `tp audit spec.md --findings review.ndjson` | Also verify review findings were addressed |

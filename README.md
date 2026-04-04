@@ -121,6 +121,13 @@ tp review spec.md              # Adversarial review prompts (3 personas)
 tp review spec.md --perspective code-audit --affected-files src/a.go  # Code audit with source files
 tp review spec.md --round 2 --findings r1.ndjson  # Multi-round with previous findings
 tp review spec.md --round 2 --final-round --affected-files src/a.go  # Final round: mandatory code read-through
+tp review --merge r1.ndjson r2.ndjson -o merged.ndjson  # Merge + dedup findings
+tp review --resolve findings.ndjson 3 fixed "evidence"  # Mark finding as fixed/wontfix/duplicate
+tp review --resolve-all findings.ndjson wontfix "reason"  # Mark all unresolved findings
+tp review --verify spec.md --findings all.ndjson  # Lightweight verification (verifier role)
+tp review --report r1.ndjson r2.ndjson  # Cross-round convergence report
+tp review spec.md --spec-ref spec.md --diff-from spec-r0.md  # Diff-based review (changed sections only)
+tp review ... --force          # Force re-resolve already resolved findings
 tp audit spec.md               # Post-implementation: verify code matches spec
 tp audit spec.md --affected-files src/a.go  # Manual file selection
 tp audit spec.md --findings review.ndjson  # Also verify review findings
@@ -289,6 +296,40 @@ tp review spec.md --round 2 --final-round --affected-files src/form.vue
 ```
 
 Files are capped at 8000 chars each (50000 total). Prompt budget enforced at 60000 chars total.
+
+### Multi-Round Review Workflow
+
+```bash
+# R1: generate review prompts, spawn sub-agents, collect findings
+tp review spec.md                                    # R1: generate review prompts
+
+# Merge findings from multiple sub-agents
+tp review --merge r1-*.ndjson -o r1.ndjson            # Merge + dedup findings
+
+# Resolve individual findings
+tp review --resolve r1.ndjson 3 fixed "evidence"      # Mark finding as fixed
+
+# R2: diff-based review (only changed sections inline)
+tp review spec.md --round 2 --findings r1.ndjson --diff-from spec-r0.md  # R2: diff-based
+
+# Lightweight verification pass
+tp review --verify spec.md --findings all.ndjson      # Lightweight verification
+
+# Cross-round convergence report
+tp review --report r1.ndjson r2.ndjson                # Convergence report
+```
+
+| Flag | Purpose |
+|------|---------|
+| `--merge` | Merge and dedup findings from multiple NDJSON files |
+| `--resolve` | Mark a finding as fixed/wontfix/duplicate |
+| `--resolve-all` | Mark all unresolved findings at once |
+| `--verify` | Lightweight verification prompt (single prompt, verifier role) |
+| `--report` | Cross-round convergence report |
+| `--spec-ref` | Reference spec by path instead of inline |
+| `--diff-from` | Diff-based review (only changed sections inline) |
+| `-o` / `--output` | Output file path for merge |
+| `--force` | Force re-resolve already resolved findings |
 
 ### Lint Checks
 
