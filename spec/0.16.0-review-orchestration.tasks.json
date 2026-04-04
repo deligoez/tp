@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.16.0-review-orchestration.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-04-04T12:40:58.785677Z",
+  "updated_at": "2026-04-04T12:41:13.028418Z",
   "workflow": {},
   "coverage": {
     "total_sections": 64,
@@ -259,7 +259,7 @@
     {
       "id": "spec-ref",
       "title": "Implement --spec-ref: omit inline spec",
-      "status": "wip",
+      "status": "done",
       "tags": [
         "feature-g"
       ],
@@ -274,10 +274,10 @@
       ],
       "source_lines": "471-515",
       "started_at": "2026-04-04T12:32:05.9927Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-04-04T12:41:13.028409Z",
+      "closed_reason": "When --spec-ref active: buildSpecRefContent generates 'Spec file: {absPath} ({N} lines, {M} sections)' with heading list. reviewResult gets spec_ref: true and spec_path with absolute path. review_loop.instruction includes 'Read the spec at {path}'. When combined with --diff-from, spec-ref is redundant (diff-from controls content via switch statement). New fields added to reviewResult struct. Validation: --diff-from requires --round \u003e= 2, baseline must exist.",
+      "gate_passed_at": "2026-04-04T12:41:13.028409Z",
+      "commit_sha": "bb8eaec"
     },
     {
       "id": "diff-engine",
