@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.16.0-review-orchestration.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-04-04T12:52:06.176851Z",
+  "updated_at": "2026-04-04T12:54:30.470609Z",
   "workflow": {},
   "coverage": {
     "total_sections": 64,
@@ -352,7 +352,7 @@
     {
       "id": "docs-update",
       "title": "Update SKILL.md, README.md, CLAUDE.md",
-      "status": "wip",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -372,10 +372,10 @@
       ],
       "source_lines": "546-565",
       "started_at": "2026-04-04T12:52:06.176851Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-04-04T12:54:30.470599Z",
+      "closed_reason": "SKILL.md: added multi-round review lifecycle section with merge/resolve/verify/report/diff-from/force commands, 6 new rows in Key Commands table. README.md: added 7 new review flags to command reference, new Multi-Round Review Workflow section with 6-step example and 9-row flag table. CLAUDE.md: added 7 new tp review lines to Spec and Validation section covering all new modes and flags.",
+      "gate_passed_at": "2026-04-04T12:54:30.470599Z",
+      "commit_sha": "707abaf"
     }
   ]
 }
