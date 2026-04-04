@@ -749,11 +749,24 @@ func parseFindingsFile(path string) []reviewFinding {
 	return findings
 }
 
+const findingPrefixLen = 80
+
+// findingIdentityKey returns a dedup key for a finding: (category, location, finding_prefix).
+// finding_prefix is the first 80 characters of the finding field.
+// Used by merge dedup and report cross-round tracking.
+func findingIdentityKey(category, location, finding string) string {
+	prefix := finding
+	if len(prefix) > findingPrefixLen {
+		prefix = prefix[:findingPrefixLen]
+	}
+	return category + "::" + location + "::" + prefix
+}
+
 func dedupFindings(findings []reviewFinding) []reviewFinding {
 	seen := make(map[string]bool)
 	result := make([]reviewFinding, 0, len(findings))
 	for _, f := range findings {
-		key := f.Category + "::" + f.Location
+		key := findingIdentityKey(f.Category, f.Location, f.Finding)
 		if seen[key] {
 			continue
 		}

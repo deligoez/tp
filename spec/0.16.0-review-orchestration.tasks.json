@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.16.0-review-orchestration.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-04-04T12:24:01.195942Z",
+  "updated_at": "2026-04-04T12:28:21.894576Z",
   "workflow": {},
   "coverage": {
     "total_sections": 64,
@@ -58,7 +58,7 @@
     {
       "id": "mode-routing",
       "title": "Add mode routing and exclusivity validation",
-      "status": "wip",
+      "status": "done",
       "tags": [
         "infra"
       ],
@@ -70,15 +70,15 @@
       ],
       "source_lines": "56-72",
       "started_at": "2026-04-04T12:24:01.195942Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-04-04T12:28:15.088884Z",
+      "closed_reason": "runReview detects --merge, --resolve, --resolve-all, --verify, --report boolean flags via detectReviewMode() and routes to runReviewMerge/runReviewResolve/runReviewResolveAll/runReviewVerify/runReviewReport stub functions. All 6 mutually exclusive mode combos (merge+resolve, merge+verify, merge+report, resolve+verify, resolve+report, verify+report) exit 2 with clear error tested in TestReviewModeMutualExclusivity. Modifier flags (--diff-from, --spec-ref, --round, --findings, --affected-files, --final-round) rejected with merge/resolve/report modes via validateModeFlags, tested in TestReviewMergeRejectsModifierFlags. All new flags registered in newReviewCmd. Default review backward compatible (TestReviewDefaultStillWorks). No spec arg exits 2 (TestReviewNoSpecArgErrors).",
+      "gate_passed_at": "2026-04-04T12:28:15.088884Z",
+      "commit_sha": "a745795"
     },
     {
       "id": "finding-identity",
       "title": "Extract finding identity key function",
-      "status": "open",
+      "status": "wip",
       "tags": [
         "infra"
       ],
@@ -89,7 +89,7 @@
         "### 5.2 Behavior"
       ],
       "source_lines": "83-84",
-      "started_at": null,
+      "started_at": "2026-04-04T12:28:21.894575Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,
@@ -282,7 +282,7 @@
     {
       "id": "diff-engine",
       "title": "Create section-level spec diff engine",
-      "status": "open",
+      "status": "wip",
       "tags": [
         "feature-d"
       ],
@@ -293,7 +293,7 @@
         "### 8.6 Diff Algorithm"
       ],
       "source_lines": "271-295",
-      "started_at": null,
+      "started_at": "2026-04-04T12:28:21.894575Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,

@@ -288,7 +288,7 @@ func TestReviewFindingsDedup(t *testing.T) {
 
 	findingsPath := filepath.Join(dir, "findings.ndjson")
 	require.NoError(t, os.WriteFile(findingsPath, []byte(`{"severity":"high","category":"completeness","location":"## Problem","finding":"Missing edge case","suggestion":"Add section"}
-{"severity":"medium","category":"completeness","location":"## Problem","finding":"Another issue same location","suggestion":"Fix it"}
+{"severity":"medium","category":"completeness","location":"## Problem","finding":"Missing edge case","suggestion":"Add section v2"}
 {"severity":"low","category":"ambiguity","location":"## Problem","finding":"Same location different category","suggestion":"Clarify"}
 `), 0o600))
 
@@ -298,6 +298,7 @@ func TestReviewFindingsDedup(t *testing.T) {
 	var result map[string]any
 	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
 	loop := result["review_loop"].(map[string]any)
+	// 3 findings: 2 share (category, location, finding_prefix) so dedup to 2
 	assert.Equal(t, float64(2), loop["previous_findings"])
 }
 
