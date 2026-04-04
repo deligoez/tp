@@ -98,7 +98,7 @@ func runReviewReport(args []string) error {
 // If a single arg is a directory, it scans for *.ndjson files sorted alphabetically.
 func resolveReportFiles(args []string) ([]string, error) {
 	if len(args) == 0 {
-		return nil, fmt.Errorf("no files or directory provided")
+		return nil, fmt.Errorf("at least 1 findings file required for report")
 	}
 
 	// Check if single arg is a directory
@@ -133,7 +133,7 @@ func scanDirectoryForNDJSON(dir string) ([]string, error) {
 	}
 
 	if len(files) == 0 {
-		return nil, fmt.Errorf("no .ndjson files found in directory: %s", dir)
+		return nil, fmt.Errorf("no .ndjson files found in %s", dir)
 	}
 
 	sort.Strings(files)
@@ -244,9 +244,14 @@ func computeRoundStats(files []string, roundFindings [][]map[string]any) []round
 		}
 		rounds = append(rounds, rs)
 
-		// Update cumulative keys
+		// Update cumulative keys: add current, remove resolved (so reappearing findings count as new)
 		for key := range currentKeys {
 			cumulativeKeys[key] = true
+		}
+		for key := range prevKeys {
+			if !currentKeys[key] {
+				delete(cumulativeKeys, key)
+			}
 		}
 		prevKeys = currentKeys
 		prevUnresolved = unresolvedCount
@@ -303,8 +308,15 @@ func computeSeverityBreakdown(roundFindings [][]map[string]any) map[string]*seve
 				severity = "unknown"
 			}
 
-			resolvedStatus, _ := f["resolved"].(string)
-			if resolvedStatus != "" {
+			var resolvedStatus string
+			if resolvedObj, ok := f["resolved"].(map[string]any); ok {
+				resolvedStatus, _ = resolvedObj["status"].(string)
+				if resolvedStatus != "" {
+					hasResolvedField = true
+				}
+			} else if rs, ok := f["resolved"].(string); ok && rs != "" {
+				// Backward compat: resolved as a plain string
+				resolvedStatus = rs
 				hasResolvedField = true
 			}
 

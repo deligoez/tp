@@ -38,7 +38,7 @@ func runReviewResolve(args []string, force bool) error {
 
 	// Validate status
 	if !validResolveStatuses[status] {
-		output.Error(ExitUsage, fmt.Sprintf("invalid status %q: must be fixed, wontfix, or duplicate", status))
+		output.Error(ExitUsage, fmt.Sprintf("invalid status: %s (must be fixed, wontfix, or duplicate)", status))
 		os.Exit(ExitUsage)
 		return nil
 	}
@@ -53,7 +53,7 @@ func runReviewResolve(args []string, force bool) error {
 
 	// Check file exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		output.Error(ExitFile, fmt.Sprintf("file not found: %s", filePath))
+		output.Error(ExitFile, fmt.Sprintf("findings file not found: %s", filePath))
 		os.Exit(ExitFile)
 		return nil
 	}
@@ -70,7 +70,7 @@ func runReviewResolve(args []string, force bool) error {
 
 		// Validate index range
 		if index < 0 || index >= len(findings) {
-			output.Error(ExitUsage, fmt.Sprintf("index %d out of range (0-%d)", index, len(findings)-1))
+			output.Error(ExitUsage, fmt.Sprintf("finding index %d out of range (0-%d)", index, len(findings)-1))
 			os.Exit(ExitUsage)
 			return nil
 		}
@@ -78,8 +78,14 @@ func runReviewResolve(args []string, force bool) error {
 		finding := findings[index]
 
 		// Check already resolved
-		if _, ok := finding["resolved"]; ok && !force {
-			output.Error(ExitValidation, fmt.Sprintf("finding %d is already resolved", index), "use --force to re-resolve")
+		if existingResolved, ok := finding["resolved"]; ok && !force {
+			currentStatus := "unknown"
+			if rm, ok := existingResolved.(map[string]any); ok {
+				if s, ok := rm["status"].(string); ok {
+					currentStatus = s
+				}
+			}
+			output.Error(ExitValidation, fmt.Sprintf("finding %d already resolved as %s", index, currentStatus), "use --force to re-resolve")
 			os.Exit(ExitValidation)
 			return nil
 		}
@@ -129,7 +135,7 @@ func runReviewResolveAll(args []string, force bool) error {
 
 	// Validate status
 	if !validResolveStatuses[status] {
-		output.Error(ExitUsage, fmt.Sprintf("invalid status %q: must be fixed, wontfix, or duplicate", status))
+		output.Error(ExitUsage, fmt.Sprintf("invalid status: %s (must be fixed, wontfix, or duplicate)", status))
 		os.Exit(ExitUsage)
 		return nil
 	}

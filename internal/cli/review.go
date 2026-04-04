@@ -120,7 +120,7 @@ Modes (mutually exclusive):
 				}
 				return runReview(cmd, args[0], round, findingsPath, perspective, docsPath, testPath, affectedFiles, finalRound, diffFrom, specRef)
 			}
-			if err := validateModeFlags(mode, round, findingsPath, affectedFiles, finalRound, diffFrom, specRef); err != nil {
+			if err := validateModeFlags(mode, round, findingsPath, affectedFiles, finalRound, diffFrom, specRef, perspective); err != nil {
 				output.Error(ExitUsage, err.Error())
 				os.Exit(ExitUsage)
 				return nil
@@ -201,7 +201,7 @@ func detectReviewMode(merge, resolve, resolveAll, verify, report bool) string {
 }
 
 // validateModeFlags checks that modifier flags are compatible with the active mode.
-func validateModeFlags(mode string, round int, findingsPath string, affectedFiles []string, finalRound bool, diffFrom string, specRef bool) error {
+func validateModeFlags(mode string, round int, findingsPath string, affectedFiles []string, finalRound bool, diffFrom string, specRef bool, perspective string) error {
 	if strings.HasPrefix(mode, "conflict:") {
 		pair := strings.TrimPrefix(mode, "conflict:")
 		return fmt.Errorf("--%s are mutually exclusive", strings.Replace(pair, "+", " and --", 1))
@@ -212,7 +212,7 @@ func validateModeFlags(mode string, round int, findingsPath string, affectedFile
 		if round != 1 {
 			return fmt.Errorf("--%s is mutually exclusive with --round", mode)
 		}
-		if findingsPath != "" && mode != "report" {
+		if findingsPath != "" {
 			return fmt.Errorf("--%s is mutually exclusive with --findings", mode)
 		}
 		if len(affectedFiles) > 0 {
@@ -229,13 +229,16 @@ func validateModeFlags(mode string, round int, findingsPath string, affectedFile
 		}
 	}
 
-	// Verify rejects --round and --final-round but allows --findings, --affected-files, --diff-from, --spec-ref
+	// Verify rejects --round, --final-round, and --perspective but allows --findings, --affected-files, --diff-from, --spec-ref
 	if mode == "verify" {
 		if round != 1 {
 			return fmt.Errorf("--verify is mutually exclusive with --round (verification is not a numbered round)")
 		}
 		if finalRound {
 			return fmt.Errorf("--verify is mutually exclusive with --final-round")
+		}
+		if perspective != "" {
+			return fmt.Errorf("--verify is mutually exclusive with --perspective")
 		}
 	}
 

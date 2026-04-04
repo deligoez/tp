@@ -213,6 +213,12 @@ func detectChangedFiles(dir, base string) ([]string, error) {
 
 		staged := execGitDiff(dir, "diff", "--name-only", "--cached")
 		allFiles = append(allFiles, staged...)
+
+		// Also include committed changes since latest tag (captures auto-committed work)
+		if tag := latestGitTag(dir); tag != "" {
+			tagFiles := execGitDiff(dir, "diff", "--name-only", tag+"...HEAD")
+			allFiles = append(allFiles, tagFiles...)
+		}
 	}
 
 	allFiles = engine.DedupPaths(allFiles)
@@ -237,7 +243,7 @@ func detectChangedFiles(dir, base string) ([]string, error) {
 	}
 
 	if len(filtered) == 0 && len(allFiles) > 0 {
-		return nil, fmt.Errorf("no audit-able files in diff — only binary/markdown files changed")
+		return nil, fmt.Errorf("no audit-able files in diff — only binary/markdown/task files changed. Use --base <tag> to diff against a specific tag, or --affected-files to specify files manually")
 	}
 
 	return filtered, nil
@@ -247,6 +253,16 @@ func gitExists(dir string) bool {
 	cmd := exec.Command("git", "rev-parse", "--is-inside-work-tree")
 	cmd.Dir = dir
 	return cmd.Run() == nil
+}
+
+func latestGitTag(dir string) string {
+	cmd := exec.Command("git", "describe", "--tags", "--abbrev=0")
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }
 
 func execGitDiff(dir string, args ...string) []string {
