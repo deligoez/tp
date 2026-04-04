@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.16.0-review-orchestration.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-04-04T12:48:10.568481Z",
+  "updated_at": "2026-04-04T12:48:41.451475Z",
   "workflow": {},
   "coverage": {
     "total_sections": 64,
@@ -212,7 +212,7 @@
     {
       "id": "report-core",
       "title": "Implement report cross-round analysis",
-      "status": "wip",
+      "status": "done",
       "tags": [
         "feature-f"
       ],
@@ -228,15 +228,15 @@
       ],
       "source_lines": "390-470",
       "started_at": "2026-04-04T12:41:27.116053Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-04-04T12:48:10.916977Z",
+      "closed_reason": "review_report.go: runReviewReport reads per-round NDJSON files or directory (alphabetical), uses findingIdentityKey for cross-round tracking, computes per-round in_file/new/resolved/unresolved/delta_percent. Convergence: true when last 2+ rounds have 0 findings. Severity breakdown with fixed/wontfix/duplicate/remaining. TTY table output with convergence status. JSON output with rounds array and delta_percent (null for R1). 8 tests in review_report_test.go covering convergence, directory, severity breakdown, delta, empty dir.",
+      "gate_passed_at": "2026-04-04T12:48:10.916977Z",
+      "commit_sha": "c51964d"
     },
     {
       "id": "report-output",
       "title": "Implement report TTY/JSON output formats",
-      "status": "open",
+      "status": "done",
       "tags": [
         "feature-f"
       ],
@@ -250,9 +250,9 @@
         "### 10.3 Output (JSON)"
       ],
       "source_lines": "395-470",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
+      "started_at": "2026-04-04T12:48:10.92608Z",
+      "closed_at": "2026-04-04T12:48:10.926081Z",
+      "closed_reason": "TTY and JSON output formats both implemented in review_report.go as part of report-core. printReportTTY generates convergence table with columns, status line, severity and category breakdowns. JSON mode uses output.JSON with rounds array, convergence object, by_severity with duplicate counts.",
       "gate_passed_at": null,
       "commit_sha": null
     },
@@ -326,7 +326,7 @@
     {
       "id": "verify",
       "title": "Implement --verify lightweight verification",
-      "status": "open",
+      "status": "wip",
       "tags": [
         "feature-e"
       ],
@@ -343,7 +343,7 @@
         "### 9.3 Behavior"
       ],
       "source_lines": "296-388",
-      "started_at": null,
+      "started_at": "2026-04-04T12:48:41.451475Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,

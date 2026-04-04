@@ -43,6 +43,7 @@ type reviewLoop struct {
 	Convergence      string `json:"convergence"`
 	PreviousFindings int    `json:"previous_findings"`
 	Instruction      string `json:"instruction"`
+	Mode             string `json:"mode,omitempty"`
 }
 
 type reviewResult struct {
@@ -243,12 +244,7 @@ func validateModeFlags(mode string, round int, findingsPath string, affectedFile
 
 // Stub functions for new modes — will be implemented in separate files.
 
-func runReviewVerify(_, _ string, _ []string, _ string, _ bool) error {
-	output.Error(ExitUsage, "verify mode not yet implemented")
-	os.Exit(ExitUsage)
-	return nil
-}
-
+// runReviewVerify — implemented in review_verify.go.
 // runReviewReport — implemented in review_report.go.
 
 func runReview(_ *cobra.Command, specPath string, round int, findingsPath, perspective, docsPath, testPath string, affectedFiles []string, finalRound bool, diffFrom string, specRef bool) error {
