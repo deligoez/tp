@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"os/exec"
@@ -41,11 +42,14 @@ func runTP(t *testing.T, dir string, args ...string) (stdout, stderr string, exi
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "NO_COLOR=1")
 
+	var stderrBuf bytes.Buffer
+	cmd.Stderr = &stderrBuf
+
 	outBytes, err := cmd.Output()
 	stdout = string(outBytes)
+	stderr = stderrBuf.String()
 
 	if exitErr, ok := err.(*exec.ExitError); ok {
-		stderr = string(exitErr.Stderr)
 		exitCode = exitErr.ExitCode()
 	} else if err != nil {
 		t.Fatalf("unexpected error running tp: %v", err)

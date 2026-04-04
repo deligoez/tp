@@ -40,6 +40,8 @@ type reviewLoop struct {
 
 type reviewResult struct {
 	Spec               string                     `json:"spec"`
+	SpecRef            bool                       `json:"spec_ref,omitempty"`
+	SpecPath           string                     `json:"spec_path,omitempty"`
 	StructuredElements *engine.StructuredElements `json:"structured_elements,omitempty"`
 	Perspective        string                     `json:"perspective,omitempty"`
 	DocsPath           string                     `json:"docs_path,omitempty"`
@@ -154,7 +156,7 @@ Modes (mutually exclusive):
 	cmd.Flags().BoolVar(&resolveAllMode, "resolve-all", false, "Mark all unresolved findings with a status")
 	cmd.Flags().BoolVar(&verifyMode, "verify", false, "Generate lightweight verification prompt")
 	cmd.Flags().BoolVar(&reportMode, "report", false, "Generate cross-round convergence report")
-	cmd.Flags().StringVar(&outputPath, "o", "", "Output file path (for --merge)")
+	cmd.Flags().StringVarP(&outputPath, "output", "o", "", "Output file path (for --merge)")
 	cmd.Flags().StringVar(&diffFrom, "diff-from", "", "Baseline spec for diff-based review (requires --round >= 2)")
 	cmd.Flags().BoolVar(&specRef, "spec-ref", false, "Reference spec by path instead of inline content")
 	cmd.Flags().BoolVar(&forceFlag, "force", false, "Force re-resolve already resolved findings")
@@ -233,23 +235,6 @@ func validateModeFlags(mode string, round int, findingsPath string, affectedFile
 }
 
 // Stub functions for new modes — will be implemented in separate files.
-func runReviewMerge(_ []string, _ string) error {
-	output.Error(ExitUsage, "merge mode not yet implemented")
-	os.Exit(ExitUsage)
-	return nil
-}
-
-func runReviewResolve(_ []string, _ bool) error {
-	output.Error(ExitUsage, "resolve mode not yet implemented")
-	os.Exit(ExitUsage)
-	return nil
-}
-
-func runReviewResolveAll(_ []string, _ bool) error {
-	output.Error(ExitUsage, "resolve-all mode not yet implemented")
-	os.Exit(ExitUsage)
-	return nil
-}
 
 func runReviewVerify(_, _ string, _ []string, _ string, _ bool) error {
 	output.Error(ExitUsage, "verify mode not yet implemented")
@@ -263,7 +248,7 @@ func runReviewReport(_ []string) error {
 	return nil
 }
 
-func runReview(_ *cobra.Command, specPath string, round int, findingsPath, perspective, docsPath, testPath string, affectedFiles []string, finalRound bool, _ string, _ bool) error {
+func runReview(_ *cobra.Command, specPath string, round int, findingsPath, perspective, docsPath, testPath string, affectedFiles []string, finalRound bool, diffFrom string, specRef bool) error {
 	validPerspectives := map[string]bool{"documentation": true, "testing": true, "code-audit": true}
 
 	if perspective != "" && !validPerspectives[perspective] {
@@ -324,6 +309,20 @@ func runReview(_ *cobra.Command, specPath string, round int, findingsPath, persp
 		output.Info("final-round without affected-files: agents won't read code")
 	}
 
+	if diffFrom != "" && round < 2 {
+		output.Error(ExitUsage, "--diff-from requires --round >= 2")
+		os.Exit(ExitUsage)
+		return nil
+	}
+
+	if diffFrom != "" {
+		if _, err := os.Stat(diffFrom); os.IsNotExist(err) {
+			output.Error(ExitFile, fmt.Sprintf("diff baseline not found: %s", diffFrom))
+			os.Exit(ExitFile)
+			return nil
+		}
+	}
+
 	affectedFiles = engine.DedupPaths(affectedFiles)
 	for _, f := range affectedFiles {
 		info, err := os.Stat(f)
@@ -339,7 +338,43 @@ func runReview(_ *cobra.Command, specPath string, round int, findingsPath, persp
 		}
 	}
 
-	specContent := readSpecContent(specPath)
+	// Build spec content based on mode: full, diff-based, or spec-ref
+	var specContent string
+	var diffResult *engine.DiffResult
+	switch {
+	case diffFrom != "":
+		baseData, err := os.ReadFile(diffFrom)
+		if err != nil {
+			output.Error(ExitFile, fmt.Sprintf("cannot read diff baseline: %s", diffFrom))
+			os.Exit(ExitFile)
+			return nil
+		}
+		currData, err := os.ReadFile(specPath)
+		if err != nil {
+			output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath))
+			os.Exit(ExitFile)
+			return nil
+		}
+		dr := engine.DiffSections(strings.Split(string(baseData), "\n"), strings.Split(string(currData), "\n"))
+		diffResult = &dr
+		specContent = buildDiffSpecContent(diffResult)
+		if len(diffResult.Changed) == 0 && len(diffResult.Removed) == 0 {
+			output.Info("no changes detected between baseline and current spec — review may be unnecessary")
+		}
+	case specRef:
+		specData, err := os.ReadFile(specPath)
+		if err != nil {
+			output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath))
+			os.Exit(ExitFile)
+			return nil
+		}
+		lineCount := strings.Count(string(specData), "\n") + 1
+		absPath, _ := filepath.Abs(specPath)
+		headings, _ := engine.ParseHeadings(specPath)
+		specContent = buildSpecRefContent(absPath, lineCount, headings)
+	default:
+		specContent = readSpecContent(specPath)
+	}
 
 	if perspective == "code-audit" {
 		affectedContent := engine.ReadAffectedFiles(affectedFiles)
@@ -489,6 +524,11 @@ func runReview(_ *cobra.Command, specPath string, round int, findingsPath, persp
 		instruction = fmt.Sprintf("Spawn sub-agents for each prompt. Collect findings. If any critical/high severity, revise spec and re-run `tp review --round %d --findings <combined.ndjson>`. Stop after max_rounds or when no new high-severity findings.", round+1)
 	}
 
+	if specRef {
+		absPath, _ := filepath.Abs(specPath)
+		instruction += " Read the spec at " + absPath + " before processing each prompt."
+	}
+
 	result := reviewResult{
 		Spec:               specPath,
 		StructuredElements: elems,
@@ -500,6 +540,12 @@ func runReview(_ *cobra.Command, specPath string, round int, findingsPath, persp
 			PreviousFindings: uniqueCount,
 			Instruction:      instruction,
 		},
+	}
+
+	if specRef {
+		absPath, _ := filepath.Abs(specPath)
+		result.SpecRef = true
+		result.SpecPath = absPath
 	}
 
 	if len(affectedFiles) > 0 {
@@ -1191,6 +1237,54 @@ spec_coverage: missing, partial, full
 
 Only report real issues. If no issues found, respond with an empty array (just []).
 `
+
+func buildDiffSpecContent(diff *engine.DiffResult) string {
+	var b strings.Builder
+
+	if len(diff.Changed) > 0 {
+		b.WriteString("## Changed Sections (review carefully)\n\n")
+		for _, s := range diff.Changed {
+			hashes := strings.Repeat("#", s.Level)
+			fmt.Fprintf(&b, "%s %s (%s)\n", hashes, s.Heading, s.Status)
+			b.WriteString(s.Content)
+			b.WriteString("\n\n")
+		}
+	}
+
+	if len(diff.Removed) > 0 {
+		b.WriteString("## Removed Sections\n\n")
+		for _, s := range diff.Removed {
+			fmt.Fprintf(&b, "- \"%s\" was removed from the spec.\n", s.Heading)
+		}
+		b.WriteString("\n")
+	}
+
+	if len(diff.Unchanged) > 0 {
+		b.WriteString("## Unchanged Sections (review only if interacting with changes)\n\n")
+		for _, s := range diff.Unchanged {
+			fmt.Fprintf(&b, "- %s\n", s.Heading)
+		}
+		b.WriteString("\n")
+	}
+
+	content := b.String()
+	if len(content) > specContentCap {
+		content = content[:specContentCap] + "\n[...diff truncated]"
+	}
+	return content
+}
+
+func buildSpecRefContent(absPath string, lineCount int, headings []*engine.Heading) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "Spec file: %s (%d lines, %d sections)\n\n", absPath, lineCount, len(headings))
+	b.WriteString("Read the spec file before reviewing. The spec is NOT included inline to save context.\n")
+	b.WriteString("Focus your review on:\n")
+	for _, h := range headings {
+		indent := strings.Repeat("  ", h.Level-1)
+		fmt.Fprintf(&b, "%s- %s\n", indent, h.Text)
+	}
+	return b.String()
+}
 
 func readSpecContent(path string) string {
 	f, err := os.Open(path)
