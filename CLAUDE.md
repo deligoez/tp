@@ -94,8 +94,9 @@ tp review --resolve findings.ndjson <idx> <disposition> "evidence"  # Mark findi
 tp review --resolve-all findings.ndjson <disposition> "evidence"  # Mark all unresolved findings
 tp review --verify <spec.md> --findings all.ndjson  # Lightweight verification prompt (verifier role)
 tp review --report r1.ndjson r2.ndjson  # Cross-round convergence report
-tp review <spec.md> --spec-ref <path> --diff-from <old-spec.md>  # Diff-based review (changed sections only)
-tp review ... --force          # Force re-resolve already resolved findings
+tp review <spec.md> --diff-from <old-spec.md>  # Diff-based review (changed sections only)
+tp review <spec.md> --spec-ref               # Omit inline spec, tell agent to read file
+tp review --resolve ... --force              # Force re-resolve already resolved findings
 tp audit <spec.md>              # Post-implementation: verify code matches spec (auto-detects changed files via git diff)
 tp audit <spec.md> --affected-files <paths>  # Manual file selection
 tp audit <spec.md> --findings <file.ndjson>  # Also verify review findings were addressed
@@ -131,7 +132,15 @@ Auto-detect scans current dir, then one level of subdirectories for `*.tasks.jso
 cmd/tp/              Main entry point
 internal/
   cli/               Cobra commands (plan, done, next, list, claim, close, commit, report, ...)
+                     review.go          — core review + mode routing + prompt generators
+                     review_merge.go    — --merge mode (dedup, sort, output)
+                     review_resolve.go  — --resolve/--resolve-all mode (flock, in-place update)
+                     review_verify.go   — --verify mode (lightweight verification prompt)
+                     review_report.go   — --report mode (convergence analysis, TTY/JSON output)
+                     audit.go           — tp audit (post-implementation spec verification)
   engine/            Core logic (toposort, closure, validate, lint, parallel, discover, lock, excerpt, linecoverage, structured)
+                     diff.go            — section-level spec diff (for --diff-from)
+                     fileio.go          — shared file I/O, budget-aware reading, affected summary
   model/             Data types (TaskFile, Task, Workflow, Coverage)
   output/            Formatting (JSON/TTY, compact, colors, hint errors)
 spec/

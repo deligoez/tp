@@ -126,8 +126,9 @@ tp review --resolve findings.ndjson 3 fixed "evidence"  # Mark finding as fixed/
 tp review --resolve-all findings.ndjson wontfix "reason"  # Mark all unresolved findings
 tp review --verify spec.md --findings all.ndjson  # Lightweight verification (verifier role)
 tp review --report r1.ndjson r2.ndjson  # Cross-round convergence report
-tp review spec.md --spec-ref spec.md --diff-from spec-r0.md  # Diff-based review (changed sections only)
-tp review ... --force          # Force re-resolve already resolved findings
+tp review spec.md --diff-from spec-r0.md  # Diff-based review (changed sections only)
+tp review spec.md --spec-ref              # Omit inline spec, tell agent to read file
+tp review --resolve ... --force           # Force re-resolve already resolved findings
 tp audit spec.md               # Post-implementation: verify code matches spec
 tp audit spec.md --affected-files src/a.go  # Manual file selection
 tp audit spec.md --findings review.ndjson  # Also verify review findings

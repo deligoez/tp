@@ -37,7 +37,8 @@ This skill activates when:
      - `tp review --resolve-all r1.ndjson wontfix "reason"` — mark all unresolved findings
      - `tp review --verify spec.md --findings all.ndjson` — lightweight verification prompt (verifier role)
      - `tp review --report r1.ndjson r2.ndjson` — cross-round convergence report
-     - `tp review spec.md --spec-ref spec.md --diff-from spec-r0.md` — diff-based review (changed sections only)
+     - `tp review spec.md --diff-from spec-r0.md` — diff-based review (changed sections only)
+     - `tp review spec.md --spec-ref` — omit inline spec, tell agent to read file
      - `--force` — force re-resolve already resolved findings
 3. Read spec, decompose into tasks (JSON):
    - Every task MUST have `source_lines` mapping to spec line ranges (e.g., `"15-42"` or `"15-42,50-60"`)
@@ -157,6 +158,7 @@ tp done <id> "reason" --gate-passed
 | `tp review --verify spec.md --findings all.ndjson` | Lightweight verification (verifier role) |
 | `tp review --report r1.ndjson r2.ndjson` | Cross-round convergence report |
 | `tp review spec.md --diff-from old-spec.md` | Diff-based review (changed sections only) |
+| `tp review spec.md --spec-ref` | Omit inline spec, tell agent to read file |
 | `tp audit spec.md` | Post-implementation audit: verify code matches spec (auto-detects changed files) |
 | `tp audit spec.md --affected-files src/a.go` | Manual file selection for audit |
 | `tp audit spec.md --findings review.ndjson` | Also verify review findings were addressed |
