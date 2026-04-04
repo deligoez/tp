@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.16.0-review-orchestration.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-04-04T12:32:05.9927Z",
+  "updated_at": "2026-04-04T12:40:34.817743Z",
   "workflow": {},
   "coverage": {
     "total_sections": 64,
@@ -98,7 +98,7 @@
     {
       "id": "merge-core",
       "title": "Implement merge: parse, dedup, sort NDJSON",
-      "status": "wip",
+      "status": "done",
       "tags": [
         "feature-a"
       ],
@@ -114,10 +114,10 @@
       ],
       "source_lines": "68-102",
       "started_at": "2026-04-04T12:32:05.9927Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-04-04T12:40:34.817735Z",
+      "closed_reason": "review_merge.go: runReviewMerge reads NDJSON files, validates severity+finding required, skips blank/invalid lines with warning to stderr, deduplicates by findingIdentityKey keeping highest severity, sorts by severity then category, outputs NDJSON to stdout or -o file, summary to stderr. Uses map[string]any to preserve all fields including resolved. Exit 2 for 0 files, exit 3 for missing, exit 1 for all invalid. Single file normalizes. 8 tests in review_merge_test.go covering dedup, sort, invalid lines, single normalize, zero files, missing file, preserves fields, output file, all-invalid.",
+      "gate_passed_at": "2026-04-04T12:40:34.817735Z",
+      "commit_sha": "9bfaa51"
     },
     {
       "id": "merge-output",
