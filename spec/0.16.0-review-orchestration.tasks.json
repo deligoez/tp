@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.16.0-review-orchestration.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-04-04T12:28:21.894576Z",
+  "updated_at": "2026-04-04T12:29:56.790382Z",
   "workflow": {},
   "coverage": {
     "total_sections": 64,
@@ -78,7 +78,7 @@
     {
       "id": "finding-identity",
       "title": "Extract finding identity key function",
-      "status": "wip",
+      "status": "done",
       "tags": [
         "infra"
       ],
@@ -90,10 +90,10 @@
       ],
       "source_lines": "83-84",
       "started_at": "2026-04-04T12:28:21.894575Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-04-04T12:29:56.790375Z",
+      "closed_reason": "findingIdentityKey(category, location, finding) returns (category::location::finding_prefix) where finding_prefix is first 80 chars of finding field. Constant findingPrefixLen=80 defined. Function used by dedupFindings. Existing TestReviewFindingsDedup updated to test new 3-tuple dedup key: two findings with same (category, location) but same finding_prefix are deduped, different finding text are kept separate.",
+      "gate_passed_at": "2026-04-04T12:29:56.790375Z",
+      "commit_sha": "eac99e1"
     },
     {
       "id": "merge-core",
