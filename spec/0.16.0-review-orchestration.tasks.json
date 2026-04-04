@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.16.0-review-orchestration.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-04-04T12:48:10.21783Z",
+  "updated_at": "2026-04-04T12:48:10.568481Z",
   "workflow": {},
   "coverage": {
     "total_sections": 64,
@@ -122,7 +122,7 @@
     {
       "id": "merge-output",
       "title": "Implement merge output: -o and --json modes",
-      "status": "wip",
+      "status": "done",
       "tags": [
         "feature-a"
       ],
@@ -136,10 +136,10 @@
       ],
       "source_lines": "103-120",
       "started_at": "2026-04-04T12:41:27.116053Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-04-04T12:48:10.568474Z",
+      "closed_reason": "runReviewMerge now handles 3 output modes: (1) with -o: NDJSON to file, JSON summary to stdout (2) with --json no -o: JSON with findings array to stdout (3) default: raw NDJSON to stdout, summary to stderr. bySeverity breakdown computed and included in JSON summary. Uses output.JSON for structured output and IsJSONOutput for mode detection. TestReviewMergeOutputFile updated to expect JSON summary on stdout.",
+      "gate_passed_at": "2026-04-04T12:48:10.568474Z",
+      "commit_sha": "07846ab"
     },
     {
       "id": "resolve-core",
