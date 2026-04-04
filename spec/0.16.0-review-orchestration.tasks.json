@@ -1,0 +1,381 @@
+{
+  "version": 1,
+  "spec": "spec/0.16.0-review-orchestration.md",
+  "created_at": "0001-01-01T00:00:00Z",
+  "updated_at": "2026-04-04T12:24:01.195942Z",
+  "workflow": {},
+  "coverage": {
+    "total_sections": 64,
+    "mapped_sections": 21,
+    "context_only": [
+      "# Review Orchestration — Efficient Multi-Round Workflow",
+      "## 1. Problem",
+      "## 2. Root Cause",
+      "## 3. Proposed Solution",
+      "## 4. Design Principles",
+      "### What Doesn't Change",
+      "### 5.1 Command",
+      "### 5.3 Validation",
+      "### 6.1 Command",
+      "### 6.3 Resolution Statuses",
+      "### 6.4 Validation",
+      "### 7.1 Current Behavior",
+      "### 7.2 New Behavior",
+      "### 7.3 Token Impact",
+      "### 7.4 Backward Compatibility",
+      "## 8. Feature D: Diff-Based Review (`--diff-from`)",
+      "### 8.1 Command",
+      "### 8.4 Token Savings",
+      "### 8.5 Validation",
+      "### 9.1 Command",
+      "### 9.2 Purpose",
+      "### 9.4 Token Savings",
+      "### 9.5 Validation",
+      "### 9.6 Output",
+      "### 10.1 Command",
+      "### 10.5 Validation",
+      "### 11.1 Command",
+      "### 11.2 Behavior",
+      "### 11.3 When To Use",
+      "### 11.4 Token Savings",
+      "### 11.5 Output Changes",
+      "## 12. Feature Interactions",
+      "## 13. Implementation Order and File Organization",
+      "## 15. Test Cases",
+      "### Feature A (merge)",
+      "### Feature B (resolve)",
+      "### Feature C (compact summary)",
+      "### Feature D (diff-based)",
+      "### Feature E (verify)",
+      "### Feature F (report)",
+      "### Feature G (spec-ref)",
+      "### Cross-cutting",
+      "## 16. Exit Codes"
+    ],
+    "unmapped": []
+  },
+  "tasks": [
+    {
+      "id": "mode-routing",
+      "title": "Add mode routing and exclusivity validation",
+      "status": "wip",
+      "tags": [
+        "infra"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "runReview detects --merge, --resolve, --resolve-all, --verify, --report boolean flags and routes to separate run functions. Mutually exclusive modes (merge+resolve, merge+verify, merge+report, resolve+verify, resolve+report, verify+report) produce exit 2 with clear error. Modifier flags (--diff-from, --spec-ref, --round, --findings, --affected-files, --final-round) rejected with merge/resolve/report modes. New flags registered in newReviewCmd(). Tests: all 6 pairwise mode exclusivity combos exit 2.",
+      "source_sections": [
+        "### Mode Mutual Exclusivity"
+      ],
+      "source_lines": "56-72",
+      "started_at": "2026-04-04T12:24:01.195942Z",
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "finding-identity",
+      "title": "Extract finding identity key function",
+      "status": "open",
+      "tags": [
+        "infra"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 5,
+      "acceptance": "findingIdentityKey(f) returns (category, location, finding_prefix) tuple where finding_prefix is first 80 chars of finding field. Function exported from a shared location (review.go or new file). Used by merge dedup and report cross-round tracking.",
+      "source_sections": [
+        "### 5.2 Behavior"
+      ],
+      "source_lines": "83-84",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "merge-core",
+      "title": "Implement merge: parse, dedup, sort NDJSON",
+      "status": "open",
+      "tags": [
+        "feature-a"
+      ],
+      "depends_on": [
+        "mode-routing",
+        "finding-identity"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "review_merge.go: reads NDJSON files, validates findings (must have severity+finding fields), skips blank/invalid lines with warning to stderr, deduplicates by (category, location, finding_prefix) keeping highest severity, sorts by severity then category, outputs merged NDJSON to stdout. Preserves extra fields including resolved. Single file input valid (normalize). 0 files exits 2. Missing file exits 3. All invalid exits 1. Tests: dedup with severity priority, sort order, invalid lines skipped, single file normalize, 0 files error, missing file error, all invalid error, preserves resolved field.",
+      "source_sections": [
+        "## 5. Feature A: Finding Merge (`--merge`)",
+        "### 5.2 Behavior"
+      ],
+      "source_lines": "68-102",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "merge-output",
+      "title": "Implement merge output: -o and --json modes",
+      "status": "open",
+      "tags": [
+        "feature-a"
+      ],
+      "depends_on": [
+        "merge-core"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "Default: NDJSON to stdout, summary to stderr. With -o: NDJSON to file, JSON summary to stdout. With --json (no -o): JSON result with findings array to stdout. With --json and -o: NDJSON to file, JSON summary to stdout (--json redundant). TTY: always raw NDJSON to stdout (intentional exception documented). Tests: -o writes file and summary to stdout, --json includes findings array, --json with -o same as -o alone.",
+      "source_sections": [
+        "### 5.4 Output Format"
+      ],
+      "source_lines": "103-120",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "resolve-core",
+      "title": "Implement resolve: read-modify-write with flock",
+      "status": "open",
+      "tags": [
+        "feature-b"
+      ],
+      "depends_on": [
+        "mode-routing"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "review_resolve.go: reads NDJSON findings file, parses into array (0-indexed), adds resolved object {status, evidence, resolved_at} on target finding, acquires flock before write, writes back in-place. --force allows re-resolving already-resolved. --resolve-all applies to all unresolved (skips already-resolved unless --force). Evidence defaults to empty string when omitted. Duplicate status accepted. Exit codes: 3 file not found, 2 invalid index, 2 invalid status, 1 already resolved without --force. Tests: resolve by index, already-resolved error, force re-resolve, resolve-all, invalid index/status, preserves fields, omitted evidence, duplicate status.",
+      "source_sections": [
+        "## 6. Feature B: Finding Resolution (`--resolve`)",
+        "### 6.2 Behavior"
+      ],
+      "source_lines": "121-170",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "resolve-output",
+      "title": "Implement resolve success output",
+      "status": "open",
+      "tags": [
+        "feature-b"
+      ],
+      "depends_on": [
+        "resolve-core"
+      ],
+      "estimate_minutes": 5,
+      "acceptance": "On success: stderr shows 'resolved finding {N} as {status}'. With --json: stdout shows {index, status, evidence, file}. For --resolve-all: stderr shows 'resolved {N} findings as {status} ({M} already resolved, skipped)'. JSON includes {resolved_count, skipped_count, status, file}. resolve-all on fully-resolved file without --force: exit 0, 0 resolved, M skipped. Tests: success output, resolve-all output, fully-resolved no-op.",
+      "source_sections": [
+        "### 6.x Output"
+      ],
+      "source_lines": "171-185",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "compact-summary",
+      "title": "Refactor buildFindingsSummary for compact mode",
+      "status": "open",
+      "tags": [
+        "feature-c"
+      ],
+      "depends_on": [
+        "resolve-core"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "buildFindingsSummary reads resolved field on findings. Fixed findings excluded from detailed listing but counted in resolved one-liner. Wontfix findings shown in detail with [WONTFIX] tag. Duplicate findings excluded entirely. Unresolved findings shown as before. Backward compatible: no resolved field = all unresolved. Section 1: detailed unresolved+wontfix. Section 2: 'N findings RESOLVED' one-liner. Tests: 10 unresolved + 50 fixed, all fixed, no resolved field (backward compat), wontfix tag, duplicate excluded.",
+      "source_sections": [
+        "## 7. Feature C: Compact Findings Summary",
+        "### 6.5 Impact on Findings Summary"
+      ],
+      "source_lines": "186-220",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "report-core",
+      "title": "Implement report cross-round analysis",
+      "status": "open",
+      "tags": [
+        "feature-f"
+      ],
+      "depends_on": [
+        "mode-routing",
+        "finding-identity"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "review_report.go: reads per-round NDJSON files (ordered by args or alphabetical from directory). Uses (category, location, finding_prefix) identity key. Computes per-round: in_file, new (not in UNION of all previous), resolved (in immediately preceding but not current), unresolved (cumulative), delta_percent. Convergence: true when last 2+ rounds have 0 findings. Severity breakdown with fixed/wontfix/duplicate/remaining. Reappearing finding counted as new. Tests: 3-file convergence, directory scan, converged/not converged, severity breakdown, delta calculation, reappearing finding.",
+      "source_sections": [
+        "## 10. Feature F: Review Report (`--report`)",
+        "### 10.4 Report Logic"
+      ],
+      "source_lines": "390-470",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "report-output",
+      "title": "Implement report TTY/JSON output formats",
+      "status": "open",
+      "tags": [
+        "feature-f"
+      ],
+      "depends_on": [
+        "report-core"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "TTY output: convergence table with In File, New, Resolved, Unresolved, Δ columns. Status line (CONVERGED/NOT CONVERGED). By severity and by category breakdowns. JSON output: rounds array with delta_percent field (null for R1), convergence object, by_severity with duplicate counts, by_category. Validation: 0 files exits 2, empty directory exits 2. Tests: TTY format, JSON structure, delta_percent null for R1, empty dir error.",
+      "source_sections": [
+        "### 10.2 Output (TTY)",
+        "### 10.3 Output (JSON)"
+      ],
+      "source_lines": "395-470",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "spec-ref",
+      "title": "Implement --spec-ref: omit inline spec",
+      "status": "open",
+      "tags": [
+        "feature-g"
+      ],
+      "depends_on": [
+        "mode-routing"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "When --spec-ref active: prompts contain 'Spec file: {path} ({N} lines, {M} sections)' and 'Read the spec file before reviewing' instead of inline spec content. Structured elements summary still inline. reviewResult gets spec_ref: true and spec_path with absolute path. review_loop.instruction includes 'Read the spec at {path}'. When combined with --diff-from, spec-ref is redundant (diff-from controls content). Tests: spec_ref and spec_path in output, prompt has no full spec, structured elements present, instruction text, diff-from takes priority.",
+      "source_sections": [
+        "## 11. Feature G: Spec Reference Mode (`--spec-ref`)",
+        "### 11.6 Interaction with `--diff-from`"
+      ],
+      "source_lines": "471-515",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "diff-engine",
+      "title": "Create section-level spec diff engine",
+      "status": "open",
+      "tags": [
+        "feature-d"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 15,
+      "acceptance": "engine/diff.go: DiffSections(baseLines, currentLines []string) returns ChangedSections (full text, MODIFIED/ADDED tag), RemovedSections (heading only), UnchangedSections (heading + element counts). Uses ParseHeadings to build section trees. Section = heading + content until next equal/higher heading. Heading-like lines inside fenced code blocks NOT treated as boundaries. Matches by heading text (exact after trim). Content comparison: line-by-line after trim, blank line count differences ignored. Renamed headings = deletion + addition (no rename detection). Tests: identical specs, added section, removed section, modified section, code block heading immunity, renamed heading.",
+      "source_sections": [
+        "### 8.6 Diff Algorithm"
+      ],
+      "source_lines": "271-295",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "diff-prompts",
+      "title": "Integrate diff engine into review prompts",
+      "status": "open",
+      "tags": [
+        "feature-d"
+      ],
+      "depends_on": [
+        "diff-engine",
+        "mode-routing"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "--diff-from flag accepted on review command. Requires --round \u003e= 2 (exit 2 otherwise). Baseline file must exist (exit 3). Prompts contain 'Changed Sections' with full text (MODIFIED/ADDED), 'Removed Sections' listing, 'Unchanged Sections' with heading-only + element counts. Structured elements from changed sections get full check-each-row treatment, unchanged get heading-only. No differences detected: output includes hint. Tests: 1 changed section, added section, removed section, no changes hint, round 1 error, baseline not found, structured element treatment.",
+      "source_sections": [
+        "### 8.2 Behavior",
+        "### 8.3 Diff Format in Prompt"
+      ],
+      "source_lines": "225-270",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "verify",
+      "title": "Implement --verify lightweight verification",
+      "status": "open",
+      "tags": [
+        "feature-e"
+      ],
+      "depends_on": [
+        "compact-summary",
+        "diff-engine",
+        "spec-ref",
+        "mode-routing"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "review_verify.go: generates SINGLE prompt with role verifier, category verification. Classifies findings into fixed/wontfix/unresolved. Prompt adapts to counts (shows M addressed, W wontfix, U unresolved). Empty categories omitted from prompt. Includes resolution evidence for fixed findings. Regression category guidance in prompt. Supports --affected-files (same budget rules) and --diff-from. review_loop.mode = 'verification'. Instruction: 'If verifier finds 0 issues, review is complete'. Validation: requires --findings (exit 2), mutually exclusive with --perspective and --round (exit 2). NDJSON output format. Tests: all-fixed, mixed findings, no findings error, perspective error, round error, mode field, affected-files, diff-from.",
+      "source_sections": [
+        "## 9. Feature E: Lightweight Verification (`--verify`)",
+        "### 9.3 Behavior"
+      ],
+      "source_lines": "296-388",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "docs-update",
+      "title": "Update SKILL.md, README.md, CLAUDE.md",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [
+        "merge-output",
+        "resolve-output",
+        "compact-summary",
+        "report-output",
+        "spec-ref",
+        "diff-prompts",
+        "verify"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "SKILL.md documents --merge, --resolve, --resolve-all, --verify, --report, --spec-ref, --diff-from, --force, -o flags. Includes merge/resolve workflow example. README.md adds new flags and multi-round review workflow section. CLAUDE.md command reference updated with new flags.",
+      "source_sections": [
+        "## 14. Affected Files"
+      ],
+      "source_lines": "546-565",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ]
+}

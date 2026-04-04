@@ -64,7 +64,7 @@ func parseTableRowCells(line string) []string {
 	return cells
 }
 
-func ExtractTableRows(lines []string, headings []*Heading) []TableRowInfo {
+func ExtractTableRows(lines []string) []TableRowInfo {
 	var rows []TableRowInfo
 	currentHeading := ""
 	inCodeBlock := false
@@ -128,7 +128,7 @@ func ExtractTableRows(lines []string, headings []*Heading) []TableRowInfo {
 	return rows
 }
 
-func ExtractNumberedItems(lines []string, headings []*Heading) []NumberedItemInfo {
+func ExtractNumberedItems(lines []string) []NumberedItemInfo {
 	var items []NumberedItemInfo
 	currentHeading := ""
 	inCodeBlock := false

@@ -105,6 +105,48 @@ func TestReadTaskFile_NonexistentPath(t *testing.T) {
 	assert.Contains(t, err.Error(), "read task file")
 }
 
+func TestReadTaskFile_VersionParsing(t *testing.T) {
+	tests := []struct {
+		name            string
+		content         string
+		expectedVersion int
+	}{
+		{
+			"int version",
+			`{"version": 1, "spec": "s.md", "tasks": []}`,
+			1,
+		},
+		{
+			"string version",
+			`{"version": "0.16.0", "spec": "s.md", "tasks": []}`,
+			1,
+		},
+		{
+			"missing version defaults to 1",
+			`{"spec": "s.md", "tasks": []}`,
+			1,
+		},
+		{
+			"string numeric version",
+			`{"version": "2", "spec": "s.md", "tasks": []}`,
+			1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "test.tasks.json")
+			err := os.WriteFile(path, []byte(tt.content), 0o600)
+			require.NoError(t, err)
+
+			tf, err := ReadTaskFile(path)
+			require.NoError(t, err, "should parse without error")
+			assert.Equal(t, tt.expectedVersion, tf.Version)
+		})
+	}
+}
+
 func TestReadTaskFile_InvalidJSON(t *testing.T) {
 	tests := []struct {
 		name    string

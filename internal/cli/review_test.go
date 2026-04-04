@@ -1161,6 +1161,212 @@ func TestLintAffectedFilesScopeNoTable(t *testing.T) {
 	}
 }
 
+// Test: prompts WITHOUT --affected-files should NOT contain the state-dependent checklist item
+func TestReviewDefaultPromptWithoutAffectedFilesNoChecklist(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Feature\n\n## Commands\n\n| Flag | Type |\n|------|------|\n| --batch | string |\n"), 0o600))
+
+	stdout, _, code := runTP(t, dir, "review", specPath)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	prompts := result["prompts"].([]any)
+	for _, p := range prompts {
+		pm := p.(map[string]any)
+		prompt := pm["prompt"].(string)
+		assert.NotContains(t, prompt, "state-dependent behavior in the affected files",
+			"prompt should not mention affected files checklist when no --affected-files provided (role: %s)", pm["role"])
+	}
+}
+
+// Test: --round 0 should always error with "round must be >= 1", even with --perspective
+func TestReviewRound0WithPerspective(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
+	docsDir := filepath.Join(dir, "docs")
+	require.NoError(t, os.MkdirAll(docsDir, 0o755))
+
+	// --perspective documentation with --round 0 hits mutual exclusivity first (round != 1)
+	_, _, code := runTP(t, dir, "review", specPath, "--perspective", "documentation", "--docs-path", docsDir, "--round", "0")
+	assert.Equal(t, 2, code, "should fail with exit code 2")
+}
+
+// Test: doc prompt file iteration is deterministic (sorted)
+func TestReviewDocPromptDeterministic(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Feature\n## Testing zeta\n## Docs alpha\n"), 0o600))
+
+	docsDir := filepath.Join(dir, "docs")
+	require.NoError(t, os.MkdirAll(docsDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(docsDir, "zeta.md"), []byte("# Zeta\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(docsDir, "alpha.md"), []byte("# Alpha\n"), 0o600))
+
+	// Run twice, output should be identical
+	stdout1, _, code1 := runTP(t, dir, "review", specPath, "--perspective", "documentation", "--docs-path", docsDir)
+	stdout2, _, code2 := runTP(t, dir, "review", specPath, "--perspective", "documentation", "--docs-path", docsDir)
+	require.Equal(t, 0, code1)
+	require.Equal(t, 0, code2)
+	assert.Equal(t, stdout1, stdout2, "doc prompt output should be deterministic across runs")
+}
+
+// Test: test prompt file iteration is deterministic (sorted)
+func TestReviewTestPromptDeterministic(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Feature\n## Zeta\n## Alpha\n"), 0o600))
+
+	testDir := filepath.Join(dir, "tests")
+	require.NoError(t, os.MkdirAll(testDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(testDir, "zeta_test.go"), []byte("package t\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(testDir, "alpha_test.go"), []byte("package t\n"), 0o600))
+
+	stdout1, _, code1 := runTP(t, dir, "review", specPath, "--perspective", "testing", "--test-path", testDir)
+	stdout2, _, code2 := runTP(t, dir, "review", specPath, "--perspective", "testing", "--test-path", testDir)
+	require.Equal(t, 0, code1)
+	require.Equal(t, 0, code2)
+	assert.Equal(t, stdout1, stdout2, "test prompt output should be deterministic across runs")
+}
+
+// Test: --perspective code-audit with --round and --findings should work
+func TestReviewCodeAuditWithRoundAndFindings(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
+	aPath := filepath.Join(dir, "a.go")
+	require.NoError(t, os.WriteFile(aPath, []byte("package main\n"), 0o600))
+	findingsPath := filepath.Join(dir, "findings.ndjson")
+	require.NoError(t, os.WriteFile(findingsPath, []byte(`{"severity":"high","finding":"test finding"}`+"\n"), 0o600))
+
+	stdout, _, code := runTP(t, dir, "review", specPath, "--perspective", "code-audit",
+		"--affected-files", aPath, "--round", "2", "--findings", findingsPath)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+	assert.Equal(t, "code-audit", result["perspective"])
+}
+
+// Test: code-audit prompt uses full file path, not just basename
+func TestReviewCodeAuditFullPath(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
+
+	subDir := filepath.Join(dir, "internal", "pkg")
+	require.NoError(t, os.MkdirAll(subDir, 0o755))
+	aPath := filepath.Join(subDir, "handler.go")
+	require.NoError(t, os.WriteFile(aPath, []byte("package pkg\nfunc Handle() {}\n"), 0o600))
+
+	stdout, _, code := runTP(t, dir, "review", specPath, "--perspective", "code-audit", "--affected-files", aPath)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	prompt := result["prompts"].([]any)[0].(map[string]any)["prompt"].(string)
+	assert.Contains(t, prompt, aPath, "code-audit prompt should use full file path, not just basename")
+}
+
+// Test: --perspective documentation with --affected-files merges files into context
+func TestReviewDocPerspectiveWithAffectedFiles(t *testing.T) {
+	specPath, docsDir := setupPerspectiveTestDir(t, nil)
+	dir := filepath.Dir(specPath)
+	aPath := filepath.Join(dir, "src.go")
+	require.NoError(t, os.WriteFile(aPath, []byte("package main\nfunc BatchClose() {}\n"), 0o600))
+
+	stdout, _, code := runTP(t, dir, "review", specPath, "--perspective", "documentation",
+		"--docs-path", docsDir, "--affected-files", aPath)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	prompt := result["prompts"].([]any)[0].(map[string]any)["prompt"].(string)
+	assert.Contains(t, prompt, "BatchClose", "doc prompt should include affected file content")
+}
+
+// Test: --perspective testing with --affected-files merges files into context
+func TestReviewTestPerspectiveWithAffectedFiles(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Feature\n## Commands\n1. Do something\n"), 0o600))
+	testDir := filepath.Join(dir, "tests")
+	require.NoError(t, os.MkdirAll(testDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(testDir, "basic_test.go"), []byte("package t\n"), 0o600))
+	aPath := filepath.Join(dir, "handler.go")
+	require.NoError(t, os.WriteFile(aPath, []byte("package main\nfunc Handle() {}\n"), 0o600))
+
+	stdout, _, code := runTP(t, dir, "review", specPath, "--perspective", "testing",
+		"--test-path", testDir, "--affected-files", aPath)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	prompt := result["prompts"].([]any)[0].(map[string]any)["prompt"].(string)
+	assert.Contains(t, prompt, "Handle", "test prompt should include affected file content")
+}
+
+// Test: multi-file total budget cap (>50000 chars total)
+func TestReviewMultiFileTotalCap(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
+
+	// Create 10 files of 7000 chars each (70000 total > 50000 cap)
+	var files []string
+	for i := 0; i < 10; i++ {
+		fPath := filepath.Join(dir, fmt.Sprintf("file%d.go", i))
+		content := fmt.Sprintf("package main\n// file %d\n%s", i, strings.Repeat("x", 7000))
+		require.NoError(t, os.WriteFile(fPath, []byte(content), 0o600))
+		files = append(files, fPath)
+	}
+
+	args := []string{"review", specPath}
+	for _, f := range files {
+		args = append(args, "--affected-files", f)
+	}
+	stdout, _, code := runTP(t, dir, args...)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	summary := result["affected_summary"].(map[string]any)
+	chars := summary["chars_included"].(float64)
+	assert.Less(t, chars, float64(70000), "total chars should be capped below 70000")
+}
+
+// Test: review findings summary uses the Finding field from parseFindingsFile
+func TestReviewFindingsSummaryContent(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
+	findingsPath := filepath.Join(dir, "findings.ndjson")
+	require.NoError(t, os.WriteFile(findingsPath, []byte(
+		`{"severity":"high","category":"gap","location":"sec1","finding":"missing error handler"}`+"\n"+
+			`{"severity":"medium","category":"ambiguity","location":"sec2","finding":"unclear timeout behavior"}`+"\n",
+	), 0o600))
+
+	stdout, _, code := runTP(t, dir, "review", specPath, "--round", "2", "--findings", findingsPath)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	prompt := result["prompts"].([]any)[0].(map[string]any)["prompt"].(string)
+	assert.Contains(t, prompt, "missing error handler", "summary should include finding text")
+	assert.Contains(t, prompt, "unclear timeout behavior", "summary should include finding text")
+	assert.Contains(t, prompt, "[HIGH]", "summary should include severity label")
+	assert.Contains(t, prompt, "[MED]", "summary should include severity label")
+	assert.Contains(t, prompt, "DO NOT re-report", "summary should warn about duplicate reporting")
+}
+
 func TestLintAffectedFilesScopeCaseInsensitive(t *testing.T) {
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
@@ -1188,4 +1394,75 @@ func TestLintAffectedFilesScopeCaseInsensitive(t *testing.T) {
 			}
 		}
 	}
+}
+
+// === Mode mutual exclusivity tests ===
+
+func TestReviewModeMutualExclusivity(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
+
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{"merge+resolve", []string{"review", "--merge", "--resolve", "f.ndjson"}},
+		{"merge+verify", []string{"review", "--merge", "--verify", specPath}},
+		{"merge+report", []string{"review", "--merge", "--report", "f.ndjson"}},
+		{"resolve+verify", []string{"review", "--resolve", "--verify", specPath}},
+		{"resolve+report", []string{"review", "--resolve", "--report", "f.ndjson"}},
+		{"verify+report", []string{"review", "--verify", "--report", specPath}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, code := runTP(t, dir, tt.args...)
+			assert.Equal(t, 2, code, "mutually exclusive modes should exit 2")
+		})
+	}
+}
+
+func TestReviewMergeRejectsModifierFlags(t *testing.T) {
+	dir := t.TempDir()
+	fPath := filepath.Join(dir, "f.ndjson")
+	require.NoError(t, os.WriteFile(fPath, []byte(`{"severity":"high","finding":"x"}`+"\n"), 0o600))
+
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{"merge+round", []string{"review", "--merge", "--round", "2", fPath}},
+		{"merge+affected-files", []string{"review", "--merge", "--affected-files", fPath, fPath}},
+		{"merge+final-round", []string{"review", "--merge", "--final-round", fPath}},
+		{"merge+diff-from", []string{"review", "--merge", "--diff-from", fPath, fPath}},
+		{"merge+spec-ref", []string{"review", "--merge", "--spec-ref", fPath}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, code := runTP(t, dir, tt.args...)
+			assert.Equal(t, 2, code, "modifier flag should be rejected with --merge")
+		})
+	}
+}
+
+func TestReviewDefaultStillWorks(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n\n## Section\n1. Item one\n"), 0o600))
+
+	stdout, _, code := runTP(t, dir, "review", specPath)
+	require.Equal(t, 0, code, "default review should still work")
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+	prompts := result["prompts"].([]any)
+	assert.Len(t, prompts, 3, "default review should produce 3 prompts")
+}
+
+func TestReviewNoSpecArgErrors(t *testing.T) {
+	dir := t.TempDir()
+	_, _, code := runTP(t, dir, "review")
+	assert.Equal(t, 2, code, "review without spec should exit 2")
 }

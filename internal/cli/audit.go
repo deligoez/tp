@@ -113,9 +113,7 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 		specContent = specContent[:engine.SpecContentCap] + "\n[...spec truncated]"
 	}
 
-	headings, _ := engine.ParseHeadings(specPath)
-
-	checklist := buildChecklist(specLines, headings, specPath, findingsPath)
+	checklist := buildChecklist(specLines, specPath, findingsPath)
 
 	if len(checklist) == 0 {
 		output.Info("no structured elements found in spec — checklist is empty")
@@ -129,10 +127,8 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 		budgetOther += len(findingsEntries) * 200
 	}
 
-	affectedContent := engine.ReadAffectedFilesBudgetAware(files, specContent)
-	if budgetOther > 0 {
-		affectedContent = engine.ReadAffectedFilesBudgetAware(files, specContent, strings.Repeat("x", budgetOther-len(specContent)))
-	}
+	budgetPadding := strings.Repeat("x", budgetOther-len(specContent))
+	affectedContent := engine.ReadAffectedFilesBudgetAware(files, specContent, budgetPadding)
 
 	summary := engine.BuildAffectedSummary(files, affectedContent)
 
@@ -279,10 +275,10 @@ func isBinaryFile(path string) bool {
 	return binaryExtensions[ext]
 }
 
-func buildChecklist(specLines []string, headings []*engine.Heading, specPath, findingsPath string) []checklistEntry {
+func buildChecklist(specLines []string, specPath, findingsPath string) []checklistEntry {
 	entries := make([]checklistEntry, 0)
 
-	tableRows := engine.ExtractTableRows(specLines, headings)
+	tableRows := engine.ExtractTableRows(specLines)
 	currentTableIdx := -1
 	rowIndex := 0
 	var prevSection string
@@ -303,7 +299,7 @@ func buildChecklist(specLines []string, headings []*engine.Heading, specPath, fi
 		rowIndex++
 	}
 
-	listItems := engine.ExtractNumberedItems(specLines, headings)
+	listItems := engine.ExtractNumberedItems(specLines)
 	listIdx := -1
 	var prevListSection string
 	for _, item := range listItems {
@@ -395,8 +391,8 @@ func readFindings(path string) []string {
 }
 
 func filterChecklistByType(entries []checklistEntry, typ string) []checklistEntry {
+	result := make([]checklistEntry, 0)
 	if typ == "" {
-		var result []checklistEntry
 		for _, e := range entries {
 			if e.Type != "finding" {
 				result = append(result, e)
@@ -404,7 +400,6 @@ func filterChecklistByType(entries []checklistEntry, typ string) []checklistEntr
 		}
 		return result
 	}
-	var result []checklistEntry
 	for _, e := range entries {
 		if e.Type == typ {
 			result = append(result, e)

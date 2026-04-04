@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -117,7 +116,7 @@ func BuildAffectedSection(content map[string]string) string {
 	for _, p := range sorted {
 		c := content[p]
 		lineCount := strings.Count(c, "\n") + 1
-		fmt.Fprintf(&b, "### %s (%d lines)\n", filepath.Base(p), lineCount)
+		fmt.Fprintf(&b, "### %s (%d lines)\n", p, lineCount)
 		b.WriteString(c)
 		b.WriteString("\n\n")
 	}

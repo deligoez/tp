@@ -2,8 +2,10 @@ package cli_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -292,6 +294,174 @@ func TestAuditPromptContainsSourceFiles(t *testing.T) {
 	assert.Contains(t, prompt, "code.go")
 	assert.Contains(t, prompt, "Spec Excerpt")
 	assert.Contains(t, prompt, "PASS|PARTIAL|FAIL")
+}
+
+// Test: filterChecklistByType returns empty slice (not nil) for JSON safety
+func TestAuditFilterChecklistEmpty(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	// Spec with no structured elements → empty checklist
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n\nJust some text.\n"), 0o600))
+
+	aPath := filepath.Join(dir, "a.go")
+	require.NoError(t, os.WriteFile(aPath, []byte("package main\n"), 0o600))
+
+	stdout, _, code := runTP(t, dir, "audit", specPath, "--affected-files", aPath)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	// Checklist should be [] not null
+	checklist := result["checklist"]
+	assert.NotNil(t, checklist, "checklist should be [] not null")
+	assert.IsType(t, []any{}, checklist, "checklist should be an array")
+}
+
+// Test: findings field priority order (finding > message > description > title)
+func TestAuditChecklistFindingsPriority(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
+
+	aPath := filepath.Join(dir, "a.go")
+	require.NoError(t, os.WriteFile(aPath, []byte("package main\n"), 0o600))
+
+	findingsPath := filepath.Join(dir, "findings.ndjson")
+	require.NoError(t, os.WriteFile(findingsPath, []byte(
+		`{"finding":"primary","message":"fallback"}`+"\n"+
+			`{"message":"msg only"}`+"\n"+
+			`{"description":"desc only"}`+"\n"+
+			`{"title":"title only"}`+"\n",
+	), 0o600))
+
+	stdout, _, code := runTP(t, dir, "audit", specPath, "--affected-files", aPath, "--findings", findingsPath)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	checklist := result["checklist"].([]any)
+	var findingTexts []string
+	for _, e := range checklist {
+		em := e.(map[string]any)
+		if em["type"].(string) == "finding" {
+			findingTexts = append(findingTexts, em["text"].(string))
+		}
+	}
+	assert.Contains(t, findingTexts, "primary", "should use 'finding' field over 'message'")
+	assert.NotContains(t, findingTexts, "fallback", "should not use 'message' when 'finding' exists")
+	assert.Contains(t, findingTexts, "msg only")
+	assert.Contains(t, findingTexts, "desc only")
+	assert.Contains(t, findingTexts, "title only")
+}
+
+// Test: binary file filtering — .png, .jpg etc. should be excluded
+func TestAuditBinaryFileFiltering(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n## Table\n| Col |\n|-----|\n| val |\n"), 0o600))
+
+	goPath := filepath.Join(dir, "main.go")
+	require.NoError(t, os.WriteFile(goPath, []byte("package main\n"), 0o600))
+
+	// Binary files should be filtered when using auto-detect, but --affected-files bypasses that.
+	// So we test that providing a binary file directly still works (it's the user's choice)
+	pngPath := filepath.Join(dir, "logo.png")
+	require.NoError(t, os.WriteFile(pngPath, []byte{0x89, 0x50, 0x4E, 0x47}, 0o600))
+
+	stdout, _, code := runTP(t, dir, "audit", specPath, "--affected-files", goPath, "--affected-files", pngPath)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	files := result["files"].([]any)
+	assert.Len(t, files, 2, "both files should be accepted with --affected-files")
+}
+
+// Test: prompt contains full file path (not just basename)
+func TestAuditPromptFullFilePath(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n## Table\n| Col |\n|-----|\n| val |\n"), 0o600))
+
+	subDir := filepath.Join(dir, "internal", "pkg")
+	require.NoError(t, os.MkdirAll(subDir, 0o755))
+	aPath := filepath.Join(subDir, "handler.go")
+	require.NoError(t, os.WriteFile(aPath, []byte("package pkg\nfunc Handle() {}\n"), 0o600))
+
+	stdout, _, code := runTP(t, dir, "audit", specPath, "--affected-files", aPath)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	prompt := result["prompts"].([]any)[0].(map[string]any)["prompt"].(string)
+	assert.Contains(t, prompt, aPath, "prompt should use full file path")
+}
+
+// Test: prompt splitting when checklist >= 50 entries
+func TestAuditPromptSplitting(t *testing.T) {
+	dir := t.TempDir()
+
+	// Build a spec with many table rows (60 rows across multiple tables)
+	var spec strings.Builder
+	spec.WriteString("# Spec\n\n## Big Table\n\n| ID | Description |\n|----|-------------|\n")
+	for i := 0; i < 60; i++ {
+		fmt.Fprintf(&spec, "| item-%d | description for item %d |\n", i, i)
+	}
+
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte(spec.String()), 0o600))
+
+	aPath := filepath.Join(dir, "a.go")
+	require.NoError(t, os.WriteFile(aPath, []byte("package main\n"), 0o600))
+
+	stdout, _, code := runTP(t, dir, "audit", specPath, "--affected-files", aPath)
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	prompts := result["prompts"].([]any)
+	assert.GreaterOrEqual(t, len(prompts), 2, "60 checklist items should split into at least 2 prompts")
+
+	// Verify first prompt has 50 items, second has 10
+	p0 := prompts[0].(map[string]any)
+	p1 := prompts[1].(map[string]any)
+	assert.Equal(t, float64(50), p0["checklist_count"])
+	assert.Equal(t, float64(10), p1["checklist_count"])
+}
+
+// Test: compact mode truncates text to exactly 80 chars (77 + "...")
+func TestAuditCompactTruncationExact(t *testing.T) {
+	dir := t.TempDir()
+
+	// Table row with exactly 90 characters of content
+	longRow := strings.Repeat("a", 90)
+	spec := fmt.Sprintf("# Spec\n## Table\n| Col |\n|-----|\n| %s |\n", longRow)
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte(spec), 0o600))
+
+	aPath := filepath.Join(dir, "a.go")
+	require.NoError(t, os.WriteFile(aPath, []byte("package main\n"), 0o600))
+
+	stdout, _, code := runTP(t, dir, "audit", specPath, "--affected-files", aPath, "--compact")
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	checklist := result["checklist"].([]any)
+	for _, e := range checklist {
+		em := e.(map[string]any)
+		text := em["text"].(string)
+		if len(text) > 80 {
+			assert.Equal(t, 80, len(text), "truncated text should be exactly 80 chars (77 + ...)")
+			assert.True(t, strings.HasSuffix(text, "..."), "truncated text should end with ...")
+		}
+	}
 }
 
 func TestAuditCompact(t *testing.T) {

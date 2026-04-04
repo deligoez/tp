@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "spec": "s.md",
+  "created_at": "0001-01-01T00:00:00Z",
+  "updated_at": "2026-04-04T12:22:04.692075Z",
+  "workflow": {},
+  "coverage": {
+    "total_sections": 0,
+    "mapped_sections": 0,
+    "context_only": null,
+    "unmapped": null
+  },
+  "tasks": [
+    {
+      "id": "t2",
+      "title": "Test2",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 5,
+      "acceptance": "Works",
+      "source_sections": [
+        "s1"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ]
+}

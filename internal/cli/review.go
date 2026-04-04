@@ -74,6 +74,15 @@ func newReviewCmd() *cobra.Command {
 	var testPath string
 	var affectedFiles []string
 	var finalRound bool
+	var mergeMode bool
+	var resolveMode bool
+	var resolveAllMode bool
+	var verifyMode bool
+	var reportMode bool
+	var outputPath string
+	var diffFrom string
+	var specRef bool
+	var forceFlag bool
 
 	cmd := &cobra.Command{
 		Use:   "review <spec.md>",
@@ -82,13 +91,55 @@ func newReviewCmd() *cobra.Command {
 Default (no --perspective): 3 adversarial prompts (implementer, tester, architect).
 --perspective documentation: single doc change plan prompt.
 --perspective testing: single test plan prompt.
---perspective code-audit: single code audit prompt (requires --affected-files).`,
-		Args: cobra.ExactArgs(1),
+--perspective code-audit: single code audit prompt (requires --affected-files).
+
+Modes (mutually exclusive):
+--merge: merge and deduplicate findings from NDJSON files.
+--resolve/--resolve-all: mark findings as fixed/wontfix/duplicate.
+--verify: lightweight verification prompt.
+--report: cross-round convergence report.`,
+		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runReview(cmd, args[0], round, findingsPath, perspective, docsPath, testPath, affectedFiles, finalRound)
+			mode := detectReviewMode(mergeMode, resolveMode, resolveAllMode, verifyMode, reportMode)
+			if mode == "" {
+				// Default review mode — requires exactly 1 spec arg
+				if len(args) != 1 {
+					output.Error(ExitUsage, "spec path required")
+					os.Exit(ExitUsage)
+					return nil
+				}
+				return runReview(cmd, args[0], round, findingsPath, perspective, docsPath, testPath, affectedFiles, finalRound, diffFrom, specRef)
+			}
+			if err := validateModeFlags(mode, round, findingsPath, affectedFiles, finalRound, diffFrom, specRef); err != nil {
+				output.Error(ExitUsage, err.Error())
+				os.Exit(ExitUsage)
+				return nil
+			}
+			switch mode {
+			case "merge":
+				return runReviewMerge(args, outputPath)
+			case "resolve":
+				return runReviewResolve(args, forceFlag)
+			case "resolve-all":
+				return runReviewResolveAll(args, forceFlag)
+			case "verify":
+				if len(args) != 1 {
+					output.Error(ExitUsage, "spec path required for --verify")
+					os.Exit(ExitUsage)
+					return nil
+				}
+				return runReviewVerify(args[0], findingsPath, affectedFiles, diffFrom, specRef)
+			case "report":
+				return runReviewReport(args)
+			default:
+				output.Error(ExitUsage, fmt.Sprintf("unknown mode: %s", mode))
+				os.Exit(ExitUsage)
+				return nil
+			}
 		},
 	}
 
+	// Default review flags
 	cmd.Flags().IntVar(&round, "round", 1, "Current review round number (1-indexed)")
 	cmd.Flags().StringVar(&findingsPath, "findings", "", "Path to NDJSON file with previous round findings")
 	cmd.Flags().StringVar(&perspective, "perspective", "", "Review perspective: documentation, testing, or code-audit")
@@ -97,10 +148,122 @@ Default (no --perspective): 3 adversarial prompts (implementer, tester, architec
 	cmd.Flags().StringArrayVar(&affectedFiles, "affected-files", nil, "Paths to source files to inject into review context")
 	cmd.Flags().BoolVar(&finalRound, "final-round", false, "Force mandatory code read-through in review prompts (requires round >= 2)")
 
+	// New mode flags
+	cmd.Flags().BoolVar(&mergeMode, "merge", false, "Merge and deduplicate findings from NDJSON files")
+	cmd.Flags().BoolVar(&resolveMode, "resolve", false, "Mark a finding as fixed/wontfix/duplicate")
+	cmd.Flags().BoolVar(&resolveAllMode, "resolve-all", false, "Mark all unresolved findings with a status")
+	cmd.Flags().BoolVar(&verifyMode, "verify", false, "Generate lightweight verification prompt")
+	cmd.Flags().BoolVar(&reportMode, "report", false, "Generate cross-round convergence report")
+	cmd.Flags().StringVar(&outputPath, "o", "", "Output file path (for --merge)")
+	cmd.Flags().StringVar(&diffFrom, "diff-from", "", "Baseline spec for diff-based review (requires --round >= 2)")
+	cmd.Flags().BoolVar(&specRef, "spec-ref", false, "Reference spec by path instead of inline content")
+	cmd.Flags().BoolVar(&forceFlag, "force", false, "Force re-resolve already resolved findings")
+
 	return cmd
 }
 
-func runReview(_ *cobra.Command, specPath string, round int, findingsPath, perspective, docsPath, testPath string, affectedFiles []string, finalRound bool) error {
+// detectReviewMode returns the active mode name, or "" for default review.
+// Returns error-mode name if multiple modes are active.
+func detectReviewMode(merge, resolve, resolveAll, verify, report bool) string {
+	modes := make([]string, 0)
+	if merge {
+		modes = append(modes, "merge")
+	}
+	if resolve {
+		modes = append(modes, "resolve")
+	}
+	if resolveAll {
+		modes = append(modes, "resolve-all")
+	}
+	if verify {
+		modes = append(modes, "verify")
+	}
+	if report {
+		modes = append(modes, "report")
+	}
+	if len(modes) == 0 {
+		return ""
+	}
+	if len(modes) > 1 {
+		return "conflict:" + modes[0] + "+" + modes[1]
+	}
+	return modes[0]
+}
+
+// validateModeFlags checks that modifier flags are compatible with the active mode.
+func validateModeFlags(mode string, round int, findingsPath string, affectedFiles []string, finalRound bool, diffFrom string, specRef bool) error {
+	if strings.HasPrefix(mode, "conflict:") {
+		pair := strings.TrimPrefix(mode, "conflict:")
+		return fmt.Errorf("--%s are mutually exclusive", strings.Replace(pair, "+", " and --", 1))
+	}
+
+	// Merge, resolve, resolve-all, report reject all modifier flags
+	if mode == "merge" || mode == "resolve" || mode == "resolve-all" || mode == "report" {
+		if round != 1 {
+			return fmt.Errorf("--%s is mutually exclusive with --round", mode)
+		}
+		if findingsPath != "" && mode != "report" {
+			return fmt.Errorf("--%s is mutually exclusive with --findings", mode)
+		}
+		if len(affectedFiles) > 0 {
+			return fmt.Errorf("--%s is mutually exclusive with --affected-files", mode)
+		}
+		if finalRound {
+			return fmt.Errorf("--%s is mutually exclusive with --final-round", mode)
+		}
+		if diffFrom != "" {
+			return fmt.Errorf("--%s is mutually exclusive with --diff-from", mode)
+		}
+		if specRef {
+			return fmt.Errorf("--%s is mutually exclusive with --spec-ref", mode)
+		}
+	}
+
+	// Verify rejects --round and --final-round but allows --findings, --affected-files, --diff-from, --spec-ref
+	if mode == "verify" {
+		if round != 1 {
+			return fmt.Errorf("--verify is mutually exclusive with --round (verification is not a numbered round)")
+		}
+		if finalRound {
+			return fmt.Errorf("--verify is mutually exclusive with --final-round")
+		}
+	}
+
+	return nil
+}
+
+// Stub functions for new modes — will be implemented in separate files.
+func runReviewMerge(_ []string, _ string) error {
+	output.Error(ExitUsage, "merge mode not yet implemented")
+	os.Exit(ExitUsage)
+	return nil
+}
+
+func runReviewResolve(_ []string, _ bool) error {
+	output.Error(ExitUsage, "resolve mode not yet implemented")
+	os.Exit(ExitUsage)
+	return nil
+}
+
+func runReviewResolveAll(_ []string, _ bool) error {
+	output.Error(ExitUsage, "resolve-all mode not yet implemented")
+	os.Exit(ExitUsage)
+	return nil
+}
+
+func runReviewVerify(_, _ string, _ []string, _ string, _ bool) error {
+	output.Error(ExitUsage, "verify mode not yet implemented")
+	os.Exit(ExitUsage)
+	return nil
+}
+
+func runReviewReport(_ []string) error {
+	output.Error(ExitUsage, "report mode not yet implemented")
+	os.Exit(ExitUsage)
+	return nil
+}
+
+func runReview(_ *cobra.Command, specPath string, round int, findingsPath, perspective, docsPath, testPath string, affectedFiles []string, finalRound bool, _ string, _ bool) error {
 	validPerspectives := map[string]bool{"documentation": true, "testing": true, "code-audit": true}
 
 	if perspective != "" && !validPerspectives[perspective] {
@@ -298,8 +461,6 @@ func runReview(_ *cobra.Command, specPath string, round int, findingsPath, persp
 
 	_, elems := engine.CheckStructuredElements(lines, headings)
 
-	specContent = readSpecContent(specPath)
-
 	findings := make([]reviewFinding, 0)
 	if findingsPath != "" {
 		findings = parseFindingsFile(findingsPath)
@@ -308,10 +469,10 @@ func runReview(_ *cobra.Command, specPath string, round int, findingsPath, persp
 	summary := buildFindingsSummary(findings)
 
 	var affectedSection string
+	var affectedContent map[string]string
 	if len(affectedFiles) > 0 {
-		affectedSection = engine.BuildAffectedSection(engine.ReadAffectedFilesBudgetAware(affectedFiles, summary, specContent))
-	} else {
-		affectedSection = engine.BuildAffectedSection(engine.ReadAffectedFiles(affectedFiles))
+		affectedContent = engine.ReadAffectedFilesBudgetAware(affectedFiles, summary, specContent)
+		affectedSection = engine.BuildAffectedSection(affectedContent)
 	}
 
 	prompts := []reviewPrompt{
@@ -343,7 +504,7 @@ func runReview(_ *cobra.Command, specPath string, round int, findingsPath, persp
 
 	if len(affectedFiles) > 0 {
 		result.AffectedFiles = affectedFiles
-		result.AffectedSummary = engine.BuildAffectedSummary(affectedFiles, engine.ReadAffectedFiles(affectedFiles))
+		result.AffectedSummary = engine.BuildAffectedSummary(affectedFiles, affectedContent)
 	}
 
 	return output.JSON(result)
@@ -397,7 +558,7 @@ func generateImplementerPrompt(elems *engine.StructuredElements, specContent str
 	n++
 	fmt.Fprintf(&b, "%d. Are there implicit assumptions that should be explicit?\n", n)
 	n++
-	appendAffectedChecklist(&b, n, true)
+	appendAffectedChecklist(&b, n, affectedSection != "")
 
 	if finalRound {
 		appendFinalRoundInstruction(&b)
@@ -447,7 +608,7 @@ func generateTesterPrompt(elems *engine.StructuredElements, specContent string, 
 	n++
 	fmt.Fprintf(&b, "%d. Could two engineers interpret any requirement differently enough to produce incompatible implementations?\n", n)
 	n++
-	appendAffectedChecklist(&b, n, true)
+	appendAffectedChecklist(&b, n, affectedSection != "")
 
 	if finalRound {
 		appendFinalRoundInstruction(&b)
@@ -508,7 +669,7 @@ func generateArchitectPrompt(elems *engine.StructuredElements, specContent strin
 
 	fmt.Fprintf(&b, "%d. Does the implementation order match the dependency graph? Can any steps be parallelized?\n", n)
 	n++
-	appendAffectedChecklist(&b, n, true)
+	appendAffectedChecklist(&b, n, affectedSection != "")
 
 	if finalRound {
 		appendFinalRoundInstruction(&b)
@@ -544,7 +705,7 @@ func generateCodeAuditPrompt(specContent string, affectedContent map[string]stri
 	for _, p := range sorted {
 		c := affectedContent[p]
 		lineCount := strings.Count(c, "\n") + 1
-		fmt.Fprintf(&b, "### %s (%d lines)\n", filepath.Base(p), lineCount)
+		fmt.Fprintf(&b, "### %s (%d lines)\n", p, lineCount)
 		b.WriteString(c)
 		b.WriteString("\n\n")
 	}
@@ -819,9 +980,14 @@ func generateDocPlanPrompt(specContent, structureMap string, fileContents map[st
 
 	if len(fileContents) > 0 {
 		b.WriteString("Existing documentation files (selected by relevance):\n")
-		for path, content := range fileContents {
+		sortedPaths := make([]string, 0, len(fileContents))
+		for p := range fileContents {
+			sortedPaths = append(sortedPaths, p)
+		}
+		sort.Strings(sortedPaths)
+		for _, path := range sortedPaths {
 			fmt.Fprintf(&b, "--- FILE: %s ---\n", path)
-			b.WriteString(content)
+			b.WriteString(fileContents[path])
 			b.WriteString("\n--- END FILE ---\n\n")
 		}
 	}
@@ -851,9 +1017,14 @@ func generateTestPlanPrompt(specContent, structureMap string, fileContents map[s
 
 	if len(fileContents) > 0 {
 		b.WriteString("Existing test files (selected by relevance):\n")
-		for path, content := range fileContents {
+		sortedPaths := make([]string, 0, len(fileContents))
+		for p := range fileContents {
+			sortedPaths = append(sortedPaths, p)
+		}
+		sort.Strings(sortedPaths)
+		for _, path := range sortedPaths {
 			fmt.Fprintf(&b, "--- FILE: %s ---\n", path)
-			b.WriteString(content)
+			b.WriteString(fileContents[path])
 			b.WriteString("\n--- END FILE ---\n\n")
 		}
 	}
