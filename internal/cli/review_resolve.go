@@ -109,12 +109,19 @@ func runReviewResolve(args []string, force bool) error {
 
 	// Success output
 	fmt.Fprintf(os.Stderr, "resolved finding %d as %s\n", index, status)
-	return output.JSON(map[string]any{
+	result := map[string]any{
 		"index":    index,
 		"status":   status,
 		"evidence": evidence,
 		"file":     filePath,
-	})
+	}
+
+	// Check if all findings are now resolved — if so, include next_step
+	if allFindingsResolved(findings) {
+		result["next_step"] = fmt.Sprintf("tp review --verify <spec> --findings %s", filePath)
+	}
+
+	return output.JSON(result)
 }
 
 // runReviewResolveAll marks all unresolved findings with a status.
@@ -198,7 +205,18 @@ func runReviewResolveAll(args []string, force bool) error {
 		"skipped_count":  skippedCount,
 		"status":         status,
 		"file":           filePath,
+		"next_step":      fmt.Sprintf("tp review --verify <spec> --findings %s", filePath),
 	})
+}
+
+// allFindingsResolved checks if all findings in the slice have a "resolved" field.
+func allFindingsResolved(findings []map[string]any) bool {
+	for _, f := range findings {
+		if _, ok := f["resolved"]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // readNDJSON reads a file as newline-delimited JSON into a slice of maps.
