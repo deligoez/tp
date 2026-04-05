@@ -195,7 +195,12 @@ func validateAtomicity(tf *model.TaskFile) []Finding {
 		}
 		criteria := ParseAcceptanceCriteria(t.Acceptance)
 		if len(criteria) > 3 {
-			findings = append(findings, Finding{Severity: "warning", Rule: "atomicity", Message: fmt.Sprintf("task %s: acceptance has %d criteria (max 3)", t.ID, len(criteria))})
+			suggestedTasks := (len(criteria) + 2) / 3
+			findings = append(findings, Finding{
+				Severity: "warning",
+				Rule:     "atomicity",
+				Message:  fmt.Sprintf("task %s: acceptance has %d criteria (max 3); hint: split into ~%d tasks by concern (e.g. types, logic, validation, tests)", t.ID, len(criteria), suggestedTasks),
+			})
 		}
 	}
 	return findings

@@ -195,6 +195,18 @@ Each task is atomic — one commit, one verb, ≤15 minutes:
 }
 ```
 
+### Acceptance Criteria Delimiters
+
+tp parses acceptance criteria using three delimiters:
+
+| Delimiter | Example |
+|-----------|---------|
+| Period + space (`. `) | `"Model exists. Migration runs."` |
+| Semicolon + space (`; `) | `"Model exists; migration runs"` |
+| Bullet list (`\n- `) | `"- Model exists\n- Migration runs"` |
+
+JSON arrays are also accepted and joined with `\n- ` on import.
+
 ### JSON Field Aliases
 
 `deps` is accepted as shorthand for `depends_on`:

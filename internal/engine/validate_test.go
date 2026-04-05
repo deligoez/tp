@@ -170,8 +170,26 @@ func TestAtomicity_TooManyAcceptanceCriteria(t *testing.T) {
 	for _, f := range findings {
 		if strings.Contains(f.Message, "acceptance") && strings.Contains(f.Message, "criteria") {
 			hasAccWarning = true
+			assert.Contains(t, f.Message, "hint: split into")
+			assert.Contains(t, f.Message, "~2 tasks")
 			break
 		}
 	}
 	assert.True(t, hasAccWarning)
+}
+
+func TestAtomicity_SplitHintCount(t *testing.T) {
+	// 10 criteria → ceil(10/3) = 4 suggested tasks
+	acceptance := "A. B. C. D. E. F. G. H. I. J."
+	tf := taskFileWithDeps([]model.Task{
+		{ID: "T1", Title: "Task", Status: "open", Acceptance: acceptance, EstimateMinutes: 5, DependsOn: []string{}},
+	})
+	findings := validateAtomicity(tf)
+	for _, f := range findings {
+		if strings.Contains(f.Message, "criteria") {
+			assert.Contains(t, f.Message, "~4 tasks")
+			return
+		}
+	}
+	t.Fatal("expected atomicity warning with split hint")
 }

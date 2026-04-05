@@ -228,6 +228,7 @@ skills/tp/
 - source_lines supports multi-range: "4-10,15-20,25-30"
 - `tp lint` reports structured elements (tables, numbered lists, code blocks)
 - `tp validate` checks line coverage (source_lines vs spec content lines)
+- Acceptance criteria delimiters: `. ` (period+space), `; ` (semicolon+space), `\n- ` (bullet list)
 
 ## Manual QA Testing
 
