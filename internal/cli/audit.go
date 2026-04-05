@@ -90,6 +90,9 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 		return nil
 	}
 
+	// Expand comma-separated values in --affected-files
+	affectedFiles = expandCommaFiles(affectedFiles)
+
 	files, err := resolveAuditFiles(specPath, affectedFiles, base)
 	if err != nil {
 		exitCode := ExitState
@@ -190,7 +193,7 @@ func resolveAuditFiles(specPath string, affectedFiles []string, base string) ([]
 		if base != "" {
 			return nil, fmt.Errorf("no changed files detected (diff %s...HEAD is empty) — provide --affected-files", base)
 		}
-		return nil, fmt.Errorf("no changed files detected (staged+unstaged is empty) — provide --affected-files or stage some changes")
+		return nil, fmt.Errorf("no changed files detected (staged+unstaged is empty) — use --base <tag> for committed changes, or --affected-files")
 	}
 	return files, nil
 }
@@ -243,7 +246,19 @@ func detectChangedFiles(dir, base string) ([]string, error) {
 	}
 
 	if len(filtered) == 0 && len(allFiles) > 0 {
-		return nil, fmt.Errorf("no audit-able files in diff — only binary/markdown/task files changed. Use --base <tag> to diff against a specific tag, or --affected-files to specify files manually")
+		// Collect skipped file extensions for the error message
+		extSet := make(map[string]bool)
+		for _, f := range allFiles {
+			if idx := strings.LastIndex(f, "."); idx >= 0 {
+				extSet[f[idx:]] = true
+			}
+		}
+		exts := make([]string, 0, len(extSet))
+		for ext := range extSet {
+			exts = append(exts, ext)
+		}
+		sort.Strings(exts)
+		return nil, fmt.Errorf("no audit-able files in diff — only skipped types changed (%s). Use --base <tag> or --affected-files", strings.Join(exts, ", "))
 	}
 
 	return filtered, nil
@@ -512,4 +527,21 @@ func generateAuditPrompts(specContent string, mainEntries []checklistEntry, affe
 	}
 
 	return prompts
+}
+
+// expandCommaFiles splits comma-separated values and trims whitespace.
+func expandCommaFiles(files []string) []string {
+	if len(files) == 0 {
+		return nil
+	}
+	expanded := make([]string, 0, len(files))
+	for _, f := range files {
+		for _, part := range strings.Split(f, ",") {
+			trimmed := strings.TrimSpace(part)
+			if trimmed != "" {
+				expanded = append(expanded, trimmed)
+			}
+		}
+	}
+	return expanded
 }
