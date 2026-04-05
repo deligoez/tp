@@ -191,6 +191,12 @@ skills/tp/
   2. `CLAUDE.md` Self-Development Rules reflect any new conventions or process changes
   3. `README.md` reflects all new commands, flags, and features
   4. All three files are committed and included in the release tag
+- **Post-release commands** — after `gh release create`, run these two commands (in order):
+  ```bash
+  go install github.com/deligoez/tp/cmd/tp@v<VERSION>
+  npx @anthropic-ai/claude-code-skill update -g deligoez/tp
+  ```
+  Use the exact version tag (e.g., `v0.17.0`), not `@latest` — the Go module proxy and skill registry may not update immediately.
 
 ### Continuous Improvement
 - After each implementation cycle, note friction points and AX issues
