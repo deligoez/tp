@@ -7,17 +7,23 @@ import (
 )
 
 // ParseAcceptanceCriteria splits the acceptance field into individual criteria.
+// Supports three delimiters: ". " (period), "; " (semicolon), "\n- " (bullet list).
 func ParseAcceptanceCriteria(acceptance string) []string {
-	// Split on ". " and "; "
-	parts := strings.Split(acceptance, ". ")
+	// First split on bullet list delimiter
+	parts := strings.Split(acceptance, "\n- ")
 	var result []string
 	for _, p := range parts {
-		for _, sub := range strings.Split(p, "; ") {
-			trimmed := strings.TrimSpace(sub)
-			// Remove trailing period
-			trimmed = strings.TrimRight(trimmed, ".")
-			if trimmed != "" {
-				result = append(result, trimmed)
+		// Then split on ". " and "; "
+		for _, sub := range strings.Split(p, ". ") {
+			for _, sub2 := range strings.Split(sub, "; ") {
+				trimmed := strings.TrimSpace(sub2)
+				// Remove trailing period and leading "- " prefix
+				trimmed = strings.TrimRight(trimmed, ".")
+				trimmed = strings.TrimPrefix(trimmed, "- ")
+				trimmed = strings.TrimSpace(trimmed)
+				if trimmed != "" {
+					result = append(result, trimmed)
+				}
 			}
 		}
 	}

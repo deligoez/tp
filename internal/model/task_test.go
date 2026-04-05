@@ -86,6 +86,61 @@ func TestEstimationMinutesAlias(t *testing.T) {
 	})
 }
 
+func TestAcceptanceArray(t *testing.T) {
+	t.Run("string unchanged", func(t *testing.T) {
+		data := `{"id":"t1","title":"T","status":"open","estimate_minutes":5,"acceptance":"single string","source_sections":[]}`
+		var task Task
+		require.NoError(t, json.Unmarshal([]byte(data), &task))
+		assert.Equal(t, "single string", task.Acceptance)
+	})
+
+	t.Run("array joined with newline-dash", func(t *testing.T) {
+		data := `{"id":"t1","title":"T","status":"open","estimate_minutes":5,"acceptance":["item1","item2"],"source_sections":[]}`
+		var task Task
+		require.NoError(t, json.Unmarshal([]byte(data), &task))
+		assert.Equal(t, "- item1\n- item2", task.Acceptance)
+	})
+
+	t.Run("single element array", func(t *testing.T) {
+		data := `{"id":"t1","title":"T","status":"open","estimate_minutes":5,"acceptance":["one"],"source_sections":[]}`
+		var task Task
+		require.NoError(t, json.Unmarshal([]byte(data), &task))
+		assert.Equal(t, "- one", task.Acceptance)
+	})
+
+	t.Run("empty array rejected", func(t *testing.T) {
+		data := `{"id":"t1","title":"T","status":"open","estimate_minutes":5,"acceptance":[],"source_sections":[]}`
+		var task Task
+		err := json.Unmarshal([]byte(data), &task)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "must not be empty")
+	})
+
+	t.Run("array with empty string rejected", func(t *testing.T) {
+		data := `{"id":"t1","title":"T","status":"open","estimate_minutes":5,"acceptance":["a","","b"],"source_sections":[]}`
+		var task Task
+		err := json.Unmarshal([]byte(data), &task)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "element 1 is empty")
+	})
+
+	t.Run("nested array rejected", func(t *testing.T) {
+		data := `{"id":"t1","title":"T","status":"open","estimate_minutes":5,"acceptance":[["a"]],"source_sections":[]}`
+		var task Task
+		err := json.Unmarshal([]byte(data), &task)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "must be a string or array of strings")
+	})
+
+	t.Run("number rejected", func(t *testing.T) {
+		data := `{"id":"t1","title":"T","status":"open","estimate_minutes":5,"acceptance":42,"source_sections":[]}`
+		var task Task
+		err := json.Unmarshal([]byte(data), &task)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "must be a string or array of strings")
+	})
+}
+
 func TestValidStatus(t *testing.T) {
 	tests := []struct {
 		name   string

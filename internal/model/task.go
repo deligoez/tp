@@ -2,6 +2,8 @@ package model
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 	"time"
 )
 
@@ -31,13 +33,17 @@ type Task struct {
 	CommitSHA       *string    `json:"commit_sha"`
 }
 
-// UnmarshalJSON supports aliases: "deps" → "depends_on", "estimation_minutes" → "estimate_minutes".
+// UnmarshalJSON supports aliases and flexible types:
+// - "deps" → "depends_on"
+// - "estimation_minutes" → "estimate_minutes"
+// - acceptance: string or []string (array joined with "\n- ")
 func (t *Task) UnmarshalJSON(data []byte) error {
 	type Alias Task
 	aux := &struct {
+		Deps              []string        `json:"deps"`
+		EstimationMinutes int             `json:"estimation_minutes"`
+		AcceptanceRaw     json.RawMessage `json:"acceptance"`
 		*Alias
-		Deps              []string `json:"deps"`
-		EstimationMinutes int      `json:"estimation_minutes"`
 	}{Alias: (*Alias)(t)}
 
 	if err := json.Unmarshal(data, aux); err != nil {
@@ -53,6 +59,30 @@ func (t *Task) UnmarshalJSON(data []byte) error {
 	if t.EstimateMinutes == 0 && aux.EstimationMinutes != 0 {
 		t.EstimateMinutes = aux.EstimationMinutes
 	}
+
+	// acceptance: try string first, then []string
+	if len(aux.AcceptanceRaw) > 0 {
+		var strVal string
+		if err := json.Unmarshal(aux.AcceptanceRaw, &strVal); err == nil {
+			t.Acceptance = strVal
+		} else {
+			var arrVal []string
+			if err := json.Unmarshal(aux.AcceptanceRaw, &arrVal); err == nil {
+				if len(arrVal) == 0 {
+					return fmt.Errorf("acceptance must not be empty")
+				}
+				for i, item := range arrVal {
+					if strings.TrimSpace(item) == "" {
+						return fmt.Errorf("acceptance array element %d is empty", i)
+					}
+				}
+				t.Acceptance = "- " + strings.Join(arrVal, "\n- ")
+			} else {
+				return fmt.Errorf("acceptance must be a string or array of strings")
+			}
+		}
+	}
+
 	return nil
 }
 

@@ -33,6 +33,11 @@ func TestParseAcceptanceCriteria(t *testing.T) {
 			acceptance: "Single criterion",
 			want:       []string{"Single criterion"},
 		},
+		{
+			name:       "bullet list separated",
+			acceptance: "- item1\n- item2\n- item3",
+			want:       []string{"item1", "item2", "item3"},
+		},
 	}
 
 	for _, tt := range tests {

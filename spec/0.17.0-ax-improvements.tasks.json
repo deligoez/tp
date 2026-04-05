@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.17.0-ax-improvements.md",
   "created_at": "2026-04-05T17:05:40.644882Z",
-  "updated_at": "2026-04-05T17:10:16.495018Z",
+  "updated_at": "2026-04-05T17:11:03.256854Z",
   "workflow": {},
   "coverage": {
     "total_sections": 59,
@@ -31,7 +31,7 @@
     {
       "id": "next-minimal",
       "title": "Add --minimal flag to tp next",
-      "status": "open",
+      "status": "done",
       "depends_on": [],
       "estimate_minutes": 8,
       "acceptance": "tp next --minimal returns {id, acceptance} JSON only. TTY forced to JSON. --peek works with --minimal. Error output unchanged.",
@@ -39,11 +39,11 @@
         "### 5.B — `tp next --minimal`"
       ],
       "source_lines": "106-126",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-04-05T17:11:03.028402Z",
+      "closed_at": "2026-04-05T17:11:03.256853Z",
+      "closed_reason": "flag added, outputs {id,acceptance}, tests pass",
+      "gate_passed_at": "2026-04-05T17:11:03.256853Z",
+      "commit_sha": "344be38"
     },
     {
       "id": "gate-passed-relaxation",
