@@ -7,6 +7,16 @@ import (
 	"strings"
 )
 
+// readTPActive reads the .tp-active file in the given directory.
+// Returns the trimmed path or empty string if not found.
+func readTPActive(dir string) (string, error) {
+	data, err := os.ReadFile(filepath.Join(dir, ".tp-active"))
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(data)), nil
+}
+
 // DiscoverTaskFile finds the task file in the given directory.
 // Priority: --file flag > TP_FILE env var > directory scan.
 // Otherwise, scans dir for *.tasks.json files, then one level of subdirectories.
@@ -23,6 +33,16 @@ func DiscoverTaskFile(dir, explicit string) (string, error) {
 			return "", fmt.Errorf("TP_FILE task file not found: %s", envFile)
 		}
 		return envFile, nil
+	}
+
+	// Check .tp-active in CWD
+	if activeFile, err := readTPActive(dir); err == nil && activeFile != "" {
+		// Resolve relative to the directory containing .tp-active
+		resolved := filepath.Join(dir, activeFile)
+		if _, statErr := os.Stat(resolved); statErr != nil {
+			return "", fmt.Errorf("task file from .tp-active not found: %s. Run tp use --clear or tp use <new-file>", resolved)
+		}
+		return resolved, nil
 	}
 
 	matches := findTaskFiles(dir)

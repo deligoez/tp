@@ -120,11 +120,13 @@ INCREMENTAL (1 task at a time):
 	addCmd.GroupID = "data"
 	importCmd := newImportCmd()
 	importCmd.GroupID = "data"
+	useCmd := newUseCmd()
+	useCmd.GroupID = "data"
 
 	cmd.AddCommand(planCmd, doneCmd, nextCmd, commitCmd)
 	cmd.AddCommand(claimCmd, closeCmd, reopenCmd, removeCmd, setCmd)
 	cmd.AddCommand(listCmd, statusCmd, readyCmd, blockedCmd, showCmd, graphCmd, statsCmd, reportCmd, lintCmd, reviewCmd, auditCmd, validateCmd)
-	cmd.AddCommand(initCmd, addCmd, importCmd)
+	cmd.AddCommand(initCmd, addCmd, importCmd, useCmd)
 
 	return cmd
 }
