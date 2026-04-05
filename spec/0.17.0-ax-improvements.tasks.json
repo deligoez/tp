@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.17.0-ax-improvements.md",
   "created_at": "2026-04-05T17:05:40.644882Z",
-  "updated_at": "2026-04-05T17:08:55.026709Z",
+  "updated_at": "2026-04-05T17:09:46.621842Z",
   "workflow": {},
   "coverage": {
     "total_sections": 59,
@@ -84,7 +84,7 @@
     {
       "id": "estimation-minutes-alias",
       "title": "Add estimation_minutes alias",
-      "status": "open",
+      "status": "done",
       "depends_on": [],
       "estimate_minutes": 5,
       "acceptance": "tp add with estimation_minutes succeeds. estimate_minutes wins when both present. Zero-value check safe (0 not valid).",
@@ -92,11 +92,11 @@
         "### 5.E — `estimation_minutes` Alias"
       ],
       "source_lines": "216-232",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-04-05T17:09:39.225214Z",
+      "closed_at": "2026-04-05T17:09:46.621842Z",
+      "closed_reason": "alias added, tests pass",
+      "gate_passed_at": "2026-04-05T17:09:46.621842Z",
+      "commit_sha": "c781779"
     },
     {
       "id": "acceptance-array",

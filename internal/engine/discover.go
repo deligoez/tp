@@ -42,11 +42,11 @@ func DiscoverTaskFile(dir, explicit string) (string, error) {
 
 	switch len(matches) {
 	case 0:
-		return "", fmt.Errorf("no task file found. Run `tp init <spec.md>` or `tp import <file>` to create one")
+		return "", fmt.Errorf("no task file found. Run tp init <spec.md> or set TP_FILE=<path>")
 	case 1:
 		return matches[0], nil
 	default:
-		return "", fmt.Errorf("multiple task files found. Use --file to specify: %s", strings.Join(matches, ", "))
+		return "", fmt.Errorf("multiple task files: %s. Set TP_FILE=<path> or use tp --file <path> <command>", strings.Join(matches, ", "))
 	}
 }
 
