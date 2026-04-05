@@ -63,6 +63,29 @@ func TestDepsAlias(t *testing.T) {
 	})
 }
 
+func TestEstimationMinutesAlias(t *testing.T) {
+	t.Run("estimation_minutes populates estimate_minutes", func(t *testing.T) {
+		data := `{"id":"t1","title":"T","status":"open","estimation_minutes":5,"acceptance":"ok","source_sections":[]}`
+		var task Task
+		require.NoError(t, json.Unmarshal([]byte(data), &task))
+		assert.Equal(t, 5, task.EstimateMinutes)
+	})
+
+	t.Run("estimate_minutes still works", func(t *testing.T) {
+		data := `{"id":"t1","title":"T","status":"open","estimate_minutes":10,"acceptance":"ok","source_sections":[]}`
+		var task Task
+		require.NoError(t, json.Unmarshal([]byte(data), &task))
+		assert.Equal(t, 10, task.EstimateMinutes)
+	})
+
+	t.Run("estimate_minutes takes precedence over estimation_minutes", func(t *testing.T) {
+		data := `{"id":"t1","title":"T","status":"open","estimate_minutes":10,"estimation_minutes":5,"acceptance":"ok","source_sections":[]}`
+		var task Task
+		require.NoError(t, json.Unmarshal([]byte(data), &task))
+		assert.Equal(t, 10, task.EstimateMinutes)
+	})
+}
+
 func TestValidStatus(t *testing.T) {
 	tests := []struct {
 		name   string

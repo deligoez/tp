@@ -31,12 +31,13 @@ type Task struct {
 	CommitSHA       *string    `json:"commit_sha"`
 }
 
-// UnmarshalJSON supports "deps" as an alias for "depends_on".
+// UnmarshalJSON supports aliases: "deps" → "depends_on", "estimation_minutes" → "estimate_minutes".
 func (t *Task) UnmarshalJSON(data []byte) error {
 	type Alias Task
 	aux := &struct {
 		*Alias
-		Deps []string `json:"deps"`
+		Deps              []string `json:"deps"`
+		EstimationMinutes int      `json:"estimation_minutes"`
 	}{Alias: (*Alias)(t)}
 
 	if err := json.Unmarshal(data, aux); err != nil {
@@ -46,6 +47,11 @@ func (t *Task) UnmarshalJSON(data []byte) error {
 	// "deps" fills in when "depends_on" is absent
 	if t.DependsOn == nil && aux.Deps != nil {
 		t.DependsOn = aux.Deps
+	}
+
+	// "estimation_minutes" fills in when "estimate_minutes" is absent (0 is not a valid estimate)
+	if t.EstimateMinutes == 0 && aux.EstimationMinutes != 0 {
+		t.EstimateMinutes = aux.EstimationMinutes
 	}
 	return nil
 }
