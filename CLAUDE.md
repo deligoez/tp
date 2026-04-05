@@ -50,6 +50,7 @@ tp plan                        # Full execution plan in one call (THE primary co
 tp plan --minimal              # Minimal: id + acceptance only (~80% fewer tokens)
 tp commit <id> [reason]        # Stage + structured commit + record SHA (--files for selective)
 tp done <id> <reason>          # Close task with implicit claim + verification
+tp done id1 id2 id3 "reason"   # Multi-ID close (shared reason, last arg = reason)
 tp done <id> --auto-commit     # Commit + close in one call
 tp done <id> --covered-by <id> # Close as covered by another done task
 tp done --batch results.ndjson # Batch close from NDJSON (primary close mechanism)
@@ -58,6 +59,7 @@ tp done --batch results.ndjson # Batch close from NDJSON (primary close mechanis
 ### Incremental (fallback)
 ```bash
 tp next                        # Resume WIP or claim next ready task
+tp next --minimal              # Minimal output: {id, acceptance} only
 tp next --peek                 # Preview without claiming
 ```
 
@@ -95,10 +97,10 @@ tp review --resolve-all findings.ndjson <disposition> "evidence"  # Mark all unr
 tp review --verify <spec.md> --findings all.ndjson  # Lightweight verification prompt (verifier role)
 tp review --report r1.ndjson r2.ndjson  # Cross-round convergence report
 tp review <spec.md> --diff-from <old-spec.md>  # Diff-based review (changed sections only)
-tp review <spec.md> --spec-ref               # Omit inline spec, tell agent to read file
+tp review <spec.md> --spec-inline             # Embed full spec inline (default: reference mode)
 tp review --resolve ... --force              # Force re-resolve already resolved findings
 tp audit <spec.md>              # Post-implementation: verify code matches spec (auto-detects changed files via git diff)
-tp audit <spec.md> --affected-files <paths>  # Manual file selection
+tp audit <spec.md> --affected-files <paths>  # Manual file selection (comma-separated or repeated)
 tp audit <spec.md> --findings <file.ndjson>  # Also verify review findings were addressed
 tp validate                    # Task file validation (--strict)
 ```
@@ -108,6 +110,9 @@ tp validate                    # Task file validation (--strict)
 tp init <spec.md>              # Create empty task file
 tp add <json>                  # Add task (--stdin, --bulk for NDJSON bulk)
 tp import <file>               # Import + validate (--force to overwrite, auto-fills coverage)
+tp use <file>                  # Set active task file (.tp-active marker)
+tp use --clear                 # Remove .tp-active
+tp use                         # Show current active file
 ```
 
 ### Global Flags
@@ -120,11 +125,14 @@ tp import <file>               # Import + validate (--force to overwrite, auto-f
 ```
 
 ### Task File Discovery
-Priority: `--file` flag > `TP_FILE` env var > auto-detect.
+Priority: `--file` flag > `TP_FILE` env var > `.tp-active` marker > auto-detect.
 Auto-detect scans current dir, then one level of subdirectories for `*.tasks.json`.
+`.tp-active` is read from CWD only (no parent traversal). Use `tp use <file>` to set it.
 
 ### JSON Field Aliases
 - `deps` accepted as alias for `depends_on` in task JSON (import, add)
+- `estimation_minutes` accepted as alias for `estimate_minutes`
+- `acceptance` accepts string or `["item1", "item2"]` (array joined with `\n- `)
 
 ## Project Structure
 

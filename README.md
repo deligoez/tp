@@ -73,12 +73,14 @@ tp done <id> --auto-commit     # Stage + commit + close in one call
 tp done <id> --auto-commit --files src/engine/*.go  # Selective staging + commit + close
 tp done <id> --covered-by <id> # Close as covered by another done task
 tp done <id> --commit <sha>    # Record implementing commit SHA
+tp done id1 id2 id3 "reason"   # Multi-ID close (shared reason)
 tp done --batch file.ndjson    # Batch close from NDJSON
 ```
 
 ### Incremental (fallback)
 ```bash
 tp next                        # Resume WIP or claim next ready
+tp next --minimal              # Minimal output: {id, acceptance} only
 tp next --peek                 # Preview without claiming
 ```
 
@@ -127,7 +129,7 @@ tp review --resolve-all findings.ndjson wontfix "reason"  # Mark all unresolved 
 tp review --verify spec.md --findings all.ndjson  # Lightweight verification (verifier role)
 tp review --report r1.ndjson r2.ndjson  # Cross-round convergence report
 tp review spec.md --diff-from spec-r0.md  # Diff-based review (changed sections only)
-tp review spec.md --spec-ref              # Omit inline spec, tell agent to read file
+tp review spec.md --spec-inline            # Embed full spec inline (default: reference mode)
 tp review --resolve ... --force           # Force re-resolve already resolved findings
 tp audit spec.md               # Post-implementation: verify code matches spec
 tp audit spec.md --affected-files src/a.go  # Manual file selection
@@ -141,6 +143,9 @@ tp init spec.md                # Create empty task file
 tp add <json>                  # Add task (--stdin for piped input)
 tp add --bulk tasks.ndjson     # Bulk add from NDJSON
 tp import file.json            # Import + validate (--force to overwrite + relax atomicity)
+tp use spec.tasks.json         # Set active task file (.tp-active)
+tp use --clear                 # Remove .tp-active marker
+tp use                         # Show current active file
 ```
 
 ### Global Flags
@@ -327,7 +332,7 @@ tp review --report r1.ndjson r2.ndjson                # Convergence report
 | `--resolve-all` | Mark all unresolved findings at once |
 | `--verify` | Lightweight verification prompt (single prompt, verifier role) |
 | `--report` | Cross-round convergence report |
-| `--spec-ref` | Reference spec by path instead of inline |
+| `--spec-inline` | Embed full spec inline (default: reference by path) |
 | `--diff-from` | Diff-based review (only changed sections inline) |
 | `-o` / `--output` | Output file path for merge |
 | `--force` | Force re-resolve already resolved findings |

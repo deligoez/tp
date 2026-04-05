@@ -38,7 +38,7 @@ This skill activates when:
      - `tp review --verify spec.md --findings all.ndjson` — lightweight verification prompt (verifier role)
      - `tp review --report r1.ndjson r2.ndjson` — cross-round convergence report
      - `tp review spec.md --diff-from spec-r0.md` — diff-based review (changed sections only)
-     - `tp review spec.md --spec-ref` — omit inline spec, tell agent to read file
+     - `tp review spec.md --spec-inline` — embed full spec inline (default is reference mode)
      - `--force` — force re-resolve already resolved findings
 3. Read spec, decompose into tasks (JSON):
    - Every task MUST have `source_lines` mapping to spec line ranges (e.g., `"15-42"` or `"15-42,50-60"`)
@@ -91,6 +91,8 @@ Same as B. `tp plan` excludes done tasks, puts WIP first.
 ## JSON Field Aliases
 
 - `deps` is accepted as an alias for `depends_on` in task JSON (import, add)
+- `estimation_minutes` is accepted as an alias for `estimate_minutes`
+- `acceptance` can be a string or `["item1", "item2"]` (array joined with `\n- `)
 
 ## NDJSON Result Format
 
@@ -120,9 +122,16 @@ Before recording a result:
 
 ## Task File Discovery
 
-Priority: `--file` flag > `TP_FILE` env var > auto-detect (current dir, then one level of subdirs).
+Priority: `--file` flag > `TP_FILE` env var > `.tp-active` marker > auto-detect (current dir, then one level of subdirs).
 
-Set `TP_FILE` to avoid repeating `--file` every command:
+Set active task file persistently:
+```bash
+tp use spec/project.tasks.json  # writes .tp-active in CWD
+tp use --clear                  # remove .tp-active
+tp use                          # show current active file
+```
+
+Or set `TP_FILE` for session-level override:
 ```bash
 export TP_FILE=spec/project.tasks.json
 ```
@@ -131,9 +140,11 @@ export TP_FILE=spec/project.tasks.json
 
 For interactive use or when full plan is impractical:
 ```
-tp next          # get/resume WIP task
+tp next              # get/resume WIP task
+tp next --minimal    # minimal output: {id, acceptance} only
 # implement
 tp done <id> "reason" --gate-passed
+tp done id1 id2 id3 "shared evidence" --gate-passed  # multi-ID close
 ```
 
 ## Key Commands
@@ -147,6 +158,9 @@ tp done <id> "reason" --gate-passed
 | `tp done --batch file` | Batch close |
 | `tp next` | Incremental fallback |
 | `tp done <id> "reason"` | Single close |
+| `tp done id1 id2 "reason"` | Multi-ID close (shared reason) |
+| `tp next --minimal` | Minimal next: {id, acceptance} only |
+| `tp use <file>` | Set active task file (.tp-active) |
 | `tp lint spec.md` | Spec quality + structured elements |
 | `tp review spec.md` | Adversarial review prompts (3 personas) |
 | `tp review spec.md --perspective code-audit --affected-files src/a.go` | Code audit with source file injection |
@@ -158,9 +172,9 @@ tp done <id> "reason" --gate-passed
 | `tp review --verify spec.md --findings all.ndjson` | Lightweight verification (verifier role) |
 | `tp review --report r1.ndjson r2.ndjson` | Cross-round convergence report |
 | `tp review spec.md --diff-from old-spec.md` | Diff-based review (changed sections only) |
-| `tp review spec.md --spec-ref` | Omit inline spec, tell agent to read file |
+| `tp review spec.md --spec-inline` | Embed full spec inline (default is reference mode) |
 | `tp audit spec.md` | Post-implementation audit: verify code matches spec (auto-detects changed files) |
-| `tp audit spec.md --affected-files src/a.go` | Manual file selection for audit |
+| `tp audit spec.md --affected-files src/a.go,src/b.go` | Manual file selection (comma or repeated flag) |
 | `tp audit spec.md --findings review.ndjson` | Also verify review findings were addressed |
 | `tp validate` | Task file validation + line coverage |
 | `tp set --bulk file` | Bulk update from NDJSON `{id, field, value}` |
