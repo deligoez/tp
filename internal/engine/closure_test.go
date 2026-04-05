@@ -148,12 +148,11 @@ func TestVerifyClosure(t *testing.T) {
 			errMsg:     "deferral is forbidden",
 		},
 		{
-			name:       "gate-passed still checks minimum length",
+			name:       "gate-passed skips minimum length check",
 			acceptance: "The acceptance criteria must be thoroughly addressed with detailed evidence.",
 			reason:     "tests pass",
 			gatePassed: true,
-			wantErr:    true,
-			errMsg:     "too short",
+			wantErr:    false,
 		},
 	}
 

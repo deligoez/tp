@@ -1,0 +1,222 @@
+{
+  "version": 1,
+  "spec": "spec/0.17.0-ax-improvements.md",
+  "created_at": "2026-04-05T17:05:40.644882Z",
+  "updated_at": "2026-04-05T17:07:07.883772Z",
+  "workflow": {},
+  "coverage": {
+    "total_sections": 59,
+    "mapped_sections": 0,
+    "context_only": [],
+    "unmapped": []
+  },
+  "tasks": [
+    {
+      "id": "spec-inline-flag",
+      "title": "Replace --spec-ref with --spec-inline",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "tp review spec.md outputs spec-ref by default. --spec-inline enables inline. --spec-ref produces unknown flag error. validateModeFlags updated. review_verify.go updated. Tests updated.",
+      "source_sections": [
+        "### 5.A — Flip `--spec-ref` Default"
+      ],
+      "source_lines": "83-105",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "next-minimal",
+      "title": "Add --minimal flag to tp next",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 8,
+      "acceptance": "tp next --minimal returns {id, acceptance} JSON only. TTY forced to JSON. --peek works with --minimal. Error output unchanged.",
+      "source_sections": [
+        "### 5.B — `tp next --minimal`"
+      ],
+      "source_lines": "106-126",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "gate-passed-relaxation",
+      "title": "Skip reason length check with --gate-passed",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 5,
+      "acceptance": "tp done id short-reason --gate-passed succeeds. Without --gate-passed still enforces length. Forbidden patterns still checked with --gate-passed (deferred fails).",
+      "source_sections": [
+        "### 5.C — Relax Reason Length When `--gate-passed`"
+      ],
+      "source_lines": "127-142",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "done-multi-id",
+      "title": "Multi-ID support for tp done",
+      "status": "open",
+      "depends_on": [
+        "gate-passed-relaxation"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "Last arg always reason. ArbitraryArgs with manual validation. Single-ID output unchanged (string). Multi-ID returns arrays. --auto-commit rejected with multi-ID. --batch rejected with positional args. Exit 0 partial, exit 1 all-fail. In-order processing with visibility.",
+      "source_sections": [
+        "### 5.D — Multi-ID `tp done`"
+      ],
+      "source_lines": "143-215",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "estimation-minutes-alias",
+      "title": "Add estimation_minutes alias",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 5,
+      "acceptance": "tp add with estimation_minutes succeeds. estimate_minutes wins when both present. Zero-value check safe (0 not valid).",
+      "source_sections": [
+        "### 5.E — `estimation_minutes` Alias"
+      ],
+      "source_lines": "216-232",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "acceptance-array",
+      "title": "Accept acceptance as string or array",
+      "status": "open",
+      "depends_on": [
+        "estimation-minutes-alias"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "String unchanged. Array joined with newline-dash. Empty array rejected. Empty strings rejected. Nested arrays rejected. Single-element works. ParseAcceptanceCriteria splits on newline-dash. Round-trip returns string.",
+      "source_sections": [
+        "### 5.F — Accept `acceptance` as Array"
+      ],
+      "source_lines": "233-264",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "file-flag-hints",
+      "title": "Better --file flag error hints",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 5,
+      "acceptance": "Multiple files error includes TP_FILE and --file hint. No files error includes tp init and TP_FILE hint. Messages under 200 chars.",
+      "source_sections": [
+        "### 5.G — Better `--file` Flag Hint"
+      ],
+      "source_lines": "265-281",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "tp-use-command",
+      "title": "Add tp use command with .tp-active",
+      "status": "open",
+      "depends_on": [
+        "file-flag-hints"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "tp use file creates .tp-active. Discovery reads .tp-active after TP_FILE. tp use --clear removes (idempotent). tp use shows active. --clear with arg is usage error. Non-existent file exits 3. Output JSON when piped. CWD only.",
+      "source_sections": [
+        "### 5.H — `tp use \u003cfile\u003e` Command"
+      ],
+      "source_lines": "282-338",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "audit-affected-files",
+      "title": "Comma-separated --affected-files",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 8,
+      "acceptance": "--affected-files a.go,b.go works. Repeated flag works. Mixed works. Trim whitespace. No changes error includes --base hint. Binary-only error lists skipped types.",
+      "source_sections": [
+        "### 5.I — Improved `--affected-files` for Audit"
+      ],
+      "source_lines": "339-359",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "resolve-all-hint",
+      "title": "Add next_step hint after --resolve-all",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 8,
+      "acceptance": "--resolve-all includes next_step with template and findings path. --resolve includes next_step only when all resolved. Always included even if all skipped. JSON backward-compatible.",
+      "source_sections": [
+        "### 5.J — Auto-Verify Hint After `--resolve-all`"
+      ],
+      "source_lines": "360-391",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "update-docs",
+      "title": "Update SKILL.md, README.md, CLAUDE.md",
+      "status": "open",
+      "depends_on": [
+        "spec-inline-flag",
+        "next-minimal",
+        "done-multi-id",
+        "tp-use-command",
+        "audit-affected-files",
+        "resolve-all-hint",
+        "gate-passed-relaxation",
+        "estimation-minutes-alias",
+        "acceptance-array",
+        "file-flag-hints"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "SKILL.md reflects --spec-inline, --minimal, multi-ID done, tp use, comma --affected-files. README.md updated. CLAUDE.md updated.",
+      "source_sections": [
+        "### 5.A — Flip `--spec-ref` Default",
+        "### 5.B — `tp next --minimal`",
+        "### 5.D — Multi-ID `tp done`",
+        "### 5.H — `tp use \u003cfile\u003e` Command"
+      ],
+      "source_lines": "83-105,106-126,143-215,282-338",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ]
+}

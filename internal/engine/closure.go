@@ -82,6 +82,13 @@ func VerifyClosure(acceptance, reason string, gatePassed, coveredBy bool) error 
 		return err
 	}
 
+	// When gate-passed is attested, skip length check and keyword matching.
+	// The agent already verified the quality gate; demanding long reasons
+	// or exact keyword overlap wastes tokens for simple tasks.
+	if gatePassed {
+		return nil
+	}
+
 	criteria := ParseAcceptanceCriteria(acceptance)
 	if len(criteria) == 0 {
 		return nil
@@ -90,13 +97,6 @@ func VerifyClosure(acceptance, reason string, gatePassed, coveredBy bool) error 
 	// Check 2: Minimum reason length
 	if len(reason) < len(acceptance)/2 {
 		return fmt.Errorf("closure reason too short (%d chars). Must be at least %d chars (half of acceptance text)", len(reason), len(acceptance)/2)
-	}
-
-	// When gate-passed is attested, skip per-criterion keyword matching.
-	// The agent already verified the quality gate; demanding exact keyword
-	// overlap penalizes valid evidence like "2559 tests pass" for "composer quality passes".
-	if gatePassed {
-		return nil
 	}
 
 	// Check 1: Per-criterion keyword match
