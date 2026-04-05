@@ -13,7 +13,10 @@ import (
 	"github.com/deligoez/tp/internal/output"
 )
 
-var nextPeek bool
+var (
+	nextPeek    bool
+	nextMinimal bool
+)
 
 func newNextCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -27,6 +30,7 @@ Output: {task, spec_excerpt, blocks, remaining, quality_gate}`,
 		RunE: runNext,
 	}
 	cmd.Flags().BoolVar(&nextPeek, "peek", false, "preview next ready without claiming")
+	cmd.Flags().BoolVar(&nextMinimal, "minimal", false, "minimal output: only id + acceptance (always JSON)")
 	return cmd
 }
 
@@ -167,6 +171,13 @@ func runNext(_ *cobra.Command, _ []string) error {
 }
 
 func outputNextTask(tf *model.TaskFile, task *model.Task, specPath string) error {
+	if nextMinimal {
+		return output.JSON(map[string]any{
+			"id":         task.ID,
+			"acceptance": task.Acceptance,
+		})
+	}
+
 	// Compute blocks
 	blocks := make([]string, 0)
 	for i := range tf.Tasks {
