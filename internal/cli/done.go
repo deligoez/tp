@@ -30,13 +30,15 @@ func newDoneCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "done <id> [reason]",
 		Short: "Close task with verification (preferred over tp close)",
-		Long: `Close a task with closure verification. Implicitly claims open tasks.
-Output: {closed: "id", remaining: {total, open, wip, done, ready}, has_next: bool}
+		Long: `Close task(s) with closure verification. Implicitly claims open tasks.
+Single-ID output: {closed: "id", remaining: {...}, has_next: bool}
+Multi-ID output:  {closed: ["id1","id2"], failed: [...], remaining: {...}, has_next: bool}
 On error: {error, code, acceptance, hint} on stderr. Task unchanged.`,
-		Example: `  tp done auth-model "Model at app/Models/User.php. Migration runs."
+		Example: `  tp done auth-model "evidence"
   tp done auth-model "evidence" --gate-passed --commit abc123
-  tp done --batch results.ndjson     # NDJSON: {"id":"x","reason":"y","gate_passed":true}`,
-		Args: cobra.RangeArgs(0, 2),
+  tp done task1 task2 task3 "shared evidence"     # multi-ID
+  tp done --batch results.ndjson                  # NDJSON batch`,
+		Args: cobra.ArbitraryArgs,
 		RunE: runDone,
 	}
 	cmd.Flags().BoolVar(&doneStdin, "stdin", false, "read reason from stdin")
@@ -51,7 +53,13 @@ On error: {error, code, acceptance, hint} on stderr. Task unchanged.`,
 }
 
 func runDone(_ *cobra.Command, args []string) error {
+	// --batch mode: mutually exclusive with positional args
 	if doneBatch != "" {
+		if len(args) > 0 {
+			output.Error(ExitUsage, "--batch is mutually exclusive with positional task IDs")
+			os.Exit(ExitUsage)
+			return nil
+		}
 		return runDoneBatch()
 	}
 
@@ -61,10 +69,17 @@ func runDone(_ *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// Determine reason
-	reason, err := resolveReason(args, doneStdin, doneReasonFile)
+	// Parse task IDs and reason
+	taskIDs, reason, err := resolveMultiReason(args, doneStdin, doneReasonFile)
 	if err != nil {
 		output.Error(ExitUsage, err.Error())
+		os.Exit(ExitUsage)
+		return nil
+	}
+
+	// --auto-commit forbidden with multi-ID
+	if len(taskIDs) > 1 && doneAutoCommit {
+		output.Error(ExitUsage, "--auto-commit is not supported with multiple task IDs. Use tp done --batch for multi-task auto-commit.")
 		os.Exit(ExitUsage)
 		return nil
 	}
@@ -76,6 +91,14 @@ func runDone(_ *cobra.Command, args []string) error {
 		return nil
 	}
 
+	if len(taskIDs) == 1 {
+		return runDoneSingle(taskFilePath, taskIDs[0], reason)
+	}
+	return runDoneMulti(taskFilePath, taskIDs, reason)
+}
+
+// runDoneSingle handles the single-ID case with backward-compatible output.
+func runDoneSingle(taskFilePath, taskID, reason string) error {
 	return engine.WithFileLock(taskFilePath, func() error {
 		tf, readErr := model.ReadTaskFile(taskFilePath)
 		if readErr != nil {
@@ -84,7 +107,7 @@ func runDone(_ *cobra.Command, args []string) error {
 			return nil
 		}
 
-		task, _, findErr := model.FindTask(tf, args[0])
+		task, _, findErr := model.FindTask(tf, taskID)
 		if findErr != nil {
 			output.Error(ExitState, findErr.Error())
 			os.Exit(ExitState)
@@ -93,7 +116,6 @@ func runDone(_ *cobra.Command, args []string) error {
 
 		// Implicit claim: open -> wip -> done
 		if task.Status == model.StatusOpen {
-			// Check deps
 			done := make(map[string]bool)
 			for i := range tf.Tasks {
 				if tf.Tasks[i].Status == model.StatusDone {
@@ -124,7 +146,6 @@ func runDone(_ *cobra.Command, args []string) error {
 			return nil
 		}
 
-		// Verify covered-by reference if provided
 		isCoveredBy := doneCoveredBy != ""
 		if isCoveredBy {
 			ref, _, refErr := model.FindTask(tf, doneCoveredBy)
@@ -140,7 +161,6 @@ func runDone(_ *cobra.Command, args []string) error {
 			}
 		}
 
-		// Closure verification
 		if verifyErr := engine.VerifyClosure(task.Acceptance, reason, doneGatePassed, isCoveredBy); verifyErr != nil {
 			errOut := map[string]any{
 				"error":      fmt.Sprintf("closure verification failed: %v", verifyErr),
@@ -154,7 +174,6 @@ func runDone(_ *cobra.Command, args []string) error {
 			return nil
 		}
 
-		// Auto-commit if requested
 		if doneAutoCommit && doneCommit == "" {
 			if err := gitStage(doneFiles); err != nil {
 				output.Error(ExitFile, fmt.Sprintf("auto-commit: git stage failed: %v", err))
@@ -195,7 +214,6 @@ func runDone(_ *cobra.Command, args []string) error {
 			output.Info("quality gate not attested. Consider using --gate-passed.")
 		}
 
-		// Compute has_next
 		doneSet := make(map[string]bool)
 		for i := range tf.Tasks {
 			if tf.Tasks[i].Status == model.StatusDone {
@@ -236,13 +254,175 @@ func runDone(_ *cobra.Command, args []string) error {
 			"has_next": readyCount > 0,
 		}
 
-		// Auto-report when all tasks are done
 		if openCount == 0 && wipCount == 0 {
 			_, summary := computeReport(tf)
 			result["report"] = summary
 		}
 
 		return output.JSON(result)
+	})
+}
+
+// runDoneMulti handles the multi-ID case with array output.
+func runDoneMulti(taskFilePath string, taskIDs []string, reason string) error {
+	return engine.WithFileLock(taskFilePath, func() error {
+		tf, readErr := model.ReadTaskFile(taskFilePath)
+		if readErr != nil {
+			output.Error(ExitFile, readErr.Error())
+			os.Exit(ExitFile)
+			return nil
+		}
+
+		closedIDs := make([]string, 0)
+		failed := make([]map[string]any, 0)
+		now := time.Now().UTC()
+		isCoveredBy := doneCoveredBy != ""
+
+		// Build done set for dep checking (updated as tasks close)
+		doneSet := make(map[string]bool)
+		for i := range tf.Tasks {
+			if tf.Tasks[i].Status == model.StatusDone {
+				doneSet[tf.Tasks[i].ID] = true
+			}
+		}
+
+		for _, id := range taskIDs {
+			task, _, findErr := model.FindTask(tf, id)
+			if findErr != nil {
+				failed = append(failed, map[string]any{"id": id, "error": findErr.Error()})
+				continue
+			}
+
+			// Implicit claim: open -> wip
+			if task.Status == model.StatusOpen {
+				blocked := false
+				for _, dep := range task.DependsOn {
+					if !doneSet[dep] {
+						failed = append(failed, map[string]any{
+							"id":    id,
+							"error": fmt.Sprintf("blocked by %s", dep),
+							"hint":  fmt.Sprintf("Close %s first or place it earlier in the argument list.", dep),
+						})
+						blocked = true
+						break
+					}
+				}
+				if blocked {
+					continue
+				}
+				task.Status = model.StatusWIP
+				task.StartedAt = &now
+			}
+
+			if task.Status == model.StatusDone {
+				failed = append(failed, map[string]any{"id": id, "error": fmt.Sprintf("task %s is already done", id)})
+				continue
+			}
+
+			if task.Status != model.StatusWIP {
+				failed = append(failed, map[string]any{"id": id, "error": fmt.Sprintf("cannot done: task %s is %s", id, task.Status)})
+				continue
+			}
+
+			// Verify covered-by reference if provided
+			if isCoveredBy {
+				ref, _, refErr := model.FindTask(tf, doneCoveredBy)
+				if refErr != nil || ref.Status != model.StatusDone {
+					errMsg := ""
+					if refErr != nil {
+						errMsg = fmt.Sprintf("--covered-by: %v", refErr)
+					} else {
+						errMsg = fmt.Sprintf("--covered-by: task %s is %s (must be done)", ref.ID, ref.Status)
+					}
+					failed = append(failed, map[string]any{"id": id, "error": errMsg})
+					continue
+				}
+			}
+
+			// Closure verification
+			if verifyErr := engine.VerifyClosure(task.Acceptance, reason, doneGatePassed, isCoveredBy); verifyErr != nil {
+				failed = append(failed, map[string]any{
+					"id":         id,
+					"error":      fmt.Sprintf("closure verification failed: %v", verifyErr),
+					"acceptance": task.Acceptance,
+					"hint":       "Rewrite reason to address all acceptance criteria.",
+				})
+				continue
+			}
+
+			// Close the task
+			task.Status = model.StatusDone
+			task.ClosedAt = &now
+			r := reason
+			task.ClosedReason = &r
+			if doneGatePassed {
+				task.GatePassedAt = &now
+			}
+			if doneCommit != "" {
+				c := doneCommit
+				task.CommitSHA = &c
+			}
+			closedIDs = append(closedIDs, id)
+			doneSet[id] = true
+		}
+
+		tf.UpdatedAt = now
+		if writeErr := model.WriteTaskFile(taskFilePath, tf); writeErr != nil {
+			output.Error(ExitFile, writeErr.Error())
+			os.Exit(ExitFile)
+			return nil
+		}
+
+		// Compute remaining
+		openCount := 0
+		wipCount := 0
+		readyCount := 0
+		for i := range tf.Tasks {
+			switch tf.Tasks[i].Status {
+			case model.StatusOpen:
+				openCount++
+				allDone := true
+				for _, dep := range tf.Tasks[i].DependsOn {
+					if !doneSet[dep] {
+						allDone = false
+						break
+					}
+				}
+				if allDone {
+					readyCount++
+				}
+			case model.StatusWIP:
+				wipCount++
+			}
+		}
+
+		result := map[string]any{
+			"closed": closedIDs,
+			"failed": failed,
+			"remaining": map[string]any{
+				"total": len(tf.Tasks),
+				"open":  openCount,
+				"wip":   wipCount,
+				"done":  len(tf.Tasks) - openCount - wipCount,
+				"ready": readyCount,
+			},
+			"has_next": readyCount > 0,
+		}
+
+		if openCount == 0 && wipCount == 0 {
+			_, summary := computeReport(tf)
+			result["report"] = summary
+		}
+
+		if jsonErr := output.JSON(result); jsonErr != nil {
+			output.Error(ExitFile, jsonErr.Error())
+		}
+
+		// Exit code: 0 if any closed, 1 if all failed
+		if len(closedIDs) == 0 {
+			os.Exit(ExitValidation)
+		}
+		return nil
 	})
 }
 
@@ -443,40 +623,35 @@ func runDoneBatch() error {
 	})
 }
 
-func resolveReason(args []string, useStdin bool, reasonFile string) (string, error) {
-	sources := 0
-	if len(args) > 1 {
-		sources++
-	}
-	if useStdin {
-		sources++
-	}
-	if reasonFile != "" {
-		sources++
-	}
-	if sources > 1 {
-		return "", fmt.Errorf("multiple reason sources. Use exactly one: positional argument, --stdin, or --reason-file")
-	}
-	if sources == 0 {
-		return "", fmt.Errorf("reason is required")
+// resolveMultiReason parses args into task IDs and reason.
+// When --stdin or --reason-file is set, ALL args are task IDs.
+// Otherwise, last arg is the reason, all preceding are task IDs.
+func resolveMultiReason(args []string, useStdin bool, reasonFile string) ([]string, string, error) {
+	if useStdin && reasonFile != "" {
+		return nil, "", fmt.Errorf("--stdin and --reason-file are mutually exclusive")
 	}
 
-	switch {
-	case len(args) > 1:
-		return args[1], nil
-	case useStdin:
+	if useStdin {
 		data, readErr := io.ReadAll(os.Stdin)
 		if readErr != nil {
-			return "", fmt.Errorf("read stdin: %w", readErr)
+			return nil, "", fmt.Errorf("read stdin: %w", readErr)
 		}
-		return string(data), nil
-	default:
+		return args, string(data), nil
+	}
+
+	if reasonFile != "" {
 		data, readErr := os.ReadFile(reasonFile)
 		if readErr != nil {
-			return "", fmt.Errorf("read reason file: %w", readErr)
+			return nil, "", fmt.Errorf("read reason file: %w", readErr)
 		}
-		return string(data), nil
+		return args, string(data), nil
 	}
+
+	// Positional: last arg is reason, rest are task IDs
+	if len(args) < 2 {
+		return nil, "", fmt.Errorf("reason is required (use positional reason, --stdin, or --reason-file)")
+	}
+	return args[:len(args)-1], args[len(args)-1], nil
 }
 
 func readBatchEntries(path string) ([]batchEntry, error) {
