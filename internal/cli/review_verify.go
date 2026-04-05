@@ -12,7 +12,7 @@ import (
 	"github.com/deligoez/tp/internal/output"
 )
 
-func runReviewVerify(specPath, findingsPath string, affectedFiles []string, diffFrom string, specRef bool) error {
+func runReviewVerify(specPath, findingsPath string, affectedFiles []string, diffFrom string, specInline bool) error {
 	if findingsPath == "" {
 		output.Error(ExitUsage, "--verify requires --findings (nothing to verify without previous findings)")
 		os.Exit(ExitUsage)
@@ -78,14 +78,15 @@ func runReviewVerify(specPath, findingsPath string, affectedFiles []string, diff
 		currData, _ := os.ReadFile(specPath)
 		dr := engine.DiffSections(strings.Split(string(baseData), "\n"), strings.Split(string(currData), "\n"))
 		specContent = buildDiffSpecContent(&dr)
-	case specRef:
+	case specInline:
+		specContent = readSpecContent(specPath)
+	default:
+		// Default: reference mode — omit inline content
 		specData, _ := os.ReadFile(specPath)
 		lineCount := strings.Count(string(specData), "\n") + 1
 		absPath, _ := filepath.Abs(specPath)
 		headings, _ := engine.ParseHeadings(specPath)
 		specContent = buildSpecRefContent(absPath, lineCount, headings)
-	default:
-		specContent = readSpecContent(specPath)
 	}
 
 	// Build prompt
@@ -110,7 +111,7 @@ func runReviewVerify(specPath, findingsPath string, affectedFiles []string, diff
 		},
 	}
 
-	if specRef {
+	if !specInline {
 		result.SpecRef = true
 		result.SpecPath = absPath
 	}

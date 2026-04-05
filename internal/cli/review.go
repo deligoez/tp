@@ -91,7 +91,7 @@ func newReviewCmd() *cobra.Command {
 	var reportMode bool
 	var outputPath string
 	var diffFrom string
-	var specRef bool
+	var specInline bool
 	var forceFlag bool
 
 	cmd := &cobra.Command{
@@ -118,9 +118,9 @@ Modes (mutually exclusive):
 					os.Exit(ExitUsage)
 					return nil
 				}
-				return runReview(cmd, args[0], round, findingsPath, perspective, docsPath, testPath, affectedFiles, finalRound, diffFrom, specRef)
+				return runReview(cmd, args[0], round, findingsPath, perspective, docsPath, testPath, affectedFiles, finalRound, diffFrom, specInline)
 			}
-			if err := validateModeFlags(mode, round, findingsPath, affectedFiles, finalRound, diffFrom, specRef, perspective); err != nil {
+			if err := validateModeFlags(mode, round, findingsPath, affectedFiles, finalRound, diffFrom, specInline, perspective); err != nil {
 				output.Error(ExitUsage, err.Error())
 				os.Exit(ExitUsage)
 				return nil
@@ -138,7 +138,7 @@ Modes (mutually exclusive):
 					os.Exit(ExitUsage)
 					return nil
 				}
-				return runReviewVerify(args[0], findingsPath, affectedFiles, diffFrom, specRef)
+				return runReviewVerify(args[0], findingsPath, affectedFiles, diffFrom, specInline)
 			case "report":
 				return runReviewReport(args)
 			default:
@@ -166,7 +166,7 @@ Modes (mutually exclusive):
 	cmd.Flags().BoolVar(&reportMode, "report", false, "Generate cross-round convergence report")
 	cmd.Flags().StringVarP(&outputPath, "output", "o", "", "Output file path (for --merge)")
 	cmd.Flags().StringVar(&diffFrom, "diff-from", "", "Baseline spec for diff-based review (requires --round >= 2)")
-	cmd.Flags().BoolVar(&specRef, "spec-ref", false, "Reference spec by path instead of inline content")
+	cmd.Flags().BoolVar(&specInline, "spec-inline", false, "Embed full spec content inline (default: reference by path)")
 	cmd.Flags().BoolVar(&forceFlag, "force", false, "Force re-resolve already resolved findings")
 
 	return cmd
@@ -201,7 +201,7 @@ func detectReviewMode(merge, resolve, resolveAll, verify, report bool) string {
 }
 
 // validateModeFlags checks that modifier flags are compatible with the active mode.
-func validateModeFlags(mode string, round int, findingsPath string, affectedFiles []string, finalRound bool, diffFrom string, specRef bool, perspective string) error {
+func validateModeFlags(mode string, round int, findingsPath string, affectedFiles []string, finalRound bool, diffFrom string, specInline bool, perspective string) error {
 	if strings.HasPrefix(mode, "conflict:") {
 		pair := strings.TrimPrefix(mode, "conflict:")
 		return fmt.Errorf("--%s are mutually exclusive", strings.Replace(pair, "+", " and --", 1))
@@ -224,12 +224,12 @@ func validateModeFlags(mode string, round int, findingsPath string, affectedFile
 		if diffFrom != "" {
 			return fmt.Errorf("--%s is mutually exclusive with --diff-from", mode)
 		}
-		if specRef {
-			return fmt.Errorf("--%s is mutually exclusive with --spec-ref", mode)
+		if specInline {
+			return fmt.Errorf("--%s is mutually exclusive with --spec-inline", mode)
 		}
 	}
 
-	// Verify rejects --round, --final-round, and --perspective but allows --findings, --affected-files, --diff-from, --spec-ref
+	// Verify rejects --round, --final-round, and --perspective but allows --findings, --affected-files, --diff-from, --spec-inline
 	if mode == "verify" {
 		if round != 1 {
 			return fmt.Errorf("--verify is mutually exclusive with --round (verification is not a numbered round)")
@@ -250,7 +250,7 @@ func validateModeFlags(mode string, round int, findingsPath string, affectedFile
 // runReviewVerify — implemented in review_verify.go.
 // runReviewReport — implemented in review_report.go.
 
-func runReview(_ *cobra.Command, specPath string, round int, findingsPath, perspective, docsPath, testPath string, affectedFiles []string, finalRound bool, diffFrom string, specRef bool) error {
+func runReview(_ *cobra.Command, specPath string, round int, findingsPath, perspective, docsPath, testPath string, affectedFiles []string, finalRound bool, diffFrom string, specInline bool) error {
 	validPerspectives := map[string]bool{"documentation": true, "testing": true, "code-audit": true}
 
 	if perspective != "" && !validPerspectives[perspective] {
@@ -340,7 +340,7 @@ func runReview(_ *cobra.Command, specPath string, round int, findingsPath, persp
 		}
 	}
 
-	// Build spec content based on mode: full, diff-based, or spec-ref
+	// Build spec content based on mode: spec-ref (default), diff-based, or inline
 	var specContent string
 	var diffResult *engine.DiffResult
 	switch {
@@ -363,7 +363,10 @@ func runReview(_ *cobra.Command, specPath string, round int, findingsPath, persp
 		if len(diffResult.Changed) == 0 && len(diffResult.Removed) == 0 {
 			output.Info("no changes detected between baseline and current spec — review may be unnecessary")
 		}
-	case specRef:
+	case specInline:
+		specContent = readSpecContent(specPath)
+	default:
+		// Default: reference mode (spec-ref) — omit inline content
 		specData, err := os.ReadFile(specPath)
 		if err != nil {
 			output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath))
@@ -374,8 +377,6 @@ func runReview(_ *cobra.Command, specPath string, round int, findingsPath, persp
 		absPath, _ := filepath.Abs(specPath)
 		headings, _ := engine.ParseHeadings(specPath)
 		specContent = buildSpecRefContent(absPath, lineCount, headings)
-	default:
-		specContent = readSpecContent(specPath)
 	}
 
 	if perspective == "code-audit" {
@@ -526,7 +527,7 @@ func runReview(_ *cobra.Command, specPath string, round int, findingsPath, persp
 		instruction = fmt.Sprintf("Spawn sub-agents for each prompt. Collect findings. If any critical/high severity, revise spec and re-run `tp review --round %d --findings <combined.ndjson>`. Stop after max_rounds or when no new high-severity findings.", round+1)
 	}
 
-	if specRef {
+	if !specInline {
 		absPath, _ := filepath.Abs(specPath)
 		instruction += " Read the spec at " + absPath + " before processing each prompt."
 	}
@@ -544,7 +545,7 @@ func runReview(_ *cobra.Command, specPath string, round int, findingsPath, persp
 		},
 	}
 
-	if specRef {
+	if !specInline {
 		absPath, _ := filepath.Abs(specPath)
 		result.SpecRef = true
 		result.SpecPath = absPath

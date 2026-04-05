@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.17.0-ax-improvements.md",
   "created_at": "2026-04-05T17:05:40.644882Z",
-  "updated_at": "2026-04-05T17:14:22.584519Z",
+  "updated_at": "2026-04-05T17:15:12.455851Z",
   "workflow": {},
   "coverage": {
     "total_sections": 59,
@@ -173,7 +173,7 @@
     {
       "id": "resolve-all-hint",
       "title": "Add next_step hint after --resolve-all",
-      "status": "open",
+      "status": "done",
       "depends_on": [],
       "estimate_minutes": 8,
       "acceptance": "--resolve-all includes next_step with template and findings path. --resolve includes next_step only when all resolved. Always included even if all skipped. JSON backward-compatible.",
@@ -181,11 +181,11 @@
         "### 5.J — Auto-Verify Hint After `--resolve-all`"
       ],
       "source_lines": "360-391",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-04-05T17:15:12.240116Z",
+      "closed_at": "2026-04-05T17:15:12.455851Z",
+      "closed_reason": "next_step added to resolve-all (always) and resolve (when all resolved), tests pass",
+      "gate_passed_at": "2026-04-05T17:15:12.455851Z",
+      "commit_sha": "693b23e"
     },
     {
       "id": "update-docs",

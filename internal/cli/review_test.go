@@ -56,6 +56,7 @@ Users need X.
 3. Write tests
 `), 0o600))
 
+	// Default: spec-ref mode (no inline content)
 	stdout, stderr, code := runTP(t, dir, "review", specPath)
 	require.Equal(t, 0, code, "review should succeed: %s", stderr)
 
@@ -66,21 +67,40 @@ Users need X.
 	prompts := result["prompts"].([]any)
 	assert.Len(t, prompts, 3)
 
-	// Check roles
+	// Check roles — default mode uses spec-ref (no inline content)
 	roles := make(map[string]bool)
 	for _, p := range prompts {
 		pm := p.(map[string]any)
 		roles[pm["role"].(string)] = true
-		// Each prompt should contain spec content
-		assert.Contains(t, pm["prompt"].(string), "Users need X")
+		// Spec-ref: prompts should NOT contain inline spec content, but should reference the file
+		assert.NotContains(t, pm["prompt"].(string), "Users need X")
+		assert.Contains(t, pm["prompt"].(string), "Read the spec file before reviewing")
 	}
 	assert.True(t, roles["implementer"])
 	assert.True(t, roles["tester"])
 	assert.True(t, roles["architect"])
 
+	// spec_ref and spec_path should be set
+	assert.Equal(t, true, result["spec_ref"])
+	assert.NotEmpty(t, result["spec_path"])
+
 	// Review loop
 	loop := result["review_loop"].(map[string]any)
 	assert.Equal(t, float64(2), loop["max_rounds"])
+
+	// --spec-inline: should contain inline spec content
+	stdoutInline, stderrInline, codeInline := runTP(t, dir, "review", "--spec-inline", specPath)
+	require.Equal(t, 0, codeInline, "review --spec-inline should succeed: %s", stderrInline)
+
+	var resultInline map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdoutInline), &resultInline))
+	promptsInline := resultInline["prompts"].([]any)
+	for _, p := range promptsInline {
+		pm := p.(map[string]any)
+		assert.Contains(t, pm["prompt"].(string), "Users need X")
+	}
+	// spec_ref should NOT be set for inline mode
+	assert.Nil(t, resultInline["spec_ref"])
 }
 
 func TestReviewStructuredElementsInPrompts(t *testing.T) {
@@ -1437,7 +1457,7 @@ func TestReviewMergeRejectsModifierFlags(t *testing.T) {
 		{"merge+affected-files", []string{"review", "--merge", "--affected-files", fPath, fPath}},
 		{"merge+final-round", []string{"review", "--merge", "--final-round", fPath}},
 		{"merge+diff-from", []string{"review", "--merge", "--diff-from", fPath, fPath}},
-		{"merge+spec-ref", []string{"review", "--merge", "--spec-ref", fPath}},
+		{"merge+spec-inline", []string{"review", "--merge", "--spec-inline", fPath}},
 	}
 
 	for _, tt := range tests {
