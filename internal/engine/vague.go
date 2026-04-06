@@ -184,3 +184,77 @@ func CheckNumberingGaps(headings []*Heading) []Finding {
 
 	return findings
 }
+
+// CheckOrphanListItems detects numbered lists that start at >1 or have gaps.
+// Only checks lines matching "N. " pattern outside fenced code blocks.
+func CheckOrphanListItems(lines []string) []Finding {
+	var findings []Finding
+	inCodeBlock := false
+	listNumRegex := regexp.MustCompile(`^(\d+)\.\s`)
+
+	type listGroup struct {
+		startLine int
+		numbers   []int
+		lines     []int
+	}
+
+	var current *listGroup
+
+	flush := func() {
+		if current == nil || len(current.numbers) < 2 {
+			current = nil
+			return
+		}
+		// Check start > 1
+		if current.numbers[0] != 1 {
+			findings = append(findings, Finding{
+				Line:     current.lines[0],
+				Severity: "info",
+				Rule:     "orphan-list-item",
+				Message:  fmt.Sprintf("numbered list starts at %d (expected 1)", current.numbers[0]),
+			})
+		}
+		// Check gaps
+		for i := 1; i < len(current.numbers); i++ {
+			expected := current.numbers[i-1] + 1
+			actual := current.numbers[i]
+			if actual != expected {
+				findings = append(findings, Finding{
+					Line:     current.lines[i],
+					Severity: "info",
+					Rule:     "orphan-list-item",
+					Message:  fmt.Sprintf("numbered list gap: expected %d, got %d", expected, actual),
+				})
+			}
+		}
+		current = nil
+	}
+
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		if strings.HasPrefix(trimmed, "```") {
+			inCodeBlock = !inCodeBlock
+			flush()
+			continue
+		}
+		if inCodeBlock {
+			continue
+		}
+
+		match := listNumRegex.FindStringSubmatch(trimmed)
+		if match != nil {
+			num, _ := strconv.Atoi(match[1])
+			if current == nil {
+				current = &listGroup{startLine: i + 1}
+			}
+			current.numbers = append(current.numbers, num)
+			current.lines = append(current.lines, i+1)
+		} else if trimmed != "" {
+			flush()
+		}
+	}
+	flush()
+
+	return findings
+}

@@ -208,6 +208,10 @@ skills/tp/
 - Agent feedback from other projects is high-priority — real-world usage reveals blind spots
 - Every improvement should be evaluated: does this reduce token overhead or agent friction?
 
+### Deferred Ideas (evaluate when agent feedback warrants)
+- **Review state directory** (`.tp-review/`): auto-manage findings files per round, auto-discover `--findings` from previous round. Currently agents manage files manually per SKILL.md convention. Revisit if agents consistently struggle with file management across 10+ rounds.
+- **Diff-based review auto-activation**: tp auto-snapshots spec each round and auto-diffs on round 2+. Depends on review state directory. Currently agents use `--diff-from` manually per SKILL.md recipe.
+- **Broken cross-reference lint**: detect `§3.2 step 10` when section 3.2 has only 9 steps. High false positive risk — needs careful format detection. Revisit if agents report wasted review rounds on broken cross-refs.
 ## Tech Stack
 
 - **Language:** Go

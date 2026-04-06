@@ -227,3 +227,30 @@ func TestCheckNumberingGaps(t *testing.T) {
 		})
 	}
 }
+
+func TestCheckOrphanListItems(t *testing.T) {
+	tests := []struct {
+		name  string
+		lines []string
+		count int
+		rule  string
+	}{
+		{"sequential", []string{"1. First", "2. Second", "3. Third"}, 0, ""},
+		{"starts at 3", []string{"3. Third", "4. Fourth"}, 1, "orphan-list-item"},
+		{"gap 1 to 3", []string{"1. First", "3. Third"}, 1, "orphan-list-item"},
+		{"single item", []string{"1. Only one"}, 0, ""},
+		{"code block excluded", []string{"```", "3. Not a list", "4. Also not", "```"}, 0, ""},
+		{"non-list between", []string{"1. First", "Some text", "1. New list", "2. Second"}, 0, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			findings := CheckOrphanListItems(tt.lines)
+			assert.Equal(t, tt.count, len(findings))
+			if tt.count > 0 {
+				assert.Equal(t, tt.rule, findings[0].Rule)
+				assert.Equal(t, "info", findings[0].Severity)
+			}
+		})
+	}
+}

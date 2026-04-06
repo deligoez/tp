@@ -923,9 +923,34 @@ func buildFindingsSummary(findings []reviewFinding) string {
 		b.WriteString("\n")
 	}
 
-	// Section 2: Resolved findings (count only)
+	// Section 2: Resolved findings — show high/critical to prevent regression
 	if resolvedCount > 0 {
-		fmt.Fprintf(&b, "Additionally, %d findings from previous rounds were RESOLVED (fixed or duplicate) and are no longer active.\n", resolvedCount)
+		fmt.Fprintf(&b, "Additionally, %d findings from previous rounds were RESOLVED (fixed or duplicate).\n", resolvedCount)
+
+		// List high/critical resolved findings briefly to prevent regression
+		var highResolved []reviewFinding
+		for _, f := range deduped {
+			if f.Resolved != nil && (f.Resolved.Status == "fixed" || f.Resolved.Status == "duplicate") {
+				if f.Severity == "critical" || f.Severity == "high" {
+					highResolved = append(highResolved, f)
+				}
+			}
+		}
+		if len(highResolved) > 0 {
+			b.WriteString("Resolved high/critical (DO NOT regress):\n")
+			maxShow := 10
+			if len(highResolved) < maxShow {
+				maxShow = len(highResolved)
+			}
+			for _, f := range highResolved[:maxShow] {
+				text := f.Finding
+				if len(text) > 60 {
+					text = text[:60] + "..."
+				}
+				fmt.Fprintf(&b, "  [RESOLVED] %s: %s\n", f.Location, text)
+			}
+			b.WriteString("\n")
+		}
 	}
 
 	b.WriteString("Do not re-report resolved issues. Focus ONLY on NEW issues in the current spec.\n")
