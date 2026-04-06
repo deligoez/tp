@@ -1086,7 +1086,7 @@ func generateDocPlanPrompt(specContent, structureMap string, fileContents map[st
 	var b strings.Builder
 
 	b.WriteString("You are a technical writer planning documentation changes for a new feature. Your goal is to compare the specification against existing documentation and produce a structured plan of changes needed.\n\n")
-
+	b.WriteString(specOnlyDisclaimer)
 	b.WriteString("Spec content:\n---\n")
 	b.WriteString(specContent)
 	b.WriteString("\n---\n\n")
@@ -1123,7 +1123,7 @@ func generateTestPlanPrompt(specContent, structureMap string, fileContents map[s
 	var b strings.Builder
 
 	b.WriteString("You are a QA engineer planning test coverage for a new feature. Your goal is to analyze the specification and produce a structured test plan covering all requirements.\n\n")
-
+	b.WriteString(specOnlyDisclaimer)
 	b.WriteString("Spec content:\n---\n")
 	b.WriteString(specContent)
 	b.WriteString("\n---\n\n")

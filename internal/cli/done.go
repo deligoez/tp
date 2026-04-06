@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -469,6 +470,7 @@ func runDoneBatch() error {
 		}
 
 		closedCount := 0
+		skippedCount := 0
 		var failures []batchFailure
 		now := time.Now().UTC()
 
@@ -480,6 +482,14 @@ func runDoneBatch() error {
 			}
 		}
 
+		// Toposort batch entries by in-batch dependencies
+		entries, reordered, batchCycles := toposortBatchEntries(entries, tf)
+		// Build batch ID set for hint generation
+		batchIDs := make(map[string]bool, len(entries))
+		for _, e := range entries {
+			batchIDs[e.ID] = true
+		}
+
 		for _, entry := range entries {
 			task, _, findErr := model.FindTask(tf, entry.ID)
 			if findErr != nil {
@@ -487,9 +497,19 @@ func runDoneBatch() error {
 				continue
 			}
 
+			// Fail cycle members
+			if batchCycles[entry.ID] {
+				failures = append(failures, batchFailure{
+					ID:    entry.ID,
+					Error: "dependency cycle detected",
+					Hint:  "break the cycle in the task file",
+				})
+				continue
+			}
 			// Skip already done (idempotent)
 			if task.Status == model.StatusDone {
-				closedCount++ // count as success for idempotent retries
+				skippedCount++
+				doneSet[task.ID] = true
 				continue
 			}
 
@@ -497,15 +517,25 @@ func runDoneBatch() error {
 			if task.Status == model.StatusOpen {
 				blocked := false
 				for _, dep := range task.DependsOn {
-					if !doneSet[dep] {
-						failures = append(failures, batchFailure{
-							ID:    entry.ID,
-							Error: fmt.Sprintf("blocked by %s", dep),
-							Hint:  fmt.Sprintf("Close %s first.", dep),
-						})
-						blocked = true
-						break
+					if doneSet[dep] {
+						continue
 					}
+					hint := fmt.Sprintf("Close %s first.", dep)
+					depTask, _, depErr := model.FindTask(tf, dep)
+					if depErr == nil {
+						if !batchIDs[dep] {
+							hint = fmt.Sprintf("close %s first (not in batch)", dep)
+						} else if depTask.Status == model.StatusWIP {
+							hint = fmt.Sprintf("%s is wip, not done", dep)
+						}
+					}
+					failures = append(failures, batchFailure{
+						ID:    entry.ID,
+						Error: fmt.Sprintf("blocked by %s", dep),
+						Hint:  hint,
+					})
+					blocked = true
+					break
 				}
 				if blocked {
 					continue
@@ -593,8 +623,10 @@ func runDoneBatch() error {
 		}
 
 		result := map[string]any{
-			"closed": closedCount,
-			"failed": len(failures),
+			"closed":    closedCount,
+			"failed":    len(failures),
+			"skipped":   skippedCount,
+			"reordered": reordered,
 			"remaining": map[string]any{
 				"total": len(tf.Tasks),
 				"open":  openCount,
@@ -691,4 +723,124 @@ func coveredByHint(tf *model.TaskFile, givenID string) string {
 		return fmt.Sprintf("did you mean: %s?", strings.Join(suggestions, ", "))
 	}
 	return "use tp list --ids to see all task IDs"
+}
+
+// toposortBatchEntries reorders batch entries by in-batch dependency order.
+// Returns the reordered entries and whether any reordering occurred.
+func toposortBatchEntries(entries []batchEntry, tf *model.TaskFile) (sorted []batchEntry, reordered bool, cycles map[string]bool) {
+	if len(entries) <= 1 {
+		return entries, false, nil
+	}
+
+	// Build set of IDs in this batch
+	batchIDs := make(map[string]bool, len(entries))
+	for _, e := range entries {
+		batchIDs[e.ID] = true
+	}
+
+	// Build in-batch dependency graph
+	deps := make(map[string][]string)
+	for _, e := range entries {
+		task, _, err := model.FindTask(tf, e.ID)
+		if err != nil {
+			continue
+		}
+		for _, dep := range task.DependsOn {
+			if batchIDs[dep] {
+				deps[e.ID] = append(deps[e.ID], dep)
+			}
+		}
+		// covered_by is also a dependency for ordering
+		if e.CoveredBy != "" && batchIDs[e.CoveredBy] {
+			deps[e.ID] = append(deps[e.ID], e.CoveredBy)
+		}
+	}
+
+	// If no in-batch deps, no reordering needed
+	hasDeps := false
+	for _, d := range deps {
+		if len(d) > 0 {
+			hasDeps = true
+			break
+		}
+	}
+	if !hasDeps {
+		return entries, false, nil
+	}
+
+	// Detect cycles using DFS coloring (0=unvisited, 1=in-progress, 2=done)
+	color := make(map[string]int)
+	cycles = make(map[string]bool)
+	var detectCycle func(id string) bool
+	detectCycle = func(id string) bool {
+		color[id] = 1
+		for _, dep := range deps[id] {
+			if color[dep] == 1 {
+				cycles[id] = true
+				cycles[dep] = true
+				return true
+			}
+			if color[dep] == 0 && detectCycle(dep) {
+				cycles[id] = true
+				return true
+			}
+		}
+		color[id] = 2
+		return false
+	}
+	for _, e := range entries {
+		if color[e.ID] == 0 {
+			detectCycle(e.ID)
+		}
+	}
+
+	// Compute depth for each non-cycle entry (longest path from root)
+	depth := make(map[string]int)
+	var computeDepth func(id string, visited map[string]bool) int
+	computeDepth = func(id string, visited map[string]bool) int {
+		if d, ok := depth[id]; ok {
+			return d
+		}
+		if visited[id] || cycles[id] {
+			return 0
+		}
+		visited[id] = true
+		maxDep := 0
+		for _, dep := range deps[id] {
+			d := computeDepth(dep, visited) + 1
+			if d > maxDep {
+				maxDep = d
+			}
+		}
+		depth[id] = maxDep
+		return maxDep
+	}
+	for _, e := range entries {
+		if !cycles[e.ID] {
+			computeDepth(e.ID, make(map[string]bool))
+		}
+	}
+
+	// Cycle members get depth -1 so they sort first (will fail during processing)
+	for id := range cycles {
+		depth[id] = -1
+	}
+
+	// Stable sort by depth ascending
+	sorted = make([]batchEntry, len(entries))
+	copy(sorted, entries)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		return depth[sorted[i].ID] < depth[sorted[j].ID]
+	})
+
+	// Check if order actually changed
+	reordered = false
+	for i, e := range sorted {
+		if e.ID != entries[i].ID {
+			reordered = true
+			break
+		}
+	}
+
+	return sorted, reordered, cycles
 }
