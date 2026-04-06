@@ -365,6 +365,7 @@ tp lint spec.md --json | jq '.findings[] | select(.rule)'
 | `affected-files-scope` | warning | Modify rows in affected files table without scope description |
 | `duplicate-line` | warning | Consecutive identical non-empty lines (edit artifacts) |
 | `numbering-gap` | warning | Gaps in numbered section headings (e.g., 4.1 → 4.3, missing 4.2) |
+| `orphan-list-item` | info | Numbered lists starting at >1 or with gaps (e.g., 1, 3 — missing 2) |
 
 `tp validate` checks line coverage — verifying that task `source_lines` cover the entire spec:
 
