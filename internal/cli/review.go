@@ -565,6 +565,12 @@ For each issue found, respond with one JSON object per line (NDJSON):
 
 Only report real issues. Do not generate findings just to appear thorough.`
 
+const specOnlyDisclaimer = `
+IMPORTANT: This is a SPEC REVIEW. Review ONLY the spec document text.
+Do NOT check implementation code or report "not implemented" findings.
+Focus on: completeness, ambiguity, contradictions, missing edge cases, testability.
+`
+
 func appendAffectedChecklist(b *strings.Builder, n int, hasAffectedFiles bool) {
 	if hasAffectedFiles {
 		fmt.Fprintf(b, "%d. For each state-dependent behavior in the affected files (disabled, loading, visibility, conditional rendering, error handling), verify the spec addresses it. What controls each condition?\n", n+1)
@@ -575,6 +581,11 @@ func appendFinalRoundInstruction(b *strings.Builder) {
 	b.WriteString("\nMANDATORY: Read every file in the Affected Files section line-by-line. For each state-dependent behavior (disabled, loading, conditional rendering, class binding, error handling), verify the spec explicitly addresses it. Do NOT report \"spec is solid\" unless you have verified every state-dependent element.\n")
 }
 
+func appendSpecOnlyDisclaimer(b *strings.Builder, affectedSection string) {
+	if affectedSection == "" {
+		b.WriteString(specOnlyDisclaimer)
+	}
+}
 func generateImplementerPrompt(elems *engine.StructuredElements, specContent string, round int, summary, affectedSection string, finalRound bool) reviewPrompt {
 	var b strings.Builder
 	if round >= 2 {
@@ -582,6 +593,7 @@ func generateImplementerPrompt(elems *engine.StructuredElements, specContent str
 	} else {
 		b.WriteString("You are a senior engineer who must implement this spec tomorrow. Your goal is to find requirements that are missing, underspecified, or impossible to implement as stated.\n\n")
 	}
+	appendSpecOnlyDisclaimer(&b, affectedSection)
 	if summary != "" {
 		b.WriteString(summary)
 		b.WriteString("\n")
@@ -632,6 +644,7 @@ func generateTesterPrompt(elems *engine.StructuredElements, specContent string, 
 	} else {
 		b.WriteString("You are a QA engineer who must write tests from this spec. Your goal is to find requirements that are ambiguous (two testers would write contradictory tests) or non-verifiable (cannot write a pass/fail test).\n\n")
 	}
+	appendSpecOnlyDisclaimer(&b, affectedSection)
 	if summary != "" {
 		b.WriteString(summary)
 		b.WriteString("\n")
@@ -682,6 +695,7 @@ func generateArchitectPrompt(elems *engine.StructuredElements, specContent strin
 	} else {
 		b.WriteString("You are a senior architect reviewing this spec for approval before implementation begins. Your goal is to find contradictions between sections, missing backward compatibility analysis, and feasibility issues.\n\n")
 	}
+	appendSpecOnlyDisclaimer(&b, affectedSection)
 	if summary != "" {
 		b.WriteString(summary)
 		b.WriteString("\n")
