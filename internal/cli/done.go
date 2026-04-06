@@ -498,10 +498,10 @@ func runDoneBatch() error {
 			}
 
 			// Fail cycle members
-			if batchCycles[entry.ID] {
+			if path := batchCycles[entry.ID]; path != "" {
 				failures = append(failures, batchFailure{
 					ID:    entry.ID,
-					Error: "dependency cycle detected",
+					Error: fmt.Sprintf("dependency cycle: %s", path),
 					Hint:  "break the cycle in the task file",
 				})
 				continue
@@ -727,7 +727,7 @@ func coveredByHint(tf *model.TaskFile, givenID string) string {
 
 // toposortBatchEntries reorders batch entries by in-batch dependency order.
 // Returns the reordered entries and whether any reordering occurred.
-func toposortBatchEntries(entries []batchEntry, tf *model.TaskFile) (sorted []batchEntry, reordered bool, cycles map[string]bool) {
+func toposortBatchEntries(entries []batchEntry, tf *model.TaskFile) (sorted []batchEntry, reordered bool, cycles map[string]string) {
 	if len(entries) <= 1 {
 		return entries, false, nil
 	}
@@ -768,20 +768,43 @@ func toposortBatchEntries(entries []batchEntry, tf *model.TaskFile) (sorted []ba
 		return entries, false, nil
 	}
 
+	// Remove already-done tasks from graph before cycle detection
+	for _, e := range entries {
+		task, _, err := model.FindTask(tf, e.ID)
+		if err == nil && task.Status == model.StatusDone {
+			delete(deps, e.ID)
+			for k, v := range deps {
+				filtered := v[:0]
+				for _, d := range v {
+					if d != e.ID {
+						filtered = append(filtered, d)
+					}
+				}
+				deps[k] = filtered
+			}
+		}
+	}
+
 	// Detect cycles using DFS coloring (0=unvisited, 1=in-progress, 2=done)
 	color := make(map[string]int)
-	cycles = make(map[string]bool)
-	var detectCycle func(id string) bool
-	detectCycle = func(id string) bool {
+	cycles = make(map[string]string) // id -> cycle path description
+	var detectCycle func(id string, path []string) bool
+	detectCycle = func(id string, path []string) bool {
 		color[id] = 1
+		path = append(path, id)
 		for _, dep := range deps[id] {
 			if color[dep] == 1 {
-				cycles[id] = true
-				cycles[dep] = true
+				chain := strings.Join(append(path, dep), " → ")
+				for _, p := range path {
+					cycles[p] = chain
+				}
+				cycles[dep] = chain
 				return true
 			}
-			if color[dep] == 0 && detectCycle(dep) {
-				cycles[id] = true
+			if color[dep] == 0 && detectCycle(dep, path) {
+				if cycles[id] == "" {
+					cycles[id] = cycles[dep]
+				}
 				return true
 			}
 		}
@@ -790,7 +813,7 @@ func toposortBatchEntries(entries []batchEntry, tf *model.TaskFile) (sorted []ba
 	}
 	for _, e := range entries {
 		if color[e.ID] == 0 {
-			detectCycle(e.ID)
+			detectCycle(e.ID, nil)
 		}
 	}
 
@@ -801,7 +824,7 @@ func toposortBatchEntries(entries []batchEntry, tf *model.TaskFile) (sorted []ba
 		if d, ok := depth[id]; ok {
 			return d
 		}
-		if visited[id] || cycles[id] {
+		if visited[id] || cycles[id] != "" {
 			return 0
 		}
 		visited[id] = true
@@ -816,7 +839,7 @@ func toposortBatchEntries(entries []batchEntry, tf *model.TaskFile) (sorted []ba
 		return maxDep
 	}
 	for _, e := range entries {
-		if !cycles[e.ID] {
+		if cycles[e.ID] == "" {
 			computeDepth(e.ID, make(map[string]bool))
 		}
 	}
