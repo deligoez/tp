@@ -194,6 +194,7 @@ Before recording a result:
 4. Never use: "deferred", "covered by existing" (without proof), single-word reasons
 5. Use `--gate-passed` (or `"gate_passed":true` in batch) to relax keyword matching — evidence like "2559 tests pass" is accepted without needing exact acceptance wording
 6. Use `--covered-by <task-id>` when a task is satisfied by work in another done task (not a deferral — work IS done, just in a different task). Batch: `"covered_by":"other-task-id"`
+   - If the referenced ID is not found, tp suggests similar IDs ("did you mean: X, Y?")
 
 **Important:** `tp done` auto-claims open tasks — no need for a separate `tp claim` call.
 
@@ -281,7 +282,7 @@ tp done id1 id2 id3 "shared evidence" --gate-passed  # multi-ID close
 ### Spec & Validation
 | Command | Purpose |
 |---------|---------|
-| `tp lint spec.md` | Spec quality + structured elements |
+| `tp lint spec.md` | Spec quality + structured elements + duplicate lines + numbering gaps |
 | `tp review spec.md` | Adversarial review prompts (3 personas) |
 | `tp review spec.md --perspective code-audit --affected-files src/a.go` | Code audit with source file injection |
 | `tp review spec.md --round N --findings file.ndjson` | Multi-round with previous findings exclusion |
@@ -307,6 +308,7 @@ tp done id1 id2 id3 "shared evidence" --gate-passed  # multi-ID close
 | `tp add <json>` | Add task (--stdin for piped input) |
 | `tp add --bulk tasks.ndjson` | Bulk add from NDJSON |
 | `tp import file.json` | Import + validate (--force to overwrite + relax atomicity) |
+| `tp import tasks.json --spec spec.md` | Import bare JSON array (auto-wraps into TaskFile) |
 | `tp use <file>` | Set active task file (.tp-active) |
 | `tp use --clear` | Remove .tp-active marker |
 | `tp use` | Show current active file |

@@ -110,6 +110,7 @@ tp validate                    # Task file validation (--strict)
 tp init <spec.md>              # Create empty task file
 tp add <json>                  # Add task (--stdin, --bulk for NDJSON bulk)
 tp import <file>               # Import + validate (--force to overwrite, auto-fills coverage)
+tp import <file> --spec <spec> # Import bare JSON array (auto-wraps into TaskFile)
 tp use <file>                  # Set active task file (.tp-active marker)
 tp use --clear                 # Remove .tp-active
 tp use                         # Show current active file
@@ -149,6 +150,7 @@ internal/
   engine/            Core logic (toposort, closure, validate, lint, parallel, discover, lock, excerpt, linecoverage, structured)
                      diff.go            — section-level spec diff (for --diff-from)
                      fileio.go          — shared file I/O, budget-aware reading, affected summary
+                     suggest.go         — task ID suggestion for covered_by did-you-mean hints
   model/             Data types (TaskFile, Task, Workflow, Coverage)
   output/            Formatting (JSON/TTY, compact, colors, hint errors)
 spec/
@@ -174,8 +176,9 @@ skills/tp/
    - `tp commit <id> "evidence"` — atomic structured commit
    - `tp done <id> "evidence" --gate-passed --commit <sha>`
    - Or: `tp done <id> "evidence" --gate-passed --auto-commit`
-7. **Report**: Last `tp done` auto-includes report summary. Or: `tp report` for full details
-8. **Release**: tag, push, `gh release edit` with notes
+7. **Audit**: `tp audit spec/<version>.md` → spawn sub-agents, verify code matches spec
+8. **Report**: Last `tp done` auto-includes report summary. Or: `tp report` for full details
+9. **Release**: tag, push, `gh release edit` with notes
 
 ### Rules
 - Every task MUST have `source_lines` mapping to spec lines

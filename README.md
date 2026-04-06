@@ -143,6 +143,7 @@ tp init spec.md                # Create empty task file
 tp add <json>                  # Add task (--stdin for piped input)
 tp add --bulk tasks.ndjson     # Bulk add from NDJSON
 tp import file.json            # Import + validate (--force to overwrite + relax atomicity)
+tp import tasks.json --spec spec/feature.md  # Import bare JSON array (auto-wraps)
 tp use spec.tasks.json         # Set active task file (.tp-active)
 tp use --clear                 # Remove .tp-active marker
 tp use                         # Show current active file
@@ -362,6 +363,8 @@ tp lint spec.md --json | jq '.findings[] | select(.rule)'
 | `structured-elements` | info | Tables, numbered lists, code blocks in spec |
 | `acceptance-quality` | warning/info | Removal-only acceptance, vague verbs, short acceptance |
 | `affected-files-scope` | warning | Modify rows in affected files table without scope description |
+| `duplicate-line` | warning | Consecutive identical non-empty lines (edit artifacts) |
+| `numbering-gap` | warning | Gaps in numbered section headings (e.g., 4.1 → 4.3, missing 4.2) |
 
 `tp validate` checks line coverage — verifying that task `source_lines` cover the entire spec:
 
@@ -412,6 +415,7 @@ tp is designed for AI agents first (AX), not humans (DX):
 | **Edit hygiene lint** | `tp lint` detects duplicate lines and numbering gaps |
 | **Estimation calibration** | `tp add` warns when historical estimates are consistently high |
 | **Duration tracking** | `tp report` shows per-task timing and estimation accuracy |
+
 ## Claude Code Integration
 
 tp ships with a Claude Code skill via the [Agent Skills](https://agentskills.io) standard:
