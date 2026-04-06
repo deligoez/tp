@@ -53,6 +53,8 @@ func runLint(_ *cobra.Command, args []string) error {
 	findings = append(findings, engine.CheckVagueLanguage(lines)...)
 	findings = append(findings, engine.CheckSectionSize(headings, totalLines, 50)...)
 	findings = append(findings, engine.CheckSpecSize(totalLines, 500)...)
+	findings = append(findings, engine.CheckDuplicateConsecutiveLines(lines)...)
+	findings = append(findings, engine.CheckNumberingGaps(headings)...)
 
 	structFindings, structElems := engine.CheckStructuredElements(lines, headings)
 	findings = append(findings, structFindings...)
