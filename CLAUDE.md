@@ -225,9 +225,11 @@ skills/tp/
 - Managed fields (tp set rejects): status, started_at, closed_at, closed_reason, gate_passed_at, commit_sha
 - Pretty-printed JSON with 2-space indentation
 - spec_excerpt capped at 2000 chars
-- source_lines supports multi-range: "4-10,15-20,25-30"
-- `tp lint` reports structured elements (tables, numbered lists, code blocks)
+- source_lines supports multi-range: "4-10,15-20,25-30" and auto-normalizes single numbers ("72" → "72-72")
+- `tp lint` reports structured elements, duplicate consecutive lines, and section numbering gaps
 - `tp validate` checks line coverage (source_lines vs spec content lines)
+- `tp done --batch` auto-toposorts entries by in-batch dependencies
+- `tp import` accepts bare JSON arrays with `--spec` flag
 - Acceptance criteria delimiters: `. ` (period+space), `; ` (semicolon+space), `\n- ` (bullet list)
 
 ## Manual QA Testing
