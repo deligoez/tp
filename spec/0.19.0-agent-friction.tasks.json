@@ -1,0 +1,186 @@
+{
+  "version": 1,
+  "spec": "spec/0.19.0-agent-friction.md",
+  "created_at": "2026-04-06T08:09:03.316413Z",
+  "updated_at": "2026-04-06T09:05:28.15049Z",
+  "workflow": {},
+  "coverage": {
+    "total_sections": 0,
+    "mapped_sections": 0,
+    "context_only": [],
+    "unmapped": []
+  },
+  "tasks": [
+    {
+      "id": "source-lines-normalize",
+      "title": "Auto-normalize single source_lines",
+      "status": "done",
+      "depends_on": [],
+      "estimate_minutes": 8,
+      "acceptance": "ParseLineRanges normalizes single numbers to ranges. Test cases 1-6 pass. Invalid inputs still error.",
+      "source_sections": [
+        "### 1.1 Single Number to Range",
+        "### 1.2 Normalization Point"
+      ],
+      "source_lines": "32-60",
+      "started_at": "2026-04-06T08:11:45.793309Z",
+      "closed_at": "2026-04-06T08:11:52.303189Z",
+      "closed_reason": "ParseLineRanges normalizes '72' to 72-72, '4-10,72,80-90' to three ranges. Invalid inputs (zero, negative, abc, partial) still error. 14 test cases pass.",
+      "gate_passed_at": "2026-04-06T08:11:52.303189Z",
+      "commit_sha": "db5752e"
+    },
+    {
+      "id": "batch-toposort",
+      "title": "Dependency-aware batch close toposort",
+      "status": "done",
+      "depends_on": [],
+      "estimate_minutes": 15,
+      "acceptance": "Batch close toposorts entries by deps. Behavior table 9 scenarios pass. Skipped counter and reordered field present.",
+      "source_sections": [
+        "### 2.2 Solution: Topological Sort Before Processing",
+        "### 2.3 Behavior"
+      ],
+      "source_lines": "71-96",
+      "started_at": "2026-04-06T09:01:55.995906Z",
+      "closed_at": "2026-04-06T09:02:06.858708Z",
+      "closed_reason": "toposortBatchEntries: builds in-batch dep graph including covered_by, computes depth, stable sorts by depth ascending. skippedCount for already-done, reordered bool always in output. Idempotent test updated.",
+      "gate_passed_at": "2026-04-06T09:02:06.858708Z",
+      "commit_sha": "2cb540a"
+    },
+    {
+      "id": "batch-toposort-output",
+      "title": "Batch output schema changes",
+      "status": "done",
+      "depends_on": [
+        "batch-toposort"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Results array has status field (closed/failed/skipped). reordered always present. Test cases 1-8 pass.",
+      "source_sections": [
+        "### 2.4 Output Change",
+        "### 2.5 Test Cases"
+      ],
+      "source_lines": "97-126",
+      "started_at": "2026-04-06T09:02:17.432883Z",
+      "closed_at": "2026-04-06T09:02:17.432883Z",
+      "closed_reason": "Results array includes status via existing batchFailure struct. reordered always present (bool). skipped counter tracks already-done entries. Test cases covered in batch-toposort commit.",
+      "gate_passed_at": "2026-04-06T09:02:17.432883Z",
+      "commit_sha": null
+    },
+    {
+      "id": "lint-duplicate-lines",
+      "title": "Lint rule: duplicate consecutive lines",
+      "status": "done",
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "tp lint detects consecutive duplicate non-empty lines. Code blocks excluded. Context truncated to 80 chars. Test cases 1-5 pass.",
+      "source_sections": [
+        "### 3.1 Rule",
+        "### 3.2 Finding Format"
+      ],
+      "source_lines": "127-163",
+      "started_at": "2026-04-06T08:15:44.571881Z",
+      "closed_at": "2026-04-06T08:15:56.112157Z",
+      "closed_reason": "CheckDuplicateConsecutiveLines: consecutive non-empty lines detected, code blocks excluded, context truncated 80 chars. 10 test cases pass.",
+      "gate_passed_at": "2026-04-06T08:15:56.112157Z",
+      "commit_sha": "b778137"
+    },
+    {
+      "id": "lint-numbering-gaps",
+      "title": "Lint rule: section numbering gaps",
+      "status": "done",
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "tp lint detects heading numbering gaps. Reports all missing numbers. First heading sets baseline. Test cases 1-5 pass.",
+      "source_sections": [
+        "### 4.1 Rule",
+        "### 4.3 Detection Logic"
+      ],
+      "source_lines": "164-202",
+      "started_at": "2026-04-06T08:16:00.822023Z",
+      "closed_at": "2026-04-06T08:16:00.822024Z",
+      "closed_reason": "CheckNumberingGaps: groups headings by parent+level, reports all missing numbers, first heading sets baseline. 5 test cases pass.",
+      "gate_passed_at": "2026-04-06T08:16:00.822024Z",
+      "commit_sha": null
+    },
+    {
+      "id": "import-bare-array",
+      "title": "Import accepts bare JSON arrays",
+      "status": "done",
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "tp import detects bare array and wraps with --spec flag. NDJSON detection shows parse error. Test cases 1-5 pass.",
+      "source_sections": [
+        "### 5.2 Solution",
+        "### 5.3 Detection"
+      ],
+      "source_lines": "203-257",
+      "started_at": "2026-04-06T08:24:59.860846Z",
+      "closed_at": "2026-04-06T08:25:06.081987Z",
+      "closed_reason": "Bare array detected by first byte [, wraps into TaskFile with --spec required. NDJSON heuristic (2+ lines starting {) after TaskFile parse failure. Existing TaskFile format unchanged.",
+      "gate_passed_at": "2026-04-06T08:25:06.081987Z",
+      "commit_sha": "ee4a8bb"
+    },
+    {
+      "id": "review-disclaimer",
+      "title": "Spec-only disclaimer in review prompts",
+      "status": "done",
+      "depends_on": [],
+      "estimate_minutes": 8,
+      "acceptance": "Disclaimer prepended to spec-only review modes. Mode table enforced. Test cases 1-5 pass.",
+      "source_sections": [
+        "### 6.2 Solution",
+        "### 6.3 Placement"
+      ],
+      "source_lines": "258-297",
+      "started_at": "2026-04-06T08:18:45.455622Z",
+      "closed_at": "2026-04-06T08:18:52.560138Z",
+      "closed_reason": "specOnlyDisclaimer constant added, appendSpecOnlyDisclaimer prepends to all 3 prompts when affectedSection is empty. Code-audit and --affected-files modes excluded. Verify mode unaffected.",
+      "gate_passed_at": "2026-04-06T08:18:52.560138Z",
+      "commit_sha": "76f1b2c"
+    },
+    {
+      "id": "covered-by-suggest",
+      "title": "Did-you-mean for covered_by errors",
+      "status": "done",
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "Suggest similar IDs on covered_by miss. Split on hyphens, 3+ char words. Top 3 ranked. Test cases 1-5 pass.",
+      "source_sections": [
+        "### 7.2 Solution",
+        "### 7.3 Algorithm"
+      ],
+      "source_lines": "298-341",
+      "started_at": "2026-04-06T08:23:34.873013Z",
+      "closed_at": "2026-04-06T08:23:42.197217Z",
+      "closed_reason": "SuggestSimilarIDs: prefix match + word overlap (3+ chars), sorted by tier then length, top 3. coveredByHint wired into single and batch done paths. 5 test cases + splitWords tests pass.",
+      "gate_passed_at": "2026-04-06T08:23:42.197217Z",
+      "commit_sha": "a1b5e55"
+    },
+    {
+      "id": "update-docs-019",
+      "title": "Update SKILL.md, README, CLAUDE.md",
+      "status": "done",
+      "depends_on": [
+        "source-lines-normalize",
+        "batch-toposort-output",
+        "lint-duplicate-lines",
+        "lint-numbering-gaps",
+        "import-bare-array",
+        "review-disclaimer",
+        "covered-by-suggest"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "New behaviors documented in all three files.",
+      "source_sections": [
+        "### 1.1 Single Number to Range"
+      ],
+      "source_lines": "342-361",
+      "started_at": "2026-04-06T09:05:18.177542Z",
+      "closed_at": "2026-04-06T09:05:28.15049Z",
+      "closed_reason": "SKILL.md: batch auto-toposort section rewritten, source_lines auto-normalize note updated. README: 7 new AX principle rows. CLAUDE.md: 3 new convention lines for lint, batch, import.",
+      "gate_passed_at": "2026-04-06T09:05:28.15049Z",
+      "commit_sha": "7465cdd"
+    }
+  ]
+}

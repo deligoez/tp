@@ -30,8 +30,17 @@ func ParseLineRanges(s string) ([]LineRange, error) {
 			continue
 		}
 		segments := strings.SplitN(part, "-", 2)
-		if len(segments) != 2 {
-			return nil, fmt.Errorf("invalid line range: %s", part)
+		if len(segments) == 1 {
+			// Single number: normalize "72" to "72-72"
+			n, err := strconv.Atoi(strings.TrimSpace(segments[0]))
+			if err != nil {
+				return nil, fmt.Errorf("invalid line number in %q: %w", part, err)
+			}
+			if n < 1 {
+				return nil, fmt.Errorf("invalid line range: %d must be positive", n)
+			}
+			ranges = append(ranges, LineRange{Start: n, End: n})
+			continue
 		}
 		start, err := strconv.Atoi(strings.TrimSpace(segments[0]))
 		if err != nil {

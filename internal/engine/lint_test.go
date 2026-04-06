@@ -151,3 +151,79 @@ func TestCheckVagueLanguage(t *testing.T) {
 		})
 	}
 }
+
+func TestCheckDuplicateConsecutiveLines(t *testing.T) {
+	tests := []struct {
+		name  string
+		lines []string
+		count int
+	}{
+		{"two identical", []string{"hello", "hello"}, 1},
+		{"three identical", []string{"hello", "hello", "hello"}, 2},
+		{"separated by blank", []string{"hello", "", "hello"}, 0},
+		{"empty consecutive", []string{"", "", ""}, 0},
+		{"code block excluded", []string{"```go", "dup", "dup", "```"}, 0},
+		{"code block with lang", []string{"```json", "dup", "dup", "```"}, 0},
+		{"outside code block", []string{"before", "before", "```", "inside", "inside", "```"}, 1},
+		{"whitespace only lines", []string{"  ", "  "}, 0},
+		{"no duplicates", []string{"a", "b", "c"}, 0},
+		{"long context truncated", []string{strings.Repeat("x", 100), strings.Repeat("x", 100)}, 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			findings := CheckDuplicateConsecutiveLines(tt.lines)
+			assert.Equal(t, tt.count, len(findings))
+			for _, f := range findings {
+				assert.Equal(t, "duplicate-line", f.Rule)
+				assert.Equal(t, "warning", f.Severity)
+				assert.LessOrEqual(t, len(f.Context), 80)
+			}
+		})
+	}
+}
+
+func TestCheckNumberingGaps(t *testing.T) {
+	tests := []struct {
+		name     string
+		headings []*Heading
+		count    int
+	}{
+		{
+			"no gaps",
+			[]*Heading{{Level: 3, Text: "4.1 First", Line: 10}, {Level: 3, Text: "4.2 Second", Line: 20}, {Level: 3, Text: "4.3 Third", Line: 30}},
+			0,
+		},
+		{
+			"one gap",
+			[]*Heading{{Level: 3, Text: "4.1 First", Line: 10}, {Level: 3, Text: "4.3 Third", Line: 30}},
+			1,
+		},
+		{
+			"multiple gaps",
+			[]*Heading{{Level: 3, Text: "4.1 First", Line: 10}, {Level: 3, Text: "4.5 Fifth", Line: 50}},
+			3,
+		},
+		{
+			"mixed levels",
+			[]*Heading{{Level: 2, Text: "2. Section", Line: 5}, {Level: 3, Text: "2.1 Sub", Line: 10}, {Level: 3, Text: "2.3 Sub", Line: 30}},
+			1,
+		},
+		{
+			"non-numeric ignored",
+			[]*Heading{{Level: 2, Text: "Overview", Line: 1}, {Level: 2, Text: "1. First", Line: 10}, {Level: 2, Text: "2. Second", Line: 20}},
+			0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			findings := CheckNumberingGaps(tt.headings)
+			assert.Equal(t, tt.count, len(findings))
+			for _, f := range findings {
+				assert.Equal(t, "numbering-gap", f.Rule)
+				assert.Equal(t, "warning", f.Severity)
+			}
+		})
+	}
+}

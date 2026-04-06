@@ -98,7 +98,7 @@ Follow these rules when breaking a spec into tasks:
    - **Tests**: unit tests, integration tests, test helpers
    - **Docs**: README, SKILL.md, CLAUDE.md updates
 3. **Structured elements** (from `tp lint`): every table data row, numbered list item, and code block in the spec must appear in some task's acceptance criteria
-4. **Source lines**: every task MUST have `source_lines` as a range: `"15-42"` or `"15-42,50-60"`. **Single numbers like `"72"` are invalid** — use `"72-72"` for single-line references.
+4. **Source lines**: every task MUST have `source_lines` as a range: `"15-42"` or `"15-42,50-60"`. Single numbers like `"72"` are **auto-normalized** to `"72-72"`.
 5. **Dependencies**: model dependency order — types before logic, logic before CLI, CLI before tests
 6. **Preview before import**: list your proposed tasks (id, title, acceptance count) and ask for confirmation before writing the JSON file. This prevents wasted import/fix cycles.
 
@@ -369,15 +369,20 @@ Don't look for separate progress/estimate/scope commands — they already exist:
 
 ## Batch Close — Dependency Order
 
-`tp done --batch` processes entries in **file order**. If task B depends on task A, put A before B in your NDJSON file:
+`tp done --batch` **automatically toposorts** entries by in-batch dependencies before processing. You no longer need to manually order your NDJSON file — tp handles dependency chains, `covered_by` references, and already-done tasks:
 
 ```ndjson
+{"id":"tests","reason":"All tests pass","gate_passed":true}
 {"id":"model","reason":"Model created","gate_passed":true}
 {"id":"api","reason":"API endpoint works","gate_passed":true}
-{"id":"tests","reason":"All tests pass","gate_passed":true}
 ```
 
-If you get "blocked by X" errors, reorder your NDJSON by dependency chain. Use `tp graph --json` to see the dependency order.
+Even though `tests` depends on `model` and `api`, tp will reorder and close `model` → `api` → `tests`.
+
+Output includes `reordered` (bool) and `skipped` (count of already-done entries):
+```json
+{"closed": 3, "failed": 0, "skipped": 0, "reordered": true, ...}
+```
 
 ## tp commit
 

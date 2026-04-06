@@ -399,14 +399,19 @@ tp is designed for AI agents first (AX), not humans (DX):
 |-----------|-----|
 | **Minimal tokens** | `--minimal` ~80%, `--compact` ~40% smaller. 2-call architecture saves ~90% |
 | **Batch parity** | `tp claim --all-ready`, `tp done --batch`, `tp set --bulk` |
+| **Dependency-aware batch** | `tp done --batch` auto-toposorts by in-batch deps — no manual ordering needed |
 | **Actionable errors** | Every error includes `hint` field with recovery action |
+| **Did-you-mean** | `--covered-by` typos suggest similar task IDs |
 | **Structured commits** | `tp commit` generates conventional commit messages with task metadata |
 | **Implicit claim** | `tp done` and `tp commit` auto-claim open tasks |
 | **WIP resume** | `tp next` returns existing WIP task (crash recovery) |
 | **Covered-by** | Close tasks covered by other tasks without duplicate work |
+| **Auto-normalize** | `source_lines` accepts `"72"` (normalized to `"72-72"`) |
+| **Import flexibility** | `tp import` accepts bare JSON arrays with `--spec` flag |
+| **Spec-only review** | Review prompts include disclaimer to prevent code-checking |
+| **Edit hygiene lint** | `tp lint` detects duplicate lines and numbering gaps |
 | **Estimation calibration** | `tp add` warns when historical estimates are consistently high |
 | **Duration tracking** | `tp report` shows per-task timing and estimation accuracy |
-
 ## Claude Code Integration
 
 tp ships with a Claude Code skill via the [Agent Skills](https://agentskills.io) standard:
