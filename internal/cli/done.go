@@ -661,7 +661,7 @@ func runDoneBatch() error {
 // resolveMultiReason parses args into task IDs and reason.
 // When --stdin or --reason-file is set, ALL args are task IDs.
 // Otherwise, last arg is the reason, all preceding are task IDs.
-func resolveMultiReason(args []string, useStdin bool, reasonFile string) ([]string, string, error) {
+func resolveMultiReason(args []string, useStdin bool, reasonFile string) (ids []string, reason string, err error) {
 	if useStdin && reasonFile != "" {
 		return nil, "", fmt.Errorf("--stdin and --reason-file are mutually exclusive")
 	}
