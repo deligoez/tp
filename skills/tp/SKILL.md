@@ -18,28 +18,10 @@ This skill activates when:
 
 ### A: Decompose (spec exists, no .tasks.json)
 
+**tp does NOT generate tasks — you are the decomposer. tp validates your output.**
+
 1. `tp lint <spec.md>` — fix structural issues, review `structured_elements`
-2. `tp review <spec.md>` — adversarial review loop:
-   - Round 1: `tp review <spec.md>` generates 3 targeted prompts (implementer, tester, architect)
-   - Spawn sub-agents with each prompt via the Agent tool (can be parallel)
-   - Collect NDJSON findings, fix spec
-   - Round 2+: `tp review <spec.md> --round 2 --findings <findings.ndjson>`
-   - tp auto-injects previous findings summary into prompts, excludes already-reported issues
-   - Combine findings files across rounds for `--findings`
-   - Converge within 2 rounds (stop when no new high-severity)
-   - **Code-aware review** (optional, for catching state-dependent behaviors):
-     - `tp review spec.md --affected-files src/a.go src/b.vue` — inject source files into prompts
-     - `tp review spec.md --perspective code-audit --affected-files src/a.go` — code audit perspective with C1-C5 checklist
-     - `tp review spec.md --round 2 --final-round --affected-files src/a.go` — force mandatory code read-through
-   - **Multi-round review lifecycle** (merge, resolve, verify, report):
-     - `tp review --merge r1-*.ndjson -o r1.ndjson` — merge + dedup findings from multiple sub-agents
-     - `tp review --resolve r1.ndjson 3 fixed "evidence"` — mark finding as fixed/wontfix/duplicate
-     - `tp review --resolve-all r1.ndjson wontfix "reason"` — mark all unresolved findings
-     - `tp review --verify spec.md --findings all.ndjson` — lightweight verification prompt (verifier role)
-     - `tp review --report r1.ndjson r2.ndjson` — cross-round convergence report
-     - `tp review spec.md --diff-from spec-r0.md` — diff-based review (changed sections only)
-     - `tp review spec.md --spec-inline` — embed full spec inline (default is reference mode)
-     - `--force` — force re-resolve already resolved findings
+2. `tp review <spec.md>` — adversarial review loop (see **Review Workflow** below)
 3. Read spec, decompose into tasks (JSON) — see **Decomposition Rules** below
 4. **Backward pass** — verify coverage:
    - For each table in `structured_elements`: does every row map to a task's acceptance?
@@ -47,7 +29,55 @@ This skill activates when:
    - If spec has multiple checklists, take the union — gaps = potential missing task
    - Run `tp validate` — check `line_coverage` for uncovered spec line gaps
 5. `tp import tasks.json` — validates and stores (auto-fills coverage)
+   - If import rejects tasks (atomicity warnings), split by concern axis per Decomposition Rules
 6. If `tp validate` reports line coverage gaps, inspect uncovered ranges and add tasks
+
+### Review Workflow
+
+**Round 1 — full spec read:**
+```bash
+tp review spec.md --json > r1-prompts.json
+# Spawn 3 sub-agents (implementer, tester, architect) with each prompt
+# Collect findings → r1-implementer.ndjson, r1-tester.ndjson, r1-architect.ndjson
+tp review --merge r1-*.ndjson -o r1-merged.ndjson
+```
+
+**Round 2+ — use `--diff-from` to avoid re-reading the entire spec:**
+```bash
+# Save spec snapshot before edits: cp spec.md spec-r1.md
+# Fix spec based on round 1 findings, then:
+tp review spec.md --round 2 --findings r1-merged.ndjson --diff-from spec-r1.md --json
+# This injects ONLY changed sections — ~80-90% fewer tokens than full re-read
+```
+
+**Convergence**: Stop when no new high/critical severity findings. Typically 2-3 rounds.
+
+**Final round** — force mandatory code read-through:
+```bash
+tp review spec.md --round N --final-round --affected-files src/a.go src/b.go
+```
+
+**Code-aware review** (optional):
+- `--affected-files src/a.go src/b.vue` — inject source files into prompts
+- `--perspective code-audit --affected-files src/a.go` — C1-C5 checklist
+- Default review is **spec-only** — do NOT check implementation code unless `--affected-files` or `--perspective code-audit` is used
+
+**Findings lifecycle:**
+```bash
+tp review --resolve r1.ndjson 3 fixed "evidence"     # Mark individual finding
+tp review --resolve-all r1.ndjson wontfix "reason"    # Mark all unresolved
+tp review --verify spec.md --findings all.ndjson      # Lightweight verification
+tp review --report r1.ndjson r2.ndjson                # Convergence report
+```
+
+**File management**: You manage findings files yourself. Convention:
+```
+spec/
+  feature.md                    # spec
+  feature-r0.md                 # snapshot before round 1 edits (for --diff-from)
+  feature-r1-merged.ndjson      # round 1 merged findings
+  feature-r2-merged.ndjson      # round 2 merged findings
+```
 
 ### Decomposition Rules
 
@@ -68,7 +98,7 @@ Follow these rules when breaking a spec into tasks:
    - **Tests**: unit tests, integration tests, test helpers
    - **Docs**: README, SKILL.md, CLAUDE.md updates
 3. **Structured elements** (from `tp lint`): every table data row, numbered list item, and code block in the spec must appear in some task's acceptance criteria
-4. **Source lines**: every task MUST have `source_lines` mapping to spec line ranges (e.g., `"15-42"` or `"15-42,50-60"`)
+4. **Source lines**: every task MUST have `source_lines` as a range: `"15-42"` or `"15-42,50-60"`. **Single numbers like `"72"` are invalid** — use `"72-72"` for single-line references.
 5. **Dependencies**: model dependency order — types before logic, logic before CLI, CLI before tests
 6. **Preview before import**: list your proposed tasks (id, title, acceptance count) and ask for confirmation before writing the JSON file. This prevents wasted import/fix cycles.
 
@@ -286,3 +316,74 @@ tp done id1 id2 id3 "shared evidence" --gate-passed  # multi-ID close
 | `--compact` | Minimal JSON (~40% smaller) |
 | `--quiet` | Suppress info messages |
 | `--no-color` | Disable colored output |
+
+## Audit Workflow
+
+`tp audit` generates prompts — **you spawn the sub-agents and collect results**, just like review.
+
+```bash
+# 1. Generate audit prompts (auto-detects changed files via git diff)
+tp audit spec.md --json > audit-prompts.json
+
+# 2. Or specify files manually
+tp audit spec.md --affected-files src/engine.go,src/cli.go --json > audit-prompts.json
+
+# 3. Also verify review findings were addressed
+tp audit spec.md --findings review-findings.ndjson --json > audit-prompts.json
+
+# 4. Spawn sub-agents with each prompt, collect results
+# (same pattern as tp review — tp gives you prompts, you run them)
+```
+
+**tp does NOT run sub-agents.** The agent (you) spawns sub-agents using the Agent tool. This is by design — tp is a deterministic tool, not an orchestrator.
+
+## Phase Management
+
+Use **tags** to organize tasks into phases. No special `phase` field needed:
+
+```json
+{"id": "auth-model", "tags": ["phase-1"], ...}
+{"id": "auth-api", "tags": ["phase-2"], ...}
+```
+
+Then scope commands with `--tag`:
+```bash
+tp list --tag phase-1           # Only phase 1 tasks
+tp plan --tag phase-1           # Plan for phase 1 only (if supported)
+tp ready --tag phase-1          # Ready tasks in phase 1
+tp graph --tag phase-1          # Dependency tree for phase 1
+```
+
+## Progress & Estimation
+
+Don't look for separate progress/estimate/scope commands — they already exist:
+
+| Need | Use |
+|------|-----|
+| How many tasks done/open/wip? | `tp status` |
+| Per-task timing and accuracy? | `tp report` |
+| Critical path and parallelism? | `tp stats` |
+| Which spec lines lack tasks? | `tp validate` (line_coverage) |
+| What's blocking progress? | `tp blocked` |
+| Full dependency tree? | `tp graph` |
+
+## Batch Close — Dependency Order
+
+`tp done --batch` processes entries in **file order**. If task B depends on task A, put A before B in your NDJSON file:
+
+```ndjson
+{"id":"model","reason":"Model created","gate_passed":true}
+{"id":"api","reason":"API endpoint works","gate_passed":true}
+{"id":"tests","reason":"All tests pass","gate_passed":true}
+```
+
+If you get "blocked by X" errors, reorder your NDJSON by dependency chain. Use `tp graph --json` to see the dependency order.
+
+## tp commit
+
+`tp commit` uses **plain `git commit`** — it does NOT require any external tool (like `ac`). It stages files, generates a conventional commit message with task metadata, and records the SHA:
+
+```bash
+tp commit <id> "evidence"           # Stage all + commit
+tp commit <id> --files "*.go"       # Stage selectively + commit
+```
