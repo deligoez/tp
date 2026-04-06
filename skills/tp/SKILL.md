@@ -60,7 +60,7 @@ tp review spec.md --round N --final-round --affected-files src/a.go src/b.go
 **Code-aware review** (optional):
 - `--affected-files src/a.go src/b.vue` — inject source files into prompts
 - `--perspective code-audit --affected-files src/a.go` — C1-C5 checklist
-- Default review is **spec-only** — do NOT check implementation code unless `--affected-files` or `--perspective code-audit` is used
+- Default review is **spec-only** — tp auto-injects a disclaimer into prompts. Do NOT check implementation code unless `--affected-files` or `--perspective code-audit` is used.
 
 **Findings lifecycle:**
 ```bash
@@ -354,23 +354,9 @@ Use **tags** to organize tasks into phases. No special `phase` field needed:
 Then scope commands with `--tag`:
 ```bash
 tp list --tag phase-1           # Only phase 1 tasks
-tp plan --tag phase-1           # Plan for phase 1 only (if supported)
 tp ready --tag phase-1          # Ready tasks in phase 1
 tp graph --tag phase-1          # Dependency tree for phase 1
 ```
-
-## Progress & Estimation
-
-Don't look for separate progress/estimate/scope commands — they already exist:
-
-| Need | Use |
-|------|-----|
-| How many tasks done/open/wip? | `tp status` |
-| Per-task timing and accuracy? | `tp report` |
-| Critical path and parallelism? | `tp stats` |
-| Which spec lines lack tasks? | `tp validate` (line_coverage) |
-| What's blocking progress? | `tp blocked` |
-| Full dependency tree? | `tp graph` |
 
 ## Batch Close — Dependency Order
 
@@ -387,13 +373,4 @@ Even though `tests` depends on `model` and `api`, tp will reorder and close `mod
 Output includes `reordered` (bool) and `skipped` (count of already-done entries):
 ```json
 {"closed": 3, "failed": 0, "skipped": 0, "reordered": true, ...}
-```
-
-## tp commit
-
-`tp commit` uses **plain `git commit`** — it does NOT require any external tool (like `ac`). It stages files, generates a conventional commit message with task metadata, and records the SHA:
-
-```bash
-tp commit <id> "evidence"           # Stage all + commit
-tp commit <id> --files "*.go"       # Stage selectively + commit
 ```
