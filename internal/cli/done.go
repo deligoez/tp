@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -150,7 +151,8 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 		if isCoveredBy {
 			ref, _, refErr := model.FindTask(tf, doneCoveredBy)
 			if refErr != nil {
-				output.Error(ExitState, fmt.Sprintf("--covered-by: %v", refErr))
+				hint := coveredByHint(tf, doneCoveredBy)
+				output.Error(ExitState, fmt.Sprintf("--covered-by: %v", refErr), hint)
 				os.Exit(ExitState)
 				return nil
 			}
@@ -522,7 +524,8 @@ func runDoneBatch() error {
 				ref, _, refErr := model.FindTask(tf, entry.CoveredBy)
 				if refErr != nil || ref.Status != model.StatusDone {
 					if refErr != nil {
-						failures = append(failures, batchFailure{ID: entry.ID, Error: fmt.Sprintf("covered_by: %v", refErr)})
+						hint := coveredByHint(tf, entry.CoveredBy)
+						failures = append(failures, batchFailure{ID: entry.ID, Error: fmt.Sprintf("covered_by: %v", refErr), Hint: hint})
 					} else {
 						failures = append(failures, batchFailure{ID: entry.ID, Error: fmt.Sprintf("covered_by: task %s is %s (must be done)", ref.ID, ref.Status)})
 					}
@@ -675,4 +678,17 @@ func readBatchEntries(path string) ([]batchEntry, error) {
 		entries = append(entries, e)
 	}
 	return entries, nil
+}
+
+// coveredByHint returns a "did you mean" hint for a covered_by ID that wasn't found.
+func coveredByHint(tf *model.TaskFile, givenID string) string {
+	allIDs := make([]string, 0, len(tf.Tasks))
+	for i := range tf.Tasks {
+		allIDs = append(allIDs, tf.Tasks[i].ID)
+	}
+	suggestions := engine.SuggestSimilarIDs(givenID, allIDs)
+	if len(suggestions) > 0 {
+		return fmt.Sprintf("did you mean: %s?", strings.Join(suggestions, ", "))
+	}
+	return "use tp list --ids to see all task IDs"
 }
