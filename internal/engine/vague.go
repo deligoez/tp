@@ -163,9 +163,9 @@ func CheckNumberingGaps(headings []*Heading) []Finding {
 			parent := entries[i].parent
 			px := entries[i].headingPx
 			for missing := prev + 1; missing < curr; missing++ {
-				prevFull := fmt.Sprintf("%s %d", parent, prev)
-				currFull := fmt.Sprintf("%s %d", parent, curr)
-				missFull := fmt.Sprintf("%s %d", parent, missing)
+				prevFull := fmt.Sprintf("%s.%d", parent, prev)
+				currFull := fmt.Sprintf("%s.%d", parent, curr)
+				missFull := fmt.Sprintf("%s.%d", parent, missing)
 				if parent == "" {
 					prevFull = fmt.Sprintf("%d", prev)
 					currFull = fmt.Sprintf("%d", curr)

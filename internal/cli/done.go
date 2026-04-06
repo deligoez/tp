@@ -523,10 +523,10 @@ func runDoneBatch() error {
 					hint := fmt.Sprintf("Close %s first.", dep)
 					depTask, _, depErr := model.FindTask(tf, dep)
 					if depErr == nil {
-						if !batchIDs[dep] {
-							hint = fmt.Sprintf("close %s first (not in batch)", dep)
-						} else if depTask.Status == model.StatusWIP {
+						if depTask.Status == model.StatusWIP {
 							hint = fmt.Sprintf("%s is wip, not done", dep)
+						} else if !batchIDs[dep] {
+							hint = fmt.Sprintf("close %s first (not in batch)", dep)
 						}
 					}
 					failures = append(failures, batchFailure{
