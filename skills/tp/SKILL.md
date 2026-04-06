@@ -73,11 +73,14 @@ tp review --report r1.ndjson r2.ndjson                # Convergence report
 **File management**: You manage findings files yourself. Convention:
 ```
 spec/
-  feature.md                    # spec
+  feature.md                    # spec (keep)
+  feature.tasks.json            # task file (keep)
   feature-r0.md                 # snapshot before round 1 edits (for --diff-from)
   feature-r1-merged.ndjson      # round 1 merged findings
   feature-r2-merged.ndjson      # round 2 merged findings
 ```
+
+**Cleanup after review converges**: Delete review artifacts (snapshots `*-r0.md`, `*-r1.md`, etc. and findings `*.ndjson`). Keep the spec `.md` and task file `.tasks.json`.
 
 ### Decomposition Rules
 
