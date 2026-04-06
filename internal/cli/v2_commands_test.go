@@ -477,7 +477,8 @@ func TestDoneBatchIdempotent(t *testing.T) {
 	var batchOut map[string]any
 	err = json.Unmarshal([]byte(stdout), &batchOut)
 	require.NoError(t, err)
-	assert.Equal(t, float64(1), batchOut["closed"], "closed count should include idempotent re-close")
+	assert.Equal(t, float64(0), batchOut["closed"], "closed count should not include idempotent skips")
+	assert.Equal(t, float64(1), batchOut["skipped"], "skipped count should include idempotent re-close")
 	assert.Equal(t, float64(0), batchOut["failed"])
 }
 
