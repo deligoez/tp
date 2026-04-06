@@ -3,3 +3,4 @@
 /tp
 dist/
 *.tasks.json.lock
+codedb.snapshot
