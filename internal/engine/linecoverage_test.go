@@ -25,7 +25,13 @@ func TestParseLineRanges(t *testing.T) {
 		{"whitespace only", "   ", nil, false},
 		{"invalid format", "abc", nil, true},
 		{"start > end", "10-4", nil, true},
-		{"single number no dash", "4", nil, true},
+		// Single number normalization (0.19.0)
+		{"single number", "72", []LineRange{{72, 72}}, false},
+		{"mixed single and range", "4-10,72,80-90", []LineRange{{4, 10}, {72, 72}, {80, 90}}, false},
+		{"multiple singles", "5,10,15", []LineRange{{5, 5}, {10, 10}, {15, 15}}, false},
+		{"single number zero", "0", nil, true},
+		{"single number negative", "-5", nil, true},
+		{"partial range", "72-", nil, true},
 	}
 
 	for _, tt := range tests {
