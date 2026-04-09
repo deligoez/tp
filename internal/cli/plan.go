@@ -19,9 +19,9 @@ var (
 )
 
 type planResult struct {
-	Workflow       model.Workflow `json:"workflow"`
-	ExecutionOrder any            `json:"execution_order"` // []planTask, []output.CompactTaskView, or []agentTask
-	Summary        planSummary   `json:"summary"`
+	Workflow       *model.Workflow `json:"workflow,omitempty"`
+	ExecutionOrder any             `json:"execution_order"` // []planTask, []output.CompactTaskView, or []agentTask
+	Summary        planSummary    `json:"summary"`
 }
 
 type agentTask struct {
@@ -155,8 +155,14 @@ func runPlan(_ *cobra.Command, _ []string) error {
 	}
 	parallelismLevels := len(engine.ComputeParallelismLevels(tf.Tasks))
 
+	var wfPtr *model.Workflow
+	if !planMinimal {
+		wf := tf.Workflow
+		wfPtr = &wf
+	}
+
 	result := planResult{
-		Workflow: tf.Workflow,
+		Workflow: wfPtr,
 		Summary: planSummary{
 			Total:             len(tf.Tasks),
 			Remaining:         len(sorted),
