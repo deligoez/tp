@@ -50,7 +50,10 @@ func runInit(_ *cobra.Command, args []string) error {
 		Spec:      specPath,
 		CreatedAt: now,
 		UpdatedAt: now,
-		Workflow:  model.Workflow{},
+		Workflow: model.Workflow{
+			ReviewCleanRounds: 2,
+			AuditCleanRounds:  2,
+		},
 		Coverage: model.Coverage{
 			ContextOnly: []string{},
 			Unmapped:    []string{},

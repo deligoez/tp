@@ -16,6 +16,7 @@ type ValidationResult struct {
 	AtomicityViolations int               `json:"atomicity_violations"`
 	Checks              map[string]string `json:"checks"`
 	Findings            []Finding         `json:"findings,omitempty"`
+	Workflow            *model.Workflow   `json:"workflow,omitempty"`
 }
 
 // Validate runs all validation checks on a task file.
@@ -32,6 +33,14 @@ func Validate(tf *model.TaskFile, specPath string, specExists, strict bool) *Val
 	} else {
 		result.Checks["schema"] = "pass"
 	}
+
+	// 1b. Convergence field validation
+	convFindings := validateConvergence(tf)
+	result.Findings = append(result.Findings, convFindings...)
+
+	// Always include workflow in output for diagnostics
+	wf := tf.Workflow
+	result.Workflow = &wf
 
 	// 2. Atomicity checks
 	atomFindings := validateAtomicity(tf)
@@ -316,5 +325,24 @@ func ValidateCoverage(tf *model.TaskFile, specPath string) []Finding {
 		findings = append(findings, Finding{Severity: "error", Rule: "coverage", Message: fmt.Sprintf("coverage arithmetic: mapped(%d) + context_only(%d) + unmapped(%d) = %d ≠ total(%d)", tf.Coverage.MappedSections, len(tf.Coverage.ContextOnly), len(tf.Coverage.Unmapped), expected, tf.Coverage.TotalSections)})
 	}
 
+	return findings
+}
+
+func validateConvergence(tf *model.TaskFile) []Finding {
+	var findings []Finding
+	if tf.Workflow.ReviewCleanRounds < 1 || tf.Workflow.ReviewCleanRounds > 10 {
+		findings = append(findings, Finding{
+			Severity: "error",
+			Rule:     "schema",
+			Message:  "review_clean_rounds must be between 1 and 10",
+		})
+	}
+	if tf.Workflow.AuditCleanRounds < 1 || tf.Workflow.AuditCleanRounds > 10 {
+		findings = append(findings, Finding{
+			Severity: "error",
+			Rule:     "schema",
+			Message:  "audit_clean_rounds must be between 1 and 10",
+		})
+	}
 	return findings
 }

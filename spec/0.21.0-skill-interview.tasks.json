@@ -2,8 +2,11 @@
   "version": 1,
   "spec": "spec/0.21.0-skill-interview.md",
   "created_at": "2026-04-09T22:22:18.027915Z",
-  "updated_at": "2026-04-09T22:22:18.028491Z",
-  "workflow": {},
+  "updated_at": "2026-04-09T22:24:09.470497Z",
+  "workflow": {
+    "review_clean_rounds": 2,
+    "audit_clean_rounds": 2
+  },
   "coverage": {
     "total_sections": 34,
     "mapped_sections": 7,
@@ -43,7 +46,7 @@
       "id": "workflow-fields",
       "title": "Add convergence fields to Workflow struct",
       "description": "Add ReviewCleanRounds and AuditCleanRounds to the Workflow struct with custom UnmarshalJSON that distinguishes absent from explicit-zero.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli"
       ],
@@ -54,11 +57,11 @@
         "#### 2.1 New Workflow Fields"
       ],
       "source_lines": "82-101",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-04-09T22:24:03.686796Z",
+      "closed_at": "2026-04-09T22:24:09.470496Z",
+      "closed_reason": "Workflow struct has ReviewCleanRounds and AuditCleanRounds int fields with json tags (no omitempty). Custom UnmarshalJSON uses *int pointers: nil→2, explicit 0→preserved. All tests pass, linter clean.",
+      "gate_passed_at": "2026-04-09T22:24:09.470496Z",
+      "commit_sha": "aa0a899"
     },
     {
       "id": "validate-convergence",
