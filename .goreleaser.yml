@@ -40,6 +40,22 @@ archives:
 checksum:
   name_template: checksums.txt
 
+brews:
+  - repository:
+      owner: deligoez
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    commit_author:
+      name: goreleaser
+      email: goreleaser@users.noreply.github.com
+    homepage: https://github.com/deligoez/tp
+    description: "Spec-to-task lifecycle manager for AI coding agents"
+    license: "MIT"
+    install: |
+      bin.install "tp"
+    test: |
+      assert_match "tp version", shell_output("#{bin}/tp --version")
+
 changelog:
   sort: asc
   filters:
