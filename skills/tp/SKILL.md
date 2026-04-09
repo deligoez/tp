@@ -1,376 +1,77 @@
 ---
 name: tp
-description: Spec-to-task lifecycle manager for AI coding agents. Decomposes specs into atomic tasks, manages execution order via dependency graph, and batch-closes with evidence.
+description: Spec-to-task lifecycle manager for AI coding agents. Interviews user to resolve ambiguities, decomposes specs into atomic tasks, manages execution order via dependency graph, and batch-closes with evidence. Use when user wants to implement a spec, plan tasks, decompose a feature, or a *.tasks.json file exists.
 ---
 
 # tp — Task Plan Skill
 
-Spec-to-task lifecycle for AI agents. Manages atomic task decomposition, execution, and closure.
+Activates when: a `.tasks.json` file exists, user asks to implement a spec/plan/tasks, or user references tp commands.
 
-## Activation
+## Workflow A: Decompose (spec exists, no .tasks.json)
 
-This skill activates when:
-- A `.tasks.json` file exists in the project
-- User asks to implement a spec, plan, or tasks
-- User references tp commands
+### Step 0: Interview
 
-## Workflows
+Before writing or editing a spec, resolve all ambiguities:
 
-### A: Decompose (spec exists, no .tasks.json)
+1. **Locate material** — read draft spec (if provided) or ask user to describe the problem.
+2. **Explore codebase** — read CLAUDE.md/README and affected files. Limit to files directly referenced.
+3. **Identify ambiguities** — list all unclear, under-specified aspects.
+4. **Ask one at a time** — for each ambiguity, ask one question. Derive follow-ups from answers.
+5. **Prefer codebase** — if answerable by reading code, explore (≤5 files) instead of asking. Architectural/product decisions always go to user.
+6. **Recommend answers** — provide a recommended answer for each question based on codebase context.
+7. **Handle non-answers** — if user says "skip"/"whatever"/empty, accept recommended answer.
+8. **Termination** — complete when: (a) every behavioral claim is verified or confirmed, (b) every design choice with user-visible impact (CLI output, file format, command behavior) is decided, (c) no new questions arise.
 
-**tp does NOT generate tasks — you are the decomposer. tp validates your output.**
+Then collect convergence parameters:
+- "How many consecutive clean review rounds? (default: 2)" — integer 1-10, re-ask once, fallback to default.
+- "How many consecutive clean audit rounds? (default: 2)" — same rules.
 
-1. `tp lint <spec.md>` — fix structural issues, review `structured_elements`
-2. `tp review <spec.md>` — adversarial review loop (see **Review Workflow** below)
-3. Read spec, decompose into tasks (JSON) — see **Decomposition Rules** below
-4. **Backward pass** — verify coverage:
-   - For each table in `structured_elements`: does every row map to a task's acceptance?
-   - For each numbered list: does every item have a task or explicit acceptance entry?
-   - If spec has multiple checklists, take the union — gaps = potential missing task
-   - Run `tp validate` — check `line_coverage` for uncovered spec line gaps
-5. `tp import tasks.json` — validates and stores (auto-fills coverage)
-   - If import rejects tasks (atomicity warnings), split by concern axis per Decomposition Rules
-6. If `tp validate` reports line coverage gaps, inspect uncovered ranges and add tasks
+Announce: "I will review until N clean rounds, audit until M clean rounds." Hold values in memory until `tp init`.
 
-### Review Workflow
+If new ambiguities arise during spec writing, pause and return to step 3. Do not re-ask convergence params.
 
-**Round 1 — full spec read:**
-```bash
-tp review spec.md --json > r1-prompts.json
-# Spawn 3 sub-agents (implementer, tester, architect) with each prompt
-# Collect findings → r1-implementer.ndjson, r1-tester.ndjson, r1-architect.ndjson
-tp review --merge r1-*.ndjson -o r1-merged.ndjson
-```
+### Step 1: Spec → Decompose
 
-**Round 2+ — use `--diff-from` to avoid re-reading the entire spec:**
-```bash
-# Save spec snapshot before edits: cp spec.md spec-r1.md
-# Fix spec based on round 1 findings, then:
-tp review spec.md --round 2 --findings r1-merged.ndjson --diff-from spec-r1.md --json
-# This injects ONLY changed sections — ~80-90% fewer tokens than full re-read
-```
+1. `tp lint <spec.md>` — fix issues, review `structured_elements`
+2. Review loop — `tp review` with sub-agents until convergence (see Convergence Enforcement below)
+3. Decompose into tasks — **you are the decomposer, tp validates your output**
+4. Backward pass — every table row and numbered list item → task acceptance; `tp validate` for line coverage
+5. `tp import tasks.json` — validates and stores
+6. After `tp init`, run `tp set --workflow review_clean_rounds=N audit_clean_rounds=M` if non-default
 
-**Convergence**: Stop when no new high/critical severity findings. Typically 2-3 rounds.
+**Decomposition Rules:** Each task = 1 commit, 1 verb, 1-15 min, ≤3 acceptance criteria, ≤8 word title, ≤2 source_sections. Every task MUST have `source_lines`. Split by concern: types → logic → validation → CLI → tests → docs. Preview tasks before import.
 
-**Final round** — force mandatory code read-through:
-```bash
-tp review spec.md --round N --final-round --affected-files src/a.go src/b.go
-```
-
-**Code-aware review** (optional):
-- `--affected-files src/a.go src/b.vue` — inject source files into prompts
-- `--perspective code-audit --affected-files src/a.go` — C1-C5 checklist
-- Default review is **spec-only** — tp auto-injects a disclaimer into prompts. Do NOT check implementation code unless `--affected-files` or `--perspective code-audit` is used.
-
-**Findings lifecycle:**
-```bash
-tp review --resolve r1.ndjson 3 fixed "evidence"     # Mark individual finding
-tp review --resolve-all r1.ndjson wontfix "reason"    # Mark all unresolved
-tp review --verify spec.md --findings all.ndjson      # Lightweight verification
-tp review --report r1.ndjson r2.ndjson                # Convergence report
-```
-
-**File management**: You manage findings files yourself. Convention:
-```
-spec/
-  feature.md                    # spec (keep)
-  feature.tasks.json            # task file (keep)
-  feature-r0.md                 # snapshot before round 1 edits (for --diff-from)
-  feature-r1-merged.ndjson      # round 1 merged findings
-  feature-r2-merged.ndjson      # round 2 merged findings
-```
-
-**Cleanup after review converges**: Delete review artifacts (snapshots `*-r0.md`, `*-r1.md`, etc. and findings `*.ndjson`). Keep the spec `.md` and task file `.tasks.json`.
-
-### Decomposition Rules
-
-**You are the decomposer — tp validates your output, it does not generate tasks.**
-
-Follow these rules when breaking a spec into tasks:
-
-1. **Atomicity**: Each task = one commit, one verb, 1-15 minutes estimated
-   - Max 3 acceptance criteria per task
-   - Max 8 words in title, no conjunctions (and/,/+)
-   - Max 2 source_sections per task
-   - If a task has >3 acceptance criteria, split by concern axis
-2. **Concern axes** for splitting oversized tasks:
-   - **Types/Models**: struct definitions, type aliases, interfaces
-   - **Logic/Engine**: core business logic, algorithms
-   - **Validation**: input validation, error handling, forbidden patterns
-   - **CLI/Wiring**: cobra commands, flag parsing, output formatting
-   - **Tests**: unit tests, integration tests, test helpers
-   - **Docs**: README, SKILL.md, CLAUDE.md updates
-3. **Structured elements** (from `tp lint`): every table data row, numbered list item, and code block in the spec must appear in some task's acceptance criteria
-4. **Source lines**: every task MUST have `source_lines` as a range: `"15-42"` or `"15-42,50-60"`. Single numbers like `"72"` are **auto-normalized** to `"72-72"`.
-5. **Dependencies**: model dependency order — types before logic, logic before CLI, CLI before tests
-6. **Preview before import**: list your proposed tasks (id, title, acceptance count) and ask for confirmation before writing the JSON file. This prevents wasted import/fix cycles.
-
-**Example split** — if a spec section has 10 requirements covering model + API + validation + tests:
-```
-scaffold-types     (3 criteria): struct defs, field types, JSON tags
-scaffold-logic     (3 criteria): core functions, error returns
-scaffold-validate  (2 criteria): input checks, edge cases
-scaffold-tests     (2 criteria): unit tests for logic + validation
-```
-
-### B: Execute (tasks exist) — PRIMARY
-
-The 2-call architecture minimizes token overhead:
+## Workflow B: Execute (tasks exist)
 
 ```
-# Phase 1: Get full plan (ONE call)
-plan=$(tp plan --minimal --json)  # minimal: id + acceptance only (~80% fewer tokens)
-
-# Phase 2: Implement each task
-# IMPORTANT: Always note the current time before starting each task.
-# This enables accurate duration tracking in tp report.
-#
-# For each task in plan.execution_order:
-#   1. Note current time (started_at)
-#   2. Read task.acceptance
-#   3. Implement the task
-#   4. Run plan.workflow.quality_gate
-#   5. tp commit <id> "evidence"           # structured commit, records SHA
-#   6. tp done <id> "evidence" --gate-passed --commit <sha>
-#
-# Alternative: commit + close in one call per task
-#   tp done <id> "evidence" --gate-passed --auto-commit
-#
-# Alternative: batch close (include started_at for accurate timing)
-#   {"id":"x","reason":"y","gate_passed":true,"started_at":"<iso8601>","commit":"<sha>"}
-#   tp done --batch results.ndjson
+plan=$(tp plan --minimal --json)  # ONE call for full plan
+# For each task: implement → quality gate → tp commit <id> "evidence" → tp done <id> "evidence" --gate-passed --commit <sha>
+# Or: tp done <id> "evidence" --gate-passed --auto-commit
+# Or: batch close via tp done --batch results.ndjson
 ```
 
-If batch reports failures: fix reasons, resubmit `tp done --batch fixes.ndjson`.
+After all tasks done, run audit loop — `tp audit spec.md --json`, spawn sub-agents — until convergence (see Convergence Enforcement below). `tp audit` generates prompts; you spawn sub-agents and collect results.
 
-When the last task is closed, `tp done` automatically includes a `report` summary in its output with total estimated vs actual minutes, estimation accuracy, and fastest/slowest task.
+## Workflow C: Resume (some tasks done/wip)
 
-### C: Resume (some tasks done/wip)
-
-Same as B. `tp plan` excludes done tasks, puts WIP first.
-
-## Acceptance Criteria Format
-
-Acceptance criteria support three delimiters:
-
-| Delimiter | Example |
-|-----------|---------|
-| Period + space | `"Model exists. Migration runs. Tests pass."` |
-| Semicolon + space | `"Model exists; migration runs; tests pass"` |
-| Bullet list | `"- Model exists\n- Migration runs\n- Tests pass"` |
-| JSON array | `["Model exists", "Migration runs", "Tests pass"]` |
-
-All delimiters are equivalent — tp parses them into individual criteria for closure verification and atomicity checking. JSON array is joined with `\n- ` on import.
-
-**Max 3 criteria per task.** If exceeded, `tp validate` warns with a split hint:
-```
-task X: acceptance has 6 criteria (max 3); hint: split into ~2 tasks by concern
-```
-
-## JSON Field Aliases
-
-- `deps` is accepted as an alias for `depends_on` in task JSON (import, add)
-- `estimation_minutes` is accepted as an alias for `estimate_minutes`
-- `acceptance` can be a string or `["item1", "item2"]` (array joined with `\n- `)
-
-## NDJSON Result Format
-
-One line per task:
-```
-{"id":"task-id","reason":"Evidence addressing each acceptance criterion.","gate_passed":true,"started_at":"2026-04-01T13:00:00Z","commit":"abc123"}
-```
-
-- `id` and `reason`: required
-- `gate_passed`: set true after quality gate passes
-- `started_at`: ISO 8601 timestamp when you began the task (optional, enables `tp report`)
-- `commit`: git commit SHA (optional)
+Same as B. `tp plan` excludes done tasks, puts WIP first. Convergence enforcement applies equally — see below.
 
 ## Closure Rules
 
-Before recording a result:
-1. Re-read acceptance criteria from plan
-2. Verify implementation matches FULL spec
-3. Write reason addressing EACH criterion with file paths
-4. Never use: "deferred", "covered by existing" (without proof), single-word reasons
-5. Use `--gate-passed` (or `"gate_passed":true` in batch) to relax keyword matching — evidence like "2559 tests pass" is accepted without needing exact acceptance wording
-6. Use `--covered-by <task-id>` when a task is satisfied by work in another done task (not a deferral — work IS done, just in a different task). Batch: `"covered_by":"other-task-id"`
-   - If the referenced ID is not found, tp suggests similar IDs ("did you mean: X, Y?")
+1. Re-read acceptance criteria, verify implementation matches spec
+2. Write reason addressing EACH criterion with file paths
+3. Never use "deferred" or single-word reasons
+4. `--gate-passed` relaxes keyword matching; `--covered-by <id>` for work done in another task
+5. `tp done` auto-claims open tasks — no separate `tp claim` needed
 
-**Important:** `tp done` auto-claims open tasks — no need for a separate `tp claim` call.
+## Convergence Enforcement
 
-**Code snippets:** When spec contains inline code, validate against the actual codebase (types, casts, method signatures) before implementing. Spec code may be illustrative, not literal.
+**NON-NEGOTIABLE:** You MUST NOT proceed to decomposition until you have completed N consecutive review rounds with zero findings (any severity), where N = `workflow.review_clean_rounds` (default: 2). A single clean round is insufficient — consecutive clean rounds confirm the spec is stable. Do not skip rounds, summarize findings as "minor", or declare convergence prematurely.
 
-## Task File Discovery
+**NON-NEGOTIABLE:** You MUST NOT declare implementation complete until you have completed N consecutive audit rounds with zero findings (any severity), where N = `workflow.audit_clean_rounds` (default: 2). This applies equally when resuming via Workflow C. Do not skip rounds or declare the audit passed based on your confidence in the implementation.
 
-Priority: `--file` flag > `TP_FILE` env var > `.tp-active` marker > auto-detect (current dir, then one level of subdirs).
+**NON-NEGOTIABLE:** You MUST NOT begin or continue writing the spec while unresolved questions remain. You must exhaust all questions and collect convergence parameters before starting. If you discover new ambiguities while writing the spec, pause and return to the interview phase.
 
-Set active task file persistently:
-```bash
-tp use spec/project.tasks.json  # writes .tp-active in CWD
-tp use --clear                  # remove .tp-active
-tp use                          # show current active file
-```
+## Reference
 
-Or set `TP_FILE` for session-level override:
-```bash
-export TP_FILE=spec/project.tasks.json
-```
-
-## Incremental Fallback
-
-For interactive use or when full plan is impractical:
-```
-tp next              # get/resume WIP task
-tp next --minimal    # minimal output: {id, acceptance} only
-tp next --peek       # preview next without claiming
-# implement
-tp done <id> "reason" --gate-passed
-tp done id1 id2 id3 "shared evidence" --gate-passed  # multi-ID close
-```
-
-## Key Commands
-
-### Primary Workflow
-| Command | Purpose |
-|---------|---------|
-| `tp plan` | Full execution plan (THE primary command) |
-| `tp plan --minimal` | Minimal plan: id + acceptance (~80% fewer tokens) |
-| `tp plan --compact` | Stripped plan: no description, source_lines, tags (~40% fewer) |
-| `tp plan --from <id>` | Start plan from a specific task onward |
-| `tp plan --level 0,1` | Filter by parallelism levels (multi-agent) |
-| `tp commit <id> [reason]` | Stage + structured commit + record SHA |
-| `tp commit <id> --files "*.go"` | Selective file staging |
-| `tp done <id> "reason"` | Single close with implicit claim + verification |
-| `tp done <id> --gate-passed` | Relax keyword matching (agent attests gate passed) |
-| `tp done <id> --auto-commit` | Commit + close in one call |
-| `tp done <id> --auto-commit --files "*.go"` | Selective staging + commit + close |
-| `tp done <id> --covered-by <id>` | Close as covered by another done task |
-| `tp done <id> --commit <sha>` | Record implementing commit SHA |
-| `tp done id1 id2 "reason"` | Multi-ID close (shared reason) |
-| `tp done --batch file.ndjson` | Batch close from NDJSON |
-
-### Incremental
-| Command | Purpose |
-|---------|---------|
-| `tp next` | Resume WIP or claim next ready |
-| `tp next --minimal` | Minimal output: {id, acceptance} only |
-| `tp next --peek` | Preview without claiming |
-
-### Task State
-| Command | Purpose |
-|---------|---------|
-| `tp claim <id> [id...]` | open -> wip (batch: multiple IDs) |
-| `tp claim --all-ready` | Claim all ready tasks at once |
-| `tp close <id> <reason>` | wip -> done (low-level, prefer tp done) |
-| `tp reopen <id>` | done -> open (clears timestamps + SHA) |
-| `tp remove <id>` | Remove task (--force cleans deps) |
-| `tp set <id> field=value` | Update field (managed fields protected) |
-| `tp set --bulk sets.ndjson` | Bulk update from NDJSON {id, field, value} |
-
-### Query
-| Command | Purpose |
-|---------|---------|
-| `tp list` | All tasks (--status, --tag, --ids, --compact) |
-| `tp ready` | Deps-satisfied tasks (--first, --count, --ids) |
-| `tp show <id>` | Full details + spec_excerpt + blocks |
-| `tp status` | Progress summary (open/wip/done counts) |
-| `tp report` | Per-task duration + estimation accuracy |
-| `tp blocked` | Tasks waiting on unsatisfied deps |
-| `tp graph` | Dependency tree (--tag, --from) |
-| `tp stats` | Parallelism analysis |
-
-### Spec & Validation
-| Command | Purpose |
-|---------|---------|
-| `tp lint spec.md` | Spec quality + structured elements + duplicate lines + numbering gaps + orphan list items |
-| `tp review spec.md` | Adversarial review prompts (3 personas) |
-| `tp review spec.md --perspective code-audit --affected-files src/a.go` | Code audit with source file injection |
-| `tp review spec.md --round N --findings file.ndjson` | Multi-round with previous findings exclusion |
-| `tp review spec.md --round N --final-round --affected-files src/a.go` | Final round with mandatory code read-through |
-| `tp review --merge r1.ndjson r2.ndjson -o merged.ndjson` | Merge + dedup findings from NDJSON files |
-| `tp review --resolve findings.ndjson <idx> <disposition> "evidence"` | Mark finding fixed/wontfix/duplicate |
-| `tp review --resolve-all findings.ndjson <disposition> "reason"` | Mark all unresolved findings |
-| `tp review --resolve ... --force` | Force re-resolve already resolved findings |
-| `tp review --verify spec.md --findings all.ndjson` | Lightweight verification (verifier role) |
-| `tp review --report r1.ndjson r2.ndjson` | Cross-round convergence report |
-| `tp review spec.md --diff-from old-spec.md` | Diff-based review (changed sections only) |
-| `tp review spec.md --spec-inline` | Embed full spec inline (default is reference mode) |
-| `tp audit spec.md` | Post-implementation audit: verify code matches spec |
-| `tp audit spec.md --affected-files src/a.go` | Manual file selection (comma or repeated) |
-| `tp audit spec.md --findings review.ndjson` | Also verify review findings were addressed |
-| `tp validate` | Task file validation + line coverage + atomicity |
-| `tp validate --strict` | Atomicity warnings become errors |
-
-### Data
-| Command | Purpose |
-|---------|---------|
-| `tp init spec.md` | Create empty task file |
-| `tp add <json>` | Add task (--stdin for piped input) |
-| `tp add --bulk tasks.ndjson` | Bulk add from NDJSON |
-| `tp import file.json` | Import + validate (--force to overwrite + relax atomicity) |
-| `tp import tasks.json --spec spec.md` | Import bare JSON array (auto-wraps into TaskFile) |
-| `tp use <file>` | Set active task file (.tp-active) |
-| `tp use --clear` | Remove .tp-active marker |
-| `tp use` | Show current active file |
-
-### Global Flags
-| Flag | Purpose |
-|------|---------|
-| `--file <path>` | Explicit task file path |
-| `--json` | Force JSON output (default when piped) |
-| `--compact` | Minimal JSON (~40% smaller) |
-| `--quiet` | Suppress info messages |
-| `--no-color` | Disable colored output |
-
-## Audit Workflow
-
-`tp audit` generates prompts — **you spawn the sub-agents and collect results**, just like review.
-
-```bash
-# 1. Generate audit prompts (auto-detects changed files via git diff)
-tp audit spec.md --json > audit-prompts.json
-
-# 2. Or specify files manually
-tp audit spec.md --affected-files src/engine.go,src/cli.go --json > audit-prompts.json
-
-# 3. Also verify review findings were addressed
-tp audit spec.md --findings review-findings.ndjson --json > audit-prompts.json
-
-# 4. Spawn sub-agents with each prompt, collect results
-# (same pattern as tp review — tp gives you prompts, you run them)
-```
-
-**tp does NOT run sub-agents.** The agent (you) spawns sub-agents using the Agent tool. This is by design — tp is a deterministic tool, not an orchestrator.
-
-## Phase Management
-
-Use **tags** to organize tasks into phases. No special `phase` field needed:
-
-```json
-{"id": "auth-model", "tags": ["phase-1"], ...}
-{"id": "auth-api", "tags": ["phase-2"], ...}
-```
-
-Then scope commands with `--tag`:
-```bash
-tp list --tag phase-1           # Only phase 1 tasks
-tp ready --tag phase-1          # Ready tasks in phase 1
-tp graph --tag phase-1          # Dependency tree for phase 1
-```
-
-## Batch Close — Dependency Order
-
-`tp done --batch` **automatically toposorts** entries by in-batch dependencies before processing. You no longer need to manually order your NDJSON file — tp handles dependency chains, `covered_by` references, and already-done tasks:
-
-```ndjson
-{"id":"tests","reason":"All tests pass","gate_passed":true}
-{"id":"model","reason":"Model created","gate_passed":true}
-{"id":"api","reason":"API endpoint works","gate_passed":true}
-```
-
-Even though `tests` depends on `model` and `api`, tp will reorder and close `model` → `api` → `tests`.
-
-Output includes `reordered` (bool) and `skipped` (count of already-done entries):
-```json
-{"closed": 3, "failed": 0, "skipped": 0, "reordered": true, ...}
-```
+For command details, field aliases, NDJSON format, and batch operations: see [REFERENCE.md](REFERENCE.md)
