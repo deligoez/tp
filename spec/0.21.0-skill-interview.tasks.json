@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.21.0-skill-interview.md",
   "created_at": "2026-04-09T22:22:18.027915Z",
-  "updated_at": "2026-04-09T22:29:05.0734Z",
+  "updated_at": "2026-04-09T22:30:07.561868Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2
@@ -159,7 +159,7 @@
       "id": "skill-rewrite",
       "title": "Rewrite SKILL.md with interview phase",
       "description": "Complete rewrite of SKILL.md with interview, convergence enforcement, condensed workflows.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "skill"
       ],
@@ -170,17 +170,17 @@
         "#### 3.2 SKILL.md Content"
       ],
       "source_lines": "189-200,230-244",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-04-09T22:29:54.988704Z",
+      "closed_at": "2026-04-09T22:30:01.722609Z",
+      "closed_reason": "SKILL.md is 77 lines (within guideline). All 8 interview steps traceable. NON-NEGOTIABLE blocks verbatim from spec §4. Workflows forward-reference convergence enforcement. Updated description with trigger phrases.",
+      "gate_passed_at": "2026-04-09T22:30:01.722609Z",
+      "commit_sha": "c53feb2"
     },
     {
       "id": "skill-description",
       "title": "Update SKILL.md description with triggers",
       "description": "Update frontmatter description with interview mention and trigger phrases.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "skill"
       ],
@@ -193,10 +193,10 @@
         "#### 3.3 Updated Description"
       ],
       "source_lines": "216-228",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
+      "started_at": "2026-04-09T22:30:07.561867Z",
+      "closed_at": "2026-04-09T22:30:07.561868Z",
+      "closed_reason": "Description updated in SKILL.md frontmatter: includes 'Interviews user to resolve ambiguities' and 'Use when user wants to implement a spec, plan tasks, decompose a feature, or a *.tasks.json file exists.'",
+      "gate_passed_at": "2026-04-09T22:30:07.561868Z",
       "commit_sha": null
     },
     {
