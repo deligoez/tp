@@ -24,6 +24,10 @@ tp done --batch results.ndjson # ONE call: close everything
 ## Install
 
 ```bash
+# Homebrew (recommended)
+brew tap deligoez/tap
+brew install tp
+
 # Go install
 go install github.com/deligoez/tp/cmd/tp@latest
 

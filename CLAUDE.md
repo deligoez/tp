@@ -2,6 +2,12 @@
 
 Spec-to-task lifecycle manager for AI coding agents. Go CLI tool.
 
+## Install
+
+```bash
+brew tap deligoez/tap && brew install tp   # Homebrew
+go install github.com/deligoez/tp/cmd/tp@latest   # or Go
+```
 ## Key Concept: AX (Agent Experience)
 
 AX = Agent Experience (analogous to DX = Developer Experience).
