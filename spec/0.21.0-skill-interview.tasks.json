@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.21.0-skill-interview.md",
   "created_at": "2026-04-09T22:22:18.027915Z",
-  "updated_at": "2026-04-09T22:26:56.298752Z",
+  "updated_at": "2026-04-09T22:28:04.051038Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2
@@ -136,7 +136,7 @@
       "id": "plan-verify",
       "title": "Verify convergence fields in tp plan output",
       "description": "Verify that tp plan passes through convergence fields and tp plan --minimal omits workflow.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli"
       ],
@@ -149,11 +149,11 @@
         "#### 2.3 Display in `tp plan`"
       ],
       "source_lines": "143-150",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-04-09T22:27:58.683597Z",
+      "closed_at": "2026-04-09T22:28:04.051037Z",
+      "closed_reason": "tp plan includes review_clean_rounds and audit_clean_rounds in workflow. tp plan --minimal omits workflow block via pointer+omitempty.",
+      "gate_passed_at": "2026-04-09T22:28:04.051037Z",
+      "commit_sha": "5003abc"
     },
     {
       "id": "skill-rewrite",
