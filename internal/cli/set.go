@@ -23,17 +23,28 @@ var (
 		"gate_passed_at": "set automatically by `tp done --gate-passed`",
 		"commit_sha":     "set automatically by `tp done --commit`",
 	}
-	setBulkFile string
+	setBulkFile     string
+	setWorkflowFlag bool
+
+	editableWorkflowFields = map[string]bool{
+		"review_clean_rounds": true,
+		"audit_clean_rounds":  true,
+	}
+	readOnlyWorkflowFields = map[string]bool{
+		"quality_gate":    true,
+		"commit_strategy": true,
+	}
 )
 
 func newSetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "set <id> <field>=<value>",
 		Short: "Update a task field (except managed fields)",
-		Args:  cobra.RangeArgs(0, 2),
+		Args:  cobra.RangeArgs(0, 100),
 		RunE:  runSet,
 	}
 	cmd.Flags().StringVar(&setBulkFile, "bulk", "", "NDJSON file with {id, field, value} lines")
+	cmd.Flags().BoolVar(&setWorkflowFlag, "workflow", false, "update workflow-level fields instead of a task")
 	return cmd
 }
 
@@ -45,6 +56,10 @@ type setLine struct {
 }
 
 func runSet(_ *cobra.Command, args []string) error {
+	if setWorkflowFlag {
+		return runSetWorkflow(args)
+	}
+
 	if setBulkFile != "" {
 		return runSetBulk()
 	}
@@ -235,4 +250,75 @@ func applyField(task *model.Task, field, value string) error {
 		return fmt.Errorf("unknown field: %s", field)
 	}
 	return nil
+}
+
+func runSetWorkflow(args []string) error {
+	if len(args) == 0 {
+		output.Error(ExitUsage, "tp set --workflow requires at least one field=value pair")
+		os.Exit(ExitUsage)
+		return nil
+	}
+
+	// Parse all field=value pairs first
+	pairs := make(map[string]int)
+	for _, arg := range args {
+		parts := strings.SplitN(arg, "=", 2)
+		if len(parts) != 2 {
+			output.Error(ExitUsage, fmt.Sprintf("expected field=value format, got %q", arg))
+			os.Exit(ExitUsage)
+			return nil
+		}
+		field, valueStr := parts[0], parts[1]
+
+		if readOnlyWorkflowFields[field] {
+			return output.JSON(map[string]string{"error": fmt.Sprintf("%s is read-only; edit the task file directly to change it", field)})
+		}
+		if !editableWorkflowFields[field] {
+			return output.JSON(map[string]string{"error": fmt.Sprintf("unknown workflow field: %s", field)})
+		}
+
+		var val int
+		if _, err := fmt.Sscanf(valueStr, "%d", &val); err != nil {
+			return output.JSON(map[string]string{"error": fmt.Sprintf("%s must be an integer", field)})
+		}
+		if val < 1 || val > 10 {
+			return output.JSON(map[string]string{"error": fmt.Sprintf("%s must be between 1 and 10", field)})
+		}
+		pairs[field] = val
+	}
+
+	taskFilePath, err := engine.DiscoverTaskFile(".", flagFile)
+	if err != nil {
+		output.Error(ExitFile, err.Error())
+		os.Exit(ExitFile)
+		return nil
+	}
+
+	return engine.WithFileLock(taskFilePath, func() error {
+		tf, err := model.ReadTaskFile(taskFilePath)
+		if err != nil {
+			output.Error(ExitFile, err.Error())
+			os.Exit(ExitFile)
+			return nil
+		}
+
+		updated := make(map[string]int)
+		for field, val := range pairs {
+			switch field {
+			case "review_clean_rounds":
+				tf.Workflow.ReviewCleanRounds = val
+			case "audit_clean_rounds":
+				tf.Workflow.AuditCleanRounds = val
+			}
+			updated[field] = val
+		}
+
+		if err := model.WriteTaskFile(taskFilePath, tf); err != nil {
+			output.Error(ExitFile, err.Error())
+			os.Exit(ExitFile)
+			return nil
+		}
+
+		return output.JSON(map[string]any{"updated": updated})
+	})
 }

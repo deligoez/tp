@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.21.0-skill-interview.md",
   "created_at": "2026-04-09T22:22:18.027915Z",
-  "updated_at": "2026-04-09T22:24:09.470497Z",
+  "updated_at": "2026-04-09T22:25:41.195844Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2
@@ -67,7 +67,7 @@
       "id": "validate-convergence",
       "title": "Validate convergence fields in tp validate",
       "description": "Add range 1-10 validation for convergence fields and include workflow key in ValidationResult output.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli"
       ],
@@ -80,17 +80,17 @@
         "#### 2.2 Validation Rules"
       ],
       "source_lines": "103-141",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-04-09T22:25:31.965814Z",
+      "closed_at": "2026-04-09T22:25:36.775553Z",
+      "closed_reason": "tp validate rejects values outside 1-10 with 'review_clean_rounds must be between 1 and 10'. Explicit 0 is validate-time error. Workflow key always in output.",
+      "gate_passed_at": "2026-04-09T22:25:36.775553Z",
+      "commit_sha": "1b29131"
     },
     {
       "id": "init-defaults",
       "title": "Set convergence defaults in tp init",
       "description": "Set ReviewCleanRounds: 2 and AuditCleanRounds: 2 in the generated Workflow struct.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli"
       ],
@@ -103,10 +103,10 @@
         "#### 2.2 Validation Rules"
       ],
       "source_lines": "141-141",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
+      "started_at": "2026-04-09T22:25:41.195844Z",
+      "closed_at": "2026-04-09T22:25:41.195844Z",
+      "closed_reason": "tp init generates task file with review_clean_rounds: 2 and audit_clean_rounds: 2 in workflow section. TestValidateStrict passes.",
+      "gate_passed_at": "2026-04-09T22:25:41.195844Z",
       "commit_sha": null
     },
     {
