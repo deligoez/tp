@@ -31,8 +31,7 @@ var (
 		"audit_clean_rounds":  true,
 	}
 	readOnlyWorkflowFields = map[string]bool{
-		"quality_gate":    true,
-		"commit_strategy": true,
+		"quality_gate": true,
 	}
 )
 

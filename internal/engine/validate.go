@@ -16,7 +16,7 @@ type ValidationResult struct {
 	AtomicityViolations int               `json:"atomicity_violations"`
 	Checks              map[string]string `json:"checks"`
 	Findings            []Finding         `json:"findings,omitempty"`
-	Workflow            *model.Workflow   `json:"workflow,omitempty"`
+	Workflow            *model.Workflow   `json:"workflow"`
 }
 
 // Validate runs all validation checks on a task file.

@@ -23,7 +23,7 @@ Before writing or editing a spec, resolve all ambiguities:
 8. **Termination** — complete when: (a) every behavioral claim is verified or confirmed, (b) every design choice with user-visible impact (CLI output, file format, command behavior) is decided, (c) no new questions arise.
 
 Then collect convergence parameters:
-- "How many consecutive clean review rounds? (default: 2)" — integer 1-10, re-ask once, fallback to default.
+- "How many consecutive clean review rounds? (default: 2)" — integer 1-10, re-ask once if invalid, announce "Invalid input — using default of 2" on second failure, use default on skip.
 - "How many consecutive clean audit rounds? (default: 2)" — same rules.
 
 Announce: "I will review until N clean rounds, audit until M clean rounds." Hold values in memory until `tp init`.
@@ -39,7 +39,18 @@ If new ambiguities arise during spec writing, pause and return to step 3. Do not
 5. `tp import tasks.json` — validates and stores
 6. After `tp init`, run `tp set --workflow review_clean_rounds=N audit_clean_rounds=M` if non-default
 
-**Decomposition Rules:** Each task = 1 commit, 1 verb, 1-15 min, ≤3 acceptance criteria, ≤8 word title, ≤2 source_sections. Every task MUST have `source_lines`. Split by concern: types → logic → validation → CLI → tests → docs. Preview tasks before import.
+### Decomposition Rules
+
+**You are the decomposer — tp validates your output.**
+
+1. **Atomicity**: Each task = 1 commit, 1 verb, 1-15 min estimated
+   - ≤3 acceptance criteria, ≤8 word title (no conjunctions), ≤2 source_sections
+   - If >3 criteria, split by concern axis
+2. **Concern axes** for splitting: types/models → logic/engine → validation → CLI/wiring → tests → docs
+3. **Structured elements** (from `tp lint`): every table row, numbered list item, code block → some task's acceptance
+4. **Source lines**: every task MUST have `source_lines` as a range: `"15-42"` or `"15-42,50-60"`
+5. **Dependencies**: types before logic, logic before CLI, CLI before tests
+6. **Preview before import**: list proposed tasks and ask for confirmation
 
 ## Workflow B: Execute (tasks exist)
 
@@ -58,11 +69,16 @@ Same as B. `tp plan` excludes done tasks, puts WIP first. Convergence enforcemen
 
 ## Closure Rules
 
-1. Re-read acceptance criteria, verify implementation matches spec
-2. Write reason addressing EACH criterion with file paths
-3. Never use "deferred" or single-word reasons
-4. `--gate-passed` relaxes keyword matching; `--covered-by <id>` for work done in another task
-5. `tp done` auto-claims open tasks — no separate `tp claim` needed
+Before closing a task (`tp done`):
+
+1. Re-read acceptance criteria from the plan output
+2. Verify implementation matches the FULL spec (not just acceptance summary)
+3. Write reason addressing EACH criterion with file paths as evidence
+4. Never use: "deferred", "covered by existing" (without proof), single-word reasons
+5. Use `--gate-passed` to relax keyword matching — evidence like "2559 tests pass" is accepted
+6. Use `--covered-by <id>` when work IS done but in a different task (not a deferral)
+7. `tp done` auto-claims open tasks — no separate `tp claim` needed
+8. Code snippets in spec may be illustrative — validate against actual codebase before implementing
 
 ## Convergence Enforcement
 
