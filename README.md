@@ -96,6 +96,7 @@ tp close <id> <reason>         # wip → done (low-level, prefer tp done)
 tp reopen <id>                 # done → open (clears timestamps + SHA)
 tp remove <id>                 # Remove task (--force for dep cleanup)
 tp set <id> field=value        # Update field (managed fields protected)
+tp set --workflow field=value  # Update workflow-level fields (convergence params)
 tp set --bulk sets.ndjson      # Bulk update from NDJSON {id, field, value}
 ```
 
@@ -199,6 +200,22 @@ Each task is atomic — one commit, one verb, ≤15 minutes:
   "source_lines": "15-42"
 }
 ```
+
+The task file's `workflow` section supports convergence parameters:
+
+```json
+{
+  "workflow": {
+    "quality_gate": "go test ./... && golangci-lint run",
+    "review_clean_rounds": 2,
+    "audit_clean_rounds": 2
+  }
+}
+```
+
+- `review_clean_rounds` (default: 2, range: 1-10) — consecutive finding-free review rounds required before decomposition
+- `audit_clean_rounds` (default: 2, range: 1-10) — consecutive finding-free audit rounds required after implementation
+- Set via `tp set --workflow review_clean_rounds=3` or during the skill's interview phase
 
 ### Acceptance Criteria Delimiters
 

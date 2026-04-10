@@ -76,6 +76,7 @@ tp close <id> <reason>         # wip -> done (low-level, prefer tp done)
 tp reopen <id>                 # done -> open (clears gate_passed_at, commit_sha)
 tp remove <id>                 # Remove task (--force for dep cleanup)
 tp set <id> field=value        # Update field (managed fields protected)
+tp set --workflow field=value  # Update workflow-level fields (convergence params)
 tp set --bulk sets.ndjson      # Bulk update from NDJSON {id, field, value}
 ```
 
@@ -238,6 +239,8 @@ skills/tp/
 - All write operations use flock; reads are lock-free
 - Task status: open -> wip -> done (3 states only, blocked computed from deps)
 - Managed fields (tp set rejects): status, started_at, closed_at, closed_reason, gate_passed_at, commit_sha
+- Workflow convergence fields: `review_clean_rounds` (default 2, range 1-10), `audit_clean_rounds` (default 2, range 1-10)
+- `tp set --workflow` edits convergence fields; `quality_gate` is read-only via this command
 - Pretty-printed JSON with 2-space indentation
 - spec_excerpt capped at 2000 chars
 - source_lines supports multi-range: "4-10,15-20,25-30" and auto-normalizes single numbers ("72" → "72-72")
