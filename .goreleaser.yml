@@ -45,6 +45,7 @@ brews:
       owner: deligoez
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
     commit_author:
       name: goreleaser
       email: goreleaser@users.noreply.github.com
