@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.22.0-section-normalization.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-05-14T18:53:36.932574Z",
+  "updated_at": "2026-05-14T18:53:40.995874Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2
@@ -129,7 +129,7 @@
     {
       "id": "add-normalize",
       "title": "tp add applies same normalization",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "import-normalize"
       ],
@@ -139,11 +139,11 @@
         "### 2.3 tp add parity"
       ],
       "source_lines": "104-107",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-05-14T18:53:36.93598Z",
+      "closed_at": "2026-05-14T18:53:40.995874Z",
+      "closed_reason": "tp add normalizes the single task source_sections via NormalizeSourceSections before append, matching tp import behavior. Same ambiguity guard applies.",
+      "gate_passed_at": "2026-05-14T18:53:40.995874Z",
+      "commit_sha": "d854c69"
     },
     {
       "id": "integration-tests",
