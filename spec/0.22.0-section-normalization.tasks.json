@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.22.0-section-normalization.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-05-14T18:49:34.618816Z",
+  "updated_at": "2026-05-14T18:53:36.932574Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2
@@ -109,7 +109,7 @@
     {
       "id": "import-normalize",
       "title": "tp import auto-normalizes source_sections",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "resolve-section-impl"
       ],
@@ -120,11 +120,11 @@
         "### 2.2 Error behavior"
       ],
       "source_lines": "81-102",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-05-14T18:53:27.051276Z",
+      "closed_at": "2026-05-14T18:53:36.932574Z",
+      "closed_reason": "tp import calls engine.NormalizeSourceSections after parsing spec headings. Plain-text 1. Setup persisted as ## 1. Setup; canonical kept as-is; ambiguous (e.g. Setup matching ## Setup and ### Setup) aborts import with exit 1 and quoted candidates list. QA verified: 2-task spec round-trip, ambiguity rejection, did-you-mean for typo via validation.",
+      "gate_passed_at": "2026-05-14T18:53:36.932574Z",
+      "commit_sha": "4100421"
     },
     {
       "id": "add-normalize",
