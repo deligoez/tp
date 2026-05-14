@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.22.0-section-normalization.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-05-14T18:56:20.853157Z",
+  "updated_at": "2026-05-14T18:57:48.813107Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2
@@ -169,7 +169,7 @@
     {
       "id": "skill-update",
       "title": "SKILL.md source_sections + context_only docs",
-      "status": "open",
+      "status": "done",
       "depends_on": [],
       "estimate_minutes": 8,
       "acceptance": "skills/tp/SKILL.md has new subsection documenting source_sections canonical format (## prefix + text) with lenient acceptance note, and a subsection explaining context_only vs unmapped semantics.",
@@ -177,11 +177,11 @@
         "### 4.1 SKILL.md additions"
       ],
       "source_lines": "146-177",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-05-14T18:57:43.109285Z",
+      "closed_at": "2026-05-14T18:57:48.813107Z",
+      "closed_reason": "skills/tp/SKILL.md adds 'source_sections format' subsection (canonical ## prefix + text, lenient v0.22.0+ acceptance, lint output note) and 'Coverage block: context_only vs unmapped' subsection (mapped/context_only/unmapped semantics + arithmetic invariant).",
+      "gate_passed_at": "2026-05-14T18:57:48.813107Z",
+      "commit_sha": "faa8910"
     },
     {
       "id": "claude-md-update",
