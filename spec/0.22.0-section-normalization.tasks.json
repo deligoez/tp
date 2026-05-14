@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.22.0-section-normalization.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-05-14T18:49:29.780744Z",
+  "updated_at": "2026-05-14T18:49:34.618816Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2
@@ -89,7 +89,7 @@
     {
       "id": "validate-coverage-error-msg",
       "title": "Improved coverage error messages",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "resolve-section-impl"
       ],
@@ -100,11 +100,11 @@
         "### 3.4 Ambiguous case message"
       ],
       "source_lines": "117-142",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-05-14T18:49:29.785699Z",
+      "closed_at": "2026-05-14T18:49:34.618816Z",
+      "closed_reason": "ValidateCoverage rewrites coverage error path: ambiguous entries list candidates + canonical disambiguation hint; unresolvable entries name expected format + up to 3 Levenshtein suggestions via SuggestSimilarSections. All existing tests pass.",
+      "gate_passed_at": "2026-05-14T18:49:34.618816Z",
+      "commit_sha": "aeafb13"
     },
     {
       "id": "import-normalize",

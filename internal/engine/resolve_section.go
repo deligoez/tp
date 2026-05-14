@@ -1,8 +1,11 @@
 package engine
 
 import (
+	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/deligoez/tp/internal/model"
 )
 
 // ResolveSection attempts to resolve a user-supplied section name to a canonical
@@ -136,6 +139,7 @@ func splitCanonical(s string) (int, string) {
 }
 
 // levenshtein computes the edit distance between two strings.
+// levenshtein computes the edit distance between two strings.
 func levenshtein(a, b string) int {
 	if a == b {
 		return 0
@@ -173,4 +177,50 @@ func levenshtein(a, b string) int {
 		prev, curr = curr, prev
 	}
 	return prev[len(b)]
+}
+
+// AmbiguousSectionError reports a source_sections entry that matches multiple
+// headings at different levels. Returned by NormalizeSourceSections so callers
+// (tp import / tp add) can abort with an actionable message.
+type AmbiguousSectionError struct {
+	TaskID     string
+	Entry      string
+	Candidates []string
+}
+
+func (e *AmbiguousSectionError) Error() string {
+	quoted := make([]string, len(e.Candidates))
+	for i, c := range e.Candidates {
+		quoted[i] = fmt.Sprintf("%q", c)
+	}
+	return fmt.Sprintf(
+		"task %s: source_sections entry %q is ambiguous — matches: %s. Use the full canonical form (e.g. %q) to disambiguate.",
+		e.TaskID, e.Entry, strings.Join(quoted, ", "), e.Candidates[0],
+	)
+}
+
+// NormalizeSourceSections rewrites each task source_sections entry to canonical form
+// using ResolveSection. Behavior:
+//   - Unique resolution (canonical or plain): replaced with canonical form.
+//   - Ambiguous entry: returns *AmbiguousSectionError naming the task and candidates.
+//   - Unresolvable entry: left unchanged so downstream validation can report it
+//     with did-you-mean suggestions.
+//
+// Caller passes parsed spec headings; if nil/empty, normalization is a no-op.
+func NormalizeSourceSections(tasks []model.Task, headings []*Heading) error {
+	if len(headings) == 0 {
+		return nil
+	}
+	for ti := range tasks {
+		for si, entry := range tasks[ti].SourceSections {
+			resolved, ambiguous, candidates := ResolveSection(entry, headings)
+			if ambiguous {
+				return &AmbiguousSectionError{TaskID: tasks[ti].ID, Entry: entry, Candidates: candidates}
+			}
+			if resolved != "" {
+				tasks[ti].SourceSections[si] = resolved
+			}
+		}
+	}
+	return nil
 }

@@ -182,6 +182,17 @@ func addTask(task *model.Task) error {
 			}
 		}
 
+		// Normalize source_sections to canonical form (lenient — accepts plain-text headings)
+		if specPath, specExists := engine.ResolveSpecPath(taskFilePath, tf.Spec); specExists {
+			if headings, perr := engine.ParseHeadings(specPath); perr == nil && len(headings) > 0 {
+				if nerr := engine.NormalizeSourceSections([]model.Task{*task}, headings); nerr != nil {
+					output.Error(ExitValidation, nerr.Error())
+					os.Exit(ExitValidation)
+					return nil
+				}
+			}
+		}
+
 		tf.Tasks = append(tf.Tasks, *task)
 
 		if err := model.WriteTaskFile(taskFilePath, tf); err != nil {

@@ -118,8 +118,19 @@ func runImport(_ *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// Auto-fill coverage if empty and spec exists
+	// Resolve spec, normalize source_sections to canonical form (lenient — accepts
+	// plain-text headings from tp lint output), then auto-fill coverage.
 	specPath, specExists := engine.ResolveSpecPath(targetPath, tf.Spec)
+	if specExists {
+		headings, perr := engine.ParseHeadings(specPath)
+		if perr == nil && len(headings) > 0 {
+			if nerr := engine.NormalizeSourceSections(tf.Tasks, headings); nerr != nil {
+				output.Error(ExitValidation, nerr.Error())
+				os.Exit(ExitValidation)
+				return nil
+			}
+		}
+	}
 	if specExists && tf.Coverage.TotalSections == 0 {
 		engine.AutoFillCoverage(tf, specPath)
 	}
