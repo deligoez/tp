@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.22.0-section-normalization.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-05-14T18:47:46.511705Z",
+  "updated_at": "2026-05-14T18:47:53.976456Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2
@@ -51,7 +51,7 @@
     {
       "id": "resolve-section-tests",
       "title": "Unit tests for ResolveSection",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "resolve-section-impl"
       ],
@@ -61,11 +61,11 @@
         "### 6.1 Unit tests (engine)"
       ],
       "source_lines": "208-218",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-05-14T18:47:50.426083Z",
+      "closed_at": "2026-05-14T18:47:53.976456Z",
+      "closed_reason": "engine/resolve_section_test.go covers all 7 spec scenarios plus 2 typo/no-match suggestion tests. go test ./internal/engine/ green.",
+      "gate_passed_at": "2026-05-14T18:47:53.976456Z",
+      "commit_sha": "86aa179"
     },
     {
       "id": "autofill-coverage-update",

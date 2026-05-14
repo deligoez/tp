@@ -289,6 +289,10 @@ func validateUniqueness(tf *model.TaskFile) []Finding {
 }
 
 // ValidateCoverage cross-references task source_sections against spec headings.
+// ValidateCoverage cross-references task source_sections against spec headings.
+// Each entry is resolved via ResolveSection: canonical or unique plain text resolves cleanly,
+// ambiguous plain text emits a dedicated error listing candidates, and unresolvable entries
+// emit a "not found" error with did-you-mean suggestions plus the expected canonical format.
 func ValidateCoverage(tf *model.TaskFile, specPath string) []Finding {
 	var findings []Finding
 
@@ -302,16 +306,35 @@ func ValidateCoverage(tf *model.TaskFile, specPath string) []Finding {
 		findings = append(findings, Finding{Severity: "error", Rule: "coverage", Message: fmt.Sprintf("total_sections is %d but spec has %d headings", tf.Coverage.TotalSections, len(headings))})
 	}
 
-	headingTexts := make(map[string]bool)
-	for _, h := range headings {
-		prefix := strings.Repeat("#", h.Level) + " "
-		headingTexts[prefix+h.Text] = true
-	}
-
 	for i := range tf.Tasks {
 		for _, s := range tf.Tasks[i].SourceSections {
-			if !headingTexts[s] {
-				findings = append(findings, Finding{Severity: "error", Rule: "coverage", Message: fmt.Sprintf("task %s references non-existent section: %s", tf.Tasks[i].ID, s)})
+			resolved, ambiguous, candidates := ResolveSection(s, headings)
+			switch {
+			case resolved != "":
+				// resolves cleanly
+			case ambiguous:
+				findings = append(findings, Finding{
+					Severity: "error",
+					Rule:     "coverage",
+					Message: fmt.Sprintf(
+						"task %s: source_sections entry %q is ambiguous — multiple headings match:\n  - %s\nUse the full canonical form (e.g. %q) to disambiguate.",
+						tf.Tasks[i].ID, s, strings.Join(candidates, "\n  - "), candidates[0],
+					),
+				})
+			default:
+				suggestions := SuggestSimilarSections(s, headings)
+				msg := fmt.Sprintf(
+					"task %s: source_sections entry %q not found in spec.\nExpected canonical format: \"## Heading Text\" (heading marker prefix + text).",
+					tf.Tasks[i].ID, s,
+				)
+				if len(suggestions) > 0 {
+					msg += "\nDid you mean:\n  - " + strings.Join(suggestions, "\n  - ")
+				}
+				findings = append(findings, Finding{
+					Severity: "error",
+					Rule:     "coverage",
+					Message:  msg,
+				})
 			}
 		}
 	}

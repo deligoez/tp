@@ -1,41 +1,34 @@
 package engine
 
 import (
-	"strings"
-
 	"github.com/deligoez/tp/internal/model"
 )
 
 // AutoFillCoverage computes coverage from spec headings and task source_sections.
 // Sets total_sections, mapped_sections, context_only, and unmapped automatically.
+// Each task source_sections entry is resolved via ResolveSection so plain-text values
+// (e.g. "4. Backend Migration") are matched against canonical headings ("## 4. Backend Migration").
+// Ambiguous or unresolvable entries are skipped during the mapped-set computation.
 func AutoFillCoverage(tf *model.TaskFile, specPath string) {
 	headings, err := ParseHeadings(specPath)
 	if err != nil || len(headings) == 0 {
 		return
 	}
 
-	// Build set of all headings as "## Heading Text" format
-	allHeadings := make(map[string]bool)
-	for _, h := range headings {
-		prefix := strings.Repeat("#", h.Level) + " "
-		allHeadings[prefix+h.Text] = true
-	}
-
-	// Build set of mapped headings from task source_sections
 	mapped := make(map[string]bool)
 	for i := range tf.Tasks {
 		for _, s := range tf.Tasks[i].SourceSections {
-			if allHeadings[s] {
-				mapped[s] = true
+			resolved, ambiguous, _ := ResolveSection(s, headings)
+			if resolved == "" || ambiguous {
+				continue
 			}
+			mapped[resolved] = true
 		}
 	}
 
-	// Everything not mapped is context_only
 	contextOnly := make([]string, 0)
 	for _, h := range headings {
-		prefix := strings.Repeat("#", h.Level) + " "
-		key := prefix + h.Text
+		key := canonicalHeading(h.Level, h.Text)
 		if !mapped[key] {
 			contextOnly = append(contextOnly, key)
 		}
