@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.22.0-section-normalization.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-05-14T18:57:48.813107Z",
+  "updated_at": "2026-05-14T18:57:52.61467Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2
@@ -186,7 +186,7 @@
     {
       "id": "claude-md-update",
       "title": "CLAUDE.md self-development rule for source_sections",
-      "status": "open",
+      "status": "done",
       "depends_on": [],
       "estimate_minutes": 3,
       "acceptance": "CLAUDE.md Self-Development Rules mention canonical source_sections format requirement and v0.22.0 lenient acceptance.",
@@ -194,11 +194,11 @@
         "### 4.2 CLAUDE.md additions"
       ],
       "source_lines": "179-186",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-05-14T18:57:48.818691Z",
+      "closed_at": "2026-05-14T18:57:52.61467Z",
+      "closed_reason": "CLAUDE.md Self-Development Rules now documents canonical source_sections form requirement and v0.22.0+ lenient acceptance with auto-normalization.",
+      "gate_passed_at": "2026-05-14T18:57:52.61467Z",
+      "commit_sha": "92d749a"
     },
     {
       "id": "readme-update",
