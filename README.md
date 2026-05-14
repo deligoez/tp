@@ -197,7 +197,6 @@ Each task is atomic — one commit, one verb, ≤15 minutes:
   "acceptance": "Model exists. Migration runs.",
   "depends_on": [],
   "source_sections": ["### User Model"],
-  "source_sections": ["### User Model"],
   "source_lines": "15-42"
 }
 ```
