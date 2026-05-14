@@ -139,7 +139,6 @@ func splitCanonical(s string) (int, string) {
 }
 
 // levenshtein computes the edit distance between two strings.
-// levenshtein computes the edit distance between two strings.
 func levenshtein(a, b string) int {
 	if a == b {
 		return 0
@@ -189,13 +188,9 @@ type AmbiguousSectionError struct {
 }
 
 func (e *AmbiguousSectionError) Error() string {
-	quoted := make([]string, len(e.Candidates))
-	for i, c := range e.Candidates {
-		quoted[i] = fmt.Sprintf("%q", c)
-	}
 	return fmt.Sprintf(
-		"task %s: source_sections entry %q is ambiguous — matches: %s. Use the full canonical form (e.g. %q) to disambiguate.",
-		e.TaskID, e.Entry, strings.Join(quoted, ", "), e.Candidates[0],
+		"task %s: source_sections entry %q is ambiguous — multiple headings match:\n  - %s\nUse the full canonical form (e.g. %q) to disambiguate.",
+		e.TaskID, e.Entry, strings.Join(e.Candidates, "\n  - "), e.Candidates[0],
 	)
 }
 

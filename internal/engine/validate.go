@@ -289,7 +289,6 @@ func validateUniqueness(tf *model.TaskFile) []Finding {
 }
 
 // ValidateCoverage cross-references task source_sections against spec headings.
-// ValidateCoverage cross-references task source_sections against spec headings.
 // Each entry is resolved via ResolveSection: canonical or unique plain text resolves cleanly,
 // ambiguous plain text emits a dedicated error listing candidates, and unresolvable entries
 // emit a "not found" error with did-you-mean suggestions plus the expected canonical format.
