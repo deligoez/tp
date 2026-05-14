@@ -195,6 +195,7 @@ skills/tp/
 - Quality gate after every task: `go test ./... && golangci-lint run`
 - One task = one commit = one `tp commit` call
 - Always use `tp commit` for committing — never raw `git commit`
+- `source_sections` entries should use canonical form `"## Heading Text"` (with `##` prefix and space). v0.22.0+ accepts plain text and auto-normalizes, but prefer canonical form for clarity in committed `.tasks.json` files.
 - **Update `skills/tp/SKILL.md` before every release** — new commands, flags, lint rules, and workflow changes MUST be reflected in the skill file before creating the release tag
 - **Pre-release checklist** — before running `gh release create`, verify:
   1. `skills/tp/SKILL.md` reflects all new commands, flags, lint rules, and workflow changes

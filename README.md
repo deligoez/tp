@@ -197,9 +197,15 @@ Each task is atomic — one commit, one verb, ≤15 minutes:
   "acceptance": "Model exists. Migration runs.",
   "depends_on": [],
   "source_sections": ["### User Model"],
+  "source_sections": ["### User Model"],
   "source_lines": "15-42"
 }
 ```
+
+`source_sections` entries use canonical heading form: `"## Heading Text"` (heading marker prefix +
+space + heading text). `tp import` and `tp add` are lenient — plain text like `"User Model"` is
+accepted and auto-normalized to canonical form when unambiguous (v0.22.0+). Use the full canonical
+form when the same heading text appears at multiple levels (e.g. both `## Setup` and `### Setup`).
 
 The task file's `workflow` section supports convergence parameters:
 

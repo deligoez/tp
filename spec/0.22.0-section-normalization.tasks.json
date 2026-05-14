@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.22.0-section-normalization.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-05-14T18:53:40.995874Z",
+  "updated_at": "2026-05-14T18:56:20.853157Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2
@@ -148,7 +148,7 @@
     {
       "id": "integration-tests",
       "title": "CLI integration tests for normalization",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "import-normalize",
         "add-normalize",
@@ -160,11 +160,11 @@
         "### 6.2 Integration tests (cli)"
       ],
       "source_lines": "220-229",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-05-14T18:56:16.165144Z",
+      "closed_at": "2026-05-14T18:56:20.853157Z",
+      "closed_reason": "7 integration tests in internal/cli/import_normalize_test.go cover all spec acceptance scenarios: plain-text normalization, canonical round-trip, mixed format, ambiguous abort with quoted candidates, unresolvable did-you-mean, tp add parity, and lint heading backward compat. All pass.",
+      "gate_passed_at": "2026-05-14T18:56:20.853157Z",
+      "commit_sha": "7f5104f"
     },
     {
       "id": "skill-update",

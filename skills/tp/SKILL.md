@@ -52,6 +52,33 @@ If new ambiguities arise during spec writing, pause and return to step 3. Do not
 5. **Dependencies**: types before logic, logic before CLI, CLI before tests
 6. **Preview before import**: list proposed tasks and ask for confirmation
 
+### source_sections format
+
+Each `source_sections` entry MUST match a heading in the spec, in canonical form:
+`"## Heading Text"` (heading marker prefix + space + heading text).
+
+Example: spec contains `## 4. Backend Migration` → use `"## 4. Backend Migration"` in source_sections.
+
+`tp import` and `tp add` are lenient (v0.22.0+) — `"4. Backend Migration"` (without prefix) is also
+accepted when unambiguous and is auto-normalized to canonical form. Use the full canonical form
+when the same text appears at multiple heading levels (e.g. both `## Setup` and `### Setup` exist) —
+otherwise import aborts with an ambiguity error listing all candidates.
+
+`tp lint --json` reports `numbered_lists[].heading` and `tables[].heading` as raw heading text
+(without the `##` prefix). Either copy verbatim or prepend the canonical prefix yourself; both
+formats are accepted.
+
+### Coverage block: context_only vs unmapped
+
+Each task file's `coverage` block tracks how spec headings relate to tasks:
+
+- **`coverage.mapped_sections`**: headings referenced by at least one task's `source_sections` (after canonical resolution)
+- **`coverage.context_only`**: spec headings NOT referenced by any task — treated as "context only" (intro paragraphs, motivation, examples, backward-compat notes). Auto-fill marks all unreferenced headings here by default.
+- **`coverage.unmapped`**: spec headings that should map to a task but do not. `tp validate` treats these as errors. Normally empty after auto-fill — entries here mean explicit hand-edited claims that no longer match the spec.
+
+Arithmetic invariant: `mapped_sections + len(context_only) + len(unmapped) == total_sections`.
+`tp validate` reports a coverage error when this fails (e.g. after a spec heading is renamed without updating tasks).
+
 ## Workflow B: Execute (tasks exist)
 
 ```
