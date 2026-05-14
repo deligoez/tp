@@ -1,0 +1,221 @@
+{
+  "version": 1,
+  "spec": "spec/0.22.0-section-normalization.md",
+  "created_at": "0001-01-01T00:00:00Z",
+  "updated_at": "2026-05-14T18:45:25.870711Z",
+  "workflow": {
+    "review_clean_rounds": 2,
+    "audit_clean_rounds": 2
+  },
+  "coverage": {
+    "total_sections": 28,
+    "mapped_sections": 13,
+    "context_only": [
+      "# 0.22.0 — Section Name Normalization",
+      "## Motivation",
+      "## Goals",
+      "## Non-Goals",
+      "## 1. Section Resolution Helper",
+      "## 2. Import Auto-Normalize",
+      "## 3. Improved Coverage Error Messages",
+      "### 3.1 Current message",
+      "### 3.3 Suggestion algorithm",
+      "## 4. Documentation Updates",
+      "## 5. Backward Compatibility",
+      "## 6. Test Plan",
+      "### 6.3 Regression tests",
+      "## 7. Implementation Order",
+      "## 8. Acceptance Criteria"
+    ],
+    "unmapped": []
+  },
+  "tasks": [
+    {
+      "id": "resolve-section-impl",
+      "title": "Implement ResolveSection helper",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 8,
+      "acceptance": "ResolveSection in engine/resolve_section.go returns (resolved, ambiguous, candidates) per spec rules. Handles canonical match, plain-text single match, ambiguous level conflict, no match, trims whitespace, empty input.",
+      "source_sections": [
+        "### 1.1 New function ResolveSection",
+        "### 1.2 Resolution rules"
+      ],
+      "source_lines": "45-65",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "resolve-section-tests",
+      "title": "Unit tests for ResolveSection",
+      "status": "open",
+      "depends_on": [
+        "resolve-section-impl"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "engine/resolve_section_test.go has 7 tests: canonical exact, plain unique, plain ambiguous, no match, whitespace trim, empty input, suggestion typo. All pass.",
+      "source_sections": [
+        "### 6.1 Unit tests (engine)"
+      ],
+      "source_lines": "208-218",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "autofill-coverage-update",
+      "title": "AutoFillCoverage uses ResolveSection",
+      "status": "open",
+      "depends_on": [
+        "resolve-section-impl"
+      ],
+      "estimate_minutes": 5,
+      "acceptance": "engine/coverage.go AutoFillCoverage resolves each source_sections entry via ResolveSection so plain-text values map correctly to mapped_sections. Example resolution table from spec verified.",
+      "source_sections": [
+        "### 1.3 Example resolution table"
+      ],
+      "source_lines": "67-77",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "validate-coverage-error-msg",
+      "title": "Improved coverage error messages",
+      "status": "open",
+      "depends_on": [
+        "resolve-section-impl"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "ValidateCoverage error for unresolvable source_sections includes 'Expected canonical format' line + up to 3 did-you-mean candidates via engine/suggest.go. Ambiguous case emits dedicated message listing candidates.",
+      "source_sections": [
+        "### 3.2 New message",
+        "### 3.4 Ambiguous case message"
+      ],
+      "source_lines": "117-142",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "import-normalize",
+      "title": "tp import auto-normalizes source_sections",
+      "status": "open",
+      "depends_on": [
+        "resolve-section-impl"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "tp import resolves each task source_sections entry to canonical form before persisting. Ambiguous entry aborts import with exit 1 listing candidates. Unresolvable entries pass through (validation catches).",
+      "source_sections": [
+        "### 2.1 Behavior",
+        "### 2.2 Error behavior"
+      ],
+      "source_lines": "81-102",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "add-normalize",
+      "title": "tp add applies same normalization",
+      "status": "open",
+      "depends_on": [
+        "import-normalize"
+      ],
+      "estimate_minutes": 5,
+      "acceptance": "tp add applies ResolveSection normalization to source_sections matching tp import behavior (P2 batch parity).",
+      "source_sections": [
+        "### 2.3 tp add parity"
+      ],
+      "source_lines": "104-107",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "integration-tests",
+      "title": "CLI integration tests for normalization",
+      "status": "open",
+      "depends_on": [
+        "import-normalize",
+        "add-normalize",
+        "validate-coverage-error-msg"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "Integration tests cover: import plain-text persists canonical; import ambiguous fails with candidates; mixed plain/canonical normalized; validate did-you-mean; tp add normalize; lint heading output unchanged.",
+      "source_sections": [
+        "### 6.2 Integration tests (cli)"
+      ],
+      "source_lines": "220-229",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "skill-update",
+      "title": "SKILL.md source_sections + context_only docs",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 8,
+      "acceptance": "skills/tp/SKILL.md has new subsection documenting source_sections canonical format (## prefix + text) with lenient acceptance note, and a subsection explaining context_only vs unmapped semantics.",
+      "source_sections": [
+        "### 4.1 SKILL.md additions"
+      ],
+      "source_lines": "146-177",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "claude-md-update",
+      "title": "CLAUDE.md self-development rule for source_sections",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 3,
+      "acceptance": "CLAUDE.md Self-Development Rules mention canonical source_sections format requirement and v0.22.0 lenient acceptance.",
+      "source_sections": [
+        "### 4.2 CLAUDE.md additions"
+      ],
+      "source_lines": "179-186",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "readme-update",
+      "title": "README.md source_sections format note",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 3,
+      "acceptance": "README.md mentions canonical source_sections form near existing examples and notes lenient acceptance.",
+      "source_sections": [
+        "### 4.3 README.md additions"
+      ],
+      "source_lines": "188-195",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ]
+}
