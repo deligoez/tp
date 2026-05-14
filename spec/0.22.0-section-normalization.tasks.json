@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.22.0-section-normalization.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-05-14T18:45:25.870711Z",
+  "updated_at": "2026-05-14T18:47:46.511705Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2
@@ -33,7 +33,7 @@
     {
       "id": "resolve-section-impl",
       "title": "Implement ResolveSection helper",
-      "status": "open",
+      "status": "done",
       "depends_on": [],
       "estimate_minutes": 8,
       "acceptance": "ResolveSection in engine/resolve_section.go returns (resolved, ambiguous, candidates) per spec rules. Handles canonical match, plain-text single match, ambiguous level conflict, no match, trims whitespace, empty input.",
@@ -42,11 +42,11 @@
         "### 1.2 Resolution rules"
       ],
       "source_lines": "45-65",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-05-14T18:47:41.801331Z",
+      "closed_at": "2026-05-14T18:47:46.511704Z",
+      "closed_reason": "ResolveSection in engine/resolve_section.go returns canonical/ambiguous/candidates per spec rules. Plain text resolves to canonical when unambiguous; canonical input verified against spec; whitespace trimmed; empty input returns zero. SuggestSimilarSections uses Levenshtein distance for did-you-mean. Build green; engine tests pass.",
+      "gate_passed_at": "2026-05-14T18:47:46.511704Z",
+      "commit_sha": "aca7ab9"
     },
     {
       "id": "resolve-section-tests",
