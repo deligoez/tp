@@ -390,5 +390,12 @@ func validateConvergence(tf *model.TaskFile) []Finding {
 			Message:  fmt.Sprintf("audit_max_rounds %d out of range 0-50; effective value falls back to 0", tf.Workflow.AuditMaxRounds),
 		})
 	}
+	if err := ValidateChecks(tf.Workflow.Checks); err != nil {
+		findings = append(findings, Finding{
+			Severity: "warning",
+			Rule:     "schema",
+			Message:  fmt.Sprintf("workflow.%v — invalid check entries are skipped at execution time", err),
+		})
+	}
 	return findings
 }

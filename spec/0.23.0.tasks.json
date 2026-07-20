@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.23.0.md",
   "created_at": "2026-07-20T18:27:04Z",
-  "updated_at": "2026-07-20T21:09:47.854296Z",
+  "updated_at": "2026-07-20T21:13:44.356781Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -620,7 +620,7 @@
     {
       "id": "cli-review-loop-output",
       "title": "Emit review_loop schema v2",
-      "status": "wip",
+      "status": "done",
       "depends_on": [
         "cli-review-state-rounds"
       ],
@@ -631,10 +631,10 @@
       ],
       "source_lines": "460-474",
       "started_at": "2026-07-20T21:09:47.854296Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-07-20T21:13:25.84305Z",
+      "closed_reason": "- 8.7 tablosunun tum satirlari: round state-türevli (celisen flag exit 2 onceki gorevden), max_rounds struct'tan tamamen kaldirildi (tum modlar; TestReviewBasic yoklugunu dogruluyor), required_clean_rounds/consecutive_clean/converged/stale pointer alanlarla state'ten doluyor, --no-state'te omit ediliyor\n- convergence metni 'no findings surviving verification (any severity) in \u003cN\u003e consecutive rounds'; instruction sub-agent -\u003e merge -\u003e --record -\u003e '--status --check exit 0'a kadar tekrar dongusunu adlandiriyor (TestReviewRound1WithFindings guncel iddialari)",
+      "gate_passed_at": "2026-07-20T21:13:25.84305Z",
+      "commit_sha": "56f959f"
     },
     {
       "id": "cli-review-record",
@@ -1029,7 +1029,7 @@
     {
       "id": "cli-checks-execution",
       "title": "Execute mechanical checks at review",
-      "status": "open",
+      "status": "wip",
       "depends_on": [
         "cli-set-checks",
         "engine-run-command",
@@ -1042,7 +1042,7 @@
         "### 15.5 Prompt exclusion"
       ],
       "source_lines": "652-655,660-663",
-      "started_at": null,
+      "started_at": "2026-07-20T21:13:44.356781Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,

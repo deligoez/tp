@@ -62,6 +62,7 @@ type reviewResult struct {
 	AffectedSummary    *engine.AffectedSummary    `json:"affected_summary,omitempty"`
 	DocsStructure      *docStructure              `json:"docs_structure,omitempty"`
 	TestStructure      *docStructure              `json:"test_structure,omitempty"`
+	MechanicalChecks   []map[string]any           `json:"mechanical_checks,omitempty"`
 	Prompts            []reviewPrompt             `json:"prompts"`
 	ReviewLoop         reviewLoop                 `json:"review_loop"`
 }
@@ -639,6 +640,14 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 		affectedSection = engine.BuildAffectedSection(affectedContent)
 	}
 
+	// Mechanical checks: workflow-derived (not state-derived), run before
+	// prompt generation even under --no-state; failures never abort generation
+	wfChecks, checksTaskFile := engine.ResolveWorkflow(specPath, flagFile)
+	var mechChecks []map[string]any
+	if len(wfChecks.Checks) > 0 {
+		mechChecks, _ = runMechanicalChecks(&wfChecks, checksTaskFile)
+	}
+
 	prompts := []reviewPrompt{
 		generateImplementerPrompt(elems, specContent, round, summary, affectedSection, finalRound),
 		generateTesterPrompt(elems, specContent, round, summary, affectedSection, finalRound),
@@ -664,6 +673,18 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 	if diffBlock != "" {
 		for i := range prompts {
 			prompts[i].Prompt += diffBlock
+		}
+	}
+
+	// Prompt exclusion: reviewers stop looking for mechanized classes
+	if len(wfChecks.Checks) > 0 {
+		classes := make([]string, 0, len(wfChecks.Checks))
+		for i := range wfChecks.Checks {
+			classes = append(classes, wfChecks.Checks[i].Class)
+		}
+		exclusion := "\n\nMechanically checked classes — do NOT report findings of these classes: " + strings.Join(classes, ", ")
+		for i := range prompts {
+			prompts[i].Prompt += exclusion
 		}
 	}
 
@@ -697,9 +718,14 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 		}
 	}
 
+	if len(wfChecks.Checks) > 0 {
+		instruction += " If any mechanical check failed, fix those failures before spawning sub-agents."
+	}
+
 	result := reviewResult{
 		Spec:               specPath,
 		StructuredElements: elems,
+		MechanicalChecks:   mechChecks,
 		Prompts:            prompts,
 		ReviewLoop: reviewLoop{
 			Round:               round,
