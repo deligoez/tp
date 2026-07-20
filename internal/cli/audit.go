@@ -60,6 +60,9 @@ func newAuditCmd() *cobra.Command {
 	var affectedFiles []string
 	var base string
 	var findingsPath string
+	var recordPath string
+	var statusMode bool
+	var checkFlag bool
 
 	cmd := &cobra.Command{
 		Use:   "audit <spec.md>",
@@ -72,6 +75,27 @@ Use --findings to also verify review findings were addressed.`,
 		Args:              cobra.ExactArgs(1),
 		DisableAutoGenTag: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if recordPath != "" && statusMode {
+				output.Error(ExitUsage, "--record and --status are mutually exclusive")
+				os.Exit(ExitUsage)
+				return nil
+			}
+			if checkFlag && !statusMode {
+				output.Error(ExitUsage, "--check requires --status")
+				os.Exit(ExitUsage)
+				return nil
+			}
+			if (recordPath != "" || statusMode) && (len(affectedFiles) > 0 || findingsPath != "") {
+				output.Error(ExitUsage, "--record/--status reject --affected-files and --findings")
+				os.Exit(ExitUsage)
+				return nil
+			}
+			if recordPath != "" {
+				return runAuditRecord(args[0], recordPath)
+			}
+			if statusMode {
+				return runAuditStatus(args[0], checkFlag)
+			}
 			return runAudit(cmd, args[0], affectedFiles, base, findingsPath)
 		},
 	}
@@ -79,6 +103,9 @@ Use --findings to also verify review findings were addressed.`,
 	cmd.Flags().StringArrayVar(&affectedFiles, "affected-files", nil, "Source files to audit (auto-detect via git diff if omitted)")
 	cmd.Flags().StringVar(&base, "base", "", "Git ref to diff against (omit for staged+unstaged)")
 	cmd.Flags().StringVar(&findingsPath, "findings", "", "Path to NDJSON findings from tp review")
+	cmd.Flags().StringVar(&recordPath, "record", "", "Record an audit round from an NDJSON results file")
+	cmd.Flags().BoolVar(&statusMode, "status", false, "Show recorded audit rounds and convergence state")
+	cmd.Flags().BoolVar(&checkFlag, "check", false, "With --status: exit 0 only when audit is converged")
 
 	return cmd
 }

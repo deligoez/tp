@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.23.0.md",
   "created_at": "2026-07-20T18:27:04Z",
-  "updated_at": "2026-07-20T20:38:30.482267Z",
+  "updated_at": "2026-07-20T20:41:15.570492Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -659,7 +659,7 @@
     {
       "id": "cli-review-status",
       "title": "Implement tp review --status --check",
-      "status": "wip",
+      "status": "done",
       "depends_on": [
         "engine-review-state",
         "engine-workflow-resolution"
@@ -671,15 +671,15 @@
       ],
       "source_lines": "448-452",
       "started_at": "2026-07-20T20:38:30.482267Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-07-20T20:40:42.680699Z",
+      "closed_reason": "- --status 8.5 seklini basiyor: review_rounds, consecutive_clean, required_clean_rounds (8.6 zinciriyle), converged, stale, mechanical_checks (kosum sonucu olmadan kayitli liste); bos state'te tam sekil + exit 0 (TestReviewStatus_EmptyStateFullShape); budget_exhausted yalniz cap\u003e0 iken (8.8 formulu)\n- --check tum workflow.checks'i 6.2 ortaminda kosuyor, pass/fail + yalniz basarisizlarda output_tail; exit 0 ancak converged VE tum checkler gecince (TestReviewStatus_CheckRunsChecksAndGatesExit); bare --check / --record --check / --status+mod kombinasyonlari exit 2 (TestReviewStatus_FlagRules); runMechanicalChecks 15.3 icin paylasilan yardimci",
+      "gate_passed_at": "2026-07-20T20:40:42.680699Z",
+      "commit_sha": "02c2437"
     },
     {
       "id": "cli-audit-record-status",
       "title": "Implement tp audit --record --status",
-      "status": "open",
+      "status": "wip",
       "depends_on": [
         "engine-review-state",
         "engine-workflow-resolution"
@@ -690,7 +690,7 @@
         "## 10. Audit Round Recording"
       ],
       "source_lines": "493-509",
-      "started_at": null,
+      "started_at": "2026-07-20T20:41:15.570491Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,
