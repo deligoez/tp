@@ -154,7 +154,7 @@ func TestValidateLineCoverage_NoSourceLines(t *testing.T) {
 	for _, f := range findings {
 		if f.Rule == "line-coverage" && f.Severity == "warning" {
 			hasWarning = true
-			assert.Contains(t, f.Message, "missing source_lines")
+			assert.Contains(t, f.Message, "no usable source anchors")
 		}
 	}
 	assert.True(t, hasWarning)

@@ -115,7 +115,7 @@ func Validate(tf *model.TaskFile, specPath string, specExists, strict bool) *Val
 		case "error":
 			result.Errors++
 		case "warning":
-			if strict && result.Findings[i].Rule == "atomicity" {
+			if strict && (result.Findings[i].Rule == "atomicity" || result.Findings[i].Rule == "section-anchor") {
 				result.Errors++
 				result.Findings[i].Severity = "error"
 			} else {
@@ -175,6 +175,9 @@ func validateSchema(tf *model.TaskFile) []Finding {
 		}
 		if t.EstimateMinutes == 0 {
 			findings = append(findings, Finding{Severity: "error", Rule: "schema", Message: fmt.Sprintf("task %s: estimate_minutes is required", t.ID)})
+		}
+		if len(t.SourceSections) == 0 && t.SourceLines == "" {
+			findings = append(findings, Finding{Severity: "error", Rule: "schema", Message: fmt.Sprintf("task %s: needs source_sections (canonical headings) or source_lines", t.ID)})
 		}
 	}
 	return findings
@@ -313,8 +316,8 @@ func ValidateCoverage(tf *model.TaskFile, specPath string) []Finding {
 				// resolves cleanly
 			case ambiguous:
 				findings = append(findings, Finding{
-					Severity: "error",
-					Rule:     "coverage",
+					Severity: "warning",
+					Rule:     "section-anchor",
 					Message: fmt.Sprintf(
 						"task %s: source_sections entry %q is ambiguous — multiple headings match:\n  - %s\nUse the full canonical form (e.g. %q) to disambiguate.",
 						tf.Tasks[i].ID, s, strings.Join(candidates, "\n  - "), candidates[0],
@@ -330,8 +333,8 @@ func ValidateCoverage(tf *model.TaskFile, specPath string) []Finding {
 					msg += "\nDid you mean:\n  - " + strings.Join(suggestions, "\n  - ")
 				}
 				findings = append(findings, Finding{
-					Severity: "error",
-					Rule:     "coverage",
+					Severity: "warning",
+					Rule:     "section-anchor",
 					Message:  msg,
 				})
 			}

@@ -410,8 +410,9 @@ func TestValidateStrict(t *testing.T) {
 	_, stderr, code := runTP(t, dir, "init", "spec.md")
 	require.Equal(t, 0, code, "init failed: %s", stderr)
 
-	// Add a task with estimate_minutes: 20 (exceeds 15) - no source_sections to avoid coverage issues
-	addTask(t, dir, `{"id":"big","title":"Big task","depends_on":[],"estimate_minutes":20,"acceptance":"Done","source_sections":[]}`)
+	// Add a task with estimate_minutes: 20 (exceeds 15); source_lines anchors
+	// it so the section-anchor requirement is satisfied without headings
+	addTask(t, dir, `{"id":"big","title":"Big task","depends_on":[],"estimate_minutes":20,"acceptance":"Done","source_sections":[],"source_lines":"1-1"}`)
 
 	// tp validate → should be valid (warnings only)
 	stdout, stderr, code := runTP(t, dir, "validate")

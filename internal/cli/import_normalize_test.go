@@ -142,8 +142,14 @@ func TestImport_UnresolvableTriggersDidYouMean(t *testing.T) {
 			{"id":"t1","title":"Typo","estimate_minutes":5,"acceptance":"done","source_sections":["1. Setp"],"depends_on":[]}
 		]
 	}`
-	stdout, stderr, code := writeSpecAndImport(t, dir, normSpec, taskJSON)
-	require.NotEqual(t, 0, code, "expected validation failure for unresolvable entry")
+	// Without --force the import validates strictly, so the section-anchor
+	// warning escalates to an error and surfaces the did-you-mean text.
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte(normSpec), 0o600))
+	importPath := filepath.Join(dir, "import.json")
+	require.NoError(t, os.WriteFile(importPath, []byte(taskJSON), 0o600))
+	stdout, stderr, code := runTP(t, dir, "import", importPath)
+	require.NotEqual(t, 0, code, "expected strict validation failure for unresolvable entry")
 	combined := stdout + stderr
 	assert.Contains(t, combined, "Expected canonical format", "error should name canonical format")
 	assert.Contains(t, combined, "Did you mean", "error should suggest")

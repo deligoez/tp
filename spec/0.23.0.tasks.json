@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.23.0.md",
   "created_at": "2026-07-20T18:27:04Z",
-  "updated_at": "2026-07-20T20:08:58.002567Z",
+  "updated_at": "2026-07-20T20:11:25.472608Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -916,7 +916,7 @@
     {
       "id": "engine-section-coverage",
       "title": "Implement section-derived coverage",
-      "status": "open",
+      "status": "wip",
       "depends_on": [],
       "estimate_minutes": 10,
       "acceptance": "- span rule per 13.1 and covered-set union per 13.2 with warning only on empty union\n- anchor requirement error and per-task unresolvable-section warnings per 13.3",
@@ -924,7 +924,7 @@
         "## 13. Section-Derived Line Coverage"
       ],
       "source_lines": "601-625",
-      "started_at": null,
+      "started_at": "2026-07-20T20:11:25.472608Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,
@@ -1008,7 +1008,7 @@
     {
       "id": "cli-set-checks",
       "title": "Implement tp set --workflow checks",
-      "status": "wip",
+      "status": "done",
       "depends_on": [
         "model-workflow-fields",
         "model-workflow-validation"
@@ -1021,10 +1021,10 @@
       ],
       "source_lines": "644-647,648-651",
       "started_at": "2026-07-20T20:08:58.002567Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-07-20T20:11:04.512051Z",
+      "closed_reason": "- checks='\u003cjson-array\u003e' tam liste degistirme semantigiyle yaziliyor (set.go checks dali; TestSetWorkflowChecks_ReplaceAndValidate replace alt testi)\n- engine.ValidateChecks: anchored ^[a-z0-9]+(-[a-z0-9]+)*$ slug, dizide teklik, bos olmayan cmd; ihlalde exit 1 ve suclu index adlandiriliyor (checks[N] formati, testte 3 vaka)",
+      "gate_passed_at": "2026-07-20T20:11:04.512051Z",
+      "commit_sha": "55d6756"
     },
     {
       "id": "cli-checks-execution",

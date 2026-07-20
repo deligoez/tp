@@ -17,7 +17,7 @@ func ValidateLineCoverage(tf *model.TaskFile, specPath string) []Finding {
 	var findings []Finding
 
 	// Count content lines and collect their numbers
-	contentLines, _, err := countContentLines(specPath)
+	contentLines, totalLines, err := countContentLines(specPath)
 	if err != nil {
 		findings = append(findings, Finding{Severity: "warning", Rule: "line-coverage", Message: fmt.Sprintf("could not read spec: %v", err)})
 		return findings
@@ -29,13 +29,11 @@ func ValidateLineCoverage(tf *model.TaskFile, specPath string) []Finding {
 
 	// Build covered set from all tasks' source_lines
 	covered := make(map[int]bool)
-	tasksWithLines := 0
 	for i := range tf.Tasks {
 		sl := tf.Tasks[i].SourceLines
 		if sl == "" {
 			continue
 		}
-		tasksWithLines++
 		ranges, parseErr := ParseLineRanges(sl)
 		if parseErr != nil {
 			findings = append(findings, Finding{
@@ -52,12 +50,32 @@ func ValidateLineCoverage(tf *model.TaskFile, specPath string) []Finding {
 		}
 	}
 
-	// If no tasks have source_lines, warn (can't compute coverage)
-	if tasksWithLines == 0 {
+	// Section-derived coverage: the span of every unambiguously resolved
+	// source_sections entry joins the covered set, making sections the
+	// primary anchor and source_lines optional precision.
+	if headings, hErr := ParseHeadings(specPath); hErr == nil && len(headings) > 0 {
+		spans := sectionSpans(headings, totalLines)
+		for i := range tf.Tasks {
+			for _, s := range tf.Tasks[i].SourceSections {
+				resolved, ambiguous, _ := ResolveSection(s, headings)
+				if resolved == "" || ambiguous {
+					continue
+				}
+				if span, ok := spans[resolved]; ok {
+					for ln := span.Start; ln <= span.End; ln++ {
+						covered[ln] = true
+					}
+				}
+			}
+		}
+	}
+
+	// Warn only when the union is empty (no usable anchors at all)
+	if len(covered) == 0 {
 		findings = append(findings, Finding{
 			Severity: "warning",
 			Rule:     "line-coverage",
-			Message:  fmt.Sprintf("%d tasks missing source_lines — line coverage cannot be computed. Add source_lines (e.g. \"15-42\") to each task for spec coverage tracking.", len(tf.Tasks)),
+			Message:  fmt.Sprintf("%d tasks have no usable source anchors — line coverage cannot be computed. Add source_sections (canonical headings) to each task; source_lines (e.g. \"15-42\") adds optional precision.", len(tf.Tasks)),
 		})
 		return findings
 	}
