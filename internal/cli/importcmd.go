@@ -65,12 +65,19 @@ func runImport(_ *cobra.Command, args []string) error {
 			os.Exit(ExitFile)
 			return nil
 		}
+		// Default empty status to "open", mirroring model.ReadTaskFile
+		for i := range tasks {
+			if tasks[i].Status == "" {
+				tasks[i].Status = model.StatusOpen
+			}
+		}
 		now := time.Now().UTC()
 		tf = &model.TaskFile{
 			Version:   1,
 			Spec:      importSpec,
 			CreatedAt: now,
 			UpdatedAt: now,
+			Workflow:  engine.DefaultWorkflow(),
 			Tasks:     tasks,
 		}
 	case '{':
@@ -116,6 +123,16 @@ func runImport(_ *cobra.Command, args []string) error {
 		output.Error(ExitFile, fmt.Sprintf("task file already exists: %s (use --force to overwrite)", targetPath))
 		os.Exit(ExitFile)
 		return nil
+	}
+
+	// Workflow preservation (§9.3): when the target exists and the imported
+	// document carries no top-level workflow key (raw-JSON key check, before
+	// struct defaulting), the existing file's workflow block is carried over.
+	// Bare arrays cannot carry workflow, so they always preserve.
+	if _, statErr := os.Stat(targetPath); statErr == nil && !importedHasWorkflowKey(trimmed) {
+		if existing, readErr := model.ReadTaskFile(targetPath); readErr == nil {
+			tf.Workflow = existing.Workflow
+		}
 	}
 
 	// Resolve spec, normalize source_sections to canonical form (lenient — accepts

@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.23.0.md",
   "created_at": "2026-07-20T18:27:04Z",
-  "updated_at": "2026-07-20T19:53:48.626072Z",
+  "updated_at": "2026-07-20T19:55:39.463109Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -392,7 +392,7 @@
     {
       "id": "engine-audit-categories",
       "title": "Implement audit category enum",
-      "status": "wip",
+      "status": "done",
       "depends_on": [],
       "estimate_minutes": 6,
       "acceptance": "- 5 constants with IsValidCategory; ResolveAuditCategory enforces the 2.2 precedence\n- RenderAuditCategoryText renders enum plus precedence from shared constants per 4.4\n- category presence rules of 2.3 documented in rendered schema text",
@@ -401,10 +401,10 @@
       ],
       "source_lines": "108-148",
       "started_at": "2026-07-20T19:53:48.626072Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-07-20T19:55:23.732081Z",
+      "closed_reason": "- 5 sabit (security, concurrency, error-handling, correctness, contract) + IsValidCategory; ResolveAuditCategory 2.2 onceligini auditCategoryPrecedence dilimiyle uyguluyor (internal/engine/audit_category.go)\n- RenderAuditCategoryText enum + oncelik metnini AYNI sabit diliminden uretiyor (4.4 tek-kaynak sarti)\n- 2.3 presence kurallari (her satirda category; PASS -\u003e explicit null; PARTIAL/FAIL -\u003e enum, null degil) render edilen metinde belgelendi",
+      "gate_passed_at": "2026-07-20T19:55:23.732081Z",
+      "commit_sha": "81596d3"
     },
     {
       "id": "engine-audit-files",
@@ -781,7 +781,7 @@
     {
       "id": "cli-import-workflow-preserve",
       "title": "Preserve workflow on import",
-      "status": "open",
+      "status": "wip",
       "depends_on": [],
       "estimate_minutes": 6,
       "acceptance": "- raw workflow-key detection carries existing workflow for wrapped and bare-array imports per 9.3",
@@ -789,7 +789,7 @@
         "### 9.3 Workflow preservation"
       ],
       "source_lines": "489-492",
-      "started_at": null,
+      "started_at": "2026-07-20T19:55:39.463109Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,
