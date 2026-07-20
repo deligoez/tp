@@ -10,12 +10,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func recordRound(t *testing.T, dir, ndjsonContent string) (map[string]any, string, int) {
+func recordRound(t *testing.T, dir, ndjsonContent string) (out map[string]any, stderr string, code int) {
 	t.Helper()
 	f := filepath.Join(dir, "findings.ndjson")
 	require.NoError(t, os.WriteFile(f, []byte(ndjsonContent), 0o600))
-	stdout, stderr, code := runTP(t, dir, "review", "spec.md", "--record", f)
-	var out map[string]any
+	var stdout string
+	stdout, stderr, code = runTP(t, dir, "review", "spec.md", "--record", f)
 	if code == 0 {
 		require.NoError(t, json.Unmarshal([]byte(stdout), &out))
 	}
