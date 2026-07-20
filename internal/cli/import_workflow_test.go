@@ -23,7 +23,7 @@ func readPersistedWorkflow(t *testing.T, dir string) map[string]any {
 
 const importWorkflowTask = `{"id":"t1","title":"T","estimate_minutes":5,"acceptance":"setup done","source_sections":["1. Setup"],"depends_on":[]}`
 
-func TestImport_WorkflowPreservation(t *testing.T) {
+func TestImport_WorkflowPreserved(t *testing.T) {
 	setup := func(t *testing.T) string {
 		t.Helper()
 		dir := t.TempDir()
@@ -36,6 +36,8 @@ func TestImport_WorkflowPreservation(t *testing.T) {
 
 	t.Run("bare array force re-import preserves workflow", func(t *testing.T) {
 		dir := setup(t)
+		_, _, code := runTP(t, dir, "set", "--workflow", `checks=[{"class":"kept-check","cmd":"true"}]`)
+		require.Equal(t, 0, code)
 		importPath := filepath.Join(dir, "import.json")
 		require.NoError(t, os.WriteFile(importPath, []byte(`[`+importWorkflowTask+`]`), 0o600))
 
@@ -44,6 +46,9 @@ func TestImport_WorkflowPreservation(t *testing.T) {
 
 		wf := readPersistedWorkflow(t, dir)
 		assert.Equal(t, "echo preserved-gate", wf["quality_gate"])
+		checks := wf["checks"].([]any)
+		require.Len(t, checks, 1, "checks preserved through --force re-import")
+		assert.Equal(t, "kept-check", checks[0].(map[string]any)["class"])
 	})
 
 	t.Run("wrapped import without workflow key preserves workflow", func(t *testing.T) {
