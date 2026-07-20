@@ -71,8 +71,8 @@ tp plan --from <id>            # Start from a specific task onward
 tp plan --level 0,1            # Filter by parallelism levels (multi-agent)
 tp commit <id> [reason]        # Stage + structured commit + record SHA
 tp commit <id> --files "*.go"  # Selective file staging
-tp done <id> <reason>          # Close with implicit claim + verification
-tp done <id> --gate-passed     # Relax keyword matching (agent attests gate passed)
+tp done <id> <reason>          # Close with implicit claim + verification; runs the quality gate
+tp done <id> --skip-gate "why" # Skip gate execution, record gate_skipped_reason (needs user approval)
 tp done <id> --auto-commit     # Stage + commit + close in one call
 tp done <id> --auto-commit --files src/engine/*.go  # Selective staging + commit + close
 tp done <id> --covered-by <id> # Close as covered by another done task
@@ -136,10 +136,16 @@ tp review --report r1.ndjson r2.ndjson  # Cross-round convergence report
 tp review spec.md --diff-from spec-r0.md  # Diff-based review (changed sections only)
 tp review spec.md --spec-inline            # Embed full spec inline (default: reference mode)
 tp review --resolve ... --force           # Force re-resolve already resolved findings
-tp audit spec.md               # Post-implementation: verify code matches spec
+tp review spec.md --record merged.ndjson   # Record a review round (auto-numbered)
+tp review spec.md --status --check         # Convergence + mechanical checks; exit 0 when converged
+tp review spec.md --perspective regression # Standalone regression delta pass
+tp review spec.md --no-state               # Disable state (pre-0.23.0 manual --round)
+tp audit spec.md               # Post-implementation: 3 role prompts, verify code matches spec
 tp audit spec.md --affected-files src/a.go  # Manual file selection
 tp audit spec.md --findings review.ndjson  # Also verify review findings
-tp validate                    # Task file + line coverage + atomicity (--strict)
+tp audit spec.md --record results.ndjson   # Record an audit round (non-PASS = finding)
+tp audit spec.md --status --check          # Audit convergence; exit 0 when converged
+tp validate                    # Task file + section/line coverage + atomicity (--strict)
 ```
 
 ### Data
@@ -243,27 +249,26 @@ JSON arrays are also accepted and joined with `\n- ` on import.
 
 ## Closure Verification
 
-tp prevents lazy task closure. Every `tp done` and `tp close` verifies:
+tp prevents lazy task closure with a deterministic, language-agnostic rule. Every `tp done` and `tp close`:
 
-- **Keyword matching**: reason must address each acceptance criterion
-- **Minimum length**: reason ≥ half the acceptance text
-- **Forbidden patterns**: rejects "deferred", "will be done later", single-word reasons
+- **Evidence lines**: for a task with N ≥ 2 acceptance criteria, the reason must contain ≥ N lines each starting with `- ` at column 0 (indented sub-bullets do not count) — one top-level evidence line per criterion. A single-criterion task accepts any non-empty reason. The error enumerates each parsed criterion.
+- **Forbidden patterns**: rejects "deferred", "will be done later", single-word reasons, and "covered by existing" without a path.
 
 ```bash
-# This fails:
+# This fails (3 criteria, no evidence lines):
 tp done create-model "done"
-# error: closure reason must address each acceptance criterion with evidence
 
-# This passes:
-tp done create-model "User model at app/Models/User.php. Migration runs clean."
+# This passes (one "- " line per criterion; -- separates the reason from flags):
+tp done create-model -- "- User model at app/Models/User.php:18
+- migration 0007 applied, schema verified
+- go test ./... green"
 ```
 
-### Relaxed Modes
+### Automatic quality gate
+
+When `workflow.quality_gate` is set, `tp done`/`tp close` **run the command automatically** (once per invocation) before closing; a failing gate blocks the close (exit 4) and no task closes. `--gate-passed` is ignored when a gate is configured (it only records an attestation on gate-less projects). `--skip-gate "why"` skips execution and records `gate_skipped_reason` — a user-approved escape hatch, never the agent's own decision.
 
 ```bash
-# --gate-passed: skip keyword matching (agent attests quality gate passed)
-tp done task-1 "2559 tests pass, PHPStan level 8 clean" --gate-passed
-
 # --covered-by: task satisfied by another done task (not a deferral)
 tp done qa-delegation "test #26 covers this" --covered-by qa-tests
 ```
@@ -354,14 +359,16 @@ tp review --merge r1-*.ndjson -o r1.ndjson            # Merge + dedup findings
 # Resolve individual findings
 tp review --resolve r1.ndjson 3 fixed "evidence"      # Mark finding as fixed
 
-# R2: diff-based review (only changed sections inline)
-tp review spec.md --round 2 --findings r1.ndjson --diff-from spec-r0.md  # R2: diff-based
+# Record the round: tp owns the state directory, auto-numbers rounds, and
+# injects previous findings + the changed-sections diff into R2 automatically
+tp review spec.md --record r1.ndjson                  # record round 1
+tp review spec.md                                     # R2: auto diff + findings injected
 
 # Lightweight verification pass
 tp review --verify spec.md --findings all.ndjson      # Lightweight verification
 
-# Cross-round convergence report
-tp review --report r1.ndjson r2.ndjson                # Convergence report
+# Convergence is a recorded fact — loop until this exits 0
+tp review spec.md --status --check                    # converged AND all checks pass?
 ```
 
 | Flag | Purpose |
@@ -375,6 +382,10 @@ tp review --report r1.ndjson r2.ndjson                # Convergence report
 | `--diff-from` | Diff-based review (only changed sections inline) |
 | `-o` / `--output` | Output file path for merge |
 | `--force` | Force re-resolve already resolved findings |
+| `--record <file>` | Record a review round (auto-numbered R; freezes count + clean flag) |
+| `--status` / `--status --check` | Show convergence state / gate exit 0 on converged + passing checks |
+| `--perspective regression` | Standalone regression pass guarding settled decisions |
+| `--no-state` | Disable state reads/writes (pre-0.23.0 manual `--round` numbering) |
 
 ### Lint Checks
 
@@ -414,12 +425,17 @@ tp audit spec.md --affected-files src/form.vue src/api.ts
 tp audit spec.md --findings findings.ndjson
 ```
 
-The command parses the spec's structured elements (table rows, numbered lists), task acceptance criteria, and optionally review findings. Each becomes a checklist entry. It reads the changed source files and generates adversarial prompts that verify each requirement against actual code.
+The command parses the spec's structured elements (table rows, numbered lists), task acceptance criteria, and optionally review findings, then emits **one prompt per non-empty role** — `spec-coverage`, `security`, `maintainability-conventions` (v0.23.0). Each prompt carries an embedded JSON-array checklist and its per-role affected files; sub-agents return one NDJSON row per checklist item (`status` ∈ PASS/PARTIAL/FAIL). Record rounds and converge like review:
 
 ```bash
-tp audit spec.md --json | jq '.checklist_summary'
-# → {"total": 12, "by_type": {"table_row": 5, "list_item": 4, "task_acceptance": 3}}
+tp audit spec.md --json | jq '.prompts[].role'
+# → "spec-coverage"  "security"  "maintainability-conventions"
+
+tp audit spec.md --record results.ndjson    # non-PASS rows count as findings
+tp audit spec.md --status --check            # exit 0 only when the audit is converged
 ```
+
+> **Schema break:** v0.23.0 audit JSON is incompatible with v0.22.0 — `role` is one of the three above (was `implementation-auditor`), the `category` field is removed, and `checklist_items` / `affected_files` are new. Downstream consumers must update; there is no `--legacy-format` flag.
 
 ## AX (Agent Experience)
 

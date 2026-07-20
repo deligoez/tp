@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.23.0.md",
   "created_at": "2026-07-20T18:27:04Z",
-  "updated_at": "2026-07-20T22:15:26.043513Z",
+  "updated_at": "2026-07-20T22:19:42.587327Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -1092,7 +1092,7 @@
     {
       "id": "docs-skill-rewrite",
       "title": "Rewrite SKILL.md per section 16",
-      "status": "wip",
+      "status": "done",
       "depends_on": [
         "tests-integration"
       ],
@@ -1103,15 +1103,15 @@
       ],
       "source_lines": "664-682",
       "started_at": "2026-07-20T22:15:26.043513Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-07-20T22:19:23.435673Z",
+      "closed_reason": "- 16. bolumun 12 maddesi SKILL.md'ye islendi (skills/tp/SKILL.md): Workflow A sirasi (interview -\u003e lint -\u003e init --quality-gate -\u003e set --workflow budgets/checks -\u003e review -\u003e decompose -\u003e plain import), review loop recipe (merge -\u003e record -\u003e resolve -\u003e \u003e3 bolumde regression delta pass -\u003e --status --check exit 0), closure rule 5 silindi + evidence-line format, gate otomatik + --skip-gate/budget escalation kullanici onayi, Workflow B'de --gate-passed dustu + otomatik gate notu, audit loop --record/--status --check\n- Migration to v0.23.0 audit bolumu (17 semasi kirilimi), frontmatter domain/lens rehberi, class/checks rehberi + mechanize candidate, decomposition rule 4 (source_sections zorunlu, source_lines opsiyonel), .tp-review/ state dizini rehberi (VC'ye commit, prunable, CI implikasyonu), tail protocol (--verify wontfix + class-sweep) — hepsi eklendi",
+      "gate_passed_at": "2026-07-20T22:19:23.435673Z",
+      "commit_sha": "f747c35"
     },
     {
       "id": "docs-reference-readme-claude",
       "title": "Update REFERENCE README CLAUDE docs",
-      "status": "open",
+      "status": "wip",
       "depends_on": [
         "docs-skill-rewrite"
       ],
@@ -1122,7 +1122,7 @@
         "## 17. Backward Compatibility"
       ],
       "source_lines": "664-682,683-720",
-      "started_at": null,
+      "started_at": "2026-07-20T22:19:42.587327Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,

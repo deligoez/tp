@@ -175,20 +175,23 @@ skills/tp/
 
 1. **Write a spec** in `spec/<version>.md` describing the feature
 2. **Lint the spec**: `tp lint spec/<version>.md`
-3. **Review the spec**: `tp review spec/<version>.md` → spawn sub-agents, fix findings
-4. **Decompose into tasks** with `source_lines` for every task
-4. **Import**: `tp import <tasks.json>`
-5. **Validate**: `tp validate` — check line coverage gaps
-6. **Implement each task**, then:
+3. **Init + workflow**: `tp init spec/<version>.md --quality-gate "go test ./... && golangci-lint run"`, then `tp set --workflow` for convergence counts / round budgets / `checks` (before the review loop, so the loop reads them)
+4. **Review loop**: `tp review spec/<version>.md` → spawn sub-agents → `tp review --merge` → `tp review spec/<version>.md --record merged.ndjson` → resolve findings → repeat until `tp review spec/<version>.md --status --check` exits 0
+5. **Decompose into tasks** with `source_sections` for every task (`source_lines` optional precision)
+6. **Import**: `tp import <tasks.json>` (plain — the init shell holds zero tasks; convergence checks stay armed)
+7. **Validate**: `tp validate` — check coverage gaps
+8. **Implement each task**, then:
    - `tp commit <id> "evidence"` — atomic structured commit
-   - `tp done <id> "evidence" --gate-passed --commit <sha>`
-   - Or: `tp done <id> "evidence" --gate-passed --auto-commit`
-7. **Audit**: `tp audit spec/<version>.md` → spawn sub-agents, verify code matches spec
+   - `tp done <id> "evidence" --commit <sha>` — the quality gate runs automatically
+   - Or: `tp done <id> "evidence" --auto-commit`
+9. **Audit loop**: `tp audit spec/<version>.md` → spawn sub-agents → `tp audit spec/<version>.md --record results.ndjson` → fix code → repeat until `tp audit spec/<version>.md --status --check` exits 0
 8. **Report**: Last `tp done` auto-includes report summary. Or: `tp report` for full details
 9. **Release**: tag, push, `gh release edit` with notes
 
 ### Rules
-- Every task MUST have `source_lines` mapping to spec lines
+- Every task MUST have `source_sections` (canonical headings); `source_lines` is optional precision (§13.4). A task with neither anchor is a validation error.
+- The quality gate runs automatically at `tp done`/`tp close`; `--skip-gate "why"` and — on budget exhaustion — raising `review_max_rounds`/`audit_max_rounds` or `tp import --force` are **user-approved decisions, never the agent's own**.
+- Commit the `.tp-review/` state directory to version control (import enforcement + CI depend on it).
 - Every table row and numbered list item in spec must appear in a task's acceptance
 - Run backward pass: `tp validate` line coverage + structured element check
 - Use `--covered-by` when a task is satisfied by another task's work
@@ -218,8 +221,7 @@ skills/tp/
 - Every improvement should be evaluated: does this reduce token overhead or agent friction?
 
 ### Deferred Ideas (evaluate when agent feedback warrants)
-- **Review state directory** (`.tp-review/`): auto-manage findings files per round, auto-discover `--findings` from previous round. Currently agents manage files manually per SKILL.md convention. Revisit if agents consistently struggle with file management across 10+ rounds.
-- **Diff-based review auto-activation**: tp auto-snapshots spec each round and auto-diffs on round 2+. Depends on review state directory. Currently agents use `--diff-from` manually per SKILL.md recipe.
+- **Full audit NDJSON parser** (`tp audit --merge`): schema validation + dedup of audit rows. v0.23.0 `--record` only counts non-PASS rows; the full parser is deferred.
 - **Broken cross-reference lint**: detect `§3.2 step 10` when section 3.2 has only 9 steps. High false positive risk — needs careful format detection. Revisit if agents report wasted review rounds on broken cross-refs.
 - **Duplicate paragraph lint**: detect two consecutive identical paragraphs (blank-line separated). Currently `duplicate-line` catches line-level duplicates; paragraph-level needs paragraph boundary detection. Revisit if line-level check proves insufficient.
 
@@ -241,8 +243,8 @@ skills/tp/
 - All write operations use flock; reads are lock-free
 - Task status: open -> wip -> done (3 states only, blocked computed from deps)
 - Managed fields (tp set rejects): status, started_at, closed_at, closed_reason, gate_passed_at, commit_sha
-- Workflow convergence fields: `review_clean_rounds` (default 2, range 1-10), `audit_clean_rounds` (default 2, range 1-10)
-- `tp set --workflow` edits convergence fields; `quality_gate` is read-only via this command
+- Workflow fields (`tp set --workflow`): `review_clean_rounds`/`audit_clean_rounds` (default 2, 1-10), `gate_timeout_seconds` (default 600, 30-3600), `review_max_rounds`/`audit_max_rounds` (default 0=no cap, 0-50), `checks` (array of `{class, cmd}`, replace semantics). `quality_gate` stays read-only (author at `tp init --quality-gate`).
+- Managed fields also reject `gate_skipped_reason`. `tp reopen` clears `gate_passed_at`, `gate_skipped_reason`, and `commit_sha`.
 - Pretty-printed JSON with 2-space indentation
 - spec_excerpt capped at 2000 chars
 - source_lines supports multi-range: "4-10,15-20,25-30" and auto-normalizes single numbers ("72" → "72-72")

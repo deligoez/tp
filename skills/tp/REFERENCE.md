@@ -14,8 +14,9 @@ Detailed command reference, field formats, and operational details. For workflow
 | `tp plan --level 0,1` | Filter by parallelism levels (multi-agent) |
 | `tp commit <id> [reason]` | Stage + structured commit + record SHA |
 | `tp commit <id> --files "*.go"` | Selective file staging |
-| `tp done <id> "reason"` | Single close with implicit claim + verification |
-| `tp done <id> --gate-passed` | Relax keyword matching (agent attests gate passed) |
+| `tp done <id> "reason"` | Single close with implicit claim + verification; runs the quality gate |
+| `tp done <id> --skip-gate "why"` | Skip gate execution, record `gate_skipped_reason` (needs user approval) |
+| `tp done <id> --gate-passed` | Gate-less projects only: record an attestation; ignored when a gate is set |
 | `tp done <id> --auto-commit` | Commit + close in one call |
 | `tp done <id> --auto-commit --files "*.go"` | Selective staging + commit + close |
 | `tp done <id> --covered-by <id>` | Close as covered by another done task |
@@ -39,7 +40,8 @@ Detailed command reference, field formats, and operational details. For workflow
 | `tp reopen <id>` | done -> open (clears timestamps + SHA) |
 | `tp remove <id>` | Remove task (--force cleans deps) |
 | `tp set <id> field=value` | Update field (managed fields protected) |
-| `tp set --workflow field=value` | Update workflow-level fields (review_clean_rounds, audit_clean_rounds) |
+| `tp set --workflow field=value` | Update workflow fields: `review_clean_rounds`/`audit_clean_rounds` (1-10), `gate_timeout_seconds` (30-3600), `review_max_rounds`/`audit_max_rounds` (0-50, 0=no cap) |
+| `tp set --workflow checks='[{"class":"s","cmd":"c"}]'` | Replace the mechanical-checks list (JSON array; `class` kebab-case unique, `cmd` non-empty) |
 | `tp set --bulk sets.ndjson` | Bulk update from NDJSON {id, field, value} |
 
 ### Query
@@ -68,11 +70,19 @@ Detailed command reference, field formats, and operational details. For workflow
 | `tp review --resolve ... --force` | Force re-resolve already resolved findings |
 | `tp review --verify spec.md --findings all.ndjson` | Lightweight verification (verifier role) |
 | `tp review --report r1.ndjson r2.ndjson` | Cross-round convergence report |
-| `tp review spec.md --diff-from old-spec.md` | Diff-based review (changed sections only) |
+| `tp review spec.md --diff-from old-spec.md` | Diff-based review; overrides the snapshot baseline, forces the block at any round |
 | `tp review spec.md --spec-inline` | Embed full spec inline (default is reference mode) |
+| `tp review spec.md --record merged.ndjson` | Record a review round; auto-numbers R, freezes count + clean flag |
+| `tp review spec.md --status` | Show recorded rounds, `consecutive_clean`, `converged`, `stale`, `mechanical_checks` |
+| `tp review spec.md --status --check` | Run registered checks; exit 0 only when converged AND every check passes |
+| `tp review spec.md --perspective regression` | Standalone regression pass (needs state R≥2, or `--diff-from` + `--findings`) |
+| `tp review spec.md --no-state` | Disable all state reads/writes; restores pre-0.23.0 manual `--round` numbering |
 | `tp audit spec.md` | Post-implementation audit: verify code matches spec |
 | `tp audit spec.md --affected-files src/a.go` | Manual file selection (comma or repeated) |
-| `tp audit spec.md --findings review.ndjson` | Also verify review findings were addressed |
+| `tp audit spec.md --findings review.ndjson` | Also verify review findings were addressed (route to spec-coverage) |
+| `tp audit spec.md --record results.ndjson` | Record an audit round (non-PASS rows = findings); independent sequence |
+| `tp audit spec.md --status` | Show recorded audit rounds, `consecutive_clean`, `converged`, `stale` |
+| `tp audit spec.md --status --check` | Exit 0 only when the audit is converged |
 | `tp validate` | Task file validation + line coverage + atomicity |
 | `tp validate --strict` | Atomicity warnings become errors |
 
@@ -126,13 +136,16 @@ task X: acceptance has 6 criteria (max 3); hint: split into ~2 tasks by concern
 
 One line per task:
 ```
-{"id":"task-id","reason":"Evidence addressing each acceptance criterion.","gate_passed":true,"started_at":"2026-04-01T13:00:00Z","commit":"abc123"}
+{"id":"task-id","reason":"- criterion 1 evidence\n- criterion 2 evidence","started_at":"2026-04-01T13:00:00Z","commit":"abc123"}
 ```
 
-- `id` and `reason`: required
-- `gate_passed`: set true after quality gate passes
-- `started_at`: ISO 8601 timestamp when you began the task (optional, enables `tp report`)
-- `commit`: git commit SHA (optional)
+- `id` and `reason`: required. For N ≥ 2 acceptance criteria, `reason` must contain ≥ N lines each starting with `- ` (the `\n` in the string is literal).
+- `skip_gate`: optional string; when non-empty, that entry closes with `gate_skipped_reason` recorded and does not require the gate to pass (needs user approval). Present-but-empty fails the entry.
+- `started_at`: ISO 8601 timestamp when you began the task (optional, enables `tp report`).
+- `commit`: git commit SHA (optional).
+- `gate_passed`: gate-less projects only; the gate now runs automatically once per batch invocation.
+
+The batch gate runs once before any entry is processed, iff at least one surviving entry does not carry `skip_gate`. On gate failure, `skip_gate` entries still close and every other entry fails.
 
 ## Task File Discovery
 
@@ -196,3 +209,66 @@ spec/
 ```
 
 **Cleanup after review converges**: Delete review artifacts (snapshots `*-r0.md`, `*-r1.md`, etc. and findings `*.ndjson`). Keep the spec `.md` and task file `.tasks.json`.
+
+## Workflow Fields (v0.23.0)
+
+| Field | Type | Default | Range | `tp set --workflow` |
+|-------|------|---------|-------|---------------------|
+| `quality_gate` | string | `""` | — | read-only (author at `tp init --quality-gate`) |
+| `gate_timeout_seconds` | int | 600 | 30-3600 | settable |
+| `checks` | array of `{class, cmd}` | `[]` | — | settable (replace semantics) |
+| `review_clean_rounds` | int | 2 | 1-10 | settable |
+| `audit_clean_rounds` | int | 2 | 1-10 | settable |
+| `review_max_rounds` | int | 0 | 0-50 | settable (0 = no cap) |
+| `audit_max_rounds` | int | 0 | 0-50 | settable (0 = no cap) |
+
+Out-of-range `tp set --workflow` writes are rejected with exit 1. Out-of-range values in a hand-edited task file fall back at read time (`gate_timeout_seconds`→600, caps→0) and `tp validate` warns.
+
+## State Directory (`.tp-review/`)
+
+tp owns the review/audit round lifecycle in `<spec-dir>/.tp-review/<spec-base>/`:
+
+| File | Content |
+|------|---------|
+| `state.json` | Round index: `{spec, review_rounds: [...], audit_rounds: [...]}` |
+| `snapshot-round-<N>.md` | Byte copy of the spec at round N prompt generation |
+| `review-round-<N>.ndjson` | Recorded review round N findings |
+| `audit-round-<N>.ndjson` | Recorded audit round N results |
+
+Each round entry is `{round, findings, clean, recorded_at, file, spec_hash}`. `spec_hash` is `sha256:<hex>` of the spec bytes at record time and powers the staleness rule. **Commit this directory to version control** — import convergence enforcement and CI both depend on the recorded rounds traveling with the repo. Only snapshots older than the newest are prunable. A corrupt or index-less directory aborts state-reading commands with exit 3 and a `repair or delete <path>` hint; tp never silently rebuilds the index.
+
+## Spec Frontmatter (`tp:` mapping)
+
+A spec whose first line is `---` may carry a YAML frontmatter block. tp reads only the `tp:` mapping (every other top-level key is ignored) and excludes the whole block from every spec parser while preserving absolute line numbers.
+
+```yaml
+---
+tp:
+  domain: prose        # free string; default "software"; only "software" enables software-specific prompts
+  lens:
+    all: ["question appended to every role + regression"]
+    implementer: ["question appended to the implementer role only"]
+    tester: []
+    architect: []
+---
+```
+
+`tp lint --json` reports a `frontmatter` object: `{present, lines, domain, lens_roles}` (`lines` as `"1-K"`; `lens_roles` = non-empty lens keys in order implementer, tester, architect, all). Malformed YAML is a lint error; unknown lens keys, non-list values, and non-string elements are lint warnings and are ignored by review. An unterminated block is treated as content with a lint error.
+
+## Finding `class` and Report
+
+Review finding NDJSON gains an optional `class` (kebab-case slug naming a mechanically checkable pattern). `tp review --merge` preserves it (first non-empty wins on dedup); `tp review --report` adds a `by_class` breakdown and `mechanize_candidates` (a class in ≥ 2 distinct rounds OR ≥ 5 times in one round), sorted by total descending, ties alphabetical.
+
+## Audit JSON Schema (v0.23.0 — clean break from v0.22.0)
+
+`tp audit` emits one prompt per non-empty role. There is no `--legacy-format` flag; downstream consumers MUST update.
+
+| Field | v0.22.0 | v0.23.0 |
+|-------|---------|---------|
+| `prompts[].role` | always `"implementation-auditor"` | `spec-coverage` \| `security` \| `maintainability-conventions` |
+| `prompts[].category` | always `null` | REMOVED |
+| `prompts[].prompt` | paragraph text | structured: Role → Role Rules → Spec Excerpt → Project Context → JSON-array Checklist → Affected Files → Output Schema |
+| `prompts[].checklist_items` | absent | `[]ChecklistItem` (`item_id`, `type`, `spec_line`, `section`, `text`, `expected_evidence`) |
+| `prompts[].affected_files` | absent | `[]{path, tasks, diff_summary}` |
+
+Item ids are deterministic: `table-<t>-<r>`, `list-<l>-<n>`, `task-<id>`, `file-sec-<n>`/`file-maint-<n>`, `finding-<n>`. Sub-agents return one NDJSON row per checklist item: `{item_id, status(PASS|PARTIAL|FAIL), evidence_file, evidence_lines, category, severity, notes, class?}`. `category`/`severity` are `null` for PASS and one of the enum values for PARTIAL/FAIL. Finding category enum: `security > concurrency > error-handling > correctness > contract` (resolution precedence when several apply).
