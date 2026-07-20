@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.23.0.md",
   "created_at": "2026-07-20T18:27:04Z",
-  "updated_at": "2026-07-20T22:19:42.587327Z",
+  "updated_at": "2026-07-20T22:25:14.313904Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -1111,7 +1111,7 @@
     {
       "id": "docs-reference-readme-claude",
       "title": "Update REFERENCE README CLAUDE docs",
-      "status": "wip",
+      "status": "done",
       "depends_on": [
         "docs-skill-rewrite"
       ],
@@ -1123,10 +1123,10 @@
       ],
       "source_lines": "664-682,683-720",
       "started_at": "2026-07-20T22:19:42.587327Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-07-20T22:25:14.313904Z",
+      "closed_reason": "- REFERENCE.md yeni bayrak/alan/formatlari belgeliyor: --skip-gate, tam workflow alanlari tablosu (gate_timeout_seconds/review-audit_max_rounds/checks), review --record/--status/--check/--perspective regression/--no-state, audit --record/--status/--check, .tp-review/ state dizini semasi, tp: frontmatter, finding class + report, NDJSON skip_gate; 17 semasi kirilim tablosu Audit JSON Schema bolumunde\n- README.md komut tablolari + Closure Verification (evidence-line format) + otomatik gate bolumu + audit 3-rol/NDJSON + round-memory review akisi guncellendi; CLAUDE.md self-dev akisi (init --quality-gate -\u003e set --workflow -\u003e review loop -\u003e plain import), source_sections zorunlu kurali, otomatik gate + user-approval eskalasyon kurali, workflow alanlari + gate_skipped_reason managed, .tp-review VC kurali; artik-uygulanmis eski fikirler listeden temizlendi",
+      "gate_passed_at": "2026-07-20T22:25:14.313904Z",
+      "commit_sha": "b74556c"
     }
   ]
 }
