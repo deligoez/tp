@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.23.0.md",
   "created_at": "2026-07-20T18:27:04Z",
-  "updated_at": "2026-07-20T22:06:22.72575Z",
+  "updated_at": "2026-07-20T22:15:26.043513Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -1070,7 +1070,7 @@
     {
       "id": "tests-integration",
       "title": "Write integration tests",
-      "status": "wip",
+      "status": "done",
       "depends_on": [
         "cli-gate-tests",
         "cli-audit-prompt-tests",
@@ -1084,15 +1084,15 @@
       ],
       "source_lines": "798-805",
       "started_at": "2026-07-20T22:06:22.72575Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-07-20T22:15:12.611557Z",
+      "closed_reason": "- TestAudit_FullShape: kucuk spec uzerinde uctan uca, JSON'da 3 rol-etiketli prompt + her prompt'ta prompt/checklist_items/affected_files zorunlu alanlari, item'larda expected_evidence hicbir zaman bos (internal/cli/integration_test.go)\n- TestAudit_FileFilterCap: 50 dosya -\u003e security\u003c=20, maintainability\u003c=10; TestAudit_NoLegacyCategoryField: audit JSON'da category anahtari yok\n- TestSelfLoop_ReviewToImport: lint -\u003e init -\u003e review -\u003e dirty round -\u003e import exit 1 -\u003e 2 clean round -\u003e import success -\u003e spec edit -\u003e import stale exit 1 (importcmd sira duzeltmesi b5d8404 ile calisiyor); TestGateLoop_EndToEnd: gate fail bloke, gate pass gate_passed_at damgasi, --skip-gate reason kaydi",
+      "gate_passed_at": "2026-07-20T22:15:12.611557Z",
+      "commit_sha": "6af4a79"
     },
     {
       "id": "docs-skill-rewrite",
       "title": "Rewrite SKILL.md per section 16",
-      "status": "open",
+      "status": "wip",
       "depends_on": [
         "tests-integration"
       ],
@@ -1102,7 +1102,7 @@
         "## 16. Documentation Rewrite"
       ],
       "source_lines": "664-682",
-      "started_at": null,
+      "started_at": "2026-07-20T22:15:26.043513Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,
