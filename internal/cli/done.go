@@ -101,6 +101,21 @@ func runDone(_ *cobra.Command, args []string) error {
 
 // runDoneSingle handles the single-ID case with backward-compatible output.
 func runDoneSingle(taskFilePath, taskID, reason string) error {
+	// Cheap checks, then a single gate run, both pre-flock (§6.1, §6.2)
+	tfPre, preErr := model.ReadTaskFile(taskFilePath)
+	if preErr != nil {
+		output.Error(ExitFile, preErr.Error())
+		os.Exit(ExitFile)
+		return nil
+	}
+	if ce := checkDoneTarget(tfPre, taskID, reason, doneCoveredBy, nil); ce != nil {
+		exitDoneCheckError(ce)
+		return nil
+	}
+	gateRan := runQualityGatePreFlock(tfPre, taskFilePath)
+
+	// Post-gate: flock, re-read, re-validate; a task whose state changed
+	// during the gate run fails with the normal state error (§6.2 item 6).
 	return engine.WithFileLock(taskFilePath, func() error {
 		tf, readErr := model.ReadTaskFile(taskFilePath)
 		if readErr != nil {
@@ -199,7 +214,7 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 		task.Status = model.StatusDone
 		task.ClosedAt = &now
 		task.ClosedReason = &reason
-		if doneGatePassed {
+		if doneGatePassed || gateRan {
 			task.GatePassedAt = &now
 		}
 		if doneCommit != "" {
@@ -213,7 +228,7 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 			return nil
 		}
 
-		if !doneGatePassed {
+		if !doneGatePassed && !gateRan {
 			output.Info("quality gate not attested. Consider using --gate-passed.")
 		}
 
@@ -268,6 +283,26 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 
 // runDoneMulti handles the multi-ID case with array output.
 func runDoneMulti(taskFilePath string, taskIDs []string, reason string) error {
+	tfPre, preErr := model.ReadTaskFile(taskFilePath)
+	if preErr != nil {
+		output.Error(ExitFile, preErr.Error())
+		os.Exit(ExitFile)
+		return nil
+	}
+	// Gate runs once iff at least one target survives the cheap checks (§6.1)
+	assume := make(map[string]bool)
+	survivors := 0
+	for _, id := range taskIDs {
+		if ce := checkDoneTarget(tfPre, id, reason, doneCoveredBy, assume); ce == nil {
+			survivors++
+			assume[id] = true
+		}
+	}
+	gateRan := false
+	if survivors > 0 {
+		gateRan = runQualityGatePreFlock(tfPre, taskFilePath)
+	}
+
 	return engine.WithFileLock(taskFilePath, func() error {
 		tf, readErr := model.ReadTaskFile(taskFilePath)
 		if readErr != nil {
@@ -358,7 +393,7 @@ func runDoneMulti(taskFilePath string, taskIDs []string, reason string) error {
 			task.ClosedAt = &now
 			r := reason
 			task.ClosedReason = &r
-			if doneGatePassed {
+			if doneGatePassed || gateRan {
 				task.GatePassedAt = &now
 			}
 			if doneCommit != "" {
@@ -459,6 +494,23 @@ func runDoneBatch() error {
 		output.Error(ExitFile, err.Error())
 		os.Exit(ExitFile)
 		return nil
+	}
+
+	tfPre, preErr := model.ReadTaskFile(taskFilePath)
+	if preErr != nil {
+		output.Error(ExitFile, preErr.Error())
+		os.Exit(ExitFile)
+		return nil
+	}
+	// Gate runs once before any entry is processed, iff a surviving entry
+	// exists (§6.1); on failure every entry fails and nothing closes (§6.4).
+	gateRan := false
+	if tfPre.Workflow.QualityGate != "" && batchHasSurvivor(tfPre, entries) {
+		res := executeQualityGate(tfPre, taskFilePath)
+		if !res.Passed {
+			return emitBatchGateFailure(tfPre, entries, res)
+		}
+		gateRan = true
 	}
 
 	return engine.WithFileLock(taskFilePath, func() error {
@@ -578,7 +630,7 @@ func runDoneBatch() error {
 			task.ClosedAt = &now
 			reason := entry.Reason
 			task.ClosedReason = &reason
-			if entry.GatePassed {
+			if entry.GatePassed || gateRan {
 				task.GatePassedAt = &now
 			}
 			if entry.Commit != "" {

@@ -81,6 +81,31 @@ func runClose(_ *cobra.Command, args []string) error {
 		return nil
 	}
 
+	// Cheap checks, then a single gate run, both pre-flock (§6.1, §6.2)
+	tfPre, preErr := model.ReadTaskFile(taskFilePath)
+	if preErr != nil {
+		output.Error(ExitFile, preErr.Error())
+		os.Exit(ExitFile)
+		return nil
+	}
+	preTask, _, preFindErr := model.FindTask(tfPre, args[0])
+	if preFindErr != nil {
+		output.Error(ExitState, preFindErr.Error())
+		os.Exit(ExitState)
+		return nil
+	}
+	if !model.ValidTransition(preTask.Status, model.StatusDone) {
+		output.Error(ExitState, fmt.Sprintf("cannot close: task %s is %s (must be wip)", preTask.ID, preTask.Status), "Use `tp done` for implicit claim from open, or `tp claim` first.")
+		os.Exit(ExitState)
+		return nil
+	}
+	if verifyErr := engine.VerifyClosure(preTask.Acceptance, reason, false); verifyErr != nil {
+		output.Error(ExitValidation, fmt.Sprintf("closure verification failed: %v", verifyErr), engine.ClosureHint(verifyErr, "Rewrite reason to address all acceptance criteria."))
+		os.Exit(ExitValidation)
+		return nil
+	}
+	gateRan := runQualityGatePreFlock(tfPre, taskFilePath)
+
 	return engine.WithFileLock(taskFilePath, func() error {
 		tf, err := model.ReadTaskFile(taskFilePath)
 		if err != nil {
@@ -113,6 +138,9 @@ func runClose(_ *cobra.Command, args []string) error {
 		task.Status = model.StatusDone
 		task.ClosedAt = &now
 		task.ClosedReason = &reason
+		if gateRan {
+			task.GatePassedAt = &now
+		}
 		tf.UpdatedAt = now
 
 		if err := model.WriteTaskFile(taskFilePath, tf); err != nil {
