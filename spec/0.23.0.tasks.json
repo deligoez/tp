@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.23.0.md",
   "created_at": "2026-07-20T18:27:04Z",
-  "updated_at": "2026-07-20T21:39:32.141192Z",
+  "updated_at": "2026-07-20T21:44:34.514731Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -409,7 +409,7 @@
     {
       "id": "engine-audit-files",
       "title": "Implement audit file filtering",
-      "status": "open",
+      "status": "wip",
       "depends_on": [],
       "estimate_minutes": 12,
       "acceptance": "- task-to-file mapping via commit_sha with alphabetical list ordering per 5.2; drop rules filter universe first per 5.5\n- per-role selection ranking caps and fallback implemented for all three roles; --affected-files replaces the universe\n- affected_files exposed as path tasks diff_summary per 5.6",
@@ -417,7 +417,7 @@
         "## 5. Audit File Filtering"
       ],
       "source_lines": "253-294",
-      "started_at": null,
+      "started_at": "2026-07-20T21:44:34.514731Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,
@@ -446,7 +446,7 @@
     {
       "id": "cli-audit-schema",
       "title": "Rework auditPrompt output schema",
-      "status": "wip",
+      "status": "done",
       "depends_on": [],
       "estimate_minutes": 8,
       "acceptance": "- auditPrompt drops Category and gains ChecklistItems and AffectedFiles fields; ChecklistItem Type enum includes finding per 3.2\n- NDJSON output schema of section 4 embedded as prompt guidance including the class field row",
@@ -456,10 +456,10 @@
       ],
       "source_lines": "220-252,291-294",
       "started_at": "2026-07-20T21:39:32.141192Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-07-20T21:44:01.07503Z",
+      "closed_reason": "- auditPrompt'ta Category alani yok (testte anahtar yoklugu dogrulaniyor); ChecklistItems ([]ChecklistItem, 3.2 Type enum'u finding dahil yorumda belgeli) ve AffectedFiles ({path, tasks, diff_summary}) alanlari eklendi ve dolduruluyor (audit.go, audit_schema.go; TestAuditSchema_PromptFieldsAndOutputSchema)\n- 4. bolum NDJSON semasi renderAuditOutputSchema ile her prompt'a gomuluyor: alan tablosu class satiri dahil, evidence_lines cift formu, kategori enum + oncelik metni RenderAuditCategoryText'ten (tek kaynak); eski 'PASS|PARTIAL|FAIL' cikti-format satirini asserte eden test yeni semaya guncellendi",
+      "gate_passed_at": "2026-07-20T21:44:01.07503Z",
+      "commit_sha": "9474c35"
     },
     {
       "id": "cli-audit-routing",
