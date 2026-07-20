@@ -103,7 +103,6 @@ func runReviewVerify(specPath, findingsPath string, affectedFiles []string, diff
 		}},
 		ReviewLoop: reviewLoop{
 			Round:            0,
-			MaxRounds:        1,
 			Convergence:      "verification pass",
 			PreviousFindings: len(findings),
 			Instruction:      "If verifier finds 0 issues, review is complete. If issues found, run a full review round.",

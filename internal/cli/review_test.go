@@ -84,9 +84,13 @@ Users need X.
 	assert.Equal(t, true, result["spec_ref"])
 	assert.NotEmpty(t, result["spec_path"])
 
-	// Review loop
+	// Review loop: max_rounds removed; state-derived fields present
 	loop := result["review_loop"].(map[string]any)
-	assert.Equal(t, float64(2), loop["max_rounds"])
+	_, hasMaxRounds := loop["max_rounds"]
+	assert.False(t, hasMaxRounds, "max_rounds is removed in v0.23.0")
+	assert.Equal(t, float64(2), loop["required_clean_rounds"])
+	assert.Equal(t, false, loop["converged"])
+	assert.Contains(t, loop["convergence"], "no findings surviving verification")
 
 	// --spec-inline: should contain inline spec content
 	stdoutInline, stderrInline, codeInline := runTP(t, dir, "review", "--spec-inline", specPath)
@@ -435,7 +439,8 @@ func TestReviewRound1WithFindings(t *testing.T) {
 	assert.NotContains(t, implPrompt, "review round 2")
 	assert.Contains(t, implPrompt, "only report NEW issues")
 
-	assert.Contains(t, loop["instruction"].(string), "--round 2 --findings")
+	assert.Contains(t, loop["instruction"].(string), "--record")
+	assert.Contains(t, loop["instruction"].(string), "--status --check")
 }
 
 func TestReviewSeveritySortOrder(t *testing.T) {
@@ -671,7 +676,8 @@ func TestReviewPerspectiveDocPromptContent(t *testing.T) {
 
 	loop := result["review_loop"].(map[string]any)
 	assert.Equal(t, float64(1), loop["round"])
-	assert.Equal(t, float64(1), loop["max_rounds"])
+	_, hasMaxRounds := loop["max_rounds"]
+	assert.False(t, hasMaxRounds, "max_rounds is removed in v0.23.0")
 	assert.Equal(t, "single-pass plan generation", loop["convergence"])
 }
 

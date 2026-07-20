@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.23.0.md",
   "created_at": "2026-07-20T18:27:04Z",
-  "updated_at": "2026-07-20T21:06:33.015662Z",
+  "updated_at": "2026-07-20T21:09:47.854296Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -601,7 +601,7 @@
     {
       "id": "cli-review-auto-diff",
       "title": "Inject snapshot diff into prompts",
-      "status": "wip",
+      "status": "done",
       "depends_on": [
         "cli-review-state-rounds"
       ],
@@ -612,15 +612,15 @@
       ],
       "source_lines": "428-440",
       "started_at": "2026-07-20T21:06:33.015662Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-07-20T21:09:34.635438Z",
+      "closed_reason": "- R\u003e=2'de en yeni round\u003cR snapshot'i baseline alinip DiffSections ile 'Changed sections since round \u003ck\u003e' blogu HER prompt'a ekleniyor; bolum basina 40 satir, toplam 6000 karakter cap'leri buildChangedSectionsBlock'ta (internal/cli/review_autodiff.go; TestReviewAutoDiff_SnapshotBaseline, _SectionLineCap)\n- Daha erken snapshot yoksa blok atlanip info satiri basiliyor; --diff-from baseline'i override edip blogu her turda (R=1 dahil) zorluyor — eski 'round \u003e= 2' kisiti kaldirildi (TestReviewAutoDiff_DiffFromForcesAtRound1)",
+      "gate_passed_at": "2026-07-20T21:09:34.635438Z",
+      "commit_sha": "c4d76f2"
     },
     {
       "id": "cli-review-loop-output",
       "title": "Emit review_loop schema v2",
-      "status": "open",
+      "status": "wip",
       "depends_on": [
         "cli-review-state-rounds"
       ],
@@ -630,7 +630,7 @@
         "### 8.7 review_loop output schema change"
       ],
       "source_lines": "460-474",
-      "started_at": null,
+      "started_at": "2026-07-20T21:09:47.854296Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,

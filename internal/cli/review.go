@@ -39,12 +39,15 @@ type reviewPrompt struct {
 }
 
 type reviewLoop struct {
-	Round            int    `json:"round"`
-	MaxRounds        int    `json:"max_rounds"`
-	Convergence      string `json:"convergence"`
-	PreviousFindings int    `json:"previous_findings"`
-	Instruction      string `json:"instruction"`
-	Mode             string `json:"mode,omitempty"`
+	Round               int    `json:"round"`
+	Convergence         string `json:"convergence"`
+	PreviousFindings    int    `json:"previous_findings"`
+	RequiredCleanRounds *int   `json:"required_clean_rounds,omitempty"`
+	ConsecutiveClean    *int   `json:"consecutive_clean,omitempty"`
+	Converged           *bool  `json:"converged,omitempty"`
+	Stale               *bool  `json:"stale,omitempty"`
+	Instruction         string `json:"instruction"`
+	Mode                string `json:"mode,omitempty"`
 }
 
 type reviewResult struct {
@@ -447,7 +450,6 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 			Prompts:         []reviewPrompt{prompt},
 			ReviewLoop: reviewLoop{
 				Round:            round,
-				MaxRounds:        1,
 				Convergence:      "single-pass code audit",
 				PreviousFindings: 0,
 				Instruction:      "Spawn a sub-agent with this prompt. Collect NDJSON findings. Feed findings back into spec revision or task acceptance updates.",
@@ -483,7 +485,6 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 			Prompts: []reviewPrompt{prompt},
 			ReviewLoop: reviewLoop{
 				Round:            1,
-				MaxRounds:        1,
 				Convergence:      "single-pass plan generation",
 				PreviousFindings: 0,
 				Instruction:      "Spawn a sub-agent with this prompt. Collect the NDJSON plan. Review the plan for completeness, then append the plan to the spec.",
@@ -519,7 +520,6 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 			Prompts: []reviewPrompt{prompt},
 			ReviewLoop: reviewLoop{
 				Round:            1,
-				MaxRounds:        1,
 				Convergence:      "single-pass plan generation",
 				PreviousFindings: 0,
 				Instruction:      "Spawn a sub-agent with this prompt. Collect the NDJSON plan. Review the plan for completeness, then append the plan to the spec.",
@@ -545,6 +545,8 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 	// State-backed round lifecycle (default three-role mode): tp numbers the
 	// round, snapshots the spec, and injects previous findings automatically.
 	statePrevFindings := make([]reviewFinding, 0)
+	var stateRequired, stateConsecutive *int
+	var stateConverged, stateStale *bool
 	if !noState {
 		st, stErr := engine.LoadReviewState(specPath)
 		if stErr != nil {
@@ -578,6 +580,20 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 			output.Error(ExitFile, fmt.Sprintf("cannot write snapshot: %v", writeErr))
 			os.Exit(ExitFile)
 			return nil
+		}
+
+		// State-derived review_loop fields
+		wfState, _ := engine.ResolveWorkflow(specPath, flagFile)
+		if specHash, hashErr := engine.SpecHash(specPath); hashErr == nil {
+			rounds := []engine.ReviewRound{}
+			if st != nil {
+				rounds = st.ReviewRounds
+			}
+			req := wfState.ReviewCleanRounds
+			cc := engine.ConsecutiveClean(rounds)
+			conv := engine.Converged(rounds, req, specHash)
+			stale := engine.StateStale(rounds, specHash)
+			stateRequired, stateConsecutive, stateConverged, stateStale = &req, &cc, &conv, &stale
 		}
 
 		// Previous findings from rounds 1..R-1 unless --findings overrides
@@ -668,6 +684,17 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 	if noState {
 		convergence += " (convergence is not being recorded: --no-state)"
 		instruction += " Convergence is not being recorded (--no-state)."
+	} else {
+		required := 2
+		if stateRequired != nil {
+			required = *stateRequired
+		}
+		convergence = fmt.Sprintf("no findings surviving verification (any severity) in %d consecutive rounds", required)
+		instruction = fmt.Sprintf("For each prompt, spawn a sub-agent via the Agent tool. Merge findings (tp review --merge), verify and resolve them, then record the round: tp review %s --record <findings.ndjson>. Repeat until tp review %s --status --check exits 0.", specPath, specPath)
+		if !specInline {
+			absPath, _ := filepath.Abs(specPath)
+			instruction += " Read the spec at " + absPath + " before processing each prompt."
+		}
 	}
 
 	result := reviewResult{
@@ -675,11 +702,14 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 		StructuredElements: elems,
 		Prompts:            prompts,
 		ReviewLoop: reviewLoop{
-			Round:            round,
-			MaxRounds:        2,
-			Convergence:      convergence,
-			PreviousFindings: uniqueCount,
-			Instruction:      instruction,
+			Round:               round,
+			Convergence:         convergence,
+			PreviousFindings:    uniqueCount,
+			RequiredCleanRounds: stateRequired,
+			ConsecutiveClean:    stateConsecutive,
+			Converged:           stateConverged,
+			Stale:               stateStale,
+			Instruction:         instruction,
 		},
 	}
 
