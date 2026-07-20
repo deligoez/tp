@@ -13,8 +13,8 @@ import (
 // the software-specific prompt content.
 const DomainSoftware = "software"
 
-// lensRoleOrder lists the known lens keys in reporting order.
-var lensRoleOrder = []string{"implementer", "tester", "architect", "all"}
+// LensRoleOrder lists the known lens keys in reporting order.
+var LensRoleOrder = []string{"implementer", "tester", "architect", "all"}
 
 // Frontmatter is the parsed state of a spec's YAML frontmatter. tp reads only
 // the tp: mapping; every other top-level key is ignored.
@@ -115,8 +115,8 @@ func ParseFrontmatterBytes(data []byte) *Frontmatter {
 // parseLens validates each lens key and value, warning about and ignoring
 // unknown keys, non-list values, and non-string list elements.
 func (fm *Frontmatter) parseLens(lensMap map[string]any) {
-	known := make(map[string]bool, len(lensRoleOrder))
-	for _, k := range lensRoleOrder {
+	known := make(map[string]bool, len(LensRoleOrder))
+	for _, k := range LensRoleOrder {
 		known[k] = true
 	}
 
@@ -128,7 +128,7 @@ func (fm *Frontmatter) parseLens(lensMap map[string]any) {
 
 	for _, key := range keys {
 		if !known[key] {
-			fm.warn(fmt.Sprintf("tp.lens key %q is unknown (known: %s); ignored", key, strings.Join(lensRoleOrder, ", ")))
+			fm.warn(fmt.Sprintf("tp.lens key %q is unknown (known: %s); ignored", key, strings.Join(LensRoleOrder, ", ")))
 			continue
 		}
 		list, isList := lensMap[key].([]any)

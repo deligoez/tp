@@ -20,8 +20,17 @@ type lintResult struct {
 	Errors             int                        `json:"errors"`
 	Warnings           int                        `json:"warnings"`
 	Info               int                        `json:"info"`
+	Frontmatter        lintFrontmatter            `json:"frontmatter"`
 	Findings           []engine.Finding           `json:"findings"`
 	StructuredElements *engine.StructuredElements `json:"structured_elements,omitempty"`
+}
+
+// lintFrontmatter is the frontmatter object of tp lint --json output.
+type lintFrontmatter struct {
+	Present   bool     `json:"present"`
+	Lines     *string  `json:"lines"` // "1-K", null without frontmatter
+	Domain    string   `json:"domain"`
+	LensRoles []string `json:"lens_roles"`
 }
 
 func newLintCmd() *cobra.Command {
@@ -59,13 +68,32 @@ func runLint(_ *cobra.Command, args []string) error {
 	structFindings, structElems := engine.CheckStructuredElements(lines, headings)
 	findings = append(findings, structFindings...)
 
+	// Frontmatter state: structural errors and shape warnings are lint findings
+	fm := engine.ParseFrontmatter(specPath)
+	findings = append(findings, fm.Errors...)
+	findings = append(findings, fm.Warnings...)
+	fmObj := lintFrontmatter{
+		Present:   fm.Present,
+		Domain:    fm.Domain,
+		LensRoles: make([]string, 0),
+	}
+	if fm.Present {
+		l := fmt.Sprintf("%d-%d", fm.Lines.Start, fm.Lines.End)
+		fmObj.Lines = &l
+	}
+	for _, role := range engine.LensRoleOrder {
+		if len(fm.Lens[role]) > 0 {
+			fmObj.LensRoles = append(fmObj.LensRoles, role)
+		}
+	}
+
 	taskFindings := checkTaskFileQuality(specPath)
 	findings = append(findings, taskFindings...)
 
 	specScopeFindings := checkAffectedFilesScope(lines, headings)
 	findings = append(findings, specScopeFindings...)
 
-	result := lintResult{File: specPath, Findings: findings, StructuredElements: structElems}
+	result := lintResult{File: specPath, Frontmatter: fmObj, Findings: findings, StructuredElements: structElems}
 	for _, f := range findings {
 		switch f.Severity {
 		case "error":

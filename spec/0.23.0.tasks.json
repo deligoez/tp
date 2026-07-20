@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.23.0.md",
   "created_at": "2026-07-20T18:27:04Z",
-  "updated_at": "2026-07-20T20:20:26.89646Z",
+  "updated_at": "2026-07-20T20:24:55.103092Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -334,7 +334,7 @@
     {
       "id": "engine-frontmatter-exclusion",
       "title": "Exclude frontmatter from all parsers",
-      "status": "wip",
+      "status": "done",
       "depends_on": [
         "engine-frontmatter-parse"
       ],
@@ -345,15 +345,15 @@
       ],
       "source_lines": "565-577",
       "started_at": "2026-07-20T20:20:26.89646Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-07-20T20:24:43.550231Z",
+      "closed_reason": "- BlankFrontmatter/BlankFrontmatterLines (engine/frontmatter_blank.go) blogu bos satirlarla degistirerek mutlak satir numaralarini koruyor; 8 yuzey bagli: countContentLines, ParseHeadings, cli lint parseSpecFile (lint kurallari + structured extraction ayni lines'i kullaniyor), DiffSections cagrilari (review.go + review_verify.go), readSpecContent (inline embed), audit.go specData, ExtractSpecExcerpt (plan/show/next spec_excerpt) fm satirlarini atliyor\n- Yapisal bozulma davranisi parser'dan geliyor: kapanmayan blok Present=false oldugundan icerik sayiliyor, bozuk YAML'da blok excluded kaliyor; TestBlankFrontmatter_ParserExclusion 3 yuzeyi mutlak satir numarasiyla dogruluyor",
+      "gate_passed_at": "2026-07-20T20:24:43.550231Z",
+      "commit_sha": "a4904d5"
     },
     {
       "id": "cli-lint-frontmatter",
       "title": "Report frontmatter in lint output",
-      "status": "open",
+      "status": "wip",
       "depends_on": [
         "engine-frontmatter-parse"
       ],
@@ -363,7 +363,7 @@
         "### 12.4 Lint reporting"
       ],
       "source_lines": "593-596",
-      "started_at": null,
+      "started_at": "2026-07-20T20:24:55.103092Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,
