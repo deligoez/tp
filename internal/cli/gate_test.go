@@ -144,3 +144,126 @@ func TestGate_CloseRunsGateAndStamps(t *testing.T) {
 	assert.Equal(t, "done", task["status"])
 	assert.NotNil(t, task["gate_passed_at"])
 }
+
+func TestSkipGate_RecordsReasonAndSkipsExecution(t *testing.T) {
+	dir := setupProjectWithGate(t, "echo run >> gate_runs.txt")
+	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+
+	stdout, stderr, code := runTP(t, dir, "done", "t1", "task complete and verified fully", "--skip-gate", "CI environment unavailable")
+	require.Equal(t, 0, code, "done --skip-gate failed: stderr=%s stdout=%s", stderr, stdout)
+
+	_, err := os.Stat(filepath.Join(dir, "gate_runs.txt"))
+	assert.True(t, os.IsNotExist(err), "gate must not execute with --skip-gate")
+
+	task := showTask(t, dir, "t1")
+	assert.Equal(t, "done", task["status"])
+	assert.Equal(t, "CI environment unavailable", task["gate_skipped_reason"])
+	assert.Nil(t, task["gate_passed_at"], "gate_passed_at stays null on skip")
+}
+
+func TestSkipGate_UsageErrors(t *testing.T) {
+	dir := setupProjectWithGate(t, "echo ok")
+	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+
+	_, _, code := runTP(t, dir, "done", "t1", "reason text here", "--skip-gate", "  ")
+	assert.Equal(t, 2, code, "empty --skip-gate reason is a usage error")
+
+	_, _, code = runTP(t, dir, "done", "t1", "reason text here", "--skip-gate", "why", "--gate-passed")
+	assert.Equal(t, 2, code, "--skip-gate with --gate-passed is a usage error")
+
+	_, _, code = runTP(t, dir, "done", "--batch", "whatever.ndjson", "--skip-gate", "why")
+	assert.Equal(t, 2, code, "--skip-gate with --batch is a usage error")
+}
+
+func TestSkipGate_RecordedEvenWithoutGate(t *testing.T) {
+	dir := setupProject(t) // no quality gate configured
+	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+
+	_, stderr, code := runTP(t, dir, "done", "t1", "task complete and verified fully", "--skip-gate", "no gate but honest record")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	task := showTask(t, dir, "t1")
+	assert.Equal(t, "no gate but honest record", task["gate_skipped_reason"])
+}
+
+func TestSkipGate_BatchEntriesCloseDespiteGateFailure(t *testing.T) {
+	dir := setupProjectWithGate(t, "exit 3")
+	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"A complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"b","title":"B","depends_on":[],"estimate_minutes":5,"acceptance":"B complete","source_sections":["s1"]}`)
+
+	ndjson := filepath.Join(dir, "results.ndjson")
+	lines := []string{
+		`{"id":"a","reason":"A complete and verified","skip_gate":"flaky environment"}`,
+		`{"id":"b","reason":"B complete and verified"}`,
+	}
+	require.NoError(t, os.WriteFile(ndjson, []byte(strings.Join(lines, "\n")+"\n"), 0o600))
+
+	stdout, _, code := runTP(t, dir, "done", "--batch", ndjson)
+	assert.Equal(t, 1, code, "partial failure exit code")
+
+	var batchOut map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &batchOut))
+	assert.Equal(t, float64(1), batchOut["closed"])
+	assert.Equal(t, float64(1), batchOut["failed"])
+
+	taskA := showTask(t, dir, "a")
+	assert.Equal(t, "done", taskA["status"])
+	assert.Equal(t, "flaky environment", taskA["gate_skipped_reason"])
+	taskB := showTask(t, dir, "b")
+	assert.Equal(t, "open", taskB["status"])
+}
+
+func TestSkipGate_BatchAllSkipNeverRunsGate(t *testing.T) {
+	dir := setupProjectWithGate(t, "echo run >> gate_runs.txt")
+	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"A complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"b","title":"B","depends_on":[],"estimate_minutes":5,"acceptance":"B complete","source_sections":["s1"]}`)
+
+	ndjson := filepath.Join(dir, "results.ndjson")
+	lines := []string{
+		`{"id":"a","reason":"A complete and verified","skip_gate":"reason a"}`,
+		`{"id":"b","reason":"B complete and verified","skip_gate":"reason b"}`,
+	}
+	require.NoError(t, os.WriteFile(ndjson, []byte(strings.Join(lines, "\n")+"\n"), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "done", "--batch", ndjson)
+	require.Equal(t, 0, code, "stderr=%s stdout=%s", stderr, stdout)
+
+	_, err := os.Stat(filepath.Join(dir, "gate_runs.txt"))
+	assert.True(t, os.IsNotExist(err), "all-skip batch never executes the gate")
+}
+
+func TestSkipGate_BatchEmptySkipGateFailsEntry(t *testing.T) {
+	dir := setupProjectWithGate(t, "echo ok")
+	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"A complete","source_sections":["s1"]}`)
+
+	ndjson := filepath.Join(dir, "results.ndjson")
+	require.NoError(t, os.WriteFile(ndjson, []byte(`{"id":"a","reason":"A complete and verified","skip_gate":"  "}`+"\n"), 0o600))
+
+	stdout, _, code := runTP(t, dir, "done", "--batch", ndjson)
+	assert.Equal(t, 4, code, "all entries failed")
+
+	var batchOut map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &batchOut))
+	assert.Equal(t, float64(0), batchOut["closed"])
+	assert.Equal(t, float64(1), batchOut["failed"])
+
+	task := showTask(t, dir, "a")
+	assert.Equal(t, "open", task["status"])
+}
+
+func TestSkipGate_CloseRecordsReason(t *testing.T) {
+	dir := setupProjectWithGate(t, "echo run >> gate_runs.txt")
+	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+	_, _, code := runTP(t, dir, "claim", "t1")
+	require.Equal(t, 0, code)
+
+	_, stderr, code := runTP(t, dir, "close", "t1", "task complete and fully verified", "--skip-gate", "gate broken today")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	_, err := os.Stat(filepath.Join(dir, "gate_runs.txt"))
+	assert.True(t, os.IsNotExist(err))
+
+	task := showTask(t, dir, "t1")
+	assert.Equal(t, "gate broken today", task["gate_skipped_reason"])
+	assert.Nil(t, task["gate_passed_at"])
+}

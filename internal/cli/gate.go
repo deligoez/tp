@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/deligoez/tp/internal/engine"
@@ -142,79 +143,27 @@ func exitDoneCheckError(ce *doneCheckError) {
 	os.Exit(ce.code)
 }
 
-// batchHasSurvivor reports whether at least one batch entry passes the cheap
-// checks and would close — the gate runs only then.
-func batchHasSurvivor(tf *model.TaskFile, entries []batchEntry) bool {
+// batchNeedsGate reports whether the gate must run: at least one entry
+// survives the cheap checks and does not carry a non-empty skip_gate.
+func batchNeedsGate(tf *model.TaskFile, entries []batchEntry) bool {
 	sorted, _, cycles := toposortBatchEntries(entries, tf)
 	assume := make(map[string]bool)
+	needs := false
 	for i := range sorted {
-		if cycles[sorted[i].ID] != "" {
+		e := &sorted[i]
+		if cycles[e.ID] != "" {
 			continue
 		}
-		if ce := checkDoneTarget(tf, sorted[i].ID, sorted[i].Reason, sorted[i].CoveredBy, assume); ce == nil {
-			assume[sorted[i].ID] = true
+		if e.SkipGate != nil && strings.TrimSpace(*e.SkipGate) == "" {
+			continue // cheap-check failure, not a survivor
+		}
+		if ce := checkDoneTarget(tf, e.ID, e.Reason, e.CoveredBy, assume); ce == nil {
+			assume[e.ID] = true
+			if e.SkipGate == nil {
+				needs = true
+			}
 		}
 	}
-	return len(assume) > 0
+	return needs
 }
 
-// emitBatchGateFailure fails every entry with the gate error in the existing
-// partial-failure shape — no task closes.
-func emitBatchGateFailure(tf *model.TaskFile, entries []batchEntry, res engine.RunResult) error {
-	msg := gateFailureMessage(tf, res)
-	failures := make([]batchFailure, 0, len(entries))
-	for i := range entries {
-		failures = append(failures, batchFailure{ID: entries[i].ID, Error: msg, Hint: gateSkipHint})
-	}
-
-	openCount, wipCount, doneCount, readyCount := 0, 0, 0, 0
-	doneSet := make(map[string]bool)
-	for i := range tf.Tasks {
-		if tf.Tasks[i].Status == model.StatusDone {
-			doneSet[tf.Tasks[i].ID] = true
-		}
-	}
-	for i := range tf.Tasks {
-		switch tf.Tasks[i].Status {
-		case model.StatusOpen:
-			openCount++
-			allDone := true
-			for _, dep := range tf.Tasks[i].DependsOn {
-				if !doneSet[dep] {
-					allDone = false
-					break
-				}
-			}
-			if allDone {
-				readyCount++
-			}
-		case model.StatusWIP:
-			wipCount++
-		case model.StatusDone:
-			doneCount++
-		}
-	}
-
-	result := map[string]any{
-		"closed":    0,
-		"failed":    len(failures),
-		"skipped":   0,
-		"reordered": false,
-		"remaining": map[string]any{
-			"total": len(tf.Tasks),
-			"open":  openCount,
-			"wip":   wipCount,
-			"done":  doneCount,
-			"ready": readyCount,
-		},
-		"failures":    failures,
-		"gate_cmd":    tf.Workflow.QualityGate,
-		"exit_code":   res.ExitCode,
-		"output_tail": res.OutputTail,
-	}
-	if jsonErr := output.JSON(result); jsonErr != nil {
-		output.Error(ExitFile, jsonErr.Error())
-	}
-	os.Exit(ExitState)
-	return nil
-}

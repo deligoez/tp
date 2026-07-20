@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -16,6 +17,7 @@ import (
 var (
 	closeStdin      bool
 	closeReasonFile string
+	closeSkipGate   string
 )
 
 func newCloseCmd() *cobra.Command {
@@ -27,10 +29,18 @@ func newCloseCmd() *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&closeStdin, "stdin", false, "read reason from stdin")
 	cmd.Flags().StringVar(&closeReasonFile, "reason-file", "", "read reason from file")
+	cmd.Flags().StringVar(&closeSkipGate, "skip-gate", "", "skip gate execution, recording the reason on the closed task")
 	return cmd
 }
 
-func runClose(_ *cobra.Command, args []string) error {
+func runClose(cmd *cobra.Command, args []string) error {
+	// --skip-gate usage check (§6.5)
+	closeSkipGate = strings.TrimSpace(closeSkipGate)
+	if cmd.Flags().Changed("skip-gate") && closeSkipGate == "" {
+		output.Error(ExitUsage, "--skip-gate requires a non-empty reason")
+		os.Exit(ExitUsage)
+		return nil
+	}
 	// Determine reason source
 	sources := 0
 	if len(args) > 1 {
@@ -104,7 +114,10 @@ func runClose(_ *cobra.Command, args []string) error {
 		os.Exit(ExitValidation)
 		return nil
 	}
-	gateRan := runQualityGatePreFlock(tfPre, taskFilePath)
+	gateRan := false
+	if closeSkipGate == "" {
+		gateRan = runQualityGatePreFlock(tfPre, taskFilePath)
+	}
 
 	return engine.WithFileLock(taskFilePath, func() error {
 		tf, err := model.ReadTaskFile(taskFilePath)
@@ -138,7 +151,11 @@ func runClose(_ *cobra.Command, args []string) error {
 		task.Status = model.StatusDone
 		task.ClosedAt = &now
 		task.ClosedReason = &reason
-		if gateRan {
+		switch {
+		case closeSkipGate != "":
+			sr := closeSkipGate
+			task.GateSkippedReason = &sr
+		case gateRan:
 			task.GatePassedAt = &now
 		}
 		tf.UpdatedAt = now

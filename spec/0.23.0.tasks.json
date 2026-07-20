@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.23.0.md",
   "created_at": "2026-07-20T18:27:04Z",
-  "updated_at": "2026-07-20T19:31:53.6342Z",
+  "updated_at": "2026-07-20T19:42:59.039983Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -195,7 +195,7 @@
     {
       "id": "cli-gate-single-multi",
       "title": "Wire gate into done and close",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "engine-run-command",
         "engine-closure-v2",
@@ -209,16 +209,16 @@
         "### 6.3 Success path"
       ],
       "source_lines": "299-311,321-324",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-20T19:40:56.361044Z",
+      "closed_at": "2026-07-20T19:41:19.412692Z",
+      "closed_reason": "- 6.1 tablosu: done single/multi/batch/auto-commit ve close gate'i invocation basina bir kez kosuyor (internal/cli/gate.go runQualityGatePreFlock, batchHasSurvivor); tp commit gate kosmyor; --covered-by gate'i atlamiyor; ucuz kontroller (checkDoneTarget) gate'ten once\n- Gate flock'tan ONCE kosuyor; sonra flock icinde re-read + re-validate mevcut govdelerle korunuyor (done.go/close.go pre-flock bloklari); basarisizlikta exit 4, hicbir gorev kapanmiyor (TestGate_FailureClosesNothingWithExit4)\n- Basarida kapanan her gorev gate_passed_at damgasi aliyor (gateRan || doneGatePassed); 6 yeni TestGate_* testi + tum suite + lint yesil",
+      "gate_passed_at": "2026-07-20T19:41:19.412692Z",
+      "commit_sha": "857f9ea"
     },
     {
       "id": "cli-gate-failure-output",
       "title": "Gate failure error output",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cli-gate-single-multi"
       ],
@@ -228,16 +228,16 @@
         "### 6.4 Failure path"
       ],
       "source_lines": "325-329",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-20T19:41:39.80194Z",
+      "closed_at": "2026-07-20T19:42:37.540787Z",
+      "closed_reason": "- Exit 4 JSON hatasi gate_cmd, exit_code, output_tail ve hint tasiyor (gate.go runQualityGatePreFlock/emitBatchGateFailure; TestGate_FailureClosesNothingWithExit4 alanlari dogruluyor)\n- Timeout 'gate timed out after Ns' mesaji + null exit_code: gateFailureMessage ve TestGateFailureMessage_TimeoutReportsSecondsAndNullExitCode (internal/cli/gate_unit_test.go)",
+      "gate_passed_at": "2026-07-20T19:42:37.540787Z",
+      "commit_sha": "dfa2acb"
     },
     {
       "id": "cli-skip-gate",
       "title": "Implement --skip-gate escape hatch",
-      "status": "open",
+      "status": "wip",
       "depends_on": [
         "cli-gate-single-multi"
       ],
@@ -247,7 +247,7 @@
         "### 6.5 `--skip-gate \u003creason\u003e` escape hatch"
       ],
       "source_lines": "330-340",
-      "started_at": null,
+      "started_at": "2026-07-20T19:42:59.039983Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,

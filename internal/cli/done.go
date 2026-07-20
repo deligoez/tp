@@ -26,6 +26,7 @@ var (
 	doneAutoCommit bool
 	doneCoveredBy  string
 	doneFiles      string
+	doneSkipGate   string
 )
 
 func newDoneCmd() *cobra.Command {
@@ -51,12 +52,32 @@ On error: {error, code, acceptance, hint} on stderr. Task unchanged.`,
 	cmd.Flags().BoolVar(&doneAutoCommit, "auto-commit", false, "stage + commit before closing (structured message)")
 	cmd.Flags().StringVar(&doneCoveredBy, "covered-by", "", "close as covered by another done task (skips closure verification)")
 	cmd.Flags().StringVar(&doneFiles, "files", "", "file globs to stage for --auto-commit (default: all changes)")
+	cmd.Flags().StringVar(&doneSkipGate, "skip-gate", "", "skip gate execution, recording the reason on each closed task")
 	return cmd
 }
 
-func runDone(_ *cobra.Command, args []string) error {
+func runDone(cmd *cobra.Command, args []string) error {
+	// --skip-gate usage checks (§6.5)
+	skipGateSet := cmd.Flags().Changed("skip-gate")
+	doneSkipGate = strings.TrimSpace(doneSkipGate)
+	if skipGateSet && doneSkipGate == "" {
+		output.Error(ExitUsage, "--skip-gate requires a non-empty reason")
+		os.Exit(ExitUsage)
+		return nil
+	}
+	if skipGateSet && doneGatePassed {
+		output.Error(ExitUsage, "--skip-gate cannot be combined with --gate-passed")
+		os.Exit(ExitUsage)
+		return nil
+	}
+
 	// --batch mode: mutually exclusive with positional args
 	if doneBatch != "" {
+		if skipGateSet {
+			output.Error(ExitUsage, "--skip-gate cannot be combined with --batch; use the per-entry skip_gate field")
+			os.Exit(ExitUsage)
+			return nil
+		}
 		if len(args) > 0 {
 			output.Error(ExitUsage, "--batch is mutually exclusive with positional task IDs")
 			os.Exit(ExitUsage)
@@ -112,7 +133,10 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 		exitDoneCheckError(ce)
 		return nil
 	}
-	gateRan := runQualityGatePreFlock(tfPre, taskFilePath)
+	gateRan := false
+	if doneSkipGate == "" {
+		gateRan = runQualityGatePreFlock(tfPre, taskFilePath)
+	}
 
 	// Post-gate: flock, re-read, re-validate; a task whose state changed
 	// during the gate run fails with the normal state error (§6.2 item 6).
@@ -214,7 +238,11 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 		task.Status = model.StatusDone
 		task.ClosedAt = &now
 		task.ClosedReason = &reason
-		if doneGatePassed || gateRan {
+		switch {
+		case doneSkipGate != "":
+			sr := doneSkipGate
+			task.GateSkippedReason = &sr
+		case doneGatePassed || gateRan:
 			task.GatePassedAt = &now
 		}
 		if doneCommit != "" {
@@ -228,7 +256,7 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 			return nil
 		}
 
-		if !doneGatePassed && !gateRan {
+		if !doneGatePassed && !gateRan && doneSkipGate == "" {
 			output.Info("quality gate not attested. Consider using --gate-passed.")
 		}
 
@@ -299,7 +327,7 @@ func runDoneMulti(taskFilePath string, taskIDs []string, reason string) error {
 		}
 	}
 	gateRan := false
-	if survivors > 0 {
+	if survivors > 0 && doneSkipGate == "" {
 		gateRan = runQualityGatePreFlock(tfPre, taskFilePath)
 	}
 
@@ -393,7 +421,11 @@ func runDoneMulti(taskFilePath string, taskIDs []string, reason string) error {
 			task.ClosedAt = &now
 			r := reason
 			task.ClosedReason = &r
-			if doneGatePassed || gateRan {
+			switch {
+			case doneSkipGate != "":
+				sr := doneSkipGate
+				task.GateSkippedReason = &sr
+			case doneGatePassed || gateRan:
 				task.GatePassedAt = &now
 			}
 			if doneCommit != "" {
@@ -471,6 +503,7 @@ type batchEntry struct {
 	Commit     string     `json:"commit"`
 	StartedAt  *time.Time `json:"started_at"`
 	CoveredBy  string     `json:"covered_by"`
+	SkipGate   *string    `json:"skip_gate"`
 }
 
 type batchFailure struct {
@@ -503,14 +536,15 @@ func runDoneBatch() error {
 		return nil
 	}
 	// Gate runs once before any entry is processed, iff a surviving entry
-	// exists (§6.1); on failure every entry fails and nothing closes (§6.4).
+	// without skip_gate exists (§6.1); on failure, skip entries still close
+	// and every other entry fails (§6.4, §6.5).
 	gateRan := false
-	if tfPre.Workflow.QualityGate != "" && batchHasSurvivor(tfPre, entries) {
-		res := executeQualityGate(tfPre, taskFilePath)
-		if !res.Passed {
-			return emitBatchGateFailure(tfPre, entries, res)
-		}
-		gateRan = true
+	gateFailed := false
+	var gateRes engine.RunResult
+	if tfPre.Workflow.QualityGate != "" && batchNeedsGate(tfPre, entries) {
+		gateRes = executeQualityGate(tfPre, taskFilePath)
+		gateRan = gateRes.Passed
+		gateFailed = !gateRes.Passed
 	}
 
 	return engine.WithFileLock(taskFilePath, func() error {
@@ -562,6 +596,22 @@ func runDoneBatch() error {
 			if task.Status == model.StatusDone {
 				skippedCount++
 				doneSet[task.ID] = true
+				continue
+			}
+
+			// Per-entry skip_gate (§6.5 item 3)
+			skipReason := ""
+			hasSkip := false
+			if entry.SkipGate != nil {
+				skipReason = strings.TrimSpace(*entry.SkipGate)
+				if skipReason == "" {
+					failures = append(failures, batchFailure{ID: entry.ID, Error: "skip_gate must be a non-empty reason"})
+					continue
+				}
+				hasSkip = true
+			}
+			if gateFailed && !hasSkip {
+				failures = append(failures, batchFailure{ID: entry.ID, Error: gateFailureMessage(tf, gateRes), Hint: gateSkipHint})
 				continue
 			}
 
@@ -630,7 +680,11 @@ func runDoneBatch() error {
 			task.ClosedAt = &now
 			reason := entry.Reason
 			task.ClosedReason = &reason
-			if entry.GatePassed || gateRan {
+			switch {
+			case hasSkip:
+				sr := skipReason
+				task.GateSkippedReason = &sr
+			case entry.GatePassed || gateRan:
 				task.GatePassedAt = &now
 			}
 			if entry.Commit != "" {

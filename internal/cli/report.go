@@ -23,10 +23,11 @@ Output: {tasks: [{id, estimate_minutes, actual_minutes, accuracy}], summary}`,
 }
 
 type reportTask struct {
-	ID              string  `json:"id"`
-	EstimateMinutes int     `json:"estimate_minutes"`
-	ActualMinutes   float64 `json:"actual_minutes"`
-	Accuracy        float64 `json:"accuracy"`
+	ID                string  `json:"id"`
+	EstimateMinutes   int     `json:"estimate_minutes"`
+	ActualMinutes     float64 `json:"actual_minutes"`
+	Accuracy          float64 `json:"accuracy"`
+	GateSkippedReason *string `json:"gate_skipped_reason,omitempty"`
 }
 
 type reportSummary struct {
@@ -107,10 +108,11 @@ func computeReport(tf *model.TaskFile) ([]reportTask, reportSummary) {
 		}
 
 		rt := reportTask{
-			ID:              t.ID,
-			EstimateMinutes: t.EstimateMinutes,
-			ActualMinutes:   roundTo(actualMin, 1),
-			Accuracy:        accuracy,
+			ID:                t.ID,
+			EstimateMinutes:   t.EstimateMinutes,
+			ActualMinutes:     roundTo(actualMin, 1),
+			Accuracy:          accuracy,
+			GateSkippedReason: t.GateSkippedReason,
 		}
 		tasks = append(tasks, rt)
 
