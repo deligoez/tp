@@ -120,8 +120,7 @@ func canonicalHeading(level int, text string) string {
 
 // splitCanonical inspects s for a leading run of '#' followed by whitespace.
 // Returns (level, text) when canonical, or (0, "") otherwise.
-func splitCanonical(s string) (int, string) {
-	level := 0
+func splitCanonical(s string) (level int, text string) {
 	for level < len(s) && s[level] == '#' {
 		level++
 	}
@@ -131,7 +130,7 @@ func splitCanonical(s string) (int, string) {
 	if s[level] != ' ' && s[level] != '\t' {
 		return 0, ""
 	}
-	text := strings.TrimSpace(s[level:])
+	text = strings.TrimSpace(s[level:])
 	if text == "" {
 		return 0, ""
 	}
@@ -143,10 +142,10 @@ func levenshtein(a, b string) int {
 	if a == b {
 		return 0
 	}
-	if len(a) == 0 {
+	if a == "" {
 		return len(b)
 	}
-	if len(b) == 0 {
+	if b == "" {
 		return len(a)
 	}
 	prev := make([]int, len(b)+1)
@@ -164,14 +163,14 @@ func levenshtein(a, b string) int {
 			del := prev[j] + 1
 			ins := curr[j-1] + 1
 			sub := prev[j-1] + cost
-			min := del
-			if ins < min {
-				min = ins
+			best := del
+			if ins < best {
+				best = ins
 			}
-			if sub < min {
-				min = sub
+			if sub < best {
+				best = sub
 			}
-			curr[j] = min
+			curr[j] = best
 		}
 		prev, curr = curr, prev
 	}

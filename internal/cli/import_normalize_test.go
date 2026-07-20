@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -27,19 +26,18 @@ Top.
 Sub.
 `
 
-func writeSpecAndImport(t *testing.T, dir, specName, specContent, taskJSON string) (stdout, stderr string, code int) {
+func writeSpecAndImport(t *testing.T, dir, specContent, taskJSON string) (stdout, stderr string, code int) {
 	t.Helper()
-	specPath := filepath.Join(dir, specName)
+	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte(specContent), 0o600))
 	importPath := filepath.Join(dir, "import.json")
 	require.NoError(t, os.WriteFile(importPath, []byte(taskJSON), 0o600))
 	return runTP(t, dir, "import", importPath, "--force")
 }
 
-func readPersistedSourceSections(t *testing.T, dir, specName string) map[string][]string {
+func readPersistedSourceSections(t *testing.T, dir string) map[string][]string {
 	t.Helper()
-	base := strings.TrimSuffix(specName, filepath.Ext(specName))
-	tasksPath := filepath.Join(dir, base+".tasks.json")
+	tasksPath := filepath.Join(dir, "spec.tasks.json")
 	data, err := os.ReadFile(tasksPath)
 	require.NoError(t, err, "read persisted task file")
 	var tf struct {
@@ -67,10 +65,10 @@ func TestImport_NormalizesPlainTextSourceSections(t *testing.T) {
 			{"id":"t1","title":"Plain","estimate_minutes":5,"acceptance":"setup done","source_sections":["1. Setup"],"depends_on":[]}
 		]
 	}`
-	_, stderr, code := writeSpecAndImport(t, dir, "spec.md", normSpec, taskJSON)
+	_, stderr, code := writeSpecAndImport(t, dir, normSpec, taskJSON)
 	require.Equal(t, 0, code, "import failed: %s", stderr)
 
-	got := readPersistedSourceSections(t, dir, "spec.md")
+	got := readPersistedSourceSections(t, dir)
 	assert.Equal(t, []string{"## 1. Setup"}, got["t1"], "plain text should persist as canonical")
 }
 
@@ -85,10 +83,10 @@ func TestImport_KeepsCanonicalSourceSections(t *testing.T) {
 			{"id":"t1","title":"Canonical","estimate_minutes":5,"acceptance":"migration done","source_sections":["## 2. Backend Migration"],"depends_on":[]}
 		]
 	}`
-	_, stderr, code := writeSpecAndImport(t, dir, "spec.md", normSpec, taskJSON)
+	_, stderr, code := writeSpecAndImport(t, dir, normSpec, taskJSON)
 	require.Equal(t, 0, code, "import failed: %s", stderr)
 
-	got := readPersistedSourceSections(t, dir, "spec.md")
+	got := readPersistedSourceSections(t, dir)
 	assert.Equal(t, []string{"## 2. Backend Migration"}, got["t1"], "canonical input should round-trip")
 }
 
@@ -105,10 +103,10 @@ func TestImport_NormalizesMixedFormat(t *testing.T) {
 			{"id":"t3","title":"Sub","estimate_minutes":5,"acceptance":"schema done","source_sections":["2.1 Schema"],"depends_on":[]}
 		]
 	}`
-	_, stderr, code := writeSpecAndImport(t, dir, "spec.md", normSpec, taskJSON)
+	_, stderr, code := writeSpecAndImport(t, dir, normSpec, taskJSON)
 	require.Equal(t, 0, code, "import failed: %s", stderr)
 
-	got := readPersistedSourceSections(t, dir, "spec.md")
+	got := readPersistedSourceSections(t, dir)
 	assert.Equal(t, []string{"## 1. Setup"}, got["t1"])
 	assert.Equal(t, []string{"## 2. Backend Migration"}, got["t2"])
 	assert.Equal(t, []string{"### 2.1 Schema"}, got["t3"])
@@ -125,7 +123,7 @@ func TestImport_AmbiguousAborts(t *testing.T) {
 			{"id":"a1","title":"Ambig","estimate_minutes":5,"acceptance":"done","source_sections":["Setup"],"depends_on":[]}
 		]
 	}`
-	stdout, stderr, code := writeSpecAndImport(t, dir, "spec.md", ambigSpec, taskJSON)
+	stdout, stderr, code := writeSpecAndImport(t, dir, ambigSpec, taskJSON)
 	require.NotEqual(t, 0, code, "expected non-zero exit for ambiguous import")
 	combined := stdout + stderr
 	assert.Contains(t, combined, "ambiguous", "error should mention ambiguity")
@@ -144,7 +142,7 @@ func TestImport_UnresolvableTriggersDidYouMean(t *testing.T) {
 			{"id":"t1","title":"Typo","estimate_minutes":5,"acceptance":"done","source_sections":["1. Setp"],"depends_on":[]}
 		]
 	}`
-	stdout, stderr, code := writeSpecAndImport(t, dir, "spec.md", normSpec, taskJSON)
+	stdout, stderr, code := writeSpecAndImport(t, dir, normSpec, taskJSON)
 	require.NotEqual(t, 0, code, "expected validation failure for unresolvable entry")
 	combined := stdout + stderr
 	assert.Contains(t, combined, "Expected canonical format", "error should name canonical format")
@@ -164,7 +162,7 @@ func TestAdd_NormalizesPlainTextSourceSections(t *testing.T) {
 	_, stderr, code = runTP(t, dir, "add", taskJSON)
 	require.Equal(t, 0, code, "add failed: %s", stderr)
 
-	got := readPersistedSourceSections(t, dir, "spec.md")
+	got := readPersistedSourceSections(t, dir)
 	assert.Equal(t, []string{"## 1. Setup"}, got["a1"], "tp add should normalize like tp import")
 }
 
