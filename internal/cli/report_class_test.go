@@ -1,0 +1,102 @@
+package cli_test
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func classRow(location, finding, class string) string {
+	row := fmt.Sprintf(`{"severity":"low","category":"consistency","location":%q,"finding":%q,"suggestion":"fix"`, location, finding)
+	if class != "" {
+		row += fmt.Sprintf(`,"class":%q`, class)
+	}
+	return row + "}"
+}
+
+func TestReport_ByClassAndCandidates(t *testing.T) {
+	dir := t.TempDir()
+
+	// Round 1: two-rounds-class appears once; five-times-class appears 5x;
+	// once-only-class appears once; one row with no class.
+	r1Rows := []string{
+		classRow("L1", "finding r1 a", "two-rounds-class"),
+		classRow("L2", "finding r1 b1", "five-times-class"),
+		classRow("L3", "finding r1 b2", "five-times-class"),
+		classRow("L4", "finding r1 b3", "five-times-class"),
+		classRow("L5", "finding r1 b4", "five-times-class"),
+		classRow("L6", "finding r1 b5", "five-times-class"),
+		classRow("L7", "finding r1 c", "once-only-class"),
+		classRow("L8", "finding r1 d", ""),
+	}
+	// Round 2: two-rounds-class appears again (second distinct round).
+	r2Rows := []string{
+		classRow("L9", "finding r2 a", "two-rounds-class"),
+	}
+
+	r1 := filepath.Join(dir, "r1.ndjson")
+	require.NoError(t, os.WriteFile(r1, []byte(strings.Join(r1Rows, "\n")+"\n"), 0o600))
+	r2 := filepath.Join(dir, "r2.ndjson")
+	require.NoError(t, os.WriteFile(r2, []byte(strings.Join(r2Rows, "\n")+"\n"), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "review", "--report", r1, r2)
+	require.Equal(t, 0, code, "report failed: %s", stderr)
+
+	var result struct {
+		ByClass             map[string]int `json:"by_class"`
+		MechanizeCandidates []struct {
+			Class      string `json:"class"`
+			RoundsSeen int    `json:"rounds_seen"`
+			Total      int    `json:"total"`
+		} `json:"mechanize_candidates"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	// by_class groups only rows carrying a class
+	assert.Equal(t, 2, result.ByClass["two-rounds-class"])
+	assert.Equal(t, 5, result.ByClass["five-times-class"])
+	assert.Equal(t, 1, result.ByClass["once-only-class"])
+	assert.NotContains(t, result.ByClass, "")
+
+	// Candidates: five-times-class (>=5 in one round), two-rounds-class
+	// (>=2 distinct rounds); once-only-class is not a candidate.
+	require.Len(t, result.MechanizeCandidates, 2)
+	assert.Equal(t, "five-times-class", result.MechanizeCandidates[0].Class, "sorted by total descending")
+	assert.Equal(t, 1, result.MechanizeCandidates[0].RoundsSeen)
+	assert.Equal(t, 5, result.MechanizeCandidates[0].Total)
+	assert.Equal(t, "two-rounds-class", result.MechanizeCandidates[1].Class)
+	assert.Equal(t, 2, result.MechanizeCandidates[1].RoundsSeen)
+	assert.Equal(t, 2, result.MechanizeCandidates[1].Total)
+}
+
+func TestReport_MechanizeCandidates_TieBreakAlphabetical(t *testing.T) {
+	dir := t.TempDir()
+
+	// Both classes appear in 2 rounds with total 2 — tie broken by class name.
+	r1 := filepath.Join(dir, "r1.ndjson")
+	require.NoError(t, os.WriteFile(r1, []byte(
+		classRow("L1", "f1", "zeta-class")+"\n"+classRow("L2", "f2", "alpha-class")+"\n"), 0o600))
+	r2 := filepath.Join(dir, "r2.ndjson")
+	require.NoError(t, os.WriteFile(r2, []byte(
+		classRow("L3", "f3", "zeta-class")+"\n"+classRow("L4", "f4", "alpha-class")+"\n"), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "review", "--report", r1, r2)
+	require.Equal(t, 0, code, "report failed: %s", stderr)
+
+	var result struct {
+		MechanizeCandidates []struct {
+			Class string `json:"class"`
+			Total int    `json:"total"`
+		} `json:"mechanize_candidates"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+	require.Len(t, result.MechanizeCandidates, 2)
+	assert.Equal(t, "alpha-class", result.MechanizeCandidates[0].Class)
+	assert.Equal(t, "zeta-class", result.MechanizeCandidates[1].Class)
+}
