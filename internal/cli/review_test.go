@@ -245,7 +245,7 @@ func TestReviewRound2WithFindings(t *testing.T) {
 {"severity":"medium","category":"ambiguity","location":"line 2","finding":"Vague requirement","suggestion":"Be specific"}
 `), 0o600))
 
-	stdout, _, code := runTP(t, dir, "review", "--round", "2", "--findings", findingsPath, specPath)
+	stdout, _, code := runTP(t, dir, "review", "--no-state", "--round", "2", "--findings", findingsPath, specPath)
 	require.Equal(t, 0, code)
 
 	var result map[string]any
@@ -270,7 +270,7 @@ func TestReviewRound2WithoutFindings(t *testing.T) {
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Simple Spec\nDo the thing.\n"), 0o600))
 
-	stdout, _, code := runTP(t, dir, "review", "--round", "2", specPath)
+	stdout, _, code := runTP(t, dir, "review", "--no-state", "--round", "2", specPath)
 	require.Equal(t, 0, code)
 
 	var result map[string]any
@@ -481,7 +481,7 @@ func TestReviewRound3Instruction(t *testing.T) {
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Simple Spec\nDo the thing.\n"), 0o600))
 
-	stdout, _, code := runTP(t, dir, "review", "--round", "3", specPath)
+	stdout, _, code := runTP(t, dir, "review", "--no-state", "--round", "3", specPath)
 	require.Equal(t, 0, code)
 
 	var result map[string]any
@@ -813,7 +813,7 @@ func TestReviewAffectedFilesWithRoundFindings(t *testing.T) {
 	require.NoError(t, os.WriteFile(findingsPath, []byte(`{"severity":"high","category":"x","location":"y","finding":"z","suggestion":"w"}
 `), 0o600))
 
-	stdout, _, code := runTP(t, dir, "review", specPath, "--affected-files", aPath, "--round", "2", "--findings", findingsPath)
+	stdout, _, code := runTP(t, dir, "review", specPath, "--no-state", "--affected-files", aPath, "--round", "2", "--findings", findingsPath)
 	require.Equal(t, 0, code)
 
 	var result map[string]any
@@ -893,7 +893,7 @@ func TestReviewFinalRoundWarning(t *testing.T) {
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
 
-	stdout, _, code := runTP(t, dir, "review", specPath, "--round", "2", "--final-round")
+	stdout, _, code := runTP(t, dir, "review", specPath, "--no-state", "--round", "2", "--final-round")
 	require.Equal(t, 0, code)
 
 	var result map[string]any
@@ -909,7 +909,7 @@ func TestReviewFinalRoundWithAffectedFiles(t *testing.T) {
 	aPath := filepath.Join(dir, "a.go")
 	require.NoError(t, os.WriteFile(aPath, []byte("package main\nfunc main() {}\n"), 0o600))
 
-	stdout, _, code := runTP(t, dir, "review", specPath, "--round", "2", "--final-round", "--affected-files", aPath)
+	stdout, _, code := runTP(t, dir, "review", specPath, "--no-state", "--round", "2", "--final-round", "--affected-files", aPath)
 	require.Equal(t, 0, code)
 
 	var result map[string]any
@@ -1264,7 +1264,7 @@ func TestReviewCodeAuditWithRoundAndFindings(t *testing.T) {
 	require.NoError(t, os.WriteFile(findingsPath, []byte(`{"severity":"high","finding":"test finding"}`+"\n"), 0o600))
 
 	stdout, _, code := runTP(t, dir, "review", specPath, "--perspective", "code-audit",
-		"--affected-files", aPath, "--round", "2", "--findings", findingsPath)
+		"--no-state", "--affected-files", aPath, "--round", "2", "--findings", findingsPath)
 	require.Equal(t, 0, code)
 
 	var result map[string]any
@@ -1374,7 +1374,7 @@ func TestReviewFindingsSummaryContent(t *testing.T) {
 			`{"severity":"medium","category":"ambiguity","location":"sec2","finding":"unclear timeout behavior"}`+"\n",
 	), 0o600))
 
-	stdout, _, code := runTP(t, dir, "review", specPath, "--round", "2", "--findings", findingsPath)
+	stdout, _, code := runTP(t, dir, "review", specPath, "--no-state", "--round", "2", "--findings", findingsPath)
 	require.Equal(t, 0, code)
 
 	var result map[string]any

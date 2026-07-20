@@ -97,6 +97,7 @@ func newReviewCmd() *cobra.Command {
 	var recordPath string
 	var statusMode bool
 	var checkFlag bool
+	var noState bool
 
 	cmd := &cobra.Command{
 		Use:   "review <spec.md>",
@@ -120,6 +121,11 @@ Modes (mutually exclusive):
 				os.Exit(ExitUsage)
 				return nil
 			}
+			if noState && (mode == "record" || mode == "status" || checkFlag) {
+				output.Error(ExitUsage, "--no-state cannot be combined with --record, --status, or --check")
+				os.Exit(ExitUsage)
+				return nil
+			}
 			if mode == "" {
 				// Default review mode — requires exactly 1 spec arg
 				if len(args) != 1 {
@@ -127,7 +133,7 @@ Modes (mutually exclusive):
 					os.Exit(ExitUsage)
 					return nil
 				}
-				return runReview(cmd, args[0], round, findingsPath, perspective, docsPath, testPath, affectedFiles, finalRound, diffFrom, specInline)
+				return runReview(cmd, args[0], round, findingsPath, perspective, docsPath, testPath, affectedFiles, finalRound, diffFrom, specInline, noState)
 			}
 			if err := validateModeFlags(mode, round, findingsPath, affectedFiles, finalRound, diffFrom, specInline, perspective); err != nil {
 				output.Error(ExitUsage, err.Error())
@@ -194,6 +200,7 @@ Modes (mutually exclusive):
 	cmd.Flags().StringVar(&recordPath, "record", "", "Record a review round from an NDJSON findings file")
 	cmd.Flags().BoolVar(&statusMode, "status", false, "Show recorded review rounds and convergence state")
 	cmd.Flags().BoolVar(&checkFlag, "check", false, "With --status: run registered mechanical checks")
+	cmd.Flags().BoolVar(&noState, "no-state", false, "Disable all review-state reads and writes (pre-0.23.0 manual behavior)")
 
 	return cmd
 }
@@ -287,7 +294,7 @@ func validateModeFlags(mode string, round int, findingsPath string, affectedFile
 // runReviewVerify — implemented in review_verify.go.
 // runReviewReport — implemented in review_report.go.
 
-func runReview(_ *cobra.Command, specPath string, round int, findingsPath, perspective, docsPath, testPath string, affectedFiles []string, finalRound bool, diffFrom string, specInline bool) error {
+func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, perspective, docsPath, testPath string, affectedFiles []string, finalRound bool, diffFrom string, specInline, noState bool) error {
 	validPerspectives := map[string]bool{"documentation": true, "testing": true, "code-audit": true}
 
 	if perspective != "" && !validPerspectives[perspective] {
@@ -541,7 +548,61 @@ func runReview(_ *cobra.Command, specPath string, round int, findingsPath, persp
 		}
 	}
 
-	if round > 1 && findingsPath == "" {
+	// State-backed round lifecycle (default three-role mode): tp numbers the
+	// round, snapshots the spec, and injects previous findings automatically.
+	statePrevFindings := make([]reviewFinding, 0)
+	if !noState {
+		st, stErr := engine.LoadReviewState(specPath)
+		if stErr != nil {
+			exitStateError(stErr)
+			return nil
+		}
+		recorded := 0
+		if st != nil {
+			recorded = len(st.ReviewRounds)
+		}
+		stateRound := recorded + 1
+		if cmd.Flags().Changed("round") && round != stateRound {
+			output.Error(ExitUsage, fmt.Sprintf("--round %d conflicts with the state-derived round %d", round, stateRound), "drop --round, or use --no-state for manual round numbering")
+			os.Exit(ExitUsage)
+			return nil
+		}
+		round = stateRound
+
+		if _, err := engine.EnsureReviewState(specPath); err != nil {
+			exitStateError(err)
+			return nil
+		}
+		specBytes, readErr := os.ReadFile(specPath)
+		if readErr != nil {
+			output.Error(ExitFile, fmt.Sprintf("cannot read spec: %v", readErr))
+			os.Exit(ExitFile)
+			return nil
+		}
+		snapshotPath := filepath.Join(engine.ReviewStateDir(specPath), fmt.Sprintf("snapshot-round-%d.md", stateRound))
+		if writeErr := os.WriteFile(snapshotPath, specBytes, 0o600); writeErr != nil {
+			output.Error(ExitFile, fmt.Sprintf("cannot write snapshot: %v", writeErr))
+			os.Exit(ExitFile)
+			return nil
+		}
+
+		// Previous findings from rounds 1..R-1 unless --findings overrides
+		if findingsPath == "" && st != nil {
+			for _, r := range st.ReviewRounds {
+				rows, found := engine.LoadRoundRows(specPath, r)
+				if !found {
+					output.Info(fmt.Sprintf("round %d file %s is missing; skipping its rows", r.Round, r.File))
+					continue
+				}
+				for _, row := range rows {
+					statePrevFindings = append(statePrevFindings, findingFromRow(row))
+				}
+			}
+			statePrevFindings = dedupFindings(statePrevFindings)
+		}
+	}
+
+	if round > 1 && findingsPath == "" && noState {
 		output.Info(fmt.Sprintf("round %d without --findings: prompts will not exclude previously reported issues", round))
 	}
 
@@ -557,6 +618,8 @@ func runReview(_ *cobra.Command, specPath string, round int, findingsPath, persp
 	findings := make([]reviewFinding, 0)
 	if findingsPath != "" {
 		findings = parseFindingsFile(findingsPath)
+	} else {
+		findings = statePrevFindings
 	}
 
 	summary := buildFindingsSummary(findings)
@@ -587,6 +650,12 @@ func runReview(_ *cobra.Command, specPath string, round int, findingsPath, persp
 		instruction += " Read the spec at " + absPath + " before processing each prompt."
 	}
 
+	convergence := "no new high-severity findings"
+	if noState {
+		convergence += " (convergence is not being recorded: --no-state)"
+		instruction += " Convergence is not being recorded (--no-state)."
+	}
+
 	result := reviewResult{
 		Spec:               specPath,
 		StructuredElements: elems,
@@ -594,7 +663,7 @@ func runReview(_ *cobra.Command, specPath string, round int, findingsPath, persp
 		ReviewLoop: reviewLoop{
 			Round:            round,
 			MaxRounds:        2,
-			Convergence:      "no new high-severity findings",
+			Convergence:      convergence,
 			PreviousFindings: uniqueCount,
 			Instruction:      instruction,
 		},
@@ -880,6 +949,25 @@ func findingIdentityKey(category, location, finding string) string {
 		prefix = prefix[:findingPrefixLen]
 	}
 	return category + "::" + location + "::" + prefix
+}
+
+// findingFromRow converts a recorded round row into a reviewFinding.
+func findingFromRow(row map[string]any) reviewFinding {
+	f := reviewFinding{}
+	f.Severity, _ = row["severity"].(string)
+	f.Category, _ = row["category"].(string)
+	f.Class, _ = row["class"].(string)
+	f.Location, _ = row["location"].(string)
+	f.Finding, _ = row["finding"].(string)
+	f.Suggestion, _ = row["suggestion"].(string)
+	if resolved, ok := row["resolved"].(map[string]any); ok {
+		rs := &resolvedStatus{}
+		rs.Status, _ = resolved["status"].(string)
+		rs.Evidence, _ = resolved["evidence"].(string)
+		rs.ResolvedAt, _ = resolved["resolved_at"].(string)
+		f.Resolved = rs
+	}
+	return f
 }
 
 func dedupFindings(findings []reviewFinding) []reviewFinding {

@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.23.0.md",
   "created_at": "2026-07-20T18:27:04Z",
-  "updated_at": "2026-07-20T20:49:12.340392Z",
+  "updated_at": "2026-07-20T20:53:37.461076Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -741,7 +741,7 @@
     {
       "id": "cli-budget-tests",
       "title": "Test round budget escalation",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cli-budget"
       ],
@@ -751,16 +751,16 @@
         "### 19.2 Unit tests (cli)"
       ],
       "source_lines": "770-797",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-20T20:52:34.288157Z",
+      "closed_at": "2026-07-20T20:53:37.461076Z",
+      "closed_reason": "- TestRoundBudget_Escalates 19.2 tarifinin tamamini kapsiyor: iki cap da 2, ikiser dirty tur; review prompt uretimi exit 4 + eskalasyon hint, cap otesi review/audit --record exit 4, iki --status sekli de budget_exhausted:true, audit uretimi ayni sekilde blokli, import enforcement cap'ten bagimsiz exit 1 (internal/cli/budget_escalates_test.go); suite + lint yesil",
+      "gate_passed_at": "2026-07-20T20:53:37.461076Z",
+      "commit_sha": "2315378"
     },
     {
       "id": "cli-import-enforcement",
       "title": "Enforce convergence at import",
-      "status": "wip",
+      "status": "done",
       "depends_on": [
         "engine-review-state",
         "cli-budget"
@@ -773,10 +773,10 @@
       ],
       "source_lines": "481-484,485-488",
       "started_at": "2026-07-20T20:49:12.340392Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-07-20T20:52:17.770708Z",
+      "closed_reason": "- State dizini pinned yolla bulunuyor (hedef task dosyasi dizini + spec basename); kayitli tur varsa consecutive_clean\u003e=required ve staleness kontrolu, gecemeyen import exit 1 (TestImportEnforcement_Convergence unconverged/stale alt testleri); governing deger 8.6-cozumlu degerden sapinca iki degeri adlandiran uyari\n- Hata hint'i tp review --record + --force'u adlandiriyor; butce doluyken hint 8.8 eskalasyon dizisine donusuyor (exhausted_budget alt testi); --force iki kontrolu de atliyor; sifir-gorevli init shell --force'suz ezilebiliyor, gercek gorevli dosya --force istiyor (TestImport_ShellOverwriteNoForce)\n- State yokken/tur yokken import 'review convergence not verified (no recorded rounds)' info'suyla geciyor (no_state alt testi); cap enforcement'i asla gevsetmiyor",
+      "gate_passed_at": "2026-07-20T20:52:17.770708Z",
+      "commit_sha": "b6b5a39"
     },
     {
       "id": "cli-import-workflow-preserve",
