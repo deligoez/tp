@@ -10,7 +10,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRegressionAutoInclude_ConditionAndInstruction(t *testing.T) {
+// TestRegressionPrompt_AutoInclusion: appended only when diff or fixed
+// findings exist; standalone mode requires inputs; standalone never writes
+// state.
+func TestRegressionPrompt_AutoInclusion(t *testing.T) {
 	t.Run("appended on diff at round 2 with process-first instruction", func(t *testing.T) {
 		dir := t.TempDir()
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## 1. A\noriginal\n"), 0o600))
@@ -75,5 +78,38 @@ func TestRegressionAutoInclude_ConditionAndInstruction(t *testing.T) {
 		require.Len(t, prompts, 4)
 		text := prompts[3].(map[string]any)["prompt"].(string)
 		assert.Contains(t, text, "was broken — fixed in place")
+	})
+
+	t.Run("standalone mode requires inputs", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
+		_, _, code := runTP(t, dir, "review", "spec.md", "--perspective", "regression")
+		assert.Equal(t, 2, code, "no state and no explicit inputs is a usage error")
+	})
+
+	t.Run("standalone never writes state", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## 1. A\noriginal\n"), 0o600))
+		_, _, code := runTP(t, dir, "review", "spec.md")
+		require.Equal(t, 0, code)
+		_, _, code = recordRound(t, dir, "")
+		require.Equal(t, 0, code)
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## 1. A\nchanged\n"), 0o600))
+
+		stateDir := filepath.Join(dir, ".tp-review", "spec")
+		before, err := os.ReadFile(filepath.Join(stateDir, "state.json"))
+		require.NoError(t, err)
+		entriesBefore, err := os.ReadDir(stateDir)
+		require.NoError(t, err)
+
+		_, _, code = runTP(t, dir, "review", "spec.md", "--perspective", "regression")
+		require.Equal(t, 0, code)
+
+		after, err := os.ReadFile(filepath.Join(stateDir, "state.json"))
+		require.NoError(t, err)
+		assert.Equal(t, before, after, "state.json untouched")
+		entriesAfter, err := os.ReadDir(stateDir)
+		require.NoError(t, err)
+		assert.Equal(t, len(entriesBefore), len(entriesAfter), "no snapshot or round file written")
 	})
 }
