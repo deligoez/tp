@@ -75,3 +75,30 @@ func (w *Workflow) UnmarshalJSON(data []byte) error {
 
 	return nil
 }
+
+// EffectiveGateTimeoutSeconds returns gate_timeout_seconds, falling back to
+// 600 when the stored value is outside the valid 30-3600 range.
+func (w *Workflow) EffectiveGateTimeoutSeconds() int {
+	if w.GateTimeoutSeconds < 30 || w.GateTimeoutSeconds > 3600 {
+		return 600
+	}
+	return w.GateTimeoutSeconds
+}
+
+// EffectiveReviewMaxRounds returns review_max_rounds, falling back to 0
+// (no cap) when the stored value is outside the valid 0-50 range.
+func (w *Workflow) EffectiveReviewMaxRounds() int {
+	if w.ReviewMaxRounds < 0 || w.ReviewMaxRounds > 50 {
+		return 0
+	}
+	return w.ReviewMaxRounds
+}
+
+// EffectiveAuditMaxRounds returns audit_max_rounds, falling back to 0
+// (no cap) when the stored value is outside the valid 0-50 range.
+func (w *Workflow) EffectiveAuditMaxRounds() int {
+	if w.AuditMaxRounds < 0 || w.AuditMaxRounds > 50 {
+		return 0
+	}
+	return w.AuditMaxRounds
+}

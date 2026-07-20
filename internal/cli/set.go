@@ -28,8 +28,11 @@ var (
 	setWorkflowFlag bool
 
 	editableWorkflowFields = map[string]bool{
-		"review_clean_rounds": true,
-		"audit_clean_rounds":  true,
+		"review_clean_rounds":  true,
+		"audit_clean_rounds":   true,
+		"gate_timeout_seconds": true,
+		"review_max_rounds":    true,
+		"audit_max_rounds":     true,
 	}
 	readOnlyWorkflowFields = map[string]bool{
 		"quality_gate": true,
@@ -281,8 +284,11 @@ func runSetWorkflow(args []string) error {
 		if _, err := fmt.Sscanf(valueStr, "%d", &val); err != nil {
 			return output.JSON(map[string]string{"error": fmt.Sprintf("%s must be an integer", field)})
 		}
-		if val < 1 || val > 10 {
-			return output.JSON(map[string]string{"error": fmt.Sprintf("%s must be between 1 and 10", field)})
+		lo, hi := workflowFieldRange(field)
+		if val < lo || val > hi {
+			output.Error(ExitValidation, fmt.Sprintf("%s must be between %d and %d", field, lo, hi))
+			os.Exit(ExitValidation)
+			return nil
 		}
 		pairs[field] = val
 	}
@@ -309,6 +315,12 @@ func runSetWorkflow(args []string) error {
 				tf.Workflow.ReviewCleanRounds = val
 			case "audit_clean_rounds":
 				tf.Workflow.AuditCleanRounds = val
+			case "gate_timeout_seconds":
+				tf.Workflow.GateTimeoutSeconds = val
+			case "review_max_rounds":
+				tf.Workflow.ReviewMaxRounds = val
+			case "audit_max_rounds":
+				tf.Workflow.AuditMaxRounds = val
 			}
 			updated[field] = val
 		}
@@ -321,4 +333,16 @@ func runSetWorkflow(args []string) error {
 
 		return output.JSON(map[string]any{"updated": updated})
 	})
+}
+
+// workflowFieldRange returns the valid write range for an editable workflow field.
+func workflowFieldRange(field string) (lo, hi int) {
+	switch field {
+	case "gate_timeout_seconds":
+		return 30, 3600
+	case "review_max_rounds", "audit_max_rounds":
+		return 0, 50
+	default:
+		return 1, 10 // convergence fields
+	}
 }

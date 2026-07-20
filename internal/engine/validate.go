@@ -366,5 +366,26 @@ func validateConvergence(tf *model.TaskFile) []Finding {
 			Message:  "audit_clean_rounds must be between 1 and 10",
 		})
 	}
+	if tf.Workflow.GateTimeoutSeconds < 30 || tf.Workflow.GateTimeoutSeconds > 3600 {
+		findings = append(findings, Finding{
+			Severity: "warning",
+			Rule:     "schema",
+			Message:  fmt.Sprintf("gate_timeout_seconds %d out of range 30-3600; effective value falls back to 600", tf.Workflow.GateTimeoutSeconds),
+		})
+	}
+	if tf.Workflow.ReviewMaxRounds < 0 || tf.Workflow.ReviewMaxRounds > 50 {
+		findings = append(findings, Finding{
+			Severity: "warning",
+			Rule:     "schema",
+			Message:  fmt.Sprintf("review_max_rounds %d out of range 0-50; effective value falls back to 0", tf.Workflow.ReviewMaxRounds),
+		})
+	}
+	if tf.Workflow.AuditMaxRounds < 0 || tf.Workflow.AuditMaxRounds > 50 {
+		findings = append(findings, Finding{
+			Severity: "warning",
+			Rule:     "schema",
+			Message:  fmt.Sprintf("audit_max_rounds %d out of range 0-50; effective value falls back to 0", tf.Workflow.AuditMaxRounds),
+		})
+	}
 	return findings
 }
