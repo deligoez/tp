@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.23.0.md",
   "created_at": "2026-07-20T18:27:04Z",
-  "updated_at": "2026-07-20T19:42:59.039983Z",
+  "updated_at": "2026-07-20T19:49:24.040243Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -237,7 +237,7 @@
     {
       "id": "cli-skip-gate",
       "title": "Implement --skip-gate escape hatch",
-      "status": "wip",
+      "status": "done",
       "depends_on": [
         "cli-gate-single-multi"
       ],
@@ -248,15 +248,15 @@
       ],
       "source_lines": "330-340",
       "started_at": "2026-07-20T19:42:59.039983Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-07-20T19:47:47.903481Z",
+      "closed_reason": "- 6.5'in 8 maddesi: bos reason exit 2 (done+close), gate kosulmuyor (TestSkipGate_RecordsReasonAndSkipsExecution), gate_skipped_reason kaydediliyor + gate_passed_at null, gate'siz projede de kayit (TestSkipGate_RecordedEvenWithoutGate), show otomatik (omitempty) + report'a gate_skipped_reason alani eklendi, reopen temizligi ve tp set reddi onceki gorevden mevcut (reopen.go:59, gate_skip_field_test.go)\n- Batch: entry bazli skip_gate (pointer alan), bos/whitespace deger entry'yi failures'a dusuruyor ve skip sayilmiyor (TestSkipGate_BatchEmptySkipGateFailsEntry), hepsi skip ise gate hic kosmuyor (TestSkipGate_BatchAllSkipNeverRunsGate), gate dusse bile skip entry'ler kapaniyor (TestSkipGate_BatchEntriesCloseDespiteGateFailure)\n- --skip-gate + --gate-passed exit 2, --skip-gate + --batch exit 2 (TestSkipGate_UsageErrors); tum suite + lint yesil",
+      "gate_passed_at": "2026-07-20T19:47:47.903481Z",
+      "commit_sha": "186af73"
     },
     {
       "id": "cli-gate-batch",
       "title": "Gate batch semantics",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cli-gate-single-multi",
         "cli-skip-gate"
@@ -268,16 +268,16 @@
         "### 6.5 `--skip-gate \u003creason\u003e` escape hatch"
       ],
       "source_lines": "325-329,330-340",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-20T19:48:02.623626Z",
+      "closed_at": "2026-07-20T19:48:52.736816Z",
+      "closed_reason": "- Ucuz-kontrol hatalari failures'a dusuyor ve gate'i tetiklemiyor (batchNeedsGate; TestGateBatch_CheapCheckFailuresDoNotTriggerGate); gate yalniz skip'siz survivor varsa 1 kez kosuyor (TestGateBatch_MixedCheapFailureAndSurvivorRunsGateOnce); skip entry'ler gate sonucundan bagimsiz kapaniyor (TestSkipGate_BatchEntriesCloseDespiteGateFailure)\n- --skip-gate + --batch exit 2 (TestSkipGate_UsageErrors); bos skip_gate entry failures'a dusuyor ve skip sayilmiyor (TestSkipGate_BatchEmptySkipGateFailsEntry, batchNeedsGate cheap-check dali)",
+      "gate_passed_at": "2026-07-20T19:48:52.736816Z",
+      "commit_sha": "ed8a122"
     },
     {
       "id": "cli-gate-passed-compat",
       "title": "Keep --gate-passed compatibility",
-      "status": "open",
+      "status": "wip",
       "depends_on": [
         "cli-gate-single-multi"
       ],
@@ -287,7 +287,7 @@
         "### 6.6 `--gate-passed` compatibility"
       ],
       "source_lines": "341-346",
-      "started_at": null,
+      "started_at": "2026-07-20T19:49:24.040243Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,

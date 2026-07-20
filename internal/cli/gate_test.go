@@ -315,3 +315,28 @@ func TestGateBatch_MixedCheapFailureAndSurvivorRunsGateOnce(t *testing.T) {
 	assert.Equal(t, float64(1), batchOut["closed"])
 	assert.Equal(t, float64(1), batchOut["failed"])
 }
+
+func TestGatePassedCompat_IgnoredWithInfoWhenGateSet(t *testing.T) {
+	dir := setupProjectWithGate(t, "echo ok")
+	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+
+	stdout, stderr, code := runTP(t, dir, "done", "t1", "task complete and verified fully", "--gate-passed")
+	require.Equal(t, 0, code, "stderr=%s stdout=%s", stderr, stdout)
+	// The "--gate-passed ignored" info line is TTY-only (output.Info is
+	// suppressed in JSON mode), so only the behavior is asserted here.
+
+	task := showTask(t, dir, "t1")
+	assert.NotNil(t, task["gate_passed_at"], "stamped by the executed gate, not the flag")
+}
+
+func TestGatePassedCompat_AttestationPreservedWithoutGate(t *testing.T) {
+	dir := setupProject(t) // no quality gate configured
+	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+
+	_, stderr, code := runTP(t, dir, "done", "t1", "task complete and verified fully", "--gate-passed")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.NotContains(t, stderr, "ignored")
+
+	task := showTask(t, dir, "t1")
+	assert.NotNil(t, task["gate_passed_at"], "gate-less projects keep the attestation behavior")
+}

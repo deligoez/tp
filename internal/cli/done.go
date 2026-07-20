@@ -133,6 +133,9 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 		exitDoneCheckError(ce)
 		return nil
 	}
+	if doneGatePassed && tfPre.Workflow.QualityGate != "" {
+		output.Info("quality gate is executed by tp; --gate-passed ignored")
+	}
 	gateRan := false
 	if doneSkipGate == "" {
 		gateRan = runQualityGatePreFlock(tfPre, taskFilePath)
@@ -325,6 +328,9 @@ func runDoneMulti(taskFilePath string, taskIDs []string, reason string) error {
 			survivors++
 			assume[id] = true
 		}
+	}
+	if doneGatePassed && tfPre.Workflow.QualityGate != "" {
+		output.Info("quality gate is executed by tp; --gate-passed ignored")
 	}
 	gateRan := false
 	if survivors > 0 && doneSkipGate == "" {
