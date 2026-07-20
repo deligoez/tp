@@ -27,7 +27,7 @@ func TestAuditBasicWithAffectedFiles(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
 
 	assert.Equal(t, []any{aPath}, result["files"])
-	assert.Equal(t, "implementation-auditor", result["prompts"].([]any)[0].(map[string]any)["role"].(string))
+	assert.Equal(t, "spec-coverage", result["prompts"].([]any)[0].(map[string]any)["role"].(string))
 }
 
 func TestAuditNoAffectedFilesNoGit(t *testing.T) {
@@ -223,9 +223,17 @@ func TestAuditChecklistFindings(t *testing.T) {
 	}
 	assert.Equal(t, 3, findingItems, "empty-text finding should be skipped")
 
+	// Findings route into the spec-coverage prompt's checklist (§1.2)
 	prompts := result["prompts"].([]any)
-	assert.Equal(t, 2, len(prompts), "should have 2 prompts: impl + findings")
-	assert.Equal(t, "implementation-auditor", prompts[1].(map[string]any)["role"].(string))
+	specPrompt := prompts[0].(map[string]any)
+	assert.Equal(t, "spec-coverage", specPrompt["role"].(string))
+	findingInPrompt := 0
+	for _, item := range specPrompt["checklist_items"].([]any) {
+		if item.(map[string]any)["type"].(string) == "finding" {
+			findingInPrompt++
+		}
+	}
+	assert.Equal(t, 3, findingInPrompt, "finding items land in spec-coverage")
 }
 
 func TestAuditEmptyChecklist(t *testing.T) {
@@ -425,14 +433,11 @@ func TestAuditPromptSplitting(t *testing.T) {
 	var result map[string]any
 	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
 
+	// v0.23.0 emits one prompt per role; spec items are no longer split
 	prompts := result["prompts"].([]any)
-	assert.GreaterOrEqual(t, len(prompts), 2, "60 checklist items should split into at least 2 prompts")
-
-	// Verify first prompt has 50 items, second has 10
 	p0 := prompts[0].(map[string]any)
-	p1 := prompts[1].(map[string]any)
-	assert.Equal(t, float64(50), p0["checklist_count"])
-	assert.Equal(t, float64(10), p1["checklist_count"])
+	assert.Equal(t, "spec-coverage", p0["role"].(string))
+	assert.Equal(t, float64(60), p0["checklist_count"], "all spec items stay in the single spec-coverage prompt")
 }
 
 // Test: compact mode truncates text to exactly 80 chars (77 + "...")

@@ -42,20 +42,12 @@ type ChecklistItem struct {
 	ExpectedEvidence string `json:"expected_evidence"`
 }
 
-// auditAffectedFile is one affected-files entry: the path, the tasks whose
-// commits touched it, and a diff summary.
-type auditAffectedFile struct {
-	Path        string   `json:"path"`
-	Tasks       []string `json:"tasks"`
-	DiffSummary string   `json:"diff_summary"`
-}
-
 type auditPrompt struct {
-	Role           string              `json:"role"`
-	Prompt         string              `json:"prompt"`
-	ChecklistCount int                 `json:"checklist_count"`
-	ChecklistItems []ChecklistItem     `json:"checklist_items"`
-	AffectedFiles  []auditAffectedFile `json:"affected_files"`
+	Role           string                  `json:"role"`
+	Prompt         string                  `json:"prompt"`
+	ChecklistCount int                     `json:"checklist_count"`
+	ChecklistItems []ChecklistItem         `json:"checklist_items"`
+	AffectedFiles  []engine.AuditFileEntry `json:"affected_files"`
 }
 
 type auditResult struct {
@@ -75,7 +67,6 @@ var binaryExtensions = map[string]bool{
 }
 
 const maxAutoDetectFiles = 50
-const checklistSplitThreshold = 50
 
 func newAuditCmd() *cobra.Command {
 	var affectedFiles []string
@@ -190,17 +181,21 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	findingsEntries := filterChecklistByType(checklist, "finding")
 	mainEntries := filterChecklistByType(checklist, "")
 
-	budgetOther := len(specContent) + estimateChecklistText(mainEntries)
-	if len(findingsEntries) > 0 {
-		budgetOther += len(findingsEntries) * 200
+	// Per-role file selection (§5): drop rules first, then role rules over the
+	// filtered universe; --affected-files replaced the universe upstream
+	inputs := &engine.AuditFileInputs{
+		Universe:   files,
+		DiffStats:  auditDiffStats(base),
+		Deleted:    auditDeletedFiles(base),
+		TaskFiles:  engine.GitTaskFileMapping(auditTasksOf(specPath), files),
+		HeadReader: engine.GitHeadReader(),
 	}
+	sel := engine.SelectAuditFiles(inputs)
 
-	budgetPadding := strings.Repeat("x", budgetOther-len(specContent))
-	affectedContent := engine.ReadAffectedFilesBudgetAware(files, specContent, budgetPadding)
+	specItems, secItems, maintItems := routeChecklist(mainEntries, findingsEntries, &sel, invertTaskFiles(inputs.TaskFiles))
+	prompts := generateRoleAuditPrompts(specItems, secItems, maintItems, &sel, specContent, claudeMDExcerptFor(specPath))
 
-	summary := engine.BuildAffectedSummary(files, affectedContent)
-
-	prompts := generateAuditPrompts(specContent, mainEntries, affectedContent, findingsEntries)
+	summary := engine.BuildAffectedSummary(files, nil)
 
 	byType := make(map[string]int)
 	for _, e := range checklist {
@@ -502,97 +497,6 @@ func filterChecklistByType(entries []checklistEntry, typ string) []checklistEntr
 		}
 	}
 	return result
-}
-
-func estimateChecklistText(entries []checklistEntry) int {
-	total := 0
-	for _, e := range entries {
-		total += len(e.Text) + 30
-	}
-	return total
-}
-
-func generateAuditPrompts(specContent string, mainEntries []checklistEntry, affectedContent map[string]string, findingsEntries []checklistEntry) []auditPrompt {
-	var prompts []auditPrompt
-
-	for i := 0; i < len(mainEntries); i += checklistSplitThreshold {
-		end := i + checklistSplitThreshold
-		if end > len(mainEntries) {
-			end = len(mainEntries)
-		}
-		batch := mainEntries[i:end]
-
-		for j := range batch {
-			batch[j].Prompt = len(prompts)
-		}
-
-		var b strings.Builder
-		b.WriteString("Role: implementation-auditor\n")
-		b.WriteString("Task: Verify each spec requirement is implemented in the code.\n\n")
-		b.WriteString("## Spec Excerpt\n")
-		b.WriteString(specContent)
-		b.WriteString("\n\n## Checklist\n")
-		b.WriteString("For each item, mark it as:\n")
-		b.WriteString("- PASS: requirement is fully implemented in the code\n")
-		b.WriteString("- PARTIAL: requirement is partially implemented — explain what's missing\n")
-		b.WriteString("- FAIL: requirement is not found in the code — explain what's expected\n\n")
-		for _, e := range batch {
-			fmt.Fprintf(&b, "- [%s] (%s, line %d) %s\n", e.ID, e.Type, e.SpecLine, e.Text)
-		}
-		b.WriteString("\n## Source Files\n")
-		b.WriteString(engine.BuildAffectedSection(affectedContent))
-		b.WriteString("\n## Rules\n")
-		b.WriteString("1. Read the code carefully. State-dependent behaviors (disabled states, loading conditions, conditional rendering) count as partial unless fully covered.\n")
-		b.WriteString("2. A table row describing a feature is PASS only if the feature code exists AND handles edge cases mentioned in surrounding spec context.\n")
-		b.WriteString("3. A numbered list item describing a test is PASS only if a corresponding test function exists with assertions covering the described behavior.\n")
-		b.WriteString("4. Task acceptance criteria are PASS only if the described behavior is observable in the code (not just a comment or placeholder).\n")
-		b.WriteString("5. If a requirement mentions specific error handling, validation, or edge cases, verify those exist — don't just check the happy path.\n\n")
-		b.WriteString(renderAuditOutputSchema())
-
-		prompts = append(prompts, auditPrompt{
-			Role:           "implementation-auditor",
-			Prompt:         b.String(),
-			ChecklistCount: len(batch),
-			ChecklistItems: checklistItemsOf(batch),
-			AffectedFiles:  affectedFilesOf(affectedContent),
-		})
-	}
-
-	if len(findingsEntries) > 0 {
-		for j := range findingsEntries {
-			findingsEntries[j].Prompt = len(prompts)
-		}
-
-		var b strings.Builder
-		b.WriteString("Role: implementation-auditor\n")
-		b.WriteString("Task: Verify each review finding was addressed in the code.\n\n")
-		b.WriteString("## Review Findings\n")
-		for _, e := range findingsEntries {
-			fmt.Fprintf(&b, "- [%s] %s\n", e.ID, e.Text)
-		}
-		b.WriteString("\n## Checklist\n")
-		for _, e := range findingsEntries {
-			fmt.Fprintf(&b, "- [%s] %s\n", e.ID, e.Text)
-		}
-		b.WriteString("\n## Source Files\n")
-		b.WriteString(engine.BuildAffectedSection(affectedContent))
-		b.WriteString("\n## Rules\n")
-		b.WriteString("1. For each finding, determine if the code change addresses the reported issue.\n")
-		b.WriteString("2. A finding is PASS only if the specific problem described is demonstrably fixed.\n")
-		b.WriteString("3. Partial fixes (e.g., adding a comment instead of actual code) count as PARTIAL.\n")
-		b.WriteString("4. If multiple findings relate to the same code area, verify each independently.\n\n")
-		b.WriteString(renderAuditOutputSchema())
-
-		prompts = append(prompts, auditPrompt{
-			Role:           "implementation-auditor",
-			Prompt:         b.String(),
-			ChecklistCount: len(findingsEntries),
-			ChecklistItems: checklistItemsOf(findingsEntries),
-			AffectedFiles:  affectedFilesOf(affectedContent),
-		})
-	}
-
-	return prompts
 }
 
 // expandCommaFiles splits comma-separated values and trims whitespace.

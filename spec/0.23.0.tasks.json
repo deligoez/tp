@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.23.0.md",
   "created_at": "2026-07-20T18:27:04Z",
-  "updated_at": "2026-07-20T21:44:34.514731Z",
+  "updated_at": "2026-07-20T21:49:35.898992Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -409,7 +409,7 @@
     {
       "id": "engine-audit-files",
       "title": "Implement audit file filtering",
-      "status": "wip",
+      "status": "done",
       "depends_on": [],
       "estimate_minutes": 12,
       "acceptance": "- task-to-file mapping via commit_sha with alphabetical list ordering per 5.2; drop rules filter universe first per 5.5\n- per-role selection ranking caps and fallback implemented for all three roles; --affected-files replaces the universe\n- affected_files exposed as path tasks diff_summary per 5.6",
@@ -418,15 +418,15 @@
       ],
       "source_lines": "253-294",
       "started_at": "2026-07-20T21:44:34.514731Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-07-20T21:47:19.255368Z",
+      "closed_reason": "- Task-to-file eslemesi commit_sha uzerinden (GitTaskFileMapping: git show --name-only, evrenle kesisim, sha'siz/bilinmeyen sha'li gorev sifir dosya), dosya-basina task idleri ve listeler alfabetik; drop kurallari evreni ONCE filtreliyor (binary, testdata/**, *.golden, silinmisler) — cap'ler sonraki uygun dosyalarla doluyor (internal/engine/auditfiles.go SelectAuditFiles/filterAuditUniverse)\n- Uc rolun secimi: spec-coverage task-sayisi desc + alfabetik tie-break cap 20 ve bos-union'da ilk-20 fallback; security path VEYA HEAD ilk-200-satir substring sezgisi (HEAD'te olmayan dosya yalniz path'ten), alfabetik cap 20; maintainability ilk 10; --affected-files evreni degistirdiginde ayni kurallar uygulanir (girdi enjeksiyonlu tasarim), diff disi dosyalar +0/-0\n- affected_files {path, tasks, diff_summary} olarak AuditFileEntry'de; isimli TestFilterFiles_* testleri engine-audit-tests gorevinde geliyor",
+      "gate_passed_at": "2026-07-20T21:47:19.255368Z",
+      "commit_sha": "f2539ea"
     },
     {
       "id": "engine-audit-tests",
       "title": "Test audit categories and filtering",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "engine-audit-categories",
         "engine-audit-files"
@@ -437,11 +437,11 @@
         "### 19.1 Unit tests (engine)"
       ],
       "source_lines": "744-769",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-20T21:47:37.396707Z",
+      "closed_at": "2026-07-20T21:49:13.22797Z",
+      "closed_reason": "- TestAuditCategory_EnumValid, _PrecedenceResolution, TestRenderAuditCategoryText_ContainsEnumAndPrecedence: 5'li enum, oncelik cozumu ve render metninin enum+oncelik+presence icerigi (internal/engine/auditfiles_test.go)\n- TestFilterFiles_SpecCoverage_RanksByTaskCount (task sayisi desc, alfabetik tie, +0/-0 fallback), _Cap20 (spec-coverage ve security), _Security (path + HEAD-icerik sezgisi, HEAD'te olmayan dosya yalniz path, alfabetik), _Maintainability (alfabetik ilk 10), _DropsBinaryFixturesDeleted (fallback listesi dahil), _DropFirstBackfill (13-3=10, kuyruk ham 11-13'ten doluyor) hepsi geciyor",
+      "gate_passed_at": "2026-07-20T21:49:13.22797Z",
+      "commit_sha": "2f2c54d"
     },
     {
       "id": "cli-audit-schema",
@@ -464,7 +464,7 @@
     {
       "id": "cli-audit-routing",
       "title": "Route checklist items to roles",
-      "status": "open",
+      "status": "wip",
       "depends_on": [
         "cli-audit-schema"
       ],
@@ -475,7 +475,7 @@
         "### 5.3 Empty-role rule"
       ],
       "source_lines": "80-107,269-272",
-      "started_at": null,
+      "started_at": "2026-07-20T21:49:35.898992Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,

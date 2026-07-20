@@ -1,8 +1,6 @@
 package cli
 
 import (
-	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/deligoez/tp/internal/engine"
@@ -29,44 +27,4 @@ func renderAuditOutputSchema() string {
 	b.WriteString(engine.RenderAuditCategoryText())
 	b.WriteString("\n")
 	return b.String()
-}
-
-// checklistItemsOf converts checklist entries into prompt checklist items
-// with the deterministic expected_evidence fallback.
-func checklistItemsOf(entries []checklistEntry) []ChecklistItem {
-	items := make([]ChecklistItem, 0, len(entries))
-	for _, e := range entries {
-		evidence := fmt.Sprintf("search code under section %q for keywords from item text", e.Section)
-		if e.Type == "finding" {
-			text := e.Text
-			if len(text) > 120 {
-				text = text[:120]
-			}
-			evidence = "verify the fix for: " + text
-		}
-		items = append(items, ChecklistItem{
-			ItemID:           e.ID,
-			Type:             e.Type,
-			SpecLine:         e.SpecLine,
-			Section:          e.Section,
-			Text:             e.Text,
-			ExpectedEvidence: evidence,
-		})
-	}
-	return items
-}
-
-// affectedFilesOf renders the affected-files entries for prompt output,
-// alphabetical by path.
-func affectedFilesOf(affectedContent map[string]string) []auditAffectedFile {
-	paths := make([]string, 0, len(affectedContent))
-	for p := range affectedContent {
-		paths = append(paths, p)
-	}
-	sort.Strings(paths)
-	out := make([]auditAffectedFile, 0, len(paths))
-	for _, p := range paths {
-		out = append(out, auditAffectedFile{Path: p, Tasks: []string{}})
-	}
-	return out
 }
