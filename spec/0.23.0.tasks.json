@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.23.0.md",
   "created_at": "2026-07-20T18:27:04Z",
-  "updated_at": "2026-07-20T21:31:38.143363Z",
+  "updated_at": "2026-07-20T21:39:32.141192Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -446,7 +446,7 @@
     {
       "id": "cli-audit-schema",
       "title": "Rework auditPrompt output schema",
-      "status": "open",
+      "status": "wip",
       "depends_on": [],
       "estimate_minutes": 8,
       "acceptance": "- auditPrompt drops Category and gains ChecklistItems and AffectedFiles fields; ChecklistItem Type enum includes finding per 3.2\n- NDJSON output schema of section 4 embedded as prompt guidance including the class field row",
@@ -455,7 +455,7 @@
         "### 5.6 affected_files JSON schema"
       ],
       "source_lines": "220-252,291-294",
-      "started_at": null,
+      "started_at": "2026-07-20T21:39:32.141192Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,
@@ -877,7 +877,7 @@
     {
       "id": "cli-domain-lens",
       "title": "Implement domain personas and lens injection",
-      "status": "wip",
+      "status": "done",
       "depends_on": [
         "engine-frontmatter-parse",
         "cli-regression-perspective"
@@ -889,15 +889,15 @@
       ],
       "source_lines": "578-592",
       "started_at": "2026-07-20T21:31:38.143362Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-07-20T21:37:59.405296Z",
+      "closed_reason": "- 12.3 tablosunun tum satirlari: non-software domain'de uc persona degisiyor (execute-exactly / verify-every-claim / internal-consistency), implementer'in happy-path sorusu ve architect'in backward-compat + performance sorulari dusuyor; yapisal ve tester'in vague/divergent sorulari domain-notr kaliyor (promptDomain, TestDomainLens_NonSoftwarePersonasAndDrops + _SoftwareDomainUnchanged)\n- Lens: lens.all rol ve regression prompt'larinin numarali listesine, lens.\u003crole\u003e yalniz kendi roluna, sira hardcoded -\u003e all -\u003e role-specific (appendLensQuestions; regression yalniz all aliyor — TestDomainLens_RegressionGetsAllLens; siralama index karsilastirmasiyla dogrulandi)",
+      "gate_passed_at": "2026-07-20T21:37:59.405296Z",
+      "commit_sha": "3383f6b"
     },
     {
       "id": "cli-lens-tests",
       "title": "Test lens injection",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cli-domain-lens"
       ],
@@ -907,11 +907,11 @@
         "### 19.2 Unit tests (cli)"
       ],
       "source_lines": "770-797",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-20T21:38:16.554302Z",
+      "closed_at": "2026-07-20T21:39:00.661805Z",
+      "closed_reason": "- TestLensInjection_DomainSwitch 19.2 tarifiyle birebir: prose domain persona degisimlerini, uc dusen software sorusunu ve hardcoded-\u003eall-\u003erole-specific lens sirasini dogruluyor (internal/cli/domain_lens_test.go; yardimci testler _SoftwareDomainUnchanged ve _RegressionGetsAllLens ayni dosyada)",
+      "gate_passed_at": "2026-07-20T21:39:00.661805Z",
+      "commit_sha": "35c09ff"
     },
     {
       "id": "engine-section-coverage",

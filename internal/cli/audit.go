@@ -31,10 +31,31 @@ type checklistSummary struct {
 	ByType map[string]int `json:"by_type"`
 }
 
+// ChecklistItem is one audit checklist entry, embedded inline in the prompt
+// body and exposed for programmatic consumers.
+type ChecklistItem struct {
+	ItemID           string `json:"item_id"`
+	Type             string `json:"type"` // list_item | table_row | task_acceptance | file_check | finding
+	SpecLine         int    `json:"spec_line"`
+	Section          string `json:"section"`
+	Text             string `json:"text"`
+	ExpectedEvidence string `json:"expected_evidence"`
+}
+
+// auditAffectedFile is one affected-files entry: the path, the tasks whose
+// commits touched it, and a diff summary.
+type auditAffectedFile struct {
+	Path        string   `json:"path"`
+	Tasks       []string `json:"tasks"`
+	DiffSummary string   `json:"diff_summary"`
+}
+
 type auditPrompt struct {
-	Role           string `json:"role"`
-	Prompt         string `json:"prompt"`
-	ChecklistCount int    `json:"checklist_count"`
+	Role           string              `json:"role"`
+	Prompt         string              `json:"prompt"`
+	ChecklistCount int                 `json:"checklist_count"`
+	ChecklistItems []ChecklistItem     `json:"checklist_items"`
+	AffectedFiles  []auditAffectedFile `json:"affected_files"`
 }
 
 type auditResult struct {
@@ -526,14 +547,14 @@ func generateAuditPrompts(specContent string, mainEntries []checklistEntry, affe
 		b.WriteString("3. A numbered list item describing a test is PASS only if a corresponding test function exists with assertions covering the described behavior.\n")
 		b.WriteString("4. Task acceptance criteria are PASS only if the described behavior is observable in the code (not just a comment or placeholder).\n")
 		b.WriteString("5. If a requirement mentions specific error handling, validation, or edge cases, verify those exist — don't just check the happy path.\n\n")
-		b.WriteString("## Output Format\n")
-		b.WriteString("For each checklist item, output one line:\n")
-		b.WriteString("{ID} | {PASS|PARTIAL|FAIL} | {evidence — file:line reference or explanation}\n")
+		b.WriteString(renderAuditOutputSchema())
 
 		prompts = append(prompts, auditPrompt{
 			Role:           "implementation-auditor",
 			Prompt:         b.String(),
 			ChecklistCount: len(batch),
+			ChecklistItems: checklistItemsOf(batch),
+			AffectedFiles:  affectedFilesOf(affectedContent),
 		})
 	}
 
@@ -560,13 +581,14 @@ func generateAuditPrompts(specContent string, mainEntries []checklistEntry, affe
 		b.WriteString("2. A finding is PASS only if the specific problem described is demonstrably fixed.\n")
 		b.WriteString("3. Partial fixes (e.g., adding a comment instead of actual code) count as PARTIAL.\n")
 		b.WriteString("4. If multiple findings relate to the same code area, verify each independently.\n\n")
-		b.WriteString("## Output Format\n")
-		b.WriteString("{ID} | {PASS|PARTIAL|FAIL} | {evidence — file:line reference or explanation}\n")
+		b.WriteString(renderAuditOutputSchema())
 
 		prompts = append(prompts, auditPrompt{
 			Role:           "implementation-auditor",
 			Prompt:         b.String(),
 			ChecklistCount: len(findingsEntries),
+			ChecklistItems: checklistItemsOf(findingsEntries),
+			AffectedFiles:  affectedFilesOf(affectedContent),
 		})
 	}
 

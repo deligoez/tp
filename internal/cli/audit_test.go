@@ -293,7 +293,8 @@ func TestAuditPromptContainsSourceFiles(t *testing.T) {
 	prompt := result["prompts"].([]any)[0].(map[string]any)["prompt"].(string)
 	assert.Contains(t, prompt, "code.go")
 	assert.Contains(t, prompt, "Spec Excerpt")
-	assert.Contains(t, prompt, "PASS|PARTIAL|FAIL")
+	assert.Contains(t, prompt, "## Output Schema")
+	assert.Contains(t, prompt, "one of PASS, PARTIAL, FAIL")
 }
 
 // Test: filterChecklistByType returns empty slice (not nil) for JSON safety
