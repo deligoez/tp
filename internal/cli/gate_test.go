@@ -267,3 +267,51 @@ func TestSkipGate_CloseRecordsReason(t *testing.T) {
 	assert.Equal(t, "gate broken today", task["gate_skipped_reason"])
 	assert.Nil(t, task["gate_passed_at"])
 }
+
+func TestGateBatch_CheapCheckFailuresDoNotTriggerGate(t *testing.T) {
+	dir := setupProjectWithGate(t, "echo run >> gate_runs.txt")
+	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"First thing. Second thing.","source_sections":["s1"]}`)
+
+	// Reason fails closure verification (2 criteria, 0 evidence lines)
+	ndjson := filepath.Join(dir, "results.ndjson")
+	require.NoError(t, os.WriteFile(ndjson, []byte(`{"id":"a","reason":"prose without evidence lines"}`+"\n"), 0o600))
+
+	stdout, _, code := runTP(t, dir, "done", "--batch", ndjson)
+	assert.Equal(t, 4, code)
+
+	_, err := os.Stat(filepath.Join(dir, "gate_runs.txt"))
+	assert.True(t, os.IsNotExist(err), "no surviving entry, so the gate must not run")
+
+	var batchOut map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &batchOut))
+	assert.Equal(t, float64(0), batchOut["closed"])
+	assert.Equal(t, float64(1), batchOut["failed"])
+	failures := batchOut["failures"].([]any)
+	failure := failures[0].(map[string]any)
+	assert.Contains(t, failure["error"], "closure verification failed")
+}
+
+func TestGateBatch_MixedCheapFailureAndSurvivorRunsGateOnce(t *testing.T) {
+	dir := setupProjectWithGate(t, "echo run >> gate_runs.txt")
+	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"First thing. Second thing.","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"b","title":"B","depends_on":[],"estimate_minutes":5,"acceptance":"B complete","source_sections":["s1"]}`)
+
+	ndjson := filepath.Join(dir, "results.ndjson")
+	lines := []string{
+		`{"id":"a","reason":"prose without evidence lines"}`,
+		`{"id":"b","reason":"B complete and verified"}`,
+	}
+	require.NoError(t, os.WriteFile(ndjson, []byte(strings.Join(lines, "\n")+"\n"), 0o600))
+
+	stdout, _, code := runTP(t, dir, "done", "--batch", ndjson)
+	assert.Equal(t, 1, code, "partial failure")
+
+	data, err := os.ReadFile(filepath.Join(dir, "gate_runs.txt"))
+	require.NoError(t, err, "surviving entry b requires one gate run")
+	assert.Equal(t, 1, strings.Count(string(data), "run"))
+
+	var batchOut map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &batchOut))
+	assert.Equal(t, float64(1), batchOut["closed"])
+	assert.Equal(t, float64(1), batchOut["failed"])
+}
