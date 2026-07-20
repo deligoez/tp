@@ -203,3 +203,67 @@ func TestForbiddenPatterns(t *testing.T) {
 		})
 	}
 }
+
+func TestVerifyClosure_EvidenceLines(t *testing.T) {
+	acceptance := "Model exists. Migration runs. Tests pass."
+
+	t.Run("3 criteria 3 column-0 lines passes", func(t *testing.T) {
+		reason := "- Task model at internal/model/task.go:18\n- migration 0007 applied, schema verified\n- go test ./... green (312 tests)"
+		assert.NoError(t, VerifyClosure(acceptance, reason, false))
+	})
+
+	t.Run("3 criteria 2 lines fails naming counts", func(t *testing.T) {
+		err := VerifyClosure(acceptance, "- model added\n- migration applied and tests green", false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "3 criteria")
+		assert.Contains(t, err.Error(), "2 evidence line")
+	})
+
+	t.Run("indented lines do not count", func(t *testing.T) {
+		reason := "- model added\n  - migration applied\n  - tests green"
+		err := VerifyClosure(acceptance, reason, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "1 evidence line")
+	})
+
+	t.Run("1 criterion free text passes", func(t *testing.T) {
+		assert.NoError(t, VerifyClosure("Single criterion here", "implemented and verified manually", false))
+	})
+}
+
+func TestVerifyClosure_ForbiddenPatternsRetained(t *testing.T) {
+	acceptance := "Something works."
+
+	t.Run("deferred rejected", func(t *testing.T) {
+		err := VerifyClosure(acceptance, "deferred to next sprint", false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "deferral is forbidden")
+	})
+
+	t.Run("single word rejected", func(t *testing.T) {
+		err := VerifyClosure(acceptance, "done", false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "must address each acceptance criterion")
+	})
+
+	t.Run("covered by existing without path rejected", func(t *testing.T) {
+		err := VerifyClosure(acceptance, "covered by existing tests", false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "claim requires evidence")
+	})
+}
+
+func TestVerifyClosure_KeywordMachineryGone(t *testing.T) {
+	// Prose criteria in any language pass with a matching evidence-line
+	// count — no keyword overlap between acceptance and reason required.
+	t.Run("turkish prose criteria", func(t *testing.T) {
+		acceptance := "Görev modeli mevcut. Migrasyon çalışıyor."
+		reason := "- ilgili yapı eklendi ve dosyaya yazıldı\n- şema güncellemesi uygulandı, kontrol edildi"
+		assert.NoError(t, VerifyClosure(acceptance, reason, false))
+	})
+
+	t.Run("no keyword overlap single criterion", func(t *testing.T) {
+		acceptance := "The UserModel class persists to user_name field"
+		assert.NoError(t, VerifyClosure(acceptance, "structural change verified end to end", false))
+	})
+}
