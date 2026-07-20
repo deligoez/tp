@@ -23,10 +23,19 @@ func runAuditRecord(specPath, recordPath string) error {
 		return nil
 	}
 
-	if _, err := engine.LoadReviewState(specPath); err != nil {
+	stPre, err := engine.LoadReviewState(specPath)
+	if err != nil {
 		exitStateError(err)
 		return nil
 	}
+
+	// Round-budget refusal comes before line parsing and any state write
+	wfPre, _ := engine.ResolveWorkflow(specPath, flagFile)
+	preRounds := []engine.ReviewRound{}
+	if stPre != nil {
+		preRounds = stPre.AuditRounds
+	}
+	refuseIfBudgetExhausted("audit", specPath, preRounds, wfPre.AuditMaxRounds, wfPre.AuditCleanRounds)
 
 	data, err := os.ReadFile(recordPath)
 	if err != nil {

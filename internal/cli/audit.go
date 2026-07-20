@@ -117,6 +117,22 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 		return nil
 	}
 
+	// Round budget: audit prompt generation refuses when the audit cap is
+	// exhausted; cap-triggered state reads inherit the corrupt-state abort
+	wfBudget, _ := engine.ResolveWorkflow(specPath, flagFile)
+	if wfBudget.AuditMaxRounds > 0 {
+		stBudget, stErr := engine.LoadReviewState(specPath)
+		if stErr != nil {
+			exitStateError(stErr)
+			return nil
+		}
+		rounds := []engine.ReviewRound{}
+		if stBudget != nil {
+			rounds = stBudget.AuditRounds
+		}
+		refuseIfBudgetExhausted("audit", specPath, rounds, wfBudget.AuditMaxRounds, wfBudget.AuditCleanRounds)
+	}
+
 	// Expand comma-separated values in --affected-files
 	affectedFiles = expandCommaFiles(affectedFiles)
 

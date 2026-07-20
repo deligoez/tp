@@ -308,6 +308,24 @@ func runReview(_ *cobra.Command, specPath string, round int, findingsPath, persp
 		return nil
 	}
 
+	// Round budget: default review mode refuses generation when the cap is
+	// exhausted; cap-triggered state reads inherit the corrupt-state abort
+	if perspective == "" {
+		wfBudget, _ := engine.ResolveWorkflow(specPath, flagFile)
+		if wfBudget.ReviewMaxRounds > 0 {
+			stBudget, stErr := engine.LoadReviewState(specPath)
+			if stErr != nil {
+				exitStateError(stErr)
+				return nil
+			}
+			rounds := []engine.ReviewRound{}
+			if stBudget != nil {
+				rounds = stBudget.ReviewRounds
+			}
+			refuseIfBudgetExhausted("review", specPath, rounds, wfBudget.ReviewMaxRounds, wfBudget.ReviewCleanRounds)
+		}
+	}
+
 	if perspective == "documentation" && docsPath == "" {
 		output.Error(ExitUsage, "--docs-path is required when --perspective=documentation")
 		os.Exit(ExitUsage)

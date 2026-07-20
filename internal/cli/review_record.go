@@ -25,10 +25,19 @@ func runReviewRecord(specPath, recordPath string) error {
 	}
 
 	// Corrupt state aborts before any parsing or write
-	if _, err := engine.LoadReviewState(specPath); err != nil {
+	stPre, err := engine.LoadReviewState(specPath)
+	if err != nil {
 		exitStateError(err)
 		return nil
 	}
+
+	// Round-budget refusal comes before line parsing and any state write
+	wfPre, _ := engine.ResolveWorkflow(specPath, flagFile)
+	preRounds := []engine.ReviewRound{}
+	if stPre != nil {
+		preRounds = stPre.ReviewRounds
+	}
+	refuseIfBudgetExhausted("review", specPath, preRounds, wfPre.ReviewMaxRounds, wfPre.ReviewCleanRounds)
 
 	data, err := os.ReadFile(recordPath)
 	if err != nil {

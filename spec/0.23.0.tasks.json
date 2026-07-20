@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.23.0.md",
   "created_at": "2026-07-20T18:27:04Z",
-  "updated_at": "2026-07-20T20:41:15.570492Z",
+  "updated_at": "2026-07-20T20:44:15.600986Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -679,7 +679,7 @@
     {
       "id": "cli-audit-record-status",
       "title": "Implement tp audit --record --status",
-      "status": "wip",
+      "status": "done",
       "depends_on": [
         "engine-review-state",
         "engine-workflow-resolution"
@@ -691,10 +691,10 @@
       ],
       "source_lines": "493-509",
       "started_at": "2026-07-20T20:41:15.570491Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-07-20T20:43:32.381468Z",
+      "closed_reason": "- 10.1: status alani PASS olmayan/eksik satirlar finding sayiliyor (countAuditFindings), dosya audit-round-\u003cN\u003e.ndjson olarak kopyalanip state.json.audit_rounds'a ekleniyor (review'den bagimsiz sira; TestAuditRecord_CountsNonPass), spec_hash/staleness 8.6 ile ayni\n- 10.2: --status sekli mechanical_checks'siz, bos-state sekli exit 0, --check yalniz converged'de 0 (TestAuditStatus_Shapes); --record/--status karsilikli dislayici ve --affected-files/--findings reddi exit 2 (TestAuditRecordStatus_FlagRejections)\n- 10.3: --record yalniz satir sayimi yapiyor, class okumuyor, mechanize_candidates yok (cikti anahtari yoklugu testte dogrulaniyor)",
+      "gate_passed_at": "2026-07-20T20:43:32.381468Z",
+      "commit_sha": "19b1022"
     },
     {
       "id": "cli-record-status-tests",
@@ -720,7 +720,7 @@
     {
       "id": "cli-budget",
       "title": "Implement round budgets",
-      "status": "open",
+      "status": "wip",
       "depends_on": [
         "cli-review-record",
         "cli-review-status",
@@ -732,7 +732,7 @@
         "### 8.8 Round budget"
       ],
       "source_lines": "475-478",
-      "started_at": null,
+      "started_at": "2026-07-20T20:44:15.600986Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,
