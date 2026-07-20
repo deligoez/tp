@@ -299,12 +299,16 @@ func validateModeFlags(mode string, round int, findingsPath string, affectedFile
 // runReviewReport — implemented in review_report.go.
 
 func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, perspective, docsPath, testPath string, affectedFiles []string, finalRound bool, diffFrom string, specInline, noState bool) error {
-	validPerspectives := map[string]bool{"documentation": true, "testing": true, "code-audit": true}
+	validPerspectives := map[string]bool{"documentation": true, "testing": true, "code-audit": true, "regression": true}
 
 	if perspective != "" && !validPerspectives[perspective] {
-		output.Error(ExitUsage, fmt.Sprintf("invalid perspective: %q (must be 'documentation', 'testing', or 'code-audit')", perspective))
+		output.Error(ExitUsage, fmt.Sprintf("invalid perspective: %q (must be 'documentation', 'testing', 'code-audit', or 'regression')", perspective))
 		os.Exit(ExitUsage)
 		return nil
+	}
+
+	if perspective == "regression" {
+		return runReviewRegression(specPath, diffFrom, findingsPath)
 	}
 
 	if perspective != "" && perspective != "code-audit" && (round != 1 || findingsPath != "") {
@@ -755,7 +759,7 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 
 const findingFormat = `
 For each issue found, respond with one JSON object per line (NDJSON):
-{"severity":"critical|high|medium|low","category":"completeness|ambiguity|consistency|feasibility|redundancy","location":"section heading or line number","finding":"what is wrong","suggestion":"how to fix it"}
+{"severity":"critical|high|medium|low","category":"completeness|ambiguity|consistency|feasibility|redundancy|regression","location":"section heading or line number","finding":"what is wrong","suggestion":"how to fix it"}
 
 Optional "class" field: add "class":"<kebab-case-slug>" (example: "code-citation-drift") when the finding is an instance of a pattern a script could check across the whole corpus; omit it otherwise.
 

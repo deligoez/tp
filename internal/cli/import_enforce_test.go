@@ -27,7 +27,7 @@ func importBare(t *testing.T, dir string, extra ...string) (stderr string, code 
 	return stderr, code
 }
 
-func TestImportEnforcement_Convergence(t *testing.T) {
+func TestImport_ConvergenceEnforced(t *testing.T) {
 	t.Run("no state imports with info only", func(t *testing.T) {
 		dir := setupEnforceProject(t)
 		stderr, code := importBare(t, dir)

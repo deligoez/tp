@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.23.0.md",
   "created_at": "2026-07-20T18:27:04Z",
-  "updated_at": "2026-07-20T21:13:44.356781Z",
+  "updated_at": "2026-07-20T21:21:48.781481Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -543,7 +543,7 @@
     {
       "id": "engine-review-state-tests",
       "title": "Test review state engine",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "engine-review-state"
       ],
@@ -553,11 +553,11 @@
         "### 19.1 Unit tests (engine)"
       ],
       "source_lines": "744-769",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-20T21:18:27.612852Z",
+      "closed_at": "2026-07-20T21:19:35.006925Z",
+      "closed_reason": "- TestReviewState_RoundLifecycle: kayit degistirilemez entry ekliyor (sonradan --resolve round dosyasini degistirse de clean/findings donmus kaliyor), clean-dirty-clean-clean -\u003e consecutive_clean 2 (internal/cli/review_state_named_test.go)\n- TestReviewState_Staleness: son kayitli turdan sonra spec duzenlenince stale=true + unconverge; eslesen hash converged tutuyor\n- TestReviewState_CorruptIndexAborts: bozuk state.json VE indekssiz round dosyasi vakalari review/record/status/import genelinde exit 3 + 'repair or delete' hint'i; state.json byte'lari degismeden kaliyor (sessiz rebuild yok); engine-seviyesi primitifler reviewstate_test.go'da zaten testli",
+      "gate_passed_at": "2026-07-20T21:19:35.006925Z",
+      "commit_sha": "565b810"
     },
     {
       "id": "engine-workflow-resolution",
@@ -798,7 +798,7 @@
     {
       "id": "cli-import-tests",
       "title": "Test import enforcement",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cli-import-enforcement",
         "cli-import-workflow-preserve"
@@ -809,16 +809,16 @@
         "### 19.2 Unit tests (cli)"
       ],
       "source_lines": "770-797",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-20T21:16:43.762003Z",
+      "closed_at": "2026-07-20T21:18:09.597655Z",
+      "closed_reason": "- TestImport_ConvergenceEnforced: unconverged exit 1, stale exit 1, --force baypasi, state yoksa yalniz info (import_enforce_test.go — isim 19.2'ye hizalandi)\n- TestImport_WorkflowPreserved: workflow anahtarsiz --force re-import quality_gate VE checks'i koruyor (checks iddiasi eklendi); TestImport_ShellOverwriteNoForce: sifir-gorevli shell --force'suz ezilebiliyor, enforcement armed kaliyor, gorevli dosya --force istiyor",
+      "gate_passed_at": "2026-07-20T21:18:09.597655Z",
+      "commit_sha": "3928079"
     },
     {
       "id": "cli-regression-perspective",
       "title": "Implement regression perspective",
-      "status": "open",
+      "status": "wip",
       "depends_on": [
         "engine-review-state",
         "cli-review-auto-diff"
@@ -830,7 +830,7 @@
         "### 11.3 Prompt content"
       ],
       "source_lines": "514-517,524-533",
-      "started_at": null,
+      "started_at": "2026-07-20T21:21:48.781481Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,
@@ -1029,7 +1029,7 @@
     {
       "id": "cli-checks-execution",
       "title": "Execute mechanical checks at review",
-      "status": "wip",
+      "status": "done",
       "depends_on": [
         "cli-set-checks",
         "engine-run-command",
@@ -1043,15 +1043,15 @@
       ],
       "source_lines": "652-655,660-663",
       "started_at": "2026-07-20T21:13:44.356781Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-07-20T21:16:07.381923Z",
+      "closed_reason": "- Checkler default review modunda prompt uretiminden once sirayla kosuyor (8.6 cozumlu workflow, cozumlu gate_timeout, cwd = task dosyasi dizini; runMechanicalChecks paylasilan yardimci); workflow-türevli olduklari icin --no-state altinda da kosup exclusion emit ediyorlar (TestChecksExecution_RunsUnderNoState); regression perspektifi geldiginde ayni yardimciyi kullanacak\n- mechanical_checks cikti alani {class, cmd, passed, exit_code} + yalniz basarisizlarda output_tail (son 20 satir); hatalar uretimi durdurmuyor (TestChecksExecution_PromptExclusion); gecersiz entry exec sirasinda info ile atlaniyor, tp validate warning veriyor (validateConvergence'a ValidateChecks eklendi)\n- 15.5 exclusion blogu her prompt'ta class listesiyle, instruction 'fix those failures before spawning sub-agents' ekliyor; 15.4 --status --check entegrasyonu onceki gorevde (TestReviewStatus_Check)",
+      "gate_passed_at": "2026-07-20T21:16:07.381923Z",
+      "commit_sha": "d3569a5"
     },
     {
       "id": "cli-checks-tests",
       "title": "Test checks validation and execution",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cli-checks-execution"
       ],
@@ -1061,11 +1061,11 @@
         "### 19.2 Unit tests (cli)"
       ],
       "source_lines": "770-797",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-20T21:20:03.198045Z",
+      "closed_at": "2026-07-20T21:21:31.749029Z",
+      "closed_reason": "- TestWorkflowChecks_Validation: gecersiz slug, duplicate class, bos cmd her biri index adiyla reddediliyor (internal/engine/checks_named_test.go)\n- TestValidate_GateTimeoutRange: 9999 degeri validate warning uretiyor, EffectiveGateTimeoutSeconds 600'e dusuyor; TestChecksExecution_PromptExclusion onceki gorevden mevcut (internal/cli/checks_execution_test.go)",
+      "gate_passed_at": "2026-07-20T21:21:31.749029Z",
+      "commit_sha": "933a4d3"
     },
     {
       "id": "tests-integration",
