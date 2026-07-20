@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.23.0.md",
   "created_at": "2026-07-20T18:27:04Z",
-  "updated_at": "2026-07-20T20:33:45.125995Z",
+  "updated_at": "2026-07-20T20:38:30.482267Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -639,7 +639,7 @@
     {
       "id": "cli-review-record",
       "title": "Implement tp review --record",
-      "status": "wip",
+      "status": "done",
       "depends_on": [
         "engine-review-state",
         "engine-workflow-resolution"
@@ -651,15 +651,15 @@
       ],
       "source_lines": "441-447",
       "started_at": "2026-07-20T20:33:45.125995Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-07-20T20:38:12.507332Z",
+      "closed_reason": "- 8.4 satir kurallari: bos satir atlama, gecersiz JSON'da satir numarasiyla exit 1, pre-resolved fixed abort, bos-kanitli wontfix exit 1, wontfix turu kirletmiyor, duplicate kirletiyor; sifir satir clean tur (parseRecordRows; TestReviewRecord_RowRules + _Lifecycle)\n- Dosya review-round-\u003cR\u003e.ndjson olarak kopyalaniyor (once round dosyasi, sonra indeks; state flock altinda), clean bayragi kayit aninda donduruluyor; cikti mechanize_candidates'i kaydedilen TUM turlar uzerinden hesapliyor + register hint (TestReviewRecord_MechanizeCandidatesInOutput); bozuk state exit 3 + repair hint (TestReviewRecord_CorruptStateAborts)",
+      "gate_passed_at": "2026-07-20T20:38:12.507332Z",
+      "commit_sha": "e62093c"
     },
     {
       "id": "cli-review-status",
       "title": "Implement tp review --status --check",
-      "status": "open",
+      "status": "wip",
       "depends_on": [
         "engine-review-state",
         "engine-workflow-resolution"
@@ -670,7 +670,7 @@
         "### 8.5 `tp review \u003cspec\u003e --status [--check]`"
       ],
       "source_lines": "448-452",
-      "started_at": null,
+      "started_at": "2026-07-20T20:38:30.482267Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,
