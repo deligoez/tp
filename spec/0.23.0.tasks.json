@@ -1,0 +1,1132 @@
+{
+  "version": 1,
+  "spec": "spec/0.23.0.md",
+  "created_at": "2026-07-20T18:27:04Z",
+  "updated_at": "2026-07-20T18:27:04.204702Z",
+  "workflow": {
+    "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
+    "review_clean_rounds": 2,
+    "audit_clean_rounds": 2
+  },
+  "coverage": {
+    "total_sections": 98,
+    "mapped_sections": 47,
+    "context_only": [
+      "# 0.23.0 — Audit Redesign, Enforcement, Round Memory, and Domain Lenses",
+      "## Motivation",
+      "### Audit feedback (agent consuming v0.22.0)",
+      "### Book-project feedback (nine items)",
+      "### Resolution map",
+      "## Goals",
+      "## Non-Goals (Deferred to Later Releases)",
+      "### 1.1 Role definitions",
+      "### 1.2 Disjoint checklist routing",
+      "### 1.3 Role-specific rules embedded in prompt",
+      "### 2.1 Five-category enum",
+      "### 2.2 Category resolution rules",
+      "### 2.3 Category presence rule",
+      "### 2.4 Prompt-level field naming (avoid confusion with finding category)",
+      "### 3.1 Body order",
+      "### 3.2 Per-item embedding",
+      "### 3.3 `expected_evidence` heuristic",
+      "### 3.4 No spec excerpt for non-spec roles",
+      "### 4.1 One row per checklist item",
+      "### 4.2 Field requirements",
+      "### 4.3 Single-line evidence_lines example",
+      "### 4.4 No full parser bundled in v0.23.0",
+      "### 5.1 Maximum cap",
+      "### 5.2 Task-to-file mapping and per-role selection rules",
+      "### 5.4 File entry format",
+      "### 5.5 Drop rules",
+      "## 6. Quality Gate Execution",
+      "### 7.1 Removed checks",
+      "### 7.2 Evidence-line rule",
+      "### 7.3 Retained checks",
+      "### 7.4 Error format",
+      "### 7.5 Batch parity",
+      "## 8. Review Round Memory",
+      "## 9. Import Convergence Enforcement",
+      "### 10.1 `tp audit \u003cspec\u003e --record \u003cresults.ndjson\u003e`",
+      "### 10.2 `tp audit \u003cspec\u003e --status [--check]`",
+      "### 10.3 Scope note",
+      "## 11. Regression Perspective",
+      "### 11.4 Category enum extension",
+      "## 12. Spec Frontmatter and Domain Lenses",
+      "### 12.5 Dependency",
+      "### 13.1 Section span rule",
+      "### 13.2 Covered-set construction",
+      "### 13.3 Anchor requirement change",
+      "### 13.4 Documentation rule change",
+      "## 14. Finding Class",
+      "## 15. Mechanical Checks",
+      "### 15.4 Convergence integration",
+      "## 18. Implementation Order",
+      "## 19. Test Plan",
+      "## 20. Acceptance Criteria"
+    ],
+    "unmapped": []
+  },
+  "tasks": [
+    {
+      "id": "model-task-gate-skipped",
+      "title": "Add Task gate_skipped_reason field",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 5,
+      "acceptance": "- Task.GateSkippedReason string field with omitempty json tag exists\n- tp reopen clears gate_skipped_reason\n- tp set rejects gate_skipped_reason as managed field",
+      "source_sections": [
+        "### 6.5 `--skip-gate \u003creason\u003e` escape hatch"
+      ],
+      "source_lines": "330-340",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "model-workflow-fields",
+      "title": "Add Workflow gate timeout checks cap fields",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 8,
+      "acceptance": "- Workflow gains GateTimeoutSeconds default 600, Checks default empty, ReviewMaxRounds and AuditMaxRounds default 0 via UnmarshalJSON\n- every row of the 6.7 field table serializes with stated defaults",
+      "source_sections": [
+        "### 6.7 Workflow field summary"
+      ],
+      "source_lines": "347-358",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "model-workflow-validation",
+      "title": "Enforce workflow field write and read rules",
+      "status": "open",
+      "depends_on": [
+        "model-workflow-fields"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "- tp set --workflow rejects out-of-range gate_timeout_seconds and max_rounds with exit 1\n- hand-edited out-of-range values fall back to 600 and 0 at read time with tp validate warnings\n- quality_gate stays read-only via tp set",
+      "source_sections": [
+        "### 6.7 Workflow field summary"
+      ],
+      "source_lines": "347-358",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "engine-run-command",
+      "title": "Implement shared RunCommand runner",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "- RunCommand runs sh -c on Unix and cmd /C on Windows with inherited env and caller cwd\n- 64 KB ring buffer captures combined output with parameterized tail size\n- timeout counts as failure with timed-out message",
+      "source_sections": [
+        "### 6.2 Execution environment"
+      ],
+      "source_lines": "312-320",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "engine-run-command-tests",
+      "title": "Test RunCommand success failure timeout",
+      "status": "open",
+      "depends_on": [
+        "engine-run-command"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "- TestRunCommand_Success_Failure_Timeout passes per the 19.1 description",
+      "source_sections": [
+        "### 19.1 Unit tests (engine)"
+      ],
+      "source_lines": "744-769",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "engine-closure-v2",
+      "title": "Rewrite VerifyClosure with evidence-line rule",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "- ExtractKeywords stopWords technicalTermRegex and length check deleted per 7.1\n- N\u003e=2 criteria require N column-0 evidence lines; indented bullets do not count; N\u003c=1 passes on non-empty reason\n- forbidden patterns retained and covered-by skips verification; error hint enumerates criteria per 7.4",
+      "source_sections": [
+        "## 7. Closure Verification Redesign"
+      ],
+      "source_lines": "359-397",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "engine-closure-v2-tests",
+      "title": "Test closure verification v2",
+      "status": "open",
+      "depends_on": [
+        "engine-closure-v2"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "- TestVerifyClosure_EvidenceLines TestVerifyClosure_ForbiddenPatternsRetained TestVerifyClosure_KeywordMachineryGone pass per 19.1",
+      "source_sections": [
+        "### 19.1 Unit tests (engine)"
+      ],
+      "source_lines": "744-769",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-gate-single-multi",
+      "title": "Wire gate into done and close",
+      "status": "open",
+      "depends_on": [
+        "engine-run-command",
+        "engine-closure-v2",
+        "model-task-gate-skipped",
+        "model-workflow-fields"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- every row of the 6.1 trigger table implemented; gate runs once per invocation after cheap checks\n- gate runs pre-flock then flock re-read re-validates state atomically for single and multi per 6.2 item 6\n- gate_passed_at stamped on success per 6.3",
+      "source_sections": [
+        "### 6.1 Trigger",
+        "### 6.3 Success path"
+      ],
+      "source_lines": "299-311,321-324",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-gate-failure-output",
+      "title": "Gate failure error output",
+      "status": "open",
+      "depends_on": [
+        "cli-gate-single-multi"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "- exit 4 JSON error carries gate_cmd exit_code output_tail and hint per 6.4\n- timeout reports gate timed out after Ns with null exit_code",
+      "source_sections": [
+        "### 6.4 Failure path"
+      ],
+      "source_lines": "325-329",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-skip-gate",
+      "title": "Implement --skip-gate escape hatch",
+      "status": "open",
+      "depends_on": [
+        "cli-gate-single-multi"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "- all 8 items of the 6.5 list implemented including empty-reason exit 2, no gate execution, recorded reason, show and report display\n- --skip-gate with --gate-passed is exit 2",
+      "source_sections": [
+        "### 6.5 `--skip-gate \u003creason\u003e` escape hatch"
+      ],
+      "source_lines": "330-340",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-gate-batch",
+      "title": "Gate batch semantics",
+      "status": "open",
+      "depends_on": [
+        "cli-gate-single-multi",
+        "cli-skip-gate"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- cheap-check failures land in failures pre-gate; gate runs iff a surviving non-skip entry exists; skip entries close regardless of gate result per 6.1 and 6.4\n- --skip-gate flag with --batch is exit 2; empty skip_gate entry fails into failures and does not count as skip",
+      "source_sections": [
+        "### 6.4 Failure path",
+        "### 6.5 `--skip-gate \u003creason\u003e` escape hatch"
+      ],
+      "source_lines": "325-329,330-340",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-gate-passed-compat",
+      "title": "Keep --gate-passed compatibility",
+      "status": "open",
+      "depends_on": [
+        "cli-gate-single-multi"
+      ],
+      "estimate_minutes": 5,
+      "acceptance": "- flag ignored with info when quality_gate set; attestation preserved when unset per 6.6\n- flag no longer affects closure verification",
+      "source_sections": [
+        "### 6.6 `--gate-passed` compatibility"
+      ],
+      "source_lines": "341-346",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-gate-tests",
+      "title": "Test gate execution paths",
+      "status": "open",
+      "depends_on": [
+        "cli-gate-batch",
+        "cli-gate-failure-output",
+        "cli-gate-passed-compat"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- TestDoneGate_RunsOncePerInvocation TestDoneGate_AllSkipBatchNoRun TestDoneGate_SkipGateRecorded TestDoneGate_GatePassedCompat pass per 19.2",
+      "source_sections": [
+        "### 19.2 Unit tests (cli)"
+      ],
+      "source_lines": "770-797",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "engine-frontmatter-parse",
+      "title": "Parse spec YAML frontmatter",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "- tp: mapping parsed via gopkg.in/yaml.v3 with domain and lens keys per 12.1\n- unterminated block treated as content with lint error; malformed YAML stays excluded with defaults per 12.2 item 8\n- non-string domain, non-mapping lens, unknown lens keys, non-list values, non-string elements produce lint warnings and are ignored",
+      "source_sections": [
+        "### 12.1 Frontmatter schema"
+      ],
+      "source_lines": "542-564",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "engine-frontmatter-exclusion",
+      "title": "Exclude frontmatter from all parsers",
+      "status": "open",
+      "depends_on": [
+        "engine-frontmatter-parse"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- all 8 exclusion surfaces of the 12.2 list implemented with absolute line numbers preserved",
+      "source_sections": [
+        "### 12.2 Parser exclusion"
+      ],
+      "source_lines": "565-577",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-lint-frontmatter",
+      "title": "Report frontmatter in lint output",
+      "status": "open",
+      "depends_on": [
+        "engine-frontmatter-parse"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "- tp lint --json emits frontmatter object with present lines domain lens_roles per 12.4 including the exact no-frontmatter shape",
+      "source_sections": [
+        "### 12.4 Lint reporting"
+      ],
+      "source_lines": "593-596",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "engine-frontmatter-tests",
+      "title": "Test frontmatter parse and exclusion",
+      "status": "open",
+      "depends_on": [
+        "engine-frontmatter-exclusion",
+        "cli-lint-frontmatter"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "- TestFrontmatter_ParseAndExclusion TestFrontmatter_MalformedYAML TestFrontmatter_Unterminated pass per 19.1",
+      "source_sections": [
+        "### 19.1 Unit tests (engine)"
+      ],
+      "source_lines": "744-769",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "engine-audit-categories",
+      "title": "Implement audit category enum",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 6,
+      "acceptance": "- 5 constants with IsValidCategory; ResolveAuditCategory enforces the 2.2 precedence\n- RenderAuditCategoryText renders enum plus precedence from shared constants per 4.4\n- category presence rules of 2.3 documented in rendered schema text",
+      "source_sections": [
+        "## 2. Audit Finding Categories"
+      ],
+      "source_lines": "108-148",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "engine-audit-files",
+      "title": "Implement audit file filtering",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 12,
+      "acceptance": "- task-to-file mapping via commit_sha with alphabetical list ordering per 5.2; drop rules filter universe first per 5.5\n- per-role selection ranking caps and fallback implemented for all three roles; --affected-files replaces the universe\n- affected_files exposed as path tasks diff_summary per 5.6",
+      "source_sections": [
+        "## 5. Audit File Filtering"
+      ],
+      "source_lines": "253-294",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "engine-audit-tests",
+      "title": "Test audit categories and filtering",
+      "status": "open",
+      "depends_on": [
+        "engine-audit-categories",
+        "engine-audit-files"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- TestAuditCategory_EnumValid TestAuditCategory_PrecedenceResolution TestRenderAuditCategoryText_ContainsEnumAndPrecedence pass\n- TestFilterFiles_SpecCoverage_RanksByTaskCount Cap20 Security Maintainability DropsBinaryFixturesDeleted DropFirstBackfill pass per 19.1",
+      "source_sections": [
+        "### 19.1 Unit tests (engine)"
+      ],
+      "source_lines": "744-769",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-audit-schema",
+      "title": "Rework auditPrompt output schema",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 8,
+      "acceptance": "- auditPrompt drops Category and gains ChecklistItems and AffectedFiles fields; ChecklistItem Type enum includes finding per 3.2\n- NDJSON output schema of section 4 embedded as prompt guidance including the class field row",
+      "source_sections": [
+        "## 4. Audit Output Schema (NDJSON)",
+        "### 5.6 affected_files JSON schema"
+      ],
+      "source_lines": "220-252,291-294",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-audit-routing",
+      "title": "Route checklist items to roles",
+      "status": "open",
+      "depends_on": [
+        "cli-audit-schema"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "- spec items and finding items route to spec-coverage; file-level checklists to security and maintainability per 1.2\n- empty roles omitted and prompts emitted in fixed order per 5.3",
+      "source_sections": [
+        "## 1. Three Audit Roles",
+        "### 5.3 Empty-role rule"
+      ],
+      "source_lines": "80-107,269-272",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-audit-prompts",
+      "title": "Rewrite generateAuditPrompts",
+      "status": "open",
+      "depends_on": [
+        "cli-audit-routing",
+        "engine-audit-categories",
+        "engine-audit-files",
+        "engine-frontmatter-exclusion"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- body order and per-item JSON embedding per 3.1 and 3.2 with deterministic ids including file-sec-n file-maint-n finding-n and pinned checklist order\n- expected_evidence per 3.3 never empty; CLAUDE.md excerpt rule and lookup per 3.4\n- Output Schema block embeds category enum and precedence text",
+      "source_sections": [
+        "## 3. Audit Prompt Structure"
+      ],
+      "source_lines": "149-155",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-audit-prompt-tests",
+      "title": "Test audit prompt generation",
+      "status": "open",
+      "depends_on": [
+        "cli-audit-prompts"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- TestRouteChecklist_Disjoint TestGenerateAuditPrompts_ThreeRolesPresent EmptyRoleOmitted StructuredItems NoCategoryField SpecExcerptOnlyForSpecCoverage CLAUDEmdOnlyForMaintainability pass per 19.2",
+      "source_sections": [
+        "### 19.2 Unit tests (cli)"
+      ],
+      "source_lines": "770-797",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "engine-review-state",
+      "title": "Implement review state engine",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 12,
+      "acceptance": "- state directory layout and initial state.json written by first creator per 8.1 and 8.2\n- flock-guarded writes, round arithmetic, consecutive_clean, spec_hash staleness computed per 8.2 and 8.6\n- corrupt or index-less directory aborts with exit 3; missing round file skipped with warning",
+      "source_sections": [
+        "### 8.1 State directory layout",
+        "### 8.2 state.json schema"
+      ],
+      "source_lines": "402-413,414-427",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "engine-review-state-tests",
+      "title": "Test review state engine",
+      "status": "open",
+      "depends_on": [
+        "engine-review-state"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "- TestReviewState_RoundLifecycle TestReviewState_Staleness TestReviewState_CorruptIndexAborts pass per 19.1",
+      "source_sections": [
+        "### 19.1 Unit tests (engine)"
+      ],
+      "source_lines": "744-769",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "engine-workflow-resolution",
+      "title": "Implement workflow resolution chain",
+      "status": "open",
+      "depends_on": [
+        "model-workflow-fields"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "- discovery chain then spec-adjacent then defaults resolution with absolute path comparison per 8.6\n- all six workflow fields resolved through the single chain",
+      "source_sections": [
+        "### 8.6 Convergence resolution"
+      ],
+      "source_lines": "453-459",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-review-state-rounds",
+      "title": "Integrate state into review prompt generation",
+      "status": "open",
+      "depends_on": [
+        "engine-review-state",
+        "engine-workflow-resolution"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- auto round numbering, snapshot write, auto previous-findings into role prompts only per 8.3 items 1-3\n- flag interaction matrix of 8.3 item 6 including --round conflict, --no-state behavior and review_loop shape, mode exclusivity\n- state participation by perspective per 8.3 closing paragraph",
+      "source_sections": [
+        "### 8.3 Round lifecycle at prompt generation"
+      ],
+      "source_lines": "428-440",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-review-auto-diff",
+      "title": "Inject snapshot diff into prompts",
+      "status": "open",
+      "depends_on": [
+        "cli-review-state-rounds"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "- newest-earlier-snapshot diff block with 40-line and 6000-char caps per 8.3 item 4\n- missing snapshot omits block with info; --diff-from overrides and forces at any round",
+      "source_sections": [
+        "### 8.3 Round lifecycle at prompt generation"
+      ],
+      "source_lines": "428-440",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-review-loop-output",
+      "title": "Emit review_loop schema v2",
+      "status": "open",
+      "depends_on": [
+        "cli-review-state-rounds"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "- every row of the 8.7 table implemented; max_rounds removed; convergence text is no findings surviving verification\n- instruction names record and status --check loop",
+      "source_sections": [
+        "### 8.7 review_loop output schema change"
+      ],
+      "source_lines": "460-474",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-review-record",
+      "title": "Implement tp review --record",
+      "status": "open",
+      "depends_on": [
+        "engine-review-state",
+        "engine-workflow-resolution"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- parse rules with blank-line skip and wontfix duplicate fixed row handling per 8.4 items 1-2 including empty-evidence rejection\n- round file copy plus immutable index append with frozen clean flag; mechanize_candidates across all recorded rounds in output",
+      "source_sections": [
+        "### 8.4 `tp review \u003cspec\u003e --record \u003cfindings.ndjson\u003e`"
+      ],
+      "source_lines": "441-447",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-review-status",
+      "title": "Implement tp review --status --check",
+      "status": "open",
+      "depends_on": [
+        "engine-review-state",
+        "engine-workflow-resolution"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "- status shape with budget_exhausted presence rule and full empty-state shape per 8.5\n- --check runs checks and exits per converged and stale; bare --check exit 2",
+      "source_sections": [
+        "### 8.5 `tp review \u003cspec\u003e --status [--check]`"
+      ],
+      "source_lines": "448-452",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-audit-record-status",
+      "title": "Implement tp audit --record --status",
+      "status": "open",
+      "depends_on": [
+        "engine-review-state",
+        "engine-workflow-resolution"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- non-PASS row counting, independent audit round sequence, spec_hash staleness per 10.1\n- audit status shape without mechanical_checks plus empty-state shape and flag rejections per 10.2\n- scope stays row counting aside from budget refusal per 10.3",
+      "source_sections": [
+        "## 10. Audit Round Recording"
+      ],
+      "source_lines": "493-509",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-record-status-tests",
+      "title": "Test record and status machinery",
+      "status": "open",
+      "depends_on": [
+        "cli-review-record",
+        "cli-review-status",
+        "cli-audit-record-status"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- TestReviewRecord_CleanAndDirty TestReviewStatus_Check TestAuditRecord_CountsNonPass TestAuditStatus_Check TestAuditRecordStatus_FlagRejections pass per 19.1 and 19.2",
+      "source_sections": [
+        "### 19.2 Unit tests (cli)"
+      ],
+      "source_lines": "770-797",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-budget",
+      "title": "Implement round budgets",
+      "status": "open",
+      "depends_on": [
+        "cli-review-record",
+        "cli-review-status",
+        "cli-audit-record-status"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "- generation refusal with escalation hint for review and audit per 8.8; budget_exhausted formula and status-only placement\n- --record beyond-cap refusal evaluated before parsing and writes for review and audit\n- import enforcement never relaxed by the cap",
+      "source_sections": [
+        "### 8.8 Round budget"
+      ],
+      "source_lines": "475-478",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-budget-tests",
+      "title": "Test round budget escalation",
+      "status": "open",
+      "depends_on": [
+        "cli-budget"
+      ],
+      "estimate_minutes": 5,
+      "acceptance": "- TestRoundBudget_Escalates passes per 19.2 with review and audit fixtures",
+      "source_sections": [
+        "### 19.2 Unit tests (cli)"
+      ],
+      "source_lines": "770-797",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-import-enforcement",
+      "title": "Enforce convergence at import",
+      "status": "open",
+      "depends_on": [
+        "engine-review-state",
+        "cli-budget"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- state lookup with pinned path bases, consecutive_clean and staleness checks, divergence warning per 9.1\n- failure hints including the exhausted-budget escalation sequence; --force bypass; zero-task shell imports without --force\n- no-state info line per 9.2",
+      "source_sections": [
+        "### 9.1 Enforcement rule",
+        "### 9.2 No-state behavior"
+      ],
+      "source_lines": "481-484,485-488",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-import-workflow-preserve",
+      "title": "Preserve workflow on import",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 6,
+      "acceptance": "- raw workflow-key detection carries existing workflow for wrapped and bare-array imports per 9.3",
+      "source_sections": [
+        "### 9.3 Workflow preservation"
+      ],
+      "source_lines": "489-492",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-import-tests",
+      "title": "Test import enforcement",
+      "status": "open",
+      "depends_on": [
+        "cli-import-enforcement",
+        "cli-import-workflow-preserve"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "- TestImport_ConvergenceEnforced TestImport_WorkflowPreserved TestImport_ShellOverwriteNoForce pass per 19.2",
+      "source_sections": [
+        "### 19.2 Unit tests (cli)"
+      ],
+      "source_lines": "770-797",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-regression-perspective",
+      "title": "Implement regression perspective",
+      "status": "open",
+      "depends_on": [
+        "engine-review-state",
+        "cli-review-auto-diff"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- standalone modes a and b with vacuous-input usage error and read-only state per 11.1\n- prompt body order per 11.3 with 50-entry fixed-findings cap\n- category enum gains regression per 11.4",
+      "source_sections": [
+        "### 11.1 Standalone invocation",
+        "### 11.3 Prompt content"
+      ],
+      "source_lines": "514-517,524-533",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-regression-autoinclude",
+      "title": "Auto-include regression prompt",
+      "status": "open",
+      "depends_on": [
+        "cli-regression-perspective"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "- 4th prompt appended under the 8.3 item 5 condition with process-first instruction per 11.2\n- delta-pass usage documented in instruction text",
+      "source_sections": [
+        "### 11.2 Auto-inclusion"
+      ],
+      "source_lines": "518-523",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-regression-tests",
+      "title": "Test regression perspective",
+      "status": "open",
+      "depends_on": [
+        "cli-regression-autoinclude"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "- TestRegressionPrompt_AutoInclusion passes per 19.2",
+      "source_sections": [
+        "### 19.2 Unit tests (cli)"
+      ],
+      "source_lines": "770-797",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-domain-lens",
+      "title": "Implement domain personas and lens injection",
+      "status": "open",
+      "depends_on": [
+        "engine-frontmatter-parse",
+        "cli-regression-perspective"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- every row of the 12.3 table implemented: persona switch and three dropped software questions for non-software domains\n- lens.all and per-role questions appended in pinned order to role and regression prompts",
+      "source_sections": [
+        "### 12.3 Prompt integration"
+      ],
+      "source_lines": "578-592",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-lens-tests",
+      "title": "Test lens injection",
+      "status": "open",
+      "depends_on": [
+        "cli-domain-lens"
+      ],
+      "estimate_minutes": 5,
+      "acceptance": "- TestLensInjection_DomainSwitch passes per 19.2",
+      "source_sections": [
+        "### 19.2 Unit tests (cli)"
+      ],
+      "source_lines": "770-797",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "engine-section-coverage",
+      "title": "Implement section-derived coverage",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "- span rule per 13.1 and covered-set union per 13.2 with warning only on empty union\n- anchor requirement error and per-task unresolvable-section warnings per 13.3",
+      "source_sections": [
+        "## 13. Section-Derived Line Coverage"
+      ],
+      "source_lines": "601-625",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "engine-coverage-tests",
+      "title": "Test section-derived coverage",
+      "status": "open",
+      "depends_on": [
+        "engine-section-coverage"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "- TestSectionSpan_Derivation TestLineCoverage_SectionDerived pass per 19.1",
+      "source_sections": [
+        "### 19.1 Unit tests (engine)"
+      ],
+      "source_lines": "744-769",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-finding-class",
+      "title": "Add finding class field",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 6,
+      "acceptance": "- reviewFinding gains Class with omitempty; merge and resolve preserve it; first non-empty wins on dedup per 14.1\n- finding format instruction documents the optional class slug",
+      "source_sections": [
+        "### 14.1 `class` field"
+      ],
+      "source_lines": "628-631",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-report-class",
+      "title": "Report class grouping and candidates",
+      "status": "open",
+      "depends_on": [
+        "cli-finding-class"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "- by_class breakdown in report per 14.2\n- mechanize_candidates rule with populations, tie-break and register hint per 14.3",
+      "source_sections": [
+        "### 14.2 Report grouping",
+        "### 14.3 Mechanization candidates"
+      ],
+      "source_lines": "632-635,636-639",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-class-tests",
+      "title": "Test class reporting",
+      "status": "open",
+      "depends_on": [
+        "cli-report-class"
+      ],
+      "estimate_minutes": 5,
+      "acceptance": "- TestReport_ByClassAndCandidates passes per 19.2",
+      "source_sections": [
+        "### 19.2 Unit tests (cli)"
+      ],
+      "source_lines": "770-797",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-set-checks",
+      "title": "Implement tp set --workflow checks",
+      "status": "open",
+      "depends_on": [
+        "model-workflow-fields",
+        "model-workflow-validation"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "- JSON array replace semantics with anchored slug uniqueness and non-empty cmd validation naming offending index per 15.1 and 15.2",
+      "source_sections": [
+        "### 15.1 `workflow.checks` schema",
+        "### 15.2 `tp set --workflow checks`"
+      ],
+      "source_lines": "644-647,648-651",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-checks-execution",
+      "title": "Execute mechanical checks at review",
+      "status": "open",
+      "depends_on": [
+        "cli-set-checks",
+        "engine-run-command",
+        "cli-review-state-rounds"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- checks run in default and regression modes, workflow-derived even under --no-state, with resolved timeout and cwd per 15.3\n- mechanical_checks output with failure tails; invalid entries skipped with info and validate warning\n- prompt exclusion block and instruction per 15.5; --status --check integration per 15.4",
+      "source_sections": [
+        "### 15.3 Execution at review time",
+        "### 15.5 Prompt exclusion"
+      ],
+      "source_lines": "652-655,660-663",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cli-checks-tests",
+      "title": "Test checks validation and execution",
+      "status": "open",
+      "depends_on": [
+        "cli-checks-execution"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "- TestWorkflowChecks_Validation TestChecksExecution_PromptExclusion TestValidate_GateTimeoutRange pass per 19.1 and 19.2",
+      "source_sections": [
+        "### 19.2 Unit tests (cli)"
+      ],
+      "source_lines": "770-797",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "tests-integration",
+      "title": "Write integration tests",
+      "status": "open",
+      "depends_on": [
+        "cli-gate-tests",
+        "cli-audit-prompt-tests",
+        "cli-import-tests",
+        "cli-record-status-tests"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- TestAudit_FullShape TestAudit_FileFilterCap TestAudit_NoLegacyCategoryField pass per 19.3\n- TestSelfLoop_ReviewToImport and TestGateLoop_EndToEnd pass per 19.3",
+      "source_sections": [
+        "### 19.3 Integration tests"
+      ],
+      "source_lines": "798-805",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "docs-skill-rewrite",
+      "title": "Rewrite SKILL.md per section 16",
+      "status": "open",
+      "depends_on": [
+        "tests-integration"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- all 12 numbered items of section 16 reflected in SKILL.md including workflow order, review recipe, closure rules, gate and budget escalation policy, migration section, tail protocol",
+      "source_sections": [
+        "## 16. Documentation Rewrite"
+      ],
+      "source_lines": "664-682",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "docs-reference-readme-claude",
+      "title": "Update REFERENCE README CLAUDE docs",
+      "status": "open",
+      "depends_on": [
+        "docs-skill-rewrite"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- REFERENCE.md documents every new flag field and file format; README and CLAUDE.md updated per the pre-release checklist\n- backward compatibility tables of section 17 reflected in migration documentation",
+      "source_sections": [
+        "## 16. Documentation Rewrite",
+        "## 17. Backward Compatibility"
+      ],
+      "source_lines": "664-682,683-720",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ]
+}
