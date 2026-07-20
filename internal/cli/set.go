@@ -33,6 +33,7 @@ var (
 		"gate_timeout_seconds": true,
 		"review_max_rounds":    true,
 		"audit_max_rounds":     true,
+		"checks":               true,
 	}
 	readOnlyWorkflowFields = map[string]bool{
 		"quality_gate": true,
@@ -264,6 +265,8 @@ func runSetWorkflow(args []string) error {
 
 	// Parse all field=value pairs first
 	pairs := make(map[string]int)
+	var checksValue []model.Check
+	checksSet := false
 	for _, arg := range args {
 		parts := strings.SplitN(arg, "=", 2)
 		if len(parts) != 2 {
@@ -278,6 +281,27 @@ func runSetWorkflow(args []string) error {
 		}
 		if !editableWorkflowFields[field] {
 			return output.JSON(map[string]string{"error": fmt.Sprintf("unknown workflow field: %s", field)})
+		}
+
+		// checks: JSON-array replace semantics (§15.2)
+		if field == "checks" {
+			var checks []model.Check
+			if err := json.Unmarshal([]byte(valueStr), &checks); err != nil {
+				output.Error(ExitValidation, fmt.Sprintf("checks must be a JSON array of {class, cmd} objects: %v", err))
+				os.Exit(ExitValidation)
+				return nil
+			}
+			if err := engine.ValidateChecks(checks); err != nil {
+				output.Error(ExitValidation, err.Error())
+				os.Exit(ExitValidation)
+				return nil
+			}
+			if checks == nil {
+				checks = []model.Check{}
+			}
+			checksValue = checks
+			checksSet = true
+			continue
 		}
 
 		var val int
@@ -308,7 +332,7 @@ func runSetWorkflow(args []string) error {
 			return nil
 		}
 
-		updated := make(map[string]int)
+		updated := make(map[string]any)
 		for field, val := range pairs {
 			switch field {
 			case "review_clean_rounds":
@@ -323,6 +347,10 @@ func runSetWorkflow(args []string) error {
 				tf.Workflow.AuditMaxRounds = val
 			}
 			updated[field] = val
+		}
+		if checksSet {
+			tf.Workflow.Checks = checksValue
+			updated["checks"] = checksValue
 		}
 
 		if err := model.WriteTaskFile(taskFilePath, tf); err != nil {

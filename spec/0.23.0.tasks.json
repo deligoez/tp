@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.23.0.md",
   "created_at": "2026-07-20T18:27:04Z",
-  "updated_at": "2026-07-20T20:03:02.066855Z",
+  "updated_at": "2026-07-20T20:08:58.002567Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -969,7 +969,7 @@
     {
       "id": "cli-report-class",
       "title": "Report class grouping and candidates",
-      "status": "wip",
+      "status": "done",
       "depends_on": [
         "cli-finding-class"
       ],
@@ -981,15 +981,15 @@
       ],
       "source_lines": "632-635,636-639",
       "started_at": "2026-07-20T20:03:02.066855Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-07-20T20:05:58.785512Z",
+      "closed_reason": "- by_class kirilimi (bos-olmayan class'li satirlar; identity-key basina ilk bos-olmayan class) JSON ve TTY ciktisina eklendi (computeClassBreakdown, review_report.go)\n- mechanize_candidates: \u003e=2 farkli tur VEYA tek turda \u003e=5 kurali, populasyon --report icin arguman NDJSON'lari, total desc + alfabetik tie-break siralamasi (computeMechanizeCandidates); register hint sabiti (mechanizeRegisterHint) TTY'de basiliyor ve --record tarafinca yeniden kullanilacak",
+      "gate_passed_at": "2026-07-20T20:05:58.785512Z",
+      "commit_sha": "9a2003f"
     },
     {
       "id": "cli-class-tests",
       "title": "Test class reporting",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cli-report-class"
       ],
@@ -999,16 +999,16 @@
         "### 19.2 Unit tests (cli)"
       ],
       "source_lines": "770-797",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-20T20:08:38.65672Z",
+      "closed_at": "2026-07-20T20:08:38.656734Z",
+      "closed_reason": "- TestReport_ByClassAndCandidates: class gruplama (bos class haric), \u003e=2-tur ve \u003e=5-tek-tur aday kurallari, total desc siralama dogrulaniyor (internal/cli/report_class_test.go); alfabetik tie-break ayri testte; suite + lint yesil",
+      "gate_passed_at": "2026-07-20T20:08:38.656734Z",
+      "commit_sha": "0315405"
     },
     {
       "id": "cli-set-checks",
       "title": "Implement tp set --workflow checks",
-      "status": "open",
+      "status": "wip",
       "depends_on": [
         "model-workflow-fields",
         "model-workflow-validation"
@@ -1020,7 +1020,7 @@
         "### 15.2 `tp set --workflow checks`"
       ],
       "source_lines": "644-647,648-651",
-      "started_at": null,
+      "started_at": "2026-07-20T20:08:58.002567Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,
