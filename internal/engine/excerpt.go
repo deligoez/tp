@@ -2,6 +2,7 @@ package engine
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 	"strconv"
@@ -90,17 +91,21 @@ func ExtractSpecExcerpt(specPath, sourceLines string) string {
 		}
 	}
 
-	f, err := os.Open(specPath)
+	data, err := os.ReadFile(specPath)
 	if err != nil {
 		return ""
 	}
-	defer f.Close()
+	fm := ParseFrontmatterBytes(data)
 
 	var lines []string
-	scanner := bufio.NewScanner(f)
+	scanner := bufio.NewScanner(bytes.NewReader(data))
 	lineNum := 0
 	for scanner.Scan() {
 		lineNum++
+		// Frontmatter lines are excluded from excerpts
+		if fm.Present && lineNum >= fm.Lines.Start && lineNum <= fm.Lines.End {
+			continue
+		}
 		if lineSet[lineNum] {
 			lines = append(lines, scanner.Text())
 		}

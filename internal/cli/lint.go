@@ -103,14 +103,11 @@ func parseSpecFile(path string) ([]string, []*engine.Heading, error) {
 	if err := scanner.Err(); err != nil {
 		return nil, nil, err
 	}
+	// Frontmatter lines are blanked so lint rules and structured element
+	// extraction skip them while absolute line numbers stay untouched
+	lines = engine.BlankFrontmatterLines(lines)
 
-	f2, err := os.Open(path)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer f2.Close()
-
-	headings, err := engine.ParseHeadingsFromScanner(bufio.NewScanner(f2))
+	headings, err := engine.ParseHeadings(path)
 	if err != nil {
 		return nil, nil, err
 	}

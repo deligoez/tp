@@ -110,6 +110,7 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 		os.Exit(ExitFile)
 		return nil
 	}
+	specData = engine.BlankFrontmatter(specData)
 	specLines := strings.Split(string(specData), "\n")
 	specContent := string(specData)
 	if len(specContent) > engine.SpecContentCap {

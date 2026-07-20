@@ -76,7 +76,7 @@ func runReviewVerify(specPath, findingsPath string, affectedFiles []string, diff
 		}
 		baseData, _ := os.ReadFile(diffFrom)
 		currData, _ := os.ReadFile(specPath)
-		dr := engine.DiffSections(strings.Split(string(baseData), "\n"), strings.Split(string(currData), "\n"))
+		dr := engine.DiffSections(engine.BlankFrontmatterLines(strings.Split(string(baseData), "\n")), engine.BlankFrontmatterLines(strings.Split(string(currData), "\n")))
 		specContent = buildDiffSpecContent(&dr)
 	case specInline:
 		specContent = readSpecContent(specPath)

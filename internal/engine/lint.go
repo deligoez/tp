@@ -2,6 +2,7 @@ package engine
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 	"regexp"
@@ -17,15 +18,14 @@ type Heading struct {
 	Children []*Heading
 }
 
-// ParseHeadings reads a markdown file and returns a flat list and a tree of headings.
+// ParseHeadings reads a markdown file and returns a flat list and a tree of
+// headings. Frontmatter lines are excluded — they never yield a heading.
 func ParseHeadings(path string) ([]*Heading, error) {
-	f, err := os.Open(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("open spec: %w", err)
 	}
-	defer f.Close()
-
-	return ParseHeadingsFromScanner(bufio.NewScanner(f))
+	return ParseHeadingsFromScanner(bufio.NewScanner(bytes.NewReader(BlankFrontmatter(data))))
 }
 
 // ParseHeadingsFromScanner parses headings from a scanner (for testability).

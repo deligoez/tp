@@ -358,7 +358,7 @@ func runReview(_ *cobra.Command, specPath string, round int, findingsPath, persp
 			os.Exit(ExitFile)
 			return nil
 		}
-		dr := engine.DiffSections(strings.Split(string(baseData), "\n"), strings.Split(string(currData), "\n"))
+		dr := engine.DiffSections(engine.BlankFrontmatterLines(strings.Split(string(baseData), "\n")), engine.BlankFrontmatterLines(strings.Split(string(currData), "\n")))
 		diffResult = &dr
 		specContent = buildDiffSpecContent(diffResult)
 		if len(diffResult.Changed) == 0 && len(diffResult.Removed) == 0 {
@@ -1384,6 +1384,7 @@ func readSpecContent(path string) string {
 	for scanner.Scan() {
 		lines = append(lines, scanner.Text())
 	}
+	lines = engine.BlankFrontmatterLines(lines)
 	content := strings.Join(lines, "\n")
 	if len(content) > specContentCap {
 		content = content[:specContentCap] + fmt.Sprintf("\n[...truncated at %d chars]", specContentCap)

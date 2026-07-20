@@ -2,6 +2,7 @@ package engine
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 	"sort"
@@ -139,13 +140,13 @@ func ValidateLineCoverage(tf *model.TaskFile, specPath string) []Finding {
 // (non-empty, not pure whitespace, not fenced code delimiters).
 // Also returns total line count.
 func countContentLines(specPath string) (contentLines []int, totalLines int, err error) {
-	f, err := os.Open(specPath)
+	data, err := os.ReadFile(specPath)
 	if err != nil {
 		return nil, 0, err
 	}
-	defer f.Close()
 
-	scanner := bufio.NewScanner(f)
+	// Frontmatter lines are blanked and therefore never count as content
+	scanner := bufio.NewScanner(bytes.NewReader(BlankFrontmatter(data)))
 	lineNum := 0
 	inCodeBlock := false
 
