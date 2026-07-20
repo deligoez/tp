@@ -16,21 +16,22 @@ const (
 
 // Task represents a single atomic work item.
 type Task struct {
-	ID              string     `json:"id"`
-	Title           string     `json:"title"`
-	Description     string     `json:"description,omitempty"`
-	Status          string     `json:"status"`
-	Tags            []string   `json:"tags,omitempty"`
-	DependsOn       []string   `json:"depends_on"`
-	EstimateMinutes int        `json:"estimate_minutes"`
-	Acceptance      string     `json:"acceptance"`
-	SourceSections  []string   `json:"source_sections"`
-	SourceLines     string     `json:"source_lines,omitempty"`
-	StartedAt       *time.Time `json:"started_at"`
-	ClosedAt        *time.Time `json:"closed_at"`
-	ClosedReason    *string    `json:"closed_reason"`
-	GatePassedAt    *time.Time `json:"gate_passed_at"`
-	CommitSHA       *string    `json:"commit_sha"`
+	ID                string     `json:"id"`
+	Title             string     `json:"title"`
+	Description       string     `json:"description,omitempty"`
+	Status            string     `json:"status"`
+	Tags              []string   `json:"tags,omitempty"`
+	DependsOn         []string   `json:"depends_on"`
+	EstimateMinutes   int        `json:"estimate_minutes"`
+	Acceptance        string     `json:"acceptance"`
+	SourceSections    []string   `json:"source_sections"`
+	SourceLines       string     `json:"source_lines,omitempty"`
+	StartedAt         *time.Time `json:"started_at"`
+	ClosedAt          *time.Time `json:"closed_at"`
+	ClosedReason      *string    `json:"closed_reason"`
+	GatePassedAt      *time.Time `json:"gate_passed_at"`
+	CommitSHA         *string    `json:"commit_sha"`
+	GateSkippedReason *string    `json:"gate_skipped_reason,omitempty"`
 }
 
 // UnmarshalJSON supports aliases and flexible types:
