@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.23.0.md",
   "created_at": "2026-07-20T18:27:04Z",
-  "updated_at": "2026-07-20T21:49:35.898992Z",
+  "updated_at": "2026-07-20T21:59:59.030411Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -464,7 +464,7 @@
     {
       "id": "cli-audit-routing",
       "title": "Route checklist items to roles",
-      "status": "wip",
+      "status": "done",
       "depends_on": [
         "cli-audit-schema"
       ],
@@ -476,15 +476,15 @@
       ],
       "source_lines": "80-107,269-272",
       "started_at": "2026-07-20T21:49:35.898992Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-07-20T21:59:38.349173Z",
+      "closed_reason": "- 1.2 ayrik yonlendirme: table_row/list_item/task_acceptance ve finding item'lari spec-coverage'a; security ve maintainability dosya-bazli sentetik file_check item'lari (file-sec-\u003cn\u003e/file-maint-\u003cn\u003e, rol listesi sirasiyla) tasiyor, hicbir item iki prompt'ta gorunmuyor (routeChecklist, internal/cli/audit_roles.go; TestAuditRouting_DisjointAndFixedOrder)\n- 5.3: bos rol prompts'tan atlaniyor (security eslesmesiz vaka testte), promptlar sabit spec-coverage -\u003e security -\u003e maintainability-conventions sirasinda; rol basina tek prompt (eski 50-item bolme kaldirildi, eski testler yeni davranisa uyarlandi)",
+      "gate_passed_at": "2026-07-20T21:59:38.349173Z",
+      "commit_sha": "a1c3224"
     },
     {
       "id": "cli-audit-prompts",
       "title": "Rewrite generateAuditPrompts",
-      "status": "open",
+      "status": "wip",
       "depends_on": [
         "cli-audit-routing",
         "engine-audit-categories",
@@ -497,7 +497,7 @@
         "## 3. Audit Prompt Structure"
       ],
       "source_lines": "149-155",
-      "started_at": null,
+      "started_at": "2026-07-20T21:59:59.030411Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,
