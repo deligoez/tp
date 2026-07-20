@@ -88,6 +88,7 @@ func runReviewMerge(args []string, outputPath string) error {
 		key     string
 		finding map[string]any
 		rank    int
+		class   string // first non-empty class in merge order
 	}
 
 	seen := make(map[string]*dedupEntry)
@@ -101,23 +102,33 @@ func runReviewMerge(args []string, outputPath string) error {
 		key := findingIdentityKey(category, location, findingText)
 		sev, _ := f["severity"].(string)
 		rank := getSevRank(sev)
+		class, _ := f["class"].(string)
 
 		if existing, exists := seen[key]; exists {
+			if existing.class == "" && class != "" {
+				existing.class = class
+			}
 			// Keep the one with highest severity (lower rank = higher severity)
 			if rank < existing.rank {
 				existing.finding = f
 				existing.rank = rank
 			}
 		} else {
-			seen[key] = &dedupEntry{key: key, finding: f, rank: rank}
+			seen[key] = &dedupEntry{key: key, finding: f, rank: rank, class: class}
 			order = append(order, key)
 		}
 	}
 
-	// Collect unique findings
+	// Collect unique findings; on class disagreement within a dedup group,
+	// the first non-empty value in merge order wins
 	unique := make([]map[string]any, 0, len(seen))
 	for _, key := range order {
-		unique = append(unique, seen[key].finding)
+		e := seen[key]
+		delete(e.finding, "class")
+		if e.class != "" {
+			e.finding["class"] = e.class
+		}
+		unique = append(unique, e.finding)
 	}
 
 	// Sort by severity (critical first), then category alphabetically

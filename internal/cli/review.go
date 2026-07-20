@@ -19,6 +19,7 @@ import (
 type reviewFinding struct {
 	Severity   string          `json:"severity"`
 	Category   string          `json:"category"`
+	Class      string          `json:"class,omitempty"`
 	Location   string          `json:"location"`
 	Finding    string          `json:"finding"`
 	Suggestion string          `json:"suggestion"`
@@ -562,6 +563,8 @@ func runReview(_ *cobra.Command, specPath string, round int, findingsPath, persp
 const findingFormat = `
 For each issue found, respond with one JSON object per line (NDJSON):
 {"severity":"critical|high|medium|low","category":"completeness|ambiguity|consistency|feasibility|redundancy","location":"section heading or line number","finding":"what is wrong","suggestion":"how to fix it"}
+
+Optional "class" field: add "class":"<kebab-case-slug>" (example: "code-citation-drift") when the finding is an instance of a pattern a script could check across the whole corpus; omit it otherwise.
 
 Only report real issues. Do not generate findings just to appear thorough.`
 
