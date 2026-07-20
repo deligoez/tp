@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.23.0.md",
   "created_at": "2026-07-20T18:27:04Z",
-  "updated_at": "2026-07-20T21:59:59.030411Z",
+  "updated_at": "2026-07-20T22:06:22.72575Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -484,7 +484,7 @@
     {
       "id": "cli-audit-prompts",
       "title": "Rewrite generateAuditPrompts",
-      "status": "wip",
+      "status": "done",
       "depends_on": [
         "cli-audit-routing",
         "engine-audit-categories",
@@ -498,15 +498,15 @@
       ],
       "source_lines": "149-155",
       "started_at": "2026-07-20T21:59:59.030411Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-07-20T22:02:31.618305Z",
+      "closed_reason": "- 3.1 govde sirasi (Role -\u003e Role Rules -\u003e Spec Excerpt yalniz spec-coverage -\u003e Project Context yalniz maintainability -\u003e JSON-array Checklist -\u003e Affected Files (max 20) 5.4 formatiyla -\u003e Output Schema) buildRolePrompt'ta; siralama index karsilastirmalariyla testte (TestAuditPrompts_BodyOrderAndEmbedding)\n- 3.2 deterministik idler: table-t-r/list-l-n/task-\u003cid\u003e mevcut semalar, file-sec-\u003cn\u003e/file-maint-\u003cn\u003e rol listesi indeksiyle, finding-\u003cn\u003e dosya indeksiyle; pinned siralama (table+list spec_line artan, sonra task, sonra finding); ayni girdiyle yeniden uretim byte-esit (TestAuditPrompts_DeterministicRegeneration)\n- 3.3 expected_evidence hicbir zaman bos degil (task-\u003efiles eslemesi, section-arama fallback'i, inspect-file, verify-the-fix-120-char); 3.4 CLAUDE.md excerpt'u task-dosyasi dizini -\u003e git koku sirasiyla bulunuyor, '## Conventions' span'i 50 satir cap'iyle, sonraki basligda kesiliyor (claudeMDExcerptFor; testte 'ignored' bolumu dislaniyor)",
+      "gate_passed_at": "2026-07-20T22:02:31.618305Z",
+      "commit_sha": "6f30073"
     },
     {
       "id": "cli-audit-prompt-tests",
       "title": "Test audit prompt generation",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cli-audit-prompts"
       ],
@@ -516,11 +516,11 @@
         "### 19.2 Unit tests (cli)"
       ],
       "source_lines": "770-797",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-20T22:03:03.625898Z",
+      "closed_at": "2026-07-20T22:05:52.902156Z",
+      "closed_reason": "- Yedi isimli test 19.2 tarifleriyle geciyor: TestRouteChecklist_Disjoint ve TestGenerateAuditPrompts_EmptyRoleOmitted (rename + tarif yorumu, audit_routing_test.go), TestGenerateAuditPrompts_ThreeRolesPresent / _StructuredItems (JSON-array govde = ChecklistItems) / _NoCategoryField / _SpecExcerptOnlyForSpecCoverage / _CLAUDEmdOnlyForMaintainability (audit_named_test.go, paylasilan uc-rol kurulumuyla)",
+      "gate_passed_at": "2026-07-20T22:05:52.902156Z",
+      "commit_sha": "86fdbc6"
     },
     {
       "id": "engine-review-state",
@@ -1070,7 +1070,7 @@
     {
       "id": "tests-integration",
       "title": "Write integration tests",
-      "status": "open",
+      "status": "wip",
       "depends_on": [
         "cli-gate-tests",
         "cli-audit-prompt-tests",
@@ -1083,7 +1083,7 @@
         "### 19.3 Integration tests"
       ],
       "source_lines": "798-805",
-      "started_at": null,
+      "started_at": "2026-07-20T22:06:22.72575Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,
