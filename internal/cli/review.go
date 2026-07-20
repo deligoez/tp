@@ -654,10 +654,13 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 		mechChecks, _ = runMechanicalChecks(&wfChecks, checksTaskFile)
 	}
 
+	fmState := engine.ParseFrontmatter(specPath)
+	dom := &promptDomain{software: fmState.Domain == engine.DomainSoftware, lens: fmState.Lens}
+
 	prompts := []reviewPrompt{
-		generateImplementerPrompt(elems, specContent, round, summary, affectedSection, finalRound),
-		generateTesterPrompt(elems, specContent, round, summary, affectedSection, finalRound),
-		generateArchitectPrompt(elems, specContent, round, summary, affectedSection, finalRound),
+		generateImplementerPrompt(elems, specContent, round, summary, affectedSection, finalRound, dom),
+		generateTesterPrompt(elems, specContent, round, summary, affectedSection, finalRound, dom),
+		generateArchitectPrompt(elems, specContent, round, summary, affectedSection, finalRound, dom),
 	}
 
 	// Changed-sections block: explicit --diff-from overrides the baseline and
@@ -698,7 +701,7 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 			prompts = append(prompts, reviewPrompt{
 				Role:     "regression",
 				Category: "regression",
-				Prompt:   buildRegressionPrompt(&diffDr, diffLabel, fixed),
+				Prompt:   buildRegressionPrompt(&diffDr, diffLabel, fixed, dom),
 			})
 			regressionIncluded = true
 		}
@@ -799,6 +802,30 @@ Do NOT check implementation code or report "not implemented" findings.
 Focus on: completeness, ambiguity, contradictions, missing edge cases, testability.
 `
 
+// promptDomain carries the resolved frontmatter domain and lens questions.
+type promptDomain struct {
+	software bool
+	lens     map[string][]string
+}
+
+// appendLensQuestions appends lens.all then lens.<role> questions to the
+// numbered check list, continuing the numbering. Order: hardcoded questions
+// first, then all, then role-specific.
+func appendLensQuestions(b *strings.Builder, n int, dom *promptDomain, role string) int {
+	if dom == nil {
+		return n
+	}
+	for _, q := range dom.lens["all"] {
+		fmt.Fprintf(b, "%d. %s\n", n, q)
+		n++
+	}
+	for _, q := range dom.lens[role] {
+		fmt.Fprintf(b, "%d. %s\n", n, q)
+		n++
+	}
+	return n
+}
+
 func appendAffectedChecklist(b *strings.Builder, n int, hasAffectedFiles bool) {
 	if hasAffectedFiles {
 		fmt.Fprintf(b, "%d. For each state-dependent behavior in the affected files (disabled, loading, visibility, conditional rendering, error handling), verify the spec addresses it. What controls each condition?\n", n+1)
@@ -814,12 +841,16 @@ func appendSpecOnlyDisclaimer(b *strings.Builder, affectedSection string) {
 		b.WriteString(specOnlyDisclaimer)
 	}
 }
-func generateImplementerPrompt(elems *engine.StructuredElements, specContent string, round int, summary, affectedSection string, finalRound bool) reviewPrompt {
+func generateImplementerPrompt(elems *engine.StructuredElements, specContent string, round int, summary, affectedSection string, finalRound bool, dom *promptDomain) reviewPrompt {
 	var b strings.Builder
+	persona := "You are a senior engineer who must implement this spec tomorrow."
+	if !dom.software {
+		persona = "You must execute this spec exactly as written, starting tomorrow."
+	}
 	if round >= 2 {
-		fmt.Fprintf(&b, "You are a senior engineer who must implement this spec tomorrow. This is review round %d \u2014 focus ONLY on issues not previously reported. Your goal is to find requirements that are missing, underspecified, or impossible to implement as stated.\n\n", round)
+		fmt.Fprintf(&b, "%s This is review round %d — focus ONLY on issues not previously reported. Your goal is to find requirements that are missing, underspecified, or impossible to implement as stated.\n\n", persona, round)
 	} else {
-		b.WriteString("You are a senior engineer who must implement this spec tomorrow. Your goal is to find requirements that are missing, underspecified, or impossible to implement as stated.\n\n")
+		b.WriteString(persona + " Your goal is to find requirements that are missing, underspecified, or impossible to implement as stated.\n\n")
 	}
 	appendSpecOnlyDisclaimer(&b, affectedSection)
 	if summary != "" {
@@ -843,10 +874,13 @@ func generateImplementerPrompt(elems *engine.StructuredElements, specContent str
 		fmt.Fprintf(&b, "%d. List '%s' (line %d, %d items, #1-#%d): For each item, is there enough detail to implement? What happens when it fails?\n", n, nl.Heading, nl.Line, nl.Items, nl.LastNum)
 		n++
 	}
-	fmt.Fprintf(&b, "%d. What happens when the happy path fails? Where are the error handling gaps?\n", n)
-	n++
+	if dom.software {
+		fmt.Fprintf(&b, "%d. What happens when the happy path fails? Where are the error handling gaps?\n", n)
+		n++
+	}
 	fmt.Fprintf(&b, "%d. Are there implicit assumptions that should be explicit?\n", n)
 	n++
+	n = appendLensQuestions(&b, n, dom, "implementer")
 	appendAffectedChecklist(&b, n, affectedSection != "")
 
 	if finalRound {
@@ -865,12 +899,16 @@ func generateImplementerPrompt(elems *engine.StructuredElements, specContent str
 	}
 }
 
-func generateTesterPrompt(elems *engine.StructuredElements, specContent string, round int, summary, affectedSection string, finalRound bool) reviewPrompt {
+func generateTesterPrompt(elems *engine.StructuredElements, specContent string, round int, summary, affectedSection string, finalRound bool, dom *promptDomain) reviewPrompt {
 	var b strings.Builder
+	persona := "You are a QA engineer who must write tests from this spec."
+	if !dom.software {
+		persona = "You must verify every claim in this spec with a pass/fail procedure."
+	}
 	if round >= 2 {
-		fmt.Fprintf(&b, "You are a QA engineer who must write tests from this spec. This is review round %d \u2014 focus ONLY on issues not previously reported. Your goal is to find requirements that are ambiguous (two testers would write contradictory tests) or non-verifiable (cannot write a pass/fail test).\n\n", round)
+		fmt.Fprintf(&b, "%s This is review round %d — focus ONLY on issues not previously reported. Your goal is to find requirements that are ambiguous (two testers would write contradictory tests) or non-verifiable (cannot write a pass/fail test).\n\n", persona, round)
 	} else {
-		b.WriteString("You are a QA engineer who must write tests from this spec. Your goal is to find requirements that are ambiguous (two testers would write contradictory tests) or non-verifiable (cannot write a pass/fail test).\n\n")
+		b.WriteString(persona + " Your goal is to find requirements that are ambiguous (two testers would write contradictory tests) or non-verifiable (cannot write a pass/fail test).\n\n")
 	}
 	appendSpecOnlyDisclaimer(&b, affectedSection)
 	if summary != "" {
@@ -898,6 +936,7 @@ func generateTesterPrompt(elems *engine.StructuredElements, specContent string, 
 	n++
 	fmt.Fprintf(&b, "%d. Could two engineers interpret any requirement differently enough to produce incompatible implementations?\n", n)
 	n++
+	n = appendLensQuestions(&b, n, dom, "tester")
 	appendAffectedChecklist(&b, n, affectedSection != "")
 
 	if finalRound {
@@ -916,12 +955,16 @@ func generateTesterPrompt(elems *engine.StructuredElements, specContent string, 
 	}
 }
 
-func generateArchitectPrompt(elems *engine.StructuredElements, specContent string, round int, summary, affectedSection string, finalRound bool) reviewPrompt {
+func generateArchitectPrompt(elems *engine.StructuredElements, specContent string, round int, summary, affectedSection string, finalRound bool, dom *promptDomain) reviewPrompt {
 	var b strings.Builder
+	persona := "You are a senior architect reviewing this spec for approval before implementation begins."
+	if !dom.software {
+		persona = "You review this spec for internal consistency and structural soundness."
+	}
 	if round >= 2 {
-		fmt.Fprintf(&b, "You are a senior architect reviewing this spec for approval before implementation begins. This is review round %d \u2014 focus ONLY on issues not previously reported. Your goal is to find contradictions between sections, missing backward compatibility analysis, and feasibility issues.\n\n", round)
+		fmt.Fprintf(&b, "%s This is review round %d — focus ONLY on issues not previously reported. Your goal is to find contradictions between sections, missing backward compatibility analysis, and feasibility issues.\n\n", persona, round)
 	} else {
-		b.WriteString("You are a senior architect reviewing this spec for approval before implementation begins. Your goal is to find contradictions between sections, missing backward compatibility analysis, and feasibility issues.\n\n")
+		b.WriteString(persona + " Your goal is to find contradictions between sections, missing backward compatibility analysis, and feasibility issues.\n\n")
 	}
 	appendSpecOnlyDisclaimer(&b, affectedSection)
 	if summary != "" {
@@ -939,10 +982,12 @@ func generateArchitectPrompt(elems *engine.StructuredElements, specContent strin
 	n := 1
 	fmt.Fprintf(&b, "%d. Do any sections contradict each other? Are there conflicting requirements?\n", n)
 	n++
-	fmt.Fprintf(&b, "%d. Is there a 'What doesn't change' or backward compatibility section? If not, what existing behavior could break?\n", n)
-	n++
-	fmt.Fprintf(&b, "%d. Are there performance or scalability implications not addressed?\n", n)
-	n++
+	if dom.software {
+		fmt.Fprintf(&b, "%d. Is there a 'What doesn't change' or backward compatibility section? If not, what existing behavior could break?\n", n)
+		n++
+		fmt.Fprintf(&b, "%d. Are there performance or scalability implications not addressed?\n", n)
+		n++
+	}
 
 	if len(elems.NumberedLists) > 1 {
 		names := make([]string, len(elems.NumberedLists))
@@ -960,6 +1005,7 @@ func generateArchitectPrompt(elems *engine.StructuredElements, specContent strin
 
 	fmt.Fprintf(&b, "%d. Does the implementation order match the dependency graph? Can any steps be parallelized?\n", n)
 	n++
+	n = appendLensQuestions(&b, n, dom, "architect")
 	appendAffectedChecklist(&b, n, affectedSection != "")
 
 	if finalRound {
