@@ -69,19 +69,7 @@ func runReviewRegression(specPath, diffFrom, findingsPath string) error {
 			dr = engine.DiffSections(diffLinesOf(snapPath), diffLinesOf(specPath))
 			sinceLabel = fmt.Sprintf("round %d", snapRound)
 		}
-		for i := len(st.ReviewRounds) - 1; i >= 0; i-- {
-			rows, found := engine.LoadRoundRows(specPath, st.ReviewRounds[i])
-			if !found {
-				output.Info(fmt.Sprintf("round %d file %s is missing; skipping its rows", st.ReviewRounds[i].Round, st.ReviewRounds[i].File))
-				continue
-			}
-			for _, row := range rows {
-				f := findingFromRow(row)
-				if f.Resolved != nil && f.Resolved.Status == "fixed" {
-					fixed = append(fixed, f)
-				}
-			}
-		}
+		fixed = append(fixed, collectFixedFindings(specPath, st)...)
 	}
 
 	// Vacuous input: nothing changed AND nothing was fixed
@@ -128,6 +116,29 @@ func runReviewRegression(specPath, diffFrom, findingsPath string) error {
 		},
 	}
 	return output.JSON(result)
+}
+
+// collectFixedFindings returns findings with resolved.status == "fixed"
+// across recorded review rounds, newest first.
+func collectFixedFindings(specPath string, st *engine.ReviewState) []reviewFinding {
+	fixed := make([]reviewFinding, 0)
+	if st == nil {
+		return fixed
+	}
+	for i := len(st.ReviewRounds) - 1; i >= 0; i-- {
+		rows, found := engine.LoadRoundRows(specPath, st.ReviewRounds[i])
+		if !found {
+			output.Info(fmt.Sprintf("round %d file %s is missing; skipping its rows", st.ReviewRounds[i].Round, st.ReviewRounds[i].File))
+			continue
+		}
+		for _, row := range rows {
+			f := findingFromRow(row)
+			if f.Resolved != nil && f.Resolved.Status == "fixed" {
+				fixed = append(fixed, f)
+			}
+		}
+	}
+	return fixed
 }
 
 // buildRegressionPrompt renders the §11.3 body order: persona, changed

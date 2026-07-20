@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.23.0.md",
   "created_at": "2026-07-20T18:27:04Z",
-  "updated_at": "2026-07-20T21:21:48.781481Z",
+  "updated_at": "2026-07-20T21:25:43.090307Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -818,7 +818,7 @@
     {
       "id": "cli-regression-perspective",
       "title": "Implement regression perspective",
-      "status": "wip",
+      "status": "done",
       "depends_on": [
         "engine-review-state",
         "cli-review-auto-diff"
@@ -831,15 +831,15 @@
       ],
       "source_lines": "514-517,524-533",
       "started_at": "2026-07-20T21:21:48.781481Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-07-20T21:25:19.3873Z",
+      "closed_reason": "- Mod (a) state'li (R\u003e=2, salt-okunur: snapshot/state.json degismiyor — dizin listesi testte esit) ve mod (b) --diff-from+--findings (state'e hic dokunmuyor); eksik/parcali girdi exit 2, bos diff + sifir fixed bulgu da exit 2 + 8.3-madde-5 kosulunu yansitan hint (internal/cli/review_regression.go; TestRegression_* uc test)\n- 11.3 govde sirasi: persona, changed-sections blogu (8.3-4 ile ayni insa), 50-kapakli newest-first fixed bulgular ('finding — evidence' satirlari), uc numarali kontrol, standart finding formati; 15.3 geregi mekanik checkler regression modunda da kosup exclusion blogu ekliyor\n- 11.4: kategori enum'u regression degerini kazandi (findingFormat); merge/resolve/report map-tabanli oldugundan kabul ediyor",
+      "gate_passed_at": "2026-07-20T21:25:19.3873Z",
+      "commit_sha": "ab90818"
     },
     {
       "id": "cli-regression-autoinclude",
       "title": "Auto-include regression prompt",
-      "status": "open",
+      "status": "wip",
       "depends_on": [
         "cli-regression-perspective"
       ],
@@ -849,7 +849,7 @@
         "### 11.2 Auto-inclusion"
       ],
       "source_lines": "518-523",
-      "started_at": null,
+      "started_at": "2026-07-20T21:25:43.090306Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,

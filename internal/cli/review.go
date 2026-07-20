@@ -552,12 +552,14 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 	statePrevFindings := make([]reviewFinding, 0)
 	var stateRequired, stateConsecutive *int
 	var stateConverged, stateStale *bool
+	var reviewSt *engine.ReviewState
 	if !noState {
 		st, stErr := engine.LoadReviewState(specPath)
 		if stErr != nil {
 			exitStateError(stErr)
 			return nil
 		}
+		reviewSt = st
 		recorded := 0
 		if st != nil {
 			recorded = len(st.ReviewRounds)
@@ -662,14 +664,18 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 	// forces the block at any round; otherwise the newest earlier snapshot is
 	// the baseline from round 2 on.
 	diffBlock := ""
+	var diffDr engine.DiffResult
+	diffLabel := ""
 	switch {
 	case diffFrom != "":
-		dr := engine.DiffSections(diffLinesOf(diffFrom), diffLinesOf(specPath))
-		diffBlock = buildChangedSectionsBlock(&dr, "baseline "+diffFrom)
+		diffDr = engine.DiffSections(diffLinesOf(diffFrom), diffLinesOf(specPath))
+		diffLabel = "baseline " + diffFrom
+		diffBlock = buildChangedSectionsBlock(&diffDr, diffLabel)
 	case !noState && round >= 2:
 		if snapRound, snapPath := newestEarlierSnapshot(specPath, round); snapPath != "" {
-			dr := engine.DiffSections(diffLinesOf(snapPath), diffLinesOf(specPath))
-			diffBlock = buildChangedSectionsBlock(&dr, fmt.Sprintf("round %d", snapRound))
+			diffDr = engine.DiffSections(diffLinesOf(snapPath), diffLinesOf(specPath))
+			diffLabel = fmt.Sprintf("round %d", snapRound)
+			diffBlock = buildChangedSectionsBlock(&diffDr, diffLabel)
 		} else {
 			output.Info("no earlier snapshot exists; changed-sections block omitted")
 		}
@@ -677,6 +683,24 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 	if diffBlock != "" {
 		for i := range prompts {
 			prompts[i].Prompt += diffBlock
+		}
+	}
+
+	// Auto-append the regression prompt as a 4th entry when the round has
+	// something to guard: a non-empty diff or at least one fixed finding
+	regressionIncluded := false
+	if !noState && round >= 2 {
+		fixed := collectFixedFindings(specPath, reviewSt)
+		if diffBlock != "" || len(fixed) > 0 {
+			if len(fixed) > regressionFixedFindingsCap {
+				fixed = fixed[:regressionFixedFindingsCap]
+			}
+			prompts = append(prompts, reviewPrompt{
+				Role:     "regression",
+				Category: "regression",
+				Prompt:   buildRegressionPrompt(&diffDr, diffLabel, fixed),
+			})
+			regressionIncluded = true
 		}
 	}
 
@@ -722,6 +746,10 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 		}
 	}
 
+	if regressionIncluded {
+		instruction += " Process the regression prompt first and apply its findings before or together with the three role prompts." +
+			" Between counted rounds, you may run tp review " + specPath + " --perspective regression alone as an uncounted delta pass."
+	}
 	if len(wfChecks.Checks) > 0 {
 		instruction += " If any mechanical check failed, fix those failures before spawning sub-agents."
 	}

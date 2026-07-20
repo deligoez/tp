@@ -44,7 +44,7 @@ func TestReviewAutoDiff_SnapshotBaseline(t *testing.T) {
 	stdout, _, code = runTP(t, dir, "review", "spec.md")
 	require.Equal(t, 0, code)
 	prompts := reviewPromptsOf(t, stdout)
-	require.Len(t, prompts, 3)
+	require.Len(t, prompts, 4, "three role prompts plus the auto-included regression prompt")
 	for _, p := range prompts {
 		assert.Contains(t, p, "Changed sections since round 1", "every prompt carries the block")
 		assert.Contains(t, p, "2. Volatile")
