@@ -118,17 +118,6 @@ func runImport(_ *cobra.Command, args []string) error {
 	dir := filepath.Dir(tf.Spec)
 	targetPath := filepath.Join(dir, base+".tasks.json")
 
-	// Check if exists — a zero-task init shell may be overwritten without
-	// --force; --force is reserved for overwriting a file with real tasks
-	if _, err := os.Stat(targetPath); err == nil && !importForce {
-		existing, readErr := model.ReadTaskFile(targetPath)
-		if readErr != nil || len(existing.Tasks) > 0 {
-			output.Error(ExitFile, fmt.Sprintf("task file already exists: %s (use --force to overwrite)", targetPath))
-			os.Exit(ExitFile)
-			return nil
-		}
-	}
-
 	// Workflow preservation (§9.3): when the target exists and the imported
 	// document carries no top-level workflow key (raw-JSON key check, before
 	// struct defaulting), the existing file's workflow block is carried over.
@@ -139,9 +128,22 @@ func runImport(_ *cobra.Command, args []string) error {
 		}
 	}
 
-	// Import convergence enforcement (§9.1/§9.2); --force bypasses both checks
+	// Import convergence enforcement (§9.1/§9.2); runs before the file-exists
+	// guard so a stale or unconverged spec blocks with exit 1 even when the
+	// target already holds tasks. --force bypasses both checks.
 	if !importForce {
 		enforceImportConvergence(targetPath, tf)
+	}
+
+	// Check if exists — a zero-task init shell may be overwritten without
+	// --force; --force is reserved for overwriting a file with real tasks
+	if _, err := os.Stat(targetPath); err == nil && !importForce {
+		existing, readErr := model.ReadTaskFile(targetPath)
+		if readErr != nil || len(existing.Tasks) > 0 {
+			output.Error(ExitFile, fmt.Sprintf("task file already exists: %s (use --force to overwrite)", targetPath))
+			os.Exit(ExitFile)
+			return nil
+		}
 	}
 
 	// Resolve spec, normalize source_sections to canonical form (lenient — accepts
