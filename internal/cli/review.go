@@ -615,11 +615,9 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 
 	_, elems := engine.CheckStructuredElements(lines, headings)
 
-	findings := make([]reviewFinding, 0)
+	findings := statePrevFindings
 	if findingsPath != "" {
 		findings = parseFindingsFile(findingsPath)
-	} else {
-		findings = statePrevFindings
 	}
 
 	summary := buildFindingsSummary(findings)
