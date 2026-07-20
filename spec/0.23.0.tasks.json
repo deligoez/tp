@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.23.0.md",
   "created_at": "2026-07-20T18:27:04Z",
-  "updated_at": "2026-07-20T20:24:55.103092Z",
+  "updated_at": "2026-07-20T20:29:27.171085Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -353,7 +353,7 @@
     {
       "id": "cli-lint-frontmatter",
       "title": "Report frontmatter in lint output",
-      "status": "wip",
+      "status": "done",
       "depends_on": [
         "engine-frontmatter-parse"
       ],
@@ -364,15 +364,15 @@
       ],
       "source_lines": "593-596",
       "started_at": "2026-07-20T20:24:55.103092Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-07-20T20:26:38.967849Z",
+      "closed_reason": "- tp lint --json frontmatter nesnesi {present, lines ('1-K'), domain, lens_roles} emit ediyor; lens_roles bos-olmayan listeli anahtarlar implementer,tester,architect,all sirasiyla (lint.go lintFrontmatter; TestLintFrontmatter_ObjectShapes)\n- Frontmatter'siz spec'te tam sekil {present:false, lines:null, domain:'software', lens_roles:[]}; bozuk YAML parse hatasini adlandiran lint error + defaults (ayni testin alt vakalari)",
+      "gate_passed_at": "2026-07-20T20:26:38.967849Z",
+      "commit_sha": "f52cdd1"
     },
     {
       "id": "engine-frontmatter-tests",
       "title": "Test frontmatter parse and exclusion",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "engine-frontmatter-exclusion",
         "cli-lint-frontmatter"
@@ -383,11 +383,11 @@
         "### 19.1 Unit tests (engine)"
       ],
       "source_lines": "744-769",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-20T20:26:53.79438Z",
+      "closed_at": "2026-07-20T20:29:08.256755Z",
+      "closed_reason": "- TestFrontmatter_ParseAndExclusion: tp mapping parse + content lines, headings, structured elements, DiffSections ve spec_excerpt bloktan ariniyor; mutlak satir numaralari korunuyor (internal/engine/frontmatter_named_test.go)\n- TestFrontmatter_MalformedYAML: kapali-bozuk blok excluded kaliyor, defaults + lint error; TestFrontmatter_Unterminated: acilip kapanmayan blok icerik + lint error, icindeki heading parse ediliyor",
+      "gate_passed_at": "2026-07-20T20:29:08.256755Z",
+      "commit_sha": "5f30d9d"
     },
     {
       "id": "engine-audit-categories",
@@ -525,7 +525,7 @@
     {
       "id": "engine-review-state",
       "title": "Implement review state engine",
-      "status": "open",
+      "status": "wip",
       "depends_on": [],
       "estimate_minutes": 12,
       "acceptance": "- state directory layout and initial state.json written by first creator per 8.1 and 8.2\n- flock-guarded writes, round arithmetic, consecutive_clean, spec_hash staleness computed per 8.2 and 8.6\n- corrupt or index-less directory aborts with exit 3; missing round file skipped with warning",
@@ -534,7 +534,7 @@
         "### 8.2 state.json schema"
       ],
       "source_lines": "402-413,414-427",
-      "started_at": null,
+      "started_at": "2026-07-20T20:29:27.171085Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,
