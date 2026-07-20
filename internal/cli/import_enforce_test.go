@@ -18,12 +18,12 @@ func setupEnforceProject(t *testing.T) string {
 	return dir
 }
 
-func importBare(t *testing.T, dir string, extra ...string) (string, int) {
+func importBare(t *testing.T, dir string, extra ...string) (stderr string, code int) {
 	t.Helper()
 	importPath := filepath.Join(dir, "import.json")
 	require.NoError(t, os.WriteFile(importPath, []byte(`[`+enforceTask+`]`), 0o600))
 	args := append([]string{"import", importPath, "--spec", "spec.md"}, extra...)
-	_, stderr, code := runTP(t, dir, args...)
+	_, stderr, code = runTP(t, dir, args...)
 	return stderr, code
 }
 
