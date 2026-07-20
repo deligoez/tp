@@ -373,12 +373,6 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 		output.Info("final-round without affected-files: agents won't read code")
 	}
 
-	if diffFrom != "" && round < 2 {
-		output.Error(ExitUsage, "--diff-from requires --round >= 2")
-		os.Exit(ExitUsage)
-		return nil
-	}
-
 	if diffFrom != "" {
 		if _, err := os.Stat(diffFrom); os.IsNotExist(err) {
 			output.Error(ExitFile, fmt.Sprintf("diff baseline not found: %s", diffFrom))
@@ -633,6 +627,28 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 		generateImplementerPrompt(elems, specContent, round, summary, affectedSection, finalRound),
 		generateTesterPrompt(elems, specContent, round, summary, affectedSection, finalRound),
 		generateArchitectPrompt(elems, specContent, round, summary, affectedSection, finalRound),
+	}
+
+	// Changed-sections block: explicit --diff-from overrides the baseline and
+	// forces the block at any round; otherwise the newest earlier snapshot is
+	// the baseline from round 2 on.
+	diffBlock := ""
+	switch {
+	case diffFrom != "":
+		dr := engine.DiffSections(diffLinesOf(diffFrom), diffLinesOf(specPath))
+		diffBlock = buildChangedSectionsBlock(&dr, "baseline "+diffFrom)
+	case !noState && round >= 2:
+		if snapRound, snapPath := newestEarlierSnapshot(specPath, round); snapPath != "" {
+			dr := engine.DiffSections(diffLinesOf(snapPath), diffLinesOf(specPath))
+			diffBlock = buildChangedSectionsBlock(&dr, fmt.Sprintf("round %d", snapRound))
+		} else {
+			output.Info("no earlier snapshot exists; changed-sections block omitted")
+		}
+	}
+	if diffBlock != "" {
+		for i := range prompts {
+			prompts[i].Prompt += diffBlock
+		}
 	}
 
 	uniqueCount := len(dedupFindings(findings))
