@@ -94,6 +94,7 @@ func newReviewCmd() *cobra.Command {
 	var diffFrom string
 	var specInline bool
 	var forceFlag bool
+	var recordPath string
 
 	cmd := &cobra.Command{
 		Use:   "review <spec.md>",
@@ -111,7 +112,7 @@ Modes (mutually exclusive):
 --report: cross-round convergence report.`,
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mode := detectReviewMode(mergeMode, resolveMode, resolveAllMode, verifyMode, reportMode)
+			mode := detectReviewMode(mergeMode, resolveMode, resolveAllMode, verifyMode, reportMode, recordPath != "")
 			if mode == "" {
 				// Default review mode — requires exactly 1 spec arg
 				if len(args) != 1 {
@@ -142,6 +143,13 @@ Modes (mutually exclusive):
 				return runReviewVerify(args[0], findingsPath, affectedFiles, diffFrom, specInline)
 			case "report":
 				return runReviewReport(args)
+			case "record":
+				if len(args) != 1 {
+					output.Error(ExitUsage, "spec path required for --record")
+					os.Exit(ExitUsage)
+					return nil
+				}
+				return runReviewRecord(args[0], recordPath)
 			default:
 				output.Error(ExitUsage, fmt.Sprintf("unknown mode: %s", mode))
 				os.Exit(ExitUsage)
@@ -169,13 +177,14 @@ Modes (mutually exclusive):
 	cmd.Flags().StringVar(&diffFrom, "diff-from", "", "Baseline spec for diff-based review (requires --round >= 2)")
 	cmd.Flags().BoolVar(&specInline, "spec-inline", false, "Embed full spec content inline (default: reference by path)")
 	cmd.Flags().BoolVar(&forceFlag, "force", false, "Force re-resolve already resolved findings")
+	cmd.Flags().StringVar(&recordPath, "record", "", "Record a review round from an NDJSON findings file")
 
 	return cmd
 }
 
 // detectReviewMode returns the active mode name, or "" for default review.
 // Returns error-mode name if multiple modes are active.
-func detectReviewMode(merge, resolve, resolveAll, verify, report bool) string {
+func detectReviewMode(merge, resolve, resolveAll, verify, report, record bool) string {
 	modes := make([]string, 0)
 	if merge {
 		modes = append(modes, "merge")
@@ -191,6 +200,9 @@ func detectReviewMode(merge, resolve, resolveAll, verify, report bool) string {
 	}
 	if report {
 		modes = append(modes, "report")
+	}
+	if record {
+		modes = append(modes, "record")
 	}
 	if len(modes) == 0 {
 		return ""
@@ -208,8 +220,13 @@ func validateModeFlags(mode string, round int, findingsPath string, affectedFile
 		return fmt.Errorf("--%s are mutually exclusive", strings.Replace(pair, "+", " and --", 1))
 	}
 
-	// Merge, resolve, resolve-all, report reject all modifier flags
-	if mode == "merge" || mode == "resolve" || mode == "resolve-all" || mode == "report" {
+	// Record rejects the prompt-generation parameter flags and --perspective
+	if mode == "record" && perspective != "" {
+		return fmt.Errorf("--record is mutually exclusive with --perspective")
+	}
+
+	// Merge, resolve, resolve-all, report, record reject all modifier flags
+	if mode == "merge" || mode == "resolve" || mode == "resolve-all" || mode == "report" || mode == "record" {
 		if round != 1 {
 			return fmt.Errorf("--%s is mutually exclusive with --round", mode)
 		}

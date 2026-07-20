@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.23.0.md",
   "created_at": "2026-07-20T18:27:04Z",
-  "updated_at": "2026-07-20T20:29:27.171085Z",
+  "updated_at": "2026-07-20T20:33:45.125995Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -525,7 +525,7 @@
     {
       "id": "engine-review-state",
       "title": "Implement review state engine",
-      "status": "wip",
+      "status": "done",
       "depends_on": [],
       "estimate_minutes": 12,
       "acceptance": "- state directory layout and initial state.json written by first creator per 8.1 and 8.2\n- flock-guarded writes, round arithmetic, consecutive_clean, spec_hash staleness computed per 8.2 and 8.6\n- corrupt or index-less directory aborts with exit 3; missing round file skipped with warning",
@@ -535,10 +535,10 @@
       ],
       "source_lines": "402-413,414-427",
       "started_at": "2026-07-20T20:29:27.171085Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-07-20T20:32:18.550697Z",
+      "closed_reason": "- 8.1 dizin yerlesimi (ReviewStateDir: \u003cspec-dir\u003e/.tp-review/\u003cspec-base\u003e) ve ilk {spec, review_rounds:[], audit_rounds:[]} indeksi ilk olusturanda yaziliyor (EnsureReviewState, internal/engine/reviewstate.go)\n- Yazimlar state.json flock'u altinda (WithReviewStateLock, mevcut WithFileLock uzerinden); tur aritmetigi len+1, ConsecutiveClean kuyruk sayimi, SpecHash sha256:\u003chex\u003e ve StateStale/Converged 8.6'ya gore (TestConsecutiveCleanAndStaleness)\n- Bozuk state.json veya indekssiz-dolu dizin StateCorruptError ile abort (exit 3 + 'repair or delete \u003cpath\u003e' hint'i cli'de baglanacak); eksik round dosyasi LoadRoundRows found=false ile atlanip uyarilabiliyor, tur aritmetiginde sayilmaya devam ediyor",
+      "gate_passed_at": "2026-07-20T20:32:18.550697Z",
+      "commit_sha": "9364e64"
     },
     {
       "id": "engine-review-state-tests",
@@ -639,7 +639,7 @@
     {
       "id": "cli-review-record",
       "title": "Implement tp review --record",
-      "status": "open",
+      "status": "wip",
       "depends_on": [
         "engine-review-state",
         "engine-workflow-resolution"
@@ -650,7 +650,7 @@
         "### 8.4 `tp review \u003cspec\u003e --record \u003cfindings.ndjson\u003e`"
       ],
       "source_lines": "441-447",
-      "started_at": null,
+      "started_at": "2026-07-20T20:33:45.125995Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,
