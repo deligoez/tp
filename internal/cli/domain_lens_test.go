@@ -39,7 +39,9 @@ func reviewPromptsByRole(t *testing.T, stdout string) map[string]string {
 	return byRole
 }
 
-func TestDomainLens_NonSoftwarePersonasAndDrops(t *testing.T) {
+// TestLensInjection_DomainSwitch: a non-software domain swaps personas and
+// drops the three software questions; lens questions are appended in order.
+func TestLensInjection_DomainSwitch(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(proseSpec), 0o600))
 
