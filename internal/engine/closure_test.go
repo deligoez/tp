@@ -52,83 +52,40 @@ func TestParseAcceptanceCriteria(t *testing.T) {
 	}
 }
 
-func TestExtractKeywords(t *testing.T) {
-	tests := []struct {
-		name      string
-		criterion string
-		check     func(t *testing.T, keywords []string)
-	}{
-		{
-			name:      "removes stop words",
-			criterion: "the user is a member",
-			check: func(t *testing.T, keywords []string) {
-				assert.NotContains(t, keywords, "the")
-				assert.NotContains(t, keywords, "is")
-				assert.NotContains(t, keywords, "a")
-				assert.Contains(t, keywords, "user")
-				assert.Contains(t, keywords, "member")
-			},
-		},
-		{
-			name:      "keeps file paths",
-			criterion: "update app/Models/User.php",
-			check: func(t *testing.T, keywords []string) {
-				assert.Contains(t, keywords, "app/Models/User.php")
-			},
-		},
-		{
-			name:      "keeps CamelCase terms",
-			criterion: "the UserModel class",
-			check: func(t *testing.T, keywords []string) {
-				assert.Contains(t, keywords, "UserModel")
-			},
-		},
-		{
-			name:      "keeps snake_case terms",
-			criterion: "set user_name field",
-			check: func(t *testing.T, keywords []string) {
-				assert.Contains(t, keywords, "user_name")
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			keywords := ExtractKeywords(tt.criterion)
-			require.NotNil(t, keywords)
-			tt.check(t, keywords)
-		})
-	}
-}
-
 func TestVerifyClosure(t *testing.T) {
 	tests := []struct {
 		name       string
 		acceptance string
 		reason     string
-		gatePassed bool
+		coveredBy  bool
 		wantErr    bool
 		errMsg     string
 	}{
 		{
-			name:       "pass addresses all criteria",
+			name:       "two criteria two evidence lines pass",
 			acceptance: "User login works. Session persists.",
-			reason:     "Implemented user login with session persistence using JWT tokens",
+			reason:     "- login via JWT at internal/auth/login.go:42\n- session cookie persists across restart, tested",
 			wantErr:    false,
 		},
 		{
-			name:       "fail missing criterion keyword",
+			name:       "two criteria one evidence line fails",
 			acceptance: "Database migration runs. API endpoint responds.",
-			reason:     "Added the database migration script",
+			reason:     "- added the database migration script and endpoint",
 			wantErr:    true,
-			errMsg:     "does not address criterion",
+			errMsg:     "2 criteria but reason has 1 evidence line",
 		},
 		{
-			name:       "fail reason too short",
-			acceptance: "The acceptance criteria must be thoroughly addressed with detailed evidence of completion.",
-			reason:     "did acceptance criteria",
+			name:       "indented sub-bullets do not count",
+			acceptance: "Model exists. Migration runs.",
+			reason:     "- model added\n  - migration also added as sub-bullet",
 			wantErr:    true,
-			errMsg:     "too short",
+			errMsg:     "2 criteria but reason has 1 evidence line",
+		},
+		{
+			name:       "single criterion free text passes",
+			acceptance: "The acceptance criteria must be thoroughly addressed with detailed evidence of completion",
+			reason:     "did acceptance criteria",
+			wantErr:    false,
 		},
 		{
 			name:       "fail empty reason",
@@ -138,32 +95,24 @@ func TestVerifyClosure(t *testing.T) {
 			errMsg:     "closure reason is required",
 		},
 		{
-			name:       "gate-passed skips keyword matching",
-			acceptance: "Composer quality passes. All tests green.",
-			reason:     "2559 tests pass, 0 failures, PHPStan level 8 clean",
-			gatePassed: true,
-			wantErr:    false,
-		},
-		{
-			name:       "gate-passed still checks forbidden patterns",
+			name:       "forbidden pattern still rejected",
 			acceptance: "Something works.",
 			reason:     "deferred to next sprint",
-			gatePassed: true,
 			wantErr:    true,
 			errMsg:     "deferral is forbidden",
 		},
 		{
-			name:       "gate-passed skips minimum length check",
-			acceptance: "The acceptance criteria must be thoroughly addressed with detailed evidence.",
-			reason:     "tests pass",
-			gatePassed: true,
+			name:       "covered-by skips verification",
+			acceptance: "A. B. C.",
+			reason:     "covered by task other-task",
+			coveredBy:  true,
 			wantErr:    false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := VerifyClosure(tt.acceptance, tt.reason, tt.gatePassed, false)
+			err := VerifyClosure(tt.acceptance, tt.reason, tt.coveredBy)
 			if tt.wantErr {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errMsg)
@@ -172,6 +121,25 @@ func TestVerifyClosure(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestClosureError_HintEnumeratesCriteria(t *testing.T) {
+	err := VerifyClosure("Model exists. Migration runs. Tests pass.", "- only one line", false)
+	require.Error(t, err)
+
+	hint := ClosureHint(err, "fallback")
+	assert.Contains(t, hint, "(1) Model exists")
+	assert.Contains(t, hint, "(2) Migration runs")
+	assert.Contains(t, hint, "(3) Tests pass")
+
+	assert.Equal(t, "fallback", ClosureHint(assert.AnError, "fallback"))
+}
+
+func TestCountEvidenceLines(t *testing.T) {
+	assert.Equal(t, 0, CountEvidenceLines(""))
+	assert.Equal(t, 2, CountEvidenceLines("- a\n- b"))
+	assert.Equal(t, 1, CountEvidenceLines("- a\n  - indented\n\ttext"))
+	assert.Equal(t, 0, CountEvidenceLines("-no space\n -leading space"))
 }
 
 func TestForbiddenPatterns(t *testing.T) {

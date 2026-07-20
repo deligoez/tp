@@ -103,8 +103,8 @@ func runClose(_ *cobra.Command, args []string) error {
 		}
 
 		// Run closure verification
-		if err := engine.VerifyClosure(task.Acceptance, reason, false, false); err != nil {
-			output.Error(ExitValidation, fmt.Sprintf("closure verification failed: %v", err))
+		if err := engine.VerifyClosure(task.Acceptance, reason, false); err != nil {
+			output.Error(ExitValidation, fmt.Sprintf("closure verification failed: %v", err), engine.ClosureHint(err, "Rewrite reason to address all acceptance criteria."))
 			os.Exit(ExitValidation)
 			return nil
 		}

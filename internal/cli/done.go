@@ -164,12 +164,12 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 			}
 		}
 
-		if verifyErr := engine.VerifyClosure(task.Acceptance, reason, doneGatePassed, isCoveredBy); verifyErr != nil {
+		if verifyErr := engine.VerifyClosure(task.Acceptance, reason, isCoveredBy); verifyErr != nil {
 			errOut := map[string]any{
 				"error":      fmt.Sprintf("closure verification failed: %v", verifyErr),
 				"code":       ExitValidation,
 				"acceptance": task.Acceptance,
-				"hint":       "Rewrite reason to address all acceptance criteria, then retry tp done. Use --gate-passed to relax keyword matching.",
+				"hint":       engine.ClosureHint(verifyErr, "Rewrite reason to address all acceptance criteria, then retry tp done."),
 			}
 			data, _ := json.Marshal(errOut)
 			fmt.Fprintln(os.Stderr, string(data))
@@ -343,12 +343,12 @@ func runDoneMulti(taskFilePath string, taskIDs []string, reason string) error {
 			}
 
 			// Closure verification
-			if verifyErr := engine.VerifyClosure(task.Acceptance, reason, doneGatePassed, isCoveredBy); verifyErr != nil {
+			if verifyErr := engine.VerifyClosure(task.Acceptance, reason, isCoveredBy); verifyErr != nil {
 				failed = append(failed, map[string]any{
 					"id":         id,
 					"error":      fmt.Sprintf("closure verification failed: %v", verifyErr),
 					"acceptance": task.Acceptance,
-					"hint":       "Rewrite reason to address all acceptance criteria.",
+					"hint":       engine.ClosureHint(verifyErr, "Rewrite reason to address all acceptance criteria."),
 				})
 				continue
 			}
@@ -564,12 +564,12 @@ func runDoneBatch() error {
 			}
 
 			// Closure verification
-			if verifyErr := engine.VerifyClosure(task.Acceptance, entry.Reason, entry.GatePassed, isBatchCoveredBy); verifyErr != nil {
+			if verifyErr := engine.VerifyClosure(task.Acceptance, entry.Reason, isBatchCoveredBy); verifyErr != nil {
 				failures = append(failures, batchFailure{
 					ID:         entry.ID,
 					Error:      fmt.Sprintf("closure verification failed: %v", verifyErr),
 					Acceptance: task.Acceptance,
-					Hint:       "Fix reason to address all acceptance criteria.",
+					Hint:       engine.ClosureHint(verifyErr, "Fix reason to address all acceptance criteria."),
 				})
 				continue
 			}

@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.23.0.md",
   "created_at": "2026-07-20T18:27:04Z",
-  "updated_at": "2026-07-20T19:18:20.78811Z",
+  "updated_at": "2026-07-20T19:20:21.849092Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -123,7 +123,7 @@
     {
       "id": "engine-run-command",
       "title": "Implement shared RunCommand runner",
-      "status": "wip",
+      "status": "done",
       "depends_on": [],
       "estimate_minutes": 10,
       "acceptance": "- RunCommand runs sh -c on Unix and cmd /C on Windows with inherited env and caller cwd\n- 64 KB ring buffer captures combined output with parameterized tail size\n- timeout counts as failure with timed-out message",
@@ -132,10 +132,10 @@
       ],
       "source_lines": "312-320",
       "started_at": "2026-07-20T19:18:20.78811Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-07-20T19:20:10.553331Z",
+      "closed_reason": "- RunCommand at internal/engine/runcmd.go:64 uses sh -c on Unix, cmd /C on Windows (runtime.GOOS), cmd.Env inherited (nil), cmd.Dir = caller-provided dir\n- tailBuffer bounds combined stdout+stderr to 64 KB (runBufferSize), tail(n) parameterizes reported line count\n- context.WithTimeout + DeadlineExceeded branch returns Passed=false, ExitCode=nil, Message 'timed out after \u003cN\u003es'",
+      "gate_passed_at": "2026-07-20T19:20:10.553331Z",
+      "commit_sha": "6ea547a"
     },
     {
       "id": "engine-run-command-tests",
@@ -159,7 +159,7 @@
     {
       "id": "engine-closure-v2",
       "title": "Rewrite VerifyClosure with evidence-line rule",
-      "status": "open",
+      "status": "wip",
       "depends_on": [],
       "estimate_minutes": 10,
       "acceptance": "- ExtractKeywords stopWords technicalTermRegex and length check deleted per 7.1\n- N\u003e=2 criteria require N column-0 evidence lines; indented bullets do not count; N\u003c=1 passes on non-empty reason\n- forbidden patterns retained and covered-by skips verification; error hint enumerates criteria per 7.4",
@@ -167,7 +167,7 @@
         "## 7. Closure Verification Redesign"
       ],
       "source_lines": "359-397",
-      "started_at": null,
+      "started_at": "2026-07-20T19:20:21.849092Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,
