@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.23.0.md",
   "created_at": "2026-07-20T18:27:04Z",
-  "updated_at": "2026-07-20T20:11:25.472608Z",
+  "updated_at": "2026-07-20T20:17:21.961939Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -317,7 +317,7 @@
     {
       "id": "engine-frontmatter-parse",
       "title": "Parse spec YAML frontmatter",
-      "status": "open",
+      "status": "wip",
       "depends_on": [],
       "estimate_minutes": 10,
       "acceptance": "- tp: mapping parsed via gopkg.in/yaml.v3 with domain and lens keys per 12.1\n- unterminated block treated as content with lint error; malformed YAML stays excluded with defaults per 12.2 item 8\n- non-string domain, non-mapping lens, unknown lens keys, non-list values, non-string elements produce lint warnings and are ignored",
@@ -325,7 +325,7 @@
         "### 12.1 Frontmatter schema"
       ],
       "source_lines": "542-564",
-      "started_at": null,
+      "started_at": "2026-07-20T20:17:21.961939Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,
@@ -916,7 +916,7 @@
     {
       "id": "engine-section-coverage",
       "title": "Implement section-derived coverage",
-      "status": "wip",
+      "status": "done",
       "depends_on": [],
       "estimate_minutes": 10,
       "acceptance": "- span rule per 13.1 and covered-set union per 13.2 with warning only on empty union\n- anchor requirement error and per-task unresolvable-section warnings per 13.3",
@@ -925,15 +925,15 @@
       ],
       "source_lines": "601-625",
       "started_at": "2026-07-20T20:11:25.472608Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-07-20T20:15:42.189138Z",
+      "closed_reason": "- 13.1 span kurali sectionSpans'ta (internal/engine/sectionspan.go): L'den bir sonraki \u003c=V seviyeli basliga ya da dosya sonuna; alt basliklar dahil\n- 13.2 union: ValidateLineCoverage source_lines + cozulen source_sections span'larini birlestiriyor; 'no coverage computable' uyarisi yalniz union bos oldugunda (linecoverage.go)\n- 13.3: iki anchor'dan biri yoksa schema error (validateSchema); belirsiz/cozulmeyen entry'ler section-anchor kuraliyla warning, --strict'te error (validate.go); iki cli testi yeni davranisa uyarlandi",
+      "gate_passed_at": "2026-07-20T20:15:42.189138Z",
+      "commit_sha": "a9f2120"
     },
     {
       "id": "engine-coverage-tests",
       "title": "Test section-derived coverage",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "engine-section-coverage"
       ],
@@ -943,11 +943,11 @@
         "### 19.1 Unit tests (engine)"
       ],
       "source_lines": "744-769",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-20T20:15:52.792725Z",
+      "closed_at": "2026-07-20T20:16:57.85892Z",
+      "closed_reason": "- TestSectionSpan_Derivation: span ayni-veya-ust seviye sonraki basliktan once bitiyor, son bolum EOF'a kadar, alt bolumler dahil (internal/engine/sectionspan_test.go)\n- TestLineCoverage_SectionDerived: yalniz source_sections'li gorev span'ini kapsiyor; explicit source_lines ile union dogrulandi (aradaki gap raporlaniyor)",
+      "gate_passed_at": "2026-07-20T20:16:57.85892Z",
+      "commit_sha": "fba466f"
     },
     {
       "id": "cli-finding-class",
