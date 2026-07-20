@@ -51,8 +51,10 @@ func runInit(_ *cobra.Command, args []string) error {
 		CreatedAt: now,
 		UpdatedAt: now,
 		Workflow: model.Workflow{
-			ReviewCleanRounds: 2,
-			AuditCleanRounds:  2,
+			ReviewCleanRounds:  2,
+			AuditCleanRounds:   2,
+			GateTimeoutSeconds: 600,
+			Checks:             []model.Check{},
 		},
 		Coverage: model.Coverage{
 			ContextOnly: []string{},

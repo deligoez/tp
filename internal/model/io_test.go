@@ -25,6 +25,7 @@ func TestReadWriteTaskFile_RoundTrip(t *testing.T) {
 				Workflow: Workflow{
 					QualityGate:    "tests-pass",
 					CommitStrategy: "squash",
+					Checks:         []Check{},
 				},
 				Coverage: Coverage{
 					TotalSections:  10,
@@ -63,7 +64,7 @@ func TestReadWriteTaskFile_RoundTrip(t *testing.T) {
 				Spec:      "empty.md",
 				CreatedAt: time.Date(2025, 6, 15, 12, 0, 0, 0, time.UTC),
 				UpdatedAt: time.Date(2025, 6, 15, 12, 0, 0, 0, time.UTC),
-				Workflow:  Workflow{},
+				Workflow:  Workflow{Checks: []Check{}},
 				Coverage:  Coverage{ContextOnly: []string{}, Unmapped: []string{}},
 				Tasks:     []Task{},
 			},
