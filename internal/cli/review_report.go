@@ -33,11 +33,23 @@ type severityBreakdown struct {
 
 // convergenceResult holds the final convergence report.
 type convergenceResult struct {
-	Rounds      []roundStats                 `json:"rounds"`
-	Convergence map[string]any               `json:"convergence"`
-	BySeverity  map[string]*severityBreakdown `json:"by_severity"`
-	ByCategory  map[string]int               `json:"by_category"`
+	Rounds              []roundStats                  `json:"rounds"`
+	Convergence         map[string]any                `json:"convergence"`
+	BySeverity          map[string]*severityBreakdown `json:"by_severity"`
+	ByCategory          map[string]int                `json:"by_category"`
+	ByClass             map[string]int                `json:"by_class"`
+	MechanizeCandidates []mechanizeCandidate          `json:"mechanize_candidates"`
 }
+
+// mechanizeCandidate is a finding class worth turning into a mechanical check.
+type mechanizeCandidate struct {
+	Class      string `json:"class"`
+	RoundsSeen int    `json:"rounds_seen"`
+	Total      int    `json:"total"`
+}
+
+// mechanizeRegisterHint accompanies mechanize_candidates in --record output.
+const mechanizeRegisterHint = "write a mechanical check for each candidate class and register it: tp set --workflow checks='[...]'"
 
 func runReviewReport(args []string) error {
 	files, err := resolveReportFiles(args)
@@ -71,9 +83,10 @@ func runReviewReport(args []string) error {
 	// Compute convergence
 	converged := isConverged(rounds)
 
-	// Compute severity and category breakdowns
+	// Compute severity, category, and class breakdowns
 	bySeverity := computeSeverityBreakdown(roundFindings)
 	byCategory := computeCategoryBreakdown(roundFindings)
+	byClass := computeClassBreakdown(roundFindings)
 
 	result := convergenceResult{
 		Rounds: rounds,
@@ -81,8 +94,10 @@ func runReviewReport(args []string) error {
 			"converged":    converged,
 			"total_rounds": len(rounds),
 		},
-		BySeverity: bySeverity,
-		ByCategory: byCategory,
+		BySeverity:          bySeverity,
+		ByCategory:          byCategory,
+		ByClass:             byClass,
+		MechanizeCandidates: computeMechanizeCandidates(roundFindings),
 	}
 
 	if output.IsJSON() {
@@ -90,7 +105,7 @@ func runReviewReport(args []string) error {
 	}
 
 	// TTY output
-	printReportTTY(result)
+	printReportTTY(&result)
 	return nil
 }
 
@@ -403,8 +418,80 @@ func computeCategoryBreakdown(roundFindings [][]map[string]any) map[string]int {
 	return result
 }
 
+// computeClassBreakdown counts unique findings carrying a non-empty class;
+// per identity key the first non-empty class wins, mirroring merge dedup.
+func computeClassBreakdown(roundFindings [][]map[string]any) map[string]int {
+	seen := make(map[string]string) // identity key -> first non-empty class
+	for _, findings := range roundFindings {
+		for _, f := range findings {
+			category, _ := f["category"].(string)
+			location, _ := f["location"].(string)
+			findingText, _ := f["finding"].(string)
+			key := findingIdentityKey(category, location, findingText)
+			class, _ := f["class"].(string)
+			if existing, ok := seen[key]; !ok || (existing == "" && class != "") {
+				seen[key] = class
+			}
+		}
+	}
+	result := make(map[string]int)
+	for _, class := range seen {
+		if class != "" {
+			result[class]++
+		}
+	}
+	return result
+}
+
+// computeMechanizeCandidates finds classes appearing in >= 2 distinct rounds
+// or >= 5 times within a single round, sorted by total descending, ties
+// alphabetical by class.
+func computeMechanizeCandidates(roundFindings [][]map[string]any) []mechanizeCandidate {
+	type classStat struct {
+		rounds   int
+		total    int
+		maxRound int
+	}
+	stats := make(map[string]*classStat)
+	for _, findings := range roundFindings {
+		perRound := make(map[string]int)
+		for _, f := range findings {
+			class, _ := f["class"].(string)
+			if class == "" {
+				continue
+			}
+			perRound[class]++
+		}
+		for class, n := range perRound {
+			s := stats[class]
+			if s == nil {
+				s = &classStat{}
+				stats[class] = s
+			}
+			s.rounds++
+			s.total += n
+			if n > s.maxRound {
+				s.maxRound = n
+			}
+		}
+	}
+	out := make([]mechanizeCandidate, 0)
+	for class, s := range stats {
+		if s.rounds >= 2 || s.maxRound >= 5 {
+			out = append(out, mechanizeCandidate{Class: class, RoundsSeen: s.rounds, Total: s.total})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Total != out[j].Total {
+			return out[i].Total > out[j].Total
+		}
+		return out[i].Class < out[j].Class
+	})
+	return out
+}
+
 // printReportTTY outputs the convergence report in TTY format.
-func printReportTTY(result convergenceResult) {
+func printReportTTY(result *convergenceResult) {
 	w := os.Stdout
 
 	_, _ = fmt.Fprintln(w, "Convergence Report")
@@ -478,5 +565,28 @@ func printReportTTY(result convergenceResult) {
 		for _, cat := range cats {
 			_, _ = fmt.Fprintf(w, "  %-20s %d\n", cat+":", result.ByCategory[cat])
 		}
+	}
+
+	// By class breakdown (rows with a non-empty class only)
+	if len(result.ByClass) > 0 {
+		_, _ = fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w, "By Class:")
+		classes := make([]string, 0, len(result.ByClass))
+		for class := range result.ByClass {
+			classes = append(classes, class)
+		}
+		sort.Strings(classes)
+		for _, class := range classes {
+			_, _ = fmt.Fprintf(w, "  %-20s %d\n", class+":", result.ByClass[class])
+		}
+	}
+
+	if len(result.MechanizeCandidates) > 0 {
+		_, _ = fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w, "Mechanize Candidates:")
+		for _, c := range result.MechanizeCandidates {
+			_, _ = fmt.Fprintf(w, "  %-20s rounds_seen=%d total=%d\n", c.Class+":", c.RoundsSeen, c.Total)
+		}
+		_, _ = fmt.Fprintf(w, "  hint: %s\n", mechanizeRegisterHint)
 	}
 }

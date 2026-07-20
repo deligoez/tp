@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.23.0.md",
   "created_at": "2026-07-20T18:27:04Z",
-  "updated_at": "2026-07-20T20:00:14.893052Z",
+  "updated_at": "2026-07-20T20:03:02.066855Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -952,7 +952,7 @@
     {
       "id": "cli-finding-class",
       "title": "Add finding class field",
-      "status": "wip",
+      "status": "done",
       "depends_on": [],
       "estimate_minutes": 6,
       "acceptance": "- reviewFinding gains Class with omitempty; merge and resolve preserve it; first non-empty wins on dedup per 14.1\n- finding format instruction documents the optional class slug",
@@ -961,15 +961,15 @@
       ],
       "source_lines": "628-631",
       "started_at": "2026-07-20T20:00:14.893052Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-07-20T20:02:33.024506Z",
+      "closed_reason": "- reviewFinding.Class omitempty tag'iyle eklendi (review.go:22); resolve map-tabanli oldugu icin class'i koruyor (TestFindingClass_ResolvePreservesClass); merge dedup'ta ilk bos-olmayan class kazaniyor, identity key degismedi (review_merge.go dedupEntry.class; TestFindingClass_MergePreservesAndFirstNonEmptyWins)\n- findingFormat talimati opsiyonel kebab-case class slug'ini 14.1 metniyle belgeliyor (script-checkable pattern, aksi halde omit)",
+      "gate_passed_at": "2026-07-20T20:02:33.024506Z",
+      "commit_sha": "9217bd4"
     },
     {
       "id": "cli-report-class",
       "title": "Report class grouping and candidates",
-      "status": "open",
+      "status": "wip",
       "depends_on": [
         "cli-finding-class"
       ],
@@ -980,7 +980,7 @@
         "### 14.3 Mechanization candidates"
       ],
       "source_lines": "632-635,636-639",
-      "started_at": null,
+      "started_at": "2026-07-20T20:03:02.066855Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,
