@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.23.0.md",
   "created_at": "2026-07-20T18:27:04Z",
-  "updated_at": "2026-07-20T20:44:15.600986Z",
+  "updated_at": "2026-07-20T20:49:12.340392Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -699,7 +699,7 @@
     {
       "id": "cli-record-status-tests",
       "title": "Test record and status machinery",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cli-review-record",
         "cli-review-status",
@@ -711,16 +711,16 @@
         "### 19.2 Unit tests (cli)"
       ],
       "source_lines": "770-797",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-20T20:47:46.840054Z",
+      "closed_at": "2026-07-20T20:48:54.020365Z",
+      "closed_reason": "- TestReviewRecord_CleanAndDirty: bos dosya clean, whitespace atlama, parse hatasi satir numarasiyla exit 1, hepsi-wontfix clean, pre-resolved fixed exit 1, bos-kanit wontfix exit 1, duplicate kirletiyor (internal/cli/record_status_named_test.go)\n- TestReviewStatus_Check: converged+fresh+gecen checkler 0, uc kosuldan herhangi biri dusunce 1, sade --status checkleri kosmadan listeliyor (dosya-yazma kanitiyla); TestAuditStatus_Check: audit_clean_rounds ile converged 0, dirty/stale 1, sekilde mechanical_checks yok; TestAuditRecord_CountsNonPass ve TestAuditRecordStatus_FlagRejections onceki gorevden mevcut (internal/cli/audit_record_test.go)",
+      "gate_passed_at": "2026-07-20T20:48:54.020365Z",
+      "commit_sha": "6c1257b"
     },
     {
       "id": "cli-budget",
       "title": "Implement round budgets",
-      "status": "wip",
+      "status": "done",
       "depends_on": [
         "cli-review-record",
         "cli-review-status",
@@ -733,10 +733,10 @@
       ],
       "source_lines": "475-478",
       "started_at": "2026-07-20T20:44:15.600986Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-07-20T20:47:11.503925Z",
+      "closed_reason": "- Review default modu ve audit prompt uretimi cap dolu + unconverged iken exit 4 ve eskalasyon hint'iyle (uncounted pass -\u003e kullanici onayli cap artisi / --force) refuse ediyor (refuseIfBudgetExhausted, budget.go; TestRoundBudget_ReviewRefusals/_AuditRefusals); cap-tetikli state okumasi corrupt abort'u devraliyor\n- budget_exhausted = cap\u003e0 AND rounds\u003e=cap AND NOT converged; yalniz --status ciktilarinda ve cap\u003e0 iken (onceki gorevlerde yerlesti, testlerde dogrulandi); converged dizi cap'te bile refuse edilmiyor (TestRoundBudget_ConvergedAtCapNotRefused)\n- --record refusal satir parse ve her turlu state yazimindan ONCE (round dosyasi olusmadigi testte dogrulaniyor); import enforcement cap'ten etkilenmiyor (enforcement 9.1 gorevi cap'i hic okumuyor)",
+      "gate_passed_at": "2026-07-20T20:47:11.503925Z",
+      "commit_sha": "935081b"
     },
     {
       "id": "cli-budget-tests",
@@ -760,7 +760,7 @@
     {
       "id": "cli-import-enforcement",
       "title": "Enforce convergence at import",
-      "status": "open",
+      "status": "wip",
       "depends_on": [
         "engine-review-state",
         "cli-budget"
@@ -772,7 +772,7 @@
         "### 9.2 No-state behavior"
       ],
       "source_lines": "481-484,485-488",
-      "started_at": null,
+      "started_at": "2026-07-20T20:49:12.340392Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,
