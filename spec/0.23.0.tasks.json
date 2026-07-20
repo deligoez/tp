@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.23.0.md",
   "created_at": "2026-07-20T18:27:04Z",
-  "updated_at": "2026-07-20T19:49:24.040243Z",
+  "updated_at": "2026-07-20T19:53:48.626072Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -277,7 +277,7 @@
     {
       "id": "cli-gate-passed-compat",
       "title": "Keep --gate-passed compatibility",
-      "status": "wip",
+      "status": "done",
       "depends_on": [
         "cli-gate-single-multi"
       ],
@@ -288,15 +288,15 @@
       ],
       "source_lines": "341-346",
       "started_at": "2026-07-20T19:49:24.040243Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-07-20T19:51:30.647467Z",
+      "closed_reason": "- quality_gate doluyken flag yok sayiliyor + 'quality gate is executed by tp; --gate-passed ignored' info (done single/multi pre-flock; TTY-only cunku output.Info JSON modda sessiz); damga gerçek gate kosusundan (TestGatePassedCompat_IgnoredWithInfoWhenGateSet)\n- quality_gate bosken attestation korunuyor, gate_passed_at flag'le damgalaniyor (TestGatePassedCompat_AttestationPreservedWithoutGate); flag closure dogrulamayi artik etkilemiyor (VerifyClosure imzasindan gatePassed engine-closure-v2'de kaldirildi)",
+      "gate_passed_at": "2026-07-20T19:51:30.647467Z",
+      "commit_sha": "6cd7036"
     },
     {
       "id": "cli-gate-tests",
       "title": "Test gate execution paths",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cli-gate-batch",
         "cli-gate-failure-output",
@@ -308,11 +308,11 @@
         "### 19.2 Unit tests (cli)"
       ],
       "source_lines": "770-797",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-20T19:51:40.47543Z",
+      "closed_at": "2026-07-20T19:53:06.946135Z",
+      "closed_reason": "- TestDoneGate_RunsOncePerInvocation: 3'lu batch tek gate kosusu, non-batch hata hicbir gorevi kapatmiyor, batch hatada yalniz skip entry'ler kapaniyor (internal/cli/donegate_test.go)\n- TestDoneGate_AllSkipBatchNoRun, TestDoneGate_SkipGateRecorded (set reddi + reopen temizligi dahil), TestDoneGate_GatePassedCompat (flag yok sayma + attestation + skip-gate kombinasyonu exit 2) hepsi geciyor; suite + lint yesil",
+      "gate_passed_at": "2026-07-20T19:53:06.946135Z",
+      "commit_sha": "e0f097f"
     },
     {
       "id": "engine-frontmatter-parse",
@@ -392,7 +392,7 @@
     {
       "id": "engine-audit-categories",
       "title": "Implement audit category enum",
-      "status": "open",
+      "status": "wip",
       "depends_on": [],
       "estimate_minutes": 6,
       "acceptance": "- 5 constants with IsValidCategory; ResolveAuditCategory enforces the 2.2 precedence\n- RenderAuditCategoryText renders enum plus precedence from shared constants per 4.4\n- category presence rules of 2.3 documented in rendered schema text",
@@ -400,7 +400,7 @@
         "## 2. Audit Finding Categories"
       ],
       "source_lines": "108-148",
-      "started_at": null,
+      "started_at": "2026-07-20T19:53:48.626072Z",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,
