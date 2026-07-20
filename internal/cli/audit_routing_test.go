@@ -31,7 +31,9 @@ func auditPromptsByRole(t *testing.T, stdout string) map[string]map[string]any {
 	return byRole
 }
 
-func TestAuditRouting_DisjointAndFixedOrder(t *testing.T) {
+// TestRouteChecklist_Disjoint: each spec-derived item appears in exactly one
+// role bucket; file-level items only in security/maintainability.
+func TestRouteChecklist_Disjoint(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
 	// A security-relevant and a plain file
@@ -72,7 +74,9 @@ func TestAuditRouting_DisjointAndFixedOrder(t *testing.T) {
 	}
 }
 
-func TestAuditRouting_EmptyRolesOmitted(t *testing.T) {
+// TestGenerateAuditPrompts_EmptyRoleOmitted: a role with zero checklist
+// items is absent from prompts.
+func TestGenerateAuditPrompts_EmptyRoleOmitted(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "plain.go"), []byte("package main\n"), 0o600))
