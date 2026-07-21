@@ -23,8 +23,15 @@ type Frontmatter struct {
 	Lines    LineRange           // opening --- through closing ---, absolute 1-based
 	Domain   string              // default "software"
 	Lens     map[string][]string // known keys only: implementer, tester, architect, all
-	Errors   []Finding           // structural/parse lint errors
-	Warnings []Finding           // shape lint warnings
+	// ReviewRoles and AuditRoles are the v0.25.0 spec-frontmatter role overrides
+	// (tp.review_roles / tp.audit_roles), each keyed by role id with the value's
+	// only permitted key being focus (§10.2). The focus questions are appended
+	// (additive) to the matching corpus role at emission; resolution lives
+	// elsewhere — this struct only carries the parsed overrides.
+	ReviewRoles map[string][]string
+	AuditRoles  map[string][]string
+	Errors      []Finding // structural/parse lint errors
+	Warnings    []Finding // shape lint warnings
 }
 
 // ParseFrontmatter reads a spec file and parses its frontmatter. A missing or
@@ -104,12 +111,85 @@ func ParseFrontmatterBytes(data []byte) *Frontmatter {
 		lensMap, isMap := lensVal.(map[string]any)
 		if !isMap {
 			fm.warn(fmt.Sprintf("tp.lens is not a mapping (got %T); no lens applies", lensVal))
-			return fm
+		} else {
+			fm.parseLens(lensMap)
 		}
-		fm.parseLens(lensMap)
+	}
+
+	if rrVal, exists := tpMap["review_roles"]; exists {
+		fm.ReviewRoles = fm.parseRoleOverrides("review_roles", rrVal)
+	}
+	if arVal, exists := tpMap["audit_roles"]; exists {
+		fm.AuditRoles = fm.parseRoleOverrides("audit_roles", arVal)
 	}
 
 	return fm
+}
+
+// parseRoleOverrides parses a tp.review_roles or tp.audit_roles mapping (§10.2):
+// each key is a role id, each value an object whose only permitted key is
+// "focus" (a string array). Any other key inside an override is a lint warning
+// and is ignored; the focus questions are returned keyed by role id for
+// read-time layering onto the corpus role's focus.
+func (fm *Frontmatter) parseRoleOverrides(field string, val any) map[string][]string {
+	out := make(map[string][]string)
+	rolesMap, isMap := val.(map[string]any)
+	if !isMap {
+		fm.warn(fmt.Sprintf("tp.%s is not a mapping (got %T); no role overrides apply", field, val))
+		return out
+	}
+
+	ids := make([]string, 0, len(rolesMap))
+	for id := range rolesMap {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+
+	for _, id := range ids {
+		override, isOvMap := rolesMap[id].(map[string]any)
+		if !isOvMap {
+			fm.warn(fmt.Sprintf("tp.%s.%s is not a mapping (got %T); ignored", field, id, rolesMap[id]))
+			continue
+		}
+
+		// The only permitted key is focus; warn about and ignore every other key.
+		keys := make([]string, 0, len(override))
+		for k := range override {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			if k != "focus" {
+				fm.warn(fmt.Sprintf("tp.%s.%s.%s is not a permitted override key (only focus); ignored", field, id, k))
+			}
+		}
+
+		focusVal, hasFocus := override["focus"]
+		if !hasFocus {
+			out[id] = []string{}
+			continue
+		}
+		list, isList := focusVal.([]any)
+		if !isList {
+			if focusVal == nil {
+				out[id] = []string{}
+				continue
+			}
+			fm.warn(fmt.Sprintf("tp.%s.%s.focus is not a list (got %T); ignored", field, id, focusVal))
+			continue
+		}
+		questions := make([]string, 0, len(list))
+		for i, el := range list {
+			s, isStr := el.(string)
+			if !isStr {
+				fm.warn(fmt.Sprintf("tp.%s.%s.focus[%d] is not a string (got %T); ignored", field, id, i, el))
+				continue
+			}
+			questions = append(questions, s)
+		}
+		out[id] = questions
+	}
+	return out
 }
 
 // parseLens validates each lens key and value, warning about and ignoring
@@ -164,9 +244,11 @@ func (fm *Frontmatter) warn(msg string) {
 
 func defaultFrontmatter() *Frontmatter {
 	return &Frontmatter{
-		Domain:   DomainSoftware,
-		Lens:     make(map[string][]string),
-		Errors:   make([]Finding, 0),
-		Warnings: make([]Finding, 0),
+		Domain:      DomainSoftware,
+		Lens:        make(map[string][]string),
+		ReviewRoles: make(map[string][]string),
+		AuditRoles:  make(map[string][]string),
+		Errors:      make([]Finding, 0),
+		Warnings:    make([]Finding, 0),
 	}
 }
