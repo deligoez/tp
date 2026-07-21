@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.24.0.md",
   "created_at": "2026-07-21T09:33:07.313Z",
-  "updated_at": "2026-07-21T11:16:26.955174Z",
+  "updated_at": "2026-07-21T11:18:00.274603Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -369,7 +369,7 @@
     {
       "id": "cfg-set-local-write",
       "title": "Write local flag default",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cfg-schema-malformed",
         "cfg-gitignore"
@@ -379,11 +379,11 @@
       "source_sections": [
         "## 4. Editing the project config"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T11:17:58.221533Z",
+      "closed_at": "2026-07-21T11:18:00.274603Z",
+      "closed_reason": "- tp set --local defaults.\u003cflag\u003e=\u003cbool\u003e (internal/cli/set_local.go) writes a flag default to .tp/local.json via engine.WriteLocalConfig, creating .tp/ and .tp/.gitignore when absent\n- active is written only by tp use, not tp set --local; writes acquire the standard flock\n- TestRunSetLocal_WritesDefault covers the write and gitignore creation",
+      "gate_passed_at": "2026-07-21T11:18:00.274603Z",
+      "commit_sha": "8c99125"
     },
     {
       "id": "cfg-set-local-validate",
