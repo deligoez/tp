@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.24.0.md",
   "created_at": "2026-07-21T09:33:07.313Z",
-  "updated_at": "2026-07-21T11:37:12.642703Z",
+  "updated_at": "2026-07-21T11:37:30.84248Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -644,7 +644,7 @@
     {
       "id": "cfg-drift-strict",
       "title": "Strict drift exit code",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cfg-drift-checks"
       ],
@@ -654,11 +654,11 @@
         "## 9. Drift / deviation reporting",
         "## 1. Goals"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T11:37:28.811719Z",
+      "closed_at": "2026-07-21T11:37:30.842479Z",
+      "closed_reason": "- tp validate --project deviations are informational and exit 0 by default; --strict promotes any deviation to exit 1 so CI can forbid unreviewed policy drift (verified)\n- With no .tp/config.json it reports that no project config was found and exits 0 (verified)\n- The strict and no-config paths live in runValidateProject in internal/cli/validate_project.go",
+      "gate_passed_at": "2026-07-21T11:37:30.842479Z",
+      "commit_sha": "bdec026"
     },
     {
       "id": "cfg-extract-hoist",
