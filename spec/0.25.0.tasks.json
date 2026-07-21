@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.25.0.md",
   "created_at": "2026-07-21T19:43:58.426848Z",
-  "updated_at": "2026-07-21T21:10:51.781354Z",
+  "updated_at": "2026-07-21T21:14:10.926022Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2,
@@ -64,7 +64,7 @@
     {
       "id": "role-corpus-discovery",
       "title": "Discover role corpus per phase",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -76,11 +76,11 @@
       "source_sections": [
         "## 4. Directory Layout \u0026 Discovery"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T21:14:10.892322Z",
+      "closed_at": "2026-07-21T21:14:10.926021Z",
+      "closed_reason": "- engine.LoadRoleCorpus (internal/engine/rolecorpus.go) loads reviewers from .tp/reviewers/*.json and auditors from .tp/auditors/*.json, inferring the phase from the directory and anchoring on the v0.24.0 git-boundary DiscoverTPDir over the committed .tp/ corpus.\n- A phase directory is populated when it holds at least one .json file; a populated directory returns its parsed roles (sorted by name) so the caller replaces the embedded default for that phase, while an absent or empty directory returns populated=false to fall back to the embedded default.\n- internal/engine/rolecorpus_test.go covers per-phase replacement with an absent sibling phase, the empty-directory fallback, non-JSON files being ignored (alone and mixed), the no-.tp/ case, and a malformed file surfacing an error.",
+      "gate_passed_at": "2026-07-21T21:14:10.926021Z",
+      "commit_sha": "6dd719e"
     },
     {
       "id": "research-prompt-design",
