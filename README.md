@@ -366,7 +366,7 @@ tp review --merge r1-*.ndjson -o r1.ndjson            # Merge + dedup findings
 # Resolve individual findings
 tp review --resolve r1.ndjson 3 fixed "evidence"      # Mark finding as fixed
 
-# Record the round: tp owns the state directory, auto-numbers rounds, and
+# Record the round: tp owns the `.tp-review/` state directory (commit it to VCS), auto-numbers rounds, and
 # injects previous findings + the changed-sections diff into R2 automatically
 tp review spec.md --record r1.ndjson                  # record round 1
 tp review spec.md                                     # R2: auto diff + findings injected
