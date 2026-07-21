@@ -48,6 +48,14 @@
       "recorded_at": "2026-07-21T19:24:56Z",
       "file": "review-round-6.ndjson",
       "spec_hash": "sha256:ab3974f1e4956312f4405a878ba8a2cb7f93e47287e57bd171aeb4061f1f4946"
+    },
+    {
+      "round": 7,
+      "findings": 0,
+      "clean": true,
+      "recorded_at": "2026-07-21T19:29:49Z",
+      "file": "review-round-7.ndjson",
+      "spec_hash": "sha256:ab3974f1e4956312f4405a878ba8a2cb7f93e47287e57bd171aeb4061f1f4946"
     }
   ],
   "audit_rounds": []
