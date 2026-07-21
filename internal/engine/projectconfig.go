@@ -9,41 +9,145 @@ import (
 	"github.com/deligoez/tp/internal/model"
 )
 
-// LoadProjectConfig reads and parses tpDir/config.json into a ProjectConfig.
-// A missing file returns an empty ProjectConfig, which is equivalent to an
-// empty object {} and contributes no overrides. Workflow fields are
-// presence-tracked (WorkflowOverride uses pointers), so an absent key stays
-// distinct from an explicit zero.
-func LoadProjectConfig(tpDir string) (model.ProjectConfig, error) {
+// knownWorkflowKeys is the set of recognized keys inside a config workflow block.
+var knownWorkflowKeys = map[string]bool{
+	"quality_gate": true, "gate_timeout_seconds": true,
+	"review_clean_rounds": true, "audit_clean_rounds": true,
+	"review_max_rounds": true, "audit_max_rounds": true, "checks": true,
+}
+
+// parseWorkflowOverride leniently parses a workflow object: an unknown key or a
+// value of the wrong JSON type is collected as a validation warning and left
+// unset, so the field falls back to its inherited or built-in value. A workflow
+// value that is not an object is itself a warning.
+func parseWorkflowOverride(raw json.RawMessage) (wo model.WorkflowOverride, warnings []string) {
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &m); err != nil {
+		return wo, []string{"workflow: value is not an object, ignored"}
+	}
+	intField := func(key string, v json.RawMessage) *int {
+		var n int
+		if err := json.Unmarshal(v, &n); err != nil {
+			warnings = append(warnings, "workflow."+key+": expected a number, ignored")
+			return nil
+		}
+		return &n
+	}
+	for k, v := range m {
+		if !knownWorkflowKeys[k] {
+			warnings = append(warnings, "unknown workflow key: "+k)
+			continue
+		}
+		switch k {
+		case "quality_gate":
+			var s string
+			if err := json.Unmarshal(v, &s); err != nil {
+				warnings = append(warnings, "workflow.quality_gate: expected a string, ignored")
+			} else {
+				wo.QualityGate = &s
+			}
+		case "gate_timeout_seconds":
+			wo.GateTimeoutSeconds = intField(k, v)
+		case "review_clean_rounds":
+			wo.ReviewCleanRounds = intField(k, v)
+		case "audit_clean_rounds":
+			wo.AuditCleanRounds = intField(k, v)
+		case "review_max_rounds":
+			wo.ReviewMaxRounds = intField(k, v)
+		case "audit_max_rounds":
+			wo.AuditMaxRounds = intField(k, v)
+		case "checks":
+			var cs []model.Check
+			if err := json.Unmarshal(v, &cs); err != nil {
+				warnings = append(warnings, "workflow.checks: expected an array, ignored")
+			} else {
+				wo.Checks = &cs
+			}
+		}
+	}
+	return wo, warnings
+}
+
+// LoadProjectConfig reads and leniently parses tpDir/config.json into a
+// ProjectConfig, returning validation warnings for unknown keys and wrong-typed
+// values (which are ignored, not errors). A missing file returns an empty
+// ProjectConfig, equivalent to an empty object {}. Workflow fields are
+// presence-tracked, so an absent key stays distinct from an explicit zero.
+func LoadProjectConfig(tpDir string) (model.ProjectConfig, []string, error) {
 	var pc model.ProjectConfig
 	data, err := os.ReadFile(filepath.Join(tpDir, "config.json"))
 	if err != nil {
 		if os.IsNotExist(err) {
-			return pc, nil
+			return pc, nil, nil
 		}
-		return pc, err
+		return pc, nil, err
 	}
-	if err := json.Unmarshal(data, &pc); err != nil {
-		return pc, err
+	var top map[string]json.RawMessage
+	if err := json.Unmarshal(data, &top); err != nil {
+		return pc, nil, err
 	}
-	return pc, nil
+	var warnings []string
+	for k := range top {
+		if k != "workflow" {
+			warnings = append(warnings, "unknown top-level key: "+k)
+		}
+	}
+	if wfRaw, ok := top["workflow"]; ok {
+		wo, wfWarn := parseWorkflowOverride(wfRaw)
+		pc.Workflow = wo
+		warnings = append(warnings, wfWarn...)
+	}
+	return pc, warnings, nil
 }
 
-// LoadLocalConfig reads and parses tpDir/local.json into a LocalConfig.
-// A missing file returns an empty LocalConfig (nil active, nil defaults).
-func LoadLocalConfig(tpDir string) (model.LocalConfig, error) {
+// LoadLocalConfig reads and leniently parses tpDir/local.json into a
+// LocalConfig, returning validation warnings for unknown keys and wrong-typed
+// values (a non-string active, a non-boolean defaults entry, or a non-object
+// defaults), which are ignored. A missing file returns an empty LocalConfig.
+func LoadLocalConfig(tpDir string) (model.LocalConfig, []string, error) {
 	var lc model.LocalConfig
 	data, err := os.ReadFile(filepath.Join(tpDir, "local.json"))
 	if err != nil {
 		if os.IsNotExist(err) {
-			return lc, nil
+			return lc, nil, nil
 		}
-		return lc, err
+		return lc, nil, err
 	}
-	if err := json.Unmarshal(data, &lc); err != nil {
-		return lc, err
+	var top map[string]json.RawMessage
+	if err := json.Unmarshal(data, &top); err != nil {
+		return lc, nil, err
 	}
-	return lc, nil
+	var warnings []string
+	for k := range top {
+		if k != "active" && k != "defaults" {
+			warnings = append(warnings, "unknown top-level key: "+k)
+		}
+	}
+	if raw, ok := top["active"]; ok {
+		var s string
+		if err := json.Unmarshal(raw, &s); err != nil {
+			warnings = append(warnings, "active: expected a string, ignored")
+		} else {
+			lc.Active = &s
+		}
+	}
+	if raw, ok := top["defaults"]; ok {
+		var m map[string]json.RawMessage
+		if err := json.Unmarshal(raw, &m); err != nil {
+			warnings = append(warnings, "defaults: value is not an object, ignored")
+		} else {
+			lc.Defaults = make(map[string]bool, len(m))
+			for k, v := range m {
+				var b bool
+				if err := json.Unmarshal(v, &b); err != nil {
+					warnings = append(warnings, "defaults."+k+": expected a boolean, ignored")
+					continue
+				}
+				lc.Defaults[k] = b
+			}
+		}
+	}
+	return lc, warnings, nil
 }
 
 // EnsureTPGitignore ensures tpDir/.gitignore exists and contains a "local.json"

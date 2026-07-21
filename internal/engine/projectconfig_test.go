@@ -115,8 +115,9 @@ func TestLoadProjectConfig_ParsesWorkflowWithPresence(t *testing.T) {
 	tp := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(tp, "config.json"),
 		[]byte(`{"workflow":{"review_max_rounds":0,"gate_timeout_seconds":900}}`), 0o600))
-	pc, err := LoadProjectConfig(tp)
+	pc, warns, err := LoadProjectConfig(tp)
 	require.NoError(t, err)
+	assert.Empty(t, warns)
 	require.NotNil(t, pc.Workflow.ReviewMaxRounds)
 	assert.Equal(t, 0, *pc.Workflow.ReviewMaxRounds) // explicit zero, present
 	require.NotNil(t, pc.Workflow.GateTimeoutSeconds)
@@ -125,8 +126,9 @@ func TestLoadProjectConfig_ParsesWorkflowWithPresence(t *testing.T) {
 }
 
 func TestLoadProjectConfig_MissingFileIsEmpty(t *testing.T) {
-	pc, err := LoadProjectConfig(t.TempDir())
+	pc, warns, err := LoadProjectConfig(t.TempDir())
 	require.NoError(t, err)
+	assert.Empty(t, warns)
 	assert.True(t, pc.Workflow.IsEmpty())
 }
 
@@ -134,13 +136,49 @@ func TestLoadLocalConfig_ParsesActiveAndDefaults(t *testing.T) {
 	tp := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(tp, "local.json"),
 		[]byte(`{"active":"a/a.tasks.json","defaults":{"compact":true}}`), 0o600))
-	lc, err := LoadLocalConfig(tp)
+	lc, warns, err := LoadLocalConfig(tp)
 	require.NoError(t, err)
+	assert.Empty(t, warns)
 	require.NotNil(t, lc.Active)
 	assert.Equal(t, "a/a.tasks.json", *lc.Active)
 	assert.True(t, lc.Defaults["compact"])
 
-	empty, err := LoadLocalConfig(t.TempDir())
+	empty, _, err := LoadLocalConfig(t.TempDir())
 	require.NoError(t, err)
 	assert.Nil(t, empty.Active)
+}
+
+func TestLoadProjectConfig_UnknownKeysWarn(t *testing.T) {
+	tp := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tp, "config.json"),
+		[]byte(`{"workflow":{"review_max_rounds":8,"bogus":1},"extra":true}`), 0o600))
+	pc, warns, err := LoadProjectConfig(tp)
+	require.NoError(t, err)
+	require.NotNil(t, pc.Workflow.ReviewMaxRounds) // known key still parsed
+	assert.Contains(t, warns, "unknown top-level key: extra")
+	assert.Contains(t, warns, "unknown workflow key: bogus")
+}
+
+func TestLoadProjectConfig_TypeMismatchFallsBack(t *testing.T) {
+	tp := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tp, "config.json"),
+		[]byte(`{"workflow":{"review_max_rounds":"eight","checks":"nope"}}`), 0o600))
+	pc, warns, err := LoadProjectConfig(tp)
+	require.NoError(t, err)
+	assert.Nil(t, pc.Workflow.ReviewMaxRounds, "wrong-typed field is left unset")
+	assert.Nil(t, pc.Workflow.Checks)
+	assert.Contains(t, warns, "workflow.review_max_rounds: expected a number, ignored")
+	assert.Contains(t, warns, "workflow.checks: expected an array, ignored")
+}
+
+func TestLoadLocalConfig_TypeMismatchFallsBack(t *testing.T) {
+	tp := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tp, "local.json"),
+		[]byte(`{"active":123,"defaults":{"compact":"yes"}}`), 0o600))
+	lc, warns, err := LoadLocalConfig(tp)
+	require.NoError(t, err)
+	assert.Nil(t, lc.Active, "non-string active is treated as unset")
+	assert.NotContains(t, lc.Defaults, "compact", "non-boolean default is skipped")
+	assert.Contains(t, warns, "active: expected a string, ignored")
+	assert.Contains(t, warns, "defaults.compact: expected a boolean, ignored")
 }
