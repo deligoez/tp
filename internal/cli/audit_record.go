@@ -163,6 +163,7 @@ func runAuditStatus(specPath string, check bool) error {
 		rounds = st.AuditRounds
 	}
 	converged := engine.Converged(rounds, wf.AuditCleanRounds, specHash)
+	rolesHash, _ := engine.ComputeRolesHash(filepath.Dir(specPath), engine.PhaseAuditors)
 
 	result := map[string]any{
 		"audit_rounds":          rounds,
@@ -170,6 +171,7 @@ func runAuditStatus(specPath string, check bool) error {
 		"required_clean_rounds": wf.AuditCleanRounds,
 		"converged":             converged,
 		"stale":                 engine.StateStale(rounds, specHash),
+		"roles_stale":           engine.RolesStale(rounds, rolesHash),
 	}
 	if wf.AuditMaxRounds > 0 {
 		result["budget_exhausted"] = len(rounds) >= wf.AuditMaxRounds && !converged

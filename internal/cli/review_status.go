@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/deligoez/tp/internal/engine"
@@ -39,6 +40,7 @@ func runReviewStatus(specPath string, check bool) error {
 	}
 
 	converged := engine.Converged(rounds, wf.ReviewCleanRounds, specHash)
+	rolesHash, _ := engine.ComputeRolesHash(filepath.Dir(specPath), engine.PhaseReviewers)
 
 	var mechChecks []map[string]any
 	allPass := true
@@ -54,6 +56,7 @@ func runReviewStatus(specPath string, check bool) error {
 		"required_clean_rounds": wf.ReviewCleanRounds,
 		"converged":             converged,
 		"stale":                 engine.StateStale(rounds, specHash),
+		"roles_stale":           engine.RolesStale(rounds, rolesHash),
 		"mechanical_checks":     mechChecks,
 		"overlap_report":        latestRoundOverlapReport(specPath, rounds),
 	}

@@ -103,3 +103,13 @@ func TestComputeRolesHash_PhaseIndependent(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, RolesHashBuiltin, auditBefore, "no auditor files -> builtin, unaffected by reviewers")
 }
+
+// TestRolesStale covers roles_stale detection (§9.3) and the pre-v0.25.0
+// matching rule (§9.4).
+func TestRolesStale(t *testing.T) {
+	assert.False(t, RolesStale(nil, "sha256:x"), "no rounds -> not stale")
+	assert.False(t, RolesStale([]ReviewRound{{RolesHash: "sha256:a"}}, "sha256:a"), "matching hash -> not stale")
+	assert.True(t, RolesStale([]ReviewRound{{RolesHash: "sha256:a"}}, "sha256:b"), "differing hash -> stale")
+	assert.False(t, RolesStale([]ReviewRound{{RolesHash: ""}}, "sha256:b"), "pre-v0.25.0 round (no stored hash) is treated as matching")
+	assert.False(t, RolesStale([]ReviewRound{{RolesHash: "sha256:a"}, {RolesHash: ""}}, "sha256:b"), "only the latest round matters; a pre-v0.25.0 latest matches")
+}

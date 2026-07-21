@@ -87,3 +87,33 @@ func TestRolesHash_SequenceIndependence(t *testing.T) {
 	assert.NotEqual(t, review[0].RolesHash, review[1].RolesHash, "a reviewer edit flips the review round hash")
 	assert.Equal(t, "builtin", audit[0].RolesHash, "editing a reviewer never touches the audit sequence")
 }
+
+// TestRolesStale_StatusFlipsOnCorpusEdit: tp review --status reports roles_stale
+// and it flips true after a reviewer edit, read-only (§9.3).
+func TestRolesStale_StatusFlipsOnCorpusEdit(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
+	revDir := filepath.Join(dir, ".tp", "reviewers")
+	require.NoError(t, os.MkdirAll(revDir, 0o755))
+	rolePath := filepath.Join(revDir, "r.json")
+	require.NoError(t, os.WriteFile(rolePath, []byte(`{"id":"r","title":"T","instructions":"I"}`), 0o600))
+
+	rec := filepath.Join(dir, "empty.ndjson")
+	require.NoError(t, os.WriteFile(rec, []byte(""), 0o600))
+	_, _, code := runTP(t, dir, "review", "spec.md", "--record", rec)
+	require.Equal(t, 0, code)
+
+	stdout, _, code := runTP(t, dir, "review", "spec.md", "--status")
+	require.Equal(t, 0, code)
+	var out map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+	assert.Equal(t, false, out["roles_stale"], "a freshly recorded round is not roles-stale")
+
+	// Editing the reviewer corpus flips roles_stale without any write.
+	require.NoError(t, os.WriteFile(rolePath, []byte(`{"id":"r","title":"T EDITED","instructions":"I"}`), 0o600))
+	stdout, _, code = runTP(t, dir, "review", "spec.md", "--status")
+	require.Equal(t, 0, code)
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+	assert.Equal(t, true, out["roles_stale"], "editing the reviewer corpus makes the recorded round roles-stale")
+}

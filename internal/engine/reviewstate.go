@@ -176,6 +176,21 @@ func StateStale(rounds []ReviewRound, currentHash string) bool {
 	return rounds[len(rounds)-1].SpecHash != currentHash
 }
 
+// RolesStale reports whether the current corpus hash differs from the latest
+// recorded round's stored roles_hash (§9.3). With no recorded rounds nothing is
+// stale. A pre-v0.25.0 round has no stored role hash (empty), which §9.4 treats
+// as matching — upgrading tp never forces a re-review.
+func RolesStale(rounds []ReviewRound, currentHash string) bool {
+	if len(rounds) == 0 {
+		return false
+	}
+	stored := rounds[len(rounds)-1].RolesHash
+	if stored == "" {
+		return false
+	}
+	return stored != currentHash
+}
+
 // Converged reports convergence: enough trailing clean rounds and a spec
 // unchanged since the last recorded round.
 func Converged(rounds []ReviewRound, requiredCleanRounds int, currentHash string) bool {
