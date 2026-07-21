@@ -28,6 +28,13 @@ func LoadTaskWorkflowOverride(taskFilePath string) (model.WorkflowOverride, erro
 	return wo, nil
 }
 
+// ProjectWorkflowOverride returns the project config's workflow override
+// discovered from start — exported so tp config --resolved can attribute each
+// field to the project layer.
+func ProjectWorkflowOverride(start string) model.WorkflowOverride {
+	return projectWorkflowOverride(start)
+}
+
 // projectWorkflowOverride returns the project config's workflow override
 // discovered from start, or an empty override when no .tp/ or config exists or
 // the config is unreadable (best-effort; commands that must abort on a
