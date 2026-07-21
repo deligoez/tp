@@ -51,6 +51,7 @@ func DiscoverTaskFile(dir, explicit string) (string, error) {
 		if _, statErr := os.Stat(resolved); statErr != nil {
 			return "", fmt.Errorf("task file from .tp-active not found: %s. Run tp use --clear or tp use <new-file>", resolved)
 		}
+		fmt.Fprintln(os.Stderr, "warning: .tp-active is deprecated and removed in v0.25.0; run tp use <file> to migrate the active pointer to .tp/local.json")
 		return resolved, nil
 	}
 

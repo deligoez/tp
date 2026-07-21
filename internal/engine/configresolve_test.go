@@ -198,3 +198,14 @@ func TestDiscoverTaskFile_DanglingActiveFallsThrough(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, got, "real.tasks.json", "a dangling active pointer falls through to auto-detect")
 }
+
+func TestDiscoverTaskFile_LegacyActiveStillWorks(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "leg.tasks.json"), []byte("{}"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".tp-active"), []byte("leg.tasks.json\n"), 0o600))
+
+	got, err := DiscoverTaskFile(root, "")
+	require.NoError(t, err)
+	assert.Contains(t, got, "leg.tasks.json", "the legacy .tp-active fallback still resolves through v0.24.x")
+}
