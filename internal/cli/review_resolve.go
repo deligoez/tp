@@ -260,5 +260,5 @@ func writeNDJSON(path string, findings []map[string]any) error {
 		buf.Write(data)
 		buf.WriteByte('\n')
 	}
-	return os.WriteFile(path, []byte(buf.String()), 0o644)
+	return os.WriteFile(path, []byte(buf.String()), 0o600)
 }

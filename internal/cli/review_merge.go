@@ -175,7 +175,7 @@ func runReviewMerge(args []string, outputPath string) error {
 	// Write output based on mode
 	if outputPath != "" {
 		// -o: NDJSON to file, JSON summary to stdout
-		if err := os.WriteFile(outputPath, []byte(ndjsonOutput), 0o644); err != nil {
+		if err := os.WriteFile(outputPath, []byte(ndjsonOutput), 0o600); err != nil {
 			output.Error(ExitFile, fmt.Sprintf("cannot write output file: %s", err))
 			os.Exit(ExitFile)
 			return nil

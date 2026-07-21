@@ -74,7 +74,7 @@ func runUse(_ *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := os.WriteFile(tpActiveFile, []byte(filePath+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(tpActiveFile, []byte(filePath+"\n"), 0o600); err != nil {
 		output.Error(ExitFile, fmt.Sprintf("cannot write %s: %v", tpActiveFile, err))
 		os.Exit(ExitFile)
 		return nil
