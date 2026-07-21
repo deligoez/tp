@@ -142,7 +142,7 @@ func parseRecordRows(data []byte) (findings, dirty int, err error) {
 		}
 		var row map[string]any
 		if jsonErr := json.Unmarshal([]byte(trimmed), &row); jsonErr != nil {
-			return 0, 0, fmt.Errorf("line %d: invalid JSON: %v", lineNum, jsonErr)
+			return 0, 0, fmt.Errorf("line %d: invalid JSON: %w", lineNum, jsonErr)
 		}
 		findings++
 
