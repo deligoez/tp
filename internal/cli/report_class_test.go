@@ -100,3 +100,38 @@ func TestReport_MechanizeCandidates_TieBreakAlphabetical(t *testing.T) {
 	assert.Equal(t, "alpha-class", result.MechanizeCandidates[0].Class)
 	assert.Equal(t, "zeta-class", result.MechanizeCandidates[1].Class)
 }
+
+// TestReport_MechanizeRetainedNoFoundByThreshold guards §8.6: mechanize_candidates
+// stays the cross-round class-frequency signal, and no found_by (multi-role)
+// mechanize rule or threshold field is added — the per-role overlap report already
+// surfaces repeated overlap.
+func TestReport_MechanizeRetainedNoFoundByThreshold(t *testing.T) {
+	dir := t.TempDir()
+
+	// Round 1: overlap-class is found by two roles at one (location, class) —
+	// found_by would be 2 after clustering — and two-rounds-class appears once.
+	r1 := filepath.Join(dir, "r1.ndjson")
+	require.NoError(t, os.WriteFile(r1, []byte(
+		`{"severity":"low","role":"implementer","class":"overlap-class","location":"§5","finding":"a"}`+"\n"+
+			`{"severity":"low","role":"tester","class":"overlap-class","location":"§5 more","finding":"b"}`+"\n"+
+			`{"severity":"low","role":"implementer","class":"two-rounds-class","location":"§6","finding":"c"}`+"\n"), 0o600))
+	// Round 2: two-rounds-class recurs -> a candidate purely by round frequency.
+	r2 := filepath.Join(dir, "r2.ndjson")
+	require.NoError(t, os.WriteFile(r2, []byte(
+		`{"severity":"low","role":"implementer","class":"two-rounds-class","location":"§7","finding":"d"}`+"\n"), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "review", "--report", r1, r2)
+	require.Equal(t, 0, code, "report failed: %s", stderr)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+	candidates, _ := result["mechanize_candidates"].([]any)
+
+	// Only the cross-round class is a candidate; a found_by>=2 class seen in one
+	// round never is (§8.6 adds no found_by mechanize rule).
+	require.Len(t, candidates, 1, "found_by>=2 overlap-class is not mechanized from a single round")
+	entry := candidates[0].(map[string]any)
+	assert.Equal(t, "two-rounds-class", entry["class"])
+	_, hasFoundBy := entry["found_by"]
+	assert.False(t, hasFoundBy, "no found_by threshold field was added to mechanize candidates")
+}
