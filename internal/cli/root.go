@@ -127,6 +127,7 @@ INCREMENTAL (1 task at a time):
 	cmd.AddCommand(claimCmd, closeCmd, reopenCmd, removeCmd, setCmd)
 	cmd.AddCommand(listCmd, statusCmd, readyCmd, blockedCmd, showCmd, graphCmd, statsCmd, reportCmd, lintCmd, reviewCmd, auditCmd, validateCmd)
 	cmd.AddCommand(initCmd, addCmd, importCmd, useCmd)
+	cmd.AddCommand(newConfigCmd())
 
 	return cmd
 }
