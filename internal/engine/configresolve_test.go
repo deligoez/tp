@@ -88,3 +88,24 @@ func TestResolveWorkflowLayers_ChecksReplaceSemantics(t *testing.T) {
 	require.Len(t, wf.Checks, 1)
 	assert.Equal(t, "x", wf.Checks[0].Class, "absent checks inherits project checks")
 }
+
+func TestResolveEffectiveWorkflow_AnchoredAtStartNoCrossProject(t *testing.T) {
+	mkProject := func(t *testing.T, maxRounds string) string {
+		t.Helper()
+		root := t.TempDir()
+		require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
+		tp := filepath.Join(root, ".tp")
+		require.NoError(t, os.Mkdir(tp, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(tp, "config.json"),
+			[]byte(`{"workflow":{"review_max_rounds":`+maxRounds+`}}`), 0o600))
+		return root
+	}
+	projA := mkProject(t, "8")
+	_ = mkProject(t, "3") // a separate project B with a different policy
+
+	// Resolution is anchored once at the start dir: projA's config applies and
+	// is never re-anchored to another project's config (no cross-project merge).
+	wf, _, err := ResolveEffectiveWorkflow(projA, model.WorkflowOverride{})
+	require.NoError(t, err)
+	assert.Equal(t, 8, wf.ReviewMaxRounds, "derive-at-read from the single anchored project")
+}

@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.24.0.md",
   "created_at": "2026-07-21T09:33:07.313Z",
-  "updated_at": "2026-07-21T10:21:08.814331Z",
+  "updated_at": "2026-07-21T10:22:01.346646Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -204,7 +204,7 @@
     {
       "id": "cfg-resolution-override",
       "title": "Presence-based override resolution",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cfg-resolution-sparse"
       ],
@@ -213,11 +213,11 @@
       "source_sections": [
         "### 3.2 Presence, not value, defines an override"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T10:22:00.510088Z",
+      "closed_at": "2026-07-21T10:22:01.346646Z",
+      "closed_reason": "- Presence not value defines an override: WorkflowOverride pointer fields make review_max_rounds:0 a present no-cap value that wins over the project, distinct from an absent key\n- The checks array uses replace semantics: any present checks (including an empty array) replaces the project checks, only an absent checks inherits\n- TestResolveWorkflowLayers_PresenceZeroWins and _ChecksReplaceSemantics cover the presence and replace behavior",
+      "gate_passed_at": "2026-07-21T10:22:01.346646Z",
+      "commit_sha": "a41d4d3"
     },
     {
       "id": "cfg-resolution-scope",
