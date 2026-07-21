@@ -33,6 +33,19 @@ type lintFrontmatter struct {
 	LensRoles []string `json:"lens_roles"`
 }
 
+// lintRoleCorpusOrAbort validates every role file under .tp/reviewers and
+// .tp/auditors (both phases, §3.6). A malformed or invalid role file aborts lint
+// with exit 3 and a repair-or-delete hint; a valid or absent corpus is a no-op.
+func lintRoleCorpusOrAbort(specPath string) {
+	startDir := filepath.Dir(specPath)
+	for _, phase := range []string{engine.PhaseReviewers, engine.PhaseAuditors} {
+		if _, _, err := engine.LoadRoleCorpus(startDir, phase); err != nil {
+			output.Error(ExitFile, err.Error(), "repair or delete the offending role file")
+			os.Exit(ExitFile)
+		}
+	}
+}
+
 func newLintCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "lint <spec.md>",
@@ -44,6 +57,9 @@ func newLintCmd() *cobra.Command {
 
 func runLint(_ *cobra.Command, args []string) error {
 	specPath := args[0]
+
+	// A malformed or invalid role file aborts lint (§3.6), for either phase.
+	lintRoleCorpusOrAbort(specPath)
 
 	lines, headings, err := parseSpecFile(specPath)
 	if err != nil {
