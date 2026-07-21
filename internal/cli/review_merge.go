@@ -141,6 +141,7 @@ func runReviewMerge(args []string, outputPath string) error {
 		"input_files":        totalFiles,
 		"duplicates_removed": duplicatesRemoved,
 		"by_severity":        bySeverity,
+		"overlap_report":     computeOverlapReport(unique),
 	}
 
 	// Write output based on mode

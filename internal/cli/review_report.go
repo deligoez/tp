@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/deligoez/tp/internal/engine"
 	"github.com/deligoez/tp/internal/output"
 )
 
@@ -39,6 +40,7 @@ type convergenceResult struct {
 	ByCategory          map[string]int                `json:"by_category"`
 	ByClass             map[string]int                `json:"by_class"`
 	MechanizeCandidates []mechanizeCandidate          `json:"mechanize_candidates"`
+	OverlapReport       []engine.RoleOverlap          `json:"overlap_report"`
 }
 
 // mechanizeCandidate is a finding class worth turning into a mechanical check.
@@ -98,6 +100,14 @@ func runReviewReport(args []string) error {
 		ByCategory:          byCategory,
 		ByClass:             byClass,
 		MechanizeCandidates: computeMechanizeCandidates(roundFindings),
+	}
+
+	// The per-role overlap report is computed from the latest round's merged
+	// findings alone (§8.5); an empty history yields an empty report.
+	if len(roundFindings) > 0 {
+		result.OverlapReport = computeOverlapReport(roundFindings[len(roundFindings)-1])
+	} else {
+		result.OverlapReport = []engine.RoleOverlap{}
 	}
 
 	if output.IsJSON() {
@@ -588,5 +598,17 @@ func printReportTTY(result *convergenceResult) {
 			_, _ = fmt.Fprintf(w, "  %-20s rounds_seen=%d total=%d\n", c.Class+":", c.RoundsSeen, c.Total)
 		}
 		_, _ = fmt.Fprintf(w, "  hint: %s\n", mechanizeRegisterHint)
+	}
+
+	if len(result.OverlapReport) > 0 {
+		_, _ = fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w, "Per-Role Overlap (latest round):")
+		for _, r := range result.OverlapReport {
+			flag := ""
+			if r.TrimCandidate {
+				flag = "  [trim candidate]"
+			}
+			_, _ = fmt.Fprintf(w, "  %-24s unique=%d shared=%d%s\n", r.Role+":", r.Unique, r.Shared, flag)
+		}
 	}
 }

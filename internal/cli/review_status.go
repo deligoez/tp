@@ -55,6 +55,7 @@ func runReviewStatus(specPath string, check bool) error {
 		"converged":             converged,
 		"stale":                 engine.StateStale(rounds, specHash),
 		"mechanical_checks":     mechChecks,
+		"overlap_report":        latestRoundOverlapReport(specPath, rounds),
 	}
 	if wf.ReviewMaxRounds > 0 {
 		result["budget_exhausted"] = len(rounds) >= wf.ReviewMaxRounds && !converged

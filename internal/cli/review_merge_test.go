@@ -304,3 +304,43 @@ func TestReviewMergeAuditRecordUntouched(t *testing.T) {
 	require.Equal(t, 0, code, "record failed: %s", stderr)
 	assert.Equal(t, float64(2), out["findings"], "audit --record counts each non-PASS row without clustering")
 }
+
+// TestReviewMergeOverlapReport surfaces the per-role overlap report in the --merge
+// JSON summary: unique/shared counts, the trim-candidate flag for a role that
+// found only shared clusters, and exclusion of the built-in regression role (§8.5).
+func TestReviewMergeOverlapReport(t *testing.T) {
+	dir := t.TempDir()
+	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{
+		`{"severity":"high","role":"implementer","class":"A","location":"§1","finding":"impl unique"}`,
+		`{"severity":"high","role":"implementer","class":"B","location":"§2","finding":"impl shared b"}`,
+		`{"severity":"low","role":"tester","class":"B","location":"§2 words","finding":"tester shared b"}`,
+		`{"severity":"medium","role":"architect","class":"C","location":"§3","finding":"arch shared c"}`,
+		`{"severity":"low","role":"tester","class":"C","location":"§3 more","finding":"tester shared c"}`,
+		`{"severity":"high","role":"regression","class":"D","location":"§4","finding":"regression only"}`,
+	})
+	stdout, stderr, code := runTPMerge(t, dir, "review", "--merge", "--json", f1)
+	require.Equal(t, 0, code, "merge failed: %s", stderr)
+
+	var summary map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &summary))
+	report, ok := summary["overlap_report"].([]any)
+	require.True(t, ok, "overlap_report present in --merge JSON")
+
+	byRole := map[string]map[string]any{}
+	for _, r := range report {
+		m := r.(map[string]any)
+		byRole[m["role"].(string)] = m
+	}
+	// implementer: unique=1 (§1/A), shared=1 (§2/B) -> not a trim candidate.
+	assert.Equal(t, float64(1), byRole["implementer"]["unique"])
+	assert.Equal(t, float64(1), byRole["implementer"]["shared"])
+	assert.Equal(t, false, byRole["implementer"]["trim_candidate"])
+	// tester: unique=0, shared=2 (§2/B and §3/C) -> trim candidate.
+	assert.Equal(t, float64(0), byRole["tester"]["unique"])
+	assert.Equal(t, float64(2), byRole["tester"]["shared"])
+	assert.Equal(t, true, byRole["tester"]["trim_candidate"])
+	// architect: unique=0, shared=1 -> trim candidate.
+	assert.Equal(t, true, byRole["architect"]["trim_candidate"])
+	// regression is never in the report.
+	assert.NotContains(t, byRole, "regression")
+}
