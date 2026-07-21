@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.25.0.md",
   "created_at": "2026-07-21T19:43:58.426848Z",
-  "updated_at": "2026-07-21T22:30:50.409039Z",
+  "updated_at": "2026-07-21T22:42:46.581841Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2,
@@ -365,7 +365,7 @@
     {
       "id": "roles-hash-record",
       "title": "Record role hashes per round",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli"
       ],
@@ -377,11 +377,11 @@
       "source_sections": [
         "## 9. Role Staleness"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T22:42:46.538169Z",
+      "closed_at": "2026-07-21T22:42:46.581835Z",
+      "closed_reason": "- Added RolesHash (json roles_hash) to engine.ReviewRound and stored the phase's corpus hash at --record time exactly as spec_hash is: review_record.go stores the reviewer hash on the review round, audit_record.go stores the auditor hash on the audit round, both via engine.ComputeRolesHash.\n- Because a round lives in either ReviewRounds or AuditRounds and carries only its own phase hash, editing a reviewer flips the review sequence's stored hash but never the audit sequence's — the sequences stay independent.\n- internal/cli/roles_hash_record_test.go covers per-phase hash storage (reviewer sha256 on review rounds, builtin on audit rounds) and sequence independence (a reviewer edit changes review round 2's hash while the audit round stays builtin).",
+      "gate_passed_at": "2026-07-21T22:42:46.581835Z",
+      "commit_sha": "ea37c99"
     },
     {
       "id": "roles-stale-status",
