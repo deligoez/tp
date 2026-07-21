@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.25.0.md",
   "created_at": "2026-07-21T19:43:58.426848Z",
-  "updated_at": "2026-07-21T22:01:31.135107Z",
+  "updated_at": "2026-07-21T22:08:21.634162Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2,
@@ -215,7 +215,7 @@
     {
       "id": "emission-output-contract",
       "title": "Stamp phase output contract",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli"
       ],
@@ -229,11 +229,11 @@
         "## 7. Prompt Emission",
         "## 2. Design Principles"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T22:08:21.597995Z",
+      "closed_at": "2026-07-21T22:08:21.634159Z",
+      "closed_reason": "- Added outputContractInstruction (internal/cli/review.go) appended to every emitted prompt: review prompts (generateCorpusReviewPrompt) instruct the sub-agent to stamp role, location, class, and severity; audit prompts (buildRolePrompt) additionally instruct status in PASS/PARTIAL/FAIL, so tp owns the finding contract (Principle 2).\n- location is described as a section anchor (the first §\u003cn\u003e(.\u003cn\u003e)* token, e.g. §3.2), which is exactly what makes the §8 dedup and the per-role overlap report possible; role is now explicitly stamped so inter-role attribution works.\n- internal/cli/emission_contract_test.go asserts the review contract (role/location/class/severity, no status) and the audit contract (those plus status PASS/PARTIAL/FAIL) both appear in the emitted prompts.",
+      "gate_passed_at": "2026-07-21T22:08:21.634159Z",
+      "commit_sha": "4fcbc93"
     },
     {
       "id": "location-key-extraction",
