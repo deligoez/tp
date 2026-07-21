@@ -4,7 +4,7 @@
   "created_at": "2026-07-20T18:27:04Z",
   "updated_at": "2026-07-20T22:25:14.313904Z",
   "workflow": {
-    "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
+    "quality_gate": "go test ./... && golangci-lint run",
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2
   },
@@ -46,8 +46,8 @@
       "### 7.5 Batch parity",
       "## 8. Review Round Memory",
       "## 9. Import Convergence Enforcement",
-      "### 10.1 `tp audit \u003cspec\u003e --record \u003cresults.ndjson\u003e`",
-      "### 10.2 `tp audit \u003cspec\u003e --status [--check]`",
+      "### 10.1 `tp audit <spec> --record <results.ndjson>`",
+      "### 10.2 `tp audit <spec> --status [--check]`",
       "### 10.3 Scope note",
       "## 11. Regression Perspective",
       "### 11.4 Category enum extension",
@@ -75,7 +75,7 @@
       "estimate_minutes": 5,
       "acceptance": "- Task.GateSkippedReason string field with omitempty json tag exists\n- tp reopen clears gate_skipped_reason\n- tp set rejects gate_skipped_reason as managed field",
       "source_sections": [
-        "### 6.5 `--skip-gate \u003creason\u003e` escape hatch"
+        "### 6.5 `--skip-gate <reason>` escape hatch"
       ],
       "source_lines": "330-340",
       "started_at": "2026-07-20T18:43:58.582647Z",
@@ -116,7 +116,7 @@
       "source_lines": "347-358",
       "started_at": "2026-07-20T19:26:48.364532Z",
       "closed_at": "2026-07-20T19:29:46.260808Z",
-      "closed_reason": "- tp set --workflow: gate_timeout_seconds 30-3600, review/audit_max_rounds 0-50 araligi disinda output.Error + exit 1 (internal/cli/set.go workflowFieldRange)\n- El ile bozulmus degerler icin Workflow.Effective* helper'lari 600/0'a düşüyor (internal/model/workflow.go); tp validate ayni durumlar icin warning üretiyor (validateConvergence)\n- quality_gate readOnlyWorkflowFields icinde kaliyor, tp set --workflow reddediyor",
+      "closed_reason": "- tp set --workflow: gate_timeout_seconds 30-3600, review/audit_max_rounds outside the 0-50 range give output.Error + exit 1 (internal/cli/set.go workflowFieldRange)\n- For manually corrupted values, the Workflow.Effective* helpers fall back to 600/0 (internal/model/workflow.go); tp validate produces a warning for the same cases (validateConvergence)\n- quality_gate stays inside readOnlyWorkflowFields, tp set --workflow rejects it",
       "gate_passed_at": "2026-07-20T19:29:46.260808Z",
       "commit_sha": "eccb452"
     },
@@ -133,7 +133,7 @@
       "source_lines": "312-320",
       "started_at": "2026-07-20T19:18:20.78811Z",
       "closed_at": "2026-07-20T19:20:10.553331Z",
-      "closed_reason": "- RunCommand at internal/engine/runcmd.go:64 uses sh -c on Unix, cmd /C on Windows (runtime.GOOS), cmd.Env inherited (nil), cmd.Dir = caller-provided dir\n- tailBuffer bounds combined stdout+stderr to 64 KB (runBufferSize), tail(n) parameterizes reported line count\n- context.WithTimeout + DeadlineExceeded branch returns Passed=false, ExitCode=nil, Message 'timed out after \u003cN\u003es'",
+      "closed_reason": "- RunCommand at internal/engine/runcmd.go:64 uses sh -c on Unix, cmd /C on Windows (runtime.GOOS), cmd.Env inherited (nil), cmd.Dir = caller-provided dir\n- tailBuffer bounds combined stdout+stderr to 64 KB (runBufferSize), tail(n) parameterizes reported line count\n- context.WithTimeout + DeadlineExceeded branch returns Passed=false, ExitCode=nil, Message 'timed out after <N>s'",
       "gate_passed_at": "2026-07-20T19:20:10.553331Z",
       "commit_sha": "6ea547a"
     },
@@ -152,7 +152,7 @@
       "source_lines": "744-769",
       "started_at": "2026-07-20T19:23:52.956129Z",
       "closed_at": "2026-07-20T19:25:44.219801Z",
-      "closed_reason": "- TestRunCommand_Success_Failure_Timeout internal/engine/runcmd_test.go'da: exit 0 -\u003e Passed, exit 3 -\u003e failure + output tail, sleep 5 + 1s timeout -\u003e TimedOut + 'timed out after 1s' mesaji; tail parametresi ve cwd/env kalitimi da alt testlerde; go test ./... yesil",
+      "closed_reason": "- TestRunCommand_Success_Failure_Timeout in internal/engine/runcmd_test.go: exit 0 -> Passed, exit 3 -> failure + output tail, sleep 5 + 1s timeout -> TimedOut + 'timed out after 1s' message; the tail parameter and cwd/env inheritance are also in sub-tests; go test ./... green",
       "gate_passed_at": "2026-07-20T19:25:44.219801Z",
       "commit_sha": "06c33d5"
     },
@@ -162,14 +162,14 @@
       "status": "done",
       "depends_on": [],
       "estimate_minutes": 10,
-      "acceptance": "- ExtractKeywords stopWords technicalTermRegex and length check deleted per 7.1\n- N\u003e=2 criteria require N column-0 evidence lines; indented bullets do not count; N\u003c=1 passes on non-empty reason\n- forbidden patterns retained and covered-by skips verification; error hint enumerates criteria per 7.4",
+      "acceptance": "- ExtractKeywords stopWords technicalTermRegex and length check deleted per 7.1\n- N>=2 criteria require N column-0 evidence lines; indented bullets do not count; N<=1 passes on non-empty reason\n- forbidden patterns retained and covered-by skips verification; error hint enumerates criteria per 7.4",
       "source_sections": [
         "## 7. Closure Verification Redesign"
       ],
       "source_lines": "359-397",
       "started_at": "2026-07-20T19:20:21.849092Z",
       "closed_at": "2026-07-20T19:23:27.113557Z",
-      "closed_reason": "- ExtractKeywords, stopWords, technicalTermRegex, filePathRegex ve min-length check silindi; gatePassed parametresi VerifyClosure imzasindan kaldirildi (internal/engine/closure.go)\n- N\u003e=2 kriter icin N adet kolon-0 '- ' evidence satiri zorunlu (CountEvidenceLines); girintili bullet sayilmiyor; N\u003c=1 bos olmayan reason ile geciyor\n- Forbidden pattern'lar korundu, coveredBy dogrulamayi atliyor; ClosureError.Hint kriterleri numarali sayiyor, cli done/close cagri noktalari ClosureHint kullaniyor",
+      "closed_reason": "- ExtractKeywords, stopWords, technicalTermRegex, filePathRegex and the min-length check were deleted; the gatePassed parameter was removed from the VerifyClosure signature (internal/engine/closure.go)\n- For N>=2 criteria, N column-0 '- ' evidence lines are required (CountEvidenceLines); indented bullets are not counted; N<=1 passes with a non-empty reason\n- Forbidden patterns were retained, coveredBy skips verification; ClosureError.Hint counts criteria numerically, the cli done/close call sites use ClosureHint",
       "gate_passed_at": "2026-07-20T19:23:27.113557Z",
       "commit_sha": "9fa97e9"
     },
@@ -188,7 +188,7 @@
       "source_lines": "744-769",
       "started_at": "2026-07-20T19:23:52.956129Z",
       "closed_at": "2026-07-20T19:26:25.790617Z",
-      "closed_reason": "- TestVerifyClosure_EvidenceLines internal/engine/closure_test.go'da: 3 kriter + 3 kolon-0 satir geciyor, 3+2 sayilari isimleyerek düşüyor, girintili satirlar sayilmiyor, 1 kriter + serbest metin geciyor\n- TestVerifyClosure_ForbiddenPatternsRetained: erteleme kalibi, tek kelime ve yol icermeyen mevcut-kapsam iddiasi reddediliyor\n- TestVerifyClosure_KeywordMachineryGone: Turkce prose kriterler eslesen evidence-satiri sayisiyla geciyor",
+      "closed_reason": "- TestVerifyClosure_EvidenceLines in internal/engine/closure_test.go: 3 criteria + 3 column-0 lines passes, 3+2 fails by naming the counts, indented lines are not counted, 1 criterion + free text passes\n- TestVerifyClosure_ForbiddenPatternsRetained: the deferral pattern, a single word, and a covered-scope claim containing no path are rejected\n- TestVerifyClosure_KeywordMachineryGone: Turkish prose criteria pass with a matching evidence-line count",
       "gate_passed_at": "2026-07-20T19:26:25.790617Z",
       "commit_sha": "dc5225e"
     },
@@ -211,7 +211,7 @@
       "source_lines": "299-311,321-324",
       "started_at": "2026-07-20T19:40:56.361044Z",
       "closed_at": "2026-07-20T19:41:19.412692Z",
-      "closed_reason": "- 6.1 tablosu: done single/multi/batch/auto-commit ve close gate'i invocation basina bir kez kosuyor (internal/cli/gate.go runQualityGatePreFlock, batchHasSurvivor); tp commit gate kosmyor; --covered-by gate'i atlamiyor; ucuz kontroller (checkDoneTarget) gate'ten once\n- Gate flock'tan ONCE kosuyor; sonra flock icinde re-read + re-validate mevcut govdelerle korunuyor (done.go/close.go pre-flock bloklari); basarisizlikta exit 4, hicbir gorev kapanmiyor (TestGate_FailureClosesNothingWithExit4)\n- Basarida kapanan her gorev gate_passed_at damgasi aliyor (gateRan || doneGatePassed); 6 yeni TestGate_* testi + tum suite + lint yesil",
+      "closed_reason": "- 6.1 table: done single/multi/batch/auto-commit and close run the gate once per invocation (internal/cli/gate.go runQualityGatePreFlock, batchHasSurvivor); tp commit does not run the gate; --covered-by does not skip the gate; the cheap checks (checkDoneTarget) run before the gate\n- The gate runs BEFORE the flock; then re-read + re-validate inside the flock is preserved with the existing bodies (done.go/close.go pre-flock blocks); on failure exit 4, no task closes (TestGate_FailureClosesNothingWithExit4)\n- On success every closed task gets a gate_passed_at stamp (gateRan || doneGatePassed); 6 new TestGate_* tests + whole suite + lint green",
       "gate_passed_at": "2026-07-20T19:41:19.412692Z",
       "commit_sha": "857f9ea"
     },
@@ -230,7 +230,7 @@
       "source_lines": "325-329",
       "started_at": "2026-07-20T19:41:39.80194Z",
       "closed_at": "2026-07-20T19:42:37.540787Z",
-      "closed_reason": "- Exit 4 JSON hatasi gate_cmd, exit_code, output_tail ve hint tasiyor (gate.go runQualityGatePreFlock/emitBatchGateFailure; TestGate_FailureClosesNothingWithExit4 alanlari dogruluyor)\n- Timeout 'gate timed out after Ns' mesaji + null exit_code: gateFailureMessage ve TestGateFailureMessage_TimeoutReportsSecondsAndNullExitCode (internal/cli/gate_unit_test.go)",
+      "closed_reason": "- The exit 4 JSON error carries gate_cmd, exit_code, output_tail and hint (gate.go runQualityGatePreFlock/emitBatchGateFailure; TestGate_FailureClosesNothingWithExit4 verifies the fields)\n- Timeout gives a 'gate timed out after Ns' message + null exit_code: gateFailureMessage and TestGateFailureMessage_TimeoutReportsSecondsAndNullExitCode (internal/cli/gate_unit_test.go)",
       "gate_passed_at": "2026-07-20T19:42:37.540787Z",
       "commit_sha": "dfa2acb"
     },
@@ -244,12 +244,12 @@
       "estimate_minutes": 8,
       "acceptance": "- all 8 items of the 6.5 list implemented including empty-reason exit 2, no gate execution, recorded reason, show and report display\n- --skip-gate with --gate-passed is exit 2",
       "source_sections": [
-        "### 6.5 `--skip-gate \u003creason\u003e` escape hatch"
+        "### 6.5 `--skip-gate <reason>` escape hatch"
       ],
       "source_lines": "330-340",
       "started_at": "2026-07-20T19:42:59.039983Z",
       "closed_at": "2026-07-20T19:47:47.903481Z",
-      "closed_reason": "- 6.5'in 8 maddesi: bos reason exit 2 (done+close), gate kosulmuyor (TestSkipGate_RecordsReasonAndSkipsExecution), gate_skipped_reason kaydediliyor + gate_passed_at null, gate'siz projede de kayit (TestSkipGate_RecordedEvenWithoutGate), show otomatik (omitempty) + report'a gate_skipped_reason alani eklendi, reopen temizligi ve tp set reddi onceki gorevden mevcut (reopen.go:59, gate_skip_field_test.go)\n- Batch: entry bazli skip_gate (pointer alan), bos/whitespace deger entry'yi failures'a dusuruyor ve skip sayilmiyor (TestSkipGate_BatchEmptySkipGateFailsEntry), hepsi skip ise gate hic kosmuyor (TestSkipGate_BatchAllSkipNeverRunsGate), gate dusse bile skip entry'ler kapaniyor (TestSkipGate_BatchEntriesCloseDespiteGateFailure)\n- --skip-gate + --gate-passed exit 2, --skip-gate + --batch exit 2 (TestSkipGate_UsageErrors); tum suite + lint yesil",
+      "closed_reason": "- The 8 items of 6.5: empty reason exit 2 (done+close), the gate is not run (TestSkipGate_RecordsReasonAndSkipsExecution), gate_skipped_reason is recorded + gate_passed_at null, recorded even in a project without a gate (TestSkipGate_RecordedEvenWithoutGate), show is automatic (omitempty) + a gate_skipped_reason field was added to report, reopen cleanup and tp set rejection exist from a previous task (reopen.go:59, gate_skip_field_test.go)\n- Batch: per-entry skip_gate (pointer field), an empty/whitespace value drops the entry into failures and is not counted as a skip (TestSkipGate_BatchEmptySkipGateFailsEntry), if all are skipped the gate never runs (TestSkipGate_BatchAllSkipNeverRunsGate), even if the gate fails the skip entries close (TestSkipGate_BatchEntriesCloseDespiteGateFailure)\n- --skip-gate + --gate-passed exit 2, --skip-gate + --batch exit 2 (TestSkipGate_UsageErrors); whole suite + lint green",
       "gate_passed_at": "2026-07-20T19:47:47.903481Z",
       "commit_sha": "186af73"
     },
@@ -265,7 +265,7 @@
       "acceptance": "- cheap-check failures land in failures pre-gate; gate runs iff a surviving non-skip entry exists; skip entries close regardless of gate result per 6.1 and 6.4\n- --skip-gate flag with --batch is exit 2; empty skip_gate entry fails into failures and does not count as skip",
       "source_sections": [
         "### 6.4 Failure path",
-        "### 6.5 `--skip-gate \u003creason\u003e` escape hatch"
+        "### 6.5 `--skip-gate <reason>` escape hatch"
       ],
       "source_lines": "325-329,330-340",
       "started_at": "2026-07-20T19:48:02.623626Z",
@@ -289,7 +289,7 @@
       "source_lines": "341-346",
       "started_at": "2026-07-20T19:49:24.040243Z",
       "closed_at": "2026-07-20T19:51:30.647467Z",
-      "closed_reason": "- quality_gate doluyken flag yok sayiliyor + 'quality gate is executed by tp; --gate-passed ignored' info (done single/multi pre-flock; TTY-only cunku output.Info JSON modda sessiz); damga gerçek gate kosusundan (TestGatePassedCompat_IgnoredWithInfoWhenGateSet)\n- quality_gate bosken attestation korunuyor, gate_passed_at flag'le damgalaniyor (TestGatePassedCompat_AttestationPreservedWithoutGate); flag closure dogrulamayi artik etkilemiyor (VerifyClosure imzasindan gatePassed engine-closure-v2'de kaldirildi)",
+      "closed_reason": "- When quality_gate is set the flag is ignored + a 'quality gate is executed by tp; --gate-passed ignored' info (done single/multi pre-flock; TTY-only because output.Info is silent in JSON mode); the stamp comes from the real gate run (TestGatePassedCompat_IgnoredWithInfoWhenGateSet)\n- When quality_gate is empty the attestation is preserved, gate_passed_at is stamped via the flag (TestGatePassedCompat_AttestationPreservedWithoutGate); the flag no longer affects closure verification (gatePassed was removed from the VerifyClosure signature in engine-closure-v2)",
       "gate_passed_at": "2026-07-20T19:51:30.647467Z",
       "commit_sha": "6cd7036"
     },
@@ -310,7 +310,7 @@
       "source_lines": "770-797",
       "started_at": "2026-07-20T19:51:40.47543Z",
       "closed_at": "2026-07-20T19:53:06.946135Z",
-      "closed_reason": "- TestDoneGate_RunsOncePerInvocation: 3'lu batch tek gate kosusu, non-batch hata hicbir gorevi kapatmiyor, batch hatada yalniz skip entry'ler kapaniyor (internal/cli/donegate_test.go)\n- TestDoneGate_AllSkipBatchNoRun, TestDoneGate_SkipGateRecorded (set reddi + reopen temizligi dahil), TestDoneGate_GatePassedCompat (flag yok sayma + attestation + skip-gate kombinasyonu exit 2) hepsi geciyor; suite + lint yesil",
+      "closed_reason": "- TestDoneGate_RunsOncePerInvocation: a batch of 3 runs the gate once, a non-batch error closes no task, on a batch error only the skip entries close (internal/cli/donegate_test.go)\n- TestDoneGate_AllSkipBatchNoRun, TestDoneGate_SkipGateRecorded (including set rejection + reopen cleanup), TestDoneGate_GatePassedCompat (flag ignoring + attestation + skip-gate combination exit 2) all pass; suite + lint green",
       "gate_passed_at": "2026-07-20T19:53:06.946135Z",
       "commit_sha": "e0f097f"
     },
@@ -346,7 +346,7 @@
       "source_lines": "565-577",
       "started_at": "2026-07-20T20:20:26.89646Z",
       "closed_at": "2026-07-20T20:24:43.550231Z",
-      "closed_reason": "- BlankFrontmatter/BlankFrontmatterLines (engine/frontmatter_blank.go) blogu bos satirlarla degistirerek mutlak satir numaralarini koruyor; 8 yuzey bagli: countContentLines, ParseHeadings, cli lint parseSpecFile (lint kurallari + structured extraction ayni lines'i kullaniyor), DiffSections cagrilari (review.go + review_verify.go), readSpecContent (inline embed), audit.go specData, ExtractSpecExcerpt (plan/show/next spec_excerpt) fm satirlarini atliyor\n- Yapisal bozulma davranisi parser'dan geliyor: kapanmayan blok Present=false oldugundan icerik sayiliyor, bozuk YAML'da blok excluded kaliyor; TestBlankFrontmatter_ParserExclusion 3 yuzeyi mutlak satir numarasiyla dogruluyor",
+      "closed_reason": "- BlankFrontmatter/BlankFrontmatterLines (engine/frontmatter_blank.go) preserves absolute line numbers by replacing the block with blank lines; 8 surfaces are wired: countContentLines, ParseHeadings, cli lint parseSpecFile (lint rules + structured extraction use the same lines), DiffSections calls (review.go + review_verify.go), readSpecContent (inline embed), audit.go specData, ExtractSpecExcerpt (plan/show/next spec_excerpt) skip the fm lines\n- The structural-corruption behavior comes from the parser: an unclosed block is Present=false so its content is counted, in malformed YAML the block stays excluded; TestBlankFrontmatter_ParserExclusion verifies 3 surfaces by absolute line number",
       "gate_passed_at": "2026-07-20T20:24:43.550231Z",
       "commit_sha": "a4904d5"
     },
@@ -385,7 +385,7 @@
       "source_lines": "744-769",
       "started_at": "2026-07-20T20:26:53.79438Z",
       "closed_at": "2026-07-20T20:29:08.256755Z",
-      "closed_reason": "- TestFrontmatter_ParseAndExclusion: tp mapping parse + content lines, headings, structured elements, DiffSections ve spec_excerpt bloktan ariniyor; mutlak satir numaralari korunuyor (internal/engine/frontmatter_named_test.go)\n- TestFrontmatter_MalformedYAML: kapali-bozuk blok excluded kaliyor, defaults + lint error; TestFrontmatter_Unterminated: acilip kapanmayan blok icerik + lint error, icindeki heading parse ediliyor",
+      "closed_reason": "- TestFrontmatter_ParseAndExclusion: tp mapping parse + content lines, headings, structured elements, DiffSections and spec_excerpt are cleared of the block; absolute line numbers are preserved (internal/engine/frontmatter_named_test.go)\n- TestFrontmatter_MalformedYAML: a closed-but-malformed block stays excluded, defaults + lint error; TestFrontmatter_Unterminated: an opened-but-unclosed block counts as content + lint error, the heading inside it is parsed",
       "gate_passed_at": "2026-07-20T20:29:08.256755Z",
       "commit_sha": "5f30d9d"
     },
@@ -402,7 +402,7 @@
       "source_lines": "108-148",
       "started_at": "2026-07-20T19:53:48.626072Z",
       "closed_at": "2026-07-20T19:55:23.732081Z",
-      "closed_reason": "- 5 sabit (security, concurrency, error-handling, correctness, contract) + IsValidCategory; ResolveAuditCategory 2.2 onceligini auditCategoryPrecedence dilimiyle uyguluyor (internal/engine/audit_category.go)\n- RenderAuditCategoryText enum + oncelik metnini AYNI sabit diliminden uretiyor (4.4 tek-kaynak sarti)\n- 2.3 presence kurallari (her satirda category; PASS -\u003e explicit null; PARTIAL/FAIL -\u003e enum, null degil) render edilen metinde belgelendi",
+      "closed_reason": "- 5 constants (security, concurrency, error-handling, correctness, contract) + IsValidCategory; ResolveAuditCategory applies the 2.2 precedence via the auditCategoryPrecedence slice (internal/engine/audit_category.go)\n- RenderAuditCategoryText produces the enum + precedence text from the SAME constant slice (4.4 single-source requirement)\n- The 2.3 presence rules (category on every line; PASS -> explicit null; PARTIAL/FAIL -> enum, not null) are documented in the rendered text",
       "gate_passed_at": "2026-07-20T19:55:23.732081Z",
       "commit_sha": "81596d3"
     },
@@ -419,7 +419,7 @@
       "source_lines": "253-294",
       "started_at": "2026-07-20T21:44:34.514731Z",
       "closed_at": "2026-07-20T21:47:19.255368Z",
-      "closed_reason": "- Task-to-file eslemesi commit_sha uzerinden (GitTaskFileMapping: git show --name-only, evrenle kesisim, sha'siz/bilinmeyen sha'li gorev sifir dosya), dosya-basina task idleri ve listeler alfabetik; drop kurallari evreni ONCE filtreliyor (binary, testdata/**, *.golden, silinmisler) — cap'ler sonraki uygun dosyalarla doluyor (internal/engine/auditfiles.go SelectAuditFiles/filterAuditUniverse)\n- Uc rolun secimi: spec-coverage task-sayisi desc + alfabetik tie-break cap 20 ve bos-union'da ilk-20 fallback; security path VEYA HEAD ilk-200-satir substring sezgisi (HEAD'te olmayan dosya yalniz path'ten), alfabetik cap 20; maintainability ilk 10; --affected-files evreni degistirdiginde ayni kurallar uygulanir (girdi enjeksiyonlu tasarim), diff disi dosyalar +0/-0\n- affected_files {path, tasks, diff_summary} olarak AuditFileEntry'de; isimli TestFilterFiles_* testleri engine-audit-tests gorevinde geliyor",
+      "closed_reason": "- Task-to-file mapping via commit_sha (GitTaskFileMapping: git show --name-only, intersection with the universe, a task with no sha/unknown sha gets zero files), per-file task ids and lists alphabetical; the drop rules filter the universe FIRST (binary, testdata/**, *.golden, deleted ones) - caps are filled with the next eligible files (internal/engine/auditfiles.go SelectAuditFiles/filterAuditUniverse)\n- The three roles' selection: spec-coverage task-count desc + alphabetical tie-break cap 20 and an empty-union first-20 fallback; security uses a path OR HEAD first-200-line substring heuristic (a file not in HEAD only via path), alphabetical cap 20; maintainability first 10; when --affected-files changes the universe the same rules apply (input-injection design), files outside the diff +0/-0\n- affected_files as {path, tasks, diff_summary} in AuditFileEntry; the named TestFilterFiles_* tests come in the engine-audit-tests task",
       "gate_passed_at": "2026-07-20T21:47:19.255368Z",
       "commit_sha": "f2539ea"
     },
@@ -439,7 +439,7 @@
       "source_lines": "744-769",
       "started_at": "2026-07-20T21:47:37.396707Z",
       "closed_at": "2026-07-20T21:49:13.22797Z",
-      "closed_reason": "- TestAuditCategory_EnumValid, _PrecedenceResolution, TestRenderAuditCategoryText_ContainsEnumAndPrecedence: 5'li enum, oncelik cozumu ve render metninin enum+oncelik+presence icerigi (internal/engine/auditfiles_test.go)\n- TestFilterFiles_SpecCoverage_RanksByTaskCount (task sayisi desc, alfabetik tie, +0/-0 fallback), _Cap20 (spec-coverage ve security), _Security (path + HEAD-icerik sezgisi, HEAD'te olmayan dosya yalniz path, alfabetik), _Maintainability (alfabetik ilk 10), _DropsBinaryFixturesDeleted (fallback listesi dahil), _DropFirstBackfill (13-3=10, kuyruk ham 11-13'ten doluyor) hepsi geciyor",
+      "closed_reason": "- TestAuditCategory_EnumValid, _PrecedenceResolution, TestRenderAuditCategoryText_ContainsEnumAndPrecedence: the 5-value enum, precedence resolution, and the rendered text's enum+precedence+presence content (internal/engine/auditfiles_test.go)\n- TestFilterFiles_SpecCoverage_RanksByTaskCount (task count desc, alphabetical tie, +0/-0 fallback), _Cap20 (spec-coverage and security), _Security (path + HEAD-content heuristic, a file not in HEAD only via path, alphabetical), _Maintainability (alphabetical first 10), _DropsBinaryFixturesDeleted (including the fallback list), _DropFirstBackfill (13-3=10, the tail is filled from raw 11-13) all pass",
       "gate_passed_at": "2026-07-20T21:49:13.22797Z",
       "commit_sha": "2f2c54d"
     },
@@ -477,7 +477,7 @@
       "source_lines": "80-107,269-272",
       "started_at": "2026-07-20T21:49:35.898992Z",
       "closed_at": "2026-07-20T21:59:38.349173Z",
-      "closed_reason": "- 1.2 ayrik yonlendirme: table_row/list_item/task_acceptance ve finding item'lari spec-coverage'a; security ve maintainability dosya-bazli sentetik file_check item'lari (file-sec-\u003cn\u003e/file-maint-\u003cn\u003e, rol listesi sirasiyla) tasiyor, hicbir item iki prompt'ta gorunmuyor (routeChecklist, internal/cli/audit_roles.go; TestAuditRouting_DisjointAndFixedOrder)\n- 5.3: bos rol prompts'tan atlaniyor (security eslesmesiz vaka testte), promptlar sabit spec-coverage -\u003e security -\u003e maintainability-conventions sirasinda; rol basina tek prompt (eski 50-item bolme kaldirildi, eski testler yeni davranisa uyarlandi)",
+      "closed_reason": "- 1.2 disjoint routing: table_row/list_item/task_acceptance and finding items go to spec-coverage; security and maintainability carry file-based synthetic file_check items (file-sec-<n>/file-maint-<n>, in role-list order), no item appears in two prompts (routeChecklist, internal/cli/audit_roles.go; TestAuditRouting_DisjointAndFixedOrder)\n- 5.3: an empty role is skipped from the prompts (the security no-match case is in the test), the prompts are in the fixed spec-coverage -> security -> maintainability-conventions order; one prompt per role (the old 50-item split was removed, old tests were adapted to the new behavior)",
       "gate_passed_at": "2026-07-20T21:59:38.349173Z",
       "commit_sha": "a1c3224"
     },
@@ -499,7 +499,7 @@
       "source_lines": "149-155",
       "started_at": "2026-07-20T21:59:59.030411Z",
       "closed_at": "2026-07-20T22:02:31.618305Z",
-      "closed_reason": "- 3.1 govde sirasi (Role -\u003e Role Rules -\u003e Spec Excerpt yalniz spec-coverage -\u003e Project Context yalniz maintainability -\u003e JSON-array Checklist -\u003e Affected Files (max 20) 5.4 formatiyla -\u003e Output Schema) buildRolePrompt'ta; siralama index karsilastirmalariyla testte (TestAuditPrompts_BodyOrderAndEmbedding)\n- 3.2 deterministik idler: table-t-r/list-l-n/task-\u003cid\u003e mevcut semalar, file-sec-\u003cn\u003e/file-maint-\u003cn\u003e rol listesi indeksiyle, finding-\u003cn\u003e dosya indeksiyle; pinned siralama (table+list spec_line artan, sonra task, sonra finding); ayni girdiyle yeniden uretim byte-esit (TestAuditPrompts_DeterministicRegeneration)\n- 3.3 expected_evidence hicbir zaman bos degil (task-\u003efiles eslemesi, section-arama fallback'i, inspect-file, verify-the-fix-120-char); 3.4 CLAUDE.md excerpt'u task-dosyasi dizini -\u003e git koku sirasiyla bulunuyor, '## Conventions' span'i 50 satir cap'iyle, sonraki basligda kesiliyor (claudeMDExcerptFor; testte 'ignored' bolumu dislaniyor)",
+      "closed_reason": "- 3.1 body order (Role -> Role Rules -> Spec Excerpt only for spec-coverage -> Project Context only for maintainability -> JSON-array Checklist -> Affected Files (max 20) in the 5.4 format -> Output Schema) in buildRolePrompt; the ordering is in the test via index comparisons (TestAuditPrompts_BodyOrderAndEmbedding)\n- 3.2 deterministic ids: table-t-r/list-l-n/task-<id> existing schemas, file-sec-<n>/file-maint-<n> by role-list index, finding-<n> by file index; pinned ordering (table+list spec_line ascending, then task, then finding); regeneration from the same input is byte-equal (TestAuditPrompts_DeterministicRegeneration)\n- 3.3 expected_evidence is never empty (task->files mapping, section-search fallback, inspect-file, verify-the-fix-120-char); 3.4 the CLAUDE.md excerpt is found in task-file dir -> git root order, the '## Conventions' span with a 50-line cap, cut off at the next heading (claudeMDExcerptFor; the 'ignored' section is excluded in the test)",
       "gate_passed_at": "2026-07-20T22:02:31.618305Z",
       "commit_sha": "6f30073"
     },
@@ -518,7 +518,7 @@
       "source_lines": "770-797",
       "started_at": "2026-07-20T22:03:03.625898Z",
       "closed_at": "2026-07-20T22:05:52.902156Z",
-      "closed_reason": "- Yedi isimli test 19.2 tarifleriyle geciyor: TestRouteChecklist_Disjoint ve TestGenerateAuditPrompts_EmptyRoleOmitted (rename + tarif yorumu, audit_routing_test.go), TestGenerateAuditPrompts_ThreeRolesPresent / _StructuredItems (JSON-array govde = ChecklistItems) / _NoCategoryField / _SpecExcerptOnlyForSpecCoverage / _CLAUDEmdOnlyForMaintainability (audit_named_test.go, paylasilan uc-rol kurulumuyla)",
+      "closed_reason": "- Seven named tests pass per the 19.2 specifications: TestRouteChecklist_Disjoint and TestGenerateAuditPrompts_EmptyRoleOmitted (rename + spec comment, audit_routing_test.go), TestGenerateAuditPrompts_ThreeRolesPresent / _StructuredItems (JSON-array body = ChecklistItems) / _NoCategoryField / _SpecExcerptOnlyForSpecCoverage / _CLAUDEmdOnlyForMaintainability (audit_named_test.go, with the shared three-role setup)",
       "gate_passed_at": "2026-07-20T22:05:52.902156Z",
       "commit_sha": "86fdbc6"
     },
@@ -536,7 +536,7 @@
       "source_lines": "402-413,414-427",
       "started_at": "2026-07-20T20:29:27.171085Z",
       "closed_at": "2026-07-20T20:32:18.550697Z",
-      "closed_reason": "- 8.1 dizin yerlesimi (ReviewStateDir: \u003cspec-dir\u003e/.tp-review/\u003cspec-base\u003e) ve ilk {spec, review_rounds:[], audit_rounds:[]} indeksi ilk olusturanda yaziliyor (EnsureReviewState, internal/engine/reviewstate.go)\n- Yazimlar state.json flock'u altinda (WithReviewStateLock, mevcut WithFileLock uzerinden); tur aritmetigi len+1, ConsecutiveClean kuyruk sayimi, SpecHash sha256:\u003chex\u003e ve StateStale/Converged 8.6'ya gore (TestConsecutiveCleanAndStaleness)\n- Bozuk state.json veya indekssiz-dolu dizin StateCorruptError ile abort (exit 3 + 'repair or delete \u003cpath\u003e' hint'i cli'de baglanacak); eksik round dosyasi LoadRoundRows found=false ile atlanip uyarilabiliyor, tur aritmetiginde sayilmaya devam ediyor",
+      "closed_reason": "- 8.1 directory layout (ReviewStateDir: <spec-dir>/.tp-review/<spec-base>) and the initial {spec, review_rounds:[], audit_rounds:[]} index are written by the first creator (EnsureReviewState, internal/engine/reviewstate.go)\n- Writes are under the state.json flock (WithReviewStateLock, over the existing WithFileLock); round arithmetic is len+1, ConsecutiveClean tail-counting, SpecHash sha256:<hex> and StateStale/Converged per 8.6 (TestConsecutiveCleanAndStaleness)\n- A corrupt state.json or an index-less-but-non-empty directory aborts with StateCorruptError (exit 3 + a 'repair or delete <path>' hint to be wired in the cli); a missing round file can be skipped and warned about via LoadRoundRows found=false, it keeps being counted in the round arithmetic",
       "gate_passed_at": "2026-07-20T20:32:18.550697Z",
       "commit_sha": "9364e64"
     },
@@ -555,7 +555,7 @@
       "source_lines": "744-769",
       "started_at": "2026-07-20T21:18:27.612852Z",
       "closed_at": "2026-07-20T21:19:35.006925Z",
-      "closed_reason": "- TestReviewState_RoundLifecycle: kayit degistirilemez entry ekliyor (sonradan --resolve round dosyasini degistirse de clean/findings donmus kaliyor), clean-dirty-clean-clean -\u003e consecutive_clean 2 (internal/cli/review_state_named_test.go)\n- TestReviewState_Staleness: son kayitli turdan sonra spec duzenlenince stale=true + unconverge; eslesen hash converged tutuyor\n- TestReviewState_CorruptIndexAborts: bozuk state.json VE indekssiz round dosyasi vakalari review/record/status/import genelinde exit 3 + 'repair or delete' hint'i; state.json byte'lari degismeden kaliyor (sessiz rebuild yok); engine-seviyesi primitifler reviewstate_test.go'da zaten testli",
+      "closed_reason": "- TestReviewState_RoundLifecycle: kayit degistirilemez entry ekliyor (sonradan --resolve round dosyasini degistirse de clean/findings donmus kaliyor), clean-dirty-clean-clean -> consecutive_clean 2 (internal/cli/review_state_named_test.go)\n- TestReviewState_Staleness: son kayitli turdan sonra spec duzenlenince stale=true + unconverge; eslesen hash converged tutuyor\n- TestReviewState_CorruptIndexAborts: bozuk state.json VE indekssiz round dosyasi vakalari review/record/status/import genelinde exit 3 + 'repair or delete' hint'i; state.json byte'lari degismeden kaliyor (sessiz rebuild yok); engine-seviyesi primitifler reviewstate_test.go'da zaten testli",
       "gate_passed_at": "2026-07-20T21:19:35.006925Z",
       "commit_sha": "565b810"
     },
@@ -574,7 +574,7 @@
       "source_lines": "453-459",
       "started_at": "2026-07-20T19:29:59.249726Z",
       "closed_at": "2026-07-20T19:31:53.6342Z",
-      "closed_reason": "- ResolveWorkflow (internal/engine/workflow_resolve.go): discovery chain -\u003e spec-adjacent \u003cbase\u003e.tasks.json -\u003e DefaultWorkflow; spec alani task-dosyasi dizinine, CLI argumani CWD'ye gore mutlaklastirilip karsilastiriliyor (specMatches)\n- Alti workflow alani tek zincirden donuyor (tf.Workflow butun halinde; defaults 2/2 clean, 0 cap, 600s, bos checks); 3 dal TestResolveWorkflow_* ile test edildi",
+      "closed_reason": "- ResolveWorkflow (internal/engine/workflow_resolve.go): discovery chain -> spec-adjacent <base>.tasks.json -> DefaultWorkflow; the spec field is absolutized against the task-file dir, the CLI argument against CWD, then compared (specMatches)\n- Six workflow fields return from a single chain (tf.Workflow as a whole; defaults 2/2 clean, 0 cap, 600s, empty checks); 3 branches tested with TestResolveWorkflow_*",
       "gate_passed_at": "2026-07-20T19:31:53.6342Z",
       "commit_sha": "54abe55"
     },
@@ -594,7 +594,7 @@
       "source_lines": "428-440",
       "started_at": "2026-07-20T21:04:53.220033Z",
       "closed_at": "2026-07-20T21:06:11.583449Z",
-      "closed_reason": "- 8.3 madde 1-3: R = kayitli tur + 1 otomatik numaralaniyor, snapshot-round-\u003cR\u003e.md byte kopyasi yaziliyor (kayittan once yeniden uretimde ayni dosya eziliyor), onceki bulgular round-1..R-1 dosyalarindan identity-key dedup'uyla UC rol prompt'una enjekte ediliyor, --findings kaynagi override ediyor (TestReviewStateRounds_Lifecycle)\n- 8.3 madde 6 matrisi: state-türevli R ile celisen --round exit 2 + --no-state'e yonlendiren hint; --no-state tum okuma/yazmalari kapatiyor, round flag'i eko, convergence metnine kayit-yok notu; --no-state + --record/--status/--check exit 2 (TestReviewStateRounds_RoundConflictAndNoState); eski manuel akis testleri --no-state'e tasindi\n- Perspektif katilimi: documentation/testing/code-audit state'e dokunmuyor (blok perspektif donuslerinden sonra; TestReviewStateRounds_PerspectivesDoNotTouchState)",
+      "closed_reason": "- 8.3 items 1-3: R = recorded round + 1 is auto-numbered, a snapshot-round-<R>.md byte copy is written (on regeneration before recording the same file is overwritten), previous findings are injected into the THREE role prompts from the round-1..R-1 files with identity-key dedup, the --findings source overrides (TestReviewStateRounds_Lifecycle)\n- 8.3 item 6 matrix: a --round conflicting with the state-derived R gives exit 2 + a hint pointing to --no-state; --no-state turns off all reads/writes, echoes the round flag, adds a no-record note to the convergence text; --no-state + --record/--status/--check exit 2 (TestReviewStateRounds_RoundConflictAndNoState); the old manual-flow tests were moved to --no-state\n- Perspective participation: documentation/testing/code-audit do not touch the state (the block after the perspective returns; TestReviewStateRounds_PerspectivesDoNotTouchState)",
       "gate_passed_at": "2026-07-20T21:06:11.583449Z",
       "commit_sha": "df9109c"
     },
@@ -613,7 +613,7 @@
       "source_lines": "428-440",
       "started_at": "2026-07-20T21:06:33.015662Z",
       "closed_at": "2026-07-20T21:09:34.635438Z",
-      "closed_reason": "- R\u003e=2'de en yeni round\u003cR snapshot'i baseline alinip DiffSections ile 'Changed sections since round \u003ck\u003e' blogu HER prompt'a ekleniyor; bolum basina 40 satir, toplam 6000 karakter cap'leri buildChangedSectionsBlock'ta (internal/cli/review_autodiff.go; TestReviewAutoDiff_SnapshotBaseline, _SectionLineCap)\n- Daha erken snapshot yoksa blok atlanip info satiri basiliyor; --diff-from baseline'i override edip blogu her turda (R=1 dahil) zorluyor — eski 'round \u003e= 2' kisiti kaldirildi (TestReviewAutoDiff_DiffFromForcesAtRound1)",
+      "closed_reason": "- At R>=2 the newest round<R snapshot is taken as baseline and a 'Changed sections since round <k>' block is added to EVERY prompt via DiffSections; the per-section 40-line and total 6000-character caps are in buildChangedSectionsBlock (internal/cli/review_autodiff.go; TestReviewAutoDiff_SnapshotBaseline, _SectionLineCap)\n- If there is no earlier snapshot the block is skipped and an info line is printed; --diff-from overrides the baseline and forces the block in every round (including R=1) - the old 'round >= 2' restriction was removed (TestReviewAutoDiff_DiffFromForcesAtRound1)",
       "gate_passed_at": "2026-07-20T21:09:34.635438Z",
       "commit_sha": "c4d76f2"
     },
@@ -632,7 +632,7 @@
       "source_lines": "460-474",
       "started_at": "2026-07-20T21:09:47.854296Z",
       "closed_at": "2026-07-20T21:13:25.84305Z",
-      "closed_reason": "- 8.7 tablosunun tum satirlari: round state-türevli (celisen flag exit 2 onceki gorevden), max_rounds struct'tan tamamen kaldirildi (tum modlar; TestReviewBasic yoklugunu dogruluyor), required_clean_rounds/consecutive_clean/converged/stale pointer alanlarla state'ten doluyor, --no-state'te omit ediliyor\n- convergence metni 'no findings surviving verification (any severity) in \u003cN\u003e consecutive rounds'; instruction sub-agent -\u003e merge -\u003e --record -\u003e '--status --check exit 0'a kadar tekrar dongusunu adlandiriyor (TestReviewRound1WithFindings guncel iddialari)",
+      "closed_reason": "- All rows of the 8.7 table: round is state-derived (a conflicting flag exit 2, from a previous task), max_rounds was completely removed from the struct (all modes; TestReviewBasic verifies its absence), required_clean_rounds/consecutive_clean/converged/stale are filled from the state via pointer fields, omitted under --no-state\n- the convergence text is 'no findings surviving verification (any severity) in <N> consecutive rounds'; the instruction names the sub-agent -> merge -> --record -> repeat loop up to '--status --check exit 0' (TestReviewRound1WithFindings updated assertions)",
       "gate_passed_at": "2026-07-20T21:13:25.84305Z",
       "commit_sha": "56f959f"
     },
@@ -647,12 +647,12 @@
       "estimate_minutes": 10,
       "acceptance": "- parse rules with blank-line skip and wontfix duplicate fixed row handling per 8.4 items 1-2 including empty-evidence rejection\n- round file copy plus immutable index append with frozen clean flag; mechanize_candidates across all recorded rounds in output",
       "source_sections": [
-        "### 8.4 `tp review \u003cspec\u003e --record \u003cfindings.ndjson\u003e`"
+        "### 8.4 `tp review <spec> --record <findings.ndjson>`"
       ],
       "source_lines": "441-447",
       "started_at": "2026-07-20T20:33:45.125995Z",
       "closed_at": "2026-07-20T20:38:12.507332Z",
-      "closed_reason": "- 8.4 satir kurallari: bos satir atlama, gecersiz JSON'da satir numarasiyla exit 1, pre-resolved fixed abort, bos-kanitli wontfix exit 1, wontfix turu kirletmiyor, duplicate kirletiyor; sifir satir clean tur (parseRecordRows; TestReviewRecord_RowRules + _Lifecycle)\n- Dosya review-round-\u003cR\u003e.ndjson olarak kopyalaniyor (once round dosyasi, sonra indeks; state flock altinda), clean bayragi kayit aninda donduruluyor; cikti mechanize_candidates'i kaydedilen TUM turlar uzerinden hesapliyor + register hint (TestReviewRecord_MechanizeCandidatesInOutput); bozuk state exit 3 + repair hint (TestReviewRecord_CorruptStateAborts)",
+      "closed_reason": "- 8.4 line rules: skip empty line, invalid JSON aborts exit 1 with a line number, pre-resolved fixed aborts, an empty-evidence wontfix exit 1, wontfix does not dirty the round, duplicate dirties it; zero lines is a clean round (parseRecordRows; TestReviewRecord_RowRules + _Lifecycle)\n- The file is copied as review-round-<R>.ndjson (round file first, then index; under the state flock), the clean flag is frozen at record time; the output computes mechanize_candidates over ALL recorded rounds + register hint (TestReviewRecord_MechanizeCandidatesInOutput); corrupt state exit 3 + repair hint (TestReviewRecord_CorruptStateAborts)",
       "gate_passed_at": "2026-07-20T20:38:12.507332Z",
       "commit_sha": "e62093c"
     },
@@ -667,12 +667,12 @@
       "estimate_minutes": 8,
       "acceptance": "- status shape with budget_exhausted presence rule and full empty-state shape per 8.5\n- --check runs checks and exits per converged and stale; bare --check exit 2",
       "source_sections": [
-        "### 8.5 `tp review \u003cspec\u003e --status [--check]`"
+        "### 8.5 `tp review <spec> --status [--check]`"
       ],
       "source_lines": "448-452",
       "started_at": "2026-07-20T20:38:30.482267Z",
       "closed_at": "2026-07-20T20:40:42.680699Z",
-      "closed_reason": "- --status 8.5 seklini basiyor: review_rounds, consecutive_clean, required_clean_rounds (8.6 zinciriyle), converged, stale, mechanical_checks (kosum sonucu olmadan kayitli liste); bos state'te tam sekil + exit 0 (TestReviewStatus_EmptyStateFullShape); budget_exhausted yalniz cap\u003e0 iken (8.8 formulu)\n- --check tum workflow.checks'i 6.2 ortaminda kosuyor, pass/fail + yalniz basarisizlarda output_tail; exit 0 ancak converged VE tum checkler gecince (TestReviewStatus_CheckRunsChecksAndGatesExit); bare --check / --record --check / --status+mod kombinasyonlari exit 2 (TestReviewStatus_FlagRules); runMechanicalChecks 15.3 icin paylasilan yardimci",
+      "closed_reason": "- --status prints the 8.5 shape: review_rounds, consecutive_clean, required_clean_rounds (via the 8.6 chain), converged, stale, mechanical_checks (the recorded list without run results); the full shape + exit 0 on empty state (TestReviewStatus_EmptyStateFullShape); budget_exhausted only when cap>0 (the 8.8 formula)\n- --check runs all workflow.checks in the 6.2 environment, pass/fail + output_tail only on failures; exit 0 only when converged AND all checks pass (TestReviewStatus_CheckRunsChecksAndGatesExit); bare --check / --record --check / --status+mode combinations exit 2 (TestReviewStatus_FlagRules); runMechanicalChecks is the shared helper for 15.3",
       "gate_passed_at": "2026-07-20T20:40:42.680699Z",
       "commit_sha": "02c2437"
     },
@@ -692,7 +692,7 @@
       "source_lines": "493-509",
       "started_at": "2026-07-20T20:41:15.570491Z",
       "closed_at": "2026-07-20T20:43:32.381468Z",
-      "closed_reason": "- 10.1: status alani PASS olmayan/eksik satirlar finding sayiliyor (countAuditFindings), dosya audit-round-\u003cN\u003e.ndjson olarak kopyalanip state.json.audit_rounds'a ekleniyor (review'den bagimsiz sira; TestAuditRecord_CountsNonPass), spec_hash/staleness 8.6 ile ayni\n- 10.2: --status sekli mechanical_checks'siz, bos-state sekli exit 0, --check yalniz converged'de 0 (TestAuditStatus_Shapes); --record/--status karsilikli dislayici ve --affected-files/--findings reddi exit 2 (TestAuditRecordStatus_FlagRejections)\n- 10.3: --record yalniz satir sayimi yapiyor, class okumuyor, mechanize_candidates yok (cikti anahtari yoklugu testte dogrulaniyor)",
+      "closed_reason": "- 10.1: lines with a non-PASS/missing status field are counted as findings (countAuditFindings), the file is copied as audit-round-<N>.ndjson and appended to state.json.audit_rounds (a sequence independent of review; TestAuditRecord_CountsNonPass), spec_hash/staleness same as 8.6\n- 10.2: the --status shape without mechanical_checks, empty-state shape exit 0, --check 0 only when converged (TestAuditStatus_Shapes); --record/--status are mutually exclusive and --affected-files/--findings rejection exit 2 (TestAuditRecordStatus_FlagRejections)\n- 10.3: --record only counts lines, does not read class, no mechanize_candidates (the absence of the output key is verified in the test)",
       "gate_passed_at": "2026-07-20T20:43:32.381468Z",
       "commit_sha": "19b1022"
     },
@@ -713,7 +713,7 @@
       "source_lines": "770-797",
       "started_at": "2026-07-20T20:47:46.840054Z",
       "closed_at": "2026-07-20T20:48:54.020365Z",
-      "closed_reason": "- TestReviewRecord_CleanAndDirty: bos dosya clean, whitespace atlama, parse hatasi satir numarasiyla exit 1, hepsi-wontfix clean, pre-resolved fixed exit 1, bos-kanit wontfix exit 1, duplicate kirletiyor (internal/cli/record_status_named_test.go)\n- TestReviewStatus_Check: converged+fresh+gecen checkler 0, uc kosuldan herhangi biri dusunce 1, sade --status checkleri kosmadan listeliyor (dosya-yazma kanitiyla); TestAuditStatus_Check: audit_clean_rounds ile converged 0, dirty/stale 1, sekilde mechanical_checks yok; TestAuditRecord_CountsNonPass ve TestAuditRecordStatus_FlagRejections onceki gorevden mevcut (internal/cli/audit_record_test.go)",
+      "closed_reason": "- TestReviewRecord_CleanAndDirty: an empty file is clean, whitespace skipping, a parse error exit 1 with a line number, all-wontfix clean, pre-resolved fixed exit 1, empty-evidence wontfix exit 1, duplicate dirties it (internal/cli/record_status_named_test.go)\n- TestReviewStatus_Check: converged+fresh+passing checks 0, if any one of the three conditions fails 1, plain --status lists the checks without running them (with file-write proof); TestAuditStatus_Check: converged 0 with audit_clean_rounds, dirty/stale 1, no mechanical_checks in the shape; TestAuditRecord_CountsNonPass and TestAuditRecordStatus_FlagRejections exist from a previous task (internal/cli/audit_record_test.go)",
       "gate_passed_at": "2026-07-20T20:48:54.020365Z",
       "commit_sha": "6c1257b"
     },
@@ -734,7 +734,7 @@
       "source_lines": "475-478",
       "started_at": "2026-07-20T20:44:15.600986Z",
       "closed_at": "2026-07-20T20:47:11.503925Z",
-      "closed_reason": "- Review default modu ve audit prompt uretimi cap dolu + unconverged iken exit 4 ve eskalasyon hint'iyle (uncounted pass -\u003e kullanici onayli cap artisi / --force) refuse ediyor (refuseIfBudgetExhausted, budget.go; TestRoundBudget_ReviewRefusals/_AuditRefusals); cap-tetikli state okumasi corrupt abort'u devraliyor\n- budget_exhausted = cap\u003e0 AND rounds\u003e=cap AND NOT converged; yalniz --status ciktilarinda ve cap\u003e0 iken (onceki gorevlerde yerlesti, testlerde dogrulandi); converged dizi cap'te bile refuse edilmiyor (TestRoundBudget_ConvergedAtCapNotRefused)\n- --record refusal satir parse ve her turlu state yazimindan ONCE (round dosyasi olusmadigi testte dogrulaniyor); import enforcement cap'ten etkilenmiyor (enforcement 9.1 gorevi cap'i hic okumuyor)",
+      "closed_reason": "- The review default mode and audit prompt generation refuse with exit 4 and an escalation hint (uncounted pass -> user-approved cap increase / --force) when the cap is full + unconverged (refuseIfBudgetExhausted, budget.go; TestRoundBudget_ReviewRefusals/_AuditRefusals); the cap-triggered state read inherits the corrupt abort\n- budget_exhausted = cap>0 AND rounds>=cap AND NOT converged; only in --status outputs and when cap>0 (settled in previous tasks, verified in tests); a converged run is not refused even at the cap (TestRoundBudget_ConvergedAtCapNotRefused)\n- The --record refusal is BEFORE line parsing and any kind of state write (the round file not being created is verified in the test); import enforcement is not affected by the cap (the enforcement 9.1 task never reads the cap)",
       "gate_passed_at": "2026-07-20T20:47:11.503925Z",
       "commit_sha": "935081b"
     },
@@ -753,7 +753,7 @@
       "source_lines": "770-797",
       "started_at": "2026-07-20T20:52:34.288157Z",
       "closed_at": "2026-07-20T20:53:37.461076Z",
-      "closed_reason": "- TestRoundBudget_Escalates 19.2 tarifinin tamamini kapsiyor: iki cap da 2, ikiser dirty tur; review prompt uretimi exit 4 + eskalasyon hint, cap otesi review/audit --record exit 4, iki --status sekli de budget_exhausted:true, audit uretimi ayni sekilde blokli, import enforcement cap'ten bagimsiz exit 1 (internal/cli/budget_escalates_test.go); suite + lint yesil",
+      "closed_reason": "- TestRoundBudget_Escalates covers the entire 19.2 spec: both caps 2, two dirty rounds each; review prompt generation exit 4 + escalation hint, beyond-cap review/audit --record exit 4, both --status shapes budget_exhausted:true, audit generation blocked the same way, import enforcement exit 1 independent of the cap (internal/cli/budget_escalates_test.go); suite + lint green",
       "gate_passed_at": "2026-07-20T20:53:37.461076Z",
       "commit_sha": "2315378"
     },
@@ -774,7 +774,7 @@
       "source_lines": "481-484,485-488",
       "started_at": "2026-07-20T20:49:12.340392Z",
       "closed_at": "2026-07-20T20:52:17.770708Z",
-      "closed_reason": "- State dizini pinned yolla bulunuyor (hedef task dosyasi dizini + spec basename); kayitli tur varsa consecutive_clean\u003e=required ve staleness kontrolu, gecemeyen import exit 1 (TestImportEnforcement_Convergence unconverged/stale alt testleri); governing deger 8.6-cozumlu degerden sapinca iki degeri adlandiran uyari\n- Hata hint'i tp review --record + --force'u adlandiriyor; butce doluyken hint 8.8 eskalasyon dizisine donusuyor (exhausted_budget alt testi); --force iki kontrolu de atliyor; sifir-gorevli init shell --force'suz ezilebiliyor, gercek gorevli dosya --force istiyor (TestImport_ShellOverwriteNoForce)\n- State yokken/tur yokken import 'review convergence not verified (no recorded rounds)' info'suyla geciyor (no_state alt testi); cap enforcement'i asla gevsetmiyor",
+      "closed_reason": "- The state directory is found by a pinned path (target task-file dir + spec basename); if there is a recorded round, consecutive_clean>=required and a staleness check, a failing import exit 1 (TestImportEnforcement_Convergence unconverged/stale sub-tests); when the governing value diverges from the 8.6-resolved value, a warning naming both values\n- The error hint names tp review --record + --force; when the budget is full the hint turns into the 8.8 escalation series (exhausted_budget sub-test); --force skips both checks; a zero-task init shell can be overwritten without --force, a file with real tasks requires --force (TestImport_ShellOverwriteNoForce)\n- When there is no state / no round, import passes with a 'review convergence not verified (no recorded rounds)' info (no_state sub-test); it never relaxes cap enforcement",
       "gate_passed_at": "2026-07-20T20:52:17.770708Z",
       "commit_sha": "b6b5a39"
     },
@@ -791,7 +791,7 @@
       "source_lines": "489-492",
       "started_at": "2026-07-20T19:55:39.463109Z",
       "closed_at": "2026-07-20T19:59:56.259739Z",
-      "closed_reason": "- Ham JSON'da top-level workflow anahtari yoklamasi (importedHasWorkflowKey, internal/cli/import_workflow.go) struct varsayilanlarindan ONCE calisiyor; hedef dosya varsa mevcut workflow blogu tasiniyor — wrapped ve bare-array her iki yol icin (TestImport_WorkflowPreservation 4 alt test)\n- Bare-array sarmalama artik DefaultWorkflow + status='open' varsayilani aliyor (v0.22.0 canli buginin koku: sifir workflow + bos status validasyondan dusuyordu); workflow anahtari tasiyan import ise kendi workflow'unu yaziyor",
+      "closed_reason": "- The top-level workflow-key probe in the raw JSON (importedHasWorkflowKey, internal/cli/import_workflow.go) runs BEFORE the struct defaults; if the target file exists the existing workflow block is carried over - for both the wrapped and bare-array paths (TestImport_WorkflowPreservation 4 sub-tests)\n- Bare-array wrapping now gets the DefaultWorkflow + status='open' default (the root of the v0.22.0 live bug: zero workflow + empty status failed validation); an import carrying a workflow key writes its own workflow",
       "gate_passed_at": "2026-07-20T19:59:56.259739Z",
       "commit_sha": "164bab3"
     },
@@ -811,7 +811,7 @@
       "source_lines": "770-797",
       "started_at": "2026-07-20T21:16:43.762003Z",
       "closed_at": "2026-07-20T21:18:09.597655Z",
-      "closed_reason": "- TestImport_ConvergenceEnforced: unconverged exit 1, stale exit 1, --force baypasi, state yoksa yalniz info (import_enforce_test.go — isim 19.2'ye hizalandi)\n- TestImport_WorkflowPreserved: workflow anahtarsiz --force re-import quality_gate VE checks'i koruyor (checks iddiasi eklendi); TestImport_ShellOverwriteNoForce: sifir-gorevli shell --force'suz ezilebiliyor, enforcement armed kaliyor, gorevli dosya --force istiyor",
+      "closed_reason": "- TestImport_ConvergenceEnforced: unconverged exit 1, stale exit 1, --force bypass, only an info when there is no state (import_enforce_test.go - the name was aligned to 19.2)\n- TestImport_WorkflowPreserved: a workflow-key-less --force re-import preserves quality_gate AND checks (the checks assertion was added); TestImport_ShellOverwriteNoForce: a zero-task shell can be overwritten without --force, enforcement stays armed, a file with tasks requires --force",
       "gate_passed_at": "2026-07-20T21:18:09.597655Z",
       "commit_sha": "3928079"
     },
@@ -832,7 +832,7 @@
       "source_lines": "514-517,524-533",
       "started_at": "2026-07-20T21:21:48.781481Z",
       "closed_at": "2026-07-20T21:25:19.3873Z",
-      "closed_reason": "- Mod (a) state'li (R\u003e=2, salt-okunur: snapshot/state.json degismiyor — dizin listesi testte esit) ve mod (b) --diff-from+--findings (state'e hic dokunmuyor); eksik/parcali girdi exit 2, bos diff + sifir fixed bulgu da exit 2 + 8.3-madde-5 kosulunu yansitan hint (internal/cli/review_regression.go; TestRegression_* uc test)\n- 11.3 govde sirasi: persona, changed-sections blogu (8.3-4 ile ayni insa), 50-kapakli newest-first fixed bulgular ('finding — evidence' satirlari), uc numarali kontrol, standart finding formati; 15.3 geregi mekanik checkler regression modunda da kosup exclusion blogu ekliyor\n- 11.4: kategori enum'u regression degerini kazandi (findingFormat); merge/resolve/report map-tabanli oldugundan kabul ediyor",
+      "closed_reason": "- Mode (a) stateful (R>=2, read-only: snapshot/state.json don't change - the directory listing is equal in the test) and mode (b) --diff-from+--findings (never touches the state); missing/partial input exit 2, an empty diff + zero fixed findings also exit 2 + a hint reflecting the 8.3-item-5 condition (internal/cli/review_regression.go; TestRegression_* three tests)\n- 11.3 body order: persona, changed-sections block (same construction as 8.3-4), 50-capped newest-first fixed findings ('finding - evidence' lines), three numbered checks, the standard finding format; per 15.3 the mechanical checks also run in regression mode and add an exclusion block\n- 11.4: the category enum gained the regression value (findingFormat); since merge/resolve/report are map-based they accept it",
       "gate_passed_at": "2026-07-20T21:25:19.3873Z",
       "commit_sha": "ab90818"
     },
@@ -851,7 +851,7 @@
       "source_lines": "518-523",
       "started_at": "2026-07-20T21:25:43.090306Z",
       "closed_at": "2026-07-20T21:29:10.866884Z",
-      "closed_reason": "- R\u003e=2 VE (diff blogu dolu VEYA \u003e=1 fixed bulgu) kosulunda regression 4. prompt olarak ekleniyor (review.go regressionIncluded blogu; collectFixedFindings paylasildi); kosul saglanmayinca 3 prompt kaliyor (TestRegressionAutoInclude uc alt test — yalniz-fixed-bulgu dali dahil)\n- instruction 'Process the regression prompt first...' diyor ve 11.2 uncounted delta-pass kullanimini belgeliyor; auto-diff testi 4-prompt beklentisine guncellendi",
+      "closed_reason": "- On the condition R>=2 AND (diff block non-empty OR >=1 fixed finding), regression is added as the 4th prompt (review.go regressionIncluded block; collectFixedFindings shared); when the condition is not met 3 prompts remain (TestRegressionAutoInclude three sub-tests - including the only-fixed-finding branch)\n- the instruction says 'Process the regression prompt first...' and documents the 11.2 uncounted delta-pass usage; the auto-diff test was updated to the 4-prompt expectation",
       "gate_passed_at": "2026-07-20T21:29:10.866884Z",
       "commit_sha": "f1803de"
     },
@@ -870,7 +870,7 @@
       "source_lines": "770-797",
       "started_at": "2026-07-20T21:29:44.630778Z",
       "closed_at": "2026-07-20T21:31:18.912763Z",
-      "closed_reason": "- TestRegressionPrompt_AutoInclusion 19.2 tarifini bes alt testle kapsiyor: yalniz diff veya fixed bulgu varken eklenme (iki tetik dali + eklenmeme dali), standalone girdi zorunlulugu exit 2, standalone'un state.json byte'larini ve dizin icerigini degistirmedigi dogrulaniyor (internal/cli/regression_autoinclude_test.go)",
+      "closed_reason": "- TestRegressionPrompt_AutoInclusion covers the 19.2 spec with five sub-tests: inclusion when only a diff or a fixed finding exists (two trigger branches + a non-inclusion branch), standalone input is required exit 2, verifying that standalone does not change the state.json bytes or the directory contents (internal/cli/regression_autoinclude_test.go)",
       "gate_passed_at": "2026-07-20T21:31:18.912763Z",
       "commit_sha": "af7ecbb"
     },
@@ -890,7 +890,7 @@
       "source_lines": "578-592",
       "started_at": "2026-07-20T21:31:38.143362Z",
       "closed_at": "2026-07-20T21:37:59.405296Z",
-      "closed_reason": "- 12.3 tablosunun tum satirlari: non-software domain'de uc persona degisiyor (execute-exactly / verify-every-claim / internal-consistency), implementer'in happy-path sorusu ve architect'in backward-compat + performance sorulari dusuyor; yapisal ve tester'in vague/divergent sorulari domain-notr kaliyor (promptDomain, TestDomainLens_NonSoftwarePersonasAndDrops + _SoftwareDomainUnchanged)\n- Lens: lens.all rol ve regression prompt'larinin numarali listesine, lens.\u003crole\u003e yalniz kendi roluna, sira hardcoded -\u003e all -\u003e role-specific (appendLensQuestions; regression yalniz all aliyor — TestDomainLens_RegressionGetsAllLens; siralama index karsilastirmasiyla dogrulandi)",
+      "closed_reason": "- 12.3 tablosunun tum satirlari: non-software domain'de uc persona degisiyor (execute-exactly / verify-every-claim / internal-consistency), implementer'in happy-path sorusu ve architect'in backward-compat + performance sorulari dusuyor; yapisal ve tester'in vague/divergent sorulari domain-notr kaliyor (promptDomain, TestDomainLens_NonSoftwarePersonasAndDrops + _SoftwareDomainUnchanged)\n- Lens: lens.all rol ve regression prompt'larinin numarali listesine, lens.<role> yalniz kendi roluna, sira hardcoded -> all -> role-specific (appendLensQuestions; regression yalniz all aliyor — TestDomainLens_RegressionGetsAllLens; siralama index karsilastirmasiyla dogrulandi)",
       "gate_passed_at": "2026-07-20T21:37:59.405296Z",
       "commit_sha": "3383f6b"
     },
@@ -909,7 +909,7 @@
       "source_lines": "770-797",
       "started_at": "2026-07-20T21:38:16.554302Z",
       "closed_at": "2026-07-20T21:39:00.661805Z",
-      "closed_reason": "- TestLensInjection_DomainSwitch 19.2 tarifiyle birebir: prose domain persona degisimlerini, uc dusen software sorusunu ve hardcoded-\u003eall-\u003erole-specific lens sirasini dogruluyor (internal/cli/domain_lens_test.go; yardimci testler _SoftwareDomainUnchanged ve _RegressionGetsAllLens ayni dosyada)",
+      "closed_reason": "- TestLensInjection_DomainSwitch exactly per the 19.2 spec: verifies the prose domain persona changes, the three dropped software questions, and the hardcoded->all->role-specific lens order (internal/cli/domain_lens_test.go; the helper tests _SoftwareDomainUnchanged and _RegressionGetsAllLens are in the same file)",
       "gate_passed_at": "2026-07-20T21:39:00.661805Z",
       "commit_sha": "35c09ff"
     },
@@ -926,7 +926,7 @@
       "source_lines": "601-625",
       "started_at": "2026-07-20T20:11:25.472608Z",
       "closed_at": "2026-07-20T20:15:42.189138Z",
-      "closed_reason": "- 13.1 span kurali sectionSpans'ta (internal/engine/sectionspan.go): L'den bir sonraki \u003c=V seviyeli basliga ya da dosya sonuna; alt basliklar dahil\n- 13.2 union: ValidateLineCoverage source_lines + cozulen source_sections span'larini birlestiriyor; 'no coverage computable' uyarisi yalniz union bos oldugunda (linecoverage.go)\n- 13.3: iki anchor'dan biri yoksa schema error (validateSchema); belirsiz/cozulmeyen entry'ler section-anchor kuraliyla warning, --strict'te error (validate.go); iki cli testi yeni davranisa uyarlandi",
+      "closed_reason": "- 13.1 span rule in sectionSpans (internal/engine/sectionspan.go): from L to the next heading of level <=V or to end of file; sub-headings included\n- 13.2 union: ValidateLineCoverage unites source_lines + the resolved source_sections spans; the 'no coverage computable' warning only when the union is empty (linecoverage.go)\n- 13.3: if one of the two anchors is missing, a schema error (validateSchema); ambiguous/unresolved entries a warning by the section-anchor rule, an error under --strict (validate.go); two cli tests were adapted to the new behavior",
       "gate_passed_at": "2026-07-20T20:15:42.189138Z",
       "commit_sha": "a9f2120"
     },
@@ -945,7 +945,7 @@
       "source_lines": "744-769",
       "started_at": "2026-07-20T20:15:52.792725Z",
       "closed_at": "2026-07-20T20:16:57.85892Z",
-      "closed_reason": "- TestSectionSpan_Derivation: span ayni-veya-ust seviye sonraki basliktan once bitiyor, son bolum EOF'a kadar, alt bolumler dahil (internal/engine/sectionspan_test.go)\n- TestLineCoverage_SectionDerived: yalniz source_sections'li gorev span'ini kapsiyor; explicit source_lines ile union dogrulandi (aradaki gap raporlaniyor)",
+      "closed_reason": "- TestSectionSpan_Derivation: the span ends before the next same-or-higher-level heading, the last section runs to EOF, sub-sections included (internal/engine/sectionspan_test.go)\n- TestLineCoverage_SectionDerived: a task with only source_sections covers its span; the union with explicit source_lines was verified (the gap in between is reported)",
       "gate_passed_at": "2026-07-20T20:16:57.85892Z",
       "commit_sha": "fba466f"
     },
@@ -962,7 +962,7 @@
       "source_lines": "628-631",
       "started_at": "2026-07-20T20:00:14.893052Z",
       "closed_at": "2026-07-20T20:02:33.024506Z",
-      "closed_reason": "- reviewFinding.Class omitempty tag'iyle eklendi (review.go:22); resolve map-tabanli oldugu icin class'i koruyor (TestFindingClass_ResolvePreservesClass); merge dedup'ta ilk bos-olmayan class kazaniyor, identity key degismedi (review_merge.go dedupEntry.class; TestFindingClass_MergePreservesAndFirstNonEmptyWins)\n- findingFormat talimati opsiyonel kebab-case class slug'ini 14.1 metniyle belgeliyor (script-checkable pattern, aksi halde omit)",
+      "closed_reason": "- reviewFinding.Class was added with an omitempty tag (review.go:22); because resolve is map-based it preserves the class (TestFindingClass_ResolvePreservesClass); in merge dedup the first non-empty class wins, the identity key did not change (review_merge.go dedupEntry.class; TestFindingClass_MergePreservesAndFirstNonEmptyWins)\n- the findingFormat instruction documents the optional kebab-case class slug with the 14.1 text (script-checkable pattern, otherwise omit)",
       "gate_passed_at": "2026-07-20T20:02:33.024506Z",
       "commit_sha": "9217bd4"
     },
@@ -982,7 +982,7 @@
       "source_lines": "632-635,636-639",
       "started_at": "2026-07-20T20:03:02.066855Z",
       "closed_at": "2026-07-20T20:05:58.785512Z",
-      "closed_reason": "- by_class kirilimi (bos-olmayan class'li satirlar; identity-key basina ilk bos-olmayan class) JSON ve TTY ciktisina eklendi (computeClassBreakdown, review_report.go)\n- mechanize_candidates: \u003e=2 farkli tur VEYA tek turda \u003e=5 kurali, populasyon --report icin arguman NDJSON'lari, total desc + alfabetik tie-break siralamasi (computeMechanizeCandidates); register hint sabiti (mechanizeRegisterHint) TTY'de basiliyor ve --record tarafinca yeniden kullanilacak",
+      "closed_reason": "- The by_class breakdown (lines with a non-empty class; the first non-empty class per identity-key) was added to the JSON and TTY output (computeClassBreakdown, review_report.go)\n- mechanize_candidates: the >=2 distinct rounds OR >=5 in a single round rule, the population is the argument NDJSONs for --report, total desc + alphabetical tie-break ordering (computeMechanizeCandidates); the register hint constant (mechanizeRegisterHint) is printed in the TTY and will be reused by the --record side",
       "gate_passed_at": "2026-07-20T20:05:58.785512Z",
       "commit_sha": "9a2003f"
     },
@@ -1001,7 +1001,7 @@
       "source_lines": "770-797",
       "started_at": "2026-07-20T20:08:38.65672Z",
       "closed_at": "2026-07-20T20:08:38.656734Z",
-      "closed_reason": "- TestReport_ByClassAndCandidates: class gruplama (bos class haric), \u003e=2-tur ve \u003e=5-tek-tur aday kurallari, total desc siralama dogrulaniyor (internal/cli/report_class_test.go); alfabetik tie-break ayri testte; suite + lint yesil",
+      "closed_reason": "- TestReport_ByClassAndCandidates: verifies class grouping (excluding empty class), the >=2-round and >=5-single-round candidate rules, total desc ordering (internal/cli/report_class_test.go); the alphabetical tie-break is in a separate test; suite + lint green",
       "gate_passed_at": "2026-07-20T20:08:38.656734Z",
       "commit_sha": "0315405"
     },
@@ -1022,7 +1022,7 @@
       "source_lines": "644-647,648-651",
       "started_at": "2026-07-20T20:08:58.002567Z",
       "closed_at": "2026-07-20T20:11:04.512051Z",
-      "closed_reason": "- checks='\u003cjson-array\u003e' tam liste degistirme semantigiyle yaziliyor (set.go checks dali; TestSetWorkflowChecks_ReplaceAndValidate replace alt testi)\n- engine.ValidateChecks: anchored ^[a-z0-9]+(-[a-z0-9]+)*$ slug, dizide teklik, bos olmayan cmd; ihlalde exit 1 ve suclu index adlandiriliyor (checks[N] formati, testte 3 vaka)",
+      "closed_reason": "- checks='<json-array>' is written with full-list replacement semantics (set.go checks branch; TestSetWorkflowChecks_ReplaceAndValidate replace sub-test)\n- engine.ValidateChecks: anchored ^[a-z0-9]+(-[a-z0-9]+)*$ slug, uniqueness in the array, non-empty cmd; on violation exit 1 and the offending index is named (checks[N] format, 3 cases in the test)",
       "gate_passed_at": "2026-07-20T20:11:04.512051Z",
       "commit_sha": "55d6756"
     },
@@ -1044,7 +1044,7 @@
       "source_lines": "652-655,660-663",
       "started_at": "2026-07-20T21:13:44.356781Z",
       "closed_at": "2026-07-20T21:16:07.381923Z",
-      "closed_reason": "- Checkler default review modunda prompt uretiminden once sirayla kosuyor (8.6 cozumlu workflow, cozumlu gate_timeout, cwd = task dosyasi dizini; runMechanicalChecks paylasilan yardimci); workflow-türevli olduklari icin --no-state altinda da kosup exclusion emit ediyorlar (TestChecksExecution_RunsUnderNoState); regression perspektifi geldiginde ayni yardimciyi kullanacak\n- mechanical_checks cikti alani {class, cmd, passed, exit_code} + yalniz basarisizlarda output_tail (son 20 satir); hatalar uretimi durdurmuyor (TestChecksExecution_PromptExclusion); gecersiz entry exec sirasinda info ile atlaniyor, tp validate warning veriyor (validateConvergence'a ValidateChecks eklendi)\n- 15.5 exclusion blogu her prompt'ta class listesiyle, instruction 'fix those failures before spawning sub-agents' ekliyor; 15.4 --status --check entegrasyonu onceki gorevde (TestReviewStatus_Check)",
+      "closed_reason": "- The checks run in order before prompt generation in the default review mode (8.6-resolved workflow, resolved gate_timeout, cwd = task-file dir; runMechanicalChecks shared helper); because they are workflow-derived they also run under --no-state and emit an exclusion (TestChecksExecution_RunsUnderNoState); when the regression perspective arrives it will use the same helper\n- The mechanical_checks output field {class, cmd, passed, exit_code} + output_tail only on failures (last 20 lines); failures do not stop generation (TestChecksExecution_PromptExclusion); an invalid entry is skipped with an info during exec, tp validate gives a warning (ValidateChecks was added to validateConvergence)\n- The 15.5 exclusion block on every prompt with the class list, the instruction adds 'fix those failures before spawning sub-agents'; the 15.4 --status --check integration is in a previous task (TestReviewStatus_Check)",
       "gate_passed_at": "2026-07-20T21:16:07.381923Z",
       "commit_sha": "d3569a5"
     },
@@ -1063,7 +1063,7 @@
       "source_lines": "770-797",
       "started_at": "2026-07-20T21:20:03.198045Z",
       "closed_at": "2026-07-20T21:21:31.749029Z",
-      "closed_reason": "- TestWorkflowChecks_Validation: gecersiz slug, duplicate class, bos cmd her biri index adiyla reddediliyor (internal/engine/checks_named_test.go)\n- TestValidate_GateTimeoutRange: 9999 degeri validate warning uretiyor, EffectiveGateTimeoutSeconds 600'e dusuyor; TestChecksExecution_PromptExclusion onceki gorevden mevcut (internal/cli/checks_execution_test.go)",
+      "closed_reason": "- TestWorkflowChecks_Validation: an invalid slug, duplicate class, empty cmd are each rejected with the index name (internal/engine/checks_named_test.go)\n- TestValidate_GateTimeoutRange: the value 9999 produces a validate warning, EffectiveGateTimeoutSeconds falls back to 600; TestChecksExecution_PromptExclusion exists from a previous task (internal/cli/checks_execution_test.go)",
       "gate_passed_at": "2026-07-20T21:21:31.749029Z",
       "commit_sha": "933a4d3"
     },
@@ -1085,7 +1085,7 @@
       "source_lines": "798-805",
       "started_at": "2026-07-20T22:06:22.72575Z",
       "closed_at": "2026-07-20T22:15:12.611557Z",
-      "closed_reason": "- TestAudit_FullShape: kucuk spec uzerinde uctan uca, JSON'da 3 rol-etiketli prompt + her prompt'ta prompt/checklist_items/affected_files zorunlu alanlari, item'larda expected_evidence hicbir zaman bos (internal/cli/integration_test.go)\n- TestAudit_FileFilterCap: 50 dosya -\u003e security\u003c=20, maintainability\u003c=10; TestAudit_NoLegacyCategoryField: audit JSON'da category anahtari yok\n- TestSelfLoop_ReviewToImport: lint -\u003e init -\u003e review -\u003e dirty round -\u003e import exit 1 -\u003e 2 clean round -\u003e import success -\u003e spec edit -\u003e import stale exit 1 (importcmd sira duzeltmesi b5d8404 ile calisiyor); TestGateLoop_EndToEnd: gate fail bloke, gate pass gate_passed_at damgasi, --skip-gate reason kaydi",
+      "closed_reason": "- TestAudit_FullShape: end-to-end over a small spec, 3 role-labeled prompts in the JSON + the required prompt/checklist_items/affected_files fields on every prompt, expected_evidence never empty on the items (internal/cli/integration_test.go)\n- TestAudit_FileFilterCap: 50 files -> security<=20, maintainability<=10; TestAudit_NoLegacyCategoryField: no category key in the audit JSON\n- TestSelfLoop_ReviewToImport: lint -> init -> review -> dirty round -> import exit 1 -> 2 clean rounds -> import success -> spec edit -> import stale exit 1 (the importcmd ordering fix works via b5d8404); TestGateLoop_EndToEnd: gate fail blocks, gate pass gate_passed_at stamp, --skip-gate reason record",
       "gate_passed_at": "2026-07-20T22:15:12.611557Z",
       "commit_sha": "6af4a79"
     },
@@ -1104,7 +1104,7 @@
       "source_lines": "664-682",
       "started_at": "2026-07-20T22:15:26.043513Z",
       "closed_at": "2026-07-20T22:19:23.435673Z",
-      "closed_reason": "- 16. bolumun 12 maddesi SKILL.md'ye islendi (skills/tp/SKILL.md): Workflow A sirasi (interview -\u003e lint -\u003e init --quality-gate -\u003e set --workflow budgets/checks -\u003e review -\u003e decompose -\u003e plain import), review loop recipe (merge -\u003e record -\u003e resolve -\u003e \u003e3 bolumde regression delta pass -\u003e --status --check exit 0), closure rule 5 silindi + evidence-line format, gate otomatik + --skip-gate/budget escalation kullanici onayi, Workflow B'de --gate-passed dustu + otomatik gate notu, audit loop --record/--status --check\n- Migration to v0.23.0 audit bolumu (17 semasi kirilimi), frontmatter domain/lens rehberi, class/checks rehberi + mechanize candidate, decomposition rule 4 (source_sections zorunlu, source_lines opsiyonel), .tp-review/ state dizini rehberi (VC'ye commit, prunable, CI implikasyonu), tail protocol (--verify wontfix + class-sweep) — hepsi eklendi",
+      "closed_reason": "- The 12 items of section 16 were incorporated into SKILL.md (skills/tp/SKILL.md): Workflow A order (interview -> lint -> init --quality-gate -> set --workflow budgets/checks -> review -> decompose -> plain import), review loop recipe (merge -> record -> resolve -> regression delta pass in >3 sections -> --status --check exit 0), closure rule 5 was deleted + evidence-line format, gate automatic + --skip-gate/budget escalation user approval, --gate-passed was dropped in Workflow B + automatic gate note, audit loop --record/--status --check\n- Migration to v0.23.0 audit section (the 17 schema breakdown), frontmatter domain/lens guide, class/checks guide + mechanize candidate, decomposition rule 4 (source_sections required, source_lines optional), .tp-review/ state directory guide (commit to VC, prunable, CI implication), tail protocol (--verify wontfix + class-sweep) - all added",
       "gate_passed_at": "2026-07-20T22:19:23.435673Z",
       "commit_sha": "f747c35"
     },
@@ -1124,7 +1124,7 @@
       "source_lines": "664-682,683-720",
       "started_at": "2026-07-20T22:19:42.587327Z",
       "closed_at": "2026-07-20T22:25:14.313904Z",
-      "closed_reason": "- REFERENCE.md yeni bayrak/alan/formatlari belgeliyor: --skip-gate, tam workflow alanlari tablosu (gate_timeout_seconds/review-audit_max_rounds/checks), review --record/--status/--check/--perspective regression/--no-state, audit --record/--status/--check, .tp-review/ state dizini semasi, tp: frontmatter, finding class + report, NDJSON skip_gate; 17 semasi kirilim tablosu Audit JSON Schema bolumunde\n- README.md komut tablolari + Closure Verification (evidence-line format) + otomatik gate bolumu + audit 3-rol/NDJSON + round-memory review akisi guncellendi; CLAUDE.md self-dev akisi (init --quality-gate -\u003e set --workflow -\u003e review loop -\u003e plain import), source_sections zorunlu kurali, otomatik gate + user-approval eskalasyon kurali, workflow alanlari + gate_skipped_reason managed, .tp-review VC kurali; artik-uygulanmis eski fikirler listeden temizlendi",
+      "closed_reason": "- REFERENCE.md documents the new flags/fields/formats: --skip-gate, the full workflow-fields table (gate_timeout_seconds/review-audit_max_rounds/checks), review --record/--status/--check/--perspective regression/--no-state, audit --record/--status/--check, the .tp-review/ state directory schema, tp: frontmatter, finding class + report, NDJSON skip_gate; the 17 schema breakdown table is in the Audit JSON Schema section\n- README.md command tables + Closure Verification (evidence-line format) + automatic gate section + audit 3-role/NDJSON + round-memory review flow were updated; CLAUDE.md self-dev flow (init --quality-gate -> set --workflow -> review loop -> plain import), the source_sections required rule, the automatic gate + user-approval escalation rule, workflow fields + gate_skipped_reason managed, .tp-review VC rule; already-implemented old ideas were cleaned from the list",
       "gate_passed_at": "2026-07-20T22:25:14.313904Z",
       "commit_sha": "b74556c"
     }
