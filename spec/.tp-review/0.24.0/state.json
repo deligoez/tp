@@ -50,5 +50,14 @@
       "spec_hash": "sha256:4fbc63fcd39817f5845fb297cc8d2c9c681ada39c72b2fdf1e9d6a825eca1ab8"
     }
   ],
-  "audit_rounds": []
+  "audit_rounds": [
+    {
+      "round": 1,
+      "findings": 16,
+      "clean": false,
+      "recorded_at": "2026-07-21T11:59:28Z",
+      "file": "audit-round-1.ndjson",
+      "spec_hash": "sha256:4fbc63fcd39817f5845fb297cc8d2c9c681ada39c72b2fdf1e9d6a825eca1ab8"
+    }
+  ]
 }
