@@ -46,24 +46,47 @@ func runUse(_ *cobra.Command, args []string) error {
 	}
 
 	if len(args) == 0 {
-		// Show current active file
-		data, err := os.ReadFile(tpActiveFile)
-		if err != nil {
-			if os.IsNotExist(err) {
-				return output.JSON(map[string]any{"active_file": nil})
-			}
-			output.Error(ExitFile, fmt.Sprintf("cannot read %s: %v", tpActiveFile, err))
-			os.Exit(ExitFile)
-			return nil
-		}
-		path := strings.TrimSpace(string(data))
-		if path == "" {
-			return output.JSON(map[string]any{"active_file": nil})
-		}
-		return output.JSON(map[string]any{"active_file": path})
+		return showActiveFile()
 	}
 
 	return setActiveFile(args[0])
+}
+
+// showActiveFile prints the resolved active task file and the discovery-chain
+// rank that supplied it: cli (--file), env (TP_FILE), local (.tp/local.json),
+// legacy (.tp-active, deprecated — removed in v0.25.0), or autodetect.
+// resolvedActiveSource walks the discovery chain and returns the resolved
+// active task file and the rank that supplied it (cli/env/local/legacy/
+// autodetect), or ("", "") when nothing resolves.
+func resolvedActiveSource() (path, source string) {
+	if flagFile != "" {
+		return flagFile, "cli"
+	}
+	if env := os.Getenv("TP_FILE"); env != "" {
+		return env, "env"
+	}
+	if active := engine.ResolveLocalActive("."); active != "" {
+		if _, err := os.Stat(active); err == nil {
+			return active, "local"
+		}
+	}
+	if data, err := os.ReadFile(tpActiveFile); err == nil {
+		if legacy := strings.TrimSpace(string(data)); legacy != "" {
+			return legacy, "legacy"
+		}
+	}
+	if p, err := engine.DiscoverTaskFile(".", ""); err == nil {
+		return p, "autodetect"
+	}
+	return "", ""
+}
+
+func showActiveFile() error {
+	path, source := resolvedActiveSource()
+	if path == "" {
+		return output.JSON(map[string]any{"active_file": nil, "source": nil})
+	}
+	return output.JSON(map[string]any{"active_file": path, "source": source})
 }
 
 // clearActiveFile removes the active pointer from .tp/local.json and any

@@ -48,3 +48,25 @@ func TestClearActiveFile_RemovesActiveKeepsDefaultsDropsLegacy(t *testing.T) {
 
 	require.NoError(t, clearActiveFile(), "clearing again is a no-op")
 }
+
+func TestResolvedActiveSource_ReportsLocalRank(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".tp"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "x.tasks.json"), []byte("{}"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".tp", "local.json"),
+		[]byte(`{"active":"x.tasks.json"}`), 0o600))
+	t.Chdir(root)
+
+	path, source := resolvedActiveSource()
+	assert.Equal(t, "local", source, "an active pointer from .tp/local.json reports the local rank")
+	assert.Equal(t, evalCLI(t, filepath.Join(root, "x.tasks.json")), evalCLI(t, path))
+}
+
+func evalCLI(t *testing.T, p string) string {
+	t.Helper()
+	r, err := filepath.EvalSymlinks(p)
+	require.NoError(t, err)
+	return r
+}
+
