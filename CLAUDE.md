@@ -44,7 +44,7 @@ golangci-lint run
 # Quality gate (run after every task)
 go test ./... && golangci-lint run
 
-# Stripped binary (production, <5MB)
+# Stripped binary (production, <10MB)
 go build -ldflags="-s -w" -o tp ./cmd/tp
 ```
 
