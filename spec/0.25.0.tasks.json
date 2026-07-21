@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.25.0.md",
   "created_at": "2026-07-21T19:43:58.426848Z",
-  "updated_at": "2026-07-21T20:47:46.019052Z",
+  "updated_at": "2026-07-21T20:54:28.788576Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2,
@@ -536,7 +536,7 @@
     {
       "id": "remove-tpactive-discovery",
       "title": "Remove tp-active discovery fallback",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -546,11 +546,11 @@
       "source_sections": [
         "## 11. `.tp-active` Removal (breaking)"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T20:54:28.750826Z",
+      "closed_at": "2026-07-21T20:54:28.788572Z",
+      "closed_reason": "- Removed the .tp-active read and its deprecation warning from the discovery chain: engine/discover.go dropped readTPActive and the marker block; cli/use.go resolvedActiveSource dropped its legacy branch (the leftover-cleanup in clearActiveFile and the const remain for migration).\n- Discovery precedence is now --file \u003e TP_FILE \u003e .tp/local.json active \u003e auto-detect, reflected in the DiscoverTaskFile/ResolveWorkflow/use help doc comments (engine/discover.go, engine/workflow_resolve.go, cli/use.go).\n- engine/discover_test.go TestDiscoverTaskFile_PrecedenceAndTPActiveIgnored asserts the full precedence order and that a real .tp-active is never consulted; engine/backcompat_test.go was updated so a leftover .tp-active is ignored and discovery falls through to auto-detect.",
+      "gate_passed_at": "2026-07-21T20:54:28.788572Z",
+      "commit_sha": "6f7c146"
     },
     {
       "id": "remove-tpactive-gitignore",
