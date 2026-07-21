@@ -50,12 +50,12 @@ func TestReviewMergeTwoFilesDedup(t *testing.T) {
 	dir := t.TempDir()
 
 	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{
-		`{"severity":"low","category":"ambiguity","location":"## API","finding":"unclear endpoint","suggestion":"specify path"}`,
+		`{"severity":"low","category":"ambiguity","class":"ambiguity","location":"## API","finding":"unclear endpoint","suggestion":"specify path"}`,
 		`{"severity":"high","category":"completeness","location":"## Models","finding":"missing field validation","suggestion":"add validation"}`,
 	})
 	f2 := writeFindingsFile(t, dir, "f2.ndjson", []string{
 		// Duplicate of f1 line 1 but with higher severity
-		`{"severity":"high","category":"ambiguity","location":"## API","finding":"unclear endpoint","suggestion":"be more specific"}`,
+		`{"severity":"high","category":"ambiguity","class":"ambiguity","location":"## API","finding":"unclear endpoint","suggestion":"be more specific"}`,
 		`{"severity":"medium","category":"consistency","location":"## Tests","finding":"test naming inconsistent","suggestion":"use convention"}`,
 	})
 
@@ -133,10 +133,10 @@ func TestReviewMergeSingleFileNormalize(t *testing.T) {
 	dir := t.TempDir()
 
 	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{
-		`{"severity":"low","category":"zzz","location":"## A","finding":"finding one","suggestion":"fix"}`,
+		`{"severity":"low","category":"zzz","class":"redundancy","location":"## A","finding":"finding one","suggestion":"fix"}`,
 		`{"severity":"high","category":"aaa","location":"## B","finding":"finding two","suggestion":"fix"}`,
 		// Duplicate of first
-		`{"severity":"medium","category":"zzz","location":"## A","finding":"finding one","suggestion":"different suggestion"}`,
+		`{"severity":"medium","category":"zzz","class":"redundancy","location":"## A","finding":"finding one","suggestion":"different suggestion"}`,
 	})
 
 	stdout, stderr, code := runTPMerge(t, dir, "review", "--merge", f1)
@@ -239,4 +239,68 @@ func parseNDJSON(t *testing.T, s string) []map[string]any {
 		results = append(results, m)
 	}
 	return results
+}
+
+// TestReviewMergeClustersByLocationClass covers the new (location key, class)
+// clustering: findings sharing a §-token key and class merge into one cluster
+// whose representative is the highest-severity member, annotated with found_by
+// and found_by_roles (§8.1, §8.4).
+func TestReviewMergeClustersByLocationClass(t *testing.T) {
+	dir := t.TempDir()
+	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{
+		`{"severity":"high","role":"implementer","class":"dedup-gap","location":"§8.2 detail","finding":"empty key collapses"}`,
+		`{"severity":"low","role":"tester","class":"dedup-gap","location":"§8.2 other words","finding":"same cluster paraphrase"}`,
+		`{"severity":"medium","role":"architect","class":"attribution","location":"§8.2 yet more","finding":"different class stays apart"}`,
+	})
+	stdout, stderr, code := runTPMerge(t, dir, "review", "--merge", f1)
+	require.Equal(t, 0, code, "merge failed: %s", stderr)
+
+	lines := parseNDJSON(t, stdout)
+	require.Len(t, lines, 2, "§8.2+dedup-gap clusters into one; the attribution class stays apart")
+
+	var clustered map[string]any
+	for _, l := range lines {
+		if l["class"] == "dedup-gap" {
+			clustered = l
+		}
+	}
+	require.NotNil(t, clustered, "the dedup-gap cluster is emitted")
+	assert.Equal(t, "high", clustered["severity"], "representative is the highest-severity member")
+	assert.Equal(t, "empty key collapses", clustered["finding"], "representative row is emitted verbatim")
+	assert.Equal(t, float64(2), clustered["found_by"])
+	roles, ok := clustered["found_by_roles"].([]any)
+	require.True(t, ok, "found_by_roles is present for a multi-role cluster")
+	assert.ElementsMatch(t, []any{"implementer", "tester"}, roles)
+}
+
+// TestReviewMergeAbsentClassNotMerged confirms findings without a class are never
+// merged: each is its own singleton (§8.3), so an empty class cannot collapse
+// unrelated findings even at the same location.
+func TestReviewMergeAbsentClassNotMerged(t *testing.T) {
+	dir := t.TempDir()
+	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{
+		`{"severity":"high","role":"implementer","location":"§8.2","finding":"first no-class finding"}`,
+		`{"severity":"high","role":"tester","location":"§8.2","finding":"second no-class finding"}`,
+	})
+	stdout, stderr, code := runTPMerge(t, dir, "review", "--merge", f1)
+	require.Equal(t, 0, code, "merge failed: %s", stderr)
+
+	lines := parseNDJSON(t, stdout)
+	assert.Len(t, lines, 2, "absent class -> each finding is its own cluster, never merged")
+	for _, l := range lines {
+		assert.Equal(t, float64(1), l["found_by"], "each singleton has its one diversity role")
+	}
+}
+
+// TestReviewMergeAuditRecordUntouched confirms clustering is review-only: tp audit
+// --record still counts every non-PASS row, so two FAIL rows sharing a location
+// and class remain two findings (§8.1).
+func TestReviewMergeAuditRecordUntouched(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
+	out, stderr, code := auditRecord(t, dir,
+		`{"id":"a","status":"FAIL","class":"security-gap","location":"§3.2"}`+"\n"+
+			`{"id":"b","status":"FAIL","class":"security-gap","location":"§3.2"}`+"\n")
+	require.Equal(t, 0, code, "record failed: %s", stderr)
+	assert.Equal(t, float64(2), out["findings"], "audit --record counts each non-PASS row without clustering")
 }

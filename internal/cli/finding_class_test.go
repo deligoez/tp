@@ -11,14 +11,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestFindingClass_MergePreservesAndFirstNonEmptyWins(t *testing.T) {
+func TestFindingClass_MergeClustersSameClassKeepsHighestSeverity(t *testing.T) {
 	dir := t.TempDir()
 
-	// Same identity key (category+location+finding); r1 row has no class,
-	// r2 duplicate carries one, r2 second row keeps its own class.
+	// Two findings share a (location key, class) and so cluster (§8.3); the
+	// representative is the highest-severity member. A finding with a distinct
+	// class is its own cluster and keeps its class.
 	r1 := filepath.Join(dir, "r1.ndjson")
 	require.NoError(t, os.WriteFile(r1, []byte(
-		`{"severity":"low","category":"consistency","location":"L1","finding":"dup finding","suggestion":"fix"}`+"\n"), 0o600))
+		`{"severity":"low","category":"consistency","location":"L1","finding":"dup finding","suggestion":"fix","class":"code-citation-drift"}`+"\n"), 0o600))
 	r2 := filepath.Join(dir, "r2.ndjson")
 	require.NoError(t, os.WriteFile(r2, []byte(
 		`{"severity":"high","category":"consistency","location":"L1","finding":"dup finding","suggestion":"fix","class":"code-citation-drift"}`+"\n"+
@@ -39,14 +40,14 @@ func TestFindingClass_MergePreservesAndFirstNonEmptyWins(t *testing.T) {
 	}
 	require.Len(t, byFinding, 2)
 
-	// Dedup kept high severity from r2; class is the first non-empty in
-	// merge order (r2's, since r1's row had none).
+	// The cluster's representative kept the high-severity member; all cluster
+	// members share the class by construction (it is part of the cluster key).
 	dup := byFinding["dup finding"]
 	assert.Equal(t, "high", dup["severity"])
 	assert.Equal(t, "code-citation-drift", dup["class"])
 
 	solo := byFinding["solo finding"]
-	assert.Equal(t, "vague-wording", solo["class"], "merge preserves class on non-dedup rows")
+	assert.Equal(t, "vague-wording", solo["class"], "a distinct-class finding is its own cluster and keeps its class")
 }
 
 func TestFindingClass_ResolvePreservesClass(t *testing.T) {

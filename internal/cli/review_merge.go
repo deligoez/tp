@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/deligoez/tp/internal/engine"
 	"github.com/deligoez/tp/internal/output"
 )
 
@@ -75,72 +76,42 @@ func runReviewMerge(args []string, outputPath string) error {
 		return nil
 	}
 
-	// Deduplicate: keep highest severity for each identity key
-	sevRank := map[string]int{"critical": 0, "high": 1, "medium": 2, "low": 3}
-	getSevRank := func(s string) int {
-		if r, ok := sevRank[s]; ok {
-			return r
-		}
-		return 4 // unknown
+	// Cluster review findings by (location key, class) per §8. Each cluster's
+	// representative (§8.4) supplies the emitted row, annotated with its cluster's
+	// found_by attribution so the per-role overlap report can be derived from the
+	// merged findings alone.
+	cfs := make([]engine.ClusterFinding, len(allFindings))
+	for i, f := range allFindings {
+		cfs[i] = clusterFindingFromRow(f)
 	}
+	clusters := engine.ClusterFindings(cfs)
 
-	type dedupEntry struct {
-		key     string
-		finding map[string]any
-		rank    int
-		class   string // first non-empty class in merge order
-	}
-
-	seen := make(map[string]*dedupEntry)
-	order := make([]string, 0)
-
-	for _, f := range allFindings {
-		category, _ := f["category"].(string)
-		location, _ := f["location"].(string)
-		findingText, _ := f["finding"].(string)
-
-		key := findingIdentityKey(category, location, findingText)
-		sev, _ := f["severity"].(string)
-		rank := getSevRank(sev)
-		class, _ := f["class"].(string)
-
-		if existing, exists := seen[key]; exists {
-			if existing.class == "" && class != "" {
-				existing.class = class
-			}
-			// Keep the one with highest severity (lower rank = higher severity)
-			if rank < existing.rank {
-				existing.finding = f
-				existing.rank = rank
-			}
+	unique := make([]map[string]any, 0, len(clusters))
+	for _, c := range clusters {
+		rep := c.Representative(cfs)
+		row := allFindings[rep]
+		roles, count := c.Attribution(cfs)
+		row["found_by"] = count
+		if count > 0 {
+			row["found_by_roles"] = roles
 		} else {
-			seen[key] = &dedupEntry{key: key, finding: f, rank: rank, class: class}
-			order = append(order, key)
+			delete(row, "found_by_roles")
 		}
+		unique = append(unique, row)
 	}
 
-	// Collect unique findings; on class disagreement within a dedup group,
-	// the first non-empty value in merge order wins
-	unique := make([]map[string]any, 0, len(seen))
-	for _, key := range order {
-		e := seen[key]
-		delete(e.finding, "class")
-		if e.class != "" {
-			e.finding["class"] = e.class
-		}
-		unique = append(unique, e.finding)
-	}
-
-	// Sort by severity (critical first), then category alphabetically
+	// Deterministic output order: highest severity, then location, then finding.
 	sort.SliceStable(unique, func(i, j int) bool {
-		si := getSevRank(unique[i]["severity"].(string))
-		sj := getSevRank(unique[j]["severity"].(string))
+		si := engine.SeverityRank(asString(unique[i]["severity"]))
+		sj := engine.SeverityRank(asString(unique[j]["severity"]))
 		if si != sj {
 			return si < sj
 		}
-		ci, _ := unique[i]["category"].(string)
-		cj, _ := unique[j]["category"].(string)
-		return ci < cj
+		li, lj := asString(unique[i]["location"]), asString(unique[j]["location"])
+		if li != lj {
+			return li < lj
+		}
+		return asString(unique[i]["finding"]) < asString(unique[j]["finding"])
 	})
 
 	// Build NDJSON output
@@ -166,10 +137,10 @@ func runReviewMerge(args []string, outputPath string) error {
 
 	// Build JSON summary
 	summary := map[string]any{
-		"merged_count":      len(unique),
-		"input_files":       totalFiles,
+		"merged_count":       len(unique),
+		"input_files":        totalFiles,
 		"duplicates_removed": duplicatesRemoved,
-		"by_severity":       bySeverity,
+		"by_severity":        bySeverity,
 	}
 
 	// Write output based on mode
@@ -199,4 +170,23 @@ func runReviewMerge(args []string, outputPath string) error {
 		len(unique), totalFiles, duplicatesRemoved)
 
 	return nil
+}
+
+// clusterFindingFromRow projects an NDJSON finding row onto the fields the
+// clustering and attribution machinery reads (§8).
+func clusterFindingFromRow(f map[string]any) engine.ClusterFinding {
+	return engine.ClusterFinding{
+		Location: asString(f["location"]),
+		Class:    asString(f["class"]),
+		Role:     asString(f["role"]),
+		Severity: asString(f["severity"]),
+		Finding:  asString(f["finding"]),
+	}
+}
+
+// asString returns the string value of a decoded JSON field, or "" when the key
+// is absent or not a string.
+func asString(v any) string {
+	s, _ := v.(string)
+	return s
 }
