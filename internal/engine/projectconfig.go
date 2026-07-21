@@ -30,6 +30,25 @@ func clampWorkflowRanges(wo *model.WorkflowOverride) []string {
 	return warnings
 }
 
+// MalformedConfigError signals a corrupt config file (unreadable, not valid
+// JSON, or a non-object top-level value) that must not be silently ignored: the
+// reading command aborts with exit 3 and this repair-or-delete hint.
+type MalformedConfigError struct {
+	Path string
+	Err  error
+}
+
+func (e *MalformedConfigError) Error() string {
+	return fmt.Sprintf("malformed config %s: %v", e.Path, e.Err)
+}
+
+// Hint returns the actionable repair-or-delete hint for the error shape.
+func (e *MalformedConfigError) Hint() string {
+	return fmt.Sprintf("repair or delete %s", e.Path)
+}
+
+func (e *MalformedConfigError) Unwrap() error { return e.Err }
+
 // knownWorkflowKeys is the set of recognized keys inside a config workflow block.
 var knownWorkflowKeys = map[string]bool{
 	"quality_gate": true, "gate_timeout_seconds": true,
@@ -96,16 +115,17 @@ func parseWorkflowOverride(raw json.RawMessage) (wo model.WorkflowOverride, warn
 // presence-tracked, so an absent key stays distinct from an explicit zero.
 func LoadProjectConfig(tpDir string) (model.ProjectConfig, []string, error) {
 	var pc model.ProjectConfig
-	data, err := os.ReadFile(filepath.Join(tpDir, "config.json"))
+	path := filepath.Join(tpDir, "config.json")
+	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return pc, nil, nil
 		}
-		return pc, nil, err
+		return pc, nil, &MalformedConfigError{Path: path, Err: err}
 	}
 	var top map[string]json.RawMessage
 	if err := json.Unmarshal(data, &top); err != nil {
-		return pc, nil, err
+		return pc, nil, &MalformedConfigError{Path: path, Err: err}
 	}
 	var warnings []string
 	for k := range top {
@@ -128,16 +148,17 @@ func LoadProjectConfig(tpDir string) (model.ProjectConfig, []string, error) {
 // defaults), which are ignored. A missing file returns an empty LocalConfig.
 func LoadLocalConfig(tpDir string) (model.LocalConfig, []string, error) {
 	var lc model.LocalConfig
-	data, err := os.ReadFile(filepath.Join(tpDir, "local.json"))
+	path := filepath.Join(tpDir, "local.json")
+	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return lc, nil, nil
 		}
-		return lc, nil, err
+		return lc, nil, &MalformedConfigError{Path: path, Err: err}
 	}
 	var top map[string]json.RawMessage
 	if err := json.Unmarshal(data, &top); err != nil {
-		return lc, nil, err
+		return lc, nil, &MalformedConfigError{Path: path, Err: err}
 	}
 	var warnings []string
 	for k := range top {

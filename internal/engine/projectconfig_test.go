@@ -196,3 +196,31 @@ func TestLoadProjectConfig_OutOfRangeFallsBack(t *testing.T) {
 	assert.Contains(t, warns, "workflow.gate_timeout_seconds: 5 is out of range [30,3600], using the built-in default")
 	assert.Contains(t, warns, "workflow.review_clean_rounds: 99 is out of range [1,10], using the built-in default")
 }
+
+func TestLoadProjectConfig_MalformedAborts(t *testing.T) {
+	for name, body := range map[string]string{
+		"empty":            "",
+		"whitespace":       "   \n",
+		"top-level array":  "[]",
+		"top-level number": "42",
+		"invalid json":     "{not json",
+	} {
+		t.Run(name, func(t *testing.T) {
+			tp := t.TempDir()
+			require.NoError(t, os.WriteFile(filepath.Join(tp, "config.json"), []byte(body), 0o600))
+			_, _, err := LoadProjectConfig(tp)
+			var mce *MalformedConfigError
+			require.ErrorAs(t, err, &mce, "a malformed config must be a MalformedConfigError")
+			assert.Contains(t, mce.Hint(), "repair or delete")
+		})
+	}
+}
+
+func TestLoadProjectConfig_EmptyObjectIsValid(t *testing.T) {
+	tp := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tp, "config.json"), []byte("{}"), 0o600))
+	pc, warns, err := LoadProjectConfig(tp)
+	require.NoError(t, err)
+	assert.Empty(t, warns)
+	assert.True(t, pc.Workflow.IsEmpty())
+}
