@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.25.0.md",
   "created_at": "2026-07-21T19:43:58.426848Z",
-  "updated_at": "2026-07-21T22:54:44.039739Z",
+  "updated_at": "2026-07-21T22:57:39.757614Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2,
@@ -622,7 +622,7 @@
     {
       "id": "test-migration-backcompat",
       "title": "Test migration back-compat paths",
-      "status": "open",
+      "status": "done",
       "tags": [
         "test"
       ],
@@ -636,11 +636,11 @@
       "source_sections": [
         "## 13. Migration"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T22:57:39.714368Z",
+      "closed_at": "2026-07-21T22:57:39.757611Z",
+      "closed_reason": "- internal/cli/migration_test.go TestMigration_NoRoleFilesIdenticalPanel verifies a project with no role files runs the embedded default panel — software keeps implementer/tester/architect and the only visible change is the prose default becoming the two prose lenses (coherence/soundness).\n- TestMigration_PreV0250RoundCarriesForward hand-writes a pre-v0.25.0 state.json round with no stored role hash and, even with a differing current corpus, asserts roles_stale is false and consecutive_clean carries forward (§9.4).\n- TestMigration_TPActiveNeedsNoAction verifies a leftover .tp-active is ignored and discovery uses the v0.24.0-migrated .tp/local.json pointer (source \"local\"), so the removal requires no user action.",
+      "gate_passed_at": "2026-07-21T22:57:39.757611Z",
+      "commit_sha": "8e8495e"
     },
     {
       "id": "skill-authoring-guidance",
