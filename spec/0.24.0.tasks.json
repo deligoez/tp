@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.24.0.md",
   "created_at": "2026-07-21T09:33:07.313Z",
-  "updated_at": "2026-07-21T11:42:51.496665Z",
+  "updated_at": "2026-07-21T11:42:53.523586Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -718,7 +718,7 @@
     {
       "id": "cfg-extract-force",
       "title": "Force merge into config",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cfg-extract-dryrun"
       ],
@@ -727,11 +727,11 @@
       "source_sections": [
         "## 11. Migration and backward compatibility"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T11:42:51.503169Z",
+      "closed_at": "2026-07-21T11:42:53.523586Z",
+      "closed_reason": "- tp config --extract refuses when .tp/config.json already exists with exit 4 unless --force (verified)\n- --force merges the hoisted fields into the existing workflow block by overwriting only the hoisted keys while preserving other hand-set project fields (verified: audit_max_rounds preserved)\n- --force governs only the existing-config refusal and never bypasses the dirty-tree gate (verified: force+dirty exits 4)",
+      "gate_passed_at": "2026-07-21T11:42:53.523586Z",
+      "commit_sha": "4a95b56"
     },
     {
       "id": "cfg-backcompat-zeroconfig",
