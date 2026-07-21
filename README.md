@@ -442,25 +442,52 @@ tp set --workflow checks='[{"class":"code-citation-drift","cmd":"scripts/check-c
 
 tp then runs every registered check at the start of each review round, reports pass/fail under `mechanical_checks`, and tells reviewers to stop hand-reporting that class. `tp review --status --check` exits 0 only when the review is converged **and** every check passes. (`checks` uses replace semantics — one `tp set --workflow` call sets the whole array.)
 
-### Spec frontmatter (`tp:` domain & lens)
+### Spec frontmatter (`tp:` domain & role overrides)
 
 A spec can open with a YAML frontmatter block; tp reads only the `tp:` mapping (line numbers stay absolute, and the block is excluded from every parser):
 
 ```yaml
 ---
 tp:
-  domain: prose          # default "software"; only "software" enables software-specific prompts
-  lens:
-    all: ["Does any chapter summary leak a plot point ahead of its chapter?"]
-    implementer: ["Can each section be written without inventing facts not in the outline?"]
-    tester: []
-    architect: []
+  domain: prose          # default "software"; selects & filters the role corpus (see Role Corpus)
+  review_roles:          # append focus questions to an existing reviewer role
+    implementer:
+      focus:
+        - "Can each section be written without inventing facts not in the outline?"
+  audit_roles:           # same, for an auditor role
+    spec-coverage:
+      focus:
+        - "Is every outline element present and fully developed?"
 ---
 ```
 
-- A non-`software` `domain` swaps the three review personas and drops the software-specific questions (error-handling, backward-compatibility, performance) — so `tp review` fits prose, legal, or research specs.
-- `lens` questions inject into the matching role (`all` goes to every role plus the regression pass). `tp lint` reports a `frontmatter` object and warns on malformed YAML or unknown lens keys (which are ignored).
-- `tp audit` keeps its three fixed roles regardless of `domain`.
+- `domain` no longer swaps Go personas; it **selects the embedded default corpus** (`software` → implementer/tester/architect; `prose` → the leaner coherence/soundness panel) and **filters** a user corpus by each role's `domains`. An unknown domain falls back to `software` with a lint warning.
+- `tp.review_roles` / `tp.audit_roles` are **additive overrides**: each maps a role id to `{focus: [...]}` whose questions are appended to that role's corpus focus (project focus first). An override id matching no active role is ignored with a lint warning; the built-in `regression` role accepts no overrides. New roles are files, not frontmatter.
+- The standalone `tp: lens` block is **retired**; a legacy `lens` still auto-translates to review-role focus with a deprecation warning (the new `review_roles`/`audit_roles` form wins when both are present).
+
+### Role Corpus (v0.25.0)
+
+Review and audit roles are **project-owned data** — one JSON file per role under the repo-root `.tp/`:
+
+```
+.tp/reviewers/*.json   # tp review roles (phase inferred from the directory)
+.tp/auditors/*.json    # tp audit roles
+```
+
+Schema `{id, title, instructions, focus[], domains[]}`: `id` MUST equal the filename stem and match `^[a-z0-9]+(-[a-z0-9]+)*$`; `regression` is reserved. tp owns the finding output contract — a role only customizes the prompt (persona, instructions, focus questions).
+
+```bash
+# Make the built-in default prompts visible & editable
+tp init --eject-roles                 # software corpus (default)
+tp init --eject-roles --domain prose  # prose corpus
+tp init --eject-roles --force         # overwrite existing role files
+```
+
+A populated phase directory **replaces** the embedded default corpus for that phase; an absent or empty one keeps the built-in defaults, so a project happy with defaults carries zero role files. `tp lint`, `tp review`, and `tp audit` validate the corpus and abort with exit 3 on a malformed role file (`repair or delete <path>`), each for the phase it reads (a broken auditor never blocks review).
+
+**Per-role overlap report.** `tp review --merge` clusters findings by `(location, class)` and reports, per reviewer role, its `unique` (sole-contributor) and `shared` (co-found, `found_by >= 2`) cluster counts. A role with `unique == 0` and `shared >= 1` is flagged a **trim candidate** — it found only what others also found. tp only reports; trimming is your decision (edit the role files). The report also appears in `tp review --report` and `--status`.
+
+**Role staleness.** Each phase has a corpus hash (`"builtin"` on the defaults) stored on every recorded round; `tp review --status` / `tp audit --status` report `roles_stale` beside the spec `stale` flag when the corpus changed since the last round. A pre-v0.25.0 round has no stored hash and is treated as matching, so upgrading never forces a re-review.
 
 ### Lint Checks
 
