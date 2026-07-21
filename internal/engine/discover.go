@@ -7,19 +7,11 @@ import (
 	"strings"
 )
 
-// readTPActive reads the .tp-active file in the given directory.
-// Returns the trimmed path or empty string if not found.
-func readTPActive(dir string) (string, error) {
-	data, err := os.ReadFile(filepath.Join(dir, ".tp-active"))
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(data)), nil
-}
-
 // DiscoverTaskFile finds the task file in the given directory.
-// Priority: --file flag > TP_FILE env var > directory scan.
-// Otherwise, scans dir for *.tasks.json files, then one level of subdirectories.
+// Priority: --file flag > TP_FILE env var > .tp/local.json active pointer >
+// auto-detect. The legacy .tp-active marker (deprecated in v0.24.0) was removed
+// in v0.25.0 and is no longer read. Auto-detect scans dir for *.tasks.json
+// files, then one level of subdirectories.
 func DiscoverTaskFile(dir, explicit string) (string, error) {
 	if explicit != "" {
 		if _, err := os.Stat(explicit); err != nil {
@@ -35,24 +27,13 @@ func DiscoverTaskFile(dir, explicit string) (string, error) {
 		return envFile, nil
 	}
 
-	// .tp/local.json active pointer (project-root-relative), ahead of the
-	// legacy marker. A dangling pointer falls through to the rest of the chain.
+	// .tp/local.json active pointer (project-root-relative). A dangling pointer
+	// falls through to auto-detect.
 	if active := ResolveLocalActive(dir); active != "" {
 		if _, statErr := os.Stat(active); statErr == nil {
 			return active, nil
 		}
 		fmt.Fprintf(os.Stderr, "warning: .tp/local.json active points to a missing file %q; continuing discovery\n", active)
-	}
-
-	// Check .tp-active in CWD
-	if activeFile, err := readTPActive(dir); err == nil && activeFile != "" {
-		// Resolve relative to the directory containing .tp-active
-		resolved := filepath.Join(dir, activeFile)
-		if _, statErr := os.Stat(resolved); statErr != nil {
-			return "", fmt.Errorf("task file from .tp-active not found: %s. Run tp use --clear or tp use <new-file>", resolved)
-		}
-		fmt.Fprintln(os.Stderr, "warning: .tp-active is deprecated and removed in v0.25.0; run tp use <file> to migrate the active pointer to .tp/local.json")
-		return resolved, nil
 	}
 
 	matches := findTaskFiles(dir)

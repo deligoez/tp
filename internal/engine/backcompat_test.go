@@ -11,8 +11,8 @@ import (
 
 // TestZeroConfig_BehavesLikeV023 proves that with no .tp/ directory present,
 // workflow resolution and task-file discovery behave exactly as in v0.23.0:
-// the effective workflow equals the task file's own block and discovery uses
-// the legacy chain.
+// the effective workflow equals the task file's own block and discovery
+// auto-detects. The legacy .tp-active marker is no longer read (§11.1).
 func TestZeroConfig_BehavesLikeV023(t *testing.T) {
 	root := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
@@ -32,11 +32,13 @@ func TestZeroConfig_BehavesLikeV023(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, got, "s.tasks.json")
 
-	// A legacy .tp-active marker still works with no .tp/ present.
-	require.NoError(t, os.WriteFile(filepath.Join(root, ".tp-active"), []byte("s.tasks.json\n"), 0o600))
+	// A leftover legacy .tp-active marker is IGNORED in v0.25.0: even when it
+	// points elsewhere, discovery falls through to auto-detect rather than
+	// reading the marker.
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".tp-active"), []byte("ghost.tasks.json\n"), 0o600))
 	got, err = DiscoverTaskFile(root, "")
-	require.NoError(t, err)
-	assert.Contains(t, got, "s.tasks.json")
+	require.NoError(t, err, ".tp-active pointing at a missing file must not error; it is not read")
+	assert.Contains(t, got, "s.tasks.json", "discovery ignores .tp-active and auto-detects")
 }
 
 // TestOptIn_ExistingFullTaskFileWinsAndIsNotRewritten proves adoption is

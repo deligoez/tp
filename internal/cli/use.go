@@ -23,7 +23,7 @@ func newUseCmd() *cobra.Command {
 		Short: "Set active task file for this project directory",
 		Long: `Set, show, or clear the active task file.
 Writes the pointer to .tp/local.json (git-ignored); discovery reads it after
---file and TP_FILE, ahead of the deprecated .tp-active marker (removed in v0.25.0).`,
+--file and TP_FILE, before auto-detect.`,
 		Example: `  tp use spec.tasks.json    # set the active task file
   tp use --clear            # clear the active pointer
   tp use                    # show the current active file`,
@@ -55,8 +55,9 @@ func runUse(_ *cobra.Command, args []string) error {
 }
 
 // resolvedActiveSource walks the discovery chain and returns the resolved
-// active task file and the rank that supplied it (cli/env/local/legacy/
-// autodetect), or ("", "") when nothing resolves.
+// active task file and the rank that supplied it (cli/env/local/autodetect),
+// or ("", "") when nothing resolves. The legacy .tp-active marker was removed
+// in v0.25.0 and is no longer part of the chain.
 func resolvedActiveSource() (path, source string) {
 	if flagFile != "" {
 		return flagFile, "cli"
@@ -67,11 +68,6 @@ func resolvedActiveSource() (path, source string) {
 	if active := engine.ResolveLocalActive("."); active != "" {
 		if _, err := os.Stat(active); err == nil {
 			return active, "local"
-		}
-	}
-	if data, err := os.ReadFile(tpActiveFile); err == nil {
-		if legacy := strings.TrimSpace(string(data)); legacy != "" {
-			return legacy, "legacy"
 		}
 	}
 	if p, err := engine.DiscoverTaskFile(".", ""); err == nil {

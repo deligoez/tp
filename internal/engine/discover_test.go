@@ -115,3 +115,54 @@ func TestResolveSpecPath(t *testing.T) {
 		})
 	}
 }
+
+// TestDiscoverTaskFile_PrecedenceAndTPActiveIgnored confirms the v0.25.0
+// discovery precedence (--file > TP_FILE > .tp/local.json active > auto-detect)
+// and that the removed .tp-active marker is never consulted (§11.1, §11.3).
+func TestDiscoverTaskFile_PrecedenceAndTPActiveIgnored(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
+	write := func(name string) {
+		require.NoError(t, os.WriteFile(filepath.Join(root, name), []byte("{}"), 0o600))
+	}
+	write("pointed.tasks.json")
+	write("env.tasks.json")
+	write("explicit.tasks.json")
+
+	// A .tp-active pointing at a real file must never be consulted.
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".tp-active"), []byte("env.tasks.json\n"), 0o600))
+
+	tpDir := filepath.Join(root, ".tp")
+	require.NoError(t, os.Mkdir(tpDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(tpDir, "local.json"), []byte(`{"active":"pointed.tasks.json"}`), 0o600))
+	t.Chdir(root)
+
+	t.Run("local.json active wins over auto-detect; .tp-active ignored", func(t *testing.T) {
+		got, err := DiscoverTaskFile(root, "")
+		require.NoError(t, err)
+		assert.Equal(t, "pointed.tasks.json", filepath.Base(got))
+	})
+
+	t.Run("TP_FILE wins over local.json", func(t *testing.T) {
+		t.Setenv("TP_FILE", filepath.Join(root, "env.tasks.json"))
+		got, err := DiscoverTaskFile(root, "")
+		require.NoError(t, err)
+		assert.Equal(t, "env.tasks.json", filepath.Base(got))
+	})
+
+	t.Run("--file wins over TP_FILE", func(t *testing.T) {
+		t.Setenv("TP_FILE", filepath.Join(root, "env.tasks.json"))
+		got, err := DiscoverTaskFile(root, filepath.Join(root, "explicit.tasks.json"))
+		require.NoError(t, err)
+		assert.Equal(t, "explicit.tasks.json", filepath.Base(got))
+	})
+
+	t.Run(".tp-active is not consulted when local.json is absent", func(t *testing.T) {
+		require.NoError(t, os.Remove(filepath.Join(tpDir, "local.json")))
+		// Multiple .tasks.json files -> auto-detect is ambiguous; if .tp-active
+		// were still read it would resolve env.tasks.json instead of erroring.
+		_, err := DiscoverTaskFile(root, "")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "multiple task files")
+	})
+}

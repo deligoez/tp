@@ -20,7 +20,7 @@ func DefaultWorkflow() model.Workflow {
 
 // ResolveWorkflow resolves workflow parameters for the spec under review or
 // audit. The task file is resolved via the standard discovery chain (--file >
-// TP_FILE > .tp-active > auto-detect); when the discovered file's spec field
+// TP_FILE > .tp/local.json active > auto-detect); when the discovered file's spec field
 // does not resolve to specPath, or no file is found, the spec-adjacent
 // <spec-base>.tasks.json is used; when neither exists, defaults apply.
 // Returns the workflow and the task file path it came from ("" for defaults).
