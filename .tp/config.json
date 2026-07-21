@@ -1,0 +1,7 @@
+{
+  "workflow": {
+    "quality_gate": "go test ./... && golangci-lint run",
+    "review_clean_rounds": 2,
+    "audit_clean_rounds": 2
+  }
+}
