@@ -129,21 +129,7 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 		return nil
 	}
 
-	// Round budget: audit prompt generation refuses when the audit cap is
-	// exhausted; cap-triggered state reads inherit the corrupt-state abort
-	wfBudget, _ := engine.ResolveWorkflow(specPath, flagFile)
-	if wfBudget.AuditMaxRounds > 0 {
-		stBudget, stErr := engine.LoadReviewState(specPath)
-		if stErr != nil {
-			exitStateError(stErr)
-			return nil
-		}
-		rounds := []engine.ReviewRound{}
-		if stBudget != nil {
-			rounds = stBudget.AuditRounds
-		}
-		refuseIfBudgetExhausted("audit", specPath, rounds, wfBudget.AuditMaxRounds, wfBudget.AuditCleanRounds)
-	}
+	refuseAuditIfBudgetExhausted(specPath)
 
 	// Expand comma-separated values in --affected-files
 	affectedFiles = expandCommaFiles(affectedFiles)
@@ -218,15 +204,41 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	}
 
 	if flagCompact {
-		for i := range result.Checklist {
-			if len(result.Checklist[i].Text) > 80 {
-				result.Checklist[i].Text = result.Checklist[i].Text[:77] + "..."
-			}
-		}
-		result.FileSummary = nil
+		compactAuditChecklist(&result)
 	}
 
 	return output.JSON(result)
+}
+
+// refuseAuditIfBudgetExhausted refuses audit prompt generation when the audit
+// cap is exhausted; the cap-triggered state read inherits the corrupt-state
+// abort.
+func refuseAuditIfBudgetExhausted(specPath string) {
+	wfBudget, _ := engine.ResolveWorkflow(specPath, flagFile)
+	if wfBudget.AuditMaxRounds <= 0 {
+		return
+	}
+	stBudget, stErr := engine.LoadReviewState(specPath)
+	if stErr != nil {
+		exitStateError(stErr)
+		return
+	}
+	rounds := []engine.ReviewRound{}
+	if stBudget != nil {
+		rounds = stBudget.AuditRounds
+	}
+	refuseIfBudgetExhausted("audit", specPath, rounds, wfBudget.AuditMaxRounds, wfBudget.AuditCleanRounds)
+}
+
+// compactAuditChecklist truncates checklist text and drops the file summary
+// for --compact output.
+func compactAuditChecklist(result *auditResult) {
+	for i := range result.Checklist {
+		if len(result.Checklist[i].Text) > 80 {
+			result.Checklist[i].Text = result.Checklist[i].Text[:77] + "..."
+		}
+	}
+	result.FileSummary = nil
 }
 
 func resolveAuditFiles(specPath string, affectedFiles []string, base string) ([]string, error) {
@@ -408,55 +420,84 @@ func buildChecklist(specLines []string, specPath, findingsPath string) []checkli
 		})
 	}
 
-	taskPath := strings.TrimSuffix(specPath, filepath.Ext(specPath)) + ".tasks.json"
-	if data, err := os.ReadFile(taskPath); err == nil {
-		var tf struct {
-			Tasks []struct {
-				ID         string `json:"id"`
-				Title      string `json:"title"`
-				Acceptance string `json:"acceptance"`
-			} `json:"tasks"`
-		}
-		if json.Unmarshal(data, &tf) == nil {
-			for _, task := range tf.Tasks {
-				if task.Acceptance == "" {
-					continue
-				}
-				entries = append(entries, checklistEntry{
-					ID:       fmt.Sprintf("task-%s", task.ID),
-					Type:     "task_acceptance",
-					SpecLine: 0,
-					Section:  task.Title,
-					Text:     task.Acceptance,
-					Prompt:   0,
-				})
-			}
-		}
-	}
-
+	entries = append(entries, taskAcceptanceEntries(specPath)...)
 	if findingsPath != "" {
-		findingsEntries := readFindings(findingsPath)
-		for i, fe := range findingsEntries {
-			entries = append(entries, checklistEntry{
-				ID:       fmt.Sprintf("finding-%d", i),
-				Type:     "finding",
-				SpecLine: 0,
-				Section:  "Review Findings",
-				Text:     fe,
-				Prompt:   0,
-			})
-		}
+		entries = append(entries, findingChecklistEntries(findingsPath)...)
 	}
 
 	return entries
 }
 
-func readFindings(path string) []string {
+// taskAcceptanceEntries reads the spec-adjacent task file and yields one
+// task_acceptance checklist entry per task with a non-empty acceptance.
+func taskAcceptanceEntries(specPath string) []checklistEntry {
+	taskPath := strings.TrimSuffix(specPath, filepath.Ext(specPath)) + ".tasks.json"
+	data, err := os.ReadFile(taskPath)
+	if err != nil {
+		return nil
+	}
+	var tf struct {
+		Tasks []struct {
+			ID         string `json:"id"`
+			Title      string `json:"title"`
+			Acceptance string `json:"acceptance"`
+		} `json:"tasks"`
+	}
+	if json.Unmarshal(data, &tf) != nil {
+		return nil
+	}
+	entries := make([]checklistEntry, 0, len(tf.Tasks))
+	for _, task := range tf.Tasks {
+		if task.Acceptance == "" {
+			continue
+		}
+		entries = append(entries, checklistEntry{
+			ID:       fmt.Sprintf("task-%s", task.ID),
+			Type:     "task_acceptance",
+			SpecLine: 0,
+			Section:  task.Title,
+			Text:     task.Acceptance,
+			Prompt:   0,
+		})
+	}
+	return entries
+}
+
+// findingChecklistEntries yields one finding entry per row of a --findings
+// file; §3.2 puts the finding's location in the entry Section.
+func findingChecklistEntries(findingsPath string) []checklistEntry {
+	rows := readFindings(findingsPath)
+	entries := make([]checklistEntry, 0, len(rows))
+	for i, fe := range rows {
+		section := fe.location
+		if section == "" {
+			section = "Review Findings"
+		}
+		entries = append(entries, checklistEntry{
+			ID:       fmt.Sprintf("finding-%d", i),
+			Type:     "finding",
+			SpecLine: 0,
+			Section:  section,
+			Text:     fe.text,
+			Prompt:   0,
+		})
+	}
+	return entries
+}
+
+// findingRow is a review finding read from a --findings file: the finding
+// text and its location field (§3.2 puts the location in the item's Section).
+type findingRow struct {
+	text     string
+	location string
+}
+
+func readFindings(path string) []findingRow {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil
 	}
-	var results []string
+	var results []findingRow
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -475,7 +516,8 @@ func readFindings(path string) []string {
 			}
 		}
 		if text != "" {
-			results = append(results, text)
+			loc, _ := obj["location"].(string)
+			results = append(results, findingRow{text: text, location: loc})
 		}
 	}
 	return results
