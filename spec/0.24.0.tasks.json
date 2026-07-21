@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.24.0.md",
   "created_at": "2026-07-21T09:33:07.313Z",
-  "updated_at": "2026-07-21T10:22:55.87204Z",
+  "updated_at": "2026-07-21T10:29:04.822325Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -242,7 +242,7 @@
     {
       "id": "cfg-enforce-import",
       "title": "Resolve workflow at import",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cfg-resolution-override"
       ],
@@ -251,11 +251,11 @@
       "source_sections": [
         "## 5. Layered resolution is used everywhere workflow fields are read"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T10:29:02.684951Z",
+      "closed_at": "2026-07-21T10:29:04.822324Z",
+      "closed_reason": "- ResolveWorkflow (via LoadTaskWorkflowOverride + projectWorkflowOverride + ResolveWorkflowLayers) layers the project config under the task override, so enforceImportConvergence in import_enforce.go reads the resolved review_clean_rounds\n- A thinned task file with no review_clean_rounds key inherits the project value at import enforcement rather than the built-in default\n- TestResolveWorkflow_ThinnedTaskInheritsProjectPolicy covers import enforcement using the inherited project policy",
+      "gate_passed_at": "2026-07-21T10:29:04.822324Z",
+      "commit_sha": "c1280ef"
     },
     {
       "id": "cfg-enforce-gate",

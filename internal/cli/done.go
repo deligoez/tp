@@ -138,7 +138,7 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 	}
 	gateRan := false
 	if doneSkipGate == "" {
-		gateRan = runQualityGatePreFlock(tfPre, taskFilePath)
+		gateRan = runQualityGatePreFlock(taskFilePath)
 	}
 
 	// Post-gate: flock, re-read, re-validate; a task whose state changed
@@ -343,7 +343,7 @@ func runDoneMulti(taskFilePath string, taskIDs []string, reason string) error {
 	}
 	gateRan := false
 	if survivors > 0 && doneSkipGate == "" {
-		gateRan = runQualityGatePreFlock(tfPre, taskFilePath)
+		gateRan = runQualityGatePreFlock(taskFilePath)
 	}
 
 	return engine.WithFileLock(taskFilePath, func() error {
@@ -572,8 +572,9 @@ func runDoneBatch() error {
 	gateRan := false
 	gateFailed := false
 	var gateRes engine.RunResult
-	if tfPre.Workflow.QualityGate != "" && batchNeedsGate(tfPre, entries) {
-		gateRes = executeQualityGate(tfPre, taskFilePath)
+	gateWf := engine.EffectiveWorkflowForTaskFile(taskFilePath)
+	if gateWf.QualityGate != "" && batchNeedsGate(tfPre, entries) {
+		gateRes = executeQualityGate(taskFilePath)
 		gateRan = gateRes.Passed
 		gateFailed = !gateRes.Passed
 	}
@@ -642,7 +643,7 @@ func runDoneBatch() error {
 				hasSkip = true
 			}
 			if gateFailed && !hasSkip {
-				failures = append(failures, batchFailure{ID: entry.ID, Error: gateFailureMessage(tf, gateRes), Hint: gateSkipHint})
+				failures = append(failures, batchFailure{ID: entry.ID, Error: gateFailureMessage(&gateWf, gateRes), Hint: gateSkipHint})
 				continue
 			}
 

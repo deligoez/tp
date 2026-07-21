@@ -116,7 +116,7 @@ func runClose(cmd *cobra.Command, args []string) error {
 	}
 	gateRan := false
 	if closeSkipGate == "" {
-		gateRan = runQualityGatePreFlock(tfPre, taskFilePath)
+		gateRan = runQualityGatePreFlock(taskFilePath)
 	}
 
 	return engine.WithFileLock(taskFilePath, func() error {

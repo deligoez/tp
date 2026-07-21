@@ -76,6 +76,16 @@ func pickChecks(layers []*[]model.Check, def []model.Check) []model.Check {
 	return def
 }
 
+// EffectiveWorkflowForTaskFile resolves the effective workflow for a task file:
+// the project config discovered from the working directory layered under the
+// task file's own presence-tracked workflow override. Best-effort — a missing
+// or unreadable config or task file contributes no overrides — so a task file
+// that omits quality_gate runs the project quality_gate.
+func EffectiveWorkflowForTaskFile(taskFilePath string) model.Workflow {
+	override, _ := LoadTaskWorkflowOverride(taskFilePath)
+	return ResolveWorkflowLayers(override, projectWorkflowOverride("."))
+}
+
 // ResolveEffectiveWorkflow resolves the effective workflow for a start
 // directory: it discovers the project config from start, loads its workflow
 // defaults, and layers the given task-file override over them (a per-field

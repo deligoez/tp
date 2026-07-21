@@ -15,7 +15,7 @@ func TestGateFailureMessage_TimeoutReportsSecondsAndNullExitCode(t *testing.T) {
 	tf := &model.TaskFile{Workflow: model.Workflow{QualityGate: "sleep 999", GateTimeoutSeconds: 45}}
 	res := engine.RunResult{TimedOut: true}
 
-	assert.Equal(t, "gate timed out after 45s", gateFailureMessage(tf, res))
+	assert.Equal(t, "gate timed out after 45s", gateFailureMessage(&tf.Workflow, res))
 
 	data, err := json.Marshal(map[string]any{"exit_code": res.ExitCode})
 	require.NoError(t, err)
@@ -27,5 +27,5 @@ func TestGateFailureMessage_NonZeroExitNamesGateCmd(t *testing.T) {
 	code := 1
 	res := engine.RunResult{ExitCode: &code}
 
-	assert.Equal(t, "quality gate failed: go test ./...", gateFailureMessage(tf, res))
+	assert.Equal(t, "quality gate failed: go test ./...", gateFailureMessage(&tf.Workflow, res))
 }

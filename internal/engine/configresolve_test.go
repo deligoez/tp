@@ -126,3 +126,18 @@ func TestResolveWorkflow_ThinnedTaskInheritsProjectPolicy(t *testing.T) {
 	assert.Equal(t, 3, wf.ReviewCleanRounds, "import enforcement resolves the inherited project clean_rounds")
 	assert.Equal(t, 7, wf.ReviewMaxRounds, "and the inherited project cap")
 }
+
+func TestEffectiveWorkflowForTaskFile_InheritsProjectQualityGate(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".tp"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".tp", "config.json"),
+		[]byte(`{"workflow":{"quality_gate":"make check","gate_timeout_seconds":900}}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "s.tasks.json"),
+		[]byte(`{"spec":"s.md","tasks":[],"workflow":{}}`), 0o600))
+
+	t.Chdir(root)
+	wf := EffectiveWorkflowForTaskFile("s.tasks.json")
+	assert.Equal(t, "make check", wf.QualityGate, "a task file omitting quality_gate runs the project gate")
+	assert.Equal(t, 900, wf.GateTimeoutSeconds, "and the inherited project timeout")
+}

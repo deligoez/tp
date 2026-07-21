@@ -42,38 +42,42 @@ func gateDir(taskFilePath string) string {
 	}
 }
 
-// executeQualityGate runs workflow.quality_gate from the repository root (see
-// gateDir) with the resolved timeout and returns the result without exiting.
-func executeQualityGate(tf *model.TaskFile, taskFilePath string) engine.RunResult {
-	timeout := tf.Workflow.EffectiveGateTimeoutSeconds()
-	return engine.RunCommand(tf.Workflow.QualityGate, gateDir(taskFilePath), time.Duration(timeout)*time.Second, gateOutputTailLines)
+// executeQualityGate runs the resolved quality gate (project config layered
+// under the task file's override) from the repository root (see gateDir) with
+// the resolved timeout, returning the result without exiting.
+func executeQualityGate(taskFilePath string) engine.RunResult {
+	wf := engine.EffectiveWorkflowForTaskFile(taskFilePath)
+	return engine.RunCommand(wf.QualityGate, gateDir(taskFilePath), time.Duration(wf.EffectiveGateTimeoutSeconds())*time.Second, gateOutputTailLines)
 }
 
 // gateFailureMessage renders the top-level error string for a failed gate run.
-func gateFailureMessage(tf *model.TaskFile, res engine.RunResult) string {
+func gateFailureMessage(wf *model.Workflow, res engine.RunResult) string {
 	if res.TimedOut {
-		return fmt.Sprintf("gate timed out after %ds", tf.Workflow.EffectiveGateTimeoutSeconds())
+		return fmt.Sprintf("gate timed out after %ds", wf.EffectiveGateTimeoutSeconds())
 	}
-	return fmt.Sprintf("quality gate failed: %s", tf.Workflow.QualityGate)
+	return fmt.Sprintf("quality gate failed: %s", wf.QualityGate)
 }
 
-// runQualityGatePreFlock executes the quality gate once per invocation, before
-// the task-file flock is acquired. Returns true when the gate executed and
-// passed, false when no gate is configured. On failure it emits the error
-// object carrying gate_cmd, exit_code, and output_tail, then exits with
-// ExitState — no task closes.
-func runQualityGatePreFlock(tf *model.TaskFile, taskFilePath string) bool {
-	if tf.Workflow.QualityGate == "" {
+// runQualityGatePreFlock executes the resolved quality gate once per invocation,
+// before the task-file flock is acquired. The gate command and timeout come from
+// the effective workflow — the project config layered under the task file's own
+// override — so a task file that omits quality_gate runs the project gate.
+// Returns true when the gate executed and passed, false when no gate is
+// configured. On failure it emits the error object carrying gate_cmd, exit_code,
+// and output_tail, then exits with ExitState — no task closes.
+func runQualityGatePreFlock(taskFilePath string) bool {
+	wf := engine.EffectiveWorkflowForTaskFile(taskFilePath)
+	if wf.QualityGate == "" {
 		return false
 	}
-	res := executeQualityGate(tf, taskFilePath)
+	res := engine.RunCommand(wf.QualityGate, gateDir(taskFilePath), time.Duration(wf.EffectiveGateTimeoutSeconds())*time.Second, gateOutputTailLines)
 	if res.Passed {
 		return true
 	}
 	errOut := map[string]any{
-		"error":       gateFailureMessage(tf, res),
+		"error":       gateFailureMessage(&wf, res),
 		"code":        ExitState,
-		"gate_cmd":    tf.Workflow.QualityGate,
+		"gate_cmd":    wf.QualityGate,
 		"exit_code":   res.ExitCode,
 		"output_tail": res.OutputTail,
 		"hint":        gateSkipHint,
