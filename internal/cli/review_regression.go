@@ -85,7 +85,7 @@ func runReviewRegression(specPath, diffFrom, findingsPath string) error {
 	}
 
 	fmReg := engine.ParseFrontmatter(specPath)
-	dom := &promptDomain{software: fmReg.Domain == engine.DomainSoftware, lens: fmReg.Lens}
+	dom := &promptDomain{lens: fmReg.Lens}
 	prompt := buildRegressionPrompt(&dr, sinceLabel, fixed, dom)
 
 	// Mechanical checks run in the regression perspective too (§15.3)

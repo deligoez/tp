@@ -140,3 +140,29 @@ func TestReview_RegressionAppendedNotCorpus(t *testing.T) {
 	assert.Contains(t, byRole, "solo", "the single corpus reviewer is emitted")
 	assert.Contains(t, byRole, "regression", "regression is appended as a built-in, non-corpus role")
 }
+
+// TestReview_DomainDoesNotSwapPersona: a reviewer role applying to every domain
+// emits its persona verbatim regardless of the spec's domain — domain no longer
+// swaps Go personas; it only selects and filters the corpus (§6.2, §10.1).
+func TestReview_DomainDoesNotSwapPersona(t *testing.T) {
+	for _, domain := range []string{"software", "prose"} {
+		dir := t.TempDir()
+		require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
+		revDir := filepath.Join(dir, ".tp", "reviewers")
+		require.NoError(t, os.MkdirAll(revDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(revDir, "universal.json"),
+			[]byte(`{"id":"universal","title":"U","instructions":"VERBATIM PERSONA TEXT"}`), 0o600))
+
+		spec := "# Spec\ncontent\n"
+		if domain == "prose" {
+			spec = "---\ntp:\n  domain: prose\n---\n# Spec\ncontent\n"
+		}
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec), 0o600))
+
+		stdout, stderr, code := runTP(t, dir, "review", "spec.md", "--no-state")
+		require.Equal(t, 0, code, "domain %s stderr: %s", domain, stderr)
+		byRole := reviewPromptsByRole(t, stdout)
+		require.Contains(t, byRole, "universal", "domain %s selects the no-domains role", domain)
+		assert.Contains(t, byRole["universal"], "VERBATIM PERSONA TEXT", "persona is not swapped by domain %s", domain)
+	}
+}

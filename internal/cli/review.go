@@ -656,7 +656,7 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 	}
 
 	fmState := engine.ParseFrontmatter(specPath)
-	dom := &promptDomain{software: fmState.Domain == engine.DomainSoftware, lens: fmState.Lens}
+	dom := &promptDomain{lens: fmState.Lens}
 
 	// Emit one prompt per active reviewer role from the domain-filtered corpus
 	// (§7.1). A malformed reviewer role aborts review (§3.6, exit 3).
@@ -813,10 +813,11 @@ Do NOT check implementation code or report "not implemented" findings.
 Focus on: completeness, ambiguity, contradictions, missing edge cases, testability.
 `
 
-// promptDomain carries the resolved frontmatter domain and lens questions.
+// promptDomain carries the resolved frontmatter lens questions for the built-in
+// regression prompt. domain no longer swaps personas (§6.2, §10.1) — it only
+// selects and filters the corpus — so no domain field is stored here.
 type promptDomain struct {
-	software bool
-	lens     map[string][]string
+	lens map[string][]string
 }
 
 // appendLensQuestions appends lens.all then lens.<role> questions to the
