@@ -15,6 +15,9 @@ func flagCmd() *cobra.Command {
 	c.Flags().Bool("compact", false, "")
 	c.Flags().Bool("quiet", false, "")
 	c.Flags().Bool("no-color", false, "")
+	c.Flags().Bool("no-compact", false, "")
+	c.Flags().Bool("no-quiet", false, "")
+	c.Flags().Bool("color", false, "")
 	return c
 }
 
@@ -49,4 +52,17 @@ func TestApplyFlagDefaults_ExplicitFlagWins(t *testing.T) {
 
 	applyFlagDefaults(c)
 	assert.False(t, flagCompact, "an explicit CLI flag wins over the local default")
+}
+
+func TestApplyFlagDefaults_NegatingFlagOverridesDefault(t *testing.T) {
+	root := writeLocalDefaults(t, `{"defaults":{"compact":true}}`)
+	t.Chdir(root)
+	flagCompact = false
+	defer func() { flagCompact = false }()
+
+	c := flagCmd()
+	require.NoError(t, c.Flags().Set("no-compact", "true"))
+
+	applyFlagDefaults(c)
+	assert.False(t, flagCompact, "--no-compact turns off a compact default")
 }

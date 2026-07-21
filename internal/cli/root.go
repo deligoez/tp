@@ -14,10 +14,13 @@ var (
 	version = "dev"
 
 	flagFile    string
-	flagJSON    bool
-	flagCompact bool
-	flagQuiet   bool
-	flagNoColor bool
+	flagJSON      bool
+	flagCompact   bool
+	flagQuiet     bool
+	flagNoColor   bool
+	flagNoCompact bool
+	flagNoQuiet   bool
+	flagColor     bool
 )
 
 func NewRootCmd() *cobra.Command {
@@ -44,6 +47,9 @@ INCREMENTAL (1 task at a time):
 	cmd.PersistentFlags().BoolVar(&flagCompact, "compact", false, "minimal JSON: omit descriptions, source_lines, metadata")
 	cmd.PersistentFlags().BoolVar(&flagQuiet, "quiet", false, "suppress info-level output")
 	cmd.PersistentFlags().BoolVar(&flagNoColor, "no-color", false, "disable colored output")
+	cmd.PersistentFlags().BoolVar(&flagNoCompact, "no-compact", false, "force full JSON, overriding a compact default")
+	cmd.PersistentFlags().BoolVar(&flagNoQuiet, "no-quiet", false, "force info output, overriding a quiet default")
+	cmd.PersistentFlags().BoolVar(&flagColor, "color", false, "force colored output, overriding a no_color default")
 
 	if version == "dev" {
 		if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" && info.Main.Version != "(devel)" {

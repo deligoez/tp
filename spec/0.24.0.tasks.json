@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.24.0.md",
   "created_at": "2026-07-21T09:33:07.313Z",
-  "updated_at": "2026-07-21T11:26:48.800559Z",
+  "updated_at": "2026-07-21T11:28:58.752143Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -517,7 +517,7 @@
     {
       "id": "cfg-flag-defaults-apply",
       "title": "Apply global flag defaults",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cfg-resolution-override"
       ],
@@ -526,11 +526,11 @@
       "source_sections": [
         "## 8. Global flag defaults"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T11:28:56.720225Z",
+      "closed_at": "2026-07-21T11:28:58.752143Z",
+      "closed_reason": "- applyFlagDefaults (internal/cli/flag_defaults.go) applies the .tp/local.json compact/quiet/no_color defaults in PersistentPreRun when the corresponding flag was not given, via engine.LocalFlagDefaults\n- --json is intentionally excluded and an explicit CLI flag always wins (checked via cobra Changed)\n- TestApplyFlagDefaults_AppliesWhenFlagAbsent and _ExplicitFlagWins cover application and precedence",
+      "gate_passed_at": "2026-07-21T11:28:58.752143Z",
+      "commit_sha": "09138e8"
     },
     {
       "id": "cfg-flag-negating",
