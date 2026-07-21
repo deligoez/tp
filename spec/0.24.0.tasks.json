@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.24.0.md",
   "created_at": "2026-07-21T09:33:07.313Z",
-  "updated_at": "2026-07-21T11:44:39.77915Z",
+  "updated_at": "2026-07-21T11:45:12.451238Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -775,7 +775,7 @@
     {
       "id": "cfg-backcompat-nongoals",
       "title": "Confirm release non-goals",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cfg-backcompat-optin"
       ],
@@ -784,11 +784,11 @@
       "source_sections": [
         "## 12. Non-goals"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T11:45:10.407556Z",
+      "closed_at": "2026-07-21T11:45:12.451238Z",
+      "closed_reason": "- TestNonGoals_NoUserHomeConfig proves a user-home ~/.config/tp config is never consulted, so resolution stays exactly two layers (project plus per-task) with no user-global source\n- No task, coverage, review, or audit semantics change: v0.24.0 only adds the configuration layer, verified by the unchanged existing test suite\n- The non-goals (no multi-level cascade, no cross-project monorepo resolution, no user-home config) hold",
+      "gate_passed_at": "2026-07-21T11:45:12.451238Z",
+      "commit_sha": "d886be0"
     }
   ]
 }
