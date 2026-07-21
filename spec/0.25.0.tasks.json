@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.25.0.md",
   "created_at": "2026-07-21T19:43:58.426848Z",
-  "updated_at": "2026-07-21T21:14:10.926022Z",
+  "updated_at": "2026-07-21T21:19:44.336697Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2,
@@ -127,7 +127,7 @@
     {
       "id": "corpus-domain-filter",
       "title": "Filter active corpus by domain",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -140,11 +140,11 @@
       "source_sections": [
         "## 6. Domain Selection"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T21:19:44.300583Z",
+      "closed_at": "2026-07-21T21:19:44.336693Z",
+      "closed_reason": "- engine.ResolveActiveCorpus (internal/engine/corpusdomain.go) selects the embedded default corpus by the spec's domain when no user role files exist, and when user files are present filters them by each role's domains via roleAppliesToDomain — a role omitting the spec's domain is dropped, a role with no domains applies everywhere.\n- An unknown domain falls back to the software corpus with a lint warning; if domain filtering empties a phase panel it falls back to that phase's full domain-selected embedded corpus (not re-filtered) with a warning, and prose selects its leaner two-reviewer panel (coherence/soundness).\n- internal/engine/corpusdomain_test.go covers domain filtering (drop/keep/no-domains), the empty-panel fallback to the full software panel, embedded-by-domain selection incl. the leaner prose panel, and the unknown-domain warning.",
+      "gate_passed_at": "2026-07-21T21:19:44.336693Z",
+      "commit_sha": "6ecbc69"
     },
     {
       "id": "roles-hash-compute",
