@@ -656,7 +656,6 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 	}
 
 	fmState := engine.ParseFrontmatter(specPath)
-	dom := &promptDomain{lens: fmState.Lens}
 
 	// Emit one prompt per active reviewer role from the domain-filtered corpus
 	// (§7.1). A malformed reviewer role aborts review (§3.6, exit 3).
@@ -667,6 +666,12 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 		return nil
 	}
 	for _, w := range corpusWarnings {
+		output.Info(w)
+	}
+	// Layer the spec-frontmatter role overrides (tp.review_roles / legacy lens
+	// shim) onto each active role's corpus focus (§10.2-10.4).
+	activeRoles, overrideWarnings := engine.ResolveOverrideFocus(activeRoles, fmState, engine.PhaseReviewers)
+	for _, w := range overrideWarnings {
 		output.Info(w)
 	}
 	prompts := make([]reviewPrompt, 0, len(activeRoles)+1)
@@ -712,7 +717,7 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 			prompts = append(prompts, reviewPrompt{
 				Role:     "regression",
 				Category: "regression",
-				Prompt:   buildRegressionPrompt(&diffDr, diffLabel, fixed, dom),
+				Prompt:   buildRegressionPrompt(&diffDr, diffLabel, fixed),
 			})
 			regressionIncluded = true
 		}
@@ -812,31 +817,6 @@ IMPORTANT: This is a SPEC REVIEW. Review ONLY the spec document text.
 Do NOT check implementation code or report "not implemented" findings.
 Focus on: completeness, ambiguity, contradictions, missing edge cases, testability.
 `
-
-// promptDomain carries the resolved frontmatter lens questions for the built-in
-// regression prompt. domain no longer swaps personas (§6.2, §10.1) — it only
-// selects and filters the corpus — so no domain field is stored here.
-type promptDomain struct {
-	lens map[string][]string
-}
-
-// appendLensQuestions appends lens.all then lens.<role> questions to the
-// numbered check list, continuing the numbering. Order: hardcoded questions
-// first, then all, then role-specific.
-func appendLensQuestions(b *strings.Builder, n int, dom *promptDomain, role string) int {
-	if dom == nil {
-		return n
-	}
-	for _, q := range dom.lens["all"] {
-		fmt.Fprintf(b, "%d. %s\n", n, q)
-		n++
-	}
-	for _, q := range dom.lens[role] {
-		fmt.Fprintf(b, "%d. %s\n", n, q)
-		n++
-	}
-	return n
-}
 
 func appendAffectedChecklist(b *strings.Builder, n int, hasAffectedFiles bool) {
 	if hasAffectedFiles {

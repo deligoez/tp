@@ -76,7 +76,7 @@ func TestDomainLens_SoftwareDomainUnchanged(t *testing.T) {
 	assert.Contains(t, byRole["architect"], "performance or scalability")
 }
 
-func TestDomainLens_RegressionGetsAllLens(t *testing.T) {
+func TestDomainLens_RegressionRejectsLens(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(proseSpec), 0o600))
 	_, _, code := runTP(t, dir, "review", "spec.md")
@@ -89,8 +89,10 @@ func TestDomainLens_RegressionGetsAllLens(t *testing.T) {
 	require.Equal(t, 0, code)
 	byRole := reviewPromptsByRole(t, stdout)
 	require.Contains(t, byRole, "regression")
-	assert.Contains(t, byRole["regression"], "Does any chapter leak a plot point?", "lens.all appended to the regression prompt")
-	assert.NotContains(t, byRole["regression"], "Can each section be written without inventing facts?", "role-specific lens stays out of regression")
+	// Regression accepts no lens/override (§5.2, §10.4); the active prose review
+	// roles receive lens.all via the back-compat shim.
+	assert.NotContains(t, byRole["regression"], "Does any chapter leak a plot point?", "regression rejects lens.all")
+	assert.Contains(t, byRole["coherence"], "Does any chapter leak a plot point?", "lens.all fans out to the active review roles")
 }
 
 // TestReview_CorpusDrivenEmission: a user reviewer corpus replaces the embedded
@@ -164,5 +166,36 @@ func TestReview_DomainDoesNotSwapPersona(t *testing.T) {
 		byRole := reviewPromptsByRole(t, stdout)
 		require.Contains(t, byRole, "universal", "domain %s selects the no-domains role", domain)
 		assert.Contains(t, byRole["universal"], "VERBATIM PERSONA TEXT", "persona is not swapped by domain %s", domain)
+	}
+}
+
+// TestReview_FrontmatterOverrideFocus: a tp.review_roles override appends its
+// focus to the matching corpus role's focus at emission, project focus first
+// (§10.2, §10.3).
+func TestReview_FrontmatterOverrideFocus(t *testing.T) {
+	dir := t.TempDir()
+	spec := "---\ntp:\n  review_roles:\n    implementer:\n      focus:\n        - \"OVERRIDE FOCUS QUESTION\"\n---\n# Spec\ncontent\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "review", "spec.md", "--no-state")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	byRole := reviewPromptsByRole(t, stdout)
+	assert.Contains(t, byRole["implementer"], "OVERRIDE FOCUS QUESTION", "the override focus is appended")
+	assert.Contains(t, byRole["implementer"], "happy path fails", "the corpus focus is retained (additive)")
+}
+
+// TestReview_OverrideUnknownIDIgnored: an override id matching no active role is
+// ignored — its focus reaches no emitted role (§10.2). The warning text itself is
+// covered by the engine test TestResolveOverrideFocus_UnknownID.
+func TestReview_OverrideUnknownIDIgnored(t *testing.T) {
+	dir := t.TempDir()
+	spec := "---\ntp:\n  review_roles:\n    ghost:\n      focus:\n        - \"GHOST QUESTION\"\n---\n# Spec\ncontent\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "review", "spec.md", "--no-state")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	byRole := reviewPromptsByRole(t, stdout)
+	for role, prompt := range byRole {
+		assert.NotContains(t, prompt, "GHOST QUESTION", "the ghost override must not reach role %s", role)
 	}
 }

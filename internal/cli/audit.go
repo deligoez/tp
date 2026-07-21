@@ -191,6 +191,12 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	for _, w := range auditWarnings {
 		output.Info(w)
 	}
+	// Layer the spec-frontmatter tp.audit_roles overrides onto each auditor
+	// role's corpus focus (§10.2-10.3).
+	auditorRoles, overrideWarnings := engine.ResolveOverrideFocus(auditorRoles, fmAudit, engine.PhaseAuditors)
+	for _, w := range overrideWarnings {
+		output.Info(w)
+	}
 
 	specItems, secItems, maintItems := routeChecklist(mainEntries, findingsEntries, &sel, invertTaskFiles(inputs.TaskFiles))
 	prompts := generateRoleAuditPrompts(auditorRoles, specItems, secItems, maintItems, &sel, specContent, claudeMDExcerptFor(specPath))

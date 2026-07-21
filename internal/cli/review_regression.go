@@ -84,9 +84,7 @@ func runReviewRegression(specPath, diffFrom, findingsPath string) error {
 		fixed = fixed[:regressionFixedFindingsCap]
 	}
 
-	fmReg := engine.ParseFrontmatter(specPath)
-	dom := &promptDomain{lens: fmReg.Lens}
-	prompt := buildRegressionPrompt(&dr, sinceLabel, fixed, dom)
+	prompt := buildRegressionPrompt(&dr, sinceLabel, fixed)
 
 	// Mechanical checks run in the regression perspective too (§15.3)
 	wfChecks, checksTaskFile := engine.ResolveWorkflow(specPath, flagFile)
@@ -144,9 +142,9 @@ func collectFixedFindings(specPath string, st *engine.ReviewState) []reviewFindi
 }
 
 // buildRegressionPrompt renders the §11.3 body order: persona, changed
-// sections, previously fixed findings, three numbered checks (plus lens.all
-// questions), finding format.
-func buildRegressionPrompt(dr *engine.DiffResult, sinceLabel string, fixed []reviewFinding, dom *promptDomain) string {
+// sections, previously fixed findings, three numbered checks, finding format.
+// The regression role accepts no spec-frontmatter override or lens (§5.2, §10.4).
+func buildRegressionPrompt(dr *engine.DiffResult, sinceLabel string, fixed []reviewFinding) string {
 	var b strings.Builder
 	b.WriteString("You guard decisions this spec has already settled. Your only job is to find changes that undo them.\n")
 
@@ -172,7 +170,6 @@ func buildRegressionPrompt(dr *engine.DiffResult, sinceLabel string, fixed []rev
 	b.WriteString("1. Does any changed section revert or weaken a fixed finding above?\n")
 	b.WriteString("2. Does any changed section contradict an unchanged section?\n")
 	b.WriteString("3. Does any change reintroduce a problem that a fixed finding had eliminated in a different section?\n")
-	appendLensQuestions(&b, 4, dom, "regression")
 
 	b.WriteString(findingFormat)
 	return b.String()
