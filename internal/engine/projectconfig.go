@@ -49,6 +49,9 @@ func (e *MalformedConfigError) Hint() string {
 
 func (e *MalformedConfigError) Unwrap() error { return e.Err }
 
+// knownDefaultFlags is the set of recognized flags inside a local.json defaults block.
+var knownDefaultFlags = map[string]bool{"compact": true, "quiet": true, "no_color": true}
+
 // knownWorkflowKeys is the set of recognized keys inside a config workflow block.
 var knownWorkflowKeys = map[string]bool{
 	"quality_gate": true, "gate_timeout_seconds": true,
@@ -181,6 +184,10 @@ func LoadLocalConfig(tpDir string) (model.LocalConfig, []string, error) {
 		} else {
 			lc.Defaults = make(map[string]bool, len(m))
 			for k, v := range m {
+				if !knownDefaultFlags[k] {
+					warnings = append(warnings, "unknown defaults key: "+k)
+					continue
+				}
 				var b bool
 				if err := json.Unmarshal(v, &b); err != nil {
 					warnings = append(warnings, "defaults."+k+": expected a boolean, ignored")
