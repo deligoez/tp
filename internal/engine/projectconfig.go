@@ -193,6 +193,32 @@ func LoadLocalConfig(tpDir string) (model.LocalConfig, []string, error) {
 	return lc, warnings, nil
 }
 
+// ProjectConfigDir returns the .tp/ directory that project-config writes target:
+// the discovered .tp/ when one exists, otherwise a new .tp/ at the project root
+// (the git boundary, or the working directory outside a git repository).
+func ProjectConfigDir(start string) string {
+	if tpDir := DiscoverTPDir(start); tpDir != "" {
+		return tpDir
+	}
+	return filepath.Join(ProjectRoot(start), ".tp")
+}
+
+// WriteProjectConfig writes pc to tpDir/config.json with 2-space indentation,
+// creating tpDir and its .gitignore first so local.json stays ignored.
+func WriteProjectConfig(tpDir string, pc model.ProjectConfig) error {
+	if err := os.MkdirAll(tpDir, 0o755); err != nil {
+		return err
+	}
+	if err := EnsureTPGitignore(tpDir); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(pc, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(tpDir, "config.json"), append(data, '\n'), 0o600)
+}
+
 // EnsureTPGitignore ensures tpDir/.gitignore exists and contains a "local.json"
 // entry, so .tp/local.json stays git-ignored even when the .tp/ directory was
 // created by hand rather than by tp. It is idempotent: it creates the file when
