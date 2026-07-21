@@ -22,14 +22,15 @@ func newUseCmd() *cobra.Command {
 		Use:   "use [file]",
 		Short: "Set active task file for this project directory",
 		Long: `Set, show, or clear the active task file.
-Writes a .tp-active marker in CWD. Discovery reads it after TP_FILE, before dir scan.`,
-		Example: `  tp use spec.tasks.json    # set active task file
-  tp use --clear            # remove .tp-active
-  tp use                    # show current active file`,
+Writes the pointer to .tp/local.json (git-ignored); discovery reads it after
+--file and TP_FILE, ahead of the deprecated .tp-active marker (removed in v0.25.0).`,
+		Example: `  tp use spec.tasks.json    # set the active task file
+  tp use --clear            # clear the active pointer
+  tp use                    # show the current active file`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: runUse,
 	}
-	cmd.Flags().BoolVar(&useClear, "clear", false, "remove .tp-active marker")
+	cmd.Flags().BoolVar(&useClear, "clear", false, "clear the active pointer")
 	return cmd
 }
 
