@@ -114,5 +114,30 @@
       "spec_hash": "sha256:b05bd10a84f02213cefa3ebe41f6749fd89d7cea7bfb2eab48c271b2c73975b9"
     }
   ],
-  "audit_rounds": []
+  "audit_rounds": [
+    {
+      "round": 1,
+      "findings": 1,
+      "clean": false,
+      "recorded_at": "2026-07-21T01:34:56Z",
+      "file": "audit-round-1.ndjson",
+      "spec_hash": "sha256:b05bd10a84f02213cefa3ebe41f6749fd89d7cea7bfb2eab48c271b2c73975b9"
+    },
+    {
+      "round": 2,
+      "findings": 0,
+      "clean": true,
+      "recorded_at": "2026-07-21T01:38:29Z",
+      "file": "audit-round-2.ndjson",
+      "spec_hash": "sha256:b05bd10a84f02213cefa3ebe41f6749fd89d7cea7bfb2eab48c271b2c73975b9"
+    },
+    {
+      "round": 3,
+      "findings": 0,
+      "clean": true,
+      "recorded_at": "2026-07-21T01:38:48Z",
+      "file": "audit-round-3.ndjson",
+      "spec_hash": "sha256:b05bd10a84f02213cefa3ebe41f6749fd89d7cea7bfb2eab48c271b2c73975b9"
+    }
+  ]
 }
