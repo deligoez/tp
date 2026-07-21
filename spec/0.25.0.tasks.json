@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.25.0.md",
   "created_at": "2026-07-21T19:43:58.426848Z",
-  "updated_at": "2026-07-21T21:02:15.755767Z",
+  "updated_at": "2026-07-21T21:10:51.781354Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2,
@@ -104,7 +104,7 @@
     {
       "id": "default-corpus-data",
       "title": "Author embedded default role corpus",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "corpus"
@@ -118,11 +118,11 @@
       "source_sections": [
         "## 5. Default Corpus \u0026 Eject"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T21:10:51.740506Z",
+      "closed_at": "2026-07-21T21:10:51.78135Z",
+      "closed_reason": "- Authored the embedded default corpus under internal/engine/corpus/ per the §5.1 table: software reviewers implementer/tester/architect + auditors spec-coverage/security/maintainability-conventions, prose reviewers coherence/soundness + auditors spec-coverage/soundness; DefaultCorpus(domain,phase) in defaultcorpus.go loads and validates them via //go:embed so a project with no role files runs this curated corpus.\n- Software reviewer instructions carry the pre-v0.25.0 persona+goal text verbatim and auditor focus carries the existing role rules so emission stays neutral (§13.1); each role is a self-contained editable JSON that exemplifies the authoring guidance (adversarial framing, focus questions, explicit non-coverage boundary), ready for eject (§14.4).\n- internal/engine/defaultcorpus_test.go asserts the embedded corpus parses and matches the §5.1 table (ids and panel order) for both domains and both phases, plus the neutral software personas and the unknown domain/phase errors.",
+      "gate_passed_at": "2026-07-21T21:10:51.78135Z",
+      "commit_sha": "0915a60"
     },
     {
       "id": "corpus-domain-filter",
