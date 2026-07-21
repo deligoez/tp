@@ -143,7 +143,7 @@ tp validate --project          # Cross-spec workflow drift (informational; --str
 ```
 
 ### Task File Discovery
-Priority: `--file` flag > `TP_FILE` env var > `.tp/local.json` active pointer > legacy `.tp-active` marker (deprecated; removed in v0.25.0) > auto-detect.
+Priority: `--file` flag > `TP_FILE` env var > `.tp/local.json` active pointer > auto-detect. The legacy `.tp-active` marker was removed in v0.25.0.
 Auto-detect scans current dir, then one level of subdirectories for `*.tasks.json`.
 The active pointer lives in `.tp/local.json` (git-ignored); set it with `tp use <file>`. The `.tp/` dir is found by walking up to the `.git` boundary.
 

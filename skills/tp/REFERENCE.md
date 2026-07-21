@@ -94,8 +94,8 @@ Detailed command reference, field formats, and operational details. For workflow
 | `tp add --bulk tasks.ndjson` | Bulk add from NDJSON |
 | `tp import file.json` | Import + validate (--force to overwrite + relax atomicity) |
 | `tp import tasks.json --spec spec.md` | Import bare JSON array (auto-wraps into TaskFile) |
-| `tp use <file>` | Set active task file (.tp-active) |
-| `tp use --clear` | Remove .tp-active marker |
+| `tp use <file>` | Set active task file (writes .tp/local.json) |
+| `tp use --clear` | Clear the active pointer in .tp/local.json |
 | `tp use` | Show current active file |
 
 ## Global Flags
@@ -149,7 +149,7 @@ The batch gate runs once before any entry is processed, iff at least one survivi
 
 ## Task File Discovery
 
-Priority: `--file` flag > `TP_FILE` env var > `.tp/local.json` active pointer > legacy `.tp-active` marker (deprecated; removed in v0.25.0) > auto-detect (current dir, then one level of subdirs).
+Priority: `--file` flag > `TP_FILE` env var > `.tp/local.json` active pointer > auto-detect (current dir, then one level of subdirs). The legacy `.tp-active` marker was removed in v0.25.0.
 
 Set active task file persistently:
 ```bash

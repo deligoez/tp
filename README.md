@@ -178,8 +178,7 @@ tp finds your `.tasks.json` automatically:
 1. `--file` flag (highest priority)
 2. `TP_FILE` environment variable
 3. `.tp/local.json` active pointer (set with `tp use`)
-4. Legacy `.tp-active` marker (deprecated; removed in v0.25.0)
-5. Auto-detect: scans current directory, then one level of subdirectories
+4. Auto-detect: scans current directory, then one level of subdirectories
 
 ```bash
 # Set once, use everywhere

@@ -197,7 +197,7 @@ tp:
 Multi-spec repos keep **one** workflow policy in a repo-root `.tp/` instead of copying it into every `<base>.tasks.json` (tp's own "derive, don't maintain a parallel list" principle applied to policy):
 
 - **`.tp/config.json`** (commit to VCS) — shared workflow defaults: `quality_gate`, `review_clean_rounds`, `audit_clean_rounds`, `gate_timeout_seconds`, `review_max_rounds`, `audit_max_rounds`, `checks`. A task file's `workflow` block then holds only **explicit overrides**; effective values resolve **at read time** (precedence: CLI flag > env > task-file override > `.tp/config.json` > built-in default). Absent ≠ zero; `checks` uses replace semantics.
-- **`.tp/local.json`** (git-ignored automatically) — the `active` task-file pointer (written by `tp use`, replacing the deprecated `.tp-active`) and CLI flag `defaults` (`compact`/`quiet`/`no_color`). Negating flags (`--no-compact`/`--no-quiet`/`--color`) override a default for a single run.
+- **`.tp/local.json`** (git-ignored automatically) — the `active` task-file pointer (written by `tp use`, the sole active-file mechanism since the `.tp-active` marker was removed in v0.25.0) and CLI flag `defaults` (`compact`/`quiet`/`no_color`). Negating flags (`--no-compact`/`--no-quiet`/`--color`) override a default for a single run.
 - Discovery walks up from the CWD to the `.git` boundary to find `.tp/` — a single deterministic anchor the agent never disambiguates.
 
 Commands:
