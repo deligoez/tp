@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.24.0.md",
   "created_at": "2026-07-21T09:33:07.313Z",
-  "updated_at": "2026-07-21T09:49:37.912058Z",
+  "updated_at": "2026-07-21T09:50:58.713697Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -77,7 +77,7 @@
     {
       "id": "cfg-gitignore",
       "title": "Ensure .tp/.gitignore on every write",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cfg-discovery-root"
       ],
@@ -86,11 +86,11 @@
       "source_sections": [
         "### 2.1 Files and responsibilities"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T09:50:57.875371Z",
+      "closed_at": "2026-07-21T09:50:58.713697Z",
+      "closed_reason": "- EnsureTPGitignore in internal/engine/projectconfig.go ensures .tp/.gitignore contains a local.json entry whenever tp writes under .tp/\n- It is idempotent: creates the file when absent, appends when missing, and does nothing when already present\n- TestEnsureTPGitignore_CreatesWhenAbsent and _IdempotentAppend cover creation and idempotent append",
+      "gate_passed_at": "2026-07-21T09:50:58.713697Z",
+      "commit_sha": "f546f2a"
     },
     {
       "id": "cfg-schema-parse",
