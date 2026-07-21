@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.25.0.md",
   "created_at": "2026-07-21T19:43:58.426848Z",
-  "updated_at": "2026-07-21T22:57:39.757614Z",
+  "updated_at": "2026-07-21T23:01:00.556038Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2,
@@ -576,7 +576,7 @@
     {
       "id": "test-eject-neutral-stale",
       "title": "Test eject neutrality staleness flip",
-      "status": "open",
+      "status": "done",
       "tags": [
         "test"
       ],
@@ -590,11 +590,11 @@
       "source_sections": [
         "## 5. Default Corpus \u0026 Eject"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T23:01:00.511325Z",
+      "closed_at": "2026-07-21T23:01:00.556035Z",
+      "closed_reason": "- internal/cli/eject_neutral_test.go TestEject_EmissionNeutral records the review prompts on the builtin corpus, ejects, and asserts each role's emitted prompt is byte-identical afterward (the written files are byte-identical to the embedded ones, so the panel and prompts do not change).\n- TestEject_FlipsHashAndStalesOnce asserts a project on zero role files stays on the builtin sentinel and is not roles-stale, then that ejecting flips the reviewer hash builtin-\u003efile hash and marks the recorded round stale exactly once (a fresh record re-baselines it).\n- Together they confirm ejecting is emission-neutral yet an honest corpus change costing at most one re-confirming round, while a defaults-only project carries no maintenance burden.",
+      "gate_passed_at": "2026-07-21T23:01:00.556035Z",
+      "commit_sha": "8384c65"
     },
     {
       "id": "test-nongoals",
