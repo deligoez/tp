@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.25.0.md",
   "created_at": "2026-07-21T19:43:58.426848Z",
-  "updated_at": "2026-07-21T21:55:39.56699Z",
+  "updated_at": "2026-07-21T22:01:31.135107Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2,
@@ -469,7 +469,7 @@
     {
       "id": "domain-persona-swap-removal",
       "title": "Remove Go domain persona swapper",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli"
       ],
@@ -483,11 +483,11 @@
         "## 6. Domain Selection",
         "## 10. `tp: lens` Retirement \u0026 Migration"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T22:01:31.097109Z",
+      "closed_at": "2026-07-21T22:01:31.135105Z",
+      "closed_reason": "- Removed the Go domain persona-swapper: promptDomain no longer carries a software field, and the two constructions (review.go runReview, review_regression.go) build promptDomain{lens} only; the actual persona-swap branches were already deleted with the hardcoded generators in review-emission-corpus, so domain now swaps no persona.\n- domain's only remaining effects are selecting the embedded default corpus when no role files exist and filtering the active corpus by each role's domains field (via engine.ResolveActiveCorpus); project-wide concerns move to shared role files and spec-local concerns to frontmatter overrides.\n- internal/cli/domain_lens_test.go TestReview_DomainDoesNotSwapPersona emits the same no-domains reviewer role under software and prose and asserts its persona is verbatim in both; TestReview_ProseDomainEmitsProsePanel and the corpus-filter tests confirm domain only selects/filters.",
+      "gate_passed_at": "2026-07-21T22:01:31.135105Z",
+      "commit_sha": "abc654a"
     },
     {
       "id": "lint-role-corpus",
