@@ -181,6 +181,25 @@ tp:
 
 **Role staleness**: each recorded round stores a per-phase `roles_hash` (`"builtin"` on the defaults); `--status` reports `roles_stale` beside the spec `stale` flag when the corpus changed since the last round (a single re-confirming round clears it). A pre-v0.25.0 round with no stored hash is treated as matching.
 
+## Role authoring guidance (v0.25.0)
+
+Opening role authoring is a power feature — a project-authored role is only as good as its prompt. Design each role for **high-signal, low-overlap, contract-conformant** findings:
+
+1. **One distinct failure-lens per role.** A role must target a failure mode no other role covers. Overlapping roles waste tokens and get flagged as trim candidates (`overlap_report`) — diversity of lenses beats count.
+2. **Adversarial framing.** "Try to refute this / find where it breaks / enumerate every X and verify each" outperforms "check whether this is fine". LLM reviewers have a leniency bias and underweight negation, so tell the role to actively hunt flaws and test the spec's "DO NOT" constraints.
+3. **Evidence demand.** Every finding carries a `location` (a `§`-anchor) and a why — this is what makes dedup (the overlap report) and audit PASS/FAIL meaningful. A finding with no location is unverifiable.
+4. **Scope boundaries.** State what the role does NOT cover (name the sibling roles' territory), so the panel tiles the problem space with disjoint lenses.
+5. **Output-contract adherence.** The role customizes only its `focus`, never the finding schema — tp injects the fixed contract (`role, location, class, severity`, plus `status` for audit).
+
+**Worked example role sets:**
+
+- **code/software** — *correctness* (does the change actually work: error paths, edge cases, happy-path gaps), *security* (trust boundaries, injection, unsafe defaults, unpaired locks), *performance/contract* (backward-compat, complexity, interface consistency). The ejectable `implementer`/`tester`/`architect` reviewers and `spec-coverage`/`security`/`maintainability-conventions` auditors are worked examples of this guidance.
+- **prose** — *narrative continuity* (coherence: does one part contradict, duplicate, or pre-empt another?) vs *expository derivability* (soundness: can each claim be derived from what precedes it without inventing facts?). Prose defaults to the leaner two-reviewer panel because prose flaws surface from many angles at once.
+
+**Other domains** and their characteristic diverging lenses (for custom corpora): **legal/contract** — obligation completeness vs. ambiguity/loophole; **product/PRD** — user-journey completeness vs. measurable acceptance; **data-schema** — referential integrity vs. migration/compat; **academic** — claim support vs. methodology soundness.
+
+The embedded default corpus is authored to exemplify this guidance, so an ejected default role is itself a worked example — run `tp init --eject-roles` to read them.
+
 ## State directory (`.tp-review/`)
 
 - `tp` owns the review/audit round lifecycle in `<spec-dir>/.tp-review/<spec-base>/` (`state.json`, `snapshot-round-<N>.md`, `review-round-<N>.ndjson`, `audit-round-<N>.ndjson`).
