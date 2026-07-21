@@ -208,6 +208,7 @@ skills/tp/
   2. `CLAUDE.md` Self-Development Rules reflect any new conventions or process changes
   3. `README.md` reflects all new commands, flags, and features
   4. All three files are committed and included in the release tag
+  5. **Dogfood any migration the release introduces on tp's own repo.** When a version adds a config/layout that makes an existing file or duplicated data redundant, migrate tp's own repo as part of the release: adopt the new mechanism, delete the now-redundant files, and commit the result (so tp ships already using its own new feature). For v0.24.0: write `.tp/config.json` with the shared workflow policy, remove the duplicated `workflow` blocks from every `spec/*.tasks.json`, migrate the active pointer with `tp use` (writes `.tp/local.json`, git-ignored), and delete the deprecated `.tp-active`; commit `.tp/config.json` + `.tp/.gitignore` + the thinned task files.
 - **Post-release commands** — after `gh release create`, run these two commands (in order):
   ```bash
   go install github.com/deligoez/tp/cmd/tp@v<VERSION>
