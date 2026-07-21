@@ -64,6 +64,7 @@ func checksEqual(a, b []model.Check) bool {
 // file's workflow-field deviations from the project config. Deviations are
 // informational (exit 0) unless --strict promotes them to exit 1.
 func runValidateProject() error {
+	surfaceConfigWarnings()
 	tpDir := engine.DiscoverTPDir(".")
 	if tpDir == "" || !fileExists(filepath.Join(tpDir, "config.json")) {
 		output.Info("no project config found (.tp/config.json)")
