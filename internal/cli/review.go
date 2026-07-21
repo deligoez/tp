@@ -444,94 +444,13 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 		specContent = buildSpecRefContent(absPath, lineCount, headings)
 	}
 
-	if perspective == "code-audit" {
-		affectedContent := engine.ReadAffectedFiles(affectedFiles)
-		summary := engine.BuildAffectedSummary(affectedFiles, affectedContent)
-		prompt := generateCodeAuditPrompt(specContent, affectedContent)
-		result := reviewResult{
-			Spec:            specPath,
-			Perspective:     perspective,
-			AffectedFiles:   affectedFiles,
-			AffectedSummary: summary,
-			Prompts:         []reviewPrompt{prompt},
-			ReviewLoop: reviewLoop{
-				Round:            round,
-				Convergence:      "single-pass code audit",
-				PreviousFindings: 0,
-				Instruction:      "Spawn a sub-agent with this prompt. Collect NDJSON findings. Feed findings back into spec revision or task acceptance updates.",
-			},
-		}
-		return output.JSON(result)
-	}
-
-	if perspective == "documentation" {
-		structureMap, files := walkDocTree(docsPath, ".md")
-		specLines := strings.Split(specContent, "\n")
-		ranked := rankFilesBySpecTerms(files, specLines, 15)
-		docContent := readFilesContent(ranked, 5000, 30000)
-		if len(affectedFiles) > 0 {
-			affectedContent := engine.ReadAffectedFiles(affectedFiles)
-			for path, content := range affectedContent {
-				docContent[path] = content
-			}
-		}
-		prompt := generateDocPlanPrompt(specContent, structureMap, docContent)
-		summary := engine.BuildAffectedSummary(affectedFiles, nil)
-		result := reviewResult{
-			Spec:            specPath,
-			Perspective:     perspective,
-			DocsPath:        docsPath,
-			AffectedFiles:   affectedFiles,
-			AffectedSummary: summary,
-			DocsStructure: &docStructure{
-				TotalFiles:    len(files),
-				ReviewedFiles: len(ranked),
-				StructureMap:  structureMap,
-			},
-			Prompts: []reviewPrompt{prompt},
-			ReviewLoop: reviewLoop{
-				Round:            1,
-				Convergence:      "single-pass plan generation",
-				PreviousFindings: 0,
-				Instruction:      "Spawn a sub-agent with this prompt. Collect the NDJSON plan. Review the plan for completeness, then append the plan to the spec.",
-			},
-		}
-		return output.JSON(result)
-	}
-
-	if perspective == "testing" {
-		structureMap, files := walkDocTree(testPath, "_test.go")
-		specLines := strings.Split(specContent, "\n")
-		ranked := rankFilesBySpecTerms(files, specLines, 15)
-		testContent := readFilesContent(ranked, 5000, 20000)
-		if len(affectedFiles) > 0 {
-			affectedContent := engine.ReadAffectedFiles(affectedFiles)
-			for path, content := range affectedContent {
-				testContent[path] = content
-			}
-		}
-		prompt := generateTestPlanPrompt(specContent, structureMap, testContent)
-		summary := engine.BuildAffectedSummary(affectedFiles, nil)
-		result := reviewResult{
-			Spec:            specPath,
-			Perspective:     perspective,
-			TestPath:        testPath,
-			AffectedFiles:   affectedFiles,
-			AffectedSummary: summary,
-			TestStructure: &docStructure{
-				TotalFiles:    len(files),
-				ReviewedFiles: len(ranked),
-				StructureMap:  structureMap,
-			},
-			Prompts: []reviewPrompt{prompt},
-			ReviewLoop: reviewLoop{
-				Round:            1,
-				Convergence:      "single-pass plan generation",
-				PreviousFindings: 0,
-				Instruction:      "Spawn a sub-agent with this prompt. Collect the NDJSON plan. Review the plan for completeness, then append the plan to the spec.",
-			},
-		}
-		return output.JSON(result)
+	switch perspective {
+	case "code-audit":
+		return runReviewCodeAudit(specPath, specContent, affectedFiles, round)
+	case "documentation":
+		return runReviewDocPlan(specPath, specContent, docsPath, affectedFiles)
+	case "testing":
+		return runReviewTestPlan(specPath, specContent, testPath, affectedFiles)
 	}
 
 	if round < 1 {
@@ -755,6 +674,82 @@ func appendSpecOnlyDisclaimer(b *strings.Builder, affectedSection string) {
 	if affectedSection == "" {
 		b.WriteString(specOnlyDisclaimer)
 	}
+}
+
+// runReviewCodeAudit emits the single-pass code-audit perspective prompt.
+func runReviewCodeAudit(specPath, specContent string, affectedFiles []string, round int) error {
+	affectedContent := engine.ReadAffectedFiles(affectedFiles)
+	summary := engine.BuildAffectedSummary(affectedFiles, affectedContent)
+	prompt := generateCodeAuditPrompt(specContent, affectedContent)
+	return output.JSON(reviewResult{
+		Spec:            specPath,
+		Perspective:     "code-audit",
+		AffectedFiles:   affectedFiles,
+		AffectedSummary: summary,
+		Prompts:         []reviewPrompt{prompt},
+		ReviewLoop: reviewLoop{
+			Round:            round,
+			Convergence:      "single-pass code audit",
+			PreviousFindings: 0,
+			Instruction:      "Spawn a sub-agent with this prompt. Collect NDJSON findings. Feed findings back into spec revision or task acceptance updates.",
+		},
+	})
+}
+
+// runReviewDocPlan emits the single-pass documentation-plan perspective prompt.
+func runReviewDocPlan(specPath, specContent, docsPath string, affectedFiles []string) error {
+	structureMap, files := walkDocTree(docsPath, ".md")
+	ranked := rankFilesBySpecTerms(files, strings.Split(specContent, "\n"), 15)
+	docContent := readFilesContent(ranked, 5000, 30000)
+	if len(affectedFiles) > 0 {
+		for path, content := range engine.ReadAffectedFiles(affectedFiles) {
+			docContent[path] = content
+		}
+	}
+	prompt := generateDocPlanPrompt(specContent, structureMap, docContent)
+	return output.JSON(reviewResult{
+		Spec:            specPath,
+		Perspective:     "documentation",
+		DocsPath:        docsPath,
+		AffectedFiles:   affectedFiles,
+		AffectedSummary: engine.BuildAffectedSummary(affectedFiles, nil),
+		DocsStructure:   &docStructure{TotalFiles: len(files), ReviewedFiles: len(ranked), StructureMap: structureMap},
+		Prompts:         []reviewPrompt{prompt},
+		ReviewLoop: reviewLoop{
+			Round:            1,
+			Convergence:      "single-pass plan generation",
+			PreviousFindings: 0,
+			Instruction:      "Spawn a sub-agent with this prompt. Collect the NDJSON plan. Review the plan for completeness, then append the plan to the spec.",
+		},
+	})
+}
+
+// runReviewTestPlan emits the single-pass test-plan perspective prompt.
+func runReviewTestPlan(specPath, specContent, testPath string, affectedFiles []string) error {
+	structureMap, files := walkDocTree(testPath, "_test.go")
+	ranked := rankFilesBySpecTerms(files, strings.Split(specContent, "\n"), 15)
+	testContent := readFilesContent(ranked, 5000, 20000)
+	if len(affectedFiles) > 0 {
+		for path, content := range engine.ReadAffectedFiles(affectedFiles) {
+			testContent[path] = content
+		}
+	}
+	prompt := generateTestPlanPrompt(specContent, structureMap, testContent)
+	return output.JSON(reviewResult{
+		Spec:            specPath,
+		Perspective:     "testing",
+		TestPath:        testPath,
+		AffectedFiles:   affectedFiles,
+		AffectedSummary: engine.BuildAffectedSummary(affectedFiles, nil),
+		TestStructure:   &docStructure{TotalFiles: len(files), ReviewedFiles: len(ranked), StructureMap: structureMap},
+		Prompts:         []reviewPrompt{prompt},
+		ReviewLoop: reviewLoop{
+			Round:            1,
+			Convergence:      "single-pass plan generation",
+			PreviousFindings: 0,
+			Instruction:      "Spawn a sub-agent with this prompt. Collect the NDJSON plan. Review the plan for completeness, then append the plan to the spec.",
+		},
+	})
 }
 
 // buildReviewPrompts emits the round's review prompts: one per active reviewer
