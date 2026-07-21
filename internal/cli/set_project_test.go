@@ -41,4 +41,3 @@ func TestRunSetProjectWorkflow_QualityGateAuthorable(t *testing.T) {
 	require.NotNil(t, pc.Workflow.QualityGate)
 	assert.Equal(t, "go test ./...", *pc.Workflow.QualityGate)
 }
-

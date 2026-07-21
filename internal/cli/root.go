@@ -13,7 +13,7 @@ import (
 var (
 	version = "dev"
 
-	flagFile    string
+	flagFile      string
 	flagJSON      bool
 	flagCompact   bool
 	flagQuiet     bool

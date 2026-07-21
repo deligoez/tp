@@ -193,4 +193,3 @@ func batchNeedsGate(tf *model.TaskFile, entries []batchEntry) bool {
 	}
 	return needs
 }
-
