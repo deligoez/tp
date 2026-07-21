@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.25.0.md",
   "created_at": "2026-07-21T19:43:58.426848Z",
-  "updated_at": "2026-07-21T20:25:04.041577Z",
+  "updated_at": "2026-07-21T20:26:28.766669Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2,
@@ -257,7 +257,7 @@
     {
       "id": "finding-cluster-logic",
       "title": "Cluster findings by location class",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -269,11 +269,11 @@
       "source_sections": [
         "## 8. Review Finding Dedup \u0026 Overlap Report"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T20:26:28.733133Z",
+      "closed_at": "2026-07-21T20:26:28.766668Z",
+      "closed_reason": "- engine.ClusterFindings (internal/engine/cluster.go) groups review findings only when both LocationKey(§8.2) and the trimmed class are equal and the class is non-empty, keying on locKey+NUL+class; the ClusterFinding view carries location/class/role/severity/finding.\n- class is compared after TrimSpace so '  stale  ' equals 'stale'; a finding whose class is empty-after-trim forms its own singleton cluster and never merges, so an empty location key cannot collapse unrelated findings.\n- internal/engine/cluster_test.go covers clustering on equal (key,class), the distinct-key and distinct-class splits, the whitespace-trim equality, and the absent-class singleton rule.",
+      "gate_passed_at": "2026-07-21T20:26:28.766668Z",
+      "commit_sha": "a05b8b0"
     },
     {
       "id": "cluster-representative-attribution",
