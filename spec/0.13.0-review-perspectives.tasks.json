@@ -3,9 +3,7 @@
   "spec": "spec/0.13.0-review-perspectives.md",
   "created_at": "0001-01-01T00:00:00Z",
   "updated_at": "2026-04-02T10:21:05.952949Z",
-  "workflow": {
-    "quality_gate": "go test ./... \u0026\u0026 golangci-lint run"
-  },
+  "workflow": {},
   "coverage": {
     "total_sections": 31,
     "mapped_sections": 21,

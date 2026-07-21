@@ -3,9 +3,7 @@
   "spec": "spec/0.14.0-code-aware-review.md",
   "created_at": "0001-01-01T00:00:00Z",
   "updated_at": "2026-04-02T12:16:29.509251Z",
-  "workflow": {
-    "quality_gate": "go test ./... \u0026\u0026 golangci-lint run"
-  },
+  "workflow": {},
   "coverage": {
     "total_sections": 33,
     "mapped_sections": 15,

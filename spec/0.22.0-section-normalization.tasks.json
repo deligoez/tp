@@ -3,10 +3,7 @@
   "spec": "spec/0.22.0-section-normalization.md",
   "created_at": "0001-01-01T00:00:00Z",
   "updated_at": "2026-05-14T18:57:56.629928Z",
-  "workflow": {
-    "review_clean_rounds": 2,
-    "audit_clean_rounds": 2
-  },
+  "workflow": {},
   "coverage": {
     "total_sections": 28,
     "mapped_sections": 13,

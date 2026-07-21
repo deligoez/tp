@@ -3,10 +3,7 @@
   "spec": "spec/0.21.0-skill-interview.md",
   "created_at": "2026-04-09T22:22:18.027915Z",
   "updated_at": "2026-04-09T22:30:07.561868Z",
-  "workflow": {
-    "review_clean_rounds": 2,
-    "audit_clean_rounds": 2
-  },
+  "workflow": {},
   "coverage": {
     "total_sections": 34,
     "mapped_sections": 7,
