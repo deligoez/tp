@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.25.0.md",
   "created_at": "2026-07-21T19:43:58.426848Z",
-  "updated_at": "2026-07-21T23:09:19.873795Z",
+  "updated_at": "2026-07-21T23:12:13.575745Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2,
@@ -737,7 +737,7 @@
     {
       "id": "docs-skill-commands",
       "title": "Update SKILL command reference",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -753,11 +753,11 @@
         "## 7. Prompt Emission",
         "## 8. Review Finding Dedup \u0026 Overlap Report"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T23:12:13.541734Z",
+      "closed_at": "2026-07-21T23:12:13.575743Z",
+      "closed_reason": "- skills/tp/SKILL.md replaces the old 'Frontmatter: domain \u0026 lens' section with a 'Role Corpus \u0026 frontmatter overrides (v0.25.0)' section covering the .tp/reviewers|.tp/auditors corpus + schema, tp init --eject-roles [--domain|--force], the review_roles/audit_roles additive overrides, corpus-driven review/audit emission (one prompt per active role + appended regression), and the per-role overlap report (unique/shared/trim_candidate).\n- It documents the roles_stale status flag (per-phase roles_hash, builtin sentinel, pre-v0.25.0 matching) and that role validation runs in tp lint (both phases), tp review (reviewers), and tp audit (auditors), aborting the phase with exit 3 on a malformed file.\n- Workflow D's audit step is updated to 'one prompt per active auditor role from the corpus (defaults spec-coverage/security/maintainability-conventions)', so the skill reflects all new commands, flags, and workflow changes.",
+      "gate_passed_at": "2026-07-21T23:12:13.575743Z",
+      "commit_sha": "8539ea5"
     },
     {
       "id": "docs-claude-selfdev",
