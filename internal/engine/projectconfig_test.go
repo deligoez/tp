@@ -110,3 +110,37 @@ func TestEnsureTPGitignore_IdempotentAppend(t *testing.T) {
 	assert.Equal(t, "other\nlocal.json\n", string(data))
 	assert.Equal(t, 1, strings.Count(string(data), "local.json"))
 }
+
+func TestLoadProjectConfig_ParsesWorkflowWithPresence(t *testing.T) {
+	tp := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tp, "config.json"),
+		[]byte(`{"workflow":{"review_max_rounds":0,"gate_timeout_seconds":900}}`), 0o600))
+	pc, err := LoadProjectConfig(tp)
+	require.NoError(t, err)
+	require.NotNil(t, pc.Workflow.ReviewMaxRounds)
+	assert.Equal(t, 0, *pc.Workflow.ReviewMaxRounds) // explicit zero, present
+	require.NotNil(t, pc.Workflow.GateTimeoutSeconds)
+	assert.Equal(t, 900, *pc.Workflow.GateTimeoutSeconds)
+	assert.Nil(t, pc.Workflow.ReviewCleanRounds) // absent key stays nil
+}
+
+func TestLoadProjectConfig_MissingFileIsEmpty(t *testing.T) {
+	pc, err := LoadProjectConfig(t.TempDir())
+	require.NoError(t, err)
+	assert.True(t, pc.Workflow.IsEmpty())
+}
+
+func TestLoadLocalConfig_ParsesActiveAndDefaults(t *testing.T) {
+	tp := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tp, "local.json"),
+		[]byte(`{"active":"a/a.tasks.json","defaults":{"compact":true}}`), 0o600))
+	lc, err := LoadLocalConfig(tp)
+	require.NoError(t, err)
+	require.NotNil(t, lc.Active)
+	assert.Equal(t, "a/a.tasks.json", *lc.Active)
+	assert.True(t, lc.Defaults["compact"])
+
+	empty, err := LoadLocalConfig(t.TempDir())
+	require.NoError(t, err)
+	assert.Nil(t, empty.Active)
+}

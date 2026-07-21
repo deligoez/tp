@@ -1,10 +1,50 @@
 package engine
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/deligoez/tp/internal/model"
 )
+
+// LoadProjectConfig reads and parses tpDir/config.json into a ProjectConfig.
+// A missing file returns an empty ProjectConfig, which is equivalent to an
+// empty object {} and contributes no overrides. Workflow fields are
+// presence-tracked (WorkflowOverride uses pointers), so an absent key stays
+// distinct from an explicit zero.
+func LoadProjectConfig(tpDir string) (model.ProjectConfig, error) {
+	var pc model.ProjectConfig
+	data, err := os.ReadFile(filepath.Join(tpDir, "config.json"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return pc, nil
+		}
+		return pc, err
+	}
+	if err := json.Unmarshal(data, &pc); err != nil {
+		return pc, err
+	}
+	return pc, nil
+}
+
+// LoadLocalConfig reads and parses tpDir/local.json into a LocalConfig.
+// A missing file returns an empty LocalConfig (nil active, nil defaults).
+func LoadLocalConfig(tpDir string) (model.LocalConfig, error) {
+	var lc model.LocalConfig
+	data, err := os.ReadFile(filepath.Join(tpDir, "local.json"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return lc, nil
+		}
+		return lc, err
+	}
+	if err := json.Unmarshal(data, &lc); err != nil {
+		return lc, err
+	}
+	return lc, nil
+}
 
 // EnsureTPGitignore ensures tpDir/.gitignore exists and contains a "local.json"
 // entry, so .tp/local.json stays git-ignored even when the .tp/ directory was
