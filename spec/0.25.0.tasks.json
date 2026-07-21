@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.25.0.md",
   "created_at": "2026-07-21T19:43:58.426848Z",
-  "updated_at": "2026-07-21T21:19:44.336697Z",
+  "updated_at": "2026-07-21T21:25:33.762857Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2,
@@ -149,7 +149,7 @@
     {
       "id": "roles-hash-compute",
       "title": "Compute per-phase role corpus hash",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -161,11 +161,11 @@
       "source_sections": [
         "## 9. Role Staleness"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T21:25:33.714119Z",
+      "closed_at": "2026-07-21T21:25:33.762846Z",
+      "closed_reason": "- engine.ComputeRolesHash (internal/engine/rolehash.go) computes a phase's corpus hash as sha256 over its .tp/\u003cphase\u003e/*.json user files sorted by repo-relative path, hashing each file's forward-slash repo-relative path plus its CRLF-normalized content, so the hash is clone-stable across checkout paths and git autocrlf/eol.\n- A phase with no user files returns the sentinel RolesHashBuiltin (\"builtin\"); the built-in regression role is never a file so it is never part of review_roles_hash, and a spec-frontmatter override is covered by spec_hash, not here.\n- internal/engine/rolehash_test.go covers the builtin sentinel (no .tp/, empty dir, populated), cross-path stability with an edit flipping the hash, CRLF-vs-LF normalization producing the same hash, and phase independence.",
+      "gate_passed_at": "2026-07-21T21:25:33.762846Z",
+      "commit_sha": "f731ee6"
     },
     {
       "id": "review-emission-corpus",
