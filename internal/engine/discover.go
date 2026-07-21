@@ -35,6 +35,14 @@ func DiscoverTaskFile(dir, explicit string) (string, error) {
 		return envFile, nil
 	}
 
+	// .tp/local.json active pointer (project-root-relative), ahead of the
+	// legacy marker. A dangling pointer falls through to the rest of the chain.
+	if active := ResolveLocalActive(dir); active != "" {
+		if _, statErr := os.Stat(active); statErr == nil {
+			return active, nil
+		}
+	}
+
 	// Check .tp-active in CWD
 	if activeFile, err := readTPActive(dir); err == nil && activeFile != "" {
 		// Resolve relative to the directory containing .tp-active

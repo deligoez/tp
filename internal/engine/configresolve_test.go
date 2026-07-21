@@ -159,3 +159,20 @@ func TestResolveWorkflow_BudgetCapsInherited(t *testing.T) {
 	assert.Equal(t, 6, wf.ReviewMaxRounds, "review budget uses the inherited project cap")
 	assert.Equal(t, 9, wf.AuditMaxRounds, "audit budget uses the inherited project cap")
 }
+
+func TestDiscoverTaskFile_LocalActiveOverLegacy(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".tp"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "new.tasks.json"), []byte("{}"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".tp", "local.json"),
+		[]byte(`{"active":"new.tasks.json"}`), 0o600))
+	// A legacy marker points elsewhere; the project-local pointer must win.
+	require.NoError(t, os.WriteFile(filepath.Join(root, "old.tasks.json"), []byte("{}"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".tp-active"), []byte("old.tasks.json"), 0o600))
+
+	got, err := DiscoverTaskFile(root, "")
+	require.NoError(t, err)
+	assert.Equal(t, evalLink(t, filepath.Join(root, "new.tasks.json")), evalLink(t, got),
+		"the .tp/local.json active pointer wins over the legacy .tp-active")
+}

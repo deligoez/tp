@@ -3,9 +3,37 @@ package engine
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/deligoez/tp/internal/model"
 )
+
+// ResolveLocalActive returns the active task-file path recorded in
+// .tp/local.json, resolved against the project root. It returns "" when there
+// is no .tp/, no active key, or the stored value is absolute or escapes the
+// project root (those are rejected). File existence is not checked here — the
+// discovery chain decides whether to use or fall past the resolved path.
+func ResolveLocalActive(start string) string {
+	tpDir := DiscoverTPDir(start)
+	if tpDir == "" {
+		return ""
+	}
+	lc, _, err := LoadLocalConfig(tpDir)
+	if err != nil || lc.Active == nil {
+		return ""
+	}
+	active := *lc.Active
+	if active == "" || filepath.IsAbs(active) {
+		return ""
+	}
+	root := ProjectRoot(start)
+	resolved := filepath.Join(root, active)
+	if rel, relErr := filepath.Rel(root, resolved); relErr != nil || strings.HasPrefix(rel, "..") {
+		return "" // escapes the project root
+	}
+	return resolved
+}
 
 // LoadTaskWorkflowOverride parses a task file's own "workflow" block into a
 // presence-tracked WorkflowOverride, so a sparse task-file workflow layers
