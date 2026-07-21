@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.24.0.md",
   "created_at": "2026-07-21T09:33:07.313Z",
-  "updated_at": "2026-07-21T11:11:44.186734Z",
+  "updated_at": "2026-07-21T11:12:19.696848Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -314,7 +314,7 @@
     {
       "id": "cfg-config-resolved",
       "title": "Annotate resolved config sources",
-      "status": "wip",
+      "status": "done",
       "depends_on": [
         "cfg-config-print"
       ],
@@ -324,10 +324,10 @@
         "## 6. Inspecting the resolved config"
       ],
       "started_at": "2026-07-21T11:11:44.142407Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": "589347c"
+      "closed_at": "2026-07-21T11:12:19.696848Z",
+      "closed_reason": "- tp config --resolved (internal/cli/config.go resolvedConfig) annotates each workflow field with a value and source layer, exported engine.ProjectWorkflowOverride attributes the project layer\n- Workflow fields report override, project, or default; values from .tp/config.json report project (reserved from the committed file, not local)\n- TestResolvedConfig_SourceLabels covers the override, project, and default source labels",
+      "gate_passed_at": "2026-07-21T11:12:19.696848Z",
+      "commit_sha": "4b3fdd1"
     },
     {
       "id": "cfg-set-project-write",
