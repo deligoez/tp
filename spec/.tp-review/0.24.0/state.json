@@ -66,6 +66,14 @@
       "recorded_at": "2026-07-21T12:16:49Z",
       "file": "audit-round-2.ndjson",
       "spec_hash": "sha256:4fbc63fcd39817f5845fb297cc8d2c9c681ada39c72b2fdf1e9d6a825eca1ab8"
+    },
+    {
+      "round": 3,
+      "findings": 1,
+      "clean": false,
+      "recorded_at": "2026-07-21T12:26:59Z",
+      "file": "audit-round-3.ndjson",
+      "spec_hash": "sha256:4fbc63fcd39817f5845fb297cc8d2c9c681ada39c72b2fdf1e9d6a825eca1ab8"
     }
   ]
 }
