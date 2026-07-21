@@ -157,8 +157,8 @@ tp add <json>                  # Add task (--stdin for piped input)
 tp add --bulk tasks.ndjson     # Bulk add from NDJSON
 tp import file.json            # Import + validate (--force to overwrite + relax atomicity)
 tp import tasks.json --spec spec/feature.md  # Import bare JSON array (auto-wraps)
-tp use spec.tasks.json         # Set active task file (.tp-active)
-tp use --clear                 # Remove .tp-active marker
+tp use spec.tasks.json         # Set active task file (writes .tp/local.json, git-ignored)
+tp use --clear                 # Clear the active pointer
 tp use                         # Show current active file
 ```
 
@@ -166,9 +166,9 @@ tp use                         # Show current active file
 ```
 --file <path>    Explicit task file path
 --json           Force JSON output (default when piped)
---compact        Minimal JSON (~40% smaller)
---quiet          Suppress info messages
---no-color       Disable colored output
+--compact        Minimal JSON (~40% smaller); --no-compact forces full
+--quiet          Suppress info messages; --no-quiet forces info output
+--no-color       Disable colored output; --color forces color
 ```
 
 ### Task File Discovery
@@ -177,12 +177,49 @@ tp finds your `.tasks.json` automatically:
 
 1. `--file` flag (highest priority)
 2. `TP_FILE` environment variable
-3. Auto-detect: scans current directory, then one level of subdirectories
+3. `.tp/local.json` active pointer (set with `tp use`)
+4. Legacy `.tp-active` marker (deprecated; removed in v0.25.0)
+5. Auto-detect: scans current directory, then one level of subdirectories
 
 ```bash
 # Set once, use everywhere
 export TP_FILE=spec/project.tasks.json
 ```
+
+## Project Configuration
+
+Multi-spec repos share **one** workflow policy instead of copying it into every `*.tasks.json` — so an agent working across specs reads a single source of truth and can't silently drift. A repo-root `.tp/` directory holds it:
+
+- **`.tp/config.json`** (commit to VCS) — shared **workflow defaults**: `quality_gate`, `review_clean_rounds`, `audit_clean_rounds`, `gate_timeout_seconds`, `review_max_rounds`, `audit_max_rounds`, `checks`.
+- **`.tp/local.json`** (git-ignored automatically) — per-checkout state: the `active` task-file pointer (`tp use`) and CLI flag `defaults`.
+- **`.tp/.gitignore`** — written automatically so `config.json` is tracked and `local.json` is not.
+
+Discovery walks up from the current directory to the `.git` boundary to find `.tp/` — a single, deterministic anchor the agent never has to disambiguate.
+
+### Layered resolution (resolve-at-read)
+
+A task file's `workflow` block holds only **explicit overrides**; effective values merge at read time (never materialized, so nothing drifts). Precedence, highest first:
+
+```
+CLI flag  >  environment  >  task-file workflow override  >  .tp/config.json  >  built-in default
+```
+
+Absent ≠ zero: a field counts as an override only when actually present, so `.tp/config.json` fills every gap a task file leaves. `checks` uses replace semantics (the winning layer's array wins whole).
+
+### Commands
+
+```bash
+tp config                      # Effective configuration as JSON (what the agent will actually run)
+tp config --resolved           # Annotate each setting with its {value, source} layer
+tp config --extract            # Hoist policy shared by ALL task files into .tp/config.json
+tp config --extract --dry-run  # Preview the hoist plan without writing
+tp config --extract --force    # Merge into an existing .tp/config.json
+tp set --workflow --project review_clean_rounds=3   # Edit a project-level workflow field
+tp set --local defaults.compact=true                # Set a CLI flag default (compact/quiet/no_color)
+tp validate --project          # Report cross-spec workflow drift (informational; --strict → exit 1)
+```
+
+Negating flags override a `defaults` entry for a single run: `--no-compact`, `--no-quiet`, `--color`.
 
 ## Task File Format
 
