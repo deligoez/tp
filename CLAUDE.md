@@ -197,6 +197,7 @@ skills/tp/
 - Use `--covered-by` when a task is satisfied by another task's work
 - Quality gate after every task: `go test ./... && golangci-lint run`
 - One task = one commit = one `tp commit` call
+- **English everywhere in committed artifacts** — commit messages, `tp commit`/`tp done` closure reasons (they land in `commit_sha` bodies and `closed_reason`), code comments, and docs are ALWAYS in English, regardless of the conversation language. Author notes/thinking may be in any language, but nothing committed to the repo may be. If a Turkish (or other non-English) message slips into history, fix it with `hc rewrite` (commit messages) or by editing the artifact (closure reasons, docs) before release.
 - Task-closing commits always go through `tp commit` (records `commit_sha` on the task) — never raw `git commit`
 - Every other commit (spec progression, docs, tooling, changes outside a task) goes through the `hc` skill (hunk-based atomic commits) — never raw `git commit`
 - `source_sections` entries should use canonical form `"## Heading Text"` (with `##` prefix and space). v0.22.0+ accepts plain text and auto-normalizes, but prefer canonical form for clarity in committed `.tasks.json` files.
