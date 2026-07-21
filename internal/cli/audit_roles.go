@@ -157,6 +157,7 @@ func buildRolePrompt(role string, rules []string, items []ChecklistItem, files [
 	b.WriteString("\n")
 
 	b.WriteString(renderAuditOutputSchema())
+	b.WriteString(outputContractInstruction(role, engine.PhaseAuditors))
 
 	return auditPrompt{
 		Role:           role,

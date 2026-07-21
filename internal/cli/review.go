@@ -853,6 +853,7 @@ func appendSpecOnlyDisclaimer(b *strings.Builder, affectedSection string) {
 		b.WriteString(specOnlyDisclaimer)
 	}
 }
+
 // generateCorpusReviewPrompt renders one review prompt for a corpus role,
 // assembling the role's instructions (persona) and focus questions with the
 // shared, role-neutral scaffolding: the spec-only disclaimer, the previous-round
@@ -903,12 +904,31 @@ func generateCorpusReviewPrompt(role *model.Role, elems *engine.StructuredElemen
 	if summary != "" {
 		b.WriteString(findingFormatRound2)
 	}
+	b.WriteString(outputContractInstruction(role.ID, engine.PhaseReviewers))
 
 	return reviewPrompt{
 		Role:     role.ID,
 		Category: role.ID,
 		Prompt:   b.String(),
 	}
+}
+
+// outputContractInstruction returns the §7.3 output-contract block for a phase,
+// naming the role every finding must be stamped with (Principle 2 — tp owns the
+// contract). Review findings carry role, location (a §<section> anchor per §8.2,
+// which is what makes dedup and the overlap report possible), class, and
+// severity; audit findings additionally carry status ∈ PASS/PARTIAL/FAIL.
+func outputContractInstruction(role, phase string) string {
+	var b strings.Builder
+	b.WriteString("\n\nOutput contract — stamp EVERY finding with the full contract:\n")
+	fmt.Fprintf(&b, "- role: %q (this prompt's role, so inter-role overlap can be attributed)\n", role)
+	b.WriteString("- location: a section anchor such as \"§3.2\" — the first §<n>(.<n>)* token — so findings dedup by section\n")
+	b.WriteString("- class: a kebab-case slug naming the failure class (the dedup/cluster key)\n")
+	b.WriteString("- severity: one of critical, high, medium, low\n")
+	if phase == engine.PhaseAuditors {
+		b.WriteString("- status: one of PASS, PARTIAL, FAIL\n")
+	}
+	return b.String()
 }
 
 func generateCodeAuditPrompt(specContent string, affectedContent map[string]string) reviewPrompt {
