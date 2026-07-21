@@ -64,29 +64,7 @@ func runAuditRecord(specPath, recordPath string) error {
 		return nil
 	}
 
-	var st *engine.ReviewState
-	var round int
-	lockErr := engine.WithReviewStateLock(specPath, func() error {
-		var loadErr error
-		st, loadErr = engine.LoadReviewState(specPath)
-		if loadErr != nil {
-			return loadErr
-		}
-		round = len(st.AuditRounds) + 1
-		fileName := fmt.Sprintf("audit-round-%d.ndjson", round)
-		if writeErr := os.WriteFile(filepath.Join(engine.ReviewStateDir(specPath), fileName), data, 0o600); writeErr != nil {
-			return writeErr
-		}
-		st.AuditRounds = append(st.AuditRounds, engine.ReviewRound{
-			Round:      round,
-			Findings:   findings,
-			Clean:      clean,
-			RecordedAt: time.Now().UTC().Format(time.RFC3339),
-			File:       fileName,
-			SpecHash:   specHash,
-		})
-		return engine.SaveReviewState(specPath, st)
-	})
+	st, round, lockErr := recordAuditRoundEntry(specPath, data, findings, clean, specHash)
 	if lockErr != nil {
 		exitStateError(lockErr)
 		return nil
@@ -102,6 +80,34 @@ func runAuditRecord(specPath, recordPath string) error {
 		"converged":             engine.Converged(st.AuditRounds, wf.AuditCleanRounds, specHash),
 		"stale":                 engine.StateStale(st.AuditRounds, specHash),
 	})
+}
+
+// recordAuditRoundEntry copies the results file into the state directory as
+// audit-round-<N>.ndjson and appends the round entry to state.json under the
+// state flock (round file first, index entry second).
+func recordAuditRoundEntry(specPath string, data []byte, findings int, clean bool, specHash string) (st *engine.ReviewState, round int, err error) {
+	err = engine.WithReviewStateLock(specPath, func() error {
+		loaded, loadErr := engine.LoadReviewState(specPath)
+		if loadErr != nil {
+			return loadErr
+		}
+		st = loaded
+		round = len(st.AuditRounds) + 1
+		fileName := fmt.Sprintf("audit-round-%d.ndjson", round)
+		if writeErr := os.WriteFile(filepath.Join(engine.ReviewStateDir(specPath), fileName), data, 0o600); writeErr != nil {
+			return writeErr
+		}
+		st.AuditRounds = append(st.AuditRounds, engine.ReviewRound{
+			Round:      round,
+			Findings:   findings,
+			Clean:      clean,
+			RecordedAt: time.Now().UTC().Format(time.RFC3339),
+			File:       fileName,
+			SpecHash:   specHash,
+		})
+		return engine.SaveReviewState(specPath, st)
+	})
+	return st, round, err
 }
 
 // countAuditFindings parses rows with the shared line rules and counts rows
