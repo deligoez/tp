@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.25.0.md",
   "created_at": "2026-07-21T19:43:58.426848Z",
-  "updated_at": "2026-07-21T19:58:32.593022Z",
+  "updated_at": "2026-07-21T20:16:12.974138Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2,
@@ -407,7 +407,7 @@
     {
       "id": "frontmatter-role-overrides-parse",
       "title": "Parse spec role overrides",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -417,11 +417,11 @@
       "source_sections": [
         "## 10. `tp: lens` Retirement \u0026 Migration"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T20:16:12.904012Z",
+      "closed_at": "2026-07-21T20:16:12.974133Z",
+      "closed_reason": "- ParseFrontmatterBytes now parses tp.review_roles and tp.audit_roles via parseRoleOverrides (internal/engine/frontmatter.go); the Frontmatter struct carries new ReviewRoles/AuditRoles map[string][]string fields keyed by role id, defaulted to empty maps in defaultFrontmatter.\n- Each override's only permitted value key is focus (string array); any other key emits a 'not a permitted override key (only focus); ignored' lint warning and is dropped, with non-mapping/non-list/non-string shapes also warned-and-ignored (parseRoleOverrides).\n- internal/engine/frontmatter_roleoverrides_test.go covers valid review+audit override parsing, the disallowed-key warn-and-ignore, malformed-shape warnings, and the empty-map default.",
+      "gate_passed_at": "2026-07-21T20:16:12.974133Z",
+      "commit_sha": "e37f94a"
     },
     {
       "id": "override-focus-resolution",
