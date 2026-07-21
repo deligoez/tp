@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.24.0.md",
   "created_at": "2026-07-21T09:33:07.313Z",
-  "updated_at": "2026-07-21T11:40:53.630593Z",
+  "updated_at": "2026-07-21T11:42:49.472461Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -682,7 +682,7 @@
     {
       "id": "cfg-extract-nohoist",
       "title": "Handle empty hoist result",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cfg-extract-hoist"
       ],
@@ -691,11 +691,11 @@
       "source_sections": [
         "## 11. Migration and backward compatibility"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T11:42:47.439613Z",
+      "closed_at": "2026-07-21T11:42:49.472461Z",
+      "closed_reason": "- When no workflow field is common to all task files, tp config --extract writes nothing, reports nothing-to-hoist, and exits 0 (verified)\n- A malformed task file encountered mid-scan aborts --extract with exit 3 rather than being skipped (verified)\n- TestComputeCommonPolicy_NothingToHoist covers the nothing-to-hoist path",
+      "gate_passed_at": "2026-07-21T11:42:49.472461Z",
+      "commit_sha": "69b9b74"
     },
     {
       "id": "cfg-extract-dryrun",
