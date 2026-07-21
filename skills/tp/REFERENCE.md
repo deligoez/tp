@@ -279,20 +279,44 @@ A spec whose first line is `---` may carry a YAML frontmatter block. tp reads on
 ```yaml
 ---
 tp:
-  domain: prose        # free string; default "software"; only "software" enables software-specific prompts
-  lens:
-    all: ["question appended to every role + regression"]
-    implementer: ["question appended to the implementer role only"]
-    tester: []
-    architect: []
+  domain: prose          # free string; default "software"; selects & filters the role corpus
+  review_roles:          # additive focus override, keyed by role id
+    implementer:
+      focus: ["appended to the implementer role's focus"]
+  audit_roles:
+    security:
+      focus: ["appended to the security auditor's focus"]
 ---
 ```
 
-`tp lint --json` reports a `frontmatter` object: `{present, lines, domain, lens_roles}` (`lines` as `"1-K"`; `lens_roles` = non-empty lens keys in order implementer, tester, architect, all). Malformed YAML is a lint error; unknown lens keys, non-list values, and non-string elements are lint warnings and are ignored by review. An unterminated block is treated as content with a lint error.
+- `domain` selects the embedded default corpus (`software`/`prose`) when no role files exist and filters a user corpus by each role's `domains`; it no longer swaps personas. An unknown domain falls back to `software` with a lint warning.
+- `tp.review_roles` / `tp.audit_roles`: each maps a role id to an object whose only permitted key is `focus` (a string array), **appended** to that role's corpus focus at emission (project focus first). Any other override key is a lint warning; an override id matching no active role is ignored with a lint warning; the built-in `regression` role accepts no overrides.
+- The standalone `tp: lens` block is **retired** (see Role Corpus). A legacy `lens` with no new overrides auto-translates to review-role focus (`lens.all` → every review role except regression; `lens.<id>` → that role) with a deprecation warning; the new form wins when both are present.
+- `tp lint --json` reports a `frontmatter` object `{present, lines, domain, lens_roles}`. Malformed YAML is a lint error; unknown lens keys, non-list values, disallowed override keys, and unknown override ids are lint warnings.
+
+## Role Corpus (v0.25.0)
+
+Reviewer and auditor roles are project-owned JSON files under the repo-root `.tp/` (discovered via the git-boundary anchor, committed to VCS):
+
+- `.tp/reviewers/*.json` — `tp review` roles; `.tp/auditors/*.json` — `tp audit` roles. The phase is inferred from the directory.
+- Schema (one shared parser/validator): `id` (MUST equal the filename stem, `^[a-z0-9]+(-[a-z0-9]+)*$`, not the reserved `regression`), `title`, `instructions`, `focus` (string[], optional), `domains` (string[], optional — default: every domain). Any other top-level key is a validation error — tp owns the finding output contract.
+- A populated phase directory replaces the embedded default corpus for that phase; absent/empty keeps the built-in defaults.
+
+| Command / flag | Meaning |
+|----------------|---------|
+| `tp init --eject-roles` | Write the default corpus into `.tp/reviewers` and `.tp/auditors` (byte-identical to the embedded prompts) |
+| `tp init --eject-roles --domain <name>` | Eject the corpus for a shipped domain (`software`, `prose`); an unknown domain is a usage error (exit 2) |
+| `tp init --eject-roles --force` | Overwrite existing role files regardless of validity |
+
+Validation: `tp lint` validates both phases, `tp review` validates reviewers, `tp audit` validates auditors. A malformed or invalid role file aborts the phase-reading command with exit 3 and a `repair or delete <path>` hint (a broken auditor never blocks review — phase independence).
+
+**Overlap fields** (`tp review --merge`/`--report`/`--status`): findings cluster by `(location key, class)`, the location key being the first `§<n>(.<n>)*` token. Each merged finding carries `found_by` (count of distinct diversity reviewer roles) and `found_by_roles` (the sorted set, `regression` excluded). `overlap_report` is a per-role array of `{role, unique, shared, trim_candidate}` — `trim_candidate` is true when `unique == 0 && shared >= 1`.
+
+**Role staleness** (`tp review --status`/`tp audit --status`): each recorded round stores `roles_hash` (`"builtin"` on the defaults, else a clone-stable sha256 over the phase's user files). `--status` reports `roles_stale` beside the spec `stale` flag; a pre-v0.25.0 round with no stored hash is treated as matching.
 
 ## Finding `class` and Report
 
-Review finding NDJSON gains an optional `class` (kebab-case slug naming a mechanically checkable pattern). `tp review --merge` preserves it (first non-empty wins on dedup); `tp review --report` adds a `by_class` breakdown and `mechanize_candidates` (a class in ≥ 2 distinct rounds OR ≥ 5 times in one round), sorted by total descending, ties alphabetical.
+Every review finding carries `role`, `location` (a `§`-anchor), `class`, and `severity` (tp's output contract). `tp review --merge` clusters by `(location key, class)` — a finding with no class is its own cluster — and emits each cluster's representative (highest severity, then lexicographic role, then finding text) annotated with `found_by`/`found_by_roles`. `tp review --report` adds a `by_class` breakdown, the per-role `overlap_report`, and `mechanize_candidates` (a class in ≥ 2 distinct rounds OR ≥ 5 times in one round), sorted by total descending, ties alphabetical.
 
 ## Audit JSON Schema (v0.23.0 — clean break from v0.22.0)
 
