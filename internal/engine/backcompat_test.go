@@ -61,3 +61,24 @@ func TestOptIn_ExistingFullTaskFileWinsAndIsNotRewritten(t *testing.T) {
 	require.NoError(t, err)
 	assert.JSONEq(t, full, string(after), "resolving never auto-thins an existing task file")
 }
+
+// TestNonGoals_NoUserHomeConfig proves resolution is exactly two layers
+// (project + per-task): a user-home ~/.config/tp config is never consulted, so
+// v0.24.0 introduces no user-global layer.
+func TestNonGoals_NoUserHomeConfig(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	require.NoError(t, os.MkdirAll(filepath.Join(home, ".config", "tp"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(home, ".config", "tp", "config.json"),
+		[]byte(`{"workflow":{"review_max_rounds":77}}`), 0o600))
+
+	root := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
+	t.Chdir(root)
+
+	// No project config and no task override: only the built-in default applies;
+	// the user-home config is ignored.
+	wf := EffectiveWorkflowForTaskFile("nonexistent.tasks.json")
+	assert.Equal(t, 0, wf.ReviewMaxRounds, "a user-home config is not consulted; the built-in default applies")
+	assert.Equal(t, 2, wf.ReviewCleanRounds, "resolution stays two-layer with no user-global source")
+}
