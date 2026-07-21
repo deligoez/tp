@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.24.0.md",
   "created_at": "2026-07-21T09:33:07.313Z",
-  "updated_at": "2026-07-21T11:18:00.274603Z",
+  "updated_at": "2026-07-21T11:18:17.490633Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -388,7 +388,7 @@
     {
       "id": "cfg-set-local-validate",
       "title": "Validate local flag writes",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cfg-set-local-write"
       ],
@@ -397,11 +397,11 @@
       "source_sections": [
         "## 4. Editing the project config"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T11:18:15.414501Z",
+      "closed_at": "2026-07-21T11:18:17.490633Z",
+      "closed_reason": "- tp set --local rejects an unknown flag default (not compact/quiet/no_color) with exit 1 (verified: defaults.bogus exits 1)\n- tp set --local rejects a non-boolean value with exit 1 (verified: defaults.compact=maybe exits 1, =true exits 0)\n- The validation lives in runSetLocal in internal/cli/set_local.go alongside the write path",
+      "gate_passed_at": "2026-07-21T11:18:17.490633Z",
+      "commit_sha": "5fd71a1"
     },
     {
       "id": "cfg-active-chain",
