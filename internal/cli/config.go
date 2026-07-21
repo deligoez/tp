@@ -2,6 +2,7 @@ package cli
 
 import (
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -51,7 +52,7 @@ func resolvedConfig(wf *model.Workflow, override model.WorkflowOverride) map[str
 	vs := func(value any, o, p bool) map[string]any {
 		return map[string]any{"value": value, "source": sourceLabel(o, p)}
 	}
-	return map[string]any{"workflow": map[string]any{
+	result := map[string]any{"workflow": map[string]any{
 		"quality_gate":         vs(wf.QualityGate, override.QualityGate != nil, project.QualityGate != nil),
 		"gate_timeout_seconds": vs(wf.GateTimeoutSeconds, override.GateTimeoutSeconds != nil, project.GateTimeoutSeconds != nil),
 		"review_clean_rounds":  vs(wf.ReviewCleanRounds, override.ReviewCleanRounds != nil, project.ReviewCleanRounds != nil),
@@ -60,6 +61,36 @@ func resolvedConfig(wf *model.Workflow, override model.WorkflowOverride) map[str
 		"audit_max_rounds":     vs(wf.AuditMaxRounds, override.AuditMaxRounds != nil, project.AuditMaxRounds != nil),
 		"checks":               vs(wf.Checks, override.Checks != nil, project.Checks != nil),
 	}}
+	// active provenance: the resolved active file and its discovery-chain rank
+	// (cli/env/local/legacy/autodetect).
+	if path, source := resolvedActiveSource(); path != "" {
+		result["active"] = map[string]any{"value": path, "source": source}
+	}
+	// defaults provenance: flag defaults from .tp/local.json report local.
+	if defaults := engine.LocalFlagDefaults("."); len(defaults) > 0 {
+		dmap := make(map[string]any, len(defaults))
+		for k, v := range defaults {
+			dmap[k] = map[string]any{"value": v, "source": "local"}
+		}
+		result["defaults"] = dmap
+	}
+	return result
+}
+
+// surfaceConfigWarnings prints .tp/config.json and .tp/local.json validation
+// warnings (unknown keys, type mismatches, out-of-range fallbacks) to stderr,
+// so every command that reads the config reports them. A malformed config is
+// handled by each command's own loader (exit 3), not here.
+func surfaceConfigWarnings() {
+	tpDir := engine.DiscoverTPDir(".")
+	if tpDir == "" {
+		return
+	}
+	_, cw, _ := engine.LoadProjectConfig(tpDir)
+	_, lw, _ := engine.LoadLocalConfig(tpDir)
+	for _, w := range append(cw, lw...) {
+		fmt.Fprintf(os.Stderr, "warning: %s\n", w)
+	}
 }
 
 // resolveConfigWorkflow resolves the effective workflow for tp config: the
@@ -82,7 +113,7 @@ func resolveConfigWorkflow() (model.Workflow, model.WorkflowOverride) {
 		os.Exit(ExitFile)
 	}
 	for _, w := range warnings {
-		output.Info(w)
+		fmt.Fprintf(os.Stderr, "warning: %s\n", w)
 	}
 	return wf, override
 }
