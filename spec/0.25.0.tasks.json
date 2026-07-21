@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.25.0.md",
   "created_at": "2026-07-21T19:43:58.426848Z",
-  "updated_at": "2026-07-21T20:45:09.536219Z",
+  "updated_at": "2026-07-21T20:47:46.019052Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2,
@@ -343,7 +343,7 @@
     {
       "id": "mechanize-candidates-retained",
       "title": "Retain mechanize candidates output",
-      "status": "open",
+      "status": "done",
       "tags": [
         "test"
       ],
@@ -356,11 +356,11 @@
         "## 8. Review Finding Dedup \u0026 Overlap Report",
         "## 2. Design Principles"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T20:47:45.982596Z",
+      "closed_at": "2026-07-21T20:47:46.019045Z",
+      "closed_reason": "- No production change: computeMechanizeCandidates (internal/cli/review_report.go) stays the cross-round class-frequency signal (\u003e=2 distinct rounds or \u003e=5 in one round), untouched by v0.25.0; no per-round multi-role mechanize signal and no found_by threshold constant were added.\n- The §8.5 per-role overlap report already surfaces which reviewers repeatedly overlap, so a found_by\u003e=2 mechanize rule would only duplicate its shared boundary — deliberately omitted per Principle 4.\n- internal/cli/report_class_test.go TestReport_MechanizeRetainedNoFoundByThreshold asserts a found_by\u003e=2 class seen in a single round is NOT mechanized and that mechanize_candidates entries carry no found_by field, guarding the unchanged behavior.",
+      "gate_passed_at": "2026-07-21T20:47:46.019045Z",
+      "commit_sha": "7e149b4"
     },
     {
       "id": "roles-hash-record",
