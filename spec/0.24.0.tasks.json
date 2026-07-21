@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.24.0.md",
   "created_at": "2026-07-21T09:33:07.313Z",
-  "updated_at": "2026-07-21T11:32:40.729058Z",
+  "updated_at": "2026-07-21T11:33:41.080775Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -571,7 +571,7 @@
     {
       "id": "cfg-scan-collect",
       "title": "Collect project task files",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cfg-discovery-root"
       ],
@@ -580,11 +580,11 @@
       "source_sections": [
         "## 10. Project-wide task-file discovery"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T11:33:39.102081Z",
+      "closed_at": "2026-07-21T11:33:41.080775Z",
+      "closed_reason": "- ScanProjectTaskFiles in internal/engine/scan.go walks the project root and collects every *.tasks.json in that directory and, recursing downward, its subdirectories, returning them sorted\n- This project-wide scan is distinct from v0.23.0 single-file auto-detect and is shared by tp validate --project and tp config --extract\n- TestScanProjectTaskFiles_CollectsRootAndSubdirs covers the recursive collection of root and subdirectory task files",
+      "gate_passed_at": "2026-07-21T11:33:41.080775Z",
+      "commit_sha": "f74de68"
     },
     {
       "id": "cfg-scan-skip",
