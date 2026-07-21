@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.25.0.md",
   "created_at": "2026-07-21T19:43:58.426848Z",
-  "updated_at": "2026-07-21T20:26:28.766669Z",
+  "updated_at": "2026-07-21T20:28:45.48594Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2,
@@ -278,7 +278,7 @@
     {
       "id": "cluster-representative-attribution",
       "title": "Select cluster representative attribution",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -290,11 +290,11 @@
       "source_sections": [
         "## 8. Review Finding Dedup \u0026 Overlap Report"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T20:28:45.447087Z",
+      "closed_at": "2026-07-21T20:28:45.485932Z",
+      "closed_reason": "- FindingCluster.Representative (internal/engine/cluster.go) selects the member by the §8.4 total order via lessRepresentative: highest severity (engine.SeverityRank), then lexicographic role, then finding text — deterministic on same-role severity ties; returns -1 for an empty cluster.\n- FindingCluster.Attribution returns found_by_roles as the sorted set of distinct diversity roles with the built-in regression role (RegressionRoleID) and blank/absent roles excluded, and found_by as its cardinality, so a regression-only or absent-role cluster yields found_by 0 and no found_by_roles.\n- internal/engine/cluster_attribution_test.go covers severity/role/finding-text representative ordering, the empty-cluster -1, the regression+blank exclusion with sort/dedup, and the found_by-zero case.",
+      "gate_passed_at": "2026-07-21T20:28:45.485932Z",
+      "commit_sha": "3a26158"
     },
     {
       "id": "merge-clustering-rewrite",
