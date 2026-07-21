@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.24.0.md",
   "created_at": "2026-07-21T09:33:07.313Z",
-  "updated_at": "2026-07-21T11:36:21.260513Z",
+  "updated_at": "2026-07-21T11:37:12.642703Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -626,7 +626,7 @@
     {
       "id": "cfg-drift-checks",
       "title": "Compare checks by set",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cfg-drift-report"
       ],
@@ -635,11 +635,11 @@
       "source_sections": [
         "## 9. Drift / deviation reporting"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T11:37:10.651118Z",
+      "closed_at": "2026-07-21T11:37:12.642702Z",
+      "closed_reason": "- checksEqual in internal/cli/validate_project.go compares the checks array by order-insensitive set equality over class and cmd pairs, so a reordered but equal checks is not a deviation\n- A checks deviation is reported with entry counts (N vs M entries) rather than as a scalar value\n- TestWorkflowDeviations_ChecksSetEquality covers the reorder-equal and differing-set cases",
+      "gate_passed_at": "2026-07-21T11:37:12.642702Z",
+      "commit_sha": "a3c99db"
     },
     {
       "id": "cfg-drift-strict",
