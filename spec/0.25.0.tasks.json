@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.25.0.md",
   "created_at": "2026-07-21T19:43:58.426848Z",
-  "updated_at": "2026-07-21T23:06:31.105975Z",
+  "updated_at": "2026-07-21T23:09:19.873795Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2,
@@ -712,7 +712,7 @@
     {
       "id": "docs-reference",
       "title": "Update REFERENCE for new flags",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -728,11 +728,11 @@
         "## 3. Role Definition Schema",
         "## 9. Role Staleness"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T23:09:19.838493Z",
+      "closed_at": "2026-07-21T23:09:19.873793Z",
+      "closed_reason": "- skills/tp/REFERENCE.md gains a 'Role Corpus (v0.25.0)' section documenting the .tp/reviewers and .tp/auditors schema ({id,title,instructions,focus,domains} with the id/kebab/reserved rules), the tp init --eject-roles command with --domain/--force (exit 2 on unknown domain), the frontmatter review_roles/audit_roles additive overrides, the overlap fields (found_by/found_by_roles/overlap_report/trim_candidate), and the roles_stale status flag.\n- It documents that tp lint validates both phases while tp review/tp audit validate their own, and a malformed role file aborts the phase-reading command with exit 3 and a repair-or-delete hint (phase independence).\n- The Spec Frontmatter and Finding-class sections are updated for the retired lens, the (location key, class) clustering, and the representative selection, so REFERENCE reflects all new commands, flags, and fields.",
+      "gate_passed_at": "2026-07-21T23:09:19.873793Z",
+      "commit_sha": "444f67e"
     },
     {
       "id": "docs-skill-commands",
