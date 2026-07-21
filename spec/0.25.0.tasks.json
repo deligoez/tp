@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.25.0.md",
   "created_at": "2026-07-21T19:43:58.426848Z",
-  "updated_at": "2026-07-21T20:37:01.603273Z",
+  "updated_at": "2026-07-21T20:45:09.536219Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2,
@@ -321,7 +321,7 @@
     {
       "id": "per-role-overlap-report",
       "title": "Report per-role overlap candidates",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "review"
@@ -334,11 +334,11 @@
       "source_sections": [
         "## 8. Review Finding Dedup \u0026 Overlap Report"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T20:45:09.49459Z",
+      "closed_at": "2026-07-21T20:45:09.536216Z",
+      "closed_reason": "- engine.OverlapReport (internal/engine/overlap.go) computes per-role unique (sole-contributor clusters) and shared (found_by\u003e=2 clusters) from the merged findings' found_by_roles sets, flagging unique==0 \u0026\u0026 shared\u003e=1 as trim_candidate; the built-in regression and blank roles are excluded and a role that found nothing never appears — no corpus-global ratio.\n- The report is surfaced in --merge (JSON summary overlap_report), --status (latestRoundOverlapReport reads the newest recorded round's NDJSON), and --report (convergenceResult.OverlapReport from the latest round + TTY section), via computeOverlapReport/stringSliceField in internal/cli/review_overlap.go.\n- internal/engine/overlap_test.go covers unique/shared counts, the trim-candidate flag, regression/blank exclusion, and the empty case; internal/cli/review_merge_test.go TestReviewMergeOverlapReport verifies the --merge surfacing end to end.",
+      "gate_passed_at": "2026-07-21T20:45:09.536216Z",
+      "commit_sha": "f0faa8e"
     },
     {
       "id": "mechanize-candidates-retained",
