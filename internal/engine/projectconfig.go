@@ -219,6 +219,22 @@ func WriteProjectConfig(tpDir string, pc model.ProjectConfig) error {
 	return os.WriteFile(filepath.Join(tpDir, "config.json"), append(data, '\n'), 0o600)
 }
 
+// WriteLocalConfig writes lc to tpDir/local.json with 2-space indentation,
+// creating tpDir and its .gitignore first.
+func WriteLocalConfig(tpDir string, lc model.LocalConfig) error {
+	if err := os.MkdirAll(tpDir, 0o755); err != nil {
+		return err
+	}
+	if err := EnsureTPGitignore(tpDir); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(lc, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(tpDir, "local.json"), append(data, '\n'), 0o600)
+}
+
 // EnsureTPGitignore ensures tpDir/.gitignore exists and contains a "local.json"
 // entry, so .tp/local.json stays git-ignored even when the .tp/ directory was
 // created by hand rather than by tp. It is idempotent: it creates the file when

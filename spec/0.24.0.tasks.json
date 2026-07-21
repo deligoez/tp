@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.24.0.md",
   "created_at": "2026-07-21T09:33:07.313Z",
-  "updated_at": "2026-07-21T11:15:21.10293Z",
+  "updated_at": "2026-07-21T11:16:26.955174Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -351,7 +351,7 @@
     {
       "id": "cfg-set-project-validate",
       "title": "Validate project workflow writes",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cfg-set-project-write"
       ],
@@ -360,11 +360,11 @@
       "source_sections": [
         "## 4. Editing the project config"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T11:16:24.921907Z",
+      "closed_at": "2026-07-21T11:16:26.955174Z",
+      "closed_reason": "- tp set --workflow --project rejects out-of-range integer values with exit 1 via workflowFieldRange (verified: review_max_rounds=99 exits 1, =8 exits 0)\n- Project-level quality_gate is authorable unlike the per-task read-only field, written to .tp/config.json\n- TestRunSetProjectWorkflow_QualityGateAuthorable covers the authorable quality_gate",
+      "gate_passed_at": "2026-07-21T11:16:26.955174Z",
+      "commit_sha": "635e595"
     },
     {
       "id": "cfg-set-local-write",

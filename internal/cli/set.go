@@ -27,6 +27,7 @@ var (
 	setBulkFile     string
 	setWorkflowFlag bool
 	setProjectFlag  bool
+	setLocalFlag    bool
 
 	editableWorkflowFields = map[string]bool{
 		"review_clean_rounds":  true,
@@ -51,6 +52,7 @@ func newSetCmd() *cobra.Command {
 	cmd.Flags().StringVar(&setBulkFile, "bulk", "", "NDJSON file with {id, field, value} lines")
 	cmd.Flags().BoolVar(&setWorkflowFlag, "workflow", false, "update workflow-level fields instead of a task")
 	cmd.Flags().BoolVar(&setProjectFlag, "project", false, "with --workflow: write to the project .tp/config.json")
+	cmd.Flags().BoolVar(&setLocalFlag, "local", false, "write a flag default to .tp/local.json (defaults.<flag>=<bool>)")
 	return cmd
 }
 
@@ -62,6 +64,10 @@ type setLine struct {
 }
 
 func runSet(_ *cobra.Command, args []string) error {
+	if setLocalFlag {
+		return runSetLocal(args)
+	}
+
 	if setWorkflowFlag {
 		if setProjectFlag {
 			return runSetProjectWorkflow(args)
