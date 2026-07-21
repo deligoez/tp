@@ -41,6 +41,7 @@ func DiscoverTaskFile(dir, explicit string) (string, error) {
 		if _, statErr := os.Stat(active); statErr == nil {
 			return active, nil
 		}
+		fmt.Fprintf(os.Stderr, "warning: .tp/local.json active points to a missing file %q; continuing discovery\n", active)
 	}
 
 	// Check .tp-active in CWD

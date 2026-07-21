@@ -176,3 +176,25 @@ func TestDiscoverTaskFile_LocalActiveOverLegacy(t *testing.T) {
 	assert.Equal(t, evalLink(t, filepath.Join(root, "new.tasks.json")), evalLink(t, got),
 		"the .tp/local.json active pointer wins over the legacy .tp-active")
 }
+
+func TestResolveLocalActive_RejectsAbsolute(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".tp"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".tp", "local.json"),
+		[]byte(`{"active":"/etc/passwd"}`), 0o600))
+	assert.Empty(t, ResolveLocalActive(root), "an absolute active value is rejected and treated as unset")
+}
+
+func TestDiscoverTaskFile_DanglingActiveFallsThrough(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".tp"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".tp", "local.json"),
+		[]byte(`{"active":"gone.tasks.json"}`), 0o600)) // points at a missing file
+	require.NoError(t, os.WriteFile(filepath.Join(root, "real.tasks.json"), []byte("{}"), 0o600))
+
+	got, err := DiscoverTaskFile(root, "")
+	require.NoError(t, err)
+	assert.Contains(t, got, "real.tasks.json", "a dangling active pointer falls through to auto-detect")
+}

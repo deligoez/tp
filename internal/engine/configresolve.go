@@ -2,6 +2,7 @@ package engine
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,13 +25,18 @@ func ResolveLocalActive(start string) string {
 		return ""
 	}
 	active := *lc.Active
-	if active == "" || filepath.IsAbs(active) {
+	if active == "" {
+		return ""
+	}
+	if filepath.IsAbs(active) {
+		fmt.Fprintf(os.Stderr, "warning: .tp/local.json active %q is absolute; treating as unset\n", active)
 		return ""
 	}
 	root := ProjectRoot(start)
 	resolved := filepath.Join(root, active)
 	if rel, relErr := filepath.Rel(root, resolved); relErr != nil || strings.HasPrefix(rel, "..") {
-		return "" // escapes the project root
+		fmt.Fprintf(os.Stderr, "warning: .tp/local.json active %q escapes the project root; treating as unset\n", active)
+		return ""
 	}
 	return resolved
 }
