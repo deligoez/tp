@@ -32,6 +32,15 @@ func TestComputeCommonPolicy_AbsentFromAnyNotHoisted(t *testing.T) {
 		"a field absent from any task file is not hoisted")
 }
 
+func TestComputeCommonPolicy_NothingToHoist(t *testing.T) {
+	overrides := []model.WorkflowOverride{
+		{ReviewMaxRounds: iptr(8)},
+		{ReviewMaxRounds: iptr(3)}, // diverges → no common field
+	}
+	common := computeCommonPolicy(overrides)
+	assert.Empty(t, hoistedFields(common), "no field common to all files means nothing to hoist")
+}
+
 func TestMergeCommon_PreservesOtherFields(t *testing.T) {
 	dst := model.WorkflowOverride{AuditMaxRounds: iptr(3)} // hand-set project field
 	mergeCommon(&dst, model.WorkflowOverride{ReviewMaxRounds: iptr(8)})

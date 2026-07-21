@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.24.0.md",
   "created_at": "2026-07-21T09:33:07.313Z",
-  "updated_at": "2026-07-21T11:37:30.84248Z",
+  "updated_at": "2026-07-21T11:40:53.630593Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -663,7 +663,7 @@
     {
       "id": "cfg-extract-hoist",
       "title": "Hoist common workflow fields",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cfg-scan-skip",
         "cfg-schema-malformed"
@@ -673,11 +673,11 @@
       "source_sections": [
         "## 11. Migration and backward compatibility"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T11:40:51.563441Z",
+      "closed_at": "2026-07-21T11:40:53.630593Z",
+      "closed_reason": "- computeCommonPolicy in internal/cli/config_extract.go hoists a workflow field, including string quality_gate and checks by set equality, only when every discovered task file sets it with an identical value\n- Hoisted fields are written to .tp/config.json and removed from each task file's workflow block via engine.StripTaskWorkflowFields; a field absent from any file or divergent is left untouched\n- TestComputeCommonPolicy_HoistsUnanimousFields, _AbsentFromAnyNotHoisted, and TestMergeCommon_PreservesOtherFields cover hoisting and merge",
+      "gate_passed_at": "2026-07-21T11:40:53.630593Z",
+      "commit_sha": "accd8ca"
     },
     {
       "id": "cfg-extract-nohoist",
