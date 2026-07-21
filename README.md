@@ -394,6 +394,36 @@ tp review spec.md --status --check                    # converged AND all checks
 | `--perspective regression` | Standalone regression pass guarding settled decisions |
 | `--no-state` | Disable state reads/writes (pre-0.23.0 manual `--round` numbering) |
 
+### Mechanical checks & finding class
+
+Review findings may carry an optional `class` — a kebab-case slug naming a pattern a script could detect across the whole spec. When a class recurs (≥ 2 distinct rounds, or ≥ 5 times in one round), `tp review --report` and `--record` surface it under `mechanize_candidates`, alongside a `by_class` breakdown. Turn a recurring class into a permanent detector:
+
+```bash
+tp set --workflow checks='[{"class":"code-citation-drift","cmd":"scripts/check-citations.sh"}]'
+```
+
+tp then runs every registered check at the start of each review round, reports pass/fail under `mechanical_checks`, and tells reviewers to stop hand-reporting that class. `tp review --status --check` exits 0 only when the review is converged **and** every check passes. (`checks` uses replace semantics — one `tp set --workflow` call sets the whole array.)
+
+### Spec frontmatter (`tp:` domain & lens)
+
+A spec can open with a YAML frontmatter block; tp reads only the `tp:` mapping (line numbers stay absolute, and the block is excluded from every parser):
+
+```yaml
+---
+tp:
+  domain: prose          # default "software"; only "software" enables software-specific prompts
+  lens:
+    all: ["Does any chapter summary leak a plot point ahead of its chapter?"]
+    implementer: ["Can each section be written without inventing facts not in the outline?"]
+    tester: []
+    architect: []
+---
+```
+
+- A non-`software` `domain` swaps the three review personas and drops the software-specific questions (error-handling, backward-compatibility, performance) — so `tp review` fits prose, legal, or research specs.
+- `lens` questions inject into the matching role (`all` goes to every role plus the regression pass). `tp lint` reports a `frontmatter` object and warns on malformed YAML or unknown lens keys (which are ignored).
+- `tp audit` keeps its three fixed roles regardless of `domain`.
+
 ### Lint Checks
 
 `tp lint` detects structured elements and quality issues:
