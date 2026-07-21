@@ -117,7 +117,7 @@ Same as B. `tp plan` excludes done tasks, puts WIP first. The audit loop applies
 
 Repeat until `tp audit <spec> --status --check` exits 0:
 
-1. `tp audit <spec>` — emits one prompt per non-empty role (`spec-coverage`, `security`, `maintainability-conventions`) with an embedded JSON-array checklist and per-role affected files. Auto-detects changed files via git diff; `--affected-files` overrides.
+1. `tp audit <spec>` — emits one prompt per active auditor role from the corpus (defaults: `spec-coverage`, `security`, `maintainability-conventions`) with an embedded JSON-array checklist and per-role affected files. Auto-detects changed files via git diff; `--affected-files` overrides.
 2. Spawn one sub-agent per role prompt; each returns one NDJSON line per checklist item (`status` ∈ PASS/PARTIAL/FAIL).
 3. `tp audit <spec> --record results.ndjson` — a row counts as a finding when `status` is absent or ≠ `PASS`; a clean round has zero findings. The audit round sequence is independent of review rounds.
 4. Fix the code for every non-PASS item.
@@ -148,26 +148,38 @@ Before closing a task (`tp done`):
 - **Mechanization candidate:** a class that appears in ≥ 2 distinct rounds OR ≥ 5 times in a single round (`tp review --report` and `--record` output list `mechanize_candidates`). When one appears, write a detector command and register it: `tp set --workflow checks='[{"class":"<slug>","cmd":"<detector>"}]'`.
 - Once registered, tp runs the check every review round, reports pass/fail in `mechanical_checks`, and tells reviewers to stop reporting that class. `tp review --status --check` requires every check to pass before exiting 0.
 
-## Frontmatter: domain & lens (non-software specs)
+## Role Corpus & frontmatter overrides (v0.25.0)
 
-A spec may declare a `tp:` mapping in YAML frontmatter to steer `tp review` (audit keeps its fixed roles):
+Review and audit roles are **project-owned data** — one JSON file per role under the repo-root `.tp/`:
+
+- `.tp/reviewers/*.json` drives `tp review`; `.tp/auditors/*.json` drives `tp audit` (phase = directory). Schema `{id, title, instructions, focus[], domains[]}`; `id` MUST equal the filename stem (lowercase kebab-case); `regression` is reserved. Commit the corpus to VCS.
+- A populated phase directory **replaces** the embedded default corpus for that phase; absent/empty keeps tp's curated defaults (software: implementer/tester/architect + spec-coverage/security/maintainability-conventions; prose: coherence/soundness + spec-coverage/soundness). A project happy with defaults keeps **zero role files**.
+- `tp init --eject-roles [--domain software|prose] [--force]` writes the defaults as editable, byte-identical files; an unknown `--domain` is a usage error (exit 2). tp's own repo stays on the embedded defaults yet still dogfoods emission/dedup/staleness.
+- `tp lint`, `tp review`, and `tp audit` validate the corpus; a malformed role file aborts that phase with **exit 3** and a `repair or delete <path>` hint (a broken auditor never blocks review).
+
+Emission is corpus-driven: `tp review` emits one prompt per active reviewer role plus the built-in `regression` role (appended, never a corpus file); `tp audit` emits one per active auditor role. Every prompt stamps the output contract (`role, location, class, severity`; audit adds `status`). tp still only emits prompts — it never executes agents.
+
+Spec frontmatter steers the corpus without new files:
 
 ```yaml
 ---
 tp:
-  domain: prose          # default "software"; only "software" activates software-specific prompt content
-  lens:
-    all:                 # appended to every role + the regression prompt
-      - "Does any chapter summary leak a plot point ahead of its chapter?"
-    implementer:         # appended to that role only
-      - "Can each section be written without inventing facts not in the outline?"
-    tester: []
-    architect: []
+  domain: prose          # selects & filters the corpus (no persona swap)
+  review_roles:          # append focus questions to an existing role
+    implementer:
+      focus: ["Can each section be written without inventing facts not in the outline?"]
+  audit_roles:
+    spec-coverage:
+      focus: ["Is every outline element present and fully developed?"]
 ---
 ```
 
-- Set `domain` to anything other than `software` for non-code specs — it swaps the three role personas and drops the three software-specific questions (error-handling gaps, backward-compatibility, performance).
-- Write `lens` questions the project cares about; unknown keys, non-list values, and non-string elements are lint warnings and are ignored.
+- `domain` selects the embedded corpus when no role files exist and filters a user corpus by each role's `domains`; an unknown domain falls back to `software` with a lint warning.
+- `tp.review_roles`/`tp.audit_roles` **append** focus to an existing role (project focus first); an unknown override id is a lint warning; `regression` takes no overrides. The standalone `tp: lens` is retired — a legacy `lens` auto-translates to review-role focus with a deprecation warning (the new form wins when both are present).
+
+**Per-role overlap report** (`tp review --merge`/`--report`/`--status`): findings cluster by `(location, class)`; `overlap_report` lists each reviewer role's `unique`/`shared` cluster counts and flags a `trim_candidate` (`unique == 0 && shared >= 1`) — a reviewer that found only what others also found. tp reports; you decide whether to trim a role file. `mechanize_candidates` is unchanged.
+
+**Role staleness**: each recorded round stores a per-phase `roles_hash` (`"builtin"` on the defaults); `--status` reports `roles_stale` beside the spec `stale` flag when the corpus changed since the last round (a single re-confirming round clears it). A pre-v0.25.0 round with no stored hash is treated as matching.
 
 ## State directory (`.tp-review/`)
 
