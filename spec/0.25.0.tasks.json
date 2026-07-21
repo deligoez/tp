@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.25.0.md",
   "created_at": "2026-07-21T19:43:58.426848Z",
-  "updated_at": "2026-07-21T21:50:14.659877Z",
+  "updated_at": "2026-07-21T21:55:39.56699Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2,
@@ -515,7 +515,7 @@
     {
       "id": "init-eject-roles",
       "title": "Add init eject-roles flag",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli"
       ],
@@ -527,11 +527,11 @@
       "source_sections": [
         "## 5. Default Corpus \u0026 Eject"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T21:55:39.532145Z",
+      "closed_at": "2026-07-21T21:55:39.566987Z",
+      "closed_reason": "- Added tp init --eject-roles [--domain \u003cname\u003e] (internal/cli/init.go runEjectRoles) writing the selected default corpus into .tp/reviewers and .tp/auditors as editable byte-identical files via engine.DefaultCorpusFiles (new raw-bytes helper in defaultcorpus.go); init now takes MaximumNArgs(1) and requires a spec only for the non-eject path.\n- An unknown --domain is a usage error (exit 2) listing the known domains, and eject refuses to overwrite an existing role file unless --force, which overwrites regardless of the existing file's validity.\n- internal/cli/init_eject_test.go covers the software eject output (3 reviewers + 3 auditors, byte-identical), the prose corpus scaffold, the unknown-domain exit-2 error, and the --force overwrite of a corrupted existing file.",
+      "gate_passed_at": "2026-07-21T21:55:39.566987Z",
+      "commit_sha": "da56a2a"
     },
     {
       "id": "remove-tpactive-discovery",
