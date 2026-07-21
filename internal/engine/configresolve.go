@@ -62,6 +62,21 @@ func LoadTaskWorkflowOverride(taskFilePath string) (model.WorkflowOverride, erro
 	return wo, nil
 }
 
+// LocalFlagDefaults returns the boolean flag defaults recorded in
+// .tp/local.json discovered from start, or nil when there is no .tp/, no
+// local.json, or no defaults.
+func LocalFlagDefaults(start string) map[string]bool {
+	tpDir := DiscoverTPDir(start)
+	if tpDir == "" {
+		return nil
+	}
+	lc, _, err := LoadLocalConfig(tpDir)
+	if err != nil {
+		return nil
+	}
+	return lc.Defaults
+}
+
 // ProjectWorkflowOverride returns the project config's workflow override
 // discovered from start — exported so tp config --resolved can attribute each
 // field to the project layer.
