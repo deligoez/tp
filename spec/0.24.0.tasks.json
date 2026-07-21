@@ -1,8 +1,8 @@
 {
   "version": 1,
   "spec": "spec/0.24.0.md",
-  "created_at": "2026-07-21T08:02:16.459949Z",
-  "updated_at": "2026-07-21T08:02:16.467484Z",
+  "created_at": "2026-07-21T09:33:07.313Z",
+  "updated_at": "2026-07-21T09:33:07.319511Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -13,10 +13,782 @@
     "audit_max_rounds": 0
   },
   "coverage": {
-    "total_sections": 0,
-    "mapped_sections": 0,
-    "context_only": [],
+    "total_sections": 21,
+    "mapped_sections": 20,
+    "context_only": [
+      "# tp v0.24.0 — Project-level configuration (`.tp/`)"
+    ],
     "unmapped": []
   },
-  "tasks": []
+  "tasks": [
+    {
+      "id": "cfg-discovery-types",
+      "title": "Config file model types",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 8,
+      "acceptance": "Define the project config file model where .tp/config.json holds the single workflow key and MUST be committed while .tp/local.json holds active plus defaults as per-developer state that MUST NOT be committed. Both files are optional and independent so either may exist without the other and an absent file is equivalent to an empty object. Unit tests cover the model and the absent-equals-empty rule.",
+      "source_sections": [
+        "## 2. The `.tp/` directory",
+        "### 2.1 Files and responsibilities"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-discovery-walk",
+      "title": "Upward walk to git boundary",
+      "status": "open",
+      "depends_on": [
+        "cfg-discovery-types"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "Discover the .tp/ directory exactly once per invocation by walking upward from the current working directory and testing each ancestor including the anchor itself and the boundary directory, stopping at the first hit. The walk halts at the git boundary which is the first ancestor containing a .git directory or a .git file, or the filesystem root, and never reads a .tp/ above that boundary. Unit tests cover the walk and the git-boundary halt.",
+      "source_sections": [
+        "### 2.2 Discovery"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-discovery-root",
+      "title": "Project root determination",
+      "status": "open",
+      "depends_on": [
+        "cfg-discovery-walk"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "The project root is the directory containing the discovered .tp/, and when none exists yet the git boundary directory is used, or the working directory when not inside a git repository. Discovery is never re-anchored to a --file located in another directory. When no .tp/ is found tp uses built-in defaults and per-task-file settings exactly as in v0.23.0.",
+      "source_sections": [
+        "### 2.2 Discovery"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-gitignore",
+      "title": "Ensure .tp/.gitignore on every write",
+      "status": "open",
+      "depends_on": [
+        "cfg-discovery-root"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "A helper invoked whenever tp writes any file under .tp/ idempotently ensures .tp/.gitignore exists and contains a local.json entry, creating or appending as needed so .tp/local.json stays git-ignored even when .tp/ was created by hand. Unit tests cover creation and idempotent append.",
+      "source_sections": [
+        "### 2.1 Files and responsibilities"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-schema-parse",
+      "title": "Parse config schema types",
+      "status": "open",
+      "depends_on": [
+        "cfg-discovery-root"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": ".tp/config.json parses one top-level key workflow using the same fields as a task file's workflow block, and .tp/local.json parses active as a string plus defaults as an object of booleans. Every workflow field is presence-tracked with pointer or optional types so an absent key is distinct from an explicit zero value. Unit tests cover parsing and presence-tracking.",
+      "source_sections": [
+        "### 2.3 Schema and validation"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-schema-unknown",
+      "title": "Warn on unknown keys",
+      "status": "open",
+      "depends_on": [
+        "cfg-schema-parse"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Unknown top-level keys, unknown keys inside workflow, and unknown keys inside defaults are ignored and reported as a validation warning on stderr, never as errors. A type-mismatched value such as a non-string active, a non-boolean defaults entry, a non-object workflow or defaults, or a workflow field of the wrong JSON type is warned on stderr and treated as unset so it falls back to its inherited or built-in value. Unit tests cover unknown-key warnings and type-mismatch fallback.",
+      "source_sections": [
+        "### 2.3 Schema and validation"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-schema-range",
+      "title": "Out-of-range value fallback",
+      "status": "open",
+      "depends_on": [
+        "cfg-schema-unknown"
+      ],
+      "estimate_minutes": 7,
+      "acceptance": "A workflow value outside its documented range in a hand-edited .tp/config.json falls back to the built-in default at read time, with gate_timeout_seconds returning to 600, caps returning to 0, and clean_rounds returning to 2. tp validate and tp config warn on stderr for such an out-of-range value, matching the read-time fallback v0.23.0 already applies to a hand-edited task file. Unit tests cover the range fallback and the warning.",
+      "source_sections": [
+        "### 2.3 Schema and validation"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-schema-malformed",
+      "title": "Abort on malformed config",
+      "status": "open",
+      "depends_on": [
+        "cfg-schema-range"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "A file that is unreadable, is not valid JSON, has a non-object top-level value, or is 0-byte or whitespace-only is malformed and aborts the reading command with exit 3 and a repair-or-delete hint naming the path. An explicit empty object is valid and equivalent to an absent file, and tp never silently ignores a corrupt config. All config warnings and errors are written to stderr so JSON emitted on stdout is never polluted.",
+      "source_sections": [
+        "### 2.3 Schema and validation"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-resolution-precedence",
+      "title": "Per-field precedence ladder",
+      "status": "open",
+      "depends_on": [
+        "cfg-schema-malformed"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "Resolve every setting per-field by the precedence ladder where a CLI flag outranks an environment variable, which outranks a task file's explicit workflow override, which outranks the project layer from .tp/config.json workflow or .tp/local.json defaults, which outranks the built-in default. The active pointer is resolved by the discovery chain rather than this workflow ladder. Unit tests cover the ranking order.",
+      "source_sections": [
+        "## 3. Layered resolution (resolve-at-read)",
+        "### 3.1 Precedence"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-resolution-sparse",
+      "title": "Sparse merge across ranks",
+      "status": "open",
+      "depends_on": [
+        "cfg-resolution-precedence"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Resolution is a per-field sparse merge so a task file that sets only review_max_rounds inherits every other workflow field from the project config. Not every field passes through every rank because workflow fields resolve across override, project, and default only, while among the flag defaults only no_color has a rank-2 environment peer via NO_COLOR and compact plus quiet resolve across CLI flag, project-local, and built-in default. Unit tests cover sparse merge and per-field rank participation.",
+      "source_sections": [
+        "### 3.1 Precedence"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-resolution-override",
+      "title": "Presence-based override resolution",
+      "status": "open",
+      "depends_on": [
+        "cfg-resolution-sparse"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "Presence not value defines an override so a task file field is an override whenever its key is present regardless of the value, while an absent key inherits the project value. The implementation uses optional or pointer fields or raw-key inspection because review_max_rounds set to 0 is a legitimate explicit no-cap value distinct from an absent key. The checks array uses replace semantics where any present checks key including an empty array replaces the project checks entirely and only an absent checks key inherits the project checks.",
+      "source_sections": [
+        "### 3.2 Presence, not value, defines an override"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-resolution-scope",
+      "title": "Two-layer resolution scope",
+      "status": "open",
+      "depends_on": [
+        "cfg-resolution-override"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "Realize the derive-not-copy goal by resolving effective settings at read time through layering the project config under each task file's overrides instead of copying defaults into task files. Workflow resolution is exactly two layers of project plus per-task sitting under the per-invocation CLI and env ranks, not an N-level include chain. The config is anchored once at the working directory so a --file pointing into a different project still resolves against the working directory's project config, with no cross-project monorepo resolution.",
+      "source_sections": [
+        "## 1. Goals",
+        "## 12. Non-goals"
+      ],
+      "source_lines": "1-16",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-enforce-import",
+      "title": "Resolve workflow at import",
+      "status": "open",
+      "depends_on": [
+        "cfg-resolution-override"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "tp import convergence enforcement reads the resolved layered effective values rather than the raw task-file workflow block alone. A thinned task file with no review_max_rounds key inherits the project cap at enforcement rather than the built-in 0. Unit tests cover import enforcement using the inherited cap.",
+      "source_sections": [
+        "## 5. Layered resolution is used everywhere workflow fields are read"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-enforce-gate",
+      "title": "Resolve quality gate at close",
+      "status": "open",
+      "depends_on": [
+        "cfg-enforce-import"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "The tp done and tp close quality gate reads the resolved quality_gate rather than the raw task-file workflow block alone. A task file that omits quality_gate runs the project quality_gate at tp done. Unit tests cover the gate running the inherited project quality_gate.",
+      "source_sections": [
+        "## 5. Layered resolution is used everywhere workflow fields are read"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-enforce-budgets",
+      "title": "Resolve round budgets",
+      "status": "open",
+      "depends_on": [
+        "cfg-enforce-gate"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "The review and audit round-budget checks read the resolved layered caps rather than the raw task-file workflow block alone. A thinned task file inherits the project review_max_rounds and audit_max_rounds for budget enforcement. Unit tests cover the budget checks using inherited caps.",
+      "source_sections": [
+        "## 5. Layered resolution is used everywhere workflow fields are read"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-config-print",
+      "title": "Print resolved config JSON",
+      "status": "open",
+      "depends_on": [
+        "cfg-resolution-override"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "tp config prints the resolved effective configuration as JSON on stdout for the active or --file task file. When no task file resolves it prints the project layer alone with no per-task overrides and exits 0. tp config always emits JSON and --compact is a documented no-op on it because the output is not task-shaped.",
+      "source_sections": [
+        "## 6. Inspecting the resolved config"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-config-resolved",
+      "title": "Annotate resolved config sources",
+      "status": "open",
+      "depends_on": [
+        "cfg-config-print"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "tp config --resolved annotates each resolved setting with a value and the source layer that supplied it, where source is one of cli, env, override, project, local, legacy, autodetect, or default. Workflow fields report override, project, or default while active reports cli, env, local, legacy, or autodetect. Values sourced from .tp/local.json report local rather than project which is reserved for the committed .tp/config.json.",
+      "source_sections": [
+        "## 6. Inspecting the resolved config"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-set-project-write",
+      "title": "Write project workflow field",
+      "status": "open",
+      "depends_on": [
+        "cfg-schema-malformed",
+        "cfg-gitignore"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "tp set --workflow --project field=value writes the field to the workflow block of the .tp/config.json discovered by the upward walk. When no .tp/ exists it creates .tp/config.json along with .tp/ and .tp/.gitignore in the git boundary directory containing .git, or in the current working directory when not inside a git repository. That directory then becomes the project root and all writes acquire the standard flock.",
+      "source_sections": [
+        "## 4. Editing the project config"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-set-project-validate",
+      "title": "Validate project workflow writes",
+      "status": "open",
+      "depends_on": [
+        "cfg-set-project-write"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "A --project write rejects the same out-of-range values as a per-task tp set --workflow, with gate_timeout_seconds bound to 30-3600, review_clean_rounds and audit_clean_rounds bound to 1-10, and review_max_rounds and audit_max_rounds bound to 0-50, all with exit 1. Project-level quality_gate is authorable unlike the per-task read-only field. Unit tests cover range rejection and quality_gate authoring.",
+      "source_sections": [
+        "## 4. Editing the project config"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-set-local-write",
+      "title": "Write local flag default",
+      "status": "open",
+      "depends_on": [
+        "cfg-schema-malformed",
+        "cfg-gitignore"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "tp set --local defaults.\u003cflag\u003e=\u003cbool\u003e writes a flag default to the defaults object of .tp/local.json. It creates .tp/, .tp/.gitignore, and .tp/local.json when absent in the same location as a --project write. All --local writes acquire the standard flock.",
+      "source_sections": [
+        "## 4. Editing the project config"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-set-local-validate",
+      "title": "Validate local flag writes",
+      "status": "open",
+      "depends_on": [
+        "cfg-set-local-write"
+      ],
+      "estimate_minutes": 5,
+      "acceptance": "The flag in tp set --local defaults.\u003cflag\u003e=\u003cbool\u003e must be one of compact, quiet, or no_color, and the value must be true or false. An unknown flag or a non-boolean value is rejected with exit 1. Unit tests cover unknown-flag and non-boolean rejection.",
+      "source_sections": [
+        "## 4. Editing the project config"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-active-chain",
+      "title": "Active-file discovery chain",
+      "status": "open",
+      "depends_on": [
+        "cfg-schema-malformed",
+        "cfg-gitignore"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "The .tp/local.json active key holds a path relative to the project root and takes the place of the .tp-active marker in the discovery chain. The chain resolves the active file in order --file, then TP_FILE, then .tp/local.json active, then legacy .tp-active, then auto-detect. Unit tests cover the discovery-chain ordering.",
+      "source_sections": [
+        "## 7. Active file",
+        "### 7.1 Active-file pointer"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-active-use",
+      "title": "Store active via tp use",
+      "status": "open",
+      "depends_on": [
+        "cfg-active-chain"
+      ],
+      "estimate_minutes": 9,
+      "acceptance": "tp use \u003cfile\u003e resolves its CWD-relative or absolute argument to an absolute path and stores it project-root-relative in .tp/local.json active, creating .tp/, .tp/.gitignore, and .tp/local.json as needed. A target outside the project root is rejected with exit 2. tp use no longer creates a .tp-active file.",
+      "source_sections": [
+        "### 7.1 Active-file pointer"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-active-clear",
+      "title": "Clear active pointer",
+      "status": "open",
+      "depends_on": [
+        "cfg-active-use"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "tp use --clear removes the active key from .tp/local.json and is a no-op with exit 0 when no active is set. It also removes a leftover legacy .tp-active in the working directory. Unit tests cover clear and the no-op path.",
+      "source_sections": [
+        "### 7.1 Active-file pointer"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-active-show",
+      "title": "Show resolved active file",
+      "status": "open",
+      "depends_on": [
+        "cfg-active-clear"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "tp use with no argument prints the resolved active file and the discovery-chain rank that supplied it. This retires the standalone .tp-active marker by folding the active pointer into .tp/local.json, with a backward-compatibility window that ends in v0.25.0. Unit tests cover the no-argument report.",
+      "source_sections": [
+        "### 7.1 Active-file pointer",
+        "## 1. Goals"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-active-fallback-missing",
+      "title": "Fallback on missing active",
+      "status": "open",
+      "depends_on": [
+        "cfg-active-show"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "When active resolves to a missing or unreadable file tp emits a warning on stderr and continues down the discovery chain to legacy .tp-active then auto-detect rather than aborting, and tp use with no argument reports the dangling pointer. An active value that is absolute or escapes the project root is rejected with a validation warning and treated as unset. Unit tests cover the dangling-pointer fallback and the escape rejection.",
+      "source_sections": [
+        "### 7.2 Missing or invalid active target"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-active-deprecation",
+      "title": "Deprecate legacy .tp-active marker",
+      "status": "open",
+      "depends_on": [
+        "cfg-active-fallback-missing"
+      ],
+      "estimate_minutes": 7,
+      "acceptance": "A pre-existing .tp-active marker is still read as a lower-priority fallback from the working directory only through the v0.24.x series, and its use emits a deprecation warning on stderr naming the tp use migration path. When both .tp/local.json active and a legacy .tp-active exist the project-local value wins. Support for .tp-active is removed in v0.25.0.",
+      "source_sections": [
+        "### 7.3 `.tp-active` deprecation"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-flag-defaults-apply",
+      "title": "Apply global flag defaults",
+      "status": "open",
+      "depends_on": [
+        "cfg-resolution-override"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "The .tp/local.json defaults object supplies default values for the boolean global flags compact, quiet, and no_color, applied when the corresponding flag is absent from the CLI. The --json flag is intentionally excluded as a documented omission because output mode is already auto-selected by piping. Unit tests cover applying each boolean default.",
+      "source_sections": [
+        "## 8. Global flag defaults"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-flag-negating",
+      "title": "Add negating global flags",
+      "status": "open",
+      "depends_on": [
+        "cfg-flag-defaults-apply"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "tp adds the negating flags --no-compact, --no-quiet, and --color so any boolean default can be overridden in both directions from a single invocation, and an explicit CLI flag always wins. Passing a flag and its negation together such as --compact with --no-compact is a usage error with exit 2. Unit tests cover the negating flags and the conflict error.",
+      "source_sections": [
+        "## 8. Global flag defaults"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-flag-nocolor",
+      "title": "Resolve no_color precedence",
+      "status": "open",
+      "depends_on": [
+        "cfg-flag-negating"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "no_color is resolved in order from an explicit --color or --no-color flag, then the NO_COLOR environment variable, then defaults.no_color, then TTY detection. The project default therefore sits below the standard NO_COLOR env and explicit flags, consistent with fatih/color behavior. Unit tests cover the no_color resolution order.",
+      "source_sections": [
+        "## 8. Global flag defaults"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-scan-collect",
+      "title": "Collect project task files",
+      "status": "open",
+      "depends_on": [
+        "cfg-discovery-root"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "tp validate --project and tp config --extract share one discovery rule that starts at the project root, which is the directory containing the discovered .tp/ or the git boundary or working directory in the no-config bootstrap case. It collects every *.tasks.json in that directory and, recursing downward, in its subdirectories. This project-wide scan is distinct from v0.23.0 single-file auto-detect and exists only for those two project-scoped commands.",
+      "source_sections": [
+        "## 10. Project-wide task-file discovery"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-scan-skip",
+      "title": "Skip ignored scan directories",
+      "status": "open",
+      "depends_on": [
+        "cfg-scan-collect"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "The recursion skips .git, .tp, node_modules, and vendor directories and does not descend into a nested submodule which is any subdirectory that itself contains a .git entry. A *.tasks.json that is malformed or unreadable during the scan is reported on stderr and skipped by tp validate --project so the scan continues. tp config --extract instead aborts on such a file with exit 3 because a correct hoist requires reading every task file.",
+      "source_sections": [
+        "## 10. Project-wide task-file discovery"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-drift-report",
+      "title": "Report project workflow drift",
+      "status": "open",
+      "depends_on": [
+        "cfg-resolution-override",
+        "cfg-scan-skip"
+      ],
+      "estimate_minutes": 9,
+      "acceptance": "tp validate --project scans every task file under the project and reports, per file, each workflow field whose override differs from a value the project config explicitly sets, naming the file, the field, the override value, and the project value. A field the project config does not set carries no policy so a task override of that field is not a deviation and is not reported. Unit tests cover a reported deviation and a non-policy field.",
+      "source_sections": [
+        "## 9. Drift / deviation reporting"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-drift-checks",
+      "title": "Compare checks by set",
+      "status": "open",
+      "depends_on": [
+        "cfg-drift-report"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Equality for the checks array is an order-insensitive set comparison over class and cmd pairs so a reordered but otherwise equal checks is not a deviation. A checks deviation is reported as checks differ from project with N versus M entries rather than as a scalar value. Unit tests cover reordered-equal checks and a checks size deviation.",
+      "source_sections": [
+        "## 9. Drift / deviation reporting"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-drift-strict",
+      "title": "Strict drift exit code",
+      "status": "open",
+      "depends_on": [
+        "cfg-drift-checks"
+      ],
+      "estimate_minutes": 7,
+      "acceptance": "Deviations are informational and exit 0 by default, while --strict promotes any deviation to exit 1 so CI can forbid unreviewed policy drift and make cross-spec drift visible. When no .tp/config.json is present tp validate --project reports that no project config was found and exits 0. Unit tests cover the strict exit and the no-config path.",
+      "source_sections": [
+        "## 9. Drift / deviation reporting",
+        "## 1. Goals"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-extract-hoist",
+      "title": "Hoist common workflow fields",
+      "status": "open",
+      "depends_on": [
+        "cfg-scan-skip",
+        "cfg-schema-malformed"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "tp config --extract hoists a workflow field, including the string quality_gate and the checks array compared by set equality, into .tp/config.json only when every discovered task file sets that field with an identical value. A field absent from any file or whose value diverges across files is left untouched in every file. After hoisting it removes each hoisted field from every task file's workflow block.",
+      "source_sections": [
+        "## 11. Migration and backward compatibility"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-extract-nohoist",
+      "title": "Handle empty hoist result",
+      "status": "open",
+      "depends_on": [
+        "cfg-extract-hoist"
+      ],
+      "estimate_minutes": 7,
+      "acceptance": "When no field is common to all files tp config --extract writes nothing, reports that there was nothing to hoist, and exits 0. A malformed task file encountered mid-scan aborts --extract with exit 3 rather than being skipped. Unit tests cover the nothing-to-hoist path and the mid-scan abort.",
+      "source_sections": [
+        "## 11. Migration and backward compatibility"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-extract-dryrun",
+      "title": "Guard extract with dry-run",
+      "status": "open",
+      "depends_on": [
+        "cfg-extract-nohoist"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "tp config --extract --dry-run prints the hoist and removal plan without writing anything. Without --dry-run and inside a git repository --extract refuses to run on a dirty working tree, a non-empty git status --porcelain, with exit 4 so the mutation is reviewable. Outside a git repository it skips the clean-tree check and warns.",
+      "source_sections": [
+        "## 11. Migration and backward compatibility"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-extract-force",
+      "title": "Force merge into config",
+      "status": "open",
+      "depends_on": [
+        "cfg-extract-dryrun"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "tp config --extract refuses when .tp/config.json already exists with exit 4 unless --force, which merges the hoisted fields into that file's existing workflow block by overwriting only the hoisted keys while preserving any other hand-set project fields. --force governs only the existing-config refusal and never bypasses the dirty-working-tree gate, which always holds because --extract mutates task files. All writes acquire the standard flock.",
+      "source_sections": [
+        "## 11. Migration and backward compatibility"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-backcompat-zeroconfig",
+      "title": "Prove zero-config behavior",
+      "status": "open",
+      "depends_on": [
+        "cfg-enforce-budgets",
+        "cfg-active-deprecation"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Integration tests prove that upgrading the binary to v0.24.0 requires no migration because with no .tp/ directory present every command behaves exactly as in v0.23.0. Existing task files and any .tp-active marker keep working unchanged after the upgrade. These tests preserve the zero-config goal end to end.",
+      "source_sections": [
+        "## 11. Migration and backward compatibility",
+        "## 1. Goals"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-backcompat-optin",
+      "title": "Verify opt-in incremental adoption",
+      "status": "open",
+      "depends_on": [
+        "cfg-backcompat-zeroconfig",
+        "cfg-extract-force"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Integration tests confirm that adopting the project config is opt-in and incremental so nothing in an existing repository is rewritten automatically on upgrade. Existing task files with full workflow blocks keep working unchanged, with every explicit field treated as an override until the author thins it or runs --extract. The suite exercises both an untouched repo and a thinned-then-resolved file.",
+      "source_sections": [
+        "## 11. Migration and backward compatibility"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cfg-backcompat-nongoals",
+      "title": "Confirm release non-goals",
+      "status": "open",
+      "depends_on": [
+        "cfg-backcompat-optin"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "Integration coverage confirms no user-home or global config is introduced in this release, keeping resolution to the single project layer under the CLI and env ranks. It also confirms no change to task, coverage, review, or audit semantics, since v0.24.0 only adds the configuration layer and its resolution, editing, inspection, drift, and migration surfaces. Tests assert these non-goals hold.",
+      "source_sections": [
+        "## 12. Non-goals"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ]
 }
