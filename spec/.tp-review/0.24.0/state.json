@@ -1,0 +1,54 @@
+{
+  "spec": "spec/0.24.0.md",
+  "review_rounds": [
+    {
+      "round": 1,
+      "findings": 65,
+      "clean": false,
+      "recorded_at": "2026-07-21T08:14:09Z",
+      "file": "review-round-1.ndjson",
+      "spec_hash": "sha256:777c29c088b2f4a276943af1d4b524d77c6be9ef7a6e5330bb0493b5aa9f4d50"
+    },
+    {
+      "round": 2,
+      "findings": 28,
+      "clean": false,
+      "recorded_at": "2026-07-21T08:23:44Z",
+      "file": "review-round-2.ndjson",
+      "spec_hash": "sha256:a3ea358c953549a04083f9cd7a806181b7ad9209ae8deb6721932e32192da21c"
+    },
+    {
+      "round": 3,
+      "findings": 16,
+      "clean": false,
+      "recorded_at": "2026-07-21T08:33:40Z",
+      "file": "review-round-3.ndjson",
+      "spec_hash": "sha256:653b9af132a10863f6e4e01d43d27b2fd47e0f30e8d765ac810c2be37a482e4d"
+    },
+    {
+      "round": 4,
+      "findings": 3,
+      "clean": false,
+      "recorded_at": "2026-07-21T08:40:20Z",
+      "file": "review-round-4.ndjson",
+      "spec_hash": "sha256:4fbc63fcd39817f5845fb297cc8d2c9c681ada39c72b2fdf1e9d6a825eca1ab8"
+    },
+    {
+      "round": 5,
+      "findings": 0,
+      "clean": true,
+      "recorded_at": "2026-07-21T08:44:49Z",
+      "file": "review-round-5.ndjson",
+      "spec_hash": "sha256:4fbc63fcd39817f5845fb297cc8d2c9c681ada39c72b2fdf1e9d6a825eca1ab8"
+    },
+    {
+      "round": 6,
+      "findings": 0,
+      "clean": true,
+      "recorded_at": "2026-07-21T09:13:40Z",
+      "file": "review-round-6.ndjson",
+      "spec_hash": "sha256:4fbc63fcd39817f5845fb297cc8d2c9c681ada39c72b2fdf1e9d6a825eca1ab8"
+    }
+  ],
+  "audit_rounds": []
+}
