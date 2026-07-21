@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.25.0.md",
   "created_at": "2026-07-21T19:43:58.426848Z",
-  "updated_at": "2026-07-21T21:40:24.341695Z",
+  "updated_at": "2026-07-21T21:50:14.659877Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2,
@@ -193,7 +193,7 @@
     {
       "id": "audit-emission-corpus",
       "title": "Emit audit prompts from corpus",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "audit"
@@ -206,11 +206,11 @@
       "source_sections": [
         "## 7. Prompt Emission"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T21:50:14.620743Z",
+      "closed_at": "2026-07-21T21:50:14.659875Z",
+      "closed_reason": "- runAudit (internal/cli/audit.go) now loads the auditor corpus via engine.ResolveActiveCorpus (domain-filtered) and generateRoleAuditPrompts (audit_roles.go) iterates those roles in corpus order, running the full active panel each round symmetric with review; a malformed auditor aborts audit with exit 3 without blocking review.\n- The hardcoded roleRules persona/rules map is removed: buildRolePrompt now draws each role's '## Role Rules' from the corpus role's focus, with routing kept by id (spec-coverage audits the spec, security/maintainability/custom audit the changed code); the default corpus focus is byte-identical to the old rules so emission stays neutral.\n- internal/cli/audit_named_test.go TestAudit_CorpusDrivenEmission asserts a user auditor corpus replaces the default 3-role set and its focus supplies the emitted Role Rules; all existing audit prompt/routing/schema tests still pass.",
+      "gate_passed_at": "2026-07-21T21:50:14.659875Z",
+      "commit_sha": "f3cfbac"
     },
     {
       "id": "emission-output-contract",
