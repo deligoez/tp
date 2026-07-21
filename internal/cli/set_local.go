@@ -24,6 +24,7 @@ func runSetLocal(args []string) error {
 		os.Exit(ExitUsage)
 		return nil
 	}
+	surfaceConfigWarnings()
 
 	defaults := make(map[string]bool)
 	for _, arg := range args {
