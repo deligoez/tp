@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.25.0.md",
   "created_at": "2026-07-21T19:43:58.426848Z",
-  "updated_at": "2026-07-21T22:08:21.634162Z",
+  "updated_at": "2026-07-21T22:23:58.129037Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2,
@@ -426,7 +426,7 @@
     {
       "id": "override-focus-resolution",
       "title": "Resolve effective role focus",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli"
       ],
@@ -439,11 +439,11 @@
       "source_sections": [
         "## 10. `tp: lens` Retirement \u0026 Migration"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T22:23:58.086183Z",
+      "closed_at": "2026-07-21T22:23:58.129034Z",
+      "closed_reason": "- engine.ResolveOverrideFocus (internal/engine/overrides.go) layers spec-frontmatter overrides onto each active role's corpus focus (project focus first, then override focus): tp.review_roles for review (or the legacy tp: lens shim when absent, §10.4) and tp.audit_roles for audit; wired into runReview and runAudit at emission.\n- An override id matching no active role is ignored with a warning, and the built-in regression role is appended separately (never passed to ResolveOverrideFocus) so it accepts no overrides; the old appendLensQuestions/promptDomain/dom lens injection into regression is removed (regression now carries no lens).\n- internal/engine/overrides_test.go covers additive focus, the unknown-id warning (including a regression override), the legacy-lens fanout, and audit-phase overrides; internal/cli/domain_lens_test.go adds the emission-level additive override, the unknown-id ignore, and TestDomainLens_RegressionRejectsLens.",
+      "gate_passed_at": "2026-07-21T22:23:58.129034Z",
+      "commit_sha": "e2e0169"
     },
     {
       "id": "lens-backcompat-shim",
