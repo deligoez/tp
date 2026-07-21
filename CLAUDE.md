@@ -118,24 +118,34 @@ tp init <spec.md>              # Create empty task file
 tp add <json>                  # Add task (--stdin, --bulk for NDJSON bulk)
 tp import <file>               # Import + validate (--force to overwrite, auto-fills coverage)
 tp import <file> --spec <spec> # Import bare JSON array (auto-wraps into TaskFile)
-tp use <file>                  # Set active task file (.tp-active marker)
-tp use --clear                 # Remove .tp-active
+tp use <file>                  # Set active task file (writes .tp/local.json, git-ignored)
+tp use --clear                 # Clear the active pointer
 tp use                         # Show current active file
+```
+
+### Project Config (v0.24.0)
+```bash
+tp config                      # Effective (resolved) config as JSON
+tp config --resolved           # Annotate each setting with {value, source} layer
+tp config --extract            # Hoist policy shared by ALL task files into .tp/config.json (--dry-run/--force)
+tp set --workflow --project <field>=<value>  # Edit a project-level workflow default
+tp set --local defaults.<flag>=<bool>        # Set a CLI flag default (compact/quiet/no_color)
+tp validate --project          # Cross-spec workflow drift (informational; --strict → exit 1)
 ```
 
 ### Global Flags
 ```
 --file <path>    Explicit task file
 --json           Force JSON output
---compact        Minimal JSON (~40% smaller)
---quiet          Suppress info messages
---no-color       Disable colors
+--compact        Minimal JSON (~40% smaller); --no-compact forces full
+--quiet          Suppress info messages; --no-quiet forces info output
+--no-color       Disable colors; --color forces color
 ```
 
 ### Task File Discovery
-Priority: `--file` flag > `TP_FILE` env var > `.tp-active` marker > auto-detect.
+Priority: `--file` flag > `TP_FILE` env var > `.tp/local.json` active pointer > legacy `.tp-active` marker (deprecated; removed in v0.25.0) > auto-detect.
 Auto-detect scans current dir, then one level of subdirectories for `*.tasks.json`.
-`.tp-active` is read from CWD only (no parent traversal). Use `tp use <file>` to set it.
+The active pointer lives in `.tp/local.json` (git-ignored); set it with `tp use <file>`. The `.tp/` dir is found by walking up to the `.git` boundary.
 
 ### JSON Field Aliases
 - `deps` accepted as alias for `depends_on` in task JSON (import, add)
@@ -227,7 +237,7 @@ skills/tp/
 - **Full audit NDJSON parser** (`tp audit --merge`): schema validation + dedup of audit rows. v0.23.0 `--record` only counts non-PASS rows; the full parser is deferred.
 - **Broken cross-reference lint**: detect `§3.2 step 10` when section 3.2 has only 9 steps. High false positive risk — needs careful format detection. Revisit if agents report wasted review rounds on broken cross-refs.
 - **Duplicate paragraph lint**: detect two consecutive identical paragraphs (blank-line separated). Currently `duplicate-line` catches line-level duplicates; paragraph-level needs paragraph boundary detection. Revisit if line-level check proves insufficient.
-- **Project-level workflow config** (`.tp/config.json`) — strong agent feedback (multi-spec project, 45 spec-adjacent `<base>.tasks.json` files each hand-copying the same `quality_gate`/`*_clean_rounds`/`*_max_rounds`/`checks` policy; one drifting silently is undetectable). This is tp's own "derive, don't maintain a parallel list" principle (P4/coverage) violated at the policy layer. Design: a repo-root `.tp/config.json` holds the workflow **defaults** (committed to VCS); each `tasks.json` `workflow` block holds only explicit **overrides**; effective values **resolve at read time** (project ⊕ override) — NOT materialized into `tasks.json` at `init` (materializing re-introduces drift one level up). `tp lint`/`tp validate` then reports intentional deviations ("section X sets review_max_rounds=0, project default 8 — intentional?"). Notes: up-search stops at the repo/`.git` boundary (determinism); resolution must be wired at every workflow-field read (gate, review state, import convergence enforcement); `tp set --workflow --project` edits the project config; `tp config --resolved` shows effective values; moving `quality_gate` to the project level is the highest-value slice. Sized for a dedicated spec (v0.24.0).
+- ✅ **Project-level workflow config** (`.tp/config.json`) — **shipped in v0.24.0.** Repo-root `.tp/config.json` holds workflow **defaults** (committed); each `<base>.tasks.json` `workflow` block holds only explicit **overrides**; effective values **resolve at read time** (CLI > env > task override > project config > built-in). `.tp/local.json` (git-ignored) holds the `active` pointer + CLI flag `defaults`. Commands: `tp config [--resolved|--extract]`, `tp set --workflow --project`, `tp set --local`, `tp validate --project`. See README / SKILL.md / REFERENCE.md "Project Configuration".
 
 ## Tech Stack
 
@@ -247,7 +257,7 @@ skills/tp/
 - All write operations use flock; reads are lock-free
 - Task status: open -> wip -> done (3 states only, blocked computed from deps)
 - Managed fields (tp set rejects): status, started_at, closed_at, closed_reason, gate_passed_at, commit_sha
-- Workflow fields (`tp set --workflow`): `review_clean_rounds`/`audit_clean_rounds` (default 2, 1-10), `gate_timeout_seconds` (default 600, 30-3600), `review_max_rounds`/`audit_max_rounds` (default 0=no cap, 0-50), `checks` (array of `{class, cmd}`, replace semantics). `quality_gate` stays read-only (author at `tp init --quality-gate`).
+- Workflow fields (`tp set --workflow`): `review_clean_rounds`/`audit_clean_rounds` (default 2, 1-10), `gate_timeout_seconds` (default 600, 30-3600), `review_max_rounds`/`audit_max_rounds` (default 0=no cap, 0-50), `checks` (array of `{class, cmd}`, replace semantics). `quality_gate` stays read-only (author at `tp init --quality-gate`). These fields also have project-level **defaults** in `.tp/config.json` (v0.24.0); a task file's `workflow` block holds only explicit overrides and effective values resolve at read time (`tp config --resolved`). `tp set --workflow --project` edits the project defaults; `tp set --local defaults.<flag>=<bool>` sets CLI flag defaults (`compact`/`quiet`/`no_color`).
 - Managed fields also reject `gate_skipped_reason`. `tp reopen` clears `gate_passed_at`, `gate_skipped_reason`, and `commit_sha`.
 - Pretty-printed JSON with 2-space indentation
 - spec_excerpt capped at 2000 chars
