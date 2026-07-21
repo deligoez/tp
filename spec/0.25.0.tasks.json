@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.25.0.md",
   "created_at": "2026-07-21T19:43:58.426848Z",
-  "updated_at": "2026-07-21T22:23:58.129037Z",
+  "updated_at": "2026-07-21T22:30:50.409039Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2,
@@ -492,7 +492,7 @@
     {
       "id": "lint-role-corpus",
       "title": "Validate role corpus in commands",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli"
       ],
@@ -506,11 +506,11 @@
       "source_sections": [
         "## 3. Role Definition Schema"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T22:30:50.372803Z",
+      "closed_at": "2026-07-21T22:30:50.409037Z",
+      "closed_reason": "- tp lint now validates the role corpus via lintRoleCorpusOrAbort (internal/cli/lint.go), running engine.LoadRoleCorpus over both .tp/reviewers and .tp/auditors so JSON parse, required fields, id-equals-stem, kebab-case, reserved regression, domains-array, and unknown-key are all checked (reusing the shared validator).\n- A malformed or invalid role file aborts the phase-reading command with exit 3 and a repair-or-delete hint: tp review aborts on a bad reviewer, tp audit on a bad auditor (a broken auditor never blocks review — phase independence), and tp lint on either.\n- internal/cli/lint_corpus_test.go covers lint aborting on a bad reviewer and a bad auditor with the exit-3 hint, tp review aborting on a bad reviewer, and a bad auditor aborting tp audit while tp review still succeeds.",
+      "gate_passed_at": "2026-07-21T22:30:50.409037Z",
+      "commit_sha": "5ddb984"
     },
     {
       "id": "init-eject-roles",
