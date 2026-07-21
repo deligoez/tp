@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.25.0.md",
   "created_at": "2026-07-21T19:43:58.426848Z",
-  "updated_at": "2026-07-21T20:28:45.48594Z",
+  "updated_at": "2026-07-21T20:37:01.603273Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2,
@@ -299,7 +299,7 @@
     {
       "id": "merge-clustering-rewrite",
       "title": "Rewrite merge to cluster findings",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "review"
@@ -312,11 +312,11 @@
       "source_sections": [
         "## 8. Review Finding Dedup \u0026 Overlap Report"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T20:37:01.566084Z",
+      "closed_at": "2026-07-21T20:37:01.603271Z",
+      "closed_reason": "- runReviewMerge (internal/cli/review_merge.go) now clusters review findings by (location key, class) via engine.ClusterFindings, replacing the literal-text-similarity dedup; each cluster emits its Representative row annotated with found_by and (when \u003e0) found_by_roles, sorted by severity/location/finding.\n- Clustering is review-only: tp audit's --record path (countAuditFindings in audit_record.go) is untouched and still counts every non-PASS row without clustering.\n- internal/cli/review_merge_test.go adds TestReviewMergeClustersByLocationClass (representative + found_by/found_by_roles), TestReviewMergeAbsentClassNotMerged, and TestReviewMergeAuditRecordUntouched; the pre-existing dedup tests and finding_class_test.go were updated to the new (location,class) semantics.",
+      "gate_passed_at": "2026-07-21T20:37:01.603271Z",
+      "commit_sha": "8151fb8"
     },
     {
       "id": "per-role-overlap-report",
