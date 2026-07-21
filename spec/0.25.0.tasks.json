@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.25.0.md",
   "created_at": "2026-07-21T19:43:58.426848Z",
-  "updated_at": "2026-07-21T23:03:59.062665Z",
+  "updated_at": "2026-07-21T23:06:31.105975Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2,
@@ -688,7 +688,7 @@
     {
       "id": "docs-readme",
       "title": "Update README for role corpus",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -703,11 +703,11 @@
         "## 5. Default Corpus \u0026 Eject",
         "## 8. Review Finding Dedup \u0026 Overlap Report"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T23:06:31.062351Z",
+      "closed_at": "2026-07-21T23:06:31.105969Z",
+      "closed_reason": "- README.md gains a 'Role Corpus (v0.25.0)' section documenting the .tp/reviewers and .tp/auditors corpus + schema, tp init --eject-roles with --domain/--force, the per-role overlap report (unique/shared/trim-candidate in --merge/--report/--status), and role staleness (roles_stale + builtin sentinel).\n- The 'Spec frontmatter' section is rewritten: domain now selects and filters the corpus (no persona swap), tp.review_roles/tp.audit_roles additive overrides replace the retired standalone lens (legacy lens auto-translates), reflecting §10; the discovery precedence already dropped the removed .tp-active marker (§11).\n- Every new command/flag introduced by v0.25.0 (tp init --eject-roles [--domain|--force], the frontmatter overrides, roles_stale, the corpus abort) is now listed in README.",
+      "gate_passed_at": "2026-07-21T23:06:31.105969Z",
+      "commit_sha": "60d2f9f"
     },
     {
       "id": "docs-reference",
