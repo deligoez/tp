@@ -28,3 +28,17 @@ func TestRunSetProjectWorkflow_WritesConfigAtProjectRoot(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(data), "local.json")
 }
+
+func TestRunSetProjectWorkflow_QualityGateAuthorable(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
+	t.Chdir(root)
+
+	// quality_gate is read-only per task but authorable at the project level.
+	require.NoError(t, runSetProjectWorkflow([]string{"quality_gate=go test ./..."}))
+	pc, _, err := engine.LoadProjectConfig(filepath.Join(root, ".tp"))
+	require.NoError(t, err)
+	require.NotNil(t, pc.Workflow.QualityGate)
+	assert.Equal(t, "go test ./...", *pc.Workflow.QualityGate)
+}
+

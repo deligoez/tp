@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.24.0.md",
   "created_at": "2026-07-21T09:33:07.313Z",
-  "updated_at": "2026-07-21T11:12:19.696848Z",
+  "updated_at": "2026-07-21T11:15:21.10293Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -332,7 +332,7 @@
     {
       "id": "cfg-set-project-write",
       "title": "Write project workflow field",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cfg-schema-malformed",
         "cfg-gitignore"
@@ -342,11 +342,11 @@
       "source_sections": [
         "## 4. Editing the project config"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T11:15:19.056927Z",
+      "closed_at": "2026-07-21T11:15:21.10293Z",
+      "closed_reason": "- tp set --workflow --project (internal/cli/set_project.go) writes fields to the .tp/config.json workflow block discovered by engine.ProjectConfigDir, creating .tp/ and .tp/.gitignore via engine.WriteProjectConfig\n- When no .tp/ exists it creates config.json at the project root (git boundary or CWD), and writes acquire the standard flock\n- TestRunSetProjectWorkflow_WritesConfigAtProjectRoot covers the write and gitignore creation",
+      "gate_passed_at": "2026-07-21T11:15:21.10293Z",
+      "commit_sha": "6aa8dd2"
     },
     {
       "id": "cfg-set-project-validate",
