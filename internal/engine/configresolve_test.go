@@ -141,3 +141,21 @@ func TestEffectiveWorkflowForTaskFile_InheritsProjectQualityGate(t *testing.T) {
 	assert.Equal(t, "make check", wf.QualityGate, "a task file omitting quality_gate runs the project gate")
 	assert.Equal(t, 900, wf.GateTimeoutSeconds, "and the inherited project timeout")
 }
+
+func TestResolveWorkflow_BudgetCapsInherited(t *testing.T) {
+	// The review and audit round-budget checks read ResolveWorkflow, so a
+	// thinned task file inherits both project caps for budget enforcement.
+	root := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".tp"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".tp", "config.json"),
+		[]byte(`{"workflow":{"review_max_rounds":6,"audit_max_rounds":9}}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "s.md"), []byte("# S\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "s.tasks.json"),
+		[]byte(`{"spec":"s.md","tasks":[],"workflow":{}}`), 0o600))
+
+	t.Chdir(root)
+	wf, _ := ResolveWorkflow("s.md", "s.tasks.json")
+	assert.Equal(t, 6, wf.ReviewMaxRounds, "review budget uses the inherited project cap")
+	assert.Equal(t, 9, wf.AuditMaxRounds, "audit budget uses the inherited project cap")
+}
