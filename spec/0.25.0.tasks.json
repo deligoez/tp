@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.25.0.md",
   "created_at": "2026-07-21T19:43:58.426848Z",
-  "updated_at": "2026-07-21T20:22:27.783874Z",
+  "updated_at": "2026-07-21T20:25:04.041577Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2,
@@ -238,7 +238,7 @@
     {
       "id": "location-key-extraction",
       "title": "Extract finding location key",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -248,11 +248,11 @@
       "source_sections": [
         "## 8. Review Finding Dedup \u0026 Overlap Report"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T20:25:04.008475Z",
+      "closed_at": "2026-07-21T20:25:04.041575Z",
+      "closed_reason": "- engine.LocationKey (internal/engine/location.go) reduces a location to its first §\u003cn\u003e(.\u003cn\u003e)* token via the locTokenRe regexp, ignoring trailing text and any later § tokens; the token match is exact so §8 and §8.2 stay distinct keys.\n- A location with no § token returns its whitespace-trimmed string verbatim (including a bare § with no digits).\n- internal/engine/location_test.go covers token/dotted-token extraction, the §8-vs-§8.2 exact-match distinction, and the no-token verbatim case.",
+      "gate_passed_at": "2026-07-21T20:25:04.041575Z",
+      "commit_sha": "95d65fc"
     },
     {
       "id": "finding-cluster-logic",
