@@ -104,9 +104,9 @@ Detailed command reference, field formats, and operational details. For workflow
 |------|---------|
 | `--file <path>` | Explicit task file path |
 | `--json` | Force JSON output (default when piped) |
-| `--compact` | Minimal JSON (~40% smaller) |
-| `--quiet` | Suppress info messages |
-| `--no-color` | Disable colored output |
+| `--compact` / `--no-compact` | Minimal JSON (~40% smaller) / force full output |
+| `--quiet` / `--no-quiet` | Suppress info messages / force info output |
+| `--no-color` / `--color` | Disable / force colored output |
 
 ## Acceptance Criteria Format
 
@@ -149,13 +149,13 @@ The batch gate runs once before any entry is processed, iff at least one survivi
 
 ## Task File Discovery
 
-Priority: `--file` flag > `TP_FILE` env var > `.tp-active` marker > auto-detect (current dir, then one level of subdirs).
+Priority: `--file` flag > `TP_FILE` env var > `.tp/local.json` active pointer > legacy `.tp-active` marker (deprecated; removed in v0.25.0) > auto-detect (current dir, then one level of subdirs).
 
 Set active task file persistently:
 ```bash
-tp use spec/project.tasks.json  # writes .tp-active in CWD
-tp use --clear                  # remove .tp-active
-tp use                          # show current active file
+tp use spec/project.tasks.json  # writes the active pointer to .tp/local.json (git-ignored)
+tp use --clear                  # clear the active pointer
+tp use                          # show current active file (reports dangling_active if the target is gone)
 ```
 
 Or set `TP_FILE` for session-level override:
@@ -223,6 +223,41 @@ spec/
 | `audit_max_rounds` | int | 0 | 0-50 | settable (0 = no cap) |
 
 Out-of-range `tp set --workflow` writes are rejected with exit 1. Out-of-range values in a hand-edited task file fall back at read time (`gate_timeout_seconds`→600, caps→0) and `tp validate` warns.
+
+These are the **defaults** a project-level `.tp/config.json` supplies and a task file's `workflow` block overrides — see [Project Configuration](#project-configuration-v0240). `tp set --workflow --project <field>=<value>` writes to the project config instead of the task file.
+
+## Project Configuration (v0.24.0)
+
+A repo-root `.tp/` directory holds workflow policy shared across every spec, so multi-spec repos keep one source of truth instead of copying policy into each `<base>.tasks.json`.
+
+| File | Tracked? | Holds |
+|------|----------|-------|
+| `.tp/config.json` | commit to VCS | workflow **defaults** (same fields as the table above) |
+| `.tp/local.json` | git-ignored (auto) | `active` task-file pointer + CLI flag `defaults` |
+| `.tp/.gitignore` | commit (auto-written) | ignores `local.json`, tracks `config.json` |
+
+**Discovery**: walk up from the CWD to the first `.git` boundary; the `.tp/` there is the project config (single deterministic anchor).
+
+**Resolution (resolve-at-read)** — effective value per field, highest layer wins:
+```
+CLI flag  >  environment  >  task-file workflow override  >  .tp/config.json  >  built-in default
+```
+A field in a task file's `workflow` block counts as an override only when present (absent ≠ zero). `checks` uses replace semantics (the winning layer's array wins whole).
+
+| Command | Purpose |
+|---------|---------|
+| `tp config` | effective configuration as JSON |
+| `tp config --resolved` | annotate each setting with `{value, source}` (source ∈ override/project/local/default/…) |
+| `tp config --extract` | hoist policy shared by ALL task files into `.tp/config.json` |
+| `tp config --extract --dry-run` | print the hoist plan without writing |
+| `tp config --extract --force` | merge into an existing `.tp/config.json` |
+| `tp set --workflow --project <f>=<v>` | edit a project-level workflow field (flock, range-validated) |
+| `tp set --local defaults.<flag>=<bool>` | set a CLI flag default (`compact`/`quiet`/`no_color`) |
+| `tp validate --project` | report cross-spec workflow drift (informational; `--strict` → exit 1) |
+
+**Negating flags** override a `defaults` entry for a single run: `--no-compact`, `--no-quiet`, `--color`. Precedence for `no_color`: `--color`/`--no-color` > `NO_COLOR` env > `defaults.no_color` > TTY detection.
+
+Malformed `.tp/config.json` or `.tp/local.json` aborts with exit 3 and a repair hint; unknown keys and out-of-range values warn (to stderr) and fall back.
 
 ## State Directory (`.tp-review/`)
 
