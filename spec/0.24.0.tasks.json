@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.24.0.md",
   "created_at": "2026-07-21T09:33:07.313Z",
-  "updated_at": "2026-07-21T09:46:43.99103Z",
+  "updated_at": "2026-07-21T09:48:22.986235Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -41,7 +41,7 @@
     {
       "id": "cfg-discovery-walk",
       "title": "Upward walk to git boundary",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cfg-discovery-types"
       ],
@@ -50,11 +50,11 @@
       "source_sections": [
         "### 2.2 Discovery"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T09:48:21.768896Z",
+      "closed_at": "2026-07-21T09:48:22.986235Z",
+      "closed_reason": "- DiscoverTPDir in internal/engine/projectconfig.go walks up from CWD once, tests each ancestor including anchor, stops at first .tp/\n- The walk halts at the git boundary (.git directory or file) or filesystem root and never reads a .tp/ above it\n- TestDiscoverTPDir_FindsFromSubdir, _HaltsAtGitBoundary, _GitAsFileIsBoundary, _NoneReturnsEmpty cover the walk and halt",
+      "gate_passed_at": "2026-07-21T09:48:22.986235Z",
+      "commit_sha": "5fc18a9"
     },
     {
       "id": "cfg-discovery-root",

@@ -62,3 +62,30 @@ func TestDiscoverTPDir_NoneReturnsEmpty(t *testing.T) {
 	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
 	assert.Empty(t, DiscoverTPDir(root))
 }
+
+func TestProjectRoot_DirContainingTP(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".tp"), 0o755))
+	sub := filepath.Join(root, "spec")
+	require.NoError(t, os.Mkdir(sub, 0o755))
+	assert.Equal(t, evalLink(t, root), evalLink(t, ProjectRoot(sub)))
+}
+
+func TestProjectRoot_FallsBackToGitBoundary(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
+	sub := filepath.Join(root, "a")
+	require.NoError(t, os.Mkdir(sub, 0o755))
+	assert.Equal(t, evalLink(t, root), evalLink(t, ProjectRoot(sub)),
+		"with no .tp/, the git boundary is the project root")
+}
+
+func TestProjectRoot_FallsBackToStartOutsideGitRepo(t *testing.T) {
+	// A dir with no .tp/ and no .git ancestor resolves to itself.
+	root := t.TempDir()
+	got := ProjectRoot(root)
+	if FindGitBoundary(root) == "" {
+		assert.Equal(t, evalLink(t, root), evalLink(t, got))
+	}
+}

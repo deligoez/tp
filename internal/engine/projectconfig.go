@@ -12,6 +12,46 @@ func hasGitBoundary(dir string) bool {
 	return err == nil
 }
 
+// FindGitBoundary walks up from start and returns the first ancestor that
+// contains a .git entry (directory or file), or "" when none is found up to the
+// filesystem root.
+func FindGitBoundary(start string) string {
+	dir, err := filepath.Abs(start)
+	if err != nil {
+		return ""
+	}
+	for {
+		if hasGitBoundary(dir) {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
+}
+
+// ProjectRoot returns the project root for a start directory: the directory
+// containing the discovered .tp/, or — when no .tp/ exists yet — the git
+// boundary directory, or the start directory itself when not inside a git
+// repository. Config creation and the project-wide scan use this root.
+// Discovery is anchored once at start and is never re-anchored to a --file
+// located in another directory. When no .tp/ is found, callers use built-in
+// defaults and per-task-file settings exactly as in v0.23.0.
+func ProjectRoot(start string) string {
+	if tpDir := DiscoverTPDir(start); tpDir != "" {
+		return filepath.Dir(tpDir)
+	}
+	if boundary := FindGitBoundary(start); boundary != "" {
+		return boundary
+	}
+	if abs, err := filepath.Abs(start); err == nil {
+		return abs
+	}
+	return start
+}
+
 // DiscoverTPDir discovers the project's .tp/ directory exactly once per
 // invocation by walking upward from start, testing each ancestor — including
 // start itself and the git-boundary directory — and stopping at the first
