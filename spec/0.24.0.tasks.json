@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.24.0.md",
   "created_at": "2026-07-21T09:33:07.313Z",
-  "updated_at": "2026-07-21T10:18:42.387533Z",
+  "updated_at": "2026-07-21T10:21:08.814331Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -186,7 +186,7 @@
     {
       "id": "cfg-resolution-sparse",
       "title": "Sparse merge across ranks",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cfg-resolution-precedence"
       ],
@@ -195,11 +195,11 @@
       "source_sections": [
         "### 3.1 Precedence"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T10:21:08.016077Z",
+      "closed_at": "2026-07-21T10:21:08.814331Z",
+      "closed_reason": "- ResolveEffectiveWorkflow in internal/engine/configresolve.go does a per-field sparse merge so a task file setting only review_max_rounds inherits every other field from the project config\n- Workflow fields resolve across override, project, and default only; with no .tp/ the override resolves over built-in defaults as in v0.23.0\n- TestResolveEffectiveWorkflow_SparseMerge and _NoConfigIsV023 cover sparse merge and rank participation",
+      "gate_passed_at": "2026-07-21T10:21:08.814331Z",
+      "commit_sha": "fb5e4fb"
     },
     {
       "id": "cfg-resolution-override",

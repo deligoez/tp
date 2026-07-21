@@ -64,3 +64,27 @@ func TestResolveEffectiveWorkflow_NoConfigIsV023(t *testing.T) {
 	assert.Equal(t, 2, wf.ReviewCleanRounds, "built-in default with no project config")
 	assert.Equal(t, 600, wf.GateTimeoutSeconds)
 }
+
+func TestResolveWorkflowLayers_PresenceZeroWins(t *testing.T) {
+	// review_max_rounds:0 (explicit no-cap) is a present override that must win
+	// over a non-zero project value, not be mistaken for absent.
+	wf := ResolveWorkflowLayers(
+		model.WorkflowOverride{ReviewMaxRounds: ptr(0)},
+		model.WorkflowOverride{ReviewMaxRounds: ptr(8)},
+	)
+	assert.Equal(t, 0, wf.ReviewMaxRounds, "explicit 0 override wins over project 8")
+}
+
+func TestResolveWorkflowLayers_ChecksReplaceSemantics(t *testing.T) {
+	projChecks := model.WorkflowOverride{Checks: &[]model.Check{{Class: "x", Cmd: "run-x"}}}
+
+	// A present empty checks array replaces the project checks with nothing.
+	empty := []model.Check{}
+	wf := ResolveWorkflowLayers(model.WorkflowOverride{Checks: &empty}, projChecks)
+	assert.Empty(t, wf.Checks, "present empty checks replaces project checks")
+
+	// An absent checks key inherits the project checks.
+	wf = ResolveWorkflowLayers(model.WorkflowOverride{}, projChecks)
+	require.Len(t, wf.Checks, 1)
+	assert.Equal(t, "x", wf.Checks[0].Class, "absent checks inherits project checks")
+}
