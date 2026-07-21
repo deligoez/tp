@@ -329,6 +329,15 @@ func runDoneMulti(taskFilePath string, taskIDs []string, reason string) error {
 			assume[id] = true
 		}
 	}
+	// Snapshot each target's pre-gate status; a change detected after the
+	// gate run means a concurrent writer moved the task — the whole multi-ID
+	// invocation then aborts atomically (§6.2 item 6).
+	preStatus := make(map[string]string, len(taskIDs))
+	for _, id := range taskIDs {
+		if t, _, err := model.FindTask(tfPre, id); err == nil {
+			preStatus[id] = t.Status
+		}
+	}
 	if doneGatePassed && tfPre.Workflow.QualityGate != "" {
 		output.Info("quality gate is executed by tp; --gate-passed ignored")
 	}
@@ -349,6 +358,22 @@ func runDoneMulti(taskFilePath string, taskIDs []string, reason string) error {
 		failed := make([]map[string]any, 0)
 		now := time.Now().UTC()
 		isCoveredBy := doneCoveredBy != ""
+
+		// Atomicity: if any target's state changed since the pre-gate snapshot,
+		// no task closes — fail with the normal state error (§6.2 item 6).
+		for _, id := range taskIDs {
+			prev, tracked := preStatus[id]
+			if !tracked {
+				continue
+			}
+			cur, _, err := model.FindTask(tf, id)
+			if err != nil || cur.Status != prev {
+				output.Error(ExitState, fmt.Sprintf("task %s changed state during the gate run; no task closed", id),
+					"re-read the plan and retry tp done")
+				os.Exit(ExitState)
+				return nil
+			}
+		}
 
 		// Build done set for dep checking (updated as tasks close)
 		doneSet := make(map[string]bool)
