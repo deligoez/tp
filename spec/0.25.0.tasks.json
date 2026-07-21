@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.25.0.md",
   "created_at": "2026-07-21T19:43:58.426848Z",
-  "updated_at": "2026-07-21T20:56:41.135767Z",
+  "updated_at": "2026-07-21T20:59:45.906275Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2,
@@ -43,7 +43,7 @@
     {
       "id": "role-file-parse-validate",
       "title": "Parse validate role file",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -55,11 +55,11 @@
       "source_sections": [
         "## 3. Role Definition Schema"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T20:59:45.856246Z",
+      "closed_at": "2026-07-21T20:59:45.90627Z",
+      "closed_reason": "- engine.ParseRoleFile/ParseRoleBytes (internal/engine/rolefile.go) parse a role JSON and validate via validateRole: id MUST equal the filename stem (RoleStem), match roleIDRe ^[a-z0-9]+(-[a-z0-9]+)*$, and not equal the reserved RegressionRoleID; id/title/instructions are required.\n- Any top-level key outside the §3.3 allowedRoleKeys set is rejected by name and domains must be a string array when present; the one shared parser/validator serves both the reviewer and auditor corpora (phase is the caller's directory, never the file).\n- internal/engine/rolefile_test.go covers a full and minimal valid file, each id-rule violation (stem mismatch, uppercase, underscore, leading/trailing hyphen, missing id), the reserved regression id, the unknown-key rejection, the non-array domains, and stem derivation from the filename.",
+      "gate_passed_at": "2026-07-21T20:59:45.90627Z",
+      "commit_sha": "e98d2ef"
     },
     {
       "id": "role-corpus-discovery",
