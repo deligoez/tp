@@ -42,6 +42,8 @@ Announce: "I will review until N clean rounds, audit until M clean rounds." If n
 4. `tp set --workflow review_max_rounds=R audit_max_rounds=A` — round budgets (only if capping).
 5. `tp set --workflow checks='[{"class":"<slug>","cmd":"<detector>"}]'` — register mechanical checks (see Class & Checks Guidance).
 
+**Multi-spec repos:** put the shared gate/convergence policy in a repo-root `.tp/config.json` once (see [Project configuration](#project-configuration-tpconfigjson)) and leave each `tp init` shell's `workflow` block empty except where a spec genuinely deviates — that keeps one source of truth instead of copying policy into every `<base>.tasks.json`.
+
 ### Step 2: Review loop (explicit recipe)
 
 Repeat until `tp review <spec> --status --check` exits 0:
@@ -189,6 +191,20 @@ tp:
 - `prompts[].checklist_items` (array of `ChecklistItem`) and `prompts[].affected_files` (`{path, tasks, diff_summary}`) are new.
 - Sub-agent output is NDJSON, one row per checklist item (`item_id`, `status`, `evidence_file`, `evidence_lines`, `category`, `severity`, `notes`, optional `class`).
 - `--affected-files` survives (replaces the diff universe before per-role filtering); `--findings` survives (`finding` items route to `spec-coverage`).
+
+## Project configuration (`.tp/config.json`)
+
+Multi-spec repos keep **one** workflow policy in a repo-root `.tp/` instead of copying it into every `<base>.tasks.json` (tp's own "derive, don't maintain a parallel list" principle applied to policy):
+
+- **`.tp/config.json`** (commit to VCS) — shared workflow defaults: `quality_gate`, `review_clean_rounds`, `audit_clean_rounds`, `gate_timeout_seconds`, `review_max_rounds`, `audit_max_rounds`, `checks`. A task file's `workflow` block then holds only **explicit overrides**; effective values resolve **at read time** (precedence: CLI flag > env > task-file override > `.tp/config.json` > built-in default). Absent ≠ zero; `checks` uses replace semantics.
+- **`.tp/local.json`** (git-ignored automatically) — the `active` task-file pointer (written by `tp use`, replacing the deprecated `.tp-active`) and CLI flag `defaults` (`compact`/`quiet`/`no_color`). Negating flags (`--no-compact`/`--no-quiet`/`--color`) override a default for a single run.
+- Discovery walks up from the CWD to the `.git` boundary to find `.tp/` — a single deterministic anchor the agent never disambiguates.
+
+Commands:
+- `tp config` / `tp config --resolved` — effective settings; `--resolved` annotates each with its `{value, source}` layer (so the agent can see *why* a value is in force).
+- `tp config --extract [--dry-run|--force]` — hoist policy shared by ALL task files into `.tp/config.json`.
+- `tp set --workflow --project <field>=<value>` — edit a project-level workflow field; `tp set --local defaults.<flag>=<bool>` — set a flag default.
+- `tp validate --project` — report cross-spec workflow drift (informational; `--strict` → exit 1).
 
 ## Reference
 
