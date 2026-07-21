@@ -28,13 +28,11 @@ func enforceImportConvergence(targetPath string, tf *model.TaskFile) {
 		return
 	}
 
-	// required = the review_clean_rounds value that will govern the imported
-	// file; warn when it diverges from the §8.6-resolved value --status used
-	required := tf.Workflow.ReviewCleanRounds
+	// Enforcement uses the resolved (project-layered) clean-rounds value, so a
+	// thinned task file inherits the project requirement rather than reading the
+	// raw task-file block alone.
 	wfResolved, _ := engine.ResolveWorkflow(stateSpec, flagFile)
-	if wfResolved.ReviewCleanRounds != required {
-		output.Info(fmt.Sprintf("warning: imported review_clean_rounds=%d differs from resolved value %d used by --status", required, wfResolved.ReviewCleanRounds))
-	}
+	required := wfResolved.ReviewCleanRounds
 
 	hint := "record the remaining clean rounds with tp review --record, or import with user-approved --force"
 	if wfResolved.ReviewMaxRounds > 0 && len(st.ReviewRounds) >= wfResolved.ReviewMaxRounds {

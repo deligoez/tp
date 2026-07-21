@@ -1,6 +1,48 @@
 package engine
 
-import "github.com/deligoez/tp/internal/model"
+import (
+	"encoding/json"
+	"os"
+
+	"github.com/deligoez/tp/internal/model"
+)
+
+// LoadTaskWorkflowOverride parses a task file's own "workflow" block into a
+// presence-tracked WorkflowOverride, so a sparse task-file workflow layers
+// correctly over the project config. An absent block yields an empty override.
+func LoadTaskWorkflowOverride(taskFilePath string) (model.WorkflowOverride, error) {
+	data, err := os.ReadFile(taskFilePath)
+	if err != nil {
+		return model.WorkflowOverride{}, err
+	}
+	var top struct {
+		Workflow json.RawMessage `json:"workflow"`
+	}
+	if err := json.Unmarshal(data, &top); err != nil {
+		return model.WorkflowOverride{}, err
+	}
+	if len(top.Workflow) == 0 {
+		return model.WorkflowOverride{}, nil
+	}
+	wo, _ := parseWorkflowOverride(top.Workflow)
+	return wo, nil
+}
+
+// projectWorkflowOverride returns the project config's workflow override
+// discovered from start, or an empty override when no .tp/ or config exists or
+// the config is unreadable (best-effort; commands that must abort on a
+// malformed config call LoadProjectConfig directly).
+func projectWorkflowOverride(start string) model.WorkflowOverride {
+	tpDir := DiscoverTPDir(start)
+	if tpDir == "" {
+		return model.WorkflowOverride{}
+	}
+	pc, _, err := LoadProjectConfig(tpDir)
+	if err != nil {
+		return model.WorkflowOverride{}
+	}
+	return pc.Workflow
+}
 
 // pickInt returns the first non-nil layer value in precedence order (highest
 // layer first), or def when every layer is absent.

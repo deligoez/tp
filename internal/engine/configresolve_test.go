@@ -109,3 +109,20 @@ func TestResolveEffectiveWorkflow_AnchoredAtStartNoCrossProject(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 8, wf.ReviewMaxRounds, "derive-at-read from the single anchored project")
 }
+
+func TestResolveWorkflow_ThinnedTaskInheritsProjectPolicy(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".tp"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".tp", "config.json"),
+		[]byte(`{"workflow":{"review_clean_rounds":3,"review_max_rounds":7}}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "s.md"), []byte("# S\n"), 0o600))
+	// A thinned task file: its workflow block omits the convergence policy.
+	require.NoError(t, os.WriteFile(filepath.Join(root, "s.tasks.json"),
+		[]byte(`{"spec":"s.md","tasks":[],"workflow":{}}`), 0o600))
+
+	t.Chdir(root)
+	wf, _ := ResolveWorkflow("s.md", "s.tasks.json")
+	assert.Equal(t, 3, wf.ReviewCleanRounds, "import enforcement resolves the inherited project clean_rounds")
+	assert.Equal(t, 7, wf.ReviewMaxRounds, "and the inherited project cap")
+}
