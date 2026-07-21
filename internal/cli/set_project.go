@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/deligoez/tp/internal/engine"
@@ -23,6 +24,7 @@ func runSetProjectWorkflow(args []string) error {
 		os.Exit(ExitUsage)
 		return nil
 	}
+	surfaceConfigWarnings()
 
 	ints := make(map[string]int)
 	var qualityGate *string
@@ -56,9 +58,11 @@ func runSetProjectWorkflow(args []string) error {
 			}
 			checksValue = &checks
 		case editableWorkflowFields[field]:
-			var val int
-			if _, err := fmt.Sscanf(valueStr, "%d", &val); err != nil {
-				return output.JSON(map[string]string{"error": fmt.Sprintf("%s must be an integer", field)})
+			val, convErr := strconv.Atoi(valueStr)
+			if convErr != nil {
+				output.Error(ExitValidation, fmt.Sprintf("%s must be an integer", field))
+				os.Exit(ExitValidation)
+				return nil
 			}
 			lo, hi := workflowFieldRange(field)
 			if val < lo || val > hi {
@@ -68,7 +72,9 @@ func runSetProjectWorkflow(args []string) error {
 			}
 			ints[field] = val
 		default:
-			return output.JSON(map[string]string{"error": fmt.Sprintf("unknown workflow field: %s", field)})
+			output.Error(ExitValidation, fmt.Sprintf("unknown workflow field: %s", field))
+			os.Exit(ExitValidation)
+			return nil
 		}
 	}
 
