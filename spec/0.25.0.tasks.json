@@ -1,14 +1,778 @@
 {
   "version": 1,
   "spec": "spec/0.25.0.md",
-  "created_at": "2026-07-21T18:20:56.991356Z",
-  "updated_at": "2026-07-21T18:20:56.991356Z",
+  "created_at": "2026-07-21T19:43:58.426848Z",
+  "updated_at": "2026-07-21T19:43:58.429022Z",
   "workflow": {},
   "coverage": {
-    "total_sections": 0,
-    "mapped_sections": 0,
-    "context_only": [],
+    "total_sections": 15,
+    "mapped_sections": 14,
+    "context_only": [
+      "# tp v0.25.0 — User-defined reviewer \u0026 auditor roles"
+    ],
     "unmapped": []
   },
-  "tasks": []
+  "tasks": [
+    {
+      "id": "role-model-type",
+      "title": "Role definition model type",
+      "status": "open",
+      "tags": [
+        "model"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 6,
+      "acceptance": "Define model.Role with required id, title, instructions plus optional focus and domains string-array fields per the §3.3 schema table. The JSON key is focus not lens (§3.5), and the role corpus is project-owned data (§1). Unit tests cover the struct fields and the focus key name.",
+      "source_sections": [
+        "## 3. Role Definition Schema",
+        "## 1. Overview"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "role-file-parse-validate",
+      "title": "Parse validate role file",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [
+        "role-model-type"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "Parse a role JSON file and validate it so the id MUST equal the filename stem, match `^[a-z0-9]+(-[a-z0-9]+)*$`, and not be the reserved regression (§3.2). Reject any top-level key outside the §3.3 schema and require domains to be a string array when present, reusing one shared schema, parser, and validator across both corpora (§3.4, Principle 1). Unit tests cover valid files, each id-rule violation, the reserved id, and the unknown-key rejection.",
+      "source_sections": [
+        "## 3. Role Definition Schema"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "role-corpus-discovery",
+      "title": "Discover role corpus per phase",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [
+        "role-file-parse-validate"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "Load reviewers from .tp/reviewers/*.json and auditors from .tp/auditors/*.json, inferring the phase from the directory (§3.1) and reusing the v0.24.0 git-boundary anchor on the committed corpus (§4.1, §4.2, §4.3). A phase directory is populated when it holds at least one .json file, and a populated directory replaces the embedded default corpus for that phase while an absent or empty one uses the embedded default (§4.4). Unit tests cover per-phase replacement, the empty-directory fallback, and non-JSON files being ignored.",
+      "source_sections": [
+        "## 4. Directory Layout \u0026 Discovery"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "research-prompt-design",
+      "title": "Research reviewer auditor prompt design",
+      "status": "open",
+      "tags": [
+        "research"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 15,
+      "acceptance": "Perform the §14.4 web-research pass on reviewer/auditor prompt-design best practices before the embedded corpus and §14 skill guidance are written. Capture findings on adversarial framing, evidence demand, scope boundaries, and one-lens-per-role design (§14.2). Record the synthesized guidance notes to inform corpus authoring and the SKILL section.",
+      "source_sections": [
+        "## 14. Role Authoring Guidance"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "default-corpus-data",
+      "title": "Author embedded default role corpus",
+      "status": "open",
+      "tags": [
+        "engine",
+        "corpus"
+      ],
+      "depends_on": [
+        "role-model-type",
+        "research-prompt-design"
+      ],
+      "estimate_minutes": 14,
+      "acceptance": "Author the embedded default corpus as role files selected by domain per the §5.1 table, with software reviewers implementer/tester/architect and auditors spec-coverage/security/maintainability-conventions, and prose reviewers coherence/soundness and auditors spec-coverage/soundness, so a project with no role files runs this curated corpus and quality never depends on every user authoring prompts (§5.1, Principle 5). Prompts are byte-identical to today's hardcoded personas so emission stays neutral (§13.1), and each ejected default role exemplifies the authoring guidance (§14.4). Unit tests assert the embedded corpus parses and matches the §5.1 table for both domains.",
+      "source_sections": [
+        "## 5. Default Corpus \u0026 Eject"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "corpus-domain-filter",
+      "title": "Filter active corpus by domain",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [
+        "role-corpus-discovery",
+        "default-corpus-data"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "Select the embedded default corpus by the spec's domain when no role files exist, and filter the active corpus by each role's domains field so a role omitting the spec's domain is not emitted while a role with no domains applies everywhere (§6.2). An unknown domain falls back to the software corpus with a lint warning, and if filtering empties a phase panel tp falls back to that phase's full domain-selected embedded corpus while prose defaults to the leaner two-reviewer panel (§6.1, §6.2, §6.3). Unit tests cover domain filtering, the empty-panel fallback, and the unknown-domain warning.",
+      "source_sections": [
+        "## 6. Domain Selection"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "roles-hash-compute",
+      "title": "Compute per-phase role corpus hash",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [
+        "role-corpus-discovery"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "Compute review_roles_hash and audit_roles_hash as the sha256 over the phase's user role files sorted by repo-relative path, hashing each file's repo-relative path and CRLF-normalized content so the hash is clone-stable (§9.1). Return the sentinel \"builtin\" when a phase has no user files, and never include the built-in regression role in review_roles_hash (§9.1, §5.2). Unit tests cover the builtin sentinel, cross-path stability, and CRLF normalization.",
+      "source_sections": [
+        "## 9. Role Staleness"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "review-emission-corpus",
+      "title": "Emit review prompts from corpus",
+      "status": "open",
+      "tags": [
+        "cli",
+        "review"
+      ],
+      "depends_on": [
+        "corpus-domain-filter"
+      ],
+      "estimate_minutes": 14,
+      "acceptance": "Rewire tp review to emit one prompt per active reviewer role from the domain-filtered corpus, replacing the hardcoded implementer/tester/architect generators, and append the built-in regression role which is never a corpus file and cannot be ejected (§7.1, §5.2). The full active panel runs every counted round with no automatic role dropping, and tp emits these prompts without ever executing agents (Principle 3). Unit tests cover corpus-driven emission and the appended regression role.",
+      "source_sections": [
+        "## 7. Prompt Emission",
+        "## 5. Default Corpus \u0026 Eject"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "audit-emission-corpus",
+      "title": "Emit audit prompts from corpus",
+      "status": "open",
+      "tags": [
+        "cli",
+        "audit"
+      ],
+      "depends_on": [
+        "corpus-domain-filter"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "Rewire tp audit to emit one prompt per active auditor role from the domain-filtered corpus, symmetric with review emission and running the full active panel each round (§7.2). Replace the hardcoded spec-coverage/security/maintainability-conventions persona set with corpus-driven prompts. Unit tests cover corpus-driven auditor emission.",
+      "source_sections": [
+        "## 7. Prompt Emission"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "emission-output-contract",
+      "title": "Stamp phase output contract",
+      "status": "open",
+      "tags": [
+        "cli"
+      ],
+      "depends_on": [
+        "review-emission-corpus",
+        "audit-emission-corpus"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Every emitted prompt instructs the sub-agent to stamp the full output contract for its phase, so review findings carry role, location, class, and severity while audit findings additionally carry status in PASS/PARTIAL/FAIL (§7.3, Principle 2). location is stamped as a section anchor per §8.2, which is what makes dedup and the overlap report possible. Unit tests assert both phase contracts appear in emitted prompts.",
+      "source_sections": [
+        "## 7. Prompt Emission",
+        "## 2. Design Principles"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "location-key-extraction",
+      "title": "Extract finding location key",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 6,
+      "acceptance": "Reduce a finding's location to its first §\u003cn\u003e(.\u003cn\u003e)* token, ignoring trailing text and any later § tokens, with exact-token matching so §8 and §8.2 are distinct keys (§8.2). A location with no § token uses its trimmed string verbatim as the key. Unit tests cover token extraction, the exact-match distinction, and the no-token verbatim case.",
+      "source_sections": [
+        "## 8. Review Finding Dedup \u0026 Overlap Report"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "finding-cluster-logic",
+      "title": "Cluster findings by location class",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [
+        "location-key-extraction"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "Cluster two review findings only when both their location key (§8.2) and class are equal, comparing class and role after trimming surrounding whitespace and treating an empty-after-trim value as absent (§8.3). A finding with an absent class is its own cluster so an empty key never collapses unrelated findings. Unit tests cover clustering on equal keys, the trim rule, and the absent-class singleton case.",
+      "source_sections": [
+        "## 8. Review Finding Dedup \u0026 Overlap Report"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cluster-representative-attribution",
+      "title": "Select cluster representative attribution",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [
+        "finding-cluster-logic"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "Choose each cluster's representative by the total order highest severity, then lexicographic role, then finding text, deterministic on ties (§8.4). Carry found_by_roles as the sorted set of distinct contributing diversity reviewer roles excluding the built-in regression and absent/blank roles, and found_by as its cardinality, so a regression-only or absent-role cluster has found_by 0 and no found_by_roles (§8.4). Unit tests cover representative ordering, found_by_roles exclusion, and the found_by-zero case.",
+      "source_sections": [
+        "## 8. Review Finding Dedup \u0026 Overlap Report"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "merge-clustering-rewrite",
+      "title": "Rewrite merge to cluster findings",
+      "status": "open",
+      "tags": [
+        "cli",
+        "review"
+      ],
+      "depends_on": [
+        "cluster-representative-attribution"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "Rewrite tp review --merge to cluster review findings by (location key, class) using the new clustering, replacing the literal-text-similarity dedup, and emit the clustered findings with their representatives (§8.1). Clustering applies to review only, and tp audit findings keep their existing --record path unchanged (§8.1). Unit tests cover clustered merge output and that audit --record is untouched.",
+      "source_sections": [
+        "## 8. Review Finding Dedup \u0026 Overlap Report"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "per-role-overlap-report",
+      "title": "Report per-role overlap candidates",
+      "status": "open",
+      "tags": [
+        "cli",
+        "review"
+      ],
+      "depends_on": [
+        "merge-clustering-rewrite"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "For each diversity reviewer role appearing in the round, report its unique count of sole-contributor clusters and shared count of clusters with found_by \u003e= 2, flagging a role with unique 0 and shared \u003e= 1 as a trim candidate while excluding the built-in regression and roles that found nothing (§8.5). Surface the report in --merge, --report, and --status computed from the merged findings alone with no corpus-global ratio (§8.5). Unit tests cover unique/shared counts, the trim-candidate flag, and regression exclusion.",
+      "source_sections": [
+        "## 8. Review Finding Dedup \u0026 Overlap Report"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "mechanize-candidates-retained",
+      "title": "Retain mechanize candidates output",
+      "status": "open",
+      "tags": [
+        "test"
+      ],
+      "depends_on": [
+        "per-role-overlap-report"
+      ],
+      "estimate_minutes": 5,
+      "acceptance": "Keep the existing cross-round class-frequency mechanize_candidates output exactly as-is, adding no per-round multi-role mechanize signal and no found_by threshold constant (§8.6, Principle 4). The per-role overlap report already surfaces repeated overlap so a found_by \u003e= 2 mechanize rule would only duplicate §8.5's shared boundary. Tests assert mechanize_candidates is unchanged and no found_by threshold was added.",
+      "source_sections": [
+        "## 8. Review Finding Dedup \u0026 Overlap Report",
+        "## 2. Design Principles"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "roles-hash-record",
+      "title": "Record role hashes per round",
+      "status": "open",
+      "tags": [
+        "cli"
+      ],
+      "depends_on": [
+        "roles-hash-compute"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "Add review_roles_hash and audit_roles_hash to the recorded round entry and store the current phase hash at --record time exactly as spec_hash is stored (§9.2). The review and audit sequences stay independent so editing a reviewer never staleness-invalidates audit convergence (§9.2). Unit tests cover hash storage at record and sequence independence.",
+      "source_sections": [
+        "## 9. Role Staleness"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "roles-stale-status",
+      "title": "Report roles-stale in status",
+      "status": "open",
+      "tags": [
+        "cli"
+      ],
+      "depends_on": [
+        "roles-hash-record"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "Make tp review --status and tp audit --status compute the current corpus hash, compare it to the latest recorded round's stored hash, and report roles_stale beside the existing spec stale flag without writing (§9.3). A pre-v0.25.0 round with no stored role hash is treated as matching and not retroactively stale, so in-flight sequences carry forward (§9.4). Unit tests cover roles_stale detection and the pre-v0.25.0 matching rule.",
+      "source_sections": [
+        "## 9. Role Staleness"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "frontmatter-role-overrides-parse",
+      "title": "Parse spec role overrides",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "Parse tp.review_roles and tp.audit_roles frontmatter maps keyed by role id whose only permitted value key is focus as a string array, adding the fields to the Frontmatter struct (§10.2). Any other key inside an override is a lint warning and is ignored. Unit tests cover valid override parsing and the warn-and-ignore of a disallowed key.",
+      "source_sections": [
+        "## 10. `tp: lens` Retirement \u0026 Migration"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "override-focus-resolution",
+      "title": "Resolve effective role focus",
+      "status": "open",
+      "tags": [
+        "cli"
+      ],
+      "depends_on": [
+        "frontmatter-role-overrides-parse",
+        "review-emission-corpus"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "At emission append each override's focus questions to the matching role's corpus focus using read-time layering so effective focus is project-corpus focus then spec-override focus (§10.2, §10.3). An override whose id matches no active role in that phase is ignored with a lint warning, and the built-in regression role accepts no overrides (§10.2, §5.2). Unit tests cover additive focus, the unknown-id warning, and regression rejecting overrides.",
+      "source_sections": [
+        "## 10. `tp: lens` Retirement \u0026 Migration"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "lens-backcompat-shim",
+      "title": "Translate legacy lens frontmatter",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [
+        "frontmatter-role-overrides-parse"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "When a spec carries legacy tp: lens and no new role overrides, auto-translate with a deprecation warning where lens.all appends to every active review role focus excluding regression and auditors while lens.\u003crole-id\u003e appends to that active review role with an unknown id warned (§10.4). When both legacy lens and the new review_roles/audit_roles are present the new form wins and lens is ignored with a warning, never a three-way merge, and the tp: block plus its domain key are retained while only the standalone lens key is retired (§10.4). Unit tests cover the all and role translations, the new-form-wins rule, and the deprecation warning.",
+      "source_sections": [
+        "## 10. `tp: lens` Retirement \u0026 Migration"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "domain-persona-swap-removal",
+      "title": "Remove Go domain persona swapper",
+      "status": "open",
+      "tags": [
+        "cli"
+      ],
+      "depends_on": [
+        "review-emission-corpus",
+        "corpus-domain-filter"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "Remove the Go domain persona-swapper so the standalone tp: lens's three jobs are fully relocated with domain persona-swap absorbed by domain-selected default corpora, project-wide concerns moved to shared role files, and spec-local concerns handled by the spec-frontmatter role override (§10.1). domain's only remaining effects are selecting the embedded default corpus when no role files exist and filtering the active corpus by each role's domains field (§6.2). Unit tests confirm domain no longer swaps Go personas and only drives corpus selection and filtering.",
+      "source_sections": [
+        "## 6. Domain Selection",
+        "## 10. `tp: lens` Retirement \u0026 Migration"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "lint-role-corpus",
+      "title": "Validate role corpus in commands",
+      "status": "open",
+      "tags": [
+        "cli"
+      ],
+      "depends_on": [
+        "role-file-parse-validate",
+        "review-emission-corpus",
+        "audit-emission-corpus"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "Make tp lint validate every role file whenever a .tp/reviewers or .tp/auditors directory exists, checking JSON parse, required fields, id-equals-stem, kebab-case, the reserved regression, domains-array, and no unknown key (§3.6). A malformed or invalid role file aborts the phase-reading command with exit 3 and a `repair or delete \u003cpath\u003e` hint so tp review aborts on a bad reviewer, tp audit aborts on a bad auditor preserving phase independence, and tp lint aborts on either (§3.6). Unit tests cover lint validation, the review and audit phase-scoped aborts, and the exit-3 hint.",
+      "source_sections": [
+        "## 3. Role Definition Schema"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "init-eject-roles",
+      "title": "Add init eject-roles flag",
+      "status": "open",
+      "tags": [
+        "cli"
+      ],
+      "depends_on": [
+        "default-corpus-data"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "Add tp init --eject-roles [--domain \u003cname\u003e] writing the selected default corpus into .tp/reviewers and .tp/auditors as editable files so hidden persona prompts become visible artifacts (§5.3). An unknown --domain is a usage error exit 2 listing the known domains, and eject refuses to overwrite an existing role file unless --force which overwrites regardless of the existing file's validity (§5.3, §3.6). Unit tests cover eject output, the unknown-domain usage error, and the --force overwrite.",
+      "source_sections": [
+        "## 5. Default Corpus \u0026 Eject"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "remove-tpactive-discovery",
+      "title": "Remove tp-active discovery fallback",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 8,
+      "acceptance": "Remove the .tp-active read and its deprecation warning from the discovery chain so discovery no longer reads the marker (§11.1). Discovery precedence becomes --file, then TP_FILE, then the .tp/local.json active pointer, then auto-detect (§11.3). Unit tests confirm .tp-active is ignored and the new precedence order holds.",
+      "source_sections": [
+        "## 11. `.tp-active` Removal (breaking)"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "remove-tpactive-gitignore",
+      "title": "Remove tp-active gitignore line",
+      "status": "open",
+      "tags": [
+        "chore"
+      ],
+      "depends_on": [
+        "remove-tpactive-discovery"
+      ],
+      "estimate_minutes": 4,
+      "acceptance": "Remove the root .gitignore line for .tp-active now that the marker is gone (§11.2). Confirm no ignore rule references .tp-active after removal. A test or check verifies the gitignore no longer lists .tp-active.",
+      "source_sections": [
+        "## 11. `.tp-active` Removal (breaking)"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "test-eject-neutral-stale",
+      "title": "Test eject neutrality staleness flip",
+      "status": "open",
+      "tags": [
+        "test"
+      ],
+      "depends_on": [
+        "init-eject-roles",
+        "roles-hash-compute",
+        "roles-stale-status"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Verify ejecting is emission-neutral because the written prompts are byte-identical to the embedded ones so the panel and prompts do not change (§5.4). Verify ejecting flips that phase's review_roles_hash or audit_roles_hash from \"builtin\" to a file hash, marking the recorded convergence stale once (§5.4). A project keeping zero role files carries no maintenance burden and stays on the builtin sentinel.",
+      "source_sections": [
+        "## 5. Default Corpus \u0026 Eject"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "test-nongoals",
+      "title": "Test v0.25.0 non-goals hold",
+      "status": "open",
+      "tags": [
+        "test"
+      ],
+      "depends_on": [
+        "per-role-overlap-report",
+        "merge-clustering-rewrite",
+        "corpus-domain-filter"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "Assert tp emits prompts without an agent runtime and never auto-tapers the panel per round so panel size stays a durable corpus decision (non-goals 1, 3). Assert the output contract stays tp's with no user-defined finding schema, no frontmatter-defined new roles, and no audit-finding clustering (non-goals 2, 6, 8). Assert no new surface exists with no .tp/config.json workflow field, no speculative role field beyond §3.3, and discovery stopping at the git boundary with no cross-project corpus (non-goals 4, 5, 7).",
+      "source_sections": [
+        "## 12. Non-Goals"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "test-migration-backcompat",
+      "title": "Test migration back-compat paths",
+      "status": "open",
+      "tags": [
+        "test"
+      ],
+      "depends_on": [
+        "corpus-domain-filter",
+        "roles-stale-status",
+        "remove-tpactive-discovery"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "Verify existing projects with no role files run the embedded default corpus with a panel identical to today's, the only visible change being the prose default reviewer panel becoming the two prose lenses (§13.1). Verify in-flight pre-v0.25.0 review/audit sequences carry forward because their recorded rounds have no stored role hash and are treated as matching (§13.2, §9.4). Verify the .tp-active removal requires no user action since v0.24.0 already migrated active pointers to .tp/local.json (§13.4).",
+      "source_sections": [
+        "## 13. Migration"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "skill-authoring-guidance",
+      "title": "Write role authoring guidance skill",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [
+        "research-prompt-design",
+        "default-corpus-data"
+      ],
+      "estimate_minutes": 14,
+      "acceptance": "Add the §14 role-authoring guidance to skills/tp/SKILL.md teaching an orchestrator to design high-signal low-overlap contract-conformant role prompts covering one-distinct-failure-lens, adversarial framing, evidence demand, scope boundaries, and output-contract adherence (§14.1, §14.2). Include worked example role sets for code/software and prose plus a short catalog of legal/contract, product/PRD, data-schema, and academic domains with their diverging lenses (§14.3). Note that the embedded default corpus is authored to exemplify this guidance so an ejected default role is a worked example (§14.4).",
+      "source_sections": [
+        "## 14. Role Authoring Guidance"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "docs-remove-tpactive",
+      "title": "Remove tp-active documentation references",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [
+        "remove-tpactive-discovery"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "Delete or update every .tp-active reference in README.md, skills/tp/SKILL.md, skills/tp/REFERENCE.md, and CLAUDE.md now that the marker is removed (§11.2). Ensure the docs describe the .tp/local.json active pointer as the sole active-file mechanism (§11.3). No committed doc mentions .tp-active except as removed-in-v0.25.0 history.",
+      "source_sections": [
+        "## 11. `.tp-active` Removal (breaking)"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "docs-readme",
+      "title": "Update README for role corpus",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [
+        "init-eject-roles",
+        "per-role-overlap-report",
+        "roles-stale-status"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Update README.md to document the .tp/ role corpus, tp init --eject-roles with --domain, the review_roles/audit_roles frontmatter overrides, the per-role overlap report, and role staleness (§5, §8). Reflect the retired tp: lens frontmatter and the removed .tp-active marker in the discovery precedence description (§10, §11). README lists every new command and flag introduced by v0.25.0.",
+      "source_sections": [
+        "## 5. Default Corpus \u0026 Eject",
+        "## 8. Review Finding Dedup \u0026 Overlap Report"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "docs-reference",
+      "title": "Update REFERENCE for new flags",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [
+        "init-eject-roles",
+        "per-role-overlap-report",
+        "roles-stale-status",
+        "lint-role-corpus"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Update skills/tp/REFERENCE.md with the role-corpus schema, the eject command and flags, the frontmatter role overrides, the per-role overlap fields, and the roles_stale status flag (§3, §9). Document that tp lint validates the role corpus and that a malformed role file aborts its phase-reading command with exit 3 (§3.6). REFERENCE reflects all new commands, flags, and fields.",
+      "source_sections": [
+        "## 3. Role Definition Schema",
+        "## 9. Role Staleness"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "docs-skill-commands",
+      "title": "Update SKILL command reference",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [
+        "review-emission-corpus",
+        "audit-emission-corpus",
+        "per-role-overlap-report",
+        "roles-stale-status"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Update skills/tp/SKILL.md command and flow reference for the role corpus, tp init --eject-roles, the frontmatter role overrides, corpus-driven review/audit emission, and the per-role overlap report (§7, §8). Document the roles_stale flag and that role validation runs in tp lint, tp review, and tp audit (§9, §3.6). The skill reflects all new commands, flags, and workflow changes before release.",
+      "source_sections": [
+        "## 7. Prompt Emission",
+        "## 8. Review Finding Dedup \u0026 Overlap Report"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "docs-claude-selfdev",
+      "title": "Update CLAUDE self-development rules",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [
+        "remove-tpactive-discovery"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "Update CLAUDE.md self-development rules and pre-release checklist for the v0.25.0 role corpus, eject workflow, and the removed .tp-active marker (§11.2). Note that tp's own repo stays on the embedded default corpus and still dogfoods the new emission, dedup, and staleness paths (§13.3). CLAUDE.md reflects the new conventions and process changes for the release.",
+      "source_sections": [
+        "## 11. `.tp-active` Removal (breaking)",
+        "## 13. Migration"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ]
 }
