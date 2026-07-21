@@ -656,85 +656,7 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 		mechChecks, _ = runMechanicalChecks(&wfChecks, checksTaskFile)
 	}
 
-	fmState := engine.ParseFrontmatter(specPath)
-
-	// Emit one prompt per active reviewer role from the domain-filtered corpus
-	// (§7.1). A malformed reviewer role aborts review (§3.6, exit 3).
-	activeRoles, corpusWarnings, corpusErr := engine.ResolveActiveCorpus(filepath.Dir(specPath), fmState.Domain, engine.PhaseReviewers)
-	if corpusErr != nil {
-		output.Error(ExitFile, corpusErr.Error(), "repair or delete the offending role file under .tp/reviewers/")
-		os.Exit(ExitFile)
-		return nil
-	}
-	for _, w := range corpusWarnings {
-		output.Info(w)
-	}
-	// Layer the spec-frontmatter role overrides (tp.review_roles / legacy lens
-	// shim) onto each active role's corpus focus (§10.2-10.4).
-	activeRoles, overrideWarnings := engine.ResolveOverrideFocus(activeRoles, fmState, engine.PhaseReviewers)
-	for _, w := range overrideWarnings {
-		output.Info(w)
-	}
-	prompts := make([]reviewPrompt, 0, len(activeRoles)+1)
-	for i := range activeRoles {
-		prompts = append(prompts, generateCorpusReviewPrompt(&activeRoles[i], elems, specContent, round, summary, affectedSection, finalRound))
-	}
-
-	// Changed-sections block: explicit --diff-from overrides the baseline and
-	// forces the block at any round; otherwise the newest earlier snapshot is
-	// the baseline from round 2 on.
-	diffBlock := ""
-	var diffDr engine.DiffResult
-	diffLabel := ""
-	switch {
-	case diffFrom != "":
-		diffDr = engine.DiffSections(diffLinesOf(diffFrom), diffLinesOf(specPath))
-		diffLabel = "baseline " + diffFrom
-		diffBlock = buildChangedSectionsBlock(&diffDr, diffLabel)
-	case !noState && round >= 2:
-		if snapRound, snapPath := newestEarlierSnapshot(specPath, round); snapPath != "" {
-			diffDr = engine.DiffSections(diffLinesOf(snapPath), diffLinesOf(specPath))
-			diffLabel = fmt.Sprintf("round %d", snapRound)
-			diffBlock = buildChangedSectionsBlock(&diffDr, diffLabel)
-		} else {
-			output.Info("no earlier snapshot exists; changed-sections block omitted")
-		}
-	}
-	if diffBlock != "" {
-		for i := range prompts {
-			prompts[i].Prompt += diffBlock
-		}
-	}
-
-	// Auto-append the regression prompt as a 4th entry when the round has
-	// something to guard: a non-empty diff or at least one fixed finding
-	regressionIncluded := false
-	if !noState && round >= 2 {
-		fixed := collectFixedFindings(specPath, reviewSt)
-		if diffBlock != "" || len(fixed) > 0 {
-			if len(fixed) > regressionFixedFindingsCap {
-				fixed = fixed[:regressionFixedFindingsCap]
-			}
-			prompts = append(prompts, reviewPrompt{
-				Role:     "regression",
-				Category: "regression",
-				Prompt:   buildRegressionPrompt(&diffDr, diffLabel, fixed),
-			})
-			regressionIncluded = true
-		}
-	}
-
-	// Prompt exclusion: reviewers stop looking for mechanized classes
-	if len(wfChecks.Checks) > 0 {
-		classes := make([]string, 0, len(wfChecks.Checks))
-		for i := range wfChecks.Checks {
-			classes = append(classes, wfChecks.Checks[i].Class)
-		}
-		exclusion := "\n\nMechanically checked classes — do NOT report findings of these classes: " + strings.Join(classes, ", ")
-		for i := range prompts {
-			prompts[i].Prompt += exclusion
-		}
-	}
+	prompts, regressionIncluded := buildReviewPrompts(specPath, elems, specContent, round, summary, affectedSection, finalRound, &wfChecks, diffFrom, noState, reviewSt)
 
 	uniqueCount := len(dedupFindings(findings))
 	instruction := "For each prompt, spawn a sub-agent via the Agent tool. Collect JSON findings. If any critical/high severity, revise spec and re-run `tp review`. Stop after 2 rounds or when no new high-severity findings."
@@ -833,6 +755,93 @@ func appendSpecOnlyDisclaimer(b *strings.Builder, affectedSection string) {
 	if affectedSection == "" {
 		b.WriteString(specOnlyDisclaimer)
 	}
+}
+
+// buildReviewPrompts emits the round's review prompts: one per active reviewer
+// role from the domain-filtered corpus with the spec-frontmatter overrides
+// applied, plus the appended changed-sections block, the auto-included regression
+// prompt (round >= 2 with a diff or fixed findings), and the mechanized-class
+// exclusion. Returns the prompts and whether the regression prompt was included.
+func buildReviewPrompts(specPath string, elems *engine.StructuredElements, specContent string, round int, summary, affectedSection string, finalRound bool, wfChecks *model.Workflow, diffFrom string, noState bool, reviewSt *engine.ReviewState) (prompts []reviewPrompt, regressionIncluded bool) {
+	fmState := engine.ParseFrontmatter(specPath)
+
+	// Emit one prompt per active reviewer role from the domain-filtered corpus
+	// (§7.1). A malformed reviewer role aborts review (§3.6, exit 3).
+	activeRoles, corpusWarnings, corpusErr := engine.ResolveActiveCorpus(filepath.Dir(specPath), fmState.Domain, engine.PhaseReviewers)
+	if corpusErr != nil {
+		output.Error(ExitFile, corpusErr.Error(), "repair or delete the offending role file under .tp/reviewers/")
+		os.Exit(ExitFile)
+	}
+	for _, w := range corpusWarnings {
+		output.Info(w)
+	}
+	// Layer the spec-frontmatter role overrides (tp.review_roles / legacy lens
+	// shim) onto each active role's corpus focus (§10.2-10.4).
+	activeRoles, overrideWarnings := engine.ResolveOverrideFocus(activeRoles, fmState, engine.PhaseReviewers)
+	for _, w := range overrideWarnings {
+		output.Info(w)
+	}
+	prompts = make([]reviewPrompt, 0, len(activeRoles)+1)
+	for i := range activeRoles {
+		prompts = append(prompts, generateCorpusReviewPrompt(&activeRoles[i], elems, specContent, round, summary, affectedSection, finalRound))
+	}
+
+	// Changed-sections block: explicit --diff-from overrides the baseline and
+	// forces the block at any round; otherwise the newest earlier snapshot is
+	// the baseline from round 2 on.
+	diffBlock := ""
+	var diffDr engine.DiffResult
+	diffLabel := ""
+	switch {
+	case diffFrom != "":
+		diffDr = engine.DiffSections(diffLinesOf(diffFrom), diffLinesOf(specPath))
+		diffLabel = "baseline " + diffFrom
+		diffBlock = buildChangedSectionsBlock(&diffDr, diffLabel)
+	case !noState && round >= 2:
+		if snapRound, snapPath := newestEarlierSnapshot(specPath, round); snapPath != "" {
+			diffDr = engine.DiffSections(diffLinesOf(snapPath), diffLinesOf(specPath))
+			diffLabel = fmt.Sprintf("round %d", snapRound)
+			diffBlock = buildChangedSectionsBlock(&diffDr, diffLabel)
+		} else {
+			output.Info("no earlier snapshot exists; changed-sections block omitted")
+		}
+	}
+	if diffBlock != "" {
+		for i := range prompts {
+			prompts[i].Prompt += diffBlock
+		}
+	}
+
+	// Auto-append the regression prompt as a 4th entry when the round has
+	// something to guard: a non-empty diff or at least one fixed finding.
+	if !noState && round >= 2 {
+		fixed := collectFixedFindings(specPath, reviewSt)
+		if diffBlock != "" || len(fixed) > 0 {
+			if len(fixed) > regressionFixedFindingsCap {
+				fixed = fixed[:regressionFixedFindingsCap]
+			}
+			prompts = append(prompts, reviewPrompt{
+				Role:     "regression",
+				Category: "regression",
+				Prompt:   buildRegressionPrompt(&diffDr, diffLabel, fixed),
+			})
+			regressionIncluded = true
+		}
+	}
+
+	// Prompt exclusion: reviewers stop looking for mechanized classes.
+	if len(wfChecks.Checks) > 0 {
+		classes := make([]string, 0, len(wfChecks.Checks))
+		for i := range wfChecks.Checks {
+			classes = append(classes, wfChecks.Checks[i].Class)
+		}
+		exclusion := "\n\nMechanically checked classes — do NOT report findings of these classes: " + strings.Join(classes, ", ")
+		for i := range prompts {
+			prompts[i].Prompt += exclusion
+		}
+	}
+
+	return prompts, regressionIncluded
 }
 
 // generateCorpusReviewPrompt renders one review prompt for a corpus role,
