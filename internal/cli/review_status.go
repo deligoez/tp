@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/deligoez/tp/internal/engine"
@@ -91,7 +90,7 @@ func runMechanicalChecks(wf *model.Workflow, taskFilePath string) (results []map
 	if taskFilePath == "" {
 		return results, allPass
 	}
-	dir := filepath.Dir(taskFilePath)
+	dir := gateDir(taskFilePath)
 	timeout := time.Duration(wf.EffectiveGateTimeoutSeconds()) * time.Second
 
 	for i := range wf.Checks {
