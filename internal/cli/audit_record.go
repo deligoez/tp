@@ -86,6 +86,8 @@ func runAuditRecord(specPath, recordPath string) error {
 // audit-round-<N>.ndjson and appends the round entry to state.json under the
 // state flock (round file first, index entry second).
 func recordAuditRoundEntry(specPath string, data []byte, findings int, clean bool, specHash string) (st *engine.ReviewState, round int, err error) {
+	// Auditor corpus hash at record time (§9.2), stored on the round entry.
+	rolesHash, _ := engine.ComputeRolesHash(filepath.Dir(specPath), engine.PhaseAuditors)
 	err = engine.WithReviewStateLock(specPath, func() error {
 		loaded, loadErr := engine.LoadReviewState(specPath)
 		if loadErr != nil {
@@ -104,6 +106,7 @@ func recordAuditRoundEntry(specPath string, data []byte, findings int, clean boo
 			RecordedAt: time.Now().UTC().Format(time.RFC3339),
 			File:       fileName,
 			SpecHash:   specHash,
+			RolesHash:  rolesHash,
 		})
 		return engine.SaveReviewState(specPath, st)
 	})

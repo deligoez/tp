@@ -606,8 +606,9 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 
 		// Previous findings from rounds 1..R-1 unless --findings overrides
 		if findingsPath == "" && st != nil {
-			for _, r := range st.ReviewRounds {
-				rows, found := engine.LoadRoundRows(specPath, r)
+			for i := range st.ReviewRounds {
+				r := st.ReviewRounds[i]
+				rows, found := engine.LoadRoundRows(specPath, &r)
 				if !found {
 					output.Info(fmt.Sprintf("round %d file %s is missing; skipping its rows", r.Round, r.File))
 					continue

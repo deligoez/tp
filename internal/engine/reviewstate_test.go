@@ -95,11 +95,11 @@ func TestLoadRoundRows_MissingFileSkipped(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(stateDir, "review-round-1.ndjson"),
 		[]byte("{\"finding\":\"f1\"}\n\n{\"finding\":\"f2\"}\n"), 0o600))
 
-	rows, found := LoadRoundRows(specPath, ReviewRound{Round: 1, File: "review-round-1.ndjson"})
+	rows, found := LoadRoundRows(specPath, &ReviewRound{Round: 1, File: "review-round-1.ndjson"})
 	require.True(t, found)
 	assert.Len(t, rows, 2)
 
-	_, found = LoadRoundRows(specPath, ReviewRound{Round: 2, File: "review-round-2.ndjson"})
+	_, found = LoadRoundRows(specPath, &ReviewRound{Round: 2, File: "review-round-2.ndjson"})
 	assert.False(t, found, "missing round file reported for caller warning")
 }
 

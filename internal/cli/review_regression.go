@@ -126,7 +126,7 @@ func collectFixedFindings(specPath string, st *engine.ReviewState) []reviewFindi
 		return fixed
 	}
 	for i := len(st.ReviewRounds) - 1; i >= 0; i-- {
-		rows, found := engine.LoadRoundRows(specPath, st.ReviewRounds[i])
+		rows, found := engine.LoadRoundRows(specPath, &st.ReviewRounds[i])
 		if !found {
 			output.Info(fmt.Sprintf("round %d file %s is missing; skipping its rows", st.ReviewRounds[i].Round, st.ReviewRounds[i].File))
 			continue

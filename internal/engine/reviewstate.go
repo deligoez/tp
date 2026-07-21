@@ -20,6 +20,10 @@ type ReviewRound struct {
 	RecordedAt string `json:"recorded_at"`
 	File       string `json:"file"`
 	SpecHash   string `json:"spec_hash"`
+	// RolesHash is the phase's corpus hash at record time (§9.2): the reviewer
+	// corpus hash for a review round, the auditor corpus hash for an audit round.
+	// Empty on a pre-v0.25.0 round, which §9.4 treats as matching.
+	RolesHash string `json:"roles_hash,omitempty"`
 }
 
 // ReviewState is the round index stored in state.json.
@@ -182,7 +186,7 @@ func Converged(rounds []ReviewRound, requiredCleanRounds int, currentHash string
 // directory. A round entry whose file is missing returns (nil, false) so the
 // caller can skip it with a warning — the round still counts in round
 // arithmetic. Blank lines are skipped; unparseable lines are ignored.
-func LoadRoundRows(specPath string, entry ReviewRound) (rows []map[string]any, found bool) {
+func LoadRoundRows(specPath string, entry *ReviewRound) (rows []map[string]any, found bool) {
 	data, err := os.ReadFile(filepath.Join(ReviewStateDir(specPath), entry.File))
 	if err != nil {
 		return nil, false

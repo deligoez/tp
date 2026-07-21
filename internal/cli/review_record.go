@@ -67,6 +67,9 @@ func runReviewRecord(specPath, recordPath string) error {
 		return nil
 	}
 
+	// Reviewer corpus hash at record time (§9.2), stored on the round entry.
+	rolesHash, _ := engine.ComputeRolesHash(filepath.Dir(specPath), engine.PhaseReviewers)
+
 	var st *engine.ReviewState
 	var round int
 	lockErr := engine.WithReviewStateLock(specPath, func() error {
@@ -88,6 +91,7 @@ func runReviewRecord(specPath, recordPath string) error {
 			RecordedAt: time.Now().UTC().Format(time.RFC3339),
 			File:       fileName,
 			SpecHash:   specHash,
+			RolesHash:  rolesHash,
 		})
 		return engine.SaveReviewState(specPath, st)
 	})
@@ -99,7 +103,7 @@ func runReviewRecord(specPath, recordPath string) error {
 	// Mechanize candidates across all recorded rounds including this one
 	roundFindings := make([][]map[string]any, 0, len(st.ReviewRounds))
 	for _, r := range st.ReviewRounds {
-		rows, found := engine.LoadRoundRows(specPath, r)
+		rows, found := engine.LoadRoundRows(specPath, &r)
 		if !found {
 			output.Info(fmt.Sprintf("round %d file %s is missing; skipping its rows", r.Round, r.File))
 			continue
