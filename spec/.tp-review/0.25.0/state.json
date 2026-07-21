@@ -58,5 +58,24 @@
       "spec_hash": "sha256:ab3974f1e4956312f4405a878ba8a2cb7f93e47287e57bd171aeb4061f1f4946"
     }
   ],
-  "audit_rounds": []
+  "audit_rounds": [
+    {
+      "round": 1,
+      "findings": 3,
+      "clean": false,
+      "recorded_at": "2026-07-21T23:30:45Z",
+      "file": "audit-round-1.ndjson",
+      "spec_hash": "sha256:ab3974f1e4956312f4405a878ba8a2cb7f93e47287e57bd171aeb4061f1f4946",
+      "roles_hash": "builtin"
+    },
+    {
+      "round": 2,
+      "findings": 1,
+      "clean": false,
+      "recorded_at": "2026-07-21T23:48:24Z",
+      "file": "audit-round-2.ndjson",
+      "spec_hash": "sha256:ab3974f1e4956312f4405a878ba8a2cb7f93e47287e57bd171aeb4061f1f4946",
+      "roles_hash": "builtin"
+    }
+  ]
 }
