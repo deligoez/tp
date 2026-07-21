@@ -218,15 +218,22 @@ The task file's `workflow` section supports convergence parameters:
 {
   "workflow": {
     "quality_gate": "go test ./... && golangci-lint run",
+    "gate_timeout_seconds": 600,
     "review_clean_rounds": 2,
-    "audit_clean_rounds": 2
+    "audit_clean_rounds": 2,
+    "review_max_rounds": 0,
+    "audit_max_rounds": 0,
+    "checks": []
   }
 }
 ```
 
-- `review_clean_rounds` (default: 2, range: 1-10) — consecutive finding-free review rounds required before decomposition
-- `audit_clean_rounds` (default: 2, range: 1-10) — consecutive finding-free audit rounds required after implementation
-- Set via `tp set --workflow review_clean_rounds=3` or during the skill's interview phase
+- `quality_gate` — command run automatically at `tp done`/`tp close`; read-only (author it at `tp init --quality-gate`)
+- `gate_timeout_seconds` (default: 600, range: 30-3600) — hard timeout for a single gate run
+- `review_clean_rounds` / `audit_clean_rounds` (default: 2, range: 1-10) — consecutive finding-free rounds required before decomposition / after implementation
+- `review_max_rounds` / `audit_max_rounds` (default: 0 = no cap, range: 0-50) — round budget: at the cap while still unconverged, `tp review`/`tp audit` prompt generation and `--record` refuse with exit 4 and an escalation hint (raising the cap is a user-approved decision)
+- `checks` — array of `{class, cmd}` mechanical detectors, replace semantics (see [Mechanical checks & finding class](#mechanical-checks--finding-class))
+- Set via `tp set --workflow review_clean_rounds=3` (managed fields like `quality_gate` stay read-only), or during the skill's interview phase
 
 ### Acceptance Criteria Delimiters
 
