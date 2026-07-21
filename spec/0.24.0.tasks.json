@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.24.0.md",
   "created_at": "2026-07-21T09:33:07.313Z",
-  "updated_at": "2026-07-21T09:48:22.986235Z",
+  "updated_at": "2026-07-21T09:49:37.912058Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -59,7 +59,7 @@
     {
       "id": "cfg-discovery-root",
       "title": "Project root determination",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cfg-discovery-walk"
       ],
@@ -68,11 +68,11 @@
       "source_sections": [
         "### 2.2 Discovery"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T09:49:36.838123Z",
+      "closed_at": "2026-07-21T09:49:37.912058Z",
+      "closed_reason": "- ProjectRoot in internal/engine/projectconfig.go returns the .tp/-containing dir, falling back to the git boundary or the start dir when no .tp/ exists\n- Discovery is anchored once and never re-anchored to a --file elsewhere; with no .tp/ callers use built-in defaults and per-task settings as in v0.23.0\n- TestProjectRoot_DirContainingTP, _FallsBackToGitBoundary, _FallsBackToStartOutsideGitRepo cover the resolution",
+      "gate_passed_at": "2026-07-21T09:49:37.912058Z",
+      "commit_sha": "15a574b"
     },
     {
       "id": "cfg-gitignore",

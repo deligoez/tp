@@ -3,6 +3,7 @@ package engine
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -88,4 +89,24 @@ func TestProjectRoot_FallsBackToStartOutsideGitRepo(t *testing.T) {
 	if FindGitBoundary(root) == "" {
 		assert.Equal(t, evalLink(t, root), evalLink(t, got))
 	}
+}
+
+func TestEnsureTPGitignore_CreatesWhenAbsent(t *testing.T) {
+	tp := t.TempDir()
+	require.NoError(t, EnsureTPGitignore(tp))
+	data, err := os.ReadFile(filepath.Join(tp, ".gitignore"))
+	require.NoError(t, err)
+	assert.Equal(t, "local.json\n", string(data))
+}
+
+func TestEnsureTPGitignore_IdempotentAppend(t *testing.T) {
+	tp := t.TempDir()
+	// Pre-existing .gitignore with unrelated content, no trailing newline.
+	require.NoError(t, os.WriteFile(filepath.Join(tp, ".gitignore"), []byte("other"), 0o600))
+	require.NoError(t, EnsureTPGitignore(tp))
+	require.NoError(t, EnsureTPGitignore(tp)) // second call must not duplicate
+	data, err := os.ReadFile(filepath.Join(tp, ".gitignore"))
+	require.NoError(t, err)
+	assert.Equal(t, "other\nlocal.json\n", string(data))
+	assert.Equal(t, 1, strings.Count(string(data), "local.json"))
 }

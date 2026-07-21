@@ -3,7 +3,36 @@ package engine
 import (
 	"os"
 	"path/filepath"
+	"strings"
 )
+
+// EnsureTPGitignore ensures tpDir/.gitignore exists and contains a "local.json"
+// entry, so .tp/local.json stays git-ignored even when the .tp/ directory was
+// created by hand rather than by tp. It is idempotent: it creates the file when
+// absent, appends the entry when the file exists without it, and does nothing
+// when the entry is already present. It is invoked whenever tp writes any file
+// under .tp/.
+func EnsureTPGitignore(tpDir string) error {
+	path := filepath.Join(tpDir, ".gitignore")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return os.WriteFile(path, []byte("local.json\n"), 0o600)
+		}
+		return err
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		if strings.TrimSpace(line) == "local.json" {
+			return nil // already ignored
+		}
+	}
+	content := string(data)
+	if content != "" && !strings.HasSuffix(content, "\n") {
+		content += "\n"
+	}
+	content += "local.json\n"
+	return os.WriteFile(path, []byte(content), 0o600)
+}
 
 // hasGitBoundary reports whether dir contains a .git entry (a directory in a
 // normal clone, or a file in a git worktree or submodule).
