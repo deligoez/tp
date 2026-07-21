@@ -73,3 +73,32 @@ func TestGenerateAuditPrompts_CLAUDEmdOnlyForMaintainability(t *testing.T) {
 	assert.NotContains(t, byRole["spec-coverage"]["prompt"].(string), "convention marker line")
 	assert.NotContains(t, byRole["security"]["prompt"].(string), "convention marker line")
 }
+
+// TestAudit_CorpusDrivenEmission: a user auditor corpus drives emission — the
+// emitted roles and their Role Rules come from the corpus, not the removed
+// hardcoded persona/rules set (§7.2).
+func TestAudit_CorpusDrivenEmission(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
+	audDir := filepath.Join(dir, ".tp", "auditors")
+	require.NoError(t, os.MkdirAll(audDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(audDir, "spec-coverage.json"),
+		[]byte(`{"id":"spec-coverage","title":"Spec Coverage","instructions":"I","focus":["MY CUSTOM COVERAGE RULE"]}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"),
+		[]byte("# Spec\n## 1. Widgets\n| Name | Type |\n|------|------|\n| a | b |\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "code.go"), []byte("package main\n"), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "code.go")
+	require.Equal(t, 0, code, "audit failed: %s", stderr)
+	byRole := auditPromptsByRole(t, stdout)
+
+	// The populated .tp/auditors corpus replaces the default 3-role set.
+	require.Contains(t, byRole, "spec-coverage")
+	assert.NotContains(t, byRole, "security", "the custom corpus replaces the embedded default")
+	assert.NotContains(t, byRole, "maintainability-conventions")
+
+	// Role Rules come from the corpus focus, not the removed hardcoded map.
+	prompt := byRole["spec-coverage"]["prompt"].(string)
+	assert.Contains(t, prompt, "MY CUSTOM COVERAGE RULE")
+	assert.NotContains(t, prompt, "State-dependent behaviors", "the hardcoded default rule is gone")
+}

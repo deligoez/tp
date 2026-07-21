@@ -178,8 +178,22 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	}
 	sel := engine.SelectAuditFiles(inputs)
 
+	// Emit one prompt per active auditor role from the domain-filtered corpus
+	// (§7.2). A malformed auditor aborts audit (§3.6, exit 3), never blocking
+	// review — phase independence.
+	fmAudit := engine.ParseFrontmatter(specPath)
+	auditorRoles, auditWarnings, auditErr := engine.ResolveActiveCorpus(filepath.Dir(specPath), fmAudit.Domain, engine.PhaseAuditors)
+	if auditErr != nil {
+		output.Error(ExitFile, auditErr.Error(), "repair or delete the offending role file under .tp/auditors/")
+		os.Exit(ExitFile)
+		return nil
+	}
+	for _, w := range auditWarnings {
+		output.Info(w)
+	}
+
 	specItems, secItems, maintItems := routeChecklist(mainEntries, findingsEntries, &sel, invertTaskFiles(inputs.TaskFiles))
-	prompts := generateRoleAuditPrompts(specItems, secItems, maintItems, &sel, specContent, claudeMDExcerptFor(specPath))
+	prompts := generateRoleAuditPrompts(auditorRoles, specItems, secItems, maintItems, &sel, specContent, claudeMDExcerptFor(specPath))
 
 	summary := engine.BuildAffectedSummary(files, nil)
 

@@ -23,30 +23,7 @@ const (
 
 const claudeMDExcerptLineCap = 50
 
-// roleRules embeds 3-5 role-specific bullet rules per prompt.
-var roleRules = map[string][]string{
-	roleSpecCoverage: {
-		"State-dependent behaviors (disabled states, loading conditions, conditional rendering) count as PARTIAL unless fully covered.",
-		"A table row describing a feature is PASS only if the feature code exists AND handles edge cases mentioned in surrounding spec context.",
-		"A numbered list item describing a test is PASS only if a corresponding test function exists with assertions covering the described behavior.",
-		"Task acceptance criteria are PASS only if the described behavior is observable in the code (not just a comment or placeholder).",
-		"If a requirement mentions specific error handling, validation, or edge cases, verify those exist — don't just check the happy path.",
-	},
-	roleSecurity: {
-		"Every lock acquire must have a paired release on all paths.",
-		"No swallowed errors: `_ = err` and ignored returns are findings.",
-		"No string concatenation when building queries or file paths from input.",
-		"Files written by the tool use permissions 0o600, not 0o644.",
-		"Input is validated before use.",
-	},
-	roleMaintainability: {
-		"Errors are wrapped with %w when propagated.",
-		"Exported symbols have doc comments.",
-		"Functions stay under ~80 lines.",
-		"Naming follows project patterns: lowercase packages, camelCase symbols, descriptive names.",
-		"No leftover TODO/FIXME without a ticket reference.",
-	},
-}
+
 
 // routeChecklist routes items disjointly: spec-derived and finding items go
 // to spec-coverage; security and maintainability carry synthetic file_check
@@ -139,13 +116,14 @@ func invertTaskFiles(taskFiles map[string][]string) map[string][]string {
 	return out
 }
 
-// buildRolePrompt renders the §3.1 body order for one role.
-func buildRolePrompt(role string, items []ChecklistItem, files []engine.AuditFileEntry, specContent, claudeExcerpt string) auditPrompt {
+// buildRolePrompt renders the §3.1 body order for one role, drawing its Role
+// Rules from the corpus role's focus (§7.2) rather than a hardcoded map.
+func buildRolePrompt(role string, rules []string, items []ChecklistItem, files []engine.AuditFileEntry, specContent, claudeExcerpt string) auditPrompt {
 	var b strings.Builder
 	b.WriteString("## Role\n" + role + "\n\n")
 
 	b.WriteString("## Role Rules\n")
-	for _, r := range roleRules[role] {
+	for _, r := range rules {
 		b.WriteString("- " + r + "\n")
 	}
 	b.WriteString("\n")
@@ -191,16 +169,27 @@ func buildRolePrompt(role string, items []ChecklistItem, files []engine.AuditFil
 
 // generateRoleAuditPrompts emits one prompt per non-empty role in the fixed
 // order spec-coverage, security, maintainability-conventions.
-func generateRoleAuditPrompts(specItems, secItems, maintItems []ChecklistItem, sel *engine.AuditFileSelection, specContent, claudeExcerpt string) []auditPrompt {
-	prompts := make([]auditPrompt, 0, 3)
-	if len(specItems) > 0 {
-		prompts = append(prompts, buildRolePrompt(roleSpecCoverage, specItems, sel.SpecCoverage, specContent, ""))
-	}
-	if len(secItems) > 0 {
-		prompts = append(prompts, buildRolePrompt(roleSecurity, secItems, sel.Security, "", ""))
-	}
-	if len(maintItems) > 0 {
-		prompts = append(prompts, buildRolePrompt(roleMaintainability, maintItems, sel.Maintainability, "", claudeExcerpt))
+func generateRoleAuditPrompts(auditorRoles []model.Role, specItems, secItems, maintItems []ChecklistItem, sel *engine.AuditFileSelection, specContent, claudeExcerpt string) []auditPrompt {
+	prompts := make([]auditPrompt, 0, len(auditorRoles))
+	for i := range auditorRoles {
+		role := &auditorRoles[i]
+		var items []ChecklistItem
+		var files []engine.AuditFileEntry
+		switch role.ID {
+		case roleSpecCoverage:
+			items, files = specItems, sel.SpecCoverage
+		case roleSecurity:
+			items, files = secItems, sel.Security
+		case roleMaintainability:
+			items, files = maintItems, sel.Maintainability
+		default:
+			files = sel.Maintainability
+			items = fileCheckItems(files, "file-"+role.ID+"-", role.ID)
+		}
+		if len(items) == 0 {
+			continue
+		}
+		prompts = append(prompts, buildRolePrompt(role.ID, role.Focus, items, files, specContent, claudeExcerpt))
 	}
 	return prompts
 }
