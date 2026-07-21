@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.25.0.md",
   "created_at": "2026-07-21T19:43:58.426848Z",
-  "updated_at": "2026-07-21T23:13:37.804897Z",
+  "updated_at": "2026-07-21T23:16:17.597941Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2,
@@ -762,7 +762,7 @@
     {
       "id": "docs-claude-selfdev",
       "title": "Update CLAUDE self-development rules",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -775,11 +775,11 @@
         "## 11. `.tp-active` Removal (breaking)",
         "## 13. Migration"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T23:16:17.56143Z",
+      "closed_at": "2026-07-21T23:16:17.597938Z",
+      "closed_reason": "- CLAUDE.md Self-Development Rules gain a 'v0.25.0 role corpus' rule: roles are project-owned .tp/reviewers|.tp/auditors JSON files, the eject workflow (tp init --eject-roles [--domain|--force]), the exit-3 role validation in lint/review/audit, and the retired lens + removed .tp-active marker (§11.2).\n- The rule notes tp's own repo deliberately stays on the embedded default corpus (three software reviewers + three auditors fit) yet every tp review/tp audit still dogfoods the new emission, (location,class) dedup + overlap report, and roles_hash staleness paths since they run over the embedded corpus too (§13.3).\n- The pre-release checklist item 5 is extended: v0.25.0 requires no repo migration — tp keeps zero role files and stays on the embedded default corpus, so CLAUDE.md reflects the new conventions and process changes for the release.",
+      "gate_passed_at": "2026-07-21T23:16:17.597938Z",
+      "commit_sha": "c9eb0f5"
     }
   ]
 }
