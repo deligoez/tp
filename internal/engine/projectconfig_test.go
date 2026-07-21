@@ -183,6 +183,17 @@ func TestLoadLocalConfig_TypeMismatchFallsBack(t *testing.T) {
 	assert.Contains(t, warns, "defaults.compact: expected a boolean, ignored")
 }
 
+func TestLoadLocalConfig_UnknownDefaultsKeyWarns(t *testing.T) {
+	tp := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tp, "local.json"),
+		[]byte(`{"defaults":{"compact":true,"bogus":false}}`), 0o600))
+	lc, warns, err := LoadLocalConfig(tp)
+	require.NoError(t, err)
+	assert.True(t, lc.Defaults["compact"], "a known flag is kept")
+	assert.NotContains(t, lc.Defaults, "bogus", "an unknown flag is ignored, not accepted")
+	assert.Contains(t, warns, "unknown defaults key: bogus")
+}
+
 func TestLoadProjectConfig_OutOfRangeFallsBack(t *testing.T) {
 	tp := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(tp, "config.json"),
