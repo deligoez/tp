@@ -19,100 +19,9 @@ func runReviewMerge(args []string, outputPath string) error {
 		return nil
 	}
 
-	// Check all files exist before processing
-	for _, path := range args {
-		if _, err := os.Stat(path); os.IsNotExist(err) {
-			output.Error(ExitFile, fmt.Sprintf("file not found: %s", path))
-			os.Exit(ExitFile)
-			return nil
-		}
-	}
-
-	var allFindings []map[string]any
 	totalFiles := len(args)
-
-	for _, path := range args {
-		f, err := os.Open(path)
-		if err != nil {
-			output.Error(ExitFile, fmt.Sprintf("cannot open file: %s", path))
-			os.Exit(ExitFile)
-			return nil
-		}
-
-		scanner := bufio.NewScanner(f)
-		for scanner.Scan() {
-			line := strings.TrimSpace(scanner.Text())
-			if line == "" {
-				continue
-			}
-
-			var finding map[string]any
-			if err := json.Unmarshal([]byte(line), &finding); err != nil {
-				fmt.Fprintf(os.Stderr, "warning: skipping invalid JSON line in %s: %s\n", path, line)
-				continue
-			}
-
-			// Validate required fields
-			severity, hasSeverity := finding["severity"]
-			findingText, hasFinding := finding["finding"]
-
-			severityStr, sevIsString := severity.(string)
-			findingStr, findIsString := findingText.(string)
-
-			if !hasSeverity || !hasFinding || !sevIsString || !findIsString || severityStr == "" || findingStr == "" {
-				fmt.Fprintf(os.Stderr, "warning: skipping line missing required fields (severity, finding) in %s\n", path)
-				continue
-			}
-
-			allFindings = append(allFindings, finding)
-		}
-
-		f.Close()
-	}
-
-	if len(allFindings) == 0 {
-		output.Error(ExitValidation, "no valid findings in input files")
-		os.Exit(ExitValidation)
-		return nil
-	}
-
-	// Cluster review findings by (location key, class) per §8. Each cluster's
-	// representative (§8.4) supplies the emitted row, annotated with its cluster's
-	// found_by attribution so the per-role overlap report can be derived from the
-	// merged findings alone.
-	cfs := make([]engine.ClusterFinding, len(allFindings))
-	for i, f := range allFindings {
-		cfs[i] = clusterFindingFromRow(f)
-	}
-	clusters := engine.ClusterFindings(cfs)
-
-	unique := make([]map[string]any, 0, len(clusters))
-	for _, c := range clusters {
-		rep := c.Representative(cfs)
-		row := allFindings[rep]
-		roles, count := c.Attribution(cfs)
-		row["found_by"] = count
-		if count > 0 {
-			row["found_by_roles"] = roles
-		} else {
-			delete(row, "found_by_roles")
-		}
-		unique = append(unique, row)
-	}
-
-	// Deterministic output order: highest severity, then location, then finding.
-	sort.SliceStable(unique, func(i, j int) bool {
-		si := engine.SeverityRank(asString(unique[i]["severity"]))
-		sj := engine.SeverityRank(asString(unique[j]["severity"]))
-		if si != sj {
-			return si < sj
-		}
-		li, lj := asString(unique[i]["location"]), asString(unique[j]["location"])
-		if li != lj {
-			return li < lj
-		}
-		return asString(unique[i]["finding"]) < asString(unique[j]["finding"])
-	})
+	allFindings := loadMergeFindings(args)
+	unique := clusterMergeFindings(allFindings)
 
 	// Build NDJSON output
 	var buf strings.Builder
@@ -171,6 +80,92 @@ func runReviewMerge(args []string, outputPath string) error {
 		len(unique), totalFiles, duplicatesRemoved)
 
 	return nil
+}
+
+// loadMergeFindings reads and validates the review findings from the input
+// files, skipping blank/invalid lines and rows missing the required severity and
+// finding fields (with a stderr warning). It aborts on a missing/unreadable file
+// (exit 3) or when no valid finding survives (exit 1).
+func loadMergeFindings(args []string) []map[string]any {
+	for _, path := range args {
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			output.Error(ExitFile, fmt.Sprintf("file not found: %s", path))
+			os.Exit(ExitFile)
+		}
+	}
+
+	allFindings := make([]map[string]any, 0)
+	for _, path := range args {
+		f, err := os.Open(path)
+		if err != nil {
+			output.Error(ExitFile, fmt.Sprintf("cannot open file: %s", path))
+			os.Exit(ExitFile)
+		}
+		scanner := bufio.NewScanner(f)
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if line == "" {
+				continue
+			}
+			var finding map[string]any
+			if err := json.Unmarshal([]byte(line), &finding); err != nil {
+				fmt.Fprintf(os.Stderr, "warning: skipping invalid JSON line in %s: %s\n", path, line)
+				continue
+			}
+			severityStr, sevOK := finding["severity"].(string)
+			findingStr, findOK := finding["finding"].(string)
+			if !sevOK || !findOK || severityStr == "" || findingStr == "" {
+				fmt.Fprintf(os.Stderr, "warning: skipping line missing required fields (severity, finding) in %s\n", path)
+				continue
+			}
+			allFindings = append(allFindings, finding)
+		}
+		f.Close()
+	}
+
+	if len(allFindings) == 0 {
+		output.Error(ExitValidation, "no valid findings in input files")
+		os.Exit(ExitValidation)
+	}
+	return allFindings
+}
+
+// clusterMergeFindings clusters the findings by (location key, class) (§8), then
+// returns each cluster's representative row (§8.4) annotated with its found_by
+// attribution, sorted by severity, then location, then finding text.
+func clusterMergeFindings(allFindings []map[string]any) []map[string]any {
+	cfs := make([]engine.ClusterFinding, len(allFindings))
+	for i, f := range allFindings {
+		cfs[i] = clusterFindingFromRow(f)
+	}
+	clusters := engine.ClusterFindings(cfs)
+
+	unique := make([]map[string]any, 0, len(clusters))
+	for _, c := range clusters {
+		row := allFindings[c.Representative(cfs)]
+		roles, count := c.Attribution(cfs)
+		row["found_by"] = count
+		if count > 0 {
+			row["found_by_roles"] = roles
+		} else {
+			delete(row, "found_by_roles")
+		}
+		unique = append(unique, row)
+	}
+
+	sort.SliceStable(unique, func(i, j int) bool {
+		si := engine.SeverityRank(asString(unique[i]["severity"]))
+		sj := engine.SeverityRank(asString(unique[j]["severity"]))
+		if si != sj {
+			return si < sj
+		}
+		li, lj := asString(unique[i]["location"]), asString(unique[j]["location"])
+		if li != lj {
+			return li < lj
+		}
+		return asString(unique[i]["finding"]) < asString(unique[j]["finding"])
+	})
+	return unique
 }
 
 // clusterFindingFromRow projects an NDJSON finding row onto the fields the
