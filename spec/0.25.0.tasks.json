@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.25.0.md",
   "created_at": "2026-07-21T19:43:58.426848Z",
-  "updated_at": "2026-07-21T22:49:20.536129Z",
+  "updated_at": "2026-07-21T22:54:44.039739Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2,
@@ -599,7 +599,7 @@
     {
       "id": "test-nongoals",
       "title": "Test v0.25.0 non-goals hold",
-      "status": "open",
+      "status": "done",
       "tags": [
         "test"
       ],
@@ -613,11 +613,11 @@
       "source_sections": [
         "## 12. Non-Goals"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T22:54:44.000144Z",
+      "closed_at": "2026-07-21T22:54:44.039738Z",
+      "closed_reason": "- internal/cli/nongoals_test.go asserts non-goals 1 and 3: tp emits prompts + instructs spawning sub-agents (no agent runtime), and the diversity panel stays 3 across recorded rounds (no auto-taper); it also asserts the output contract stays tp's (non-goal 6: an unknown frontmatter override id creates no new role) and non-goal 8 (audit --record never clusters same-(location,class) FAIL rows).\n- internal/engine/nongoals_test.go asserts non-goals 2 and 5 (a role file rejects an output_schema or any speculative key beyond §3.3) and non-goal 7 (discovery stops at the git boundary, so a .tp/ above it is never read — no cross-project corpus).\n- Non-goal 4 (no new .tp/config.json workflow field) is asserted via tp config carrying no review_roles/audit_roles/roles_hash/eject field.",
+      "gate_passed_at": "2026-07-21T22:54:44.039738Z",
+      "commit_sha": "b0da4ab"
     },
     {
       "id": "test-migration-backcompat",
