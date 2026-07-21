@@ -10,7 +10,10 @@ import (
 	"github.com/deligoez/tp/internal/output"
 )
 
-var validateStrict bool
+var (
+	validateStrict  bool
+	validateProject bool
+)
 
 func newValidateCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -19,10 +22,14 @@ func newValidateCmd() *cobra.Command {
 		RunE:  runValidate,
 	}
 	cmd.Flags().BoolVar(&validateStrict, "strict", false, "atomicity violations become errors")
+	cmd.Flags().BoolVar(&validateProject, "project", false, "report cross-spec workflow drift from .tp/config.json")
 	return cmd
 }
 
 func runValidate(_ *cobra.Command, _ []string) error {
+	if validateProject {
+		return runValidateProject()
+	}
 	taskFilePath, err := engine.DiscoverTaskFile(".", flagFile)
 	if err != nil {
 		output.Error(ExitFile, err.Error())
