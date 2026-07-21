@@ -122,7 +122,7 @@ func countAuditFindings(data []byte) (findings int, err error) {
 		}
 		var row map[string]any
 		if jsonErr := json.Unmarshal([]byte(trimmed), &row); jsonErr != nil {
-			return 0, fmt.Errorf("line %d: invalid JSON: %v", lineNum, jsonErr)
+			return 0, fmt.Errorf("line %d: invalid JSON: %w", lineNum, jsonErr)
 		}
 		status, _ := row["status"].(string)
 		if status != "PASS" {
