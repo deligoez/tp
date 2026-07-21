@@ -34,6 +34,7 @@ Writes a .tp-active marker in CWD. Discovery reads it after TP_FILE, before dir 
 }
 
 func runUse(_ *cobra.Command, args []string) error {
+	surfaceConfigWarnings()
 	// --clear with positional arg is a usage error
 	if useClear && len(args) > 0 {
 		output.Error(ExitUsage, "--clear and file argument are mutually exclusive")
@@ -52,9 +53,6 @@ func runUse(_ *cobra.Command, args []string) error {
 	return setActiveFile(args[0])
 }
 
-// showActiveFile prints the resolved active task file and the discovery-chain
-// rank that supplied it: cli (--file), env (TP_FILE), local (.tp/local.json),
-// legacy (.tp-active, deprecated — removed in v0.25.0), or autodetect.
 // resolvedActiveSource walks the discovery chain and returns the resolved
 // active task file and the rank that supplied it (cli/env/local/legacy/
 // autodetect), or ("", "") when nothing resolves.
@@ -81,12 +79,25 @@ func resolvedActiveSource() (path, source string) {
 	return "", ""
 }
 
+// showActiveFile prints the resolved active task file and the discovery-chain
+// rank that supplied it, and reports a dangling .tp/local.json active pointer
+// (one that is set but points at a missing file).
 func showActiveFile() error {
+	out := map[string]any{}
+	if active := engine.ResolveLocalActive("."); active != "" {
+		if _, err := os.Stat(active); err != nil {
+			out["dangling_active"] = active
+		}
+	}
 	path, source := resolvedActiveSource()
 	if path == "" {
-		return output.JSON(map[string]any{"active_file": nil, "source": nil})
+		out["active_file"] = nil
+		out["source"] = nil
+	} else {
+		out["active_file"] = path
+		out["source"] = source
 	}
-	return output.JSON(map[string]any{"active_file": path, "source": source})
+	return output.JSON(out)
 }
 
 // clearActiveFile removes the active pointer from .tp/local.json and any
