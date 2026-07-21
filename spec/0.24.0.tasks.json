@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.24.0.md",
   "created_at": "2026-07-21T09:33:07.313Z",
-  "updated_at": "2026-07-21T11:34:31.976473Z",
+  "updated_at": "2026-07-21T11:36:21.260513Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -607,7 +607,7 @@
     {
       "id": "cfg-drift-report",
       "title": "Report project workflow drift",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cfg-resolution-override",
         "cfg-scan-skip"
@@ -617,11 +617,11 @@
       "source_sections": [
         "## 9. Drift / deviation reporting"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T11:36:19.234896Z",
+      "closed_at": "2026-07-21T11:36:21.260513Z",
+      "closed_reason": "- tp validate --project (internal/cli/validate_project.go) scans task files via ScanProjectTaskFiles and reports, per file, each workflow field whose override differs from a value the project config explicitly sets\n- A field the project config does not set carries no policy and is not reported; a malformed task file mid-scan is reported on stderr and skipped\n- TestWorkflowDeviations_ReportsDifferingFields and _QualityGate cover the per-field deviation reporting",
+      "gate_passed_at": "2026-07-21T11:36:21.260513Z",
+      "commit_sha": "d62b5e3"
     },
     {
       "id": "cfg-drift-checks",

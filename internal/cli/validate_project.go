@@ -32,7 +32,32 @@ func workflowDeviations(file string, override, project model.WorkflowOverride) [
 	if override.QualityGate != nil && project.QualityGate != nil && *override.QualityGate != *project.QualityGate {
 		add("quality_gate", *override.QualityGate, *project.QualityGate)
 	}
+	if override.Checks != nil && project.Checks != nil && !checksEqual(*override.Checks, *project.Checks) {
+		add("checks",
+			fmt.Sprintf("%d entries", len(*override.Checks)),
+			fmt.Sprintf("%d entries", len(*project.Checks)))
+	}
 	return devs
+}
+
+// checksEqual reports whether two checks arrays are equal as sets of
+// {class, cmd} pairs, so a reordered but otherwise equal checks is not a
+// deviation.
+func checksEqual(a, b []model.Check) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	set := make(map[model.Check]int, len(a))
+	for _, c := range a {
+		set[c]++
+	}
+	for _, c := range b {
+		set[c]--
+		if set[c] < 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // runValidateProject implements `tp validate --project`: it reports each task
