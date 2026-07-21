@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.24.0.md",
   "created_at": "2026-07-21T09:33:07.313Z",
-  "updated_at": "2026-07-21T11:42:49.472461Z",
+  "updated_at": "2026-07-21T11:42:51.496665Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -700,7 +700,7 @@
     {
       "id": "cfg-extract-dryrun",
       "title": "Guard extract with dry-run",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cfg-extract-nohoist"
       ],
@@ -709,11 +709,11 @@
       "source_sections": [
         "## 11. Migration and backward compatibility"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T11:42:49.478878Z",
+      "closed_at": "2026-07-21T11:42:51.496665Z",
+      "closed_reason": "- tp config --extract --dry-run prints the hoist and removal plan without writing anything (verified)\n- Without --dry-run and inside a git repository, --extract refuses a dirty working tree via git status --porcelain with exit 4 so the mutation is reviewable (verified)\n- Outside a git repository it skips the clean-tree check and warns; the guards live in runConfigExtract in config_extract.go",
+      "gate_passed_at": "2026-07-21T11:42:51.496665Z",
+      "commit_sha": "71391db"
     },
     {
       "id": "cfg-extract-force",
