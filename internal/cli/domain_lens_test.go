@@ -39,9 +39,10 @@ func reviewPromptsByRole(t *testing.T, stdout string) map[string]string {
 	return byRole
 }
 
-// TestLensInjection_DomainSwitch: a non-software domain swaps personas and
-// drops the three software questions; lens questions are appended in order.
-func TestLensInjection_DomainSwitch(t *testing.T) {
+// TestReview_ProseDomainEmitsProsePanel: a prose-domain spec emits the leaner
+// prose corpus panel (coherence + soundness), not the swapped software personas
+// — the persona swap is retired and domain only selects the corpus (§6.2, §6.3).
+func TestReview_ProseDomainEmitsProsePanel(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(proseSpec), 0o600))
 
@@ -49,38 +50,16 @@ func TestLensInjection_DomainSwitch(t *testing.T) {
 	require.Equal(t, 0, code, "stderr: %s", stderr)
 	byRole := reviewPromptsByRole(t, stdout)
 
-	// Persona switches per the 12.3 table
-	assert.Contains(t, byRole["implementer"], "You must execute this spec exactly as written, starting tomorrow")
-	assert.NotContains(t, byRole["implementer"], "senior engineer")
-	assert.Contains(t, byRole["tester"], "You must verify every claim in this spec with a pass/fail procedure")
-	assert.Contains(t, byRole["architect"], "You review this spec for internal consistency and structural soundness")
+	// The prose corpus panel replaces the three swapped software personas.
+	assert.Contains(t, byRole, "coherence")
+	assert.Contains(t, byRole, "soundness")
+	assert.NotContains(t, byRole, "implementer")
+	assert.NotContains(t, byRole, "tester")
+	assert.NotContains(t, byRole, "architect")
 
-	// Three software questions dropped
-	assert.NotContains(t, byRole["implementer"], "happy path fails")
-	assert.NotContains(t, byRole["architect"], "backward compatibility section")
-	assert.NotContains(t, byRole["architect"], "performance or scalability")
-
-	// Domain-neutral questions stay
-	assert.Contains(t, byRole["tester"], "vague language")
-	assert.Contains(t, byRole["tester"], "interpret any requirement differently")
-	assert.Contains(t, byRole["architect"], "Do any sections contradict each other?")
-
-	// Lens injection: all everywhere, role-specific only in its role, order
-	// hardcoded -> all -> role-specific
-	for _, role := range []string{"implementer", "tester", "architect"} {
-		assert.Contains(t, byRole[role], "Does any chapter leak a plot point?", "%s carries lens.all", role)
-	}
-	assert.Contains(t, byRole["implementer"], "Can each section be written without inventing facts?")
-	assert.NotContains(t, byRole["tester"], "Can each section be written without inventing facts?")
-	assert.Contains(t, byRole["tester"], "Is every gate condition checkable?")
-	assert.NotContains(t, byRole["architect"], "Is every gate condition checkable?")
-
-	implPrompt := byRole["implementer"]
-	allIdx := strings.Index(implPrompt, "Does any chapter leak a plot point?")
-	roleIdx := strings.Index(implPrompt, "Can each section be written without inventing facts?")
-	hardIdx := strings.Index(implPrompt, "implicit assumptions")
-	assert.Less(t, hardIdx, allIdx, "hardcoded before all")
-	assert.Less(t, allIdx, roleIdx, "all before role-specific")
+	// The role's failure lens now comes from its corpus instructions/focus.
+	assert.Contains(t, byRole["coherence"], "structural and narrative continuity")
+	assert.Contains(t, byRole["soundness"], "expository soundness")
 }
 
 func TestDomainLens_SoftwareDomainUnchanged(t *testing.T) {
@@ -112,4 +91,52 @@ func TestDomainLens_RegressionGetsAllLens(t *testing.T) {
 	require.Contains(t, byRole, "regression")
 	assert.Contains(t, byRole["regression"], "Does any chapter leak a plot point?", "lens.all appended to the regression prompt")
 	assert.NotContains(t, byRole["regression"], "Can each section be written without inventing facts?", "role-specific lens stays out of regression")
+}
+
+// TestReview_CorpusDrivenEmission: a user reviewer corpus replaces the embedded
+// panel — tp emits one prompt per corpus role, carrying its instructions and
+// focus (§7.1).
+func TestReview_CorpusDrivenEmission(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
+	revDir := filepath.Join(dir, ".tp", "reviewers")
+	require.NoError(t, os.MkdirAll(revDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(revDir, "transaction-integrity.json"),
+		[]byte(`{"id":"transaction-integrity","title":"Transaction Integrity","instructions":"You hunt for non-atomic state transitions.","focus":["Is every write rolled back on error?"]}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\ncontent\n"), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "review", "spec.md", "--no-state")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	byRole := reviewPromptsByRole(t, stdout)
+
+	assert.Contains(t, byRole, "transaction-integrity", "the user corpus replaces the embedded panel")
+	assert.NotContains(t, byRole, "implementer")
+	assert.Contains(t, byRole["transaction-integrity"], "non-atomic state transitions", "role instructions are emitted")
+	assert.Contains(t, byRole["transaction-integrity"], "Is every write rolled back on error?", "role focus is emitted")
+}
+
+// TestReview_RegressionAppendedNotCorpus: after a recorded round and a spec
+// change, review appends the built-in regression role — never a corpus file —
+// alongside the corpus panel (§5.2, §7.1).
+func TestReview_RegressionAppendedNotCorpus(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
+	revDir := filepath.Join(dir, ".tp", "reviewers")
+	require.NoError(t, os.MkdirAll(revDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(revDir, "solo.json"),
+		[]byte(`{"id":"solo","title":"Solo","instructions":"You review.","focus":["Q?"]}`), 0o600))
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\ncontent\n"), 0o600))
+
+	_, _, code := runTP(t, dir, "review", "spec.md")
+	require.Equal(t, 0, code)
+	_, _, code = recordRound(t, dir, "")
+	require.Equal(t, 0, code)
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\nchanged content\n"), 0o600))
+
+	stdout, _, code := runTP(t, dir, "review", "spec.md")
+	require.Equal(t, 0, code)
+	byRole := reviewPromptsByRole(t, stdout)
+	assert.Contains(t, byRole, "solo", "the single corpus reviewer is emitted")
+	assert.Contains(t, byRole, "regression", "regression is appended as a built-in, non-corpus role")
 }

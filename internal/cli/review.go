@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/deligoez/tp/internal/engine"
+	"github.com/deligoez/tp/internal/model"
 	"github.com/deligoez/tp/internal/output"
 )
 
@@ -657,10 +658,20 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 	fmState := engine.ParseFrontmatter(specPath)
 	dom := &promptDomain{software: fmState.Domain == engine.DomainSoftware, lens: fmState.Lens}
 
-	prompts := []reviewPrompt{
-		generateImplementerPrompt(elems, specContent, round, summary, affectedSection, finalRound, dom),
-		generateTesterPrompt(elems, specContent, round, summary, affectedSection, finalRound, dom),
-		generateArchitectPrompt(elems, specContent, round, summary, affectedSection, finalRound, dom),
+	// Emit one prompt per active reviewer role from the domain-filtered corpus
+	// (§7.1). A malformed reviewer role aborts review (§3.6, exit 3).
+	activeRoles, corpusWarnings, corpusErr := engine.ResolveActiveCorpus(filepath.Dir(specPath), fmState.Domain, engine.PhaseReviewers)
+	if corpusErr != nil {
+		output.Error(ExitFile, corpusErr.Error(), "repair or delete the offending role file under .tp/reviewers/")
+		os.Exit(ExitFile)
+		return nil
+	}
+	for _, w := range corpusWarnings {
+		output.Info(w)
+	}
+	prompts := make([]reviewPrompt, 0, len(activeRoles)+1)
+	for i := range activeRoles {
+		prompts = append(prompts, generateCorpusReviewPrompt(&activeRoles[i], elems, specContent, round, summary, affectedSection, finalRound))
 	}
 
 	// Changed-sections block: explicit --diff-from overrides the baseline and
@@ -841,16 +852,19 @@ func appendSpecOnlyDisclaimer(b *strings.Builder, affectedSection string) {
 		b.WriteString(specOnlyDisclaimer)
 	}
 }
-func generateImplementerPrompt(elems *engine.StructuredElements, specContent string, round int, summary, affectedSection string, finalRound bool, dom *promptDomain) reviewPrompt {
+// generateCorpusReviewPrompt renders one review prompt for a corpus role,
+// assembling the role's instructions (persona) and focus questions with the
+// shared, role-neutral scaffolding: the spec-only disclaimer, the previous-round
+// findings summary, the spec content, the structured-element inventory, the
+// affected-files checklist, and the finding format. It replaces the pre-v0.25.0
+// hardcoded implementer/tester/architect generators (§7.1); the role's failure
+// lens now comes entirely from its instructions and focus, not from Go.
+func generateCorpusReviewPrompt(role *model.Role, elems *engine.StructuredElements, specContent string, round int, summary, affectedSection string, finalRound bool) reviewPrompt {
 	var b strings.Builder
-	persona := "You are a senior engineer who must implement this spec tomorrow."
-	if !dom.software {
-		persona = "You must execute this spec exactly as written, starting tomorrow."
-	}
 	if round >= 2 {
-		fmt.Fprintf(&b, "%s This is review round %d — focus ONLY on issues not previously reported. Your goal is to find requirements that are missing, underspecified, or impossible to implement as stated.\n\n", persona, round)
+		fmt.Fprintf(&b, "%s This is review round %d — focus ONLY on issues not previously reported.\n\n", role.Instructions, round)
 	} else {
-		b.WriteString(persona + " Your goal is to find requirements that are missing, underspecified, or impossible to implement as stated.\n\n")
+		b.WriteString(role.Instructions + "\n\n")
 	}
 	appendSpecOnlyDisclaimer(&b, affectedSection)
 	if summary != "" {
@@ -867,20 +881,17 @@ func generateImplementerPrompt(elems *engine.StructuredElements, specContent str
 
 	n := 1
 	for _, t := range elems.Tables {
-		fmt.Fprintf(&b, "%d. Table '%s' (line %d, %d rows): For each row, could you implement it without asking clarifying questions? What edge cases are missing?\n", n, t.Heading, t.Line, t.Rows)
+		fmt.Fprintf(&b, "%d. Table '%s' (line %d, %d rows): apply your review lens to each row.\n", n, t.Heading, t.Line, t.Rows)
 		n++
 	}
 	for _, nl := range elems.NumberedLists {
-		fmt.Fprintf(&b, "%d. List '%s' (line %d, %d items, #1-#%d): For each item, is there enough detail to implement? What happens when it fails?\n", n, nl.Heading, nl.Line, nl.Items, nl.LastNum)
+		fmt.Fprintf(&b, "%d. List '%s' (line %d, %d items, #1-#%d): apply your review lens to each item.\n", n, nl.Heading, nl.Line, nl.Items, nl.LastNum)
 		n++
 	}
-	if dom.software {
-		fmt.Fprintf(&b, "%d. What happens when the happy path fails? Where are the error handling gaps?\n", n)
+	for _, q := range role.Focus {
+		fmt.Fprintf(&b, "%d. %s\n", n, q)
 		n++
 	}
-	fmt.Fprintf(&b, "%d. Are there implicit assumptions that should be explicit?\n", n)
-	n++
-	n = appendLensQuestions(&b, n, dom, "implementer")
 	appendAffectedChecklist(&b, n, affectedSection != "")
 
 	if finalRound {
@@ -893,133 +904,8 @@ func generateImplementerPrompt(elems *engine.StructuredElements, specContent str
 	}
 
 	return reviewPrompt{
-		Role:     "implementer",
-		Category: "completeness",
-		Prompt:   b.String(),
-	}
-}
-
-func generateTesterPrompt(elems *engine.StructuredElements, specContent string, round int, summary, affectedSection string, finalRound bool, dom *promptDomain) reviewPrompt {
-	var b strings.Builder
-	persona := "You are a QA engineer who must write tests from this spec."
-	if !dom.software {
-		persona = "You must verify every claim in this spec with a pass/fail procedure."
-	}
-	if round >= 2 {
-		fmt.Fprintf(&b, "%s This is review round %d — focus ONLY on issues not previously reported. Your goal is to find requirements that are ambiguous (two testers would write contradictory tests) or non-verifiable (cannot write a pass/fail test).\n\n", persona, round)
-	} else {
-		b.WriteString(persona + " Your goal is to find requirements that are ambiguous (two testers would write contradictory tests) or non-verifiable (cannot write a pass/fail test).\n\n")
-	}
-	appendSpecOnlyDisclaimer(&b, affectedSection)
-	if summary != "" {
-		b.WriteString(summary)
-		b.WriteString("\n")
-	}
-	b.WriteString("Spec content:\n---\n")
-	b.WriteString(specContent)
-	b.WriteString("\n---\n\n")
-	if affectedSection != "" {
-		b.WriteString(affectedSection)
-	}
-	b.WriteString("Check each of these specifically:\n")
-
-	n := 1
-	for _, t := range elems.Tables {
-		fmt.Fprintf(&b, "%d. Table '%s' (line %d, %d rows): Can you write a deterministic pass/fail test for each row?\n", n, t.Heading, t.Line, t.Rows)
-		n++
-	}
-	for _, nl := range elems.NumberedLists {
-		fmt.Fprintf(&b, "%d. List '%s' (line %d, #1-#%d): For each item, what is the expected output? What are the boundary conditions?\n", n, nl.Heading, nl.Line, nl.LastNum)
-		n++
-	}
-	fmt.Fprintf(&b, "%d. Which requirements use vague language ('appropriate', 'reasonable', 'properly', 'should') that prevents writing deterministic tests?\n", n)
-	n++
-	fmt.Fprintf(&b, "%d. Could two engineers interpret any requirement differently enough to produce incompatible implementations?\n", n)
-	n++
-	n = appendLensQuestions(&b, n, dom, "tester")
-	appendAffectedChecklist(&b, n, affectedSection != "")
-
-	if finalRound {
-		appendFinalRoundInstruction(&b)
-	}
-
-	b.WriteString(findingFormat)
-	if summary != "" {
-		b.WriteString(findingFormatRound2)
-	}
-
-	return reviewPrompt{
-		Role:     "tester",
-		Category: "ambiguity",
-		Prompt:   b.String(),
-	}
-}
-
-func generateArchitectPrompt(elems *engine.StructuredElements, specContent string, round int, summary, affectedSection string, finalRound bool, dom *promptDomain) reviewPrompt {
-	var b strings.Builder
-	persona := "You are a senior architect reviewing this spec for approval before implementation begins."
-	if !dom.software {
-		persona = "You review this spec for internal consistency and structural soundness."
-	}
-	if round >= 2 {
-		fmt.Fprintf(&b, "%s This is review round %d — focus ONLY on issues not previously reported. Your goal is to find contradictions between sections, missing backward compatibility analysis, and feasibility issues.\n\n", persona, round)
-	} else {
-		b.WriteString(persona + " Your goal is to find contradictions between sections, missing backward compatibility analysis, and feasibility issues.\n\n")
-	}
-	appendSpecOnlyDisclaimer(&b, affectedSection)
-	if summary != "" {
-		b.WriteString(summary)
-		b.WriteString("\n")
-	}
-	b.WriteString("Spec content:\n---\n")
-	b.WriteString(specContent)
-	b.WriteString("\n---\n\n")
-	if affectedSection != "" {
-		b.WriteString(affectedSection)
-	}
-	b.WriteString("Check each of these specifically:\n")
-
-	n := 1
-	fmt.Fprintf(&b, "%d. Do any sections contradict each other? Are there conflicting requirements?\n", n)
-	n++
-	if dom.software {
-		fmt.Fprintf(&b, "%d. Is there a 'What doesn't change' or backward compatibility section? If not, what existing behavior could break?\n", n)
-		n++
-		fmt.Fprintf(&b, "%d. Are there performance or scalability implications not addressed?\n", n)
-		n++
-	}
-
-	if len(elems.NumberedLists) > 1 {
-		names := make([]string, len(elems.NumberedLists))
-		for i, nl := range elems.NumberedLists {
-			names[i] = fmt.Sprintf("'%s'", nl.Heading)
-		}
-		fmt.Fprintf(&b, "%d. Cross-reference lists %s \u2014 are there items in one but not the other? Anything missing from the union?\n", n, strings.Join(names, " and "))
-		n++
-	}
-
-	if len(elems.Tables) > 1 {
-		fmt.Fprintf(&b, "%d. Do the %d tables have consistent column semantics? Could any rows be merged or are any missing?\n", n, len(elems.Tables))
-		n++
-	}
-
-	fmt.Fprintf(&b, "%d. Does the implementation order match the dependency graph? Can any steps be parallelized?\n", n)
-	n++
-	n = appendLensQuestions(&b, n, dom, "architect")
-	appendAffectedChecklist(&b, n, affectedSection != "")
-
-	if finalRound {
-		appendFinalRoundInstruction(&b)
-	}
-
-	b.WriteString(findingFormat)
-	if summary != "" {
-		b.WriteString(findingFormatRound2)
-	}
-
-	return reviewPrompt{
-		Role:     "architect",
-		Category: "consistency",
+		Role:     role.ID,
+		Category: role.ID,
 		Prompt:   b.String(),
 	}
 }

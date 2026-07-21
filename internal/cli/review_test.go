@@ -190,7 +190,7 @@ func TestReviewEmptySpec(t *testing.T) {
 	assert.Equal(t, float64(0), se["total_numbered_items"])
 }
 
-func TestReviewArchitectCrossReference(t *testing.T) {
+func TestReviewListInventoryInPrompt(t *testing.T) {
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte(`# Spec
@@ -211,9 +211,9 @@ func TestReviewArchitectCrossReference(t *testing.T) {
 	var result map[string]any
 	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
 
-	// Architect prompt should cross-reference the two lists
+	// Every corpus role's prompt lists the spec's numbered lists in its
+	// structured-element inventory (the architect role is prompts[2]).
 	archPrompt := result["prompts"].([]any)[2].(map[string]any)["prompt"].(string)
-	assert.Contains(t, archPrompt, "Cross-reference")
 	assert.Contains(t, archPrompt, "What Gets Added")
 	assert.Contains(t, archPrompt, "Implementation Order")
 }

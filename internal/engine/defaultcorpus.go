@@ -83,3 +83,33 @@ func defaultCorpusRaw(domain, phase, id string) ([]byte, error) {
 	}
 	return data, nil
 }
+
+// DefaultRoleFile is one embedded role's id and its raw JSON bytes, for
+// byte-identical eject (§5.4).
+type DefaultRoleFile struct {
+	ID   string
+	Data []byte
+}
+
+// DefaultCorpusFiles returns the embedded role files for a domain and phase in
+// §5.1 panel order, each carrying the raw JSON bytes so eject writes copies
+// byte-identical to the embedded prompts (§5.4).
+func DefaultCorpusFiles(domain, phase string) ([]DefaultRoleFile, error) {
+	byPhase, ok := defaultCorpusOrder[domain]
+	if !ok {
+		return nil, fmt.Errorf("no embedded corpus for domain %q (known: %s)", domain, strings.Join(DefaultCorpusDomains(), ", "))
+	}
+	ids, ok := byPhase[phase]
+	if !ok {
+		return nil, fmt.Errorf("unknown phase %q (want %s or %s)", phase, PhaseReviewers, PhaseAuditors)
+	}
+	out := make([]DefaultRoleFile, 0, len(ids))
+	for _, id := range ids {
+		data, err := defaultCorpusRaw(domain, phase, id)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, DefaultRoleFile{ID: id, Data: data})
+	}
+	return out, nil
+}
