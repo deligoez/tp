@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.24.0.md",
   "created_at": "2026-07-21T09:33:07.313Z",
-  "updated_at": "2026-07-21T10:15:02.666919Z",
+  "updated_at": "2026-07-21T10:18:42.387533Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -167,7 +167,7 @@
     {
       "id": "cfg-resolution-precedence",
       "title": "Per-field precedence ladder",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cfg-schema-malformed"
       ],
@@ -177,11 +177,11 @@
         "## 3. Layered resolution (resolve-at-read)",
         "### 3.1 Precedence"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T10:18:41.553907Z",
+      "closed_at": "2026-07-21T10:18:42.387533Z",
+      "closed_reason": "- ResolveWorkflowLayers in internal/engine/configresolve.go ranks a CLI/task override above the project layer above the built-in default, per field\n- The active pointer is resolved by the discovery chain (cfg-active), not this workflow ladder\n- TestResolveWorkflowLayers_Ranking and _QualityGatePrecedence cover the ranking order",
+      "gate_passed_at": "2026-07-21T10:18:42.387533Z",
+      "commit_sha": "162981c"
     },
     {
       "id": "cfg-resolution-sparse",

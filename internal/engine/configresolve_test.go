@@ -1,10 +1,13 @@
 package engine
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/deligoez/tp/internal/model"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func ptr[T any](v T) *T { return &v }
@@ -33,4 +36,31 @@ func TestResolveWorkflowLayers_QualityGatePrecedence(t *testing.T) {
 		model.WorkflowOverride{QualityGate: ptr("make test")},
 	)
 	assert.Equal(t, "go test ./...", wf.QualityGate, "task override wins")
+}
+
+func TestResolveEffectiveWorkflow_SparseMerge(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
+	tp := filepath.Join(root, ".tp")
+	require.NoError(t, os.Mkdir(tp, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(tp, "config.json"),
+		[]byte(`{"workflow":{"review_max_rounds":8,"gate_timeout_seconds":1200,"review_clean_rounds":3}}`), 0o600))
+
+	// The task file sets only review_max_rounds; it inherits the rest.
+	wf, warns, err := ResolveEffectiveWorkflow(root, model.WorkflowOverride{ReviewMaxRounds: ptr(0)})
+	require.NoError(t, err)
+	assert.Empty(t, warns)
+	assert.Equal(t, 0, wf.ReviewMaxRounds, "task override (explicit 0) wins")
+	assert.Equal(t, 1200, wf.GateTimeoutSeconds, "inherited from project")
+	assert.Equal(t, 3, wf.ReviewCleanRounds, "inherited from project")
+	assert.Equal(t, 2, wf.AuditCleanRounds, "built-in default where neither layer sets it")
+}
+
+func TestResolveEffectiveWorkflow_NoConfigIsV023(t *testing.T) {
+	root := t.TempDir() // no .tp/
+	wf, _, err := ResolveEffectiveWorkflow(root, model.WorkflowOverride{ReviewMaxRounds: ptr(4)})
+	require.NoError(t, err)
+	assert.Equal(t, 4, wf.ReviewMaxRounds)
+	assert.Equal(t, 2, wf.ReviewCleanRounds, "built-in default with no project config")
+	assert.Equal(t, 600, wf.GateTimeoutSeconds)
 }

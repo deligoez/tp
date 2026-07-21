@@ -34,6 +34,25 @@ func pickChecks(layers []*[]model.Check, def []model.Check) []model.Check {
 	return def
 }
 
+// ResolveEffectiveWorkflow resolves the effective workflow for a start
+// directory: it discovers the project config from start, loads its workflow
+// defaults, and layers the given task-file override over them (a per-field
+// sparse merge, so a task file that sets only one field inherits the rest from
+// the project). With no .tp/ present, the override resolves over the built-in
+// defaults exactly as in v0.23.0. Returns the effective workflow and any config
+// validation warnings.
+func ResolveEffectiveWorkflow(start string, taskOverride model.WorkflowOverride) (model.Workflow, []string, error) {
+	tpDir := DiscoverTPDir(start)
+	if tpDir == "" {
+		return ResolveWorkflowLayers(taskOverride, model.WorkflowOverride{}), nil, nil
+	}
+	pc, warnings, err := LoadProjectConfig(tpDir)
+	if err != nil {
+		return model.Workflow{}, warnings, err
+	}
+	return ResolveWorkflowLayers(taskOverride, pc.Workflow), warnings, nil
+}
+
 // ResolveWorkflowLayers merges workflow overrides by precedence: the task-file
 // override outranks the project config, which outranks the built-in default.
 // Each field resolves independently — a nil field inherits the next lower layer
