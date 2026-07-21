@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.25.0.md",
   "created_at": "2026-07-21T19:43:58.426848Z",
-  "updated_at": "2026-07-21T20:16:12.974138Z",
+  "updated_at": "2026-07-21T20:22:27.783874Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2,
@@ -448,7 +448,7 @@
     {
       "id": "lens-backcompat-shim",
       "title": "Translate legacy lens frontmatter",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -460,11 +460,11 @@
       "source_sections": [
         "## 10. `tp: lens` Retirement \u0026 Migration"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T20:22:27.747356Z",
+      "closed_at": "2026-07-21T20:22:27.783872Z",
+      "closed_reason": "- engine.TranslateLegacyLens (internal/engine/lens_shim.go) auto-translates a legacy tp: lens when no new overrides exist: lens.all fans out to every active review role id (regression excluded by caller, auditors never in the list) and lens.\u003crole-id\u003e appends to that active review role, warning 'not an active review role' on an unknown id; order is lens.all then role-specific.\n- When tp.review_roles/tp.audit_roles is present the new form wins: the shim ignores the legacy lens with a single 'legacy tp: lens is ignored' warning and returns no lens-derived overrides (never a three-way merge); domain and the rest of the tp: block stay parsed by ParseFrontmatterBytes, only the standalone lens key is superseded.\n- internal/engine/lens_shim_test.go covers the all-fanout, role-specific translation with ordering, the unknown-id warning, the new-form-wins rule, the deprecation warning, and the no-lens empty case.",
+      "gate_passed_at": "2026-07-21T20:22:27.783872Z",
+      "commit_sha": "72a6856"
     },
     {
       "id": "domain-persona-swap-removal",
