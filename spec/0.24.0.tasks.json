@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.24.0.md",
   "created_at": "2026-07-21T09:33:07.313Z",
-  "updated_at": "2026-07-21T11:18:17.490633Z",
+  "updated_at": "2026-07-21T11:19:56.298577Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -406,7 +406,7 @@
     {
       "id": "cfg-active-chain",
       "title": "Active-file discovery chain",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cfg-schema-malformed",
         "cfg-gitignore"
@@ -417,11 +417,11 @@
         "## 7. Active file",
         "### 7.1 Active-file pointer"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T11:19:54.29055Z",
+      "closed_at": "2026-07-21T11:19:56.298576Z",
+      "closed_reason": "- The .tp/local.json active key holds a project-root-relative path; ResolveLocalActive in configresolve.go resolves it and rejects absolute or escaping values\n- DiscoverTaskFile resolves the active file in order --file, TP_FILE, .tp/local.json active, legacy .tp-active, auto-detect\n- TestDiscoverTaskFile_LocalActiveOverLegacy covers the discovery-chain order with the project-local pointer winning",
+      "gate_passed_at": "2026-07-21T11:19:56.298576Z",
+      "commit_sha": "8901574"
     },
     {
       "id": "cfg-active-use",

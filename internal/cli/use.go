@@ -1,12 +1,15 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
 
+	"github.com/deligoez/tp/internal/engine"
 	"github.com/deligoez/tp/internal/output"
 )
 
@@ -66,20 +69,56 @@ func runUse(_ *cobra.Command, args []string) error {
 		return output.JSON(map[string]any{"active_file": path})
 	}
 
-	// Set active file
-	filePath := args[0]
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		output.Error(ExitFile, fmt.Sprintf("file not found: %s", filePath))
+	return setActiveFile(args[0])
+}
+
+// setActiveFile stores file (resolved project-root-relative) in
+// .tp/local.json active, rejecting a target outside the project root with
+// exit 2 and no longer writing a .tp-active marker.
+func setActiveFile(file string) error {
+	abs, err := filepath.Abs(file)
+	if err != nil {
+		output.Error(ExitFile, err.Error())
 		os.Exit(ExitFile)
 		return nil
 	}
-
-	if err := os.WriteFile(tpActiveFile, []byte(filePath+"\n"), 0o600); err != nil {
-		output.Error(ExitFile, fmt.Sprintf("cannot write %s: %v", tpActiveFile, err))
+	if _, statErr := os.Stat(abs); os.IsNotExist(statErr) {
+		output.Error(ExitFile, fmt.Sprintf("file not found: %s", file))
 		os.Exit(ExitFile)
 		return nil
 	}
-
-	fmt.Fprintf(os.Stderr, "active task file set to %s\n", filePath)
-	return output.JSON(map[string]any{"active_file": filePath})
+	root := engine.ProjectRoot(".")
+	rel, err := filepath.Rel(root, abs)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		output.Error(ExitUsage, fmt.Sprintf("%s is outside the project root %s", file, root))
+		os.Exit(ExitUsage)
+		return nil
+	}
+	tpDir := engine.ProjectConfigDir(".")
+	if err := os.MkdirAll(tpDir, 0o755); err != nil {
+		output.Error(ExitFile, err.Error())
+		os.Exit(ExitFile)
+		return nil
+	}
+	return engine.WithFileLock(filepath.Join(tpDir, "local.json"), func() error {
+		lc, _, loadErr := engine.LoadLocalConfig(tpDir)
+		if loadErr != nil {
+			var mce *engine.MalformedConfigError
+			if errors.As(loadErr, &mce) {
+				output.Error(ExitFile, mce.Error(), mce.Hint())
+			} else {
+				output.Error(ExitFile, loadErr.Error())
+			}
+			os.Exit(ExitFile)
+			return nil
+		}
+		lc.Active = &rel
+		if err := engine.WriteLocalConfig(tpDir, lc); err != nil {
+			output.Error(ExitFile, err.Error())
+			os.Exit(ExitFile)
+			return nil
+		}
+		fmt.Fprintf(os.Stderr, "active task file set to %s\n", rel)
+		return output.JSON(map[string]any{"active_file": rel})
+	})
 }
