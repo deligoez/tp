@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.25.0.md",
   "created_at": "2026-07-21T19:43:58.426848Z",
-  "updated_at": "2026-07-21T22:42:46.581841Z",
+  "updated_at": "2026-07-21T22:49:20.536129Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2,
@@ -386,7 +386,7 @@
     {
       "id": "roles-stale-status",
       "title": "Report roles-stale in status",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli"
       ],
@@ -398,11 +398,11 @@
       "source_sections": [
         "## 9. Role Staleness"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T22:49:20.492034Z",
+      "closed_at": "2026-07-21T22:49:20.536125Z",
+      "closed_reason": "- tp review --status and tp audit --status now compute the current phase corpus hash via engine.ComputeRolesHash and report roles_stale beside the existing spec stale flag, via the new read-only engine.RolesStale (review_status.go, audit_record.go runAuditStatus).\n- engine.RolesStale compares the current hash to the latest recorded round's stored roles_hash; a pre-v0.25.0 round with an empty stored hash is treated as matching (not retroactively stale), so in-flight sequences carry forward on upgrade.\n- internal/engine/rolehash_test.go TestRolesStale covers detection and the pre-v0.25.0 matching rule (including a pre-v0.25.0 latest round); internal/cli/roles_hash_record_test.go TestRolesStale_StatusFlipsOnCorpusEdit verifies --status reports roles_stale and flips it true after a reviewer edit without writing.",
+      "gate_passed_at": "2026-07-21T22:49:20.536125Z",
+      "commit_sha": "25b9e4a"
     },
     {
       "id": "frontmatter-role-overrides-parse",
