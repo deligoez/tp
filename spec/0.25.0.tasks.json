@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.25.0.md",
   "created_at": "2026-07-21T19:43:58.426848Z",
-  "updated_at": "2026-07-21T21:25:33.762857Z",
+  "updated_at": "2026-07-21T21:40:24.341695Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2,
@@ -170,7 +170,7 @@
     {
       "id": "review-emission-corpus",
       "title": "Emit review prompts from corpus",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "review"
@@ -184,11 +184,11 @@
         "## 7. Prompt Emission",
         "## 5. Default Corpus \u0026 Eject"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T21:40:24.300563Z",
+      "closed_at": "2026-07-21T21:40:24.341693Z",
+      "closed_reason": "- runReview (internal/cli/review.go) now emits one prompt per active reviewer role from engine.ResolveActiveCorpus (domain-filtered), via the new generateCorpusReviewPrompt which assembles the role's instructions+focus with the shared scaffolding; the hardcoded generateImplementer/Tester/Architect generators are removed.\n- The built-in regression role is still appended (round\u003e=2 with a diff or fixed finding) and is never a corpus file nor ejectable; the full active panel runs every counted round with no automatic role dropping, and tp only emits prompts (no agent execution). A malformed reviewer aborts review with exit 3 and a repair-or-delete hint.\n- Tests: domain_lens_test.go TestReview_CorpusDrivenEmission (user corpus replaces the panel), TestReview_RegressionAppendedNotCorpus (regression appended alongside a single corpus reviewer), TestReview_ProseDomainEmitsProsePanel (prose panel), and the retained TestDomainLens_SoftwareDomainUnchanged; review_test.go's cross-reference test was updated to the generic list inventory.",
+      "gate_passed_at": "2026-07-21T21:40:24.341693Z",
+      "commit_sha": "2f9a21b"
     },
     {
       "id": "audit-emission-corpus",
