@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.25.0.md",
   "created_at": "2026-07-21T19:43:58.426848Z",
-  "updated_at": "2026-07-21T20:59:45.906275Z",
+  "updated_at": "2026-07-21T21:02:15.755767Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2,
@@ -85,7 +85,7 @@
     {
       "id": "research-prompt-design",
       "title": "Research reviewer auditor prompt design",
-      "status": "open",
+      "status": "done",
       "tags": [
         "research"
       ],
@@ -95,11 +95,11 @@
       "source_sections": [
         "## 14. Role Authoring Guidance"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T21:02:15.722988Z",
+      "closed_at": "2026-07-21T21:02:15.755764Z",
+      "closed_reason": "- Performed the §14.4 web-research pass on reviewer/auditor prompt design (WebSearch across adversarial-review, multi-agent-role-diversity, and citation-grounding sources) before default-corpus-data and skill-authoring-guidance are written.\n- Captured findings on all four §14.2 dimensions — adversarial framing (leniency bias, refute-don't-confirm, negation underweighting), evidence demand (citation grounding vs factuality/faithfulness hallucination), scope boundaries (disjoint lenses reduce overlap/trim-candidates), and one-lens-per-role (diversity over count).\n- Recorded the synthesized guidance in spec/0.25.0-role-prompt-research.md, including concrete per-role lens sketches for software/prose corpora and a cross-domain lens catalog to inform corpus authoring and the SKILL §14 section, with a cited Sources list.",
+      "gate_passed_at": "2026-07-21T21:02:15.755764Z",
+      "commit_sha": "5af2009"
     },
     {
       "id": "default-corpus-data",
