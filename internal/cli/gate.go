@@ -19,11 +19,34 @@ const gateOutputTailLines = 20
 // gateSkipHint tells the agent how to proceed after a gate failure.
 const gateSkipHint = "fix the gate failure and retry, or close with --skip-gate '<why>' (recorded on the task)"
 
-// executeQualityGate runs workflow.quality_gate in the task file's directory
-// with the resolved timeout and returns the result without exiting.
+// gateDir returns the directory a project-level command (the quality gate or a
+// mechanical check) runs in: the git repository root discovered by walking up
+// from the task file's directory, so "go test ./..." runs from the repo root
+// even when the task file lives in a subdirectory (e.g. spec/x.tasks.json).
+// It matches a .git directory or file (worktrees/submodules use a .git file).
+// Falls back to the current working directory when no .git is found.
+func gateDir(taskFilePath string) string {
+	dir, err := filepath.Abs(filepath.Dir(taskFilePath))
+	if err != nil {
+		return ""
+	}
+	for {
+		if _, statErr := os.Stat(filepath.Join(dir, ".git")); statErr == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "" // no repository boundary found; use the caller's cwd
+		}
+		dir = parent
+	}
+}
+
+// executeQualityGate runs workflow.quality_gate from the repository root (see
+// gateDir) with the resolved timeout and returns the result without exiting.
 func executeQualityGate(tf *model.TaskFile, taskFilePath string) engine.RunResult {
 	timeout := tf.Workflow.EffectiveGateTimeoutSeconds()
-	return engine.RunCommand(tf.Workflow.QualityGate, filepath.Dir(taskFilePath), time.Duration(timeout)*time.Second, gateOutputTailLines)
+	return engine.RunCommand(tf.Workflow.QualityGate, gateDir(taskFilePath), time.Duration(timeout)*time.Second, gateOutputTailLines)
 }
 
 // gateFailureMessage renders the top-level error string for a failed gate run.
