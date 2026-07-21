@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.24.0.md",
   "created_at": "2026-07-21T09:33:07.313Z",
-  "updated_at": "2026-07-21T11:19:56.298577Z",
+  "updated_at": "2026-07-21T11:21:33.844949Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -426,7 +426,7 @@
     {
       "id": "cfg-active-use",
       "title": "Store active via tp use",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cfg-active-chain"
       ],
@@ -435,11 +435,11 @@
       "source_sections": [
         "### 7.1 Active-file pointer"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T11:21:31.676478Z",
+      "closed_at": "2026-07-21T11:21:33.844949Z",
+      "closed_reason": "- setActiveFile in internal/cli/use.go resolves the CWD-relative or absolute argument to an absolute path and stores it project-root-relative in .tp/local.json active, creating .tp/ and .tp/.gitignore\n- A target outside the project root is rejected with exit 2 (verified), and tp use no longer writes a .tp-active marker\n- TestSetActiveFile_StoresProjectRelativeInLocalJSON covers the relative store and the absence of .tp-active",
+      "gate_passed_at": "2026-07-21T11:21:33.844949Z",
+      "commit_sha": "3cb4b5f"
     },
     {
       "id": "cfg-active-clear",

@@ -42,13 +42,7 @@ func runUse(_ *cobra.Command, args []string) error {
 	}
 
 	if useClear {
-		// Remove .tp-active (idempotent)
-		if err := os.Remove(tpActiveFile); err != nil && !os.IsNotExist(err) {
-			output.Error(ExitFile, fmt.Sprintf("cannot remove %s: %v", tpActiveFile, err))
-			os.Exit(ExitFile)
-			return nil
-		}
-		return nil
+		return clearActiveFile()
 	}
 
 	if len(args) == 0 {
@@ -70,6 +64,44 @@ func runUse(_ *cobra.Command, args []string) error {
 	}
 
 	return setActiveFile(args[0])
+}
+
+// clearActiveFile removes the active pointer from .tp/local.json and any
+// leftover legacy .tp-active in the working directory. It is a no-op with
+// exit 0 when no active pointer is set.
+func clearActiveFile() error {
+	if err := os.Remove(tpActiveFile); err != nil && !os.IsNotExist(err) {
+		output.Error(ExitFile, fmt.Sprintf("cannot remove %s: %v", tpActiveFile, err))
+		os.Exit(ExitFile)
+		return nil
+	}
+	tpDir := engine.DiscoverTPDir(".")
+	if tpDir == "" {
+		return output.JSON(map[string]any{"cleared": true})
+	}
+	return engine.WithFileLock(filepath.Join(tpDir, "local.json"), func() error {
+		lc, _, err := engine.LoadLocalConfig(tpDir)
+		if err != nil {
+			var mce *engine.MalformedConfigError
+			if errors.As(err, &mce) {
+				output.Error(ExitFile, mce.Error(), mce.Hint())
+			} else {
+				output.Error(ExitFile, err.Error())
+			}
+			os.Exit(ExitFile)
+			return nil
+		}
+		if lc.Active == nil {
+			return output.JSON(map[string]any{"cleared": true}) // no-op
+		}
+		lc.Active = nil
+		if err := engine.WriteLocalConfig(tpDir, lc); err != nil {
+			output.Error(ExitFile, err.Error())
+			os.Exit(ExitFile)
+			return nil
+		}
+		return output.JSON(map[string]any{"cleared": true})
+	})
 }
 
 // setActiveFile stores file (resolved project-root-relative) in
