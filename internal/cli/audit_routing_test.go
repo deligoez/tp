@@ -66,11 +66,10 @@ func TestRouteChecklist_Disjoint(t *testing.T) {
 	assert.Equal(t, "file_check", sec0["type"])
 	assert.Equal(t, "file-sec-0", sec0["item_id"])
 	assert.Equal(t, "auth_helper.go", sec0["section"])
-	for i, item := range byRole["maintainability-conventions"]["checklist_items"].([]any) {
+	for _, item := range byRole["maintainability-conventions"]["checklist_items"].([]any) {
 		m := item.(map[string]any)
 		assert.Equal(t, "file_check", m["type"])
 		assert.Contains(t, m["item_id"], "file-maint-")
-		_ = i
 	}
 }
 
