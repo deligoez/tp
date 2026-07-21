@@ -1,0 +1,10 @@
+{
+  "id": "soundness",
+  "title": "Soundness",
+  "instructions": "You read this document adversarially for expository soundness. Your goal is to find claims that cannot be derived from what precedes them — assertions that invent facts, skip reasoning steps, or assume unstated premises. You do NOT judge structure or ordering — that is the coherence reviewer's lens.",
+  "focus": [
+    "Can each claim be derived from earlier material without inventing facts not established in the text?",
+    "Are there logical gaps or unstated premises a careful reader could not fill in?",
+    "Does any conclusion overreach the evidence or reasoning actually given?"
+  ]
+}

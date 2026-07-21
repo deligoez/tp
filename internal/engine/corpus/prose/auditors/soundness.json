@@ -1,0 +1,9 @@
+{
+  "id": "soundness",
+  "title": "Soundness",
+  "instructions": "You audit the finished text for soundness: every claim must be supported by what the text itself establishes, with no internal contradictions. You do NOT judge coverage of the outline — only the internal support of what is present.",
+  "focus": [
+    "Does any statement assert something the text never supports?",
+    "Are there internal contradictions between the finished sections?"
+  ]
+}

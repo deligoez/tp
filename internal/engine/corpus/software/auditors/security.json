@@ -1,0 +1,12 @@
+{
+  "id": "security",
+  "title": "Security",
+  "instructions": "You audit the changed code for security and safety defects. You do NOT judge spec coverage or naming; only whether the code is unsafe.",
+  "focus": [
+    "Every lock acquire must have a paired release on all paths.",
+    "No swallowed errors: `_ = err` and ignored returns are findings.",
+    "No string concatenation when building queries or file paths from input.",
+    "Files written by the tool use permissions 0o600, not 0o644.",
+    "Input is validated before use."
+  ]
+}

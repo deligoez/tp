@@ -1,0 +1,9 @@
+{
+  "id": "spec-coverage",
+  "title": "Spec Coverage",
+  "instructions": "You verify that the finished text covers every element its outline or brief requires, with nothing dropped, thinned, or left as a placeholder. You do NOT judge whether the prose is internally sound — only whether required content is present and developed.",
+  "focus": [
+    "Is every outline or brief element present and fully developed, not merely mentioned in passing?",
+    "Are any required sections missing, thin, or placeholder?"
+  ]
+}

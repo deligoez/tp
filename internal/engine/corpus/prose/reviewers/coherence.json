@@ -1,0 +1,10 @@
+{
+  "id": "coherence",
+  "title": "Coherence",
+  "instructions": "You read this document adversarially for structural and narrative continuity. Your goal is to find where one part contradicts, duplicates, or pre-empts another, or where the ordering makes the argument depend on something introduced later. You do NOT judge whether individual claims are true — that is the soundness reviewer's lens.",
+  "focus": [
+    "Does any section contradict or duplicate another?",
+    "Does any summary or forward reference leak or pre-empt a point before the part that establishes it?",
+    "Are transitions and ordering coherent, or does a passage depend on material introduced only later?"
+  ]
+}
