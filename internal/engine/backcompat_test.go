@@ -38,3 +38,26 @@ func TestZeroConfig_BehavesLikeV023(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, got, "s.tasks.json")
 }
+
+// TestOptIn_ExistingFullTaskFileWinsAndIsNotRewritten proves adoption is
+// opt-in: an existing task file with a full workflow block keeps overriding the
+// project config (nothing is thinned) and reading never rewrites the file.
+func TestOptIn_ExistingFullTaskFileWinsAndIsNotRewritten(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".tp"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".tp", "config.json"),
+		[]byte(`{"workflow":{"review_max_rounds":99}}`), 0o600))
+	full := `{"spec":"s.md","tasks":[],"workflow":{"review_max_rounds":4,"review_clean_rounds":3}}`
+	tfPath := filepath.Join(root, "s.tasks.json")
+	require.NoError(t, os.WriteFile(tfPath, []byte(full), 0o600))
+	t.Chdir(root)
+
+	wf := EffectiveWorkflowForTaskFile("s.tasks.json")
+	assert.Equal(t, 4, wf.ReviewMaxRounds, "the existing full override wins over the project config")
+	assert.Equal(t, 3, wf.ReviewCleanRounds)
+
+	after, err := os.ReadFile(tfPath)
+	require.NoError(t, err)
+	assert.JSONEq(t, full, string(after), "resolving never auto-thins an existing task file")
+}
