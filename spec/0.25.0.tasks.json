@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.25.0.md",
   "created_at": "2026-07-21T19:43:58.426848Z",
-  "updated_at": "2026-07-21T23:12:13.575745Z",
+  "updated_at": "2026-07-21T23:13:37.804897Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2,
@@ -645,7 +645,7 @@
     {
       "id": "skill-authoring-guidance",
       "title": "Write role authoring guidance skill",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -658,11 +658,11 @@
       "source_sections": [
         "## 14. Role Authoring Guidance"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T23:13:37.768663Z",
+      "closed_at": "2026-07-21T23:13:37.804893Z",
+      "closed_reason": "- skills/tp/SKILL.md gains a 'Role authoring guidance (v0.25.0)' section teaching an orchestrator to design high-signal, low-overlap, contract-conformant role prompts across all five §14.2 dimensions: one-distinct-failure-lens, adversarial framing, evidence demand, scope boundaries, and output-contract adherence.\n- It includes worked example role sets for code/software (correctness/security/performance-contract) and prose (narrative continuity vs expository derivability), plus a short catalog of legal/contract, product/PRD, data-schema, and academic domains with their diverging lenses (§14.3).\n- It notes the embedded default corpus is authored to exemplify this guidance so an ejected default role is itself a worked example (tp init --eject-roles), per §14.4; content is informed by the recorded web-research pass (spec/0.25.0-role-prompt-research.md).",
+      "gate_passed_at": "2026-07-21T23:13:37.804893Z",
+      "commit_sha": "005ffc4"
     },
     {
       "id": "docs-remove-tpactive",
