@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.24.0.md",
   "created_at": "2026-07-21T09:33:07.313Z",
-  "updated_at": "2026-07-21T09:55:43.065116Z",
+  "updated_at": "2026-07-21T10:09:34.257997Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -113,7 +113,7 @@
     {
       "id": "cfg-schema-unknown",
       "title": "Warn on unknown keys",
-      "status": "wip",
+      "status": "done",
       "depends_on": [
         "cfg-schema-parse"
       ],
@@ -123,10 +123,10 @@
         "### 2.3 Schema and validation"
       ],
       "started_at": "2026-07-21T09:55:43.01876Z",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": "6191860"
+      "closed_at": "2026-07-21T10:09:34.257997Z",
+      "closed_reason": "- Unknown top-level, workflow, and defaults keys are collected as stderr-bound warnings, never errors (internal/engine/projectconfig.go)\n- Type-mismatched values (non-string active, non-bool defaults entry, non-object/non-array, wrong-typed workflow field) warn and are treated as unset so the field falls back\n- TestLoadProjectConfig_UnknownKeysWarn, _TypeMismatchFallsBack, and TestLoadLocalConfig_TypeMismatchFallsBack cover the warnings and fallback",
+      "gate_passed_at": "2026-07-21T10:09:34.257997Z",
+      "commit_sha": "e3217f1"
     },
     {
       "id": "cfg-schema-range",

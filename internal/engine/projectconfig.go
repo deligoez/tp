@@ -2,12 +2,33 @@ package engine
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/deligoez/tp/internal/model"
 )
+
+// clampWorkflowRanges unsets any out-of-range override field so it falls back
+// to the built-in default at resolution (gate_timeout_seconds→600, caps→0,
+// clean_rounds→2), returning a warning for each. This matches the read-time
+// fallback v0.23.0 already applies to a hand-edited task file.
+func clampWorkflowRanges(wo *model.WorkflowOverride) []string {
+	var warnings []string
+	check := func(name string, p **int, lo, hi int) {
+		if *p != nil && (**p < lo || **p > hi) {
+			warnings = append(warnings, fmt.Sprintf("workflow.%s: %d is out of range [%d,%d], using the built-in default", name, **p, lo, hi))
+			*p = nil
+		}
+	}
+	check("gate_timeout_seconds", &wo.GateTimeoutSeconds, 30, 3600)
+	check("review_clean_rounds", &wo.ReviewCleanRounds, 1, 10)
+	check("audit_clean_rounds", &wo.AuditCleanRounds, 1, 10)
+	check("review_max_rounds", &wo.ReviewMaxRounds, 0, 50)
+	check("audit_max_rounds", &wo.AuditMaxRounds, 0, 50)
+	return warnings
+}
 
 // knownWorkflowKeys is the set of recognized keys inside a config workflow block.
 var knownWorkflowKeys = map[string]bool{
@@ -96,6 +117,7 @@ func LoadProjectConfig(tpDir string) (model.ProjectConfig, []string, error) {
 		wo, wfWarn := parseWorkflowOverride(wfRaw)
 		pc.Workflow = wo
 		warnings = append(warnings, wfWarn...)
+		warnings = append(warnings, clampWorkflowRanges(&pc.Workflow)...)
 	}
 	return pc, warnings, nil
 }

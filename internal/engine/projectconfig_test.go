@@ -182,3 +182,17 @@ func TestLoadLocalConfig_TypeMismatchFallsBack(t *testing.T) {
 	assert.Contains(t, warns, "active: expected a string, ignored")
 	assert.Contains(t, warns, "defaults.compact: expected a boolean, ignored")
 }
+
+func TestLoadProjectConfig_OutOfRangeFallsBack(t *testing.T) {
+	tp := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tp, "config.json"),
+		[]byte(`{"workflow":{"gate_timeout_seconds":5,"review_clean_rounds":99,"review_max_rounds":0}}`), 0o600))
+	pc, warns, err := LoadProjectConfig(tp)
+	require.NoError(t, err)
+	assert.Nil(t, pc.Workflow.GateTimeoutSeconds, "out-of-range gate_timeout_seconds is unset (falls back to 600)")
+	assert.Nil(t, pc.Workflow.ReviewCleanRounds, "out-of-range clean_rounds is unset (falls back to 2)")
+	require.NotNil(t, pc.Workflow.ReviewMaxRounds, "in-range 0 (no cap) is kept")
+	assert.Equal(t, 0, *pc.Workflow.ReviewMaxRounds)
+	assert.Contains(t, warns, "workflow.gate_timeout_seconds: 5 is out of range [30,3600], using the built-in default")
+	assert.Contains(t, warns, "workflow.review_clean_rounds: 99 is out of range [1,10], using the built-in default")
+}
