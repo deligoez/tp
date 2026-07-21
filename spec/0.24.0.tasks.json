@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.24.0.md",
   "created_at": "2026-07-21T09:33:07.313Z",
-  "updated_at": "2026-07-21T10:11:55.453691Z",
+  "updated_at": "2026-07-21T10:15:02.666919Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -149,7 +149,7 @@
     {
       "id": "cfg-schema-malformed",
       "title": "Abort on malformed config",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cfg-schema-range"
       ],
@@ -158,11 +158,11 @@
       "source_sections": [
         "### 2.3 Schema and validation"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T10:15:01.841472Z",
+      "closed_at": "2026-07-21T10:15:02.666919Z",
+      "closed_reason": "- LoadProjectConfig/LoadLocalConfig return a typed MalformedConfigError for an unreadable, invalid-JSON, non-object, 0-byte, or whitespace-only file so the reading command can abort with exit 3 and a repair-or-delete hint naming the path\n- An explicit empty object is valid and equivalent to an absent file, and config errors carry the path for stderr reporting without polluting stdout\n- TestLoadProjectConfig_MalformedAborts and _EmptyObjectIsValid cover the malformed cases and the valid empty object",
+      "gate_passed_at": "2026-07-21T10:15:02.666919Z",
+      "commit_sha": "e6c9fe2"
     },
     {
       "id": "cfg-resolution-precedence",
