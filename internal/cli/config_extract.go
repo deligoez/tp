@@ -195,19 +195,31 @@ func runConfigExtract() error {
 		os.Exit(ExitFile)
 		return nil
 	}
-	pc, _, _ := engine.LoadProjectConfig(tpDir)
-	mergeCommon(&pc.Workflow, common)
-	if err := engine.WriteProjectConfig(tpDir, pc); err != nil {
-		output.Error(ExitFile, err.Error())
-		os.Exit(ExitFile)
-		return nil
-	}
-	for _, f := range files {
-		if err := engine.StripTaskWorkflowFields(f, fields); err != nil {
-			output.Error(ExitFile, fmt.Sprintf("cannot thin %s: %v", f, err))
+	return engine.WithFileLock(configPath, func() error {
+		pc, _, loadErr := engine.LoadProjectConfig(tpDir)
+		if loadErr != nil {
+			var mce *engine.MalformedConfigError
+			if errors.As(loadErr, &mce) {
+				output.Error(ExitFile, mce.Error(), mce.Hint())
+			} else {
+				output.Error(ExitFile, loadErr.Error())
+			}
 			os.Exit(ExitFile)
 			return nil
 		}
-	}
-	return output.JSON(map[string]any{"hoisted": fields, "files": len(files), "config": configPath})
+		mergeCommon(&pc.Workflow, common)
+		if err := engine.WriteProjectConfig(tpDir, pc); err != nil {
+			output.Error(ExitFile, err.Error())
+			os.Exit(ExitFile)
+			return nil
+		}
+		for _, f := range files {
+			if err := engine.StripTaskWorkflowFields(f, fields); err != nil {
+				output.Error(ExitFile, fmt.Sprintf("cannot thin %s: %v", f, err))
+				os.Exit(ExitFile)
+				return nil
+			}
+		}
+		return output.JSON(map[string]any{"hoisted": fields, "files": len(files), "config": configPath})
+	})
 }
