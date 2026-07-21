@@ -11,7 +11,12 @@ import (
 	"github.com/deligoez/tp/internal/output"
 )
 
-var configResolved bool
+var (
+	configResolved     bool
+	configExtract      bool
+	configExtractDry   bool
+	configExtractForce bool
+)
 
 func newConfigCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -20,6 +25,9 @@ func newConfigCmd() *cobra.Command {
 		RunE:  runConfig,
 	}
 	cmd.Flags().BoolVar(&configResolved, "resolved", false, "Annotate each setting with its {value, source} layer")
+	cmd.Flags().BoolVar(&configExtract, "extract", false, "Hoist shared workflow policy from task files into .tp/config.json")
+	cmd.Flags().BoolVar(&configExtractDry, "dry-run", false, "With --extract: print the plan without writing")
+	cmd.Flags().BoolVar(&configExtractForce, "force", false, "With --extract: merge into an existing .tp/config.json")
 	return cmd
 }
 
@@ -80,6 +88,9 @@ func resolveConfigWorkflow() (model.Workflow, model.WorkflowOverride) {
 }
 
 func runConfig(_ *cobra.Command, _ []string) error {
+	if configExtract {
+		return runConfigExtract()
+	}
 	wf, override := resolveConfigWorkflow()
 	if configResolved {
 		return output.JSON(resolvedConfig(&wf, override))

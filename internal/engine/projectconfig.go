@@ -193,6 +193,42 @@ func LoadLocalConfig(tpDir string) (model.LocalConfig, []string, error) {
 	return lc, warnings, nil
 }
 
+// StripTaskWorkflowFields removes the named keys from a task file's raw
+// "workflow" block and rewrites the file, leaving every other field intact. It
+// is used by tp config --extract to thin a task file after hoisting shared
+// policy to the project config.
+func StripTaskWorkflowFields(path string, fields []string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	var top map[string]json.RawMessage
+	if err := json.Unmarshal(data, &top); err != nil {
+		return err
+	}
+	wfRaw, ok := top["workflow"]
+	if !ok {
+		return nil
+	}
+	var wf map[string]json.RawMessage
+	if err := json.Unmarshal(wfRaw, &wf); err != nil {
+		return err
+	}
+	for _, f := range fields {
+		delete(wf, f)
+	}
+	newWf, err := json.Marshal(wf)
+	if err != nil {
+		return err
+	}
+	top["workflow"] = newWf
+	out, err := json.MarshalIndent(top, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, append(out, '\n'), 0o600)
+}
+
 // ProjectConfigDir returns the .tp/ directory that project-config writes target:
 // the discovered .tp/ when one exists, otherwise a new .tp/ at the project root
 // (the git boundary, or the working directory outside a git repository).
