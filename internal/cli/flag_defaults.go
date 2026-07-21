@@ -36,16 +36,28 @@ func applyFlagDefaults(c *cobra.Command) {
 	}
 	applyDefault("compact", "no-compact", "compact", &flagCompact)
 	applyDefault("quiet", "no-quiet", "quiet", &flagQuiet)
-	applyDefault("no-color", "color", "no_color", &flagNoColor)
 
-	// Negating flags force the value off, overriding a default.
+	// Negating flags force compact/quiet off, overriding a default.
 	if c.Flags().Changed("no-compact") {
 		flagCompact = false
 	}
 	if c.Flags().Changed("no-quiet") {
 		flagQuiet = false
 	}
-	if c.Flags().Changed("color") {
+
+	// no_color resolution order: explicit --color/--no-color flag, then the
+	// NO_COLOR environment variable, then the local default, then TTY detection
+	// (handled downstream by fatih/color when flagNoColor stays false).
+	switch {
+	case c.Flags().Changed("color"):
 		flagNoColor = false
+	case c.Flags().Changed("no-color"):
+		flagNoColor = true
+	case os.Getenv("NO_COLOR") != "":
+		flagNoColor = true
+	default:
+		if v, ok := defaults["no_color"]; ok {
+			flagNoColor = v
+		}
 	}
 }

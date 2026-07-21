@@ -66,3 +66,22 @@ func TestApplyFlagDefaults_NegatingFlagOverridesDefault(t *testing.T) {
 	applyFlagDefaults(c)
 	assert.False(t, flagCompact, "--no-compact turns off a compact default")
 }
+
+func TestApplyFlagDefaults_NoColorOrder(t *testing.T) {
+	root := writeLocalDefaults(t, `{"defaults":{"no_color":false}}`)
+	t.Chdir(root)
+	defer func() { flagNoColor = false }()
+	t.Setenv("NO_COLOR", "1")
+
+	// NO_COLOR env wins over a local no_color=false default.
+	flagNoColor = false
+	applyFlagDefaults(flagCmd())
+	assert.True(t, flagNoColor, "NO_COLOR env wins over the local default")
+
+	// An explicit --color flag wins over NO_COLOR env.
+	flagNoColor = false
+	c := flagCmd()
+	require.NoError(t, c.Flags().Set("color", "true"))
+	applyFlagDefaults(c)
+	assert.False(t, flagNoColor, "--color wins over NO_COLOR env")
+}

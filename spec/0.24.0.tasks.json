@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.24.0.md",
   "created_at": "2026-07-21T09:33:07.313Z",
-  "updated_at": "2026-07-21T11:28:58.752143Z",
+  "updated_at": "2026-07-21T11:30:45.406511Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "review_clean_rounds": 2,
@@ -535,7 +535,7 @@
     {
       "id": "cfg-flag-negating",
       "title": "Add negating global flags",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "cfg-flag-defaults-apply"
       ],
@@ -544,11 +544,11 @@
       "source_sections": [
         "## 8. Global flag defaults"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-21T11:30:43.363112Z",
+      "closed_at": "2026-07-21T11:30:45.406511Z",
+      "closed_reason": "- root.go adds the negating flags --no-compact, --no-quiet, and --color so any boolean default is overridable in both directions from a single invocation\n- applyFlagDefaults applies a negating flag to force the value off over a default, and an explicit CLI flag always wins\n- Passing a flag and its negation together is a usage error with exit 2 (verified: --compact --no-compact exits 2); TestApplyFlagDefaults_NegatingFlagOverridesDefault covers the negation",
+      "gate_passed_at": "2026-07-21T11:30:45.406511Z",
+      "commit_sha": "023a3cb"
     },
     {
       "id": "cfg-flag-nocolor",
