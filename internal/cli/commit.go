@@ -117,7 +117,7 @@ func runCommit(_ *cobra.Command, args []string) error {
 		}
 
 		// Record SHA on task
-		task.CommitSHA = &sha
+		task.SetCommitSHAs([]string{sha})
 
 		if err := model.WriteTaskFile(taskFilePath, tf); err != nil {
 			output.Error(ExitFile, err.Error())
