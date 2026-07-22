@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.28.0.md",
   "created_at": "2026-07-22T21:11:59.573923Z",
-  "updated_at": "2026-07-22T21:36:26.214189Z",
+  "updated_at": "2026-07-22T21:37:38.540656Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -122,18 +122,18 @@
     {
       "id": "phase-detect",
       "title": "Detect lifecycle phase task first",
-      "status": "open",
+      "status": "done",
       "depends_on": [],
       "estimate_minutes": 9,
       "acceptance": "Phase detection returns implement, audit, release, decompose, or review by the task-first ordering. An open task yields implement even when the spec is stale. Zero tasks with a converged review yields decompose else review.",
       "source_sections": [
         "## 4. `tp resume` — the phase-agnostic resume oracle"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-22T21:37:38.540633Z",
+      "closed_at": "2026-07-22T21:37:38.540656Z",
+      "closed_reason": "- DetectPhase returns implement/audit/release/decompose/review by task-first ordering (internal/engine/phase.go)\n- an open task (numDone\u003cnumTasks) yields implement regardless of staleness, which only affects blockers\n- zero tasks with reviewConverged yields decompose, else review",
+      "gate_passed_at": "2026-07-22T21:37:38.540656Z",
+      "commit_sha": "7af496e"
     },
     {
       "id": "resume-blockers",
