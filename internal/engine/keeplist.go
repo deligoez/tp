@@ -7,23 +7,15 @@ import (
 	"github.com/deligoez/tp/internal/model"
 )
 
-// repoRoot returns the base that keep-list paths and git status output are made
-// relative to: the git top-level when start is inside a repository, else the
-// project root (the .tp discovery anchor). Keeping both in the same base is what
-// lets a stored keep pattern match a git status path (§7.1).
-func repoRoot(start string) string {
-	if top := gitToplevel(start); top != "" {
-		return top
-	}
-	return ProjectRoot(start)
-}
-
 // NormalizeKeepPath converts a user-supplied path — relative to start's working
-// directory, or absolute — to a clean, slash-separated repo-root-relative path,
-// the same base tp resume compares git status output against (§7.1). Glob
-// metacharacters (* ? [ ]) pass through unchanged, so a pattern given from a
-// subdirectory is stored with that subdirectory prefixed. An error is returned
-// only when the working directory or the relative path cannot be resolved.
+// directory, or absolute — to a clean, slash-separated repo-root-relative path.
+// The base is ProjectRoot, computed with Go filepath just like the absolute path
+// itself, so the two share one symlink treatment and the result matches git
+// status's own repo-root-relative output that tp resume classifies against
+// (§7.1). Glob metacharacters (* ? [ ]) pass through unchanged, so a pattern
+// given from a subdirectory is stored with that subdirectory prefixed. An error
+// is returned only when the working directory or the relative path cannot be
+// resolved.
 func NormalizeKeepPath(start, path string) (string, error) {
 	abs := path
 	if !filepath.IsAbs(abs) {
@@ -33,7 +25,7 @@ func NormalizeKeepPath(start, path string) (string, error) {
 		}
 		abs = filepath.Join(wd, path)
 	}
-	rel, err := filepath.Rel(repoRoot(start), abs)
+	rel, err := filepath.Rel(ProjectRoot(start), abs)
 	if err != nil {
 		return "", err
 	}
