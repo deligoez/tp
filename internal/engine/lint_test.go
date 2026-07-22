@@ -286,3 +286,38 @@ func TestCheckDuplicateParagraphs(t *testing.T) {
 		})
 	}
 }
+
+func linesAndHeadings(t *testing.T, md string) ([]string, []*Heading) {
+	t.Helper()
+	lines := strings.Split(strings.TrimRight(md, "\n"), "\n")
+	return lines, headingsFromMarkdown(t, md)
+}
+
+func TestCheckBrokenCrossRefs(t *testing.T) {
+	tests := []struct {
+		name     string
+		markdown string
+		count    int
+	}{
+		{"broken ref exceeds steps", "# S\n\n## 3.2 Proc\n\n1. one\n2. two\n3. three\n\n## 4. Use\n\nSee §3.2 step 10 here.\n", 1},
+		{"valid ref within steps", "# S\n\n## 3.2 Proc\n\n1. one\n2. two\n3. three\n\n## 4. Use\n\nSee §3.2 step 3 here.\n", 0},
+		{"step-of form broken", "# S\n\n## 3.2 Proc\n\n1. one\n2. two\n\n## 4. Use\n\nSee step 5 of §3.2 here.\n", 1},
+		{"step-of form valid", "# S\n\n## 3.2 Proc\n\n1. one\n2. two\n\n## 4. Use\n\nSee step 2 of §3.2 here.\n", 0},
+		{"section without numbered list not reported", "# S\n\n## 3.2 Proc\n\nJust prose, no list.\n\n## 4. Use\n\nSee §3.2 step 5 here.\n", 0},
+		{"unknown section not reported", "# S\n\n## 3.2 Proc\n\n1. one\n2. two\n\n## 4. Use\n\nSee §9.9 step 3 here.\n", 0},
+		{"repeated markdown numbering counts", "# S\n\n## 3.2 Proc\n\n1. one\n1. two\n1. three\n\n## 4. Use\n\nSee §3.2 step 4 here.\n", 1},
+		{"ref inside code block ignored", "# S\n\n## 3.2 Proc\n\n1. one\n2. two\n\n## 4. Use\n\n```\n§3.2 step 9\n```\n", 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lines, headings := linesAndHeadings(t, tt.markdown)
+			findings := CheckBrokenCrossRefs(lines, headings)
+			assert.Equal(t, tt.count, len(findings))
+			for _, f := range findings {
+				assert.Equal(t, "broken-cross-ref", f.Rule)
+				assert.Equal(t, "warning", f.Severity)
+			}
+		})
+	}
+}
