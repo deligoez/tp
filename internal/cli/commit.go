@@ -41,6 +41,12 @@ func runCommit(_ *cobra.Command, args []string) error {
 		return nil
 	}
 
+	if resolveEffectiveStrategy(taskFilePath) == engine.CommitStrategyHC {
+		output.Error(ExitUsage, "tp commit is not valid under commit_strategy hc", hcCommitHint)
+		os.Exit(ExitUsage)
+		return nil
+	}
+
 	return engine.WithFileLock(taskFilePath, func() error {
 		tf, err := model.ReadTaskFile(taskFilePath)
 		if err != nil {
