@@ -235,7 +235,7 @@ skills/tp/
 - Every improvement should be evaluated: does this reduce token overhead or agent friction?
 
 ### Deferred Ideas (evaluate when agent feedback warrants)
-- **Full audit NDJSON parser** (`tp audit --merge`): schema validation + dedup of audit rows. v0.23.0 `--record` only counts non-PASS rows; the full parser is deferred.
+- ✅ **Full audit NDJSON parser** (`tp audit --merge`) — **shipped.** Merges + dedups per-role audit-result files (by `role`+`item_id`) with a status/role breakdown, mirroring `tp review --merge`; `--record` still counts non-PASS rows for convergence.
 - **Broken cross-reference lint**: detect `§3.2 step 10` when section 3.2 has only 9 steps. High false positive risk — needs careful format detection. Revisit if agents report wasted review rounds on broken cross-refs.
 - **Duplicate paragraph lint**: detect two consecutive identical paragraphs (blank-line separated). Currently `duplicate-line` catches line-level duplicates; paragraph-level needs paragraph boundary detection. Revisit if line-level check proves insufficient.
 - ✅ **Project-level workflow config** (`.tp/config.json`) — **shipped in v0.24.0.** Repo-root `.tp/config.json` holds workflow **defaults** (committed); each `<base>.tasks.json` `workflow` block holds only explicit **overrides**; effective values **resolve at read time** (CLI > env > task override > project config > built-in). `.tp/local.json` (git-ignored) holds the `active` pointer + CLI flag `defaults`. Commands: `tp config [--resolved|--extract]`, `tp set --workflow --project`, `tp set --local`, `tp validate --project`. See README / SKILL.md / REFERENCE.md "Project Configuration".

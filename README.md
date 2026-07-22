@@ -146,6 +146,7 @@ tp audit spec.md               # Post-implementation: 3 role prompts, verify cod
 tp audit spec.md --affected-files src/a.go  # Manual file selection
 tp audit spec.md --findings review.ndjson  # Also verify review findings
 tp audit spec.md --record results.ndjson   # Record an audit round (non-PASS = finding)
+tp audit --merge r1.ndjson r2.ndjson -o results.ndjson  # Merge + dedup per-role audit results
 tp audit spec.md --status --check          # Audit convergence; exit 0 when converged
 tp validate                    # Task file + section/line coverage + atomicity (--strict)
 ```
