@@ -40,7 +40,11 @@ func runTP(t *testing.T, dir string, args ...string) (stdout, stderr string, exi
 	fullArgs := append([]string{"--json"}, args...)
 	cmd := exec.Command(binaryPath, fullArgs...)
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "NO_COLOR=1")
+	// TP_HC=0 forces auto commit_strategy to resolve to builtin, so tests that
+	// exercise tp commit / bare tp done / tp close / --auto-commit are
+	// deterministic regardless of whether hc is installed on the host (§5.2).
+	// A test needing effective hc sets commit_strategy=hc explicitly.
+	cmd.Env = append(os.Environ(), "NO_COLOR=1", "TP_HC=0")
 
 	var stderrBuf bytes.Buffer
 	cmd.Stderr = &stderrBuf
