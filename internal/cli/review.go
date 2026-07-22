@@ -312,6 +312,122 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 		return runReviewRegression(specPath, diffFrom, findingsPath)
 	}
 
+	affectedFiles = validateReviewInputs(perspective, round, findingsPath, affectedFiles, docsPath, testPath, finalRound, diffFrom, specPath)
+
+	specContent := resolveReviewSpecContent(specPath, diffFrom, specInline)
+
+	switch perspective {
+	case "code-audit":
+		return runReviewCodeAudit(specPath, specContent, affectedFiles, round)
+	case "documentation":
+		return runReviewDocPlan(specPath, specContent, docsPath, affectedFiles)
+	case "testing":
+		return runReviewTestPlan(specPath, specContent, testPath, affectedFiles)
+	}
+
+	if round < 1 {
+		output.Error(ExitUsage, "round must be >= 1")
+		os.Exit(ExitUsage)
+		return nil
+	}
+
+	if findingsPath != "" {
+		if _, err := os.Stat(findingsPath); os.IsNotExist(err) {
+			output.Error(ExitUsage, fmt.Sprintf("findings file not found: %s", findingsPath))
+			os.Exit(ExitUsage)
+			return nil
+		}
+	}
+
+	// State-backed round lifecycle (default three-role mode): tp numbers the
+	// round, snapshots the spec, and injects previous findings automatically.
+	statePrevFindings := make([]reviewFinding, 0)
+	var stateRequired, stateConsecutive *int
+	var stateConverged, stateStale *bool
+	var reviewSt *engine.ReviewState
+	if !noState {
+		rs := loadReviewRoundState(cmd, specPath, round, findingsPath)
+		round, reviewSt = rs.round, rs.st
+		stateRequired, stateConsecutive, stateConverged, stateStale = rs.required, rs.consecutive, rs.converged, rs.stale
+		statePrevFindings = rs.prevFindings
+	}
+
+	if round > 1 && findingsPath == "" && noState {
+		output.Info(fmt.Sprintf("round %d without --findings: prompts will not exclude previously reported issues", round))
+	}
+
+	lines, headings, err := parseSpecFile(specPath)
+	if err != nil {
+		output.Error(ExitFile, err.Error())
+		os.Exit(ExitFile)
+		return nil
+	}
+
+	_, elems := engine.CheckStructuredElements(lines, headings)
+
+	findings := statePrevFindings
+	if findingsPath != "" {
+		findings = parseFindingsFile(findingsPath)
+	}
+
+	summary := buildFindingsSummary(findings)
+
+	var affectedSection string
+	var affectedContent map[string]string
+	if len(affectedFiles) > 0 {
+		affectedContent = engine.ReadAffectedFilesBudgetAware(affectedFiles, summary, specContent)
+		affectedSection = engine.BuildAffectedSection(affectedContent)
+	}
+
+	// Mechanical checks: workflow-derived (not state-derived), run before
+	// prompt generation even under --no-state; failures never abort generation
+	wfChecks, checksTaskFile := engine.ResolveWorkflow(specPath, flagFile)
+	var mechChecks []map[string]any
+	if len(wfChecks.Checks) > 0 {
+		mechChecks, _ = runMechanicalChecks(&wfChecks, checksTaskFile)
+	}
+
+	prompts, regressionIncluded := buildReviewPrompts(specPath, elems, specContent, round, summary, affectedSection, finalRound, &wfChecks, diffFrom, noState, reviewSt)
+
+	uniqueCount := len(dedupFindings(findings))
+	convergence, instruction := buildReviewLoopInstruction(round, findings, findingsPath, specPath, specInline, noState, stateRequired, regressionIncluded, len(wfChecks.Checks) > 0)
+
+	result := reviewResult{
+		Spec:               specPath,
+		StructuredElements: elems,
+		MechanicalChecks:   mechChecks,
+		Prompts:            prompts,
+		ReviewLoop: reviewLoop{
+			Round:               round,
+			Convergence:         convergence,
+			PreviousFindings:    uniqueCount,
+			RequiredCleanRounds: stateRequired,
+			ConsecutiveClean:    stateConsecutive,
+			Converged:           stateConverged,
+			Stale:               stateStale,
+			Instruction:         instruction,
+		},
+	}
+
+	if !specInline {
+		absPath, _ := filepath.Abs(specPath)
+		result.SpecRef = true
+		result.SpecPath = absPath
+	}
+
+	if len(affectedFiles) > 0 {
+		result.AffectedFiles = affectedFiles
+		result.AffectedSummary = engine.BuildAffectedSummary(affectedFiles, affectedContent)
+	}
+
+	return output.JSON(result)
+}
+
+// validateReviewInputs validates the non-perspective-dispatch flags for the
+// default review path (mutual exclusion, round budget, docs/test paths,
+// final-round, diff baseline, affected files) and returns the deduplicated
+// affected-file list. It os.Exit()s with a usage or file error on any failure.
+func validateReviewInputs(perspective string, round int, findingsPath string, affectedFiles []string, docsPath, testPath string, finalRound bool, diffFrom, specPath string) []string {
 	if perspective != "" && perspective != "code-audit" && (round != 1 || findingsPath != "") {
 		output.Error(ExitUsage, "--perspective is mutually exclusive with --round/--findings (except code-audit)")
 		os.Exit(ExitUsage)
@@ -404,246 +520,7 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 			return nil
 		}
 	}
-
-	// Build spec content based on mode: spec-ref (default), diff-based, or inline
-	var specContent string
-	var diffResult *engine.DiffResult
-	switch {
-	case diffFrom != "":
-		baseData, err := os.ReadFile(diffFrom)
-		if err != nil {
-			output.Error(ExitFile, fmt.Sprintf("cannot read diff baseline: %s", diffFrom))
-			os.Exit(ExitFile)
-			return nil
-		}
-		currData, err := os.ReadFile(specPath)
-		if err != nil {
-			output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath))
-			os.Exit(ExitFile)
-			return nil
-		}
-		dr := engine.DiffSections(engine.BlankFrontmatterLines(strings.Split(string(baseData), "\n")), engine.BlankFrontmatterLines(strings.Split(string(currData), "\n")))
-		diffResult = &dr
-		specContent = buildDiffSpecContent(diffResult)
-		if len(diffResult.Changed) == 0 && len(diffResult.Removed) == 0 {
-			output.Info("no changes detected between baseline and current spec — review may be unnecessary")
-		}
-	case specInline:
-		specContent = readSpecContent(specPath)
-	default:
-		// Default: reference mode (spec-ref) — omit inline content
-		specData, err := os.ReadFile(specPath)
-		if err != nil {
-			output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath))
-			os.Exit(ExitFile)
-			return nil
-		}
-		lineCount := strings.Count(string(specData), "\n") + 1
-		absPath, _ := filepath.Abs(specPath)
-		headings, _ := engine.ParseHeadings(specPath)
-		specContent = buildSpecRefContent(absPath, lineCount, headings)
-	}
-
-	switch perspective {
-	case "code-audit":
-		return runReviewCodeAudit(specPath, specContent, affectedFiles, round)
-	case "documentation":
-		return runReviewDocPlan(specPath, specContent, docsPath, affectedFiles)
-	case "testing":
-		return runReviewTestPlan(specPath, specContent, testPath, affectedFiles)
-	}
-
-	if round < 1 {
-		output.Error(ExitUsage, "round must be >= 1")
-		os.Exit(ExitUsage)
-		return nil
-	}
-
-	if findingsPath != "" {
-		if _, err := os.Stat(findingsPath); os.IsNotExist(err) {
-			output.Error(ExitUsage, fmt.Sprintf("findings file not found: %s", findingsPath))
-			os.Exit(ExitUsage)
-			return nil
-		}
-	}
-
-	// State-backed round lifecycle (default three-role mode): tp numbers the
-	// round, snapshots the spec, and injects previous findings automatically.
-	statePrevFindings := make([]reviewFinding, 0)
-	var stateRequired, stateConsecutive *int
-	var stateConverged, stateStale *bool
-	var reviewSt *engine.ReviewState
-	if !noState {
-		st, stErr := engine.LoadReviewState(specPath)
-		if stErr != nil {
-			exitStateError(stErr)
-			return nil
-		}
-		reviewSt = st
-		recorded := 0
-		if st != nil {
-			recorded = len(st.ReviewRounds)
-		}
-		stateRound := recorded + 1
-		if cmd.Flags().Changed("round") && round != stateRound {
-			output.Error(ExitUsage, fmt.Sprintf("--round %d conflicts with the state-derived round %d", round, stateRound), "drop --round, or use --no-state for manual round numbering")
-			os.Exit(ExitUsage)
-			return nil
-		}
-		round = stateRound
-
-		if _, err := engine.EnsureReviewState(specPath); err != nil {
-			exitStateError(err)
-			return nil
-		}
-		specBytes, readErr := os.ReadFile(specPath)
-		if readErr != nil {
-			output.Error(ExitFile, fmt.Sprintf("cannot read spec: %v", readErr))
-			os.Exit(ExitFile)
-			return nil
-		}
-		snapshotPath := filepath.Join(engine.ReviewStateDir(specPath), fmt.Sprintf("snapshot-round-%d.md", stateRound))
-		if writeErr := os.WriteFile(snapshotPath, specBytes, 0o600); writeErr != nil {
-			output.Error(ExitFile, fmt.Sprintf("cannot write snapshot: %v", writeErr))
-			os.Exit(ExitFile)
-			return nil
-		}
-
-		// State-derived review_loop fields
-		wfState, _ := engine.ResolveWorkflow(specPath, flagFile)
-		if specHash, hashErr := engine.SpecHash(specPath); hashErr == nil {
-			rounds := []engine.ReviewRound{}
-			if st != nil {
-				rounds = st.ReviewRounds
-			}
-			req := wfState.ReviewCleanRounds
-			cc := engine.ConsecutiveClean(rounds)
-			conv := engine.Converged(rounds, req, specHash)
-			stale := engine.StateStale(rounds, specHash)
-			stateRequired, stateConsecutive, stateConverged, stateStale = &req, &cc, &conv, &stale
-		}
-
-		// Previous findings from rounds 1..R-1 unless --findings overrides
-		if findingsPath == "" && st != nil {
-			for i := range st.ReviewRounds {
-				r := st.ReviewRounds[i]
-				rows, found := engine.LoadRoundRows(specPath, &r)
-				if !found {
-					output.Info(fmt.Sprintf("round %d file %s is missing; skipping its rows", r.Round, r.File))
-					continue
-				}
-				for _, row := range rows {
-					statePrevFindings = append(statePrevFindings, findingFromRow(row))
-				}
-			}
-			statePrevFindings = dedupFindings(statePrevFindings)
-		}
-	}
-
-	if round > 1 && findingsPath == "" && noState {
-		output.Info(fmt.Sprintf("round %d without --findings: prompts will not exclude previously reported issues", round))
-	}
-
-	lines, headings, err := parseSpecFile(specPath)
-	if err != nil {
-		output.Error(ExitFile, err.Error())
-		os.Exit(ExitFile)
-		return nil
-	}
-
-	_, elems := engine.CheckStructuredElements(lines, headings)
-
-	findings := statePrevFindings
-	if findingsPath != "" {
-		findings = parseFindingsFile(findingsPath)
-	}
-
-	summary := buildFindingsSummary(findings)
-
-	var affectedSection string
-	var affectedContent map[string]string
-	if len(affectedFiles) > 0 {
-		affectedContent = engine.ReadAffectedFilesBudgetAware(affectedFiles, summary, specContent)
-		affectedSection = engine.BuildAffectedSection(affectedContent)
-	}
-
-	// Mechanical checks: workflow-derived (not state-derived), run before
-	// prompt generation even under --no-state; failures never abort generation
-	wfChecks, checksTaskFile := engine.ResolveWorkflow(specPath, flagFile)
-	var mechChecks []map[string]any
-	if len(wfChecks.Checks) > 0 {
-		mechChecks, _ = runMechanicalChecks(&wfChecks, checksTaskFile)
-	}
-
-	prompts, regressionIncluded := buildReviewPrompts(specPath, elems, specContent, round, summary, affectedSection, finalRound, &wfChecks, diffFrom, noState, reviewSt)
-
-	uniqueCount := len(dedupFindings(findings))
-	instruction := "For each prompt, spawn a sub-agent via the Agent tool. Collect JSON findings. If any critical/high severity, revise spec and re-run `tp review`. Stop after 2 rounds or when no new high-severity findings."
-	if round < 2 && len(findings) > 0 {
-		instruction = fmt.Sprintf("For each prompt, spawn a sub-agent via the Agent tool. Collect JSON findings. If any critical/high severity, revise spec and re-run `tp review --round 2 --findings <%s>`. Stop after 2 rounds or when no new high-severity findings.", findingsPath)
-	} else if round >= 2 {
-		instruction = fmt.Sprintf("Spawn sub-agents for each prompt. Collect findings. If any critical/high severity, revise spec and re-run `tp review --round %d --findings <combined.ndjson>`. Stop after max_rounds or when no new high-severity findings.", round+1)
-	}
-
-	if !specInline {
-		absPath, _ := filepath.Abs(specPath)
-		instruction += " Read the spec at " + absPath + " before processing each prompt."
-	}
-
-	convergence := "no new high-severity findings"
-	if noState {
-		convergence += " (convergence is not being recorded: --no-state)"
-		instruction += " Convergence is not being recorded (--no-state)."
-	} else {
-		required := 2
-		if stateRequired != nil {
-			required = *stateRequired
-		}
-		convergence = fmt.Sprintf("no findings surviving verification (any severity) in %d consecutive rounds", required)
-		instruction = fmt.Sprintf("For each prompt, spawn a sub-agent via the Agent tool. Merge findings (tp review --merge), verify and resolve them, then record the round: tp review %s --record <findings.ndjson>. Repeat until tp review %s --status --check exits 0.", specPath, specPath)
-		if !specInline {
-			absPath, _ := filepath.Abs(specPath)
-			instruction += " Read the spec at " + absPath + " before processing each prompt."
-		}
-	}
-
-	if regressionIncluded {
-		instruction += " Process the regression prompt first and apply its findings before or together with the three role prompts." +
-			" Between counted rounds, you may run tp review " + specPath + " --perspective regression alone as an uncounted delta pass."
-	}
-	if len(wfChecks.Checks) > 0 {
-		instruction += " If any mechanical check failed, fix those failures before spawning sub-agents."
-	}
-
-	result := reviewResult{
-		Spec:               specPath,
-		StructuredElements: elems,
-		MechanicalChecks:   mechChecks,
-		Prompts:            prompts,
-		ReviewLoop: reviewLoop{
-			Round:               round,
-			Convergence:         convergence,
-			PreviousFindings:    uniqueCount,
-			RequiredCleanRounds: stateRequired,
-			ConsecutiveClean:    stateConsecutive,
-			Converged:           stateConverged,
-			Stale:               stateStale,
-			Instruction:         instruction,
-		},
-	}
-
-	if !specInline {
-		absPath, _ := filepath.Abs(specPath)
-		result.SpecRef = true
-		result.SpecPath = absPath
-	}
-
-	if len(affectedFiles) > 0 {
-		result.AffectedFiles = affectedFiles
-		result.AffectedSummary = engine.BuildAffectedSummary(affectedFiles, affectedContent)
-	}
-
-	return output.JSON(result)
+	return affectedFiles
 }
 
 const findingFormat = `
@@ -1572,4 +1449,173 @@ func readSpecContent(path string) string {
 		content = content[:specContentCap] + fmt.Sprintf("\n[...truncated at %d chars]", specContentCap)
 	}
 	return content
+}
+
+// resolveReviewSpecContent builds the spec-content block for a review prompt in
+// the selected mode: diff-based (--diff-from), inline (--spec-inline), or the
+// default reference mode. It os.Exit()s with a file error on a read failure.
+func resolveReviewSpecContent(specPath, diffFrom string, specInline bool) string {
+	switch {
+	case diffFrom != "":
+		baseData, err := os.ReadFile(diffFrom)
+		if err != nil {
+			output.Error(ExitFile, fmt.Sprintf("cannot read diff baseline: %s", diffFrom))
+			os.Exit(ExitFile)
+			return ""
+		}
+		currData, err := os.ReadFile(specPath)
+		if err != nil {
+			output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath))
+			os.Exit(ExitFile)
+			return ""
+		}
+		dr := engine.DiffSections(engine.BlankFrontmatterLines(strings.Split(string(baseData), "\n")), engine.BlankFrontmatterLines(strings.Split(string(currData), "\n")))
+		content := buildDiffSpecContent(&dr)
+		if len(dr.Changed) == 0 && len(dr.Removed) == 0 {
+			output.Info("no changes detected between baseline and current spec — review may be unnecessary")
+		}
+		return content
+	case specInline:
+		return readSpecContent(specPath)
+	default:
+		// Default: reference mode (spec-ref) — omit inline content
+		specData, err := os.ReadFile(specPath)
+		if err != nil {
+			output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath))
+			os.Exit(ExitFile)
+			return ""
+		}
+		lineCount := strings.Count(string(specData), "\n") + 1
+		absPath, _ := filepath.Abs(specPath)
+		headings, _ := engine.ParseHeadings(specPath)
+		return buildSpecRefContent(absPath, lineCount, headings)
+	}
+}
+
+// reviewRoundState bundles the outputs of the state-backed round lifecycle.
+type reviewRoundState struct {
+	round        int
+	st           *engine.ReviewState
+	required     *int
+	consecutive  *int
+	converged    *bool
+	stale        *bool
+	prevFindings []reviewFinding
+}
+
+// loadReviewRoundState runs the state-backed round lifecycle for the default
+// review path: it derives the round number from recorded state, snapshots the
+// spec, computes the review_loop convergence fields, and gathers previous
+// findings from rounds 1..R-1. It os.Exit()s on a state or IO error.
+func loadReviewRoundState(cmd *cobra.Command, specPath string, round int, findingsPath string) reviewRoundState {
+	statePrevFindings := make([]reviewFinding, 0)
+	st, stErr := engine.LoadReviewState(specPath)
+	if stErr != nil {
+		exitStateError(stErr)
+		return reviewRoundState{}
+	}
+	recorded := 0
+	if st != nil {
+		recorded = len(st.ReviewRounds)
+	}
+	stateRound := recorded + 1
+	if cmd.Flags().Changed("round") && round != stateRound {
+		output.Error(ExitUsage, fmt.Sprintf("--round %d conflicts with the state-derived round %d", round, stateRound), "drop --round, or use --no-state for manual round numbering")
+		os.Exit(ExitUsage)
+		return reviewRoundState{}
+	}
+	round = stateRound
+
+	if _, err := engine.EnsureReviewState(specPath); err != nil {
+		exitStateError(err)
+		return reviewRoundState{}
+	}
+	specBytes, readErr := os.ReadFile(specPath)
+	if readErr != nil {
+		output.Error(ExitFile, fmt.Sprintf("cannot read spec: %v", readErr))
+		os.Exit(ExitFile)
+		return reviewRoundState{}
+	}
+	snapshotPath := filepath.Join(engine.ReviewStateDir(specPath), fmt.Sprintf("snapshot-round-%d.md", stateRound))
+	if writeErr := os.WriteFile(snapshotPath, specBytes, 0o600); writeErr != nil {
+		output.Error(ExitFile, fmt.Sprintf("cannot write snapshot: %v", writeErr))
+		os.Exit(ExitFile)
+		return reviewRoundState{}
+	}
+
+	rs := reviewRoundState{round: round, st: st, prevFindings: statePrevFindings}
+	// State-derived review_loop fields
+	wfState, _ := engine.ResolveWorkflow(specPath, flagFile)
+	if specHash, hashErr := engine.SpecHash(specPath); hashErr == nil {
+		rounds := []engine.ReviewRound{}
+		if st != nil {
+			rounds = st.ReviewRounds
+		}
+		req := wfState.ReviewCleanRounds
+		cc := engine.ConsecutiveClean(rounds)
+		conv := engine.Converged(rounds, req, specHash)
+		stale := engine.StateStale(rounds, specHash)
+		rs.required, rs.consecutive, rs.converged, rs.stale = &req, &cc, &conv, &stale
+	}
+
+	// Previous findings from rounds 1..R-1 unless --findings overrides
+	if findingsPath == "" && st != nil {
+		for i := range st.ReviewRounds {
+			r := st.ReviewRounds[i]
+			rows, found := engine.LoadRoundRows(specPath, &r)
+			if !found {
+				output.Info(fmt.Sprintf("round %d file %s is missing; skipping its rows", r.Round, r.File))
+				continue
+			}
+			for _, row := range rows {
+				statePrevFindings = append(statePrevFindings, findingFromRow(row))
+			}
+		}
+		rs.prevFindings = dedupFindings(statePrevFindings)
+	}
+	return rs
+}
+
+// buildReviewLoopInstruction builds the review_loop convergence description and
+// the agent instruction for the default review path, adapting to the round
+// number, --no-state mode, an included regression prompt, and registered
+// mechanical checks.
+func buildReviewLoopInstruction(round int, findings []reviewFinding, findingsPath, specPath string, specInline, noState bool, stateRequired *int, regressionIncluded, hasChecks bool) (convergence, instruction string) {
+	instruction = "For each prompt, spawn a sub-agent via the Agent tool. Collect JSON findings. If any critical/high severity, revise spec and re-run `tp review`. Stop after 2 rounds or when no new high-severity findings."
+	if round < 2 && len(findings) > 0 {
+		instruction = fmt.Sprintf("For each prompt, spawn a sub-agent via the Agent tool. Collect JSON findings. If any critical/high severity, revise spec and re-run `tp review --round 2 --findings <%s>`. Stop after 2 rounds or when no new high-severity findings.", findingsPath)
+	} else if round >= 2 {
+		instruction = fmt.Sprintf("Spawn sub-agents for each prompt. Collect findings. If any critical/high severity, revise spec and re-run `tp review --round %d --findings <combined.ndjson>`. Stop after max_rounds or when no new high-severity findings.", round+1)
+	}
+
+	if !specInline {
+		absPath, _ := filepath.Abs(specPath)
+		instruction += " Read the spec at " + absPath + " before processing each prompt."
+	}
+
+	convergence = "no new high-severity findings"
+	if noState {
+		convergence += " (convergence is not being recorded: --no-state)"
+		instruction += " Convergence is not being recorded (--no-state)."
+	} else {
+		required := 2
+		if stateRequired != nil {
+			required = *stateRequired
+		}
+		convergence = fmt.Sprintf("no findings surviving verification (any severity) in %d consecutive rounds", required)
+		instruction = fmt.Sprintf("For each prompt, spawn a sub-agent via the Agent tool. Merge findings (tp review --merge), verify and resolve them, then record the round: tp review %s --record <findings.ndjson>. Repeat until tp review %s --status --check exits 0.", specPath, specPath)
+		if !specInline {
+			absPath, _ := filepath.Abs(specPath)
+			instruction += " Read the spec at " + absPath + " before processing each prompt."
+		}
+	}
+
+	if regressionIncluded {
+		instruction += " Process the regression prompt first and apply its findings before or together with the three role prompts." +
+			" Between counted rounds, you may run tp review " + specPath + " --perspective regression alone as an uncounted delta pass."
+	}
+	if hasChecks {
+		instruction += " If any mechanical check failed, fix those failures before spawning sub-agents."
+	}
+	return convergence, instruction
 }
