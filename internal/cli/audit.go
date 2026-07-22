@@ -75,6 +75,8 @@ func newAuditCmd() *cobra.Command {
 	var recordPath string
 	var statusMode bool
 	var checkFlag bool
+	var mergeMode bool
+	var outputPath string
 
 	cmd := &cobra.Command{
 		Use:   "audit <spec.md>",
@@ -84,9 +86,17 @@ and generates adversarial prompts that verify each requirement against actual co
 
 Auto-detects changed files via git diff (omit --affected-files for zero-config).
 Use --findings to also verify review findings were addressed.`,
-		Args:              cobra.ExactArgs(1),
+		Args:              cobra.ArbitraryArgs,
 		DisableAutoGenTag: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if mergeMode {
+				if recordPath != "" || statusMode || len(affectedFiles) > 0 || findingsPath != "" || base != "" {
+					output.Error(ExitUsage, "--merge cannot be combined with --record/--status/--affected-files/--findings/--base")
+					os.Exit(ExitUsage)
+					return nil
+				}
+				return runAuditMerge(args, outputPath)
+			}
 			if recordPath != "" && statusMode {
 				output.Error(ExitUsage, "--record and --status are mutually exclusive")
 				os.Exit(ExitUsage)
@@ -99,6 +109,11 @@ Use --findings to also verify review findings were addressed.`,
 			}
 			if (recordPath != "" || statusMode) && (len(affectedFiles) > 0 || findingsPath != "") {
 				output.Error(ExitUsage, "--record/--status reject --affected-files and --findings")
+				os.Exit(ExitUsage)
+				return nil
+			}
+			if len(args) != 1 {
+				output.Error(ExitUsage, "spec path required")
 				os.Exit(ExitUsage)
 				return nil
 			}
@@ -118,6 +133,8 @@ Use --findings to also verify review findings were addressed.`,
 	cmd.Flags().StringVar(&recordPath, "record", "", "Record an audit round from an NDJSON results file")
 	cmd.Flags().BoolVar(&statusMode, "status", false, "Show recorded audit rounds and convergence state")
 	cmd.Flags().BoolVar(&checkFlag, "check", false, "With --status: exit 0 only when audit is converged")
+	cmd.Flags().BoolVar(&mergeMode, "merge", false, "Merge and deduplicate audit-result NDJSON files")
+	cmd.Flags().StringVarP(&outputPath, "output", "o", "", "Output file path (for --merge)")
 
 	return cmd
 }
