@@ -59,7 +59,7 @@ Detailed command reference, field formats, and operational details. For workflow
 ### Spec & Validation
 | Command | Purpose |
 |---------|---------|
-| `tp lint spec.md` | Spec quality + structured elements + duplicate lines + numbering gaps + orphan list items |
+| `tp lint spec.md` | Spec quality + structured elements + duplicate lines/paragraphs + numbering gaps + orphan list items + broken cross-refs |
 | `tp review spec.md` | Adversarial review prompts (3 personas) |
 | `tp review spec.md --perspective code-audit --affected-files src/a.go` | Code audit with source file injection |
 | `tp review spec.md --round N --findings file.ndjson` | Multi-round with previous findings exclusion |

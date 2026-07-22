@@ -236,8 +236,8 @@ skills/tp/
 
 ### Deferred Ideas (evaluate when agent feedback warrants)
 - ✅ **Full audit NDJSON parser** (`tp audit --merge`) — **shipped.** Merges + dedups per-role audit-result files (by `role`+`item_id`) with a status/role breakdown, mirroring `tp review --merge`; `--record` still counts non-PASS rows for convergence.
-- **Broken cross-reference lint**: detect `§3.2 step 10` when section 3.2 has only 9 steps. High false positive risk — needs careful format detection. Revisit if agents report wasted review rounds on broken cross-refs.
-- **Duplicate paragraph lint**: detect two consecutive identical paragraphs (blank-line separated). Currently `duplicate-line` catches line-level duplicates; paragraph-level needs paragraph boundary detection. Revisit if line-level check proves insufficient.
+- ✅ **Broken cross-reference lint** (`broken-cross-ref`) — **shipped.** Flags `§X.Y step N` when section X.Y has fewer than N numbered steps. Kept conservative to hold the false-positive rate down: fires only when the section is a heading whose content holds a numbered list and N exceeds the largest such list (sized by both item count and highest literal number, so `1. 1. 1.` markdown numbering counts correctly); refs into listless or unknown sections, and refs inside code blocks, are never reported. Zero false positives across tp's own specs.
+- ✅ **Duplicate paragraph lint** (`duplicate-paragraph`) — **shipped.** Flags two consecutive identical blank-line-separated paragraphs (a copy-paste artifact `duplicate-line` misses); a code block between two blocks breaks their adjacency, and single-line heading or horizontal-rule paragraphs are skipped to avoid double-reporting.
 - ✅ **Project-level workflow config** (`.tp/config.json`) — **shipped in v0.24.0.** Repo-root `.tp/config.json` holds workflow **defaults** (committed); each `<base>.tasks.json` `workflow` block holds only explicit **overrides**; effective values **resolve at read time** (CLI > env > task override > project config > built-in). `.tp/local.json` (git-ignored) holds the `active` pointer + CLI flag `defaults`. Commands: `tp config [--resolved|--extract]`, `tp set --workflow --project`, `tp set --local`, `tp validate --project`. See README / SKILL.md / REFERENCE.md "Project Configuration".
 
 ## Tech Stack
@@ -263,7 +263,7 @@ skills/tp/
 - Pretty-printed JSON with 2-space indentation
 - spec_excerpt capped at 2000 chars
 - source_lines supports multi-range: "4-10,15-20,25-30" and auto-normalizes single numbers ("72" → "72-72")
-- `tp lint` reports structured elements, duplicate consecutive lines, and section numbering gaps
+- `tp lint` reports structured elements, duplicate consecutive lines, duplicate consecutive paragraphs, section numbering gaps, orphan list items, and broken `§X.Y step N` cross-references
 - `tp validate` checks line coverage (source_lines vs spec content lines)
 - `tp done --batch` auto-toposorts entries by in-batch dependencies
 - `tp import` accepts bare JSON arrays with `--spec` flag

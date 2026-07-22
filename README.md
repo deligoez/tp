@@ -506,6 +506,8 @@ tp lint spec.md --json | jq '.findings[] | select(.rule)'
 | `duplicate-line` | warning | Consecutive identical non-empty lines (edit artifacts) |
 | `numbering-gap` | warning | Gaps in numbered section headings (e.g., 4.1 → 4.3, missing 4.2) |
 | `orphan-list-item` | info | Numbered lists starting at >1 or with gaps (e.g., 1, 3 — missing 2) |
+| `duplicate-paragraph` | warning | Two consecutive identical paragraphs — copy-paste artifacts the line-level check misses |
+| `broken-cross-ref` | warning | `§X.Y step N` where section X.Y has fewer than N numbered steps |
 
 `tp validate` checks line coverage — verifying that task `source_lines` cover the entire spec:
 
@@ -558,7 +560,7 @@ tp is designed for AI agents first (AX), not humans (DX):
 | **Auto-normalize** | `source_lines` accepts `"72"` (normalized to `"72-72"`) |
 | **Import flexibility** | `tp import` accepts bare JSON arrays with `--spec` flag |
 | **Spec-only review** | Review prompts include disclaimer to prevent code-checking |
-| **Edit hygiene lint** | `tp lint` detects duplicate lines and numbering gaps |
+| **Edit hygiene lint** | `tp lint` detects duplicate lines/paragraphs, numbering gaps, and broken cross-refs |
 | **Estimation calibration** | `tp add` warns when historical estimates are consistently high |
 | **Duration tracking** | `tp report` shows per-task timing and estimation accuracy |
 
