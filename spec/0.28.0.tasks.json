@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.28.0.md",
   "created_at": "2026-07-22T21:11:59.573923Z",
-  "updated_at": "2026-07-22T22:31:26.204886Z",
+  "updated_at": "2026-07-22T22:35:04.326683Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -501,7 +501,7 @@
     {
       "id": "test-strategy",
       "title": "Test strategy resolution",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "strategy-resolve",
         "config-effective"
@@ -511,11 +511,15 @@
       "source_sections": [
         "## 12. Tests / Acceptance"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-22T22:35:04.326649Z",
+      "closed_at": "2026-07-22T22:35:04.326683Z",
+      "closed_reason": "- TestResolveCommitStrategy covers task\u003eproject\u003ebuilt-in precedence and the auto default; TestEffectiveCommitStrategy covers auto-\u003ehc/builtin and explicit hc (internal/engine/commitstrategy_test.go)\n- TestConfigCommitStrategyEffective asserts commit_strategy_effective is hc (TP_HC=1) and builtin (TP_HC=0); TestConfigResolvedCommitStrategyDefault asserts {value:auto,source:default} (internal/cli/strategy_config_test.go)\n- TestConfigUnrecognizedStrategyWarns asserts a present unrecognized value resolves to builtin with a stderr warning and exit 0",
+      "gate_passed_at": "2026-07-22T22:35:04.326683Z",
+      "commit_sha": "63d2095",
+      "commit_shas": [
+        "63d2095",
+        "126ee88"
+      ]
     },
     {
       "id": "test-close-strategy",
