@@ -91,6 +91,12 @@ func runClose(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	if resolveEffectiveStrategy(taskFilePath) == engine.CommitStrategyHC {
+		output.Error(ExitUsage, "commit_strategy is hc: close with tp done --commit <sha> or --covered-by <id>", hcCommitHint)
+		os.Exit(ExitUsage)
+		return nil
+	}
+
 	// Cheap checks, then a single gate run, both pre-flock (§6.1, §6.2)
 	tfPre, preErr := model.ReadTaskFile(taskFilePath)
 	if preErr != nil {
