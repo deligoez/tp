@@ -115,6 +115,9 @@ func resolveConfigWorkflow() (model.Workflow, model.WorkflowOverride) {
 	for _, w := range warnings {
 		fmt.Fprintf(os.Stderr, "warning: %s\n", w)
 	}
+	// Clamp the override so a present but out-of-range field is attributed to the
+	// layer that supplied the resolved value, not "override" (§3.4).
+	engine.ClampWorkflowRanges(&override)
 	return wf, override
 }
 

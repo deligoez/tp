@@ -30,6 +30,13 @@ func clampWorkflowRanges(wo *model.WorkflowOverride) []string {
 	return warnings
 }
 
+// ClampWorkflowRanges is the exported form of the range clamp so callers outside
+// the engine (tp config --resolved source attribution) can drop an out-of-range
+// override field to absent before inspecting its presence (§3.4).
+func ClampWorkflowRanges(wo *model.WorkflowOverride) []string {
+	return clampWorkflowRanges(wo)
+}
+
 // MalformedConfigError signals a corrupt config file (unreadable, not valid
 // JSON, or a non-object top-level value) that must not be silently ignored: the
 // reading command aborts with exit 3 and this repair-or-delete hint.
