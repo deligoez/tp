@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.28.0.md",
   "created_at": "2026-07-22T21:11:59.573923Z",
-  "updated_at": "2026-07-22T21:51:24.899865Z",
+  "updated_at": "2026-07-22T21:52:35.128038Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -92,7 +92,7 @@
     {
       "id": "keeplist-match",
       "title": "Match paths against keep list",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "keeplist-store"
       ],
@@ -101,11 +101,14 @@
       "source_sections": [
         "## 7. The keep-list — durable intentional-uncommitted memory"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-22T21:52:35.128013Z",
+      "closed_at": "2026-07-22T21:52:35.128038Z",
+      "closed_reason": "- MatchKeepList matches a path against entries by filepath.Match, first matching entry wins and supplies reason (internal/engine/keeplistmatch.go)\n- ClassifyPaths splits a path list into kept {path,reason} and changes (unmatched paths)\n- a malformed entry pattern surfaces as filepath.ErrBadPattern from MatchKeepList/ClassifyPaths",
+      "gate_passed_at": "2026-07-22T21:52:35.128038Z",
+      "commit_sha": "ac9c661",
+      "commit_shas": [
+        "ac9c661"
+      ]
     },
     {
       "id": "worktree-status",
