@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.28.0.md",
   "created_at": "2026-07-22T21:11:59.573923Z",
-  "updated_at": "2026-07-22T22:49:38.467293Z",
+  "updated_at": "2026-07-22T22:50:34.873711Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -589,7 +589,7 @@
     {
       "id": "test-done-warning",
       "title": "Test done warning",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "done-warning"
       ],
@@ -598,11 +598,14 @@
       "source_sections": [
         "## 12. Tests / Acceptance"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-22T22:50:34.873683Z",
+      "closed_at": "2026-07-22T22:50:34.87371Z",
+      "closed_reason": "- TestDoneWarning_UnexplainedChangeWarnsButExits0 asserts an unexplained change makes tp done exit 0 with the stderr count and leaves the change unmodified (internal/cli/done_warning_test.go)\n- TestDoneWarning_KeptChangeProducesNoWarning asserts a keep-listed change produces no warning",
+      "gate_passed_at": "2026-07-22T22:50:34.87371Z",
+      "commit_sha": "3b5d20f",
+      "commit_shas": [
+        "3b5d20f"
+      ]
     },
     {
       "id": "docs-028",
