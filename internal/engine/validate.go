@@ -38,8 +38,9 @@ func Validate(tf *model.TaskFile, specPath string, specExists, strict bool) *Val
 	convFindings := validateConvergence(tf)
 	result.Findings = append(result.Findings, convFindings...)
 
-	// Always include workflow in output for diagnostics
-	wf := tf.Workflow
+	// Always include the effective workflow (override resolved over the built-in
+	// defaults) in output for diagnostics.
+	wf := ResolveWorkflowLayers(tf.Workflow, model.WorkflowOverride{})
 	result.Workflow = &wf
 
 	// 2. Atomicity checks
@@ -352,50 +353,33 @@ func ValidateCoverage(tf *model.TaskFile, specPath string) []Finding {
 
 	return findings
 }
-
 func validateConvergence(tf *model.TaskFile) []Finding {
 	var findings []Finding
-	if tf.Workflow.ReviewCleanRounds < 1 || tf.Workflow.ReviewCleanRounds > 10 {
-		findings = append(findings, Finding{
-			Severity: "error",
-			Rule:     "schema",
-			Message:  "review_clean_rounds must be between 1 and 10",
-		})
+	// A present but out-of-range workflow value is not rejected here: it is
+	// clamped to the built-in default at resolution (§7.1), so validate reports it
+	// as a warning rather than an error.
+	warnRange := func(name string, p *int, lo, hi int) {
+		if p != nil && (*p < lo || *p > hi) {
+			findings = append(findings, Finding{
+				Severity: "warning",
+				Rule:     "schema",
+				Message:  fmt.Sprintf("%s %d out of range %d-%d; clamped to the built-in default at resolution", name, *p, lo, hi),
+			})
+		}
 	}
-	if tf.Workflow.AuditCleanRounds < 1 || tf.Workflow.AuditCleanRounds > 10 {
-		findings = append(findings, Finding{
-			Severity: "error",
-			Rule:     "schema",
-			Message:  "audit_clean_rounds must be between 1 and 10",
-		})
-	}
-	if tf.Workflow.GateTimeoutSeconds < 30 || tf.Workflow.GateTimeoutSeconds > 3600 {
-		findings = append(findings, Finding{
-			Severity: "warning",
-			Rule:     "schema",
-			Message:  fmt.Sprintf("gate_timeout_seconds %d out of range 30-3600; effective value falls back to 600", tf.Workflow.GateTimeoutSeconds),
-		})
-	}
-	if tf.Workflow.ReviewMaxRounds < 0 || tf.Workflow.ReviewMaxRounds > 50 {
-		findings = append(findings, Finding{
-			Severity: "warning",
-			Rule:     "schema",
-			Message:  fmt.Sprintf("review_max_rounds %d out of range 0-50; effective value falls back to 0", tf.Workflow.ReviewMaxRounds),
-		})
-	}
-	if tf.Workflow.AuditMaxRounds < 0 || tf.Workflow.AuditMaxRounds > 50 {
-		findings = append(findings, Finding{
-			Severity: "warning",
-			Rule:     "schema",
-			Message:  fmt.Sprintf("audit_max_rounds %d out of range 0-50; effective value falls back to 0", tf.Workflow.AuditMaxRounds),
-		})
-	}
-	if err := ValidateChecks(tf.Workflow.Checks); err != nil {
-		findings = append(findings, Finding{
-			Severity: "warning",
-			Rule:     "schema",
-			Message:  fmt.Sprintf("workflow.%v — invalid check entries are skipped at execution time", err),
-		})
+	warnRange("review_clean_rounds", tf.Workflow.ReviewCleanRounds, 1, 10)
+	warnRange("audit_clean_rounds", tf.Workflow.AuditCleanRounds, 1, 10)
+	warnRange("gate_timeout_seconds", tf.Workflow.GateTimeoutSeconds, 30, 3600)
+	warnRange("review_max_rounds", tf.Workflow.ReviewMaxRounds, 0, 50)
+	warnRange("audit_max_rounds", tf.Workflow.AuditMaxRounds, 0, 50)
+	if tf.Workflow.Checks != nil {
+		if err := ValidateChecks(*tf.Workflow.Checks); err != nil {
+			findings = append(findings, Finding{
+				Severity: "warning",
+				Rule:     "schema",
+				Message:  fmt.Sprintf("workflow.%v — invalid check entries are skipped at execution time", err),
+			})
+		}
 	}
 	return findings
 }

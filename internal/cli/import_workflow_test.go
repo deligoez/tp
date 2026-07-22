@@ -77,7 +77,7 @@ func TestImport_WorkflowPreserved(t *testing.T) {
 		assert.Equal(t, "echo imported-gate", wf["quality_gate"])
 	})
 
-	t.Run("new bare array import gets workflow defaults", func(t *testing.T) {
+	t.Run("new bare array import writes an empty workflow block", func(t *testing.T) {
 		dir := t.TempDir()
 		specPath := filepath.Join(dir, "spec.md")
 		require.NoError(t, os.WriteFile(specPath, []byte(normSpec), 0o600))
@@ -87,8 +87,11 @@ func TestImport_WorkflowPreserved(t *testing.T) {
 		_, stderr, code := runTP(t, dir, "import", importPath, "--spec", "spec.md")
 		require.Equal(t, 0, code, "import failed: %s", stderr)
 
+		// v0.26.0: a new bare-array import writes "workflow": {} with no default
+		// materialization; effective values resolve at read time (§3.6/§10.11).
 		wf := readPersistedWorkflow(t, dir)
-		assert.Equal(t, float64(2), wf["review_clean_rounds"])
-		assert.Equal(t, float64(600), wf["gate_timeout_seconds"])
+		assert.Nil(t, wf["review_clean_rounds"], "no materialized convergence field")
+		assert.Nil(t, wf["gate_timeout_seconds"], "no materialized timeout field")
+		assert.Empty(t, wf, "the stored workflow block is empty")
 	})
 }

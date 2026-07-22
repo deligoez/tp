@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/deligoez/tp/internal/model"
 )
@@ -16,11 +16,11 @@ func writeTaskFileJSON(t *testing.T, path, spec string, reviewCleanRounds int) {
 	tf := &model.TaskFile{
 		Version: 1,
 		Spec:    spec,
-		Workflow: model.Workflow{
-			ReviewCleanRounds:  reviewCleanRounds,
-			AuditCleanRounds:   2,
-			GateTimeoutSeconds: 600,
-			Checks:             []model.Check{},
+		Workflow: model.WorkflowOverride{
+			ReviewCleanRounds:  ptr(reviewCleanRounds),
+			AuditCleanRounds:   ptr(2),
+			GateTimeoutSeconds: ptr(600),
+			Checks:             &[]model.Check{},
 		},
 		Coverage: model.Coverage{ContextOnly: []string{}, Unmapped: []string{}},
 		Tasks:    []model.Task{},

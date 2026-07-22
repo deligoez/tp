@@ -139,6 +139,7 @@ func pickChecks(layers []*[]model.Check, def []model.Check) []model.Check {
 // that omits quality_gate runs the project quality_gate.
 func EffectiveWorkflowForTaskFile(taskFilePath string) model.Workflow {
 	override, _ := LoadTaskWorkflowOverride(taskFilePath)
+	clampWorkflowRanges(&override)
 	return ResolveWorkflowLayers(override, projectWorkflowOverride("."))
 }
 
@@ -150,15 +151,18 @@ func EffectiveWorkflowForTaskFile(taskFilePath string) model.Workflow {
 // defaults exactly as in v0.23.0. Returns the effective workflow and any config
 // validation warnings.
 func ResolveEffectiveWorkflow(start string, taskOverride model.WorkflowOverride) (model.Workflow, []string, error) {
+	// An out-of-range task-file override is clamped to absent so it resolves
+	// through the precedence rather than acting as an override (§3.5/§7.1).
+	taskWarnings := clampWorkflowRanges(&taskOverride)
 	tpDir := DiscoverTPDir(start)
 	if tpDir == "" {
-		return ResolveWorkflowLayers(taskOverride, model.WorkflowOverride{}), nil, nil
+		return ResolveWorkflowLayers(taskOverride, model.WorkflowOverride{}), taskWarnings, nil
 	}
 	pc, warnings, err := LoadProjectConfig(tpDir)
 	if err != nil {
 		return model.Workflow{}, warnings, err
 	}
-	return ResolveWorkflowLayers(taskOverride, pc.Workflow), warnings, nil
+	return ResolveWorkflowLayers(taskOverride, pc.Workflow), append(taskWarnings, warnings...), nil
 }
 
 // ResolveWorkflowLayers merges workflow overrides by precedence: the task-file

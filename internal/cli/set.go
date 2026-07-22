@@ -345,22 +345,23 @@ func runSetWorkflow(args []string) error {
 
 		updated := make(map[string]any)
 		for field, val := range pairs {
+			v := val
 			switch field {
 			case "review_clean_rounds":
-				tf.Workflow.ReviewCleanRounds = val
+				tf.Workflow.ReviewCleanRounds = &v
 			case "audit_clean_rounds":
-				tf.Workflow.AuditCleanRounds = val
+				tf.Workflow.AuditCleanRounds = &v
 			case "gate_timeout_seconds":
-				tf.Workflow.GateTimeoutSeconds = val
+				tf.Workflow.GateTimeoutSeconds = &v
 			case "review_max_rounds":
-				tf.Workflow.ReviewMaxRounds = val
+				tf.Workflow.ReviewMaxRounds = &v
 			case "audit_max_rounds":
-				tf.Workflow.AuditMaxRounds = val
+				tf.Workflow.AuditMaxRounds = &v
 			}
 			updated[field] = val
 		}
 		if checksSet {
-			tf.Workflow.Checks = checksValue
+			tf.Workflow.Checks = &checksValue
 			updated["checks"] = checksValue
 		}
 

@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func wfPtr[T any](v T) *T { return &v }
+
 func TestReadWriteTaskFile_RoundTrip(t *testing.T) {
 	tests := []struct {
 		name string
@@ -22,10 +24,10 @@ func TestReadWriteTaskFile_RoundTrip(t *testing.T) {
 				Spec:      "spec.md",
 				CreatedAt: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
 				UpdatedAt: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
-				Workflow: Workflow{
-					QualityGate:    "tests-pass",
-					CommitStrategy: "squash",
-					Checks:         []Check{},
+				Workflow: WorkflowOverride{
+					QualityGate:    wfPtr("tests-pass"),
+					CommitStrategy: wfPtr("squash"),
+					Checks:         &[]Check{},
 				},
 				Coverage: Coverage{
 					TotalSections:  10,
@@ -64,7 +66,7 @@ func TestReadWriteTaskFile_RoundTrip(t *testing.T) {
 				Spec:      "empty.md",
 				CreatedAt: time.Date(2025, 6, 15, 12, 0, 0, 0, time.UTC),
 				UpdatedAt: time.Date(2025, 6, 15, 12, 0, 0, 0, time.UTC),
-				Workflow:  Workflow{Checks: []Check{}},
+				Workflow:  WorkflowOverride{},
 				Coverage:  Coverage{ContextOnly: []string{}, Unmapped: []string{}},
 				Tasks:     []Task{},
 			},
@@ -98,6 +100,21 @@ func TestReadWriteTaskFile_RoundTrip(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestReadWriteTaskFile_NoWorkflowKeyNormalizesToEmpty(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "nokey.tasks.json")
+	// A source file with no "workflow" key at all.
+	require.NoError(t, os.WriteFile(path, []byte(`{"version":1,"spec":"s.md","tasks":[]}`), 0o600))
+
+	tf, err := ReadTaskFile(path)
+	require.NoError(t, err)
+	require.NoError(t, WriteTaskFile(path, tf))
+
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), `"workflow": {}`, "a missing workflow key normalizes to an empty object, never populated with defaults")
 }
 
 func TestReadTaskFile_NonexistentPath(t *testing.T) {

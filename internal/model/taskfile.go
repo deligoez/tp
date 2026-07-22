@@ -8,7 +8,7 @@ type TaskFile struct {
 	Spec      string    `json:"spec"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
-	Workflow  Workflow  `json:"workflow"`
+	Workflow  WorkflowOverride `json:"workflow"`
 	Coverage  Coverage  `json:"coverage"`
 	Tasks     []Task    `json:"tasks"`
 }

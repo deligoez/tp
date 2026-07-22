@@ -77,7 +77,7 @@ func runImport(_ *cobra.Command, args []string) error {
 			Spec:      importSpec,
 			CreatedAt: now,
 			UpdatedAt: now,
-			Workflow:  engine.DefaultWorkflow(),
+			Workflow:  model.WorkflowOverride{},
 			Tasks:     tasks,
 		}
 	case '{':

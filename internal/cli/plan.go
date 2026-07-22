@@ -13,15 +13,15 @@ import (
 )
 
 var (
-	planFrom  string
-	planLevel string
+	planFrom    string
+	planLevel   string
 	planMinimal bool
 )
 
 type planResult struct {
 	Workflow       *model.Workflow `json:"workflow,omitempty"`
 	ExecutionOrder any             `json:"execution_order"` // []planTask, []output.CompactTaskView, or []agentTask
-	Summary        planSummary    `json:"summary"`
+	Summary        planSummary     `json:"summary"`
 }
 
 type agentTask struct {
@@ -157,7 +157,7 @@ func runPlan(_ *cobra.Command, _ []string) error {
 
 	var wfPtr *model.Workflow
 	if !planMinimal {
-		wf := tf.Workflow
+		wf := engine.ResolveWorkflowLayers(tf.Workflow, engine.ProjectWorkflowOverride("."))
 		wfPtr = &wf
 	}
 

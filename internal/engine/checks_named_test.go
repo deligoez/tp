@@ -49,11 +49,9 @@ func TestValidate_GateTimeoutRange(t *testing.T) {
 	tf := &model.TaskFile{
 		Version: 1,
 		Spec:    "spec.md",
-		Workflow: model.Workflow{
-			ReviewCleanRounds:  2,
-			AuditCleanRounds:   2,
-			GateTimeoutSeconds: 9999, // out of 30-3600
-			Checks:             []model.Check{},
+		Workflow: model.WorkflowOverride{
+			GateTimeoutSeconds: ptr(9999), // out of 30-3600
+			Checks:             &[]model.Check{},
 		},
 		Tasks: []model.Task{
 			{ID: "t1", Title: "T", Status: model.StatusOpen, EstimateMinutes: 5, Acceptance: "ok", SourceLines: "1-2"},
@@ -70,5 +68,7 @@ func TestValidate_GateTimeoutRange(t *testing.T) {
 	}
 	assert.True(t, found, "out-of-range gate_timeout_seconds produces a validate warning")
 
-	assert.Equal(t, 600, tf.Workflow.EffectiveGateTimeoutSeconds(), "effective timeout falls back to 600")
+	ov := tf.Workflow
+	clampWorkflowRanges(&ov)
+	assert.Equal(t, 600, ResolveWorkflowLayers(ov, model.WorkflowOverride{}).GateTimeoutSeconds, "effective timeout falls back to 600")
 }

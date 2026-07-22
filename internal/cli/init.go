@@ -65,12 +65,7 @@ func runInit(_ *cobra.Command, args []string) error {
 		Spec:      specPath,
 		CreatedAt: now,
 		UpdatedAt: now,
-		Workflow: model.Workflow{
-			ReviewCleanRounds:  2,
-			AuditCleanRounds:   2,
-			GateTimeoutSeconds: 600,
-			Checks:             []model.Check{},
-		},
+		Workflow:  model.WorkflowOverride{},
 		Coverage: model.Coverage{
 			ContextOnly: []string{},
 			Unmapped:    []string{},
@@ -79,10 +74,12 @@ func runInit(_ *cobra.Command, args []string) error {
 	}
 
 	if initQualityGate != "" {
-		tf.Workflow.QualityGate = initQualityGate
+		qg := initQualityGate
+		tf.Workflow.QualityGate = &qg
 	}
 	if initCommitStrategy != "" {
-		tf.Workflow.CommitStrategy = initCommitStrategy
+		cs := initCommitStrategy
+		tf.Workflow.CommitStrategy = &cs
 	}
 
 	if err := model.WriteTaskFile(taskFilePath, tf); err != nil {
