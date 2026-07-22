@@ -197,7 +197,7 @@ Discovery walks up from the current directory to the `.git` boundary to find `.t
 
 ### Layered resolution (resolve-at-read)
 
-A task file's `workflow` block holds only **explicit overrides**; effective values merge at read time (never materialized, so nothing drifts). Precedence, highest first:
+A task file's `workflow` block holds only **explicit overrides**; effective values merge at read time (never materialized — `tp init` and every read-modify-write keep the block sparse, presence-preserving since v0.26.0, so a materialized default can never mask `.tp/config.json`). Precedence, highest first:
 
 ```
 CLI flag  >  environment  >  task-file workflow override  >  .tp/config.json  >  built-in default
