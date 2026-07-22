@@ -81,6 +81,8 @@ func runLint(_ *cobra.Command, args []string) error {
 	findings = append(findings, engine.CheckDuplicateConsecutiveLines(lines)...)
 	findings = append(findings, engine.CheckNumberingGaps(headings)...)
 	findings = append(findings, engine.CheckOrphanListItems(lines)...)
+	findings = append(findings, engine.CheckDuplicateParagraphs(lines)...)
+	findings = append(findings, engine.CheckBrokenCrossRefs(lines, headings)...)
 	structFindings, structElems := engine.CheckStructuredElements(lines, headings)
 	findings = append(findings, structFindings...)
 
