@@ -81,8 +81,8 @@ func TestAuditAffectedFilesDedup(t *testing.T) {
 func TestAuditNoSpecArg(t *testing.T) {
 	dir := t.TempDir()
 	_, stderr, code := runTP(t, dir, "audit")
-	assert.Equal(t, 1, code)
-	assert.Contains(t, stderr, "accepts 1 arg")
+	assert.Equal(t, 2, code, "a missing spec is a usage error (exit 2), consistent with tp review")
+	assert.Contains(t, stderr, "spec path required")
 }
 
 func TestAuditSpecNotFound(t *testing.T) {
