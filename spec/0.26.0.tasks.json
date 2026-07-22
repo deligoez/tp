@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.26.0.md",
   "created_at": "2026-07-22T08:40:54.811847Z",
-  "updated_at": "2026-07-22T09:19:55.587164Z",
+  "updated_at": "2026-07-22T09:23:34.723284Z",
   "workflow": {
     "gate_timeout_seconds": 600,
     "review_clean_rounds": 2,
@@ -64,7 +64,7 @@
     {
       "id": "clamp-task-override",
       "title": "Clamp out-of-range task override at resolution",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "presence-preserving-storage"
       ],
@@ -76,11 +76,11 @@
         "## 10. Tests / Acceptance"
       ],
       "source_lines": "28,56,88",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-22T09:23:34.688728Z",
+      "closed_at": "2026-07-22T09:23:34.723277Z",
+      "closed_reason": "- The resolution path clamps out-of-range task overrides to absent via clampWorkflowRanges in ResolveEffectiveWorkflow/EffectiveWorkflowForTaskFile (internal/engine/configresolve.go); TestResolveEffectiveWorkflow_OutOfRangeTaskOverrideClamped asserts review_clean_rounds:0 resolves to the built-in default 2 with an \"out of range\" warning (internal/engine/clamp_resolve_test.go)\n- TestResolveEffectiveWorkflow_OutOfRangeDoesNotMaskProject asserts an out-of-range override resolves through the project value 3 rather than masking it to the built-in, and warnings surface to stderr while tp config exits 0 (internal/cli/config.go)",
+      "gate_passed_at": "2026-07-22T09:23:34.723277Z",
+      "commit_sha": "76fa637"
     },
     {
       "id": "init-sparse-block",
