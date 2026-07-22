@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -38,7 +39,8 @@ var (
 		"checks":               true,
 	}
 	readOnlyWorkflowFields = map[string]bool{
-		"quality_gate": true,
+		"quality_gate":    true,
+		"commit_strategy": true,
 	}
 )
 
@@ -288,10 +290,14 @@ func runSetWorkflow(args []string) error {
 		field, valueStr := parts[0], parts[1]
 
 		if readOnlyWorkflowFields[field] {
-			return output.JSON(map[string]string{"error": fmt.Sprintf("%s is read-only; edit the task file directly to change it", field)})
+			output.Error(ExitUsage, fmt.Sprintf("%s is not settable via tp set --workflow; it is authored only by tp init", field))
+			os.Exit(ExitUsage)
+			return nil
 		}
 		if !editableWorkflowFields[field] {
-			return output.JSON(map[string]string{"error": fmt.Sprintf("unknown workflow field: %s", field)})
+			output.Error(ExitUsage, fmt.Sprintf("unknown workflow field: %s", field))
+			os.Exit(ExitUsage)
+			return nil
 		}
 
 		// checks: JSON-array replace semantics (§15.2)
@@ -315,9 +321,11 @@ func runSetWorkflow(args []string) error {
 			continue
 		}
 
-		var val int
-		if _, err := fmt.Sscanf(valueStr, "%d", &val); err != nil {
-			return output.JSON(map[string]string{"error": fmt.Sprintf("%s must be an integer", field)})
+		val, convErr := strconv.Atoi(valueStr)
+		if convErr != nil {
+			output.Error(ExitValidation, fmt.Sprintf("%s must be an integer", field))
+			os.Exit(ExitValidation)
+			return nil
 		}
 		lo, hi := workflowFieldRange(field)
 		if val < lo || val > hi {

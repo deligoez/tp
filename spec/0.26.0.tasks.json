@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.26.0.md",
   "created_at": "2026-07-22T08:40:54.811847Z",
-  "updated_at": "2026-07-22T09:23:34.723284Z",
+  "updated_at": "2026-07-22T09:26:35.00224Z",
   "workflow": {
     "gate_timeout_seconds": 600,
     "review_clean_rounds": 2,
@@ -85,7 +85,7 @@
     {
       "id": "init-sparse-block",
       "title": "tp init writes a sparse workflow block",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "presence-preserving-storage"
       ],
@@ -97,11 +97,11 @@
         "## 10. Tests / Acceptance"
       ],
       "source_lines": "24,42-46,74",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-22T09:26:34.965531Z",
+      "closed_at": "2026-07-22T09:26:35.002236Z",
+      "closed_reason": "- No-flag tp init writes \"workflow\": {} — init.go constructs model.WorkflowOverride{} with no materialized fields (internal/cli/init.go); TestInit_SparseWorkflowBlock/no_flags_writes_empty_object\n- --quality-gate writes exactly {\"quality_gate\": \u003ccmd\u003e} — init.go sets only tf.Workflow.QualityGate; TestInit_SparseWorkflowBlock/quality_gate_only\n- --commit-strategy writes exactly {\"commit_strategy\": \u003cvalue\u003e} — init.go sets only tf.Workflow.CommitStrategy; TestInit_SparseWorkflowBlock/commit_strategy_only\n- Both flags compose to {\"quality_gate\", \"commit_strategy\"} — the two independent ifs set both pointers; TestInit_SparseWorkflowBlock/both_flags_compose\n- No convergence/timeout/checks field is written unless a flag sets it — the WorkflowOverride pointers stay nil and are omitted from JSON (internal/cli/init.go)\n- TestInit_SparseWorkflowBlock (internal/cli/init_sparse_test.go) covers all four §10.1 cases with exact-equality assertions on the workflow block",
+      "gate_passed_at": "2026-07-22T09:26:35.002236Z",
+      "commit_sha": "992aae9"
     },
     {
       "id": "set-workflow-presence",
