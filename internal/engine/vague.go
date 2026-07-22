@@ -258,3 +258,244 @@ func CheckOrphanListItems(lines []string) []Finding {
 
 	return findings
 }
+
+// CheckDuplicateParagraphs detects two consecutive identical paragraphs
+// (blank-line separated blocks of text) — a copy-paste artifact the line-level
+// duplicate check misses. Fenced code blocks are excluded, and a code block
+// between two blocks breaks their adjacency. Single-line paragraphs that are
+// headings (already covered by duplicate-heading) or horizontal rules are
+// skipped to avoid double-reporting and structural false positives.
+func CheckDuplicateParagraphs(lines []string) []Finding {
+	var findings []Finding
+	inCodeBlock := false
+
+	var cur []string // current paragraph, right-trimmed lines
+	curStart := 0
+	var prev []string // immediately preceding paragraph; nil when adjacency broken
+
+	endParagraph := func() {
+		if len(cur) == 0 {
+			return
+		}
+		if prev != nil && equalLines(prev, cur) && !skipDuplicateParagraph(cur) {
+			ctx := strings.Join(cur, " ")
+			if len(ctx) > 80 {
+				ctx = ctx[:80]
+			}
+			findings = append(findings, Finding{
+				Line:     curStart,
+				Severity: "warning",
+				Rule:     "duplicate-paragraph",
+				Message:  "duplicate consecutive paragraph",
+				Context:  ctx,
+			})
+		}
+		prev = cur
+		cur = nil
+	}
+
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "```") {
+			inCodeBlock = !inCodeBlock
+			endParagraph()
+			prev = nil // a code block between two paragraphs breaks adjacency
+			continue
+		}
+		if inCodeBlock {
+			continue
+		}
+		if trimmed == "" {
+			endParagraph()
+			continue
+		}
+		if len(cur) == 0 {
+			curStart = i + 1
+		}
+		cur = append(cur, strings.TrimRight(line, " \t"))
+	}
+	endParagraph()
+
+	return findings
+}
+
+func equalLines(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// skipDuplicateParagraph excludes single-line paragraphs that are headings
+// (duplicate-heading covers them) or horizontal rules (---, ***, ___).
+func skipDuplicateParagraph(content []string) bool {
+	if len(content) != 1 {
+		return false
+	}
+	t := strings.TrimSpace(content[0])
+	if strings.HasPrefix(t, "#") {
+		return true
+	}
+	return isHorizontalRule(t)
+}
+
+func isHorizontalRule(s string) bool {
+	if len(s) < 3 {
+		return false
+	}
+	c := s[0]
+	if c != '-' && c != '*' && c != '_' {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] != c && s[i] != ' ' {
+			return false
+		}
+	}
+	return true
+}
+
+var (
+	crossRefSectionStep = regexp.MustCompile(`(?i)§\s*(\d+(?:\.\d+)*)[\s,]+step\s+(\d+)`)
+	crossRefStepSection = regexp.MustCompile(`(?i)\bstep\s+(\d+)\s+(?:of|in)\s+§\s*(\d+(?:\.\d+)*)`)
+	sectionNumPrefix    = regexp.MustCompile(`^(\d+(?:\.\d+)*)\.?\s`)
+	listItemPrefix      = regexp.MustCompile(`^\s*(\d+)\.\s`)
+)
+
+// CheckBrokenCrossRefs detects references of the form "§X.Y step N" (or
+// "step N of/in §X.Y") where section X.Y contains fewer than N numbered steps.
+// It is deliberately conservative to keep the false-positive rate low: it fires
+// only when the referenced section is a heading whose content holds a numbered
+// list, and the referenced step exceeds the largest such list. References into
+// sections with no numbered list, or to a number that matches no heading, are
+// never reported. References inside fenced code blocks are ignored.
+func CheckBrokenCrossRefs(lines []string, headings []*Heading) []Finding {
+	sectionSteps := sectionStepCounts(lines, headings)
+	if len(sectionSteps) == 0 {
+		return nil
+	}
+
+	var findings []Finding
+	inCodeBlock := false
+
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "```") {
+			inCodeBlock = !inCodeBlock
+			continue
+		}
+		if inCodeBlock {
+			continue
+		}
+
+		check := func(sectionNum string, step int) {
+			steps, ok := sectionSteps[sectionNum]
+			if !ok || steps == 0 || step <= steps {
+				return
+			}
+			findings = append(findings, Finding{
+				Line:     i + 1,
+				Severity: "warning",
+				Rule:     "broken-cross-ref",
+				Message:  fmt.Sprintf("§%s step %d referenced but §%s has only %d numbered items", sectionNum, step, sectionNum, steps),
+				Context:  strings.TrimSpace(line),
+			})
+		}
+
+		for _, m := range crossRefSectionStep.FindAllStringSubmatch(line, -1) {
+			step, _ := strconv.Atoi(m[2])
+			check(m[1], step)
+		}
+		for _, m := range crossRefStepSection.FindAllStringSubmatch(line, -1) {
+			step, _ := strconv.Atoi(m[1])
+			check(m[2], step)
+		}
+	}
+
+	return findings
+}
+
+// sectionStepCounts maps each numbered section heading to its step count,
+// defined as the largest numbered list under that heading. The first occurrence
+// of a repeated number wins.
+func sectionStepCounts(lines []string, headings []*Heading) map[string]int {
+	counts := make(map[string]int)
+	total := len(lines)
+	for idx, h := range headings {
+		m := sectionNumPrefix.FindStringSubmatch(h.Text)
+		if m == nil {
+			continue
+		}
+		num := m[1]
+		if _, exists := counts[num]; exists {
+			continue
+		}
+		start, end := HeadingContentRange(headings, idx, total)
+		if steps := largestListRun(lines, start, end); steps > 0 {
+			counts[num] = steps
+		}
+	}
+	return counts
+}
+
+// largestListRun scans the 1-based inclusive line range [start, end] for
+// numbered list items and returns the size of the largest run. A run breaks on
+// a numbered item whose value decreases below the previous item's (a new list)
+// or on a non-list, non-blank content line; blank lines do not break a run. Size is
+// max(item count, highest literal number), so both sequential (1. 2. 3.) and
+// repeated-marker (1. 1. 1.) markdown numbering are counted correctly. Counting
+// generously (including nested items) biases toward under-reporting broken refs.
+func largestListRun(lines []string, start, end int) int {
+	if start < 1 {
+		start = 1
+	}
+	if end > len(lines) {
+		end = len(lines)
+	}
+	inCodeBlock := false
+	best, count, maxNum, prevNum := 0, 0, 0, 0
+	flush := func() {
+		if count > best {
+			best = count
+		}
+		if maxNum > best {
+			best = maxNum
+		}
+		count, maxNum, prevNum = 0, 0, 0
+	}
+	for i := start - 1; i < end; i++ {
+		line := lines[i]
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "```") {
+			inCodeBlock = !inCodeBlock
+			flush()
+			continue
+		}
+		if inCodeBlock {
+			continue
+		}
+		if trimmed == "" {
+			continue // blank lines do not break a list
+		}
+		if m := listItemPrefix.FindStringSubmatch(line); m != nil {
+			n, _ := strconv.Atoi(m[1])
+			if count > 0 && n < prevNum {
+				flush() // a decrease in value starts a new list
+			}
+			count++
+			if n > maxNum {
+				maxNum = n
+			}
+			prevNum = n
+		} else {
+			flush() // a non-list content line ends the current run
+		}
+	}
+	flush()
+	return best
+}
