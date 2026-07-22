@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.28.0.md",
   "created_at": "2026-07-22T21:11:59.573923Z",
-  "updated_at": "2026-07-22T22:09:27.12559Z",
+  "updated_at": "2026-07-22T22:11:50.560035Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -145,7 +145,7 @@
     {
       "id": "resume-blockers",
       "title": "Compute resume blockers with data",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "keeplist-match",
         "worktree-status"
@@ -155,11 +155,14 @@
       "source_sections": [
         "## 4. `tp resume` — the phase-agnostic resume oracle"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-22T22:11:50.560007Z",
+      "closed_at": "2026-07-22T22:11:50.560035Z",
+      "closed_reason": "- BuildBlockers emits {code,class,message,data} in the fixed §4.6 code order (internal/engine/resumeblockers.go)\n- unexplained-changes is agent-clearable when changes is non-empty; no-ready-task and spec-stale are escalate\n- review/audit-budget-exhausted are phase-gated and never fire when max_rounds is 0",
+      "gate_passed_at": "2026-07-22T22:11:50.560035Z",
+      "commit_sha": "c6ba2ba",
+      "commit_shas": [
+        "c6ba2ba"
+      ]
     },
     {
       "id": "resume-payload",
