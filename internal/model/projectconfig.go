@@ -24,6 +24,20 @@ type LocalConfig struct {
 	// Defaults holds boolean defaults for the global flags compact, quiet, and
 	// no_color, applied when the corresponding flag is absent from the CLI.
 	Defaults map[string]bool `json:"defaults,omitempty"`
+	// KeepUncommitted is the durable keep-list: the files a project deliberately
+	// leaves uncommitted, each paired with a reason. A pointer to a slice tracks
+	// presence so an absent key (nil) stays distinct from an explicit empty list:
+	// nil marshals omitted, while a non-nil empty slice marshals as [].
+	KeepUncommitted *[]KeepEntry `json:"keep_uncommitted,omitempty"`
+}
+
+// KeepEntry is one keep-list record: a repo-root-relative file path or
+// filepath.Match glob, and a short reason naming why the file is deliberately
+// left uncommitted — the note that tells a fresh agent this leftover is
+// intentional rather than a unit's forgotten work.
+type KeepEntry struct {
+	Path   string `json:"path"`
+	Reason string `json:"reason"`
 }
 
 // WorkflowOverride is a sparse, presence-tracking view of the workflow fields.
