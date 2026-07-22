@@ -92,9 +92,9 @@ func TestCheckEmptySections(t *testing.T) {
 
 func TestCheckDuplicateHeadings(t *testing.T) {
 	tests := []struct {
-		name    string
+		name     string
 		markdown string
-		wantErr bool
+		wantErr  bool
 	}{
 		{
 			name:     "same heading same parent",
