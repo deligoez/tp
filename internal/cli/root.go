@@ -95,6 +95,8 @@ INCREMENTAL (1 task at a time):
 	removeCmd.GroupID = "state"
 	setCmd := newSetCmd()
 	setCmd.GroupID = "state"
+	keepCmd := newKeepCmd()
+	keepCmd.GroupID = "state"
 
 	// Query commands
 	listCmd := newListCmd()
@@ -133,7 +135,7 @@ INCREMENTAL (1 task at a time):
 	useCmd.GroupID = "data"
 
 	cmd.AddCommand(planCmd, doneCmd, nextCmd, commitCmd, resumeCmd)
-	cmd.AddCommand(claimCmd, closeCmd, reopenCmd, removeCmd, setCmd)
+	cmd.AddCommand(claimCmd, closeCmd, reopenCmd, removeCmd, setCmd, keepCmd)
 	cmd.AddCommand(listCmd, statusCmd, readyCmd, blockedCmd, showCmd, graphCmd, statsCmd, reportCmd, lintCmd, reviewCmd, auditCmd, validateCmd)
 	cmd.AddCommand(initCmd, addCmd, importCmd, useCmd)
 	cmd.AddCommand(newConfigCmd())
