@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "spec": "spec/0.28.0.md",
+  "created_at": "2026-07-22T19:51:35.375176Z",
+  "updated_at": "2026-07-22T20:31:44.176742Z",
+  "workflow": {
+    "review_max_rounds": 4
+  },
+  "coverage": {
+    "total_sections": 0,
+    "mapped_sections": 0,
+    "context_only": [],
+    "unmapped": []
+  },
+  "tasks": []
+}
