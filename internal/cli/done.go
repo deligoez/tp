@@ -282,6 +282,8 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 			return nil
 		}
 
+		warnUnexplainedChanges(unexplainedChangeCount(taskFilePath))
+
 		if !doneGatePassed && !gateRan && doneSkipGate == "" {
 			output.Info("quality gate not attested. Consider using --gate-passed.")
 		}
@@ -495,6 +497,8 @@ func runDoneMulti(taskFilePath string, taskIDs []string, reason string) error {
 			os.Exit(ExitFile)
 			return nil
 		}
+
+		warnUnexplainedChanges(unexplainedChangeCount(taskFilePath))
 
 		// Compute remaining
 		openCount := 0
@@ -767,6 +771,8 @@ func runDoneBatch() error {
 			os.Exit(ExitFile)
 			return nil
 		}
+
+		warnUnexplainedChanges(unexplainedChangeCount(taskFilePath))
 
 		// Compute remaining
 		openCount := 0
