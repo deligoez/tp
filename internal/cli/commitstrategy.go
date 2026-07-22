@@ -16,6 +16,9 @@ const hcCommitHint = "commit_strategy is hc: commit with hc, then tp done --comm
 // hc) for taskFilePath by layering the task-file workflow override over the
 // project config, warning as a side effect (see warnCommitStrategy).
 func resolveEffectiveStrategy(taskFilePath string) string {
+	// A parse error yields an empty override (commit_strategy treated as unset);
+	// the command's own model.ReadTaskFile then aborts with exit 3 on a truly
+	// malformed file, so dropping the error here loses no safety (cf. config.go).
 	taskOverride, _ := engine.LoadTaskWorkflowOverride(taskFilePath)
 	project := engine.ProjectWorkflowOverride(".")
 	return warnCommitStrategy(taskOverride.CommitStrategy, project.CommitStrategy)
@@ -26,7 +29,7 @@ func resolveEffectiveStrategy(taskFilePath string) string {
 // side effect: an unrecognized commit_strategy value, and — when the effective
 // strategy is hc while hc is absent from PATH — a courtesy notice that the
 // agent, not tp, will fail to run hc (§5.2, §5.3). Neither changes the exit code.
-func warnCommitStrategy(override, project *string) (effective string) {
+func warnCommitStrategy(override, project *string) string {
 	name, warning := engine.ResolveCommitStrategy(override, project)
 	if warning != "" {
 		fmt.Fprintln(os.Stderr, warning)
