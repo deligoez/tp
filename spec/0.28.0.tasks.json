@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.28.0.md",
   "created_at": "2026-07-22T21:11:59.573923Z",
-  "updated_at": "2026-07-22T21:48:11.260966Z",
+  "updated_at": "2026-07-22T21:51:24.899865Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -70,7 +70,7 @@
     {
       "id": "keeplist-store",
       "title": "Read write keep_uncommitted store",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "keeplist-model"
       ],
@@ -79,11 +79,15 @@
       "source_sections": [
         "## 7. The keep-list — durable intentional-uncommitted memory"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-22T21:51:24.899834Z",
+      "closed_at": "2026-07-22T21:51:24.899865Z",
+      "closed_reason": "- keep_uncommitted is parsed in LoadLocalConfig and written by WriteLocalConfig; UpdateKeepList does a flock read-modify-write of .tp/local.json (internal/engine/projectconfig.go, keeplist.go)\n- NormalizeKeepPath converts a path to clean repo-root-relative (git top-level base) before storage, prefixing a subdirectory\n- presence round-trips: absent keep_uncommitted stays nil (omitted), an explicit empty stays [] via the *[]KeepEntry pointer",
+      "gate_passed_at": "2026-07-22T21:51:24.899865Z",
+      "commit_sha": "479dd13",
+      "commit_shas": [
+        "479dd13",
+        "c3ef786"
+      ]
     },
     {
       "id": "keeplist-match",
