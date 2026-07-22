@@ -1,8 +1,8 @@
 {
   "version": 1,
   "spec": "spec/0.26.0.md",
-  "created_at": "2026-07-22T07:20:59.118787Z",
-  "updated_at": "2026-07-22T07:20:59.118797Z",
+  "created_at": "2026-07-22T08:40:54.811847Z",
+  "updated_at": "2026-07-22T08:40:54.812442Z",
   "workflow": {
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2,
@@ -12,10 +12,157 @@
     "audit_max_rounds": 0
   },
   "coverage": {
-    "total_sections": 0,
-    "mapped_sections": 0,
-    "context_only": [],
+    "total_sections": 11,
+    "mapped_sections": 7,
+    "context_only": [
+      "# tp v0.26.0 — Presence-preserving task-file workflow (no default materialization)",
+      "## 1. Overview",
+      "## 2. Design Principles",
+      "## 9. Non-Goals"
+    ],
     "unmapped": []
   },
-  "tasks": []
+  "tasks": [
+    {
+      "id": "commit-strategy-override",
+      "title": "Add commit_strategy to WorkflowOverride",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 5,
+      "acceptance": "WorkflowOverride gains a CommitStrategy *string field (model/projectconfig.go); parseWorkflowOverride reads the commit_strategy key into it; ResolveWorkflowLayers resolves commit_strategy via pickString. A unit test covers parse and resolution of commit_strategy.",
+      "source_sections": [
+        "## 4. Presence-preserving serialization"
+      ],
+      "source_lines": "34",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "presence-preserving-storage",
+      "title": "Store task-file workflow as presence-tracked override",
+      "status": "open",
+      "depends_on": [
+        "commit-strategy-override"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "TaskFile.Workflow is stored as the presence-tracked WorkflowOverride; the storage path applies no built-in defaults on unmarshal and every effective-value read goes through the resolver (EffectiveWorkflowForTaskFile), enforced by the type change.\nWriteTaskFile round-trips presence: a \"workflow\": {} block stays {}, a {\"review_max_rounds\":4} block keeps exactly that field, the workflow key is always emitted as an object, and a source with no workflow key normalizes to {} (tests for the round-trip matrix, quality_gate and commit_strategy).\nNo read-modify-write materializes a default field.",
+      "source_sections": [
+        "## 3. The invariant",
+        "## 4. Presence-preserving serialization",
+        "## 10. Tests / Acceptance"
+      ],
+      "source_lines": "20-22,34-40,76-86",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "clamp-task-override",
+      "title": "Clamp out-of-range task override at resolution",
+      "status": "open",
+      "depends_on": [
+        "presence-preserving-storage"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "The resolution path clamps out-of-range task-override values to absent (clampWorkflowRanges applied to the task override) so the value resolves through the precedence (project value if set, else built-in default) and never masks a lower layer.\nA warning is emitted to stderr and the command exits 0; an acceptance test covers no-project-config (resolves to 2) and project-config-present (review_clean_rounds:3 resolves to 3).",
+      "source_sections": [
+        "## 3. The invariant",
+        "## 7. Existing task files",
+        "## 10. Tests / Acceptance"
+      ],
+      "source_lines": "28,56,88",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "init-sparse-block",
+      "title": "tp init writes a sparse workflow block",
+      "status": "open",
+      "depends_on": [
+        "presence-preserving-storage"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "tp init with no workflow flags writes \"workflow\": {}; --quality-gate writes exactly {\"quality_gate\": ...}; --commit-strategy writes exactly {\"commit_strategy\": ...}; both flags compose to {\"quality_gate\": ..., \"commit_strategy\": ...}; no convergence/timeout/checks field is written unless a flag sets it. An acceptance test covers all four cases.",
+      "source_sections": [
+        "## 5. `tp init`",
+        "## 3. The invariant",
+        "## 10. Tests / Acceptance"
+      ],
+      "source_lines": "24,42-46,74",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "set-workflow-presence",
+      "title": "tp set --workflow writes override fields only",
+      "status": "open",
+      "depends_on": [
+        "presence-preserving-storage"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "tp set --workflow sets only the named override pointer field (no sibling materialized); the settable set is the five convergence/timeout integers plus checks.\nValidation happens before write: an out-of-range or non-parseable value exits 1; an unknown or non-settable field name (including quality_gate and commit_strategy) exits 2; the task file is left unmodified on any rejection. Acceptance tests cover a successful set, an out-of-range reject, and a non-settable reject.",
+      "source_sections": [
+        "## 6. `tp set --workflow`",
+        "## 10. Tests / Acceptance"
+      ],
+      "source_lines": "50,80-92",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "config-resolved-clamp-source",
+      "title": "config --resolved source for clamped fields",
+      "status": "open",
+      "depends_on": [
+        "presence-preserving-storage",
+        "clamp-task-override"
+      ],
+      "estimate_minutes": 5,
+      "acceptance": "tp config --resolved reports source \"override\" only for an in-range task-set field; a present-but-out-of-range field reports the resolved value with source \"project\" or \"default\", never \"override\". An acceptance test covers the no-masking case and the clamped-source case.",
+      "source_sections": [
+        "## 3. The invariant",
+        "## 10. Tests / Acceptance"
+      ],
+      "source_lines": "26,78",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "migrate-025-thin",
+      "title": "Thin spec/0.25.0.tasks.json workflow block",
+      "status": "open",
+      "depends_on": [
+        "presence-preserving-storage",
+        "init-sparse-block"
+      ],
+      "estimate_minutes": 4,
+      "acceptance": "spec/0.25.0.tasks.json workflow block is thinned to \"workflow\": {} only after tp config --resolved reports an identical value for every workflow field before and after thinning; the thinned file is committed.",
+      "source_sections": [
+        "## 8. Migration (tp's own repo)"
+      ],
+      "source_lines": "60",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ]
 }
