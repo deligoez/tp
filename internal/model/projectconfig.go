@@ -54,5 +54,6 @@ func (o WorkflowOverride) IsEmpty() bool {
 		o.AuditCleanRounds == nil &&
 		o.ReviewMaxRounds == nil &&
 		o.AuditMaxRounds == nil &&
-		o.Checks == nil
+		o.Checks == nil &&
+		o.CommitStrategy == nil
 }
