@@ -100,9 +100,10 @@ Arithmetic invariant: `mapped_sections + len(context_only) + len(unmapped) == to
 
 ```
 plan=$(tp plan --minimal --json)  # ONE call for full plan
-# For each task: implement → tp commit <id> "evidence" → tp done <id> "evidence" --commit <sha>
-# Or: tp done <id> "evidence" --auto-commit
-# Or: batch close via tp done --batch results.ndjson
+# For each task: implement, then commit per the effective commit_strategy:
+#   builtin: tp commit <id> "evidence"   (or tp done <id> "evidence" --auto-commit)
+#   hc:      commit with hc, then tp done <id> "evidence" --commit <sha> [--commit <sha> …]
+# Batch close: tp done --batch results.ndjson  (each row carries a commit_shas array or covered_by)
 ```
 
 **The quality gate runs automatically at `tp done`** (and `tp close`): when `workflow.quality_gate` is set, closing a task runs the command once per invocation; a failing gate blocks the close (exit 4) and no task closes. There is no `--gate-passed` step to perform — the flag is ignored when a gate is configured. On a gate-less project, `--gate-passed` still records an attestation.
@@ -122,6 +123,40 @@ Repeat until `tp audit <spec> --status --check` exits 0:
 3. Merge the per-role files: `tp audit <spec> --merge r1.ndjson r2.ndjson ... -o results.ndjson` (dedups by `role`+`item_id`, reports a status/role breakdown), then record: `tp audit <spec> --record results.ndjson` — a row counts as a finding when `status` is absent or ≠ `PASS`; a clean round has zero findings. The audit round sequence is independent of review rounds.
 4. Fix the code for every non-PASS item.
 5. Repeat. `tp audit <spec> --status` shows `consecutive_clean`, `converged`, `stale`, `budget_exhausted`.
+
+## Reset-native workflow & commit strategy (v0.28.0)
+
+Every unit — a review round, decomposition, one task, one audit round — is designed to run in a **fresh context**; tp is the durable state machine between resets. The reset is the orchestrator's job (a CLI cannot clear its caller's context); tp guarantees resumability.
+
+**`tp resume [spec]`** — the phase-agnostic oracle. From durable state alone (task file, spec, `.tp-review/`, `.tp/local.json`, git) it returns `{phase, spec, changes, kept, next_action, blockers}`. Read-only. Phase is task-first: an open task reads `implement` even when the spec is stale (a `spec-stale` blocker fires, the phase does not revert). `next_action.payload` embeds the next unit's work (one round-trip): `{round, unresolved_findings}` for review/audit, `{task, wip}` for implement. `--compact` drops `summary`/`reason`/`message`, keeps every `data`.
+
+**Reference driver** (runtime-neutral — tp ships none; embedding it would bind tp to one runtime):
+
+```
+r = tp resume
+for each blocker: agent-clearable (unexplained-changes) → reconcile (commit or tp keep), re-run resume
+                  escalate (no-ready-task, *-budget-exhausted, spec-stale) → stop, hand to a human
+blockers empty  → run next_action.command in a FRESH unit (sub-agent / session / process)
+repeat until phase == release
+```
+
+**`commit_strategy`** (task override > `.tp/config.json` > built-in default `auto`):
+
+- `builtin` — tp commits (`tp commit`, `tp done --auto-commit`, `tp done --commit`).
+- `hc` — the agent commits with `hc`, then records via `tp done --commit <sha> [--commit <sha> …]`; `tp commit`/`--auto-commit`/bare `tp done` are rejected with exit 2. Never exit 4 — tp never runs `hc`.
+- `auto` — `hc` when on `PATH`, else `builtin`. `tp config` shows `commit_strategy_effective`; `--resolved` shows `{value, source}`.
+
+A task closed with commit(s) records `commit_shas` (ordered; `commit_sha` mirrors `[0]`). `tp done --commit` is repeatable; a duplicate sha exits 1. **During self-development, tp's own repo runs `commit_strategy: auto` with `hc` installed → the hc close flow: implement → `hc run` (code) → `tp done --commit <sha> …` → `hc` (task-file closure).**
+
+**`tp keep`** — the durable, git-ignored (`.tp/local.json`) memory of files kept uncommitted, so `tp resume` classifies them as `kept` not `changes`:
+
+```bash
+tp keep <path> "<reason>"   # add/update (a repeated path overwrites; filepath.Match globs, no **)
+tp keep --remove <path>     # drop (an absent path is a no-op, exit 0)
+tp keep --list              # print as JSON ([] when empty)
+```
+
+Paths store repo-root-relative from any subdirectory. Feed `tp resume`'s `kept[].path` into `hc`'s `allow_unplanned`. After a close, `tp done`/`tp close` warn on stderr about any unexplained change not on the keep-list (exit 0; tp never commits or discards it).
 
 ## Closure Rules
 
