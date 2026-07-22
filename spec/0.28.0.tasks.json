@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.28.0.md",
   "created_at": "2026-07-22T21:11:59.573923Z",
-  "updated_at": "2026-07-22T21:37:38.540656Z",
+  "updated_at": "2026-07-22T21:39:03.068438Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -288,7 +288,7 @@
     {
       "id": "managed-fields",
       "title": "Guard commit_shas managed field",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "commit-shas-field"
       ],
@@ -297,11 +297,11 @@
       "source_sections": [
         "## 6. Multi-commit tasks — `commit_shas`"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-22T21:39:03.068416Z",
+      "closed_at": "2026-07-22T21:39:03.068438Z",
+      "closed_reason": "- tp reopen now clears commit_shas alongside commit_sha, gate_passed_at, and gate_skipped_reason (internal/cli/reopen.go)\n- tp set rejects commit_shas as a managed field with exit 2 (internal/cli/set.go managedFields map)",
+      "gate_passed_at": "2026-07-22T21:39:03.068438Z",
+      "commit_sha": "b00d023"
     },
     {
       "id": "done-warning",
