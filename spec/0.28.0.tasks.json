@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.28.0.md",
   "created_at": "2026-07-22T21:11:59.573923Z",
-  "updated_at": "2026-07-22T22:41:32.202207Z",
+  "updated_at": "2026-07-22T22:42:49.120091Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -393,7 +393,7 @@
     {
       "id": "test-discovery",
       "title": "Test discovery spec resolution",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "resume-cmd"
       ],
@@ -402,11 +402,14 @@
       "source_sections": [
         "## 12. Tests / Acceptance"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-22T22:42:49.120054Z",
+      "closed_at": "2026-07-22T22:42:49.120091Z",
+      "closed_reason": "- TestResume_NoTaskFileNoArgExit3 asserts no task file with no argument exits 3 with 'no task file found' (internal/cli/resume_discovery_test.go)\n- TestResume_SpecArgumentWinsOverDiscovered asserts the spec argument wins over a discovered task file's spec\n- TestResume_AbsentAdjacentTaskFileYieldsReview asserts an absent adjacent task file yields review from empty task state",
+      "gate_passed_at": "2026-07-22T22:42:49.120091Z",
+      "commit_sha": "ea2046d",
+      "commit_shas": [
+        "ea2046d"
+      ]
     },
     {
       "id": "test-payload",
