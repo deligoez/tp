@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.28.0.md",
   "created_at": "2026-07-22T21:11:59.573923Z",
-  "updated_at": "2026-07-22T22:42:49.120091Z",
+  "updated_at": "2026-07-22T22:44:36.273123Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -414,7 +414,7 @@
     {
       "id": "test-payload",
       "title": "Test resume payload",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "resume-payload",
         "resume-cmd"
@@ -424,11 +424,14 @@
       "source_sections": [
         "## 12. Tests / Acceptance"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-22T22:44:36.273085Z",
+      "closed_at": "2026-07-22T22:44:36.273122Z",
+      "closed_reason": "- TestResume_ImplementPayload{PrefersWIP,FirstReady,NoReadyBlocker} cover previewing first wip else first ready else null with a no-ready-task blocker (internal/cli/resume_payload_test.go)\n- TestResume_{Review,Audit}PayloadFirstRound assert round=1 and unresolved_findings=0 for the first round with the tp review/audit command literals\n- TestResume_{Decompose,Release}PayloadNullCommand assert a {} payload and a null command",
+      "gate_passed_at": "2026-07-22T22:44:36.273122Z",
+      "commit_sha": "2cb5c32",
+      "commit_shas": [
+        "2cb5c32"
+      ]
     },
     {
       "id": "test-worktree",
