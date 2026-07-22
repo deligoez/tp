@@ -124,6 +124,19 @@ func runDone(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	if resolveEffectiveStrategy(taskFilePath) == engine.CommitStrategyHC {
+		if doneAutoCommit {
+			output.Error(ExitUsage, "tp done --auto-commit is not valid under commit_strategy hc", hcCommitHint)
+			os.Exit(ExitUsage)
+			return nil
+		}
+		if len(doneCommits) == 0 && doneCoveredBy == "" {
+			output.Error(ExitUsage, "commit_strategy is hc: a close needs --commit <sha> or --covered-by <id>", hcCommitHint)
+			os.Exit(ExitUsage)
+			return nil
+		}
+	}
+
 	if len(taskIDs) == 1 {
 		return runDoneSingle(taskFilePath, taskIDs[0], reason)
 	}
@@ -576,6 +589,8 @@ func runDoneBatch() error {
 		os.Exit(ExitFile)
 		return nil
 	}
+	batchStrategy := resolveEffectiveStrategy(taskFilePath)
+
 	// Gate runs once before any entry is processed, iff a surviving entry
 	// without skip_gate exists (§6.1); on failure, skip entries still close
 	// and every other entry fails (§6.4, §6.5).
@@ -721,6 +736,10 @@ func runDoneBatch() error {
 			shas, commitErr := resolveCommitSHAs(entry.CommitSHAs, entry.Commit)
 			if commitErr != nil {
 				failures = append(failures, batchFailure{ID: entry.ID, Error: commitErr.Error()})
+				continue
+			}
+			if batchStrategy == engine.CommitStrategyHC && len(shas) == 0 && entry.CoveredBy == "" {
+				failures = append(failures, batchFailure{ID: entry.ID, Error: "commit_strategy is hc: row needs commit_shas or covered_by", Hint: hcCommitHint})
 				continue
 			}
 
