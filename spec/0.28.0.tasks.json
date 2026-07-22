@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.28.0.md",
   "created_at": "2026-07-22T21:11:59.573923Z",
-  "updated_at": "2026-07-22T22:45:41.713747Z",
+  "updated_at": "2026-07-22T22:47:07.593272Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -564,7 +564,7 @@
     {
       "id": "test-commit-shas",
       "title": "Test commit_shas recording",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "done-commit-shas",
         "managed-fields"
@@ -574,11 +574,14 @@
       "source_sections": [
         "## 12. Tests / Acceptance"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-22T22:47:07.593236Z",
+      "closed_at": "2026-07-22T22:47:07.593272Z",
+      "closed_reason": "- TestCommitShas_RecordTwoWithMirror/RecordSingle assert commit_shas and the commit_sha mirror; DuplicateExit1 asserts a duplicate exits 1 and the task stays open (internal/cli/commit_shas_test.go)\n- CoveredByRecordsNone asserts a --covered-by close records neither; SetRejectsManagedField asserts tp set commit_shas exits 2; ReopenClears asserts reopen clears commit_shas/commit_sha/gate_passed_at\n- BuiltinCommitRecordsSingleElement asserts builtin tp commit records a single-element commit_shas with the mirror",
+      "gate_passed_at": "2026-07-22T22:47:07.593272Z",
+      "commit_sha": "4507a08",
+      "commit_shas": [
+        "4507a08"
+      ]
     },
     {
       "id": "test-done-warning",
