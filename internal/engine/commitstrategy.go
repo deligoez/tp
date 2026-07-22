@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 )
 
@@ -53,10 +54,15 @@ func EffectiveCommitStrategy(name string, hcAvailable bool) (effective string, h
 	}
 }
 
-// HasHC reports whether the hc (hunk-commit) binary is on PATH. It is the probe
-// the auto strategy uses to decide its effective behavior; tp itself never
-// invokes hc (§5.3).
+// HasHC reports whether the hc (hunk-commit) binary is available. It is the
+// probe the auto strategy uses to decide its effective behavior; tp itself
+// never invokes hc (§5.3). The TP_HC environment variable overrides detection
+// for tests and CI — "1"/"true" forces available, any other value forces absent
+// — while an unset TP_HC falls back to probing PATH with exec.LookPath.
 func HasHC() bool {
+	if v, ok := os.LookupEnv("TP_HC"); ok {
+		return v == "1" || v == "true"
+	}
 	_, err := exec.LookPath("hc")
 	return err == nil
 }
