@@ -1,16 +1,553 @@
 {
   "version": 1,
   "spec": "spec/0.28.0.md",
-  "created_at": "2026-07-22T19:51:35.375176Z",
-  "updated_at": "2026-07-22T20:31:44.176742Z",
+  "created_at": "2026-07-22T21:11:59.573923Z",
+  "updated_at": "2026-07-22T21:16:05.180922Z",
   "workflow": {
     "review_max_rounds": 4
   },
   "coverage": {
-    "total_sections": 0,
-    "mapped_sections": 0,
-    "context_only": [],
+    "total_sections": 13,
+    "mapped_sections": 8,
+    "context_only": [
+      "# tp v0.28.0 — Reset-native workflow: resume oracle + hc commit delegation",
+      "## 1. Overview",
+      "## 2. Design Principles",
+      "## 3. Reset boundaries and the checkpoint invariant",
+      "## 11. Non-Goals"
+    ],
     "unmapped": []
   },
-  "tasks": []
+  "tasks": [
+    {
+      "id": "commit-shas-field",
+      "title": "Add commit_shas field with mirror",
+      "status": "done",
+      "depends_on": [],
+      "estimate_minutes": 6,
+      "acceptance": "Task gains commit_shas []string with omitempty. When commit_shas is non-empty, commit_sha equals commit_shas[0]. A pre-0.28.0 task with only commit_sha reads back unchanged.",
+      "source_sections": [
+        "## 6. Multi-commit tasks — `commit_shas`"
+      ],
+      "started_at": "2026-07-22T21:16:05.180901Z",
+      "closed_at": "2026-07-22T21:16:05.180922Z",
+      "closed_reason": "- commit_shas []string field added with omitempty (internal/model/task.go:34)\n- SetCommitSHAs + UnmarshalJSON keep commit_sha = commit_shas[0] when non-empty (task.go)\n- a pre-0.28.0 task with only commit_sha round-trips unchanged (omitempty, no forced commit_shas)",
+      "gate_passed_at": "2026-07-22T21:16:05.180922Z",
+      "commit_sha": "857732d"
+    },
+    {
+      "id": "keeplist-model",
+      "title": "Add keep_uncommitted to local config",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 5,
+      "acceptance": "LocalConfig gains keep_uncommitted []KeepEntry with path and reason fields. Absent keep_uncommitted marshals omitted. An explicit empty list marshals as [].",
+      "source_sections": [
+        "## 7. The keep-list — durable intentional-uncommitted memory"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "strategy-resolve",
+      "title": "Resolve commit_strategy with hc detect",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 8,
+      "acceptance": "Resolution returns builtin, auto, or hc by task-override over project over built-in precedence with auto as the default. auto resolves to hc when hc is on PATH else builtin. A present unrecognized value resolves to builtin and an absent value resolves to auto.",
+      "source_sections": [
+        "## 5. Commit strategy"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "keeplist-store",
+      "title": "Read write keep_uncommitted store",
+      "status": "open",
+      "depends_on": [
+        "keeplist-model"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "keep_uncommitted is read and written in .tp/local.json under flock. Paths are normalized repo-root-relative before storage. Presence round-trips: absent stays absent and an explicit empty stays [].",
+      "source_sections": [
+        "## 7. The keep-list — durable intentional-uncommitted memory"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "keeplist-match",
+      "title": "Match paths against keep list",
+      "status": "open",
+      "depends_on": [
+        "keeplist-store"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "A path matches a keep_uncommitted entry by filepath.Match with the first matching entry winning and supplying reason. A path list classifies into kept as {path,reason} and changes as the unmatched paths. A malformed pattern is reported as ErrBadPattern.",
+      "source_sections": [
+        "## 7. The keep-list — durable intentional-uncommitted memory"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "worktree-status",
+      "title": "Parse git status porcelain output",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "git status --porcelain=v1 -z -uall parses into repo-root-relative changed file paths. A staged rename yields the destination path and untracked files enumerate individually. A non-git directory yields an empty list.",
+      "source_sections": [
+        "## 4. `tp resume` — the phase-agnostic resume oracle"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "phase-detect",
+      "title": "Detect lifecycle phase task first",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 9,
+      "acceptance": "Phase detection returns implement, audit, release, decompose, or review by the task-first ordering. An open task yields implement even when the spec is stale. Zero tasks with a converged review yields decompose else review.",
+      "source_sections": [
+        "## 4. `tp resume` — the phase-agnostic resume oracle"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "resume-blockers",
+      "title": "Compute resume blockers with data",
+      "status": "open",
+      "depends_on": [
+        "keeplist-match",
+        "worktree-status"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "Blockers are objects with code, class, message, and data emitted in a fixed code order. unexplained-changes is agent-clearable when changes is non-empty while no-ready-task and spec-stale are escalate. budget-exhausted is phase-gated and never fires when max_rounds is 0.",
+      "source_sections": [
+        "## 4. `tp resume` — the phase-agnostic resume oracle"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "resume-payload",
+      "title": "Build per phase next action",
+      "status": "open",
+      "depends_on": [
+        "phase-detect"
+      ],
+      "estimate_minutes": 9,
+      "acceptance": "next_action carries command, summary, and payload per phase. review and audit payloads carry round as recorded rounds plus one and unresolved_findings as zero for the first round. implement previews {task,wip} and decompose and release commands are null.",
+      "source_sections": [
+        "## 4. `tp resume` — the phase-agnostic resume oracle"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "resume-assemble",
+      "title": "Assemble resume result object",
+      "status": "open",
+      "depends_on": [
+        "keeplist-match",
+        "worktree-status",
+        "phase-detect",
+        "resume-blockers",
+        "resume-payload"
+      ],
+      "estimate_minutes": 7,
+      "acceptance": "The resume result is assembled as phase, spec, changes, kept, next_action, and blockers. changes and kept are byte-sorted. Assembly performs no write.",
+      "source_sections": [
+        "## 4. `tp resume` — the phase-agnostic resume oracle"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "resume-cmd",
+      "title": "Add tp resume command",
+      "status": "open",
+      "depends_on": [
+        "resume-assemble"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "tp resume resolves the task file with the spec argument winning and exits 3 when none is found. It emits the resume JSON when piped. --compact strips summary, kept reason, and blocker message while keeping data, and the command writes no file.",
+      "source_sections": [
+        "## 4. `tp resume` — the phase-agnostic resume oracle"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "keep-cmd",
+      "title": "Add tp keep command",
+      "status": "open",
+      "depends_on": [
+        "keeplist-store",
+        "keeplist-match"
+      ],
+      "estimate_minutes": 9,
+      "acceptance": "tp keep \u003cpath\u003e \u003creason\u003e adds or updates an entry, --remove drops one with an absent path a no-op at exit 0, and --list prints [] when empty. A missing reason or a malformed glob exits 2. The path is stored repo-root-relative from any subdirectory.",
+      "source_sections": [
+        "## 7. The keep-list — durable intentional-uncommitted memory"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "done-commit-shas",
+      "title": "Record commit_shas on done",
+      "status": "open",
+      "depends_on": [
+        "commit-shas-field"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "tp done --commit is repeatable and records commit_shas in order with a duplicate sha exiting 1. commit_sha mirrors commit_shas[0]. A --covered-by close records neither commit_shas nor commit_sha.",
+      "source_sections": [
+        "## 6. Multi-commit tasks — `commit_shas`"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "strategy-gating",
+      "title": "Gate commit commands under hc",
+      "status": "open",
+      "depends_on": [
+        "strategy-resolve"
+      ],
+      "estimate_minutes": 9,
+      "acceptance": "Under an effective hc strategy tp commit, tp done --auto-commit, and a bare tp done are rejected with exit 2 and the hc hint, and tp close follows the same rule. A batch row lacking both commit_shas and covered_by is a failed row. No commit path returns exit 4.",
+      "source_sections": [
+        "## 5. Commit strategy"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "config-effective",
+      "title": "Report effective commit strategy",
+      "status": "open",
+      "depends_on": [
+        "strategy-resolve"
+      ],
+      "estimate_minutes": 7,
+      "acceptance": "Plain tp config adds a top-level commit_strategy_effective of builtin or hc after auto resolution. tp config --resolved keeps commit_strategy as {value,source}. An unrecognized value and an hc-absent hc strategy each print a one-line stderr warning.",
+      "source_sections": [
+        "## 5. Commit strategy"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "managed-fields",
+      "title": "Guard commit_shas managed field",
+      "status": "open",
+      "depends_on": [
+        "commit-shas-field"
+      ],
+      "estimate_minutes": 5,
+      "acceptance": "tp reopen clears commit_shas alongside commit_sha, gate_passed_at, and gate_skipped_reason. tp set rejects commit_shas as a managed field with exit 2.",
+      "source_sections": [
+        "## 6. Multi-commit tasks — `commit_shas`"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "done-warning",
+      "title": "Warn on unexplained changes",
+      "status": "open",
+      "depends_on": [
+        "keeplist-match",
+        "worktree-status"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "After a successful close tp done and tp close print a one-line stderr warning naming the unexplained-change count and exit 0. A keep-listed change produces no warning. tp neither commits nor discards the change.",
+      "source_sections": [
+        "## 8. Uncommitted changes are surfaced, never swept"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "test-phase",
+      "title": "Test phase detection",
+      "status": "open",
+      "depends_on": [
+        "phase-detect",
+        "resume-assemble"
+      ],
+      "estimate_minutes": 7,
+      "acceptance": "Tests cover implement even when stale and the audit, release, decompose, and review transitions from durable state.",
+      "source_sections": [
+        "## 12. Tests / Acceptance"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "test-discovery",
+      "title": "Test discovery spec resolution",
+      "status": "open",
+      "depends_on": [
+        "resume-cmd"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "Tests cover no task file with no argument exiting 3, the spec argument winning over a discovered spec, and an absent adjacent task file yielding decompose or review.",
+      "source_sections": [
+        "## 12. Tests / Acceptance"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "test-payload",
+      "title": "Test resume payload",
+      "status": "open",
+      "depends_on": [
+        "resume-payload",
+        "resume-cmd"
+      ],
+      "estimate_minutes": 7,
+      "acceptance": "Tests cover the implement payload previewing first wip else first ready else null with a no-ready-task blocker, review and audit round and unresolved_findings with zero for the first round, and decompose and release null command.",
+      "source_sections": [
+        "## 12. Tests / Acceptance"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "test-worktree",
+      "title": "Test worktree classification",
+      "status": "open",
+      "depends_on": [
+        "worktree-status",
+        "keeplist-match",
+        "keep-cmd"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Tests cover modified, staged, and untracked each in changes with the unexplained-changes count, a staged rename destination, tp keep moving a path to kept, a glob matching two files yielding two kept entries with the first reason, and a non-git directory yielding empty arrays.",
+      "source_sections": [
+        "## 12. Tests / Acceptance"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "test-blockers",
+      "title": "Test blocker vocabulary",
+      "status": "open",
+      "depends_on": [
+        "resume-blockers"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "Tests cover the blocker code, class, message, and data shapes, the agent-clearable and escalate classes, the fixed emission order, and budget-exhausted at the cap.",
+      "source_sections": [
+        "## 12. Tests / Acceptance"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "test-keep",
+      "title": "Test tp keep command",
+      "status": "open",
+      "depends_on": [
+        "keep-cmd"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "Tests cover add, overwrite, remove, and list with an empty [], a missing reason exiting 2, a malformed glob exiting 2, a subdirectory path stored repo-root-relative, and no entry written into a task file or .tp-review file.",
+      "source_sections": [
+        "## 12. Tests / Acceptance"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "test-compact-readonly",
+      "title": "Test compact readonly mode",
+      "status": "open",
+      "depends_on": [
+        "resume-cmd"
+      ],
+      "estimate_minutes": 5,
+      "acceptance": "Tests cover --compact stripping summary, kept reason, and blocker message while keeping data, and tp resume writing no file and emitting JSON when piped.",
+      "source_sections": [
+        "## 12. Tests / Acceptance"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "test-strategy",
+      "title": "Test strategy resolution",
+      "status": "open",
+      "depends_on": [
+        "strategy-resolve",
+        "config-effective"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "Tests cover the resolution precedence, the auto default, effective hc and builtin reporting, and a present unrecognized value resolving to builtin with a warning.",
+      "source_sections": [
+        "## 12. Tests / Acceptance"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "test-close-strategy",
+      "title": "Test close under strategies",
+      "status": "open",
+      "depends_on": [
+        "strategy-gating",
+        "done-commit-shas"
+      ],
+      "estimate_minutes": 7,
+      "acceptance": "Tests cover builtin committing, effective hc rejecting commit, auto-commit, and bare done with exit 2, commit and covered-by closing, a batch bad row exiting 2, and no exit 4 path.",
+      "source_sections": [
+        "## 12. Tests / Acceptance"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "test-commit-shas",
+      "title": "Test commit_shas recording",
+      "status": "open",
+      "depends_on": [
+        "done-commit-shas",
+        "managed-fields"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "Tests cover recording two commits with the sha mirror, a single commit, a duplicate exiting 1, a covered-by recording none, set rejecting, reopen clearing, and builtin recording a single-element list.",
+      "source_sections": [
+        "## 12. Tests / Acceptance"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "test-done-warning",
+      "title": "Test done warning",
+      "status": "open",
+      "depends_on": [
+        "done-warning"
+      ],
+      "estimate_minutes": 5,
+      "acceptance": "Tests cover an unexplained change making tp done exit 0 with the stderr count, the change staying unmodified, and a keep-listed change producing no warning.",
+      "source_sections": [
+        "## 12. Tests / Acceptance"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "docs-028",
+      "title": "Document v0.28.0 features",
+      "status": "open",
+      "depends_on": [
+        "resume-cmd",
+        "keep-cmd",
+        "strategy-gating",
+        "done-commit-shas"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "SKILL.md, README.md, and REFERENCE.md document tp resume, tp keep, commit_strategy, and the reference driver. CLAUDE.md updates the self-development rule for the hc close flow. All new commands and flags are reflected.",
+      "source_sections": [
+        "## 9. Reference driver (external, agent-agnostic)",
+        "## 10. Migration and dogfood (tp's own repo)"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ]
 }
