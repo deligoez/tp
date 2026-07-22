@@ -172,6 +172,8 @@ func runClose(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 
+		warnUnexplainedChanges(unexplainedChangeCount(taskFilePath))
+
 		output.Success(fmt.Sprintf("closed %s", task.ID))
 		return output.JSON(task)
 	})
