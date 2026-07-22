@@ -22,7 +22,9 @@ Detailed command reference, field formats, and operational details. For workflow
 | `tp done <id> --covered-by <id>` | Close as covered by another done task |
 | `tp done <id> --commit <sha>` | Record implementing commit SHA |
 | `tp done id1 id2 "reason"` | Multi-ID close (shared reason) |
+| `tp done <id> --commit a --commit b` | Record multiple commits (hc flow); repeatable, duplicate exits 1; commit_sha mirrors commit_shas[0] |
 | `tp done --batch file.ndjson` | Batch close from NDJSON |
+| `tp resume [spec]` | Report phase + next action from durable state (reset-native, read-only; `--compact`) |
 
 ### Incremental
 | Command | Purpose |
@@ -43,6 +45,7 @@ Detailed command reference, field formats, and operational details. For workflow
 | `tp set --workflow field=value` | Update workflow fields: `review_clean_rounds`/`audit_clean_rounds` (1-10), `gate_timeout_seconds` (30-3600), `review_max_rounds`/`audit_max_rounds` (0-50, 0=no cap) |
 | `tp set --workflow checks='[{"class":"s","cmd":"c"}]'` | Replace the mechanical-checks list (JSON array; `class` kebab-case unique, `cmd` non-empty) |
 | `tp set --bulk sets.ndjson` | Bulk update from NDJSON {id, field, value} |
+| `tp keep <path> "<reason>"` | Keep-list a deliberately-uncommitted file (`--remove`, `--list`) |
 
 ### Query
 | Command | Purpose |
@@ -162,6 +165,51 @@ Or set `TP_FILE` for session-level override:
 ```bash
 export TP_FILE=spec/project.tasks.json
 ```
+
+## Reset-Native Workflow (v0.28.0)
+
+Each unit (review round, decomposition, one task, one audit round) runs in a fresh context; tp is the durable state machine between resets. tp guarantees resumability; the orchestrator triggers the reset.
+
+### `tp resume [spec]` — resume oracle (read-only)
+
+Resolves the task file by the discovery order (a spec argument wins and uses its adjacent `<base>.tasks.json`; an absent adjacent file → empty task set); exits 3 when neither a task file nor a spec argument is found. Emits JSON when piped. Output:
+
+| Field | Meaning |
+|-------|---------|
+| `phase` | `review` / `decompose` / `implement` / `audit` / `release` (task-first: an open task is `implement` even when the spec is stale) |
+| `spec` | resolved spec path |
+| `changes` | byte-sorted repo-root-relative uncommitted paths **not** on the keep-list |
+| `kept` | byte-sorted `{path, reason}` — uncommitted paths matched by the keep-list |
+| `next_action` | `{command, summary, payload}`; `command` is null for `decompose`/`release`. Payload: review/audit `{round, unresolved_findings}` (round = recorded+1, 0 unresolved on round 1), implement `{task: {id}|null, wip}`, decompose/release `{}` |
+| `blockers` | `{code, class, message, data}` in fixed code order |
+
+`--compact` drops `next_action.summary`, each `kept[].reason`, and each `blockers[].message`; keeps every `data`.
+
+Blocker vocabulary (fixed order): `unexplained-changes` (**agent-clearable**, `{count}`), `no-ready-task` (escalate, `{blocked_by}`), `review-budget-exhausted` / `audit-budget-exhausted` (escalate, `{cap}`; 0 = no cap, never fires), `spec-stale` (escalate, `{spec}`). Reference driver: resolve `agent-clearable` blockers and re-run; stop on `escalate`; run `next_action` in a fresh unit when `blockers` is empty; repeat until `release`.
+
+### `commit_strategy` — `builtin` / `auto` / `hc`
+
+Resolves task override > `.tp/config.json` > built-in default `auto`. A present unrecognized value → `builtin` (with a stderr warning); an absent value → `auto`.
+
+- `builtin` — tp commits (`tp commit`, `tp done --auto-commit`, `tp done --commit`).
+- `hc` — the agent commits with `hc`, then records via `tp done --commit <sha> [--commit <sha> …]`. Under effective `hc`, `tp commit`, `tp done --auto-commit`, a bare `tp done`, and `tp close` are rejected with exit 2 and the hint `commit_strategy is hc: commit with hc, then tp done --commit <sha>`. A `tp done --batch` row with neither `commit_shas` nor `covered_by` is a failed row. No commit-strategy path returns exit 4.
+- `auto` — `hc` when on `PATH`, else `builtin`.
+
+`tp config` adds top-level `commit_strategy_effective` (`builtin`/`hc`); `tp config --resolved` reports `commit_strategy` as `{value, source}` with the resolved name.
+
+`commit_shas` (`[]string`, canonical) records the ordered commits; `commit_sha` mirrors `commit_shas[0]` for pre-0.28.0 readers. It is a managed field (`tp set` rejects it; `tp reopen` clears it alongside `commit_sha`, `gate_passed_at`, `gate_skipped_reason`). A `--covered-by` close records neither.
+
+### `tp keep` — the keep-list
+
+`.tp/local.json` (git-ignored, repo-scoped) gains `keep_uncommitted: [{path, reason}]` — the durable memory of files kept uncommitted, so `tp resume` classifies them as `kept` not `changes`.
+
+| Command | Purpose |
+|---------|---------|
+| `tp keep <path> "<reason>"` | add or update (a repeated path overwrites; path stored repo-root-relative from any subdirectory; a missing reason or malformed glob exits 2) |
+| `tp keep --remove <path>` | drop an entry (an absent path is a no-op, exit 0) |
+| `tp keep --list` | print the keep-list as JSON (`[]` when empty) |
+
+Matching is Go `filepath.Match` (`*`/`?` do not cross `/`, no `**`); the first matching entry supplies the reason. Feed `tp resume`'s `kept[].path` into `hc`'s `allow_unplanned`. After a successful close, `tp done`/`tp close` print a one-line stderr warning naming any uncommitted change not on the keep-list (exit 0; tp never commits or discards it).
 
 ## Phase Management
 
