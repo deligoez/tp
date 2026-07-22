@@ -179,7 +179,7 @@ func LoadLocalConfig(tpDir string) (model.LocalConfig, []string, error) {
 	}
 	var warnings []string
 	for k := range top {
-		if k != "active" && k != "defaults" {
+		if k != "active" && k != "defaults" && k != "keep_uncommitted" {
 			warnings = append(warnings, "unknown top-level key: "+k)
 		}
 	}
@@ -209,6 +209,17 @@ func LoadLocalConfig(tpDir string) (model.LocalConfig, []string, error) {
 				}
 				lc.Defaults[k] = b
 			}
+		}
+	}
+	if raw, ok := top["keep_uncommitted"]; ok {
+		var entries []model.KeepEntry
+		if err := json.Unmarshal(raw, &entries); err != nil {
+			warnings = append(warnings, "keep_uncommitted: expected an array, ignored")
+		} else {
+			if entries == nil {
+				entries = []model.KeepEntry{}
+			}
+			lc.KeepUncommitted = &entries
 		}
 	}
 	return lc, warnings, nil
