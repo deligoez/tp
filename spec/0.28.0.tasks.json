@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.28.0.md",
   "created_at": "2026-07-22T21:11:59.573923Z",
-  "updated_at": "2026-07-22T22:11:50.560035Z",
+  "updated_at": "2026-07-22T22:13:24.917872Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -188,7 +188,7 @@
     {
       "id": "resume-assemble",
       "title": "Assemble resume result object",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "keeplist-match",
         "worktree-status",
@@ -201,11 +201,14 @@
       "source_sections": [
         "## 4. `tp resume` — the phase-agnostic resume oracle"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-22T22:13:24.917842Z",
+      "closed_at": "2026-07-22T22:13:24.917872Z",
+      "closed_reason": "- AssembleResume returns {phase, spec, changes, kept, next_action, blockers} from durable state (internal/engine/resume.go)\n- changes are byte-sorted (sort.Strings) and kept byte-sorted by path (sort.Slice)\n- assembly only reads (LoadReviewState/LoadKeepList/WorktreeChanges/SpecHash), performs no write",
+      "gate_passed_at": "2026-07-22T22:13:24.917872Z",
+      "commit_sha": "48e81bf",
+      "commit_shas": [
+        "48e81bf"
+      ]
     },
     {
       "id": "resume-cmd",
