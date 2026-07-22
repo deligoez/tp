@@ -31,6 +31,7 @@ type Task struct {
 	ClosedReason      *string    `json:"closed_reason"`
 	GatePassedAt      *time.Time `json:"gate_passed_at"`
 	CommitSHA         *string    `json:"commit_sha"`
+	CommitSHAs        []string   `json:"commit_shas,omitempty"`
 	GateSkippedReason *string    `json:"gate_skipped_reason,omitempty"`
 }
 
@@ -84,7 +85,27 @@ func (t *Task) UnmarshalJSON(data []byte) error {
 		}
 	}
 
+	// commit_shas is canonical; keep the commit_sha mirror on its first element
+	if len(t.CommitSHAs) > 0 {
+		primary := t.CommitSHAs[0]
+		t.CommitSHA = &primary
+	}
+
 	return nil
+}
+
+// SetCommitSHAs records the ordered commits that implement the task and keeps
+// the commit_sha mirror pointed at the primary (first) commit for
+// backward-compatible readers. An empty slice clears both fields.
+func (t *Task) SetCommitSHAs(shas []string) {
+	if len(shas) == 0 {
+		t.CommitSHAs = nil
+		t.CommitSHA = nil
+		return
+	}
+	t.CommitSHAs = shas
+	primary := shas[0]
+	t.CommitSHA = &primary
 }
 
 // ValidTransition returns true if the status transition is allowed.
