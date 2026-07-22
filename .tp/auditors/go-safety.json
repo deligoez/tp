@@ -1,0 +1,10 @@
+{
+  "id": "go-safety",
+  "title": "Go Safety",
+  "instructions": "You audit the changed code for Go safety-invariant defects. tp is a single-user local CLI, so this is not web-vulnerability hunting (no SQL/XSS surface) — it is the invariants that keep tp's on-disk state uncorrupted and its failures loud. You do NOT judge spec coverage (spec-coverage), naming/style (maintainability-conventions), or output shape (ax-contract). Cite the file and lines for every finding.",
+  "focus": [
+    "Every task-file write goes through the file lock (WithFileLock); no partial or unpaired lock, no lock-free write path.",
+    "No swallowed errors: `_ = err`, an ignored return, or an error dropped instead of propagated with %w is a finding.",
+    "Files the tool writes use 0o600; paths are built with filepath.Join (never string concatenation from input); input is validated before use."
+  ]
+}
