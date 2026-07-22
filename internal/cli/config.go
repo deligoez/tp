@@ -52,9 +52,12 @@ func resolvedConfig(wf *model.Workflow, override model.WorkflowOverride) map[str
 	vs := func(value any, o, p bool) map[string]any {
 		return map[string]any{"value": value, "source": sourceLabel(o, p)}
 	}
+	// commit_strategy's resolved value is the normalized name (builtin/auto/hc),
+	// so a present unrecognized value reports as builtin, not the raw string (§5.2).
+	csName, _ := engine.ResolveCommitStrategy(override.CommitStrategy, project.CommitStrategy)
 	result := map[string]any{"workflow": map[string]any{
 		"quality_gate":         vs(wf.QualityGate, override.QualityGate != nil, project.QualityGate != nil),
-		"commit_strategy":      vs(wf.CommitStrategy, override.CommitStrategy != nil, project.CommitStrategy != nil),
+		"commit_strategy":      vs(csName, override.CommitStrategy != nil, project.CommitStrategy != nil),
 		"gate_timeout_seconds": vs(wf.GateTimeoutSeconds, override.GateTimeoutSeconds != nil, project.GateTimeoutSeconds != nil),
 		"review_clean_rounds":  vs(wf.ReviewCleanRounds, override.ReviewCleanRounds != nil, project.ReviewCleanRounds != nil),
 		"audit_clean_rounds":   vs(wf.AuditCleanRounds, override.AuditCleanRounds != nil, project.AuditCleanRounds != nil),
@@ -127,10 +130,15 @@ func runConfig(_ *cobra.Command, _ []string) error {
 		return runConfigExtract()
 	}
 	wf, override := resolveConfigWorkflow()
+	// commit_strategy is a strategy-reading surface: warn on an unrecognized value
+	// or an hc-absent hc strategy, and expose the concrete builtin/hc behavior
+	// after auto resolution (§5.2).
+	effective := warnCommitStrategy(override.CommitStrategy, engine.ProjectWorkflowOverride(".").CommitStrategy)
 	if configResolved {
 		return output.JSON(resolvedConfig(&wf, override))
 	}
-	// The effective workflow as JSON on stdout. --compact is a documented no-op
-	// (the output is not task-shaped), so tp config always emits this shape.
-	return output.JSON(map[string]any{"workflow": wf})
+	// The effective workflow as JSON on stdout, plus commit_strategy_effective (the
+	// concrete builtin/hc behavior). --compact is a documented no-op (the output is
+	// not task-shaped), so tp config always emits this shape.
+	return output.JSON(map[string]any{"workflow": wf, "commit_strategy_effective": effective})
 }
