@@ -254,3 +254,35 @@ func TestCheckOrphanListItems(t *testing.T) {
 		})
 	}
 }
+
+func TestCheckDuplicateParagraphs(t *testing.T) {
+	tests := []struct {
+		name  string
+		lines []string
+		count int
+	}{
+		{"two identical single-line paras", []string{"hello world", "", "hello world"}, 1},
+		{"two identical multi-line paras", []string{"line a", "line b", "", "line a", "line b"}, 1},
+		{"different paras", []string{"para one", "", "para two"}, 0},
+		{"three identical paras", []string{"x y", "", "x y", "", "x y"}, 2},
+		{"trailing whitespace normalized", []string{"same text", "", "same text  "}, 1},
+		{"code block between breaks adjacency", []string{"dup text", "", "```", "code", "```", "", "dup text"}, 0},
+		{"duplicate inside code block excluded", []string{"```", "dup", "", "dup", "```"}, 0},
+		{"heading duplicate skipped", []string{"## Section", "", "## Section"}, 0},
+		{"horizontal rule skipped", []string{"---", "", "---"}, 0},
+		{"not consecutive", []string{"a a", "", "b b", "", "a a"}, 0},
+		{"long context truncated", []string{strings.Repeat("x ", 60), "", strings.Repeat("x ", 60)}, 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			findings := CheckDuplicateParagraphs(tt.lines)
+			assert.Equal(t, tt.count, len(findings))
+			for _, f := range findings {
+				assert.Equal(t, "duplicate-paragraph", f.Rule)
+				assert.Equal(t, "warning", f.Severity)
+				assert.LessOrEqual(t, len(f.Context), 80)
+			}
+		})
+	}
+}
