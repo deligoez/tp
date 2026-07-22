@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.28.0.md",
   "created_at": "2026-07-22T21:11:59.573923Z",
-  "updated_at": "2026-07-22T22:37:38.668691Z",
+  "updated_at": "2026-07-22T22:38:55.711776Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -471,7 +471,7 @@
     {
       "id": "test-keep",
       "title": "Test tp keep command",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "keep-cmd"
       ],
@@ -480,11 +480,14 @@
       "source_sections": [
         "## 12. Tests / Acceptance"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-22T22:38:55.711743Z",
+      "closed_at": "2026-07-22T22:38:55.711775Z",
+      "closed_reason": "- TestKeep_AddOverwriteRemoveList covers add, overwrite, remove, and --list printing [] when empty (internal/cli/keep_test.go)\n- TestKeep_MissingReasonExit2 and TestKeep_MalformedGlobExit2 assert exit 2; TestKeep_RemoveAbsentIsNoOp asserts exit 0; TestKeep_SubdirStoredRepoRootRelative asserts a subdirectory path stores as sub/x.log\n- TestKeep_WritesOnlyLocalConfig asserts no entry is written into the task file or a .tp-review file and .tp/local.json stays git-ignored",
+      "gate_passed_at": "2026-07-22T22:38:55.711775Z",
+      "commit_sha": "948bc6f",
+      "commit_shas": [
+        "948bc6f"
+      ]
     },
     {
       "id": "test-compact-readonly",
