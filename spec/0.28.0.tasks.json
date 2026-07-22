@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.28.0.md",
   "created_at": "2026-07-22T21:11:59.573923Z",
-  "updated_at": "2026-07-22T22:44:36.273123Z",
+  "updated_at": "2026-07-22T22:45:41.713747Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -501,7 +501,7 @@
     {
       "id": "test-compact-readonly",
       "title": "Test compact readonly mode",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "resume-cmd"
       ],
@@ -510,11 +510,14 @@
       "source_sections": [
         "## 12. Tests / Acceptance"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-22T22:45:41.713718Z",
+      "closed_at": "2026-07-22T22:45:41.713747Z",
+      "closed_reason": "- TestResume_CompactStripsHumanFieldsKeepsData asserts --compact strips next_action.summary, kept reason, and blocker message while keeping command, payload, path, and data (internal/cli/resume_compact_test.go)\n- TestResume_WritesNoFile asserts tp resume leaves the task file byte-identical and creates no .tp-review or .tp directory\n- both assert tp resume emits JSON when piped",
+      "gate_passed_at": "2026-07-22T22:45:41.713747Z",
+      "commit_sha": "5229e77",
+      "commit_shas": [
+        "5229e77"
+      ]
     },
     {
       "id": "test-strategy",
