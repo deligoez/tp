@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.28.0.md",
   "created_at": "2026-07-22T21:11:59.573923Z",
-  "updated_at": "2026-07-22T22:36:12.15915Z",
+  "updated_at": "2026-07-22T22:37:38.668691Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -371,7 +371,7 @@
     {
       "id": "test-phase",
       "title": "Test phase detection",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "phase-detect",
         "resume-assemble"
@@ -381,11 +381,14 @@
       "source_sections": [
         "## 12. Tests / Acceptance"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-22T22:37:38.668664Z",
+      "closed_at": "2026-07-22T22:37:38.668691Z",
+      "closed_reason": "- TestDetectPhase covers the implement/audit/release/decompose/review transitions by the task-first ordering (internal/engine/resumephase_test.go)\n- TestAssembleResume_ImplementEvenWhenStale asserts an open task yields implement with a spec-stale blocker from durable review state\n- TestAssembleResume audit/release/decompose/review cases assert each transition from recorded rounds with no in-memory context",
+      "gate_passed_at": "2026-07-22T22:37:38.668691Z",
+      "commit_sha": "0dcef70",
+      "commit_shas": [
+        "0dcef70"
+      ]
     },
     {
       "id": "test-discovery",
