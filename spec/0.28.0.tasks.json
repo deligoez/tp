@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.28.0.md",
   "created_at": "2026-07-22T21:11:59.573923Z",
-  "updated_at": "2026-07-22T22:47:07.593272Z",
+  "updated_at": "2026-07-22T22:49:38.467293Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -545,7 +545,7 @@
     {
       "id": "test-close-strategy",
       "title": "Test close under strategies",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "strategy-gating",
         "done-commit-shas"
@@ -555,11 +555,14 @@
       "source_sections": [
         "## 12. Tests / Acceptance"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-22T22:49:38.46726Z",
+      "closed_at": "2026-07-22T22:49:38.467293Z",
+      "closed_reason": "- TestCloseStrategy_Builtin{CommitWorks,AutoCommitWorks} cover builtin committing and auto-commit closing (internal/cli/close_strategy_test.go)\n- TestCloseStrategy_HCRejects{Commit,AutoCommit,BareDone} assert exit 2 (never 4); HCCommitAndCoveredByClose asserts --commit and --covered-by close under hc\n- TestCloseStrategy_BatchBadRowIsFailedRow asserts a row lacking commit_shas and covered_by is a failed row with the hc error, a partial failure exiting 1",
+      "gate_passed_at": "2026-07-22T22:49:38.467293Z",
+      "commit_sha": "b8014f4",
+      "commit_shas": [
+        "b8014f4"
+      ]
     },
     {
       "id": "test-commit-shas",
