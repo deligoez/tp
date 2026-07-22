@@ -101,8 +101,11 @@ func runCommit(_ *cobra.Command, args []string) error {
 			return nil
 		}
 
-		// Unstage lock files that may have been accidentally staged
-		_ = runGit("reset", "HEAD", "--", "*.lock", "*.tasks.json.lock")
+		// Best-effort: drop any accidentally-staged flock files from the index.
+		// `git rm --cached --ignore-unmatch` is HEAD-independent (works before the
+		// first commit) and never errors on a no-match, so ignoring its result
+		// cannot leave a lock file staged for the commit.
+		_ = runGit("rm", "--cached", "--ignore-unmatch", "-q", "--", "*.lock", "*.tasks.json.lock")
 
 		// Check if there's anything to commit
 		if !gitHasStagedChanges() {
