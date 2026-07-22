@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.28.0.md",
   "created_at": "2026-07-22T21:11:59.573923Z",
-  "updated_at": "2026-07-22T21:33:59.534319Z",
+  "updated_at": "2026-07-22T21:36:26.214189Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -106,18 +106,18 @@
     {
       "id": "worktree-status",
       "title": "Parse git status porcelain output",
-      "status": "open",
+      "status": "done",
       "depends_on": [],
       "estimate_minutes": 10,
       "acceptance": "git status --porcelain=v1 -z -uall parses into repo-root-relative changed file paths. A staged rename yields the destination path and untracked files enumerate individually. A non-git directory yields an empty list.",
       "source_sections": [
         "## 4. `tp resume` — the phase-agnostic resume oracle"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-22T21:36:26.21416Z",
+      "closed_at": "2026-07-22T21:36:26.214189Z",
+      "closed_reason": "- WorktreeChanges runs git status --porcelain=v1 -z -uall at the repo root, yielding repo-root-relative paths (internal/engine/worktree.go)\n- a staged rename yields only the destination path (origin NUL field consumed) and -uall enumerates untracked files individually\n- a non-git directory (empty gitToplevel) yields an empty list",
+      "gate_passed_at": "2026-07-22T21:36:26.214189Z",
+      "commit_sha": "5a250d5"
     },
     {
       "id": "phase-detect",
