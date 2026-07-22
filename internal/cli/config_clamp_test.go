@@ -46,5 +46,5 @@ func TestResolvedConfig_CommitStrategySource(t *testing.T) {
 	field := workflow["commit_strategy"].(map[string]any)
 
 	assert.Equal(t, "override", field["source"], "a task-file commit_strategy reports source override")
-	assert.Equal(t, "squash", field["value"])
+	assert.Equal(t, "builtin", field["value"], "an unrecognized commit_strategy resolves to builtin (§5.2)")
 }
