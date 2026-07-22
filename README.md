@@ -41,7 +41,7 @@ cd tp && go build -ldflags="-s -w" -o tp ./cmd/tp
 npx skills add -g deligoez/tp
 
 # Update skill (after tp updates)
-npx skills update -g deligoez/tp
+npx skills update -g
 ```
 
 ## Quick Start
@@ -570,7 +570,7 @@ tp ships with a Claude Code skill via the [Agent Skills](https://agentskills.io)
 npx skills add -g deligoez/tp
 
 # Update skill (after tp updates)
-npx skills update -g deligoez/tp
+npx skills update -g
 ```
 
 The skill teaches Claude the 2-call workflow, decomposition rules, NDJSON format, closure verification, and commit conventions automatically.
