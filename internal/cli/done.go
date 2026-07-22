@@ -21,7 +21,7 @@ var (
 	doneStdin      bool
 	doneReasonFile string
 	doneGatePassed bool
-	doneCommit     string
+	doneCommits    []string
 	doneBatch      string
 	doneAutoCommit bool
 	doneCoveredBy  string
@@ -47,7 +47,7 @@ On error: {error, code, acceptance, hint} on stderr. Task unchanged.`,
 	cmd.Flags().BoolVar(&doneStdin, "stdin", false, "read reason from stdin")
 	cmd.Flags().StringVar(&doneReasonFile, "reason-file", "", "read reason from file")
 	cmd.Flags().BoolVar(&doneGatePassed, "gate-passed", false, "attest quality gate passed")
-	cmd.Flags().StringVar(&doneCommit, "commit", "", "record implementing commit SHA")
+	cmd.Flags().StringArrayVar(&doneCommits, "commit", nil, "record implementing commit SHA (repeatable)")
 	cmd.Flags().StringVar(&doneBatch, "batch", "", "batch close from NDJSON file")
 	cmd.Flags().BoolVar(&doneAutoCommit, "auto-commit", false, "stage + commit before closing (structured message)")
 	cmd.Flags().StringVar(&doneCoveredBy, "covered-by", "", "close as covered by another done task (skips closure verification)")
@@ -99,6 +99,16 @@ func runDone(cmd *cobra.Command, args []string) error {
 		os.Exit(ExitUsage)
 		return nil
 	}
+
+	// Normalize --commit into an ordered, de-duplicated commit list; a repeated
+	// sha is a validation error (§6.1).
+	cleanedCommits, commitErr := resolveCommitSHAs(doneCommits, "")
+	if commitErr != nil {
+		output.Error(ExitValidation, commitErr.Error())
+		os.Exit(ExitValidation)
+		return nil
+	}
+	doneCommits = cleanedCommits
 
 	// --auto-commit forbidden with multi-ID
 	if len(taskIDs) > 1 && doneAutoCommit {
@@ -219,7 +229,7 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 			return nil
 		}
 
-		if doneAutoCommit && doneCommit == "" {
+		if doneAutoCommit && len(doneCommits) == 0 {
 			if err := gitStage(doneFiles); err != nil {
 				output.Error(ExitFile, fmt.Sprintf("auto-commit: git stage failed: %v", err))
 				os.Exit(ExitFile)
@@ -233,7 +243,7 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 					os.Exit(ExitFile)
 					return nil
 				}
-				doneCommit = sha
+				doneCommits = []string{sha}
 			}
 		}
 
@@ -248,8 +258,8 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 		case doneGatePassed || gateRan:
 			task.GatePassedAt = &now
 		}
-		if doneCommit != "" {
-			task.CommitSHA = &doneCommit
+		if !isCoveredBy && len(doneCommits) > 0 {
+			task.SetCommitSHAs(doneCommits)
 		}
 		tf.UpdatedAt = now
 
@@ -459,9 +469,8 @@ func runDoneMulti(taskFilePath string, taskIDs []string, reason string) error {
 			case doneGatePassed || gateRan:
 				task.GatePassedAt = &now
 			}
-			if doneCommit != "" {
-				c := doneCommit
-				task.CommitSHA = &c
+			if !isCoveredBy && len(doneCommits) > 0 {
+				task.SetCommitSHAs(doneCommits)
 			}
 			closedIDs = append(closedIDs, id)
 			doneSet[id] = true
@@ -532,6 +541,7 @@ type batchEntry struct {
 	Reason     string     `json:"reason"`
 	GatePassed bool       `json:"gate_passed"`
 	Commit     string     `json:"commit"`
+	CommitSHAs []string   `json:"commit_shas"`
 	StartedAt  *time.Time `json:"started_at"`
 	CoveredBy  string     `json:"covered_by"`
 	SkipGate   *string    `json:"skip_gate"`
@@ -708,6 +718,12 @@ func runDoneBatch() error {
 				continue
 			}
 
+			shas, commitErr := resolveCommitSHAs(entry.CommitSHAs, entry.Commit)
+			if commitErr != nil {
+				failures = append(failures, batchFailure{ID: entry.ID, Error: commitErr.Error()})
+				continue
+			}
+
 			task.Status = model.StatusDone
 			task.ClosedAt = &now
 			reason := entry.Reason
@@ -719,9 +735,8 @@ func runDoneBatch() error {
 			case entry.GatePassed || gateRan:
 				task.GatePassedAt = &now
 			}
-			if entry.Commit != "" {
-				commit := entry.Commit
-				task.CommitSHA = &commit
+			if !isBatchCoveredBy && len(shas) > 0 {
+				task.SetCommitSHAs(shas)
 			}
 			closedCount++
 			doneSet[task.ID] = true // update for subsequent dep checks
@@ -825,6 +840,31 @@ func resolveMultiReason(args []string, useStdin bool, reasonFile string) (ids []
 		return nil, "", fmt.Errorf("reason is required (use positional reason, --stdin, or --reason-file)")
 	}
 	return args[:len(args)-1], args[len(args)-1], nil
+}
+
+// resolveCommitSHAs returns the ordered, de-duplicated commit SHAs to record on
+// a close, preferring an explicit list over a single legacy value. A repeated
+// sha is a validation error ("duplicate commit sha", §6.1); blank entries are
+// dropped. An empty result records no commit — a --covered-by or bare close.
+func resolveCommitSHAs(list []string, single string) ([]string, error) {
+	raw := list
+	if len(raw) == 0 && strings.TrimSpace(single) != "" {
+		raw = []string{single}
+	}
+	seen := make(map[string]bool, len(raw))
+	out := make([]string, 0, len(raw))
+	for _, s := range raw {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			continue
+		}
+		if seen[s] {
+			return nil, fmt.Errorf("duplicate commit sha: %s", s)
+		}
+		seen[s] = true
+		out = append(out, s)
+	}
+	return out, nil
 }
 
 func readBatchEntries(path string) ([]batchEntry, error) {
