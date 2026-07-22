@@ -23,6 +23,7 @@ var (
 		"closed_reason":       "set automatically by `tp close` / `tp done`",
 		"gate_passed_at":      "set automatically by `tp done --gate-passed`",
 		"commit_sha":          "set automatically by `tp done --commit`",
+		"commit_shas":         "set automatically by `tp done --commit`",
 		"gate_skipped_reason": "set automatically by `tp done --skip-gate`",
 	}
 	setBulkFile     string
