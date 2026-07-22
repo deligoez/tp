@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.28.0.md",
   "created_at": "2026-07-22T21:11:59.573923Z",
-  "updated_at": "2026-07-22T22:18:03.301385Z",
+  "updated_at": "2026-07-22T22:22:42.983377Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -235,7 +235,7 @@
     {
       "id": "keep-cmd",
       "title": "Add tp keep command",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "keeplist-store",
         "keeplist-match"
@@ -245,11 +245,15 @@
       "source_sections": [
         "## 7. The keep-list — durable intentional-uncommitted memory"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-22T22:22:42.98335Z",
+      "closed_at": "2026-07-22T22:22:42.983377Z",
+      "closed_reason": "- tp keep \u003cpath\u003e \u003creason\u003e adds or updates an entry, --remove drops one (absent path a no-op at exit 0), and --list prints [] when empty (internal/cli/keep.go)\n- a missing reason or a malformed glob (filepath.ErrBadPattern) exits 2\n- the path is stored repo-root-relative from any subdirectory via NormalizeKeepPath (fixed to use the Go project root so it matches git status output)",
+      "gate_passed_at": "2026-07-22T22:22:42.983377Z",
+      "commit_sha": "fb7658d",
+      "commit_shas": [
+        "fb7658d",
+        "9a84968"
+      ]
     },
     {
       "id": "done-commit-shas",
