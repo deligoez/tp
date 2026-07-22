@@ -17,14 +17,20 @@ func unexplainedChangeCount(taskFilePath string) int {
 	if len(raw) == 0 {
 		return 0
 	}
+	// Classify against the keep-list; a malformed keep pattern is fail-safe here —
+	// every change stays unexplained (over-report) rather than being swallowed.
 	changes := raw
 	if classified, err := engine.ClassifyPaths(engine.LoadKeepList("."), raw); err == nil {
 		changes = classified.Changes
 	}
 	// Exclude tp's own artifacts for this close: the task file it just wrote and
 	// the flock file still held while this runs (both normalize to the same base
-	// as git status output).
-	skip, _ := engine.NormalizeKeepPath(".", taskFilePath)
+	// as git status output). If the path cannot be normalized, fall back to it as
+	// given rather than dropping the exclusion.
+	skip, err := engine.NormalizeKeepPath(".", taskFilePath)
+	if err != nil {
+		skip = taskFilePath
+	}
 	skipLock := skip + ".lock"
 	n := 0
 	for _, c := range changes {
