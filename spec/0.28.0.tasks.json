@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.28.0.md",
   "created_at": "2026-07-22T21:11:59.573923Z",
-  "updated_at": "2026-07-22T22:01:58.787019Z",
+  "updated_at": "2026-07-22T22:05:55.098074Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -289,7 +289,7 @@
     {
       "id": "config-effective",
       "title": "Report effective commit strategy",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "strategy-resolve"
       ],
@@ -298,11 +298,16 @@
       "source_sections": [
         "## 5. Commit strategy"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-22T22:05:55.098044Z",
+      "closed_at": "2026-07-22T22:05:55.098074Z",
+      "closed_reason": "- plain tp config adds a top-level commit_strategy_effective of builtin or hc after auto resolution (internal/cli/config.go runConfig)\n- tp config --resolved keeps commit_strategy as {value,source} with value the normalized name (resolvedConfig via engine.ResolveCommitStrategy)\n- an unrecognized value and an hc-absent hc strategy each print a one-line stderr warning (warnCommitStrategy in cli/commitstrategy.go)",
+      "gate_passed_at": "2026-07-22T22:05:55.098074Z",
+      "commit_sha": "db2b982",
+      "commit_shas": [
+        "db2b982",
+        "da32abc",
+        "657c598"
+      ]
     },
     {
       "id": "managed-fields",
