@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.28.0.md",
   "created_at": "2026-07-22T21:11:59.573923Z",
-  "updated_at": "2026-07-22T22:50:34.873711Z",
+  "updated_at": "2026-07-22T22:55:37.239984Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -610,7 +610,7 @@
     {
       "id": "docs-028",
       "title": "Document v0.28.0 features",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "resume-cmd",
         "keep-cmd",
@@ -623,11 +623,17 @@
         "## 9. Reference driver (external, agent-agnostic)",
         "## 10. Migration and dogfood (tp's own repo)"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-22T22:55:37.239931Z",
+      "closed_at": "2026-07-22T22:55:37.239984Z",
+      "closed_reason": "- SKILL.md, README.md, and REFERENCE.md document tp resume (oracle + output schema), tp keep (keep-list), commit_strategy (builtin/auto/hc + commit_shas), and the runtime-neutral reference driver\n- CLAUDE.md updates the self-development task-closing rule for the hc close flow (tp done --commit after an hc commit; tp commit/--auto-commit are the builtin path, rejected under hc)\n- all new commands and flags (tp resume [spec]/--compact, tp keep \u003cpath\u003e/--remove/--list, tp done --commit repeatable, commit_strategy_effective) are reflected in the command tables",
+      "gate_passed_at": "2026-07-22T22:55:37.239984Z",
+      "commit_sha": "0cf54e7",
+      "commit_shas": [
+        "0cf54e7",
+        "05ef5d8",
+        "2fc825e",
+        "6e64617"
+      ]
     }
   ]
 }
