@@ -80,7 +80,10 @@ tp done <id> --auto-commit --files src/engine/*.go  # Selective staging + commit
 tp done <id> --covered-by <id> # Close as covered by another done task
 tp done <id> --commit <sha>    # Record implementing commit SHA
 tp done id1 id2 id3 "reason"   # Multi-ID close (shared reason)
+tp done <id> --commit a --commit b   # Record multiple commits (hc flow); commit_sha mirrors the first
 tp done --batch file.ndjson    # Batch close from NDJSON
+tp resume [spec]               # Reset-native: report phase + next action from durable state (read-only)
+tp resume --compact            # Machine-only: strip summary/reason/message, keep every data field
 ```
 
 ### Incremental (fallback)
@@ -100,6 +103,7 @@ tp remove <id>                 # Remove task (--force for dep cleanup)
 tp set <id> field=value        # Update field (managed fields protected)
 tp set --workflow field=value  # Update workflow-level fields (convergence params)
 tp set --bulk sets.ndjson      # Bulk update from NDJSON {id, field, value}
+tp keep <path> "<reason>"      # Keep-list a deliberately-uncommitted file (--remove, --list)
 ```
 
 ### Query
@@ -340,6 +344,75 @@ Or commit + close in one call:
 ```bash
 tp done auth-model "evidence" --gate-passed --auto-commit
 ```
+
+## Reset-Native Workflow (v0.28.0)
+
+tp's target user is an AI agent whose context degrades over long runs. The most reliable pattern is to **reset the agent's context between units** — decompose, then run each atomic task, review round, and audit round in a fresh context. tp is the durable state machine that carries the work across those resets: it guarantees **resumability**; the orchestrator triggers the reset (a CLI subprocess cannot clear its caller's context).
+
+### `tp resume` — the resume oracle
+
+```bash
+tp resume [spec]     # phase + the single next action, from durable state (read-only)
+tp resume --compact  # machine-only: drop summary/reason/message, keep every data field
+```
+
+From the task file, the spec, `.tp-review/`, `.tp/local.json`, and git alone, `tp resume` reports which lifecycle phase the project is in and the concrete next action — the note a finishing agent leaves for the next one. It writes no file. Output:
+
+```json
+{
+  "phase": "review | decompose | implement | audit | release",
+  "spec": "spec/feature.md",
+  "changes": ["src/a.go"],
+  "kept": [{"path": ".env.local", "reason": "developer secrets"}],
+  "next_action": {"command": "tp next", "summary": "...", "payload": {"task": {"id": "x"}, "wip": false}},
+  "blockers": [{"code": "unexplained-changes", "class": "agent-clearable", "message": "...", "data": {"count": 1}}]
+}
+```
+
+Phase detection is **task-first**: an open task always reads as `implement`, even when the spec is stale (the staleness surfaces as a `spec-stale` blocker, it does not revert the phase). `next_action.payload` embeds the immediate work — for review/audit `{round, unresolved_findings}`, for implement `{task, wip}` — so a fresh agent needs one call, not a probe across `tp status`/`tp next`/`--status`.
+
+Blockers carry a `class`: **`agent-clearable`** (`unexplained-changes` — the agent commits or `tp keep`s the change, then re-runs `tp resume`) or **`escalate`** (`no-ready-task`, `review-budget-exhausted`, `audit-budget-exhausted`, `spec-stale` — the driver stops and hands to a human).
+
+### Reference driver (runtime-neutral)
+
+tp ships no driver — embedding the loop would bind tp to one agent runtime. The loop is the orchestrator's:
+
+```
+loop:
+  r = tp resume
+  for each blocker in r.blockers:
+    if blocker.class == "agent-clearable":   # reconcile the unexplained change...
+      commit it, or tp keep it, then restart the loop
+    if blocker.class == "escalate":          # spec-stale, budget-exhausted, no-ready-task
+      stop and hand to a human
+  if r.blockers is empty:
+    run r.next_action.command in a FRESH unit context (sub-agent / new session / new process)
+  repeat until r.phase == "release"
+```
+
+A unit returns to the loop only at a clean checkpoint; a crashed unit is recovered on the next `tp resume`, never lost.
+
+### Commit strategy (`commit_strategy`)
+
+`commit_strategy` resolves (task override > `.tp/config.json` > built-in) to one of:
+
+- **`builtin`** — tp makes the commit. `tp commit`, `tp done --auto-commit`, and `tp done --commit <sha>` all work (pre-0.28.0 behavior).
+- **`hc`** — tp makes no commit. The agent commits with `hc` (the hunk-commit tool), then records the SHAs with `tp done --commit <sha> [--commit <sha> …]`. `tp commit` and `tp done --auto-commit` are rejected (exit 2), as is a bare `tp done` (a close needs `--commit` or `--covered-by`). tp never runs `hc`, so its absence never fails a tp command.
+- **`auto`** (the built-in default) — `hc` when it is on `PATH`, otherwise `builtin`.
+
+`tp config` adds a top-level `commit_strategy_effective` (the concrete `builtin`/`hc` behavior after auto-resolution); `tp config --resolved` reports `commit_strategy` as `{value, source}`. A task closed with a commit records the ordered commits in **`commit_shas`** (`commit_sha` mirrors `commit_shas[0]` for older readers). `tp done --commit` is repeatable; a repeated sha exits 1.
+
+### The keep-list (`tp keep`)
+
+Files a project deliberately leaves uncommitted live in the git-ignored `.tp/local.json` keep-list, so `tp resume` classifies them as known-intentional (`kept`) rather than unexplained (`changes`):
+
+```bash
+tp keep <path> "<reason>"   # add or update (a repeated path overwrites; globs use filepath.Match, no **)
+tp keep --remove <path>     # drop (an absent path is a no-op, exit 0)
+tp keep --list              # print the keep-list as JSON ([] when empty)
+```
+
+Paths are stored repo-root-relative from any subdirectory. After a close, `tp done`/`tp close` print a one-line stderr warning naming any uncommitted changes **not** on the keep-list (exit 0 — tp never commits or discards them). Feed the `kept[].path` values from `tp resume` into `hc`'s `allow_unplanned` so the same files stay out of the commit.
 
 ## Spec Quality
 
