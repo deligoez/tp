@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.28.0.md",
   "created_at": "2026-07-22T21:11:59.573923Z",
-  "updated_at": "2026-07-22T21:32:26.008553Z",
+  "updated_at": "2026-07-22T21:33:59.534319Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -54,18 +54,18 @@
     {
       "id": "strategy-resolve",
       "title": "Resolve commit_strategy with hc detect",
-      "status": "open",
+      "status": "done",
       "depends_on": [],
       "estimate_minutes": 8,
       "acceptance": "Resolution returns builtin, auto, or hc by task-override over project over built-in precedence with auto as the default. auto resolves to hc when hc is on PATH else builtin. A present unrecognized value resolves to builtin and an absent value resolves to auto.",
       "source_sections": [
         "## 5. Commit strategy"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-22T21:33:59.534296Z",
+      "closed_at": "2026-07-22T21:33:59.534319Z",
+      "closed_reason": "- ResolveCommitStrategy resolves builtin/auto/hc by task-override\u003eproject\u003ebuilt-in with auto default (internal/engine/commitstrategy.go)\n- EffectiveCommitStrategy maps auto to hc when hc on PATH else builtin (HasHC probes exec.LookPath)\n- a present unrecognized value resolves to builtin with a warning; an absent value resolves to auto",
+      "gate_passed_at": "2026-07-22T21:33:59.534319Z",
+      "commit_sha": "059e217"
     },
     {
       "id": "keeplist-store",
