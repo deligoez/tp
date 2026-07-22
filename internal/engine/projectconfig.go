@@ -54,7 +54,7 @@ var knownDefaultFlags = map[string]bool{"compact": true, "quiet": true, "no_colo
 
 // knownWorkflowKeys is the set of recognized keys inside a config workflow block.
 var knownWorkflowKeys = map[string]bool{
-	"quality_gate": true, "gate_timeout_seconds": true,
+	"quality_gate": true, "commit_strategy": true, "gate_timeout_seconds": true,
 	"review_clean_rounds": true, "audit_clean_rounds": true,
 	"review_max_rounds": true, "audit_max_rounds": true, "checks": true,
 }
@@ -88,6 +88,13 @@ func parseWorkflowOverride(raw json.RawMessage) (wo model.WorkflowOverride, warn
 				warnings = append(warnings, "workflow.quality_gate: expected a string, ignored")
 			} else {
 				wo.QualityGate = &s
+			}
+		case "commit_strategy":
+			var s string
+			if err := json.Unmarshal(v, &s); err != nil {
+				warnings = append(warnings, "workflow.commit_strategy: expected a string, ignored")
+			} else {
+				wo.CommitStrategy = &s
 			}
 		case "gate_timeout_seconds":
 			wo.GateTimeoutSeconds = intField(k, v)

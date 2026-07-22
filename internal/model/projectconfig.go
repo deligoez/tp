@@ -36,6 +36,7 @@ type LocalConfig struct {
 // replace with nothing) is distinct from an absent key (inherit).
 type WorkflowOverride struct {
 	QualityGate        *string  `json:"quality_gate,omitempty"`
+	CommitStrategy     *string  `json:"commit_strategy,omitempty"`
 	GateTimeoutSeconds *int     `json:"gate_timeout_seconds,omitempty"`
 	ReviewCleanRounds  *int     `json:"review_clean_rounds,omitempty"`
 	AuditCleanRounds   *int     `json:"audit_clean_rounds,omitempty"`

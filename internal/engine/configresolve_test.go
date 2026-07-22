@@ -38,6 +38,23 @@ func TestResolveWorkflowLayers_QualityGatePrecedence(t *testing.T) {
 	assert.Equal(t, "go test ./...", wf.QualityGate, "task override wins")
 }
 
+func TestResolveWorkflowLayers_CommitStrategy(t *testing.T) {
+	// Parsed from a task-file workflow block, then resolved by precedence.
+	wo, warnings := parseWorkflowOverride([]byte(`{"commit_strategy":"squash"}`))
+	require.Empty(t, warnings)
+	require.NotNil(t, wo.CommitStrategy)
+	assert.Equal(t, "squash", *wo.CommitStrategy)
+
+	wf := ResolveWorkflowLayers(wo, model.WorkflowOverride{CommitStrategy: ptr("rebase")})
+	assert.Equal(t, "squash", wf.CommitStrategy, "task override wins over project")
+
+	wf = ResolveWorkflowLayers(model.WorkflowOverride{}, model.WorkflowOverride{CommitStrategy: ptr("rebase")})
+	assert.Equal(t, "rebase", wf.CommitStrategy, "project applies when no task override")
+
+	wf = ResolveWorkflowLayers(model.WorkflowOverride{}, model.WorkflowOverride{})
+	assert.Equal(t, "", wf.CommitStrategy, "built-in default is empty")
+}
+
 func TestResolveEffectiveWorkflow_SparseMerge(t *testing.T) {
 	root := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
