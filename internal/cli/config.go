@@ -54,6 +54,7 @@ func resolvedConfig(wf *model.Workflow, override model.WorkflowOverride) map[str
 	}
 	result := map[string]any{"workflow": map[string]any{
 		"quality_gate":         vs(wf.QualityGate, override.QualityGate != nil, project.QualityGate != nil),
+		"commit_strategy":      vs(wf.CommitStrategy, override.CommitStrategy != nil, project.CommitStrategy != nil),
 		"gate_timeout_seconds": vs(wf.GateTimeoutSeconds, override.GateTimeoutSeconds != nil, project.GateTimeoutSeconds != nil),
 		"review_clean_rounds":  vs(wf.ReviewCleanRounds, override.ReviewCleanRounds != nil, project.ReviewCleanRounds != nil),
 		"audit_clean_rounds":   vs(wf.AuditCleanRounds, override.AuditCleanRounds != nil, project.AuditCleanRounds != nil),
