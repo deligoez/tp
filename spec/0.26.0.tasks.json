@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.26.0.md",
   "created_at": "2026-07-22T08:40:54.811847Z",
-  "updated_at": "2026-07-22T09:34:34.721274Z",
+  "updated_at": "2026-07-22T09:38:25.755335Z",
   "workflow": {
     "gate_timeout_seconds": 600,
     "review_clean_rounds": 2,
@@ -147,7 +147,7 @@
     {
       "id": "migrate-025-thin",
       "title": "Thin spec/0.25.0.tasks.json workflow block",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "presence-preserving-storage",
         "init-sparse-block"
@@ -158,11 +158,11 @@
         "## 8. Migration (tp's own repo)"
       ],
       "source_lines": "60",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-22T09:38:25.720298Z",
+      "closed_at": "2026-07-22T09:38:25.755329Z",
+      "closed_reason": "- spec/0.25.0.tasks.json workflow block is thinned to \"workflow\": {} (spec/0.25.0.tasks.json)\n- Value-equivalence verified before and after: tp config --resolved --file spec/0.25.0.tasks.json reports identical values (review_clean_rounds:2, audit_clean_rounds:2, gate_timeout_seconds:600, checks:[], review_max_rounds:0, audit_max_rounds:0, quality_gate unchanged); only the source changed from override to project/default, so no effective value changed\n- The thinned file is committed by this closure via tp commit",
+      "gate_passed_at": "2026-07-22T09:38:25.755329Z",
+      "commit_sha": "16b312b"
     }
   ]
 }
