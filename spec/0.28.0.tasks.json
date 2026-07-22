@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.28.0.md",
   "created_at": "2026-07-22T21:11:59.573923Z",
-  "updated_at": "2026-07-22T22:35:04.326683Z",
+  "updated_at": "2026-07-22T22:36:12.15915Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -447,7 +447,7 @@
     {
       "id": "test-blockers",
       "title": "Test blocker vocabulary",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "resume-blockers"
       ],
@@ -456,11 +456,14 @@
       "source_sections": [
         "## 12. Tests / Acceptance"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-22T22:36:12.159123Z",
+      "closed_at": "2026-07-22T22:36:12.159149Z",
+      "closed_reason": "- tests assert blocker code, class, message, and data shapes for unexplained-changes, no-ready-task, review-budget-exhausted, and spec-stale (internal/engine/resumeblockers_test.go)\n- agent-clearable (unexplained-changes) and escalate (others) classes are covered, as is the fixed unexplained-changes-\u003espec-stale emission order\n- budget-exhausted fires at the cap and never fires when max_rounds is 0",
+      "gate_passed_at": "2026-07-22T22:36:12.159149Z",
+      "commit_sha": "dbb6c04",
+      "commit_shas": [
+        "dbb6c04"
+      ]
     },
     {
       "id": "test-keep",
