@@ -37,7 +37,7 @@ func ResolveWorkflow(specPath, explicitFile string) (wf model.Workflow, source s
 		}
 	}
 
-	adjacent := specAdjacentTaskFile(specPath)
+	adjacent := SpecAdjacentTaskFile(specPath)
 	if _, err := model.ReadTaskFile(adjacent); err == nil {
 		override, _ := LoadTaskWorkflowOverride(adjacent)
 		return ResolveWorkflowLayers(override, project), adjacent
@@ -68,7 +68,7 @@ func specMatches(taskFilePath, specField, specArg string) bool {
 	return fieldAbs == argAbs
 }
 
-// specAdjacentTaskFile derives the <spec-base>.tasks.json path next to a spec.
-func specAdjacentTaskFile(specPath string) string {
+// SpecAdjacentTaskFile derives the <spec-base>.tasks.json path next to a spec.
+func SpecAdjacentTaskFile(specPath string) string {
 	return strings.TrimSuffix(specPath, filepath.Ext(specPath)) + ".tasks.json"
 }
