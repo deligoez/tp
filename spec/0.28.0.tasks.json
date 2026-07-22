@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.28.0.md",
   "created_at": "2026-07-22T21:11:59.573923Z",
-  "updated_at": "2026-07-22T22:38:55.711776Z",
+  "updated_at": "2026-07-22T22:41:32.202207Z",
   "workflow": {
     "review_max_rounds": 4
   },
@@ -430,7 +430,7 @@
     {
       "id": "test-worktree",
       "title": "Test worktree classification",
-      "status": "open",
+      "status": "done",
       "depends_on": [
         "worktree-status",
         "keeplist-match",
@@ -441,11 +441,14 @@
       "source_sections": [
         "## 12. Tests / Acceptance"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-22T22:41:32.20217Z",
+      "closed_at": "2026-07-22T22:41:32.202207Z",
+      "closed_reason": "- TestResume_ChangesModifiedStagedUntracked asserts modified, staged, and untracked files each land in changes with the unexplained-changes count (internal/cli/resume_worktree_test.go)\n- TestResume_StagedRenameReportsDestination asserts a staged rename reports its destination; TestResume_KeepMovesChangeToKept asserts tp keep moves a path to kept\n- TestResume_GlobMatchesTwoFiles asserts a glob yields two kept entries; TestResume_NonGitDirectoryEmptyArrays asserts a non-git directory yields empty arrays",
+      "gate_passed_at": "2026-07-22T22:41:32.202207Z",
+      "commit_sha": "a388b44",
+      "commit_shas": [
+        "a388b44"
+      ]
     },
     {
       "id": "test-blockers",
