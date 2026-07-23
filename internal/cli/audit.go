@@ -559,6 +559,12 @@ func taskAcceptanceEntries(specPath string) []checklistEntry {
 	taskPath := strings.TrimSuffix(specPath, filepath.Ext(specPath)) + ".tasks.json"
 	data, err := os.ReadFile(taskPath)
 	if err != nil {
+		// An absent task file is optional (audit may run on a spec with none);
+		// a real read error (permissions, IO) is surfaced so it is not silently
+		// treated as "no tasks".
+		if !os.IsNotExist(err) {
+			fmt.Fprintf(os.Stderr, "warning: cannot read task file %s; task acceptance entries were dropped (%v)\n", taskPath, err)
+		}
 		return nil
 	}
 	var tf struct {
@@ -568,7 +574,8 @@ func taskAcceptanceEntries(specPath string) []checklistEntry {
 			Acceptance string `json:"acceptance"`
 		} `json:"tasks"`
 	}
-	if json.Unmarshal(data, &tf) != nil {
+	if err := json.Unmarshal(data, &tf); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: cannot parse task file %s; task acceptance entries were dropped (%v)\n", taskPath, err)
 		return nil
 	}
 	entries := make([]checklistEntry, 0, len(tf.Tasks))
