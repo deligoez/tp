@@ -19,11 +19,18 @@ var validResolveStatuses = map[string]bool{
 	"duplicate": true,
 }
 
+// resolveUsageForm / resolveAllUsageForm name the expected positional shape
+// (§4.1) and the 0-based index base (§4.3); they appear in --resolve usage,
+// help, and usage-error messages.
+const resolveUsageForm = "tp review <findings.ndjson> --resolve <0-based index> <fixed|wontfix|duplicate> [evidence]"
+
+const resolveAllUsageForm = "tp review <findings.ndjson> --resolve-all <fixed|wontfix|duplicate> [evidence]"
+
 // runReviewResolve marks a single finding as resolved.
 // args: [file, index, status, evidence?]
 func runReviewResolve(args []string, force bool) error {
 	if len(args) < 3 {
-		output.Error(ExitUsage, "usage: tp review --resolve <file> <index> <status> [evidence]")
+		output.Error(ExitUsage, "usage: "+resolveUsageForm)
 		os.Exit(ExitUsage)
 		return nil
 	}
@@ -36,17 +43,32 @@ func runReviewResolve(args []string, force bool) error {
 		evidence = args[3]
 	}
 
-	// Validate status
-	if !validResolveStatuses[status] {
-		output.Error(ExitUsage, fmt.Sprintf("invalid status: %s (must be fixed, wontfix, or duplicate)", status))
+	// §4.1: the findings NDJSON is the positional; a spec-looking positional
+	// where the findings file is expected exits 2 naming the expected form.
+	if isSpecLookingPath(filePath) {
+		output.Error(ExitUsage, fmt.Sprintf(
+			"%s looks like a spec; --resolve takes the findings NDJSON as the positional: %s",
+			filePath, resolveUsageForm,
+		))
 		os.Exit(ExitUsage)
 		return nil
 	}
 
-	// Validate index
+	// §4.3: validate the 0-based index before the disposition so a non-numeric
+	// index reports the expected form rather than "invalid status".
 	index, err := strconv.Atoi(indexStr)
 	if err != nil {
-		output.Error(ExitUsage, fmt.Sprintf("invalid index %q: must be an integer", indexStr))
+		output.Error(ExitUsage, fmt.Sprintf(
+			"invalid index %q: must be a 0-based integer; expected %s",
+			indexStr, resolveUsageForm,
+		))
+		os.Exit(ExitUsage)
+		return nil
+	}
+
+	// Validate status
+	if !validResolveStatuses[status] {
+		output.Error(ExitUsage, fmt.Sprintf("invalid status: %s (must be fixed, wontfix, or duplicate)", status))
 		os.Exit(ExitUsage)
 		return nil
 	}
@@ -128,7 +150,7 @@ func runReviewResolve(args []string, force bool) error {
 // args: [file, status, evidence?]
 func runReviewResolveAll(args []string, force bool) error {
 	if len(args) < 2 {
-		output.Error(ExitUsage, "usage: tp review --resolve-all <file> <status> [evidence]")
+		output.Error(ExitUsage, "usage: "+resolveAllUsageForm)
 		os.Exit(ExitUsage)
 		return nil
 	}
@@ -138,6 +160,17 @@ func runReviewResolveAll(args []string, force bool) error {
 	evidence := ""
 	if len(args) >= 3 {
 		evidence = args[2]
+	}
+
+	// §4.1: the findings NDJSON is the positional; a spec-looking positional
+	// where the findings file is expected exits 2 naming the expected form.
+	if isSpecLookingPath(filePath) {
+		output.Error(ExitUsage, fmt.Sprintf(
+			"%s looks like a spec; --resolve-all takes the findings NDJSON as the positional: %s",
+			filePath, resolveAllUsageForm,
+		))
+		os.Exit(ExitUsage)
+		return nil
 	}
 
 	// Validate status
