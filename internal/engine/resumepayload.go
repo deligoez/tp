@@ -143,14 +143,34 @@ func BuildNextAction(phase, specPath string, tf *model.TaskFile, st *ReviewState
 	cmd := func(s string) *string { return &s }
 	switch phase {
 	case PhaseReview:
-		round, unresolved := roundPayload(specPath, reviewRoundsOf(st))
+		rounds := reviewRoundsOf(st)
+		// §10.2: an interrupted round (snapshot written, round file absent)
+		// points at completing + recording that round rather than starting a
+		// new one.
+		if inFlight := InFlightRound(specPath, len(rounds)); inFlight > 0 {
+			return NextAction{
+				Command: cmd(fmt.Sprintf("tp review %s --record <findings-round-%d.ndjson>", specPath, inFlight)),
+				Summary: fmt.Sprintf("record review round %d (its snapshot exists; the round was started but never recorded)", inFlight),
+				Payload: map[string]any{"action": "record-round", "round": inFlight},
+			}
+		}
+		round, unresolved := roundPayload(specPath, rounds)
 		return NextAction{
 			Command: cmd("tp review " + specPath),
 			Summary: fmt.Sprintf("run review round %d (%d unresolved from the previous round)", round, unresolved),
 			Payload: map[string]any{"round": round, "unresolved_findings": unresolved},
 		}
 	case PhaseAudit:
-		round, unresolved := roundPayload(specPath, auditRoundsOf(st))
+		rounds := auditRoundsOf(st)
+		// §10.2: mirror — an interrupted audit round points at recording it.
+		if inFlight := InFlightRound(specPath, len(rounds)); inFlight > 0 {
+			return NextAction{
+				Command: cmd(fmt.Sprintf("tp audit %s --record <results-round-%d.ndjson>", specPath, inFlight)),
+				Summary: fmt.Sprintf("record audit round %d (its snapshot exists; the round was started but never recorded)", inFlight),
+				Payload: map[string]any{"action": "record-round", "round": inFlight},
+			}
+		}
+		round, unresolved := roundPayload(specPath, rounds)
 		return NextAction{
 			Command: cmd("tp audit " + specPath),
 			Summary: fmt.Sprintf("run audit round %d (%d unresolved from the previous round)", round, unresolved),
