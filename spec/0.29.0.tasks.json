@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.29.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-07-23T15:03:42.494303Z",
+  "updated_at": "2026-07-23T15:15:02.689937Z",
   "workflow": {},
   "coverage": {
     "total_sections": 20,
@@ -59,7 +59,7 @@
     {
       "id": "merge-clean-round",
       "title": "Accept empty merge inputs",
-      "status": "open",
+      "status": "done",
       "depends_on": [],
       "estimate_minutes": 10,
       "acceptance": "--merge with all-empty inputs exits 0 and creates an empty -o file (merged_count 0), while a missing/unreadable input exits 3 and no input files exits 2. Malformed (invalid JSON) and incomplete (missing required fields) lines are skipped with a stderr warning without changing the exit code. Applies to both tp review --merge and tp audit --merge.",
@@ -67,11 +67,15 @@
         "## 3. Clean-round merge"
       ],
       "source_lines": "24-41",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-23T15:15:02.689902Z",
+      "closed_at": "2026-07-23T15:15:02.689937Z",
+      "closed_reason": "- all-empty inputs exit 0 with a zero-byte -o file and merged_count 0; a missing/unreadable input exits 3 and zero input files exit 2 (§3.1, §3.3 rows 2,4-6)\n- malformed (invalid JSON) and incomplete (missing required fields) lines are skipped with a stderr warning naming which, without changing the exit code (§3.2, §3.3 row 3)\n- identical fix applied to both tp review --merge (review_merge.go) and tp audit --merge (audit_merge.go), each covered by its own test suite",
+      "gate_passed_at": "2026-07-23T15:15:02.689937Z",
+      "commit_sha": "90a12ec",
+      "commit_shas": [
+        "90a12ec",
+        "96f8dad"
+      ]
     },
     {
       "id": "mode-scoped-positionals",
