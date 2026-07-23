@@ -78,6 +78,12 @@ func runAuditMerge(args []string, outputPath string) error {
 		"by_role":            byRole,
 		"findings":           findingsCount, // rows whose status is not PASS
 	}
+	// §9.3 / §8.4: the audit overlap_report gives a trim-candidate signal over
+	// non-PASS rows clustered by (item_id, category); it is explanatory and is
+	// omitted under --compact.
+	if !IsCompact() {
+		summary["overlap_report"] = computeAuditOverlapReport(unique)
+	}
 
 	if outputPath != "" {
 		if err := os.WriteFile(outputPath, []byte(ndjson), 0o600); err != nil {

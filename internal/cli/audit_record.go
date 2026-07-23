@@ -173,6 +173,11 @@ func runAuditStatus(specPath string, check bool) error {
 		"stale":                 engine.StateStale(rounds, specHash),
 		"roles_stale":           engine.RolesStale(rounds, rolesHash),
 	}
+	// §9.3 / §8.4: the audit overlap_report over the latest round's non-PASS
+	// rows is explanatory and is omitted under --compact.
+	if !IsCompact() {
+		result["overlap_report"] = latestAuditRoundOverlapReport(specPath, rounds)
+	}
 	// §10.1: surface the effective cap and remaining budget next to
 	// budget_exhausted; null when uncapped. Decision-critical, so these
 	// survive --compact (§8.4).
