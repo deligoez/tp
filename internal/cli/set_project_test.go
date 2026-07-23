@@ -41,3 +41,16 @@ func TestRunSetProjectWorkflow_QualityGateAuthorable(t *testing.T) {
 	require.NotNil(t, pc.Workflow.QualityGate)
 	assert.Equal(t, "go test ./...", *pc.Workflow.QualityGate)
 }
+
+func TestRunSetProjectWorkflow_CommitStrategyAuthorable(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
+	t.Chdir(root)
+
+	// commit_strategy is read-only per task but authorable at the project level.
+	require.NoError(t, runSetProjectWorkflow([]string{"commit_strategy=hc"}))
+	pc, _, err := engine.LoadProjectConfig(filepath.Join(root, ".tp"))
+	require.NoError(t, err)
+	require.NotNil(t, pc.Workflow.CommitStrategy)
+	assert.Equal(t, "hc", *pc.Workflow.CommitStrategy)
+}
