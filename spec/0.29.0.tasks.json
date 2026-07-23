@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.29.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-07-23T16:26:42.859771Z",
+  "updated_at": "2026-07-23T16:44:53.751478Z",
   "workflow": {},
   "coverage": {
     "total_sections": 20,
@@ -252,7 +252,7 @@
     {
       "id": "audit-file-selection",
       "title": "Suggest audit files from commits",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 10,
@@ -261,11 +261,15 @@
         "## 11. Audit file selection"
       ],
       "source_lines": "121-125",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-23T16:44:53.751448Z",
+      "closed_at": "2026-07-23T16:44:53.751478Z",
+      "closed_reason": "- exit-4 payload carries suggested_files: the type-filtered union of paths touched by every SHA in commit_shas of done tasks ([] when none, e.g. covered-by)\n- tp audit --affected-from-tasks audits that derived file set directly, bypassing diff auto-detection\n- suggested_files is decision-critical and survives --compact per §8.4",
+      "gate_passed_at": "2026-07-23T16:44:53.751478Z",
+      "commit_sha": "141dd5f5af247c07f7d07ef89cd60833a9da6c93",
+      "commit_shas": [
+        "141dd5f5af247c07f7d07ef89cd60833a9da6c93",
+        "caa99e06a536859eeb76e681eecd5d1ee216516d"
+      ]
     },
     {
       "id": "exit-code-conformance",
