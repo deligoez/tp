@@ -45,6 +45,7 @@ func runAuditMerge(args []string, outputPath string) error {
 	for _, r := range unique {
 		line, err := json.Marshal(r)
 		if err != nil {
+			fmt.Fprintf(os.Stderr, "warning: dropped unmarshalable merged row (role=%v item_id=%v): %v\n", r["role"], r["item_id"], err)
 			continue
 		}
 		buf.Write(line)
@@ -157,6 +158,9 @@ func loadAuditMergeRows(args []string) []map[string]any {
 				continue
 			}
 			rows = append(rows, row)
+		}
+		if err := scanner.Err(); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: stopped reading %s early (%v); rows after the over-long line were dropped (line cap is 1MB)\n", path, err)
 		}
 		f.Close()
 	}
