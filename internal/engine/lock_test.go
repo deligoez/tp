@@ -72,3 +72,37 @@ func TestWithFileLock_ConcurrentLockFails(t *testing.T) {
 	require.Error(t, secondErr)
 	assert.Contains(t, secondErr.Error(), "locked by another process")
 }
+
+func TestWithFileLock_LockLivesUnderTPLocks(t *testing.T) {
+	dir := t.TempDir()
+	lockTarget := filepath.Join(dir, "test.tasks.json")
+	require.NoError(t, os.WriteFile(lockTarget, []byte("{}"), 0o600))
+
+	var held string
+	err := WithFileLock(lockTarget, func() error {
+		held = LockFilePath(lockTarget)
+		_, statErr := os.Stat(held)
+		assert.NoError(t, statErr, "lock exists under .tp/locks during the callback")
+		return nil
+	})
+	require.NoError(t, err)
+
+	assert.Contains(t, held, filepath.Join(".tp", "locks"), "lock path is centralized under .tp/locks")
+	_, err = os.Stat(held)
+	assert.True(t, os.IsNotExist(err), "lock removed after release")
+	_, err = os.Stat(lockTarget + ".lock")
+	assert.True(t, os.IsNotExist(err), "no sibling lock beside the target")
+}
+
+func TestWithFileLock_RemovesStaleSiblingLock(t *testing.T) {
+	dir := t.TempDir()
+	lockTarget := filepath.Join(dir, "test.tasks.json")
+	require.NoError(t, os.WriteFile(lockTarget, []byte("{}"), 0o600))
+	sibling := lockTarget + ".lock"
+	require.NoError(t, os.WriteFile(sibling, []byte("stale"), 0o600))
+
+	require.NoError(t, WithFileLock(lockTarget, func() error { return nil }))
+
+	_, err := os.Stat(sibling)
+	assert.True(t, os.IsNotExist(err), "stale sibling lock removed on acquisition")
+}
