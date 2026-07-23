@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"fmt"
+	"errors"
 	"os"
 	"runtime/debug"
 
@@ -149,9 +149,25 @@ func Execute() {
 	}
 
 	cmd := NewRootCmd()
-	if err := cmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+	wrapFlagErrors(cmd)
+	_, err := cmd.ExecuteC()
+	if err != nil {
+		// A cobra-level error aborted before PersistentPreRun configured output
+		// mode, so set it now (else a piped run would get TTY text, not JSON).
+		output.EnsureConfigured(os.Args)
+		var fe flagUsageError
+		if errors.As(err, &fe) {
+			// §13.1: a flag-parse failure is a usage error (exit 2) emitted as the
+			// standard tp error object {error, code, hint}, never bare cobra text.
+			msg, hint := usageErrorDetail(fe.cmd, fe.err)
+			output.Error(ExitUsage, msg, hint)
+			os.Exit(ExitUsage)
+		}
+		// Rare: a RunE returned an error instead of os.Exit-ing itself (e.g. lock
+		// contention). Emit it structured with a default hint; the exit code stays
+		// 1 (validation) until the owning task refines it (e.g. §12 lock → 4).
+		output.Error(ExitValidation, err.Error())
+		os.Exit(ExitValidation)
 	}
 }
 
