@@ -191,6 +191,19 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 		os.Exit(ExitFile)
 		return nil
 	}
+	// §10.2: snapshot the raw spec at audit round start (prompt emission),
+	// mirroring review — write atomically so a partial snapshot is never left
+	// on disk, and an interrupted round is visible to --status and tp resume.
+	auditSt, _ := engine.LoadReviewState(specPath)
+	auditRecorded := 0
+	if auditSt != nil {
+		auditRecorded = len(auditSt.AuditRounds)
+	}
+	if snapErr := engine.WriteSnapshotAtomic(specPath, auditRecorded+1, specData); snapErr != nil {
+		output.Error(ExitFile, fmt.Sprintf("cannot write snapshot: %v", snapErr))
+		os.Exit(ExitFile)
+		return nil
+	}
 	specData = engine.BlankFrontmatter(specData)
 	specLines := strings.Split(string(specData), "\n")
 	specContent := string(specData)
