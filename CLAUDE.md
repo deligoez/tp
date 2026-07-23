@@ -201,6 +201,7 @@ skills/tp/
 ### Rules
 - Every task MUST have `source_sections` (canonical headings); `source_lines` is optional precision (§13.4). A task with neither anchor is a validation error.
 - The quality gate runs automatically at `tp done`/`tp close`; `--skip-gate "why"` and — on budget exhaustion — raising `review_max_rounds`/`audit_max_rounds` or `tp import --force` are **user-approved decisions, never the agent's own**.
+- **Convergence criteria differ by phase (v0.28.0+).** *Spec review* iterates until a counted round surfaces **no critical (blocking) findings** — never declare review convergence, and never accept a round-budget cap, while any critical finding is open; low/medium findings may be accepted with recorded justification once no critical ones remain. *Implementation audit* always runs to the full **2 consecutive clean rounds and is never cut short by an early cap**: implementation correctness is not negotiable, so a hit `audit_max_rounds` means fix the findings and continue (with a user-approved cap raise), not accept-and-ship with findings open.
 - Commit the `.tp-review/` state directory to version control (import enforcement + CI depend on it).
 - Every table row and numbered list item in spec must appear in a task's acceptance
 - Run backward pass: `tp validate` line coverage + structured element check
