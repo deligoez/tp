@@ -52,3 +52,71 @@ func TestAuditMerge_DedupAndStatusSummary(t *testing.T) {
 	}
 	assert.Equal(t, 4, count, "the merged file holds exactly the 4 unique rows")
 }
+
+
+// TestAuditMerge_EmptyInputSucceeds covers §3.3 row 2 for the audit phase: a
+// present-but-empty input file succeeds (exit 0), creates a zero-byte -o file,
+// and reports merged_count 0.
+func TestAuditMerge_EmptyInputSucceeds(t *testing.T) {
+	dir := t.TempDir()
+	empty := filepath.Join(dir, "empty.ndjson")
+	require.NoError(t, os.WriteFile(empty, []byte{}, 0o600))
+
+	out := filepath.Join(dir, "merged.ndjson")
+	stdout, stderr, code := runTP(t, dir, "audit", "--merge", empty, "-o", out)
+	require.Equal(t, 0, code, "empty input is a clean result (§3.3): %s", stderr)
+
+	info, err := os.Stat(out)
+	require.NoError(t, err, "-o file must be created even when empty")
+	assert.Equal(t, int64(0), info.Size(), "-o file must be zero bytes")
+
+	var summary map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &summary))
+	assert.Equal(t, float64(0), summary["merged_count"])
+}
+
+// TestAuditMerge_OnlyMalformedSucceeds covers §3.3 row 3 for the audit phase:
+// files holding only malformed/incomplete lines succeed (exit 0), create an
+// empty -o file, report merged_count 0, and emit a stderr warning per skipped
+// line.
+func TestAuditMerge_OnlyMalformedSucceeds(t *testing.T) {
+	dir := t.TempDir()
+	bad := filepath.Join(dir, "bad.ndjson")
+	require.NoError(t, os.WriteFile(bad,
+		[]byte("not json at all\n"+ // malformed
+			`{"role":"go-safety","item_id":"a"}`+"\n"), // incomplete: no status
+		0o600))
+
+	out := filepath.Join(dir, "merged.ndjson")
+	stdout, stderr, code := runTP(t, dir, "audit", "--merge", bad, "-o", out)
+	require.Equal(t, 0, code, "only-malformed input is a clean result (§3.3): %s", stderr)
+
+	var summary map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &summary))
+	assert.Equal(t, float64(0), summary["merged_count"])
+
+	info, err := os.Stat(out)
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), info.Size(), "no rows survive -> empty output file")
+
+	assert.Contains(t, stderr, "warning: skipping malformed")
+	assert.Contains(t, stderr, "warning: skipping incomplete")
+}
+
+// TestAuditMerge_NoInputFilesExit2 covers §3.3 row 6: no input files given
+// exits 2.
+func TestAuditMerge_NoInputFilesExit2(t *testing.T) {
+	dir := t.TempDir()
+	_, stderr, code := runTPMerge(t, dir, "audit", "--merge")
+	assert.Equal(t, 2, code)
+	assert.Contains(t, stderr, "at least 1 file required for merge")
+}
+
+// TestAuditMerge_MissingFileExit3 covers §3.3 rows 4-5: a missing/unreadable
+// input file exits 3.
+func TestAuditMerge_MissingFileExit3(t *testing.T) {
+	dir := t.TempDir()
+	_, stderr, code := runTPMerge(t, dir, "audit", "--merge", filepath.Join(dir, "nope.ndjson"))
+	assert.Equal(t, 3, code)
+	assert.Contains(t, stderr, "file not found")
+}
