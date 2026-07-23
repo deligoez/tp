@@ -81,7 +81,7 @@ func sectionRefs(focus string) []string {
 // least one focus entry carries a § reference and every referenced section is
 // unchanged (none appears in the changed or removed set). An empty diff never
 // triggers a skip, so this never fires when there is nothing to review.
-func RoleFocusOutsideDiff(role model.Role, dr DiffResult) bool {
+func RoleFocusOutsideDiff(role *model.Role, dr DiffResult) bool {
 	if len(dr.Changed) == 0 && len(dr.Removed) == 0 {
 		return false
 	}

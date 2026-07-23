@@ -699,7 +699,7 @@ func buildReviewPrompts(specPath string, elems *engine.StructuredElements, specC
 	if diffFrom != "" {
 		filtered := make([]reviewPrompt, 0, len(prompts))
 		for i := range activeRoles {
-			if engine.RoleFocusOutsideDiff(activeRoles[i], diffDr) {
+			if engine.RoleFocusOutsideDiff(&activeRoles[i], diffDr) {
 				skipped = append(skipped, engine.SkippedRole{Role: activeRoles[i].ID, Reason: engine.SkipNoSpecChange})
 				continue
 			}
