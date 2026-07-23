@@ -232,8 +232,10 @@ func addTasks(tasks []model.Task) error {
 			}
 		}
 
-		// Normalize source_sections to canonical form (lenient — accepts plain-text headings)
-		if specPath, specExists := engine.ResolveSpecPath(taskFilePath, tf.Spec); specExists {
+		// Resolve the spec path once for both source_sections normalization and
+		// the §7.1 coverage recompute below.
+		specPath, specExists := engine.ResolveSpecPath(taskFilePath, tf.Spec)
+		if specExists {
 			if headings, perr := engine.ParseHeadings(specPath); perr == nil && len(headings) > 0 {
 				if nerr := engine.NormalizeSourceSections(tasks, headings); nerr != nil {
 					output.Error(ExitValidation, nerr.Error())
@@ -244,6 +246,12 @@ func addTasks(tasks []model.Task) error {
 		}
 
 		tf.Tasks = append(tf.Tasks, tasks...)
+
+		// §7.1: recompute coverage now that the task set changed. AutoFillCoverage
+		// no-ops when the spec can't be read, leaving the block untouched (§7.2).
+		if specExists {
+			engine.AutoFillCoverage(tf, specPath)
+		}
 
 		if err := model.WriteTaskFile(taskFilePath, tf); err != nil {
 			output.Error(ExitFile, err.Error())
