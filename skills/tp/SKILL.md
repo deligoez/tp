@@ -176,6 +176,7 @@ Before closing a task (`tp done`):
 
 - **The gate runs automatically at `tp done`.** `--skip-gate "<reason>"` skips it and records `gate_skipped_reason` on each closed task. **`--skip-gate` requires explicit user approval — it is never the agent's own decision.**
 - **Round-budget exhaustion (`review_max_rounds` / `audit_max_rounds`):** when the cap is reached and the sequence is not converged, `tp review` / `tp audit` prompt generation and `--record` refuse with exit 4 and an escalation hint. **The agent STOPS and escalates.** Raising the cap with `tp set --workflow`, and importing with `--force`, are user-approved decisions — never the agent's own.
+- **Convergence criteria differ by phase (v0.28.0+).** A **spec review** is converged only when a counted round surfaces **no critical/blocking findings**: never declare review convergence or accept a round cap while a critical finding is open (low/medium findings may be accepted with recorded justification once no critical ones remain). An **implementation audit** always runs to the full **2 consecutive clean rounds and is never cut short by an early cap** — a hit `audit_max_rounds` means fix the findings and continue (with a user-approved cap raise), never ship with them open. Implementation correctness is not negotiable.
 
 ## Class & Checks Guidance
 
