@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.29.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-07-23T18:45:41.304264Z",
+  "updated_at": "2026-07-23T19:00:43.831528Z",
   "workflow": {},
   "coverage": {
     "total_sections": 20,
@@ -402,7 +402,7 @@
     {
       "id": "documentation",
       "title": "Update docs for all changes",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "lock-relocate",
@@ -428,11 +428,14 @@
         "## 17. Documentation"
       ],
       "source_lines": "163-169",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-23T19:00:43.831466Z",
+      "closed_at": "2026-07-23T19:00:43.831528Z",
+      "closed_reason": "- SKILL.md documents non-Claude runtime driving (sub-agent fan-out, orchestrator injection duty, permission-prompt truncation rule) and all v0.29.0 workflow changes; README.md + REFERENCE.md reflect every §3-§16 flag/field (clean-round merge, mode-scoped positionals, close checkpoint, bookkeeping/guidance, entry validation, coverage-on-write, spec_excerpt from source_sections, skipped_roles/attribution_excludes, in_flight_round/max_rounds/rounds_remaining, suggested_files/--affected-from-tasks, lock_timeout_seconds, exit codes, report accuracy, empty-section, project commit_strategy setter) — skills/tp/SKILL.md, skills/tp/REFERENCE.md, README.md\n- CLAUDE.md QA recipe verified clean in a temp dir: tp lint exit 0 and tp validate exit 0 (container headings no longer fire empty-section since v0.29.0) — CLAUDE.md\n- quality gate green: go test ./... exits 0 and golangci-lint run reports 0 issues (commits 0ee103e 41d4a08 737c36b f5893cd)",
+      "gate_passed_at": "2026-07-23T19:00:43.831528Z",
+      "commit_sha": "0ee103e",
+      "commit_shas": [
+        "0ee103e"
+      ]
     }
   ]
 }
