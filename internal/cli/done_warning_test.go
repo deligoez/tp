@@ -27,9 +27,6 @@ func TestDoneWarning_KeptChangeProducesNoWarning(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "kept.txt"), []byte("k"), 0o600))
 	_, _, code := runTP(t, dir, "keep", "kept.txt", "intentional")
 	require.Equal(t, 0, code)
-	// Commit tp keep's .tp/.gitignore artifact so the only uncommitted file is the kept one.
-	git(t, dir, "add", ".tp")
-	git(t, dir, "commit", "-m", "keep config")
 
 	_, stderr, code := runTP(t, dir, "done", "t1", "--gate-passed", "--commit", "aaa", "--", "t1 acceptance met")
 	assert.Equal(t, 0, code)
