@@ -901,6 +901,7 @@ func readBatchEntries(path string) ([]batchEntry, error) {
 
 	var entries []batchEntry
 	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024) // tolerate long NDJSON lines (up to 1 MiB)
 	for scanner.Scan() {
 		line := scanner.Text()
 		if line == "" {
@@ -911,6 +912,9 @@ func readBatchEntries(path string) ([]batchEntry, error) {
 			return nil, fmt.Errorf("invalid NDJSON line: %w", err)
 		}
 		entries = append(entries, e)
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("reading NDJSON: %w", err)
 	}
 	return entries, nil
 }
