@@ -309,25 +309,38 @@ func WriteLocalConfig(tpDir string, lc model.LocalConfig) error {
 // absent, appends the entry when the file exists without it, and does nothing
 // when the entry is already present. It is invoked whenever tp writes any file
 // under .tp/.
+// EnsureTPGitignore ensures tpDir/.gitignore exists and contains a "local.json"
+// entry plus a "locks/" entry, so .tp/local.json and the centralized lock files
+// under .tp/locks/ stay git-ignored even when the .tp/ directory was created by
+// hand rather than by tp. It is idempotent: it creates the file when absent,
+// appends each missing entry when the file exists without it, and does nothing
+// when every entry is already present. It is invoked whenever tp writes any
+// file under .tp/.
 func EnsureTPGitignore(tpDir string) error {
 	path := filepath.Join(tpDir, ".gitignore")
+	want := []string{"local.json", "locks/"}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return os.WriteFile(path, []byte("local.json\n"), 0o600)
+			return os.WriteFile(path, []byte(strings.Join(want, "\n")+"\n"), 0o600)
 		}
 		return err
 	}
-	for _, line := range strings.Split(string(data), "\n") {
-		if strings.TrimSpace(line) == "local.json" {
-			return nil // already ignored
-		}
-	}
 	content := string(data)
-	if content != "" && !strings.HasSuffix(content, "\n") {
-		content += "\n"
+	present := make(map[string]bool)
+	for _, line := range strings.Split(content, "\n") {
+		present[strings.TrimSpace(line)] = true
 	}
-	content += "local.json\n"
+	for _, entry := range want {
+		if present[entry] {
+			continue
+		}
+		if content != "" && !strings.HasSuffix(content, "\n") {
+			content += "\n"
+		}
+		content += entry + "\n"
+		present[entry] = true
+	}
 	return os.WriteFile(path, []byte(content), 0o600)
 }
 
