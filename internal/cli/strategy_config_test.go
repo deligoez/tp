@@ -82,3 +82,24 @@ func TestConfigUnrecognizedStrategyWarns(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(out), &cfg))
 	assert.Equal(t, "builtin", cfg["commit_strategy_effective"], "an unrecognized value is effectively builtin")
 }
+
+func TestProjectCommitStrategySettableAndResolved(t *testing.T) {
+	dir := writeStrategyProject(t, "{}")
+
+	// §16.2: the project default is now settable via --project and writes
+	// workflow.commit_strategy into .tp/config.json.
+	out, stderr, code := runTPHC(t, dir, "0", "set", "--workflow", "--project", "commit_strategy=hc")
+	require.Equal(t, 0, code, "project commit_strategy is settable: %s", stderr)
+	var res map[string]any
+	require.NoError(t, json.Unmarshal([]byte(out), &res))
+	assert.Equal(t, "hc", res["updated"].(map[string]any)["commit_strategy"])
+
+	// §16.3: config --resolved attributes commit_strategy to the project layer.
+	out, _, code = runTPHC(t, dir, "0", "config", "--resolved")
+	require.Equal(t, 0, code)
+	require.NoError(t, json.Unmarshal([]byte(out), &res))
+	wf := res["workflow"].(map[string]any)
+	cs := wf["commit_strategy"].(map[string]any)
+	assert.Equal(t, "hc", cs["value"], "the project default flows into resolution")
+	assert.Equal(t, "project", cs["source"], "the project layer is named")
+}
