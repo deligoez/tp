@@ -30,14 +30,18 @@ func CheckEmptySections(headings []*Heading, totalLines int) []Finding {
 	var findings []Finding
 	for i, h := range headings {
 		start, end := HeadingContentRange(headings, i, totalLines)
-		if end < start {
-			findings = append(findings, Finding{
-				Line:     h.Line,
-				Severity: "error",
-				Rule:     "empty-section",
-				Message:  fmt.Sprintf("section %q has no content", h.Text),
-			})
+		if end >= start {
+			continue
 		}
+		if i+1 < len(headings) && headings[i+1].Level > h.Level {
+			continue
+		}
+		findings = append(findings, Finding{
+			Line:     h.Line,
+			Severity: "error",
+			Rule:     "empty-section",
+			Message:  fmt.Sprintf("section %q has no content", h.Text),
+		})
 	}
 	return findings
 }
