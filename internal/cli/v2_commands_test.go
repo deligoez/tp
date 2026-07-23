@@ -399,6 +399,65 @@ func TestPlanSpecExcerpt(t *testing.T) {
 	assert.Contains(t, excerpt, "Line four")
 }
 
+func TestSpecExcerptParity_SectionsOnly(t *testing.T) {
+	dir := t.TempDir()
+	specContent := "# App\n\n## Models\n\nCreate a Task model.\n\n### Task Model\n\nTask has title and status.\n\n## API\n\nGET /tasks.\n"
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte(specContent), 0o600))
+
+	_, stderr, code := runTP(t, dir, "init", "spec.md")
+	require.Equal(t, 0, code, "init failed: %s", stderr)
+
+	// Task with source_sections only (no source_lines).
+	addTask(t, dir, `{"id":"sec","title":"Sections task","depends_on":[],"estimate_minutes":5,"acceptance":"Done","source_sections":["### Task Model"]}`)
+
+	wantExcerpt := "### Task Model\n\nTask has title and status."
+
+	assertExcerpt := func(t *testing.T, excerpt any) {
+		t.Helper()
+		s, ok := excerpt.(string)
+		require.True(t, ok, "spec_excerpt should be a string, got %T", excerpt)
+		assert.Equal(t, wantExcerpt, s)
+	}
+
+	t.Run("plan emits section text", func(t *testing.T) {
+		stdout, stderr, code := runTP(t, dir, "plan")
+		require.Equal(t, 0, code, "plan failed: %s", stderr)
+		var out map[string]any
+		require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+		execOrder := out["execution_order"].([]any)
+		require.Len(t, execOrder, 1)
+		assertExcerpt(t, execOrder[0].(map[string]any)["spec_excerpt"])
+	})
+
+	t.Run("show emits section text", func(t *testing.T) {
+		stdout, stderr, code := runTP(t, dir, "show", "sec")
+		require.Equal(t, 0, code, "show failed: %s", stderr)
+		var out map[string]any
+		require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+		assertExcerpt(t, out["spec_excerpt"])
+	})
+
+	t.Run("next --peek emits section text", func(t *testing.T) {
+		stdout, stderr, code := runTP(t, dir, "next", "--peek")
+		require.Equal(t, 0, code, "peek failed: %s", stderr)
+		var out map[string]any
+		require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+		assertExcerpt(t, out["spec_excerpt"])
+	})
+
+	t.Run("--compact omits spec_excerpt", func(t *testing.T) {
+		stdout, stderr, code := runTP(t, dir, "plan", "--compact")
+		require.Equal(t, 0, code, "compact plan failed: %s", stderr)
+		var out map[string]any
+		require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+		execOrder := out["execution_order"].([]any)
+		require.Len(t, execOrder, 1)
+		_, present := execOrder[0].(map[string]any)["spec_excerpt"]
+		assert.False(t, present, "spec_excerpt must be omitted under --compact")
+	})
+}
+
 func TestValidateStrict(t *testing.T) {
 	dir := t.TempDir()
 
