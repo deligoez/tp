@@ -111,3 +111,13 @@ func TestProjectCommitStrategyRejectsInvalidValue(t *testing.T) {
 	require.Equal(t, 1, code, "an invalid value is a validation error")
 	assert.Contains(t, stderr, "commit_strategy must be one of builtin, auto, hc")
 }
+
+func TestTaskLevelCommitStrategyRefusalNamesProjectSetter(t *testing.T) {
+	dir := writeStrategyProject(t, "{}")
+
+	// §16.2: the task-file value stays init-authored; task-level set keeps its
+	// exit-2 refusal, and the hint now names the project-level setter.
+	_, stderr, code := runTPHC(t, dir, "0", "set", "--workflow", "commit_strategy=hc")
+	require.Equal(t, 2, code, "task-level commit_strategy keeps its exit-2 refusal")
+	assert.Contains(t, stderr, "tp set --workflow --project commit_strategy", "the hint names the project-level setter")
+}
