@@ -194,6 +194,29 @@ func TestAdd_BulkRejectsIntraBatchDuplicate(t *testing.T) {
 	assert.Equal(t, 1, code)
 }
 
+func TestAdd_BulkWarnsOnOverlongLine(t *testing.T) {
+	dir := initEntryProject(t)
+	// A single line exceeding the bufio.Scanner 64KB token cap makes
+	// scanner.Err() return bufio.ErrTooLong; readBulkTasks must warn on
+	// stderr and drop everything after the over-long line (exit 0, not a
+	// hard error) instead of silently losing data.
+	ndjson := validEntryTask + "\n" +
+		strings.Repeat("x", 70000) + "\n" +
+		`{"id":"t2","title":"Dropped","estimate_minutes":5,"acceptance":"dropped","source_sections":["## 2. Models"]}` + "\n"
+	bulkPath := filepath.Join(dir, "bulk.ndjson")
+	require.NoError(t, os.WriteFile(bulkPath, []byte(ndjson), 0o600))
+
+	_, stderr, code := runTP(t, dir, "add", "--bulk", bulkPath)
+	require.Equal(t, 0, code, "over-long line is a warning, not a hard error: %s", stderr)
+	assert.Contains(t, stderr, "over-long line")
+	assert.Contains(t, stderr, "dropped")
+
+	// t1 (before the over-long line) was added; t2 (after it) was dropped.
+	raw := string(readRawTaskFile(t, dir))
+	assert.Contains(t, raw, `"t1"`)
+	assert.NotContains(t, raw, `"t2"`)
+}
+
 // readRawTaskFile returns the raw bytes of the persisted task file so tests can
 // assert on the literal JSON shape ([] vs null vs omitted).
 func readRawTaskFile(t *testing.T, dir string) []byte {
