@@ -103,3 +103,11 @@ func TestProjectCommitStrategySettableAndResolved(t *testing.T) {
 	assert.Equal(t, "hc", cs["value"], "the project default flows into resolution")
 	assert.Equal(t, "project", cs["source"], "the project layer is named")
 }
+
+func TestProjectCommitStrategyRejectsInvalidValue(t *testing.T) {
+	dir := writeStrategyProject(t, "{}")
+
+	_, stderr, code := runTPHC(t, dir, "0", "set", "--workflow", "--project", "commit_strategy=squash")
+	require.Equal(t, 1, code, "an invalid value is a validation error")
+	assert.Contains(t, stderr, "commit_strategy must be one of builtin, auto, hc")
+}
