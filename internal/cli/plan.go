@@ -205,7 +205,7 @@ func runPlan(_ *cobra.Command, _ []string) error {
 				DependsOn:       t.DependsOn,
 				SourceSections:  t.SourceSections,
 				SourceLines:     t.SourceLines,
-				SpecExcerpt:     engine.ExtractSpecExcerpt(specPath, t.SourceLines),
+				SpecExcerpt:     engine.ExtractSpecExcerptForTask(specPath, t.SourceLines, t.SourceSections),
 			}
 		}
 		result.ExecutionOrder = tasks
