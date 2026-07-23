@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.29.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-07-23T15:58:01.915252Z",
+  "updated_at": "2026-07-23T16:09:30.763304Z",
   "workflow": {},
   "coverage": {
     "total_sections": 20,
@@ -321,7 +321,7 @@
     {
       "id": "commit-strategy-project",
       "title": "Set commit_strategy at project level",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 8,
@@ -330,11 +330,15 @@
         "## 16. `commit_strategy` after init"
       ],
       "source_lines": "155-161",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-23T16:09:30.763275Z",
+      "closed_at": "2026-07-23T16:09:30.763304Z",
+      "closed_reason": "- project commit_strategy settable via --project, writes workflow.commit_strategy in .tp/config.json, participates in resolve-at-read order (d0610e7)\n- config --resolved annotates commit_strategy with its source layer {value,source} (32762e9, 51fc20d)\n- task-level set --workflow commit_strategy keeps exit-2 refusal, hint names project setter (94511b1, 79cdb83)",
+      "gate_passed_at": "2026-07-23T16:09:30.763304Z",
+      "commit_sha": "d0610e7",
+      "commit_shas": [
+        "d0610e7",
+        "94511b1"
+      ]
     },
     {
       "id": "documentation",
