@@ -73,7 +73,23 @@ func ReadTaskFile(path string) (*TaskFile, error) {
 }
 
 // WriteTaskFile writes a TaskFile to disk as pretty-printed JSON.
+// WriteTaskFile writes a TaskFile to disk as pretty-printed JSON.
 func WriteTaskFile(path string, tf *TaskFile) error {
+	// §6.2: every task carries [] (not null) for depends_on, source_sections,
+	// and tags, whichever command wrote it. Normalize nil slices to empty so a
+	// file never mixes [] and null.
+	for i := range tf.Tasks {
+		if tf.Tasks[i].DependsOn == nil {
+			tf.Tasks[i].DependsOn = []string{}
+		}
+		if tf.Tasks[i].SourceSections == nil {
+			tf.Tasks[i].SourceSections = []string{}
+		}
+		if tf.Tasks[i].Tags == nil {
+			tf.Tasks[i].Tags = []string{}
+		}
+	}
+
 	tf.UpdatedAt = time.Now().UTC()
 
 	data, err := json.MarshalIndent(tf, "", "  ")
