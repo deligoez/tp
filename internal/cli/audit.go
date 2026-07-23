@@ -57,6 +57,7 @@ type auditResult struct {
 	FileSummary      *engine.AffectedSummary `json:"file_summary,omitempty"`
 	Checklist        []checklistEntry        `json:"checklist"`
 	ChecklistSummary checklistSummary        `json:"checklist_summary"`
+	SkippedRoles     *[]engine.SkippedRole   `json:"skipped_roles,omitempty"`
 	Prompts          []auditPrompt           `json:"prompts"`
 }
 
@@ -252,7 +253,10 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	}
 
 	specItems, secItems, maintItems := routeChecklist(mainEntries, findingsEntries, &sel, invertTaskFiles(inputs.TaskFiles))
-	prompts := generateRoleAuditPrompts(auditorRoles, specItems, secItems, maintItems, &sel, specContent, claudeMDExcerptFor(specPath))
+	prompts, auditSkipped := generateRoleAuditPrompts(auditorRoles, specItems, secItems, maintItems, &sel, specContent, claudeMDExcerptFor(specPath))
+	// §9.1: name every non-emitted auditor — empty-checklist roles above plus
+	// any domain-filtered user corpus roles.
+	auditSkipped = append(auditSkipped, engine.DomainSkippedRoles(filepath.Dir(specPath), fmAudit.Domain, engine.PhaseAuditors)...)
 
 	summary := engine.BuildAffectedSummary(files, nil)
 
@@ -274,6 +278,15 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 
 	if summary != nil {
 		result.FileSummary = summary
+	}
+
+	// §9.1 / §8.4: skipped_roles names every non-emitted auditor; explanatory,
+	// omitted under --compact.
+	if !IsCompact() {
+		if auditSkipped == nil {
+			auditSkipped = []engine.SkippedRole{}
+		}
+		result.SkippedRoles = &auditSkipped
 	}
 
 	if flagCompact {

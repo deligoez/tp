@@ -169,9 +169,12 @@ func buildRolePrompt(role string, rules []string, items []ChecklistItem, files [
 }
 
 // generateRoleAuditPrompts emits one prompt per non-empty role in the fixed
-// order spec-coverage, security, maintainability-conventions.
-func generateRoleAuditPrompts(auditorRoles []model.Role, specItems, secItems, maintItems []ChecklistItem, sel *engine.AuditFileSelection, specContent, claudeExcerpt string) []auditPrompt {
+// order spec-coverage, security, maintainability-conventions. A role whose
+// routed checklist is empty produces no prompt and is named in skipped_roles
+// with reason no-checklist-items (§9.1).
+func generateRoleAuditPrompts(auditorRoles []model.Role, specItems, secItems, maintItems []ChecklistItem, sel *engine.AuditFileSelection, specContent, claudeExcerpt string) ([]auditPrompt, []engine.SkippedRole) {
 	prompts := make([]auditPrompt, 0, len(auditorRoles))
+	skipped := make([]engine.SkippedRole, 0)
 	for i := range auditorRoles {
 		role := &auditorRoles[i]
 		var items []ChecklistItem
@@ -188,11 +191,12 @@ func generateRoleAuditPrompts(auditorRoles []model.Role, specItems, secItems, ma
 			items = fileCheckItems(files, "file-"+role.ID+"-", role.ID)
 		}
 		if len(items) == 0 {
+			skipped = append(skipped, engine.SkippedRole{Role: role.ID, Reason: engine.SkipNoChecklistItems})
 			continue
 		}
 		prompts = append(prompts, buildRolePrompt(role.ID, role.Focus, items, files, specContent, claudeExcerpt))
 	}
-	return prompts
+	return prompts, skipped
 }
 
 // claudeMDExcerptFor resolves CLAUDE.md next to the resolved task file, then
