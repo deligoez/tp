@@ -1,11 +1,27 @@
 ---
 name: tp
-description: Spec-to-task lifecycle manager for AI coding agents. Interviews user to resolve ambiguities, decomposes specs into atomic tasks, manages execution order via dependency graph, and batch-closes with evidence. Use when user wants to implement a spec, plan tasks, decompose a feature, or a *.tasks.json file exists.
+description: Spec-to-task lifecycle manager for AI coding agents. Interviews user to resolve ambiguities, decomposes specs into atomic tasks, manages execution order via dependency graph, and batch-closes with evidence. Use when user wants to implement a spec, plan tasks, decompose a feature, a *.tasks.json file exists, or user says 'continue with tp' / 'tp ile devam et' to resume work after a context clear.
 ---
 
 # tp — Task Plan Skill
 
 Activates when: a `.tasks.json` file exists, user asks to implement a spec/plan/tasks, or user references tp commands.
+
+## "continue with tp" / "tp ile devam et" — zero-friction resume (any project)
+
+A short resume intent — "tp ile devam et", "continue with tp", "tp'ye devam", "resume tp" — is a sufficient standalone prompt in ANY tp project after a context clear. `tp resume` rebuilds the full picture from durable state (task file, spec, `.tp-review/`, `.tp/local.json`, git); nothing load-bearing lives in the context window. On the trigger:
+
+1. **Orient**: `tp resume` → `{phase, blockers, next_action}`. (PATH `tp`; in tp's own self-development use the freshly-built dogfood binary instead.)
+2. **Clear agent-clearable blockers**: `unexplained-changes` → commit the changes via the project's commit tool, or `tp keep <path> "<reason>"` for intentionally-uncommitted files; then re-run `tp resume`. Stop and report human-only blockers (`*-budget-exhausted`, `no-ready-task`).
+3. **Work ONLY the reported phase** — do not run the next phase in the same session:
+   - **review** → Workflow A Step 2 (review loop until `tp review <spec> --status --check` exits 0; `wontfix`/`duplicate` are terminal and may be set pre-record, `fixed` implies a spec change and forces a re-review).
+   - **decompose** → Workflow A Step 3 (atomic tasks: 1 verb, ≤8-word title, ≤3 acceptance, `source_sections` for EVERY task; backward-pass every table row + numbered list item into some task's acceptance; `tp validate` until clean; `tp import tasks.json` plain, no `--force`).
+   - **implement** → Workflow B/C (one fresh subagent PER task, injecting a durable-state pointer `tp next`, the close recipe for the effective `commit_strategy`, and live lessons; close per `commit_strategy`: `hc` → `hc run` then `tp done <id> --commit <sha>`; `builtin` → `tp commit`/`tp done --auto-commit`).
+   - **audit** → Workflow D (until `tp audit <spec> --status --check` exits 0; ALWAYS 2 consecutive clean rounds, never cut short by a cap).
+   - **release** → report and stop.
+4. **Stop at the phase boundary**: print (1) what changed on disk, (2) the next `tp resume` next_action. The human clears context and re-sends the trigger for the next phase.
+
+This is the reset-native contract: `tp resume` is the single source of truth between context resets.
 
 ## Workflow A: Decompose (spec exists, no .tasks.json)
 
