@@ -20,7 +20,7 @@ type Task struct {
 	Title             string     `json:"title"`
 	Description       string     `json:"description,omitempty"`
 	Status            string     `json:"status"`
-	Tags              []string   `json:"tags,omitempty"`
+	Tags              []string   `json:"tags"`
 	DependsOn         []string   `json:"depends_on"`
 	EstimateMinutes   int        `json:"estimate_minutes"`
 	Acceptance        string     `json:"acceptance"`
