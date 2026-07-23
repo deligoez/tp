@@ -64,6 +64,7 @@ type reviewResult struct {
 	DocsStructure      *docStructure              `json:"docs_structure,omitempty"`
 	TestStructure      *docStructure              `json:"test_structure,omitempty"`
 	MechanicalChecks   []map[string]any           `json:"mechanical_checks,omitempty"`
+	SkippedRoles       *[]engine.SkippedRole      `json:"skipped_roles,omitempty"`
 	Prompts            []reviewPrompt             `json:"prompts"`
 	ReviewLoop         reviewLoop                 `json:"review_loop"`
 }
@@ -387,7 +388,7 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 		mechChecks, _ = runMechanicalChecks(&wfChecks, checksTaskFile)
 	}
 
-	prompts, regressionIncluded := buildReviewPrompts(specPath, elems, specContent, round, summary, affectedSection, finalRound, &wfChecks, diffFrom, noState, reviewSt)
+	prompts, regressionIncluded, skippedRoles := buildReviewPrompts(specPath, elems, specContent, round, summary, affectedSection, finalRound, &wfChecks, diffFrom, noState, reviewSt)
 
 	uniqueCount := len(dedupFindings(findings))
 	convergence, instruction := buildReviewLoopInstruction(round, findings, findingsPath, specPath, specInline, noState, stateRequired, regressionIncluded, len(wfChecks.Checks) > 0)
@@ -418,6 +419,15 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 	if len(affectedFiles) > 0 {
 		result.AffectedFiles = affectedFiles
 		result.AffectedSummary = engine.BuildAffectedSummary(affectedFiles, affectedContent)
+	}
+
+	// §9.1 / §8.4: skipped_roles names every non-emitted corpus role; it is an
+	// explanatory field omitted under --compact.
+	if !IsCompact() {
+		if skippedRoles == nil {
+			skippedRoles = []engine.SkippedRole{}
+		}
+		result.SkippedRoles = &skippedRoles
 	}
 
 	return output.JSON(result)
@@ -634,7 +644,7 @@ func runReviewTestPlan(specPath, specContent, testPath string, affectedFiles []s
 // applied, plus the appended changed-sections block, the auto-included regression
 // prompt (round >= 2 with a diff or fixed findings), and the mechanized-class
 // exclusion. Returns the prompts and whether the regression prompt was included.
-func buildReviewPrompts(specPath string, elems *engine.StructuredElements, specContent string, round int, summary, affectedSection string, finalRound bool, wfChecks *model.Workflow, diffFrom string, noState bool, reviewSt *engine.ReviewState) (prompts []reviewPrompt, regressionIncluded bool) {
+func buildReviewPrompts(specPath string, elems *engine.StructuredElements, specContent string, round int, summary, affectedSection string, finalRound bool, wfChecks *model.Workflow, diffFrom string, noState bool, reviewSt *engine.ReviewState) (prompts []reviewPrompt, regressionIncluded bool, skipped []engine.SkippedRole) {
 	fmState := engine.ParseFrontmatter(specPath)
 
 	// Emit one prompt per active reviewer role from the domain-filtered corpus
@@ -716,7 +726,15 @@ func buildReviewPrompts(specPath string, elems *engine.StructuredElements, specC
 		}
 	}
 
-	return prompts, regressionIncluded
+	// §9.1: name every non-emitted corpus role. Domain filtering (when a user
+	// corpus is present) drops roles whose domains omit the spec's domain; the
+	// built-in regression role has no snapshot-round-0.md to diff at round 1.
+	skipped = append(skipped, engine.DomainSkippedRoles(filepath.Dir(specPath), fmState.Domain, engine.PhaseReviewers)...)
+	if !noState && round < 2 {
+		skipped = append(skipped, engine.SkippedRole{Role: engine.RegressionRoleID, Reason: engine.SkipNoBaseline})
+	}
+
+	return prompts, regressionIncluded, skipped
 }
 
 // generateCorpusReviewPrompt renders one review prompt for a corpus role,
