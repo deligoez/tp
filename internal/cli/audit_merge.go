@@ -128,7 +128,6 @@ func loadAuditMergeRows(args []string) []map[string]any {
 			output.Error(ExitFile, fmt.Sprintf("cannot open file: %s", path))
 			os.Exit(ExitFile)
 		}
-		defer f.Close()
 		scanner := bufio.NewScanner(f)
 		scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024) // audit notes can be long
 		for scanner.Scan() {
@@ -159,6 +158,7 @@ func loadAuditMergeRows(args []string) []map[string]any {
 		if err := scanner.Err(); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: stopped reading %s early (%v); rows after the over-long line were dropped (line cap is 1MB)\n", path, err)
 		}
+		f.Close()
 	}
 
 	return rows
