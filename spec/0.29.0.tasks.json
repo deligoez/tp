@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.29.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-07-23T17:55:56.110253Z",
+  "updated_at": "2026-07-23T18:14:37.480484Z",
   "workflow": {},
   "coverage": {
     "total_sections": 20,
@@ -213,7 +213,7 @@
     {
       "id": "resume-bookkeeping",
       "title": "Report bookkeeping in resume",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "close-checkpoint-builtin"
@@ -224,11 +224,14 @@
         "## 5. The close checkpoint"
       ],
       "source_lines": "63",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-23T18:14:37.480448Z",
+      "closed_at": "2026-07-23T18:14:37.480484Z",
+      "closed_reason": "- tp resume reports tp-owned dirty files (task file/.tp-review/.tp) in a bookkeeping array separate from changes; closure/round/config kinds with ref = task id / round number / basename, derived via HEAD diff (FileAtHead), raising no unexplained-changes blocker\n- the bookkeeping array is [] when no tp-owned file is dirty (DeriveBookkeeping initializes an empty slice; TestResume_Bookkeeping_EmptyWhenClean covers it)\n- tp resume emits a one-line implement-phase guidance note (run each unit in a fresh subagent/context); absent outside implement phase\n- both bookkeeping and the guidance note survive --compact per §8.4 (resumeJSON adds both outside the compact conditionals)",
+      "gate_passed_at": "2026-07-23T18:14:37.480484Z",
+      "commit_sha": "d543f5c",
+      "commit_shas": [
+        "d543f5c"
+      ]
     },
     {
       "id": "role-attribution-transparency",
