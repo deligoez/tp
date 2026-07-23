@@ -23,11 +23,12 @@ Output: {tasks: [{id, estimate_minutes, actual_minutes, accuracy}], summary}`,
 }
 
 type reportTask struct {
-	ID                string  `json:"id"`
-	EstimateMinutes   int     `json:"estimate_minutes"`
-	ActualMinutes     float64 `json:"actual_minutes"`
-	Accuracy          float64 `json:"accuracy"`
-	GateSkippedReason *string `json:"gate_skipped_reason,omitempty"`
+	ID                string   `json:"id"`
+	EstimateMinutes   int      `json:"estimate_minutes"`
+	ActualMinutes     float64  `json:"actual_minutes"`
+	Accuracy          *float64 `json:"accuracy"`
+	Note              *string  `json:"note,omitempty"`
+	GateSkippedReason *string  `json:"gate_skipped_reason,omitempty"`
 }
 
 type reportSummary struct {
@@ -37,8 +38,9 @@ type reportSummary struct {
 	Untracked             int     `json:"untracked"`
 	TotalEstimatedMinutes int     `json:"total_estimated_minutes"`
 	TotalActualMinutes    float64 `json:"total_actual_minutes"`
-	EstimationAccuracy    float64 `json:"estimation_accuracy"`
-	AverageTaskMinutes    float64 `json:"average_task_minutes"`
+	EstimationAccuracy    *float64 `json:"estimation_accuracy"`
+	ExcludedFromAccuracy  int      `json:"excluded_from_accuracy"`
+	AverageTaskMinutes    float64  `json:"average_task_minutes"`
 	FastestTask           *idDur  `json:"fastest_task"`
 	SlowestTask           *idDur  `json:"slowest_task"`
 }
@@ -64,6 +66,11 @@ func runReport(_ *cobra.Command, _ []string) error {
 	}
 
 	tasks, summary := computeReport(tf)
+	if flagCompact {
+		for i := range tasks {
+			tasks[i].Note = nil
+		}
+	}
 	return output.JSON(map[string]any{
 		"tasks":   tasks,
 		"summary": summary,
@@ -80,6 +87,12 @@ func computeReport(tf *model.TaskFile) ([]reportTask, reportSummary) {
 		totalActual    float64
 		fastest        *idDur
 		slowest        *idDur
+
+		// Accuracy accumulators: null-accuracy tasks are excluded from
+		// the summary's estimation_accuracy (§14.2).
+		accEstimated int
+		accActual    float64
+		excluded     int
 	)
 
 	for i := range tf.Tasks {
@@ -102,17 +115,26 @@ func computeReport(tf *model.TaskFile) ([]reportTask, reportSummary) {
 			continue
 		}
 
-		accuracy := 0.0
-		if actualMin > 0 {
-			accuracy = roundTo(float64(t.EstimateMinutes)/actualMin, 2)
-		}
+		roundedActual := roundTo(actualMin, 1)
 
 		rt := reportTask{
 			ID:                t.ID,
 			EstimateMinutes:   t.EstimateMinutes,
-			ActualMinutes:     roundTo(actualMin, 1),
-			Accuracy:          accuracy,
+			ActualMinutes:     roundedActual,
 			GateSkippedReason: t.GateSkippedReason,
+		}
+
+		// §14.1: when actual_minutes rounds to 0.0 the accuracy is null
+		// and the task carries an explanatory note.
+		if roundedActual == 0 {
+			note := "duration below resolution"
+			rt.Note = &note
+			excluded++
+		} else {
+			acc := roundTo(float64(t.EstimateMinutes)/actualMin, 2)
+			rt.Accuracy = &acc
+			accEstimated += t.EstimateMinutes
+			accActual += actualMin
 		}
 		tasks = append(tasks, rt)
 
@@ -120,10 +142,10 @@ func computeReport(tf *model.TaskFile) ([]reportTask, reportSummary) {
 		totalActual += actualMin
 
 		if fastest == nil || actualMin < fastest.Minutes {
-			fastest = &idDur{ID: t.ID, Minutes: roundTo(actualMin, 1)}
+			fastest = &idDur{ID: t.ID, Minutes: roundedActual}
 		}
 		if slowest == nil || actualMin > slowest.Minutes {
-			slowest = &idDur{ID: t.ID, Minutes: roundTo(actualMin, 1)}
+			slowest = &idDur{ID: t.ID, Minutes: roundedActual}
 		}
 	}
 
@@ -133,12 +155,8 @@ func computeReport(tf *model.TaskFile) ([]reportTask, reportSummary) {
 
 	trackedCount := len(tasks)
 	avgMin := 0.0
-	estAccuracy := 0.0
 	if trackedCount > 0 {
 		avgMin = roundTo(totalActual/float64(trackedCount), 1)
-	}
-	if totalActual > 0 {
-		estAccuracy = roundTo(float64(totalEstimated)/totalActual, 2)
 	}
 
 	summary := reportSummary{
@@ -148,10 +166,15 @@ func computeReport(tf *model.TaskFile) ([]reportTask, reportSummary) {
 		Untracked:             untrackedCount,
 		TotalEstimatedMinutes: totalEstimated,
 		TotalActualMinutes:    roundTo(totalActual, 1),
-		EstimationAccuracy:    estAccuracy,
+		EstimationAccuracy:    nil,
+		ExcludedFromAccuracy:  excluded,
 		AverageTaskMinutes:    avgMin,
 		FastestTask:           fastest,
 		SlowestTask:           slowest,
+	}
+	if accActual > 0 {
+		estAccuracy := roundTo(float64(accEstimated)/accActual, 2)
+		summary.EstimationAccuracy = &estAccuracy
 	}
 
 	return tasks, summary
