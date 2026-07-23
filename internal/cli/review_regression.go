@@ -23,7 +23,7 @@ func runReviewRegression(specPath, diffFrom, findingsPath string) error {
 	}
 
 	var dr engine.DiffResult
-	var sinceLabel string
+	var sinceLabel, baselinePath string
 	fixed := make([]reviewFinding, 0)
 
 	switch {
@@ -41,6 +41,7 @@ func runReviewRegression(specPath, diffFrom, findingsPath string) error {
 		}
 		dr = engine.DiffSections(diffLinesOf(diffFrom), diffLinesOf(specPath))
 		sinceLabel = "baseline " + diffFrom
+		baselinePath = diffFrom
 		all := parseFindingsFile(findingsPath)
 		// newest first: later rows are newer
 		for i := len(all) - 1; i >= 0; i-- {
@@ -68,6 +69,7 @@ func runReviewRegression(specPath, diffFrom, findingsPath string) error {
 		if snapRound, snapPath := newestEarlierSnapshot(specPath, r); snapPath != "" {
 			dr = engine.DiffSections(diffLinesOf(snapPath), diffLinesOf(specPath))
 			sinceLabel = fmt.Sprintf("round %d", snapRound)
+			baselinePath = snapPath
 		}
 		fixed = append(fixed, collectFixedFindings(specPath, st)...)
 	}
@@ -84,7 +86,7 @@ func runReviewRegression(specPath, diffFrom, findingsPath string) error {
 		fixed = fixed[:regressionFixedFindingsCap]
 	}
 
-	prompt := buildRegressionPrompt(&dr, sinceLabel, fixed)
+	prompt := buildRegressionPrompt(&dr, sinceLabel, baselinePath, fixed)
 
 	// Mechanical checks run in the regression perspective too (§15.3)
 	wfChecks, checksTaskFile := engine.ResolveWorkflow(specPath, flagFile)
@@ -144,9 +146,16 @@ func collectFixedFindings(specPath string, st *engine.ReviewState) []reviewFindi
 // buildRegressionPrompt renders the §11.3 body order: persona, changed
 // sections, previously fixed findings, three numbered checks, finding format.
 // The regression role accepts no spec-frontmatter override or lens (§5.2, §10.4).
-func buildRegressionPrompt(dr *engine.DiffResult, sinceLabel string, fixed []reviewFinding) string {
+// baselinePath names the snapshot the diff was computed against so a fresh
+// sub-agent can read it without the orchestrator injecting the path (§10.3);
+// empty when no baseline applies.
+func buildRegressionPrompt(dr *engine.DiffResult, sinceLabel, baselinePath string, fixed []reviewFinding) string {
 	var b strings.Builder
 	b.WriteString("You guard decisions this spec has already settled. Your only job is to find changes that undo them.\n")
+
+	if baselinePath != "" {
+		fmt.Fprintf(&b, "\nBaseline snapshot to diff against: %s\n", baselinePath)
+	}
 
 	if sinceLabel != "" {
 		if block := buildChangedSectionsBlock(dr, sinceLabel); block != "" {

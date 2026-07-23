@@ -664,16 +664,19 @@ func buildReviewPrompts(specPath string, elems *engine.StructuredElements, specC
 	diffBlock := ""
 	var diffDr engine.DiffResult
 	diffLabel := ""
+	baselinePath := ""
 	switch {
 	case diffFrom != "":
 		diffDr = engine.DiffSections(diffLinesOf(diffFrom), diffLinesOf(specPath))
 		diffLabel = "baseline " + diffFrom
 		diffBlock = buildChangedSectionsBlock(&diffDr, diffLabel)
+		baselinePath = diffFrom
 	case !noState && round >= 2:
 		if snapRound, snapPath := newestEarlierSnapshot(specPath, round); snapPath != "" {
 			diffDr = engine.DiffSections(diffLinesOf(snapPath), diffLinesOf(specPath))
 			diffLabel = fmt.Sprintf("round %d", snapRound)
 			diffBlock = buildChangedSectionsBlock(&diffDr, diffLabel)
+			baselinePath = snapPath
 		} else {
 			output.Info("no earlier snapshot exists; changed-sections block omitted")
 		}
@@ -695,7 +698,7 @@ func buildReviewPrompts(specPath string, elems *engine.StructuredElements, specC
 			prompts = append(prompts, reviewPrompt{
 				Role:     "regression",
 				Category: "regression",
-				Prompt:   buildRegressionPrompt(&diffDr, diffLabel, fixed),
+			Prompt:   buildRegressionPrompt(&diffDr, diffLabel, baselinePath, fixed),
 			})
 			regressionIncluded = true
 		}
