@@ -42,7 +42,7 @@ Detailed command reference, field formats, and operational details. For workflow
 | `tp reopen <id>` | done -> open (clears timestamps + SHA) |
 | `tp remove <id>` | Remove task (--force cleans deps) |
 | `tp set <id> field=value` | Update field (managed fields protected) |
-| `tp set --workflow field=value` | Update workflow fields: `review_clean_rounds`/`audit_clean_rounds` (1-10), `gate_timeout_seconds` (30-3600), `review_max_rounds`/`audit_max_rounds` (0-50, 0=no cap) |
+| `tp set --workflow field=value` | Update workflow fields: `review_clean_rounds`/`audit_clean_rounds` (1-10), `gate_timeout_seconds` (30-3600), `review_max_rounds`/`audit_max_rounds` (0-50, 0=no cap), `lock_timeout_seconds` (1-60) |
 | `tp set --workflow checks='[{"class":"s","cmd":"c"}]'` | Replace the mechanical-checks list (JSON array; `class` kebab-case unique, `cmd` non-empty) |
 | `tp set --bulk sets.ndjson` | Bulk update from NDJSON {id, field, value} |
 | `tp keep <path> "<reason>"` | Keep-list a deliberately-uncommitted file (`--remove`, `--list`) |
@@ -67,8 +67,8 @@ Detailed command reference, field formats, and operational details. For workflow
 | `tp review spec.md --perspective code-audit --affected-files src/a.go` | Code audit with source file injection |
 | `tp review spec.md --round N --findings file.ndjson` | Multi-round with previous findings exclusion |
 | `tp review spec.md --round N --final-round --affected-files src/a.go` | Final round with mandatory code read-through |
-| `tp review --merge r1.ndjson r2.ndjson -o merged.ndjson` | Merge + dedup findings from NDJSON files |
-| `tp review --resolve findings.ndjson <idx> <disposition> "evidence"` | Mark finding fixed/wontfix/duplicate |
+| `tp review --merge r1.ndjson r2.ndjson -o merged.ndjson` | Merge + dedup findings from NDJSON files. All-empty inputs (a converged round) exit 0 and write a zero-byte `-o` file (`merged_count` 0); a missing/unreadable input exits 3; no inputs exit 2. A spec-looking positional among the inputs exits 2 |
+| `tp review --resolve findings.ndjson <idx> <disposition> "evidence"` | Mark finding fixed/wontfix/duplicate. `<idx>` is **0-based**; the positional is the findings NDJSON (a `.md`/spec-looking positional exits 2). A non-numeric index exits 2 |
 | `tp review --resolve-all findings.ndjson <disposition> "reason"` | Mark all unresolved findings |
 | `tp review --resolve ... --force` | Force re-resolve already resolved findings |
 | `tp review --verify spec.md --findings all.ndjson` | Lightweight verification (verifier role) |
@@ -76,15 +76,17 @@ Detailed command reference, field formats, and operational details. For workflow
 | `tp review spec.md --diff-from old-spec.md` | Diff-based review; overrides the snapshot baseline, forces the block at any round |
 | `tp review spec.md --spec-inline` | Embed full spec inline (default is reference mode) |
 | `tp review spec.md --record merged.ndjson` | Record a review round; auto-numbers R, freezes count + clean flag |
-| `tp review spec.md --status` | Show recorded rounds, `consecutive_clean`, `converged`, `stale`, `mechanical_checks` |
+| `tp review spec.md --status` | Recorded rounds, `consecutive_clean`, `converged`, `stale`, `mechanical_checks`, `max_rounds`/`rounds_remaining` (null when uncapped), `in_flight_round`, `overlap_report`, `attribution_excludes` |
 | `tp review spec.md --status --check` | Run registered checks; exit 0 only when converged AND every check passes |
 | `tp review spec.md --perspective regression` | Standalone regression pass (needs state R≥2, or `--diff-from` + `--findings`) |
 | `tp review spec.md --no-state` | Disable all state reads/writes; restores pre-0.23.0 manual `--round` numbering |
-| `tp audit spec.md` | Post-implementation audit: verify code matches spec |
+| `tp audit spec.md` | Post-implementation audit: verify code matches spec. No audit-able file → exit 4 with `suggested_files` (paths touched by done tasks' `commit_shas`, type-filtered) + hint |
 | `tp audit spec.md --affected-files src/a.go` | Manual file selection (comma or repeated) |
+| `tp audit spec.md --affected-from-tasks` | Audit exactly the files touched by done tasks' `commit_shas` (the common post-implementation case; no manual list) |
 | `tp audit spec.md --findings review.ndjson` | Also verify review findings were addressed (route to spec-coverage) |
 | `tp audit spec.md --record results.ndjson` | Record an audit round (non-PASS rows = findings); independent sequence |
-| `tp audit spec.md --status` | Show recorded audit rounds, `consecutive_clean`, `converged`, `stale` |
+| `tp audit --merge r1.ndjson r2.ndjson -o results.ndjson` | Merge + dedup per-role audit results (by `role`+`item_id`); all-empty inputs exit 0 like `tp review --merge` |
+| `tp audit spec.md --status` | Recorded rounds, `consecutive_clean`, `converged`, `stale`, `max_rounds`/`rounds_remaining`/`in_flight_round`, `overlap_report` |
 | `tp audit spec.md --status --check` | Exit 0 only when the audit is converged |
 | `tp validate` | Task file validation + line coverage + atomicity |
 | `tp validate --strict` | Atomicity warnings become errors |
@@ -92,8 +94,8 @@ Detailed command reference, field formats, and operational details. For workflow
 ### Data
 | Command | Purpose |
 |---------|---------|
-| `tp init spec.md` | Create empty task file |
-| `tp add <json>` | Add task (--stdin for piped input) |
+| `tp init spec.md` | Create empty task file (also writes `.tp/.gitignore`, which covers `.tp/locks/`) |
+| `tp add <json>` | Add task (--stdin for piped input). Applies the §6.1 entry rules (rejects missing/blank `id`/`title`/`acceptance`, no source anchor, unknown `depends_on`, duplicate id, invalid JSON → exit 2) and normalizes slices to `[]` |
 | `tp add --bulk tasks.ndjson` | Bulk add from NDJSON |
 | `tp import file.json` | Import + validate (--force to overwrite + relax atomicity) |
 | `tp import tasks.json --spec spec.md` | Import bare JSON array (auto-wraps into TaskFile) |
@@ -180,10 +182,12 @@ Resolves the task file by the discovery order (a spec argument wins and uses its
 | `spec` | resolved spec path |
 | `changes` | byte-sorted repo-root-relative uncommitted paths **not** on the keep-list |
 | `kept` | byte-sorted `{path, reason}` — uncommitted paths matched by the keep-list |
-| `next_action` | `{command, summary, payload}`; `command` is null for `decompose`/`release`. Payload: review/audit `{round, unresolved_findings}` (round = recorded+1, 0 unresolved on round 1), implement `{task: {id}|null, wip}`, decompose/release `{}` |
+| `bookkeeping` | `[]` of `{path, kind, ref}` — tp-owned dirty files that need committing (§5.2). `kind` ∈ `closure` (the task file; `ref` = task id) / `round` (a `.tp-review/` round or snapshot file; `ref` = round number) / `config` (any other dirty `.tp/` state; `ref` = basename). Reported separately from `changes` and never an `unexplained-changes` blocker. Under `commit_strategy: hc` a close legitimately leaves these modified |
+| `guidance` | one-line implement-phase note (run each unit in a fresh subagent/context); absent outside `implement` |
+| `next_action` | `{command, summary, payload}`; `command` is null for `decompose`/`release`. Payload: review/audit `{round, unresolved_findings}` (round = recorded+1, 0 unresolved on round 1), implement `{task: {id}|null, wip}`, `{action:"record-round", round:N}` when a snapshot exists without its recorded round, decompose/release `{}` |
 | `blockers` | `{code, class, message, data}` in fixed code order |
 
-`--compact` drops `next_action.summary`, each `kept[].reason`, and each `blockers[].message`; keeps every `data`.
+`--compact` drops `next_action.summary`, each `kept[].reason`, and each `blockers[].message`; keeps every `data` plus `bookkeeping` and `guidance` (both decision-critical — §8.4).
 
 Blocker vocabulary (fixed order): `unexplained-changes` (**agent-clearable**, `{count}`), `no-ready-task` (escalate, `{blocked_by}`), `review-budget-exhausted` / `audit-budget-exhausted` (escalate, `{cap}`; 0 = no cap, never fires), `spec-stale` (escalate, `{spec}`). Reference driver: resolve `agent-clearable` blockers and re-run; stop on `escalate`; run `next_action` in a fresh unit when `blockers` is empty; repeat until `release`.
 
@@ -198,6 +202,10 @@ Resolves task override > `.tp/config.json` > built-in default `auto`. A present 
 `tp config` adds top-level `commit_strategy_effective` (`builtin`/`hc`); `tp config --resolved` reports `commit_strategy` as `{value, source}` with the resolved name.
 
 `commit_shas` (`[]string`, canonical) records the ordered commits; `commit_sha` mirrors `commit_shas[0]` for pre-0.28.0 readers. It is a managed field (`tp set` rejects it; `tp reopen` clears it alongside `commit_sha`, `gate_passed_at`, `gate_skipped_reason`). A `--covered-by` close records neither.
+
+`commit_strategy` is authored at `tp init`. The **project default** is settable with `tp set --workflow --project commit_strategy=<builtin|auto|hc>` (writes `workflow.commit_strategy` in `.tp/config.json`, participates in the resolve order, and `tp config --resolved` annotates its source). The task-file setter stays read-only: `tp set --workflow commit_strategy=…` exits 2 with a hint naming the project setter.
+
+**Close checkpoint (v0.29.0, §5.1).** Under `builtin`, `tp commit` and `tp done --auto-commit` fold the closure into the implementation commit: tp stages the implementation files with the task file still `wip`, commits (sha `C1`), writes the closure record (`status: done`, `closed_at`, `gate_passed_at`, `commit_sha`/`commit_shas` = `C1`), then `git commit --amend --no-edit` folds it in (sha `C2`). The amend runs only when `HEAD` is still `C1` and the working-tree diff lists only paths tp itself wrote this command; otherwise tp makes a separate follow-up `chore(tp): record <id> closure` commit leaving `C1` as `commit_sha`. Either path leaves `git status` clean for tp-owned paths. `commit_sha`/`commit_shas[0]` records the pre-amend `C1` (never the post-amend `C2`), so `suggested_files` (§11) reads `C1`'s diff. Under `hc`, tp classifies instead of committing — see the `bookkeeping` field of `tp resume` for the tp-owned files a close legitimately leaves modified.
 
 ### `tp keep` — the keep-list
 
@@ -264,6 +272,7 @@ spec/
 |-------|------|---------|-------|---------------------|
 | `quality_gate` | string | `""` | — | read-only (author at `tp init --quality-gate`) |
 | `gate_timeout_seconds` | int | 600 | 30-3600 | settable |
+| `lock_timeout_seconds` | int | 5 | 1-60 | settable (§12.1: write-lock retry/backoff window; timeout exits 4) |
 | `checks` | array of `{class, cmd}` | `[]` | — | settable (replace semantics) |
 | `review_clean_rounds` | int | 2 | 1-10 | settable |
 | `audit_clean_rounds` | int | 2 | 1-10 | settable |
@@ -318,7 +327,7 @@ tp owns the review/audit round lifecycle in `<spec-dir>/.tp-review/<spec-base>/`
 | `review-round-<N>.ndjson` | Recorded review round N findings |
 | `audit-round-<N>.ndjson` | Recorded audit round N results |
 
-Each round entry is `{round, findings, clean, recorded_at, file, spec_hash}`. `spec_hash` is `sha256:<hex>` of the spec bytes at record time and powers the staleness rule. **Commit this directory to version control** — import convergence enforcement and CI both depend on the recorded rounds traveling with the repo. Only snapshots older than the newest are prunable. A corrupt or index-less directory aborts state-reading commands with exit 3 and a `repair or delete <path>` hint; tp never silently rebuilds the index.
+Each round entry is `{round, findings, clean, recorded_at, file, spec_hash}`. `spec_hash` is `sha256:<hex>` of the spec bytes at record time and powers the staleness rule. tp writes `snapshot-round-<N>.md` **atomically** (write to a `.tmp` then rename) when round N begins (prompt emission) and `review-round-<N>.ndjson`/`audit-round-<N>.ndjson` when the round is recorded; a snapshot with no round file means a round was started and never recorded, and `--status` reports it as `in_flight_round: N` (`tp resume` then points at `{action:"record-round", round:N}`). **Commit this directory to version control** — import convergence enforcement and CI both depend on the recorded rounds traveling with the repo. Only snapshots older than the newest are prunable. A corrupt or index-less directory aborts state-reading commands with exit 3 and a `repair or delete <path>` hint; tp never silently rebuilds the index.
 
 ## Spec Frontmatter (`tp:` mapping)
 
@@ -360,6 +369,10 @@ Validation: `tp lint` validates both phases, `tp review` validates reviewers, `t
 
 **Overlap fields** (`tp review --merge`/`--report`/`--status`): findings cluster by `(location key, class)`, the location key being the first `§<n>(.<n>)*` token. Each merged finding carries `found_by` (count of distinct diversity reviewer roles) and `found_by_roles` (the sorted set, `regression` excluded). `overlap_report` is a per-role array of `{role, unique, shared, trim_candidate}` — `trim_candidate` is true when `unique == 0 && shared >= 1`.
 
+**Transparency fields (v0.29.0, §9):** prompt emission (`tp review`/`tp audit`) reports `skipped_roles: [{role, reason}]` naming every corpus role it did not emit (`reason` ∈ `no-checklist-items` / `no-spec-change` / `domain-mismatch` / `no-baseline`; `[]` when none skipped). Merge/`--status` summary adds `attribution_excludes: ["regression"]` **only** when excluding the built-in `regression` role causes `merged_count` to exceed the overlap-report finding count (omitted otherwise). `tp audit --merge`/`--status` emit their own `overlap_report` over non-PASS rows clustered by `(item_id, category)` with the same `{role, unique, shared, trim_candidate}` shape.
+
+**`--compact` disposition (§8.4):** decision-critical new fields survive `--compact` — `bookkeeping`, `suggested_files`, `max_rounds`/`rounds_remaining`/`in_flight_round`; explanatory fields are omitted — `skipped_roles`, `attribution_excludes`, the audit `overlap_report`, the report `note`.
+
 **Role staleness** (`tp review --status`/`tp audit --status`): each recorded round stores `roles_hash` (`"builtin"` on the defaults, else a clone-stable sha256 over the phase's user files). `--status` reports `roles_stale` beside the spec `stale` flag; a pre-v0.25.0 round with no stored hash is treated as matching.
 
 ## Finding `class` and Report
@@ -379,3 +392,50 @@ Every review finding carries `role`, `location` (a `§`-anchor), `class`, and `s
 | `prompts[].affected_files` | absent | `[]{path, tasks, diff_summary}` |
 
 Item ids are deterministic: `table-<t>-<r>`, `list-<l>-<n>`, `task-<id>`, `file-sec-<n>`/`file-maint-<n>`, `finding-<n>`. Sub-agents return one NDJSON row per checklist item: `{item_id, status(PASS|PARTIAL|FAIL), evidence_file, evidence_lines, category, severity, notes, class?}`. `category`/`severity` are `null` for PASS and one of the enum values for PARTIAL/FAIL. Finding category enum: `security > concurrency > error-handling > correctness > contract` (resolution precedence when several apply).
+
+## Loop Integrity (v0.29.0)
+
+Cross-cutting correctness, transparency, and contract fixes — no new lifecycle phase.
+
+### Entry validation (§6)
+
+`tp add` applies the same rules `tp import` applies, at entry:
+
+| Rule | Exit |
+|------|------|
+| `id` missing/blank/whitespace, or already present | 1 |
+| `title` missing/blank | 1 |
+| `acceptance` missing/blank | 1 |
+| Neither `source_sections` nor `source_lines` | 1 |
+| `depends_on` referencing an unknown task | 1 |
+| Task JSON is not valid JSON (decoder detail in `hint`) | 2 |
+
+In `--bulk`/`--stdin`, validation runs after the whole batch is staged, so an entry may `depends_on` a task appearing later in the batch.
+
+**Slice normalization (§6.2/6.3):** every task tp writes carries `[]` (not `null`) for `depends_on`, `source_sections`, and `tags`, whichever command wrote it. `tp lint`'s `structured_elements.tables`/`numbered_lists` and `tp stats`'s `tags` are likewise `[]` when empty.
+
+### Coverage on every write (§7)
+
+`AutoFillCoverage` runs after any command that changes the task set or a task's anchors — `add`, `import`, `remove`, and `set` of `source_sections`/`source_lines` — whenever the spec is readable, so `tp init` + `tp add` + `tp validate` is clean with no `import` round trip. Status-only writes (`claim`/`close`/`done`/`reopen`) skip the recompute. When the spec cannot be read, the coverage block is left untouched and `tp validate`'s coverage finding hints the unreadable spec path.
+
+### `spec_excerpt` from `source_sections` (§8)
+
+When a task has `source_sections` and no `source_lines`, `spec_excerpt` is the content of those sections: each entry's heading line plus the body up to the next heading of the same or shallower level, in the listed order, blank-line-joined, capped at 2000 chars. Applies to `tp plan`, `tp show`, `tp next`, and `tp next --peek` (which previously returned `""`). `--compact` still omits `spec_excerpt` entirely.
+
+### Locking (§5.3, §5.4, §12)
+
+- The task-file lock lives at `.tp/locks/<base>-<hash>.lock` (covered by `.tp/.gitignore`), not the sibling `<base>.tasks.json.lock`; a stale sibling lock is removed on first write. tp never stages a path under `.tp/locks/`, and `tp commit`/`--auto-commit` refuse any `--files` path ending in `.tasks.json.lock`.
+- `tp init` creates `.tp/.gitignore` (it covers `local.json` and `locks/`) at init time, so it is committable with the initial tp state.
+- Write-lock acquisition retries with backoff until `lock_timeout_seconds` (default 5, range 1-60) elapses, so two concurrent writes both succeed. On timeout tp exits **4** (state) with a hint naming the lock path and the elapsed wait.
+
+### Exit-code conformance (§13)
+
+Exit scheme: 0 success, 1 validation, 2 usage, 3 file, 4 state. `tp add '{not valid json'` exits 2 (decoder detail in `hint`); any cobra flag-parse failure exits 2 as a tp error object; `tp done <id> "<reason starting with a dash>"` exits 2 with a hint naming the `--` separator. Every non-zero error object carries a `hint` naming the next command to run.
+
+### Report accuracy (§14)
+
+`actual_minutes` rounds to one decimal place. When it rounds to `0.0`, `accuracy` is `null` and the task carries `note: "duration below resolution"` (omitted under `--compact`). The summary excludes null-accuracy tasks from `estimation_accuracy` and reports the count via `excluded_from_accuracy`.
+
+### Lint: `empty-section` (§15)
+
+`empty-section` no longer fires on a **container** heading — one whose next heading is deeper than itself. An empty **leaf** heading (no content, no deeper child) remains an error.
