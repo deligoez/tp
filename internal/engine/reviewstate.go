@@ -131,6 +131,10 @@ func SaveReviewState(specPath string, st *ReviewState) error {
 }
 
 // hasStateArtifacts reports whether dir contains round or snapshot files.
+// hasStateArtifacts reports whether dir contains round or snapshot files. A
+// crash-leftover .tmp file from an interrupted atomic snapshot write is NOT a
+// state artifact — it must not trigger a false-positive corrupt-state abort
+// (§10.2 atomic write).
 func hasStateArtifacts(dir string) bool {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -138,11 +142,45 @@ func hasStateArtifacts(dir string) bool {
 	}
 	for _, e := range entries {
 		name := e.Name()
+		if strings.HasSuffix(name, ".tmp") {
+			continue
+		}
 		if strings.HasPrefix(name, "review-round-") || strings.HasPrefix(name, "audit-round-") || strings.HasPrefix(name, "snapshot-round-") {
 			return true
 		}
 	}
 	return false
+}
+
+// WriteSnapshotAtomic writes the round-N spec snapshot atomically — write to a
+// sibling snapshot-round-N.md.tmp then rename — so a crash mid-write never
+// leaves a partial snapshot on disk (§10.2). The state directory is created
+// when absent.
+func WriteSnapshotAtomic(specPath string, round int, data []byte) error {
+	dir := ReviewStateDir(specPath)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	final := filepath.Join(dir, fmt.Sprintf("snapshot-round-%d.md", round))
+	tmp := final + ".tmp"
+	if err := os.WriteFile(tmp, data, 0o600); err != nil {
+		return err
+	}
+	return os.Rename(tmp, final)
+}
+
+// InFlightRound reports the in-flight round number for a phase given the count
+// of recorded rounds: the next round (recordedRounds+1) whose spec snapshot
+// exists but whose round file does not, or 0 when none (§10.2). A snapshot
+// without a matching round file means a round was started (prompt emission)
+// and never recorded.
+func InFlightRound(specPath string, recordedRounds int) int {
+	next := recordedRounds + 1
+	snap := filepath.Join(ReviewStateDir(specPath), fmt.Sprintf("snapshot-round-%d.md", next))
+	if _, err := os.Stat(snap); err != nil {
+		return 0
+	}
+	return next
 }
 
 // SpecHash returns "sha256:<hex>" of the spec file's bytes.
