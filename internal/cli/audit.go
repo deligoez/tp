@@ -195,7 +195,11 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	// §10.2: snapshot the raw spec at audit round start (prompt emission),
 	// mirroring review — write atomically so a partial snapshot is never left
 	// on disk, and an interrupted round is visible to --status and tp resume.
-	auditSt, _ := engine.LoadReviewState(specPath)
+	auditSt, stErr := engine.LoadReviewState(specPath)
+	if stErr != nil {
+		exitStateError(stErr)
+		return nil
+	}
 	auditRecorded := 0
 	if auditSt != nil {
 		auditRecorded = len(auditSt.AuditRounds)
