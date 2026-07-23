@@ -55,6 +55,8 @@ func TestResume_WritesNoFile(t *testing.T) {
 	before, err := os.ReadFile(taskFile)
 	require.NoError(t, err)
 
+	require.NoError(t, os.RemoveAll(filepath.Join(dir, ".tp")))
+
 	out, _, code := runTP(t, dir, "resume")
 	require.Equal(t, 0, code)
 	var res map[string]any
