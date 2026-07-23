@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/deligoez/tp/internal/engine"
+	"github.com/deligoez/tp/internal/model"
 	"github.com/deligoez/tp/internal/output"
 )
 
@@ -76,6 +77,7 @@ func newAuditCmd() *cobra.Command {
 	var statusMode bool
 	var checkFlag bool
 	var mergeMode bool
+	var affectedFromTasks bool
 	var outputPath string
 
 	cmd := &cobra.Command{
@@ -90,8 +92,8 @@ Use --findings to also verify review findings were addressed.`,
 		DisableAutoGenTag: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if mergeMode {
-				if recordPath != "" || statusMode || len(affectedFiles) > 0 || findingsPath != "" || base != "" {
-					output.Error(ExitUsage, "--merge cannot be combined with --record/--status/--affected-files/--findings/--base")
+				if recordPath != "" || statusMode || len(affectedFiles) > 0 || findingsPath != "" || base != "" || affectedFromTasks {
+					output.Error(ExitUsage, "--merge cannot be combined with --record/--status/--affected-files/--affected-from-tasks/--findings/--base")
 					os.Exit(ExitUsage)
 					return nil
 				}
@@ -107,8 +109,13 @@ Use --findings to also verify review findings were addressed.`,
 				os.Exit(ExitUsage)
 				return nil
 			}
-			if (recordPath != "" || statusMode) && (len(affectedFiles) > 0 || findingsPath != "") {
-				output.Error(ExitUsage, "--record/--status reject --affected-files and --findings")
+			if (recordPath != "" || statusMode) && (len(affectedFiles) > 0 || findingsPath != "" || affectedFromTasks) {
+				output.Error(ExitUsage, "--record/--status reject --affected-files/--affected-from-tasks and --findings")
+				os.Exit(ExitUsage)
+				return nil
+			}
+			if affectedFromTasks && (len(affectedFiles) > 0 || base != "") {
+				output.Error(ExitUsage, "--affected-from-tasks cannot be combined with --affected-files or --base")
 				os.Exit(ExitUsage)
 				return nil
 			}
@@ -123,11 +130,12 @@ Use --findings to also verify review findings were addressed.`,
 			if statusMode {
 				return runAuditStatus(args[0], checkFlag)
 			}
-			return runAudit(cmd, args[0], affectedFiles, base, findingsPath)
+			return runAudit(cmd, args[0], affectedFiles, base, findingsPath, affectedFromTasks)
 		},
 	}
 
 	cmd.Flags().StringArrayVar(&affectedFiles, "affected-files", nil, "Source files to audit (auto-detect via git diff if omitted)")
+	cmd.Flags().BoolVar(&affectedFromTasks, "affected-from-tasks", false, "Audit the union of files touched by done-task commit_shas")
 	cmd.Flags().StringVar(&base, "base", "", "Git ref to diff against (omit for staged+unstaged)")
 	cmd.Flags().StringVar(&findingsPath, "findings", "", "Path to NDJSON findings from tp review")
 	cmd.Flags().StringVar(&recordPath, "record", "", "Record an audit round from an NDJSON results file")
@@ -139,7 +147,7 @@ Use --findings to also verify review findings were addressed.`,
 	return cmd
 }
 
-func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, findingsPath string) error {
+func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, findingsPath string, affectedFromTasks bool) error {
 	if _, err := os.Stat(specPath); os.IsNotExist(err) {
 		output.Error(ExitFile, fmt.Sprintf("spec not found: %s", specPath))
 		os.Exit(ExitFile)
@@ -151,15 +159,30 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	// Expand comma-separated values in --affected-files
 	affectedFiles = expandCommaFiles(affectedFiles)
 
-	files, err := resolveAuditFiles(specPath, affectedFiles, base)
-	if err != nil {
-		exitCode := ExitState
-		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "directory, not a file") {
-			exitCode = ExitFile
+	var files []string
+	if affectedFromTasks {
+		// --affected-from-tasks bypasses diff auto-detection and audits the
+		// union of files touched by done-task commit_shas directly (§11.2).
+		derived := suggestFilesFromTasks(specPath)
+		if len(derived) == 0 {
+			exitAuditNoFiles(specPath, "no files derivable from done-task commits (no done task carries commit_shas) — provide --affected-files")
+			return nil
 		}
-		output.Error(exitCode, err.Error())
-		os.Exit(exitCode)
-		return nil
+		files = derived
+	} else {
+		resolved, err := resolveAuditFiles(specPath, affectedFiles, base)
+		if err != nil {
+			if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "directory, not a file") {
+				output.Error(ExitFile, err.Error())
+				os.Exit(ExitFile)
+				return nil
+			}
+			// No audit-able file in the diff (exit 4): carry suggested_files so
+			// the agent can pick targets without re-deriving them from git (§11.1).
+			exitAuditNoFiles(specPath, err.Error())
+			return nil
+		}
+		files = resolved
 	}
 
 	specData, err := os.ReadFile(specPath)
@@ -336,13 +359,7 @@ func detectChangedFiles(dir, base string) ([]string, error) {
 	allFiles = engine.DedupPaths(allFiles)
 	filtered := make([]string, 0, len(allFiles))
 	for _, f := range allFiles {
-		if isBinaryFile(f) {
-			continue
-		}
-		if strings.HasSuffix(f, ".md") {
-			continue
-		}
-		if strings.HasSuffix(f, ".tasks.json") {
+		if !isAuditableType(f) {
 			continue
 		}
 		filtered = append(filtered, f)
@@ -413,6 +430,21 @@ func isBinaryFile(path string) bool {
 		return false
 	}
 	return binaryExtensions[ext]
+}
+
+// isAuditableType reports whether a path survives the type filtering the
+// auto-detection applies: binary files, markdown, and task files are skipped.
+func isAuditableType(path string) bool {
+	if isBinaryFile(path) {
+		return false
+	}
+	if strings.HasSuffix(path, ".md") {
+		return false
+	}
+	if strings.HasSuffix(path, ".tasks.json") {
+		return false
+	}
+	return true
 }
 
 func buildChecklist(specLines []string, specPath, findingsPath string) []checklistEntry {
@@ -593,4 +625,57 @@ func expandCommaFiles(files []string) []string {
 		}
 	}
 	return expanded
+}
+
+// execCommitFiles lists the paths a commit touched (its diff, not its full
+// tree — §5.1c). execGitDiff is a generic "run git, return non-empty stdout
+// lines" helper, so it serves git show as well as git diff.
+func execCommitFiles(dir, sha string) []string {
+	return execGitDiff(dir, "show", "--name-only", "--pretty=format:", sha)
+}
+
+// suggestFilesFromTasks derives the union of paths touched by the commits
+// recorded in commit_shas of every task with status done in the spec-adjacent
+// task file, with the same type filtering detectChangedFiles applies (§11.1).
+// Every SHA in each array is read, so reopened-then-redone history is covered.
+func suggestFilesFromTasks(specPath string) []string {
+	tasks := auditTasksOf(specPath)
+	shas := make(map[string]bool)
+	for i := range tasks {
+		if tasks[i].Status != model.StatusDone {
+			continue
+		}
+		for _, sha := range tasks[i].CommitSHAs {
+			if sha != "" {
+				shas[sha] = true
+			}
+		}
+	}
+	specDir := filepath.Dir(specPath)
+	seen := make(map[string]bool)
+	out := make([]string, 0)
+	for sha := range shas {
+		for _, p := range execCommitFiles(specDir, sha) {
+			if !seen[p] && isAuditableType(p) {
+				seen[p] = true
+				out = append(out, p)
+			}
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// exitAuditNoFiles emits the exit-4 payload when audit finds no audit-able
+// file: it carries suggested_files — the union of paths touched by the
+// commit_shas of every done task, type-filtered — so the agent can pick audit
+// targets without re-deriving them from git (§11.1). suggested_files is
+// decision-critical and survives --compact (§8.4): it is emitted directly on
+// the error path, never passed through compactAuditChecklist.
+func exitAuditNoFiles(specPath, reason string) {
+	suggested := suggestFilesFromTasks(specPath)
+	output.ErrorExtras(ExitState, reason, map[string]any{
+		"suggested_files": suggested,
+	}, "pass --affected-files <paths>, or --affected-from-tasks to audit the files touched by done-task commits")
+	os.Exit(ExitState)
 }
