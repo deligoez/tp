@@ -18,6 +18,15 @@
       "file": "review-round-2.ndjson",
       "spec_hash": "sha256:cf01549f6ad0d6cba28efcdfcb44c7ac4e3774528bc1bc22cc5c7a5bb421fd81",
       "roles_hash": "sha256:53bf392c9016762750bbc6af1eb8ce528844b8e809ce4b55166bc1c9f4b68de7"
+    },
+    {
+      "round": 3,
+      "findings": 14,
+      "clean": false,
+      "recorded_at": "2026-07-23T23:30:21Z",
+      "file": "review-round-3.ndjson",
+      "spec_hash": "sha256:ac4b751fb51558e97c1f204c2076eba0a86f28e38aabff28da1bdc39fa3275a8",
+      "roles_hash": "sha256:53bf392c9016762750bbc6af1eb8ce528844b8e809ce4b55166bc1c9f4b68de7"
     }
   ],
   "audit_rounds": []
