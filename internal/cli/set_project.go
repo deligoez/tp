@@ -28,6 +28,7 @@ func runSetProjectWorkflow(args []string) error {
 
 	ints := make(map[string]int)
 	var qualityGate *string
+	var commitStrategy *string
 	var checksValue *[]model.Check
 	for _, arg := range args {
 		parts := strings.SplitN(arg, "=", 2)
@@ -41,6 +42,16 @@ func runSetProjectWorkflow(args []string) error {
 		case field == "quality_gate":
 			v := valueStr
 			qualityGate = &v
+		case field == "commit_strategy":
+			switch valueStr {
+			case engine.CommitStrategyBuiltin, engine.CommitStrategyAuto, engine.CommitStrategyHC:
+			default:
+				output.Error(ExitValidation, fmt.Sprintf("commit_strategy must be one of builtin, auto, hc; got %q", valueStr))
+				os.Exit(ExitValidation)
+				return nil
+			}
+			v := valueStr
+			commitStrategy = &v
 		case field == "checks":
 			var checks []model.Check
 			if err := json.Unmarshal([]byte(valueStr), &checks); err != nil {
@@ -118,6 +129,10 @@ func runSetProjectWorkflow(args []string) error {
 		if qualityGate != nil {
 			pc.Workflow.QualityGate = qualityGate
 			updated["quality_gate"] = *qualityGate
+		}
+		if commitStrategy != nil {
+			pc.Workflow.CommitStrategy = commitStrategy
+			updated["commit_strategy"] = *commitStrategy
 		}
 		if checksValue != nil {
 			pc.Workflow.Checks = checksValue
