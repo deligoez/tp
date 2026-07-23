@@ -19,6 +19,20 @@ func runReviewMerge(args []string, outputPath string) error {
 		return nil
 	}
 
+	// §4.1: --merge takes only its explicit NDJSON input files; a spec-looking
+	// positional among them is rejected at entry (exit 2) rather than silently
+	// parsed as data.
+	for _, path := range args {
+		if isSpecLookingPath(path) {
+			output.Error(ExitUsage, fmt.Sprintf(
+				"%s looks like a spec; --merge takes NDJSON input files only: tp review --merge <a.ndjson> [<b.ndjson> ...]",
+				path,
+			))
+			os.Exit(ExitUsage)
+			return nil
+		}
+	}
+
 	totalFiles := len(args)
 	allFindings := loadMergeFindings(args)
 	unique := clusterMergeFindings(allFindings)
@@ -76,7 +90,7 @@ func runReviewMerge(args []string, outputPath string) error {
 	fmt.Print(ndjsonOutput)
 
 	// Summary to stderr
-	fmt.Fprintf(os.Stderr, "merged: %d unique findings from %d files (%d duplicates removed)\n",
+	fmt.Fprintf(os.Stderr, "merged: %d unique findings from %d files (%d duplicates removed); line indices are 0-based (use with tp review --resolve)\n",
 		len(unique), totalFiles, duplicatesRemoved)
 
 	return nil
