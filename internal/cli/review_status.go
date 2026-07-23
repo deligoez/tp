@@ -60,8 +60,27 @@ func runReviewStatus(specPath string, check bool) error {
 		"mechanical_checks":     mechChecks,
 		"overlap_report":        latestRoundOverlapReport(specPath, rounds),
 	}
+	// §10.1: surface the effective cap and remaining budget next to
+	// budget_exhausted; null when uncapped. Decision-critical, so these
+	// survive --compact (§8.4).
 	if wf.ReviewMaxRounds > 0 {
+		result["max_rounds"] = wf.ReviewMaxRounds
+		remaining := wf.ReviewMaxRounds - len(rounds)
+		if remaining < 0 {
+			remaining = 0
+		}
+		result["rounds_remaining"] = remaining
 		result["budget_exhausted"] = len(rounds) >= wf.ReviewMaxRounds && !converged
+	} else {
+		result["max_rounds"] = nil
+		result["rounds_remaining"] = nil
+	}
+	// §10.2: surface an interrupted round — a snapshot exists for the next
+	// round but its review-round-N.ndjson was never recorded.
+	if inFlight := engine.InFlightRound(specPath, len(rounds)); inFlight > 0 {
+		result["in_flight_round"] = inFlight
+	} else {
+		result["in_flight_round"] = nil
 	}
 
 	if jsonErr := output.JSON(result); jsonErr != nil {
