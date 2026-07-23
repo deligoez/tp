@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.29.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-07-23T16:20:46.895245Z",
+  "updated_at": "2026-07-23T16:26:42.859771Z",
   "workflow": {},
   "coverage": {
     "total_sections": 20,
@@ -288,7 +288,7 @@
     {
       "id": "report-accuracy",
       "title": "Round report durations correctly",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 8,
@@ -297,11 +297,15 @@
         "## 14. Report accuracy"
       ],
       "source_lines": "145-149",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-23T16:26:42.859738Z",
+      "closed_at": "2026-07-23T16:26:42.859771Z",
+      "closed_reason": "- actual_minutes rounds to 1 dp; sub-resolution duration (rounds to 0.0) yields accuracy null + note \"duration below resolution\"; summary excludes it from estimation_accuracy and reports excluded_from_accuracy (internal/cli/report.go computeReport)\n- --compact omits the report note per section 8.4 (internal/cli/report.go runReport); covered by TestReportSubResolutionDuration, TestReportAllExcludedAccuracy, TestReportCompactOmitsNote",
+      "gate_passed_at": "2026-07-23T16:26:42.859771Z",
+      "commit_sha": "95ad873",
+      "commit_shas": [
+        "95ad873",
+        "f3503a0"
+      ]
     },
     {
       "id": "lint-empty-section",
