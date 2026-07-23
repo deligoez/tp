@@ -96,7 +96,7 @@ func TestEnsureTPGitignore_CreatesWhenAbsent(t *testing.T) {
 	require.NoError(t, EnsureTPGitignore(tp))
 	data, err := os.ReadFile(filepath.Join(tp, ".gitignore"))
 	require.NoError(t, err)
-	assert.Equal(t, "local.json\n", string(data))
+	assert.Equal(t, "local.json\nlocks/\n", string(data))
 }
 
 func TestEnsureTPGitignore_IdempotentAppend(t *testing.T) {
@@ -107,8 +107,9 @@ func TestEnsureTPGitignore_IdempotentAppend(t *testing.T) {
 	require.NoError(t, EnsureTPGitignore(tp)) // second call must not duplicate
 	data, err := os.ReadFile(filepath.Join(tp, ".gitignore"))
 	require.NoError(t, err)
-	assert.Equal(t, "other\nlocal.json\n", string(data))
+	assert.Equal(t, "other\nlocal.json\nlocks/\n", string(data))
 	assert.Equal(t, 1, strings.Count(string(data), "local.json"))
+	assert.Equal(t, 1, strings.Count(string(data), "locks/"))
 }
 
 func TestLoadProjectConfig_ParsesWorkflowWithPresence(t *testing.T) {
