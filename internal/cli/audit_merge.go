@@ -109,10 +109,6 @@ func runAuditMerge(args []string, outputPath string) error {
 }
 
 // loadAuditMergeRows reads and validates audit-result rows from the input files,
-// skipping blank/invalid lines and rows missing item_id or status (with a stderr
-// warning). It aborts on a missing/unreadable file (exit 3) or when no valid row
-// survives (exit 1).
-// loadAuditMergeRows reads and validates audit-result rows from the input files,
 // skipping blank, malformed (invalid JSON), and incomplete (missing item_id or
 // status) lines with a stderr warning that names which. It aborts only on a
 // missing/unreadable file (exit 3). An all-empty or all-invalid set of inputs is
