@@ -91,6 +91,11 @@ func runAuditMerge(args []string, outputPath string) error {
 // skipping blank/invalid lines and rows missing item_id or status (with a stderr
 // warning). It aborts on a missing/unreadable file (exit 3) or when no valid row
 // survives (exit 1).
+// loadAuditMergeRows reads and validates audit-result rows from the input files,
+// skipping blank, malformed (invalid JSON), and incomplete (missing item_id or
+// status) lines with a stderr warning that names which. It aborts only on a
+// missing/unreadable file (exit 3). An all-empty or all-invalid set of inputs is
+// a valid clean result (§3.1) and yields zero rows without failing.
 func loadAuditMergeRows(args []string) []map[string]any {
 	for _, path := range args {
 		if _, err := os.Stat(path); os.IsNotExist(err) {
@@ -115,13 +120,20 @@ func loadAuditMergeRows(args []string) []map[string]any {
 			}
 			var row map[string]any
 			if err := json.Unmarshal([]byte(line), &row); err != nil {
-				fmt.Fprintf(os.Stderr, "warning: skipping invalid JSON line in %s: %s\n", path, line)
+				fmt.Fprintf(os.Stderr, "warning: skipping malformed line (invalid JSON) in %s\n", path)
 				continue
 			}
 			itemID, idOK := row["item_id"].(string)
 			status, stOK := row["status"].(string)
 			if !idOK || !stOK || itemID == "" || status == "" {
-				fmt.Fprintf(os.Stderr, "warning: skipping line missing required fields (item_id, status) in %s\n", path)
+				var missing []string
+				if !idOK || itemID == "" {
+					missing = append(missing, "item_id")
+				}
+				if !stOK || status == "" {
+					missing = append(missing, "status")
+				}
+				fmt.Fprintf(os.Stderr, "warning: skipping incomplete line (missing %s) in %s\n", strings.Join(missing, ", "), path)
 				continue
 			}
 			rows = append(rows, row)
@@ -129,10 +141,6 @@ func loadAuditMergeRows(args []string) []map[string]any {
 		f.Close()
 	}
 
-	if len(rows) == 0 {
-		output.Error(ExitValidation, "no valid audit rows in input files")
-		os.Exit(ExitValidation)
-	}
 	return rows
 }
 
