@@ -113,6 +113,23 @@ func runImport(_ *cobra.Command, args []string) error {
 		tf.Spec = importSpec
 	}
 
+	// Entry validation (§6.1): the same per-task rules tp add applies, shared
+	// via engine.ValidateTaskEntry. Runs before convergence/file-exists guards
+	// so a malformed task is rejected up front with a field-specific hint. The
+	// deeper checks (atomicity, cycles, coverage) still run via engine.Validate
+	// below. Duplicate-id detection stays with engine.Validate's validateUniqueness.
+	resolvable := make(map[string]bool, len(tf.Tasks))
+	for i := range tf.Tasks {
+		resolvable[tf.Tasks[i].ID] = true
+	}
+	for i := range tf.Tasks {
+		if f := engine.ValidateTaskEntry(&tf.Tasks[i], resolvable); f != nil {
+			output.Error(ExitValidation, f.Msg, f.Hint)
+			os.Exit(ExitValidation)
+			return nil
+		}
+	}
+
 	// Derive target path from spec field
 	base := strings.TrimSuffix(filepath.Base(tf.Spec), filepath.Ext(tf.Spec))
 	dir := filepath.Dir(tf.Spec)
