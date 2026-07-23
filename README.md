@@ -390,6 +390,8 @@ loop:
   repeat until r.phase == "release"
 ```
 
+**Realizing the reset in Claude Code.** The "FRESH unit" is a Claude Code **subagent** (Agent/Task tool) — clean context, one unit, work persisted to disk; the orchestrator re-orients via `tp resume` between units. When you spawn a unit, **inject what it needs** (it does not see the orchestrator's history): a durable-state pointer (`tp next`/`tp resume`), the close recipe for the effective `commit_strategy`, and the project's live gotchas. Subagents don't nest, so the orchestrator runs each round's fan-out itself; for a *full* driver reset too, use `/clear` + `tp resume` or headless `claude -p` per unit.
+
 A unit returns to the loop only at a clean checkpoint; a crashed unit is recovered on the next `tp resume`, never lost.
 
 ### Commit strategy (`commit_strategy`)
