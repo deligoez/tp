@@ -68,11 +68,11 @@ Repeat until `tp review <spec> --status --check` exits 0:
 
 1. `tp review <spec>` — tp auto-numbers the round (R = recorded rounds + 1), snapshots the spec, and injects previous findings + the changed-sections diff into every role prompt. A 4th **regression** prompt is auto-appended from round 2 when the spec changed or fixed findings exist — process it first.
 2. Spawn one sub-agent per prompt; collect NDJSON findings.
-3. `tp review --merge r1.ndjson ... -o merged.ndjson` — dedup across prompts.
+3. `tp review --merge r1.ndjson ... -o merged.ndjson` — dedup across prompts. An all-empty (converged) input set still merges cleanly: empty inputs exit 0 and write a zero-byte `-o` file, so the merge → record chain works unchanged on a clean round (no manual file creation).
 4. `tp review <spec> --record merged.ndjson` — record the round. Zero surviving findings records a **clean** round.
-5. Fix the spec; mark each addressed finding with `tp review --resolve merged.ndjson <idx> fixed "evidence"`.
+5. Fix the spec; mark each addressed finding with `tp review --resolve merged.ndjson <idx> fixed "evidence"` — indices are **0-based** (read them from `--merge ... -o` output or `--status`; a non-numeric index exits 2).
 6. When a fix batch touched **more than 3 sections**, run the standalone regression delta pass (`tp review <spec> --perspective regression`) as an uncounted check before the next counted round.
-7. Repeat. `tp review <spec> --status` shows `consecutive_clean`, `converged`, `stale`, and `budget_exhausted`.
+7. Repeat. `tp review <spec> --status` shows `consecutive_clean`, `converged`, `stale`, `budget_exhausted`, plus `max_rounds`/`rounds_remaining` (null when uncapped) and `in_flight_round` (a snapshot with no recorded round file — `tp resume` then points at `record-round` to complete it). Prompt emission also reports `skipped_roles` (`[{role, reason}]`) naming every corpus role it did not emit.
 
 **Convergence is a recorded fact, not a judgment.** Do not skip rounds, summarize findings as "minor", or declare convergence before `--status --check` exits 0. Counted rounds are always full-panel; the regression delta pass and the tail class-sweep (below) are uncounted.
 
@@ -91,7 +91,7 @@ Repeat until `tp review <spec> --status --check` exits 0:
    - If >3 criteria, split by concern axis
 2. **Concern axes** for splitting: types/models → logic/engine → validation → CLI/wiring → tests → docs
 3. **Structured elements** (from `tp lint`): every table row, numbered list item, code block → some task's acceptance
-4. **Source anchors**: every task MUST have `source_sections` (canonical headings, e.g. `"## 4. Backend Migration"`). `source_lines` (`"15-42"` or `"15-42,50-60"`) is **optional precision** — sections are the primary anchor because line numbers die on every spec rewrite while heading anchors survive. A task with neither anchor is a validation error.
+4. **Source anchors**: every task MUST have `source_sections` (canonical headings, e.g. `"## 4. Backend Migration"`). `source_lines` (`"15-42"` or `"15-42,50-60"`) is **optional precision** — sections are the primary anchor because line numbers die on every spec rewrite while heading anchors survive. A task with neither anchor is a validation error. When `source_lines` is absent, `spec_excerpt` (in `tp plan`/`show`/`next`/`next --peek`) is assembled from the section text — so the mandatory anchor also carries the spec content and removes a round trip.
 5. **Dependencies**: types before logic, logic before CLI, CLI before tests
 6. **Preview before import**: list proposed tasks and ask for confirmation
 
@@ -136,17 +136,17 @@ Same as B. `tp plan` excludes done tasks, puts WIP first. The audit loop applies
 
 Repeat until `tp audit <spec> --status --check` exits 0:
 
-1. `tp audit <spec>` — emits one prompt per active auditor role from the corpus (defaults: `spec-coverage`, `security`, `maintainability-conventions`) with an embedded JSON-array checklist and per-role affected files. Auto-detects changed files via git diff; `--affected-files` overrides.
+1. `tp audit <spec>` — emits one prompt per active auditor role from the corpus (defaults: `spec-coverage`, `security`, `maintainability-conventions`) with an embedded JSON-array checklist and per-role affected files. Auto-detects changed files via git diff; `--affected-files` overrides, or `--affected-from-tasks` audits exactly the files touched by done tasks' `commit_shas` (the common post-implementation case needs no manual list). When no audit-able file is found it exits 4 with `suggested_files` (the same commit-derived list) and a hint.
 2. Spawn one sub-agent per role prompt; each returns one NDJSON line per checklist item (`status` ∈ PASS/PARTIAL/FAIL).
 3. Merge the per-role files: `tp audit <spec> --merge r1.ndjson r2.ndjson ... -o results.ndjson` (dedups by `role`+`item_id`, reports a status/role breakdown), then record: `tp audit <spec> --record results.ndjson` — a row counts as a finding when `status` is absent or ≠ `PASS`; a clean round has zero findings. The audit round sequence is independent of review rounds.
 4. Fix the code for every non-PASS item.
-5. Repeat. `tp audit <spec> --status` shows `consecutive_clean`, `converged`, `stale`, `budget_exhausted`.
+5. Repeat. `tp audit <spec> --status` shows `consecutive_clean`, `converged`, `stale`, `budget_exhausted`, `max_rounds`/`rounds_remaining`/`in_flight_round`, and (with `--merge`/`--status`) an `overlap_report` over non-PASS rows clustered by `(item_id, category)` — the audit-side signal for trimming a redundant auditor.
 
 ## Reset-native workflow & commit strategy (v0.28.0)
 
 Every unit — a review round, decomposition, one task, one audit round — is designed to run in a **fresh context**; tp is the durable state machine between resets. The reset is the orchestrator's job (a CLI cannot clear its caller's context); tp guarantees resumability.
 
-**`tp resume [spec]`** — the phase-agnostic oracle. From durable state alone (task file, spec, `.tp-review/`, `.tp/local.json`, git) it returns `{phase, spec, changes, kept, next_action, blockers}`. Read-only. Phase is task-first: an open task reads `implement` even when the spec is stale (a `spec-stale` blocker fires, the phase does not revert). `next_action.payload` embeds the next unit's work (one round-trip): `{round, unresolved_findings}` for review/audit, `{task, wip}` for implement. `--compact` drops `summary`/`reason`/`message`, keeps every `data`.
+**`tp resume [spec]`** — the phase-agnostic oracle. From durable state alone (task file, spec, `.tp-review/`, `.tp/local.json`, git) it returns `{phase, spec, changes, kept, bookkeeping, next_action, blockers}` (plus `guidance` in the implement phase). Read-only. Phase is task-first: an open task reads `implement` even when the spec is stale (a `spec-stale` blocker fires, the phase does not revert). `next_action.payload` embeds the next unit's work (one round-trip): `{round, unresolved_findings}` for review/audit, `{task, wip}` for implement, or `{action:"record-round", round:N}` when a round's snapshot exists without its recorded round file. `bookkeeping` lists tp-owned dirty files (`{path, kind, ref}`; `kind` ∈ closure/round/config) that need committing — under `commit_strategy: hc` tp leaves them modified, so they are reported here, separate from `changes`, and never count as an `unexplained-changes` blocker. `guidance` is a one-line implement-phase note (run each unit in a fresh subagent/context). Both survive `--compact` (alongside every `data`); only `summary`/`reason`/`message` drop.
 
 **Reference driver** (runtime-neutral — tp ships none; embedding it would bind tp to one runtime):
 
@@ -158,13 +158,23 @@ blockers empty  → run next_action.command in a FRESH unit (sub-agent / session
 repeat until phase == release
 ```
 
-**Realizing the reset in Claude Code.** The "FRESH unit" above is a Claude Code **subagent** (Agent/Task tool): it starts with a clean context, does exactly one unit, and its work reaches disk (commit, `tp done`, `.tp-review`); the orchestrator re-orients via `tp resume` between units. When you spawn a unit, **inject what it needs** (it does not inherit the orchestrator's session history): (1) a **durable-state pointer** — tell it to run `tp next`/`tp resume` for its exact unit; (2) the **close recipe** for the effective `commit_strategy`; (3) the project's **live gotchas**. Subagents don't nest, so the orchestrator does each review/audit round's fan-out itself. For a *full* reset of the driver too, use the `/clear` + `tp resume` loop or drive tp with headless `claude -p` per unit.
+**The orchestrator's injection duty (runtime-neutral, critical).** A fresh unit does not inherit the orchestrator's session history, so when you spawn one you MUST inject what it needs to succeed: (1) a **durable-state pointer** — tell it to run `tp next`/`tp plan`/`tp resume` to fetch its exact unit (id + acceptance) from disk, never describe the task from your own memory; (2) the **close recipe** for the effective `commit_strategy` (`builtin`: `tp commit` / `tp done --auto-commit`; `hc`: implement → `hc run` → `tp done --commit <sha> …`), the `--` separator before a dash-leading reason, and the N-evidence-line closure format; (3) the project's **live operational lessons** (the current gotchas — e.g. native Read/Edit are hook-blocked in some repos → use the project's MCP toolset; run the quality gate yourself before `tp done`). Keep a short "lessons to inject" list and refresh it as new gotchas surface.
+
+**Realizing the reset in Claude Code.** The "FRESH unit" is a Claude Code **subagent** (Agent/Task tool): clean context, one unit, work persisted to disk (commit, `tp done`, `.tp-review`); the orchestrator re-orients via `tp resume` between units. Subagents don't nest (one level), so the orchestrator does each review/audit round's per-role fan-out itself. For a *full* reset of the driver too, use the `/clear` + `tp resume` loop or drive tp with headless `claude -p` per unit.
+
+**Driving tp from a non-Claude runtime (v0.29.0).** tp is a CLI subprocess and the reference driver above is runtime-neutral — fan out each unit (a review/audit round's per-role prompts, or one implementation task) with whatever sub-agent primitive the runtime provides: a Task/subagent tool, a headless `agent -p` invocation, a forked process, or a fresh session. The three-part injection duty above applies verbatim. Two runtime hazards to configure up front:
+1. **Permission prompts truncate the loop.** tp runs non-interactively, but a review/audit unit fans out to sub-agents that often need to **read** files the runtime gates behind a permission prompt. A headless runtime that **auto-denies** prompts truncates the round mid-way — sub-agents return empty findings instead of reading the blocked files, producing a **false clean round**. Configure the runtime to allow the file reads tp's units need (a read-tool allow-list), or run the units where prompts can be answered, *before* driving the loop.
+2. **Fan-out depth.** tp's fan-out is one level: the orchestrator spawns a round's role reviewers/auditors. If the runtime's sub-agent primitive does not nest, the orchestrator runs that round's fan-out inline — correct and expected; `tp resume` still re-orients between rounds.
+
+A unit returns to the loop only at a clean checkpoint; a crashed unit is recovered on the next `tp resume`, never lost.
 
 **`commit_strategy`** (task override > `.tp/config.json` > built-in default `auto`):
 
 - `builtin` — tp commits (`tp commit`, `tp done --auto-commit`, `tp done --commit`).
 - `hc` — the agent commits with `hc`, then records via `tp done --commit <sha> [--commit <sha> …]`; `tp commit`/`--auto-commit`/bare `tp done` are rejected with exit 2. Never exit 4 — tp never runs `hc`.
 - `auto` — `hc` when on `PATH`, else `builtin`. `tp config` shows `commit_strategy_effective`; `--resolved` shows `{value, source}`.
+
+`commit_strategy` is authored at `tp init`; the project default is settable with `tp set --workflow --project commit_strategy=<builtin|auto|hc>` (writes `.tp/config.json`), while the task-file setter stays read-only (`tp set --workflow commit_strategy=…` exits 2 with a hint naming the project setter). Under `builtin`, a close through `tp commit`/`tp done --auto-commit` folds the closure into the implementation commit so the committed task file shows `status: done` and `git status` is clean for tp-owned paths; `commit_sha` records the pre-amend implementation sha.
 
 A task closed with commit(s) records `commit_shas` (ordered; `commit_sha` mirrors `[0]`). `tp done --commit` is repeatable; a duplicate sha exits 1. **During self-development, tp's own repo runs `commit_strategy: auto` with `hc` installed → the hc close flow: implement → `hc run` (code) → `tp done --commit <sha> …` → `hc` (task-file closure).**
 
