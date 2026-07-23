@@ -90,6 +90,14 @@ func Validate(tf *model.TaskFile, specPath string, specExists, strict bool) *Val
 			result.Checks["coverage"] = "pass"
 		}
 	} else {
+		// §7.2: spec unreadable — coverage was left untouched by add/import/etc.
+		// Surface a warning with a hint naming the unreadable spec path.
+		result.Findings = append(result.Findings, Finding{
+			Severity: "warning",
+			Rule:     "coverage",
+			Message:  "spec not found; coverage could not be computed",
+			Hint:     specPath,
+		})
 		result.Checks["coverage"] = "skipped (spec not found)"
 	}
 
@@ -301,7 +309,12 @@ func ValidateCoverage(tf *model.TaskFile, specPath string) []Finding {
 
 	headings, err := ParseHeadings(specPath)
 	if err != nil {
-		findings = append(findings, Finding{Severity: "warning", Rule: "coverage", Message: fmt.Sprintf("could not parse spec: %v", err)})
+		findings = append(findings, Finding{
+			Severity: "warning",
+			Rule:     "coverage",
+			Message:  fmt.Sprintf("could not parse spec: %v", err),
+			Hint:     specPath,
+		})
 		return findings
 	}
 
