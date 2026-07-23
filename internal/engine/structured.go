@@ -197,7 +197,11 @@ func ExtractNumberedItems(lines []string) []NumberedItemInfo {
 // Returns info-level findings summarizing what was found, so agents can verify
 // that all structured elements are covered by task acceptance criteria.
 func CheckStructuredElements(lines []string, headings []*Heading) ([]Finding, *StructuredElements) {
-	elems := &StructuredElements{}
+	// §6.3: tables and numbered_lists serialize as [] (not null) when empty.
+	elems := &StructuredElements{
+		Tables:        []TableInfo{},
+		NumberedLists: []NumberedListInfo{},
+	}
 	var findings []Finding
 
 	currentHeading := ""
