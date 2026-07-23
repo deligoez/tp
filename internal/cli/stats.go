@@ -84,7 +84,10 @@ func runStats(_ *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	result := statsResult{}
+	// §6.3: tags serialize as [] (not null) when no task is tagged.
+	result := statsResult{
+		Tags: []tagStats{},
+	}
 
 	// Task counts
 	for i := range tf.Tasks {
