@@ -38,20 +38,47 @@ func stringSliceField(v any) []string {
 	}
 }
 
-// latestRoundOverlapReport computes the overlap report from the latest recorded
-// review round's merged findings (§8.5). Returns an empty slice when no round is
+// latestRoundOverlapAndAttribution computes both the overlap report and the
+// attribution_excludes list (§9.2) from the latest recorded review round's
+// merged findings. Returns an empty report and nil excludes when no round is
 // recorded or its NDJSON file cannot be read.
-func latestRoundOverlapReport(specPath string, rounds []engine.ReviewRound) []engine.RoleOverlap {
+func latestRoundOverlapAndAttribution(specPath string, rounds []engine.ReviewRound) (report []engine.RoleOverlap, excludes []string) {
 	if len(rounds) == 0 {
-		return []engine.RoleOverlap{}
+		return []engine.RoleOverlap{}, nil
 	}
 	last := rounds[len(rounds)-1]
 	if last.File == "" {
-		return []engine.RoleOverlap{}
+		return []engine.RoleOverlap{}, nil
 	}
 	findings, err := parseNDJSONFile(filepath.Join(engine.ReviewStateDir(specPath), last.File))
 	if err != nil {
-		return []engine.RoleOverlap{}
+		return []engine.RoleOverlap{}, nil
 	}
-	return computeOverlapReport(findings)
+	return overlapReportWithAttribution(findings)
+}
+
+// overlapReportWithAttribution computes the per-role overlap report (§8.5) and,
+// per §9.2, the attribution_excludes list. found_by_roles deliberately excludes
+// the built-in regression role, so a cluster contributed only by regression
+// carries no roles and vanishes from the overlap report while still counting in
+// merged_count. attribution_excludes lists "regression" exactly when that
+// exclusion caused merged_count to exceed the overlap-report finding count —
+// i.e. at least one cluster is regression-only (a non-regression representative
+// role with empty found_by_roles is a blank-role cluster, not a regression
+// exclusion, and does not trigger the flag). excludes is empty otherwise.
+func overlapReportWithAttribution(findings []map[string]any) (report []engine.RoleOverlap, excludes []string) {
+	report = computeOverlapReport(findings)
+	regressionDropped := 0
+	for _, f := range findings {
+		if len(stringSliceField(f["found_by_roles"])) > 0 {
+			continue
+		}
+		if asString(f["role"]) == engine.RegressionRoleID {
+			regressionDropped++
+		}
+	}
+	if regressionDropped > 0 {
+		excludes = []string{engine.RegressionRoleID}
+	}
+	return report, excludes
 }

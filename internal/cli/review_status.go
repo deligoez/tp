@@ -50,6 +50,12 @@ func runReviewStatus(specPath string, check bool) error {
 		mechChecks = registeredChecksList(&wf)
 	}
 
+	// §9.2: attribution_excludes surfaces the regression exclusion only when it
+	// caused merged_count to exceed the overlap-report finding count of the
+	// latest recorded round. overlap_report itself is decision-critical
+	// (trim-candidate signal) and survives --compact (§8.4); attribution_excludes
+	// is explanatory and is omitted under --compact.
+	overlapReport, attributionExcludes := latestRoundOverlapAndAttribution(specPath, rounds)
 	result := map[string]any{
 		"review_rounds":         rounds,
 		"consecutive_clean":     engine.ConsecutiveClean(rounds),
@@ -58,7 +64,10 @@ func runReviewStatus(specPath string, check bool) error {
 		"stale":                 engine.StateStale(rounds, specHash),
 		"roles_stale":           engine.RolesStale(rounds, rolesHash),
 		"mechanical_checks":     mechChecks,
-		"overlap_report":        latestRoundOverlapReport(specPath, rounds),
+		"overlap_report":        overlapReport,
+	}
+	if !IsCompact() && len(attributionExcludes) > 0 {
+		result["attribution_excludes"] = attributionExcludes
 	}
 	// §10.1: surface the effective cap and remaining budget next to
 	// budget_exhausted; null when uncapped. Decision-critical, so these

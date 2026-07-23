@@ -59,12 +59,19 @@ func runReviewMerge(args []string, outputPath string) error {
 	}
 
 	// Build JSON summary
+	overlapReport, attributionExcludes := overlapReportWithAttribution(unique)
 	summary := map[string]any{
 		"merged_count":       len(unique),
 		"input_files":        totalFiles,
 		"duplicates_removed": duplicatesRemoved,
 		"by_severity":        bySeverity,
-		"overlap_report":     computeOverlapReport(unique),
+		"overlap_report":     overlapReport,
+	}
+	// §9.2 / §8.4: attribution_excludes surfaces the regression exclusion only
+	// when it caused merged_count to exceed the overlap-report finding count;
+	// always omitted under --compact.
+	if !IsCompact() && len(attributionExcludes) > 0 {
+		summary["attribution_excludes"] = attributionExcludes
 	}
 
 	// Write output based on mode
