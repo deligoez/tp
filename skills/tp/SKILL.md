@@ -1,15 +1,17 @@
 ---
 name: tp
-description: Spec-to-task lifecycle manager for AI coding agents. Interviews user to resolve ambiguities, decomposes specs into atomic tasks, manages execution order via dependency graph, and batch-closes with evidence. Use when user wants to implement a spec, plan tasks, decompose a feature, a *.tasks.json file exists, or user says 'continue with tp' / 'tp ile devam et' to resume work after a context clear.
+description: Spec-to-task lifecycle manager for AI coding agents. Interviews user to resolve ambiguities, decomposes specs into atomic tasks, manages execution order via dependency graph, and batch-closes with evidence. Use when user wants to implement a spec, plan tasks, decompose a feature, a *.tasks.json file exists, or user says 'continue with tp' to resume work after a context clear.
 ---
 
 # tp — Task Plan Skill
 
 Activates when: a `.tasks.json` file exists, user asks to implement a spec/plan/tasks, or user references tp commands.
 
-## "continue with tp" / "tp ile devam et" — zero-friction resume (any project)
+> **English only — no foreign-language trigger seeding.** This skill is written in English. Trigger matching is semantic, so a user typing the resume intent (or any other trigger) in any language activates the skill. Do not seed literal foreign-language phrases (e.g. `"tp ile devam et"`) — they add no value and violate the repo's English-only convention for committed artifacts.
 
-A short resume intent — "tp ile devam et", "continue with tp", "tp'ye devam", "resume tp" — is a sufficient standalone prompt in ANY tp project after a context clear. `tp resume` rebuilds the full picture from durable state (task file, spec, `.tp-review/`, `.tp/local.json`, git); nothing load-bearing lives in the context window. On the trigger:
+## "continue with tp" — zero-friction resume (any project)
+
+A short resume intent — "continue with tp", "resume tp" — is a sufficient standalone prompt in ANY tp project after a context clear. `tp resume` rebuilds the full picture from durable state (task file, spec, `.tp-review/`, `.tp/local.json`, git); nothing load-bearing lives in the context window. On the trigger:
 
 1. **Orient**: `tp resume` → `{phase, blockers, next_action}`. (PATH `tp`; in tp's own self-development use the freshly-built dogfood binary instead.)
 2. **Clear agent-clearable blockers**: `unexplained-changes` → commit the changes via the project's commit tool, or `tp keep <path> "<reason>"` for intentionally-uncommitted files; then re-run `tp resume`. Stop and report human-only blockers (`*-budget-exhausted`, `no-ready-task`).
