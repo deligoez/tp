@@ -60,6 +60,44 @@ func Error(code int, msg string, hint ...string) {
 	}
 }
 
+// ErrorExtras writes a structured error with extra top-level JSON fields
+// (e.g. suggested_files) in addition to the standard {error, code, hint}. In
+// TTY mode the message, hint, and each extra value are printed to stderr.
+func ErrorExtras(code int, msg string, extras map[string]any, hint ...string) {
+	if jsonMode {
+		payload := map[string]any{
+			"error": msg,
+			"code":  code,
+		}
+		for k, v := range extras {
+			payload[k] = v
+		}
+		if len(hint) > 0 {
+			payload["hint"] = hint[0]
+		}
+		data, _ := json.Marshal(payload)
+		fmt.Fprintln(os.Stderr, string(data))
+		return
+	}
+	red := color.New(color.FgRed, color.Bold)
+	red.Fprintf(os.Stderr, "error: ")
+	fmt.Fprintln(os.Stderr, msg)
+	if len(hint) > 0 {
+		dim := color.New(color.Faint)
+		dim.Fprintf(os.Stderr, "  hint: ")
+		fmt.Fprintln(os.Stderr, hint[0])
+	}
+	for k, v := range extras {
+		if items, ok := v.([]string); ok {
+			for _, it := range items {
+				fmt.Fprintf(os.Stderr, "  %s: %s\n", k, it)
+			}
+			continue
+		}
+		fmt.Fprintf(os.Stderr, "  %s: %v\n", k, v)
+	}
+}
+
 // Info writes an info message to stderr (suppressed in quiet mode).
 func Info(msg string) {
 	if quiet {
