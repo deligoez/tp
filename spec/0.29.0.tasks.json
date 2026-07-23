@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.29.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-07-23T16:44:53.751478Z",
+  "updated_at": "2026-07-23T16:56:22.910647Z",
   "workflow": {},
   "coverage": {
     "total_sections": 20,
@@ -157,7 +157,7 @@
     {
       "id": "excerpt-sections-parity",
       "title": "Emit spec_excerpt from source_sections",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 10,
@@ -166,11 +166,19 @@
         "## 8. `spec_excerpt` parity for `source_sections`"
       ],
       "source_lines": "95-103",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-23T16:56:22.910614Z",
+      "closed_at": "2026-07-23T16:56:22.910646Z",
+      "closed_reason": "- spec_excerpt now assembled from source_sections when source_lines is absent: each entry contributes its heading line plus the body through the next same/shallower-level heading, blank-line joined and capped at 2000 chars (ExtractSpecExcerptForTask in engine/excerpt.go)\n- parity verified across plan, show, next, and next --peek; --compact omits spec_excerpt entirely (engine + cli tests green, golangci-lint clean)",
+      "gate_passed_at": "2026-07-23T16:56:22.910646Z",
+      "commit_sha": "11b84af",
+      "commit_shas": [
+        "11b84af",
+        "36c0b48",
+        "be66730",
+        "206d310",
+        "4c34e18",
+        "4897165"
+      ]
     },
     {
       "id": "close-checkpoint-builtin",
