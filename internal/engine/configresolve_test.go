@@ -226,3 +226,18 @@ func TestDiscoverTaskFile_LegacyActiveStillWorks(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, got, "leg.tasks.json", "the legacy .tp-active fallback still resolves through v0.24.x")
 }
+
+func TestEffectiveWorkflowForTaskFile_InheritsProjectCommitStrategy(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".tp"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".tp", "config.json"),
+		[]byte(`{"workflow":{"commit_strategy":"hc"}}`), 0o600))
+	// A thinned task file: its workflow block omits commit_strategy.
+	require.NoError(t, os.WriteFile(filepath.Join(root, "s.tasks.json"),
+		[]byte(`{"spec":"s.md","tasks":[],"workflow":{}}`), 0o600))
+
+	t.Chdir(root)
+	wf := EffectiveWorkflowForTaskFile("s.tasks.json")
+	assert.Equal(t, "hc", wf.CommitStrategy, "a thinned task file inherits the project commit_strategy")
+}
