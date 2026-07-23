@@ -159,71 +159,9 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 
 	// Expand comma-separated values in --affected-files
 	affectedFiles = expandCommaFiles(affectedFiles)
+	files := determineAuditFiles(specPath, affectedFiles, base, affectedFromTasks)
 
-	var files []string
-	if affectedFromTasks {
-		// --affected-from-tasks bypasses diff auto-detection and audits the
-		// union of files touched by done-task commit_shas directly (§11.2).
-		derived := suggestFilesFromTasks(specPath)
-		if len(derived) == 0 {
-			exitAuditNoFiles(specPath, "no files derivable from done-task commits (no done task carries commit_shas) — provide --affected-files")
-			return nil
-		}
-		files = derived
-	} else {
-		resolved, err := resolveAuditFiles(specPath, affectedFiles, base)
-		if err != nil {
-			if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "directory, not a file") {
-				output.Error(ExitFile, err.Error())
-				os.Exit(ExitFile)
-				return nil
-			}
-			// No audit-able file in the diff (exit 4): carry suggested_files so
-			// the agent can pick targets without re-deriving them from git (§11.1).
-			exitAuditNoFiles(specPath, err.Error())
-			return nil
-		}
-		files = resolved
-	}
-
-	specData, err := os.ReadFile(specPath)
-	if err != nil {
-		output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath))
-		os.Exit(ExitFile)
-		return nil
-	}
-	// §10.2: snapshot the raw spec at audit round start (prompt emission),
-	// mirroring review — write atomically so a partial snapshot is never left
-	// on disk, and an interrupted round is visible to --status and tp resume.
-	auditSt, stErr := engine.LoadReviewState(specPath)
-	if stErr != nil {
-		if engine.IsMissingStateIndex(stErr) {
-			// A prior emission wrote a snapshot that --record has not yet
-			// indexed: the normal in-flight round (§10.2, InFlightRound), not
-			// corruption. Treat as no recorded state and re-snapshot below;
-			// only genuine corruption (unparseable state.json) or an IO error
-			// aborts.
-			auditSt = nil
-		} else {
-			exitStateError(stErr)
-			return nil
-		}
-	}
-	auditRecorded := 0
-	if auditSt != nil {
-		auditRecorded = len(auditSt.AuditRounds)
-	}
-	if snapErr := engine.WriteSnapshotAtomic(specPath, auditRecorded+1, specData); snapErr != nil {
-		output.Error(ExitFile, fmt.Sprintf("cannot write snapshot: %v", snapErr))
-		os.Exit(ExitFile)
-		return nil
-	}
-	specData = engine.BlankFrontmatter(specData)
-	specLines := strings.Split(string(specData), "\n")
-	specContent := string(specData)
-	if len(specContent) > engine.SpecContentCap {
-		specContent = specContent[:engine.SpecContentCap] + "\n[...spec truncated]"
-	}
+	specLines, specContent := loadAuditSpec(specPath)
 
 	checklist := buildChecklist(specLines, specPath, findingsPath)
 
@@ -307,6 +245,82 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	}
 
 	return output.JSON(result)
+}
+
+// determineAuditFiles resolves the set of source files to audit. With
+// affectedFromTasks, files are derived from done-task commit_shas (§11.2);
+// otherwise the normal --affected-files / git-diff resolution applies. Errors
+// abort via exitAuditNoFiles / ExitFile, matching runAudit's exit contract.
+func determineAuditFiles(specPath string, affectedFiles []string, base string, affectedFromTasks bool) []string {
+	if affectedFromTasks {
+		// --affected-from-tasks bypasses diff auto-detection and audits the
+		// union of files touched by done-task commit_shas directly (§11.2).
+		derived := suggestFilesFromTasks(specPath)
+		if len(derived) == 0 {
+			exitAuditNoFiles(specPath, "no files derivable from done-task commits (no done task carries commit_shas) — provide --affected-files")
+			return nil
+		}
+		return derived
+	}
+	resolved, err := resolveAuditFiles(specPath, affectedFiles, base)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "directory, not a file") {
+			output.Error(ExitFile, err.Error())
+			os.Exit(ExitFile)
+			return nil
+		}
+		// No audit-able file in the diff (exit 4): carry suggested_files so
+		// the agent can pick targets without re-deriving them from git (§11.1).
+		exitAuditNoFiles(specPath, err.Error())
+		return nil
+	}
+	return resolved
+}
+
+// loadAuditSpec reads the spec, snapshots its raw bytes at audit-round start
+// (§10.2), and returns the frontmatter-blanked line slice plus the (possibly
+// truncated) spec content used for prompt emission. Read, state, and snapshot
+// errors abort via ExitFile / exitStateError, matching runAudit's exit contract.
+func loadAuditSpec(specPath string) (specLines []string, specContent string) {
+	specData, err := os.ReadFile(specPath)
+	if err != nil {
+		output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath))
+		os.Exit(ExitFile)
+		return nil, ""
+	}
+	// §10.2: snapshot the raw spec at audit round start (prompt emission),
+	// mirroring review — write atomically so a partial snapshot is never left
+	// on disk, and an interrupted round is visible to --status and tp resume.
+	auditSt, stErr := engine.LoadReviewState(specPath)
+	if stErr != nil {
+		if engine.IsMissingStateIndex(stErr) {
+			// A prior emission wrote a snapshot that --record has not yet
+			// indexed: the normal in-flight round (§10.2, InFlightRound), not
+			// corruption. Treat as no recorded state and re-snapshot below;
+			// only genuine corruption (unparseable state.json) or an IO error
+			// aborts.
+			auditSt = nil
+		} else {
+			exitStateError(stErr)
+			return nil, ""
+		}
+	}
+	auditRecorded := 0
+	if auditSt != nil {
+		auditRecorded = len(auditSt.AuditRounds)
+	}
+	if snapErr := engine.WriteSnapshotAtomic(specPath, auditRecorded+1, specData); snapErr != nil {
+		output.Error(ExitFile, fmt.Sprintf("cannot write snapshot: %v", snapErr))
+		os.Exit(ExitFile)
+		return nil, ""
+	}
+	specData = engine.BlankFrontmatter(specData)
+	specLines = strings.Split(string(specData), "\n")
+	specContent = string(specData)
+	if len(specContent) > engine.SpecContentCap {
+		specContent = specContent[:engine.SpecContentCap] + "\n[...spec truncated]"
+	}
+	return specLines, specContent
 }
 
 // refuseAuditIfBudgetExhausted refuses audit prompt generation when the audit
