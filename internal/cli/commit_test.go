@@ -232,3 +232,14 @@ func TestCommitSequentialTasks(t *testing.T) {
 	assert.Contains(t, string(out), "feat(t1)")
 	assert.Contains(t, string(out), "feat(t2)")
 }
+
+// TestCommit_RefusesTasksJsonLockFile covers §5.3: tp commit refuses to stage a
+// path ending in .tasks.json.lock even when passed explicitly via --files.
+func TestCommit_RefusesTasksJsonLockFile(t *testing.T) {
+	dir := setupCommitProject(t, "t1")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "new.go"), []byte("package main\n"), 0o600))
+
+	_, stderr, code := runTP(t, dir, "commit", "t1", "--files", "spec.tasks.json.lock", "implemented")
+	assert.NotEqual(t, 0, code, "tp commit refuses a .tasks.json.lock --files entry")
+	assert.Contains(t, stderr, "lock file", "the refusal names the lock file")
+}
