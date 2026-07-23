@@ -542,3 +542,45 @@ func TestAuditFindingsAbsentIsOptional(t *testing.T) {
 	}
 	assert.Equal(t, 0, findings, "absent findings file contributes no finding rows")
 }
+
+// An over-long line in a --findings NDJSON hits the bufio.Scanner 64KB token
+// cap; readFindings must warn on stderr and drop later rows instead of silently
+// losing data (mirrors readBulkTasks in add.go). Exit stays 0 — not a hard error.
+func TestAuditFindingsOverlongLineWarns(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n## Table\n| Col |\n|-----|\n| a |\n"), 0o600))
+
+	aPath := filepath.Join(dir, "a.go")
+	require.NoError(t, os.WriteFile(aPath, []byte("package main\n"), 0o600))
+
+	findingsPath := filepath.Join(dir, "findings.ndjson")
+	ndjson := `{"finding":"kept before the over-long line"}` + "\n" +
+		strings.Repeat("x", 70000) + "\n" +
+		`{"finding":"dropped after the over-long line"}` + "\n"
+	require.NoError(t, os.WriteFile(findingsPath, []byte(ndjson), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "audit", specPath, "--affected-files", aPath, "--findings", findingsPath)
+	require.Equal(t, 0, code, "over-long line is a warning, not a hard error: %s", stderr)
+	assert.Contains(t, stderr, "over-long line")
+	assert.Contains(t, stderr, "dropped")
+	assert.Contains(t, stderr, findingsPath, "warning must name the findings path")
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	keepSeen, dropSeen := false, false
+	for _, e := range result["checklist"].([]any) {
+		em := e.(map[string]any)
+		if em["type"].(string) == "finding" {
+			switch em["text"].(string) {
+			case "kept before the over-long line":
+				keepSeen = true
+			case "dropped after the over-long line":
+				dropSeen = true
+			}
+		}
+	}
+	assert.True(t, keepSeen, "finding before the over-long line must survive")
+	assert.False(t, dropSeen, "finding after the over-long line must be dropped")
+}
