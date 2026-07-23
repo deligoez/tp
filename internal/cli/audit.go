@@ -197,8 +197,17 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	// on disk, and an interrupted round is visible to --status and tp resume.
 	auditSt, stErr := engine.LoadReviewState(specPath)
 	if stErr != nil {
-		exitStateError(stErr)
-		return nil
+		if engine.IsMissingStateIndex(stErr) {
+			// A prior emission wrote a snapshot that --record has not yet
+			// indexed: the normal in-flight round (§10.2, InFlightRound), not
+			// corruption. Treat as no recorded state and re-snapshot below;
+			// only genuine corruption (unparseable state.json) or an IO error
+			// aborts.
+			auditSt = nil
+		} else {
+			exitStateError(stErr)
+			return nil
+		}
 	}
 	auditRecorded := 0
 	if auditSt != nil {

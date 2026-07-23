@@ -3,6 +3,7 @@ package engine
 import (
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -38,6 +39,11 @@ type ReviewState struct {
 type StateCorruptError struct {
 	Path   string
 	Reason string
+	// MissingIndex is true when state.json is absent but round/snapshot files
+	// remain — the normal in-flight-round state (an emission wrote a snapshot
+	// that --record has not yet indexed), not corruption. Emission callers treat
+	// this as "no recorded state" instead of aborting (§10.2, InFlightRound).
+	MissingIndex bool
 }
 
 func (e *StateCorruptError) Error() string {
@@ -47,6 +53,18 @@ func (e *StateCorruptError) Error() string {
 // Hint is the actionable message accompanying the abort.
 func (e *StateCorruptError) Hint() string {
 	return fmt.Sprintf("repair or delete %s", e.Path)
+}
+
+// IsMissingStateIndex reports whether err is a StateCorruptError flagging the
+// normal in-flight-round condition (round/snapshot files present but state.json
+// absent) rather than genuine corruption. Emission callers treat this as "no
+// recorded state" (§10.2, InFlightRound) instead of aborting with exit 3.
+func IsMissingStateIndex(err error) bool {
+	var ce *StateCorruptError
+	if errors.As(err, &ce) {
+		return ce.MissingIndex
+	}
+	return false
 }
 
 // ReviewStateDir returns <spec-dir>/.tp-review/<spec-base> for a spec path.
@@ -79,7 +97,7 @@ func LoadReviewState(specPath string) (*ReviewState, error) {
 	if err != nil {
 		if os.IsNotExist(err) {
 			if hasStateArtifacts(stateDir) {
-				return nil, &StateCorruptError{Path: stateDir, Reason: "round or snapshot files present but state.json is missing"}
+				return nil, &StateCorruptError{Path: stateDir, Reason: "round or snapshot files present but state.json is missing", MissingIndex: true}
 			}
 			return nil, nil
 		}
