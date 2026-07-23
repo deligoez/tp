@@ -120,3 +120,24 @@ func TestAuditMerge_MissingFileExit3(t *testing.T) {
 	assert.Equal(t, 3, code)
 	assert.Contains(t, stderr, "file not found")
 }
+
+// TestAuditMerge_RejectsSpecPositionalExit2 covers §4.1 for the audit phase:
+// --merge takes only its explicit NDJSON inputs, so a spec-looking positional
+// (a .md) among them is rejected at entry with exit 2. Today the spec is
+// silently parsed (input_files counts it, one warning per spec line) — this
+// guards against that regression.
+func TestAuditMerge_RejectsSpecPositionalExit2(t *testing.T) {
+	dir := t.TempDir()
+	spec := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(spec, []byte("# Spec\n## 1. A\nbody\n"), 0o600))
+	a := filepath.Join(dir, "a.ndjson")
+	require.NoError(t, os.WriteFile(a, []byte(`{"role":"spec-coverage","item_id":"a","status":"PASS"}`+"\n"), 0o600))
+	b := filepath.Join(dir, "b.ndjson")
+	require.NoError(t, os.WriteFile(b, []byte(`{"role":"go-safety","item_id":"b","status":"FAIL"}`+"\n"), 0o600))
+
+	_, stderr, code := runTPMerge(t, dir, "audit", "--merge", spec, a, b)
+	assert.Equal(t, 2, code)
+	assert.Contains(t, stderr, "looks like a spec")
+	assert.Contains(t, stderr, "--merge takes NDJSON input files only")
+	assert.NotContains(t, stderr, "warning:", "the spec must not be parsed as an input file")
+}
