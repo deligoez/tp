@@ -130,6 +130,14 @@ func runSet(_ *cobra.Command, args []string) error {
 			return nil
 		}
 
+		// §7.1: anchor changes recompute coverage when the spec is readable.
+		// Non-anchor fields (title, estimate_minutes, tags, …) skip the recompute.
+		if field == "source_sections" || field == "source_lines" {
+			if specPath, specExists := engine.ResolveSpecPath(taskFilePath, tf.Spec); specExists {
+				engine.AutoFillCoverage(tf, specPath)
+			}
+		}
+
 		if err := model.WriteTaskFile(taskFilePath, tf); err != nil {
 			output.Error(ExitFile, err.Error())
 			os.Exit(ExitFile)
@@ -173,6 +181,7 @@ func runSetBulk() error {
 		}
 		results := make([]setResult, 0)
 		updated, failed := 0, 0
+		anchorChanged := false // §7.1: any source_sections/source_lines edit triggers a coverage recompute
 
 		scanner := bufio.NewScanner(f)
 		for scanner.Scan() {
@@ -215,8 +224,19 @@ func runSetBulk() error {
 				continue
 			}
 
+			if sl.Field == "source_sections" || sl.Field == "source_lines" {
+				anchorChanged = true
+			}
+
 			results = append(results, setResult{ID: sl.ID, Field: sl.Field, OK: true})
 			updated++
+		}
+
+		// §7.1: recompute coverage if any anchor field changed in this batch.
+		if anchorChanged {
+			if specPath, specExists := engine.ResolveSpecPath(taskFilePath, tf.Spec); specExists {
+				engine.AutoFillCoverage(tf, specPath)
+			}
 		}
 
 		if err := model.WriteTaskFile(taskFilePath, tf); err != nil {
