@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.29.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-07-23T16:09:30.763304Z",
+  "updated_at": "2026-07-23T16:20:46.895245Z",
   "workflow": {},
   "coverage": {
     "total_sections": 20,
@@ -130,7 +130,7 @@
     {
       "id": "coverage-every-write",
       "title": "Compute coverage on every write",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "entry-validation"
@@ -141,11 +141,18 @@
         "## 7. Coverage is computed on every write"
       ],
       "source_lines": "89-93",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-23T16:20:46.895218Z",
+      "closed_at": "2026-07-23T16:20:46.895245Z",
+      "closed_reason": "- AutoFillCoverage now runs after add/remove/set (and import) whenever the spec is readable, so tp init + tp add + tp validate is clean with no import round-trip.\n- When the spec is unreadable the coverage block is left untouched and tp validate's coverage finding carries a hint naming the spec path.",
+      "gate_passed_at": "2026-07-23T16:20:46.895245Z",
+      "commit_sha": "4d7eec5",
+      "commit_shas": [
+        "4d7eec5",
+        "872e8a3",
+        "df47b5a",
+        "b14a626",
+        "50ecf9b"
+      ]
     },
     {
       "id": "excerpt-sections-parity",
