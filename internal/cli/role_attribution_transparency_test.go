@@ -287,3 +287,41 @@ func TestAuditStatus_OverlapReport(t *testing.T) {
 	_, hasOverlap := compactOut["overlap_report"]
 	assert.False(t, hasOverlap, "audit overlap_report omitted under --compact")
 }
+
+// TestReviewSkippedRoles_NoSpecChange: under explicit --diff-from, a reviewer
+// role whose focus is scoped (via §N.M references) entirely to unchanged sections
+// is skipped with reason no-spec-change; a role scoped to a changed section, and
+// a role with generic (non-§-scoped) focus, are both emitted (§9.1). Generic focus
+// always emits so the feature never hollows out a normal corpus.
+func TestReviewSkippedRoles_NoSpecChange(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "base.md"), []byte("# Spec\n## 1. A\nold\n## 2. B\nold\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## 1. A\nold\n## 2. B\nnew\n## 3. C\nnew\n"), 0o600))
+	writeReviewerRole(t, dir, "scoped-unchanged.json", `{"id":"scoped-unchanged","title":"U","instructions":"x","focus":["Review §1 for issues"]}`)
+	writeReviewerRole(t, dir, "scoped-changed.json", `{"id":"scoped-changed","title":"C","instructions":"x","focus":["Review §2 for issues"]}`)
+	writeReviewerRole(t, dir, "generic.json", `{"id":"generic","title":"G","instructions":"x","focus":["Check error handling"]}`)
+
+	// Diff vs base.md: §1 unchanged, §2 modified, §3 added → changed = {2, 3}.
+	stdout, _, code := runTP(t, dir, "review", "spec.md", "--no-state", "--diff-from", "base.md")
+	require.Equal(t, 0, code)
+
+	skipped := skippedRolesFrom(t, stdout)
+	byReason := map[string]string{}
+	for _, s := range skipped {
+		byReason[s["role"].(string)] = s["reason"].(string)
+	}
+	assert.Equal(t, "no-spec-change", byReason["scoped-unchanged"], "§1 unchanged → skipped")
+	assert.NotContains(t, byReason, "scoped-changed", "§2 changed → emitted, not skipped")
+	assert.NotContains(t, byReason, "generic", "generic focus → emitted, not skipped")
+
+	var out map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+	emitted := map[string]bool{}
+	for _, p := range out["prompts"].([]any) {
+		emitted[p.(map[string]any)["role"].(string)] = true
+	}
+	assert.True(t, emitted["scoped-changed"], "role scoped to a changed section is emitted")
+	assert.True(t, emitted["generic"], "generic-focus role is emitted")
+	assert.False(t, emitted["scoped-unchanged"], "role scoped to unchanged sections is not emitted")
+}
