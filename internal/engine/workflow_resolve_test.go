@@ -66,6 +66,7 @@ func TestResolveWorkflow_Defaults(t *testing.T) {
 	assert.Equal(t, 2, wf.ReviewCleanRounds)
 	assert.Equal(t, 2, wf.AuditCleanRounds)
 	assert.Equal(t, 600, wf.GateTimeoutSeconds)
+	assert.Equal(t, 5, wf.LockTimeoutSeconds)
 	assert.Equal(t, 0, wf.ReviewMaxRounds)
 	assert.Equal(t, 0, wf.AuditMaxRounds)
 	assert.Equal(t, []model.Check{}, wf.Checks)

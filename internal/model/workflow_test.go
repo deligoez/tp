@@ -19,6 +19,7 @@ func TestWorkflow_EffectiveSerialization(t *testing.T) {
 		ReviewCleanRounds:  3,
 		AuditCleanRounds:   2,
 		GateTimeoutSeconds: 600,
+		LockTimeoutSeconds: 5,
 		Checks:             []Check{},
 		ReviewMaxRounds:    0,
 		AuditMaxRounds:     0,
@@ -31,6 +32,7 @@ func TestWorkflow_EffectiveSerialization(t *testing.T) {
 	assert.Contains(t, raw, `"quality_gate":"go test ./..."`)
 	assert.Contains(t, raw, `"review_clean_rounds":3`)
 	assert.Contains(t, raw, `"gate_timeout_seconds":600`)
+	assert.Contains(t, raw, `"lock_timeout_seconds":5`)
 	assert.Contains(t, raw, `"checks":[]`)
 	assert.Contains(t, raw, `"review_max_rounds":0`)
 

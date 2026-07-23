@@ -22,6 +22,7 @@ func TestResolveWorkflowLayers_Ranking(t *testing.T) {
 	assert.Equal(t, 9, wf.AuditMaxRounds, "project wins where override is absent")
 	assert.Equal(t, 2, wf.ReviewCleanRounds, "built-in default wins where both layers are absent")
 	assert.Equal(t, 600, wf.GateTimeoutSeconds, "built-in default gate timeout")
+	assert.Equal(t, 5, wf.LockTimeoutSeconds, "built-in default lock timeout")
 }
 
 func TestResolveWorkflowLayers_QualityGatePrecedence(t *testing.T) {
