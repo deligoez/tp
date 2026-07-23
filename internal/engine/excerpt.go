@@ -121,3 +121,79 @@ func ExtractSpecExcerpt(specPath, sourceLines string) string {
 
 	return excerpt
 }
+
+// ExtractSpecExcerptForTask returns the spec excerpt for a task's anchors.
+// When sourceLines is present it drives the excerpt (existing behavior, line
+// ranges). When sourceLines is empty and sourceSections is present, the excerpt
+// is assembled from those sections: for each entry, its heading line plus the
+// section body up to the next heading of the same or shallower level, in the
+// order the task lists them, joined by a blank line. The result is capped at
+// maxExcerptChars with a truncation marker. A section name that matches no
+// heading contributes nothing (reported by tp validate's reference check).
+func ExtractSpecExcerptForTask(specPath, sourceLines string, sourceSections []string) string {
+	if sourceLines != "" {
+		return ExtractSpecExcerpt(specPath, sourceLines)
+	}
+	if len(sourceSections) == 0 || specPath == "" {
+		return ""
+	}
+	return extractSectionsExcerpt(specPath, sourceSections)
+}
+
+// extractSectionsExcerpt builds an excerpt from source_sections: each resolved
+// section contributes its heading line and body (through the line before the
+// next same/shallower heading), in listed order, joined by a blank line and
+// capped at maxExcerptChars.
+func extractSectionsExcerpt(specPath string, sourceSections []string) string {
+	data, err := os.ReadFile(specPath)
+	if err != nil {
+		return ""
+	}
+	headings, err := ParseHeadings(specPath)
+	if err != nil || len(headings) == 0 {
+		return ""
+	}
+
+	fm := ParseFrontmatterBytes(data)
+	var fileLines []string
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	for scanner.Scan() {
+		fileLines = append(fileLines, scanner.Text())
+	}
+	if err := scanner.Err(); err != nil {
+		return ""
+	}
+	totalLines := len(fileLines)
+	spans := sectionSpans(headings, totalLines)
+
+	sections := make([]string, 0, len(sourceSections))
+	for _, entry := range sourceSections {
+		resolved, ambiguous, _ := ResolveSection(entry, headings)
+		if resolved == "" || ambiguous {
+			continue
+		}
+		span, ok := spans[resolved]
+		if !ok || span.Start < 1 {
+			continue
+		}
+		end := span.End
+		if end > totalLines {
+			end = totalLines
+		}
+		var buf strings.Builder
+		for ln := span.Start; ln <= end; ln++ {
+			if fm.Present && ln >= fm.Lines.Start && ln <= fm.Lines.End {
+				continue
+			}
+			buf.WriteString(fileLines[ln-1])
+			buf.WriteByte('\n')
+		}
+		sections = append(sections, strings.TrimRight(buf.String(), "\n"))
+	}
+
+	excerpt := strings.Join(sections, "\n\n")
+	if len(excerpt) > maxExcerptChars {
+		excerpt = excerpt[:maxExcerptChars] + fmt.Sprintf("\n[...truncated, see spec sections %s]", strings.Join(sourceSections, ", "))
+	}
+	return excerpt
+}
