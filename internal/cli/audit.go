@@ -603,6 +603,11 @@ type findingRow struct {
 func readFindings(path string) []findingRow {
 	data, err := os.ReadFile(path)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		output.Error(ExitFile, fmt.Sprintf("cannot read findings file: %s", path), err.Error())
+		os.Exit(ExitFile)
 		return nil
 	}
 	var results []findingRow
