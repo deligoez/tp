@@ -88,6 +88,18 @@ func runInit(_ *cobra.Command, args []string) error {
 		return nil
 	}
 
+	tpDir := engine.ProjectConfigDir(".")
+	if err := os.MkdirAll(tpDir, 0o755); err != nil {
+		output.Error(ExitFile, err.Error())
+		os.Exit(ExitFile)
+		return nil
+	}
+	if err := engine.EnsureTPGitignore(tpDir); err != nil {
+		output.Error(ExitFile, err.Error())
+		os.Exit(ExitFile)
+		return nil
+	}
+
 	output.Success(fmt.Sprintf("created %s", taskFilePath))
 	return output.JSON(map[string]string{"created": taskFilePath})
 }
