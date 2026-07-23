@@ -7,7 +7,7 @@ description: Spec-to-task lifecycle manager for AI coding agents. Interviews use
 
 Activates when: a `.tasks.json` file exists, user asks to implement a spec/plan/tasks, or user references tp commands.
 
-> **English only — no foreign-language trigger seeding.** This skill is written in English. Trigger matching is semantic, so a user typing the resume intent (or any other trigger) in any language activates the skill. Do not seed literal foreign-language phrases (e.g. `"tp ile devam et"`) — they add no value and violate the repo's English-only convention for committed artifacts.
+> **English only — no foreign-language trigger seeding.** This skill is written in English. Trigger matching is semantic, so a user typing the resume intent (or any other trigger) in any language activates the skill. Do not seed literal foreign-language phrases — they add no value and violate the repo's English-only convention for committed artifacts.
 
 ## "continue with tp" — zero-friction resume (any project)
 
