@@ -1,14 +1,335 @@
 {
   "version": 1,
   "spec": "spec/0.29.0.md",
-  "created_at": "2026-07-23T10:59:07.312513Z",
-  "updated_at": "2026-07-23T10:59:07.312513Z",
+  "created_at": "0001-01-01T00:00:00Z",
+  "updated_at": "2026-07-23T14:33:52.693048Z",
   "workflow": {},
   "coverage": {
-    "total_sections": 0,
-    "mapped_sections": 0,
-    "context_only": [],
+    "total_sections": 20,
+    "mapped_sections": 15,
+    "context_only": [
+      "# tp v0.29.0 — Loop integrity: clean-round merge, close checkpoint, entry validation, excerpt parity",
+      "## 1. Overview",
+      "## 2. Design Principles",
+      "## 18. Non-Goals",
+      "## 19. Tests / Acceptance"
+    ],
     "unmapped": []
   },
-  "tasks": []
+  "tasks": [
+    {
+      "id": "lock-relocate",
+      "title": "Move lock into .tp/locks",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 8,
+      "acceptance": "Task-file lock lives at .tp/locks/\u003cbase\u003e.lock covered by .tp/.gitignore, with a stale sibling \u003cbase\u003e.tasks.json.lock removed on first write. tp init creates .tp/.gitignore, and tp commit or tp done --auto-commit refuse any --files path ending .tasks.json.lock.",
+      "source_sections": [
+        "## 5. The close checkpoint"
+      ],
+      "source_lines": "65-67",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "lock-contention",
+      "title": "Retry write lock with backoff",
+      "status": "open",
+      "depends_on": [
+        "lock-relocate"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "Write-lock acquisition retries with backoff until lock_timeout_seconds (default 5, range 1-60) elapses so two concurrent writes both succeed. On timeout tp exits 4 with a hint naming the lock path and elapsed wait.",
+      "source_sections": [
+        "## 12. Lock contention"
+      ],
+      "source_lines": "127-131",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "merge-clean-round",
+      "title": "Accept empty merge inputs",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "--merge with all-empty inputs exits 0 and creates an empty -o file (merged_count 0), while a missing/unreadable input exits 3 and no input files exits 2. Malformed (invalid JSON) and incomplete (missing required fields) lines are skipped with a stderr warning without changing the exit code. Applies to both tp review --merge and tp audit --merge.",
+      "source_sections": [
+        "## 3. Clean-round merge"
+      ],
+      "source_lines": "24-41",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "mode-scoped-positionals",
+      "title": "Scope mode positionals",
+      "status": "open",
+      "depends_on": [
+        "merge-clean-round"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "tp review/audit --merge rejects a spec positional among its inputs with exit 2, and --resolve or --resolve-all take the findings NDJSON as positional where a .md or spec-looking positional exits 2 naming the expected form. --resolve indices are 0-based and stated in usage, --help, and merged output. A non-numeric index exits 2 naming the expected form.",
+      "source_sections": [
+        "## 4. Mode-scoped positionals"
+      ],
+      "source_lines": "43-49",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "entry-validation",
+      "title": "Validate tp add at entry",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 12,
+      "acceptance": "tp add rejects each section 6.1 rule (missing/blank/whitespace id, duplicate id, missing/blank title, missing/blank acceptance, no source anchor, depends_on unknown id, invalid JSON) with the stated exit (1, or 2 for invalid JSON) and a hint. Every task tp writes carries [] not null for depends_on, source_sections, and tags; tp lint structured_elements.tables/numbered_lists and tp stats tags are [] when empty.",
+      "source_sections": [
+        "## 6. Entry validation"
+      ],
+      "source_lines": "69-87",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "coverage-every-write",
+      "title": "Compute coverage on every write",
+      "status": "open",
+      "depends_on": [
+        "entry-validation"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "AutoFillCoverage runs after add, import, remove, and set of source_sections/source_lines whenever the spec is readable, so tp init + tp add + tp validate is clean with no import round trip. When the spec cannot be read the coverage block is left untouched and tp validate's coverage finding hints the unreadable spec path.",
+      "source_sections": [
+        "## 7. Coverage is computed on every write"
+      ],
+      "source_lines": "89-93",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "excerpt-sections-parity",
+      "title": "Emit spec_excerpt from source_sections",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "A task with source_sections and no source_lines carries the section text (heading + body to next same/shallower heading, in listed order, blank-line-joined) in spec_excerpt for tp plan, tp show, tp next, and tp next --peek, capped at 2000 chars with the existing marker. --compact omits spec_excerpt and, per 8.4, keeps decision-critical new fields (bookkeeping, suggested_files, max_rounds/rounds_remaining/in_flight_round) while omitting explanatory ones (skipped_roles, attribution_excludes, audit overlap_report, report note).",
+      "source_sections": [
+        "## 8. `spec_excerpt` parity for `source_sections`"
+      ],
+      "source_lines": "95-103",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "close-checkpoint-builtin",
+      "title": "Fold closure into the commit",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 15,
+      "acceptance": "Under commit_strategy builtin, tp commit and tp done --auto-commit fold the closure into the implementation commit so the committed task file shows status:done and git status is clean for tp-owned paths. commit_sha or commit_shas[0] records the pre-amend implementation sha C1 (never the post-amend object sha), and suggested_files reads C1's diff. The amend runs only when HEAD is still C1 and the working-tree diff lists only tp-written paths, else a follow-up commit chore(tp): record \u003cid\u003e closure leaves C1 as commit_sha.",
+      "source_sections": [
+        "## 5. The close checkpoint"
+      ],
+      "source_lines": "53-61",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "resume-bookkeeping",
+      "title": "Report bookkeeping in resume",
+      "status": "open",
+      "depends_on": [
+        "close-checkpoint-builtin"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "Under commit_strategy hc, tp resume reports modified tp-owned files (the task file, .tp-review/, .tp/) in a bookkeeping array with {path, kind, ref} (closure/round/config), separate from changes and raising no unexplained-changes blocker; the array is [] when no tp-owned file is dirty. bookkeeping survives --compact per 8.4.",
+      "source_sections": [
+        "## 5. The close checkpoint"
+      ],
+      "source_lines": "63",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "role-attribution-transparency",
+      "title": "State skipped roles",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 12,
+      "acceptance": "tp review and tp audit prompt emission lists every non-emitted corpus role in skipped_roles [{role, reason}] with reason one of no-checklist-items, no-spec-change, domain-mismatch, or no-baseline ([] when none skipped). Merge and --status output add attribution_excludes: [\"regression\"] only when that exclusion causes merged_count to exceed the overlap-report finding count, and tp audit --merge or --status emit overlap_report over non-PASS rows clustered by (item_id, category). skipped_roles, attribution_excludes, and audit overlap_report are omitted under --compact per 8.4.",
+      "source_sections": [
+        "## 9. Role and attribution transparency"
+      ],
+      "source_lines": "105-111",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "loop-budget-inflight",
+      "title": "Surface in-flight round state",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 12,
+      "acceptance": "--status reports max_rounds (null when uncapped) and rounds_remaining, writes snapshot-round-N.md atomically at round start and review-round-N.ndjson at record, and reports in_flight_round N (null when none) with tp resume next_action = record-round N. The regression prompt names its baseline snapshot path (snapshot-round-\u003cN-1\u003e.md), and round 1 adds regression to skipped_roles with reason no-baseline. max_rounds, rounds_remaining, and in_flight_round survive --compact per 8.4.",
+      "source_sections": [
+        "## 10. Loop budget and in-flight rounds"
+      ],
+      "source_lines": "113-119",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "audit-file-selection",
+      "title": "Suggest audit files from commits",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "When tp audit finds no audit-able file it exits 4 with suggested_files: the union of paths touched by every SHA in commit_shas of done tasks (type-filtered), [] when none, and a hint naming --affected-files/--affected-from-tasks. tp audit --affected-from-tasks audits that derived set directly. suggested_files survives --compact per 8.4.",
+      "source_sections": [
+        "## 11. Audit file selection"
+      ],
+      "source_lines": "121-125",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "exit-code-conformance",
+      "title": "Fix non-conformant exit codes",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "Each section 13.1 case returns exit 2: invalid-JSON add with decoder detail in hint, cobra flag-parse failure as a tp error object, and a dash-leading done reason with a hint naming the -- separator. Every non-zero error object carries a hint naming the next command to run rather than just the rule broken.",
+      "source_sections": [
+        "## 13. Exit-code conformance"
+      ],
+      "source_lines": "133-143",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "report-accuracy",
+      "title": "Round report durations correctly",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 8,
+      "acceptance": "tp report rounds actual_minutes to one decimal, and when it rounds to 0.0 the accuracy is null with note \"duration below resolution\". The summary excludes null-accuracy tasks from estimation_accuracy and reports how many were excluded, while the report note is omitted under --compact per 8.4.",
+      "source_sections": [
+        "## 14. Report accuracy"
+      ],
+      "source_lines": "145-149",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "lint-empty-section",
+      "title": "Skip container headings in lint",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 5,
+      "acceptance": "empty-section does not fire on a container heading (whose next heading is deeper than itself) but still fires on an empty leaf heading.",
+      "source_sections": [
+        "## 15. Lint"
+      ],
+      "source_lines": "151-153",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "commit-strategy-project",
+      "title": "Set commit_strategy at project level",
+      "status": "open",
+      "depends_on": [],
+      "estimate_minutes": 8,
+      "acceptance": "tp set --workflow --project commit_strategy=\u003cbuiltin|auto|hc\u003e writes workflow.commit_strategy in .tp/config.json participating in resolve-at-read order, and tp config --resolved annotates commit_strategy with its source layer. tp set --workflow commit_strategy=... (task level) still exits 2 with a hint naming the project-level setter.",
+      "source_sections": [
+        "## 16. `commit_strategy` after init"
+      ],
+      "source_lines": "155-161",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "documentation",
+      "title": "Update docs for all changes",
+      "status": "open",
+      "depends_on": [
+        "lock-relocate",
+        "lock-contention",
+        "merge-clean-round",
+        "mode-scoped-positionals",
+        "entry-validation",
+        "coverage-every-write",
+        "excerpt-sections-parity",
+        "close-checkpoint-builtin",
+        "resume-bookkeeping",
+        "role-attribution-transparency",
+        "loop-budget-inflight",
+        "audit-file-selection",
+        "exit-code-conformance",
+        "report-accuracy",
+        "lint-empty-section",
+        "commit-strategy-project"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "SKILL.md documents driving tp from a non-Claude runtime (sub-agent fan-out, orchestrator injection duty, permission-prompt rule), and README.md with REFERENCE.md reflect every section 3-16 flag, field, and behavior. CLAUDE.md's QA recipe passes tp lint and tp validate, and go test ./... with golangci-lint run are clean.",
+      "source_sections": [
+        "## 17. Documentation"
+      ],
+      "source_lines": "163-169",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ]
 }
