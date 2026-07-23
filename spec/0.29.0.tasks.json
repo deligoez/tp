@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.29.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-07-23T15:43:31.240544Z",
+  "updated_at": "2026-07-23T15:58:01.915252Z",
   "workflow": {},
   "coverage": {
     "total_sections": 20,
@@ -168,7 +168,7 @@
     {
       "id": "close-checkpoint-builtin",
       "title": "Fold closure into the commit",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 15,
@@ -177,11 +177,14 @@
         "## 5. The close checkpoint"
       ],
       "source_lines": "53-61",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-23T15:58:01.915217Z",
+      "closed_at": "2026-07-23T15:58:01.915252Z",
+      "closed_reason": "- commit-then-close-then-amend folds status:done into C2; committed task file shows done, working tree clean for tp-owned paths (commit.go runCommit + done.go runDoneSingle)\n- commit_sha records the pre-amend implementation sha C1, never the post-amend C2; verified recorded sha != amended HEAD across fold and fallback paths\n- amend guarded on HEAD==C1 and tp-written-only working-tree diff; else follow-up chore(tp): record \u003cid\u003e closure leaves C1 as commit_sha (tests 5527e01 26ad1e8)",
+      "gate_passed_at": "2026-07-23T15:58:01.915252Z",
+      "commit_sha": "09cf72e",
+      "commit_shas": [
+        "09cf72e"
+      ]
     },
     {
       "id": "resume-bookkeeping",
