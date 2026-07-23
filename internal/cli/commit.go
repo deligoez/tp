@@ -168,16 +168,16 @@ func buildCommitMessage(task *model.Task, reason string) string {
 
 func gitStage(filesFlag string) error {
 	if filesFlag == "" {
-		// Default: tracked modified + new files. Safe — won't grab unrelated untracked files.
-		// Use --files to be more selective, or stage manually before tp commit.
 		return runGit("add", "-A")
 	}
 
-	// Stage specific file patterns
 	for _, pattern := range strings.Split(filesFlag, ",") {
 		pattern = strings.TrimSpace(pattern)
 		if pattern == "" {
 			continue
+		}
+		if strings.HasSuffix(pattern, ".tasks.json.lock") {
+			return fmt.Errorf("refusing to stage lock file %q: lock files live under .tp/locks/ and are never committed", pattern)
 		}
 		if err := runGit("add", pattern); err != nil {
 			return fmt.Errorf("staging %q: %w", pattern, err)
