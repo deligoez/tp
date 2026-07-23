@@ -309,7 +309,7 @@ func loadAuditSpec(specPath string) (specLines []string, specContent string) {
 	if auditSt != nil {
 		auditRecorded = len(auditSt.AuditRounds)
 	}
-	if snapErr := engine.WriteSnapshotAtomic(specPath, auditRecorded+1, specData); snapErr != nil {
+	if snapErr := engine.WriteSnapshotAtomic(specPath, engine.PhaseAudit, auditRecorded+1, specData); snapErr != nil {
 		output.Error(ExitFile, fmt.Sprintf("cannot write snapshot: %v", snapErr))
 		os.Exit(ExitFile)
 		return nil, ""

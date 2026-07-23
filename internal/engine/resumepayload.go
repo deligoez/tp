@@ -147,7 +147,7 @@ func BuildNextAction(phase, specPath string, tf *model.TaskFile, st *ReviewState
 		// §10.2: an interrupted round (snapshot written, round file absent)
 		// points at completing + recording that round rather than starting a
 		// new one.
-		if inFlight := InFlightRound(specPath, len(rounds)); inFlight > 0 {
+		if inFlight := InFlightRound(specPath, PhaseReview, len(rounds)); inFlight > 0 {
 			return NextAction{
 				Command: cmd(fmt.Sprintf("tp review %s --record <findings-round-%d.ndjson>", specPath, inFlight)),
 				Summary: fmt.Sprintf("record review round %d (its snapshot exists; the round was started but never recorded)", inFlight),
@@ -163,7 +163,7 @@ func BuildNextAction(phase, specPath string, tf *model.TaskFile, st *ReviewState
 	case PhaseAudit:
 		rounds := auditRoundsOf(st)
 		// §10.2: mirror — an interrupted audit round points at recording it.
-		if inFlight := InFlightRound(specPath, len(rounds)); inFlight > 0 {
+		if inFlight := InFlightRound(specPath, PhaseAudit, len(rounds)); inFlight > 0 {
 			return NextAction{
 				Command: cmd(fmt.Sprintf("tp audit %s --record <results-round-%d.ndjson>", specPath, inFlight)),
 				Summary: fmt.Sprintf("record audit round %d (its snapshot exists; the round was started but never recorded)", inFlight),

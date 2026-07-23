@@ -1582,7 +1582,7 @@ func loadReviewRoundState(cmd *cobra.Command, specPath string, round int, findin
 	// §10.2: snapshot the spec at round start (prompt emission) atomically —
 	// write to snapshot-round-N.md.tmp then rename — so a partial snapshot is
 	// never left on disk.
-	if writeErr := engine.WriteSnapshotAtomic(specPath, stateRound, specBytes); writeErr != nil {
+	if writeErr := engine.WriteSnapshotAtomic(specPath, engine.PhaseReview, stateRound, specBytes); writeErr != nil {
 		output.Error(ExitFile, fmt.Sprintf("cannot write snapshot: %v", writeErr))
 		os.Exit(ExitFile)
 		return reviewRoundState{}

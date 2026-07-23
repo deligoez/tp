@@ -195,7 +195,7 @@ func runAuditStatus(specPath string, check bool) error {
 	}
 	// §10.2: surface an interrupted audit round — a snapshot exists for the
 	// next round but its audit-round-N.ndjson was never recorded.
-	if inFlight := engine.InFlightRound(specPath, len(rounds)); inFlight > 0 {
+	if inFlight := engine.InFlightRound(specPath, engine.PhaseAudit, len(rounds)); inFlight > 0 {
 		result["in_flight_round"] = inFlight
 	} else {
 		result["in_flight_round"] = nil

@@ -163,7 +163,7 @@ func hasStateArtifacts(dir string) bool {
 		if strings.HasSuffix(name, ".tmp") {
 			continue
 		}
-		if strings.HasPrefix(name, "review-round-") || strings.HasPrefix(name, "audit-round-") || strings.HasPrefix(name, "snapshot-round-") {
+		if strings.HasPrefix(name, "review-round-") || strings.HasPrefix(name, "audit-round-") || strings.HasPrefix(name, "snapshot-round-") || strings.HasPrefix(name, "snapshot-audit-round-") {
 			return true
 		}
 	}
@@ -174,12 +174,20 @@ func hasStateArtifacts(dir string) bool {
 // sibling snapshot-round-N.md.tmp then rename — so a crash mid-write never
 // leaves a partial snapshot on disk (§10.2). The state directory is created
 // when absent.
-func WriteSnapshotAtomic(specPath string, round int, data []byte) error {
+//
+// phase scopes the snapshot namespace so review and audit never collide:
+// review keeps the legacy "snapshot-round-N.md" name (read by the regression
+// baseline reader in review_autodiff.go and by existing on-disk snapshots),
+// while any other phase — today, audit — is namespaced as
+// "snapshot-<phase>-round-N.md" (e.g. snapshot-audit-round-N.md). Without this
+// scoping, a review snapshot-round-N.md would masquerade as an in-flight audit
+// round and make `tp resume` point a fresh driver at a phantom round.
+func WriteSnapshotAtomic(specPath, phase string, round int, data []byte) error {
 	dir := ReviewStateDir(specPath)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	final := filepath.Join(dir, fmt.Sprintf("snapshot-round-%d.md", round))
+	final := filepath.Join(dir, snapshotFilename(phase, round))
 	tmp := final + ".tmp"
 	if err := os.WriteFile(tmp, data, 0o600); err != nil {
 		return err
@@ -187,14 +195,26 @@ func WriteSnapshotAtomic(specPath string, round int, data []byte) error {
 	return os.Rename(tmp, final)
 }
 
+// snapshotFilename returns the on-disk snapshot name for a phase and round.
+// Review keeps the legacy "snapshot-round-N.md" form; any other phase is
+// namespaced as "snapshot-<phase>-round-N.md" so the two phases' in-flight
+// snapshots never collide.
+func snapshotFilename(phase string, round int) string {
+	if phase == PhaseReview {
+		return fmt.Sprintf("snapshot-round-%d.md", round)
+	}
+	return fmt.Sprintf("snapshot-%s-round-%d.md", phase, round)
+}
+
 // InFlightRound reports the in-flight round number for a phase given the count
 // of recorded rounds: the next round (recordedRounds+1) whose spec snapshot
 // exists but whose round file does not, or 0 when none (§10.2). A snapshot
 // without a matching round file means a round was started (prompt emission)
-// and never recorded.
-func InFlightRound(specPath string, recordedRounds int) int {
+// and never recorded. phase selects the phase-scoped snapshot path so a review
+// snapshot can never read as an in-flight audit round (or vice versa).
+func InFlightRound(specPath, phase string, recordedRounds int) int {
 	next := recordedRounds + 1
-	snap := filepath.Join(ReviewStateDir(specPath), fmt.Sprintf("snapshot-round-%d.md", next))
+	snap := filepath.Join(ReviewStateDir(specPath), snapshotFilename(phase, next))
 	if _, err := os.Stat(snap); err != nil {
 		return 0
 	}
