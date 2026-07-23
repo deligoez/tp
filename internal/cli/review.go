@@ -115,7 +115,7 @@ Default (no --perspective): 3 adversarial prompts (implementer, tester, architec
 
 Modes (mutually exclusive):
 --merge: merge and deduplicate findings from NDJSON files.
---resolve/--resolve-all: mark findings as fixed/wontfix/duplicate.
+--resolve/--resolve-all: mark findings as fixed/wontfix/duplicate (findings NDJSON is the positional; --resolve uses a 0-based index).
 --verify: lightweight verification prompt.
 --report: cross-round convergence report.`,
 		Args: cobra.ArbitraryArgs,
@@ -194,8 +194,8 @@ Modes (mutually exclusive):
 
 	// New mode flags
 	cmd.Flags().BoolVar(&mergeMode, "merge", false, "Merge and deduplicate findings from NDJSON files")
-	cmd.Flags().BoolVar(&resolveMode, "resolve", false, "Mark a finding as fixed/wontfix/duplicate")
-	cmd.Flags().BoolVar(&resolveAllMode, "resolve-all", false, "Mark all unresolved findings with a status")
+	cmd.Flags().BoolVar(&resolveMode, "resolve", false, "Mark a finding as fixed/wontfix/duplicate (0-based index; findings NDJSON is the positional)")
+	cmd.Flags().BoolVar(&resolveAllMode, "resolve-all", false, "Mark all unresolved findings with a status (findings NDJSON is the positional)")
 	cmd.Flags().BoolVar(&verifyMode, "verify", false, "Generate lightweight verification prompt")
 	cmd.Flags().BoolVar(&reportMode, "report", false, "Generate cross-round convergence report")
 	cmd.Flags().StringVarP(&outputPath, "output", "o", "", "Output file path (for --merge)")
