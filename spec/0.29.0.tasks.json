@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.29.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-07-23T17:10:27.50405Z",
+  "updated_at": "2026-07-23T17:26:23.086547Z",
   "workflow": {},
   "coverage": {
     "total_sections": 20,
@@ -41,7 +41,7 @@
     {
       "id": "lock-contention",
       "title": "Retry write lock with backoff",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "lock-relocate"
@@ -52,11 +52,15 @@
         "## 12. Lock contention"
       ],
       "source_lines": "127-131",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-23T17:26:23.086507Z",
+      "closed_at": "2026-07-23T17:26:23.086547Z",
+      "closed_reason": "- Write-lock acquisition retries with backoff via WithFileLockTimeout until the effective lock_timeout_seconds (default 5, range 1-60) elapses; TestWithFileLock_ConcurrentRetriesThenSucceeds shows a second writer succeeds once the holder releases within the timeout.\n- On timeout WithFileLock returns *LockTimeoutError and root.go maps it to exit 4 (STATE) with a hint naming the centralized lock path and elapsed wait; TestSet_LockContentionTimeoutExitsFour verifies the CLI path.",
+      "gate_passed_at": "2026-07-23T17:26:23.086547Z",
+      "commit_sha": "839760f",
+      "commit_shas": [
+        "839760f",
+        "42ba2fc"
+      ]
     },
     {
       "id": "merge-clean-round",
