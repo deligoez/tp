@@ -110,14 +110,31 @@ func resumeJSON(r *engine.ResumeResult, compact bool) map[string]any {
 		blockers = append(blockers, entry)
 	}
 
-	return map[string]any{
+	// §8.4: bookkeeping and the guidance note survive --compact — both are
+	// decision-critical (the agent must commit bookkeeping, and the guidance
+	// shapes how it drives the implement phase).
+	bookkeeping := make([]map[string]any, 0, len(r.Bookkeeping))
+	for _, b := range r.Bookkeeping {
+		bookkeeping = append(bookkeeping, map[string]any{
+			"path": b.Path,
+			"kind": b.Kind,
+			"ref":  b.Ref,
+		})
+	}
+
+	out := map[string]any{
 		"phase":       r.Phase,
 		"spec":        r.Spec,
 		"changes":     r.Changes,
 		"kept":        kept,
+		"bookkeeping": bookkeeping,
 		"next_action": nextAction,
 		"blockers":    blockers,
 	}
+	if r.Guidance != "" {
+		out["guidance"] = r.Guidance
+	}
+	return out
 }
 
 // printResumeSummary writes the short human summary for a TTY (§4.1).
@@ -128,6 +145,12 @@ func printResumeSummary(r *engine.ResumeResult) {
 	}
 	fmt.Printf("phase: %s\n", r.Phase)
 	fmt.Printf("next:  %s — %s\n", next, r.NextAction.Summary)
+	if r.Guidance != "" {
+		fmt.Printf("guidance: %s\n", r.Guidance)
+	}
+	if len(r.Bookkeeping) > 0 {
+		fmt.Printf("bookkeeping: %d tp-owned file(s) to commit\n", len(r.Bookkeeping))
+	}
 	if len(r.Changes) > 0 {
 		fmt.Printf("unexplained changes: %d\n", len(r.Changes))
 	}

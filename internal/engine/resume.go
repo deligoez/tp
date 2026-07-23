@@ -6,17 +6,31 @@ import (
 	"github.com/deligoez/tp/internal/model"
 )
 
+// BookkeepingEntry is one tp-owned dirty file in tp resume's bookkeeping array
+// (§5.2): uncommitted state tp itself wrote (the task file, .tp-review/, .tp/),
+// reported separately from changes and never counted as an unexplained-changes
+// blocker. Path is repo-root-relative; Kind is closure/round/config; Ref is a
+// task id (closure), a round number (round), or a path basename (config).
+type BookkeepingEntry struct {
+	Path string `json:"path"`
+	Kind string `json:"kind"`
+	Ref  string `json:"ref"`
+}
+
 // ResumeResult is the resume oracle's output object (§4.2): the lifecycle phase,
 // the resolved spec path, the byte-sorted uncommitted changes not on the
-// keep-list and the byte-sorted keep-list matches, the next action, and the
+// keep-list, the byte-sorted keep-list matches, the tp-owned bookkeeping (§5.2),
+// the implement-phase execution-model guidance note, the next action, and the
 // blockers.
 type ResumeResult struct {
-	Phase      string            `json:"phase"`
-	Spec       string            `json:"spec"`
-	Changes    []string          `json:"changes"`
-	Kept       []model.KeepEntry `json:"kept"`
-	NextAction NextAction        `json:"next_action"`
-	Blockers   []Blocker         `json:"blockers"`
+	Phase       string             `json:"phase"`
+	Spec        string             `json:"spec"`
+	Changes     []string           `json:"changes"`
+	Kept        []model.KeepEntry  `json:"kept"`
+	Bookkeeping []BookkeepingEntry `json:"bookkeeping"`
+	Guidance    string             `json:"guidance,omitempty"`
+	NextAction  NextAction         `json:"next_action"`
+	Blockers    []Blocker          `json:"blockers"`
 }
 
 // AssembleResume builds the read-only resume result from durable state alone:
@@ -35,6 +49,13 @@ func AssembleResume(start, taskFilePath, specPath string, tf *model.TaskFile) (R
 		changes = classified.Changes
 		kept = classified.Kept
 	}
+	// §5.2: tp-owned dirty state (the task file, .tp-review/, .tp/) is
+	// bookkeeping — reported separately from changes and never counted as an
+	// unexplained-changes blocker. Classified after the keep-list so an
+	// explicitly keep-listed tp-owned file stays in kept and is not
+	// double-reported.
+	bookkeeping, remaining := DeriveBookkeeping(start, taskFilePath, specPath, changes, tf)
+	changes = remaining
 	sort.Strings(changes)
 	sort.Slice(kept, func(i, j int) bool { return kept[i].Path < kept[j].Path })
 
@@ -59,6 +80,11 @@ func AssembleResume(start, taskFilePath, specPath string, tf *model.TaskFile) (R
 	}
 	phase := DetectPhase(len(tf.Tasks), numDone, reviewConverged, auditConverged)
 
+	guidance := ""
+	if phase == PhaseImplement {
+		guidance = "run each task in a fresh subagent/context; keep the orchestrator context clean"
+	}
+
 	blockers := BuildBlockers(&BlockerInputs{
 		Phase:           phase,
 		SpecPath:        specPath,
@@ -74,11 +100,13 @@ func AssembleResume(start, taskFilePath, specPath string, tf *model.TaskFile) (R
 	})
 
 	return ResumeResult{
-		Phase:      phase,
-		Spec:       specPath,
-		Changes:    changes,
-		Kept:       kept,
-		NextAction: BuildNextAction(phase, specPath, tf, st),
-		Blockers:   blockers,
+		Phase:       phase,
+		Spec:        specPath,
+		Changes:     changes,
+		Kept:        kept,
+		Bookkeeping: bookkeeping,
+		Guidance:    guidance,
+		NextAction:  BuildNextAction(phase, specPath, tf, st),
+		Blockers:    blockers,
 	}, nil
 }

@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"bytes"
 	"os/exec"
 	"strings"
 )
@@ -68,4 +69,23 @@ func parsePorcelainZ(s string) []string {
 		}
 	}
 	return paths
+}
+
+// FileAtHead returns the bytes of relPath (repo-root-relative) as it exists at
+// HEAD, or (nil, false) when git is unavailable, HEAD does not exist, or the
+// path is absent at HEAD (untracked or newly added). It is the baseline for tp
+// resume's closure managed-field diff (§5.2).
+func FileAtHead(start, relPath string) ([]byte, bool) {
+	root := gitToplevel(start)
+	if root == "" {
+		return nil, false
+	}
+	cmd := exec.Command("git", "show", "HEAD:"+relPath)
+	cmd.Dir = root
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+	if err := cmd.Run(); err != nil {
+		return nil, false
+	}
+	return stdout.Bytes(), true
 }
