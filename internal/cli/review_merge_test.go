@@ -168,6 +168,30 @@ func TestReviewMergeMissingFile(t *testing.T) {
 	assert.Contains(t, stderr, "file not found")
 }
 
+// TestReviewMerge_RejectsSpecPositionalExit2 covers §4.1: --merge takes only
+// its explicit NDJSON inputs, so a spec-looking positional (a .md) among them
+// is rejected at entry with exit 2 rather than silently parsed as data.
+func TestReviewMerge_RejectsSpecPositionalExit2(t *testing.T) {
+	dir := t.TempDir()
+	spec := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(spec, []byte("# Spec\n## 1. A\nbody\n"), 0o600))
+	f1 := writeFindingsFile(t, dir, "a.ndjson", []string{
+		`{"severity":"low","location":"## 1. A","finding":"x","class":"x"}`,
+	})
+
+	// Spec mixed in among real inputs is rejected.
+	_, stderr, code := runTPMerge(t, dir, "review", "--merge", spec, f1)
+	assert.Equal(t, 2, code)
+	assert.Contains(t, stderr, "looks like a spec")
+	assert.Contains(t, stderr, "--merge takes NDJSON input files only")
+
+	// A spec alone is likewise rejected (not parsed, no per-line warnings).
+	_, stderr, code = runTPMerge(t, dir, "review", "--merge", spec)
+	assert.Equal(t, 2, code)
+	assert.Contains(t, stderr, "looks like a spec")
+	assert.NotContains(t, stderr, "warning:")
+}
+
 func TestReviewMergePreservesExtraFields(t *testing.T) {
 	dir := t.TempDir()
 
