@@ -691,6 +691,22 @@ func buildReviewPrompts(specPath string, elems *engine.StructuredElements, specC
 			output.Info("no earlier snapshot exists; changed-sections block omitted")
 		}
 	}
+	// §9.1: under explicit --diff-from, a reviewer role whose focus is scoped
+	// entirely (via §N.M references) to unchanged sections is skipped with reason
+	// no-spec-change instead of being emitted. Generic focus always emits — the
+	// reviewer self-scopes against the changed-sections block below. This never
+	// fires for the snapshot-based auto-diff (round >= 2), only explicit --diff-from.
+	if diffFrom != "" {
+		filtered := make([]reviewPrompt, 0, len(prompts))
+		for i := range activeRoles {
+			if engine.RoleFocusOutsideDiff(activeRoles[i], diffDr) {
+				skipped = append(skipped, engine.SkippedRole{Role: activeRoles[i].ID, Reason: engine.SkipNoSpecChange})
+				continue
+			}
+			filtered = append(filtered, prompts[i])
+		}
+		prompts = filtered
+	}
 	if diffBlock != "" {
 		for i := range prompts {
 			prompts[i].Prompt += diffBlock
