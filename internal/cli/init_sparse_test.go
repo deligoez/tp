@@ -40,3 +40,19 @@ func TestInit_SparseWorkflowBlock(t *testing.T) {
 		})
 	}
 }
+
+// TestInit_CreatesTPGitignore covers §5.4: tp init creates .tp/.gitignore at init
+// time (rather than lazily by the first tp keep) so it travels with the initial
+// tp state. The gitignore must cover the centralized lock dir (§5.3).
+func TestInit_CreatesTPGitignore(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\ncontent\n"), 0o600))
+	_, stderr, code := runTP(t, dir, "init", "spec.md")
+	require.Equal(t, 0, code, "init failed: %s", stderr)
+
+	data, err := os.ReadFile(filepath.Join(dir, ".tp", ".gitignore"))
+	require.NoError(t, err, "tp init creates .tp/.gitignore")
+	content := string(data)
+	assert.Contains(t, content, "locks/", ".tp/.gitignore covers the centralized lock dir")
+	assert.Contains(t, content, "local.json", ".tp/.gitignore keeps local.json ignored")
+}
