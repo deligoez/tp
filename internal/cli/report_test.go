@@ -536,6 +536,201 @@ func TestReportZeroDurationTask(t *testing.T) {
 	assert.Less(t, task["actual_minutes"].(float64), 1.0)
 }
 
+// TestReportSubResolutionDuration covers §14: a task whose measured duration
+// rounds actual_minutes to 0.0 reports accuracy null with a note, the summary
+// excludes it from estimation_accuracy and reports the excluded count.
+func TestReportSubResolutionDuration(t *testing.T) {
+	dir := setupProject(t)
+
+	now := time.Now().UTC()
+	flashStart := now.Add(-1 * time.Millisecond) // sub-second → rounds to 0.0
+	normalStart := now.Add(-10 * time.Minute)    // 10 min duration
+	reason := "acceptance criteria met"
+
+	taskFilePath := filepath.Join(dir, "spec.tasks.json")
+	taskFileContent := `{
+  "version": 1,
+  "spec": "spec.md",
+  "tasks": [
+    {
+      "id": "flash",
+      "title": "Flash task",
+      "status": "done",
+      "depends_on": [],
+      "estimate_minutes": 5,
+      "acceptance": "flash acceptance",
+      "source_sections": ["s1"],
+      "started_at": "` + flashStart.Format(time.RFC3339Nano) + `",
+      "closed_at": "` + now.Format(time.RFC3339Nano) + `",
+      "closed_reason": "` + reason + `",
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "normal",
+      "title": "Normal task",
+      "status": "done",
+      "depends_on": [],
+      "estimate_minutes": 5,
+      "acceptance": "normal acceptance",
+      "source_sections": ["s1"],
+      "started_at": "` + normalStart.Format(time.RFC3339Nano) + `",
+      "closed_at": "` + now.Format(time.RFC3339Nano) + `",
+      "closed_reason": "` + reason + `",
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ],
+  "workflow": {},
+  "coverage": {},
+  "updated_at": "` + now.Format(time.RFC3339Nano) + `"
+}`
+	require.NoError(t, os.WriteFile(taskFilePath, []byte(taskFileContent), 0o600))
+
+	stdout, _, code := runTP(t, dir, "report")
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	tasks := result["tasks"].([]any)
+	require.Len(t, tasks, 2)
+
+	var flash, normal map[string]any
+	for _, tk := range tasks {
+		tk := tk.(map[string]any)
+		switch tk["id"] {
+		case "flash":
+			flash = tk
+		case "normal":
+			normal = tk
+		}
+	}
+	require.NotNil(t, flash)
+	require.NotNil(t, normal)
+
+	// §14.1: sub-resolution duration → actual_minutes 0.0, accuracy null, note set.
+	assert.Equal(t, 0.0, flash["actual_minutes"])
+	assert.Nil(t, flash["accuracy"], "accuracy must be null when duration rounds to 0.0")
+	assert.Equal(t, "duration below resolution", flash["note"])
+
+	// The usable task keeps a numeric accuracy and no note.
+	assert.NotNil(t, normal["accuracy"])
+	_, hasNote := normal["note"]
+	assert.False(t, hasNote)
+
+	// §14.2: null-accuracy task excluded from estimation_accuracy, which is
+	// computed from the normal task alone (5 est / 10 actual ≈ 0.5).
+	summary := result["summary"].(map[string]any)
+	assert.Equal(t, float64(1), summary["excluded_from_accuracy"])
+	est := summary["estimation_accuracy"]
+	require.NotNil(t, est, "estimation_accuracy must be non-null with a usable task")
+	assert.InDelta(t, 0.5, est.(float64), 0.05)
+
+	// Both tasks remain tracked and counted as completed.
+	assert.Equal(t, float64(2), summary["tracked"])
+	assert.Equal(t, float64(2), summary["completed"])
+}
+
+// TestReportAllExcludedAccuracy covers §14.2: when every tracked task has a
+// null accuracy, the summary's estimation_accuracy is itself null and the
+// excluded count equals the tracked count.
+func TestReportAllExcludedAccuracy(t *testing.T) {
+	dir := setupProject(t)
+
+	now := time.Now().UTC()
+	start := now.Add(-1 * time.Millisecond) // sub-second
+
+	taskFilePath := filepath.Join(dir, "spec.tasks.json")
+	taskFileContent := `{
+  "version": 1,
+  "spec": "spec.md",
+  "tasks": [
+    {
+      "id": "flash",
+      "title": "Flash task",
+      "status": "done",
+      "depends_on": [],
+      "estimate_minutes": 5,
+      "acceptance": "flash acceptance",
+      "source_sections": ["s1"],
+      "started_at": "` + start.Format(time.RFC3339Nano) + `",
+      "closed_at": "` + now.Format(time.RFC3339Nano) + `",
+      "closed_reason": "done",
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ],
+  "workflow": {},
+  "coverage": {},
+  "updated_at": "` + now.Format(time.RFC3339Nano) + `"
+}`
+	require.NoError(t, os.WriteFile(taskFilePath, []byte(taskFileContent), 0o600))
+
+	stdout, _, code := runTP(t, dir, "report")
+	require.Equal(t, 0, code)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	summary := result["summary"].(map[string]any)
+	assert.Nil(t, summary["estimation_accuracy"], "estimation_accuracy null when all tasks excluded")
+	assert.Equal(t, float64(1), summary["excluded_from_accuracy"])
+	assert.Equal(t, float64(1), summary["tracked"])
+}
+
+// TestReportCompactOmitsNote covers §8.4: the report note is omitted under
+// --compact while the (decision-critical) accuracy stays null.
+func TestReportCompactOmitsNote(t *testing.T) {
+	dir := setupProject(t)
+
+	now := time.Now().UTC()
+	start := now.Add(-1 * time.Millisecond) // sub-second
+
+	taskFilePath := filepath.Join(dir, "spec.tasks.json")
+	taskFileContent := `{
+  "version": 1,
+  "spec": "spec.md",
+  "tasks": [
+    {
+      "id": "flash",
+      "title": "Flash task",
+      "status": "done",
+      "depends_on": [],
+      "estimate_minutes": 5,
+      "acceptance": "flash acceptance",
+      "source_sections": ["s1"],
+      "started_at": "` + start.Format(time.RFC3339Nano) + `",
+      "closed_at": "` + now.Format(time.RFC3339Nano) + `",
+      "closed_reason": "done",
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ],
+  "workflow": {},
+  "coverage": {},
+  "updated_at": "` + now.Format(time.RFC3339Nano) + `"
+}`
+	require.NoError(t, os.WriteFile(taskFilePath, []byte(taskFileContent), 0o600))
+
+	// Without --compact: note is present.
+	stdout, _, code := runTP(t, dir, "report")
+	require.Equal(t, 0, code)
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+	flash := result["tasks"].([]any)[0].(map[string]any)
+	assert.Equal(t, "duration below resolution", flash["note"])
+
+	// With --compact: note omitted, accuracy still null.
+	stdout, _, code = runTP(t, dir, "report", "--compact")
+	require.Equal(t, 0, code)
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+	flash = result["tasks"].([]any)[0].(map[string]any)
+	_, hasNote := flash["note"]
+	assert.False(t, hasNote, "note must be omitted under --compact")
+	assert.Nil(t, flash["accuracy"], "accuracy stays null under --compact")
+}
+
 // --- started_at as managed field ---
 
 func TestSetStartedAtIsManaged(t *testing.T) {
