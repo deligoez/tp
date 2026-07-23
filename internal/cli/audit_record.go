@@ -173,8 +173,27 @@ func runAuditStatus(specPath string, check bool) error {
 		"stale":                 engine.StateStale(rounds, specHash),
 		"roles_stale":           engine.RolesStale(rounds, rolesHash),
 	}
+	// §10.1: surface the effective cap and remaining budget next to
+	// budget_exhausted; null when uncapped. Decision-critical, so these
+	// survive --compact (§8.4).
 	if wf.AuditMaxRounds > 0 {
+		result["max_rounds"] = wf.AuditMaxRounds
+		remaining := wf.AuditMaxRounds - len(rounds)
+		if remaining < 0 {
+			remaining = 0
+		}
+		result["rounds_remaining"] = remaining
 		result["budget_exhausted"] = len(rounds) >= wf.AuditMaxRounds && !converged
+	} else {
+		result["max_rounds"] = nil
+		result["rounds_remaining"] = nil
+	}
+	// §10.2: surface an interrupted audit round — a snapshot exists for the
+	// next round but its audit-round-N.ndjson was never recorded.
+	if inFlight := engine.InFlightRound(specPath, len(rounds)); inFlight > 0 {
+		result["in_flight_round"] = inFlight
+	} else {
+		result["in_flight_round"] = nil
 	}
 
 	if jsonErr := output.JSON(result); jsonErr != nil {
