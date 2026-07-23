@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.29.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-07-23T14:58:53.854814Z",
+  "updated_at": "2026-07-23T15:03:42.494303Z",
   "workflow": {},
   "coverage": {
     "total_sections": 20,
@@ -269,7 +269,7 @@
     {
       "id": "lint-empty-section",
       "title": "Skip container headings in lint",
-      "status": "open",
+      "status": "done",
       "depends_on": [],
       "estimate_minutes": 5,
       "acceptance": "empty-section does not fire on a container heading (whose next heading is deeper than itself) but still fires on an empty leaf heading.",
@@ -277,11 +277,15 @@
         "## 15. Lint"
       ],
       "source_lines": "151-153",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-23T15:03:42.494279Z",
+      "closed_at": "2026-07-23T15:03:42.494303Z",
+      "closed_reason": "- empty-section now skips container headings (next heading deeper than itself) in internal/engine/lint_rules.go:CheckEmptySections; empty leaf headings still error; covered by TestCheckEmptySections in internal/engine/lint_test.go",
+      "gate_passed_at": "2026-07-23T15:03:42.494303Z",
+      "commit_sha": "3dc720a",
+      "commit_shas": [
+        "3dc720a",
+        "fc695f5"
+      ]
     },
     {
       "id": "commit-strategy-project",
