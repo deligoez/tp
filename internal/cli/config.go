@@ -104,6 +104,8 @@ func surfaceConfigWarnings() {
 func resolveConfigWorkflow() (model.Workflow, model.WorkflowOverride) {
 	var override model.WorkflowOverride
 	if taskFilePath, err := engine.DiscoverTaskFile(".", flagFile); err == nil && taskFilePath != "" {
+		// A parse error yields an empty override; ResolveEffectiveWorkflow below
+		// re-reads and aborts with exit 3 on a truly malformed config.
 		override, _ = engine.LoadTaskWorkflowOverride(taskFilePath)
 	}
 	wf, warnings, err := engine.ResolveEffectiveWorkflow(".", override)
