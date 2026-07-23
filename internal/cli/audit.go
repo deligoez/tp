@@ -460,6 +460,9 @@ func execGitDiff(dir string, args ...string) []string {
 			files = append(files, f)
 		}
 	}
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: stopped scanning git diff output early (%v); files after the over-long line were dropped (line cap is 64KB)\n", err)
+	}
 	return files
 }
 
@@ -632,6 +635,9 @@ func readFindings(path string) []findingRow {
 			loc, _ := obj["location"].(string)
 			results = append(results, findingRow{text: text, location: loc})
 		}
+	}
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: stopped reading %s early (%v); rows after the over-long line were dropped (line cap is 64KB)\n", path, err)
 	}
 	return results
 }
