@@ -248,7 +248,20 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 				os.Exit(ExitFile)
 				return nil
 			}
+			_ = runGit("rm", "--cached", "--ignore-unmatch", "-q", "--", "*.lock", "*.tasks.json.lock")
 			if gitHasStagedChanges() {
+				// §5.1a: write the task file in its pre-close (wip) state and
+				// stage it with the implementation files, so C1 carries it.
+				if writeErr := model.WriteTaskFile(taskFilePath, tf); writeErr != nil {
+					output.Error(ExitFile, writeErr.Error())
+					os.Exit(ExitFile)
+					return nil
+				}
+				if err := runGit("add", "--", taskFilePath); err != nil {
+					output.Error(ExitFile, fmt.Sprintf("auto-commit: stage task file failed: %v", err))
+					os.Exit(ExitFile)
+					return nil
+				}
 				msg := buildCommitMessage(task, reason)
 				sha, commitErr := gitCommit(msg)
 				if commitErr != nil {
@@ -280,6 +293,15 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 			output.Error(ExitFile, writeErr.Error())
 			os.Exit(ExitFile)
 			return nil
+		}
+
+		// §5.1b-d: fold the closure into C1 via amend (guarded), or a follow-up
+		// commit on guard failure, leaving the working tree clean for tp-owned
+		// paths. Only when tp made the implementation commit this invocation.
+		if doneAutoCommit && len(doneCommits) > 0 {
+			if foldErr := foldClosureCommit(".", task.ID, doneCommits[0], []string{taskFilePath}); foldErr != nil {
+				fmt.Fprintf(os.Stderr, "warning: could not fold closure into %s: %v\n", doneCommits[0], foldErr)
+			}
 		}
 
 		warnUnexplainedChanges(unexplainedChangeCount(taskFilePath))

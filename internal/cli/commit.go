@@ -94,7 +94,7 @@ func runCommit(_ *cobra.Command, args []string) error {
 			reason = args[1]
 		}
 
-		// Stage
+		// Stage implementation files (selected via --files or auto-detected).
 		if err := gitStage(commitFiles); err != nil {
 			output.Error(ExitFile, fmt.Sprintf("git stage failed: %v", err))
 			os.Exit(ExitFile)
@@ -114,10 +114,24 @@ func runCommit(_ *cobra.Command, args []string) error {
 			return nil
 		}
 
+		// §5.1a: write the task file in its pre-close (wip) state and stage it
+		// together with the implementation files, so the implementation commit C1
+		// carries it. The closure is folded in afterward via amend.
+		if err := model.WriteTaskFile(taskFilePath, tf); err != nil {
+			output.Error(ExitFile, err.Error())
+			os.Exit(ExitFile)
+			return nil
+		}
+		if err := runGit("add", "--", taskFilePath); err != nil {
+			output.Error(ExitFile, fmt.Sprintf("stage task file failed: %v", err))
+			os.Exit(ExitFile)
+			return nil
+		}
+
 		// Build commit message
 		msg := buildCommitMessage(task, reason)
 
-		// Commit
+		// Commit → C1, the pre-amend implementation sha (§5.1c).
 		sha, err := gitCommit(msg)
 		if err != nil {
 			output.Error(ExitFile, fmt.Sprintf("git commit failed: %v", err))
@@ -125,13 +139,22 @@ func runCommit(_ *cobra.Command, args []string) error {
 			return nil
 		}
 
-		// Record SHA on task
+		// Record the pre-amend sha C1 on the task — never the post-amend object
+		// sha, since a commit cannot contain its own sha (§5.1c).
 		task.SetCommitSHAs([]string{sha})
 
+		// Write the closure record (commit_sha = C1) into the task file.
 		if err := model.WriteTaskFile(taskFilePath, tf); err != nil {
 			output.Error(ExitFile, err.Error())
 			os.Exit(ExitFile)
 			return nil
+		}
+
+		// §5.1b-d: fold the closure into C1 via amend (guarded), or a follow-up
+		// commit on guard failure, leaving the working tree clean for tp-owned
+		// paths. Best-effort: the closure record is already on disk.
+		if foldErr := foldClosureCommit(".", task.ID, sha, []string{taskFilePath}); foldErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: could not fold closure into %s: %v\n", sha, foldErr)
 		}
 
 		return output.JSON(map[string]any{
@@ -207,6 +230,105 @@ func gitCommit(message string) (string, error) {
 
 func runGit(args ...string) error {
 	cmd := exec.Command("git", args...)
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+// foldClosureCommit amends the implementation commit (implSHA = C1) to fold the
+// closed task file into it, producing C2 whose tree carries the closure (§5.1b).
+// Both guards must hold, else it falls back to a follow-up commit (§5.1d).
+// writtenPaths are the paths tp wrote during this command (the task file, plus
+// any .tp-review/ or .tp/ state tp wrote in the same invocation).
+func foldClosureCommit(dir, taskID, implSHA string, writtenPaths []string) error {
+	if canAmendClosure(dir, implSHA, writtenPaths) {
+		for _, p := range writtenPaths {
+			_ = runGitDir(dir, "add", "--", p)
+		}
+		if err := runGitDir(dir, "commit", "--amend", "--no-edit"); err == nil {
+			return nil
+		}
+	}
+	return followUpClosureCommit(dir, taskID, writtenPaths)
+}
+
+// canAmendClosure reports whether both §5.1b guards hold:
+//   (i)  HEAD is still implSHA (no commit landed between tp's commit and amend);
+//   (ii) git diff --name-only HEAD lists only paths tp itself wrote this command.
+//
+// A tp-owned path that was already dirty before tp ran (e.g. a hand-edited
+// .tp/config.json) fails (ii) and forces the §5.1d fallback, as does any
+// non-tp-owned differing path.
+func canAmendClosure(dir, implSHA string, writtenPaths []string) bool {
+	head, err := gitHeadShortSHA(dir)
+	if err != nil || head != implSHA {
+		return false
+	}
+	dirty, err := gitDiffNameOnlyHEAD(dir)
+	if err != nil {
+		return false
+	}
+	written := make(map[string]bool, len(writtenPaths))
+	for _, p := range writtenPaths {
+		written[repoRelativePath(dir, p)] = true
+	}
+	for _, p := range dirty {
+		if !written[p] {
+			return false
+		}
+	}
+	return true
+}
+
+// followUpClosureCommit creates a separate follow-up commit chore(tp): record
+// <id> closure carrying the closed task file (§5.1d), leaving C1 as commit_sha.
+func followUpClosureCommit(dir, taskID string, paths []string) error {
+	for _, p := range paths {
+		_ = runGitDir(dir, "add", "--", p)
+	}
+	msg := fmt.Sprintf("chore(tp): record %s closure", taskID)
+	return runGitDir(dir, "commit", "-m", msg)
+}
+
+func gitHeadShortSHA(dir string) (string, error) {
+	cmd := exec.Command("git", "rev-parse", "--short", "HEAD")
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+func gitDiffNameOnlyHEAD(dir string) ([]string, error) {
+	cmd := exec.Command("git", "diff", "--name-only", "HEAD")
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+	paths := make([]string, 0)
+	for _, line := range strings.Split(string(out), "\n") {
+		if line = strings.TrimSpace(line); line != "" {
+			paths = append(paths, line)
+		}
+	}
+	return paths, nil
+}
+
+// repoRelativePath normalizes a cwd-relative path to repo-root-relative — the
+// base git diff --name-only uses — so the §5.1b(ii) comparison is sound even
+// when tp runs from a subdirectory.
+func repoRelativePath(dir, p string) string {
+	if n, err := engine.NormalizeKeepPath(dir, p); err == nil {
+		return n
+	}
+	return p
+}
+
+// runGitDir runs git with args in dir, wiring stderr to the process stderr.
+func runGitDir(dir string, args ...string) error {
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
