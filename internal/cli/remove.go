@@ -86,6 +86,12 @@ func runRemove(_ *cobra.Command, args []string) error {
 		// Remove the task
 		tf.Tasks = append(tf.Tasks[:idx], tf.Tasks[idx+1:]...)
 
+		// §7.1: recompute coverage now that the task set changed. AutoFillCoverage
+		// no-ops when the spec can't be read, leaving the block untouched (§7.2).
+		if specPath, specExists := engine.ResolveSpecPath(taskFilePath, tf.Spec); specExists {
+			engine.AutoFillCoverage(tf, specPath)
+		}
+
 		if err := model.WriteTaskFile(taskFilePath, tf); err != nil {
 			output.Error(ExitFile, err.Error())
 			os.Exit(ExitFile)
