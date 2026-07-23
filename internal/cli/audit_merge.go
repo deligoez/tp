@@ -23,6 +23,20 @@ func runAuditMerge(args []string, outputPath string) error {
 		return nil
 	}
 
+	// §4.1: --merge takes only its explicit NDJSON input files; a spec-looking
+	// positional among them is rejected at entry (exit 2) rather than silently
+	// parsed as data.
+	for _, path := range args {
+		if isSpecLookingPath(path) {
+			output.Error(ExitUsage, fmt.Sprintf(
+				"%s looks like a spec; --merge takes NDJSON input files only: tp audit --merge <a.ndjson> [<b.ndjson> ...]",
+				path,
+			))
+			os.Exit(ExitUsage)
+			return nil
+		}
+	}
+
 	totalFiles := len(args)
 	rows := loadAuditMergeRows(args)
 	unique := dedupAuditRows(rows)
