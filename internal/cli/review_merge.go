@@ -86,6 +86,12 @@ func runReviewMerge(args []string, outputPath string) error {
 // files, skipping blank/invalid lines and rows missing the required severity and
 // finding fields (with a stderr warning). It aborts on a missing/unreadable file
 // (exit 3) or when no valid finding survives (exit 1).
+// loadMergeFindings reads and validates the review findings from the input
+// files, skipping blank, malformed (invalid JSON), and incomplete (missing any
+// of location, severity, finding) lines with a stderr warning that names which.
+// It aborts only on a missing/unreadable file (exit 3). An all-empty or
+// all-invalid set of inputs is a valid clean result (§3.1) and yields zero
+// findings without failing, so the merge→record chain works on a clean round.
 func loadMergeFindings(args []string) []map[string]any {
 	for _, path := range args {
 		if _, err := os.Stat(path); os.IsNotExist(err) {
@@ -109,13 +115,11 @@ func loadMergeFindings(args []string) []map[string]any {
 			}
 			var finding map[string]any
 			if err := json.Unmarshal([]byte(line), &finding); err != nil {
-				fmt.Fprintf(os.Stderr, "warning: skipping invalid JSON line in %s: %s\n", path, line)
+				fmt.Fprintf(os.Stderr, "warning: skipping malformed line (invalid JSON) in %s\n", path)
 				continue
 			}
-			severityStr, sevOK := finding["severity"].(string)
-			findingStr, findOK := finding["finding"].(string)
-			if !sevOK || !findOK || severityStr == "" || findingStr == "" {
-				fmt.Fprintf(os.Stderr, "warning: skipping line missing required fields (severity, finding) in %s\n", path)
+			if missing := missingFindingFields(finding); len(missing) > 0 {
+				fmt.Fprintf(os.Stderr, "warning: skipping incomplete line (missing %s) in %s\n", strings.Join(missing, ", "), path)
 				continue
 			}
 			allFindings = append(allFindings, finding)
@@ -123,11 +127,20 @@ func loadMergeFindings(args []string) []map[string]any {
 		f.Close()
 	}
 
-	if len(allFindings) == 0 {
-		output.Error(ExitValidation, "no valid findings in input files")
-		os.Exit(ExitValidation)
-	}
 	return allFindings
+}
+
+// missingFindingFields returns the review-finding fields that are absent or empty
+// in the row (§3.2). role is attribution metadata that the rest of the pipeline
+// (record/resolve) treats as optional, so it is not a merge gate.
+func missingFindingFields(row map[string]any) []string {
+	missing := make([]string, 0, 3)
+	for _, k := range []string{"location", "severity", "finding"} {
+		if s, _ := row[k].(string); s == "" {
+			missing = append(missing, k)
+		}
+	}
+	return missing
 }
 
 // clusterMergeFindings clusters the findings by (location key, class) (§8), then
