@@ -61,6 +61,7 @@ func TestResolveOverrideFocus_LegacyLens(t *testing.T) {
 	assert.Equal(t, []string{"lens-all q"}, byID["tester"], "lens.all fans out to every review role")
 	assert.Contains(t, strings.Join(warnings, "\n"), "deprecated")
 }
+
 // TestResolveOverrideFocus_AuditPhase applies tp.audit_roles to audit roles and
 // never applies the legacy review lens to auditors (§10.4).
 func TestResolveOverrideFocus_AuditPhase(t *testing.T) {

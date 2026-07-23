@@ -58,7 +58,7 @@ func TestOverlapReport_TrimCandidateOnlyWhenShared(t *testing.T) {
 // regression counts as sole-contributor for the diversity role (§8.5).
 func TestOverlapReport_RegressionAndBlankExcluded(t *testing.T) {
 	report := OverlapReport([][]string{
-		{"implementer", "regression"}, // regression stripped -> implementer sole
+		{"implementer", "regression"},   // regression stripped -> implementer sole
 		{"implementer", "  ", "tester"}, // blank stripped -> implementer+tester shared
 		{"regression"},                  // regression-only -> nobody
 		{""},                            // blank-only -> nobody

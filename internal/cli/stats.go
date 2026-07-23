@@ -11,12 +11,12 @@ import (
 )
 
 type statsResult struct {
-	Tasks         taskCounts         `json:"tasks"`
-	Estimates     estimateStats      `json:"estimates"`
-	Tags          []tagStats         `json:"tags"`
-	Dependencies  depStats           `json:"dependencies"`
-	Parallelism   parallelismStats   `json:"parallelism"`
-	PlanHeuristic *planHeuristic     `json:"plan_size_heuristic,omitempty"`
+	Tasks         taskCounts       `json:"tasks"`
+	Estimates     estimateStats    `json:"estimates"`
+	Tags          []tagStats       `json:"tags"`
+	Dependencies  depStats         `json:"dependencies"`
+	Parallelism   parallelismStats `json:"parallelism"`
+	PlanHeuristic *planHeuristic   `json:"plan_size_heuristic,omitempty"`
 }
 
 type taskCounts struct {

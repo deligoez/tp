@@ -708,7 +708,7 @@ func buildReviewPrompts(specPath string, elems *engine.StructuredElements, specC
 			prompts = append(prompts, reviewPrompt{
 				Role:     "regression",
 				Category: "regression",
-			Prompt:   buildRegressionPrompt(&diffDr, diffLabel, baselinePath, fixed),
+				Prompt:   buildRegressionPrompt(&diffDr, diffLabel, baselinePath, fixed),
 			})
 			regressionIncluded = true
 		}

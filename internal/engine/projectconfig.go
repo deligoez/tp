@@ -65,7 +65,7 @@ var knownDefaultFlags = map[string]bool{"compact": true, "quiet": true, "no_colo
 var knownWorkflowKeys = map[string]bool{
 	"quality_gate": true, "commit_strategy": true, "gate_timeout_seconds": true,
 	"lock_timeout_seconds": true,
-	"review_clean_rounds": true, "audit_clean_rounds": true,
+	"review_clean_rounds":  true, "audit_clean_rounds": true,
 	"review_max_rounds": true, "audit_max_rounds": true, "checks": true,
 }
 

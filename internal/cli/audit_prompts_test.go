@@ -33,11 +33,11 @@ func TestAuditPrompts_BodyOrderAndEmbedding(t *testing.T) {
 	idxFiles := strings.Index(spec, "## Affected Files (max 20)")
 	idxSchema := strings.Index(spec, "## Output Schema")
 	for name, pair := range map[string][2]int{
-		"role<rules":      {idxRole, idxRules},
-		"rules<excerpt":   {idxRules, idxExcerpt},
-		"excerpt<list":    {idxExcerpt, idxChecklist},
-		"list<files":      {idxChecklist, idxFiles},
-		"files<schema":    {idxFiles, idxSchema},
+		"role<rules":    {idxRole, idxRules},
+		"rules<excerpt": {idxRules, idxExcerpt},
+		"excerpt<list":  {idxExcerpt, idxChecklist},
+		"list<files":    {idxChecklist, idxFiles},
+		"files<schema":  {idxFiles, idxSchema},
 	} {
 		assert.Less(t, pair[0], pair[1], name)
 		assert.GreaterOrEqual(t, pair[0], 0, name)

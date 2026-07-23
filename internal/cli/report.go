@@ -32,17 +32,17 @@ type reportTask struct {
 }
 
 type reportSummary struct {
-	TotalTasks            int     `json:"total_tasks"`
-	Completed             int     `json:"completed"`
-	Tracked               int     `json:"tracked"`
-	Untracked             int     `json:"untracked"`
-	TotalEstimatedMinutes int     `json:"total_estimated_minutes"`
-	TotalActualMinutes    float64 `json:"total_actual_minutes"`
+	TotalTasks            int      `json:"total_tasks"`
+	Completed             int      `json:"completed"`
+	Tracked               int      `json:"tracked"`
+	Untracked             int      `json:"untracked"`
+	TotalEstimatedMinutes int      `json:"total_estimated_minutes"`
+	TotalActualMinutes    float64  `json:"total_actual_minutes"`
 	EstimationAccuracy    *float64 `json:"estimation_accuracy"`
 	ExcludedFromAccuracy  int      `json:"excluded_from_accuracy"`
 	AverageTaskMinutes    float64  `json:"average_task_minutes"`
-	FastestTask           *idDur  `json:"fastest_task"`
-	SlowestTask           *idDur  `json:"slowest_task"`
+	FastestTask           *idDur   `json:"fastest_task"`
+	SlowestTask           *idDur   `json:"slowest_task"`
 }
 
 type idDur struct {

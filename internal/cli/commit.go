@@ -252,8 +252,9 @@ func foldClosureCommit(dir, taskID, implSHA string, writtenPaths []string) error
 }
 
 // canAmendClosure reports whether both §5.1b guards hold:
-//   (i)  HEAD is still implSHA (no commit landed between tp's commit and amend);
-//   (ii) git diff --name-only HEAD lists only paths tp itself wrote this command.
+//
+//	(i)  HEAD is still implSHA (no commit landed between tp's commit and amend);
+//	(ii) git diff --name-only HEAD lists only paths tp itself wrote this command.
 //
 // A tp-owned path that was already dirty before tp ran (e.g. a hand-edited
 // .tp/config.json) fails (ii) and forces the §5.1d fallback, as does any

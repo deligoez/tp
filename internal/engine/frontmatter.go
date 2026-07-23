@@ -19,10 +19,10 @@ var LensRoleOrder = []string{"implementer", "tester", "architect", "all"}
 // Frontmatter is the parsed state of a spec's YAML frontmatter. tp reads only
 // the tp: mapping; every other top-level key is ignored.
 type Frontmatter struct {
-	Present  bool
-	Lines    LineRange           // opening --- through closing ---, absolute 1-based
-	Domain   string              // default "software"
-	Lens     map[string][]string // known keys only: implementer, tester, architect, all
+	Present bool
+	Lines   LineRange           // opening --- through closing ---, absolute 1-based
+	Domain  string              // default "software"
+	Lens    map[string][]string // known keys only: implementer, tester, architect, all
 	// ReviewRoles and AuditRoles are the v0.25.0 spec-frontmatter role overrides
 	// (tp.review_roles / tp.audit_roles), each keyed by role id with the value's
 	// only permitted key being focus (§10.2). The focus questions are appended

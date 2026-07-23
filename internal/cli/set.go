@@ -385,7 +385,7 @@ func runSetWorkflow(args []string) error {
 				tf.Workflow.ReviewCleanRounds = &v
 			case "audit_clean_rounds":
 				tf.Workflow.AuditCleanRounds = &v
-				case "gate_timeout_seconds":
+			case "gate_timeout_seconds":
 				tf.Workflow.GateTimeoutSeconds = &v
 			case "lock_timeout_seconds":
 				tf.Workflow.LockTimeoutSeconds = &v

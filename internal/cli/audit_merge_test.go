@@ -53,7 +53,6 @@ func TestAuditMerge_DedupAndStatusSummary(t *testing.T) {
 	assert.Equal(t, 4, count, "the merged file holds exactly the 4 unique rows")
 }
 
-
 // TestAuditMerge_EmptyInputSucceeds covers §3.3 row 2 for the audit phase: a
 // present-but-empty input file succeeds (exit 0), creates a zero-byte -o file,
 // and reports merged_count 0.

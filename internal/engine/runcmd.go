@@ -17,7 +17,7 @@ const runBufferSize = 64 * 1024
 // RunResult is the outcome of RunCommand.
 type RunResult struct {
 	Passed     bool
-	ExitCode   *int     // process exit code; nil when the run timed out
+	ExitCode   *int // process exit code; nil when the run timed out
 	TimedOut   bool
 	Message    string   // "timed out after <N>s" on timeout, start error otherwise
 	OutputTail []string // last tailLines lines of combined stdout+stderr

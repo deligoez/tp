@@ -23,8 +23,6 @@ const (
 
 const claudeMDExcerptLineCap = 50
 
-
-
 // routeChecklist routes items disjointly: spec-derived and finding items go
 // to spec-coverage; security and maintainability carry synthetic file_check
 // items, one per affected file. Spec items follow the pinned order: table_row
