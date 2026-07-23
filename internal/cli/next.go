@@ -209,7 +209,7 @@ func outputNextTask(tf *model.TaskFile, task *model.Task, specPath string) error
 	}
 
 	if !flagCompact {
-		result["spec_excerpt"] = engine.ExtractSpecExcerpt(specPath, task.SourceLines)
+		result["spec_excerpt"] = engine.ExtractSpecExcerptForTask(specPath, task.SourceLines, task.SourceSections)
 	}
 
 	return output.JSON(result)
