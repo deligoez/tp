@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.29.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-07-23T17:26:23.086547Z",
+  "updated_at": "2026-07-23T17:44:42.506627Z",
   "workflow": {},
   "coverage": {
     "total_sections": 20,
@@ -246,7 +246,7 @@
     {
       "id": "loop-budget-inflight",
       "title": "Surface in-flight round state",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 12,
@@ -255,11 +255,22 @@
         "## 10. Loop budget and in-flight rounds"
       ],
       "source_lines": "113-119",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-23T17:44:42.506588Z",
+      "closed_at": "2026-07-23T17:44:42.506627Z",
+      "closed_reason": "- --status emits max_rounds/rounds_remaining/in_flight_round (null when uncapped, per §10.1/§10.2); resume next_action = record-round N for an interrupted round; snapshot-round-N.md write is atomic (tmp+rename) at both review and audit round start\n- regression prompt names snapshot-round-\u003cN-1\u003e.md as its baseline path (TestRegressionPrompt_NamesBaselinePath); round 1 emits no regression prompt — gated at round \u003e= 2 where snapshot-round-0.md cannot exist (TestRegressionPrompt_Round1NotEmitted)\n- max_rounds, rounds_remaining, and in_flight_round survive --compact per §8.4 (TestStatus_BudgetFieldsSurviveCompact passes against a capped review project)",
+      "gate_passed_at": "2026-07-23T17:44:42.506627Z",
+      "commit_sha": "967484b",
+      "commit_shas": [
+        "967484b",
+        "4af1865",
+        "25a4ec7",
+        "c186576",
+        "3de6426",
+        "5d002c2",
+        "952c453",
+        "ba3d6e1",
+        "32781a0"
+      ]
     },
     {
       "id": "audit-file-selection",
