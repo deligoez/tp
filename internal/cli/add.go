@@ -118,6 +118,9 @@ func readBulkTasks(path string) []model.Task {
 		}
 		tasks = append(tasks, task)
 	}
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: stopped reading %s early (%v); tasks after the over-long line were dropped (line cap is 64KB)\n", path, err)
+	}
 	return tasks
 }
 
