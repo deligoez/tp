@@ -69,9 +69,21 @@ func TestCheckEmptySections(t *testing.T) {
 			wantErr:    false,
 		},
 		{
-			name:       "heading immediately followed by another heading",
+			name:       "container heading with deeper child not flagged",
 			markdown:   "# H1\n## H2\nContent\n",
 			totalLines: 3,
+			wantErr:    false,
+		},
+		{
+			name:       "empty leaf heading followed by sibling",
+			markdown:   "# H1\n## H2\n## H3\nContent\n",
+			totalLines: 4,
+			wantErr:    true,
+		},
+		{
+			name:       "empty leaf as last heading",
+			markdown:   "# H1\n## H2\n",
+			totalLines: 2,
 			wantErr:    true,
 		},
 	}
