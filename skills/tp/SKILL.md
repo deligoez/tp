@@ -140,6 +140,8 @@ blockers empty  → run next_action.command in a FRESH unit (sub-agent / session
 repeat until phase == release
 ```
 
+**Realizing the reset in Claude Code.** The "FRESH unit" above is a Claude Code **subagent** (Agent/Task tool): it starts with a clean context, does exactly one unit, and its work reaches disk (commit, `tp done`, `.tp-review`); the orchestrator re-orients via `tp resume` between units. When you spawn a unit, **inject what it needs** (it does not inherit the orchestrator's session history): (1) a **durable-state pointer** — tell it to run `tp next`/`tp resume` for its exact unit; (2) the **close recipe** for the effective `commit_strategy`; (3) the project's **live gotchas**. Subagents don't nest, so the orchestrator does each review/audit round's fan-out itself. For a *full* reset of the driver too, use the `/clear` + `tp resume` loop or drive tp with headless `claude -p` per unit.
+
 **`commit_strategy`** (task override > `.tp/config.json` > built-in default `auto`):
 
 - `builtin` — tp commits (`tp commit`, `tp done --auto-commit`, `tp done --commit`).
