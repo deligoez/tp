@@ -35,6 +35,7 @@ func computeCommonPolicy(overrides []model.WorkflowOverride) model.WorkflowOverr
 		return &val
 	}
 	common.GateTimeoutSeconds = commonInt(func(o model.WorkflowOverride) *int { return o.GateTimeoutSeconds })
+	common.LockTimeoutSeconds = commonInt(func(o model.WorkflowOverride) *int { return o.LockTimeoutSeconds })
 	common.ReviewCleanRounds = commonInt(func(o model.WorkflowOverride) *int { return o.ReviewCleanRounds })
 	common.AuditCleanRounds = commonInt(func(o model.WorkflowOverride) *int { return o.AuditCleanRounds })
 	common.ReviewMaxRounds = commonInt(func(o model.WorkflowOverride) *int { return o.ReviewMaxRounds })
@@ -77,6 +78,9 @@ func hoistedFields(common model.WorkflowOverride) []string {
 	if common.GateTimeoutSeconds != nil {
 		fields = append(fields, "gate_timeout_seconds")
 	}
+	if common.LockTimeoutSeconds != nil {
+		fields = append(fields, "lock_timeout_seconds")
+	}
 	if common.ReviewCleanRounds != nil {
 		fields = append(fields, "review_clean_rounds")
 	}
@@ -103,6 +107,9 @@ func mergeCommon(dst *model.WorkflowOverride, common model.WorkflowOverride) {
 	}
 	if common.GateTimeoutSeconds != nil {
 		dst.GateTimeoutSeconds = common.GateTimeoutSeconds
+	}
+	if common.LockTimeoutSeconds != nil {
+		dst.LockTimeoutSeconds = common.LockTimeoutSeconds
 	}
 	if common.ReviewCleanRounds != nil {
 		dst.ReviewCleanRounds = common.ReviewCleanRounds

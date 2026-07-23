@@ -175,6 +175,7 @@ func ResolveWorkflowLayers(taskOverride, project model.WorkflowOverride) model.W
 		QualityGate:        pickString([]*string{taskOverride.QualityGate, project.QualityGate}, def.QualityGate),
 		CommitStrategy:     pickString([]*string{taskOverride.CommitStrategy, project.CommitStrategy}, def.CommitStrategy),
 		GateTimeoutSeconds: pickInt([]*int{taskOverride.GateTimeoutSeconds, project.GateTimeoutSeconds}, def.GateTimeoutSeconds),
+		LockTimeoutSeconds: pickInt([]*int{taskOverride.LockTimeoutSeconds, project.LockTimeoutSeconds}, def.LockTimeoutSeconds),
 		ReviewCleanRounds:  pickInt([]*int{taskOverride.ReviewCleanRounds, project.ReviewCleanRounds}, def.ReviewCleanRounds),
 		AuditCleanRounds:   pickInt([]*int{taskOverride.AuditCleanRounds, project.AuditCleanRounds}, def.AuditCleanRounds),
 		ReviewMaxRounds:    pickInt([]*int{taskOverride.ReviewMaxRounds, project.ReviewMaxRounds}, def.ReviewMaxRounds),

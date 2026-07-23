@@ -13,6 +13,7 @@ type Workflow struct {
 	ReviewCleanRounds  int     `json:"review_clean_rounds"`
 	AuditCleanRounds   int     `json:"audit_clean_rounds"`
 	GateTimeoutSeconds int     `json:"gate_timeout_seconds"`
+	LockTimeoutSeconds int     `json:"lock_timeout_seconds"`
 	Checks             []Check `json:"checks"`
 	ReviewMaxRounds    int     `json:"review_max_rounds"`
 	AuditMaxRounds     int     `json:"audit_max_rounds"`
@@ -25,6 +26,15 @@ func (w *Workflow) EffectiveGateTimeoutSeconds() int {
 		return 600
 	}
 	return w.GateTimeoutSeconds
+}
+
+// EffectiveLockTimeoutSeconds returns lock_timeout_seconds, falling back to 5
+// when the stored value is outside the valid 1-60 range (§12.1).
+func (w *Workflow) EffectiveLockTimeoutSeconds() int {
+	if w.LockTimeoutSeconds < 1 || w.LockTimeoutSeconds > 60 {
+		return 5
+	}
+	return w.LockTimeoutSeconds
 }
 
 // EffectiveReviewMaxRounds returns review_max_rounds, falling back to 0

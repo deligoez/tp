@@ -35,6 +35,7 @@ var (
 		"review_clean_rounds":  true,
 		"audit_clean_rounds":   true,
 		"gate_timeout_seconds": true,
+		"lock_timeout_seconds": true,
 		"review_max_rounds":    true,
 		"audit_max_rounds":     true,
 		"checks":               true,
@@ -384,8 +385,10 @@ func runSetWorkflow(args []string) error {
 				tf.Workflow.ReviewCleanRounds = &v
 			case "audit_clean_rounds":
 				tf.Workflow.AuditCleanRounds = &v
-			case "gate_timeout_seconds":
+				case "gate_timeout_seconds":
 				tf.Workflow.GateTimeoutSeconds = &v
+			case "lock_timeout_seconds":
+				tf.Workflow.LockTimeoutSeconds = &v
 			case "review_max_rounds":
 				tf.Workflow.ReviewMaxRounds = &v
 			case "audit_max_rounds":
@@ -413,6 +416,8 @@ func workflowFieldRange(field string) (lo, hi int) {
 	switch field {
 	case "gate_timeout_seconds":
 		return 30, 3600
+	case "lock_timeout_seconds":
+		return 1, 60
 	case "review_max_rounds", "audit_max_rounds":
 		return 0, 50
 	default:

@@ -119,6 +119,8 @@ func runSetProjectWorkflow(args []string) error {
 				pc.Workflow.AuditCleanRounds = &v
 			case "gate_timeout_seconds":
 				pc.Workflow.GateTimeoutSeconds = &v
+			case "lock_timeout_seconds":
+				pc.Workflow.LockTimeoutSeconds = &v
 			case "review_max_rounds":
 				pc.Workflow.ReviewMaxRounds = &v
 			case "audit_max_rounds":

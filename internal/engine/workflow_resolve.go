@@ -14,6 +14,7 @@ func DefaultWorkflow() model.Workflow {
 		ReviewCleanRounds:  2,
 		AuditCleanRounds:   2,
 		GateTimeoutSeconds: 600,
+		LockTimeoutSeconds: 5,
 		Checks:             []model.Check{},
 	}
 }

@@ -11,9 +11,10 @@ import (
 )
 
 // clampWorkflowRanges unsets any out-of-range override field so it falls back
-// to the built-in default at resolution (gate_timeout_seconds→600, caps→0,
-// clean_rounds→2), returning a warning for each. This matches the read-time
-// fallback v0.23.0 already applies to a hand-edited task file.
+// to the built-in default at resolution (gate_timeout_seconds→600,
+// lock_timeout_seconds→5, caps→0, clean_rounds→2), returning a warning for
+// each. This matches the read-time fallback v0.23.0 already applies to a
+// hand-edited task file.
 func clampWorkflowRanges(wo *model.WorkflowOverride) []string {
 	var warnings []string
 	check := func(name string, p **int, lo, hi int) {
@@ -23,6 +24,7 @@ func clampWorkflowRanges(wo *model.WorkflowOverride) []string {
 		}
 	}
 	check("gate_timeout_seconds", &wo.GateTimeoutSeconds, 30, 3600)
+	check("lock_timeout_seconds", &wo.LockTimeoutSeconds, 1, 60)
 	check("review_clean_rounds", &wo.ReviewCleanRounds, 1, 10)
 	check("audit_clean_rounds", &wo.AuditCleanRounds, 1, 10)
 	check("review_max_rounds", &wo.ReviewMaxRounds, 0, 50)
@@ -62,6 +64,7 @@ var knownDefaultFlags = map[string]bool{"compact": true, "quiet": true, "no_colo
 // knownWorkflowKeys is the set of recognized keys inside a config workflow block.
 var knownWorkflowKeys = map[string]bool{
 	"quality_gate": true, "commit_strategy": true, "gate_timeout_seconds": true,
+	"lock_timeout_seconds": true,
 	"review_clean_rounds": true, "audit_clean_rounds": true,
 	"review_max_rounds": true, "audit_max_rounds": true, "checks": true,
 }
@@ -105,6 +108,8 @@ func parseWorkflowOverride(raw json.RawMessage) (wo model.WorkflowOverride, warn
 			}
 		case "gate_timeout_seconds":
 			wo.GateTimeoutSeconds = intField(k, v)
+		case "lock_timeout_seconds":
+			wo.LockTimeoutSeconds = intField(k, v)
 		case "review_clean_rounds":
 			wo.ReviewCleanRounds = intField(k, v)
 		case "audit_clean_rounds":

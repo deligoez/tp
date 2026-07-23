@@ -25,6 +25,7 @@ func workflowDeviations(file string, override, project model.WorkflowOverride) [
 		}
 	}
 	cmpInt("gate_timeout_seconds", override.GateTimeoutSeconds, project.GateTimeoutSeconds)
+	cmpInt("lock_timeout_seconds", override.LockTimeoutSeconds, project.LockTimeoutSeconds)
 	cmpInt("review_clean_rounds", override.ReviewCleanRounds, project.ReviewCleanRounds)
 	cmpInt("audit_clean_rounds", override.AuditCleanRounds, project.AuditCleanRounds)
 	cmpInt("review_max_rounds", override.ReviewMaxRounds, project.ReviewMaxRounds)

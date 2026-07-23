@@ -52,6 +52,7 @@ type WorkflowOverride struct {
 	QualityGate        *string  `json:"quality_gate,omitempty"`
 	CommitStrategy     *string  `json:"commit_strategy,omitempty"`
 	GateTimeoutSeconds *int     `json:"gate_timeout_seconds,omitempty"`
+	LockTimeoutSeconds *int     `json:"lock_timeout_seconds,omitempty"`
 	ReviewCleanRounds  *int     `json:"review_clean_rounds,omitempty"`
 	AuditCleanRounds   *int     `json:"audit_clean_rounds,omitempty"`
 	ReviewMaxRounds    *int     `json:"review_max_rounds,omitempty"`
@@ -64,6 +65,7 @@ type WorkflowOverride struct {
 func (o WorkflowOverride) IsEmpty() bool {
 	return o.QualityGate == nil &&
 		o.GateTimeoutSeconds == nil &&
+		o.LockTimeoutSeconds == nil &&
 		o.ReviewCleanRounds == nil &&
 		o.AuditCleanRounds == nil &&
 		o.ReviewMaxRounds == nil &&

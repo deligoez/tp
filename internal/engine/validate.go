@@ -383,6 +383,7 @@ func validateConvergence(tf *model.TaskFile) []Finding {
 	warnRange("review_clean_rounds", tf.Workflow.ReviewCleanRounds, 1, 10)
 	warnRange("audit_clean_rounds", tf.Workflow.AuditCleanRounds, 1, 10)
 	warnRange("gate_timeout_seconds", tf.Workflow.GateTimeoutSeconds, 30, 3600)
+	warnRange("lock_timeout_seconds", tf.Workflow.LockTimeoutSeconds, 1, 60)
 	warnRange("review_max_rounds", tf.Workflow.ReviewMaxRounds, 0, 50)
 	warnRange("audit_max_rounds", tf.Workflow.AuditMaxRounds, 0, 50)
 	if tf.Workflow.Checks != nil {
