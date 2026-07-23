@@ -220,9 +220,41 @@ func TestReviewMergeAllInvalid(t *testing.T) {
 		`{"no_severity": true, "finding": "has finding but no severity"}`,
 	})
 
-	_, stderr, code := runTPMerge(t, dir, "review", "--merge", f1)
-	assert.Equal(t, 1, code)
-	assert.Contains(t, stderr, "no valid findings in input files")
+	stdout, stderr, code := runTPMerge(t, dir, "review", "--merge", "--json", f1)
+	require.Equal(t, 0, code, "all-invalid input is a clean result (§3.3), not an error: %s", stderr)
+
+	// No findings survive: the JSON summary reports merged_count 0.
+	var summary map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &summary))
+	assert.Equal(t, float64(0), summary["merged_count"])
+
+	// Both lines were skipped with a stderr warning naming malformed vs incomplete.
+	assert.Contains(t, stderr, "warning: skipping malformed")
+	assert.Contains(t, stderr, "warning: skipping incomplete")
+}
+
+// TestReviewMergeAllEmptyFilesCreateEmptyOutput covers §3.3 row 2: files present
+// but holding zero findings succeed (exit 0), create a zero-byte -o file, and
+// report merged_count 0 with no warnings.
+func TestReviewMergeAllEmptyFilesCreateEmptyOutput(t *testing.T) {
+	dir := t.TempDir()
+
+	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{})
+	f2 := writeFindingsFile(t, dir, "f2.ndjson", []string{})
+	out := filepath.Join(dir, "merged.ndjson")
+
+	stdout, stderr, code := runTPMerge(t, dir, "review", "--merge", "-o", out, f1, f2)
+	require.Equal(t, 0, code, "all-empty input is a clean result (§3.3): %s", stderr)
+
+	info, err := os.Stat(out)
+	require.NoError(t, err, "-o file must be created even when there are no findings")
+	assert.Equal(t, int64(0), info.Size(), "-o file must be zero bytes")
+
+	var summary map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &summary))
+	assert.Equal(t, float64(0), summary["merged_count"])
+
+	assert.NotContains(t, stderr, "warning:", "no malformed/incomplete lines -> no warnings")
 }
 
 // parseNDJSON splits NDJSON output into parsed maps.
