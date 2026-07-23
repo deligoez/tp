@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.29.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-07-23T17:44:42.506627Z",
+  "updated_at": "2026-07-23T17:55:56.110253Z",
   "workflow": {},
   "coverage": {
     "total_sections": 20,
@@ -87,7 +87,7 @@
     {
       "id": "mode-scoped-positionals",
       "title": "Scope mode positionals",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "merge-clean-round"
@@ -98,11 +98,16 @@
         "## 4. Mode-scoped positionals"
       ],
       "source_lines": "43-49",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-23T17:55:56.110204Z",
+      "closed_at": "2026-07-23T17:55:56.110253Z",
+      "closed_reason": "- tp review/audit --merge reject a spec-looking (.md) positional among inputs with exit 2 naming the expected form (review_merge.go, audit_merge.go; TestReviewMerge_RejectsSpecPositionalExit2, TestAuditMerge_RejectsSpecPositionalExit2)\n- --resolve/--resolve-all take the findings NDJSON as the positional; a .md/spec-looking positional where the findings file is expected exits 2 naming the expected form (review_resolve.go; TestReviewResolve_RejectsSpecPositionalExit2, TestReviewResolveAll_RejectsSpecPositionalExit2)\n- --resolve indices are 0-based and stated in the usage line, --help, and the merged-findings summary; a non-numeric index exits 2 naming the expected form rather than 'invalid status' (review_resolve.go, review.go, review_merge.go; TestReviewResolve_NonNumericIndexNamesExpectedForm, TestReviewResolve_ResolveUsageStatesZeroBased)",
+      "gate_passed_at": "2026-07-23T17:55:56.110253Z",
+      "commit_sha": "6a34ea4",
+      "commit_shas": [
+        "6a34ea4",
+        "9a67ea7",
+        "40fa5da"
+      ]
     },
     {
       "id": "entry-validation",
