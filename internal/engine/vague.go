@@ -32,6 +32,7 @@ type Finding struct {
 	Rule     string `json:"rule"`
 	Message  string `json:"message"`
 	Context  string `json:"context,omitempty"`
+	Hint     string `json:"hint,omitempty"`
 }
 
 // CheckVagueLanguage scans lines for vague words and returns findings.
