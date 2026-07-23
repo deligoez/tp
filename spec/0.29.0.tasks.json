@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "spec": "spec/0.29.0.md",
+  "created_at": "2026-07-23T10:59:07.312513Z",
+  "updated_at": "2026-07-23T10:59:07.312513Z",
+  "workflow": {},
+  "coverage": {
+    "total_sections": 0,
+    "mapped_sections": 0,
+    "context_only": [],
+    "unmapped": []
+  },
+  "tasks": []
+}
