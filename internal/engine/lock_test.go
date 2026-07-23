@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -42,16 +43,15 @@ func TestWithFileLock_FnErrorPropagated(t *testing.T) {
 	assert.ErrorIs(t, err, assert.AnError)
 }
 
-func TestWithFileLock_ConcurrentLockFails(t *testing.T) {
+func TestWithFileLock_ConcurrentRetriesThenSucceeds(t *testing.T) {
 	dir := t.TempDir()
 	lockTarget := filepath.Join(dir, "test.tasks.json")
-	err := os.WriteFile(lockTarget, []byte("{}"), 0o600)
-	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(lockTarget, []byte("{}"), 0o600))
 
 	acquired := make(chan struct{})
 	release := make(chan struct{})
 
-	// First goroutine: hold the lock
+	// First goroutine: hold the lock until signalled.
 	go func() {
 		_ = WithFileLock(lockTarget, func() error {
 			close(acquired)
@@ -60,17 +60,56 @@ func TestWithFileLock_ConcurrentLockFails(t *testing.T) {
 		})
 	}()
 
-	<-acquired // wait until lock is held
+	<-acquired // lock is now held
 
-	// Second attempt while lock is held — should fail immediately (TryLock)
-	secondErr := WithFileLock(lockTarget, func() error {
-		return nil
-	})
+	// A second writer retries with backoff; it must succeed once the holder
+	// releases within the timeout (§12.1), not fail immediately.
+	done := make(chan error, 1)
+	go func() {
+		done <- WithFileLockTimeout(lockTarget, 2, func() error { return nil })
+	}()
 
-	close(release) // release first lock
+	// Let the retrier spin a couple of times, then release the holder.
+	time.Sleep(100 * time.Millisecond)
+	close(release)
 
-	require.Error(t, secondErr)
-	assert.Contains(t, secondErr.Error(), "locked by another process")
+	select {
+	case err := <-done:
+		require.NoError(t, err, "second writer acquires after the holder releases within the timeout")
+	case <-time.After(5 * time.Second):
+		t.Fatal("second writer did not complete within 5s")
+	}
+}
+
+func TestWithFileLockTimeout_HeldPastTimeout(t *testing.T) {
+	dir := t.TempDir()
+	lockTarget := filepath.Join(dir, "test.tasks.json")
+	require.NoError(t, os.WriteFile(lockTarget, []byte("{}"), 0o600))
+
+	acquired := make(chan struct{})
+	release := make(chan struct{})
+	defer close(release)
+
+	// A holder that never releases within this test.
+	go func() {
+		_ = WithFileLock(lockTarget, func() error {
+			close(acquired)
+			<-release
+			return nil
+		})
+	}()
+
+	<-acquired
+
+	start := time.Now()
+	err := WithFileLockTimeout(lockTarget, 1, func() error { return nil })
+	elapsed := time.Since(start)
+
+	var timeoutErr *LockTimeoutError
+	require.ErrorAs(t, err, &timeoutErr, "a held lock past the timeout returns *LockTimeoutError")
+	assert.Contains(t, timeoutErr.LockPath, filepath.Join(".tp", "locks"), "the error names the centralized lock path")
+	assert.Greater(t, timeoutErr.Elapsed, time.Duration(0), "the error reports the elapsed wait")
+	assert.GreaterOrEqual(t, elapsed, time.Second, "acquisition retried for at least the timeout")
 }
 
 func TestWithFileLock_LockLivesUnderTPLocks(t *testing.T) {

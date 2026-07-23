@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/deligoez/tp/internal/engine"
 	"github.com/deligoez/tp/internal/output"
 )
 
@@ -163,9 +164,15 @@ func Execute() {
 			output.Error(ExitUsage, msg, hint)
 			os.Exit(ExitUsage)
 		}
-		// Rare: a RunE returned an error instead of os.Exit-ing itself (e.g. lock
-		// contention). Emit it structured with a default hint; the exit code stays
-		// 1 (validation) until the owning task refines it (e.g. §12 lock → 4).
+		// §12.2: write-lock contention that retried past lock_timeout_seconds is a
+		// state error (exit 4) with a hint naming the lock path and elapsed wait.
+		var lockErr *engine.LockTimeoutError
+		if errors.As(err, &lockErr) {
+			output.Error(ExitState, lockErr.Error(), lockErr.Hint())
+			os.Exit(ExitState)
+		}
+		// Rare: any other RunE-returned error emits as the standard tp error
+		// object with exit 1 (validation).
 		output.Error(ExitValidation, err.Error())
 		os.Exit(ExitValidation)
 	}
