@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.29.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-07-23T15:31:27.908558Z",
+  "updated_at": "2026-07-23T15:43:31.240544Z",
   "workflow": {},
   "coverage": {
     "total_sections": 20,
@@ -21,6 +21,7 @@
       "id": "lock-relocate",
       "title": "Move lock into .tp/locks",
       "status": "done",
+      "tags": [],
       "depends_on": [],
       "estimate_minutes": 8,
       "acceptance": "Task-file lock lives at .tp/locks/\u003cbase\u003e.lock covered by .tp/.gitignore, with a stale sibling \u003cbase\u003e.tasks.json.lock removed on first write. tp init creates .tp/.gitignore, and tp commit or tp done --auto-commit refuse any --files path ending .tasks.json.lock.",
@@ -41,6 +42,7 @@
       "id": "lock-contention",
       "title": "Retry write lock with backoff",
       "status": "open",
+      "tags": [],
       "depends_on": [
         "lock-relocate"
       ],
@@ -60,6 +62,7 @@
       "id": "merge-clean-round",
       "title": "Accept empty merge inputs",
       "status": "done",
+      "tags": [],
       "depends_on": [],
       "estimate_minutes": 10,
       "acceptance": "--merge with all-empty inputs exits 0 and creates an empty -o file (merged_count 0), while a missing/unreadable input exits 3 and no input files exits 2. Malformed (invalid JSON) and incomplete (missing required fields) lines are skipped with a stderr warning without changing the exit code. Applies to both tp review --merge and tp audit --merge.",
@@ -81,6 +84,7 @@
       "id": "mode-scoped-positionals",
       "title": "Scope mode positionals",
       "status": "open",
+      "tags": [],
       "depends_on": [
         "merge-clean-round"
       ],
@@ -99,7 +103,8 @@
     {
       "id": "entry-validation",
       "title": "Validate tp add at entry",
-      "status": "open",
+      "status": "done",
+      "tags": [],
       "depends_on": [],
       "estimate_minutes": 12,
       "acceptance": "tp add rejects each section 6.1 rule (missing/blank/whitespace id, duplicate id, missing/blank title, missing/blank acceptance, no source anchor, depends_on unknown id, invalid JSON) with the stated exit (1, or 2 for invalid JSON) and a hint. Every task tp writes carries [] not null for depends_on, source_sections, and tags; tp lint structured_elements.tables/numbered_lists and tp stats tags are [] when empty.",
@@ -107,16 +112,26 @@
         "## 6. Entry validation"
       ],
       "source_lines": "69-87",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-23T15:43:31.240504Z",
+      "closed_at": "2026-07-23T15:43:31.240544Z",
+      "closed_reason": "- tp add rejects all seven §6.1 entry rules at entry (exit 1; exit 2 for invalid JSON with the decoder detail in hint, not error) via shared engine.ValidateTaskEntry called by both tp add and tp import; --bulk/--stdin validates after staging the whole batch so a task may depends_on a later task in the same batch\n- every task tp writes carries [] not null for depends_on, source_sections, and tags — WriteTaskFile normalizes nil slices and the Task tags omitempty was dropped\n- tp lint structured_elements.tables/numbered_lists and tp stats tags serialize as [] when empty (initialized empty in CheckStructuredElements and runStats)",
+      "gate_passed_at": "2026-07-23T15:43:31.240544Z",
+      "commit_sha": "023aa3f",
+      "commit_shas": [
+        "023aa3f",
+        "950f363",
+        "208b325",
+        "a4c1807",
+        "a87fd96",
+        "610d639",
+        "7c439cc"
+      ]
     },
     {
       "id": "coverage-every-write",
       "title": "Compute coverage on every write",
       "status": "open",
+      "tags": [],
       "depends_on": [
         "entry-validation"
       ],
@@ -136,6 +151,7 @@
       "id": "excerpt-sections-parity",
       "title": "Emit spec_excerpt from source_sections",
       "status": "open",
+      "tags": [],
       "depends_on": [],
       "estimate_minutes": 10,
       "acceptance": "A task with source_sections and no source_lines carries the section text (heading + body to next same/shallower heading, in listed order, blank-line-joined) in spec_excerpt for tp plan, tp show, tp next, and tp next --peek, capped at 2000 chars with the existing marker. --compact omits spec_excerpt and, per 8.4, keeps decision-critical new fields (bookkeeping, suggested_files, max_rounds/rounds_remaining/in_flight_round) while omitting explanatory ones (skipped_roles, attribution_excludes, audit overlap_report, report note).",
@@ -153,6 +169,7 @@
       "id": "close-checkpoint-builtin",
       "title": "Fold closure into the commit",
       "status": "open",
+      "tags": [],
       "depends_on": [],
       "estimate_minutes": 15,
       "acceptance": "Under commit_strategy builtin, tp commit and tp done --auto-commit fold the closure into the implementation commit so the committed task file shows status:done and git status is clean for tp-owned paths. commit_sha or commit_shas[0] records the pre-amend implementation sha C1 (never the post-amend object sha), and suggested_files reads C1's diff. The amend runs only when HEAD is still C1 and the working-tree diff lists only tp-written paths, else a follow-up commit chore(tp): record \u003cid\u003e closure leaves C1 as commit_sha.",
@@ -170,6 +187,7 @@
       "id": "resume-bookkeeping",
       "title": "Report bookkeeping in resume",
       "status": "open",
+      "tags": [],
       "depends_on": [
         "close-checkpoint-builtin"
       ],
@@ -189,6 +207,7 @@
       "id": "role-attribution-transparency",
       "title": "State skipped roles",
       "status": "open",
+      "tags": [],
       "depends_on": [],
       "estimate_minutes": 12,
       "acceptance": "tp review and tp audit prompt emission lists every non-emitted corpus role in skipped_roles [{role, reason}] with reason one of no-checklist-items, no-spec-change, domain-mismatch, or no-baseline ([] when none skipped). Merge and --status output add attribution_excludes: [\"regression\"] only when that exclusion causes merged_count to exceed the overlap-report finding count, and tp audit --merge or --status emit overlap_report over non-PASS rows clustered by (item_id, category). skipped_roles, attribution_excludes, and audit overlap_report are omitted under --compact per 8.4.",
@@ -206,6 +225,7 @@
       "id": "loop-budget-inflight",
       "title": "Surface in-flight round state",
       "status": "open",
+      "tags": [],
       "depends_on": [],
       "estimate_minutes": 12,
       "acceptance": "--status reports max_rounds (null when uncapped) and rounds_remaining, writes snapshot-round-N.md atomically at round start and review-round-N.ndjson at record, and reports in_flight_round N (null when none) with tp resume next_action = record-round N. The regression prompt names its baseline snapshot path (snapshot-round-\u003cN-1\u003e.md), and round 1 adds regression to skipped_roles with reason no-baseline. max_rounds, rounds_remaining, and in_flight_round survive --compact per 8.4.",
@@ -223,6 +243,7 @@
       "id": "audit-file-selection",
       "title": "Suggest audit files from commits",
       "status": "open",
+      "tags": [],
       "depends_on": [],
       "estimate_minutes": 10,
       "acceptance": "When tp audit finds no audit-able file it exits 4 with suggested_files: the union of paths touched by every SHA in commit_shas of done tasks (type-filtered), [] when none, and a hint naming --affected-files/--affected-from-tasks. tp audit --affected-from-tasks audits that derived set directly. suggested_files survives --compact per 8.4.",
@@ -240,6 +261,7 @@
       "id": "exit-code-conformance",
       "title": "Fix non-conformant exit codes",
       "status": "open",
+      "tags": [],
       "depends_on": [],
       "estimate_minutes": 10,
       "acceptance": "Each section 13.1 case returns exit 2: invalid-JSON add with decoder detail in hint, cobra flag-parse failure as a tp error object, and a dash-leading done reason with a hint naming the -- separator. Every non-zero error object carries a hint naming the next command to run rather than just the rule broken.",
@@ -257,6 +279,7 @@
       "id": "report-accuracy",
       "title": "Round report durations correctly",
       "status": "open",
+      "tags": [],
       "depends_on": [],
       "estimate_minutes": 8,
       "acceptance": "tp report rounds actual_minutes to one decimal, and when it rounds to 0.0 the accuracy is null with note \"duration below resolution\". The summary excludes null-accuracy tasks from estimation_accuracy and reports how many were excluded, while the report note is omitted under --compact per 8.4.",
@@ -274,6 +297,7 @@
       "id": "lint-empty-section",
       "title": "Skip container headings in lint",
       "status": "done",
+      "tags": [],
       "depends_on": [],
       "estimate_minutes": 5,
       "acceptance": "empty-section does not fire on a container heading (whose next heading is deeper than itself) but still fires on an empty leaf heading.",
@@ -295,6 +319,7 @@
       "id": "commit-strategy-project",
       "title": "Set commit_strategy at project level",
       "status": "open",
+      "tags": [],
       "depends_on": [],
       "estimate_minutes": 8,
       "acceptance": "tp set --workflow --project commit_strategy=\u003cbuiltin|auto|hc\u003e writes workflow.commit_strategy in .tp/config.json participating in resolve-at-read order, and tp config --resolved annotates commit_strategy with its source layer. tp set --workflow commit_strategy=... (task level) still exits 2 with a hint naming the project-level setter.",
@@ -312,6 +337,7 @@
       "id": "documentation",
       "title": "Update docs for all changes",
       "status": "open",
+      "tags": [],
       "depends_on": [
         "lock-relocate",
         "lock-contention",
