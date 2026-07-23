@@ -48,6 +48,8 @@ func runShow(_ *cobra.Command, args []string) error {
 		return nil
 	}
 
+	specPath, _ := engine.ResolveSpecPath(taskFilePath, tf.Spec)
+
 	// Compute blocks (reverse deps)
 	blocks := make([]string, 0)
 	for i := range tf.Tasks {
@@ -77,6 +79,9 @@ func runShow(_ *cobra.Command, args []string) error {
 		Task:    *task,
 		Blocks:  blocks,
 		IsReady: isReady,
+	}
+	if !flagCompact {
+		result.SpecExcerpt = engine.ExtractSpecExcerptForTask(specPath, task.SourceLines, task.SourceSections)
 	}
 
 	return output.JSON(result)
