@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.29.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-07-23T15:15:02.689937Z",
+  "updated_at": "2026-07-23T15:31:27.908558Z",
   "workflow": {},
   "coverage": {
     "total_sections": 20,
@@ -174,7 +174,7 @@
         "close-checkpoint-builtin"
       ],
       "estimate_minutes": 12,
-      "acceptance": "Under commit_strategy hc, tp resume reports modified tp-owned files (the task file, .tp-review/, .tp/) in a bookkeeping array with {path, kind, ref} (closure/round/config), separate from changes and raising no unexplained-changes blocker; the array is [] when no tp-owned file is dirty. bookkeeping survives --compact per 8.4.",
+      "acceptance": "Under commit_strategy hc, tp resume reports modified tp-owned files (the task file, .tp-review/, .tp/) in a bookkeeping array with {path, kind, ref} (closure/round/config), separate from changes and raising no unexplained-changes blocker; the array is [] when no tp-owned file is dirty. tp resume emits an execution-model guidance note when phase is implement, telling the driver to run each unit in a fresh subagent or context to preserve context hygiene. Both bookkeeping and the guidance note survive --compact per 8.4.",
       "source_sections": [
         "## 5. The close checkpoint"
       ],
