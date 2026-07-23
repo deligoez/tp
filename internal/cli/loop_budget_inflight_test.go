@@ -84,7 +84,7 @@ func TestAuditStatus_SurfacesBudgetAndInFlight(t *testing.T) {
 	_, _, code := auditRecord(t, dir, `{"id":"x","status":"FAIL"}`+"\n")
 	require.Equal(t, 0, code)
 
-	// Audit prompt emission for round 2 writes snapshot-round-2.md (1 < cap 2).
+	// Audit prompt emission for round 2 writes snapshot-audit-round-2.md (1 < cap 2).
 	_, stderr, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "code.go")
 	require.Equal(t, 0, code, "audit round 2 emits: %s", stderr)
 
@@ -93,7 +93,7 @@ func TestAuditStatus_SurfacesBudgetAndInFlight(t *testing.T) {
 	out := parseStatusJSON(t, stdout)
 	assert.Equal(t, float64(2), out["max_rounds"])
 	assert.Equal(t, float64(1), out["rounds_remaining"], "one recorded audit round")
-	assert.Equal(t, float64(2), out["in_flight_round"], "snapshot-round-2.md exists without audit-round-2.ndjson")
+	assert.Equal(t, float64(2), out["in_flight_round"], "snapshot-audit-round-2.md exists without audit-round-2.ndjson")
 }
 
 // TestAuditStatus_BudgetNullWhenUncapped: §10.1 mirror for audit.
