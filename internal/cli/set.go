@@ -291,7 +291,11 @@ func runSetWorkflow(args []string) error {
 		field, valueStr := parts[0], parts[1]
 
 		if readOnlyWorkflowFields[field] {
-			output.Error(ExitUsage, fmt.Sprintf("%s is not settable via tp set --workflow; it is authored only by tp init", field))
+			msg := fmt.Sprintf("%s is not settable via tp set --workflow; it is authored only by tp init", field)
+			if field == "commit_strategy" {
+				msg = fmt.Sprintf("%s is not settable via tp set --workflow; it is authored only by tp init — set the project default with `tp set --workflow --project commit_strategy=<builtin|auto|hc>`", field)
+			}
+			output.Error(ExitUsage, msg)
 			os.Exit(ExitUsage)
 			return nil
 		}
