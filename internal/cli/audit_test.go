@@ -495,3 +495,50 @@ func TestAuditCompact(t *testing.T) {
 	prompts := result["prompts"].([]any)
 	assert.NotEmpty(t, prompts, "compact should still include prompts")
 }
+
+// An unreadable findings file (here: a directory, which os.ReadFile cannot
+// read as a regular file) is a real read error, not a missing file — it must
+// exit 3 (file) with a hint naming the findings path.
+func TestAuditFindingsUnreadableDirectory(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n## Table\n| Col |\n|-----|\n| a |\n"), 0o600))
+
+	aPath := filepath.Join(dir, "a.go")
+	require.NoError(t, os.WriteFile(aPath, []byte("package main\n"), 0o600))
+
+	findingsDir := filepath.Join(dir, "findings.ndjson")
+	require.NoError(t, os.MkdirAll(findingsDir, 0o755))
+
+	_, stderr, code := runTP(t, dir, "audit", specPath, "--affected-files", aPath, "--findings", findingsDir)
+	e := errJSON(t, stderr)
+	assert.Equal(t, float64(3), e["code"], "unreadable findings must exit 3 (file)")
+	assert.Contains(t, e["error"], "cannot read findings file")
+	assert.Contains(t, e["error"], findingsDir, "error must name the findings path")
+	assert.Equal(t, 3, code)
+}
+
+// An absent findings file is optional (os.IsNotExist) — audit proceeds with
+// no findings rather than failing.
+func TestAuditFindingsAbsentIsOptional(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n## Table\n| Col |\n|-----|\n| a |\n"), 0o600))
+
+	aPath := filepath.Join(dir, "a.go")
+	require.NoError(t, os.WriteFile(aPath, []byte("package main\n"), 0o600))
+
+	stdout, _, code := runTP(t, dir, "audit", specPath, "--affected-files", aPath, "--findings", filepath.Join(dir, "absent.ndjson"))
+	require.Equal(t, 0, code, "absent findings file is optional")
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+
+	findings := 0
+	for _, e := range result["checklist"].([]any) {
+		if e.(map[string]any)["type"].(string) == "finding" {
+			findings++
+		}
+	}
+	assert.Equal(t, 0, findings, "absent findings file contributes no finding rows")
+}
