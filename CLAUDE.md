@@ -269,16 +269,17 @@ Prefer running each **unit** in a **fresh subagent context** (Agent/Task tool), 
 - `--compact` omits: description, source_sections, source_lines, tags, closed_reason, spec_excerpt
 - All write operations use flock; reads are lock-free
 - Task status: open -> wip -> done (3 states only, blocked computed from deps)
-- Managed fields (tp set rejects): status, started_at, closed_at, closed_reason, gate_passed_at, commit_sha
-- Workflow fields (`tp set --workflow`): `review_clean_rounds`/`audit_clean_rounds` (default 2, 1-10), `gate_timeout_seconds` (default 600, 30-3600), `review_max_rounds`/`audit_max_rounds` (default 0=no cap, 0-50), `checks` (array of `{class, cmd}`, replace semantics). `quality_gate` stays read-only (author at `tp init --quality-gate`). These fields also have project-level **defaults** in `.tp/config.json` (v0.24.0); a task file's `workflow` block holds only explicit overrides and effective values resolve at read time (`tp config --resolved`). `tp set --workflow --project` edits the project defaults; `tp set --local defaults.<flag>=<bool>` sets CLI flag defaults (`compact`/`quiet`/`no_color`).
-- Managed fields also reject `gate_skipped_reason`. `tp reopen` clears `gate_passed_at`, `gate_skipped_reason`, and `commit_sha`.
+- Managed fields (tp set rejects): status, started_at, closed_at, closed_reason, gate_passed_at, commit_sha, commit_shas
+- Workflow fields (`tp set --workflow`): `review_clean_rounds`/`audit_clean_rounds` (default 2, 1-10), `gate_timeout_seconds` (default 600, 30-3600), `review_max_rounds`/`audit_max_rounds` (default 0=no cap, 0-50), `lock_timeout_seconds` (default 5, 1-60 — write-lock retry/backoff window, v0.29.0), `checks` (array of `{class, cmd}`, replace semantics). `quality_gate` and `commit_strategy` stay init-authored (read-only at the task level); set the project `commit_strategy` with `tp set --workflow --project commit_strategy=<builtin|auto|hc>`. These fields also have project-level **defaults** in `.tp/config.json` (v0.24.0); a task file's `workflow` block holds only explicit overrides and effective values resolve at read time (`tp config --resolved`). `tp set --workflow --project` edits the project defaults; `tp set --local defaults.<flag>=<bool>` sets CLI flag defaults (`compact`/`quiet`/`no_color`).
+- Managed fields also reject `gate_skipped_reason`. `tp reopen` clears `gate_passed_at`, `gate_skipped_reason`, `commit_sha`, and `commit_shas`.
 - Pretty-printed JSON with 2-space indentation
-- spec_excerpt capped at 2000 chars
+- spec_excerpt capped at 2000 chars; assembled from `source_lines` when present, else from `source_sections` text (v0.29.0)
 - source_lines supports multi-range: "4-10,15-20,25-30" and auto-normalizes single numbers ("72" → "72-72")
-- `tp lint` reports structured elements, duplicate consecutive lines, duplicate consecutive paragraphs, section numbering gaps, orphan list items, and broken `§X.Y step N` cross-references
-- `tp validate` checks line coverage (source_lines vs spec content lines)
+- `tp lint` reports structured elements, duplicate consecutive lines, duplicate consecutive paragraphs, section numbering gaps, orphan list items, broken `§X.Y step N` cross-references, and `empty-section` (leaf headings only — container headings whose next heading is deeper are skipped, v0.29.0)
+- `tp validate` checks line coverage (source_lines vs spec content lines). Coverage is recomputed on every task-set/anchor write (`add`/`import`/`remove`/`set source_*`), so `tp init` + `tp add` + `tp validate` is clean with no `import` round trip (v0.29.0)
 - `tp done --batch` auto-toposorts entries by in-batch dependencies
 - `tp import` accepts bare JSON arrays with `--spec` flag
+- Slice fields (`depends_on`, `source_sections`, `tags`) serialize as `[]` never `null`; `tp add` validates entry rules (id/title/acceptance/anchor/unknown-deps) at entry (v0.29.0)
 - Acceptance criteria delimiters: `. ` (period+space), `; ` (semicolon+space), `\n- ` (bullet list)
 
 ## Manual QA Testing
@@ -321,11 +322,13 @@ $TP add '{"id":"tests","title":"Write unit tests","estimate_minutes":8,"acceptan
 # Setup ready — 5 tasks, 2 ready (task-model, user-model), 3 blocked
 ```
 
+This spec passes both `tp lint` (the container headings `## 1`/`## 2`/`## 3` no longer fire `empty-section` since v0.29.0) and `tp validate` (exit 0) on a clean run.
+
 ### QA Test Checklist
 
 **All output is JSON when piped. Use `| python3 -c "import sys,json; ..."` to parse.**
 
-**Known gotcha:** `tp add` succeeds silently (no stdout output). Check exit code.
+**Note:** `tp add` prints `{"added":["<id>"]}` on success; check the exit code on failure.
 
 | Area | Commands to test | What to verify |
 |------|-----------------|----------------|
@@ -345,7 +348,7 @@ $TP add '{"id":"tests","title":"Write unit tests","estimate_minutes":8,"acceptan
 | **Error cases** | Done already-done, done with "deferred", done single word, claim blocked | Correct exit codes (1/2/4), actionable hints |
 | **Nil slices** | `show` on task with no dependents, `ready` when all done, `blocked` when none blocked | `[]` not `null` in JSON |
 | **Import** | Create full task file JSON, `import file.json` | Status shows imported tasks |
-| **Excerpt** | Add task with source_lines, check `plan` output | spec_excerpt contains correct lines |
+| **Excerpt** | Add task with source_sections (no source_lines), check `plan` output | spec_excerpt carries the section text (v0.29.0) |
 
 ### Common nil-slice pattern to watch for
 
