@@ -74,15 +74,30 @@ func runReviewVerify(specPath, findingsPath string, affectedFiles []string, diff
 			os.Exit(ExitFile)
 			return nil
 		}
-		baseData, _ := os.ReadFile(diffFrom)
-		currData, _ := os.ReadFile(specPath)
+		baseData, err := os.ReadFile(diffFrom)
+		if err != nil {
+			output.Error(ExitFile, fmt.Sprintf("cannot read diff baseline: %s", diffFrom), err.Error())
+			os.Exit(ExitFile)
+			return nil
+		}
+		currData, err := os.ReadFile(specPath)
+		if err != nil {
+			output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath), err.Error())
+			os.Exit(ExitFile)
+			return nil
+		}
 		dr := engine.DiffSections(engine.BlankFrontmatterLines(strings.Split(string(baseData), "\n")), engine.BlankFrontmatterLines(strings.Split(string(currData), "\n")))
 		specContent = buildDiffSpecContent(&dr)
 	case specInline:
 		specContent = readSpecContent(specPath)
 	default:
 		// Default: reference mode — omit inline content
-		specData, _ := os.ReadFile(specPath)
+		specData, err := os.ReadFile(specPath)
+		if err != nil {
+			output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath), err.Error())
+			os.Exit(ExitFile)
+			return nil
+		}
 		lineCount := strings.Count(string(specData), "\n") + 1
 		absPath, _ := filepath.Abs(specPath)
 		headings, _ := engine.ParseHeadings(specPath)
@@ -145,13 +160,17 @@ func readVerifyFindings(path string) []verifyFinding {
 			continue
 		}
 		var f verifyFinding
-		if json.Unmarshal([]byte(line), &f) != nil {
+		if err := json.Unmarshal([]byte(line), &f); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: skipping malformed line (invalid JSON) in %s\n", path)
 			continue
 		}
 		if f.Severity == "" {
 			f.Severity = "unknown"
 		}
 		findings = append(findings, f)
+	}
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: stopped reading %s early (%v); findings after the over-long line were dropped (line cap is 64KB)\n", path, err)
 	}
 	return findings
 }

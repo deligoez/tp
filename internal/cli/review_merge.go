@@ -145,6 +145,9 @@ func loadMergeFindings(args []string) []map[string]any {
 			}
 			allFindings = append(allFindings, finding)
 		}
+		if err := scanner.Err(); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: stopped reading %s early (%v); findings after the over-long line were dropped (line cap is 64KB)\n", path, err)
+		}
 		f.Close()
 	}
 

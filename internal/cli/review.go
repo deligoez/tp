@@ -889,6 +889,9 @@ func parseFindingsFile(path string) []reviewFinding {
 		}
 		findings = append(findings, finding)
 	}
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: stopped reading %s early (%v); findings after the over-long line were dropped (line cap is 64KB)\n", path, err)
+	}
 	return findings
 }
 
@@ -1479,6 +1482,9 @@ func readSpecContent(path string) string {
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		lines = append(lines, scanner.Text())
+	}
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: stopped reading %s early (%v); content after the over-long line was dropped (line cap is 64KB)\n", path, err)
 	}
 	lines = engine.BlankFrontmatterLines(lines)
 	content := strings.Join(lines, "\n")

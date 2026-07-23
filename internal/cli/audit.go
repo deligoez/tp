@@ -642,7 +642,8 @@ func readFindings(path string) []findingRow {
 			continue
 		}
 		var obj map[string]any
-		if json.Unmarshal([]byte(line), &obj) != nil {
+		if err := json.Unmarshal([]byte(line), &obj); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: skipping malformed line (invalid JSON) in %s\n", path)
 			continue
 		}
 		text := ""

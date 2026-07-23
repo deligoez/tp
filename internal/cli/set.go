@@ -232,6 +232,9 @@ func runSetBulk() error {
 			results = append(results, setResult{ID: sl.ID, Field: sl.Field, OK: true})
 			updated++
 		}
+		if err := scanner.Err(); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: stopped reading %s early (%v); set lines after the over-long line were dropped (line cap is 64KB)\n", setBulkFile, err)
+		}
 
 		// §7.1: recompute coverage if any anchor field changed in this batch.
 		if anchorChanged {
