@@ -79,6 +79,8 @@ INCREMENTAL (1 task at a time):
 	doneCmd.GroupID = "plan"
 	nextCmd := newNextCmd()
 	nextCmd.GroupID = "plan"
+	briefCmd := newBriefCmd()
+	briefCmd.GroupID = "plan"
 
 	commitCmd := newCommitCmd()
 	commitCmd.GroupID = "plan"
@@ -135,7 +137,7 @@ INCREMENTAL (1 task at a time):
 	useCmd := newUseCmd()
 	useCmd.GroupID = "data"
 
-	cmd.AddCommand(planCmd, doneCmd, nextCmd, commitCmd, resumeCmd)
+	cmd.AddCommand(planCmd, doneCmd, nextCmd, briefCmd, commitCmd, resumeCmd)
 	cmd.AddCommand(claimCmd, closeCmd, reopenCmd, removeCmd, setCmd, keepCmd)
 	cmd.AddCommand(listCmd, statusCmd, readyCmd, blockedCmd, showCmd, graphCmd, statsCmd, reportCmd, lintCmd, reviewCmd, auditCmd, validateCmd)
 	cmd.AddCommand(initCmd, addCmd, importCmd, useCmd)
