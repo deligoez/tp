@@ -106,3 +106,21 @@ func TestAuditRecordStatus_FlagRejections(t *testing.T) {
 		assert.Equal(t, 2, code, "args %v must be a usage error", args)
 	}
 }
+
+func TestAuditRecord_RoleMissingWarns(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
+
+	// Line 1 omits `role`; line 2 carries it. The round still records (exit 0)
+	// and the warning names the offending line and the results file.
+	ndjson := `{"id":"a","status":"FAIL","item_id":"i1"}` + "\n" +
+		`{"id":"b","status":"FAIL","item_id":"i2","role":"go-safety"}` + "\n"
+	out, stderr, code := auditRecord(t, dir, ndjson)
+	require.Equal(t, 0, code, "round still records despite the role-less row")
+	assert.Equal(t, float64(1), out["round"])
+	assert.Equal(t, float64(2), out["findings"])
+	assert.Contains(t, stderr, "missing the role field")
+	assert.Contains(t, stderr, "line 1")
+	assert.Contains(t, stderr, "results.ndjson", "warning must name the results file")
+	assert.NotContains(t, stderr, "line 2", "a row carrying role must not warn")
+}
