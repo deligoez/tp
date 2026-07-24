@@ -25,6 +25,8 @@ Detailed command reference, field formats, and operational details. For workflow
 | `tp done <id> --commit a --commit b` | Record multiple commits (hc flow); repeatable, duplicate exits 1; commit_sha mirrors commit_shas[0] |
 | `tp done --batch file.ndjson` | Batch close from NDJSON |
 | `tp resume [spec]` | Report phase + next action from durable state (reset-native, read-only; `--compact`) |
+| `tp brief [id]` | The unit brief (read-only): identity + scope fence + prior work + the task + the close recipe; claims nothing |
+| `tp brief <id> --prior <n>` | Override the prior-work recency cap (0-20; 0 = dependency entries only) |
 
 ### Incremental
 | Command | Purpose |
@@ -32,6 +34,7 @@ Detailed command reference, field formats, and operational details. For workflow
 | `tp next` | Resume WIP or claim next ready |
 | `tp next --minimal` | Minimal output: {id, acceptance} only |
 | `tp next --peek` | Preview without claiming |
+| `tp next --brief` | Claim the task and return its brief (identity, scope, prior work, close recipe); `--brief` + `--minimal` exit 2 |
 
 ### Task State
 | Command | Purpose |
@@ -144,7 +147,7 @@ One line per task:
 {"id":"task-id","reason":"- criterion 1 evidence\n- criterion 2 evidence","started_at":"2026-04-01T13:00:00Z","commit":"abc123"}
 ```
 
-- `id` and `reason`: required. For N ≥ 2 acceptance criteria, `reason` must contain ≥ N lines each starting with `- ` (the `\n` in the string is literal).
+- `id` and `reason`: required. For N ≥ 2 acceptance criteria, `reason` must contain ≥ N lines each starting with `- ` (the `\n` in the string is literal). An optional trailing line beginning `Out of scope:` is accepted, preserved verbatim in `closed_reason`, and surfaced by `tp report` — the home for a problem found outside the task's acceptance (the scope fence forbids fixing it; record it instead).
 - `skip_gate`: optional string; when non-empty, that entry closes with `gate_skipped_reason` recorded and does not require the gate to pass (needs user approval). Present-but-empty fails the entry.
 - `started_at`: ISO 8601 timestamp when you began the task (optional, enables `tp report`).
 - `commit`: git commit SHA (optional).
@@ -184,7 +187,7 @@ Resolves the task file by the discovery order (a spec argument wins and uses its
 | `kept` | byte-sorted `{path, reason}` — uncommitted paths matched by the keep-list |
 | `bookkeeping` | `[]` of `{path, kind, ref}` — tp-owned dirty files that need committing (§5.2). `kind` ∈ `closure` (the task file; `ref` = task id) / `round` (a `.tp-review/` round or snapshot file; `ref` = round number) / `config` (any other dirty `.tp/` state; `ref` = basename). Reported separately from `changes` and never an `unexplained-changes` blocker. Under `commit_strategy: hc` a close legitimately leaves these modified |
 | `guidance` | one-line implement-phase note (run each unit in a fresh subagent/context); absent outside `implement` |
-| `next_action` | `{command, summary, payload}`; `command` is null for `decompose`/`release`. Payload: review/audit `{round, unresolved_findings}` (round = recorded+1, 0 unresolved on round 1), implement `{task: {id}|null, wip}`, `{action:"record-round", round:N}` when a snapshot exists without its recorded round, decompose/release `{}` |
+| `next_action` | `{command, brief_command, summary, payload}`; `command` is null for `decompose`/`release`. `brief_command` names the command that produces the brief for this phase (`tp next --brief` in implement, `tp review <spec> --round N` in review, `tp audit <spec>` in audit) so a driver reaches a full brief without knowing the phase. Payload: review/audit `{round, unresolved_findings}` (round = recorded+1, 0 unresolved on round 1), implement `{task: {id}|null, wip}`, `{action:"record-round", round:N}` when a snapshot exists without its recorded round, decompose/release `{}` |
 | `blockers` | `{code, class, message, data}` in fixed code order |
 
 `--compact` drops `next_action.summary`, each `kept[].reason`, and each `blockers[].message`; keeps every `data` plus `bookkeeping` and `guidance` (both decision-critical — §8.4).
@@ -202,6 +205,10 @@ Resolves task override > `.tp/config.json` > built-in default `auto`. A present 
 `tp config` adds top-level `commit_strategy_effective` (`builtin`/`hc`); `tp config --resolved` reports `commit_strategy` as `{value, source}` with the resolved name.
 
 `commit_shas` (`[]string`, canonical) records the ordered commits; `commit_sha` mirrors `commit_shas[0]` for pre-0.28.0 readers. It is a managed field (`tp set` rejects it; `tp reopen` clears it alongside `commit_sha`, `gate_passed_at`, `gate_skipped_reason`). A `--covered-by` close records neither.
+
+**`commit_files` / `commit_files_total` (v0.30.0).** On a close that records commits (`tp commit`, `tp done --auto-commit`/`--commit`/`--batch`), tp resolves each sha's changed paths (added/modified/deleted/renamed-new) into `commit_files` — a managed, deduplicated, lexical-sorted array capped at 50 paths; `commit_files_total` records the true count when the set is larger. Both are managed (`tp set` rejects; `tp reopen` clears). A `--covered-by` close records none. When git is unavailable or a sha cannot be resolved, the field is omitted.
+
+**`duration_source` (v0.30.0).** `claimed` when `started_at` came from an explicit claim (`tp claim`, `tp next`, `tp next --brief`); `implicit` when it came from an implicit claim (a bare `tp done`, or `tp commit` on an open task). Managed (`tp set` rejects; `tp reopen` clears). `tp report` carries it per task and excludes `implicit`-duration tasks from `estimation_accuracy` under a separate `implicit_duration` count; a `--covered-by` close is excluded from accuracy under `excluded_from_accuracy` (no measured span).
 
 `commit_strategy` is authored at `tp init`. The **project default** is settable with `tp set --workflow --project commit_strategy=<builtin|auto|hc>` (writes `workflow.commit_strategy` in `.tp/config.json`, participates in the resolve order, and `tp config --resolved` annotates its source). The task-file setter stays read-only: `tp set --workflow commit_strategy=…` exits 2 with a hint naming the project setter.
 
@@ -254,7 +261,7 @@ Output includes `reordered` (bool) and `skipped` (count of already-done entries)
 
 ## Review File Management
 
-You manage findings files yourself. Convention:
+You manage findings files yourself. Each emitted prompt carries an **`output_path`** (`review-r<N>-<role>.ndjson` / `audit-r<N>-<role>.ndjson`, relative to the working directory) and names that file in its text, so the merge glob is predictable rather than invented. Convention:
 ```
 spec/
   feature.md                    # spec (keep)
