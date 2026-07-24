@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.30.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-07-24T00:49:49.142678Z",
+  "updated_at": "2026-07-24T00:57:18.614907Z",
   "workflow": {},
   "coverage": {
     "total_sections": 16,
@@ -57,7 +57,7 @@
     {
       "id": "stable-item-ids",
       "title": "Make audit item ids stable",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 10,
@@ -66,11 +66,16 @@
         "## 10. Review and audit unit briefs"
       ],
       "source_lines": "120-121",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-24T00:57:18.614878Z",
+      "closed_at": "2026-07-24T00:57:18.614907Z",
+      "closed_reason": "- fileCheckItems generates file-\u003croleID\u003e-\u003cslug\u003e ids via slugifySubject (lowercase, non-alnum runs to single dash, trimmed, capped at 40 chars with trailing dash trimmed, -2/-3 collision suffix); all three call sites pass roleID directly\n- same subject yields same id regardless of position (TestFileCheckItems_StableAcrossReorder); dedupAuditRows already dedups on (role, item_id) string equality, so slug ids merge correctly across rounds",
+      "gate_passed_at": "2026-07-24T00:57:18.614907Z",
+      "commit_sha": "ed76e8c",
+      "commit_shas": [
+        "ed76e8c",
+        "0c0db5d",
+        "2fe2619"
+      ]
     },
     {
       "id": "id-scheme-marker",
