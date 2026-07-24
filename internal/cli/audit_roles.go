@@ -155,9 +155,56 @@ func invertTaskFiles(taskFiles map[string][]string) map[string][]string {
 	return out
 }
 
+// priorAuditRow is one of a role's own non-PASS rows from the previous
+// recorded audit round, carried into that role's next-round prompt (§10.2):
+// the auditor re-checks each item rather than repeating the prior verdict.
+// ChangedSince is nil (omitted) for rows with no file path; it is non-nil
+// (true or false) when the row carries an evidence_file.
+type priorAuditRow struct {
+	Role         string `json:"role"`
+	ItemID       string `json:"item_id"`
+	Status       string `json:"status"`
+	EvidenceFile string `json:"evidence_file,omitempty"`
+	ChangedSince *bool  `json:"changed_since,omitempty"`
+}
+
+// auditPriorRound is the role-scoped prior-round context embedded in a
+// round-2+ audit prompt (§10.2): that role's own non-PASS rows from the
+// previous recorded round. legacy is true when the prior round was recorded
+// before stable item ids (no id_scheme marker, §10.9), so its ids are
+// positional and not comparable to this round's.
+type auditPriorRound struct {
+	rows   []priorAuditRow
+	legacy bool
+}
+
+// renderPriorRoundSection renders the role-scoped prior-round section for a
+// round-2+ audit prompt (§10.2): that role's own non-PASS rows from the
+// previous recorded round, framed as context to re-check — not a verdict to
+// repeat. Returns "" when the role has no prior non-PASS rows, so a round-1
+// prompt (or a role that was all-PASS) carries no section at all.
+func renderPriorRoundSection(prior *auditPriorRound) string {
+	if prior == nil || len(prior.rows) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("\n## Prior Round: context to re-check, not a verdict to repeat\n")
+	b.WriteString("These are your own non-PASS rows from the previous round. Re-check each item against the code and record your own status. Do NOT repeat the prior verdict without verifying.\n\n")
+	if prior.legacy {
+		b.WriteString("Note: the prior round was recorded before stable item ids, so these ids are positional (file-<role>-<n>) and NOT comparable to this round's stable ids.\n\n")
+	}
+	for _, r := range prior.rows {
+		data, _ := json.Marshal(r)
+		b.Write(data)
+		b.WriteString("\n")
+	}
+	b.WriteString("\n")
+	return b.String()
+}
+
 // buildRolePrompt renders the §3.1 body order for one role, drawing its Role
 // Rules from the corpus role's focus (§7.2) rather than a hardcoded map.
-func buildRolePrompt(role string, rules []string, items []ChecklistItem, files []engine.AuditFileEntry, specContent, claudeExcerpt string) auditPrompt {
+func buildRolePrompt(role string, rules []string, items []ChecklistItem, files []engine.AuditFileEntry, specContent, claudeExcerpt string, prior *auditPriorRound) auditPrompt {
 	var b strings.Builder
 	b.WriteString("## Role\n" + role + "\n\n")
 
@@ -185,6 +232,8 @@ func buildRolePrompt(role string, rules []string, items []ChecklistItem, files [
 	}
 	b.WriteString("]\n\n")
 
+	b.WriteString(renderPriorRoundSection(prior))
+
 	b.WriteString("## Affected Files (max 20)\n")
 	for _, f := range files {
 		if role == roleSpecCoverage && len(f.Tasks) > 0 {
@@ -211,7 +260,7 @@ func buildRolePrompt(role string, rules []string, items []ChecklistItem, files [
 // order spec-coverage, security, maintainability-conventions. A role whose
 // routed checklist is empty produces no prompt and is named in skipped_roles
 // with reason no-checklist-items (§9.1).
-func generateRoleAuditPrompts(auditorRoles []model.Role, specItems, secItems, maintItems []ChecklistItem, sel *engine.AuditFileSelection, specContent, claudeExcerpt string) ([]auditPrompt, []engine.SkippedRole) {
+func generateRoleAuditPrompts(auditorRoles []model.Role, specItems, secItems, maintItems []ChecklistItem, sel *engine.AuditFileSelection, specContent, claudeExcerpt string, priorByRole map[string]*auditPriorRound) ([]auditPrompt, []engine.SkippedRole) {
 	prompts := make([]auditPrompt, 0, len(auditorRoles))
 	skipped := make([]engine.SkippedRole, 0)
 	for i := range auditorRoles {
@@ -233,7 +282,7 @@ func generateRoleAuditPrompts(auditorRoles []model.Role, specItems, secItems, ma
 			skipped = append(skipped, engine.SkippedRole{Role: role.ID, Reason: engine.SkipNoChecklistItems})
 			continue
 		}
-		prompts = append(prompts, buildRolePrompt(role.ID, role.Focus, items, files, specContent, claudeExcerpt))
+		prompts = append(prompts, buildRolePrompt(role.ID, role.Focus, items, files, specContent, claudeExcerpt, priorByRole[role.ID]))
 	}
 	return prompts, skipped
 }

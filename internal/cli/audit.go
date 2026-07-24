@@ -163,6 +163,8 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 
 	specLines, specContent := loadAuditSpec(specPath)
 
+	priorByRole := loadAuditPriorRound(specPath)
+
 	checklist := buildChecklist(specLines, specPath, findingsPath)
 
 	if len(checklist) == 0 {
@@ -204,7 +206,7 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	}
 
 	specItems, secItems, maintItems := routeChecklist(mainEntries, findingsEntries, &sel, invertTaskFiles(inputs.TaskFiles))
-	prompts, auditSkipped := generateRoleAuditPrompts(auditorRoles, specItems, secItems, maintItems, &sel, specContent, claudeMDExcerptFor(specPath))
+	prompts, auditSkipped := generateRoleAuditPrompts(auditorRoles, specItems, secItems, maintItems, &sel, specContent, claudeMDExcerptFor(specPath), priorByRole)
 	// §9.1: name every non-emitted auditor — empty-checklist roles above plus
 	// any domain-filtered user corpus roles.
 	auditSkipped = append(auditSkipped, engine.DomainSkippedRoles(filepath.Dir(specPath), fmAudit.Domain, engine.PhaseAuditors)...)
@@ -321,6 +323,74 @@ func loadAuditSpec(specPath string) (specLines []string, specContent string) {
 		specContent = specContent[:engine.SpecContentCap] + "\n[...spec truncated]"
 	}
 	return specLines, specContent
+}
+
+// loadAuditPriorRound reads the previous recorded audit round and returns,
+// per role, that role's own non-PASS rows for the round-2+ prior-round
+// section (§10.2). It returns nil when no audit round is recorded (round 1)
+// or the prior round's file is missing; a missing state index is the normal
+// in-flight condition and yields nil, while genuine corruption aborts. The
+// changed-since flag per row is true when a commit touching that row's
+// evidence_file landed after the prior round's recorded_at; it is omitted
+// for rows with no file path (spec-derived or FAIL rows with no evidence).
+func loadAuditPriorRound(specPath string) map[string]*auditPriorRound {
+	st, err := engine.LoadReviewState(specPath)
+	if err != nil {
+		if engine.IsMissingStateIndex(err) {
+			return nil
+		}
+		exitStateError(err)
+		return nil
+	}
+	if st == nil || len(st.AuditRounds) == 0 {
+		return nil
+	}
+	prior := &st.AuditRounds[len(st.AuditRounds)-1]
+	rows, found := engine.LoadRoundRows(specPath, prior)
+	if !found {
+		return nil
+	}
+	changedFiles := filesChangedSince(filepath.Dir(specPath), prior.RecordedAt)
+	byRole := make(map[string]*auditPriorRound)
+	legacy := engine.IsLegacyRound(prior)
+	for _, row := range rows {
+		role, _ := row["role"].(string)
+		status, _ := row["status"].(string)
+		if status == "PASS" {
+			continue
+		}
+		itemID, _ := row["item_id"].(string)
+		ef, _ := row["evidence_file"].(string)
+		pr := priorAuditRow{Role: role, ItemID: itemID, Status: status}
+		if ef != "" {
+			pr.EvidenceFile = ef
+			changed := changedFiles[ef]
+			pr.ChangedSince = &changed
+		}
+		entry := byRole[role]
+		if entry == nil {
+			entry = &auditPriorRound{legacy: legacy}
+			byRole[role] = entry
+		}
+		entry.rows = append(entry.rows, pr)
+	}
+	return byRole
+}
+
+// filesChangedSince returns the set of repo-relative paths touched by any
+// commit whose commit date is at or after since (an RFC3339 timestamp) — the
+// changed-since basis for the audit prior-round section (§10.2). Returns an
+// empty set when since is empty or git is unavailable (e.g. not a repo), so
+// the changed-since flag defaults to false rather than aborting emission.
+func filesChangedSince(dir, since string) map[string]bool {
+	changed := make(map[string]bool)
+	if since == "" {
+		return changed
+	}
+	for _, f := range execGitDiff(dir, "log", "--since="+since, "--name-only", "--pretty=format:") {
+		changed[f] = true
+	}
+	return changed
 }
 
 // refuseAuditIfBudgetExhausted refuses audit prompt generation when the audit
