@@ -3,6 +3,7 @@ package model
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 )
@@ -32,6 +33,8 @@ type Task struct {
 	GatePassedAt      *time.Time `json:"gate_passed_at"`
 	CommitSHA         *string    `json:"commit_sha"`
 	CommitSHAs        []string   `json:"commit_shas,omitempty"`
+	CommitFiles       []string   `json:"commit_files,omitempty"`
+	CommitFilesTotal  int        `json:"commit_files_total,omitempty"`
 	GateSkippedReason *string    `json:"gate_skipped_reason,omitempty"`
 }
 
@@ -106,6 +109,37 @@ func (t *Task) SetCommitSHAs(shas []string) {
 	t.CommitSHAs = shas
 	primary := shas[0]
 	t.CommitSHA = &primary
+}
+
+const maxCommitFiles = 50
+
+// SetCommitFiles records the deduplicated, lexically (byte) sorted set of
+// repo-root-relative paths a task's commits touched, capped at 50 entries.
+// When the set exceeds the cap the first 50 are stored and the full count is
+// recorded in CommitFilesTotal; otherwise it is zero. An empty set clears both.
+func (t *Task) SetCommitFiles(files []string) {
+	seen := make(map[string]bool, len(files))
+	unique := make([]string, 0, len(files))
+	for _, f := range files {
+		if f == "" || seen[f] {
+			continue
+		}
+		seen[f] = true
+		unique = append(unique, f)
+	}
+	if len(unique) == 0 {
+		t.CommitFiles = nil
+		t.CommitFilesTotal = 0
+		return
+	}
+	sort.Strings(unique)
+	if total := len(unique); total > maxCommitFiles {
+		t.CommitFiles = append([]string(nil), unique[:maxCommitFiles]...)
+		t.CommitFilesTotal = total
+		return
+	}
+	t.CommitFiles = append([]string(nil), unique...)
+	t.CommitFilesTotal = 0
 }
 
 // ValidTransition returns true if the status transition is allowed.
