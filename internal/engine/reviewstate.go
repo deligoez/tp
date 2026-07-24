@@ -25,7 +25,19 @@ type ReviewRound struct {
 	// corpus hash for a review round, the auditor corpus hash for an audit round.
 	// Empty on a pre-v0.25.0 round, which §9.4 treats as matching.
 	RolesHash string `json:"roles_hash,omitempty"`
+	// IDScheme marks which id scheme this round's rows use (§10.9). Value "slug"
+	// for an audit round recorded under v0.30.0+, whose rows carry stable slug ids
+	// (file-<role>-<slug>, §10.3); empty on a legacy round recorded before this
+	// release, whose rows use the old positional ids (file-<role>-<n>). tp never
+	// rewrites recorded files, so a project mid-loop when it upgrades holds
+	// legacy (marker-less) rounds. Recorded on audit rounds only — review rounds
+	// dedup on (location, class) and neither carry nor consume the marker.
+	IDScheme string `json:"id_scheme,omitempty"`
 }
+
+// IDSchemeSlug is the marker value recorded on a v0.30.0+ audit round, whose
+// rows carry stable slug ids (§10.9).
+const IDSchemeSlug = "slug"
 
 // ReviewState is the round index stored in state.json.
 type ReviewState struct {
@@ -265,6 +277,18 @@ func RolesStale(rounds []ReviewRound, currentHash string) bool {
 		return false
 	}
 	return stored != currentHash
+}
+
+// IsLegacyRound reports whether r is a legacy round whose rows carry the old
+// positional ids (file-<role>-<n>) rather than stable slug ids (§10.9).
+// Detection is by the stored id_scheme marker — not by parsing the id — so a
+// round recorded before this release (which carries no marker) is legacy. The
+// marker is recorded on audit rounds only: a review round has no marker but is
+// never "legacy" here, since review rows dedup on (location, class), not
+// (role, item_id). Callers inspecting prior audit rounds use this to decide
+// whether a prior round's ids are comparable to the current round's.
+func IsLegacyRound(r *ReviewRound) bool {
+	return r.IDScheme == ""
 }
 
 // Converged reports convergence: enough trailing clean rounds and a spec
