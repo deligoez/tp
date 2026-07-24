@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.30.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-07-24T00:57:18.614907Z",
+  "updated_at": "2026-07-24T01:10:10.807134Z",
   "workflow": {},
   "coverage": {
     "total_sections": 16,
@@ -21,7 +21,7 @@
     {
       "id": "commit-files-field",
       "title": "Record commit_files at close",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 12,
@@ -30,11 +30,27 @@
         "## 6. `commit_files` — what a closed unit produced"
       ],
       "source_lines": "72-81",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-24T01:10:10.773916Z",
+      "closed_at": "2026-07-24T01:10:10.773949Z",
+      "closed_reason": "- Close recording commits (done --commit/--auto-commit/--batch, tp commit) resolves each sha's changed paths (added/modified/deleted/renamed-new) into a deduplicated lexical-sorted commit_files array capped at 50 with commit_files_total\n- A --covered-by close records no commit_files\n- commit_files and commit_files_total are managed fields: tp set rejects both and tp reopen clears both\n- commit_files is omitted when git is unavailable or a sha is unresolvable",
+      "gate_passed_at": "2026-07-24T01:10:10.773949Z",
+      "commit_sha": "4832b81",
+      "commit_shas": [
+        "4832b81",
+        "6133848",
+        "5677ab4",
+        "d6a291b",
+        "16355db",
+        "763e526"
+      ],
+      "commit_files": [
+        "internal/cli/commit.go",
+        "internal/cli/commit_files_test.go",
+        "internal/cli/done.go",
+        "internal/cli/reopen.go",
+        "internal/cli/set.go",
+        "internal/model/task.go"
+      ]
     },
     {
       "id": "duration-source",
