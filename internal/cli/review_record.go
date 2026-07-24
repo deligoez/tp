@@ -46,7 +46,7 @@ func runReviewRecord(specPath, recordPath string) error {
 		return nil
 	}
 
-	findings, dirty, parseErr := parseRecordRows(data)
+	findings, dirty, parseErr := parseRecordRows(recordPath, data)
 	if parseErr != nil {
 		output.Error(ExitValidation, parseErr.Error())
 		os.Exit(ExitValidation)
@@ -132,7 +132,7 @@ func runReviewRecord(specPath, recordPath string) error {
 // parseRecordRows applies the row rules: blank lines skipped, every remaining
 // line a JSON object, pre-resolved wontfix needs evidence and does not dirty
 // the round, pre-resolved fixed aborts, pre-resolved duplicate dirties.
-func parseRecordRows(data []byte) (findings, dirty int, err error) {
+func parseRecordRows(path string, data []byte) (findings, dirty int, err error) {
 	lineNum := 0
 	for _, line := range strings.Split(string(data), "\n") {
 		lineNum++
@@ -145,6 +145,10 @@ func parseRecordRows(data []byte) (findings, dirty int, err error) {
 			return 0, 0, fmt.Errorf("line %d: invalid JSON: %w", lineNum, jsonErr)
 		}
 		findings++
+
+		if role, _ := row["role"].(string); role == "" {
+			fmt.Fprintf(os.Stderr, "warning: line %d of %s is missing the role field; it will not appear in the per-role overlap report\n", lineNum, path)
+		}
 
 		status, evidence := resolvedStatusOf(row)
 		switch status {
