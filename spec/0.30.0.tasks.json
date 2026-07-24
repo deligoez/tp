@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.30.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-07-24T01:58:28.215666Z",
+  "updated_at": "2026-07-24T02:07:38.773749Z",
   "workflow": {},
   "coverage": {
     "total_sections": 16,
@@ -326,7 +326,7 @@
     {
       "id": "resume-brief-command",
       "title": "Add brief_command to resume",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "brief-core",
@@ -338,11 +338,21 @@
         "## 9. Commands"
       ],
       "source_lines": "108-115",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-24T02:07:38.754469Z",
+      "closed_at": "2026-07-24T02:07:38.754498Z",
+      "closed_reason": "\n- Added brief_command to NextAction (resumepayload.go), set per phase in BuildNextAction: tp next --brief (implement), tp review \u003cspec\u003e --round N (review, incl. in-flight round), tp audit \u003cspec\u003e (audit); null for decompose/release\n- Surfaced brief_command in resume JSON next_action unconditionally so it survives --compact, plus the TTY summary (resume.go)\n- Verified: go test ./... passes, golangci-lint run reports 0 issues, gofmt -l ./internal/ empty; dogfood tp resume emits brief_command: tp next --brief\n",
+      "gate_passed_at": "2026-07-24T02:07:38.754498Z",
+      "commit_sha": "9a2a226",
+      "commit_shas": [
+        "9a2a226",
+        "6f5afeb",
+        "06cfe88"
+      ],
+      "commit_files": [
+        "internal/cli/resume.go",
+        "internal/cli/resume_brief_command_test.go",
+        "internal/engine/resumepayload.go"
+      ]
     },
     {
       "id": "documentation",
