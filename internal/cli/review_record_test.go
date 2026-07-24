@@ -132,3 +132,21 @@ func TestReviewRecord_MechanizeCandidatesInOutput(t *testing.T) {
 	assert.Equal(t, float64(2), c["rounds_seen"])
 	assert.Contains(t, out["hint"], "tp set --workflow checks")
 }
+
+func TestReviewRecord_RoleMissingWarns(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
+
+	// Line 1 carries `role`; line 2 omits it. The round still records (exit 0)
+	// and the warning names the offending line and the findings file.
+	ndjson := `{"severity":"low","category":"c","location":"L1","finding":"f1","suggestion":"s","role":"implementer"}` + "\n" +
+		`{"severity":"low","category":"c","location":"L2","finding":"f2","suggestion":"s"}` + "\n"
+	out, stderr, code := recordRound(t, dir, ndjson)
+	require.Equal(t, 0, code, "round still records despite the role-less row")
+	assert.Equal(t, float64(1), out["round"])
+	assert.Equal(t, float64(2), out["findings"])
+	assert.Contains(t, stderr, "missing the role field")
+	assert.Contains(t, stderr, "line 2")
+	assert.Contains(t, stderr, "findings.ndjson", "warning must name the findings file")
+	assert.NotContains(t, stderr, "line 1", "a row carrying role must not warn")
+}
