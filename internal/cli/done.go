@@ -286,6 +286,7 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 		}
 		if !isCoveredBy && len(doneCommits) > 0 {
 			task.SetCommitSHAs(doneCommits)
+			task.SetCommitFiles(resolveCommitFiles(".", doneCommits))
 		}
 		tf.UpdatedAt = now
 
@@ -782,6 +783,7 @@ func runDoneBatch() error {
 			}
 			if !isBatchCoveredBy && len(shas) > 0 {
 				task.SetCommitSHAs(shas)
+				task.SetCommitFiles(resolveCommitFiles(".", shas))
 			}
 			closedCount++
 			doneSet[task.ID] = true // update for subsequent dep checks
