@@ -204,7 +204,7 @@ func renderPriorRoundSection(prior *auditPriorRound) string {
 
 // buildRolePrompt renders the §3.1 body order for one role, drawing its Role
 // Rules from the corpus role's focus (§7.2) rather than a hardcoded map.
-func buildRolePrompt(role string, rules []string, items []ChecklistItem, files []engine.AuditFileEntry, specContent, claudeExcerpt string, prior *auditPriorRound) auditPrompt {
+func buildRolePrompt(role string, rules []string, items []ChecklistItem, files []engine.AuditFileEntry, specContent, claudeExcerpt string, prior *auditPriorRound, f *promptFraming, inlinedContent string) auditPrompt {
 	var b strings.Builder
 	b.WriteString("## Role\n" + role + "\n\n")
 
@@ -235,11 +235,11 @@ func buildRolePrompt(role string, rules []string, items []ChecklistItem, files [
 	b.WriteString(renderPriorRoundSection(prior))
 
 	b.WriteString("## Affected Files (max 20)\n")
-	for _, f := range files {
-		if role == roleSpecCoverage && len(f.Tasks) > 0 {
-			fmt.Fprintf(&b, "- %s (tasks: %s; diff: %s)\n", f.Path, strings.Join(f.Tasks, ", "), f.DiffSummary)
+	for _, fl := range files {
+		if role == roleSpecCoverage && len(fl.Tasks) > 0 {
+			fmt.Fprintf(&b, "- %s (tasks: %s; diff: %s)\n", fl.Path, strings.Join(fl.Tasks, ", "), fl.DiffSummary)
 		} else {
-			fmt.Fprintf(&b, "- %s (diff: %s)\n", f.Path, f.DiffSummary)
+			fmt.Fprintf(&b, "- %s (diff: %s)\n", fl.Path, fl.DiffSummary)
 		}
 	}
 	b.WriteString("\n")
@@ -247,8 +247,16 @@ func buildRolePrompt(role string, rules []string, items []ChecklistItem, files [
 	b.WriteString(renderAuditOutputSchema())
 	b.WriteString(outputContractInstruction(role, engine.PhaseAuditors))
 
+	// §10.7: the inliner role's file contents are inlined whole (complete and
+	// authoritative); every other role gets named paths only (stated below).
+	if inlinedContent != "" {
+		b.WriteString("\n" + inlinedContent)
+	}
+	b.WriteString(renderFraming(f))
+
 	return auditPrompt{
 		Role:           role,
+		OutputPath:     f.outputPath,
 		Prompt:         b.String(),
 		ChecklistCount: len(items),
 		ChecklistItems: items,
@@ -260,9 +268,14 @@ func buildRolePrompt(role string, rules []string, items []ChecklistItem, files [
 // order spec-coverage, security, maintainability-conventions. A role whose
 // routed checklist is empty produces no prompt and is named in skipped_roles
 // with reason no-checklist-items (§9.1).
-func generateRoleAuditPrompts(auditorRoles []model.Role, specItems, secItems, maintItems []ChecklistItem, sel *engine.AuditFileSelection, specContent, claudeExcerpt string, priorByRole map[string]*auditPriorRound) ([]auditPrompt, []engine.SkippedRole) {
+func generateRoleAuditPrompts(auditorRoles []model.Role, specItems, secItems, maintItems []ChecklistItem, sel *engine.AuditFileSelection, specContent, claudeExcerpt string, priorByRole map[string]*auditPriorRound, round, requiredClean, consecutiveClean, maxRounds int) ([]auditPrompt, []engine.SkippedRole) {
 	prompts := make([]auditPrompt, 0, len(auditorRoles))
 	skipped := make([]engine.SkippedRole, 0)
+	// §10.7 per-role inliner: the first emitted role whose files fit whole under
+	// the per-role reading budget inlines them (complete and authoritative);
+	// every later role, and any role that exceeds the budget, gets named paths
+	// only. Set once, never reset.
+	inlinerDone := false
 	for i := range auditorRoles {
 		role := &auditorRoles[i]
 		var items []ChecklistItem
@@ -282,7 +295,31 @@ func generateRoleAuditPrompts(auditorRoles []model.Role, specItems, secItems, ma
 			skipped = append(skipped, engine.SkippedRole{Role: role.ID, Reason: engine.SkipNoChecklistItems})
 			continue
 		}
-		prompts = append(prompts, buildRolePrompt(role.ID, role.Focus, items, files, specContent, claudeExcerpt, priorByRole[role.ID]))
+		filePaths := make([]string, 0, len(files))
+		for _, fl := range files {
+			filePaths = append(filePaths, fl.Path)
+		}
+		f := promptFraming{
+			phase:            "audit",
+			round:            round,
+			requiredClean:    requiredClean,
+			consecutiveClean: consecutiveClean,
+			maxRounds:        maxRounds,
+			outputPath:       fmt.Sprintf("audit-r%d-%s.ndjson", round, role.ID),
+			hasFiles:         len(filePaths) > 0,
+		}
+		inlinedContent := ""
+		if f.hasFiles {
+			if !inlinerDone && fileSetBytes(filePaths) <= perRoleReadingBudget {
+				_, inlinedContent = fileSetRead(filePaths)
+				f.filesComplete = true
+				inlinerDone = true
+			}
+			if !f.filesComplete {
+				f.filePaths = filePaths
+			}
+		}
+		prompts = append(prompts, buildRolePrompt(role.ID, role.Focus, items, files, specContent, claudeExcerpt, priorByRole[role.ID], &f, inlinedContent))
 	}
 	return prompts, skipped
 }

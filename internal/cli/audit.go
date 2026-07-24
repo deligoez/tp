@@ -46,6 +46,7 @@ type ChecklistItem struct {
 type auditPrompt struct {
 	Role           string                  `json:"role"`
 	Prompt         string                  `json:"prompt"`
+	OutputPath     string                  `json:"output_path"`
 	ChecklistCount int                     `json:"checklist_count"`
 	ChecklistItems []ChecklistItem         `json:"checklist_items"`
 	AffectedFiles  []engine.AuditFileEntry `json:"affected_files"`
@@ -206,7 +207,18 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	}
 
 	specItems, secItems, maintItems := routeChecklist(mainEntries, findingsEntries, &sel, invertTaskFiles(inputs.TaskFiles))
-	prompts, auditSkipped := generateRoleAuditPrompts(auditorRoles, specItems, secItems, maintItems, &sel, specContent, claudeMDExcerptFor(specPath), priorByRole)
+
+	// §10.6 loop budget for prompt framing: the audit round being emitted
+	// (one past the last recorded), the consecutive clean rounds so far, and
+	// the resolved workflow caps.
+	auditWf, _ := engine.ResolveWorkflow(specPath, flagFile)
+	auditRound := 1
+	auditConsecutive := 0
+	if st, err := engine.LoadReviewState(specPath); err == nil && st != nil {
+		auditRound = len(st.AuditRounds) + 1
+		auditConsecutive = engine.ConsecutiveClean(st.AuditRounds)
+	}
+	prompts, auditSkipped := generateRoleAuditPrompts(auditorRoles, specItems, secItems, maintItems, &sel, specContent, claudeMDExcerptFor(specPath), priorByRole, auditRound, auditWf.AuditCleanRounds, auditConsecutive, auditWf.AuditMaxRounds)
 	// §9.1: name every non-emitted auditor — empty-checklist roles above plus
 	// any domain-filtered user corpus roles.
 	auditSkipped = append(auditSkipped, engine.DomainSkippedRoles(filepath.Dir(specPath), fmAudit.Domain, engine.PhaseAuditors)...)

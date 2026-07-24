@@ -34,9 +34,10 @@ type resolvedStatus struct {
 }
 
 type reviewPrompt struct {
-	Role     string `json:"role"`
-	Category string `json:"category"`
-	Prompt   string `json:"prompt"`
+	Role       string `json:"role"`
+	Category   string `json:"category"`
+	Prompt     string `json:"prompt"`
+	OutputPath string `json:"output_path"`
 }
 
 type reviewLoop struct {
@@ -373,11 +374,9 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 
 	summary := buildFindingsSummary(findings)
 
-	var affectedSection string
 	var affectedContent map[string]string
 	if len(affectedFiles) > 0 {
 		affectedContent = engine.ReadAffectedFilesBudgetAware(affectedFiles, summary, specContent)
-		affectedSection = engine.BuildAffectedSection(affectedContent)
 	}
 
 	// Mechanical checks: workflow-derived (not state-derived), run before
@@ -388,7 +387,7 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 		mechChecks, _ = runMechanicalChecks(&wfChecks, checksTaskFile)
 	}
 
-	prompts, regressionIncluded, skippedRoles := buildReviewPrompts(specPath, elems, specContent, round, summary, affectedSection, finalRound, &wfChecks, diffFrom, noState, reviewSt)
+	prompts, regressionIncluded, skippedRoles := buildReviewPrompts(specPath, elems, specContent, round, summary, affectedFiles, finalRound, &wfChecks, diffFrom, noState, reviewSt)
 
 	uniqueCount := len(dedupFindings(findings))
 	convergence, instruction := buildReviewLoopInstruction(round, findings, findingsPath, specPath, specInline, noState, stateRequired, regressionIncluded, len(wfChecks.Checks) > 0)
@@ -557,12 +556,6 @@ func appendFinalRoundInstruction(b *strings.Builder) {
 	b.WriteString("\nMANDATORY: Read every file in the Affected Files section line-by-line. For each state-dependent behavior (disabled, loading, conditional rendering, class binding, error handling), verify the spec explicitly addresses it. Do NOT report \"spec is solid\" unless you have verified every state-dependent element.\n")
 }
 
-func appendSpecOnlyDisclaimer(b *strings.Builder, affectedSection string) {
-	if affectedSection == "" {
-		b.WriteString(specOnlyDisclaimer)
-	}
-}
-
 // runReviewCodeAudit emits the single-pass code-audit perspective prompt.
 func runReviewCodeAudit(specPath, specContent string, affectedFiles []string, round int) error {
 	affectedContent := engine.ReadAffectedFiles(affectedFiles)
@@ -644,7 +637,7 @@ func runReviewTestPlan(specPath, specContent, testPath string, affectedFiles []s
 // applied, plus the appended changed-sections block, the auto-included regression
 // prompt (round >= 2 with a diff or fixed findings), and the mechanized-class
 // exclusion. Returns the prompts and whether the regression prompt was included.
-func buildReviewPrompts(specPath string, elems *engine.StructuredElements, specContent string, round int, summary, affectedSection string, finalRound bool, wfChecks *model.Workflow, diffFrom string, noState bool, reviewSt *engine.ReviewState) (prompts []reviewPrompt, regressionIncluded bool, skipped []engine.SkippedRole) {
+func buildReviewPrompts(specPath string, elems *engine.StructuredElements, specContent string, round int, summary string, affectedFiles []string, finalRound bool, wfChecks *model.Workflow, diffFrom string, noState bool, reviewSt *engine.ReviewState) (prompts []reviewPrompt, regressionIncluded bool, skipped []engine.SkippedRole) {
 	fmState := engine.ParseFrontmatter(specPath)
 
 	// Emit one prompt per active reviewer role from the domain-filtered corpus
@@ -665,7 +658,7 @@ func buildReviewPrompts(specPath string, elems *engine.StructuredElements, specC
 	}
 	prompts = make([]reviewPrompt, 0, len(activeRoles)+1)
 	for i := range activeRoles {
-		prompts = append(prompts, generateCorpusReviewPrompt(&activeRoles[i], elems, specContent, round, summary, affectedSection, finalRound))
+		prompts = append(prompts, generateCorpusReviewPrompt(&activeRoles[i], elems, specContent, round, summary, len(affectedFiles) > 0, finalRound))
 	}
 
 	// Changed-sections block: explicit --diff-from overrides the baseline and
@@ -750,6 +743,47 @@ func buildReviewPrompts(specPath string, elems *engine.StructuredElements, specC
 		skipped = append(skipped, engine.SkippedRole{Role: engine.RegressionRoleID, Reason: engine.SkipNoBaseline})
 	}
 
+	// §10.4–§10.7: wrap every emitted prompt in tp-owned framing — the output
+	// file, the reset discipline, the loop budget, and the file-reading
+	// statement. Per-role inlining (§10.7): the first emitted role whose
+	// affected files fit whole under the per-role reading budget inlines them
+	// (complete and authoritative); every later role, and all roles when the
+	// files exceed the budget, get named paths only. The regression role
+	// carries no source files (it guards spec decisions, not code).
+	consecutiveClean := 0
+	if reviewSt != nil {
+		consecutiveClean = engine.ConsecutiveClean(reviewSt.ReviewRounds)
+	}
+	affectedBytes, affectedContent := 0, ""
+	if len(affectedFiles) > 0 {
+		affectedBytes, affectedContent = fileSetRead(affectedFiles)
+	}
+	contentFits := len(affectedFiles) > 0 && affectedBytes <= perRoleReadingBudget
+	inlinerDone := false
+	for i := range prompts {
+		outputPath := fmt.Sprintf("review-r%d-%s.ndjson", round, prompts[i].Role)
+		prompts[i].OutputPath = outputPath
+		f := promptFraming{
+			phase:            "review",
+			round:            round,
+			requiredClean:    wfChecks.ReviewCleanRounds,
+			consecutiveClean: consecutiveClean,
+			maxRounds:        wfChecks.ReviewMaxRounds,
+			outputPath:       outputPath,
+			hasFiles:         len(affectedFiles) > 0 && prompts[i].Role != engine.RegressionRoleID,
+		}
+		if f.hasFiles {
+			if !inlinerDone && contentFits {
+				prompts[i].Prompt += "\n\n" + affectedContent
+				f.filesComplete = true
+				inlinerDone = true
+			} else {
+				f.filePaths = affectedFiles
+			}
+		}
+		prompts[i].Prompt += renderFraming(&f)
+	}
+
 	return prompts, regressionIncluded, skipped
 }
 
@@ -760,14 +794,16 @@ func buildReviewPrompts(specPath string, elems *engine.StructuredElements, specC
 // affected-files checklist, and the finding format. It replaces the pre-v0.25.0
 // hardcoded implementer/tester/architect generators (§7.1); the role's failure
 // lens now comes entirely from its instructions and focus, not from Go.
-func generateCorpusReviewPrompt(role *model.Role, elems *engine.StructuredElements, specContent string, round int, summary, affectedSection string, finalRound bool) reviewPrompt {
+func generateCorpusReviewPrompt(role *model.Role, elems *engine.StructuredElements, specContent string, round int, summary string, hasAffected, finalRound bool) reviewPrompt {
 	var b strings.Builder
 	if round >= 2 {
 		fmt.Fprintf(&b, "%s This is review round %d — focus ONLY on issues not previously reported.\n\n", role.Instructions, round)
 	} else {
 		b.WriteString(role.Instructions + "\n\n")
 	}
-	appendSpecOnlyDisclaimer(&b, affectedSection)
+	if !hasAffected {
+		b.WriteString(specOnlyDisclaimer)
+	}
 	if summary != "" {
 		b.WriteString(summary)
 		b.WriteString("\n")
@@ -775,9 +811,6 @@ func generateCorpusReviewPrompt(role *model.Role, elems *engine.StructuredElemen
 	b.WriteString("Spec content:\n---\n")
 	b.WriteString(specContent)
 	b.WriteString("\n---\n\n")
-	if affectedSection != "" {
-		b.WriteString(affectedSection)
-	}
 	b.WriteString("Check each of these specifically:\n")
 
 	n := 1
@@ -793,7 +826,7 @@ func generateCorpusReviewPrompt(role *model.Role, elems *engine.StructuredElemen
 		fmt.Fprintf(&b, "%d. %s\n", n, q)
 		n++
 	}
-	appendAffectedChecklist(&b, n, affectedSection != "")
+	appendAffectedChecklist(&b, n, hasAffected)
 
 	if finalRound {
 		appendFinalRoundInstruction(&b)
