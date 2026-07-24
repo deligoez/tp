@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.30.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-07-24T00:25:49.007684Z",
+  "updated_at": "2026-07-24T00:36:16.012281Z",
   "workflow": {},
   "coverage": {
     "total_sections": 16,
@@ -188,7 +188,7 @@
     {
       "id": "brief-scope-fence",
       "title": "State the scope fence",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 8,
@@ -197,11 +197,17 @@
         "## 7. The scope fence"
       ],
       "source_lines": "82-89",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-24T00:36:16.012252Z",
+      "closed_at": "2026-07-24T00:36:16.012281Z",
+      "closed_reason": "- Scope-fence statement added at internal/engine/brief.go (ScopeFenceText) carrying every §7.1 prohibition: acceptance-only, no refactor/rename/reformat/cleanup, no task-file or .tp-review hand-edit, report-not-fix\n- Trailing out-of-scope note preserved verbatim in closed_reason by tp done (internal/cli/done.go:279) and surfaced by tp report out_of_scope field (internal/cli/report.go) via engine.ExtractOutOfScope",
+      "gate_passed_at": "2026-07-24T00:36:16.012281Z",
+      "commit_sha": "45f72b2",
+      "commit_shas": [
+        "45f72b2",
+        "57c1bfd",
+        "d2426d3",
+        "873a597"
+      ]
     },
     {
       "id": "brief-core",
