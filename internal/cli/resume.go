@@ -85,8 +85,9 @@ func runResume(_ *cobra.Command, args []string) error {
 // blockers[].data (§4.2).
 func resumeJSON(r *engine.ResumeResult, compact bool) map[string]any {
 	nextAction := map[string]any{
-		"command": r.NextAction.Command,
-		"payload": r.NextAction.Payload,
+		"command":       r.NextAction.Command,
+		"brief_command": r.NextAction.BriefCommand,
+		"payload":       r.NextAction.Payload,
 	}
 	if !compact {
 		nextAction["summary"] = r.NextAction.Summary
@@ -145,6 +146,9 @@ func printResumeSummary(r *engine.ResumeResult) {
 	}
 	fmt.Printf("phase: %s\n", r.Phase)
 	fmt.Printf("next:  %s — %s\n", next, r.NextAction.Summary)
+	if r.NextAction.BriefCommand != nil {
+		fmt.Printf("brief: %s\n", *r.NextAction.BriefCommand)
+	}
 	if r.Guidance != "" {
 		fmt.Printf("guidance: %s\n", r.Guidance)
 	}
