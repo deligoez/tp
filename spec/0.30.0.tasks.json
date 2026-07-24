@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.30.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-07-24T01:10:10.807134Z",
+  "updated_at": "2026-07-24T01:23:59.705036Z",
   "workflow": {},
   "coverage": {
     "total_sections": 16,
@@ -177,7 +177,7 @@
     {
       "id": "brief-prior-work",
       "title": "Select brief prior work",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "commit-files-field"
@@ -188,11 +188,19 @@
         "## 5. Prior-work selection"
       ],
       "source_lines": "59-71",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-24T01:23:59.690334Z",
+      "closed_at": "2026-07-24T01:23:59.690383Z",
+      "closed_reason": "- SelectPriorWork in internal/engine/brief.go lists done transitive deps (topo-ordered, always included beyond the 12 cap) then recency to a 12-entry total; covered by TestSelectPriorWork_TotalCapShrinksRecency and _DepsAlwaysIncludedBeyondCap\n- buildPriorWorkEntry carries id, title, first line of closed_reason, commit_shas, and up to 5 commit_files with +N more plus commit_files_total; covered by TestBuildPriorWorkEntry_CommitFilesCappedAtFiveWithMore and _FirstLineOfClosedReason\n- ValidatePriorCount guards --prior to range 0-20 returning an error the CLI maps to exit 2; covered by TestValidatePriorCount_OutOfRange and _InRange\n- IsFirstUnit is set when no done deps and no done candidates so the first unit states it; covered by TestSelectPriorWork_FirstUnit and _PriorZeroSuppressesRecencyNotFirstUnit\n- OmittedCount is candidates minus selected recency, emitted whenever recency is dropped by the cap or --prior; covered by TestSelectPriorWork_PriorOverrideSmallerThanCandidates",
+      "gate_passed_at": "2026-07-24T01:23:59.690383Z",
+      "commit_sha": "97bdc9e",
+      "commit_shas": [
+        "97bdc9e",
+        "bf20350"
+      ],
+      "commit_files": [
+        "internal/engine/brief.go",
+        "internal/engine/brief_prior_test.go"
+      ]
     },
     {
       "id": "brief-close-recipe",
