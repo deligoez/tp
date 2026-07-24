@@ -29,6 +29,7 @@ type reportTask struct {
 	Accuracy          *float64 `json:"accuracy"`
 	Note              *string  `json:"note,omitempty"`
 	GateSkippedReason *string  `json:"gate_skipped_reason,omitempty"`
+	OutOfScope        *string  `json:"out_of_scope,omitempty"`
 }
 
 type reportSummary struct {
@@ -122,6 +123,17 @@ func computeReport(tf *model.TaskFile) ([]reportTask, reportSummary) {
 			EstimateMinutes:   t.EstimateMinutes,
 			ActualMinutes:     roundedActual,
 			GateSkippedReason: t.GateSkippedReason,
+		}
+
+		// §7.2: surface an out-of-fence finding the closing unit recorded as a
+		// trailing "Out of scope:" line so it reaches a human. Visible even
+		// under --compact: the line exists precisely to not die in a context
+		// window.
+		if t.ClosedReason != nil {
+			if note := engine.ExtractOutOfScope(*t.ClosedReason); note != "" {
+				n := note
+				rt.OutOfScope = &n
+			}
 		}
 
 		// §14.1: when actual_minutes rounds to 0.0 the accuracy is null
