@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.30.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-07-24T03:20:32.12668Z",
+  "updated_at": "2026-07-24T03:32:18.873713Z",
   "workflow": {},
   "coverage": {
     "total_sections": 16,
@@ -395,7 +395,7 @@
     {
       "id": "documentation",
       "title": "Update docs for the brief",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "commit-files-field",
@@ -418,11 +418,24 @@
         "## 13. Documentation"
       ],
       "source_lines": "150-157",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-24T03:25:08.857338Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-07-24T03:32:18.852103Z",
+      "closed_reason": "- SKILL.md (2a701c5): orchestrator injection duty replaced with tp brief / tp next --brief; injection kept only for runtime-specific setup (tools the sub-agent uses)\n- README.md (ae52c7a) + REFERENCE.md (abdd841): document tp brief, tp next --brief, --prior, brief_command, commit_files/commit_files_total, duration_source, output_path, and the Out of scope: line\n- CLAUDE.md (6414c59): subagent recipe cites tp next --brief as the unit's first call and the scope fence as the rule preventing out-of-task changes\n- go test ./... and golangci-lint run both clean (0 issues); tp brief, tp next --brief, and tp resume brief_command dogfooded green",
+      "gate_passed_at": "2026-07-24T03:32:18.852103Z",
+      "commit_sha": "2a701c5",
+      "commit_shas": [
+        "2a701c5",
+        "6414c59",
+        "ae52c7a",
+        "abdd841"
+      ],
+      "commit_files": [
+        "CLAUDE.md",
+        "README.md",
+        "skills/tp/REFERENCE.md",
+        "skills/tp/SKILL.md"
+      ]
     }
   ]
 }
