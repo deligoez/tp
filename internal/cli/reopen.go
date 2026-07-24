@@ -57,6 +57,8 @@ func runReopen(_ *cobra.Command, args []string) error {
 		task.GatePassedAt = nil
 		task.CommitSHA = nil
 		task.CommitSHAs = nil
+		task.CommitFiles = nil
+		task.CommitFilesTotal = 0
 		task.GateSkippedReason = nil
 		tf.UpdatedAt = time.Now().UTC()
 
