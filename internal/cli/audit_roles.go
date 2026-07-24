@@ -51,8 +51,8 @@ func routeChecklist(specEntries, findingsEntries []checklistEntry, sel *engine.A
 		spec = append(spec, specItemOf(&findingsEntries[i], taskToFiles))
 	}
 
-	sec = fileCheckItems(sel.Security, "file-sec-", roleSecurity)
-	maint = fileCheckItems(sel.Maintainability, "file-maint-", roleMaintainability)
+	sec = fileCheckItems(sel.Security, roleSecurity)
+	maint = fileCheckItems(sel.Maintainability, roleMaintainability)
 	return spec, sec, maint
 }
 
@@ -83,21 +83,62 @@ func specItemOf(e *checklistEntry, taskToFiles map[string][]string) ChecklistIte
 	}
 }
 
-// fileCheckItems builds one synthetic checklist item per affected file, ids
-// indexed by the role's affected-files list order.
-func fileCheckItems(files []engine.AuditFileEntry, idPrefix, role string) []ChecklistItem {
+// fileCheckItems builds one synthetic checklist item per affected file. Each
+// item's id is file-<roleID>-<slug>, where <slug> derives from the item's
+// subject (file path + checklist text) so the same file keeps the same id
+// across rounds regardless of position (§10.3). Collisions — two items
+// yielding the same slug — get a -2, -3, … suffix.
+func fileCheckItems(files []engine.AuditFileEntry, roleID string) []ChecklistItem {
 	items := make([]ChecklistItem, 0, len(files))
-	for n, f := range files {
+	seen := make(map[string]int)
+	prefix := "file-" + roleID + "-"
+	for _, f := range files {
+		text := fmt.Sprintf("Apply the %s role rules to %s", roleID, f.Path)
+		slug := slugifySubject(f.Path + " " + text)
+		count := seen[slug]
+		seen[slug] = count + 1
+		itemID := prefix + slug
+		if count > 0 {
+			itemID = fmt.Sprintf("%s%s-%d", prefix, slug, count+1)
+		}
 		items = append(items, ChecklistItem{
-			ItemID:           idPrefix + strconv.Itoa(n),
+			ItemID:           itemID,
 			Type:             "file_check",
 			SpecLine:         0,
 			Section:          f.Path,
-			Text:             fmt.Sprintf("Apply the %s role rules to %s", role, f.Path),
+			Text:             text,
 			ExpectedEvidence: "inspect file: " + f.Path,
 		})
 	}
 	return items
+}
+
+// slugifySubject derives a stable slug from an audit item's subject text
+// (§10.3): the subject is lowercased; runs of non-alphanumeric characters
+// collapse to a single "-"; leading and trailing "-" are trimmed; then the
+// result is truncated to at most 40 characters with any trailing "-" trimmed.
+// Because the subject always includes a file path, the slug always contains at
+// least one letter (§10.9).
+func slugifySubject(s string) string {
+	s = strings.ToLower(s)
+	var b strings.Builder
+	dash := false
+	for _, r := range s {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+			dash = false
+			continue
+		}
+		if !dash {
+			b.WriteRune('-')
+			dash = true
+		}
+	}
+	slug := strings.Trim(b.String(), "-")
+	if len(slug) > 40 {
+		slug = strings.TrimRight(slug[:40], "-")
+	}
+	return slug
 }
 
 // invertTaskFiles converts path->tasks into task->sorted paths.
@@ -186,7 +227,7 @@ func generateRoleAuditPrompts(auditorRoles []model.Role, specItems, secItems, ma
 			items, files = maintItems, sel.Maintainability
 		default:
 			files = sel.Maintainability
-			items = fileCheckItems(files, "file-"+role.ID+"-", role.ID)
+			items = fileCheckItems(files, role.ID)
 		}
 		if len(items) == 0 {
 			skipped = append(skipped, engine.SkippedRole{Role: role.ID, Reason: engine.SkipNoChecklistItems})
