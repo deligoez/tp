@@ -1,6 +1,9 @@
 package engine
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 // OutScopePrefix marks the optional trailing out-of-scope line in a closure
 // reason (§7.2). A closing unit appends it to report a finding it noticed
@@ -31,4 +34,71 @@ func ExtractOutOfScope(closedReason string) string {
 		return strings.TrimSpace(strings.TrimPrefix(line, OutScopePrefix))
 	}
 	return ""
+}
+
+// CloseRecipeText builds the "How to close" section text an implementation
+// brief carries (§8). effectiveStrategy is the already-resolved concrete
+// committing behavior — CommitStrategyBuiltin or CommitStrategyHC; an "auto"
+// name is resolved to one of these by the caller via EffectiveCommitStrategy
+// before this call, so the recipe never holds an "auto" branch (§8.1).
+// qualityGate is the resolved quality_gate command verbatim (§8.2). The recipe
+// states the exact close command, the red-gate rule, the evidence contract,
+// the "--" separator, and — under hc — the rejected invocations (§8.4). tp
+// brief assembles this text; it is a statement of the close path, not a check
+// tp runs.
+func CloseRecipeText(effectiveStrategy, qualityGate string) string {
+	command, rejected := closeRecipeCommand(effectiveStrategy)
+
+	var b strings.Builder
+	b.WriteString("How to close this unit.\n\n")
+
+	// §8.2: the resolved gate verbatim, and the rule a red gate is never closed over.
+	b.WriteString("1. Run the gate and confirm it is green before closing. A red gate is never closed over: --skip-gate is a human decision, never the unit's.\n")
+	if qualityGate != "" {
+		fmt.Fprintf(&b, "   quality_gate: %s\n", qualityGate)
+	} else {
+		b.WriteString("   quality_gate: (none configured)\n")
+	}
+	b.WriteString("\n")
+
+	// §8.1: the exact close command for the effective commit_strategy.
+	b.WriteString("2. Close the task with the exact command for the effective commit_strategy:\n")
+	b.WriteString(command)
+	b.WriteString("\n")
+
+	// §8.3: the closure reason is an evidence contract.
+	b.WriteString("3. Write the closure reason as an evidence contract:\n")
+	b.WriteString("   - One line per acceptance criterion, each stating what was implemented and how it was verified.\n")
+	b.WriteString("   - No bare \"done\", \"wip\", or \"deferred\".\n")
+	b.WriteString("   - Written in English.\n")
+	b.WriteString("   - The first line becomes the next unit's summary of this work, so lead with the substantive claim.\n")
+	b.WriteString("   - An optional trailing \"Out of scope:\" line reports a finding outside the fence instead of fixing it.\n\n")
+
+	// §8.4: the "--" separator precedes the reason in both recipes.
+	b.WriteString("The \"--\" separator precedes the reason because a reason often starts with \"- \" (a bullet), which a flag parser would otherwise treat as a flag.\n")
+
+	// §8.4: under hc a bare tp done, tp commit, and --auto-commit are rejected.
+	if rejected != "" {
+		b.WriteString("\n")
+		b.WriteString(rejected)
+		b.WriteString("\n")
+	}
+
+	return b.String()
+}
+
+// closeRecipeCommand returns the exact close command text for the effective
+// strategy (§8.1) and, for hc only, the rejected-invocation note (§8.4). An
+// unrecognized strategy resolves to the builtin recipe, matching
+// EffectiveCommitStrategy's default-to-builtin behavior.
+func closeRecipeCommand(effectiveStrategy string) (command, rejected string) {
+	switch effectiveStrategy {
+	case CommitStrategyHC:
+		command = "   commit with hc, then:\n   tp done <id> --commit <sha> -- \"<evidence>\"   (repeat --commit per sha)\n"
+		rejected = "Under hc, a bare \"tp done\", \"tp commit\", and \"--auto-commit\" are all rejected: make the commit with hc, then record the SHA with \"tp done <id> --commit <sha>\"."
+	default:
+		command = "   tp done <id> --auto-commit -- \"<evidence>\"\n"
+		rejected = ""
+	}
+	return command, rejected
 }
