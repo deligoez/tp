@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.30.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-07-24T02:07:38.773749Z",
+  "updated_at": "2026-07-24T02:22:35.057835Z",
   "workflow": {},
   "coverage": {
     "total_sections": 16,
@@ -55,7 +55,7 @@
     {
       "id": "duration-source",
       "title": "Classify duration provenance",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 10,
@@ -64,11 +64,27 @@
         "## 11. Duration provenance"
       ],
       "source_lines": "136-143",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-24T02:22:35.044112Z",
+      "duration_source": "implicit",
+      "closed_at": "2026-07-24T02:22:35.04416Z",
+      "closed_reason": "- duration_source field added to model.Task (managed: tp set rejects at set.go:22, tp reopen clears at reopen.go:62); explicit claims (claim.go claimSingle/claimBatch, next.go runNext) tag \"claimed\", implicit claims (done.go single/multi/batch, commit.go runCommit) tag \"implicit\", --covered-by closes are exempt (no duration_source set)\n- tp report carries duration_source per task (report.go:132) and excludes implicit-duration tasks under a separate implicit_duration count (report.go:99,199), disjoint from and taking precedence over excluded_from_accuracy; both counts reported; covered-by tasks fall into excluded_from_accuracy via near-zero duration\n- gate green: go test ./... passes, golangci-lint run 0 issues, gofmt -l ./internal/ empty; 11 tests in internal/cli/duration_source_test.go cover claim/next/done/commit/covered-by/managed/reopen/report",
+      "gate_passed_at": "2026-07-24T02:22:35.04416Z",
+      "commit_sha": "e78d54b",
+      "commit_shas": [
+        "e78d54b",
+        "af85993"
+      ],
+      "commit_files": [
+        "internal/cli/claim.go",
+        "internal/cli/commit.go",
+        "internal/cli/done.go",
+        "internal/cli/duration_source_test.go",
+        "internal/cli/next.go",
+        "internal/cli/reopen.go",
+        "internal/cli/report.go",
+        "internal/cli/set.go",
+        "internal/model/task.go"
+      ]
     },
     {
       "id": "stable-item-ids",
