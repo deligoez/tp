@@ -64,12 +64,13 @@ func TestRouteChecklist_Disjoint(t *testing.T) {
 	require.Len(t, secItems, 1, "only the auth-matching file")
 	sec0 := secItems[0].(map[string]any)
 	assert.Equal(t, "file_check", sec0["type"])
-	assert.Equal(t, "file-sec-0", sec0["item_id"])
+	assert.Contains(t, sec0["item_id"], "file-security-")
+	assert.NotRegexp(t, `^file-security-\d+$`, sec0["item_id"], "id is slug-based not positional")
 	assert.Equal(t, "auth_helper.go", sec0["section"])
 	for _, item := range byRole["maintainability-conventions"]["checklist_items"].([]any) {
 		m := item.(map[string]any)
 		assert.Equal(t, "file_check", m["type"])
-		assert.Contains(t, m["item_id"], "file-maint-")
+		assert.Contains(t, m["item_id"], "file-maintainability-conventions-")
 	}
 }
 
