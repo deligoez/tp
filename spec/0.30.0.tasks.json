@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.30.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-07-24T00:43:50.3739Z",
+  "updated_at": "2026-07-24T00:49:49.142678Z",
   "workflow": {},
   "coverage": {
     "total_sections": 16,
@@ -176,7 +176,7 @@
     {
       "id": "brief-close-recipe",
       "title": "Emit the close recipe",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 10,
@@ -185,11 +185,15 @@
         "## 8. The close recipe"
       ],
       "source_lines": "90-107",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-24T00:49:49.142621Z",
+      "closed_at": "2026-07-24T00:49:49.142678Z",
+      "closed_reason": "- CloseRecipeText builds the \"How to close\" recipe from the resolved effective strategy and quality gate: builtin emits `tp done \u003cid\u003e --auto-commit`, hc emits commit-with-hc then `tp done \u003cid\u003e --commit \u003csha\u003e` (repeat per sha), and auto is resolved by the existing EffectiveCommitStrategy/HasHC (TestCloseRecipeText_AutoResolvesToMatchingRecipe).\n- The recipe carries the resolved quality_gate command verbatim and the rule that a red gate is never closed over (--skip-gate is a human decision, never the unit), verified by TestCloseRecipeText_Builtin and _HC.\n- The recipe states the evidence contract: one line per acceptance criterion, each stating what was implemented and how verified, written in English, first line becomes the next unit summary, with an optional trailing \"Out of scope:\" line.\n- The recipe names the \"--\" separator before the reason and states that under hc a bare tp done, tp commit, and --auto-commit are all rejected, verified by TestCloseRecipeText_HC.\n- Quality gate green: go test ./..., golangci-lint run (0 issues), and gofmt -l ./internal/ empty; tp rebuilt before close.",
+      "gate_passed_at": "2026-07-24T00:49:49.142678Z",
+      "commit_sha": "bdf76fc",
+      "commit_shas": [
+        "bdf76fc",
+        "245f285"
+      ]
     },
     {
       "id": "brief-scope-fence",
