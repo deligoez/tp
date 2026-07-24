@@ -143,7 +143,7 @@ func runCommit(_ *cobra.Command, args []string) error {
 		// Record the pre-amend sha C1 on the task — never the post-amend object
 		// sha, since a commit cannot contain its own sha (§5.1c).
 		task.SetCommitSHAs([]string{sha})
-		task.SetCommitFiles(resolveCommitFiles(".", []string{sha}))
+		task.SetCommitFiles(resolveCommitFiles([]string{sha}))
 
 		// Write the closure record (commit_sha = C1) into the task file.
 		if err := model.WriteTaskFile(taskFilePath, tf); err != nil {
@@ -341,11 +341,11 @@ func runGitDir(dir string, args ...string) error {
 // for SetCommitFiles to dedup, sort, and cap. It returns nil when git is
 // unavailable or any sha cannot be resolved, so the field is omitted rather
 // than guessed.
-func resolveCommitFiles(dir string, shas []string) []string {
+func resolveCommitFiles(shas []string) []string {
 	if len(shas) == 0 {
 		return nil
 	}
-	if !gitExists(dir) {
+	if !gitExists(".") {
 		return nil
 	}
 	var all []string
@@ -354,7 +354,7 @@ func resolveCommitFiles(dir string, shas []string) []string {
 		if sha == "" {
 			continue
 		}
-		paths, ok := commitChangedPaths(dir, sha)
+		paths, ok := commitChangedPaths(".", sha)
 		if !ok {
 			return nil
 		}
