@@ -15,6 +15,12 @@ const (
 	StatusDone = "done"
 )
 
+// DurationSource values record how started_at was set (§11.2).
+const (
+	DurationSourceClaimed  = "claimed"
+	DurationSourceImplicit = "implicit"
+)
+
 // Task represents a single atomic work item.
 type Task struct {
 	ID                string     `json:"id"`
@@ -28,6 +34,7 @@ type Task struct {
 	SourceSections    []string   `json:"source_sections"`
 	SourceLines       string     `json:"source_lines,omitempty"`
 	StartedAt         *time.Time `json:"started_at"`
+	DurationSource    string     `json:"duration_source,omitempty"`
 	ClosedAt          *time.Time `json:"closed_at"`
 	ClosedReason      *string    `json:"closed_reason"`
 	GatePassedAt      *time.Time `json:"gate_passed_at"`

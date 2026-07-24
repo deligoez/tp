@@ -169,6 +169,7 @@ func runNext(_ *cobra.Command, _ []string) error {
 			now := time.Now().UTC()
 			t.Status = model.StatusWIP
 			t.StartedAt = &now
+			t.DurationSource = model.DurationSourceClaimed
 			if writeErr := model.WriteTaskFile(taskFilePath, tf2); writeErr != nil {
 				output.Error(ExitFile, writeErr.Error())
 				os.Exit(ExitFile)

@@ -80,6 +80,7 @@ func runCommit(_ *cobra.Command, args []string) error {
 			now := time.Now().UTC()
 			task.Status = model.StatusWIP
 			task.StartedAt = &now
+			task.DurationSource = model.DurationSourceImplicit
 		}
 
 		if task.Status == model.StatusDone {

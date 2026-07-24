@@ -122,6 +122,7 @@ func claimSingle(tf *model.TaskFile, taskFilePath, id string) error {
 	now := time.Now().UTC()
 	task.Status = model.StatusWIP
 	task.StartedAt = &now
+	task.DurationSource = model.DurationSourceClaimed
 	tf.UpdatedAt = now
 
 	if err := model.WriteTaskFile(taskFilePath, tf); err != nil {
@@ -183,6 +184,7 @@ func claimBatch(tf *model.TaskFile, taskFilePath string, ids []string) error {
 
 		task.Status = model.StatusWIP
 		task.StartedAt = &now
+		task.DurationSource = model.DurationSourceClaimed
 		claimed = append(claimed, id)
 	}
 

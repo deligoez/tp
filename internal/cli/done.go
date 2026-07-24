@@ -199,6 +199,9 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 			claimTime := time.Now().UTC()
 			task.Status = model.StatusWIP
 			task.StartedAt = &claimTime
+			if doneCoveredBy == "" {
+				task.DurationSource = model.DurationSourceImplicit
+			}
 		}
 
 		if task.Status == model.StatusDone {
@@ -457,6 +460,9 @@ func runDoneMulti(taskFilePath string, taskIDs []string, reason string) error {
 				}
 				task.Status = model.StatusWIP
 				task.StartedAt = &now
+				if !isCoveredBy {
+					task.DurationSource = model.DurationSourceImplicit
+				}
 			}
 
 			if task.Status == model.StatusDone {
@@ -731,6 +737,9 @@ func runDoneBatch() error {
 					task.StartedAt = entry.StartedAt
 				} else {
 					task.StartedAt = &now
+				}
+				if entry.CoveredBy == "" {
+					task.DurationSource = model.DurationSourceImplicit
 				}
 			}
 

@@ -27,6 +27,7 @@ type reportTask struct {
 	EstimateMinutes   int      `json:"estimate_minutes"`
 	ActualMinutes     float64  `json:"actual_minutes"`
 	Accuracy          *float64 `json:"accuracy"`
+	DurationSource    string   `json:"duration_source,omitempty"`
 	Note              *string  `json:"note,omitempty"`
 	GateSkippedReason *string  `json:"gate_skipped_reason,omitempty"`
 	OutOfScope        *string  `json:"out_of_scope,omitempty"`
@@ -41,6 +42,7 @@ type reportSummary struct {
 	TotalActualMinutes    float64  `json:"total_actual_minutes"`
 	EstimationAccuracy    *float64 `json:"estimation_accuracy"`
 	ExcludedFromAccuracy  int      `json:"excluded_from_accuracy"`
+	ImplicitDuration      int      `json:"implicit_duration"`
 	AverageTaskMinutes    float64  `json:"average_task_minutes"`
 	FastestTask           *idDur   `json:"fastest_task"`
 	SlowestTask           *idDur   `json:"slowest_task"`
@@ -94,6 +96,11 @@ func computeReport(tf *model.TaskFile) ([]reportTask, reportSummary) {
 		accEstimated int
 		accActual    float64
 		excluded     int
+
+		// §11.2: implicit-duration tasks are excluded from estimation_accuracy
+		// under a separate implicit_duration count, disjoint from and taking
+		// precedence over excluded_from_accuracy (rounds-to-zero).
+		implicitDuration int
 	)
 
 	for i := range tf.Tasks {
@@ -122,6 +129,7 @@ func computeReport(tf *model.TaskFile) ([]reportTask, reportSummary) {
 			ID:                t.ID,
 			EstimateMinutes:   t.EstimateMinutes,
 			ActualMinutes:     roundedActual,
+			DurationSource:    t.DurationSource,
 			GateSkippedReason: t.GateSkippedReason,
 		}
 
@@ -136,13 +144,22 @@ func computeReport(tf *model.TaskFile) ([]reportTask, reportSummary) {
 			}
 		}
 
-		// §14.1: when actual_minutes rounds to 0.0 the accuracy is null
-		// and the task carries an explanatory note.
-		if roundedActual == 0 {
+		// §11.2: an implicit-duration task (started_at came from tp done's or
+		// tp commit's implicit claim) is excluded from estimation_accuracy under
+		// a separate implicit_duration count. The two buckets are disjoint —
+		// implicit takes precedence over excluded_from_accuracy (rounds-to-zero).
+		switch {
+		case t.DurationSource == model.DurationSourceImplicit:
+			note := "implicit claim (duration not measured)"
+			rt.Note = &note
+			implicitDuration++
+		case roundedActual == 0:
+			// §14.1: when actual_minutes rounds to 0.0 the accuracy is null
+			// and the task carries an explanatory note.
 			note := "duration below resolution"
 			rt.Note = &note
 			excluded++
-		} else {
+		default:
 			acc := roundTo(float64(t.EstimateMinutes)/actualMin, 2)
 			rt.Accuracy = &acc
 			accEstimated += t.EstimateMinutes
@@ -180,6 +197,7 @@ func computeReport(tf *model.TaskFile) ([]reportTask, reportSummary) {
 		TotalActualMinutes:    roundTo(totalActual, 1),
 		EstimationAccuracy:    nil,
 		ExcludedFromAccuracy:  excluded,
+		ImplicitDuration:      implicitDuration,
 		AverageTaskMinutes:    avgMin,
 		FastestTask:           fastest,
 		SlowestTask:           slowest,
