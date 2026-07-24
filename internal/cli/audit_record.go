@@ -44,7 +44,7 @@ func runAuditRecord(specPath, recordPath string) error {
 		return nil
 	}
 
-	findings, parseErr := countAuditFindings(data)
+	findings, parseErr := countAuditFindings(recordPath, data)
 	if parseErr != nil {
 		output.Error(ExitValidation, parseErr.Error())
 		os.Exit(ExitValidation)
@@ -116,7 +116,7 @@ func recordAuditRoundEntry(specPath string, data []byte, findings int, clean boo
 
 // countAuditFindings parses rows with the shared line rules and counts rows
 // whose status is absent or not exactly "PASS".
-func countAuditFindings(data []byte) (findings int, err error) {
+func countAuditFindings(path string, data []byte) (findings int, err error) {
 	lineNum := 0
 	for _, line := range strings.Split(string(data), "\n") {
 		lineNum++
@@ -127,6 +127,9 @@ func countAuditFindings(data []byte) (findings int, err error) {
 		var row map[string]any
 		if jsonErr := json.Unmarshal([]byte(trimmed), &row); jsonErr != nil {
 			return 0, fmt.Errorf("line %d: invalid JSON: %w", lineNum, jsonErr)
+		}
+		if role, _ := row["role"].(string); role == "" {
+			fmt.Fprintf(os.Stderr, "warning: line %d of %s is missing the role field; it will not appear in the per-role overlap report\n", lineNum, path)
 		}
 		status, _ := row["status"].(string)
 		if status != "PASS" {
