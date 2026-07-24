@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.30.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-07-24T00:36:16.012281Z",
+  "updated_at": "2026-07-24T00:43:50.3739Z",
   "workflow": {},
   "coverage": {
     "total_sections": 16,
@@ -75,7 +75,7 @@
     {
       "id": "id-scheme-marker",
       "title": "Mark round id scheme",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 8,
@@ -84,11 +84,17 @@
         "## 10. Review and audit unit briefs"
       ],
       "source_lines": "132-134",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-24T00:43:50.373868Z",
+      "closed_at": "2026-07-24T00:43:50.3739Z",
+      "closed_reason": "- ReviewRound gains IDScheme field (json:\"id_scheme,omitempty\") and IDSchemeSlug const; audit-record path writes \"slug\" at audit_record.go:111\n- IsLegacyRound detects legacy by absent marker (reviewstate.go:283); review rounds never carry it\n- legacy round stays marker-less across a new record — tp appends, never rewrites recorded entries (§10.9)\n- merge path untouched; cross-scheme safe by construction (slug always contains a letter), no marker check on result files",
+      "gate_passed_at": "2026-07-24T00:43:50.3739Z",
+      "commit_sha": "f6e2f90",
+      "commit_shas": [
+        "f6e2f90",
+        "c5e5e48",
+        "603b3ba",
+        "85bf893"
+      ]
     },
     {
       "id": "prompt-framing",
