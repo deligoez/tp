@@ -60,6 +60,7 @@ tp done id1 id2 id3 "reason"   # Multi-ID close (shared reason, last arg = reaso
 tp done <id> --auto-commit     # Commit + close in one call
 tp done <id> --covered-by <id> # Close as covered by another done task
 tp done --batch results.ndjson # Batch close from NDJSON (primary close mechanism)
+tp brief [id]                # Read-only unit brief (identity, scope fence, prior work, close recipe)
 ```
 
 ### Incremental (fallback)
@@ -67,6 +68,7 @@ tp done --batch results.ndjson # Batch close from NDJSON (primary close mechanis
 tp next                        # Resume WIP or claim next ready task
 tp next --minimal              # Minimal output: {id, acceptance} only
 tp next --peek                 # Preview without claiming
+tp next --brief                # Claim + return the unit's brief (the form a fresh unit runs itself)
 ```
 
 ### Task State
@@ -232,10 +234,7 @@ skills/tp/
 
 Prefer running each **unit** in a **fresh subagent context** (Agent/Task tool), not inline in the orchestrator: one implementation task, or one review/audit round's per-role reviewers/auditors. The subagent's work reaches disk (commit, `tp done`, `.tp-review` record); the orchestrator re-orients from durable state (`tp resume`/`tp next`) between units, so nothing load-bearing lives only in a context window. (Verified: a fresh subagent implemented, gated, committed, and closed a task end-to-end from injected context alone.)
 
-**The orchestrator's injection duty (critical).** A fresh subagent inherits CLAUDE.md + skills but NOT the orchestrator's session history, so when you spawn it you MUST inject what it needs to succeed — deliberately think through and hand it:
-1. **Durable-state pointer** — tell it to run `tp next` / `tp plan` / `tp resume` to fetch its exact unit (id + acceptance) from disk, rather than describing the task from your memory.
-2. **The workflow recipe** — the close path for the *effective* `commit_strategy` (`builtin`: `tp commit` / `tp done --auto-commit`; `hc`: implement → `hc run` → `tp done --commit <sha> …`), the `--` separator before the reason, and the N-evidence-line closure format.
-3. **The live operational lessons** — the current gotchas this session has learned, e.g.: native Read/Edit/Write/grep are hook-blocked → use codedbpro; run the quality gate yourself before `tp done`; codedbpro same-file range/insert edits apply in **list order** (order descending or use content-based `replace`); the `TP_HC` env seam for deterministic strategy in tests. Keep a short, current "lessons to inject" list (in memory) and refresh it as new gotchas surface, so each fresh unit starts from accumulated knowledge, not zero.
+**Brief the unit, don't retype its context (v0.30.0).** A fresh subagent inherits CLAUDE.md + skills but NOT the orchestrator's session history, so its **first call is `tp next --brief`** — it claims the task and receives a self-sufficient brief: identity and the one-unit-then-stop rule, the **scope fence** (implement only what this task's acceptance requires; no refactor/rename/cleanup; no hand-editing `<base>.tasks.json` or `.tp-review/`; an out-of-fence finding goes in the closure evidence as an `Out of scope:` line, never a fix), prior work (each dependency's evidence and the files its commits touched), the verbatim acceptance + `spec_excerpt`, and the exact close recipe for the effective `commit_strategy` (the `--` separator, the N-evidence-line format, and under `hc` that `tp commit`/`--auto-commit`/a bare `tp done` are rejected). The orchestrator may instead run read-only `tp brief` first to produce the brief, then decide whether to spawn; `tp resume`'s `next_action.brief_command` names the right command per phase. **Inject only what tp cannot know** — runtime-specific setup (which tools the sub-agent should use, e.g. native Read/Edit/Write/grep are hook-blocked → use codedbpro) and the live operational gotchas not yet carried by the brief (run the quality gate yourself before `tp done`; codedbpro same-file range/insert edits apply in **list order**; the `TP_HC` env seam for deterministic strategy in tests).
 
 **Honest boundaries.** Subagents don't nest (one level), so the orchestrator does each round's fan-out itself; the orchestrator's own context is NOT reset in this model — only the units are. For a full reset of the driver too, use the `/clear` + `tp resume` loop (human/harness-triggered, since an agent can't clear its own caller's context — §2.1) or drive tp externally with headless `claude -p` per unit.
 
