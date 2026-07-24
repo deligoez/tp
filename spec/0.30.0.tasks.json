@@ -1,14 +1,303 @@
 {
   "version": 1,
   "spec": "spec/0.30.0.md",
-  "created_at": "2026-07-23T23:01:43.005284Z",
-  "updated_at": "2026-07-23T23:01:43.005285Z",
+  "created_at": "0001-01-01T00:00:00Z",
+  "updated_at": "2026-07-24T00:25:49.007684Z",
   "workflow": {},
   "coverage": {
-    "total_sections": 0,
-    "mapped_sections": 0,
-    "context_only": [],
+    "total_sections": 16,
+    "mapped_sections": 10,
+    "context_only": [
+      "# tp v0.30.0 — The unit brief: tp briefs the unit, not the orchestrator",
+      "## 1. Overview",
+      "## 2. Design Principles",
+      "## 12. Token budget",
+      "## 14. Non-Goals",
+      "## 15. Tests / Acceptance"
+    ],
     "unmapped": []
   },
-  "tasks": []
+  "tasks": [
+    {
+      "id": "commit-files-field",
+      "title": "Record commit_files at close",
+      "status": "open",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 12,
+      "acceptance": "A close recording commits (tp commit, tp done --auto-commit/--commit/--batch) resolves each sha's changed paths (added/modified/deleted/renamed-new) into a deduplicated lexical-sorted commit_files array capped at 50 with commit_files_total, while a --covered-by close records none. commit_files and commit_files_total are managed fields (tp set rejects, tp reopen clears) and omitted when git is unavailable or a sha is unresolvable.",
+      "source_sections": [
+        "## 6. `commit_files` — what a closed unit produced"
+      ],
+      "source_lines": "72-81",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "duration-source",
+      "title": "Classify duration provenance",
+      "status": "open",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "Tasks gain duration_source (managed): claimed from an explicit claim (tp claim/next/next --brief) or implicit from tp done's or tp commit's implicit claim, with --covered-by exempt. tp report excludes implicit tasks under a separate implicit_duration count disjoint from and preceding excluded_from_accuracy (rounds-to-zero), reporting both counts.",
+      "source_sections": [
+        "## 11. Duration provenance"
+      ],
+      "source_lines": "136-143",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "stable-item-ids",
+      "title": "Make audit item ids stable",
+      "status": "open",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "A file-derived audit item id becomes file-\u003crole\u003e-\u003cslug\u003e where \u003crole\u003e is the role id lowercased and \u003cslug\u003e derives from the item's subject (file path plus checklist text): lowercase, non-alphanumeric runs to a single dash, trimmed, capped at 40 chars (trim trailing dash), collision suffix -2/-3. The same subject keeps its id across rounds and tp audit --merge dedups two rounds' rows for that subject on (role, item_id).",
+      "source_sections": [
+        "## 10. Review and audit unit briefs"
+      ],
+      "source_lines": "120-121",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "id-scheme-marker",
+      "title": "Mark round id scheme",
+      "status": "open",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 8,
+      "acceptance": "Audit rounds recorded under this release carry an id_scheme marker (value slug), and a round without it is legacy (positional). tp never rewrites recorded files, and a prior-round section built from a marker-less round states its ids are positional and not comparable. The slug-always-contains-a-letter invariant makes cross-scheme merge safe by construction without a marker check on result files.",
+      "source_sections": [
+        "## 10. Review and audit unit briefs"
+      ],
+      "source_lines": "132-134",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "prompt-framing",
+      "title": "Frame emitted prompts",
+      "status": "open",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 12,
+      "acceptance": "Every emitted review/audit prompt carries output_path (review-r\u003cN\u003e-\u003crole\u003e.ndjson or audit-r\u003cN\u003e-\u003crole\u003e.ndjson) named in its text, states the reset discipline (this round only, write to the named file, then stop), and states the loop budget (round number, required clean count, current consecutive clean, remaining when capped). The prompt states whether its file contents are complete or the unit must read the named files itself (12KB per-role reading budget, first under-budget role inlines, rest get named paths).",
+      "source_sections": [
+        "## 10. Review and audit unit briefs"
+      ],
+      "source_lines": "122-129",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "record-role-warning",
+      "title": "Warn on role-less findings rows",
+      "status": "open",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 5,
+      "acceptance": "tp review/audit --record warns (naming file and line) on a findings row missing the role field while still recording the round, because a role-less row silently empties the per-role overlap report.",
+      "source_sections": [
+        "## 10. Review and audit unit briefs"
+      ],
+      "source_lines": "130-131",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "audit-prior-round",
+      "title": "Give audit rounds memory",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "stable-item-ids",
+        "id-scheme-marker"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "An audit prompt for round 2 onward carries a prior-round section listing only that role's previous-round non-PASS rows (role, stable item id, status, evidence location, and whether a commit touching that file landed after the prior round's recorded_at), and a round-1 prompt carries none. The section states a prior finding is context to re-check, not a verdict to repeat, and the changed-since flag is omitted when a row has no file path.",
+      "source_sections": [
+        "## 10. Review and audit unit briefs"
+      ],
+      "source_lines": "118-119",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "brief-prior-work",
+      "title": "Select brief prior work",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "commit-files-field"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "The brief's prior-work section lists every transitive done dependency plus the most recent closures to a total of 12 (deps always included beyond the cap), each carrying task id, title, the first line of closed_reason, commit_shas, and up to 5 commit_files paths with a +N more count. --prior \u003cn\u003e (range 0-20, out-of-range exit 2) overrides the recency count, the first unit states it is the first, and an omitted-count is shown whenever recency entries are dropped.",
+      "source_sections": [
+        "## 5. Prior-work selection"
+      ],
+      "source_lines": "59-71",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "brief-close-recipe",
+      "title": "Emit the close recipe",
+      "status": "open",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "The brief resolves the effective commit_strategy and emits the matching recipe (builtin: tp done \u003cid\u003e --auto-commit -- \"\u003cevidence\u003e\", hc: commit with hc then tp done \u003cid\u003e --commit \u003csha\u003e -- \"\u003cevidence\u003e\", auto resolves hc-on-PATH else builtin), with the resolved quality_gate command verbatim and the rule a red gate is never closed over. The recipe states the evidence contract (one line per criterion, English, first line becomes the next unit's summary) and that under hc a bare tp done, tp commit, and --auto-commit are rejected.",
+      "source_sections": [
+        "## 8. The close recipe"
+      ],
+      "source_lines": "90-107",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "brief-scope-fence",
+      "title": "State the scope fence",
+      "status": "open",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 8,
+      "acceptance": "Every implementation brief states the scope fence: implement only this task's acceptance, do not refactor/rename/reformat outside it or hand-edit the task file or .tp-review, and report a real out-of-fence problem rather than fixing it. The evidence format accepts an optional trailing Out of scope: line that tp preserves verbatim in closed_reason and surfaces in tp report.",
+      "source_sections": [
+        "## 7. The scope fence"
+      ],
+      "source_lines": "82-89",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "brief-core",
+      "title": "Assemble the unit brief",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "brief-prior-work",
+        "brief-close-recipe",
+        "brief-scope-fence"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "tp brief [id] is read-only and prints the five-section brief (identity with the one-unit-then-stop rule, scope, prior work, your unit with verbatim acceptance, close) in order, exiting 4 ({done, message}) with no task or unknown id. --json returns the machine parts {identity, task, prior_work, close, scope} without the assembled text, and --compact drops file lists and spec_excerpt while keeping the acceptance text, close recipe, and scope prohibitions and shortening identity/scope to one line each.",
+      "source_sections": [
+        "## 4. Brief anatomy",
+        "## 3. The unit brief"
+      ],
+      "source_lines": "33-58",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "next-brief",
+      "title": "Add tp next --brief",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "brief-core"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "tp next --brief claims the next ready task as tp next does and returns the brief for it in one call. --brief composes with --json, and --brief with --minimal exits 2 (one strips context, the other assembles it).",
+      "source_sections": [
+        "## 9. Commands"
+      ],
+      "source_lines": "108-115",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "resume-brief-command",
+      "title": "Add brief_command to resume",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "brief-core",
+        "next-brief"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "tp resume's next_action gains brief_command: the exact command producing the brief for the action it points at (tp next --brief in implement, tp review \u003cspec\u003e --round N in review, tp audit \u003cspec\u003e in audit), so an orchestrator following next_action reaches a full brief without knowing the phase.",
+      "source_sections": [
+        "## 9. Commands"
+      ],
+      "source_lines": "108-115",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "documentation",
+      "title": "Update docs for the brief",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "commit-files-field",
+        "duration-source",
+        "stable-item-ids",
+        "id-scheme-marker",
+        "prompt-framing",
+        "record-role-warning",
+        "audit-prior-round",
+        "brief-prior-work",
+        "brief-close-recipe",
+        "brief-scope-fence",
+        "brief-core",
+        "next-brief",
+        "resume-brief-command"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "SKILL.md replaces the orchestrator-injection-duty description with the brief commands (run tp brief or tell the unit to run tp next --brief), keeping injection only for runtime-specific setup. README.md and REFERENCE.md document tp brief, tp next --brief, --prior, brief_command, commit_files/commit_files_total, duration_source, output_path, and the Out of scope: line, CLAUDE.md's subagent recipe cites tp next --brief and the scope fence, and go test ./... with golangci-lint run are clean.",
+      "source_sections": [
+        "## 13. Documentation"
+      ],
+      "source_lines": "150-157",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ]
 }
