@@ -107,6 +107,7 @@ func recordAuditRoundEntry(specPath string, data []byte, findings int, clean boo
 			File:       fileName,
 			SpecHash:   specHash,
 			RolesHash:  rolesHash,
+			IDScheme:   engine.IDSchemeSlug,
 		})
 		return engine.SaveReviewState(specPath, st)
 	})
