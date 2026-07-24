@@ -132,7 +132,7 @@ const (
 // capped at five paths with a "+N more" count and the true file total.
 type PriorWorkEntry struct {
 	ID               string   `json:"id"`
-	Title            string   `json:"title"`
+	Title            string   `json:"title,omitempty"`
 	EvidenceSummary  string   `json:"evidence_summary"`
 	CommitSHAs       []string `json:"commit_shas,omitempty"`
 	CommitFiles      []string `json:"commit_files,omitempty"`
@@ -433,4 +433,195 @@ func derefTime(t *time.Time) time.Time {
 		return time.Time{}
 	}
 	return *t
+}
+
+// --- Brief assembly (§3, §4) ---
+
+// identityOneLine is the one-line reset discipline every brief's identity
+// carries (§4.2, §4.4): the rule a fresh unit cannot infer from a task record.
+// It is the JSON identity value and the compact identity line.
+const identityOneLine = "This agent executes one unit and stops; it does not pick up a second task; work not on disk when it returns is lost."
+
+// BriefTask is the "Your unit" machine part of a brief (§4.1): the task id, the
+// acceptance text verbatim from the task file (§4.3), the anchors
+// (source_sections and source_lines), and the spec_excerpt. spec_excerpt is
+// omitted under --compact (§12.1); the acceptance text never is.
+type BriefTask struct {
+	ID             string   `json:"id"`
+	Title          string   `json:"title,omitempty"`
+	Acceptance     string   `json:"acceptance"`
+	SourceSections []string `json:"source_sections,omitempty"`
+	SourceLines    string   `json:"source_lines,omitempty"`
+	SpecExcerpt    string   `json:"spec_excerpt,omitempty"`
+}
+
+// Brief is the structured machine-readable parts of an implementation brief
+// (§4.4): {identity, task, prior_work, close, scope}, in that order. identity is
+// the one-line reset discipline; scope is the scope-fence prohibitions
+// (ScopeFenceText); close is the close recipe (CloseRecipeText); task and
+// prior_work carry the unit and its prior-work selection. The assembled text
+// brief (the default output) is built from these same parts by Text.
+type Brief struct {
+	Identity  string           `json:"identity"`
+	Task      BriefTask        `json:"task"`
+	PriorWork *PriorWorkResult `json:"prior_work"`
+	Close     string           `json:"close"`
+	Scope     string           `json:"scope"`
+
+	compact bool
+}
+
+// BuildBrief assembles the brief's machine parts (§4.4) for task from tf. The
+// effectiveStrategy is the already-resolved concrete committing behavior
+// (builtin or hc); qualityGate is the resolved quality_gate command verbatim.
+// priorCount/priorSet drive prior-work selection (§5); when priorSet is false
+// SelectPriorWork applies its defaults. Under compact, spec_excerpt is omitted
+// and prior-work entries collapse to id and evidence summary (§12.1); the
+// acceptance text, close recipe, and scope prohibitions are always present.
+func BuildBrief(tf *model.TaskFile, task *model.Task, specPath, effectiveStrategy, qualityGate string, priorCount int, priorSet, compact bool) (*Brief, error) {
+	prior, err := SelectPriorWork(tf, task.ID, priorCount, priorSet)
+	if err != nil {
+		return nil, err
+	}
+	if compact {
+		prior = compactPriorWork(prior)
+	}
+
+	bt := BriefTask{
+		ID:             task.ID,
+		Title:          task.Title,
+		Acceptance:     task.Acceptance,
+		SourceSections: task.SourceSections,
+		SourceLines:    task.SourceLines,
+	}
+	if !compact {
+		bt.SpecExcerpt = ExtractSpecExcerptForTask(specPath, task.SourceLines, task.SourceSections)
+	}
+
+	return &Brief{
+		Identity:  identityOneLine,
+		Task:      bt,
+		PriorWork: prior,
+		Close:     CloseRecipeText(effectiveStrategy, qualityGate),
+		Scope:     ScopeFenceText(),
+		compact:   compact,
+	}, nil
+}
+
+// compactPriorWork returns a copy of prior with each entry collapsed to its id
+// and evidence summary (§12.1): no file lists, in the minimal one-line-per-entry
+// form. is_first_unit and omitted_count are preserved (they are not file lists).
+func compactPriorWork(prior *PriorWorkResult) *PriorWorkResult {
+	entries := make([]PriorWorkEntry, len(prior.Entries))
+	for i, e := range prior.Entries {
+		entries[i] = PriorWorkEntry{ID: e.ID, EvidenceSummary: e.EvidenceSummary}
+	}
+	return &PriorWorkResult{
+		Entries:      entries,
+		IsFirstUnit:  prior.IsFirstUnit,
+		OmittedCount: prior.OmittedCount,
+	}
+}
+
+// Text assembles the five-section implementation brief text (§4.1) from the
+// machine parts, in the fixed order Identity, Scope, Prior work, Your unit, How
+// to close — ready to paste into a sub-agent prompt. Under compact the identity
+// and scope sections shorten to their core line and prior-work entries collapse
+// (§12.1); the acceptance text, close recipe, and scope-fence prohibitions are
+// always present.
+func (b *Brief) Text() string {
+	var s strings.Builder
+
+	// §4.1 Identity (§4.2): what this unit is, and the one-unit-then-stop rule.
+	s.WriteString("## Identity\n\n")
+	if b.Task.Title != "" {
+		fmt.Fprintf(&s, "You are executing one unit of work: %s (%s).\n", b.Task.Title, b.Task.ID)
+	} else {
+		fmt.Fprintf(&s, "You are executing one unit of work (%s).\n", b.Task.ID)
+	}
+	if b.compact {
+		s.WriteString(b.Identity)
+	} else {
+		fmt.Fprintf(&s, "%s\n", b.Identity)
+	}
+
+	// §4.1 Scope: the acceptance criteria are the boundary, plus the fence (§7).
+	s.WriteString("\n\n## Scope\n\n")
+	if !b.compact {
+		s.WriteString("The acceptance criteria in \"Your unit\" are the boundary of this unit's work: implement only them.\n\n")
+	}
+	s.WriteString(b.Scope)
+
+	// §4.1 Prior work (§5).
+	s.WriteString("\n\n## Prior work\n\n")
+	s.WriteString(renderPriorWorkText(b.PriorWork, b.compact))
+
+	// §4.1 Your unit: id, acceptance verbatim (§4.3), anchors, spec_excerpt.
+	s.WriteString("\n\n## Your unit\n\n")
+	s.WriteString(renderBriefTaskText(&b.Task))
+
+	// §4.1 How to close (§8).
+	s.WriteString("\n\n## How to close\n\n")
+	s.WriteString(b.Close)
+	s.WriteString("\n")
+
+	return s.String()
+}
+
+// renderPriorWorkText renders the prior-work section body. The first unit states
+// it has no prior work; otherwise each entry is one line per field, collapsed to
+// id and evidence summary under compact (§12.1).
+func renderPriorWorkText(prior *PriorWorkResult, compact bool) string {
+	if prior == nil || prior.IsFirstUnit {
+		return "This is the first unit of the project; there is no prior work to review.\n"
+	}
+	var s strings.Builder
+	for _, e := range prior.Entries {
+		if compact {
+			fmt.Fprintf(&s, "- %s: %s\n", e.ID, e.EvidenceSummary)
+			continue
+		}
+		fmt.Fprintf(&s, "- %s — %s\n", e.ID, e.Title)
+		if e.EvidenceSummary != "" {
+			fmt.Fprintf(&s, "  %s\n", e.EvidenceSummary)
+		}
+		if len(e.CommitSHAs) > 0 {
+			fmt.Fprintf(&s, "  commits: %s\n", strings.Join(e.CommitSHAs, ", "))
+		}
+		if len(e.CommitFiles) > 0 {
+			fmt.Fprintf(&s, "  files: %s\n", strings.Join(e.CommitFiles, ", "))
+			if e.CommitFilesMore > 0 {
+				fmt.Fprintf(&s, "  (+%d more)\n", e.CommitFilesMore)
+			}
+		}
+	}
+	if prior.OmittedCount > 0 {
+		fmt.Fprintf(&s, "\n(%d more prior-work entries omitted)\n", prior.OmittedCount)
+	}
+	return s.String()
+}
+
+// renderBriefTaskText renders the "Your unit" section body: the id, an optional
+// title, the acceptance text verbatim, the anchors, and the spec_excerpt when
+// present.
+func renderBriefTaskText(t *BriefTask) string {
+	var s strings.Builder
+	fmt.Fprintf(&s, "id: %s\n", t.ID)
+	if t.Title != "" {
+		fmt.Fprintf(&s, "title: %s\n", t.Title)
+	}
+	fmt.Fprintf(&s, "\nacceptance (verbatim):\n%s\n", t.Acceptance)
+	if len(t.SourceSections) > 0 || t.SourceLines != "" {
+		s.WriteString("\nanchors:\n")
+		for _, a := range t.SourceSections {
+			fmt.Fprintf(&s, "- %s\n", a)
+		}
+		if t.SourceLines != "" {
+			fmt.Fprintf(&s, "- source_lines: %s\n", t.SourceLines)
+		}
+	}
+	if t.SpecExcerpt != "" {
+		fmt.Fprintf(&s, "\nspec_excerpt:\n%s\n", t.SpecExcerpt)
+	}
+	return s.String()
 }
