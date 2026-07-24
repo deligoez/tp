@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.30.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-07-24T02:44:15.565592Z",
+  "updated_at": "2026-07-24T03:20:32.12668Z",
   "workflow": {},
   "coverage": {
     "total_sections": 16,
@@ -136,7 +136,7 @@
     {
       "id": "prompt-framing",
       "title": "Frame emitted prompts",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 12,
@@ -145,11 +145,23 @@
         "## 10. Review and audit unit briefs"
       ],
       "source_lines": "122-129",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-24T03:20:32.113394Z",
+      "duration_source": "implicit",
+      "closed_at": "2026-07-24T03:20:32.113437Z",
+      "closed_reason": "- Every emitted review/audit prompt carries output_path (review-r\u003cN\u003e-\u003crole\u003e.ndjson / audit-r\u003cN\u003e-\u003crole\u003e.ndjson) named in its text (§10.4).\n- Each prompt states the reset discipline: produce findings for this round only, write them to the named file, then stop (§10.5).\n- Each prompt states the loop budget: round number, required clean-round count, consecutive clean so far, and remaining rounds when a cap is set (§10.6).\n- Each prompt states whether its file contents are complete or the unit must read the named files itself, with the 12KB per-role budget picking the first under-budget role to inline and giving the rest named paths (§10.7).",
+      "gate_passed_at": "2026-07-24T03:20:32.113437Z",
+      "commit_sha": "245ed2d",
+      "commit_shas": [
+        "245ed2d",
+        "8851143"
+      ],
+      "commit_files": [
+        "internal/cli/audit.go",
+        "internal/cli/audit_roles.go",
+        "internal/cli/prompt_framing.go",
+        "internal/cli/prompt_framing_test.go",
+        "internal/cli/review.go"
+      ]
     },
     {
       "id": "record-role-warning",
