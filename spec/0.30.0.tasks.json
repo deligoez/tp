@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.30.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-07-24T01:40:35.74642Z",
+  "updated_at": "2026-07-24T01:49:10.754828Z",
   "workflow": {},
   "coverage": {
     "total_sections": 16,
@@ -288,7 +288,7 @@
     {
       "id": "next-brief",
       "title": "Add tp next --brief",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "brief-core"
@@ -299,11 +299,17 @@
         "## 9. Commands"
       ],
       "source_lines": "108-115",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-24T01:49:10.743746Z",
+      "closed_at": "2026-07-24T01:49:10.743778Z",
+      "closed_reason": "- tp next --brief claims the next ready task (open-\u003ewip via the same WithFileLock claim flow as tp next) and returns the brief in one call, dispatched to outputNextBrief after the claim in internal/cli/next.go\n- --brief composes with --json: under JSON the structured brief is emitted via output.IsJSON/output.JSON(b), mirroring tp brief's contract (TestNextBrief_ComposesWithJSON)\n- --brief with --minimal exits 2 via an explicit mutually-exclusive guard at the top of runNext (TestNextBrief_BriefAndMinimalMutuallyExclusive)",
+      "gate_passed_at": "2026-07-24T01:49:10.743778Z",
+      "commit_sha": "e25cca4",
+      "commit_shas": [
+        "e25cca4"
+      ],
+      "commit_files": [
+        "internal/cli/next.go"
+      ]
     },
     {
       "id": "resume-brief-command",
