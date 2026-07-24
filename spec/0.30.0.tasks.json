@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.30.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-07-24T01:23:59.705036Z",
+  "updated_at": "2026-07-24T01:40:35.74642Z",
   "workflow": {},
   "coverage": {
     "total_sections": 16,
@@ -251,7 +251,7 @@
     {
       "id": "brief-core",
       "title": "Assemble the unit brief",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "brief-prior-work",
@@ -265,11 +265,25 @@
         "## 3. The unit brief"
       ],
       "source_lines": "33-58",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-24T01:40:35.717495Z",
+      "closed_at": "2026-07-24T01:40:35.717549Z",
+      "closed_reason": "- tp brief [id] is read-only (a ready task stays open after briefing it — TestBrief_NoArg_TargetsWIPAndIsReadOnly) and prints the five-section brief in fixed order (Identity, Scope, Prior work, Your unit, How to close) assembled by engine.BuildBrief/Text at internal/engine/brief.go:476 and wired in internal/cli/brief.go:62, exiting 4 with the {done, message} shape when no task is available or the id is unknown (TestBrief_AllDone_Exit4DoneShape, TestBrief_UnknownID_Exit4DoneShape)\n- --json returns {identity, task, prior_work, close, scope} without the assembled text and --compact drops spec_excerpt and prior-work file lists while keeping the acceptance text, close recipe, and scope prohibitions and shortening identity/scope to one line each (TestBrief_CompactDropsFileListsAndExcerpt, TestBuildBrief_CompactDropsExcerptAndFileLists, TestBrief_Text_CompactShortensIdentityAndScope); acceptance is verbatim from the task file (TestBrief_ExplicitID_JSONPartsAndVerbatimAcceptance)",
+      "gate_passed_at": "2026-07-24T01:40:35.717549Z",
+      "commit_sha": "dde695d",
+      "commit_shas": [
+        "dde695d",
+        "0ae9cc6",
+        "99f688d",
+        "ac562eb",
+        "8cdb847"
+      ],
+      "commit_files": [
+        "internal/cli/brief.go",
+        "internal/cli/brief_test.go",
+        "internal/cli/root.go",
+        "internal/engine/brief.go",
+        "internal/engine/brief_assemble_test.go"
+      ]
     },
     {
       "id": "next-brief",
