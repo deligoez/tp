@@ -2,7 +2,11 @@ package engine
 
 import (
 	"fmt"
+	"sort"
 	"strings"
+	"time"
+
+	"github.com/deligoez/tp/internal/model"
 )
 
 // OutScopePrefix marks the optional trailing out-of-scope line in a closure
@@ -101,4 +105,332 @@ func closeRecipeCommand(effectiveStrategy string) (command, rejected string) {
 		rejected = ""
 	}
 	return command, rejected
+}
+
+// --- Prior-work selection (§5) ---
+
+// Prior-work selection bounds and defaults (§5).
+const (
+	// PriorMin/PriorMax bound the --prior flag's accepted range (§5.4); an
+	// out-of-range value is a usage error the CLI maps to exit 2.
+	PriorMin = 0
+	PriorMax = 20
+	// priorDefaultRecency is the recency count when --prior is absent (§5.1).
+	priorDefaultRecency = 5
+	// priorDefaultTotal is the total-entry cap when --prior is absent (§5.4):
+	// dependency-derived entries plus recency, with deps always included even
+	// when they alone exceed it.
+	priorDefaultTotal = 12
+	// priorWorkFileCap is the maximum commit_files paths shown per prior-work
+	// entry (§5.2); the remainder is summarized as a "+N more" count.
+	priorWorkFileCap = 5
+)
+
+// PriorWorkEntry is a single prior-work entry a brief carries (§5.2): the task
+// id, title, the first line of closed_reason (the evidence summary the closing
+// unit wrote), the commits that closed it, and the files those commits touched
+// capped at five paths with a "+N more" count and the true file total.
+type PriorWorkEntry struct {
+	ID               string   `json:"id"`
+	Title            string   `json:"title"`
+	EvidenceSummary  string   `json:"evidence_summary"`
+	CommitSHAs       []string `json:"commit_shas,omitempty"`
+	CommitFiles      []string `json:"commit_files,omitempty"`
+	CommitFilesMore  int      `json:"commit_files_more,omitempty"`
+	CommitFilesTotal int      `json:"commit_files_total,omitempty"`
+}
+
+// PriorWorkResult is the brief's prior-work selection (§5): the ordered
+// entries (done transitive dependencies first, then most-recently-closed done
+// tasks), whether this is the first unit of the project, and the count of
+// recency entries dropped by the total cap or --prior.
+type PriorWorkResult struct {
+	Entries      []PriorWorkEntry `json:"entries"`
+	IsFirstUnit  bool             `json:"is_first_unit"`
+	OmittedCount int              `json:"omitted_count,omitempty"`
+}
+
+// ValidatePriorCount checks a --prior value against the documented range
+// (§5.4). It returns an error the CLI maps to exit 2 (usage) when priorSet is
+// true and the value is outside [PriorMin, PriorMax]. An unset --prior (the
+// default) always passes.
+func ValidatePriorCount(prior int, priorSet bool) error {
+	if priorSet && (prior < PriorMin || prior > PriorMax) {
+		return fmt.Errorf("--prior %d is out of range [%d, %d]", prior, PriorMin, PriorMax)
+	}
+	return nil
+}
+
+// SelectPriorWork computes the brief's prior-work selection (§5) for the task
+// identified by taskID. The selection is, in order and deduplicated:
+//  1. Every done task taskID transitively depends on — always included, even
+//     when that count exceeds the default 12-entry total cap — in
+//     dependency-safe order.
+//  2. The most recently closed done tasks (adjacent context the dependency
+//     graph does not capture), up to the recency limit.
+//
+// When priorSet is false the recency limit is priorDefaultRecency (5), with the
+// combined entry count capped at priorDefaultTotal (12); dependency-derived
+// entries are never dropped to satisfy the cap. When priorSet is true the
+// recency limit is priorCount (the 12-entry cap is overridden, up to 20) and
+// dependency-derived entries remain always included on top. An out-of-range
+// priorCount returns an error the caller maps to exit 2.
+func SelectPriorWork(tf *model.TaskFile, taskID string, priorCount int, priorSet bool) (*PriorWorkResult, error) {
+	if err := ValidatePriorCount(priorCount, priorSet); err != nil {
+		return nil, err
+	}
+
+	byID := indexTasksByID(tf)
+	target, ok := byID[taskID]
+	if !ok {
+		return nil, fmt.Errorf("task %q not found", taskID)
+	}
+
+	// §5.1.1: every done transitive dependency, in dependency-safe order.
+	depSet := doneTransitiveDeps(target, byID)
+	depOrder := topoOrderSubset(depSet)
+
+	// §5.1.2: the most recently closed done tasks not already in the dep set.
+	candidates := recencyCandidates(tf, taskID, depSet)
+	sortRecencyDesc(candidates)
+
+	recencyLimit := resolveRecencyLimit(len(depOrder), priorCount, priorSet)
+	if recencyLimit > len(candidates) {
+		recencyLimit = len(candidates)
+	}
+	omitted := len(candidates) - recencyLimit
+	if omitted < 0 {
+		omitted = 0
+	}
+
+	entries := make([]PriorWorkEntry, 0, len(depOrder)+recencyLimit)
+	for _, t := range depOrder {
+		entries = append(entries, buildPriorWorkEntry(t))
+	}
+	for i := 0; i < recencyLimit; i++ {
+		entries = append(entries, buildPriorWorkEntry(&candidates[i]))
+	}
+
+	return &PriorWorkResult{
+		Entries:      entries,
+		IsFirstUnit:  len(depSet) == 0 && len(candidates) == 0,
+		OmittedCount: omitted,
+	}, nil
+}
+
+// indexTasksByID returns a lookup of task id → *Task pointing into tf.Tasks.
+func indexTasksByID(tf *model.TaskFile) map[string]*model.Task {
+	m := make(map[string]*model.Task, len(tf.Tasks))
+	for i := range tf.Tasks {
+		m[tf.Tasks[i].ID] = &tf.Tasks[i]
+	}
+	return m
+}
+
+// doneTransitiveDeps returns the set of DONE tasks reachable from target via
+// depends_on (the transitive closure), excluding target itself. The walk
+// traverses every status — a not-yet-done dependency still transitively links
+// to the done tasks beneath it — and filters to done at the end (§5.1.1).
+func doneTransitiveDeps(target *model.Task, byID map[string]*model.Task) map[string]*model.Task {
+	seen := make(map[string]bool)
+	stack := append([]string(nil), target.DependsOn...)
+	for len(stack) > 0 {
+		dep := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if dep == target.ID || seen[dep] {
+			continue
+		}
+		seen[dep] = true
+		if t, ok := byID[dep]; ok {
+			stack = append(stack, t.DependsOn...)
+		}
+	}
+	done := make(map[string]*model.Task, len(seen))
+	for id := range seen {
+		if t, ok := byID[id]; ok && t.Status == model.StatusDone {
+			done[id] = t
+		}
+	}
+	return done
+}
+
+// topoOrderSubset returns the subset's tasks in dependency-safe order (a task
+// appears after the tasks it depends on), with ids as the deterministic
+// tiebreak — mirroring TopoSort's alphabetical determinism. Any member a
+// (theoretically impossible) cycle leaves unprocessed is appended sorted, so
+// the result is always complete.
+func topoOrderSubset(subset map[string]*model.Task) []*model.Task {
+	inDegree := make(map[string]int, len(subset))
+	dependents := make(map[string][]string)
+	for id, t := range subset {
+		inDegree[id] = 0
+		for _, d := range t.DependsOn {
+			if _, ok := subset[d]; ok {
+				inDegree[id]++
+				dependents[d] = append(dependents[d], id)
+			}
+		}
+	}
+
+	var queue []string
+	for id, deg := range inDegree {
+		if deg == 0 {
+			queue = append(queue, id)
+		}
+	}
+	sort.Strings(queue)
+
+	ordered := make([]*model.Task, 0, len(subset))
+	for len(queue) > 0 {
+		id := queue[0]
+		queue = queue[1:]
+		ordered = append(ordered, subset[id])
+		for _, dep := range dependents[id] {
+			inDegree[dep]--
+			if inDegree[dep] == 0 {
+				queue = append(queue, dep)
+			}
+		}
+		sort.Strings(queue)
+	}
+
+	// Completeness safety net: append any member a cycle left unprocessed.
+	if len(ordered) < len(subset) {
+		placed := make(map[string]bool, len(ordered))
+		for _, t := range ordered {
+			placed[t.ID] = true
+		}
+		var leftover []*model.Task
+		for _, t := range subset {
+			if !placed[t.ID] {
+				leftover = append(leftover, t)
+			}
+		}
+		sort.Slice(leftover, func(i, j int) bool { return leftover[i].ID < leftover[j].ID })
+		ordered = append(ordered, leftover...)
+	}
+	return ordered
+}
+
+// recencyCandidates returns the done tasks that are neither the target nor in
+// the dependency set — the adjacent-context pool recency draws from (§5.1.2).
+func recencyCandidates(tf *model.TaskFile, taskID string, depSet map[string]*model.Task) []model.Task {
+	var out []model.Task
+	for i := range tf.Tasks {
+		t := tf.Tasks[i]
+		if t.Status != model.StatusDone || t.ID == taskID {
+			continue
+		}
+		if _, ok := depSet[t.ID]; ok {
+			continue
+		}
+		out = append(out, t)
+	}
+	return out
+}
+
+// sortRecencyDesc orders recency candidates most-recently-closed first, with
+// the id as a deterministic tiebreak for equal closure times.
+func sortRecencyDesc(candidates []model.Task) {
+	sort.Slice(candidates, func(i, j int) bool {
+		ti := derefTime(candidates[i].ClosedAt)
+		tj := derefTime(candidates[j].ClosedAt)
+		if !ti.Equal(tj) {
+			return ti.After(tj)
+		}
+		return candidates[i].ID < candidates[j].ID
+	})
+}
+
+// resolveRecencyLimit returns how many recency entries fit given the done
+// dependency count. With --prior set it is priorCount (the 12-entry cap is
+// overridden). With the default it is min(recency count 5, room left toward the
+// 12-entry total cap), floored at zero; deps are always included beyond the
+// cap, so room simply goes to zero rather than negative.
+func resolveRecencyLimit(depCount, priorCount int, priorSet bool) int {
+	if priorSet {
+		return priorCount
+	}
+	room := priorDefaultTotal - depCount
+	if room < 0 {
+		room = 0
+	}
+	if priorDefaultRecency < room {
+		return priorDefaultRecency
+	}
+	return room
+}
+
+// buildPriorWorkEntry assembles a brief prior-work entry from a done task
+// (§5.2): id, title, the first line of closed_reason, its commit_shas, and the
+// touched files capped at five with a "+N more" count and the true total.
+func buildPriorWorkEntry(t *model.Task) PriorWorkEntry {
+	return PriorWorkEntry{
+		ID:               t.ID,
+		Title:            t.Title,
+		EvidenceSummary:  firstLineOfString(derefStr(t.ClosedReason)),
+		CommitSHAs:       t.CommitSHAs,
+		CommitFiles:      firstNStrings(t.CommitFiles, priorWorkFileCap),
+		CommitFilesMore:  priorWorkFileMore(t),
+		CommitFilesTotal: priorWorkFileTotal(t),
+	}
+}
+
+// firstLineOfString returns the substring before the first newline, or the
+// whole string when it has none (§5.2 "the first line of closed_reason").
+func firstLineOfString(s string) string {
+	if i := strings.IndexByte(s, '\n'); i >= 0 {
+		return s[:i]
+	}
+	return s
+}
+
+// priorWorkFileTotal is the true count of files the task's commits touched:
+// the stored CommitFilesTotal when the 50-path cap (§6.4) applied, else the
+// stored array length (§5.2 "the entry still carries commit_files_total").
+func priorWorkFileTotal(t *model.Task) int {
+	if t.CommitFilesTotal > 0 {
+		return t.CommitFilesTotal
+	}
+	return len(t.CommitFiles)
+}
+
+// priorWorkFileMore is the "+N more" count when more than priorWorkFileCap
+// paths exist (§5.2): the true total minus the (up to five) shown paths.
+func priorWorkFileMore(t *model.Task) int {
+	total := priorWorkFileTotal(t)
+	shown := len(t.CommitFiles)
+	if shown > priorWorkFileCap {
+		shown = priorWorkFileCap
+	}
+	if total > shown {
+		return total - shown
+	}
+	return 0
+}
+
+// firstNStrings returns up to n entries of s as a fresh slice (nil when s is
+// empty), so a truncated entry never aliases the source task's slice.
+func firstNStrings(s []string, n int) []string {
+	if len(s) == 0 {
+		return nil
+	}
+	if len(s) <= n {
+		return append([]string(nil), s...)
+	}
+	return append([]string(nil), s[:n]...)
+}
+
+func derefStr(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
+func derefTime(t *time.Time) time.Time {
+	if t == nil {
+		return time.Time{}
+	}
+	return *t
 }
