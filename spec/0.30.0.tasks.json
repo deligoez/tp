@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.30.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-07-24T01:49:10.754828Z",
+  "updated_at": "2026-07-24T01:58:28.215666Z",
   "workflow": {},
   "coverage": {
     "total_sections": 16,
@@ -138,7 +138,7 @@
     {
       "id": "record-role-warning",
       "title": "Warn on role-less findings rows",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 5,
@@ -147,11 +147,23 @@
         "## 10. Review and audit unit briefs"
       ],
       "source_lines": "130-131",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-07-24T01:58:28.192279Z",
+      "closed_at": "2026-07-24T01:58:28.192308Z",
+      "closed_reason": "- tp review --record warns (file:line) on a role-less row while still recording the round — parseRecordRows in review_record.go, verified by TestReviewRecord_RoleMissingWarns (exit 0, findings counted).\n- tp audit --record warns (file:line) on a role-less row while still recording the round — countAuditFindings in audit_record.go, verified by TestAuditRecord_RoleMissingWarns (exit 0, findings counted).",
+      "gate_passed_at": "2026-07-24T01:58:28.192308Z",
+      "commit_sha": "00b4a75",
+      "commit_shas": [
+        "00b4a75",
+        "d1a6c3f",
+        "33634e6",
+        "0bf5376"
+      ],
+      "commit_files": [
+        "internal/cli/audit_record.go",
+        "internal/cli/audit_record_test.go",
+        "internal/cli/review_record.go",
+        "internal/cli/review_record_test.go"
+      ]
     },
     {
       "id": "audit-prior-round",
