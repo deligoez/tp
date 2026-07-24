@@ -134,3 +134,20 @@ func TestCommitFiles_BatchResolvesPerRow(t *testing.T) {
 	task := taskState(t, dir, "t1")
 	assert.Equal(t, []any{"a.go"}, task["commit_files"], "batch resolves per-row commit_shas")
 }
+
+func TestCommitFiles_MultiIDDoneResolves(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
+	_, _, code := runTP(t, dir, "init", "spec.md")
+	require.Equal(t, 0, code)
+	addTask(t, dir, `{"id":"t1","title":"First","depends_on":[],"estimate_minutes":5,"acceptance":"shared acceptance met","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t2","title":"Second","depends_on":[],"estimate_minutes":5,"acceptance":"shared acceptance met","source_sections":["s1"]}`)
+	initGitRepo(t, dir)
+	sha := commitFile(t, dir, "a.go", "add a")
+	_, stderr, code := runTP(t, dir, "done", "t1", "t2", "--gate-passed",
+		"--commit", sha, "--", "shared acceptance met")
+	require.Equal(t, 0, code, "multi-ID done: %s", stderr)
+	assert.Equal(t, []any{"a.go"}, taskState(t, dir, "t1")["commit_files"], "multi-ID done records commit_files on t1")
+	assert.Equal(t, []any{"a.go"}, taskState(t, dir, "t2")["commit_files"], "multi-ID done records commit_files on t2")
+}
