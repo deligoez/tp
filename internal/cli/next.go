@@ -16,6 +16,7 @@ import (
 var (
 	nextPeek    bool
 	nextMinimal bool
+	nextBrief   bool
 )
 
 func newNextCmd() *cobra.Command {
@@ -26,15 +27,25 @@ func newNextCmd() *cobra.Command {
 Otherwise claims the highest-priority ready task. Exit 4 when no tasks remain.
 Output: {task, spec_excerpt, blocks, remaining, quality_gate}`,
 		Example: `  tp next --json                  # get task with full context
-  tp next --peek                  # preview without claiming`,
+  tp next --peek                  # preview without claiming
+  tp next --brief --json          # claim next task and return its brief`,
 		RunE: runNext,
 	}
 	cmd.Flags().BoolVar(&nextPeek, "peek", false, "preview next ready without claiming")
 	cmd.Flags().BoolVar(&nextMinimal, "minimal", false, "minimal output: only id + acceptance (always JSON)")
+	cmd.Flags().BoolVar(&nextBrief, "brief", false, "claim the next ready task and return its implementation brief")
 	return cmd
 }
 
 func runNext(_ *cobra.Command, _ []string) error {
+	// §9.2: --brief and --minimal are mutually exclusive (one assembles context,
+	// the other strips it); a usage error (exit 2), checked before any file work.
+	if nextBrief && nextMinimal {
+		output.Error(ExitUsage, "--brief and --minimal are mutually exclusive")
+		os.Exit(ExitUsage)
+		return nil
+	}
+
 	taskFilePath, err := engine.DiscoverTaskFile(".", flagFile)
 	if err != nil {
 		output.Error(ExitFile, err.Error())
@@ -56,7 +67,7 @@ func runNext(_ *cobra.Command, _ []string) error {
 		// Check for WIP task first (resume)
 		for i := range tf.Tasks {
 			if tf.Tasks[i].Status == model.StatusWIP {
-				return outputNextTask(tf, &tf.Tasks[i], specPath)
+				return outputNextTask(tf, &tf.Tasks[i], taskFilePath, specPath)
 			}
 		}
 	}
@@ -163,14 +174,18 @@ func runNext(_ *cobra.Command, _ []string) error {
 				os.Exit(ExitFile)
 				return nil
 			}
-			return outputNextTask(tf2, t, specPath)
+			return outputNextTask(tf2, t, taskFilePath, specPath)
 		})
 	}
 
-	return outputNextTask(tf, task, specPath)
+	return outputNextTask(tf, task, taskFilePath, specPath)
 }
 
-func outputNextTask(tf *model.TaskFile, task *model.Task, specPath string) error {
+func outputNextTask(tf *model.TaskFile, task *model.Task, taskFilePath, specPath string) error {
+	if nextBrief {
+		return outputNextBrief(tf, task, specPath, taskFilePath)
+	}
+
 	if nextMinimal {
 		return output.JSON(map[string]any{
 			"id":         task.ID,
@@ -213,4 +228,26 @@ func outputNextTask(tf *model.TaskFile, task *model.Task, specPath string) error
 	}
 
 	return output.JSON(result)
+}
+
+// outputNextBrief builds and emits the implementation brief for task, mirroring
+// the tail of runBrief. The caller has already claimed the task (§9.2): tp next
+// --brief takes ownership and delivers the brief in one call. Under JSON it emits
+// the structured brief; otherwise the rendered text brief (tp brief's contract).
+func outputNextBrief(tf *model.TaskFile, task *model.Task, specPath, taskFilePath string) error {
+	effective := resolveEffectiveStrategy(taskFilePath)
+	override := tf.Workflow
+	engine.ClampWorkflowRanges(&override)
+	wf := engine.ResolveWorkflowLayers(override, engine.ProjectWorkflowOverride("."))
+	b, err := engine.BuildBrief(tf, task, specPath, effective, wf.QualityGate, 0, false, flagCompact)
+	if err != nil {
+		output.Error(ExitValidation, err.Error())
+		os.Exit(ExitValidation)
+		return nil
+	}
+	if output.IsJSON() {
+		return output.JSON(b)
+	}
+	fmt.Print(b.Text())
+	return nil
 }
