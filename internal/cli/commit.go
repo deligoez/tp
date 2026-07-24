@@ -142,6 +142,7 @@ func runCommit(_ *cobra.Command, args []string) error {
 		// Record the pre-amend sha C1 on the task — never the post-amend object
 		// sha, since a commit cannot contain its own sha (§5.1c).
 		task.SetCommitSHAs([]string{sha})
+		task.SetCommitFiles(resolveCommitFiles(".", []string{sha}))
 
 		// Write the closure record (commit_sha = C1) into the task file.
 		if err := model.WriteTaskFile(taskFilePath, tf); err != nil {
@@ -332,4 +333,62 @@ func runGitDir(dir string, args ...string) error {
 	cmd.Dir = dir
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
+}
+
+// resolveCommitFiles returns the union of repo-root-relative paths touched by
+// the given commits (added/modified/deleted/renamed-new; renamed-old excluded),
+// for SetCommitFiles to dedup, sort, and cap. It returns nil when git is
+// unavailable or any sha cannot be resolved, so the field is omitted rather
+// than guessed.
+func resolveCommitFiles(dir string, shas []string) []string {
+	if len(shas) == 0 {
+		return nil
+	}
+	if !gitExists(dir) {
+		return nil
+	}
+	var all []string
+	for _, sha := range shas {
+		sha = strings.TrimSpace(sha)
+		if sha == "" {
+			continue
+		}
+		paths, ok := commitChangedPaths(dir, sha)
+		if !ok {
+			return nil
+		}
+		all = append(all, paths...)
+	}
+	return all
+}
+
+// commitChangedPaths resolves the paths a single commit touched via
+// `git show --name-status`: added/modified/deleted/renamed-new are kept and
+// renamed-old is excluded. ok is false when git cannot resolve sha.
+func commitChangedPaths(dir, sha string) ([]string, bool) {
+	cmd := exec.Command("git", "show", "--name-status", "--pretty=format:", sha)
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, false
+	}
+	paths := make([]string, 0)
+	for _, line := range strings.Split(string(out), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		fields := strings.Split(line, "\t")
+		if len(fields) < 2 || fields[0] == "" {
+			continue
+		}
+		if c := fields[0][0]; c == 'R' || c == 'C' {
+			if len(fields) >= 3 {
+				paths = append(paths, fields[2])
+			}
+			continue
+		}
+		paths = append(paths, fields[1])
+	}
+	return paths, true
 }
