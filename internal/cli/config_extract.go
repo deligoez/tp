@@ -70,7 +70,7 @@ func computeCommonPolicy(overrides []model.WorkflowOverride) model.WorkflowOverr
 }
 
 // hoistedFields lists the field names set in common, in a deterministic order.
-func hoistedFields(common model.WorkflowOverride) []string {
+func hoistedFields(common *model.WorkflowOverride) []string {
 	var fields []string
 	if common.QualityGate != nil {
 		fields = append(fields, "quality_gate")
@@ -101,7 +101,7 @@ func hoistedFields(common model.WorkflowOverride) []string {
 
 // mergeCommon overwrites dst's hoisted keys with common's values, preserving
 // any other hand-set project field.
-func mergeCommon(dst *model.WorkflowOverride, common model.WorkflowOverride) {
+func mergeCommon(dst, common *model.WorkflowOverride) {
 	if common.QualityGate != nil {
 		dst.QualityGate = common.QualityGate
 	}
@@ -169,7 +169,7 @@ func runConfigExtract() error {
 	}
 
 	common := computeCommonPolicy(overrides)
-	fields := hoistedFields(common)
+	fields := hoistedFields(&common)
 	if len(fields) == 0 {
 		output.Info("nothing to hoist: no workflow field is common to all task files")
 		return output.JSON(map[string]any{"hoisted": []string{}, "files": len(files)})
@@ -214,8 +214,8 @@ func runConfigExtract() error {
 			os.Exit(ExitFile)
 			return nil
 		}
-		mergeCommon(&pc.Workflow, common)
-		if err := engine.WriteProjectConfig(tpDir, pc); err != nil {
+		mergeCommon(&pc.Workflow, &common)
+		if err := engine.WriteProjectConfig(tpDir, &pc); err != nil {
 			output.Error(ExitFile, err.Error())
 			os.Exit(ExitFile)
 			return nil

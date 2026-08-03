@@ -49,7 +49,7 @@ func TestResolvedConfig_SourceLabels(t *testing.T) {
 
 	t.Chdir(root)
 	wf, override := resolveConfigWorkflow()
-	workflow := resolvedConfig(&wf, override)["workflow"].(map[string]any)
+	workflow := resolvedConfig(&wf, &override)["workflow"].(map[string]any)
 
 	field := func(name string) map[string]any { return workflow[name].(map[string]any) }
 	assert.Equal(t, "override", field("review_clean_rounds")["source"], "task-file value reports override")

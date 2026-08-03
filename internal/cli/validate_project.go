@@ -14,7 +14,7 @@ import (
 // workflowDeviations reports each workflow field where a task file's override
 // differs from a value the project config explicitly sets. A field the project
 // does not set carries no policy and is not a deviation.
-func workflowDeviations(file string, override, project model.WorkflowOverride) []map[string]any {
+func workflowDeviations(file string, override, project *model.WorkflowOverride) []map[string]any {
 	devs := make([]map[string]any, 0)
 	add := func(field, ov, pv string) {
 		devs = append(devs, map[string]any{"file": file, "field": field, "override": ov, "project": pv})
@@ -87,7 +87,7 @@ func runValidateProject() error {
 			continue
 		}
 		rel, _ := filepath.Rel(root, f)
-		deviations = append(deviations, workflowDeviations(rel, override, project)...)
+		deviations = append(deviations, workflowDeviations(rel, &override, &project)...)
 	}
 
 	result := map[string]any{"project_config": true, "deviations": deviations}

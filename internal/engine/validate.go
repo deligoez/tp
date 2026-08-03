@@ -40,7 +40,7 @@ func Validate(tf *model.TaskFile, specPath string, specExists, strict bool) *Val
 
 	// Always include the effective workflow (override resolved over the built-in
 	// defaults) in output for diagnostics.
-	wf := ResolveWorkflowLayers(tf.Workflow, model.WorkflowOverride{})
+	wf := ResolveWorkflowLayers(&tf.Workflow, &model.WorkflowOverride{})
 	result.Workflow = &wf
 
 	// 2. Atomicity checks

@@ -20,7 +20,7 @@ func TestComputeCommonPolicy_HoistsUnanimousFields(t *testing.T) {
 	assert.Equal(t, "go test ./...", *common.QualityGate, "unanimous quality_gate is hoisted")
 	assert.Nil(t, common.GateTimeoutSeconds, "a divergent field is not hoisted")
 
-	assert.ElementsMatch(t, []string{"review_max_rounds", "quality_gate"}, hoistedFields(common))
+	assert.ElementsMatch(t, []string{"review_max_rounds", "quality_gate"}, hoistedFields(&common))
 }
 
 func TestComputeCommonPolicy_AbsentFromAnyNotHoisted(t *testing.T) {
@@ -38,12 +38,12 @@ func TestComputeCommonPolicy_NothingToHoist(t *testing.T) {
 		{ReviewMaxRounds: iptr(3)}, // diverges → no common field
 	}
 	common := computeCommonPolicy(overrides)
-	assert.Empty(t, hoistedFields(common), "no field common to all files means nothing to hoist")
+	assert.Empty(t, hoistedFields(&common), "no field common to all files means nothing to hoist")
 }
 
 func TestMergeCommon_PreservesOtherFields(t *testing.T) {
 	dst := model.WorkflowOverride{AuditMaxRounds: iptr(3)} // hand-set project field
-	mergeCommon(&dst, model.WorkflowOverride{ReviewMaxRounds: iptr(8)})
+	mergeCommon(&dst, &model.WorkflowOverride{ReviewMaxRounds: iptr(8)})
 	require.NotNil(t, dst.ReviewMaxRounds)
 	assert.Equal(t, 8, *dst.ReviewMaxRounds, "hoisted field is written")
 	require.NotNil(t, dst.AuditMaxRounds)

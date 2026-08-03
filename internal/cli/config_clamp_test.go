@@ -25,7 +25,7 @@ func TestResolvedConfig_ClampedFieldReportsResolvedSource(t *testing.T) {
 
 	t.Chdir(root)
 	wf, override := resolveConfigWorkflow()
-	workflow := resolvedConfig(&wf, override)["workflow"].(map[string]any)
+	workflow := resolvedConfig(&wf, &override)["workflow"].(map[string]any)
 	field := workflow["review_clean_rounds"].(map[string]any)
 
 	assert.Equal(t, "project", field["source"], "a clamped out-of-range override is attributed to the project layer, not override")
@@ -42,7 +42,7 @@ func TestResolvedConfig_CommitStrategySource(t *testing.T) {
 
 	t.Chdir(root)
 	wf, override := resolveConfigWorkflow()
-	workflow := resolvedConfig(&wf, override)["workflow"].(map[string]any)
+	workflow := resolvedConfig(&wf, &override)["workflow"].(map[string]any)
 	field := workflow["commit_strategy"].(map[string]any)
 
 	assert.Equal(t, "override", field["source"], "a task-file commit_strategy reports source override")

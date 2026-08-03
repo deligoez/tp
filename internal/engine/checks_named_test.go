@@ -70,5 +70,5 @@ func TestValidate_GateTimeoutRange(t *testing.T) {
 
 	ov := tf.Workflow
 	clampWorkflowRanges(&ov)
-	assert.Equal(t, 600, ResolveWorkflowLayers(ov, model.WorkflowOverride{}).GateTimeoutSeconds, "effective timeout falls back to 600")
+	assert.Equal(t, 600, ResolveWorkflowLayers(&ov, &model.WorkflowOverride{}).GateTimeoutSeconds, "effective timeout falls back to 600")
 }

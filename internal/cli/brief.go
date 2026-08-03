@@ -80,7 +80,8 @@ func runBrief(cmd *cobra.Command, args []string) error {
 	effective := resolveEffectiveStrategy(taskFilePath)
 	override := tf.Workflow
 	engine.ClampWorkflowRanges(&override)
-	wf := engine.ResolveWorkflowLayers(override, engine.ProjectWorkflowOverride("."))
+	project := engine.ProjectWorkflowOverride(".")
+	wf := engine.ResolveWorkflowLayers(&override, &project)
 
 	b, err := engine.BuildBrief(tf, task, specPath, effective, wf.QualityGate, briefPrior, priorSet, flagCompact)
 	if err != nil {

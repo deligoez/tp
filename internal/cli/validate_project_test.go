@@ -24,7 +24,7 @@ func TestWorkflowDeviations_ReportsDifferingFields(t *testing.T) {
 		AuditMaxRounds:    iptr(5),
 	}
 
-	devs := workflowDeviations("chapter-03.tasks.json", override, project)
+	devs := workflowDeviations("chapter-03.tasks.json", &override, &project)
 	require.Len(t, devs, 1, "only the differing, project-set field is a deviation")
 	d := devs[0]
 	assert.Equal(t, "review_max_rounds", d["field"])
@@ -35,8 +35,8 @@ func TestWorkflowDeviations_ReportsDifferingFields(t *testing.T) {
 
 func TestWorkflowDeviations_QualityGate(t *testing.T) {
 	devs := workflowDeviations("x.tasks.json",
-		model.WorkflowOverride{QualityGate: sptr("make test")},
-		model.WorkflowOverride{QualityGate: sptr("go test ./...")},
+		&model.WorkflowOverride{QualityGate: sptr("make test")},
+		&model.WorkflowOverride{QualityGate: sptr("go test ./...")},
 	)
 	require.Len(t, devs, 1)
 	assert.Equal(t, "quality_gate", devs[0]["field"])
@@ -48,15 +48,15 @@ func TestWorkflowDeviations_ChecksSetEquality(t *testing.T) {
 
 	// Reordered but equal → not a deviation.
 	devs := workflowDeviations("x.tasks.json",
-		model.WorkflowOverride{Checks: &[]model.Check{c2, c1}},
-		model.WorkflowOverride{Checks: &[]model.Check{c1, c2}},
+		&model.WorkflowOverride{Checks: &[]model.Check{c2, c1}},
+		&model.WorkflowOverride{Checks: &[]model.Check{c1, c2}},
 	)
 	assert.Empty(t, devs, "a reordered but equal checks is not a deviation")
 
 	// Different set → deviation reported with entry counts.
 	devs = workflowDeviations("x.tasks.json",
-		model.WorkflowOverride{Checks: &[]model.Check{c1}},
-		model.WorkflowOverride{Checks: &[]model.Check{c1, c2}},
+		&model.WorkflowOverride{Checks: &[]model.Check{c1}},
+		&model.WorkflowOverride{Checks: &[]model.Check{c1, c2}},
 	)
 	require.Len(t, devs, 1)
 	assert.Equal(t, "checks", devs[0]["field"])

@@ -159,7 +159,8 @@ func runPlan(_ *cobra.Command, _ []string) error {
 	if !planMinimal {
 		override := tf.Workflow
 		engine.ClampWorkflowRanges(&override)
-		wf := engine.ResolveWorkflowLayers(override, engine.ProjectWorkflowOverride("."))
+		project := engine.ProjectWorkflowOverride(".")
+		wf := engine.ResolveWorkflowLayers(&override, &project)
 		wfPtr = &wf
 	}
 
