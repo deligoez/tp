@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.31.0.md",
   "created_at": "2026-08-02T22:16:32.514579Z",
-  "updated_at": "2026-08-03T01:47:58.44891Z",
+  "updated_at": "2026-08-03T02:01:46.687213Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run"
   },
@@ -289,7 +289,7 @@
     {
       "id": "compact-behavior",
       "title": "--compact behavior for new output fields",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "next-action",
@@ -301,11 +301,22 @@
       "source_sections": [
         "## 8. `next_action` for the review and audit loops"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-03T01:52:50.47888Z",
+      "duration_source": "implicit",
+      "closed_at": "2026-08-03T01:52:50.478923Z",
+      "closed_reason": "- tp review --status --compact and --record --compact omit harness_note and harness_stale while retaining next_action and nonblocking_open; gated on the existing IsCompact() accessor (honors --no-compact); verified by harness_note_test.go.\n- accepted_open is not emitted at all (no code path adds it); asserted in the compact nonblocking_open test.\n- The same harness_note/harness_stale stripping (and next_action retention) applies to the audit --status/--record equivalents (nonblocking_open is review-only, never on audit); verified by the audit-compact test.\n- next_action is retained verbatim under --compact (left unconditional, unchanged); non-compact output still emits all fields per their existing rules. Gate: go test ./... ok, golangci-lint 0 issues.",
+      "gate_passed_at": "2026-08-03T01:52:50.478923Z",
+      "commit_sha": "20d01d7",
+      "commit_shas": [
+        "20d01d7",
+        "bcecc71"
+      ],
+      "commit_files": [
+        "internal/cli/audit_record.go",
+        "internal/cli/harness_note_test.go",
+        "internal/cli/review_record.go",
+        "internal/cli/review_status.go"
+      ]
     },
     {
       "id": "prompt-strings",
@@ -338,7 +349,7 @@
     {
       "id": "resolve-all-doc",
       "title": "Document --resolve-all adjacent to --resolve",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 6,
@@ -347,16 +358,24 @@
         "## 8. `next_action` for the review and audit loops",
         "## 9. Documentation"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-03T01:54:50.318729Z",
+      "duration_source": "implicit",
+      "closed_at": "2026-08-03T01:54:50.318761Z",
+      "closed_reason": "- SKILL.md (Review loop step 5) and REFERENCE.md (Spec \u0026 Validation command table) now document tp review \u003cfindings.ndjson\u003e --resolve-all \u003cfixed|wontfix|duplicate\u003e \"\u003cevidence\u003e\" (evidence optional, --force to re-resolve already-resolved) adjacent to --resolve, named as the way to accept or dispose of many findings in one call including the accept-all-surviving-non-blocking-as-wontfix-with-one-justification convergence case; signature verified against review_resolve.go runReviewResolveAll. Gate: go test ./... ok, code untouched.",
+      "gate_passed_at": "2026-08-03T01:54:50.318761Z",
+      "commit_sha": "2f4e723",
+      "commit_shas": [
+        "2f4e723"
+      ],
+      "commit_files": [
+        "skills/tp/REFERENCE.md",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "docs-sync",
       "title": "Sync SKILL/CLAUDE/README/REFERENCE for v0.31.0",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "converge-on-field",
@@ -372,11 +391,21 @@
         "## 6. The recorded harness note",
         "## 9. Documentation"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-03T02:01:46.67423Z",
+      "duration_source": "implicit",
+      "closed_at": "2026-08-03T02:01:46.67429Z",
+      "closed_reason": "- SKILL.md, CLAUDE.md, README.md, and REFERENCE.md carry the severity-aware convergence rule and review_converge_on (blocking=critical+high default, all opt-in); CLAUDE.md now states 'critical or high' and names review_converge_on; README + REFERENCE workflow-field lists include review_converge_on.\n- The over-specification class and altitude principle are in the role-authoring guidance: SKILL.md and REFERENCE.md carry them (from the overspec-class task, kept coherent) and README gained the over-specification paragraph (§9.3).\n- SKILL.md carries the judgement-shaping-text-belongs-in-roles rule naming both review and audit role homes (tp.review_roles/tp.audit_roles, .tp/reviewers/.tp/auditors) plus --harness-note; harness_stale/harness_note documented in SKILL/README/REFERENCE (stripped under --compact).\n- next_action for the review and audit loops (single next step by fixed precedence on --status/--record) documented in SKILL.md, README.md, REFERENCE.md.\n- go test ./... is clean (all packages ok).\n- golangci-lint run is clean (0 issues).",
+      "gate_passed_at": "2026-08-03T02:01:46.67429Z",
+      "commit_sha": "f3f10b7",
+      "commit_shas": [
+        "f3f10b7"
+      ],
+      "commit_files": [
+        "CLAUDE.md",
+        "README.md",
+        "skills/tp/REFERENCE.md",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "unify-convergence-consumers",
