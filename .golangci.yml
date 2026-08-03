@@ -26,6 +26,10 @@ linters:
         - (*github.com/fatih/color.Color).Fprintf
         - (*github.com/fatih/color.Color).Fprintln
 
+formatters:
+  enable:
+    - gofmt
+
 run:
   timeout: 5m
 
