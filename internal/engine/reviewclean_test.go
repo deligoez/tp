@@ -52,6 +52,30 @@ func TestReviewRoundClean_BlockingVsAll(t *testing.T) {
 	assert.False(t, ReviewRoundClean(specPath, r3, ReviewConvergeOnBlocking))
 }
 
+// TestReviewRoundClean_OverSpecificationSeverityDecides confirms the clean
+// predicate reads severity only: an over-specification finding at low/medium is
+// non-blocking (clean under blocking), while the same class stamped high/critical
+// blocks — the class field is irrelevant to convergence (§5.2, §5.3).
+func TestReviewRoundClean_OverSpecificationSeverityDecides(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+
+	nonBlocking := writeRoundForClean(t, specPath, "os-low.ndjson",
+		`{"severity":"low","class":"over-specification","finding":"pins SQL that belongs in acceptance"}`,
+		`{"severity":"medium","class":"over-specification","finding":"prescribes an index only code can verify"}`)
+	assert.True(t, ReviewRoundClean(specPath, nonBlocking, ReviewConvergeOnBlocking),
+		"a low/medium over-specification finding does not block under blocking")
+
+	blocking := writeRoundForClean(t, specPath, "os-high.ndjson",
+		`{"severity":"high","class":"over-specification","finding":"same class, blocking severity"}`)
+	assert.False(t, ReviewRoundClean(specPath, blocking, ReviewConvergeOnBlocking),
+		"the same class at high severity blocks — severity decides, not the class")
+
+	critical := writeRoundForClean(t, specPath, "os-crit.ndjson",
+		`{"severity":"critical","class":"over-specification","finding":"same class, critical"}`)
+	assert.False(t, ReviewRoundClean(specPath, critical, ReviewConvergeOnBlocking))
+}
+
 func TestReviewRoundClean_CaseInsensitiveSeverity(t *testing.T) {
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")

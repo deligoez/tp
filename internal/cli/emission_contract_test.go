@@ -24,6 +24,8 @@ func TestEmission_ReviewOutputContract(t *testing.T) {
 	assert.Contains(t, impl, `role: "implementer"`, "the sub-agent stamps its own role for attribution")
 	assert.Contains(t, impl, "§3.2", "location is a section anchor")
 	assert.Contains(t, impl, "class:")
+	assert.Contains(t, impl, "over-specification",
+		"the review contract names the canonical over-specification class a reviewer may raise")
 	assert.Contains(t, impl, "severity:")
 	assert.NotContains(t, impl, "status: one of PASS", "review findings carry no status")
 }
@@ -45,6 +47,8 @@ func TestEmission_AuditOutputContract(t *testing.T) {
 	assert.Contains(t, spec, `role: "spec-coverage"`)
 	assert.Contains(t, spec, "§3.2", "audit findings also carry a section-anchor location")
 	assert.Contains(t, spec, "class:")
+	assert.NotContains(t, spec, "over-specification",
+		"over-specification is a spec-review altitude class, not part of the audit contract")
 	assert.Contains(t, spec, "severity:")
 	assert.Contains(t, spec, "status: one of PASS, PARTIAL, FAIL")
 }

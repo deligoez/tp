@@ -50,6 +50,27 @@ func TestFindingClass_MergeClustersSameClassKeepsHighestSeverity(t *testing.T) {
 	assert.Equal(t, "vague-wording", solo["class"], "a distinct-class finding is its own cluster and keeps its class")
 }
 
+// TestFindingClass_MergePreservesOverSpecification confirms the canonical
+// over-specification class is not filtered: class is free-form, so a finding
+// carrying it is carried through the merge untouched (§5.2).
+func TestFindingClass_MergePreservesOverSpecification(t *testing.T) {
+	dir := t.TempDir()
+	f := filepath.Join(dir, "f.ndjson")
+	require.NoError(t, os.WriteFile(f, []byte(
+		`{"severity":"low","category":"redundancy","location":"§5.2","finding":"SQL pinned in spec belongs in acceptance","suggestion":"push detail to task acceptance","class":"over-specification"}`+"\n"), 0o600))
+
+	out := filepath.Join(dir, "merged.ndjson")
+	_, stderr, code := runTP(t, dir, "review", "--merge", f, "-o", out)
+	require.Equal(t, 0, code, "merge failed: %s", stderr)
+
+	data, err := os.ReadFile(out)
+	require.NoError(t, err)
+	var m map[string]any
+	require.NoError(t, json.Unmarshal([]byte(strings.TrimSpace(string(data))), &m))
+	assert.Equal(t, "over-specification", m["class"],
+		"an over-specification finding survives the merge with its class intact")
+}
+
 func TestFindingClass_ResolvePreservesClass(t *testing.T) {
 	dir := t.TempDir()
 	findings := filepath.Join(dir, "findings.ndjson")
