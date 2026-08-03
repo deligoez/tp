@@ -116,12 +116,12 @@ func recordAuditRoundEntry(specPath string, data []byte, findings int, clean boo
 			return writeErr
 		}
 		st.AuditRounds = append(st.AuditRounds, engine.ReviewRound{
-			Round:      round,
-			Findings:   findings,
-			Clean:      clean,
-			RecordedAt: time.Now().UTC().Format(time.RFC3339),
-			File:       fileName,
-			SpecHash:   specHash,
+			Round:       round,
+			Findings:    findings,
+			Clean:       clean,
+			RecordedAt:  time.Now().UTC().Format(time.RFC3339),
+			File:        fileName,
+			SpecHash:    specHash,
 			RolesHash:   rolesHash,
 			IDScheme:    engine.IDSchemeSlug,
 			HarnessNote: harnessNote,

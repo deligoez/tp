@@ -98,11 +98,11 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 			return writeErr
 		}
 		st.ReviewRounds = append(st.ReviewRounds, engine.ReviewRound{
-			Round:      round,
-			Findings:   findings,
-			Clean:      clean,
-			RecordedAt: time.Now().UTC().Format(time.RFC3339),
-			File:       fileName,
+			Round:       round,
+			Findings:    findings,
+			Clean:       clean,
+			RecordedAt:  time.Now().UTC().Format(time.RFC3339),
+			File:        fileName,
 			SpecHash:    specHash,
 			RolesHash:   rolesHash,
 			HarnessNote: harnessNote,
