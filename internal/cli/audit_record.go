@@ -86,6 +86,11 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 	if engine.HarnessStale(st.AuditRounds) {
 		result["harness_note"] = engine.LatestHarnessNote(st.AuditRounds)
 	}
+	// §8.1/§8.2: next_action names the single next step by the audit precedence.
+	// Advisory/read-only — it changes nothing and never gates the exit code. The
+	// just-recorded round is the latest, so its non-PASS rows are exactly !clean.
+	converged := engine.Converged(st.AuditRounds, wf.AuditCleanRounds, specHash)
+	result["next_action"] = engine.AuditNextAction(specPath, converged, !clean)
 	return output.JSON(result)
 }
 
@@ -218,6 +223,12 @@ func runAuditStatus(specPath string, check bool) error {
 	} else {
 		result["in_flight_round"] = nil
 	}
+
+	// §8.1/§8.2: next_action names the single next step by the audit precedence.
+	// Advisory/read-only — it changes nothing and never gates the exit code. The
+	// latest recorded round holding open non-PASS rows is exactly !Clean.
+	latestHasFindings := len(rounds) > 0 && !rounds[len(rounds)-1].Clean
+	result["next_action"] = engine.AuditNextAction(specPath, converged, latestHasFindings)
 
 	if jsonErr := output.JSON(result); jsonErr != nil {
 		output.Error(ExitFile, jsonErr.Error())

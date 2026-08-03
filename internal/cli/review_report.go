@@ -453,6 +453,33 @@ func computeClassBreakdown(roundFindings [][]map[string]any) map[string]int {
 	return result
 }
 
+// mechanizeClassesFromRounds loads every recorded round's rows and returns the
+// classes of the mechanize candidates (same threshold as computeMechanizeCandidates),
+// ordered as that function orders them. It is the branch-3 signal for
+// engine.ReviewNextAction; --status derives it from the recorded rounds so branch
+// 3 is reachable there as well as on --record (§8.2).
+func mechanizeClassesFromRounds(specPath string, rounds []engine.ReviewRound) []string {
+	roundFindings := make([][]map[string]any, 0, len(rounds))
+	for i := range rounds {
+		rows, found := engine.LoadRoundRows(specPath, &rounds[i])
+		if !found {
+			continue
+		}
+		roundFindings = append(roundFindings, rows)
+	}
+	return mechanizeCandidateClasses(computeMechanizeCandidates(roundFindings))
+}
+
+// mechanizeCandidateClasses projects a candidate slice to its class strings,
+// preserving order.
+func mechanizeCandidateClasses(candidates []mechanizeCandidate) []string {
+	classes := make([]string, 0, len(candidates))
+	for _, c := range candidates {
+		classes = append(classes, c.Class)
+	}
+	return classes
+}
+
 // computeMechanizeCandidates finds classes appearing in >= 2 distinct rounds
 // or >= 5 times within a single round, sorted by total descending, ties
 // alphabetical by class.

@@ -165,6 +165,13 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 	if len(candidates) > 0 {
 		result["hint"] = mechanizeRegisterHint
 	}
+	// §8.1/§8.2: next_action names the single next step by the fixed precedence.
+	// Advisory/read-only — it changes nothing and never gates the exit code. The
+	// just-recorded round is the latest, so branch 2's "convergence-blocking
+	// finding survives in the latest round" is exactly !liveClean; branch 3 reads
+	// the same mechanize candidates surfaced above.
+	converged := engine.ReviewConverged(specPath, st.ReviewRounds, wf.ReviewCleanRounds, specHash, wf.ReviewConvergeOn)
+	result["next_action"] = engine.ReviewNextAction(specPath, converged, !liveClean, mechanizeCandidateClasses(candidates))
 	return output.JSON(result)
 }
 
