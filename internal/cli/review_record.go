@@ -56,9 +56,12 @@ func runReviewRecord(specPath, recordPath string) error {
 		return nil
 	}
 
-	findings, dirty, parseErr := parseRecordRows(recordPath, data)
+	findings, dirty, parseHint, parseErr := parseRecordRows(recordPath, data)
 	if parseErr != nil {
-		output.Error(ExitValidation, parseErr.Error())
+		// A malformed row is a fault in the file read from disk, not the
+		// invocation, so it is a validation error (exit 1), not a usage error
+		// (exit 2) — mirroring an invalid stored review_converge_on above (§3.3).
+		output.Error(ExitValidation, parseErr.Error(), parseHint)
 		os.Exit(ExitValidation)
 		return nil
 	}
@@ -148,7 +151,7 @@ func runReviewRecord(specPath, recordPath string) error {
 // parseRecordRows applies the row rules: blank lines skipped, every remaining
 // line a JSON object, pre-resolved wontfix needs evidence and does not dirty
 // the round, pre-resolved fixed aborts, pre-resolved duplicate dirties.
-func parseRecordRows(path string, data []byte) (findings, dirty int, err error) {
+func parseRecordRows(path string, data []byte) (findings, dirty int, hint string, err error) {
 	lineNum := 0
 	for _, line := range strings.Split(string(data), "\n") {
 		lineNum++
@@ -158,7 +161,7 @@ func parseRecordRows(path string, data []byte) (findings, dirty int, err error) 
 		}
 		var row map[string]any
 		if jsonErr := json.Unmarshal([]byte(trimmed), &row); jsonErr != nil {
-			return 0, 0, fmt.Errorf("line %d: invalid JSON: %w", lineNum, jsonErr)
+			return 0, 0, "", fmt.Errorf("line %d: invalid JSON: %w", lineNum, jsonErr)
 		}
 		findings++
 
@@ -169,10 +172,10 @@ func parseRecordRows(path string, data []byte) (findings, dirty int, err error) 
 		status, evidence := resolvedStatusOf(row)
 		switch status {
 		case "fixed":
-			return 0, 0, fmt.Errorf("line %d: row arrives pre-resolved fixed — a fix means the spec changed; record the round without it and re-review", lineNum)
+			return 0, 0, "re-review the changed spec", fmt.Errorf("line %d: row arrives pre-resolved fixed — a fix means the spec changed; record the round without it and re-review", lineNum)
 		case "wontfix":
 			if strings.TrimSpace(evidence) == "" {
-				return 0, 0, fmt.Errorf("line %d: pre-resolved wontfix row requires non-empty resolved.evidence", lineNum)
+				return 0, 0, "", fmt.Errorf("line %d: pre-resolved wontfix row requires non-empty resolved.evidence", lineNum)
 			}
 			// verified-rejected rows do not dirty the round
 		default:
@@ -180,7 +183,7 @@ func parseRecordRows(path string, data []byte) (findings, dirty int, err error) 
 			dirty++
 		}
 	}
-	return findings, dirty, nil
+	return findings, dirty, "", nil
 }
 
 // resolvedStatusOf extracts resolved.status and resolved.evidence from a row.
