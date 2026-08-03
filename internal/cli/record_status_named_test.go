@@ -51,11 +51,21 @@ func TestReviewRecord_CleanAndDirty(t *testing.T) {
 		assert.Equal(t, float64(2), out["findings"])
 	})
 
-	t.Run("pre-resolved fixed row exits 1", func(t *testing.T) {
+	t.Run("pre-resolved fixed row exits 1 with re-review hint", func(t *testing.T) {
 		dir := setup(t)
-		_, stderr, code := recordRound(t, dir, `{"finding":"a","resolved":{"status":"fixed","evidence":"e"}}`+"\n")
+		_, stderr, code := recordRound(t, dir, `{"role":"tester","finding":"a","resolved":{"status":"fixed","evidence":"e"}}`+"\n")
+		// The fault is the file content read from disk, not the invocation, so
+		// it is a validation error (exit 1), not a usage error, and it carries a
+		// hint to re-review the changed spec (§3.3/§3.5).
 		assert.Equal(t, 1, code)
 		assert.Contains(t, stderr, "line 1")
+		var errObj struct {
+			Code int    `json:"code"`
+			Hint string `json:"hint"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(stderr), &errObj))
+		assert.Equal(t, 1, errObj.Code)
+		assert.Equal(t, "re-review the changed spec", errObj.Hint)
 	})
 
 	t.Run("wontfix with empty evidence exits 1", func(t *testing.T) {
