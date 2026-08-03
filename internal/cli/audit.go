@@ -429,7 +429,7 @@ func refuseAuditIfBudgetExhausted(specPath string) {
 	if stBudget != nil {
 		rounds = stBudget.AuditRounds
 	}
-	refuseIfBudgetExhausted("audit", specPath, rounds, wfBudget.AuditMaxRounds, wfBudget.AuditCleanRounds)
+	refuseIfBudgetExhausted("audit", specPath, rounds, wfBudget.AuditMaxRounds, wfBudget.AuditCleanRounds, "")
 }
 
 // compactAuditChecklist truncates checklist text and drops the file summary

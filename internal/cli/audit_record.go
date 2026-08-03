@@ -35,7 +35,7 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 	if stPre != nil {
 		preRounds = stPre.AuditRounds
 	}
-	refuseIfBudgetExhausted("audit", specPath, preRounds, wfPre.AuditMaxRounds, wfPre.AuditCleanRounds)
+	refuseIfBudgetExhausted("audit", specPath, preRounds, wfPre.AuditMaxRounds, wfPre.AuditCleanRounds, "")
 
 	data, err := os.ReadFile(recordPath)
 	if err != nil {

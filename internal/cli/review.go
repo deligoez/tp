@@ -470,7 +470,7 @@ func validateReviewInputs(perspective string, round int, findingsPath string, af
 			if stBudget != nil {
 				rounds = stBudget.ReviewRounds
 			}
-			refuseIfBudgetExhausted("review", specPath, rounds, wfBudget.ReviewMaxRounds, wfBudget.ReviewCleanRounds)
+			refuseIfBudgetExhausted("review", specPath, rounds, wfBudget.ReviewMaxRounds, wfBudget.ReviewCleanRounds, wfBudget.ReviewConvergeOn)
 		}
 	}
 
@@ -759,7 +759,7 @@ func buildReviewPrompts(specPath string, elems *engine.StructuredElements, specC
 	// carries no source files (it guards spec decisions, not code).
 	consecutiveClean := 0
 	if reviewSt != nil {
-		consecutiveClean = engine.ConsecutiveClean(reviewSt.ReviewRounds)
+		consecutiveClean = engine.ReviewConsecutiveClean(specPath, reviewSt.ReviewRounds, wfChecks.ReviewConvergeOn)
 	}
 	affectedBytes, affectedContent := 0, ""
 	if len(affectedFiles) > 0 {
@@ -1638,8 +1638,8 @@ func loadReviewRoundState(cmd *cobra.Command, specPath string, round int, findin
 			rounds = st.ReviewRounds
 		}
 		req := wfState.ReviewCleanRounds
-		cc := engine.ConsecutiveClean(rounds)
-		conv := engine.Converged(rounds, req, specHash)
+		cc := engine.ReviewConsecutiveClean(specPath, rounds, wfState.ReviewConvergeOn)
+		conv := engine.ReviewConverged(specPath, rounds, req, specHash, wfState.ReviewConvergeOn)
 		stale := engine.StateStale(rounds, specHash)
 		rs.required, rs.consecutive, rs.converged, rs.stale = &req, &cc, &conv, &stale
 	}

@@ -47,7 +47,7 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 	if stPre != nil {
 		preRounds = stPre.ReviewRounds
 	}
-	refuseIfBudgetExhausted("review", specPath, preRounds, wfPre.ReviewMaxRounds, wfPre.ReviewCleanRounds)
+	refuseIfBudgetExhausted("review", specPath, preRounds, wfPre.ReviewMaxRounds, wfPre.ReviewCleanRounds, wfPre.ReviewConvergeOn)
 
 	data, err := os.ReadFile(recordPath)
 	if err != nil {

@@ -39,7 +39,10 @@ func enforceImportConvergence(targetPath string, tf *model.TaskFile) {
 		hint = budgetEscalationHint
 	}
 
-	consecutive := engine.ConsecutiveClean(st.ReviewRounds)
+	// Review-convergence enforcement uses the live severity-aware predicate so a
+	// blocking-policy round whose only survivors are medium/low counts clean,
+	// consistent with tp review --status/--record.
+	consecutive := engine.ReviewConsecutiveClean(stateSpec, st.ReviewRounds, wfResolved.ReviewConvergeOn)
 	if consecutive < required {
 		output.Error(ExitValidation, fmt.Sprintf("review not converged: %d consecutive clean rounds, %d required", consecutive, required), hint)
 		os.Exit(ExitValidation)
