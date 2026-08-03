@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.31.0.md",
   "created_at": "2026-08-02T22:16:32.514579Z",
-  "updated_at": "2026-08-03T00:22:22.141362Z",
+  "updated_at": "2026-08-03T01:14:00.722497Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run"
   },
@@ -22,39 +22,85 @@
     {
       "id": "converge-on-field",
       "title": "Add review_converge_on workflow field + validation",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 12,
-      "acceptance": "review_converge_on workflow field exists with values blocking|all, built-in default blocking; resolves through the layer order (CLI \u003e env \u003e task override \u003e project config \u003e built-in) and appears in tp config --resolved. An invalid value in the winning layer is rejected with a hint naming the legal values: `tp set --workflow review_converge_on=\u003cbad\u003e` and `tp set --workflow --project review_converge_on=\u003cbad\u003e` both exit 2 (usage); a consuming command (tp review --status/--record) resolving an invalid winning value from a stored layer exits 1 (validation); tp audit never reads the field; tp config --resolved displays a raw value without erroring.",
+      "acceptance": "review_converge_on workflow field exists with values blocking|all, built-in default blocking. It resolves through the layer order (CLI \u003e env \u003e task override \u003e project config \u003e built-in) and appears in tp config --resolved. It is settable via tp set --workflow review_converge_on=\u003cvalue\u003e and tp set --workflow --project review_converge_on=\u003cvalue\u003e (writes .tp/config.json). An invalid literal value at write time is rejected with a hint naming the legal values: tp set --workflow review_converge_on=\u003cbad\u003e and tp set --workflow --project review_converge_on=\u003cbad\u003e both exit 2 (usage). tp config --resolved displays a raw (even hand-edited invalid) value without erroring, and tp audit never reads or validates the field.",
       "source_sections": [
         "## 3. Severity-aware review convergence"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-03T00:43:10.62054Z",
+      "duration_source": "implicit",
+      "closed_at": "2026-08-03T00:43:10.620593Z",
+      "closed_reason": "- review_converge_on field added to the resolved Workflow struct and WorkflowOverride (values blocking|all, built-in default blocking); verified by TestResolveWorkflowLayers_ReviewConvergeOn.\n- Resolves through the layer order (CLI\u003eenv\u003etask override\u003eproject config\u003ebuilt-in) and surfaces in tp config --resolved with value+source; verified by reviewconvergeon_test.go task/project/default cases.\n- Settable via tp set --workflow review_converge_on=\u003cv\u003e and tp set --workflow --project review_converge_on=\u003cv\u003e (writes .tp/config.json); test asserts the persisted value lands on disk.\n- Invalid literal at write time rejected: both set commands exit 2 (usage) with hint 'must be one of: blocking, all'; verified in reviewconvergeon_test.go.\n- tp config --resolved surfaces a hand-edited invalid stored value raw without erroring, and tp audit never reads the field; verified in reviewconvergeon_test.go. Gate: go test ./... ok, golangci-lint 0 issues (.golangci.yml untouched; hugeParam fixed via pointer-pass).",
+      "gate_passed_at": "2026-08-03T00:43:10.620593Z",
+      "commit_sha": "bb0fd77",
+      "commit_shas": [
+        "bb0fd77",
+        "d2ca9db",
+        "93d9993"
+      ],
+      "commit_files": [
+        "internal/cli/brief.go",
+        "internal/cli/config.go",
+        "internal/cli/config_clamp_test.go",
+        "internal/cli/config_extract.go",
+        "internal/cli/config_extract_test.go",
+        "internal/cli/config_test.go",
+        "internal/cli/next.go",
+        "internal/cli/plan.go",
+        "internal/cli/reviewconvergeon_test.go",
+        "internal/cli/set.go",
+        "internal/cli/set_project.go",
+        "internal/cli/validate_project.go",
+        "internal/cli/validate_project_test.go",
+        "internal/engine/checks_named_test.go",
+        "internal/engine/clamp_resolve_test.go",
+        "internal/engine/configresolve.go",
+        "internal/engine/configresolve_test.go",
+        "internal/engine/projectconfig.go",
+        "internal/engine/reviewconvergeon.go",
+        "internal/engine/validate.go",
+        "internal/engine/workflow_resolve.go",
+        "internal/model/projectconfig.go",
+        "internal/model/workflow.go"
+      ]
     },
     {
       "id": "severity-clean-predicate",
       "title": "Severity-aware clean predicate (blocking vs all)",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "converge-on-field"
       ],
       "estimate_minutes": 15,
-      "acceptance": "A counted review round is clean per review_converge_on: under blocking, clean when no surviving finding is critical or high severity (severity matched case-insensitively); under all, clean when zero findings of any severity survive. The clean decision reads the surviving set (recorded findings minus those resolved wontfix/duplicate) live from the round record, so switching review_converge_on or resolving a finding wontfix re-evaluates a round in --status without re-recording. A surviving finding whose severity is missing or outside critical|high|medium|low is treated as blocking (per-finding, uniform every round); a round none of whose surviving findings carry a severity is clean iff zero survive. Audit convergence stays status-based and is unaffected.",
+      "acceptance": "A counted review round is clean per review_converge_on: under blocking, clean when no surviving finding is critical or high severity (severity matched case-insensitively); under all, clean when zero findings of any severity survive. The clean decision reads the surviving set (recorded findings minus those resolved wontfix/duplicate) live from the round record, so switching review_converge_on or resolving a finding wontfix re-evaluates a round in --status without re-recording. A surviving finding whose severity is missing or outside critical|high|medium|low is treated as blocking (per-finding, uniform every round); a round none of whose surviving findings carry a severity is clean iff zero survive. Audit convergence stays status-based and is unaffected. When a consuming command (tp review --status/--record) resolves an invalid winning review_converge_on value from a stored layer (env, .tp/config.json, or task override), it exits 1 (validation) with the legal-values hint.",
       "source_sections": [
         "## 4. The blocking-severity set and recorded justification",
         "## 3. Severity-aware review convergence"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-03T01:00:42.823296Z",
+      "duration_source": "implicit",
+      "closed_at": "2026-08-03T01:00:42.823363Z",
+      "closed_reason": "- Under review_converge_on=blocking a round is clean iff no surviving finding is critical or high severity (case-insensitive); engine.ReviewRoundClean in reviewclean.go, covered by reviewclean_test.go.\n- Under review_converge_on=all a round is clean iff zero findings of any severity survive; covered by reviewclean_test.go.\n- Clean is recomputed LIVE from the surviving set (recorded findings minus wontfix/duplicate-with-evidence) by re-reading the round findings file, so switching review_converge_on and resolving a blocking finding wontfix after record both re-evaluate in tp review --status without re-recording; covered by reviewconvergeon_clean_test.go.\n- A surviving finding whose severity is missing or outside critical|high|medium|low is treated as blocking (per-finding, uniform every round); covered by reviewclean_test.go.\n- A round none of whose surviving findings carry a valid severity is clean iff zero survive; covered by reviewclean_test.go and pre-release back-compat.\n- Audit convergence stays status-based and is unaffected; tp audit ignores review_converge_on; covered by reviewconvergeon_clean_test.go.\n- A consuming command (tp review --status/--record) resolving an invalid winning review_converge_on from a stored layer exits 1 (validation) with the legal-values hint; covered by reviewconvergeon_clean_test.go. Gate: go test ./... ok, golangci-lint 0 issues; budget/import/prompt-gen frozen-flag divergence tracked as unify-convergence-consumers.",
+      "gate_passed_at": "2026-08-03T01:00:42.823363Z",
+      "commit_sha": "3ab6eb1",
+      "commit_shas": [
+        "3ab6eb1",
+        "ae40448"
+      ],
+      "commit_files": [
+        "internal/cli/budget_test.go",
+        "internal/cli/record_status_named_test.go",
+        "internal/cli/review_record.go",
+        "internal/cli/review_record_test.go",
+        "internal/cli/review_status.go",
+        "internal/cli/reviewconvergeon_clean_test.go",
+        "internal/engine/reviewclean.go",
+        "internal/engine/reviewclean_test.go"
+      ]
     },
     {
       "id": "nonblocking-open",
@@ -78,7 +124,7 @@
     {
       "id": "fixed-row-exit1",
       "title": "--record rejects fixed rows as validation error (exit 1)",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 6,
@@ -86,11 +132,20 @@
       "source_sections": [
         "## 3. Severity-aware review convergence"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-03T01:06:48.305058Z",
+      "duration_source": "implicit",
+      "closed_at": "2026-08-03T01:06:48.305084Z",
+      "closed_reason": "- tp review --record on a findings file carrying fixed-disposition rows is rejected with exit code 1 (validation) — already routed through output.Error(ExitValidation)=1 — and now carries an explicit hint to re-review the changed spec (parseRecordRows returns the hint; caller passes it to output.Error). Verified by record_status_named_test.go asserting code==1 and hint=='re-review the changed spec'. Gate: go test ./... ok, golangci-lint 0 issues.",
+      "gate_passed_at": "2026-08-03T01:06:48.305084Z",
+      "commit_sha": "1c03f5d",
+      "commit_shas": [
+        "1c03f5d",
+        "3bf7d94"
+      ],
+      "commit_files": [
+        "internal/cli/record_status_named_test.go",
+        "internal/cli/review_record.go"
+      ]
     },
     {
       "id": "overspec-class",
@@ -129,7 +184,7 @@
     {
       "id": "harness-note",
       "title": "Recorded harness note (--harness-note, harness_stale)",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 15,
@@ -137,11 +192,26 @@
       "source_sections": [
         "## 6. The recorded harness note"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-03T01:14:00.704352Z",
+      "duration_source": "implicit",
+      "closed_at": "2026-08-03T01:14:00.704431Z",
+      "closed_reason": "- tp review \u003cspec\u003e --record \u003cfile\u003e --harness-note stores the note verbatim on the review round and the tp audit equivalent on the audit round; HarnessNote omitempty field on the shared ReviewRound, covered by harness_note_test.go.\n- Omitting the --harness-note flag stores nothing and behaves exactly as before; covered by the omit-stores-nothing test.\n- tp review --status and tp audit --status report harness_stale and, when true, harness_note (read-only, alongside roles_stale); covered by harness_note_test.go.\n- harness_stale is true only when the two most recent rounds both carry non-empty notes that differ after trimming surrounding whitespace; engine.HarnessStale, covered by harness_stale_test.go.\n- harness_stale is false when either note is empty (predate or opt-out), whitespace-only, or fewer than two rounds are recorded; covered by harness_stale_test.go.\n- The two-round comparison is per phase (review --status compares review rounds only, audit --status audit rounds only); covered by the interleaved-phase isolation test.\n- harness_note is emitted only when harness_stale is true, otherwise omitted (never '' or null), and when emitted is the verbatim stored note; LatestHarnessNote + omission/verbatim assertions. --record computes staleness after storing the current round's note.\n- Supplying --harness-note without --record is a usage error (exit 2) with a requires---record hint, on both review and audit; covered by harness_note_test.go. Gate: go test ./... ok, golangci-lint 0 issues.",
+      "gate_passed_at": "2026-08-03T01:14:00.704431Z",
+      "commit_sha": "23eb212",
+      "commit_shas": [
+        "23eb212",
+        "21ced4f"
+      ],
+      "commit_files": [
+        "internal/cli/audit.go",
+        "internal/cli/audit_record.go",
+        "internal/cli/harness_note_test.go",
+        "internal/cli/review.go",
+        "internal/cli/review_record.go",
+        "internal/cli/review_status.go",
+        "internal/engine/harness_stale_test.go",
+        "internal/engine/reviewstate.go"
+      ]
     },
     {
       "id": "next-action",
@@ -239,6 +309,26 @@
       "source_sections": [
         "## 6. The recorded harness note",
         "## 9. Documentation"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "unify-convergence-consumers",
+      "title": "Unify budget/import/prompt-gen review convergence to the live severity-aware predicate",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "severity-clean-predicate"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "The remaining review-convergence consumers use the live severity-aware predicate (engine.ReviewConverged/ReviewConsecutiveClean) rather than the frozen record-time Clean flag: budget.go refuseIfBudgetExhausted, import_enforce.go enforcement, and review.go prompt-generation convergence all agree with tp review --status/--record for a review_converge_on=blocking round whose only survivors are medium/low. Audit convergence remains untouched (frozen/status-based). Unit tests cover a capped/importing blocking round with medium/low survivors being treated as converged by all paths.",
+      "source_sections": [
+        "## 3. Severity-aware review convergence",
+        "## 4. The blocking-severity set and recorded justification"
       ],
       "started_at": null,
       "closed_at": null,
