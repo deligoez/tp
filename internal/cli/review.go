@@ -863,6 +863,9 @@ func outputContractInstruction(role, phase string) string {
 	fmt.Fprintf(&b, "- role: %q (this prompt's role, so inter-role overlap can be attributed)\n", role)
 	b.WriteString("- location: a section anchor such as \"§3.2\" — the first §<n>(.<n>)* token — so findings dedup by section\n")
 	b.WriteString("- class: a kebab-case slug naming the failure class (the dedup/cluster key)\n")
+	if phase == engine.PhaseReviewers {
+		b.WriteString("  Canonical class `over-specification`: a detail whose correctness can only be established against code, prescribed in the spec where it belongs in task acceptance instead. Raise it (typically low/medium — an altitude smell, not a blocking defect) when the spec pins mechanism a task's acceptance should own.\n")
+	}
 	b.WriteString("- severity: one of critical, high, medium, low\n")
 	if phase == engine.PhaseAuditors {
 		b.WriteString("- status: one of PASS, PARTIAL, FAIL\n")
