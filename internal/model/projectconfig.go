@@ -57,12 +57,13 @@ type WorkflowOverride struct {
 	AuditCleanRounds   *int     `json:"audit_clean_rounds,omitempty"`
 	ReviewMaxRounds    *int     `json:"review_max_rounds,omitempty"`
 	AuditMaxRounds     *int     `json:"audit_max_rounds,omitempty"`
+	ReviewConvergeOn   *string  `json:"review_converge_on,omitempty"`
 	Checks             *[]Check `json:"checks,omitempty"`
 }
 
 // IsEmpty reports whether the override sets no fields at all, which is the case
 // for an absent file (equivalent to an empty object).
-func (o WorkflowOverride) IsEmpty() bool {
+func (o *WorkflowOverride) IsEmpty() bool {
 	return o.QualityGate == nil &&
 		o.GateTimeoutSeconds == nil &&
 		o.LockTimeoutSeconds == nil &&
@@ -71,5 +72,6 @@ func (o WorkflowOverride) IsEmpty() bool {
 		o.ReviewMaxRounds == nil &&
 		o.AuditMaxRounds == nil &&
 		o.Checks == nil &&
-		o.CommitStrategy == nil
+		o.CommitStrategy == nil &&
+		o.ReviewConvergeOn == nil
 }

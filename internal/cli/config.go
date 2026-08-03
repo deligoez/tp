@@ -47,7 +47,7 @@ func sourceLabel(fromOverride, fromProject bool) string {
 
 // resolvedConfig annotates each workflow field with its value and source layer.
 // Workflow fields resolve across override/project/default only.
-func resolvedConfig(wf *model.Workflow, override model.WorkflowOverride) map[string]any {
+func resolvedConfig(wf *model.Workflow, override *model.WorkflowOverride) map[string]any {
 	project := engine.ProjectWorkflowOverride(".")
 	vs := func(value any, o, p bool) map[string]any {
 		return map[string]any{"value": value, "source": sourceLabel(o, p)}
@@ -65,6 +65,9 @@ func resolvedConfig(wf *model.Workflow, override model.WorkflowOverride) map[str
 		"review_max_rounds":    vs(wf.ReviewMaxRounds, override.ReviewMaxRounds != nil, project.ReviewMaxRounds != nil),
 		"audit_max_rounds":     vs(wf.AuditMaxRounds, override.AuditMaxRounds != nil, project.AuditMaxRounds != nil),
 		"checks":               vs(wf.Checks, override.Checks != nil, project.Checks != nil),
+		// review_converge_on reports the raw resolved value and its source; an
+		// invalid stored value is surfaced, not rejected here (§3.3).
+		"review_converge_on": vs(wf.ReviewConvergeOn, override.ReviewConvergeOn != nil, project.ReviewConvergeOn != nil),
 	}}
 	// active provenance: the resolved active file and its discovery-chain rank
 	// (cli/env/local/legacy/autodetect).
@@ -109,7 +112,7 @@ func resolveConfigWorkflow() (model.Workflow, model.WorkflowOverride) {
 		// re-reads and aborts with exit 3 on a truly malformed config.
 		override, _ = engine.LoadTaskWorkflowOverride(taskFilePath)
 	}
-	wf, warnings, err := engine.ResolveEffectiveWorkflow(".", override)
+	wf, warnings, err := engine.ResolveEffectiveWorkflow(".", &override)
 	if err != nil {
 		var mce *engine.MalformedConfigError
 		if errors.As(err, &mce) {
@@ -138,7 +141,7 @@ func runConfig(_ *cobra.Command, _ []string) error {
 	// after auto resolution (§5.2).
 	effective := warnCommitStrategy(override.CommitStrategy, engine.ProjectWorkflowOverride(".").CommitStrategy)
 	if configResolved {
-		return output.JSON(resolvedConfig(&wf, override))
+		return output.JSON(resolvedConfig(&wf, &override))
 	}
 	// The effective workflow as JSON on stdout, plus commit_strategy_effective (the
 	// concrete builtin/hc behavior). --compact is a documented no-op (the output is

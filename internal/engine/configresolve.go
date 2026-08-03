@@ -140,7 +140,8 @@ func pickChecks(layers []*[]model.Check, def []model.Check) []model.Check {
 func EffectiveWorkflowForTaskFile(taskFilePath string) model.Workflow {
 	override, _ := LoadTaskWorkflowOverride(taskFilePath)
 	clampWorkflowRanges(&override)
-	return ResolveWorkflowLayers(override, projectWorkflowOverride("."))
+	project := projectWorkflowOverride(".")
+	return ResolveWorkflowLayers(&override, &project)
 }
 
 // ResolveEffectiveWorkflow resolves the effective workflow for a start
@@ -150,26 +151,29 @@ func EffectiveWorkflowForTaskFile(taskFilePath string) model.Workflow {
 // the project). With no .tp/ present, the override resolves over the built-in
 // defaults exactly as in v0.23.0. Returns the effective workflow and any config
 // validation warnings.
-func ResolveEffectiveWorkflow(start string, taskOverride model.WorkflowOverride) (model.Workflow, []string, error) {
-	// An out-of-range task-file override is clamped to absent so it resolves
-	// through the precedence rather than acting as an override (§3.5/§7.1).
-	taskWarnings := clampWorkflowRanges(&taskOverride)
+func ResolveEffectiveWorkflow(start string, taskOverride *model.WorkflowOverride) (model.Workflow, []string, error) {
+	// Clamp a local copy so an out-of-range field is dropped to absent — so it
+	// resolves through the precedence rather than acting as an override
+	// (§3.5/§7.1) — without ever mutating the caller's override.
+	local := *taskOverride
+	taskWarnings := clampWorkflowRanges(&local)
 	tpDir := DiscoverTPDir(start)
 	if tpDir == "" {
-		return ResolveWorkflowLayers(taskOverride, model.WorkflowOverride{}), taskWarnings, nil
+		empty := model.WorkflowOverride{}
+		return ResolveWorkflowLayers(&local, &empty), taskWarnings, nil
 	}
 	pc, warnings, err := LoadProjectConfig(tpDir)
 	if err != nil {
 		return model.Workflow{}, warnings, err
 	}
-	return ResolveWorkflowLayers(taskOverride, pc.Workflow), append(taskWarnings, warnings...), nil
+	return ResolveWorkflowLayers(&local, &pc.Workflow), append(taskWarnings, warnings...), nil
 }
 
 // ResolveWorkflowLayers merges workflow overrides by precedence: the task-file
 // override outranks the project config, which outranks the built-in default.
 // Each field resolves independently — a nil field inherits the next lower layer
 // — so presence, not value, defines an override.
-func ResolveWorkflowLayers(taskOverride, project model.WorkflowOverride) model.Workflow {
+func ResolveWorkflowLayers(taskOverride, project *model.WorkflowOverride) model.Workflow {
 	def := DefaultWorkflow()
 	return model.Workflow{
 		QualityGate:        pickString([]*string{taskOverride.QualityGate, project.QualityGate}, def.QualityGate),
@@ -181,5 +185,6 @@ func ResolveWorkflowLayers(taskOverride, project model.WorkflowOverride) model.W
 		ReviewMaxRounds:    pickInt([]*int{taskOverride.ReviewMaxRounds, project.ReviewMaxRounds}, def.ReviewMaxRounds),
 		AuditMaxRounds:     pickInt([]*int{taskOverride.AuditMaxRounds, project.AuditMaxRounds}, def.AuditMaxRounds),
 		Checks:             pickChecks([]*[]model.Check{taskOverride.Checks, project.Checks}, def.Checks),
+		ReviewConvergeOn:   pickString([]*string{taskOverride.ReviewConvergeOn, project.ReviewConvergeOn}, def.ReviewConvergeOn),
 	}
 }

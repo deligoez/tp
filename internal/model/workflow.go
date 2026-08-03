@@ -17,6 +17,7 @@ type Workflow struct {
 	Checks             []Check `json:"checks"`
 	ReviewMaxRounds    int     `json:"review_max_rounds"`
 	AuditMaxRounds     int     `json:"audit_max_rounds"`
+	ReviewConvergeOn   string  `json:"review_converge_on,omitempty"`
 }
 
 // EffectiveGateTimeoutSeconds returns gate_timeout_seconds, falling back to

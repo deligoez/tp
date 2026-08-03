@@ -29,6 +29,7 @@ func runSetProjectWorkflow(args []string) error {
 	ints := make(map[string]int)
 	var qualityGate *string
 	var commitStrategy *string
+	var reviewConvergeOn *string
 	var checksValue *[]model.Check
 	for _, arg := range args {
 		parts := strings.SplitN(arg, "=", 2)
@@ -52,6 +53,17 @@ func runSetProjectWorkflow(args []string) error {
 			}
 			v := valueStr
 			commitStrategy = &v
+		case field == "review_converge_on":
+			// The literal argument is validated before it is persisted; a bad
+			// value is a usage error (exit 2), since it is a command-line
+			// argument (§3.3).
+			if !engine.ValidReviewConvergeOn(valueStr) {
+				output.Error(ExitUsage, fmt.Sprintf("invalid review_converge_on value %q", valueStr), engine.ReviewConvergeOnHint)
+				os.Exit(ExitUsage)
+				return nil
+			}
+			v := valueStr
+			reviewConvergeOn = &v
 		case field == "checks":
 			var checks []model.Check
 			if err := json.Unmarshal([]byte(valueStr), &checks); err != nil {
@@ -136,12 +148,16 @@ func runSetProjectWorkflow(args []string) error {
 			pc.Workflow.CommitStrategy = commitStrategy
 			updated["commit_strategy"] = *commitStrategy
 		}
+		if reviewConvergeOn != nil {
+			pc.Workflow.ReviewConvergeOn = reviewConvergeOn
+			updated["review_converge_on"] = *reviewConvergeOn
+		}
 		if checksValue != nil {
 			pc.Workflow.Checks = checksValue
 			updated["checks"] = *checksValue
 		}
 
-		if err := engine.WriteProjectConfig(tpDir, pc); err != nil {
+		if err := engine.WriteProjectConfig(tpDir, &pc); err != nil {
 			output.Error(ExitFile, err.Error())
 			os.Exit(ExitFile)
 			return nil

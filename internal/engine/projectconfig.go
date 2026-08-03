@@ -67,6 +67,7 @@ var knownWorkflowKeys = map[string]bool{
 	"lock_timeout_seconds": true,
 	"review_clean_rounds":  true, "audit_clean_rounds": true,
 	"review_max_rounds": true, "audit_max_rounds": true, "checks": true,
+	"review_converge_on": true,
 }
 
 // parseWorkflowOverride leniently parses a workflow object: an unknown key or a
@@ -105,6 +106,16 @@ func parseWorkflowOverride(raw json.RawMessage) (wo model.WorkflowOverride, warn
 				warnings = append(warnings, "workflow.commit_strategy: expected a string, ignored")
 			} else {
 				wo.CommitStrategy = &s
+			}
+		case "review_converge_on":
+			// The value is not validated at parse time: a stored bad value is
+			// surfaced raw by tp config --resolved and rejected only by a
+			// consuming command that resolves it as the winning layer (§3.3).
+			var s string
+			if err := json.Unmarshal(v, &s); err != nil {
+				warnings = append(warnings, "workflow.review_converge_on: expected a string, ignored")
+			} else {
+				wo.ReviewConvergeOn = &s
 			}
 		case "gate_timeout_seconds":
 			wo.GateTimeoutSeconds = intField(k, v)
@@ -278,7 +289,7 @@ func ProjectConfigDir(start string) string {
 
 // WriteProjectConfig writes pc to tpDir/config.json with 2-space indentation,
 // creating tpDir and its .gitignore first so local.json stays ignored.
-func WriteProjectConfig(tpDir string, pc model.ProjectConfig) error {
+func WriteProjectConfig(tpDir string, pc *model.ProjectConfig) error {
 	if err := os.MkdirAll(tpDir, 0o755); err != nil {
 		return err
 	}

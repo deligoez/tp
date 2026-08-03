@@ -42,6 +42,7 @@ var (
 		"review_max_rounds":    true,
 		"audit_max_rounds":     true,
 		"checks":               true,
+		"review_converge_on":   true,
 	}
 	readOnlyWorkflowFields = map[string]bool{
 		"quality_gate":    true,
@@ -308,6 +309,8 @@ func runSetWorkflow(args []string) error {
 	pairs := make(map[string]int)
 	var checksValue []model.Check
 	checksSet := false
+	var convergeOnValue string
+	convergeOnSet := false
 	for _, arg := range args {
 		parts := strings.SplitN(arg, "=", 2)
 		if len(parts) != 2 {
@@ -330,6 +333,20 @@ func runSetWorkflow(args []string) error {
 			output.Error(ExitUsage, fmt.Sprintf("unknown workflow field: %s", field))
 			os.Exit(ExitUsage)
 			return nil
+		}
+
+		// review_converge_on: string enum, validated against the legal values at
+		// write time. The value is a command-line argument, so a bad literal is a
+		// usage error (exit 2), not a validation error (§3.3).
+		if field == "review_converge_on" {
+			if !engine.ValidReviewConvergeOn(valueStr) {
+				output.Error(ExitUsage, fmt.Sprintf("invalid review_converge_on value %q", valueStr), engine.ReviewConvergeOnHint)
+				os.Exit(ExitUsage)
+				return nil
+			}
+			convergeOnValue = valueStr
+			convergeOnSet = true
+			continue
 		}
 
 		// checks: JSON-array replace semantics (§15.2)
@@ -405,6 +422,11 @@ func runSetWorkflow(args []string) error {
 		if checksSet {
 			tf.Workflow.Checks = &checksValue
 			updated["checks"] = checksValue
+		}
+		if convergeOnSet {
+			v := convergeOnValue
+			tf.Workflow.ReviewConvergeOn = &v
+			updated["review_converge_on"] = convergeOnValue
 		}
 
 		if err := model.WriteTaskFile(taskFilePath, tf); err != nil {

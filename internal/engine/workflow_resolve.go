@@ -16,6 +16,7 @@ func DefaultWorkflow() model.Workflow {
 		GateTimeoutSeconds: 600,
 		LockTimeoutSeconds: 5,
 		Checks:             []model.Check{},
+		ReviewConvergeOn:   ReviewConvergeOnBlocking,
 	}
 }
 
@@ -34,17 +35,17 @@ func ResolveWorkflow(specPath, explicitFile string) (wf model.Workflow, source s
 	if tfPath, err := DiscoverTaskFile(".", explicitFile); err == nil {
 		if tf, readErr := model.ReadTaskFile(tfPath); readErr == nil && specMatches(tfPath, tf.Spec, specPath) {
 			override, _ := LoadTaskWorkflowOverride(tfPath)
-			return ResolveWorkflowLayers(override, project), tfPath
+			return ResolveWorkflowLayers(&override, &project), tfPath
 		}
 	}
 
 	adjacent := SpecAdjacentTaskFile(specPath)
 	if _, err := model.ReadTaskFile(adjacent); err == nil {
 		override, _ := LoadTaskWorkflowOverride(adjacent)
-		return ResolveWorkflowLayers(override, project), adjacent
+		return ResolveWorkflowLayers(&override, &project), adjacent
 	}
 
-	return ResolveWorkflowLayers(model.WorkflowOverride{}, project), ""
+	return ResolveWorkflowLayers(&model.WorkflowOverride{}, &project), ""
 }
 
 // specMatches reports whether a task file's spec field resolves to the spec
