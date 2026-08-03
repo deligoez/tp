@@ -72,7 +72,7 @@ Detailed command reference, field formats, and operational details. For workflow
 | `tp review spec.md --round N --final-round --affected-files src/a.go` | Final round with mandatory code read-through |
 | `tp review --merge r1.ndjson r2.ndjson -o merged.ndjson` | Merge + dedup findings from NDJSON files. All-empty inputs (a converged round) exit 0 and write a zero-byte `-o` file (`merged_count` 0); a missing/unreadable input exits 3; no inputs exit 2. A spec-looking positional among the inputs exits 2 |
 | `tp review --resolve findings.ndjson <idx> <disposition> "evidence"` | Mark finding fixed/wontfix/duplicate. `<idx>` is **0-based**; the positional is the findings NDJSON (a `.md`/spec-looking positional exits 2). A non-numeric index exits 2 |
-| `tp review --resolve-all findings.ndjson <disposition> "reason"` | Mark all unresolved findings |
+| `tp review --resolve-all findings.ndjson <fixed\|wontfix\|duplicate> "evidence"` | Dispose of **many** findings in one call: mark every unresolved finding with the disposition + a shared evidence string (evidence optional). This is the way to **accept all surviving non-blocking findings as `wontfix` with one justification** once no critical/high remains — the severity-aware convergence (§8.3) permits accepting low/medium with recorded justification. Add `--force` to also re-resolve already-resolved findings |
 | `tp review --resolve ... --force` | Force re-resolve already resolved findings |
 | `tp review --verify spec.md --findings all.ndjson` | Lightweight verification (verifier role) |
 | `tp review --report r1.ndjson r2.ndjson` | Cross-round convergence report |
