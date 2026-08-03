@@ -69,11 +69,11 @@ Repeat until `tp review <spec> --status --check` exits 0:
 1. `tp review <spec>` — tp auto-numbers the round (R = recorded rounds + 1), snapshots the spec, and injects previous findings + the changed-sections diff into every role prompt. A 4th **regression** prompt is auto-appended from round 2 when the spec changed or fixed findings exist — process it first.
 2. Spawn one sub-agent per prompt; collect NDJSON findings.
 3. `tp review --merge r1.ndjson ... -o merged.ndjson` — dedup across prompts. An all-empty (converged) input set still merges cleanly: empty inputs exit 0 and write a zero-byte `-o` file, so the merge → record chain works unchanged on a clean round (no manual file creation).
-4. `tp review <spec> --record merged.ndjson` — record the round. Zero surviving findings records a **clean** round.
+4. `tp review <spec> --record merged.ndjson` — record the round. Under the default `review_converge_on=blocking` a round is **clean** when no surviving finding is **critical or high** (medium/low are surfaced as `nonblocking_open`, not gated); `review_converge_on=all` keeps the strict any-severity rule. `--record` returns a `next_action` (the single next step); add `--harness-note "<text>"` to record, on this round, any standing framing the orchestrator's wrapper carried (see "Where judgement-shaping text belongs").
 5. Fix the spec; mark each addressed finding with `tp review --resolve merged.ndjson <idx> fixed "evidence"` — indices are **0-based** (read them from `--merge ... -o` output or `--status`; a non-numeric index exits 2).
    - **Dispose of MANY findings in one call** with `tp review --resolve-all merged.ndjson <fixed|wontfix|duplicate> "evidence"` (evidence optional; add `--force` to also re-resolve already-resolved findings). This is how you **accept all surviving non-blocking findings as `wontfix` under one shared justification** once no critical/high remains — the severity-aware convergence permits accepting low/medium with recorded justification (see Gate, Budget & Escalation Policy).
 6. When a fix batch touched **more than 3 sections**, run the standalone regression delta pass (`tp review <spec> --perspective regression`) as an uncounted check before the next counted round.
-7. Repeat. `tp review <spec> --status` shows `consecutive_clean`, `converged`, `stale`, `budget_exhausted`, plus `max_rounds`/`rounds_remaining` (null when uncapped) and `in_flight_round` (a snapshot with no recorded round file — `tp resume` then points at `record-round` to complete it). Prompt emission also reports `skipped_roles` (`[{role, reason}]`) naming every corpus role it did not emit.
+7. Repeat. `tp review <spec> --status` shows `consecutive_clean`, `converged`, `stale`, `budget_exhausted`, plus `max_rounds`/`rounds_remaining` (null when uncapped), `in_flight_round` (a snapshot with no recorded round file — `tp resume` then points at `record-round` to complete it), `next_action` (the single next step), `nonblocking_open` (count of accepted-open medium/low findings, only on a clean round that has them), and `harness_stale` (+ the latest `harness_note` when the wrapper framing changed between the last two recorded rounds). Prompt emission also reports `skipped_roles` (`[{role, reason}]`) naming every corpus role it did not emit.
 
 **Convergence is a recorded fact, not a judgment.** Do not skip rounds, summarize findings as "minor", or declare convergence before `--status --check` exits 0. Counted rounds are always full-panel; the regression delta pass and the tail class-sweep (below) are uncounted.
 
@@ -207,7 +207,7 @@ Before closing a task (`tp done`):
 
 - **The gate runs automatically at `tp done`.** `--skip-gate "<reason>"` skips it and records `gate_skipped_reason` on each closed task. **`--skip-gate` requires explicit user approval — it is never the agent's own decision.**
 - **Round-budget exhaustion (`review_max_rounds` / `audit_max_rounds`):** when the cap is reached and the sequence is not converged, `tp review` / `tp audit` prompt generation and `--record` refuse with exit 4 and an escalation hint. **The agent STOPS and escalates.** Raising the cap with `tp set --workflow`, and importing with `--force`, are user-approved decisions — never the agent's own.
-- **Convergence criteria differ by phase (v0.28.0+).** A **spec review** is converged only when a counted round surfaces **no critical/blocking findings**: never declare review convergence or accept a round cap while a critical finding is open (low/medium findings may be accepted with recorded justification once no critical ones remain). An **implementation audit** always runs to the full **2 consecutive clean rounds and is never cut short by an early cap** — a hit `audit_max_rounds` means fix the findings and continue (with a user-approved cap raise), never ship with them open. Implementation correctness is not negotiable.
+- **Convergence criteria differ by phase (v0.28.0+).** A **spec review** is converged only when a counted round surfaces **no blocking findings** — the blocking severities are **critical and high** (the built-in `review_converge_on=blocking` policy; `review_converge_on=all` opts into the strict any-severity rule): never declare review convergence or accept a round cap while a critical or high finding is open (medium/low findings may be accepted with recorded justification once none blocking remain). An **implementation audit** always runs to the full **2 consecutive clean rounds and is never cut short by an early cap** — a hit `audit_max_rounds` means fix the findings and continue (with a user-approved cap raise), never ship with them open. Implementation correctness is not negotiable.
 
 ## Class & Checks Guidance
 
@@ -267,6 +267,26 @@ Opening role authoring is a power feature — a project-authored role is only as
 **Other domains** and their characteristic diverging lenses (for custom corpora): **legal/contract** — obligation completeness vs. ambiguity/loophole; **product/PRD** — user-journey completeness vs. measurable acceptance; **data-schema** — referential integrity vs. migration/compat; **academic** — claim support vs. methodology soundness.
 
 The embedded default corpus is authored to exemplify this guidance, so an ejected default role is itself a worked example — run `tp init --eject-roles` to read them.
+
+## Where judgement-shaping text belongs (v0.31.0)
+
+Standing instructions that shape a reviewer's judgement — what counts as a real defect, what to treat as intentional, what altitude to hold — do **not** belong in the orchestrator's prompt wrapper. tp cannot see that wrapper, so framing hidden there makes two rounds look comparable when their instructions differed materially. Standing framing has two sanctioned homes, both recorded via `roles_hash`:
+
+- **Per-spec focus** → `tp.review_roles` / `tp.audit_roles` frontmatter (append `focus` to a reviewer or auditor role).
+- **Project-owned roles** → `.tp/reviewers/*.json` / `.tp/auditors/*.json`.
+
+The wrapper is only for what tp cannot know — runtime setup (e.g. hook-blocked native file tools → use the MCP toolset). When the wrapper must carry standing framing anyway, declare it with `--harness-note "<text>"` on `tp review`/`tp audit --record` so it is recorded on the round instead of staying invisible (the flag requires `--record`; supplying it alone is a usage error, exit 2). `--status` then surfaces `harness_stale` — true only when the two most recently recorded rounds **both** carry non-empty notes that differ — and, when stale, the latest `harness_note`. The note is opt-in, gates nothing, and both `harness_note`/`harness_stale` are stripped under `--compact`. Review and audit surface these symmetrically.
+
+## `next_action` — the single next step (v0.31.0)
+
+`tp review --status`/`--record` and `tp audit --status`/`--record` return a `next_action` naming the one next step the current state calls for, by a fixed precedence (retained under `--compact`):
+
+1. **Converged** → the forward step: review names the directive `decompose the spec into tasks, then tp import <base>.tasks.json`; audit names the terminal `converged — implementation verified, proceed to release`. Convergence wins even when non-blocking findings remain open.
+2. **Blocking (critical/high) findings open** → `revise the spec to address the blocking findings, then run the next review round` (audit: fix the findings, then re-audit). It never steers toward `--resolve`/`--resolve-all`: disposing a blocking finding is an operator decision, never auto-advised.
+3. **A `mechanize_candidates` class recurs, none blocking** (review only) → register a check (`tp set --workflow checks='[…]'`), then run the next round. The un-mechanizable `over-specification` class never triggers this — it falls through to step 4.
+4. **Clean but not yet converged** → run the next round: `tp review <spec> --record <file>` (audit: `tp audit <spec> --record <file>`).
+
+`next_action` is advisory and read-only; it gates no exit code.
 
 ## State directory (`.tp-review/`)
 

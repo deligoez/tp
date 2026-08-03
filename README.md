@@ -198,7 +198,7 @@ export TP_FILE=spec/project.tasks.json
 
 Multi-spec repos share **one** workflow policy instead of copying it into every `*.tasks.json` — so an agent working across specs reads a single source of truth and can't silently drift. A repo-root `.tp/` directory holds it:
 
-- **`.tp/config.json`** (commit to VCS) — shared **workflow defaults**: `quality_gate`, `commit_strategy`, `review_clean_rounds`, `audit_clean_rounds`, `gate_timeout_seconds`, `review_max_rounds`, `audit_max_rounds`, `lock_timeout_seconds`, `checks`.
+- **`.tp/config.json`** (commit to VCS) — shared **workflow defaults**: `quality_gate`, `commit_strategy`, `review_clean_rounds`, `audit_clean_rounds`, `review_converge_on`, `gate_timeout_seconds`, `review_max_rounds`, `audit_max_rounds`, `lock_timeout_seconds`, `checks`.
 - **`.tp/local.json`** (git-ignored automatically) — per-checkout state: the `active` task-file pointer (`tp use`) and CLI flag `defaults`.
 - **`.tp/.gitignore`** — written automatically so `config.json` is tracked and `local.json` is not.
 
@@ -513,6 +513,8 @@ Each emitted review prompt carries an **`output_path`** (`review-r<N>-<role>.ndj
 
 `tp review --status` (and `tp audit --status`) also report `max_rounds`/`rounds_remaining` (null when uncapped), `in_flight_round` (a started-but-unrecorded round — `tp resume` then points at recording it), and — over `--merge`/`--report`/`--status` — an `overlap_report` for trimming redundant roles. Prompt emission reports `skipped_roles` naming every corpus role it did not emit; merge/`--status` add `attribution_excludes` when excluding the `regression` role changes the finding count.
 
+**Severity-aware convergence (v0.31.0).** A recorded review round is **clean** when no surviving finding is of a blocking severity. The workflow field `review_converge_on` selects the policy: `blocking` (the built-in default — **critical and high** block; medium/low are surfaced as `nonblocking_open`, not gated, and may be accepted with recorded justification once none blocking remain) or `all` (the strict any-severity bright line). It resolves like every other workflow field and carries a `.tp/config.json` default (`tp set --workflow --project review_converge_on=blocking`). Both `tp review --status`/`--record` and their `tp audit` equivalents return a **`next_action`** naming the single next step — converged → the phase's forward step; blocking findings → revise the spec and re-review; a recurring `mechanize_candidates` class → register a check; clean-but-not-converged → run the next round — and surface **`harness_stale`** (with the latest **`harness_note`**) when the orchestrator's prompt-wrapper framing, recorded via `--record --harness-note "<text>"`, changed between the last two rounds. `next_action` and `nonblocking_open` survive `--compact`; the harness fields are stripped.
+
 | Flag | Purpose |
 |------|---------|
 | `--merge` | Merge and dedup findings from multiple NDJSON files |
@@ -525,7 +527,8 @@ Each emitted review prompt carries an **`output_path`** (`review-r<N>-<role>.ndj
 | `-o` / `--output` | Output file path for merge |
 | `--force` | Force re-resolve already resolved findings |
 | `--record <file>` | Record a review round (auto-numbered R; freezes count + clean flag) |
-| `--status` / `--status --check` | Show convergence state / gate exit 0 on converged + passing checks |
+| `--harness-note <text>` | With `--record`, record the orchestrator-wrapper framing on the round; surfaced as `harness_stale`/`harness_note` on `--status`, stripped under `--compact` |
+| `--status` / `--status --check` | Show convergence state (incl. `next_action`, `nonblocking_open`, `harness_stale`) / gate exit 0 on converged + passing checks |
 | `--perspective regression` | Standalone regression pass guarding settled decisions |
 | `--no-state` | Disable state reads/writes (pre-0.23.0 manual `--round` numbering) |
 
@@ -538,6 +541,8 @@ tp set --workflow checks='[{"class":"code-citation-drift","cmd":"scripts/check-c
 ```
 
 tp then runs every registered check at the start of each review round, reports pass/fail under `mechanical_checks`, and tells reviewers to stop hand-reporting that class. `tp review --status --check` exits 0 only when the review is converged **and** every check passes. (`checks` uses replace semantics — one `tp set --workflow` call sets the whole array.)
+
+tp documents one canonical class, **`over-specification`** (v0.31.0) — *a detail whose correctness can only be established against code, prescribed in the spec where it belongs in task acceptance instead.* It is the altitude signal: a spec review should push toward decidable invariants a task's acceptance can gate, away from implementation prose. Its typical severity is low/medium, so it does not block convergence under `review_converge_on=blocking` unless a reviewer stamps it critical/high — convergence reads severity, not the class. It is un-mechanizable (a reviewer's altitude judgment, not a runnable check), so it never becomes a registered check; the remedy is to move the detail down into task acceptance.
 
 ### Spec frontmatter (`tp:` domain & role overrides)
 

@@ -78,8 +78,8 @@ Detailed command reference, field formats, and operational details. For workflow
 | `tp review --report r1.ndjson r2.ndjson` | Cross-round convergence report |
 | `tp review spec.md --diff-from old-spec.md` | Diff-based review; overrides the snapshot baseline, forces the block at any round |
 | `tp review spec.md --spec-inline` | Embed full spec inline (default is reference mode) |
-| `tp review spec.md --record merged.ndjson` | Record a review round; auto-numbers R, freezes count + clean flag |
-| `tp review spec.md --status` | Recorded rounds, `consecutive_clean`, `converged`, `stale`, `mechanical_checks`, `max_rounds`/`rounds_remaining` (null when uncapped), `in_flight_round`, `overlap_report`, `attribution_excludes` |
+| `tp review spec.md --record merged.ndjson` | Record a review round; auto-numbers R. A round is **clean** when no surviving finding is critical/high under the default `review_converge_on=blocking` (any severity under `all`); returns `next_action` (single next step) and `nonblocking_open` (accepted-open medium/low count) on such a round. Add `--harness-note "<text>"` to record the round's orchestrator-wrapper framing (requires `--record`; alone → exit 2) |
+| `tp review spec.md --status` | Recorded rounds, `consecutive_clean`, `converged`, `stale`, `mechanical_checks`, `max_rounds`/`rounds_remaining` (null when uncapped), `in_flight_round`, `overlap_report`, `attribution_excludes`, `next_action`, `nonblocking_open`, `harness_stale` (+ `harness_note` when stale) |
 | `tp review spec.md --status --check` | Run registered checks; exit 0 only when converged AND every check passes |
 | `tp review spec.md --perspective regression` | Standalone regression pass (needs state R≥2, or `--diff-from` + `--findings`) |
 | `tp review spec.md --no-state` | Disable all state reads/writes; restores pre-0.23.0 manual `--round` numbering |
@@ -87,9 +87,9 @@ Detailed command reference, field formats, and operational details. For workflow
 | `tp audit spec.md --affected-files src/a.go` | Manual file selection (comma or repeated) |
 | `tp audit spec.md --affected-from-tasks` | Audit exactly the files touched by done tasks' `commit_shas` (the common post-implementation case; no manual list) |
 | `tp audit spec.md --findings review.ndjson` | Also verify review findings were addressed (route to spec-coverage) |
-| `tp audit spec.md --record results.ndjson` | Record an audit round (non-PASS rows = findings); independent sequence |
+| `tp audit spec.md --record results.ndjson` | Record an audit round (non-PASS rows = findings); independent sequence. Returns `next_action`; add `--harness-note "<text>"` to record the round's wrapper framing |
 | `tp audit --merge r1.ndjson r2.ndjson -o results.ndjson` | Merge + dedup per-role audit results (by `role`+`item_id`); all-empty inputs exit 0 like `tp review --merge` |
-| `tp audit spec.md --status` | Recorded rounds, `consecutive_clean`, `converged`, `stale`, `max_rounds`/`rounds_remaining`/`in_flight_round`, `overlap_report` |
+| `tp audit spec.md --status` | Recorded rounds, `consecutive_clean`, `converged`, `stale`, `max_rounds`/`rounds_remaining`/`in_flight_round`, `overlap_report`, `next_action`, `harness_stale` (+ `harness_note` when stale) |
 | `tp audit spec.md --status --check` | Exit 0 only when the audit is converged |
 | `tp validate` | Task file validation + line coverage + atomicity |
 | `tp validate --strict` | Atomicity warnings become errors |
@@ -283,6 +283,7 @@ spec/
 | `checks` | array of `{class, cmd}` | `[]` | — | settable (replace semantics) |
 | `review_clean_rounds` | int | 2 | 1-10 | settable |
 | `audit_clean_rounds` | int | 2 | 1-10 | settable |
+| `review_converge_on` | string | `blocking` | `blocking`\|`all` | settable (a review round is **clean** when no surviving finding is critical/high under `blocking`, or when no finding survives under `all`; audit never reads it) |
 | `review_max_rounds` | int | 0 | 0-50 | settable (0 = no cap) |
 | `audit_max_rounds` | int | 0 | 0-50 | settable (0 = no cap) |
 
@@ -378,7 +379,7 @@ Validation: `tp lint` validates both phases, `tp review` validates reviewers, `t
 
 **Transparency fields (v0.29.0, §9):** prompt emission (`tp review`/`tp audit`) reports `skipped_roles: [{role, reason}]` naming every corpus role it did not emit (`reason` ∈ `no-checklist-items` / `no-spec-change` / `domain-mismatch` / `no-baseline`; `[]` when none skipped). Merge/`--status` summary adds `attribution_excludes: ["regression"]` **only** when excluding the built-in `regression` role causes `merged_count` to exceed the overlap-report finding count (omitted otherwise). `tp audit --merge`/`--status` emit their own `overlap_report` over non-PASS rows clustered by `(item_id, category)` with the same `{role, unique, shared, trim_candidate}` shape.
 
-**`--compact` disposition (§8.4):** decision-critical new fields survive `--compact` — `bookkeeping`, `suggested_files`, `max_rounds`/`rounds_remaining`/`in_flight_round`; explanatory fields are omitted — `skipped_roles`, `attribution_excludes`, the audit `overlap_report`, the report `note`.
+**`--compact` disposition (§8.4):** decision-critical new fields survive `--compact` — `bookkeeping`, `suggested_files`, `max_rounds`/`rounds_remaining`/`in_flight_round`, `next_action`, `nonblocking_open` (review-only, emitted only on an accepted-open clean round); explanatory fields are omitted — `skipped_roles`, `attribution_excludes`, the audit `overlap_report`, the report `note`, and the wrapper-drift diagnostics `harness_note`/`harness_stale`.
 
 **Role staleness** (`tp review --status`/`tp audit --status`): each recorded round stores `roles_hash` (`"builtin"` on the defaults, else a clone-stable sha256 over the phase's user files). `--status` reports `roles_stale` beside the spec `stale` flag; a pre-v0.25.0 round with no stored hash is treated as matching.
 
