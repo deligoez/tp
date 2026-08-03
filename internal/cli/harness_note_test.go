@@ -182,3 +182,117 @@ func TestHarnessStale_AuditStatus(t *testing.T) {
 	assert.Equal(t, true, out["harness_stale"])
 	assert.Equal(t, "a2", out["harness_note"])
 }
+
+// TestCompact_ReviewOmitsHarnessKeepsNextAction: under --compact, review
+// --status and --record omit harness_note and harness_stale while retaining
+// next_action; non-compact output still carries both harness fields (§8.4).
+func TestCompact_ReviewOmitsHarnessKeepsNextAction(t *testing.T) {
+	dir := t.TempDir()
+	rec := writeHarnessSpec(t, dir)
+
+	// Two differing notes -> harness_stale would be true.
+	_, stderr, code := runTP(t, dir, "review", "spec.md", "--record", rec, "--harness-note", "first")
+	require.Equal(t, 0, code, "%s", stderr)
+	_, stderr, code = runTP(t, dir, "review", "spec.md", "--record", rec, "--harness-note", "second")
+	require.Equal(t, 0, code, "%s", stderr)
+
+	// --status --compact: harness fields omitted, next_action retained.
+	stdout, _, code := runTP(t, dir, "review", "spec.md", "--status", "--compact")
+	require.Equal(t, 0, code)
+	out := parseStatusJSON(t, stdout)
+	_, hasStale := out["harness_stale"]
+	assert.False(t, hasStale, "harness_stale omitted under --compact")
+	_, hasNote := out["harness_note"]
+	assert.False(t, hasNote, "harness_note omitted under --compact")
+	assert.Contains(t, out, "next_action", "next_action retained under --compact")
+
+	// --status (non-compact): both harness fields present per their rules.
+	stdout, _, code = runTP(t, dir, "review", "spec.md", "--status")
+	require.Equal(t, 0, code)
+	full := parseStatusJSON(t, stdout)
+	assert.Equal(t, true, full["harness_stale"], "harness_stale present without --compact")
+	assert.Equal(t, "second", full["harness_note"], "harness_note present without --compact")
+
+	// --record --compact: a differing note keeps the round stale; still omitted.
+	stdout, _, code = runTP(t, dir, "review", "spec.md", "--record", rec, "--harness-note", "third", "--compact")
+	require.Equal(t, 0, code)
+	rout := parseStatusJSON(t, stdout)
+	_, hasStale = rout["harness_stale"]
+	assert.False(t, hasStale, "harness_stale omitted on --record --compact")
+	_, hasNote = rout["harness_note"]
+	assert.False(t, hasNote, "harness_note omitted on --record --compact")
+	assert.Contains(t, rout, "next_action", "next_action retained on --record --compact")
+
+	// --record without --compact: the differing note surfaces both fields.
+	stdout, _, code = runTP(t, dir, "review", "spec.md", "--record", rec, "--harness-note", "fourth")
+	require.Equal(t, 0, code)
+	rfull := parseStatusJSON(t, stdout)
+	assert.Equal(t, true, rfull["harness_stale"], "harness_stale present on --record without --compact")
+	assert.Equal(t, "fourth", rfull["harness_note"])
+}
+
+// TestCompact_AuditOmitsHarnessKeepsNextAction: the same --compact behavior
+// applies to audit --status and --record — harness_note/harness_stale omitted,
+// next_action retained (§8.4). nonblocking_open is review-only and never here.
+func TestCompact_AuditOmitsHarnessKeepsNextAction(t *testing.T) {
+	dir := t.TempDir()
+	rec := writeHarnessSpec(t, dir)
+
+	_, stderr, code := runTP(t, dir, "audit", "spec.md", "--record", rec, "--harness-note", "a1")
+	require.Equal(t, 0, code, "%s", stderr)
+	_, stderr, code = runTP(t, dir, "audit", "spec.md", "--record", rec, "--harness-note", "a2")
+	require.Equal(t, 0, code, "%s", stderr)
+
+	// --status --compact
+	stdout, _, code := runTP(t, dir, "audit", "spec.md", "--status", "--compact")
+	require.Equal(t, 0, code)
+	out := parseStatusJSON(t, stdout)
+	_, hasStale := out["harness_stale"]
+	assert.False(t, hasStale, "audit harness_stale omitted under --compact")
+	_, hasNote := out["harness_note"]
+	assert.False(t, hasNote, "audit harness_note omitted under --compact")
+	assert.Contains(t, out, "next_action", "audit next_action retained under --compact")
+
+	// --status (non-compact): both present.
+	stdout, _, code = runTP(t, dir, "audit", "spec.md", "--status")
+	require.Equal(t, 0, code)
+	full := parseStatusJSON(t, stdout)
+	assert.Equal(t, true, full["harness_stale"])
+	assert.Equal(t, "a2", full["harness_note"])
+
+	// --record --compact: differing note keeps it stale; still omitted.
+	stdout, _, code = runTP(t, dir, "audit", "spec.md", "--record", rec, "--harness-note", "a3", "--compact")
+	require.Equal(t, 0, code)
+	rout := parseStatusJSON(t, stdout)
+	_, hasStale = rout["harness_stale"]
+	assert.False(t, hasStale, "audit harness_stale omitted on --record --compact")
+	_, hasNote = rout["harness_note"]
+	assert.False(t, hasNote, "audit harness_note omitted on --record --compact")
+	assert.Contains(t, rout, "next_action", "audit next_action retained on --record --compact")
+}
+
+// TestCompact_ReviewRetainsNonBlockingOpen: nonblocking_open is decision-critical
+// and survives --compact on both review --record and --status; accepted_open is
+// never emitted (§4.2, §8.4).
+func TestCompact_ReviewRetainsNonBlockingOpen(t *testing.T) {
+	dir := setupConvergeOnProject(t) // a single clean round converges
+	medium := `{"severity":"medium","category":"ambiguity","location":"L1","finding":"soft","suggestion":"clarify"}` + "\n"
+	f := filepath.Join(dir, "findings.ndjson")
+	require.NoError(t, os.WriteFile(f, []byte(medium), 0o600))
+
+	// --record --compact: a clean accepted-open round retains nonblocking_open.
+	stdout, stderr, code := runTP(t, dir, "review", "spec.md", "--record", f, "--compact")
+	require.Equal(t, 0, code, "%s", stderr)
+	out := parseStatusJSON(t, stdout)
+	assert.Equal(t, float64(1), out["nonblocking_open"], "nonblocking_open retained under --compact")
+	_, hasAccepted := out["accepted_open"]
+	assert.False(t, hasAccepted, "accepted_open never emitted")
+
+	// --status --compact retains it too.
+	stdout, _, code = runTP(t, dir, "review", "spec.md", "--status", "--compact")
+	require.Equal(t, 0, code)
+	status := parseStatusJSON(t, stdout)
+	assert.Equal(t, float64(1), status["nonblocking_open"], "nonblocking_open retained on --status --compact")
+	_, hasAccepted = status["accepted_open"]
+	assert.False(t, hasAccepted, "accepted_open never emitted on --status")
+}
