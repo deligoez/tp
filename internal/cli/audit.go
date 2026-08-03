@@ -81,6 +81,7 @@ func newAuditCmd() *cobra.Command {
 	var mergeMode bool
 	var affectedFromTasks bool
 	var outputPath string
+	var harnessNote string
 
 	cmd := &cobra.Command{
 		Use:   "audit <spec.md>",
@@ -111,6 +112,11 @@ Use --findings to also verify review findings were addressed.`,
 				os.Exit(ExitUsage)
 				return nil
 			}
+			if cmd.Flags().Changed("harness-note") && recordPath == "" {
+				output.Error(ExitUsage, "--harness-note requires --record", "supply --harness-note only together with --record <file>")
+				os.Exit(ExitUsage)
+				return nil
+			}
 			if (recordPath != "" || statusMode) && (len(affectedFiles) > 0 || findingsPath != "" || affectedFromTasks) {
 				output.Error(ExitUsage, "--record/--status reject --affected-files/--affected-from-tasks and --findings")
 				os.Exit(ExitUsage)
@@ -127,7 +133,7 @@ Use --findings to also verify review findings were addressed.`,
 				return nil
 			}
 			if recordPath != "" {
-				return runAuditRecord(args[0], recordPath)
+				return runAuditRecord(args[0], recordPath, harnessNote)
 			}
 			if statusMode {
 				return runAuditStatus(args[0], checkFlag)
@@ -143,6 +149,7 @@ Use --findings to also verify review findings were addressed.`,
 	cmd.Flags().StringVar(&recordPath, "record", "", "Record an audit round from an NDJSON results file")
 	cmd.Flags().BoolVar(&statusMode, "status", false, "Show recorded audit rounds and convergence state")
 	cmd.Flags().BoolVar(&checkFlag, "check", false, "With --status: exit 0 only when audit is converged")
+	cmd.Flags().StringVar(&harnessNote, "harness-note", "", "With --record: store an optional free-text note on the recorded round")
 	cmd.Flags().BoolVar(&mergeMode, "merge", false, "Merge and deduplicate audit-result NDJSON files")
 	cmd.Flags().StringVarP(&outputPath, "output", "o", "", "Output file path (for --merge)")
 

@@ -33,6 +33,12 @@ type ReviewRound struct {
 	// legacy (marker-less) rounds. Recorded on audit rounds only — review rounds
 	// dedup on (location, class) and neither carry nor consume the marker.
 	IDScheme string `json:"id_scheme,omitempty"`
+	// HarnessNote is an optional free-text note the orchestrator records per
+	// round via --harness-note (§6.2/§6.3). It is stored verbatim and is empty
+	// when the operator omitted the flag or the round predates the field. The
+	// staleness comparison (HarnessStale) judges it trimmed, but the stored
+	// value is never trimmed.
+	HarnessNote string `json:"harness_note,omitempty"`
 }
 
 // IDSchemeSlug is the marker value recorded on a v0.30.0+ audit round, whose
@@ -277,6 +283,36 @@ func RolesStale(rounds []ReviewRound, currentHash string) bool {
 		return false
 	}
 	return stored != currentHash
+}
+
+// HarnessStale reports whether the two most recently recorded rounds both carry
+// non-empty harness notes that differ (§6.2/§6.3). Non-emptiness and difference
+// are both judged on the note trimmed of surrounding whitespace; the note is
+// stored verbatim but compared trimmed. Any empty (or whitespace-only) note —
+// a round that predates the field, or an operator who omitted the flag — is a
+// no-signal: it never sets the flag and is never treated as "different". With
+// fewer than two recorded rounds the result is false. The comparison is
+// per-phase: callers pass only review rounds or only audit rounds.
+func HarnessStale(rounds []ReviewRound) bool {
+	if len(rounds) < 2 {
+		return false
+	}
+	last := strings.TrimSpace(rounds[len(rounds)-1].HarnessNote)
+	prev := strings.TrimSpace(rounds[len(rounds)-2].HarnessNote)
+	if last == "" || prev == "" {
+		return false
+	}
+	return last != prev
+}
+
+// LatestHarnessNote returns the most recently recorded round's harness note
+// verbatim (untrimmed), or "" when there are no rounds. Callers emit it only
+// when HarnessStale is true.
+func LatestHarnessNote(rounds []ReviewRound) string {
+	if len(rounds) == 0 {
+		return ""
+	}
+	return rounds[len(rounds)-1].HarnessNote
 }
 
 // IsLegacyRound reports whether r is a legacy round whose rows carry the old

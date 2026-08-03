@@ -16,7 +16,7 @@ import (
 // Row counting only: a row is a finding when its status field is absent or
 // not exactly "PASS". The audit round sequence is independent of review
 // rounds; output carries no mechanize_candidates.
-func runAuditRecord(specPath, recordPath string) error {
+func runAuditRecord(specPath, recordPath, harnessNote string) error {
 	if _, err := os.Stat(specPath); err != nil {
 		output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath))
 		os.Exit(ExitFile)
@@ -64,14 +64,14 @@ func runAuditRecord(specPath, recordPath string) error {
 		return nil
 	}
 
-	st, round, lockErr := recordAuditRoundEntry(specPath, data, findings, clean, specHash)
+	st, round, lockErr := recordAuditRoundEntry(specPath, data, findings, clean, specHash, harnessNote)
 	if lockErr != nil {
 		exitStateError(lockErr)
 		return nil
 	}
 
 	wf, _ := engine.ResolveWorkflow(specPath, flagFile)
-	return output.JSON(map[string]any{
+	result := map[string]any{
 		"round":                 round,
 		"findings":              findings,
 		"clean":                 clean,
@@ -79,13 +79,20 @@ func runAuditRecord(specPath, recordPath string) error {
 		"required_clean_rounds": wf.AuditCleanRounds,
 		"converged":             engine.Converged(st.AuditRounds, wf.AuditCleanRounds, specHash),
 		"stale":                 engine.StateStale(st.AuditRounds, specHash),
-	})
+		"harness_stale":         engine.HarnessStale(st.AuditRounds),
+	}
+	// harness_note is emitted only when harness_stale is true; --record reports
+	// staleness AFTER storing this round, so it is the latest of the two compared.
+	if engine.HarnessStale(st.AuditRounds) {
+		result["harness_note"] = engine.LatestHarnessNote(st.AuditRounds)
+	}
+	return output.JSON(result)
 }
 
 // recordAuditRoundEntry copies the results file into the state directory as
 // audit-round-<N>.ndjson and appends the round entry to state.json under the
 // state flock (round file first, index entry second).
-func recordAuditRoundEntry(specPath string, data []byte, findings int, clean bool, specHash string) (st *engine.ReviewState, round int, err error) {
+func recordAuditRoundEntry(specPath string, data []byte, findings int, clean bool, specHash, harnessNote string) (st *engine.ReviewState, round int, err error) {
 	// Auditor corpus hash at record time (§9.2), stored on the round entry.
 	rolesHash, _ := engine.ComputeRolesHash(filepath.Dir(specPath), engine.PhaseAuditors)
 	err = engine.WithReviewStateLock(specPath, func() error {
@@ -106,8 +113,9 @@ func recordAuditRoundEntry(specPath string, data []byte, findings int, clean boo
 			RecordedAt: time.Now().UTC().Format(time.RFC3339),
 			File:       fileName,
 			SpecHash:   specHash,
-			RolesHash:  rolesHash,
-			IDScheme:   engine.IDSchemeSlug,
+			RolesHash:   rolesHash,
+			IDScheme:    engine.IDSchemeSlug,
+			HarnessNote: harnessNote,
 		})
 		return engine.SaveReviewState(specPath, st)
 	})
@@ -176,6 +184,12 @@ func runAuditStatus(specPath string, check bool) error {
 		"converged":             converged,
 		"stale":                 engine.StateStale(rounds, specHash),
 		"roles_stale":           engine.RolesStale(rounds, rolesHash),
+		"harness_stale":         engine.HarnessStale(rounds),
+	}
+	// harness_note is emitted only when harness_stale is true; when emitted it is
+	// the verbatim stored note of the latest recorded audit round (§6.3).
+	if engine.HarnessStale(rounds) {
+		result["harness_note"] = engine.LatestHarnessNote(rounds)
 	}
 	// §9.3 / §8.4: the audit overlap_report over the latest round's non-PASS
 	// rows is explanatory and is omitted under --compact.

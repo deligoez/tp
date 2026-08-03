@@ -17,7 +17,7 @@ import (
 // parse the rows, copy the file into the state directory as
 // review-round-<R>.ndjson (round file first, index entry second, under the
 // state flock), and report convergence plus mechanization candidates.
-func runReviewRecord(specPath, recordPath string) error {
+func runReviewRecord(specPath, recordPath, harnessNote string) error {
 	if _, err := os.Stat(specPath); err != nil {
 		output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath))
 		os.Exit(ExitFile)
@@ -103,8 +103,9 @@ func runReviewRecord(specPath, recordPath string) error {
 			Clean:      clean,
 			RecordedAt: time.Now().UTC().Format(time.RFC3339),
 			File:       fileName,
-			SpecHash:   specHash,
-			RolesHash:  rolesHash,
+			SpecHash:    specHash,
+			RolesHash:   rolesHash,
+			HarnessNote: harnessNote,
 		})
 		return engine.SaveReviewState(specPath, st)
 	})
@@ -140,7 +141,14 @@ func runReviewRecord(specPath, recordPath string) error {
 		"required_clean_rounds": wf.ReviewCleanRounds,
 		"converged":             engine.ReviewConverged(specPath, st.ReviewRounds, wf.ReviewCleanRounds, specHash, wf.ReviewConvergeOn),
 		"stale":                 engine.StateStale(st.ReviewRounds, specHash),
+		"harness_stale":         engine.HarnessStale(st.ReviewRounds),
 		"mechanize_candidates":  candidates,
+	}
+	// harness_note is emitted only when harness_stale is true; when emitted it is
+	// the verbatim stored note (§6.2). --record reports staleness AFTER storing
+	// this round, so the just-recorded round is the latest of the two compared.
+	if engine.HarnessStale(st.ReviewRounds) {
+		result["harness_note"] = engine.LatestHarnessNote(st.ReviewRounds)
 	}
 	if len(candidates) > 0 {
 		result["hint"] = mechanizeRegisterHint

@@ -105,6 +105,7 @@ func newReviewCmd() *cobra.Command {
 	var statusMode bool
 	var checkFlag bool
 	var noState bool
+	var harnessNote string
 
 	cmd := &cobra.Command{
 		Use:   "review <spec.md>",
@@ -125,6 +126,11 @@ Modes (mutually exclusive):
 			mode := detectReviewMode(mergeMode, resolveMode, resolveAllMode, verifyMode, reportMode, recordPath != "", statusMode)
 			if checkFlag && mode != "status" {
 				output.Error(ExitUsage, "--check requires --status")
+				os.Exit(ExitUsage)
+				return nil
+			}
+			if cmd.Flags().Changed("harness-note") && recordPath == "" {
+				output.Error(ExitUsage, "--harness-note requires --record", "supply --harness-note only together with --record <file>")
 				os.Exit(ExitUsage)
 				return nil
 			}
@@ -169,7 +175,7 @@ Modes (mutually exclusive):
 					os.Exit(ExitUsage)
 					return nil
 				}
-				return runReviewRecord(args[0], recordPath)
+				return runReviewRecord(args[0], recordPath, harnessNote)
 			case "status":
 				if len(args) != 1 {
 					output.Error(ExitUsage, "spec path required for --status")
@@ -207,6 +213,7 @@ Modes (mutually exclusive):
 	cmd.Flags().StringVar(&recordPath, "record", "", "Record a review round from an NDJSON findings file")
 	cmd.Flags().BoolVar(&statusMode, "status", false, "Show recorded review rounds and convergence state")
 	cmd.Flags().BoolVar(&checkFlag, "check", false, "With --status: run registered mechanical checks")
+	cmd.Flags().StringVar(&harnessNote, "harness-note", "", "With --record: store an optional free-text note on the recorded round")
 	cmd.Flags().BoolVar(&noState, "no-state", false, "Disable all review-state reads and writes (pre-0.23.0 manual behavior)")
 
 	return cmd
