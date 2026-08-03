@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.31.0.md",
   "created_at": "2026-08-02T22:16:32.514579Z",
-  "updated_at": "2026-08-03T01:14:00.722497Z",
+  "updated_at": "2026-08-03T01:27:42.114909Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run"
   },
@@ -105,7 +105,7 @@
     {
       "id": "nonblocking-open",
       "title": "Emit nonblocking_open on accepted-open clean rounds",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "severity-clean-predicate"
@@ -115,11 +115,23 @@
       "source_sections": [
         "## 4. The blocking-severity set and recorded justification"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-03T01:21:23.564197Z",
+      "duration_source": "implicit",
+      "closed_at": "2026-08-03T01:21:23.564255Z",
+      "closed_reason": "- When a review round is clean only because all surviving findings are below the blocking severities (clean AND count of surviving medium/low \u003e 0 under blocking), tp review --status and --record carry nonblocking_open = that count; engine.ReviewRoundNonBlockingOpen, verified by reviewconvergeon_clean_test.go record+status.\n- nonblocking_open is emitted only in that case: absent on a non-clean round, absent on a clean round with zero surviving non-blocking findings, and absent under review_converge_on=all (nothing is non-blocking); so presence alone signals accepted-open. Verified by reviewclean_test.go + reviewconvergeon_clean_test.go.\n- accepted_open is never emitted (derivable from clean + nonblocking_open); asserted absent in every nonblocking_open test.\n- Review-side only: no audit path emits nonblocking_open; verified by the audit --record/--status tests. Gate: go test ./... ok, golangci-lint 0 issues.",
+      "gate_passed_at": "2026-08-03T01:21:23.564255Z",
+      "commit_sha": "82d20e8",
+      "commit_shas": [
+        "82d20e8",
+        "902255a"
+      ],
+      "commit_files": [
+        "internal/cli/review_record.go",
+        "internal/cli/review_status.go",
+        "internal/cli/reviewconvergeon_clean_test.go",
+        "internal/engine/reviewclean.go",
+        "internal/engine/reviewclean_test.go"
+      ]
     },
     {
       "id": "fixed-row-exit1",
@@ -167,7 +179,7 @@
     {
       "id": "regression-role-stamp",
       "title": "Every review finding carries its role",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 10,
@@ -175,11 +187,24 @@
       "source_sections": [
         "## 7. Every finding carries its role"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-03T01:17:39.474983Z",
+      "duration_source": "implicit",
+      "closed_at": "2026-08-03T01:17:39.475033Z",
+      "closed_reason": "- Every emitted review finding carries a role: the regression prompt builder now appends outputContractInstruction('regression', PhaseReviewers) after findingFormat, so both the auto-appended regression pass in a counted round and the standalone --perspective regression path stamp role:'regression'; verified by regression_autoinclude_test.go.\n- --verify findings stamp role:'verifier' via an explicit stamp instruction in buildVerifyPrompt; verified by review_verify_test.go.\n- code-audit findings stamp role:'code-audit' (in the example JSON object and an explicit stamp instruction in codeAuditOutputFormat); verified by review_test.go. Plan-emitting prompts (doc/test) untouched.\n- The audit side is unchanged: no audit prompt builder was modified; audit findings already carry role and item_id. Gate: go test ./... ok, golangci-lint 0 issues.",
+      "gate_passed_at": "2026-08-03T01:17:39.475033Z",
+      "commit_sha": "5e562f6",
+      "commit_shas": [
+        "5e562f6",
+        "635500a"
+      ],
+      "commit_files": [
+        "internal/cli/regression_autoinclude_test.go",
+        "internal/cli/review.go",
+        "internal/cli/review_regression.go",
+        "internal/cli/review_test.go",
+        "internal/cli/review_verify.go",
+        "internal/cli/review_verify_test.go"
+      ]
     },
     {
       "id": "harness-note",
@@ -257,7 +282,7 @@
     {
       "id": "prompt-strings",
       "title": "Correct review-loop prompt convergence strings",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "severity-clean-predicate"
@@ -267,11 +292,20 @@
       "source_sections": [
         "## 9. Documentation"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-03T01:27:42.097426Z",
+      "duration_source": "implicit",
+      "closed_at": "2026-08-03T01:27:42.097477Z",
+      "closed_reason": "- The review-loop convergence and instruction prompt strings now describe both settings ('critical or high under review_converge_on=blocking, any severity under all') in buildReviewLoopInstruction, and no string claims a stop rule the code does not enforce; verified by TestReviewBasic on the new wording.\n- The prompt-generation path does not read review_converge_on: buildReviewLoopInstruction takes no such argument and the strings are static; TestReviewConvergenceStringsIgnoreConvergeOn proves the convergence/instruction strings are byte-identical whether the field resolves to blocking vs all.\n- The prior self-contradiction between the two convergence strings (one 'no new high-severity findings', the other 'any severity') is removed; the test asserts the old high-severity phrasing is gone. Gate: go test ./... ok, golangci-lint 0 issues.",
+      "gate_passed_at": "2026-08-03T01:27:42.097477Z",
+      "commit_sha": "d8a6d65",
+      "commit_shas": [
+        "d8a6d65",
+        "e4eb0b0"
+      ],
+      "commit_files": [
+        "internal/cli/review.go",
+        "internal/cli/review_test.go"
+      ]
     },
     {
       "id": "resolve-all-doc",
