@@ -1667,11 +1667,17 @@ func loadReviewRoundState(cmd *cobra.Command, specPath string, round int, findin
 // number, --no-state mode, an included regression prompt, and registered
 // mechanical checks.
 func buildReviewLoopInstruction(round int, findings []reviewFinding, findingsPath, specPath string, specInline, noState bool, stateRequired *int, regressionIncluded, hasChecks bool) (convergence, instruction string) {
-	instruction = "For each prompt, spawn a sub-agent via the Agent tool. Collect JSON findings. If any critical/high severity, revise spec and re-run `tp review`. Stop after 2 rounds or when no new high-severity findings."
+	// blockingRule states the stop rule for BOTH review_converge_on settings
+	// statically, in one string, so no prompt claims a rule the code does not
+	// enforce and the prompt-generation path never reads review_converge_on
+	// (§9.4; §3.3 enumerates the field's readers as tp review --status/--record).
+	const blockingRule = "critical or high severity under review_converge_on=blocking, any severity under all"
+
+	instruction = "For each prompt, spawn a sub-agent via the Agent tool. Collect JSON findings. If a surviving finding blocks convergence (" + blockingRule + "), revise spec and re-run `tp review`. Stop after 2 rounds or when no convergence-blocking finding survives."
 	if round < 2 && len(findings) > 0 {
-		instruction = fmt.Sprintf("For each prompt, spawn a sub-agent via the Agent tool. Collect JSON findings. If any critical/high severity, revise spec and re-run `tp review --round 2 --findings <%s>`. Stop after 2 rounds or when no new high-severity findings.", findingsPath)
+		instruction = fmt.Sprintf("For each prompt, spawn a sub-agent via the Agent tool. Collect JSON findings. If a surviving finding blocks convergence (%s), revise spec and re-run `tp review --round 2 --findings <%s>`. Stop after 2 rounds or when no convergence-blocking finding survives.", blockingRule, findingsPath)
 	} else if round >= 2 {
-		instruction = fmt.Sprintf("Spawn sub-agents for each prompt. Collect findings. If any critical/high severity, revise spec and re-run `tp review --round %d --findings <combined.ndjson>`. Stop after max_rounds or when no new high-severity findings.", round+1)
+		instruction = fmt.Sprintf("Spawn sub-agents for each prompt. Collect findings. If a surviving finding blocks convergence (%s), revise spec and re-run `tp review --round %d --findings <combined.ndjson>`. Stop after max_rounds or when no convergence-blocking finding survives.", blockingRule, round+1)
 	}
 
 	if !specInline {
@@ -1679,7 +1685,7 @@ func buildReviewLoopInstruction(round int, findings []reviewFinding, findingsPat
 		instruction += " Read the spec at " + absPath + " before processing each prompt."
 	}
 
-	convergence = "no new high-severity findings"
+	convergence = "no convergence-blocking finding survives: " + blockingRule
 	if noState {
 		convergence += " (convergence is not being recorded: --no-state)"
 		instruction += " Convergence is not being recorded (--no-state)."
@@ -1688,7 +1694,7 @@ func buildReviewLoopInstruction(round int, findings []reviewFinding, findingsPat
 		if stateRequired != nil {
 			required = *stateRequired
 		}
-		convergence = fmt.Sprintf("no findings surviving verification (any severity) in %d consecutive rounds", required)
+		convergence = fmt.Sprintf("no convergence-blocking finding survives verification in %d consecutive rounds (%s)", required, blockingRule)
 		instruction = fmt.Sprintf("For each prompt, spawn a sub-agent via the Agent tool. Merge findings (tp review --merge), verify and resolve them, then record the round: tp review %s --record <findings.ndjson>. Repeat until tp review %s --status --check exits 0.", specPath, specPath)
 		if !specInline {
 			absPath, _ := filepath.Abs(specPath)
