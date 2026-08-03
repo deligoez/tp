@@ -49,3 +49,37 @@ func TestMergeCommon_PreservesOtherFields(t *testing.T) {
 	require.NotNil(t, dst.AuditMaxRounds)
 	assert.Equal(t, 3, *dst.AuditMaxRounds, "other hand-set fields are preserved")
 }
+
+func TestComputeCommonPolicy_HoistsUnanimousReviewConvergeOn(t *testing.T) {
+	overrides := []model.WorkflowOverride{
+		{ReviewConvergeOn: sptr("all")},
+		{ReviewConvergeOn: sptr("all")},
+	}
+	common := computeCommonPolicy(overrides)
+	require.NotNil(t, common.ReviewConvergeOn)
+	assert.Equal(t, "all", *common.ReviewConvergeOn, "a unanimous review_converge_on is hoisted")
+	assert.Contains(t, hoistedFields(&common), "review_converge_on")
+}
+
+func TestComputeCommonPolicy_ReviewConvergeOnNotHoistedWhenDivergentOrAbsent(t *testing.T) {
+	divergent := computeCommonPolicy([]model.WorkflowOverride{
+		{ReviewConvergeOn: sptr("all")},
+		{ReviewConvergeOn: sptr("blocking")},
+	})
+	assert.Nil(t, divergent.ReviewConvergeOn, "a divergent review_converge_on is not hoisted")
+
+	partial := computeCommonPolicy([]model.WorkflowOverride{
+		{ReviewConvergeOn: sptr("all")},
+		{}, // unset in one file
+	})
+	assert.Nil(t, partial.ReviewConvergeOn, "review_converge_on absent from any file is not hoisted")
+}
+
+func TestMergeCommon_WritesReviewConvergeOn(t *testing.T) {
+	dst := model.WorkflowOverride{AuditMaxRounds: iptr(3)} // hand-set project field
+	mergeCommon(&dst, &model.WorkflowOverride{ReviewConvergeOn: sptr("all")})
+	require.NotNil(t, dst.ReviewConvergeOn)
+	assert.Equal(t, "all", *dst.ReviewConvergeOn, "hoisted review_converge_on is written")
+	require.NotNil(t, dst.AuditMaxRounds)
+	assert.Equal(t, 3, *dst.AuditMaxRounds, "other hand-set fields are preserved")
+}
