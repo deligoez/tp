@@ -26,14 +26,16 @@ func TestReviewRecord_Lifecycle(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\ncontent\n"), 0o600))
 
-	// Round 1: dirty (2 findings, one unresolved + one duplicate)
+	// Round 1: dirty (2 findings — one surviving high, one exempt duplicate).
+	// Under review_converge_on=blocking the surviving high finding blocks a
+	// clean round; the duplicate-with-evidence row is out of the surviving set.
 	out, stderr, code := recordRound(t, dir,
-		`{"severity":"low","category":"consistency","location":"L1","finding":"f1","suggestion":"s"}`+"\n"+
+		`{"severity":"high","category":"consistency","location":"L1","finding":"f1","suggestion":"s"}`+"\n"+
 			`{"severity":"low","category":"consistency","location":"L2","finding":"f2","suggestion":"s","resolved":{"status":"duplicate","evidence":"dup of f1"}}`+"\n")
 	require.Equal(t, 0, code, "record failed: %s", stderr)
 	assert.Equal(t, float64(1), out["round"])
 	assert.Equal(t, float64(2), out["findings"])
-	assert.Equal(t, false, out["clean"], "duplicate rows dirty the round")
+	assert.Equal(t, false, out["clean"], "a surviving high finding blocks a clean round")
 	assert.Equal(t, false, out["converged"])
 
 	// Round 2: clean (zero rows)

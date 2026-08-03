@@ -65,11 +65,14 @@ func TestReviewRecord_CleanAndDirty(t *testing.T) {
 		assert.Contains(t, stderr, "evidence")
 	})
 
-	t.Run("pre-resolved duplicate row dirties the round", func(t *testing.T) {
+	t.Run("lone pre-resolved duplicate row records a clean round", func(t *testing.T) {
+		// A duplicate-with-evidence row is out of the surviving set (§3.4/§4.3),
+		// so a round with only that row has zero survivors and is clean under
+		// the live predicate (both blocking and all).
 		dir := setup(t)
-		out, _, code := recordRound(t, dir, `{"finding":"a","resolved":{"status":"duplicate","evidence":"dup"}}`+"\n")
+		out, _, code := recordRound(t, dir, `{"finding":"a","severity":"high","resolved":{"status":"duplicate","evidence":"dup"}}`+"\n")
 		require.Equal(t, 0, code)
-		assert.Equal(t, false, out["clean"])
+		assert.Equal(t, true, out["clean"])
 	})
 }
 

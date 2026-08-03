@@ -10,7 +10,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const dirtyRow = `{"severity":"low","category":"c","location":"L1","finding":"still broken","suggestion":"s"}` + "\n"
+// dirtyRow carries a blocking (high) severity so the round is not clean under
+// the default review_converge_on=blocking, keeping it a genuine "dirty round"
+// for the budget / enforcement / convergence tests that reuse it.
+const dirtyRow = `{"severity":"high","category":"c","location":"L1","finding":"still broken","suggestion":"s"}` + "\n"
 
 func setupBudgetProject(t *testing.T, field string) string {
 	t.Helper()
