@@ -141,14 +141,18 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 		"required_clean_rounds": wf.ReviewCleanRounds,
 		"converged":             engine.ReviewConverged(specPath, st.ReviewRounds, wf.ReviewCleanRounds, specHash, wf.ReviewConvergeOn),
 		"stale":                 engine.StateStale(st.ReviewRounds, specHash),
-		"harness_stale":         engine.HarnessStale(st.ReviewRounds),
 		"mechanize_candidates":  candidates,
 	}
-	// harness_note is emitted only when harness_stale is true; when emitted it is
-	// the verbatim stored note (§6.2). --record reports staleness AFTER storing
-	// this round, so the just-recorded round is the latest of the two compared.
-	if engine.HarnessStale(st.ReviewRounds) {
-		result["harness_note"] = engine.LatestHarnessNote(st.ReviewRounds)
+	// §8.4: harness_stale and harness_note are explanatory and are omitted under
+	// --compact; next_action and nonblocking_open are decision-critical and
+	// survive it. When emitted, harness_note is the verbatim stored note (§6.2);
+	// --record reports staleness AFTER storing this round, so the just-recorded
+	// round is the latest of the two compared.
+	if !IsCompact() {
+		result["harness_stale"] = engine.HarnessStale(st.ReviewRounds)
+		if engine.HarnessStale(st.ReviewRounds) {
+			result["harness_note"] = engine.LatestHarnessNote(st.ReviewRounds)
+		}
 	}
 	// §4.2: on the accepted-open case — the just-recorded round is clean ONLY
 	// because every surviving finding is below the blocking severities — carry

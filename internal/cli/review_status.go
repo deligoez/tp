@@ -82,14 +82,18 @@ func runReviewStatus(specPath string, check bool) error {
 		"converged":             converged,
 		"stale":                 engine.StateStale(rounds, specHash),
 		"roles_stale":           engine.RolesStale(rounds, rolesHash),
-		"harness_stale":         engine.HarnessStale(rounds),
 		"mechanical_checks":     mechChecks,
 		"overlap_report":        overlapReport,
 	}
-	// harness_note is emitted only when harness_stale is true; when emitted it
-	// is the verbatim stored note of the latest recorded round (§6.2).
-	if engine.HarnessStale(rounds) {
-		result["harness_note"] = engine.LatestHarnessNote(rounds)
+	// §8.4: harness_stale and harness_note are explanatory and are omitted under
+	// --compact; next_action and nonblocking_open are decision-critical and
+	// survive it. When emitted, harness_note is the verbatim stored note of the
+	// latest recorded round and appears only when harness_stale is true (§6.2).
+	if !IsCompact() {
+		result["harness_stale"] = engine.HarnessStale(rounds)
+		if engine.HarnessStale(rounds) {
+			result["harness_note"] = engine.LatestHarnessNote(rounds)
+		}
 	}
 	if !IsCompact() && len(attributionExcludes) > 0 {
 		result["attribution_excludes"] = attributionExcludes

@@ -79,12 +79,16 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 		"required_clean_rounds": wf.AuditCleanRounds,
 		"converged":             engine.Converged(st.AuditRounds, wf.AuditCleanRounds, specHash),
 		"stale":                 engine.StateStale(st.AuditRounds, specHash),
-		"harness_stale":         engine.HarnessStale(st.AuditRounds),
 	}
-	// harness_note is emitted only when harness_stale is true; --record reports
-	// staleness AFTER storing this round, so it is the latest of the two compared.
-	if engine.HarnessStale(st.AuditRounds) {
-		result["harness_note"] = engine.LatestHarnessNote(st.AuditRounds)
+	// §8.4: harness_stale and harness_note are explanatory and are omitted under
+	// --compact; next_action is decision-critical and survives it. When emitted,
+	// harness_note is the verbatim stored note; --record reports staleness AFTER
+	// storing this round, so it is the latest of the two compared.
+	if !IsCompact() {
+		result["harness_stale"] = engine.HarnessStale(st.AuditRounds)
+		if engine.HarnessStale(st.AuditRounds) {
+			result["harness_note"] = engine.LatestHarnessNote(st.AuditRounds)
+		}
 	}
 	// §8.1/§8.2: next_action names the single next step by the audit precedence.
 	// Advisory/read-only — it changes nothing and never gates the exit code. The
@@ -189,12 +193,16 @@ func runAuditStatus(specPath string, check bool) error {
 		"converged":             converged,
 		"stale":                 engine.StateStale(rounds, specHash),
 		"roles_stale":           engine.RolesStale(rounds, rolesHash),
-		"harness_stale":         engine.HarnessStale(rounds),
 	}
-	// harness_note is emitted only when harness_stale is true; when emitted it is
-	// the verbatim stored note of the latest recorded audit round (§6.3).
-	if engine.HarnessStale(rounds) {
-		result["harness_note"] = engine.LatestHarnessNote(rounds)
+	// §8.4: harness_stale and harness_note are explanatory and are omitted under
+	// --compact; next_action is decision-critical and survives it. When emitted,
+	// harness_note is the verbatim stored note of the latest recorded audit round
+	// and appears only when harness_stale is true (§6.3).
+	if !IsCompact() {
+		result["harness_stale"] = engine.HarnessStale(rounds)
+		if engine.HarnessStale(rounds) {
+			result["harness_note"] = engine.LatestHarnessNote(rounds)
+		}
 	}
 	// §9.3 / §8.4: the audit overlap_report over the latest round's non-PASS
 	// rows is explanatory and is omitted under --compact.
