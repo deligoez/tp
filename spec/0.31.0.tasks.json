@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.31.0.md",
   "created_at": "2026-08-02T22:16:32.514579Z",
-  "updated_at": "2026-08-03T01:27:42.114909Z",
+  "updated_at": "2026-08-03T01:47:58.44891Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run"
   },
@@ -162,7 +162,7 @@
     {
       "id": "overspec-class",
       "title": "Document over-specification finding class + altitude guidance",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 10,
@@ -170,11 +170,25 @@
       "source_sections": [
         "## 5. The `over-specification` finding class"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-03T01:38:14.690176Z",
+      "duration_source": "implicit",
+      "closed_at": "2026-08-03T01:38:14.69023Z",
+      "closed_reason": "- The emitted REVIEW finding output contract (outputContractInstruction, review phase only) now names over-specification as a canonical class value with its meaning (a detail whose correctness can only be established against code, belonging in task acceptance; typically low/medium altitude smell); audit contract unchanged. Verified by emission_contract_test.go.\n- A finding with class:over-specification is carried through tp review --merge with its class intact (free-form merge path, no change needed); verified by finding_class_test.go.\n- Blocking is decided by severity not class: a low/medium over-specification finding does not block under review_converge_on=blocking while the same class at high/critical blocks; verified by reviewclean_test.go TestReviewRoundClean_OverSpecificationSeverityDecides (no class-based logic added).\n- The altitude principle (push toward decidable invariants) plus the over-specification class are stated in the PROSE role-authoring guidance (SKILL.md, REFERENCE.md); the embedded default reviewer role corpus/instructions are byte-identical (roles_hash unaffected). Gate: go test ./... ok, golangci-lint 0 issues.",
+      "gate_passed_at": "2026-08-03T01:38:14.69023Z",
+      "commit_sha": "c5225ed",
+      "commit_shas": [
+        "c5225ed",
+        "5be407b",
+        "abd0ad1"
+      ],
+      "commit_files": [
+        "internal/cli/emission_contract_test.go",
+        "internal/cli/finding_class_test.go",
+        "internal/cli/review.go",
+        "internal/engine/reviewclean_test.go",
+        "skills/tp/REFERENCE.md",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "regression-role-stamp",
@@ -241,7 +255,7 @@
     {
       "id": "next-action",
       "title": "next_action for review and audit loops",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "severity-clean-predicate",
@@ -252,11 +266,25 @@
       "source_sections": [
         "## 8. `next_action` for the review and audit loops"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-03T01:47:58.431148Z",
+      "duration_source": "implicit",
+      "closed_at": "2026-08-03T01:47:58.43122Z",
+      "closed_reason": "- tp review --status/--record and the audit --status/--record emit a next_action naming the single next step by a fixed precedence total over reachable states; engine.ReviewNextAction/AuditNextAction in nextaction.go, covered by nextaction_test.go (each branch/state + totality).\n- Review branch 1 converged names the decompose-then-tp import \u003cbase\u003e.tasks.json forward step even with open non-blocking findings (totality); verified by nextaction_test.go.\n- Review branch 2 convergence-blocking unresolved findings name the revise-and-re-review directive and never name --resolve/--resolve-all/--verify; verified by nextaction_test.go.\n- Review branch 3 a mechanizable mechanize_candidates class (none blocking) names register-a-check-then-run-the-next-round; a recurring over-specification class is excluded (firstMechanizableClass skips it) and falls through to branch 4; verified by engine + CLI tests.\n- Review branch 4 clean-but-not-yet-converged names the next-round tp review \u003cspec\u003e --record \u003cfile\u003e command; audit precedence: converged→terminal release marker, non-PASS rows→fix-and-re-audit, else→next audit round; verified by nextaction_test.go.\n- next_action gates no exit code (present in output while --status --check still exits per convergence); verified by nextaction_test.go.\n- tp resolves \u003cspec\u003e/\u003cbase\u003e in the strings while \u003cfile\u003e stays a literal placeholder (per Non-Goal 7 the exact bytes are acceptance-level; tests assert branch/command-kind, not full-byte equality). Gate: go test ./... ok, golangci-lint 0 issues.",
+      "gate_passed_at": "2026-08-03T01:47:58.43122Z",
+      "commit_sha": "379faf7",
+      "commit_shas": [
+        "379faf7",
+        "91013a4"
+      ],
+      "commit_files": [
+        "internal/cli/audit_record.go",
+        "internal/cli/nextaction_test.go",
+        "internal/cli/review_record.go",
+        "internal/cli/review_report.go",
+        "internal/cli/review_status.go",
+        "internal/engine/nextaction.go",
+        "internal/engine/nextaction_test.go"
+      ]
     },
     {
       "id": "compact-behavior",
@@ -353,7 +381,7 @@
     {
       "id": "unify-convergence-consumers",
       "title": "Unify budget/import/prompt-gen review convergence to the live severity-aware predicate",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "severity-clean-predicate"
@@ -364,11 +392,25 @@
         "## 3. Severity-aware review convergence",
         "## 4. The blocking-severity set and recorded justification"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-03T01:33:23.008234Z",
+      "duration_source": "implicit",
+      "closed_at": "2026-08-03T01:33:23.008287Z",
+      "closed_reason": "- budget.go refuseIfBudgetExhausted uses engine.ReviewConverged (live severity-aware) for review (kind=='review'), keeping frozen engine.Converged for audit; review callers pass wf.ReviewConvergeOn.\n- import_enforce.go review-convergence gate uses engine.ReviewConsecutiveClean(stateSpec, ..., wfResolved.ReviewConvergeOn).\n- review.go prompt-generation convergence (buildReviewPrompts consecutiveClean and buildReviewRoundState review_loop converged/consecutive_clean) uses engine.ReviewConsecutiveClean/ReviewConverged with the resolved review_converge_on.\n- A review_converge_on=blocking round whose only survivors are medium/low is treated as converged by budget refusal, import enforcement, prompt-gen, and --status alike; verified by review_converge_live_test.go.\n- Audit convergence is untouched (status-based, frozen engine.Converged; audit budget callers pass empty convergeOn); existing audit budget tests stay green. Gate: go test ./... ok, golangci-lint 0 issues.",
+      "gate_passed_at": "2026-08-03T01:33:23.008287Z",
+      "commit_sha": "ae079b5",
+      "commit_shas": [
+        "ae079b5",
+        "1d62c19"
+      ],
+      "commit_files": [
+        "internal/cli/audit.go",
+        "internal/cli/audit_record.go",
+        "internal/cli/budget.go",
+        "internal/cli/import_enforce.go",
+        "internal/cli/review.go",
+        "internal/cli/review_converge_live_test.go",
+        "internal/cli/review_record.go"
+      ]
     }
   ]
 }
