@@ -869,6 +869,8 @@ func TestReviewCodeAuditBasic(t *testing.T) {
 	assert.Contains(t, prompt, "isPhoneCheckInProgress")
 	assert.Contains(t, prompt, "isFormLocked")
 	assert.Contains(t, prompt, "Refactor")
+	assert.Contains(t, prompt, `role: "code-audit"`, "code-audit findings must stamp role")
+	assert.Contains(t, prompt, `"role":"code-audit"`, "example finding object stamps role")
 }
 
 func TestReviewCodeAuditEmptyFiles(t *testing.T) {

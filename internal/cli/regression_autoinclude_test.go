@@ -31,6 +31,7 @@ func TestRegressionPrompt_AutoInclusion(t *testing.T) {
 		require.Len(t, prompts, 4)
 		last := prompts[3].(map[string]any)
 		assert.Equal(t, "regression", last["role"], "regression appended as the 4th entry")
+		assert.Contains(t, last["prompt"].(string), `role: "regression"`, "auto-appended regression prompt instructs stamping role")
 
 		loop := out["review_loop"].(map[string]any)
 		assert.Contains(t, loop["instruction"], "Process the regression prompt first")
@@ -102,8 +103,12 @@ func TestRegressionPrompt_AutoInclusion(t *testing.T) {
 		entriesBefore, err := os.ReadDir(stateDir)
 		require.NoError(t, err)
 
-		_, _, code = runTP(t, dir, "review", "spec.md", "--perspective", "regression")
+		stdout, _, code := runTP(t, dir, "review", "spec.md", "--perspective", "regression")
 		require.Equal(t, 0, code)
+		var out map[string]any
+		require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+		prompt := out["prompts"].([]any)[0].(map[string]any)["prompt"].(string)
+		assert.Contains(t, prompt, `role: "regression"`, "standalone --perspective regression prompt instructs stamping role")
 
 		after, err := os.ReadFile(filepath.Join(stateDir, "state.json"))
 		require.NoError(t, err)

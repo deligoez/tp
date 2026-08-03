@@ -43,6 +43,7 @@ func TestReviewVerifyAllFixed(t *testing.T) {
 	assert.Contains(t, prompt, "0 remain unresolved")
 	assert.Contains(t, prompt, "Fixed findings to verify")
 	assert.Contains(t, prompt, "added in section 2")
+	assert.Contains(t, prompt, `role: "verifier"`, "verify findings must stamp role")
 }
 
 func TestReviewVerifyMixed(t *testing.T) {
