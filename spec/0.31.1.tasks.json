@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "spec": "spec/0.31.1.md",
+  "created_at": "2026-08-03T06:11:55.586447Z",
+  "updated_at": "2026-08-03T06:22:18.013985Z",
+  "workflow": {},
+  "coverage": {
+    "total_sections": 13,
+    "mapped_sections": 5,
+    "context_only": [
+      "# tp v0.31.1 — Close the v0.31.0 gaps",
+      "## 1. Overview",
+      "### 2.1 Enable a formatter in the repo lint config",
+      "### 2.2 Fix the recommended-gate guidance in the docs",
+      "### 3.1 computeCommonPolicy detects a common review_converge_on",
+      "### 3.2 hoistedFields lists review_converge_on",
+      "### 3.3 mergeCommon writes review_converge_on",
+      "### 4.1 workflowDeviations compares review_converge_on"
+    ],
+    "unmapped": []
+  },
+  "tasks": [
+    {
+      "id": "gofmt-gate",
+      "title": "Enable gofmt in the lint config with a guard test",
+      "status": "open",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 8,
+      "acceptance": "The repo .golangci.yml has a formatters section enabling gofmt, so golangci-lint run reports a gofmt-dirty file and exits non-zero. A deterministic Go test reads .golangci.yml and asserts its formatters section enables gofmt, so silently dropping the section fails the test. The existing linters and their settings are unchanged.",
+      "source_sections": [
+        "## 2. Quality gate: close the gofmt blind spot",
+        "## 6. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "gate-docs",
+      "title": "Fix the recommended-gate guidance in the docs",
+      "status": "open",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 5,
+      "acceptance": "CLAUDE.md, README.md, and skills/tp/SKILL.md that recommend the go test plus golangci-lint run gate note that golangci-lint v2 runs formatters only when a formatters section enables them, so a gofmt check must be enabled (or gofmt -l added) for the gate to catch formatting. tp does not change the default gate string tp init authors.",
+      "source_sections": [
+        "## 2. Quality gate: close the gofmt blind spot"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "extract-hoist",
+      "title": "Hoist review_converge_on in tp config --extract",
+      "status": "open",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "computeCommonPolicy treats review_converge_on as common when every override sets it to the same value using the all-equal-string logic and not when values differ or any file leaves it unset. hoistedFields appends review_converge_on to the deterministic hoisted list when common sets it. mergeCommon copies a non-nil common review_converge_on into the project override while preserving other hand-set project fields. Tests cover hoist-when-all-equal, not-hoisted-when-divergent-or-partially-unset, and mergeCommon preservation. commit_strategy is not hoisted per Non-Goal 1.",
+      "source_sections": [
+        "## 3. Hoist `review_converge_on` in `tp config --extract`",
+        "## 5. Non-Goals",
+        "## 6. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "validate-drift",
+      "title": "Report review_converge_on drift in tp validate --project",
+      "status": "open",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 8,
+      "acceptance": "workflowDeviations reports a deviation when a task file review_converge_on override and the project review_converge_on are both set and differ using the both-set string comparison. A field the project does not set is not a deviation. Under --strict a review_converge_on deviation is a validation error exiting 1. Tests cover differ-to-deviation, --strict exit 1, and equal-or-project-unset yields no deviation.",
+      "source_sections": [
+        "## 4. Report `review_converge_on` drift in `tp validate --project`",
+        "## 6. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ]
+}
