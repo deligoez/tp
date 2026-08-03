@@ -33,6 +33,16 @@ func runReviewRecord(specPath, recordPath string) error {
 
 	// Round-budget refusal comes before line parsing and any state write
 	wfPre, _ := engine.ResolveWorkflow(specPath, flagFile)
+
+	// A consuming command validates the resolved review_converge_on: an invalid
+	// value winning from a stored layer (env, .tp/config.json, or a task
+	// override) is a validation error (exit 1), not a usage error (§3.3).
+	if !engine.ValidReviewConvergeOn(wfPre.ReviewConvergeOn) {
+		output.Error(ExitValidation, fmt.Sprintf("invalid review_converge_on value %q", wfPre.ReviewConvergeOn), engine.ReviewConvergeOnHint)
+		os.Exit(ExitValidation)
+		return nil
+	}
+
 	preRounds := []engine.ReviewRound{}
 	if stPre != nil {
 		preRounds = stPre.ReviewRounds
@@ -113,13 +123,19 @@ func runReviewRecord(specPath, recordPath string) error {
 	candidates := computeMechanizeCandidates(roundFindings)
 
 	wf, _ := engine.ResolveWorkflow(specPath, flagFile)
+	// clean/consecutive_clean/converged are recomputed live from the round's
+	// recorded findings under the current review_converge_on (§3.4) — the
+	// stored ReviewRound.Clean stays the frozen record-time value. This is the
+	// same live predicate --status reports, so both agree on the just-recorded
+	// round.
+	liveClean := engine.ReviewRoundClean(specPath, &st.ReviewRounds[round-1], wf.ReviewConvergeOn)
 	result := map[string]any{
 		"round":                 round,
 		"findings":              findings,
-		"clean":                 clean,
-		"consecutive_clean":     engine.ConsecutiveClean(st.ReviewRounds),
+		"clean":                 liveClean,
+		"consecutive_clean":     engine.ReviewConsecutiveClean(specPath, st.ReviewRounds, wf.ReviewConvergeOn),
 		"required_clean_rounds": wf.ReviewCleanRounds,
-		"converged":             engine.Converged(st.ReviewRounds, wf.ReviewCleanRounds, specHash),
+		"converged":             engine.ReviewConverged(specPath, st.ReviewRounds, wf.ReviewCleanRounds, specHash, wf.ReviewConvergeOn),
 		"stale":                 engine.StateStale(st.ReviewRounds, specHash),
 		"mechanize_candidates":  candidates,
 	}

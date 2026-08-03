@@ -27,6 +27,15 @@ func runReviewStatus(specPath string, check bool) error {
 
 	wf, taskFilePath := engine.ResolveWorkflow(specPath, flagFile)
 
+	// A consuming command validates the resolved review_converge_on: an invalid
+	// value winning from a stored layer (env, .tp/config.json, or a task
+	// override) is a validation error (exit 1), not a usage error (§3.3).
+	if !engine.ValidReviewConvergeOn(wf.ReviewConvergeOn) {
+		output.Error(ExitValidation, fmt.Sprintf("invalid review_converge_on value %q", wf.ReviewConvergeOn), engine.ReviewConvergeOnHint)
+		os.Exit(ExitValidation)
+		return nil
+	}
+
 	specHash, err := engine.SpecHash(specPath)
 	if err != nil {
 		output.Error(ExitFile, fmt.Sprintf("cannot hash spec: %v", err))
@@ -37,6 +46,16 @@ func runReviewStatus(specPath string, check bool) error {
 	rounds := []engine.ReviewRound{}
 	if st != nil {
 		rounds = st.ReviewRounds
+	}
+
+	// The review clean flag is recomputed live from each round's recorded
+	// findings under the current review_converge_on and current resolution
+	// state (§3.4) — never the stored boolean. Overwriting the in-memory
+	// entries (this response is not persisted) keeps review_rounds[].clean,
+	// consecutive_clean, and converged consistent, and lets switching the
+	// setting or resolving a finding re-evaluate a round without re-recording.
+	for i := range rounds {
+		rounds[i].Clean = engine.ReviewRoundClean(specPath, &rounds[i], wf.ReviewConvergeOn)
 	}
 
 	converged := engine.Converged(rounds, wf.ReviewCleanRounds, specHash)
