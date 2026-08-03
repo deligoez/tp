@@ -14,9 +14,6 @@ const budgetEscalationHint = "exhaust the tail with uncounted passes (delta pass
 
 // refuseIfBudgetExhausted exits 4 when a round cap is set, recorded rounds
 // have reached it, and the sequence is not converged. Evaluated before line
-// parsing, row validation, and any state write.
-// refuseIfBudgetExhausted exits 4 when a round cap is set, recorded rounds
-// have reached it, and the sequence is not converged. Evaluated before line
 // parsing, row validation, and any state write. The review caller passes its
 // effective review_converge_on so the refusal uses the live severity-aware
 // predicate (ReviewConverged) and agrees with tp review --status/--record;
