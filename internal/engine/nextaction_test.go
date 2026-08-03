@@ -1,0 +1,119 @@
+package engine
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+// The review precedence is total over reachable states: exactly one branch fires
+// per state, in the fixed order converged > blocking > mechanize > next-round.
+// Non-Goal 7 keeps the verbatim per-branch string out of the acceptance, so these
+// assert the branch/command kind, not full-byte equality.
+
+func TestReviewNextAction_Converged(t *testing.T) {
+	got := ReviewNextAction("spec.md", true /*converged*/, false, nil)
+	assert.Contains(t, got, "tp import spec.tasks.json", "branch 1 names the decompose-then-import forward step")
+	assert.NotContains(t, got, "--resolve", "branch 1 never advises disposal")
+}
+
+// TestReviewNextAction_ConvergedWinsOverEverything: converged is the highest
+// precedence — even with a blocking finding and a mechanize class present (an
+// unreachable overlap in practice, but it pins the ordering), branch 1 wins.
+func TestReviewNextAction_ConvergedWinsOverEverything(t *testing.T) {
+	got := ReviewNextAction("spec.md", true /*converged*/, true /*blocking*/, []string{"naming"})
+	assert.Contains(t, got, "tp import", "converged outranks blocking and mechanize")
+	assert.NotContains(t, got, "revise the spec")
+	assert.NotContains(t, got, "tp set --workflow")
+}
+
+func TestReviewNextAction_Blocking(t *testing.T) {
+	got := ReviewNextAction("spec.md", false, true /*blockingUnresolved*/, []string{"naming"})
+	assert.Contains(t, got, "revise the spec", "branch 2 names the revise-and-re-review directive")
+	// The canonical response to a blocking finding is never auto-disposal.
+	assert.NotContains(t, got, "--resolve")
+	assert.NotContains(t, got, "--resolve-all")
+	assert.NotContains(t, got, "--verify")
+}
+
+func TestReviewNextAction_Mechanize(t *testing.T) {
+	got := ReviewNextAction("spec.md", false, false, []string{"naming"})
+	assert.Contains(t, got, "tp set --workflow checks", "branch 3 names the register-a-check command")
+	assert.Contains(t, got, "naming", "branch 3 names the recurring class")
+	assert.Contains(t, got, "tp review spec.md --record", "branch 3 is compound: register, then next round")
+}
+
+// TestReviewNextAction_OverSpecificationExcluded: a recurring over-specification
+// class is un-mechanizable, so branch 3 does NOT fire on it — the state falls
+// through to branch 4's plain next-round command.
+func TestReviewNextAction_OverSpecificationExcluded(t *testing.T) {
+	got := ReviewNextAction("spec.md", false, false, []string{"over-specification"})
+	assert.NotContains(t, got, "tp set --workflow checks", "over-specification does not trigger branch 3")
+	assert.Contains(t, got, "run the next review round", "falls through to branch 4")
+	assert.Contains(t, got, "tp review spec.md --record")
+}
+
+// TestReviewNextAction_MechanizeSkipsOverSpecToNextClass: over-specification is
+// skipped, but a genuinely mechanizable class in the same list still fires
+// branch 3 (firstMechanizableClass picks it).
+func TestReviewNextAction_MechanizeSkipsOverSpecToNextClass(t *testing.T) {
+	got := ReviewNextAction("spec.md", false, false, []string{"over-specification", "naming"})
+	assert.Contains(t, got, "tp set --workflow checks")
+	assert.Contains(t, got, "naming")
+}
+
+func TestReviewNextAction_CleanNotConverged(t *testing.T) {
+	got := ReviewNextAction("spec.md", false, false, nil)
+	assert.Contains(t, got, "run the next review round", "branch 4 is the lowest-precedence default")
+	assert.Contains(t, got, "tp review spec.md --record <file>")
+	assert.NotContains(t, got, "tp set --workflow", "no mechanize class present")
+	// <file> stays a literal placeholder; <spec> is resolved.
+	assert.Contains(t, got, "<file>")
+}
+
+// TestReviewNextAction_BaseResolution: <base> resolves to the spec's base name
+// even for a pathed, dotted spec name.
+func TestReviewNextAction_BaseResolution(t *testing.T) {
+	got := ReviewNextAction("spec/0.31.0.md", true, false, nil)
+	assert.Contains(t, got, "tp import 0.31.0.tasks.json")
+}
+
+// Audit precedence: converged > non-PASS-rows-present > next-round.
+
+func TestAuditNextAction_Converged(t *testing.T) {
+	got := AuditNextAction("spec.md", true /*converged*/, false)
+	assert.Contains(t, got, "proceed to release", "converged names the terminal release marker")
+	assert.NotContains(t, got, "tp audit", "the terminal marker names no further tp command")
+}
+
+func TestAuditNextAction_CleanNotConverged(t *testing.T) {
+	got := AuditNextAction("spec.md", false, false /*no non-PASS rows*/)
+	assert.Contains(t, got, "run the next audit round")
+	assert.Contains(t, got, "tp audit spec.md --record <file>")
+}
+
+func TestAuditNextAction_NonPassRowsPresent(t *testing.T) {
+	got := AuditNextAction("spec.md", false, true /*non-PASS rows present*/)
+	assert.Contains(t, got, "address the findings", "names the fix-and-re-audit directive")
+	assert.Contains(t, got, "tp audit spec.md --record <file>")
+}
+
+// TestAuditNextAction_ConvergedWinsOverFindings pins the audit ordering: a
+// converged state names the forward step even if findings are (unreachably) flagged.
+func TestAuditNextAction_ConvergedWinsOverFindings(t *testing.T) {
+	got := AuditNextAction("spec.md", true, true)
+	assert.Contains(t, got, "proceed to release")
+	assert.NotContains(t, got, "address the findings")
+}
+
+// TestFirstMechanizableClass covers the over-specification skip directly.
+func TestFirstMechanizableClass(t *testing.T) {
+	assert.Equal(t, "naming", firstMechanizableClass([]string{"naming"}))
+	assert.Equal(t, "naming", firstMechanizableClass([]string{"over-specification", "naming"}))
+	assert.Equal(t, "", firstMechanizableClass([]string{"over-specification"}))
+	assert.Equal(t, "", firstMechanizableClass(nil))
+	assert.Equal(t, OverSpecificationClass, "over-specification")
+	// sanity: none of the review directives leak an audit command and vice versa.
+	assert.False(t, strings.Contains(ReviewNextAction("s.md", false, false, nil), "tp audit"))
+}
