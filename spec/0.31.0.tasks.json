@@ -1,0 +1,250 @@
+{
+  "version": 1,
+  "spec": "spec/0.31.0.md",
+  "created_at": "2026-08-02T22:16:32.514579Z",
+  "updated_at": "2026-08-03T00:22:22.141362Z",
+  "workflow": {
+    "quality_gate": "go test ./... \u0026\u0026 golangci-lint run"
+  },
+  "coverage": {
+    "total_sections": 12,
+    "mapped_sections": 7,
+    "context_only": [
+      "# tp v0.31.0 — Honest convergence: severity-aware stopping, altitude findings, a recorded harness",
+      "## 1. Overview",
+      "## 2. Design Principles",
+      "## 10. Non-Goals",
+      "## 11. Tests / Acceptance"
+    ],
+    "unmapped": []
+  },
+  "tasks": [
+    {
+      "id": "converge-on-field",
+      "title": "Add review_converge_on workflow field + validation",
+      "status": "open",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 12,
+      "acceptance": "review_converge_on workflow field exists with values blocking|all, built-in default blocking; resolves through the layer order (CLI \u003e env \u003e task override \u003e project config \u003e built-in) and appears in tp config --resolved. An invalid value in the winning layer is rejected with a hint naming the legal values: `tp set --workflow review_converge_on=\u003cbad\u003e` and `tp set --workflow --project review_converge_on=\u003cbad\u003e` both exit 2 (usage); a consuming command (tp review --status/--record) resolving an invalid winning value from a stored layer exits 1 (validation); tp audit never reads the field; tp config --resolved displays a raw value without erroring.",
+      "source_sections": [
+        "## 3. Severity-aware review convergence"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "severity-clean-predicate",
+      "title": "Severity-aware clean predicate (blocking vs all)",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "converge-on-field"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "A counted review round is clean per review_converge_on: under blocking, clean when no surviving finding is critical or high severity (severity matched case-insensitively); under all, clean when zero findings of any severity survive. The clean decision reads the surviving set (recorded findings minus those resolved wontfix/duplicate) live from the round record, so switching review_converge_on or resolving a finding wontfix re-evaluates a round in --status without re-recording. A surviving finding whose severity is missing or outside critical|high|medium|low is treated as blocking (per-finding, uniform every round); a round none of whose surviving findings carry a severity is clean iff zero survive. Audit convergence stays status-based and is unaffected.",
+      "source_sections": [
+        "## 4. The blocking-severity set and recorded justification",
+        "## 3. Severity-aware review convergence"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "nonblocking-open",
+      "title": "Emit nonblocking_open on accepted-open clean rounds",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "severity-clean-predicate"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "When a round is clean only because all surviving findings are below the blocking severities, tp review --status and --record carry nonblocking_open (count of surviving non-blocking findings); the field is absent on a non-clean round and on a clean round with none, so its presence signals accepted-open. accepted_open is not emitted (derivable).",
+      "source_sections": [
+        "## 4. The blocking-severity set and recorded justification"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "fixed-row-exit1",
+      "title": "--record rejects fixed rows as validation error (exit 1)",
+      "status": "open",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 6,
+      "acceptance": "tp review --record on a findings file still carrying `fixed` disposition rows is rejected as a validation error (exit 1) with a hint to re-review the changed spec (the fault is the file content, matching the stored-value classification), not exit 2.",
+      "source_sections": [
+        "## 3. Severity-aware review convergence"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "overspec-class",
+      "title": "Document over-specification finding class + altitude guidance",
+      "status": "open",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "tp documents a canonical finding class `over-specification` (a detail whose correctness can only be established against code, belonging in task acceptance) in the finding output contract; a reviewer finding with class:over-specification is accepted and carried through merge; at low/medium severity it does not block convergence under blocking while the same class at high blocks (severity, not class, decides). The altitude principle (push toward decidable invariants) is stated in the prose role-authoring guidance only, not the embedded default role instructions (roles_hash unaffected).",
+      "source_sections": [
+        "## 5. The `over-specification` finding class"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "regression-role-stamp",
+      "title": "Every review finding carries its role",
+      "status": "open",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "Every emitted review finding carries a role field: the regression prompt builder stamps role (fixing both the auto-appended regression pass and --perspective regression so regression findings appear in the per-role overlap report); --verify findings carry role:verifier and code-audit findings role:code-audit. Audit prompt builders are unchanged (audit findings already carry role and item_id).",
+      "source_sections": [
+        "## 7. Every finding carries its role"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "harness-note",
+      "title": "Recorded harness note (--harness-note, harness_stale)",
+      "status": "open",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 15,
+      "acceptance": "tp review \u003cspec\u003e --record \u003cfile\u003e --harness-note \"\u003ctext\u003e\" and the tp audit equivalent store the note verbatim on the recorded round; omitting the flag records nothing. --status reports harness_stale and, when true, harness_note. harness_stale is true only when the two most recent recorded rounds both carry non-empty notes differing after trimming surrounding whitespace; false when either note is empty (predate or opt-out) or fewer than two rounds recorded; comparison is per phase (review vs audit rounds separately). harness_note is emitted only when harness_stale is true, otherwise omitted (never \"\" or null), and when emitted is the verbatim stored note. Supplying --harness-note without --record is a usage error (exit 2).",
+      "source_sections": [
+        "## 6. The recorded harness note"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "next-action",
+      "title": "next_action for review and audit loops",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "severity-clean-predicate",
+        "nonblocking-open"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "tp review --status/--record and the audit equivalents carry a next_action naming the single next step by a fixed precedence total over reachable states: converged names the phase forward step; convergence-blocking unresolved findings name the revise-and-re-review directive (never --resolve/--resolve-all/--verify); a mechanizable mechanize_candidates class present and none blocking names register-a-check-then-run-the-next-round (over-specification is un-mechanizable and does not trigger this branch, falling through); a clean-but-not-yet-converged round names the next-round command. It gates no exit code. tp resolves \u003cspec\u003e/\u003cbase\u003e in emitted command strings; \u003cfile\u003e and the checks template stay literal.",
+      "source_sections": [
+        "## 8. `next_action` for the review and audit loops"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "compact-behavior",
+      "title": "--compact behavior for new output fields",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "next-action",
+        "harness-note",
+        "nonblocking-open"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "tp review --status --compact and --record --compact omit harness_note and harness_stale while retaining next_action and nonblocking_open; accepted_open is not emitted; the same stripping applies to the audit --status/--record equivalents. next_action is retained verbatim under --compact.",
+      "source_sections": [
+        "## 8. `next_action` for the review and audit loops"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "prompt-strings",
+      "title": "Correct review-loop prompt convergence strings",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "severity-clean-predicate"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "The tool's review-loop convergence and instruction prompt strings describe both settings (critical-or-high blocks under blocking, any severity under all) with no internal contradiction and no string claiming a stop rule the code does not enforce; the prompt-generation path does not read review_converge_on. The prior self-contradiction between the two convergence strings is removed.",
+      "source_sections": [
+        "## 9. Documentation"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "resolve-all-doc",
+      "title": "Document --resolve-all adjacent to --resolve",
+      "status": "open",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 6,
+      "acceptance": "SKILL.md and REFERENCE.md document tp review \u003cfile\u003e --resolve-all \u003cfixed|wontfix|duplicate\u003e \"\u003cevidence\u003e\" (with --force) adjacent to --resolve, named as the way to accept or dispose of many findings in one call including the accept-all-non-blocking-as-wontfix case.",
+      "source_sections": [
+        "## 8. `next_action` for the review and audit loops",
+        "## 9. Documentation"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "docs-sync",
+      "title": "Sync SKILL/CLAUDE/README/REFERENCE for v0.31.0",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "converge-on-field",
+        "overspec-class",
+        "harness-note",
+        "next-action",
+        "regression-role-stamp",
+        "resolve-all-doc"
+      ],
+      "estimate_minutes": 14,
+      "acceptance": "SKILL.md, CLAUDE.md, README.md, and REFERENCE.md carry the release updates: the severity-aware convergence rule and review_converge_on default; the over-specification class and altitude principle in role-authoring guidance; the judgement-shaping-text-belongs-in-roles rule naming both review and audit role homes (tp.review_roles/tp.audit_roles, .tp/reviewers/.tp/auditors) and --harness-note/harness_stale; next_action for the review and audit loops. go test ./... and golangci-lint run are clean.",
+      "source_sections": [
+        "## 6. The recorded harness note",
+        "## 9. Documentation"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ]
+}
