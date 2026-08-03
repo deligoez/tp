@@ -90,7 +90,15 @@ Users need X.
 	assert.False(t, hasMaxRounds, "max_rounds is removed in v0.23.0")
 	assert.Equal(t, float64(2), loop["required_clean_rounds"])
 	assert.Equal(t, false, loop["converged"])
-	assert.Contains(t, loop["convergence"], "no findings surviving verification")
+	// Severity-aware convergence: the string describes BOTH review_converge_on
+	// settings statically, with no self-contradiction (§9.4).
+	convStr := loop["convergence"].(string)
+	assert.Contains(t, convStr, "convergence-blocking finding survives verification")
+	assert.Contains(t, convStr, "review_converge_on=blocking")
+	assert.Contains(t, convStr, "any severity under all")
+	// The prior self-contradictory "(any severity)"-only phrasing is gone.
+	assert.NotContains(t, convStr, "no findings surviving verification (any severity)")
+	assert.NotContains(t, convStr, "high-severity")
 
 	// --spec-inline: should contain inline spec content
 	stdoutInline, stderrInline, codeInline := runTP(t, dir, "review", "--spec-inline", specPath)
@@ -105,6 +113,56 @@ Users need X.
 	}
 	// spec_ref should NOT be set for inline mode
 	assert.Nil(t, resultInline["spec_ref"])
+}
+
+// TestReviewConvergenceStringsIgnoreConvergeOn proves the prompt-generation path
+// does not read review_converge_on (§9.4, §3.3): the review_loop convergence and
+// instruction strings are byte-identical whether the field resolves to blocking
+// or all. The field genuinely resolves differently in each setup (asserted via
+// tp config --resolved), yet the generated prompt is unchanged.
+func TestReviewConvergenceStringsIgnoreConvergeOn(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Feature\n\n## Problem\nUsers need X.\n\n## Solution\nAdd a field.\n"), 0o600))
+
+	tpDir := filepath.Join(dir, ".tp")
+	require.NoError(t, os.MkdirAll(tpDir, 0o755))
+	configPath := filepath.Join(tpDir, "config.json")
+
+	loopFor := func(convergeOn string) map[string]any {
+		require.NoError(t, os.WriteFile(configPath,
+			[]byte(fmt.Sprintf(`{"workflow":{"review_converge_on":%q}}`, convergeOn)), 0o600))
+
+		// Confirm the field actually resolves to the intended value in this setup.
+		cfgOut, cfgErr, cfgCode := runTP(t, dir, "config", "--resolved")
+		require.Equal(t, 0, cfgCode, "config --resolved should succeed: %s", cfgErr)
+		var cfg map[string]any
+		require.NoError(t, json.Unmarshal([]byte(cfgOut), &cfg))
+		wfCfg := cfg["workflow"].(map[string]any)
+		rco := wfCfg["review_converge_on"].(map[string]any)
+		require.Equal(t, convergeOn, rco["value"], "review_converge_on must resolve to %s", convergeOn)
+
+		stdout, stderr, code := runTP(t, dir, "review", specPath)
+		require.Equal(t, 0, code, "review should succeed: %s", stderr)
+		var result map[string]any
+		require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+		return result["review_loop"].(map[string]any)
+	}
+
+	blockingLoop := loopFor("blocking")
+	allLoop := loopFor("all")
+
+	// The prompt-generation path is not a reader of review_converge_on: the
+	// convergence and instruction strings do not vary with the resolved value.
+	assert.Equal(t, blockingLoop["convergence"], allLoop["convergence"],
+		"convergence string must not depend on review_converge_on")
+	assert.Equal(t, blockingLoop["instruction"], allLoop["instruction"],
+		"instruction string must not depend on review_converge_on")
+
+	// And the single static string describes both settings without contradiction.
+	conv := blockingLoop["convergence"].(string)
+	assert.Contains(t, conv, "review_converge_on=blocking")
+	assert.Contains(t, conv, "any severity under all")
 }
 
 func TestReviewStructuredElementsInPrompts(t *testing.T) {
