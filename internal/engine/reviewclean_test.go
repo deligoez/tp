@@ -139,6 +139,47 @@ func TestReviewRoundClean_MissingFileFallsBackToStoredFlag(t *testing.T) {
 	assert.False(t, ReviewRoundClean(specPath, dirty, ReviewConvergeOnBlocking))
 }
 
+func TestReviewRoundNonBlockingOpen(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+
+	// Clean-under-blocking round with two medium/low survivors -> count 2.
+	acceptedOpen := writeRoundForClean(t, specPath, "accepted.ndjson",
+		`{"severity":"medium","finding":"m"}`,
+		`{"severity":"low","finding":"l"}`)
+	assert.Equal(t, 2, ReviewRoundNonBlockingOpen(specPath, acceptedOpen, ReviewConvergeOnBlocking),
+		"both medium and low survivors are counted under blocking")
+	assert.Equal(t, 0, ReviewRoundNonBlockingOpen(specPath, acceptedOpen, ReviewConvergeOnAll),
+		"nothing is non-blocking under all")
+
+	// A blocking survivor is not counted; only the medium survivor is.
+	mixed := writeRoundForClean(t, specPath, "mixed.ndjson",
+		`{"severity":"high","finding":"h"}`,
+		`{"severity":"medium","finding":"m"}`)
+	assert.Equal(t, 1, ReviewRoundNonBlockingOpen(specPath, mixed, ReviewConvergeOnBlocking),
+		"only the medium survivor counts; the high one does not")
+
+	// Missing / out-of-vocabulary severities are blocking, never counted.
+	badSev := writeRoundForClean(t, specPath, "badsev.ndjson",
+		`{"finding":"no severity"}`,
+		`{"severity":"bogus","finding":"out of vocab"}`)
+	assert.Equal(t, 0, ReviewRoundNonBlockingOpen(specPath, badSev, ReviewConvergeOnBlocking),
+		"missing/out-of-vocab severities are blocking, not counted as non-blocking")
+
+	// Resolved wontfix/duplicate (with evidence) leave the surviving set even
+	// when medium/low, so they are not counted.
+	resolved := writeRoundForClean(t, specPath, "resolved.ndjson",
+		`{"severity":"medium","finding":"a","resolved":{"status":"wontfix","evidence":"e"}}`,
+		`{"severity":"low","finding":"b","resolved":{"status":"duplicate","evidence":"e"}}`)
+	assert.Equal(t, 0, ReviewRoundNonBlockingOpen(specPath, resolved, ReviewConvergeOnBlocking),
+		"resolved-away non-blocking findings are not counted")
+
+	// A missing round file yields 0.
+	missing := &ReviewRound{Round: 1, File: "gone.ndjson"}
+	assert.Equal(t, 0, ReviewRoundNonBlockingOpen(specPath, missing, ReviewConvergeOnBlocking),
+		"a missing round file yields 0")
+}
+
 func TestReviewConsecutiveCleanAndConverged_SeverityAware(t *testing.T) {
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")

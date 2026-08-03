@@ -92,6 +92,118 @@ func TestReviewConvergeOn_ResolveWontfixAfterRecordCleans(t *testing.T) {
 	assert.Equal(t, true, rounds[0].(map[string]any)["clean"])
 }
 
+// TestReviewNonBlockingOpen_AcceptedOpen: a round clean ONLY because its
+// surviving findings are all below the blocking severities carries
+// nonblocking_open = the count of surviving medium/low findings, on both
+// --record and --status; accepted_open is never emitted (§4.2).
+func TestReviewNonBlockingOpen_AcceptedOpen(t *testing.T) {
+	dir := setupConvergeOnProject(t)
+
+	out, stderr, code := recordRound(t, dir,
+		`{"severity":"medium","category":"ambiguity","location":"L1","finding":"soft","suggestion":"clarify"}`+"\n"+
+			`{"severity":"low","category":"style","location":"L2","finding":"nit","suggestion":"tweak"}`+"\n")
+	require.Equal(t, 0, code, "record failed: %s", stderr)
+	assert.Equal(t, true, out["clean"], "medium+low survivors are clean under blocking")
+	assert.Equal(t, float64(2), out["nonblocking_open"], "both non-blocking survivors counted on --record")
+	_, hasAccepted := out["accepted_open"]
+	assert.False(t, hasAccepted, "accepted_open is never emitted")
+
+	stdout, _, code := runTP(t, dir, "review", "spec.md", "--status")
+	require.Equal(t, 0, code)
+	status := parseStatusJSON(t, stdout)
+	assert.Equal(t, float64(2), status["nonblocking_open"], "same count on --status")
+	_, hasAccepted = status["accepted_open"]
+	assert.False(t, hasAccepted, "accepted_open is never emitted on --status")
+}
+
+// TestReviewNonBlockingOpen_AbsentOnNonClean: a non-clean round (surviving
+// high) omits nonblocking_open on both --record and --status (§4.2).
+func TestReviewNonBlockingOpen_AbsentOnNonClean(t *testing.T) {
+	dir := setupConvergeOnProject(t)
+
+	out, stderr, code := recordRound(t, dir,
+		`{"severity":"high","category":"completeness","location":"L1","finding":"missing","suggestion":"add"}`+"\n"+
+			`{"severity":"medium","category":"ambiguity","location":"L2","finding":"soft","suggestion":"clarify"}`+"\n")
+	require.Equal(t, 0, code, "record failed: %s", stderr)
+	assert.Equal(t, false, out["clean"], "a surviving high blocks")
+	_, ok := out["nonblocking_open"]
+	assert.False(t, ok, "nonblocking_open absent on a non-clean round (--record)")
+
+	stdout, _, code := runTP(t, dir, "review", "spec.md", "--status")
+	require.Equal(t, 0, code)
+	_, ok = parseStatusJSON(t, stdout)["nonblocking_open"]
+	assert.False(t, ok, "nonblocking_open absent on a non-clean round (--status)")
+}
+
+// TestReviewNonBlockingOpen_AbsentWhenZeroSurvivors: a clean round with zero
+// surviving non-blocking findings (an empty round) omits nonblocking_open, so
+// the field's presence alone signals the accepted-open state (§4.2).
+func TestReviewNonBlockingOpen_AbsentWhenZeroSurvivors(t *testing.T) {
+	dir := setupConvergeOnProject(t)
+
+	out, stderr, code := recordRound(t, dir, "")
+	require.Equal(t, 0, code, "record failed: %s", stderr)
+	assert.Equal(t, true, out["clean"], "an empty round is clean")
+	_, ok := out["nonblocking_open"]
+	assert.False(t, ok, "nonblocking_open absent when zero non-blocking survivors (--record)")
+
+	stdout, _, code := runTP(t, dir, "review", "spec.md", "--status")
+	require.Equal(t, 0, code)
+	_, ok = parseStatusJSON(t, stdout)["nonblocking_open"]
+	assert.False(t, ok, "nonblocking_open absent when zero non-blocking survivors (--status)")
+}
+
+// TestReviewNonBlockingOpen_AbsentUnderAll: under review_converge_on=all nothing
+// is non-blocking, so a clean "all" round (zero survivors) omits
+// nonblocking_open (§4.2).
+func TestReviewNonBlockingOpen_AbsentUnderAll(t *testing.T) {
+	dir := setupConvergeOnProject(t)
+	_, _, code := runTP(t, dir, "set", "--workflow", "review_converge_on=all")
+	require.Equal(t, 0, code)
+
+	// A medium-only round is UNCLEAN under all (any survivor blocks) — absent.
+	out, stderr, code := recordRound(t, dir,
+		`{"severity":"medium","category":"ambiguity","location":"L1","finding":"soft","suggestion":"clarify"}`+"\n")
+	require.Equal(t, 0, code, "record failed: %s", stderr)
+	assert.Equal(t, false, out["clean"], "under all a surviving medium is unclean")
+	_, ok := out["nonblocking_open"]
+	assert.False(t, ok, "nonblocking_open absent under all on an unclean round")
+
+	// An empty (clean) round under all still has zero survivors — absent.
+	out, stderr, code = recordRound(t, dir, "")
+	require.Equal(t, 0, code, "record failed: %s", stderr)
+	assert.Equal(t, true, out["clean"], "an empty round is clean under all")
+	_, ok = out["nonblocking_open"]
+	assert.False(t, ok, "nonblocking_open absent under all on a clean zero-survivor round")
+
+	stdout, _, code := runTP(t, dir, "review", "spec.md", "--status")
+	require.Equal(t, 0, code)
+	_, ok = parseStatusJSON(t, stdout)["nonblocking_open"]
+	assert.False(t, ok, "nonblocking_open absent under all on --status")
+}
+
+// TestReviewNonBlockingOpen_AuditUnaffected: audit convergence is status-based
+// and has no non-blocking notion — no audit path emits nonblocking_open (§4.2).
+func TestReviewNonBlockingOpen_AuditUnaffected(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.tasks.json"),
+		[]byte(`{"spec":"spec.md","workflow":{"audit_clean_rounds":1},"tasks":[]}`), 0o600))
+
+	out, _, code := auditRecord(t, dir, `{"id":"x","status":"PASS"}`+"\n")
+	require.Equal(t, 0, code)
+	assert.Equal(t, true, out["converged"])
+	_, ok := out["nonblocking_open"]
+	assert.False(t, ok, "audit --record never emits nonblocking_open")
+
+	stdout, _, code := runTP(t, dir, "audit", "spec.md", "--status")
+	require.Equal(t, 0, code)
+	var status map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &status))
+	_, ok = status["nonblocking_open"]
+	assert.False(t, ok, "audit --status never emits nonblocking_open")
+}
+
 // TestReviewConvergeOn_InvalidStoredExitsOne: a consuming command that resolves
 // an invalid review_converge_on winning from a stored layer exits 1 with the
 // legal-values hint (§3.3). Write-time validation (exit 2) is separate.
