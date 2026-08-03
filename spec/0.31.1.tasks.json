@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.31.1.md",
   "created_at": "2026-08-03T06:11:55.586447Z",
-  "updated_at": "2026-08-03T06:22:18.013985Z",
+  "updated_at": "2026-08-03T06:30:11.914817Z",
   "workflow": {},
   "coverage": {
     "total_sections": 13,
@@ -23,7 +23,7 @@
     {
       "id": "gofmt-gate",
       "title": "Enable gofmt in the lint config with a guard test",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 8,
@@ -32,16 +32,25 @@
         "## 2. Quality gate: close the gofmt blind spot",
         "## 6. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-03T06:27:09.28645Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-03T06:28:45.446804Z",
+      "closed_reason": "- .golangci.yml gained a formatters section enabling gofmt (.golangci.yml:29-31); verified empirically that golangci-lint run now reports a gofmt-dirty file and exits non-zero (was 0 issues before)\n- TestGolangciConfigEnablesGofmt reads .golangci.yml, parses it with yaml.v3, and asserts formatters.enable contains gofmt — fails if the section is dropped (internal/cli/golangci_config_test.go); passes now\n- The existing linters block and settings are untouched; the change only adds the top-level formatters section, and the whole repo is gofmt-clean so golangci-lint run stays at 0 issues",
+      "gate_passed_at": "2026-08-03T06:28:45.446804Z",
+      "commit_sha": "719c2ed",
+      "commit_shas": [
+        "719c2ed",
+        "855339d"
+      ],
+      "commit_files": [
+        ".golangci.yml",
+        "internal/cli/golangci_config_test.go"
+      ]
     },
     {
       "id": "gate-docs",
       "title": "Fix the recommended-gate guidance in the docs",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 5,
@@ -49,16 +58,25 @@
       "source_sections": [
         "## 2. Quality gate: close the gofmt blind spot"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-03T06:29:01.669653Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-03T06:30:11.903776Z",
+      "closed_reason": "- README.md (quality_gate bullet), CLAUDE.md (Quality gate after every task), and skills/tp/SKILL.md (Quality gate command) each now note that golangci-lint run (v2) checks formatters like gofmt only when a formatters section enables them, so one must be enabled in .golangci.yml (or gofmt -l added to the gate) for the gate to catch formatting\n- The advisory text does not change the default gate string tp init authors; the quality_gate stays user-authored and read-only",
+      "gate_passed_at": "2026-08-03T06:30:11.903776Z",
+      "commit_sha": "6ee3682",
+      "commit_shas": [
+        "6ee3682"
+      ],
+      "commit_files": [
+        "CLAUDE.md",
+        "README.md",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "extract-hoist",
       "title": "Hoist review_converge_on in tp config --extract",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 10,
@@ -68,16 +86,25 @@
         "## 5. Non-Goals",
         "## 6. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-03T06:23:02.277386Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-03T06:25:21.98605Z",
+      "closed_reason": "- computeCommonPolicy: added an all-equal-string block for ReviewConvergeOn (mirrors quality_gate) — common only when every override sets it to the same value, nil when divergent or unset in any file (config_extract.go:56-68)\n- hoistedFields: appends \"review_converge_on\" to the deterministic list when common.ReviewConvergeOn != nil (config_extract.go)\n- mergeCommon: copies a non-nil common.ReviewConvergeOn into dst, preserving other hand-set project fields (config_extract.go)\n- Tests: TestComputeCommonPolicy_HoistsUnanimousReviewConvergeOn, _ReviewConvergeOnNotHoistedWhenDivergentOrAbsent (divergent + partially-unset), TestMergeCommon_WritesReviewConvergeOn (preserves AuditMaxRounds) — all pass\n- commit_strategy left out of all three helpers per Non-Goal 1 (read-only per task)",
+      "gate_passed_at": "2026-08-03T06:25:21.98605Z",
+      "commit_sha": "4492259",
+      "commit_shas": [
+        "4492259",
+        "00cf3c1"
+      ],
+      "commit_files": [
+        "internal/cli/config_extract.go",
+        "internal/cli/config_extract_test.go"
+      ]
     },
     {
       "id": "validate-drift",
       "title": "Report review_converge_on drift in tp validate --project",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 8,
@@ -86,11 +113,20 @@
         "## 4. Report `review_converge_on` drift in `tp validate --project`",
         "## 6. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-03T06:25:41.525576Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-03T06:27:00.812602Z",
+      "closed_reason": "- workflowDeviations: added a both-set string compare for ReviewConvergeOn (mirrors quality_gate) — reports {field:review_converge_on, override, project} when both are set and differ (validate_project.go:36-38)\n- A review_converge_on the project does not set yields no deviation (both-set guard); verified by the project-unset test case\n- --strict is field-agnostic: runValidateProject exits ExitValidation (1) whenever len(deviations)\u003e0, so a reported review_converge_on deviation trips --strict exit 1 through the existing generic path\n- Tests: TestWorkflowDeviations_ReviewConvergeOn covers differ→deviation (all vs blocking), equal→no deviation, and project-unset→no deviation — all pass",
+      "gate_passed_at": "2026-08-03T06:27:00.812602Z",
+      "commit_sha": "f61b445",
+      "commit_shas": [
+        "f61b445",
+        "699cd98"
+      ],
+      "commit_files": [
+        "internal/cli/validate_project.go",
+        "internal/cli/validate_project_test.go"
+      ]
     }
   ]
 }
