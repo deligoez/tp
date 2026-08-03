@@ -150,6 +150,18 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 	if engine.HarnessStale(st.ReviewRounds) {
 		result["harness_note"] = engine.LatestHarnessNote(st.ReviewRounds)
 	}
+	// §4.2: on the accepted-open case — the just-recorded round is clean ONLY
+	// because every surviving finding is below the blocking severities — carry
+	// nonblocking_open = the count of surviving non-blocking (medium/low)
+	// findings. Emitted solely when clean and that count is positive, so the
+	// field's mere presence signals the accepted-open state; absent on a
+	// non-clean round, on a clean round with zero non-blocking survivors, and
+	// under review_converge_on=all. accepted_open is intentionally not emitted.
+	if liveClean {
+		if nbo := engine.ReviewRoundNonBlockingOpen(specPath, &st.ReviewRounds[round-1], wf.ReviewConvergeOn); nbo > 0 {
+			result["nonblocking_open"] = nbo
+		}
+	}
 	if len(candidates) > 0 {
 		result["hint"] = mechanizeRegisterHint
 	}

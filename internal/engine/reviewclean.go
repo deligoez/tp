@@ -76,6 +76,42 @@ func ReviewRoundClean(specPath string, entry *ReviewRound, convergeOn string) bo
 	return survivingBlocking == 0
 }
 
+// ReviewRoundNonBlockingOpen counts a recorded review round's surviving
+// non-blocking findings — those left in the surviving set (not resolved
+// wontfix/duplicate with evidence) whose severity is a below-blocking value
+// (medium/low) under the blocking policy (§4.2). This is the count that
+// distinguishes an accepted-open clean round (clean only because every survivor
+// is below the blocking severities) from a survivor-free clean round.
+//
+// Under review_converge_on=all nothing is non-blocking — any survivor blocks —
+// so the count is always 0; and because a clean "all" round has zero survivors
+// anyway, callers gating on (clean && count>0) never emit for it. A missing or
+// out-of-vocabulary severity is blocking (reviewSeverityBlocking), so such a
+// survivor is never counted here. A round whose recorded findings file is
+// missing yields 0. Read live from the round's recorded findings, mirroring
+// ReviewRoundClean, so a later --resolve or converge-on switch re-evaluates it
+// without re-recording. Review-only; audit convergence has no non-blocking
+// notion.
+func ReviewRoundNonBlockingOpen(specPath string, entry *ReviewRound, convergeOn string) int {
+	if convergeOn == ReviewConvergeOnAll {
+		return 0
+	}
+	rows, found := LoadRoundRows(specPath, entry)
+	if !found {
+		return 0
+	}
+	n := 0
+	for _, row := range rows {
+		if reviewFindingResolvedAway(row) {
+			continue
+		}
+		if !reviewSeverityBlocking(row) {
+			n++
+		}
+	}
+	return n
+}
+
 // ReviewConsecutiveClean counts trailing review rounds that are clean under the
 // current review_converge_on, recomputed live per round (§3.4). It mirrors
 // ConsecutiveClean but is severity-aware; audit sequences keep using

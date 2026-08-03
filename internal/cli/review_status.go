@@ -109,6 +109,20 @@ func runReviewStatus(specPath string, check bool) error {
 		result["max_rounds"] = nil
 		result["rounds_remaining"] = nil
 	}
+	// §4.2: on the accepted-open case — the latest recorded round is clean ONLY
+	// because every surviving finding is below the blocking severities — carry
+	// nonblocking_open = the count of surviving non-blocking (medium/low)
+	// findings. Emitted solely when that round is clean and the count is
+	// positive, so the field's mere presence signals the accepted-open state;
+	// absent on a non-clean latest round, on a clean one with zero non-blocking
+	// survivors, and under review_converge_on=all. rounds[i].Clean above is the
+	// live severity-aware value. accepted_open is intentionally not emitted.
+	if n := len(rounds); n > 0 && rounds[n-1].Clean {
+		if nbo := engine.ReviewRoundNonBlockingOpen(specPath, &rounds[n-1], wf.ReviewConvergeOn); nbo > 0 {
+			result["nonblocking_open"] = nbo
+		}
+	}
+
 	// §10.2: surface an interrupted round — a snapshot exists for the next
 	// round but its review-round-N.ndjson was never recorded.
 	if inFlight := engine.InFlightRound(specPath, engine.PhaseReview, len(rounds)); inFlight > 0 {
