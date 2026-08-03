@@ -240,6 +240,7 @@ func buildVerifyPrompt(specContent string, fixed, wontfix, unresolved []verifyFi
 	}
 
 	b.WriteString("Respond with one JSON finding per line (NDJSON). If no issues found, respond with zero lines (empty output).\n")
+	b.WriteString("Stamp EVERY finding with role: \"verifier\" (so the finding is attributed to this verification pass in the per-role overlap report).\n")
 	b.WriteString("For findings that were reported as fixed but are NOT actually resolved, set category to \"regression\".\n")
 
 	return b.String()

@@ -181,5 +181,6 @@ func buildRegressionPrompt(dr *engine.DiffResult, sinceLabel, baselinePath strin
 	b.WriteString("3. Does any change reintroduce a problem that a fixed finding had eliminated in a different section?\n")
 
 	b.WriteString(findingFormat)
+	b.WriteString(outputContractInstruction("regression", engine.PhaseReviewers))
 	return b.String()
 }

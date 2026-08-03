@@ -1454,8 +1454,9 @@ C5. SIDE EFFECTS
 
 const codeAuditOutputFormat = `
 Output format — respond with one JSON object per line (NDJSON):
-{"id":"ca-001","file":"path/to/file","line":42,"pattern":":disabled","current_behavior":"isFormLocked || isPhoneCheckInProgress","spec_coverage":"partial","finding":"spec removes isPhoneCheckInProgress but phone input still references it","suggestion":"Add acceptance: phone input :disabled only when isFormLocked","severity":"high","category":"gap"}
+{"role":"code-audit","id":"ca-001","file":"path/to/file","line":42,"pattern":":disabled","current_behavior":"isFormLocked || isPhoneCheckInProgress","spec_coverage":"partial","finding":"spec removes isPhoneCheckInProgress but phone input still references it","suggestion":"Add acceptance: phone input :disabled only when isFormLocked","severity":"high","category":"gap"}
 
+Stamp EVERY finding with role: "code-audit" (so the finding is attributed to this perspective in the per-role overlap report).
 Severity: critical, high, medium, low
 Category: gap, drift, side-effect, removal
 spec_coverage: missing, partial, full
