@@ -63,3 +63,29 @@ func TestWorkflowDeviations_ChecksSetEquality(t *testing.T) {
 	assert.Equal(t, "1 entries", devs[0]["override"])
 	assert.Equal(t, "2 entries", devs[0]["project"])
 }
+
+func TestWorkflowDeviations_ReviewConvergeOn(t *testing.T) {
+	// Both set and differ → deviation. --strict promotes any non-empty
+	// deviation set to exit 1 generically, so reporting it here is what arms
+	// --strict for review_converge_on.
+	devs := workflowDeviations("x.tasks.json",
+		&model.WorkflowOverride{ReviewConvergeOn: sptr("all")},
+		&model.WorkflowOverride{ReviewConvergeOn: sptr("blocking")},
+	)
+	require.Len(t, devs, 1)
+	assert.Equal(t, "review_converge_on", devs[0]["field"])
+	assert.Equal(t, "all", devs[0]["override"])
+	assert.Equal(t, "blocking", devs[0]["project"])
+
+	// Equal → no deviation.
+	assert.Empty(t, workflowDeviations("x.tasks.json",
+		&model.WorkflowOverride{ReviewConvergeOn: sptr("all")},
+		&model.WorkflowOverride{ReviewConvergeOn: sptr("all")},
+	), "an equal review_converge_on is not a deviation")
+
+	// Project does not set it → no policy, no deviation.
+	assert.Empty(t, workflowDeviations("x.tasks.json",
+		&model.WorkflowOverride{ReviewConvergeOn: sptr("all")},
+		&model.WorkflowOverride{},
+	), "a review_converge_on the project does not set is not a deviation")
+}
