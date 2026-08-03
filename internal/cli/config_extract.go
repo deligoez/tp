@@ -53,6 +53,19 @@ func computeCommonPolicy(overrides []model.WorkflowOverride) model.WorkflowOverr
 			common.QualityGate = &v
 		}
 	}
+	if first := overrides[0].ReviewConvergeOn; first != nil {
+		all := true
+		for _, o := range overrides[1:] {
+			if o.ReviewConvergeOn == nil || *o.ReviewConvergeOn != *first {
+				all = false
+				break
+			}
+		}
+		if all {
+			v := *first
+			common.ReviewConvergeOn = &v
+		}
+	}
 	if first := overrides[0].Checks; first != nil {
 		all := true
 		for _, o := range overrides[1:] {
@@ -93,6 +106,9 @@ func hoistedFields(common *model.WorkflowOverride) []string {
 	if common.AuditMaxRounds != nil {
 		fields = append(fields, "audit_max_rounds")
 	}
+	if common.ReviewConvergeOn != nil {
+		fields = append(fields, "review_converge_on")
+	}
 	if common.Checks != nil {
 		fields = append(fields, "checks")
 	}
@@ -122,6 +138,9 @@ func mergeCommon(dst, common *model.WorkflowOverride) {
 	}
 	if common.AuditMaxRounds != nil {
 		dst.AuditMaxRounds = common.AuditMaxRounds
+	}
+	if common.ReviewConvergeOn != nil {
+		dst.ReviewConvergeOn = common.ReviewConvergeOn
 	}
 	if common.Checks != nil {
 		dst.Checks = common.Checks
