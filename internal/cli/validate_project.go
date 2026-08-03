@@ -33,6 +33,9 @@ func workflowDeviations(file string, override, project *model.WorkflowOverride) 
 	if override.QualityGate != nil && project.QualityGate != nil && *override.QualityGate != *project.QualityGate {
 		add("quality_gate", *override.QualityGate, *project.QualityGate)
 	}
+	if override.ReviewConvergeOn != nil && project.ReviewConvergeOn != nil && *override.ReviewConvergeOn != *project.ReviewConvergeOn {
+		add("review_converge_on", *override.ReviewConvergeOn, *project.ReviewConvergeOn)
+	}
 	if override.Checks != nil && project.Checks != nil && !checksEqual(*override.Checks, *project.Checks) {
 		add("checks",
 			fmt.Sprintf("%d entries", len(*override.Checks)),
