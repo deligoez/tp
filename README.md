@@ -276,7 +276,7 @@ The task file's `workflow` section supports convergence parameters:
 }
 ```
 
-- `quality_gate` — command run automatically at `tp done`/`tp close`; read-only (author it at `tp init --quality-gate`)
+- `quality_gate` — command run automatically at `tp done`/`tp close`; read-only (author it at `tp init --quality-gate`). Note: `golangci-lint run` (v2) checks formatters like `gofmt` only when a `formatters:` section enables them, so enable one in `.golangci.yml` (or add `gofmt -l .` to the gate) — otherwise a gofmt-dirty file passes the gate
 - `gate_timeout_seconds` (default: 600, range: 30-3600) — hard timeout for a single gate run
 - `lock_timeout_seconds` (default: 5, range: 1-60) — write-lock retry/backoff window before exiting 4 (v0.29.0)
 - `review_clean_rounds` / `audit_clean_rounds` (default: 2, range: 1-10) — consecutive finding-free rounds required before decomposition / after implementation

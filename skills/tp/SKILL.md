@@ -45,7 +45,7 @@ Before writing or editing a spec, resolve all ambiguities:
 8. **Termination** — complete when: (a) every behavioral claim is verified or confirmed, (b) every design choice with user-visible impact (CLI output, file format, command behavior) is decided, (c) no new questions arise.
 
 Then collect workflow parameters (hold in memory until `tp init` / `tp set --workflow`):
-- Quality gate command (e.g. `"go test ./... && golangci-lint run"`) — authored at `tp init --quality-gate`.
+- Quality gate command (e.g. `"go test ./... && golangci-lint run"`) — authored at `tp init --quality-gate`. Note: `golangci-lint run` (v2) checks formatters like `gofmt` only when a `formatters:` section enables them, so enable one in `.golangci.yml` (or add `gofmt -l .` to the gate) or a gofmt-dirty file slips through.
 - Consecutive clean **review** rounds (default 2) — integer 1-10; re-ask once if invalid, then use default.
 - Consecutive clean **audit** rounds (default 2) — same rules.
 - Optional round budgets `review_max_rounds` / `audit_max_rounds` (default 0 = no cap) — a hard ceiling on counted rounds before escalation.
