@@ -14,12 +14,9 @@ import (
 	"github.com/deligoez/tp/internal/model"
 )
 
-// Audit role names in the fixed prompt order.
-const (
-	roleSpecCoverage    = "spec-coverage"
-	roleSecurity        = "security"
-	roleMaintainability = "maintainability-conventions"
-)
+// roleSpecCoverage is the one auditor id with a dedicated routing path: it
+// alone receives the spec-derived checklist and its own file selection.
+const roleSpecCoverage = "spec-coverage"
 
 const claudeMDExcerptLineCap = 50
 
