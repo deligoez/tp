@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.31.2.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-08-05T10:34:05.912697Z",
+  "updated_at": "2026-08-05T10:47:50.037706Z",
   "workflow": {
     "checks": [
       {
@@ -26,7 +26,7 @@
     {
       "id": "rename-codefiles",
       "title": "Rename the shared selection to CodeFiles",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -37,16 +37,25 @@
         "### 2.5 The shared selection is named for what it is"
       ],
       "source_lines": "67-70",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-05T10:35:34.149183Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-05T10:37:32.809537Z",
+      "closed_reason": "- AuditFileSelection.Maintainability is now CodeFiles, selectMaintainability is now selectCodeFiles, and MaintainabilityFileCap is now CodeFileCap with its value unchanged at 10; verified by a clean go build and the engine test suite.\n- Every reference in internal/engine/auditfiles_test.go was renamed with it (TestFilterFiles_Maintainability -\u003e TestFilterFiles_CodeFiles, all sel.Maintainability and MaintainabilityFileCap uses, and the stale prose comment); verified by go test ./internal/engine.\n- The quality gate passes: go test ./... \u0026\u0026 golangci-lint run is green with 0 issues.",
+      "gate_passed_at": "2026-08-05T10:37:32.809537Z",
+      "commit_sha": "72610bd",
+      "commit_shas": [
+        "72610bd"
+      ],
+      "commit_files": [
+        "internal/cli/audit_roles.go",
+        "internal/engine/auditfiles.go",
+        "internal/engine/auditfiles_test.go"
+      ]
     },
     {
       "id": "selection-totals",
       "title": "Carry pre-cap totals on the selection",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -59,16 +68,25 @@
         "### 2.5 The shared selection is named for what it is"
       ],
       "source_lines": "71-72",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-05T10:37:35.553687Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-05T10:39:04.232087Z",
+      "closed_reason": "- AuditFileSelection now carries the int fields SpecCoverageTotal and CodeFilesTotal, populated in SelectAuditFiles; verified by a clean build and the engine test suite.\n- CodeFilesTotal is len(filtered universe) after the binary/fixture/deleted drop rules, and selectSpecCoverage now returns its pre-cap pool size — len(mapped) in the normal branch, len(universe) in the no-task fallback; verified by the new assertions.\n- TestFilterFiles_PreCapTotals pins both branches against a universe holding a binary, a testdata fixture and a deleted file, asserting 3/2 for the mapped branch and 3/3 for the fallback; verified by go test ./internal/engine.\n- The quality gate passes: go test ./... \u0026\u0026 golangci-lint run exits 0 with 0 issues.",
+      "gate_passed_at": "2026-08-05T10:39:04.232087Z",
+      "commit_sha": "62f8d22",
+      "commit_shas": [
+        "62f8d22",
+        "1473b96"
+      ],
+      "commit_files": [
+        "internal/engine/auditfiles.go",
+        "internal/engine/auditfiles_test.go"
+      ]
     },
     {
       "id": "ranking-order",
       "title": "Rank priority paths ahead of the rest",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -81,16 +99,25 @@
         "### 2.4 The security keyword list becomes a ranking signal, not a filter"
       ],
       "source_lines": "55-61",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-05T10:39:07.466567Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-05T10:40:34.21437Z",
+      "closed_reason": "- selectCodeFiles now partitions the already-alphabetical filtered universe into path-keyword-matching files and the rest, emits the priority group first and caps the result at CodeFileCap; verified by the engine test suite.\n- A non-empty universe can no longer yield an empty list because the non-matching group is always appended after the matches; TestFilterFiles_CodeFiles (no-match universe) and TestFilterFiles_DropsBinaryFixturesDeleted (single surviving file) both still return entries.\n- TestFilterFiles_CodeFilesRanksPriorityPathsFirst asserts that z_auth.go, which sorts last, comes first while a.go and b.go stay alphabetical behind it, and TestFilterFiles_CodeFiles now states that a no-match universe yields the first CodeFileCap files alphabetically; verified by go test ./internal/engine.\n- The quality gate passes: go test ./... \u0026\u0026 golangci-lint run exits 0 with 0 issues.",
+      "gate_passed_at": "2026-08-05T10:40:34.21437Z",
+      "commit_sha": "8742c1b",
+      "commit_shas": [
+        "8742c1b",
+        "e839c19"
+      ],
+      "commit_files": [
+        "internal/engine/auditfiles.go",
+        "internal/engine/auditfiles_test.go"
+      ]
     },
     {
       "id": "rename-priority-list",
       "title": "Rename the keyword list to priorityPathSubstrings",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -103,16 +130,25 @@
         "### 2.4 The security keyword list becomes a ranking signal, not a filter"
       ],
       "source_lines": "62-62",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-05T10:40:38.276075Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-05T10:41:23.915581Z",
+      "closed_reason": "- securitySubstrings is now priorityPathSubstrings and containsSecuritySubstring is now matchesPriorityPath, with every call site in internal/engine/auditfiles.go updated and the stale doc comment reworded; verified by a clean build and the engine test suite.\n- The five values lock, validate, auth, secret, perm are byte-identical to before the rename; verified by the new assertion.\n- TestPriorityPathSubstrings_ExactValues asserts priorityPathSubstrings equals exactly []string{\"lock\", \"validate\", \"auth\", \"secret\", \"perm\"}; verified by go test ./internal/engine.\n- The quality gate passes: go test ./... \u0026\u0026 golangci-lint run exits 0 with 0 issues.",
+      "gate_passed_at": "2026-08-05T10:41:23.915581Z",
+      "commit_sha": "3ac6bb5",
+      "commit_shas": [
+        "3ac6bb5",
+        "abf22d1"
+      ],
+      "commit_files": [
+        "internal/engine/auditfiles.go",
+        "internal/engine/auditfiles_test.go"
+      ]
     },
     {
       "id": "remove-security-selection",
       "title": "Remove the per-role security file selection",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -125,16 +161,29 @@
         "### 2.4 The security keyword list becomes a ranking signal, not a filter"
       ],
       "source_lines": "63-63",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-05T10:41:28.423411Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-05T10:45:53.114416Z",
+      "closed_reason": "- selectSecurity and AuditFileSelection.Security are deleted, so SelectAuditFiles now returns only the spec-coverage list plus the shared code-file list (with both pre-cap totals); verified by a clean go build and the engine test suite.\n- TestFilterFiles_Security is deleted and TestFilterFiles_Cap20 keeps only its spec-coverage half; the now-uncompilable assert.Empty(t, sel.Security) line in TestFilterFiles_DropsBinaryFixturesDeleted went with them; verified by go test ./internal/engine.\n- The quality gate passes with no unused symbol reported: securityHeadLineCap and headLines were read only by selectSecurity's content branch and were removed with it, so go test ./... \u0026\u0026 golangci-lint run exits 0 with 0 issues.\nOut of scope: this change makes the security role take the shared code-file list, which invalidated two CLI tests owned by later tasks (spec 2.8 items 1 and 2). Their assertions were inverted minimally to the new truth so the gate could pass — TestRouteChecklist_Disjoint now expects 2 shared-list items instead of 1 keyword match, and TestGenerateAuditPrompts_EmptyRoleOmitted now expects security to be emitted for plain.go. fix-route-disjoint-test and fix-empty-role-test still own their full rewrites (and the latter's rename). internal/cli/audit_roles.go's security arm was likewise repointed at sel.CodeFiles so the package compiles; routing-two-arms still owns deleting that arm.",
+      "gate_passed_at": "2026-08-05T10:45:53.114416Z",
+      "commit_sha": "4b6e391",
+      "commit_shas": [
+        "4b6e391",
+        "ef406f9",
+        "80db3d4",
+        "b7fb4b3"
+      ],
+      "commit_files": [
+        "internal/cli/audit_roles.go",
+        "internal/cli/audit_routing_test.go",
+        "internal/engine/auditfiles.go",
+        "internal/engine/auditfiles_test.go"
+      ]
     },
     {
       "id": "remove-head-channel",
       "title": "Remove the HEAD content channel",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -147,11 +196,22 @@
         "### 2.4 The security keyword list becomes a ranking signal, not a filter"
       ],
       "source_lines": "64-66",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-05T10:45:56.812058Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-05T10:47:50.013288Z",
+      "closed_reason": "- AuditFileInputs.HeadReader, its runAudit assignment in internal/cli/audit.go and engine.GitHeadReader are deleted, and securityHeadLineCap and headLines were already removed with selectSecurity in remove-security-selection; AuditFileInputs now holds exactly Universe, DiffStats, Deleted and TaskFiles, verified by a clean go build and a grep showing no remaining references.\n- TestAudit_ContentKeywordDoesNotPromote is a black-box CLI test that shells tp audit over a_one.go, m_notes.go and z_two.go — none of whose paths match a keyword, with only m_notes.go mentioning auth in its content — and asserts the emitted affected_files order is a_one.go, m_notes.go, z_two.go, so the content match keeps its alphabetical position rather than being promoted; verified by go test ./internal/cli.\n- The quality gate passes with no unused symbol reported: go test ./... \u0026\u0026 golangci-lint run exits 0 with 0 issues.",
+      "gate_passed_at": "2026-08-05T10:47:50.013288Z",
+      "commit_sha": "4a0f730",
+      "commit_shas": [
+        "4a0f730",
+        "4e2cb89",
+        "957b755"
+      ],
+      "commit_files": [
+        "internal/cli/audit.go",
+        "internal/cli/audit_routing_test.go",
+        "internal/engine/auditfiles.go"
+      ]
     },
     {
       "id": "fix-filterfiles-tests",
