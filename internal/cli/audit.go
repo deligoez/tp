@@ -105,8 +105,8 @@ Use --findings to also verify review findings were addressed.`,
 		DisableAutoGenTag: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if mergeMode {
-				if recordPath != "" || statusMode || len(affectedFiles) > 0 || findingsPath != "" || base != "" || affectedFromTasks {
-					output.Error(ExitUsage, "--merge cannot be combined with --record/--status/--affected-files/--affected-from-tasks/--findings/--base")
+				if recordPath != "" || statusMode || len(affectedFiles) > 0 || findingsPath != "" || base != "" || affectedFromTasks || checkFlag {
+					output.Error(ExitUsage, "--merge cannot be combined with --record/--status/--affected-files/--affected-from-tasks/--findings/--base/--check")
 					os.Exit(ExitUsage)
 					return nil
 				}
@@ -127,8 +127,11 @@ Use --findings to also verify review findings were addressed.`,
 				os.Exit(ExitUsage)
 				return nil
 			}
-			if (recordPath != "" || statusMode) && (len(affectedFiles) > 0 || findingsPath != "" || affectedFromTasks) {
-				output.Error(ExitUsage, "--record/--status reject --affected-files/--affected-from-tasks and --findings")
+			// --base belongs with emission; --record and --status neither read
+			// nor store it, and accepting it silently makes a typo look like a
+			// successful run against the base the caller meant.
+			if (recordPath != "" || statusMode) && (len(affectedFiles) > 0 || findingsPath != "" || affectedFromTasks || base != "") {
+				output.Error(ExitUsage, "--record/--status reject --affected-files/--affected-from-tasks/--findings and --base")
 				os.Exit(ExitUsage)
 				return nil
 			}
