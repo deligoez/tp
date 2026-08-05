@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -107,6 +108,48 @@ func TestAuditPrompts_DispositionBlock(t *testing.T) {
 			assert.NotContains(t, evidence, "PASS", "expected_evidence in %s stays the short inspect form", role)
 		}
 	}
+}
+
+// TestAuditPrompts_AffectedFilesHeaderForms: §2.6's two header forms — the
+// untruncated "max <cap>" naming the role's own cap, and the counted
+// "<n> of <total>" once the cap has bitten, with the total taken after the
+// drop rules removed binaries and test fixtures.
+func TestAuditPrompts_AffectedFilesHeaderForms(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
+	args := []string{"audit", "spec.md"}
+	// 14 eligible code files: over CodeFileCap (10), under AuditFileCap (20).
+	for i := 1; i <= 14; i++ {
+		name := fmt.Sprintf("f%02d.go", i)
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte("package main\n"), 0o600))
+		args = append(args, "--affected-files", name)
+	}
+	// Dropped by the filter, so neither total counts them.
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "logo.png"), []byte("\x89PNG\r\n"), 0o600))
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "testdata"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "testdata", "fixture.go"), []byte("package main\n"), 0o600))
+	args = append(args, "--affected-files", "logo.png", "--affected-files", filepath.Join("testdata", "fixture.go"))
+
+	stdout, stderr, code := runTP(t, dir, args...)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	byRole := auditPromptsByRole(t, stdout)
+
+	// Shared arm: 10 of 14 — the counted form, total asserted post-drop.
+	sec := byRole["security"]
+	assert.Len(t, sec["affected_files"].([]any), 10)
+	assert.Contains(t, sec["prompt"].(string), "## Affected Files (10 of 14)\n")
+	assert.NotContains(t, sec["prompt"].(string), "## Affected Files (max",
+		"the counted form does not restate the cap")
+
+	// spec-coverage: nothing truncated, so the untruncated form naming 20.
+	specCov := byRole["spec-coverage"]
+	assert.Len(t, specCov["affected_files"].([]any), 14)
+	assert.Contains(t, specCov["prompt"].(string), "## Affected Files (max 20)\n")
+
+	// Shared arm, nothing truncated: the untruncated form naming CodeFileCap.
+	shortRun := setupThreeRoleAudit(t)
+	shortByRole := auditPromptsByRole(t, shortRun)
+	assert.Contains(t, shortByRole["security"]["prompt"].(string), "## Affected Files (max 10)\n")
 }
 
 func TestAuditPrompts_DeterministicRegeneration(t *testing.T) {
