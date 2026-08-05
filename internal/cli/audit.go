@@ -320,7 +320,9 @@ func determineAuditFiles(specPath string, affectedFiles []string, base string, a
 		if errors.Is(err, errAffectedFileMissing) ||
 			errors.Is(err, errAffectedFileUnreadable) ||
 			errors.Is(err, errAffectedPathIsDir) {
-			output.Error(ExitFile, err.Error())
+			// Point at the path the caller typed. The code-3 default hint
+			// names the task file, which is not what is wrong here.
+			output.Error(ExitFile, err.Error(), "check the --affected-files path, or drop the flag to auto-detect from the diff")
 			os.Exit(ExitFile)
 			return nil
 		}
