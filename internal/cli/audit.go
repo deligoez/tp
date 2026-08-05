@@ -599,6 +599,13 @@ func execGitDiff(dir string, args ...string) []string {
 	cmd.Dir = dir
 	out, err := cmd.Output()
 	if err != nil {
+		// git failing is not the same as an empty diff. Reporting an unknown
+		// revision as "no changed files detected" sends the caller looking for
+		// missing work instead of at the revision they typed.
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) && len(exitErr.Stderr) > 0 {
+			fmt.Fprintf(os.Stderr, "warning: git %s failed: %s", strings.Join(args, " "), exitErr.Stderr)
+		}
 		return []string{}
 	}
 	var files []string
