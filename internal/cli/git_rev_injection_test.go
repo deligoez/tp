@@ -48,6 +48,23 @@ func TestGitRevInjection_StoredCommitSHA(t *testing.T) {
 	}
 }
 
+// TestGitRevInjection_SkippedSHAIsReported: a sha dropped at the sink is not
+// dropped silently. Without the warning and the distinguished message, an
+// empty file set is reported as "no done task carries commit_shas" — which is
+// false when the task does carry one, and sends the caller after the wrong
+// problem.
+func TestGitRevInjection_SkippedSHAIsReported(t *testing.T) {
+	victim := filepath.Join(t.TempDir(), "written-by-git")
+	dir := setupInjectionRepo(t, victim)
+
+	_, stderr, code := runTP(t, dir, "audit", "s.md", "--affected-from-tasks")
+	assert.Equal(t, 4, code)
+	assert.Contains(t, stderr, "was skipped; git would read it as an option")
+	assert.Contains(t, stderr, "every recorded commit sha was skipped as unusable")
+	assert.NotContains(t, stderr, "no done task carries commit_shas",
+		"a task that carries a rejected sha must not be reported as carrying none")
+}
+
 // TestGitRevInjection_BaseFlag: a --base git would read as an option is
 // rejected up front with exit 2, rather than silently ignored by the helpers
 // that only build diff stats — a silent drop would look like a successful run
