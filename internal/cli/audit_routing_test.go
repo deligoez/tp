@@ -61,7 +61,7 @@ func TestRouteChecklist_Disjoint(t *testing.T) {
 		assert.Contains(t, []string{"table_row", "list_item", "task_acceptance", "finding"}, typ)
 	}
 	secItems := byRole["security"]["checklist_items"].([]any)
-	require.Len(t, secItems, 1, "only the auth-matching file")
+	require.Len(t, secItems, 2, "the shared code-file list, not a keyword filter")
 	sec0 := secItems[0].(map[string]any)
 	assert.Equal(t, "file_check", sec0["type"])
 	assert.Contains(t, sec0["item_id"], "file-security-")
@@ -86,7 +86,7 @@ func TestGenerateAuditPrompts_EmptyRoleOmitted(t *testing.T) {
 
 	byRole := auditPromptsByRole(t, stdout)
 	_, hasSecurity := byRole["security"]
-	assert.False(t, hasSecurity, "security role with no matching files is omitted")
+	assert.True(t, hasSecurity, "security takes the shared code-file list, so plain.go still reaches it")
 	assert.Contains(t, byRole, "spec-coverage")
 	assert.Contains(t, byRole, "maintainability-conventions")
 }
