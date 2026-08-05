@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -449,7 +450,11 @@ func auditTasksOf(specPath string) []model.Task {
 		// read or parse error is surfaced: callers build user-facing claims on
 		// this result, and a swallowed error turns a corrupt task file into
 		// "no done task carries commit_shas" — the wrong problem.
-		if !os.IsNotExist(err) {
+		//
+		// errors.Is, not os.IsNotExist: ReadTaskFile wraps with %w and
+		// os.IsNotExist does not unwrap, so the guard would never fire and the
+		// warning would print on every ordinary run.
+		if !errors.Is(err, os.ErrNotExist) {
 			fmt.Fprintf(os.Stderr, "warning: cannot read task file %s; treating it as empty (%v)\n", taskPath, err)
 		}
 		return nil
