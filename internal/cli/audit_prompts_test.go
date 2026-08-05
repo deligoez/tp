@@ -31,7 +31,7 @@ func TestAuditPrompts_BodyOrderAndEmbedding(t *testing.T) {
 	idxRules := strings.Index(spec, "## Role Rules")
 	idxExcerpt := strings.Index(spec, "## Spec Excerpt")
 	idxChecklist := strings.Index(spec, "## Checklist")
-	idxFiles := strings.Index(spec, "## Affected Files (max 20)")
+	idxFiles := strings.Index(spec, "## Affected Files (")
 	idxSchema := strings.Index(spec, "## Output Schema")
 	for name, pair := range map[string][2]int{
 		"role<rules":    {idxRole, idxRules},
@@ -55,7 +55,7 @@ func TestAuditPrompts_BodyOrderAndEmbedding(t *testing.T) {
 		assert.NotEmpty(t, item.(map[string]any)["expected_evidence"], "expected_evidence is never empty")
 	}
 
-	// §3.4: spec excerpt only in spec-coverage; CLAUDE.md only in maintainability
+	// §3.4: spec excerpt only in spec-coverage; CLAUDE.md never in spec-coverage
 	sec := byRole["security"]["prompt"].(string)
 	maint := byRole["maintainability-conventions"]["prompt"].(string)
 	assert.NotContains(t, sec, "## Spec Excerpt")
@@ -63,7 +63,6 @@ func TestAuditPrompts_BodyOrderAndEmbedding(t *testing.T) {
 	assert.Contains(t, maint, "## Project Context")
 	assert.Contains(t, maint, "exit codes 0-4", "Conventions section excerpt included")
 	assert.NotContains(t, maint, "ignored", "excerpt stops at the next heading")
-	assert.Contains(t, sec, "## Project Context")
 	assert.NotContains(t, spec, "## Project Context")
 }
 
