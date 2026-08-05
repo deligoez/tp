@@ -90,3 +90,27 @@ func TestGenerateAuditPrompts_EmptyRoleOmitted(t *testing.T) {
 	assert.Contains(t, byRole, "spec-coverage")
 	assert.Contains(t, byRole, "maintainability-conventions")
 }
+
+// TestAudit_ContentKeywordDoesNotPromote: with the HEAD content channel gone,
+// ranking reads the path only, so a file whose content mentions auth but whose
+// path matches no keyword keeps its alphabetical position.
+func TestAudit_ContentKeywordDoesNotPromote(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a_one.go"), []byte("package main\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "m_notes.go"), []byte("package main\n\n// auth is only mentioned in the content\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "z_two.go"), []byte("package main\n"), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "audit", "spec.md",
+		"--affected-files", "z_two.go", "--affected-files", "m_notes.go", "--affected-files", "a_one.go")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	byRole := auditPromptsByRole(t, stdout)
+	entries := byRole["maintainability-conventions"]["affected_files"].([]any)
+	paths := make([]string, 0, len(entries))
+	for _, e := range entries {
+		paths = append(paths, e.(map[string]any)["path"].(string))
+	}
+	assert.Equal(t, []string{"a_one.go", "m_notes.go", "z_two.go"}, paths,
+		"a content-only auth match is ranked alphabetically, not promoted")
+}
