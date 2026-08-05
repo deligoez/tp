@@ -288,7 +288,14 @@ func determineAuditFiles(specPath string, affectedFiles []string, base string, a
 		// union of files touched by done-task commit_shas directly (§11.2).
 		derived := suggestFilesFromTasks(specPath)
 		if len(derived) == 0 {
-			exitAuditNoFiles(specPath, "no files derivable from done-task commits (no done task carries commit_shas) — provide --affected-files")
+			// Say which of the two empty cases this is. Reporting "no done
+			// task carries commit_shas" when one does — and was rejected as
+			// an option-lookalike — sends the caller after the wrong problem.
+			reason := "no done task carries commit_shas"
+			if auditTasksCarryAnySHA(specPath) {
+				reason = "every recorded commit sha was skipped as unusable"
+			}
+			exitAuditNoFiles(specPath, fmt.Sprintf("no files derivable from done-task commits (%s) — provide --affected-files", reason))
 			return nil
 		}
 		return derived
@@ -854,6 +861,23 @@ func suggestFilesFromTasks(specPath string) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// auditTasksCarryAnySHA reports whether any done task records a commit sha at
+// all. It distinguishes the two ways suggestFilesFromTasks can return nothing:
+// no sha was ever recorded, or every recorded sha was rejected at the git sink.
+func auditTasksCarryAnySHA(specPath string) bool {
+	for _, task := range auditTasksOf(specPath) {
+		if task.Status != model.StatusDone {
+			continue
+		}
+		for _, sha := range task.CommitSHAs {
+			if sha != "" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // exitAuditNoFiles emits the exit-4 payload when audit finds no audit-able
