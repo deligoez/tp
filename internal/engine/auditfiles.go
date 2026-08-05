@@ -181,14 +181,28 @@ func selectSecurity(in *AuditFileInputs, universe []string) []AuditFileEntry {
 	return entries
 }
 
-// selectCodeFiles returns the first 10 universe files, regardless of content.
+// selectCodeFiles orders the filtered universe with path-keyword-matching files
+// first and every other file after, each group alphabetical, capped at
+// CodeFileCap. A non-empty universe therefore never yields an empty list.
 func selectCodeFiles(in *AuditFileInputs, universe []string) []AuditFileEntry {
-	entries := make([]AuditFileEntry, 0, CodeFileCap)
+	priority := make([]string, 0, len(universe))
+	rest := make([]string, 0, len(universe))
 	for _, p := range universe {
-		if len(entries) >= CodeFileCap {
-			break
+		if containsSecuritySubstring(strings.ToLower(p)) {
+			priority = append(priority, p)
+			continue
 		}
-		entries = append(entries, AuditFileEntry{Path: p, Tasks: []string{}, DiffSummary: in.diffSummaryOf(p)})
+		rest = append(rest, p)
+	}
+
+	entries := make([]AuditFileEntry, 0, CodeFileCap)
+	for _, group := range [][]string{priority, rest} {
+		for _, p := range group {
+			if len(entries) >= CodeFileCap {
+				return entries
+			}
+			entries = append(entries, AuditFileEntry{Path: p, Tasks: []string{}, DiffSummary: in.diffSummaryOf(p)})
+		}
 	}
 	return entries
 }
