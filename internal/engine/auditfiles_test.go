@@ -63,37 +63,6 @@ func TestFilterFiles_Cap20(t *testing.T) {
 	}
 	sel := SelectAuditFiles(in)
 	assert.Len(t, sel.SpecCoverage, AuditFileCap, "spec-coverage capped at 20")
-
-	// Security via path heuristic on all files
-	in2 := &AuditFileInputs{}
-	for i := 0; i < 30; i++ {
-		in2.Universe = append(in2.Universe, fmt.Sprintf("auth_%02d.go", i))
-	}
-	sel2 := SelectAuditFiles(in2)
-	assert.Len(t, sel2.Security, AuditFileCap, "security capped at 20")
-}
-
-func TestFilterFiles_Security(t *testing.T) {
-	in := &AuditFileInputs{
-		Universe: []string{"zz_plain.go", "app/locker.go", "notes.go", "gone.go"},
-		HeadReader: func(path string) ([]byte, bool) {
-			switch path {
-			case "notes.go":
-				return []byte("package notes\n// validate the input before use\n"), true
-			case "gone.go":
-				return nil, false // absent at HEAD: path heuristic only
-			}
-			return []byte("package plain\n"), true
-		},
-	}
-	sel := SelectAuditFiles(in)
-	paths := make([]string, 0, len(sel.Security))
-	for _, e := range sel.Security {
-		paths = append(paths, e.Path)
-		assert.Empty(t, e.Tasks, "security entries carry no task list")
-	}
-	assert.Equal(t, []string{"app/locker.go", "notes.go"}, paths,
-		"path match (lock) + content match (validate), alphabetical; absent-at-HEAD file judged by path alone")
 }
 
 func TestFilterFiles_CodeFiles(t *testing.T) {
@@ -131,7 +100,6 @@ func TestFilterFiles_DropsBinaryFixturesDeleted(t *testing.T) {
 	sel := SelectAuditFiles(in)
 	require.Len(t, sel.CodeFiles, 1)
 	assert.Equal(t, "keep.go", sel.CodeFiles[0].Path)
-	assert.Empty(t, sel.Security)
 	require.Len(t, sel.SpecCoverage, 1, "fallback list is also filtered")
 	assert.Equal(t, "keep.go", sel.SpecCoverage[0].Path)
 }
