@@ -163,6 +163,17 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 		return nil
 	}
 
+	// Reject a --base git would read as an option before any code path uses
+	// it. Several helpers pass it to git, and the ones that only build diff
+	// stats would otherwise ignore it silently, so a user typo looks like a
+	// successful run against the wrong base.
+	if base != "" && !engine.SafeGitRev(base) {
+		output.Error(ExitUsage, fmt.Sprintf("invalid --base %q: must not start with %q", base, "-"),
+			"pass a revision such as a tag, branch or commit sha")
+		os.Exit(ExitUsage)
+		return nil
+	}
+
 	refuseAuditIfBudgetExhausted(specPath)
 
 	// Expand comma-separated values in --affected-files
