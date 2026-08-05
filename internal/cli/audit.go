@@ -459,7 +459,12 @@ func resolveAuditFiles(specPath string, affectedFiles []string, base string) ([]
 		for _, f := range affectedFiles {
 			info, err := os.Stat(f)
 			if err != nil {
-				return nil, fmt.Errorf("affected file not found: %s", f)
+				// Carry the cause: a permission error reported as "not found"
+				// sends the caller looking for the wrong problem.
+				if os.IsNotExist(err) {
+					return nil, fmt.Errorf("affected file not found: %s", f)
+				}
+				return nil, fmt.Errorf("cannot read affected file %s: %w", f, err)
 			}
 			if info.IsDir() {
 				return nil, fmt.Errorf("affected path is a directory, not a file: %s", f)
