@@ -102,9 +102,18 @@ func TestFilterFiles_CodeFiles(t *testing.T) {
 		in.Universe = append(in.Universe, fmt.Sprintf("m%02d.go", i))
 	}
 	sel := SelectAuditFiles(in)
-	require.Len(t, sel.CodeFiles, CodeFileCap)
+	require.Len(t, sel.CodeFiles, CodeFileCap, "no path matches a priority keyword, so the first CodeFileCap files are taken")
 	assert.Equal(t, "m00.go", sel.CodeFiles[0].Path, "alphabetical regardless of input order")
 	assert.Equal(t, "m09.go", sel.CodeFiles[9].Path)
+}
+
+func TestFilterFiles_CodeFilesRanksPriorityPathsFirst(t *testing.T) {
+	in := &AuditFileInputs{Universe: []string{"b.go", "a.go", "z_auth.go"}}
+	sel := SelectAuditFiles(in)
+	require.Len(t, sel.CodeFiles, 3)
+	assert.Equal(t, "z_auth.go", sel.CodeFiles[0].Path, "keyword match ranks first even though it sorts last")
+	assert.Equal(t, "a.go", sel.CodeFiles[1].Path, "the rest stay alphabetical")
+	assert.Equal(t, "b.go", sel.CodeFiles[2].Path)
 }
 
 func TestFilterFiles_DropsBinaryFixturesDeleted(t *testing.T) {
