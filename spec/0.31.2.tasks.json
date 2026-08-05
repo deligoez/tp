@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.31.2.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-08-05T11:08:29.794054Z",
+  "updated_at": "2026-08-05T11:17:50.065623Z",
   "workflow": {
     "checks": [
       {
@@ -601,7 +601,7 @@
     {
       "id": "corpus-security-focus",
       "title": "Rewrite the security role focus",
-      "status": "open",
+      "status": "done",
       "tags": [
         "corpus"
       ],
@@ -613,16 +613,23 @@
         "### 3.2 security.json states invariants, not Go idioms"
       ],
       "source_lines": "142-160",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-05T11:10:40.868752Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-05T11:11:20.114489Z",
+      "closed_reason": "- security.json focus is now exactly the six invariant lines from spec §3.2, verbatim: lock/transaction/handle release on all paths, no swallowed failure, input validation before query/path/command, parameterizing or joining API instead of string concatenation, authorization checked at the point of the write, and restrictive permissions plus no secrets in logs; verified by reading back the written file and by go test ./... \u0026\u0026 golangci-lint run (0 issues).\n- The instructions field was left byte-identical (\"You audit the changed code for security and safety defects...\") because it is already language-neutral; the diff touches only the focus array.\n- The id stays \"security\", so ejected corpora and tp.audit_roles frontmatter overrides keying on it keep working; the existing eject byte-identity and routing tests stay green.",
+      "gate_passed_at": "2026-08-05T11:11:20.114489Z",
+      "commit_sha": "f40d1bb",
+      "commit_shas": [
+        "f40d1bb"
+      ],
+      "commit_files": [
+        "internal/engine/corpus/software/auditors/security.json"
+      ]
     },
     {
       "id": "corpus-maint-focus",
       "title": "Rewrite the maintainability role focus",
-      "status": "open",
+      "status": "done",
       "tags": [
         "corpus"
       ],
@@ -634,16 +641,23 @@
         "### 3.5 The corpus hash deliberately stays `builtin`"
       ],
       "source_lines": "161-172,183-186",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-05T11:11:23.717227Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-05T11:11:57.431519Z",
+      "closed_reason": "- maintainability-conventions.json focus is now exactly the five property lines from spec §3.3, verbatim: context-carrying error propagation, intent-explaining doc comments on publicly reachable symbols, one-pass function length (roughly 80 lines) with a stated reason otherwise, naming consistent with the surrounding code, and no leftover TODO/FIXME without a ticket, commented-out code, or debug output; verified by reading the written file back and by go test ./... \u0026\u0026 golangci-lint run (0 issues).\n- The instructions clause was replaced with the exact spec wording: the trailing 'only whether the code is idiomatic and maintainable' now reads 'only whether the code is maintainable and consistent with the conventions already present in this project', so the standard is the project's own conventions rather than an absent universal one.\n- The corpus hash stays the builtin sentinel: ComputeRolesHash (internal/engine/rolehash.go) returns RolesHashBuiltin whenever the phase has no user role files, so rewriting release-shipped embedded content cannot flip roles_stale — the v0.25.0 §5.2 precedent — and no code change was needed to preserve it.",
+      "gate_passed_at": "2026-08-05T11:11:57.431519Z",
+      "commit_sha": "831d475",
+      "commit_shas": [
+        "831d475"
+      ],
+      "commit_files": [
+        "internal/engine/corpus/software/auditors/maintainability-conventions.json"
+      ]
     },
     {
       "id": "corpus-guards",
       "title": "Guard the default auditor prompt content",
-      "status": "open",
+      "status": "done",
       "tags": [
         "corpus",
         "test"
@@ -658,16 +672,24 @@
         "### 3.1 The problem the defaults create"
       ],
       "source_lines": "144-147",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-05T11:12:01.144186Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-05T11:14:02.444175Z",
+      "closed_reason": "- TestDefaultAuditorCorpus_NoLanguageSpecificTokens (internal/engine/corpus_neutral_test.go) globs the embedded corpus for corpus/*/auditors/*.json, parses each role, and asserts no focus line and no instructions string contains, case-insensitively, any of the §7 item 13 deny-list: %w, 0o600, 0o644, camelCase, _ = err, goroutine, lowercase packages, files written by the tool, idiomatic.\n- TestDefaultAuditorCorpus_RewritesLanded asserts security.json's focus equals the six §3.2 lines verbatim, maintainability-conventions.json's focus equals the five §3.3 lines verbatim, and its instructions contain the replacement clause; verified as a real guard by emptying security.json's focus array, which fails this test while the deny-list test still passes, then reverting.\n- Reviewer roles stay out of scope: the glob names only the auditors phase directory, matching §3.1's statement that implementer, tester, and architect are already neutral. Gate green: go test ./... \u0026\u0026 golangci-lint run (0 issues).",
+      "gate_passed_at": "2026-08-05T11:14:02.444175Z",
+      "commit_sha": "5f71415",
+      "commit_shas": [
+        "5f71415",
+        "6a5f3ca"
+      ],
+      "commit_files": [
+        "internal/engine/corpus_neutral_test.go"
+      ]
     },
     {
       "id": "output-notice",
       "title": "Add the Notice output primitive",
-      "status": "open",
+      "status": "done",
       "tags": [
         "output"
       ],
@@ -678,16 +700,26 @@
         "### 3.4 Ejection says the defaults are a starting point"
       ],
       "source_lines": "173-178",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-05T11:14:06.081185Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-05T11:15:37.261189Z",
+      "closed_reason": "- output.Notice(msg) writes the message to stderr through the same faint color writer Info uses, so a machine-readable stdout payload stays parseable; it returns early on quiet but has no jsonMode guard, which is the single deliberate difference from Info and Success (internal/output/output.go).\n- Its doc comment names it the channel for a one-time advisory about project-owned data a command just wrote, and states why the JSON-mode guard is absent: jsonMode is on whenever stdout is not a terminal, so an Info-based advisory would be invisible in exactly the piped and agent-driven runs that adopt the written data unread.\n- internal/output/notice_test.go covers both behaviours by redirecting os.Stderr to a pipe: TestNotice_NotSuppressedByJSONMode asserts Notice emits with output.Configure(true,false,true) while Info under the same configuration emits nothing, and TestNotice_SuppressedByQuiet asserts Notice is silent under quiet. Gate green: go test ./... \u0026\u0026 golangci-lint run (0 issues).",
+      "gate_passed_at": "2026-08-05T11:15:37.261189Z",
+      "commit_sha": "fc94e22",
+      "commit_shas": [
+        "fc94e22",
+        "c69a4d5",
+        "f76cf1f"
+      ],
+      "commit_files": [
+        "internal/output/notice_test.go",
+        "internal/output/output.go"
+      ]
     },
     {
       "id": "eject-advisory",
       "title": "Emit the eject advisory line",
-      "status": "open",
+      "status": "done",
       "tags": [
         "output"
       ],
@@ -700,11 +732,22 @@
         "### 3.4 Ejection says the defaults are a starting point"
       ],
       "source_lines": "179-182",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-05T11:15:40.663811Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-05T11:17:50.03349Z",
+      "closed_reason": "- runEjectRoles (internal/cli/init.go) now calls output.Notice with the §3.4 line verbatim — 'note: these roles are starting points; rewrite their focus for your project's stack and conventions.' — after the Success line and before the JSON payload; the call is domain-independent, so every domain including prose gets the identical wording.\n- internal/cli/eject_advisory_test.go shells the binary with stdout piped (the JSON-mode case output.Info would swallow): TestInitEjectRoles_AdvisoryOnStderrWithPipedStdout asserts the line on stderr and never on stdout, TestInitEjectRoles_AdvisoryForProseDomain asserts it for --domain prose, and TestInitEjectRoles_AdvisorySuppressedByQuiet asserts it is absent under --quiet.\n- The stdout payload is unchanged: the piped-stdout test decodes it and asserts its top-level keys are exactly {ejected, domain}, and the existing byte-identity test TestInitEjectRoles_ForceOverwrite (asserting --force restores the embedded file content) still passes untouched. Dogfooded with a freshly built /tmp/tp-dev/tp on a scratch repo: stdout carried only the JSON while the advisory appeared on stderr. Gate green: go test ./... \u0026\u0026 golangci-lint run (0 issues).",
+      "gate_passed_at": "2026-08-05T11:17:50.03349Z",
+      "commit_sha": "0424d45",
+      "commit_shas": [
+        "0424d45",
+        "d0776ee",
+        "4e7d9d5",
+        "53b7e0c"
+      ],
+      "commit_files": [
+        "internal/cli/eject_advisory_test.go",
+        "internal/cli/init.go"
+      ]
     },
     {
       "id": "docs-skill-reference",
