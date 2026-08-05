@@ -917,6 +917,13 @@ func resolveCommitSHAs(list []string, single string) ([]string, error) {
 		if s == "" {
 			continue
 		}
+		// A recorded sha is later handed to git as a bare argument (see
+		// execCommitFiles), so a value starting with "-" would be parsed as a
+		// git option rather than a revision. Reject it at the single entry
+		// point instead of quoting at every call site.
+		if strings.HasPrefix(s, "-") {
+			return nil, fmt.Errorf("invalid commit sha %q: must not start with %q", s, "-")
+		}
 		if seen[s] {
 			return nil, fmt.Errorf("duplicate commit sha: %s", s)
 		}
