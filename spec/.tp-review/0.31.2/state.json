@@ -59,5 +59,16 @@
       "harness_note": "Same framing as round 5. Roles were additionally told this round is a validation pass over the round-5 corrections, given the list of what changed, and asked to prioritise 'a correction that introduced a new error'."
     }
   ],
-  "audit_rounds": []
+  "audit_rounds": [
+    {
+      "round": 1,
+      "findings": 6,
+      "clean": false,
+      "recorded_at": "2026-08-05T11:36:39Z",
+      "file": "audit-round-1.ndjson",
+      "spec_hash": "sha256:453bcce2821c58b56c67f302fb7ec388bc729e4c6afe346d212a64bddc20518a",
+      "roles_hash": "sha256:730320c4db9d73cde41740c32ebcacba23380e89d7964db005f25085a432b9fd",
+      "id_scheme": "slug"
+    }
+  ]
 }
