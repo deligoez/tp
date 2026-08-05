@@ -45,6 +45,10 @@ type AuditFileSelection struct {
 	SpecCoverage []AuditFileEntry
 	Security     []AuditFileEntry
 	CodeFiles    []AuditFileEntry
+	// SpecCoverageTotal and CodeFilesTotal carry each list's pre-cap size, so a
+	// prompt can report how much of the pool the cap left out.
+	SpecCoverageTotal int
+	CodeFilesTotal    int
 }
 
 // AuditFileInputs carries the pre-collected facts the selection operates on,
@@ -62,11 +66,14 @@ type AuditFileInputs struct {
 // the next eligible files.
 func SelectAuditFiles(in *AuditFileInputs) AuditFileSelection {
 	universe := filterAuditUniverse(in)
+	specCoverage, specCoverageTotal := selectSpecCoverage(in, universe)
 
 	return AuditFileSelection{
-		SpecCoverage: selectSpecCoverage(in, universe),
-		Security:     selectSecurity(in, universe),
-		CodeFiles:    selectCodeFiles(in, universe),
+		SpecCoverage:      specCoverage,
+		Security:          selectSecurity(in, universe),
+		CodeFiles:         selectCodeFiles(in, universe),
+		SpecCoverageTotal: specCoverageTotal,
+		CodeFilesTotal:    len(universe),
 	}
 }
 
@@ -108,8 +115,9 @@ func (in *AuditFileInputs) diffSummaryOf(p string) string {
 // selectSpecCoverage returns the union of task-mapped files ranked by task
 // count descending (tie-break alphabetical), capped at 20. When no task has a
 // usable commit_sha, it falls back to the first 20 universe files with empty
-// task lists.
-func selectSpecCoverage(in *AuditFileInputs, universe []string) []AuditFileEntry {
+// task lists. The second return value is the pre-cap size of whichever pool
+// the branch capped.
+func selectSpecCoverage(in *AuditFileInputs, universe []string) (selected []AuditFileEntry, total int) {
 	type fileCount struct {
 		path  string
 		count int
@@ -129,7 +137,7 @@ func selectSpecCoverage(in *AuditFileInputs, universe []string) []AuditFileEntry
 			}
 			entries = append(entries, AuditFileEntry{Path: p, Tasks: []string{}, DiffSummary: in.diffSummaryOf(p)})
 		}
-		return entries
+		return entries, len(universe)
 	}
 
 	sort.Slice(mapped, func(i, j int) bool {
@@ -148,7 +156,7 @@ func selectSpecCoverage(in *AuditFileInputs, universe []string) []AuditFileEntry
 		sort.Strings(ids)
 		entries = append(entries, AuditFileEntry{Path: fc.path, Tasks: ids, DiffSummary: in.diffSummaryOf(fc.path)})
 	}
-	return entries
+	return entries, len(mapped)
 }
 
 // selectSecurity keeps universe files whose path contains a security
