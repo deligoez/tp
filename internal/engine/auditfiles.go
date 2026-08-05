@@ -203,6 +203,11 @@ func GitTaskFileMapping(tasks []model.Task, universe []string) map[string][]stri
 		if tasks[i].CommitSHA == nil || *tasks[i].CommitSHA == "" {
 			continue
 		}
+		// The task file is written by import and add as well as by done, so a
+		// stored sha is not guaranteed to have passed an entry-point check.
+		if !SafeGitRev(*tasks[i].CommitSHA) {
+			continue
+		}
 		out, err := exec.Command("git", "show", "--name-only", "--pretty=format:", *tasks[i].CommitSHA).Output()
 		if err != nil {
 			continue
