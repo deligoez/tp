@@ -10,6 +10,16 @@
       "spec_hash": "sha256:cd5288d11486d43f8bdacdd27261369d1659c0f89f6255c8d1e44e73b9b9831b",
       "roles_hash": "sha256:53bf392c9016762750bbc6af1eb8ce528844b8e809ce4b55166bc1c9f4b68de7",
       "harness_note": "Roles were told v0.31.2 had just shipped and to judge 0.32.0 against the current tree rather than the tree it was drafted against, with a list of what changed. implementer was given five load-bearing claims to verify against real code; tester was given the existing test files; ax-economist was told 0.31.2 enlarged the per-role prompt cost this feature lets a project decline."
+    },
+    {
+      "round": 2,
+      "findings": 58,
+      "clean": false,
+      "recorded_at": "2026-08-05T13:58:21Z",
+      "file": "review-round-2.ndjson",
+      "spec_hash": "sha256:df0b6b12db87072e297b6b9d5262fb0c5c56dab9a1460427ce363c297e9645a2",
+      "roles_hash": "sha256:53bf392c9016762750bbc6af1eb8ce528844b8e809ce4b55166bc1c9f4b68de7",
+      "harness_note": "Roles were told the spec was rewritten rather than patched (treat as a new document), given the old-\u003enew section renumbering, and each asked to re-examine the change their own round-1 high drove: architect on whether deleting the old trim_candidate section leaves §1's cited complaint unanswered, ax-economist on whether §1.1's arithmetic overstates the saving, implementer on five load-bearing code claims, tester on the 16 test items."
     }
   ],
   "audit_rounds": []
