@@ -31,12 +31,13 @@ func auditPromptsByRole(t *testing.T, stdout string) map[string]map[string]any {
 	return byRole
 }
 
-// TestRouteChecklist_Disjoint: each spec-derived item appears in exactly one
-// role bucket; file-level items only in security/maintainability.
+// TestRouteChecklist_Disjoint: spec-derived items appear only in the
+// spec-coverage prompt; every other role's items are file_check items over the
+// same shared code-file list.
 func TestRouteChecklist_Disjoint(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
-	// A security-relevant and a plain file
+	// A keyword-matching and a plain file; both reach every shared-arm role.
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "auth_helper.go"), []byte("package main\n"), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "plain.go"), []byte("package main\n"), 0o600))
 
@@ -53,24 +54,38 @@ func TestRouteChecklist_Disjoint(t *testing.T) {
 	assert.Equal(t, "security", prompts[1].(map[string]any)["role"])
 	assert.Equal(t, "maintainability-conventions", prompts[2].(map[string]any)["role"])
 
-	// Disjoint routing: spec items only in spec-coverage; file_check only in
-	// the file-checklist roles
+	// spec-coverage holds every spec-derived item and no file_check item.
 	byRole := auditPromptsByRole(t, stdout)
+	specIDs := map[string]bool{}
 	for _, item := range byRole["spec-coverage"]["checklist_items"].([]any) {
-		typ := item.(map[string]any)["type"].(string)
-		assert.Contains(t, []string{"table_row", "list_item", "task_acceptance", "finding"}, typ)
-	}
-	secItems := byRole["security"]["checklist_items"].([]any)
-	require.Len(t, secItems, 2, "the shared code-file list, not a keyword filter")
-	sec0 := secItems[0].(map[string]any)
-	assert.Equal(t, "file_check", sec0["type"])
-	assert.Contains(t, sec0["item_id"], "file-security-")
-	assert.NotRegexp(t, `^file-security-\d+$`, sec0["item_id"], "id is slug-based not positional")
-	assert.Equal(t, "auth_helper.go", sec0["section"])
-	for _, item := range byRole["maintainability-conventions"]["checklist_items"].([]any) {
 		m := item.(map[string]any)
-		assert.Equal(t, "file_check", m["type"])
-		assert.Contains(t, m["item_id"], "file-maintainability-conventions-")
+		assert.Contains(t, []string{"table_row", "list_item", "task_acceptance", "finding"}, m["type"].(string))
+		specIDs[m["item_id"].(string)] = true
+	}
+	require.NotEmpty(t, specIDs, "the fixture spec yields spec-derived items")
+
+	// Every other role: file_check items over the same shared code-file list,
+	// and no spec-derived item leaks into them.
+	var shared []string
+	for role, p := range byRole {
+		if role == "spec-coverage" {
+			continue
+		}
+		sections := make([]string, 0)
+		for _, item := range p["checklist_items"].([]any) {
+			m := item.(map[string]any)
+			assert.Equal(t, "file_check", m["type"], "role %s holds only file_check items", role)
+			assert.False(t, specIDs[m["item_id"].(string)], "spec-derived items appear only in spec-coverage")
+			assert.Contains(t, m["item_id"], "file-"+role+"-")
+			assert.NotRegexp(t, `^file-`+role+`-\d+$`, m["item_id"], "id is slug-based not positional")
+			sections = append(sections, m["section"].(string))
+		}
+		assert.Equal(t, []string{"auth_helper.go", "plain.go"}, sections, "role %s gets the whole shared list, not a keyword filter", role)
+		if shared == nil {
+			shared = sections
+			continue
+		}
+		assert.Equal(t, shared, sections, "every shared-arm role gets the identical list")
 	}
 }
 
