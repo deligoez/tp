@@ -172,3 +172,7 @@ func TestFilterFiles_PreCapTotals(t *testing.T) {
 	assert.Equal(t, 3, fallback.CodeFilesTotal, "filtered-universe size, dropped files excluded")
 	assert.Equal(t, 3, fallback.SpecCoverageTotal, "filtered-universe size in the no-task fallback branch")
 }
+
+func TestPriorityPathSubstrings_ExactValues(t *testing.T) {
+	assert.Equal(t, []string{"lock", "validate", "auth", "secret", "perm"}, priorityPathSubstrings)
+}
