@@ -51,11 +51,10 @@ type AuditFileSelection struct {
 // AuditFileInputs carries the pre-collected facts the selection operates on,
 // so the selection itself stays deterministic and git-free.
 type AuditFileInputs struct {
-	Universe   []string            // git diff base..HEAD, or the --affected-files list
-	DiffStats  map[string][2]int   // path -> {added, deleted}; absent entries render +0/-0
-	Deleted    map[string]bool     // files deleted in the diff
-	TaskFiles  map[string][]string // path -> task ids whose commit changed it
-	HeadReader func(path string) ([]byte, bool)
+	Universe  []string            // git diff base..HEAD, or the --affected-files list
+	DiffStats map[string][2]int   // path -> {added, deleted}; absent entries render +0/-0
+	Deleted   map[string]bool     // files deleted in the diff
+	TaskFiles map[string][]string // path -> task ids whose commit changed it
 }
 
 // SelectAuditFiles applies the drop rules to the universe FIRST, then every
@@ -230,16 +229,4 @@ func GitTaskFileMapping(tasks []model.Task, universe []string) map[string][]stri
 		result[f] = sorted
 	}
 	return result
-}
-
-// GitHeadReader reads a file's content at the HEAD revision; ok is false for
-// files absent at HEAD (new or untracked).
-func GitHeadReader() func(path string) ([]byte, bool) {
-	return func(path string) ([]byte, bool) {
-		out, err := exec.Command("git", "show", "HEAD:"+filepath.ToSlash(path)).Output()
-		if err != nil {
-			return nil, false
-		}
-		return out, true
-	}
 }
