@@ -49,3 +49,13 @@ func TestInitEjectRoles_AdvisoryForProseDomain(t *testing.T) {
 	require.Equal(t, 0, code, "stderr: %s", stderr)
 	assert.Contains(t, stderr, ejectAdvisory)
 }
+
+// --quiet suppresses the advisory.
+func TestInitEjectRoles_AdvisorySuppressedByQuiet(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
+
+	_, stderr, code := runTP(t, dir, "init", "--eject-roles", "--quiet")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.NotContains(t, stderr, ejectAdvisory)
+}
