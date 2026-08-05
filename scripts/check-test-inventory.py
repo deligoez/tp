@@ -93,15 +93,19 @@ def go_test_files(root):
 
 
 def enclosing_test(text, index):
-    """Name of the Test function containing the byte offset, or None."""
+    """Name of the Test function containing the byte offset.
+
+    Returns None when the offset precedes every Test declaration in the file —
+    which is where shared fixtures live (setupThreeRoleAudit and friends). Such
+    an occurrence is not silently discarded: main() reports it under the file's
+    name so a helper that references a removed symbol is still surfaced.
+    """
     found = None
     for match in GO_TEST_RE.finditer(text):
         if match.start() > index:
             break
         found = match.group(1)
     return found
-
-
 def main():
     if len(sys.argv) != 3:
         die("usage: check-test-inventory.py <spec.md> <section-heading-substring>")
@@ -113,33 +117,49 @@ def main():
         die("no git repository root above the spec")
 
     spec_text = read(spec_path)
-    literals, body = section_of(spec_text, heading)
+    literals, body_text = section_of(spec_text, heading)
+    body = body_text
     if not literals:
         die("the search-literals block is empty")
 
     named = set(TEST_NAME_RE.findall(body))
 
     referencing = {}
+    fixtures = {}
     for path in go_test_files(root):
         text = read(path)
+        rel = os.path.relpath(path, root)
         for literal in literals:
             for match in re.finditer(re.escape(literal), text):
                 test = enclosing_test(text, match.start())
                 if test:
                     referencing.setdefault(test, set()).add(literal)
+                else:
+                    # Before the first Test declaration: a shared fixture or a
+                    # package-level helper. Reported by file, never dropped.
+                    fixtures.setdefault(rel, set()).add(literal)
 
     missing = {t: lits for t, lits in referencing.items() if t not in named}
+    unnamed_fixtures = {
+        f: lits for f, lits in fixtures.items() if f not in body_text
+    }
 
     print(f"literals searched: {len(literals)}")
     print(f"tests referencing them: {len(referencing)}")
     print(f"tests named in the inventory: {len(named & set(referencing))}")
+    print(f"pre-test fixture files referencing them: {len(fixtures)}")
 
-    if missing:
-        print("\nDRIFT — referencing tests absent from the inventory:", file=sys.stderr)
+    if missing or unnamed_fixtures:
+        print("\nDRIFT — references absent from the inventory:", file=sys.stderr)
         for test in sorted(missing):
             print(f"  {test}  ({', '.join(sorted(missing[test]))})", file=sys.stderr)
+        for path in sorted(unnamed_fixtures):
+            print(
+                f"  {path} (pre-test fixture)  ({', '.join(sorted(unnamed_fixtures[path]))})",
+                file=sys.stderr,
+            )
         sys.exit(1)
 
-    print("no drift: every referencing test is named in the inventory")
+    print("no drift: every reference is named in the inventory")
 if __name__ == "__main__":
     main()
