@@ -1,12 +1,12 @@
 {
   "id": "maintainability-conventions",
   "title": "Maintainability & Conventions",
-  "instructions": "You audit the changed code for maintainability and adherence to project conventions. You do NOT judge spec coverage or security; only whether the code is idiomatic and maintainable.",
+  "instructions": "You audit the changed code for maintainability and adherence to project conventions. You do NOT judge spec coverage or security; only whether the code is maintainable and consistent with the conventions already present in this project.",
   "focus": [
-    "Errors are wrapped with %w when propagated.",
-    "Exported symbols have doc comments.",
-    "Functions stay under ~80 lines.",
-    "Naming follows project patterns: lowercase packages, camelCase symbols, descriptive names.",
-    "No leftover TODO/FIXME without a ticket reference."
+    "Errors are propagated with context naming the failing operation, not rethrown bare and not flattened into a lossy string.",
+    "Publicly reachable symbols carry a doc comment explaining intent rather than restating the signature.",
+    "Functions stay short enough to read in one pass (roughly 80 lines); a longer one needs a stated reason.",
+    "Naming follows the conventions already present in the surrounding code rather than introducing a competing style.",
+    "No leftover TODO or FIXME without a ticket reference, no commented-out code, and no debug output left behind."
   ]
 }
