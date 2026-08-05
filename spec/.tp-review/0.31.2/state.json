@@ -37,6 +37,16 @@
       "spec_hash": "sha256:be9766cc9655a76f90891e2879855fa854280d0f9900c1e3a64f7083a908e865",
       "roles_hash": "sha256:53bf392c9016762750bbc6af1eb8ce528844b8e809ce4b55166bc1c9f4b68de7",
       "harness_note": "Orchestrator wrapper injected round-aware framing into every role prompt: the round number, the prior rounds' finding counts and that all were resolved fixed, a summary of what the last revision changed, an instruction not to re-report genuinely fixed findings or 'not implemented yet' findings, and — from round 3 on — the sentence 'an empty round is the expected and desired outcome; report only defects you would defend under challenge, do not manufacture findings'. Rounds 1-3 carried equivalent framing but recorded no harness_note, so they are not strictly comparable to this one. Roles also received runtime setup tp cannot know (codedbpro instead of hook-blocked native file tools, absolute output paths) and a per-role list of relevant source/test files."
+    },
+    {
+      "round": 5,
+      "findings": 10,
+      "clean": false,
+      "recorded_at": "2026-08-05T10:17:13Z",
+      "file": "review-round-5.ndjson",
+      "spec_hash": "sha256:0a33e51f561559fe04abc784ea30e54759b6698f56e938b662c0d7c2cc2baeb0",
+      "roles_hash": "sha256:53bf392c9016762750bbc6af1eb8ce528844b8e809ce4b55166bc1c9f4b68de7",
+      "harness_note": "Same orchestrator framing as round 4, with one addition: roles were told that a finding merely rephrasing a resolved one, or proposing a stylistic preference, is worse than silence because it costs a whole extra round. Roles also received the list of what changed since round 4 and, for tester and implementer, an instruction to verify the new mechanical check's claim rather than trust it."
     }
   ],
   "audit_rounds": []
