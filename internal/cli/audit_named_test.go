@@ -66,12 +66,21 @@ func TestGenerateAuditPrompts_SpecExcerptOnlyForSpecCoverage(t *testing.T) {
 	assert.NotContains(t, byRole["maintainability-conventions"]["prompt"].(string), "## Spec Excerpt")
 }
 
-func TestGenerateAuditPrompts_CLAUDEmdOnlyForMaintainability(t *testing.T) {
+// TestGenerateAuditPrompts_CLAUDEmdForEveryNonSpecCoverageRole: the Project
+// Context block reaches every role taking the shared arm, and never
+// spec-coverage (§2.3).
+func TestGenerateAuditPrompts_CLAUDEmdForEveryNonSpecCoverageRole(t *testing.T) {
 	stdout := setupThreeRoleAudit(t)
 	byRole := auditPromptsByRole(t, stdout)
-	assert.Contains(t, byRole["maintainability-conventions"]["prompt"].(string), "convention marker line")
-	assert.NotContains(t, byRole["spec-coverage"]["prompt"].(string), "convention marker line")
-	assert.NotContains(t, byRole["security"]["prompt"].(string), "convention marker line")
+	require.NotEmpty(t, byRole)
+	for role, p := range byRole {
+		prompt := p["prompt"].(string)
+		if role == "spec-coverage" {
+			assert.NotContains(t, prompt, "convention marker line", "spec-coverage never receives the conventions block")
+			continue
+		}
+		assert.Contains(t, prompt, "convention marker line", "role %s receives the conventions block", role)
+	}
 }
 
 // TestAudit_CorpusDrivenEmission: a user auditor corpus drives emission — the
