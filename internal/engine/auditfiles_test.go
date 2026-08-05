@@ -8,6 +8,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestAuditFileCaps_Literals pins both caps so a silent change fails a test.
+func TestAuditFileCaps_Literals(t *testing.T) {
+	assert.Equal(t, 10, CodeFileCap, "the shared code-file list cap")
+	assert.Equal(t, 20, AuditFileCap, "the per-prompt affected-files cap")
+}
+
 func TestAuditCategory_EnumValid(t *testing.T) {
 	for _, c := range []string{"security", "concurrency", "error-handling", "correctness", "contract"} {
 		assert.True(t, IsValidCategory(c), c)
