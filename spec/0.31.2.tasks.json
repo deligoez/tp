@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.31.2.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-08-05T11:17:50.065623Z",
+  "updated_at": "2026-08-05T11:26:43.443422Z",
   "workflow": {
     "checks": [
       {
@@ -550,7 +550,7 @@
     {
       "id": "test-prompt-equality",
       "title": "Pin prompt equality across two invocations",
-      "status": "open",
+      "status": "done",
       "tags": [
         "test"
       ],
@@ -563,11 +563,18 @@
         "### 2.9 Why prompt equality is measured across invocations"
       ],
       "source_lines": "122-133",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-05T11:18:52.172168Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-05T11:20:51.323908Z",
+      "closed_reason": "- TestAuditPrompts_PromptEqualityAcrossInvocations (internal/cli/audit_prompts_test.go) runs two separate tp audit invocations, each in its own temp dir against a .tp/auditors corpus holding exactly one role and no spec-coverage, with the equal-length ids security and securitz differing only in their final character; the test asserts the single-prompt corpus shape and pins the fixture invariants (equal length, common prefix) so a later edit cannot silently weaken them.\n- It asserts the two emitted prompts, and their output paths, are byte-identical after substituting the role id token; verified negatively by temporarily injecting an 'if role == \"security\"' branch into buildRolePrompt, which made the test fail, and the injection was reverted before committing.\n- Gate green: go test ./... \u0026\u0026 golangci-lint run (0 issues).",
+      "gate_passed_at": "2026-08-05T11:20:51.323908Z",
+      "commit_sha": "4f6db63",
+      "commit_shas": [
+        "4f6db63"
+      ],
+      "commit_files": [
+        "internal/cli/audit_prompts_test.go"
+      ]
     },
     {
       "id": "test-skip-outcomes",
@@ -752,7 +759,7 @@
     {
       "id": "docs-skill-reference",
       "title": "Correct the two skill documents",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -767,16 +774,25 @@
         "## 4. Documentation"
       ],
       "source_lines": "187-194",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-05T11:20:54.0033Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-05T11:22:52.094725Z",
+      "closed_reason": "- skills/tp/SKILL.md and skills/tp/REFERENCE.md now each carry the routing substring 'spec-coverage is the only auditor id that changes routing' (SKILL.md in the Workflow D audit step, REFERENCE.md in the Audit JSON Schema section) and the upgrade substring 'ejected role files are not rewritten on upgrade' (both in their Role Corpus sections); verified by a substring check over both files.\n- Both documents now render both prompt-body orders verbatim: the shared-arm order 'Role -\u003e Role Rules -\u003e Project Context -\u003e JSON-array Checklist -\u003e Disposition -\u003e Affected Files -\u003e Output Schema' and the spec-coverage order 'Role -\u003e Role Rules -\u003e Spec Excerpt -\u003e JSON-array Checklist -\u003e Affected Files -\u003e Output Schema', replacing the single superseded order line each carried.\n- Neither states prompts[].role as a three-id enum any more (both now say it is any active auditor role id from the corpus), and REFERENCE.md documents the deterministic item ids in the role-id slug form file-\u003crole-id\u003e-\u003cslug\u003e.\n- Neither file contains file-sec- or file-maint-, and the two remaining per-role file-list claims were reworded (SKILL.md's 'per-role affected files' and 'per-role filtering'); verified by a forbidden-substring check over both files.\n- Gate green: go test ./... \u0026\u0026 golangci-lint run (0 issues).",
+      "gate_passed_at": "2026-08-05T11:22:52.094725Z",
+      "commit_sha": "611c8b4",
+      "commit_shas": [
+        "611c8b4",
+        "d4a8556"
+      ],
+      "commit_files": [
+        "skills/tp/REFERENCE.md",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "docs-readme-claude",
       "title": "Correct the project-level documents",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -791,16 +807,25 @@
         "## 4. Documentation"
       ],
       "source_lines": "189-190",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-05T11:22:54.896301Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-05T11:23:54.559391Z",
+      "closed_reason": "- README.md now carries the routing substring 'spec-coverage is the only auditor id that changes routing' in the tp audit section and the upgrade substring 'ejected role files are not rewritten on upgrade' in the Role Corpus section; verified by a substring check.\n- CLAUDE.md's role-corpus rule now carries both substrings and states explicitly that a role id never selects a file list of its own: every non-spec-coverage auditor role receives one file_check item per file over the same shared, ranked, capped code-file list. README.md's superseded 'its per-role affected files' phrasing was corrected the same way.\n- Neither file contains file-sec- or file-maint-; verified by a forbidden-substring check over both files (and over the two skill documents).\n- Gate green: go test ./... \u0026\u0026 golangci-lint run (0 issues).\nOut of scope: README.md's v0.23.0 schema-break note still says the audit role is 'one of the three above', which has been inaccurate since user-defined roles shipped in v0.25.0; section 4 scopes the prompts[].role enum correction to the two skill documents, so it was left untouched.",
+      "gate_passed_at": "2026-08-05T11:23:54.559391Z",
+      "commit_sha": "061948e",
+      "commit_shas": [
+        "061948e",
+        "77ec75e"
+      ],
+      "commit_files": [
+        "CLAUDE.md",
+        "README.md"
+      ]
     },
     {
       "id": "docs-guard",
       "title": "Guard the documentation substrings",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs",
         "test"
@@ -816,16 +841,26 @@
         "## 7. Tests"
       ],
       "source_lines": "191-194,220-239",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-05T11:23:57.990857Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-05T11:25:40.567882Z",
+      "closed_reason": "- TestDocsStateOneAuditRoutingContract (internal/cli/docs_contract_test.go) asserts all four documents (README.md, skills/tp/SKILL.md, skills/tp/REFERENCE.md, CLAUDE.md) contain the routing substring 'spec-coverage is the only auditor id that changes routing' and the upgrade substring 'ejected role files are not rewritten on upgrade', and that none contains file-sec- or file-maint-.\n- It asserts the two skill documents each carry both prompt-body orders verbatim (shared-arm with Disposition, and the spec-coverage order) and that REFERENCE.md documents the item ids as file-\u003crole-id\u003e-\u003cslug\u003e; every section 4 requirement is guarded by a required substring, not only by the absence of superseded text.\n- It asserts neither skill document still renders the three-id enum (both the escaped table form and the plain-pipe form) nor the superseded 'always \"implementation-auditor\"' value, and that both positively state 'any active role id from the corpus'; the two skill documents were reworded to that exact phrasing so the positive assertion holds.\n- Gate green: go test ./... \u0026\u0026 golangci-lint run (0 issues).",
+      "gate_passed_at": "2026-08-05T11:25:40.567882Z",
+      "commit_sha": "d6a9c12",
+      "commit_shas": [
+        "d6a9c12",
+        "108acf3"
+      ],
+      "commit_files": [
+        "internal/cli/docs_contract_test.go",
+        "skills/tp/REFERENCE.md",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "spec-corrections",
       "title": "Apply the recorded review corrections",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -839,11 +874,19 @@
         "## 5. Non-Goals"
       ],
       "source_lines": "195-219",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-05T11:25:45.223557Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-05T11:26:43.425352Z",
+      "closed_reason": "- Section 2.1's first paragraph now ends 'roleSpecCoverage remains as the one id with a dedicated routing path', replacing 'the one reserved id' — the claim section 4 and section 2.1's own third paragraph contradict, since regression is reserved in both phases; this matches the correction recorded verbatim against review round 6.\n- Section 6's paragraph after the cost table now works all four cases of the security delta as a signed value: below 10 matches the list GROWS by (10 - old) because the shared list backfills to CodeFileCap where the old filtered list stopped at the match count, exactly 10 is neutral, 10 to 20 saves (old - 10) (12 matches saves 2), and 20 or more saves the full 10; the best case +~45 is now stated as reachable only at 20 or more matches and security's worst case is corrected from +~55 to +~65 (a custom role's +~55 plus the 10 backfilled file lines). The table row is left untouched, as the recorded evidence states the formula is algebraically right and only the prose inverted it.\n- Nothing else in spec/0.31.2.md was changed, and nothing under spec/.tp-review/ was written (the round-6 record was read only).\n- Gate green: go test ./... \u0026\u0026 golangci-lint run (0 issues).\nOut of scope: the same round-6 record carries a third correction, against section 7 item 15, noting that its negative assertions do not discriminate for skills/tp/SKILL.md and that a negative for SKILL.md's own 'is now one of' prose form is missing; this task's acceptance covers only the section 2.1 and section 6 corrections, so the spec text of item 15 was left unchanged.",
+      "gate_passed_at": "2026-08-05T11:26:43.425352Z",
+      "commit_sha": "04397d3",
+      "commit_shas": [
+        "04397d3",
+        "a10ab77"
+      ],
+      "commit_files": [
+        "spec/0.31.2.md"
+      ]
     }
   ]
 }
