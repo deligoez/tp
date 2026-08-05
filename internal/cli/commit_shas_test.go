@@ -45,6 +45,24 @@ func TestCommitShas_DuplicateExit1(t *testing.T) {
 	assert.Equal(t, "open", taskState(t, dir, "t1")["status"], "the task is not closed on a duplicate")
 }
 
+// TestCommitShas_RejectsOptionLookalike: a recorded sha is later handed to git
+// as a bare argument (execCommitFiles builds `git show ... <sha>`), so a value
+// starting with "-" would reach git as an option rather than a revision — for
+// example "--output=<path>", which makes git write that file. Rejecting it at
+// resolveCommitSHAs closes that at the single entry point.
+func TestCommitShas_RejectsOptionLookalike(t *testing.T) {
+	dir := setupCommitProject(t, "t1")
+	victim := filepath.Join(dir, "written-by-git")
+
+	_, stderr, code := runTP(t, dir, "done", "t1", "--gate-passed", "--commit", "--output="+victim, "--", "t1 acceptance met")
+	assert.Equal(t, 1, code, "an option-lookalike sha exits 1")
+	assert.Contains(t, stderr, "must not start with")
+	assert.Equal(t, "open", taskState(t, dir, "t1")["status"], "the task is not closed")
+
+	_, err := os.Stat(victim)
+	assert.True(t, os.IsNotExist(err), "git never ran, so no file was written")
+}
+
 func TestCommitShas_CoveredByRecordsNone(t *testing.T) {
 	dir := setupCommitProject(t, "t1")
 	_, _, code := runTP(t, dir, "add", `{"id":"t2","title":"T2","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"t2 done","source_sections":["s1"]}`)
