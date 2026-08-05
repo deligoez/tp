@@ -1,8 +1,8 @@
 {
   "version": 1,
   "spec": "spec/0.31.2.md",
-  "created_at": "2026-08-05T09:05:21.171963Z",
-  "updated_at": "2026-08-05T10:06:28.839185Z",
+  "created_at": "0001-01-01T00:00:00Z",
+  "updated_at": "2026-08-05T10:34:05.912697Z",
   "workflow": {
     "checks": [
       {
@@ -12,10 +12,640 @@
     ]
   },
   "coverage": {
-    "total_sections": 0,
-    "mapped_sections": 0,
-    "context_only": [],
+    "total_sections": 23,
+    "mapped_sections": 19,
+    "context_only": [
+      "# tp v0.31.2 — De-magic the auditor routing",
+      "## 1. Overview",
+      "## 2. Auditor routing stops dispatching on role id",
+      "## 3. The default auditor prompts become language-neutral"
+    ],
     "unmapped": []
   },
-  "tasks": []
+  "tasks": [
+    {
+      "id": "rename-codefiles",
+      "title": "Rename the shared selection to CodeFiles",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 8,
+      "acceptance": "AuditFileSelection.Maintainability becomes CodeFiles, selectMaintainability becomes selectCodeFiles, MaintainabilityFileCap becomes CodeFileCap with value 10. Every committed reference in internal/engine/auditfiles_test.go is renamed with it. The quality gate passes.",
+      "source_sections": [
+        "### 2.5 The shared selection is named for what it is"
+      ],
+      "source_lines": "67-70",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "selection-totals",
+      "title": "Carry pre-cap totals on the selection",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [
+        "rename-codefiles"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "AuditFileSelection gains int fields SpecCoverageTotal and CodeFilesTotal. CodeFilesTotal is the filtered-universe size after the drop rules while SpecCoverageTotal is the task-mapped set size in the normal branch and the filtered-universe size in the no-task fallback. A unit test pins both branches against a universe holding dropped files.",
+      "source_sections": [
+        "### 2.5 The shared selection is named for what it is"
+      ],
+      "source_lines": "71-72",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "ranking-order",
+      "title": "Rank priority paths ahead of the rest",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [
+        "rename-codefiles"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "selectCodeFiles orders the filtered universe with path-keyword-matching files first then the rest, each group alphabetical, capped at CodeFileCap. A non-empty universe never yields an empty list. A test asserts a matching file that sorts last appears first and that a no-match universe yields the first CodeFileCap files alphabetically.",
+      "source_sections": [
+        "### 2.4 The security keyword list becomes a ranking signal, not a filter"
+      ],
+      "source_lines": "55-61",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "rename-priority-list",
+      "title": "Rename the keyword list to priorityPathSubstrings",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [
+        "ranking-order"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "securitySubstrings becomes priorityPathSubstrings and containsSecuritySubstring becomes matchesPriorityPath. The five values lock, validate, auth, secret, perm are unchanged. A test asserts priorityPathSubstrings equals exactly those five values.",
+      "source_sections": [
+        "### 2.4 The security keyword list becomes a ranking signal, not a filter"
+      ],
+      "source_lines": "62-62",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "remove-security-selection",
+      "title": "Remove the per-role security file selection",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [
+        "ranking-order"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "selectSecurity and AuditFileSelection.Security are removed so SelectAuditFiles returns the spec-coverage list plus the shared code-file list. TestFilterFiles_Security is deleted along with the security half of TestFilterFiles_Cap20. The quality gate passes with no unused symbol reported.",
+      "source_sections": [
+        "### 2.4 The security keyword list becomes a ranking signal, not a filter"
+      ],
+      "source_lines": "63-63",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "remove-head-channel",
+      "title": "Remove the HEAD content channel",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [
+        "remove-security-selection"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "AuditFileInputs.HeadReader with its runAudit assignment, GitHeadReader, securityHeadLineCap and headLines are all removed, leaving AuditFileInputs holding Universe, DiffStats, Deleted and TaskFiles. A CLI-level test asserts a file whose path matches no keyword but whose content contains auth is ranked in alphabetical position rather than promoted. The quality gate passes with no unused symbol reported.",
+      "source_sections": [
+        "### 2.4 The security keyword list becomes a ranking signal, not a filter"
+      ],
+      "source_lines": "64-66",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "fix-filterfiles-tests",
+      "title": "Update the remaining engine selection tests",
+      "status": "open",
+      "tags": [
+        "test"
+      ],
+      "depends_on": [
+        "remove-head-channel"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "TestFilterFiles_DropsBinaryFixturesDeleted loses its sel.Security assertion while its two sel.Maintainability assertions are renamed to CodeFiles. TestFilterFiles_Maintainability and TestFilterFiles_DropFirstBackfill are renamed mechanically to CodeFiles and CodeFileCap. The mechanical inventory check exits 0.",
+      "source_sections": [
+        "### 2.8 Existing tests this change invalidates",
+        "### 2.10 The inventory is checked mechanically"
+      ],
+      "source_lines": "115-119,134-141",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "routing-two-arms",
+      "title": "Reduce the routing switch to two arms",
+      "status": "open",
+      "tags": [
+        "routing"
+      ],
+      "depends_on": [
+        "remove-security-selection"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "generateRoleAuditPrompts switches on spec-coverage only and every other role takes a shared arm giving one file_check item per selected code file from fileCheckItems with its own id. The security and maintainability-conventions arms are deleted. The quality gate passes.",
+      "source_sections": [
+        "### 2.1 Only spec-coverage keeps a dedicated checklist source"
+      ],
+      "source_lines": "21-24",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "collapse-routechecklist",
+      "title": "Collapse routeChecklist to one checklist",
+      "status": "open",
+      "tags": [
+        "routing"
+      ],
+      "depends_on": [
+        "routing-two-arms"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "routeChecklist returns the single spec-coverage checklist, dropping its sel argument and its sec and maint return values. generateRoleAuditPrompts drops the secItems and maintItems parameters and runAudit stops destructuring three values. A test asserts spec-coverage receives the table-row, list-item, task-acceptance and finding items with no file_check items.",
+      "source_sections": [
+        "### 2.1 Only spec-coverage keeps a dedicated checklist source"
+      ],
+      "source_lines": "25-26",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "remove-role-constants",
+      "title": "Delete the two orphaned role constants",
+      "status": "open",
+      "tags": [
+        "routing"
+      ],
+      "depends_on": [
+        "collapse-routechecklist"
+      ],
+      "estimate_minutes": 5,
+      "acceptance": "The roleSecurity and roleMaintainability constants are deleted while roleSpecCoverage stays as the one id with a dedicated routing path. No source file references either deleted constant. The quality gate passes with no unused symbol reported.",
+      "source_sections": [
+        "### 2.1 Only spec-coverage keeps a dedicated checklist source"
+      ],
+      "source_lines": "27-28",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "fix-empty-role-test",
+      "title": "Invert the empty-role omission test",
+      "status": "open",
+      "tags": [
+        "test"
+      ],
+      "depends_on": [
+        "remove-role-constants"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "TestGenerateAuditPrompts_EmptyRoleOmitted asserts security is emitted with one file_check item for plain.go rather than absent. A test asserts that given a spec with structured elements and one affected code file matching no keyword, every auditor role emits a prompt and skipped_roles is empty. The quality gate passes.",
+      "source_sections": [
+        "### 2.8 Existing tests this change invalidates"
+      ],
+      "source_lines": "113-113",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "fix-route-disjoint-test",
+      "title": "Rewrite the route disjointness test",
+      "status": "open",
+      "tags": [
+        "test"
+      ],
+      "depends_on": [
+        "remove-role-constants"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "TestRouteChecklist_Disjoint stays a black-box CLI test asserting that spec-derived items appear only in the spec-coverage prompt. It further asserts every other role's items are file_check items over the shared list. The quality gate passes.",
+      "source_sections": [
+        "### 2.8 Existing tests this change invalidates"
+      ],
+      "source_lines": "114-114",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "fix-filefiltercap-test",
+      "title": "Tighten the file filter cap test",
+      "status": "open",
+      "tags": [
+        "test"
+      ],
+      "depends_on": [
+        "remove-role-constants"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "TestAudit_FileFilterCap asserts the security list length is exactly 10 rather than at most 20. A test asserts CodeFileCap is the literal 10 and AuditFileCap is the literal 20. A test asserts every non-spec-coverage role receives the same affected-files list for one audit invocation.",
+      "source_sections": [
+        "### 2.8 Existing tests this change invalidates"
+      ],
+      "source_lines": "120-121",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "ungate-project-context",
+      "title": "Ungate the project conventions block",
+      "status": "open",
+      "tags": [
+        "prompt"
+      ],
+      "depends_on": [
+        "routing-two-arms"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "buildRolePrompt attaches the Project Context block to every shared-arm role whenever the CLAUDE.md excerpt is non-empty and never to spec-coverage. TestGenerateAuditPrompts_CLAUDEmdOnlyForMaintainability is renamed and rewritten to assert the conventions marker in every non-spec-coverage prompt and its absence from spec-coverage. The quality gate passes.",
+      "source_sections": [
+        "### 2.3 Every non-spec-coverage role receives the project conventions"
+      ],
+      "source_lines": "47-54",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "render-disposition",
+      "title": "Render the disposition paragraph once",
+      "status": "open",
+      "tags": [
+        "prompt"
+      ],
+      "depends_on": [
+        "routing-two-arms"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "buildRolePrompt writes the Disposition paragraph verbatim exactly once immediately after the Checklist block in every shared-arm prompt and never in the spec-coverage prompt. expected_evidence stays the existing short inspect file form. A test asserts the paragraph count, its absence from spec-coverage, its index between Checklist and Affected Files, and that no expected_evidence contains the word PASS.",
+      "source_sections": [
+        "### 2.2 A file outside a role's lens is a PASS"
+      ],
+      "source_lines": "29-46",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "files-header-forms",
+      "title": "Render the affected-files header forms",
+      "status": "open",
+      "tags": [
+        "prompt"
+      ],
+      "depends_on": [
+        "selection-totals",
+        "routing-two-arms"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "buildRolePrompt takes the applied cap plus the pre-cap total and renders the untruncated form when the total is at most the list length or the counted form when it is greater. A spec-coverage prompt with nothing truncated renders the untruncated form naming 20. A test covers both forms, the spec-coverage case, and a universe holding dropped files so the total is asserted post-drop.",
+      "source_sections": [
+        "### 2.6 The affected-files header states the real cap"
+      ],
+      "source_lines": "73-81",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "fix-body-order-test",
+      "title": "Update the prompt body order test",
+      "status": "open",
+      "tags": [
+        "test"
+      ],
+      "depends_on": [
+        "ungate-project-context",
+        "files-header-forms",
+        "render-disposition"
+      ],
+      "estimate_minutes": 5,
+      "acceptance": "TestAuditPrompts_BodyOrderAndEmbedding loses its NotContains Project Context assertion for security while keeping the spec-coverage one. Its header lookup becomes a prefix match rather than the full max-20 literal. The quality gate passes.",
+      "source_sections": [
+        "### 2.8 Existing tests this change invalidates"
+      ],
+      "source_lines": "112-112",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "test-prompt-equality",
+      "title": "Pin prompt equality across two invocations",
+      "status": "open",
+      "tags": [
+        "test"
+      ],
+      "depends_on": [
+        "fix-body-order-test"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "A test runs two audit invocations, each against a corpus holding exactly one role and no spec-coverage, with role ids of equal length differing only in their final character. It asserts the two emitted prompts are byte-identical after substituting the role id token and the output path. Any surviving id branch in prompt construction fails it.",
+      "source_sections": [
+        "### 2.9 Why prompt equality is measured across invocations"
+      ],
+      "source_lines": "122-133",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "test-skip-outcomes",
+      "title": "Cover the empty code-file skip path",
+      "status": "open",
+      "tags": [
+        "test"
+      ],
+      "depends_on": [
+        "remove-role-constants"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "A test asserts an audit whose affected files are all dropped by the universe filter names every non-spec-coverage role in skipped_roles with reason no-checklist-items and exits 0. The existing spec-coverage empty-checklist skip test stays green unmodified. The quality gate passes.",
+      "source_sections": [
+        "### 2.7 The skip outcomes that survive"
+      ],
+      "source_lines": "82-90",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "corpus-security-focus",
+      "title": "Rewrite the security role focus",
+      "status": "open",
+      "tags": [
+        "corpus"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 8,
+      "acceptance": "security.json carries exactly the six focus lines given in the spec. Its instructions field is unchanged because it is already language-neutral. Its id stays security so ejected corpora and frontmatter overrides keep working.",
+      "source_sections": [
+        "### 3.1 The problem the defaults create",
+        "### 3.2 security.json states invariants, not Go idioms"
+      ],
+      "source_lines": "142-160",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "corpus-maint-focus",
+      "title": "Rewrite the maintainability role focus",
+      "status": "open",
+      "tags": [
+        "corpus"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 8,
+      "acceptance": "maintainability-conventions.json carries exactly the five focus lines given in the spec. Its instructions clause becomes the exact replacement naming the project's own conventions as the standard. The corpus hash stays the builtin sentinel because release-shipped content is excluded by the v0.25.0 precedent.",
+      "source_sections": [
+        "### 3.3 maintainability-conventions.json states properties, not Go syntax",
+        "### 3.5 The corpus hash deliberately stays `builtin`"
+      ],
+      "source_lines": "161-172,183-186",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "corpus-guards",
+      "title": "Guard the default auditor prompt content",
+      "status": "open",
+      "tags": [
+        "corpus",
+        "test"
+      ],
+      "depends_on": [
+        "corpus-security-focus",
+        "corpus-maint-focus"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "A guard test walks the embedded auditor corpus and fails when any focus line or instructions string contains a language-specific token from the spec deny-list, matched case-insensitively. A second guard asserts the two rewritten focus arrays equal the spec lines verbatim so an emptied array fails. Reviewer roles stay out of scope.",
+      "source_sections": [
+        "### 3.1 The problem the defaults create"
+      ],
+      "source_lines": "144-147",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "output-notice",
+      "title": "Add the Notice output primitive",
+      "status": "open",
+      "tags": [
+        "output"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 8,
+      "acceptance": "output.Notice writes its message to stderr, is suppressed by the quiet flag, and is not suppressed by JSON mode. Its doc comment names it the channel for a one-time advisory about project-owned data a command just wrote. A unit test covers the quiet and JSON-mode behaviours.",
+      "source_sections": [
+        "### 3.4 Ejection says the defaults are a starting point"
+      ],
+      "source_lines": "173-178",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "eject-advisory",
+      "title": "Emit the eject advisory line",
+      "status": "open",
+      "tags": [
+        "output"
+      ],
+      "depends_on": [
+        "output-notice"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "runEjectRoles emits the spec advisory line verbatim through output.Notice for every domain. A test asserts the line reaches stderr with stdout piped for both the software and prose domains and is absent under the quiet flag. The stdout JSON keys stay exactly ejected and domain while the existing byte-identity test stays green.",
+      "source_sections": [
+        "### 3.4 Ejection says the defaults are a starting point"
+      ],
+      "source_lines": "179-182",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "docs-skill-reference",
+      "title": "Correct the two skill documents",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [
+        "fix-body-order-test",
+        "eject-advisory",
+        "corpus-guards"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "skills/tp/SKILL.md and skills/tp/REFERENCE.md each carry the routing substring, the upgrade substring, and both prompt-body orders verbatim. Neither states prompts[].role as a three-id enum and REFERENCE.md documents the item ids in the role-id slug form. Neither contains the superseded file-sec or file-maint prefixes.",
+      "source_sections": [
+        "## 4. Documentation"
+      ],
+      "source_lines": "187-194",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "docs-readme-claude",
+      "title": "Correct the project-level documents",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [
+        "fix-body-order-test",
+        "eject-advisory",
+        "corpus-guards"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "README.md and CLAUDE.md each carry the routing substring and the upgrade substring. Neither contains the superseded file-sec or file-maint prefixes. CLAUDE.md's role-corpus rule drops any claim that a role id selects a file list.",
+      "source_sections": [
+        "## 4. Documentation"
+      ],
+      "source_lines": "189-190",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "docs-guard",
+      "title": "Guard the documentation substrings",
+      "status": "open",
+      "tags": [
+        "docs",
+        "test"
+      ],
+      "depends_on": [
+        "docs-skill-reference",
+        "docs-readme-claude"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "A guard test asserts all four documents contain the routing substring and the upgrade substring and that none contains the superseded prefixes. It asserts the two skill documents carry both prompt-body orders and the role-id slug form. It asserts neither skill document still renders the three-id enum.",
+      "source_sections": [
+        "## 4. Documentation",
+        "## 7. Tests"
+      ],
+      "source_lines": "191-194,220-239",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "spec-corrections",
+      "title": "Apply the recorded review corrections",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [
+        "docs-guard"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "The first paragraph of section 2.1 says roleSpecCoverage remains as the one id with a dedicated routing path rather than the one reserved id. The cost paragraph works all four cases of the security saving including the growth when the old match count is below ten. Both corrections match the evidence recorded against review round 6.",
+      "source_sections": [
+        "## 6. Cost",
+        "## 5. Non-Goals"
+      ],
+      "source_lines": "195-219",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ]
 }
