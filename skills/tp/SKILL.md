@@ -305,7 +305,7 @@ The wrapper is only for what tp cannot know — runtime setup (e.g. hook-blocked
 
 `tp audit` JSON is a **clean break** from v0.22.0 — downstream consumers (sub-agents, scripts) MUST update; there is no `--legacy-format` flag:
 
-- `prompts[].role` is now any active auditor role id from the corpus (was always `implementation-auditor`).
+- `prompts[].role` is now any active role id from the corpus (v0.22.0 emitted a single fixed `implementation-auditor`).
 - `prompts[].category` is **removed**.
 - `prompts[].prompt` is structured, not paragraph text. Shared-arm roles render Role → Role Rules → Project Context → JSON-array Checklist → Disposition → Affected Files → Output Schema; `spec-coverage` renders Role → Role Rules → Spec Excerpt → JSON-array Checklist → Affected Files → Output Schema.
 - `prompts[].checklist_items` (array of `ChecklistItem`) and `prompts[].affected_files` (`{path, tasks, diff_summary}`) are new.

@@ -398,7 +398,7 @@ Every review finding carries `role`, `location` (a `§`-anchor), `class`, and `s
 
 | Field | v0.22.0 | v0.23.0 |
 |-------|---------|---------|
-| `prompts[].role` | always `"implementation-auditor"` | any active auditor role id from the corpus |
+| `prompts[].role` | a single fixed `implementation-auditor` | any active role id from the corpus |
 | `prompts[].category` | always `null` | REMOVED |
 | `prompts[].prompt` | paragraph text | structured; shared arm: Role → Role Rules → Project Context → JSON-array Checklist → Disposition → Affected Files → Output Schema; `spec-coverage`: Role → Role Rules → Spec Excerpt → JSON-array Checklist → Affected Files → Output Schema |
 | `prompts[].checklist_items` | absent | `[]ChecklistItem` (`item_id`, `type`, `spec_line`, `section`, `text`, `expected_evidence`) |
