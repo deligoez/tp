@@ -144,3 +144,22 @@ func TestFilterFiles_DropFirstBackfill(t *testing.T) {
 	}
 	assert.Equal(t, "z13.go", sel.CodeFiles[9].Path, "tail backfilled from the raw 11th-13th files")
 }
+
+func TestFilterFiles_PreCapTotals(t *testing.T) {
+	// A universe holding a binary, a fixture, and a deleted file: only the three
+	// remaining .go files are candidates, so both totals count those alone.
+	universe := []string{"a.go", "b.go", "c.go", "logo.png", "testdata/x.json", "gone.go"}
+	deleted := map[string]bool{"gone.go": true}
+
+	mapped := SelectAuditFiles(&AuditFileInputs{
+		Universe:  universe,
+		Deleted:   deleted,
+		TaskFiles: map[string][]string{"a.go": {"t1"}, "b.go": {"t2"}},
+	})
+	assert.Equal(t, 3, mapped.CodeFilesTotal, "filtered-universe size, dropped files excluded")
+	assert.Equal(t, 2, mapped.SpecCoverageTotal, "task-mapped set size in the normal branch")
+
+	fallback := SelectAuditFiles(&AuditFileInputs{Universe: universe, Deleted: deleted})
+	assert.Equal(t, 3, fallback.CodeFilesTotal, "filtered-universe size, dropped files excluded")
+	assert.Equal(t, 3, fallback.SpecCoverageTotal, "filtered-universe size in the no-task fallback branch")
+}
