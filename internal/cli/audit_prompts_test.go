@@ -66,6 +66,49 @@ func TestAuditPrompts_BodyOrderAndEmbedding(t *testing.T) {
 	assert.NotContains(t, spec, "## Project Context")
 }
 
+// dispositionParagraph is §2.2's block, verbatim.
+const dispositionParagraph = `## Disposition
+A file containing nothing in this role's domain is a PASS, not a PARTIAL. Record it as
+PASS with evidence_file set to that path and evidence_lines set to the full range you
+read (for example "1-120"), meaning: the whole file was inspected and nothing in this
+role's domain appears in it. Reserve PARTIAL and FAIL for a defect you actually found.
+`
+
+// TestAuditPrompts_DispositionBlock: the §2.2 paragraph is rendered verbatim
+// exactly once in every shared-arm prompt, sits between the checklist and the
+// affected files, never reaches spec-coverage, and is not repeated into any
+// item's expected_evidence (§7 item 8).
+func TestAuditPrompts_DispositionBlock(t *testing.T) {
+	stdout := setupThreeRoleAudit(t)
+	byRole := auditPromptsByRole(t, stdout)
+	require.NotEmpty(t, byRole)
+
+	for role, p := range byRole {
+		prompt := p["prompt"].(string)
+		if role == "spec-coverage" {
+			assert.NotContains(t, prompt, "## Disposition", "spec-coverage never carries the disposition block")
+			continue
+		}
+		assert.Equal(t, 1, strings.Count(prompt, dispositionParagraph), "role %s carries the disposition paragraph verbatim exactly once", role)
+
+		idxChecklist := strings.Index(prompt, "## Checklist")
+		idxDisposition := strings.Index(prompt, "## Disposition")
+		idxFiles := strings.Index(prompt, "## Affected Files (")
+		require.GreaterOrEqual(t, idxChecklist, 0, role)
+		require.GreaterOrEqual(t, idxFiles, 0, role)
+		assert.Less(t, idxChecklist, idxDisposition, "disposition follows the checklist in %s", role)
+		assert.Less(t, idxDisposition, idxFiles, "disposition precedes the affected files in %s", role)
+	}
+
+	// The rule is stated once per prompt, never repeated per checklist item.
+	for role, p := range byRole {
+		for _, item := range p["checklist_items"].([]any) {
+			evidence := item.(map[string]any)["expected_evidence"].(string)
+			assert.NotContains(t, evidence, "PASS", "expected_evidence in %s stays the short inspect form", role)
+		}
+	}
+}
+
 func TestAuditPrompts_DeterministicRegeneration(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
