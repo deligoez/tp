@@ -212,7 +212,7 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 		output.Info(w)
 	}
 
-	specItems, _, _ := routeChecklist(mainEntries, findingsEntries, &sel, invertTaskFiles(inputs.TaskFiles))
+	specItems := routeChecklist(mainEntries, findingsEntries, invertTaskFiles(inputs.TaskFiles))
 
 	// §10.6 loop budget for prompt framing: the audit round being emitted
 	// (one past the last recorded), the consecutive clean rounds so far, and
