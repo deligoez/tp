@@ -39,3 +39,13 @@ func keysOf(m map[string]any) []string {
 	}
 	return out
 }
+
+// The wording names no language, so the same line is emitted for prose.
+func TestInitEjectRoles_AdvisoryForProseDomain(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
+
+	_, stderr, code := runTP(t, dir, "init", "--eject-roles", "--domain", "prose")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, ejectAdvisory)
+}
