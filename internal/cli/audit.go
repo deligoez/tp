@@ -339,7 +339,9 @@ func determineAuditFiles(specPath string, affectedFiles []string, base string, a
 func loadAuditSpec(specPath string) (specLines []string, specContent string) {
 	specData, err := os.ReadFile(specPath)
 	if err != nil {
-		output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath))
+		// Carry the cause: a permission or IO failure is otherwise
+		// indistinguishable from a missing file at the call site.
+		output.Error(ExitFile, fmt.Sprintf("cannot read spec %s: %v", specPath, err))
 		os.Exit(ExitFile)
 		return nil, ""
 	}
