@@ -366,7 +366,7 @@ Reviewer and auditor roles are project-owned JSON files under the repo-root `.tp
 - `.tp/reviewers/*.json` — `tp review` roles; `.tp/auditors/*.json` — `tp audit` roles. The phase is inferred from the directory.
 - Schema (one shared parser/validator): `id` (MUST equal the filename stem, `^[a-z0-9]+(-[a-z0-9]+)*$`, not the reserved `regression`), `title`, `instructions`, `focus` (string[], optional), `domains` (string[], optional — default: every domain). Any other top-level key is a validation error — tp owns the finding output contract.
 - A populated phase directory replaces the embedded default corpus for that phase; absent/empty keeps the built-in defaults.
-- The embedded default auditor prompts changed in v0.31.2 (language-neutral wording), and **ejected role files are not rewritten on upgrade** — a corpus written by an earlier `tp init --eject-roles` keeps its old copies until it is re-ejected with `--force`.
+- The embedded default auditor prompts changed in v0.31.2 (language-neutral wording), and **ejected role files are not rewritten on upgrade** — a corpus written by an earlier `tp init --eject-roles` keeps its old copies until it is re-ejected with `--force`. Every eject writes an advisory to stderr — `note: these roles are starting points; rewrite their focus for your project's stack and conventions.` — suppressed by `--quiet` but not by JSON mode; the eject JSON payload keys stay exactly `ejected` and `domain`.
 
 | Command / flag | Meaning |
 |----------------|---------|
