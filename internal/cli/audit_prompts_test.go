@@ -151,6 +151,30 @@ func TestAuditPrompts_AffectedFilesHeaderForms(t *testing.T) {
 	assert.Contains(t, shortByRole["security"]["prompt"].(string), "## Affected Files (max 10)\n")
 }
 
+// TestAuditPrompts_SpecCoverageHeaderTruncated: spec-coverage renders the
+// counted form with its own cap once its pre-cap pool exceeds AuditFileCap.
+// The other header test only exercises spec-coverage's untruncated form, so
+// without this an implementation that never counts for spec-coverage passes.
+func TestAuditPrompts_SpecCoverageHeaderTruncated(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
+
+	args := []string{"audit", "spec.md"}
+	for i := 0; i < 25; i++ {
+		name := fmt.Sprintf("f%02d.go", i)
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte("package main\n"), 0o600))
+		args = append(args, "--affected-files", name)
+	}
+	stdout, stderr, code := runTP(t, dir, args...)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	byRole := auditPromptsByRole(t, stdout)
+	specCov := byRole["spec-coverage"]
+	assert.Len(t, specCov["affected_files"].([]any), 20, "spec-coverage caps at AuditFileCap")
+	assert.Contains(t, specCov["prompt"].(string), "## Affected Files (20 of 25)\n",
+		"spec-coverage renders the counted form with its own cap and pre-cap total")
+}
+
 func TestAuditPrompts_DeterministicRegeneration(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
