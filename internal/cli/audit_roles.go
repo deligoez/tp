@@ -209,7 +209,7 @@ func renderPriorRoundSection(prior *auditPriorRound) string {
 
 // buildRolePrompt renders the §3.1 body order for one role, drawing its Role
 // Rules from the corpus role's focus (§7.2) rather than a hardcoded map.
-func buildRolePrompt(role string, rules []string, items []ChecklistItem, files []engine.AuditFileEntry, specContent, claudeExcerpt string, prior *auditPriorRound, f *promptFraming, inlinedContent string) auditPrompt {
+func buildRolePrompt(role string, rules []string, items []ChecklistItem, files []engine.AuditFileEntry, fileCap, fileTotal int, specContent, claudeExcerpt string, prior *auditPriorRound, f *promptFraming, inlinedContent string) auditPrompt {
 	var b strings.Builder
 	b.WriteString("## Role\n" + role + "\n\n")
 
@@ -247,7 +247,13 @@ func buildRolePrompt(role string, rules []string, items []ChecklistItem, files [
 
 	b.WriteString(renderPriorRoundSection(prior))
 
-	b.WriteString("## Affected Files (max 20)\n")
+	// §2.6: the header states the role's own cap, or the applied count against
+	// the pre-cap total once the cap has bitten — never a fixed literal 20.
+	if fileTotal <= len(files) {
+		fmt.Fprintf(&b, "## Affected Files (max %d)\n", fileCap)
+	} else {
+		fmt.Fprintf(&b, "## Affected Files (%d of %d)\n", len(files), fileTotal)
+	}
 	for _, fl := range files {
 		if role == roleSpecCoverage && len(fl.Tasks) > 0 {
 			fmt.Fprintf(&b, "- %s (tasks: %s; diff: %s)\n", fl.Path, strings.Join(fl.Tasks, ", "), fl.DiffSummary)
@@ -294,12 +300,15 @@ func generateRoleAuditPrompts(auditorRoles []model.Role, specItems []ChecklistIt
 		role := &auditorRoles[i]
 		var items []ChecklistItem
 		var files []engine.AuditFileEntry
+		var fileCap, fileTotal int
 		switch role.ID {
 		case roleSpecCoverage:
 			items, files = specItems, sel.SpecCoverage
+			fileCap, fileTotal = engine.AuditFileCap, sel.SpecCoverageTotal
 		default:
 			files = sel.CodeFiles
 			items = fileCheckItems(files, role.ID)
+			fileCap, fileTotal = engine.CodeFileCap, sel.CodeFilesTotal
 		}
 		if len(items) == 0 {
 			skipped = append(skipped, engine.SkippedRole{Role: role.ID, Reason: engine.SkipNoChecklistItems})
@@ -329,7 +338,7 @@ func generateRoleAuditPrompts(auditorRoles []model.Role, specItems []ChecklistIt
 				f.filePaths = filePaths
 			}
 		}
-		prompts = append(prompts, buildRolePrompt(role.ID, role.Focus, items, files, specContent, claudeExcerpt, priorByRole[role.ID], &f, inlinedContent))
+		prompts = append(prompts, buildRolePrompt(role.ID, role.Focus, items, files, fileCap, fileTotal, specContent, claudeExcerpt, priorByRole[role.ID], &f, inlinedContent))
 	}
 	return prompts, skipped
 }
