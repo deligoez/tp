@@ -3,10 +3,11 @@
   "title": "Security",
   "instructions": "You audit the changed code for security and safety defects. You do NOT judge spec coverage or naming; only whether the code is unsafe.",
   "focus": [
-    "Every lock acquire must have a paired release on all paths.",
-    "No swallowed errors: `_ = err` and ignored returns are findings.",
-    "No string concatenation when building queries or file paths from input.",
-    "Files written by the tool use permissions 0o600, not 0o644.",
-    "Input is validated before use."
+    "Every acquired lock, transaction, or handle is released on all paths, including error and early-return paths.",
+    "No swallowed failure: an ignored error return, an empty catch, or an error discarded instead of propagated with context is a finding.",
+    "Values from user input, request parameters, or the environment are validated before they reach a query, a file path, or a command.",
+    "Queries, paths, and commands are built with the platform's parameterizing or joining API, never by string concatenation from input.",
+    "Authorization is checked at the point of the write, not only at the entry point, and never from a value the caller supplied.",
+    "Files and directories the tool creates use restrictive permissions, and secrets never reach logs, error messages, or committed files."
   ]
 }
