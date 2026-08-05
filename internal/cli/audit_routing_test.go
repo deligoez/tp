@@ -89,8 +89,6 @@ func TestRouteChecklist_Disjoint(t *testing.T) {
 	}
 }
 
-// TestGenerateAuditPrompts_EmptyRoleOmitted: a role with zero checklist
-// items is absent from prompts.
 // TestGenerateAuditPrompts_SharedArmReachesEveryRole: the shared code-file
 // list has no relevance filter, so a single file matching no priority keyword
 // still gives security one file_check item — no role is skipped (§7 item 1).
