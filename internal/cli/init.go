@@ -154,5 +154,10 @@ func runEjectRoles() error {
 	}
 
 	output.Success(fmt.Sprintf("ejected %d role files for domain %q", len(written), domain))
+	// §3.4: the ejected defaults are a starting point, not a finished corpus.
+	// Notice (not Info/Success) so the line survives JSON mode — the piped and
+	// agent-driven runs are exactly the ones that adopt the files unread. The
+	// wording names no language, so it is identical for every domain.
+	output.Notice("note: these roles are starting points; rewrite their focus for your project's stack and conventions.")
 	return output.JSON(map[string]any{"ejected": written, "domain": domain})
 }
