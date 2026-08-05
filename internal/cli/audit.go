@@ -3,6 +3,7 @@ package cli
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -15,6 +16,15 @@ import (
 	"github.com/deligoez/tp/internal/engine"
 	"github.com/deligoez/tp/internal/model"
 	"github.com/deligoez/tp/internal/output"
+)
+
+// Sentinel errors for the --affected-files checks. determineAuditFiles routes
+// on these with errors.Is rather than on message substrings, so rewording an
+// error can no longer silently change the exit code it produces.
+var (
+	errAffectedFileMissing    = errors.New("affected file not found")
+	errAffectedFileUnreadable = errors.New("cannot read affected file")
+	errAffectedPathIsDir      = errors.New("affected path is a directory, not a file")
 )
 
 type checklistEntry struct {
@@ -302,7 +312,11 @@ func determineAuditFiles(specPath string, affectedFiles []string, base string, a
 	}
 	resolved, err := resolveAuditFiles(specPath, affectedFiles, base)
 	if err != nil {
-		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "directory, not a file") {
+		// Route on sentinel identity. Classifying by substring meant that
+		// rewording an error silently changed its exit code.
+		if errors.Is(err, errAffectedFileMissing) ||
+			errors.Is(err, errAffectedFileUnreadable) ||
+			errors.Is(err, errAffectedPathIsDir) {
 			output.Error(ExitFile, err.Error())
 			os.Exit(ExitFile)
 			return nil
@@ -467,14 +481,15 @@ func resolveAuditFiles(specPath string, affectedFiles []string, base string) ([]
 			info, err := os.Stat(f)
 			if err != nil {
 				// Carry the cause: a permission error reported as "not found"
-				// sends the caller looking for the wrong problem.
+				// sends the caller looking for the wrong problem. Wrap the
+				// sentinel so the caller routes on identity, not on wording.
 				if os.IsNotExist(err) {
-					return nil, fmt.Errorf("affected file not found: %s", f)
+					return nil, fmt.Errorf("%w: %s", errAffectedFileMissing, f)
 				}
-				return nil, fmt.Errorf("cannot read affected file %s: %w", f, err)
+				return nil, fmt.Errorf("%w %s: %w", errAffectedFileUnreadable, f, err)
 			}
 			if info.IsDir() {
-				return nil, fmt.Errorf("affected path is a directory, not a file: %s", f)
+				return nil, fmt.Errorf("%w: %s", errAffectedPathIsDir, f)
 			}
 		}
 		return affectedFiles, nil
