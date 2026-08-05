@@ -1,0 +1,16 @@
+{
+  "spec": "spec/0.32.0.md",
+  "review_rounds": [
+    {
+      "round": 1,
+      "findings": 46,
+      "clean": false,
+      "recorded_at": "2026-08-05T13:43:23Z",
+      "file": "review-round-1.ndjson",
+      "spec_hash": "sha256:cd5288d11486d43f8bdacdd27261369d1659c0f89f6255c8d1e44e73b9b9831b",
+      "roles_hash": "sha256:53bf392c9016762750bbc6af1eb8ce528844b8e809ce4b55166bc1c9f4b68de7",
+      "harness_note": "Roles were told v0.31.2 had just shipped and to judge 0.32.0 against the current tree rather than the tree it was drafted against, with a list of what changed. implementer was given five load-bearing claims to verify against real code; tester was given the existing test files; ax-economist was told 0.31.2 enlarged the per-role prompt cost this feature lets a project decline."
+    }
+  ],
+  "audit_rounds": []
+}
