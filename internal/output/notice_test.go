@@ -44,3 +44,11 @@ func TestNotice_NotSuppressedByJSONMode(t *testing.T) {
 	info := captureStderr(t, func() { output.Info("info line") })
 	assert.Empty(t, info)
 }
+
+func TestNotice_SuppressedByQuiet(t *testing.T) {
+	t.Cleanup(func() { output.Configure(false, false, false) })
+	output.Configure(true, true, true)
+
+	got := captureStderr(t, func() { output.Notice("advisory line") })
+	assert.Empty(t, got)
+}
