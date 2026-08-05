@@ -119,6 +119,41 @@ func TestGenerateAuditPrompts_SharedArmReachesEveryRole(t *testing.T) {
 	assert.Equal(t, []any{}, out["skipped_roles"], "every auditor role emits a prompt")
 }
 
+// TestAudit_AllFilesDroppedSkipsCodeRoles: when the universe filter drops every
+// affected file, the shared code-file list is empty, so every non-spec-coverage
+// role is named in skipped_roles with reason no-checklist-items and the audit
+// still exits 0 (§2.7 item 2).
+func TestAudit_AllFilesDroppedSkipsCodeRoles(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "testdata"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "testdata", "fixture.go"), []byte("package main\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "golden_out.golden"), []byte("out\n"), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "audit", "spec.md",
+		"--affected-files", filepath.Join("testdata", "fixture.go"), "--affected-files", "golden_out.golden")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	byRole := auditPromptsByRole(t, stdout)
+	require.Contains(t, byRole, "spec-coverage", "the spec still yields spec-derived items")
+
+	var out map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+	skipped, ok := out["skipped_roles"].([]any)
+	require.True(t, ok, "skipped_roles present")
+	seen := map[string]string{}
+	for _, s := range skipped {
+		m := s.(map[string]any)
+		seen[m["role"].(string)] = m["reason"].(string)
+	}
+	assert.Equal(t, map[string]string{
+		"security":                    "no-checklist-items",
+		"maintainability-conventions": "no-checklist-items",
+	}, seen, "every non-spec-coverage role is skipped, spec-coverage is not")
+	assert.NotContains(t, byRole, "security")
+	assert.NotContains(t, byRole, "maintainability-conventions")
+}
+
 // TestAudit_ContentKeywordDoesNotPromote: with the HEAD content channel gone,
 // ranking reads the path only, so a file whose content mentions auth but whose
 // path matches no keyword keeps its alphabetical position.
