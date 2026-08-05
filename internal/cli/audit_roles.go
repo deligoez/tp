@@ -212,9 +212,9 @@ func buildRolePrompt(role string, rules []string, items []ChecklistItem, files [
 	if role == roleSpecCoverage {
 		b.WriteString("## Spec Excerpt\n" + specContent + "\n\n")
 	}
-	// §2.3 widens this to every non-spec-coverage role; until then the id gate
-	// stays, spelled out rather than reading a reserved-id constant.
-	if role == "maintainability-conventions" && claudeExcerpt != "" {
+	// §2.3: every role taking the shared arm receives the project conventions;
+	// spec-coverage judges against the ## Spec Excerpt block instead.
+	if role != roleSpecCoverage && claudeExcerpt != "" {
 		b.WriteString("## Project Context\n" + claudeExcerpt + "\n\n")
 	}
 
