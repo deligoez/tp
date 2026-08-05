@@ -20,6 +20,16 @@ const roleSpecCoverage = "spec-coverage"
 
 const claudeMDExcerptLineCap = 50
 
+// auditDispositionBlock is the §2.2 paragraph, rendered verbatim once per
+// shared-arm prompt right after the checklist: it tells a role how to dispose
+// of a file holding nothing in its domain, so an out-of-lens file is recorded
+// as PASS instead of manufacturing a false blocker.
+const auditDispositionBlock = "## Disposition\n" +
+	"A file containing nothing in this role's domain is a PASS, not a PARTIAL. Record it as\n" +
+	"PASS with evidence_file set to that path and evidence_lines set to the full range you\n" +
+	"read (for example \"1-120\"), meaning: the whole file was inspected and nothing in this\n" +
+	"role's domain appears in it. Reserve PARTIAL and FAIL for a defect you actually found.\n"
+
 // routeChecklist builds the spec-coverage checklist: spec-derived and finding
 // items in the pinned order table_row and list_item ascending by spec_line,
 // then task_acceptance in task-file order, then finding by index. Every other
@@ -228,6 +238,12 @@ func buildRolePrompt(role string, rules []string, items []ChecklistItem, files [
 		b.WriteString("\n")
 	}
 	b.WriteString("]\n\n")
+
+	// §2.2: shared-arm roles only — spec-coverage's checklist holds spec
+	// elements, over which the out-of-domain disposition is meaningless.
+	if role != roleSpecCoverage {
+		b.WriteString(auditDispositionBlock + "\n")
+	}
 
 	b.WriteString(renderPriorRoundSection(prior))
 
