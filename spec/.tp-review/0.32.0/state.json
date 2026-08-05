@@ -40,6 +40,16 @@
       "spec_hash": "sha256:0d9a3197de2a487e98c6b06beb0d5a39ac4daec83fcde8622eee23fe4b85a004",
       "roles_hash": "sha256:53bf392c9016762750bbc6af1eb8ce528844b8e809ce4b55166bc1c9f4b68de7",
       "harness_note": "Two changes since round 3: §2.6's refusal was cut to a warning, and the spec was compressed 50% (3386 -\u003e 1677 words) by removing rationale prose while keeping every requirement. Roles were told the removal was deliberate and instructed NOT to report 'the spec no longer explains why' — only lost requirements. regression was told the compression is the change most likely to have broken something."
+    },
+    {
+      "round": 5,
+      "findings": 33,
+      "clean": false,
+      "recorded_at": "2026-08-05T18:41:53Z",
+      "file": "review-round-5.ndjson",
+      "spec_hash": "sha256:7c5c7b17b8dc6a569cedefba8dc679a6bace1a2f1db54429634eb5cdbfdf81aa",
+      "roles_hash": "sha256:53bf392c9016762750bbc6af1eb8ce528844b8e809ce4b55166bc1c9f4b68de7",
+      "harness_note": "Round-4 repairs were deliberately minimal (+154 words). Roles were told rationale removal was intentional and instructed not to report 'no longer explains why'. architect was asked whether stating the --quiet gap resolves or merely discloses the advisory-as-safeguard problem, and what happens when spec-coverage is deactivated; ax-economist was asked whether the shrunken feature is still worth shipping and to justify it in savings."
     }
   ],
   "audit_rounds": []
