@@ -185,11 +185,10 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	// Per-role file selection (§5): drop rules first, then role rules over the
 	// filtered universe; --affected-files replaced the universe upstream
 	inputs := &engine.AuditFileInputs{
-		Universe:   files,
-		DiffStats:  auditDiffStats(base),
-		Deleted:    auditDeletedFiles(base),
-		TaskFiles:  engine.GitTaskFileMapping(auditTasksOf(specPath), files),
-		HeadReader: engine.GitHeadReader(),
+		Universe:  files,
+		DiffStats: auditDiffStats(base),
+		Deleted:   auditDeletedFiles(base),
+		TaskFiles: engine.GitTaskFileMapping(auditTasksOf(specPath), files),
 	}
 	sel := engine.SelectAuditFiles(inputs)
 
