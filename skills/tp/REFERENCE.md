@@ -366,6 +366,7 @@ Reviewer and auditor roles are project-owned JSON files under the repo-root `.tp
 - `.tp/reviewers/*.json` — `tp review` roles; `.tp/auditors/*.json` — `tp audit` roles. The phase is inferred from the directory.
 - Schema (one shared parser/validator): `id` (MUST equal the filename stem, `^[a-z0-9]+(-[a-z0-9]+)*$`, not the reserved `regression`), `title`, `instructions`, `focus` (string[], optional), `domains` (string[], optional — default: every domain). Any other top-level key is a validation error — tp owns the finding output contract.
 - A populated phase directory replaces the embedded default corpus for that phase; absent/empty keeps the built-in defaults.
+- The embedded default auditor prompts changed in v0.31.2 (language-neutral wording), and **ejected role files are not rewritten on upgrade** — a corpus written by an earlier `tp init --eject-roles` keeps its old copies until it is re-ejected with `--force`.
 
 | Command / flag | Meaning |
 |----------------|---------|
@@ -393,15 +394,17 @@ Every review finding carries `role`, `location` (a `§`-anchor), `class`, and `s
 
 `tp audit` emits one prompt per non-empty role. There is no `--legacy-format` flag; downstream consumers MUST update.
 
+**spec-coverage is the only auditor id that changes routing**: it receives the spec-derived checklist and its own file selection, while every other role — built-in or user-defined — receives one `file_check` item per file over the same shared, ranked, capped code-file list.
+
 | Field | v0.22.0 | v0.23.0 |
 |-------|---------|---------|
-| `prompts[].role` | always `"implementation-auditor"` | `spec-coverage` \| `security` \| `maintainability-conventions` |
+| `prompts[].role` | always `"implementation-auditor"` | any active auditor role id from the corpus |
 | `prompts[].category` | always `null` | REMOVED |
-| `prompts[].prompt` | paragraph text | structured: Role → Role Rules → Spec Excerpt → Project Context → JSON-array Checklist → Affected Files → Output Schema |
+| `prompts[].prompt` | paragraph text | structured; shared arm: Role → Role Rules → Project Context → JSON-array Checklist → Disposition → Affected Files → Output Schema; `spec-coverage`: Role → Role Rules → Spec Excerpt → JSON-array Checklist → Affected Files → Output Schema |
 | `prompts[].checklist_items` | absent | `[]ChecklistItem` (`item_id`, `type`, `spec_line`, `section`, `text`, `expected_evidence`) |
 | `prompts[].affected_files` | absent | `[]{path, tasks, diff_summary}` |
 
-Item ids are deterministic: `table-<t>-<r>`, `list-<l>-<n>`, `task-<id>`, `file-sec-<n>`/`file-maint-<n>`, `finding-<n>`. Sub-agents return one NDJSON row per checklist item: `{item_id, status(PASS|PARTIAL|FAIL), evidence_file, evidence_lines, category, severity, notes, class?}`. `category`/`severity` are `null` for PASS and one of the enum values for PARTIAL/FAIL. Finding category enum: `security > concurrency > error-handling > correctness > contract` (resolution precedence when several apply).
+Item ids are deterministic: `table-<t>-<r>`, `list-<l>-<n>`, `task-<id>`, `file-<role-id>-<slug>` (the slug derives from the file path plus the item text, truncated to 40 characters, so the same file keeps the same id across rounds), `finding-<n>`. Sub-agents return one NDJSON row per checklist item: `{item_id, status(PASS|PARTIAL|FAIL), evidence_file, evidence_lines, category, severity, notes, class?}`. `category`/`severity` are `null` for PASS and one of the enum values for PARTIAL/FAIL. Finding category enum: `security > concurrency > error-handling > correctness > contract` (resolution precedence when several apply).
 
 ## Loop Integrity (v0.29.0)
 
