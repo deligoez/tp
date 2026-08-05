@@ -23,12 +23,12 @@ const (
 
 const claudeMDExcerptLineCap = 50
 
-// routeChecklist routes items disjointly: spec-derived and finding items go
-// to spec-coverage; security and maintainability carry synthetic file_check
-// items, one per affected file. Spec items follow the pinned order: table_row
-// and list_item ascending by spec_line, then task_acceptance in task-file
-// order, then finding by index.
-func routeChecklist(specEntries, findingsEntries []checklistEntry, sel *engine.AuditFileSelection, taskToFiles map[string][]string) (spec, sec, maint []ChecklistItem) {
+// routeChecklist builds the spec-coverage checklist: spec-derived and finding
+// items in the pinned order table_row and list_item ascending by spec_line,
+// then task_acceptance in task-file order, then finding by index. Every other
+// role's items are synthetic file_check items built in the shared arm of
+// generateRoleAuditPrompts.
+func routeChecklist(specEntries, findingsEntries []checklistEntry, taskToFiles map[string][]string) []ChecklistItem {
 	structural := make([]checklistEntry, 0, len(specEntries))
 	taskItems := make([]checklistEntry, 0)
 	for _, e := range specEntries {
@@ -40,7 +40,7 @@ func routeChecklist(specEntries, findingsEntries []checklistEntry, sel *engine.A
 	}
 	sort.SliceStable(structural, func(i, j int) bool { return structural[i].SpecLine < structural[j].SpecLine })
 
-	spec = make([]ChecklistItem, 0, len(specEntries)+len(findingsEntries))
+	spec := make([]ChecklistItem, 0, len(specEntries)+len(findingsEntries))
 	for i := range structural {
 		spec = append(spec, specItemOf(&structural[i], taskToFiles))
 	}
@@ -51,9 +51,7 @@ func routeChecklist(specEntries, findingsEntries []checklistEntry, sel *engine.A
 		spec = append(spec, specItemOf(&findingsEntries[i], taskToFiles))
 	}
 
-	sec = fileCheckItems(sel.CodeFiles, roleSecurity)
-	maint = fileCheckItems(sel.CodeFiles, roleMaintainability)
-	return spec, sec, maint
+	return spec
 }
 
 // specItemOf converts a spec-derived or finding entry into a checklist item
