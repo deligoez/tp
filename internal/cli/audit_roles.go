@@ -445,6 +445,13 @@ func auditTasksOf(specPath string) []model.Task {
 	taskPath := strings.TrimSuffix(specPath, filepath.Ext(specPath)) + ".tasks.json"
 	tf, err := model.ReadTaskFile(taskPath)
 	if err != nil {
+		// An absent task file is the normal spec-without-tasks case. A real
+		// read or parse error is surfaced: callers build user-facing claims on
+		// this result, and a swallowed error turns a corrupt task file into
+		// "no done task carries commit_shas" — the wrong problem.
+		if !os.IsNotExist(err) {
+			fmt.Fprintf(os.Stderr, "warning: cannot read task file %s; treating it as empty (%v)\n", taskPath, err)
+		}
 		return nil
 	}
 	return tf.Tasks
