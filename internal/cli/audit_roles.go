@@ -264,9 +264,10 @@ func buildRolePrompt(role string, rules []string, items []ChecklistItem, files [
 	}
 }
 
-// generateRoleAuditPrompts emits one prompt per non-empty role in the fixed
-// order spec-coverage, security, maintainability-conventions. A role whose
-// routed checklist is empty produces no prompt and is named in skipped_roles
+// generateRoleAuditPrompts emits one prompt per non-empty role in corpus
+// order. Only spec-coverage routes to a dedicated checklist and file
+// selection; every other role takes the shared arm. A role whose routed
+// checklist is empty produces no prompt and is named in skipped_roles
 // with reason no-checklist-items (§9.1).
 func generateRoleAuditPrompts(auditorRoles []model.Role, specItems, secItems, maintItems []ChecklistItem, sel *engine.AuditFileSelection, specContent, claudeExcerpt string, priorByRole map[string]*auditPriorRound, round, requiredClean, consecutiveClean, maxRounds int) ([]auditPrompt, []engine.SkippedRole) {
 	prompts := make([]auditPrompt, 0, len(auditorRoles))
@@ -283,10 +284,6 @@ func generateRoleAuditPrompts(auditorRoles []model.Role, specItems, secItems, ma
 		switch role.ID {
 		case roleSpecCoverage:
 			items, files = specItems, sel.SpecCoverage
-		case roleSecurity:
-			items, files = secItems, sel.CodeFiles
-		case roleMaintainability:
-			items, files = maintItems, sel.CodeFiles
 		default:
 			files = sel.CodeFiles
 			items = fileCheckItems(files, role.ID)
