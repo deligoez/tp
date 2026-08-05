@@ -14,8 +14,8 @@ import (
 const (
 	// AuditFileCap bounds every prompt's affected-files list.
 	AuditFileCap = 20
-	// MaintainabilityFileCap further bounds the maintainability-conventions list.
-	MaintainabilityFileCap = 10
+	// CodeFileCap further bounds the shared code-file list.
+	CodeFileCap = 10
 	// securityHeadLineCap bounds the content heuristic read at HEAD.
 	securityHeadLineCap = 200
 )
@@ -42,9 +42,9 @@ type AuditFileEntry struct {
 
 // AuditFileSelection holds the per-role affected-files lists.
 type AuditFileSelection struct {
-	SpecCoverage    []AuditFileEntry
-	Security        []AuditFileEntry
-	Maintainability []AuditFileEntry
+	SpecCoverage []AuditFileEntry
+	Security     []AuditFileEntry
+	CodeFiles    []AuditFileEntry
 }
 
 // AuditFileInputs carries the pre-collected facts the selection operates on,
@@ -64,9 +64,9 @@ func SelectAuditFiles(in *AuditFileInputs) AuditFileSelection {
 	universe := filterAuditUniverse(in)
 
 	return AuditFileSelection{
-		SpecCoverage:    selectSpecCoverage(in, universe),
-		Security:        selectSecurity(in, universe),
-		Maintainability: selectMaintainability(in, universe),
+		SpecCoverage: selectSpecCoverage(in, universe),
+		Security:     selectSecurity(in, universe),
+		CodeFiles:    selectCodeFiles(in, universe),
 	}
 }
 
@@ -173,11 +173,11 @@ func selectSecurity(in *AuditFileInputs, universe []string) []AuditFileEntry {
 	return entries
 }
 
-// selectMaintainability returns the first 10 universe files, regardless of content.
-func selectMaintainability(in *AuditFileInputs, universe []string) []AuditFileEntry {
-	entries := make([]AuditFileEntry, 0, MaintainabilityFileCap)
+// selectCodeFiles returns the first 10 universe files, regardless of content.
+func selectCodeFiles(in *AuditFileInputs, universe []string) []AuditFileEntry {
+	entries := make([]AuditFileEntry, 0, CodeFileCap)
 	for _, p := range universe {
-		if len(entries) >= MaintainabilityFileCap {
+		if len(entries) >= CodeFileCap {
 			break
 		}
 		entries = append(entries, AuditFileEntry{Path: p, Tasks: []string{}, DiffSummary: in.diffSummaryOf(p)})

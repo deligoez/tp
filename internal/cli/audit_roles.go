@@ -52,7 +52,7 @@ func routeChecklist(specEntries, findingsEntries []checklistEntry, sel *engine.A
 	}
 
 	sec = fileCheckItems(sel.Security, roleSecurity)
-	maint = fileCheckItems(sel.Maintainability, roleMaintainability)
+	maint = fileCheckItems(sel.CodeFiles, roleMaintainability)
 	return spec, sec, maint
 }
 
@@ -286,9 +286,9 @@ func generateRoleAuditPrompts(auditorRoles []model.Role, specItems, secItems, ma
 		case roleSecurity:
 			items, files = secItems, sel.Security
 		case roleMaintainability:
-			items, files = maintItems, sel.Maintainability
+			items, files = maintItems, sel.CodeFiles
 		default:
-			files = sel.Maintainability
+			files = sel.CodeFiles
 			items = fileCheckItems(files, role.ID)
 		}
 		if len(items) == 0 {

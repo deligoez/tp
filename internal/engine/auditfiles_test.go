@@ -96,15 +96,15 @@ func TestFilterFiles_Security(t *testing.T) {
 		"path match (lock) + content match (validate), alphabetical; absent-at-HEAD file judged by path alone")
 }
 
-func TestFilterFiles_Maintainability(t *testing.T) {
+func TestFilterFiles_CodeFiles(t *testing.T) {
 	in := &AuditFileInputs{}
 	for i := 14; i >= 0; i-- {
 		in.Universe = append(in.Universe, fmt.Sprintf("m%02d.go", i))
 	}
 	sel := SelectAuditFiles(in)
-	require.Len(t, sel.Maintainability, MaintainabilityFileCap)
-	assert.Equal(t, "m00.go", sel.Maintainability[0].Path, "alphabetical regardless of input order")
-	assert.Equal(t, "m09.go", sel.Maintainability[9].Path)
+	require.Len(t, sel.CodeFiles, CodeFileCap)
+	assert.Equal(t, "m00.go", sel.CodeFiles[0].Path, "alphabetical regardless of input order")
+	assert.Equal(t, "m09.go", sel.CodeFiles[9].Path)
 }
 
 func TestFilterFiles_DropsBinaryFixturesDeleted(t *testing.T) {
@@ -120,8 +120,8 @@ func TestFilterFiles_DropsBinaryFixturesDeleted(t *testing.T) {
 		Deleted: map[string]bool{"removed.go": true},
 	}
 	sel := SelectAuditFiles(in)
-	require.Len(t, sel.Maintainability, 1)
-	assert.Equal(t, "keep.go", sel.Maintainability[0].Path)
+	require.Len(t, sel.CodeFiles, 1)
+	assert.Equal(t, "keep.go", sel.CodeFiles[0].Path)
 	assert.Empty(t, sel.Security)
 	require.Len(t, sel.SpecCoverage, 1, "fallback list is also filtered")
 	assert.Equal(t, "keep.go", sel.SpecCoverage[0].Path)
@@ -129,7 +129,7 @@ func TestFilterFiles_DropsBinaryFixturesDeleted(t *testing.T) {
 
 func TestFilterFiles_DropFirstBackfill(t *testing.T) {
 	// 13-file diff whose first 10 alphabetical entries include 3 fixtures:
-	// drops filter before caps, so the 10-entry maintainability list backfills
+	// drops filter before caps, so the 10-entry code-file list backfills
 	// from the raw 11th-13th files and contains no fixture path.
 	universe := []string{
 		"a01.go", "a02.golden", "a03.go", "a04.go", "testdata/a05.json",
@@ -137,10 +137,10 @@ func TestFilterFiles_DropFirstBackfill(t *testing.T) {
 		"z11.go", "z12.go", "z13.go",
 	}
 	sel := SelectAuditFiles(&AuditFileInputs{Universe: universe})
-	require.Len(t, sel.Maintainability, MaintainabilityFileCap, "13 - 3 = 10 eligible")
-	for _, e := range sel.Maintainability {
+	require.Len(t, sel.CodeFiles, CodeFileCap, "13 - 3 = 10 eligible")
+	for _, e := range sel.CodeFiles {
 		assert.NotContains(t, e.Path, "testdata/")
 		assert.NotContains(t, e.Path, ".golden")
 	}
-	assert.Equal(t, "z13.go", sel.Maintainability[9].Path, "tail backfilled from the raw 11th-13th files")
+	assert.Equal(t, "z13.go", sel.CodeFiles[9].Path, "tail backfilled from the raw 11th-13th files")
 }
