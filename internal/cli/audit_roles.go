@@ -398,7 +398,7 @@ func claudeConventionsExcerpt(lines []string) string {
 // auditDiffStats parses `git diff --numstat` into path -> {added, deleted}.
 func auditDiffStats(base string) map[string][2]int {
 	args := []string{"diff", "--numstat"}
-	if base != "" {
+	if base != "" && engine.SafeGitRev(base) {
 		args = append(args, base)
 	}
 	out, err := exec.Command("git", args...).Output()
@@ -424,7 +424,7 @@ func auditDiffStats(base string) map[string][2]int {
 // auditDeletedFiles lists files deleted in the diff.
 func auditDeletedFiles(base string) map[string]bool {
 	args := []string{"diff", "--name-only", "--diff-filter=D"}
-	if base != "" {
+	if base != "" && engine.SafeGitRev(base) {
 		args = append(args, base)
 	}
 	out, err := exec.Command("git", args...).Output()
