@@ -16,8 +16,6 @@ const (
 	AuditFileCap = 20
 	// CodeFileCap further bounds the shared code-file list.
 	CodeFileCap = 10
-	// securityHeadLineCap bounds the content heuristic read at HEAD.
-	securityHeadLineCap = 200
 )
 
 // priorityPathSubstrings mark paths that rank ahead of the rest.
@@ -43,7 +41,6 @@ type AuditFileEntry struct {
 // AuditFileSelection holds the per-role affected-files lists.
 type AuditFileSelection struct {
 	SpecCoverage []AuditFileEntry
-	Security     []AuditFileEntry
 	CodeFiles    []AuditFileEntry
 	// SpecCoverageTotal and CodeFilesTotal carry each list's pre-cap size, so a
 	// prompt can report how much of the pool the cap left out.
@@ -70,7 +67,6 @@ func SelectAuditFiles(in *AuditFileInputs) AuditFileSelection {
 
 	return AuditFileSelection{
 		SpecCoverage:      specCoverage,
-		Security:          selectSecurity(in, universe),
 		CodeFiles:         selectCodeFiles(in, universe),
 		SpecCoverageTotal: specCoverageTotal,
 		CodeFilesTotal:    len(universe),
@@ -159,28 +155,6 @@ func selectSpecCoverage(in *AuditFileInputs, universe []string) (selected []Audi
 	return entries, len(mapped)
 }
 
-// selectSecurity keeps universe files whose path contains a security
-// substring, or whose first 200 lines at HEAD do; files absent at HEAD are
-// judged by the path heuristic alone. Alphabetical, capped at 20.
-func selectSecurity(in *AuditFileInputs, universe []string) []AuditFileEntry {
-	entries := make([]AuditFileEntry, 0, AuditFileCap)
-	for _, p := range universe {
-		if len(entries) >= AuditFileCap {
-			break
-		}
-		match := matchesPriorityPath(strings.ToLower(p))
-		if !match && in.HeadReader != nil {
-			if content, ok := in.HeadReader(p); ok {
-				match = matchesPriorityPath(strings.ToLower(headLines(content, securityHeadLineCap)))
-			}
-		}
-		if match {
-			entries = append(entries, AuditFileEntry{Path: p, Tasks: []string{}, DiffSummary: in.diffSummaryOf(p)})
-		}
-	}
-	return entries
-}
-
 // selectCodeFiles orders the filtered universe with path-keyword-matching files
 // first and every other file after, each group alphabetical, capped at
 // CodeFileCap. A non-empty universe therefore never yields an empty list.
@@ -214,15 +188,6 @@ func matchesPriorityPath(s string) bool {
 		}
 	}
 	return false
-}
-
-// headLines returns the first n lines of content.
-func headLines(content []byte, n int) string {
-	lines := strings.SplitN(string(content), "\n", n+1)
-	if len(lines) > n {
-		lines = lines[:n]
-	}
-	return strings.Join(lines, "\n")
 }
 
 // GitTaskFileMapping maps each universe file to the sorted ids of tasks whose
