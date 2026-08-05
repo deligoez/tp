@@ -47,6 +47,16 @@
       "spec_hash": "sha256:0a33e51f561559fe04abc784ea30e54759b6698f56e938b662c0d7c2cc2baeb0",
       "roles_hash": "sha256:53bf392c9016762750bbc6af1eb8ce528844b8e809ce4b55166bc1c9f4b68de7",
       "harness_note": "Same orchestrator framing as round 4, with one addition: roles were told that a finding merely rephrasing a resolved one, or proposing a stylistic preference, is worse than silence because it costs a whole extra round. Roles also received the list of what changed since round 4 and, for tester and implementer, an instruction to verify the new mechanical check's claim rather than trust it."
+    },
+    {
+      "round": 6,
+      "findings": 7,
+      "clean": false,
+      "recorded_at": "2026-08-05T10:27:59Z",
+      "file": "review-round-6.ndjson",
+      "spec_hash": "sha256:e6d7e480cdb670cd46053c06ed3f1ae7c1498c952c9a91961f33366ad12abc6e",
+      "roles_hash": "sha256:53bf392c9016762750bbc6af1eb8ce528844b8e809ce4b55166bc1c9f4b68de7",
+      "harness_note": "Same framing as round 5. Roles were additionally told this round is a validation pass over the round-5 corrections, given the list of what changed, and asked to prioritise 'a correction that introduced a new error'."
     }
   ],
   "audit_rounds": []
