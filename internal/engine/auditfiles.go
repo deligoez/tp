@@ -20,8 +20,8 @@ const (
 	securityHeadLineCap = 200
 )
 
-// securitySubstrings mark security-relevant paths and file heads.
-var securitySubstrings = []string{"lock", "validate", "auth", "secret", "perm"}
+// priorityPathSubstrings mark paths that rank ahead of the rest.
+var priorityPathSubstrings = []string{"lock", "validate", "auth", "secret", "perm"}
 
 // auditBinaryExtensions mirrors the binary-file check used at audit time.
 var auditBinaryExtensions = map[string]bool{
@@ -168,10 +168,10 @@ func selectSecurity(in *AuditFileInputs, universe []string) []AuditFileEntry {
 		if len(entries) >= AuditFileCap {
 			break
 		}
-		match := containsSecuritySubstring(strings.ToLower(p))
+		match := matchesPriorityPath(strings.ToLower(p))
 		if !match && in.HeadReader != nil {
 			if content, ok := in.HeadReader(p); ok {
-				match = containsSecuritySubstring(strings.ToLower(headLines(content, securityHeadLineCap)))
+				match = matchesPriorityPath(strings.ToLower(headLines(content, securityHeadLineCap)))
 			}
 		}
 		if match {
@@ -188,7 +188,7 @@ func selectCodeFiles(in *AuditFileInputs, universe []string) []AuditFileEntry {
 	priority := make([]string, 0, len(universe))
 	rest := make([]string, 0, len(universe))
 	for _, p := range universe {
-		if containsSecuritySubstring(strings.ToLower(p)) {
+		if matchesPriorityPath(strings.ToLower(p)) {
 			priority = append(priority, p)
 			continue
 		}
@@ -207,8 +207,8 @@ func selectCodeFiles(in *AuditFileInputs, universe []string) []AuditFileEntry {
 	return entries
 }
 
-func containsSecuritySubstring(s string) bool {
-	for _, sub := range securitySubstrings {
+func matchesPriorityPath(s string) bool {
+	for _, sub := range priorityPathSubstrings {
 		if strings.Contains(s, sub) {
 			return true
 		}
