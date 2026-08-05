@@ -60,6 +60,16 @@
       "spec_hash": "sha256:922de994f7e29db74d89ed35cf2ba4f4905a5d836317c9f2677cbc757fd86ddf",
       "roles_hash": "sha256:53bf392c9016762750bbc6af1eb8ce528844b8e809ce4b55166bc1c9f4b68de7",
       "harness_note": "Roles were told §2.6's guard was removed entirely (its claim was false: ReviewRoundClean is per-round) and that deactivating spec-coverage is now refused. architect was asked to hunt the recurring 'promises a protection tp does not perform' pattern; regression was told a removal is the highest-risk diff."
+    },
+    {
+      "round": 7,
+      "findings": 30,
+      "clean": false,
+      "recorded_at": "2026-08-05T19:18:19Z",
+      "file": "review-round-7.ndjson",
+      "spec_hash": "sha256:c4a65ad134508e005ee37771a89cfd99a02590307be9cf883c48af13ad4c5dae",
+      "roles_hash": "sha256:53bf392c9016762750bbc6af1eb8ce528844b8e809ce4b55166bc1c9f4b68de7",
+      "harness_note": "regression was asked to verify every round-6 resolution claim against the spec text, after round 5 recorded four findings as fixed against an edit never made. ax-economist was told returning zero findings is a valid answer."
     }
   ],
   "audit_rounds": []
