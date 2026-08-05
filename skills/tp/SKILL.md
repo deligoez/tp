@@ -137,7 +137,7 @@ Same as B. `tp plan` excludes done tasks, puts WIP first. The audit loop applies
 
 Repeat until `tp audit <spec> --status --check` exits 0:
 
-1. `tp audit <spec>` — emits one prompt per active auditor role from the corpus (defaults: `spec-coverage`, `security`, `maintainability-conventions`) with an embedded JSON-array checklist and per-role affected files. Auto-detects changed files via git diff; `--affected-files` overrides, or `--affected-from-tasks` audits exactly the files touched by done tasks' `commit_shas` (the common post-implementation case needs no manual list). When no audit-able file is found it exits 4 with `suggested_files` (the same commit-derived list) and a hint.
+1. `tp audit <spec>` — emits one prompt per active auditor role from the corpus (defaults: `spec-coverage`, `security`, `maintainability-conventions`) with an embedded JSON-array checklist and its affected files. **spec-coverage is the only auditor id that changes routing** — it alone takes the spec-derived checklist and its own file selection; every other role, built-in or user-defined, receives one `file_check` item per file over the same shared, ranked, capped code-file list. Auto-detects changed files via git diff; `--affected-files` overrides, or `--affected-from-tasks` audits exactly the files touched by done tasks' `commit_shas` (the common post-implementation case needs no manual list). When no audit-able file is found it exits 4 with `suggested_files` (the same commit-derived list) and a hint.
 2. Spawn one sub-agent per role prompt; each returns one NDJSON line per checklist item (`status` ∈ PASS/PARTIAL/FAIL).
 3. Merge the per-role files: `tp audit <spec> --merge r1.ndjson r2.ndjson ... -o results.ndjson` (dedups by `role`+`item_id`, reports a status/role breakdown), then record: `tp audit <spec> --record results.ndjson` — a row counts as a finding when `status` is absent or ≠ `PASS`; a clean round has zero findings. The audit round sequence is independent of review rounds.
 4. Fix the code for every non-PASS item.
@@ -222,6 +222,7 @@ Review and audit roles are **project-owned data** — one JSON file per role und
 - `.tp/reviewers/*.json` drives `tp review`; `.tp/auditors/*.json` drives `tp audit` (phase = directory). Schema `{id, title, instructions, focus[], domains[]}`; `id` MUST equal the filename stem (lowercase kebab-case); `regression` is reserved. Commit the corpus to VCS.
 - A populated phase directory **replaces** the embedded default corpus for that phase; absent/empty keeps tp's curated defaults (software: implementer/tester/architect + spec-coverage/security/maintainability-conventions; prose: coherence/soundness + spec-coverage/soundness). A project happy with defaults keeps **zero role files**.
 - `tp init --eject-roles [--domain software|prose] [--force]` writes the defaults as editable, byte-identical files; an unknown `--domain` is a usage error (exit 2). tp's own repo dogfoods a custom 4+4 corpus (adopted v0.26.0: implementer/tester/architect/ax-economist reviewers + spec-coverage/go-safety/maintainability-conventions/ax-contract auditors); a project happy with the embedded defaults still keeps zero role files.
+- The embedded default auditor prompts changed in v0.31.2 (language-neutral wording), and **ejected role files are not rewritten on upgrade** — a project that ran `tp init --eject-roles` keeps its old copies until it re-ejects with `--force`.
 - `tp lint`, `tp review`, and `tp audit` validate the corpus; a malformed role file aborts that phase with **exit 3** and a `repair or delete <path>` hint (a broken auditor never blocks review).
 
 Emission is corpus-driven: `tp review` emits one prompt per active reviewer role plus the built-in `regression` role (appended, never a corpus file); `tp audit` emits one per active auditor role. Every prompt stamps the output contract (`role, location, class, severity`; audit adds `status`). tp still only emits prompts — it never executes agents.
@@ -304,12 +305,12 @@ The wrapper is only for what tp cannot know — runtime setup (e.g. hook-blocked
 
 `tp audit` JSON is a **clean break** from v0.22.0 — downstream consumers (sub-agents, scripts) MUST update; there is no `--legacy-format` flag:
 
-- `prompts[].role` is now one of `spec-coverage` / `security` / `maintainability-conventions` (was always `implementation-auditor`).
+- `prompts[].role` is now any active auditor role id from the corpus (was always `implementation-auditor`).
 - `prompts[].category` is **removed**.
-- `prompts[].prompt` is structured (Role → Role Rules → Spec Excerpt → Project Context → JSON-array Checklist → Affected Files → Output Schema), not paragraph text.
+- `prompts[].prompt` is structured, not paragraph text. Shared-arm roles render Role → Role Rules → Project Context → JSON-array Checklist → Disposition → Affected Files → Output Schema; `spec-coverage` renders Role → Role Rules → Spec Excerpt → JSON-array Checklist → Affected Files → Output Schema.
 - `prompts[].checklist_items` (array of `ChecklistItem`) and `prompts[].affected_files` (`{path, tasks, diff_summary}`) are new.
 - Sub-agent output is NDJSON, one row per checklist item (`item_id`, `status`, `evidence_file`, `evidence_lines`, `category`, `severity`, `notes`, optional `class`).
-- `--affected-files` survives (replaces the diff universe before per-role filtering); `--findings` survives (`finding` items route to `spec-coverage`).
+- `--affected-files` survives (replaces the diff universe before the shared file selection); `--findings` survives (`finding` items route to `spec-coverage`).
 
 ## Project configuration (`.tp/config.json`)
 
