@@ -212,7 +212,7 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 		output.Info(w)
 	}
 
-	specItems, secItems, maintItems := routeChecklist(mainEntries, findingsEntries, &sel, invertTaskFiles(inputs.TaskFiles))
+	specItems, _, _ := routeChecklist(mainEntries, findingsEntries, &sel, invertTaskFiles(inputs.TaskFiles))
 
 	// §10.6 loop budget for prompt framing: the audit round being emitted
 	// (one past the last recorded), the consecutive clean rounds so far, and
@@ -224,7 +224,7 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 		auditRound = len(st.AuditRounds) + 1
 		auditConsecutive = engine.ConsecutiveClean(st.AuditRounds)
 	}
-	prompts, auditSkipped := generateRoleAuditPrompts(auditorRoles, specItems, secItems, maintItems, &sel, specContent, claudeMDExcerptFor(specPath), priorByRole, auditRound, auditWf.AuditCleanRounds, auditConsecutive, auditWf.AuditMaxRounds)
+	prompts, auditSkipped := generateRoleAuditPrompts(auditorRoles, specItems, &sel, specContent, claudeMDExcerptFor(specPath), priorByRole, auditRound, auditWf.AuditCleanRounds, auditConsecutive, auditWf.AuditMaxRounds)
 	// §9.1: name every non-emitted auditor — empty-checklist roles above plus
 	// any domain-filtered user corpus roles.
 	auditSkipped = append(auditSkipped, engine.DomainSkippedRoles(filepath.Dir(specPath), fmAudit.Domain, engine.PhaseAuditors)...)
