@@ -474,6 +474,12 @@ func resolveAuditFiles(specPath string, affectedFiles []string, base string) ([]
 func detectChangedFiles(dir, base string) ([]string, error) {
 	var allFiles []string
 
+	// A base that git would read as an option must never be concatenated into
+	// a revision range; runAudit rejects one up front, and this is the sink.
+	if base != "" && !engine.SafeGitRev(base) {
+		return nil, fmt.Errorf("invalid --base %q: must not start with %q", base, "-")
+	}
+
 	if base != "" {
 		unstaged := execGitDiff(dir, "diff", "--name-only", base+"...HEAD")
 		if len(unstaged) == 0 && !gitExists(dir) {
@@ -791,6 +797,12 @@ func expandCommaFiles(files []string) []string {
 // tree — §5.1c). execGitDiff is a generic "run git, return non-empty stdout
 // lines" helper, so it serves git show as well as git diff.
 func execCommitFiles(dir, sha string) []string {
+	// A sha reaches here from the task file, which import and add also write,
+	// so the entry-point check in resolveCommitSHAs is not the only writer.
+	// Guard the sink (engine.SafeGitRev).
+	if !engine.SafeGitRev(sha) {
+		return nil
+	}
 	return execGitDiff(dir, "show", "--name-only", "--pretty=format:", sha)
 }
 
