@@ -76,19 +76,32 @@ func TestRouteChecklist_Disjoint(t *testing.T) {
 
 // TestGenerateAuditPrompts_EmptyRoleOmitted: a role with zero checklist
 // items is absent from prompts.
-func TestGenerateAuditPrompts_EmptyRoleOmitted(t *testing.T) {
+// TestGenerateAuditPrompts_SharedArmReachesEveryRole: the shared code-file
+// list has no relevance filter, so a single file matching no priority keyword
+// still gives security one file_check item — no role is skipped (§7 item 1).
+func TestGenerateAuditPrompts_SharedArmReachesEveryRole(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "plain.go"), []byte("package main\n"), 0o600))
 
-	stdout, _, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "plain.go")
-	require.Equal(t, 0, code)
+	stdout, stderr, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "plain.go")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
 
 	byRole := auditPromptsByRole(t, stdout)
-	_, hasSecurity := byRole["security"]
-	assert.True(t, hasSecurity, "security takes the shared code-file list, so plain.go still reaches it")
+	secItems, ok := byRole["security"]
+	require.True(t, ok, "security is emitted from the shared code-file list")
+	items := secItems["checklist_items"].([]any)
+	require.Len(t, items, 1, "one file_check item, one per selected code file")
+	item := items[0].(map[string]any)
+	assert.Equal(t, "file_check", item["type"])
+	assert.Equal(t, "plain.go", item["section"])
+
 	assert.Contains(t, byRole, "spec-coverage")
 	assert.Contains(t, byRole, "maintainability-conventions")
+
+	var out map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+	assert.Equal(t, []any{}, out["skipped_roles"], "every auditor role emits a prompt")
 }
 
 // TestAudit_ContentKeywordDoesNotPromote: with the HEAD content channel gone,
