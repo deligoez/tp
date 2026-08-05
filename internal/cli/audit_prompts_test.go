@@ -189,3 +189,48 @@ func findItemEvidence(t *testing.T, prompt map[string]any, itemID string) string
 	t.Fatalf("item %s not found", itemID)
 	return ""
 }
+
+// TestAuditPrompts_PromptEqualityAcrossInvocations pins the §2.1 claim that no
+// role id branch survives in prompt construction, under the §2.9 fixture whose
+// every clause is load-bearing:
+//
+//  1. two separate audit invocations, one per id — two roles in one corpus
+//     would differ by the per-role inliner, which only the first emitted role
+//     takes;
+//  2. a corpus holding exactly one role and no spec-coverage, which emission
+//     order would otherwise put first and hand the inliner latch to;
+//  3. ids of equal length differing only in their final character, so the
+//     40-character truncation of the id-bearing item slug cuts both at the
+//     same point and a whole-token substitution maps one onto the other.
+func TestAuditPrompts_PromptEqualityAcrossInvocations(t *testing.T) {
+	const roleA, roleB = "security", "securitz"
+	require.Len(t, roleB, len(roleA), "the fixture ids must be of equal length")
+	require.Equal(t, roleA[:len(roleA)-1], roleB[:len(roleB)-1],
+		"the fixture ids must differ only in their final character")
+
+	run := func(roleID string) map[string]any {
+		t.Helper()
+		dir := t.TempDir()
+		require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
+		audDir := filepath.Join(dir, ".tp", "auditors")
+		require.NoError(t, os.MkdirAll(audDir, 0o755))
+		role := `{"id":"` + roleID + `","title":"Fixture Role","instructions":"Fixture instructions.","focus":["one fixture rule"]}`
+		require.NoError(t, os.WriteFile(filepath.Join(audDir, roleID+".json"), []byte(role), 0o600))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "auth_helper.go"), []byte("package main\n"), 0o600))
+
+		stdout, stderr, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "auth_helper.go")
+		require.Equal(t, 0, code, "audit failed for %s: %s", roleID, stderr)
+		byRole := auditPromptsByRole(t, stdout)
+		require.Len(t, byRole, 1, "the corpus holds exactly one role, so exactly one prompt is emitted")
+		require.Contains(t, byRole, roleID)
+		return byRole[roleID]
+	}
+
+	a, b := run(roleA), run(roleB)
+
+	assert.Equal(t, a["output_path"].(string), strings.ReplaceAll(b["output_path"].(string), roleB, roleA),
+		"the output paths differ only by the role id token")
+	assert.Equal(t, a["prompt"].(string), strings.ReplaceAll(b["prompt"].(string), roleB, roleA),
+		"the two prompts are byte-identical after substituting the role id token; any surviving id branch in prompt construction fails here")
+}
