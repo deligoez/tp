@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.31.2.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-08-05T10:55:49.5963Z",
+  "updated_at": "2026-08-05T11:08:29.794054Z",
   "workflow": {
     "checks": [
       {
@@ -334,7 +334,7 @@
     {
       "id": "fix-empty-role-test",
       "title": "Invert the empty-role omission test",
-      "status": "open",
+      "status": "done",
       "tags": [
         "test"
       ],
@@ -347,16 +347,23 @@
         "### 2.8 Existing tests this change invalidates"
       ],
       "source_lines": "113-113",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-05T11:03:57.374989Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-05T11:04:54.392854Z",
+      "closed_reason": "- TestGenerateAuditPrompts_EmptyRoleOmitted is rewritten (and renamed TestGenerateAuditPrompts_SharedArmReachesEveryRole) to assert security IS emitted with exactly one checklist item of type file_check whose section is plain.go, instead of asserting the role is absent.\n- The same test is §7 item 1's regression guard: on a spec with structured elements and one affected code file matching no priority keyword, spec-coverage, security and maintainability-conventions all emit prompts and skipped_roles equals [].\n- The quality gate (go test ./... \u0026\u0026 golangci-lint run) passes: all four packages ok, 0 lint issues.",
+      "gate_passed_at": "2026-08-05T11:04:54.392854Z",
+      "commit_sha": "42927a4",
+      "commit_shas": [
+        "42927a4"
+      ],
+      "commit_files": [
+        "internal/cli/audit_routing_test.go"
+      ]
     },
     {
       "id": "fix-route-disjoint-test",
       "title": "Rewrite the route disjointness test",
-      "status": "open",
+      "status": "done",
       "tags": [
         "test"
       ],
@@ -369,16 +376,23 @@
         "### 2.8 Existing tests this change invalidates"
       ],
       "source_lines": "114-114",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-05T11:04:57.997833Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-05T11:06:10.18305Z",
+      "closed_reason": "- TestRouteChecklist_Disjoint stays a black-box cli_test that shells the binary and parses the emitted JSON; it now collects the spec-coverage item ids and asserts each is a spec-derived type (table_row, list_item, task_acceptance, finding) and that no such id appears in any other role's checklist.\n- Its keyword-filter assertion is replaced by a loop over every non-spec-coverage role asserting each item is type file_check with a slug-based file-\u003crole\u003e- id, and that each role's sections equal the whole shared list [auth_helper.go plain.go] and are identical across roles.\n- The quality gate (go test ./... \u0026\u0026 golangci-lint run) passes: all four packages ok, 0 lint issues.",
+      "gate_passed_at": "2026-08-05T11:06:10.18305Z",
+      "commit_sha": "6a84d1f",
+      "commit_shas": [
+        "6a84d1f"
+      ],
+      "commit_files": [
+        "internal/cli/audit_routing_test.go"
+      ]
     },
     {
       "id": "fix-filefiltercap-test",
       "title": "Tighten the file filter cap test",
-      "status": "open",
+      "status": "done",
       "tags": [
         "test"
       ],
@@ -391,16 +405,25 @@
         "### 2.8 Existing tests this change invalidates"
       ],
       "source_lines": "120-121",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-05T11:06:13.781277Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-05T11:07:21.518694Z",
+      "closed_reason": "- TestAudit_FileFilterCap now asserts assert.Len(security affected_files, 10) instead of LessOrEqual 20, so the 50-file fixture is the committed end-to-end exercise of CodeFileCap rather than a silently-loosened bound.\n- TestAuditFileCaps_Literals (internal/engine/auditfiles_test.go) asserts CodeFileCap == 10 and AuditFileCap == 20, so a silent cap change fails a test.\n- TestAudit_FileFilterCap additionally loops over every non-spec-coverage role in the same invocation and asserts each role's affected_files path list is identical to the first one seen.\n- The quality gate (go test ./... \u0026\u0026 golangci-lint run) passes: all four packages ok, 0 lint issues.",
+      "gate_passed_at": "2026-08-05T11:07:21.518694Z",
+      "commit_sha": "a8d5f73",
+      "commit_shas": [
+        "a8d5f73",
+        "2c5a99a"
+      ],
+      "commit_files": [
+        "internal/cli/integration_test.go",
+        "internal/engine/auditfiles_test.go"
+      ]
     },
     {
       "id": "ungate-project-context",
       "title": "Ungate the project conventions block",
-      "status": "open",
+      "status": "done",
       "tags": [
         "prompt"
       ],
@@ -413,16 +436,27 @@
         "### 2.3 Every non-spec-coverage role receives the project conventions"
       ],
       "source_lines": "47-54",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-05T10:56:51.842723Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-05T10:59:00.82374Z",
+      "closed_reason": "- buildRolePrompt's Project Context gate now reads role != roleSpecCoverage \u0026\u0026 claudeExcerpt != \"\", so every shared-arm role receives the CLAUDE.md conventions block and spec-coverage never does; verified by the internal/cli test suite.\n- TestGenerateAuditPrompts_CLAUDEmdOnlyForMaintainability is renamed to TestGenerateAuditPrompts_CLAUDEmdForEveryNonSpecCoverageRole and rewritten to loop over every emitted prompt, asserting the conventions marker in each non-spec-coverage prompt and its absence from spec-coverage.\n- The quality gate (go test ./... \u0026\u0026 golangci-lint run) passes: all four packages ok, 0 lint issues.\n- Out of scope: TestAuditPrompts_BodyOrderAndEmbedding's NotContains \"## Project Context\" assertion for security was invalidated by this change; it was minimally inverted to Contains to keep the gate green, and fix-body-order-test owns its full rewrite.",
+      "gate_passed_at": "2026-08-05T10:59:00.82374Z",
+      "commit_sha": "d0c9b27",
+      "commit_shas": [
+        "d0c9b27",
+        "0b4fa6b",
+        "dd7918f"
+      ],
+      "commit_files": [
+        "internal/cli/audit_named_test.go",
+        "internal/cli/audit_prompts_test.go",
+        "internal/cli/audit_roles.go"
+      ]
     },
     {
       "id": "render-disposition",
       "title": "Render the disposition paragraph once",
-      "status": "open",
+      "status": "done",
       "tags": [
         "prompt"
       ],
@@ -435,16 +469,25 @@
         "### 2.2 A file outside a role's lens is a PASS"
       ],
       "source_lines": "29-46",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-05T10:59:04.121014Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-05T11:00:36.104278Z",
+      "closed_reason": "- buildRolePrompt now writes the verbatim auditDispositionBlock constant exactly once immediately after the ## Checklist block, gated on role != roleSpecCoverage, so every shared-arm prompt carries it and spec-coverage never does.\n- expected_evidence is untouched and stays the existing short 'inspect file: \u003cpath\u003e' form built by fileCheckItems.\n- TestAuditPrompts_DispositionBlock asserts strings.Count(prompt, dispositionParagraph) == 1 per shared-arm role, its absence from spec-coverage, idxChecklist \u003c idxDisposition \u003c idxFiles, and that no checklist item's expected_evidence contains the word PASS.\n- The quality gate (go test ./... \u0026\u0026 golangci-lint run) passes: all four packages ok, 0 lint issues.",
+      "gate_passed_at": "2026-08-05T11:00:36.104278Z",
+      "commit_sha": "b30be00",
+      "commit_shas": [
+        "b30be00",
+        "1f82063"
+      ],
+      "commit_files": [
+        "internal/cli/audit_prompts_test.go",
+        "internal/cli/audit_roles.go"
+      ]
     },
     {
       "id": "files-header-forms",
       "title": "Render the affected-files header forms",
-      "status": "open",
+      "status": "done",
       "tags": [
         "prompt"
       ],
@@ -458,16 +501,25 @@
         "### 2.6 The affected-files header states the real cap"
       ],
       "source_lines": "73-81",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-05T11:00:39.694681Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-05T11:02:58.39251Z",
+      "closed_reason": "- buildRolePrompt now takes fileCap and fileTotal and renders '## Affected Files (max \u003ccap\u003e)' when fileTotal \u003c= len(files), otherwise '## Affected Files (\u003clen(files)\u003e of \u003cfileTotal\u003e)'; generateRoleAuditPrompts passes engine.AuditFileCap/sel.SpecCoverageTotal on the spec-coverage arm and engine.CodeFileCap/sel.CodeFilesTotal on the shared arm.\n- A spec-coverage prompt whose selection is untruncated renders the untruncated form naming 20, asserted on a 14-file universe where the spec-coverage list is complete.\n- TestAuditPrompts_AffectedFilesHeaderForms covers both forms: the counted '10 of 14' on the shared arm (with a dropped .png and a testdata fixture in the universe, so the total is post-drop), the spec-coverage 'max 20' case, and a single-file run rendering 'max 10' on the shared arm.\n- The quality gate (go test ./... \u0026\u0026 golangci-lint run) passes: all four packages ok, 0 lint issues.\n- Out of scope: TestCloseStrategy_BuiltinAutoCommitWorks failed once under the full-suite run and passed on re-run in isolation and in a full re-run; it looks like a pre-existing flake unrelated to prompt rendering.",
+      "gate_passed_at": "2026-08-05T11:02:58.39251Z",
+      "commit_sha": "ae674a2",
+      "commit_shas": [
+        "ae674a2",
+        "fa46652"
+      ],
+      "commit_files": [
+        "internal/cli/audit_prompts_test.go",
+        "internal/cli/audit_roles.go"
+      ]
     },
     {
       "id": "fix-body-order-test",
       "title": "Update the prompt body order test",
-      "status": "open",
+      "status": "done",
       "tags": [
         "test"
       ],
@@ -482,11 +534,18 @@
         "### 2.8 Existing tests this change invalidates"
       ],
       "source_lines": "112-112",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-05T11:03:04.633984Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-05T11:03:54.576416Z",
+      "closed_reason": "- TestAuditPrompts_BodyOrderAndEmbedding no longer asserts anything about ## Project Context in the security prompt (the assertion ungate-project-context had inverted to keep the gate green is deleted), while the spec-coverage NotContains assertion is kept unchanged.\n- Its header lookup is now strings.Index(spec, \"## Affected Files (\"), a prefix match that survives both §2.6 header forms instead of the full max-20 literal.\n- The quality gate (go test ./... \u0026\u0026 golangci-lint run) passes: all four packages ok, 0 lint issues.",
+      "gate_passed_at": "2026-08-05T11:03:54.576416Z",
+      "commit_sha": "07a3980",
+      "commit_shas": [
+        "07a3980"
+      ],
+      "commit_files": [
+        "internal/cli/audit_prompts_test.go"
+      ]
     },
     {
       "id": "test-prompt-equality",
@@ -513,7 +572,7 @@
     {
       "id": "test-skip-outcomes",
       "title": "Cover the empty code-file skip path",
-      "status": "open",
+      "status": "done",
       "tags": [
         "test"
       ],
@@ -526,11 +585,18 @@
         "### 2.7 The skip outcomes that survive"
       ],
       "source_lines": "82-90",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-05T11:07:26.261131Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-05T11:08:29.78191Z",
+      "closed_reason": "- TestAudit_AllFilesDroppedSkipsCodeRoles runs an audit whose only affected files are a testdata/ path and a .golden path, so filterAuditUniverse drops both: it asserts exit code 0, that skipped_roles is exactly {security: no-checklist-items, maintainability-conventions: no-checklist-items}, and that neither role emits a prompt while spec-coverage still does.\n- TestAuditSkippedRoles_NoChecklistItems (the spec-coverage empty-checklist skip test) is untouched and stays green, verified by running both tests together.\n- The quality gate (go test ./... \u0026\u0026 golangci-lint run) passes: all four packages ok, 0 lint issues.",
+      "gate_passed_at": "2026-08-05T11:08:29.78191Z",
+      "commit_sha": "48a3e1e",
+      "commit_shas": [
+        "48a3e1e"
+      ],
+      "commit_files": [
+        "internal/cli/audit_routing_test.go"
+      ]
     },
     {
       "id": "corpus-security-focus",
