@@ -50,6 +50,16 @@
       "spec_hash": "sha256:7c5c7b17b8dc6a569cedefba8dc679a6bace1a2f1db54429634eb5cdbfdf81aa",
       "roles_hash": "sha256:53bf392c9016762750bbc6af1eb8ce528844b8e809ce4b55166bc1c9f4b68de7",
       "harness_note": "Round-4 repairs were deliberately minimal (+154 words). Roles were told rationale removal was intentional and instructed not to report 'no longer explains why'. architect was asked whether stating the --quiet gap resolves or merely discloses the advisory-as-safeguard problem, and what happens when spec-coverage is deactivated; ax-economist was asked whether the shrunken feature is still worth shipping and to justify it in savings."
+    },
+    {
+      "round": 6,
+      "findings": 30,
+      "clean": false,
+      "recorded_at": "2026-08-05T18:51:46Z",
+      "file": "review-round-6.ndjson",
+      "spec_hash": "sha256:922de994f7e29db74d89ed35cf2ba4f4905a5d836317c9f2677cbc757fd86ddf",
+      "roles_hash": "sha256:53bf392c9016762750bbc6af1eb8ce528844b8e809ce4b55166bc1c9f4b68de7",
+      "harness_note": "Roles were told §2.6's guard was removed entirely (its claim was false: ReviewRoundClean is per-round) and that deactivating spec-coverage is now refused. architect was asked to hunt the recurring 'promises a protection tp does not perform' pattern; regression was told a removal is the highest-risk diff."
     }
   ],
   "audit_rounds": []
