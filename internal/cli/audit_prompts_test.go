@@ -62,7 +62,7 @@ func TestAuditPrompts_BodyOrderAndEmbedding(t *testing.T) {
 	assert.Contains(t, maint, "## Project Context")
 	assert.Contains(t, maint, "exit codes 0-4", "Conventions section excerpt included")
 	assert.NotContains(t, maint, "ignored", "excerpt stops at the next heading")
-	assert.NotContains(t, sec, "## Project Context")
+	assert.Contains(t, sec, "## Project Context")
 	assert.NotContains(t, spec, "## Project Context")
 }
 
