@@ -57,7 +57,7 @@ func TestAudit_FileFilterCap(t *testing.T) {
 
 	files := make([]string, 0, 50)
 	for i := 0; i < 50; i++ {
-		name := fmt.Sprintf("auth_%02d.go", i) // all security-matching by path
+		name := fmt.Sprintf("auth_%02d.go", i) // all priority-matching by path
 		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte("package main\n"), 0o600))
 		files = append(files, "--affected-files", name)
 	}
@@ -66,8 +66,29 @@ func TestAudit_FileFilterCap(t *testing.T) {
 	require.Equal(t, 0, code, "stderr: %s", stderr)
 
 	byRole := auditPromptsByRole(t, stdout)
-	assert.LessOrEqual(t, len(byRole["security"]["affected_files"].([]any)), 20, "affected_files capped at 20")
-	assert.LessOrEqual(t, len(byRole["maintainability-conventions"]["affected_files"].([]any)), 10, "maintainability capped at 10")
+	require.Contains(t, byRole, "security")
+	require.Contains(t, byRole, "maintainability-conventions")
+	// The shared code-file list is bounded by CodeFileCap, not AuditFileCap.
+	assert.Len(t, byRole["security"]["affected_files"].([]any), 10, "the shared code-file list is capped at exactly 10")
+	assert.Len(t, byRole["maintainability-conventions"]["affected_files"].([]any), 10, "the shared code-file list is capped at exactly 10")
+
+	// One invocation, one shared list: every non-spec-coverage role sees it.
+	var shared []string
+	for role, p := range byRole {
+		if role == "spec-coverage" {
+			continue
+		}
+		paths := make([]string, 0)
+		for _, af := range p["affected_files"].([]any) {
+			paths = append(paths, af.(map[string]any)["path"].(string))
+		}
+		if shared == nil {
+			shared = paths
+			continue
+		}
+		assert.Equal(t, shared, paths, "role %s receives the same affected-files list", role)
+	}
+	require.NotNil(t, shared, "at least one non-spec-coverage role emitted")
 }
 
 func TestAudit_NoLegacyCategoryField(t *testing.T) {
