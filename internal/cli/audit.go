@@ -815,8 +815,10 @@ func expandCommaFiles(files []string) []string {
 func execCommitFiles(dir, sha string) []string {
 	// A sha reaches here from the task file, which import and add also write,
 	// so the entry-point check in resolveCommitSHAs is not the only writer.
-	// Guard the sink (engine.SafeGitRev).
+	// Guard the sink (engine.SafeGitRev) and say so: a silently shrunken file
+	// set makes the "no done task carries commit_shas" message a lie.
 	if !engine.SafeGitRev(sha) {
+		fmt.Fprintf(os.Stderr, "warning: commit sha %q was skipped; git would read it as an option\n", sha)
 		return nil
 	}
 	return execGitDiff(dir, "show", "--name-only", "--pretty=format:", sha)
