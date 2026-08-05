@@ -120,6 +120,17 @@
       "roles_hash": "sha256:730320c4db9d73cde41740c32ebcacba23380e89d7964db005f25085a432b9fd",
       "id_scheme": "slug",
       "harness_note": "Roles were told to verify the gate with SEPARATE explicit exit codes rather than a \u0026\u0026 chain, after a red gate reached round 4 unnoticed because a failing chain prints nothing. Two roles were additionally asked to convert a recurring observation into a decision (runAudit growth; eject partial-write) so it stops costing rounds."
+    },
+    {
+      "round": 7,
+      "findings": 0,
+      "clean": true,
+      "recorded_at": "2026-08-05T13:30:39Z",
+      "file": "audit-round-7.ndjson",
+      "spec_hash": "sha256:68c51909f663b7f29941eab16aec0b936570e739be3030be00e7874fdc6c56c2",
+      "roles_hash": "sha256:730320c4db9d73cde41740c32ebcacba23380e89d7964db005f25085a432b9fd",
+      "id_scheme": "slug",
+      "harness_note": "No code changed since round 6. Roles were told explicitly that rubber-stamping the previous clean round is worthless and to re-derive every verdict from the code, each with a concrete re-derivation task, plus the separate-exit-code gate check."
     }
   ]
 }
