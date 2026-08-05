@@ -20,6 +20,16 @@
       "spec_hash": "sha256:df0b6b12db87072e297b6b9d5262fb0c5c56dab9a1460427ce363c297e9645a2",
       "roles_hash": "sha256:53bf392c9016762750bbc6af1eb8ce528844b8e809ce4b55166bc1c9f4b68de7",
       "harness_note": "Roles were told the spec was rewritten rather than patched (treat as a new document), given the old-\u003enew section renumbering, and each asked to re-examine the change their own round-1 high drove: architect on whether deleting the old trim_candidate section leaves §1's cited complaint unanswered, ax-economist on whether §1.1's arithmetic overstates the saving, implementer on five load-bearing code claims, tester on the 16 test items."
+    },
+    {
+      "round": 3,
+      "findings": 52,
+      "clean": false,
+      "recorded_at": "2026-08-05T15:14:46Z",
+      "file": "review-round-3.ndjson",
+      "spec_hash": "sha256:16d7970ce190fdae20a2a607fa8b00c6d668392512adc0608addad209109c86a",
+      "roles_hash": "sha256:53bf392c9016762750bbc6af1eb8ce528844b8e809ce4b55166bc1c9f4b68de7",
+      "harness_note": "Roles were asked to re-derive the changes their own round-2 highs drove, and two were asked pointed questions about whether my fix opened a new door: architect on whether the --no-state carve-out makes the guard optional in practice, ax-economist on whether §2.6's doubled length is the feature's complexity or the tree's."
     }
   ],
   "audit_rounds": []
