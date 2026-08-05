@@ -867,11 +867,12 @@ func suggestFilesFromTasks(specPath string) []string {
 // all. It distinguishes the two ways suggestFilesFromTasks can return nothing:
 // no sha was ever recorded, or every recorded sha was rejected at the git sink.
 func auditTasksCarryAnySHA(specPath string) bool {
-	for _, task := range auditTasksOf(specPath) {
-		if task.Status != model.StatusDone {
+	tasks := auditTasksOf(specPath)
+	for i := range tasks {
+		if tasks[i].Status != model.StatusDone {
 			continue
 		}
-		for _, sha := range task.CommitSHAs {
+		for _, sha := range tasks[i].CommitSHAs {
 			if sha != "" {
 				return true
 			}
