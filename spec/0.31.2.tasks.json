@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.31.2.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-08-05T10:47:50.037706Z",
+  "updated_at": "2026-08-05T10:55:49.5963Z",
   "workflow": {
     "checks": [
       {
@@ -216,7 +216,7 @@
     {
       "id": "fix-filterfiles-tests",
       "title": "Update the remaining engine selection tests",
-      "status": "open",
+      "status": "done",
       "tags": [
         "test"
       ],
@@ -230,16 +230,17 @@
         "### 2.10 The inventory is checked mechanically"
       ],
       "source_lines": "115-119,134-141",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
+      "started_at": "2026-08-05T10:54:37.653219Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-05T10:55:49.596299Z",
+      "closed_reason": "- Every acceptance criterion was already delivered by two earlier tasks in this spec, so this unit produced no new code change. TestFilterFiles_DropsBinaryFixturesDeleted's assert.Empty(t, sel.Security) line was deleted by remove-security-selection (80db3d4) and its two list assertions now read sel.CodeFiles (renamed by rename-codefiles, 72610bd); verified by reading internal/engine/auditfiles_test.go lines 88-105.\n- TestFilterFiles_Maintainability is now TestFilterFiles_CodeFiles and TestFilterFiles_DropFirstBackfill reads sel.CodeFiles / CodeFileCap, both renamed mechanically by rename-codefiles (72610bd); verified by git grep, which finds no remaining sel.Security, sel.Maintainability, MaintainabilityFileCap, TestFilterFiles_Security or TestFilterFiles_Maintainability reference in internal/engine/auditfiles_test.go.\n- The mechanical inventory check exits 0: python3 scripts/check-test-inventory.py spec/0.31.2.md \"### 2.8 Existing tests this change invalidates\" reports 13 literals searched, 1 test referencing them, 1 named in the inventory, no drift.\n- The quality gate passes: go test ./... \u0026\u0026 golangci-lint run reports 0 issues.",
+      "gate_passed_at": "2026-08-05T10:55:49.596299Z",
       "commit_sha": null
     },
     {
       "id": "routing-two-arms",
       "title": "Reduce the routing switch to two arms",
-      "status": "open",
+      "status": "done",
       "tags": [
         "routing"
       ],
@@ -252,16 +253,25 @@
         "### 2.1 Only spec-coverage keeps a dedicated checklist source"
       ],
       "source_lines": "21-24",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-05T10:48:57.55894Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-05T10:51:53.649497Z",
+      "closed_reason": "- generateRoleAuditPrompts now switches on roleSpecCoverage only; every other role falls through to the shared default arm, which sets files = sel.CodeFiles and items = fileCheckItems(files, role.ID) so each role gets one file_check item per selected code file keyed on its own id. Verified by go test ./... (internal/cli green).\n- The security and maintainability-conventions switch arms are deleted, including the temporary sel.CodeFiles repointing the previous unit left on the security arm; the function's doc comment no longer enumerates the removed fixed role order.\n- The quality gate passes: go test ./... \u0026\u0026 golangci-lint run reports 0 issues.\n- Note: deleting the arms orphaned the secItems and maintItems parameters, and the unparam linter (enabled in .golangci.yml) fails the gate on an unused parameter, so those two parameters and their call-site arguments in runAudit were dropped in the same unit. That sentence of collapse-routechecklist's acceptance is therefore already satisfied; routeChecklist's own signature collapse, runAudit's three-value destructuring and the spec-coverage checklist test remain open for that task.",
+      "gate_passed_at": "2026-08-05T10:51:53.649497Z",
+      "commit_sha": "46c2edd",
+      "commit_shas": [
+        "46c2edd",
+        "e7923b7"
+      ],
+      "commit_files": [
+        "internal/cli/audit.go",
+        "internal/cli/audit_roles.go"
+      ]
     },
     {
       "id": "collapse-routechecklist",
       "title": "Collapse routeChecklist to one checklist",
-      "status": "open",
+      "status": "done",
       "tags": [
         "routing"
       ],
@@ -274,16 +284,27 @@
         "### 2.1 Only spec-coverage keeps a dedicated checklist source"
       ],
       "source_lines": "25-26",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-05T10:51:56.96623Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-05T10:53:23.377001Z",
+      "closed_reason": "- routeChecklist now returns a single []ChecklistItem holding the spec-coverage checklist: its sel *engine.AuditFileSelection argument and its sec/maint named return values are deleted, along with the two fileCheckItems calls that filled them. Verified by go build ./... and go test ./....\n- generateRoleAuditPrompts' secItems and maintItems parameters were already dropped in routing-two-arms (the unparam linter forced it there); runAudit now assigns a single specItems value instead of destructuring three, so no caller reads a per-role bucket. Verified by go build ./... and golangci-lint run.\n- New white-box test TestRouteChecklist_SpecCoverageOnly (internal/cli/audit_routechecklist_test.go, package cli) asserts routeChecklist returns exactly the list_item, table_row, task_acceptance and finding items in the pinned order, that no item is of type file_check, and that a task_acceptance item still carries its commit-file evidence. Verified by go test ./internal/cli.\n- The quality gate passes: go test ./... \u0026\u0026 golangci-lint run reports 0 issues.",
+      "gate_passed_at": "2026-08-05T10:53:23.377001Z",
+      "commit_sha": "8daf66b",
+      "commit_shas": [
+        "8daf66b",
+        "355318e",
+        "1060c4e"
+      ],
+      "commit_files": [
+        "internal/cli/audit.go",
+        "internal/cli/audit_roles.go",
+        "internal/cli/audit_routechecklist_test.go"
+      ]
     },
     {
       "id": "remove-role-constants",
       "title": "Delete the two orphaned role constants",
-      "status": "open",
+      "status": "done",
       "tags": [
         "routing"
       ],
@@ -296,11 +317,19 @@
         "### 2.1 Only spec-coverage keeps a dedicated checklist source"
       ],
       "source_lines": "27-28",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-05T10:53:28.884623Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-05T10:54:33.942861Z",
+      "closed_reason": "- The roleSecurity and roleMaintainability constants are deleted; the const block collapses to a single roleSpecCoverage = \"spec-coverage\" declaration documented as the one auditor id with a dedicated routing path. Verified by go build ./... and go test ./....\n- No source file references either deleted constant: a repository-wide search for roleSecurity and roleMaintainability now returns zero hits.\n- The quality gate passes with no unused symbol reported: go test ./... \u0026\u0026 golangci-lint run reports 0 issues (the unused linter is enabled in .golangci.yml).\n- Note: buildRolePrompt's \"## Project Context\" gate was still the last reader of roleMaintainability, so it now compares against the literal \"maintainability-conventions\" with a comment pointing at the section that removes the gate. Behavior is unchanged and ungate-project-context still owns deleting the condition.",
+      "gate_passed_at": "2026-08-05T10:54:33.942861Z",
+      "commit_sha": "89d00c9",
+      "commit_shas": [
+        "89d00c9",
+        "867c959"
+      ],
+      "commit_files": [
+        "internal/cli/audit_roles.go"
+      ]
     },
     {
       "id": "fix-empty-role-test",
