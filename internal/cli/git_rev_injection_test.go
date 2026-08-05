@@ -80,3 +80,32 @@ func TestGitRevInjection_BaseFlag(t *testing.T) {
 	_, err := os.Stat(victim)
 	assert.True(t, os.IsNotExist(err), "git never ran with the option-lookalike base")
 }
+
+// TestAuditTasksOf_NoWarningWhenTaskFileAbsent: model.ReadTaskFile wraps its
+// error with %w and os.IsNotExist does not unwrap, so a guard written with
+// os.IsNotExist never fires and the warning prints on every ordinary run of a
+// spec that simply has no task file. errors.Is is the working form.
+func TestAuditTasksOf_NoWarningWhenTaskFileAbsent(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "s.md"), []byte(injectionSpec), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "code.go"), []byte("package main\n"), 0o600))
+
+	_, stderr, code := runTP(t, dir, "audit", "s.md", "--affected-files", "code.go")
+	assert.Equal(t, 0, code)
+	assert.NotContains(t, stderr, "cannot read task file",
+		"a spec with no adjacent task file is the normal case, not a warning")
+}
+
+// TestAuditTasksOf_WarnsOnCorruptTaskFile: the other half of the same guard —
+// a task file that exists but cannot be parsed must be reported, because
+// callers build user-facing claims on the empty result.
+func TestAuditTasksOf_WarnsOnCorruptTaskFile(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "s.md"), []byte(injectionSpec), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "code.go"), []byte("package main\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "s.tasks.json"), []byte("{not json"), 0o600))
+
+	_, stderr, _ := runTP(t, dir, "audit", "s.md", "--affected-files", "code.go")
+	assert.Contains(t, stderr, "cannot read task file",
+		"a corrupt task file is a real error and must not be silently treated as empty")
+}
