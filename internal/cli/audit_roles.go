@@ -330,19 +330,24 @@ func generateRoleAuditPrompts(auditorRoles []model.Role, specItems []ChecklistIt
 		}
 		inlinedContent := ""
 		if f.hasFiles {
-			// A path tp cannot stat or read is never presented as complete
-			// (§10.7): the role gets named paths and reads them itself,
-			// rather than judging a body it never received.
+			// A path tp cannot read is never presented as complete (§10.7):
+			// the role is told to read that path itself rather than judging a
+			// body it never received. Only the failed path is withheld — the
+			// files tp did read stay inlined under the "(incomplete)" header,
+			// so one locked file does not send every role back to disk for the
+			// whole set.
+			inlined := false
 			if !inlinerDone {
-				if setBytes, unstatable := fileSetBytes(filePaths); len(unstatable) == 0 && setBytes <= perRoleReadingBudget {
-					if section, unreadable := fileSetRead(filePaths); len(unreadable) == 0 {
-						inlinedContent = section
-						f.filesComplete = true
-						inlinerDone = true
-					}
+				if fileSetBytes(filePaths) <= perRoleReadingBudget {
+					var unreadable []string
+					inlinedContent, unreadable = fileSetRead(filePaths)
+					f.filesComplete = len(unreadable) == 0
+					f.filesPartial = !f.filesComplete
+					f.filePaths = unreadable
+					inlinerDone, inlined = true, true
 				}
 			}
-			if !f.filesComplete {
+			if !inlined {
 				f.filePaths = filePaths
 			}
 		}

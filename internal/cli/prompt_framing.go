@@ -24,7 +24,8 @@ type promptFraming struct {
 	maxRounds        int      // round cap; 0 means no cap
 	outputPath       string   // §10.4: file this round's findings go to
 	filesComplete    bool     // §10.7: source-file contents are inlined & complete
-	filePaths        []string // §10.7: named paths when contents are NOT inlined
+	filesPartial     bool     // §10.7: contents inlined, but filePaths could not be read
+	filePaths        []string // §10.7: named paths whose contents are NOT inlined
 	hasFiles         bool     // §10.7: any source files are in scope for this role
 }
 
@@ -59,6 +60,11 @@ func renderFraming(f *promptFraming) string {
 		b.WriteString("no source files are carried; the spec content above is complete and authoritative.\n")
 	case f.filesComplete:
 		b.WriteString("the source file contents carried in this prompt are complete and authoritative; you need not read any file yourself.\n")
+	case f.filesPartial:
+		b.WriteString("the source file contents carried in this prompt are INCOMPLETE — tp inlined every file it could read, but these it could not; read these files yourself before judging them:\n")
+		for _, p := range f.filePaths {
+			fmt.Fprintf(&b, "  - %s\n", p)
+		}
 	default:
 		b.WriteString("this prompt names source files but does NOT inline their contents — read these files yourself before judging them:\n")
 		for _, p := range f.filePaths {
@@ -77,7 +83,9 @@ func renderFraming(f *promptFraming) string {
 // A non-empty unreadable slice means the section is incomplete, and a caller
 // must then never set promptFraming.filesComplete: a role told the carried
 // contents are complete and authoritative would report on a file whose body it
-// never received.
+// never received. The bodies that WERE read still travel with the prompt under
+// the "(incomplete)" header — a caller names only the failed paths for the role
+// to read itself, so one locked file costs that file and not the whole set.
 func fileSetRead(paths []string) (section string, unreadable []string) {
 	seen := make(map[string]bool, len(paths))
 	unreadable = make([]string, 0)
@@ -103,15 +111,15 @@ func fileSetRead(paths []string) (section string, unreadable []string) {
 	return header + body.String(), unreadable
 }
 
-// fileSetBytes reports the total on-disk byte size of the listed paths together
-// with the paths it could NOT stat. It is the cheap stat-only probe a caller
-// uses to decide the per-role inliner (§10.7) before reading any file body with
-// fileSetRead. A path tp cannot stat it cannot inline either, so a caller
-// treats a non-empty unstatable slice exactly like fileSetRead's unreadable
-// slice: the role gets named paths and reads them itself.
-func fileSetBytes(paths []string) (total int, unstatable []string) {
+// fileSetBytes reports the total on-disk byte size of the listed paths. It is
+// the cheap stat-only probe a caller uses to size the per-role inliner (§10.7)
+// before reading any file body with fileSetRead. A path it cannot stat
+// contributes nothing and is not reported separately: that path cannot be read
+// either, so fileSetRead returns it among its unreadable paths and the caller
+// names it there for the role to read itself.
+func fileSetBytes(paths []string) int {
 	seen := make(map[string]bool, len(paths))
-	unstatable = make([]string, 0)
+	total := 0
 	for _, p := range paths {
 		if p == "" || seen[p] {
 			continue
@@ -119,10 +127,9 @@ func fileSetBytes(paths []string) (total int, unstatable []string) {
 		seen[p] = true
 		info, err := os.Stat(p)
 		if err != nil {
-			unstatable = append(unstatable, p)
 			continue
 		}
 		total += int(info.Size())
 	}
-	return total, unstatable
+	return total
 }
