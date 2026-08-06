@@ -62,6 +62,9 @@ func ResolveOverrideFocus(roles []model.Role, fm *Frontmatter, phase string) (ef
 	// The drop set: every active role this spec deactivated with enabled: false.
 	// An id matching no active role takes the "matches no active role" path above
 	// and never lands here, so a corpus without the role produces no drop (§2.3).
+	// "Active" is post-domain-filter, so a role removed by domains and one whose
+	// file does not exist are both excluded: §2.5's empty-phase message carries
+	// only the ids this spec deactivated.
 	disabled = make([]string, 0)
 	for id, ov := range overrides {
 		if active[id] && ov.Enabled != nil && !*ov.Enabled {
