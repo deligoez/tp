@@ -116,6 +116,24 @@ Detailed command reference, field formats, and operational details. For workflow
 | `--quiet` / `--no-quiet` | Suppress info messages / force info output |
 | `--no-color` / `--color` | Disable / force colored output |
 
+`-o`/`--output` belongs to `--merge` alone. On any other mode both `tp review` and `tp audit`
+reject it with exit 2 rather than accepting it and writing nothing there (v0.32.0); the payload
+goes to stdout, so redirect it.
+
+### Advisories an agent can see (v0.32.0)
+
+tp writes two kinds of message to stderr. **Progress narration** travels `output.Info`, which is
+silent whenever stdout is not a terminal — an agent driving tp never sees it, and loses nothing,
+because the JSON payload already carries the same facts. **Advisories that say an instruction was
+ignored or content was dropped** travel `output.Notice`: still stderr, still suppressed by
+`--quiet`, but **not** suppressed in JSON mode. That covers `matches no active role`, a git probe
+that failed, an unreadable spec excerpt or `CLAUDE.md`, a file list truncated to the cap, a missing
+prior round, and the malformed rows `--record` skipped.
+
+The distinction matters most for `enabled: false`: a mistyped role id would otherwise be
+indistinguishable from an applied deactivation, and the run would silently pay the sub-agent round
+the flag exists to save. Parse stdout as JSON and read stderr separately — the two are never mixed.
+
 ## Acceptance Criteria Format
 
 Acceptance criteria support three delimiters:
@@ -452,6 +470,13 @@ When a task has `source_sections` and no `source_lines`, `spec_excerpt` is the c
 ### Exit-code conformance (§13)
 
 Exit scheme: 0 success, 1 validation, 2 usage, 3 file, 4 state. `tp add '{not valid json'` exits 2 (decoder detail in `hint`); any cobra flag-parse failure exits 2 as a tp error object; `tp done <id> "<reason starting with a dash>"` exits 2 with a hint naming the `--` separator. Every non-zero error object carries a `hint` naming the next command to run.
+
+A path that names a **missing file** exits **3** everywhere it can (v0.32.0). A missing `--findings`
+path now exits 3 in both phases: `tp review` previously exited 2, and `tp audit` previously accepted
+it, verified zero review findings, and recorded the round as clean — a path typo could declare
+convergence. A missing spec path exits 3 with a hint naming the spec rather than the task file. Once
+a stat of that same path has already succeeded, a later failure passes the OS error as the hint,
+because the path was right and the I/O was not.
 
 ### Report accuracy (§14)
 
