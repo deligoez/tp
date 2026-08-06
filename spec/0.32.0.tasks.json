@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.32.0.md",
   "created_at": "2026-08-06T09:57:37.021054Z",
-  "updated_at": "2026-08-06T10:22:26.780701Z",
+  "updated_at": "2026-08-06T10:26:35.585807Z",
   "workflow": {},
   "coverage": {
     "total_sections": 14,
@@ -366,7 +366,7 @@
     {
       "id": "empty-phase-id-list",
       "title": "List only spec-deactivated ids",
-      "status": "open",
+      "status": "done",
       "tags": [
         "impl"
       ],
@@ -379,11 +379,22 @@
         "### 2.5 A phase cannot be emptied"
       ],
       "source_lines": "56",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-06T10:23:09.13784Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-06T10:26:35.559465Z",
+      "closed_reason": "- The empty-phase id list carries only the ids this spec deactivated with enabled: false, sorted and comma-separated: the drop set is computed in engine.ResolveOverrideFocus over the ACTIVE role set, which is post-domain-filter (ResolveActiveCorpus filters by domains before the resolver sees the panel) and contains only roles with a corpus file, so an id absent for either reason takes the existing 'matches no active role' path and contributes no drop.\n- Verified by the new mixed-case fixture TestReview_EmptyPhaseNamesOnlySpecDeactivatedIDs (internal/cli/domain_lens_test.go): a reviewer corpus of aardvark (domains: [prose], filtered out on a software spec), beta and delta (active), with tp.review_roles deactivating all three plus a ghost id that has no role file; the phase empties and the refusal reads exactly 'every reviewers role is deactivated by this spec: beta, delta'. 'aardvark' sorts first, so an implementation keyed on the frontmatter entries rather than the drop set would lead the list with it and fail.\n- TestAudit_EmptyPhaseNamesOnlySpecDeactivatedIDs pins the same rule on the auditor phase ('every auditors role is deactivated by this spec: beta, delta'), since both callers share the resolver.\n- The rule is now stated where it is decided: comments on ResolveOverrideFocus's drop-set block (internal/engine/overrides.go) and on refuseEmptyPhase (internal/cli/review.go). No behavior change was required; the placement chosen by drop-outside-corpus already satisfied it, and the fixture locks it against a future implementation keyed on the frontmatter entries.\n- Gate green before close: go test ./... exit 0, golangci-lint run exit 0 (checked as separate exit codes).",
+      "gate_passed_at": "2026-08-06T10:26:35.559465Z",
+      "commit_sha": "678a0d3",
+      "commit_shas": [
+        "678a0d3",
+        "f9fd23f",
+        "a412aa4"
+      ],
+      "commit_files": [
+        "internal/cli/domain_lens_test.go",
+        "internal/cli/review.go",
+        "internal/engine/overrides.go"
+      ]
     },
     {
       "id": "regression-not-counted",
