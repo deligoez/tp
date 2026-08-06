@@ -222,11 +222,6 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	}
 	sel := engine.SelectAuditFiles(inputs)
 
-	// Emit one prompt per active auditor role from the panel resolved above
-	// (§7.2). A malformed auditor aborted audit there (§3.6, exit 3), never
-	// blocking review — phase independence.
-	auditorRoles := panel.roles
-
 	specItems := routeChecklist(mainEntries, findingsEntries, invertTaskFiles(inputs.TaskFiles))
 
 	// §10.6 loop budget for prompt framing: the audit round being emitted
@@ -239,7 +234,8 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 		auditRound = len(st.AuditRounds) + 1
 		auditConsecutive = engine.ConsecutiveClean(st.AuditRounds)
 	}
-	prompts, auditSkipped := generateRoleAuditPrompts(auditorRoles, specItems, &sel, specContent, claudeMDExcerptFor(specPath), priorByRole, auditRound, auditWf.AuditCleanRounds, auditConsecutive, auditWf.AuditMaxRounds)
+	// §7.2: one prompt per active auditor role in the resolved panel.
+	prompts, auditSkipped := generateRoleAuditPrompts(panel.roles, specItems, &sel, specContent, claudeMDExcerptFor(specPath), priorByRole, auditRound, auditWf.AuditCleanRounds, auditConsecutive, auditWf.AuditMaxRounds)
 	// §9.1: name every non-emitted auditor — empty-checklist roles above plus
 	// any domain-filtered user corpus roles.
 	auditSkipped = append(auditSkipped, engine.DomainSkippedRoles(filepath.Dir(specPath), panel.fm.Domain, engine.PhaseAuditors)...)
