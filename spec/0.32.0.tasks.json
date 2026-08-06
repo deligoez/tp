@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.32.0.md",
   "created_at": "2026-08-06T09:57:37.021054Z",
-  "updated_at": "2026-08-06T10:30:03.445839Z",
+  "updated_at": "2026-08-06T10:35:36.761244Z",
   "workflow": {},
   "coverage": {
     "total_sections": 14,
@@ -474,7 +474,7 @@
     {
       "id": "refusal-keys-drop-set",
       "title": "Key the refusal on the drop set",
-      "status": "open",
+      "status": "done",
       "tags": [
         "impl"
       ],
@@ -487,11 +487,20 @@
         "## 6. Tests"
       ],
       "source_lines": "103",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-06T10:30:43.343968Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-06T10:35:36.741922Z",
+      "closed_reason": "- The spec-coverage refusal is proven to key on the drop set rather than on the frontmatter entry: TestAudit_SpecCoverageRefusalKeysOnDropSet (internal/cli/domain_lens_test.go) runs both halves over the ONE shared const specCoverageDeactivatedSpec (tp.audit_roles naming spec-coverage with enabled: false) and varies only the .tp/auditors corpus via the new writeAuditorCorpusProject helper.\n- Against an auditor corpus holding spec-coverage.json (plus keeper) the half asserts exit 2 with the verbatim refusal message and hint off the JSON error object, and an empty stdout; against a POPULATED corpus of keeper+second lacking that file the identical frontmatter asserts exit 0 with both corpus roles emitted and no spec-coverage prompt. The second half deliberately uses a populated rather than empty directory, since an empty .tp/auditors falls back to the embedded default corpus (which holds spec-coverage) and would re-arm the drop.\n- The test was verified to discriminate the correct implementation from the plausible wrong one: with refuseSpecCoverageDeactivated temporarily fed a drop list built from fm.AuditRoles entries instead of the resolved drop set, the pre-existing TestAudit_SpecCoverageCannotBeDeactivated still PASSED while the new second half FAILED with exit 2 where 0 was required; the mutation was then reverted.\n- A tp.review_roles entry naming spec-coverage always takes the warning path: TestReview_SpecCoverageEntryTakesWarningPath lays down .tp/auditors/spec-coverage.json (the exact disk state that makes tp audit refuse) plus a reviewers corpus without it, and asserts tp review exits 0 and emits the reviewer panel, so the review caller cannot trip the auditor refusal.\n- The 'matches no active role' warning text itself is asserted at the engine layer by TestResolveOverrideFocus_SpecCoverageDropDependsOnCorpus (internal/engine/overrides_test.go), because output.Info is suppressed in the JSON mode every runTP call uses; it pins the drop set to [spec-coverage] against a panel holding the role, empty plus the verbatim audit_roles warning against a populated panel lacking it, and empty plus the review_roles warning for the review phase.\n- Gate green, exit codes checked separately: go test ./... exit 0, golangci-lint run exit 0 (0 issues).",
+      "gate_passed_at": "2026-08-06T10:35:36.741922Z",
+      "commit_sha": "9ae1a9a",
+      "commit_shas": [
+        "9ae1a9a",
+        "5f55ae7"
+      ],
+      "commit_files": [
+        "internal/cli/domain_lens_test.go",
+        "internal/engine/overrides_test.go"
+      ]
     },
     {
       "id": "refusal-precedence",
