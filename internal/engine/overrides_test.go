@@ -212,3 +212,17 @@ func TestResolveOverrideFocus_ReviewRolesWithLensWarns(t *testing.T) {
 	assert.Equal(t, []string{"corpus"}, byID["tester"], "lens.all reaches nobody")
 	assert.Empty(t, disabled)
 }
+
+// TestResolveOverrideFocus_NilFrontmatter: the exported resolver treats a nil
+// frontmatter as a spec carrying none, returning the panel untouched in both
+// phases instead of panicking on the field reads. TranslateLegacyLens guards
+// its own nil the same way.
+func TestResolveOverrideFocus_NilFrontmatter(t *testing.T) {
+	roles := []model.Role{{ID: "implementer", Focus: []string{"corpus"}}}
+	for _, phase := range []string{PhaseReviewers, PhaseAuditors} {
+		out, warnings, disabled := ResolveOverrideFocus(roles, nil, phase)
+		assert.Equal(t, []string{"corpus"}, roleFocusByID(out)["implementer"], phase)
+		assert.Empty(t, warnings, phase)
+		assert.Empty(t, disabled, phase)
+	}
+}
