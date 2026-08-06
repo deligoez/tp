@@ -35,8 +35,8 @@ func runReviewRegression(specPath, diffFrom, findingsPath string) error {
 			return nil
 		}
 		if _, err := os.Stat(findingsPath); err != nil {
-			output.Error(ExitUsage, fmt.Sprintf("findings file not found: %s", findingsPath))
-			os.Exit(ExitUsage)
+			output.Error(ExitFile, fmt.Sprintf("findings file not found: %s", findingsPath), findingsFileMissingHint)
+			os.Exit(ExitFile)
 			return nil
 		}
 		dr = engine.DiffSections(diffLinesOf(diffFrom), diffLinesOf(specPath))

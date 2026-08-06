@@ -202,7 +202,7 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	if findingsPath != "" {
 		if _, err := os.Stat(findingsPath); os.IsNotExist(err) {
 			output.Error(ExitFile, fmt.Sprintf("findings file not found: %s", findingsPath),
-				"check the path: an audit round that verifies zero findings can still record as clean")
+				findingsFileMissingHint+" An audit round that verifies zero findings can still record as clean.")
 			os.Exit(ExitFile)
 			return nil
 		}

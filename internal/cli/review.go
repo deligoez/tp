@@ -17,6 +17,14 @@ import (
 	"github.com/deligoez/tp/internal/output"
 )
 
+// findingsFileMissingHint explains a --findings path that does not exist. The
+// hint used to say only "check the path", but the likelier cause is that the
+// previous review round converged and therefore wrote nothing: there is no
+// file to point at, and where the flag is optional the right move is to drop
+// it. Shared by tp review, standalone regression and tp audit so the same
+// mistake reads the same way whichever command catches it.
+const findingsFileMissingHint = "a review round that converged with zero findings writes no findings file at all — where --findings is optional, omitting it is valid; otherwise check the path."
+
 type reviewFinding struct {
 	Severity   string          `json:"severity"`
 	Category   string          `json:"category"`
@@ -364,8 +372,8 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 
 	if findingsPath != "" {
 		if _, err := os.Stat(findingsPath); os.IsNotExist(err) {
-			output.Error(ExitUsage, fmt.Sprintf("findings file not found: %s", findingsPath))
-			os.Exit(ExitUsage)
+			output.Error(ExitFile, fmt.Sprintf("findings file not found: %s", findingsPath), findingsFileMissingHint)
+			os.Exit(ExitFile)
 			return nil
 		}
 	}
