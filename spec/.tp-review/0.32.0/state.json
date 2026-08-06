@@ -110,6 +110,16 @@
       "spec_hash": "sha256:314d53204abd2781bdfc304a7dd6d2ae883ebc5b628418f81df992fddf7008a2",
       "roles_hash": "sha256:53bf392c9016762750bbc6af1eb8ce528844b8e809ce4b55166bc1c9f4b68de7",
       "harness_note": "first round with zero critical and zero high; six findings repaired, six accepted with recorded justification per review_converge_on=blocking."
+    },
+    {
+      "round": 12,
+      "findings": 9,
+      "clean": false,
+      "recorded_at": "2026-08-06T09:53:14Z",
+      "file": "review-round-12.ndjson",
+      "spec_hash": "sha256:53239d1c14fc1beee7f9349b9c283a9afd801cd87bca37c2344c284d16c27846",
+      "roles_hash": "sha256:53bf392c9016762750bbc6af1eb8ce528844b8e809ce4b55166bc1c9f4b68de7",
+      "harness_note": "second consecutive round with no blocking severity. Round 10's WONTFIX on the domain_lens_test.go inventory entry was WRONG — I counted a comment as a code reference; regression caught it and both §6.1 entries are now corrected against the tree."
     }
   ],
   "audit_rounds": []
