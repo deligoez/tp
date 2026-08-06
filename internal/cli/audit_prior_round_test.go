@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -144,4 +145,62 @@ func TestAuditPriorRound_LegacyRoundDisclaimer(t *testing.T) {
 	assert.Contains(t, sec, "## Prior Round")
 	assert.Contains(t, sec, "positional", "legacy prior round states its ids are positional")
 	assert.Contains(t, sec, "NOT comparable", "legacy prior round states its ids are not comparable")
+}
+
+// TestAuditPriorRound_MissingRoundFileIsAnnounced: when state.json names a
+// prior audit round whose NDJSON file is gone, the whole prior-round section
+// disappears from every role prompt, and a round-2 prompt becomes
+// indistinguishable from a round-1 one — so the role re-derives findings it was
+// meant to re-check. The advisory therefore travels output.Notice rather than
+// output.Info, which returns early in JSON mode.
+//
+// Driven through the CLI on purpose. An in-package caller leaves output's
+// jsonMode at its zero value, where Info and Notice behave identically, so the
+// assertion would hold just as well if the call reverted to Info — the exact
+// regression it exists to catch. runTP never allocates a terminal, so this IS
+// JSON mode, and both halves of the Notice contract are pinned: visible in JSON
+// mode, silenced by --quiet.
+func TestAuditPriorRound_MissingRoundFileIsAnnounced(t *testing.T) {
+	const want = "round 1 file audit-round-1.ndjson is missing; skipping its rows"
+
+	setup := func(t *testing.T) string {
+		t.Helper()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "auth_helper.go"), []byte("package main\n"), 0o600))
+		_, _, code := runTP(t, dir, "init", "spec.md")
+		require.Equal(t, 0, code)
+
+		stateDir := filepath.Join(dir, ".tp-review", "spec")
+		require.NoError(t, os.MkdirAll(stateDir, 0o755))
+		state := `{"spec":"spec.md","review_rounds":[],"audit_rounds":[` +
+			`{"round":1,"findings":1,"clean":false,"recorded_at":"2024-01-01T00:00:00Z",` +
+			`"file":"audit-round-1.ndjson","spec_hash":"sha256:x","id_scheme":"slug"}]}`
+		require.NoError(t, os.WriteFile(filepath.Join(stateDir, "state.json"), []byte(state), 0o600))
+		// audit-round-1.ndjson is deliberately absent.
+		return dir
+	}
+
+	t.Run("visible in JSON mode", func(t *testing.T) {
+		dir := setup(t)
+		stdout, stderr, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "auth_helper.go")
+		require.Equal(t, 0, code, "stderr: %s", stderr)
+		assert.Contains(t, stderr, want,
+			"the prior-round section was dropped without a word in the JSON mode every agent run uses")
+
+		var payload map[string]any
+		require.NoError(t, json.Unmarshal([]byte(stdout), &payload), "stdout stays parseable JSON")
+		assert.NotContains(t, stdout, "is missing; skipping", "the advisory belongs on stderr, never in the payload")
+		for role, p := range auditPromptsByRole(t, stdout) {
+			assert.NotContains(t, p["prompt"].(string), "## Prior Round",
+				"%s prompt carries no prior-round section once its rows are gone", role)
+		}
+	})
+
+	t.Run("suppressed by --quiet", func(t *testing.T) {
+		dir := setup(t)
+		_, stderr, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "auth_helper.go", "--quiet")
+		require.Equal(t, 0, code, "stderr: %s", stderr)
+		assert.NotContains(t, stderr, want, "--quiet is the opt-out for the Notice channel")
+	})
 }

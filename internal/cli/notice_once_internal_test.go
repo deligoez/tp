@@ -1,6 +1,9 @@
 package cli
 
 import (
+	"bytes"
+	"io"
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -8,6 +11,39 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// captureCLIStderr runs fn with os.Stderr redirected to a pipe and returns what
+// was written. This is an in-package test so a helper that emits nothing on
+// stdout can be driven directly, without a subprocess and its JSON payload.
+//
+// It does NOT configure output's mode, so Info and Notice behave identically
+// here: a guard whose whole point is WHICH channel an advisory travels must be
+// driven through the CLI (runTP) instead, or it passes either way.
+func captureCLIStderr(t *testing.T, fn func()) string {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+	orig := os.Stderr
+	os.Stderr = w
+	// defer, not an inline restore after fn: a panic or runtime.Goexit inside
+	// fn would otherwise leave os.Stderr pointing at a pipe nobody drains and
+	// nobody closes, so every later test in this package writes into it. The
+	// sibling helper in internal/output does the same.
+	defer func() { os.Stderr = orig }()
+	done := make(chan string, 1)
+	go func() {
+		var buf bytes.Buffer
+		_, _ = io.Copy(&buf, r)
+		done <- buf.String()
+	}()
+	fn()
+	if err := w.Close(); err != nil {
+		t.Fatalf("close pipe: %v", err)
+	}
+	return <-done
+}
 
 // clearNoticedKeys drops the once-per-condition suppression set. A CLI process
 // advises once and exits, but these tests drive several runs in one process,
