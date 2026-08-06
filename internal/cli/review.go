@@ -1682,7 +1682,13 @@ func resolveReviewSpecContent(specPath, diffFrom string, specInline bool) string
 		}
 		return content
 	default:
-		// Default: reference mode (spec-ref) — omit inline content
+		// Default: reference mode (spec-ref) — omit inline content.
+		// PRE-stat site: unlike tp audit (whose os.Stat guard runs first, so
+		// loadAuditSpec's read is post-stat and reports the I/O cause), nothing
+		// on the review path touches specPath before this read. It is tp's
+		// FIRST contact with the path, so specFileMissingHint is the right hint
+		// per its doc comment — a permission failure and a typo are not
+		// distinguishable here, and the hint deliberately does not guess why.
 		specData, err := os.ReadFile(specPath)
 		if err != nil {
 			output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath), specFileMissingHint)
