@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.32.0.md",
   "created_at": "2026-08-06T09:57:37.021054Z",
-  "updated_at": "2026-08-06T10:55:19.466182Z",
+  "updated_at": "2026-08-06T10:59:50.814922Z",
   "workflow": {},
   "coverage": {
     "total_sections": 14,
@@ -246,7 +246,7 @@
     {
       "id": "disabled-by-spec-reason",
       "title": "Report deactivated roles as disabled-by-spec",
-      "status": "open",
+      "status": "done",
       "tags": [
         "impl"
       ],
@@ -259,11 +259,24 @@
         "### 2.4 A deactivated role stays visible"
       ],
       "source_lines": "52,94",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-06T10:55:53.701242Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-06T10:59:50.739326Z",
+      "closed_reason": "- Every role deactivated by an enabled: false override is now named in skipped_roles with the new reason disabled-by-spec: engine.SkipDisabledBySpec plus engine.DisabledSkippedRoles (internal/engine/skipped.go) map \\$2.3's drop set to {role, reason} entries, and rolePanel (internal/cli/review.go) carries that drop set out of resolveRolePanel so both phases can name it.\n- It holds in BOTH payloads, which assemble skipped_roles in different places: buildReviewPrompts (internal/cli/review.go) appends it next to the existing domain-mismatch/no-baseline entries, and runAudit (internal/cli/audit.go) appends it next to its DomainSkippedRoles line. Verified by the two new tests in internal/cli/domain_lens_test.go (spec test 1): TestReview_DeactivatedRoleNamedDisabledBySpec and TestAudit_DeactivatedRoleNamedDisabledBySpec each deactivate one role of a two/three-role user corpus, assert the survivor still emits, the deactivated role emits no prompt, and its skipped_roles reason is disabled-by-spec; the review half also asserts regression is still reported with no-baseline, pinning that the new reason is added to the existing ones rather than substituting for them.\n- The tests are discriminating: replacing each append with a '_ = panel.disabled' discard made exactly the corresponding half fail with reason \\\"\\\" instead of disabled-by-spec, in review and audit independently; the mutation was then reverted.\n- No double-reporting for a role domains already removed: the ids come from ResolveOverrideFocus's drop set, which holds only post-domain-filter active roles, so such a role stays reported once with domain-mismatch (the sibling task unknown-id-warning owns asserting that).\n- Dogfooded with a freshly built /tmp/tp-dev/tp: a two-reviewer corpus with one role deactivated emits only the survivor and reports skipped_roles [{regression,no-baseline},{noisy,disabled-by-spec}]; tp lint spec/0.32.0.md exit 0.\n- Gate run with separate exit codes: go test ./... exit 0, golangci-lint run exit 0 (0 issues).\nOut of scope: the focus-drop assertion (deactivated-role-drops-focus, test 2), the --compact omission (compact-omits-skipped, test 16), and the unknown-id / domain-mismatch warning path (unknown-id-warning, tests 6 and 13) are sibling tasks and are untouched here.",
+      "gate_passed_at": "2026-08-06T10:59:50.739326Z",
+      "commit_sha": "2368653",
+      "commit_shas": [
+        "2368653",
+        "aae0e81",
+        "eab0d89",
+        "11bf7b3"
+      ],
+      "commit_files": [
+        "internal/cli/audit.go",
+        "internal/cli/domain_lens_test.go",
+        "internal/cli/review.go",
+        "internal/engine/skipped.go"
+      ]
     },
     {
       "id": "deactivated-role-drops-focus",
