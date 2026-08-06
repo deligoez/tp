@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.32.0.md",
   "created_at": "2026-08-06T09:57:37.021054Z",
-  "updated_at": "2026-08-06T11:25:47.409407Z",
+  "updated_at": "2026-08-06T11:28:46.180776Z",
   "workflow": {},
   "coverage": {
     "total_sections": 14,
@@ -672,7 +672,7 @@
     {
       "id": "roles-hash-unchanged",
       "title": "Keep roles_hash free of frontmatter overrides",
-      "status": "open",
+      "status": "done",
       "tags": [
         "impl"
       ],
@@ -685,11 +685,19 @@
         "## 3. Corpus staleness needs no change"
       ],
       "source_lines": "72-74,108",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-06T11:25:57.314028Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-06T11:28:46.157094Z",
+      "closed_reason": "- Toggling enabled changes the recorded round's spec_hash and leaves its roles_hash unchanged (§3), pinned by TestRolesHash_FrontmatterOverrideNotHashed (internal/cli/roles_hash_record_test.go): two rounds recorded through tp review --record over the same two-role user reviewer corpus, with the spec's only difference being first.enabled toggled true → false; spec_hash differs, roles_hash is byte-identical.\n- The roles_hash clause is the discriminating one and is asserted as such. The fixture toggles the VALUE rather than adding the key, so the set of override ids is identical across the two rounds and only an implementation hashing the override's content flips the hash; it also keeps a real user corpus in force (require on the sha256: prefix) so the equality is not the trivially equal \"builtin\" sentinel. Proved by mutation: feeding engine.ParseFrontmatter(specPath).ReviewRoles into rolesHash in internal/cli/review_record.go made the test fail on exactly that assertion (…|first=true vs …|first=false); reverted, and git diff confirms review_record.go is untouched.\n- No implementation change was needed: engine.ComputeRolesHash reads only the phase's role files under .tp/\u003cphase\u003e/ and takes no frontmatter argument, and the record path passes it only the spec's directory and the phase.\n- The shared readRoundHashes helper gained a spec_hash field (its own commit) since the round struct previously exposed roles_hash only.\n- Gate green before closing: go test ./... exit 0, golangci-lint run exit 0 (checked as separate exit codes, not a \u0026\u0026 chain).",
+      "gate_passed_at": "2026-08-06T11:28:46.157094Z",
+      "commit_sha": "f6723ed",
+      "commit_shas": [
+        "f6723ed",
+        "3ba192d"
+      ],
+      "commit_files": [
+        "internal/cli/roles_hash_record_test.go"
+      ]
     },
     {
       "id": "docs-four-files",
