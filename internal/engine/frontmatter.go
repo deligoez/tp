@@ -139,9 +139,10 @@ func ParseFrontmatterBytes(data []byte) *Frontmatter {
 // (a string array) and "enabled" (a boolean, parsed into RoleOverride.Enabled;
 // enabled: true is a no-op that leaves the role active with its focus layered).
 // A non-nil, non-boolean enabled is a lint warning and is ignored, leaving the
-// role active. Any other key inside an override is a lint warning
-// and is ignored; the parsed overrides are returned keyed by role id for
-// read-time layering onto the corpus role's focus.
+// role active. A focus that is not a string array is likewise warned about and
+// dropped on its own, leaving the entry's parsed enabled intact. Any other key
+// inside an override is a lint warning and is ignored; the parsed overrides are
+// returned keyed by role id for read-time layering onto the corpus role's focus.
 func (fm *Frontmatter) parseRoleOverrides(field string, val any) map[string]RoleOverride {
 	out := make(map[string]RoleOverride)
 	rolesMap, isMap := val.(map[string]any)
@@ -194,11 +195,14 @@ func (fm *Frontmatter) parseRoleOverrides(field string, val any) map[string]Role
 		}
 		list, isList := focusVal.([]any)
 		if !isList {
-			if focusVal == nil {
-				out[id] = RoleOverride{Focus: []string{}, Enabled: enabled}
-				continue
+			if focusVal != nil {
+				fm.warn(fmt.Sprintf("tp.%s.%s.focus is not a list (got %T); ignored", field, id, focusVal))
 			}
-			fm.warn(fmt.Sprintf("tp.%s.%s.focus is not a list (got %T); ignored", field, id, focusVal))
+			// Only the focus is discarded. §2.1 permits focus and enabled to
+			// appear together, so a well-formed sibling enabled must still decide
+			// the role's activation: record the entry exactly as the absent-focus
+			// and null-focus cases do, rather than dropping it whole.
+			out[id] = RoleOverride{Focus: []string{}, Enabled: enabled}
 			continue
 		}
 		questions := make([]string, 0, len(list))
