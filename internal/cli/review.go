@@ -124,6 +124,19 @@ Modes (mutually exclusive):
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			mode := detectReviewMode(mergeMode, resolveMode, resolveAllMode, verifyMode, reportMode, recordPath != "", statusMode)
+			// --merge takes only its input NDJSON files and -o <file>: it
+			// records no round and reads no state, so a flag belonging to
+			// another mode is named here, ahead of the generic guards. That
+			// ordering is the point — --harness-note used to fall through to
+			// "supply it together with --record", and --record is exactly what
+			// --merge rejects next, so one mistake cost two failed calls.
+			// Mirrors tp audit's exhaustive --merge rejection list.
+			if mode == "merge" && (cmd.Flags().Changed("harness-note") || forceFlag || noState) {
+				output.Error(ExitUsage, "--merge cannot be combined with --harness-note/--force/--no-state",
+					"run --merge on its own: it takes only the input NDJSON files and -o <file>")
+				os.Exit(ExitUsage)
+				return nil
+			}
 			if checkFlag && mode != "status" {
 				output.Error(ExitUsage, "--check requires --status")
 				os.Exit(ExitUsage)
