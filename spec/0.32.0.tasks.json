@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.32.0.md",
   "created_at": "2026-08-06T09:57:37.021054Z",
-  "updated_at": "2026-08-06T11:15:43.620043Z",
+  "updated_at": "2026-08-06T11:18:04.874151Z",
   "workflow": {},
   "coverage": {
     "total_sections": 14,
@@ -334,7 +334,7 @@
     {
       "id": "compact-omits-skipped",
       "title": "Keep skipped_roles omitted under compact",
-      "status": "open",
+      "status": "done",
       "tags": [
         "impl"
       ],
@@ -347,11 +347,18 @@
         "### 2.4 A deactivated role stays visible"
       ],
       "source_lines": "54,109",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-06T11:15:52.390318Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-06T11:18:04.860949Z",
+      "closed_reason": "- --compact omits skipped_roles including disabled-by-spec entries: TestReview_CompactOmitsDisabledBySpec and TestAudit_CompactOmitsDisabledBySpec (internal/cli/domain_lens_test.go) run one deactivating fixture per phase twice — the non-compact run requires the dropped role to be named with disabled-by-spec, the --compact run requires the skipped_roles field to be absent and the literal disabled-by-spec to appear nowhere in the payload.\n- No implementation change was needed: review.go and audit.go each build their skip list (domain + no-checklist + engine.DisabledSkippedRoles) and assign it behind a single if !IsCompact() gate, so the new reason is omitted with the rest by construction.\n- Both halves were proven discriminating by two mutations, each reverted: replacing !IsCompact() with true in both files failed the compact assertions, and stubbing engine.DisabledSkippedRoles to return no entries failed the non-compact assertion that keeps the test from passing trivially against an implementation that never emits the entry.\n- Spec test 16 passes; gate green: go test ./... exit 0, golangci-lint run exit 0.",
+      "gate_passed_at": "2026-08-06T11:18:04.860949Z",
+      "commit_sha": "dea0068",
+      "commit_shas": [
+        "dea0068"
+      ],
+      "commit_files": [
+        "internal/cli/domain_lens_test.go"
+      ]
     },
     {
       "id": "lens-shim-suppressed",
