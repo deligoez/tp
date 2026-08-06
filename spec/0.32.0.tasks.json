@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.32.0.md",
   "created_at": "2026-08-06T09:57:37.021054Z",
-  "updated_at": "2026-08-06T10:50:46.145251Z",
+  "updated_at": "2026-08-06T10:55:19.466182Z",
   "workflow": {},
   "coverage": {
     "total_sections": 14,
@@ -574,7 +574,7 @@
     {
       "id": "perspective-short-circuit",
       "title": "Assert perspective bypasses corpus resolution",
-      "status": "open",
+      "status": "done",
       "tags": [
         "impl"
       ],
@@ -587,11 +587,18 @@
         "## 6. Tests"
       ],
       "source_lines": "101",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-06T10:52:09.29756Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-06T10:55:19.440617Z",
+      "closed_reason": "- tp review --perspective is pinned to carry neither §2.5 refusal: TestRefusals_PerspectiveShortCircuitsBeforeCorpus (internal/cli/domain_lens_test.go) runs all four --perspective values (documentation, testing, code-audit, and regression in its stateless --diff-from/--findings mode (b)) over the shared bothPhasesDeactivatedSpec fixture that arms BOTH refusals, asserting exit 0, non-empty stdout (the prompt was emitted) and assertNoRefusalMessage on stdout+stderr.\n- Verified discriminating by mutation: inserting resolveRolePanel(specPath, engine.PhaseReviewers) at the top of runReview (ahead of the perspective dispatch) made all four sub-tests fail with exit 2 and the empty-phase message on stderr; the mutation was reverted and review.go is unchanged by this task.\n- A control sub-test re-runs the same fixture through default prompt emission and requires exit 2 plus the empty-phase message, so a silent perspective run measures the short-circuit rather than a toothless fixture.\n- Gate green before close: go test ./... exit 0, golangci-lint run exit 0 (checked as separate exit codes, not a \u0026\u0026 chain).\n- The sibling emission-only test's doc comment was updated from 'outside this test's scope' to name the new test, keeping the cross-reference honest.\nOut of scope: none observed.",
+      "gate_passed_at": "2026-08-06T10:55:19.440617Z",
+      "commit_sha": "31f7d6b",
+      "commit_shas": [
+        "31f7d6b"
+      ],
+      "commit_files": [
+        "internal/cli/domain_lens_test.go"
+      ]
     },
     {
       "id": "roles-hash-unchanged",
