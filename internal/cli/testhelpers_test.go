@@ -28,3 +28,24 @@ func repoRoot(t *testing.T) string {
 		dir = parent
 	}
 }
+
+// repoRootDocs are the four repo-root documents the documentation guard tests
+// hold to one story: each states part of the audit routing contract (§4), and
+// each must carry the per-spec deactivation lever wording. Both guards read the
+// same set, so the set lives here rather than being duplicated per guard.
+var repoRootDocs = []string{
+	"README.md",
+	"skills/tp/SKILL.md",
+	"skills/tp/REFERENCE.md",
+	"CLAUDE.md",
+}
+
+// readRepoDoc reads a repo-root-relative document and fails the test when it is
+// missing, so a documentation guard does not have to close over its own
+// repoRoot result.
+func readRepoDoc(t *testing.T, rel string) string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(repoRoot(t), filepath.FromSlash(rel)))
+	require.NoError(t, err, "%s must exist at the repo root", rel)
+	return string(data)
+}

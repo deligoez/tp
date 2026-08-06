@@ -1,24 +1,14 @@
 package cli
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-// The four documents that each state part of the audit routing contract (§4).
-var auditContractDocs = []string{
-	"README.md",
-	"skills/tp/SKILL.md",
-	"skills/tp/REFERENCE.md",
-	"CLAUDE.md",
-}
-
-// The two that additionally render the audit prompt's body order and the
-// prompts[].role contract verbatim (§4).
+// The two documents that additionally render the audit prompt's body order and
+// the prompts[].role contract verbatim (§4). The four that state the routing
+// contract itself are repoRootDocs, shared with the per-spec lever guard.
 var auditPromptOrderDocs = []string{
 	"skills/tp/SKILL.md",
 	"skills/tp/REFERENCE.md",
@@ -41,16 +31,8 @@ const (
 // than only by the absence of a superseded one — so deleting the old wording
 // without writing the new one fails here too.
 func TestDocsStateOneAuditRoutingContract(t *testing.T) {
-	root := repoRoot(t)
-	read := func(rel string) string {
-		t.Helper()
-		data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
-		require.NoError(t, err, "%s must exist at the repo root", rel)
-		return string(data)
-	}
-
-	for _, doc := range auditContractDocs {
-		text := read(doc)
+	for _, doc := range repoRootDocs {
+		text := readRepoDoc(t, doc)
 		assert.Contains(t, text, routingSubstring, "%s states the routing rule", doc)
 		assert.Contains(t, text, upgradeSubstring, "%s records that an ejected corpus keeps its old copies", doc)
 		assert.NotContains(t, text, "file-sec-", "%s carries no superseded item-id prefix", doc)
@@ -58,7 +40,7 @@ func TestDocsStateOneAuditRoutingContract(t *testing.T) {
 	}
 
 	for _, doc := range auditPromptOrderDocs {
-		text := read(doc)
+		text := readRepoDoc(t, doc)
 		assert.Contains(t, text, sharedArmOrder, "%s renders the shared-arm prompt body order", doc)
 		assert.Contains(t, text, specCoverageOrder, "%s renders the spec-coverage prompt body order", doc)
 		assert.Contains(t, text, roleValueSubstring, "%s states prompts[].role as a corpus role id", doc)
@@ -72,6 +54,6 @@ func TestDocsStateOneAuditRoutingContract(t *testing.T) {
 		}
 	}
 
-	assert.Contains(t, read("skills/tp/REFERENCE.md"), itemIDSubstring,
+	assert.Contains(t, readRepoDoc(t, "skills/tp/REFERENCE.md"), itemIDSubstring,
 		"REFERENCE.md documents the deterministic item ids in the role-id slug form")
 }

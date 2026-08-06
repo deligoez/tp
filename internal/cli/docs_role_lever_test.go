@@ -1,21 +1,10 @@
 package cli
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
-
-// The four documents §4 requires to state the per-spec deactivation lever.
-var perSpecLeverDocs = []string{
-	"README.md",
-	"skills/tp/SKILL.md",
-	"skills/tp/REFERENCE.md",
-	"CLAUDE.md",
-}
 
 // perSpecLeverSubstring is §4's pinned wording. It is asserted verbatim, so a
 // document that wraps `enabled: false` in inline-code backticks inside the
@@ -44,23 +33,16 @@ var referenceTrimLeverSubstrings = []string{
 }
 
 // TestDocsStateThePerSpecRoleLever guards §4 (pinned by §6 item 17): the four
-// documents must each carry the pinned substring, and REFERENCE.md must state
-// both of a trim_candidate's levers and how differently they are guarded.
+// repo-root documents must each carry the pinned substring, and REFERENCE.md
+// must state both of a trim_candidate's levers and how differently they are
+// guarded.
 func TestDocsStateThePerSpecRoleLever(t *testing.T) {
-	root := repoRoot(t)
-	read := func(rel string) string {
-		t.Helper()
-		data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
-		require.NoError(t, err, "%s must exist at the repo root", rel)
-		return string(data)
-	}
-
-	for _, doc := range perSpecLeverDocs {
-		assert.Contains(t, read(doc), perSpecLeverSubstring,
+	for _, doc := range repoRootDocs {
+		assert.Contains(t, readRepoDoc(t, doc), perSpecLeverSubstring,
 			"%s states the per-spec deactivation lever verbatim", doc)
 	}
 
-	ref := read("skills/tp/REFERENCE.md")
+	ref := readRepoDoc(t, "skills/tp/REFERENCE.md")
 	for _, want := range referenceTrimLeverSubstrings {
 		assert.Contains(t, ref, want,
 			"REFERENCE.md states both trim-candidate levers and how each is guarded")
