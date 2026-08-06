@@ -135,8 +135,8 @@ func ParseFrontmatterBytes(data []byte) *Frontmatter {
 }
 
 // parseRoleOverrides parses a tp.review_roles or tp.audit_roles mapping (§10.2):
-// each key is a role id, each value an object whose only permitted key is
-// "focus" (a string array). Any other key inside an override is a lint warning
+// each key is a role id, each value an object whose permitted keys are "focus"
+// (a string array) and "enabled". Any other key inside an override is a lint warning
 // and is ignored; the parsed overrides are returned keyed by role id for
 // read-time layering onto the corpus role's focus.
 func (fm *Frontmatter) parseRoleOverrides(field string, val any) map[string]RoleOverride {
@@ -160,15 +160,15 @@ func (fm *Frontmatter) parseRoleOverrides(field string, val any) map[string]Role
 			continue
 		}
 
-		// The only permitted key is focus; warn about and ignore every other key.
+		// The permitted keys are focus and enabled; warn about and ignore every other key.
 		keys := make([]string, 0, len(override))
 		for k := range override {
 			keys = append(keys, k)
 		}
 		sort.Strings(keys)
 		for _, k := range keys {
-			if k != "focus" {
-				fm.warn(fmt.Sprintf("tp.%s.%s.%s is not a permitted override key (only focus); ignored", field, id, k))
+			if k != "focus" && k != "enabled" {
+				fm.warn(fmt.Sprintf("tp.%s.%s.%s is not a permitted override key (only focus and enabled); ignored", field, id, k))
 			}
 		}
 

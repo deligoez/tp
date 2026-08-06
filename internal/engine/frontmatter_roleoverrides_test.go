@@ -47,8 +47,9 @@ content
 }
 
 // TestParseFrontmatter_RoleOverrideDisallowedKey covers the warn-and-ignore of a
-// key other than focus inside an override (§10.2): the disallowed key is dropped,
-// the focus questions still parse, and a lint warning names the offending key.
+// key that is neither focus nor enabled inside an override (§2.1): the disallowed
+// key is dropped, the focus questions still parse, a lint warning names the
+// offending key and the permitted set, and the permitted enabled key never warns.
 func TestParseFrontmatter_RoleOverrideDisallowedKey(t *testing.T) {
 	spec := `---
 tp:
@@ -56,6 +57,7 @@ tp:
     tester:
       focus:
         - "Is the empty-panel fallback exercised?"
+      enabled: false
       instructions: "you cannot redefine me here"
       severity: "high"
 ---
@@ -71,8 +73,9 @@ content
 	for _, w := range fm.Warnings {
 		joined += w.Message + "\n"
 	}
-	assert.Contains(t, joined, "tp.review_roles.tester.instructions is not a permitted override key (only focus); ignored")
-	assert.Contains(t, joined, "tp.review_roles.tester.severity is not a permitted override key (only focus); ignored")
+	assert.Contains(t, joined, "tp.review_roles.tester.instructions is not a permitted override key (only focus and enabled); ignored")
+	assert.Contains(t, joined, "tp.review_roles.tester.severity is not a permitted override key (only focus and enabled); ignored")
+	assert.NotContains(t, joined, "tp.review_roles.tester.enabled", "enabled is a permitted key and never warns as unpermitted")
 }
 
 // TestParseFrontmatter_RoleOverrideShapeWarnings covers the malformed-value paths:
