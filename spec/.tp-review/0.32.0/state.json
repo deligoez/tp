@@ -80,6 +80,16 @@
       "spec_hash": "sha256:e50901f02c5057980d888d5689aa6a0cf8556ba103d171bb8010835d2972cd2e",
       "roles_hash": "sha256:53bf392c9016762750bbc6af1eb8ce528844b8e809ce4b55166bc1c9f4b68de7",
       "harness_note": "regression was asked to verify round 7's per-index resolutions against the spec text and report any whose edit was absent; it confirmed all ten highs held and found residue in the mediums. Three roles were told zero findings is a valid answer at this stage."
+    },
+    {
+      "round": 9,
+      "findings": 15,
+      "clean": false,
+      "recorded_at": "2026-08-06T09:09:44Z",
+      "file": "review-round-9.ndjson",
+      "spec_hash": "sha256:b5024ecdc6d9fc379d81034467f2504298afdc7083779b5e49d43552ed28da84",
+      "roles_hash": "sha256:53bf392c9016762750bbc6af1eb8ce528844b8e809ce4b55166bc1c9f4b68de7",
+      "harness_note": "regression was asked to verify round 8's per-index resolutions and to check nothing contradicts the new buffering rule; three roles were told zero findings is a valid answer."
     }
   ],
   "audit_rounds": []
