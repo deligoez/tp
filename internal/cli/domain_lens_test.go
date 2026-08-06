@@ -405,3 +405,89 @@ func TestAudit_SpecCoverageCannotBeDeactivated(t *testing.T) {
 	assert.Equal(t, "spec-coverage cannot be deactivated: it carries the entire spec-derived checklist", msg)
 	assert.Equal(t, "remove the enabled: false entry for spec-coverage", hint)
 }
+
+// specCoverageDeactivatedSpec is the single frontmatter BOTH halves of the
+// drop-set test share: tp.audit_roles naming spec-coverage with enabled: false.
+// The halves differ only in the auditor corpus on disk — that difference alone
+// is what discriminates a refusal keyed on §2.3's drop set from one keyed on the
+// frontmatter entry (§2.5, test 10).
+const specCoverageDeactivatedSpec = "---\ntp:\n  audit_roles:\n    spec-coverage:\n      enabled: false\n---\n# Spec\n## 1. Widgets\ncontent\n"
+
+// writeAuditorCorpusProject lays out a project whose .tp/auditors corpus holds
+// exactly the given role ids, plus the given spec and one code file to audit.
+func writeAuditorCorpusProject(t *testing.T, spec string, auditorIDs ...string) string {
+	t.Helper()
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
+	audDir := filepath.Join(dir, ".tp", "auditors")
+	require.NoError(t, os.MkdirAll(audDir, 0o755))
+	for _, id := range auditorIDs {
+		require.NoError(t, os.WriteFile(filepath.Join(audDir, id+".json"),
+			[]byte(`{"id":"`+id+`","title":"`+id+`","instructions":"You audit."}`), 0o600))
+	}
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "code.go"), []byte("package main\n"), 0o600))
+	return dir
+}
+
+// TestAudit_SpecCoverageRefusalKeysOnDropSet: the refusal keys on the drop set,
+// not on the frontmatter entry (§2.5, test 10). Both halves run the identical
+// specCoverageDeactivatedSpec and differ only in the auditor corpus: with
+// spec-coverage.json on disk the role is active, lands in the drop set, and tp
+// exits 2; without it the same entry matches no active role, contributes no
+// drop, and the run proceeds. An implementation that scanned fm.AuditRoles for
+// an enabled: false spec-coverage entry would exit 2 in both halves and fail the
+// second — that failure mode is the point of this test.
+func TestAudit_SpecCoverageRefusalKeysOnDropSet(t *testing.T) {
+	t.Run("corpus holds spec-coverage", func(t *testing.T) {
+		dir := writeAuditorCorpusProject(t, specCoverageDeactivatedSpec, "spec-coverage", "keeper")
+
+		stdout, stderr, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "code.go")
+		require.Equal(t, 2, code, "an active spec-coverage in the drop set refuses; stderr: %s", stderr)
+		assert.Empty(t, stdout, "no prompt is emitted before the refusal")
+		msg, hint := refusalMessage(t, stderr)
+		assert.Equal(t, "spec-coverage cannot be deactivated: it carries the entire spec-derived checklist", msg)
+		assert.Equal(t, "remove the enabled: false entry for spec-coverage", hint)
+	})
+
+	t.Run("populated corpus lacks spec-coverage", func(t *testing.T) {
+		// The corpus must be POPULATED rather than empty: an empty .tp/auditors
+		// falls back to the embedded default corpus, which does hold
+		// spec-coverage, so the drop would be re-armed and the half would
+		// measure the fallback instead of the key.
+		dir := writeAuditorCorpusProject(t, specCoverageDeactivatedSpec, "keeper", "second")
+
+		stdout, stderr, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "code.go")
+		require.Equal(t, 0, code, "the identical frontmatter must not refuse when no spec-coverage role is active; stderr: %s", stderr)
+		byRole := auditPromptsByRole(t, stdout)
+		assert.Contains(t, byRole, "keeper", "the run proceeds over the corpus that is present")
+		assert.Contains(t, byRole, "second")
+		assert.NotContains(t, byRole, "spec-coverage", "the entry named no active role, so nothing was dropped or emitted")
+		// The entry takes §2.3's "matches no active role" warning path; the
+		// warning text is asserted by the engine test
+		// TestResolveOverrideFocus_SpecCoverageDropDependsOnCorpus, because
+		// output.Info is suppressed in the JSON mode every runTP call uses.
+	})
+}
+
+// TestReview_SpecCoverageEntryTakesWarningPath: a tp.review_roles entry naming
+// spec-coverage ALWAYS takes the "matches no active role" path — the review
+// caller cannot trip the auditor refusal (§2.5, test 10). The auditor corpus on
+// disk holds spec-coverage.json, the exact state that makes tp audit refuse, yet
+// review resolves overrides against the reviewer panel, where spec-coverage is
+// not an active role, so it contributes no drop and the run proceeds.
+func TestReview_SpecCoverageEntryTakesWarningPath(t *testing.T) {
+	dir := writeAuditorCorpusProject(t,
+		"---\ntp:\n  review_roles:\n    spec-coverage:\n      enabled: false\n---\n# Spec\n## 1. Widgets\ncontent\n",
+		"spec-coverage", "keeper")
+	revDir := filepath.Join(dir, ".tp", "reviewers")
+	require.NoError(t, os.MkdirAll(revDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(revDir, "solo.json"),
+		[]byte(`{"id":"solo","title":"Solo","instructions":"You review."}`), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "review", "spec.md", "--no-state")
+	require.Equal(t, 0, code, "the review caller never trips the spec-coverage refusal; stderr: %s", stderr)
+	byRole := reviewPromptsByRole(t, stdout)
+	assert.Contains(t, byRole, "solo", "the reviewer panel emits normally")
+	assert.NotContains(t, byRole, "spec-coverage", "the entry matched no active reviewer role")
+}
