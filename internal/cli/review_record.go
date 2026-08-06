@@ -69,7 +69,7 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 
 	specHash, err := engine.SpecHash(specPath)
 	if err != nil {
-		output.Error(ExitFile, fmt.Sprintf("cannot hash spec: %v", err))
+		output.Error(ExitFile, fmt.Sprintf("cannot hash spec: %s", specPath), err.Error())
 		os.Exit(ExitFile)
 		return nil
 	}

@@ -54,7 +54,7 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 
 	specHash, err := engine.SpecHash(specPath)
 	if err != nil {
-		output.Error(ExitFile, fmt.Sprintf("cannot hash spec: %v", err))
+		output.Error(ExitFile, fmt.Sprintf("cannot hash spec: %s", specPath), err.Error())
 		os.Exit(ExitFile)
 		return nil
 	}
@@ -174,7 +174,7 @@ func runAuditStatus(specPath string, check bool) error {
 	wf, _ := engine.ResolveWorkflow(specPath, flagFile)
 	specHash, err := engine.SpecHash(specPath)
 	if err != nil {
-		output.Error(ExitFile, fmt.Sprintf("cannot hash spec: %v", err))
+		output.Error(ExitFile, fmt.Sprintf("cannot hash spec: %s", specPath), err.Error())
 		os.Exit(ExitFile)
 		return nil
 	}
