@@ -922,7 +922,10 @@ func execCommitFiles(dir, sha string) []string {
 	// Guard the sink (engine.SafeGitRev) and say so: a silently shrunken file
 	// set makes the "no done task carries commit_shas" message a lie.
 	if !engine.SafeGitRev(sha) {
-		output.Notice(fmt.Sprintf("warning: commit sha %q was skipped; git would read it as an option", sha))
+		// noticeOnce: the derivation runs more than once per invocation (the
+		// --affected-from-tasks probe and the exit-4 suggestion both walk the
+		// same shas), and one rejected sha should cost the reader one line.
+		noticeOnce("sha:"+sha, fmt.Sprintf("warning: commit sha %q was skipped; git would read it as an option", sha))
 		return nil
 	}
 	return execGitDiff(dir, "show", "--name-only", "--pretty=format:", sha)
