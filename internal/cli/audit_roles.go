@@ -331,7 +331,7 @@ func generateRoleAuditPrompts(auditorRoles []model.Role, specItems []ChecklistIt
 		inlinedContent := ""
 		if f.hasFiles {
 			if !inlinerDone && fileSetBytes(filePaths) <= perRoleReadingBudget {
-				_, inlinedContent = fileSetRead(filePaths)
+				inlinedContent = fileSetRead(filePaths)
 				f.filesComplete = true
 				inlinerDone = true
 			}

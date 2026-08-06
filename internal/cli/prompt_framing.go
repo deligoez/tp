@@ -68,12 +68,12 @@ func renderFraming(f *promptFraming) string {
 	return b.String()
 }
 
-// fileSetRead reads the listed paths in full and reports their total byte size
-// and a rendered "complete" content section (path, line count, whole body). It
-// does not truncate: §10.7 inlines a role's file contents only when they fit
-// whole under the per-role reading budget, so the caller compares total to
-// perRoleReadingBudget and inlines only when it fits.
-func fileSetRead(paths []string) (total int, section string) {
+// fileSetRead reads the listed paths in full and returns a rendered "complete"
+// content section (path, line count, whole body). It does not truncate: §10.7
+// inlines a role's file contents only when they fit whole under the per-role
+// reading budget, so a caller sizes the set with fileSetBytes first and calls
+// this only once the set is known to fit.
+func fileSetRead(paths []string) string {
 	seen := make(map[string]bool, len(paths))
 	var b strings.Builder
 	b.WriteString("## Affected Files (complete)\n\n")
@@ -86,12 +86,11 @@ func fileSetRead(paths []string) (total int, section string) {
 		if err != nil {
 			continue
 		}
-		total += len(data)
 		fmt.Fprintf(&b, "### %s (%d lines)\n", p, strings.Count(string(data), "\n")+1)
 		b.Write(data)
 		b.WriteString("\n\n")
 	}
-	return total, b.String()
+	return b.String()
 }
 
 // fileSetBytes reports the total on-disk byte size of the listed paths (the

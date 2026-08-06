@@ -758,11 +758,14 @@ func buildReviewPrompts(specPath string, panel *rolePanel, elems *engine.Structu
 	if reviewSt != nil {
 		consecutiveClean = engine.ReviewConsecutiveClean(specPath, reviewSt.ReviewRounds, wfChecks.ReviewConvergeOn)
 	}
-	affectedBytes, affectedContent := 0, ""
-	if len(affectedFiles) > 0 {
-		affectedBytes, affectedContent = fileSetRead(affectedFiles)
+	// Budget first, content second: stat the set and read it only when it fits,
+	// so an oversized caller-supplied --affected-files list is never
+	// materialized in memory for nothing. This mirrors the audit path.
+	contentFits := len(affectedFiles) > 0 && fileSetBytes(affectedFiles) <= perRoleReadingBudget
+	affectedContent := ""
+	if contentFits {
+		affectedContent = fileSetRead(affectedFiles)
 	}
-	contentFits := len(affectedFiles) > 0 && affectedBytes <= perRoleReadingBudget
 	inlinerDone := false
 	for i := range prompts {
 		outputPath := fmt.Sprintf("review-r%d-%s.ndjson", round, prompts[i].Role)
