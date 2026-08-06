@@ -180,7 +180,12 @@ Use --findings to also verify review findings were addressed.`,
 
 func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, findingsPath string, affectedFromTasks bool) error {
 	if _, err := os.Stat(specPath); os.IsNotExist(err) {
-		output.Error(ExitFile, fmt.Sprintf("spec not found: %s", specPath))
+		// Point at the path the caller typed. The code-3 default hint names
+		// the TASK file — 'tp use' / 'tp init' advice — which is the wrong
+		// object entirely for a mistyped spec path, exactly as it was for
+		// --affected-files below.
+		output.Error(ExitFile, fmt.Sprintf("spec not found: %s", specPath),
+			"check the spec path — tp audit takes the spec markdown file, not the task file")
 		os.Exit(ExitFile)
 		return nil
 	}
