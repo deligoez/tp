@@ -743,6 +743,9 @@ func buildReviewPrompts(specPath string, panel *rolePanel, elems *engine.Structu
 	if !noState && round < 2 {
 		skipped = append(skipped, engine.SkippedRole{Role: engine.RegressionRoleID, Reason: engine.SkipNoBaseline})
 	}
+	// §2.4: a role this spec deactivated with enabled: false is named too, so
+	// the drop is visible rather than silent.
+	skipped = append(skipped, engine.DisabledSkippedRoles(panel.disabled)...)
 
 	// §10.4–§10.7: wrap every emitted prompt in tp-owned framing — the output
 	// file, the reset discipline, the loop budget, and the file-reading
@@ -814,6 +817,10 @@ func refuseEmptyPhase(phase string, disabled []string) {
 type rolePanel struct {
 	fm    *engine.Frontmatter
 	roles []model.Role
+	// disabled holds §2.3's drop set — the sorted ids this spec deactivated
+	// with enabled: false — so each phase's emission can name them in
+	// skipped_roles with reason disabled-by-spec (§2.4).
+	disabled []string
 }
 
 // resolveRolePanel resolves a phase's role panel and decides both §2.5
@@ -855,7 +862,7 @@ func resolveRolePanel(specPath, phase string) rolePanel {
 	if len(disabled) > 0 && len(roles) == 0 {
 		refuseEmptyPhase(phase, disabled)
 	}
-	return rolePanel{fm: fm, roles: roles}
+	return rolePanel{fm: fm, roles: roles, disabled: disabled}
 }
 
 // generateCorpusReviewPrompt renders one review prompt for a corpus role,
