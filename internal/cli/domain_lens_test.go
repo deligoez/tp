@@ -101,10 +101,8 @@ func TestDomainLens_RegressionRejectsLens(t *testing.T) {
 func TestReview_CorpusDrivenEmission(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
-	revDir := filepath.Join(dir, ".tp", "reviewers")
-	require.NoError(t, os.MkdirAll(revDir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(revDir, "transaction-integrity.json"),
-		[]byte(`{"id":"transaction-integrity","title":"Transaction Integrity","instructions":"You hunt for non-atomic state transitions.","focus":["Is every write rolled back on error?"]}`), 0o600))
+	writeReviewerRole(t, dir, "transaction-integrity.json",
+		`{"id":"transaction-integrity","title":"Transaction Integrity","instructions":"You hunt for non-atomic state transitions.","focus":["Is every write rolled back on error?"]}`)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\ncontent\n"), 0o600))
 
 	stdout, stderr, code := runTP(t, dir, "review", "spec.md", "--no-state")
@@ -225,10 +223,7 @@ func TestReview_OverrideUnknownIDIgnored(t *testing.T) {
 func TestReview_DeactivatingEveryUserRoleDoesNotFallBack(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
-	revDir := filepath.Join(dir, ".tp", "reviewers")
-	require.NoError(t, os.MkdirAll(revDir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(revDir, "solo.json"),
-		[]byte(`{"id":"solo","title":"Solo","instructions":"You review."}`), 0o600))
+	writeReviewerRole(t, dir, "solo.json", `{"id":"solo","title":"Solo","instructions":"You review."}`)
 	spec := "---\ntp:\n  review_roles:\n    solo:\n      enabled: false\n---\n# Spec\ncontent\n"
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec), 0o600))
 
@@ -241,15 +236,8 @@ func TestReview_DeactivatingEveryUserRoleDoesNotFallBack(t *testing.T) {
 // TestAudit_DeactivatingEveryUserRoleDoesNotFallBack: the audit half of test 11
 // — the same placement, applied to the auditor panel.
 func TestAudit_DeactivatingEveryUserRoleDoesNotFallBack(t *testing.T) {
-	dir := t.TempDir()
-	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
-	audDir := filepath.Join(dir, ".tp", "auditors")
-	require.NoError(t, os.MkdirAll(audDir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(audDir, "solo.json"),
-		[]byte(`{"id":"solo","title":"Solo","instructions":"You audit."}`), 0o600))
 	spec := "---\ntp:\n  audit_roles:\n    solo:\n      enabled: false\n---\n# Spec\n## 1. Widgets\ncontent\n"
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec), 0o600))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "code.go"), []byte("package main\n"), 0o600))
+	dir := writeAuditorCorpusProject(t, spec, "solo")
 
 	stdout, _, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "code.go")
 	require.Equal(t, 2, code, "an emptied auditor panel refuses instead of falling back")
@@ -638,10 +626,7 @@ func TestReview_SpecCoverageEntryTakesWarningPath(t *testing.T) {
 	dir := writeAuditorCorpusProject(t,
 		"---\ntp:\n  review_roles:\n    spec-coverage:\n      enabled: false\n---\n# Spec\n## 1. Widgets\ncontent\n",
 		"spec-coverage", "keeper")
-	revDir := filepath.Join(dir, ".tp", "reviewers")
-	require.NoError(t, os.MkdirAll(revDir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(revDir, "solo.json"),
-		[]byte(`{"id":"solo","title":"Solo","instructions":"You review."}`), 0o600))
+	writeReviewerRole(t, dir, "solo.json", `{"id":"solo","title":"Solo","instructions":"You review."}`)
 
 	stdout, stderr, code := runTP(t, dir, "review", "spec.md", "--no-state")
 	require.Equal(t, 0, code, "the review caller never trips the spec-coverage refusal; stderr: %s", stderr)
@@ -722,20 +707,11 @@ const bothPhasesDeactivatedSpec = "---\ntp:\n  review_roles:\n    solo:\n      e
 // the modes that take one.
 func writeBothPhasesDeactivatedProject(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
-	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
-	revDir := filepath.Join(dir, ".tp", "reviewers")
-	require.NoError(t, os.MkdirAll(revDir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(revDir, "solo.json"),
-		[]byte(`{"id":"solo","title":"Solo","instructions":"You review."}`), 0o600))
-	audDir := filepath.Join(dir, ".tp", "auditors")
-	require.NoError(t, os.MkdirAll(audDir, 0o755))
-	for _, id := range []string{"spec-coverage", "keeper"} {
-		require.NoError(t, os.WriteFile(filepath.Join(audDir, id+".json"),
-			[]byte(`{"id":"`+id+`","title":"`+id+`","instructions":"You audit."}`), 0o600))
-	}
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(bothPhasesDeactivatedSpec), 0o600))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "code.go"), []byte("package main\n"), 0o600))
+	// The auditor half is exactly writeAuditorCorpusProject's layout (.git, the
+	// two auditor role files, the spec, and the code file audit emission needs);
+	// the reviewer role and the findings NDJSON are what this fixture adds.
+	dir := writeAuditorCorpusProject(t, bothPhasesDeactivatedSpec, "spec-coverage", "keeper")
+	writeReviewerRole(t, dir, "solo.json", `{"id":"solo","title":"Solo","instructions":"You review."}`)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "findings.ndjson"), nil, 0o600))
 	return dir
 }
