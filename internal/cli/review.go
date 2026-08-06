@@ -195,6 +195,16 @@ Modes (mutually exclusive):
 				os.Exit(ExitUsage)
 				return nil
 			}
+			// -o is only read by runReviewMerge. Accepting it on any other mode
+			// would silently drop the caller's redirect target while the payload
+			// still went to stdout — the same silently-ignored-flag hazard the
+			// --merge list guards in the opposite direction.
+			if cmd.Flags().Changed("output") && mode != "merge" {
+				output.Error(ExitUsage, "-o/--output requires --merge",
+					"tp review writes its payload to stdout; redirect it, or use --merge to write an NDJSON file with -o")
+				os.Exit(ExitUsage)
+				return nil
+			}
 			if mode == "" {
 				// Default review mode — requires exactly 1 spec arg
 				if len(args) != 1 {

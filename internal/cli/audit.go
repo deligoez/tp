@@ -121,6 +121,16 @@ Use --findings to also verify review findings were addressed.`,
 				}
 				return runAuditMerge(args, outputPath)
 			}
+			// -o is only read by runAuditMerge above. Accepting it on any other
+			// mode would silently drop the caller's redirect target while the
+			// payload still went to stdout — the same silently-ignored-flag
+			// hazard the --merge list guards in the opposite direction.
+			if cmd.Flags().Changed("output") {
+				output.Error(ExitUsage, "-o/--output requires --merge",
+					"tp audit writes its payload to stdout; redirect it, or use --merge to write an NDJSON file with -o")
+				os.Exit(ExitUsage)
+				return nil
+			}
 			if recordPath != "" && statusMode {
 				output.Error(ExitUsage, "--record and --status are mutually exclusive")
 				os.Exit(ExitUsage)
