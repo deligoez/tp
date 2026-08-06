@@ -348,6 +348,13 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 		}
 	}
 
+	// §2.5 item 2: resolve the reviewer panel — and with it decide the
+	// empty-phase refusal — ahead of every write the emission path performs.
+	// The state lifecycle below calls EnsureReviewState, which creates
+	// .tp-review/<spec>/ and state.json before the round snapshot, so a
+	// refusal decided any later would leave all three on disk.
+	panel := resolveRolePanel(specPath, engine.PhaseReviewers)
+
 	// State-backed round lifecycle (default three-role mode): tp numbers the
 	// round, snapshots the spec, and injects previous findings automatically.
 	statePrevFindings := make([]reviewFinding, 0)
@@ -394,7 +401,7 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 		mechChecks, _ = runMechanicalChecks(&wfChecks, checksTaskFile)
 	}
 
-	prompts, regressionIncluded, skippedRoles := buildReviewPrompts(specPath, elems, specContent, round, summary, affectedFiles, finalRound, &wfChecks, diffFrom, noState, reviewSt)
+	prompts, regressionIncluded, skippedRoles := buildReviewPrompts(specPath, &panel, elems, specContent, round, summary, affectedFiles, finalRound, &wfChecks, diffFrom, noState, reviewSt)
 
 	uniqueCount := len(dedupFindings(findings))
 	convergence, instruction := buildReviewLoopInstruction(round, findings, findingsPath, specPath, specInline, noState, stateRequired, regressionIncluded, len(wfChecks.Checks) > 0)
@@ -644,32 +651,12 @@ func runReviewTestPlan(specPath, specContent, testPath string, affectedFiles []s
 // applied, plus the appended changed-sections block, the auto-included regression
 // prompt (round >= 2 with a diff or fixed findings), and the mechanized-class
 // exclusion. Returns the prompts and whether the regression prompt was included.
-func buildReviewPrompts(specPath string, elems *engine.StructuredElements, specContent string, round int, summary string, affectedFiles []string, finalRound bool, wfChecks *model.Workflow, diffFrom string, noState bool, reviewSt *engine.ReviewState) (prompts []reviewPrompt, regressionIncluded bool, skipped []engine.SkippedRole) {
-	fmState := engine.ParseFrontmatter(specPath)
+func buildReviewPrompts(specPath string, panel *rolePanel, elems *engine.StructuredElements, specContent string, round int, summary string, affectedFiles []string, finalRound bool, wfChecks *model.Workflow, diffFrom string, noState bool, reviewSt *engine.ReviewState) (prompts []reviewPrompt, regressionIncluded bool, skipped []engine.SkippedRole) {
+	// The panel — corpus resolution (§7.1), override layering (§10.2-10.4),
+	// the §2.3 drop and the §2.5 refusals — is resolved by the caller, ahead of
+	// every write the emission path performs (§2.5 item 2).
+	fmState, activeRoles := panel.fm, panel.roles
 
-	// Emit one prompt per active reviewer role from the domain-filtered corpus
-	// (§7.1). A malformed reviewer role aborts review (§3.6, exit 3).
-	activeRoles, corpusWarnings, corpusErr := engine.ResolveActiveCorpus(filepath.Dir(specPath), fmState.Domain, engine.PhaseReviewers)
-	if corpusErr != nil {
-		output.Error(ExitFile, corpusErr.Error(), "repair or delete the offending role file under .tp/reviewers/")
-		os.Exit(ExitFile)
-	}
-	for _, w := range corpusWarnings {
-		output.Info(w)
-	}
-	// Layer the spec-frontmatter role overrides (tp.review_roles / legacy lens
-	// shim) onto each active role's corpus focus (§10.2-10.4).
-	activeRoles, overrideWarnings, disabledRoles := engine.ResolveOverrideFocus(activeRoles, fmState, engine.PhaseReviewers)
-	for _, w := range overrideWarnings {
-		output.Info(w)
-	}
-	// Apply the enabled: false drop here — outside ResolveActiveCorpus and after
-	// its domain filtering — so deactivating every user role empties the panel
-	// instead of falling back to the embedded default corpus (§2.3).
-	activeRoles = engine.DropDisabledRoles(activeRoles, disabledRoles)
-	if len(disabledRoles) > 0 && len(activeRoles) == 0 {
-		refuseEmptyPhase(engine.PhaseReviewers, disabledRoles)
-	}
 	prompts = make([]reviewPrompt, 0, len(activeRoles)+1)
 	for i := range activeRoles {
 		prompts = append(prompts, generateCorpusReviewPrompt(&activeRoles[i], elems, specContent, round, summary, len(affectedFiles) > 0, finalRound))
@@ -819,6 +806,56 @@ func refuseEmptyPhase(phase string, disabled []string) {
 		fmt.Sprintf("every %s role is deactivated by this spec: %s", phase, strings.Join(ids, ", ")),
 		"re-enable at least one role, or remove the enabled: false entries")
 	os.Exit(ExitUsage)
+}
+
+// rolePanel is one phase's resolved role panel: the spec frontmatter plus the
+// active roles that survived corpus resolution, override layering and §2.3's
+// enabled: false drop.
+type rolePanel struct {
+	fm    *engine.Frontmatter
+	roles []model.Role
+}
+
+// resolveRolePanel resolves a phase's role panel and decides both §2.5
+// refusals for it. Callers must invoke it ahead of every write their emission
+// path performs (§2.5 item 2): ahead of EnsureReviewState in tp review — which
+// creates .tp-review/<spec>/ and state.json before the round snapshot — and
+// ahead of the round snapshot in tp audit. A refused run then leaves nothing on
+// disk for either command.
+//
+// The order inside is §2.6's: domain filtering and the unknown-id check happen
+// inside the resolvers, then the spec-coverage refusal (auditors only, because
+// it names a single entry to remove), then the empty-phase refusal.
+func resolveRolePanel(specPath, phase string) rolePanel {
+	fm := engine.ParseFrontmatter(specPath)
+	// A malformed role file aborts its own phase (§3.6, exit 3) and never the
+	// other one; the phase word doubles as the corpus directory name, so the
+	// hint points at the phase that failed.
+	roles, corpusWarnings, corpusErr := engine.ResolveActiveCorpus(filepath.Dir(specPath), fm.Domain, phase)
+	if corpusErr != nil {
+		output.Error(ExitFile, corpusErr.Error(), "repair or delete the offending role file under .tp/"+phase+"/")
+		os.Exit(ExitFile)
+	}
+	for _, w := range corpusWarnings {
+		output.Info(w)
+	}
+	// Layer the spec-frontmatter overrides (tp.review_roles / tp.audit_roles,
+	// plus the legacy tp: lens shim) onto each active role's corpus focus.
+	roles, overrideWarnings, disabled := engine.ResolveOverrideFocus(roles, fm, phase)
+	for _, w := range overrideWarnings {
+		output.Info(w)
+	}
+	if phase == engine.PhaseAuditors {
+		refuseSpecCoverageDeactivated(disabled)
+	}
+	// Apply the enabled: false drop here — outside ResolveActiveCorpus and after
+	// its domain filtering — so deactivating every user role empties the panel
+	// instead of falling back to the embedded default corpus (§2.3).
+	roles = engine.DropDisabledRoles(roles, disabled)
+	if len(disabled) > 0 && len(roles) == 0 {
+		refuseEmptyPhase(phase, disabled)
+	}
+	return rolePanel{fm: fm, roles: roles}
 }
 
 // generateCorpusReviewPrompt renders one review prompt for a corpus role,
