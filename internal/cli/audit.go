@@ -324,7 +324,9 @@ func determineAuditFiles(specPath string, affectedFiles []string, base string, a
 			if auditTasksCarryAnySHA(specPath) {
 				reason = "every recorded commit sha was skipped as unusable"
 			}
-			exitAuditNoFiles(specPath, fmt.Sprintf("no files derivable from done-task commits (%s) — provide --affected-files", reason))
+			// derived is the empty list the branch just computed; hand it over
+			// rather than making exitAuditNoFiles derive the same answer again.
+			exitAuditNoFilesWith(fmt.Sprintf("no files derivable from done-task commits (%s) — provide --affected-files", reason), derived)
 			return nil
 		}
 		return derived
@@ -988,7 +990,14 @@ func auditTasksCarryAnySHA(specPath string) bool {
 // decision-critical and survives --compact (§8.4): it is emitted directly on
 // the error path, never passed through compactAuditChecklist.
 func exitAuditNoFiles(specPath, reason string) {
-	suggested := suggestFilesFromTasks(specPath)
+	exitAuditNoFilesWith(reason, suggestFilesFromTasks(specPath))
+}
+
+// exitAuditNoFilesWith is exitAuditNoFiles for a caller that already derived
+// the suggestion. --affected-from-tasks computes exactly this list to decide
+// whether it has any files at all, and re-deriving it here would walk every
+// done task's commits a second time for a result the caller is holding.
+func exitAuditNoFilesWith(reason string, suggested []string) {
 	output.ErrorExtras(ExitState, reason, map[string]any{
 		"suggested_files": suggested,
 	}, "pass --affected-files <paths>, or --affected-from-tasks to audit the files touched by done-task commits")
