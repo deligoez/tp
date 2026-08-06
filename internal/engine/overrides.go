@@ -12,7 +12,9 @@ import (
 // (§10.2, §10.3): effective focus = project-corpus focus ⊕ spec-override focus
 // (project first). For review the override source is tp.review_roles, or — when
 // that and tp.audit_roles are absent — the legacy tp: lens back-compat shim
-// (§10.4); for audit it is tp.audit_roles. An override whose id matches no active
+// (§10.4); a review spec carrying tp.review_roles alongside a tp: lens keeps the
+// new form and reports the lens as ignored with §10.4's single warning. For
+// audit the source is tp.audit_roles. An override whose id matches no active
 // role in the phase is ignored with a warning. The built-in regression role is
 // appended to emission separately and never passed here, so it accepts no
 // overrides (§5.2). Returns the effective roles (copies), the warnings, and the
@@ -22,22 +24,25 @@ func ResolveOverrideFocus(roles []model.Role, fm *Frontmatter, phase string) (ef
 	warnings = make([]string, 0)
 	overrides := make(map[string]RoleOverride)
 	fieldName := "audit_roles"
-
 	if phase == PhaseReviewers {
 		fieldName = "review_roles"
-		switch {
-		case len(fm.ReviewRoles) > 0:
+		ids := make([]string, 0, len(roles))
+		for i := range roles {
+			ids = append(ids, roles[i].ID)
+		}
+		// The legacy lens shim is consulted on every review path, not only the
+		// one that needs its overrides (§10.4): when tp.review_roles is absent it
+		// supplies the translated overrides and its own unknown-key warnings, and
+		// when tp.review_roles is present it emits the documented single warning
+		// that the lens is ignored — the same warning the audit_roles-only spec
+		// already gets by falling through here. Its overrides are then discarded:
+		// the new form wins outright, never a three-way merge.
+		lensOverrides, lensWarnings := TranslateLegacyLens(fm, ids)
+		warnings = append(warnings, lensWarnings...)
+		if len(fm.ReviewRoles) > 0 {
 			overrides = fm.ReviewRoles
-		default:
-			// No new review overrides: apply the legacy lens shim, which fans out
-			// to the active review roles and warns about unknown lens keys itself.
-			ids := make([]string, 0, len(roles))
-			for i := range roles {
-				ids = append(ids, roles[i].ID)
-			}
-			var lensWarnings []string
-			overrides, lensWarnings = TranslateLegacyLens(fm, ids)
-			warnings = append(warnings, lensWarnings...)
+		} else {
+			overrides = lensOverrides
 		}
 	} else if len(fm.AuditRoles) > 0 {
 		overrides = fm.AuditRoles
