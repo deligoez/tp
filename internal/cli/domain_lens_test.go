@@ -593,7 +593,8 @@ func writeBothPhasesDeactivatedProject(t *testing.T) string {
 // positional and never parse the spec, so they are unaffected by construction
 // and are not asserted; `tp audit` registers none of them. `tp review
 // --perspective` does take the spec but short-circuits before the corpus is
-// resolved, and is outside this test's scope.
+// resolved, and is asserted separately in
+// TestRefusals_PerspectiveShortCircuitsBeforeCorpus.
 func TestRefusals_FireOnlyOnPromptEmission(t *testing.T) {
 	t.Run("control: prompt emission refuses", func(t *testing.T) {
 		dir := writeBothPhasesDeactivatedProject(t)
@@ -626,6 +627,53 @@ func TestRefusals_FireOnlyOnPromptEmission(t *testing.T) {
 			dir := writeBothPhasesDeactivatedProject(t)
 			stdout, stderr, code := runTP(t, dir, tc.args...)
 			assert.Contains(t, tc.wantExit, code, "stderr: %s", stderr)
+			assertNoRefusalMessage(t, stdout, stderr)
+		})
+	}
+}
+
+// TestRefusals_PerspectiveShortCircuitsBeforeCorpus: `tp review --perspective`
+// is the one non-default mode that takes the spec as its positional AND
+// genuinely parses it, so §2.5's emission-only scope has to be asserted for it
+// rather than left to construction (test 8). Every perspective dispatches to
+// its single fixed prompt inside runReview before resolveRolePanel is reached,
+// so the spec that arms both refusals still emits that prompt and carries
+// neither message. Routing the panel resolution ahead of the perspective
+// dispatch is precisely the future refactor this pins: it would make these runs
+// start refusing.
+//
+// The control sub-test re-proves the fixture is armed, so a silent perspective
+// run measures the short-circuit and not a toothless spec.
+func TestRefusals_PerspectiveShortCircuitsBeforeCorpus(t *testing.T) {
+	t.Run("control: prompt emission refuses", func(t *testing.T) {
+		dir := writeBothPhasesDeactivatedProject(t)
+		_, stderr, code := runTP(t, dir, "review", "spec.md", "--no-state")
+		require.Equal(t, 2, code, "stderr: %s", stderr)
+		require.Contains(t, stderr, refusalEmptyPhaseReviewers, "the fixture really refuses")
+	})
+
+	// Every value --perspective accepts. regression takes its stateless mode
+	// (b) form (--diff-from plus --findings) so the assertion stays about the
+	// corpus and not about a missing state directory.
+	for _, tc := range []struct {
+		name string
+		args []string
+	}{
+		{"documentation", []string{"review", "spec.md", "--perspective", "documentation", "--docs-path", "docs"}},
+		{"testing", []string{"review", "spec.md", "--perspective", "testing", "--test-path", "tests"}},
+		{"code-audit", []string{"review", "spec.md", "--perspective", "code-audit", "--affected-files", "code.go"}},
+		{"regression", []string{"review", "spec.md", "--perspective", "regression", "--diff-from", "baseline.md", "--findings", "findings.ndjson"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := writeBothPhasesDeactivatedProject(t)
+			require.NoError(t, os.Mkdir(filepath.Join(dir, "docs"), 0o755))
+			require.NoError(t, os.Mkdir(filepath.Join(dir, "tests"), 0o755))
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "baseline.md"),
+				[]byte("# Spec\n## 1. Widgets\nolder content\n"), 0o600))
+
+			stdout, stderr, code := runTP(t, dir, tc.args...)
+			require.Equal(t, 0, code, "stderr: %s", stderr)
+			assert.NotEmpty(t, stdout, "the perspective emitted its single fixed prompt")
 			assertNoRefusalMessage(t, stdout, stderr)
 		})
 	}
