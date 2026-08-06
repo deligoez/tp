@@ -215,3 +215,44 @@ func TestReview_OverrideUnknownIDIgnored(t *testing.T) {
 		assert.NotContains(t, prompt, "GHOST QUESTION", "the ghost override must not reach role %s", role)
 	}
 }
+
+// TestReview_DeactivatingEveryUserRoleDoesNotFallBack: the enabled: false drop
+// is applied outside ResolveActiveCorpus and after its domain filtering, so a
+// spec deactivating every user reviewer leaves the panel empty and tp refuses
+// (exit 2) instead of tripping the empty-panel fallback to the embedded default
+// corpus (§2.3, test 11). An implementation that dropped the role inside
+// ResolveActiveCorpus would exit 0 and emit the embedded panel instead.
+func TestReview_DeactivatingEveryUserRoleDoesNotFallBack(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
+	revDir := filepath.Join(dir, ".tp", "reviewers")
+	require.NoError(t, os.MkdirAll(revDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(revDir, "solo.json"),
+		[]byte(`{"id":"solo","title":"Solo","instructions":"You review."}`), 0o600))
+	spec := "---\ntp:\n  review_roles:\n    solo:\n      enabled: false\n---\n# Spec\ncontent\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec), 0o600))
+
+	stdout, _, code := runTP(t, dir, "review", "spec.md", "--no-state")
+	require.Equal(t, 2, code, "an emptied reviewer panel refuses instead of falling back")
+	assert.NotContains(t, stdout, "implementer", "no fallback to the embedded default corpus")
+	assert.NotContains(t, stdout, "solo", "the deactivated role is not emitted either")
+}
+
+// TestAudit_DeactivatingEveryUserRoleDoesNotFallBack: the audit half of test 11
+// — the same placement, applied to the auditor panel.
+func TestAudit_DeactivatingEveryUserRoleDoesNotFallBack(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
+	audDir := filepath.Join(dir, ".tp", "auditors")
+	require.NoError(t, os.MkdirAll(audDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(audDir, "solo.json"),
+		[]byte(`{"id":"solo","title":"Solo","instructions":"You audit."}`), 0o600))
+	spec := "---\ntp:\n  audit_roles:\n    solo:\n      enabled: false\n---\n# Spec\n## 1. Widgets\ncontent\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "code.go"), []byte("package main\n"), 0o600))
+
+	stdout, _, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "code.go")
+	require.Equal(t, 2, code, "an emptied auditor panel refuses instead of falling back")
+	assert.NotContains(t, stdout, "spec-coverage", "no fallback to the embedded default corpus")
+	assert.NotContains(t, stdout, "solo", "the deactivated role is not emitted either")
+}
