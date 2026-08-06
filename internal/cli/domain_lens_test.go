@@ -491,3 +491,43 @@ func TestReview_SpecCoverageEntryTakesWarningPath(t *testing.T) {
 	assert.Contains(t, byRole, "solo", "the reviewer panel emits normally")
 	assert.NotContains(t, byRole, "spec-coverage", "the entry matched no active reviewer role")
 }
+
+// TestAudit_SpecCoverageRefusalPrecedesEmptyPhase: a spec that trips BOTH §2.5
+// refusals at once reports the spec-coverage one, per §2.6's decided order
+// (domain filtering, the unknown-id check, the spec-coverage refusal, the
+// empty-phase refusal). The fixture deactivates spec-coverage AND every other
+// active auditor, so the drop set both contains spec-coverage and empties the
+// panel; the second sub-test is the control that the empty-phase condition is
+// really armed by that shape — the identical "deactivate every auditor" spec
+// over a corpus without spec-coverage produces the empty-phase message. So in
+// the combined case it is the ordering, not a single condition holding, that
+// selects which message the agent reads.
+func TestAudit_SpecCoverageRefusalPrecedesEmptyPhase(t *testing.T) {
+	t.Run("both refusals hold", func(t *testing.T) {
+		dir := writeAuditorCorpusProject(t,
+			"---\ntp:\n  audit_roles:\n    keeper:\n      enabled: false\n    spec-coverage:\n      enabled: false\n---\n# Spec\n## 1. Widgets\ncontent\n",
+			"spec-coverage", "keeper")
+
+		stdout, stderr, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "code.go")
+		require.Equal(t, 2, code, "stderr: %s", stderr)
+		assert.Empty(t, stdout, "no prompt is emitted before the refusal")
+		msg, hint := refusalMessage(t, stderr)
+		assert.Equal(t, "spec-coverage cannot be deactivated: it carries the entire spec-derived checklist", msg,
+			"the spec-coverage refusal is decided before the empty-phase one")
+		assert.Equal(t, "remove the enabled: false entry for spec-coverage", hint)
+		assert.NotContains(t, stderr, "every auditors role is deactivated by this spec",
+			"the empty-phase message never reaches the agent")
+	})
+
+	t.Run("empty phase alone", func(t *testing.T) {
+		dir := writeAuditorCorpusProject(t,
+			"---\ntp:\n  audit_roles:\n    keeper:\n      enabled: false\n    second:\n      enabled: false\n---\n# Spec\n## 1. Widgets\ncontent\n",
+			"keeper", "second")
+
+		_, stderr, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "code.go")
+		require.Equal(t, 2, code, "stderr: %s", stderr)
+		msg, _ := refusalMessage(t, stderr)
+		assert.Equal(t, "every auditors role is deactivated by this spec: keeper, second", msg,
+			"without spec-coverage in the drop set the same shape reports the empty-phase refusal")
+	})
+}
