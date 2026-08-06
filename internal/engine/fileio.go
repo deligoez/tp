@@ -6,6 +6,8 @@ import (
 	"os"
 	"sort"
 	"strings"
+
+	"github.com/deligoez/tp/internal/output"
 )
 
 const (
@@ -66,7 +68,7 @@ func ReadAffectedFilesRaw(paths []string, maxPerFile, maxTotal int) map[string]s
 	for _, f := range paths {
 		content, err := os.ReadFile(f)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "warning: cannot read affected file %s; its contents were dropped from the prompt (%v)\n", f, err)
+			output.Notice(fmt.Sprintf("warning: cannot read affected file %s; its contents were dropped from the prompt (%v)", f, err))
 			continue
 		}
 		s := string(content)

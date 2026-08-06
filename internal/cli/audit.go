@@ -403,7 +403,7 @@ func loadAuditPriorRound(specPath string) map[string]*auditPriorRound {
 		// Dropping the whole prior-round section silently makes a round-2
 		// prompt look like a round-1 one. review.go, review_record.go and
 		// review_regression.go all say so on the same condition.
-		output.Info(fmt.Sprintf("round %d file %s is missing; skipping its rows", prior.Round, prior.File))
+		output.Notice(fmt.Sprintf("round %d file %s is missing; skipping its rows", prior.Round, prior.File))
 		return nil
 	}
 	changedFiles := filesChangedSince(filepath.Dir(specPath), prior.RecordedAt)
@@ -580,7 +580,10 @@ func detectChangedFiles(dir, base string) ([]string, error) {
 
 	if len(filtered) > maxAutoDetectFiles {
 		filtered = filtered[:maxAutoDetectFiles]
-		output.Info(fmt.Sprintf("more than %d files changed, auditing first %d", maxAutoDetectFiles, maxAutoDetectFiles))
+		// Notice, not Info: the caller asked for the whole changed set and got a
+		// prefix of it. On the Info channel that truncation is invisible in JSON
+		// mode, which is every piped run.
+		output.Notice(fmt.Sprintf("more than %d files changed, auditing first %d", maxAutoDetectFiles, maxAutoDetectFiles))
 	}
 
 	if len(filtered) == 0 && len(allFiles) > 0 {
@@ -654,7 +657,7 @@ func warnGitFailure(err error, args ...string) {
 	if errors.As(err, &exitErr) && len(exitErr.Stderr) > 0 {
 		detail = strings.TrimRight(string(exitErr.Stderr), "\n")
 	}
-	fmt.Fprintf(os.Stderr, "warning: git %s failed: %s\n", strings.Join(args, " "), detail)
+	output.Notice(fmt.Sprintf("warning: git %s failed: %s", strings.Join(args, " "), detail))
 }
 
 func isBinaryFile(path string) bool {

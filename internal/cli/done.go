@@ -157,7 +157,7 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 		return nil
 	}
 	if doneGatePassed && engine.EffectiveWorkflowForTaskFile(taskFilePath).QualityGate != "" {
-		output.Info("quality gate is executed by tp; --gate-passed ignored")
+		output.Notice("quality gate is executed by tp; --gate-passed ignored")
 	}
 	gateRan := false
 	if doneSkipGate == "" {
@@ -390,7 +390,7 @@ func runDoneMulti(taskFilePath string, taskIDs []string, reason string) error {
 		}
 	}
 	if doneGatePassed && engine.EffectiveWorkflowForTaskFile(taskFilePath).QualityGate != "" {
-		output.Info("quality gate is executed by tp; --gate-passed ignored")
+		output.Notice("quality gate is executed by tp; --gate-passed ignored")
 	}
 	gateRan := false
 	if survivors > 0 && doneSkipGate == "" {

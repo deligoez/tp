@@ -180,7 +180,7 @@ func runMechanicalChecks(wf *model.Workflow, taskFilePath string) (results []map
 	for i := range wf.Checks {
 		c := wf.Checks[i]
 		if err := engine.ValidateChecks([]model.Check{c}); err != nil {
-			output.Info(fmt.Sprintf("skipping invalid check %d (%s): %v", i, c.Class, err))
+			output.Notice(fmt.Sprintf("skipping invalid check %d (%s): %v", i, c.Class, err))
 			continue
 		}
 		res := engine.RunCommand(c.Cmd, dir, timeout, gateOutputTailLines)

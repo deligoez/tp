@@ -90,14 +90,22 @@ func resolveRolePanel(specPath, phase string) rolePanel {
 		output.Error(ExitFile, corpusErr.Error(), "repair or delete the offending role file under .tp/"+phase+"/")
 		os.Exit(ExitFile)
 	}
+	// Notice for the same reason as the override warnings below: an unknown
+	// domain or a domain that filtered out every role means the panel the spec
+	// asked for is not the panel that ran.
 	for _, w := range corpusWarnings {
-		output.Info(w)
+		output.Notice(w)
 	}
 	// Layer the spec-frontmatter overrides (tp.review_roles / tp.audit_roles,
 	// plus the legacy tp: lens shim) onto each active role's corpus focus.
 	roles, overrideWarnings, disabled := engine.ResolveOverrideFocus(roles, fm, phase)
+	// Notice, not Info: every one of these says a frontmatter entry was
+	// ignored — an id matching no active role, an unknown legacy lens key. Info
+	// returns early in JSON mode and JSON mode is on whenever stdout is not a
+	// terminal, so on that channel the advisory is invisible in exactly the
+	// agent-driven runs where a typo'd role id silently costs a sub-agent round.
 	for _, w := range overrideWarnings {
-		output.Info(w)
+		output.Notice(w)
 	}
 	if phase == engine.PhaseAuditors {
 		refuseSpecCoverageDeactivated(disabled)

@@ -427,7 +427,10 @@ func TestReview_EnabledFalseOnlyEntrySuppressesLensShim(t *testing.T) {
 }
 
 // refusalMessage decodes tp's JSON error object off stderr so the empty-phase
-// message and hint can be asserted verbatim rather than by substring.
+// message and hint can be asserted verbatim rather than by substring. It reads
+// the LAST non-empty line: advisories now share stderr with the error object
+// (they travel output.Notice, which JSON mode does not suppress), so stderr as
+// a whole is no longer a single JSON document.
 func refusalMessage(t *testing.T, stderr string) (msg, hint string) {
 	t.Helper()
 	var e struct {
@@ -435,7 +438,9 @@ func refusalMessage(t *testing.T, stderr string) (msg, hint string) {
 		Code  int    `json:"code"`
 		Hint  string `json:"hint"`
 	}
-	require.NoError(t, json.Unmarshal([]byte(strings.TrimSpace(stderr)), &e), "stderr: %s", stderr)
+	lines := strings.Split(strings.TrimSpace(stderr), "\n")
+	last := strings.TrimSpace(lines[len(lines)-1])
+	require.NoError(t, json.Unmarshal([]byte(last), &e), "stderr: %s", stderr)
 	return e.Error, e.Hint
 }
 

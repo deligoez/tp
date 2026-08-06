@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/deligoez/tp/internal/engine"
+	"github.com/deligoez/tp/internal/output"
 )
 
 const (
@@ -71,7 +72,7 @@ func newestEarlierSnapshot(specPath string, r int) (round int, path string) {
 func diffLinesOf(path string) []string {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "warning: cannot read %s; the diff treats it as empty (%v)\n", path, err)
+		output.Notice(fmt.Sprintf("warning: cannot read %s; the diff treats it as empty (%v)", path, err))
 		return nil
 	}
 	return engine.BlankFrontmatterLines(strings.Split(string(data), "\n"))

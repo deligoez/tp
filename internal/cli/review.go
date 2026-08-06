@@ -984,7 +984,7 @@ func parseFindingsFile(path string) ([]reviewFinding, error) {
 		}
 		var finding reviewFinding
 		if err := json.Unmarshal([]byte(line), &finding); err != nil {
-			output.Info(fmt.Sprintf("findings line %d: skipping invalid JSON", lineNum))
+			output.Notice(fmt.Sprintf("findings line %d: skipping invalid JSON", lineNum))
 			continue
 		}
 		if finding.Severity == "" {
@@ -1311,7 +1311,7 @@ func readFilesContent(files []string, maxPerFile, maxTotal int) map[string]strin
 	for _, f := range files {
 		content, err := os.ReadFile(f)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "warning: cannot read %s; its contents were dropped from the prompt (%v)\n", f, err)
+			output.Notice(fmt.Sprintf("warning: cannot read %s; its contents were dropped from the prompt (%v)", f, err))
 			continue
 		}
 		s := string(content)
@@ -1744,7 +1744,7 @@ func loadReviewRoundState(cmd *cobra.Command, specPath string, round int, findin
 			r := st.ReviewRounds[i]
 			rows, found := engine.LoadRoundRows(specPath, &r)
 			if !found {
-				output.Info(fmt.Sprintf("round %d file %s is missing; skipping its rows", r.Round, r.File))
+				output.Notice(fmt.Sprintf("round %d file %s is missing; skipping its rows", r.Round, r.File))
 				continue
 			}
 			for _, row := range rows {

@@ -13,6 +13,7 @@ import (
 
 	"github.com/deligoez/tp/internal/engine"
 	"github.com/deligoez/tp/internal/model"
+	"github.com/deligoez/tp/internal/output"
 )
 
 // roleSpecCoverage is the one auditor id with a dedicated routing path: it
@@ -375,7 +376,7 @@ func claudeMDExcerptFor(specPath string) string {
 			// optional). One that exists but cannot be read silently costs
 			// every role its conventions context, so name it.
 			if !os.IsNotExist(err) {
-				fmt.Fprintf(os.Stderr, "warning: cannot read %s; the conventions excerpt was dropped (%v)\n", c, err)
+				output.Notice(fmt.Sprintf("warning: cannot read %s; the conventions excerpt was dropped (%v)", c, err))
 			}
 			continue
 		}

@@ -7,6 +7,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/deligoez/tp/internal/output"
 )
 
 const maxExcerptChars = 2000
@@ -19,7 +21,7 @@ func warnUnreadableSpec(specPath string, err error) {
 	if os.IsNotExist(err) {
 		return
 	}
-	fmt.Fprintf(os.Stderr, "warning: cannot read spec %s; the excerpt was dropped (%v)\n", specPath, err)
+	output.Notice(fmt.Sprintf("warning: cannot read spec %s; the excerpt was dropped (%v)", specPath, err))
 }
 
 // LineRange represents a start-end line range (inclusive).

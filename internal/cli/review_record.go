@@ -119,7 +119,7 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 	for _, r := range st.ReviewRounds {
 		rows, found := engine.LoadRoundRows(specPath, &r)
 		if !found {
-			output.Info(fmt.Sprintf("round %d file %s is missing; skipping its rows", r.Round, r.File))
+			output.Notice(fmt.Sprintf("round %d file %s is missing; skipping its rows", r.Round, r.File))
 			continue
 		}
 		roundFindings = append(roundFindings, rows)
