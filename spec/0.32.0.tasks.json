@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.32.0.md",
   "created_at": "2026-08-06T09:57:37.021054Z",
-  "updated_at": "2026-08-06T10:43:57.996226Z",
+  "updated_at": "2026-08-06T10:50:46.145251Z",
   "workflow": {},
   "coverage": {
     "total_sections": 14,
@@ -421,7 +421,7 @@
     {
       "id": "refusal-before-writes",
       "title": "Resolve roles ahead of every write",
-      "status": "open",
+      "status": "done",
       "tags": [
         "impl"
       ],
@@ -434,11 +434,22 @@
         "### 2.5 A phase cannot be emptied"
       ],
       "source_lines": "64,100",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-06T10:44:55.087772Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-06T10:50:46.112977Z",
+      "closed_reason": "- Corpus resolution and override layering now run ahead of every write tp review's emission path performs: the new resolveRolePanel (internal/cli/review.go) does ResolveActiveCorpus + ResolveOverrideFocus + the §2.3 drop + both §2.5 refusals in §2.6's order, and runReview calls it BEFORE loadReviewRoundState, which is where EnsureReviewState creates .tp-review/\u003cspec\u003e/ and state.json and WriteSnapshotAtomic writes snapshot-round-1.md; buildReviewPrompts now receives the resolved panel instead of resolving it itself.\n- The same helper runs ahead of the snapshot write in tp audit: runAudit (internal/cli/audit.go) calls resolveRolePanel(specPath, engine.PhaseAuditors) before loadAuditSpec, which is the function that writes snapshot-audit-round-1.md; the 29-line inline corpus/override/refusal block was deleted and fmAudit replaced by panel.fm.\n- Test 7 is asserted per command over that command's OWN artifacts by TestRefusals_WriteNothingBeforeRefusing (internal/cli/domain_lens_test.go): the review half (run WITHOUT --no-state, the only mode that arms the state lifecycle) asserts exit 2 plus NoDirExists on .tp-review/spec, NoFileExists on state.json and on snapshot-round-1.md; the audit half asserts exit 2 plus NoFileExists on snapshot-audit-round-1.md. The test was written first and verified failing against the unfixed tree with all four assertions red, so it discriminates.\n- Review was ALSO broken, not just audit: pre-fix the review half left the state directory, state.json AND the round snapshot behind. Every pre-existing empty-phase review test passes --no-state, which skips the state lifecycle entirely and hid the bug.\n- Gate green before closing: go test ./... exit 0, golangci-lint run exit 0 (checked as separate exit codes, not a \u0026\u0026 chain).",
+      "gate_passed_at": "2026-08-06T10:50:46.112977Z",
+      "commit_sha": "3a99974",
+      "commit_shas": [
+        "3a99974",
+        "016aade",
+        "3069049"
+      ],
+      "commit_files": [
+        "internal/cli/audit.go",
+        "internal/cli/domain_lens_test.go",
+        "internal/cli/review.go"
+      ]
     },
     {
       "id": "spec-coverage-refusal",
