@@ -318,3 +318,63 @@ func TestAudit_EmptyPhaseMessageRendersSortedIDs(t *testing.T) {
 	assert.Equal(t, "every auditors role is deactivated by this spec: alpha, zeta", msg)
 	assert.Equal(t, "re-enable at least one role, or remove the enabled: false entries", hint)
 }
+
+// TestReview_EmptyPhaseNamesOnlySpecDeactivatedIDs: the empty-phase list carries
+// only the ids THIS spec deactivated with enabled: false. An id already absent
+// for another reason is excluded — "aardvark" is filtered out by domains before
+// the drop set is computed, and "ghost" has no role file at all; both take
+// §2.3's "matches no active role" path and contribute no drop. The phase is
+// emptied partly by domains and partly by enabled: false, and the message names
+// only the latter (§2.5). "aardvark" sorts first, so an implementation keyed on
+// the frontmatter entries rather than the drop set would lead the list with it.
+func TestReview_EmptyPhaseNamesOnlySpecDeactivatedIDs(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
+	revDir := filepath.Join(dir, ".tp", "reviewers")
+	require.NoError(t, os.MkdirAll(revDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(revDir, "aardvark.json"),
+		[]byte(`{"id":"aardvark","title":"Aardvark","instructions":"You review prose.","domains":["prose"]}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(revDir, "beta.json"),
+		[]byte(`{"id":"beta","title":"Beta","instructions":"You review."}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(revDir, "delta.json"),
+		[]byte(`{"id":"delta","title":"Delta","instructions":"You review."}`), 0o600))
+	// The spec carries no tp.domain, so it is a software spec and "aardvark"
+	// (prose-only) is not active; "ghost" names no role file at all.
+	spec := "---\ntp:\n  review_roles:\n    aardvark:\n      enabled: false\n    beta:\n      enabled: false\n    delta:\n      enabled: false\n    ghost:\n      enabled: false\n---\n# Spec\ncontent\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "review", "spec.md", "--no-state")
+	require.Equal(t, 2, code, "stderr: %s", stderr)
+	assert.Empty(t, stdout, "no prompt is emitted before the refusal")
+	msg, hint := refusalMessage(t, stderr)
+	assert.Equal(t, "every reviewers role is deactivated by this spec: beta, delta", msg,
+		"only the ids this spec deactivated, sorted and comma-separated")
+	assert.Equal(t, "re-enable at least one role, or remove the enabled: false entries", hint)
+}
+
+// TestAudit_EmptyPhaseNamesOnlySpecDeactivatedIDs: the audit half of the same
+// rule — the auditor phase emptied partly by domains and partly by enabled:
+// false names only the deactivated ids (§2.5).
+func TestAudit_EmptyPhaseNamesOnlySpecDeactivatedIDs(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
+	audDir := filepath.Join(dir, ".tp", "auditors")
+	require.NoError(t, os.MkdirAll(audDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(audDir, "aardvark.json"),
+		[]byte(`{"id":"aardvark","title":"Aardvark","instructions":"You audit prose.","domains":["prose"]}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(audDir, "beta.json"),
+		[]byte(`{"id":"beta","title":"Beta","instructions":"You audit."}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(audDir, "delta.json"),
+		[]byte(`{"id":"delta","title":"Delta","instructions":"You audit."}`), 0o600))
+	spec := "---\ntp:\n  audit_roles:\n    aardvark:\n      enabled: false\n    beta:\n      enabled: false\n    delta:\n      enabled: false\n    ghost:\n      enabled: false\n---\n# Spec\n## 1. Widgets\ncontent\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "code.go"), []byte("package main\n"), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "code.go")
+	require.Equal(t, 2, code, "stderr: %s", stderr)
+	assert.Empty(t, stdout, "no prompt is emitted before the refusal")
+	msg, hint := refusalMessage(t, stderr)
+	assert.Equal(t, "every auditors role is deactivated by this spec: beta, delta", msg,
+		"only the ids this spec deactivated, sorted and comma-separated")
+	assert.Equal(t, "re-enable at least one role, or remove the enabled: false entries", hint)
+}
