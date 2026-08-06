@@ -630,3 +630,42 @@ func TestRefusals_FireOnlyOnPromptEmission(t *testing.T) {
 		})
 	}
 }
+
+// TestRefusals_WriteNothingBeforeRefusing: §2.5 item 2 — corpus and override
+// resolution run ahead of every write the emission path performs, so a refused
+// run leaves no state behind. Asserted per command over that command's OWN
+// artifacts, because the two artifact sets differ: tp review's emission path
+// calls EnsureReviewState (creating .tp-review/<spec>/ and state.json) before
+// WriteSnapshotAtomic, so all three must be absent; tp audit only snapshots, so
+// its artifact is the round snapshot.
+//
+// The review half deliberately runs WITHOUT --no-state — that is the only mode
+// that arms the state lifecycle, and it is the mode every other empty-phase
+// test avoids.
+func TestRefusals_WriteNothingBeforeRefusing(t *testing.T) {
+	t.Run("review", func(t *testing.T) {
+		dir := writeBothPhasesDeactivatedProject(t)
+
+		stdout, stderr, code := runTP(t, dir, "review", "spec.md")
+		require.Equal(t, 2, code, "stderr: %s", stderr)
+		assert.Empty(t, stdout)
+		assert.Contains(t, stderr, refusalEmptyPhaseReviewers, "the fixture really refuses")
+
+		stateDir := filepath.Join(dir, ".tp-review", "spec")
+		assert.NoDirExists(t, stateDir, "the refusal precedes EnsureReviewState")
+		assert.NoFileExists(t, filepath.Join(stateDir, "state.json"))
+		assert.NoFileExists(t, filepath.Join(stateDir, "snapshot-round-1.md"))
+	})
+
+	t.Run("audit", func(t *testing.T) {
+		dir := writeBothPhasesDeactivatedProject(t)
+
+		stdout, stderr, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "code.go")
+		require.Equal(t, 2, code, "stderr: %s", stderr)
+		assert.Empty(t, stdout)
+		assert.Contains(t, stderr, refusalSpecCoverage, "the fixture really refuses")
+
+		assert.NoFileExists(t, filepath.Join(dir, ".tp-review", "spec", "snapshot-audit-round-1.md"),
+			"the refusal precedes the round snapshot")
+	})
+}
