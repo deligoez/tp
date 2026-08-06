@@ -531,3 +531,102 @@ func TestAudit_SpecCoverageRefusalPrecedesEmptyPhase(t *testing.T) {
 			"without spec-coverage in the drop set the same shape reports the empty-phase refusal")
 	})
 }
+
+// The two §2.5 refusal messages, pinned as literals so the emission-only scope
+// is asserted by their ABSENCE rather than by a non-2 exit code — a malformed
+// argument also exits 2, so an exit-code assertion would not discriminate. The
+// empty-phase message renders the phase word, so both renderings are listed.
+const (
+	refusalEmptyPhaseReviewers = "every reviewers role is deactivated by this spec"
+	refusalEmptyPhaseAuditors  = "every auditors role is deactivated by this spec"
+	refusalSpecCoverage        = "spec-coverage cannot be deactivated: it carries the entire spec-derived checklist"
+)
+
+// assertNoRefusalMessage fails when either §2.5 refusal reached the agent on
+// stdout or stderr.
+func assertNoRefusalMessage(t *testing.T, stdout, stderr string) {
+	t.Helper()
+	for _, msg := range []string{refusalEmptyPhaseReviewers, refusalEmptyPhaseAuditors, refusalSpecCoverage} {
+		assert.NotContains(t, stdout, msg, "a §2.5 refusal reached stdout outside prompt emission")
+		assert.NotContains(t, stderr, msg, "a §2.5 refusal reached stderr outside prompt emission")
+	}
+}
+
+// bothPhasesDeactivatedSpec arms BOTH §2.5 refusals from one spec: it
+// deactivates the only reviewer (emptying the reviewer phase) and every
+// auditor including spec-coverage (tripping the spec-coverage refusal, which
+// §2.6 decides first).
+const bothPhasesDeactivatedSpec = "---\ntp:\n  review_roles:\n    solo:\n      enabled: false\n  audit_roles:\n    spec-coverage:\n      enabled: false\n    keeper:\n      enabled: false\n---\n# Spec\n## 1. Widgets\ncontent\n"
+
+// writeBothPhasesDeactivatedProject lays out a project whose reviewer and
+// auditor corpora are both fully deactivated by bothPhasesDeactivatedSpec, plus
+// the code file the audit emission path needs and an empty findings NDJSON for
+// the modes that take one.
+func writeBothPhasesDeactivatedProject(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
+	revDir := filepath.Join(dir, ".tp", "reviewers")
+	require.NoError(t, os.MkdirAll(revDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(revDir, "solo.json"),
+		[]byte(`{"id":"solo","title":"Solo","instructions":"You review."}`), 0o600))
+	audDir := filepath.Join(dir, ".tp", "auditors")
+	require.NoError(t, os.MkdirAll(audDir, 0o755))
+	for _, id := range []string{"spec-coverage", "keeper"} {
+		require.NoError(t, os.WriteFile(filepath.Join(audDir, id+".json"),
+			[]byte(`{"id":"`+id+`","title":"`+id+`","instructions":"You audit."}`), 0o600))
+	}
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(bothPhasesDeactivatedSpec), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "code.go"), []byte("package main\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "findings.ndjson"), nil, 0o600))
+	return dir
+}
+
+// TestRefusals_FireOnlyOnPromptEmission: both §2.5 refusals fire only in each
+// command's prompt-emission mode — the default invocation with a spec
+// positional and no mode flag (§2.5 item 1, test 8). The armed sub-test is the
+// control: it proves this exact spec and corpus DO trip both refusals, so a
+// mode sub-test that stays silent is measuring the mode scope and not a
+// toothless fixture.
+//
+// `--merge`, `--resolve`, `--resolve-all` and `--report` take an NDJSON
+// positional and never parse the spec, so they are unaffected by construction
+// and are not asserted; `tp audit` registers none of them. `tp review
+// --perspective` does take the spec but short-circuits before the corpus is
+// resolved, and is outside this test's scope.
+func TestRefusals_FireOnlyOnPromptEmission(t *testing.T) {
+	t.Run("control: prompt emission refuses", func(t *testing.T) {
+		dir := writeBothPhasesDeactivatedProject(t)
+		_, stderr, code := runTP(t, dir, "review", "spec.md", "--no-state")
+		require.Equal(t, 2, code, "stderr: %s", stderr)
+		assert.Contains(t, stderr, refusalEmptyPhaseReviewers, "the reviewer phase is armed")
+
+		dir = writeBothPhasesDeactivatedProject(t)
+		_, stderr, code = runTP(t, dir, "audit", "spec.md", "--affected-files", "code.go")
+		require.Equal(t, 2, code, "stderr: %s", stderr)
+		assert.Contains(t, stderr, refusalSpecCoverage, "the auditor phase is armed")
+	})
+
+	// wantExit follows §2.5 item 1: --record and --verify exit 0, --status
+	// exits 0, and --status --check exits 0 or 1 by convergence.
+	for _, tc := range []struct {
+		name     string
+		args     []string
+		wantExit []int
+	}{
+		{"review --record", []string{"review", "spec.md", "--record", "findings.ndjson"}, []int{0}},
+		{"review --status", []string{"review", "spec.md", "--status"}, []int{0}},
+		{"review --status --check", []string{"review", "spec.md", "--status", "--check"}, []int{0, 1}},
+		{"review --verify", []string{"review", "spec.md", "--verify", "--findings", "findings.ndjson"}, []int{0}},
+		{"audit --record", []string{"audit", "spec.md", "--record", "findings.ndjson"}, []int{0}},
+		{"audit --status", []string{"audit", "spec.md", "--status"}, []int{0}},
+		{"audit --status --check", []string{"audit", "spec.md", "--status", "--check"}, []int{0, 1}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := writeBothPhasesDeactivatedProject(t)
+			stdout, stderr, code := runTP(t, dir, tc.args...)
+			assert.Contains(t, tc.wantExit, code, "stderr: %s", stderr)
+			assertNoRefusalMessage(t, stdout, stderr)
+		})
+	}
+}
