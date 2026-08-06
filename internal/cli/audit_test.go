@@ -147,6 +147,55 @@ func TestAuditDiffStatsMeasureTheSelectedRange(t *testing.T) {
 	}
 }
 
+// TestAuditCallerSuppliedFilesCarryNoUnmeasuredDiff is the third form of the
+// same defect: the diff stats reproduce the AUTO-DETECT comparison, but
+// --affected-files REPLACED the file universe, so that comparison need not
+// contain the caller's paths at all. Here a.go changed before the latest tag,
+// which puts it outside every range the audit compares — git succeeds, the path
+// is simply absent from the numstat output, and the old fallback stated
+// "+0/-0" about a file nothing measured. Nothing measured it, so nothing is
+// claimed: no diff annotation on the prompt line, empty diff_summary in the
+// payload.
+func TestAuditCallerSuppliedFilesCarryNoUnmeasuredDiff(t *testing.T) {
+	dir, _ := newAuditRepo(t)
+
+	body := "package main\n\nfunc a1() {}\nfunc a2() {}\nfunc a3() {}\nfunc a4() {}\nfunc a5() {}\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.go"), []byte(body), 0o600))
+	git(t, dir, "add", "a.go")
+	git(t, dir, "commit", "-m", "add a.go")
+	// The tag comes AFTER the change, so <latest tag>...HEAD, the working tree
+	// and the index are all empty: no range the audit compares covers a.go.
+	git(t, dir, "tag", "v0.0.1")
+
+	stdout, stderr, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "a.go")
+	require.Equal(t, 0, code, stderr)
+
+	var out map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+
+	seen := 0
+	for _, p := range out["prompts"].([]any) {
+		pm := p.(map[string]any)
+		for _, af := range pm["affected_files"].([]any) {
+			am := af.(map[string]any)
+			if am["path"] != "a.go" {
+				continue
+			}
+			seen++
+			assert.Equal(t, "", am["diff_summary"],
+				"an unmeasured file reports no churn rather than a zero one")
+		}
+		prompt := pm["prompt"].(string)
+		assert.NotContains(t, prompt, "+0/-0",
+			"role %s was handed an unmeasured zero as measured fact", pm["role"])
+		assert.NotContains(t, prompt, "a.go (diff:",
+			"role %s carries a diff annotation for a file no comparison covered", pm["role"])
+		assert.Contains(t, prompt, "- a.go\n",
+			"role %s still names the file, just without a churn claim", pm["role"])
+	}
+	require.NotZero(t, seen, "a.go must appear in the selected files")
+}
+
 func TestAuditNoSpecArg(t *testing.T) {
 	dir := t.TempDir()
 	_, stderr, code := runTP(t, dir, "audit")
