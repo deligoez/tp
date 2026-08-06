@@ -378,3 +378,30 @@ func TestAudit_EmptyPhaseNamesOnlySpecDeactivatedIDs(t *testing.T) {
 		"only the ids this spec deactivated, sorted and comma-separated")
 	assert.Equal(t, "re-enable at least one role, or remove the enabled: false entries", hint)
 }
+
+// TestAudit_SpecCoverageCannotBeDeactivated: an auditor drop set containing
+// spec-coverage exits 2 with §2.5's second refusal verbatim — message and hint
+// — even though another auditor remains active. It is not an emptiness check:
+// routeChecklist routes every spec-derived item to spec-coverage alone, so
+// deactivating it drops the whole spec-derived checklist while "keeper" would
+// still have emitted.
+func TestAudit_SpecCoverageCannotBeDeactivated(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
+	audDir := filepath.Join(dir, ".tp", "auditors")
+	require.NoError(t, os.MkdirAll(audDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(audDir, "spec-coverage.json"),
+		[]byte(`{"id":"spec-coverage","title":"Spec Coverage","instructions":"You audit coverage."}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(audDir, "keeper.json"),
+		[]byte(`{"id":"keeper","title":"Keeper","instructions":"You audit."}`), 0o600))
+	spec := "---\ntp:\n  audit_roles:\n    spec-coverage:\n      enabled: false\n---\n# Spec\n## 1. Widgets\ncontent\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "code.go"), []byte("package main\n"), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "code.go")
+	require.Equal(t, 2, code, "stderr: %s", stderr)
+	assert.Empty(t, stdout, "no prompt is emitted before the refusal")
+	msg, hint := refusalMessage(t, stderr)
+	assert.Equal(t, "spec-coverage cannot be deactivated: it carries the entire spec-derived checklist", msg)
+	assert.Equal(t, "remove the enabled: false entry for spec-coverage", hint)
+}
