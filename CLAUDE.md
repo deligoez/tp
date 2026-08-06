@@ -243,6 +243,8 @@ Prefer running each **unit** in a **fresh subagent context** (Agent/Task tool), 
 
 **Honest boundaries.** Subagents don't nest (one level), so the orchestrator does each round's fan-out itself; the orchestrator's own context is NOT reset in this model — only the units are. For a full reset of the driver too, use the `/clear` + `tp resume` loop (human/harness-triggered, since an agent can't clear its own caller's context — §2.1) or drive tp externally with headless `claude -p` per unit.
 
+**Budget the subagents before starting a long run (v0.32.0 lesson).** Claude Code caps subagents per *session* (`CLAUDE_CODE_MAX_SUBAGENTS_PER_SESSION`, 200 by default) and the cost is `rounds × roles`: a 4-role audit is 4 per round, a 5-role review 5 per round, so 23 rounds alone is ~100. v0.32.0 exhausted the cap at audit round 11 and the last repairs had to be done by the orchestrator itself — which still works, but trades away the independence that makes the loop worth running. Estimate `rounds × roles + tasks + repairs` up front; if it approaches the cap, either raise it or plan a `/clear` + `tp resume` handoff to a fresh session at a phase boundary.
+
 ### Continuous Improvement
 - After each implementation cycle, note friction points and AX issues
 - If a tp command is awkward to use during self-development, fix it immediately
@@ -251,6 +253,7 @@ Prefer running each **unit** in a **fresh subagent context** (Agent/Task tool), 
 - Every improvement should be evaluated: does this reduce token overhead or agent friction?
 
 ### Deferred Ideas (evaluate when agent feedback warrants)
+- 📋 **Next version's candidates live in `spec/0.33.0-candidates.md`** — read it before writing a new spec. It carries what the v0.32.0 cycle deliberately deferred (each with the reason it was accepted rather than fixed), plus the open field-feedback items. The headline is scope-aware audit convergence; see the CLAUDE.md rule above for why.
 - ✅ **Full audit NDJSON parser** (`tp audit --merge`) — **shipped.** Merges + dedups per-role audit-result files (by `role`+`item_id`) with a status/role breakdown, mirroring `tp review --merge`; `--record` still counts non-PASS rows for convergence.
 - ✅ **Broken cross-reference lint** (`broken-cross-ref`) — **shipped.** Flags `§X.Y step N` when section X.Y has fewer than N numbered steps. Kept conservative to hold the false-positive rate down: fires only when the section is a heading whose content holds a numbered list and N exceeds the largest such list (sized by both item count and highest literal number, so `1. 1. 1.` markdown numbering counts correctly); refs into listless or unknown sections, and refs inside code blocks, are never reported. Zero false positives across tp's own specs.
 - ✅ **Duplicate paragraph lint** (`duplicate-paragraph`) — **shipped.** Flags two consecutive identical blank-line-separated paragraphs (a copy-paste artifact `duplicate-line` misses); a code block between two blocks breaks their adjacency, and single-line heading or horizontal-rule paragraphs are skipped to avoid double-reporting.
