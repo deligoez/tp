@@ -184,6 +184,7 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 // the round, pre-resolved fixed aborts, pre-resolved duplicate dirties.
 func parseRecordRows(path string, data []byte) (findings, dirty int, hint string, err error) {
 	lineNum := 0
+	var rl rolelessRows
 	for _, line := range strings.Split(string(data), "\n") {
 		lineNum++
 		trimmed := strings.TrimSpace(line)
@@ -196,9 +197,7 @@ func parseRecordRows(path string, data []byte) (findings, dirty int, hint string
 		}
 		findings++
 
-		if role, _ := row["role"].(string); role == "" {
-			fmt.Fprintf(os.Stderr, "warning: line %d of %s is missing the role field; it will not appear in the per-role overlap report\n", lineNum, path)
-		}
+		rl.observe(row, lineNum)
 
 		status, evidence := resolvedStatusOf(row)
 		switch status {
@@ -214,6 +213,7 @@ func parseRecordRows(path string, data []byte) (findings, dirty int, hint string
 			dirty++
 		}
 	}
+	rl.notice(path)
 	return findings, dirty, "", nil
 }
 
@@ -226,6 +226,44 @@ func resolvedStatusOf(row map[string]any) (status, evidence string) {
 	status, _ = resolved["status"].(string)
 	evidence, _ = resolved["evidence"].(string)
 	return status, evidence
+}
+
+// rolelessRows accumulates the rows of one NDJSON file that carry no role, so
+// the condition costs the reader ONE advisory rather than one per row. Both
+// record paths — review findings and audit results — apply the same rule to
+// the same field, so the count, the first offending line, the wording and the
+// noticeOnce key live here once and cannot drift apart per phase.
+type rolelessRows struct {
+	count     int
+	firstLine int
+}
+
+// observe folds one parsed row into the tally, remembering the first line that
+// lacked a role.
+func (r *rolelessRows) observe(row map[string]any, lineNum int) {
+	if role, _ := row["role"].(string); role != "" {
+		return
+	}
+	r.count++
+	if r.firstLine == 0 {
+		r.firstLine = lineNum
+	}
+}
+
+// notice emits the single advisory for path, when any row lacked a role. Per
+// row this printed N byte-identical-but-for-the-line-number copies (a 48-row
+// file cost ~5KB), and on raw os.Stderr it ignored --quiet; output.Notice
+// honours it, and the count is the part a reader needs that the per-row form
+// never gave. Call it only on the success path: a round that aborts mid-parse
+// records nothing, so its partial tally would advise about rows no state ever
+// kept.
+func (r *rolelessRows) notice(path string) {
+	if r.count == 0 {
+		return
+	}
+	noticeOnce("roleless-rows:"+path, fmt.Sprintf(
+		"warning: %d row(s) in %s are missing the role field (first at line %d); they will not appear in the per-role overlap report",
+		r.count, path, r.firstLine))
 }
 
 // exitStateError reports state-layer failures: corrupt state exits 3 with the
