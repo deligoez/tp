@@ -12,6 +12,7 @@ import (
 
 type roundRolesHash struct {
 	RolesHash string `json:"roles_hash"`
+	SpecHash  string `json:"spec_hash"`
 }
 
 func readRoundHashes(t *testing.T, dir string) (review, audit []roundRolesHash) {
