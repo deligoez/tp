@@ -256,3 +256,65 @@ func TestAudit_DeactivatingEveryUserRoleDoesNotFallBack(t *testing.T) {
 	assert.NotContains(t, stdout, "spec-coverage", "no fallback to the embedded default corpus")
 	assert.NotContains(t, stdout, "solo", "the deactivated role is not emitted either")
 }
+
+// refusalMessage decodes tp's JSON error object off stderr so the empty-phase
+// message and hint can be asserted verbatim rather than by substring.
+func refusalMessage(t *testing.T, stderr string) (msg, hint string) {
+	t.Helper()
+	var e struct {
+		Error string `json:"error"`
+		Code  int    `json:"code"`
+		Hint  string `json:"hint"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(strings.TrimSpace(stderr)), &e), "stderr: %s", stderr)
+	return e.Error, e.Hint
+}
+
+// TestReview_EmptyPhaseMessageRendersSortedIDs: deactivating every reviewer
+// exits 2 with §2.5's empty-phase message verbatim on stderr — the phase word
+// rendered from engine.PhaseReviewers and the deactivated ids sorted and
+// comma-separated — plus the fixed hint, and an empty stdout (test 7).
+func TestReview_EmptyPhaseMessageRendersSortedIDs(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
+	revDir := filepath.Join(dir, ".tp", "reviewers")
+	require.NoError(t, os.MkdirAll(revDir, 0o755))
+	// Written in reverse order so a rendering that echoed corpus order rather
+	// than sorting would produce "tester, architect".
+	require.NoError(t, os.WriteFile(filepath.Join(revDir, "tester.json"),
+		[]byte(`{"id":"tester","title":"Tester","instructions":"You test."}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(revDir, "architect.json"),
+		[]byte(`{"id":"architect","title":"Architect","instructions":"You architect."}`), 0o600))
+	spec := "---\ntp:\n  review_roles:\n    tester:\n      enabled: false\n    architect:\n      enabled: false\n---\n# Spec\ncontent\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "review", "spec.md", "--no-state")
+	require.Equal(t, 2, code, "stderr: %s", stderr)
+	assert.Empty(t, stdout, "no prompt is emitted before the refusal")
+	msg, hint := refusalMessage(t, stderr)
+	assert.Equal(t, "every reviewers role is deactivated by this spec: architect, tester", msg)
+	assert.Equal(t, "re-enable at least one role, or remove the enabled: false entries", hint)
+}
+
+// TestAudit_EmptyPhaseMessageRendersSortedIDs: the audit half of test 7 — the
+// same message with the phase word rendered from engine.PhaseAuditors.
+func TestAudit_EmptyPhaseMessageRendersSortedIDs(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
+	audDir := filepath.Join(dir, ".tp", "auditors")
+	require.NoError(t, os.MkdirAll(audDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(audDir, "zeta.json"),
+		[]byte(`{"id":"zeta","title":"Zeta","instructions":"You audit."}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(audDir, "alpha.json"),
+		[]byte(`{"id":"alpha","title":"Alpha","instructions":"You audit."}`), 0o600))
+	spec := "---\ntp:\n  audit_roles:\n    zeta:\n      enabled: false\n    alpha:\n      enabled: false\n---\n# Spec\n## 1. Widgets\ncontent\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "code.go"), []byte("package main\n"), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "code.go")
+	require.Equal(t, 2, code, "stderr: %s", stderr)
+	assert.Empty(t, stdout, "no prompt is emitted before the refusal")
+	msg, hint := refusalMessage(t, stderr)
+	assert.Equal(t, "every auditors role is deactivated by this spec: alpha, zeta", msg)
+	assert.Equal(t, "re-enable at least one role, or remove the enabled: false entries", hint)
+}
