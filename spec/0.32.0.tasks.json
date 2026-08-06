@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.32.0.md",
   "created_at": "2026-08-06T09:57:37.021054Z",
-  "updated_at": "2026-08-06T10:02:36.229394Z",
+  "updated_at": "2026-08-06T10:05:11.217166Z",
   "workflow": {},
   "coverage": {
     "total_sections": 14,
@@ -48,7 +48,7 @@
     {
       "id": "enabled-key-permitted",
       "title": "Permit enabled in override objects",
-      "status": "open",
+      "status": "done",
       "tags": [
         "impl"
       ],
@@ -62,11 +62,19 @@
         "### 2.1 The override value gains a second permitted key"
       ],
       "source_lines": "15,30,32",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-06T10:03:30.669342Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-06T10:05:11.203738Z",
+      "closed_reason": "- parseRoleOverrides (internal/engine/frontmatter.go) now treats enabled as a permitted override key alongside focus, so an entry carrying it emits no unpermitted-key warning; verified by the new assert.NotContains on tp.review_roles.tester.enabled in TestParseFrontmatter_RoleOverrideDisallowedKey, whose fixture gained enabled: false.\n- The unpermitted-key warning literal became '(only focus and enabled)' and both existing literal assertions in internal/engine/frontmatter_roleoverrides_test.go were updated in the same commit; a repo-wide search for the old '(only focus)' literal now hits only spec/*.md prose and closed_reason history, no code or test.\n- Spec test 5 (an unpermitted key still warns, with the text '(only focus and enabled)') passes via TestParseFrontmatter_RoleOverrideDisallowedKey. Gate verified with separate exit codes: go test ./... exit 0, golangci-lint run exit 0 (0 issues); dogfooded with a freshly built /tmp/tp-dev/tp (tp lint spec/0.32.0.md exit 0).\n- Out of scope: parsing the boolean into RoleOverride.Enabled remains nil-only, per the task fence (the next task).",
+      "gate_passed_at": "2026-08-06T10:05:11.203738Z",
+      "commit_sha": "d9c5d579175869a5a51e1ed6eec55acd73453750",
+      "commit_shas": [
+        "d9c5d579175869a5a51e1ed6eec55acd73453750"
+      ],
+      "commit_files": [
+        "internal/engine/frontmatter.go",
+        "internal/engine/frontmatter_roleoverrides_test.go"
+      ]
     },
     {
       "id": "enabled-bool-parse",
