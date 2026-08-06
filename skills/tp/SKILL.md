@@ -143,6 +143,22 @@ Repeat until `tp audit <spec> --status --check` exits 0:
 4. Fix the code for every non-PASS item.
 5. Repeat. `tp audit <spec> --status` shows `consecutive_clean`, `converged`, `stale`, `budget_exhausted`, `max_rounds`/`rounds_remaining`/`in_flight_round`, and (with `--merge`/`--status`) an `overlap_report` over non-PASS rows clustered by `(item_id, category)` — the audit-side signal for trimming a redundant auditor.
 
+**Scope the audit, or it will not converge (v0.32.0 lesson, the hard way).** A row counts against
+convergence whether it is about the spec or about the codebase at large — tp has no audit-side
+equivalent of `review_converge_on` yet. General lenses (`go-safety`, `maintainability-conventions`,
+`ax-contract`) always find *something* in a real codebase, so there is no fixed point: tp's own
+v0.32.0 audit ran 11 rounds while `spec-coverage` — the only role measuring spec conformance — was
+55/55 clean from round 2 onward, and every repair round created fresh surface for the next round to
+audit. **Watch `spec-coverage` separately.** Once it is clean for two rounds and no round has ever
+produced a FAIL, findings outside the spec's surface are backlog, not a release gate: record them
+with `tp review --resolve`-style evidence, name the version that will take them, and ship. Keep
+audit repairs minimal for the same reason — a repair that introduces a new abstraction is the next
+version's task, not this audit's.
+
+**Both refusals are emission-only.** `enabled: false` that empties a phase, or names `spec-coverage`,
+exits 2 before any prompt is emitted and before any state is written — so `--record`, `--status`,
+`--merge` and the rest are unaffected, and a refused run leaves no `.tp-review/<spec>/` behind.
+
 ## Reset-native workflow & commit strategy (v0.28.0)
 
 Every unit — a review round, decomposition, one task, one audit round — is designed to run in a **fresh context**; tp is the durable state machine between resets. The reset is the orchestrator's job (a CLI cannot clear its caller's context); tp guarantees resumability.
