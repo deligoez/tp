@@ -77,3 +77,57 @@ func TestEmittedPromptsCarryFraming(t *testing.T) {
 		assert.Equal(t, 1, inliners, "§10.7: exactly one role inlines contents under the budget")
 	})
 }
+
+// TestUnreadableFileIsNeverToldComplete guards §10.7's honesty clause: when a
+// listed source file cannot be read, NO role may be told the carried contents
+// are complete and authoritative. fileSetRead used to drop every os.ReadFile
+// error and return only a string, so both call sites set filesComplete
+// unconditionally — a role received a body-less "complete" section for a path
+// that was still listed as a file_check item, and reported on a file it never
+// saw. Both phases are checked: the review path and the audit path each own a
+// copy of the inliner decision.
+func TestUnreadableFileIsNeverToldComplete(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root reads a 0o000 file, so the read never fails")
+	}
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n## 1. Models\n### 1.1 Task\nCreate a Task model.\n| Field | Type |\n|------|------|\n| id | int |\n"), 0o600))
+
+	// stat succeeds on a 0o000 file (it reads the directory entry) while the
+	// read fails — exactly the gap the framing used to paper over, and the
+	// reason the fix cannot rely on the upstream --affected-files stat check.
+	codePath := filepath.Join(dir, "code.go")
+	require.NoError(t, os.WriteFile(codePath, []byte("package main\nfunc Foo() int { return 42 }\n"), 0o600))
+	require.NoError(t, os.Chmod(codePath, 0o000))
+	t.Cleanup(func() { _ = os.Chmod(codePath, 0o600) })
+
+	for _, tc := range []struct {
+		name string
+		args []string
+	}{
+		{"review", []string{"review", specPath, "--no-state", "--affected-files", codePath}},
+		{"audit", []string{"audit", specPath, "--affected-files", codePath}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			stdout, stderr, exit := runTP(t, dir, tc.args...)
+			require.Equal(t, 0, exit, "stderr: %s", stderr)
+			var result map[string]any
+			require.NoError(t, json.Unmarshal([]byte(stdout), &result))
+			prompts := result["prompts"].([]any)
+			require.NotEmpty(t, prompts)
+			named := 0
+			for _, p := range prompts {
+				pm := p.(map[string]any)
+				body := pm["prompt"].(string)
+				assert.NotContains(t, body, "the source file contents carried in this prompt are complete",
+					"role %s must not be told an unreadable file's contents are complete", pm["role"])
+				if strings.Contains(body, "read these files yourself") {
+					named++
+					assert.Contains(t, body, "- "+codePath, "the unread path is named for the role to read")
+				}
+			}
+			assert.Positive(t, named, "at least one role is told to read the unread path itself")
+		})
+	}
+}
