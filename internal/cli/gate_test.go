@@ -322,8 +322,8 @@ func TestGatePassedCompat_IgnoredWithInfoWhenGateSet(t *testing.T) {
 
 	stdout, stderr, code := runTP(t, dir, "done", "t1", "task complete and verified fully", "--gate-passed")
 	require.Equal(t, 0, code, "stderr=%s stdout=%s", stderr, stdout)
-	// The "--gate-passed ignored" info line is TTY-only (output.Info is
-	// suppressed in JSON mode), so only the behavior is asserted here.
+	// The "--gate-passed ignored" line travels output.Notice, so it survives
+	// JSON mode; only the behavior is asserted here.
 
 	task := showTask(t, dir, "t1")
 	assert.NotNil(t, task["gate_passed_at"], "stamped by the executed gate, not the flag")

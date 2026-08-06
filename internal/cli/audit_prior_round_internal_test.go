@@ -10,9 +10,8 @@ import (
 )
 
 // captureCLIStderr runs fn with os.Stderr redirected to a pipe and returns what
-// was written. output.Info is suppressed in JSON mode, and JSON mode is on
-// whenever stdout is not a terminal — so a subprocess test can never observe
-// an Info line. This is an in-package test for exactly that reason.
+// was written. This is an in-package test so a helper that emits nothing on
+// stdout can be driven directly, without a subprocess and its JSON payload.
 func captureCLIStderr(t *testing.T, fn func()) string {
 	t.Helper()
 	r, w, err := os.Pipe()

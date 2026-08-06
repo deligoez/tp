@@ -130,9 +130,9 @@ func TestResolveOverrideFocus_SpecCoverageDropDependsOnCorpus(t *testing.T) {
 // and the same input here; the CLI half
 // TestReview_DomainFilteredRoleTakesWarningPath asserts what distinguishes them
 // downstream, namely that a domain-filtered role is reported once and with
-// domain-mismatch. The warning text is asserted at this layer because
-// output.Info is silent whenever stdout is not a terminal, which is every CLI
-// test.
+// domain-mismatch. The warning text is asserted at this layer because it is
+// produced here; the CLI test TestReview_NoActiveRoleWarningVisibleInJSONMode
+// asserts that the CLI puts it on stderr even in JSON mode.
 func TestResolveOverrideFocus_OutsideActivePanelWarnsAndDropsNothing(t *testing.T) {
 	fmDisable := ParseFrontmatterBytes([]byte("---\ntp:\n  review_roles:\n    prose-role:\n      enabled: false\n---\n"))
 

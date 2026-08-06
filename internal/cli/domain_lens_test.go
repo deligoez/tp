@@ -616,8 +616,9 @@ func TestAudit_SpecCoverageRefusalKeysOnDropSet(t *testing.T) {
 		assert.NotContains(t, byRole, "spec-coverage", "the entry named no active role, so nothing was dropped or emitted")
 		// The entry takes §2.3's "matches no active role" warning path; the
 		// warning text is asserted by the engine test
-		// TestResolveOverrideFocus_SpecCoverageDropDependsOnCorpus, because
-		// output.Info is suppressed in the JSON mode every runTP call uses.
+		// TestResolveOverrideFocus_SpecCoverageDropDependsOnCorpus, and its
+		// visibility on stderr in JSON mode by
+		// TestReview_NoActiveRoleWarningVisibleInJSONMode.
 	})
 }
 
@@ -874,9 +875,10 @@ func skipReasonsFor(t *testing.T, stdout, role string) []string {
 // enabled: false on an id no corpus holds at all takes the "matches no active
 // role" path and changes nothing: every default reviewer still emits and the id
 // is named in no skipped_roles entry, because an id outside the active panel is
-// not a drop. The warning text is asserted by the engine test
-// TestResolveOverrideFocus_OutsideActivePanelWarnsAndDropsNothing, since
-// output.Info is silent in the JSON mode every runTP call uses.
+// not a drop. The warning text itself is asserted by the engine test
+// TestResolveOverrideFocus_OutsideActivePanelWarnsAndDropsNothing, and its
+// visibility on the CLI's stderr by
+// TestReview_NoActiveRoleWarningVisibleInJSONMode.
 func TestReview_EnabledFalseUnknownIDChangesNothing(t *testing.T) {
 	dir := t.TempDir()
 	spec := "---\ntp:\n  review_roles:\n    ghost:\n      enabled: false\n---\n# Spec\n## 1. A\ncontent\n"
