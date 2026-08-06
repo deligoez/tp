@@ -135,6 +135,8 @@ func recordAuditRoundEntry(specPath string, data []byte, findings int, clean boo
 // whose status is absent or not exactly "PASS".
 func countAuditFindings(path string, data []byte) (findings int, err error) {
 	lineNum := 0
+	roleless := 0
+	firstRoleless := 0
 	for _, line := range strings.Split(string(data), "\n") {
 		lineNum++
 		trimmed := strings.TrimSpace(line)
@@ -146,12 +148,25 @@ func countAuditFindings(path string, data []byte) (findings int, err error) {
 			return 0, fmt.Errorf("line %d: invalid JSON: %w", lineNum, jsonErr)
 		}
 		if role, _ := row["role"].(string); role == "" {
-			fmt.Fprintf(os.Stderr, "warning: line %d of %s is missing the role field; it will not appear in the per-role overlap report\n", lineNum, path)
+			roleless++
+			if firstRoleless == 0 {
+				firstRoleless = lineNum
+			}
 		}
 		status, _ := row["status"].(string)
 		if status != "PASS" {
 			findings++
 		}
+	}
+	if roleless > 0 {
+		// One advisory for the condition, carrying the count — not one line per
+		// row. Per row this printed N byte-identical-but-for-the-line-number
+		// copies (a 48-row file cost ~5KB), and on raw os.Stderr it ignored
+		// --quiet; output.Notice honours it, and the count is the part a reader
+		// needs that the per-row form never gave.
+		noticeOnce("roleless-rows:"+path, fmt.Sprintf(
+			"warning: %d row(s) in %s are missing the role field (first at line %d); they will not appear in the per-role overlap report",
+			roleless, path, firstRoleless))
 	}
 	return findings, nil
 }
