@@ -193,6 +193,12 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	affectedFiles = expandCommaFiles(affectedFiles)
 	files := determineAuditFiles(specPath, affectedFiles, base, affectedFromTasks)
 
+	// §2.5 item 2: resolve the auditor panel — and with it decide the
+	// spec-coverage and empty-phase refusals — ahead of every write the
+	// emission path performs. loadAuditSpec below writes the round snapshot, so
+	// a refusal decided any later would leave it on disk.
+	panel := resolveRolePanel(specPath, engine.PhaseAuditors)
+
 	specLines, specContent := loadAuditSpec(specPath)
 
 	priorByRole := loadAuditPriorRound(specPath)
@@ -216,35 +222,10 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	}
 	sel := engine.SelectAuditFiles(inputs)
 
-	// Emit one prompt per active auditor role from the domain-filtered corpus
-	// (§7.2). A malformed auditor aborts audit (§3.6, exit 3), never blocking
-	// review — phase independence.
-	fmAudit := engine.ParseFrontmatter(specPath)
-	auditorRoles, auditWarnings, auditErr := engine.ResolveActiveCorpus(filepath.Dir(specPath), fmAudit.Domain, engine.PhaseAuditors)
-	if auditErr != nil {
-		output.Error(ExitFile, auditErr.Error(), "repair or delete the offending role file under .tp/auditors/")
-		os.Exit(ExitFile)
-		return nil
-	}
-	for _, w := range auditWarnings {
-		output.Info(w)
-	}
-	// Layer the spec-frontmatter tp.audit_roles overrides onto each auditor
-	// role's corpus focus (§10.2-10.3).
-	auditorRoles, overrideWarnings, disabledRoles := engine.ResolveOverrideFocus(auditorRoles, fmAudit, engine.PhaseAuditors)
-	for _, w := range overrideWarnings {
-		output.Info(w)
-	}
-	// §2.6: the spec-coverage refusal is decided before the empty-phase one,
-	// because it names a single entry to remove.
-	refuseSpecCoverageDeactivated(disabledRoles)
-	// Apply the enabled: false drop here — outside ResolveActiveCorpus and after
-	// its domain filtering — so deactivating every user role empties the panel
-	// instead of falling back to the embedded default corpus (§2.3).
-	auditorRoles = engine.DropDisabledRoles(auditorRoles, disabledRoles)
-	if len(disabledRoles) > 0 && len(auditorRoles) == 0 {
-		refuseEmptyPhase(engine.PhaseAuditors, disabledRoles)
-	}
+	// Emit one prompt per active auditor role from the panel resolved above
+	// (§7.2). A malformed auditor aborted audit there (§3.6, exit 3), never
+	// blocking review — phase independence.
+	auditorRoles := panel.roles
 
 	specItems := routeChecklist(mainEntries, findingsEntries, invertTaskFiles(inputs.TaskFiles))
 
@@ -261,7 +242,7 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	prompts, auditSkipped := generateRoleAuditPrompts(auditorRoles, specItems, &sel, specContent, claudeMDExcerptFor(specPath), priorByRole, auditRound, auditWf.AuditCleanRounds, auditConsecutive, auditWf.AuditMaxRounds)
 	// §9.1: name every non-emitted auditor — empty-checklist roles above plus
 	// any domain-filtered user corpus roles.
-	auditSkipped = append(auditSkipped, engine.DomainSkippedRoles(filepath.Dir(specPath), fmAudit.Domain, engine.PhaseAuditors)...)
+	auditSkipped = append(auditSkipped, engine.DomainSkippedRoles(filepath.Dir(specPath), panel.fm.Domain, engine.PhaseAuditors)...)
 
 	summary := engine.BuildAffectedSummary(files, nil)
 
