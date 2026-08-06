@@ -63,10 +63,15 @@ func newestEarlierSnapshot(specPath string, r int) (round int, path string) {
 	return 0, ""
 }
 
-// diffLinesOf reads and frontmatter-blanks a spec file for section diffing.
+// diffLinesOf reads and frontmatter-blanks a spec file for section diffing. A
+// read failure is named on stderr rather than returned as an empty line set:
+// the caller passes the spec or a snapshot it just located, and empty lines
+// make DiffSections report every section as added or removed, which reads as a
+// real spec change.
 func diffLinesOf(path string) []string {
 	data, err := os.ReadFile(path)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: cannot read %s; the diff treats it as empty (%v)\n", path, err)
 		return nil
 	}
 	return engine.BlankFrontmatterLines(strings.Split(string(data), "\n"))
