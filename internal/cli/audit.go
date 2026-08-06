@@ -226,7 +226,7 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	// filtered universe; --affected-files replaced the universe upstream
 	inputs := &engine.AuditFileInputs{
 		Universe:  files,
-		TaskFiles: engine.GitTaskFileMapping(auditTasksOf(specPath), files),
+		TaskFiles: engine.GitTaskFileMapping(filepath.Dir(specPath), auditTasksOf(specPath), files),
 	}
 	if len(affectedFiles) > 0 || affectedFromTasks {
 		// The caller REPLACED the universe, and auditDiffRanges reproduces the

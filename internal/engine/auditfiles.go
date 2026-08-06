@@ -202,9 +202,10 @@ func matchesPriorityPath(s string) bool {
 }
 
 // GitTaskFileMapping maps each universe file to the sorted ids of tasks whose
-// recorded commit_sha changed it. Tasks without a commit_sha, or whose sha is
-// unknown to git, map to zero files.
-func GitTaskFileMapping(tasks []model.Task, universe []string) map[string][]string {
+// recorded commit_sha changed it, resolving every revision in dir — the
+// repository holding the audited spec, not the process cwd. Tasks without a
+// commit_sha, or whose sha is unknown to git, map to zero files.
+func GitTaskFileMapping(dir string, tasks []model.Task, universe []string) map[string][]string {
 	inUniverse := make(map[string]bool, len(universe))
 	for _, p := range universe {
 		inUniverse[p] = true
@@ -220,7 +221,15 @@ func GitTaskFileMapping(tasks []model.Task, universe []string) map[string][]stri
 		if !SafeGitRev(*tasks[i].CommitSHA) {
 			continue
 		}
-		out, err := exec.Command("git", "show", "--name-only", "--pretty=format:", *tasks[i].CommitSHA).Output()
+		// cmd.Dir, like every other git call the audit path makes: without it
+		// the revision is resolved against the PROCESS cwd rather than against
+		// the repository holding the spec, so auditing a spec in another
+		// checkout maps every task to zero files. That empty mapping is not
+		// distinguishable from "no task has a usable commit_sha", so
+		// spec-coverage silently takes its fallback file list at exit 0.
+		cmd := exec.Command("git", "show", "--name-only", "--pretty=format:", *tasks[i].CommitSHA)
+		cmd.Dir = dir
+		out, err := cmd.Output()
 		if err != nil {
 			continue
 		}
