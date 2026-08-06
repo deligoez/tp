@@ -191,23 +191,7 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 		return nil
 	}
 
-	// A --findings path that does not exist is a typo, not an empty finding
-	// set. readFindings answers os.IsNotExist with nil, so without this guard
-	// the round silently verifies ZERO review findings and still records as
-	// clean — a mistyped path could declare convergence. tp review rejects the
-	// same typo up front, and tp audit already refuses a missing
-	// --affected-files path; only the existing-but-unreadable branch of
-	// readFindings was loud. Other stat errors fall through to readFindings,
-	// which names them as a read failure rather than as "not found".
-	if findingsPath != "" {
-		if _, err := os.Stat(findingsPath); os.IsNotExist(err) {
-			output.Error(ExitFile, fmt.Sprintf("findings file not found: %s", findingsPath),
-				findingsFileMissingHint+" An audit round that verifies zero findings can still record as clean.")
-			os.Exit(ExitFile)
-			return nil
-		}
-	}
-
+	refuseMissingFindingsFile(findingsPath)
 	refuseAuditIfBudgetExhausted(specPath)
 
 	// Expand comma-separated values in --affected-files
@@ -469,6 +453,26 @@ func filesChangedSince(dir, since string) map[string]bool {
 // cap is exhausted; the cap-triggered state read inherits the corrupt-state
 // abort, but a missing state index is the normal in-flight round, not
 // corruption.
+// refuseMissingFindingsFile aborts when --findings names a path that does not
+// exist. That is a typo, not an empty finding set: readFindings answers
+// os.IsNotExist with nil, so without this guard the round silently verifies
+// ZERO review findings and still records as clean — a mistyped path could
+// declare convergence. tp review rejects the same typo up front, and tp audit
+// already refuses a missing --affected-files path; only the
+// existing-but-unreadable branch of readFindings was loud. Other stat errors
+// fall through to readFindings, which names them as a read failure rather than
+// as "not found". An empty path means the flag was not passed, which is valid.
+func refuseMissingFindingsFile(findingsPath string) {
+	if findingsPath == "" {
+		return
+	}
+	if _, err := os.Stat(findingsPath); os.IsNotExist(err) {
+		output.Error(ExitFile, fmt.Sprintf("findings file not found: %s", findingsPath),
+			findingsFileMissingHint+" An audit round that verifies zero findings can still record as clean.")
+		os.Exit(ExitFile)
+	}
+}
+
 func refuseAuditIfBudgetExhausted(specPath string) {
 	wfBudget, _ := engine.ResolveWorkflow(specPath, flagFile)
 	if wfBudget.AuditMaxRounds <= 0 {
