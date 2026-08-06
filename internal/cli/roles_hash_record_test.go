@@ -118,3 +118,56 @@ func TestRolesStale_StatusFlipsOnCorpusEdit(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
 	assert.Equal(t, true, out["roles_stale"], "editing the reviewer corpus makes the recorded round roles-stale")
 }
+
+// TestRolesHash_FrontmatterOverrideNotHashed is test 15. ComputeRolesHash hashes
+// the phase's role FILES; a spec-frontmatter override is covered by spec_hash, so
+// toggling enabled between two recorded rounds changes the round's spec_hash and
+// leaves its roles_hash unchanged (§3).
+//
+// The roles_hash clause is the discriminating one: engine.SpecHash is sha256 over
+// the spec file's raw bytes, so the spec_hash assertion holds for any
+// implementation and proves nothing by itself. The wrong implementation this
+// catches is one that feeds the frontmatter override into the corpus hash. The
+// two rounds toggle enabled: true → enabled: false rather than adding the key, so
+// the set of override ids is identical across them and only an implementation
+// hashing the override's VALUE flips roles_hash.
+//
+// The corpus is two user reviewer role files: with none, roles_hash would be the
+// "builtin" sentinel on both rounds and the equality would be trivially true;
+// the second role also keeps the deactivation from emptying the phase.
+func TestRolesHash_FrontmatterOverrideNotHashed(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
+	revDir := filepath.Join(dir, ".tp", "reviewers")
+	require.NoError(t, os.MkdirAll(revDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(revDir, "first.json"),
+		[]byte(`{"id":"first","title":"First","instructions":"You review."}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(revDir, "second.json"),
+		[]byte(`{"id":"second","title":"Second","instructions":"You review."}`), 0o600))
+
+	rec := filepath.Join(dir, "empty.ndjson")
+	require.NoError(t, os.WriteFile(rec, []byte(""), 0o600))
+	specPath := filepath.Join(dir, "spec.md")
+	specWith := func(enabled string) []byte {
+		return []byte("---\ntp:\n  review_roles:\n    first:\n      enabled: " + enabled + "\n---\n# Spec\n## 1. A\ncontent\n")
+	}
+
+	// Round 1 records with the role enabled; round 2 with the identical spec
+	// except the toggled value. No role file changes between the two.
+	require.NoError(t, os.WriteFile(specPath, specWith("true"), 0o600))
+	_, stderr, code := runTP(t, dir, "review", "spec.md", "--record", rec)
+	require.Equal(t, 0, code, "round 1 record: %s", stderr)
+
+	require.NoError(t, os.WriteFile(specPath, specWith("false"), 0o600))
+	_, stderr, code = runTP(t, dir, "review", "spec.md", "--record", rec)
+	require.Equal(t, 0, code, "round 2 record: %s", stderr)
+
+	review, _ := readRoundHashes(t, dir)
+	require.Len(t, review, 2)
+	assert.NotEqual(t, review[0].SpecHash, review[1].SpecHash,
+		"the spec bytes changed, so the toggle is covered by spec_hash")
+	require.Contains(t, review[0].RolesHash, "sha256:",
+		"a user corpus is in force, so the equality below is not the builtin sentinel")
+	assert.Equal(t, review[0].RolesHash, review[1].RolesHash,
+		"roles_hash hashes the role files only — the frontmatter override is never fed into it")
+}
