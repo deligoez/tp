@@ -70,6 +70,16 @@
       "spec_hash": "sha256:c4a65ad134508e005ee37771a89cfd99a02590307be9cf883c48af13ad4c5dae",
       "roles_hash": "sha256:53bf392c9016762750bbc6af1eb8ce528844b8e809ce4b55166bc1c9f4b68de7",
       "harness_note": "regression was asked to verify every round-6 resolution claim against the spec text, after round 5 recorded four findings as fixed against an edit never made. ax-economist was told returning zero findings is a valid answer."
+    },
+    {
+      "round": 8,
+      "findings": 22,
+      "clean": false,
+      "recorded_at": "2026-08-06T08:44:13Z",
+      "file": "review-round-8.ndjson",
+      "spec_hash": "sha256:e50901f02c5057980d888d5689aa6a0cf8556ba103d171bb8010835d2972cd2e",
+      "roles_hash": "sha256:53bf392c9016762750bbc6af1eb8ce528844b8e809ce4b55166bc1c9f4b68de7",
+      "harness_note": "regression was asked to verify round 7's per-index resolutions against the spec text and report any whose edit was absent; it confirmed all ten highs held and found residue in the mediums. Three roles were told zero findings is a valid answer at this stage."
     }
   ],
   "audit_rounds": []
