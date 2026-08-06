@@ -243,6 +243,9 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	// §9.1: name every non-emitted auditor — empty-checklist roles above plus
 	// any domain-filtered user corpus roles.
 	auditSkipped = append(auditSkipped, engine.DomainSkippedRoles(filepath.Dir(specPath), panel.fm.Domain, engine.PhaseAuditors)...)
+	// §2.4: plus every auditor this spec deactivated with enabled: false, so the
+	// drop is visible rather than silent.
+	auditSkipped = append(auditSkipped, engine.DisabledSkippedRoles(panel.disabled)...)
 
 	summary := engine.BuildAffectedSummary(files, nil)
 
