@@ -171,13 +171,19 @@ func Success(msg string) {
 	fmt.Fprintln(os.Stderr, msg)
 }
 
-// Notice writes a one-time advisory to stderr about project-owned data a
-// command just wrote — files the project now owns and is expected to edit.
-// Unlike Info and Success it is deliberately NOT suppressed by JSON mode:
-// jsonMode is enabled whenever stdout is not a terminal, so an Info-based
-// advisory would be invisible in exactly the piped and agent-driven runs that
-// adopt the written data unread. --quiet still suppresses it, and the message
-// never touches stdout, so a machine-readable payload stays parseable.
+// Notice writes an advisory to stderr that a driving agent must see: its
+// instruction was ignored, or content it asked for was dropped. Unlike Info and
+// Success it is deliberately NOT suppressed by JSON mode: jsonMode is enabled
+// whenever stdout is not a terminal, so an Info-based advisory is invisible in
+// exactly the piped and agent-driven runs it was written for. --quiet still
+// suppresses it, and the message never touches stdout, so a machine-readable
+// payload stays parseable.
+//
+// The dividing line against Info: Info is progress narration, or a restatement
+// of something the JSON payload already carries. Notice is a silent cost — an
+// override that matched nothing, a file list truncated, a prior round's rows
+// skipped, a flag ignored, a file that could not be read and was left out of a
+// prompt.
 func Notice(msg string) {
 	if quiet {
 		return
