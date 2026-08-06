@@ -89,23 +89,31 @@ func TestHarnessNote_RequiresRecord(t *testing.T) {
 	assert.Contains(t, stderr, "requires --record")
 }
 
-// TestHarnessNote_RejectedByMerge: --merge records no round, so it must reject
-// --harness-note rather than exit 0 and drop it. review's guard already runs
-// ahead of mode dispatch; audit returned from its --merge branch first, so the
-// note was the one flag --merge accepted and silently ignored.
-func TestHarnessNote_RejectedByMerge(t *testing.T) {
+// TestHarnessNote_RejectedByAuditMerge: --merge records no round, so it must
+// reject --harness-note rather than exit 0 and drop it. audit returned from its
+// --merge branch before the note guard ran, so the note was the one flag
+// --merge accepted and silently ignored.
+//
+// Review is no longer covered here. This test's review half was a strict subset
+// of TestReviewMergeRejectsForeignFlags (review_merge_flags_test.go), which
+// asserts the same exit code, flag name and unwritten -o file for
+// --harness-note plus five sibling flags, and additionally bans the old
+// "requires --record" hint. The earlier framing — review's guard correct, audit
+// the sole outlier — went stale when 795060e and 5c4e4b2 repaired review's
+// guard too.
+func TestHarnessNote_RejectedByAuditMerge(t *testing.T) {
 	dir := t.TempDir()
 	writeHarnessSpec(t, dir)
 	in := filepath.Join(dir, "in.ndjson")
 	require.NoError(t, os.WriteFile(in, []byte(""), 0o600))
 	merged := filepath.Join(dir, "merged.ndjson")
 
-	for _, phase := range []string{"audit", "review"} {
-		_, stderr, code := runTP(t, dir, phase, "--merge", in, "-o", merged, "--harness-note", "x")
-		assert.Equal(t, 2, code, "%s --merge --harness-note must be a usage error", phase)
-		assert.Contains(t, stderr, "--harness-note", "%s names the offending flag", phase)
-		assert.NoFileExists(t, merged, "%s refuses before writing the merge output", phase)
-	}
+	_, stderr, code := runTP(t, dir, "audit", "--merge", in, "-o", merged, "--harness-note", "x")
+	assert.Equal(t, 2, code, "audit --merge --harness-note must be a usage error")
+	assert.Contains(t, stderr, "--harness-note", "audit names the offending flag")
+	assert.NotContains(t, stderr, "requires --record",
+		"never prescribe --record: --merge and --record are mutually exclusive")
+	assert.NoFileExists(t, merged, "audit refuses before writing the merge output")
 }
 
 // TestHarnessStale_RecordAndStatus: harness_stale is true only once two
