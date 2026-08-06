@@ -221,8 +221,8 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	// filtered universe; --affected-files replaced the universe upstream
 	inputs := &engine.AuditFileInputs{
 		Universe:  files,
-		DiffStats: auditDiffStats(base),
-		Deleted:   auditDeletedFiles(base),
+		DiffStats: auditDiffStats(filepath.Dir(specPath), base),
+		Deleted:   auditDeletedFiles(filepath.Dir(specPath), base),
 		TaskFiles: engine.GitTaskFileMapping(auditTasksOf(specPath), files),
 	}
 	sel := engine.SelectAuditFiles(inputs)
@@ -556,27 +556,16 @@ func detectChangedFiles(dir, base string) ([]string, error) {
 		return nil, fmt.Errorf("invalid --base %q: must not start with %q", base, "-")
 	}
 
-	if base != "" {
-		unstaged := execGitDiff(dir, "diff", "--name-only", base+"...HEAD")
-		if len(unstaged) == 0 && !gitExists(dir) {
+	// auditDiffRanges is the single definition of "the comparison this audit
+	// is about". The per-file diff stats handed to every role are derived from
+	// the same list, so selection and stats can never describe different
+	// ranges — the failure that let a committed change be reported as +0/-0.
+	for i, rng := range auditDiffRanges(dir, base) {
+		files := execGitDiff(dir, append([]string{"diff", "--name-only"}, rng...)...)
+		if i == 0 && len(files) == 0 && !gitExists(dir) {
 			return nil, fmt.Errorf("not in a git repo — provide --affected-files or run inside a git repo")
 		}
-		allFiles = append(allFiles, unstaged...)
-	} else {
-		unstaged := execGitDiff(dir, "diff", "--name-only")
-		if len(unstaged) == 0 && !gitExists(dir) {
-			return nil, fmt.Errorf("not in a git repo — provide --affected-files or run inside a git repo")
-		}
-		allFiles = append(allFiles, unstaged...)
-
-		staged := execGitDiff(dir, "diff", "--name-only", "--cached")
-		allFiles = append(allFiles, staged...)
-
-		// Also include committed changes since latest tag (captures auto-committed work)
-		if tag := latestGitTag(dir); tag != "" {
-			tagFiles := execGitDiff(dir, "diff", "--name-only", tag+"...HEAD")
-			allFiles = append(allFiles, tagFiles...)
-		}
+		allFiles = append(allFiles, files...)
 	}
 
 	allFiles = engine.DedupPaths(allFiles)

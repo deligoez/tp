@@ -414,53 +414,67 @@ func claudeConventionsExcerpt(lines []string) string {
 	return strings.Join(span, "\n")
 }
 
-// auditDiffStats parses `git diff --numstat` into path -> {added, deleted}.
-func auditDiffStats(base string) map[string][2]int {
-	args := []string{"diff", "--numstat"}
-	if base != "" && engine.SafeGitRev(base) {
-		args = append(args, base)
+// auditDiffRanges returns the git diff argument tails that reproduce the SAME
+// comparison the audit's file selection made (detectChangedFiles). With a
+// --base that is the <base>...HEAD range; without one it is the unstaged diff,
+// the staged diff, and — when the repo is tagged — <latest-tag>...HEAD, which
+// is what makes already-committed work visible at all. Deriving selection and
+// per-file stats from this one list is the whole point: a bare `git diff` on a
+// tree whose work is committed SUCCEEDS with empty output, so stats taken over
+// a different range hand every role "(diff: +0/-0)" as measured fact about
+// files that were selected precisely because they changed — and no git-failure
+// warning fires, because git did not fail.
+func auditDiffRanges(dir, base string) [][]string {
+	if base != "" {
+		// A base git would read as an option must never be concatenated
+		// into a revision range; runAudit rejects one up front.
+		if !engine.SafeGitRev(base) {
+			return nil
+		}
+		return [][]string{{base + "...HEAD"}}
 	}
-	out, err := exec.Command("git", args...).Output()
+	ranges := [][]string{{}, {"--cached"}}
+	if tag := latestGitTag(dir); tag != "" && engine.SafeGitRev(tag) {
+		ranges = append(ranges, []string{tag + "...HEAD"})
+	}
+	return ranges
+}
+
+// auditDiffStats parses `git diff --numstat` over every selection range into
+// path -> {added, deleted}. Counts from separate ranges are summed: a file
+// changed in a commit and then again in the working tree really did churn
+// twice, and the number is a magnitude hint for the role, not an invariant.
+func auditDiffStats(dir, base string) map[string][2]int {
 	stats := make(map[string][2]int)
-	if err != nil {
-		// An empty map renders every prompt line as "(diff: +0/-0)", which the
-		// role reads as a measured fact about an unchanged file. Say that the
-		// numbers are unknown rather than asserting zeros.
-		warnGitFailure(err, args...)
-		return stats
-	}
-	for _, line := range strings.Split(string(out), "\n") {
-		parts := strings.Fields(line)
-		if len(parts) < 3 {
-			continue
+	for _, rng := range auditDiffRanges(dir, base) {
+		args := append([]string{"diff", "--numstat"}, rng...)
+		// execGitDiff names a failed invocation on stderr rather than
+		// letting an empty result read as an unchanged file.
+		for _, line := range execGitDiff(dir, args...) {
+			parts := strings.Fields(line)
+			if len(parts) < 3 {
+				continue
+			}
+			added, aErr := strconv.Atoi(parts[0])
+			deleted, dErr := strconv.Atoi(parts[1])
+			if aErr != nil || dErr != nil {
+				continue // binary entries use "-"
+			}
+			path := strings.Join(parts[2:], " ")
+			prev := stats[path]
+			stats[path] = [2]int{prev[0] + added, prev[1] + deleted}
 		}
-		added, aErr := strconv.Atoi(parts[0])
-		deleted, dErr := strconv.Atoi(parts[1])
-		if aErr != nil || dErr != nil {
-			continue // binary entries use "-"
-		}
-		stats[strings.Join(parts[2:], " ")] = [2]int{added, deleted}
 	}
 	return stats
 }
 
-// auditDeletedFiles lists files deleted in the diff.
-func auditDeletedFiles(base string) map[string]bool {
-	args := []string{"diff", "--name-only", "--diff-filter=D"}
-	if base != "" && engine.SafeGitRev(base) {
-		args = append(args, base)
-	}
-	out, err := exec.Command("git", args...).Output()
+// auditDeletedFiles lists files deleted across every selection range.
+func auditDeletedFiles(dir, base string) map[string]bool {
 	deleted := make(map[string]bool)
-	if err != nil {
-		// An empty set tells every role its file still exists. That is the same
-		// answer a clean tree gives, so a git failure has to be named.
-		warnGitFailure(err, args...)
-		return deleted
-	}
-	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
-		if line != "" {
-			deleted[line] = true
+	for _, rng := range auditDiffRanges(dir, base) {
+		args := append([]string{"diff", "--name-only", "--diff-filter=D"}, rng...)
+		for _, f := range execGitDiff(dir, args...) {
+			deleted[f] = true
 		}
 	}
 	return deleted
