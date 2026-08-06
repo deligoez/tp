@@ -11,6 +11,17 @@ import (
 
 const maxExcerptChars = 2000
 
+// warnUnreadableSpec names a spec that exists but could not be read, so an
+// empty excerpt is never mistaken for a task with nothing to excerpt. An
+// absent spec is a legitimate state (the task file outlived its spec) and is
+// not reported.
+func warnUnreadableSpec(specPath string, err error) {
+	if os.IsNotExist(err) {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "warning: cannot read spec %s; the excerpt was dropped (%v)\n", specPath, err)
+}
+
 // LineRange represents a start-end line range (inclusive).
 type LineRange struct {
 	Start, End int
@@ -93,6 +104,11 @@ func ExtractSpecExcerpt(specPath, sourceLines string) string {
 
 	data, err := os.ReadFile(specPath)
 	if err != nil {
+		// An absent spec is a task file whose spec was moved or deleted: the
+		// excerpt degrades to empty by design. A spec that exists but cannot
+		// be read is an anomaly, and an empty excerpt is indistinguishable
+		// from a task with no anchors, so name it.
+		warnUnreadableSpec(specPath, err)
 		return ""
 	}
 	fm := ParseFrontmatterBytes(data)
@@ -147,6 +163,7 @@ func ExtractSpecExcerptForTask(specPath, sourceLines string, sourceSections []st
 func extractSectionsExcerpt(specPath string, sourceSections []string) string {
 	data, err := os.ReadFile(specPath)
 	if err != nil {
+		warnUnreadableSpec(specPath, err)
 		return ""
 	}
 	headings, err := ParseHeadings(specPath)
