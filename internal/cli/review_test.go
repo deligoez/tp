@@ -353,14 +353,21 @@ func TestReviewRound0(t *testing.T) {
 	assert.Contains(t, stderr, "round must be")
 }
 
+// TestReviewFindingsFileNotFound: a --findings path that does not exist is
+// tp's file error (exit 3), the same code tp audit, review --verify and
+// review --resolve already return for the identical mistake. It used to be a
+// usage error (2), so the same typo reported two different codes depending on
+// which subcommand read it.
 func TestReviewFindingsFileNotFound(t *testing.T) {
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Simple Spec\nDo the thing.\n"), 0o600))
 
 	_, stderr, code := runTP(t, dir, "review", "--findings", "/nonexistent/file.ndjson", specPath)
-	assert.Equal(t, 2, code)
+	assert.Equal(t, 3, code, "a missing findings file is a file error, not a usage error")
 	assert.Contains(t, stderr, "findings file not found")
+	assert.Contains(t, stderr, "writes no findings file at all",
+		"the hint names the likeliest cause, not just \"check the path\"")
 }
 
 func TestReviewFindingsDedup(t *testing.T) {
