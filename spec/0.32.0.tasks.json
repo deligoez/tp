@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.32.0.md",
   "created_at": "2026-08-06T09:57:37.021054Z",
-  "updated_at": "2026-08-06T11:18:04.874151Z",
+  "updated_at": "2026-08-06T11:20:53.100887Z",
   "workflow": {},
   "coverage": {
     "total_sections": 14,
@@ -363,7 +363,7 @@
     {
       "id": "lens-shim-suppressed",
       "title": "Suppress the lens shim on deactivation",
-      "status": "open",
+      "status": "done",
       "tags": [
         "impl"
       ],
@@ -376,11 +376,20 @@
         "### 2.3 Resolution drops the role and reports what it dropped"
       ],
       "source_lines": "48,105",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-06T11:18:13.569581Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-06T11:20:53.082293Z",
+      "closed_reason": "- A spec whose only tp.review_roles entry is enabled: false suppresses the legacy tp: lens shim exactly as one adding focus does: TestReview_EnabledFalseOnlyEntrySuppressesLensShim (internal/cli/domain_lens_test.go) runs a spec carrying both a lens.all question and a single enabled: false entry, and asserts the surviving reviewers emit, the deactivated one does not and is named disabled-by-spec, and the lens question reaches no prompt and appears nowhere in the payload.\n- The call site is pinned at the engine layer too: TestTranslateLegacyLens_EnabledOnlyEntryWins (internal/engine/lens_shim_test.go) asserts an enabled-only entry populates fm.ReviewRoles and that TranslateLegacyLens therefore returns no lens-derived overrides with the 'legacy tp: lens is ignored' warning and no 'auto-translating' path — ResolveOverrideFocus only reaches the shim when fm.ReviewRoles is empty.\n- No implementation change was needed: parseRoleOverrides already records an override with no focus key (RoleOverride{Focus: [], Enabled: enabled}), so both the ResolveOverrideFocus switch and TranslateLegacyLens's own new-form guard see the new form. Proven discriminating by mutating parseRoleOverrides to drop entries carrying no focus (the pre-v0.32.0 shape): both tests then failed, the CLI one on the lens-shim assertions specifically as the shim fanned the legacy question to all three reviewers; the mutation was reverted.\n- Spec test 12 passes; gate green: go test ./... exit 0, golangci-lint run exit 0.",
+      "gate_passed_at": "2026-08-06T11:20:53.082293Z",
+      "commit_sha": "76c54e4",
+      "commit_shas": [
+        "76c54e4",
+        "d18553d"
+      ],
+      "commit_files": [
+        "internal/cli/domain_lens_test.go",
+        "internal/engine/lens_shim_test.go"
+      ]
     },
     {
       "id": "empty-phase-message",
