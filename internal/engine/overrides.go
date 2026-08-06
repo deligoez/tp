@@ -82,3 +82,27 @@ func ResolveOverrideFocus(roles []model.Role, fm *Frontmatter, phase string) (ef
 	}
 	return effective, warnings, disabled
 }
+
+// DropDisabledRoles removes the roles a spec deactivated with enabled: false
+// from an already domain-filtered panel, returning the survivors (§2.3).
+//
+// The drop is deliberately applied here — outside ResolveActiveCorpus and after
+// its domain filtering — so a spec that deactivates every user role empties the
+// panel instead of tripping ResolveActiveCorpus's empty-panel fallback to the
+// embedded default corpus. The caller decides what an empty panel means (§2.5).
+func DropDisabledRoles(roles []model.Role, disabled []string) []model.Role {
+	if len(disabled) == 0 {
+		return roles
+	}
+	drop := make(map[string]bool, len(disabled))
+	for _, id := range disabled {
+		drop[id] = true
+	}
+	kept := make([]model.Role, 0, len(roles))
+	for i := range roles {
+		if !drop[roles[i].ID] {
+			kept = append(kept, roles[i])
+		}
+	}
+	return kept
+}
