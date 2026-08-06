@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.32.0.md",
   "created_at": "2026-08-06T09:57:37.021054Z",
-  "updated_at": "2026-08-06T10:18:32.662315Z",
+  "updated_at": "2026-08-06T10:22:26.780701Z",
   "workflow": {},
   "coverage": {
     "total_sections": 14,
@@ -334,7 +334,7 @@
     {
       "id": "empty-phase-message",
       "title": "Refuse a phase with no roles",
-      "status": "open",
+      "status": "done",
       "tags": [
         "impl"
       ],
@@ -347,11 +347,21 @@
         "### 2.5 A phase cannot be emptied"
       ],
       "source_lines": "58,60",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-06T10:19:32.169644Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-06T10:22:26.760611Z",
+      "closed_reason": "- The empty-phase refusal now renders the full §2.5 message: refuseEmptyPhase(phase string, disabled []string) in internal/cli/review.go emits \"every \u003cphase\u003e role is deactivated by this spec: \u003cids\u003e\" with the phase word taken from the engine.PhaseReviewers/engine.PhaseAuditors value passed by each caller and the ids sorted (on a defensive copy) and comma-separated, plus the hint \"re-enable at least one role, or remove the enabled: false entries\" passed to output.Error. It still exits 2.\n- Both phases refuse: internal/cli/review.go passes engine.PhaseReviewers with disabledRoles and internal/cli/audit.go passes engine.PhaseAuditors with its own disabledRoles (audit already had the call site from drop-outside-corpus; only the id argument was added).\n- Verified by the two new tests in internal/cli/domain_lens_test.go (spec test 7): TestReview_EmptyPhaseMessageRendersSortedIDs and TestAudit_EmptyPhaseMessageRendersSortedIDs each deactivate two corpus roles, require exit 2 and an empty stdout, and decode tp's JSON error object off stderr to assert the message and hint verbatim — \"every reviewers role is deactivated by this spec: architect, tester\" and \"every auditors role is deactivated by this spec: alpha, zeta\". The role files are written in reverse alphabetical order, so a rendering echoing corpus order rather than sorting would fail.\n- Dogfooded with a freshly built /tmp/tp-dev/tp: a two-reviewer spec deactivating both prints {\"error\":\"every reviewers role is deactivated by this spec: architect, tester\",\"code\":2,\"hint\":\"re-enable at least one role, or remove the enabled: false entries\"} and exits 2; tp lint spec/0.32.0.md exit 0.\n- Gate run with separate exit codes: go test ./... exit 0, golangci-lint run exit 0 (0 issues).\nOut of scope: the sibling tasks own the filtering of the id list to spec-deactivated ids only (empty-phase-id-list), excluding the built-in regression role (regression-not-counted), proving the refusal precedes EnsureReviewState and the audit snapshot (refusal-before-writes), and the spec-coverage refusal / skipped_roles / emission-only scoping.",
+      "gate_passed_at": "2026-08-06T10:22:26.760611Z",
+      "commit_sha": "e246b66",
+      "commit_shas": [
+        "e246b66",
+        "b36fb35"
+      ],
+      "commit_files": [
+        "internal/cli/audit.go",
+        "internal/cli/domain_lens_test.go",
+        "internal/cli/review.go"
+      ]
     },
     {
       "id": "empty-phase-id-list",
