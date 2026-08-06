@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,9 +12,11 @@ import (
 )
 
 // A corrupt (existing but unparseable) spec.tasks.json must not be silently
-// treated as "no tasks": taskAcceptanceEntries warns on stderr naming the task
-// file and that acceptance entries were dropped, then proceeds (exit 0, best-effort
-// checklist construction) — consistent with the scanner-warning paths.
+// treated as "no tasks": the run warns on stderr naming the task file, then
+// proceeds (exit 0, best-effort checklist construction) — consistent with the
+// scanner-warning paths. ONE advisory, not one per reader: the file feeds both
+// the task-acceptance checklist and the per-file task mapping, and two
+// differently worded lines for one unreadable file read as two problems.
 func TestAuditCorruptTaskFileWarns(t *testing.T) {
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
@@ -27,9 +30,10 @@ func TestAuditCorruptTaskFileWarns(t *testing.T) {
 
 	_, stderr, code := runTP(t, dir, "audit", specPath, "--affected-files", aPath)
 	require.Equal(t, 0, code, "corrupt task file is a warning, not a hard error: %s", stderr)
-	assert.Contains(t, stderr, "warning:")
-	assert.Contains(t, stderr, "task acceptance entries were dropped")
+	assert.Contains(t, stderr, "warning: cannot read task file")
 	assert.Contains(t, stderr, "spec.tasks.json", "warning must name the task file")
+	assert.Equal(t, 1, strings.Count(stderr, "warning: cannot read task file"),
+		"one unreadable task file is one condition, so it costs one advisory: %q", stderr)
 }
 
 // A real (non-absent) read error on the task file — here a directory at the
@@ -48,8 +52,8 @@ func TestAuditUnreadableTaskFileWarns(t *testing.T) {
 
 	_, stderr, code := runTP(t, dir, "audit", specPath, "--affected-files", aPath)
 	require.Equal(t, 0, code, "unreadable task file is a warning, not a hard error: %s", stderr)
-	assert.Contains(t, stderr, "warning:")
-	assert.Contains(t, stderr, "task acceptance entries were dropped")
+	assert.Contains(t, stderr, "warning: cannot read task file")
+	assert.Contains(t, stderr, "is a directory", "the advisory carries the underlying read error")
 }
 
 // A malformed (invalid JSON) line in a findings file is skipped with a stderr
