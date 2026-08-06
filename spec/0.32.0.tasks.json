@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.32.0.md",
   "created_at": "2026-08-06T09:57:37.021054Z",
-  "updated_at": "2026-08-06T10:05:11.217166Z",
+  "updated_at": "2026-08-06T10:08:37.494935Z",
   "workflow": {},
   "coverage": {
     "total_sections": 14,
@@ -79,7 +79,7 @@
     {
       "id": "enabled-bool-parse",
       "title": "Parse a boolean enabled value",
-      "status": "open",
+      "status": "done",
       "tags": [
         "impl"
       ],
@@ -92,11 +92,22 @@
         "### 2.1 The override value gains a second permitted key"
       ],
       "source_lines": "19-28,96",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-06T10:05:53.885394Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-06T10:08:37.464322Z",
+      "closed_reason": "- A boolean enabled in tp.review_roles/tp.audit_roles now populates RoleOverride.Enabled in parseRoleOverrides (internal/engine/frontmatter.go), on all three override-construction paths (no focus key, null focus, parsed focus list); every non-boolean shape leaves it nil. Verified by TestParseFrontmatter_RoleOverrideEnabledBool asserting *Enabled true for enabled: true, false for enabled: false, and nil for an override without the key, with no warnings emitted.\n- enabled: true is a no-op that leaves the role active with its focus layered: verified end-to-end by TestReview_EnabledTrueIsNoOp (internal/cli/domain_lens_test.go), which emits the review panel for a spec whose implementer override carries enabled: true plus a focus question and asserts the role is still present with both the corpus focus and the override focus in its prompt. Spec test 3 covered.\n- Quality gate run separately: go test ./... exit 0, golangci-lint run exit 0.\nOut of scope: the non-boolean enabled warning, the explicit enabled: null/valueless unset case, and any behavior acting on Enabled being false are left to their sibling tasks.",
+      "gate_passed_at": "2026-08-06T10:08:37.464322Z",
+      "commit_sha": "0b2d005",
+      "commit_shas": [
+        "0b2d005",
+        "158f761",
+        "bba062d"
+      ],
+      "commit_files": [
+        "internal/cli/domain_lens_test.go",
+        "internal/engine/frontmatter.go",
+        "internal/engine/frontmatter_roleoverrides_test.go"
+      ]
     },
     {
       "id": "enabled-nonbool-warn",
