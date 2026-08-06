@@ -100,6 +100,16 @@
       "spec_hash": "sha256:7de5cae8e52216026928708b2aea557591ac5ae779eb89729c1640560933fca3",
       "roles_hash": "sha256:53bf392c9016762750bbc6af1eb8ce528844b8e809ce4b55166bc1c9f4b68de7",
       "harness_note": "round 9's item-15 repair was a str.replace whose anchor did not match; it silently no-opped and was recorded fixed anyway. Round 10's repair script asserts every anchor is present and unique before replacing."
+    },
+    {
+      "round": 11,
+      "findings": 12,
+      "clean": false,
+      "recorded_at": "2026-08-06T09:42:00Z",
+      "file": "review-round-11.ndjson",
+      "spec_hash": "sha256:314d53204abd2781bdfc304a7dd6d2ae883ebc5b628418f81df992fddf7008a2",
+      "roles_hash": "sha256:53bf392c9016762750bbc6af1eb8ce528844b8e809ce4b55166bc1c9f4b68de7",
+      "harness_note": "first round with zero critical and zero high; six findings repaired, six accepted with recorded justification per review_converge_on=blocking."
     }
   ],
   "audit_rounds": []
