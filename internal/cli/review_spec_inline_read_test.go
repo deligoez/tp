@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -48,4 +49,26 @@ func TestReviewSpecInlineUnreadableSpecFailsLoudly(t *testing.T) {
 		"--perspective", "code-audit", "--spec-inline", "--affected-files", gPath)
 	assert.Equal(t, 3, code, "an unreadable spec is a file error, not an empty spec")
 	assert.Contains(t, stderr, specPath, "stderr names the spec tp could not read")
+}
+
+// TestReviewSpecNotFoundHint: the plainest typo of all — `tp review nope.md`,
+// no flags — landed on a hintless "cannot read spec" site and so inherited the
+// code-3 default hint, which is TASK-file advice ("run 'tp use <file>' … 'tp
+// init <spec>'"): the wrong object entirely for a mistyped spec path. Every
+// pre-stat spec-path site across tp review and tp audit now shares
+// specFileMissingHint; this covers the most-hit one.
+func TestReviewSpecNotFoundHint(t *testing.T) {
+	dir := t.TempDir()
+	missing := filepath.Join(dir, "nope.md")
+
+	_, stderr, code := runTP(t, dir, "review", missing)
+	require.Equal(t, 3, code)
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stderr), &payload))
+	hint, _ := payload["hint"].(string)
+	assert.Contains(t, hint, "spec path", "the hint names the spec path the caller typed")
+	assert.Contains(t, hint, "not the task file", "the hint separates the spec from the task file")
+	assert.NotContains(t, hint, "tp use", "task-file advice is the wrong object for a spec-path typo")
+	assert.NotContains(t, hint, "tp init", "task-file advice is the wrong object for a spec-path typo")
 }
