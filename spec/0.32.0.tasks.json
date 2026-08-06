@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.32.0.md",
   "created_at": "2026-08-06T09:57:37.021054Z",
-  "updated_at": "2026-08-06T10:08:37.494935Z",
+  "updated_at": "2026-08-06T10:13:18.855305Z",
   "workflow": {},
   "coverage": {
     "total_sections": 14,
@@ -156,7 +156,7 @@
     {
       "id": "resolve-drop-set",
       "title": "Return the enabled-false drop set",
-      "status": "open",
+      "status": "done",
       "tags": [
         "impl"
       ],
@@ -169,11 +169,22 @@
         "### 2.3 Resolution drops the role and reports what it dropped"
       ],
       "source_lines": "44",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-06T10:09:30.762519Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-06T10:13:18.83581Z",
+      "closed_reason": "- ResolveOverrideFocus (internal/engine/overrides.go) now returns a third value: the sorted ids of the active roles a spec deactivated with an enabled: false override; an id matching no active role keeps the existing 'matches no active role' path and contributes no drop. Verified by the new TestResolveOverrideFocus_EnabledFalseDropSet (two enabled: false ids returned sorted, enabled: true and an unknown id contributing nothing).\n- Both callers receive it: internal/cli/review.go (PhaseReviewers) and internal/cli/audit.go (PhaseAuditors) take the third value into disabledRoles, parked behind an explicit blank assignment with a comment naming its consumers, since applying the drop, skipped_roles and the two refusals are sibling tasks. Verified by go build ./... exit 0 and golangci-lint run exit 0 (unused/unparam/gocritic clean).\n- The four existing overrides tests now call the three-value signature and assert the third value is empty for a focus-only override, an unknown-id override, the legacy lens shim and a focus-only audit override. Verified by go test ./... exit 0.\n- Gate run with separate exit codes: go test ./... exit 0, golangci-lint run exit 0.\nOut of scope: none observed.",
+      "gate_passed_at": "2026-08-06T10:13:18.83581Z",
+      "commit_sha": "463995f",
+      "commit_shas": [
+        "463995f",
+        "2133f00"
+      ],
+      "commit_files": [
+        "internal/cli/audit.go",
+        "internal/cli/review.go",
+        "internal/engine/overrides.go",
+        "internal/engine/overrides_test.go"
+      ]
     },
     {
       "id": "drop-outside-corpus",
