@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.32.0.md",
   "created_at": "2026-08-06T09:57:37.021054Z",
-  "updated_at": "2026-08-06T10:35:36.761244Z",
+  "updated_at": "2026-08-06T10:38:29.986474Z",
   "workflow": {},
   "coverage": {
     "total_sections": 14,
@@ -505,7 +505,7 @@
     {
       "id": "refusal-precedence",
       "title": "Report spec-coverage before empty phase",
-      "status": "open",
+      "status": "done",
       "tags": [
         "impl"
       ],
@@ -518,11 +518,18 @@
         "### 2.6 Precedence"
       ],
       "source_lines": "66-70",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-06T10:36:24.608589Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-06T10:38:29.974203Z",
+      "closed_reason": "- The §2.6 order is locked by TestAudit_SpecCoverageRefusalPrecedesEmptyPhase (internal/cli/domain_lens_test.go): a spec deactivating spec-coverage AND every other active auditor (corpus {spec-coverage, keeper}) trips both §2.5 refusals at once and reports the spec-coverage message and hint verbatim, with an assert.NotContains proving the empty-phase message never reaches the agent.\n- No production change was needed: internal/cli/audit.go already decides refuseSpecCoverageDeactivated (from 42336d9) before DropDisabledRoles + refuseEmptyPhase (from e246b66), so this task is the test that locks that order. Verified by mutation: swapping the two call sites in audit.go makes the new test fail with the empty-phase message on the combined fixture; the swap was reverted and audit.go is byte-identical to its pre-task state.\n- A control sub-test ('empty phase alone') runs the identical 'deactivate every auditor' spec shape over a corpus without spec-coverage and gets 'every auditors role is deactivated by this spec: keeper, second', proving the empty-phase condition really is armed by that shape — so in the combined case it is the ordering, not a single condition holding, that selects the message.\n- Test 10's precedence clause passes: go test ./... exit 0, golangci-lint run exit 0 (checked as separate exit codes, not a \u0026\u0026 chain).",
+      "gate_passed_at": "2026-08-06T10:38:29.974203Z",
+      "commit_sha": "a2af8d9",
+      "commit_shas": [
+        "a2af8d9"
+      ],
+      "commit_files": [
+        "internal/cli/domain_lens_test.go"
+      ]
     },
     {
       "id": "refusals-emission-only",
