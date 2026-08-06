@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.32.0.md",
   "created_at": "2026-08-06T09:57:37.021054Z",
-  "updated_at": "2026-08-06T11:04:29.549899Z",
+  "updated_at": "2026-08-06T11:08:40.955241Z",
   "workflow": {},
   "coverage": {
     "total_sections": 14,
@@ -112,7 +112,7 @@
     {
       "id": "enabled-nonbool-warn",
       "title": "Warn on a non-boolean enabled",
-      "status": "open",
+      "status": "done",
       "tags": [
         "impl"
       ],
@@ -125,11 +125,19 @@
         "### 2.2 The parsed override becomes a struct"
       ],
       "source_lines": "40,97",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-06T11:05:12.943317Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-06T11:08:40.92955Z",
+      "closed_reason": "- A non-nil, non-boolean enabled in a tp.review_roles/tp.audit_roles override now warns with the pinned parser text 'tp.\u003cfield\u003e.\u003cid\u003e.enabled is not a boolean (got %T); ignored' — naming field, id and the received type — and is ignored, leaving RoleOverride.Enabled nil so the role stays active with its focus intact (parseRoleOverrides, internal/engine/frontmatter.go).\n- Test 4 passes against the spec's quoted-string fixture: TestParseFrontmatter_RoleOverrideEnabledNonBool (internal/engine/frontmatter_roleoverrides_test.go) asserts enabled: \"false\" leaves Enabled nil, keeps the role in the map with its focus, and emits the warning naming 'got string'; a second audit-phase entry (enabled: 0) covers the general non-boolean scalar.\n- The test was proven discriminating by two mutations: coercing the string via strconv.ParseBool made it fail on both the nil-Enabled and the warning assertion, and dropping the warn branch made it fail on both warning assertions; both were reverted.\n- Nil is untouched by the new rule: an explicit enabled: null and a valueless enabled: were both verified (throwaway probe, since the sibling task owns the case) to decode to nil, stay unset, and emit zero warnings.\n- Gate green before close: go test ./... exit 0, golangci-lint run exit 0 (checked as separate exit codes, not a \u0026\u0026 chain).",
+      "gate_passed_at": "2026-08-06T11:08:40.92955Z",
+      "commit_sha": "cb77126",
+      "commit_shas": [
+        "cb77126"
+      ],
+      "commit_files": [
+        "internal/engine/frontmatter.go",
+        "internal/engine/frontmatter_roleoverrides_test.go"
+      ]
     },
     {
       "id": "enabled-null-unset",
