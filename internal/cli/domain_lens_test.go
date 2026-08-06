@@ -257,6 +257,55 @@ func TestAudit_DeactivatingEveryUserRoleDoesNotFallBack(t *testing.T) {
 	assert.NotContains(t, stdout, "solo", "the deactivated role is not emitted either")
 }
 
+// TestReview_DeactivatedRoleNamedDisabledBySpec: §2.4 (test 1) — a reviewer the
+// spec deactivated with enabled: false is removed from the emitted panel AND
+// named in skipped_roles with the new reason disabled-by-spec, so the drop is
+// visible rather than silent. The round-1 regression skip is asserted alongside
+// it: the new reason is added to the existing ones, not substituted for them.
+func TestReview_DeactivatedRoleNamedDisabledBySpec(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
+	writeReviewerRole(t, dir, "keeper.json", `{"id":"keeper","title":"Keeper","instructions":"You review.","focus":["q"]}`)
+	writeReviewerRole(t, dir, "dropped.json", `{"id":"dropped","title":"Dropped","instructions":"You review.","focus":["q"]}`)
+	spec := "---\ntp:\n  review_roles:\n    dropped:\n      enabled: false\n---\n# Spec\n## 1. A\ncontent\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "review", "spec.md")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	byRole := reviewPromptsByRole(t, stdout)
+	assert.Contains(t, byRole, "keeper", "the surviving reviewer still emits")
+	assert.NotContains(t, byRole, "dropped", "the deactivated reviewer emits no prompt")
+
+	byReason := map[string]string{}
+	for _, s := range skippedRolesFrom(t, stdout) {
+		byReason[s["role"].(string)] = s["reason"].(string)
+	}
+	assert.Equal(t, "disabled-by-spec", byReason["dropped"], "a deactivated reviewer is named, not silently absent")
+	assert.Equal(t, "no-baseline", byReason["regression"], "the pre-existing reasons still apply alongside it")
+}
+
+// TestAudit_DeactivatedRoleNamedDisabledBySpec: the audit half of test 1. The
+// two payloads assemble skipped_roles in different places — buildReviewPrompts
+// for review, runAudit for audit — so each is pinned separately.
+func TestAudit_DeactivatedRoleNamedDisabledBySpec(t *testing.T) {
+	spec := "---\ntp:\n  audit_roles:\n    dropped:\n      enabled: false\n---\n# Spec\n## 1. Widgets\ncontent\n"
+	dir := writeAuditorCorpusProject(t, spec, "spec-coverage", "keeper", "dropped")
+
+	stdout, stderr, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "code.go")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	byRole := auditPromptsByRole(t, stdout)
+	assert.Contains(t, byRole, "keeper", "the surviving auditor still emits")
+	assert.NotContains(t, byRole, "dropped", "the deactivated auditor emits no prompt")
+
+	byReason := map[string]string{}
+	for _, s := range skippedRolesFrom(t, stdout) {
+		byReason[s["role"].(string)] = s["reason"].(string)
+	}
+	assert.Equal(t, "disabled-by-spec", byReason["dropped"], "a deactivated auditor is named, not silently absent")
+}
+
 // refusalMessage decodes tp's JSON error object off stderr so the empty-phase
 // message and hint can be asserted verbatim rather than by substring.
 func refusalMessage(t *testing.T, stderr string) (msg, hint string) {
