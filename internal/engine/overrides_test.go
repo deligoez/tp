@@ -93,3 +93,31 @@ func TestResolveOverrideFocus_EnabledFalseDropSet(t *testing.T) {
 	assert.Equal(t, []string{"architect", "tester"}, disabled, "sorted ids of the active roles this spec deactivated")
 	assert.Len(t, out, 3, "resolution reports the drop; the caller applies it")
 }
+
+// TestResolveOverrideFocus_SpecCoverageDropDependsOnCorpus: the value tp audit's
+// spec-coverage refusal keys on — the drop set — depends on the corpus, not on
+// the frontmatter entry. One and the same tp.audit_roles entry yields a
+// spec-coverage drop against a panel holding that role and no drop at all
+// against a populated panel lacking it, where it takes the "matches no active
+// role" warning path instead; the review phase resolves against the reviewer
+// panel and so never produces the drop (§2.3, §2.5). The CLI halves in
+// TestAudit_SpecCoverageRefusalKeysOnDropSet assert the exit codes; the warning
+// text is asserted here because tp suppresses it in JSON mode.
+func TestResolveOverrideFocus_SpecCoverageDropDependsOnCorpus(t *testing.T) {
+	fmAudit := ParseFrontmatterBytes([]byte("---\ntp:\n  audit_roles:\n    spec-coverage:\n      enabled: false\n---\n"))
+
+	_, warnings, disabled := ResolveOverrideFocus([]model.Role{{ID: "spec-coverage"}, {ID: "keeper"}}, fmAudit, PhaseAuditors)
+	assert.Equal(t, []string{"spec-coverage"}, disabled, "an active spec-coverage lands in the drop set")
+	assert.NotContains(t, strings.Join(warnings, "\n"), "matches no active", "a matched entry is not an unknown id")
+
+	_, warnings, disabled = ResolveOverrideFocus([]model.Role{{ID: "keeper"}, {ID: "second"}}, fmAudit, PhaseAuditors)
+	assert.Empty(t, disabled, "the identical entry drops nothing when the corpus holds no spec-coverage role")
+	assert.Contains(t, strings.Join(warnings, "\n"),
+		`tp.audit_roles override for "spec-coverage" matches no active auditors role; ignored`)
+
+	fmReview := ParseFrontmatterBytes([]byte("---\ntp:\n  review_roles:\n    spec-coverage:\n      enabled: false\n---\n"))
+	_, warnings, disabled = ResolveOverrideFocus([]model.Role{{ID: "solo"}}, fmReview, PhaseReviewers)
+	assert.Empty(t, disabled, "a review_roles entry naming spec-coverage produces no drop")
+	assert.Contains(t, strings.Join(warnings, "\n"),
+		`tp.review_roles override for "spec-coverage" matches no active reviewers role; ignored`)
+}
