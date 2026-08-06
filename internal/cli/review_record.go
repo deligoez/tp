@@ -51,7 +51,7 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 
 	data, err := os.ReadFile(recordPath)
 	if err != nil {
-		output.Error(ExitFile, fmt.Sprintf("cannot read findings file: %v", err))
+		output.Error(ExitFile, fmt.Sprintf("cannot read findings file: %s", recordPath), recordFileMissingHint)
 		os.Exit(ExitFile)
 		return nil
 	}
