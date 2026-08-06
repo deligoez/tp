@@ -68,15 +68,20 @@ func renderFraming(f *promptFraming) string {
 	return b.String()
 }
 
-// fileSetRead reads the listed paths in full and returns a rendered "complete"
-// content section (path, line count, whole body). It does not truncate: §10.7
-// inlines a role's file contents only when they fit whole under the per-role
-// reading budget, so a caller sizes the set with fileSetBytes first and calls
-// this only once the set is known to fit.
-func fileSetRead(paths []string) string {
+// fileSetRead reads the listed paths in full and returns a rendered content
+// section (path, line count, whole body) together with the paths it could NOT
+// read. It does not truncate: §10.7 inlines a role's file contents only when
+// they fit whole under the per-role reading budget, so a caller sizes the set
+// with fileSetBytes first and calls this only once the set is known to fit.
+//
+// A non-empty unreadable slice means the section is incomplete, and a caller
+// must then never set promptFraming.filesComplete: a role told the carried
+// contents are complete and authoritative would report on a file whose body it
+// never received.
+func fileSetRead(paths []string) (section string, unreadable []string) {
 	seen := make(map[string]bool, len(paths))
-	var b strings.Builder
-	b.WriteString("## Affected Files (complete)\n\n")
+	unreadable = make([]string, 0)
+	var body strings.Builder
 	for _, p := range paths {
 		if p == "" || seen[p] {
 			continue
@@ -84,30 +89,40 @@ func fileSetRead(paths []string) string {
 		seen[p] = true
 		data, err := os.ReadFile(p)
 		if err != nil {
+			unreadable = append(unreadable, p)
 			continue
 		}
-		fmt.Fprintf(&b, "### %s (%d lines)\n", p, strings.Count(string(data), "\n")+1)
-		b.Write(data)
-		b.WriteString("\n\n")
+		fmt.Fprintf(&body, "### %s (%d lines)\n", p, strings.Count(string(data), "\n")+1)
+		body.Write(data)
+		body.WriteString("\n\n")
 	}
-	return b.String()
+	header := "## Affected Files (complete)\n\n"
+	if len(unreadable) > 0 {
+		header = "## Affected Files (incomplete)\n\n"
+	}
+	return header + body.String(), unreadable
 }
 
-// fileSetBytes reports the total on-disk byte size of the listed paths (the
-// size of the whole files, ignoring read errors). It is the cheap stat-only
-// probe a caller uses to decide the per-role inliner (§10.7) before reading any
-// file body with fileSetRead.
-func fileSetBytes(paths []string) int {
+// fileSetBytes reports the total on-disk byte size of the listed paths together
+// with the paths it could NOT stat. It is the cheap stat-only probe a caller
+// uses to decide the per-role inliner (§10.7) before reading any file body with
+// fileSetRead. A path tp cannot stat it cannot inline either, so a caller
+// treats a non-empty unstatable slice exactly like fileSetRead's unreadable
+// slice: the role gets named paths and reads them itself.
+func fileSetBytes(paths []string) (total int, unstatable []string) {
 	seen := make(map[string]bool, len(paths))
-	total := 0
+	unstatable = make([]string, 0)
 	for _, p := range paths {
 		if p == "" || seen[p] {
 			continue
 		}
 		seen[p] = true
-		if info, err := os.Stat(p); err == nil {
-			total += int(info.Size())
+		info, err := os.Stat(p)
+		if err != nil {
+			unstatable = append(unstatable, p)
+			continue
 		}
+		total += int(info.Size())
 	}
-	return total
+	return total, unstatable
 }

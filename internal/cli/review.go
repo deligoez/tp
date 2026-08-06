@@ -761,10 +761,17 @@ func buildReviewPrompts(specPath string, panel *rolePanel, elems *engine.Structu
 	// Budget first, content second: stat the set and read it only when it fits,
 	// so an oversized caller-supplied --affected-files list is never
 	// materialized in memory for nothing. This mirrors the audit path.
-	contentFits := len(affectedFiles) > 0 && fileSetBytes(affectedFiles) <= perRoleReadingBudget
+	// A path tp cannot stat or read is never presented as complete: every role
+	// is told to read the named paths itself instead (§10.7), because a role
+	// that trusts a silently-missing body reports on a file it never saw.
+	setBytes, unstatable := fileSetBytes(affectedFiles)
+	contentFits := len(affectedFiles) > 0 && len(unstatable) == 0 && setBytes <= perRoleReadingBudget
 	affectedContent := ""
 	if contentFits {
-		affectedContent = fileSetRead(affectedFiles)
+		var unreadable []string
+		if affectedContent, unreadable = fileSetRead(affectedFiles); len(unreadable) > 0 {
+			contentFits, affectedContent = false, ""
+		}
 	}
 	inlinerDone := false
 	for i := range prompts {
