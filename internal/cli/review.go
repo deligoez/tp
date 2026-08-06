@@ -25,13 +25,22 @@ import (
 // mistake reads the same way whichever command catches it.
 const findingsFileMissingHint = "a review round that converged with zero findings writes no findings file at all — where --findings is optional, omitting it is valid; otherwise check the path."
 
-// specFileMissingHint explains a spec path that cannot be read. Left hintless,
+// specFileMissingHint is the hint for a spec-PATH mistake: tp was handed a path
+// that is not a readable spec markdown file. It deliberately does not guess WHY
+// — a typo, the task file passed where the spec belongs, the wrong working
+// directory — it only says the path itself is the thing to check. Left hintless
 // these sites inherit the code-3 default, which is TASK-file advice ("run 'tp
-// use <file>' … 'tp init <spec>'") — the wrong object entirely for a mistyped
-// spec path. Shared by every tp review and tp audit mode that opens the spec
-// before stat'ing it, so the same typo reads the same way whichever one catches
-// it. Sites that run AFTER a successful os.Stat keep err.Error(): there the
-// failure is a real I/O or permission problem, not a path the caller mistyped.
+// use <file>' … 'tp init <spec>'"): the wrong object entirely.
+//
+// USE it wherever the failing call is tp's FIRST contact with that path — an
+// os.Stat guard, or a read no stat preceded — across every tp review and tp
+// audit mode, so the same typo reads the same way whichever one catches it.
+//
+// Do NOT use it once a stat or read of the SAME path has already succeeded
+// earlier in the call path. There the caller's path was right and what failed
+// afterwards is a real I/O or permission problem; those sites pass err.Error(),
+// which names the actual cause (loadAuditSpec and runReviewVerify's per-file
+// reads are the worked examples).
 const specFileMissingHint = "check the spec path — this command takes the spec markdown file, not the task file"
 
 // recordFileMissingHint explains a --record path that cannot be read. Left
