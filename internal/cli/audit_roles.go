@@ -460,7 +460,7 @@ func auditDiffStats(dir, base string) map[string][2]int {
 		args := append([]string{"diff", "--numstat"}, rng...)
 		// execGitDiff names a failed invocation on stderr rather than
 		// letting an empty result read as an unchanged file.
-		for _, line := range execGitDiff(dir, args...) {
+		for _, line := range execGitDiffProbe(dir, "diff --numstat", args...) {
 			parts := strings.Fields(line)
 			if len(parts) < 3 {
 				continue
@@ -483,7 +483,7 @@ func auditDeletedFiles(dir, base string) map[string]bool {
 	deleted := make(map[string]bool)
 	for _, rng := range auditDiffRanges(dir, base) {
 		args := append([]string{"diff", "--name-only", "--diff-filter=D"}, rng...)
-		for _, f := range execGitDiff(dir, args...) {
+		for _, f := range execGitDiffProbe(dir, "diff --name-only --diff-filter=D", args...) {
 			deleted[f] = true
 		}
 	}

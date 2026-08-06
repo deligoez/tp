@@ -578,7 +578,7 @@ func detectChangedFiles(dir, base string) ([]string, error) {
 	// the same list, so selection and stats can never describe different
 	// ranges — the failure that let a committed change be reported as +0/-0.
 	for i, rng := range auditDiffRanges(dir, base) {
-		files := execGitDiff(dir, append([]string{"diff", "--name-only"}, rng...)...)
+		files := execGitDiffProbe(dir, "diff --name-only", append([]string{"diff", "--name-only"}, rng...)...)
 		if i == 0 && len(files) == 0 && !gitExists(dir) {
 			return nil, fmt.Errorf("not in a git repo — provide --affected-files or run inside a git repo")
 		}
@@ -639,6 +639,15 @@ func latestGitTag(dir string) string {
 }
 
 func execGitDiff(dir string, args ...string) []string {
+	return execGitDiffProbe(dir, strings.Join(args, " "), args...)
+}
+
+// execGitDiffProbe is execGitDiff with an explicit advisory key. Callers that
+// run the SAME probe once per selection range pass a key naming the probe, not
+// the invocation: a condition that breaks one range (no repository, unknown
+// revision) breaks every range, and without the key one broken condition costs
+// the caller one advisory per range.
+func execGitDiffProbe(dir, probe string, args ...string) []string {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = dir
 	out, err := cmd.Output()
@@ -646,7 +655,7 @@ func execGitDiff(dir string, args ...string) []string {
 		// git failing is not the same as an empty diff. Reporting an unknown
 		// revision as "no changed files detected" sends the caller looking for
 		// missing work instead of at the revision they typed.
-		warnGitFailure(err, args...)
+		warnGitFailure(probe, err, args...)
 		return []string{}
 	}
 	var files []string
@@ -668,13 +677,17 @@ func execGitDiff(dir string, args ...string) []string {
 // empty deleted set — and a zero value is indistinguishable from a genuinely
 // unchanged tree once it reaches an auditor prompt as fact. The warning is what
 // keeps "git could not answer" from reading as "nothing changed".
-func warnGitFailure(err error, args ...string) {
+func warnGitFailure(probe string, err error, args ...string) {
 	detail := err.Error()
 	var exitErr *exec.ExitError
 	if errors.As(err, &exitErr) && len(exitErr.Stderr) > 0 {
-		detail = strings.TrimRight(string(exitErr.Stderr), "\n")
+		detail = string(exitErr.Stderr)
 	}
-	output.Notice(fmt.Sprintf("warning: git %s failed: %s", strings.Join(args, " "), detail))
+	// git answers a rejected invocation with its full usage text — hundreds of
+	// lines. This advisory travels the Notice channel, which JSON mode does NOT
+	// suppress, so the detail is capped to one bounded line: an uncapped dump
+	// costs the agent more context than the payload it annotates.
+	noticeOnce("git:"+probe, fmt.Sprintf("warning: git %s failed: %s", strings.Join(args, " "), firstLineCapped(detail)))
 }
 
 func isBinaryFile(path string) bool {
