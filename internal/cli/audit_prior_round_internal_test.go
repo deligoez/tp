@@ -21,6 +21,11 @@ func captureCLIStderr(t *testing.T, fn func()) string {
 	}
 	orig := os.Stderr
 	os.Stderr = w
+	// defer, not an inline restore after fn: a panic or runtime.Goexit inside
+	// fn would otherwise leave os.Stderr pointing at a pipe nobody drains and
+	// nobody closes, so every later test in this package writes into it. The
+	// sibling helper in internal/output does the same.
+	defer func() { os.Stderr = orig }()
 	done := make(chan string, 1)
 	go func() {
 		var buf bytes.Buffer
@@ -28,7 +33,6 @@ func captureCLIStderr(t *testing.T, fn func()) string {
 		done <- buf.String()
 	}()
 	fn()
-	os.Stderr = orig
 	if err := w.Close(); err != nil {
 		t.Fatalf("close pipe: %v", err)
 	}
