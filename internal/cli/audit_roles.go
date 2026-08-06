@@ -423,6 +423,10 @@ func auditDiffStats(base string) map[string][2]int {
 	out, err := exec.Command("git", args...).Output()
 	stats := make(map[string][2]int)
 	if err != nil {
+		// An empty map renders every prompt line as "(diff: +0/-0)", which the
+		// role reads as a measured fact about an unchanged file. Say that the
+		// numbers are unknown rather than asserting zeros.
+		warnGitFailure(err, args...)
 		return stats
 	}
 	for _, line := range strings.Split(string(out), "\n") {
@@ -449,6 +453,9 @@ func auditDeletedFiles(base string) map[string]bool {
 	out, err := exec.Command("git", args...).Output()
 	deleted := make(map[string]bool)
 	if err != nil {
+		// An empty set tells every role its file still exists. That is the same
+		// answer a clean tree gives, so a git failure has to be named.
+		warnGitFailure(err, args...)
 		return deleted
 	}
 	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
