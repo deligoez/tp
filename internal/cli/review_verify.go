@@ -20,11 +20,9 @@ func runReviewVerify(specPath, findingsPath string, affectedFiles []string, diff
 	}
 
 	if _, err := os.Stat(specPath); os.IsNotExist(err) {
-		// Point at the path the caller typed. The code-3 default hint names
-		// the TASK file — 'tp use' / 'tp init' advice — which is the wrong
-		// object entirely for a mistyped spec path.
-		output.Error(ExitFile, fmt.Sprintf("spec not found: %s", specPath),
-			"check the spec path — tp review takes the spec markdown file, not the task file")
+		// First contact with the path: a spec-path mistake, so the shared
+		// hint — not a third hand-rolled copy of it.
+		output.Error(ExitFile, fmt.Sprintf("spec not found: %s", specPath), specFileMissingHint)
 		os.Exit(ExitFile)
 		return nil
 	}
