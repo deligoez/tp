@@ -850,7 +850,9 @@ func readFindings(path string) []findingRow {
 		}
 		var obj map[string]any
 		if err := json.Unmarshal([]byte(line), &obj); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: skipping malformed line (invalid JSON) in %s\n", path)
+			// noticeOnce: the message names the file, not the line, so N bad
+			// lines produced N byte-identical copies of one advisory.
+			noticeOnce("findings-malformed:"+path, fmt.Sprintf("warning: skipping malformed line (invalid JSON) in %s", path))
 			continue
 		}
 		text := ""
@@ -866,7 +868,7 @@ func readFindings(path string) []findingRow {
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: stopped reading %s early (%v); rows after the over-long line were dropped (line cap is 64KB)\n", path, err)
+		output.Notice(fmt.Sprintf("warning: stopped reading %s early (%v); rows after the over-long line were dropped (line cap is 64KB)", path, err))
 	}
 	return results
 }
@@ -915,7 +917,7 @@ func execCommitFiles(dir, sha string) []string {
 	// Guard the sink (engine.SafeGitRev) and say so: a silently shrunken file
 	// set makes the "no done task carries commit_shas" message a lie.
 	if !engine.SafeGitRev(sha) {
-		fmt.Fprintf(os.Stderr, "warning: commit sha %q was skipped; git would read it as an option\n", sha)
+		output.Notice(fmt.Sprintf("warning: commit sha %q was skipped; git would read it as an option", sha))
 		return nil
 	}
 	return execGitDiff(dir, "show", "--name-only", "--pretty=format:", sha)
