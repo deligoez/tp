@@ -18,25 +18,20 @@ import (
 // was non-zero, and exited 0 when the cap was 0: a normal in-flight state read
 // as corruption, gated on an unrelated knob.
 func TestAuditSecondEmissionWithCapIsNotCorruptState(t *testing.T) {
-	dir := t.TempDir()
-	specPath := filepath.Join(dir, "spec.md")
-	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n## Table\n| Col |\n|-----|\n| a |\n"), 0o600))
+	// setupBudgetProject caps audit_max_rounds at 2, which is enough: the two
+	// emissions below record nothing, so the budget is never consumed.
+	dir := setupBudgetProject(t, "audit_max_rounds")
 	aPath := filepath.Join(dir, "a.go")
 	require.NoError(t, os.WriteFile(aPath, []byte("package main\n"), 0o600))
 
-	_, _, code := runTP(t, dir, "init", "spec.md")
-	require.Equal(t, 0, code)
-	_, _, code = runTP(t, dir, "set", "--workflow", "audit_max_rounds=5")
-	require.Equal(t, 0, code)
-
-	_, stderr, code := runTP(t, dir, "audit", specPath, "--affected-files", aPath)
+	_, stderr, code := runTP(t, dir, "audit", "spec.md", "--affected-files", aPath)
 	require.Equal(t, 0, code, "first audit emission: %s", stderr)
 
 	// The first emission wrote snapshot-audit-round-1.md but no state.json.
 	_, err := os.Stat(filepath.Join(dir, ".tp-review", "spec", "state.json"))
 	require.True(t, os.IsNotExist(err), "emission writes a snapshot, not a state index")
 
-	_, stderr, code = runTP(t, dir, "audit", specPath, "--affected-files", aPath)
+	_, stderr, code = runTP(t, dir, "audit", "spec.md", "--affected-files", aPath)
 	assert.Equal(t, 0, code, "an unrecorded in-flight round is not corrupt state: %s", stderr)
 	assert.NotContains(t, stderr, "unusable", "a missing state index must not read as corruption")
 }
