@@ -66,6 +66,23 @@ func TestTranslateLegacyLens_NewFormWins(t *testing.T) {
 	assert.NotContains(t, joined, "auto-translating", "no three-way merge / no deprecation-translate path")
 }
 
+// TestTranslateLegacyLens_EnabledOnlyEntryWins: a review_roles entry carrying
+// only enabled: false is still the new form, so the legacy lens is ignored
+// rather than merged (§2.3, test 12). The entry has no focus key at all — the
+// shape a parser recording focus alone would drop from ReviewRoles, leaving the
+// shim free to auto-translate.
+func TestTranslateLegacyLens_EnabledOnlyEntryWins(t *testing.T) {
+	spec := "---\ntp:\n  review_roles:\n    tester:\n      enabled: false\n  lens:\n    all:\n      - \"legacy question\"\n---\n"
+	fm := ParseFrontmatterBytes([]byte(spec))
+	require.NotEmpty(t, fm.ReviewRoles, "an enabled-only entry is still the new form")
+
+	overrides, warnings := TranslateLegacyLens(fm, []string{"implementer", "tester"})
+	assert.Empty(t, overrides, "no lens-derived overrides when the new form is present")
+	joined := joinWarnings(warnings)
+	assert.Contains(t, joined, "legacy tp: lens is ignored")
+	assert.NotContains(t, joined, "auto-translating", "no three-way merge / no deprecation-translate path")
+}
+
 // TestTranslateLegacyLens_NoLens returns empty with no warnings when the spec
 // carries no lens block.
 func TestTranslateLegacyLens_NoLens(t *testing.T) {
