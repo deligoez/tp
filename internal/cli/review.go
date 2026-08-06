@@ -1271,12 +1271,18 @@ func rankFilesBySpecTerms(files, specLines []string, maxCount int) []string {
 	return result
 }
 
+// readFilesContent reads the docs/test files selected for a perspective
+// prompt. A file it cannot read is named on stderr rather than dropped in
+// silence: the caller's paths came from a directory walk, so an unreadable one
+// is an anomaly, and a role that never sees the body would otherwise judge the
+// file from its absence.
 func readFilesContent(files []string, maxPerFile, maxTotal int) map[string]string {
 	result := make(map[string]string)
 	total := 0
 	for _, f := range files {
 		content, err := os.ReadFile(f)
 		if err != nil {
+			fmt.Fprintf(os.Stderr, "warning: cannot read %s; its contents were dropped from the prompt (%v)\n", f, err)
 			continue
 		}
 		s := string(content)
