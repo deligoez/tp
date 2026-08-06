@@ -184,6 +184,22 @@ func TestReview_FrontmatterOverrideFocus(t *testing.T) {
 	assert.Contains(t, byRole["implementer"], "happy path fails", "the corpus focus is retained (additive)")
 }
 
+// TestReview_EnabledTrueIsNoOp: enabled: true is accepted as a no-op — the role
+// stays in the emitted panel with its override focus layered onto the corpus
+// focus, exactly as an override without the key behaves (§2.1, test 3).
+func TestReview_EnabledTrueIsNoOp(t *testing.T) {
+	dir := t.TempDir()
+	spec := "---\ntp:\n  review_roles:\n    implementer:\n      enabled: true\n      focus:\n        - \"ENABLED TRUE FOCUS\"\n---\n# Spec\ncontent\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "review", "spec.md", "--no-state")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	byRole := reviewPromptsByRole(t, stdout)
+	require.Contains(t, byRole, "implementer", "enabled: true leaves the role active")
+	assert.Contains(t, byRole["implementer"], "ENABLED TRUE FOCUS", "the override focus is still layered")
+	assert.Contains(t, byRole["implementer"], "happy path fails", "the corpus focus is retained")
+}
+
 // TestReview_OverrideUnknownIDIgnored: an override id matching no active role is
 // ignored — its focus reaches no emitted role (§10.2). The warning text itself is
 // covered by the engine test TestResolveOverrideFocus_UnknownID.
