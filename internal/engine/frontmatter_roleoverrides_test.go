@@ -234,7 +234,9 @@ content
 
 // TestParseFrontmatter_RoleOverrideShapeWarnings covers the malformed-value paths:
 // a non-mapping override, a non-list focus, and a non-string focus element all
-// warn and degrade rather than erroring.
+// warn and degrade rather than erroring — and a malformed value degrades only
+// itself, so a focus alongside a well-formed enabled cannot take that enabled
+// down with it.
 func TestParseFrontmatter_RoleOverrideShapeWarnings(t *testing.T) {
 	spec := `---
 tp:
@@ -246,6 +248,9 @@ tp:
       focus:
         - "valid question"
         - 99
+    ax-economist:
+      enabled: false
+      focus: "not a list either"
   audit_roles: "not a mapping either"
 ---
 content
@@ -254,9 +259,25 @@ content
 	require.True(t, fm.Present)
 
 	assert.NotContains(t, fm.ReviewRoles, "implementer", "non-mapping override ignored")
-	assert.NotContains(t, fm.ReviewRoles, "tester", "non-list focus ignored")
 	assert.Equal(t, []string{"valid question"}, fm.ReviewRoles["architect"].Focus, "non-string element ignored")
 	assert.Empty(t, fm.AuditRoles, "a non-mapping audit_roles yields no overrides")
+
+	// A focus-ONLY malformed entry yields no usable override: nothing to layer
+	// and no activation decision, exactly as before the sibling-enabled fix.
+	assert.Contains(t, fm.ReviewRoles, "tester")
+	tester := fm.ReviewRoles["tester"]
+	assert.Empty(t, tester.Focus, "a non-list focus contributes no focus questions")
+	assert.Nil(t, tester.Enabled, "and no activation decision either")
+
+	// The discriminating case: §2.1 permits focus and enabled together, so a
+	// malformed focus degrades only itself. Dropping the whole entry — the
+	// pre-fix behaviour — would leave ax-economist silently active while the
+	// only warning named focus.
+	require.Contains(t, fm.ReviewRoles, "ax-economist", "a well-formed enabled keeps the entry")
+	axEconomist := fm.ReviewRoles["ax-economist"]
+	require.NotNil(t, axEconomist.Enabled, "the enabled survives its malformed sibling")
+	assert.False(t, *axEconomist.Enabled, "and still deactivates the role")
+	assert.Empty(t, axEconomist.Focus, "while the malformed focus itself is dropped")
 
 	joined := ""
 	for _, w := range fm.Warnings {
@@ -264,6 +285,7 @@ content
 	}
 	assert.Contains(t, joined, "tp.review_roles.implementer is not a mapping")
 	assert.Contains(t, joined, "tp.review_roles.tester.focus is not a list")
+	assert.Contains(t, joined, "tp.review_roles.ax-economist.focus is not a list")
 	assert.Contains(t, joined, "tp.review_roles.architect.focus[1] is not a string")
 	assert.Contains(t, joined, "tp.audit_roles is not a mapping")
 }
