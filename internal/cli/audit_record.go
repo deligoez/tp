@@ -18,7 +18,7 @@ import (
 // rounds; output carries no mechanize_candidates.
 func runAuditRecord(specPath, recordPath, harnessNote string) error {
 	if _, err := os.Stat(specPath); err != nil {
-		output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath))
+		output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath), specFileMissingHint)
 		os.Exit(ExitFile)
 		return nil
 	}
@@ -160,7 +160,7 @@ func countAuditFindings(path string, data []byte) (findings int, err error) {
 // has no mechanical_checks field — workflow checks guard review rounds.
 func runAuditStatus(specPath string, check bool) error {
 	if _, err := os.Stat(specPath); err != nil {
-		output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath))
+		output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath), specFileMissingHint)
 		os.Exit(ExitFile)
 		return nil
 	}

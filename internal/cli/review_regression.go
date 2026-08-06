@@ -17,7 +17,7 @@ const regressionFixedFindingsCap = 50
 // read-only. Mode (b): explicit --diff-from plus --findings, touching no state.
 func runReviewRegression(specPath, diffFrom, findingsPath string) error {
 	if _, err := os.Stat(specPath); err != nil {
-		output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath))
+		output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath), specFileMissingHint)
 		os.Exit(ExitFile)
 		return nil
 	}

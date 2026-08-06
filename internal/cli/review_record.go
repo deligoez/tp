@@ -19,7 +19,7 @@ import (
 // state flock), and report convergence plus mechanization candidates.
 func runReviewRecord(specPath, recordPath, harnessNote string) error {
 	if _, err := os.Stat(specPath); err != nil {
-		output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath))
+		output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath), specFileMissingHint)
 		os.Exit(ExitFile)
 		return nil
 	}

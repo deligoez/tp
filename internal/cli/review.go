@@ -25,6 +25,15 @@ import (
 // mistake reads the same way whichever command catches it.
 const findingsFileMissingHint = "a review round that converged with zero findings writes no findings file at all — where --findings is optional, omitting it is valid; otherwise check the path."
 
+// specFileMissingHint explains a spec path that cannot be read. Left hintless,
+// these sites inherit the code-3 default, which is TASK-file advice ("run 'tp
+// use <file>' … 'tp init <spec>'") — the wrong object entirely for a mistyped
+// spec path. Shared by every tp review and tp audit mode that opens the spec
+// before stat'ing it, so the same typo reads the same way whichever one catches
+// it. Sites that run AFTER a successful os.Stat keep err.Error(): there the
+// failure is a real I/O or permission problem, not a path the caller mistyped.
+const specFileMissingHint = "check the spec path — this command takes the spec markdown file, not the task file"
+
 type reviewFinding struct {
 	Severity   string          `json:"severity"`
 	Category   string          `json:"category"`
@@ -1637,7 +1646,7 @@ func resolveReviewSpecContent(specPath, diffFrom string, specInline bool) string
 		}
 		currData, err := os.ReadFile(specPath)
 		if err != nil {
-			output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath))
+			output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath), specFileMissingHint)
 			os.Exit(ExitFile)
 			return ""
 		}
@@ -1650,7 +1659,7 @@ func resolveReviewSpecContent(specPath, diffFrom string, specInline bool) string
 	case specInline:
 		content, err := readSpecContent(specPath)
 		if err != nil {
-			output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath), err.Error())
+			output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath), specFileMissingHint)
 			os.Exit(ExitFile)
 			return ""
 		}
@@ -1659,7 +1668,7 @@ func resolveReviewSpecContent(specPath, diffFrom string, specInline bool) string
 		// Default: reference mode (spec-ref) — omit inline content
 		specData, err := os.ReadFile(specPath)
 		if err != nil {
-			output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath))
+			output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath), specFileMissingHint)
 			os.Exit(ExitFile)
 			return ""
 		}

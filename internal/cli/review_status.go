@@ -14,7 +14,7 @@ import (
 // runReviewStatus implements `tp review <spec> --status [--check]`.
 func runReviewStatus(specPath string, check bool) error {
 	if _, err := os.Stat(specPath); err != nil {
-		output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath))
+		output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath), specFileMissingHint)
 		os.Exit(ExitFile)
 		return nil
 	}
