@@ -518,30 +518,10 @@ func TestAuditFindingsUnreadableDirectory(t *testing.T) {
 	assert.Equal(t, 3, code)
 }
 
-// An absent findings file is optional (os.IsNotExist) — audit proceeds with
-// no findings rather than failing.
-func TestAuditFindingsAbsentIsOptional(t *testing.T) {
-	dir := t.TempDir()
-	specPath := filepath.Join(dir, "spec.md")
-	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n## Table\n| Col |\n|-----|\n| a |\n"), 0o600))
-
-	aPath := filepath.Join(dir, "a.go")
-	require.NoError(t, os.WriteFile(aPath, []byte("package main\n"), 0o600))
-
-	stdout, _, code := runTP(t, dir, "audit", specPath, "--affected-files", aPath, "--findings", filepath.Join(dir, "absent.ndjson"))
-	require.Equal(t, 0, code, "absent findings file is optional")
-
-	var result map[string]any
-	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
-
-	findings := 0
-	for _, e := range result["checklist"].([]any) {
-		if e.(map[string]any)["type"].(string) == "finding" {
-			findings++
-		}
-	}
-	assert.Equal(t, 0, findings, "absent findings file contributes no finding rows")
-}
+// An absent findings file used to be treated as optional here; it is a typo
+// that silently empties the round's finding set, so it now aborts. The
+// replacement contract lives in TestAuditMissingFindingsFileFailsLoudly
+// (audit_findings_path_test.go).
 
 // An over-long line in a --findings NDJSON hits the bufio.Scanner 64KB token
 // cap; readFindings must warn on stderr and drop later rows instead of silently
