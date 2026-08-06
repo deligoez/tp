@@ -360,8 +360,12 @@ func loadAuditSpec(specPath string) (specLines []string, specContent string) {
 	specData, err := os.ReadFile(specPath)
 	if err != nil {
 		// Carry the cause: a permission or IO failure is otherwise
-		// indistinguishable from a missing file at the call site.
-		output.Error(ExitFile, fmt.Sprintf("cannot read spec %s: %v", specPath, err))
+		// indistinguishable from a missing file at the call site. This site is
+		// POST-stat (runAudit already proved the path exists), so the hint is
+		// err.Error() and not specFileMissingHint — the caller did not mistype
+		// the path, and left hintless it would inherit the code-3 task-file
+		// default, the wrong object entirely.
+		output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath), err.Error())
 		os.Exit(ExitFile)
 		return nil, ""
 	}
@@ -387,7 +391,9 @@ func loadAuditSpec(specPath string) (specLines []string, specContent string) {
 		auditRecorded = len(auditSt.AuditRounds)
 	}
 	if snapErr := engine.WriteSnapshotAtomic(specPath, engine.PhaseAudit, auditRecorded+1, specData); snapErr != nil {
-		output.Error(ExitFile, fmt.Sprintf("cannot write snapshot: %v", snapErr))
+		// Post-stat failure: the hint carries the real cause, not spec-path
+		// advice — the path was already proven readable above.
+		output.Error(ExitFile, fmt.Sprintf("cannot write audit round snapshot for %s", specPath), snapErr.Error())
 		os.Exit(ExitFile)
 		return nil, ""
 	}
