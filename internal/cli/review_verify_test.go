@@ -20,6 +20,25 @@ func setupVerifyTest(t *testing.T, findings string) (specPath, findingsPath stri
 	return specPath, findingsPath
 }
 
+// TestReviewVerifySpecNotFoundHint: tp review --verify carries the same
+// hintless "spec not found" site tp audit did, so a mistyped spec path drew
+// the code-3 default task-file advice instead of pointing at the path typed.
+func TestReviewVerifySpecNotFoundHint(t *testing.T) {
+	dir := t.TempDir()
+	findingsPath := filepath.Join(dir, "findings.ndjson")
+	require.NoError(t, os.WriteFile(findingsPath, []byte(""), 0o600))
+
+	_, stderr, code := runTP(t, dir, "review", "--verify", "--findings", findingsPath, "/nonexistent/spec.md")
+	require.Equal(t, 3, code)
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stderr), &payload))
+	hint, _ := payload["hint"].(string)
+	assert.Contains(t, hint, "spec path", "the hint names the spec path the caller typed")
+	assert.NotContains(t, hint, "tp use", "task-file advice is the wrong object for a spec-path typo")
+	assert.NotContains(t, hint, "tp init", "task-file advice is the wrong object for a spec-path typo")
+}
+
 func TestReviewVerifyAllFixed(t *testing.T) {
 	specPath, findingsPath := setupVerifyTest(t, `{"severity":"high","category":"completeness","location":"## A","finding":"missing X","resolved":{"status":"fixed","evidence":"added in section 2"}}
 {"severity":"medium","category":"ambiguity","location":"## B","finding":"unclear Y","resolved":{"status":"fixed","evidence":"clarified"}}
