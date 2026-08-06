@@ -356,6 +356,56 @@ func TestAudit_DeactivatedRoleDropsItsFocus(t *testing.T) {
 		"a deactivated auditor's focus is applied nowhere in the output")
 }
 
+// TestReview_CompactOmitsDisabledBySpec: §2.4 test 16 — --compact omits
+// skipped_roles, disabled-by-spec entries included, so a driver cannot tell a
+// deactivated role from any other absence under compact.
+//
+// The same fixture is run twice on purpose. The non-compact run asserts the
+// entry IS emitted; without it the compact assertion would pass trivially
+// against an implementation that never produces a disabled-by-spec entry at all.
+func TestReview_CompactOmitsDisabledBySpec(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
+	writeReviewerRole(t, dir, "keeper.json", `{"id":"keeper","title":"Keeper","instructions":"You review.","focus":["q"]}`)
+	writeReviewerRole(t, dir, "dropped.json", `{"id":"dropped","title":"Dropped","instructions":"You review.","focus":["q"]}`)
+	spec := "---\ntp:\n  review_roles:\n    dropped:\n      enabled: false\n---\n# Spec\n## 1. A\ncontent\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "review", "spec.md")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	require.Equal(t, []string{"disabled-by-spec"}, skipReasonsFor(t, stdout, "dropped"),
+		"the fixture really emits the entry that --compact must omit")
+
+	stdout, stderr, code = runTP(t, dir, "review", "spec.md", "--compact")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var out map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+	_, hasField := out["skipped_roles"]
+	assert.False(t, hasField, "--compact omits skipped_roles, disabled-by-spec included")
+	assert.NotContains(t, stdout, "disabled-by-spec", "no disabled-by-spec entry survives --compact")
+}
+
+// TestAudit_CompactOmitsDisabledBySpec: the audit half of test 16. audit
+// assembles skipped_roles in runAudit, separately from review, so its --compact
+// gate is pinned separately too.
+func TestAudit_CompactOmitsDisabledBySpec(t *testing.T) {
+	spec := "---\ntp:\n  audit_roles:\n    dropped:\n      enabled: false\n---\n# Spec\n## 1. Widgets\ncontent\n"
+	dir := writeAuditorCorpusProject(t, spec, "spec-coverage", "keeper", "dropped")
+
+	stdout, stderr, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "code.go")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	require.Equal(t, []string{"disabled-by-spec"}, skipReasonsFor(t, stdout, "dropped"),
+		"the fixture really emits the entry that --compact must omit")
+
+	stdout, stderr, code = runTP(t, dir, "audit", "spec.md", "--affected-files", "code.go", "--compact")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var out map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+	_, hasField := out["skipped_roles"]
+	assert.False(t, hasField, "--compact omits skipped_roles, disabled-by-spec included")
+	assert.NotContains(t, stdout, "disabled-by-spec", "no disabled-by-spec entry survives --compact")
+}
+
 // refusalMessage decodes tp's JSON error object off stderr so the empty-phase
 // message and hint can be asserted verbatim rather than by substring.
 func refusalMessage(t *testing.T, stderr string) (msg, hint string) {
