@@ -660,11 +660,15 @@ func buildReviewPrompts(specPath string, elems *engine.StructuredElements, specC
 	// Layer the spec-frontmatter role overrides (tp.review_roles / legacy lens
 	// shim) onto each active role's corpus focus (§10.2-10.4).
 	activeRoles, overrideWarnings, disabledRoles := engine.ResolveOverrideFocus(activeRoles, fmState, engine.PhaseReviewers)
-	// disabledRoles carries the ids this spec deactivated with enabled: false;
-	// the skipped_roles report and the emptiness refusal consume it (§2.4, §2.5).
-	_ = disabledRoles
 	for _, w := range overrideWarnings {
 		output.Info(w)
+	}
+	// Apply the enabled: false drop here — outside ResolveActiveCorpus and after
+	// its domain filtering — so deactivating every user role empties the panel
+	// instead of falling back to the embedded default corpus (§2.3).
+	activeRoles = engine.DropDisabledRoles(activeRoles, disabledRoles)
+	if len(disabledRoles) > 0 && len(activeRoles) == 0 {
+		refuseEmptyPhase(engine.PhaseReviewers)
 	}
 	prompts = make([]reviewPrompt, 0, len(activeRoles)+1)
 	for i := range activeRoles {
@@ -795,6 +799,16 @@ func buildReviewPrompts(specPath string, elems *engine.StructuredElements, specC
 	}
 
 	return prompts, regressionIncluded, skipped
+}
+
+// refuseEmptyPhase exits 2 when this spec's enabled: false entries leave a
+// phase with no active role. Refusing here is what makes §2.3's placement
+// observable: the drop runs outside ResolveActiveCorpus, so an emptied panel
+// stays empty instead of silently reverting to the embedded default corpus.
+// §2.5 owns the rendered id list and the hint; this carries only the exit.
+func refuseEmptyPhase(phase string) {
+	output.Error(ExitUsage, fmt.Sprintf("every %s role is deactivated by this spec", phase))
+	os.Exit(ExitUsage)
 }
 
 // generateCorpusReviewPrompt renders one review prompt for a corpus role,
