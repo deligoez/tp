@@ -210,6 +210,23 @@ func TestAuditSpecNotFound(t *testing.T) {
 	assert.Contains(t, stderr, "not found")
 }
 
+// TestAuditSpecNotFoundHint: a mistyped spec path used to inherit the code-3
+// default hint, which is task-file advice ("run 'tp use <file>' … 'tp init
+// <spec>'") — the wrong object entirely. The --affected-files branch in the
+// same command already overrides that hint; the spec path gets its own too.
+func TestAuditSpecNotFoundHint(t *testing.T) {
+	dir := t.TempDir()
+	_, stderr, code := runTP(t, dir, "audit", "/nonexistent/spec.md", "--affected-files", "x.go")
+	require.Equal(t, 3, code)
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stderr), &payload))
+	hint, _ := payload["hint"].(string)
+	assert.Contains(t, hint, "spec path", "the hint names the spec path the caller typed")
+	assert.NotContains(t, hint, "tp use", "task-file advice is the wrong object for a spec-path typo")
+	assert.NotContains(t, hint, "tp init", "task-file advice is the wrong object for a spec-path typo")
+}
+
 func TestAuditChecklistTableRows(t *testing.T) {
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
