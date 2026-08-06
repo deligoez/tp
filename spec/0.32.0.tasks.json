@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.32.0.md",
   "created_at": "2026-08-06T09:57:37.021054Z",
-  "updated_at": "2026-08-06T11:20:53.100887Z",
+  "updated_at": "2026-08-06T11:25:47.409407Z",
   "workflow": {},
   "coverage": {
     "total_sections": 14,
@@ -459,7 +459,7 @@
     {
       "id": "regression-not-counted",
       "title": "Exclude regression from the emptiness check",
-      "status": "open",
+      "status": "done",
       "tags": [
         "impl"
       ],
@@ -472,11 +472,20 @@
         "## 6. Tests"
       ],
       "source_lines": "92,102",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-06T11:21:42.532501Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-06T11:25:47.386233Z",
+      "closed_reason": "- The built-in regression role does not count as an active reviewer for §2.5's emptiness check, asserted in both halves. Engine half: TestResolveOverrideFocus_RegressionEnabledFalseTakesWarningPath (internal/engine/overrides_test.go) runs an enabled: false entry naming regression against both phases and requires the \"matches no active \u003cphase\u003e role; ignored\" warning with an empty drop set — the warning text is asserted at the engine layer because output.Info is silent whenever stdout is not a terminal.\n- CLI half: TestReview_RegressionDoesNotSatisfyTheEmptinessCheck (internal/cli/domain_lens_test.go) deactivates the sole corpus reviewer and requires exit 2 with the verbatim empty-phase message and an empty stdout. The fixture deliberately runs WITH the state directory at round 2 after a recorded round 1 over an edited spec — the condition under which review appends the regression prompt — and asserts as a control that regression does emit there before the deactivation is added; under --no-state regression is never a candidate and the assertion would hold for a wrong implementation too.\n- No implementation change was needed: ResolveOverrideFocus already gates the drop set on the post-domain-filter active panel, which never holds regression, and resolveRolePanel refuses on len(roles)==0 over that same panel. Both tests were proved discriminating by mutation: adding id == RegressionRoleID to the drop condition fails the engine half, and exempting PhaseReviewers from the empty-phase check fails the CLI half; both reverted.\n- Gate green before closing: go test ./... exit 0, golangci-lint run exit 0 (checked as separate exit codes, not a \u0026\u0026 chain).",
+      "gate_passed_at": "2026-08-06T11:25:47.386233Z",
+      "commit_sha": "52143c0",
+      "commit_shas": [
+        "52143c0",
+        "5a98b72"
+      ],
+      "commit_files": [
+        "internal/cli/domain_lens_test.go",
+        "internal/engine/overrides_test.go"
+      ]
     },
     {
       "id": "refusal-before-writes",
