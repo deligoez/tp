@@ -136,7 +136,9 @@ func ParseFrontmatterBytes(data []byte) *Frontmatter {
 
 // parseRoleOverrides parses a tp.review_roles or tp.audit_roles mapping (§10.2):
 // each key is a role id, each value an object whose permitted keys are "focus"
-// (a string array) and "enabled". Any other key inside an override is a lint warning
+// (a string array) and "enabled" (a boolean, parsed into RoleOverride.Enabled;
+// enabled: true is a no-op that leaves the role active with its focus layered).
+// Any other key inside an override is a lint warning
 // and is ignored; the parsed overrides are returned keyed by role id for
 // read-time layering onto the corpus role's focus.
 func (fm *Frontmatter) parseRoleOverrides(field string, val any) map[string]RoleOverride {
@@ -172,15 +174,24 @@ func (fm *Frontmatter) parseRoleOverrides(field string, val any) map[string]Role
 			}
 		}
 
+		// A boolean enabled is carried through as the per-spec activation toggle;
+		// any other shape (absent, null, non-boolean) leaves it unset (nil).
+		var enabled *bool
+		if enabledVal, hasEnabled := override["enabled"]; hasEnabled {
+			if b, isBool := enabledVal.(bool); isBool {
+				enabled = &b
+			}
+		}
+
 		focusVal, hasFocus := override["focus"]
 		if !hasFocus {
-			out[id] = RoleOverride{Focus: []string{}}
+			out[id] = RoleOverride{Focus: []string{}, Enabled: enabled}
 			continue
 		}
 		list, isList := focusVal.([]any)
 		if !isList {
 			if focusVal == nil {
-				out[id] = RoleOverride{Focus: []string{}}
+				out[id] = RoleOverride{Focus: []string{}, Enabled: enabled}
 				continue
 			}
 			fm.warn(fmt.Sprintf("tp.%s.%s.focus is not a list (got %T); ignored", field, id, focusVal))
@@ -195,7 +206,7 @@ func (fm *Frontmatter) parseRoleOverrides(field string, val any) map[string]Role
 			}
 			questions = append(questions, s)
 		}
-		out[id] = RoleOverride{Focus: questions}
+		out[id] = RoleOverride{Focus: questions, Enabled: enabled}
 	}
 	return out
 }
