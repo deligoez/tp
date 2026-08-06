@@ -55,12 +55,18 @@ func ReadAffectedFilesBudgetAware(paths []string, otherContent ...string) map[st
 	return ReadAffectedFilesRaw(paths, AffectedPerFileCap, remaining)
 }
 
+// ReadAffectedFilesRaw reads the affected-file set for a prompt, capped per
+// file and in total. A file it cannot read is named on stderr rather than
+// dropped in silence: callers stat these paths up front, so an unreadable one
+// is an anomaly, and its absence from the map is indistinguishable from a file
+// that was never requested.
 func ReadAffectedFilesRaw(paths []string, maxPerFile, maxTotal int) map[string]string {
 	result := make(map[string]string)
 	total := 0
 	for _, f := range paths {
 		content, err := os.ReadFile(f)
 		if err != nil {
+			fmt.Fprintf(os.Stderr, "warning: cannot read affected file %s; its contents were dropped from the prompt (%v)\n", f, err)
 			continue
 		}
 		s := string(content)
