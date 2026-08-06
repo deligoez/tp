@@ -449,10 +449,6 @@ func filesChangedSince(dir, since string) map[string]bool {
 	return changed
 }
 
-// refuseAuditIfBudgetExhausted refuses audit prompt generation when the audit
-// cap is exhausted; the cap-triggered state read inherits the corrupt-state
-// abort, but a missing state index is the normal in-flight round, not
-// corruption.
 // refuseMissingFindingsFile aborts when --findings names a path that does not
 // exist. That is a typo, not an empty finding set: readFindings answers
 // os.IsNotExist with nil, so without this guard the round silently verifies
@@ -473,6 +469,10 @@ func refuseMissingFindingsFile(findingsPath string) {
 	}
 }
 
+// refuseAuditIfBudgetExhausted refuses audit prompt generation when the audit
+// cap is exhausted; the cap-triggered state read inherits the corrupt-state
+// abort, but a missing state index is the normal in-flight round, not
+// corruption.
 func refuseAuditIfBudgetExhausted(specPath string) {
 	wfBudget, _ := engine.ResolveWorkflow(specPath, flagFile)
 	if wfBudget.AuditMaxRounds <= 0 {
