@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.32.0.md",
   "created_at": "2026-08-06T09:57:37.021054Z",
-  "updated_at": "2026-08-06T10:59:50.814922Z",
+  "updated_at": "2026-08-06T11:04:29.549899Z",
   "workflow": {},
   "coverage": {
     "total_sections": 14,
@@ -224,7 +224,7 @@
     {
       "id": "unknown-id-warning",
       "title": "Warn when no active role matches",
-      "status": "open",
+      "status": "done",
       "tags": [
         "impl"
       ],
@@ -237,11 +237,20 @@
         "### 2.3 Resolution drops the role and reports what it dropped"
       ],
       "source_lines": "99,106",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-06T11:00:32.805864Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-06T11:04:29.528006Z",
+      "closed_reason": "- enabled: false on an id in no corpus at all takes the \"matches no active role\" path and changes nothing: TestReview_EnabledFalseUnknownIDChangesNothing (internal/cli/domain_lens_test.go) keeps the full default reviewer panel emitted and asserts the id is named in no skipped_roles entry and that no entry carries disabled-by-spec, while the engine test TestResolveOverrideFocus_OutsideActivePanelWarnsAndDropsNothing (internal/engine/overrides_test.go) asserts the warning text itself, which output.Info suppresses whenever stdout is not a terminal.\n- A role the corpus holds but domains removed takes the same path and is named in skipped_roles exactly once, with domain-mismatch: TestReview_DomainFilteredRoleTakesWarningPath/enabled_false asserts the reason list for that role equals [domain-mismatch]; proved discriminating by mutating ResolveOverrideFocus to add the id to the drop set before checking the active set, which produced [domain-mismatch disabled-by-spec] and failed the assertion (plus the engine drop-set assertion and the ghost test), then reverting.\n- Test 13 (Non-Goal 3): TestReview_DomainFilteredRoleTakesWarningPath/enabled_true asserts enabled: true resurrects neither the domain-filtered role nor its focus (no prompt carries RESURRECTION FOCUS) and the role stays reported once as domain-mismatch; the engine half asserts the same entry adds no role to the panel and lands no focus.\n- Gate green: go test ./... exit 0, golangci-lint run exit 0 (checked as separate exit codes, no \u0026\u0026 chain).",
+      "gate_passed_at": "2026-08-06T11:04:29.528006Z",
+      "commit_sha": "6d5600d",
+      "commit_shas": [
+        "6d5600d",
+        "339fcc0"
+      ],
+      "commit_files": [
+        "internal/cli/domain_lens_test.go",
+        "internal/engine/overrides_test.go"
+      ]
     },
     {
       "id": "disabled-by-spec-reason",
