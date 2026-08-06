@@ -416,6 +416,10 @@ func loadAuditPriorRound(specPath string) map[string]*auditPriorRound {
 	prior := &st.AuditRounds[len(st.AuditRounds)-1]
 	rows, found := engine.LoadRoundRows(specPath, prior)
 	if !found {
+		// Dropping the whole prior-round section silently makes a round-2
+		// prompt look like a round-1 one. review.go, review_record.go and
+		// review_regression.go all say so on the same condition.
+		output.Info(fmt.Sprintf("round %d file %s is missing; skipping its rows", prior.Round, prior.File))
 		return nil
 	}
 	changedFiles := filesChangedSince(filepath.Dir(specPath), prior.RecordedAt)
