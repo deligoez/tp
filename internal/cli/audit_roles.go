@@ -371,6 +371,12 @@ func claudeMDExcerptFor(specPath string) string {
 	for _, c := range candidates {
 		data, err := os.ReadFile(c)
 		if err != nil {
+			// An absent CLAUDE.md is the normal case (the excerpt is
+			// optional). One that exists but cannot be read silently costs
+			// every role its conventions context, so name it.
+			if !os.IsNotExist(err) {
+				fmt.Fprintf(os.Stderr, "warning: cannot read %s; the conventions excerpt was dropped (%v)\n", c, err)
+			}
 			continue
 		}
 		return claudeConventionsExcerpt(strings.Split(strings.ReplaceAll(string(data), "\r\n", "\n"), "\n"))
