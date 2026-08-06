@@ -463,7 +463,8 @@ func filesChangedSince(dir, since string) map[string]bool {
 
 // refuseAuditIfBudgetExhausted refuses audit prompt generation when the audit
 // cap is exhausted; the cap-triggered state read inherits the corrupt-state
-// abort.
+// abort, but a missing state index is the normal in-flight round, not
+// corruption.
 func refuseAuditIfBudgetExhausted(specPath string) {
 	wfBudget, _ := engine.ResolveWorkflow(specPath, flagFile)
 	if wfBudget.AuditMaxRounds <= 0 {
@@ -471,8 +472,19 @@ func refuseAuditIfBudgetExhausted(specPath string) {
 	}
 	stBudget, stErr := engine.LoadReviewState(specPath)
 	if stErr != nil {
-		exitStateError(stErr)
-		return
+		if !engine.IsMissingStateIndex(stErr) {
+			exitStateError(stErr)
+			return
+		}
+		// A prior emission wrote a snapshot that --record has not yet
+		// indexed (§10.2, InFlightRound). tp audit never calls
+		// EnsureReviewState, so state.json is legitimately absent after an
+		// emission — treat it as no recorded rounds, exactly as
+		// loadAuditSpec and loadAuditPriorRound do. Aborting here made the
+		// SECOND tp audit of a round exit 3 "state is unusable" whenever
+		// audit_max_rounds was non-zero, gating a normal in-flight state on
+		// an unrelated knob.
+		stBudget = nil
 	}
 	rounds := []engine.ReviewRound{}
 	if stBudget != nil {
