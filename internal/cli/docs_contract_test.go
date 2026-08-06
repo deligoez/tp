@@ -41,7 +41,7 @@ const (
 // than only by the absence of a superseded one — so deleting the old wording
 // without writing the new one fails here too.
 func TestDocsStateOneAuditRoutingContract(t *testing.T) {
-	root := golangciRepoRoot(t)
+	root := repoRoot(t)
 	read := func(rel string) string {
 		t.Helper()
 		data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))

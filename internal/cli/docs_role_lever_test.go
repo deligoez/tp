@@ -47,7 +47,7 @@ var referenceTrimLeverSubstrings = []string{
 // documents must each carry the pinned substring, and REFERENCE.md must state
 // both of a trim_candidate's levers and how differently they are guarded.
 func TestDocsStateThePerSpecRoleLever(t *testing.T) {
-	root := golangciRepoRoot(t)
+	root := repoRoot(t)
 	read := func(rel string) string {
 		t.Helper()
 		data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
