@@ -160,3 +160,32 @@ func TestResolveOverrideFocus_OutsideActivePanelWarnsAndDropsNothing(t *testing.
 	assert.Contains(t, strings.Join(warnings, "\n"),
 		`tp.review_roles override for "prose-role" matches no active reviewers role; ignored`)
 }
+
+// TestResolveOverrideFocus_RegressionEnabledFalseTakesWarningPath is test 9's
+// first half. The built-in regression role is convergence machinery appended to
+// emission separately, so it is in neither corpus and is never in the active
+// panel handed to resolution. An enabled: false entry naming it therefore takes
+// §2.3's "matches no active role" path in both phases and contributes no drop —
+// the only reading consistent with Non-Goal 4, since a drop would let a spec
+// switch off the round-over-round diff.
+func TestResolveOverrideFocus_RegressionEnabledFalseTakesWarningPath(t *testing.T) {
+	cases := []struct {
+		phase, field string
+		panel        []model.Role
+	}{
+		{PhaseReviewers, "review_roles", []model.Role{{ID: "implementer", Focus: []string{"q"}}}},
+		{PhaseAuditors, "audit_roles", []model.Role{{ID: "spec-coverage", Focus: []string{"q"}}}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.phase, func(t *testing.T) {
+			fm := ParseFrontmatterBytes([]byte("---\ntp:\n  " + tc.field + ":\n    " + RegressionRoleID + ":\n      enabled: false\n---\n"))
+
+			out, warnings, disabled := ResolveOverrideFocus(tc.panel, fm, tc.phase)
+			assert.Empty(t, disabled, "regression is in no corpus, so it is never a drop")
+			assert.Len(t, out, 1, "the active panel is untouched")
+			assert.Equal(t, []string{"q"}, roleFocusByID(out)[tc.panel[0].ID])
+			assert.Contains(t, strings.Join(warnings, "\n"),
+				`tp.`+tc.field+` override for "regression" matches no active `+tc.phase+` role; ignored`)
+		})
+	}
+}
