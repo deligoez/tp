@@ -89,6 +89,25 @@ func TestHarnessNote_RequiresRecord(t *testing.T) {
 	assert.Contains(t, stderr, "requires --record")
 }
 
+// TestHarnessNote_RejectedByMerge: --merge records no round, so it must reject
+// --harness-note rather than exit 0 and drop it. review's guard already runs
+// ahead of mode dispatch; audit returned from its --merge branch first, so the
+// note was the one flag --merge accepted and silently ignored.
+func TestHarnessNote_RejectedByMerge(t *testing.T) {
+	dir := t.TempDir()
+	writeHarnessSpec(t, dir)
+	in := filepath.Join(dir, "in.ndjson")
+	require.NoError(t, os.WriteFile(in, []byte(""), 0o600))
+	merged := filepath.Join(dir, "merged.ndjson")
+
+	for _, phase := range []string{"audit", "review"} {
+		_, stderr, code := runTP(t, dir, phase, "--merge", in, "-o", merged, "--harness-note", "x")
+		assert.Equal(t, 2, code, "%s --merge --harness-note must be a usage error", phase)
+		assert.Contains(t, stderr, "--harness-note", "%s names the offending flag", phase)
+		assert.NoFileExists(t, merged, "%s refuses before writing the merge output", phase)
+	}
+}
+
 // TestHarnessStale_RecordAndStatus: harness_stale is true only once two
 // non-empty differing notes are recorded; --record computes it after storing
 // the current round; --status agrees; harness_note is the verbatim latest note
