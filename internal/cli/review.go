@@ -131,8 +131,17 @@ Modes (mutually exclusive):
 			// "supply it together with --record", and --record is exactly what
 			// --merge rejects next, so one mistake cost two failed calls.
 			// Mirrors tp audit's exhaustive --merge rejection list.
-			if mode == "merge" && (cmd.Flags().Changed("harness-note") || forceFlag || noState) {
-				output.Error(ExitUsage, "--merge cannot be combined with --harness-note/--force/--no-state",
+			// --perspective/--docs-path/--test-path belong here too: --merge
+			// generates no prompt, so it used to accept and silently ignore
+			// them while --record/--status reject --perspective outright.
+			// Together with validateModeFlags (--round/--findings/
+			// --affected-files/--final-round/--diff-from/--spec-inline), the
+			// --check guard below and the mode-conflict detector, every flag
+			// tp review defines is now either accepted by --merge (-o and the
+			// positional NDJSON inputs) or rejected by name.
+			if mode == "merge" && (cmd.Flags().Changed("harness-note") || forceFlag || noState ||
+				perspective != "" || docsPath != "" || testPath != "") {
+				output.Error(ExitUsage, "--merge cannot be combined with --harness-note/--force/--no-state/--perspective/--docs-path/--test-path",
 					"run --merge on its own: it takes only the input NDJSON files and -o <file>")
 				os.Exit(ExitUsage)
 				return nil
