@@ -191,6 +191,23 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 		return nil
 	}
 
+	// A --findings path that does not exist is a typo, not an empty finding
+	// set. readFindings answers os.IsNotExist with nil, so without this guard
+	// the round silently verifies ZERO review findings and still records as
+	// clean — a mistyped path could declare convergence. tp review rejects the
+	// same typo up front, and tp audit already refuses a missing
+	// --affected-files path; only the existing-but-unreadable branch of
+	// readFindings was loud. Other stat errors fall through to readFindings,
+	// which names them as a read failure rather than as "not found".
+	if findingsPath != "" {
+		if _, err := os.Stat(findingsPath); os.IsNotExist(err) {
+			output.Error(ExitFile, fmt.Sprintf("findings file not found: %s", findingsPath),
+				"check the path: an audit round that verifies zero findings can still record as clean")
+			os.Exit(ExitFile)
+			return nil
+		}
+	}
+
 	refuseAuditIfBudgetExhausted(specPath)
 
 	// Expand comma-separated values in --affected-files
