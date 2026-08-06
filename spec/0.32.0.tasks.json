@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.32.0.md",
   "created_at": "2026-08-06T09:57:37.021054Z",
-  "updated_at": "2026-08-06T11:11:52.658577Z",
+  "updated_at": "2026-08-06T11:15:43.620043Z",
   "workflow": {},
   "coverage": {
     "total_sections": 14,
@@ -305,7 +305,7 @@
     {
       "id": "deactivated-role-drops-focus",
       "title": "Drop focus from a deactivated role",
-      "status": "open",
+      "status": "done",
       "tags": [
         "impl"
       ],
@@ -318,11 +318,18 @@
         "### 2.4 A deactivated role stays visible"
       ],
       "source_lines": "95",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-06T11:12:44.495199Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-06T11:15:43.605873Z",
+      "closed_reason": "- enabled: false with a sibling focus key on the same role deactivates that role and its focus is applied nowhere in the output: TestReview_DeactivatedRoleDropsItsFocus and TestAudit_DeactivatedRoleDropsItsFocus (internal/cli/domain_lens_test.go) each assert the role emits no prompt, is named once in skipped_roles with disabled-by-spec, and that the override's focus question appears in no emitted prompt and nowhere in the raw payload.\n- No implementation change was needed: ResolveOverrideFocus layers focus into the effective copies and DropDisabledRoles removes the deactivated role together with its layered focus, so the focus never reaches emission. The tests were proven discriminating by mutating ResolveOverrideFocus to fan a deactivated role's focus onto every surviving role — both tests then failed on the focus assertions while every panel assertion still passed — and the mutation was reverted (git diff clean).\n- Spec test 2 passes; gate green: go test ./... exit 0, golangci-lint run exit 0.",
+      "gate_passed_at": "2026-08-06T11:15:43.605873Z",
+      "commit_sha": "1feeace",
+      "commit_shas": [
+        "1feeace"
+      ],
+      "commit_files": [
+        "internal/cli/domain_lens_test.go"
+      ]
     },
     {
       "id": "compact-omits-skipped",
