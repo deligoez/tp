@@ -16,6 +16,13 @@ import (
 // ("--merge and --record are mutually exclusive"), two failed calls for one
 // mistake. --force and --no-state were accepted outright and silently ignored,
 // while tp audit's exhaustive --merge list rejects the equivalents.
+//
+// The list was not actually exhaustive despite the comment claiming so:
+// --perspective/--docs-path/--test-path still fell through, so
+// `tp review --merge in.ndjson -o out --perspective testing` exited 0 and wrote
+// the merge with the flag silently ignored — while --record/--status reject
+// that same flag. --merge generates no prompt, so every prompt-generation flag
+// belongs in the list.
 func TestReviewMergeRejectsForeignFlags(t *testing.T) {
 	dir := t.TempDir()
 	in := filepath.Join(dir, "in.ndjson")
@@ -28,6 +35,9 @@ func TestReviewMergeRejectsForeignFlags(t *testing.T) {
 		{"harness-note", []string{"--harness-note", "x"}},
 		{"force", []string{"--force"}},
 		{"no-state", []string{"--no-state"}},
+		{"perspective", []string{"--perspective", "testing"}},
+		{"docs-path", []string{"--docs-path", "docs"}},
+		{"test-path", []string{"--test-path", "tests"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			merged := filepath.Join(dir, tc.name+"-merged.ndjson")
