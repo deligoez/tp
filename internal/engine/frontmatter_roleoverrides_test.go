@@ -120,6 +120,52 @@ content
 	assert.Nil(t, fm.ReviewRoles["architect"].Enabled, "an absent enabled key is unset")
 }
 
+// TestParseFrontmatter_RoleOverrideEnabledNonBool covers §2.2 test 4: a non-nil,
+// non-boolean enabled warns with the pinned text and is ignored, leaving Enabled
+// unset so the role stays active with its focus intact. The primary fixture is a
+// quoted string (enabled: "false"), which YAML types as a string — coercing it
+// would silently deactivate the role, the exact failure this test catches.
+func TestParseFrontmatter_RoleOverrideEnabledNonBool(t *testing.T) {
+	spec := `---
+tp:
+  review_roles:
+    tester:
+      enabled: "false"
+      focus:
+        - "Is the quoted string left uncoerced?"
+  audit_roles:
+    go-safety:
+      enabled: 0
+---
+content
+`
+	fm := ParseFrontmatterBytes([]byte(spec))
+	require.True(t, fm.Present)
+	assert.Empty(t, fm.Errors, "a non-boolean enabled degrades to a warning, never an error")
+
+	// The quoted string is NOT coerced to a boolean: Enabled stays unset, so §2.3
+	// never drops the role, and the override's focus is still layered.
+	tester := fm.ReviewRoles["tester"]
+	require.Contains(t, fm.ReviewRoles, "tester", "the role stays active")
+	assert.Nil(t, tester.Enabled, `enabled: "false" is a string, not a boolean, and must not be coerced`)
+	assert.Equal(t, []string{"Is the quoted string left uncoerced?"}, tester.Focus,
+		"an ignored enabled leaves the rest of the override intact")
+
+	// Every other non-boolean scalar takes the same path.
+	goSafety := fm.AuditRoles["go-safety"]
+	require.Contains(t, fm.AuditRoles, "go-safety")
+	assert.Nil(t, goSafety.Enabled, "a numeric enabled is not coerced either")
+
+	joined := ""
+	for _, w := range fm.Warnings {
+		joined += w.Message + "\n"
+	}
+	assert.Contains(t, joined, "tp.review_roles.tester.enabled is not a boolean (got string); ignored")
+	assert.Contains(t, joined, "tp.audit_roles.go-safety.enabled is not a boolean (got")
+	assert.NotContains(t, joined, "is not a permitted override key",
+		"enabled stays a permitted key even when its value is malformed")
+}
+
 // TestParseFrontmatter_RoleOverrideShapeWarnings covers the malformed-value paths:
 // a non-mapping override, a non-list focus, and a non-string focus element all
 // warn and degrade rather than erroring.

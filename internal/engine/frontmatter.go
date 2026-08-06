@@ -138,7 +138,8 @@ func ParseFrontmatterBytes(data []byte) *Frontmatter {
 // each key is a role id, each value an object whose permitted keys are "focus"
 // (a string array) and "enabled" (a boolean, parsed into RoleOverride.Enabled;
 // enabled: true is a no-op that leaves the role active with its focus layered).
-// Any other key inside an override is a lint warning
+// A non-nil, non-boolean enabled is a lint warning and is ignored, leaving the
+// role active. Any other key inside an override is a lint warning
 // and is ignored; the parsed overrides are returned keyed by role id for
 // read-time layering onto the corpus role's focus.
 func (fm *Frontmatter) parseRoleOverrides(field string, val any) map[string]RoleOverride {
@@ -175,11 +176,14 @@ func (fm *Frontmatter) parseRoleOverrides(field string, val any) map[string]Role
 		}
 
 		// A boolean enabled is carried through as the per-spec activation toggle;
-		// any other shape (absent, null, non-boolean) leaves it unset (nil).
+		// an absent or null enabled leaves it unset (nil) without warning. Any other
+		// value is never coerced: it warns and is ignored, leaving the role active.
 		var enabled *bool
 		if enabledVal, hasEnabled := override["enabled"]; hasEnabled {
 			if b, isBool := enabledVal.(bool); isBool {
 				enabled = &b
+			} else if enabledVal != nil {
+				fm.warn(fmt.Sprintf("tp.%s.%s.enabled is not a boolean (got %T); ignored", field, id, enabledVal))
 			}
 		}
 
