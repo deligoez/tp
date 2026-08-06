@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/deligoez/tp/internal/model"
+	"github.com/deligoez/tp/internal/output"
 )
 
 const (
@@ -231,6 +232,11 @@ func GitTaskFileMapping(dir string, tasks []model.Task, universe []string) map[s
 		cmd.Dir = dir
 		out, err := cmd.Output()
 		if err != nil {
+			// git failing is not the same as a commit that touched nothing.
+			// Swallowing it hands spec-coverage a file list derived from a
+			// mapping nothing could build, with nothing in the payload or on
+			// stderr naming the loss.
+			output.Notice(fmt.Sprintf("warning: git show %s failed; task %s contributes no file mapping (%v)", *tasks[i].CommitSHA, tasks[i].ID, err))
 			continue
 		}
 		for _, line := range strings.Split(string(bytes.TrimSpace(out)), "\n") {
