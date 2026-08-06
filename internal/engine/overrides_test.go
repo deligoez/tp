@@ -189,3 +189,26 @@ func TestResolveOverrideFocus_RegressionEnabledFalseTakesWarningPath(t *testing.
 		})
 	}
 }
+
+// TestResolveOverrideFocus_ReviewRolesWithLensWarns: a spec carrying BOTH the
+// new tp.review_roles form and the retired tp: lens reports the lens as ignored
+// with §10.4's documented single warning on the review path too. The new form
+// still wins outright — no lens question reaches any role — but dropping the
+// lens silently was an asymmetry: an audit_roles-only spec already earns this
+// warning by falling through to the shim.
+func TestResolveOverrideFocus_ReviewRolesWithLensWarns(t *testing.T) {
+	roles := []model.Role{
+		{ID: "implementer", Focus: []string{"corpus"}},
+		{ID: "tester", Focus: []string{"corpus"}},
+	}
+	fm := ParseFrontmatterBytes([]byte("---\ntp:\n  review_roles:\n    implementer:\n      focus:\n        - \"new-form q\"\n  lens:\n    all:\n      - \"lens-all q\"\n---\n"))
+
+	out, warnings, disabled := ResolveOverrideFocus(roles, fm, PhaseReviewers)
+	joined := strings.Join(warnings, "\n")
+	assert.Contains(t, joined, "legacy tp: lens is ignored", "the lens is dropped loudly, not silently")
+	assert.NotContains(t, joined, "deprecated", "the new form wins; the lens is never auto-translated")
+	byID := roleFocusByID(out)
+	assert.Equal(t, []string{"corpus", "new-form q"}, byID["implementer"], "only the new form layers")
+	assert.Equal(t, []string{"corpus"}, byID["tester"], "lens.all reaches nobody")
+	assert.Empty(t, disabled)
+}
