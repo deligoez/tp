@@ -89,7 +89,13 @@ func runReviewVerify(specPath, findingsPath string, affectedFiles []string, diff
 		dr := engine.DiffSections(engine.BlankFrontmatterLines(strings.Split(string(baseData), "\n")), engine.BlankFrontmatterLines(strings.Split(string(currData), "\n")))
 		specContent = buildDiffSpecContent(&dr)
 	case specInline:
-		specContent = readSpecContent(specPath)
+		var err error
+		specContent, err = readSpecContent(specPath)
+		if err != nil {
+			output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath), err.Error())
+			os.Exit(ExitFile)
+			return nil
+		}
 	default:
 		// Default: reference mode — omit inline content
 		specData, err := os.ReadFile(specPath)

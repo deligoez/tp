@@ -1560,10 +1560,15 @@ func buildSpecRefContent(absPath string, lineCount int, headings []*engine.Headi
 	return b.String()
 }
 
-func readSpecContent(path string) string {
+// readSpecContent reads a spec for inline embedding (--spec-inline). A read
+// error is propagated, never swallowed: an empty return reached the prompt as a
+// legitimately empty spec, so `tp review nope.md --spec-inline` exited 0 with an
+// empty "Spec content:" block while the same call WITHOUT --spec-inline exited
+// 3. Same class as fileSetRead and parseFindingsFile before it.
+func readSpecContent(path string) (string, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return ""
+		return "", err
 	}
 	defer f.Close()
 
@@ -1580,7 +1585,7 @@ func readSpecContent(path string) string {
 	if len(content) > specContentCap {
 		content = content[:specContentCap] + fmt.Sprintf("\n[...truncated at %d chars]", specContentCap)
 	}
-	return content
+	return content, nil
 }
 
 // resolveReviewSpecContent builds the spec-content block for a review prompt in
@@ -1608,7 +1613,13 @@ func resolveReviewSpecContent(specPath, diffFrom string, specInline bool) string
 		}
 		return content
 	case specInline:
-		return readSpecContent(specPath)
+		content, err := readSpecContent(specPath)
+		if err != nil {
+			output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath), err.Error())
+			os.Exit(ExitFile)
+			return ""
+		}
+		return content
 	default:
 		// Default: reference mode (spec-ref) — omit inline content
 		specData, err := os.ReadFile(specPath)
