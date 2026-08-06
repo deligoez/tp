@@ -45,3 +45,45 @@ func TestReviewUnreadableSpecKeepsPathHint(t *testing.T) {
 	assert.NotContains(t, hint, "tp init", "task-file advice is the wrong object for an unreadable spec")
 }
 
+// TestReviewSnapshotWriteFailureHint: loadReviewRoundState's round snapshot
+// runs long after resolveReviewSpecContent read the same spec, so a failure
+// there is a state-directory I/O problem, never a mistyped path. The site
+// passed no hint at all and so answered a read-only .tp-review/ with task-file
+// advice for a spec path that was perfectly correct — the exact defect
+// 85e8824 fixed on the audit side.
+func TestReviewSnapshotWriteFailureHint(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root ignores the directory permission bits this test relies on")
+	}
+	dir := t.TempDir()
+
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n\n## One\n\ntext\n"), 0o600))
+
+	// Round 1 creates .tp-review/<slug>/ and its state index.
+	_, stderr, code := runTP(t, dir, "review", specPath)
+	require.Equal(t, 0, code, "round 1 emission must succeed: %s", stderr)
+
+	entries, err := os.ReadDir(filepath.Join(dir, ".tp-review"))
+	require.NoError(t, err)
+	require.Len(t, entries, 1, "one state directory per spec")
+	stateDir := filepath.Join(dir, ".tp-review", entries[0].Name())
+
+	// Read-only state directory: state.json still loads, the snapshot cannot
+	// be written.
+	require.NoError(t, os.Chmod(stateDir, 0o500))
+	t.Cleanup(func() { _ = os.Chmod(stateDir, 0o700) })
+
+	_, stderr, code = runTP(t, dir, "review", specPath)
+	require.Equal(t, 3, code, "an unwritable state directory is a file error")
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stderr), &payload))
+	assert.Contains(t, payload["error"], specPath, "the error names the spec whose round could not be snapshotted")
+
+	hint, _ := payload["hint"].(string)
+	assert.Contains(t, hint, "permission denied", "the hint carries the real cause")
+	assert.NotContains(t, hint, "tp use", "task-file advice is the wrong object for a state-write failure")
+	assert.NotContains(t, hint, "tp init", "task-file advice is the wrong object for a state-write failure")
+	assert.NotContains(t, hint, "spec path", "the caller did not mistype the spec path")
+}
