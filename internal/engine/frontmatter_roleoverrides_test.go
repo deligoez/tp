@@ -78,6 +78,48 @@ content
 	assert.NotContains(t, joined, "tp.review_roles.tester.enabled", "enabled is a permitted key and never warns as unpermitted")
 }
 
+// TestParseFrontmatter_RoleOverrideEnabledBool covers §2.1's boolean enabled: a
+// true or false value populates RoleOverride.Enabled, an override without the key
+// leaves it unset (nil), and none of the three warns. enabled: true is a no-op —
+// the role stays in the map with its focus intact for layering (test 3).
+func TestParseFrontmatter_RoleOverrideEnabledBool(t *testing.T) {
+	spec := `---
+tp:
+  review_roles:
+    implementer:
+      enabled: true
+      focus:
+        - "Is the retry budget bounded?"
+    architect:
+      focus:
+        - "Does the drop happen outside the corpus resolver?"
+  audit_roles:
+    data-migration: { enabled: false }
+---
+content
+`
+	fm := ParseFrontmatterBytes([]byte(spec))
+	require.True(t, fm.Present)
+	assert.Empty(t, fm.Errors)
+	assert.Empty(t, fm.Warnings, "a boolean enabled is permitted and well-formed, so it never warns")
+
+	// enabled: true is parsed, and is a no-op: the role keeps its focus for layering.
+	trueOverride := fm.ReviewRoles["implementer"]
+	require.NotNil(t, trueOverride.Enabled, "a boolean enabled populates Enabled")
+	assert.True(t, *trueOverride.Enabled)
+	assert.Equal(t, []string{"Is the retry budget bounded?"}, trueOverride.Focus,
+		"enabled: true leaves the role active with its focus layered")
+
+	// enabled: false is parsed too; acting on it is not this parser's job.
+	falseOverride := fm.AuditRoles["data-migration"]
+	require.NotNil(t, falseOverride.Enabled)
+	assert.False(t, *falseOverride.Enabled)
+	assert.Equal(t, []string{}, falseOverride.Focus)
+
+	// An override carrying no enabled key stays unset.
+	assert.Nil(t, fm.ReviewRoles["architect"].Enabled, "an absent enabled key is unset")
+}
+
 // TestParseFrontmatter_RoleOverrideShapeWarnings covers the malformed-value paths:
 // a non-mapping override, a non-list focus, and a non-string focus element all
 // warn and degrade rather than erroring.
