@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.32.0.md",
   "created_at": "2026-08-06T09:57:37.021054Z",
-  "updated_at": "2026-08-06T10:13:18.855305Z",
+  "updated_at": "2026-08-06T10:18:32.662315Z",
   "workflow": {},
   "coverage": {
     "total_sections": 14,
@@ -189,7 +189,7 @@
     {
       "id": "drop-outside-corpus",
       "title": "Apply the drop outside ResolveActiveCorpus",
-      "status": "open",
+      "status": "done",
       "tags": [
         "impl"
       ],
@@ -202,11 +202,24 @@
         "### 2.3 Resolution drops the role and reports what it dropped"
       ],
       "source_lines": "46,104",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-06T10:14:04.928318Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-06T10:18:32.623469Z",
+      "closed_reason": "- The enabled: false drop is applied outside ResolveActiveCorpus and after its domain filtering: the new engine.DropDisabledRoles (internal/engine/overrides.go) filters the already domain-filtered panel, and both callers apply it right after ResolveOverrideFocus — internal/cli/review.go (PhaseReviewers) and internal/cli/audit.go (PhaseAuditors) — replacing the '_ = disabledRoles' discard the prior task parked there. Verified by go build ./... exit 0 and by the two new tests.\n- A spec deactivating every user role never falls back to the embedded corpus: the panel stays empty and tp exits 2. Verified by TestReview_DeactivatingEveryUserRoleDoesNotFallBack and TestAudit_DeactivatingEveryUserRoleDoesNotFallBack (internal/cli/domain_lens_test.go), each asserting exit 2 plus the absence of any embedded default role id (implementer / spec-coverage) and of the deactivated id in stdout — an implementation dropping inside ResolveActiveCorpus would exit 0 and emit the embedded panel.\n- Test 11 passes for both phases (go test ./internal/cli -run DoesNotFallBack: 2 PASS).\n- Gate run with separate exit codes: go test ./... exit 0, golangci-lint run exit 0 (0 issues). Dogfooded with a freshly built /tmp/tp-dev/tp (tp lint spec/0.32.0.md exit 0).\nOut of scope, but touched by necessity: asserting 'exits 2' required a refusal to exist, so this task adds the minimum — cli.refuseEmptyPhase(phase) in internal/cli/review.go, which calls output.Error(ExitUsage, \"every \u003cphase\u003e role is deactivated by this spec\") and exits 2. The sibling task empty-phase-message owns the full §2.5 rendering: the sorted comma-separated id list appended to the message and the hint 're-enable at least one role, or remove the enabled: false entries', neither of which is implemented here. Not touched: the 'matches no active role' unknown-id warning, skipped_roles/disabled-by-spec, the spec-coverage refusal, the lens-shim suppression, and §2.5's emission-only/before-writes scoping.",
+      "gate_passed_at": "2026-08-06T10:18:32.623469Z",
+      "commit_sha": "69b317a",
+      "commit_shas": [
+        "69b317a",
+        "285804d",
+        "3ac67ef",
+        "a602516"
+      ],
+      "commit_files": [
+        "internal/cli/audit.go",
+        "internal/cli/domain_lens_test.go",
+        "internal/cli/review.go",
+        "internal/engine/overrides.go"
+      ]
     },
     {
       "id": "unknown-id-warning",
