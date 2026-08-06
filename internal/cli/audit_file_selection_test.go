@@ -211,3 +211,82 @@ func TestAuditAffectedFromTasksConflicts(t *testing.T) {
 	assert.Equal(t, 2, code)
 	assert.Contains(t, stderr, "--record/--status reject")
 }
+
+// auditedRepoWithMappedTask builds a git repo holding routingSpec, a committed
+// auth_helper.go, and a done task t1 whose commit_shas name that commit. It
+// returns the repo dir.
+func auditedRepoWithMappedTask(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
+	writeTaskFileRaw(t, dir, `[]`)
+	initGitRepo(t, dir)
+	sha := commitFile(t, dir, "auth_helper.go", "add auth helper")
+	closeTaskFile(t, dir, doneTaskJSON(t, sha))
+	return dir
+}
+
+// specCoverageTasksFor returns the task ids the spec-coverage prompt attributes
+// to path in its affected-files list.
+func specCoverageTasksFor(t *testing.T, stdout, path string) []string {
+	t.Helper()
+	byRole := auditPromptsByRole(t, stdout)
+	sc, ok := byRole["spec-coverage"]
+	require.True(t, ok, "spec-coverage must emit, or nothing carries the task mapping")
+	files, ok := sc["affected_files"].([]any)
+	require.True(t, ok, "spec-coverage carries affected_files")
+	for _, f := range files {
+		m := f.(map[string]any)
+		if m["path"] == path {
+			return toStringSlice(m["tasks"])
+		}
+	}
+	t.Fatalf("%s missing from the spec-coverage affected files: %v", path, files)
+	return nil
+}
+
+// TestAudit_TaskFileMappingComesFromTheAuditedRepo: GitTaskFileMapping resolves
+// each task's commit_sha with git show, and that call used to run with no
+// cmd.Dir — so the revision was looked up in the PROCESS cwd's repository
+// instead of the one holding the spec. Auditing a spec from another checkout
+// then mapped every task to zero files, and because an empty mapping is
+// indistinguishable from "no task carries a usable commit_sha", spec-coverage
+// silently took its fallback file list at exit 0 with an empty stderr. Every
+// sibling git call in the audit path sets cmd.Dir; this one has to as well.
+func TestAudit_TaskFileMappingComesFromTheAuditedRepo(t *testing.T) {
+	audited := auditedRepoWithMappedTask(t)
+
+	// The caller's cwd: a different repository, which knows nothing of the
+	// audited repo's commits.
+	caller := t.TempDir()
+	initGitRepo(t, caller)
+
+	stdout, stderr, code := runTP(t, caller, "audit",
+		filepath.Join(audited, "spec.md"), "--affected-from-tasks")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	assert.Equal(t, []string{"t1"}, specCoverageTasksFor(t, stdout, "auth_helper.go"),
+		"the task mapping comes from the repository holding the spec")
+	assert.NotContains(t, stderr, "contributes no file mapping",
+		"a resolvable commit produces no advisory")
+}
+
+// TestAudit_TaskFileMappingWarnsOnUnknownCommit: a commit_sha git cannot
+// resolve is a silent cost — the task maps to zero files and spec-coverage
+// falls back — so it is named on the Notice channel rather than swallowed.
+func TestAudit_TaskFileMappingWarnsOnUnknownCommit(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "auth_helper.go"), []byte("package main\n"), 0o600))
+	writeTaskFileRaw(t, dir, doneTaskJSON(t, "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"))
+	initGitRepo(t, dir)
+
+	stdout, stderr, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "auth_helper.go")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	assert.Contains(t, stderr, "contributes no file mapping",
+		"an unresolvable commit_sha is named, not swallowed")
+	assert.Contains(t, stderr, "t1", "the advisory names the task that lost its mapping")
+	assert.Empty(t, specCoverageTasksFor(t, stdout, "auth_helper.go"),
+		"the fallback list carries no task attribution")
+}
