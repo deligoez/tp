@@ -766,3 +766,101 @@ func TestRefusals_WriteNothingBeforeRefusing(t *testing.T) {
 			"the refusal precedes the round snapshot")
 	})
 }
+
+// skipReasonsFor returns every reason skipped_roles records for one role id, so
+// a role reported twice is distinguishable from one reported once.
+func skipReasonsFor(t *testing.T, stdout, role string) []string {
+	t.Helper()
+	reasons := make([]string, 0)
+	for _, s := range skippedRolesFrom(t, stdout) {
+		if s["role"] == role {
+			reasons = append(reasons, s["reason"].(string))
+		}
+	}
+	return reasons
+}
+
+// TestReview_EnabledFalseUnknownIDChangesNothing: §2.3 test 6, first clause —
+// enabled: false on an id no corpus holds at all takes the "matches no active
+// role" path and changes nothing: every default reviewer still emits and the id
+// is named in no skipped_roles entry, because an id outside the active panel is
+// not a drop. The warning text is asserted by the engine test
+// TestResolveOverrideFocus_OutsideActivePanelWarnsAndDropsNothing, since
+// output.Info is silent in the JSON mode every runTP call uses.
+func TestReview_EnabledFalseUnknownIDChangesNothing(t *testing.T) {
+	dir := t.TempDir()
+	spec := "---\ntp:\n  review_roles:\n    ghost:\n      enabled: false\n---\n# Spec\n## 1. A\ncontent\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "review", "spec.md")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	byRole := reviewPromptsByRole(t, stdout)
+	for _, role := range []string{"implementer", "tester", "architect"} {
+		assert.Contains(t, byRole, role, "the panel is untouched by an entry matching no active role")
+	}
+	assert.Empty(t, skipReasonsFor(t, stdout, "ghost"), "an id outside the active panel is never named as skipped")
+	for _, s := range skippedRolesFrom(t, stdout) {
+		assert.NotEqual(t, "disabled-by-spec", s["reason"], "nothing was deactivated: %v", s)
+	}
+}
+
+// writeDomainFilteredCorpusProject lays out a software-domain spec over a
+// reviewer corpus holding one role that applies to every domain and one
+// prose-only role that domain filtering removes before override resolution.
+func writeDomainFilteredCorpusProject(t *testing.T, spec string) string {
+	t.Helper()
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
+	writeReviewerRole(t, dir, "sw-role.json",
+		`{"id":"sw-role","title":"SW","instructions":"You review.","focus":["q"]}`)
+	writeReviewerRole(t, dir, "prose-role.json",
+		`{"id":"prose-role","title":"Prose","instructions":"You review.","focus":["q"],"domains":["prose"]}`)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec), 0o600))
+	return dir
+}
+
+// TestReview_DomainFilteredRoleTakesWarningPath: §2.3 test 6's second clause and
+// test 13 (Non-Goal 3). A role the corpus holds but domains removed is not in
+// the active set, so an enabled entry naming it takes the same "matches no
+// active role" path as an id in no corpus at all.
+//
+// The discriminating assertion is that the role appears in skipped_roles EXACTLY
+// ONCE and with domain-mismatch: an implementation that added the id to §2.3's
+// drop set before checking the active set would report it a second time, with
+// disabled-by-spec, since the two skip lists are appended independently.
+func TestReview_DomainFilteredRoleTakesWarningPath(t *testing.T) {
+	t.Run("enabled false", func(t *testing.T) {
+		dir := writeDomainFilteredCorpusProject(t,
+			"---\ntp:\n  review_roles:\n    prose-role:\n      enabled: false\n---\n# Spec\n## 1. A\ncontent\n")
+
+		stdout, stderr, code := runTP(t, dir, "review", "spec.md")
+		require.Equal(t, 0, code, "stderr: %s", stderr)
+
+		byRole := reviewPromptsByRole(t, stdout)
+		assert.Contains(t, byRole, "sw-role", "the surviving reviewer still emits")
+		assert.NotContains(t, byRole, "prose-role", "domain filtering had already removed it")
+		assert.Equal(t, []string{"domain-mismatch"}, skipReasonsFor(t, stdout, "prose-role"),
+			"named once, for the domain — never a second time as disabled-by-spec")
+	})
+
+	t.Run("enabled true", func(t *testing.T) {
+		// Test 13: enabled: true does not resurrect a role domains removed —
+		// the entry takes the same warning path, the role stays absent, and its
+		// override focus reaches no prompt.
+		dir := writeDomainFilteredCorpusProject(t,
+			"---\ntp:\n  review_roles:\n    prose-role:\n      enabled: true\n      focus:\n        - \"RESURRECTION FOCUS\"\n---\n# Spec\n## 1. A\ncontent\n")
+
+		stdout, stderr, code := runTP(t, dir, "review", "spec.md")
+		require.Equal(t, 0, code, "stderr: %s", stderr)
+
+		byRole := reviewPromptsByRole(t, stdout)
+		assert.NotContains(t, byRole, "prose-role", "enabled: true resurrects no domain-filtered role")
+		require.Contains(t, byRole, "sw-role")
+		for role, prompt := range byRole {
+			assert.NotContains(t, prompt, "RESURRECTION FOCUS", "the override focus must not reach role %s", role)
+		}
+		assert.Equal(t, []string{"domain-mismatch"}, skipReasonsFor(t, stdout, "prose-role"),
+			"the role stays reported as domain-filtered, once")
+	})
+}
