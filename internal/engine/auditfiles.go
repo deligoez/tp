@@ -55,6 +55,13 @@ type AuditFileInputs struct {
 	DiffStats map[string][2]int   // path -> {added, deleted}; absent entries render +0/-0
 	Deleted   map[string]bool     // files deleted in the diff
 	TaskFiles map[string][]string // path -> task ids whose commit changed it
+	// DiffUnmeasured says no comparison covers Universe, so an absent DiffStats
+	// entry means "not measured" rather than "unchanged". Set when the caller
+	// replaced the universe (--affected-files, --affected-from-tasks): the diff
+	// ranges the audit compares are derived from auto-detection and need not
+	// contain a path the caller named, so rendering the fallback +0/-0 would
+	// hand every role an unmeasured zero as measured fact.
+	DiffUnmeasured bool
 }
 
 // SelectAuditFiles applies the drop rules to the universe FIRST, then every
@@ -103,6 +110,11 @@ func isTestFixture(p string) bool {
 func (in *AuditFileInputs) diffSummaryOf(p string) string {
 	if s, ok := in.DiffStats[p]; ok {
 		return fmt.Sprintf("+%d/-%d", s[0], s[1])
+	}
+	if in.DiffUnmeasured {
+		// Empty, not "+0/-0": the caller renders no diff annotation at all
+		// rather than stating a churn nothing measured.
+		return ""
 	}
 	return "+0/-0"
 }

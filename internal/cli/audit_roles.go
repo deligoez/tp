@@ -257,11 +257,21 @@ func buildRolePrompt(role string, rules []string, items []ChecklistItem, files [
 		fmt.Fprintf(&b, "## Affected Files (%d of %d)\n", len(files), fileTotal)
 	}
 	for _, fl := range files {
+		// An empty DiffSummary means no comparison covered this path (the
+		// caller supplied the file list), so the line carries no diff
+		// annotation at all rather than an unmeasured +0/-0.
+		notes := make([]string, 0, 2)
 		if role == roleSpecCoverage && len(fl.Tasks) > 0 {
-			fmt.Fprintf(&b, "- %s (tasks: %s; diff: %s)\n", fl.Path, strings.Join(fl.Tasks, ", "), fl.DiffSummary)
-		} else {
-			fmt.Fprintf(&b, "- %s (diff: %s)\n", fl.Path, fl.DiffSummary)
+			notes = append(notes, "tasks: "+strings.Join(fl.Tasks, ", "))
 		}
+		if fl.DiffSummary != "" {
+			notes = append(notes, "diff: "+fl.DiffSummary)
+		}
+		if len(notes) == 0 {
+			fmt.Fprintf(&b, "- %s\n", fl.Path)
+			continue
+		}
+		fmt.Fprintf(&b, "- %s (%s)\n", fl.Path, strings.Join(notes, "; "))
 	}
 	b.WriteString("\n")
 

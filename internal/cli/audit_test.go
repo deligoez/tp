@@ -78,25 +78,23 @@ func TestAuditAffectedFilesDedup(t *testing.T) {
 	assert.Len(t, result["files"].([]any), 1)
 }
 
-// TestAuditGitFailureWarnsInsteadOfClaimingZeros: outside a git repo both the
-// diff-stat and the deleted-file lookups fail. Turning that failure into an
-// empty map renders every prompt line as "(diff: +0/-0)" and marks no file
-// deleted — assertions the auditor role cannot tell apart from a genuinely
-// unchanged tree. The sibling execGitDiff already warns on the same failure.
+// TestAuditGitFailureWarnsInsteadOfClaimingZeros: a git invocation that FAILS
+// is not the same as a comparison that found nothing. Every caller turns the
+// failure into a zero value — an empty file list, an empty diff-stat map — and
+// a zero value is indistinguishable from a genuinely unchanged tree once it
+// reaches an auditor prompt as fact. An unknown revision is the everyday case:
+// the run must name it rather than report "no changed files" and send the
+// caller looking for missing work instead of at the revision they typed.
 func TestAuditGitFailureWarnsInsteadOfClaimingZeros(t *testing.T) {
-	dir := t.TempDir()
-	specPath := filepath.Join(dir, "spec.md")
-	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n## Table\n| Col | Desc |\n|-----|------|\n| a | first |\n"), 0o600))
+	dir, _ := newAuditRepo(t)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.go"), []byte("package main\n"), 0o600))
 
-	aPath := filepath.Join(dir, "a.go")
-	require.NoError(t, os.WriteFile(aPath, []byte("package main\n"), 0o600))
-
-	_, stderr, code := runTP(t, dir, "audit", specPath, "--affected-files", aPath)
-	require.Equal(t, 0, code, stderr)
-	assert.Contains(t, stderr, "warning: git diff --numstat failed",
-		"a failed diff-stat lookup must not render as +0/-0 without a word")
-	assert.Contains(t, stderr, "warning: git diff --name-only --diff-filter=D failed",
-		"a failed deleted-file lookup must not render as \"nothing deleted\" without a word")
+	_, stderr, code := runTP(t, dir, "audit", "spec.md", "--base", "no-such-tag")
+	require.Equal(t, 4, code, stderr)
+	assert.Contains(t, stderr, "warning: git diff --name-only no-such-tag...HEAD failed",
+		"a failed selection lookup must not render as \"nothing changed\" without a word")
+	assert.Contains(t, stderr, "unknown revision",
+		"the advisory names git's own diagnosis, so the caller can see it is their revision")
 }
 
 // TestAuditDiffStatsMeasureTheSelectedRange is the other half of the guard

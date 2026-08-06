@@ -45,7 +45,10 @@ func TestAudit_FullShape(t *testing.T) {
 			am := af.(map[string]any)
 			assert.NotEmpty(t, am["path"])
 			assert.NotNil(t, am["tasks"])
-			assert.NotEmpty(t, am["diff_summary"])
+			// Present, but not necessarily populated: this run supplied the
+			// file list, and no comparison the audit made covers those paths,
+			// so the honest diff_summary is the empty string.
+			assert.NotNil(t, am["diff_summary"])
 		}
 	}
 	assert.Equal(t, []string{"spec-coverage", "security", "maintainability-conventions"}, roles)

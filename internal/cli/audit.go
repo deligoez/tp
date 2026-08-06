@@ -226,9 +226,20 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	// filtered universe; --affected-files replaced the universe upstream
 	inputs := &engine.AuditFileInputs{
 		Universe:  files,
-		DiffStats: auditDiffStats(filepath.Dir(specPath), base),
-		Deleted:   auditDeletedFiles(filepath.Dir(specPath), base),
 		TaskFiles: engine.GitTaskFileMapping(auditTasksOf(specPath), files),
+	}
+	if len(affectedFiles) > 0 || affectedFromTasks {
+		// The caller REPLACED the universe, and auditDiffRanges reproduces the
+		// auto-detect comparison — a range that need not contain the paths the
+		// caller named. Measuring them against it does not fail loudly: git
+		// succeeds, the paths are simply absent from the result, and the
+		// fallback hands every role "(diff: +0/-0)" as measured fact about a
+		// file nothing measured. Annotate only what the audit's own comparison
+		// covers; say nothing about the rest.
+		inputs.DiffUnmeasured = true
+	} else {
+		inputs.DiffStats = auditDiffStats(filepath.Dir(specPath), base)
+		inputs.Deleted = auditDeletedFiles(filepath.Dir(specPath), base)
 	}
 	sel := engine.SelectAuditFiles(inputs)
 
