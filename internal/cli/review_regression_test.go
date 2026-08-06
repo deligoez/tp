@@ -97,3 +97,18 @@ func TestRegression_UsageErrors(t *testing.T) {
 	assert.Equal(t, 2, code, "empty diff plus zero fixed findings is a usage error")
 	assert.Contains(t, stderr, "nothing to check")
 }
+
+// TestRegression_FindingsFileNotFound: standalone regression mode (b) reaches
+// the same typo through its own guard, so it returns the same file error (3)
+// as every other --findings reader. It used to exit 2.
+func TestRegression_FindingsFileNotFound(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## 1. A\nnew\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "base.md"), []byte("# Spec\n## 1. A\nold\n"), 0o600))
+
+	_, stderr, code := runTP(t, dir, "review", "spec.md", "--perspective", "regression",
+		"--diff-from", "base.md", "--findings", "/nonexistent/file.ndjson")
+	assert.Equal(t, 3, code, "a missing findings file is a file error, not a usage error")
+	assert.Contains(t, stderr, "findings file not found")
+	assert.Contains(t, stderr, "writes no findings file at all")
+}
