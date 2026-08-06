@@ -105,8 +105,12 @@ Use --findings to also verify review findings were addressed.`,
 		DisableAutoGenTag: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if mergeMode {
-				if recordPath != "" || statusMode || len(affectedFiles) > 0 || findingsPath != "" || base != "" || affectedFromTasks || checkFlag {
-					output.Error(ExitUsage, "--merge cannot be combined with --record/--status/--affected-files/--affected-from-tasks/--findings/--base/--check")
+				// --harness-note belongs in this list too: --merge records no
+				// round, so accepting it would silently drop the note while
+				// the same flag on an emission run exits 2.
+				if recordPath != "" || statusMode || len(affectedFiles) > 0 || findingsPath != "" || base != "" || affectedFromTasks || checkFlag || cmd.Flags().Changed("harness-note") {
+					output.Error(ExitUsage, "--merge cannot be combined with --record/--status/--affected-files/--affected-from-tasks/--findings/--base/--check/--harness-note",
+						"run --merge on its own: it takes only the input NDJSON files and -o <file>")
 					os.Exit(ExitUsage)
 					return nil
 				}
