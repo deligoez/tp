@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.32.0.md",
   "created_at": "2026-08-06T09:57:37.021054Z",
-  "updated_at": "2026-08-06T09:57:37.022013Z",
+  "updated_at": "2026-08-06T10:02:36.229394Z",
   "workflow": {},
   "coverage": {
     "total_sections": 14,
@@ -16,7 +16,7 @@
     {
       "id": "roleoverride-maps",
       "title": "Migrate the frontmatter role maps",
-      "status": "open",
+      "status": "done",
       "tags": [
         "impl"
       ],
@@ -28,11 +28,22 @@
         "### 6.1 Existing tests this change invalidates"
       ],
       "source_lines": "34-38,112-119",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-06T09:58:16.814127Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-06T10:02:36.215794Z",
+      "closed_reason": "- engine.RoleOverride added in internal/engine/frontmatter.go carrying Focus []string alongside Enabled *bool (nil = unset = pre-v0.32.0 behavior); verified by go build ./... exit 0 and by the engine test package compiling and passing against the new type.\n- Frontmatter.ReviewRoles and Frontmatter.AuditRoles are now map[string]RoleOverride, written by parseRoleOverrides on all three write paths (absent focus, focus: null, parsed list) and defaulted by defaultFrontmatter; the reading call sites moved with the type — ResolveOverrideFocus (overrides.go) reads overrides[id].Focus and TranslateLegacyLens (lens_shim.go) returns map[string]RoleOverride leaving Enabled nil since the legacy lens cannot deactivate a role. Verified by TestParseFrontmatter_RoleOverrides / _RoleOverrideDisallowedKey / _RoleOverrideShapeWarnings / _NoRoleOverrides and TestResolveOverrideFocus_* / TestTranslateLegacyLens_* all passing with unchanged behavior (enabled is not parsed yet; the '(only focus)' warning literal is still asserted verbatim).\n- Invalidated tests updated in this same commit 49eff04: frontmatter_roleoverrides_test.go (5 assertions) and lens_shim_test.go (6 assertions) now read .Focus; overrides_test.go builds no override map literals and calls ResolveOverrideFocus through its unchanged two-value signature, so it compiled and passed untouched — the third return value it will need arrives with the §2.3 task. domain_lens_test.go left alone per §6.1. Gate verified with separate exit codes before closing: go test ./... exit 0, golangci-lint run exit 0 (0 issues); dogfooded with a freshly built /tmp/tp-dev/tp (tp lint spec/0.32.0.md exit 0).",
+      "gate_passed_at": "2026-08-06T10:02:36.215794Z",
+      "commit_sha": "49eff047590cd7c8687b2c200d68fa864d86ba33",
+      "commit_shas": [
+        "49eff047590cd7c8687b2c200d68fa864d86ba33"
+      ],
+      "commit_files": [
+        "internal/engine/frontmatter.go",
+        "internal/engine/frontmatter_roleoverrides_test.go",
+        "internal/engine/lens_shim.go",
+        "internal/engine/lens_shim_test.go",
+        "internal/engine/overrides.go"
+      ]
     },
     {
       "id": "enabled-key-permitted",
