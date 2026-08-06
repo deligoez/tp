@@ -34,6 +34,14 @@ const findingsFileMissingHint = "a review round that converged with zero finding
 // failure is a real I/O or permission problem, not a path the caller mistyped.
 const specFileMissingHint = "check the spec path — this command takes the spec markdown file, not the task file"
 
+// recordFileMissingHint explains a --record path that cannot be read. Left
+// hintless, the site inherits the code-3 default, which is TASK-file advice
+// ("run 'tp use <file>' … 'tp init <spec>'") — the wrong object for the NDJSON
+// results file the reviewers or auditors wrote. --record is the flag every
+// review and audit round ends on, so a typo here is the loop's hottest file
+// error and the one that can least afford wrong-object advice.
+const recordFileMissingHint = "check the --record path — this flag takes the NDJSON results file the reviewers/auditors wrote, not the spec or the task file"
+
 type reviewFinding struct {
 	Severity   string          `json:"severity"`
 	Category   string          `json:"category"`
