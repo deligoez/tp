@@ -166,6 +166,72 @@ content
 		"enabled stays a permitted key even when its value is malformed")
 }
 
+// TestParseFrontmatter_RoleOverrideEnabledNull covers §2.2 test 14: an explicit
+// enabled: null and a valueless enabled: both decode to nil, stay unset, warn
+// not, and leave the role active — nil is the unset case, matching the sibling
+// key focus: null, which the parser already treats as empty rather than warning.
+// The fixture carries a quoted-string enabled alongside the null ones so the two
+// paths are asserted in contrast: a parser that warned on every non-boolean
+// value, nil included, would still leave the role active and would pass a
+// null-only test, but it fails the warning assertions below.
+func TestParseFrontmatter_RoleOverrideEnabledNull(t *testing.T) {
+	spec := `---
+tp:
+  review_roles:
+    implementer:
+      enabled: null
+      focus:
+        - "Is an explicit null left unset?"
+    architect:
+      enabled:
+      focus:
+        - "Is a valueless key left unset?"
+    tester:
+      enabled: "false"
+  audit_roles:
+    go-safety:
+      enabled: ~
+---
+content
+`
+	fm := ParseFrontmatterBytes([]byte(spec))
+	require.True(t, fm.Present)
+	assert.Empty(t, fm.Errors)
+
+	// An explicit null is unset, not false: the role keeps its place in the map
+	// with Enabled nil, so §2.3 never puts it in the drop set.
+	require.Contains(t, fm.ReviewRoles, "implementer", "a null enabled leaves the role active")
+	implementer := fm.ReviewRoles["implementer"]
+	assert.Nil(t, implementer.Enabled, "enabled: null is the unset case, like focus: null")
+	assert.Equal(t, []string{"Is an explicit null left unset?"}, implementer.Focus,
+		"an unset enabled leaves the rest of the override intact")
+
+	// A valueless enabled: key decodes to the same nil and behaves identically.
+	require.Contains(t, fm.ReviewRoles, "architect", "a valueless enabled leaves the role active")
+	architect := fm.ReviewRoles["architect"]
+	assert.Nil(t, architect.Enabled, "a valueless enabled: is unset too")
+	assert.Equal(t, []string{"Is a valueless key left unset?"}, architect.Focus)
+
+	// The audit phase takes the same path, here through YAML's other null spelling.
+	require.Contains(t, fm.AuditRoles, "go-safety")
+	assert.Nil(t, fm.AuditRoles["go-safety"].Enabled, "enabled: ~ is null, hence unset")
+
+	joined := ""
+	for _, w := range fm.Warnings {
+		joined += w.Message + "\n"
+	}
+	// The contrast that makes this test discriminate: the quoted string in the
+	// SAME fixture does warn, so a green run cannot come from a parser that has
+	// simply stopped warning about enabled altogether.
+	assert.Contains(t, joined, `tp.review_roles.tester.enabled is not a boolean (got string); ignored`,
+		"the quoted-string case still warns")
+	// None of the null spellings warns — dropping the nil guard would name them here.
+	assert.NotContains(t, joined, "tp.review_roles.implementer.enabled")
+	assert.NotContains(t, joined, "tp.review_roles.architect.enabled")
+	assert.NotContains(t, joined, "tp.audit_roles.go-safety.enabled")
+	assert.Len(t, fm.Warnings, 1, "the quoted string is the only warning this fixture earns")
+}
+
 // TestParseFrontmatter_RoleOverrideShapeWarnings covers the malformed-value paths:
 // a non-mapping override, a non-list focus, and a non-string focus element all
 // warn and degrade rather than erroring.
