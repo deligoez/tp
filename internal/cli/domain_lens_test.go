@@ -996,3 +996,51 @@ func TestReview_DomainFilteredRoleTakesWarningPath(t *testing.T) {
 			"the role stays reported as domain-filtered, once")
 	})
 }
+
+// TestReview_RegressionDoesNotSatisfyTheEmptinessCheck is test 9's second half.
+// The built-in regression role is convergence machinery appended to emission
+// separately, never a corpus reviewer (Non-Goal 4), so it does not count as an
+// active reviewer for §2.5's emptiness check: a spec deactivating every corpus
+// reviewer still exits 2 even in a round where regression would emit.
+//
+// The fixture runs WITH the state directory, at round 2 after a recorded round 1
+// over an edited spec — the exact condition under which review appends the
+// regression prompt, asserted here as a control before the deactivation is
+// added. Under --no-state there is no baseline snapshot, regression is never a
+// candidate, and the refusal would hold for an implementation that did count it.
+func TestReview_RegressionDoesNotSatisfyTheEmptinessCheck(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
+	writeReviewerRole(t, dir, "solo.json",
+		`{"id":"solo","title":"Solo","instructions":"You review."}`)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"),
+		[]byte("# Spec\n## 1. A\noriginal\n"), 0o600))
+
+	// Round 1 emits and is recorded, so round 2 has a baseline snapshot.
+	_, stderr, code := runTP(t, dir, "review", "spec.md")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	_, stderr, code = recordRound(t, dir, "")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	// Control: with the body edited and nothing deactivated, round 2 does
+	// append the regression prompt — so the refusal below is asserted against
+	// a live regression role, not an absent one.
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"),
+		[]byte("# Spec\n## 1. A\nrewritten\n"), 0o600))
+	stdout, stderr, code := runTP(t, dir, "review", "spec.md")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	require.Contains(t, reviewPromptsByRole(t, stdout), "regression",
+		"the fixture must be a round in which regression emits")
+
+	// The same round, with the only corpus reviewer deactivated: the phase is
+	// empty and tp refuses, because regression is no substitute for it.
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"),
+		[]byte("---\ntp:\n  review_roles:\n    solo:\n      enabled: false\n---\n# Spec\n## 1. A\nrewritten\n"), 0o600))
+	stdout, stderr, code = runTP(t, dir, "review", "spec.md")
+	require.Equal(t, 2, code, "regression does not keep the reviewer phase non-empty; stderr: %s", stderr)
+	assert.Empty(t, stdout, "no prompt is emitted — the regression one included")
+	msg, hint := refusalMessage(t, stderr)
+	assert.Equal(t, "every reviewers role is deactivated by this spec: solo", msg,
+		"the message names only the corpus reviewer, never regression")
+	assert.Equal(t, "re-enable at least one role, or remove the enabled: false entries", hint)
+}
