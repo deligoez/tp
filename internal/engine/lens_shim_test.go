@@ -19,8 +19,8 @@ func TestTranslateLegacyLens_All(t *testing.T) {
 	active := []string{"coherence", "soundness"}
 
 	overrides, warnings := TranslateLegacyLens(fm, active)
-	assert.Equal(t, []string{"Does any chapter leak a plot point?"}, overrides["coherence"])
-	assert.Equal(t, []string{"Does any chapter leak a plot point?"}, overrides["soundness"])
+	assert.Equal(t, []string{"Does any chapter leak a plot point?"}, overrides["coherence"].Focus)
+	assert.Equal(t, []string{"Does any chapter leak a plot point?"}, overrides["soundness"].Focus)
 	assert.Contains(t, joinWarnings(warnings), "tp: lens is deprecated", "a translated lens emits a deprecation warning")
 }
 
@@ -31,9 +31,9 @@ func TestTranslateLegacyLens_Role(t *testing.T) {
 	active := []string{"implementer", "tester", "architect"}
 
 	overrides, warnings := TranslateLegacyLens(fm, active)
-	assert.Equal(t, []string{"shared question", "role question"}, overrides["implementer"], "all first, then role-specific")
-	assert.Equal(t, []string{"shared question"}, overrides["tester"], "tester gets only lens.all")
-	assert.Equal(t, []string{"shared question"}, overrides["architect"])
+	assert.Equal(t, []string{"shared question", "role question"}, overrides["implementer"].Focus, "all first, then role-specific")
+	assert.Equal(t, []string{"shared question"}, overrides["tester"].Focus, "tester gets only lens.all")
+	assert.Equal(t, []string{"shared question"}, overrides["architect"].Focus)
 	assert.Contains(t, joinWarnings(warnings), "deprecated")
 }
 
@@ -45,7 +45,7 @@ func TestTranslateLegacyLens_UnknownID(t *testing.T) {
 
 	overrides, warnings := TranslateLegacyLens(fm, active)
 	assert.NotContains(t, overrides, "architect")
-	assert.Empty(t, overrides["implementer"])
+	assert.Empty(t, overrides["implementer"].Focus)
 	joined := joinWarnings(warnings)
 	assert.Contains(t, joined, "deprecated")
 	assert.Contains(t, joined, `lens.architect targets "architect" which is not an active review role`)

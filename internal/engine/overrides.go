@@ -18,7 +18,7 @@ import (
 // overrides (§5.2). Returns the effective roles (copies) plus warnings.
 func ResolveOverrideFocus(roles []model.Role, fm *Frontmatter, phase string) (effective []model.Role, warnings []string) {
 	warnings = make([]string, 0)
-	overrides := make(map[string][]string)
+	overrides := make(map[string]RoleOverride)
 	fieldName := "audit_roles"
 
 	if phase == PhaseReviewers {
@@ -60,7 +60,7 @@ func ResolveOverrideFocus(roles []model.Role, fm *Frontmatter, phase string) (ef
 	effective = make([]model.Role, len(roles))
 	for i := range roles {
 		effective[i] = roles[i]
-		if extra := overrides[roles[i].ID]; len(extra) > 0 {
+		if extra := overrides[roles[i].ID].Focus; len(extra) > 0 {
 			eff := make([]string, 0, len(roles[i].Focus)+len(extra))
 			eff = append(eff, roles[i].Focus...)
 			eff = append(eff, extra...)

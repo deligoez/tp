@@ -37,9 +37,9 @@ content
 	assert.Equal(t, []string{
 		"Does the happy path handle the empty batch?",
 		"Is the flock released on every error path?",
-	}, fm.ReviewRoles["implementer"])
-	assert.Equal(t, []string{}, fm.ReviewRoles["architect"], "an empty focus list is retained as empty, not dropped")
-	assert.Equal(t, []string{"Any command injection in the detector cmd?"}, fm.AuditRoles["security"])
+	}, fm.ReviewRoles["implementer"].Focus)
+	assert.Equal(t, []string{}, fm.ReviewRoles["architect"].Focus, "an empty focus list is retained as empty, not dropped")
+	assert.Equal(t, []string{"Any command injection in the detector cmd?"}, fm.AuditRoles["security"].Focus)
 
 	// Overrides never bleed across phases.
 	assert.NotContains(t, fm.ReviewRoles, "security")
@@ -65,7 +65,7 @@ content
 	require.True(t, fm.Present)
 
 	// The permitted focus key still parses; the disallowed keys are ignored.
-	assert.Equal(t, []string{"Is the empty-panel fallback exercised?"}, fm.ReviewRoles["tester"])
+	assert.Equal(t, []string{"Is the empty-panel fallback exercised?"}, fm.ReviewRoles["tester"].Focus)
 
 	joined := ""
 	for _, w := range fm.Warnings {
@@ -98,7 +98,7 @@ content
 
 	assert.NotContains(t, fm.ReviewRoles, "implementer", "non-mapping override ignored")
 	assert.NotContains(t, fm.ReviewRoles, "tester", "non-list focus ignored")
-	assert.Equal(t, []string{"valid question"}, fm.ReviewRoles["architect"], "non-string element ignored")
+	assert.Equal(t, []string{"valid question"}, fm.ReviewRoles["architect"].Focus, "non-string element ignored")
 	assert.Empty(t, fm.AuditRoles, "a non-mapping audit_roles yields no overrides")
 
 	joined := ""

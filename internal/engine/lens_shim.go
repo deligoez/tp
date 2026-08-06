@@ -14,8 +14,9 @@ const LegacyLensSentinelAll = "all"
 // retired tp: lens frontmatter. Given a spec's parsed frontmatter and the ids of
 // the review roles active this round (the built-in regression role is excluded
 // by the caller, and auditors are never in this list), it returns the focus
-// questions the legacy lens implies keyed by active review role id, plus the
-// warnings to surface.
+// questions the legacy lens implies as RoleOverride values keyed by active
+// review role id, plus the warnings to surface. The legacy lens cannot
+// deactivate a role, so every returned override leaves Enabled nil (unset).
 //
 // Precedence (§10.4):
 //   - New form wins: when the spec carries tp.review_roles or tp.audit_roles, the
@@ -26,8 +27,8 @@ const LegacyLensSentinelAll = "all"
 //     appends to that active review role, or warns when the id is not an active
 //     review role. Order within a role is lens.all first, then the role-specific
 //     questions. Auditors and the built-in regression role are never touched.
-func TranslateLegacyLens(fm *Frontmatter, activeReviewRoleIDs []string) (overrides map[string][]string, warnings []string) {
-	overrides = make(map[string][]string)
+func TranslateLegacyLens(fm *Frontmatter, activeReviewRoleIDs []string) (overrides map[string]RoleOverride, warnings []string) {
+	overrides = make(map[string]RoleOverride)
 	warnings = make([]string, 0)
 	if fm == nil || len(fm.Lens) == 0 {
 		return overrides, warnings
@@ -49,7 +50,9 @@ func TranslateLegacyLens(fm *Frontmatter, activeReviewRoleIDs []string) (overrid
 	// lens.all fans out to every active review role first (order: all then role-specific).
 	if allQs := fm.Lens[LegacyLensSentinelAll]; len(allQs) > 0 {
 		for _, id := range activeReviewRoleIDs {
-			overrides[id] = append(overrides[id], allQs...)
+			ov := overrides[id]
+			ov.Focus = append(ov.Focus, allQs...)
+			overrides[id] = ov
 		}
 	}
 
@@ -67,7 +70,9 @@ func TranslateLegacyLens(fm *Frontmatter, activeReviewRoleIDs []string) (overrid
 			warnings = append(warnings, fmt.Sprintf("tp: lens.%s targets %q which is not an active review role; ignored", id, id))
 			continue
 		}
-		overrides[id] = append(overrides[id], fm.Lens[id]...)
+		ov := overrides[id]
+		ov.Focus = append(ov.Focus, fm.Lens[id]...)
+		overrides[id] = ov
 	}
 
 	return overrides, warnings

@@ -24,14 +24,22 @@ type Frontmatter struct {
 	Domain  string              // default "software"
 	Lens    map[string][]string // known keys only: implementer, tester, architect, all
 	// ReviewRoles and AuditRoles are the v0.25.0 spec-frontmatter role overrides
-	// (tp.review_roles / tp.audit_roles), each keyed by role id with the value's
-	// only permitted key being focus (§10.2). The focus questions are appended
-	// (additive) to the matching corpus role at emission; resolution lives
-	// elsewhere — this struct only carries the parsed overrides.
-	ReviewRoles map[string][]string
-	AuditRoles  map[string][]string
+	// (tp.review_roles / tp.audit_roles), each keyed by role id (§10.2). The focus
+	// questions are appended (additive) to the matching corpus role at emission;
+	// resolution lives elsewhere — this struct only carries the parsed overrides.
+	ReviewRoles map[string]RoleOverride
+	AuditRoles  map[string]RoleOverride
 	Errors      []Finding // structural/parse lint errors
 	Warnings    []Finding // shape lint warnings
+}
+
+// RoleOverride is one parsed tp.review_roles / tp.audit_roles entry, keyed by
+// role id in Frontmatter. Focus carries the override's focus questions, layered
+// onto the matching corpus role's own focus at emission. Enabled is the optional
+// per-spec activation toggle; nil means unset, which is the pre-v0.32.0 behavior.
+type RoleOverride struct {
+	Focus   []string
+	Enabled *bool
 }
 
 // ParseFrontmatter reads a spec file and parses its frontmatter. A missing or
@@ -129,10 +137,10 @@ func ParseFrontmatterBytes(data []byte) *Frontmatter {
 // parseRoleOverrides parses a tp.review_roles or tp.audit_roles mapping (§10.2):
 // each key is a role id, each value an object whose only permitted key is
 // "focus" (a string array). Any other key inside an override is a lint warning
-// and is ignored; the focus questions are returned keyed by role id for
+// and is ignored; the parsed overrides are returned keyed by role id for
 // read-time layering onto the corpus role's focus.
-func (fm *Frontmatter) parseRoleOverrides(field string, val any) map[string][]string {
-	out := make(map[string][]string)
+func (fm *Frontmatter) parseRoleOverrides(field string, val any) map[string]RoleOverride {
+	out := make(map[string]RoleOverride)
 	rolesMap, isMap := val.(map[string]any)
 	if !isMap {
 		fm.warn(fmt.Sprintf("tp.%s is not a mapping (got %T); no role overrides apply", field, val))
@@ -166,13 +174,13 @@ func (fm *Frontmatter) parseRoleOverrides(field string, val any) map[string][]st
 
 		focusVal, hasFocus := override["focus"]
 		if !hasFocus {
-			out[id] = []string{}
+			out[id] = RoleOverride{Focus: []string{}}
 			continue
 		}
 		list, isList := focusVal.([]any)
 		if !isList {
 			if focusVal == nil {
-				out[id] = []string{}
+				out[id] = RoleOverride{Focus: []string{}}
 				continue
 			}
 			fm.warn(fmt.Sprintf("tp.%s.%s.focus is not a list (got %T); ignored", field, id, focusVal))
@@ -187,7 +195,7 @@ func (fm *Frontmatter) parseRoleOverrides(field string, val any) map[string][]st
 			}
 			questions = append(questions, s)
 		}
-		out[id] = questions
+		out[id] = RoleOverride{Focus: questions}
 	}
 	return out
 }
@@ -246,8 +254,8 @@ func defaultFrontmatter() *Frontmatter {
 	return &Frontmatter{
 		Domain:      DomainSoftware,
 		Lens:        make(map[string][]string),
-		ReviewRoles: make(map[string][]string),
-		AuditRoles:  make(map[string][]string),
+		ReviewRoles: make(map[string]RoleOverride),
+		AuditRoles:  make(map[string]RoleOverride),
 		Errors:      make([]Finding, 0),
 		Warnings:    make([]Finding, 0),
 	}
