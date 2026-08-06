@@ -121,3 +121,42 @@ func TestResolveOverrideFocus_SpecCoverageDropDependsOnCorpus(t *testing.T) {
 	assert.Contains(t, strings.Join(warnings, "\n"),
 		`tp.review_roles override for "spec-coverage" matches no active reviewers role; ignored`)
 }
+
+// TestResolveOverrideFocus_OutsideActivePanelWarnsAndDropsNothing: an enabled
+// entry whose id is not in the phase's active panel takes the "matches no active
+// role" warning path and contributes no drop (§2.3, tests 6 and 13). The panel
+// handed to resolution is already domain-filtered, so the two ways an id can be
+// outside it — no corpus holds the role at all, and domains removed it — are one
+// and the same input here; the CLI half
+// TestReview_DomainFilteredRoleTakesWarningPath asserts what distinguishes them
+// downstream, namely that a domain-filtered role is reported once and with
+// domain-mismatch. The warning text is asserted at this layer because
+// output.Info is silent whenever stdout is not a terminal, which is every CLI
+// test.
+func TestResolveOverrideFocus_OutsideActivePanelWarnsAndDropsNothing(t *testing.T) {
+	fmDisable := ParseFrontmatterBytes([]byte("---\ntp:\n  review_roles:\n    prose-role:\n      enabled: false\n---\n"))
+
+	out, warnings, disabled := ResolveOverrideFocus([]model.Role{{ID: "sw-role", Focus: []string{"q"}}}, fmDisable, PhaseReviewers)
+	assert.Equal(t, []string{"q"}, roleFocusByID(out)["sw-role"], "the entry changes nothing about the surviving role")
+	assert.Empty(t, disabled, "an id outside the active panel contributes no drop")
+	assert.Contains(t, strings.Join(warnings, "\n"),
+		`tp.review_roles override for "prose-role" matches no active reviewers role; ignored`)
+
+	// The identical frontmatter against a panel that DOES hold the role drops
+	// it and warns not: what decides the path is the active panel, not the
+	// entry.
+	_, warnings, disabled = ResolveOverrideFocus([]model.Role{{ID: "sw-role"}, {ID: "prose-role"}}, fmDisable, PhaseReviewers)
+	assert.Equal(t, []string{"prose-role"}, disabled, "an active role is dropped")
+	assert.NotContains(t, strings.Join(warnings, "\n"), "matches no active", "a matched entry is not an unknown id")
+
+	// Non-Goal 3 (test 13): enabled: true resurrects nothing. With the role
+	// outside the panel the entry takes the same warning path, adds no role and
+	// lands no focus.
+	fmEnable := ParseFrontmatterBytes([]byte("---\ntp:\n  review_roles:\n    prose-role:\n      enabled: true\n      focus:\n        - \"RESURRECTION FOCUS\"\n---\n"))
+	out, warnings, disabled = ResolveOverrideFocus([]model.Role{{ID: "sw-role", Focus: []string{"q"}}}, fmEnable, PhaseReviewers)
+	assert.Len(t, out, 1, "enabled: true adds no role to the panel")
+	assert.Equal(t, []string{"q"}, roleFocusByID(out)["sw-role"], "the override focus reaches no role")
+	assert.Empty(t, disabled, "enabled: true is not a drop")
+	assert.Contains(t, strings.Join(warnings, "\n"),
+		`tp.review_roles override for "prose-role" matches no active reviewers role; ignored`)
+}
