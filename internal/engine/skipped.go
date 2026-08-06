@@ -16,6 +16,8 @@ import (
 //   - domain-mismatch:    the role's domains omit the spec's domain
 //   - no-baseline:        the built-in regression role at round 1, which has no
 //     snapshot-round-0.md to diff against
+//   - disabled-by-spec:   the spec frontmatter deactivated the role with an
+//     enabled: false override (§2.4)
 type SkippedRole struct {
 	Role   string `json:"role"`
 	Reason string `json:"reason"`
@@ -27,7 +29,23 @@ const (
 	SkipNoSpecChange     = "no-spec-change"
 	SkipDomainMismatch   = "domain-mismatch"
 	SkipNoBaseline       = "no-baseline"
+	SkipDisabledBySpec   = "disabled-by-spec"
 )
+
+// DisabledSkippedRoles names the roles a spec deactivated with enabled: false,
+// so a deactivated role stays visible in the emission payload instead of
+// vanishing from the panel (§2.4, reason disabled-by-spec).
+//
+// The ids are ResolveOverrideFocus's drop set, which holds only roles that were
+// active after domain filtering. A role domains had already removed contributes
+// no drop, so it is reported once — with domain-mismatch — and never twice.
+func DisabledSkippedRoles(disabled []string) []SkippedRole {
+	out := make([]SkippedRole, 0, len(disabled))
+	for _, id := range disabled {
+		out = append(out, SkippedRole{Role: id, Reason: SkipDisabledBySpec})
+	}
+	return out
+}
 
 // DomainSkippedRoles returns the user corpus roles for a phase that were dropped
 // by domain filtering (§9.1, reason domain-mismatch). It loads the committed
