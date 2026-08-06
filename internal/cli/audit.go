@@ -779,30 +779,14 @@ func buildChecklist(specLines []string, specPath, findingsPath string) []checkli
 // taskAcceptanceEntries reads the spec-adjacent task file and yields one
 // task_acceptance checklist entry per task with a non-empty acceptance.
 func taskAcceptanceEntries(specPath string) []checklistEntry {
-	taskPath := strings.TrimSuffix(specPath, filepath.Ext(specPath)) + ".tasks.json"
-	data, err := os.ReadFile(taskPath)
-	if err != nil {
-		// An absent task file is optional (audit may run on a spec with none);
-		// a real read error (permissions, IO) is surfaced so it is not silently
-		// treated as "no tasks".
-		if !os.IsNotExist(err) {
-			fmt.Fprintf(os.Stderr, "warning: cannot read task file %s; task acceptance entries were dropped (%v)\n", taskPath, err)
-		}
-		return nil
-	}
-	var tf struct {
-		Tasks []struct {
-			ID         string `json:"id"`
-			Title      string `json:"title"`
-			Acceptance string `json:"acceptance"`
-		} `json:"tasks"`
-	}
-	if err := json.Unmarshal(data, &tf); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: cannot parse task file %s; task acceptance entries were dropped (%v)\n", taskPath, err)
-		return nil
-	}
-	entries := make([]checklistEntry, 0, len(tf.Tasks))
-	for _, task := range tf.Tasks {
+	// auditTasksOf is the one reader of the spec-adjacent task file, and it
+	// already announces a file that exists but cannot be read or parsed.
+	// Parsing it a second time here produced a second, differently worded
+	// advisory for the same one condition.
+	tasks := auditTasksOf(specPath)
+	entries := make([]checklistEntry, 0, len(tasks))
+	for i := range tasks {
+		task := &tasks[i]
 		if task.Acceptance == "" {
 			continue
 		}

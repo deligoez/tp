@@ -521,7 +521,10 @@ func auditTasksOf(specPath string) []model.Task {
 		// os.IsNotExist does not unwrap, so the guard would never fire and the
 		// warning would print on every ordinary run.
 		if !errors.Is(err, os.ErrNotExist) {
-			fmt.Fprintf(os.Stderr, "warning: cannot read task file %s; treating it as empty (%v)\n", taskPath, err)
+			// noticeOnce: runAudit reaches this helper from more than one
+			// caller in a single run, and one unreadable task file is one
+			// condition, not one per reader.
+			noticeOnce("tasks:"+taskPath, fmt.Sprintf("warning: cannot read task file %s; treating it as empty (%v)", taskPath, err))
 		}
 		return nil
 	}
