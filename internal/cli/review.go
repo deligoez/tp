@@ -895,7 +895,9 @@ func generateCorpusReviewPrompt(role *model.Role, elems *engine.StructuredElemen
 // naming the role every finding must be stamped with (Principle 2 — tp owns the
 // contract). Review findings carry role, location (a §<section> anchor per §8.2,
 // which is what makes dedup and the overlap report possible), class, and
-// severity; audit findings additionally carry status ∈ PASS/PARTIAL/FAIL.
+// severity; audit findings additionally carry status ∈ PASS/PARTIAL/FAIL, and
+// take their severity vocabulary from the audit Output Schema (error|warning|
+// info) rather than the review one — see the comment on the branch below.
 func outputContractInstruction(role, phase string) string {
 	var b strings.Builder
 	b.WriteString("\n\nOutput contract — stamp EVERY finding with the full contract:\n")
@@ -905,9 +907,19 @@ func outputContractInstruction(role, phase string) string {
 	if phase == engine.PhaseReviewers {
 		b.WriteString("  Canonical class `over-specification`: a detail whose correctness can only be established against code, prescribed in the spec where it belongs in task acceptance instead. Raise it (typically low/medium — an altitude smell, not a blocking defect) when the spec pins mechanism a task's acceptance should own.\n")
 	}
-	b.WriteString("- severity: one of critical, high, medium, low\n")
 	if phase == engine.PhaseAuditors {
+		// The severity vocabularies differ by phase on purpose, and this
+		// stamp lands right after the Output Schema block in every auditor
+		// prompt — naming the review enum here contradicted that block in
+		// the same prompt. An audit row states its verdict in `status`;
+		// severity only qualifies a PARTIAL or FAIL, so it uses the audit
+		// schema's error|warning|info. A review finding has no status, so
+		// there severity IS the blocking predicate (review_converge_on
+		// blocks on critical/high) and keeps the four-level scale.
+		b.WriteString("- severity: one of error, warning, info — null for PASS (the audit vocabulary from the Output Schema above, not the review one)\n")
 		b.WriteString("- status: one of PASS, PARTIAL, FAIL\n")
+	} else {
+		b.WriteString("- severity: one of critical, high, medium, low\n")
 	}
 	return b.String()
 }
