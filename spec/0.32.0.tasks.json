@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.32.0.md",
   "created_at": "2026-08-06T09:57:37.021054Z",
-  "updated_at": "2026-08-06T11:28:46.180776Z",
+  "updated_at": "2026-08-06T11:32:42.882485Z",
   "workflow": {},
   "coverage": {
     "total_sections": 14,
@@ -702,7 +702,7 @@
     {
       "id": "docs-four-files",
       "title": "Document the lever in four files",
-      "status": "open",
+      "status": "done",
       "tags": [
         "impl"
       ],
@@ -728,11 +728,21 @@
         "## 4. Documentation"
       ],
       "source_lines": "1-13,78",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-06T11:29:42.489952Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-06T11:32:42.868019Z",
+      "closed_reason": "- README.md, skills/tp/SKILL.md, skills/tp/REFERENCE.md and the role-corpus rule in CLAUDE.md each now contain the pinned substring 'enabled: false deactivates a role for one spec' verbatim (no inline-code backticks inside the phrase, which would have broken it); verified by a scripted per-file literal containment check reporting OK for all four.\n- Each of the four states the disabled-by-spec skipped_roles reason (REFERENCE.md additionally adds it to the reason enum in its Transparency-fields paragraph) and both emission-only refusals verbatim from the code — 'every \u003cphase\u003e role is deactivated by this spec: \u003cids\u003e' (internal/cli/review.go refuseEmptyPhase) and 'spec-coverage cannot be deactivated: it carries the entire spec-derived checklist' (internal/cli/audit.go refuseSpecCoverageDeactivated) — with their hints, their exit-2-before-any-write behavior, the modes they never fire under, and spec-coverage's precedence when both trip.\n- Each of the four states that domains is the durable axis (a role's standing scope across every spec, reported as domain-mismatch) while enabled: false is the one-spec exception to it; the surrounding override bullets in README/REFERENCE/SKILL were corrected to name enabled as the second permitted key and to quote the new '(only focus and enabled)' warning text from internal/engine/frontmatter.go.\n- Gate green before close: go test ./... exit 0, golangci-lint run exit 0 (checked as separate exit codes, not chained).",
+      "gate_passed_at": "2026-08-06T11:32:42.868019Z",
+      "commit_sha": "1a1bb10",
+      "commit_shas": [
+        "1a1bb10"
+      ],
+      "commit_files": [
+        "CLAUDE.md",
+        "README.md",
+        "skills/tp/REFERENCE.md",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "reference-two-levers",
