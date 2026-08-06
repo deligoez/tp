@@ -3,6 +3,7 @@ package cli_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -63,6 +64,20 @@ func TestGitRevInjection_SkippedSHAIsReported(t *testing.T) {
 	assert.Contains(t, stderr, "every recorded commit sha was skipped as unusable")
 	assert.NotContains(t, stderr, "no done task carries commit_shas",
 		"a task that carries a rejected sha must not be reported as carrying none")
+}
+
+// TestGitRevInjection_SkippedSHAReportedOnce: the same rejected sha was named
+// twice — --affected-from-tasks derives the file set, then the exit-4 payload
+// re-derived the identical suggestion — and the advisory rode along both
+// times. One condition costs the reader one line.
+func TestGitRevInjection_SkippedSHAReportedOnce(t *testing.T) {
+	victim := filepath.Join(t.TempDir(), "written-by-git")
+	dir := setupInjectionRepo(t, victim)
+
+	_, stderr, code := runTP(t, dir, "audit", "s.md", "--affected-from-tasks")
+	assert.Equal(t, 4, code)
+	assert.Equal(t, 1, strings.Count(stderr, "was skipped; git would read it as an option"),
+		"the rejected sha is named exactly once per invocation")
 }
 
 // TestGitRevInjection_BaseFlag: a --base git would read as an option is
