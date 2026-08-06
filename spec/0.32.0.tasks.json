@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.32.0.md",
   "created_at": "2026-08-06T09:57:37.021054Z",
-  "updated_at": "2026-08-06T10:38:29.986474Z",
+  "updated_at": "2026-08-06T10:43:57.996226Z",
   "workflow": {},
   "coverage": {
     "total_sections": 14,
@@ -534,7 +534,7 @@
     {
       "id": "refusals-emission-only",
       "title": "Fire refusals only on prompt emission",
-      "status": "open",
+      "status": "done",
       "tags": [
         "impl"
       ],
@@ -547,11 +547,18 @@
         "### 2.5 A phase cannot be emptied"
       ],
       "source_lines": "63",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-06T10:39:08.819832Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-06T10:43:57.980197Z",
+      "closed_reason": "- The two §2.5 refusals are pinned to prompt-emission mode by TestRefusals_FireOnlyOnPromptEmission (internal/cli/domain_lens_test.go): one spec (bothPhasesDeactivatedSpec) deactivates the only reviewer and every auditor including spec-coverage, arming BOTH refusals, and is run through tp review --record/--status/--status --check/--verify and tp audit --record/--status/--status --check, asserting the exits §2.5 item 1 specifies (record and verify 0, status 0, status --check 0 or 1).\n- The assertion is the ABSENCE of the two literal messages on stdout and stderr (assertNoRefusalMessage pins \"every reviewers/auditors role is deactivated by this spec\" and \"spec-coverage cannot be deactivated: it carries the entire spec-derived checklist\"), never a non-2 exit code, since a malformed argument also exits 2; a control sub-test proves the fixture does refuse under emission for both commands.\n- Discriminating power verified by mutation: moving the refusals ahead of the mode branching in newAuditCmd failed both audit --status sub-tests on the absence assertion, and the same mutation in newReviewCmd failed all four review mode sub-tests; both mutations were reverted.\n- --merge, --resolve, --resolve-all and --report are not asserted: they take an NDJSON positional and never parse the spec (tp audit registers none of them).\n- Out of scope: tp audit writes .tp-review/\u003cspec\u003e/snapshot-audit-round-1.md BEFORE the §2.5 refusal, so a refused audit run still leaves state on disk (observed manually); that is §2.5 item 2, owned by the refusal-before-writes task.",
+      "gate_passed_at": "2026-08-06T10:43:57.980197Z",
+      "commit_sha": "ef60315",
+      "commit_shas": [
+        "ef60315"
+      ],
+      "commit_files": [
+        "internal/cli/domain_lens_test.go"
+      ]
     },
     {
       "id": "perspective-short-circuit",
