@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.32.0.md",
   "created_at": "2026-08-06T09:57:37.021054Z",
-  "updated_at": "2026-08-06T10:26:35.585807Z",
+  "updated_at": "2026-08-06T10:30:03.445839Z",
   "workflow": {},
   "coverage": {
     "total_sections": 14,
@@ -443,7 +443,7 @@
     {
       "id": "spec-coverage-refusal",
       "title": "Refuse deactivating the spec-coverage auditor",
-      "status": "open",
+      "status": "done",
       "tags": [
         "impl"
       ],
@@ -456,11 +456,20 @@
         "### 2.5 A phase cannot be emptied"
       ],
       "source_lines": "61",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-06T10:27:35.205422Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-06T10:30:03.425515Z",
+      "closed_reason": "- An auditor drop set containing spec-coverage exits 2 with the message \"spec-coverage cannot be deactivated: it carries the entire spec-derived checklist\": refuseSpecCoverageDeactivated(disabled []string) in internal/cli/audit.go scans the drop set returned by engine.ResolveOverrideFocus and calls output.Error(ExitUsage, ...) + os.Exit(ExitUsage) on a spec-coverage entry; verified by TestAudit_SpecCoverageCannotBeDeactivated asserting exit 2 and the message verbatim off the JSON error object on stderr.\n- The hint reads \"remove the enabled: false entry for spec-coverage\": passed as output.Error's hint argument, both strings built from the existing roleSpecCoverage constant; verified by the same test's assert.Equal on the decoded hint field.\n- It fires even when other auditors remain active: the check is a drop-set membership test, not an emptiness test, and runs before DropDisabledRoles/the empty-phase check (§2.6 precedence); verified by the test's corpus of two auditor role files (spec-coverage + keeper) where only spec-coverage is deactivated and keeper would still have emitted, plus an empty-stdout assertion that no prompt precedes the refusal.\n- Dogfooded with the freshly built /tmp/tp-dev/tp against a copy of tp's own .tp/auditors corpus: the refusal returned the exact message, hint and exit 2. Gate green: go test ./... exit 0, golangci-lint run exit 0 (0 issues).",
+      "gate_passed_at": "2026-08-06T10:30:03.425515Z",
+      "commit_sha": "42336d9",
+      "commit_shas": [
+        "42336d9",
+        "91d56e9"
+      ],
+      "commit_files": [
+        "internal/cli/audit.go",
+        "internal/cli/domain_lens_test.go"
+      ]
     },
     {
       "id": "refusal-keys-drop-set",
