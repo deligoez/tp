@@ -406,6 +406,38 @@ func TestAudit_CompactOmitsDisabledBySpec(t *testing.T) {
 	assert.NotContains(t, stdout, "disabled-by-spec", "no disabled-by-spec entry survives --compact")
 }
 
+// TestReview_EnabledFalseOnlyEntrySuppressesLensShim: §2.3 test 12 — a spec
+// that uses review_roles only to deactivate a role suppresses the legacy
+// tp: lens shim, exactly as one that adds focus does.
+//
+// The lens question is the discriminating assertion. ResolveOverrideFocus only
+// reaches TranslateLegacyLens when fm.ReviewRoles is empty, so an enabled-only
+// entry that never landed in that map would take the shim branch and fan
+// LEGACY LENS QUESTION out to every surviving reviewer while every panel
+// assertion below still held.
+func TestReview_EnabledFalseOnlyEntrySuppressesLensShim(t *testing.T) {
+	dir := t.TempDir()
+	spec := "---\ntp:\n  review_roles:\n    tester:\n      enabled: false\n  lens:\n    all:\n      - \"LEGACY LENS QUESTION\"\n---\n# Spec\n## 1. A\ncontent\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "review", "spec.md")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	byRole := reviewPromptsByRole(t, stdout)
+	assert.Contains(t, byRole, "implementer", "the surviving reviewers still emit")
+	assert.Contains(t, byRole, "architect")
+	assert.NotContains(t, byRole, "tester", "the deactivated reviewer emits no prompt")
+	assert.Equal(t, []string{"disabled-by-spec"}, skipReasonsFor(t, stdout, "tester"),
+		"the deactivation itself still took effect")
+
+	for role, prompt := range byRole {
+		assert.NotContains(t, prompt, "LEGACY LENS QUESTION",
+			"the lens shim is suppressed; it must not reach role %s", role)
+	}
+	assert.NotContains(t, stdout, "LEGACY LENS QUESTION",
+		"a deactivation-only review_roles block suppresses the lens shim entirely")
+}
+
 // refusalMessage decodes tp's JSON error object off stderr so the empty-phase
 // message and hint can be asserted verbatim rather than by substring.
 func refusalMessage(t *testing.T, stderr string) (msg, hint string) {
