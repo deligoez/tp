@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.32.0.md",
   "created_at": "2026-08-06T09:57:37.021054Z",
-  "updated_at": "2026-08-06T11:08:40.955241Z",
+  "updated_at": "2026-08-06T11:11:52.658577Z",
   "workflow": {},
   "coverage": {
     "total_sections": 14,
@@ -142,7 +142,7 @@
     {
       "id": "enabled-null-unset",
       "title": "Treat a null enabled as unset",
-      "status": "open",
+      "status": "done",
       "tags": [
         "impl"
       ],
@@ -155,11 +155,18 @@
         "### 2.2 The parsed override becomes a struct"
       ],
       "source_lines": "36,107",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-06T11:09:27.926357Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-06T11:11:52.642881Z",
+      "closed_reason": "- An explicit enabled: null, a valueless enabled:, and YAML's ~ spelling all decode to nil and stay unset in parseRoleOverrides (internal/engine/frontmatter.go): RoleOverride.Enabled is nil, the role stays in the returned map with its focus intact, and no warning is emitted. No implementation change was needed — the sibling enabled-nonbool-warn already guarded the warn with enabledVal != nil; this task is the test that pins it.\n- TestParseFrontmatter_RoleOverrideEnabledNull (internal/engine/frontmatter_roleoverrides_test.go) asserts the null cases against the quoted-string case (enabled: \"false\") in the SAME fixture, so it discriminates: it requires the string warning to be present, requires none of the three null spellings to be named in any warning, and pins fm.Warnings to exactly 1. Verified by mutating the parser to drop the enabledVal != nil guard — four of the assertions failed with 'is not a boolean (got \u003cnil\u003e)' warnings for implementer, architect and go-safety — then reverting to a byte-clean tree.\n- Gate green: go test ./... exit 0, golangci-lint run exit 0 (checked as separate exit codes, not a \u0026\u0026 chain).\nOut of scope: the sibling tasks deactivated-role-drops-focus, compact-omits-skipped, regression-not-counted, lens-shim-suppressed, roles-hash-unchanged and the documentation tasks were left untouched.",
+      "gate_passed_at": "2026-08-06T11:11:52.642881Z",
+      "commit_sha": "a1d609e",
+      "commit_shas": [
+        "a1d609e"
+      ],
+      "commit_files": [
+        "internal/engine/frontmatter_roleoverrides_test.go"
+      ]
     },
     {
       "id": "resolve-drop-set",
