@@ -629,10 +629,7 @@ func execGitDiff(dir string, args ...string) []string {
 		// git failing is not the same as an empty diff. Reporting an unknown
 		// revision as "no changed files detected" sends the caller looking for
 		// missing work instead of at the revision they typed.
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) && len(exitErr.Stderr) > 0 {
-			fmt.Fprintf(os.Stderr, "warning: git %s failed: %s", strings.Join(args, " "), exitErr.Stderr)
-		}
+		warnGitFailure(err, args...)
 		return []string{}
 	}
 	var files []string
@@ -647,6 +644,20 @@ func execGitDiff(dir string, args ...string) []string {
 		fmt.Fprintf(os.Stderr, "warning: stopped scanning git diff output early (%v); files after the over-long line were dropped (line cap is 64KB)\n", err)
 	}
 	return files
+}
+
+// warnGitFailure names a failed git invocation on stderr. Every caller turns
+// the error into a zero value — an empty file list, an empty diff-stat map, an
+// empty deleted set — and a zero value is indistinguishable from a genuinely
+// unchanged tree once it reaches an auditor prompt as fact. The warning is what
+// keeps "git could not answer" from reading as "nothing changed".
+func warnGitFailure(err error, args ...string) {
+	detail := err.Error()
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) && len(exitErr.Stderr) > 0 {
+		detail = strings.TrimRight(string(exitErr.Stderr), "\n")
+	}
+	fmt.Fprintf(os.Stderr, "warning: git %s failed: %s\n", strings.Join(args, " "), detail)
 }
 
 func isBinaryFile(path string) bool {
