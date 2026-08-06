@@ -53,13 +53,18 @@ type ChecklistItem struct {
 	ExpectedEvidence string `json:"expected_evidence"`
 }
 
+// auditPrompt is one role's emitted prompt. ChecklistItems and AffectedFiles
+// are pointers so --compact can OMIT them rather than emit an empty array: both
+// are a verbatim duplicate of content buildRolePrompt already rendered into
+// Prompt, which is the copy an agent reads. Under default output they are
+// always set, so an empty routed set still serializes as [] and never null.
 type auditPrompt struct {
-	Role           string                  `json:"role"`
-	Prompt         string                  `json:"prompt"`
-	OutputPath     string                  `json:"output_path"`
-	ChecklistCount int                     `json:"checklist_count"`
-	ChecklistItems []ChecklistItem         `json:"checklist_items"`
-	AffectedFiles  []engine.AuditFileEntry `json:"affected_files"`
+	Role           string                   `json:"role"`
+	Prompt         string                   `json:"prompt"`
+	OutputPath     string                   `json:"output_path"`
+	ChecklistCount int                      `json:"checklist_count"`
+	ChecklistItems *[]ChecklistItem         `json:"checklist_items,omitempty"`
+	AffectedFiles  *[]engine.AuditFileEntry `json:"affected_files,omitempty"`
 }
 
 type auditResult struct {
@@ -501,8 +506,16 @@ func refuseAuditIfBudgetExhausted(specPath string) {
 	refuseIfBudgetExhausted("audit", specPath, rounds, wfBudget.AuditMaxRounds, wfBudget.AuditCleanRounds, "")
 }
 
-// compactAuditChecklist truncates checklist text and drops the file summary
-// for --compact output.
+// compactAuditChecklist truncates checklist text, drops the file summary, and
+// omits the two per-prompt fields that duplicate the prompt body, for --compact
+// output.
+//
+// prompts[].checklist_items and prompts[].affected_files are a verbatim
+// duplicate of what buildRolePrompt already rendered into prompts[].prompt, so
+// without this every spec item shipped three times over: once in the top-level
+// checklist, once as structured JSON per prompt, and once inside the prompt an
+// agent actually reads. On a 3-role/5-file payload the pair is a fifth of the
+// bytes, which is why --compact was measurably a no-op here.
 func compactAuditChecklist(result *auditResult) {
 	for i := range result.Checklist {
 		if len(result.Checklist[i].Text) > 80 {
@@ -510,6 +523,10 @@ func compactAuditChecklist(result *auditResult) {
 		}
 	}
 	result.FileSummary = nil
+	for i := range result.Prompts {
+		result.Prompts[i].ChecklistItems = nil
+		result.Prompts[i].AffectedFiles = nil
+	}
 }
 
 func resolveAuditFiles(specPath string, affectedFiles []string, base string) ([]string, error) {

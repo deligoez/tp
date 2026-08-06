@@ -275,13 +275,22 @@ func buildRolePrompt(role string, rules []string, items []ChecklistItem, files [
 	}
 	b.WriteString(renderFraming(f))
 
+	// Slice fields serialize as [] and never null (project convention), so
+	// normalize before taking the address: a nil parameter would otherwise reach
+	// the payload as a null under the pointer fields.
+	if items == nil {
+		items = []ChecklistItem{}
+	}
+	if files == nil {
+		files = []engine.AuditFileEntry{}
+	}
 	return auditPrompt{
 		Role:           role,
 		OutputPath:     f.outputPath,
 		Prompt:         b.String(),
 		ChecklistCount: len(items),
-		ChecklistItems: items,
-		AffectedFiles:  files,
+		ChecklistItems: &items,
+		AffectedFiles:  &files,
 	}
 }
 
