@@ -1,14 +1,581 @@
 {
   "version": 1,
   "spec": "spec/0.32.0.md",
-  "created_at": "2026-08-05T13:36:15.744166Z",
-  "updated_at": "2026-08-05T13:36:15.744167Z",
+  "created_at": "2026-08-06T09:57:37.021054Z",
+  "updated_at": "2026-08-06T09:57:37.022013Z",
   "workflow": {},
   "coverage": {
-    "total_sections": 0,
-    "mapped_sections": 0,
-    "context_only": [],
+    "total_sections": 14,
+    "mapped_sections": 13,
+    "context_only": [
+      "# tp v0.32.0 — Per-spec role activation"
+    ],
     "unmapped": []
   },
-  "tasks": []
+  "tasks": [
+    {
+      "id": "roleoverride-maps",
+      "title": "Migrate the frontmatter role maps",
+      "status": "open",
+      "tags": [
+        "impl"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 15,
+      "acceptance": "engine.RoleOverride carries Focus []string alongside Enabled *bool. Frontmatter.ReviewRoles alongside Frontmatter.AuditRoles become map[string]RoleOverride with parseRoleOverrides writing the struct. The three invalidated test files are updated in the same commit so the gate stays green: frontmatter_roleoverrides_test.go, overrides_test.go, lens_shim_test.go.",
+      "source_sections": [
+        "### 2.2 The parsed override becomes a struct",
+        "### 6.1 Existing tests this change invalidates"
+      ],
+      "source_lines": "34-38,112-119",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "enabled-key-permitted",
+      "title": "Permit enabled in override objects",
+      "status": "open",
+      "tags": [
+        "impl"
+      ],
+      "depends_on": [
+        "roleoverride-maps"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "The permitted override key set gains enabled so it no longer warns. The unpermitted-key warning text becomes (only focus and enabled) with every existing literal assertion updated. Test 5 passes.",
+      "source_sections": [
+        "## 2. `enabled` in the spec-frontmatter role overrides",
+        "### 2.1 The override value gains a second permitted key"
+      ],
+      "source_lines": "15,30,32",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "enabled-bool-parse",
+      "title": "Parse a boolean enabled value",
+      "status": "open",
+      "tags": [
+        "impl"
+      ],
+      "depends_on": [
+        "enabled-key-permitted"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "A boolean enabled populates RoleOverride.Enabled. An enabled of true is accepted as a no-op leaving the role active with its focus layered. Test 3 passes.",
+      "source_sections": [
+        "### 2.1 The override value gains a second permitted key"
+      ],
+      "source_lines": "19-28,96",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "enabled-nonbool-warn",
+      "title": "Warn on a non-boolean enabled",
+      "status": "open",
+      "tags": [
+        "impl"
+      ],
+      "depends_on": [
+        "enabled-bool-parse"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "A non-nil non-boolean enabled warns with the pinned parser text for that key, naming the field, the id alongside the received type. The role stays active. Test 4 passes against a quoted-string fixture.",
+      "source_sections": [
+        "### 2.2 The parsed override becomes a struct"
+      ],
+      "source_lines": "40,97",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "enabled-null-unset",
+      "title": "Treat a null enabled as unset",
+      "status": "open",
+      "tags": [
+        "impl"
+      ],
+      "depends_on": [
+        "enabled-bool-parse"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "An explicit enabled of null decodes to nil with no warning. A valueless enabled key behaves identically. Test 14 passes.",
+      "source_sections": [
+        "### 2.2 The parsed override becomes a struct"
+      ],
+      "source_lines": "36,107",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "resolve-drop-set",
+      "title": "Return the enabled-false drop set",
+      "status": "open",
+      "tags": [
+        "impl"
+      ],
+      "depends_on": [
+        "enabled-bool-parse"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "ResolveOverrideFocus returns a third value carrying the ids dropped for a false enabled. Both callers under internal/cli receive it. The existing overrides tests assert the third value.",
+      "source_sections": [
+        "### 2.3 Resolution drops the role and reports what it dropped"
+      ],
+      "source_lines": "44",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "drop-outside-corpus",
+      "title": "Apply the drop outside ResolveActiveCorpus",
+      "status": "open",
+      "tags": [
+        "impl"
+      ],
+      "depends_on": [
+        "resolve-drop-set"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "The drop is applied after ResolveActiveCorpus domain filtering rather than inside it. A spec deactivating every user role never falls back to the embedded corpus. Test 11 passes.",
+      "source_sections": [
+        "### 2.3 Resolution drops the role and reports what it dropped"
+      ],
+      "source_lines": "46,104",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "unknown-id-warning",
+      "title": "Warn when no active role matches",
+      "status": "open",
+      "tags": [
+        "impl"
+      ],
+      "depends_on": [
+        "drop-outside-corpus"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "A false enabled on an id in no corpus warns matches no active role while changing nothing. A role removed by domains takes the same path appearing once in skipped_roles with domain-mismatch. Tests 6 alongside 13 pass.",
+      "source_sections": [
+        "### 2.3 Resolution drops the role and reports what it dropped"
+      ],
+      "source_lines": "99,106",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "disabled-by-spec-reason",
+      "title": "Report deactivated roles as disabled-by-spec",
+      "status": "open",
+      "tags": [
+        "impl"
+      ],
+      "depends_on": [
+        "resolve-drop-set"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Every role deactivated by a false enabled is named in skipped_roles with the reason disabled-by-spec. This holds for the review payload as well as the audit payload. Test 1 passes.",
+      "source_sections": [
+        "### 2.4 A deactivated role stays visible"
+      ],
+      "source_lines": "52,94",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "deactivated-role-drops-focus",
+      "title": "Drop focus from a deactivated role",
+      "status": "open",
+      "tags": [
+        "impl"
+      ],
+      "depends_on": [
+        "disabled-by-spec-reason"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "A false enabled with focus on the same role deactivates that role. Its focus is applied nowhere in the output. Test 2 passes.",
+      "source_sections": [
+        "### 2.4 A deactivated role stays visible"
+      ],
+      "source_lines": "95",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "compact-omits-skipped",
+      "title": "Keep skipped_roles omitted under compact",
+      "status": "open",
+      "tags": [
+        "impl"
+      ],
+      "depends_on": [
+        "disabled-by-spec-reason"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "The compact flag omits skipped_roles including disabled-by-spec entries. Test 16 passes.",
+      "source_sections": [
+        "### 2.4 A deactivated role stays visible"
+      ],
+      "source_lines": "54,109",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "lens-shim-suppressed",
+      "title": "Suppress the lens shim on deactivation",
+      "status": "open",
+      "tags": [
+        "impl"
+      ],
+      "depends_on": [
+        "resolve-drop-set"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "A spec whose only review_roles entry is a false enabled suppresses the legacy lens shim. Test 12 passes.",
+      "source_sections": [
+        "### 2.3 Resolution drops the role and reports what it dropped"
+      ],
+      "source_lines": "48,105",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "empty-phase-message",
+      "title": "Refuse a phase with no roles",
+      "status": "open",
+      "tags": [
+        "impl"
+      ],
+      "depends_on": [
+        "drop-outside-corpus"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Emitting prompts for a phase whose active roles are all dropped exits 2. The message renders as every \u003cphase\u003e role is deactivated by this spec followed by the ids, with the phase word taken from PhaseReviewers or PhaseAuditors. The hint reads re-enable at least one role, or remove the enabled: false entries.",
+      "source_sections": [
+        "### 2.5 A phase cannot be emptied"
+      ],
+      "source_lines": "58,60",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "empty-phase-id-list",
+      "title": "List only spec-deactivated ids",
+      "status": "open",
+      "tags": [
+        "impl"
+      ],
+      "depends_on": [
+        "empty-phase-message"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "The empty-phase id list carries only the ids this spec deactivated, sorted comma-separated. Ids already absent through domains or a missing role file are excluded. A phase emptied partly by domains names only the deactivated ones.",
+      "source_sections": [
+        "### 2.5 A phase cannot be emptied"
+      ],
+      "source_lines": "56",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "regression-not-counted",
+      "title": "Exclude regression from the emptiness check",
+      "status": "open",
+      "tags": [
+        "impl"
+      ],
+      "depends_on": [
+        "empty-phase-message"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "The built-in regression role does not count as an active reviewer for the emptiness check. A review spec deactivating every corpus reviewer still exits 2. Test 9 passes.",
+      "source_sections": [
+        "## 6. Tests"
+      ],
+      "source_lines": "92,102",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "refusal-before-writes",
+      "title": "Resolve roles ahead of every write",
+      "status": "open",
+      "tags": [
+        "impl"
+      ],
+      "depends_on": [
+        "empty-phase-message"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Corpus resolution alongside override resolution run ahead of EnsureReviewState in tp review. They run ahead of the snapshot write in tp audit. Test 7 asserts a refused run writes no state directory, no state file, no round snapshot.",
+      "source_sections": [
+        "### 2.5 A phase cannot be emptied"
+      ],
+      "source_lines": "64,100",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "spec-coverage-refusal",
+      "title": "Refuse deactivating the spec-coverage auditor",
+      "status": "open",
+      "tags": [
+        "impl"
+      ],
+      "depends_on": [
+        "empty-phase-message"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "An auditor drop set containing spec-coverage exits 2 with the message spec-coverage cannot be deactivated: it carries the entire spec-derived checklist. The hint reads remove the enabled: false entry for spec-coverage. It fires even when other auditors remain active.",
+      "source_sections": [
+        "### 2.5 A phase cannot be emptied"
+      ],
+      "source_lines": "61",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "refusal-keys-drop-set",
+      "title": "Key the refusal on the drop set",
+      "status": "open",
+      "tags": [
+        "impl"
+      ],
+      "depends_on": [
+        "spec-coverage-refusal"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "The refusal keys on the drop set rather than on the frontmatter entry. Identical frontmatter exits 2 against an auditor corpus holding the spec-coverage role file but warns matches no active role against a populated corpus lacking it. A review_roles entry naming spec-coverage always takes the warning path.",
+      "source_sections": [
+        "## 6. Tests"
+      ],
+      "source_lines": "103",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "refusal-precedence",
+      "title": "Report spec-coverage before empty phase",
+      "status": "open",
+      "tags": [
+        "impl"
+      ],
+      "depends_on": [
+        "spec-coverage-refusal"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "The checks are decided in the order given by the precedence section. A spec tripping both refusals reports the spec-coverage one. Test 10 passes.",
+      "source_sections": [
+        "### 2.6 Precedence"
+      ],
+      "source_lines": "66-70",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "refusals-emission-only",
+      "title": "Fire refusals only on prompt emission",
+      "status": "open",
+      "tags": [
+        "impl"
+      ],
+      "depends_on": [
+        "spec-coverage-refusal"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Neither refusal fires under the review record, status, merge, resolve, resolve-all, verify or report modes. Neither fires under the audit record, status or merge modes. Test 8 asserts the absence of the two literal messages rather than a non-2 exit code.",
+      "source_sections": [
+        "### 2.5 A phase cannot be emptied"
+      ],
+      "source_lines": "63",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "perspective-short-circuit",
+      "title": "Assert perspective bypasses corpus resolution",
+      "status": "open",
+      "tags": [
+        "impl"
+      ],
+      "depends_on": [
+        "refusals-emission-only"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "The review perspective mode short-circuits before the corpus is resolved. It emits its single fixed prompt carrying neither refusal message. The perspective half of test 8 passes.",
+      "source_sections": [
+        "## 6. Tests"
+      ],
+      "source_lines": "101",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "roles-hash-unchanged",
+      "title": "Keep roles_hash free of frontmatter overrides",
+      "status": "open",
+      "tags": [
+        "impl"
+      ],
+      "depends_on": [
+        "enabled-bool-parse"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Toggling enabled changes the recorded round spec_hash. It leaves roles_hash unchanged, proving the override is not fed into ComputeRolesHash. Test 15 passes with the roles_hash clause as the discriminating assertion.",
+      "source_sections": [
+        "## 3. Corpus staleness needs no change"
+      ],
+      "source_lines": "72-74,108",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "docs-four-files",
+      "title": "Document the lever in four files",
+      "status": "open",
+      "tags": [
+        "impl"
+      ],
+      "depends_on": [
+        "perspective-short-circuit",
+        "compact-omits-skipped",
+        "deactivated-role-drops-focus",
+        "unknown-id-warning",
+        "enabled-null-unset",
+        "enabled-nonbool-warn",
+        "lens-shim-suppressed",
+        "empty-phase-id-list",
+        "regression-not-counted",
+        "refusal-before-writes",
+        "refusal-keys-drop-set",
+        "refusal-precedence",
+        "roles-hash-unchanged"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "README.md, skills/tp/SKILL.md, skills/tp/REFERENCE.md alongside the role-corpus rule in CLAUDE.md each contain the substring enabled: false deactivates a role for one spec. Each states the disabled-by-spec reason alongside the two emission-only refusals. Each states that domains is the durable axis while a false enabled is the one-spec exception.",
+      "source_sections": [
+        "## 1. Overview",
+        "## 4. Documentation"
+      ],
+      "source_lines": "1-13,78",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "reference-two-levers",
+      "title": "State both trim-candidate levers in REFERENCE",
+      "status": "open",
+      "tags": [
+        "impl"
+      ],
+      "depends_on": [
+        "docs-four-files"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "REFERENCE.md states that a trim candidate has two levers guarded differently. It states that deleting the role file is unguarded, including for spec-coverage, removing nothing when it is the phase last role file. It states that tp does not guard against deactivating a role with open findings.",
+      "source_sections": [
+        "## 4. Documentation",
+        "## 5. Non-Goals"
+      ],
+      "source_lines": "80,82-90",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "docs-guard-test",
+      "title": "Guard the four documents with a test",
+      "status": "open",
+      "tags": [
+        "impl"
+      ],
+      "depends_on": [
+        "reference-two-levers"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "A guard test asserts the four documents contain the pinned substring. It asserts REFERENCE.md states both trim-candidate levers. Test 17 passes.",
+      "source_sections": [
+        "## 4. Documentation"
+      ],
+      "source_lines": "76,110",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ]
 }
