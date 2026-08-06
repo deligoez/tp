@@ -806,7 +806,11 @@ func buildReviewPrompts(specPath string, elems *engine.StructuredElements, specC
 // observable: the drop runs outside ResolveActiveCorpus, so an emptied panel
 // stays empty instead of silently reverting to the embedded default corpus.
 // The phase word is rendered from the PhaseReviewers/PhaseAuditors value and
-// the deactivated ids follow it sorted and comma-separated (§2.5).
+// the deactivated ids follow it sorted and comma-separated (§2.5). The list is
+// §2.3's drop set, so it names only the ids this spec deactivated: a role
+// already absent through domains or a missing role file is not active, never
+// enters the drop set, and is never named — including when the phase was
+// emptied partly by domains and partly by enabled: false.
 func refuseEmptyPhase(phase string, disabled []string) {
 	ids := make([]string, len(disabled))
 	copy(ids, disabled)
