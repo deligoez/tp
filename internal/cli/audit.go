@@ -285,26 +285,6 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	return output.JSON(result)
 }
 
-// refuseSpecCoverageDeactivated exits 2 when §2.3's drop set for the auditor
-// phase contains spec-coverage. routeChecklist routes every spec-derived item
-// to that id alone, so deactivating it drops the whole spec-derived checklist
-// while every other auditor still emits — which is why this is not an emptiness
-// check: it fires even when other auditors remain active.
-//
-// The check keys on the drop set rather than on the frontmatter entry, so a
-// corpus with no active spec-coverage role produces no drop and tp.audit_roles
-// naming it takes §2.3's "matches no active role" warning path instead.
-func refuseSpecCoverageDeactivated(disabled []string) {
-	for _, id := range disabled {
-		if id == roleSpecCoverage {
-			output.Error(ExitUsage,
-				roleSpecCoverage+" cannot be deactivated: it carries the entire spec-derived checklist",
-				"remove the enabled: false entry for "+roleSpecCoverage)
-			os.Exit(ExitUsage)
-		}
-	}
-}
-
 // determineAuditFiles resolves the set of source files to audit. With
 // affectedFromTasks, files are derived from done-task commit_shas (§11.2);
 // otherwise the normal --affected-files / git-diff resolution applies. Errors
