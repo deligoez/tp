@@ -24,6 +24,12 @@ func ResolveOverrideFocus(roles []model.Role, fm *Frontmatter, phase string) (ef
 	warnings = make([]string, 0)
 	overrides := make(map[string]RoleOverride)
 	fieldName := "audit_roles"
+	// Exported, so a nil frontmatter is a reachable caller mistake;
+	// TranslateLegacyLens guards the same way. Treat it as a spec with no
+	// frontmatter at all rather than panicking on the field reads below.
+	if fm == nil {
+		fm = defaultFrontmatter()
+	}
 	if phase == PhaseReviewers {
 		fieldName = "review_roles"
 		ids := make([]string, 0, len(roles))
