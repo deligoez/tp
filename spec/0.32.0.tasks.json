@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.32.0.md",
   "created_at": "2026-08-06T09:57:37.021054Z",
-  "updated_at": "2026-08-06T11:34:01.266517Z",
+  "updated_at": "2026-08-06T11:36:23.14574Z",
   "workflow": {},
   "coverage": {
     "total_sections": 14,
@@ -777,7 +777,7 @@
     {
       "id": "docs-guard-test",
       "title": "Guard the four documents with a test",
-      "status": "open",
+      "status": "done",
       "tags": [
         "impl"
       ],
@@ -790,11 +790,18 @@
         "## 4. Documentation"
       ],
       "source_lines": "76,110",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-06T11:34:11.881287Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-06T11:36:23.128496Z",
+      "closed_reason": "- internal/cli/docs_role_lever_test.go adds TestDocsStateThePerSpecRoleLever, which asserts README.md, skills/tp/SKILL.md, skills/tp/REFERENCE.md and CLAUDE.md each contain the pinned substring 'enabled: false deactivates a role for one spec' verbatim; it follows the existing .golangci.yml guard-test pattern (internal/cli/golangci_config_test.go) and reuses its golangciRepoRoot walker, as internal/cli/docs_contract_test.go already does.\n- The same test asserts REFERENCE.md states both trim-candidate levers via eight required substrings (never the absence of a wrong one, so deleting the guidance fails rather than passing): the two-levers-guarded-differently claim, the guarded per-spec lever with both refusals, the unguarded file-deletion lever including spec-coverage, its no-op on the phase's last role file with the ResolveActiveCorpus fallback, and the absent open-findings guard. None of the pinned substrings spans a markdown emphasis boundary, so rewrapping the prose does not break them.\n- Spec test 17 passes and the guard is proven to fail for the right reason: replacing the plain phrase with a backticked '`enabled: false` deactivates a role for one spec' in CLAUDE.md failed at docs_role_lever_test.go:59 (the four-docs loop), and deleting REFERENCE.md's last-role-file sentence failed at docs_role_lever_test.go:65 (the lever loop); both files were restored with git checkout and the full suite re-run green.\n- Gate green before close: go test ./... exit 0, golangci-lint run exit 0 (checked as separate exit codes, not chained).",
+      "gate_passed_at": "2026-08-06T11:36:23.128496Z",
+      "commit_sha": "5c94270",
+      "commit_shas": [
+        "5c94270"
+      ],
+      "commit_files": [
+        "internal/cli/docs_role_lever_test.go"
+      ]
     }
   ]
 }
