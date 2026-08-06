@@ -66,6 +66,44 @@ func TestAuditPrompts_BodyOrderAndEmbedding(t *testing.T) {
 	assert.NotContains(t, spec, "## Project Context")
 }
 
+// TestAuditPrompts_ProjectContextComesFromTheAuditedRepo: claudeMDExcerptFor
+// falls back to the git repository root, and that lookup used to run with no
+// cmd.Dir — so the root came from the PROCESS cwd rather than from the spec
+// being audited. Auditing a spec in another checkout then handed every
+// shared-arm role the conventions of whatever repository the caller happened to
+// stand in, at exit 0 with an empty stderr and nothing in the payload naming
+// which repo answered. Every sibling git call (gitExists, latestGitTag,
+// execGitDiffProbe) sets cmd.Dir; this one has to as well.
+func TestAuditPrompts_ProjectContextComesFromTheAuditedRepo(t *testing.T) {
+	// The audited repo: spec + source, and NO task file, so the CLAUDE.md
+	// lookup falls through to the git-root branch under test.
+	audited := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(audited, "spec.md"), []byte(routingSpec), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(audited, "auth_helper.go"), []byte("package main\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(audited, "CLAUDE.md"),
+		[]byte("# Audited\n## Conventions\n- AUDITED REPO CONVENTION\n"), 0o600))
+	initGitRepo(t, audited)
+
+	// The caller's cwd: a different repository with its own conventions.
+	caller := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(caller, "CLAUDE.md"),
+		[]byte("# Caller\n## Conventions\n- CALLER REPO CONVENTION\n"), 0o600))
+	initGitRepo(t, caller)
+
+	stdout, stderr, code := runTP(t, caller, "audit",
+		filepath.Join(audited, "spec.md"), "--affected-files", filepath.Join(audited, "auth_helper.go"))
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	byRole := auditPromptsByRole(t, stdout)
+	maint, ok := byRole["maintainability-conventions"]
+	require.True(t, ok, "the shared arm must emit, or nothing carries ## Project Context")
+	prompt := maint["prompt"].(string)
+	assert.Contains(t, prompt, "AUDITED REPO CONVENTION",
+		"the conventions excerpt comes from the repository holding the spec")
+	assert.NotContains(t, prompt, "CALLER REPO CONVENTION",
+		"the process cwd's repository must never leak into an audit of another checkout")
+}
+
 // dispositionParagraph is §2.2's block, verbatim.
 const dispositionParagraph = `## Disposition
 A file containing nothing in this role's domain is a PASS, not a PARTIAL. Record it as
