@@ -655,7 +655,7 @@ func buildReviewPrompts(specPath string, panel *rolePanel, elems *engine.Structu
 	// The panel — corpus resolution (§7.1), override layering (§10.2-10.4),
 	// the §2.3 drop and the §2.5 refusals — is resolved by the caller, ahead of
 	// every write the emission path performs (§2.5 item 2).
-	fmState, activeRoles := panel.fm, panel.roles
+	activeRoles := panel.roles
 
 	prompts = make([]reviewPrompt, 0, len(activeRoles)+1)
 	for i := range activeRoles {
@@ -739,7 +739,7 @@ func buildReviewPrompts(specPath string, panel *rolePanel, elems *engine.Structu
 	// §9.1: name every non-emitted corpus role. Domain filtering (when a user
 	// corpus is present) drops roles whose domains omit the spec's domain; the
 	// built-in regression role has no snapshot-round-0.md to diff at round 1.
-	skipped = append(skipped, engine.DomainSkippedRoles(filepath.Dir(specPath), fmState.Domain, engine.PhaseReviewers)...)
+	skipped = append(skipped, engine.DomainSkippedRoles(filepath.Dir(specPath), panel.fm.Domain, engine.PhaseReviewers)...)
 	if !noState && round < 2 {
 		skipped = append(skipped, engine.SkippedRole{Role: engine.RegressionRoleID, Reason: engine.SkipNoBaseline})
 	}
