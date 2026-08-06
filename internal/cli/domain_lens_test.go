@@ -306,6 +306,56 @@ func TestAudit_DeactivatedRoleNamedDisabledBySpec(t *testing.T) {
 	assert.Equal(t, "disabled-by-spec", byReason["dropped"], "a deactivated auditor is named, not silently absent")
 }
 
+// TestReview_DeactivatedRoleDropsItsFocus: §2.4 test 2 — `enabled: false` and
+// `focus` on the SAME role deactivates it AND applies that focus nowhere in the
+// output. The focus half is the discriminating one: an implementation that
+// removes the role from the panel but still layers its override focus onto the
+// survivors satisfies every panel assertion while leaking the question, so the
+// assertion is over the whole payload, not just the dropped role's prompt.
+func TestReview_DeactivatedRoleDropsItsFocus(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
+	writeReviewerRole(t, dir, "keeper.json", `{"id":"keeper","title":"Keeper","instructions":"You review.","focus":["q"]}`)
+	writeReviewerRole(t, dir, "dropped.json", `{"id":"dropped","title":"Dropped","instructions":"You review.","focus":["q"]}`)
+	spec := "---\ntp:\n  review_roles:\n    dropped:\n      enabled: false\n      focus:\n        - \"DEACTIVATED FOCUS QUESTION\"\n---\n# Spec\n## 1. A\ncontent\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "review", "spec.md")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	byRole := reviewPromptsByRole(t, stdout)
+	assert.Contains(t, byRole, "keeper", "the surviving reviewer still emits")
+	assert.NotContains(t, byRole, "dropped", "enabled: false wins over the sibling focus key")
+	assert.Equal(t, []string{"disabled-by-spec"}, skipReasonsFor(t, stdout, "dropped"),
+		"the deactivated role is still named once, for the deactivation")
+
+	for role, prompt := range byRole {
+		assert.NotContains(t, prompt, "DEACTIVATED FOCUS QUESTION",
+			"a deactivated role's focus must not reach role %s", role)
+	}
+	assert.NotContains(t, stdout, "DEACTIVATED FOCUS QUESTION",
+		"a deactivated role's focus is applied nowhere in the output")
+}
+
+// TestAudit_DeactivatedRoleDropsItsFocus: the audit half of test 2. The two
+// phases resolve their overrides through the same ResolveOverrideFocus but
+// assemble their payloads separately, so each is pinned.
+func TestAudit_DeactivatedRoleDropsItsFocus(t *testing.T) {
+	spec := "---\ntp:\n  audit_roles:\n    dropped:\n      enabled: false\n      focus:\n        - \"DEACTIVATED AUDIT FOCUS\"\n---\n# Spec\n## 1. Widgets\ncontent\n"
+	dir := writeAuditorCorpusProject(t, spec, "spec-coverage", "keeper", "dropped")
+
+	stdout, stderr, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "code.go")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	byRole := auditPromptsByRole(t, stdout)
+	assert.Contains(t, byRole, "keeper", "the surviving auditor still emits")
+	assert.NotContains(t, byRole, "dropped", "enabled: false wins over the sibling focus key")
+	assert.Equal(t, []string{"disabled-by-spec"}, skipReasonsFor(t, stdout, "dropped"),
+		"the deactivated auditor is still named once, for the deactivation")
+	assert.NotContains(t, stdout, "DEACTIVATED AUDIT FOCUS",
+		"a deactivated auditor's focus is applied nowhere in the output")
+}
+
 // refusalMessage decodes tp's JSON error object off stderr so the empty-phase
 // message and hint can be asserted verbatim rather than by substring.
 func refusalMessage(t *testing.T, stderr string) (msg, hint string) {
