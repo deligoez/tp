@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.32.0.md",
   "created_at": "2026-08-06T09:57:37.021054Z",
-  "updated_at": "2026-08-06T11:32:42.882485Z",
+  "updated_at": "2026-08-06T11:34:01.266517Z",
   "workflow": {},
   "coverage": {
     "total_sections": 14,
@@ -747,7 +747,7 @@
     {
       "id": "reference-two-levers",
       "title": "State both trim-candidate levers in REFERENCE",
-      "status": "open",
+      "status": "done",
       "tags": [
         "impl"
       ],
@@ -761,11 +761,18 @@
         "## 5. Non-Goals"
       ],
       "source_lines": "80,82-90",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-06T11:32:52.686682Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-06T11:34:01.250136Z",
+      "closed_reason": "- skills/tp/REFERENCE.md now carries an 'Acting on a trim_candidate (v0.32.0)' block directly under the Overlap fields paragraph that defines the trim_candidate flag, stating that a flagged role has two levers and that they are guarded differently: enabled: false removes the role from ONE spec and is guarded by the two emission-only refusals (both quoted verbatim: 'every \u003cphase\u003e role is deactivated by this spec: \u003cids\u003e' and 'spec-coverage cannot be deactivated: it carries the entire spec-derived checklist'), each exiting 2 before any prompt is emitted or any state is written.\n- The same block states that deleting the role file removes the role from EVERY spec and is not guarded at all, explicitly including spec-coverage (the refusal protects it per-spec but nothing protects it from file deletion), and that deleting the phase's LAST role file removes nothing because an empty phase directory reads as unpopulated and ResolveActiveCorpus falls back to the embedded default corpus; verified against internal/engine/corpusdomain.go ResolveActiveCorpus, whose populated=false path returns DefaultCorpus(embeddedDomain, phase).\n- The block's closing paragraph states that tp does not guard against deactivating a role with open findings — no refusal and no warning, for either lever — because ReviewRoundClean evaluates cleanliness per round over that round's rows, so a deactivated role's earlier open findings do not keep a later round from being clean.\n- Gate green before close: go test ./... exit 0, golangci-lint run exit 0 (checked as separate exit codes, not chained).",
+      "gate_passed_at": "2026-08-06T11:34:01.250136Z",
+      "commit_sha": "97ef2db",
+      "commit_shas": [
+        "97ef2db"
+      ],
+      "commit_files": [
+        "skills/tp/REFERENCE.md"
+      ]
     },
     {
       "id": "docs-guard-test",
