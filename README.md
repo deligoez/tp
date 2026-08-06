@@ -468,6 +468,11 @@ tp review spec.md --json > review-r1.json
 tp review spec.md --round 2 --findings findings.ndjson --json > review-r2.json
 ```
 
+
+A `--findings` path that does not exist exits **3** in both `tp review` and `tp audit` (v0.32.0).
+Previously `tp review` exited 2 and `tp audit` accepted the path, verified zero review findings and
+recorded the round as clean — so a typo could declare convergence. Where the flag is optional,
+omitting it is still valid; the hint says so.
 ### Code-Aware Review
 
 Inject source files into review prompts to catch state-dependent behaviors that specs miss:
@@ -524,7 +529,7 @@ Each emitted review prompt carries an **`output_path`** (`review-r<N>-<role>.ndj
 | `--report` | Cross-round convergence report |
 | `--spec-inline` | Embed full spec inline (default: reference by path) |
 | `--diff-from` | Diff-based review (only changed sections inline) |
-| `-o` / `--output` | Output file path for merge |
+| `-o` / `--output` | Output file path for merge. Rejected with exit 2 on any other mode (v0.32.0) rather than silently ignored — every other mode writes its payload to stdout |
 | `--force` | Force re-resolve already resolved findings |
 | `--record <file>` | Record a review round (auto-numbered R; freezes count + clean flag) |
 | `--harness-note <text>` | With `--record`, record the orchestrator-wrapper framing on the round; surfaced as `harness_stale`/`harness_note` on `--status`, stripped under `--compact` |
