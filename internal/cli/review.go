@@ -1736,7 +1736,11 @@ func loadReviewRoundState(cmd *cobra.Command, specPath string, round int, findin
 	}
 	specBytes, readErr := os.ReadFile(specPath)
 	if readErr != nil {
-		output.Error(ExitFile, fmt.Sprintf("cannot read spec: %v", readErr))
+		// POST-read failure: resolveReviewSpecContent already read this same
+		// path above, so the hint carries the real cause — not
+		// specFileMissingHint (the caller did not mistype), and not the code-3
+		// task-file default a hintless site would inherit.
+		output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath), readErr.Error())
 		os.Exit(ExitFile)
 		return reviewRoundState{}
 	}
@@ -1744,7 +1748,11 @@ func loadReviewRoundState(cmd *cobra.Command, specPath string, round int, findin
 	// write to snapshot-round-N.md.tmp then rename — so a partial snapshot is
 	// never left on disk.
 	if writeErr := engine.WriteSnapshotAtomic(specPath, engine.PhaseReview, stateRound, specBytes); writeErr != nil {
-		output.Error(ExitFile, fmt.Sprintf("cannot write snapshot: %v", writeErr))
+		// POST-read failure: resolveReviewSpecContent already read this same
+		// path, and what failed is a state-directory write. The hint carries the
+		// real cause — not specFileMissingHint (the caller did not mistype), and
+		// not the code-3 task-file default a hintless site would inherit.
+		output.Error(ExitFile, fmt.Sprintf("cannot write review round snapshot for %s", specPath), writeErr.Error())
 		os.Exit(ExitFile)
 		return reviewRoundState{}
 	}
