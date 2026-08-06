@@ -375,7 +375,14 @@ func claudeMDExcerptFor(specPath string) string {
 	if _, tfPath := engine.ResolveWorkflow(specPath, flagFile); tfPath != "" {
 		candidates = append(candidates, filepath.Join(filepath.Dir(tfPath), "CLAUDE.md"))
 	}
-	if out, err := exec.Command("git", "rev-parse", "--show-toplevel").Output(); err == nil {
+	// cmd.Dir, like every other git call this command makes (gitExists,
+	// latestGitTag, execGitDiffProbe): without it the repo root comes from the
+	// process cwd, so auditing a spec in another checkout injects the CONVENTIONS
+	// OF THE CURRENT DIRECTORY'S repository into every shared-arm role prompt —
+	// silently, and with nothing in the output naming which repo answered.
+	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+	cmd.Dir = filepath.Dir(specPath)
+	if out, err := cmd.Output(); err == nil {
 		candidates = append(candidates, filepath.Join(strings.TrimSpace(string(out)), "CLAUDE.md"))
 	}
 	for _, c := range candidates {
