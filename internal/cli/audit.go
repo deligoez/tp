@@ -667,7 +667,9 @@ func execGitDiffProbe(dir, probe string, args ...string) []string {
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: stopped scanning git diff output early (%v); files after the over-long line were dropped (line cap is 64KB)\n", err)
+		// Notice, not raw stderr: this is a dropped-content advisory like its
+		// siblings, so --quiet silences it and JSON mode does not.
+		noticeOnce("git-scan:"+probe, fmt.Sprintf("warning: stopped scanning git diff output early (%v); files after the over-long line were dropped (line cap is 64KB)", err))
 	}
 	return files
 }
