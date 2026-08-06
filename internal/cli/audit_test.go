@@ -99,6 +99,56 @@ func TestAuditGitFailureWarnsInsteadOfClaimingZeros(t *testing.T) {
 		"a failed deleted-file lookup must not render as \"nothing deleted\" without a word")
 }
 
+// TestAuditDiffStatsMeasureTheSelectedRange is the other half of the guard
+// above, and the dominant real case: tp's one-task-one-commit rule means the
+// work being audited is already COMMITTED. File selection compares
+// <tag>...HEAD, but a diff-stat lookup with no range compares the working tree
+// — which on a committed tree SUCCEEDS with empty output. git never fails, so
+// no warning fires, and every role is handed "(diff: +0/-0)" as a measured fact
+// about files that were selected precisely because they changed. The stats must
+// describe the same comparison the selection made.
+func TestAuditDiffStatsMeasureTheSelectedRange(t *testing.T) {
+	dir, _ := newAuditRepo(t)
+	git(t, dir, "tag", "v0.0.1")
+
+	// 7 added lines, 0 deleted, committed — nothing left in the working tree.
+	body := "package main\n\nfunc a1() {}\nfunc a2() {}\nfunc a3() {}\nfunc a4() {}\nfunc a5() {}\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.go"), []byte(body), 0o600))
+	git(t, dir, "add", "a.go")
+	git(t, dir, "commit", "-m", "add a.go")
+
+	cases := []struct {
+		name string
+		args []string
+	}{
+		{"explicit base", []string{"audit", "spec.md", "--base", "v0.0.1"}},
+		{"auto-detect since latest tag", []string{"audit", "spec.md"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			stdout, stderr, code := runTP(t, dir, tc.args...)
+			require.Equal(t, 0, code, stderr)
+
+			var out map[string]any
+			require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+
+			seen := 0
+			for _, p := range out["prompts"].([]any) {
+				for _, af := range p.(map[string]any)["affected_files"].([]any) {
+					am := af.(map[string]any)
+					if am["path"] != "a.go" {
+						continue
+					}
+					seen++
+					assert.Equal(t, "+7/-0", am["diff_summary"],
+						"a committed 7-line addition must not reach a role as unchanged")
+				}
+			}
+			require.NotZero(t, seen, "a.go must appear in the selected files")
+		})
+	}
+}
+
 func TestAuditNoSpecArg(t *testing.T) {
 	dir := t.TempDir()
 	_, stderr, code := runTP(t, dir, "audit")
