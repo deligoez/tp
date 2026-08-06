@@ -240,7 +240,7 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	// instead of falling back to the embedded default corpus (§2.3).
 	auditorRoles = engine.DropDisabledRoles(auditorRoles, disabledRoles)
 	if len(disabledRoles) > 0 && len(auditorRoles) == 0 {
-		refuseEmptyPhase(engine.PhaseAuditors)
+		refuseEmptyPhase(engine.PhaseAuditors, disabledRoles)
 	}
 
 	specItems := routeChecklist(mainEntries, findingsEntries, invertTaskFiles(inputs.TaskFiles))

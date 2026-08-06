@@ -668,7 +668,7 @@ func buildReviewPrompts(specPath string, elems *engine.StructuredElements, specC
 	// instead of falling back to the embedded default corpus (§2.3).
 	activeRoles = engine.DropDisabledRoles(activeRoles, disabledRoles)
 	if len(disabledRoles) > 0 && len(activeRoles) == 0 {
-		refuseEmptyPhase(engine.PhaseReviewers)
+		refuseEmptyPhase(engine.PhaseReviewers, disabledRoles)
 	}
 	prompts = make([]reviewPrompt, 0, len(activeRoles)+1)
 	for i := range activeRoles {
@@ -805,9 +805,15 @@ func buildReviewPrompts(specPath string, elems *engine.StructuredElements, specC
 // phase with no active role. Refusing here is what makes §2.3's placement
 // observable: the drop runs outside ResolveActiveCorpus, so an emptied panel
 // stays empty instead of silently reverting to the embedded default corpus.
-// §2.5 owns the rendered id list and the hint; this carries only the exit.
-func refuseEmptyPhase(phase string) {
-	output.Error(ExitUsage, fmt.Sprintf("every %s role is deactivated by this spec", phase))
+// The phase word is rendered from the PhaseReviewers/PhaseAuditors value and
+// the deactivated ids follow it sorted and comma-separated (§2.5).
+func refuseEmptyPhase(phase string, disabled []string) {
+	ids := make([]string, len(disabled))
+	copy(ids, disabled)
+	sort.Strings(ids)
+	output.Error(ExitUsage,
+		fmt.Sprintf("every %s role is deactivated by this spec: %s", phase, strings.Join(ids, ", ")),
+		"re-enable at least one role, or remove the enabled: false entries")
 	os.Exit(ExitUsage)
 }
 
