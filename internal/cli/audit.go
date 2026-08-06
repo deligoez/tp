@@ -231,7 +231,10 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	}
 	// Layer the spec-frontmatter tp.audit_roles overrides onto each auditor
 	// role's corpus focus (§10.2-10.3).
-	auditorRoles, overrideWarnings := engine.ResolveOverrideFocus(auditorRoles, fmAudit, engine.PhaseAuditors)
+	auditorRoles, overrideWarnings, disabledRoles := engine.ResolveOverrideFocus(auditorRoles, fmAudit, engine.PhaseAuditors)
+	// disabledRoles carries the ids this spec deactivated with enabled: false;
+	// the skipped_roles report and the two refusals consume it (§2.4, §2.5).
+	_ = disabledRoles
 	for _, w := range overrideWarnings {
 		output.Info(w)
 	}

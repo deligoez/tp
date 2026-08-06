@@ -659,7 +659,10 @@ func buildReviewPrompts(specPath string, elems *engine.StructuredElements, specC
 	}
 	// Layer the spec-frontmatter role overrides (tp.review_roles / legacy lens
 	// shim) onto each active role's corpus focus (§10.2-10.4).
-	activeRoles, overrideWarnings := engine.ResolveOverrideFocus(activeRoles, fmState, engine.PhaseReviewers)
+	activeRoles, overrideWarnings, disabledRoles := engine.ResolveOverrideFocus(activeRoles, fmState, engine.PhaseReviewers)
+	// disabledRoles carries the ids this spec deactivated with enabled: false;
+	// the skipped_roles report and the emptiness refusal consume it (§2.4, §2.5).
+	_ = disabledRoles
 	for _, w := range overrideWarnings {
 		output.Info(w)
 	}

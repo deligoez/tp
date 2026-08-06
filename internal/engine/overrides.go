@@ -15,8 +15,10 @@ import (
 // (§10.4); for audit it is tp.audit_roles. An override whose id matches no active
 // role in the phase is ignored with a warning. The built-in regression role is
 // appended to emission separately and never passed here, so it accepts no
-// overrides (§5.2). Returns the effective roles (copies) plus warnings.
-func ResolveOverrideFocus(roles []model.Role, fm *Frontmatter, phase string) (effective []model.Role, warnings []string) {
+// overrides (§5.2). Returns the effective roles (copies), the warnings, and the
+// sorted ids of active roles this spec deactivated with an enabled: false
+// override (§2.3); applying that drop is the caller's job.
+func ResolveOverrideFocus(roles []model.Role, fm *Frontmatter, phase string) (effective []model.Role, warnings, disabled []string) {
 	warnings = make([]string, 0)
 	overrides := make(map[string]RoleOverride)
 	fieldName := "audit_roles"
@@ -57,6 +59,17 @@ func ResolveOverrideFocus(roles []model.Role, fm *Frontmatter, phase string) (ef
 		warnings = append(warnings, fmt.Sprintf("tp.%s override for %q matches no active %s role; ignored", fieldName, id, phase))
 	}
 
+	// The drop set: every active role this spec deactivated with enabled: false.
+	// An id matching no active role takes the "matches no active role" path above
+	// and never lands here, so a corpus without the role produces no drop (§2.3).
+	disabled = make([]string, 0)
+	for id, ov := range overrides {
+		if active[id] && ov.Enabled != nil && !*ov.Enabled {
+			disabled = append(disabled, id)
+		}
+	}
+	sort.Strings(disabled)
+
 	effective = make([]model.Role, len(roles))
 	for i := range roles {
 		effective[i] = roles[i]
@@ -67,5 +80,5 @@ func ResolveOverrideFocus(roles []model.Role, fm *Frontmatter, phase string) (ef
 			effective[i].Focus = eff
 		}
 	}
-	return effective, warnings
+	return effective, warnings, disabled
 }
