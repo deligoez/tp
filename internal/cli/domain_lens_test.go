@@ -895,6 +895,56 @@ func TestReview_EnabledFalseUnknownIDChangesNothing(t *testing.T) {
 	}
 }
 
+// TestReview_NoActiveRoleWarningVisibleInJSONMode is the assertion the whole
+// per-spec role-activation feature turns on. An override entry whose id matches
+// no active role is ignored, and the run then costs exactly the sub-agent round
+// it would have cost with the id spelled right — so the agent driving tp has to
+// be told. Every agent-driven run pipes stdout, JSON mode is on whenever stdout
+// is not a terminal, and output.Info returns early in JSON mode: on that channel
+// the advisory would be invisible in precisely the runs it was written for. It
+// therefore travels output.Notice, which JSON mode does not suppress.
+//
+// The two discriminating halves: the warning reaches stderr in JSON mode (runTP
+// never allocates a terminal, so this IS JSON mode), and stdout stays parseable
+// JSON — an advisory that leaked into the payload would break every caller.
+func TestReview_NoActiveRoleWarningVisibleInJSONMode(t *testing.T) {
+	writeSpec := func(t *testing.T) string {
+		t.Helper()
+		dir := t.TempDir()
+		// "tsetter" is a plausible typo for the default reviewer "tester".
+		spec := "---\ntp:\n  review_roles:\n    tsetter:\n      focus:\n        - \"TYPO FOCUS\"\n---\n# Spec\n## 1. A\ncontent\n"
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec), 0o600))
+		return dir
+	}
+
+	t.Run("visible in JSON mode", func(t *testing.T) {
+		dir := writeSpec(t)
+
+		stdout, stderr, code := runTP(t, dir, "review", "spec.md", "--no-state")
+		require.Equal(t, 0, code, "stderr: %s", stderr)
+		assert.Contains(t, stderr,
+			`tp.review_roles override for "tsetter" matches no active reviewers role; ignored`,
+			"a typo'd role id must not be dropped in silence in the JSON mode every agent run uses")
+
+		var payload map[string]any
+		require.NoError(t, json.Unmarshal([]byte(stdout), &payload), "stdout stays parseable JSON")
+		assert.NotContains(t, stdout, "matches no active", "the advisory belongs on stderr, never in the payload")
+		for role, prompt := range reviewPromptsByRole(t, stdout) {
+			assert.NotContains(t, prompt, "TYPO FOCUS", "the ignored override reaches no prompt (role %s)", role)
+		}
+	})
+
+	t.Run("suppressed by --quiet", func(t *testing.T) {
+		// The other half of the Notice contract: --quiet is the opt-out, so a
+		// caller that asked for silence still gets it.
+		dir := writeSpec(t)
+
+		_, stderr, code := runTP(t, dir, "review", "spec.md", "--no-state", "--quiet")
+		require.Equal(t, 0, code, "stderr: %s", stderr)
+		assert.NotContains(t, stderr, "matches no active")
+	})
+}
+
 // writeDomainFilteredCorpusProject lays out a software-domain spec over a
 // reviewer corpus holding one role that applies to every domain and one
 // prose-only role that domain filtering removes before override resolution.
