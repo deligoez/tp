@@ -383,7 +383,7 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 
 	findings := statePrevFindings
 	if findingsPath != "" {
-		findings = parseFindingsFile(findingsPath)
+		findings = mustParseFindingsFile(findingsPath)
 	}
 
 	summary := buildFindingsSummary(findings)
@@ -913,10 +913,19 @@ func generateCodeAuditPrompt(specContent string, affectedContent map[string]stri
 	}
 }
 
-func parseFindingsFile(path string) []reviewFinding {
+// parseFindingsFile reads an NDJSON findings file into review findings. A read
+// error is propagated, never swallowed: an existing-but-unreadable file used to
+// come back as an empty set, so tp exited 0 with empty stderr while every
+// previously reported finding silently vanished from the emitted prompts. A
+// path that does not exist stays a nil error — callers reject that case up
+// front with their own usage error.
+func parseFindingsFile(path string) ([]reviewFinding, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return make([]reviewFinding, 0)
+		if os.IsNotExist(err) {
+			return make([]reviewFinding, 0), nil
+		}
+		return nil, err
 	}
 	defer f.Close()
 
@@ -941,6 +950,20 @@ func parseFindingsFile(path string) []reviewFinding {
 	}
 	if err := scanner.Err(); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: stopped reading %s early (%v); findings after the over-long line were dropped (line cap is 64KB)\n", path, err)
+	}
+	return findings, nil
+}
+
+// mustParseFindingsFile reads a findings file or aborts with tp's file exit
+// code, naming the path. Losing prior findings has to be loud: a round emitted
+// from a silently empty set re-reports what was already fixed and forgets what
+// was not.
+func mustParseFindingsFile(path string) []reviewFinding {
+	findings, err := parseFindingsFile(path)
+	if err != nil {
+		output.Error(ExitFile, fmt.Sprintf("cannot read findings file: %s", path), err.Error())
+		os.Exit(ExitFile)
+		return nil
 	}
 	return findings
 }

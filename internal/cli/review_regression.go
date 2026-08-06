@@ -42,7 +42,7 @@ func runReviewRegression(specPath, diffFrom, findingsPath string) error {
 		dr = engine.DiffSections(diffLinesOf(diffFrom), diffLinesOf(specPath))
 		sinceLabel = "baseline " + diffFrom
 		baselinePath = diffFrom
-		all := parseFindingsFile(findingsPath)
+		all := mustParseFindingsFile(findingsPath)
 		// newest first: later rows are newer
 		for i := len(all) - 1; i >= 0; i-- {
 			if all[i].Resolved != nil && all[i].Resolved.Status == "fixed" {
