@@ -1,0 +1,298 @@
+# tp v0.33.0 — Honest convergence signals
+
+## 1. Overview
+
+tp's audit loop counts every non-PASS row against convergence, whether the row concerns the spec or the codebase at large. The general lenses in a real corpus always find something, so under that predicate there is no fixed point.
+
+v0.32.0's own audit is the evidence. `spec-coverage` — the only auditor role that takes the spec-derived checklist, and therefore the only one measuring conformance — was 55/55 clean from round 2 through round 11, and no round in the entire audit produced a single FAIL. Rounds 3–11 were consumed by hint wording, advisory channels, git scoping and flag hygiene that `spec/0.32.0.md` never mentions. The divergence was real from round 3; it was noticed by hand at round 10, and only because a human asked why the loop was taking so long.
+
+The failure is not that tp lacked a policy. It is that tp never said what was happening. A driver reading `tp audit --status` saw `converged: false` and a finding count, and nothing that distinguished "the implementation does not match the spec" from "the implementation matches the spec and three general lenses are reading the rest of the repository". Both states print the same shape.
+
+This release ships the signal and nothing else. Two items:
+
+1. **The divergence signal.** `tp audit --status` and `--record` report each auditor role's consecutive clean-round count, name `spec-coverage`'s separately, and say so explicitly when `spec-coverage` has been clean for the required number of rounds, with the spec unchanged since the last recorded round, while other roles still hold open findings.
+2. **A registered check retires its own suggestion.** Registering a `checks` entry for a recurring class should stop tp from recommending that the check be written. It currently keeps recommending one that already exists.
+
+**The convergence gate does not change.** No row scope, no `audit_converge_on`, no change to which rounds count as clean, no change to an exit code. §5 records why that separation is deliberate rather than incremental: a classification produced by a sub-agent, wired into the release gate, lets a genuine spec violation mislabelled `codebase` pass the gate — a worse failure mode than today's rule, which at least over-counts. Ship the signal, use it for a version, then decide whether the policy is needed.
+
+Two constraints hold throughout. Every rule that could fail in two directions fails toward "keep auditing": a state tp cannot measure never produces the signal that tells a driver the decision is theirs, and every rule below is written to satisfy that rather than to follow the shortest implementation. And every command this release touches stays a function of the spec it is given plus the state recorded beside it — no new output depends on anything a repository does not commit.
+
+## 2. The audit divergence signal
+
+### 2.1 Reading a recorded round's rows
+
+Four definitions govern everything in §2, and none may be restated differently anywhere else:
+
+- **A row's role** is its `role` field, whitespace-trimmed, when that field is a JSON string that is non-empty after trimming. An absent key, a non-string value, an empty string and a whitespace-only string all mean the row **carries no role**. The trimmed value is the role id, compared byte-for-byte and never case-folded — corpus ids are lowercase kebab-case filenames, so a differing case is a different id and must surface as one rather than be silently merged. This matches the trim-then-drop-empty rule `OverlapReport` already applies. It does **not** match the untrimmed `role != ""` test the roleless-row advisory uses, so a row whose role is whitespace-only is unattributed here while that advisory still counts it as attributed and does not name it. That advisory is unchanged by this release; where the two differ, §2 is the stricter one and its fields are authoritative for everything in §2.
+- **A row is PASS** when its `status` field is a JSON string exactly equal to `PASS` — no trimming, no case folding. Everything else is non-PASS: an absent key, a non-string value, `pass`, ` PASS `, `FAIL`, `PARTIAL`. This is byte-for-byte the predicate the audit record path already applies when it decides a round's recorded `findings` count, and it must stay identical to it: if the two drifted, `other_roles_open` and the round's own `findings` would disagree on the same rows.
+- **A round contributes no rows** when its entry's `file` is empty, when the recorded NDJSON file cannot be read, when any **non-blank** line in it fails to unmarshal into a JSON map, or when its stored `roles_hash` differs from the latest recorded round's. Blank lines are skipped before parsing, as every NDJSON reader in tp already skips them — a recorded round file is a verbatim copy of the operator's results file and normally ends in a newline, so a rule that counted the trailing empty line would make every round contribute no rows and the release would ship dead. The unmarshal test is the record path's, byte for byte, and its edge is deliberate: Go accepts the bare literal `null` into a map and leaves the map nil, so a `null` line is a row here exactly as it is a counted finding there — one carrying no role and no status. Numbers, strings, booleans and arrays all error and take the no-rows path. Matching the record path is what keeps the two from disagreeing about a file tp itself accepted; the cost is one extra parse, and it buys the guarantee that silently dropping a bad line can never delete a role's only non-PASS row, which would make a role clean, lengthen a streak and make `divergence` *more* likely to fire — the one direction §1 forbids.
+- **A round recorded under a different auditor corpus** is the fourth no-rows cause above, and it is stated separately because it is the only one that arises in normal use. Each recorded round stores the `roles_hash` of the corpus it was audited under. A streak counts rounds under the panel now in force, so a round whose stored hash differs from the latest round's is not comparable and ends the walk. An empty stored hash — a round recorded before the corpus feature existed — is treated as matching, as `RolesStale` already treats it. This is what makes §2.2's claim about panel stability true rather than asserted: without it a corpus edited between two rounds is invisible, because `RolesStale` compares only the latest recorded round against the current corpus and therefore reads false at every round after the edit.
+- **The walked segment** is the trailing run of recorded rounds tp actually loads, defined in §2.2. Every value in §2 is computed from it alone, and no rule anywhere requires reading the whole recorded history.
+
+A round in the walked segment that contributes no rows emits one advisory through `output.Notice`, naming which of the three causes applies:
+
+| Cause | Advisory |
+|---|---|
+| entry's `file` is empty | `round <N> has no recorded rows file; skipping its rows` |
+| file cannot be read | `round <N> file <name> is missing; skipping its rows` |
+| a line does not unmarshal into a map | `round <N> file <name> has unparseable rows; skipping its rows` |
+| stored `roles_hash` differs | `round <N> was recorded under a different auditor corpus; skipping its rows` |
+
+The second wording is the one the review record path already uses for the same condition. Such a round terminates the walk, so at most one advisory can fire per invocation, and it fires on both outputs named in §2.5 — on `--record` the round it names is necessarily an earlier one, since the round just stored always has a readable file.
+
+§2 reads rounds with its own reader rather than `engine.LoadRoundRows`, which cannot express these rules: that function returns the same "not found" for an unreadable file and for an empty `file` entry, so it cannot tell causes 1 and 2 apart, and it silently skips a line that does not unmarshal, which is the opposite of cause 3. `LoadRoundRows` and its existing callers are unchanged.
+
+`output.Notice` is silenced by `--quiet`, and a round contributing no rows is not always the latest one — it terminates the walk, so it is the oldest round of the segment and the rounds above it can be perfectly readable. A `--quiet` driver therefore sees a truncated streak with no statement of why: `spec_coverage_clean_rounds: 1` reads the same whether `spec-coverage` regressed in the round below or that round's rows are gone. That is accepted, because both readings carry the same instruction. The skipped round *ends* the streak, so the reported number is never larger than the truth and `divergence` is never more likely to fire than it should be — the driver is told to keep auditing either way, and the cause only matters once it stops being told that.
+
+### 2.2 Per-role clean streaks
+
+A role is **clean in a round** when it has at least one row in that round and every one of its rows is PASS. A role with no rows in a round is not clean in it: the role was not measured, so cleanliness cannot be claimed for it.
+
+A role's `consecutive_clean` counts trailing recorded audit rounds in which the role is clean, stopping at the first trailing round in which it is not. A round that contributes no rows therefore ends every role's streak, as does a round recorded before the role corpus existed, whose rows carry no role at all. Both are the conservative direction: they reset the signal toward "keep auditing" rather than toward "you may ship".
+
+The walk starts at the latest recorded round and stops as soon as no further round can change a reported value — when every role present in the latest round has had its streak closed, when a round contributes no rows by any of §2.1's four causes (which closes them all at once), or at the start of the recorded history. It is not a claim that the walk is short: in the state this release exists to detect, `spec-coverage`'s streak runs for most of the history and the walk runs with it. `tp audit --status` already reads one round file — the latest, for `overlap_report` — so the new cost is the rest of the segment; `--record` reads none today. It is affordable for one reason: the walk is bounded by the recorded rounds of one spec, each a few kilobytes, on a command invoked once per round of a loop whose other cost is a fan-out of sub-agents. The latest round's file is read twice on `--status`, by §2's reader and by `overlap_report`'s, and they stay independent because Non-Goal 12 leaves the latter's parsing alone. What the rule guarantees is that nothing is read whose contents provably cannot change an emitted value, and that the advisory of §2.1 cannot repeat.
+
+`tp audit --status` and `tp audit --record` carry a `role_streaks` array. Its entries are the roles appearing in the **latest** recorded audit round — the panel the current decision rests on, not every role ever seen. Each entry is:
+
+| Field | Meaning |
+|---|---|
+| `role` | the role id |
+| `consecutive_clean` | trailing rounds in which the role is clean, as defined above |
+| `open` | that role's non-PASS row count in the latest recorded round |
+
+`spec-coverage` comes first when it is present, then the remaining ids in ascending byte order — the ordinary Go string comparison, not a case-insensitive or locale-aware one. §2.1 makes a non-lowercase id reachable and requires it to stay distinct, so the comparison must be the one that keeps it distinct.
+
+`role_streaks` is `[]` whenever no role appears in the latest recorded audit round. Four states reach it: no recorded round exists at all; the latest round contributes no rows, by any of §2.1's three causes; the latest round recorded zero rows; the latest round's rows all carry no role. The array does not distinguish them, and it is not the field that discloses them — `spec_coverage_clean_rounds` reports `null` in all four (§2.3), which is the statement a driver needs: this round did not measure conformance. Convergence arithmetic is independent of the array and continues to read the stored per-round `clean` flag, so `converged: true` beside an empty `role_streaks` is a reachable and correct combination.
+
+Every entry has rows in the latest round, so `open == 0` and `consecutive_clean >= 1` are the same condition, and for a role holding open rows the streak is always 0 and says nothing `open` does not. The streak earns its place on the roles that are quiet, where `open` gives one bit and the streak gives its length: a lens clean since round 2 and one that went clean this round after a repair both read `open: 0`, and only the streak separates them. That length is what tells a driver whether the panel has been stable long enough for the remaining findings to be backlog — which is why §2.5 keeps the array under `--compact` rather than classing it as detail.
+
+`tp audit --status` also emits `overlap_report`, and it cannot carry these numbers. `OverlapReport` credits a role only for the non-PASS clusters it contributed to and documents that a role that found nothing never appears — so the roles `role_streaks` exists to describe, the quiet ones, are exactly the roles absent from it. The two arrays are near-disjoint in the state that matters rather than redundant: `overlap_report` counts clusters and answers "which role is redundant", `role_streaks` counts rows and is the only place a per-round history appears. `overlap_report` is unchanged by this release, including its own row-parsing, which keeps a file's surviving rows where §2.1's third cause discards the round; on a hand-edited round file the payload can therefore carry `role_streaks: []` beside a non-empty `overlap_report`, and the advisory of §2.1 is what explains it (Non-Goal 12).
+
+### 2.3 `spec-coverage` is reported by name
+
+`spec_coverage_clean_rounds` is a top-level field on both outputs: the `consecutive_clean` of the `spec-coverage` role, or `null` when the **latest** recorded audit round holds no row attributed to that id — including when no round is recorded at all. The key is always emitted, `null` as an explicit JSON null, never an omitted key, and that holds under `--compact` too (§2.5).
+
+`null` and `0` are different answers and must not be collapsed. `0` means the role was measured in the latest round and at least one of its rows is not PASS. `null` means the latest round did not measure conformance, and a driver must never read the resulting absence of `divergence` as evidence of anything. Every path to `null` is an instance of that one rule, and the ordinary one is the first:
+
+1. The round simply carries no `spec-coverage` row: the driver did not spawn that role for the round, its sub-agent returned nothing, or the merge dropped its file. This needs no misconfiguration anywhere and is the likeliest cause in a hand-driven loop.
+2. No round is recorded at all.
+3. The project's auditor corpus holds no `spec-coverage` role. `enabled: false` cannot produce this — v0.32.0 refuses it — but a populated `.tp/auditors/` without that file can.
+4. The role is active but emits no prompt, because the spec yields no checklist items; it is named in `skipped_roles` with the reason `no-checklist-items`. On a spec with no tables and no numbered lists this holds every round.
+5. The latest round contributes no rows, recorded zero rows, or holds only rows that carry no role — including a history recorded before the role corpus existed.
+
+tp adds no refusal for any of them, and reports `null` rather than judging which occurred. They are why the field is tri-state: a driver that reads `null` learns that this loop is not measuring conformance, which is a different problem from the one this release solves.
+
+Anchoring `null` on the latest round rather than on the whole history is deliberate. It is the question a driver is asking — *did the round I just recorded measure conformance?* — and it keeps the field readable without scanning rounds §2.2's walk would otherwise never touch.
+
+The field is reported even when the `spec-coverage` entry is present in `role_streaks`, because the number a driver must read should not be buried in an array it may not scan.
+
+### 2.4 The divergence object
+
+`divergence` is emitted when **all four** hold:
+
+1. `spec_coverage_clean_rounds` is non-null and is at least the effective `audit_clean_rounds`.
+2. The latest recorded audit round holds at least one non-PASS row **not** attributed to `spec-coverage` — including any row carrying no role.
+3. The spec is not stale: `engine.StateStale` over the recorded audit rounds and the current spec hash is false — the same value both outputs already report as `stale`.
+4. The sequence is not converged, by the same `converged` both outputs already report.
+
+Condition 4 is redundant in every sane configuration — condition 2 makes the latest round unclean, which is what convergence counts — and that is exactly why it belongs. It states the object's own premise: `divergence` hands the driver a decision about whether open findings should gate a release, and once the gate is open there is no such decision. It also makes the signal immune to a resolved `audit_clean_rounds` of `0`, which makes `engine.Converged` reduce to "not stale" and would otherwise let `divergence` fire beside `converged: true`, `--check` exiting 0, and a `hint` that misdescribes a gate already open. tp documents an out-of-range authored value as clamped at resolution, and this resolution path does not clamp it; that is a defect of its own and the divergence signal is not the place to compensate for it, so condition 4 withholds the signal instead of correcting the threshold.
+
+Its fields, all five always present when the object is emitted:
+
+| Field | Meaning |
+|---|---|
+| `other_roles_open` | the count of the non-PASS rows in condition 2 |
+| `open_roles` | the ids of the roles holding those rows, each id once, ascending by the same byte order §2.2 uses; `[]` when every such row carries no role |
+| `unattributed_open` | how many of those rows carry no role; `0` when none do |
+| `message` | one of the three sentences below |
+| `hint` | the decision the driver now owns, quoted in §2.6 |
+
+No field of `divergence` is ever omitted, and none uses absence to mean zero. §2.3 forbids that collapse for `spec_coverage_clean_rounds`, and an object whose readers must branch on key presence to read one of five fields is not the self-sufficient object the rest of this section relies on.
+
+Conditions 1 and 3 mirror the two terms of `engine.Converged` — the clean-round count and the staleness guard — with the count taken over `spec-coverage`'s rows instead of over the stored per-round `clean` flags. The two are not equivalent, and this spec does not claim they are. `engine.ConsecutiveClean` walks the stored per-round `clean` boolean, which no later event changes: a round recorded with zero rows stores `clean: true` and still ends every role's streak, and a round recorded clean whose file is later deleted does the same. In both, convergence arithmetic counts a clean round that the streaks do not, so a history can converge without ever firing `divergence`. A round recorded *with* findings and later stripped of its file is not an example — its stored flag is already false, so it stops both. Across every state tp itself produces the asymmetry runs one way only, which is the safe way: the signal is withheld, never invented. A file truncated at a line boundary breaks that, since it still parses and simply carries fewer rows, so a round can read clean for a role whose stored flag is false. Like Non-Goal 12's disagreement, that state arrives only by editing a recorded file by hand.
+
+Condition 3 is exactly `StateStale`'s test and nothing more: it compares the latest recorded round's hash against the spec on disk. A spec edited mid-streak, with further rounds recorded after the edit, therefore passes it — the streak spans the edit and the signal still fires. That is deliberate, because it is the same term `engine.Converged` uses: the signal is neither stricter nor looser than the gate it is reported beside, and a divergence report can never claim more than convergence would have. Condition 3 constrains `--status` only; on `--record` the round is stored with the spec hash computed in the same invocation, so `stale` is false there by construction. The condition is evaluated the same way on both and must not be wired to a different staleness source on either. The corpus-staleness axis is handled where it belongs, in the streak itself: §2.1's fourth no-rows cause ends the walk at a round recorded under a different corpus, so a streak never spans a corpus change and needs no condition of its own (Non-Goal 14).
+
+`open_roles` names *which* lenses hold the open findings, so the decision §2.6 hands to the driver can usually be made from `divergence` alone.
+
+All three counted fields are derivable from siblings the same payload carries, and all three are kept anyway. `other_roles_open` equals the latest round's total non-PASS count — `findings` on `--record`, `audit_rounds[last].findings` on `--status` — but only while `spec-coverage` is itself clean in that round, which is what condition 4 guarantees rather than condition 1: at a resolved threshold of 0 condition 1 alone admits a failing `spec-coverage`, and condition 4 is what excludes it. `open_roles` is the `role_streaks` entries with `open > 0` minus `spec-coverage`, and `unattributed_open` is `other_roles_open` minus the sum of those entries' `open`. A reader who must know that condition 4 holds, join two arrays and compute a difference to interpret five fields does not have a self-sufficient object, and the whole argument for `divergence` is that the conclusion is stated rather than reconstructed.
+
+A row with no role is counted in `other_roles_open` because it cannot be shown to belong to another role — but neither can it be shown to belong to `spec-coverage`, so the count alone would let the message assert clean conformance while a possible spec violation sits unattributed in the same round. `unattributed_open` records it, and `message` carries it inline so the sentence is never read without it.
+
+The message has three forms. The round count is `spec_coverage_clean_rounds`, never the threshold it was compared against; the finding count is `other_roles_open`; the parenthetical count is `unattributed_open`. `round`/`rounds` and `finding`/`findings` agree with their numbers:
+
+```
+spec-coverage clean 9 rounds; 24 findings open from other roles
+spec-coverage clean 9 rounds; 24 findings open from other roles (including 3 with no role, which may be spec-coverage's)
+spec-coverage clean 9 rounds; 24 findings open, none attributed to a role (possibly spec-coverage's)
+```
+
+The first is used when `unattributed_open` is 0, the second when it is greater than 0 and smaller than `other_roles_open`, the third when the two are equal — the state where `open_roles` is `[]`. The third form exists because the first clause of the other two positively asserts the findings are open *from other roles*, which is false exactly when no role holds any; without it a reader would have to compare two sibling numbers to interpret an empty array, which is what the message is for.
+
+The sentence restates numbers that sit in sibling fields, and that is deliberate: in v0.32.0 every number was already on screen for eight rounds and the conclusion was still not drawn.
+
+When any condition fails, `divergence` is absent. Absence means only that the four conditions did not all hold.
+
+### 2.5 Where the signal appears
+
+`spec_coverage_clean_rounds`, `role_streaks` and `divergence` appear on exactly two outputs: `tp audit <spec> --status`, with or without `--check`, and `tp audit <spec> --record <file>`.
+
+`--check` changes only the exit code, never the payload: the fields are computed and written before the exit-code branch, so `tp audit <spec> --status --check` carries the same three fields it carries without the flag. That is the invocation a gated driver actually runs, and a signal absent from it would be absent from its only audience.
+
+On `--record` the signal is computed **after** the round is stored, so "the latest recorded round" is the round just recorded — the convention `harness_stale` already follows on that path. `--record` also has a pre-recording refusal: an exhausted `audit_max_rounds` exits 4 with the escalation hint before any parse or state write, so no payload and no signal is emitted on that path, and a driver in that state reads the signal from `--status` (Non-Goal 13).
+
+The three fields are absent everywhere else: from `tp audit <spec>` prompt emission, which reports no recorded-round summary at all; from `tp audit --merge`, which reads loose NDJSON files with no recorded-round history; and from every `tp review` mode (Non-Goal 3).
+
+**`--compact` keeps all three, whole.** That is the entire rule for them — no field of this release's audit output is stripped, including `divergence.message`, `divergence.hint`, and the `spec_coverage_clean_rounds` key when its value is `null`. `--compact` drops what restates something already in the payload, and by that test `message` and `hint` would go; they stay because `--compact` is the mode an agent driver runs in and §1's finding is precisely that the numbers were on screen for eight rounds while the conclusion was not drawn. `role_streaks` stays for the reason §2.2 gives it: the streak *lengths* are what make the remaining findings backlog rather than a regression, and `open_roles` names only the noisy roles, so it does not substitute for them. The bytes are a few dozen per role on a command invoked once per round. The audit fields `--compact` already drops — `harness_stale`, `harness_note`, `overlap_report` — are unchanged.
+
+### 2.6 The gate is untouched
+
+`engine.Converged`, `engine.ConsecutiveClean`, the stored per-round `clean` flag, and the exit code of `tp audit --status --check` are unchanged by this release. A round holding only non-`spec-coverage` findings is still not clean and still does not count toward convergence. `next_action` keeps its three-state audit precedence and gains no divergence branch (Non-Goal 4), and `tp resume` is unchanged (Non-Goal 10).
+
+The `hint` is this constant, emitted verbatim:
+
+```
+spec-coverage is the only role that measures spec conformance; the remaining findings are outside it. Decide explicitly whether they gate this release — audit convergence still counts every non-PASS row.
+```
+
+Condition 4 of §2.4 is what keeps that sentence true wherever it is emitted: it is never printed beside an already-open gate. It is the release's contract with its driver — tp reports the divergence and names who decides. It does not decide, and it offers no way to clear the gate on the driver's behalf (Non-Goal 8).
+
+Whenever `divergence` is emitted, `next_action` necessarily reads the fix-and-re-audit directive: condition 2 makes the latest round unclean and condition 4 makes the sequence non-converged, which is exactly branch 2 of the audit precedence. The two are not in conflict and neither is redundant. `next_action` names the only step tp can verify — fixing the findings is the sole thing that turns the recorded state green — while `hint` names a decision tp cannot execute or record, and which only a human can authorize. A driver that acts on `next_action` alone keeps auditing, which is the safe default; a driver that reads both learns that continuing is not the only defensible option. Making the divergence a `next_action` branch would collapse that distinction into advice tp is not entitled to give (Non-Goal 4).
+
+The `hint` is a constant and repeats on every round the four conditions hold, which by §1's own diagnosis is how a signal stops being read. It repeats anyway because the reader is not assumed to be the same one: under the reset-native model each round may be driven by a fresh context that has never seen it, and a signal withheld on the assumption that someone already read it is the failure this release exists to fix, one level up.
+
+## 3. A registered check retires its mechanize candidate
+
+### 3.1 One definition
+
+An entry in the effective workflow's `checks` is **valid** when `engine.ValidateChecks` accepts it **on its own** — the single-entry call the mechanical-check runner already makes for each entry it runs. Validity is judged per entry, never over the slice, so one invalid entry never changes the treatment of another entry's class, in either direction. The validator's duplicate-class rule is cross-entry and is therefore structurally unreachable in this form; a class named by two entries is simply registered, and the two lists that name a class — the reviewer exclusion list of §3.2 and `mechanized_classes` of §3.3 — each name it once.
+
+A finding class is **mechanized** when a valid `checks` entry's `class` equals it exactly: byte-for-byte, with no trimming and no case folding, unlike §2.1's role rule and like its `status` rule. A `class` is arbitrary caller-supplied text on both sides of the comparison — whatever a reviewer wrote in a finding row, whatever a driver typed into a `checks` entry — so a lenient match would silently suppress a class nobody registered. That is the release's single meaning of the term, and §3.2's two uses both take it unchanged.
+
+An entry the validator rejects does not mechanize its class: it neither retires the suggestion that asked for a check to be written, nor tells a reviewer to stop reporting the class. The grounding is what registration is evidence of, not whether any particular command runs the check — `tp review --record` executes no check at all, and a valid entry mechanizes there anyway. An entry tp will never run is not evidence that the class is mechanically checked.
+
+Neither an invalid entry nor a duplicated class is unreachable, and this release adds no advisory for either, because two channels already carry them. `tp set --workflow checks=` and `tp set --workflow --project` validate the whole slice and reject both, but `tp validate` reports them as a **warning** — the message is `invalid check entries are skipped at execution time` — and exits 0, and `tp import` accepts a task file carrying them. So the state arrives through import or a hand edit, `tp validate` names it, and the mechanical-check runner already emits `skipping invalid check <i> (<class>): <err>` through `output.Notice` wherever it runs. That existing notice is unchanged by this release and is not deduplicated against anything added here.
+
+### 3.2 Where it applies
+
+**Candidate suppression.** A mechanized class is excluded from `mechanize_candidates`. The frequency threshold — a class in at least 2 distinct rounds, or at least 5 times in one round — is unchanged, and the observable rule is that suppressing one class never changes whether another class crosses it. Two modes:
+
+1. `tp review <spec> --record <file>` — filters `mechanize_candidates`, the register-a-check `hint`, and the class list handed to `next_action`.
+2. `tp review <spec> --status [--check]` — filters the class list handed to `next_action`. This mode emits no `mechanize_candidates` array of its own, and derives its class list from the recorded rounds by a separate call, so it is a genuinely distinct sink rather than a projection of mode 1's array.
+
+Two consequences, of which the second is the one that matters:
+
+1. When exclusion empties the candidate list, the accompanying register-a-check `hint` is not emitted, because that hint is already conditional on a non-empty list.
+2. `next_action` does not name a mechanized class. When branches 1 and 2 of its precedence do not apply and every candidate is mechanized, the state falls through to the run-the-next-round branch, and the driver is no longer told to write a check that exists.
+
+Whether the registered check **passes** is irrelevant: registration is the trigger. A failing check is already reported in `mechanical_checks` and already gates the exit code of `tp review --status --check`; suppressing the suggestion does not weaken that.
+
+**The reviewer exclusion list.** Prompt emission appends `Mechanically checked classes — do NOT report findings of these classes:` followed by the mechanized classes. Two changes to its membership, in this order and no others: entries the validator rejects are dropped, then the survivors collapse by class, keeping the first surviving occurrence. The order matters — collapsing first would let an invalid entry shadow a valid one naming the same class and remove a class §3.1 calls mechanized. The retained order is otherwise unchanged, registration order rather than sorted, and it is not the `mechanized_classes` order of §3.3, which is a different list with its own rule. A registered class that never reached candidate frequency stays on the list exactly as today, because this list is about what a reviewer should stop reporting, not about what tp is still suggesting. When the drop empties the list, the sentence is not appended at all. Only the sentence: at both sites the surrounding branch that runs the mechanical checks and emits `mechanical_checks` keeps its existing guard on whether any entry is registered, so a workflow whose entries are all invalid still runs that branch, still emits each entry's skip notice, and still renders `mechanical_checks` as it does today. The sibling `review_loop` instruction addendum about failing mechanical checks keeps that same guard and is likewise unchanged.
+
+That list is assembled at **two** sites and both change: the multi-role panel emission in `internal/cli/review.go`, and the standalone `tp review <spec> --perspective regression` path in `internal/cli/review_regression.go`. Guarding one leaves the other on the old membership rule, which is the failure this repository already recorded as "guard the value at the sink, not at the entry point".
+
+`tp audit` surfaces no mechanize candidates and is unaffected. `tp review --report` is out of scope (Non-Goal 9).
+
+### 3.3 What was suppressed stays visible
+
+`mechanized_classes` is emitted on `tp review <spec> --record <file>` and nowhere else, and there only when it is non-empty. It carries the candidate classes withheld because they are mechanized, each once, ascending by the same byte order §2.2 fixes for role ids — a `class` is caller-supplied text under §3.1, so a mixed-case class is as reachable here as a mixed-case role id is there. It is absent on `tp review --status`, which emits no candidate array for it to explain even though its own withheld set is generally non-empty, and absent on `tp review --report`, where Non-Goal 9 suppresses nothing.
+
+It survives `--compact` because `mechanize_candidates` does — `--compact` has never stripped that array, and stripping one half of a list and its withheld remainder would misreport the round rather than shorten it.
+
+It lists the intersection, not every registered class. The registered set is what the driver wrote, and it can be read back from `tp config` and from a bare `tp review <spec> --status`, which renders every registered entry; `--check` renders only the entries that ran, so an invalid entry is absent there. Restating the whole registered set beside the candidate list would spend tokens on configuration rather than on what changed. Without this field a class simply vanishes from the output on the round after it is registered, which reads as a bug.
+
+## 4. Documentation
+
+Four documents change, and each requirement is an exact substring so the guard test asserts the document rather than the implementer's choice of anchor.
+
+`README.md` and `skills/tp/SKILL.md` must each contain both:
+
+- `audit convergence still counts every non-PASS row`
+- `a registered check retires its mechanize candidate`
+
+`CLAUDE.md`'s audit-scope rule tells the driver to track `spec-coverage` by hand; it must now name the field that carries the number, by containing:
+
+- `tp audit now reports spec_coverage_clean_rounds`
+
+`skills/tp/REFERENCE.md` is the field-level reference and carries the shapes and the rules a reader cannot derive from them. It must contain these five sentences verbatim:
+
+1. `A role with no rows in a round is not clean in it, so its streak ends.`
+2. `spec_coverage_clean_rounds is null, not 0, when the latest recorded round holds no spec-coverage row.`
+3. `role_streaks, spec_coverage_clean_rounds and divergence all survive --compact, divergence with every field.`
+4. `mechanized_classes names the candidate classes withheld because they are mechanized.`
+5. `spec-coverage is the only role that measures spec conformance; the remaining findings are outside it. Decide explicitly whether they gate this release — audit convergence still counts every non-PASS row.`
+
+Sentence 5 is the `divergence.hint` constant of §2.6. It is pinned in a committed document so the code constant, the documentation and the guard test cannot drift apart — not because a reader would otherwise lack it, since §2.5 keeps the hint under `--compact`. It contains the first required substring, which is why `REFERENCE.md` is not additionally asked for the two summary strings.
+
+## 5. Non-Goals
+
+1. **A `scope` field on audit rows.** Classifying a finding as `spec` or `codebase` is a judgement, and the only party positioned to make it is the sub-agent that wrote the row. Wired into the gate, one row mislabelled `codebase` lets a genuine spec violation ship — strictly worse than today's rule, which over-counts and therefore only wastes rounds. The signal in §2 needs no such field: `spec-coverage`'s streak is derived from routing tp already owns.
+2. **`audit_converge_on`.** It has no meaning without item 1. Deferred to v0.34.0 with the evidence this release produces: if the divergence signal turns out to be enough for a driver to make the call, the policy is not needed.
+3. **The same signal for `tp review`.** A reviewer commenting on code style rather than the spec has the same shape, but review already has a severity-aware predicate and no reviewer role monopolizes conformance the way `spec-coverage` does. There is no equivalent named streak to report.
+4. **A divergence branch in `next_action`.** `next_action` names one step; making divergence one of them makes it advice rather than reporting, and §1's whole argument is that the decision is the driver's.
+5. **Auto-resolving or parking a non-`spec-coverage` finding.** tp has no audit-side `--resolve`. Adding one is how a round of open findings quietly becomes a clean round.
+6. **Per-role convergence thresholds.** One `audit_clean_rounds` still governs the whole phase.
+7. **Retiring a mechanize suggestion because a check passes.** Registration is the trigger (§3.1). A pass-conditioned rule would make the suggestion reappear whenever the check went red, which is the moment the class is least in need of a second check.
+8. **Recording the driver's acceptance of a divergence.** Anything tp stores that then clears the gate is `audit_converge_on` under another name, and it would arrive without the policy debate item 2 defers. The artifact today is a decision document the driver writes and commits beside the recorded rounds, which tp neither requires nor parses; `--harness-note` remains available for framing that belongs on a round. `tp audit --status --check` keeps exiting 1 while the sequence is not converged, and a CI wired to it stays red — which is the honest report of the recorded state.
+9. **Suppression in `tp review --report`.** Every other mode takes the spec as a positional, and workflow resolution uses it as an anchor: a task file found through the ambient chain is kept only when its `spec` field resolves to that argument, and otherwise the spec-adjacent `<base>.tasks.json` wins. The spec therefore pins which workflow applies except where two committed task files declare the same spec. `--report` takes NDJSON positionals and no spec, so it has no anchor at all and its workflow would be decided by the ambient chain alone — whose highest-priority stored layer, `.tp/local.json`, is git-ignored and machine-local. The same invocation over the same files would suppress different classes on a developer machine and in CI, which §1's second constraint forbids. `--report` keeps listing every candidate class, registered or not.
+10. **The divergence signal in `tp resume`.** `tp resume` is the phase oracle and its audit-phase payload names the next round and its unresolved count; carrying the signal there would put the same conclusion behind a third shape to keep in sync, and the driver reaching the audit phase runs `tp audit --status` next anyway.
+11. **Removing the register-a-check `hint` in favour of `next_action`.** On `tp review --record` the two say the same thing and `next_action` says it better — it names the class and fills in the command. The duplication predates this release, both are filtered identically by §3.2, and removing a documented output field is a contract change that belongs in its own version.
+12. **Aligning `overlap_report`'s row parsing with §2.1.** It keeps a file's surviving rows where §2.1's third cause discards the round, so the two can disagree on a hand-edited file. Changing it is a behaviour change to an existing field with its own tests, for a state that arrives only by hand editing, and §2.1's advisory already explains the disagreement.
+13. **Carrying the signal on the budget-refusal path.** An exhausted `audit_max_rounds` is an error exit with a fixed error-and-hint shape shared by review and audit; attaching a data payload to it is a contract change for every budget refusal, not a divergence feature. The driver runs `--status`, which has no refusal.
+14. **A `roles_stale` term in the divergence conditions.** §2.1's fourth no-rows cause already ends a streak at a corpus change, so a condition over the same fact would gate twice on it. `RolesStale` could not serve as that condition in any case: it compares only the latest recorded round's stored hash against the current corpus, so a corpus edited *between* two recorded rounds leaves it false at every round after the edit — which is why the streak reads the stored per-round hashes directly. `tp audit --record` does not emit `roles_stale` at all, and this release adds no such key.
+
+## 6. Tests
+
+1. Per-role streaks: three recorded rounds where `spec-coverage` is all-PASS in every round and a second role has a FAIL in the latest one. `role_streaks` reports `spec-coverage` with `consecutive_clean` 3 and `open` 0, and the other role with `consecutive_clean` 0 and `open` 1.
+2. A role absent from a round ends its streak: a role clean in rounds 1 and 3 but with no rows at all in round 2 reports `consecutive_clean` 1, not 3. This is the discriminating case against an implementation that skips unmeasured rounds instead of ending on them.
+3. `role_streaks` covers only the latest round's roles: a role present in round 1 and absent from round 2 does not appear in the array reported at round 2.
+4. Ordering: with `spec-coverage` plus two other roles in the latest round, `spec-coverage` is first and the remaining two follow in ascending byte order — asserted with fixture ids chosen so alphabetical order alone would not put `spec-coverage` first, and including one id whose leading character is uppercase, whose position distinguishes byte order from a case-insensitive sort.
+5. Row-role predicate: rows whose `role` is absent, `""`, `"   "`, or a number create no `role_streaks` entry, and no entry with an empty id ever appears. A row with `"  spec-coverage  "` is attributed to `spec-coverage`, and one with `"Spec-Coverage"` is not — the two halves pin trimming without case folding.
+6. Row-PASS predicate: rows with `status` of `"pass"`, `" PASS "`, a number, or no `status` key are each non-PASS, so a role holding one is not clean and its `open` counts it. The `" PASS "` case is the discriminating one against an implementation that trims `status` by symmetry with `role`.
+7. Blank lines are not parse failures: a recorded round file ending in a trailing newline, and one containing a blank line between rows, both contribute their rows normally — streaks advance, no advisory fires. An implementation treating an empty line as unparseable makes every streak 0 and fails.
+8. The unmarshal edge: a line holding the bare literal `null` is a row — it carries no role and is non-PASS, so it feeds `unattributed_open` and leaves the round contributing rows — while lines holding `5`, `"x"`, `true` and `[]` each make the round contribute no rows. `null` is the discriminating half: Go unmarshals it into a map without error, so an implementation testing "is a JSON object" rather than "unmarshals into a map" discards a round the record path itself accepted.
+9. The four no-rows causes each end every streak and emit their own advisory wording exactly once: a deleted file, a round entry with an empty `file`, a file holding a line that does not unmarshal into a map, and an earlier round whose stored `roles_hash` differs from the latest round's.
+10. The advisory fires on both outputs: the same missing-file fixture emits it on `tp audit <spec> --status` and on `tp audit <spec> --record <file>`. On `--record` the fixture must place the no-rows round below the just-recorded one, since the round being recorded always has a readable file.
+11. A corpus change ends a streak: over four recorded rounds where `spec-coverage` is all-PASS in every one and rounds 1–2 carry a different stored `roles_hash` from rounds 3–4, `spec_coverage_clean_rounds` is 2, not 4. A round with an empty stored hash is treated as matching and does not end the streak — the second half, which pins the pre-corpus-feature case.
+12. The walk stops at a streak-closing round: over five recorded rounds where round 2's file is deleted and round 4 holds a non-PASS row for every role present in round 5, the walk closes every streak at round 4 and never reads round 2, asserted by the absence of round 2's advisory. An implementation walking the whole history emits it and fails.
+13. `role_streaks` is `[]` and `spec_coverage_clean_rounds` is `null` in all four states of §2.2, with the contributes-no-rows state instantiated by all four of §2.1's causes: no recorded round; a deleted file; an empty `file` entry; a line that does not unmarshal; a latest round whose stored `roles_hash` differs from itself, which is unreachable and therefore not asserted; a latest round recorded with zero rows; a latest round whose every row carries no role. The non-unmarshalable-line case is the discriminating one against an implementation that routes that cause through the advisory but computes the streaks from a reader that keeps the surviving rows.
+14. `spec_coverage_clean_rounds` is `null` when the latest round holds no `spec-coverage` row even though an earlier round does, and `0` when the latest round holds one that is not PASS. The first half is the discriminating one against an implementation that scans the whole history for the role.
+15. `divergence` fires when `spec-coverage` has been clean for the effective `audit_clean_rounds` and another role holds an open finding. Its `message` matches `spec-coverage clean 4 rounds; 2 findings open from other roles` verbatim over a fixture whose streak (4) exceeds the threshold (2) — pinning that the round slot carries the streak and not the threshold — and its `hint` equals the §2.6 constant verbatim. A second fixture with one required clean round and one open finding asserts the singular `spec-coverage clean 1 round; 1 finding open from other roles`.
+16. The third message form: with every open non-`spec-coverage` row carrying no role, `message` matches `spec-coverage clean 2 rounds; 3 findings open, none attributed to a role (possibly spec-coverage's)`, `open_roles` is `[]` rather than absent, and `unattributed_open` equals `other_roles_open`. A one-finding fixture asserts `spec-coverage clean 1 round; 1 finding open, none attributed to a role (possibly spec-coverage's)`, pinning that only the two counted nouns inflect.
+17. `open_roles` names exactly the non-`spec-coverage` roles holding open rows, ascending, each id once over a fixture where one role holds three open rows.
+18. `divergence` is absent when `spec-coverage`'s streak is below the threshold, and absent when it meets the threshold with no other role holding an open finding.
+19. The threshold is the effective `audit_clean_rounds`, not a literal 2: with `audit_clean_rounds` set to 3, `spec-coverage` all-PASS in exactly the last 2 rounds and another role holding an open finding in the latest, `divergence` is absent; recording one further round in which `spec-coverage` is all-PASS and that other role still holds an open finding makes it fire. Both halves keep condition 2 satisfied, so the added round is clean for `spec-coverage` and not for the round as a whole.
+20. Condition 4 withholds the object where conditions 1–3 hold: with a task-file `audit_clean_rounds` of 0 reaching the resolver, `converged` is true while the latest round holds a non-`spec-coverage` open finding; `divergence` is absent and `tp audit --status --check` exits 0. An implementation omitting condition 4 emits the object beside an open gate and fails.
+21. A stale spec suppresses `divergence` on `--status` even when conditions 1, 2 and 4 hold — the spec file is edited after the last round is recorded, `stale` reads true, and `divergence` is absent.
+22. A non-PASS row carrying no `role` is counted in `other_roles_open`, disclosed in `unattributed_open`, and named inline in `message` with the `(including 1 with no role, which may be spec-coverage's)` suffix. With every non-`spec-coverage` open row attributed, `unattributed_open` is `0` — present, not absent — and the suffix does not appear.
+23. `--record` computes the signal over the just-recorded round: recording a round in which `spec-coverage` completes its streak emits `divergence` in that same invocation's output, without a following `--status`.
+24. `tp audit --status --check` carries all three fields, asserted on a non-converged fixture that emits `divergence` and exits 1. An implementation computing the signal only on the non-`--check` path fails.
+25. `--compact` on both `--status` and `--record` keeps `role_streaks`, keeps every field of `divergence` with `message` and `hint` byte-identical to their non-compact values, and keeps the `spec_coverage_clean_rounds` key. Two fixtures are needed: `divergence` is emitted only when `spec_coverage_clean_rounds` is non-null, so the `null`-valued key is asserted on a separate fixture that emits no `divergence`.
+26. The gate is unchanged: a fixture whose latest round holds only non-`spec-coverage` findings still reports `clean: false` and `converged: false`, `tp audit --status --check` still exits 1, and `next_action` is still the fix-and-re-audit directive — the last clause asserted on the same invocation that emits `divergence`, pinning §2.6's statement that the two are emitted together. This is the guard test for §2.6 and must fail any implementation that lets the divergence signal reach convergence arithmetic or the `next_action` precedence.
+27. `tp audit --merge` and `tp audit <spec>` prompt emission each emit none of `role_streaks`, `spec_coverage_clean_rounds`, `divergence`.
+28. A registered check suppresses its class: a class over the candidate threshold with a matching `checks` entry is absent from `mechanize_candidates` on `--record`, while an unregistered class over the same threshold is still listed.
+29. The class match is exact: entries registered as `" duplicate-line "` and `"Duplicate-Line"` each leave the `duplicate-line` candidate listed, while `"duplicate-line"` suppresses it. This is the discriminating test against an implementation that trims or case-folds `class` by symmetry with §2.1's role rule.
+30. Validity is per entry: a `checks` array holding one entry the validator rejects and one valid entry over a candidate class suppresses the valid entry's class and leaves the rejected entry's class listed. An implementation validating the whole slice suppresses neither and fails this test.
+31. A class named by two entries is mechanized, and appears once in `mechanized_classes` and once in the reviewer exclusion list — pinning both the per-entry predicate and the de-duplication of §3.1.
+32. Filter order: with an invalid entry and a valid entry naming the **same** class, that class is mechanized and appears on the reviewer exclusion list. An implementation collapsing duplicates before dropping invalid entries keeps the invalid one, drops the class, and fails.
+33. Suppressing every candidate removes the register-a-check `hint` from `--record` output, and `next_action` on that same `--record` invocation names no mechanized class — it is the run-the-next-round directive. The `next_action` half is separate coverage from test 34's: this one pins mode 1's third sink, which an implementation filtering only the emitted array and the hint would leave unfiltered.
+34. `tp review --status` honours the suppression through `next_action` on the same fixture, with neither `mechanize_candidates` nor `mechanized_classes` in the output. This is the second sink, and it derives its class list from the recorded rounds by a separate call.
+35. A registered check whose command fails still suppresses its class, asserted with a check whose command exits non-zero.
+36. `mechanized_classes` lists the suppressed classes each once, ascending by byte order over a fixture including one class whose leading character is uppercase; it is absent when nothing was suppressed, does not list a registered class that never reached candidate frequency, and survives `--compact` on `--record`.
+37. Prompt emission drops an invalid entry from the `Mechanically checked classes — do NOT report findings of these classes:` list while keeping a valid one, and keeps a valid entry whose class never reached candidate frequency — pinning that this list is the mechanized set and not the suppressed-candidate set. Over three valid entries registered out of alphabetical order, the list keeps registration order, distinguishing it from `mechanized_classes`.
+38. When every registered entry is invalid, prompt emission appends no such sentence at all, rather than one ending in an empty list — and the same payload still renders `mechanical_checks` as it does today, pinning that only the sentence moved to the post-drop list.
+39. Both prompt-emission sites are covered: the multi-role panel and `tp review <spec> --perspective regression` each drop the invalid entry. The second is the discriminating half — an implementation guarding only the panel path passes the first and fails this.
+40. `tp review --report` is unchanged: a class registered in a resolvable task file still appears in its `mechanize_candidates` and no `mechanized_classes` key is emitted, pinning Non-Goal 9 against an implementation that extends suppression there.
+41. A guard test asserts `README.md` and `skills/tp/SKILL.md` each contain both required substrings of §4, that `CLAUDE.md` contains `tp audit now reports spec_coverage_clean_rounds`, and that `skills/tp/REFERENCE.md` contains the five verbatim sentences.
+
+### 6.1 Existing tests this change invalidates
+
+Two searches produced this list. Both were run against the tree and their results are stated as they came back, so a reader can re-run them.
+
+Search 1, the tokens `computeMechanizeCandidates`, `mechanizeCandidateClasses`, `mechanizeClassesFromRounds`, `mechanize_candidates` and `runAuditStatus` over `internal/**/*_test.go`, returns three files, all on the last-but-one token alone — the other four appear in no test file. Search 2, the literals `Mechanically checked` and `do NOT report findings` over `internal/**/*.go`, returns `internal/cli/review.go`, `internal/cli/review_regression.go` and one test, `internal/cli/checks_execution_test.go`.
+
+1. `internal/cli/audit_record_test.go` — asserts the `tp audit --record` and `--status` payload shape, including that no `mechanical_checks` key is present. The new fields are additive, so its existing assertions hold; it gains the new ones rather than being rewritten. Its fixtures that record a round from an empty results file are the existing coverage of the zero-rows state of §2.2.
+2. `internal/cli/review_record_test.go` — pins `mechanize_candidates` on `--record` against workflows with no registered checks. It stays valid; the new behaviour is a new case, and it turning red means suppression is firing where no check is registered.
+3. `internal/cli/checks_execution_test.go` — the only test asserting the `Mechanically checked classes` sentence, and it covers the multi-role panel site alone. It stays valid, since its fixture registers a valid entry; §3.2's second site and the invalid-entry cases are new coverage it does not have.
+4. `internal/cli/report_class_test.go` — **not invalidated.** It asserts `mechanize_candidates` from `tp review --report`, which Non-Goal 9 leaves unchanged. Listed so search 1's third hit is accounted for rather than silently dropped.
+5. `internal/cli/nextaction_test.go` — matched by neither search, and named here only to correct an earlier draft that claimed it. It holds the mechanize branch's assertions and the new `next_action` cases of tests 33 and 34 belong beside them, but nothing in it is invalidated.
