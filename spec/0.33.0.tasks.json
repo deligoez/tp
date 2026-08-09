@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.33.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-08-07T11:59:19.267354Z",
+  "updated_at": "2026-08-09T10:30:57.429873Z",
   "workflow": {
     "checks": [
       {
@@ -25,7 +25,7 @@
     {
       "id": "round-reader",
       "title": "Add the audit round reader",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "audit"
@@ -38,11 +38,20 @@
         "### 2.1 Reading a recorded round's rows"
       ],
       "source_lines": "1-1,3-53,256-256,262-268",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-07T12:00:06.558212Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-09T10:30:57.412581Z",
+      "closed_reason": "- internal/engine/auditrounds.go implements §2.1's five definitions: AuditRowRole trims the role string and drops empty/whitespace-only/non-string values without ever case-folding (so \"Spec-Coverage\" stays a distinct id) and does not special-case the reserved regression id; AuditRowIsPass is byte-for-byte cli.countAuditFindings' status != PASS test; ReadAuditRoundRows implements the four contributes-no-rows causes (empty file entry, unreadable file, a non-blank line that does not unmarshal into a JSON map, an empty or differing stored roles_hash).\n- Each no-rows round emits exactly one output.Notice from the five-row advisory table in the fixed evaluation order — empty stored hash, differing stored hash, empty file entry, unreadable file, unparseable line — verified in internal/engine/auditrounds_test.go by asserting captured stderr equals the expected wording exactly (one line, no second advisory), plus a multi-bad-line fixture that still costs one advisory.\n- engine.LoadRoundRows and its existing callers are unchanged: no file outside internal/engine/auditrounds.go and its test was touched, and the test asserts LoadRoundRows still reports the same not-found for an empty file entry and for a missing file, which is why §2 needs its own reader.\n- Tests 5, 6, 7, 8, 9 and 11 pass in internal/engine/auditrounds_test.go, including the discriminating halves: a bare null line is a row carrying no role and non-PASS while 5, \"x\", true and [] each make the round contribute no rows; a trailing newline, a blank line, a whitespace-only line and CRLF endings all contribute rows with no advisory; and the corpus wording wins over the missing-file wording on a round that both differs in hash and has no file on disk. Six mutations (case-fold role, trim status, drop the blank-line skip, require a JSON object, read the file before the hash test, let an empty stored hash match an empty latest hash) each failed a named assertion and were reverted. Gate: go test ./... exit 0, golangci-lint run exit 0.",
+      "gate_passed_at": "2026-08-09T10:30:57.412581Z",
+      "commit_sha": "8c55da4",
+      "commit_shas": [
+        "8c55da4",
+        "55af203"
+      ],
+      "commit_files": [
+        "internal/engine/auditrounds.go",
+        "internal/engine/auditrounds_test.go"
+      ]
     },
     {
       "id": "role-streaks",
