@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.33.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-08-09T10:36:36.875659Z",
+  "updated_at": "2026-08-09T10:43:56.10413Z",
   "workflow": {
     "checks": [
       {
@@ -56,7 +56,7 @@
     {
       "id": "role-streaks",
       "title": "Compute per-role clean streaks",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "audit"
@@ -70,11 +70,20 @@
         "### 2.2 Per-role clean streaks"
       ],
       "source_lines": "54-77,258-261,269-270,273-274",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-09T10:37:18.336324Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-09T10:43:56.086107Z",
+      "closed_reason": "- internal/engine/rolestreaks.go adds engine.ComputeAuditRoleStreaks, returning one RoleStreak{role, consecutive_clean, open} per role of the latest recorded audit round, spec-coverage first (engine.RoleSpecCoverage) and the rest ascending by plain Go byte comparison, from a slice made with make so it emits as [] and never null; TestComputeAuditRoleStreaks_PerRoleStreaks pins the entry shape against the marshalled JSON and TestComputeAuditRoleStreaks_EmptyArrayStates asserts json.Marshal returns \"[]\" in all six no-role states.\n- The walk starts at the latest round and its loop condition is i \u003e= 0 \u0026\u0026 len(streakOpen) \u003e 0, so it stops when every latest-round streak has closed, breaks on the first round ReadAuditRoundRows reports as contributing no rows, and ends at the start of history; TestComputeAuditRoleStreaks_WalkStopsAtAStreakClosingRound asserts no advisory at all is emitted over a five-round fixture whose round 2 file is deleted below the round that closes every streak, and the corpus-change and empty-hash tests assert the advisory names exactly the round the walk stopped on.\n- Tests 1, 2, 3, 4, 12, 13, 16 and 17 pass in internal/engine/rolestreaks_test.go, including that a round absent a role ends that role's streak (round 2 measuring only another role gives 1, not 3) and that a corpus change between recorded rounds truncates it (four all-PASS rounds split old/old/new/new give 2, not 4, with the second half asserting an earlier empty stored hash emits the has-no-auditor-corpus-hash wording rather than the different-corpus one). Verified by mutation: skipping unmeasured rounds fails test 2 only, a case-insensitive sort fails test 4 only, dropping the streak-closed loop guard fails test 16 only, and a nil slice fails test 17 only.\n- Halves belonging to dependent tasks, not claimed here: test 12's and test 13's spec_coverage_clean_rounds assertions (2 and null) are spec-coverage-field's, asserted here as the spec-coverage entry's consecutive_clean and as the empty array; test 17's raw-JSON assertion on the emitted payload is audit-output-wiring's, approximated here by marshalling the returned slice.\n- Out of scope: ComputeAuditRoleStreaks also returns the latest round's rows so divergence-object can count roleless open rows without a second ReadAuditRoundRows call over the same entry, which would re-parse the file and could re-fire the section 2.1 advisory this walk fires at most once; nothing consumes that return value yet.",
+      "gate_passed_at": "2026-08-09T10:43:56.086107Z",
+      "commit_sha": "8fcceb0",
+      "commit_shas": [
+        "8fcceb0",
+        "83720b6"
+      ],
+      "commit_files": [
+        "internal/engine/rolestreaks.go",
+        "internal/engine/rolestreaks_test.go"
+      ]
     },
     {
       "id": "spec-coverage-field",
