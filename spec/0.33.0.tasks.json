@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.33.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-08-09T10:30:57.429873Z",
+  "updated_at": "2026-08-09T10:36:36.875659Z",
   "workflow": {
     "checks": [
       {
@@ -172,7 +172,7 @@
     {
       "id": "mechanized-predicate",
       "title": "Define the mechanized class predicate",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "review"
@@ -185,11 +185,20 @@
         "### 3.1 One definition"
       ],
       "source_lines": "172-185,291-293",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-07T12:00:06.558212Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-09T10:36:36.858365Z",
+      "closed_reason": "- engine.IsMechanizedClass and engine.ReviewerExclusionClasses in internal/engine/mechanized.go judge validity per entry through the unexported checkIsValid, which calls engine.ValidateChecks on a one-element slice — the same single-entry call runMechanicalChecks makes — so one rejected entry never changes another entry's class and the cross-entry duplicate-class rule is unreachable, leaving a class named by two entries simply registered and named once in the exclusion list.\n- The class comparison is plain == against the entry's class: no trimming, no case folding, so a reviewer-written \"Duplicate-Line\" or \" duplicate-line \" is not mechanized by a registered duplicate-line entry.\n- over-specification is mechanized like any other class in IsMechanizedClass (the candidate-suppression sink) and is dropped from ReviewerExclusionClasses alone, after invalid entries are dropped and before duplicates collapse, so the prompt cannot both demand and forbid the class.\n- internal/engine/mechanized_test.go covers the predicate halves of tests 34, 35 and 36 plus the §3.2 filter order and non-nil shape; verified by mutation: whole-slice validation fails the per-entry and two-entry tests, EqualFold+TrimSpace fails the exactness test, exempting over-specification in IsMechanizedClass fails the scoped-exemption test, and collapsing duplicates before dropping invalid entries fails the filter-order test. Gate green: go test ./... exit 0, golangci-lint run exit 0.\nOut of scope: the end-to-end halves of tests 34-36 assert mechanize_candidates, mechanized_classes and both prompt-emission sites, which are the sinks owned by candidate-suppression, exclusion-list and mechanized-classes-field; this task ships the predicate they consume.",
+      "gate_passed_at": "2026-08-09T10:36:36.858365Z",
+      "commit_sha": "4594bbc",
+      "commit_shas": [
+        "4594bbc",
+        "7b618c8"
+      ],
+      "commit_files": [
+        "internal/engine/mechanized.go",
+        "internal/engine/mechanized_test.go"
+      ]
     },
     {
       "id": "candidate-suppression",
