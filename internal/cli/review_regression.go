@@ -93,10 +93,13 @@ func runReviewRegression(specPath, diffFrom, findingsPath string) error {
 	var mechChecks []map[string]any
 	if len(wfChecks.Checks) > 0 {
 		mechChecks, _ = runMechanicalChecks(&wfChecks, checksTaskFile)
-		classes := make([]string, 0, len(wfChecks.Checks))
-		for i := range wfChecks.Checks {
-			classes = append(classes, wfChecks.Checks[i].Class)
-		}
+	}
+	// §3.2: the exclusion sentence carries the mechanized classes, a narrower set
+	// than the registered entries — see engine.ReviewerExclusionClasses. It takes
+	// a guard of its own rather than sharing the one above, so that a workflow
+	// whose every entry is invalid still runs the checks and still emits each
+	// entry's skip notice while appending no sentence at all.
+	if classes := engine.ReviewerExclusionClasses(wfChecks.Checks); len(classes) > 0 {
 		prompt += "\n\nMechanically checked classes — do NOT report findings of these classes: " + strings.Join(classes, ", ")
 	}
 
