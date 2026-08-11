@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.33.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-08-11T21:06:59.449453Z",
+  "updated_at": "2026-08-11T21:18:13.457864Z",
   "workflow": {
     "checks": [
       {
@@ -152,7 +152,7 @@
     {
       "id": "audit-output-wiring",
       "title": "Emit the signal on both audit outputs",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "audit"
@@ -166,11 +166,20 @@
         "### 2.5 Where the signal appears"
       ],
       "source_lines": "144-155,267,284-286,288",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-11T21:07:33.361651Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-11T21:18:13.388256Z",
+      "closed_reason": "- internal/cli/audit_record.go wires role_streaks, spec_coverage_clean_rounds and divergence onto both outputs through one shared auditSignalFields helper: runAuditStatus calls it before the --check exit-code branch, so --status carries the three fields with or without --check, and runAuditRecord calls it after recordAuditRoundEntry has stored the round, so the latest recorded round is the round just recorded; recordAuditRoundEntry now returns the auditor-corpus hash it stamped and --record passes that value back as condition 5's right-hand side, so the equality holds by construction there and condition 5 constrains --status alone. engine.Converged, engine.ConsecutiveClean, the stored per-round clean flag and AuditNextAction are untouched, and the budget-refusal path still exits 4 before any payload.\n- auditSignalFields is called from exactly those two sites and from nowhere else, so tp audit --merge, tp audit \u003cspec\u003e prompt emission and every tp review mode emit none of the three; TestAuditSignal_AbsentFromEveryOtherOutput asserts the absence of all three key names on tp audit \u003cspec\u003e --affected-files, tp audit --merge -o, tp review \u003cspec\u003e --record and tp review \u003cspec\u003e --status.\n- The three fields are written outside both !IsCompact() guards, so --compact keeps role_streaks whole, keeps every field of divergence with message and hint byte-identical to their non-compact values, and keeps the spec_coverage_clean_rounds key when its value is null (a typed nil *int marshals as an emitted JSON null, never an absent key); TestAuditSignal_CompactKeepsAllThreeWhole compares the three fields field-by-field between compact and non-compact runs of both --status and --record, on a diverging fixture and on a separate null-valued fixture.\n- The audit fields --compact already drops are unchanged: harness_stale, harness_note and overlap_report stay inside their existing !IsCompact() guards on both paths, and the same test asserts harness_stale is absent from the compact --record payload and both harness_stale and overlap_report from the compact --status payload.\n- internal/cli/audit_signal_test.go lands tests 10, 27, 28, 29 and 31 plus the CLI halves of 14, 17, 22 and 24: test 10 asserts the missing-file advisory on both --status and --record over one fixture; 27 asserts --record emits divergence in the same invocation that completes the streak; 28 asserts --status --check carries all three, exits 1, and matches the payload --status carries without the flag field-by-field; 29 is the compact comparison above; 31 is the absence sweep above; 14 pins that a corpus edited after the latest round leaves the streaks intact, reads roles_stale true and withholds divergence; 17 pins raw-JSON \"role_streaks\": [] and \"spec_coverage_clean_rounds\": null over three empty states; 22 pins divergence as an omitted key rather than a null; 24 pins that a task-file audit_clean_rounds of 0 reaching the resolver leaves the gate open, so condition 4 withholds the object and --status --check exits 0. Verified by mutation: guarding the --status call on !check fails tests 28 and 24; moving the two fields inside if !IsCompact() fails test 29; computing the --record signal over the pre-record rounds fails tests 27, 10, 14, 22 and 24; feeding --status the latest round's stored roles_hash instead of the freshly computed one fails test 14. Gate run with separate exit codes: go test ./... exited 0 and golangci-lint run exited 0.",
+      "gate_passed_at": "2026-08-11T21:18:13.388256Z",
+      "commit_sha": "23826d4",
+      "commit_shas": [
+        "23826d4",
+        "9484e9f"
+      ],
+      "commit_files": [
+        "internal/cli/audit_record.go",
+        "internal/cli/audit_signal_test.go"
+      ]
     },
     {
       "id": "gate-guard-test",
