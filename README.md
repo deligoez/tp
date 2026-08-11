@@ -698,6 +698,8 @@ tp is designed for AI agents first (AX), not humans (DX):
 | **Coverage on write** | `tp add`/`set`/`remove` recompute coverage, so init+add+validate is clean |
 | **Audit file hint** | `tp audit` suggests files from done tasks' commits when none are detected |
 | **Loop budget** | `--status` shows `max_rounds`/`rounds_remaining`/`in_flight_round` |
+| **Divergence signal** | `tp audit --status`/`--record` report `role_streaks`, `spec_coverage_clean_rounds` and a `divergence` object |
+| **Candidate retirement** | a registered check retires its mechanize candidate; `mechanized_classes` names what was withheld |
 
 ## Claude Code Integration
 
