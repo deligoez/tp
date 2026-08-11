@@ -236,6 +236,9 @@ Before closing a task (`tp done`):
 - **Fill `class`** on a review finding when it is an instance of a pattern a script could check across the whole corpus (example: `code-citation-drift`); omit it otherwise.
 - **Mechanization candidate:** a class that appears in ≥ 2 distinct rounds OR ≥ 5 times in a single round (`tp review --report` and `--record` output list `mechanize_candidates`). When one appears, write a detector command and register it: `tp set --workflow checks='[{"class":"<slug>","cmd":"<detector>"}]'`.
 - Once registered, tp runs the check every review round, reports pass/fail in `mechanical_checks`, and tells reviewers to stop reporting that class. `tp review --status --check` requires every check to pass before exiting 0.
+- **Registration retires the suggestion (v0.33.0):** a registered check retires its mechanize candidate — the class is dropped from `mechanize_candidates`, from the register-a-check `hint`, and from the class list handed to `next_action`, on both `tp review <spec> --record <file>` and `tp review <spec> --status [--check]`. `--record` also emits `mechanized_classes`: the withheld classes, each once, sorted ascending, always an array (`[]` when none) and kept under `--compact`. `tp review --report` is unchanged and still lists every candidate.
+- Registration is the trigger, not the check's result — a failing check is still reported in `mechanical_checks` and still blocks `tp review --status --check`. An entry tp rejects on its own (a `class` that is not lowercase kebab-case, a blank `cmd`) mechanizes nothing, and class matching is byte-for-byte: a registered `duplicate-line` never suppresses a reviewer's `Duplicate-Line`.
+- `over-specification` is the one exception, scoped to a single sink: registering a check for it suppresses it from the candidates like any other class, but it never joins the `Mechanically checked classes — do NOT report findings of these classes:` sentence, because tp's own review prompts ask reviewers to raise it.
 
 ## Role Corpus & frontmatter overrides (v0.25.0)
 
@@ -307,7 +310,7 @@ The wrapper is only for what tp cannot know — runtime setup (e.g. hook-blocked
 
 1. **Converged** → the forward step: review names the directive `decompose the spec into tasks, then tp import <base>.tasks.json`; audit names the terminal `converged — implementation verified, proceed to release`. Convergence wins even when non-blocking findings remain open.
 2. **Blocking (critical/high) findings open** → `revise the spec to address the blocking findings, then run the next review round` (audit: fix the findings, then re-audit). It never steers toward `--resolve`/`--resolve-all`: disposing a blocking finding is an operator decision, never auto-advised.
-3. **A `mechanize_candidates` class recurs, none blocking** (review only) → register a check (`tp set --workflow checks='[…]'`), then run the next round. The un-mechanizable `over-specification` class never triggers this — it falls through to step 4.
+3. **A `mechanize_candidates` class recurs, none blocking** (review only) → register a check (`tp set --workflow checks='[…]'`), then run the next round. The un-mechanizable `over-specification` class never triggers this — it falls through to step 4. Since v0.33.0 a class with a registered check falls through too: it is suppressed from the candidate list, so the driver is never told to write a check that already exists.
 4. **Clean but not yet converged** → run the next round: `tp review <spec> --record <file>` (audit: `tp audit <spec> --record <file>`).
 
 `next_action` is advisory and read-only; it gates no exit code.
