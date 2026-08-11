@@ -655,6 +655,22 @@ tp audit spec.md --status --check            # exit 0 only when the audit is con
 
 > **Schema break:** v0.23.0 audit JSON is incompatible with v0.22.0 — `role` is one of the three above (was `implementation-auditor`), the `category` field is removed, and `checklist_items` / `affected_files` are new. Downstream consumers must update; there is no `--legacy-format` flag.
 
+### The audit divergence signal (v0.33.0)
+
+A finding count alone cannot tell "the implementation does not match the spec" apart from "the implementation matches the spec and the general lenses are reading the rest of the repository". `tp audit <spec> --status` (with or without `--check`) and `tp audit <spec> --record <file>` therefore carry three extra fields — those two outputs and nowhere else. All three survive `--compact`, `divergence` with every field:
+
+| Field | Shape |
+|-------|-------|
+| `role_streaks` | `[{role, consecutive_clean, open}]` for the roles appearing in the **latest** recorded round — `spec-coverage` first, then the rest ascending by byte order. `open` is that role's non-PASS row count in the latest round; `consecutive_clean` counts trailing rounds in which the role had at least one row and every one of them was PASS. A role with no rows in a round is not clean in it, so its streak ends. `[]` (an emitted array, never `null`) when the latest round contributes no role rows. |
+| `spec_coverage_clean_rounds` | that role's `consecutive_clean`, or an explicit JSON `null` when the latest recorded round contributes no `spec-coverage` row. The key is always emitted, and `null` and `0` are different answers: `0` means conformance was measured and something is open; `null` means the round measured no conformance at all — a different problem, and never evidence that the rest is fine. |
+| `divergence` | emitted only when all five conditions below hold. The key is **omitted** when withheld, never `null`. |
+
+`divergence` is emitted when `spec_coverage_clean_rounds` is non-null and at least the effective `audit_clean_rounds`; the latest recorded round holds at least one non-PASS row not attributed to `spec-coverage` (including a row carrying no role); the spec is not stale; the sequence is not converged; and the auditor corpus is unchanged since that round. It carries `other_roles_open` (that row count), `open_roles` (the ids holding those rows, each once, `[]` when every such row is unattributed), `unattributed_open` (how many carry no role), a `message` restating those numbers in one sentence, and this constant `hint`:
+
+> spec-coverage is the only role that measures spec conformance; the remaining findings are outside it. Whether they gate this release is the operator's decision, not the agent's — surface it rather than deciding either way; audit convergence still counts every non-PASS row.
+
+**The gate is untouched — this is reporting only.** `engine.Converged`, `engine.ConsecutiveClean`, the stored per-round `clean` flag, `next_action` and the exit code of `tp audit --status --check` are exactly what they were: a round holding only non-`spec-coverage` findings is still not clean, `--check` still exits 1, and `next_action` still reads fix-and-re-audit. Whether out-of-conformance findings gate a release is the operator's call; tp surfaces the split and names who decides.
+
 ## AX (Agent Experience)
 
 tp is designed for AI agents first (AX), not humans (DX):
