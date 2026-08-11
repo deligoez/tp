@@ -142,6 +142,12 @@ Repeat until `tp audit <spec> --status --check` exits 0:
 3. Merge the per-role files: `tp audit <spec> --merge r1.ndjson r2.ndjson ... -o results.ndjson` (dedups by `role`+`item_id`, reports a status/role breakdown), then record: `tp audit <spec> --record results.ndjson` — a row counts as a finding when `status` is absent or ≠ `PASS`; a clean round has zero findings. The audit round sequence is independent of review rounds.
 4. Fix the code for every non-PASS item.
 5. Repeat. `tp audit <spec> --status` shows `consecutive_clean`, `converged`, `stale`, `budget_exhausted`, `max_rounds`/`rounds_remaining`/`in_flight_round`, and (with `--merge`/`--status`) an `overlap_report` over non-PASS rows clustered by `(item_id, category)` — the audit-side signal for trimming a redundant auditor.
+6. **Read the divergence signal (v0.33.0).** `tp audit <spec> --status` (with or without `--check`) and `tp audit <spec> --record <file>` also carry three fields, all kept under `--compact` and emitted on those two outputs only:
+   - `role_streaks` — `[{role, consecutive_clean, open}]` for the roles appearing in the **latest** recorded round, `spec-coverage` first then the rest ascending by byte order. `open` is that role's non-PASS row count in that round; `consecutive_clean` counts trailing rounds in which the role had at least one row and every one was PASS. A role with no rows in a round is not clean in it, so its streak ends. `[]` (an emitted array, never `null`) when the latest round contributes no role rows.
+   - `spec_coverage_clean_rounds` — that role's streak, or an explicit JSON `null` when the latest recorded round contributes no `spec-coverage` row. `null` ≠ `0`: `0` means conformance was measured and something is open; `null` means the round measured no conformance at all, so the absence of `divergence` proves nothing. The key is always emitted.
+   - `divergence` — present only when all five hold: spec-coverage's streak has reached the effective `audit_clean_rounds`; the latest recorded round still holds a non-PASS row outside `spec-coverage` (a row with no role counts); the spec is not stale; the sequence is not converged; and the auditor corpus is unchanged since that round. It carries `other_roles_open`, `open_roles` (`[]` when every such row is unattributed), `unattributed_open`, a `message`, and the constant `hint`: *spec-coverage is the only role that measures spec conformance; the remaining findings are outside it. Whether they gate this release is the operator's decision, not the agent's — surface it rather than deciding either way; audit convergence still counts every non-PASS row.* The key is omitted when withheld, never `null`.
+
+   **`divergence` gates nothing — it is reporting only.** Convergence arithmetic, the stored per-round `clean` flag, `next_action` and the `--status --check` exit code are unchanged: `--check` still exits 1 and `next_action` still reads fix-and-re-audit. When `divergence` appears, **surface it and stop** — accepting findings outside spec conformance is a user-approved decision, never the agent's.
 
 **Scope the audit, or it will not converge (v0.32.0 lesson, the hard way).** A row counts against
 convergence whether it is about the spec or about the codebase at large — tp has no audit-side
@@ -149,7 +155,7 @@ equivalent of `review_converge_on` yet. General lenses (`go-safety`, `maintainab
 `ax-contract`) always find *something* in a real codebase, so there is no fixed point: tp's own
 v0.32.0 audit ran 11 rounds while `spec-coverage` — the only role measuring spec conformance — was
 55/55 clean from round 2 onward, and every repair round created fresh surface for the next round to
-audit. **Watch `spec-coverage` separately.** Once it is clean for two rounds and no round has ever
+audit. **Watch `spec-coverage` separately — since v0.33.0 tp reports it as `spec_coverage_clean_rounds` and names the split as `divergence`, so this is no longer hand-tracking.** Once it is clean for two rounds and no round has ever
 produced a FAIL, findings outside the spec's surface are backlog, not a release gate: record them
 with `tp review --resolve`-style evidence, name the version that will take them, and ship. Keep
 audit repairs minimal for the same reason — a repair that introduces a new abstraction is the next
