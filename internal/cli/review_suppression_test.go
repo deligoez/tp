@@ -76,6 +76,16 @@ func candidateClasses(t *testing.T, raw string) []string {
 	return classes
 }
 
+// mechanizedClasses reads a --record payload's mechanized_classes array.
+func mechanizedClasses(t *testing.T, raw string) []string {
+	t.Helper()
+	var payload struct {
+		MechanizedClasses []string `json:"mechanized_classes"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(raw), &payload))
+	return payload.MechanizedClasses
+}
+
 // Test 32: a registered check suppresses its class from mechanize_candidates on
 // --record, while an unregistered class over the same threshold stays listed —
 // the observable form of "suppressing one class never changes whether another
