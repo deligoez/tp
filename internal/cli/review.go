@@ -790,12 +790,17 @@ func buildReviewPrompts(specPath string, panel *rolePanel, elems *engine.Structu
 		}
 	}
 
-	// Prompt exclusion: reviewers stop looking for mechanized classes.
-	if len(wfChecks.Checks) > 0 {
-		classes := make([]string, 0, len(wfChecks.Checks))
-		for i := range wfChecks.Checks {
-			classes = append(classes, wfChecks.Checks[i].Class)
-		}
+	// Prompt exclusion: reviewers stop looking for mechanized classes (§3.2).
+	// engine.ReviewerExclusionClasses applies the membership rule — drop the
+	// entries the validator rejects, drop over-specification under §3.1's
+	// exemption, then collapse duplicates keeping the first survivor, in that
+	// order and registration order otherwise. Its own guard is the emptiness of
+	// that result, not len(wfChecks.Checks): a workflow whose every entry is
+	// invalid still runs its checks above and still emits each entry's skip
+	// notice, while no sentence is appended here rather than one ending in an
+	// empty list. The review_loop addendum about failing checks keeps its own
+	// guard (buildReviewLoopInstruction) and is unchanged.
+	if classes := engine.ReviewerExclusionClasses(wfChecks.Checks); len(classes) > 0 {
 		exclusion := "\n\nMechanically checked classes — do NOT report findings of these classes: " + strings.Join(classes, ", ")
 		for i := range prompts {
 			prompts[i].Prompt += exclusion
