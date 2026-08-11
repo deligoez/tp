@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.33.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-08-11T21:41:53.585839Z",
+  "updated_at": "2026-08-11T21:49:13.662601Z",
   "workflow": {
     "checks": [
       {
@@ -316,7 +316,7 @@
     {
       "id": "mechanized-classes-field",
       "title": "Emit the mechanized classes field",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "review"
@@ -330,11 +330,24 @@
         "### 3.3 What was suppressed stays visible"
       ],
       "source_lines": "206-215,298",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-11T21:42:23.842482Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-11T21:49:13.619677Z",
+      "closed_reason": "- mechanized_classes is emitted on tp review \u003cspec\u003e --record and nowhere else (internal/cli/review_record.go), carrying the classes filterMechanizedCandidates withheld — each once, because computeMechanizeCandidates keys its output by class, and sorted ascending with sort.Strings, which is not a choice among comparators since every member equals a valid checks entry's class and is therefore lowercase kebab-case; it survives --compact because it sits in the base result map beside mechanize_candidates, asserted with the absent harness_stale key proving the flag took effect.\n- Both arrays stay emitted empty arrays: filterMechanizedCandidates (internal/cli/review_report.go) now returns kept plus withheld — the withheld set derived from that one filter rather than a second predicate, which is also why a registered class below candidate frequency is absent (the filter never saw it) and why over-specification is withheld here despite its exclusion-list exemption.\n- Test 41 lands in internal/cli/review_suppression_test.go as three functions, plus test 40's mechanized_classes clause and the mechanized_classes halves of tests 35 and 36 that this field makes assertable; the null halves are asserted against the raw JSON. Mutations: withheld = nil failed the null assertion; dropping sort.Strings failed the ascending assertion with candidate order; deriving the field from engine.ReviewerExclusionClasses instead of the filter failed the intersection and over-specification assertions. Gate: go test ./... exit 0, golangci-lint run exit 0.",
+      "gate_passed_at": "2026-08-11T21:49:13.619677Z",
+      "commit_sha": "3488cc1",
+      "commit_shas": [
+        "3488cc1",
+        "6f47f71",
+        "83c9e78",
+        "89529d6",
+        "2f9f631"
+      ],
+      "commit_files": [
+        "internal/cli/review_record.go",
+        "internal/cli/review_report.go",
+        "internal/cli/review_suppression_test.go"
+      ]
     },
     {
       "id": "docs-readme-skill",
