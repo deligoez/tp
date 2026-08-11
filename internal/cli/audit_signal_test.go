@@ -349,3 +349,134 @@ func TestAuditSignal_AbsentFromEveryOtherOutput(t *testing.T) {
 	require.Equal(t, 0, code, "stderr: %s", stderr)
 	assertNoSignal("tp review <spec> --status", reviewStatus)
 }
+
+// Test 30 — the guard test for §2.6. The fixture is the diverging one, whose
+// latest recorded round holds only a non-spec-coverage finding, and every gate
+// assertion is made on an invocation that itself emits divergence: that pairing
+// is §2.6's claim, and asserting the gate on a quiet fixture would prove
+// nothing. It must fail any implementation that lets the divergence signal reach
+// the convergence arithmetic or the next_action precedence.
+//
+// §5's Non-Goals 1, 2, 4, 5, 6 and 8 are all restatements of "the gate is
+// untouched". Non-Goal 4 is the next_action half below and Non-Goal 10 is
+// TestAuditGate_ResumeIsUnchangedByTheDivergence. Non-Goals 1 and 6 — no scope
+// field on a row, no per-role threshold — are guarded by construction, since
+// nothing in this release parses either, and the shape assertion in
+// TestAuditGate_NoEscapeHatchFromTheGate is what would notice one arriving;
+// that test also pins Non-Goals 2 and 5, whose absence is assertable as a
+// rejected knob and a rejected flag. Non-Goal 8 is guarded by construction too:
+// tp stores no acceptance of a divergence, so the only assertion available is
+// the --status --check exit code beside the emitted object, made here.
+func TestAuditGate_DivergenceReachesNeitherConvergenceNorNextAction(t *testing.T) {
+	const fixDirective = "address the findings, then re-audit: tp audit spec.md --record <file>"
+	dir, record := divergingFixture(t)
+	specPath := filepath.Join(dir, "spec.md")
+
+	// --record: the invocation that emits divergence reports an unclean,
+	// non-converged round and branch 2 of the audit precedence.
+	recordOut := decodeSignal(t, record)
+	require.Contains(t, recordOut, "divergence", "the fixture must diverge: %s", record)
+	assert.Equal(t, false, recordOut["clean"],
+		"a round holding only non-spec-coverage findings is still not clean")
+	assert.Equal(t, false, recordOut["converged"])
+	assert.Equal(t, float64(0), recordOut["consecutive_clean"],
+		"and still counts toward no streak")
+	assert.Equal(t, fixDirective, recordOut["next_action"],
+		"next_action gains no divergence branch on the invocation that emits divergence")
+
+	// --status --check over the same state: still exit 1, still the same
+	// directive, with the divergence object on the very same payload.
+	checked, stderr, code := runTP(t, dir, "audit", "spec.md", "--status", "--check")
+	require.Equal(t, 1, code, "the gate stays shut over an unclean round: %s", stderr)
+	status := decodeSignal(t, checked)
+	require.Contains(t, status, "divergence",
+		"the exit code and the object are asserted on one invocation: %s", checked)
+	assert.Equal(t, false, status["converged"])
+	assert.Equal(t, float64(0), status["consecutive_clean"])
+	assert.Equal(t, fixDirective, status["next_action"])
+
+	// The stored per-round clean flag, read from state.json rather than from a
+	// payload, so an implementation that only rewrote the reported value fails.
+	st, err := engine.LoadReviewState(specPath)
+	require.NoError(t, err)
+	require.Len(t, st.AuditRounds, 2)
+	assert.True(t, st.AuditRounds[0].Clean, "round 1 is stored clean")
+	assert.False(t, st.AuditRounds[1].Clean,
+		"round 2 holds only non-spec-coverage findings and is stored unclean")
+
+	// The three engine entry points §2.6 names, called directly over the very
+	// rounds the diverging fixture recorded.
+	specHash, err := engine.SpecHash(specPath)
+	require.NoError(t, err)
+	assert.Equal(t, 0, engine.ConsecutiveClean(st.AuditRounds))
+	assert.False(t, engine.Converged(st.AuditRounds, 2, specHash),
+		"two rounds, the latest of them unclean, is not two consecutive clean rounds")
+	assert.Equal(t, fixDirective, engine.AuditNextAction("spec.md", false, true),
+		"branch 2 of the three-state audit precedence is unchanged")
+}
+
+// Test 30 (Non-Goal 10) — tp resume is unchanged. The fixture is taken all the
+// way to the audit phase, because a divergence branch added to the oracle would
+// live in exactly that payload: resume names the next audit round and carries
+// none of §2.5's three fields while the recorded audit state diverges.
+func TestAuditGate_ResumeIsUnchangedByTheDivergence(t *testing.T) {
+	dir, record := divergingFixture(t)
+	require.Contains(t, decodeSignal(t, record), "divergence", "the fixture must diverge")
+
+	// Reach the audit phase: a task file, a converged review, and no open task.
+	_, stderr, code := runTP(t, dir, "init", "spec.md")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	empty := filepath.Join(dir, "review.ndjson")
+	require.NoError(t, os.WriteFile(empty, nil, 0o600))
+	for i := 0; i < 2; i++ {
+		_, stderr, code = runTP(t, dir, "review", "spec.md", "--record", empty)
+		require.Equal(t, 0, code, "stderr: %s", stderr)
+	}
+	_, stderr, code = runTP(t, dir, "add",
+		`{"id":"t1","title":"T","estimate_minutes":5,"acceptance":"Done.","source_sections":["# Spec"]}`)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	_, stderr, code = runTP(t, dir, "done", "t1", "--", "- implemented and verified")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	stdout, stderr, code := runTP(t, dir, "resume")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	out := decodeSignal(t, stdout)
+	require.Equal(t, "audit", out["phase"], "the oracle must reach the audit phase: %s", stdout)
+	for _, key := range signalFieldKeys {
+		assert.NotContains(t, stdout, `"`+key+`"`, "tp resume carries no %s (Non-Goal 10)", key)
+	}
+	next, ok := out["next_action"].(map[string]any)
+	require.True(t, ok, "resume payload: %s", stdout)
+	assert.Equal(t, "tp audit spec.md", next["command"],
+		"resume still names the next audit round beside a diverging state")
+}
+
+// Test 30 (Non-Goals 1, 2, 5 and 6) — the gate has no escape hatch and the
+// signal carries no gate input. There is no audit_converge_on knob to flip
+// (Non-Goal 2, deferred to v0.34.0) and no audit-side --resolve to park a
+// finding with (Non-Goal 5); a per-role streak entry carries the three keys of
+// §2.2 and nothing else, so neither a per-role threshold (Non-Goal 6) nor a
+// scope label (Non-Goal 1) can arrive unnoticed.
+func TestAuditGate_NoEscapeHatchFromTheGate(t *testing.T) {
+	dir, record := divergingFixture(t)
+
+	stdout, stderr, code := runTP(t, dir, "set", "--workflow", "--project", "audit_converge_on=blocking")
+	assert.NotEqual(t, 0, code, "audit_converge_on is not a workflow field")
+	assert.Contains(t, stdout+stderr, "unknown workflow field: audit_converge_on")
+
+	stdout, stderr, code = runTP(t, dir, "audit", "spec.md", "--resolve", "x")
+	assert.Equal(t, 2, code, "tp audit exposes no --resolve")
+	assert.Contains(t, stdout+stderr, "unknown flag: --resolve")
+
+	streaks, ok := decodeSignal(t, record)["role_streaks"].([]any)
+	require.True(t, ok, "record payload: %s", record)
+	require.NotEmpty(t, streaks)
+	for _, entry := range streaks {
+		e, ok := entry.(map[string]any)
+		require.True(t, ok)
+		assert.Len(t, e, 3, "a streak entry carries role, consecutive_clean and open only: %v", e)
+		for _, key := range []string{"role", "consecutive_clean", "open"} {
+			assert.Contains(t, e, key)
+		}
+	}
+}
