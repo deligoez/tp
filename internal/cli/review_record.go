@@ -127,6 +127,14 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 	candidates := computeMechanizeCandidates(roundFindings)
 
 	wf, _ := engine.ResolveWorkflow(specPath, flagFile)
+	// §3.2 candidate suppression, mode 1: a class mechanized by a valid `checks`
+	// entry is withheld from all three of this mode's sinks — the emitted
+	// mechanize_candidates array, the register-a-check hint that accompanies it,
+	// and the class list handed to next_action below. The filter runs after the
+	// frequency threshold rather than inside it, so suppressing one class never
+	// changes whether another crosses it, and it keeps candidates a non-nil
+	// slice so the array stays [] and never null on a round it empties.
+	candidates = filterMechanizedCandidates(candidates, wf.Checks)
 	// clean/consecutive_clean/converged are recomputed live from the round's
 	// recorded findings under the current review_converge_on (§3.4) — the
 	// stored ReviewRound.Clean stays the frozen record-time value. This is the
