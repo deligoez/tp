@@ -485,3 +485,172 @@ because the path was right and the I/O was not.
 ### Lint: `empty-section` (§15)
 
 `empty-section` no longer fires on a **container** heading — one whose next heading is deeper than itself. An empty **leaf** heading (no content, no deeper child) remains an error.
+
+## Honest Convergence Signals (v0.33.0)
+
+Four fields report *what* an audit or review round found without changing what the gate counts.
+The audit gate is untouched: `engine.Converged`, `engine.ConsecutiveClean`, the stored per-round
+`clean` flag, the exit code of `tp audit --status --check`, and `next_action`'s three-state audit
+precedence all behave exactly as in v0.32.0.
+
+### `role_streaks` (audit, §2.2)
+
+Emitted on `tp audit <spec> --status` (with or without `--check`) and on
+`tp audit <spec> --record <file>` — and nowhere else: not on `tp audit <spec>` prompt emission,
+not on `tp audit --merge`, and on no `tp review` mode.
+
+Type: an array of objects, one per role appearing in the **latest** recorded audit round (the panel
+the current decision rests on, not every role ever seen).
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `role` | string | the role id |
+| `consecutive_clean` | int | trailing recorded rounds in which the role is clean |
+| `open` | int | that role's non-PASS row count in the latest recorded round |
+
+```json
+"role_streaks": [
+  {"role": "spec-coverage", "consecutive_clean": 9, "open": 0},
+  {"role": "ax-contract", "consecutive_clean": 0, "open": 3}
+]
+```
+
+A role is **clean in a round** when it has at least one row in that round and every one of its rows
+is PASS. A role with no rows in a round is not clean in it, so its streak ends. A round that
+contributes no rows (any of §2.1's four causes) ends every streak at once, as does a round whose
+rows all carry no role — the conservative direction, resetting the signal toward "keep auditing".
+
+Order: `spec-coverage` first when present, then the remaining ids in ascending byte order (the
+ordinary Go string comparison, not a case-insensitive or locale-aware one), so a non-lowercase id
+stays distinct.
+
+Empty form: `[]` — an emitted empty array, never `null` and never an omitted key. Four states reach
+it: no recorded round at all; the latest round contributes no rows; the latest round recorded zero
+rows; the latest round's rows all carry no role. The array does not distinguish them —
+`spec_coverage_clean_rounds` reports `null` in all four. Convergence arithmetic is independent of
+the array, so `converged: true` beside `role_streaks: []` is reachable and correct.
+
+Every entry has rows in the latest round, so `open == 0` and `consecutive_clean >= 1` are the same
+condition and a role holding open rows always carries a streak of `0`. Both fields are reported on
+every entry anyway: the streak separates a lens clean since round 2 from one that went clean this
+round, and `open` gives the per-role magnitude on rounds where `divergence` is withheld.
+`overlap_report` (`--status`, non-`--compact` only) is unchanged and cannot carry these numbers — it
+credits a role only for the non-PASS clusters it contributed to, so the quiet roles never appear in
+it.
+
+### `spec_coverage_clean_rounds` (audit, §2.3)
+
+Emitted on the same two outputs, as a top-level field. Type: integer or `null` — the
+`consecutive_clean` of the `spec-coverage` entry of `role_streaks`. The key is **always** emitted,
+`null` as an explicit JSON null, never an omitted key.
+
+spec_coverage_clean_rounds is null, not 0, when the latest recorded round holds no spec-coverage row.
+`null` and `0` are different answers and must not be collapsed: `0` means the role was measured
+in the latest round and at least one of its rows is not PASS; `null` means the latest round did not
+measure conformance at all, and a driver must never read the resulting absence of `divergence` as
+evidence of anything.
+
+Paths to `null`: the round simply carries no `spec-coverage` row (no sub-agent spawned, none
+returned, or the merge dropped its file); no round is recorded at all; the auditor corpus holds no
+`spec-coverage` role; the role is active but emits no prompt and is named in `skipped_roles` with
+`no-checklist-items`; the latest round contributes no rows, recorded zero rows, or holds only rows
+carrying no role. tp adds no refusal for any of them and does not judge which occurred. "Contributes"
+is §2.1's sense, so a round whose rows are readable but whose stored `roles_hash` is empty yields
+`null` even though the file holds `spec-coverage` rows.
+
+### `divergence` (audit, §2.4)
+
+Emitted on the same two outputs, and only when **all five** conditions hold:
+
+1. `spec_coverage_clean_rounds` is non-null and at least the effective `audit_clean_rounds`.
+2. The latest recorded round holds at least one non-PASS row **not** attributed to `spec-coverage`,
+   including any row carrying no role.
+3. The spec is not stale (the same `stale` both outputs report).
+4. The sequence is not converged (the same `converged` both outputs report) — which is what keeps
+   the hint from being printed beside an already-open gate.
+5. The latest recorded round's stored `roles_hash` equals the auditor-corpus hash computed now.
+
+Conditions 3 and 5 constrain `--status` alone: on `--record` the round is stored with the spec hash
+and the corpus hash computed in the same invocation, so both equalities hold by construction. On
+`--record` the signal is computed **after** the round is stored, so "the latest recorded round" is
+the round just recorded. `--record`'s exhausted-`audit_max_rounds` refusal still exits 4 before any
+payload, so no signal is emitted on that path; read it from `--status` instead.
+
+When any condition fails the key is **omitted** — never emitted as `null`. Absence means only that
+the five conditions did not all hold. When the object is emitted, all five of its fields are
+present; none uses absence to mean zero.
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `other_roles_open` | int | count of the non-PASS rows of condition 2 |
+| `open_roles` | []string | ids of the roles holding those rows, each once, ascending by the same byte order `role_streaks` uses; `[]` (never `null`, never omitted) when every such row carries no role |
+| `unattributed_open` | int | how many of those rows carry no role; `0` when none do |
+| `message` | string | one of the three sentences below |
+| `hint` | string | the constant below, verbatim |
+
+```json
+"divergence": {
+  "other_roles_open": 24,
+  "open_roles": ["ax-contract", "go-safety"],
+  "unattributed_open": 0,
+  "message": "spec-coverage clean 9 rounds; 24 findings open from other roles",
+  "hint": "spec-coverage is the only role that measures spec conformance; ..."
+}
+```
+
+The three `message` forms — the round count is always `spec_coverage_clean_rounds` (never the
+threshold it was compared against), the finding count is always `other_roles_open`, and
+`round`/`rounds` and `finding`/`findings` agree with their numbers:
+
+```
+spec-coverage clean 9 rounds; 24 findings open from other roles
+spec-coverage clean 9 rounds; 24 findings open from other roles (including 3 with no role, which may be spec-coverage's)
+spec-coverage clean 9 rounds; 24 findings open, none attributed to a role (possibly spec-coverage's)
+```
+
+The first when `unattributed_open` is 0, the second when it is between 1 and `other_roles_open - 1`,
+the third when the two are equal — the state where `open_roles` is `[]`.
+
+`hint` is `engine.DivergenceHint`, emitted verbatim on every round the five conditions hold:
+
+```
+spec-coverage is the only role that measures spec conformance; the remaining findings are outside it. Whether they gate this release is the operator's decision, not the agent's — surface it rather than deciding either way; audit convergence still counts every non-PASS row.
+```
+
+It names the operator rather than issuing a bare imperative: the reader is usually an agent, and
+accepting open findings is a user-approved decision. Whenever `divergence` is emitted over state tp
+itself recorded, `next_action` reads the fix-and-re-audit directive — `next_action` names the only
+step tp can verify, `hint` names a decision tp cannot execute or record.
+
+### `mechanized_classes` (review, §3.3)
+
+Emitted on `tp review <spec> --record <file>` and nowhere else — not on `tp review --status` (which
+carries no candidate array for it to explain) and not on `tp review --report`.
+
+Type: an array of strings.
+mechanized_classes names the candidate classes withheld because they are mechanized, and is [] when none were.
+Each class appears once and the array is sorted ascending;
+every member equals a valid `checks` entry's `class` and is therefore lowercase kebab-case, so byte
+order and a case-insensitive sort cannot differ. It lists the intersection of the round's mechanize
+candidates with the registered classes, not the whole registered set (read that from `tp config` or
+a bare `tp review <spec> --status`).
+
+```json
+"mechanize_candidates": [],
+"mechanized_classes": ["test-inventory"]
+```
+
+It is always an array on the output that carries it — `[]` when nothing was withheld, never `null`
+and never an omitted key — and the filtered `mechanize_candidates` beside it keeps that shape too.
+The same filtering applies to all three of the record path's sinks: the emitted
+`mechanize_candidates` array, the register-a-check hint, and `next_action`'s mechanize branch, so a
+registered check retires its mechanize candidate and the class is named here instead of vanishing.
+
+### `--compact`
+
+role_streaks, spec_coverage_clean_rounds and divergence all survive --compact, divergence with every field.
+That includes `message`, `hint`, and the `spec_coverage_clean_rounds` key when its value is
+`null`. `mechanized_classes` survives it too, because `mechanize_candidates` always has. `--compact`
+is the mode an agent driver runs in, and these fields are the conclusion rather than a restatement
+of it. The audit fields `--compact` already drops — `harness_stale`, `harness_note`,
+`overlap_report` — are unchanged.
