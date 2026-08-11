@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.33.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-08-11T21:49:13.662601Z",
+  "updated_at": "2026-08-11T21:54:20.250956Z",
   "workflow": {
     "checks": [
       {
@@ -352,7 +352,7 @@
     {
       "id": "docs-readme-skill",
       "title": "Document the release for drivers",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -366,11 +366,23 @@
         "## 4. Documentation"
       ],
       "source_lines": "216-222",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-11T21:49:53.567366Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-11T21:54:20.204615Z",
+      "closed_reason": "- README.md and skills/tp/SKILL.md each carry both required substrings verbatim: `audit convergence still counts every non-PASS row` reaches both through the divergence.hint constant quoted whole (README.md's \"The audit divergence signal (v0.33.0)\" section, SKILL.md's Workflow D step 6), and `a registered check retires its mechanize candidate` opens the retirement paragraph in each (README.md's Mechanical checks section, SKILL.md's Class \u0026 Checks Guidance); verified by literal search over both files after the edits.\n- Both documents describe the release accurately enough to act on without the spec: the three audit fields are given with their shapes and their two-output scope (role_streaks entries and ordering, the null-vs-0 distinction for spec_coverage_clean_rounds, divergence's five conditions, its five fields and the omitted-not-null convention, and that all three survive --compact), each paired with the explicit statement that the convergence gate, next_action and the --status --check exit code are unchanged and the driver decides; the suppression rule names all three sinks on both --record and --status, mechanized_classes with its always-an-array shape, registration rather than the check's result as the trigger, byte-for-byte class matching, --report unchanged, and over-specification as the exception scoped to the reviewer exclusion list only. Prose checked against internal/engine/{auditrounds,rolestreaks,speccoverage,divergence,mechanized}.go and internal/cli/{audit_record,review_record,review_status,review_report}.go; gate green (go test ./... exit 0, golangci-lint run exit 0).",
+      "gate_passed_at": "2026-08-11T21:54:20.204615Z",
+      "commit_sha": "938c7ff",
+      "commit_shas": [
+        "938c7ff",
+        "cb7722a",
+        "055f8dc",
+        "3d3a993",
+        "289f7c1"
+      ],
+      "commit_files": [
+        "README.md",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "docs-reference",
