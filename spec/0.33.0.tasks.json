@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.33.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-08-09T10:43:56.10413Z",
+  "updated_at": "2026-08-11T20:55:44.846751Z",
   "workflow": {
     "checks": [
       {
@@ -88,7 +88,7 @@
     {
       "id": "spec-coverage-field",
       "title": "Report spec-coverage streak by name",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "audit"
@@ -102,11 +102,20 @@
         "### 2.3 `spec-coverage` is reported by name"
       ],
       "source_lines": "78-95,275",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-11T20:52:16.719238Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-11T20:55:44.819549Z",
+      "closed_reason": "- engine.SpecCoverageCleanRounds in internal/engine/speccoverage.go returns the spec-coverage entry's consecutive_clean as a *int, or nil when the latest recorded round contributes no row attributed to that id: it reads the role_streaks ComputeAuditRoleStreaks already returned, whose entries are exactly the roles of the latest round in §2.1's sense of contributes, so a readable round with an empty stored roles_hash yields no entries and therefore nil without a second read (or a re-fired advisory).\n- The *int return keeps null and 0 distinct at the JSON boundary and lets a caller emit the key without omitempty; TestSpecCoverageCleanRounds_NullAndZeroDoNotCollapse marshals both through a field with no omitempty and asserts the key is present and the two renderings differ. Wiring the field into the --status/--record payload, including under --compact, belongs to audit-output-wiring.\n- Test 18 is covered by both halves: TestSpecCoverageCleanRounds_NullWhenOnlyAnEarlierRoundHoldsTheRole (the discriminating half — null when only an earlier round holds the role) and TestSpecCoverageCleanRounds_ZeroWhenTheLatestRoundHoldsAnOpenRow (0 when the latest round holds a non-PASS spec-coverage row). TestSpecCoverageCleanRounds_NullStates adds the remaining no-attributed-row states (no recorded round, deleted file, empty file entry, unparseable line, zero rows, all rows roleless, a differently-cased id), and TestSpecCoverageCleanRounds_ReturnsACopy pins that the pointer cannot mutate the streaks array.\n- Test 12's and test 13's spec_coverage_clean_rounds halves, left open by role-streaks, are covered here: CorpusChangeBetweenRoundsTruncatesTheNumber (2, not 4), EmptyStoredHashOnAnEarlierRoundTruncatesTheNumber (2), and NullWhenTheLatestRoundHasAnEmptyStoredHash (null). Their role_streaks halves are already asserted in rolestreaks_test.go; test 17's role_streaks half likewise stays there, and every CLI-payload half of tests 17 and 29 belongs to audit-output-wiring.\n- Verified by mutation: returning \u00260 instead of nil makes NullWhenOnlyAnEarlierRoundHoldsTheRole, NullWhenTheLatestRoundHasAnEmptyStoredHash and every NullStates subtest fail, and skipping the entry when consecutive_clean is 0 makes ZeroWhenTheLatestRoundHoldsAnOpenRow fail; both reverted. Gate green with separate exit codes: go test ./... = 0, golangci-lint run = 0.",
+      "gate_passed_at": "2026-08-11T20:55:44.819549Z",
+      "commit_sha": "95acb79",
+      "commit_shas": [
+        "95acb79",
+        "8ec8230"
+      ],
+      "commit_files": [
+        "internal/engine/speccoverage.go",
+        "internal/engine/speccoverage_test.go"
+      ]
     },
     {
       "id": "divergence-object",
