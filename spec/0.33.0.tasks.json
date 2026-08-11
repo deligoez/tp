@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.33.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-08-11T21:24:58.775901Z",
+  "updated_at": "2026-08-11T21:33:30.67648Z",
   "workflow": {
     "checks": [
       {
@@ -246,7 +246,7 @@
     {
       "id": "candidate-suppression",
       "title": "Suppress mechanized classes from candidates",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "review"
@@ -260,11 +260,23 @@
         "### 3.2 Where it applies"
       ],
       "source_lines": "186-199,289-290,295-297,302",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-11T21:25:23.418392Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-11T21:33:30.643519Z",
+      "closed_reason": "- tp review \u003cspec\u003e --record filters all three of mode 1's sinks through one call to filterMechanizedCandidates (internal/cli/review_report.go), placed in internal/cli/review_record.go on the candidate list before it reaches the emitted mechanize_candidates array, the register-a-check hint (already conditional on a non-empty list) and mechanizeCandidateClasses for next_action; test 38 asserts hint absence and the run-the-next-round directive on the same invocation, against an unregistered control that proves the fixture reaches next_action's mechanize branch.\n- tp review \u003cspec\u003e --status filters through mechanizeClassesFromRounds (internal/cli/review_report.go), which now takes the effective checks and applies the filter to its own separate walk over the recorded rounds, so the second sink is honoured although --status emits no candidate array; proven distinct by mutation — removing only the record-path filter fails tests 32/33/38/40 while test 39 still passes, and removing only this one fails test 39 and test 40's --status half.\n- The filter runs strictly after computeMechanizeCandidates and never inside it, so the frequency threshold is untouched and every class is measured over the same rounds; test 32 registers one of two classes that each cross the five-in-one-round threshold and asserts the unregistered one is still listed with the registered one gone.\n- filterMechanizedCandidates builds its survivors with make, so the filtered mechanize_candidates stays an emitted [] rather than null on the round the filter empties; test 38 asserts that against the raw --record JSON and a var-nil-slice mutation of the helper fails it.\n- internal/cli/review_suppression_test.go lands tests 32, 33, 38, 39, 40 and 45, all green: exactness varies the finding row's class (Duplicate-Line and ' duplicate-line ' stay listed while duplicate-line is suppressed) since ValidateChecks rejects both variants of the registered side, and a trim-plus-fold mutation of engine.IsMechanizedClass fails test 33; test 40 asserts on tp review --status --check, the mode that actually runs the check, which reports the failing entry in mechanical_checks, exits 1 and still keeps the class out of next_action; test 45 pins Non-Goal 9 and fails a mutation that extends the filter into tp review --report. engine.IsMechanizedClass is consumed, not reimplemented. Gate verified with separate exit codes: go test ./... 0, golangci-lint run 0.\n\nHand-off, per the note from mechanized-predicate: test 40's 'lists it in mechanized_classes' clause and all of test 41 stay with mechanized-classes-field, which depends on this task and can derive the withheld set from the same filter; tests 34-37 and 42-44's reviewer-exclusion-list halves stay with exclusion-list. This task changed neither prompt-emission site nor tp review --report.",
+      "gate_passed_at": "2026-08-11T21:33:30.643519Z",
+      "commit_sha": "ab01d84",
+      "commit_shas": [
+        "ab01d84",
+        "f9c2302",
+        "0161692"
+      ],
+      "commit_files": [
+        "internal/cli/review_record.go",
+        "internal/cli/review_report.go",
+        "internal/cli/review_status.go",
+        "internal/cli/review_suppression_test.go"
+      ]
     },
     {
       "id": "exclusion-list",
