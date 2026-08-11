@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.33.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-08-11T21:58:27.330172Z",
+  "updated_at": "2026-08-11T22:00:53.689442Z",
   "workflow": {
     "checks": [
       {
@@ -417,7 +417,7 @@
     {
       "id": "docs-claude-md",
       "title": "Point the audit-scope rule at the field",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -430,11 +430,18 @@
         "## 4. Documentation"
       ],
       "source_lines": "223-226",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-11T21:58:52.318852Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-11T22:00:53.675564Z",
+      "closed_reason": "- CLAUDE.md's audit-scope rule now names the field instead of asking the driver to count by hand: the sentence that read \"Track spec-coverage separately.\" carries the exact substring 'tp audit now reports spec_coverage_clean_rounds' (verified by literal search over CLAUDE.md after the edit) and describes it as the top-level field on tp audit --status/--record holding that role's consecutive clean-round count, with null (never 0) when the latest recorded round measured no conformance; the siblings role_streaks (per-role consecutive_clean/open of the latest round) and divergence (emitted only once spec-coverage met the threshold while other roles hold open findings, naming them in open_roles and handing the call to the operator) are named where a driver acts on them.\n- The rest of the rule survives unchanged: the two-consecutive-clean-rounds requirement, the non-negotiable ban on shipping with a spec-scoped finding open, minimal audit repairs, and the v0.32.0 evidence all stand verbatim; the closing sentence now states what v0.33.0 actually shipped (the signal only, gate untouched: engine.Converged, the stored per-round clean flag and tp audit --status --check still count every non-PASS row) and records that a scope field on audit rows plus audit_converge_on became Non-Goals 1 and 2 of v0.33.0, belonging to v0.34.0 because a sub-agent's own scope label wired into the release gate lets a mislabelled spec violation ship. Gate green before close: go test ./... exit 0, golangci-lint run exit 0. Only CLAUDE.md was touched.",
+      "gate_passed_at": "2026-08-11T22:00:53.675564Z",
+      "commit_sha": "34e71a3",
+      "commit_shas": [
+        "34e71a3"
+      ],
+      "commit_files": [
+        "CLAUDE.md"
+      ]
     },
     {
       "id": "docs-guard-test",
