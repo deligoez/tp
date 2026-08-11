@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.33.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-08-11T21:54:20.250956Z",
+  "updated_at": "2026-08-11T21:58:27.330172Z",
   "workflow": {
     "checks": [
       {
@@ -387,7 +387,7 @@
     {
       "id": "docs-reference",
       "title": "Document the field shapes in REFERENCE",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -401,11 +401,18 @@
         "## 4. Documentation"
       ],
       "source_lines": "227-238",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-11T21:54:43.759679Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-11T21:58:27.309337Z",
+      "closed_reason": "- skills/tp/REFERENCE.md gains a \"Honest Convergence Signals (v0.33.0)\" section documenting each field's emission site, JSON type and empty/absent form: role_streaks as an array of {role, consecutive_clean, open} on tp audit --status/--record only, [] and never null in its four states, spec-coverage first then ascending byte order; spec_coverage_clean_rounds as an always-emitted integer-or-null on the same two outputs with every path to null listed; divergence as an omitted key (never null) unless all five conditions hold, with a five-row field table and the three message forms; and mechanized_classes as a sorted, once-each string array on tp review --record alone, [] when nothing was withheld.\n- All five §4 sentences are present verbatim as exact substrings, verified by literal search over the written file (each occurs exactly once); sentence 5 is quoted in a fenced block and was checked byte for byte against the shipped engine.DivergenceHint by concatenating the constant's literals from internal/engine/divergence.go — 273 bytes, equal, em dash intact.",
+      "gate_passed_at": "2026-08-11T21:58:27.309337Z",
+      "commit_sha": "70395cd",
+      "commit_shas": [
+        "70395cd"
+      ],
+      "commit_files": [
+        "skills/tp/REFERENCE.md"
+      ]
     },
     {
       "id": "docs-claude-md",
