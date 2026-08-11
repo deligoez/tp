@@ -134,7 +134,14 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 	// frequency threshold rather than inside it, so suppressing one class never
 	// changes whether another crosses it, and it keeps candidates a non-nil
 	// slice so the array stays [] and never null on a round it empties.
-	candidates = filterMechanizedCandidates(candidates, wf.Checks)
+	// §3.3: mechanizedClasses is the withheld half of that same split — the
+	// classes this filter dropped, each once and sorted ascending — and is
+	// emitted beside the filtered array on this mode alone. Deriving it from the
+	// filter rather than re-testing membership keeps the two halves of the list
+	// one decision. It lists the intersection: a registered class that never
+	// reached candidate frequency was never a candidate, so the filter never saw
+	// it and it is absent here.
+	candidates, mechanizedClasses := filterMechanizedCandidates(candidates, wf.Checks)
 	// clean/consecutive_clean/converged are recomputed live from the round's
 	// recorded findings under the current review_converge_on (§3.4) — the
 	// stored ReviewRound.Clean stays the frozen record-time value. This is the
@@ -150,6 +157,7 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 		"converged":             engine.ReviewConverged(specPath, st.ReviewRounds, wf.ReviewCleanRounds, specHash, wf.ReviewConvergeOn),
 		"stale":                 engine.StateStale(st.ReviewRounds, specHash),
 		"mechanize_candidates":  candidates,
+		"mechanized_classes":    mechanizedClasses,
 	}
 	// §8.4: harness_stale and harness_note are explanatory and are omitted under
 	// --compact; next_action and nonblocking_open are decision-critical and
