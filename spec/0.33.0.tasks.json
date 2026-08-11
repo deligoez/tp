@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.33.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-08-11T22:00:53.689442Z",
+  "updated_at": "2026-08-11T22:04:38.754601Z",
   "workflow": {
     "checks": [
       {
@@ -446,7 +446,7 @@
     {
       "id": "docs-guard-test",
       "title": "Guard the documentation substrings",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs",
         "test"
@@ -462,11 +462,18 @@
         "## 4. Documentation"
       ],
       "source_lines": "303-304",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-11T22:01:15.402001Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-11T22:04:38.73916Z",
+      "closed_reason": "- internal/cli/docs_contract_test.go gains TestDocsCarryTheConvergenceSignalWording, which asserts §4's substrings as exact literals over readRepoDoc: README.md and skills/tp/SKILL.md each contain both 'audit convergence still counts every non-PASS row' and 'a registered check retires its mechanize candidate', CLAUDE.md contains 'tp audit now reports spec_coverage_clean_rounds', and skills/tp/REFERENCE.md contains §4's first four verbatim sentences; every required substring was already present in the committed documents (verified by literal count before writing the test), so no assertion was adjusted to fit a document.\n- Sentence 5 is asserted as assert.Contains(reference, engine.DivergenceHint) rather than a fifth literal, so the document is compared against the shipped constant itself: a hard-coded copy would pin the doc against a second copy and leave the code free to drift away from both, which is exactly the drift §4 pins the sentence to prevent.\n- Test 46 passes, and the guard was proven able to fail by five one-at-a-time mutations, each restored afterwards and each killing TestDocsCarryTheConvergenceSignalWording alone (exit 1): README.md 'non-PASS row' to 'non-PASS finding'; SKILL.md 'retires' to 'removes'; CLAUDE.md's field name to prose; REFERENCE.md sentence 2 '0' to 'zero'; and engine.DivergenceHint's trailing period to an exclamation mark, which is the mutation proving the REFERENCE.md assertion reads the constant.\n- Gate: go test ./... exit 0, golangci-lint run exit 0 (checked as separate exit codes, not a chained command).",
+      "gate_passed_at": "2026-08-11T22:04:38.73916Z",
+      "commit_sha": "375cc70",
+      "commit_shas": [
+        "375cc70"
+      ],
+      "commit_files": [
+        "internal/cli/docs_contract_test.go"
+      ]
     }
   ]
 }
