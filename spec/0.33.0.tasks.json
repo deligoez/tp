@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.33.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-08-11T21:33:30.67648Z",
+  "updated_at": "2026-08-11T21:41:53.585839Z",
   "workflow": {
     "checks": [
       {
@@ -281,7 +281,7 @@
     {
       "id": "exclusion-list",
       "title": "Filter the reviewer exclusion list",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "review"
@@ -296,11 +296,22 @@
         "### 6.1 Existing tests this change touches"
       ],
       "source_lines": "200-205,294,299-301,305-315",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-11T21:34:01.686881Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-11T21:41:53.556335Z",
+      "closed_reason": "- The reviewer exclusion list is now engine.ReviewerExclusionClasses at both assembly sites, so the three membership changes apply in that order — invalid entries dropped, over-specification dropped, survivors collapsed keeping the first occurrence — with registration order otherwise; test 42 pins the order over three valid entries registered out of alphabetical order and over a registered class below candidate frequency, and mutating engine.ReviewerExclusionClasses to collapse before dropping fails test 37 alone.\n- An empty filtered list appends no sentence at all: both sites guard on len(classes) rather than len(wfChecks.Checks), and re-guarding either on len(wfChecks.Checks) fails test 43 at that site with the sentence ending in an empty list.\n- Both assembly sites changed — internal/cli/review.go's multi-role panel and internal/cli/review_regression.go's tp review \u003cspec\u003e --perspective regression path — and each is asserted separately; reverting only the regression site leaves the panel assertions green and fails test 44 at the regression assertion alone, which is that test's discriminating half.\n- The surrounding guards are untouched: the regression site's checks-running branch keeps its own len(wfChecks.Checks) guard (folding it into the exclusion guard fails the skip-notice assertion), and the panel path's review_loop instruction addendum still takes len(wfChecks.Checks) \u003e 0 through buildReviewLoopInstruction, unchanged.\n- internal/cli/review_exclusion_test.go lands tests 37, 42, 43 and 44 plus the exclusion-list halves of 34, 35 and 36; the all-invalid case asserts both entries' skipping invalid check notices on stderr over a fixture that writes the workflow block into the resolved task file, since tp set --workflow rejects invalid entries and an unresolved task file would make the runner return before its loop. Gate verified with separate exit codes: go test ./... = 0, golangci-lint run = 0.",
+      "gate_passed_at": "2026-08-11T21:41:53.556335Z",
+      "commit_sha": "e1e5245",
+      "commit_shas": [
+        "e1e5245",
+        "f7cdfb8",
+        "f3a29e2"
+      ],
+      "commit_files": [
+        "internal/cli/review.go",
+        "internal/cli/review_exclusion_test.go",
+        "internal/cli/review_regression.go"
+      ]
     },
     {
       "id": "mechanized-classes-field",
