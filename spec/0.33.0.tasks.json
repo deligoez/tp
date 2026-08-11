@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.33.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-08-11T21:18:13.457864Z",
+  "updated_at": "2026-08-11T21:24:58.775901Z",
   "workflow": {
     "checks": [
       {
@@ -184,7 +184,7 @@
     {
       "id": "gate-guard-test",
       "title": "Guard the untouched convergence gate",
-      "status": "open",
+      "status": "done",
       "tags": [
         "test",
         "audit"
@@ -199,11 +199,18 @@
         "## 5. Non-Goals"
       ],
       "source_lines": "156-171,239-255,287",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-11T21:18:55.469982Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-11T21:24:58.760028Z",
+      "closed_reason": "- internal/cli/audit_signal_test.go adds TestAuditGate_DivergenceReachesNeitherConvergenceNorNextAction: over the diverging fixture, whose latest recorded round holds only a go-safety finding, the same --record invocation that emits divergence reports clean false, converged false, consecutive_clean 0 and the fix-and-re-audit next_action, and tp audit spec.md --status --check exits 1 while carrying the divergence object on that very payload — the pairing §2.6 claims.\n- The same test reads the stored per-round clean flag from state.json through engine.LoadReviewState (round 1 true, round 2 false) and calls engine.ConsecutiveClean, engine.Converged and engine.AuditNextAction directly over those recorded rounds, so a rewritten reported value cannot hide a changed stored one; TestAuditGate_ResumeIsUnchangedByTheDivergence drives the fixture to the audit phase and asserts tp resume names the next audit round and carries none of the three signal fields (Non-Goal 10).\n- Test 30 passes, and the guard was proven able to fail by four reverted mutations: converged set true beside an emitted divergence (--status), a divergence branch appended to next_action (--record), a divergence-emitting round stored as clean, and a divergence key added to resume's audit payload — each failed the named test and nothing else was left behind. Non-Goals 2 and 5 are asserted in TestAuditGate_NoEscapeHatchFromTheGate (audit_converge_on rejected as an unknown workflow field, tp audit --resolve rejected as an unknown flag) with a streak-entry shape assertion that would notice a per-role threshold or a scope label arriving; Non-Goals 1, 6 and 8 are guarded by construction — no scope field is parsed anywhere, one audit_clean_rounds governs the phase, and tp stores no acceptance of a divergence, leaving the --status --check exit code beside the object as the only assertable half. Gate: go test ./... exit 0, golangci-lint run exit 0.",
+      "gate_passed_at": "2026-08-11T21:24:58.760028Z",
+      "commit_sha": "002a071",
+      "commit_shas": [
+        "002a071"
+      ],
+      "commit_files": [
+        "internal/cli/audit_signal_test.go"
+      ]
     },
     {
       "id": "mechanized-predicate",
