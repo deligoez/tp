@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/deligoez/tp/internal/engine"
+	"github.com/deligoez/tp/internal/model"
 	"github.com/deligoez/tp/internal/output"
 )
 
@@ -455,10 +456,16 @@ func computeClassBreakdown(roundFindings [][]map[string]any) map[string]int {
 
 // mechanizeClassesFromRounds loads every recorded round's rows and returns the
 // classes of the mechanize candidates (same threshold as computeMechanizeCandidates),
-// ordered as that function orders them. It is the branch-3 signal for
-// engine.ReviewNextAction; --status derives it from the recorded rounds so branch
-// 3 is reachable there as well as on --record (§8.2).
-func mechanizeClassesFromRounds(specPath string, rounds []engine.ReviewRound) []string {
+// ordered as that function orders them, with the mechanized classes filtered out.
+// It is the branch-3 signal for engine.ReviewNextAction; --status derives it from
+// the recorded rounds so branch 3 is reachable there as well as on --record (§8.2).
+//
+// This separate call over the recorded rounds is what makes --status a sink of
+// §3.2's candidate suppression in its own right rather than a projection of
+// --record's array: --status emits no mechanize_candidates of its own, so the
+// filter has to be applied here for next_action to stop naming a class whose
+// check already exists.
+func mechanizeClassesFromRounds(specPath string, rounds []engine.ReviewRound, checks []model.Check) []string {
 	roundFindings := make([][]map[string]any, 0, len(rounds))
 	for i := range rounds {
 		rows, found := engine.LoadRoundRows(specPath, &rounds[i])
@@ -467,7 +474,32 @@ func mechanizeClassesFromRounds(specPath string, rounds []engine.ReviewRound) []
 		}
 		roundFindings = append(roundFindings, rows)
 	}
-	return mechanizeCandidateClasses(computeMechanizeCandidates(roundFindings))
+	return mechanizeCandidateClasses(filterMechanizedCandidates(computeMechanizeCandidates(roundFindings), checks))
+}
+
+// filterMechanizedCandidates drops every candidate whose class is mechanized by
+// a valid entry of the effective workflow's checks (§3.2, candidate
+// suppression). It runs strictly *after* computeMechanizeCandidates, never
+// inside it: the frequency threshold is unchanged and every class is measured
+// against the same rounds, so suppressing one class never changes whether
+// another crosses it.
+//
+// over-specification is suppressed here like any other class — §3.1's exemption
+// is scoped to the reviewer exclusion list alone (see
+// engine.ReviewerExclusionClasses).
+//
+// The result is always a non-nil slice, so a round on which the filter removes
+// every candidate still emits mechanize_candidates as [] and never as null
+// (§3.3).
+func filterMechanizedCandidates(candidates []mechanizeCandidate, checks []model.Check) []mechanizeCandidate {
+	kept := make([]mechanizeCandidate, 0, len(candidates))
+	for _, c := range candidates {
+		if engine.IsMechanizedClass(checks, c.Class) {
+			continue
+		}
+		kept = append(kept, c)
+	}
+	return kept
 }
 
 // mechanizeCandidateClasses projects a candidate slice to its class strings,
