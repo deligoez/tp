@@ -180,6 +180,8 @@ func TestReviewSuppression_FailingCheckStillSuppressesItsClass(t *testing.T) {
 	dir := suppressionFixture(t, `[{"class":"failing-class","cmd":"echo tail-marker; exit 1"}]`)
 	recordOut := recordSuppressionRound(t, dir, fiveRowsOfClass("failing-class")...)
 	assert.Empty(t, candidateClasses(t, recordOut), "--record withholds the class without running the check")
+	assert.Equal(t, []string{"failing-class"}, mechanizedClasses(t, recordOut),
+		"and names it in mechanized_classes: registration is the trigger, not the check's exit status")
 
 	stdout, stderr, code := runTP(t, dir, "review", "spec.md", "--status", "--check")
 	require.Equal(t, 1, code, "a failing mechanical check still gates the exit code: %s", stderr)
