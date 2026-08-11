@@ -474,7 +474,8 @@ func mechanizeClassesFromRounds(specPath string, rounds []engine.ReviewRound, ch
 		}
 		roundFindings = append(roundFindings, rows)
 	}
-	return mechanizeCandidateClasses(filterMechanizedCandidates(computeMechanizeCandidates(roundFindings), checks))
+	kept, _ := filterMechanizedCandidates(computeMechanizeCandidates(roundFindings), checks)
+	return mechanizeCandidateClasses(kept)
 }
 
 // filterMechanizedCandidates drops every candidate whose class is mechanized by
@@ -488,18 +489,31 @@ func mechanizeClassesFromRounds(specPath string, rounds []engine.ReviewRound, ch
 // is scoped to the reviewer exclusion list alone (see
 // engine.ReviewerExclusionClasses).
 //
-// The result is always a non-nil slice, so a round on which the filter removes
-// every candidate still emits mechanize_candidates as [] and never as null
+// It returns both halves of the split, so the withheld set is what this one
+// filter dropped rather than a second membership predicate run over the same
+// checks: kept feeds mechanize_candidates and next_action, withheld feeds
+// mechanized_classes (§3.3). withheld carries each class once because
+// computeMechanizeCandidates keys its output by class, and is sorted ascending
+// — every member equals a valid checks entry's class and is therefore
+// lowercase kebab-case, an alphabet in which byte order and a case-insensitive
+// order cannot differ, so sort.Strings is not a choice among comparators.
+//
+// Both results are always non-nil slices, so a round on which the filter
+// removes every candidate still emits mechanize_candidates as [] and never as
+// null, and a round on which it removes none emits mechanized_classes as []
 // (§3.3).
-func filterMechanizedCandidates(candidates []mechanizeCandidate, checks []model.Check) []mechanizeCandidate {
-	kept := make([]mechanizeCandidate, 0, len(candidates))
+func filterMechanizedCandidates(candidates []mechanizeCandidate, checks []model.Check) (kept []mechanizeCandidate, withheld []string) {
+	kept = make([]mechanizeCandidate, 0, len(candidates))
+	withheld = make([]string, 0, len(candidates))
 	for _, c := range candidates {
 		if engine.IsMechanizedClass(checks, c.Class) {
+			withheld = append(withheld, c.Class)
 			continue
 		}
 		kept = append(kept, c)
 	}
-	return kept
+	sort.Strings(withheld)
+	return kept, withheld
 }
 
 // mechanizeCandidateClasses projects a candidate slice to its class strings,
