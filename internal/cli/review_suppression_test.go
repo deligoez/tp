@@ -217,3 +217,108 @@ func TestReviewReport_SuppressionDoesNotReachReport(t *testing.T) {
 	assert.Equal(t, "registered-class", candidates[0].(map[string]any)["class"])
 	assert.NotContains(t, payload, "mechanized_classes")
 }
+
+// Test 41's ordering and intersection halves: mechanized_classes lists the
+// withheld classes sorted ascending, and lists nothing else. The three withheld
+// classes are registered out of alphabetical order AND carry different totals,
+// so ascending order differs from both registration order and the total-descending
+// candidate order the control fixture pins — an implementation projecting the
+// filter's input order into the field fails on the first assertion. rare-class is
+// registered but never reached candidate frequency, which the control proves by
+// leaving it out of an unfiltered candidate list, so the filter never saw it and
+// the field does not name it.
+func TestReviewRecord_MechanizedClassesIsSortedAndListsTheIntersection(t *testing.T) {
+	rows := fiveRowsOfClass("alpha-class")
+	rows = append(rows, fiveRowsOfClass("mid-class")...)
+	rows = append(rows, classRow("L5-mid-class", "sixth of mid-class", "mid-class"))
+	rows = append(rows, fiveRowsOfClass("zeta-class")...)
+	rows = append(rows,
+		classRow("L5-zeta-class", "sixth of zeta-class", "zeta-class"),
+		classRow("L6-zeta-class", "seventh of zeta-class", "zeta-class"))
+	rows = append(rows, fiveRowsOfClass("control-class")...)
+	rows = append(rows, classRow("L9-rare", "seen once", "rare-class"))
+
+	control := suppressionFixture(t, "")
+	assert.Equal(t, []string{"zeta-class", "mid-class", "alpha-class", "control-class"},
+		candidateClasses(t, recordSuppressionRound(t, control, rows...)),
+		"unfiltered: candidates run total-descending, and rare-class never reaches candidate frequency")
+
+	dir := suppressionFixture(t, `[{"class":"zeta-class","cmd":"true"},{"class":"alpha-class","cmd":"true"},`+
+		`{"class":"mid-class","cmd":"true"},{"class":"rare-class","cmd":"true"}]`)
+	stdout := recordSuppressionRound(t, dir, rows...)
+
+	assert.Equal(t, []string{"alpha-class", "mid-class", "zeta-class"}, mechanizedClasses(t, stdout),
+		"the withheld classes, each once and sorted ascending")
+	assert.Equal(t, []string{"control-class"}, candidateClasses(t, stdout),
+		"the survivors keep their own order beside it")
+}
+
+// Test 41's shape half. Both arrays are asserted against the raw JSON rather
+// than through a decoder, which renders an absent key, [] and null alike: the
+// null assertions are the discriminating ones against the nil-slice
+// serialization this repository records as a recurring defect. Two fixtures are
+// needed because the two empty cases are opposite rounds — nothing withheld
+// empties mechanized_classes, everything withheld empties mechanize_candidates.
+func TestReviewRecord_BothArraysStayEmittedEmptyArrays(t *testing.T) {
+	nothingWithheld := recordSuppressionRound(t, suppressionFixture(t, ""), fiveRowsOfClass("only-class")...)
+	assert.Contains(t, nothingWithheld, `"mechanized_classes": []`,
+		"nothing withheld emits an empty array, not an absent key")
+	assert.NotContains(t, nothingWithheld, `"mechanized_classes": null`,
+		"a withheld set collected into a nil slice would emit null here")
+	assert.NotEmpty(t, candidateClasses(t, nothingWithheld), "the round really does have a candidate")
+
+	everythingWithheld := recordSuppressionRound(t,
+		suppressionFixture(t, `[{"class":"only-class","cmd":"true"}]`), fiveRowsOfClass("only-class")...)
+	assert.Contains(t, everythingWithheld, `"mechanize_candidates": []`,
+		"the filter emptying the candidate list keeps it an emitted empty array")
+	assert.NotContains(t, everythingWithheld, `"mechanize_candidates": null`,
+		"a filter appending survivors into a nil slice would emit null here")
+	assert.Equal(t, []string{"only-class"}, mechanizedClasses(t, everythingWithheld))
+}
+
+// Test 41's --compact half: mechanized_classes survives --compact because
+// mechanize_candidates does, since stripping one half of a list and its withheld
+// remainder would misreport the round rather than shorten it. The absent
+// harness_stale key is what proves --compact actually took effect on this
+// payload.
+func TestReviewRecord_MechanizedClassesSurvivesCompact(t *testing.T) {
+	dir := suppressionFixture(t, `[{"class":"registered-class","cmd":"true"}]`)
+	rows := append(fiveRowsOfClass("registered-class"), fiveRowsOfClass("unregistered-class")...)
+	f := filepath.Join(dir, "findings.ndjson")
+	require.NoError(t, os.WriteFile(f, []byte(strings.Join(rows, "\n")+"\n"), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "review", "spec.md", "--record", f, "--compact")
+	require.Equal(t, 0, code, "compact record failed: %s", stderr)
+	assert.NotContains(t, stdout, "harness_stale", "--compact took effect on this payload")
+
+	assert.Equal(t, []string{"registered-class"}, mechanizedClasses(t, stdout))
+	assert.Equal(t, []string{"unregistered-class"}, candidateClasses(t, stdout))
+}
+
+// Test 35's mechanized_classes half: a class named by two valid entries and over
+// the candidate threshold is mechanized and named once. The frequency
+// precondition is what makes this half assertable, since the array holds
+// withheld candidates. The fixture writes the block directly because
+// `tp set --workflow checks=` validates the whole slice and rejects the
+// duplicate class this test needs.
+func TestReviewRecord_ClassNamedByTwoEntriesWithheldOnce(t *testing.T) {
+	dir := exclusionFixture(t, `[{"class":"twice-class","cmd":"check-a"},{"class":"twice-class","cmd":"check-b"}]`)
+	stdout := recordSuppressionRound(t, dir, fiveRowsOfClass("twice-class")...)
+
+	assert.Equal(t, []string{"twice-class"}, mechanizedClasses(t, stdout), "named once, not once per entry")
+	assert.Empty(t, candidateClasses(t, stdout), "and withheld from the candidate list")
+}
+
+// Test 36's mechanized_classes half: over-specification is withheld and listed
+// like any other class. Its §3.1 exemption is scoped to the reviewer exclusion
+// list alone — an implementation exempting it here too would leave the
+// register-a-check hint firing for a class whose check already exists.
+func TestReviewRecord_OverSpecificationIsWithheldLikeAnyOtherClass(t *testing.T) {
+	dir := suppressionFixture(t, `[{"class":"over-specification","cmd":"true"}]`)
+	rows := append(fiveRowsOfClass("over-specification"), fiveRowsOfClass("control-class")...)
+	stdout := recordSuppressionRound(t, dir, rows...)
+
+	assert.Equal(t, []string{"over-specification"}, mechanizedClasses(t, stdout))
+	assert.Equal(t, []string{"control-class"}, candidateClasses(t, stdout),
+		"the exemption does not reach this sink")
+}
