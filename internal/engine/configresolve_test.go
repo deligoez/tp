@@ -150,18 +150,26 @@ func TestResolveEffectiveWorkflow_AnchoredAtStartNoCrossProject(t *testing.T) {
 	assert.Equal(t, 8, wf.ReviewMaxRounds, "derive-at-read from the single anchored project")
 }
 
-func TestResolveWorkflow_ThinnedTaskInheritsProjectPolicy(t *testing.T) {
+// thinnedProjectRoot creates a repo root carrying .tp/config.json with the
+// given project workflow JSON, a spec, and a THINNED task file whose workflow
+// block is empty, then chdirs into it. The inheritance tests below differ only
+// in that JSON and in the resolved fields they assert.
+func thinnedProjectRoot(t *testing.T, projectWorkflow string) {
+	t.Helper()
 	root := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
 	require.NoError(t, os.Mkdir(filepath.Join(root, ".tp"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(root, ".tp", "config.json"),
-		[]byte(`{"workflow":{"review_clean_rounds":3,"review_max_rounds":7}}`), 0o600))
+		[]byte(`{"workflow":`+projectWorkflow+`}`), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "s.md"), []byte("# S\n"), 0o600))
-	// A thinned task file: its workflow block omits the convergence policy.
 	require.NoError(t, os.WriteFile(filepath.Join(root, "s.tasks.json"),
 		[]byte(`{"spec":"s.md","tasks":[],"workflow":{}}`), 0o600))
-
 	t.Chdir(root)
+}
+
+func TestResolveWorkflow_ThinnedTaskInheritsProjectPolicy(t *testing.T) {
+	thinnedProjectRoot(t, `{"review_clean_rounds":3,"review_max_rounds":7}`)
+
 	wf, _ := ResolveWorkflow("s.md", "s.tasks.json")
 	assert.Equal(t, 3, wf.ReviewCleanRounds, "import enforcement resolves the inherited project clean_rounds")
 	assert.Equal(t, 7, wf.ReviewMaxRounds, "and the inherited project cap")
@@ -185,16 +193,8 @@ func TestEffectiveWorkflowForTaskFile_InheritsProjectQualityGate(t *testing.T) {
 func TestResolveWorkflow_BudgetCapsInherited(t *testing.T) {
 	// The review and audit round-budget checks read ResolveWorkflow, so a
 	// thinned task file inherits both project caps for budget enforcement.
-	root := t.TempDir()
-	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
-	require.NoError(t, os.Mkdir(filepath.Join(root, ".tp"), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(root, ".tp", "config.json"),
-		[]byte(`{"workflow":{"review_max_rounds":6,"audit_max_rounds":9}}`), 0o600))
-	require.NoError(t, os.WriteFile(filepath.Join(root, "s.md"), []byte("# S\n"), 0o600))
-	require.NoError(t, os.WriteFile(filepath.Join(root, "s.tasks.json"),
-		[]byte(`{"spec":"s.md","tasks":[],"workflow":{}}`), 0o600))
+	thinnedProjectRoot(t, `{"review_max_rounds":6,"audit_max_rounds":9}`)
 
-	t.Chdir(root)
 	wf, _ := ResolveWorkflow("s.md", "s.tasks.json")
 	assert.Equal(t, 6, wf.ReviewMaxRounds, "review budget uses the inherited project cap")
 	assert.Equal(t, 9, wf.AuditMaxRounds, "audit budget uses the inherited project cap")
