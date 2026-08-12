@@ -202,17 +202,37 @@ decomposition checklist — and its quality issues:
 tp lint spec.md --json | jq '.findings[] | select(.rule)'
 ```
 
-| Rule | Severity | What it checks |
-|------|----------|----------------|
-| `structured-elements` | info | Tables, numbered lists, code blocks in spec |
-| `acceptance-quality` | warning/info | Removal-only acceptance, vague verbs, short acceptance |
-| `affected-files-scope` | warning | Modify rows in affected files table without scope description |
-| `duplicate-line` | warning | Consecutive identical non-empty lines (edit artifacts) |
-| `numbering-gap` | warning | Gaps in numbered section headings (e.g., 4.1 → 4.3, missing 4.2) |
-| `orphan-list-item` | info | Numbered lists starting at >1 or with gaps (e.g., 1, 3 — missing 2) |
-| `duplicate-paragraph` | warning | Two consecutive identical paragraphs — copy-paste artifacts the line-level check misses |
-| `broken-cross-ref` | warning | `§X.Y step N` where section X.Y has fewer than N numbered steps |
-| `empty-section` | warning | A leaf heading with no body content (container headings — whose next heading is deeper — are skipped) |
+Every rule identifier tp can put in a `findings[].rule` field, and the command that emits it:
+
+| Rule | Emitted by | Severity | What it checks |
+|------|------------|----------|----------------|
+| `heading-hierarchy` | `tp lint` | error | A heading skips a level (e.g. `##` straight to `####`) |
+| `empty-section` | `tp lint` | error | A leaf heading with no body content (container headings — whose next heading is deeper — are skipped) |
+| `duplicate-heading` | `tp lint` | error | Two headings with identical text under the same parent |
+| `orphan-reference` | `tp lint` | error | `[text](#anchor)` whose anchor matches no heading |
+| `frontmatter` | `tp lint` | error/warning | `tp:` frontmatter that is unclosed or unparseable (error), or whose shape is wrong (warning) |
+| `section-size` | `tp lint` | warning | A section longer than 50 lines — consider splitting |
+| `long-spec` | `tp lint` | info | Spec longer than 500 lines — consider modular sub-specs |
+| `vague-language` | `tp lint` | warning | Vague wording: `appropriate`, `relevant`, `as needed`, `etc.`, `various`, `some`, `proper`, `properly` |
+| `duplicate-line` | `tp lint` | warning | Consecutive identical non-empty lines (edit artifacts) |
+| `duplicate-paragraph` | `tp lint` | warning | Two consecutive identical paragraphs — copy-paste artifacts the line-level check misses |
+| `numbering-gap` | `tp lint` | warning | Gaps in numbered section headings (e.g., 4.1 → 4.3, missing 4.2) |
+| `orphan-list-item` | `tp lint` | info | Numbered lists starting at >1 or with gaps (e.g., 1, 3 — missing 2) |
+| `broken-cross-ref` | `tp lint` | warning | `§X.Y step N` where section X.Y has fewer than N numbered steps |
+| `structured-elements` | `tp lint` | info | Tables, numbered lists, code blocks in spec |
+| `acceptance-quality` | `tp lint` | warning/info | Task acceptance describing removal without final state or using a vague completion verb (warning), or shorter than 10 words (info) |
+| `affected-files-scope` | `tp lint` | warning | Modify rows in affected files table without scope description |
+| `schema` | `tp validate` | error/warning | Missing or invalid required task field (error); out-of-range `workflow` value, clamped at resolution (warning) |
+| `atomicity` | `tp validate` | warning | `estimate_minutes` outside 1–15, title over 8 words or with a conjunction, over 2 `source_sections`, description over 300 chars |
+| `self-dependency` | `tp validate` | error | A task that depends on itself |
+| `dangling-reference` | `tp validate` | error | `depends_on` names a task id that does not exist |
+| `circular-dependency` | `tp validate` | error | A dependency cycle between tasks |
+| `duplicate-id` | `tp validate` | error | Two tasks share an id |
+| `coverage` | `tp validate` | error/warning | Wrong `total_sections`, unmapped sections, coverage arithmetic that does not add up (error); spec missing or unparseable (warning) |
+| `section-anchor` | `tp validate` | warning | A `source_sections` entry that matches no heading, or is ambiguous between several |
+| `line-coverage` | `tp validate` | warning/info | Uncovered spec lines, unusable or invalid `source_lines` (warning); the "…and N more gap(s)" continuation (info) |
+
+`tp import` runs the same task-file checks as `tp validate`, so it emits that half of the table too.
 
 `tp review` generates the adversarial review prompts an agent feeds to sub-agents, records each
 round, and makes convergence a recorded fact rather than a judgement. Roles are project-owned files,
