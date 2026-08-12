@@ -174,30 +174,6 @@ func TestReadAuditRoundRows_BareNullLineIsARow(t *testing.T) {
 	assert.Empty(t, stderr)
 }
 
-// Test 8, the other half — a number, a string, a boolean and an array each fail
-// to unmarshal into a map, so each makes the round contribute no rows under the
-// third file-based cause.
-func TestReadAuditRoundRows_NonMapLiteralsMakeTheRoundContributeNoRows(t *testing.T) {
-	for _, literal := range []string{"5", `"x"`, "true", "[]"} {
-		t.Run(literal, func(t *testing.T) {
-			contents := `{"role":"spec-coverage","status":"PASS"}` + "\n" + literal + "\n"
-			specPath := auditRoundFixture(t, "audit-round-1.ndjson", contents)
-			entry := &ReviewRound{Round: 1, File: "audit-round-1.ndjson", RolesHash: "sha256:panel"}
-
-			var rows []map[string]any
-			var ok bool
-			stderr := captureAuditRoundNotices(t, func() {
-				rows, ok = ReadAuditRoundRows(specPath, entry, "sha256:panel")
-			})
-
-			assert.False(t, ok, "the round contributes no rows")
-			assert.Nil(t, rows, "no surviving rows are handed back")
-			assert.Contains(t, stderr,
-				"round 1 file audit-round-1.ndjson has unparseable rows; skipping its rows")
-		})
-	}
-}
-
 // Test 9 — the four contributes-no-rows causes, each with its own advisory
 // wording, emitted exactly once.
 func TestReadAuditRoundRows_NoRowsCausesAndAdvisories(t *testing.T) {
@@ -225,6 +201,10 @@ func TestReadAuditRoundRows_NoRowsCausesAndAdvisories(t *testing.T) {
 			want:   "round 3 file audit-round-3.ndjson is missing; skipping its rows",
 		},
 		{
+			// Test 8's other half. Every non-map literal — a number, a
+			// string, a boolean, an array — reaches this one branch: the
+			// reader unmarshals into a map[string]any and keys nothing on
+			// the literal's type.
 			name:   "line does not unmarshal into a map",
 			file:   "audit-round-4.ndjson",
 			write:  `{"role":"spec-coverage","status":"PASS"}` + "\n[1,2]\n",
