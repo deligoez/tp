@@ -321,6 +321,8 @@ The wrapper is only for what tp cannot know — runtime setup (e.g. hook-blocked
 - **Commit `.tp-review/` to version control.** Import convergence enforcement holds across clones and CI only when the recorded rounds travel with the repo. `state.json`, every round NDJSON, and the newest snapshot are load-bearing.
 - **Prunable:** only snapshot files older than the newest MAY be deleted (the diff falls back gracefully).
 - **CI implication:** ignoring the directory makes every `tp import` in CI behave as "no recorded rounds" (import proceeds with an info line) — convergence is then unverifiable. A directory holding round files with no `state.json` aborts state-reading commands with exit 3 and a repair hint — that index referenced recorded history, and tp never rebuilds over it. A directory holding only snapshots is the in-flight window between emitting a round and recording it: nothing was ever recorded there, so the next `--record` rebuilds the index rather than refusing.
+- **Durability:** `state.json`, the task file and every round snapshot are written atomically (temp file, then rename), and the first index is created exclusively, so a crash or a concurrent first `--record` cannot leave a half-written or duplicated index.
+- **Do not delete `.tp/locks/<base>-<hash>.lock` while tp may be running.** It is a zero-byte, git-ignored marker that persists after its lock is released, and that is what makes the lock exclude: flock binds to an inode, so unlinking it lets the next waiter lock a different inode at the same path and run concurrently.
 
 ## Tail protocol (when a round drops to one or two low/medium findings)
 

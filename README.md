@@ -134,7 +134,7 @@ tp report                      # Per-task duration + estimation accuracy
 ```bash
 tp lint spec.md                # Spec quality + structured element detection
 tp review spec.md              # Adversarial review prompts (3 personas)
-tp review spec.md --perspective code-audit --affected-files src/a.go  # Code audit with source files
+tp review spec.md --perspective code-audit --affected-files src/a.go  # Code audit (does not read --findings; passing it exits 2)
 tp review spec.md --round 2 --findings r1.ndjson  # Multi-round with previous findings
 tp review spec.md --round 2 --final-round --affected-files src/a.go  # Final round: mandatory code read-through
 tp review --merge r1.ndjson r2.ndjson -o merged.ndjson  # Merge + dedup (all-empty inputs exit 0; a clean round merges to an empty file)

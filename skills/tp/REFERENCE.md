@@ -463,8 +463,9 @@ When a task has `source_sections` and no `source_lines`, `spec_excerpt` is the c
 
 ### Locking (§5.3, §5.4, §12)
 
-- The task-file lock lives at `.tp/locks/<base>-<hash>.lock` (covered by `.tp/.gitignore`), not the sibling `<base>.tasks.json.lock`; a stale sibling lock is removed on first write. tp never stages a path under `.tp/locks/`, and `tp commit`/`--auto-commit` refuse any `--files` path ending in `.tasks.json.lock`.
-- `tp init` creates `.tp/.gitignore` (it covers `local.json` and `locks/`) at init time, so it is committable with the initial tp state.
+- The task-file lock lives at `.tp/locks/<base>-<hash>.lock` (covered by `.tp/.gitignore`), not the sibling `<base>.tasks.json.lock`; a stale sibling lock is removed on first write. tp never stages a path under `.tp/locks/`, and `tp commit`/`--auto-commit` refuse any `--files` path ending in `.tasks.json.lock`. When they drop an accidentally-staged lock they untrack **only** `.tp/locks/**` and `*.tasks.json.lock` — a bare `*.lock` pathspec matches across directories, and until v0.33.0 it recorded `yarn.lock`, `Gemfile.lock` and every other lock file in the repo as deleted.
+- **The lock file persists after the lock is released, by design — do not delete it while tp may be running.** flock is held on an inode, so unlinking the file lets the next waiter open the same path, get a fresh inode, lock that, and enter the critical section concurrently; that cost 4 silently lost rounds per 100 four-way concurrent `tp audit --record` runs before v0.33.0. The file is a zero-byte, git-ignored marker; one per locked target, never more.
+- `tp init` creates `.tp/.gitignore` (it covers `local.json` and `locks/`), and since v0.33.0 so does any locked write, so a project that never ran `tp init` does not accumulate an untracked `.tp/locks/`. Entries you add yourself are preserved: the file is only written when one of the two required lines is missing.
 - Write-lock acquisition retries with backoff until `lock_timeout_seconds` (default 5, range 1-60) elapses, so two concurrent writes both succeed. On timeout tp exits **4** (state) with a hint naming the lock path and the elapsed wait.
 
 ### Exit-code conformance (§13)
@@ -477,6 +478,14 @@ it, verified zero review findings, and recorded the round as clean — a path ty
 convergence. A missing spec path exits 3 with a hint naming the spec rather than the task file. Once
 a stat of that same path has already succeeded, a later failure passes the OS error as the hint,
 because the path was right and the I/O was not.
+
+A line past the **1MB per-line NDJSON cap** exits **3** with a hint naming the cap, at every reader
+in the review/audit family (`--merge`, `--report`, `--resolve`, `--verify`, `--record`, and
+`tp audit --findings`). It used to warn and drop the rows after the over-long line, which could turn
+an unclean round clean. `tp add --bulk`/`tp set --bulk` keep their own warn-and-continue contract.
+
+`tp review --perspective code-audit --findings <file>` exits **2**: that perspective never reads the
+file, and previously accepted the flag while reporting `previous_findings: 0` about it.
 
 ### Report accuracy (§14)
 
