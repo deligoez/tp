@@ -387,12 +387,18 @@ func loadAuditSpec(specPath string) (specLines []string, specContent string) {
 	// on disk, and an interrupted round is visible to --status and tp resume.
 	auditSt, stErr := engine.LoadReviewState(specPath)
 	if stErr != nil {
-		if engine.IsMissingStateIndex(stErr) {
+		if engine.IsRebuildableStateIndex(stErr) {
 			// A prior emission wrote a snapshot that --record has not yet
 			// indexed: the normal in-flight round (§10.2, InFlightRound), not
 			// corruption. Treat as no recorded state and re-snapshot below;
 			// only genuine corruption (unparseable state.json) or an IO error
 			// aborts.
+			//
+			// Rebuildable only. Under the broader predicate a round file with
+			// no index also landed here, and since the budget guard above
+			// returns early on the default audit_max_rounds=0, tp audit emitted
+			// a prompt over lost history and OVERWROTE its round snapshot,
+			// while --record on the same directory exited 3.
 			auditSt = nil
 		} else {
 			exitStateError(stErr)
@@ -430,7 +436,9 @@ func loadAuditSpec(specPath string) (specLines []string, specContent string) {
 func loadAuditPriorRound(specPath string) map[string]*auditPriorRound {
 	st, err := engine.LoadReviewState(specPath)
 	if err != nil {
-		if engine.IsMissingStateIndex(err) {
+		// Rebuildable only, as at loadAuditSpec: a round file with no index is
+		// history this function would otherwise report as "no prior round".
+		if engine.IsRebuildableStateIndex(err) {
 			return nil
 		}
 		exitStateError(err)
@@ -538,7 +546,7 @@ func refuseAuditIfBudgetExhausted(specPath string) {
 		// indexed (§10.2, InFlightRound). tp audit never calls
 		// EnsureReviewState, so state.json is legitimately absent after an
 		// emission — treat it as no recorded rounds, exactly as
-		// loadAuditSpec and loadAuditPriorRound do. Aborting here made the
+		// loadAuditSpec and loadAuditPriorRound now do. Aborting here made the
 		// SECOND tp audit of a round exit 3 "state is unusable" whenever
 		// audit_max_rounds was non-zero, gating a normal in-flight state on
 		// an unrelated knob.

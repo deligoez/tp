@@ -1821,8 +1821,13 @@ func loadReviewRoundState(cmd *cobra.Command, specPath string, round int, findin
 	statePrevFindings := make([]reviewFinding, 0)
 	st, stErr := engine.LoadReviewState(specPath)
 	if stErr != nil {
-		exitStateError(stErr)
-		return reviewRoundState{}
+		// Same snapshot-only window tp audit's emission opens; see
+		// runReviewStatus. Genuine corruption still aborts.
+		if !engine.IsRebuildableStateIndex(stErr) {
+			exitStateError(stErr)
+			return reviewRoundState{}
+		}
+		st = nil
 	}
 	recorded := 0
 	if st != nil {

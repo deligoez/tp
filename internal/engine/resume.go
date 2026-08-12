@@ -62,7 +62,15 @@ func AssembleResume(start, taskFilePath, specPath string, tf *model.TaskFile) (R
 	// Convergence and staleness from the review state and the effective workflow.
 	st, err := LoadReviewState(specPath)
 	if err != nil {
-		return ResumeResult{}, err
+		// tp resume is the re-orientation oracle, and the window it has to work
+		// in is exactly the gap between emitting a round and recording it —
+		// where an audit emission has written a snapshot and no index yet.
+		// Failing there told the orchestrator to delete the directory holding
+		// its own in-flight round. A lost index still surfaces as an error.
+		if !IsRebuildableStateIndex(err) {
+			return ResumeResult{}, err
+		}
+		st = nil
 	}
 	wf := EffectiveWorkflowForTaskFile(taskFilePath)
 	specHash, _ := SpecHash(specPath)

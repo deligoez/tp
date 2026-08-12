@@ -21,8 +21,14 @@ func runReviewStatus(specPath string, check bool) error {
 
 	st, err := engine.LoadReviewState(specPath)
 	if err != nil {
-		exitStateError(err)
-		return nil
+		// An audit emission leaves a snapshot with no index, and this command
+		// reads the same directory: aborting there told the caller to delete
+		// the state holding its own in-flight round.
+		if !engine.IsRebuildableStateIndex(err) {
+			exitStateError(err)
+			return nil
+		}
+		st = nil
 	}
 
 	wf, taskFilePath := engine.ResolveWorkflow(specPath, flagFile)
