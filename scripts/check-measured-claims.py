@@ -19,17 +19,14 @@ found are named here so the next author does not reopen them:
    list without deleting the placeholder line used to disable the body check
    permanently -- over an artifact no reviewer ever sees, because it is produced
    after review closes.
-5. It is NOT registered in `workflow.checks`. Registered checks run in the
-   review phase only, and the artifact this guards is written afterwards -- so
-   registration bought a `PENDING` line every round while suppressing the whole
-   `measured-claim-not-reproducible` class for five reviewer roles. It is the
-   first task's acceptance instrument instead, run by hand against a written
-   list, which is the only state in which its comparison means anything.
+5. It is NOT registered in `workflow.checks`; it is the first task's acceptance
+   instrument, run by hand against a written list. `spec/0.34.0.md` section 7.1
+   records why.
 
 COVERAGE is stated by LOCATION, not by kind, because "re-derivable counts" reads
-as a promise over the whole spec and this checks two sentence patterns in two
-files. Everything else stays the reviewers' business. It prints on every run,
-because the registration tells every reviewer to stop reporting the whole class.
+as a promise over the whole spec and this checks one claim in one file.
+Everything else stays the reviewers' business, and it prints on every run so a
+green exit is never read as more than it is.
 
 Usage: check-measured-claims.py [--quiet]
 Exit 0 when every registered claim reproduces, 1 otherwise.
