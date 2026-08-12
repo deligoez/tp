@@ -658,10 +658,16 @@ func TestAuditFindingsUnreadableDirectory(t *testing.T) {
 // replacement contract lives in TestAuditMissingFindingsFileFailsLoudly
 // (audit_findings_path_test.go).
 
-// An over-long line in a --findings NDJSON hits the bufio.Scanner 64KB token
-// cap; readFindings must warn on stderr and drop later rows instead of silently
-// losing data (mirrors readBulkTasks in add.go). Exit stays 0 — not a hard error.
-func TestAuditFindingsOverlongLineWarns(t *testing.T) {
+// A line past ndjsonLineCap in a --findings NDJSON aborts. This REVERSES the
+// v0.28.0 contract this test used to pin (exit 0, warn on stderr, drop the rows
+// after it), and the reversal is deliberate: these rows become the
+// finding-verification checklist, so dropped rows are findings the audit never
+// asks about while the round still records — the false-clean class every
+// sibling NDJSON reader was swept for. The warning was also weaker than it
+// read, since output.Notice honours --quiet: exit 0, empty stderr, a quietly
+// shorter checklist. tp add --bulk keeps the warn contract; it does not feed a
+// convergence gate.
+func TestAuditFindingsOverlongLineAborts(t *testing.T) {
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n## Table\n| Col |\n|-----|\n| a |\n"), 0o600))
@@ -671,20 +677,37 @@ func TestAuditFindingsOverlongLineWarns(t *testing.T) {
 
 	findingsPath := filepath.Join(dir, "findings.ndjson")
 	ndjson := `{"finding":"kept before the over-long line"}` + "\n" +
-		strings.Repeat("x", 70000) + "\n" +
+		strings.Repeat("x", 2*1024*1024) + "\n" +
 		`{"finding":"dropped after the over-long line"}` + "\n"
 	require.NoError(t, os.WriteFile(findingsPath, []byte(ndjson), 0o600))
 
 	stdout, stderr, code := runTP(t, dir, "audit", specPath, "--affected-files", aPath, "--findings", findingsPath)
-	require.Equal(t, 0, code, "over-long line is a warning, not a hard error: %s", stderr)
-	assert.Contains(t, stderr, "over-long line")
-	assert.Contains(t, stderr, "dropped")
-	assert.Contains(t, stderr, findingsPath, "warning must name the findings path")
+	require.Equal(t, 3, code, "a truncated findings read is a file error, not a shorter checklist")
+	assert.Contains(t, stderr, findingsPath, "the error must name the findings path")
+	assert.NotContains(t, stdout, "kept before the over-long line",
+		"no checklist is emitted from a findings file tp could not read whole")
+
+	// --quiet is what made the old advisory unusable: it silenced the only
+	// signal while the checklist still shrank. The abort must survive it.
+	_, quietStderr, quietCode := runTP(t, dir, "audit", specPath, "--affected-files", aPath,
+		"--findings", findingsPath, "--quiet")
+	assert.Equal(t, 3, quietCode, "--quiet must not turn the abort back into a silent drop")
+	assert.NotEmpty(t, quietStderr, "--quiet silences advisories, not errors")
+
+	// Under the cap the same three rows read normally, so the abort is the
+	// exception and not the new rule.
+	okPath := filepath.Join(dir, "ok.ndjson")
+	okNDJSON := `{"finding":"kept before the over-long line"}` + "\n" +
+		`{"finding":"` + strings.Repeat("x", 200*1024) + `"}` + "\n" +
+		`{"finding":"dropped after the over-long line"}` + "\n"
+	require.NoError(t, os.WriteFile(okPath, []byte(okNDJSON), 0o600))
+
+	okStdout, okStderr, okCode := runTP(t, dir, "audit", specPath, "--affected-files", aPath, "--findings", okPath)
+	require.Equal(t, 0, okCode, "a 200KB row is under the shared cap: %s", okStderr)
 
 	var result map[string]any
-	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
-
-	keepSeen, dropSeen := false, false
+	require.NoError(t, json.Unmarshal([]byte(okStdout), &result))
+	keepSeen, tailSeen := false, false
 	for _, e := range result["checklist"].([]any) {
 		em := e.(map[string]any)
 		if em["type"].(string) == "finding" {
@@ -692,10 +715,10 @@ func TestAuditFindingsOverlongLineWarns(t *testing.T) {
 			case "kept before the over-long line":
 				keepSeen = true
 			case "dropped after the over-long line":
-				dropSeen = true
+				tailSeen = true
 			}
 		}
 	}
-	assert.True(t, keepSeen, "finding before the over-long line must survive")
-	assert.False(t, dropSeen, "finding after the over-long line must be dropped")
+	assert.True(t, keepSeen, "the first finding reaches the checklist")
+	assert.True(t, tailSeen, "so does the one after the 200KB row — nothing is dropped under the cap")
 }
