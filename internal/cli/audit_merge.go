@@ -88,7 +88,7 @@ func runAuditMerge(args []string, outputPath string) error {
 
 	if outputPath != "" {
 		if err := os.WriteFile(outputPath, []byte(ndjson), 0o600); err != nil {
-			output.Error(ExitFile, fmt.Sprintf("cannot write output file: %s", err))
+			output.Error(ExitFile, fmt.Sprintf("cannot write output file: %s", err), outputFileHint)
 			os.Exit(ExitFile)
 			return nil
 		}

@@ -38,12 +38,12 @@ func runReviewVerify(specPath, findingsPath string, affectedFiles []string, diff
 	for _, f := range affectedFiles {
 		info, err := os.Stat(f)
 		if err != nil {
-			output.Error(ExitFile, fmt.Sprintf("affected file not found: %s", f))
+			output.Error(ExitFile, fmt.Sprintf("affected file not found: %s", f), affectedFilesHint)
 			os.Exit(ExitFile)
 			return nil
 		}
 		if info.IsDir() {
-			output.Error(ExitFile, fmt.Sprintf("affected path is a directory, not a file: %s", f))
+			output.Error(ExitFile, fmt.Sprintf("affected path is a directory, not a file: %s", f), affectedFilesHint)
 			os.Exit(ExitFile)
 			return nil
 		}
@@ -72,7 +72,7 @@ func runReviewVerify(specPath, findingsPath string, affectedFiles []string, diff
 	switch {
 	case diffFrom != "":
 		if _, err := os.Stat(diffFrom); os.IsNotExist(err) {
-			output.Error(ExitFile, fmt.Sprintf("diff baseline not found: %s", diffFrom))
+			output.Error(ExitFile, fmt.Sprintf("diff baseline not found: %s", diffFrom), specFileMissingHint)
 			os.Exit(ExitFile)
 			return nil
 		}

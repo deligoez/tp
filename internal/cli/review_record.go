@@ -326,6 +326,6 @@ func exitStateError(err error) {
 		os.Exit(ExitState)
 		return
 	}
-	output.Error(ExitFile, err.Error())
+	output.Error(ExitFile, err.Error(), stateWriteHint)
 	os.Exit(ExitFile)
 }

@@ -145,7 +145,7 @@ func runReviewStatus(specPath string, check bool) error {
 	result["next_action"] = engine.ReviewNextAction(specPath, converged, blockingUnresolved, mechanizeClassesFromRounds(specPath, rounds, wf.Checks))
 
 	if jsonErr := output.JSON(result); jsonErr != nil {
-		output.Error(ExitFile, jsonErr.Error())
+		output.Error(ExitFile, jsonErr.Error(), internalEncodeHint)
 	}
 
 	if check && (!converged || !allPass) {

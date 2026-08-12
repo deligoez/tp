@@ -316,7 +316,7 @@ func runAuditStatus(specPath string, check bool) error {
 	result["next_action"] = engine.AuditNextAction(specPath, converged, latestHasFindings)
 
 	if jsonErr := output.JSON(result); jsonErr != nil {
-		output.Error(ExitFile, jsonErr.Error())
+		output.Error(ExitFile, jsonErr.Error(), internalEncodeHint)
 	}
 
 	if check && !converged {

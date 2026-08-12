@@ -50,6 +50,27 @@ const ndjsonLineCap = 1024 * 1024
 // exactly where the operator said it was, and one row inside it is too long.
 const ndjsonLineTooLongHint = "a single line exceeded the 1MB NDJSON read cap — re-emit the file with one finding per line, shortening the oversized note"
 
+// affectedFilesHint is the hint for a bad --affected-files entry. The flag
+// takes source files for the reviewer to read, so the code-3 default's task-file
+// advice names the wrong object entirely.
+const affectedFilesHint = "check the --affected-files paths — the flag takes source files to read, one existing file per entry"
+
+// reviewDirFlagHint is the hint for --docs-path/--test-path, the two review
+// flags that take a directory rather than a file.
+const reviewDirFlagHint = "this flag takes a directory that already exists — check the path"
+
+// outputFileHint is the hint for a failed -o/--output write, where nothing
+// about the INPUT paths is wrong.
+const outputFileHint = "check -o/--output: its directory must exist and be writable"
+
+// stateWriteHint is the fallback for a state-layer failure that is neither
+// corruption nor lock contention — a write that could not land.
+const stateWriteHint = "check that the .tp-review state directory exists and is writable"
+
+// internalEncodeHint marks the one failure the caller cannot repair: tp built a
+// result it could not encode. Saying so is more use than task-file advice.
+const internalEncodeHint = "internal error: the result could not be encoded as JSON — please report it with the command you ran"
+
 // ndjsonReadHint picks the hint for a failed NDJSON read. Pointing at the path
 // repairs nothing when the path was fine and the line was too long: that is the
 // one-cause-for-every-failure defect, reversed.
@@ -475,7 +496,7 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 
 	lines, headings, err := parseSpecFile(specPath)
 	if err != nil {
-		output.Error(ExitFile, err.Error())
+		output.Error(ExitFile, err.Error(), specFileMissingHint)
 		os.Exit(ExitFile)
 		return nil
 	}
@@ -597,7 +618,7 @@ func validateReviewInputs(perspective string, round int, findingsPath string, af
 	if docsPath != "" {
 		info, err := os.Stat(docsPath)
 		if err != nil || !info.IsDir() {
-			output.Error(ExitFile, fmt.Sprintf("docs path not found or not a directory: %s", docsPath))
+			output.Error(ExitFile, fmt.Sprintf("docs path not found or not a directory: %s", docsPath), reviewDirFlagHint)
 			os.Exit(ExitFile)
 			return nil
 		}
@@ -606,7 +627,7 @@ func validateReviewInputs(perspective string, round int, findingsPath string, af
 	if testPath != "" {
 		info, err := os.Stat(testPath)
 		if err != nil || !info.IsDir() {
-			output.Error(ExitFile, fmt.Sprintf("test path not found or not a directory: %s", testPath))
+			output.Error(ExitFile, fmt.Sprintf("test path not found or not a directory: %s", testPath), reviewDirFlagHint)
 			os.Exit(ExitFile)
 			return nil
 		}
@@ -624,7 +645,9 @@ func validateReviewInputs(perspective string, round int, findingsPath string, af
 
 	if diffFrom != "" {
 		if _, err := os.Stat(diffFrom); os.IsNotExist(err) {
-			output.Error(ExitFile, fmt.Sprintf("diff baseline not found: %s", diffFrom))
+			// --diff-from takes a spec, so it draws the spec-path hint, not the
+			// code-3 default's task-file advice.
+			output.Error(ExitFile, fmt.Sprintf("diff baseline not found: %s", diffFrom), specFileMissingHint)
 			os.Exit(ExitFile)
 			return nil
 		}
@@ -634,12 +657,12 @@ func validateReviewInputs(perspective string, round int, findingsPath string, af
 	for _, f := range affectedFiles {
 		info, err := os.Stat(f)
 		if err != nil {
-			output.Error(ExitFile, fmt.Sprintf("affected file not found: %s", f))
+			output.Error(ExitFile, fmt.Sprintf("affected file not found: %s", f), affectedFilesHint)
 			os.Exit(ExitFile)
 			return nil
 		}
 		if info.IsDir() {
-			output.Error(ExitFile, fmt.Sprintf("affected path is a directory, not a file: %s", f))
+			output.Error(ExitFile, fmt.Sprintf("affected path is a directory, not a file: %s", f), affectedFilesHint)
 			os.Exit(ExitFile)
 			return nil
 		}
@@ -1085,7 +1108,10 @@ func parseFindingsFile(path string) ([]reviewFinding, error) {
 func mustParseFindingsFile(path string) []reviewFinding {
 	findings, err := parseFindingsFile(path)
 	if err != nil {
-		output.Error(ExitFile, fmt.Sprintf("cannot read findings file: %s", path), err.Error())
+		// The hint says what to DO about the failure; the error itself is
+		// already in the message, and "bufio.Scanner: token too long" repaired
+		// nothing when repeated as advice.
+		output.Error(ExitFile, fmt.Sprintf("cannot read findings file: %s", path), ndjsonReadHint(err))
 		os.Exit(ExitFile)
 		return nil
 	}
@@ -1708,7 +1734,7 @@ func resolveReviewSpecContent(specPath, diffFrom string, specInline bool) string
 	case diffFrom != "":
 		baseData, err := os.ReadFile(diffFrom)
 		if err != nil {
-			output.Error(ExitFile, fmt.Sprintf("cannot read diff baseline: %s", diffFrom))
+			output.Error(ExitFile, fmt.Sprintf("cannot read diff baseline: %s", diffFrom), specFileMissingHint)
 			os.Exit(ExitFile)
 			return ""
 		}

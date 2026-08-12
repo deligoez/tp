@@ -30,7 +30,7 @@ func runReviewRegression(specPath, diffFrom, findingsPath string) error {
 	case diffFrom != "" && findingsPath != "":
 		// Mode (b): neither reads nor writes state
 		if _, err := os.Stat(diffFrom); err != nil {
-			output.Error(ExitFile, fmt.Sprintf("diff baseline not found: %s", diffFrom))
+			output.Error(ExitFile, fmt.Sprintf("diff baseline not found: %s", diffFrom), specFileMissingHint)
 			os.Exit(ExitFile)
 			return nil
 		}
