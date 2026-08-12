@@ -1468,21 +1468,25 @@ func readFilesContent(files []string, maxPerFile, maxTotal int) map[string]strin
 	return result
 }
 
-func generateDocPlanPrompt(specContent, structureMap string, fileContents map[string]string) reviewPrompt {
+// generatePlanPrompt assembles a planning prompt. The documentation and test
+// planners differ only in the strings passed here; the assembly is shared.
+func generatePlanPrompt(role, intro, structureLabel, filesLabel, checklist, outputFormat string,
+	specContent, structureMap string, fileContents map[string]string,
+) reviewPrompt {
 	var b strings.Builder
 
-	b.WriteString("You are a technical writer planning documentation changes for a new feature. Your goal is to compare the specification against existing documentation and produce a structured plan of changes needed.\n\n")
+	b.WriteString(intro)
 	b.WriteString(specOnlyDisclaimer)
 	b.WriteString("Spec content:\n---\n")
 	b.WriteString(specContent)
 	b.WriteString("\n---\n\n")
 
-	b.WriteString("Documentation structure:\n")
+	b.WriteString(structureLabel)
 	b.WriteString(structureMap)
 	b.WriteString("\n")
 
 	if len(fileContents) > 0 {
-		b.WriteString("Existing documentation files (selected by relevance):\n")
+		b.WriteString(filesLabel)
 		sortedPaths := make([]string, 0, len(fileContents))
 		for p := range fileContents {
 			sortedPaths = append(sortedPaths, p)
@@ -1495,51 +1499,38 @@ func generateDocPlanPrompt(specContent, structureMap string, fileContents map[st
 		}
 	}
 
-	b.WriteString(docChecklist)
-	b.WriteString(docOutputFormat)
+	b.WriteString(checklist)
+	b.WriteString(outputFormat)
 
 	return reviewPrompt{
-		Role:     "documentation-planner",
+		Role:     role,
 		Category: "completeness",
 		Prompt:   b.String(),
 	}
 }
 
+func generateDocPlanPrompt(specContent, structureMap string, fileContents map[string]string) reviewPrompt {
+	return generatePlanPrompt(
+		"documentation-planner",
+		"You are a technical writer planning documentation changes for a new feature. Your goal is to compare the specification against existing documentation and produce a structured plan of changes needed.\n\n",
+		"Documentation structure:\n",
+		"Existing documentation files (selected by relevance):\n",
+		docChecklist,
+		docOutputFormat,
+		specContent, structureMap, fileContents,
+	)
+}
+
 func generateTestPlanPrompt(specContent, structureMap string, fileContents map[string]string) reviewPrompt {
-	var b strings.Builder
-
-	b.WriteString("You are a QA engineer planning test coverage for a new feature. Your goal is to analyze the specification and produce a structured test plan covering all requirements.\n\n")
-	b.WriteString(specOnlyDisclaimer)
-	b.WriteString("Spec content:\n---\n")
-	b.WriteString(specContent)
-	b.WriteString("\n---\n\n")
-
-	b.WriteString("Test structure:\n")
-	b.WriteString(structureMap)
-	b.WriteString("\n")
-
-	if len(fileContents) > 0 {
-		b.WriteString("Existing test files (selected by relevance):\n")
-		sortedPaths := make([]string, 0, len(fileContents))
-		for p := range fileContents {
-			sortedPaths = append(sortedPaths, p)
-		}
-		sort.Strings(sortedPaths)
-		for _, path := range sortedPaths {
-			fmt.Fprintf(&b, "--- FILE: %s ---\n", path)
-			b.WriteString(fileContents[path])
-			b.WriteString("\n--- END FILE ---\n\n")
-		}
-	}
-
-	b.WriteString(testChecklist)
-	b.WriteString(testOutputFormat)
-
-	return reviewPrompt{
-		Role:     "test-planner",
-		Category: "completeness",
-		Prompt:   b.String(),
-	}
+	return generatePlanPrompt(
+		"test-planner",
+		"You are a QA engineer planning test coverage for a new feature. Your goal is to analyze the specification and produce a structured test plan covering all requirements.\n\n",
+		"Test structure:\n",
+		"Existing test files (selected by relevance):\n",
+		testChecklist,
+		testOutputFormat,
+		specContent, structureMap, fileContents,
+	)
 }
 
 const docChecklist = `
