@@ -160,3 +160,19 @@ func TestImport_LockContentionTimeoutExitsFour(t *testing.T) {
 	assert.Equal(t, 0, importLockTaskCount(t, taskFilePath), "a timed-out import writes nothing")
 }
 
+// TestImport_SuccessPathUnchanged pins §3's third claim: the success path gains
+// no flag and no output change. A plain import into the init shell still exits
+// 0 with exactly {"imported": N, "path": ...} on stdout.
+func TestImport_SuccessPathUnchanged(t *testing.T) {
+	dir, importPath, taskFilePath := importLockSetup(t)
+
+	stdout, stderr, code := runTP(t, dir, "import", importPath)
+	require.Equal(t, 0, code, "import failed: %s", stderr)
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &payload), "stdout is the import payload: %s", stdout)
+	assert.Equal(t, float64(1), payload["imported"])
+	assert.Equal(t, "spec.tasks.json", payload["path"])
+	assert.Len(t, payload, 2, "no field was added to the success payload")
+	assert.Equal(t, 1, importLockTaskCount(t, taskFilePath))
+}
