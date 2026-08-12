@@ -165,7 +165,7 @@ type verifyFinding struct {
 func readVerifyFindings(path string) []verifyFinding {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		output.Error(ExitFile, fmt.Sprintf("cannot read findings file: %s", path), ndjsonInputFileHint)
+		output.Error(ExitFile, fmt.Sprintf("cannot read findings file: %s: %v", path, err), ndjsonInputFileHint)
 		os.Exit(ExitFile)
 		return nil
 	}

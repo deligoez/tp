@@ -1110,10 +1110,12 @@ func parseFindingsFile(path string) ([]reviewFinding, error) {
 func mustParseFindingsFile(path string) []reviewFinding {
 	findings, err := parseFindingsFile(path)
 	if err != nil {
-		// The hint says what to DO about the failure; the error itself is
-		// already in the message, and "bufio.Scanner: token too long" repaired
-		// nothing when repeated as advice.
-		output.Error(ExitFile, fmt.Sprintf("cannot read findings file: %s", path), ndjsonReadHint(err))
+		// The MESSAGE carries the cause, the HINT carries the repair. Moving
+		// the error into the hint lost "permission denied" from the output
+		// entirely and advised checking a path that was correct — the same
+		// wrong-object defect the hint sweep set out to remove, reintroduced by
+		// it. tp audit --findings names the cause for the same file.
+		output.Error(ExitFile, fmt.Sprintf("cannot read findings file: %s: %v", path, err), ndjsonReadHint(err))
 		os.Exit(ExitFile)
 		return nil
 	}
