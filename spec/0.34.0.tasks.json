@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "spec": "spec/0.34.0.md",
+  "created_at": "2026-08-12T10:40:36.724701Z",
+  "updated_at": "2026-08-12T10:40:41.782462Z",
+  "workflow": {
+    "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
+    "checks": [
+      {
+        "class": "code-citation-drift",
+        "cmd": "python3 scripts/check-spec-code-citations.py spec/0.34.0.md"
+      }
+    ]
+  },
+  "coverage": {
+    "total_sections": 0,
+    "mapped_sections": 0,
+    "context_only": [],
+    "unmapped": []
+  },
+  "tasks": []
+}
