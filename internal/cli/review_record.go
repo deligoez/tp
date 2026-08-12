@@ -101,7 +101,7 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 			// identical to the one the sibling record path produces.
 			return &engine.StateCorruptError{
 				Path:   engine.ReviewStateDir(specPath),
-				Reason: "it disappeared while a round was being recorded",
+				Reason: vanishedStateReason,
 			}
 		}
 		round = len(st.ReviewRounds) + 1
@@ -298,6 +298,12 @@ func (r *rolelessRows) notice(path string) {
 		"warning: %d row(s) in %s are missing the role field (first at line %d); they will not appear in the per-role overlap report",
 		r.count, path, r.firstLine))
 }
+
+// vanishedStateReason is the StateCorruptError reason both record paths raise
+// when the state directory disappears between EnsureReviewState and the write
+// lock. One string, so the two guards cannot report the same condition in two
+// different words.
+const vanishedStateReason = "it disappeared while a round was being recorded"
 
 // exitStateError reports state-layer failures: corrupt state exits 3 with the
 // repair hint, write-lock contention exits 4 with the lock hint, and anything

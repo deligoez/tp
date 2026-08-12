@@ -172,7 +172,7 @@ func recordAuditRoundEntry(specPath string, data []byte, findings int, clean boo
 			// identical to the one the sibling record path produces.
 			return &engine.StateCorruptError{
 				Path:   engine.ReviewStateDir(specPath),
-				Reason: "it disappeared while a round was being recorded",
+				Reason: vanishedStateReason,
 			}
 		}
 		st = loaded
