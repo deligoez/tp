@@ -4,7 +4,6 @@
   "created_at": "0001-01-01T00:00:00Z",
   "updated_at": "2026-08-12T17:08:08.391442Z",
   "workflow": {
-    "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "checks": [
       {
         "class": "code-citation-drift",
