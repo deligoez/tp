@@ -168,7 +168,16 @@ func ResolveEffectiveWorkflow(start string, taskOverride *model.WorkflowOverride
 // Each field resolves independently — a nil field inherits the next lower layer
 // — so presence, not value, defines an override.
 func ResolveWorkflowLayers(taskOverride, project *model.WorkflowOverride) model.Workflow {
-	def := DefaultWorkflow()
+	// The built-in default layer: 2 clean rounds, no round caps, 600s gate
+	// timeout, 5s lock timeout, no checks, blocking-severity review convergence.
+	def := model.Workflow{
+		ReviewCleanRounds:  2,
+		AuditCleanRounds:   2,
+		GateTimeoutSeconds: 600,
+		LockTimeoutSeconds: 5,
+		Checks:             []model.Check{},
+		ReviewConvergeOn:   ReviewConvergeOnBlocking,
+	}
 	return model.Workflow{
 		QualityGate:        pickString([]*string{taskOverride.QualityGate, project.QualityGate}, def.QualityGate),
 		CommitStrategy:     pickString([]*string{taskOverride.CommitStrategy, project.CommitStrategy}, def.CommitStrategy),

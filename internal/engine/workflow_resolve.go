@@ -7,19 +7,6 @@ import (
 	"github.com/deligoez/tp/internal/model"
 )
 
-// DefaultWorkflow returns the resolution-chain defaults: 2 clean rounds,
-// no round caps, 600s gate timeout, no checks.
-func DefaultWorkflow() model.Workflow {
-	return model.Workflow{
-		ReviewCleanRounds:  2,
-		AuditCleanRounds:   2,
-		GateTimeoutSeconds: 600,
-		LockTimeoutSeconds: 5,
-		Checks:             []model.Check{},
-		ReviewConvergeOn:   ReviewConvergeOnBlocking,
-	}
-}
-
 // ResolveWorkflow resolves workflow parameters for the spec under review or
 // audit. The task file is resolved via the standard discovery chain (--file >
 // TP_FILE > .tp/local.json active > auto-detect); when the discovered file's spec field

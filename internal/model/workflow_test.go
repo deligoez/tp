@@ -10,7 +10,7 @@ import (
 
 // Workflow is the resolved (effective) workflow value the resolver produces and
 // tp plan / validate / config emit. As of v0.26.0 it applies no defaults on
-// unmarshal — defaults live only in the resolver (DefaultWorkflow) — so this
+// unmarshal — defaults live only in the resolver (ResolveWorkflowLayers) — so this
 // checks the effective value marshals with every field present and round-trips
 // without any default injection.
 func TestWorkflow_EffectiveSerialization(t *testing.T) {
