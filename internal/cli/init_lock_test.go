@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -105,4 +106,49 @@ func TestInit_WaitsForTaskFileWriteLock(t *testing.T) {
 	res := <-done
 	require.Equal(t, 0, res.code, "init succeeds once the lock is released: %s", res.stderr)
 	assert.FileExists(t, taskFilePath, "the init shell lands after the release")
+}
+
+// TestInit_LockContentionTimeoutExitsFour is §3's second claim for init: a lock
+// held past lock_timeout_seconds fails the way every other write command fails
+// it — exit 4 (STATE) carrying LockTimeoutError's message and hint, which name
+// the lock path and the elapsed wait.
+func TestInit_LockContentionTimeoutExitsFour(t *testing.T) {
+	dir, taskFilePath := initLockSetup(t)
+
+	// Shorten the lock timeout to 1s so the test stays fast. The target does
+	// not exist yet, so this also pins that init resolves the timeout through
+	// the project config rather than falling back to the built-in default.
+	_, stderr, code := runTP(t, dir, "set", "--workflow", "--project", "lock_timeout_seconds=1")
+	require.Equal(t, 0, code, "set lock_timeout_seconds: %s", stderr)
+
+	release := holdTaskFileLock(t, taskFilePath)
+	defer release()
+
+	start := time.Now()
+	_, stderr, code = runTP(t, dir, "init", "spec.md")
+	elapsed := time.Since(start)
+	assert.Equal(t, 4, code, "an init held past lock_timeout_seconds exits 4 (STATE): %s", stderr)
+
+	// The window bounds pin "resolved": the project config says 1s, so init
+	// must retry for about that long — not bail out on the first failed
+	// TryLock, and not fall back to the 5s built-in default.
+	assert.GreaterOrEqual(t, elapsed, 900*time.Millisecond, "init retried for the configured 1s, not less")
+	assert.Less(t, elapsed, 4*time.Second, "init used the configured 1s, not the 5s built-in default")
+
+	assertLockTimeoutErrorObject(t, stderr)
+	assert.NoFileExists(t, taskFilePath, "a timed-out init writes nothing")
+}
+
+// assertLockTimeoutErrorObject checks stderr is the tp error object a
+// LockTimeoutError produces: the message names the contention, the lock path
+// and the elapsed wait, and the hint names the lock path.
+func assertLockTimeoutErrorObject(t *testing.T, stderr string) {
+	t.Helper()
+	var errObj map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stderr), &errObj), "stderr is the tp error object: %s", stderr)
+	assert.Contains(t, errObj["error"], "timed out waiting for lock", "error names the contention")
+	assert.Contains(t, errObj["error"], filepath.Join(".tp", "locks"), "error names the lock path")
+	assert.Contains(t, errObj["error"], "after ", "error names the elapsed wait")
+	hint, _ := errObj["hint"].(string)
+	assert.Contains(t, hint, filepath.Join(".tp", "locks"), "hint names the lock path")
 }
