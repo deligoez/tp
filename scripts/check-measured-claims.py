@@ -19,9 +19,12 @@ found are named here so the next author does not reopen them:
    list without deleting the placeholder line used to disable the body check
    permanently -- over an artifact no reviewer ever sees, because it is produced
    after review closes.
-5. The tree is read through `git ls-files`. Walking the working tree let an
-   untracked scratch file fail the check, whose obvious repair would have been
-   to edit the spec's number: a guard that teaches the wrong fix.
+5. It is NOT registered in `workflow.checks`. Registered checks run in the
+   review phase only, and the artifact this guards is written afterwards -- so
+   registration bought a `PENDING` line every round while suppressing the whole
+   `measured-claim-not-reproducible` class for five reviewer roles. It is the
+   first task's acceptance instrument instead, run by hand against a written
+   list, which is the only state in which its comparison means anything.
 
 COVERAGE is stated by LOCATION, not by kind, because "re-derivable counts" reads
 as a promise over the whole spec and this checks two sentence patterns in two
@@ -78,7 +81,11 @@ LIST_ENTRY = re.compile(r"^\s*(?:[-*]\s+)?`?([\w./-]+_test\.go):(Test\w+)`?\s*$"
 # that is the side the first task writes into, since the heading is the file's
 # last line.
 LIST_HEADING = re.compile(r"^## Guard tests\s*$", re.M)
-NEXT_HEADING = re.compile(r"^## ", re.M)
+# Any heading level ends the region. Matching only `## ` let the same escape
+# reappear one level down: the document says "the next heading" and names no
+# level, so an author who trusts that sentence and writes `### Excluded` got a
+# list the check over-read.
+NEXT_HEADING = re.compile(r"^#{1,6} ", re.M)
 
 # Anchored to the start of a line, not searched as a phrase. A bare substring
 # test matched the sentence documenting the placeholder rule as well as the
