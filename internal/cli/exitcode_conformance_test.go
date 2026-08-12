@@ -114,6 +114,19 @@ func TestExitCode_UnknownCommand_KeepsSuggestion(t *testing.T) {
 	assert.Contains(t, e["error"], "review", "the did-you-mean suggestion must survive")
 }
 
+// §9.1: an unknown subcommand of a command that only dispatches is a usage
+// error too. Cobra's default prints that command's help and exits 0, so a
+// driver could not tell a typo from a successful run.
+func TestExitCode_UnknownSubcommand_Exit2(t *testing.T) {
+	dir := t.TempDir()
+	_, stderr, code := runTP(t, dir, "completion", "bogus")
+	e := errJSON(t, stderr)
+	assert.Equal(t, 2, code, "an unknown subcommand must exit 2")
+	assert.Equal(t, float64(2), e["code"])
+	assert.Contains(t, e["error"], `unknown command "bogus" for "tp completion"`)
+	assert.Contains(t, e["hint"], "tp completion", "the hint names the dispatching command")
+}
+
 // §13.2: a usage error with no explicit hint still carries a default hint.
 func TestExitCode_UsageErrorCarriesHint_DoneNoArgs(t *testing.T) {
 	dir := t.TempDir()
