@@ -127,8 +127,13 @@ func TestWithFileLock_LockLivesUnderTPLocks(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Contains(t, held, filepath.Join(".tp", "locks"), "lock path is centralized under .tp/locks")
+	// The lock file PERSISTS after release. This used to assert removal, which
+	// read as tidiness and was in fact a correctness bug: flock is held on an
+	// inode, so unlinking the file lets the next waiter lock a different inode
+	// at the same path and enter the critical section concurrently. The file is
+	// a zero-byte marker under the git-ignored .tp/locks/.
 	_, err = os.Stat(held)
-	assert.True(t, os.IsNotExist(err), "lock removed after release")
+	assert.NoError(t, err, "the lock file survives release, so a waiter locks the same inode")
 	_, err = os.Stat(lockTarget + ".lock")
 	assert.True(t, os.IsNotExist(err), "no sibling lock beside the target")
 }
