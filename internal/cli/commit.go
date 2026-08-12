@@ -240,12 +240,18 @@ func gitCommit(message string) (string, error) {
 //
 // The two real targets are the centralized lock directory (v0.29.0 onward) and
 // the legacy sibling beside a task file, which some repos still carry.
+//
+// Every magic word here was measured, because the obvious spellings do not work.
+// A glob pathspec matches the whole path, so ":(glob)**/.tp/locks" matches
+// NOTHING — the directory form needs the trailing /**, and with it the same
+// pattern also covers the root copy, which is why two entries replace the four
+// that shipped first. And :(top) is not decoration: pathspecs resolve against
+// the CURRENT directory, so without it a tp commit run from a subdirectory
+// looked right and quietly missed the repo-root lock.
 func tpLockPathspecs() []string {
 	return []string{
-		":(glob).tp/locks",
-		":(glob)**/.tp/locks",
-		":(glob)*.tasks.json.lock",
-		":(glob)**/*.tasks.json.lock",
+		":(glob,top)**/.tp/locks/**",
+		":(glob,top)**/*.tasks.json.lock",
 	}
 }
 
