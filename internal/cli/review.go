@@ -307,17 +307,16 @@ Modes (mutually exclusive):
 					return nil
 				}
 				return runReviewRecord(args[0], recordPath, harnessNote)
-			case "status":
+			default:
+				// "status" is the only value that reaches here: detectReviewMode
+				// returns one of the seven mode names, and the two remaining
+				// returns — "" and a "conflict:" pair — already returned above.
 				if len(args) != 1 {
 					output.Error(ExitUsage, "spec path required for --status")
 					os.Exit(ExitUsage)
 					return nil
 				}
 				return runReviewStatus(args[0], checkFlag)
-			default:
-				output.Error(ExitUsage, fmt.Sprintf("unknown mode: %s", mode))
-				os.Exit(ExitUsage)
-				return nil
 			}
 		},
 	}
