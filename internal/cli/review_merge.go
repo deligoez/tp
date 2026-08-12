@@ -146,7 +146,12 @@ func loadMergeFindings(args []string) []map[string]any {
 			allFindings = append(allFindings, finding)
 		}
 		if err := scanner.Err(); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: stopped reading %s early (%v); findings after the over-long line were dropped (line cap is 64KB)\n", path, err)
+			// Aborting, not warning: see loadAuditMergeRows — zero findings is
+			// also what a clean round looks like, so a swallowed read error
+			// lets an unread input record one.
+			f.Close()
+			output.Error(ExitFile, fmt.Sprintf("cannot read %s: %v", path, err), ndjsonInputFileHint)
+			os.Exit(ExitFile)
 		}
 		f.Close()
 	}
