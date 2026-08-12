@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.34.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-08-12T17:08:08.391442Z",
+  "updated_at": "2026-08-12T20:37:39.290034Z",
   "workflow": {
     "checks": [
       {
@@ -23,7 +23,7 @@
     {
       "id": "guard-list",
       "title": "Derive the guard-test list",
-      "status": "open",
+      "status": "done",
       "tags": [
         "sweep"
       ],
@@ -34,16 +34,23 @@
         "### 7.1 The mutation criterion",
         "## 7. The test sweep"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-12T17:11:25.499579Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-12T17:14:29.919744Z",
+      "closed_reason": "- spec/0.34.0-guard-tests.md now carries all 100 file:function entries under the '## Guard tests' heading, derived from 'git diff --no-ext-diff -U0 v0.32.0 v0.33.0' over lines matching ^+func Test in _test.go files (16 files), with the 'Populated by the first task' declaration line deleted (reworded to 'Written by...' so it no longer matches the check's anchored placeholder pattern).\n- The derivation passed --no-ext-diff: verified by mutation that the same rule without the flag yields 0 entries under this repo's external diff driver, and the check's own added_test_functions() (which pins --no-ext-diff and fails an empty result) was used to derive the list, so an empty derivation would have failed rather than closed green.\n- python3 scripts/check-measured-claims.py exits 0 with empty stderr (no PENDING line, no failures); only the coverage line is printed on stdout. Quality gate green with separate exit codes: go test ./... = 0, golangci-lint run = 0.\n- Triage ordering recorded in the file: files grouped largest-first (audit_signal/auditrounds/divergence at 12 each), functions in source order within a file; a note above the heading states order is irrelevant to the set comparison.",
+      "gate_passed_at": "2026-08-12T17:14:29.919744Z",
+      "commit_sha": "7628519",
+      "commit_shas": [
+        "7628519"
+      ],
+      "commit_files": [
+        "spec/0.34.0-guard-tests.md"
+      ]
     },
     {
       "id": "import-lock",
       "title": "Lock the import write path",
-      "status": "open",
+      "status": "done",
       "tags": [
         "repair"
       ],
@@ -54,11 +61,22 @@
         "## 3. `tp import` writes under the lock",
         "## 1. Overview"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-12T19:57:19.589389Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-12T20:06:00.928059Z",
+      "closed_reason": "- importcmd.go's read-modify-write (workflow preservation, convergence enforcement, the file-exists guard, section normalization, coverage auto-fill, validation and WriteTaskFile) now runs inside engine.WithFileLock(targetPath, ...), which resolves lock_timeout_seconds through the standard chain; TestImport_WaitsForTaskFileWriteLock proves the exclusion by holding the lock from the test process and asserting mid-window that the import has written nothing, and mutating the call to a pass-through no-lock wrapper killed it (restored byte-exact).\n- A lock held past the timeout returns *engine.LockTimeoutError from RunE, which Execute maps to exit 4 (STATE): TestImport_LockContentionTimeoutExitsFour asserts exit 4, the 'timed out waiting for lock' message naming the .tp/locks path and the elapsed wait, the hint naming the same path, and that nothing was written; its 900ms-to-4s window pins the RESOLVED timeout, and mutating the call to a fixed WithFileLockTimeout(_, 5) killed it at 5.02s (restored byte-exact). Dogfooded with the freshly built binary: a held lock plus project lock_timeout_seconds=1 gave exit 4 in 1.04s with both path and elapsed in error and hint.\n- The success path gained no flag and no output change: TestImport_SuccessPathUnchanged asserts exit 0 with stdout exactly {imported, path} and no third field, and the pre-existing import suite (normalize, workflow preservation, enforcement, shell overwrite) is unchanged and green. Gate verified separately: go test ./... exit 0, golangci-lint run exit 0.\nOut of scope: init.go's stat-then-write path (reached by tp add --spec via runInit) is the other unlocked task-file write named by the same spec section; it belongs to a separate task.",
+      "gate_passed_at": "2026-08-12T20:06:00.928059Z",
+      "commit_sha": "23eb64c",
+      "commit_shas": [
+        "23eb64c",
+        "870e842",
+        "2e34fa4",
+        "cf9c47f"
+      ],
+      "commit_files": [
+        "internal/cli/import_lock_test.go",
+        "internal/cli/importcmd.go"
+      ]
     },
     {
       "id": "init-lock",
@@ -84,7 +102,7 @@
     {
       "id": "bulk-add-cap",
       "title": "Make add --bulk honour the cap",
-      "status": "open",
+      "status": "done",
       "tags": [
         "repair"
       ],
@@ -95,16 +113,25 @@
         "## 4. The bulk readers honour the shared line cap",
         "## 1. Overview"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-12T19:02:21.616911Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-12T19:19:45.167213Z",
+      "closed_reason": "- readBulkTasks now declares the shared cap (scanner.Buffer(make([]byte, 0, 64*1024), ndjsonLineCap)) and answers scanner.Err() with output.Error(ExitFile, \"cannot read \u003cpath\u003e: line \u003cn\u003e: \u003cerr\u003e\", ndjsonReadHint(err)) + os.Exit(ExitFile), so an over-cap line exits 3 naming both the file and the line; verified by dogfooding the freshly built binary on a 3-row file whose second row is 2MB: exit 3, error 'cannot read /tmp/tp-bulkqa/bulk.ndjson: line 2: bufio.Scanner: token too long', hint naming the 1MB cap.\n- The abort happens in the reader, before addTasks is reached, so nothing is written: in the same dogfood 'tp list --ids' came back empty afterwards (t1, read before the over-long line, is no longer applied), and TestAdd_BulkOverLongLineAborts asserts the raw task file is byte-identical to its pre-call bytes rather than merely missing t2.\n- TestAdd_BulkWarnsOnOverlongLine (add_validation_test.go), the only test pinning the removed warn-and-continue contract, was rewritten in place as TestAdd_BulkOverLongLineAborts; no assertion was weakened, each old assertion was replaced by its reversal (exit 0 -\u003e exit 3, 'over-long line' on bare stderr -\u003e structured error + hint, t1 present -\u003e task file untouched). TestAdd_BulkReadsRowUpToTheCap was added so the abort cannot pass at an arbitrarily low cap.\n- Both guards proved by mutation, each applied then restored byte-exact (git diff --no-ext-diff confirmed the restore): removing the scanner.Buffer line fails TestAdd_BulkReadsRowUpToTheCap (a 200KB row exits 3), and reverting the abort to a warn-and-continue fmt.Fprintf fails TestAdd_BulkOverLongLineAborts (exit 0, partial add).\n- Gate verified with separate exit codes on the restored tree: go test ./... = 0, golangci-lint run = 0 ('0 issues.').\n- Note: a QA shell glob broke an \u0026\u0026 chain and one dogfood row was added to spec/0.34.0.tasks.json as task 'big'; it was removed with 'tp remove big' immediately and the file carries no trace of it (grep count 0). Only updated_at moved.\nOut of scope: the 'line-cap:' marker above the scanner in add.go now contradicts the capped reader below it, but its removal is task line-cap-markers' acceptance, so it was left in place.",
+      "gate_passed_at": "2026-08-12T19:19:45.167213Z",
+      "commit_sha": "d5e6989",
+      "commit_shas": [
+        "d5e6989",
+        "db4e5a4"
+      ],
+      "commit_files": [
+        "internal/cli/add.go",
+        "internal/cli/add_validation_test.go"
+      ]
     },
     {
       "id": "bulk-set-cap",
       "title": "Make set --bulk honour the cap",
-      "status": "open",
+      "status": "done",
       "tags": [
         "repair"
       ],
@@ -116,11 +143,20 @@
       "source_sections": [
         "## 4. The bulk readers honour the shared line cap"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-12T19:20:44.892778Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-12T19:28:44.924077Z",
+      "closed_reason": "- tp set --bulk now declares the shared cap (scanner.Buffer(make([]byte, 0, 64*1024), ndjsonLineCap)) and answers scanner.Err() with output.Error(ExitFile, \"cannot read \u003cpath\u003e: line \u003cn\u003e: \u003cerr\u003e\", ndjsonReadHint(err)) + os.Exit(ExitFile); dogfooded with the freshly built binary on a 3-row file whose second row is 2MB: exit 3, error 'cannot read sets.ndjson: line 2: bufio.Scanner: token too long', hint naming the 1MB cap.\n- The abort sits before WriteTaskFile inside the same lock, so nothing is written: in the dogfood the task file's sha256 was byte-identical before and after (3a7555fc...), both titles unchanged, and a later set --bulk on the same dir succeeded (no stale lock). TestSet_BulkOverLongLineAborts asserts the raw task file bytes are unchanged rather than merely missing the second row.\n- No warn-and-continue test existed for this reader to move: set.go's fmt.Fprintf warning was the last 'stopped reading' site in the repo and no test file invoked 'set --bulk' at all (searched --bulk and runTP(t, dir, \"set\" across internal/cli). The removed behaviour is now pinned in reverse by the two new tests in internal/cli/set_bulk_cap_test.go, and TestNDJSONReadersShareTheCap keeps the cap declared.\n- Both guards proved by mutation, each applied then restored byte-exact (git diff --no-ext-diff confirmed the restore): deleting the scanner.Buffer line fails TestSet_BulkReadsRowUpToTheCap (a 200KB row exits 3), and reverting the abort to a warn-and-continue fmt.Fprintf fails TestSet_BulkOverLongLineAborts (exit 0, partial update).\n- Gate verified with separate exit codes on the restored tree: go test ./... = 0, golangci-lint run = 0 ('0 issues.', dupl included).\nOut of scope: the 'line-cap:' marker above the scanner in set.go now contradicts the capped reader below it (as in add.go), but its removal is task line-cap-markers' acceptance, so it was left in place; likewise ndjsonReadHint's shared wording talks about 'one finding per line', which reads oddly for a set NDJSON.",
+      "gate_passed_at": "2026-08-12T19:28:44.924077Z",
+      "commit_sha": "4d9ac32",
+      "commit_shas": [
+        "4d9ac32",
+        "2ca9445"
+      ],
+      "commit_files": [
+        "internal/cli/set.go",
+        "internal/cli/set_bulk_cap_test.go"
+      ]
     },
     {
       "id": "line-cap-markers",
@@ -146,7 +182,7 @@
     {
       "id": "race-gate",
       "title": "Put -race in the project gate",
-      "status": "open",
+      "status": "done",
       "tags": [
         "repair"
       ],
@@ -157,16 +193,25 @@
         "## 5. The quality gate sees data races",
         "## 1. Overview"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-12T20:07:00.72203Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-12T20:14:44.267881Z",
+      "closed_reason": "- The project gate in .tp/config.json now reads \"go test -race ./... \u0026\u0026 golangci-lint run\", so the whole suite runs under the race detector before golangci-lint (6d02216); dogfooded with the freshly built binary: tp config --resolved --file spec/0.25.0.tasks.json reports quality_gate {source: project, value: go test -race ./... \u0026\u0026 golangci-lint run}.\n- The new gate surfaces no data race: go test -race -count=1 ./... exits 0 across all four packages (cli 21.5s, engine 4.3s, model 1.2s, output 1.2s), so nothing needed fixing. Proven rather than asserted: a temporary internal/cli/zz_race_probe_test.go with four goroutines incrementing an unsynchronized counter made go test -race fail with WARNING: DATA RACE while the old gate (go test, no -race) reported ok — the exact blind spot §5 names; the probe file was deleted and the tree restored (git status shows only the two intended files).\n- skills/tp/SKILL.md's workflow-parameters bullet now recommends -race for any Go project using tp, giving the reason (the detector is off by default, so a data race can never fail a gate without it) and the measured cost (6fb60c8); measured here at +22% on internal/cli (17.6s to 21.5s) and +27% on internal/engine (3.4s to 4.3s), inside the spec's tenth-to-half-again band.\n- Left to the two dependent tasks by design: the masking task-level override in spec/0.34.0.tasks.json still resolves to the non-race gate (source: override) — that is gate-overrides' acceptance, together with the literal-string config guard test — and the tp init --quality-gate recipes in CLAUDE.md and SKILL.md are gate-recipes'.\n- Gate green before closing, exit codes checked separately: go test -count=1 ./... exit 0, golangci-lint run exit 0 (0 issues); the -race suite is also exit 0.",
+      "gate_passed_at": "2026-08-12T20:14:44.267881Z",
+      "commit_sha": "6d02216",
+      "commit_shas": [
+        "6d02216",
+        "6fb60c8"
+      ],
+      "commit_files": [
+        ".tp/config.json",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "gate-overrides",
       "title": "Remove the masking gate overrides",
-      "status": "open",
+      "status": "done",
       "tags": [
         "repair"
       ],
@@ -178,16 +223,26 @@
       "source_sections": [
         "## 5. The quality gate sees data races"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-12T20:15:30.75612Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-12T20:22:36.945625Z",
+      "closed_reason": "- The gate resolved for spec/0.34.0.tasks.json now runs -race: the masking task-level quality_gate is gone from the two task files that carried one (spec/0.34.0.tasks.json and spec/0.31.0.tasks.json, verified as the only two), so both resolve the project gate (dd71233). Dogfooded with the freshly built binary: tp config --resolved --file spec/0.34.0.tasks.json reports quality_gate {source: project, value: go test -race ./... \u0026\u0026 golangci-lint run} and the sibling checks entry (code-citation-drift) survives unchanged; spec/0.31.0.tasks.json resolves the same and its workflow block is now {}.\n- Route, settled against the code rather than prose: three of the four routes proposed in review are unusable — quality_gate sits in readOnlyWorkflowFields so `tp set --workflow quality_gate=` exits 2, `tp init` exits 3 on an existing task file and has no --force for that path, and `tp config --extract` only hoists a field every discovered task file sets identically (2 of 24 here). `tp import --force` is the only supported command and it replaces the whole workflow block, destroying the checks entry, besides being a user-approved decision per CLAUDE.md. The route taken is the surgical removal of the quality_gate key alone, committed as its own hunk so the release's live task-tracking state stays uncommitted.\n- The guard is internal/cli/quality_gate_config_test.go: TestRepoTaskFilesResolveRaceQualityGate resolves every spec/*.tasks.json through the real layering (engine.LoadTaskWorkflowOverride + engine.ResolveEffectiveWorkflow rooted at the repo root) and compares the result against the literal string constant \"go test -race ./... \u0026\u0026 golangci-lint run\" — not against .tp/config.json's value, and not a substring check for -race (2120dcc).\n- Both failure modes proven by mutation rather than asserted, each restored byte-exact (sha256 of .tp/config.json and spec/0.34.0.tasks.json identical before and after, test green again). (a) Project gate weakened in .tp/config.json to \"go test ./... \u0026\u0026 golangci-lint run\": FAIL, \"the gate resolved for spec/0.34.0.tasks.json must be the literal repo gate\". (b) Pre-race override reintroduced into spec/0.34.0.tasks.json: FAIL, same assertion. (c) Override reintroduced carrying the identical -race value: FAIL on the second assertion, \"must not carry a task-level quality_gate: it masks the project gate\". The three mutations do not kill the same assertion — (a) kills only the equality check while the presence check passes, (c) kills only the presence check while the equality check passes — which is the evidence the two assertions are not duplicates.\n- Gate green before closing, exit codes checked separately on the new gate: go test -race -count=1 ./... exit 0 (cli 24.4s, engine 4.4s, model 1.3s, output 1.2s, no data race), golangci-lint run exit 0 with 0 issues.\n- Out of scope: README.md:279 and :285 still instruct `tp init --quality-gate`, and §5 constraint 2 names only CLAUDE.md and skills/tp/SKILL.md; the recipe drop is task gate-recipes', and README is not on its list.\n",
+      "gate_passed_at": "2026-08-12T20:22:36.945625Z",
+      "commit_sha": "dd71233",
+      "commit_shas": [
+        "dd71233",
+        "2120dcc"
+      ],
+      "commit_files": [
+        "internal/cli/quality_gate_config_test.go",
+        "spec/0.31.0.tasks.json",
+        "spec/0.34.0.tasks.json"
+      ]
     },
     {
       "id": "gate-recipes",
       "title": "Drop the flag from init recipes",
-      "status": "open",
+      "status": "done",
       "tags": [
         "repair"
       ],
@@ -199,16 +254,25 @@
       "source_sections": [
         "## 5. The quality gate sees data races"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-12T20:31:17.399803Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-12T20:36:33.090716Z",
+      "closed_reason": "- CLAUDE.md and skills/tp/SKILL.md no longer instruct `tp init --quality-gate`, so a later cycle's init cannot re-create a task-level override: CLAUDE.md step 3 is now `tp init spec/\u003cversion\u003e.md` naming .tp/config.json as the gate's home (af03214), and SKILL.md's three recipe sites — the Workflow A preamble (L32), the interview's workflow-parameters bullet (L48) and Step 1 item 2 (L58) — now author the gate once at the project layer with `tp set --workflow --project quality_gate=\"\u003ccmd\u003e\"` (cb65a95). The two surviving mentions in those files are negative (\"not with tp init --quality-gate\", \"passing --quality-gate here writes a task-file override that masks it\"), not instructions.\n- The replacement route was settled against the code, not against prose: `tp set --workflow --project quality_gate=` is accepted (exit 0, writes .tp/config.json) even though the task-level form exits 2, because runSet routes --project to runSetProjectWorkflow, which never consults readOnlyWorkflowFields (internal/cli/set.go:79-84, 337). Verified end to end in a throwaway repo: after `tp init` + the project setter, `tp config --resolved` reports quality_gate {source: project} over a `workflow: {}` block. This contradicts the widely repeated claim that quality_gate is authorable only at init (set.go's own error text and REFERENCE.md L203 both say so), so the recipe now names a route that is measurably available.\n- Derived the real set rather than taking the handoff's list: the orchestrator's note that README.md instructs `tp init --quality-gate` at lines 279 and 285 is stale and was disproven — README.md contains no `--quality-gate` anywhere (its lines 279/285 are a research-table row and the spec link, and its two `tp init` mentions at L51/L118 are already bare), the flag having been dropped from README by commit 6622e0c. Nothing to change there; §5 constraint 2's two-document list turned out to be the complete live set.\n- Only the recipes changed, and §8.3 governs the rest: SKILL.md's inventory row (L317) documenting `tp init spec.md --quality-gate \"\u003ccmd\u003e\"` is untouched — the inventory records what the CLI registers, and docs_flag_inventory_test.go fails in both directions if it drifts. Checked before editing that no test asserts the recipe text (docs_contract_test.go asserts unrelated substrings), so no test moved with this change; and checked before touching Step 1 that nothing cross-references its item numbers — the gate line was folded into item 2 rather than added as a new item, so no renumbering occurred at all.\n- Gate green before closing, exit codes checked separately: `go test -race -count=1 ./...` exit 0 (cli 23.7s, engine 4.8s, model 1.8s, output 1.8s, no data race), `golangci-lint run` exit 0 with 0 issues.\n- Out of scope: skills/tp/REFERENCE.md L203's workflow-fields row still reads `read-only (author at tp init --quality-gate)` — accurate about the task-level setter but silent on the project setter that now carries the recipe, and REFERENCE is the one document §8.1 gives exhaustive field detail to; it is neither CLAUDE.md nor SKILL.md, so it is left standing.\n- Out of scope: CLAUDE.md still names the gate as `go test ./... \u0026\u0026 golangci-lint run` without -race at L28 and L89, so the repo's own conventions text lags the project gate §5 changed.",
+      "gate_passed_at": "2026-08-12T20:36:33.090716Z",
+      "commit_sha": "cb65a95",
+      "commit_shas": [
+        "cb65a95",
+        "af03214"
+      ],
+      "commit_files": [
+        "CLAUDE.md",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "dupl-enable",
       "title": "Enable dupl at its default threshold",
-      "status": "open",
+      "status": "done",
       "tags": [
         "sweep"
       ],
@@ -219,11 +283,30 @@
         "### 6.1 Duplication",
         "## 6. The code sweep"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-12T18:26:07.144967Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-12T18:45:03.828694Z",
+      "closed_reason": "- dupl is enabled in .golangci.yml over production and test files alike at its own default threshold: the linters.enable list gains 'dupl' with no linters.settings.dupl block, so the default 150-token threshold applies unchanged, and the clones it reported in _test.go files prove test files are in scope.\n- All 13 reported clones (6 distinct groups) were merged, none exempted: generateDocPlanPrompt/generateTestPlanPrompt now share generatePlanPrompt in review.go; the two role-less-row advisory tests share assertRolelessRowsAdviseOnce; the acceptance-quality lint arms share assertAcceptanceQualityFinding and the prompt-determinism arms share assertPromptDeterministic in review_test.go; the three prior-work cap tests share depsAndRecencyFile; the two thinned-project resolution tests share thinnedProjectRoot. Every merged clone is covered by the same test functions as before -- no test function was removed or renamed, and the duplicated production prompt-assembly is now covered by the doc and test planner call sites through the shared body.\n- Gate verified with separate exit codes at close: 'go test ./...' exit 0 and 'golangci-lint run' exit 0; additionally 'golangci-lint run --max-issues-per-linter=0 --max-same-issues=0' reports '0 issues.' so the clean result is not an artifact of the issue caps in .golangci.yml.\nOut of scope: TestEffectiveWorkflowForTaskFile_InheritsProjectQualityGate in internal/engine/configresolve_test.go builds nearly the same fixture as the two tests now sharing thinnedProjectRoot, but dupl does not report it (it omits the s.md write), so it was left untouched.",
+      "gate_passed_at": "2026-08-12T18:45:03.828694Z",
+      "commit_sha": "0c8788f",
+      "commit_shas": [
+        "0c8788f",
+        "1d40910",
+        "2c9c391",
+        "662b0a7",
+        "6a5b375",
+        "2fed255",
+        "98d4fea"
+      ],
+      "commit_files": [
+        ".golangci.yml",
+        "internal/cli/audit_record_advisory_test.go",
+        "internal/cli/review.go",
+        "internal/cli/review_record_advisory_test.go",
+        "internal/cli/review_test.go",
+        "internal/engine/brief_prior_test.go",
+        "internal/engine/configresolve_test.go"
+      ]
     },
     {
       "id": "inline-abstraction",
@@ -250,7 +333,7 @@
     {
       "id": "dead-branches",
       "title": "Remove unreachable branches",
-      "status": "open",
+      "status": "done",
       "tags": [
         "sweep"
       ],
@@ -263,11 +346,22 @@
         "### 6.3 Dead branches",
         "### 2.1 The removal contract"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-12T19:29:28.11891Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-12T19:44:49.059667Z",
+      "closed_reason": "- Two dead branches removed, both default arms after an exhaustive switch (§6.3). (1) internal/cli/review.go: the \"unknown mode: %s\" default could not execute — detectReviewMode returns one of seven mode names, \"\" or a \"conflict:\" pair, and the last two return before the switch, so the seven cases were exhaustive; the status case is now the default arm (4efdd48). (2) internal/engine/resumepayload.go: BuildNextAction's default returned an empty NextAction no caller could receive — its only caller passes DetectPhase's result, which is exactly one of the five cased phase constants; the release case is now the default arm (d2f4ea0).\n- Error branches for type-system-excluded states: none found to remove. An AST sweep over internal/ for functions whose error result is every-return-nil returned five hits, all of them structural rather than dead — four cobra RunE signatures (runAuditStatus, claimBatch, runLint, runReviewStatus) and engine/runcmd.go's io.Writer Write, whose nil error is the interface contract. golangci-lint's unparam already fails the gate on the unexported case, so this category is linter-covered.\n- Nil checks on values constructed non-nil in the same function: none exist. Measured with the SSA nilness analyzer (golang.org/x/tools/go/analysis/passes/nilness) over ./... — 0 findings, exit 0. The instrument was proved to discriminate by mutation: injecting 'clusters := make([]FindingCluster, 0); if clusters == nil' into engine/cluster.go made it report 'cluster.go:51:14: impossible condition: non-nil == nil' and exit 3; the file was then restored byte-exact (git diff --no-ext-diff shows it unchanged).\n- What now covers each removal (§2.1). review.go: the seven-case routing is unchanged for every reachable value, TestReviewModeMutualExclusivity (internal/cli/review_test.go) pins that a conflict pair exits 2 before the switch, and internal/cli/review_status_test.go pins that --status still routes; dogfooded on the freshly built binary — 'tp review spec/0.34.0.md --status' returns the status object, 'tp review --status --record x.ndjson spec/0.34.0.md' exits 2 with '--record and --status are mutually exclusive', and 'tp review --status' with no spec still exits 2 with 'spec path required for --status'. resumepayload.go: the release arm is now pinned by TestAssembleResume_ReleaseWhenAuditConverged, extended in this task with the summary, the null command/brief_command and the empty payload (1b742bc); proved by mutation — replacing the default body with the old empty NextAction fails that test on the summary assertion, then restored byte-exact.\n- Gate verified with separate exit codes on the restored tree: go test ./... = 0, golangci-lint run = 0 ('0 issues.'). 'tp resume' on tp's own repo still emits a well-formed next_action (phase implement, command 'tp next').\nOut of scope: BuildNextAction's doc comment in internal/engine/resumepayload.go is duplicated verbatim (lines 139-142 repeat inside 143-150) — a duplicate-paragraph artifact, not a branch, so it was left for the documentation sweep.",
+      "gate_passed_at": "2026-08-12T19:44:49.059667Z",
+      "commit_sha": "4efdd48",
+      "commit_shas": [
+        "4efdd48",
+        "d2f4ea0",
+        "1b742bc"
+      ],
+      "commit_files": [
+        "internal/cli/review.go",
+        "internal/engine/resumepayload.go",
+        "internal/engine/resumephase_test.go"
+      ]
     },
     {
       "id": "sweep-audit-signal",
@@ -483,7 +577,7 @@
     {
       "id": "sweep-small-engine",
       "title": "Sweep the small engine guard files",
-      "status": "open",
+      "status": "done",
       "tags": [
         "sweep"
       ],
@@ -495,11 +589,21 @@
       "source_sections": [
         "### 7.1 The mutation criterion"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-12T18:55:51.741093Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-12T19:01:36.075449Z",
+      "closed_reason": "- All 4 listed guard tests were mutated and dispositioned: 2 kept, 2 removed. Mutations run (each applied, the target tests run, then the source restored byte-exact, verified with git diff --no-ext-diff): M1 deleted the load-bearing 'if len(missing) == 0 { return nil }' early return in EnsureTPGitignore; M2 made the append path rewrite the file with only the wanted entries; M2b removed the newline guard in the append loop; M3 restored '_ = os.Remove(lockPath)' on the WithFileLock release path.\n- KEEP TestEnsureTPGitignore_PreservesCustomEntriesUnderConcurrency: fails M1 3/3 on the mtime assertion, and its concurrency apparatus is not decoration -- the 'must survive every call' data-loss assertion fired 36 times across 30 runs under M1, so it discriminates the actual entry loss and not just the write.\n- KEEP TestWithFileLock_ExcludesConcurrentHolders: fails M3 10/10 (the doc comment claims 9/10), through maxInside==2 inside the flock-held region.\n- REMOVE TestEnsureTPGitignore_AppendsMissingEntryOnce (commit dd684dc). Surviving coverage: TestEnsureTPGitignore_IdempotentAppend (internal/engine/projectconfig_test.go) fails M2 and is the ONLY test failing M2b, which the removed test passed -- it asserts the post-append content byte-exact where the removed test used Contains; and TestEnsureTPGitignore_PreservesCustomEntriesUnderConcurrency carries the 'no write when nothing is missing' property, reaching the same early return with the same mtime assertion.\n- REMOVE TestWithFileLock_LockFileSurvivesRelease (commit f056d50). Surviving coverage: TestWithFileLock_LockLivesUnderTPLocks (internal/engine/lock_test.go) makes the same os.Stat-after-release assertion and fails M3 10/10, and TestWithFileLock_ExcludesConcurrentHolders catches the behavioural defect itself. The removed test's only unique assertion (assert.Zero on the marker size) is a §7.3 implementation-detail pin: no defect in the lock path writes bytes to the marker.\n- Post-removal re-verification: with both tests gone, M1 and M3 applied together fail TestEnsureTPGitignore_PreservesCustomEntriesUnderConcurrency 3/3, TestWithFileLock_LockLivesUnderTPLocks 3/3 and TestWithFileLock_ExcludesConcurrentHolders 3/3, so each named survivor demonstrably fails when the original defect returns. The stale reference to the removed test in TestWithFileLock_BasicAcquireAndRelease's comment now names TestWithFileLock_LockLivesUnderTPLocks.\n- No production code changed (git diff --no-ext-diff --stat shows only the three test files). Gate verified with separate exit codes: go test ./... = 0, golangci-lint run = 0 ('0 issues.'). python3 scripts/check-measured-claims.py still exits 0 with no PENDING line -- spec/0.34.0-guard-tests.md is derived from the v0.32.0..v0.33.0 tag range and is deliberately unedited by this removal.",
+      "gate_passed_at": "2026-08-12T19:01:36.075449Z",
+      "commit_sha": "dd684dc",
+      "commit_shas": [
+        "dd684dc",
+        "f056d50"
+      ],
+      "commit_files": [
+        "internal/engine/gitignore_preserve_test.go",
+        "internal/engine/lock_exclusion_test.go",
+        "internal/engine/lock_test.go"
+      ]
     },
     {
       "id": "redundant-assertions",
@@ -546,7 +650,7 @@
     {
       "id": "doc-homes",
       "title": "Give every fact one home",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -557,16 +661,33 @@
         "### 8.1 One canonical home per fact",
         "## 8. The documentation sweep"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-12T17:15:24.523918Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-12T18:25:10.737183Z",
+      "closed_reason": "- Ownership assigned per §8.1: README.md keeps what tp is, install, the one-line-per-command index and the lint rule table; skills/tp/SKILL.md gains the command + flag inventory moved out of REFERENCE.md and keeps workflows, decomposition and close recipes; CLAUDE.md keeps only this repository's conventions and self-development loop; skills/tp/REFERENCE.md keeps exhaustive field, exit-code and schema detail.\n- Every duplicate is cut from the non-owner, and each cut fact is covered by its new home: README's project-config layers, task-file workflow fields, acceptance delimiters and JSON aliases -\u003e REFERENCE.md; README's closure verification and reset-native driver -\u003e SKILL.md (rules, close recipes, driver loop) and REFERENCE.md (resume field table, blocker vocabulary, commit_strategy, keep-list); README's review/audit recipes, role corpus, frontmatter and divergence table -\u003e SKILL.md Workflow D + REFERENCE.md 'Honest Convergence Signals'; README's structured-commit template and the 8000/50000/60000 injection caps -\u003e REFERENCE.md (moved, since they had no other home); CLAUDE.md's install snippet -\u003e README; its full command index -\u003e README index + SKILL inventory; its product-behaviour conventions (exit codes, managed fields, workflow ranges, --compact list, delimiters, lint rules) -\u003e REFERENCE.md; its convergence-criteria and role-corpus paragraphs -\u003e SKILL.md; its two general rules (change + its test in one task, verify the gate with separate exit codes) -\u003e SKILL.md Decomposition Rules and Gate policy; SKILL's audit schema-break section -\u003e REFERENCE.md 'Audit JSON Schema'. Documentation dropped from 2120 to 1542 lines.\n- The command index (README) and the command forms (SKILL.md inventory) are the only overlap left, each pointing at the other for the audience it is not written for.\n- The three documentation guards that required identical wording in all four documents moved in this task, since they enforced the very duplication removed: roleContractDocs is now SKILL.md + REFERENCE.md, the convergence summary is asserted on SKILL.md, the audit prompt body order and prompts[].role on REFERENCE.md alone, and CLAUDE.md still must name spec_coverage_clean_rounds. No assertion was weakened to pass: each still fails if the fact disappears from its owner. Gate verified with separate exit codes: go test ./... = 0, golangci-lint run = 0.",
+      "gate_passed_at": "2026-08-12T18:25:10.737183Z",
+      "commit_sha": "6622e0c",
+      "commit_shas": [
+        "6622e0c",
+        "fbffb73",
+        "09b0a5b",
+        "4b28f20",
+        "d76d7e3"
+      ],
+      "commit_files": [
+        "CLAUDE.md",
+        "README.md",
+        "internal/cli/docs_contract_test.go",
+        "internal/cli/docs_role_lever_test.go",
+        "internal/cli/testhelpers_test.go",
+        "skills/tp/REFERENCE.md",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "claude-phase-qualifier",
       "title": "Qualify the register-a-check rule",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -578,11 +699,18 @@
       "source_sections": [
         "### 8.1 One canonical home per fact"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-12T20:23:43.504323Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-12T20:26:49.139736Z",
+      "closed_reason": "- CLAUDE.md's register-a-check rule is now conditional on the phase (5289aad): the third-round instruction reads \"write the check instead of the prose fix — but only if the thing the check measures already exists in the phase the check runs in\", and the rule states that registered workflow.checks run in the review phase only, so a check whose subject is an artifact a later phase produces cannot verify that subject in any round. The phase claim was verified against the code rather than asserted: internal/cli/audit_record.go's runAuditStatus carries the comment and shape \"has no mechanical_checks field — workflow checks guard review rounds\", and grep over internal/ finds mechanical_checks only on the review side (review.go, review_status.go, review_record.go).\n- The qualifier states the suppression cost: registering early is not a harmless head start, because tp tells every reviewer to stop reporting a mechanized class, so a check registered before its subject exists suppresses that finding class for every reviewer while verifying only whatever part of its subject already exists — which may be nothing. That claim is also code-backed: internal/cli/review.go's mechanizedExclusionPrefix (\"Mechanically checked classes — do NOT report findings of these classes: \") is appended to every emitted reviewer prompt via review_regression.go. The rule then names v0.34.0 §7.1 as the worked instance (registered for eight rounds, could never compare the list against its derivation, and the first round after unregistering surfaced three stale measured claims) and splits the decision into two branches: subject already in the spec → register it with tp set --workflow checks=...; subject written by a later phase → keep it out of checks and make running it the acceptance of the task that creates the subject. The pre-existing worked example (scripts/check-test-inventory.py) and the test-the-check-first warning are preserved.\n- No test was added or invalidated: the acceptance is documentation-only, and no Go test pins this rule's wording (docs_contract_test.go's only CLAUDE.md assertion is claudeSignalFieldSubstring = spec_coverage_clean_rounds on the separate audit-scope rule at line 88, untouched). Gate verified with separate exit codes: go test -race ./... = 0, golangci-lint run = 0 (0 issues).\nOut of scope: skills/tp/SKILL.md's general mechanize-candidate rule (\"When one appears, write a detector command and register it\", plus Workflow D's next_action step 3) still advises registration unconditionally, with no phase qualifier — every tp user gets that advice, while the phase lesson now lives only in this repo's CLAUDE.md. §8.1 scopes this task to the CLAUDE.md rule, so SKILL.md was left unchanged.",
+      "gate_passed_at": "2026-08-12T20:26:49.139736Z",
+      "commit_sha": "5289aad",
+      "commit_shas": [
+        "5289aad"
+      ],
+      "commit_files": [
+        "CLAUDE.md"
+      ]
     },
     {
       "id": "lint-rule-table",
@@ -608,7 +736,7 @@
     {
       "id": "flag-inventory",
       "title": "Document the six missing flags",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -620,11 +748,20 @@
       "source_sections": [
         "### 8.3 Flags absent from every document"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-12T19:45:45.244258Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-12T19:56:32.697006Z",
+      "closed_reason": "- SKILL.md's \"Command \u0026 flag inventory\" now carries the six flags §8.3 named — --reason-file and --stdin on done and on close, --docs-path and --test-path on review, --base on audit, --commit-strategy on init — plus the eight more the completeness check surfaced: close's --skip-gate, audit's --harness-note, init's --quality-gate, add's --spec, and the --output long form behind -o on both merge rows (4a619d0).\n- internal/cli/docs_flag_inventory_test.go fails in both directions and was mutation-proven in three ways, each restored byte-exact afterwards: registering an undocumented `tp status --mutation-probe` failed TestSkillFlagInventoryIsComplete; adding an inventory row for that same non-existent flag failed TestSkillFlagInventoryRecordsOnlyWhatExists; and rewriting the `tp next --peek` row as `tp plan --peek` failed both, since attribution is per command. It walks NewRootCmd()'s tree with LocalFlags() and parses the inventory's table rows, counting every flag token in a row — form cell or purpose cell — as documented for the command that row names.\n- The inventory records what exists rather than what to recommend: --quality-gate is documented as a task-file-level override because tp init still registers it, with no recommendation either way, so §5's recipe change leaves the row standing.\n- Gate verified with separate exit codes: go test ./... = 0, golangci-lint run = 0 (0 issues).",
+      "gate_passed_at": "2026-08-12T19:56:32.697006Z",
+      "commit_sha": "4a619d0",
+      "commit_shas": [
+        "4a619d0",
+        "54813db"
+      ],
+      "commit_files": [
+        "internal/cli/docs_flag_inventory_test.go",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "unknown-command-exit",
@@ -687,7 +824,7 @@
     {
       "id": "example-tables-doc",
       "title": "Recommend example tables in acceptance",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -700,11 +837,18 @@
         "### 10.1 Example tables are the acceptance shape for behavioural tasks",
         "## 10. Two practices adopted from field feedback"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-12T20:27:58.890377Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-12T20:30:39.229321Z",
+      "closed_reason": "- SKILL.md's Decomposition Rules now carry rule 4, \"Example tables are the recommended acceptance shape for behavioural tasks\": behavioural acceptance is stated as `input → expected output` rows taken from a table the spec already carries (tp lint extracts spec tables, rule 3 maps every row to a task, tp validate checks the coverage), and the rule names why the source is the defence rather than the ordering — a table authored in the interview and hardened by the review panel predates the implementation, so the unit writing the test transcribes the expected value instead of reading it off the code under test, which would pass the gate exactly like a real test.\n- The rule closes with the secondary benefit §10.1 names: committing to a concrete expected value forces out the ambiguity prose hides, which is friction that belongs in the interview (Step 0), not in a test written later — the pointer is to SKILL.md's own Step 0: Interview, so the two halves of the guidance sit in one document.\n- Documentation-only per §10 (\"Both are documentation only … they need no code\"), so no new test was added; the placement follows §8.1, which gives SKILL.md everything an agent needs mid-cycle, and the existing docs guards were checked for coupling first. Verified before closing: the insertion renumbered rules 4-7 to 5-8 and git diff --no-ext-diff shows the renumbering plus the new item and nothing else; faster_search over skills/, README.md and CLAUDE.md found no live cross-reference to a decomposition rule by number (only the historical spec/0.23.0.md record), and no test asserts the numbering. Gate run with separate exit codes: go test -race ./... = 0, golangci-lint run = 0.",
+      "gate_passed_at": "2026-08-12T20:30:39.229321Z",
+      "commit_sha": "7c9d76f",
+      "commit_shas": [
+        "7c9d76f"
+      ],
+      "commit_files": [
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "model-diversity-doc",
@@ -784,6 +928,28 @@
       "source_sections": [
         "## 11. Non-Goals",
         "### 12.1 Existing tests this change invalidates"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "claude-gate-line",
+      "title": "Update the stale gate lines",
+      "status": "open",
+      "tags": [
+        "docs",
+        "repair"
+      ],
+      "depends_on": [
+        "race-gate"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- CLAUDE.md's Quick Reference and its quality-gate rule name the project gate that .tp/config.json now carries, including -race\n- The gofmt note that explains why golangci-lint needs a formatters section is kept, since it is still true",
+      "source_sections": [
+        "## 5. The quality gate sees data races"
       ],
       "started_at": null,
       "closed_at": null,
