@@ -59,6 +59,13 @@ func WithFileLockTimeout(path string, timeoutSeconds int, fn func() error) error
 	if err := os.MkdirAll(filepath.Dir(lockPath), 0o755); err != nil {
 		return fmt.Errorf("create lock dir: %w", err)
 	}
+	// The lock file now outlives the lock, so whatever creates the directory
+	// has to ignore it too. Only tp init and the local.json writers did this,
+	// which was survivable while the file was unlinked on release: in a project
+	// that never ran tp init, one locked write now leaves an untracked
+	// .tp/locks/<target>.lock behind, and tp resume reports an unexplained
+	// change the agent cannot clear by committing.
+	_ = EnsureTPGitignore(ProjectConfigDir(filepath.Dir(path)))
 
 	if sibling := path + ".lock"; sibling != lockPath {
 		if _, err := os.Stat(sibling); err == nil {
