@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -27,6 +28,7 @@ import (
 // default is often exactly right, so this guard covers only the command family
 // that never reads a task file.
 func TestFileErrorsCarryAHint(t *testing.T) {
+	emptyConsts := emptyStringConsts(t)
 	offenders := make([]string, 0)
 
 	for _, path := range hintGuardedFiles(t) {
@@ -36,38 +38,88 @@ func TestFileErrorsCarryAHint(t *testing.T) {
 
 		ast.Inspect(file, func(n ast.Node) bool {
 			call, ok := n.(*ast.CallExpr)
-			if !ok || !isOutputError(call) {
+			if !ok || !isOutputError(call) || len(call.Args) == 0 {
 				return true
 			}
 			if code, ok := call.Args[0].(*ast.Ident); !ok || code.Name != "ExitFile" {
 				return true
 			}
-			// Two arguments is the obvious hole; an EMPTY third argument is the
-			// one a reader misses, because output.resolveHint treats hint[0] == ""
-			// as no hint at all and falls back to the same task-file default. A
-			// mutation proved the first version of this guard green while the
-			// shipped hint had regressed, so both forms count as hintless.
-			hintless := len(call.Args) == 2
-			if len(call.Args) > 2 {
-				if lit, ok := call.Args[2].(*ast.BasicLit); ok && (lit.Value == `""` || lit.Value == "``") {
-					hintless = true
-				}
-			}
-			if !hintless {
+			if !hintlessCall(call, emptyConsts) {
 				return true
 			}
 			pos := fset.Position(call.Pos())
-			offenders = append(offenders, filepath.Base(path)+":"+itoa(pos.Line))
+			offenders = append(offenders, filepath.Base(path)+":"+strconv.Itoa(pos.Line))
 			return true
 		})
 	}
 
 	sort.Strings(offenders)
 	require.Empty(t, offenders,
-		"these exit-3 sites pass no hint, so they inherit the code-3 default — task-file advice, "+
-			"which repairs nothing in a command that takes no task file. Pass the hint that fits: "+
-			"specFileMissingHint, findingsFileMissingHint, ndjsonInputFileHint, ndjsonReadHint(err), "+
-			"affectedFilesHint or outputFileHint")
+		"these exit-3 sites pass no usable hint, so they inherit the code-3 default — task-file "+
+			"advice, which repairs nothing in a command that takes no task file. Pass the hint that "+
+			"fits: specFileMissingHint, findingsFileMissingHint, ndjsonInputFileHint, "+
+			"ndjsonReadHint(err), affectedFilesHint, reviewDirFlagHint, outputFileHint, "+
+			"stateWriteHint or internalEncodeHint")
+}
+
+// hintlessCall reports whether an output.Error call reaches resolveHint's
+// fallback. Two arguments is the obvious form; the one a reader misses is a
+// hint argument that EVALUATES to "", since resolveHint treats hint[0] == "" as
+// no hint at all. Round 8 defeated the argument-count check with a literal ""
+// and round 9 defeated the literal check with a named empty constant, so the
+// test resolves identifiers against the package's own constants.
+func hintlessCall(call *ast.CallExpr, emptyConsts map[string]bool) bool {
+	if len(call.Args) < 3 {
+		return true
+	}
+	switch hint := call.Args[2].(type) {
+	case *ast.BasicLit:
+		value, err := strconv.Unquote(hint.Value)
+		return err == nil && value == ""
+	case *ast.Ident:
+		return emptyConsts[hint.Name]
+	}
+	// A call, a concatenation or a selector: not statically empty.
+	return false
+}
+
+// emptyStringConsts collects package-level constants in internal/cli whose value
+// is the empty string, so a hint named rather than written inline is judged by
+// what it holds.
+func emptyStringConsts(t *testing.T) map[string]bool {
+	t.Helper()
+	empty := make(map[string]bool)
+	for _, path := range packageSources(t, func(string) bool { return true }) {
+		fset := token.NewFileSet()
+		file, err := parser.ParseFile(fset, path, nil, 0)
+		require.NoError(t, err, "parse %s", path)
+
+		for _, decl := range file.Decls {
+			gen, ok := decl.(*ast.GenDecl)
+			if !ok || gen.Tok != token.CONST {
+				continue
+			}
+			for _, spec := range gen.Specs {
+				vs, ok := spec.(*ast.ValueSpec)
+				if !ok {
+					continue
+				}
+				for i, name := range vs.Names {
+					if i >= len(vs.Values) {
+						continue
+					}
+					lit, ok := vs.Values[i].(*ast.BasicLit)
+					if !ok {
+						continue
+					}
+					if value, err := strconv.Unquote(lit.Value); err == nil && value == "" {
+						empty[name.Name] = true
+					}
+				}
+			}
+		}
+	}
+	return empty
 }
 
 // TestNDJSONReadersShareTheCap is the mechanical form of the second class three
@@ -75,60 +127,145 @@ func TestFileErrorsCarryAHint(t *testing.T) {
 //
 // bufio's default is 64KB, so a scanner built without Buffer silently stops at
 // the first longer line. Round 5 raised three readers, round 6 found two more,
-// round 7 found the last one — each time by reading. Every scanner in the
-// review/audit family now either declares ndjsonLineCap or says on its own line
-// what non-NDJSON input it reads, and this guard is what keeps the next one
-// from shipping at 64KB.
+// round 7 found the last one — each time by reading.
 //
-// Scope matches TestFileErrorsCarryAHint. The tp add --bulk and tp set --bulk
-// readers scan NDJSON at 64KB too, but each pins its own warn-and-continue
-// contract in its own tests (add_validation_test.go); reversing those is a
-// change to a different command family and belongs to its own version, not to
-// this sweep.
+// The check is on the SCANNER, not on the text of the next line. Round 9 broke
+// the text version three ways at once: min(4096, ndjsonLineCap) contained the
+// constant and passed at 4KB, a correctly capped reader renamed from scanner to
+// sc failed, and a reader in a new file matching neither name prefix escaped
+// entirely. So this walks every non-test source in the package, binds each
+// bufio.NewScanner to the variable it is assigned to, and requires a
+// <var>.Buffer(_, ndjsonLineCap) — the identifier itself, no expression around
+// it — somewhere in the same function.
+//
+// tp add --bulk and tp set --bulk read NDJSON at bufio's default and pin their
+// own warn-and-continue contracts; they carry a line-cap: marker naming that,
+// which is also what a genuinely non-NDJSON scanner (spec markdown, git output)
+// carries. The marker states the exception at the site rather than in a list
+// somewhere else that a new reader could quietly join.
 func TestNDJSONReadersShareTheCap(t *testing.T) {
-	// The exemption is per SITE, not per file: a scanner over non-NDJSON input
-	// says so on its own line with a "line-cap:" marker naming what it scans.
-	// A file-level allow-list would have excused every other scanner in
-	// review.go and audit.go — including the NDJSON readers this guard exists
-	// to hold, which is how a guard passes while the thing it guards regresses.
 	const siteExemption = "line-cap:"
 
 	uncapped := make([]string, 0)
-	for _, path := range hintGuardedFiles(t) {
-		name := filepath.Base(path)
-		data, readErr := os.ReadFile(path)
-		require.NoError(t, readErr)
+	for _, path := range packageSources(t, func(string) bool { return true }) {
+		fset := token.NewFileSet()
+		file, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
+		require.NoError(t, err, "parse %s", path)
 
-		lines := strings.Split(string(data), "\n")
-		for i, line := range lines {
-			if !strings.Contains(line, "bufio.NewScanner(") {
-				continue
+		exempt := exemptLines(fset, file, siteExemption)
+
+		ast.Inspect(file, func(n ast.Node) bool {
+			fn, ok := n.(*ast.FuncDecl)
+			if !ok || fn.Body == nil {
+				return true
 			}
-			// The Buffer call is the next statement when the cap is declared,
-			// and the cap must be the constant ITSELF. Merely containing the
-			// name is not enough: `ndjsonLineCap/64` reads as capped and ships a
-			// 16KB limit — below bufio's own default — which is how a mutation
-			// defeated the first version of this guard on three readers at once.
-			capped := i+1 < len(lines) &&
-				strings.Contains(lines[i+1], "scanner.Buffer(") &&
-				strings.Contains(lines[i+1], ", ndjsonLineCap)")
-			if capped || strings.Contains(line, siteExemption) {
-				continue
+			for _, site := range scannerSites(fn) {
+				line := fset.Position(site.pos).Line
+				if exempt[line] || cappedInBody(fn.Body, site.name) {
+					continue
+				}
+				uncapped = append(uncapped, filepath.Base(path)+":"+strconv.Itoa(line))
 			}
-			uncapped = append(uncapped, name+":"+itoa(i+1))
-		}
+			return true
+		})
 	}
 
 	sort.Strings(uncapped)
 	require.Empty(t, uncapped,
 		"these scanners keep bufio's 64KB default: past it they stop early and the caller "+
-			"sees a silently shorter set. Declare the shared cap on the next line "+
+			"sees a silently shorter set. Declare the shared cap on the scanner "+
 			"(scanner.Buffer(make([]byte, 0, 64*1024), ndjsonLineCap)), or mark the site "+
 			"with a line-cap: comment naming the non-NDJSON input it scans")
 }
 
-// hintGuardedFiles lists the non-test review/audit sources this guard covers.
+// scannerSite is one bufio.NewScanner bound to a variable name.
+type scannerSite struct {
+	name string
+	pos  token.Pos
+}
+
+// scannerSites finds every bufio.NewScanner assigned to a variable in fn.
+func scannerSites(fn *ast.FuncDecl) []scannerSite {
+	sites := make([]scannerSite, 0)
+	ast.Inspect(fn.Body, func(n ast.Node) bool {
+		assign, ok := n.(*ast.AssignStmt)
+		if !ok || len(assign.Lhs) != 1 || len(assign.Rhs) != 1 {
+			return true
+		}
+		call, ok := assign.Rhs[0].(*ast.CallExpr)
+		if !ok || !isSelectorCall(call, "bufio", "NewScanner") {
+			return true
+		}
+		name, ok := assign.Lhs[0].(*ast.Ident)
+		if !ok {
+			return true
+		}
+		sites = append(sites, scannerSite{name: name.Name, pos: call.Pos()})
+		return true
+	})
+	return sites
+}
+
+// cappedInBody reports whether the body calls <name>.Buffer with ndjsonLineCap
+// itself as the max — an expression built from the constant does not count,
+// because that is how a 4KB cap once read as the shared one.
+func cappedInBody(body *ast.BlockStmt, name string) bool {
+	capped := false
+	ast.Inspect(body, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok || !isSelectorCall(call, name, "Buffer") || len(call.Args) != 2 {
+			return true
+		}
+		if maxArg, ok := call.Args[1].(*ast.Ident); ok && maxArg.Name == "ndjsonLineCap" {
+			capped = true
+		}
+		return true
+	})
+	return capped
+}
+
+// isSelectorCall reports whether call is recv.method(...).
+func isSelectorCall(call *ast.CallExpr, recv, method string) bool {
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok || sel.Sel.Name != method {
+		return false
+	}
+	ident, ok := sel.X.(*ast.Ident)
+	return ok && ident.Name == recv
+}
+
+// exemptLines maps the lines a site-exemption comment covers: its own line,
+// for a trailing comment, and the line after the comment group ends, for the
+// block form written above the scanner.
+func exemptLines(fset *token.FileSet, file *ast.File, marker string) map[int]bool {
+	lines := make(map[int]bool)
+	for _, group := range file.Comments {
+		marked := false
+		for _, c := range group.List {
+			if strings.Contains(c.Text, marker) {
+				marked = true
+				lines[fset.Position(c.Pos()).Line] = true
+			}
+		}
+		if marked {
+			lines[fset.Position(group.End()).Line+1] = true
+		}
+	}
+	return lines
+}
+
+// hintGuardedFiles lists the non-test review/audit sources the hint guard covers.
 func hintGuardedFiles(t *testing.T) []string {
+	t.Helper()
+	files := packageSources(t, func(name string) bool {
+		return strings.HasPrefix(name, "review") || strings.HasPrefix(name, "audit")
+	})
+	require.NotEmpty(t, files, "the guard must find the review/audit sources it claims to cover")
+	return files
+}
+
+// packageSources lists the non-test .go files in internal/cli matching keep.
+func packageSources(t *testing.T, keep func(name string) bool) []string {
 	t.Helper()
 	dir := filepath.Join(repoRoot(t), "internal", "cli")
 	entries, err := os.ReadDir(dir)
@@ -140,34 +277,16 @@ func hintGuardedFiles(t *testing.T) []string {
 		if e.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
 			continue
 		}
-		if !strings.HasPrefix(name, "review") && !strings.HasPrefix(name, "audit") {
+		if !keep(name) {
 			continue
 		}
 		files = append(files, filepath.Join(dir, name))
 	}
-	require.NotEmpty(t, files, "the guard must find the review/audit sources it claims to cover")
+	require.NotEmpty(t, files, "no package sources matched")
 	return files
 }
 
 // isOutputError reports whether the call is output.Error(...).
 func isOutputError(call *ast.CallExpr) bool {
-	sel, ok := call.Fun.(*ast.SelectorExpr)
-	if !ok || sel.Sel.Name != "Error" {
-		return false
-	}
-	pkg, ok := sel.X.(*ast.Ident)
-	return ok && pkg.Name == "output"
-}
-
-// itoa keeps the offender list readable without pulling strconv in for one call.
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	var digits []byte
-	for n > 0 {
-		digits = append([]byte{byte('0' + n%10)}, digits...)
-		n /= 10
-	}
-	return string(digits)
+	return isSelectorCall(call, "output", "Error")
 }
