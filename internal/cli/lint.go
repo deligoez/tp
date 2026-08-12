@@ -70,7 +70,9 @@ func runLint(_ *cobra.Command, args []string) error {
 
 	totalLines := len(lines)
 
-	var findings []engine.Finding
+	// make, not var: a nil slice serializes as null, and tp lint on a clean spec
+	// answered "findings": null where every other list field answers [].
+	findings := make([]engine.Finding, 0)
 	findings = append(findings, engine.CheckHeadingHierarchy(headings)...)
 	findings = append(findings, engine.CheckEmptySections(headings, totalLines)...)
 	findings = append(findings, engine.CheckDuplicateHeadings(headings)...)
