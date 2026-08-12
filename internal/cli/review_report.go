@@ -55,28 +55,34 @@ type mechanizeCandidate struct {
 // mechanizeRegisterHint accompanies mechanize_candidates in --record output.
 const mechanizeRegisterHint = "write a mechanical check for each candidate class and register it: tp set --workflow checks='[...]'"
 
+// reportInputUsageHint names what --report wants when the invocation named
+// nothing to report on. It is the text that used to sit on an unreachable
+// branch below runReviewReport's resolve call, where no invocation could reach
+// it: resolveReportFiles either fails or returns a non-empty list.
+const reportInputUsageHint = "provide file paths or a directory containing *.ndjson files"
+
 func runReviewReport(args []string) error {
 	files, err := resolveReportFiles(args)
 	if err != nil {
 		// A bad PATH is a file error (exit 3) with the NDJSON-input hint — the
 		// same answer --merge gives for the same operator typo, which used to
 		// differ so one mistake was reported two ways depending on which mode
-		// caught it. A bad INVOCATION (no argument, or a directory holding no
-		// NDJSON) stays a usage error: the path was fine, there was nothing to
-		// report on.
+		// caught it. A bad INVOCATION — no argument, or a directory holding no
+		// NDJSON — stays exit 2: the path was fine, there was nothing to report
+		// on, and §10.5 of spec/0.16.0-review-orchestration.md pins both rows at
+		// 2. It is NOT the exit code --merge gives the same empty directory (3),
+		// and that is not a divergence to close here: --merge takes no directory
+		// at all, so its 3 is the answer to "this file is unreadable", not to
+		// "this directory is empty". What was wrong was the hint — both usage
+		// rows inherited "see tp --help", which repairs neither — so they carry
+		// the one that does.
 		var pathErr *reportPathError
 		if errors.As(err, &pathErr) {
 			output.Error(ExitFile, err.Error(), ndjsonInputFileHint)
 			os.Exit(ExitFile)
 			return nil
 		}
-		output.Error(ExitUsage, err.Error())
-		os.Exit(ExitUsage)
-		return nil
-	}
-
-	if len(files) == 0 {
-		output.Error(ExitUsage, "no NDJSON files provided", "provide file paths or a directory containing *.ndjson files")
+		output.Error(ExitUsage, err.Error(), reportInputUsageHint)
 		os.Exit(ExitUsage)
 		return nil
 	}
