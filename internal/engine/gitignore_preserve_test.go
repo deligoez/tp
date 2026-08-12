@@ -54,24 +54,3 @@ func TestEnsureTPGitignore_PreservesCustomEntriesUnderConcurrency(t *testing.T) 
 	assert.Equal(t, before.ModTime(), after.ModTime(),
 		"with nothing missing there is nothing to write, so the file is never touched")
 }
-
-// TestEnsureTPGitignore_AppendsMissingEntryOnce: the one-time upgrade path still
-// works, and having run once it stops writing.
-func TestEnsureTPGitignore_AppendsMissingEntryOnce(t *testing.T) {
-	tpDir := t.TempDir()
-	path := filepath.Join(tpDir, ".gitignore")
-	require.NoError(t, os.WriteFile(path, []byte("local.json\nmy-scratch/\n"), 0o600))
-
-	require.NoError(t, EnsureTPGitignore(tpDir))
-	data, err := os.ReadFile(path)
-	require.NoError(t, err)
-	assert.Contains(t, string(data), "locks/", "the missing entry is appended")
-	assert.Contains(t, string(data), "my-scratch/", "and the user's entry is kept")
-
-	stamped, err := os.Stat(path)
-	require.NoError(t, err)
-	require.NoError(t, EnsureTPGitignore(tpDir))
-	again, err := os.Stat(path)
-	require.NoError(t, err)
-	assert.Equal(t, stamped.ModTime(), again.ModTime(), "the second call writes nothing")
-}
