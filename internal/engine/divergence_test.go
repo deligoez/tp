@@ -136,7 +136,13 @@ func assertKeyOmitted(t *testing.T, d *Divergence) {
 // Test 19 — the object fires and carries the first message form. The fixture's
 // streak (4), open count (3) and threshold (2) are three different numbers, so
 // the round slot can only be the streak and the finding slot only
-// other_roles_open. The hint is asserted against §2.6's constant verbatim.
+// other_roles_open.
+//
+// The hint is asserted against §2.6's constant and not against a literal copy
+// of its words. A copy here would pin the constant against a second copy in the
+// same repository, failing on any reword and catching no defect;
+// TestDocsCarryTheConvergenceSignalWording is what holds the words themselves,
+// by requiring skills/tp/REFERENCE.md to quote the shipped constant.
 func TestComputeAuditDivergence_FiresWithTheFirstMessageForm(t *testing.T) {
 	clean := auditRows(auditRow("spec-coverage", "PASS"))
 	f := newDivergenceFixture(t,
@@ -157,12 +163,6 @@ func TestComputeAuditDivergence_FiresWithTheFirstMessageForm(t *testing.T) {
 	assert.Equal(t, []string{"ax-contract", "go-safety"}, d.OpenRoles)
 	assert.Equal(t, 0, d.UnattributedOpen)
 	assert.Equal(t, "spec-coverage clean 4 rounds; 3 findings open from other roles", d.Message)
-	assert.Equal(t,
-		"spec-coverage is the only role that measures spec conformance; the remaining findings "+
-			"are outside it. Whether they gate this release is the operator's decision, not the "+
-			"agent's — surface it rather than deciding either way; audit convergence still counts "+
-			"every non-PASS row.",
-		d.Hint)
 	assert.Equal(t, DivergenceHint, d.Hint)
 
 	// All five fields are present in the emitted object.
