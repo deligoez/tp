@@ -152,3 +152,30 @@ func assertLockTimeoutErrorObject(t *testing.T, stderr string) {
 	hint, _ := errObj["hint"].(string)
 	assert.Contains(t, hint, filepath.Join(".tp", "locks"), "hint names the lock path")
 }
+
+// TestAddSpec_LockContentionTimeoutExitsFour covers the second half of §3's
+// init claim: tp add --spec reaches the same write through runInit, which it
+// calls BEFORE taking its own lock. That call is the reason locking runInit
+// rather than tp init's command body is load-bearing — an add that creates the
+// shell must contend for the task-file lock exactly as a bare init does, and
+// fail identically: exit 4 (STATE) with LockTimeoutError's message and hint.
+func TestAddSpec_LockContentionTimeoutExitsFour(t *testing.T) {
+	dir, taskFilePath := initLockSetup(t)
+
+	_, stderr, code := runTP(t, dir, "set", "--workflow", "--project", "lock_timeout_seconds=1")
+	require.Equal(t, 0, code, "set lock_timeout_seconds: %s", stderr)
+
+	release := holdTaskFileLock(t, taskFilePath)
+	defer release()
+
+	task := `{"id":"t1","title":"T","estimate_minutes":5,"acceptance":"t1 is done","source_sections":["## 1. Setup"],"depends_on":[]}`
+	start := time.Now()
+	_, stderr, code = runTP(t, dir, "add", "--spec", "spec.md", task)
+	elapsed := time.Since(start)
+	assert.Equal(t, 4, code, "an add --spec held past lock_timeout_seconds exits 4 (STATE): %s", stderr)
+	assert.GreaterOrEqual(t, elapsed, 900*time.Millisecond, "add --spec retried for the configured 1s, not less")
+	assert.Less(t, elapsed, 4*time.Second, "add --spec used the configured 1s, not the 5s built-in default")
+
+	assertLockTimeoutErrorObject(t, stderr)
+	assert.NoFileExists(t, taskFilePath, "a timed-out add --spec creates no shell")
+}
