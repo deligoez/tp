@@ -25,9 +25,13 @@ func TestWithFileLock_BasicAcquireAndRelease(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, executed, "callback should have been executed")
 
-	// Lock file should be cleaned up after WithFileLock
+	// The LEGACY sibling path, which tp has not created since v0.29.0. This
+	// comment used to say the lock file is cleaned up after WithFileLock, which
+	// is the belief that made the lock unsound: the centralized lock file now
+	// deliberately outlives the lock it carried, and
+	// TestWithFileLock_LockFileSurvivesRelease pins that.
 	_, err = os.Stat(lockTarget + ".lock")
-	assert.True(t, os.IsNotExist(err), "lock file should be removed after WithFileLock")
+	assert.True(t, os.IsNotExist(err), "no sibling lock is created beside the target")
 }
 
 func TestWithFileLock_FnErrorPropagated(t *testing.T) {
