@@ -200,8 +200,11 @@ func countAuditFindings(path string, data []byte) (findings int, err error) {
 			return 0, fmt.Errorf("line %d: invalid JSON: %w", lineNum, jsonErr)
 		}
 		rl.observe(row, lineNum)
-		status, _ := row["status"].(string)
-		if status != "PASS" {
+		// engine.AuditRowIsPass is the same predicate §2.1 pins for the streak
+		// walk, and its doc comment requires the two to stay identical. Calling
+		// it here rather than restating it makes that identity structural: the
+		// round's recorded findings count and other_roles_open cannot drift.
+		if !engine.AuditRowIsPass(row) {
 			findings++
 		}
 	}
