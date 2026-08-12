@@ -29,7 +29,7 @@
       ],
       "depends_on": [],
       "estimate_minutes": 15,
-      "acceptance": "- spec/0.34.0-guard-tests.md lists every test function added between the v0.32.0 and v0.33.0 tags under the `## Guard tests` heading, one file:function per line, with the placeholder declaration line deleted\n- The derivation passes --no-ext-diff and an empty result is treated as a failed derivation rather than a result\n- python3 scripts/check-measured-claims.py exits 0 with no PENDING line",
+      "acceptance": "- Kind: addition — §7.1 mandates that the release's first task write the guard-test list, and nothing else is added with it\n- spec/0.34.0-guard-tests.md lists every test function added between the v0.32.0 and v0.33.0 tags under the `## Guard tests` heading, one file:function per line, with the placeholder declaration line deleted\n- The derivation passes --no-ext-diff and an empty result is treated as a failed derivation rather than a result\n- python3 scripts/check-measured-claims.py exits 0 with no PENDING line",
       "source_sections": [
         "### 7.1 The mutation criterion",
         "## 7. The test sweep"
@@ -56,7 +56,7 @@
       ],
       "depends_on": [],
       "estimate_minutes": 15,
-      "acceptance": "- importcmd.go's read-modify-write runs inside engine.WithFileLock honouring the resolved lock_timeout_seconds\n- A lock held past the timeout exits 4 carrying LockTimeoutError's hint with the lock path and elapsed wait\n- The success path gains no flag and no output change",
+      "acceptance": "- Kind: repair — §3 makes the unlocked import write safe, and the success path gains nothing\n- importcmd.go's read-modify-write runs inside engine.WithFileLock honouring the resolved lock_timeout_seconds\n- A lock held past the timeout exits 4 carrying LockTimeoutError's hint with the lock path and elapsed wait\n- The success path gains no flag and no output change",
       "source_sections": [
         "## 3. `tp import` writes under the lock",
         "## 1. Overview"
@@ -89,7 +89,7 @@
         "import-lock"
       ],
       "estimate_minutes": 15,
-      "acceptance": "- init.go's stat-then-write runs inside engine.WithFileLock, including the path tp add --spec reaches through runInit\n- tp init and tp add --spec each exit 4 with LockTimeoutError's hint when the lock is held past the timeout\n- No unlocked task-file write remains in the tool",
+      "acceptance": "- Kind: repair — §3 makes the unlocked init write safe, and the success path gains nothing\n- init.go's stat-then-write runs inside engine.WithFileLock, including the path tp add --spec reaches through runInit\n- tp init and tp add --spec each exit 4 with LockTimeoutError's hint when the lock is held past the timeout\n- No unlocked task-file write remains in the tool",
       "source_sections": [
         "## 3. `tp import` writes under the lock"
       ],
@@ -108,7 +108,7 @@
       ],
       "depends_on": [],
       "estimate_minutes": 15,
-      "acceptance": "- tp add --bulk adopts the shared 1MB line cap and aborts with exit 3 naming the file and line number\n- An over-long row no longer discards itself and every row after it while reporting success\n- The warn-and-continue tests asserting the removed behaviour move in this task",
+      "acceptance": "- Kind: repair — §4 corrects the reader, and the warn-and-continue tests it invalidates move with it under §12.1\n- tp add --bulk adopts the shared 1MB line cap and aborts with exit 3 naming the file and line number\n- An over-long row no longer discards itself and every row after it while reporting success\n- The warn-and-continue tests asserting the removed behaviour move in this task",
       "source_sections": [
         "## 4. The bulk readers honour the shared line cap",
         "## 1. Overview"
@@ -139,7 +139,7 @@
         "bulk-add-cap"
       ],
       "estimate_minutes": 15,
-      "acceptance": "- tp set --bulk adopts the shared 1MB line cap and aborts with exit 3 naming the file and line number\n- The task file is left byte-identical when the operation aborts\n- The warn-and-continue tests asserting the removed behaviour move in this task",
+      "acceptance": "- Kind: repair — §4 corrects the reader, and the warn-and-continue tests it invalidates move with it under §12.1\n- tp set --bulk adopts the shared 1MB line cap and aborts with exit 3 naming the file and line number\n- The task file is left byte-identical when the operation aborts\n- The warn-and-continue tests asserting the removed behaviour move in this task",
       "source_sections": [
         "## 4. The bulk readers honour the shared line cap"
       ],
@@ -169,7 +169,7 @@
         "bulk-set-cap"
       ],
       "estimate_minutes": 10,
-      "acceptance": "- The `line-cap:` markers come out of add.go and set.go now that neither reader is exempt\n- The guard enforcing the shared cap no longer lists either bulk reader as an exception",
+      "acceptance": "- Kind: removal — the markers go now that §4 leaves neither reader exempt, and the evidence names the guard that covers the cap\n- The `line-cap:` markers come out of add.go and set.go now that neither reader is exempt\n- The guard enforcing the shared cap no longer lists either bulk reader as an exception",
       "source_sections": [
         "## 4. The bulk readers honour the shared line cap"
       ],
@@ -188,7 +188,7 @@
       ],
       "depends_on": [],
       "estimate_minutes": 15,
-      "acceptance": "- The project gate in .tp/config.json runs the whole test suite under -race before golangci-lint\n- Any data race the new gate surfaces is fixed in this task, since the gate runs at its own close\n- skills/tp/SKILL.md recommends -race for any Go project using tp",
+      "acceptance": "- Kind: repair — §5 makes the project gate see data races, and the SKILL.md recommendation it adds is mandated there too\n- The project gate in .tp/config.json runs the whole test suite under -race before golangci-lint\n- Any data race the new gate surfaces is fixed in this task, since the gate runs at its own close\n- skills/tp/SKILL.md recommends -race for any Go project using tp",
       "source_sections": [
         "## 5. The quality gate sees data races",
         "## 1. Overview"
@@ -219,7 +219,7 @@
         "race-gate"
       ],
       "estimate_minutes": 15,
-      "acceptance": "- The gate resolved for this release's task file runs -race\n- A config guard test compares the resolved value against the literal gate string rather than against the project value\n- That test fails when the project gate weakens and when an override is reintroduced",
+      "acceptance": "- Kind: removal — §5 removes the task-level quality_gate overrides that mask the project gate, and the guard test §5 mandates replaces them\n- The gate resolved for this release's task file runs -race\n- A config guard test compares the resolved value against the literal gate string rather than against the project value\n- That test fails when the project gate weakens and when an override is reintroduced",
       "source_sections": [
         "## 5. The quality gate sees data races"
       ],
@@ -250,7 +250,7 @@
         "gate-overrides"
       ],
       "estimate_minutes": 10,
-      "acceptance": "- CLAUDE.md and skills/tp/SKILL.md no longer instruct tp init --quality-gate, so a later cycle does not re-create the override\n- Only the recipes change; section 8.3 governs where the flag stays documented",
+      "acceptance": "- Kind: removal — §5's second constraint drops the flag from both recipes, and §8.3 keeps it documented where it is registered\n- CLAUDE.md and skills/tp/SKILL.md no longer instruct tp init --quality-gate, so a later cycle does not re-create the override\n- Only the recipes change; section 8.3 governs where the flag stays documented",
       "source_sections": [
         "## 5. The quality gate sees data races"
       ],
@@ -278,7 +278,7 @@
       ],
       "depends_on": [],
       "estimate_minutes": 15,
-      "acceptance": "- dupl is enabled in .golangci.yml over production and test files alike at its own default threshold, which is not raised\n- Every clone it reports is merged, or exempted with its reason recorded at the site when merging would need a new abstraction\n- golangci-lint run is clean with dupl enabled at this task's close",
+      "acceptance": "- Kind: removal — §6.1 removes the duplication dupl reports, and enabling the linter in the same task is mandated there\n- dupl is enabled in .golangci.yml over production and test files alike at its own default threshold, which is not raised\n- Every clone it reports is merged, or exempted with its reason recorded at the site when merging would need a new abstraction\n- golangci-lint run is clean with dupl enabled at this task's close",
       "source_sections": [
         "### 6.1 Duplication",
         "## 6. The code sweep"
@@ -319,7 +319,7 @@
         "dupl-enable"
       ],
       "estimate_minutes": 15,
-      "acceptance": "- Helpers with one call site, interfaces with one implementation, and parameters every caller passes the same value for are inlined\n- Indirection is kept only where a second caller exists today and can be named\n- Each removal names in its evidence that it had no caller or the implementation that absorbed it",
+      "acceptance": "- Kind: removal — §6.2 inlines indirection with one caller, and each removal names what absorbed it\n- Helpers with one call site, interfaces with one implementation, and parameters every caller passes the same value for are inlined\n- Indirection is kept only where a second caller exists today and can be named\n- Each removal names in its evidence that it had no caller or the implementation that absorbed it",
       "source_sections": [
         "### 6.2 Redundant abstraction",
         "### 2.1 The removal contract"
@@ -341,7 +341,7 @@
         "dupl-enable"
       ],
       "estimate_minutes": 15,
-      "acceptance": "- Error branches for states the type system excludes and default arms after an exhaustive switch are removed rather than tested\n- Nil checks on values constructed non-nil in the same function are removed\n- Each removal names what now covers it",
+      "acceptance": "- Kind: removal — §6.3 removes branches that cannot execute, and each removal names what now covers it\n- Error branches for states the type system excludes and default arms after an exhaustive switch are removed rather than tested\n- Nil checks on values constructed non-nil in the same function are removed\n- Each removal names what now covers it",
       "source_sections": [
         "### 6.3 Dead branches",
         "### 2.1 The removal contract"
@@ -374,7 +374,7 @@
         "guard-list"
       ],
       "estimate_minutes": 15,
-      "acceptance": "- Each of the 12 guard tests listed for internal/cli/audit_signal_test.go is mutated, run, watched to fail, then restored\n- A guard surviving its own mutation unchanged is rewritten to assert what it claims, or removed with the surviving coverage named\n- Nothing on section 7.4's protection list is touched",
+      "acceptance": "- Kind: removal or repair per guard, never an addition — §7.1's mutation criterion decides which, and each removal names its surviving coverage\n- Each of the 12 guard tests listed for internal/cli/audit_signal_test.go is mutated, run, watched to fail, then restored\n- A guard surviving its own mutation unchanged is rewritten to assert what it claims, or removed with the surviving coverage named\n- Nothing on section 7.4's protection list is touched",
       "source_sections": [
         "### 7.1 The mutation criterion",
         "### 7.4 What the sweep must not touch"
@@ -396,7 +396,7 @@
         "guard-list"
       ],
       "estimate_minutes": 15,
-      "acceptance": "- Each of the 12 guard tests listed for internal/engine/auditrounds_test.go is mutated, run, watched to fail, then restored\n- A guard surviving its own mutation unchanged is rewritten to assert what it claims, or removed with the surviving coverage named\n- Nothing on section 7.4's protection list is touched",
+      "acceptance": "- Kind: removal or repair per guard, never an addition — §7.1's mutation criterion decides which, and each removal names its surviving coverage\n- Each of the 12 guard tests listed for internal/engine/auditrounds_test.go is mutated, run, watched to fail, then restored\n- A guard surviving its own mutation unchanged is rewritten to assert what it claims, or removed with the surviving coverage named\n- Nothing on section 7.4's protection list is touched",
       "source_sections": [
         "### 7.1 The mutation criterion"
       ],
@@ -417,7 +417,7 @@
         "guard-list"
       ],
       "estimate_minutes": 15,
-      "acceptance": "- Each of the 12 guard tests listed for internal/engine/divergence_test.go is mutated, run, watched to fail, then restored\n- A guard surviving its own mutation unchanged is rewritten to assert what it claims, or removed with the surviving coverage named\n- Nothing on section 7.4's protection list is touched",
+      "acceptance": "- Kind: removal or repair per guard, never an addition — §7.1's mutation criterion decides which, and each removal names its surviving coverage\n- Each of the 12 guard tests listed for internal/engine/divergence_test.go is mutated, run, watched to fail, then restored\n- A guard surviving its own mutation unchanged is rewritten to assert what it claims, or removed with the surviving coverage named\n- Nothing on section 7.4's protection list is touched",
       "source_sections": [
         "### 7.1 The mutation criterion"
       ],
@@ -438,7 +438,7 @@
         "guard-list"
       ],
       "estimate_minutes": 15,
-      "acceptance": "- Each of the 11 guard tests listed for internal/cli/review_suppression_test.go is mutated, run, watched to fail, then restored\n- A guard surviving its own mutation unchanged is rewritten to assert what it claims, or removed with the surviving coverage named\n- Nothing on section 7.4's protection list is touched",
+      "acceptance": "- Kind: removal or repair per guard, never an addition — §7.1's mutation criterion decides which, and each removal names its surviving coverage\n- Each of the 11 guard tests listed for internal/cli/review_suppression_test.go is mutated, run, watched to fail, then restored\n- A guard surviving its own mutation unchanged is rewritten to assert what it claims, or removed with the surviving coverage named\n- Nothing on section 7.4's protection list is touched",
       "source_sections": [
         "### 7.1 The mutation criterion"
       ],
@@ -459,7 +459,7 @@
         "guard-list"
       ],
       "estimate_minutes": 15,
-      "acceptance": "- Each of the 9 guard tests listed for internal/cli/ndjson_read_contract_test.go is mutated, run, watched to fail, then restored\n- A guard surviving its own mutation unchanged is rewritten to assert what it claims, or removed with the surviving coverage named\n- Nothing on section 7.4's protection list is touched",
+      "acceptance": "- Kind: removal or repair per guard, never an addition — §7.1's mutation criterion decides which, and each removal names its surviving coverage\n- Each of the 9 guard tests listed for internal/cli/ndjson_read_contract_test.go is mutated, run, watched to fail, then restored\n- A guard surviving its own mutation unchanged is rewritten to assert what it claims, or removed with the surviving coverage named\n- Nothing on section 7.4's protection list is touched",
       "source_sections": [
         "### 7.1 The mutation criterion"
       ],
@@ -480,7 +480,7 @@
         "guard-list"
       ],
       "estimate_minutes": 15,
-      "acceptance": "- Each of the 9 guard tests listed for internal/engine/rolestreaks_test.go is mutated, run, watched to fail, then restored\n- A guard surviving its own mutation unchanged is rewritten to assert what it claims, or removed with the surviving coverage named\n- Nothing on section 7.4's protection list is touched",
+      "acceptance": "- Kind: removal or repair per guard, never an addition — §7.1's mutation criterion decides which, and each removal names its surviving coverage\n- Each of the 9 guard tests listed for internal/engine/rolestreaks_test.go is mutated, run, watched to fail, then restored\n- A guard surviving its own mutation unchanged is rewritten to assert what it claims, or removed with the surviving coverage named\n- Nothing on section 7.4's protection list is touched",
       "source_sections": [
         "### 7.1 The mutation criterion"
       ],
@@ -501,7 +501,7 @@
         "guard-list"
       ],
       "estimate_minutes": 15,
-      "acceptance": "- Each of the 9 guard tests listed for internal/engine/speccoverage_test.go is mutated, run, watched to fail, then restored\n- A guard surviving its own mutation unchanged is rewritten to assert what it claims, or removed with the surviving coverage named\n- Nothing on section 7.4's protection list is touched",
+      "acceptance": "- Kind: removal or repair per guard, never an addition — §7.1's mutation criterion decides which, and each removal names its surviving coverage\n- Each of the 9 guard tests listed for internal/engine/speccoverage_test.go is mutated, run, watched to fail, then restored\n- A guard surviving its own mutation unchanged is rewritten to assert what it claims, or removed with the surviving coverage named\n- Nothing on section 7.4's protection list is touched",
       "source_sections": [
         "### 7.1 The mutation criterion"
       ],
@@ -522,7 +522,7 @@
         "guard-list"
       ],
       "estimate_minutes": 15,
-      "acceptance": "- Each of the 7 guard tests listed for internal/cli/review_exclusion_test.go is mutated, run, watched to fail, then restored\n- A guard surviving its own mutation unchanged is rewritten to assert what it claims, or removed with the surviving coverage named\n- Nothing on section 7.4's protection list is touched",
+      "acceptance": "- Kind: removal or repair per guard, never an addition — §7.1's mutation criterion decides which, and each removal names its surviving coverage\n- Each of the 7 guard tests listed for internal/cli/review_exclusion_test.go is mutated, run, watched to fail, then restored\n- A guard surviving its own mutation unchanged is rewritten to assert what it claims, or removed with the surviving coverage named\n- Nothing on section 7.4's protection list is touched",
       "source_sections": [
         "### 7.1 The mutation criterion"
       ],
@@ -543,7 +543,7 @@
         "guard-list"
       ],
       "estimate_minutes": 15,
-      "acceptance": "- Each of the 5 guard tests listed for internal/engine/mechanized_test.go is mutated, run, watched to fail, then restored\n- A guard surviving its own mutation unchanged is rewritten to assert what it claims, or removed with the surviving coverage named\n- Nothing on section 7.4's protection list is touched",
+      "acceptance": "- Kind: removal or repair per guard, never an addition — §7.1's mutation criterion decides which, and each removal names its surviving coverage\n- Each of the 5 guard tests listed for internal/engine/mechanized_test.go is mutated, run, watched to fail, then restored\n- A guard surviving its own mutation unchanged is rewritten to assert what it claims, or removed with the surviving coverage named\n- Nothing on section 7.4's protection list is touched",
       "source_sections": [
         "### 7.1 The mutation criterion"
       ],
@@ -564,7 +564,7 @@
         "guard-list"
       ],
       "estimate_minutes": 15,
-      "acceptance": "- The 10 listed guard tests across inflight_window_test.go, lock_pathspec_test.go, hint_coverage_test.go, audit_test.go and docs_contract_test.go are mutated and dispositioned\n- Each removal names the surviving test that fails when the original defect returns",
+      "acceptance": "- Kind: removal or repair per guard, never an addition — §7.1's mutation criterion decides which, and each removal names its surviving coverage\n- The 10 listed guard tests across inflight_window_test.go, lock_pathspec_test.go, hint_coverage_test.go, audit_test.go and docs_contract_test.go are mutated and dispositioned\n- Each removal names the surviving test that fails when the original defect returns",
       "source_sections": [
         "### 7.1 The mutation criterion"
       ],
@@ -585,7 +585,7 @@
         "guard-list"
       ],
       "estimate_minutes": 10,
-      "acceptance": "- The 4 listed guard tests in gitignore_preserve_test.go and lock_exclusion_test.go are mutated and dispositioned\n- Each removal names the surviving test that fails when the original defect returns",
+      "acceptance": "- Kind: removal or repair per guard, never an addition — §7.1's mutation criterion decides which, and each removal names its surviving coverage\n- The 4 listed guard tests in gitignore_preserve_test.go and lock_exclusion_test.go are mutated and dispositioned\n- Each removal names the surviving test that fails when the original defect returns",
       "source_sections": [
         "### 7.1 The mutation criterion"
       ],
@@ -616,7 +616,7 @@
         "guard-list"
       ],
       "estimate_minutes": 15,
-      "acceptance": "- Where several tests assert one property through the same path, the one whose failure message best identifies the defect is kept\n- Tests asserting the same property through different paths all stay, because that is coverage rather than duplication",
+      "acceptance": "- Kind: removal — §7.2 keeps one test per same-path property and removes the rest with the surviving coverage named\n- Where several tests assert one property through the same path, the one whose failure message best identifies the defect is kept\n- Tests asserting the same property through different paths all stay, because that is coverage rather than duplication",
       "source_sections": [
         "### 7.2 Redundant assertions"
       ],
@@ -637,7 +637,7 @@
         "guard-list"
       ],
       "estimate_minutes": 15,
-      "acceptance": "- Tests pinning an exact log string, a private helper's shape, or a map's iteration order are converted to assert the observable contract\n- Those that cannot be converted are removed with the surviving coverage named",
+      "acceptance": "- Kind: repair or removal per test — §7.3 converts what can assert the observable contract and removes the rest with the surviving coverage named\n- Tests pinning an exact log string, a private helper's shape, or a map's iteration order are converted to assert the observable contract\n- Those that cannot be converted are removed with the surviving coverage named",
       "source_sections": [
         "### 7.3 Implementation-detail assertions"
       ],
@@ -656,7 +656,7 @@
       ],
       "depends_on": [],
       "estimate_minutes": 15,
-      "acceptance": "- README.md owns the install and command index, SKILL.md owns everything needed mid-cycle, CLAUDE.md owns this repository's conventions, REFERENCE.md owns exhaustive detail\n- Anything duplicated across two homes is cut from the non-owner\n- The command index and the command forms are the one permitted overlap",
+      "acceptance": "- Kind: removal — §8.1 cuts every duplicated fact from the non-owner, and each cut names the home the fact keeps\n- README.md owns the install and command index, SKILL.md owns everything needed mid-cycle, CLAUDE.md owns this repository's conventions, REFERENCE.md owns exhaustive detail\n- Anything duplicated across two homes is cut from the non-owner\n- The command index and the command forms are the one permitted overlap",
       "source_sections": [
         "### 8.1 One canonical home per fact",
         "## 8. The documentation sweep"
@@ -695,7 +695,7 @@
         "doc-homes"
       ],
       "estimate_minutes": 10,
-      "acceptance": "- CLAUDE.md's instruction to register a mechanical check for a class seen in three rounds becomes conditional on the phase\n- The qualifier states that a check registered before its subject exists suppresses a class for every reviewer while verifying only what already exists",
+      "acceptance": "- Kind: repair — §8.1 leaves CLAUDE.md owning this repository's conventions, and the qualifier corrects the rule §7.1 disproved\n- CLAUDE.md's instruction to register a mechanical check for a class seen in three rounds becomes conditional on the phase\n- The qualifier states that a check registered before its subject exists suppresses a class for every reviewer while verifying only what already exists",
       "source_sections": [
         "### 8.1 One canonical home per fact"
       ],
@@ -723,7 +723,7 @@
         "doc-homes"
       ],
       "estimate_minutes": 15,
-      "acceptance": "- README.md's table lists every rule tp can emit, one line each\n- A test fails when a rule tp can emit is undocumented, and the collected list's own blind spot is recorded beside it\n- The assertion fails on today's tree before the table is completed",
+      "acceptance": "- Kind: addition — §8.2 mandates the complete table and the test that fails when a rule tp can emit is undocumented\n- README.md's table lists every rule tp can emit, one line each\n- A test fails when a rule tp can emit is undocumented, and the collected list's own blind spot is recorded beside it\n- The assertion fails on today's tree before the table is completed",
       "source_sections": [
         "### 8.2 The lint rule table is complete and stays complete"
       ],
@@ -744,7 +744,7 @@
         "doc-homes"
       ],
       "estimate_minutes": 15,
-      "acceptance": "- --reason-file and --stdin on done and close, --docs-path, --test-path, --base on audit, --commit-strategy on init are added to the inventory in SKILL.md\n- A test fails when the CLI registers an undocumented flag, and when the inventory documents a flag the CLI does not register\n- The inventory records what exists rather than what to recommend",
+      "acceptance": "- Kind: addition — §8.3 mandates the six flag entries and the inventory test that fails in both directions\n- --reason-file and --stdin on done and close, --docs-path, --test-path, --base on audit, --commit-strategy on init are added to the inventory in SKILL.md\n- A test fails when the CLI registers an undocumented flag, and when the inventory documents a flag the CLI does not register\n- The inventory records what exists rather than what to recommend",
       "source_sections": [
         "### 8.3 Flags absent from every document"
       ],
@@ -772,7 +772,7 @@
       ],
       "depends_on": [],
       "estimate_minutes": 10,
-      "acceptance": "- tp with an unknown command or subcommand exits 2, matching the documented scheme\n- The assertion fails on today's tree, where an unknown command exits 1",
+      "acceptance": "- Kind: repair — §9.1 corrects an exit code that contradicts the documented scheme\n- tp with an unknown command or subcommand exits 2, matching the documented scheme\n- The assertion fails on today's tree, where an unknown command exits 1",
       "source_sections": [
         "### 9.1 An unknown command is a usage error",
         "## 9. Exit-code consistency"
@@ -792,7 +792,7 @@
       ],
       "depends_on": [],
       "estimate_minutes": 15,
-      "acceptance": "- Validation errors from commands whose object is not the task file carry a hint naming their own object\n- TestFileErrorsCarryAHint enumerates ExitValidation sites the way it enumerates ExitFile sites\n- A new site cannot join the class without the enumeration failing",
+      "acceptance": "- Kind: repair — §9.2 corrects the hint channel, and the enumeration it extends is mandated there\n- Validation errors from commands whose object is not the task file carry a hint naming their own object\n- TestFileErrorsCarryAHint enumerates ExitValidation sites the way it enumerates ExitFile sites\n- A new site cannot join the class without the enumeration failing",
       "source_sections": [
         "### 9.2 The validation hint channel stops handing out task-file advice"
       ],
@@ -811,7 +811,7 @@
       ],
       "depends_on": [],
       "estimate_minutes": 10,
-      "acceptance": "- tp lint emits specFileMissingHint on a missing spec and leaves taskFileCommands\n- Every hintless ExitFile site in lint.go gains a hint in this task\n- tp init is untouched because runInit never stats the spec",
+      "acceptance": "- Kind: repair — §9.3 corrects the hint tp lint emits, and leaving taskFileCommands is mandated there\n- tp lint emits specFileMissingHint on a missing spec and leaves taskFileCommands\n- Every hintless ExitFile site in lint.go gains a hint in this task\n- tp init is untouched because runInit never stats the spec",
       "source_sections": [
         "### 9.3 `lint` names the spec, not the task file"
       ],
@@ -832,7 +832,7 @@
         "doc-homes"
       ],
       "estimate_minutes": 10,
-      "acceptance": "- SKILL.md's decomposition guidance states input-to-expected-output tables as the recommended shape for behavioural acceptance\n- It names the secondary benefit that a concrete expected value forces ambiguity out in the interview step",
+      "acceptance": "- Kind: addition — §10.1 mandates the decomposition guidance, and §10 states it needs no code\n- SKILL.md's decomposition guidance states input-to-expected-output tables as the recommended shape for behavioural acceptance\n- It names the secondary benefit that a concrete expected value forces ambiguity out in the interview step",
       "source_sections": [
         "### 10.1 Example tables are the acceptance shape for behavioural tasks",
         "## 10. Two practices adopted from field feedback"
@@ -861,7 +861,7 @@
         "doc-homes"
       ],
       "estimate_minutes": 10,
-      "acceptance": "- REFERENCE.md documents running one reviewer role on two models in successive rounds and reading unique\n- No feature changes, because overlap_report already reports the counts the recipe uses",
+      "acceptance": "- Kind: addition — §10.2 mandates the recipe in the reference, and §10 states it needs no code\n- REFERENCE.md documents running one reviewer role on two models in successive rounds and reading unique\n- No feature changes, because overlap_report already reports the counts the recipe uses",
       "source_sections": [
         "### 10.2 Measuring whether a second model earns its cost"
       ],
@@ -884,7 +884,7 @@
         "flag-inventory"
       ],
       "estimate_minutes": 10,
-      "acceptance": "- The release notes carry before-and-after counts for source lines, test count, exported symbols, documentation lines, and facts with more than one home\n- They are recorded as fact rather than measured against a target, since discrimination and not line count is the metric",
+      "acceptance": "- Kind: addition — §2.3 mandates the before-and-after counts as a recorded fact\n- The release notes carry before-and-after counts for source lines, test count, exported symbols, documentation lines, and facts with more than one home\n- They are recorded as fact rather than measured against a target, since discrimination and not line count is the metric",
       "source_sections": [
         "### 2.3 The release records what it removed",
         "### 2.2 What is not the metric"
@@ -904,7 +904,7 @@
       ],
       "depends_on": [],
       "estimate_minutes": 10,
-      "acceptance": "- Each task in this release declares in its acceptance whether it is a removal or a repair\n- A task that only adds cites the section of this spec that mandates the addition",
+      "acceptance": "- Kind: addition — §2 mandates that a task declare its kind, and only task acceptances are touched\n- Each task in this release declares in its acceptance whether it is a removal or a repair\n- A task that only adds cites the section of this spec that mandates the addition",
       "source_sections": [
         "## 2. Subtraction is the governing rule",
         "## 12. What decomposition owns"
@@ -924,7 +924,7 @@
       ],
       "depends_on": [],
       "estimate_minutes": 10,
-      "acceptance": "- No task adds a command or a flag, changes convergence policy, runs writing units in parallel, or edits a historical spec\n- No removal requires designing a new abstraction to hold a merged form",
+      "acceptance": "- Kind: addition — §11 is what the guard test pins, and the test is the only thing added\n- No task adds a command or a flag, changes convergence policy, runs writing units in parallel, or edits a historical spec\n- No removal requires designing a new abstraction to hold a merged form",
       "source_sections": [
         "## 11. Non-Goals",
         "### 12.1 Existing tests this change invalidates"
@@ -947,7 +947,7 @@
         "race-gate"
       ],
       "estimate_minutes": 10,
-      "acceptance": "- CLAUDE.md's Quick Reference and its quality-gate rule name the project gate that .tp/config.json now carries, including -race\n- The gofmt note that explains why golangci-lint needs a formatters section is kept, since it is still true",
+      "acceptance": "- Kind: repair — §5 changed the gate these CLAUDE.md lines describe, and only the stale lines move\n- CLAUDE.md's Quick Reference and its quality-gate rule name the project gate that .tp/config.json now carries, including -race\n- The gofmt note that explains why golangci-lint needs a formatters section is kept, since it is still true",
       "source_sections": [
         "## 5. The quality gate sees data races"
       ],
