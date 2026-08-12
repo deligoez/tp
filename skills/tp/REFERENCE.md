@@ -2,125 +2,17 @@
 
 Detailed command reference, field formats, and operational details. For workflows and rules, see [SKILL.md](SKILL.md).
 
-## Key Commands
+## Command forms
 
-### Primary Workflow
-| Command | Purpose |
-|---------|---------| 
-| `tp plan` | Full execution plan (THE primary command) |
-| `tp plan --minimal` | Minimal plan: id + acceptance (~80% fewer tokens) |
-| `tp plan --compact` | Stripped plan: no description, source_lines, tags (~40% fewer) |
-| `tp plan --from <id>` | Start plan from a specific task onward |
-| `tp plan --level 0,1` | Filter by parallelism levels (multi-agent) |
-| `tp commit <id> [reason]` | Stage + structured commit + record SHA |
-| `tp commit <id> --files "*.go"` | Selective file staging |
-| `tp done <id> "reason"` | Single close with implicit claim + verification; runs the quality gate |
-| `tp done <id> --skip-gate "why"` | Skip gate execution, record `gate_skipped_reason` (needs user approval) |
-| `tp done <id> --gate-passed` | Gate-less projects only: record an attestation; ignored when a gate is set |
-| `tp done <id> --auto-commit` | Commit + close in one call |
-| `tp done <id> --auto-commit --files "*.go"` | Selective staging + commit + close |
-| `tp done <id> --covered-by <id>` | Close as covered by another done task |
-| `tp done <id> --commit <sha>` | Record implementing commit SHA |
-| `tp done id1 id2 "reason"` | Multi-ID close (shared reason) |
-| `tp done <id> --commit a --commit b` | Record multiple commits (hc flow); repeatable, duplicate exits 1; commit_sha mirrors commit_shas[0] |
-| `tp done --batch file.ndjson` | Batch close from NDJSON |
-| `tp resume [spec]` | Report phase + next action from durable state (reset-native, read-only; `--compact`) |
-| `tp brief [id]` | The unit brief (read-only): identity + scope fence + prior work + the task + the close recipe; claims nothing |
-| `tp brief <id> --prior <n>` | Override the prior-work recency cap (0-20; 0 = dependency entries only) |
-
-### Incremental
-| Command | Purpose |
-|---------|---------|
-| `tp next` | Resume WIP or claim next ready |
-| `tp next --minimal` | Minimal output: {id, acceptance} only |
-| `tp next --peek` | Preview without claiming |
-| `tp next --brief` | Claim the task and return its brief (identity, scope, prior work, close recipe); `--brief` + `--minimal` exit 2 |
-
-### Task State
-| Command | Purpose |
-|---------|---------|
-| `tp claim <id> [id...]` | open -> wip (batch: multiple IDs) |
-| `tp claim --all-ready` | Claim all ready tasks at once |
-| `tp close <id> <reason>` | wip -> done (low-level, prefer tp done) |
-| `tp reopen <id>` | done -> open (clears timestamps + SHA) |
-| `tp remove <id>` | Remove task (--force cleans deps) |
-| `tp set <id> field=value` | Update field (managed fields protected) |
-| `tp set --workflow field=value` | Update workflow fields: `review_clean_rounds`/`audit_clean_rounds` (1-10), `gate_timeout_seconds` (30-3600), `review_max_rounds`/`audit_max_rounds` (0-50, 0=no cap), `lock_timeout_seconds` (1-60) |
-| `tp set --workflow checks='[{"class":"s","cmd":"c"}]'` | Replace the mechanical-checks list (JSON array; `class` kebab-case unique, `cmd` non-empty) |
-| `tp set --bulk sets.ndjson` | Bulk update from NDJSON {id, field, value} |
-| `tp keep <path> "<reason>"` | Keep-list a deliberately-uncommitted file (`--remove`, `--list`) |
-
-### Query
-| Command | Purpose |
-|---------|---------|
-| `tp list` | All tasks (--status, --tag, --ids, --compact) |
-| `tp ready` | Deps-satisfied tasks (--first, --count, --ids) |
-| `tp show <id>` | Full details + spec_excerpt + blocks |
-| `tp status` | Progress summary (open/wip/done counts) |
-| `tp report` | Per-task duration + estimation accuracy |
-| `tp blocked` | Tasks waiting on unsatisfied deps |
-| `tp graph` | Dependency tree (--tag, --from) |
-| `tp stats` | Parallelism analysis |
-
-### Spec & Validation
-| Command | Purpose |
-|---------|---------|
-| `tp lint spec.md` | Spec quality + structured elements + duplicate lines/paragraphs + numbering gaps + orphan list items + broken cross-refs |
-| `tp review spec.md` | Adversarial review prompts (3 personas) |
-| `tp review spec.md --perspective code-audit --affected-files src/a.go` | Code audit with source file injection |
-| `tp review spec.md --round N --findings file.ndjson` | Multi-round with previous findings exclusion |
-| `tp review spec.md --round N --final-round --affected-files src/a.go` | Final round with mandatory code read-through |
-| `tp review --merge r1.ndjson r2.ndjson -o merged.ndjson` | Merge + dedup findings from NDJSON files. All-empty inputs (a converged round) exit 0 and write a zero-byte `-o` file (`merged_count` 0); a missing/unreadable input exits 3; no inputs exit 2. A spec-looking positional among the inputs exits 2 |
-| `tp review --resolve findings.ndjson <idx> <disposition> "evidence"` | Mark finding fixed/wontfix/duplicate. `<idx>` is **0-based**; the positional is the findings NDJSON (a `.md`/spec-looking positional exits 2). A non-numeric index exits 2 |
-| `tp review --resolve-all findings.ndjson <fixed\|wontfix\|duplicate> "evidence"` | Dispose of **many** findings in one call: mark every unresolved finding with the disposition + a shared evidence string (evidence optional). This is the way to **accept all surviving non-blocking findings as `wontfix` with one justification** once no critical/high remains — the severity-aware convergence (§8.3) permits accepting low/medium with recorded justification. Add `--force` to also re-resolve already-resolved findings |
-| `tp review --resolve ... --force` | Force re-resolve already resolved findings |
-| `tp review --verify spec.md --findings all.ndjson` | Lightweight verification (verifier role) |
-| `tp review --report r1.ndjson r2.ndjson` | Cross-round convergence report |
-| `tp review spec.md --diff-from old-spec.md` | Diff-based review; overrides the snapshot baseline, forces the block at any round |
-| `tp review spec.md --spec-inline` | Embed full spec inline (default is reference mode) |
-| `tp review spec.md --record merged.ndjson` | Record a review round; auto-numbers R. A round is **clean** when no surviving finding is critical/high under the default `review_converge_on=blocking` (any severity under `all`); returns `next_action` (single next step) and `nonblocking_open` (accepted-open medium/low count) on such a round. Add `--harness-note "<text>"` to record the round's orchestrator-wrapper framing (requires `--record`; alone → exit 2) |
-| `tp review spec.md --status` | Recorded rounds, `consecutive_clean`, `converged`, `stale`, `mechanical_checks`, `max_rounds`/`rounds_remaining` (null when uncapped), `in_flight_round`, `overlap_report`, `attribution_excludes`, `next_action`, `nonblocking_open`, `harness_stale` (+ `harness_note` when stale) |
-| `tp review spec.md --status --check` | Run registered checks; exit 0 only when converged AND every check passes |
-| `tp review spec.md --perspective regression` | Standalone regression pass (needs state R≥2, or `--diff-from` + `--findings`) |
-| `tp review spec.md --no-state` | Disable all state reads/writes; restores pre-0.23.0 manual `--round` numbering |
-| `tp audit spec.md` | Post-implementation audit: verify code matches spec. No audit-able file → exit 4 with `suggested_files` (paths touched by done tasks' `commit_shas`, type-filtered) + hint |
-| `tp audit spec.md --affected-files src/a.go` | Manual file selection (comma or repeated) |
-| `tp audit spec.md --affected-from-tasks` | Audit exactly the files touched by done tasks' `commit_shas` (the common post-implementation case; no manual list) |
-| `tp audit spec.md --findings review.ndjson` | Also verify review findings were addressed (route to spec-coverage) |
-| `tp audit spec.md --record results.ndjson` | Record an audit round (non-PASS rows = findings); independent sequence. Returns `next_action`; add `--harness-note "<text>"` to record the round's wrapper framing |
-| `tp audit --merge r1.ndjson r2.ndjson -o results.ndjson` | Merge + dedup per-role audit results (by `role`+`item_id`); all-empty inputs exit 0 like `tp review --merge` |
-| `tp audit spec.md --status` | Recorded rounds, `consecutive_clean`, `converged`, `stale`, `max_rounds`/`rounds_remaining`/`in_flight_round`, `overlap_report`, `next_action`, `harness_stale` (+ `harness_note` when stale) |
-| `tp audit spec.md --status --check` | Exit 0 only when the audit is converged |
-| `tp validate` | Task file validation + line coverage + atomicity |
-| `tp validate --strict` | Atomicity warnings become errors |
-
-### Data
-| Command | Purpose |
-|---------|---------|
-| `tp init spec.md` | Create empty task file (also writes `.tp/.gitignore`, which covers `.tp/locks/`) |
-| `tp add <json>` | Add task (--stdin for piped input). Applies the §6.1 entry rules (rejects missing/blank `id`/`title`/`acceptance`, no source anchor, unknown `depends_on`, duplicate id, invalid JSON → exit 2) and normalizes slices to `[]` |
-| `tp add --bulk tasks.ndjson` | Bulk add from NDJSON |
-| `tp import file.json` | Import + validate (--force to overwrite + relax atomicity) |
-| `tp import tasks.json --spec spec.md` | Import bare JSON array (auto-wraps into TaskFile) |
-| `tp use <file>` | Set active task file (writes .tp/local.json) |
-| `tp use --clear` | Clear the active pointer in .tp/local.json |
-| `tp use` | Show current active file |
-
-## Global Flags
-
-| Flag | Purpose |
-|------|---------|
-| `--file <path>` | Explicit task file path |
-| `--json` | Force JSON output (default when piped) |
-| `--compact` / `--no-compact` | Minimal JSON (~40% smaller) / force full output |
-| `--quiet` / `--no-quiet` | Suppress info messages / force info output |
-| `--no-color` / `--color` | Disable / force colored output |
+The exact form of every command and flag is the inventory in [SKILL.md](SKILL.md) — the document an
+agent already has loaded mid-cycle. This document covers what those forms produce: fields, exit
+codes and schemas.
 
 `-o`/`--output` belongs to `--merge` alone. On any other mode both `tp review` and `tp audit`
 reject it with exit 2 rather than accepting it and writing nothing there (v0.32.0); the payload
 goes to stdout, so redirect it.
 
-### Advisories an agent can see (v0.32.0)
+## Advisories an agent can see (v0.32.0)
 
 tp writes two kinds of message to stderr. **Progress narration** travels `output.Info`, which is
 silent whenever stdout is not a terminal — an agent driving tp never sees it, and loses nothing,
@@ -220,6 +112,17 @@ Resolves task override > `.tp/config.json` > built-in default `auto`. A present 
 - `hc` — the agent commits with `hc`, then records via `tp done --commit <sha> [--commit <sha> …]`. Under effective `hc`, `tp commit`, `tp done --auto-commit`, a bare `tp done`, and `tp close` are rejected with exit 2 and the hint `commit_strategy is hc: commit with hc, then tp done --commit <sha>`. A `tp done --batch` row with neither `commit_shas` nor `covered_by` is a failed row. No commit-strategy path returns exit 4.
 - `auto` — `hc` when on `PATH`, else `builtin`.
 
+Under `builtin`, `tp commit <id> [reason]` writes a conventional commit message carrying the task metadata:
+
+```
+feat(auth-model): Create User model
+
+Model and migration created
+
+Task: auth-model
+Acceptance: Model exists. Migration runs.
+```
+
 `tp config` adds top-level `commit_strategy_effective` (`builtin`/`hc`); `tp config --resolved` reports `commit_strategy` as `{value, source}` with the resolved name.
 
 `commit_shas` (`[]string`, canonical) records the ordered commits; `commit_sha` mirrors `commit_shas[0]` for pre-0.28.0 readers. It is a managed field (`tp set` rejects it; `tp reopen` clears it alongside `commit_sha`, `gate_passed_at`, `gate_skipped_reason`). A `--covered-by` close records neither.
@@ -290,6 +193,8 @@ spec/
 ```
 
 **Cleanup after review converges**: Delete review artifacts (snapshots `*-r0.md`, `*-r1.md`, etc. and findings `*.ndjson`). Keep the spec `.md` and task file `.tasks.json`.
+
+**Injection caps**: an injected source file is capped at 8000 chars (50000 chars across all files), and a single emitted prompt is capped at 60000 chars.
 
 ## Workflow Fields (v0.23.0)
 
@@ -485,7 +390,9 @@ in the review/audit family (`--merge`, `--report`, `--resolve`, `--verify`, `--r
 an unclean round clean. `tp add --bulk`/`tp set --bulk` keep their own warn-and-continue contract.
 
 `tp review --perspective code-audit --findings <file>` exits **2**: that perspective never reads the
-file, and previously accepted the flag while reporting `previous_findings: 0` about it.
+file, and previously accepted the flag while reporting `previous_findings: 0` about it. A
+spec-looking (`.md`) positional handed to `--merge` or `--resolve` exits **2** as well: those modes
+take NDJSON inputs only.
 
 ### Report accuracy (§14)
 
