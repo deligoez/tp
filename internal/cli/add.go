@@ -36,7 +36,7 @@ func newAddCmd() *cobra.Command {
 
 func runAdd(_ *cobra.Command, args []string) error {
 	if addFile != "" {
-		return runAddBulk()
+		return addTasks(readBulkTasks(addFile))
 	}
 
 	var taskJSON string
@@ -81,11 +81,6 @@ func decodeTaskJSON(s string) (*model.Task, error) {
 		task.Status = model.StatusOpen
 	}
 	return &task, nil
-}
-
-func runAddBulk() error {
-	tasks := readBulkTasks(addFile)
-	return addTasks(tasks)
 }
 
 func readBulkTasks(path string) []model.Task {
