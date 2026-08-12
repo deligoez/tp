@@ -585,6 +585,18 @@ func validateReviewInputs(perspective string, round int, findingsPath string, af
 		return nil
 	}
 
+	// code-audit is exempt from that rule for --round, which it reports, but
+	// NOT for --findings: runReviewCodeAudit never reads the file and answers
+	// previous_findings 0 about it, so accepting the flag asserted a count over
+	// a file tp never opened — the accepted-then-silently-dropped shape the
+	// -o/--output and --merge guards exist to refuse.
+	if perspective == "code-audit" && findingsPath != "" {
+		output.Error(ExitUsage, "--perspective code-audit does not read --findings",
+			"drop --findings, or run the default review panel, which does read it")
+		os.Exit(ExitUsage)
+		return nil
+	}
+
 	if perspective == "code-audit" && len(affectedFiles) == 0 {
 		output.Error(ExitUsage, "--perspective code-audit requires at least one --affected-files")
 		os.Exit(ExitUsage)
