@@ -1041,7 +1041,10 @@ func parseFindingsFile(path string) ([]reviewFinding, error) {
 		findings = append(findings, finding)
 	}
 	if err := scanner.Err(); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: stopped reading %s early (%v); findings after the over-long line were dropped (line cap is 64KB)\n", path, err)
+		// Propagated, not warned: this function's contract is that a read error
+		// never comes back as an empty set, and a scan that stopped early is
+		// exactly that. mustParseFindingsFile turns it into the abort.
+		return nil, err
 	}
 	return findings, nil
 }
