@@ -24,17 +24,26 @@ import (
 // what to check instead. Rounds 5, 6 and 7 each found a fresh handful of these
 // by reading; a class that survives three prose sweeps gets a check instead.
 //
-// Scope is deliberate. Elsewhere in the CLI (done, claim, import) the task-file
-// default is often exactly right, so this guard covers only the command family
-// that never reads a task file.
+// Scope defaults to COVERED. Selecting files by a review/audit name prefix left
+// role_panel.go — squarely in the family — outside the guard, and a new file
+// under any other name escaped it entirely with the whole gate green. So every
+// file in the package is covered unless taskFileCommands excuses it by name,
+// which means a file added tomorrow is guarded without anyone remembering to
+// add it. A site inside a covered file can still opt out with a
+// task-file-hint: comment saying why the default is right there.
 func TestFileErrorsCarryAHint(t *testing.T) {
+	const siteExemption = "task-file-hint:"
+
+	exemptFiles := taskFileCommands(t)
 	emptyConsts := emptyStringConsts(t)
 	offenders := make([]string, 0)
 
-	for _, path := range hintGuardedFiles(t) {
+	for _, path := range packageSources(t, func(name string) bool { return !exemptFiles[name] }) {
 		fset := token.NewFileSet()
-		file, err := parser.ParseFile(fset, path, nil, 0)
+		file, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
 		require.NoError(t, err, "parse %s", path)
+
+		exempt := exemptLines(fset, file, siteExemption)
 
 		ast.Inspect(file, func(n ast.Node) bool {
 			call, ok := n.(*ast.CallExpr)
@@ -48,6 +57,9 @@ func TestFileErrorsCarryAHint(t *testing.T) {
 				return true
 			}
 			pos := fset.Position(call.Pos())
+			if exempt[pos.Line] {
+				return true
+			}
 			offenders = append(offenders, filepath.Base(path)+":"+strconv.Itoa(pos.Line))
 			return true
 		})
@@ -59,7 +71,65 @@ func TestFileErrorsCarryAHint(t *testing.T) {
 			"advice, which repairs nothing in a command that takes no task file. Pass the hint that "+
 			"fits: specFileMissingHint, findingsFileMissingHint, ndjsonInputFileHint, "+
 			"ndjsonReadHint(err), affectedFilesHint, reviewDirFlagHint, outputFileHint, "+
-			"stateWriteHint or internalEncodeHint")
+			"stateWriteHint or internalEncodeHint — or, where the code-3 task-file default IS "+
+			"the right advice, mark the site with a task-file-hint: comment saying so")
+}
+
+// taskFileCommands names the files the hint guard does NOT cover, each with the
+// reason it is excused. These are the commands that read or write the task
+// file, where the code-3 default ("run 'tp use <file>' … 'tp init <spec>'") is
+// the right advice rather than the wrong object.
+//
+// Two entries are excused for a weaker reason, recorded rather than hidden:
+// lint.go and init.go take a SPEC, so their exit-3 sites want
+// specFileMissingHint. They sit outside the v0.33.0 audit surface, and sweeping
+// them is v0.34.0 work — but the list says so instead of implying they are fine.
+//
+// The guard fails if an entry no longer exists, so the list cannot rot into a
+// blanket exemption for files nobody has.
+func taskFileCommands(t *testing.T) map[string]bool {
+	t.Helper()
+	reasons := map[string]string{
+		"add.go":            "task-file command",
+		"blocked.go":        "task-file command",
+		"brief.go":          "task-file command",
+		"claim.go":          "task-file command",
+		"close.go":          "task-file command",
+		"commit.go":         "task-file command",
+		"config.go":         "task-file/project config",
+		"config_extract.go": "task-file/project config",
+		"done.go":           "task-file command",
+		"graph.go":          "task-file command",
+		"importcmd.go":      "task-file command",
+		"init.go":           "spec-path sites; specFileMissingHint sweep is v0.34.0",
+		"keep.go":           "task-file command",
+		"lint.go":           "spec-path sites; specFileMissingHint sweep is v0.34.0",
+		"listcmd.go":        "task-file command",
+		"next.go":           "task-file command",
+		"plan.go":           "task-file command",
+		"ready.go":          "task-file command",
+		"remove.go":         "task-file command",
+		"reopen.go":         "task-file command",
+		"report.go":         "task-file command",
+		"resume.go":         "task-file command",
+		"set.go":            "task-file command",
+		"set_local.go":      "task-file command",
+		"set_project.go":    "task-file command",
+		"show.go":           "task-file command",
+		"stats.go":          "task-file command",
+		"status.go":         "task-file command",
+		"use.go":            "task-file pointer",
+		"validate.go":       "task-file command",
+	}
+
+	dir := filepath.Join(repoRoot(t), "internal", "cli")
+	exempt := make(map[string]bool, len(reasons))
+	for name, reason := range reasons {
+		_, err := os.Stat(filepath.Join(dir, name))
+		require.NoError(t, err, "%s is exempted as %q but no longer exists — drop the entry", name, reason)
+		exempt[name] = true
+	}
+	return exempt
 }
 
 // hintlessCall reports whether an output.Error call reaches resolveHint's
@@ -184,23 +254,37 @@ type scannerSite struct {
 	pos  token.Pos
 }
 
-// scannerSites finds every bufio.NewScanner assigned to a variable in fn.
+// scannerSites finds every bufio.NewScanner bound to a variable in fn, in both
+// binding forms: scanner := bufio.NewScanner(f) and var scanner = ... . The
+// assignment-only version missed the var form, which is a binding the guard's
+// own "every scanner" claim covers.
 func scannerSites(fn *ast.FuncDecl) []scannerSite {
 	sites := make([]scannerSite, 0)
-	ast.Inspect(fn.Body, func(n ast.Node) bool {
-		assign, ok := n.(*ast.AssignStmt)
-		if !ok || len(assign.Lhs) != 1 || len(assign.Rhs) != 1 {
-			return true
+	add := func(lhs []ast.Expr, rhs []ast.Expr) {
+		if len(lhs) != 1 || len(rhs) != 1 {
+			return
 		}
-		call, ok := assign.Rhs[0].(*ast.CallExpr)
+		call, ok := rhs[0].(*ast.CallExpr)
 		if !ok || !isSelectorCall(call, "bufio", "NewScanner") {
-			return true
+			return
 		}
-		name, ok := assign.Lhs[0].(*ast.Ident)
+		name, ok := lhs[0].(*ast.Ident)
 		if !ok {
-			return true
+			return
 		}
 		sites = append(sites, scannerSite{name: name.Name, pos: call.Pos()})
+	}
+	ast.Inspect(fn.Body, func(n ast.Node) bool {
+		switch decl := n.(type) {
+		case *ast.AssignStmt:
+			add(decl.Lhs, decl.Rhs)
+		case *ast.ValueSpec:
+			names := make([]ast.Expr, 0, len(decl.Names))
+			for _, name := range decl.Names {
+				names = append(names, name)
+			}
+			add(names, decl.Values)
+		}
 		return true
 	})
 	return sites
@@ -252,16 +336,6 @@ func exemptLines(fset *token.FileSet, file *ast.File, marker string) map[int]boo
 		}
 	}
 	return lines
-}
-
-// hintGuardedFiles lists the non-test review/audit sources the hint guard covers.
-func hintGuardedFiles(t *testing.T) []string {
-	t.Helper()
-	files := packageSources(t, func(name string) bool {
-		return strings.HasPrefix(name, "review") || strings.HasPrefix(name, "audit")
-	})
-	require.NotEmpty(t, files, "the guard must find the review/audit sources it claims to cover")
-	return files
 }
 
 // packageSources lists the non-test .go files in internal/cli matching keep.
