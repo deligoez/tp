@@ -1680,22 +1680,19 @@ func buildSpecRefContent(absPath string, lineCount int, headings []*engine.Headi
 // legitimately empty spec, so `tp review nope.md --spec-inline` exited 0 with an
 // empty "Spec content:" block while the same call WITHOUT --spec-inline exited
 // 3. Same class as fileSetRead and parseFindingsFile before it.
+//
+// It reads the whole file the way the --diff-from branch above it does, rather
+// than scanning lines: the scanner warned on a line over its 64KB cap and
+// returned what it had, so `--spec-inline` on a spec with one long line exited
+// 0 emitting a spec whose tail was silently absent — the swallowed read this
+// contract rules out, arriving through the line cap instead of the open.
 func readSpecContent(path string) (string, error) {
-	f, err := os.Open(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return "", err
 	}
-	defer f.Close()
 
-	var lines []string
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
-	}
-	if err := scanner.Err(); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: stopped reading %s early (%v); content after the over-long line was dropped (line cap is 64KB)\n", path, err)
-	}
-	lines = engine.BlankFrontmatterLines(lines)
+	lines := engine.BlankFrontmatterLines(strings.Split(string(data), "\n"))
 	content := strings.Join(lines, "\n")
 	if len(content) > specContentCap {
 		content = content[:specContentCap] + fmt.Sprintf("\n[...truncated at %d chars]", specContentCap)
