@@ -316,7 +316,11 @@ func runAuditStatus(specPath string, check bool) error {
 	result["next_action"] = engine.AuditNextAction(specPath, converged, latestHasFindings)
 
 	if jsonErr := output.JSON(result); jsonErr != nil {
+		// Exiting, not falling through: without this the process printed a
+		// code-3 envelope on stderr and then returned 0 (or 1 under --check),
+		// so a truncated payload read as a successful status.
 		output.Error(ExitFile, jsonErr.Error(), internalEncodeHint)
+		os.Exit(ExitFile)
 	}
 
 	if check && !converged {

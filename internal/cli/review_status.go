@@ -145,7 +145,10 @@ func runReviewStatus(specPath string, check bool) error {
 	result["next_action"] = engine.ReviewNextAction(specPath, converged, blockingUnresolved, mechanizeClassesFromRounds(specPath, rounds, wf.Checks))
 
 	if jsonErr := output.JSON(result); jsonErr != nil {
+		// Exiting, not falling through: see runAuditStatus. A code-3 envelope
+		// followed by exit 0 is a status the caller cannot tell from a good one.
 		output.Error(ExitFile, jsonErr.Error(), internalEncodeHint)
+		os.Exit(ExitFile)
 	}
 
 	if check && (!converged || !allPass) {
