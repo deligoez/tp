@@ -1327,6 +1327,12 @@ func TestReviewTestPromptDeterministic(t *testing.T) {
 }
 
 // Test: --perspective code-audit with --round and --findings should work
+// TestReviewCodeAuditWithRoundAndFindings: --round is exempt from the
+// perspective exclusion and code-audit reports it, so that arm still succeeds.
+// --findings is NOT: runReviewCodeAudit never opens the file and answers
+// previous_findings 0 about it, so the invocation used to exit 0 asserting a
+// count over a file tp never read. This test used to pin that acceptance while
+// asserting nothing about the findings; the refusal replaces it.
 func TestReviewCodeAuditWithRoundAndFindings(t *testing.T) {
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
@@ -1337,12 +1343,18 @@ func TestReviewCodeAuditWithRoundAndFindings(t *testing.T) {
 	require.NoError(t, os.WriteFile(findingsPath, []byte(`{"severity":"high","finding":"test finding"}`+"\n"), 0o600))
 
 	stdout, _, code := runTP(t, dir, "review", specPath, "--perspective", "code-audit",
-		"--no-state", "--affected-files", aPath, "--round", "2", "--findings", findingsPath)
-	require.Equal(t, 0, code)
+		"--no-state", "--affected-files", aPath, "--round", "2")
+	require.Equal(t, 0, code, "--round stays exempt from the perspective exclusion")
 
 	var result map[string]any
 	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
 	assert.Equal(t, "code-audit", result["perspective"])
+
+	out, stderr, code := runTP(t, dir, "review", specPath, "--perspective", "code-audit",
+		"--no-state", "--affected-files", aPath, "--round", "2", "--findings", findingsPath)
+	require.Equal(t, 2, code, "--findings is refused rather than accepted and dropped")
+	assert.Contains(t, stderr, "does not read --findings")
+	assert.NotContains(t, out, "previous_findings", "no count is asserted over a file tp never opened")
 }
 
 // Test: code-audit prompt uses full file path, not just basename
