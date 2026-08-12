@@ -142,7 +142,7 @@ func parseSpecFile(path string) ([]string, []*engine.Heading, error) {
 	defer f.Close()
 
 	var lines []string
-	scanner := bufio.NewScanner(f)
+	scanner := bufio.NewScanner(f) // line-cap: spec markdown, not NDJSON; a read error is returned, not swallowed
 	for scanner.Scan() {
 		lines = append(lines, scanner.Text())
 	}

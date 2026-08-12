@@ -96,6 +96,10 @@ func readBulkTasks(path string) []model.Task {
 		return nil
 	}
 
+	// line-cap: tp add --bulk NDJSON, deliberately at bufio's default — this
+	// reader pins its own warn-and-continue contract (add_validation_test.go)
+	// and feeds no convergence gate, so it was left out of the review/audit
+	// sweep that shares ndjsonLineCap.
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
 	var tasks []model.Task
 	lineNum := 0
