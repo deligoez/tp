@@ -300,12 +300,24 @@ func (r *rolelessRows) notice(path string) {
 }
 
 // exitStateError reports state-layer failures: corrupt state exits 3 with the
-// repair hint; anything else exits 3 with the raw error.
+// repair hint, write-lock contention exits 4 with the lock hint, and anything
+// else exits 3 with the raw error.
 func exitStateError(err error) {
 	var ce *engine.StateCorruptError
 	if errors.As(err, &ce) {
 		output.Error(ExitFile, ce.Error(), ce.Hint())
 		os.Exit(ExitFile)
+		return
+	}
+	// §12.2: contention that retried past lock_timeout_seconds is a state error
+	// (exit 4), not a file error, and its hint names the lock and the wait.
+	// root.go maps it that way for commands that return the error up; the record
+	// paths abort here instead, so without this branch a parallel --record
+	// fan-out reports exit 3 with a hint pointing at unrelated commands.
+	var lockErr *engine.LockTimeoutError
+	if errors.As(err, &lockErr) {
+		output.Error(ExitState, lockErr.Error(), lockErr.Hint())
+		os.Exit(ExitState)
 		return
 	}
 	output.Error(ExitFile, err.Error())
