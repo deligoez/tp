@@ -115,3 +115,48 @@ func TestImport_WaitsForTaskFileWriteLock(t *testing.T) {
 	assert.Equal(t, 1, importLockTaskCount(t, taskFilePath), "the imported task lands after the release")
 }
 
+// TestImport_LockContentionTimeoutExitsFour is §3's second claim: a lock held
+// past lock_timeout_seconds fails the way every other write command fails it —
+// exit 4 (STATE) carrying LockTimeoutError's message and hint, which name the
+// lock path and the elapsed wait.
+func TestImport_LockContentionTimeoutExitsFour(t *testing.T) {
+	dir, importPath, taskFilePath := importLockSetup(t)
+
+	// Shorten the lock timeout to 1s so the test stays fast.
+	_, stderr, code := runTP(t, dir, "set", "--workflow", "--project", "lock_timeout_seconds=1")
+	require.Equal(t, 0, code, "set lock_timeout_seconds: %s", stderr)
+
+	acquired := make(chan struct{})
+	release := make(chan struct{})
+	go func() {
+		_ = engine.WithFileLock(taskFilePath, func() error {
+			close(acquired)
+			<-release
+			return nil
+		})
+	}()
+	<-acquired
+	defer close(release)
+
+	start := time.Now()
+	_, stderr, code = runTP(t, dir, "import", importPath)
+	elapsed := time.Since(start)
+	assert.Equal(t, 4, code, "an import held past lock_timeout_seconds exits 4 (STATE): %s", stderr)
+
+	// The window bounds pin "resolved": the project config says 1s, so the
+	// import must retry for about that long — not bail out on the first failed
+	// TryLock, and not fall back to the 5s built-in default.
+	assert.GreaterOrEqual(t, elapsed, 900*time.Millisecond, "the import retried for the configured 1s, not less")
+	assert.Less(t, elapsed, 4*time.Second, "the import used the configured 1s, not the 5s built-in default")
+
+	var errObj map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stderr), &errObj), "stderr is the tp error object: %s", stderr)
+	assert.Contains(t, errObj["error"], "timed out waiting for lock", "error names the contention")
+	assert.Contains(t, errObj["error"], filepath.Join(".tp", "locks"), "error names the lock path")
+	assert.Contains(t, errObj["error"], "after ", "error names the elapsed wait")
+	hint, _ := errObj["hint"].(string)
+	assert.Contains(t, hint, filepath.Join(".tp", "locks"), "hint names the lock path")
+
+	assert.Equal(t, 0, importLockTaskCount(t, taskFilePath), "a timed-out import writes nothing")
+}
+
