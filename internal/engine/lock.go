@@ -118,7 +118,11 @@ func WithFileLockTimeout(path string, timeoutSeconds int, fn func() error) error
 // contributes no override, so the default applies.
 func effectiveLockTimeoutSeconds(path string) int {
 	wf := EffectiveWorkflowForTaskFile(path)
-	return wf.EffectiveLockTimeoutSeconds()
+	// lock_timeout_seconds outside its valid 1-60 range falls back to 5 (§12.1).
+	if wf.LockTimeoutSeconds < 1 || wf.LockTimeoutSeconds > 60 {
+		return 5
+	}
+	return wf.LockTimeoutSeconds
 }
 
 // LockFilePath returns the centralized, git-ignored lock path under .tp/locks/
