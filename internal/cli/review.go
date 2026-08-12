@@ -39,12 +39,16 @@ const mechanizedExclusionPrefix = "\n\nMechanically checked classes — do NOT r
 // a spec at all.
 const ndjsonInputFileHint = "check the path — this mode takes the NDJSON files the reviewers/auditors wrote, not the spec or the task file"
 
-// ndjsonLineCap is the per-line read cap every NDJSON reader in the CLI shares
-// — findings, audit rows and the tp done batch alike. The caps used to disagree
-// — 64KB in --merge, --report, parseFindingsFile and tp audit --findings, 1MB in
+// ndjsonLineCap is the per-line read cap shared by every NDJSON reader in the
+// review/audit family, plus tp done --batch. The caps used to disagree — 64KB
+// in --merge, --report, parseFindingsFile and tp audit --findings, 1MB in
 // --resolve, the audit merge and tp done --batch — so a findings file --resolve
-// had just rewritten could be unreadable by --merge. One constant, one answer;
-// the guard that keeps it that way is TestNDJSONReadersShareTheCap.
+// had just rewritten could be unreadable by --merge. One constant, one answer.
+//
+// tp add --bulk and tp set --bulk are NOT in that set: they read NDJSON at
+// bufio's default and pin their own warn-and-continue contracts, which feed no
+// convergence gate. TestNDJSONReadersShareTheCap enforces exactly the scope
+// named in this sentence — the review/audit family — and not tp done --batch.
 const ndjsonLineCap = 1024 * 1024
 
 // ndjsonLineTooLongHint explains a line over ndjsonLineCap. Distinct from
