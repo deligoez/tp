@@ -209,7 +209,12 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 		return nil
 	}
 
-	refuseMissingFindingsFile(findingsPath)
+	// Read the findings HERE, for the same reason resolveRolePanel runs below
+	// before loadAuditSpec: readFindings aborts on an unreadable file, and an
+	// abort decided after loadAuditSpec left the round snapshot on disk with
+	// in_flight_round already advanced — a round marked started that no prompt
+	// ever came from.
+	findingRows := readAuditFindings(findingsPath)
 	refuseAuditIfBudgetExhausted(specPath)
 
 	// Expand comma-separated values in --affected-files
@@ -226,7 +231,7 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 
 	priorByRole := loadAuditPriorRound(specPath)
 
-	checklist := buildChecklist(specLines, specPath, findingsPath)
+	checklist := buildChecklist(specLines, specPath, findingRows)
 
 	if len(checklist) == 0 {
 		output.Info("no structured elements found in spec — checklist is empty")
@@ -495,15 +500,16 @@ func filesChangedSince(dir, since string) map[string]bool {
 // existing-but-unreadable branch of readFindings was loud. Other stat errors
 // fall through to readFindings, which names them as a read failure rather than
 // as "not found". An empty path means the flag was not passed, which is valid.
-func refuseMissingFindingsFile(findingsPath string) {
+func readAuditFindings(findingsPath string) []findingRow {
 	if findingsPath == "" {
-		return
+		return nil
 	}
 	if _, err := os.Stat(findingsPath); os.IsNotExist(err) {
 		output.Error(ExitFile, fmt.Sprintf("findings file not found: %s", findingsPath),
 			findingsFileMissingHint+" An audit round that verifies zero findings can still record as clean.")
 		os.Exit(ExitFile)
 	}
+	return readFindings(findingsPath)
 }
 
 // refuseAuditIfBudgetExhausted refuses audit prompt generation when the audit
@@ -747,7 +753,7 @@ func isAuditableType(path string) bool {
 	return true
 }
 
-func buildChecklist(specLines []string, specPath, findingsPath string) []checklistEntry {
+func buildChecklist(specLines []string, specPath string, findingRows []findingRow) []checklistEntry {
 	entries := make([]checklistEntry, 0)
 
 	tableRows := engine.ExtractTableRows(specLines)
@@ -790,9 +796,7 @@ func buildChecklist(specLines []string, specPath, findingsPath string) []checkli
 	}
 
 	entries = append(entries, taskAcceptanceEntries(specPath)...)
-	if findingsPath != "" {
-		entries = append(entries, findingChecklistEntries(findingsPath)...)
-	}
+	entries = append(entries, findingChecklistEntries(findingRows)...)
 
 	return entries
 }
@@ -825,8 +829,7 @@ func taskAcceptanceEntries(specPath string) []checklistEntry {
 
 // findingChecklistEntries yields one finding entry per row of a --findings
 // file; §3.2 puts the finding's location in the entry Section.
-func findingChecklistEntries(findingsPath string) []checklistEntry {
-	rows := readFindings(findingsPath)
+func findingChecklistEntries(rows []findingRow) []checklistEntry {
 	entries := make([]checklistEntry, 0, len(rows))
 	for i, fe := range rows {
 		section := fe.location
