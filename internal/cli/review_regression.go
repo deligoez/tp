@@ -100,7 +100,7 @@ func runReviewRegression(specPath, diffFrom, findingsPath string) error {
 	// whose every entry is invalid still runs the checks and still emits each
 	// entry's skip notice while appending no sentence at all.
 	if classes := engine.ReviewerExclusionClasses(wfChecks.Checks); len(classes) > 0 {
-		prompt += "\n\nMechanically checked classes — do NOT report findings of these classes: " + strings.Join(classes, ", ")
+		prompt += mechanizedExclusionPrefix + strings.Join(classes, ", ")
 	}
 
 	result := reviewResult{

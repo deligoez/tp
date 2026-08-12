@@ -25,6 +25,12 @@ import (
 // mistake reads the same way whichever command catches it.
 const findingsFileMissingHint = "a review round that converged with zero findings writes no findings file at all — where --findings is optional, omitting it is valid; otherwise check the path."
 
+// mechanizedExclusionPrefix opens the reviewer-facing exclusion sentence both
+// prompt-emission sites append. One string, for the reason engine.DivergenceHint
+// is one string: a sentence written twice is a sentence that can drift, and this
+// one instructs the reviewers whose findings decide convergence.
+const mechanizedExclusionPrefix = "\n\nMechanically checked classes — do NOT report findings of these classes: "
+
 // ndjsonInputFileHint is the hint for a path handed to a mode that reads loose
 // NDJSON files — --merge and --report. Left hintless these sites inherit the
 // code-3 default, which is TASK-file advice ("run 'tp use <file>' … 'tp init
@@ -808,7 +814,7 @@ func buildReviewPrompts(specPath string, panel *rolePanel, elems *engine.Structu
 	// empty list. The review_loop addendum about failing checks keeps its own
 	// guard (buildReviewLoopInstruction) and is unchanged.
 	if classes := engine.ReviewerExclusionClasses(wfChecks.Checks); len(classes) > 0 {
-		exclusion := "\n\nMechanically checked classes — do NOT report findings of these classes: " + strings.Join(classes, ", ")
+		exclusion := mechanizedExclusionPrefix + strings.Join(classes, ", ")
 		for i := range prompts {
 			prompts[i].Prompt += exclusion
 		}
