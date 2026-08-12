@@ -4,10 +4,13 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/deligoez/tp/internal/engine"
 )
 
 func auditRecord(t *testing.T, dir, ndjsonContent string) (out map[string]any, stderr string, code int) {
@@ -55,6 +58,58 @@ func TestAuditRecord_CountsNonPass(t *testing.T) {
 	require.NoError(t, json.Unmarshal(data, &st))
 	assert.Len(t, st.AuditRounds, 2)
 	assert.Empty(t, st.ReviewRounds, "audit sequence is independent of review rounds")
+}
+
+// TestAuditRecord_StoredFindingsFollowTheSharedPredicate is the observable form
+// of a claim that used to be asserted against a copy of the implementation.
+// engine's TestAuditRowIsPass_MatchesRecordPathFindingCount counted the same
+// rows with a hand-written `status, _ := row["status"].(string); status !=
+// "PASS"` labelled "the record path's literal test" and compared that copy with
+// engine.AuditRowIsPass. countAuditFindings does not restate the literal — it
+// calls the predicate — so the copy pinned nothing on the record path: a record
+// path that trimmed `status` by symmetry with `role` left that test green.
+//
+// The number this guards is the round's stored `findings`, which decides
+// `clean`, the streak and the convergence gate. The rows are the ones that
+// separate the shared predicate from any restatement of it: " PASS " and
+// "pass" are non-PASS, a non-string status is non-PASS, and an absent key is
+// non-PASS.
+func TestAuditRecord_StoredFindingsFollowTheSharedPredicate(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
+
+	rows := []map[string]any{
+		{"id": "a", "status": "PASS"},
+		{"id": "b", "status": "pass"},
+		{"id": "c", "status": " PASS "},
+		{"id": "d", "status": float64(1)},
+		{"id": "e"},
+		{"id": "f", "status": "FAIL"},
+	}
+	lines := make([]string, 0, len(rows))
+	want := 0
+	for _, row := range rows {
+		encoded, err := json.Marshal(row)
+		require.NoError(t, err)
+		lines = append(lines, string(encoded))
+		if !engine.AuditRowIsPass(row) {
+			want++
+		}
+	}
+	require.Equal(t, 5, want, "exactly one of the six rows is PASS by the shared predicate")
+
+	out, stderr, code := auditRecord(t, dir, strings.Join(lines, "\n")+"\n")
+	require.Equal(t, 0, code, "record failed: %s", stderr)
+	assert.Equal(t, float64(want), out["findings"],
+		"the emitted count is the shared predicate's, not a restatement that trims or folds case")
+	assert.Equal(t, false, out["clean"])
+
+	st, err := engine.LoadReviewState(specPath)
+	require.NoError(t, err)
+	require.Len(t, st.AuditRounds, 1)
+	assert.Equal(t, want, st.AuditRounds[0].Findings,
+		"and the same number is what state.json stores for the round")
 }
 
 func TestAuditStatus_Shapes(t *testing.T) {
