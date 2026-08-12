@@ -36,10 +36,24 @@ func TestFileErrorsCarryAHint(t *testing.T) {
 
 		ast.Inspect(file, func(n ast.Node) bool {
 			call, ok := n.(*ast.CallExpr)
-			if !ok || !isOutputError(call) || len(call.Args) != 2 {
+			if !ok || !isOutputError(call) {
 				return true
 			}
 			if code, ok := call.Args[0].(*ast.Ident); !ok || code.Name != "ExitFile" {
+				return true
+			}
+			// Two arguments is the obvious hole; an EMPTY third argument is the
+			// one a reader misses, because output.resolveHint treats hint[0] == ""
+			// as no hint at all and falls back to the same task-file default. A
+			// mutation proved the first version of this guard green while the
+			// shipped hint had regressed, so both forms count as hintless.
+			hintless := len(call.Args) == 2
+			if len(call.Args) > 2 {
+				if lit, ok := call.Args[2].(*ast.BasicLit); ok && (lit.Value == `""` || lit.Value == "``") {
+					hintless = true
+				}
+			}
+			if !hintless {
 				return true
 			}
 			pos := fset.Position(call.Pos())
@@ -90,9 +104,14 @@ func TestNDJSONReadersShareTheCap(t *testing.T) {
 			if !strings.Contains(line, "bufio.NewScanner(") {
 				continue
 			}
-			// The Buffer call is the next statement when the cap is declared.
-			capped := i+1 < len(lines) && strings.Contains(lines[i+1], "scanner.Buffer(") &&
-				strings.Contains(lines[i+1], "ndjsonLineCap")
+			// The Buffer call is the next statement when the cap is declared,
+			// and the cap must be the constant ITSELF. Merely containing the
+			// name is not enough: `ndjsonLineCap/64` reads as capped and ships a
+			// 16KB limit — below bufio's own default — which is how a mutation
+			// defeated the first version of this guard on three readers at once.
+			capped := i+1 < len(lines) &&
+				strings.Contains(lines[i+1], "scanner.Buffer(") &&
+				strings.Contains(lines[i+1], ", ndjsonLineCap)")
 			if capped || strings.Contains(line, siteExemption) {
 				continue
 			}
