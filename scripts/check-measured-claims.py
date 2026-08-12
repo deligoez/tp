@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Re-run the derivations behind measured claims and fail when a claim is stale.
 
-Mechanizes the `measured-claim-not-reproducible` review class, which survived
-three prose corrections in the v0.34.0 review loop.
+Guards one claim: the guard-test list in `spec/0.34.0-guard-tests.md` against
+the window `spec/0.34.0.md` section 7.1 names. It was registered under the
+`measured-claim-not-reproducible` class for eight rounds and is not any more --
+see property 5.
 
 Every property below was added because a review round broke the version before
 it. The tester role broke this check three times in a clone; the escapes it
