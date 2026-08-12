@@ -70,7 +70,7 @@ skills/tp/
 
 1. **Write a spec** in `spec/<version>.md` describing the feature
 2. **Lint the spec**: `tp lint spec/<version>.md`
-3. **Init + workflow**: `tp init spec/<version>.md --quality-gate "go test ./... && golangci-lint run"`, then `tp set --workflow` for convergence counts / round budgets / `checks` (before the review loop, so the loop reads them)
+3. **Init + workflow**: `tp init spec/<version>.md` (no `--quality-gate` — the repo gate lives in `.tp/config.json`, and a task-file override would mask it), then `tp set --workflow` for convergence counts / round budgets / `checks` (before the review loop, so the loop reads them)
 4. **Review loop**: `tp review spec/<version>.md` → spawn sub-agents → `tp review --merge` → `tp review spec/<version>.md --record merged.ndjson` → resolve findings → repeat until `tp review spec/<version>.md --status --check` exits 0
 5. **Decompose into tasks** with `source_sections` for every task (`source_lines` optional precision)
 6. **Import**: `tp import <tasks.json>` (plain — the init shell holds zero tasks; convergence checks stay armed)
