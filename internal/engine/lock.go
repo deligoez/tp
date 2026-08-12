@@ -90,10 +90,15 @@ func WithFileLockTimeout(path string, timeoutSeconds int, fn func() error) error
 			}
 		}
 	}
-	defer func() {
-		_ = fl.Unlock()
-		_ = os.Remove(lockPath)
-	}()
+	// Unlock only — the lock file STAYS. Removing it broke the mutual exclusion
+	// it exists to provide: flock is held on an inode, so once the file is
+	// unlinked a waiter that opens the same path gets a NEW inode and locks that
+	// instead, and two processes run the critical section at once. Measured on
+	// the audit record path as 4 silently lost rounds in 100 trials of four
+	// concurrent tp audit --record — four round files written, three of them in
+	// the index. The file is a zero-byte marker under the git-ignored .tp/locks/,
+	// so keeping it costs nothing the removal was buying.
+	defer func() { _ = fl.Unlock() }()
 
 	return fn()
 }
