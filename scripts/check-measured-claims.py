@@ -53,6 +53,14 @@ COVERAGE = (
 # driver emits a rendered view and the derivation silently returns zero.
 DOCUMENTED_DIFF = re.compile(r"^git diff --no-ext-diff -U0 (\S+) (\S+)$", re.M)
 
+# The window the SPEC names. Moving authority for the rule into the guard
+# document was only half a fix: the check then verified that document's internal
+# consistency and never its conformance to the spec, so a narrower window written
+# into the artifact -- by the very task this check polices, after review closes --
+# passed with a matching short list. The spec is the authority; the document must
+# agree with it.
+SPEC_WINDOW = re.compile(r"between the `(\S+)` and `(\S+)` tags")
+
 # The match rule the document states. Pinned so that rewording the rule while
 # leaving the command and the numbers intact fails.
 DOCUMENTED_RULE = re.compile(r"`\^\\\+func Test`.{0,40}`_test\.go`")
@@ -102,13 +110,30 @@ def tracked_test_functions() -> int:
     return total
 
 
-def check_guard_doc(text: str, fail) -> None:
+def check_guard_doc(text: str, spec_text: str, fail) -> None:
     window = DOCUMENTED_DIFF.search(text)
     if not window:
         fail(
             f"{GUARD_DOC}: the documented derivation no longer matches "
             f"`git diff --no-ext-diff -U0 <from> <to>`. Either the window moved or "
             f"--no-ext-diff was dropped; both change what the numbers below mean."
+        )
+        return
+
+    spec_window = SPEC_WINDOW.search(spec_text)
+    if not spec_window:
+        fail(
+            f"{SPEC_DOC}: the guard-test window is no longer stated as "
+            f"“between the `<from>` and `<to>` tags”, so the document's window "
+            f"cannot be checked against it."
+        )
+        return
+    if (window.group(1), window.group(2)) != (spec_window.group(1), spec_window.group(2)):
+        fail(
+            f"{GUARD_DOC}: derives over "
+            f"{window.group(1)}..{window.group(2)} while {SPEC_DOC} names "
+            f"{spec_window.group(1)}..{spec_window.group(2)}. The spec is the "
+            f"authority for the sweep's scope."
         )
         return
     if not DOCUMENTED_RULE.search(text):
@@ -204,7 +229,11 @@ def main() -> int:
     if not guard.exists():
         failures.append(f"{GUARD_DOC}: no such file")
     else:
-        check_guard_doc(guard.read_text(encoding="utf-8"), failures.append)
+        check_guard_doc(
+            guard.read_text(encoding="utf-8"),
+            (REPO / SPEC_DOC).read_text(encoding="utf-8"),
+            failures.append,
+        )
 
     check_repo_claim(failures.append)
 
