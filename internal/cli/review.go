@@ -47,8 +47,10 @@ const ndjsonInputFileHint = "check the path — this mode takes the NDJSON files
 //
 // tp add --bulk and tp set --bulk are NOT in that set: they read NDJSON at
 // bufio's default and pin their own warn-and-continue contracts, which feed no
-// convergence gate. TestNDJSONReadersShareTheCap enforces exactly the scope
-// named in this sentence — the review/audit family — and not tp done --batch.
+// convergence gate. TestNDJSONReadersShareTheCap holds every scanner in the
+// package to this constant and lets a site out only when it says on its own
+// line what it reads instead — which is where those two exceptions are
+// recorded, and where the next one would have to be.
 const ndjsonLineCap = 1024 * 1024
 
 // ndjsonLineTooLongHint explains a line over ndjsonLineCap. Distinct from
@@ -77,9 +79,10 @@ const stateWriteHint = "check that the .tp-review state directory exists and is 
 // result it could not encode. Saying so is more use than task-file advice.
 const internalEncodeHint = "internal error: the result could not be encoded as JSON — please report it with the command you ran"
 
-// ndjsonReadHint picks the hint for a failed NDJSON read. Pointing at the path
-// repairs nothing when the path was fine and the line was too long: that is the
-// one-cause-for-every-failure defect, reversed.
+// ndjsonReadHint picks the hint for a failed NDJSON read — or write, since
+// exitResolveError reports a failed rewrite of the same artifact through it.
+// Pointing at the path repairs nothing when the path was fine and the line was
+// too long: that is the one-cause-for-every-failure defect, reversed.
 func ndjsonReadHint(err error) string {
 	if errors.Is(err, bufio.ErrTooLong) {
 		return ndjsonLineTooLongHint

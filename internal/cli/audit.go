@@ -491,15 +491,20 @@ func filesChangedSince(dir, since string) map[string]bool {
 	return changed
 }
 
-// refuseMissingFindingsFile aborts when --findings names a path that does not
-// exist. That is a typo, not an empty finding set: readFindings answers
-// os.IsNotExist with nil, so without this guard the round silently verifies
-// ZERO review findings and still records as clean — a mistyped path could
-// declare convergence. tp review rejects the same typo up front, and tp audit
-// already refuses a missing --affected-files path; only the
-// existing-but-unreadable branch of readFindings was loud. Other stat errors
-// fall through to readFindings, which names them as a read failure rather than
-// as "not found". An empty path means the flag was not passed, which is valid.
+// readAuditFindings refuses a missing --findings path and returns the rows of
+// the file otherwise. It both refuses and reads because the refusal has to be
+// decided where the read is: runAudit resolves every refusal ahead of the round
+// snapshot write, and a read failure discovered later left a snapshot on disk
+// for a round that emitted nothing.
+//
+// A path that does not exist is a typo, not an empty finding set: readFindings
+// answers os.IsNotExist with nil, so without this guard the round silently
+// verifies ZERO review findings and still records as clean — a mistyped path
+// could declare convergence. tp review rejects the same typo up front, and tp
+// audit already refuses a missing --affected-files path. Other stat errors fall
+// through to readFindings, which names them as a read failure rather than as
+// "not found". An empty path means the flag was not passed, which is valid, and
+// yields no rows.
 func readAuditFindings(findingsPath string) []findingRow {
 	if findingsPath == "" {
 		return nil
