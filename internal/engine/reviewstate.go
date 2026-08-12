@@ -227,9 +227,33 @@ func createReviewStateExclusive(specPath string, st *ReviewState) (bool, error) 
 		if os.IsExist(err) {
 			return false, nil
 		}
-		return false, err
+		// Hard links are not universal: on a FAT volume Link fails outright,
+		// and the whole command died with a state error naming a directory
+		// that was perfectly writable. Fall back to the exclusive open, which
+		// keeps the "only if absent" half everywhere and gives up only the
+		// atomicity of publication — a window a reader hits far more rarely
+		// than every FAT user hits an unconditional failure.
+		return createReviewStateExclusiveOpen(path, data)
 	}
 	return true, nil
+}
+
+// createReviewStateExclusiveOpen is the fallback for filesystems without hard
+// links: O_EXCL still refuses to clobber an existing index, but the file is
+// visible while empty, so a lock-free reader can catch it mid-write.
+func createReviewStateExclusiveOpen(path string, data []byte) (bool, error) {
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		if os.IsExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	if _, err := f.Write(append(data, '\n')); err != nil {
+		f.Close()
+		return false, err
+	}
+	return true, f.Close()
 }
 
 // SaveReviewState writes state.json; call under WithReviewStateLock when
