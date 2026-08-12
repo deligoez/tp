@@ -76,7 +76,10 @@ func runReviewResolve(args []string, force bool) error {
 
 	// Check file exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		output.Error(ExitFile, fmt.Sprintf("findings file not found: %s", filePath), findingsFileMissingHint)
+		// Not findingsFileMissingHint: its "where --findings is optional,
+		// omitting it is valid" clause is false here, where the findings file
+		// is a required positional.
+		output.Error(ExitFile, fmt.Sprintf("findings file not found: %s", filePath), ndjsonInputFileHint)
 		os.Exit(ExitFile)
 		return nil
 	}
@@ -182,7 +185,7 @@ func runReviewResolveAll(args []string, force bool) error {
 
 	// Check file exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		output.Error(ExitFile, fmt.Sprintf("file not found: %s", filePath), findingsFileMissingHint)
+		output.Error(ExitFile, fmt.Sprintf("file not found: %s", filePath), ndjsonInputFileHint)
 		os.Exit(ExitFile)
 		return nil
 	}
