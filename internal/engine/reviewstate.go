@@ -128,11 +128,21 @@ func LoadReviewState(specPath string) (*ReviewState, error) {
 	if err != nil {
 		if os.IsNotExist(err) {
 			if hasStateArtifacts(stateDir) {
+				// The reason names which of the two cases this is, because they
+				// end very differently: snapshots alone are the in-flight window
+				// every reader now accepts, while a round file with no index is
+				// lost history that still aborts. One message for both read as a
+				// contradiction on the arm that no longer fails.
+				onlySnapshots := !hasRecordedRoundFiles(stateDir)
+				reason := "round files present but state.json is missing"
+				if onlySnapshots {
+					reason = "a round snapshot is present but state.json is missing"
+				}
 				return nil, &StateCorruptError{
 					Path:          stateDir,
-					Reason:        "round or snapshot files present but state.json is missing",
+					Reason:        reason,
 					MissingIndex:  true,
-					OnlySnapshots: !hasRecordedRoundFiles(stateDir),
+					OnlySnapshots: onlySnapshots,
 				}
 			}
 			return nil, nil
