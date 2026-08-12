@@ -226,6 +226,8 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp done id1 id2 "reason"` | Multi-ID close (shared reason) |
 | `tp done <id> --commit a --commit b` | Record multiple commits (hc flow); repeatable, duplicate exits 1; `commit_sha` mirrors `commit_shas[0]` |
 | `tp done --batch file.ndjson` | Batch close from NDJSON |
+| `tp done <id> --reason-file reason.md` | Read the closure reason from a file instead of an argument |
+| `tp done <id> --stdin` | Read the closure reason from stdin |
 | `tp resume [spec]` | Report phase + next action from durable state (reset-native, read-only; `--compact`) |
 | `tp brief [id]` | The unit brief (read-only): identity + scope fence + prior work + the task + the close recipe; claims nothing |
 | `tp brief <id> --prior <n>` | Override the prior-work recency cap (0-20; 0 = dependency entries only) |
@@ -244,6 +246,8 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp claim <id> [id...]` | open -> wip (batch: multiple IDs) |
 | `tp claim --all-ready` | Claim all ready tasks at once |
 | `tp close <id> <reason>` | wip -> done (low-level, prefer tp done) |
+| `tp close <id> --reason-file reason.md` / `--stdin` | Read the closure reason from a file / from stdin |
+| `tp close <id> --skip-gate "why"` | Skip gate execution, recording `gate_skipped_reason` on the closed task (needs user approval) |
 | `tp reopen <id>` | done -> open (clears timestamps + SHAs) |
 | `tp remove <id>` | Remove task (--force cleans deps) |
 | `tp set <id> field=value` | Update field (managed fields protected) |
@@ -276,7 +280,9 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp review spec.md --round N --findings file.ndjson` | Multi-round with previous findings exclusion |
 | `tp review spec.md --round N --final-round --affected-files src/a.go` | Final round with mandatory code read-through |
 | `tp review spec.md --affected-files a.go b.go` | Inject source files into every default review prompt |
-| `tp review --merge r1.ndjson r2.ndjson -o merged.ndjson` | Merge + dedup findings. All-empty inputs (a converged round) exit 0 and write a zero-byte `-o` file; a missing input exits 3; no inputs exit 2 |
+| `tp review --merge r1.ndjson r2.ndjson -o merged.ndjson` | Merge + dedup findings (`-o` is short for `--output`). All-empty inputs (a converged round) exit 0 and write a zero-byte `-o` file; a missing input exits 3; no inputs exit 2 |
+| `tp review spec.md --perspective documentation --docs-path docs/` | Documentation perspective; `--docs-path` is required with it |
+| `tp review spec.md --perspective testing --test-path internal/` | Testing perspective; `--test-path` is required with it |
 | `tp review --resolve findings.ndjson <idx> <disposition> "evidence"` | Mark one finding fixed/wontfix/duplicate; `<idx>` is **0-based** |
 | `tp review --resolve-all findings.ndjson <fixed\|wontfix\|duplicate> "evidence"` | Dispose of **many** findings in one call (evidence optional) — the way to accept all surviving non-blocking findings under one justification |
 | `tp review --resolve ... --force` | Force re-resolve already resolved findings |
@@ -294,7 +300,9 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp audit spec.md --affected-from-tasks` | Audit exactly the files touched by done tasks' `commit_shas` |
 | `tp audit spec.md --findings review.ndjson` | Also verify review findings were addressed (routed to spec-coverage) |
 | `tp audit spec.md --record results.ndjson` | Record an audit round (non-PASS rows = findings); independent sequence |
-| `tp audit --merge r1.ndjson r2.ndjson -o results.ndjson` | Merge + dedup per-role audit results (by `role`+`item_id`) |
+| `tp audit spec.md --base <git-ref>` | Diff against a git ref to detect the audited files (omit for staged + unstaged) |
+| `tp audit spec.md --record ... --harness-note "<text>"` | Record the round's orchestrator-wrapper framing (requires `--record`) |
+| `tp audit --merge r1.ndjson r2.ndjson -o results.ndjson` | Merge + dedup per-role audit results by `role`+`item_id` (`-o` is short for `--output`) |
 | `tp audit spec.md --status` / `--status --check` | Audit convergence state / exit 0 only when converged |
 | `tp validate` | Task file validation + line coverage + atomicity |
 | `tp validate --strict` | Atomicity warnings become errors |
@@ -305,7 +313,10 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 |---------|---------|
 | `tp init spec.md` | Create the task file shell (also writes `.tp/.gitignore`, which covers `.tp/locks/`) |
 | `tp init --eject-roles [--domain <name>] [--force]` | Write the default role corpus into `.tp/reviewers` and `.tp/auditors` |
+| `tp init spec.md --quality-gate "<cmd>"` | Write a task-file-level `quality_gate` override (otherwise the project default in `.tp/config.json` applies) |
+| `tp init spec.md --commit-strategy <builtin\|auto\|hc>` | Write a task-file-level `commit_strategy` override |
 | `tp add <json>` | Add task (`--stdin` for piped input); entry rules reject missing id/title/acceptance/anchor and unknown deps |
+| `tp add <json> --spec spec.md` | Spec path, required when `tp add` has to create the task file |
 | `tp add --bulk tasks.ndjson` | Bulk add from NDJSON |
 | `tp import file.json` | Import + validate (`--force` to overwrite + relax atomicity) |
 | `tp import tasks.json --spec spec.md` | Import bare JSON array (auto-wraps into a TaskFile) |
