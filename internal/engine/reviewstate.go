@@ -197,7 +197,36 @@ func SaveReviewState(specPath string, st *ReviewState) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(reviewStatePath(specPath), append(data, '\n'), 0o600)
+	// Atomic, like WriteSnapshotAtomic beside it: the index is read lock-free by
+	// every status and resume path, and a plain write let a concurrent reader
+	// see a half-written file. Two --record runs tore it 6 times in 40, and the
+	// loser aborted with "state.json is unparseable" and the repair-or-delete
+	// hint — destructive advice about a directory that was fine.
+	path := reviewStatePath(specPath)
+	// A UNIQUE temp file, not path+".tmp": two concurrent writers sharing one
+	// temp path race to rename it, and the loser's rename fails with ENOENT
+	// after the winner has already moved it away — which is what a first
+	// attempt at this fix produced, 1 in 20 concurrent records. The name still
+	// ends in .tmp, so a crash leftover is still skipped as a state artifact.
+	tmp, err := os.CreateTemp(filepath.Dir(path), "state.json.*.tmp")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	if _, err := tmp.Write(append(data, '\n')); err != nil {
+		tmp.Close()
+		_ = os.Remove(tmpName)
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		_ = os.Remove(tmpName)
+		return err
+	}
+	if err := os.Rename(tmpName, path); err != nil {
+		_ = os.Remove(tmpName)
+		return err
+	}
+	return nil
 }
 
 // hasStateArtifacts reports whether dir contains round or snapshot files.
