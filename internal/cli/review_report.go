@@ -3,6 +3,7 @@ package cli
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -57,6 +58,18 @@ const mechanizeRegisterHint = "write a mechanical check for each candidate class
 func runReviewReport(args []string) error {
 	files, err := resolveReportFiles(args)
 	if err != nil {
+		// A bad PATH is a file error (exit 3) with the NDJSON-input hint — the
+		// same answer --merge gives for the same operator typo, which used to
+		// differ so one mistake was reported two ways depending on which mode
+		// caught it. A bad INVOCATION (no argument, or a directory holding no
+		// NDJSON) stays a usage error: the path was fine, there was nothing to
+		// report on.
+		var pathErr *reportPathError
+		if errors.As(err, &pathErr) {
+			output.Error(ExitFile, err.Error(), ndjsonInputFileHint)
+			os.Exit(ExitFile)
+			return nil
+		}
 		output.Error(ExitUsage, err.Error())
 		os.Exit(ExitUsage)
 		return nil
@@ -120,6 +133,13 @@ func runReviewReport(args []string) error {
 	return nil
 }
 
+// reportPathError marks a resolve failure that is a bad path rather than a bad
+// invocation. The distinction decides the exit code: a path tp cannot read is a
+// file error, while an argument list with nothing to report on is a usage one.
+type reportPathError struct{ msg string }
+
+func (e *reportPathError) Error() string { return e.msg }
+
 // resolveReportFiles expands args to a sorted list of NDJSON file paths.
 // If a single arg is a directory, it scans for *.ndjson files sorted alphabetically.
 func resolveReportFiles(args []string) ([]string, error) {
@@ -138,7 +158,7 @@ func resolveReportFiles(args []string) ([]string, error) {
 	// Validate all files exist
 	for _, path := range args {
 		if _, err := os.Stat(path); os.IsNotExist(err) {
-			return nil, fmt.Errorf("file not found: %s", path)
+			return nil, &reportPathError{msg: fmt.Sprintf("file not found: %s", path)}
 		}
 	}
 
@@ -149,7 +169,7 @@ func scanDirectoryForNDJSON(dir string) ([]string, error) {
 	var files []string
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read directory: %s", dir)
+		return nil, &reportPathError{msg: fmt.Sprintf("cannot read directory: %s", dir)}
 	}
 
 	for _, entry := range entries {
