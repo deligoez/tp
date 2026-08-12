@@ -229,43 +229,49 @@ func SaveReviewState(specPath string, st *ReviewState) error {
 	return nil
 }
 
-// hasStateArtifacts reports whether dir contains round or snapshot files.
-// hasStateArtifacts reports whether dir contains round or snapshot files. A
-// crash-leftover .tmp file from an interrupted atomic snapshot write is NOT a
-// state artifact — it must not trigger a false-positive corrupt-state abort
-// (§10.2 atomic write).
+// roundFilePrefixes name the artifacts --record writes: the recorded history
+// state.json indexes.
+var roundFilePrefixes = []string{"review-round-", "audit-round-"}
+
+// snapshotPrefixes name the artifacts an emission writes before any round is
+// recorded.
+var snapshotPrefixes = []string{"snapshot-round-", "snapshot-audit-round-"}
+
 // hasRecordedRoundFiles reports whether dir holds a round file — the artifact
 // only --record writes. Snapshots do not count: an emission writes those before
 // any round exists, so their presence alone says nothing was ever recorded.
 func hasRecordedRoundFiles(dir string) bool {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return false
-	}
-	for _, e := range entries {
-		name := e.Name()
-		if strings.HasSuffix(name, ".tmp") {
-			continue
-		}
-		if strings.HasPrefix(name, "review-round-") || strings.HasPrefix(name, "audit-round-") {
-			return true
-		}
-	}
-	return false
+	return hasAnyPrefixed(dir, roundFilePrefixes)
 }
 
+// hasStateArtifacts reports whether dir contains round or snapshot files. A
+// crash-leftover .tmp file from an interrupted atomic snapshot write is NOT a
+// state artifact — it must not trigger a false-positive corrupt-state abort
+// (§10.2 atomic write).
 func hasStateArtifacts(dir string) bool {
+	return hasRecordedRoundFiles(dir) || hasAnyPrefixed(dir, snapshotPrefixes)
+}
+
+// hasAnyPrefixed reports whether dir holds a non-.tmp entry with one of the
+// prefixes. An UNREADABLE directory answers true: it may hold anything, and
+// answering false made a state tp could not list read as a state that does not
+// exist — which let --record build a fresh index over an existing round file
+// and turn a recorded FAIL round into a clean round 1. Refusing to guess sends
+// it to the corrupt-state abort, whose hint is what an operator needs here.
+func hasAnyPrefixed(dir string, prefixes []string) bool {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return false
+		return !os.IsNotExist(err)
 	}
 	for _, e := range entries {
 		name := e.Name()
 		if strings.HasSuffix(name, ".tmp") {
 			continue
 		}
-		if strings.HasPrefix(name, "review-round-") || strings.HasPrefix(name, "audit-round-") || strings.HasPrefix(name, "snapshot-round-") || strings.HasPrefix(name, "snapshot-audit-round-") {
-			return true
+		for _, prefix := range prefixes {
+			if strings.HasPrefix(name, prefix) {
+				return true
+			}
 		}
 	}
 	return false
