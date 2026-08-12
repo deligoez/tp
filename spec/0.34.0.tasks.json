@@ -1,8 +1,8 @@
 {
   "version": 1,
   "spec": "spec/0.34.0.md",
-  "created_at": "2026-08-12T10:40:36.724701Z",
-  "updated_at": "2026-08-12T15:18:46.21562Z",
+  "created_at": "0001-01-01T00:00:00Z",
+  "updated_at": "2026-08-12T17:08:08.391442Z",
   "workflow": {
     "quality_gate": "go test ./... \u0026\u0026 golangci-lint run",
     "checks": [
@@ -13,10 +13,784 @@
     ]
   },
   "coverage": {
-    "total_sections": 0,
-    "mapped_sections": 0,
-    "context_only": [],
+    "total_sections": 32,
+    "mapped_sections": 31,
+    "context_only": [
+      "# tp v0.34.0 — Trustworthy writes, and less of everything else"
+    ],
     "unmapped": []
   },
-  "tasks": []
+  "tasks": [
+    {
+      "id": "guard-list",
+      "title": "Derive the guard-test list",
+      "status": "open",
+      "tags": [
+        "sweep"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 15,
+      "acceptance": "- spec/0.34.0-guard-tests.md lists every test function added between the v0.32.0 and v0.33.0 tags under the `## Guard tests` heading, one file:function per line, with the placeholder declaration line deleted\n- The derivation passes --no-ext-diff and an empty result is treated as a failed derivation rather than a result\n- python3 scripts/check-measured-claims.py exits 0 with no PENDING line",
+      "source_sections": [
+        "### 7.1 The mutation criterion",
+        "## 7. The test sweep"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "import-lock",
+      "title": "Lock the import write path",
+      "status": "open",
+      "tags": [
+        "repair"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 15,
+      "acceptance": "- importcmd.go's read-modify-write runs inside engine.WithFileLock honouring the resolved lock_timeout_seconds\n- A lock held past the timeout exits 4 carrying LockTimeoutError's hint with the lock path and elapsed wait\n- The success path gains no flag and no output change",
+      "source_sections": [
+        "## 3. `tp import` writes under the lock",
+        "## 1. Overview"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "init-lock",
+      "title": "Lock the init write path",
+      "status": "open",
+      "tags": [
+        "repair"
+      ],
+      "depends_on": [
+        "import-lock"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- init.go's stat-then-write runs inside engine.WithFileLock, including the path tp add --spec reaches through runInit\n- tp init and tp add --spec each exit 4 with LockTimeoutError's hint when the lock is held past the timeout\n- No unlocked task-file write remains in the tool",
+      "source_sections": [
+        "## 3. `tp import` writes under the lock"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "bulk-add-cap",
+      "title": "Make add --bulk honour the cap",
+      "status": "open",
+      "tags": [
+        "repair"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 15,
+      "acceptance": "- tp add --bulk adopts the shared 1MB line cap and aborts with exit 3 naming the file and line number\n- An over-long row no longer discards itself and every row after it while reporting success\n- The warn-and-continue tests asserting the removed behaviour move in this task",
+      "source_sections": [
+        "## 4. The bulk readers honour the shared line cap",
+        "## 1. Overview"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "bulk-set-cap",
+      "title": "Make set --bulk honour the cap",
+      "status": "open",
+      "tags": [
+        "repair"
+      ],
+      "depends_on": [
+        "bulk-add-cap"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- tp set --bulk adopts the shared 1MB line cap and aborts with exit 3 naming the file and line number\n- The task file is left byte-identical when the operation aborts\n- The warn-and-continue tests asserting the removed behaviour move in this task",
+      "source_sections": [
+        "## 4. The bulk readers honour the shared line cap"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "line-cap-markers",
+      "title": "Remove the line-cap exemption markers",
+      "status": "open",
+      "tags": [
+        "repair"
+      ],
+      "depends_on": [
+        "bulk-set-cap"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- The `line-cap:` markers come out of add.go and set.go now that neither reader is exempt\n- The guard enforcing the shared cap no longer lists either bulk reader as an exception",
+      "source_sections": [
+        "## 4. The bulk readers honour the shared line cap"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "race-gate",
+      "title": "Put -race in the project gate",
+      "status": "open",
+      "tags": [
+        "repair"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 15,
+      "acceptance": "- The project gate in .tp/config.json runs the whole test suite under -race before golangci-lint\n- Any data race the new gate surfaces is fixed in this task, since the gate runs at its own close\n- skills/tp/SKILL.md recommends -race for any Go project using tp",
+      "source_sections": [
+        "## 5. The quality gate sees data races",
+        "## 1. Overview"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "gate-overrides",
+      "title": "Remove the masking gate overrides",
+      "status": "open",
+      "tags": [
+        "repair"
+      ],
+      "depends_on": [
+        "race-gate"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- The gate resolved for this release's task file runs -race\n- A config guard test compares the resolved value against the literal gate string rather than against the project value\n- That test fails when the project gate weakens and when an override is reintroduced",
+      "source_sections": [
+        "## 5. The quality gate sees data races"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "gate-recipes",
+      "title": "Drop the flag from init recipes",
+      "status": "open",
+      "tags": [
+        "repair"
+      ],
+      "depends_on": [
+        "gate-overrides"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- CLAUDE.md and skills/tp/SKILL.md no longer instruct tp init --quality-gate, so a later cycle does not re-create the override\n- Only the recipes change; section 8.3 governs where the flag stays documented",
+      "source_sections": [
+        "## 5. The quality gate sees data races"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "dupl-enable",
+      "title": "Enable dupl at its default threshold",
+      "status": "open",
+      "tags": [
+        "sweep"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 15,
+      "acceptance": "- dupl is enabled in .golangci.yml over production and test files alike at its own default threshold, which is not raised\n- Every clone it reports is merged, or exempted with its reason recorded at the site when merging would need a new abstraction\n- golangci-lint run is clean with dupl enabled at this task's close",
+      "source_sections": [
+        "### 6.1 Duplication",
+        "## 6. The code sweep"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "inline-abstraction",
+      "title": "Inline single-caller indirection",
+      "status": "open",
+      "tags": [
+        "sweep"
+      ],
+      "depends_on": [
+        "dupl-enable"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- Helpers with one call site, interfaces with one implementation, and parameters every caller passes the same value for are inlined\n- Indirection is kept only where a second caller exists today and can be named\n- Each removal names in its evidence that it had no caller or the implementation that absorbed it",
+      "source_sections": [
+        "### 6.2 Redundant abstraction",
+        "### 2.1 The removal contract"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "dead-branches",
+      "title": "Remove unreachable branches",
+      "status": "open",
+      "tags": [
+        "sweep"
+      ],
+      "depends_on": [
+        "dupl-enable"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- Error branches for states the type system excludes and default arms after an exhaustive switch are removed rather than tested\n- Nil checks on values constructed non-nil in the same function are removed\n- Each removal names what now covers it",
+      "source_sections": [
+        "### 6.3 Dead branches",
+        "### 2.1 The removal contract"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "sweep-audit-signal",
+      "title": "Sweep audit_signal guards",
+      "status": "open",
+      "tags": [
+        "sweep"
+      ],
+      "depends_on": [
+        "guard-list"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- Each of the 12 guard tests listed for internal/cli/audit_signal_test.go is mutated, run, watched to fail, then restored\n- A guard surviving its own mutation unchanged is rewritten to assert what it claims, or removed with the surviving coverage named\n- Nothing on section 7.4's protection list is touched",
+      "source_sections": [
+        "### 7.1 The mutation criterion",
+        "### 7.4 What the sweep must not touch"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "sweep-auditrounds",
+      "title": "Sweep auditrounds guards",
+      "status": "open",
+      "tags": [
+        "sweep"
+      ],
+      "depends_on": [
+        "guard-list"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- Each of the 12 guard tests listed for internal/engine/auditrounds_test.go is mutated, run, watched to fail, then restored\n- A guard surviving its own mutation unchanged is rewritten to assert what it claims, or removed with the surviving coverage named\n- Nothing on section 7.4's protection list is touched",
+      "source_sections": [
+        "### 7.1 The mutation criterion"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "sweep-divergence",
+      "title": "Sweep divergence guards",
+      "status": "open",
+      "tags": [
+        "sweep"
+      ],
+      "depends_on": [
+        "guard-list"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- Each of the 12 guard tests listed for internal/engine/divergence_test.go is mutated, run, watched to fail, then restored\n- A guard surviving its own mutation unchanged is rewritten to assert what it claims, or removed with the surviving coverage named\n- Nothing on section 7.4's protection list is touched",
+      "source_sections": [
+        "### 7.1 The mutation criterion"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "sweep-review-suppression",
+      "title": "Sweep review_suppression guards",
+      "status": "open",
+      "tags": [
+        "sweep"
+      ],
+      "depends_on": [
+        "guard-list"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- Each of the 11 guard tests listed for internal/cli/review_suppression_test.go is mutated, run, watched to fail, then restored\n- A guard surviving its own mutation unchanged is rewritten to assert what it claims, or removed with the surviving coverage named\n- Nothing on section 7.4's protection list is touched",
+      "source_sections": [
+        "### 7.1 The mutation criterion"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "sweep-ndjson-read",
+      "title": "Sweep ndjson_read_contract guards",
+      "status": "open",
+      "tags": [
+        "sweep"
+      ],
+      "depends_on": [
+        "guard-list"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- Each of the 9 guard tests listed for internal/cli/ndjson_read_contract_test.go is mutated, run, watched to fail, then restored\n- A guard surviving its own mutation unchanged is rewritten to assert what it claims, or removed with the surviving coverage named\n- Nothing on section 7.4's protection list is touched",
+      "source_sections": [
+        "### 7.1 The mutation criterion"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "sweep-rolestreaks",
+      "title": "Sweep rolestreaks guards",
+      "status": "open",
+      "tags": [
+        "sweep"
+      ],
+      "depends_on": [
+        "guard-list"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- Each of the 9 guard tests listed for internal/engine/rolestreaks_test.go is mutated, run, watched to fail, then restored\n- A guard surviving its own mutation unchanged is rewritten to assert what it claims, or removed with the surviving coverage named\n- Nothing on section 7.4's protection list is touched",
+      "source_sections": [
+        "### 7.1 The mutation criterion"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "sweep-speccoverage",
+      "title": "Sweep speccoverage guards",
+      "status": "open",
+      "tags": [
+        "sweep"
+      ],
+      "depends_on": [
+        "guard-list"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- Each of the 9 guard tests listed for internal/engine/speccoverage_test.go is mutated, run, watched to fail, then restored\n- A guard surviving its own mutation unchanged is rewritten to assert what it claims, or removed with the surviving coverage named\n- Nothing on section 7.4's protection list is touched",
+      "source_sections": [
+        "### 7.1 The mutation criterion"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "sweep-review-exclusion",
+      "title": "Sweep review_exclusion guards",
+      "status": "open",
+      "tags": [
+        "sweep"
+      ],
+      "depends_on": [
+        "guard-list"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- Each of the 7 guard tests listed for internal/cli/review_exclusion_test.go is mutated, run, watched to fail, then restored\n- A guard surviving its own mutation unchanged is rewritten to assert what it claims, or removed with the surviving coverage named\n- Nothing on section 7.4's protection list is touched",
+      "source_sections": [
+        "### 7.1 The mutation criterion"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "sweep-mechanized",
+      "title": "Sweep mechanized guards",
+      "status": "open",
+      "tags": [
+        "sweep"
+      ],
+      "depends_on": [
+        "guard-list"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- Each of the 5 guard tests listed for internal/engine/mechanized_test.go is mutated, run, watched to fail, then restored\n- A guard surviving its own mutation unchanged is rewritten to assert what it claims, or removed with the surviving coverage named\n- Nothing on section 7.4's protection list is touched",
+      "source_sections": [
+        "### 7.1 The mutation criterion"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "sweep-small-cli",
+      "title": "Sweep the small cli guard files",
+      "status": "open",
+      "tags": [
+        "sweep"
+      ],
+      "depends_on": [
+        "guard-list"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- The 10 listed guard tests across inflight_window_test.go, lock_pathspec_test.go, hint_coverage_test.go, audit_test.go and docs_contract_test.go are mutated and dispositioned\n- Each removal names the surviving test that fails when the original defect returns",
+      "source_sections": [
+        "### 7.1 The mutation criterion"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "sweep-small-engine",
+      "title": "Sweep the small engine guard files",
+      "status": "open",
+      "tags": [
+        "sweep"
+      ],
+      "depends_on": [
+        "guard-list"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- The 4 listed guard tests in gitignore_preserve_test.go and lock_exclusion_test.go are mutated and dispositioned\n- Each removal names the surviving test that fails when the original defect returns",
+      "source_sections": [
+        "### 7.1 The mutation criterion"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "redundant-assertions",
+      "title": "Reduce same-path duplicate assertions",
+      "status": "open",
+      "tags": [
+        "sweep"
+      ],
+      "depends_on": [
+        "guard-list"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- Where several tests assert one property through the same path, the one whose failure message best identifies the defect is kept\n- Tests asserting the same property through different paths all stay, because that is coverage rather than duplication",
+      "source_sections": [
+        "### 7.2 Redundant assertions"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "impl-detail-assertions",
+      "title": "Unpin implementation-detail assertions",
+      "status": "open",
+      "tags": [
+        "sweep"
+      ],
+      "depends_on": [
+        "guard-list"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- Tests pinning an exact log string, a private helper's shape, or a map's iteration order are converted to assert the observable contract\n- Those that cannot be converted are removed with the surviving coverage named",
+      "source_sections": [
+        "### 7.3 Implementation-detail assertions"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "doc-homes",
+      "title": "Give every fact one home",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 15,
+      "acceptance": "- README.md owns the install and command index, SKILL.md owns everything needed mid-cycle, CLAUDE.md owns this repository's conventions, REFERENCE.md owns exhaustive detail\n- Anything duplicated across two homes is cut from the non-owner\n- The command index and the command forms are the one permitted overlap",
+      "source_sections": [
+        "### 8.1 One canonical home per fact",
+        "## 8. The documentation sweep"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "claude-phase-qualifier",
+      "title": "Qualify the register-a-check rule",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [
+        "doc-homes"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- CLAUDE.md's instruction to register a mechanical check for a class seen in three rounds becomes conditional on the phase\n- The qualifier states that a check registered before its subject exists suppresses a class for every reviewer while verifying only what already exists",
+      "source_sections": [
+        "### 8.1 One canonical home per fact"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "lint-rule-table",
+      "title": "Complete the lint rule table",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [
+        "doc-homes"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- README.md's table lists every rule tp can emit, one line each\n- A test fails when a rule tp can emit is undocumented, and the collected list's own blind spot is recorded beside it\n- The assertion fails on today's tree before the table is completed",
+      "source_sections": [
+        "### 8.2 The lint rule table is complete and stays complete"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "flag-inventory",
+      "title": "Document the six missing flags",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [
+        "doc-homes"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- --reason-file and --stdin on done and close, --docs-path, --test-path, --base on audit, --commit-strategy on init are added to the inventory in SKILL.md\n- A test fails when the CLI registers an undocumented flag, and when the inventory documents a flag the CLI does not register\n- The inventory records what exists rather than what to recommend",
+      "source_sections": [
+        "### 8.3 Flags absent from every document"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "unknown-command-exit",
+      "title": "Exit 2 on an unknown command",
+      "status": "open",
+      "tags": [
+        "repair"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "- tp with an unknown command or subcommand exits 2, matching the documented scheme\n- The assertion fails on today's tree, where an unknown command exits 1",
+      "source_sections": [
+        "### 9.1 An unknown command is a usage error",
+        "## 9. Exit-code consistency"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "validation-hints",
+      "title": "Name the right object in validation hints",
+      "status": "open",
+      "tags": [
+        "repair"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 15,
+      "acceptance": "- Validation errors from commands whose object is not the task file carry a hint naming their own object\n- TestFileErrorsCarryAHint enumerates ExitValidation sites the way it enumerates ExitFile sites\n- A new site cannot join the class without the enumeration failing",
+      "source_sections": [
+        "### 9.2 The validation hint channel stops handing out task-file advice"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "lint-hints",
+      "title": "Give lint.go its spec hint",
+      "status": "open",
+      "tags": [
+        "repair"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "- tp lint emits specFileMissingHint on a missing spec and leaves taskFileCommands\n- Every hintless ExitFile site in lint.go gains a hint in this task\n- tp init is untouched because runInit never stats the spec",
+      "source_sections": [
+        "### 9.3 `lint` names the spec, not the task file"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "example-tables-doc",
+      "title": "Recommend example tables in acceptance",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [
+        "doc-homes"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- SKILL.md's decomposition guidance states input-to-expected-output tables as the recommended shape for behavioural acceptance\n- It names the secondary benefit that a concrete expected value forces ambiguity out in the interview step",
+      "source_sections": [
+        "### 10.1 Example tables are the acceptance shape for behavioural tasks",
+        "## 10. Two practices adopted from field feedback"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "model-diversity-doc",
+      "title": "Document the model-diversity recipe",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [
+        "doc-homes"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- REFERENCE.md documents running one reviewer role on two models in successive rounds and reading unique\n- No feature changes, because overlap_report already reports the counts the recipe uses",
+      "source_sections": [
+        "### 10.2 Measuring whether a second model earns its cost"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "release-counts",
+      "title": "Record what the release removed",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [
+        "dead-branches",
+        "sweep-small-engine",
+        "flag-inventory"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- The release notes carry before-and-after counts for source lines, test count, exported symbols, documentation lines, and facts with more than one home\n- They are recorded as fact rather than measured against a target, since discrimination and not line count is the metric",
+      "source_sections": [
+        "### 2.3 The release records what it removed",
+        "### 2.2 What is not the metric"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "subtraction-rule",
+      "title": "State the release's task kinds",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "- Each task in this release declares in its acceptance whether it is a removal or a repair\n- A task that only adds cites the section of this spec that mandates the addition",
+      "source_sections": [
+        "## 2. Subtraction is the governing rule",
+        "## 12. What decomposition owns"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "non-goals-fence",
+      "title": "Hold the release inside its non-goals",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "- No task adds a command or a flag, changes convergence policy, runs writing units in parallel, or edits a historical spec\n- No removal requires designing a new abstraction to hold a merged form",
+      "source_sections": [
+        "## 11. Non-Goals",
+        "### 12.1 Existing tests this change invalidates"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ]
 }
