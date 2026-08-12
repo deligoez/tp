@@ -45,12 +45,12 @@ const ndjsonInputFileHint = "check the path — this mode takes the NDJSON files
 // --resolve, the audit merge and tp done --batch — so a findings file --resolve
 // had just rewritten could be unreadable by --merge. One constant, one answer.
 //
-// tp add --bulk and tp set --bulk are NOT in that set: they read NDJSON at
-// bufio's default and pin their own warn-and-continue contracts, which feed no
-// convergence gate. TestNDJSONReadersShareTheCap holds every scanner in the
-// package to this constant and lets a site out only when it says on its own
-// line what it reads instead — which is where those two exceptions are
-// recorded, and where the next one would have to be.
+// tp add --bulk and tp set --bulk are in that set too: they used to read at
+// bufio's default to keep their own warn-and-continue contracts, and now abort
+// at this cap like every other reader. TestNDJSONReadersShareTheCap holds every
+// scanner in the package to this constant and lets a site out only when it says
+// on its own line what non-NDJSON input it reads instead — which is where the
+// next exception would have to be recorded.
 const ndjsonLineCap = 1024 * 1024
 
 // ndjsonLineTooLongHint explains a line over ndjsonLineCap. Distinct from

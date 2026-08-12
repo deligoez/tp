@@ -188,8 +188,6 @@ func runSetBulk() error {
 		updated, failed := 0, 0
 		anchorChanged := false // §7.1: any source_sections/source_lines edit triggers a coverage recompute
 
-		// line-cap: tp set --bulk NDJSON, at bufio's default for the same reason
-		// as tp add --bulk — its own warn-and-continue contract, no gate downstream.
 		scanner := bufio.NewScanner(f)
 		scanner.Buffer(make([]byte, 0, 64*1024), ndjsonLineCap)
 		lineNum := 0

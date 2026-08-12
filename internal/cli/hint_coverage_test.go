@@ -208,11 +208,11 @@ func emptyStringConsts(t *testing.T) map[string]bool {
 // <var>.Buffer(_, ndjsonLineCap) — the identifier itself, no expression around
 // it — somewhere in the same function.
 //
-// tp add --bulk and tp set --bulk read NDJSON at bufio's default and pin their
-// own warn-and-continue contracts; they carry a line-cap: marker naming that,
-// which is also what a genuinely non-NDJSON scanner (spec markdown, git output)
-// carries. The marker states the exception at the site rather than in a list
-// somewhere else that a new reader could quietly join.
+// No NDJSON reader is exempt: tp add --bulk and tp set --bulk declare the
+// shared cap like every other one. A line-cap: marker is only for a genuinely
+// non-NDJSON scanner (spec markdown, git output), and it states that at the
+// site rather than in a list somewhere else that a new reader could quietly
+// join.
 func TestNDJSONReadersShareTheCap(t *testing.T) {
 	const siteExemption = "line-cap:"
 
