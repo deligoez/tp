@@ -5,19 +5,26 @@ Mechanizes the `measured-claim-not-reproducible` review class, which survived
 three prose corrections in the v0.34.0 review loop: a count written into a
 document goes stale the moment the tree moves, and prose review cannot see it.
 
-Each entry in CLAIMS names a document, a regex whose named groups are the
-claimed numbers, and a derivation that recomputes them. A registered claim MUST
-be present: a claim that has been reworded past its pattern fails, because the
-documents this guards are ones the release itself rewrites, and a guard that
-goes quiet exactly when its subject is edited guards nothing.
+Three properties, each added because a review round broke the previous version:
 
-COVERAGE is deliberately narrow and stated: only figures a command can
-recompute are checked. Estimates ("roughly doubles wall time") and historical
-observations ("lost the add's task in 1 of 20 runs") are not derivable from the
-current tree and stay the reviewers' business -- see COVERAGE below, which is
-printed on every run so the boundary is never implicit.
+1. A registered claim MUST be present. A claim reworded past its pattern fails,
+   because the documents this guards are ones the release itself rewrites, and
+   a guard that goes quiet when its subject is edited guards nothing.
+2. The derivation rule is READ FROM THE DOCUMENT, not held here. Holding it here
+   let the window be changed in the prose while the check re-derived the old
+   rule and agreed with itself -- the numbers matched a rule nobody had asked
+   for. Parsing the documented command also pins the flags it must carry.
+3. An artifact whose count is claimed has its BODY counted, not just its
+   summary. A file with a correct summary line and no entries used to pass.
 
-Usage: check-measured-claims.py [--verbose]
+COVERAGE is narrow and stated: only figures a command can recompute are
+checked. Estimates ("roughly doubles wall time") and historical observations
+("lost the add's task in 1 of 20 runs") are not derivable from the current tree
+and remain the reviewers' business. It prints on every run, including clean
+ones, because the registration tells every reviewer to stop reporting the whole
+class.
+
+Usage: check-measured-claims.py [--quiet]
 Exit 0 when every registered claim reproduces, 1 otherwise.
 """
 
@@ -29,20 +36,33 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 
 COVERAGE = (
-    "checks re-derivable counts only; estimates and historical observations "
-    "are not covered and remain reportable"
+    "re-derivable counts only; estimates and historical observations are not "
+    "covered and remain reportable"
 )
 
+# The shape the documented derivation must keep. Pinning it here is what makes
+# dropping --no-ext-diff a failure: without that flag this repository's external
+# diff driver emits a rendered view, no line matches `^\+func Test`, and the
+# derivation silently returns zero.
+DOCUMENTED_DIFF = re.compile(r"^git diff --no-ext-diff -U0 (\S+) (\S+)$", re.M)
 
-def guard_test_window(from_tag: str, to_tag: str) -> dict:
-    """Test functions ADDED between two tags, per spec/0.34.0.md section 7.1.
+# One `file:function` per line, e.g. internal/cli/audit_test.go:TestAuditRecord
+LIST_ENTRY = re.compile(r"^[\w./-]+_test\.go:Test\w+\s*$", re.M)
 
-    --no-ext-diff is mandatory: this repository configures difftastic as the
-    external diff driver, so without it the output is a rendered view, no line
-    matches `^\\+func Test`, and the derivation silently returns zero.
-    """
+PLACEHOLDER = "Populated by the first task"
+
+
+def read_documented_window(text: str) -> tuple:
+    """Extract the tag pair from the command the document itself states."""
+    m = DOCUMENTED_DIFF.search(text)
+    if not m:
+        return None
+    return m.group(1), m.group(2)
+
+
+def added_test_functions(from_ref: str, to_ref: str) -> dict:
     out = subprocess.run(
-        ["git", "diff", "--no-ext-diff", "-U0", from_tag, to_tag],
+        ["git", "diff", "--no-ext-diff", "-U0", from_ref, to_ref],
         cwd=REPO, capture_output=True, text=True, check=True,
     ).stdout
 
@@ -68,78 +88,98 @@ def repo_test_functions() -> dict:
     return {"total": total}
 
 
-CLAIMS = [
-    {
-        "name": "guard-test window (v0.32.0..v0.33.0)",
-        "document": "spec/0.34.0-guard-tests.md",
-        # "100 test functions across 16 files"
-        "pattern": r"(?P<functions>\d+)\s+test functions across\s+(?P<files>\d+)\s+files",
-        "derive": lambda: guard_test_window("v0.32.0", "v0.33.0"),
-        # A derivation that returns nothing is a broken derivation, never a
-        # result: that is exactly how the --no-ext-diff trap closes green.
-        "nonzero": ["functions", "files"],
-    },
-    {
-        "name": "repository test-function count",
-        "document": "spec/0.34.0.md",
-        # "this repository holds 1099 test functions"
-        "pattern": r"repository holds\s+(?P<total>\d+)\s+test functions",
-        "derive": repo_test_functions,
-        "nonzero": ["total"],
-    },
-]
+def check_guard_tests(text: str, failures: list) -> None:
+    doc = "spec/0.34.0-guard-tests.md"
+
+    window = read_documented_window(text)
+    if window is None:
+        failures.append(
+            f"{doc}: the documented derivation does not match "
+            f"`git diff --no-ext-diff -U0 <from> <to>`. Either the window moved or "
+            f"--no-ext-diff was dropped; both change what the numbers below mean."
+        )
+        return
+
+    derived = added_test_functions(*window)
+    for key, value in derived.items():
+        if value == 0:
+            failures.append(
+                f"guard-test window {window[0]}..{window[1]}: derivation produced "
+                f"{key}=0, which is a broken derivation rather than a result"
+            )
+
+    pattern = re.compile(
+        r"(?P<functions>\d+)\s+test functions across\s+(?P<files>\d+)\s+files"
+    )
+    matches = list(pattern.finditer(text))
+    if not matches:
+        failures.append(
+            f"{doc}: the guard-test count is no longer stated in a matchable form. "
+            f"A registered claim must stay stated; derivation gives {derived}"
+        )
+    for m in matches:
+        line_no = text[: m.start()].count("\n") + 1
+        stated = {k: int(v) for k, v in m.groupdict().items()}
+        if stated != derived:
+            failures.append(
+                f"{doc}:{line_no}: states {stated} for window "
+                f"{window[0]}..{window[1]}, derivation gives {derived}"
+            )
+
+    entries = LIST_ENTRY.findall(text)
+    if entries:
+        if len(entries) != derived["functions"]:
+            failures.append(
+                f"{doc}: body lists {len(entries)} file:function entries but the "
+                f"derivation gives {derived['functions']}"
+            )
+    elif PLACEHOLDER not in text:
+        failures.append(
+            f"{doc}: no list entries and no {PLACEHOLDER!r} declaration. An empty "
+            f"guard list is a failed derivation, never a result."
+        )
+
+
+def check_repo_count(failures: list) -> None:
+    doc = "spec/0.34.0.md"
+    text = (REPO / doc).read_text(encoding="utf-8")
+    derived = repo_test_functions()
+    pattern = re.compile(r"repository holds\s+(?P<total>\d+)\s+test functions")
+    matches = list(pattern.finditer(text))
+    if not matches:
+        failures.append(
+            f"{doc}: the repository test-function count is no longer stated in a "
+            f"matchable form; derivation gives {derived}"
+        )
+    for m in matches:
+        line_no = text[: m.start()].count("\n") + 1
+        stated = {k: int(v) for k, v in m.groupdict().items()}
+        if stated != derived:
+            failures.append(
+                f"{doc}:{line_no}: states {stated}, derivation gives {derived}"
+            )
 
 
 def main() -> int:
-    verbose = "--verbose" in sys.argv
+    quiet = "--quiet" in sys.argv
     failures = []
 
-    for claim in CLAIMS:
-        doc = REPO / claim["document"]
-        if not doc.exists():
-            failures.append(f"{claim['document']}: no such file (claim {claim['name']!r})")
-            continue
+    guard_doc = REPO / "spec/0.34.0-guard-tests.md"
+    if not guard_doc.exists():
+        failures.append("spec/0.34.0-guard-tests.md: no such file")
+    else:
+        check_guard_tests(guard_doc.read_text(encoding="utf-8"), failures)
 
-        derived = claim["derive"]()
+    check_repo_count(failures)
 
-        for key in claim.get("nonzero", []):
-            if derived[key] == 0:
-                failures.append(
-                    f"{claim['name']}: derivation produced {key}=0, which is a broken "
-                    f"derivation rather than a result"
-                )
-
-        text = doc.read_text(encoding="utf-8")
-        matches = list(re.finditer(claim["pattern"], text))
-        if not matches:
-            failures.append(
-                f"{claim['document']}: claim {claim['name']!r} not found. A registered "
-                f"claim must stay stated and stay matchable; if the wording moved, move "
-                f"the pattern in {Path(__file__).name} with it. Derivation gives {derived}"
-            )
-            continue
-
-        for m in matches:
-            line_no = text[: m.start()].count("\n") + 1
-            stated = {k: int(v) for k, v in m.groupdict().items()}
-            if stated != derived:
-                failures.append(
-                    f"{claim['document']}:{line_no}: {claim['name']} states {stated}, "
-                    f"derivation gives {derived}"
-                )
-            elif verbose:
-                print(f"ok: {claim['document']}:{line_no} {stated}")
-
-    if verbose:
-        print(f"coverage: {COVERAGE}")
-
+    stream = sys.stderr if failures else sys.stdout
     for f in failures:
         print(f, file=sys.stderr)
     if failures:
         print(f"{len(failures)} stale or missing measured claim(s)", file=sys.stderr)
-        print(f"coverage: {COVERAGE}", file=sys.stderr)
-        return 1
-    return 0
+    if not quiet:
+        print(f"coverage: {COVERAGE}", file=stream)
+    return 1 if failures else 0
 
 
 if __name__ == "__main__":
