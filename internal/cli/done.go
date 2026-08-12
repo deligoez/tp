@@ -251,7 +251,7 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 				os.Exit(ExitFile)
 				return nil
 			}
-			_ = runGit("rm", "--cached", "--ignore-unmatch", "-q", "--", "*.lock", "*.tasks.json.lock")
+			_ = runGit(append([]string{"rm", "--cached", "-r", "--ignore-unmatch", "-q", "--"}, tpLockPathspecs()...)...)
 			if gitHasStagedChanges() {
 				// §5.1a: write the task file in its pre-close (wip) state and
 				// stage it with the implementation files, so C1 carries it.

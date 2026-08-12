@@ -106,7 +106,7 @@ func runCommit(_ *cobra.Command, args []string) error {
 		// `git rm --cached --ignore-unmatch` is HEAD-independent (works before the
 		// first commit) and never errors on a no-match, so ignoring its result
 		// cannot leave a lock file staged for the commit.
-		_ = runGit("rm", "--cached", "--ignore-unmatch", "-q", "--", "*.lock", "*.tasks.json.lock")
+		_ = runGit(append([]string{"rm", "--cached", "-r", "--ignore-unmatch", "-q", "--"}, tpLockPathspecs()...)...)
 
 		// Check if there's anything to commit
 		if !gitHasStagedChanges() {
@@ -228,6 +228,25 @@ func gitCommit(message string) (string, error) {
 		return "", fmt.Errorf("get commit SHA: %w", err)
 	}
 	return strings.TrimSpace(string(out)), nil
+}
+
+// tpLockPathspecs names the lock files tp may itself have staged, and nothing
+// else. The pathspec used to be a bare "*.lock", which git matches across
+// directories: a single tp commit staged and then recorded the DELETION of
+// yarn.lock, Gemfile.lock, sub/Cargo.lock and every other lock file in the
+// repository. The files stayed on disk, so the damage was invisible until
+// someone cloned. It went unnoticed because tp's own commit_strategy is hc,
+// which refuses tp commit.
+//
+// The two real targets are the centralized lock directory (v0.29.0 onward) and
+// the legacy sibling beside a task file, which some repos still carry.
+func tpLockPathspecs() []string {
+	return []string{
+		":(glob).tp/locks",
+		":(glob)**/.tp/locks",
+		":(glob)*.tasks.json.lock",
+		":(glob)**/*.tasks.json.lock",
+	}
 }
 
 func runGit(args ...string) error {
