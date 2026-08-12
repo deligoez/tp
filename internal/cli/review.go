@@ -25,6 +25,13 @@ import (
 // mistake reads the same way whichever command catches it.
 const findingsFileMissingHint = "a review round that converged with zero findings writes no findings file at all — where --findings is optional, omitting it is valid; otherwise check the path."
 
+// ndjsonInputFileHint is the hint for a path handed to a mode that reads loose
+// NDJSON files — --merge and --report. Left hintless these sites inherit the
+// code-3 default, which is TASK-file advice ("run 'tp use <file>' … 'tp init
+// <spec>'") and repairs nothing here: none of these modes takes a task file or
+// a spec at all.
+const ndjsonInputFileHint = "check the path — this mode takes the NDJSON files the reviewers/auditors wrote, not the spec or the task file"
+
 // specFileMissingHint is the hint for a spec-PATH mistake: tp was handed a path
 // that is not a readable spec markdown file. It deliberately does not guess WHY
 // — a typo, the task file passed where the spec belongs, the wrong working
