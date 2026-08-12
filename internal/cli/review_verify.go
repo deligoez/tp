@@ -155,10 +155,19 @@ type verifyFinding struct {
 	Resolved *resolvedStatus `json:"resolved,omitempty"`
 }
 
+// readVerifyFindings reads the previous rounds' findings or aborts with tp's
+// file exit code. Neither failure may come back as an empty set: --verify
+// prints the count it read into the prompt, so a swallowed read told the
+// verifier "previous review rounds produced 0 findings — if verifier finds 0
+// issues, review is complete" while exiting 0 with an empty stderr. The same
+// file through mustParseFindingsFile already aborted; two --findings consumers
+// with opposite error contracts is one contract too many.
 func readVerifyFindings(path string) []verifyFinding {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return make([]verifyFinding, 0)
+		output.Error(ExitFile, fmt.Sprintf("cannot read findings file: %s", path), ndjsonInputFileHint)
+		os.Exit(ExitFile)
+		return nil
 	}
 	findings := make([]verifyFinding, 0)
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
@@ -179,7 +188,12 @@ func readVerifyFindings(path string) []verifyFinding {
 		findings = append(findings, f)
 	}
 	if err := scanner.Err(); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: stopped reading %s early (%v); findings after the over-long line were dropped (line cap is 64KB)\n", path, err)
+		// Aborting, not warning: dropping the findings after an over-long line
+		// understates the count the prompt reports, which is the same silently
+		// smaller set the swallowed ReadFile above produced.
+		output.Error(ExitFile, fmt.Sprintf("cannot read %s: %v", path, err), ndjsonReadHint(err))
+		os.Exit(ExitFile)
+		return nil
 	}
 	return findings
 }
