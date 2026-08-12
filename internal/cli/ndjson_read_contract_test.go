@@ -105,6 +105,40 @@ func TestNDJSONLineCapIsUniform(t *testing.T) {
 	assert.Equal(t, 0, code, "--resolve reads it too: %s", stderr)
 }
 
+// TestReviewResolveOverLongLineHintNamesTheCap covers the arm the first version
+// of this guard left open: --resolve was exercised only UNDER the cap, and past
+// it both --resolve and --resolve-all reported the read failure through a bare
+// exit 3 that named neither the file nor the cap — it inherited the code-3
+// default's task-file advice, for a command that takes no task file.
+func TestReviewResolveOverLongLineHintNamesTheCap(t *testing.T) {
+	dir := t.TempDir()
+
+	for _, tc := range []struct {
+		name string
+		args []string
+	}{
+		{"resolve", []string{"--resolve", "", "0", "fixed", "done"}},
+		{"resolve-all", []string{"--resolve-all", "", "fixed", "done"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(dir, tc.name+".ndjson")
+			require.NoError(t, os.WriteFile(path, []byte(longFindingLine(2*1024*1024)+"\n"), 0o600))
+
+			args := append([]string{"review"}, tc.args...)
+			args[2] = path
+			_, stderr, code := runTP(t, dir, args...)
+			require.Equal(t, 3, code, "a line past the cap aborts rather than rewriting a partial set")
+
+			var payload map[string]any
+			require.NoError(t, json.Unmarshal([]byte(stderr), &payload))
+			assert.Contains(t, payload["error"], path, "the error names the file it could not update")
+			hint, _ := payload["hint"].(string)
+			assert.Contains(t, hint, "1MB", "the hint names the cap that was exceeded")
+			assert.NotContains(t, hint, "tp use", "task-file advice repairs nothing here")
+		})
+	}
+}
+
 // TestReviewMergeOverLongLineHintNamesTheCap: past the shared cap the abort is
 // right — a swallowed read here records a clean round — but it used to attach
 // the path hint, telling the operator to check a path that was never wrong.
