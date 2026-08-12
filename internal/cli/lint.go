@@ -63,7 +63,12 @@ func runLint(_ *cobra.Command, args []string) error {
 
 	lines, headings, err := parseSpecFile(specPath)
 	if err != nil {
-		output.Error(ExitFile, err.Error())
+		// tp's FIRST contact with the spec path: lintRoleCorpusOrAbort above
+		// reads only .tp role files, so a failure here is a spec-path mistake
+		// and takes the shared hint. Left hintless it inherited the code-3
+		// default, which is TASK-file advice ("run 'tp use <file>' … 'tp init
+		// <spec>'") — the wrong object for a command that takes no task file.
+		output.Error(ExitFile, err.Error(), specFileMissingHint)
 		os.Exit(ExitFile)
 		return nil
 	}
@@ -126,7 +131,10 @@ func runLint(_ *cobra.Command, args []string) error {
 	}
 
 	if err := output.JSON(result); err != nil {
-		output.Error(ExitFile, err.Error())
+		// Nothing about the caller's path is wrong: tp built a result it could
+		// not encode. The same hint tp review --status and tp audit --status
+		// pass for this failure, and not the code-3 task-file default.
+		output.Error(ExitFile, err.Error(), internalEncodeHint)
 		os.Exit(ExitFile)
 	}
 
