@@ -1279,41 +1279,43 @@ func TestReviewRound0WithPerspective(t *testing.T) {
 	assert.Equal(t, 2, code, "should fail with exit code 2")
 }
 
-// Test: doc prompt file iteration is deterministic (sorted)
-func TestReviewDocPromptDeterministic(t *testing.T) {
+// assertPromptDeterministic runs one review perspective twice over the same
+// fixture tree and asserts identical stdout. The documentation and testing arms
+// differ only in the spec body, the fixture directory and its files, and the
+// path flag, so they share one body.
+func assertPromptDeterministic(t *testing.T, specBody, perspective, pathFlag, subdir string, files map[string]string) {
+	t.Helper()
+
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
-	require.NoError(t, os.WriteFile(specPath, []byte("# Feature\n## Testing zeta\n## Docs alpha\n"), 0o600))
+	require.NoError(t, os.WriteFile(specPath, []byte(specBody), 0o600))
 
-	docsDir := filepath.Join(dir, "docs")
-	require.NoError(t, os.MkdirAll(docsDir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(docsDir, "zeta.md"), []byte("# Zeta\n"), 0o600))
-	require.NoError(t, os.WriteFile(filepath.Join(docsDir, "alpha.md"), []byte("# Alpha\n"), 0o600))
+	fixtureDir := filepath.Join(dir, subdir)
+	require.NoError(t, os.MkdirAll(fixtureDir, 0o755))
+	for name, content := range files {
+		require.NoError(t, os.WriteFile(filepath.Join(fixtureDir, name), []byte(content), 0o600))
+	}
 
 	// Run twice, output should be identical
-	stdout1, _, code1 := runTP(t, dir, "review", specPath, "--perspective", "documentation", "--docs-path", docsDir)
-	stdout2, _, code2 := runTP(t, dir, "review", specPath, "--perspective", "documentation", "--docs-path", docsDir)
+	stdout1, _, code1 := runTP(t, dir, "review", specPath, "--perspective", perspective, pathFlag, fixtureDir)
+	stdout2, _, code2 := runTP(t, dir, "review", specPath, "--perspective", perspective, pathFlag, fixtureDir)
 	require.Equal(t, 0, code1)
 	require.Equal(t, 0, code2)
-	assert.Equal(t, stdout1, stdout2, "doc prompt output should be deterministic across runs")
+	assert.Equal(t, stdout1, stdout2, "prompt output should be deterministic across runs")
+}
+
+// Test: doc prompt file iteration is deterministic (sorted)
+func TestReviewDocPromptDeterministic(t *testing.T) {
+	assertPromptDeterministic(t, "# Feature\n## Testing zeta\n## Docs alpha\n",
+		"documentation", "--docs-path", "docs",
+		map[string]string{"zeta.md": "# Zeta\n", "alpha.md": "# Alpha\n"})
 }
 
 // Test: test prompt file iteration is deterministic (sorted)
 func TestReviewTestPromptDeterministic(t *testing.T) {
-	dir := t.TempDir()
-	specPath := filepath.Join(dir, "spec.md")
-	require.NoError(t, os.WriteFile(specPath, []byte("# Feature\n## Zeta\n## Alpha\n"), 0o600))
-
-	testDir := filepath.Join(dir, "tests")
-	require.NoError(t, os.MkdirAll(testDir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(testDir, "zeta_test.go"), []byte("package t\n"), 0o600))
-	require.NoError(t, os.WriteFile(filepath.Join(testDir, "alpha_test.go"), []byte("package t\n"), 0o600))
-
-	stdout1, _, code1 := runTP(t, dir, "review", specPath, "--perspective", "testing", "--test-path", testDir)
-	stdout2, _, code2 := runTP(t, dir, "review", specPath, "--perspective", "testing", "--test-path", testDir)
-	require.Equal(t, 0, code1)
-	require.Equal(t, 0, code2)
-	assert.Equal(t, stdout1, stdout2, "test prompt output should be deterministic across runs")
+	assertPromptDeterministic(t, "# Feature\n## Zeta\n## Alpha\n",
+		"testing", "--test-path", "tests",
+		map[string]string{"zeta_test.go": "package t\n", "alpha_test.go": "package t\n"})
 }
 
 // Test: --perspective code-audit with --round and --findings should work
