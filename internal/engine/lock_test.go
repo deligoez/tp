@@ -29,7 +29,7 @@ func TestWithFileLock_BasicAcquireAndRelease(t *testing.T) {
 	// comment used to say the lock file is cleaned up after WithFileLock, which
 	// is the belief that made the lock unsound: the centralized lock file now
 	// deliberately outlives the lock it carried, and
-	// TestWithFileLock_LockFileSurvivesRelease pins that.
+	// TestWithFileLock_LockLivesUnderTPLocks pins that.
 	_, err = os.Stat(lockTarget + ".lock")
 	assert.True(t, os.IsNotExist(err), "no sibling lock is created beside the target")
 }

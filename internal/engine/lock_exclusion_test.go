@@ -74,21 +74,3 @@ func TestWithFileLock_ExcludesConcurrentHolders(t *testing.T) {
 	assert.Equal(t, holders*perHolder, counter, "every locked section ran exactly once")
 	assert.Equal(t, 1, maxInside, "never more than one holder inside the lock at a time")
 }
-
-// TestWithFileLock_LockFileSurvivesRelease pins the mechanism the exclusion
-// depends on. Removing the file on release read as tidiness; it is what let a
-// waiter lock a different inode at the same path.
-func TestWithFileLock_LockFileSurvivesRelease(t *testing.T) {
-	dir := t.TempDir()
-	target := filepath.Join(dir, "test.tasks.json")
-	require.NoError(t, os.WriteFile(target, []byte("{}"), 0o600))
-
-	require.NoError(t, WithFileLock(target, func() error { return nil }))
-
-	lockPath := LockFilePath(target)
-	info, err := os.Stat(lockPath)
-	require.NoError(t, err, "the lock file must outlive the lock it carried")
-	assert.Contains(t, lockPath, filepath.Join(".tp", "locks"),
-		"and it lives in the git-ignored lock directory, so keeping it costs nothing")
-	assert.Zero(t, info.Size(), "it is a marker, not state")
-}
