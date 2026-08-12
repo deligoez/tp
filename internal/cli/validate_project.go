@@ -75,7 +75,7 @@ func runValidateProject() error {
 		return output.JSON(map[string]any{"project_config": false, "deviations": []any{}})
 	}
 
-	project := engine.ProjectWorkflowOverride(".")
+	project := engine.ProjectWorkflowOverride()
 	root := engine.ProjectRoot(".")
 	files, _ := engine.ScanProjectTaskFiles(root)
 

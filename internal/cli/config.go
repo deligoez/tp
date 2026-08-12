@@ -48,7 +48,7 @@ func sourceLabel(fromOverride, fromProject bool) string {
 // resolvedConfig annotates each workflow field with its value and source layer.
 // Workflow fields resolve across override/project/default only.
 func resolvedConfig(wf *model.Workflow, override *model.WorkflowOverride) map[string]any {
-	project := engine.ProjectWorkflowOverride(".")
+	project := engine.ProjectWorkflowOverride()
 	vs := func(value any, o, p bool) map[string]any {
 		return map[string]any{"value": value, "source": sourceLabel(o, p)}
 	}
@@ -139,7 +139,7 @@ func runConfig(_ *cobra.Command, _ []string) error {
 	// commit_strategy is a strategy-reading surface: warn on an unrecognized value
 	// or an hc-absent hc strategy, and expose the concrete builtin/hc behavior
 	// after auto resolution (§5.2).
-	effective := warnCommitStrategy(override.CommitStrategy, engine.ProjectWorkflowOverride(".").CommitStrategy)
+	effective := warnCommitStrategy(override.CommitStrategy, engine.ProjectWorkflowOverride().CommitStrategy)
 	if configResolved {
 		return output.JSON(resolvedConfig(&wf, &override))
 	}

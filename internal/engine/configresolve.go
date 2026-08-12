@@ -78,18 +78,12 @@ func LocalFlagDefaults(start string) map[string]bool {
 }
 
 // ProjectWorkflowOverride returns the project config's workflow override
-// discovered from start — exported so tp config --resolved can attribute each
-// field to the project layer.
-func ProjectWorkflowOverride(start string) model.WorkflowOverride {
-	return projectWorkflowOverride(start)
-}
-
-// projectWorkflowOverride returns the project config's workflow override
-// discovered from start, or an empty override when no .tp/ or config exists or
-// the config is unreadable (best-effort; commands that must abort on a
-// malformed config call LoadProjectConfig directly).
-func projectWorkflowOverride(start string) model.WorkflowOverride {
-	tpDir := DiscoverTPDir(start)
+// discovered from the working directory, or an empty override when no .tp/ or
+// config exists or the config is unreadable (best-effort; commands that must
+// abort on a malformed config call LoadProjectConfig directly). Exported so
+// tp config --resolved can attribute each field to the project layer.
+func ProjectWorkflowOverride() model.WorkflowOverride {
+	tpDir := DiscoverTPDir(".")
 	if tpDir == "" {
 		return model.WorkflowOverride{}
 	}
@@ -140,7 +134,7 @@ func pickChecks(layers []*[]model.Check, def []model.Check) []model.Check {
 func EffectiveWorkflowForTaskFile(taskFilePath string) model.Workflow {
 	override, _ := LoadTaskWorkflowOverride(taskFilePath)
 	clampWorkflowRanges(&override)
-	project := projectWorkflowOverride(".")
+	project := ProjectWorkflowOverride()
 	return ResolveWorkflowLayers(&override, &project)
 }
 
