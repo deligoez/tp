@@ -95,6 +95,12 @@ func TestAssembleResume_ReleaseWhenAuditConverged(t *testing.T) {
 	recordRounds(t, spec, 0, 2, true) // audit converged
 	res := assemble(t, dir, spec, tfp)
 	assert.Equal(t, PhaseRelease, res.Phase)
+	// The release next_action rides BuildNextAction's default arm, which is
+	// reached by PhaseRelease alone; nothing else pins its payload.
+	assert.Equal(t, "audit converged; proceed to the human-approved release", res.NextAction.Summary)
+	assert.Nil(t, res.NextAction.Command, "release is agent work with no single tp command")
+	assert.Nil(t, res.NextAction.BriefCommand)
+	assert.Empty(t, res.NextAction.Payload)
 }
 
 func TestAssembleResume_DecomposeWhenReviewConverged(t *testing.T) {
