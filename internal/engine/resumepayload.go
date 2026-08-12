@@ -203,10 +203,11 @@ func BuildNextAction(phase, specPath string, tf *model.TaskFile, st *ReviewState
 		}
 	case PhaseDecompose:
 		return NextAction{Summary: "decompose the converged spec into tasks and tp import", Payload: map[string]any{}}
-	case PhaseRelease:
-		return NextAction{Summary: "audit converged; proceed to the human-approved release", Payload: map[string]any{}}
 	default:
-		return NextAction{Payload: map[string]any{}}
+		// PhaseRelease is the only value that reaches here: DetectPhase returns
+		// exactly one of the five phase constants and the other four are cased
+		// above.
+		return NextAction{Summary: "audit converged; proceed to the human-approved release", Payload: map[string]any{}}
 	}
 }
 
