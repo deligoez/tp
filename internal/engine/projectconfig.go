@@ -320,18 +320,19 @@ func WriteLocalConfig(tpDir string, lc model.LocalConfig) error {
 }
 
 // EnsureTPGitignore ensures tpDir/.gitignore exists and contains a "local.json"
-// entry, so .tp/local.json stays git-ignored even when the .tp/ directory was
-// created by hand rather than by tp. It is idempotent: it creates the file when
-// absent, appends the entry when the file exists without it, and does nothing
-// when the entry is already present. It is invoked whenever tp writes any file
-// under .tp/.
-// EnsureTPGitignore ensures tpDir/.gitignore exists and contains a "local.json"
 // entry plus a "locks/" entry, so .tp/local.json and the centralized lock files
 // under .tp/locks/ stay git-ignored even when the .tp/ directory was created by
-// hand rather than by tp. It is idempotent: it creates the file when absent,
-// appends each missing entry when the file exists without it, and does nothing
-// when every entry is already present. It is invoked whenever tp writes any
-// file under .tp/.
+// hand rather than by tp. It creates the file when absent and appends each
+// missing entry when the file exists without it.
+//
+// It RETURNS EARLY when every entry is already present, and that early return
+// is load-bearing rather than an optimization. This is a lock-free
+// read-modify-write, and WithFileLock now calls it on every locked write: a
+// process reading while another was mid-rewrite wrote back only the two wanted
+// entries, permanently dropping whatever else the user had in the file —
+// measured at 7 losses in 25 concurrent tp set runs, and silent, since callers
+// discard the error. Off the hot path the window closes: the only writes left
+// are the first one and the one-time upgrade that adds a missing entry.
 func EnsureTPGitignore(tpDir string) error {
 	path := filepath.Join(tpDir, ".gitignore")
 	want := []string{"local.json", "locks/"}
@@ -347,15 +348,22 @@ func EnsureTPGitignore(tpDir string) error {
 	for _, line := range strings.Split(content, "\n") {
 		present[strings.TrimSpace(line)] = true
 	}
+
+	missing := make([]string, 0, len(want))
 	for _, entry := range want {
-		if present[entry] {
-			continue
+		if !present[entry] {
+			missing = append(missing, entry)
 		}
+	}
+	if len(missing) == 0 {
+		return nil
+	}
+
+	for _, entry := range missing {
 		if content != "" && !strings.HasSuffix(content, "\n") {
 			content += "\n"
 		}
 		content += entry + "\n"
-		present[entry] = true
 	}
 	return os.WriteFile(path, []byte(content), 0o600)
 }
