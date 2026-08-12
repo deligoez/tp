@@ -24,6 +24,26 @@ func doneTask(id, title, reason string, closed time.Time, deps ...string) model.
 	}
 }
 
+// depsAndRecencyFile builds a task file whose open "unit" task depends on
+// nDeps done tasks, plus nRecent unrelated done tasks timestamped later so they
+// are the recency candidates. The three cap tests below differ only in those
+// two counts and in the SelectPriorWork arguments they pass.
+func depsAndRecencyFile(nDeps, nRecent int) *model.TaskFile {
+	base := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	unitDeps := make([]string, nDeps)
+	tasks := []model.Task{{ID: "unit", Title: "Unit", Status: model.StatusOpen}}
+	for i := 0; i < nDeps; i++ {
+		id := "d" + string(rune('a'+i))
+		unitDeps[i] = id
+		tasks = append(tasks, doneTask(id, "D", "- d", base.Add(time.Duration(i)*time.Second)))
+	}
+	tasks[0].DependsOn = unitDeps
+	for i := 0; i < nRecent; i++ {
+		tasks = append(tasks, doneTask("r"+string(rune('a'+i)), "R", "- r", base.Add(time.Duration(100+i)*time.Second)))
+	}
+	return &model.TaskFile{Tasks: tasks}
+}
+
 func TestSelectPriorWork_TransitiveDepsInTopoOrder(t *testing.T) {
 	// c → b → a (each done); the unit depends on c, so all three are prior work,
 	// in dependency-safe order a, b, c (foundation first).
@@ -98,19 +118,7 @@ func TestSelectPriorWork_RecencyOrderedMostRecentFirst(t *testing.T) {
 
 func TestSelectPriorWork_TotalCapShrinksRecency(t *testing.T) {
 	// 10 deps + 8 recency candidates: room = 12-10 = 2, so recency = min(5,2) = 2.
-	base := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
-	unitDeps := make([]string, 10)
-	tasks := []model.Task{{ID: "unit", Title: "Unit", Status: model.StatusOpen}}
-	for i := 0; i < 10; i++ {
-		id := "d" + string(rune('a'+i))
-		unitDeps[i] = id
-		tasks = append(tasks, doneTask(id, "D", "- d", base.Add(time.Duration(i)*time.Second)))
-	}
-	tasks[0].DependsOn = unitDeps
-	for i := 0; i < 8; i++ {
-		tasks = append(tasks, doneTask("r"+string(rune('a'+i)), "R", "- r", base.Add(time.Duration(100+i)*time.Second)))
-	}
-	tf := &model.TaskFile{Tasks: tasks}
+	tf := depsAndRecencyFile(10, 8)
 
 	res, err := SelectPriorWork(tf, "unit", 0, false)
 	require.NoError(t, err)
@@ -121,19 +129,7 @@ func TestSelectPriorWork_TotalCapShrinksRecency(t *testing.T) {
 func TestSelectPriorWork_DepsAlwaysIncludedBeyondCap(t *testing.T) {
 	// 13 deps (beyond the 12 cap) + 4 recency candidates. All 13 deps stay; the
 	// total exceeds 12 and recency is squeezed to zero (room = 12-13 < 0).
-	base := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
-	unitDeps := make([]string, 13)
-	tasks := []model.Task{{ID: "unit", Title: "Unit", Status: model.StatusOpen}}
-	for i := 0; i < 13; i++ {
-		id := "d" + string(rune('a'+i))
-		unitDeps[i] = id
-		tasks = append(tasks, doneTask(id, "D", "- d", base.Add(time.Duration(i)*time.Second)))
-	}
-	tasks[0].DependsOn = unitDeps
-	for i := 0; i < 4; i++ {
-		tasks = append(tasks, doneTask("r"+string(rune('a'+i)), "R", "- r", base.Add(time.Duration(100+i)*time.Second)))
-	}
-	tf := &model.TaskFile{Tasks: tasks}
+	tf := depsAndRecencyFile(13, 4)
 
 	res, err := SelectPriorWork(tf, "unit", 0, false)
 	require.NoError(t, err)
@@ -239,19 +235,7 @@ func TestSelectPriorWork_PriorOverrideSmallerThanCandidates(t *testing.T) {
 
 func TestSelectPriorWork_PriorOverrideWithLargeDeps(t *testing.T) {
 	// --prior with deps beyond 12: deps always included, recency = prior count.
-	base := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
-	unitDeps := make([]string, 13)
-	tasks := []model.Task{{ID: "unit", Title: "Unit", Status: model.StatusOpen}}
-	for i := 0; i < 13; i++ {
-		id := "d" + string(rune('a'+i))
-		unitDeps[i] = id
-		tasks = append(tasks, doneTask(id, "D", "- d", base.Add(time.Duration(i)*time.Second)))
-	}
-	tasks[0].DependsOn = unitDeps
-	for i := 0; i < 3; i++ {
-		tasks = append(tasks, doneTask("r"+string(rune('a'+i)), "R", "- r", base.Add(time.Duration(100+i)*time.Second)))
-	}
-	tf := &model.TaskFile{Tasks: tasks}
+	tf := depsAndRecencyFile(13, 3)
 
 	res, err := SelectPriorWork(tf, "unit", 2, true)
 	require.NoError(t, err)
