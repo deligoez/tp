@@ -70,10 +70,15 @@ DOCUMENTED_RULE = re.compile(r"`\^\\\+func Test`.{0,40}`_test\.go`")
 # One file:function per line, bare or as a markdown bullet.
 LIST_ENTRY = re.compile(r"^\s*(?:[-*]\s+)?`?([\w./-]+_test\.go):(Test\w+)`?\s*$", re.M)
 
-# Entries count only under this heading. Reading the whole file let a written
-# list of 20 pass while 80 more sat in a comment or a superseded draft: the
-# document had no region the phrase "that list" referred to.
+# Entries count only under this heading and above the next one. Reading the
+# whole file let a written list of 20 pass while 80 more sat in a comment or a
+# superseded draft: the document had no region the phrase "that list" referred
+# to. Bounding it on one side only moved the same escape below the heading --
+# 90 listed and 10 under a following `## Excluded from the sweep` passed -- and
+# that is the side the first task writes into, since the heading is the file's
+# last line.
 LIST_HEADING = re.compile(r"^## Guard tests\s*$", re.M)
+NEXT_HEADING = re.compile(r"^## ", re.M)
 
 # Anchored to the start of a line, not searched as a phrase. A bare substring
 # test matched the sentence documenting the placeholder rule as well as the
@@ -178,6 +183,9 @@ def check_guard_doc(text: str, spec_text: str, fail) -> None:
         )
         return
     body = text[heading.end():]
+    following = NEXT_HEADING.search(body)
+    if following:
+        body = body[: following.start()]
     entries = {(f, fn) for f, fn in LIST_ENTRY.findall(body)}
     placeholder = PLACEHOLDER_LINE.search(text) is not None
 
