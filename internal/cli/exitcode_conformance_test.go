@@ -104,6 +104,16 @@ func TestExitCode_UnknownCommand_Exit2(t *testing.T) {
 	assert.NotEmpty(t, e["hint"], "usage error must carry a hint (§13.2)")
 }
 
+// §9.1: reclassifying the exit code keeps cobra's did-you-mean suggestion, the
+// one piece of recovery information the old exit-1 message carried.
+func TestExitCode_UnknownCommand_KeepsSuggestion(t *testing.T) {
+	dir := t.TempDir()
+	_, stderr, code := runTP(t, dir, "revie")
+	e := errJSON(t, stderr)
+	assert.Equal(t, 2, code)
+	assert.Contains(t, e["error"], "review", "the did-you-mean suggestion must survive")
+}
+
 // §13.2: a usage error with no explicit hint still carries a default hint.
 func TestExitCode_UsageErrorCarriesHint_DoneNoArgs(t *testing.T) {
 	dir := t.TempDir()
