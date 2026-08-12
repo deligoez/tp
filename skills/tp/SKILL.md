@@ -29,7 +29,7 @@ This is the reset-native contract: `tp resume` is the single source of truth bet
 
 Order (v0.23.0): **interview → `tp lint` → `tp init` → `tp set --workflow` → review loop → decompose → `tp import`**.
 
-Running `tp init` **before** the review loop creates the spec-adjacent task file that supplies the loop's workflow parameters (convergence counts, round budgets, checks). The quality gate is authored at init time with `--quality-gate` because `tp set` keeps it read-only.
+Running `tp init` **before** the review loop creates the spec-adjacent task file that supplies the loop's workflow parameters (convergence counts, round budgets, checks). The quality gate is authored once at the project layer with `tp set --workflow --project quality_gate="<cmd>"` (writes `.tp/config.json`), not with `tp init --quality-gate`: a task-file override masks the project gate, so a later change to the project gate never reaches the task files carrying one. The task-level setter stays read-only (`tp set --workflow quality_gate=…` exits 2).
 
 ### Step 0: Interview
 
@@ -45,7 +45,7 @@ Before writing or editing a spec, resolve all ambiguities:
 8. **Termination** — complete when: (a) every behavioral claim is verified or confirmed, (b) every design choice with user-visible impact (CLI output, file format, command behavior) is decided, (c) no new questions arise.
 
 Then collect workflow parameters (hold in memory until `tp init` / `tp set --workflow`):
-- Quality gate command (e.g. `"go test -race ./... && golangci-lint run"`) — authored at `tp init --quality-gate`. For a Go project, run the suite under `-race`: the race detector is off by default, so a data race can never fail a gate without it, and on a suite this size it costs between a tenth and a half again of the wall time. Note: `golangci-lint run` (v2) checks formatters like `gofmt` only when a `formatters:` section enables them, so enable one in `.golangci.yml` (or add `gofmt -l .` to the gate) or a gofmt-dirty file slips through.
+- Quality gate command (e.g. `"go test -race ./... && golangci-lint run"`) — authored at the project layer in Step 1. For a Go project, run the suite under `-race`: the race detector is off by default, so a data race can never fail a gate without it, and on a suite this size it costs between a tenth and a half again of the wall time. Note: `golangci-lint run` (v2) checks formatters like `gofmt` only when a `formatters:` section enables them, so enable one in `.golangci.yml` (or add `gofmt -l .` to the gate) or a gofmt-dirty file slips through.
 - Consecutive clean **review** rounds (default 2) — integer 1-10; re-ask once if invalid, then use default.
 - Consecutive clean **audit** rounds (default 2) — same rules.
 - Optional round budgets `review_max_rounds` / `audit_max_rounds` (default 0 = no cap) — a hard ceiling on counted rounds before escalation.
@@ -55,7 +55,7 @@ Announce: "I will review until N clean rounds, audit until M clean rounds." If n
 ### Step 1: Init the task file and workflow
 
 1. `tp lint <spec.md>` — fix issues; review `structured_elements` and the `frontmatter` object.
-2. `tp init <spec.md> --quality-gate "<cmd>"` — creates the spec-adjacent `<base>.tasks.json` shell (zero tasks) and the gate.
+2. `tp init <spec.md>` — creates the spec-adjacent `<base>.tasks.json` shell (zero tasks) with an empty `workflow` block. Author the gate one layer up: `tp set --workflow --project quality_gate="<cmd>"` (writes `.tp/config.json`, resolved by every task file); passing `--quality-gate` here writes a task-file override that masks it.
 3. `tp set --workflow review_clean_rounds=N audit_clean_rounds=M` — convergence counts (only if non-default).
 4. `tp set --workflow review_max_rounds=R audit_max_rounds=A` — round budgets (only if capping).
 5. `tp set --workflow checks='[{"class":"<slug>","cmd":"<detector>"}]'` — register mechanical checks (see Class & Checks Guidance).
