@@ -191,7 +191,10 @@ func runSetBulk() error {
 		// line-cap: tp set --bulk NDJSON, at bufio's default for the same reason
 		// as tp add --bulk — its own warn-and-continue contract, no gate downstream.
 		scanner := bufio.NewScanner(f)
+		scanner.Buffer(make([]byte, 0, 64*1024), ndjsonLineCap)
+		lineNum := 0
 		for scanner.Scan() {
+			lineNum++
 			line := strings.TrimSpace(scanner.Text())
 			if line == "" {
 				continue
@@ -239,7 +242,16 @@ func runSetBulk() error {
 			updated++
 		}
 		if err := scanner.Err(); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: stopped reading %s early (%v); set lines after the over-long line were dropped (line cap is 64KB)\n", setBulkFile, err)
+			// Aborting, not warning: the old contract applied the rows read
+			// before the over-long line, dropped that row and every row after
+			// it, and still exited 0 after writing the task file — a partial
+			// update reported as "N updated, 0 failed". A bulk set applies
+			// every row or none, so the write below is never reached and the
+			// failing line is named. At ndjsonLineCap this fires only past 1MB
+			// on a single line.
+			output.Error(ExitFile, fmt.Sprintf("cannot read %s: line %d: %v", setBulkFile, lineNum+1, err), ndjsonReadHint(err))
+			os.Exit(ExitFile)
+			return nil
 		}
 
 		// §7.1: recompute coverage if any anchor field changed in this batch.
