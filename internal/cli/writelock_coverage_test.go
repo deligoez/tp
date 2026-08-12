@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -171,4 +172,55 @@ func TestNoUnlockedTaskFileWrite(t *testing.T) {
 	}
 	assert.Empty(t, reachable,
 		"these commands can reach model.WriteTaskFile without passing through engine.WithFileLock")
+}
+
+// TestTaskFileWriteSinkIsCLIOnly backs the reachability scan's scope: it walks
+// internal/cli only, which is exhaustive exactly as long as model.WriteTaskFile
+// has no non-test caller elsewhere in the tool. A future caller in engine/ or
+// cmd/ would slip past TestNoUnlockedTaskFileWrite unnoticed; this fails first.
+func TestTaskFileWriteSinkIsCLIOnly(t *testing.T) {
+	cliDir, err := filepath.Abs(".")
+	require.NoError(t, err)
+	root, err := filepath.Abs("../..")
+	require.NoError(t, err)
+
+	outside := make([]string, 0)
+	fset := token.NewFileSet()
+	require.NoError(t, filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if d.IsDir() {
+			if path == root {
+				return nil
+			}
+			// Tool sources live under internal/ and cmd/ only; everything else
+			// at the top level (spec/, skills/, .git/) holds no Go the claim
+			// is about.
+			if filepath.Dir(path) == root && d.Name() != "internal" && d.Name() != "cmd" {
+				return fs.SkipDir
+			}
+			if d.Name() == "testdata" {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") || filepath.Dir(path) == cliDir {
+			return nil
+		}
+		file, parseErr := parser.ParseFile(fset, path, nil, 0)
+		if parseErr != nil {
+			return parseErr
+		}
+		ast.Inspect(file, func(n ast.Node) bool {
+			if call, ok := n.(*ast.CallExpr); ok && isTaskFileWrite(call) {
+				outside = append(outside, path)
+			}
+			return true
+		})
+		return nil
+	}))
+
+	assert.Empty(t, outside,
+		"model.WriteTaskFile is called only from internal/cli, so the lock-reachability scan there is exhaustive")
 }
