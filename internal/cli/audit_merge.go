@@ -156,7 +156,14 @@ func loadAuditMergeRows(args []string) []map[string]any {
 			rows = append(rows, row)
 		}
 		if err := scanner.Err(); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: stopped reading %s early (%v); rows after the over-long line were dropped (line cap is 1MB)\n", path, err)
+			// Aborting, not warning: a read that failed produces zero rows, and
+			// zero rows is what a genuinely clean round looks like — so a
+			// swallowed error here lets an input tp never read record a clean
+			// round. The old warning also named one cause (an over-long line)
+			// for every failure, including reading a directory.
+			f.Close()
+			output.Error(ExitFile, fmt.Sprintf("cannot read %s: %v", path, err), ndjsonInputFileHint)
+			os.Exit(ExitFile)
 		}
 		f.Close()
 	}
