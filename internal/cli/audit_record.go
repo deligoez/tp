@@ -50,7 +50,7 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 
 	data, err := os.ReadFile(recordPath)
 	if err != nil {
-		output.Error(ExitFile, fmt.Sprintf("cannot read results file: %s", recordPath), recordFileMissingHint)
+		output.Error(ExitFile, fmt.Sprintf("cannot read results file: %s: %v", recordPath, err), recordFileMissingHint)
 		os.Exit(ExitFile)
 		return nil
 	}
