@@ -2,24 +2,6 @@
 
 Spec-to-task lifecycle manager for AI coding agents. Go CLI tool.
 
-## Install
-
-```bash
-brew tap deligoez/tap && brew install tp   # Homebrew
-go install github.com/deligoez/tp/cmd/tp@latest   # or Go
-```
-## Key Concept: AX (Agent Experience)
-
-AX = Agent Experience (analogous to DX = Developer Experience).
-Every design decision in tp optimizes for the AI agent as the primary user:
-- Minimize round-trips (2-call architecture: `tp plan` + `tp done --batch`)
-- Minimize output tokens (concise JSON, `--compact` flag strips ~40%)
-- Clear actionable errors with `hint` field ("cannot claim X: blocked by Y")
-- Deterministic behavior (no ambiguity, no prompts)
-- Fast startup (<50ms per call)
-
-**Always evaluate changes through the AX lens: does this reduce token overhead for the agent?**
-
 ## Four Foundational Principles
 
 | # | Principle | Definition |
@@ -29,6 +11,8 @@ Every design decision in tp optimizes for the AI agent as the primary user:
 | P3 | Minimal Tokens | Every output byte costs agent context |
 | P4 | Agent Plans, Tool Executes | Agent produces decisions, tool deterministically executes |
 
+**Always evaluate a change through the AX lens: does this reduce token overhead or round-trips for
+the agent?** What tp is, how it installs, and what AX buys the reader are `README.md`'s job.
 ## Quick Reference
 
 ```bash
@@ -50,110 +34,9 @@ go build -ldflags="-s -w" -o tp ./cmd/tp
 
 ## Commands
 
-### Primary (2-call architecture)
-```bash
-tp plan                        # Full execution plan in one call (THE primary command)
-tp plan --minimal              # Minimal: id + acceptance only (~80% fewer tokens)
-tp commit <id> [reason]        # Stage + structured commit + record SHA (--files for selective)
-tp done <id> <reason>          # Close task with implicit claim + verification
-tp done id1 id2 id3 "reason"   # Multi-ID close (shared reason, last arg = reason)
-tp done <id> --auto-commit     # Commit + close in one call
-tp done <id> --covered-by <id> # Close as covered by another done task
-tp done --batch results.ndjson # Batch close from NDJSON (primary close mechanism)
-tp brief [id]                # Read-only unit brief (identity, scope fence, prior work, close recipe)
-```
-
-### Incremental (fallback)
-```bash
-tp next                        # Resume WIP or claim next ready task
-tp next --minimal              # Minimal output: {id, acceptance} only
-tp next --peek                 # Preview without claiming
-tp next --brief                # Claim + return the unit's brief (the form a fresh unit runs itself)
-```
-
-### Task State
-```bash
-tp claim <id> [id...]          # open -> wip (batch: multiple IDs, --all-ready)
-tp close <id> <reason>         # wip -> done (low-level, prefer tp done)
-tp reopen <id>                 # done -> open (clears gate_passed_at, commit_sha)
-tp remove <id>                 # Remove task (--force for dep cleanup)
-tp set <id> field=value        # Update field (managed fields protected)
-tp set --workflow field=value  # Update workflow-level fields (convergence params)
-tp set --bulk sets.ndjson      # Bulk update from NDJSON {id, field, value}
-```
-
-### Query
-```bash
-tp list                        # All tasks (--status, --tag, --ids, --compact)
-tp ready                       # Deps-satisfied tasks (--first, --count, --ids)
-tp show <id>                   # Full details + spec_excerpt + blocks
-tp status                      # Progress summary
-tp report                      # Per-task duration and estimation accuracy
-tp blocked                     # Tasks waiting on deps
-tp graph                       # Dependency tree (--tag, --from)
-tp stats                       # Parallelism analysis
-```
-
-### Spec & Validation
-```bash
-tp lint <spec.md>              # Spec quality checks (no task file needed)
-tp review <spec.md>            # Adversarial review prompts (implementer, tester, architect)
-tp review <spec.md> --perspective code-audit --affected-files <paths>  # Code audit with source files
-tp review <spec.md> --round N --final-round --affected-files <paths>  # Final round: mandatory code read-through
-tp review --merge r1.ndjson r2.ndjson -o merged.ndjson  # Merge + dedup findings from NDJSON files
-tp review --resolve findings.ndjson <idx> <disposition> "evidence"  # Mark finding fixed/wontfix/duplicate
-tp review --resolve-all findings.ndjson <disposition> "evidence"  # Mark all unresolved findings
-tp review --verify <spec.md> --findings all.ndjson  # Lightweight verification prompt (verifier role)
-tp review --report r1.ndjson r2.ndjson  # Cross-round convergence report
-tp review <spec.md> --diff-from <old-spec.md>  # Diff-based review (changed sections only)
-tp review <spec.md> --spec-inline             # Embed full spec inline (default: reference mode)
-tp review --resolve ... --force              # Force re-resolve already resolved findings
-tp audit <spec.md>              # Post-implementation: verify code matches spec (auto-detects changed files via git diff)
-tp audit <spec.md> --affected-files <paths>  # Manual file selection (comma-separated or repeated)
-tp audit <spec.md> --findings <file.ndjson>  # Also verify review findings were addressed
-tp validate                    # Task file validation (--strict)
-```
-
-### Data
-```bash
-tp init <spec.md>              # Create empty task file
-tp add <json>                  # Add task (--stdin, --bulk for NDJSON bulk)
-tp import <file>               # Import + validate (--force to overwrite, auto-fills coverage)
-tp import <file> --spec <spec> # Import bare JSON array (auto-wraps into TaskFile)
-tp use <file>                  # Set active task file (writes .tp/local.json, git-ignored)
-tp use --clear                 # Clear the active pointer
-tp use                         # Show current active file
-```
-
-### Project Config (v0.24.0)
-```bash
-tp config                      # Effective (resolved) config as JSON
-tp config --resolved           # Annotate each setting with {value, source} layer
-tp config --extract            # Hoist policy shared by ALL task files into .tp/config.json (--dry-run/--force)
-tp set --workflow --project <field>=<value>  # Edit a project-level workflow default
-tp set --local defaults.<flag>=<bool>        # Set a CLI flag default (compact/quiet/no_color)
-tp validate --project          # Cross-spec workflow drift (informational; --strict → exit 1)
-```
-
-### Global Flags
-```
---file <path>    Explicit task file
---json           Force JSON output
---compact        Minimal JSON (~40% smaller); --no-compact forces full
---quiet          Suppress info messages; --no-quiet forces info output
---no-color       Disable colors; --color forces color
-```
-
-### Task File Discovery
-Priority: `--file` flag > `TP_FILE` env var > `.tp/local.json` active pointer > auto-detect. The legacy `.tp-active` marker was removed in v0.25.0.
-Auto-detect scans current dir, then one level of subdirectories for `*.tasks.json`.
-The active pointer lives in `.tp/local.json` (git-ignored); set it with `tp use <file>`. The `.tp/` dir is found by walking up to the `.git` boundary.
-
-### JSON Field Aliases
-- `deps` accepted as alias for `depends_on` in task JSON (import, add)
-- `estimation_minutes` accepted as alias for `estimate_minutes`
-- `acceptance` accepts string or `["item1", "item2"]` (array joined with `\n- `)
-
+The command index is in `README.md`; the exact form of every command and flag, plus the workflows
+that use them, is the inventory in `skills/tp/SKILL.md`. Do not restate either here — a fourth copy
+is a fourth thing to drift.
 ## Project Structure
 
 ```
@@ -201,26 +84,16 @@ skills/tp/
 9. **Release**: tag, push, `gh release edit` with notes
 
 ### Rules
-- Every task MUST have `source_sections` (canonical headings); `source_lines` is optional precision (§13.4). A task with neither anchor is a validation error.
-- The quality gate runs automatically at `tp done`/`tp close`; `--skip-gate "why"` and — on budget exhaustion — raising `review_max_rounds`/`audit_max_rounds` or `tp import --force` are **user-approved decisions, never the agent's own**.
-- **Convergence criteria differ by phase (v0.28.0+).** *Spec review* iterates until a counted round surfaces **no blocking findings** — the blocking severities are **critical or high** (the enforced predicate; the built-in `review_converge_on=blocking` policy, with `review_converge_on=all` opting into the strict any-severity bright line) — never declare review convergence, and never accept a round-budget cap, while any critical or high finding is open; low/medium findings may be accepted with recorded justification once none blocking remain. *Implementation audit* always runs to the full **2 consecutive clean rounds and is never cut short by an early cap**: implementation correctness is not negotiable, so a hit `audit_max_rounds` means fix the findings and continue (with a user-approved cap raise), not accept-and-ship with findings open.
-- Commit the `.tp-review/` state directory to version control (import enforcement + CI depend on it).
-- **The audit's 2-clean-rounds rule is about SPEC CONFORMANCE, not about the codebase at large (v0.32.0 lesson).** tp counts every non-PASS row against convergence regardless of whether it concerns the spec, and the general lenses (`go-safety`, `maintainability-conventions`, `ax-contract`) always find *something* in a real codebase — so read literally, the rule has no fixed point. tp's own v0.32.0 audit ran **11 rounds with zero FAIL in any of them** while `spec-coverage`, the only role measuring conformance, was **55/55 clean from round 2 onward**; the rounds were consumed by hint wording, advisory channels and git scoping the spec never mentions, and each repair round created fresh surface for the next round. **Track `spec-coverage` separately — but no longer by hand: since v0.33.0, tp audit now reports spec_coverage_clean_rounds**, a top-level field on both `tp audit --status` and `tp audit --record` carrying that role's consecutive clean-round count (`null`, never `0`, when the latest recorded round measured no conformance — a `null` is an absence of evidence, not a clean round). Two siblings make it actionable: `role_streaks` gives the same `consecutive_clean`/`open` pair for every role in the latest recorded round, so the streak *lengths* show whether the remaining findings are backlog or a regression; and `divergence` is emitted only when `spec-coverage` has already met the clean-round threshold while other roles still hold open findings — it names those lenses in `open_roles` and carries a hint putting the accept-or-continue call on the operator. Three further conditions withhold it, so its absence is not by itself evidence of agreement: a spec edited after the latest recorded round, an already-converged audit, and an auditor corpus edited after that round (`roles_stale`). When `spec-coverage` is clean two rounds running and no round has produced a FAIL, out-of-surface findings are backlog: record them with justification, name the version that takes them, and ship. "Never cut short" still forbids shipping with a spec-scoped finding open — that part is not negotiable. Keep audit repairs minimal for the same reason: a repair that introduces a new abstraction (a channel move, a new helper) belongs to the next version, not to this audit. v0.33.0 shipped the **signal only, with the gate untouched**: `engine.Converged`, the stored per-round `clean` flag and the exit code of `tp audit --status --check` still count every non-PASS row, so a round holding only general-lens findings is still not clean and shipping over it is still a deliberate operator decision. The policy half — a `scope` field on audit rows and `audit_converge_on` — became Non-Goals 1 and 2 of v0.33.0 and is deferred to **v0.34.0**, because `scope` is a judgement made by the very sub-agent that wrote the row, and wired into the release gate one row mislabelled `codebase` lets a genuine spec violation ship: strictly worse than today's rule, which only over-counts and wastes rounds.
-- Every table row and numbered list item in spec must appear in a task's acceptance
-- Run backward pass: `tp validate` line coverage + structured element check
-- Use `--covered-by` when a task is satisfied by another task's work
+- **Convergence, gate and budget policy live in `skills/tp/SKILL.md`** (Gate, Budget & Escalation Policy, plus Workflow A step 2 and Workflow D). It applies here unchanged: `--skip-gate`, raising `review_max_rounds`/`audit_max_rounds`, and `tp import --force` are **user-approved decisions, never the agent's own**.
+- **The audit's 2-clean-rounds rule is about SPEC CONFORMANCE, not about the codebase at large (v0.32.0 lesson).** SKILL.md's Workflow D carries the rule and the signals that make it measurable (`spec_coverage_clean_rounds`, `role_streaks`, `divergence`). What it cost here: tp's own v0.32.0 audit ran **11 rounds with zero FAIL in any of them** while `spec-coverage`, the only role measuring conformance, was **55/55 clean from round 2 onward** — the rounds went to hint wording, advisory channels and git scoping the spec never mentions, and each repair round created fresh surface for the next. So once `spec-coverage` is clean two rounds running and no round has produced a FAIL, record the out-of-surface findings with justification, name the version that takes them, and ship — never over an open spec-scoped finding, and keep audit repairs minimal, because a repair that introduces a new abstraction (a channel move, a new helper) belongs to the next version rather than to this audit.
 - Quality gate after every task: `go test ./... && golangci-lint run` — `golangci-lint run` (v2) only checks formatters (`gofmt`/`gofumpt`) when a `formatters:` section enables them, so tp's `.golangci.yml` enables `gofmt` (else a gofmt-dirty file passes the gate)
-- One task = one commit = one `tp commit` call
-- **A change and the test it invalidates belong to the SAME task** (v0.31.2 lesson). The gate runs at every `tp done`, so "a later task fixes that test" is impossible: the earlier close is already red. A dependency graph that separates them looks correct and cannot be executed. Decompose by *what the gate sees*, not by concern.
-- **Verify the gate with separate exit codes, never a `&&` chain** (v0.31.2 lesson). `go test ./... && golangci-lint run && echo OK` prints nothing when it fails, and a missing `OK` does not catch the eye — a red `golangci-lint` survived four audit rounds this way. Run `go test ./...; echo $?` then `golangci-lint run; echo $?`. Note `unused`, `unparam` and `gocritic` are all enabled, so an orphaned symbol, an unused parameter, or a range that copies a large struct each fail the gate.
 - **When `tp review --record` names the same `mechanize_candidates` class for a third round, write the check instead of the prose fix.** A class that survived three prose corrections will survive the fourth. `scripts/check-test-inventory.py` is the worked example: register it with `tp set --workflow checks='[{"class":"...","cmd":"..."}]'` and `tp review` runs it every round. Test the check itself before trusting it — its first version mis-parsed the spec and its literal set was both too broad and too narrow.
 - **Guard a dangerous value at the sink, not at the entry point.** A `tp done --commit` check does not protect `commit_shas` written by `tp import`/`tp add`; `engine.SafeGitRev` is applied wherever a caller-supplied string becomes a git argument. When an audit finding says a fix is incomplete, re-derive the claim rather than defending it.
-- **Role corpus (v0.25.0, custom since v0.26.0)** — review/audit roles are project-owned data (`.tp/reviewers/*.json`, `.tp/auditors/*.json`, one file per role: `{id,title,instructions,focus[],domains[]}`, `id` = filename stem, `regression` reserved). tp OWNS the finding output contract; a role only customizes the prompt. **spec-coverage is the only auditor id that changes routing** — it alone takes the spec-derived checklist and its own file selection, while every other auditor role receives one `file_check` item per file over the same shared, ranked, capped code-file list, so a role id never selects a file list of its own. `tp init --eject-roles [--domain software|prose] [--force]` writes the defaults as editable, byte-identical files (the embedded default auditor prompts changed in v0.31.2, and **ejected role files are not rewritten on upgrade** — re-eject with `--force` to adopt them), and `tp lint`/`tp review`/`tp audit` abort (exit 3) on a malformed role file. **tp's own repo dogfoods a custom 4+4 corpus (adopted v0.26.0)**: `.tp/reviewers/{implementer,tester,architect,ax-economist}.json` + `.tp/auditors/{spec-coverage,go-safety,maintainability-conventions,ax-contract}.json` — the three tuned defaults plus two tp-specific lenses (`ax-economist` = token/round-trip/knob economy in spec review; `ax-contract` = the agent-facing JSON output contract in code audit). `domains` is omitted (tp is single-domain). Every `tp review`/`tp audit` dogfoods the corpus emission, `(location,class)` dedup + per-role overlap report, and per-phase `roles_hash` staleness. The standalone `tp: lens` frontmatter is retired (use `tp.review_roles`/`tp.audit_roles` focus overrides); `.tp-active` is removed (`.tp/local.json` is the sole active pointer). **Per-spec deactivation (v0.32.0)** — a `tp.review_roles`/`tp.audit_roles` override object takes `enabled` beside `focus` (any other key warns, naming the set as `(only focus and enabled)`): enabled: false deactivates a role for one spec — no prompt, and that override's `focus` applied nowhere — while `enabled: true` is a no-op, a non-boolean warns and is ignored, and `enabled: null` is unset. The role is named in `skipped_roles` with the reason `disabled-by-spec` (omitted under `--compact`). Two refusals fire **on prompt emission only** — never under `--record`, `--status`, `--merge`, `--resolve`/`--resolve-all`, `--verify` or `--report` — and each exits 2 before any prompt is emitted or any state is written: `every <phase> role is deactivated by this spec: <ids>` and `spec-coverage cannot be deactivated: it carries the entire spec-derived checklist` (the latter reported first when both trip). `domains` stays the **durable** axis — a role's standing scope across every spec, reported as `domain-mismatch` — and `enabled: false` is the **one-spec exception** to it.
+- **This repo's role corpus (custom since v0.26.0)** — tp dogfoods a custom 4+4 corpus: `.tp/reviewers/{implementer,tester,architect,ax-economist}.json` + `.tp/auditors/{spec-coverage,go-safety,maintainability-conventions,ax-contract}.json` — the three tuned defaults plus two tp-specific lenses (`ax-economist` = token/round-trip/knob economy in spec review; `ax-contract` = the agent-facing JSON output contract in code audit). `domains` is omitted (tp is single-domain). Every `tp review`/`tp audit` therefore dogfoods corpus emission, `(location,class)` dedup, the per-role overlap report and per-phase `roles_hash` staleness. The corpus format, the frontmatter overrides and per-spec deactivation are documented in `skills/tp/SKILL.md`.
 - **Dogfood the in-progress binary** — during self-development, always run tp against its OWN repo with a freshly built binary (`go build -o /tmp/tp-dev/tp ./cmd/tp`), never the PATH-installed release (it lags and hides new behavior). Rebuild after every implementing commit, and once a task adds a new command/flag, immediately exercise that new capability on tp's own spec/task files to surface bugs the unit tests miss (real dogfooding). When a version's new feature can manage tp's own workflow (e.g. a new config file), adopt it for the remaining development of that same version. This applies to the **review and audit loops too**: run every `tp review` / `tp audit` (including `--record` / `--status`) through the current, to-be-released binary so each round dogfoods the exact code being shipped — never a lagging PATH release. Once a version's own feature can drive review/audit (e.g. user-defined reviewer roles), the remaining rounds of that version use it. Before implementation starts (spec + review phase) the current version is simply the latest release — no behavioral difference — but still route every tp call (`lint` / `init` / `review`) through the freshly-built binary.
 - **English everywhere in committed artifacts** — commit messages, `tp commit`/`tp done` closure reasons (they land in `commit_sha` bodies and `closed_reason`), code comments, docs, **and release notes** (they live on the GitHub release, an outward-facing artifact) are ALWAYS in English, regardless of the conversation language. Author notes/thinking may be in any language, but nothing committed to the repo (or posted to its releases) may be. If a Turkish (or other non-English) message slips into history, fix it with `hc rewrite` (commit messages) or by editing the artifact (closure reasons, docs, release notes) before release.
 - **Task-closing commits follow `commit_strategy`** (v0.28.0) — under `builtin`, close through `tp commit` (records `commit_shas`) or `tp done --auto-commit`; under `hc` (tp's own default, since `hc` is installed here), the agent commits with `hc` and then records the SHA(s) via `tp done --commit <sha> [--commit <sha> …]` (stored in `commit_shas`, `commit_sha` mirrors `[0]`). Never raw `git commit`; and under `hc`, `tp commit`/`tp done --auto-commit`/a bare `tp done` are rejected (exit 2) — a close needs `--commit` or `--covered-by`
 - Every other commit (spec progression, docs, tooling, changes outside a task) goes through the `hc` skill (hunk-based atomic commits) — never raw `git commit`
-- `source_sections` entries should use canonical form `"## Heading Text"` (with `##` prefix and space). v0.22.0+ accepts plain text and auto-normalizes, but prefer canonical form for clarity in committed `.tasks.json` files.
 - **Update `skills/tp/SKILL.md` before every release** — new commands, flags, lint rules, and workflow changes MUST be reflected in the skill file before creating the release tag
 - **Pre-release checklist** — before running `gh release create`, verify:
   1. `skills/tp/SKILL.md` reflects all new commands, flags, lint rules, and workflow changes
@@ -239,7 +112,7 @@ skills/tp/
 
 Prefer running each **unit** in a **fresh subagent context** (Agent/Task tool), not inline in the orchestrator: one implementation task, or one review/audit round's per-role reviewers/auditors. The subagent's work reaches disk (commit, `tp done`, `.tp-review` record); the orchestrator re-orients from durable state (`tp resume`/`tp next`) between units, so nothing load-bearing lives only in a context window. (Verified: a fresh subagent implemented, gated, committed, and closed a task end-to-end from injected context alone.)
 
-**Brief the unit, don't retype its context (v0.30.0).** A fresh subagent inherits CLAUDE.md + skills but NOT the orchestrator's session history, so its **first call is `tp next --brief`** — it claims the task and receives a self-sufficient brief: identity and the one-unit-then-stop rule, the **scope fence** (implement only what this task's acceptance requires; no refactor/rename/cleanup; no hand-editing `<base>.tasks.json` or `.tp-review/`; an out-of-fence finding goes in the closure evidence as an `Out of scope:` line, never a fix), prior work (each dependency's evidence and the files its commits touched), the verbatim acceptance + `spec_excerpt`, and the exact close recipe for the effective `commit_strategy` (the `--` separator, the N-evidence-line format, and under `hc` that `tp commit`/`--auto-commit`/a bare `tp done` are rejected). The orchestrator may instead run read-only `tp brief` first to produce the brief, then decide whether to spawn; `tp resume`'s `next_action.brief_command` names the right command per phase. **Inject only what tp cannot know** — runtime-specific setup (which tools the sub-agent should use, e.g. native Read/Edit/Write/grep are hook-blocked → use codedbpro) and the live operational gotchas not yet carried by the brief (run the quality gate yourself before `tp done`; codedbpro same-file range/insert edits apply in **list order**; the `TP_HC` env seam for deterministic strategy in tests).
+**Brief the unit, don't retype its context (v0.30.0).** `skills/tp/SKILL.md` describes what the brief carries and why the orchestrator produces it rather than remembering it. In this repo the unit's first call is `/tmp/tp-dev/tp next --brief`, and the orchestrator injects only what tp cannot know: native Read/Edit/Write/grep are hook-blocked → use codedbpro (same-file range/insert edits apply in **list order**); run the quality gate yourself before `tp done`; the `TP_HC` env seam gives tests a deterministic strategy.
 
 **Honest boundaries.** Subagents don't nest (one level), so the orchestrator does each round's fan-out itself; the orchestrator's own context is NOT reset in this model — only the units are. For a full reset of the driver too, use the `/clear` + `tp resume` loop (human/harness-triggered, since an agent can't clear its own caller's context — §2.1) or drive tp externally with headless `claude -p` per unit.
 
@@ -271,23 +144,16 @@ Prefer running each **unit** in a **fresh subagent context** (Agent/Task tool), 
 
 ## Conventions
 
-- Exit codes: 0=success, 1=validation, 2=usage, 3=file, 4=state
+tp's own behavior — exit codes, managed fields, workflow field ranges, `--compact` semantics,
+acceptance delimiters, field aliases, discovery order, lint rules — is documented once, in
+`skills/tp/SKILL.md` and `skills/tp/REFERENCE.md`. What follows is only what is a convention of
+*this codebase*:
+
 - JSON output when piped or `--json`, colored text in TTY
-- `--compact` omits: description, source_sections, source_lines, tags, closed_reason, spec_excerpt
-- All write operations use flock; reads are lock-free
-- Task status: open -> wip -> done (3 states only, blocked computed from deps)
-- Managed fields (tp set rejects): status, started_at, closed_at, closed_reason, gate_passed_at, commit_sha, commit_shas
-- Workflow fields (`tp set --workflow`): `review_clean_rounds`/`audit_clean_rounds` (default 2, 1-10), `gate_timeout_seconds` (default 600, 30-3600), `review_max_rounds`/`audit_max_rounds` (default 0=no cap, 0-50), `lock_timeout_seconds` (default 5, 1-60 — write-lock retry/backoff window, v0.29.0), `checks` (array of `{class, cmd}`, replace semantics). `quality_gate` and `commit_strategy` stay init-authored (read-only at the task level); set the project `commit_strategy` with `tp set --workflow --project commit_strategy=<builtin|auto|hc>`. These fields also have project-level **defaults** in `.tp/config.json` (v0.24.0); a task file's `workflow` block holds only explicit overrides and effective values resolve at read time (`tp config --resolved`). `tp set --workflow --project` edits the project defaults; `tp set --local defaults.<flag>=<bool>` sets CLI flag defaults (`compact`/`quiet`/`no_color`).
-- Managed fields also reject `gate_skipped_reason`. `tp reopen` clears `gate_passed_at`, `gate_skipped_reason`, `commit_sha`, and `commit_shas`.
 - Pretty-printed JSON with 2-space indentation
-- spec_excerpt capped at 2000 chars; assembled from `source_lines` when present, else from `source_sections` text (v0.29.0)
-- source_lines supports multi-range: "4-10,15-20,25-30" and auto-normalizes single numbers ("72" → "72-72")
-- `tp lint` reports structured elements, duplicate consecutive lines, duplicate consecutive paragraphs, section numbering gaps, orphan list items, broken `§X.Y step N` cross-references, and `empty-section` (leaf headings only — container headings whose next heading is deeper are skipped, v0.29.0)
-- `tp validate` checks line coverage (source_lines vs spec content lines). Coverage is recomputed on every task-set/anchor write (`add`/`import`/`remove`/`set source_*`), so `tp init` + `tp add` + `tp validate` is clean with no `import` round trip (v0.29.0)
-- `tp done --batch` auto-toposorts entries by in-batch dependencies
-- `tp import` accepts bare JSON arrays with `--spec` flag
-- Slice fields (`depends_on`, `source_sections`, `tags`) serialize as `[]` never `null`; `tp add` validates entry rules (id/title/acceptance/anchor/unknown-deps) at entry (v0.29.0)
-- Acceptance criteria delimiters: `. ` (period+space), `; ` (semicolon+space), `\n- ` (bullet list)
+- All write operations use flock; reads are lock-free
+- Task status is stored as `open -> wip -> done` (three states only; blocked is computed from deps)
+- `unused`, `unparam` and `gocritic` are enabled, so an orphaned symbol, an unused parameter, or a range that copies a large struct each fail the gate
 
 ## Manual QA Testing
 
