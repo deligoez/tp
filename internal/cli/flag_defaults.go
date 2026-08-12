@@ -25,7 +25,7 @@ func applyFlagDefaults(c *cobra.Command) {
 	conflict("quiet", "no-quiet")
 	conflict("no-color", "color")
 
-	defaults := engine.LocalFlagDefaults(".")
+	defaults := engine.LocalFlagDefaults()
 	applyDefault := func(posFlag, negFlag, key string, target *bool) {
 		if c.Flags().Changed(posFlag) || c.Flags().Changed(negFlag) {
 			return // an explicit flag or its negation already decides the value

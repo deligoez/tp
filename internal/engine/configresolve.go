@@ -63,10 +63,10 @@ func LoadTaskWorkflowOverride(taskFilePath string) (model.WorkflowOverride, erro
 }
 
 // LocalFlagDefaults returns the boolean flag defaults recorded in
-// .tp/local.json discovered from start, or nil when there is no .tp/, no
-// local.json, or no defaults.
-func LocalFlagDefaults(start string) map[string]bool {
-	tpDir := DiscoverTPDir(start)
+// .tp/local.json discovered from the working directory, or nil when there is no
+// .tp/, no local.json, or no defaults.
+func LocalFlagDefaults() map[string]bool {
+	tpDir := DiscoverTPDir(".")
 	if tpDir == "" {
 		return nil
 	}

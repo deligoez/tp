@@ -75,7 +75,7 @@ func resolvedConfig(wf *model.Workflow, override *model.WorkflowOverride) map[st
 		result["active"] = map[string]any{"value": path, "source": source}
 	}
 	// defaults provenance: flag defaults from .tp/local.json report local.
-	if defaults := engine.LocalFlagDefaults("."); len(defaults) > 0 {
+	if defaults := engine.LocalFlagDefaults(); len(defaults) > 0 {
 		dmap := make(map[string]any, len(defaults))
 		for k, v := range defaults {
 			dmap[k] = map[string]any{"value": v, "source": "local"}
