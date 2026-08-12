@@ -91,6 +91,13 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 		if loadErr != nil {
 			return loadErr
 		}
+		// Same guard as the audit record path: LoadReviewState returns
+		// (nil, nil) when state.json is gone and no artifacts remain, and an
+		// external delete can produce that between EnsureReviewState and this
+		// lock. Without it the dereference below panics instead of exiting 3.
+		if st == nil {
+			return fmt.Errorf("review state disappeared while recording: %s", engine.ReviewStateDir(specPath))
+		}
 		round = len(st.ReviewRounds) + 1
 		fileName := fmt.Sprintf("review-round-%d.ndjson", round)
 		// Round file first, index entry second
