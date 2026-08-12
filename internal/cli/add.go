@@ -101,6 +101,7 @@ func readBulkTasks(path string) []model.Task {
 	// and feeds no convergence gate, so it was left out of the review/audit
 	// sweep that shares ndjsonLineCap.
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
+	scanner.Buffer(make([]byte, 0, 64*1024), ndjsonLineCap)
 	var tasks []model.Task
 	lineNum := 0
 	for scanner.Scan() {
@@ -123,7 +124,15 @@ func readBulkTasks(path string) []model.Task {
 		tasks = append(tasks, task)
 	}
 	if err := scanner.Err(); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: stopped reading %s early (%v); tasks after the over-long line were dropped (line cap is 64KB)\n", path, err)
+		// Aborting, not warning: the old contract kept the tasks read before
+		// the over-long line, dropped that row and every row after it, and
+		// still exited 0 — a three-row file adding one task and reporting
+		// success. A bulk add applies every row or none, so nothing is written
+		// and the failing line is named. At ndjsonLineCap this fires only past
+		// 1MB on a single line.
+		output.Error(ExitFile, fmt.Sprintf("cannot read %s: line %d: %v", path, lineNum+1, err), ndjsonReadHint(err))
+		os.Exit(ExitFile)
+		return nil
 	}
 	return tasks
 }
