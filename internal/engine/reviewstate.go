@@ -251,6 +251,10 @@ func createReviewStateExclusiveOpen(path string, data []byte) (bool, error) {
 	}
 	if _, err := f.Write(append(data, '\n')); err != nil {
 		f.Close()
+		// Remove it: this branch created the file, so leaving a zero-byte
+		// state.json behind would turn a failed write into a state directory
+		// LoadReviewState calls corrupt.
+		_ = os.Remove(path)
 		return false, err
 	}
 	return true, f.Close()
