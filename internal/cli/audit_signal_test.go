@@ -453,10 +453,11 @@ func TestAuditGate_ResumeIsUnchangedByTheDivergence(t *testing.T) {
 
 // Test 30 (Non-Goals 1, 2, 5 and 6) — the gate has no escape hatch and the
 // signal carries no gate input. There is no audit_converge_on knob to flip
-// (Non-Goal 2, deferred to v0.34.0) and no audit-side --resolve to park a
-// finding with (Non-Goal 5); a per-role streak entry carries the three keys of
-// §2.2 and nothing else, so neither a per-role threshold (Non-Goal 6) nor a
-// scope label (Non-Goal 1) can arrive unnoticed.
+// (Non-Goal 2 of v0.33.0, deferred again by v0.34.0 §11 and still carried in
+// spec/0.34.0-candidates.md) and no audit-side --resolve to park a finding with
+// (Non-Goal 5); a per-role streak entry carries the three keys of §2.2 and
+// nothing else, so neither a per-role threshold (Non-Goal 6) nor a scope label
+// (Non-Goal 1) can arrive unnoticed.
 func TestAuditGate_NoEscapeHatchFromTheGate(t *testing.T) {
 	dir, record := divergingFixture(t)
 
