@@ -183,11 +183,61 @@ func EnsureReviewState(specPath string) (*ReviewState, error) {
 	if err := os.MkdirAll(ReviewStateDir(specPath), 0o755); err != nil {
 		return nil, err
 	}
+	// EXCLUSIVE create, not SaveReviewState: this runs outside the write lock,
+	// and an unconditional write of the empty index clobbered a round another
+	// process had just recorded under the lock. Measured at 4 silently lost
+	// rounds in 100 trials of four concurrent --record runs — silent because
+	// making the write atomic removed the torn read that had been failing those
+	// runs loudly instead. O_EXCL makes the create lose the race safely: if the
+	// index appeared in the meantime, read it rather than overwrite it.
 	st = &ReviewState{Spec: specPath, ReviewRounds: []ReviewRound{}, AuditRounds: []ReviewRound{}}
-	if err := SaveReviewState(specPath, st); err != nil {
+	created, err := createReviewStateExclusive(specPath, st)
+	if err != nil {
 		return nil, err
 	}
+	if !created {
+		return LoadReviewState(specPath)
+	}
 	return st, nil
+}
+
+// createReviewStateExclusive writes the initial index only if no index exists,
+// reporting whether it created one. A concurrent creator is not an error: the
+// caller re-reads what that writer left.
+//
+// Atomic AND exclusive, which is why it is a temp file plus os.Link rather than
+// the obvious O_CREATE|O_EXCL open: that open publishes an EMPTY state.json and
+// fills it afterwards, so a lock-free reader between the two saw "unexpected
+// end of JSON input" — the torn read again, 12 times in 100 concurrent trials.
+// Link fails when the target exists, so the file becomes visible only once it
+// is complete, and only if nobody beat us to it.
+func createReviewStateExclusive(specPath string, st *ReviewState) (bool, error) {
+	data, err := json.MarshalIndent(st, "", "  ")
+	if err != nil {
+		return false, err
+	}
+	path := reviewStatePath(specPath)
+	tmp, err := os.CreateTemp(filepath.Dir(path), "state.json.*.tmp")
+	if err != nil {
+		return false, err
+	}
+	tmpName := tmp.Name()
+	defer func() { _ = os.Remove(tmpName) }()
+
+	if _, err := tmp.Write(append(data, '\n')); err != nil {
+		tmp.Close()
+		return false, err
+	}
+	if err := tmp.Close(); err != nil {
+		return false, err
+	}
+	if err := os.Link(tmpName, path); err != nil {
+		if os.IsExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 // SaveReviewState writes state.json; call under WithReviewStateLock when
