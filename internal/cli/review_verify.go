@@ -28,7 +28,7 @@ func runReviewVerify(specPath, findingsPath string, affectedFiles []string, diff
 	}
 
 	if _, err := os.Stat(findingsPath); os.IsNotExist(err) {
-		output.Error(ExitFile, fmt.Sprintf("findings file not found: %s", findingsPath))
+		output.Error(ExitFile, fmt.Sprintf("findings file not found: %s", findingsPath), findingsFileMissingHint)
 		os.Exit(ExitFile)
 		return nil
 	}

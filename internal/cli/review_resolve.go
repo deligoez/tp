@@ -75,7 +75,7 @@ func runReviewResolve(args []string, force bool) error {
 
 	// Check file exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		output.Error(ExitFile, fmt.Sprintf("findings file not found: %s", filePath))
+		output.Error(ExitFile, fmt.Sprintf("findings file not found: %s", filePath), findingsFileMissingHint)
 		os.Exit(ExitFile)
 		return nil
 	}
