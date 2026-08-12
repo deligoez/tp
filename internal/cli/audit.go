@@ -863,7 +863,10 @@ func readFindings(path string) []findingRow {
 		if os.IsNotExist(err) {
 			return nil
 		}
-		output.Error(ExitFile, fmt.Sprintf("cannot read findings file: %s", path), err.Error())
+		// Cause in the message, repair in the hint — the convention the review
+		// sinks follow. This site had them inverted: a raw errno stood where the
+		// repair belongs, and the message named only the path.
+		output.Error(ExitFile, fmt.Sprintf("cannot read findings file: %s: %v", path, err), ndjsonInputFileHint)
 		os.Exit(ExitFile)
 		return nil
 	}
