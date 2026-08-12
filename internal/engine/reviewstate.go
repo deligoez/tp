@@ -81,23 +81,12 @@ func (e *StateCorruptError) Hint() string {
 	return fmt.Sprintf("repair or delete %s", e.Path)
 }
 
-// IsMissingStateIndex reports whether err is a StateCorruptError flagging the
-// normal in-flight-round condition (round/snapshot files present but state.json
-// absent) rather than genuine corruption. Emission callers treat this as "no
-// recorded state" (§10.2, InFlightRound) instead of aborting with exit 3.
-func IsMissingStateIndex(err error) bool {
-	var ce *StateCorruptError
-	if errors.As(err, &ce) {
-		return ce.MissingIndex
-	}
-	return false
-}
-
 // IsRebuildableStateIndex reports whether err is a missing index with nothing
 // but snapshots beside it — the state a first audit round leaves behind, where
-// rebuilding the index loses no recorded round. Distinct from
-// IsMissingStateIndex, which is also true when round files are present and the
-// index that referenced them is gone.
+// rebuilding the index loses no recorded round. It replaced a broader
+// IsMissingStateIndex, which was also true when round files were present and
+// the index that referenced them was gone: every caller of that predicate was
+// treating lost history as an in-flight round.
 func IsRebuildableStateIndex(err error) bool {
 	var ce *StateCorruptError
 	if errors.As(err, &ce) {
