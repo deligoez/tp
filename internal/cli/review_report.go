@@ -86,7 +86,7 @@ func runReviewReport(args []string) error {
 	for i, f := range files {
 		findings, parseErr := parseNDJSONFile(f)
 		if parseErr != nil {
-			output.Error(ExitFile, fmt.Sprintf("cannot read %s: %v", f, parseErr), ndjsonInputFileHint)
+			output.Error(ExitFile, fmt.Sprintf("cannot read %s: %v", f, parseErr), ndjsonReadHint(parseErr))
 			os.Exit(ExitFile)
 			return nil
 		}
@@ -196,6 +196,7 @@ func parseNDJSONFile(path string) ([]map[string]any, error) {
 
 	findings := make([]map[string]any, 0)
 	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 0, 64*1024), ndjsonLineCap)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" {

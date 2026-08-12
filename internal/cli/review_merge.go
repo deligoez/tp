@@ -129,6 +129,7 @@ func loadMergeFindings(args []string) []map[string]any {
 			os.Exit(ExitFile)
 		}
 		scanner := bufio.NewScanner(f)
+		scanner.Buffer(make([]byte, 0, 64*1024), ndjsonLineCap)
 		for scanner.Scan() {
 			line := strings.TrimSpace(scanner.Text())
 			if line == "" {
@@ -150,7 +151,7 @@ func loadMergeFindings(args []string) []map[string]any {
 			// also what a clean round looks like, so a swallowed read error
 			// lets an unread input record one.
 			f.Close()
-			output.Error(ExitFile, fmt.Sprintf("cannot read %s: %v", path, err), ndjsonInputFileHint)
+			output.Error(ExitFile, fmt.Sprintf("cannot read %s: %v", path, err), ndjsonReadHint(err))
 			os.Exit(ExitFile)
 		}
 		f.Close()

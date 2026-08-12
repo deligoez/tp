@@ -162,6 +162,7 @@ func readVerifyFindings(path string) []verifyFinding {
 	}
 	findings := make([]verifyFinding, 0)
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
+	scanner.Buffer(make([]byte, 0, 64*1024), ndjsonLineCap)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" {

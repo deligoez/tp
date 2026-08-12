@@ -262,7 +262,7 @@ func readNDJSON(path string) ([]map[string]any, error) {
 
 	findings := make([]map[string]any, 0)
 	scanner := bufio.NewScanner(f)
-	scanner.Buffer(make([]byte, 1024*1024), 1024*1024)
+	scanner.Buffer(make([]byte, 0, 64*1024), ndjsonLineCap)
 	lineNum := 0
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())

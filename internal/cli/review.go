@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -37,6 +38,27 @@ const mechanizedExclusionPrefix = "\n\nMechanically checked classes — do NOT r
 // <spec>'") and repairs nothing here: none of these modes takes a task file or
 // a spec at all.
 const ndjsonInputFileHint = "check the path — this mode takes the NDJSON files the reviewers/auditors wrote, not the spec or the task file"
+
+// ndjsonLineCap is the per-line read cap every findings-NDJSON reader shares.
+// The caps used to disagree — 64KB in --merge, --report and parseFindingsFile,
+// 1MB in --resolve and the audit merge — so a findings file --resolve had just
+// rewritten could be unreadable by --merge. One constant, one answer.
+const ndjsonLineCap = 1024 * 1024
+
+// ndjsonLineTooLongHint explains a line over ndjsonLineCap. Distinct from
+// ndjsonInputFileHint because the path is not the mistake here: the file is
+// exactly where the operator said it was, and one row inside it is too long.
+const ndjsonLineTooLongHint = "a single line exceeded the 1MB NDJSON read cap — re-emit the file with one finding per line, shortening the oversized note"
+
+// ndjsonReadHint picks the hint for a failed NDJSON read. Pointing at the path
+// repairs nothing when the path was fine and the line was too long: that is the
+// one-cause-for-every-failure defect, reversed.
+func ndjsonReadHint(err error) string {
+	if errors.Is(err, bufio.ErrTooLong) {
+		return ndjsonLineTooLongHint
+	}
+	return ndjsonInputFileHint
+}
 
 // specFileMissingHint is the hint for a spec-PATH mistake: tp was handed a path
 // that is not a readable spec markdown file. It deliberately does not guess WHY
@@ -1029,6 +1051,7 @@ func parseFindingsFile(path string) ([]reviewFinding, error) {
 
 	findings := make([]reviewFinding, 0)
 	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 0, 64*1024), ndjsonLineCap)
 	lineNum := 0
 	for scanner.Scan() {
 		lineNum++

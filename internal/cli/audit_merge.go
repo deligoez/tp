@@ -129,7 +129,7 @@ func loadAuditMergeRows(args []string) []map[string]any {
 			os.Exit(ExitFile)
 		}
 		scanner := bufio.NewScanner(f)
-		scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024) // audit notes can be long
+		scanner.Buffer(make([]byte, 0, 64*1024), ndjsonLineCap) // audit notes can be long
 		for scanner.Scan() {
 			line := strings.TrimSpace(scanner.Text())
 			if line == "" {
@@ -162,7 +162,7 @@ func loadAuditMergeRows(args []string) []map[string]any {
 			// round. The old warning also named one cause (an over-long line)
 			// for every failure, including reading a directory.
 			f.Close()
-			output.Error(ExitFile, fmt.Sprintf("cannot read %s: %v", path, err), ndjsonInputFileHint)
+			output.Error(ExitFile, fmt.Sprintf("cannot read %s: %v", path, err), ndjsonReadHint(err))
 			os.Exit(ExitFile)
 		}
 		f.Close()
