@@ -162,6 +162,13 @@ func recordAuditRoundEntry(specPath string, data []byte, findings int, clean boo
 		if loadErr != nil {
 			return loadErr
 		}
+		// LoadReviewState returns (nil, nil) when state.json is gone and no
+		// round or snapshot artifacts remain, which an external delete between
+		// EnsureReviewState and this lock can produce. Dereferencing it would
+		// panic instead of exiting 3 with the repair hint.
+		if loaded == nil {
+			return fmt.Errorf("review state disappeared while recording: %s", engine.ReviewStateDir(specPath))
+		}
 		st = loaded
 		round = len(st.AuditRounds) + 1
 		fileName := fmt.Sprintf("audit-round-%d.ndjson", round)
