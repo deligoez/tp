@@ -13,7 +13,8 @@ import (
 // captureAuditRoundNotices runs fn with os.Stderr redirected to a pipe and
 // returns what output.Notice wrote. The advisories of §2.1 are the observable
 // half of "this round contributes no rows", so every no-rows assertion below
-// pins the wording as well as the boolean.
+// pins the wording; the ones that also read the return value pin the boolean
+// alongside it.
 func captureAuditRoundNotices(t *testing.T, fn func()) string {
 	t.Helper()
 	r, w, err := os.Pipe()
