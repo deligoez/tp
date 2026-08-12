@@ -20,37 +20,18 @@ func longFindingLine(n int) string {
 		strings.Repeat("x", n))
 }
 
-// TestReviewVerifyUnreadableFindingsFailsLoudly: readVerifyFindings answered
+// TestReviewVerifyFindingsDirectoryFailsLoudly: readVerifyFindings answered
 // every os.ReadFile error with an empty set, and the upstream guard rejects
 // only a missing path. `tp review --verify --findings <unreadable>` therefore
 // exited 0 with empty stderr and told the verifier "Previous review rounds
 // produced 0 findings … If verifier finds 0 issues, review is complete" — the
 // convergence signal, from a file tp never read. The same file through
 // mustParseFindingsFile already aborted; both --findings consumers now do.
-func TestReviewVerifyUnreadableFindingsFailsLoudly(t *testing.T) {
-	if os.Geteuid() == 0 {
-		t.Skip("root reads a 0o000 file, so the open never fails")
-	}
-	dir := t.TempDir()
-	specPath := filepath.Join(dir, "spec.md")
-	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n\n## Section\n\nContent.\n"), 0o600))
-
-	findingsPath := filepath.Join(dir, "findings.ndjson")
-	require.NoError(t, os.WriteFile(findingsPath,
-		[]byte(`{"severity":"critical","category":"correctness","location":"## A","finding":"missing invariant"}`+"\n"), 0o600))
-	require.NoError(t, os.Chmod(findingsPath, 0o000))
-	t.Cleanup(func() { _ = os.Chmod(findingsPath, 0o600) })
-
-	stdout, stderr, code := runTP(t, dir, "review", "--verify", "--findings", findingsPath, specPath)
-	assert.Equal(t, 3, code, "an unreadable findings file is a file error, not a silent empty set")
-	assert.Contains(t, stderr, findingsPath, "stderr names the file tp could not read")
-	assert.NotContains(t, stdout, "produced 0 findings", "no verifier prompt is emitted from findings tp never read")
-}
-
-// TestReviewVerifyFindingsDirectoryFailsLoudly: a directory passes the
-// existence guard and fails the read, which is exactly the arm that used to
-// come back empty — `--findings .tp-review/0.33.0` instead of the file inside
-// it is the likelier operator slip of the two.
+//
+// A directory is the fixture for that one error arm: it passes the existence
+// guard and fails the read exactly as an unreadable file does, and
+// `--findings .tp-review/0.33.0` instead of the file inside it is the likelier
+// operator slip of the two.
 func TestReviewVerifyFindingsDirectoryFailsLoudly(t *testing.T) {
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
