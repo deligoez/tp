@@ -27,8 +27,16 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 	// Corrupt state aborts before any parsing or write
 	stPre, err := engine.LoadReviewState(specPath)
 	if err != nil {
-		exitStateError(err)
-		return nil
+		// Except the snapshot-only window, which tp audit's emission opens and
+		// this command can land in: nothing was ever recorded there, so
+		// EnsureReviewState below rebuilds the index rather than sending the
+		// caller to repair a healthy directory. A round file with no index is
+		// still lost history and still aborts.
+		if !engine.IsRebuildableStateIndex(err) {
+			exitStateError(err)
+			return nil
+		}
+		stPre = nil
 	}
 
 	// Round-budget refusal comes before line parsing and any state write

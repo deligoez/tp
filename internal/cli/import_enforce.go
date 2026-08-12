@@ -20,8 +20,14 @@ func enforceImportConvergence(targetPath string, tf *model.TaskFile) {
 
 	st, err := engine.LoadReviewState(stateSpec)
 	if err != nil {
-		exitStateError(err)
-		return
+		// A directory holding only snapshots recorded nothing, so it reads as
+		// "no recorded rounds" here rather than as corruption — the same window
+		// every other state reader now accepts. Lost history still aborts.
+		if !engine.IsRebuildableStateIndex(err) {
+			exitStateError(err)
+			return
+		}
+		st = nil
 	}
 	if st == nil || len(st.ReviewRounds) == 0 {
 		output.Info("review convergence not verified (no recorded rounds)")
