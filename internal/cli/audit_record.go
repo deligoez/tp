@@ -165,9 +165,15 @@ func recordAuditRoundEntry(specPath string, data []byte, findings int, clean boo
 		// LoadReviewState returns (nil, nil) when state.json is gone and no
 		// round or snapshot artifacts remain, which an external delete between
 		// EnsureReviewState and this lock can produce. Dereferencing it would
-		// panic instead of exiting 3 with the repair hint.
+		// panic instead of aborting through the state-error path.
 		if loaded == nil {
-			return fmt.Errorf("review state disappeared while recording: %s", engine.ReviewStateDir(specPath))
+			// A StateCorruptError rather than a bare error: it carries the
+			// repair hint exitStateError attaches, and it keeps this message
+			// identical to the one the sibling record path produces.
+			return &engine.StateCorruptError{
+				Path:   engine.ReviewStateDir(specPath),
+				Reason: "it disappeared while a round was being recorded",
+			}
 		}
 		st = loaded
 		round = len(st.AuditRounds) + 1
