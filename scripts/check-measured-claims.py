@@ -68,7 +68,13 @@ DOCUMENTED_RULE = re.compile(r"`\^\\\+func Test`.{0,40}`_test\.go`")
 # One file:function per line, bare or as a markdown bullet.
 LIST_ENTRY = re.compile(r"^\s*(?:[-*]\s+)?`?([\w./-]+_test\.go):(Test\w+)`?\s*$", re.M)
 
+# Anchored to the start of a line, not searched as a phrase. A bare substring
+# test matched the sentence documenting the placeholder rule as well as the
+# declaration itself, so deleting the declaration -- the instruction this file
+# and the spec both give -- left the check at exit 1, and the empty-list branch
+# could never fire. The guard was defeated by its own documentation.
 PLACEHOLDER = "Populated by the first task"
+PLACEHOLDER_LINE = re.compile(r"^Populated by the first task", re.M)
 
 # Non-fatal notices: states the check cannot call verified but must not fail.
 PENDING = []
@@ -170,13 +176,14 @@ def check_guard_doc(text: str, spec_text: str, fail) -> None:
             )
 
     entries = {(f, fn) for f, fn in LIST_ENTRY.findall(text)}
-    placeholder = PLACEHOLDER in text
+    placeholder = PLACEHOLDER_LINE.search(text) is not None
 
     if entries and placeholder:
         fail(
-            f"{GUARD_DOC}: {len(entries)} list entries alongside the "
-            f"{PLACEHOLDER!r} declaration. Delete the declaration when the list is "
-            f"written -- leaving it suppresses every check below."
+            f"{GUARD_DOC}: {len(entries)} list entries alongside the declaration "
+            f"line starting {PLACEHOLDER!r}. Delete that line when the list is "
+            f"written -- leaving it suppresses every check below. Mentions of the "
+            f"phrase inside a sentence do not count; only a line that starts with it."
         )
         return
     if not entries:
