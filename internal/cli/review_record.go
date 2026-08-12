@@ -155,13 +155,18 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 	// same live predicate --status reports, so both agree on the just-recorded
 	// round.
 	liveClean := engine.ReviewRoundClean(specPath, &st.ReviewRounds[round-1], wf.ReviewConvergeOn)
+	// One walk, not two: ReviewConverged re-reads every recorded round's file,
+	// and it was previously called once for the payload and once for
+	// next_action. The audit record path hoists the same value; keeping the
+	// two paths consistent is what stops the cost from creeping back.
+	converged := engine.ReviewConverged(specPath, st.ReviewRounds, wf.ReviewCleanRounds, specHash, wf.ReviewConvergeOn)
 	result := map[string]any{
 		"round":                 round,
 		"findings":              findings,
 		"clean":                 liveClean,
 		"consecutive_clean":     engine.ReviewConsecutiveClean(specPath, st.ReviewRounds, wf.ReviewConvergeOn),
 		"required_clean_rounds": wf.ReviewCleanRounds,
-		"converged":             engine.ReviewConverged(specPath, st.ReviewRounds, wf.ReviewCleanRounds, specHash, wf.ReviewConvergeOn),
+		"converged":             converged,
 		"stale":                 engine.StateStale(st.ReviewRounds, specHash),
 		"mechanize_candidates":  candidates,
 		"mechanized_classes":    mechanizedClasses,
@@ -197,7 +202,6 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 	// just-recorded round is the latest, so branch 2's "convergence-blocking
 	// finding survives in the latest round" is exactly !liveClean; branch 3 reads
 	// the same mechanize candidates surfaced above.
-	converged := engine.ReviewConverged(specPath, st.ReviewRounds, wf.ReviewCleanRounds, specHash, wf.ReviewConvergeOn)
 	result["next_action"] = engine.ReviewNextAction(specPath, converged, !liveClean, mechanizeCandidateClasses(candidates))
 	return output.JSON(result)
 }
