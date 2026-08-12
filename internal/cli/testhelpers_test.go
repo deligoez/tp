@@ -29,15 +29,17 @@ func repoRoot(t *testing.T) string {
 	}
 }
 
-// repoRootDocs are the four repo-root documents the documentation guard tests
-// hold to one story: each states part of the audit routing contract (§4), and
-// each must carry the per-spec deactivation lever wording. Both guards read the
-// same set, so the set lives here rather than being duplicated per guard.
-var repoRootDocs = []string{
-	"README.md",
+// roleContractDocs are the documents that own the audit routing contract and
+// the role-corpus rules. Until v0.34.0 §8.1 the same wording was required in
+// all four repo-root documents; giving every fact one home left SKILL.md (what
+// an agent needs mid-cycle) and REFERENCE.md (the exhaustive detail) as its
+// homes, and README.md's one-time index and CLAUDE.md's repo conventions point
+// at them instead. Asserting the wording in the pointers would re-create the
+// duplication §8.1 removed. Both guards read the same set, so the set lives
+// here rather than being duplicated per guard.
+var roleContractDocs = []string{
 	"skills/tp/SKILL.md",
 	"skills/tp/REFERENCE.md",
-	"CLAUDE.md",
 }
 
 // readRepoDoc reads a repo-root-relative document and fails the test when it is

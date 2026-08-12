@@ -8,14 +8,6 @@ import (
 	"github.com/deligoez/tp/internal/engine"
 )
 
-// The two documents that additionally render the audit prompt's body order and
-// the prompts[].role contract verbatim (§4). The four that state the routing
-// contract itself are repoRootDocs, shared with the per-spec lever guard.
-var auditPromptOrderDocs = []string{
-	"skills/tp/SKILL.md",
-	"skills/tp/REFERENCE.md",
-}
-
 const (
 	routingSubstring = "spec-coverage is the only auditor id that changes routing"
 	upgradeSubstring = "ejected role files are not rewritten on upgrade"
@@ -28,12 +20,16 @@ const (
 )
 
 // TestDocsStateOneAuditRoutingContract guards §4 (pinned by §7 item 15): the
-// four documents that state part of the audit routing contract must tell one
-// story, and every §4 requirement is guarded by a required substring rather
-// than only by the absence of a superseded one — so deleting the old wording
-// without writing the new one fails here too.
+// documents that state the audit routing contract must tell one story, and
+// every §4 requirement is guarded by a required substring rather than only by
+// the absence of a superseded one — so deleting the old wording without writing
+// the new one fails here too.
+//
+// v0.34.0 §8.1 narrowed the set from four documents to the two that own the
+// contract: the audit prompt's body order and the prompts[].role contract are
+// schema detail, so REFERENCE.md renders them alone.
 func TestDocsStateOneAuditRoutingContract(t *testing.T) {
-	for _, doc := range repoRootDocs {
+	for _, doc := range roleContractDocs {
 		text := readRepoDoc(t, doc)
 		assert.Contains(t, text, routingSubstring, "%s states the routing rule", doc)
 		assert.Contains(t, text, upgradeSubstring, "%s records that an ejected corpus keeps its old copies", doc)
@@ -41,38 +37,28 @@ func TestDocsStateOneAuditRoutingContract(t *testing.T) {
 		assert.NotContains(t, text, "file-maint-", "%s carries no superseded item-id prefix", doc)
 	}
 
-	for _, doc := range auditPromptOrderDocs {
-		text := readRepoDoc(t, doc)
-		assert.Contains(t, text, sharedArmOrder, "%s renders the shared-arm prompt body order", doc)
-		assert.Contains(t, text, specCoverageOrder, "%s renders the spec-coverage prompt body order", doc)
-		assert.Contains(t, text, roleValueSubstring, "%s states prompts[].role as a corpus role id", doc)
-		assert.NotContains(t, text, "always `\"implementation-auditor\"`",
-			"%s no longer renders the superseded prompts[].role value", doc)
-		for _, enum := range []string{
-			"`spec-coverage` \\| `security` \\| `maintainability-conventions`",
-			"`spec-coverage` | `security` | `maintainability-conventions`",
-		} {
-			assert.NotContains(t, text, enum, "%s no longer renders prompts[].role as a three-id enum", doc)
-		}
+	reference := readRepoDoc(t, "skills/tp/REFERENCE.md")
+	assert.Contains(t, reference, sharedArmOrder, "REFERENCE.md renders the shared-arm prompt body order")
+	assert.Contains(t, reference, specCoverageOrder, "REFERENCE.md renders the spec-coverage prompt body order")
+	assert.Contains(t, reference, roleValueSubstring, "REFERENCE.md states prompts[].role as a corpus role id")
+	assert.NotContains(t, reference, "always `\"implementation-auditor\"`",
+		"REFERENCE.md no longer renders the superseded prompts[].role value")
+	for _, enum := range []string{
+		"`spec-coverage` \\| `security` \\| `maintainability-conventions`",
+		"`spec-coverage` | `security` | `maintainability-conventions`",
+	} {
+		assert.NotContains(t, reference, enum, "REFERENCE.md no longer renders prompts[].role as a three-id enum")
 	}
 
-	assert.Contains(t, readRepoDoc(t, "skills/tp/REFERENCE.md"), itemIDSubstring,
+	assert.Contains(t, reference, itemIDSubstring,
 		"REFERENCE.md documents the deterministic item ids in the role-id slug form")
-}
-
-// convergenceSummaryDocs are the two driver-facing documents §4 asks for both
-// summary substrings. CLAUDE.md and REFERENCE.md carry requirements of their
-// own, which is why this set is not repoRootDocs.
-var convergenceSummaryDocs = []string{
-	"README.md",
-	"skills/tp/SKILL.md",
 }
 
 const (
 	divergenceCountingSubstring = "audit convergence still counts every non-PASS row"
 	checkRetirementSubstring    = "a registered check retires its mechanize candidate"
 
-	claudeSignalFieldSubstring = "tp audit now reports spec_coverage_clean_rounds"
+	claudeSignalFieldSubstring = "spec_coverage_clean_rounds"
 )
 
 // referenceSignalSentences are the first four of §4's five verbatim sentences
@@ -93,17 +79,22 @@ var referenceSignalSentences = []string{
 }
 
 // TestDocsCarryTheConvergenceSignalWording guards §4 (pinned by §6 test 46):
-// the four documents this release changes must carry their required substrings
-// verbatim, so a release that ships the fields without the wording — or that
-// reworders the wording later — fails here.
+// the documents that describe the convergence signals must carry their required
+// substrings verbatim, so a release that ships the fields without the wording —
+// or that rewords them later — fails here.
+//
+// v0.34.0 §8.1 moved the driver-facing summary into SKILL.md alone: README.md
+// now points at the skill for the audit loop rather than restating it, so
+// asserting the sentences there would pin a duplicate the sweep removed.
+// CLAUDE.md's audit-scope rule still has to name the field carrying the
+// spec-coverage streak, because that rule is this repository's own and its
+// meaning depends on the field.
 func TestDocsCarryTheConvergenceSignalWording(t *testing.T) {
-	for _, doc := range convergenceSummaryDocs {
-		text := readRepoDoc(t, doc)
-		assert.Contains(t, text, divergenceCountingSubstring,
-			"%s states that audit convergence still counts every non-PASS row", doc)
-		assert.Contains(t, text, checkRetirementSubstring,
-			"%s states that a registered check retires its mechanize candidate", doc)
-	}
+	skill := readRepoDoc(t, "skills/tp/SKILL.md")
+	assert.Contains(t, skill, divergenceCountingSubstring,
+		"SKILL.md states that audit convergence still counts every non-PASS row")
+	assert.Contains(t, skill, checkRetirementSubstring,
+		"SKILL.md states that a registered check retires its mechanize candidate")
 
 	assert.Contains(t, readRepoDoc(t, "CLAUDE.md"), claudeSignalFieldSubstring,
 		"CLAUDE.md's audit-scope rule names the field carrying the spec-coverage streak")

@@ -32,12 +32,13 @@ var referenceTrimLeverSubstrings = []string{
 	"guard against deactivating a role that has open findings",
 }
 
-// TestDocsStateThePerSpecRoleLever guards §4 (pinned by §6 item 17): the four
-// repo-root documents must each carry the pinned substring, and REFERENCE.md
-// must state both of a trim_candidate's levers and how differently they are
-// guarded.
+// TestDocsStateThePerSpecRoleLever guards §4 (pinned by §6 item 17): the
+// documents that own the role-corpus rules must each carry the pinned
+// substring, and REFERENCE.md must state both of a trim_candidate's levers and
+// how differently they are guarded. v0.34.0 §8.1 narrowed the set from four
+// documents to those two owners.
 func TestDocsStateThePerSpecRoleLever(t *testing.T) {
-	for _, doc := range repoRootDocs {
+	for _, doc := range roleContractDocs {
 		assert.Contains(t, readRepoDoc(t, doc), perSpecLeverSubstring,
 			"%s states the per-spec deactivation lever verbatim", doc)
 	}
