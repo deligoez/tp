@@ -53,7 +53,10 @@ type ReviewState struct {
 }
 
 // StateCorruptError marks an unusable state directory. Callers abort with
-// exit 3 and the repair hint; tp never silently rebuilds the index.
+// exit 3 and the repair hint. tp never rebuilds an index over RECORDED history
+// — a round file with no state.json always aborts — but a directory holding
+// only snapshots recorded nothing, and EnsureReviewState rebuilds that (see
+// OnlySnapshots below).
 type StateCorruptError struct {
 	Path   string
 	Reason string

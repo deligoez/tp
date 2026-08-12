@@ -320,7 +320,7 @@ The wrapper is only for what tp cannot know — runtime setup (e.g. hook-blocked
 - `tp` owns the review/audit round lifecycle in `<spec-dir>/.tp-review/<spec-base>/` (`state.json`, `snapshot-round-<N>.md`, `review-round-<N>.ndjson`, `audit-round-<N>.ndjson`).
 - **Commit `.tp-review/` to version control.** Import convergence enforcement holds across clones and CI only when the recorded rounds travel with the repo. `state.json`, every round NDJSON, and the newest snapshot are load-bearing.
 - **Prunable:** only snapshot files older than the newest MAY be deleted (the diff falls back gracefully).
-- **CI implication:** ignoring the directory makes every `tp import` in CI behave as "no recorded rounds" (import proceeds with an info line) — convergence is then unverifiable. A corrupt or index-less directory aborts state-reading commands with exit 3 and a repair hint; tp never silently rebuilds the index.
+- **CI implication:** ignoring the directory makes every `tp import` in CI behave as "no recorded rounds" (import proceeds with an info line) — convergence is then unverifiable. A directory holding round files with no `state.json` aborts state-reading commands with exit 3 and a repair hint — that index referenced recorded history, and tp never rebuilds over it. A directory holding only snapshots is the in-flight window between emitting a round and recording it: nothing was ever recorded there, so the next `--record` rebuilds the index rather than refusing.
 
 ## Tail protocol (when a round drops to one or two low/medium findings)
 
