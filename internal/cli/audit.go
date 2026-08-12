@@ -523,7 +523,9 @@ func refuseAuditIfBudgetExhausted(specPath string) {
 	}
 	stBudget, stErr := engine.LoadReviewState(specPath)
 	if stErr != nil {
-		if !engine.IsMissingStateIndex(stErr) {
+		// Rebuildable only: with a round file present and the index gone, the
+		// budget would be computed from history tp cannot see.
+		if !engine.IsRebuildableStateIndex(stErr) {
 			exitStateError(stErr)
 			return
 		}

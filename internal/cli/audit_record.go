@@ -25,8 +25,19 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 
 	stPre, err := engine.LoadReviewState(specPath)
 	if err != nil {
-		exitStateError(err)
-		return nil
+		if !engine.IsRebuildableStateIndex(err) {
+			exitStateError(err)
+			return nil
+		}
+		// The emission wrote a round snapshot and tp audit never calls
+		// EnsureReviewState, so state.json is legitimately absent here — the
+		// in-flight window refuseAuditIfBudgetExhausted documents. Reading it as
+		// corruption made the FIRST audit round of any spec with no prior tp
+		// review unrecordable: emit, then --record, then exit 3 telling the
+		// caller to delete a healthy state directory. EnsureReviewState below
+		// rebuilds the index when nothing but snapshots is there, and still
+		// aborts when a round file says recorded history went missing.
+		stPre = nil
 	}
 
 	// Round-budget refusal comes before line parsing and any state write
@@ -236,8 +247,17 @@ func runAuditStatus(specPath string, check bool) error {
 
 	st, err := engine.LoadReviewState(specPath)
 	if err != nil {
-		exitStateError(err)
-		return nil
+		if !engine.IsRebuildableStateIndex(err) {
+			exitStateError(err)
+			return nil
+		}
+		// Same in-flight window as runAuditRecord: after the first emission a
+		// snapshot exists with no index yet, and --status reporting that as
+		// corruption put the whole §2.5 signal out of reach exactly when a
+		// caller would first ask for it. Rebuildable only — a round file with
+		// no index is history tp lost, and reporting an empty audit_rounds for
+		// it would be the false-clean this release exists to prevent.
+		st = nil
 	}
 
 	wf, _ := engine.ResolveWorkflow(specPath, flagFile)
