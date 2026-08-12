@@ -3,6 +3,7 @@ package cli
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -124,8 +125,7 @@ func runReviewResolve(args []string, force bool) error {
 	})
 
 	if lockErr != nil {
-		output.Error(ExitFile, lockErr.Error())
-		os.Exit(ExitFile)
+		exitResolveError(filePath, lockErr)
 		return nil
 	}
 
@@ -182,7 +182,7 @@ func runReviewResolveAll(args []string, force bool) error {
 
 	// Check file exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		output.Error(ExitFile, fmt.Sprintf("file not found: %s", filePath))
+		output.Error(ExitFile, fmt.Sprintf("file not found: %s", filePath), findingsFileMissingHint)
 		os.Exit(ExitFile)
 		return nil
 	}
@@ -226,8 +226,7 @@ func runReviewResolveAll(args []string, force bool) error {
 	})
 
 	if lockErr != nil {
-		output.Error(ExitFile, lockErr.Error())
-		os.Exit(ExitFile)
+		exitResolveError(filePath, lockErr)
 		return nil
 	}
 
@@ -250,6 +249,24 @@ func allFindingsResolved(findings []map[string]any) bool {
 		}
 	}
 	return true
+}
+
+// exitResolveError reports a failure from inside the findings-file write lock.
+// Both --resolve and --resolve-all reported it as a bare exit 3 carrying only
+// the raw error, which cost the caller two things: lock contention lost its
+// exit 4 and its wait-and-retry hint (the §12.2 mapping exitStateError already
+// makes for the record paths), and every other cause drew the code-3 default's
+// task-file advice without so much as naming the file. One function, so the two
+// sibling commands cannot answer the same failure differently.
+func exitResolveError(path string, err error) {
+	var lockErr *engine.LockTimeoutError
+	if errors.As(err, &lockErr) {
+		output.Error(ExitState, lockErr.Error(), lockErr.Hint())
+		os.Exit(ExitState)
+		return
+	}
+	output.Error(ExitFile, fmt.Sprintf("cannot update %s: %v", path, err), ndjsonReadHint(err))
+	os.Exit(ExitFile)
 }
 
 // readNDJSON reads a file as newline-delimited JSON into a slice of maps.
