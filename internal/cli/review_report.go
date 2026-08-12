@@ -73,7 +73,7 @@ func runReviewReport(args []string) error {
 	for i, f := range files {
 		findings, parseErr := parseNDJSONFile(f)
 		if parseErr != nil {
-			output.Error(ExitFile, fmt.Sprintf("cannot read %s: %v", f, parseErr))
+			output.Error(ExitFile, fmt.Sprintf("cannot read %s: %v", f, parseErr), ndjsonInputFileHint)
 			os.Exit(ExitFile)
 			return nil
 		}

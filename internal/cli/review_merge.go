@@ -116,7 +116,7 @@ func runReviewMerge(args []string, outputPath string) error {
 func loadMergeFindings(args []string) []map[string]any {
 	for _, path := range args {
 		if _, err := os.Stat(path); os.IsNotExist(err) {
-			output.Error(ExitFile, fmt.Sprintf("file not found: %s", path))
+			output.Error(ExitFile, fmt.Sprintf("file not found: %s", path), ndjsonInputFileHint)
 			os.Exit(ExitFile)
 		}
 	}
@@ -125,7 +125,7 @@ func loadMergeFindings(args []string) []map[string]any {
 	for _, path := range args {
 		f, err := os.Open(path)
 		if err != nil {
-			output.Error(ExitFile, fmt.Sprintf("cannot open file: %s", path))
+			output.Error(ExitFile, fmt.Sprintf("cannot open file: %s", path), ndjsonInputFileHint)
 			os.Exit(ExitFile)
 		}
 		scanner := bufio.NewScanner(f)
