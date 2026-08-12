@@ -135,66 +135,79 @@ func runImport(_ *cobra.Command, args []string) error {
 	dir := filepath.Dir(tf.Spec)
 	targetPath := filepath.Join(dir, base+".tasks.json")
 
-	// Workflow preservation (§9.3): when the target exists and the imported
-	// document carries no top-level workflow key (raw-JSON key check, before
-	// struct defaulting), the existing file's workflow block is carried over.
-	// Bare arrays cannot carry workflow, so they always preserve.
-	if _, statErr := os.Stat(targetPath); statErr == nil && !importedHasWorkflowKey(trimmed) {
-		if existing, readErr := model.ReadTaskFile(targetPath); readErr == nil {
-			tf.Workflow = existing.Workflow
+	// §3: the whole read-modify-write runs under the task-file write lock, on
+	// the same terms as every other write command. WriteTaskFile is atomic, but
+	// atomicity is not mutual exclusion — an unlocked import racing a
+	// concurrent add lost the add's task in 1 of 20 runs, both processes
+	// exiting 0. engine.WithFileLock honours the resolved
+	// lock_timeout_seconds; a lock held past it returns *LockTimeoutError,
+	// which Execute maps to exit 4 (STATE) with a hint naming the lock path and
+	// the elapsed wait. The success path is unchanged.
+	if lockErr := engine.WithFileLock(targetPath, func() error {
+		// Workflow preservation (§9.3): when the target exists and the imported
+		// document carries no top-level workflow key (raw-JSON key check, before
+		// struct defaulting), the existing file's workflow block is carried over.
+		// Bare arrays cannot carry workflow, so they always preserve.
+		if _, statErr := os.Stat(targetPath); statErr == nil && !importedHasWorkflowKey(trimmed) {
+			if existing, readErr := model.ReadTaskFile(targetPath); readErr == nil {
+				tf.Workflow = existing.Workflow
+			}
 		}
-	}
 
-	// Import convergence enforcement (§9.1/§9.2); runs before the file-exists
-	// guard so a stale or unconverged spec blocks with exit 1 even when the
-	// target already holds tasks. --force bypasses both checks.
-	if !importForce {
-		enforceImportConvergence(targetPath, tf)
-	}
-
-	// Check if exists — a zero-task init shell may be overwritten without
-	// --force; --force is reserved for overwriting a file with real tasks
-	if _, err := os.Stat(targetPath); err == nil && !importForce {
-		existing, readErr := model.ReadTaskFile(targetPath)
-		if readErr != nil || len(existing.Tasks) > 0 {
-			output.Error(ExitFile, fmt.Sprintf("task file already exists: %s (use --force to overwrite)", targetPath))
-			os.Exit(ExitFile)
-			return nil
+		// Import convergence enforcement (§9.1/§9.2); runs before the file-exists
+		// guard so a stale or unconverged spec blocks with exit 1 even when the
+		// target already holds tasks. --force bypasses both checks.
+		if !importForce {
+			enforceImportConvergence(targetPath, tf)
 		}
-	}
 
-	// Resolve spec, normalize source_sections to canonical form (lenient — accepts
-	// plain-text headings from tp lint output), then auto-fill coverage.
-	specPath, specExists := engine.ResolveSpecPath(targetPath, tf.Spec)
-	if specExists {
-		headings, perr := engine.ParseHeadings(specPath)
-		if perr == nil && len(headings) > 0 {
-			if nerr := engine.NormalizeSourceSections(tf.Tasks, headings); nerr != nil {
-				output.Error(ExitValidation, nerr.Error())
-				os.Exit(ExitValidation)
+		// Check if exists — a zero-task init shell may be overwritten without
+		// --force; --force is reserved for overwriting a file with real tasks
+		if _, err := os.Stat(targetPath); err == nil && !importForce {
+			existing, readErr := model.ReadTaskFile(targetPath)
+			if readErr != nil || len(existing.Tasks) > 0 {
+				output.Error(ExitFile, fmt.Sprintf("task file already exists: %s (use --force to overwrite)", targetPath))
+				os.Exit(ExitFile)
 				return nil
 			}
 		}
-	}
-	if specExists && tf.Coverage.TotalSections == 0 {
-		engine.AutoFillCoverage(tf, specPath)
-	}
 
-	// Validate (strict atomicity unless --force)
-	result := engine.Validate(tf, specPath, specExists, !importForce)
-	if !result.Valid {
-		if err := output.JSON(result); err != nil {
-			output.Error(ExitFile, err.Error())
+		// Resolve spec, normalize source_sections to canonical form (lenient — accepts
+		// plain-text headings from tp lint output), then auto-fill coverage.
+		specPath, specExists := engine.ResolveSpecPath(targetPath, tf.Spec)
+		if specExists {
+			headings, perr := engine.ParseHeadings(specPath)
+			if perr == nil && len(headings) > 0 {
+				if nerr := engine.NormalizeSourceSections(tf.Tasks, headings); nerr != nil {
+					output.Error(ExitValidation, nerr.Error())
+					os.Exit(ExitValidation)
+					return nil
+				}
+			}
 		}
-		output.Error(ExitValidation, "import failed: validation errors found")
-		os.Exit(ExitValidation)
-		return nil
-	}
+		if specExists && tf.Coverage.TotalSections == 0 {
+			engine.AutoFillCoverage(tf, specPath)
+		}
 
-	if err := model.WriteTaskFile(targetPath, tf); err != nil {
-		output.Error(ExitFile, err.Error())
-		os.Exit(ExitFile)
+		// Validate (strict atomicity unless --force)
+		result := engine.Validate(tf, specPath, specExists, !importForce)
+		if !result.Valid {
+			if err := output.JSON(result); err != nil {
+				output.Error(ExitFile, err.Error())
+			}
+			output.Error(ExitValidation, "import failed: validation errors found")
+			os.Exit(ExitValidation)
+			return nil
+		}
+
+		if err := model.WriteTaskFile(targetPath, tf); err != nil {
+			output.Error(ExitFile, err.Error())
+			os.Exit(ExitFile)
+			return nil
+		}
 		return nil
+	}); lockErr != nil {
+		return lockErr
 	}
 
 	output.Success(fmt.Sprintf("imported %d tasks to %s", len(tf.Tasks), targetPath))
