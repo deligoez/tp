@@ -53,8 +53,8 @@ func LoadKeepList(start string) []model.KeepEntry {
 // when absent (with its .gitignore, keeping local.json ignored). After this call
 // keep_uncommitted is always present — an explicit empty list marshals as [] —
 // so the caller controls presence through mutate's return.
-func UpdateKeepList(start string, mutate func([]model.KeepEntry) []model.KeepEntry) error {
-	tpDir := ProjectConfigDir(start)
+func UpdateKeepList(mutate func([]model.KeepEntry) []model.KeepEntry) error {
+	tpDir := ProjectConfigDir(".")
 	if err := os.MkdirAll(tpDir, 0o755); err != nil {
 		return err
 	}

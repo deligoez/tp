@@ -71,7 +71,7 @@ func runKeepAdd(args []string) error {
 		os.Exit(ExitUsage)
 		return nil
 	}
-	if err := engine.UpdateKeepList(".", func(cur []model.KeepEntry) []model.KeepEntry {
+	if err := engine.UpdateKeepList(func(cur []model.KeepEntry) []model.KeepEntry {
 		out := make([]model.KeepEntry, 0, len(cur)+1)
 		replaced := false
 		for _, e := range cur {
@@ -109,7 +109,7 @@ func runKeepRemove(args []string) error {
 		os.Exit(ExitUsage)
 		return nil
 	}
-	if err := engine.UpdateKeepList(".", func(cur []model.KeepEntry) []model.KeepEntry {
+	if err := engine.UpdateKeepList(func(cur []model.KeepEntry) []model.KeepEntry {
 		out := make([]model.KeepEntry, 0, len(cur))
 		for _, e := range cur {
 			if e.Path != norm {
