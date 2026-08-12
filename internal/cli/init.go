@@ -53,39 +53,53 @@ func runInit(_ *cobra.Command, args []string) error {
 	dir := filepath.Dir(specPath)
 	taskFilePath := filepath.Join(dir, base+".tasks.json")
 
-	if _, err := os.Stat(taskFilePath); err == nil {
-		output.Error(ExitFile, fmt.Sprintf("task file already exists: %s", taskFilePath))
-		os.Exit(ExitFile)
+	// §3: the stat-then-write runs under the task-file write lock, on the same
+	// terms as every other write command — including the path tp add --spec
+	// reaches by calling runInit before taking its own lock. WriteTaskFile is
+	// atomic, but atomicity is not mutual exclusion: unlocked, init could stat
+	// a missing target, lose the interval to a concurrent writer, and then
+	// overwrite that writer's file with the empty shell. engine.WithFileLock
+	// honours the resolved lock_timeout_seconds; a lock held past it returns
+	// *LockTimeoutError, which Execute maps to exit 4 (STATE) with a hint
+	// naming the lock path and the elapsed wait. The success path is unchanged.
+	if lockErr := engine.WithFileLock(taskFilePath, func() error {
+		if _, err := os.Stat(taskFilePath); err == nil {
+			output.Error(ExitFile, fmt.Sprintf("task file already exists: %s", taskFilePath))
+			os.Exit(ExitFile)
+			return nil
+		}
+
+		now := time.Now().UTC()
+		tf := &model.TaskFile{
+			Version:   1,
+			Spec:      specPath,
+			CreatedAt: now,
+			UpdatedAt: now,
+			Workflow:  model.WorkflowOverride{},
+			Coverage: model.Coverage{
+				ContextOnly: []string{},
+				Unmapped:    []string{},
+			},
+			Tasks: []model.Task{},
+		}
+
+		if initQualityGate != "" {
+			qg := initQualityGate
+			tf.Workflow.QualityGate = &qg
+		}
+		if initCommitStrategy != "" {
+			cs := initCommitStrategy
+			tf.Workflow.CommitStrategy = &cs
+		}
+
+		if err := model.WriteTaskFile(taskFilePath, tf); err != nil {
+			output.Error(ExitFile, err.Error())
+			os.Exit(ExitFile)
+			return nil
+		}
 		return nil
-	}
-
-	now := time.Now().UTC()
-	tf := &model.TaskFile{
-		Version:   1,
-		Spec:      specPath,
-		CreatedAt: now,
-		UpdatedAt: now,
-		Workflow:  model.WorkflowOverride{},
-		Coverage: model.Coverage{
-			ContextOnly: []string{},
-			Unmapped:    []string{},
-		},
-		Tasks: []model.Task{},
-	}
-
-	if initQualityGate != "" {
-		qg := initQualityGate
-		tf.Workflow.QualityGate = &qg
-	}
-	if initCommitStrategy != "" {
-		cs := initCommitStrategy
-		tf.Workflow.CommitStrategy = &cs
-	}
-
-	if err := model.WriteTaskFile(taskFilePath, tf); err != nil {
-		output.Error(ExitFile, err.Error())
-		os.Exit(ExitFile)
-		return nil
+	}); lockErr != nil {
+		return lockErr
 	}
 
 	tpDir := engine.ProjectConfigDir(".")
