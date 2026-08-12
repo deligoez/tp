@@ -942,7 +942,7 @@ func readBatchEntries(path string) ([]batchEntry, error) {
 
 	var entries []batchEntry
 	scanner := bufio.NewScanner(f)
-	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024) // tolerate long NDJSON lines (up to 1 MiB)
+	scanner.Buffer(make([]byte, 0, 64*1024), ndjsonLineCap) // tolerate long NDJSON lines
 	for scanner.Scan() {
 		line := scanner.Text()
 		if line == "" {

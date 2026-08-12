@@ -691,7 +691,7 @@ func execGitDiffProbe(dir, probe string, args ...string) []string {
 		return []string{}
 	}
 	var files []string
-	scanner := bufio.NewScanner(strings.NewReader(string(out)))
+	scanner := bufio.NewScanner(strings.NewReader(string(out))) // line-cap: git diff output, one path per line, not NDJSON
 	for scanner.Scan() {
 		f := strings.TrimSpace(scanner.Text())
 		if f != "" {
@@ -864,6 +864,7 @@ func readFindings(path string) []findingRow {
 	}
 	var results []findingRow
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
+	scanner.Buffer(make([]byte, 0, 64*1024), ndjsonLineCap)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" {
@@ -889,7 +890,17 @@ func readFindings(path string) []findingRow {
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		output.Notice(fmt.Sprintf("warning: stopped reading %s early (%v); rows after the over-long line were dropped (line cap is 64KB)", path, err))
+		// Aborting, not an advisory — a reversal of the v0.28.0 contract, made
+		// deliberately. These rows become the finding-verification checklist,
+		// so rows dropped after an over-long line are findings the audit never
+		// asks about while still recording the round: the false-clean class the
+		// loaders were swept for. The advisory was worse than it looked, since
+		// output.Notice honours --quiet: exit 0, empty stderr, a quietly shorter
+		// checklist. Every sibling NDJSON reader aborts, and at ndjsonLineCap
+		// this fires only past 1MB on a single line.
+		output.Error(ExitFile, fmt.Sprintf("cannot read %s: %v", path, err), ndjsonReadHint(err))
+		os.Exit(ExitFile)
+		return nil
 	}
 	return results
 }
