@@ -194,27 +194,54 @@ func TestAdd_BulkRejectsIntraBatchDuplicate(t *testing.T) {
 	assert.Equal(t, 1, code)
 }
 
-func TestAdd_BulkWarnsOnOverlongLine(t *testing.T) {
+// TestAdd_BulkOverLongLineAborts REVERSES the contract this file used to pin
+// in TestAdd_BulkWarnsOnOverlongLine: exit 0, a warning on stderr, the rows
+// before the over-long line added and that row plus every row after it
+// dropped. A three-row file that adds one task and reports success IS the
+// silent data loss the warning was meant to announce — and the warning went to
+// bare stderr, so a JSON-mode caller reading the exit code saw nothing at all.
+// tp add --bulk now reads at the shared ndjsonLineCap and, past it, aborts
+// exit 3 naming the file and the line, applying no row.
+func TestAdd_BulkOverLongLineAborts(t *testing.T) {
 	dir := initEntryProject(t)
-	// A single line exceeding the bufio.Scanner 64KB token cap makes
-	// scanner.Err() return bufio.ErrTooLong; readBulkTasks must warn on
-	// stderr and drop everything after the over-long line (exit 0, not a
-	// hard error) instead of silently losing data.
+	before := readRawTaskFile(t, dir)
+
 	ndjson := validEntryTask + "\n" +
-		strings.Repeat("x", 70000) + "\n" +
-		`{"id":"t2","title":"Dropped","estimate_minutes":5,"acceptance":"dropped","source_sections":["## 2. Models"]}` + "\n"
+		strings.Repeat("x", 2*1024*1024) + "\n" +
+		`{"id":"t2","title":"Second","estimate_minutes":5,"acceptance":"second","source_sections":["## 2. Models"]}` + "\n"
 	bulkPath := filepath.Join(dir, "bulk.ndjson")
 	require.NoError(t, os.WriteFile(bulkPath, []byte(ndjson), 0o600))
 
 	_, stderr, code := runTP(t, dir, "add", "--bulk", bulkPath)
-	require.Equal(t, 0, code, "over-long line is a warning, not a hard error: %s", stderr)
-	assert.Contains(t, stderr, "over-long line")
-	assert.Contains(t, stderr, "dropped")
+	require.Equal(t, 3, code, "an over-long line is a file error, not a partial add: %s", stderr)
 
-	// t1 (before the over-long line) was added; t2 (after it) was dropped.
-	raw := string(readRawTaskFile(t, dir))
-	assert.Contains(t, raw, `"t1"`)
-	assert.NotContains(t, raw, `"t2"`)
+	e := errJSON(t, stderr)
+	assert.Contains(t, e["error"], bulkPath, "the error names the file tp could not read")
+	assert.Contains(t, e["error"], "line 2", "the error names the line that exceeded the cap")
+	hint, ok := e["hint"].(string)
+	require.True(t, ok, "an over-long line must carry a hint")
+	assert.Contains(t, hint, "1MB", "the hint names the cap that was exceeded")
+
+	assert.Equal(t, before, readRawTaskFile(t, dir),
+		"the abort writes nothing: not even the rows read before the over-long line")
+}
+
+// TestAdd_BulkReadsRowUpToTheCap pins the other side of the same move. 200KB is
+// far past bufio's 64KB default this reader used to keep — that row was dropped
+// with a warning — and well under the shared 1MB cap, so it is now an ordinary
+// row. Without this the abort above would still pass at any cap, including one
+// lower than the old default.
+func TestAdd_BulkReadsRowUpToTheCap(t *testing.T) {
+	dir := initEntryProject(t)
+	row := `{"id":"big","title":"Big","estimate_minutes":5,"acceptance":"` +
+		strings.Repeat("x", 200*1024) +
+		`","source_sections":["## 1. Setup"],"depends_on":[]}`
+	bulkPath := filepath.Join(dir, "bulk.ndjson")
+	require.NoError(t, os.WriteFile(bulkPath, []byte(row+"\n"), 0o600))
+
+	_, stderr, code := runTP(t, dir, "add", "--bulk", bulkPath)
+	require.Equal(t, 0, code, "a 200KB row is under the 1MB cap: %s", stderr)
+	assert.Contains(t, string(readRawTaskFile(t, dir)), `"big"`, "the row is added, not dropped")
 }
 
 // readRawTaskFile returns the raw bytes of the persisted task file so tests can
