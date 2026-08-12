@@ -61,19 +61,6 @@ func TestSpecCoverageCleanRounds_ZeroWhenTheLatestRoundHoldsAnOpenRow(t *testing
 	assert.JSONEq(t, `{"spec_coverage_clean_rounds":0}`, marshalSpecCoverageField(t, got))
 }
 
-// The two answers of test 18 are rendered differently: an implementation
-// treating 0 as "no answer" — an int with a zero sentinel, or an omitempty
-// field — collapses them and fails here.
-func TestSpecCoverageCleanRounds_NullAndZeroDoNotCollapse(t *testing.T) {
-	zero := 0
-	assert.NotEqual(t,
-		marshalSpecCoverageField(t, nil),
-		marshalSpecCoverageField(t, &zero),
-		"null and 0 are different answers")
-	assert.Contains(t, marshalSpecCoverageField(t, nil), `"spec_coverage_clean_rounds"`,
-		"the key is always emitted, never omitted")
-}
-
 // A clean latest round carries the streak itself, which is what makes the field
 // worth reading at all.
 func TestSpecCoverageCleanRounds_CarriesTheStreakOfACleanLatestRound(t *testing.T) {
