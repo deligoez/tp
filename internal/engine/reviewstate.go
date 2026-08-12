@@ -62,6 +62,14 @@ type StateCorruptError struct {
 	// that --record has not yet indexed), not corruption. Emission callers treat
 	// this as "no recorded state" instead of aborting (§10.2, InFlightRound).
 	MissingIndex bool
+	// OnlySnapshots narrows MissingIndex to the case where the artifacts found
+	// are exclusively snapshots — no round file has ever been written, so the
+	// index records nothing and rebuilding it loses nothing. tp audit's emission
+	// never calls EnsureReviewState, so this is exactly the state a first audit
+	// round leaves behind, and reading it as corruption made that round
+	// unrecordable. A round file beside a missing index is the opposite case:
+	// recorded history is gone, and only the operator can decide what to do.
+	OnlySnapshots bool
 }
 
 func (e *StateCorruptError) Error() string {
@@ -81,6 +89,19 @@ func IsMissingStateIndex(err error) bool {
 	var ce *StateCorruptError
 	if errors.As(err, &ce) {
 		return ce.MissingIndex
+	}
+	return false
+}
+
+// IsRebuildableStateIndex reports whether err is a missing index with nothing
+// but snapshots beside it — the state a first audit round leaves behind, where
+// rebuilding the index loses no recorded round. Distinct from
+// IsMissingStateIndex, which is also true when round files are present and the
+// index that referenced them is gone.
+func IsRebuildableStateIndex(err error) bool {
+	var ce *StateCorruptError
+	if errors.As(err, &ce) {
+		return ce.MissingIndex && ce.OnlySnapshots
 	}
 	return false
 }
@@ -115,7 +136,12 @@ func LoadReviewState(specPath string) (*ReviewState, error) {
 	if err != nil {
 		if os.IsNotExist(err) {
 			if hasStateArtifacts(stateDir) {
-				return nil, &StateCorruptError{Path: stateDir, Reason: "round or snapshot files present but state.json is missing", MissingIndex: true}
+				return nil, &StateCorruptError{
+					Path:          stateDir,
+					Reason:        "round or snapshot files present but state.json is missing",
+					MissingIndex:  true,
+					OnlySnapshots: !hasRecordedRoundFiles(stateDir),
+				}
 			}
 			return nil, nil
 		}
@@ -141,7 +167,15 @@ func LoadReviewState(specPath string) (*ReviewState, error) {
 func EnsureReviewState(specPath string) (*ReviewState, error) {
 	st, err := LoadReviewState(specPath)
 	if err != nil {
-		return nil, err
+		// Snapshots with no index is the state tp audit's emission leaves
+		// behind, since it never calls this function: rebuilding the index
+		// there loses nothing, and refusing made a fresh spec's first audit
+		// round impossible to record. A round file beside a missing index
+		// still aborts — that index referenced history tp must not discard.
+		if !IsRebuildableStateIndex(err) {
+			return nil, err
+		}
+		st = nil
 	}
 	if st != nil {
 		return st, nil
@@ -171,6 +205,26 @@ func SaveReviewState(specPath string, st *ReviewState) error {
 // crash-leftover .tmp file from an interrupted atomic snapshot write is NOT a
 // state artifact — it must not trigger a false-positive corrupt-state abort
 // (§10.2 atomic write).
+// hasRecordedRoundFiles reports whether dir holds a round file — the artifact
+// only --record writes. Snapshots do not count: an emission writes those before
+// any round exists, so their presence alone says nothing was ever recorded.
+func hasRecordedRoundFiles(dir string) bool {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+	for _, e := range entries {
+		name := e.Name()
+		if strings.HasSuffix(name, ".tmp") {
+			continue
+		}
+		if strings.HasPrefix(name, "review-round-") || strings.HasPrefix(name, "audit-round-") {
+			return true
+		}
+	}
+	return false
+}
+
 func hasStateArtifacts(dir string) bool {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
