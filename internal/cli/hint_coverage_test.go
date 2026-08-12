@@ -80,10 +80,12 @@ func TestFileErrorsCarryAHint(t *testing.T) {
 // file, where the code-3 default ("run 'tp use <file>' … 'tp init <spec>'") is
 // the right advice rather than the wrong object.
 //
-// Two entries are excused for a weaker reason, recorded rather than hidden:
-// lint.go and init.go take a SPEC, so their exit-3 sites want
-// specFileMissingHint. They sit outside the v0.33.0 audit surface, and sweeping
-// them is v0.34.0 work — but the list says so instead of implying they are fine.
+// One entry is excused for a weaker reason, recorded rather than hidden:
+// init.go takes a SPEC path but never stats it, so it has no missing-spec site
+// wanting specFileMissingHint (§9.3). Its exit-3 sites are task-file and .tp
+// state writes, and the state writes are not swept here — but the list says so
+// instead of implying they are fine. lint.go left this list in v0.34.0: its
+// spec-path site now passes specFileMissingHint, so the guard enumerates it.
 //
 // The guard fails if an entry no longer exists, so the list cannot rot into a
 // blanket exemption for files nobody has.
@@ -101,9 +103,8 @@ func taskFileCommands(t *testing.T) map[string]bool {
 		"done.go":           "task-file command",
 		"graph.go":          "task-file command",
 		"importcmd.go":      "task-file command",
-		"init.go":           "spec-path sites; specFileMissingHint sweep is v0.34.0",
+		"init.go":           "task-file command; spec path never stat'd, .tp state writes unswept",
 		"keep.go":           "task-file command",
-		"lint.go":           "spec-path sites; specFileMissingHint sweep is v0.34.0",
 		"listcmd.go":        "task-file command",
 		"next.go":           "task-file command",
 		"plan.go":           "task-file command",
