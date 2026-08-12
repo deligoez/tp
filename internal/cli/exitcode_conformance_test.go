@@ -92,6 +92,18 @@ func TestExitCode_StateErrorCarriesHint_ShowMissingID(t *testing.T) {
 	assert.NotEmpty(t, e["hint"], "non-zero error object must carry a hint (§13.2)")
 }
 
+// §9.1: an unknown command is a usage error (exit 2). Cobra reports it as a
+// plain error, which tp used to classify as a validation failure (exit 1).
+func TestExitCode_UnknownCommand_Exit2(t *testing.T) {
+	dir := t.TempDir()
+	_, stderr, code := runTP(t, dir, "bogus-command")
+	e := errJSON(t, stderr)
+	assert.Equal(t, 2, code, "an unknown command must exit 2")
+	assert.Equal(t, float64(2), e["code"], "unknown command must be usage (code 2)")
+	assert.Contains(t, e["error"], `unknown command "bogus-command"`)
+	assert.NotEmpty(t, e["hint"], "usage error must carry a hint (§13.2)")
+}
+
 // §13.2: a usage error with no explicit hint still carries a default hint.
 func TestExitCode_UsageErrorCarriesHint_DoneNoArgs(t *testing.T) {
 	dir := t.TempDir()
