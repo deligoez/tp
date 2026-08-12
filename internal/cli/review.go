@@ -613,8 +613,15 @@ func validateReviewInputs(perspective string, round int, findingsPath string, af
 		if wfBudget.ReviewMaxRounds > 0 {
 			stBudget, stErr := engine.LoadReviewState(specPath)
 			if stErr != nil {
-				exitStateError(stErr)
-				return nil
+				// The snapshot-only window is not corruption, here as at the
+				// five other state reads. Without this the budget knob decided
+				// whether a review round could be emitted at all: default
+				// review_max_rounds emitted fine, a non-zero one exited 3.
+				if !engine.IsRebuildableStateIndex(stErr) {
+					exitStateError(stErr)
+					return nil
+				}
+				stBudget = nil
 			}
 			rounds := []engine.ReviewRound{}
 			if stBudget != nil {

@@ -57,8 +57,15 @@ func runReviewRegression(specPath, diffFrom, findingsPath string) error {
 		// Mode (a): reads state (rounds, snapshots, resolved findings), never writes
 		st, err := engine.LoadReviewState(specPath)
 		if err != nil {
-			exitStateError(err)
-			return nil
+			// A snapshot with no index recorded nothing, so this mode's own
+			// "requires at least one recorded round" usage error below is the
+			// right answer — it used to be reported as exit 3 corruption
+			// instead, about a healthy directory.
+			if !engine.IsRebuildableStateIndex(err) {
+				exitStateError(err)
+				return nil
+			}
+			st = nil
 		}
 		if st == nil || len(st.ReviewRounds) == 0 {
 			output.Error(ExitUsage, "standalone regression requires a state directory with at least one recorded round, or explicit --diff-from plus --findings")
