@@ -225,6 +225,38 @@ func TestReviewSpecInlineOverLongLineTruncationIsVisible(t *testing.T) {
 	assert.Contains(t, prompt, "truncated at", "the prompt says where the spec stopped rather than stopping silently")
 }
 
+// TestAuditFindingsAbortLeavesNoRoundStarted: runAudit states the invariant in
+// its own words — every refusal is decided ahead of the writes the emission path
+// performs, because loadAuditSpec writes the round snapshot. The --findings read
+// abort was reached from buildChecklist, i.e. after that write, so a command
+// that emitted no prompt still left a snapshot on disk and moved
+// in_flight_round to the round it never ran.
+func TestAuditFindingsAbortLeavesNoRoundStarted(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n## Table\n| Col |\n|-----|\n| a |\n"), 0o600))
+	goPath := filepath.Join(dir, "a.go")
+	require.NoError(t, os.WriteFile(goPath, []byte("package main\n"), 0o600))
+
+	findingsPath := filepath.Join(dir, "findings.ndjson")
+	require.NoError(t, os.WriteFile(findingsPath, []byte(longFindingLine(2*1024*1024)+"\n"), 0o600))
+
+	_, stderr, code := runTP(t, dir, "audit", specPath, "--affected-files", goPath, "--findings", findingsPath)
+	require.Equal(t, 3, code, "an unreadable findings file aborts the round")
+	assert.Contains(t, stderr, findingsPath)
+
+	stateDir := filepath.Join(dir, ".tp-review", "spec")
+	entries, err := os.ReadDir(stateDir)
+	if err == nil {
+		for _, e := range entries {
+			assert.NotContains(t, e.Name(), "snapshot-audit",
+				"a round that emitted no prompt must leave no round snapshot behind")
+		}
+	} else {
+		require.True(t, os.IsNotExist(err), "unexpected error reading %s: %v", stateDir, err)
+	}
+}
+
 // hintOf pulls the hint out of tp's JSON error envelope.
 func hintOf(t *testing.T, stderr string) string {
 	t.Helper()
