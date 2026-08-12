@@ -1,7 +1,10 @@
 package cli_test
 
 import (
+	"bytes"
+	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -60,6 +63,62 @@ func TestCommitLeavesForeignLockFilesAlone(t *testing.T) {
 		"tp's own lock file is still kept out of the index")
 }
 
+// TestCommitDropsAlreadyTrackedLockFiles is the half the first version of this
+// guard could not see. Asserting that .tp/locks is absent from the index proves
+// nothing about the pathspec: .tp/.gitignore keeps it unstaged on its own, so
+// the assertion passed even against a tpLockPathspecs() returning nonsense.
+// Force-adding the locks first makes the pathspec the only thing that can drop
+// them — and it catches the two spellings that looked right and matched nothing:
+// a glob pathspec must match the whole path (so the directory form needs the
+// trailing /**), and without :(top) the whole thing resolves against the
+// current directory rather than the repo root.
+func TestCommitDropsAlreadyTrackedLockFiles(t *testing.T) {
+	dir := t.TempDir()
+	nested := filepath.Join(dir, "sub")
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".tp", "locks"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(nested, ".tp", "locks"), 0o755))
+
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n\n## 1. Thing\n\n1. Do it.\n"), 0o600))
+
+	locks := []string{
+		filepath.Join(".tp", "locks", "root.lock"),
+		filepath.Join("sub", ".tp", "locks", "nested.lock"),
+		"spec.tasks.json.lock",
+		filepath.Join("sub", "other.tasks.json.lock"),
+	}
+	for _, name := range locks {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte("stale\n"), 0o600))
+	}
+
+	gitOut(t, dir, "init", "-q", ".")
+	// -f: the ignore file would otherwise keep them out, which is exactly the
+	// masking that made the first guard vacuous.
+	gitOut(t, dir, "add", "-A", "-f")
+	gitOut(t, dir, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init")
+	require.Contains(t, gitOut(t, dir, "ls-files"), ".tp/locks/root.lock", "the fixture starts with locks tracked")
+
+	_, stderr, code := runTP(t, dir, "init", specPath)
+	require.Equal(t, 0, code, "init: %s", stderr)
+	_, stderr, code = runTP(t, dir, "add",
+		`{"id":"t1","title":"T","estimate_minutes":5,"acceptance":"Done.","source_sections":["## 1. Thing"],"depends_on":[]}`)
+	require.Equal(t, 0, code, "add: %s", stderr)
+	_, stderr, code = runTP(t, dir, "claim", "t1")
+	require.Equal(t, 0, code, "claim: %s", stderr)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "out.txt"), []byte("work\n"), 0o600))
+
+	// From the SUBDIRECTORY: pathspecs resolve against the current directory,
+	// so this is where a missing :(top) shows up.
+	_, stderr, code = runTPIn(t, nested, "--file", filepath.Join(dir, "spec.tasks.json"), "commit", "t1", "implemented")
+	require.Equal(t, 0, code, "commit: %s", stderr)
+
+	tracked := gitOut(t, dir, "ls-files")
+	for _, name := range locks {
+		assert.NotContains(t, tracked, filepath.ToSlash(name),
+			"%s must be dropped from the index by the lock pathspec", name)
+	}
+}
+
 // TestLockDirIsGitIgnoredWithoutInit: the lock file outlives the lock now, so
 // the call that creates .tp/locks has to ignore it too. Only tp init and the
 // local.json writers did that, which was survivable while the file was
@@ -92,4 +151,26 @@ func TestLockDirIsGitIgnoredWithoutInit(t *testing.T) {
 		assert.NotContains(t, line, filepath.Join(".tp", "locks"),
 			"no lock file may show up as an unexplained working-tree change")
 	}
+}
+
+// runTPIn runs tp with its working directory set to workdir, so a path-sensitive behaviour like a git pathspec can be exercised from
+// somewhere other than the repo root.
+func runTPIn(t *testing.T, workdir string, args ...string) (stdout, stderr string, exitCode int) {
+	t.Helper()
+	cmd := exec.Command(binaryPath, append([]string{"--json"}, args...)...)
+	cmd.Dir = workdir
+	cmd.Env = append(os.Environ(), "NO_COLOR=1", "TP_HC=0")
+
+	var outBuf, errBuf bytes.Buffer
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &errBuf
+	err := cmd.Run()
+
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		exitCode = exitErr.ExitCode()
+	} else if err != nil {
+		t.Fatalf("unexpected error running tp: %v", err)
+	}
+	return outBuf.String(), errBuf.String(), exitCode
 }
