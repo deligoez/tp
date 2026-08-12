@@ -744,8 +744,8 @@ func runReviewCodeAudit(specPath, specContent string, affectedFiles []string, ro
 // runReviewDocPlan emits the single-pass documentation-plan perspective prompt.
 func runReviewDocPlan(specPath, specContent, docsPath string, affectedFiles []string) error {
 	structureMap, files := walkDocTree(docsPath, ".md")
-	ranked := rankFilesBySpecTerms(files, strings.Split(specContent, "\n"), 15)
-	docContent := readFilesContent(ranked, 5000, 30000)
+	ranked := rankFilesBySpecTerms(files, strings.Split(specContent, "\n"))
+	docContent := readFilesContent(ranked, 30000)
 	if len(affectedFiles) > 0 {
 		for path, content := range engine.ReadAffectedFiles(affectedFiles) {
 			docContent[path] = content
@@ -772,8 +772,8 @@ func runReviewDocPlan(specPath, specContent, docsPath string, affectedFiles []st
 // runReviewTestPlan emits the single-pass test-plan perspective prompt.
 func runReviewTestPlan(specPath, specContent, testPath string, affectedFiles []string) error {
 	structureMap, files := walkDocTree(testPath, "_test.go")
-	ranked := rankFilesBySpecTerms(files, strings.Split(specContent, "\n"), 15)
-	testContent := readFilesContent(ranked, 5000, 20000)
+	ranked := rankFilesBySpecTerms(files, strings.Split(specContent, "\n"))
+	testContent := readFilesContent(ranked, 20000)
 	if len(affectedFiles) > 0 {
 		for path, content := range engine.ReadAffectedFiles(affectedFiles) {
 			testContent[path] = content
@@ -1345,7 +1345,10 @@ func walkDocTree(root, ext string) (tree string, files []string) {
 	return b.String(), allFiles
 }
 
-func rankFilesBySpecTerms(files, specLines []string, maxCount int) []string {
+func rankFilesBySpecTerms(files, specLines []string) []string {
+	// maxCount caps how many ranked files a perspective prompt carries.
+	const maxCount = 15
+
 	if len(files) == 0 {
 		return files
 	}
@@ -1440,7 +1443,11 @@ func rankFilesBySpecTerms(files, specLines []string, maxCount int) []string {
 // silence: the caller's paths came from a directory walk, so an unreadable one
 // is an anomaly, and a role that never sees the body would otherwise judge the
 // file from its absence.
-func readFilesContent(files []string, maxPerFile, maxTotal int) map[string]string {
+func readFilesContent(files []string, maxTotal int) map[string]string {
+	// maxPerFile truncates one file; maxTotal caps the prompt and differs per
+	// perspective, so it stays a parameter.
+	const maxPerFile = 5000
+
 	result := make(map[string]string)
 	total := 0
 	for _, f := range files {
