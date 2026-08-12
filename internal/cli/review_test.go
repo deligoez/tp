@@ -1076,13 +1076,19 @@ func TestReviewBudgetEnforcement(t *testing.T) {
 	assert.Less(t, len(prompt), 40000)
 }
 
-func TestLintAcceptanceQualityRemovalWarning(t *testing.T) {
+// assertAcceptanceQualityFinding lints a spec whose sole task carries the given
+// acceptance text and asserts the acceptance-quality rule fires at the given
+// severity. The removal-warning and short-acceptance arms differ only in that
+// text and that severity, so they share one body.
+func assertAcceptanceQualityFinding(t *testing.T, acceptance, severity, msg string) {
+	t.Helper()
+
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\nEmpty.\n"), 0o600))
 
 	taskPath := filepath.Join(dir, "spec.tasks.json")
-	taskData := `{"version":1,"spec":"spec.md","created_at":"0001-01-01T00:00:00Z","updated_at":"0001-01-01T00:00:00Z","workflow":{},"coverage":{"total_sections":0,"mapped_sections":0,"context_only":[],"unmapped":[]},"tasks":[{"id":"t1","title":"T","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"isPhoneCheckInProgress computed was removed","source_sections":[],"source_lines":""}]}`
+	taskData := fmt.Sprintf(`{"version":1,"spec":"spec.md","created_at":"0001-01-01T00:00:00Z","updated_at":"0001-01-01T00:00:00Z","workflow":{},"coverage":{"total_sections":0,"mapped_sections":0,"context_only":[],"unmapped":[]},"tasks":[{"id":"t1","title":"T","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":%q,"source_sections":[],"source_lines":""}]}`, acceptance)
 	require.NoError(t, os.WriteFile(taskPath, []byte(taskData), 0o600))
 
 	stdout, _, code := runTP(t, dir, "lint", specPath)
@@ -1091,41 +1097,25 @@ func TestLintAcceptanceQualityRemovalWarning(t *testing.T) {
 	var result map[string]any
 	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
 
-	hasWarning := false
+	found := false
 	for _, f := range result["findings"].([]any) {
 		fm := f.(map[string]any)
-		if fm["rule"].(string) == "acceptance-quality" && fm["severity"].(string) == "warning" {
-			hasWarning = true
+		if fm["rule"].(string) == "acceptance-quality" && fm["severity"].(string) == severity {
+			found = true
 			break
 		}
 	}
-	assert.True(t, hasWarning, "should warn on removal-only acceptance")
+	assert.True(t, found, msg)
+}
+
+func TestLintAcceptanceQualityRemovalWarning(t *testing.T) {
+	assertAcceptanceQualityFinding(t, "isPhoneCheckInProgress computed was removed",
+		"warning", "should warn on removal-only acceptance")
 }
 
 func TestLintAcceptanceQualityShortAcceptance(t *testing.T) {
-	dir := t.TempDir()
-	specPath := filepath.Join(dir, "spec.md")
-	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\nEmpty.\n"), 0o600))
-
-	taskPath := filepath.Join(dir, "spec.tasks.json")
-	taskData := `{"version":1,"spec":"spec.md","created_at":"0001-01-01T00:00:00Z","updated_at":"0001-01-01T00:00:00Z","workflow":{},"coverage":{"total_sections":0,"mapped_sections":0,"context_only":[],"unmapped":[]},"tasks":[{"id":"t1","title":"T","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"input disabled only when locked","source_sections":[],"source_lines":""}]}`
-	require.NoError(t, os.WriteFile(taskPath, []byte(taskData), 0o600))
-
-	stdout, _, code := runTP(t, dir, "lint", specPath)
-	require.Equal(t, 0, code)
-
-	var result map[string]any
-	require.NoError(t, json.Unmarshal([]byte(stdout), &result))
-
-	hasInfo := false
-	for _, f := range result["findings"].([]any) {
-		fm := f.(map[string]any)
-		if fm["rule"].(string) == "acceptance-quality" && fm["severity"].(string) == "info" {
-			hasInfo = true
-			break
-		}
-	}
-	assert.True(t, hasInfo, "should info on short acceptance")
+	assertAcceptanceQualityFinding(t, "input disabled only when locked",
+		"info", "should info on short acceptance")
 }
 
 func TestLintAcceptanceQualityNoTaskFile(t *testing.T) {
