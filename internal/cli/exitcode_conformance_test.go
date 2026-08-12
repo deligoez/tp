@@ -127,6 +127,31 @@ func TestExitCode_UnknownSubcommand_Exit2(t *testing.T) {
 	assert.Contains(t, e["hint"], "tp completion", "the hint names the dispatching command")
 }
 
+// §9.1 (negative): the unknown-command check runs before cobra dispatches, so
+// it must not swallow anything cobra would have accepted — a lazily registered
+// command (help, completion, the shell-completion helper) or a global flag's
+// value, which is a positional token but not a command name.
+func TestExitCode_UnknownCommandCheck_LeavesKnownInvocationsAlone(t *testing.T) {
+	dir := t.TempDir()
+	cases := []struct {
+		name string
+		args []string
+	}{
+		{"no command prints help", nil},
+		{"help command", []string{"help"}},
+		{"completion parent", []string{"completion"}},
+		{"completion shell", []string{"completion", "bash"}},
+		{"shell completion helper", []string{"__complete", ""}},
+		{"a flag value is not a command", []string{"--file", "nope.tasks.json"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, stderr, code := runTP(t, dir, tc.args...)
+			assert.Equal(t, 0, code, "must not be read as an unknown command: %s", stderr)
+		})
+	}
+}
+
 // §13.2: a usage error with no explicit hint still carries a default hint.
 func TestExitCode_UsageErrorCarriesHint_DoneNoArgs(t *testing.T) {
 	dir := t.TempDir()
