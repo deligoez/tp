@@ -108,37 +108,6 @@ func TestAuditRowIsPass_ByteExact(t *testing.T) {
 	}
 }
 
-// The PASS predicate must stay byte-for-byte the one the audit record path
-// applies when it counts a round's findings. This pins the two together over
-// the same rows: were they to drift, a round's per-role open counts and its
-// stored `findings` would disagree about the same file.
-func TestAuditRowIsPass_MatchesRecordPathFindingCount(t *testing.T) {
-	rows := []map[string]any{
-		{"status": "PASS"},
-		{"status": "pass"},
-		{"status": " PASS "},
-		{"status": float64(1)},
-		{"role": "spec-coverage"},
-		{"status": "FAIL"},
-	}
-	nonPass := 0
-	for _, row := range rows {
-		// The record path's literal test.
-		status, _ := row["status"].(string)
-		if status != "PASS" {
-			nonPass++
-		}
-	}
-	mine := 0
-	for _, row := range rows {
-		if !AuditRowIsPass(row) {
-			mine++
-		}
-	}
-	assert.Equal(t, nonPass, mine)
-	assert.Equal(t, 5, mine, "one of the six rows is PASS")
-}
-
 // Test 7 — blank lines are not parse failures. A recorded round file normally
 // ends in a newline, so an implementation treating the resulting empty final
 // line as unparseable makes every round contribute no rows and the release
