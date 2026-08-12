@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -99,7 +100,29 @@ func WriteTaskFile(path string, tf *TaskFile) error {
 
 	data = append(data, '\n')
 
-	if err := os.WriteFile(path, data, 0o600); err != nil {
+	// Atomic, for the same reason the review index is: every query command
+	// reads the task file lock-free by design, so an in-place write publishes a
+	// partial document. Measured at 8 torn reads in 1115 concurrent tp list
+	// calls against a 50KB file — each an exit 3 telling the agent to run
+	// tp use / tp init against a file that was never damaged.
+	tmp, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".*.tmp")
+	if err != nil {
+		return fmt.Errorf("write task file: %w", err)
+	}
+	tmpName := tmp.Name()
+	defer func() { _ = os.Remove(tmpName) }()
+
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return fmt.Errorf("write task file: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("write task file: %w", err)
+	}
+	if err := os.Chmod(tmpName, 0o600); err != nil {
+		return fmt.Errorf("write task file: %w", err)
+	}
+	if err := os.Rename(tmpName, path); err != nil {
 		return fmt.Errorf("write task file: %w", err)
 	}
 
