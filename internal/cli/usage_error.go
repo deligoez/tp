@@ -30,6 +30,71 @@ func wrapFlagErrors(cmd *cobra.Command) {
 	})
 }
 
+// unknownCommandUsage reports an unrecognized command name as a usage error
+// (§9.1: exit 2), replacing cobra's two defaults — a plain error at the top
+// level, which Execute would otherwise classify as a validation failure (exit
+// 1), and a silent help dump (exit 0) for an unknown subcommand of a command
+// that only dispatches, such as 'tp completion'. It returns nil when args name
+// a known command, leaving cobra's dispatch untouched.
+func unknownCommandUsage(root *cobra.Command, args []string) error {
+	switch firstPositional(root, args) {
+	case cobra.ShellCompRequestCmd, cobra.ShellCompNoDescRequestCmd:
+		// The shell-completion helper commands are registered by cobra's own
+		// Execute through an unexported hook, so they cannot be resolved here.
+		return nil
+	}
+	// help and completion are registered lazily inside Execute too, but their
+	// initializers are exported and idempotent: without them this check would
+	// call 'tp help' an unknown command.
+	root.InitDefaultHelpCmd()
+	root.InitDefaultCompletionCmd(args...)
+	// Find resolves the deepest matching command; its only failure mode is
+	// cobra's own unknown-command check at the root, whose message carries the
+	// did-you-mean suggestions, so it is kept verbatim.
+	found, rest, err := root.Find(args)
+	if err != nil {
+		return flagUsageError{cmd: root, err: err}
+	}
+	// A command that dispatches to subcommands but cannot run takes no
+	// positionals of its own, so a leftover token is an unknown subcommand.
+	if !found.HasSubCommands() || found.Runnable() {
+		return nil
+	}
+	name := firstPositional(found, rest)
+	if name == "" {
+		return nil
+	}
+	return flagUsageError{cmd: found, err: fmt.Errorf("unknown command %q for %q", name, found.CommandPath())}
+}
+
+// firstPositional returns the first token of args that is neither a flag of cmd
+// nor a value consumed by one, or "" when args carries no positional.
+func firstPositional(cmd *cobra.Command, args []string) string {
+	flags := cmd.Flags()
+	skipValue := false
+	for _, a := range args {
+		switch {
+		case skipValue:
+			skipValue = false
+		case a == "--":
+			continue // the next token is positional by definition
+		case len(a) > 1 && a[0] == '-':
+			flagName := strings.TrimLeft(a, "-")
+			if strings.IndexByte(flagName, '=') >= 0 {
+				continue // --flag=value consumes no further token
+			}
+			// An unknown flag is left to cobra's parser, which raises its own
+			// usage error; a known non-bool flag eats the following token.
+			if f := lookupFlag(flags, flagName); f != nil && f.Value.Type() != "bool" {
+				skipValue = true
+			}
+		default:
+			return a
+		}
+	}
+	return ""
+}
+
 // reasonCommands take a trailing positional reason/commit value that an agent
 // commonly prefixes with '-' — cobra then reads it as a flag. For these, the
 // usage hint names the '--' separator (spec §13.1 row 3).

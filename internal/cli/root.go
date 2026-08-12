@@ -153,7 +153,14 @@ func Execute() {
 
 	cmd := NewRootCmd()
 	wrapFlagErrors(cmd)
-	_, err := cmd.ExecuteC()
+	// §9.1: an unrecognized command or subcommand is a usage error (exit 2).
+	// The check runs before dispatch because cobra classifies it itself
+	// otherwise — as an exit-1 error at the top level, or as an exit-0 help
+	// dump for an unknown subcommand.
+	err := unknownCommandUsage(cmd, os.Args[1:])
+	if err == nil {
+		_, err = cmd.ExecuteC()
+	}
 	if err != nil {
 		// A cobra-level error aborted before PersistentPreRun configured output
 		// mode, so set it now (else a piped run would get TTY text, not JSON).
