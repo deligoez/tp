@@ -333,3 +333,47 @@ func TestCheckBrokenCrossRefs(t *testing.T) {
 		})
 	}
 }
+
+// TestCheckOrphanListItems_WrappedItemDoesNotSplitTheList pins the fix for a
+// false positive reported from the field: a numbered item whose text wraps onto
+// an indented continuation line used to close its own group. Each wrapped item
+// became a group of one, which flushes silently under the len < 2 guard, and
+// the items after it looked like a list that starts at 3.
+//
+// The reporting spec had twelve of these and every one was wrong. tp's own
+// v0.35.0 spec had two.
+func TestCheckOrphanListItems_WrappedItemDoesNotSplitTheList(t *testing.T) {
+	wrapped := []string{
+		"1. the first item, whose text runs long enough that it wraps",
+		"   onto a continuation line aligned past the marker.",
+		"2. the second item, also wrapped for the same reason and",
+		"   carrying a second line of its own.",
+		"3. the third.",
+	}
+	assert.Empty(t, CheckOrphanListItems(wrapped),
+		"a wrapped item continues its list; it does not start a new one")
+
+	// The rule still reports a list that genuinely starts at 3.
+	orphan := []string{
+		"3. third",
+		"4. fourth",
+	}
+	found := CheckOrphanListItems(orphan)
+	require.Len(t, found, 1, "a real orphan must still be reported")
+	assert.Contains(t, found[0].Message, "starts at 3")
+
+	// And a genuinely unrelated paragraph still terminates the list, so two
+	// separate lists are not silently merged into one.
+	split := []string{
+		"1. first",
+		"2. second",
+		"",
+		"An unindented paragraph between the lists.",
+		"",
+		"5. fifth",
+		"6. sixth",
+	}
+	found = CheckOrphanListItems(split)
+	require.NotEmpty(t, found, "an unindented line still ends the list")
+	assert.Contains(t, found[0].Message, "starts at 5")
+}

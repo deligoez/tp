@@ -252,6 +252,14 @@ func CheckOrphanListItems(lines []string) []Finding {
 			current.numbers = append(current.numbers, num)
 			current.lines = append(current.lines, i+1)
 		} else if trimmed != "" {
+			// An indented line continues the item above it — markdown wraps a
+			// long list item onto a line aligned past the marker. Treating it
+			// as a terminator closed each wrapped item into a group of one,
+			// which flushes silently under the len < 2 guard, and left the
+			// following items looking like a list that starts at 3.
+			if current != nil && (strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t")) {
+				continue
+			}
 			flush()
 		}
 	}
