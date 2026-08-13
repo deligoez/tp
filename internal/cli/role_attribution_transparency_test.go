@@ -222,10 +222,10 @@ func TestAuditSkippedRoles_NoChecklistItems(t *testing.T) {
 func TestAuditMerge_OverlapReport(t *testing.T) {
 	dir := t.TempDir()
 	rows := []string{
-		`{"item_id":"i1","status":"FAIL","role":"spec-coverage","category":"cat-a"}`,
-		`{"item_id":"i1","status":"FAIL","role":"security","category":"cat-a"}`,
-		`{"item_id":"i2","status":"FAIL","role":"spec-coverage","category":"cat-b"}`,
-		`{"item_id":"i3","status":"PASS","role":"spec-coverage","category":"cat-c"}`,
+		`{"item_id":"i1","status":"FAIL","role":"spec-coverage","category":"security"}`,
+		`{"item_id":"i1","status":"FAIL","role":"security","category":"security"}`,
+		`{"item_id":"i2","status":"FAIL","role":"spec-coverage","category":"contract"}`,
+		`{"item_id":"i3","status":"PASS","role":"spec-coverage","category":"correctness"}`,
 	}
 	a := writeFindingsFile(t, dir, "audit.ndjson", rows)
 
@@ -264,8 +264,8 @@ func TestAuditStatus_OverlapReport(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## 1. A\ncontent\n"), 0o600))
 	rows := []string{
-		`{"item_id":"i1","status":"FAIL","role":"spec-coverage","category":"cat-a"}`,
-		`{"item_id":"i1","status":"FAIL","role":"security","category":"cat-a"}`,
+		`{"item_id":"i1","status":"FAIL","role":"spec-coverage","category":"security"}`,
+		`{"item_id":"i1","status":"FAIL","role":"security","category":"security"}`,
 	}
 	a := writeFindingsFile(t, dir, "audit.ndjson", rows)
 	_, _, code := runTP(t, dir, "audit", "spec.md", "--record", a)
