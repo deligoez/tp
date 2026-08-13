@@ -200,7 +200,7 @@ spec/
 
 | Field | Type | Default | Range | `tp set --workflow` |
 |-------|------|---------|-------|---------------------|
-| `quality_gate` | string | `""` | — | read-only (author at `tp init --quality-gate`) |
+| `quality_gate` | string | `""` | — | task-level read-only (author at `tp init --quality-gate`); the project default is settable with `tp set --workflow --project` |
 | `gate_timeout_seconds` | int | 600 | 30-3600 | settable |
 | `lock_timeout_seconds` | int | 5 | 1-60 | settable (§12.1: write-lock retry/backoff window; timeout exits 4) |
 | `checks` | array of `{class, cmd}` | `[]` | — | settable (replace semantics) |
