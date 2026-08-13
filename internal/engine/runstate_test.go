@@ -276,3 +276,13 @@ func TestRunRecorder_SnapshotIsACopy(t *testing.T) {
 	assert.Equal(t, 1, rec.Snapshot().Totals.Units)
 }
 
+func TestReadRunState_ReportsAMissingFileAsNotExist(t *testing.T) {
+	root := t.TempDir()
+
+	_, err := ReadRunState(root, filepath.Join(root, "spec", "0.35.0.tasks.json"))
+
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, os.ErrNotExist),
+		"no run state for the task file is a distinguishable condition, not a parse failure")
+}
+
