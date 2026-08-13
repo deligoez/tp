@@ -62,6 +62,7 @@ spec/
   <version>.md       New feature specs — one file per version/feature
 skills/tp/
   SKILL.md           Claude Code skill (workflows, decomposition rules, commit format)
+  REFERENCE.md       Exhaustive field, exit-code and schema detail
 .claude-plugin/
   marketplace.json   Skill distribution manifest
 ```
