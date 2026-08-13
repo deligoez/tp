@@ -77,3 +77,151 @@ func TestUnitKind_ConcurrencyFromTable(t *testing.T) {
 	}
 }
 
+// TestUnitKind_DurableWrite_DecidableWithNoBaseline is test 18: every kind's
+// predicate is decided by reading the artifacts §3.3 names for it, as they are.
+// Each "present" case writes its artifacts before the predicate is ever called,
+// so no "before" observation exists to compare against; each "absent" case is
+// one named artifact short of satisfying it.
+func TestUnitKind_DurableWrite_DecidableWithNoBaseline(t *testing.T) {
+	cases := []struct {
+		name    string
+		kind    UnitKind
+		target  func(dir string) UnitTarget
+		present func(t *testing.T, dir string)
+		absent  func(t *testing.T, dir string)
+	}{
+		{
+			name:   "implement",
+			kind:   UnitImplement,
+			target: func(dir string) UnitTarget { return UnitTarget{TaskFile: unitTaskFile(dir), ID: "t1"} },
+			present: func(t *testing.T, dir string) {
+				writeUnitFile(t, unitTaskFile(dir), taskFileJSON("done"))
+			},
+			absent: func(t *testing.T, dir string) {
+				writeUnitFile(t, unitTaskFile(dir), taskFileJSON("wip"))
+			},
+		},
+		{
+			name:   "review-role",
+			kind:   UnitReviewRole,
+			target: func(dir string) UnitTarget { return UnitTarget{RoundDir: unitRoundDir(dir), ID: "architect"} },
+			present: func(t *testing.T, dir string) {
+				writeUnitFile(t, RoleFindingsPath(unitRoundDir(dir), "architect"), "{\"class\":\"c\"}\n")
+			},
+			absent: func(t *testing.T, dir string) {
+				// Only the .part the unit itself writes: the rename that
+				// completes the durable write never happened (§3.3.1).
+				writeUnitFile(t, RoleFindingsPath(unitRoundDir(dir), "architect")+".part", "{\"class\":\"c\"}\n")
+			},
+		},
+		{
+			name: "review-record",
+			kind: UnitReviewRecord,
+			target: func(dir string) UnitTarget {
+				return UnitTarget{Spec: unitSpec(dir), RoundDir: unitRoundDir(dir), Round: 3, ID: "3"}
+			},
+			present: func(t *testing.T, dir string) {
+				writeUnitFile(t, MergedFindingsPath(unitRoundDir(dir)), "{\"class\":\"c\"}\n")
+				writeUnitFile(t, filepath.Join(ReviewStateDir(unitSpec(dir)), "review-round-3.ndjson"), "{}\n")
+			},
+			absent: func(t *testing.T, dir string) {
+				// Merged but never recorded: the second named artifact is missing.
+				writeUnitFile(t, MergedFindingsPath(unitRoundDir(dir)), "{\"class\":\"c\"}\n")
+			},
+		},
+		{
+			name: "review-resolve",
+			kind: UnitReviewResolve,
+			target: func(dir string) UnitTarget {
+				return UnitTarget{RoundDir: unitRoundDir(dir), ID: "spec"}
+			},
+			present: func(t *testing.T, dir string) {
+				writeUnitFile(t, MergedFindingsPath(unitRoundDir(dir)),
+					"{\"class\":\"a\",\"resolved\":{\"status\":\"fixed\"}}\n{\"class\":\"b\",\"resolved\":{\"status\":\"wontfix\"}}\n")
+			},
+			absent: func(t *testing.T, dir string) {
+				writeUnitFile(t, MergedFindingsPath(unitRoundDir(dir)),
+					"{\"class\":\"a\",\"resolved\":{\"status\":\"fixed\"}}\n{\"class\":\"b\"}\n")
+			},
+		},
+		{
+			name:   "decompose",
+			kind:   UnitDecompose,
+			target: func(dir string) UnitTarget { return UnitTarget{TaskFile: unitTaskFile(dir), ID: "spec"} },
+			present: func(t *testing.T, dir string) {
+				writeUnitFile(t, unitTaskFile(dir), taskFileJSON("open"))
+			},
+			absent: func(t *testing.T, dir string) {
+				// The init shell: a task file that holds zero tasks.
+				writeUnitFile(t, unitTaskFile(dir), taskFileJSON(""))
+			},
+		},
+		{
+			name:   "audit-role",
+			kind:   UnitAuditRole,
+			target: func(dir string) UnitTarget { return UnitTarget{RoundDir: unitRoundDir(dir), ID: "go-safety"} },
+			present: func(t *testing.T, dir string) {
+				writeUnitFile(t, RoleFindingsPath(unitRoundDir(dir), "go-safety"), "{\"item_id\":\"i1\",\"status\":\"PASS\"}\n")
+			},
+			absent: func(t *testing.T, dir string) {
+				// A sibling role's file is not this role's.
+				writeUnitFile(t, RoleFindingsPath(unitRoundDir(dir), "ax-contract"), "{\"item_id\":\"i1\",\"status\":\"PASS\"}\n")
+			},
+		},
+		{
+			name: "audit-record",
+			kind: UnitAuditRecord,
+			target: func(dir string) UnitTarget {
+				return UnitTarget{Spec: unitSpec(dir), RoundDir: unitRoundDir(dir), Round: 3, ID: "3"}
+			},
+			present: func(t *testing.T, dir string) {
+				writeUnitFile(t, MergedFindingsPath(unitRoundDir(dir)), "{\"item_id\":\"i1\",\"status\":\"FAIL\"}\n")
+				writeUnitFile(t, filepath.Join(ReviewStateDir(unitSpec(dir)), "audit-round-3.ndjson"), "{}\n")
+			},
+			absent: func(t *testing.T, dir string) {
+				// A review round file for the same number is not an audit one.
+				writeUnitFile(t, MergedFindingsPath(unitRoundDir(dir)), "{\"item_id\":\"i1\",\"status\":\"FAIL\"}\n")
+				writeUnitFile(t, filepath.Join(ReviewStateDir(unitSpec(dir)), "review-round-3.ndjson"), "{}\n")
+			},
+		},
+		{
+			name: "audit-fix",
+			kind: UnitAuditFix,
+			target: func(dir string) UnitTarget {
+				return UnitTarget{RoundDir: unitRoundDir(dir), ID: "go-safety:item-4"}
+			},
+			present: func(t *testing.T, dir string) {
+				// No code change at all — the row's disposition is the whole
+				// durable write (§3.3.1).
+				writeUnitFile(t, MergedFindingsPath(unitRoundDir(dir)),
+					"{\"role\":\"go-safety\",\"item_id\":\"item-4\",\"status\":\"FAIL\",\"resolved\":{\"status\":\"wontfix\"}}\n")
+			},
+			absent: func(t *testing.T, dir string) {
+				writeUnitFile(t, MergedFindingsPath(unitRoundDir(dir)),
+					"{\"role\":\"go-safety\",\"item_id\":\"item-4\",\"status\":\"FAIL\"}\n")
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name+"/present", func(t *testing.T) {
+			dir := t.TempDir()
+			c.present(t, dir)
+			target := c.target(dir)
+			assert.True(t, c.kind.DurableWrite(target), "durable write present")
+			// A state, never a delta: a second reading of the same artifacts
+			// answers the same without any baseline carried between calls.
+			assert.True(t, c.kind.DurableWrite(target), "predicate is stable")
+		})
+		t.Run(c.name+"/absent", func(t *testing.T) {
+			dir := t.TempDir()
+			c.absent(t, dir)
+			assert.False(t, c.kind.DurableWrite(c.target(dir)), "one named artifact short")
+		})
+		t.Run(c.name+"/nothing-written", func(t *testing.T) {
+			dir := t.TempDir()
+			assert.False(t, c.kind.DurableWrite(c.target(dir)), "no artifacts at all")
+		})
+	}
+}
+
