@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-13T21:24:06.953124Z",
+  "updated_at": "2026-08-13T21:41:37.523508Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -33,7 +33,7 @@
     {
       "id": "workflow-fields",
       "title": "Add the seven run workflow fields",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 10,
@@ -41,11 +41,40 @@
       "source_sections": [
         "## 7. Workflow fields"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-13T21:24:47.660652Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-13T21:41:37.41921Z",
+      "closed_reason": "- model.Workflow now carries §7's seven run fields with the documented defaults — run_max_units 100, run_max_wall_clock_seconds 28800, both budgets 0 (disabled / flag omitted) as decimal dollars, run_max_unit_retries 1, runner \"claude\" as raw JSON so the resolver (not this layer) tells its three shapes apart, and notify_cmd; the six layerable ones are presence-tracked in WorkflowOverride and resolve through the existing task-override \u003e project-config \u003e built-in path, verified by tests asserting each default and each layer winning per field, including an explicit 0 retries beating a project value.\n- Every numeric range is enforced at the same read-time clamp the existing fields use: an out-of-range value is dropped to absent with a warning and resolves to the built-in default. A table test drives each of the five fields through a real .tp/config.json and asserts BOTH endpoints are accepted (1/10000, 60/604800, 0/5, 0/10000, 0/1000) and that one step outside each — one unit for the integers, one cent for the budgets — is rejected, so an inclusive bound cannot pass as exclusive.\n- notify_cmd resolves from .tp/local.json only: it is a LocalConfig key, is deliberately absent from knownWorkflowKeys (so a workflow block carrying it reports \"unknown workflow key\"), and is never hoisted by --extract or compared by --project. Verified by a test where config.json and local.json both name one and the local value wins with the unknown-key warning raised.\n- All three config surfaces cover the seven: tp config --resolved reports each with its layer (override/project/default, and local/default for notify_cmd), tp config --extract hoists the six unanimous ones and never notify_cmd, and tp validate --project reports run-field deviations with budgets printed as decimal dollars and runner compared as raw JSON. Dogfooded with the freshly built binary on tp's own repo (all seven report default, runner \"claude\") and on a scratch project where a per-kind runner map, a local notify_cmd and an out-of-range run_max_units each reported as documented.\n- Gate green: go test -race ./... , golangci-lint run, ./scripts/check-deadcode.sh all exit 0.\n\nOut of scope: tp set --workflow (and --project) still rejects the five numeric run fields as unknown workflow fields, so they are authorable only by hand-editing .tp/config.json or a task file's workflow block; §5.1's \"tp set --workflow run_max_*= above the resolved value\" fence assumes that setter exists, so the unattended-fence or run-command task needs it added to editableWorkflowFields/workflowFieldRange with float support for the two budgets.",
+      "gate_passed_at": "2026-08-13T21:41:37.41921Z",
+      "commit_sha": "3ace938",
+      "commit_shas": [
+        "3ace938",
+        "d096083",
+        "2daf89f",
+        "be27d0f",
+        "a40f23d",
+        "e42af90",
+        "f95f6ba",
+        "b6812c8",
+        "e6f2764",
+        "b15b1c3",
+        "908c14e",
+        "10459a5",
+        "38555f7",
+        "8f0c922"
+      ],
+      "commit_files": [
+        "internal/cli/config.go",
+        "internal/cli/config_extract.go",
+        "internal/cli/run_workflow_fields_test.go",
+        "internal/cli/validate_project.go",
+        "internal/engine/configresolve.go",
+        "internal/engine/projectconfig.go",
+        "internal/engine/runfields.go",
+        "internal/engine/runfields_test.go",
+        "internal/model/projectconfig.go",
+        "internal/model/workflow.go"
+      ]
     },
     {
       "id": "runner-shape",
