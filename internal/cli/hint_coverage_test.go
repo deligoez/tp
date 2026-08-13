@@ -18,11 +18,19 @@ import (
 // audit rounds reported one site at a time: hintless-site-inherits-task-file-hint.
 //
 // output.Error's hint is variadic, so a two-argument call silently inherits the
-// code-3 default, which is TASK-file advice ("run 'tp use <file>' … 'tp init
-// <spec>'"). Across tp review and tp audit that advice is always wrong: none of
-// these modes takes a task file, so every one of their exit-3 sites must say
-// what to check instead. Rounds 5, 6 and 7 each found a fresh handful of these
-// by reading; a class that survives three prose sweeps gets a check instead.
+// code-keyed default. Two of those defaults are TASK-file advice: code 3 ("run
+// 'tp use <file>' … 'tp init <spec>'") and code 1 ("run 'tp validate' to audit
+// the task file"). Across tp review and tp audit that advice is always wrong:
+// none of these modes takes a task file, so every one of their exit-3 and
+// exit-1 sites must say what to check instead. Rounds 5, 6 and 7 each found a
+// fresh handful of the exit-3 ones by reading; a class that survives three
+// prose sweeps gets a check instead. v0.34.0 §9.2 extended the same
+// enumeration to ExitValidation, where a malformed --record NDJSON was
+// answered with an unrelated command and an unrelated file.
+//
+// Only the codes whose default names the task file are enumerated: exit 2
+// points at --help and exit 4 at tp status, neither of which is a claim about
+// the object the command was given.
 //
 // Scope defaults to COVERED. Selecting files by a review/audit name prefix left
 // role_panel.go — squarely in the family — outside the guard, and a new file
@@ -50,7 +58,8 @@ func TestFileErrorsCarryAHint(t *testing.T) {
 			if !ok || !isOutputError(call) || len(call.Args) == 0 {
 				return true
 			}
-			if code, ok := call.Args[0].(*ast.Ident); !ok || code.Name != "ExitFile" {
+			code, ok := call.Args[0].(*ast.Ident)
+			if !ok || !taskFileDefaultCodes[code.Name] {
 				return true
 			}
 			if !hintlessCall(call, emptyConsts) {
@@ -60,32 +69,55 @@ func TestFileErrorsCarryAHint(t *testing.T) {
 			if exempt[pos.Line] {
 				return true
 			}
-			offenders = append(offenders, filepath.Base(path)+":"+strconv.Itoa(pos.Line))
+			offenders = append(offenders, code.Name+" "+filepath.Base(path)+":"+strconv.Itoa(pos.Line))
 			return true
 		})
 	}
 
 	sort.Strings(offenders)
 	require.Empty(t, offenders,
-		"these exit-3 sites pass no usable hint, so they inherit the code-3 default — task-file "+
-			"advice, which repairs nothing in a command that takes no task file. Pass the hint that "+
+		"these sites pass no usable hint, so they inherit their code's default — task-file "+
+			"advice in both channels (exit 3: 'tp use'/'tp init'; exit 1: 'tp validate'), which "+
+			"repairs nothing in a command that takes no task file. Pass the hint that "+
 			"fits: specFileMissingHint, findingsFileMissingHint, ndjsonInputFileHint, "+
 			"ndjsonReadHint(err), affectedFilesHint, reviewDirFlagHint, outputFileHint, "+
-			"stateWriteHint or internalEncodeHint — or, where the code-3 task-file default IS "+
-			"the right advice, mark the site with a task-file-hint: comment saying so")
+			"stateWriteHint, recordRowHint, runtimeFailureHint or internalEncodeHint — or, "+
+			"where the task-file default IS the right advice, mark the site with a "+
+			"task-file-hint: comment saying so")
+}
+
+// taskFileDefaultCodes names the exit codes whose output.defaultHint is advice
+// about the TASK file, so a hintless site in a command with another object
+// misdirects the reader. The other two defaults make no claim about the given
+// object — exit 2 points at --help, exit 4 at tp status — and are not
+// enumerated here.
+var taskFileDefaultCodes = map[string]bool{
+	"ExitFile":       true,
+	"ExitValidation": true,
 }
 
 // taskFileCommands names the files the hint guard does NOT cover, each with the
 // reason it is excused. These are the commands that read or write the task
-// file, where the code-3 default ("run 'tp use <file>' … 'tp init <spec>'") is
-// the right advice rather than the wrong object.
+// file, where the task-file default — "run 'tp use <file>' … 'tp init <spec>'"
+// at exit 3, "run 'tp validate' to audit the task file" at exit 1 — is the
+// right advice rather than the wrong object. One list covers both channels,
+// because what excuses a file is the object it works on, not the code it exits
+// with.
 //
-// One entry is excused for a weaker reason, recorded rather than hidden:
+// Entries excused for a weaker reason, recorded rather than hidden:
+//
 // init.go takes a SPEC path but never stats it, so it has no missing-spec site
 // wanting specFileMissingHint (§9.3). Its exit-3 sites are task-file and .tp
 // state writes, and the state writes are not swept here — but the list says so
 // instead of implying they are fine. lint.go left this list in v0.34.0: its
 // spec-path site now passes specFileMissingHint, so the guard enumerates it.
+//
+// config.go, config_extract.go, set_local.go and set_project.go work on
+// .tp/config.json and .tp/local.json as well as the task file, so their exit-1
+// sites — a rejected workflow field, a non-bool default — inherit task-file
+// advice for an object that is not the task file. Repairing them means
+// repairing their hintless exit-3 sites in the same move, which §9.2 does not
+// ask for; the exemption is recorded here rather than presented as clean.
 //
 // The guard fails if an entry no longer exists, so the list cannot rot into a
 // blanket exemption for files nobody has.
