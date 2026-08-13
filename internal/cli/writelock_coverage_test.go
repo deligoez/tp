@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -41,6 +42,21 @@ type funcFacts struct {
 	callsUnlocked  map[string]bool
 }
 
+// declKey names one declaration in the fact map. A method is qualified by its
+// receiver type: two declarations named Error (*reportPathError's and
+// flagUsageError's) would otherwise share the key "Error" and the second would
+// overwrite the first, silently dropping a writesUnlocked fact from the seed.
+// Go forbids two package-level functions of one name and two methods of one
+// name on one type, so the qualified key is unique by construction. Bare-name
+// call propagation is unaffected: a method is only ever called through a
+// selector, never through the *ast.Ident callsUnlocked records.
+func declKey(fn *ast.FuncDecl) string {
+	if fn.Recv == nil || len(fn.Recv.List) == 0 {
+		return fn.Name.Name
+	}
+	return types.ExprString(fn.Recv.List[0].Type) + "." + fn.Name.Name
+}
+
 // collectFuncFacts parses every non-test .go file in dir and returns per-
 // function facts, the names bound to a cobra RunE field, and the total number
 // of model.WriteTaskFile call sites seen (the instrument's own floor: a parser
@@ -66,7 +82,7 @@ func collectFuncFacts(t *testing.T, dir string) (facts map[string]*funcFacts, ru
 				continue
 			}
 			f := &funcFacts{callsUnlocked: make(map[string]bool)}
-			facts[fn.Name.Name] = f
+			facts[declKey(fn)] = f
 			walkLockAware(fn.Body, false, func(call *ast.CallExpr, locked bool) {
 				switch {
 				case isTaskFileWrite(call):
