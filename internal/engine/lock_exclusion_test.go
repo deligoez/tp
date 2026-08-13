@@ -19,14 +19,20 @@ import (
 // path that cost 4 silently lost rounds in 100 trials of four concurrent
 // tp audit --record — four round files written, three of them in the index.
 //
-// Two details make it discriminating, and both were measured rather than
-// guessed. The section is held for 3ms, so contenders are parked in the retry
-// backoff when a holder releases — that is the moment the unlink used to hand
-// the next waiter a fresh inode. And there are 16 of them, so the window is hit
-// every run: this shape fails 9 times out of 10 against the pre-fix lock here
-// (10/10 when it was first measured on a quieter machine), where a shorter
-// 8-goroutine version failed 1 in 10 and would have shipped as a flake dressed
-// up as a guard.
+// Two details make it discriminating. The section is held for 3ms, so
+// contenders are parked in the retry backoff when a holder releases — that is
+// the moment the unlink used to hand the next waiter a fresh inode. And there
+// are 16 of them, because a shorter 8-goroutine version detected the defect in
+// about 1 run in 10 and would have shipped as a flake dressed up as a guard.
+//
+// How often even 16 contenders hit the window depends on how quiet the machine
+// is, so the detection rate is a condition and not a constant: against the
+// pre-fix unlink-on-release it was 10/10 when first measured on an idle
+// machine, but 6 failures in 40 runs when re-measured at load average 4.8, and
+// 4 in 40 during v0.34.0's audit round 2 at load average 5.8. What holds at any
+// load is the direction — the fixed lock passed 40/40 in the same harness, so a
+// failure here is always the defect and never noise. A green run is only
+// evidence the other way on a machine idle enough to hit the window.
 //
 // The counters are mutex-guarded because they are shared state and the race
 // detector is right about that; the mutex is NOT what serializes the section.
