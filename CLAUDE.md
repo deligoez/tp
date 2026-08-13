@@ -13,6 +13,7 @@ Spec-to-task lifecycle manager for AI coding agents. Go CLI tool.
 
 **Always evaluate a change through the AX lens: does this reduce token overhead or round-trips for
 the agent?** What tp is, how it installs, and what AX buys the reader are `README.md`'s job.
+
 ## Quick Reference
 
 ```bash
@@ -37,6 +38,7 @@ go build -ldflags="-s -w" -o tp ./cmd/tp
 The command index is in `README.md`; the exact form of every command and flag, plus the workflows
 that use them, is the inventory in `skills/tp/SKILL.md`. Do not restate either here — a fourth copy
 is a fourth thing to drift.
+
 ## Project Structure
 
 ```
