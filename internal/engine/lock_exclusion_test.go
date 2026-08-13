@@ -48,11 +48,9 @@ func TestWithFileLock_ExcludesConcurrentHolders(t *testing.T) {
 	counter, inside, maxInside := 0, 0, 0
 
 	var wg sync.WaitGroup
-	for i := 0; i < holders; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for j := 0; j < perHolder; j++ {
+	for range holders {
+		wg.Go(func() {
+			for range perHolder {
 				err := WithFileLock(target, func() error {
 					mu.Lock()
 					inside++
@@ -71,7 +69,7 @@ func TestWithFileLock_ExcludesConcurrentHolders(t *testing.T) {
 				})
 				assert.NoError(t, err)
 			}
-		}()
+		})
 	}
 	wg.Wait()
 

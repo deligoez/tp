@@ -30,7 +30,7 @@ func TestRoundBudget_ReviewRefusals(t *testing.T) {
 	dir := setupBudgetProject(t, "review_max_rounds")
 
 	// Two dirty rounds exhaust the cap
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		_, stderr, code := recordRound(t, dir, dirtyRow)
 		require.Equal(t, 0, code, "round %d: %s", i+1, stderr)
 	}
@@ -60,7 +60,7 @@ func TestRoundBudget_ConvergedAtCapNotRefused(t *testing.T) {
 	dir := setupBudgetProject(t, "review_max_rounds")
 
 	// Two clean rounds: at the cap but converged (required_clean_rounds=2)
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		_, _, code := recordRound(t, dir, "")
 		require.Equal(t, 0, code)
 	}
@@ -78,7 +78,7 @@ func TestRoundBudget_ConvergedAtCapNotRefused(t *testing.T) {
 func TestRoundBudget_AuditRefusals(t *testing.T) {
 	dir := setupBudgetProject(t, "audit_max_rounds")
 
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		_, stderr, code := auditRecord(t, dir, `{"id":"x","status":"FAIL"}`+"\n")
 		require.Equal(t, 0, code, "round %d: %s", i+1, stderr)
 	}

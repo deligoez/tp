@@ -74,13 +74,13 @@ func promptTexts(t *testing.T, stdout string) []string {
 // the sentence is not appended rather than appended with nothing after it.
 func exclusionClasses(t *testing.T, text string) ([]string, bool) {
 	t.Helper()
-	i := strings.Index(text, exclusionMarker)
-	if i < 0 {
+	_, after, ok := strings.Cut(text, exclusionMarker)
+	if !ok {
 		assert.NotContains(t, text, "Mechanically checked classes",
 			"an empty list means no sentence at all, not one ending in an empty list")
 		return nil, false
 	}
-	rest := text[i+len(exclusionMarker):]
+	rest := after
 	if nl := strings.Index(rest, "\n"); nl >= 0 {
 		rest = rest[:nl]
 	}

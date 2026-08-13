@@ -59,7 +59,7 @@ func TestAudit_FileFilterCap(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## S\ntext\n"), 0o600))
 
 	files := make([]string, 0, 50)
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		name := fmt.Sprintf("auth_%02d.go", i) // all priority-matching by path
 		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte("package main\n"), 0o600))
 		files = append(files, "--affected-files", name)
@@ -139,7 +139,7 @@ func TestSelfLoop_ReviewToImport(t *testing.T) {
 	// record two clean rounds → converged
 	empty := filepath.Join(dir, "clean.ndjson")
 	require.NoError(t, os.WriteFile(empty, []byte(""), 0o600))
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		_, _, code = runTP(t, dir, "review", "spec.md", "--record", empty)
 		require.Equal(t, 0, code)
 	}

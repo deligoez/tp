@@ -428,7 +428,7 @@ func TestAuditGate_ResumeIsUnchangedByTheDivergence(t *testing.T) {
 	require.Equal(t, 0, code, "stderr: %s", stderr)
 	empty := filepath.Join(dir, "review.ndjson")
 	require.NoError(t, os.WriteFile(empty, nil, 0o600))
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		_, stderr, code = runTP(t, dir, "review", "spec.md", "--record", empty)
 		require.Equal(t, 0, code, "stderr: %s", stderr)
 	}

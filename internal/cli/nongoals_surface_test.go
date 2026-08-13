@@ -61,11 +61,11 @@ func parseSurface(t *testing.T) map[string]map[string]bool {
 	t.Helper()
 
 	surface := map[string]map[string]bool{}
-	for _, line := range strings.Split(strings.TrimSpace(v033Surface), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(v033Surface), "\n") {
 		name, flags, ok := strings.Cut(line, ":")
 		require.True(t, ok, "every baseline line names a command before a colon: %q", line)
 		set := map[string]bool{}
-		for _, flag := range strings.Fields(flags) {
+		for flag := range strings.FieldsSeq(flags) {
 			set[flag] = true
 		}
 		surface[name] = set

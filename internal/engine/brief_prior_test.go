@@ -32,13 +32,13 @@ func depsAndRecencyFile(nDeps, nRecent int) *model.TaskFile {
 	base := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	unitDeps := make([]string, nDeps)
 	tasks := []model.Task{{ID: "unit", Title: "Unit", Status: model.StatusOpen}}
-	for i := 0; i < nDeps; i++ {
+	for i := range nDeps {
 		id := "d" + string(rune('a'+i))
 		unitDeps[i] = id
 		tasks = append(tasks, doneTask(id, "D", "- d", base.Add(time.Duration(i)*time.Second)))
 	}
 	tasks[0].DependsOn = unitDeps
-	for i := 0; i < nRecent; i++ {
+	for i := range nRecent {
 		tasks = append(tasks, doneTask("r"+string(rune('a'+i)), "R", "- r", base.Add(time.Duration(100+i)*time.Second)))
 	}
 	return &model.TaskFile{Tasks: tasks}
@@ -87,7 +87,7 @@ func TestSelectPriorWork_RecencyFillsAfterDeps(t *testing.T) {
 		doneTask("dep", "Dep", "- dep", base),
 		{ID: "unit", Title: "Unit", Status: model.StatusOpen, DependsOn: []string{"dep"}},
 	}
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		tasks = append(tasks, doneTask("r"+string(rune('0'+i)), "R", "- recent", base.Add(time.Duration(i)*time.Hour)))
 	}
 	tf := &model.TaskFile{Tasks: tasks}
@@ -206,7 +206,7 @@ func TestSelectPriorWork_PriorOverrideRemovesTotalCap(t *testing.T) {
 		doneTask("d2", "D2", "- d", base.Add(1*time.Second)),
 		{ID: "unit", Title: "Unit", Status: model.StatusOpen, DependsOn: []string{"d1", "d2"}},
 	}
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		tasks = append(tasks, doneTask("r"+string(rune('a'+i)), "R", "- r", base.Add(time.Duration(10+i)*time.Second)))
 	}
 	tf := &model.TaskFile{Tasks: tasks}
@@ -222,7 +222,7 @@ func TestSelectPriorWork_PriorOverrideSmallerThanCandidates(t *testing.T) {
 	tasks := []model.Task{
 		{ID: "unit", Title: "Unit", Status: model.StatusOpen},
 	}
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		tasks = append(tasks, doneTask("r"+string(rune('a'+i)), "R", "- r", base.Add(time.Duration(i)*time.Second)))
 	}
 	tf := &model.TaskFile{Tasks: tasks}

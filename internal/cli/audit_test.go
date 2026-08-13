@@ -552,7 +552,7 @@ func TestAuditPromptSplitting(t *testing.T) {
 	// Build a spec with many table rows (60 rows across multiple tables)
 	var spec strings.Builder
 	spec.WriteString("# Spec\n\n## Big Table\n\n| ID | Description |\n|----|-------------|\n")
-	for i := 0; i < 60; i++ {
+	for i := range 60 {
 		fmt.Fprintf(&spec, "| item-%d | description for item %d |\n", i, i)
 	}
 

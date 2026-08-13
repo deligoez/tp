@@ -3,6 +3,7 @@ package output
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 
 	"github.com/fatih/color"
@@ -117,9 +118,7 @@ func ErrorExtras(code int, msg string, extras map[string]any, hint ...string) {
 			"error": msg,
 			"code":  code,
 		}
-		for k, v := range extras {
-			payload[k] = v
-		}
+		maps.Copy(payload, extras)
 		if h != "" {
 			payload["hint"] = h
 		}

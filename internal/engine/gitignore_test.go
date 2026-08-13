@@ -16,7 +16,7 @@ func TestGitignore_NoTPActive(t *testing.T) {
 	root := locateRepoRoot(t)
 	data, err := os.ReadFile(filepath.Join(root, ".gitignore"))
 	require.NoError(t, err, "repo-root .gitignore is readable")
-	for _, line := range strings.Split(string(data), "\n") {
+	for line := range strings.SplitSeq(string(data), "\n") {
 		assert.NotEqual(t, ".tp-active", strings.TrimSpace(line), ".tp-active must not be gitignored after v0.25.0")
 	}
 }

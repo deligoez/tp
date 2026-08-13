@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/deligoez/tp/internal/engine"
@@ -31,11 +32,11 @@ func TestSlugifySubject(t *testing.T) {
 }
 
 func TestSlugifySubject_Cap40(t *testing.T) {
-	long := ""
-	for i := 0; i < 50; i++ {
-		long += "a"
+	var long strings.Builder
+	for range 50 {
+		long.WriteString("a")
 	}
-	slug := slugifySubject(long)
+	slug := slugifySubject(long.String())
 	assert.Len(t, slug, 40)
 }
 

@@ -70,7 +70,7 @@ func newDivergenceFixture(t *testing.T, bodies ...string) *divergenceFixture {
 func countNonPassRows(t *testing.T, body string) int {
 	t.Helper()
 	n := 0
-	for _, line := range strings.Split(body, "\n") {
+	for line := range strings.SplitSeq(body, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue

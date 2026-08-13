@@ -217,7 +217,7 @@ func countAuditFindings(path string, data []byte) (findings int, err error) {
 	lineNum := 0
 	var rl rolelessRows
 	var ic invalidCategoryRows
-	for _, line := range strings.Split(string(data), "\n") {
+	for line := range strings.SplitSeq(string(data), "\n") {
 		lineNum++
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" {
@@ -357,10 +357,7 @@ func runAuditStatus(specPath string, check bool) error {
 	// survive --compact (§8.4).
 	if wf.AuditMaxRounds > 0 {
 		result["max_rounds"] = wf.AuditMaxRounds
-		remaining := wf.AuditMaxRounds - len(rounds)
-		if remaining < 0 {
-			remaining = 0
-		}
+		remaining := max(wf.AuditMaxRounds-len(rounds), 0)
 		result["rounds_remaining"] = remaining
 		result["budget_exhausted"] = len(rounds) >= wf.AuditMaxRounds && !converged
 	} else {

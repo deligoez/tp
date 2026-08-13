@@ -32,7 +32,7 @@ func TestReviewConvergeLive_BudgetAndPromptGen(t *testing.T) {
 	// Two rounds, each with a single medium (non-blocking) survivor. Each is
 	// frozen not-clean but live-clean under blocking; two of them satisfy the
 	// default required_clean_rounds=2.
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		_, stderr, c := recordRound(t, dir, mediumRow)
 		require.Equal(t, 0, c, "round %d: %s", i+1, stderr)
 	}
@@ -66,7 +66,7 @@ func TestReviewConvergeLive_BudgetAndPromptGen(t *testing.T) {
 func TestReviewConvergeLive_ImportEnforcement(t *testing.T) {
 	dir := setupEnforceProject(t)
 
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		_, stderr, code := recordRound(t, dir, mediumRow)
 		require.Equal(t, 0, code, "round %d: %s", i+1, stderr)
 	}

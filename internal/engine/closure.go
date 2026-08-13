@@ -15,8 +15,8 @@ func ParseAcceptanceCriteria(acceptance string) []string {
 	var result []string
 	for _, p := range parts {
 		// Then split on ". " and "; "
-		for _, sub := range strings.Split(p, ". ") {
-			for _, sub2 := range strings.Split(sub, "; ") {
+		for sub := range strings.SplitSeq(p, ". ") {
+			for sub2 := range strings.SplitSeq(sub, "; ") {
 				trimmed := strings.TrimSpace(sub2)
 				// Remove trailing period and leading "- " prefix
 				trimmed = strings.TrimRight(trimmed, ".")
@@ -35,7 +35,7 @@ func ParseAcceptanceCriteria(acceptance string) []string {
 // Indented sub-bullets do not count, preserving one top-level line per criterion.
 func CountEvidenceLines(reason string) int {
 	n := 0
-	for _, line := range strings.Split(reason, "\n") {
+	for line := range strings.SplitSeq(reason, "\n") {
 		if strings.HasPrefix(line, "- ") {
 			n++
 		}

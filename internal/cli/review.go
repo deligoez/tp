@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -395,8 +397,8 @@ func detectReviewMode(merge, resolve, resolveAll, verify, report, record, status
 
 // validateModeFlags checks that modifier flags are compatible with the active mode.
 func validateModeFlags(mode string, round int, findingsPath string, affectedFiles []string, finalRound bool, diffFrom string, specInline bool, perspective string) error {
-	if strings.HasPrefix(mode, "conflict:") {
-		pair := strings.TrimPrefix(mode, "conflict:")
+	if after, ok := strings.CutPrefix(mode, "conflict:"); ok {
+		pair := after
 		return fmt.Errorf("--%s are mutually exclusive", strings.Replace(pair, "+", " and --", 1))
 	}
 
@@ -757,9 +759,7 @@ func runReviewDocPlan(specPath, specContent, docsPath string, affectedFiles []st
 	ranked := rankFilesBySpecTerms(files, strings.Split(specContent, "\n"))
 	docContent := readFilesContent(ranked, 30000)
 	if len(affectedFiles) > 0 {
-		for path, content := range engine.ReadAffectedFiles(affectedFiles) {
-			docContent[path] = content
-		}
+		maps.Copy(docContent, engine.ReadAffectedFiles(affectedFiles))
 	}
 	prompt := generateDocPlanPrompt(specContent, structureMap, docContent)
 	return output.JSON(reviewResult{
@@ -785,9 +785,7 @@ func runReviewTestPlan(specPath, specContent, testPath string, affectedFiles []s
 	ranked := rankFilesBySpecTerms(files, strings.Split(specContent, "\n"))
 	testContent := readFilesContent(ranked, 20000)
 	if len(affectedFiles) > 0 {
-		for path, content := range engine.ReadAffectedFiles(affectedFiles) {
-			testContent[path] = content
-		}
+		maps.Copy(testContent, engine.ReadAffectedFiles(affectedFiles))
 	}
 	prompt := generateTestPlanPrompt(specContent, structureMap, testContent)
 	return output.JSON(reviewResult{
@@ -1302,10 +1300,7 @@ func buildFindingsSummary(findings []reviewFinding) string {
 		}
 		if len(highResolved) > 0 {
 			b.WriteString("Resolved high/critical (DO NOT regress):\n")
-			maxShow := 10
-			if len(highResolved) < maxShow {
-				maxShow = len(highResolved)
-			}
+			maxShow := min(len(highResolved), 10)
 			for _, f := range highResolved[:maxShow] {
 				text := f.Finding
 				if len(text) > 60 {
@@ -1369,8 +1364,8 @@ func rankFilesBySpecTerms(files, specLines []string) []string {
 		if strings.HasPrefix(trimmed, "## ") || strings.HasPrefix(trimmed, "### ") {
 			term := strings.TrimLeft(trimmed, "# ")
 			term = strings.TrimSpace(term)
-			words := strings.Fields(term)
-			for _, w := range words {
+			words := strings.FieldsSeq(term)
+			for w := range words {
 				if len(w) > 3 {
 					terms[strings.ToLower(w)] = true
 				}
@@ -1390,12 +1385,7 @@ func rankFilesBySpecTerms(files, specLines []string) []string {
 			return true
 		}
 		lower := strings.ToLower(base)
-		for _, cfg := range []string{"config.js", "config.ts", "config.mts", "config.mjs"} {
-			if lower == cfg {
-				return true
-			}
-		}
-		return false
+		return slices.Contains([]string{"config.js", "config.ts", "config.mts", "config.mjs"}, lower)
 	}
 
 	always := make([]string, 0)

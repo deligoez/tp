@@ -33,7 +33,7 @@ func writeConvergedRounds(t *testing.T, dir string, review, audit int) {
 	hash := fmt.Sprintf("sha256:%x", sha256.Sum256(data))
 	mk := func(n int) []map[string]any {
 		rounds := make([]map[string]any, 0, n)
-		for i := 0; i < n; i++ {
+		for i := range n {
 			rounds = append(rounds, map[string]any{"round": i + 1, "clean": true, "spec_hash": hash})
 		}
 		return rounds

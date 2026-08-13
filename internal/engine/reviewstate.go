@@ -512,7 +512,7 @@ func LoadRoundRows(specPath string, entry *ReviewRound) (rows []map[string]any, 
 		return nil, false
 	}
 	rows = make([]map[string]any, 0)
-	for _, line := range strings.Split(string(data), "\n") {
+	for line := range strings.SplitSeq(string(data), "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue

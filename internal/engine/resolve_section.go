@@ -81,10 +81,7 @@ func SuggestSimilarSections(s string, headings []*Heading) []string {
 	}
 	cmpLower := strings.ToLower(cmp)
 
-	maxDist := len(cmp) / 2
-	if maxDist < 1 {
-		maxDist = 1
-	}
+	maxDist := max(len(cmp)/2, 1)
 
 	type scored struct {
 		canonical string
@@ -163,10 +160,7 @@ func levenshtein(a, b string) int {
 			del := prev[j] + 1
 			ins := curr[j-1] + 1
 			sub := prev[j-1] + cost
-			best := del
-			if ins < best {
-				best = ins
-			}
+			best := min(ins, del)
 			if sub < best {
 				best = sub
 			}

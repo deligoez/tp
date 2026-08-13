@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -69,13 +70,13 @@ content
 	// The permitted focus key still parses; the disallowed keys are ignored.
 	assert.Equal(t, []string{"Is the empty-panel fallback exercised?"}, fm.ReviewRoles["tester"].Focus)
 
-	joined := ""
+	var joined strings.Builder
 	for _, w := range fm.Warnings {
-		joined += w.Message + "\n"
+		joined.WriteString(w.Message + "\n")
 	}
-	assert.Contains(t, joined, "tp.review_roles.tester.instructions is not a permitted override key (only focus and enabled); ignored")
-	assert.Contains(t, joined, "tp.review_roles.tester.severity is not a permitted override key (only focus and enabled); ignored")
-	assert.NotContains(t, joined, "tp.review_roles.tester.enabled", "enabled is a permitted key and never warns as unpermitted")
+	assert.Contains(t, joined.String(), "tp.review_roles.tester.instructions is not a permitted override key (only focus and enabled); ignored")
+	assert.Contains(t, joined.String(), "tp.review_roles.tester.severity is not a permitted override key (only focus and enabled); ignored")
+	assert.NotContains(t, joined.String(), "tp.review_roles.tester.enabled", "enabled is a permitted key and never warns as unpermitted")
 }
 
 // TestParseFrontmatter_RoleOverrideEnabledBool covers §2.1's boolean enabled: a
@@ -156,13 +157,13 @@ content
 	require.Contains(t, fm.AuditRoles, "go-safety")
 	assert.Nil(t, goSafety.Enabled, "a numeric enabled is not coerced either")
 
-	joined := ""
+	var joined strings.Builder
 	for _, w := range fm.Warnings {
-		joined += w.Message + "\n"
+		joined.WriteString(w.Message + "\n")
 	}
-	assert.Contains(t, joined, "tp.review_roles.tester.enabled is not a boolean (got string); ignored")
-	assert.Contains(t, joined, "tp.audit_roles.go-safety.enabled is not a boolean (got")
-	assert.NotContains(t, joined, "is not a permitted override key",
+	assert.Contains(t, joined.String(), "tp.review_roles.tester.enabled is not a boolean (got string); ignored")
+	assert.Contains(t, joined.String(), "tp.audit_roles.go-safety.enabled is not a boolean (got")
+	assert.NotContains(t, joined.String(), "is not a permitted override key",
 		"enabled stays a permitted key even when its value is malformed")
 }
 
@@ -216,19 +217,19 @@ content
 	require.Contains(t, fm.AuditRoles, "go-safety")
 	assert.Nil(t, fm.AuditRoles["go-safety"].Enabled, "enabled: ~ is null, hence unset")
 
-	joined := ""
+	var joined strings.Builder
 	for _, w := range fm.Warnings {
-		joined += w.Message + "\n"
+		joined.WriteString(w.Message + "\n")
 	}
 	// The contrast that makes this test discriminate: the quoted string in the
 	// SAME fixture does warn, so a green run cannot come from a parser that has
 	// simply stopped warning about enabled altogether.
-	assert.Contains(t, joined, `tp.review_roles.tester.enabled is not a boolean (got string); ignored`,
+	assert.Contains(t, joined.String(), `tp.review_roles.tester.enabled is not a boolean (got string); ignored`,
 		"the quoted-string case still warns")
 	// None of the null spellings warns — dropping the nil guard would name them here.
-	assert.NotContains(t, joined, "tp.review_roles.implementer.enabled")
-	assert.NotContains(t, joined, "tp.review_roles.architect.enabled")
-	assert.NotContains(t, joined, "tp.audit_roles.go-safety.enabled")
+	assert.NotContains(t, joined.String(), "tp.review_roles.implementer.enabled")
+	assert.NotContains(t, joined.String(), "tp.review_roles.architect.enabled")
+	assert.NotContains(t, joined.String(), "tp.audit_roles.go-safety.enabled")
 	assert.Len(t, fm.Warnings, 1, "the quoted string is the only warning this fixture earns")
 }
 
@@ -279,15 +280,15 @@ content
 	assert.False(t, *axEconomist.Enabled, "and still deactivates the role")
 	assert.Empty(t, axEconomist.Focus, "while the malformed focus itself is dropped")
 
-	joined := ""
+	var joined strings.Builder
 	for _, w := range fm.Warnings {
-		joined += w.Message + "\n"
+		joined.WriteString(w.Message + "\n")
 	}
-	assert.Contains(t, joined, "tp.review_roles.implementer is not a mapping")
-	assert.Contains(t, joined, "tp.review_roles.tester.focus is not a list")
-	assert.Contains(t, joined, "tp.review_roles.ax-economist.focus is not a list")
-	assert.Contains(t, joined, "tp.review_roles.architect.focus[1] is not a string")
-	assert.Contains(t, joined, "tp.audit_roles is not a mapping")
+	assert.Contains(t, joined.String(), "tp.review_roles.implementer is not a mapping")
+	assert.Contains(t, joined.String(), "tp.review_roles.tester.focus is not a list")
+	assert.Contains(t, joined.String(), "tp.review_roles.ax-economist.focus is not a list")
+	assert.Contains(t, joined.String(), "tp.review_roles.architect.focus[1] is not a string")
+	assert.Contains(t, joined.String(), "tp.audit_roles is not a mapping")
 }
 
 // TestParseFrontmatter_NoRoleOverrides confirms the fields default to empty

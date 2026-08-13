@@ -57,7 +57,7 @@ func TestReviewAutoDiff_SnapshotBaseline(t *testing.T) {
 func TestReviewAutoDiff_SectionLineCap(t *testing.T) {
 	dir := t.TempDir()
 	long := make([]string, 0, 60)
-	for i := 0; i < 60; i++ {
+	for range 60 {
 		long = append(long, "filler line content")
 	}
 	spec1 := "# Spec\n## 1. Big\noriginal\n"

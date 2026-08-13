@@ -64,7 +64,7 @@ func TestFilterFiles_SpecCoverage_RanksByTaskCount(t *testing.T) {
 
 func TestFilterFiles_Cap20(t *testing.T) {
 	in := &AuditFileInputs{TaskFiles: map[string][]string{}}
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		p := fmt.Sprintf("f%02d.go", i)
 		in.Universe = append(in.Universe, p)
 		in.TaskFiles[p] = []string{"t1"}

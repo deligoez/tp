@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -78,9 +79,7 @@ func runSetLocal(args []string) error {
 		if lc.Defaults == nil {
 			lc.Defaults = make(map[string]bool)
 		}
-		for k, v := range defaults {
-			lc.Defaults[k] = v
-		}
+		maps.Copy(lc.Defaults, defaults)
 		if err := engine.WriteLocalConfig(tpDir, lc); err != nil {
 			output.Error(ExitFile, err.Error())
 			os.Exit(ExitFile)

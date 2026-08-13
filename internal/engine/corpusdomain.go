@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/deligoez/tp/internal/model"
 )
@@ -66,10 +67,5 @@ func roleAppliesToDomain(r *model.Role, domain string) bool {
 	if len(r.Domains) == 0 {
 		return true
 	}
-	for _, d := range r.Domains {
-		if d == domain {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(r.Domains, domain)
 }

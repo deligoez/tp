@@ -198,7 +198,7 @@ func TestAuditPrompts_SpecCoverageHeaderTruncated(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
 
 	args := []string{"audit", "spec.md"}
-	for i := 0; i < 25; i++ {
+	for i := range 25 {
 		name := fmt.Sprintf("f%02d.go", i)
 		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte("package main\n"), 0o600))
 		args = append(args, "--affected-files", name)

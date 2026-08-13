@@ -109,10 +109,7 @@ func runReviewStatus(specPath string, check bool) error {
 	// survive --compact (§8.4).
 	if wf.ReviewMaxRounds > 0 {
 		result["max_rounds"] = wf.ReviewMaxRounds
-		remaining := wf.ReviewMaxRounds - len(rounds)
-		if remaining < 0 {
-			remaining = 0
-		}
+		remaining := max(wf.ReviewMaxRounds-len(rounds), 0)
 		result["rounds_remaining"] = remaining
 		result["budget_exhausted"] = len(rounds) >= wf.ReviewMaxRounds && !converged
 	} else {

@@ -117,7 +117,7 @@ func TestRunReviewResolveAll_ResolvesAllUnresolved(t *testing.T) {
 	require.Len(t, findings, 3)
 
 	// First two should be resolved
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		resolved, ok := findings[i]["resolved"].(map[string]any)
 		require.True(t, ok, "finding %d should be resolved", i)
 		assert.Equal(t, "fixed", resolved["status"])

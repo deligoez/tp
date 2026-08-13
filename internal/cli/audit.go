@@ -951,7 +951,7 @@ func expandCommaFiles(files []string) []string {
 	}
 	expanded := make([]string, 0, len(files))
 	for _, f := range files {
-		for _, part := range strings.Split(f, ",") {
+		for part := range strings.SplitSeq(f, ",") {
 			trimmed := strings.TrimSpace(part)
 			if trimmed != "" {
 				expanded = append(expanded, trimmed)

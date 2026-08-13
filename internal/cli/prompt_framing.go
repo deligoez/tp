@@ -45,10 +45,7 @@ func renderFraming(f *promptFraming) string {
 	fmt.Fprintf(&b, "Loop budget: %s round %d; %d consecutive clean round(s) required, %d so far",
 		f.phase, f.round, f.requiredClean, f.consecutiveClean)
 	if f.maxRounds > 0 {
-		remaining := f.maxRounds - f.round + 1
-		if remaining < 1 {
-			remaining = 1
-		}
+		remaining := max(f.maxRounds-f.round+1, 1)
 		fmt.Fprintf(&b, "; cap %d, %d round(s) remain (this one included)", f.maxRounds, remaining)
 	}
 	b.WriteString(".\n\n")

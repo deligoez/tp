@@ -1,6 +1,9 @@
 package engine
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
 // SuggestSimilarIDs returns up to 3 task IDs similar to the given ID.
 // Uses prefix matching and word overlap (split on hyphens, 3+ char words).
@@ -69,10 +72,8 @@ func splitWords(id string) []string {
 
 func hasWordOverlap(a, b []string) bool {
 	for _, wa := range a {
-		for _, wb := range b {
-			if wa == wb {
-				return true
-			}
+		if slices.Contains(b, wa) {
+			return true
 		}
 	}
 	return false

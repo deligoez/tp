@@ -3,6 +3,7 @@ package engine
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,19 +14,20 @@ import (
 func writeRoleWithDomains(t *testing.T, dir, stem string, domains []string) {
 	t.Helper()
 	require.NoError(t, os.MkdirAll(dir, 0o755))
-	role := `{"id":"` + stem + `","title":"T","instructions":"I"`
+	var role strings.Builder
+	role.WriteString(`{"id":"` + stem + `","title":"T","instructions":"I"`)
 	if domains != nil {
-		role += `,"domains":[`
+		role.WriteString(`,"domains":[`)
 		for i, d := range domains {
 			if i > 0 {
-				role += ","
+				role.WriteString(",")
 			}
-			role += `"` + d + `"`
+			role.WriteString(`"` + d + `"`)
 		}
-		role += `]`
+		role.WriteString(`]`)
 	}
-	role += `}`
-	require.NoError(t, os.WriteFile(filepath.Join(dir, stem+".json"), []byte(role), 0o600))
+	role.WriteString(`}`)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, stem+".json"), []byte(role.String()), 0o600))
 }
 
 // TestResolveActiveCorpus_DomainFiltering
@@ -67,11 +69,11 @@ func TestResolveActiveCorpus_EmptyPanelFallback(t *testing.T) {
 		got[i] = roles[i].ID
 	}
 	assert.Equal(t, []string{"implementer", "tester", "architect"}, got, "falls back to the full software embedded panel, not re-filtered")
-	joined := ""
+	var joined strings.Builder
 	for _, w := range warnings {
-		joined += w + "\n"
+		joined.WriteString(w + "\n")
 	}
-	assert.Contains(t, joined, "filtered out every reviewers role")
+	assert.Contains(t, joined.String(), "filtered out every reviewers role")
 }
 
 // TestResolveActiveCorpus_EmbeddedByDomain selects the embedded corpus by domain
@@ -107,9 +109,9 @@ func TestResolveActiveCorpus_UnknownDomainWarns(t *testing.T) {
 		got[i] = roles[i].ID
 	}
 	assert.Equal(t, []string{"implementer", "tester", "architect"}, got, "unknown domain uses the software corpus")
-	joined := ""
+	var joined strings.Builder
 	for _, w := range warnings {
-		joined += w + "\n"
+		joined.WriteString(w + "\n")
 	}
-	assert.Contains(t, joined, `unknown domain "legal"`)
+	assert.Contains(t, joined.String(), `unknown domain "legal"`)
 }

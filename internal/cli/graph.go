@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"slices"
 
 	"github.com/spf13/cobra"
 
@@ -94,13 +95,7 @@ func runGraph(_ *cobra.Command, _ []string) error {
 	if graphTag != "" {
 		for id := range include {
 			t := taskMap[id]
-			hasTag := false
-			for _, tag := range t.Tags {
-				if tag == graphTag {
-					hasTag = true
-					break
-				}
-			}
+			hasTag := slices.Contains(t.Tags, graphTag)
 			if !hasTag {
 				delete(include, id)
 			}

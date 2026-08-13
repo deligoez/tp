@@ -23,7 +23,7 @@ func assertRolelessRowsAdviseOnce(t *testing.T, phase, row, fileStem string) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 
 	rows := make([]string, 0, 48)
-	for i := 0; i < 48; i++ {
+	for range 48 {
 		rows = append(rows, row)
 	}
 	ndjson := strings.Join(rows, "\n") + "\n"

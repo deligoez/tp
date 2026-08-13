@@ -45,7 +45,7 @@ func TestAuditMerge_DedupAndStatusSummary(t *testing.T) {
 	data, err := os.ReadFile(out)
 	require.NoError(t, err)
 	count := 0
-	for _, l := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+	for l := range strings.SplitSeq(strings.TrimSpace(string(data)), "\n") {
 		if strings.TrimSpace(l) != "" {
 			count++
 		}

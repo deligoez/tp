@@ -39,7 +39,7 @@ func TestCommitFiles_RenameExcludesOld(t *testing.T) {
 func TestCommitFiles_CapFiftyWithTotal(t *testing.T) {
 	dir := setupCommitProject(t, "t1")
 	const n = 60
-	for i := 0; i < n; i++ {
+	for i := range n {
 		require.NoError(t, os.WriteFile(
 			filepath.Join(dir, fmt.Sprintf("f%02d.go", i)), []byte("package main\n"), 0o600))
 	}
@@ -55,7 +55,7 @@ func TestCommitFiles_CapFiftyWithTotal(t *testing.T) {
 	total, _ := task["commit_files_total"].(float64)
 	assert.Equal(t, float64(n), total, "total records the full count")
 	expected := make([]string, 0, 50)
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		expected = append(expected, fmt.Sprintf("f%02d.go", i))
 	}
 	assert.Equal(t, expected, files, "first 50 in sorted order")
@@ -128,7 +128,7 @@ func TestCommitFiles_BatchResolvesPerRow(t *testing.T) {
 	sha := commitFile(t, dir, "a.go", "add a")
 	batch := filepath.Join(dir, "batch.ndjson")
 	require.NoError(t, os.WriteFile(batch,
-		[]byte(fmt.Sprintf(`{"id":"t1","reason":"t1 acceptance met","commit_shas":[%q]}`, sha)), 0o600))
+		fmt.Appendf(nil, `{"id":"t1","reason":"t1 acceptance met","commit_shas":[%q]}`, sha), 0o600))
 	_, stderr, code := runTP(t, dir, "done", "--batch", batch)
 	require.Equal(t, 0, code, "batch: %s", stderr)
 	task := taskState(t, dir, "t1")

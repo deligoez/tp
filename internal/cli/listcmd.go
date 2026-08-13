@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -48,7 +49,7 @@ func runList(_ *cobra.Command, _ []string) error {
 	// Build status filter set
 	statusFilter := make(map[string]bool)
 	if listStatus != "" {
-		for _, s := range strings.Split(listStatus, ",") {
+		for s := range strings.SplitSeq(listStatus, ",") {
 			statusFilter[strings.TrimSpace(s)] = true
 		}
 	}
@@ -62,13 +63,7 @@ func runList(_ *cobra.Command, _ []string) error {
 		}
 
 		if listTag != "" {
-			hasTag := false
-			for _, tag := range t.Tags {
-				if tag == listTag {
-					hasTag = true
-					break
-				}
-			}
+			hasTag := slices.Contains(t.Tags, listTag)
 			if !hasTag {
 				continue
 			}

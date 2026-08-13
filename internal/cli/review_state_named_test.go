@@ -63,7 +63,7 @@ func TestReviewState_Staleness(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\noriginal\n"), 0o600))
 
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		_, _, code := recordRound(t, dir, "")
 		require.Equal(t, 0, code)
 	}

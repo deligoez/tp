@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -36,12 +37,7 @@ func AuditCategories() []string {
 
 // IsValidCategory reports whether c is one of the five audit categories.
 func IsValidCategory(c string) bool {
-	for _, v := range auditCategoryPrecedence {
-		if c == v {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(auditCategoryPrecedence, c)
 }
 
 // RenderAuditCategoryText renders the category enum, the resolution

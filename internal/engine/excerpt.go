@@ -38,7 +38,7 @@ func ParseLineRanges(s string) ([]LineRange, error) {
 	}
 
 	var ranges []LineRange
-	for _, part := range strings.Split(s, ",") {
+	for part := range strings.SplitSeq(s, ",") {
 		part = strings.TrimSpace(part)
 		if part == "" {
 			continue
@@ -195,10 +195,7 @@ func extractSectionsExcerpt(specPath string, sourceSections []string) string {
 		if !ok || span.Start < 1 {
 			continue
 		}
-		end := span.End
-		if end > totalLines {
-			end = totalLines
-		}
+		end := min(span.End, totalLines)
 		var buf strings.Builder
 		for ln := span.Start; ln <= end; ln++ {
 			if fm.Present && ln >= fm.Lines.Start && ln <= fm.Lines.End {

@@ -239,7 +239,7 @@ func GitTaskFileMapping(dir string, tasks []model.Task, universe []string) map[s
 			output.Notice(fmt.Sprintf("warning: git show %s failed; task %s contributes no file mapping (%v)", *tasks[i].CommitSHA, tasks[i].ID, err))
 			continue
 		}
-		for _, line := range strings.Split(string(bytes.TrimSpace(out)), "\n") {
+		for line := range strings.SplitSeq(string(bytes.TrimSpace(out)), "\n") {
 			f := strings.TrimSpace(line)
 			if f == "" || !inUniverse[f] {
 				continue

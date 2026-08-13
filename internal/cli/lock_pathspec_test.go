@@ -147,7 +147,7 @@ func TestLockDirIsGitIgnoredWithoutInit(t *testing.T) {
 		"the write that creates .tp/locks also writes the ignore file")
 
 	status := gitOut(t, dir, "status", "--porcelain", "-uall")
-	for _, line := range strings.Split(status, "\n") {
+	for line := range strings.SplitSeq(status, "\n") {
 		assert.NotContains(t, line, filepath.Join(".tp", "locks"),
 			"no lock file may show up as an unexplained working-tree change")
 	}

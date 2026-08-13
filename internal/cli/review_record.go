@@ -234,7 +234,7 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 func parseRecordRows(path string, data []byte) (findings, dirty int, hint string, err error) {
 	lineNum := 0
 	var rl rolelessRows
-	for _, line := range strings.Split(string(data), "\n") {
+	for line := range strings.SplitSeq(string(data), "\n") {
 		lineNum++
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" {

@@ -104,7 +104,7 @@ func ReadAuditRoundRows(specPath string, entry *ReviewRound, latestRolesHash str
 		return nil, false
 	}
 	rows = make([]map[string]any, 0)
-	for _, line := range strings.Split(string(data), "\n") {
+	for line := range strings.SplitSeq(string(data), "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue

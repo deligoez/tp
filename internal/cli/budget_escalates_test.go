@@ -22,7 +22,7 @@ func TestRoundBudget_Escalates(t *testing.T) {
 	_, _, code = runTP(t, dir, "set", "--workflow", "review_max_rounds=2", "audit_max_rounds=2")
 	require.Equal(t, 0, code)
 
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		_, _, rc := recordRound(t, dir, dirtyRow)
 		require.Equal(t, 0, rc)
 		_, _, rc = auditRecord(t, dir, `{"id":"x","status":"FAIL"}`+"\n")

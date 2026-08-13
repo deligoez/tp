@@ -47,7 +47,7 @@ func TestImport_ConvergenceEnforced(t *testing.T) {
 
 	t.Run("stale spec blocks with exit 1", func(t *testing.T) {
 		dir := setupEnforceProject(t)
-		for i := 0; i < 2; i++ {
+		for range 2 {
 			_, _, code := recordRound(t, dir, "")
 			require.Equal(t, 0, code)
 		}
@@ -69,7 +69,7 @@ func TestImport_ConvergenceEnforced(t *testing.T) {
 
 	t.Run("converged state imports cleanly", func(t *testing.T) {
 		dir := setupEnforceProject(t)
-		for i := 0; i < 2; i++ {
+		for range 2 {
 			_, _, code := recordRound(t, dir, "")
 			require.Equal(t, 0, code)
 		}

@@ -97,7 +97,7 @@ func TestReviewStatus_Check(t *testing.T) {
 			_, _, code = runTP(t, dir, "set", "--workflow", "checks="+checksJSON)
 			require.Equal(t, 0, code)
 		}
-		for i := 0; i < cleanRounds; i++ {
+		for range cleanRounds {
 			_, _, rc := recordRound(t, dir, "")
 			require.Equal(t, 0, rc)
 		}
@@ -153,7 +153,7 @@ func TestAuditStatus_Check(t *testing.T) {
 
 	t.Run("converged via audit_clean_rounds exits 0", func(t *testing.T) {
 		dir := setup(t)
-		for i := 0; i < 2; i++ {
+		for range 2 {
 			_, _, code := auditRecord(t, dir, "")
 			require.Equal(t, 0, code)
 		}
@@ -175,7 +175,7 @@ func TestAuditStatus_Check(t *testing.T) {
 
 	t.Run("stale fails", func(t *testing.T) {
 		dir := setup(t)
-		for i := 0; i < 2; i++ {
+		for range 2 {
 			_, _, code := auditRecord(t, dir, "")
 			require.Equal(t, 0, code)
 		}

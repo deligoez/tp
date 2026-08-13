@@ -131,7 +131,7 @@ func TestReviewConvergenceStringsIgnoreConvergeOn(t *testing.T) {
 
 	loopFor := func(convergeOn string) map[string]any {
 		require.NoError(t, os.WriteFile(configPath,
-			[]byte(fmt.Sprintf(`{"workflow":{"review_converge_on":%q}}`, convergeOn)), 0o600))
+			fmt.Appendf(nil, `{"workflow":{"review_converge_on":%q}}`, convergeOn), 0o600))
 
 		// Confirm the field actually resolves to the intended value in this setup.
 		cfgOut, cfgErr, cfgCode := runTP(t, dir, "config", "--resolved")
@@ -398,9 +398,9 @@ func TestReviewFindingsCappedAt50(t *testing.T) {
 
 	findingsPath := filepath.Join(dir, "findings.ndjson")
 	var lines []byte
-	for i := 0; i < 55; i++ {
-		lines = append(lines, []byte(fmt.Sprintf(`{"severity":"low","category":"completeness","location":"line %d","finding":"Issue number %d","suggestion":"Fix it"}
-`, i, i))...)
+	for i := range 55 {
+		lines = append(lines, fmt.Appendf(nil, `{"severity":"low","category":"completeness","location":"line %d","finding":"Issue number %d","suggestion":"Fix it"}
+`, i, i)...)
 	}
 	require.NoError(t, os.WriteFile(findingsPath, lines, 0o600))
 
@@ -423,8 +423,8 @@ func TestReviewFindingsLongText(t *testing.T) {
 
 	longFinding := strings.Repeat("x", 100)
 	findingsPath := filepath.Join(dir, "findings.ndjson")
-	require.NoError(t, os.WriteFile(findingsPath, []byte(fmt.Sprintf(`{"severity":"high","category":"completeness","location":"## Problem","finding":"%s","suggestion":"Fix it"}
-`, longFinding)), 0o600))
+	require.NoError(t, os.WriteFile(findingsPath, fmt.Appendf(nil, `{"severity":"high","category":"completeness","location":"## Problem","finding":"%s","suggestion":"Fix it"}
+`, longFinding), 0o600))
 
 	stdout, _, code := runTP(t, dir, "review", "--findings", findingsPath, specPath)
 	require.Equal(t, 0, code)
@@ -803,10 +803,10 @@ func TestReviewPerspectiveManyFilesCapped(t *testing.T) {
 	require.NoError(t, os.WriteFile(specPath, []byte("# Feature\nFeature with many docs pages.\n"), 0o600))
 
 	docsDir := filepath.Join(dir, "docs")
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		subDir := filepath.Join(docsDir, fmt.Sprintf("section%d", i))
 		require.NoError(t, os.MkdirAll(subDir, 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(subDir, "page.md"), []byte(fmt.Sprintf("# Page %d\nFeature content here.\n", i)), 0o600))
+		require.NoError(t, os.WriteFile(filepath.Join(subDir, "page.md"), fmt.Appendf(nil, "# Page %d\nFeature content here.\n", i), 0o600))
 	}
 
 	stdout, _, code := runTP(t, dir, "review", specPath, "--perspective", "documentation", "--docs-path", docsDir)
@@ -1418,7 +1418,7 @@ func TestReviewMultiFileTotalCap(t *testing.T) {
 
 	// Create 10 files of 7000 chars each (70000 total > 50000 cap)
 	var files []string
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		fPath := filepath.Join(dir, fmt.Sprintf("file%d.go", i))
 		content := fmt.Sprintf("package main\n// file %d\n%s", i, strings.Repeat("x", 7000))
 		require.NoError(t, os.WriteFile(fPath, []byte(content), 0o600))

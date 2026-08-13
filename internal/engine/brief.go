@@ -31,7 +31,7 @@ func ScopeFenceText() string {
 // a report field named for the concept does not duplicate it. tp report uses
 // this to surface out-of-fence findings a closing unit recorded.
 func ExtractOutOfScope(closedReason string) string {
-	for _, line := range strings.Split(closedReason, "\n") {
+	for line := range strings.SplitSeq(closedReason, "\n") {
 		if !strings.HasPrefix(line, OutScopePrefix) {
 			continue
 		}
@@ -194,14 +194,8 @@ func SelectPriorWork(tf *model.TaskFile, taskID string, priorCount int, priorSet
 	candidates := recencyCandidates(tf, taskID, depSet)
 	sortRecencyDesc(candidates)
 
-	recencyLimit := resolveRecencyLimit(len(depOrder), priorCount, priorSet)
-	if recencyLimit > len(candidates) {
-		recencyLimit = len(candidates)
-	}
-	omitted := len(candidates) - recencyLimit
-	if omitted < 0 {
-		omitted = 0
-	}
+	recencyLimit := min(resolveRecencyLimit(len(depOrder), priorCount, priorSet), len(candidates))
+	omitted := max(len(candidates)-recencyLimit, 0)
 
 	entries := make([]PriorWorkEntry, 0, len(depOrder)+recencyLimit)
 	for _, t := range depOrder {
@@ -351,10 +345,7 @@ func resolveRecencyLimit(depCount, priorCount int, priorSet bool) int {
 	if priorSet {
 		return priorCount
 	}
-	room := priorDefaultTotal - depCount
-	if room < 0 {
-		room = 0
-	}
+	room := max(priorDefaultTotal-depCount, 0)
 	if priorDefaultRecency < room {
 		return priorDefaultRecency
 	}
@@ -379,8 +370,8 @@ func buildPriorWorkEntry(t *model.Task) PriorWorkEntry {
 // firstLineOfString returns the substring before the first newline, or the
 // whole string when it has none (§5.2 "the first line of closed_reason").
 func firstLineOfString(s string) string {
-	if i := strings.IndexByte(s, '\n'); i >= 0 {
-		return s[:i]
+	if before, _, ok := strings.Cut(s, "\n"); ok {
+		return before
 	}
 	return s
 }
@@ -399,10 +390,7 @@ func priorWorkFileTotal(t *model.Task) int {
 // paths exist (§5.2): the true total minus the (up to five) shown paths.
 func priorWorkFileMore(t *model.Task) int {
 	total := priorWorkFileTotal(t)
-	shown := len(t.CommitFiles)
-	if shown > priorWorkFileCap {
-		shown = priorWorkFileCap
-	}
+	shown := min(len(t.CommitFiles), priorWorkFileCap)
 	if total > shown {
 		return total - shown
 	}

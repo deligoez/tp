@@ -58,10 +58,10 @@ func recordRounds(t *testing.T, specPath string, review, audit int, matchHash bo
 	}
 	st, err := EnsureReviewState(specPath)
 	require.NoError(t, err)
-	for i := 0; i < review; i++ {
+	for i := range review {
 		st.ReviewRounds = append(st.ReviewRounds, ReviewRound{Round: i + 1, Clean: true, SpecHash: hash})
 	}
-	for i := 0; i < audit; i++ {
+	for i := range audit {
 		st.AuditRounds = append(st.AuditRounds, ReviewRound{Round: i + 1, Clean: true, SpecHash: hash})
 	}
 	require.NoError(t, SaveReviewState(specPath, st))

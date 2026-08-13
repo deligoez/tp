@@ -33,12 +33,10 @@ func TestEnsureTPGitignore_PreservesCustomEntriesUnderConcurrency(t *testing.T) 
 	require.NoError(t, err)
 
 	var wg sync.WaitGroup
-	for i := 0; i < 12; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 12 {
+		wg.Go(func() {
 			assert.NoError(t, EnsureTPGitignore(tpDir))
-		}()
+		})
 	}
 	wg.Wait()
 

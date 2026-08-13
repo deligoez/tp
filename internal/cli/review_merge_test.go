@@ -285,7 +285,7 @@ func TestReviewMergeAllEmptyFilesCreateEmptyOutput(t *testing.T) {
 func parseNDJSON(t *testing.T, s string) []map[string]any {
 	t.Helper()
 	var results []map[string]any
-	for _, line := range strings.Split(strings.TrimSpace(s), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(s), "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue

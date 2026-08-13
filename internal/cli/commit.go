@@ -196,7 +196,7 @@ func gitStage(filesFlag string) error {
 		return runGit("add", "-A")
 	}
 
-	for _, pattern := range strings.Split(filesFlag, ",") {
+	for pattern := range strings.SplitSeq(filesFlag, ",") {
 		pattern = strings.TrimSpace(pattern)
 		if pattern == "" {
 			continue
@@ -335,7 +335,7 @@ func gitDiffNameOnlyHEAD(dir string) ([]string, error) {
 		return nil, err
 	}
 	paths := make([]string, 0)
-	for _, line := range strings.Split(string(out), "\n") {
+	for line := range strings.SplitSeq(string(out), "\n") {
 		if line = strings.TrimSpace(line); line != "" {
 			paths = append(paths, line)
 		}
@@ -399,7 +399,7 @@ func commitChangedPaths(dir, sha string) ([]string, bool) {
 		return nil, false
 	}
 	paths := make([]string, 0)
-	for _, line := range strings.Split(string(out), "\n") {
+	for line := range strings.SplitSeq(string(out), "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue

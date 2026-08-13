@@ -109,10 +109,7 @@ func ValidateLineCoverage(tf *model.TaskFile, specPath string) []Finding {
 		return (gaps[i].End - gaps[i].Start) > (gaps[j].End - gaps[j].Start)
 	})
 
-	maxGaps := 5
-	if len(gaps) < maxGaps {
-		maxGaps = len(gaps)
-	}
+	maxGaps := min(len(gaps), 5)
 
 	for i := 0; i < maxGaps; i++ {
 		g := gaps[i]

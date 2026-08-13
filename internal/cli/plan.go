@@ -115,7 +115,7 @@ func runPlan(_ *cobra.Command, _ []string) error {
 	if planLevel != "" {
 		levels := engine.ComputeParallelismLevels(tf.Tasks)
 		allowedLevels := make(map[int]bool)
-		for _, l := range strings.Split(planLevel, ",") {
+		for l := range strings.SplitSeq(planLevel, ",") {
 			n, parseErr := strconv.Atoi(strings.TrimSpace(l))
 			if parseErr == nil {
 				allowedLevels[n] = true

@@ -33,7 +33,7 @@ func TestFindingClass_MergeClustersSameClassKeepsHighestSeverity(t *testing.T) {
 	require.NoError(t, err)
 
 	byFinding := map[string]map[string]any{}
-	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(string(data)), "\n") {
 		var m map[string]any
 		require.NoError(t, json.Unmarshal([]byte(line), &m))
 		byFinding[m["finding"].(string)] = m

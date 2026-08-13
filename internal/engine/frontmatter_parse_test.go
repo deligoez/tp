@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -85,14 +86,14 @@ content
 	for _, w := range fm.Warnings {
 		msgs = append(msgs, w.Message)
 	}
-	joined := ""
+	var joined strings.Builder
 	for _, m := range msgs {
-		joined += m + "\n"
+		joined.WriteString(m + "\n")
 	}
-	assert.Contains(t, joined, "tp.domain is not a string")
-	assert.Contains(t, joined, "tp.lens.implementer is not a list")
-	assert.Contains(t, joined, "tp.lens.tester[1] is not a string")
-	assert.Contains(t, joined, `tp.lens key "mystery" is unknown`)
+	assert.Contains(t, joined.String(), "tp.domain is not a string")
+	assert.Contains(t, joined.String(), "tp.lens.implementer is not a list")
+	assert.Contains(t, joined.String(), "tp.lens.tester[1] is not a string")
+	assert.Contains(t, joined.String(), `tp.lens key "mystery" is unknown`)
 }
 
 func TestParseFrontmatter_NonMappingLensAndTP(t *testing.T) {

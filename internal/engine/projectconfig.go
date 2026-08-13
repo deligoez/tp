@@ -345,7 +345,7 @@ func EnsureTPGitignore(tpDir string) error {
 	}
 	content := string(data)
 	present := make(map[string]bool)
-	for _, line := range strings.Split(content, "\n") {
+	for line := range strings.SplitSeq(content, "\n") {
 		present[strings.TrimSpace(line)] = true
 	}
 
