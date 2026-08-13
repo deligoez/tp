@@ -234,3 +234,39 @@ func TestUnitKind_DurableWrite_UnknownKindIsNeverComplete(t *testing.T) {
 	assert.False(t, UnitKind("").DurableWrite(target))
 }
 
+// TestUnitKind_RolePredicate_ContentLinesOnly is tests 48 and 59: the role
+// predicate reads only content lines, so a trailing newline and a file of blank
+// lines both pass, while an unparseable content line fails.
+func TestUnitKind_RolePredicate_ContentLinesOnly(t *testing.T) {
+	cases := []struct {
+		name    string
+		content string // written to the role file; "" means write nothing
+		write   bool
+		want    bool
+	}{
+		{name: "row with trailing newline", content: "{\"class\":\"c\"}\n", write: true, want: true},
+		{name: "row without trailing newline", content: "{\"class\":\"c\"}", write: true, want: true},
+		{name: "two rows and a blank line between", content: "{\"a\":1}\n\n{\"b\":2}\n", write: true, want: true},
+		{name: "only blank and whitespace-only lines", content: "\n   \n\t\n\n", write: true, want: true},
+		{name: "empty file", content: "", write: true, want: true},
+		{name: "unparseable content line", content: "{\"a\":1}\nnot json\n", write: true, want: false},
+		{name: "truncated row", content: "{\"a\":1}\n{\"b\":", write: true, want: false},
+		{name: "content line that is not an object", content: "[1,2]\n", write: true, want: false},
+		{name: "missing file", write: false, want: false},
+	}
+
+	for _, kind := range []UnitKind{UnitReviewRole, UnitAuditRole} {
+		for _, c := range cases {
+			t.Run(string(kind)+"/"+c.name, func(t *testing.T) {
+				dir := t.TempDir()
+				roundDir := unitRoundDir(dir)
+				if c.write {
+					writeUnitFile(t, RoleFindingsPath(roundDir, "architect"), c.content)
+				}
+				got := kind.DurableWrite(UnitTarget{RoundDir: roundDir, ID: "architect"})
+				assert.Equal(t, c.want, got)
+			})
+		}
+	}
+}
+
