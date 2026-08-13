@@ -54,3 +54,26 @@ func TestUnitKinds_EightKindsInTableOrder(t *testing.T) {
 	}
 }
 
+func TestUnitKind_ConcurrencyFromTable(t *testing.T) {
+	cases := []struct {
+		kind       UnitKind
+		want       UnitConcurrency
+		concurrent bool
+	}{
+		{UnitImplement, ConcurrencyAlone, false},
+		{UnitReviewRole, ConcurrencySiblingRoles, true},
+		{UnitReviewRecord, ConcurrencyAlone, false},
+		{UnitReviewResolve, ConcurrencyAlone, false},
+		{UnitDecompose, ConcurrencyAlone, false},
+		{UnitAuditRole, ConcurrencySiblingRoles, true},
+		{UnitAuditRecord, ConcurrencyAlone, false},
+		{UnitAuditFix, ConcurrencyAlone, false},
+		// An unrecognized kind is alone — the safe direction.
+		{UnitKind("mystery"), ConcurrencyAlone, false},
+	}
+	for _, c := range cases {
+		assert.Equal(t, c.want, c.kind.Concurrency(), "%s concurrency", c.kind)
+		assert.Equal(t, c.concurrent, c.kind.Concurrent(), "%s concurrent", c.kind)
+	}
+}
+
