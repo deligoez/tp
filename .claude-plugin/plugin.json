@@ -1,20 +1,19 @@
 {
   "name": "tp",
-  "version": "1.0.0",
-  "description": "Task Plan: spec-to-task lifecycle for AI agents",
-  "skills": [
-    {
-      "name": "tp",
-      "path": "../skills/tp/SKILL.md",
-      "triggers": [
-        "implement spec",
-        "implement plan",
-        "implement tasks",
-        "tp plan",
-        "tp done",
-        "tp next",
-        "task plan"
-      ]
-    }
+  "version": "0.35.0",
+  "description": "Spec-to-task lifecycle manager for AI coding agents. Decomposes specs into atomic tasks, manages execution order via dependency graph, and batch-closes with evidence.",
+  "author": {
+    "name": "Yunus Emre Deligöz",
+    "url": "https://github.com/deligoez"
+  },
+  "homepage": "https://github.com/deligoez/tp",
+  "repository": "https://github.com/deligoez/tp",
+  "license": "MIT",
+  "keywords": [
+    "spec",
+    "tasks",
+    "workflow",
+    "review",
+    "audit"
   ]
 }
