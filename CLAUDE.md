@@ -132,17 +132,28 @@ Prefer running each **unit** in a **fresh subagent context** (Agent/Task tool), 
 
 ### Where the next work is (read this before starting anything)
 
-Two drafts are written and neither has been reviewed. **`spec/0.35.0.md`** is the unattended runner
-(`tp run`); **`spec/0.36.0.md`** turns this file's process rules into checks. Work them in that
-order — v0.36.0's §7a explicitly measures a review-loop property, which is easier once a driver
-exists.
+**`spec/0.35.0.md`** (the unattended runner, `tp run`) is **review-converged** — 20 rounds, two
+consecutive clean, `tp review spec/0.35.0.md --status --check` exits 0. It is the one to decompose
+and implement next.
 
-**Findings are already routed, so do not re-derive them.** `spec/0.35.0.md` §8a carries the four
+Then, in order: **`spec/0.36.0.md`** — what the loop costs — makes the two largest review-loop costs
+visible, and **`spec/0.37.0.md`** turns this file's remaining process rules into checks. v0.36.0 goes
+first because it measures the loop that v0.37.0's other rules are validated in. Neither has been
+reviewed.
+
+**Findings are already routed, so do not re-derive them.** `spec/0.35.0.md` §8a carries the five
 things an unattended driver amplifies (an inflated convergence count from `--merge`'s dedup key,
 `next_action` recommending a registration the phase cannot honour, a truncated audit reporting as
-complete, exit codes that cannot separate a typo from a failure). `spec/0.36.0.md` §7a carries the
-repair-verbosity rule with its data. `spec/0.35.0-candidates.md` §0 names what v0.34.1 and v0.34.2
-already closed and what moved to a spec — read it first so nothing gets re-opened or claimed twice.
+complete, a dropped role merging clean, exit codes that cannot separate a typo from a failure).
+`spec/0.36.0.md` §2 carries the repair-verbosity rule with the measurements from v0.35.0's own loop —
+43% of that cycle's findings sat in text the previous round had just written, and one idea arrived
+under 25 distinct class slugs. `spec/0.35.0-candidates.md` §0 names what v0.34.1 and v0.34.2 already
+closed and what moved to a spec — read it first so nothing gets re-opened or claimed twice.
+
+**v0.36.0's own hazard is suppression, and its §8 is a release gate rather than a test appendix.**
+Every mechanism in it hides, regroups or narrows what reviewers see, which is exactly what burned
+v0.34.0 §7.1 for eight rounds. Nothing there ships until it is replayed against the recorded rounds
+in `spec/.tp-review/` and shown not to lose a finding tp used to surface.
 
 `spec/feedback.md` is gone: every finding it held now has an owner. Field feedback should land in the
 spec that will answer it, not in a file nobody is required to read.
