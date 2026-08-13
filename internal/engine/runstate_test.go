@@ -134,3 +134,18 @@ func TestRunRecorder_RowIsNullBeforeTheChildExitsAndUpdatedAfter(t *testing.T) {
 	assert.InDelta(t, 0.42, totals["spend_usd"], 0.0001)
 }
 
+func TestRunRecorder_UnmeteredUnitStaysNullAndAccruesNothing(t *testing.T) {
+	root, taskFile, rec := newTestRun(t)
+
+	require.NoError(t, rec.StartUnit(startedRow(1, 1, "implementer")))
+	require.NoError(t, rec.FinishUnit(1, 0, time.Second, nil))
+
+	raw := readRunStateRaw(t, root, taskFile)
+	rows := rawUnits(t, raw)
+	require.Len(t, rows, 1)
+	assert.Equal(t, 0.0, rows[0]["exit_code"], "a zero exit code is recorded as zero, not left null")
+	assert.Nil(t, rows[0]["spend_usd"], "a runner declaring no spend_key reports spend null")
+	assert.Equal(t, 0.0, raw["totals"].(map[string]any)["spend_usd"],
+		"an unmetered unit accrues nothing against the budget cap")
+}
+
