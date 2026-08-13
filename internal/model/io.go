@@ -74,7 +74,6 @@ func ReadTaskFile(path string) (*TaskFile, error) {
 }
 
 // WriteTaskFile writes a TaskFile to disk as pretty-printed JSON.
-// WriteTaskFile writes a TaskFile to disk as pretty-printed JSON.
 func WriteTaskFile(path string, tf *TaskFile) error {
 	// §6.2: every task carries [] (not null) for depends_on, source_sections,
 	// and tags, whichever command wrote it. Normalize nil slices to empty so a

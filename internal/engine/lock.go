@@ -65,7 +65,12 @@ func WithFileLockTimeout(path string, timeoutSeconds int, fn func() error) error
 	// that never ran tp init, one locked write now leaves an untracked
 	// .tp/locks/<target>.lock behind, and tp resume reports an unexplained
 	// change the agent cannot clear by committing.
-	_ = EnsureTPGitignore(ProjectConfigDir(filepath.Dir(path)))
+	if err := EnsureTPGitignore(ProjectConfigDir(filepath.Dir(path))); err != nil {
+		// Not fatal: the lock still works, and refusing to take it would be a
+		// worse trade. But swallowing it reproduced the symptom this call
+		// exists to prevent, with nothing on the record saying why.
+		fmt.Fprintf(os.Stderr, "warning: could not write .tp/.gitignore (%v); .tp/locks/ may show up as an untracked change\n", err)
+	}
 
 	if sibling := path + ".lock"; sibling != lockPath {
 		if _, err := os.Stat(sibling); err == nil {
