@@ -1,14 +1,867 @@
 {
   "version": 1,
   "spec": "spec/0.35.0.md",
-  "created_at": "2026-08-13T15:50:21.641837Z",
-  "updated_at": "2026-08-13T15:50:21.641838Z",
+  "created_at": "2026-08-13T20:48:04.077016Z",
+  "updated_at": "2026-08-13T20:48:04.079738Z",
   "workflow": {},
   "coverage": {
-    "total_sections": 0,
-    "mapped_sections": 0,
-    "context_only": [],
+    "total_sections": 42,
+    "mapped_sections": 24,
+    "context_only": [
+      "# tp v0.35.0 — Unattended run",
+      "## 1. Overview",
+      "## 2. Prior art and the lessons taken",
+      "## 3. `tp run` — the driver",
+      "## 4. Oracle contract",
+      "## 5. Unattended mode",
+      "## 6. The plugin",
+      "## 8a. Signals the driver reads",
+      "## 9. Non-Goals",
+      "## 10. Tests",
+      "### 10.1 The loop",
+      "### 10.2 Runner and run state",
+      "### 10.3 Unattended mode and escalation",
+      "### 10.4 The plugin",
+      "### 10.5 Signals the driver reads",
+      "### 10.6 Invariants across components",
+      "### 10.7 Coverage added in review",
+      "### 10.8 Existing tests this change invalidates"
+    ],
     "unmapped": []
   },
-  "tasks": []
+  "tasks": [
+    {
+      "id": "workflow-fields",
+      "title": "Add the seven run workflow fields",
+      "status": "open",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "model.Workflow gains run_max_units, run_max_wall_clock_seconds, run_max_budget_usd, run_max_unit_budget_usd, run_max_unit_retries, runner and notify_cmd with the documented defaults and ranges.\nEach numeric field accepts both range endpoints and rejects one step outside; notify_cmd resolves from .tp/local.json only.\ntp config --resolved, tp config --extract and tp validate --project cover all seven (test 16, 69).",
+      "source_sections": [
+        "## 7. Workflow fields"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "runner-shape",
+      "title": "Resolve the runner field's three shapes",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "workflow-fields"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "runner resolves as a template name, a runner object, or a per-kind map with default; an object carrying cmd is a runner and anything else is a map.\nA map without default and a runner object without cmd are both usage errors (test 56).",
+      "source_sections": [
+        "### 3.2 The runner abstraction"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "runner-templates",
+      "title": "Ship both built-in runner templates",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "runner-shape"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "The claude template resolves to its documented argv including --permission-mode auto, appending --max-budget-usd only when run_max_unit_budget_usd is non-zero; opencode resolves to run with the prompt.\nEvery placeholder resolves, and an unresolved one is a usage error raised before any child is spawned (test 10).",
+      "source_sections": [
+        "#### 3.2.1 Templates and placeholders"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "runner-seam",
+      "title": "Add the TP_RUNNER_SEAM test seam",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "runner-templates"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "TP_RUNNER_SEAM resolves to a runner whose args are the documented positional list and whose spend_key is total_cost_usd, outranking every layer including CLI.\nThe fake runner records each invocation's argv, environment, spawn time and exit time (test 1).",
+      "source_sections": [
+        "#### 3.2.1 Templates and placeholders"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "runner-spend",
+      "title": "Read spend from the runner log",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "runner-templates"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "After a child exits the driver reads total_cost_usd for claude or the declared spend_key, and reports spend null for a runner declaring none.\nA runner with no spend_key leaves cap-budget inert and is reported once at run start; a per-kind map names its unmetered kinds (tests 11, 66).",
+      "source_sections": [
+        "#### 3.2.2 Spend"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "unit-kinds",
+      "title": "Define the eight unit kinds",
+      "status": "open",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "An eight-kind enum carries each kind's durable-write predicate and concurrency from the table.\nEach predicate is decidable from the artifacts it names with no baseline, and the role predicate ignores blank and whitespace-only lines (tests 18, 48, 59).",
+      "source_sections": [
+        "### 3.3 Unit kinds"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "brief-commands",
+      "title": "Map each unit kind to its brief command",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "unit-kinds"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Each kind resolves to the documented brief_command, with the record kinds' merge step skipped when merged.ndjson already exists.\nA unit succeeded when it exited 0 and its durable write is present; either alone is a failed attempt (tests 51, 57).",
+      "source_sections": [
+        "#### 3.3.1 What completes a unit"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "child-env",
+      "title": "Export the child environment variables",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "unit-kinds"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "Every child receives TP_RUN_ID as a ULID, TP_RUN_DIR absolute, TP_ROUND_DIR derived from phase and round, TP_FILE, TP_UNIT_ID, TP_UNIT_KIND, TP_UNIT_SEQ and TP_PHASE.\nTP_ROUND and TP_ROUND_DIR are unset, not empty, outside a round-based phase, and driver variables are applied after the runner.env merge (tests 20, 37, 46).",
+      "source_sections": [
+        "#### 3.1.1 Units, ids and the child environment"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "run-lock",
+      "title": "Take a run-scoped lock",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "child-env"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "tp run takes .tp/locks/run-\u003cbase\u003e.lock for the whole run and never holds the task-file write lock while a child is in flight.\nA child's own tp write succeeds during the run and a second tp run exits 4 (test 9).",
+      "source_sections": [
+        "#### 3.1.1 Units, ids and the child environment"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "next-units",
+      "title": "Add next_units to the resume oracle",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "brief-commands"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "tp resume --json gains next_units carrying {kind, id, brief_command} plus round, and next_action renders next_units[0].\nA non-concurrent kind is never returned alongside another unit, and every assertion pinning resume's exact object set moves with the field (test 38).",
+      "source_sections": [
+        "### 4.1 One component owns \"done\""
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "round-resumption",
+      "title": "Omit roles already satisfying the predicate",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "next-units"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "In a round-based phase next_units omits every role whose findings file satisfies the role predicate, and a malformed file is re-run rather than skipped.\nAfter a round is recorded the oracle returns one audit-fix unit at a time and one review-resolve unit while a finding lacks a disposition (tests 45, 52).",
+      "source_sections": [
+        "### 4.1 One component owns \"done\""
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "last-failure-store",
+      "title": "Store last_failure outside the run state",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "next-units"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "A non-zero unit exit writes .tp/last_failure-\u003cbase\u003e.json with the documented fields and a tp-authored summary, cleared only on the next success of the same (kind, id).\ntp resume and tp brief surface it and it survives into the next run (test 23).",
+      "source_sections": [
+        "### 4.2 `last_failure`"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "last-failure-gate",
+      "title": "Record a gate failure from tp done",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "last-failure-store"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "tp done writes last_failure with the gate's own output when its gate fails and TP_UNIT_KIND is set.\nIt writes nothing when that variable is absent, leaving the shipped command unchanged outside a run (test 61).",
+      "source_sections": [
+        "### 4.2 `last_failure`"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "run-state-file",
+      "title": "Write the run state file",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "child-env"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": ".tp/run-\u003cbase\u003e.json holds run_id, started_at, phase, stop_reason, totals and one row per unit attempt, written atomically.\nA row is appended with null exit_code before its child spawns and updated after it exits, and totals restart at zero on a new run (test 12).",
+      "source_sections": [
+        "### 3.5 Run state, logs and status"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "unit-logs",
+      "title": "Own each unit's log file",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "run-state-file"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "A template omitting {log_path} has its child's stdout and stderr redirected to $TP_RUN_DIR/\u003cseq\u003e-\u003ckind\u003e-\u003cid\u003e.jsonl; one using the placeholder owns the file and is not redirected.\nEvery child is spawned with stdin closed so a runner reading stdin sees EOF (tests 60, 62).",
+      "source_sections": [
+        "### 3.5 Run state, logs and status"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "driver-loop",
+      "title": "Execute the driver loop",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "run-lock",
+        "next-units",
+        "runner-seam",
+        "run-state-file"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "tp run [spec] reads cycle state, takes next_units, spawns concurrent kinds together and every other kind alone, re-reads state from disk, and checks caps.\nThe loop advances through implement, review and audit and stops with converged when the oracle reports phase release; a crashed driver resumes at the same unit (tests 2, 5, 6).",
+      "source_sections": [
+        "### 3.1 The loop"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "retry-attempts",
+      "title": "Attempt a unit its budgeted number of times",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "driver-loop"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "A unit is attempted 1 + run_max_unit_retries times, each attempt taking a fresh seq and log path.\nThe driver deletes a role unit's findings file and any stale .part immediately before spawning it, so a leftover cannot satisfy the retry's predicate (tests 8, 17, 65).",
+      "source_sections": [
+        "### 3.1 The loop"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "stop-reasons",
+      "title": "Record the nine stop reasons",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "driver-loop"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "Each of the nine stop_reason values is produced by its documented cause, and run_max_units, totals.units and units-done all count attempts.\nNo stop reason records a round, marks a phase converged, or closes a task its own unit did not close (tests 3, 4, 7, 33).",
+      "source_sections": [
+        "### 3.4 Caps and stop conditions"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "stop-precedence",
+      "title": "Order simultaneously satisfied stop reasons",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "stop-reasons"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "When one checkpoint satisfies several rows the recorded reason is the documented first, with converged leading.\nTwo simultaneously satisfied conditions record the higher-precedence reason (test 34).",
+      "source_sections": [
+        "### 3.4 Caps and stop conditions"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cap-timing",
+      "title": "Evaluate caps between iterations only",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "stop-reasons"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "Caps are checked between iterations, in-flight children run to completion and the driver kills nothing.\nSIGINT and SIGTERM stop the run with interrupted, letting children finish and spawning no new unit (tests 41, 63).",
+      "source_sections": [
+        "### 3.4 Caps and stop conditions"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "driver-error",
+      "title": "Stop on a driver-side fatal error",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "stop-reasons"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "A runner that cannot be exec'd, or a run directory that cannot be written, stops the run with driver-error and exit 4.\nNo unit is charged a failed attempt for it (test 70).",
+      "source_sections": [
+        "### 3.4 Caps and stop conditions"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "run-exit-codes",
+      "title": "Pin tp run's exit codes",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "stop-reasons"
+      ],
+      "estimate_minutes": 4,
+      "acceptance": "tp run exits 0 on converged and 4 on every other stop_reason, and 2 on a usage error before the loop starts (test 54).",
+      "source_sections": [
+        "### 3.4 Caps and stop conditions"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "run-status",
+      "title": "Report the run with tp run --status",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "run-state-file",
+        "driver-loop"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "tp run --status prints phase, units done, spend against each cap, the last unit's exit code and log path, stop_reason, and run_state as in_flight, crashed or stopped using the run lock.\nIt carries the divergence signals on an audit-phase stop, exits 0 when it can report and 3 when no run state exists, and takes no lock (tests 14, 35, 58).",
+      "source_sections": [
+        "### 3.5 Run state, logs and status"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "run-dry-run",
+      "title": "List the next units with --dry-run",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "driver-loop"
+      ],
+      "estimate_minutes": 5,
+      "acceptance": "tp run --dry-run prints the units the driver would execute next, exits 0, spawns nothing, writes no run state and takes no lock (tests 13, 58).",
+      "source_sections": [
+        "### 3.5 Run state, logs and status"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "run-compact",
+      "title": "Strip the run surface under --compact",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "run-status"
+      ],
+      "estimate_minutes": 4,
+      "acceptance": "Under --compact the run surface keeps stop_reason and the cap totals and strips per-unit rows and log paths (test 68).",
+      "source_sections": [
+        "## 7. Workflow fields"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "gitignore-entries",
+      "title": "Git-ignore the run artifacts",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "run-state-file"
+      ],
+      "estimate_minutes": 4,
+      "acceptance": "The shipped .tp/.gitignore covers .tp/run-\u003cbase\u003e.json, .tp/runs/, .tp/rounds/ and .tp/last_failure-\u003cbase\u003e.json, and the fixture gains four entries (test 15).",
+      "source_sections": [
+        "### 3.5 Run state, logs and status"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "unattended-fence",
+      "title": "Refuse user-only decisions when unattended",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "workflow-fields"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "Under TP_UNATTENDED each of the four user-only operations exits 2 with its hint and exits 0 without the variable; a cap set to an equal or lower non-zero value exits 0, and a budget field set to 0 while a non-zero value resolves exits 2.\nThe env layer is ignored for every fenced field, runner and notify_cmd cannot be set at any layer, and the mode activates on any present non-empty value other than 0 (tests 19, 40, 64).",
+      "source_sections": [
+        "### 5.1 User-only decisions fail closed"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "tp-escalate",
+      "title": "Add the tp escalate command",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "child-env"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "tp escalate writes $TP_RUN_DIR/$TP_UNIT_SEQ-escalation.json with the documented fields and one of the five decision values, and exits 2.\nTwo concurrent siblings each write their own, and outside a run it is a usage error (test 22).",
+      "source_sections": [
+        "### 5.2 Escalation"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "escalation-detection",
+      "title": "Stop the run on an escalation record",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "tp-escalate",
+        "stop-reasons"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "A unit that wrote a valid escalation record stops the run with escalation whatever the harness exited with, is not counted as a failed attempt and sets no last_failure.\nA record that fails schema validation, or an exit 2 with none, is judged as an ordinary attempt (tests 21, 47).",
+      "source_sections": [
+        "### 5.2 Escalation"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "notify-cmd",
+      "title": "Invoke notify_cmd on a non-converged stop",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "escalation-detection"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "notify_cmd fires on every non-converged stop, exec'd without a shell and split on whitespace, carrying TP_STOP_REASON, TP_RUN_ID and on an escalation TP_ESCALATION_PATH.\nIts own failure is reported and never changes stop_reason (test 42).",
+      "source_sections": [
+        "### 5.2 Escalation"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "audit-resolve",
+      "title": "Add tp audit --resolve",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "unit-kinds"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "tp audit --resolve and --resolve-all dispose audit rows with the same dispositions and flags as their review counterparts and additionally accept a role:item_id selector.\nAn audit-fix unit that disposes its row without a code change satisfies its predicate (test 53).",
+      "source_sections": [
+        "### 3.3 Unit kinds"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "round-dir-emission",
+      "title": "Emit the round-scoped findings path",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "child-env"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Under TP_ROUND_DIR, tp review and tp audit emit $TP_ROUND_DIR/role-\u003crole\u003e.ndjson.part per role as that role's output file, and the emitted filename is unchanged outside a run.\nThe record units merge $TP_ROUND_DIR/role-*.ndjson and write merged.ndjson only when absent, so a re-run preserves accumulated dispositions (tests 27, 36, 57).",
+      "source_sections": [
+        "### 6.3 Agents"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "location-clusters",
+      "title": "Cluster merged findings by location",
+      "status": "open",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "tp review --merge and --status gain location_clusters carrying {location, roles, severities, count} for every location reported by more than one role.\nThe recorded finding count, the clean flag and the --status --check exit code are unchanged (test 28).",
+      "source_sections": [
+        "### 8a.1 Clustered counts"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "mechanize-qualifier",
+      "title": "Qualify the mechanize recommendation by phase",
+      "status": "open",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 6,
+      "acceptance": "next_action's mechanize branch states that a check is worth registering only when the artifact it measures already exists in the review phase.\nskills/tp/SKILL.md's mechanize-candidate rule and Workflow D step 3 carry the same qualifier (test 29).",
+      "source_sections": [
+        "### 8a.2 Phase-honest mechanization advice"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "audit-truncation",
+      "title": "Report a truncated audit as truncated",
+      "status": "open",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 8,
+      "acceptance": "tp audit's file_summary gains truncated and total_changed, total_files keeps reporting the audited count, and the notice names both numbers.\nThe flag is in the payload so --quiet cannot erase it (test 30).",
+      "source_sections": [
+        "### 8a.3 Truncated audits report as truncated"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "merge-inputs",
+      "title": "Report per-input merge accounting",
+      "status": "open",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "tp review --merge and tp audit --merge report inputs with per-file parsed and skipped counts.\nAn input with content lines none of which parsed exits 1; a zero-byte or blank-only input exits 0; blank lines never contribute to the condition, and every test pinning the old exit 0 moves with the change (tests 32, 49).",
+      "source_sections": [
+        "### 8a.4 A dropped role does not merge clean"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "arity-exit-two",
+      "title": "Exit 2 on an arity violation",
+      "status": "open",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "Every command's Args validator exits 2, including cobra's own built-ins, and tp show with no argument names the missing argument.\nEvery test asserting exit 1 for a wrong argument count moves in this task (test 31).",
+      "source_sections": [
+        "### 8a.5 Arity violations are usage errors"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "plugin-layout",
+      "title": "Fill out the plugin root",
+      "status": "open",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 8,
+      "acceptance": ".claude-plugin/plugin.json declares the plugin's identity alongside the existing skills/tp, hooks/ and agents/.\nThe plugin validates with claude plugin validate and ships no binary (test 24).",
+      "source_sections": [
+        "### 6.1 Layout"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "hook-session-start",
+      "title": "Inject orientation on SessionStart",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "plugin-layout"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "The SessionStart hook preflights tp's presence and version against plugin.json's, failing with the install command when absent or older.\nIt then injects tp resume --compact as additional context on every matcher (test 50).",
+      "source_sections": [
+        "### 6.2 Hooks"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "hook-write-deny",
+      "title": "Deny the fenced writes on PreToolUse",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "plugin-layout"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "The PreToolUse hook matches Write, Edit, MultiEdit and NotebookEdit and denies .tp-review/ contents, *.tasks.json, .tp/config.json and .tp/local.json.\nShell tools are outside the matcher, so tp's own writes pass (test 25).",
+      "source_sections": [
+        "### 6.2 Hooks"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "hook-stop",
+      "title": "Block an incomplete role unit on Stop",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "plugin-layout"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "The Stop hook fires only when TP_UNIT_KIND ends in -role, applying the role predicate to the unit's .part and checking for an escalation record.\nIt blocks a role unit with neither, allows one with either, never fires for a non-role kind, and blocks at most once per unit via stop_hook_active (tests 26, 39, 67).",
+      "source_sections": [
+        "### 6.2 Hooks"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "hook-timeouts",
+      "title": "Bound every shipped hook",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "hook-session-start",
+        "hook-write-deny",
+        "hook-stop"
+      ],
+      "estimate_minutes": 4,
+      "acceptance": "Every hook the plugin ships declares a 10-second timeout and exits non-zero rather than hanging (test 43).",
+      "source_sections": [
+        "### 6.4 Hook safety"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "plugin-agents",
+      "title": "Declare the three unit agents",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "plugin-layout",
+        "runner-templates"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "agents/ declares tp-implementer, tp-reviewer and tp-auditor, with the reviewer and auditor permitted to write only their own findings .part and escalation record and denied every other path.\nThe claude template appends the documented --agent per unit kind and none for the kinds that take none (tests 44, 55).",
+      "source_sections": [
+        "### 6.3 Agents"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "docs-surface",
+      "title": "Document the unattended run",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "run-status",
+        "unattended-fence",
+        "plugin-agents",
+        "audit-resolve",
+        "merge-inputs",
+        "arity-exit-two"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "README.md, skills/tp/SKILL.md and CLAUDE.md carry tp run's command surface, the runner configuration, the unattended restrictions and the plugin's installation and hook behaviour.\nCLAUDE.md's reset-native section is rewritten around tp run, with subagent-per-unit as the interactive fallback.",
+      "source_sections": [
+        "## 8. Documentation"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ]
 }
