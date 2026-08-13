@@ -149,3 +149,19 @@ func TestRunRecorder_UnmeteredUnitStaysNullAndAccruesNothing(t *testing.T) {
 		"an unmetered unit accrues nothing against the budget cap")
 }
 
+func TestRunRecorder_TotalsCountAttempts(t *testing.T) {
+	root, taskFile, rec := newTestRun(t)
+
+	// The same unit, attempted twice: each attempt takes a fresh seq.
+	require.NoError(t, rec.StartUnit(startedRow(1, 1, "architect")))
+	require.NoError(t, rec.FinishUnit(1, 1, time.Second, nil))
+	require.NoError(t, rec.StartUnit(startedRow(2, 2, "architect")))
+	require.NoError(t, rec.FinishUnit(2, 0, time.Second, nil))
+
+	raw := readRunStateRaw(t, root, taskFile)
+	assert.Len(t, rawUnits(t, raw), 2, "a retry is a second row, not an overwrite")
+	assert.Equal(t, 2.0, raw["totals"].(map[string]any)["units"],
+		"totals.units counts attempts, which is what run_max_units bounds")
+	assert.Equal(t, 2, rec.Snapshot().Totals.Units, "the accrual the driver reads agrees with the file")
+}
+
