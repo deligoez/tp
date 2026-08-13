@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,6 +15,12 @@ import (
 // workflowDeviations reports each workflow field where a task file's override
 // differs from a value the project config explicitly sets. A field the project
 // does not set carries no policy and is not a deviation.
+// workflowDeviations reports each workflow field where a task file's override
+// differs from a value the project config explicitly sets. A field the project
+// does not set carries no policy and is not a deviation.
+//
+// notify_cmd is absent by construction: §7 reads it from .tp/local.json only,
+// so neither layer compared here can carry it and it can never deviate.
 func workflowDeviations(file string, override, project *model.WorkflowOverride) []map[string]any {
 	devs := make([]map[string]any, 0)
 	add := func(field, ov, pv string) {
@@ -24,17 +31,34 @@ func workflowDeviations(file string, override, project *model.WorkflowOverride) 
 			add(field, strconv.Itoa(*o), strconv.Itoa(*p))
 		}
 	}
+	// Budget fields are decimal dollars; -1 precision prints the shortest form
+	// that round-trips, so 2.5 reports as "2.5" rather than "2.500000".
+	cmpFloat := func(field string, o, p *float64) {
+		if o != nil && p != nil && *o != *p {
+			add(field, strconv.FormatFloat(*o, 'f', -1, 64), strconv.FormatFloat(*p, 'f', -1, 64))
+		}
+	}
 	cmpInt("gate_timeout_seconds", override.GateTimeoutSeconds, project.GateTimeoutSeconds)
 	cmpInt("lock_timeout_seconds", override.LockTimeoutSeconds, project.LockTimeoutSeconds)
 	cmpInt("review_clean_rounds", override.ReviewCleanRounds, project.ReviewCleanRounds)
 	cmpInt("audit_clean_rounds", override.AuditCleanRounds, project.AuditCleanRounds)
 	cmpInt("review_max_rounds", override.ReviewMaxRounds, project.ReviewMaxRounds)
 	cmpInt("audit_max_rounds", override.AuditMaxRounds, project.AuditMaxRounds)
+	cmpInt("run_max_units", override.RunMaxUnits, project.RunMaxUnits)
+	cmpInt("run_max_wall_clock_seconds", override.RunMaxWallClockSeconds, project.RunMaxWallClockSeconds)
+	cmpInt("run_max_unit_retries", override.RunMaxUnitRetries, project.RunMaxUnitRetries)
+	cmpFloat("run_max_budget_usd", override.RunMaxBudgetUSD, project.RunMaxBudgetUSD)
+	cmpFloat("run_max_unit_budget_usd", override.RunMaxUnitBudgetUSD, project.RunMaxUnitBudgetUSD)
 	if override.QualityGate != nil && project.QualityGate != nil && *override.QualityGate != *project.QualityGate {
 		add("quality_gate", *override.QualityGate, *project.QualityGate)
 	}
 	if override.ReviewConvergeOn != nil && project.ReviewConvergeOn != nil && *override.ReviewConvergeOn != *project.ReviewConvergeOn {
 		add("review_converge_on", *override.ReviewConvergeOn, *project.ReviewConvergeOn)
+	}
+	// runner is compared as raw JSON bytes for the same reason --extract hoists
+	// it that way: this surface reports the field, it does not interpret it.
+	if override.Runner != nil && project.Runner != nil && !bytes.Equal(override.Runner, project.Runner) {
+		add("runner", string(override.Runner), string(project.Runner))
 	}
 	if override.Checks != nil && project.Checks != nil && !checksEqual(*override.Checks, *project.Checks) {
 		add("checks",
