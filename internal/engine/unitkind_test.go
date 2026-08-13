@@ -286,3 +286,33 @@ func TestUnitKind_ReviewResolve_ReadsTheMergedFile(t *testing.T) {
 	})
 }
 
+// TestUnitKind_AuditFix_RowSelector covers the role:item_id key the audit-fix
+// predicate selects its row with.
+func TestUnitKind_AuditFix_RowSelector(t *testing.T) {
+	const rows = "{\"role\":\"go-safety\",\"item_id\":\"item-4\",\"resolved\":{\"status\":\"fixed\"}}\n" +
+		"{\"role\":\" ax-contract \",\"item_id\":\"item-9\",\"resolved\":{\"status\":\"duplicate\"}}\n" +
+		"{\"role\":\"go-safety\",\"item_id\":\"item-7\"}\n"
+
+	cases := []struct {
+		id   string
+		want bool
+	}{
+		{"go-safety:item-4", true},
+		// The role is read the way every other audit reader reads it: trimmed.
+		{"ax-contract:item-9", true},
+		{"go-safety:item-7", false},     // row present, not disposed
+		{"go-safety:item-99", false},    // no such row
+		{"spec-coverage:item-4", false}, // right item, wrong role
+		{"go-safety", false},            // no selector separator
+		{"", false},
+	}
+	for _, c := range cases {
+		t.Run(c.id, func(t *testing.T) {
+			dir := t.TempDir()
+			writeUnitFile(t, MergedFindingsPath(unitRoundDir(dir)), rows)
+			got := UnitAuditFix.DurableWrite(UnitTarget{RoundDir: unitRoundDir(dir), ID: c.id})
+			assert.Equal(t, c.want, got)
+		})
+	}
+}
+
