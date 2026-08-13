@@ -225,3 +225,12 @@ func TestUnitKind_DurableWrite_DecidableWithNoBaseline(t *testing.T) {
 	}
 }
 
+func TestUnitKind_DurableWrite_UnknownKindIsNeverComplete(t *testing.T) {
+	dir := t.TempDir()
+	writeUnitFile(t, unitTaskFile(dir), taskFileJSON("done"))
+	writeUnitFile(t, MergedFindingsPath(unitRoundDir(dir)), "{}\n")
+	target := UnitTarget{TaskFile: unitTaskFile(dir), Spec: unitSpec(dir), RoundDir: unitRoundDir(dir), Round: 1, ID: "t1"}
+	assert.False(t, UnitKind("mystery").DurableWrite(target))
+	assert.False(t, UnitKind("").DurableWrite(target))
+}
+
