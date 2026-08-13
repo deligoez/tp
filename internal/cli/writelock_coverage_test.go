@@ -47,14 +47,108 @@ type funcFacts struct {
 // flagUsageError's) would otherwise share the key "Error" and the second would
 // overwrite the first, silently dropping a writesUnlocked fact from the seed.
 // Go forbids two package-level functions of one name and two methods of one
-// name on one type, so the qualified key is unique by construction. Bare-name
-// call propagation is unaffected: a method is only ever called through a
-// selector, never through the *ast.Ident callsUnlocked records.
+// name on one type, so the qualified key is unique by construction. Method
+// calls reach these keys through receiverTypes and recordCallee below.
 func declKey(fn *ast.FuncDecl) string {
 	if fn.Recv == nil || len(fn.Recv.List) == 0 {
 		return fn.Name.Name
 	}
 	return types.ExprString(fn.Recv.List[0].Type) + "." + fn.Name.Name
+}
+
+// baseTypeName returns the package-local named type expr denotes, pointer
+// stripped, or "" when expr is not a bare local name: a qualified type from
+// another package, an interface, a func type, a map or a slice all resolve to
+// nothing rather than to a guess.
+func baseTypeName(expr ast.Expr) string {
+	if star, ok := expr.(*ast.StarExpr); ok {
+		expr = star.X
+	}
+	if id, ok := expr.(*ast.Ident); ok {
+		return id.Name
+	}
+	return ""
+}
+
+// receiverTypes maps the identifiers inside fn that hold a package-local named
+// type to that type's name -- the enclosing method's own receiver, and locals
+// declared `var x T`, `x := T{...}` or `x := &T{...}`. Those are the receivers
+// a method call can be resolved through without a type checker; every other
+// receiver (an interface value such as err in err.Error(), a func value, a
+// value produced by another package, a chained field or call expression) is
+// left unresolved and contributes no edge. The map is function-wide rather
+// than scope-aware, so a name declared twice in one function resolves to the
+// declaration the walk saw last.
+func receiverTypes(fn *ast.FuncDecl) map[string]string {
+	locals := make(map[string]string)
+	if fn.Recv != nil && len(fn.Recv.List) > 0 && len(fn.Recv.List[0].Names) > 0 {
+		if name := baseTypeName(fn.Recv.List[0].Type); name != "" {
+			locals[fn.Recv.List[0].Names[0].Name] = name
+		}
+	}
+	ast.Inspect(fn.Body, func(n ast.Node) bool {
+		switch stmt := n.(type) {
+		case *ast.DeclStmt:
+			gen, ok := stmt.Decl.(*ast.GenDecl)
+			if !ok || gen.Tok != token.VAR {
+				return true
+			}
+			for _, spec := range gen.Specs {
+				vs, isValue := spec.(*ast.ValueSpec)
+				if !isValue || vs.Type == nil {
+					continue
+				}
+				if name := baseTypeName(vs.Type); name != "" {
+					for _, id := range vs.Names {
+						locals[id.Name] = name
+					}
+				}
+			}
+		case *ast.AssignStmt:
+			for i, lhs := range stmt.Lhs {
+				id, isIdent := lhs.(*ast.Ident)
+				if !isIdent || i >= len(stmt.Rhs) {
+					continue
+				}
+				rhs := stmt.Rhs[i]
+				if unary, isUnary := rhs.(*ast.UnaryExpr); isUnary && unary.Op == token.AND {
+					rhs = unary.X
+				}
+				lit, isLit := rhs.(*ast.CompositeLit)
+				if !isLit || lit.Type == nil {
+					continue
+				}
+				if name := baseTypeName(lit.Type); name != "" {
+					locals[id.Name] = name
+				}
+			}
+		}
+		return true
+	})
+	return locals
+}
+
+// recordCallee records the same-package declaration fun names, keyed as the
+// declKey the fixpoint reads: a plain identifier for a function call, and for a
+// method call the resolved receiver type qualified with the method name. Both
+// receiver spellings are recorded because Go auto-addresses -- `var x T; x.M()`
+// runs `func (T) M` or `func (*T) M`, and only one of the two can be declared.
+func recordCallee(f *funcFacts, fun ast.Expr, locals map[string]string) {
+	switch callee := fun.(type) {
+	case *ast.Ident:
+		f.callsUnlocked[callee.Name] = true
+	case *ast.SelectorExpr:
+		recv, isIdent := callee.X.(*ast.Ident)
+		if !isIdent {
+			return
+		}
+		typeName := locals[recv.Name]
+		if typeName == "" {
+			return
+		}
+		f.callsUnlocked[typeName+"."+callee.Sel.Name] = true
+		f.callsUnlocked["*"+typeName+"."+callee.Sel.Name] = true
+	}
 }
 
 // collectFuncFacts parses every non-test .go file in dir and returns per-
@@ -83,6 +177,7 @@ func collectFuncFacts(t *testing.T, dir string) (facts map[string]*funcFacts, ru
 			}
 			f := &funcFacts{callsUnlocked: make(map[string]bool)}
 			facts[declKey(fn)] = f
+			locals := receiverTypes(fn)
 			walkLockAware(fn.Body, false, func(call *ast.CallExpr, locked bool) {
 				switch {
 				case isTaskFileWrite(call):
@@ -91,9 +186,7 @@ func collectFuncFacts(t *testing.T, dir string) (facts map[string]*funcFacts, ru
 						f.writesUnlocked = true
 					}
 				case !locked:
-					if id, isIdent := call.Fun.(*ast.Ident); isIdent {
-						f.callsUnlocked[id.Name] = true
-					}
+					recordCallee(f, call.Fun, locals)
 				}
 			})
 		}
