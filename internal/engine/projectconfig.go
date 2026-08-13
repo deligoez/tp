@@ -242,7 +242,7 @@ func LoadLocalConfig(tpDir string) (model.LocalConfig, []string, error) {
 	}
 	var warnings []string
 	for k := range top {
-		if k != "active" && k != "defaults" && k != "keep_uncommitted" {
+		if k != "active" && k != "defaults" && k != "keep_uncommitted" && k != "notify_cmd" {
 			warnings = append(warnings, "unknown top-level key: "+k)
 		}
 	}
@@ -272,6 +272,16 @@ func LoadLocalConfig(tpDir string) (model.LocalConfig, []string, error) {
 				}
 				lc.Defaults[k] = b
 			}
+		}
+	}
+	if raw, ok := top["notify_cmd"]; ok {
+		// notify_cmd lives here rather than in the project config because it is
+		// per-operator, not per-project (§7).
+		var s string
+		if err := json.Unmarshal(raw, &s); err != nil {
+			warnings = append(warnings, "notify_cmd: expected a string, ignored")
+		} else {
+			lc.NotifyCmd = &s
 		}
 	}
 	if raw, ok := top["keep_uncommitted"]; ok {
