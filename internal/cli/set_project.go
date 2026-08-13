@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -162,6 +163,62 @@ func runSetProjectWorkflow(args []string) error {
 			os.Exit(ExitFile)
 			return nil
 		}
+		warnShadowedProjectWrites(updated)
 		return output.JSON(map[string]any{"updated": updated, "config": configPath})
 	})
+}
+
+// warnShadowedProjectWrites reports any field just written to .tp/config.json
+// whose resolved value still comes from somewhere else.
+//
+// The project layer is outranked by a task file's own workflow block, so a
+// write here can be accepted, reported as updated, and have no effect — which
+// is what a project hit after adding a step to its gate: `tp set --workflow
+// --project quality_gate=...` answered {"updated":{...}} while the gate that
+// actually ran stayed the one `tp init --quality-gate` had authored.
+//
+// It warns rather than refuses because the write is legitimate wherever no
+// override exists, which is the ordinary case and the one tp's own repository
+// is in. What was wrong was reporting success without saying the value is
+// shadowed. The check is per field and layer-agnostic, so it covers any field
+// and any future layer rather than the one that surfaced it.
+//
+// The resolved source comes from resolvedConfig, the same function behind
+// `tp config --resolved`, so this warning cannot disagree with what a reader
+// sees when they go and look.
+func warnShadowedProjectWrites(updated map[string]any) {
+	taskFilePath, err := engine.DiscoverTaskFile(".", flagFile)
+	if err != nil {
+		// No task file, so no override layer exists to shadow anything.
+		return
+	}
+	override, err := engine.LoadTaskWorkflowOverride(taskFilePath)
+	if err != nil {
+		return
+	}
+	wf := engine.EffectiveWorkflowForTaskFile(taskFilePath)
+
+	resolved, ok := resolvedConfig(&wf, &override)["workflow"].(map[string]any)
+	if !ok {
+		return
+	}
+
+	shadowed := make([]string, 0, len(updated))
+	for field := range updated {
+		entry, isMap := resolved[field].(map[string]any)
+		if !isMap {
+			continue
+		}
+		if source, _ := entry["source"].(string); source != "" && source != "project" {
+			shadowed = append(shadowed, fmt.Sprintf("%s (still resolves from %s)", field, source))
+		}
+	}
+	if len(shadowed) == 0 {
+		return
+	}
+	sort.Strings(shadowed)
+
+	output.Notice(fmt.Sprintf(
+		"warning: written to .tp/config.json but shadowed by %s: %s; run 'tp config --resolved' to see what actually applies",
+		filepath.Base(taskFilePath), strings.Join(shadowed, ", ")))
 }
