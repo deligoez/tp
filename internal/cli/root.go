@@ -146,6 +146,14 @@ INCREMENTAL (1 task at a time):
 	return cmd
 }
 
+// runtimeFailureHint answers the dispatcher's last-resort exit-1 site. Unlike
+// every other hint in this package it cannot name a flag or a path, because the
+// error was returned by whichever command cobra ran and Execute knows only that
+// it failed. What it can do is stop asserting an object: the code-1 default
+// says the task file is at fault, which is wrong for every command that takes a
+// spec, an NDJSON or a config file (§9.2).
+const runtimeFailureHint = "the error message names the object that failed — check that one; 'tp validate' applies only when it is the task file"
+
 func Execute() {
 	if os.Getenv("NO_COLOR") != "" {
 		flagNoColor = true
@@ -181,8 +189,11 @@ func Execute() {
 			os.Exit(ExitState)
 		}
 		// Rare: any other RunE-returned error emits as the standard tp error
-		// object with exit 1 (validation).
-		output.Error(ExitValidation, err.Error())
+		// object with exit 1 (validation). The dispatcher cannot name the failing
+		// object — the error came from whichever command ran — so it points at
+		// the message instead of at the task file the code-1 default assumes
+		// (§9.2).
+		output.Error(ExitValidation, err.Error(), runtimeFailureHint)
 		os.Exit(ExitValidation)
 	}
 }
