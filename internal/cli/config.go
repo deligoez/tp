@@ -47,6 +47,10 @@ func sourceLabel(fromOverride, fromProject bool) string {
 
 // resolvedConfig annotates each workflow field with its value and source layer.
 // Workflow fields resolve across override/project/default only.
+// resolvedConfig annotates each workflow field with its value and source layer.
+// Workflow fields resolve across override/project/default only — except
+// notify_cmd, which is per-operator and can only come from .tp/local.json, so
+// it reports local or default and never override or project (§7).
 func resolvedConfig(wf *model.Workflow, override *model.WorkflowOverride) map[string]any {
 	project := engine.ProjectWorkflowOverride()
 	vs := func(value any, o, p bool) map[string]any {
@@ -55,6 +59,10 @@ func resolvedConfig(wf *model.Workflow, override *model.WorkflowOverride) map[st
 	// commit_strategy's resolved value is the normalized name (builtin/auto/hc),
 	// so a present unrecognized value reports as builtin, not the raw string (§5.2).
 	csName, _ := engine.ResolveCommitStrategy(override.CommitStrategy, project.CommitStrategy)
+	notifySource := "default"
+	if wf.NotifyCmd != "" {
+		notifySource = "local"
+	}
 	result := map[string]any{"workflow": map[string]any{
 		"quality_gate":         vs(wf.QualityGate, override.QualityGate != nil, project.QualityGate != nil),
 		"commit_strategy":      vs(csName, override.CommitStrategy != nil, project.CommitStrategy != nil),
@@ -68,6 +76,17 @@ func resolvedConfig(wf *model.Workflow, override *model.WorkflowOverride) map[st
 		// review_converge_on reports the raw resolved value and its source; an
 		// invalid stored value is surfaced, not rejected here (§3.3).
 		"review_converge_on": vs(wf.ReviewConvergeOn, override.ReviewConvergeOn != nil, project.ReviewConvergeOn != nil),
+
+		// §7's run fields. runner reports its raw JSON value whatever shape it
+		// takes, so a per-kind map is visible here before the runner resolver
+		// ever interprets it.
+		"run_max_units":              vs(wf.RunMaxUnits, override.RunMaxUnits != nil, project.RunMaxUnits != nil),
+		"run_max_wall_clock_seconds": vs(wf.RunMaxWallClockSeconds, override.RunMaxWallClockSeconds != nil, project.RunMaxWallClockSeconds != nil),
+		"run_max_budget_usd":         vs(wf.RunMaxBudgetUSD, override.RunMaxBudgetUSD != nil, project.RunMaxBudgetUSD != nil),
+		"run_max_unit_budget_usd":    vs(wf.RunMaxUnitBudgetUSD, override.RunMaxUnitBudgetUSD != nil, project.RunMaxUnitBudgetUSD != nil),
+		"run_max_unit_retries":       vs(wf.RunMaxUnitRetries, override.RunMaxUnitRetries != nil, project.RunMaxUnitRetries != nil),
+		"runner":                     vs(wf.Runner, override.Runner != nil, project.Runner != nil),
+		"notify_cmd":                 map[string]any{"value": wf.NotifyCmd, "source": notifySource},
 	}}
 	// active provenance: the resolved active file and its discovery-chain rank
 	// (cli/env/local/legacy/autodetect).
