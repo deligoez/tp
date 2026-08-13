@@ -286,3 +286,12 @@ func TestReadRunState_ReportsAMissingFileAsNotExist(t *testing.T) {
 		"no run state for the task file is a distinguishable condition, not a parse failure")
 }
 
+func TestReadRunState_ReportsAnUnparseableFile(t *testing.T) {
+	root, taskFile, _ := newTestRun(t)
+	require.NoError(t, os.WriteFile(RunStatePath(root, taskFile), []byte("{not json"), 0o600))
+
+	_, err := ReadRunState(root, taskFile)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "parse run state")
+}
