@@ -187,3 +187,32 @@ func TestRunRecorder_StopAndPhaseAreRecorded(t *testing.T) {
 	assert.Equal(t, "converged", raw["stop_reason"])
 }
 
+// The accrued totals bound a run, not a cycle: a second run over the same task
+// file starts from zero and inherits none of the first run's rows, spend or
+// stop reason.
+func TestNewRunRecorder_TotalsRestartAtZeroOnANewRun(t *testing.T) {
+	root, taskFile, first := newTestRun(t)
+
+	spend := 7.5
+	require.NoError(t, first.StartUnit(startedRow(1, 1, "architect")))
+	require.NoError(t, first.FinishUnit(1, 0, 30*time.Second, &spend))
+	require.NoError(t, first.Stop("cap-budget"))
+
+	firstState, err := ReadRunState(root, taskFile)
+	require.NoError(t, err)
+	require.InDelta(t, 7.5, firstState.Totals.SpendUSD, 0.0001)
+
+	second, err := NewRunRecorder(root, taskFile, NewULID(), PhaseReview)
+	require.NoError(t, err)
+
+	raw := readRunStateRaw(t, root, taskFile)
+	assert.Empty(t, rawUnits(t, raw), "the new run inherits none of the dead run's rows")
+	assert.Nil(t, raw["stop_reason"], "the new run has not stopped")
+	assert.NotEqual(t, firstState.RunID, raw["run_id"], "each run takes its own id")
+	totals := raw["totals"].(map[string]any)
+	assert.Equal(t, 0.0, totals["units"])
+	assert.Equal(t, 0.0, totals["spend_usd"])
+	assert.Equal(t, 0.0, totals["wall_clock_seconds"], "the wall clock restarts with the run")
+	assert.Equal(t, 0, second.Snapshot().Totals.Units)
+}
+
