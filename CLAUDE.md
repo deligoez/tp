@@ -154,7 +154,7 @@ acceptance delimiters, field aliases, discovery order, lint rules — is documen
 - Pretty-printed JSON with 2-space indentation
 - All write operations use flock; reads are lock-free
 - Task status is stored as `open -> wip -> done` (three states only; blocked is computed from deps)
-- `unused`, `unparam` and `gocritic` are enabled, so an orphaned symbol, an unused parameter, or a range that copies a large struct each fail the gate
+- `unused`, `unparam`, `gocritic` and `dupl` are enabled, so an orphaned symbol, an unused parameter, a range that copies a large struct, or the same logic written twice each fail the gate
 
 ## Manual QA Testing
 
