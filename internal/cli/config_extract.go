@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -15,61 +17,53 @@ import (
 
 // computeCommonPolicy returns the workflow fields that EVERY override sets with
 // an identical value — the only fields tp config --extract hoists.
+// commonPtr returns the value every override sets identically for one pointer
+// field, or nil when any override omits it or sets a different value. The
+// overrides are addressed rather than copied: WorkflowOverride is wide enough
+// that a per-element copy is a measurable waste.
+func commonPtr[T comparable](overrides []model.WorkflowOverride, get func(*model.WorkflowOverride) *T) *T {
+	first := get(&overrides[0])
+	if first == nil {
+		return nil
+	}
+	for i := 1; i < len(overrides); i++ {
+		v := get(&overrides[i])
+		if v == nil || *v != *first {
+			return nil
+		}
+	}
+	val := *first
+	return &val
+}
+
+// computeCommonPolicy returns the workflow fields that EVERY override sets with
+// an identical value — the only fields tp config --extract hoists.
+//
+// notify_cmd is never among them: §7 makes it per-operator, read from
+// .tp/local.json only, so it is never a task-file override to hoist and never a
+// project-config field to write.
 func computeCommonPolicy(overrides []model.WorkflowOverride) model.WorkflowOverride {
 	var common model.WorkflowOverride
 	if len(overrides) == 0 {
 		return common
 	}
-	commonInt := func(get func(model.WorkflowOverride) *int) *int {
-		first := get(overrides[0])
-		if first == nil {
-			return nil
-		}
-		for _, o := range overrides[1:] {
-			v := get(o)
-			if v == nil || *v != *first {
-				return nil
-			}
-		}
-		val := *first
-		return &val
-	}
-	common.GateTimeoutSeconds = commonInt(func(o model.WorkflowOverride) *int { return o.GateTimeoutSeconds })
-	common.LockTimeoutSeconds = commonInt(func(o model.WorkflowOverride) *int { return o.LockTimeoutSeconds })
-	common.ReviewCleanRounds = commonInt(func(o model.WorkflowOverride) *int { return o.ReviewCleanRounds })
-	common.AuditCleanRounds = commonInt(func(o model.WorkflowOverride) *int { return o.AuditCleanRounds })
-	common.ReviewMaxRounds = commonInt(func(o model.WorkflowOverride) *int { return o.ReviewMaxRounds })
-	common.AuditMaxRounds = commonInt(func(o model.WorkflowOverride) *int { return o.AuditMaxRounds })
-	if first := overrides[0].QualityGate; first != nil {
-		all := true
-		for _, o := range overrides[1:] {
-			if o.QualityGate == nil || *o.QualityGate != *first {
-				all = false
-				break
-			}
-		}
-		if all {
-			v := *first
-			common.QualityGate = &v
-		}
-	}
-	if first := overrides[0].ReviewConvergeOn; first != nil {
-		all := true
-		for _, o := range overrides[1:] {
-			if o.ReviewConvergeOn == nil || *o.ReviewConvergeOn != *first {
-				all = false
-				break
-			}
-		}
-		if all {
-			v := *first
-			common.ReviewConvergeOn = &v
-		}
-	}
+	common.GateTimeoutSeconds = commonPtr(overrides, func(o *model.WorkflowOverride) *int { return o.GateTimeoutSeconds })
+	common.LockTimeoutSeconds = commonPtr(overrides, func(o *model.WorkflowOverride) *int { return o.LockTimeoutSeconds })
+	common.ReviewCleanRounds = commonPtr(overrides, func(o *model.WorkflowOverride) *int { return o.ReviewCleanRounds })
+	common.AuditCleanRounds = commonPtr(overrides, func(o *model.WorkflowOverride) *int { return o.AuditCleanRounds })
+	common.ReviewMaxRounds = commonPtr(overrides, func(o *model.WorkflowOverride) *int { return o.ReviewMaxRounds })
+	common.AuditMaxRounds = commonPtr(overrides, func(o *model.WorkflowOverride) *int { return o.AuditMaxRounds })
+	common.QualityGate = commonPtr(overrides, func(o *model.WorkflowOverride) *string { return o.QualityGate })
+	common.ReviewConvergeOn = commonPtr(overrides, func(o *model.WorkflowOverride) *string { return o.ReviewConvergeOn })
+	common.RunMaxUnits = commonPtr(overrides, func(o *model.WorkflowOverride) *int { return o.RunMaxUnits })
+	common.RunMaxWallClockSeconds = commonPtr(overrides, func(o *model.WorkflowOverride) *int { return o.RunMaxWallClockSeconds })
+	common.RunMaxUnitRetries = commonPtr(overrides, func(o *model.WorkflowOverride) *int { return o.RunMaxUnitRetries })
+	common.RunMaxBudgetUSD = commonPtr(overrides, func(o *model.WorkflowOverride) *float64 { return o.RunMaxBudgetUSD })
+	common.RunMaxUnitBudgetUSD = commonPtr(overrides, func(o *model.WorkflowOverride) *float64 { return o.RunMaxUnitBudgetUSD })
 	if first := overrides[0].Checks; first != nil {
 		all := true
-		for _, o := range overrides[1:] {
-			if o.Checks == nil || !checksEqual(*o.Checks, *first) {
+		for i := 1; i < len(overrides); i++ {
+			if overrides[i].Checks == nil || !checksEqual(*overrides[i].Checks, *first) {
 				all = false
 				break
 			}
@@ -79,9 +73,24 @@ func computeCommonPolicy(overrides []model.WorkflowOverride) model.WorkflowOverr
 			common.Checks = &c
 		}
 	}
+	// runner is compared as raw JSON bytes: this layer hoists a value it never
+	// interprets, so two spellings of the same runner are two values here.
+	if first := overrides[0].Runner; first != nil {
+		all := true
+		for i := 1; i < len(overrides); i++ {
+			if overrides[i].Runner == nil || !bytes.Equal(overrides[i].Runner, first) {
+				all = false
+				break
+			}
+		}
+		if all {
+			common.Runner = append(json.RawMessage(nil), first...)
+		}
+	}
 	return common
 }
 
+// hoistedFields lists the field names set in common, in a deterministic order.
 // hoistedFields lists the field names set in common, in a deterministic order.
 func hoistedFields(common *model.WorkflowOverride) []string {
 	var fields []string
@@ -112,9 +121,29 @@ func hoistedFields(common *model.WorkflowOverride) []string {
 	if common.Checks != nil {
 		fields = append(fields, "checks")
 	}
+	if common.RunMaxUnits != nil {
+		fields = append(fields, "run_max_units")
+	}
+	if common.RunMaxWallClockSeconds != nil {
+		fields = append(fields, "run_max_wall_clock_seconds")
+	}
+	if common.RunMaxBudgetUSD != nil {
+		fields = append(fields, "run_max_budget_usd")
+	}
+	if common.RunMaxUnitBudgetUSD != nil {
+		fields = append(fields, "run_max_unit_budget_usd")
+	}
+	if common.RunMaxUnitRetries != nil {
+		fields = append(fields, "run_max_unit_retries")
+	}
+	if common.Runner != nil {
+		fields = append(fields, "runner")
+	}
 	return fields
 }
 
+// mergeCommon overwrites dst's hoisted keys with common's values, preserving
+// any other hand-set project field.
 // mergeCommon overwrites dst's hoisted keys with common's values, preserving
 // any other hand-set project field.
 func mergeCommon(dst, common *model.WorkflowOverride) {
@@ -144,6 +173,24 @@ func mergeCommon(dst, common *model.WorkflowOverride) {
 	}
 	if common.Checks != nil {
 		dst.Checks = common.Checks
+	}
+	if common.RunMaxUnits != nil {
+		dst.RunMaxUnits = common.RunMaxUnits
+	}
+	if common.RunMaxWallClockSeconds != nil {
+		dst.RunMaxWallClockSeconds = common.RunMaxWallClockSeconds
+	}
+	if common.RunMaxBudgetUSD != nil {
+		dst.RunMaxBudgetUSD = common.RunMaxBudgetUSD
+	}
+	if common.RunMaxUnitBudgetUSD != nil {
+		dst.RunMaxUnitBudgetUSD = common.RunMaxUnitBudgetUSD
+	}
+	if common.RunMaxUnitRetries != nil {
+		dst.RunMaxUnitRetries = common.RunMaxUnitRetries
+	}
+	if common.Runner != nil {
+		dst.Runner = common.Runner
 	}
 }
 
