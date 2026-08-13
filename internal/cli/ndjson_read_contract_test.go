@@ -26,7 +26,9 @@ func longFindingLine(n int) string {
 // exited 0 with empty stderr and told the verifier "Previous review rounds
 // produced 0 findings … If verifier finds 0 issues, review is complete" — the
 // convergence signal, from a file tp never read. The same file through
-// mustParseFindingsFile already aborted; both --findings consumers now do.
+// mustParseFindingsFile already aborted; tp review's two --findings readers now
+// agree. tp audit --findings is a third reader with its own aborts, one of
+// which TestAuditFindingsAbortLeavesNoRoundStarted covers below.
 //
 // A directory is the fixture for that one error arm: it passes the existence
 // guard and fails the read exactly as an unreadable file does, and
