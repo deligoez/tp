@@ -82,8 +82,8 @@ skills/tp/
    - `tp done <id> "evidence" --commit <sha>` — the quality gate runs automatically
    - Or: `tp done <id> "evidence" --auto-commit`
 9. **Audit loop**: `tp audit spec/<version>.md` → spawn sub-agents → `tp audit spec/<version>.md --record results.ndjson` → fix code → repeat until `tp audit spec/<version>.md --status --check` exits 0
-8. **Report**: Last `tp done` auto-includes report summary. Or: `tp report` for full details
-9. **Release**: tag, push, `gh release edit` with notes
+10. **Report**: Last `tp done` auto-includes report summary. Or: `tp report` for full details
+11. **Release**: tag, push, `gh release edit` with notes
 
 ### Rules
 - **Convergence, gate and budget policy live in `skills/tp/SKILL.md`** (Gate, Budget & Escalation Policy, plus Workflow A step 2 and Workflow D). It applies here unchanged: `--skip-gate`, raising `review_max_rounds`/`audit_max_rounds`, and `tp import --force` are **user-approved decisions, never the agent's own**.
