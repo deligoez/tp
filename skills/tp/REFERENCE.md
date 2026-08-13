@@ -229,7 +229,7 @@ A field in a task file's `workflow` block counts as an override only when presen
 | Command | Purpose |
 |---------|---------|
 | `tp config --resolved` | annotate each setting with `{value, source}` (source ∈ override/project/local/default/…) |
-| `tp config --extract --dry-run` | print the hoist plan without writing |
+| `tp config --extract --dry-run` | print the extraction plan without writing |
 | `tp config --extract --force` | merge into an existing `.tp/config.json` |
 | `tp set --workflow --project <f>=<v>` | edit a project-level workflow field (flock, range-validated) |
 

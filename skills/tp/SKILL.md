@@ -270,7 +270,7 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp blocked` | Tasks waiting on unsatisfied deps |
 | `tp graph` | Dependency tree (--tag, --from) |
 | `tp stats` | Parallelism analysis |
-| `tp config` | Effective configuration as JSON (`--resolved`, `--extract [--dry-run\|--force]`) |
+| `tp config` | Effective configuration as JSON (`--resolved`; `--extract [--dry-run\|--force]` hoists policy shared by ALL task files into `.tp/config.json`) |
 
 ### Spec & validation
 | Command | Purpose |
