@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-13T21:07:53.142239Z",
+  "updated_at": "2026-08-13T21:15:32.202309Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -178,7 +178,7 @@
     {
       "id": "child-env",
       "title": "Export the child environment variables",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "unit-kinds"
@@ -188,11 +188,20 @@
       "source_sections": [
         "#### 3.1.1 Units, ids and the child environment"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-13T21:08:33.711797Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-13T21:15:32.183349Z",
+      "closed_reason": "- internal/engine/childenv.go builds every child's environment from §3.1.1: ChildEnv merges runner.env over the parent and then applies the driver's own variables last (TP_RUN_ID, TP_RUN_DIR, TP_FILE, TP_UNIT_ID, TP_UNIT_KIND, TP_UNIT_SEQ, TP_PHASE, TP_ROUND, TP_ROUND_DIR and §5.1's TP_UNATTENDED=1); NewULID emits the canonical 26-character Crockford ULID for TP_RUN_ID, RunDir resolves the absolute .tp/runs/\u003crun-id\u003e, RunBase strips the .tasks.json suffix for the run artifacts' \u003cbase\u003e, and RoundDir derives .tp/rounds/\u003cbase\u003e/\u003cphase\u003e-r\u003cround\u003e. Verified by tests asserting every variable's documented form, TP_RUN_DIR absolute, the round directory keyed by base+phase+round, and the ULID's alphabet, length, uniqueness over 200 draws and decoded timestamp.\n- TP_ROUND and TP_ROUND_DIR are removed rather than emptied when the oracle reports round null, even when the parent environment or runner.env carried them (test 46), and driver variables outrank runner.env so an entry for TP_UNATTENDED, TP_RUN_ID, TP_ROUND_DIR or TP_UNIT_KIND never reaches the child while non-driver entries still extend and override the parent (test 20). Gate green: go test -race ./... 0, golangci-lint run 0, scripts/check-deadcode.sh 0.\nOut of scope: nothing found.",
+      "gate_passed_at": "2026-08-13T21:15:32.183349Z",
+      "commit_sha": "99ba979",
+      "commit_shas": [
+        "99ba979",
+        "88a78d5"
+      ],
+      "commit_files": [
+        "internal/engine/childenv.go",
+        "internal/engine/childenv_test.go"
+      ]
     },
     {
       "id": "run-lock",
