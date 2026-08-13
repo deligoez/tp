@@ -117,6 +117,8 @@ func pickString(layers []*string, def string) string {
 
 // pickChecks returns the first present checks layer in precedence order — replace
 // semantics, so a present slice (even empty) wins over lower layers — or def.
+// pickChecks returns the first present checks layer in precedence order — replace
+// semantics, so a present slice (even empty) wins over lower layers — or def.
 func pickChecks(layers []*[]model.Check, def []model.Check) []model.Check {
 	for _, p := range layers {
 		if p != nil {
@@ -126,6 +128,32 @@ func pickChecks(layers []*[]model.Check, def []model.Check) []model.Check {
 	return def
 }
 
+// pickFloat returns the first non-nil layer value in precedence order, or def.
+func pickFloat(layers []*float64, def float64) float64 {
+	for _, p := range layers {
+		if p != nil {
+			return *p
+		}
+	}
+	return def
+}
+
+// pickRaw returns the first present raw-JSON layer in precedence order, or def.
+// A nil RawMessage is absent, which is how the runner field tracks presence.
+func pickRaw(layers []json.RawMessage, def json.RawMessage) json.RawMessage {
+	for _, p := range layers {
+		if p != nil {
+			return p
+		}
+	}
+	return def
+}
+
+// EffectiveWorkflowForTaskFile resolves the effective workflow for a task file:
+// the project config discovered from the working directory layered under the
+// task file's own presence-tracked workflow override. Best-effort — a missing
+// or unreadable config or task file contributes no overrides — so a task file
+// that omits quality_gate runs the project quality_gate.
 // EffectiveWorkflowForTaskFile resolves the effective workflow for a task file:
 // the project config discovered from the working directory layered under the
 // task file's own presence-tracked workflow override. Best-effort — a missing
@@ -169,14 +197,21 @@ func ResolveEffectiveWorkflow(start string, taskOverride *model.WorkflowOverride
 // — so presence, not value, defines an override.
 func ResolveWorkflowLayers(taskOverride, project *model.WorkflowOverride) model.Workflow {
 	// The built-in default layer: 2 clean rounds, no round caps, 600s gate
-	// timeout, 5s lock timeout, no checks, blocking-severity review convergence.
+	// timeout, 5s lock timeout, no checks, blocking-severity review convergence,
+	// and §7's run caps and runner.
 	def := model.Workflow{
-		ReviewCleanRounds:  2,
-		AuditCleanRounds:   2,
-		GateTimeoutSeconds: 600,
-		LockTimeoutSeconds: 5,
-		Checks:             []model.Check{},
-		ReviewConvergeOn:   ReviewConvergeOnBlocking,
+		ReviewCleanRounds:      2,
+		AuditCleanRounds:       2,
+		GateTimeoutSeconds:     600,
+		LockTimeoutSeconds:     5,
+		Checks:                 []model.Check{},
+		ReviewConvergeOn:       ReviewConvergeOnBlocking,
+		RunMaxUnits:            RunMaxUnitsDefault,
+		RunMaxWallClockSeconds: RunMaxWallClockSecondsDefault,
+		RunMaxBudgetUSD:        RunMaxBudgetUSDDefault,
+		RunMaxUnitBudgetUSD:    RunMaxUnitBudgetUSDDefault,
+		RunMaxUnitRetries:      RunMaxUnitRetriesDefault,
+		Runner:                 DefaultRunner(),
 	}
 	return model.Workflow{
 		QualityGate:        pickString([]*string{taskOverride.QualityGate, project.QualityGate}, def.QualityGate),
@@ -189,5 +224,12 @@ func ResolveWorkflowLayers(taskOverride, project *model.WorkflowOverride) model.
 		AuditMaxRounds:     pickInt([]*int{taskOverride.AuditMaxRounds, project.AuditMaxRounds}, def.AuditMaxRounds),
 		Checks:             pickChecks([]*[]model.Check{taskOverride.Checks, project.Checks}, def.Checks),
 		ReviewConvergeOn:   pickString([]*string{taskOverride.ReviewConvergeOn, project.ReviewConvergeOn}, def.ReviewConvergeOn),
+
+		RunMaxUnits:            pickInt([]*int{taskOverride.RunMaxUnits, project.RunMaxUnits}, def.RunMaxUnits),
+		RunMaxWallClockSeconds: pickInt([]*int{taskOverride.RunMaxWallClockSeconds, project.RunMaxWallClockSeconds}, def.RunMaxWallClockSeconds),
+		RunMaxBudgetUSD:        pickFloat([]*float64{taskOverride.RunMaxBudgetUSD, project.RunMaxBudgetUSD}, def.RunMaxBudgetUSD),
+		RunMaxUnitBudgetUSD:    pickFloat([]*float64{taskOverride.RunMaxUnitBudgetUSD, project.RunMaxUnitBudgetUSD}, def.RunMaxUnitBudgetUSD),
+		RunMaxUnitRetries:      pickInt([]*int{taskOverride.RunMaxUnitRetries, project.RunMaxUnitRetries}, def.RunMaxUnitRetries),
+		Runner:                 pickRaw([]json.RawMessage{taskOverride.Runner, project.Runner}, def.Runner),
 	}
 }
