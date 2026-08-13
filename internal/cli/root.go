@@ -198,8 +198,5 @@ func Execute() {
 	}
 }
 
-func GetFileFlag() string { return flagFile }
-func IsJSONOutput() bool  { return flagJSON }
-func IsQuiet() bool       { return flagQuiet }
-func IsNoColor() bool     { return flagNoColor }
-func IsCompact() bool     { return flagCompact }
+func IsJSONOutput() bool { return flagJSON }
+func IsCompact() bool    { return flagCompact }
