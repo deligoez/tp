@@ -113,7 +113,7 @@ func TestComputeAuditRoleStreaks_PerRoleStreaks(t *testing.T) {
 
 	// The latest round's rows come back with the streaks so §2.4's per-row
 	// facts about that round need no second read of the same file.
-	assert.Len(t, latestRows, 2)
+	require.Len(t, latestRows, 2)
 	assert.Equal(t, "spec-coverage", AuditRowRole(latestRows[0]))
 }
 
