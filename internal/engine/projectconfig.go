@@ -15,11 +15,24 @@ import (
 // lock_timeout_seconds→5, caps→0, clean_rounds→2), returning a warning for
 // each. This matches the read-time fallback v0.23.0 already applies to a
 // hand-edited task file.
+// clampWorkflowRanges unsets any out-of-range override field so it falls back
+// to the built-in default at resolution (gate_timeout_seconds→600,
+// lock_timeout_seconds→5, caps→0, clean_rounds→2, and §7's run fields to their
+// own defaults), returning a warning for each. This matches the read-time
+// fallback v0.23.0 already applies to a hand-edited task file.
 func clampWorkflowRanges(wo *model.WorkflowOverride) []string {
 	var warnings []string
 	check := func(name string, p **int, lo, hi int) {
 		if *p != nil && (**p < lo || **p > hi) {
 			warnings = append(warnings, fmt.Sprintf("workflow.%s: %d is out of range [%d,%d], using the built-in default", name, **p, lo, hi))
+			*p = nil
+		}
+	}
+	// Budget fields are decimal dollars, so their bounds are floats and a value
+	// one cent outside is out of range — the same rule as the integer fields.
+	checkFloat := func(name string, p **float64, lo, hi float64) {
+		if *p != nil && (**p < lo || **p > hi) {
+			warnings = append(warnings, fmt.Sprintf("workflow.%s: %g is out of range [%g,%g], using the built-in default", name, **p, lo, hi))
 			*p = nil
 		}
 	}
@@ -29,6 +42,11 @@ func clampWorkflowRanges(wo *model.WorkflowOverride) []string {
 	check("audit_clean_rounds", &wo.AuditCleanRounds, 1, 10)
 	check("review_max_rounds", &wo.ReviewMaxRounds, 0, 50)
 	check("audit_max_rounds", &wo.AuditMaxRounds, 0, 50)
+	check("run_max_units", &wo.RunMaxUnits, RunMaxUnitsMin, RunMaxUnitsMax)
+	check("run_max_wall_clock_seconds", &wo.RunMaxWallClockSeconds, RunMaxWallClockSecondsMin, RunMaxWallClockSecondsMax)
+	check("run_max_unit_retries", &wo.RunMaxUnitRetries, RunMaxUnitRetriesMin, RunMaxUnitRetriesMax)
+	checkFloat("run_max_budget_usd", &wo.RunMaxBudgetUSD, RunMaxBudgetUSDMin, RunMaxBudgetUSDMax)
+	checkFloat("run_max_unit_budget_usd", &wo.RunMaxUnitBudgetUSD, RunMaxUnitBudgetUSDMin, RunMaxUnitBudgetUSDMax)
 	return warnings
 }
 
