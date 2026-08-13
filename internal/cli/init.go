@@ -22,6 +22,12 @@ var (
 	initForce          bool
 )
 
+// taskFileExistsHint replaces the exit-3 default on `tp init`'s already-exists
+// error. The default ends with "or 'tp init <spec>' to create one", which is
+// the command that just refused, for the reason it refused — an agent that
+// follows it loops. What the caller actually wants is the existing file.
+const taskFileExistsHint = "the task file is already there: run 'tp use <file>' to point at it, or 'tp status' to see what it holds"
+
 func newInitCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init <spec.md>",
@@ -64,7 +70,7 @@ func runInit(_ *cobra.Command, args []string) error {
 	// naming the lock path and the elapsed wait. The success path is unchanged.
 	if lockErr := engine.WithFileLock(taskFilePath, func() error {
 		if _, err := os.Stat(taskFilePath); err == nil {
-			output.Error(ExitFile, fmt.Sprintf("task file already exists: %s", taskFilePath))
+			output.Error(ExitFile, fmt.Sprintf("task file already exists: %s", taskFilePath), taskFileExistsHint)
 			os.Exit(ExitFile)
 			return nil
 		}

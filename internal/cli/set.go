@@ -333,7 +333,7 @@ func runSetWorkflow(args []string) error {
 		field, valueStr := parts[0], parts[1]
 
 		if readOnlyWorkflowFields[field] {
-			msg := fmt.Sprintf("%s is not settable via tp set --workflow; it is authored only by tp init", field)
+			msg := fmt.Sprintf("%s is not settable via tp set --workflow; the task-level value is authored by tp init, and the project default is settable with `tp set --workflow --project %s=<value>`", field, field)
 			if field == "commit_strategy" {
 				msg = fmt.Sprintf("%s is not settable via tp set --workflow; it is authored only by tp init — set the project default with `tp set --workflow --project commit_strategy=<builtin|auto|hc>`", field)
 			}
