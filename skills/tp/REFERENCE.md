@@ -228,14 +228,10 @@ A field in a task file's `workflow` block counts as an override only when presen
 
 | Command | Purpose |
 |---------|---------|
-| `tp config` | effective configuration as JSON |
 | `tp config --resolved` | annotate each setting with `{value, source}` (source ∈ override/project/local/default/…) |
-| `tp config --extract` | hoist policy shared by ALL task files into `.tp/config.json` |
 | `tp config --extract --dry-run` | print the hoist plan without writing |
 | `tp config --extract --force` | merge into an existing `.tp/config.json` |
 | `tp set --workflow --project <f>=<v>` | edit a project-level workflow field (flock, range-validated) |
-| `tp set --local defaults.<flag>=<bool>` | set a CLI flag default (`compact`/`quiet`/`no_color`) |
-| `tp validate --project` | report cross-spec workflow drift (informational; `--strict` → exit 1) |
 
 **Negating flags** override a `defaults` entry for a single run: `--no-compact`, `--no-quiet`, `--color`. Precedence for `no_color`: `--color`/`--no-color` > `NO_COLOR` env > `defaults.no_color` > TTY detection.
 

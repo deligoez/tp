@@ -449,15 +449,10 @@ The wrapper is only for what tp cannot know — runtime setup (e.g. hook-blocked
 
 Multi-spec repos keep **one** workflow policy in a repo-root `.tp/` instead of copying it into every
 `<base>.tasks.json` (tp's own "derive, don't maintain a parallel list" principle applied to policy).
-`.tp/config.json` (commit it) holds the shared workflow defaults; `.tp/local.json` (git-ignored)
-holds the `active` task-file pointer written by `tp use` plus the CLI flag `defaults`. A task file's
-`workflow` block then holds only **explicit overrides**, and effective values resolve **at read
-time** — so read the effective value, never the file:
-
-- `tp config` / `tp config --resolved` — effective settings; `--resolved` annotates each with its `{value, source}` layer (so the agent can see *why* a value is in force).
-- `tp config --extract [--dry-run|--force]` — hoist policy shared by ALL task files into `.tp/config.json`.
-- `tp set --workflow --project <field>=<value>` — edit a project-level workflow field; `tp set --local defaults.<flag>=<bool>` — set a flag default.
-- `tp validate --project` — report cross-spec workflow drift (informational; `--strict` → exit 1).
+A task file's `workflow` block then holds only **explicit overrides**, and effective values resolve
+**at read time** — so read the effective value, never the file. The commands are in the inventory
+above; the file layout, the resolution order and the precedence rules are in
+[REFERENCE.md](REFERENCE.md).
 
 ## Reference
 
