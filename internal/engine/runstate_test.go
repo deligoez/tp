@@ -165,3 +165,14 @@ func TestRunRecorder_TotalsCountAttempts(t *testing.T) {
 	assert.Equal(t, 2, rec.Snapshot().Totals.Units, "the accrual the driver reads agrees with the file")
 }
 
+func TestRunRecorder_FinishUnitRejectsAnUnknownSeq(t *testing.T) {
+	_, _, rec := newTestRun(t)
+
+	require.NoError(t, rec.StartUnit(startedRow(1, 1, "architect")))
+	err := rec.FinishUnit(9, 0, time.Second, nil)
+
+	require.Error(t, err, "finishing an attempt that was never started is a bug, not a new row")
+	assert.Contains(t, err.Error(), "seq 9")
+	assert.Len(t, rec.Snapshot().Units, 1, "no row is invented for the unknown seq")
+}
+
