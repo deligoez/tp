@@ -1,12 +1,23 @@
 package model
 
+import "encoding/json"
+
 // Check is a mechanical check: a kebab-case class slug and the command that detects it.
 type Check struct {
 	Class string `json:"class"`
 	Cmd   string `json:"cmd"`
 }
 
-// Workflow defines quality gate, commit strategy, and convergence parameters.
+// Workflow defines quality gate, commit strategy, convergence parameters, and
+// the unattended run's caps and runner.
+//
+// The run fields carry §7's defaults: run_max_units 100, run_max_wall_clock_seconds
+// 28800, both budgets 0 (disabled/flag omitted), run_max_unit_retries 1 and
+// runner "claude". Budget fields are decimal dollars. Like every other workflow
+// field, the defaults live in the resolver, not in this struct's zero value.
+//
+// NotifyCmd is the one field that does not resolve through the layered path: it
+// is per-operator rather than per-project and is read from .tp/local.json only.
 type Workflow struct {
 	QualityGate        string  `json:"quality_gate,omitempty"`
 	CommitStrategy     string  `json:"commit_strategy,omitempty"`
@@ -18,6 +29,14 @@ type Workflow struct {
 	ReviewMaxRounds    int     `json:"review_max_rounds"`
 	AuditMaxRounds     int     `json:"audit_max_rounds"`
 	ReviewConvergeOn   string  `json:"review_converge_on,omitempty"`
+
+	RunMaxUnits            int             `json:"run_max_units"`
+	RunMaxWallClockSeconds int             `json:"run_max_wall_clock_seconds"`
+	RunMaxBudgetUSD        float64         `json:"run_max_budget_usd"`
+	RunMaxUnitBudgetUSD    float64         `json:"run_max_unit_budget_usd"`
+	RunMaxUnitRetries      int             `json:"run_max_unit_retries"`
+	Runner                 json.RawMessage `json:"runner,omitempty"`
+	NotifyCmd              string          `json:"notify_cmd,omitempty"`
 }
 
 // EffectiveGateTimeoutSeconds returns gate_timeout_seconds, falling back to
