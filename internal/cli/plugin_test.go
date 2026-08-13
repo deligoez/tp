@@ -123,3 +123,68 @@ var executableMagics = [][]byte{
 	{'M', 'Z', 0x90, 0x00},   // PE/COFF, via its DOS header
 }
 
+// TestPluginShipsNoBinary guards the other half of §6.1: the Go binary is not
+// shipped inside the plugin. Installation stays Homebrew and `go install`, and
+// the SessionStart preflight is what covers a missing tp — so a committed
+// binary is not merely redundant, it is the failure mode the preflight exists
+// to replace. The scan reads leading bytes rather than trusting file names,
+// because the accident this catches is a stray `go build -o` output, which
+// carries no telling extension.
+func TestPluginShipsNoBinary(t *testing.T) {
+	root := repoRoot(t)
+	skipDirs := map[string]bool{".git": true, "dist": true, "node_modules": true}
+
+	var found []string
+	require.NoError(t, filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			if path != root && skipDirs[entry.Name()] {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if !entry.Type().IsRegular() {
+			return nil
+		}
+		head, readErr := readFileHead(path, 4)
+		if readErr != nil {
+			return readErr
+		}
+		for _, magic := range executableMagics {
+			if bytes.HasPrefix(head, magic) {
+				rel, relErr := filepath.Rel(root, path)
+				if relErr != nil {
+					rel = path
+				}
+				found = append(found, rel)
+				break
+			}
+		}
+		return nil
+	}))
+
+	assert.Empty(t, found, "the plugin ships no binary: install tp with Homebrew or go install")
+
+	// The locally built binary lands at the repo root under the plugin's own
+	// name, so the ignore entry is what keeps the scan above from ever having
+	// something to find.
+	assert.Contains(t, strings.Split(readRepoDoc(t, ".gitignore"), "\n"), "/tp",
+		".gitignore must keep a locally built tp out of the plugin")
+}
+
+func readFileHead(path string, n int) ([]byte, error) {
+	file, err := os.Open(path) //nolint:gosec // walking the repo the test runs in
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = file.Close() }()
+	head := make([]byte, n)
+	read, err := file.Read(head)
+	if err != nil && read == 0 {
+		return nil, nil // empty file, or one that cannot be read past its header
+	}
+	return head[:read], nil
+}
+
