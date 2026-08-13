@@ -199,6 +199,11 @@ func collectFuncFacts(t *testing.T, dir string) (facts map[string]*funcFacts, ru
 			if !ok || key.Name != "RunE" {
 				return true
 			}
+			// Only a RunE bound to a named function becomes an entry point. Two
+			// commands bind a function literal instead -- tp audit and tp review --
+			// so they sit outside the set this test checks. That is vacuous while
+			// the unsafe set stays {claimSingle, claimBatch}, which neither reaches,
+			// and the closure bodies would have to be walked as roots to close it.
 			if val, isIdent := kv.Value.(*ast.Ident); isIdent {
 				runE = append(runE, val.Name)
 			}
