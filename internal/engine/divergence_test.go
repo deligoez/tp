@@ -14,10 +14,10 @@ import (
 
 // divergenceFixture is a repository-shaped fixture for §2.4: a spec, an auditor
 // corpus that really hashes, and recorded audit rounds stamped with both hashes
-// the way the record path stamps them. The tests below derive every condition
-// input from it through the same helpers the audit outputs call, so a fixture
-// state that could not arise in a real repository cannot be asserted here
-// either.
+// the way the record path stamps them. The tests that use it derive every
+// condition input from it through the same helpers the audit outputs call, so a
+// fixture state that could not arise in a real repository cannot be asserted
+// through it either.
 type divergenceFixture struct {
 	root     string
 	specPath string
