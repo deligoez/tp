@@ -106,9 +106,7 @@ Blocker vocabulary (fixed order): `unexplained-changes` (**agent-clearable**, `{
 
 Resolves task override > `.tp/config.json` > built-in default `auto`. A present unrecognized value → `builtin` (with a stderr warning); an absent value → `auto`.
 
-- `builtin` — tp commits (`tp commit`, `tp done --auto-commit`, `tp done --commit`).
-- `hc` — the agent commits with `hc`, then records via `tp done --commit <sha> [--commit <sha> …]`. Under effective `hc`, `tp commit`, `tp done --auto-commit`, a bare `tp done`, and `tp close` are rejected with exit 2 and the hint `commit_strategy is hc: commit with hc, then tp done --commit <sha>`. A `tp done --batch` row with neither `commit_shas` nor `covered_by` is a failed row. No commit-strategy path returns exit 4.
-- `auto` — `hc` when on `PATH`, else `builtin`.
+Under effective `hc`, `tp commit`, `tp done --auto-commit`, a bare `tp done`, and `tp close` are rejected with exit 2 and the hint `commit_strategy is hc: commit with hc, then tp done --commit <sha>`. A `tp done --batch` row with neither `commit_shas` nor `covered_by` is a failed row. No commit-strategy path returns exit 4.
 
 Under `builtin`, `tp commit <id> [reason]` writes a conventional commit message carrying the task metadata:
 
@@ -128,8 +126,6 @@ Acceptance: Model exists. Migration runs.
 **`commit_files` / `commit_files_total` (v0.30.0).** On a close that records commits (`tp commit`, `tp done --auto-commit`/`--commit`/`--batch`), tp resolves each sha's changed paths (added/modified/deleted/renamed-new) into `commit_files` — a managed, deduplicated, lexical-sorted array capped at 50 paths; `commit_files_total` records the true count when the set is larger. Both are managed (`tp set` rejects; `tp reopen` clears). A `--covered-by` close records none. When git is unavailable or a sha cannot be resolved, the field is omitted.
 
 **`duration_source` (v0.30.0).** `claimed` when `started_at` came from an explicit claim (`tp claim`, `tp next`, `tp next --brief`); `implicit` when it came from an implicit claim (a bare `tp done`, or `tp commit` on an open task). Managed (`tp set` rejects; `tp reopen` clears). `tp report` carries it per task and excludes `implicit`-duration tasks from `estimation_accuracy` under a separate `implicit_duration` count; a `--covered-by` close is excluded from accuracy under `excluded_from_accuracy` (no measured span).
-
-`commit_strategy` is authored at `tp init`. The **project default** is settable with `tp set --workflow --project commit_strategy=<builtin|auto|hc>` (writes `workflow.commit_strategy` in `.tp/config.json`, participates in the resolve order, and `tp config --resolved` annotates its source). The task-file setter stays read-only: `tp set --workflow commit_strategy=…` exits 2 with a hint naming the project setter.
 
 **Close checkpoint (v0.29.0, §5.1).** Under `builtin`, `tp commit` and `tp done --auto-commit` fold the closure into the implementation commit: tp stages the implementation files with the task file still `wip`, commits (sha `C1`), writes the closure record (`status: done`, `closed_at`, `gate_passed_at`, `commit_sha`/`commit_shas` = `C1`), then `git commit --amend --no-edit` folds it in (sha `C2`). The amend runs only when `HEAD` is still `C1` and the working-tree diff lists only paths tp itself wrote this command; otherwise tp makes a separate follow-up `chore(tp): record <id> closure` commit leaving `C1` as `commit_sha`. Either path leaves `git status` clean for tp-owned paths. `commit_sha`/`commit_shas[0]` records the pre-amend `C1` (never the post-amend `C2`), so `suggested_files` (§11) reads `C1`'s diff. Under `hc`, tp classifies instead of committing — see the `bookkeeping` field of `tp resume` for the tp-owned files a close legitimately leaves modified.
 

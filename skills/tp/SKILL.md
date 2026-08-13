@@ -190,11 +190,11 @@ repeat until phase == release
 
 A unit returns to the loop only at a clean checkpoint; a crashed unit is recovered on the next `tp resume`, never lost.
 
-**`commit_strategy`** (task override > `.tp/config.json` > built-in default `auto`):
+**`commit_strategy`**:
 
 - `builtin` — tp commits (`tp commit`, `tp done --auto-commit`, `tp done --commit`).
-- `hc` — the agent commits with `hc`, then records via `tp done --commit <sha> [--commit <sha> …]`; `tp commit`/`--auto-commit`/bare `tp done` are rejected with exit 2. Never exit 4 — tp never runs `hc`.
-- `auto` — `hc` when on `PATH`, else `builtin`. `tp config` shows `commit_strategy_effective`; `--resolved` shows `{value, source}`.
+- `hc` — the agent commits with `hc`, then records via `tp done --commit <sha> [--commit <sha> …]`.
+- `auto` — `hc` when on `PATH`, else `builtin`.
 
 `commit_strategy` is authored at `tp init`; the project default is settable with `tp set --workflow --project commit_strategy=<builtin|auto|hc>` (writes `.tp/config.json`), while the task-file setter stays read-only (`tp set --workflow commit_strategy=…` exits 2 with a hint naming the project setter).
 
