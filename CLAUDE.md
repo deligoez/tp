@@ -78,9 +78,7 @@ skills/tp/
 6. **Import**: `tp import <tasks.json>` (plain — the init shell holds zero tasks; convergence checks stay armed)
 7. **Validate**: `tp validate` — check coverage gaps
 8. **Implement each task**, then:
-   - `tp commit <id> "evidence"` — atomic structured commit
    - `tp done <id> "evidence" --commit <sha>` — the quality gate runs automatically
-   - Or: `tp done <id> "evidence" --auto-commit`
 9. **Audit loop**: `tp audit spec/<version>.md` → spawn sub-agents → `tp audit spec/<version>.md --record results.ndjson` → fix code → repeat until `tp audit spec/<version>.md --status --check` exits 0
 10. **Report**: Last `tp done` auto-includes report summary. Or: `tp report` for full details
 11. **Release**: tag, push, `gh release edit` with notes
