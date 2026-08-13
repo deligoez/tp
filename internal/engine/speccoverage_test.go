@@ -20,8 +20,11 @@ func specCoverageOver(t *testing.T, specPath string, rounds []ReviewRound) *int 
 }
 
 // marshalSpecCoverageField renders the value as the payload key carries it: a
-// field with no omitempty, so nil is an explicit JSON null and 0 is a 0. The
-// assertion that the two never collapse is what this helper exists for.
+// field with no omitempty, so nil is an explicit JSON null and 0 is a 0. That
+// the two never collapse is what this helper exists to show, and every caller
+// below hands it a computed value rather than a literal nil or 0: the null half
+// comes from the tests whose latest round measures no conformance, the 0 half
+// from the one whose latest round holds an open row.
 func marshalSpecCoverageField(t *testing.T, v *int) string {
 	t.Helper()
 	data, err := json.Marshal(struct {
