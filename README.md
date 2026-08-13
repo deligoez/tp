@@ -172,7 +172,7 @@ default and range, the accepted acceptance-criteria delimiters, and the JSON fie
 
 tp refuses a lazy close, deterministically and language-agnostically: a task with N ≥ 2 acceptance
 criteria needs N top-level evidence lines, "deferred"-style reasons are rejected, and a trailing
-`Out of scope:` line is the home for a problem found outside the task's acceptance. When
+`Out of scope:` line is accepted. When
 `workflow.quality_gate` is set, `tp done`/`tp close` run it automatically and a failing gate blocks
 the close.
 
@@ -181,10 +181,9 @@ in [SKILL.md](skills/tp/SKILL.md).
 
 ## Reset-Native Workflow
 
-tp's user is an AI agent whose context degrades over long runs, so every unit — a review round,
-decomposition, one task, one audit round — is meant to run in a **fresh context**, with tp as the
-durable state machine between resets. `tp resume` reports the lifecycle phase and the single next
-action from durable state alone (task file, spec, `.tp-review/`, `.tp/local.json`, git), and
+tp's user is an AI agent whose context degrades over long runs, so every unit is meant to run in a
+**fresh context**, with tp as the durable state machine between resets. `tp resume` reports the
+lifecycle phase and the single next action from durable state alone, and
 `tp brief` / `tp next --brief` hands a fresh unit everything it needs: identity, scope fence, prior
 work, verbatim acceptance, and the close recipe for the effective `commit_strategy`. tp ships no
 driver — embedding the loop would bind tp to one agent runtime.
