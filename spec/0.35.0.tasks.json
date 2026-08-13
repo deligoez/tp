@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-13T20:59:34.245668Z",
+  "updated_at": "2026-08-13T21:07:53.142239Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -126,7 +126,7 @@
     {
       "id": "unit-kinds",
       "title": "Define the eight unit kinds",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 10,
@@ -134,11 +134,27 @@
       "source_sections": [
         "### 3.3 Unit kinds"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-13T21:00:26.859615Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-13T21:07:53.079942Z",
+      "closed_reason": "- internal/engine/unitkind.go defines UnitKind as §3.3's eight kinds in table order (implement, review-role, review-record, review-resolve, decompose, audit-role, audit-record, audit-fix), each carrying its concurrency (Concurrency()/Concurrent(): only the two role kinds are ConcurrencySiblingRoles, every other kind and any unknown value is alone) and its durable-write predicate (DurableWrite(UnitTarget)); verified by table tests over all eight kinds asserting the enum, the order, the defensive copy, ParseUnitKind's rejection of near-misses, and each kind's concurrency value.\n- Every predicate is decidable from the artifacts §3.3 names for it with no baseline: TestUnitKind_DurableWrite_DecidableWithNoBaseline runs each kind in a fresh temp dir where the artifacts are written before the predicate is ever called (so no 'before' observation exists), asserts a repeat call answers identically (state, not delta), and pairs each with a one-artifact-short case plus a nothing-written case; the audit-fix case passes on a row disposed with no code change at all (test 18), and an unknown kind is never complete.\n- The role predicate reads content lines only: TestUnitKind_RolePredicate_ContentLinesOnly runs both role kinds over a trailing newline, a file of blank and whitespace-only lines, an empty file, an unparseable line, a truncated row, a non-object line, and a missing file (tests 48, 59), with the .part-only case failing because the rename that completes the write never happened.\n- Gate green on the committed tree: go test -race ./... = 0, golangci-lint run = 0, ./scripts/check-deadcode.sh = 0.\nOut of scope: the recorded round-file name format (review-round-\u003cN\u003e.ndjson / audit-round-\u003cN\u003e.ndjson) is now spelled in three places — internal/cli/review_record.go, internal/cli/audit_record.go and engine.roundFilePath — so the two writers and this reader can drift; centralizing it belongs to whichever later task next touches the record paths.",
+      "gate_passed_at": "2026-08-13T21:07:53.079942Z",
+      "commit_sha": "a4858eb",
+      "commit_shas": [
+        "a4858eb",
+        "d8cd9cc",
+        "90ff648",
+        "d38b3b6",
+        "48d0184",
+        "f13a7d8",
+        "824fef7",
+        "5482985",
+        "65ef1f7"
+      ],
+      "commit_files": [
+        "internal/engine/unitkind.go",
+        "internal/engine/unitkind_test.go"
+      ]
     },
     {
       "id": "brief-commands",
