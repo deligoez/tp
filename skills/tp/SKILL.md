@@ -435,7 +435,7 @@ The wrapper is only for what tp cannot know — runtime setup (e.g. hook-blocked
 
 ## State directory (`.tp-review/`)
 
-- `tp` owns the review/audit round lifecycle in `<spec-dir>/.tp-review/<spec-base>/` (`state.json`, `snapshot-round-<N>.md`, `review-round-<N>.ndjson`, `audit-round-<N>.ndjson`).
+- `tp` owns the review/audit round lifecycle in `<spec-dir>/.tp-review/<spec-base>/`.
 - **Commit `.tp-review/` to version control.** Import convergence enforcement holds across clones and CI only when the recorded rounds travel with the repo: ignoring the directory makes every `tp import` in CI behave as "no recorded rounds", and convergence is then unverifiable.
 - **Prunable:** only snapshot files older than the newest MAY be deleted (the diff falls back gracefully).
 - **Do not delete `.tp/locks/<base>-<hash>.lock` while tp may be running.** It is a zero-byte, git-ignored marker that persists after its lock is released, and that is what makes the lock exclude: flock binds to an inode, so unlinking it lets the next waiter lock a different inode at the same path and run concurrently.
