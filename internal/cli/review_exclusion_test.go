@@ -125,15 +125,18 @@ func assertExclusionAtBothSites(t *testing.T, dir string, want []string) {
 	assert.Equal(t, want, got, "standalone regression site")
 }
 
-// Test 44, and test 34's exclusion-list half: prompt emission drops an entry the
-// validator rejects while keeping a valid one, at both sites. Validity is judged
-// per entry, so an implementation validating the whole slice would drop both.
+// Test 42's invalid-entry clause, at both of test 44's sites: prompt emission
+// drops an entry the validator rejects while keeping a valid one. Validity is
+// judged per entry, so an implementation validating the whole slice would drop
+// both. Test 34 states that same per-entry rule at the candidate sink rather
+// than at this one; the predicate the two sinks share is pinned in package
+// engine by TestIsMechanizedClass_ValidityIsPerEntry.
 func TestReviewExclusion_InvalidEntryDroppedAtBothSites(t *testing.T) {
 	dir := exclusionFixture(t, `[{"class":"Bad_Slug","cmd":"true"},{"class":"kept-class","cmd":"true"}]`)
 	assertExclusionAtBothSites(t, dir, []string{"kept-class"})
 }
 
-// Test 42's ordering half: over three valid entries registered out of
+// Test 42's ordering clause: over three valid entries registered out of
 // alphabetical order the list keeps registration order, which is what
 // distinguishes it from the ascending `mechanized_classes` of §3.3.
 func TestReviewExclusion_KeepsRegistrationOrder(t *testing.T) {
@@ -141,7 +144,7 @@ func TestReviewExclusion_KeepsRegistrationOrder(t *testing.T) {
 	assertExclusionAtBothSites(t, dir, []string{"zeta-check", "alpha-check", "mid-check"})
 }
 
-// Test 42's other half: a registered class that never reached candidate
+// Test 42's frequency clause: a registered class that never reached candidate
 // frequency stays on the list, because the list is the mechanized set and not
 // the suppressed-candidate set. The control fixture — the same rows with
 // nothing registered — is what proves rare-class really is below the candidate
