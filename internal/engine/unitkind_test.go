@@ -316,3 +316,10 @@ func TestUnitKind_AuditFix_RowSelector(t *testing.T) {
 	}
 }
 
+// TestUnitKind_FindingsPaths pins the two round-scoped artifact names §3.3
+// addresses by name, so a later unit writing them and this predicate reading
+// them cannot drift apart.
+func TestUnitKind_FindingsPaths(t *testing.T) {
+	assert.Equal(t, filepath.Join("rd", "role-architect.ndjson"), RoleFindingsPath("rd", "architect"))
+	assert.Equal(t, filepath.Join("rd", "merged.ndjson"), MergedFindingsPath("rd"))
+}
