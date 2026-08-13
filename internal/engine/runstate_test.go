@@ -176,3 +176,14 @@ func TestRunRecorder_FinishUnitRejectsAnUnknownSeq(t *testing.T) {
 	assert.Len(t, rec.Snapshot().Units, 1, "no row is invented for the unknown seq")
 }
 
+func TestRunRecorder_StopAndPhaseAreRecorded(t *testing.T) {
+	root, taskFile, rec := newTestRun(t)
+
+	require.NoError(t, rec.SetPhase(PhaseAudit))
+	require.NoError(t, rec.Stop("converged"))
+
+	raw := readRunStateRaw(t, root, taskFile)
+	assert.Equal(t, PhaseAudit, raw["phase"], "the run reports where it stopped, not where it began")
+	assert.Equal(t, "converged", raw["stop_reason"])
+}
+
