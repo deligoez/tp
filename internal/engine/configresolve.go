@@ -163,9 +163,35 @@ func EffectiveWorkflowForTaskFile(taskFilePath string) model.Workflow {
 	override, _ := LoadTaskWorkflowOverride(taskFilePath)
 	clampWorkflowRanges(&override)
 	project := ProjectWorkflowOverride()
-	return ResolveWorkflowLayers(&override, &project)
+	wf := ResolveWorkflowLayers(&override, &project)
+	wf.NotifyCmd = LocalNotifyCmd(".")
+	return wf
 }
 
+// LocalNotifyCmd returns the notify_cmd recorded in the .tp/local.json
+// discovered from start, or "" when there is no .tp/, no local.json, or no
+// notify_cmd. §7 makes this field per-operator rather than per-project, so
+// local.json is the only layer that can supply it — a task file or
+// .tp/config.json carrying notify_cmd reports an unknown key instead.
+func LocalNotifyCmd(start string) string {
+	tpDir := DiscoverTPDir(start)
+	if tpDir == "" {
+		return ""
+	}
+	lc, _, err := LoadLocalConfig(tpDir)
+	if err != nil || lc.NotifyCmd == nil {
+		return ""
+	}
+	return *lc.NotifyCmd
+}
+
+// ResolveEffectiveWorkflow resolves the effective workflow for a start
+// directory: it discovers the project config from start, loads its workflow
+// defaults, and layers the given task-file override over them (a per-field
+// sparse merge, so a task file that sets only one field inherits the rest from
+// the project). With no .tp/ present, the override resolves over the built-in
+// defaults exactly as in v0.23.0. Returns the effective workflow and any config
+// validation warnings.
 // ResolveEffectiveWorkflow resolves the effective workflow for a start
 // directory: it discovers the project config from start, loads its workflow
 // defaults, and layers the given task-file override over them (a per-field
@@ -188,13 +214,22 @@ func ResolveEffectiveWorkflow(start string, taskOverride *model.WorkflowOverride
 	if err != nil {
 		return model.Workflow{}, warnings, err
 	}
-	return ResolveWorkflowLayers(&local, &pc.Workflow), append(taskWarnings, warnings...), nil
+	wf := ResolveWorkflowLayers(&local, &pc.Workflow)
+	wf.NotifyCmd = LocalNotifyCmd(start)
+	return wf, append(taskWarnings, warnings...), nil
 }
 
 // ResolveWorkflowLayers merges workflow overrides by precedence: the task-file
 // override outranks the project config, which outranks the built-in default.
 // Each field resolves independently — a nil field inherits the next lower layer
 // — so presence, not value, defines an override.
+// ResolveWorkflowLayers merges workflow overrides by precedence: the task-file
+// override outranks the project config, which outranks the built-in default.
+// Each field resolves independently — a nil field inherits the next lower layer
+// — so presence, not value, defines an override.
+//
+// notify_cmd is not resolved here: it is per-operator and comes from
+// .tp/local.json only (§7), which the layers this function sees do not carry.
 func ResolveWorkflowLayers(taskOverride, project *model.WorkflowOverride) model.Workflow {
 	// The built-in default layer: 2 clean rounds, no round caps, 600s gate
 	// timeout, 5s lock timeout, no checks, blocking-severity review convergence,
