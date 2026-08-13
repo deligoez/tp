@@ -20,24 +20,32 @@ const (
 )
 
 // TestDocsStateOneAuditRoutingContract guards §4 (pinned by §7 item 15): the
-// documents that state the audit routing contract must tell one story, and
+// document that states the audit routing contract must tell one story, and
 // every §4 requirement is guarded by a required substring rather than only by
 // the absence of a superseded one — so deleting the old wording without writing
 // the new one fails here too.
 //
-// v0.34.0 §8.1 narrowed the set from four documents to the two that own the
-// contract: the audit prompt's body order and the prompts[].role contract are
-// schema detail, so REFERENCE.md renders them alone.
+// v0.34.0 §8.1 narrowed the set from four documents to two, and the v0.34.0
+// audit narrowed it again to the single owner: REFERENCE.md restated the
+// routing rule and the eject-on-upgrade rule verbatim beside its schema, which
+// is the duplication §8.1 forbids. The prompt body orders and the
+// prompts[].role contract stay schema detail REFERENCE.md renders alone, and
+// both documents still have to be free of the superseded item-id prefixes.
 func TestDocsStateOneAuditRoutingContract(t *testing.T) {
-	for _, doc := range roleContractDocs {
-		text := readRepoDoc(t, doc)
-		assert.Contains(t, text, routingSubstring, "%s states the routing rule", doc)
-		assert.Contains(t, text, upgradeSubstring, "%s records that an ejected corpus keeps its old copies", doc)
+	skill := readRepoDoc(t, roleContractDoc)
+	assert.Contains(t, skill, routingSubstring, "%s states the routing rule", roleContractDoc)
+	assert.Contains(t, skill, upgradeSubstring,
+		"%s records that an ejected corpus keeps its old copies", roleContractDoc)
+
+	reference := readRepoDoc(t, "skills/tp/REFERENCE.md")
+	for doc, text := range map[string]string{
+		roleContractDoc:          skill,
+		"skills/tp/REFERENCE.md": reference,
+	} {
 		assert.NotContains(t, text, "file-sec-", "%s carries no superseded item-id prefix", doc)
 		assert.NotContains(t, text, "file-maint-", "%s carries no superseded item-id prefix", doc)
 	}
 
-	reference := readRepoDoc(t, "skills/tp/REFERENCE.md")
 	assert.Contains(t, reference, sharedArmOrder, "REFERENCE.md renders the shared-arm prompt body order")
 	assert.Contains(t, reference, specCoverageOrder, "REFERENCE.md renders the spec-coverage prompt body order")
 	assert.Contains(t, reference, roleValueSubstring, "REFERENCE.md states prompts[].role as a corpus role id")

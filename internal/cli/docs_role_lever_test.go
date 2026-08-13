@@ -33,15 +33,14 @@ var referenceTrimLeverSubstrings = []string{
 }
 
 // TestDocsStateThePerSpecRoleLever guards §4 (pinned by §6 item 17): the
-// documents that own the role-corpus rules must each carry the pinned
-// substring, and REFERENCE.md must state both of a trim_candidate's levers and
-// how differently they are guarded. v0.34.0 §8.1 narrowed the set from four
-// documents to those two owners.
+// document that owns the role-corpus rules must carry the pinned substring, and
+// REFERENCE.md must state both of a trim_candidate's levers and how differently
+// they are guarded. v0.34.0 §8.1 narrowed the set from four documents to two,
+// and the v0.34.0 audit narrowed it again to the single owner — REFERENCE.md's
+// copy of the lever sentence was one of the duplications §8.1 forbids.
 func TestDocsStateThePerSpecRoleLever(t *testing.T) {
-	for _, doc := range roleContractDocs {
-		assert.Contains(t, readRepoDoc(t, doc), perSpecLeverSubstring,
-			"%s states the per-spec deactivation lever verbatim", doc)
-	}
+	assert.Contains(t, readRepoDoc(t, roleContractDoc), perSpecLeverSubstring,
+		"%s states the per-spec deactivation lever verbatim", roleContractDoc)
 
 	ref := readRepoDoc(t, "skills/tp/REFERENCE.md")
 	for _, want := range referenceTrimLeverSubstrings {

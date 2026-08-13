@@ -143,7 +143,7 @@ Repeat until `tp audit <spec> --status --check` exits 0:
 2. Spawn one sub-agent per role prompt; each returns one NDJSON line per checklist item (`status` ∈ PASS/PARTIAL/FAIL).
 3. Merge the per-role files: `tp audit --merge r1.ndjson r2.ndjson ... -o results.ndjson` (no spec positional — `--merge` takes NDJSON inputs only and rejects a spec with exit 2) (dedups by `role`+`item_id`, reports a status/role breakdown), then record: `tp audit <spec> --record results.ndjson` — a row counts as a finding when `status` is absent or ≠ `PASS`; a clean round has zero findings. The audit round sequence is independent of review rounds.
 4. Fix the code for every non-PASS item.
-5. Repeat. `tp audit <spec> --status` shows `consecutive_clean`, `converged`, `stale`, `budget_exhausted`, `max_rounds`/`rounds_remaining`/`in_flight_round`, and (with `--merge`/`--status`) an `overlap_report` over non-PASS rows clustered by `(item_id, category)` — the audit-side signal for trimming a redundant auditor.
+5. Repeat. `tp audit <spec> --status` shows `consecutive_clean`, `converged`, `stale`, `budget_exhausted`, `max_rounds`/`rounds_remaining`/`in_flight_round`, and (with `--merge`/`--status`) an `overlap_report` — the audit-side signal for trimming a redundant auditor.
 6. **Read the divergence signal (v0.33.0).** `tp audit <spec> --status` and `tp audit <spec> --record <file>` also carry `role_streaks` (each role's `consecutive_clean`/`open` in the latest recorded round — the streak lengths show whether the remaining findings are backlog or a regression), `spec_coverage_clean_rounds` (that role's streak, or `null` when the latest round measured no conformance at all — `null` ≠ `0`, so an absent `divergence` beside it proves nothing), and `divergence`, emitted only when spec-coverage has reached the clean-round threshold while other roles still hold open findings. All three survive `--compact`; the emission conditions and field shapes are in [REFERENCE.md](REFERENCE.md).
 
    **`divergence` gates nothing — it is reporting only.** Convergence arithmetic, the stored per-round `clean` flag, `next_action` and the `--status --check` exit code are unchanged: audit convergence still counts every non-PASS row, so `--check` still exits 1 and `next_action` still reads fix-and-re-audit. When `divergence` appears, **surface it and stop** — accepting findings outside spec conformance is a user-approved decision, never the agent's.
@@ -367,7 +367,6 @@ Review and audit roles are **project-owned data** — one JSON file per role und
 - `.tp/reviewers/*.json` drives `tp review`; `.tp/auditors/*.json` drives `tp audit` (phase = directory). Schema `{id, title, instructions, focus[], domains[]}`; `id` MUST equal the filename stem (lowercase kebab-case); `regression` is reserved. Commit the corpus to VCS.
 - A populated phase directory **replaces** the embedded default corpus for that phase; absent/empty keeps tp's curated defaults (software: implementer/tester/architect + spec-coverage/security/maintainability-conventions; prose: coherence/soundness + spec-coverage/soundness). A project happy with defaults keeps **zero role files**.
 - `tp init --eject-roles [--domain software|prose] [--force]` writes the defaults as editable, byte-identical files, and **ejected role files are not rewritten on upgrade** — re-eject with `--force` to adopt newer default prompts. tp's own repo dogfoods a custom 4+4 corpus (adopted v0.26.0: implementer/tester/architect/ax-economist reviewers + spec-coverage/go-safety/maintainability-conventions/ax-contract auditors).
-- `tp lint`, `tp review`, and `tp audit` validate the corpus; a malformed role file aborts that phase with **exit 3** and a `repair or delete <path>` hint (a broken auditor never blocks review).
 
 Emission is corpus-driven: `tp review` emits one prompt per active reviewer role plus the built-in `regression` role (appended, never a corpus file); `tp audit` emits one per active auditor role. Every prompt stamps the output contract (`role, location, class, severity`; audit adds `status`). tp still only emits prompts — it never executes agents.
 
@@ -388,10 +387,11 @@ tp:
 
 - `domain` selects the embedded corpus when no role files exist and filters a user corpus by each role's `domains`; an unknown domain falls back to `software` with a lint warning.
 - `tp.review_roles`/`tp.audit_roles` **append** focus to an existing role (project focus first); an unknown override id is a lint warning; `regression` takes no overrides. The standalone `tp: lens` is retired.
-- **`enabled` (v0.32.0)** is the override object's second permitted key beside `focus`. enabled: false deactivates a role for one spec — no prompt, and that override's `focus` applied nowhere; `enabled: true` is a no-op. The role is named in `skipped_roles` with the reason `disabled-by-spec`. Two refusals fire **on prompt emission only** — never under `--record`, `--status`, `--merge`, `--resolve`/`--resolve-all`, `--verify` or `--report` — and each exits 2 before any prompt is emitted or any state is written: emptying a phase, and deactivating `spec-coverage`. Keep `domains` as the **durable** axis — a role's standing scope across every spec — and use `enabled: false` as the **one-spec exception** to it.
+- **`enabled` (v0.32.0)** is the override object's second permitted key beside `focus`. enabled: false deactivates a role for one spec — no prompt, and that override's `focus` applied nowhere; `enabled: true` is a no-op. Two refusals fire **on prompt emission only** and exit 2: emptying a phase, and deactivating `spec-coverage`. Keep `domains` as the **durable** axis — a role's standing scope across every spec — and use `enabled: false` as the **one-spec exception** to it.
 - **Overlap and staleness:** `tp review --merge`/`--report`/`--status` carry a per-role `overlap_report` flagging a `trim_candidate` (a reviewer that found only what others also found), and `--status` reports `roles_stale` when the corpus changed since the last recorded round. tp reports; trimming a role is your decision.
 
-The exact warning and refusal strings, the cluster keys, the hash rules and the two trim levers are in [REFERENCE.md](REFERENCE.md).
+Corpus validation and its exit code, the exact warning and refusal strings, the cluster keys, the hash
+rules and the two trim levers are in [REFERENCE.md](REFERENCE.md).
 
 ## Role authoring guidance (v0.25.0)
 
@@ -435,7 +435,6 @@ The wrapper is only for what tp cannot know — runtime setup (e.g. hook-blocked
 
 ## State directory (`.tp-review/`)
 
-- `tp` owns the review/audit round lifecycle in `<spec-dir>/.tp-review/<spec-base>/`.
 - **Commit `.tp-review/` to version control.** Import convergence enforcement holds across clones and CI only when the recorded rounds travel with the repo: ignoring the directory makes every `tp import` in CI behave as "no recorded rounds", and convergence is then unverifiable.
 - **Prunable:** only snapshot files older than the newest MAY be deleted (the diff falls back gracefully).
 - **Do not delete `.tp/locks/<base>-<hash>.lock` while tp may be running.** It is a zero-byte, git-ignored marker that persists after its lock is released, and that is what makes the lock exclude: flock binds to an inode, so unlinking it lets the next waiter lock a different inode at the same path and run concurrently.

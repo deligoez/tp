@@ -29,18 +29,17 @@ func repoRoot(t *testing.T) string {
 	}
 }
 
-// roleContractDocs are the documents that own the audit routing contract and
-// the role-corpus rules. Until v0.34.0 §8.1 the same wording was required in
-// all four repo-root documents; giving every fact one home left SKILL.md (what
-// an agent needs mid-cycle) and REFERENCE.md (the exhaustive detail) as its
-// homes, and README.md's one-time index and CLAUDE.md's repo conventions point
-// at them instead. Asserting the wording in the pointers would re-create the
-// duplication §8.1 removed. Both guards read the same set, so the set lives
-// here rather than being duplicated per guard.
-var roleContractDocs = []string{
-	"skills/tp/SKILL.md",
-	"skills/tp/REFERENCE.md",
-}
+// roleContractDoc is the document that owns the audit routing contract and the
+// role-corpus rules. Until v0.34.0 §8.1 the same wording was required in all
+// four repo-root documents; §8.1 narrowed that to SKILL.md and REFERENCE.md,
+// and the v0.34.0 audit found the pair still duplicated the rules verbatim.
+// Giving each fact one home leaves SKILL.md, the document an agent already has
+// loaded when it spawns a round, as the owner: REFERENCE.md keeps the
+// exhaustive schema detail around them, and README.md's one-time index and
+// CLAUDE.md's repo conventions point at the skill. Asserting the wording
+// anywhere else would re-create the duplication §8.1 removes. Both guards read
+// this constant, so the owner is named once rather than per guard.
+const roleContractDoc = "skills/tp/SKILL.md"
 
 // readRepoDoc reads a repo-root-relative document and fails the test when it is
 // missing, so a documentation guard does not have to close over its own
