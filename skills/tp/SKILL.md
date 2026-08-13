@@ -200,7 +200,7 @@ A unit returns to the loop only at a clean checkpoint; a crashed unit is recover
 
 A task closed with commit(s) records `commit_shas` (ordered; `commit_sha` mirrors `[0]`). `tp done --commit` is repeatable; a duplicate sha exits 1.
 
-**`tp keep`** — the durable, git-ignored (`.tp/local.json`) memory of files kept uncommitted, so `tp resume` classifies them as `kept` not `changes`. Paths are stored repo-root-relative from any subdirectory. Feed `tp resume`'s `kept[].path` into `hc`'s `allow_unplanned`. After a close, `tp done`/`tp close` warn on stderr about any unexplained change not on the keep-list (exit 0; tp never commits or discards it).
+**`tp keep`** — the durable, git-ignored (`.tp/local.json`) memory of files kept uncommitted, so `tp resume` classifies them as `kept` not `changes`. Feed `tp resume`'s `kept[].path` into `hc`'s `allow_unplanned`.
 
 ## Command & flag inventory
 

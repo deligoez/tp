@@ -139,7 +139,7 @@ Acceptance: Model exists. Migration runs.
 | `tp keep --remove <path>` | drop an entry (an absent path is a no-op, exit 0) |
 | `tp keep --list` | print the keep-list as JSON (`[]` when empty) |
 
-Matching is Go `filepath.Match` (`*`/`?` do not cross `/`, no `**`); the first matching entry supplies the reason. Feed `tp resume`'s `kept[].path` into `hc`'s `allow_unplanned`. After a successful close, `tp done`/`tp close` print a one-line stderr warning naming any uncommitted change not on the keep-list (exit 0; tp never commits or discards it).
+Matching is Go `filepath.Match` (`*`/`?` do not cross `/`, no `**`); the first matching entry supplies the reason. After a successful close, `tp done`/`tp close` print a one-line stderr warning naming any uncommitted change not on the keep-list (exit 0; tp never commits or discards it).
 
 ## Phase Management
 
