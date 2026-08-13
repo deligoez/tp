@@ -198,8 +198,9 @@ func TestReviewSuppression_FailingCheckStillSuppressesItsClass(t *testing.T) {
 		"a failing check suppresses its class from next_action exactly as a passing one does")
 }
 
-// Test 45: `tp review --report` is unchanged (Non-Goal 9) — a class registered
-// in a resolvable task file still appears in its mechanize_candidates, and the
+// Test 45: `tp review --report` is unchanged (Non-Goal 9 of v0.33.0, the spec
+// this file's section and test numbers refer to) — a class registered in a
+// resolvable task file still appears in its mechanize_candidates, and the
 // report emits no mechanized_classes key.
 func TestReviewReport_SuppressionDoesNotReachReport(t *testing.T) {
 	dir := suppressionFixture(t, `[{"class":"registered-class","cmd":"true"}]`)
