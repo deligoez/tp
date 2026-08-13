@@ -116,6 +116,16 @@ const specFileMissingHint = "check the spec path — this command takes the spec
 // error and the one that can least afford wrong-object advice.
 const recordFileMissingHint = "check the --record path — this flag takes the NDJSON results file the reviewers/auditors wrote, not the spec or the task file"
 
+// recordRowHint explains a --record file tp could read but could not parse: a
+// row that is not JSON, or one the row rules reject. Left hintless, the site
+// inherits the code-1 default, which is TASK-file advice ("run 'tp validate' to
+// audit the task file") — an unrelated command over an unrelated file, when the
+// object at fault is the NDJSON the reviewers or auditors just wrote and the
+// message already names the line (§9.2). It is the fallback, not a replacement:
+// a row rule with advice of its own (a pre-resolved fixed row wants the spec
+// re-reviewed) still wins.
+const recordRowHint = "fix the line the message names in the --record NDJSON: every non-blank line is one JSON object written by a reviewer or auditor"
+
 type reviewFinding struct {
 	Severity   string          `json:"severity"`
 	Category   string          `json:"category"`

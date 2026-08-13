@@ -57,7 +57,10 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 
 	findings, parseErr := countAuditFindings(recordPath, data)
 	if parseErr != nil {
-		output.Error(ExitValidation, parseErr.Error())
+		// A malformed row is a fault in the results file, not in the invocation,
+		// so it is a validation error (exit 1) — and its hint names that file,
+		// not the task file the code-1 default would send the reader to (§9.2).
+		output.Error(ExitValidation, parseErr.Error(), recordRowHint)
 		os.Exit(ExitValidation)
 		return nil
 	}

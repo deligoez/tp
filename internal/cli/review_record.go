@@ -69,6 +69,14 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 		// A malformed row is a fault in the file read from disk, not the
 		// invocation, so it is a validation error (exit 1), not a usage error
 		// (exit 2) — mirroring an invalid stored review_converge_on above (§3.3).
+		//
+		// Most row rules carry no advice of their own, and an empty hint here is
+		// the code-1 default: task-file advice over a file that is not the task
+		// file (§9.2). The fallback is applied at this sink rather than inside
+		// parseRecordRows so a rule added there cannot reintroduce the default.
+		if parseHint == "" {
+			parseHint = recordRowHint
+		}
 		output.Error(ExitValidation, parseErr.Error(), parseHint)
 		os.Exit(ExitValidation)
 		return nil
