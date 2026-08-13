@@ -147,9 +147,9 @@ Prefer running each **unit** in a **fresh subagent context** (Agent/Task tool), 
 ## Conventions
 
 tp's own behavior — exit codes, managed fields, workflow field ranges, `--compact` semantics,
-acceptance delimiters, field aliases, discovery order, lint rules — is documented once, in
-`skills/tp/SKILL.md` and `skills/tp/REFERENCE.md`. What follows is only what is a convention of
-*this codebase*:
+acceptance delimiters, field aliases, discovery order — is documented once, in
+`skills/tp/SKILL.md` and `skills/tp/REFERENCE.md`; the lint rule table lives in `README.md`. What
+follows is only what is a convention of *this codebase*:
 
 - JSON output when piped or `--json`, colored text in TTY
 - Pretty-printed JSON with 2-space indentation
