@@ -45,7 +45,9 @@ func TestIsMechanizedClass_ExactMatch(t *testing.T) {
 
 // TestMechanized_ClassNamedByTwoEntries covers test 35's predicate half: the
 // validator's duplicate-class rule is cross-entry and unreachable per entry, so
-// a class named twice is simply registered and each list names it once.
+// a class named twice is simply registered, and the reviewer exclusion list names
+// it once. The other list test 35 names, mechanized_classes, is pinned by
+// TestReviewRecord_ClassNamedByTwoEntriesWithheldOnce in internal/cli.
 func TestMechanized_ClassNamedByTwoEntries(t *testing.T) {
 	checks := []model.Check{
 		{Class: "duplicate-line", Cmd: "check-a"},
