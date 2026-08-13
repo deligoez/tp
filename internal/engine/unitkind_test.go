@@ -270,3 +270,19 @@ func TestUnitKind_RolePredicate_ContentLinesOnly(t *testing.T) {
 	}
 }
 
+// TestUnitKind_ReviewResolve_ReadsTheMergedFile pins the two edges of the
+// resolve predicate: a round with nothing to dispose is complete, and a merged
+// file that cannot be read is not.
+func TestUnitKind_ReviewResolve_ReadsTheMergedFile(t *testing.T) {
+	t.Run("no findings to dispose", func(t *testing.T) {
+		dir := t.TempDir()
+		writeUnitFile(t, MergedFindingsPath(unitRoundDir(dir)), "\n\n")
+		assert.True(t, UnitReviewResolve.DurableWrite(UnitTarget{RoundDir: unitRoundDir(dir)}))
+	})
+	t.Run("merged file unparseable", func(t *testing.T) {
+		dir := t.TempDir()
+		writeUnitFile(t, MergedFindingsPath(unitRoundDir(dir)), "{\"resolved\":{}}\nnot json\n")
+		assert.False(t, UnitReviewResolve.DurableWrite(UnitTarget{RoundDir: unitRoundDir(dir)}))
+	})
+}
+
