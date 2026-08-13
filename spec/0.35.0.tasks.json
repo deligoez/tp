@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-13T21:15:32.202309Z",
+  "updated_at": "2026-08-13T21:24:06.953124Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -301,7 +301,7 @@
     {
       "id": "run-state-file",
       "title": "Write the run state file",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "child-env"
@@ -311,11 +311,31 @@
       "source_sections": [
         "### 3.5 Run state, logs and status"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-13T21:16:09.95119Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-13T21:24:06.87233Z",
+      "closed_reason": "- internal/engine/runstate.go writes §3.5's run state at .tp/run-\u003cbase\u003e.json (RunStatePath, named per task file off RunBase and absolute like TP_RUN_DIR): RunState carries run_id, started_at, phase, stop_reason, totals {units, wall_clock_seconds, spend_usd} and one RunUnitRow per unit attempt {seq, kind, id, attempt, exit_code, duration_seconds, spend_usd, log_path}; every mutation rewrites the whole file through a unique temp file + rename, serialized by the recorder's mutex because concurrent role siblings finish in the same iteration and readers take no lock. Verified by tests asserting the documented top-level shape and the path form, and by eight concurrent siblings under -race with a lock-free reader beside them: every row survives, the file always parses and no .tmp is left behind.\n- RunRecorder.StartUnit appends the row before the child is spawned with exit_code, duration_seconds and spend_usd forced to null (cleared from a copy, so the caller's value is untouched), and FinishUnit updates that row in place by seq — a seq no row carries is an error rather than an invented row. Totals are recomputed from the rows on every write, so units counts attempts (a retry is a second row) and spend sums only the metered ones, an unmetered unit staying null and accruing nothing. NewRunRecorder replaces any file a dead run left at the path, so units, spend, wall clock and stop_reason all restart at zero on a new run — caps bound a run, not a cycle. Verified by test 12's before/after assertions read from the raw JSON (null vs 0 is the distinction the two-write protocol rests on), an attempts test that agrees with Snapshot's accrual, and a second-run test asserting zeroed totals, no inherited rows and a fresh run_id.\n- Gate green: go test -race ./... (0), golangci-lint run (0 issues), ./scripts/check-deadcode.sh (0).\nOut of scope: the run state is not yet reachable from any command — ReadRunState and Snapshot exist for the run-status and cap tasks that own those surfaces, and the .tp/.gitignore entry for run-\u003cbase\u003e.json belongs to gitignore-entries.",
+      "gate_passed_at": "2026-08-13T21:24:06.87233Z",
+      "commit_sha": "7429b5f",
+      "commit_shas": [
+        "7429b5f",
+        "cbaa60b",
+        "e166854",
+        "13cee2f",
+        "7ae05a8",
+        "b29f555",
+        "22491ff",
+        "88c5abe",
+        "98fc853",
+        "bcd7ab7",
+        "b5fb240",
+        "0a44164",
+        "3f3e8b2"
+      ],
+      "commit_files": [
+        "internal/engine/runstate.go",
+        "internal/engine/runstate_test.go"
+      ]
     },
     {
       "id": "unit-logs",
