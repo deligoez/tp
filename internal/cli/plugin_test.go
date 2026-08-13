@@ -188,3 +188,20 @@ func readFileHead(path string, n int) ([]byte, error) {
 	return head[:read], nil
 }
 
+// TestPluginValidatesWithClaudeCLI runs the check test 24 names verbatim. It is
+// skipped when the claude CLI is absent, so the two tests above stay the
+// durable guard and this one is the confirmation on a machine that has the
+// tool.
+func TestPluginValidatesWithClaudeCLI(t *testing.T) {
+	claude, err := exec.LookPath("claude")
+	if err != nil {
+		t.Skip("claude CLI not on PATH")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, claude, "plugin", "validate", repoRoot(t), "--strict")
+	out, runErr := cmd.CombinedOutput()
+	require.NoError(t, runErr, "claude plugin validate --strict failed:\n%s", out)
+}
