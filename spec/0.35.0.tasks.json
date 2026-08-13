@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-13T20:48:04.079738Z",
+  "updated_at": "2026-08-13T20:59:34.245668Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -727,7 +727,7 @@
     {
       "id": "plugin-layout",
       "title": "Fill out the plugin root",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 8,
@@ -735,11 +735,22 @@
       "source_sections": [
         "### 6.1 Layout"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-13T20:53:12.734476Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-13T20:59:34.169481Z",
+      "closed_reason": "- .claude-plugin/plugin.json now declares the plugin's identity only (name, version 0.35.0, description, author, homepage, repository, license, keywords) beside the existing marketplace.json; skills/tp and the coming hooks/ and agents/ stay convention-discovered at the plugin root. Verified: the previous manifest failed 'claude plugin validate' outright (inline skills path/triggers objects), the rewritten one passes with and without --strict.\n- Version is 0.35.0 because the SessionStart preflight (§6.1) compares 'tp --version' against this field; TestPluginManifestDeclaresIdentity asserts it never falls below that minimum, and that the rejected inline skills block is gone.\n- Ships no binary (test 24): TestPluginShipsNoBinary walks the repo and fails on any tracked file starting with an ELF/Mach-O/PE magic, plus asserts .gitignore keeps /tp out. Verified by mutation — a planted 4-byte ELF probe made the test fail with the probe named, and it passes again once removed.\n- TestPluginValidatesWithClaudeCLI runs 'claude plugin validate \u003croot\u003e --strict' verbatim and skips when the CLI is absent.\n- Quality gate green, each run separately: go test -race ./... = 0, golangci-lint run = 0 issues, ./scripts/check-deadcode.sh = 0.\nOut of scope: .claude-plugin/marketplace.json still pins \"skills\": [\"./skills/tp\"] explicitly while plugin.json relies on convention discovery — it validates today, but the redundancy is a drift risk once hooks/ and agents/ land.",
+      "gate_passed_at": "2026-08-13T20:59:34.169481Z",
+      "commit_sha": "3a7fdd5",
+      "commit_shas": [
+        "3a7fdd5",
+        "b27d64a",
+        "2e3e51f",
+        "a5e32b9"
+      ],
+      "commit_files": [
+        ".claude-plugin/plugin.json",
+        "internal/cli/plugin_test.go"
+      ]
     },
     {
       "id": "hook-session-start",
