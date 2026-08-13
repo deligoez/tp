@@ -101,3 +101,36 @@ func TestNewRunRecorder_WritesTheDocumentedShape(t *testing.T) {
 	assert.Contains(t, totals, "wall_clock_seconds")
 }
 
+// Test 12: the row exists with a null exit_code before the child exits, and is
+// updated in place after.
+func TestRunRecorder_RowIsNullBeforeTheChildExitsAndUpdatedAfter(t *testing.T) {
+	root, taskFile, rec := newTestRun(t)
+
+	row := startedRow(1, 1, "architect")
+	require.NoError(t, rec.StartUnit(row))
+	assert.NotNil(t, row.ExitCode, "the caller's row is copied, not cleared in place")
+
+	before := rawUnits(t, readRunStateRaw(t, root, taskFile))
+	require.Len(t, before, 1)
+	assert.Nil(t, before[0]["exit_code"], "the appended row's exit_code is null before the child exits")
+	assert.Nil(t, before[0]["duration_seconds"], "so is its duration")
+	assert.Nil(t, before[0]["spend_usd"], "so is its spend")
+	assert.Equal(t, "architect", before[0]["id"])
+	assert.Equal(t, string(UnitReviewRole), before[0]["kind"])
+	assert.Equal(t, 1.0, before[0]["attempt"])
+	assert.Equal(t, "/runs/x/architect.jsonl", before[0]["log_path"])
+
+	spend := 0.42
+	require.NoError(t, rec.FinishUnit(1, 3, 1500*time.Millisecond, &spend))
+
+	after := rawUnits(t, readRunStateRaw(t, root, taskFile))
+	require.Len(t, after, 1, "the row is updated in place, not appended a second time")
+	assert.Equal(t, 3.0, after[0]["exit_code"], "the exit code the child produced")
+	assert.InDelta(t, 1.5, after[0]["duration_seconds"], 0.001)
+	assert.InDelta(t, 0.42, after[0]["spend_usd"], 0.0001)
+
+	totals := readRunStateRaw(t, root, taskFile)["totals"].(map[string]any)
+	assert.Equal(t, 1.0, totals["units"])
+	assert.InDelta(t, 0.42, totals["spend_usd"], 0.0001)
+}
+
