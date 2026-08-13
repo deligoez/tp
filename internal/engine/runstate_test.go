@@ -216,3 +216,50 @@ func TestNewRunRecorder_TotalsRestartAtZeroOnANewRun(t *testing.T) {
 	assert.Equal(t, 0, second.Snapshot().Totals.Units)
 }
 
+// Concurrent siblings write rows in the same iteration, so every write is
+// atomic and the file a lock-free reader sees always parses.
+func TestRunRecorder_ConcurrentSiblingsLeaveAParseableFile(t *testing.T) {
+	root, taskFile, rec := newTestRun(t)
+
+	const siblings = 8
+	var wg sync.WaitGroup
+	for i := 1; i <= siblings; i++ {
+		wg.Add(1)
+		go func(seq int) {
+			defer wg.Done()
+			spend := 0.5
+			// assert, not require: a sibling goroutine must not call FailNow.
+			assert.NoError(t, rec.StartUnit(startedRow(seq, 1, "role")))
+			assert.NoError(t, rec.FinishUnit(seq, 0, time.Second, &spend))
+		}(i)
+	}
+	// A lock-free reader beside them: every read either parses or the file is
+	// not there yet, and it is never half-written.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for range 40 {
+			if data, err := os.ReadFile(RunStatePath(root, taskFile)); err == nil {
+				var st RunState
+				assert.NoError(t, json.Unmarshal(data, &st), "a reader never sees a partial file")
+			}
+		}
+	}()
+	wg.Wait()
+
+	state, err := ReadRunState(root, taskFile)
+	require.NoError(t, err)
+	assert.Len(t, state.Units, siblings, "every sibling's row survives")
+	assert.Equal(t, siblings, state.Totals.Units)
+	assert.InDelta(t, float64(siblings)*0.5, state.Totals.SpendUSD, 0.0001)
+	for _, row := range state.Units {
+		require.NotNil(t, row.ExitCode, "seq %d was updated after its child exited", row.Seq)
+	}
+
+	entries, err := os.ReadDir(filepath.Join(root, ".tp"))
+	require.NoError(t, err)
+	for _, entry := range entries {
+		assert.NotContains(t, entry.Name(), ".tmp", "the rename leaves no temp file behind")
+	}
+}
+
