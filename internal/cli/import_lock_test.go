@@ -149,14 +149,7 @@ func TestImport_LockContentionTimeoutExitsFour(t *testing.T) {
 	assert.GreaterOrEqual(t, elapsed, 900*time.Millisecond, "the import retried for the configured 1s, not less")
 	assert.Less(t, elapsed, 4*time.Second, "the import used the configured 1s, not the 5s built-in default")
 
-	var errObj map[string]any
-	require.NoError(t, json.Unmarshal([]byte(stderr), &errObj), "stderr is the tp error object: %s", stderr)
-	assert.Contains(t, errObj["error"], "timed out waiting for lock", "error names the contention")
-	assert.Contains(t, errObj["error"], filepath.Join(".tp", "locks"), "error names the lock path")
-	assert.Contains(t, errObj["error"], "after ", "error names the elapsed wait")
-	hint, _ := errObj["hint"].(string)
-	assert.Contains(t, hint, filepath.Join(".tp", "locks"), "hint names the lock path")
-
+	assertLockTimeoutErrorObject(t, stderr)
 	assert.Equal(t, 0, importLockTaskCount(t, taskFilePath), "a timed-out import writes nothing")
 }
 
