@@ -136,8 +136,9 @@ func TestWithFileLock_LockLivesUnderTPLocks(t *testing.T) {
 	// inode, so unlinking the file lets the next waiter lock a different inode
 	// at the same path and enter the critical section concurrently. The file is
 	// a zero-byte marker under the git-ignored .tp/locks/.
-	_, err = os.Stat(held)
-	assert.NoError(t, err, "the lock file survives release, so a waiter locks the same inode")
+	info, err := os.Stat(held)
+	require.NoError(t, err, "the lock file survives release, so a waiter locks the same inode")
+	assert.Zero(t, info.Size(), "it is a marker, not state")
 	_, err = os.Stat(lockTarget + ".lock")
 	assert.True(t, os.IsNotExist(err), "no sibling lock beside the target")
 }
