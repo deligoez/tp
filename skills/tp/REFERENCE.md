@@ -83,8 +83,6 @@ export TP_FILE=spec/project.tasks.json
 
 ## Reset-Native Workflow (v0.28.0)
 
-Each unit (review round, decomposition, one task, one audit round) runs in a fresh context; tp is the durable state machine between resets. tp guarantees resumability; the orchestrator triggers the reset.
-
 ### `tp resume [spec]` — resume oracle (read-only)
 
 Resolves the task file by the discovery order (a spec argument wins and uses its adjacent `<base>.tasks.json`; an absent adjacent file → empty task set); exits 3 when neither a task file nor a spec argument is found. Emits JSON when piped. Output:
@@ -102,7 +100,7 @@ Resolves the task file by the discovery order (a spec argument wins and uses its
 
 `--compact` drops `next_action.summary`, each `kept[].reason`, and each `blockers[].message`; keeps every `data` plus `bookkeeping` and `guidance` (both decision-critical — §8.4).
 
-Blocker vocabulary (fixed order): `unexplained-changes` (**agent-clearable**, `{count}`), `no-ready-task` (escalate, `{blocked_by}`), `review-budget-exhausted` / `audit-budget-exhausted` (escalate, `{cap}`; 0 = no cap, never fires), `spec-stale` (escalate, `{spec}`). Reference driver: resolve `agent-clearable` blockers and re-run; stop on `escalate`; run `next_action` in a fresh unit when `blockers` is empty; repeat until `release`.
+Blocker vocabulary (fixed order): `unexplained-changes` (**agent-clearable**, `{count}`), `no-ready-task` (escalate, `{blocked_by}`), `review-budget-exhausted` / `audit-budget-exhausted` (escalate, `{cap}`; 0 = no cap, never fires), `spec-stale` (escalate, `{spec}`).
 
 ### `commit_strategy` — `builtin` / `auto` / `hc`
 
