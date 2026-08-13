@@ -34,8 +34,14 @@ func TestCommitLeavesForeignLockFilesAlone(t *testing.T) {
 	}
 
 	gitOut(t, dir, "init", "-q", ".")
+	// Repo-local, not per-command: `tp commit` runs git in a subprocess of its
+	// own, so a -c on the fixture's own commit does not reach it. Configured
+	// only on the fixture, this passed on a developer machine — which has a
+	// global identity — and failed on CI, which does not.
+	gitOut(t, dir, "config", "user.email", "t@t")
+	gitOut(t, dir, "config", "user.name", "t")
 	gitOut(t, dir, "add", "-A")
-	gitOut(t, dir, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init")
+	gitOut(t, dir, "commit", "-qm", "init")
 
 	_, stderr, code := runTP(t, dir, "init", specPath)
 	require.Equal(t, 0, code, "init: %s", stderr)
@@ -92,10 +98,12 @@ func TestCommitDropsAlreadyTrackedLockFiles(t *testing.T) {
 	}
 
 	gitOut(t, dir, "init", "-q", ".")
+	gitOut(t, dir, "config", "user.email", "t@t")
+	gitOut(t, dir, "config", "user.name", "t")
 	// -f: the ignore file would otherwise keep them out, which is exactly the
 	// masking that made the first guard vacuous.
 	gitOut(t, dir, "add", "-A", "-f")
-	gitOut(t, dir, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init")
+	gitOut(t, dir, "commit", "-qm", "init")
 	require.Contains(t, gitOut(t, dir, "ls-files"), ".tp/locks/root.lock", "the fixture starts with locks tracked")
 
 	_, stderr, code := runTP(t, dir, "init", specPath)
