@@ -247,7 +247,7 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 
 		if doneAutoCommit && len(doneCommits) == 0 {
 			if err := gitStage(doneFiles); err != nil {
-				output.Error(ExitFile, fmt.Sprintf("auto-commit: git stage failed: %v", err))
+				output.Error(ExitFile, fmt.Sprintf("auto-commit: git stage failed: %v", err), gitSubprocessHint)
 				os.Exit(ExitFile)
 				return nil
 			}
@@ -261,14 +261,14 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 					return nil
 				}
 				if err := runGit("add", "--", taskFilePath); err != nil {
-					output.Error(ExitFile, fmt.Sprintf("auto-commit: stage task file failed: %v", err))
+					output.Error(ExitFile, fmt.Sprintf("auto-commit: stage task file failed: %v", err), gitSubprocessHint)
 					os.Exit(ExitFile)
 					return nil
 				}
 				msg := buildCommitMessage(task, reason)
 				sha, commitErr := gitCommit(msg)
 				if commitErr != nil {
-					output.Error(ExitFile, fmt.Sprintf("auto-commit: git commit failed: %v", commitErr))
+					output.Error(ExitFile, fmt.Sprintf("auto-commit: git commit failed: %v", commitErr), gitSubprocessHint)
 					os.Exit(ExitFile)
 					return nil
 				}

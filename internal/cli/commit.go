@@ -14,6 +14,15 @@ import (
 	"github.com/deligoez/tp/internal/output"
 )
 
+// gitSubprocessHint replaces the exit-3 default on failures that come from the
+// git subprocess rather than from anything tp owns. The default names the task
+// file and suggests `tp use`/`tp init`, which is the wrong object entirely: a
+// `git commit` that exits 128 has nothing to do with task-file discovery, and
+// an agent following that advice loops. The most common cause is named because
+// it is the one the message does not make obvious — a fresh checkout with no
+// committer identity, which is how this reached CI.
+const gitSubprocessHint = "git itself failed — its own message is on stderr above; a repository with no user.name/user.email configured is the usual cause"
+
 var commitFiles string
 
 func newCommitCmd() *cobra.Command {
@@ -97,7 +106,7 @@ func runCommit(_ *cobra.Command, args []string) error {
 
 		// Stage implementation files (selected via --files or auto-detected).
 		if err := gitStage(commitFiles); err != nil {
-			output.Error(ExitFile, fmt.Sprintf("git stage failed: %v", err))
+			output.Error(ExitFile, fmt.Sprintf("git stage failed: %v", err), gitSubprocessHint)
 			os.Exit(ExitFile)
 			return nil
 		}
@@ -124,7 +133,7 @@ func runCommit(_ *cobra.Command, args []string) error {
 			return nil
 		}
 		if err := runGit("add", "--", taskFilePath); err != nil {
-			output.Error(ExitFile, fmt.Sprintf("stage task file failed: %v", err))
+			output.Error(ExitFile, fmt.Sprintf("stage task file failed: %v", err), gitSubprocessHint)
 			os.Exit(ExitFile)
 			return nil
 		}
@@ -135,7 +144,7 @@ func runCommit(_ *cobra.Command, args []string) error {
 		// Commit → C1, the pre-amend implementation sha (§5.1c).
 		sha, err := gitCommit(msg)
 		if err != nil {
-			output.Error(ExitFile, fmt.Sprintf("git commit failed: %v", err))
+			output.Error(ExitFile, fmt.Sprintf("git commit failed: %v", err), gitSubprocessHint)
 			os.Exit(ExitFile)
 			return nil
 		}
