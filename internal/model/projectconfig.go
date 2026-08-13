@@ -1,5 +1,7 @@
 package model
 
+import "encoding/json"
+
 // ProjectConfig models the committed .tp/config.json file, which holds the
 // single top-level "workflow" key of project-wide workflow-field defaults.
 // It MUST be committed to version control; import convergence enforcement and
@@ -59,6 +61,20 @@ type WorkflowOverride struct {
 	AuditMaxRounds     *int     `json:"audit_max_rounds,omitempty"`
 	ReviewConvergeOn   *string  `json:"review_converge_on,omitempty"`
 	Checks             *[]Check `json:"checks,omitempty"`
+
+	// The unattended run's caps and runner (§7). Runner is raw JSON because the
+	// field takes three shapes — a built-in template name, a runner object, or a
+	// per-kind map — which the runner resolver, not this layer, tells apart; a
+	// nil RawMessage means absent, exactly as a nil pointer does above.
+	//
+	// notify_cmd is deliberately absent: it is per-operator and resolves from
+	// .tp/local.json only, so it is never a task-file or project-config override.
+	RunMaxUnits            *int            `json:"run_max_units,omitempty"`
+	RunMaxWallClockSeconds *int            `json:"run_max_wall_clock_seconds,omitempty"`
+	RunMaxBudgetUSD        *float64        `json:"run_max_budget_usd,omitempty"`
+	RunMaxUnitBudgetUSD    *float64        `json:"run_max_unit_budget_usd,omitempty"`
+	RunMaxUnitRetries      *int            `json:"run_max_unit_retries,omitempty"`
+	Runner                 json.RawMessage `json:"runner,omitempty"`
 }
 
 // IsEmpty reports whether the override sets no fields at all, which is the case
@@ -73,5 +89,11 @@ func (o *WorkflowOverride) IsEmpty() bool {
 		o.AuditMaxRounds == nil &&
 		o.Checks == nil &&
 		o.CommitStrategy == nil &&
-		o.ReviewConvergeOn == nil
+		o.ReviewConvergeOn == nil &&
+		o.RunMaxUnits == nil &&
+		o.RunMaxWallClockSeconds == nil &&
+		o.RunMaxBudgetUSD == nil &&
+		o.RunMaxUnitBudgetUSD == nil &&
+		o.RunMaxUnitRetries == nil &&
+		o.Runner == nil
 }
