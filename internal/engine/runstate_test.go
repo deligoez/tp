@@ -80,3 +80,24 @@ func TestRunStatePath_IsPerTaskFileUnderTheTPDir(t *testing.T) {
 	assert.NotEqual(t, path, other, "two cycles in one repository never share a run state file")
 }
 
+func TestNewRunRecorder_WritesTheDocumentedShape(t *testing.T) {
+	root, taskFile, _ := newTestRun(t)
+
+	raw := readRunStateRaw(t, root, taskFile)
+	for _, key := range []string{"run_id", "started_at", "phase", "stop_reason", "totals", "units"} {
+		assert.Contains(t, raw, key, "§3.5's shape carries %s", key)
+	}
+	assert.Nil(t, raw["stop_reason"], "a run that has not stopped carries a null stop_reason")
+	assert.Equal(t, PhaseImplement, raw["phase"])
+	assert.Empty(t, raw["units"], "a run with no attempt yet holds no rows")
+	assert.NotEmpty(t, raw["run_id"])
+
+	_, err := time.Parse(time.RFC3339Nano, raw["started_at"].(string))
+	assert.NoError(t, err, "started_at is a timestamp")
+
+	totals := raw["totals"].(map[string]any)
+	assert.Equal(t, 0.0, totals["units"])
+	assert.Equal(t, 0.0, totals["spend_usd"])
+	assert.Contains(t, totals, "wall_clock_seconds")
+}
+
