@@ -665,8 +665,9 @@ func TestAuditFindingsUnreadableDirectory(t *testing.T) {
 // asks about while the round still records — the false-clean class every
 // sibling NDJSON reader was swept for. The warning was also weaker than it
 // read, since output.Notice honours --quiet: exit 0, empty stderr, a quietly
-// shorter checklist. tp add --bulk keeps the warn contract; it does not feed a
-// convergence gate.
+// shorter checklist. No reader was left on the warn contract: v0.34.0 §4 moved
+// tp add --bulk and tp set --bulk to the same abort (add.go, set.go), so this
+// is the shared rule rather than this reader's exception.
 func TestAuditFindingsOverlongLineAborts(t *testing.T) {
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
