@@ -23,11 +23,13 @@ func TestAuditCategory_EnumValid(t *testing.T) {
 	}
 }
 
-func TestAuditCategory_PrecedenceResolution(t *testing.T) {
-	assert.Equal(t, "security", ResolveAuditCategory("correctness", "security"), "security wins over correctness")
-	assert.Equal(t, "concurrency", ResolveAuditCategory("contract", "concurrency", "error-handling"))
-	assert.Equal(t, "contract", ResolveAuditCategory("contract"))
-	assert.Equal(t, "", ResolveAuditCategory("bogus"), "unknown values resolve to empty")
+func TestAuditCategories_IsPrecedenceOrderAndACopy(t *testing.T) {
+	got := AuditCategories()
+	assert.Equal(t, []string{"security", "concurrency", "error-handling", "correctness", "contract"}, got,
+		"the order is the precedence RenderAuditCategoryText prints, not alphabetical")
+
+	got[0] = "mutated"
+	assert.Equal(t, "security", AuditCategories()[0], "a caller must not be able to reorder the precedence")
 }
 
 func TestRenderAuditCategoryText_ContainsEnumAndPrecedence(t *testing.T) {

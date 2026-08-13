@@ -216,6 +216,7 @@ func recordAuditRoundEntry(specPath string, data []byte, findings int, clean boo
 func countAuditFindings(path string, data []byte) (findings int, err error) {
 	lineNum := 0
 	var rl rolelessRows
+	var ic invalidCategoryRows
 	for _, line := range strings.Split(string(data), "\n") {
 		lineNum++
 		trimmed := strings.TrimSpace(line)
@@ -227,6 +228,7 @@ func countAuditFindings(path string, data []byte) (findings int, err error) {
 			return 0, fmt.Errorf("line %d: invalid JSON: %w", lineNum, jsonErr)
 		}
 		rl.observe(row, lineNum)
+		ic.observe(row, lineNum)
 		// engine.AuditRowIsPass is the same predicate §2.1 pins for the streak
 		// walk, and its doc comment requires the two to stay identical. Calling
 		// it here rather than restating it makes that identity structural: the
@@ -235,8 +237,49 @@ func countAuditFindings(path string, data []byte) (findings int, err error) {
 			findings++
 		}
 	}
+	if err := ic.err(); err != nil {
+		return 0, err
+	}
 	rl.notice(path)
 	return findings, nil
+}
+
+// invalidCategoryRows collects rows whose category is outside the enum
+// engine.IsValidCategory accepts, so one bad file costs the operator ONE
+// round-trip: every offending line is named at once rather than the first one
+// aborting and the next appearing on the retry.
+//
+// It exists because tp renders the enum into every auditor prompt through
+// engine.RenderAuditCategoryText, in words that promise "unknown values are
+// rejected" — and then never looked at what came back. A row could carry any
+// string at all and be recorded into the permanent round file that convergence
+// is computed from. The validator had been written and tested since the
+// category enum landed, and nothing ever called it.
+//
+// Rejecting rather than warning is what the prompt already promises, and it
+// matches the invalid-JSON abort a few lines above: a row that does not meet
+// the stated schema does not enter the record.
+type invalidCategoryRows struct {
+	lines []string
+}
+
+// observe folds one parsed row into the tally, remembering each line that
+// carried a category outside the enum and what it said.
+func (r *invalidCategoryRows) observe(row map[string]any, lineNum int) {
+	category, _ := row["category"].(string)
+	if category == "" || engine.IsValidCategory(category) {
+		return
+	}
+	r.lines = append(r.lines, fmt.Sprintf("line %d: %q", lineNum, category))
+}
+
+// err returns the abort for path, or nil when every category was in the enum.
+func (r *invalidCategoryRows) err() error {
+	if len(r.lines) == 0 {
+		return nil
+	}
+	return fmt.Errorf("category outside the enum at %s; tp names only %s",
+		strings.Join(r.lines, "; "), strings.Join(engine.AuditCategories(), ", "))
 }
 
 // runAuditStatus implements `tp audit <spec> --status [--check]`. The shape

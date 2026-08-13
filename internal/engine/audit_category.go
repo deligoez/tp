@@ -25,6 +25,15 @@ var auditCategoryPrecedence = []string{
 	CategoryContract,
 }
 
+// AuditCategories returns the five categories in resolution order, for callers
+// that need to name the set rather than test one value. The copy keeps a caller
+// from reordering the precedence every other reader depends on.
+func AuditCategories() []string {
+	out := make([]string, len(auditCategoryPrecedence))
+	copy(out, auditCategoryPrecedence)
+	return out
+}
+
 // IsValidCategory reports whether c is one of the five audit categories.
 func IsValidCategory(c string) bool {
 	for _, v := range auditCategoryPrecedence {
@@ -33,21 +42,6 @@ func IsValidCategory(c string) bool {
 		}
 	}
 	return false
-}
-
-// ResolveAuditCategory picks the single category for a finding to which
-// several categories apply, using the resolution precedence
-// security > concurrency > error-handling > correctness > contract.
-// Unknown values are ignored; returns "" when no valid category is given.
-func ResolveAuditCategory(candidates ...string) string {
-	for _, p := range auditCategoryPrecedence {
-		for _, c := range candidates {
-			if c == p {
-				return p
-			}
-		}
-	}
-	return ""
 }
 
 // RenderAuditCategoryText renders the category enum, the resolution
