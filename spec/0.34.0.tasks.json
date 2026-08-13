@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.34.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-08-12T20:37:39.290034Z",
+  "updated_at": "2026-08-13T02:33:34.828266Z",
   "workflow": {
     "checks": [
       {
@@ -81,7 +81,7 @@
     {
       "id": "init-lock",
       "title": "Lock the init write path",
-      "status": "open",
+      "status": "done",
       "tags": [
         "repair"
       ],
@@ -93,11 +93,25 @@
       "source_sections": [
         "## 3. `tp import` writes under the lock"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-12T22:12:16.516101Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-12T22:31:14.022259Z",
+      "closed_reason": "- Kind: repair — init.go's stat-then-write moved inside engine.WithFileLock (d719c53) with no new flag and no output change; the pre-existing success-path guards (TestInit_SparseWorkflowBlock's four cases, TestInit_CreatesTPGitignore) still pass untouched, and the freshly built binary still prints exactly {\"created\":\"spec.tasks.json\"} on success and exit 3 on the already-exists path.\n- The lock wraps the whole stat-then-write in runInit, which is the same function tp add --spec calls before taking its own lock; TestInit_WaitsForTaskFileWriteLock holds the lock from the test process and asserts mid-window that init has created nothing. Replacing engine.WithFileLock with a pass-through no-lock wrapper killed it and left the ENTIRE rest of the suite green — it is the only test covering this — restored byte-exact.\n- TestInit_LockContentionTimeoutExitsFour and TestAddSpec_LockContentionTimeoutExitsFour each hold the lock past a project-configured lock_timeout_seconds=1 and assert exit 4 with LockTimeoutError's message and hint naming .tp/locks and the elapsed wait. Three mutations discriminate them: the pass-through wrapper (init returned in 4.4ms with no error object), a hardcoded WithFileLockTimeout(...,5,...) (elapsed 5.05s exceeded the 4s bound, so 'resolved' is measured, not assumed), and for add --spec the pass-through left exit 4 intact but created the shell, so only its NoFileExists assertion failed — proving the two timeout tests are not duplicates.\n- No unlocked task-file write remains, proved by reachability rather than asserted: TestNoUnlockedTaskFileWrite parses internal/cli, seeds the unsafe set with functions calling model.WriteTaskFile outside a lexical engine.WithFileLock/WithFileLockTimeout, propagates it along unlocked same-package calls to a fixpoint, and requires that no cobra RunE entry point lands in it — lexical scanning alone would false-positive on claim.go's claimSingle/claimBatch, whose bodies sit outside the lock but whose only callers are inside it. Floors of \u003e=10 write sites and \u003e=20 RunE names stop a no-op parser reading as clean. Unlocking init flags [runAdd runInit]; unlocking import flags [runImport]. TestTaskFileWriteSinkIsCLIOnly walks internal/ and cmd/ to pin that the sink has no non-test caller outside internal/cli, so that scan is exhaustive; a mutant model.WriteTaskFile caller planted in internal/engine/lock.go flags it. Every mutation restored byte-exact (git status clean for the mutated sources after each).\n- Gate green on HEAD (go test -race ./... exit 0; golangci-lint run 0 issues), and each of the six commits verified green on its own (go test ./... + golangci-lint) in a detached worktree — which caught that the guard's first version used the deprecated parser.ParseDir and would have left two commits lint-red, so it was reordered to land the per-file parser in the commit that introduces it.\nOut of scope: tp init's already-exists error (exit 3) carries the hint \"run 'tp use \u003cfile\u003e' to set the task file, or 'tp init \u003cspec\u003e' to create one\" — it recommends re-running the very command that just failed.",
+      "gate_passed_at": "2026-08-12T22:31:14.022259Z",
+      "commit_sha": "d719c53",
+      "commit_shas": [
+        "d719c53",
+        "6e901fa",
+        "b6de380",
+        "a8a2614",
+        "d1297de",
+        "c7ede7c"
+      ],
+      "commit_files": [
+        "internal/cli/init.go",
+        "internal/cli/init_lock_test.go",
+        "internal/cli/writelock_coverage_test.go"
+      ]
     },
     {
       "id": "bulk-add-cap",
@@ -161,7 +175,7 @@
     {
       "id": "line-cap-markers",
       "title": "Remove the line-cap exemption markers",
-      "status": "open",
+      "status": "done",
       "tags": [
         "repair"
       ],
@@ -173,11 +187,21 @@
       "source_sections": [
         "## 4. The bulk readers honour the shared line cap"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-12T20:43:13.096019Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-12T20:46:07.960179Z",
+      "closed_reason": "- The line-cap: markers are gone from both bulk readers (f5a6a42): add.go's four-line marker above readBulkTasks's scanner and set.go's two-line marker above runSetBulk's are deleted, and a repo-wide search for 'line-cap' in internal/ now returns only the guard itself (hint_coverage_test.go) and the two genuinely non-NDJSON sites it exempts (lint.go:147 spec markdown, audit.go:715 git diff output). Both removals are comment-only; the scanner.Buffer(make([]byte, 0, 64*1024), ndjsonLineCap) lines the previous two tasks added are untouched.\n- The exemption is no longer stated anywhere. Two places listed the bulk readers: TestNDJSONReadersShareTheCap's doc comment ('tp add --bulk and tp set --bulk read NDJSON at bufio's default and pin their own warn-and-continue contracts') and, found by searching rather than named in the acceptance, ndjsonLineCap's own doc in review.go:48-53 ('are NOT in that set'). Both now say every NDJSON reader declares the cap and that a marker is only for a non-NDJSON input.\n- The guard now actually covers the two readers instead of exempting them, proved by mutation rather than asserted. Deleting add.go's scanner.Buffer line fails TestNDJSONReadersShareTheCap with 'Should be empty, but was [add.go:99]'; deleting set.go's fails it with '[set.go:191]'. Before this commit the markers would have exempted both lines, so the guard would have stayed green on either defect.\n- The marker mechanism itself is still live, so exemptLines/siteExemption is not dead code: removing the 'line-cap:' prefix from lint.go:147's comment fails the guard with '[lint.go:147]'. All three mutations were restored byte-exact; git diff --no-ext-diff --stat then showed lint.go absent from the diff and exactly -4/-2 lines in add.go/set.go.\n- Gate green before closing, exit codes checked separately: go test -race ./... = 0 (all packages ok, no data race), golangci-lint run = 0 ('0 issues.').\nOut of scope: spec/0.34.0-candidates.md:49-50 still describes the markers in add.go and set.go as the live record of the exemption. It is a historical candidates document rather than a guard, and no acceptance criterion covers it, so it was left unchanged.",
+      "gate_passed_at": "2026-08-12T20:46:07.960179Z",
+      "commit_sha": "f5a6a42",
+      "commit_shas": [
+        "f5a6a42"
+      ],
+      "commit_files": [
+        "internal/cli/add.go",
+        "internal/cli/hint_coverage_test.go",
+        "internal/cli/review.go",
+        "internal/cli/set.go"
+      ]
     },
     {
       "id": "race-gate",
@@ -311,7 +335,7 @@
     {
       "id": "inline-abstraction",
       "title": "Inline single-caller indirection",
-      "status": "open",
+      "status": "done",
       "tags": [
         "sweep"
       ],
@@ -324,11 +348,39 @@
         "### 6.2 Redundant abstraction",
         "### 2.1 The removal contract"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-12T22:32:31.090956Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-12T23:04:56.483521Z",
+      "closed_reason": "- Kind: removal — §6.2's three forms were swept over the whole tree by an AST call-site census, and each of the 9 removals names what absorbed it: projectWorkflowOverride (a one-line pass-through) absorbed by its exported wrapper ProjectWorkflowOverride; DefaultWorkflow (1 caller) absorbed by ResolveWorkflowLayers; model.EffectiveLockTimeoutSeconds (1 caller) absorbed by engine.effectiveLockTimeoutSeconds; runAddBulk (1 caller) absorbed by runAdd; and 5 always-same-value parameters inlined as their constant — ProjectWorkflowOverride/LocalFlagDefaults/UpdateKeepList's start (10, 2 and 2 call sites, every one \".\"), rankFilesBySpecTerms' maxCount (2 sites, both 15) and readFilesContent's maxPerFile (2 sites, both 5000).\n- Helpers with one call site, interfaces with one implementation, and always-constant parameters were enumerated mechanically, not by eye: an AST census over every .go file in the repo counted call sites per declaration and compared printed argument text per parameter position. Interfaces are vacuous here — the tree declares zero interface types (verified by search over internal/ and cmd/). The census's first constant-parameter pass returned zero because a call's own Fun identifier was double-recorded as an argument-less reference; it was fixed and re-proved to discriminate (loosening the threshold still returned nothing, which is what exposed the bug) before any of its findings were acted on.\n- Indirection kept is named with its second caller: EffectiveGateTimeoutSeconds has four (gate.go:50, gate.go:56, gate.go:73, review_status.go:187); ScopeFenceText has three (brief.go:506, brief_assemble_test.go:35, brief_test.go:10); LoadKeepList, DiscoverTPDir, ProjectRoot and the rest of the start-parameter family keep it because a caller passes a different value (resume.go:48 passes start to LoadKeepList; DiscoverTPDir has 17 varied callers); readFilesContent's maxTotal stays because the doc and test prompts pass 30000 and 20000. Two are kept over a reason rather than a caller, stated plainly: EffectiveReviewMaxRounds and EffectiveAuditMaxRounds each have one caller, but both sit in one struct literal in resume.go, so inlining them writes the identical 0-50 clamp twice into one function — §6.1 duplication traded for §6.2 indirection, and Non-Goal 7 forbids a shared helper. The newXCmd constructors and runX RunE functions are cobra's command-definition surface referenced as values by root.go's registry, not helpers awaiting a second caller; inlining them collapses 25 files into root.go.\n- Every inlined value was mutation-tested to prove it is still load-bearing, and each mutation was restored byte-exact (git diff clean, zero residue): maxCount 15→1 killed TestReviewPerspectiveDocPromptContent; the inlined default ReviewCleanRounds 2→3 killed TestReviewBasic; ProjectWorkflowOverride's \".\"→\"/\" killed TestProjectCommitStrategySettableAndResolved; LocalFlagDefaults' \".\"→\"/\" killed a cli test; the inlined bulk path →addTasks(nil) killed TestAdd_BulkReadsRowUpToTheCap; UpdateKeepList's \".\"→\"..\" killed cli tests. One mutation was discarded as a bad instrument rather than reported as a finding: DiscoverTPDir(\"no-such-dir\") walks upward and re-enters the cwd, so it could not discriminate; \"/\" was used instead.\n- Two mutations survived, and they are pre-existing coverage gaps rather than regressions — both values were passed as literals at HEAD too: readFilesContent's per-file cap (5000→50, suite green) and the lock-timeout fallback (5→7, suite green) are not discriminated by any test. Reported, not fixed: adding tests is an addition §2 does not mandate here.\n- Each of the 7 commits was verified green on its own in a detached worktree (build, test and golangci-lint all exit 0 at every one of the 7 SHAs), not just at HEAD; the resolved gate go test -race ./... \u0026\u0026 golangci-lint run passes at the tip with 0 issues.\nOut of scope: internal/cli/review.go's runReviewDocPlan and runReviewTestPlan are near-identical prompt builders differing mainly in their maxTotal cap and content variable — a §6.1 duplication candidate that dupl's default threshold does not reach.",
+      "gate_passed_at": "2026-08-12T23:04:56.483521Z",
+      "commit_sha": "a2019d1",
+      "commit_shas": [
+        "a2019d1",
+        "20ca161",
+        "7d36143",
+        "5bce719",
+        "a10740a",
+        "9ee8fe6",
+        "68ada7b"
+      ],
+      "commit_files": [
+        "internal/cli/add.go",
+        "internal/cli/brief.go",
+        "internal/cli/commitstrategy.go",
+        "internal/cli/config.go",
+        "internal/cli/flag_defaults.go",
+        "internal/cli/keep.go",
+        "internal/cli/next.go",
+        "internal/cli/plan.go",
+        "internal/cli/review.go",
+        "internal/cli/validate_project.go",
+        "internal/engine/configresolve.go",
+        "internal/engine/keeplist.go",
+        "internal/engine/lock.go",
+        "internal/engine/workflow_resolve.go",
+        "internal/model/workflow.go",
+        "internal/model/workflow_test.go"
+      ]
     },
     {
       "id": "dead-branches",
@@ -366,7 +418,7 @@
     {
       "id": "sweep-audit-signal",
       "title": "Sweep audit_signal guards",
-      "status": "open",
+      "status": "done",
       "tags": [
         "sweep"
       ],
@@ -379,16 +431,23 @@
         "### 7.1 The mutation criterion",
         "### 7.4 What the sweep must not touch"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-12T23:36:10.495291Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-12T23:46:20.633296Z",
+      "closed_reason": "- Kind: repair — one guard repaired (a stale comment), zero removed: §7.1's mutation criterion killed all 12 guards in internal/cli/audit_signal_test.go, so no guard survived unchanged and none was removable, and 'I could not name surviving coverage' is §7.4's answer that keeps a test.\n- All 12 listed guards were mutated, run, watched to fail, and restored, each mutation applied through a harness that backs the file up before writing and restores it in a finally block; 15 mutations in total, every one restored with 'git diff --no-ext-diff --stat' reporting empty over the touched files. Killing mutation per guard: RecordComputesOverJustRecordedRound = signal computed over st.AuditRounds[:len-1] (the compute-before-record defect the test names); StatusCheckCarriesTheSamePayload = auditSignalFields wrapped in 'if !check' (fields written after the exit-code branch); MissingRoundFileAdvisoryOnBothOutputs = the missing-file output.Notice deleted from engine.ReadAuditRoundRows; CorpusEditedAfterLatestRoundSuppressesDivergence = condition 5's stored-vs-current roles-hash comparison dropped; EmptyStatesAreEmittedArrayAndNull = killed twice, by 'streaks = nil' (the nil-slice serialization) and by omitting the null spec_coverage_clean_rounds key; DivergenceKeyIsOmittedNotNull = condition 1 comparing against a literal 1 instead of RequiredCleanRounds; ConvergedGateWithholdsDivergence = condition 4 (in.Converged) dropped; CompactKeepsAllThreeWhole = an 'if IsCompact() { return }' at the top of auditSignalFields; AbsentFromEveryOtherOutput = a role_streaks key injected into tp review --status; DivergenceReachesNeitherConvergenceNorNextAction = converged forced true beside an emitted divergence; ResumeIsUnchangedByTheDivergence = a divergence key injected into the tp resume payload; NoEscapeHatchFromTheGate = a fourth Threshold field added to engine.RoleStreak (Non-Goal 6 arriving).\n- The instrument was shown to discriminate rather than assumed: the 12 were run as one selection under every mutation, and 9 of the 15 mutations killed exactly one guard. The pairs that die together die apart elsewhere, so none is a duplicate — 5 and 8 both die on the nil-slice and null-key mutations but only 8 dies on the --compact drop; 1 and 12 both die on the RoleStreak shape mutation but only 1 dies on the round-window mutation; 2, 7 and 10 all die on the --check mutation while 2 alone survives the round-window one. No guard was left green by a mutation that killed the rest, and every mutation was killed by the guard it targeted.\n- Nothing on §7.4's protection list was touched: no test was removed, weakened or renamed, no assertion was changed, and the only edit in the whole task is a 4-line comment header. TestAuditGate_NoEscapeHatchFromTheGate's header claimed audit_converge_on was held back TO v0.34.0; this release's §11 Non-Goal 2 holds it back again and keeps it in spec/0.34.0-candidates.md, so the note now states that — the repair a previous unit left as an Out-of-scope pointer for whoever owns this file. Behaviour-neutral, as §11 Non-Goal 1 requires of a sweep.\n- Gate green before closing, exit codes read separately from redirected files, never through a pipe: 'go test -race ./...' exit 0 and 'golangci-lint run' exit 0 ('0 issues.'). The single commit is comment-only, so it is green on its own by construction.\nOut of scope: the divergence message literal 'spec-coverage clean 2 rounds; 1 finding open from other roles' is hand-copied into three of these guards (RecordComputesOverJustRecordedRound, StatusCheckCarriesTheSamePayload, CompactKeepsAllThreeWhole) and a fourth time in internal/engine/divergence_test.go; that is §7.2/§7.3 territory and both of those tasks have already closed over this file, so it is reported rather than fixed.",
+      "gate_passed_at": "2026-08-12T23:46:20.633296Z",
+      "commit_sha": "9c3045e",
+      "commit_shas": [
+        "9c3045e"
+      ],
+      "commit_files": [
+        "internal/cli/audit_signal_test.go"
+      ]
     },
     {
       "id": "sweep-auditrounds",
       "title": "Sweep auditrounds guards",
-      "status": "open",
+      "status": "done",
       "tags": [
         "sweep"
       ],
@@ -400,16 +459,23 @@
       "source_sections": [
         "### 7.1 The mutation criterion"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-12T23:47:16.769763Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-13T00:00:43.37885Z",
+      "closed_reason": "- Kind: repair — one comment repaired, zero guards removed: §7.1's mutation criterion killed every one of the 10 listed guards that still exists in internal/engine/auditrounds_test.go, so none survived its own mutation unchanged and none was removable.\n- All 12 listed guards dispositioned. 10 were mutated, run against the WHOLE suite, watched to fail, and restored byte-exact, via 13 targeted mutations of internal/engine/auditrounds.go and reviewstate.go: TrimsWithoutCaseFolding died under M1 (AuditRowRole lowercases, only subtest 'uppercase variant stays distinct') and M1b (TrimSpace dropped); IsPass_ByteExact under M2 (status trimmed, subtest padded_PASS); BlankLinesAreNotParseFailures under M3 (blank-line skip disabled — 25 tests died with it); BareNullLineIsARow under M4 (unmarshal branch also rejects a nil map); NoRowsCausesAndAdvisories under M5/M6/M8/M11/M12; UnparseableAdvisoryFiresOnce under M6 (advisory per bad line) and M11 (reworded advisory); CorpusWordingWinsOverMissingFile under M7 (file read moved before the corpus comparison) and M13; EmptyHashWordingWinsOverDifferingAndMissingFile under M5 (empty/differing order swapped) and M13; EmptyFileEntryIsDistinctFromAMissingFile under M8 (empty-file branch disabled), M9 (LoadRoundRows reports found on a read error) and M12; EmptyFileContributesZeroRowsNotNoRows under M10 (nil rows slice instead of an emitted empty one).\n- No two guards are duplicates: no pair shares a kill set. M7 killed CorpusWordingWinsOverMissingFile and nothing else in the suite; M10 killed EmptyFileContributesZeroRowsNotNoRows and nothing else; M13 was constructed for exactly this question and kills EmptyHashWordingWins while leaving NoRowsCausesAndAdvisories green, so the empty-hash precedence guard is not a copy of that table's empty-hash row; M9 separates EmptyFileEntryIsDistinct from that table's empty-file row. Every mutation was killed by at least one test, so the sweep found no coverage gap.\n- The 2 listed guards that no longer exist were removed earlier in this release with surviving coverage named, and this sweep re-verified that coverage: AuditRowIsPass_MatchesRecordPathFindingCount (b7e9a1e) — M2 failed both named survivors, TestAuditRowIsPass_ByteExact and TestAuditRecord_StoredFindingsFollowTheSharedPredicate; NonMapLiteralsMakeTheRoundContributeNoRows (31c6ec6) — M6, which is that test's original defect (a bad line silently skipped), failed NoRowsCausesAndAdvisories's non-map row and UnparseableAdvisoryFiresOnce.\n- The one repair (8b6439d) is a false claim in captureAuditRoundNotices' header: it said every no-rows assertion below pins the wording 'as well as the boolean', but UnparseableAdvisoryFiresOnce and EmptyFileEntryIsDistinctFromAMissingFile discard both return values. Reworded to what is true. No assertion was added, weakened or removed, and no production code changed.\n- Nothing on §7.4's protection list was touched: no §8 equality test, no §5 config guard and no silent-write guard was modified or removed — the task's entire diff is one comment in one test file.\n- Instrument: the harness asserts each anchor occurs exactly once before replacing (no silent no-op), restores from an in-memory copy and re-reads to assert byte-equality; baseline 'go test ./... -count=1' was green before the sweep, so every reported failure is the mutation's. Gate checked with separate exit codes: go test -race ./... = 0, golangci-lint run = 0 ('0 issues.'). git diff --no-ext-diff --stat showed only the intended comment hunk, and internal/ is clean at HEAD.\nOut of scope: M3 shows the blank-line skip in ReadAuditRoundRows is load-bearing for 25 tests across internal/cli and internal/engine, far beyond the guard that names it — a concentration worth knowing, not a defect.",
+      "gate_passed_at": "2026-08-13T00:00:43.37885Z",
+      "commit_sha": "8b6439d",
+      "commit_shas": [
+        "8b6439d"
+      ],
+      "commit_files": [
+        "internal/engine/auditrounds_test.go"
+      ]
     },
     {
       "id": "sweep-divergence",
       "title": "Sweep divergence guards",
-      "status": "open",
+      "status": "done",
       "tags": [
         "sweep"
       ],
@@ -421,16 +487,23 @@
       "source_sections": [
         "### 7.1 The mutation criterion"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-13T00:01:36.455507Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-13T00:16:18.647074Z",
+      "closed_reason": "- Kind: repair — one comment scoped, zero guards removed: §7.1's mutation criterion killed every one of the 12 listed guards in internal/engine/divergence_test.go, so none survived its own mutation unchanged and none was removable; \"I could not name surviving coverage\" never arose because nothing was a removal candidate.\n- All 12 were mutated one at a time in PRODUCTION code (internal/engine/divergence.go, auditrounds.go, rolehash.go), each mutation run over the WHOLE suite (go test ./...), each restored from a pre-mutation backup inside the same process, with the original literal printed before the run; the anchor was asserted to match exactly once, so a silent no-op replace could not be read as \"guard survived\". git diff --no-ext-diff --stat shows zero residue: the only tracked change is this comment.\n- Kill map (mutation -\u003e what failed suite-wide): M1 message form 0 reworded -\u003e guards 1,2,7 + 3 CLI signal tests; M2 countedNoun never singular -\u003e 2,3,7; M3 the all-unattributed case branch disabled -\u003e 3 alone; M4a byte sort replaced by a case-folding sort -\u003e 4 alone; M4b open_roles dedup dropped -\u003e 4 and 1; M5a condition 1 loosened by one round -\u003e 5/streak_below_the_threshold + 7 + a CLI test; M5b condition 2's zero-open return removed -\u003e 5/no_other_role_holds_an_open_finding alone; M6 the spec-coverage skip pointed at a non-existent id -\u003e 6 alone; M7 the effective threshold clamped at 2 -\u003e 7 alone; M8 condition 4 dropped -\u003e 8 + TestAuditSignal_ConvergedGateWithholdsDivergence; M9 condition 3 dropped -\u003e 9 alone; M10 the with-no-role suffix reworded -\u003e 10 alone; M10b roleless rows no longer counted in unattributed_open -\u003e 10 and 3; M11 condition 5 comparing hash LENGTHS instead of values -\u003e 11 + TestAuditSignal_CorpusEditedAfterLatestRoundSuppressesDivergence; M12a ReadAuditRoundRows' empty-stored-hash cause removed -\u003e 12/route 1 + 8 other engine tests; M12b an unreadable role file skipped instead of erroring -\u003e 12/route 2 alone.\n- Three separating mutations were built for guards that died together, and all three separated: M4a (case-folding sort) kills 4 while leaving 1 green, so 4's byte-order claim is its own and not a copy of 1's open_roles assertion; M7 (clamp at 2) kills 7 while leaving 5 green, so 7 really pins the effective audit_clean_rounds rather than condition 1 in general; M11 (length comparison) kills 11 while leaving 12/route 2 green, so the corpus-changed-after-the-round case and the unreadable-corpus case are distinct halves of condition 5.\n- The repair (32dcc87): divergenceFixture's header claimed \"The tests below derive every condition input from it ... so a fixture state that could not arise in a real repository cannot be asserted here either\", which TestComputeAuditDivergence_SpecCoverageRowsAreNeverCounted — same file, same original commit e46cadc — contradicts by building DivergenceInputs by hand precisely because that state is unreachable through the resolver. Scoped to \"The tests that use it ... cannot be asserted through it either\"; no assertion and no production code changed.\n- Every other measured claim in the file's comments was verified rather than trusted: guard 1's pointer holds (internal/cli/docs_contract_test.go:107 asserts REFERENCE.md contains engine.DivergenceHint, and M-style rewording of the constant is what that test catches); guard 8's \"the exit code is asserted by the audit-output wiring\" holds (audit_signal_test.go:261-262 asserts tp audit --status --check exits 0 on that state); \"§2.1's fourth cause\" is the stored-roles_hash cause per spec/0.33.0.md §2.1, so guards 11 and 12 name it correctly; guard 1's streak(4)/open(3)/threshold(2) really are three different numbers.\n- §7.4 protection list untouched: no test was removed, weakened or reworded, no §8 equality test or §5 config guard was read or written, and no silent-write guard was affected; the only edit in the whole task is four comment lines.\n- Gate run with exit codes read separately, not through a pipe: go test -race ./... = 0, golangci-lint run = 0 (\"0 issues.\").\nOut of scope: guard 12's route 1 is over-determined — emptying the latest round's stored roles_hash fails condition 5 as well as condition 1, so its assertKeyOmitted call alone does not discriminate; the assertion that does is assert.Nil(in.SpecCoverageCleanRounds), which M12a kills, so the guard is sound and was left as it is.",
+      "gate_passed_at": "2026-08-13T00:16:18.647074Z",
+      "commit_sha": "32dcc87",
+      "commit_shas": [
+        "32dcc87"
+      ],
+      "commit_files": [
+        "internal/engine/divergence_test.go"
+      ]
     },
     {
       "id": "sweep-review-suppression",
       "title": "Sweep review_suppression guards",
-      "status": "open",
+      "status": "done",
       "tags": [
         "sweep"
       ],
@@ -442,16 +515,23 @@
       "source_sections": [
         "### 7.1 The mutation criterion"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-13T01:05:25.917164Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-13T01:25:12.006657Z",
+      "closed_reason": "- Kind: repair — zero removals: §7.1's mutation criterion killed all 11 listed guards in internal/cli/review_suppression_test.go, so none survived its own mutation unchanged and none was removable; the single repair is test 45's header, which cited \"Non-Goal 9\" unqualified — unresolvable in this tree, since v0.34.0 §11 stops at seven and the reference is to v0.33.0 (verified: v0.33.0 §5 Non-Goal 9 is 'Suppression in tp review --report'), matching the qualify-the-version convention audit_signal_test.go:456 already uses.\n- All 11 guards were mutated, run, watched to fail, and restored, each by a mutation of the code the guard names: M1 disable the filter (guard 1); M2 case-fold+trim IsMechanizedClass (guard 2); M3 next_action reads the unfiltered candidates (guard 3); M4 inject candidate/mechanized keys into --status (guard 4); M5 inject a dependence on the check cmd's exit status (guard 5); M6a inject suppression into --report and M6b inject a mechanized_classes key there (guard 6); M7 reverse the sort and M7b derive the list from checks rather than the filter (guard 7); M8 collect the withheld set into a nil slice (guard 8); M9 strip mechanized_classes under --compact (guard 9); M10 name a withheld class once per registered entry (guard 10); M11 exempt over-specification at the candidate sink (guard 11). Each of M2..M11 killed only its own guard in internal/cli + internal/engine, so the 11 are mutually discriminating; M1 killed 10 of 11 (all but the --report guard, correctly).\n- Guards 4 and 5 are not duplicates: control C45 dropped the filter at the --status site alone and killed both, but M4 kills only guard 4 (its no-arrays-on---status claim) and M5 only guard 5 (registration, not exit status, is the trigger) — different claims reached through the same sink. Guard 2 also kills engine's TestIsMechanizedClass_ExactMatch, which is §7.2 coverage rather than duplication: one reaches the predicate by direct call, the other through --record's emitted array.\n- Absence claims were tested by injection, not omission: guard 6 (--report suppresses nothing / emits no mechanized_classes) died under both M6a and M6b, and guard 4's two NotContains assertions died under M4.\n- Nothing on §7.4's protection list was touched — no assertion in any guard changed, only test 45's comment; every other comment claim in the file was verified against the artefact and found accurate: nextRoundAction equals engine.ReviewNextAction's branch-4 string, classRow really emits severity low, computeMechanizeCandidates really thresholds at \u003e=5 in one round, exclusionFixture really writes the workflow block directly rather than through tp set, and the §3.1/§3.2/§3.3 and test 32/33/35/36/38/39/40/41/45 references all match spec/0.33.0.md.\n- Gate green after the edit: go test -race ./... exit 0 and golangci-lint run exit 0, read as separate exit codes rather than through a pipe. git diff --no-ext-diff confirmed zero mutation residue after every run; the harness aborted unless each anchor matched exactly once and asserted the restored bytes equalled the original.\nOut of scope: spec/0.33.0.md test 34 (per-entry check validity at the candidate sink) has no CLI-level guard — engine's TestIsMechanizedClass_ValidityIsPerEntry pins the shared predicate and review_exclusion_test.go covers the exclusion-list sink, but no test registers an invalid entry and asserts on mechanize_candidates. Closing it would be an addition, which this acceptance forbids.\nOut of scope: the file's remaining §3.1/§3.2/§3.3 references are correct against v0.33.0 but resolve to an unrelated section in v0.34.0's spec; the repaired header now names the spec once instead of qualifying each of them.",
+      "gate_passed_at": "2026-08-13T01:25:12.006657Z",
+      "commit_sha": "eb9b4e2",
+      "commit_shas": [
+        "eb9b4e2"
+      ],
+      "commit_files": [
+        "internal/cli/review_suppression_test.go"
+      ]
     },
     {
       "id": "sweep-ndjson-read",
       "title": "Sweep ndjson_read_contract guards",
-      "status": "open",
+      "status": "done",
       "tags": [
         "sweep"
       ],
@@ -463,16 +543,23 @@
       "source_sections": [
         "### 7.1 The mutation criterion"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-13T00:33:47.677471Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-13T00:50:59.032758Z",
+      "closed_reason": "- Kind: repair — one comment scoped, zero guards removed: §7.1's mutation criterion killed every one of the 8 listed guards that still exists in internal/cli/ndjson_read_contract_test.go, so none survived its own mutation unchanged and none was removable.\n- The 9th listed guard, TestReviewVerifyUnreadableFindingsFailsLoudly, was already removed by task redundant-assertions (611ed79), so it could not be mutated in place — instead M1 re-applied the exact defect it covered (readVerifyFindings' os.ReadFile abort replaced by a bare 'return nil') and TestReviewVerifyFindingsDirectoryFailsLoudly failed ALONE across the whole suite, re-verifying the surviving coverage that removal named.\n- Eleven mutations, each applied/run/restored in ONE command that aborts unless the anchor matches exactly once and asserts the restored bytes are byte-identical: M1 verify os.ReadFile swallow -\u003e Directory guard only; M2 verify scanner.Err swallow -\u003e OverLongLine guard only; M3a/M3b/M3c the --report/--resolve/--merge caps dropped to 64KB -\u003e TestNDJSONLineCapIsUniform each time; M4 exitResolveError hint flattened to ndjsonInputFileHint, M4b its message stops naming the path, M4c no hint at all -\u003e ResolveOverLongLine both subtests each time; M5 merge hint flattened -\u003e MergeOverLongLine only; M6a usage hint -\u003e the no-arguments + empty-directory arms; M6b path branch exits 2 instead of 3 -\u003e the missing-file + unreadable-directory arms; M7 readSpecContent stops at the first 64KB line (the original defect, not the marker literal) -\u003e SpecInline guard only; M8 readAuditFindings moved back below loadAuditSpec -\u003e AuditFindingsAbort guard only.\n- Two guards died together on all three cap mutations and are §7.2 different-path coverage, not duplication: TestNDJSONReadersShareTheCap is an AST census of every scanner.Buffer site, TestNDJSONLineCapIsUniform drives a 200KB finding through the real binary in three modes. A mutation designed to separate them succeeded in the other direction too — M3c (merge cap) left TestReviewMergeOverLongLineHintNamesTheCap GREEN, proving the cap guard and the hint guard on the same reader are independent. M4c likewise killed the guard together with TestFileErrorsCarryAHint (static exit-3 census), a third path.\n- No arm is dead weight: the 4-arm report contract needed two mutations (M6a kills arms 1-2, M6b arms 3-4) and every arm fired; the resolve guard's NotContains 'tp use' assertion is live under M4c and not merely implied by the 1MB assertion; M8 proves the audit guard's snapshot assertion is not vacuous (the else-branch would pass silently if .tp-review/spec were absent).\n- Every header claim was verified against the artefact rather than trusted: mustParseFindingsFile exists (review.go:1135); §10.5 of spec/0.16.0-review-orchestration.md exists and does pin both usage rows at exit 2 with those messages; the code-2 default is \"see 'tp --help' ...\" and the code-3 default contains 'tp use' (output/output.go:54-63); git show 0586b4d^ confirms --resolve read at 1024*1024 while --merge/--report had no Buffer call at all; the pre-fix readVerifyFindings did warn ('warning: stopped reading %s early'), so 'a warning as its only signal' is exact; and 'moved in_flight_round' is not an unpinned half — engine.InFlightRound (reviewstate.go:402) DERIVES the round from snapshot presence, so asserting no snapshot is asserting in_flight_round did not move.\n- Instrument discrimination: mcp faster_search's regex returned ZERO matches for '10.5' in spec/0.16.0-review-orchestration.md and zero for headings in that file — a false negative. Python re-read the file and found '### 10.5 Validation'. The empty result was distrusted rather than reported as absence.\n- The single repair is the header of TestReviewVerifyFindingsDirectoryFailsLoudly, which said 'both --findings consumers now do' while three readers of a --findings file exist (mustParseFindingsFile, readVerifyFindings, and tp audit's readFindings) and the third is guarded lower in the SAME file by TestAuditFindingsAbortLeavesNoRoundStarted — a reader counts three where the comment says two. Kept as a repair rather than left alone because enumerating the readers is what this sweep did; no assertion changed.\n- Nothing on §7.4's protection list was touched: no §8 equality test, no §5 config guard, and every guard whose failure would let a silent-write defect return (the verify/merge/resolve/audit aborts) is still present and still dies under its own mutation.\n- Gate green with exit codes read separately from files, never through a pipe: go test -race ./... = 0, golangci-lint run = 0 ('0 issues.'), gofmt -l internal/ empty. python3 scripts/check-measured-claims.py = 0 with no PENDING line. The commit was checked out detached in a worktree and built and tested on its own (go build ./... = 0, go test ./internal/... = 0). git diff --no-ext-diff --stat shows zero mutation residue — no production file changed, only spec/0.34.0.tasks.json and spec/feedback.md remain, both allow_unplanned.\n- Out of scope: spec/0.34.0-guard-tests.md still lists TestReviewVerifyUnreadableFindingsFailsLoudly, which no longer exists. This is correct and deliberately untouched — the file is the v0.32.0..v0.33.0 tag derivation and editing it would falsify the derivation check-measured-claims.py verifies; the staleness is the sweep working, not a defect.",
+      "gate_passed_at": "2026-08-13T00:50:59.032758Z",
+      "commit_sha": "78ff12c",
+      "commit_shas": [
+        "78ff12c"
+      ],
+      "commit_files": [
+        "internal/cli/ndjson_read_contract_test.go"
+      ]
     },
     {
       "id": "sweep-rolestreaks",
       "title": "Sweep rolestreaks guards",
-      "status": "open",
+      "status": "done",
       "tags": [
         "sweep"
       ],
@@ -484,16 +571,23 @@
       "source_sections": [
         "### 7.1 The mutation criterion"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-13T01:26:29.487056Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-13T01:43:05.501706Z",
+      "closed_reason": "- Kind: repair — one guard repaired, zero removed: §7.1's mutation criterion killed all 9 listed guards in internal/engine/rolestreaks_test.go, each on the assertion naming its own claim, so none survived unchanged and none was removable.\n- All 9 mutated, run over the whole suite, watched to fail, restored: M1 dropped consecutive[role]++ (test 1: 3→1); M2 counted an unmeasured round as clean (test 2: 1→3, dies alone); M3 folded earlier rounds' roles into the panel (test 3: [keeper]→[gone keeper]); M4 made the sort case-insensitive (test 4, dies alone); M5 deleted the differing-corpus-hash cause (test 12: 2→4); M6 decided differing before empty hash (test 12-second-half wording); M7 skipped an empty hash only when the latest hash is non-empty (test 13); M8 dropped the len(streakOpen)\u003e0 walk condition (test 16, dies alone); M9 returned a nil slice (test 17, all six subcases: \"null\" vs \"[]\").\n- Absence claims got injection mutations rather than removals: M10 (break→continue) made round 1's advisory appear and killed test 12's NotContains; M11 (fall back to the previous round) made round 2's advisory appear and killed test 13's NotContains at line 244.\n- Co-deaths classified as §7.2 coverage, not duplication: the pair 12/13 was separated in both directions (M6 kills 12's sibling while 13 survives; M7 kills 13 while the sibling survives), and M1's four co-deaths were each killed alone by a narrower mutation. Cross-file co-deaths (auditrounds, divergence, speccoverage, cli audit-signal) reach the defect through different paths — a direct ReadAuditRoundRows call, the emitted JSON payload — so all stay.\n- The repair (0b8a85f): test 1's assert.Len(latestRows, 2) became require.Len. M1c (latestRows = nil) proved the guard failed at line 116 and then panicked at line 117 on latestRows[0], crashing the package binary instead of reporting; re-running M1c after the repair reproduced the identical 18-failure set with no panic, guard 1 still failing on its own claim. Its other two claims also discriminate: M1b (renamed consecutive_clean JSON tag) and M1c both kill test 1 alone in this file.\n- Nothing on §7.4's protection list was touched: no §8 equality test, no §5 config guard, no silent-write guard is in this file; the only edit is one assert→require inside a guard that was kept.\n- Comment claims verified rather than assumed: the test numbers 1, 2, 3, 4, 12, 13, 16, 17 match v0.33.0 §6 item for item including their descriptions (checked against v0.33.0, the spec they were written for, not v0.34.0), test 2's \"skipping round 2 would report 3\" was confirmed by M2's actual value of 3, test 4's uppercase-byte reasoning by M4, and test 17's \"non-unmarshalable line is the discriminating case\" by M9b (keeping surviving rows fails exactly that one subcase). No citation needed repair.\n- Gate green before closing, exit codes read separately: go test -race ./... exit 0, golangci-lint run exit 0. git diff --no-ext-diff --stat shows zero mutation residue.\nOut of scope: rolestreaks_test.go:152 has the same latent shape as the repaired line — assert.Equal on the role order followed by streaks[0] — which would panic if a mutation emptied the array; no mutation in this sweep reached that state, so it is reported rather than changed.",
+      "gate_passed_at": "2026-08-13T01:43:05.501706Z",
+      "commit_sha": "0b8a85f",
+      "commit_shas": [
+        "0b8a85f"
+      ],
+      "commit_files": [
+        "internal/engine/rolestreaks_test.go"
+      ]
     },
     {
       "id": "sweep-speccoverage",
       "title": "Sweep speccoverage guards",
-      "status": "open",
+      "status": "done",
       "tags": [
         "sweep"
       ],
@@ -505,16 +599,23 @@
       "source_sections": [
         "### 7.1 The mutation criterion"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-13T01:58:42.185639Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-13T02:11:31.026672Z",
+      "closed_reason": "- Kind: repair — one stale comment reworded, zero guards removed: §7.1's mutation criterion killed every one of the 9 listed guards for internal/engine/speccoverage_test.go, so none survived its own mutation unchanged and none was removable.\n- All 9 mutated, run over the WHOLE suite, watched to fail, restored. Eight guards still exist and each died under a mutation aimed at its own claim: M1 (the panel taken from the union of all rounds instead of the latest) -\u003e _NullWhenOnlyAnEarlierRoundHoldsTheRole; M2 (a zero sentinel in SpecCoverageCleanRounds) -\u003e _ZeroWhenTheLatestRoundHoldsAnOpenRow, ALONE across ./...; M3 (the streak walk stopping after one earlier round) -\u003e _CarriesTheStreakOfACleanLatestRound; M4 (the differing-stored-hash cause removed from ReadAuditRoundRows) -\u003e _CorpusChangeBetweenRoundsTruncatesTheNumber; M5 (an earlier round's empty stored hash inheriting the latest hash) -\u003e _EmptyStoredHashOnAnEarlierRoundTruncatesTheNumber; M6 (the latest round's empty stored hash bypassed via a sentinel) -\u003e _NullWhenTheLatestRoundHasAnEmptyStoredHash; M1+M7 -\u003e _NullStates; M8 (returning \u0026streaks[i].ConsecutiveClean) -\u003e _ReturnsACopy, ALONE across ./....\n- The instrument discriminates, proven in both directions where a pair could be confused. M4 kills the corpus-change guard while M5 and M6 stay green; M5 kills the earlier-empty-hash guard while M4 and M6 stay green; M6 kills the latest-empty-hash guard while M4 and M5 stay green — three narrow mutations separating three guards that share ReadAuditRoundRows. M3 kills the streak-length guard while the two guards that also assert a number (both expecting 2) stay green. No mutation exceeded 7 failing top-level tests; the collateral is always the rolestreaks/divergence half of the same claim, which is the different path §7.2 keeps.\n- _NullStates' 7 subcases are each reachable, not just the function: M1 kills 'latest round recorded zero rows', 'latest round's every row carries no role' and 'differently-cased id'; M9 (an empty history optimistically reporting one clean spec-coverage round) kills 'no recorded round at all' and nothing else in the file; the three no-contribution subcases ('file is deleted', 'file entry is empty', 'line that does not unmarshal') are NOT reachable by any single-site mutation — absence of rows implies absence of the role, so nil is structurally forced — and needed the compound M7 (the !ok guard dropped AND the panel taken from the whole history) to fail. That is the limit of what was demonstrated for those three: they pin §2.1's causes at the field level, and under §7.4 they stay.\n- The 9th listed guard, _NullAndZeroDoNotCollapse, was already gone (removed at 6df4a5c by task redundant-assertions). Both defect forms its comment named were re-applied here and the surviving coverage re-verified independently: the zero-sentinel form (M2) fails _ZeroWhenTheLatestRoundHoldsAnOpenRow alone across ./..., and the reachable omitempty form (M2b: audit_record.go omitting the key when specCoverage is nil) fails TestAuditSignal_EmptyStatesAreEmittedArrayAndNull and TestAuditSignal_CompactKeepsAllThreeWhole and nothing else. Its removal holds.\n- The repair is the comment it left stale: marshalSpecCoverageField's doc said 'The assertion that the two never collapse is what this helper exists for', naming a single assertion that no longer exists. Reworded to state what the four surviving callers do — hand it a computed value rather than a literal nil or 0 — which is checked against the file, not assumed. Nothing else needed repair: the citations 'Test 18 first/second half', 'Test 12 (+ second half)' and 'Test 13' were verified against spec/0.33.0.md's numbered test list (items 12, 13 and 18 at lines 269, 270, 275), the window these tests were added in, and all six deref sites already use require before dereferencing, so no §7.1 assert-then-panic shape is present in this file.\n- Nothing on §7.4's protection list was touched: no §8 equality test, no §5 config guard, and no test whose failure would let a silent-write defect return — the only committed change is a comment in a test file; production code is byte-identical to HEAD~1.\n- Mutation protocol: every mutation was applied, run over ./... and restored in ONE harness call that aborts unless the anchor matches exactly once and asserts the restored bytes equal the original byte-for-byte; git diff --no-ext-diff --stat afterwards shows no production file changed and internal/ clean.\n- Gate green with exit codes read separately from files, not through a pipe: go test -race ./... = 0, golangci-lint run = 0 ('0 issues.'). The single commit cb586b7 is the whole change and the gate ran on exactly that tree.\n- Out of scope: _NullWhenOnlyAnEarlierRoundHoldsTheRole and _NullStates' differently-cased-id subcase overlap on M1, but M10 (role ids case-folded in AuditRowRole) kills the subcase while the guard stays green, so they are not duplicates; no single-site mutation was found that separates them in the other direction, and neither was removed.",
+      "gate_passed_at": "2026-08-13T02:11:31.026672Z",
+      "commit_sha": "cb586b7",
+      "commit_shas": [
+        "cb586b7"
+      ],
+      "commit_files": [
+        "internal/engine/speccoverage_test.go"
+      ]
     },
     {
       "id": "sweep-review-exclusion",
       "title": "Sweep review_exclusion guards",
-      "status": "open",
+      "status": "done",
       "tags": [
         "sweep"
       ],
@@ -526,16 +627,23 @@
       "source_sections": [
         "### 7.1 The mutation criterion"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-13T00:52:02.696168Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-13T01:04:29.133352Z",
+      "closed_reason": "- Kind: repair — three comment cross-references corrected, zero guards removed: §7.1's mutation criterion killed all 7 listed guards in internal/cli/review_exclusion_test.go, so none survived its own mutation unchanged and none was removable.\n- Each guard was mutated, run over the whole suite, watched to fail, and restored (harness: backup, anchor-must-match-once, apply, go test ./... -count=1, restore, assert restored bytes): M1 drop the per-entry validity filter in engine.ReviewerExclusionClasses -\u003e InvalidEntryDroppedAtBothSites (+EveryEntryInvalid) fail; M2 sort the returned list -\u003e KeepsRegistrationOrder fails; M3 candidate threshold s.maxRound \u003e= 5 -\u003e \u003e= 1 in review_report.go -\u003e KeepsAClassBelowCandidateFrequency fails on its control assertion (the discriminating one, proving rare-class really is below frequency); M4 collapse duplicates before the validity check -\u003e InvalidEntryDoesNotShadowAValidOne fails; M5 drop the seen[] dedup -\u003e ClassNamedByTwoEntriesListedOnce fails; M6 drop the OverSpecificationClass exemption -\u003e OverSpecificationNeverJoinsTheList fails (its list assertion discriminates; the 'Canonical class' assertion is an injection check whose only near-neighbour is emission_contract_test's weaker over-specification substring); M7 append the sentence on an empty list at both sites, and M7c delete the 'skipping invalid check' notice -\u003e EveryEntryInvalidAppendsNoSentence fails on each half, and it is the only test in the suite that catches either.\n- The repair is a traceability one, verified against spec/0.33.0.md lines 291-301: guard 1's header cited 'test 34's exclusion-list half', but test 34 is stated wholly at the candidate sink (mechanize_candidates), while the behaviour guard 1 asserts is test 42's first clause; guards 2 and 3 therefore now read 'ordering clause' and 'frequency clause' instead of 'ordering half'/'other half'. The pointer added to engine's TestIsMechanizedClass_ValidityIsPerEntry was read before writing.\n- The CLI guards are not duplicates of engine/mechanized_test.go's: a control mutation disabling the exclusion sentence at the regression site only (review_regression.go, \u003e 0 -\u003e \u003e 999) failed six CLI guards and no engine test, confirming assertExclusionAtBothSites' comment that the regression half is the discriminating path (§7.2 different-path coverage: direct engine call vs two prompt-emission sites).\n- Nothing on §7.4's protection list was touched: no §8 equality test, no §5 config guard, no silent-write guard; every mutation was to production code, restored in the same tool call, and 'git diff --no-ext-diff --stat' showed only this test file plus the allow_unplanned task file and feedback.md.\n- Gate green before closing: go test -race ./... exit 0, golangci-lint run exit 0 (exit codes read separately, not through a pipe).\n- Out of scope: exclusionFixture's claims were re-verified and hold (runMechanicalChecks returns before its loop when taskFilePath is empty, review_status.go:183; 'tp set --workflow checks=' validates via engine.ValidateChecks, set.go:372) — no change made.",
+      "gate_passed_at": "2026-08-13T01:04:29.133352Z",
+      "commit_sha": "0b614c4",
+      "commit_shas": [
+        "0b614c4"
+      ],
+      "commit_files": [
+        "internal/cli/review_exclusion_test.go"
+      ]
     },
     {
       "id": "sweep-mechanized",
       "title": "Sweep mechanized guards",
-      "status": "open",
+      "status": "done",
       "tags": [
         "sweep"
       ],
@@ -547,16 +655,23 @@
       "source_sections": [
         "### 7.1 The mutation criterion"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-13T00:17:18.005198Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-13T00:32:48.989735Z",
+      "closed_reason": "- Kind: repair — zero removals: §7.1's mutation criterion killed all 5 listed guards in internal/engine/mechanized_test.go, so none survived its own mutation unchanged and none was removable; the single repair is TestMechanized_ClassNamedByTwoEntries' header, which claimed 'each list names it once' while its assertions pin only the reviewer exclusion list — mechanized_classes' half is pinned by internal/cli/review_suppression_test.go:TestReviewRecord_ClassNamedByTwoEntriesWithheldOnce (read and verified before writing the pointer).\n- Each listed guard was mutated, run against the WHOLE suite, watched fail, then restored — 11 mutations of internal/engine/mechanized.go through a harness that aborts unless the anchor matches exactly once and asserts the restored bytes equal the original: ValidityIsPerEntry died on slice-wide validation inside IsMechanizedClass (L26) and on dropping the per-entry validity conjunct (L28); ExactMatch died on EqualFold (L40) and on TrimSpace both sides (L41); ClassNamedByTwoEntries died on slice-wide validation (L58) and on removing the dedup (L60); OverSpecificationExemptionIsScoped died in both directions the header names — exemption dropped from the exclusion list (L77) and exemption extended to IsMechanizedClass (L75); FilterOrderAndShape died on collapse-before-drop (L89), on sorting the output (L96) and on a nil out slice (L101/L102).\n- No guard survived, so the rewrite-or-remove clause never fired and no surviving coverage had to be named for a removal. Where a mutation killed two tests at once, the pair was separated: each internal/cli co-victim (TestReviewRecord_SuppressionMatchesTheFindingClassExactly, TestReviewRecord_ClassNamedByTwoEntriesWithheldOnce, TestReviewExclusion_*) reaches the same rule through prompt emission or --record, a different path, which §7.2 calls coverage rather than duplication; an 11th mutation (invalid entries kept on the exclusion list) was built specifically to show ValidityIsPerEntry L30 discriminates on its own rather than riding on L26/L28.\n- Nothing on §7.4's protection list was touched: no §8 equality test, no §5 config guard and no silent-write guard was modified; the only change is one comment in the guard file, with no assertion weakened, retargeted or deleted.\n- Gate green after the change — go test -race ./... exit 0 and golangci-lint run exit 0, exit codes read separately from files, and git diff --no-ext-diff --stat shows zero mutation residue (internal/engine/mechanized.go absent from the diff; scratch backup kept at scratchpad/mechanized.go.orig).",
+      "gate_passed_at": "2026-08-13T00:32:48.989735Z",
+      "commit_sha": "563f5c8",
+      "commit_shas": [
+        "563f5c8"
+      ],
+      "commit_files": [
+        "internal/engine/mechanized_test.go"
+      ]
     },
     {
       "id": "sweep-small-cli",
       "title": "Sweep the small cli guard files",
-      "status": "open",
+      "status": "done",
       "tags": [
         "sweep"
       ],
@@ -568,11 +683,18 @@
       "source_sections": [
         "### 7.1 The mutation criterion"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-13T01:44:05.128597Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-13T01:57:41.209258Z",
+      "closed_reason": "- Kind: repair — one comment repaired, zero guards removed: §7.1's mutation criterion killed all 10 listed guards across inflight_window_test.go, lock_pathspec_test.go, hint_coverage_test.go, audit_test.go and docs_contract_test.go, so none survived its own mutation unchanged and none was removable. Every mutation was applied and restored in one harness call that aborts unless the anchor matches exactly once and asserts the restored bytes equal the original; git diff --no-ext-diff --stat afterwards showed no production file in the diff.\n- Each guard was killed by a mutation targeted at its own claim, and the mutations separate the guards rather than co-killing them. M1b (engine/resume.go:70 !IsRebuildableStateIndex -\u003e if true) failed TestInFlightWindowIsReadableByEveryStateReader/tp_resume ALONE in the whole suite. M2 (roundFilePrefixes renamed so a recorded round file is unrecognized) failed all four arms of TestLostRoundIndexStillAborts plus two sibling state tests, and left guards 1 and 3 green. M3 (hasAnyPrefixed's ReadDir-error branch -\u003e return false, the original defect) failed TestUnlistableStateDirIsNotReadAsAbsent ALONE. A first, broader mutation (IsRebuildableStateIndex -\u003e false) was rejected as over-determined: it failed ~65 tests including all three guards, so it proved nothing about which guard discriminates.\n- The lock-pathspec pair is §7.2 distinct coverage, not duplicates, and the classification is decisive in BOTH directions with a control mutation each: M4 (adding a broad \":(glob,top)**/*.lock\" entry to tpLockPathspecs) failed TestCommitLeavesForeignLockFilesAlone ALONE while TestCommitDropsAlreadyTrackedLockFiles stayed green; M5 (dropping \",top\" from both entries) failed TestCommitDropsAlreadyTrackedLockFiles ALONE while TestCommitLeavesForeignLockFilesAlone stayed green — root cwd versus subdirectory cwd is the path each reaches the defect by. M6 (removing EnsureTPGitignore from engine/lock.go:68) failed TestLockDirIsGitIgnoredWithoutInit alone.\n- The two guards whose claim is that something is ABSENT were proved by injection, not by deletion: M7 dropped the ndjsonInputFileHint argument from audit.go's findings-file exit-3 site and failed TestFileErrorsCarryAHint alone; M8 deleted review_verify.go's scanner.Buffer(_, ndjsonLineCap) line and failed TestNDJSONReadersShareTheCap alone. M9 (reverting audit.go's findings scanner.Err abort to a noticeOnce advisory) failed TestAuditFindingsOverlongLineAborts plus TestAuditFindingsAbortLeavesNoRoundStarted; the discriminating assertion is the first arm's require.Equal(3, code), since the second (200KB under-cap) arm dies instead to a Buffer mutation. M10 (rewording one of §4's verbatim sentences in skills/tp/REFERENCE.md) failed TestDocsCarryTheConvergenceSignalWording alone.\n- The single repair is TestAuditFindingsOverlongLineAborts' header (audit_test.go:668), which claimed 'tp add --bulk keeps the warn contract; it does not feed a convergence gate'. That is falsified by this tree: add.go:95/124 and set.go:192/250 both declare ndjsonLineCap and answer scanner.Err() with output.Error(ExitFile, ...) + os.Exit, so no reader is left on warn-and-continue. Both files were read before the pointer was written. The header now cites v0.34.0 §4 by version, following the convention audit_signal_test.go:456 and sweep-review-suppression already used.\n- Limit of what was demonstrated: no mutation in this sweep produced a panic — the 11 runs were searched for 'panic:' and none contains it — so the §7.1 assert-then-index repair shape was not exposed here. audit_test.go's unchecked result[\"checklist\"].([]any) at line 711 is reachable only past two require.Equal calls that abort first under every mutation tried, so it is not defended, merely not reached. The citations were checked rather than assumed: docs_contract_test.go's '§4 (pinned by §6 test 46)' resolves against v0.33.0 (§4 Documentation, §6 test 46 is the docs-substring guard) and hint_coverage_test.go's '(§9.3)' against v0.34.0 §9.3 'lint names the spec, not the task file' — both correct, neither touched.\n- Gate green before closing, exit codes checked separately: go test -race ./... = 0, golangci-lint run = 0 ('0 issues.'). python3 scripts/check-measured-claims.py exits 0 with no PENDING line. spec/0.34.0-guard-tests.md was not edited. No production code changed.\nOut of scope: engine/reviewstate.go's hasAnyPrefixed answers ANY ReadDir error with !os.IsNotExist(err), so a transient EMFILE would also route to the corrupt-state abort rather than to a retry — deliberate per its comment, but nothing distinguishes 'cannot list' from 'cannot list right now'. No acceptance criterion covers it, so it was left as is.",
+      "gate_passed_at": "2026-08-13T01:57:41.209258Z",
+      "commit_sha": "b2603c3",
+      "commit_shas": [
+        "b2603c3"
+      ],
+      "commit_files": [
+        "internal/cli/audit_test.go"
+      ]
     },
     {
       "id": "sweep-small-engine",
@@ -608,7 +730,7 @@
     {
       "id": "redundant-assertions",
       "title": "Reduce same-path duplicate assertions",
-      "status": "open",
+      "status": "done",
       "tags": [
         "sweep"
       ],
@@ -620,16 +742,27 @@
       "source_sections": [
         "### 7.2 Redundant assertions"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-12T23:15:44.346812Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-12T23:35:10.548029Z",
+      "closed_reason": "- Kind: removal — §7.2's three same-path duplicates in the guard set are gone, each naming its surviving coverage and each survivor re-verified by mutation AFTER the removal: TestReviewVerifyUnreadableFindingsFailsLoudly (611ed79), TestSpecCoverageCleanRounds_NullAndZeroDoNotCollapse (6df4a5c) and TestReadAuditRoundRows_NonMapLiteralsMakeTheRoundContributeNoRows (31c6ec6).\n- Same path proven, not assumed. M1 (readVerifyFindings' os.ReadFile error arm replaced by a bare 'return nil', the original swallow defect) failed BOTH verify tests and nothing else in internal/cli: a 0o000 file and a directory reach the one 'if err != nil' branch and tp keys nothing on EACCES vs EISDIR. M3a (the unparseable-row branch's 'return nil, false' replaced by 'continue') failed all four subtests of NonMapLiterals together with the NoRowsCausesAndAdvisories case instantiating the same cause — the reader unmarshals into a map[string]any and keys nothing on the literal's type, so no mutation separates 5/true/\"x\"/[] from [1,2].\n- The kept test is the one whose failure identifies the defect best. TestReviewVerifyFindingsDirectoryFailsLoudly is kept because the removed twin skipped itself under root (os.Geteuid() == 0) while the directory case runs everywhere; its comment now carries the removed test's rationale. TestReadAuditRoundRows_NoRowsCausesAndAdvisories is kept because it asserts the WHOLE stderr with assert.Equal against the table's wording where the removed test used assert.Contains, and names the cause rather than a literal; UnparseableAdvisoryFiresOnce (fixture 5, [1], \"x\") and BareNullLineIsARow keep three of the four literal shapes plus the null counterpart. The one shape no survivor feeds is the boolean — it traverses that same type-agnostic branch, so it was input variety, not path coverage.\n- NullAndZeroDoNotCollapse invoked no production code at all: it hand-fed nil and \u00260 to a test-local marshaling helper, so no mutation reaches it. Both defects its comment named are caught elsewhere, demonstrated: M2 (a zero sentinel in SpecCoverageCleanRounds) failed TestSpecCoverageCleanRounds_ZeroWhenTheLatestRoundHoldsAnOpenRow and nothing else across internal/engine + internal/cli while the removed test stayed GREEN; the 'omitempty field' form cannot be instantiated in the shipped path (the payload is a map[string]any), and its reachable form — M2b, omitting the key when nil in auditSignalFields — failed TestAuditSignal_EmptyStatesAreEmittedArrayAndNull and TestAuditSignal_CompactKeepsAllThreeWhole, removed test green again. The two renderings stay asserted through the production path by _NullWhenOnlyAnEarlierRoundHoldsTheRole (JSONEq null) and _ZeroWhenTheLatestRoundHoldsAnOpenRow (JSONEq 0).\n- The instrument discriminates: M3b (advisory emitted per bad line instead of returning at the first) failed TestReadAuditRoundRows_UnparseableAdvisoryFiresOnce ALONE, so it is not the duplicate it resembles and stays.\n- Same property through different paths all stayed, untouched: the engine-vs-CLI pairs (mechanized_test.go vs review_exclusion/review_suppression, divergence_test.go vs audit_signal_test.go), the per-command cap-hint guards (--verify / --merge / --resolve, each its own output.Error site), TestNDJSONReadersShareTheCap (AST census) beside TestNDJSONLineCapIsUniform (200KB through the real binary), and the rolestreaks/speccoverage halves of one walk (a mutation inside SpecCoverageCleanRounds kills only the field half).\n- Post-removal re-verification with all four mutations re-applied: M1 -\u003e TestReviewVerifyFindingsDirectoryFailsLoudly fails; M2 -\u003e _ZeroWhenTheLatestRoundHoldsAnOpenRow fails; M2b -\u003e both TestAuditSignal survivors fail; M3a -\u003e the NoRowsCausesAndAdvisories case, UnparseableAdvisoryFiresOnce and the EmptyArrayStates/NullStates unparseable-line cases fail. Every mutation was applied, run and restored in one command with the original bytes asserted byte-exact; git diff --no-ext-diff --stat shows no production file changed and only the three test files in the commits.\n- Gate green with exit codes read separately: go test -race ./... = 0, golangci-lint run = 0 ('0 issues.'), gofmt -l internal/ empty. Each of the three commits was checked out detached in a worktree and built and tested on its own (go build ./... = 0, go test ./internal/... = 0 at all three). python3 scripts/check-measured-claims.py still exits 0 with no PENDING line — spec/0.34.0-guard-tests.md is derived from the v0.32.0..v0.33.0 tag range and is deliberately unedited, so it still lists the three removed functions.\n- Out of scope: internal/cli/review_suppression_test.go carries a real duplicate ASSERTION pair — TestReviewRecord_SuppressingEveryCandidateDropsHintAndNextActionClass and TestReviewRecord_BothArraysStayEmittedEmptyArrays make the same '\"mechanize_candidates\": []' / not-null raw-JSON pair over the same fixture, one message word-for-word identical — but neither test is subsumed by the other, so §7.4's 'when in doubt the test stays' applied and no test was removed for it. The same holds for TestSpecCoverageCleanRounds_NullWhenOnlyAnEarlierRoundHoldsTheRole, whose property is also covered by NullStates' differently-cased-id case.",
+      "gate_passed_at": "2026-08-12T23:35:10.548029Z",
+      "commit_sha": "611ed79",
+      "commit_shas": [
+        "611ed79",
+        "6df4a5c",
+        "31c6ec6"
+      ],
+      "commit_files": [
+        "internal/cli/ndjson_read_contract_test.go",
+        "internal/engine/auditrounds_test.go",
+        "internal/engine/speccoverage_test.go"
+      ]
     },
     {
       "id": "impl-detail-assertions",
       "title": "Unpin implementation-detail assertions",
-      "status": "open",
+      "status": "done",
       "tags": [
         "sweep"
       ],
@@ -641,11 +774,22 @@
       "source_sections": [
         "### 7.3 Implementation-detail assertions"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-12T21:51:54.687046Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-12T22:11:19.130119Z",
+      "closed_reason": "- Kind: repair or removal per test — both §7.3 offenders in the capped guard set were dispositioned: 1 converted (a hint literal), 1 removed-and-replaced (a copy of the record path's literal), each decided by an applied mutation and each source restored byte-exact (git diff --no-ext-diff empty after every restore).\n- CONVERTED internal/engine/divergence_test.go:TestComputeAuditDivergence_FiresWithTheFirstMessageForm (9f37377): it asserted d.Hint twice, once against a six-line verbatim copy of DivergenceHint written into the test and once against the constant. The copy is gone; the constant comparison stays. Mutation MC (reword the constant) failed BOTH TestComputeAuditDivergence_FiresWithTheFirstMessageForm and TestDocsCarryTheConvergenceSignalWording before the change and still failed TestDocsCarryTheConvergenceSignalWording after it — so the words are held by REFERENCE.md quoting the shipped constant, not by a second copy. Mutation MD (emit a hint that is not the constant) failed the surviving assertion plus three CLI signal tests, so it discriminates.\n- REMOVED internal/engine/auditrounds_test.go:TestAuditRowIsPass_MatchesRecordPathFindingCount (b7e9a1e). It counted six rows with a hand-written 'status, _ := row[\"status\"].(string); status != \"PASS\"' labelled 'the record path's literal test' and asserted that copy agreed with engine.AuditRowIsPass. countAuditFindings calls the predicate rather than restating it, so the copy pinned a private implementation that no longer exists: mutation MB (make countAuditFindings restate the literal WITH TrimSpace) dropped the stored findings from 5 to 4 and left this test green — it was the only test in the whole suite that mutation did not reach.\n- Surviving coverage for the removal, both re-verified with the test gone: TestAuditRowIsPass_ByteExact (internal/engine/auditrounds_test.go) fails mutation MA (AuditRowIsPass trimming status) and names the case, padded_PASS; and the new TestAuditRecord_StoredFindingsFollowTheSharedPredicate (internal/cli/audit_record_test.go, fed2bd6) asserts the round's stored findings through tp audit --record and state.json over the rows that separate the shared predicate from any restatement — it fails MB 5-vs-4 on both the emitted and the stored number, which the removed test never could. With MA and MB applied together after the removal, TestAuditRowIsPass_ByteExact and TestAuditRecord_StoredFindingsFollowTheSharedPredicate both fail.\n- The third half of the class, a map's iteration order, has no instance in the capped set: all 16 guard files were read, and the only map range in any of them (hint_coverage_test.go's taskFileCommands over its reasons map) is an existence check whose result is order-independent. Every ordered assertion in the set — open_roles, role_streaks, mechanized_classes, the reviewer exclusion list — reads a value production code sorts or builds from a slice, not from map iteration.\n- Considered and kept: hint_coverage_test.go's two AST guards pin private identifiers (output.Error/ExitFile, ndjsonLineCap, bufio.NewScanner) but are §7.1's mechanized answer to two classes and their failure is what stops a silent truncation returning, so §7.4 keeps them; the §2.1 advisory strings in auditrounds_test.go and rolestreaks_test.go are the spec's own per-cause wording table, i.e. contract rather than internal structure.\n- Per-commit greenness verified in a detached worktree: fed2bd6 and b7e9a1e each pass internal/cli and internal/engine alone. Gate checked with separate exit codes: go test -race ./... = 0, golangci-lint run = 0 ('0 issues.'). python3 scripts/check-measured-claims.py exits 0 with no PENDING line; spec/0.34.0-guard-tests.md is the v0.32.0..v0.33.0 derivation and is deliberately unedited by this removal. No production code changed.\nOut of scope: internal/cli/audit_signal_test.go:TestAuditGate_NoEscapeHatchFromTheGate asserts 'unknown workflow field: audit_converge_on' as a Non-Goal 2 guard, and v0.33.0 named this release as the one that may add that knob — should it ever arrive, that assertion is the test that has to move with it.",
+      "gate_passed_at": "2026-08-12T22:11:19.130119Z",
+      "commit_sha": "fed2bd6",
+      "commit_shas": [
+        "fed2bd6",
+        "b7e9a1e",
+        "9f37377"
+      ],
+      "commit_files": [
+        "internal/cli/audit_record_test.go",
+        "internal/engine/auditrounds_test.go",
+        "internal/engine/divergence_test.go"
+      ]
     },
     {
       "id": "doc-homes",
@@ -715,7 +859,7 @@
     {
       "id": "lint-rule-table",
       "title": "Complete the lint rule table",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -727,11 +871,20 @@
       "source_sections": [
         "### 8.2 The lint rule table is complete and stays complete"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-12T23:06:19.625363Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-12T23:14:54.232149Z",
+      "closed_reason": "- Kind: addition — §8.2 mandates the complete table and a test that fails when a rule tp can emit is undocumented; both landed (e64dfd4 README table, 90531b1 the guard).\n- README.md's table now carries 25 rows, one line per rule identifier tp can put in findings[].rule, each with the command that emits it (16 from tp lint, 9 from tp validate, plus a line noting tp import runs the same task-file checks) — up from 9 rows. Severities were re-derived from the emitting sites rather than copied: empty-section was documented as warning and is error at internal/engine/lint_rules.go:41.\n- The test is internal/cli/lint_rule_table_test.go:TestLintRuleTableDocumentsEveryEmittableRule. It parses every rule identifier out of README's table and compares it against a go/ast census of Rule string literals in engine.Finding composite literals under internal/ (non-test files), reporting each undocumented rule with its file:line. The census's blind spot is recorded in a comment directly above the test: it sees only literals written in a Finding literal, so a rule reaching the field via a variable, a later assignment, a file outside internal/ or another type is invisible — engine.EntryFinding's five ids (id-blank, title-blank, acceptance-blank, source-anchor, unknown-dependency) are excluded on purpose because nothing reads that field and they never reach output. It therefore proves collected ⊆ documented, not emittable ⊆ documented, and the reverse direction is deliberately not asserted.\n- The assertion fails on today's tree before the table is completed: run against the pre-change README it exited 1 naming 16 undocumented rules (atomicity, circular-dependency, coverage, dangling-reference, duplicate-heading, duplicate-id, frontmatter, heading-hierarchy, line-coverage, long-spec, orphan-reference, schema, section-anchor, section-size, self-dependency, vague-language) with their emission sites; after the table it exits 0.\n- The instrument was proved to discriminate rather than trusted while green: mutating internal/engine/lint_rules.go:137 Rule \"long-spec\" -\u003e \"zzz-probe-rule\" made the test fail naming zzz-probe-rule at that line, and the file was restored byte-exact (git diff --no-ext-diff --stat empty). The test also refuses to pass on a broken walk — it requires a non-empty census, a non-empty parsed table, and rules from at least two packages, since §8.2's premise is multi-package emission.\n- Both commits are green on their own, verified in detached worktrees (go test ./internal/... exit 0 at e64dfd4 and at 90531b1); the gate was run with separate exit codes on the final tree: go test -race ./... = 0, golangci-lint run = 0.\nOut of scope: spec/0.34.0-guard-tests.md is a fixed v0.32.0..v0.33.0 derivation, so this new test is correctly absent from it; and tp validate --strict promotes atomicity and section-anchor warnings to errors (internal/engine/validate.go:127), which the table does not mention — §8.2 asks only for one line per rule, so no note was added.",
+      "gate_passed_at": "2026-08-12T23:14:54.232149Z",
+      "commit_sha": "e64dfd4",
+      "commit_shas": [
+        "e64dfd4",
+        "90531b1"
+      ],
+      "commit_files": [
+        "README.md",
+        "internal/cli/lint_rule_table_test.go"
+      ]
     },
     {
       "id": "flag-inventory",
@@ -766,7 +919,7 @@
     {
       "id": "unknown-command-exit",
       "title": "Exit 2 on an unknown command",
-      "status": "open",
+      "status": "done",
       "tags": [
         "repair"
       ],
@@ -777,16 +930,29 @@
         "### 9.1 An unknown command is a usage error",
         "## 9. Exit-code consistency"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-12T21:34:50.402782Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-12T21:50:42.139332Z",
+      "closed_reason": "- Kind: repair — §9.1's exit code now matches the documented scheme: an unknown command or subcommand exits 2 (usage) instead of cobra's exit 1 / exit 0, verified on the freshly built binary ('tp bogus' -\u003e code 2 hint \"run 'tp --help' for usage\"; 'tp completion bogus' -\u003e code 2 hint \"run 'tp completion --help' for usage\").\n- The repair is a pre-dispatch check, unknownCommandUsage in internal/cli/usage_error.go (2cb4355), wired into Execute ahead of ExecuteC: cobra classifies an unknown top-level name itself as a plain error (which root.go's fallback read as validation, exit 1) and prints a silent exit-0 help dump for an unknown subcommand of a dispatch-only command, so both are intercepted and routed through the existing flagUsageError channel; cobra's did-you-mean text is kept verbatim, and the check registers cobra's lazily added help/completion commands and skips the __complete helper so no accepted invocation changes.\n- The assertion fails on today's tree: TestExitCode_UnknownCommand_Exit2 (07c5705) died with 'expected 2, actual 1' when the wiring was reverted to '_, err := cmd.ExecuteC()', and passed once restored byte-exact.\n- Three further guards, one commit each, each proved by a mutation that kills it and leaves the others green: TestExitCode_UnknownCommand_KeepsSuggestion (dd578bf) holds the 'Did you mean this? review' text; TestExitCode_UnknownSubcommand_Exit2 (1da7f5c) died alone under 'if true ||' on the dispatch-only branch; TestExitCode_UnknownCommandCheck_LeavesKnownInvocationsAlone (21a5f64) pins six invocations that must stay exit 0 and lost exactly the matching subcase under each of three mutations — inverted flag-value consumption killed 'a flag value is not a command', dropping the lazy InitDefaultHelpCmd/InitDefaultCompletionCmd killed help/completion/completion bash, and removing the __complete skip killed the shell-completion helper. Every mutation was restored byte-exact (git status clean on usage_error.go before each commit).\n- Gate green at HEAD: go test -race ./... exit 0, golangci-lint run 0 issues.\n- Out of scope: 'tp completion bash extra' still exits 1 — cobra's own NoArgs on that leaf phrases an arity error as 'unknown command', but 'extra' is not a command name, so it is an arity usage error and not §9.1's subject; tp's own commands use ExactArgs/RangeArgs and exit 1 on arity violations, which §9.1 does not cover.",
+      "gate_passed_at": "2026-08-12T21:50:42.139332Z",
+      "commit_sha": "2cb4355",
+      "commit_shas": [
+        "2cb4355",
+        "07c5705",
+        "dd578bf",
+        "1da7f5c",
+        "21a5f64"
+      ],
+      "commit_files": [
+        "internal/cli/exitcode_conformance_test.go",
+        "internal/cli/root.go",
+        "internal/cli/usage_error.go"
+      ]
     },
     {
       "id": "validation-hints",
       "title": "Name the right object in validation hints",
-      "status": "open",
+      "status": "done",
       "tags": [
         "repair"
       ],
@@ -796,16 +962,31 @@
       "source_sections": [
         "### 9.2 The validation hint channel stops handing out task-file advice"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-13T02:12:27.193998Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-13T02:33:34.792694Z",
+      "closed_reason": "- Kind: repair — spec/0.34.0.md §9.2 mandates both halves and nothing else was added: validation errors from commands whose object is not the task file now carry a hint naming that object, and TestFileErrorsCarryAHint enumerates ExitValidation the way it enumerates ExitFile.\n- The class was measured before it was repaired. The extended guard, run as the census instrument ahead of any production edit, named exactly two statically-hintless ExitValidation sites in non-exempt files — audit_record.go:60 and root.go:185 — matching an independent python census of every ExitValidation line in internal/cli's non-test sources. Both now pass a hint (recordRowHint, runtimeFailureHint).\n- tp review --record reached the same wrong hint by a route no static enumeration can see: it passed parseRecordRows' hint variable, which is \"\" for every row rule carrying no advice of its own. Guarded at the sink (if parseHint == \"\" then recordRowHint) so a rule added there later cannot reintroduce the default, and covered behaviourally rather than by the enumeration.\n- Dogfooded on the freshly built binary: tp review spec.md --record bad.ndjson and tp audit spec.md --record bad.ndjson both answer code 1 with 'fix the line the message names in the --record NDJSON …' in place of 'run tp validate to audit the task file'. root.go's last-resort site was reached for real, not only enumerated — stdout opened read-only makes tp status --json exit 1 with 'write /dev/stdout: bad file descriptor' and the new hint.\n- Criterion 4 proved by injection, not assertion: VH4 added a fresh hintless output.Error(ExitValidation, \"injected\") to review_merge.go (non-exempt) and TestFileErrorsCarryAHint failed ALONE. Control VH5 injected a hintless ExitState site at the same place and the whole suite stayed GREEN, so the enumeration is scoped to the two codes whose default names the task file rather than to any hintless output.Error.\n- Each repair dies under its own mutation and the mutations separate the guards: VH1 (audit hint dropped) fails the enumeration plus the audit subtest with the review subtest green; VH3 (root hint dropped) fails the enumeration alone; VH2 (review sink fallback deleted) fails the review subtest ALONE with the enumeration GREEN. VH2 is the stated limit: a hint that is a variable is invisible to the static enumeration, in the ExitFile channel as much as in the new one, which is why the behavioural test exists rather than a fifth enumeration rule. Every mutation was applied/run/restored in ONE call that aborts unless the anchor matches exactly once and asserts the restored bytes are byte-identical; no run produced a panic, so the §7.1 assert-then-index shape was not exposed here, and git diff --no-ext-diff --stat afterwards showed no production file in the diff.\n- One exemption list serves both channels, because what excuses a file is the object it works on, not the code it exits with — and its weaker entries are recorded rather than hidden: config.go, config_extract.go, set_local.go and set_project.go also work on .tp/config.json and .tp/local.json, so their exit-1 sites still inherit task-file advice. Counted before deciding: repairing them means repairing 13 hintless exit-3 sites in the same four files, which §9.2 does not ask for, so the list now says so the way init.go's weaker reason already did.\n- Gate green before closing, exit codes read separately from files and never through a pipe: go test -race ./... = 0, golangci-lint run = 0 ('0 issues.'), python3 scripts/check-measured-claims.py = 0. Each commit is green on its own, checked detached in a worktree: b5f90f7 and 4eee088 (production hints, guard still ExitFile-only) and 44a74a7 (guard extended; golangci-lint also 0 issues) each pass go test ./....\nOut of scope: set_project.go rejects an invalid commit_strategy with exit 1 (line 50) while rejecting an invalid review_converge_on two branches later with exit 2 (line 61), though both are the same kind of bad --workflow value. §9.2 is about the hint channel rather than the code, so it was left alone.",
+      "gate_passed_at": "2026-08-13T02:33:34.792694Z",
+      "commit_sha": "b5f90f7",
+      "commit_shas": [
+        "b5f90f7",
+        "4eee088",
+        "44a74a7",
+        "79cf727"
+      ],
+      "commit_files": [
+        "internal/cli/audit_record.go",
+        "internal/cli/hint_coverage_test.go",
+        "internal/cli/record_hint_test.go",
+        "internal/cli/review.go",
+        "internal/cli/review_record.go",
+        "internal/cli/root.go"
+      ]
     },
     {
       "id": "lint-hints",
       "title": "Give lint.go its spec hint",
-      "status": "open",
+      "status": "done",
       "tags": [
         "repair"
       ],
@@ -815,11 +996,22 @@
       "source_sections": [
         "### 9.3 `lint` names the spec, not the task file"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-12T20:46:48.754059Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-12T20:51:18.398473Z",
+      "closed_reason": "- tp lint now emits specFileMissingHint on a missing spec and lint.go has left taskFileCommands (a95a2c3, fa0d4b0): runLint's parseSpecFile failure is tp's first contact with the spec path — lintRoleCorpusOrAbort above it reads only .tp role files — so it passes the shared hint, and dogfooded on the freshly built binary 'tp lint spec/nope.md' answers code 3 with hint 'check the spec path — this command takes the spec markdown file, not the task file' instead of the code-3 task-file default.\n- Every hintless ExitFile site in lint.go gained a hint in this task. Counted rather than assumed: lint.go holds exactly three output.Error(ExitFile, ...) sites — lintRoleCorpusOrAbort's already carried 'repair or delete the offending role file', the parseSpecFile failure took specFileMissingHint, and the output.JSON encode failure took internalEncodeHint (the hint tp review --status and tp audit --status already pass for that exact failure; nothing about the caller's path is wrong there).\n- The guard's new coverage is proved by mutation, not asserted. Stripping specFileMissingHint fails TestFileErrorsCarryAHint with '[lint.go:71]'; stripping internalEncodeHint fails it with '[lint.go:137]'; both were restored byte-exact (git diff --no-ext-diff --stat then showed exactly 10 insertions / 2 deletions in lint.go). The new TestLintSpecNotFoundHint also dies under the first mutation, reporting the inherited \"run 'tp use \u003cfile\u003e' … 'tp init \u003cspec\u003e'\" default — so it measures the hint, not the exit code.\n- tp init is untouched, verified against the artifact rather than taken from the spec: runInit never stats specPath (its ExitFile sites are the task-file existence check, WriteTaskFile, the .tp MkdirAll and EnsureTPGitignore, plus runEjectRoles's role-file writes), so it has no missing-spec path to repair. init.go therefore stays in taskFileCommands, but its reason string was corrected from the now-false 'spec-path sites; specFileMissingHint sweep is v0.34.0' to 'task-file command; spec path never stat'd, .tp state writes unswept', and taskFileCommands's doc comment — which named lint.go and init.go as two spec-taking entries — was rewritten to describe the one remaining entry and to record why lint.go left.\n- Gate green before closing, exit codes checked separately: go test -race ./... = 0 (every package ok, no data race), golangci-lint run = 0 ('0 issues.'). Each commit is green on its own, checked in a detached worktree: a95a2c3 (hints, lint.go still exempt) and fa0d4b0 (guard enumerates lint.go) both pass TestFileErrorsCarryAHint and the lint tests before da711c2 adds the new test.\nOut of scope: spec/0.34.0-candidates.md §6 still describes lint.go and init.go together as 'recorded in taskFileCommands' with that pending reason. It is a historical candidates document rather than a guard, and no acceptance criterion covers it, so it was left unchanged.",
+      "gate_passed_at": "2026-08-12T20:51:18.398473Z",
+      "commit_sha": "a95a2c3",
+      "commit_shas": [
+        "a95a2c3",
+        "fa0d4b0",
+        "da711c2"
+      ],
+      "commit_files": [
+        "internal/cli/hint_coverage_test.go",
+        "internal/cli/lint.go",
+        "internal/cli/lint_hint_test.go"
+      ]
     },
     {
       "id": "example-tables-doc",
@@ -853,7 +1045,7 @@
     {
       "id": "model-diversity-doc",
       "title": "Document the model-diversity recipe",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -865,16 +1057,23 @@
       "source_sections": [
         "### 10.2 Measuring whether a second model earns its cost"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-12T20:51:59.429146Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-12T20:55:48.534761Z",
+      "closed_reason": "- REFERENCE.md now documents the model-diversity recipe in its Role Corpus section, next to the trim_candidate levers (c365f97): run one reviewer role on model A in one round and the same role, same prompt, on model B in the next, keep both raw per-role NDJSON files, and read the per-label unique/shared/trim_candidate that tp review --merge reports over the pair — unique is what only that model found, trim_candidate on the second label is the answer 'no'.\n- No feature changes: the section is prose only, the single commit touches skills/tp/REFERENCE.md alone, and every claim was dogfooded on the freshly built binary rather than asserted. Merging an 'implementer' file with an 'implementer@gpt' file reported unique 1 / shared 1 for each label; merging the same two rounds under one shared label collapsed to a single row (unique 3, shared 0), which is why the doc makes relabelling one run a required step rather than a suggestion. Verified in code that --merge requires only location/severity/finding (missingFindingFields) and never checks role against the corpus, and that review_report.go:128 and review_status.go:83 compute overlap_report over the latest recorded round only — so --merge, not --status/--report, is the cross-round read.\n- Gate green before closing: go test -race ./... exit 0, golangci-lint run 0 issues.",
+      "gate_passed_at": "2026-08-12T20:55:48.534761Z",
+      "commit_sha": "c365f97",
+      "commit_shas": [
+        "c365f97"
+      ],
+      "commit_files": [
+        "skills/tp/REFERENCE.md"
+      ]
     },
     {
       "id": "release-counts",
       "title": "Record what the release removed",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -889,16 +1088,25 @@
         "### 2.3 The release records what it removed",
         "### 2.2 What is not the metric"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-12T21:10:41.28723Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-12T21:25:27.159525Z",
+      "closed_reason": "- spec/0.34.0-release-counts.md (57cfaab) carries all five §2.3 counts before and after — source lines 23783→23810, test functions 1099→1108, exported symbols 277→277, documentation lines 2120→1564, facts with more than one home 18→7 — with before pinned to the v0.33.0 tag and after to commit 6a56d9f, so neither column silently ages.\n- Every number is re-derivable and was re-derived two ways: a python instrument and the four shell one-liners printed in the file itself agree exactly at both refs. The exported-symbol rule (package-level func/method/type/const/var at column 0) is stated in the file, and its constant 277 was proved to be a fact rather than a broken derivation — the same command returns 259 at v0.31.0 and 263 at v0.32.0, and diff over the two sorted symbol lists at v0.33.0 and 6a56d9f reports no difference at all.\n- The facts count is a stated collection rule over the four §8.1 documents plus a 21-row table naming each fact's homes on both sides: a home is a section under the fact's heading anchor, and a section under 15 lines that links to another of the four documents is a pointer to the owner rather than a home (counting pointers as homes would report §8.1's own mechanism as duplication). Two anchors were tightened after inspection because they were collecting a different fact — 'spec quality' was catching README's lint-rule table as a review-recipe home, and a bare 'audit' anchor was catching REFERENCE's audit JSON schema — and the collection's blind spot is written into the file: it reads headings, so CLAUDE.md's old Conventions bullets (exit codes, managed fields, workflow ranges, --compact) are absent from the table although the sweep cut all four, which makes 18 a floor rather than a total.\n- Recorded as fact, not measured against a target, per §2.2: the file opens by saying so, and reports that at this commit the release has ADDED 27 source lines and 9 tests, because the §6/§7 sweeps were still open when it was measured while the §8 documentation sweep (2120→1564) was complete. No number was chosen, rounded or framed to look like progress.\n- CLAUDE.md's pre-release checklist gains one item (82324de) naming the file, so the after column is re-derived with REF=v0.34.0 at the tag and pasted into the release notes — the acceptance is about the release notes, and the file is where the counts are derived rather than where they are published.\n- Gate green before closing, exit codes checked separately: go test -race ./... = 0 (all packages ok, no data race), golangci-lint run = 0 ('0 issues.'). scripts/check-measured-claims.py exits 0 with no PENDING line.\nOut of scope: seven facts still have more than one home and only one of them is the overlap §8.1 permits by name (README's command index against SKILL.md's command forms); the other six are SKILL.md against REFERENCE.md — project configuration, reset-native workflow, commit_strategy, role corpus, spec frontmatter and state directory. They are recorded in the file's table rather than repaired here, since no acceptance criterion covers cutting them.",
+      "gate_passed_at": "2026-08-12T21:25:27.159525Z",
+      "commit_sha": "57cfaab",
+      "commit_shas": [
+        "57cfaab",
+        "82324de"
+      ],
+      "commit_files": [
+        "CLAUDE.md",
+        "spec/0.34.0-release-counts.md"
+      ]
     },
     {
       "id": "subtraction-rule",
       "title": "State the release's task kinds",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -909,16 +1117,23 @@
         "## 2. Subtraction is the governing rule",
         "## 12. What decomposition owns"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-12T21:26:33.902182Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-12T21:33:55.781541Z",
+      "closed_reason": "- Kind: addition under §2 — the change is 38 acceptance declarations and nothing else: commit 02080c5 is 38 insertions / 38 deletions in spec/0.34.0.tasks.json, every one an \"acceptance\" line, with no code, test or document touched.\n- All 38 tasks now declare their kind as the first acceptance line, written through 'tp set --bulk' rather than by hand: 8 addition, 10 repair, 8 removal, 11 'removal or repair per guard' sweeps under §7.1's mutation criterion, and 1 'repair or removal per test' (impl-detail-assertions, §7.3) — the two-way declarations are the honest ones, since the disposition is decided per guard by measurement and no sweep may add.\n- The 8 add-only tasks each cite the section mandating the addition (guard-list §7.1, lint-rule-table §8.2, flag-inventory §8.3, example-tables-doc §10.1, model-diversity-doc §10.2, release-counts §2.3, subtraction-rule §2, non-goals-fence §11), and every § reference across all 38 declarations resolves to a real heading of spec/0.34.0.md — refs extracted and matched against the file's own ## / ### numbers, 0 unresolved.\n- The checker was proved to discriminate rather than asserted: three in-memory mutations of the task list each produced exactly one finding — stripping guard-list's declaration gives no-kind, rewriting §4 to §13 in line-cap-markers gives unresolved §13, dropping §6.1 from dupl-enable gives no-citation — while the file as written reports none.\n- Each declaration parses as exactly one extra acceptance criterion, measured with tp's own delimiters (newline-bullet, '. ', '; ') over all 38 tasks: every task moved by +1 with no accidental split, so the 12 still-open tasks now owe one more '- ' evidence line at close, which for the removal-kind tasks is §2.1's contract restated where the closing unit reads it.\n- Gate green before closing, exit codes checked separately: 'go test -race ./...' = 0 (no data race) and 'golangci-lint run' = 0 issues; 'tp validate' also exits 0 on the rewritten file.\nOut of scope: the status and closure churn earlier units left uncommitted in spec/0.34.0.tasks.json (91/39 lines against 02080c5) stays out of this commit per the unit brief, so only the 38 acceptance lines were committed.",
+      "gate_passed_at": "2026-08-12T21:33:55.781541Z",
+      "commit_sha": "02080c5",
+      "commit_shas": [
+        "02080c5"
+      ],
+      "commit_files": [
+        "spec/0.34.0.tasks.json"
+      ]
     },
     {
       "id": "non-goals-fence",
       "title": "Hold the release inside its non-goals",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -929,16 +1144,23 @@
         "## 11. Non-Goals",
         "### 12.1 Existing tests this change invalidates"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-12T20:56:32.07441Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-12T21:09:51.409925Z",
+      "closed_reason": "- No v0.34.0 task adds a command or a flag, and the clause is now guarded rather than asserted: internal/cli/nongoals_surface_test.go (6a56d9f) pins the 121-entry surface read out of the v0.33.0 tag (29 commands, 8 global flags, 84 command flags), compares it against registeredFlags() in both directions, and was killed by three mutations — a flag added to tp blocked, a tp mutant command added in root.go, --peek renamed on tp next — each restored byte-exact; HEAD's surface is identical to v0.33.0's, and git diff --no-ext-diff -U0 v0.33.0..HEAD over non-test internal/cli sources changes no Flags()/AddCommand line at all.\n- Convergence policy unchanged: .tp/config.json differs from v0.33.0 only in quality_gate (-race, mandated by §5) with review_clean_rounds/audit_clean_rounds untouched; no convergence source (convergence, divergence, rolestreaks, speccoverage, auditrounds) appears in the changed-file set, and every converge/streak/scope line in the six changed sources is a move or a re-indentation, not a policy edit.\n- Writing units stay serial (§11 Non-Goal 5, v0.35.0's): 'parallel' occurs in no task acceptance but this one's, and the doc diffs since v0.33.0 only move the pre-existing tp plan --level / tp stats parallelism-analysis rows between homes.\n- No historical spec edited (§11 Non-Goal 6): the only spec markdown changed since v0.33.0 is 0.34.0.md plus the forward-looking 0.34.0-candidates, 0.35.0-candidates, 0.35.0 and 0.36.0. spec/0.31.0.tasks.json did change, but a task file is state rather than a historical record, and §5's gate-overrides task mandated dropping the masking gate override there.\n- No removal required a new abstraction (§11 Non-Goal 7): all 13 dupl clones were merged into plain functions holding the shared body (generatePlanPrompt, assertRolelessRowsAdviseOnce, assertAcceptanceQualityFinding, assertPromptDeterministic, depsAndRecencyFile, thinnedProjectRoot) with no new type, interface or indirection layer introduced; dead-branches and sweep-small-engine only deleted; and the 17 still-open tasks' acceptances name only flags that already ship.\n- This task's own addition is a test, cited to §11 Non-Goal 3 in the file's header comment; gate green at close (go test -race ./... and golangci-lint run both exit 0 with dupl enabled).",
+      "gate_passed_at": "2026-08-12T21:09:51.409925Z",
+      "commit_sha": "6a56d9f",
+      "commit_shas": [
+        "6a56d9f"
+      ],
+      "commit_files": [
+        "internal/cli/nongoals_surface_test.go"
+      ]
     },
     {
       "id": "claude-gate-line",
       "title": "Update the stale gate lines",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs",
         "repair"
@@ -951,11 +1173,18 @@
       "source_sections": [
         "## 5. The quality gate sees data races"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-12T20:38:24.772786Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-12T20:42:29.481971Z",
+      "closed_reason": "- CLAUDE.md's two stale gate lines now name the project gate .tp/config.json carries, including -race: the Quick Reference block (L28-29) reads \"# Quality gate (the project gate in .tp/config.json; run after every task)\" over \"go test -race ./... \u0026\u0026 golangci-lint run\", and the quality-gate rule (L89) opens with the same literal string (47a8e7e). Verified against the artifact: .tp/config.json's quality_gate is byte-identical to both, and searching CLAUDE.md for \"go test ./... \u0026\u0026\" now returns zero hits.\n- The gofmt note is kept verbatim: the rule still ends \"golangci-lint run (v2) only checks formatters (gofmt/gofumpt) when a formatters: section enables them, so tp's .golangci.yml enables gofmt (else a gofmt-dirty file passes the gate)\" — the sentence was not reworded, only appended to.\n- The two new claims in the rule were measured, not inherited. (a) \"no task file carries a quality_gate override that would mask it\": no spec/*.tasks.json holds a quality_gate key (the only hits are closed_reason/acceptance prose), and TestRepoTaskFilesResolveRaceQualityGate asserts override.QualityGate is nil for every one of them. (b) \"-race costs between a tenth and a half again of the suite's wall time\": timed on this tree with -count=1, go test 20.93s vs go test -race 29.54s wall (+41%; internal/cli 20.5s to 28.7s, internal/engine 3.76s to 4.49s) — inside the band the sentence states.\n- Checked before editing that no test pins the old text: internal/cli/docs_contract_test.go's only CLAUDE.md assertion is the spec_coverage_clean_rounds substring, untouched by this change, so no test moved with it.\n- Gate green before closing, exit codes checked separately on the new gate: go test -race -count=1 ./... exit 0 (no data race in any package), golangci-lint run exit 0 with 0 issues.\n- Out of scope: CLAUDE.md's Quick Reference still lists a bare \"# Test / go test ./...\" line above the gate; it is the plain iteration command rather than a gate line, so it was left as is.",
+      "gate_passed_at": "2026-08-12T20:42:29.481971Z",
+      "commit_sha": "47a8e7e",
+      "commit_shas": [
+        "47a8e7e"
+      ],
+      "commit_files": [
+        "CLAUDE.md"
+      ]
     }
   ]
 }
