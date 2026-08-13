@@ -263,3 +263,16 @@ func TestRunRecorder_ConcurrentSiblingsLeaveAParseableFile(t *testing.T) {
 	}
 }
 
+func TestRunRecorder_SnapshotIsACopy(t *testing.T) {
+	_, _, rec := newTestRun(t)
+	require.NoError(t, rec.StartUnit(startedRow(1, 1, "architect")))
+
+	snap := rec.Snapshot()
+	require.Len(t, snap.Units, 1)
+	snap.Units[0].ID = "mutated"
+	snap.Totals.Units = 99
+
+	assert.Equal(t, "architect", rec.Snapshot().Units[0].ID, "a caller cannot write through the snapshot")
+	assert.Equal(t, 1, rec.Snapshot().Totals.Units)
+}
+
