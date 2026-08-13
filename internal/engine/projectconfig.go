@@ -80,12 +80,17 @@ func (e *MalformedConfigError) Unwrap() error { return e.Err }
 var knownDefaultFlags = map[string]bool{"compact": true, "quiet": true, "no_color": true}
 
 // knownWorkflowKeys is the set of recognized keys inside a config workflow block.
+// notify_cmd is deliberately absent: §7 reads it from .tp/local.json only, so a
+// workflow block carrying it reports an unknown key rather than overriding.
 var knownWorkflowKeys = map[string]bool{
 	"quality_gate": true, "commit_strategy": true, "gate_timeout_seconds": true,
 	"lock_timeout_seconds": true,
 	"review_clean_rounds":  true, "audit_clean_rounds": true,
 	"review_max_rounds": true, "audit_max_rounds": true, "checks": true,
 	"review_converge_on": true,
+	"run_max_units":      true, "run_max_wall_clock_seconds": true,
+	"run_max_budget_usd": true, "run_max_unit_budget_usd": true,
+	"run_max_unit_retries": true, "runner": true,
 }
 
 // parseWorkflowOverride leniently parses a workflow object: an unknown key or a
@@ -99,6 +104,14 @@ func parseWorkflowOverride(raw json.RawMessage) (wo model.WorkflowOverride, warn
 	}
 	intField := func(key string, v json.RawMessage) *int {
 		var n int
+		if err := json.Unmarshal(v, &n); err != nil {
+			warnings = append(warnings, "workflow."+key+": expected a number, ignored")
+			return nil
+		}
+		return &n
+	}
+	floatField := func(key string, v json.RawMessage) *float64 {
+		var n float64
 		if err := json.Unmarshal(v, &n); err != nil {
 			warnings = append(warnings, "workflow."+key+": expected a number, ignored")
 			return nil
@@ -147,6 +160,22 @@ func parseWorkflowOverride(raw json.RawMessage) (wo model.WorkflowOverride, warn
 			wo.ReviewMaxRounds = intField(k, v)
 		case "audit_max_rounds":
 			wo.AuditMaxRounds = intField(k, v)
+		case "run_max_units":
+			wo.RunMaxUnits = intField(k, v)
+		case "run_max_wall_clock_seconds":
+			wo.RunMaxWallClockSeconds = intField(k, v)
+		case "run_max_unit_retries":
+			wo.RunMaxUnitRetries = intField(k, v)
+		case "run_max_budget_usd":
+			wo.RunMaxBudgetUSD = floatField(k, v)
+		case "run_max_unit_budget_usd":
+			wo.RunMaxUnitBudgetUSD = floatField(k, v)
+		case "runner":
+			// The value is stored raw and unvalidated: runner takes three shapes
+			// (§3.2) that the runner resolver, not this parser, tells apart, and a
+			// bad shape is a usage error raised by the command that resolves it.
+			// The bytes are copied so the override does not alias the file buffer.
+			wo.Runner = append(json.RawMessage(nil), v...)
 		case "checks":
 			var cs []model.Check
 			if err := json.Unmarshal(v, &cs); err != nil {
