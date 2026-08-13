@@ -31,6 +31,11 @@ type LocalConfig struct {
 	// presence so an absent key (nil) stays distinct from an explicit empty list:
 	// nil marshals omitted, while a non-nil empty slice marshals as [].
 	KeepUncommitted *[]KeepEntry `json:"keep_uncommitted,omitempty"`
+	// NotifyCmd is the command tp run invokes on a non-converged stop. It lives
+	// here rather than in the project config because it is per-operator, not
+	// per-project: §7 reads it from .tp/local.json only, so a workflow block
+	// carrying notify_cmd is an unknown key, not an override.
+	NotifyCmd *string `json:"notify_cmd,omitempty"`
 }
 
 // KeepEntry is one keep-list record: a repo-root-relative file path or
