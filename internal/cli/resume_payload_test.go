@@ -98,6 +98,10 @@ func TestResume_AuditPayloadFirstRound(t *testing.T) {
 	assert.Equal(t, float64(0), payload["unresolved_findings"])
 }
 
+// TestResume_DecomposePayloadNullCommand: decompose is agent work with no single
+// tp command, so next_action.command stays null. Its payload carries nothing of
+// its own — only the unit next_units[0] names, since v0.35.0's §4.1 makes
+// next_action a rendering of that array rather than a second opinion.
 func TestResume_DecomposePayloadNullCommand(t *testing.T) {
 	dir := newPayloadRepo(t, `[]`)
 	writeConvergedRounds(t, dir, 2, 0)
@@ -105,7 +109,7 @@ func TestResume_DecomposePayloadNullCommand(t *testing.T) {
 	assert.Equal(t, "decompose", res["phase"])
 	cmd, payload := nextAction(res)
 	assert.Nil(t, cmd)
-	assert.Empty(t, payload)
+	assert.Equal(t, map[string]any{"unit": map[string]any{"kind": "decompose", "id": "spec"}}, payload)
 }
 
 func TestResume_ReleasePayloadNullCommand(t *testing.T) {
