@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-20T09:48:23.310685Z",
+  "updated_at": "2026-08-20T09:58:37.362877Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -893,7 +893,7 @@
     {
       "id": "hook-write-deny",
       "title": "Deny the fenced writes on PreToolUse",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "plugin-layout"
@@ -903,11 +903,22 @@
       "source_sections": [
         "### 6.2 Hooks"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-20T09:49:45.813124Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-20T09:58:37.332297Z",
+      "closed_reason": "- hooks/pre-tool-use-write-deny.sh is registered in hooks/hooks.json under PreToolUse with matcher \"Write|Edit|MultiEdit|NotebookEdit\" and §6.4's timeout of 10, and denies (exit 2, reason on stderr) every write to .tp-review/ contents, *.tasks.json, .tp/config.json and .tp/local.json, whether the path is relative, ./-prefixed or absolute; NotebookEdit's target is read under both file_path and notebook_path. Verified by running the hook, not by reading it: 120 subtests over the four tools × the fenced paths, plus the opposite direction (source, specs, docs, the role corpus and the .tp-review directory itself all pass), and both were watched fail before the hook existed.\n- Shell tools stay outside the matcher, so tp's own writes pass (test 25): the manifest's matcher is compiled and asserted to match the four editing tools and none of Bash, BashOutput, KillShell, Read, Glob, Grep or Task, and the hook itself exits 0 on Bash payloads that run tp done, tp import, tp use, tp review --record and a shell redirect into .tp/config.json.\n- The deny logic was mutated in both directions to prove it load-bearing: neutering the path match sent all 60 deny subtests red while the allow cases stayed green, and adding a catch-all deny sent all 50 allow subtests red — the hook was restored from a byte-identical backup and re-verified before committing. The path is read with grep rather than a JSON parser, which is exact because a fenced path quoted inside the content being written arrives escaped as \\\"file_path\\\"; a test writes exactly that payload and asserts it is allowed.\n- Gate green, each step run and read separately: go test -race ./... = 0, golangci-lint run = 0, ./scripts/check-deadcode.sh = 0. claude plugin validate passes with the new hook registered.\nOut of scope: the guide docs report NotebookEdit's target as file_path while the tool has historically used notebook_path; the hook reads both rather than betting on one, and §6.2 does not name the key.",
+      "gate_passed_at": "2026-08-20T09:58:37.332297Z",
+      "commit_sha": "11c696c",
+      "commit_shas": [
+        "11c696c",
+        "c3ad218",
+        "b3daaaa"
+      ],
+      "commit_files": [
+        "hooks/hooks.json",
+        "hooks/pre-tool-use-write-deny.sh",
+        "internal/cli/hooks_pre_tool_use_test.go"
+      ]
     },
     {
       "id": "hook-stop",
