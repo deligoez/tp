@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-20T10:47:47.668843Z",
+  "updated_at": "2026-08-20T11:29:32.107762Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -301,7 +301,7 @@
     {
       "id": "round-resumption",
       "title": "Omit roles already satisfying the predicate",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "next-units"
@@ -311,11 +311,25 @@
       "source_sections": [
         "### 4.1 One component owns \"done\""
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-20T11:17:49.198947Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-20T11:29:32.06012Z",
+      "closed_reason": "- internal/engine/nextunits.go's new roundBasedUnits filters the collecting round's role panel through the role kind's own DurableWrite over $TP_ROUND_DIR/role-\u003cid\u003e.ndjson — the same §3.3 predicate the driver and the Stop hook read — so a role whose file is present and wholly parseable is omitted while one that left a malformed file, or none at all, is returned; the round directory is the collecting round's own, resolved from the repo root now threaded through BuildNextUnits from AssembleResume. Verified by engine and CLI tests watched failing first (all three roles returned) and by mutating the omission into a no-op, which reddened exactly the four omission tests and nothing else.\n- After a round is recorded, dispositionUnit reads that round's merged.ndjson and returns a single review-resolve unit (id: the spec base name) while any finding lacks a resolved object, or a single audit-fix unit keyed role:item_id for the first row that is neither PASS nor already disposed — one at a time, with round reporting the round just recorded rather than the next, and no unit at all when the merged file is absent or unparseable. Verified by tests watched failing first and by two further mutations (disabling the recorded-round branch; dropping the PASS/disposed filter), each reddening exactly the expected tests, plus a live dogfood of the freshly built binary through all four states (partial round, satisfied panel, undisposed merged file, fully disposed).\n- The record-unit emission is deliberately left to the record-units task: a non-empty panel with nothing pending returns no unit today, and the panel and the pending roles are kept as separate values so §4.1's non-empty guard can be added there without restructuring.",
+      "gate_passed_at": "2026-08-20T11:29:32.06012Z",
+      "commit_sha": "8c9cb76",
+      "commit_shas": [
+        "8c9cb76",
+        "bd65a04",
+        "c5f5cba",
+        "dccdb10"
+      ],
+      "commit_files": [
+        "internal/cli/resume_next_units_test.go",
+        "internal/engine/nextunits.go",
+        "internal/engine/nextunits_test.go",
+        "internal/engine/resume.go",
+        "internal/engine/unitkind.go"
+      ]
     },
     {
       "id": "last-failure-store",
