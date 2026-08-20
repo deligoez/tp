@@ -225,11 +225,28 @@ func allRowsDisposed(path string) bool {
 		return false
 	}
 	for _, row := range rows {
-		if _, disposed := row["resolved"]; !disposed {
+		if !rowDisposed(row) {
 			return false
 		}
 	}
 	return true
+}
+
+// rowDisposed reports whether one merged row carries a disposition — the
+// `resolved` object tp review --resolve and tp audit --resolve write. It is one
+// function so the resolve and fix predicates, and the oracle's decision to emit
+// their units at all, can never disagree about what "disposed" means.
+func rowDisposed(row map[string]any) bool {
+	_, disposed := row["resolved"]
+	return disposed
+}
+
+// auditRowKey renders one audit row's `role:item_id` selector — the key
+// rowIsDisposed parses back, and the id an audit-fix unit carries so it can name
+// its own row without first locating an index (§3.3).
+func auditRowKey(row map[string]any) string {
+	itemID, _ := row["item_id"].(string)
+	return AuditRowRole(row) + ":" + itemID
 }
 
 // rowIsDisposed reports whether the row selected by a `role:item_id` key
@@ -256,8 +273,7 @@ func rowIsDisposed(path, key string) bool {
 		if id, _ := row["item_id"].(string); id != itemID {
 			continue
 		}
-		_, disposed := row["resolved"]
-		return disposed
+		return rowDisposed(row)
 	}
 	return false
 }
