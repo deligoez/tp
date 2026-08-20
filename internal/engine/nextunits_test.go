@@ -218,3 +218,164 @@ func TestRenderNextAction_RendersFirstUnit(t *testing.T) {
 	assert.Equal(t, 2, rendered.Payload["round"], "the phase payload survives")
 	assert.Equal(t, map[string]any{"round": 2}, base.Payload, "the caller's payload is not mutated")
 }
+
+// TestBuildNextUnits_OmitsRolesWhoseFindingsSatisfyThePredicate is test 45's
+// oracle half and test 52: a resumed round omits every role whose findings file
+// already satisfies §3.3's predicate — present and wholly parseable — so a role
+// that left a malformed file is re-run rather than skipped.
+func TestBuildNextUnits_OmitsRolesWhoseFindingsSatisfyThePredicate(t *testing.T) {
+	root, taskFile, spec := nextUnitsRepo(t)
+	tf := &model.TaskFile{Spec: spec, Tasks: []model.Task{}}
+
+	writeRoundFile(t, root, taskFile, PhaseReview, 1, "role-implementer.ndjson",
+		ndjson(`{"id":"f1","severity":"major"}`))
+	writeRoundFile(t, root, taskFile, PhaseReview, 1, "role-tester.ndjson",
+		ndjson(`{"id":"f2","severity":"minor"}`, `not json`))
+
+	units, round := BuildNextUnits(root, taskFile, spec, PhaseReview, tf, nil, nil)
+	assert.Equal(t, []string{"tester", "architect"}, unitIDs(units),
+		"implementer finished; tester left a malformed file; architect wrote none")
+	require.NotNil(t, round)
+	assert.Equal(t, 1, *round, "the omission is inside the round being collected")
+
+	// The predicate the oracle applied is the kind's own, which is what makes
+	// the oracle, the driver and the Stop hook agree on a malformed file.
+	dir := RoundDir(root, taskFile, PhaseReview, 1)
+	assert.True(t, UnitReviewRole.DurableWrite(UnitTarget{RoundDir: dir, ID: "implementer"}))
+	assert.False(t, UnitReviewRole.DurableWrite(UnitTarget{RoundDir: dir, ID: "tester"}))
+}
+
+// TestBuildNextUnits_OmissionCountsACleanRoleAsFinished: a role file of nothing
+// but blank lines is a clean role, not a failed unit (§3.3), so it is omitted
+// rather than re-run.
+func TestBuildNextUnits_OmissionCountsACleanRoleAsFinished(t *testing.T) {
+	root, taskFile, spec := nextUnitsRepo(t)
+	tf := &model.TaskFile{Spec: spec, Tasks: []model.Task{}}
+
+	writeRoundFile(t, root, taskFile, PhaseReview, 1, "role-implementer.ndjson", "\n\n")
+
+	units, _ := BuildNextUnits(root, taskFile, spec, PhaseReview, tf, nil, nil)
+	assert.Equal(t, []string{"tester", "architect"}, unitIDs(units))
+}
+
+// TestBuildNextUnits_OmissionAppliesToTheAuditPanel mirrors the review half:
+// the rule is the role kinds', not the review phase's.
+func TestBuildNextUnits_OmissionAppliesToTheAuditPanel(t *testing.T) {
+	root, taskFile, spec := nextUnitsRepo(t)
+	tf := &model.TaskFile{Spec: spec, Tasks: []model.Task{}}
+
+	writeRoundFile(t, root, taskFile, PhaseAudit, 1, "role-spec-coverage.ndjson",
+		ndjson(`{"role":"spec-coverage","item_id":"i1","status":"PASS"}`))
+
+	units, _ := BuildNextUnits(root, taskFile, spec, PhaseAudit, tf, nil, nil)
+	assert.Equal(t, []string{"security", "maintainability-conventions"}, unitIDs(units))
+}
+
+// TestBuildNextUnits_OmissionIsScopedToTheCollectingRound: the findings file
+// read is the collecting round's own, so a role that answered round 1 is still
+// asked for round 2.
+func TestBuildNextUnits_OmissionIsScopedToTheCollectingRound(t *testing.T) {
+	root, taskFile, spec := nextUnitsRepo(t)
+	tf := &model.TaskFile{Spec: spec, Tasks: []model.Task{}}
+	st := &ReviewState{ReviewRounds: []ReviewRound{{Round: 1}}}
+
+	writeRoundFile(t, root, taskFile, PhaseReview, 1, "role-implementer.ndjson",
+		ndjson(`{"id":"f1"}`))
+	writeRoundFile(t, root, taskFile, PhaseReview, 2, "role-tester.ndjson",
+		ndjson(`{"id":"f2"}`))
+
+	units, round := BuildNextUnits(root, taskFile, spec, PhaseReview, tf, st, nil)
+	assert.Equal(t, []string{"implementer", "architect"}, unitIDs(units),
+		"round 1's role files say nothing about round 2; round 2's own do")
+	require.NotNil(t, round)
+	assert.Equal(t, 2, *round)
+}
+
+// TestBuildNextUnits_ReviewResolveWhileAFindingLacksDisposition: §4.1 — after a
+// round is recorded the oracle returns a single review-resolve unit while any
+// finding in that round's merged file lacks a disposition, carrying the round
+// just recorded rather than the next one, and returns to collecting once every
+// finding carries one.
+func TestBuildNextUnits_ReviewResolveWhileAFindingLacksDisposition(t *testing.T) {
+	root, taskFile, spec := nextUnitsRepo(t)
+	tf := &model.TaskFile{Spec: spec, Tasks: []model.Task{}}
+	st := &ReviewState{ReviewRounds: []ReviewRound{{Round: 1}}}
+
+	units, round := BuildNextUnits(root, taskFile, spec, PhaseReview, tf, st, nil)
+	assert.Equal(t, []string{"implementer", "tester", "architect"}, unitIDs(units),
+		"no merged file: the recorded round holds no finding to dispose")
+	require.NotNil(t, round)
+	assert.Equal(t, 2, *round)
+
+	merged := writeRoundFile(t, root, taskFile, PhaseReview, 1, "merged.ndjson", ndjson(
+		`{"id":"f1","resolved":{"disposition":"fixed"}}`,
+		`{"id":"f2"}`,
+	))
+
+	units, round = BuildNextUnits(root, taskFile, spec, PhaseReview, tf, st, nil)
+	require.Len(t, units, 1, "review-resolve runs alone")
+	assert.Equal(t, NextUnit{
+		Kind:         UnitReviewResolve,
+		ID:           "spec",
+		BriefCommand: "tp review " + spec + " --status",
+	}, units[0])
+	require.NotNil(t, round)
+	assert.Equal(t, 1, *round, "the unit acts on the findings of the round just recorded")
+
+	require.NoError(t, os.WriteFile(merged, []byte(ndjson(
+		`{"id":"f1","resolved":{"disposition":"fixed"}}`,
+		`{"id":"f2","resolved":{"disposition":"wontfix"}}`,
+	)), 0o600))
+
+	units, round = BuildNextUnits(root, taskFile, spec, PhaseReview, tf, st, nil)
+	assert.Equal(t, []string{"implementer", "tester", "architect"}, unitIDs(units),
+		"every finding disposed: the phase collects the next round")
+	require.NotNil(t, round)
+	assert.Equal(t, 2, *round)
+}
+
+// TestBuildNextUnits_AuditFixOneRowAtATime: §4.1 — a single audit-fix unit for
+// the first row in the recorded round's merged file that is neither PASS nor
+// already disposed, keyed role:item_id so the unit can name its own row, and
+// one at a time because the kind runs alone.
+func TestBuildNextUnits_AuditFixOneRowAtATime(t *testing.T) {
+	root, taskFile, spec := nextUnitsRepo(t)
+	tf := &model.TaskFile{Spec: spec, Tasks: []model.Task{}}
+	st := &ReviewState{AuditRounds: []ReviewRound{{Round: 1}}}
+
+	pass := `{"role":"spec-coverage","item_id":"i1","status":"PASS"}`
+	done := `{"role":"spec-coverage","item_id":"i2","status":"FAIL","resolved":{"disposition":"wontfix"}}`
+	open1 := `{"role":"security","item_id":"i3","status":"FAIL"}`
+	open2 := `{"role":"security","item_id":"i4","status":"PARTIAL"}`
+	merged := writeRoundFile(t, root, taskFile, PhaseAudit, 1, "merged.ndjson",
+		ndjson(pass, done, open1, open2))
+	dir := filepath.Dir(merged)
+
+	units, round := BuildNextUnits(root, taskFile, spec, PhaseAudit, tf, st, nil)
+	require.Len(t, units, 1, "audit-fix runs alone: one finding at a time")
+	assert.Equal(t, NextUnit{
+		Kind:         UnitAuditFix,
+		ID:           "security:i3",
+		BriefCommand: "tp audit " + spec + " --status",
+	}, units[0], "PASS rows and disposed rows are skipped")
+	require.NotNil(t, round)
+	assert.Equal(t, 1, *round)
+	assert.False(t, UnitAuditFix.DurableWrite(UnitTarget{RoundDir: dir, ID: "security:i3"}),
+		"the id the oracle emits is the one the kind's own predicate selects")
+
+	fixed := `{"role":"security","item_id":"i3","status":"FAIL","resolved":{"disposition":"fixed"}}`
+	require.NoError(t, os.WriteFile(merged, []byte(ndjson(pass, done, fixed, open2)), 0o600))
+	assert.True(t, UnitAuditFix.DurableWrite(UnitTarget{RoundDir: dir, ID: "security:i3"}))
+
+	units, _ = BuildNextUnits(root, taskFile, spec, PhaseAudit, tf, st, nil)
+	require.Len(t, units, 1)
+	assert.Equal(t, "security:i4", units[0].ID, "the next undisposed row, one at a time")
+
+	closed := `{"role":"security","item_id":"i4","status":"PARTIAL","resolved":{"disposition":"duplicate"}}`
+	require.NoError(t, os.WriteFile(merged, []byte(ndjson(pass, done, fixed, closed)), 0o600))
+	units, round = BuildNextUnits(root, taskFile, spec, PhaseAudit, tf, st, nil)
+	assert.Equal(t, []string{"spec-coverage", "security", "maintainability-conventions"}, unitIDs(units),
+		"every non-PASS row disposed: the phase collects the next round")
+	require.NotNil(t, round)
+	assert.Equal(t, 2, *round)
+}
