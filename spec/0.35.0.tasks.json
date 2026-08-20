@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-20T09:21:35.5017Z",
+  "updated_at": "2026-08-20T09:33:26.759598Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -265,7 +265,7 @@
     {
       "id": "next-units",
       "title": "Add next_units to the resume oracle",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "brief-commands"
@@ -275,11 +275,28 @@
       "source_sections": [
         "### 4.1 One component owns \"done\""
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-20T09:23:29.830764Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-20T09:33:26.708109Z",
+      "closed_reason": "- tp resume --json now carries next_units — an ordered array of {kind, id, brief_command} — beside round: the round the returned units belong to (len(recorded)+1 in review and audit, null in implement/decompose/release), both built in internal/engine/nextunits.go and surfaced by internal/cli/resume.go; verified end to end by internal/cli/resume_next_units_test.go, which pins each entry's exact three keys for the implement, decompose, review-role and audit-role phases, asserts round advances after tp review --record, and checks the array survives --compact.\n- next_action renders next_units[0]: renderNextAction copies the phase payload and adds unit={kind,id} naming the first entry, so the human object and the machine surface can never describe different work; asserted for every non-empty phase (and its absence for release and a blocked phase) plus a unit test that the caller's payload is not mutated.\n- A non-concurrent kind is never returned alongside another unit: soloIfNotConcurrent is the single chokepoint, tested over all eight UnitKinds rather than over the phases that emit one today, including a concurrent-then-non-concurrent array. brief_command comes from UnitKind.BriefCommand so no command string is spelled twice.\n- next_units is [] (never null) in §4.1's three empty cases — release, a blocked phase, and a phase held by an escalate blocker (raising a round cap, an unmet dependency chain, a stale spec) — and the role panel is resolved exactly as tp review/tp audit resolve it, so a spec's enabled:false role is not spawned; dogfooded on this repo (implement/next-units, round null) and on spec/0.36.0.md (review, round 1, the custom 4-reviewer corpus).\n- The assertions pinning resume's object set moved with the field: internal/cli/resume_payload_test.go's decompose payload now expects the rendered unit, and a new TestResume_ObjectSet pins the exact top-level key set. Gate green: go test -race ./... 0, golangci-lint run 0, ./scripts/check-deadcode.sh 0.\nOut of scope: the record/resolve/fix kinds and the predicate-driven omission of already-satisfied roles are round-resumption's acceptance, so a round-based phase currently returns its whole role panel every time.",
+      "gate_passed_at": "2026-08-20T09:33:26.708109Z",
+      "commit_sha": "60e3add",
+      "commit_shas": [
+        "60e3add",
+        "08c18c6",
+        "d9e032e",
+        "e1fa0fa",
+        "5b6ed40",
+        "a566f6f"
+      ],
+      "commit_files": [
+        "internal/cli/resume.go",
+        "internal/cli/resume_next_units_test.go",
+        "internal/cli/resume_payload_test.go",
+        "internal/engine/nextunits.go",
+        "internal/engine/nextunits_test.go",
+        "internal/engine/resume.go"
+      ]
     },
     {
       "id": "round-resumption",
