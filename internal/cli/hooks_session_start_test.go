@@ -199,3 +199,22 @@ func TestSessionStartHookAcceptsTheMinimumVersion(t *testing.T) {
 	}
 }
 
+// TestSessionStartHookInjectsResumeCompact is the acceptance's second half: on
+// a current tp the payload is `tp resume --compact` and nothing else, injected
+// as additional context. Claude Code adds a SessionStart hook's plain stdout to
+// the session's context on exit 0, so the orientation is that output verbatim
+// rather than a re-encoding of it — the fixture carries a quote, a backslash
+// and a newline precisely to catch a wrapper that mangles them.
+func TestSessionStartHookInjectsResumeCompact(t *testing.T) {
+	payload := "{\"phase\":\"implement\",\"note\":\"a \\\"quoted\\\" path C:\\\\tmp\"}\ntrailing"
+
+	run := runSessionStartHook(t, "v"+pluginMinVersion, map[string]string{"TP_FAKE_RESUME": payload})
+
+	require.Zero(t, run.exitCode, "stderr: %s", run.stderr)
+	assert.Equal(t, []string{"--version", "resume --compact"}, run.tpArgs,
+		"the payload is `tp resume --compact` and nothing else")
+	assert.Equal(t, payload, strings.TrimRight(run.stdout, "\n"),
+		"the orientation reaches the session byte for byte")
+	assert.Empty(t, run.stderr, "a successful preflight is silent")
+}
+
