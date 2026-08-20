@@ -116,7 +116,7 @@ func AssembleResume(start, taskFilePath, specPath string, tf *model.TaskFile) (R
 	// The units come after the blockers because an escalate blocker is what
 	// empties them (§4.1), and next_action is rendered from the first unit so
 	// the human summary and the machine surface describe the same work.
-	nextUnits, round := BuildNextUnits(taskFilePath, specPath, phase, tf, st, blockers)
+	nextUnits, round := BuildNextUnits(start, taskFilePath, specPath, phase, tf, st, blockers)
 
 	return ResumeResult{
 		Phase:       phase,

@@ -40,15 +40,13 @@ type NextUnit struct {
 // make progress.
 //
 // The returned slice is never nil: an empty next_units must serialize as [].
-func BuildNextUnits(taskFilePath, specPath, phase string, tf *model.TaskFile, st *ReviewState, blockers []Blocker) (units []NextUnit, round *int) {
+func BuildNextUnits(root, taskFilePath, specPath, phase string, tf *model.TaskFile, st *ReviewState, blockers []Blocker) (units []NextUnit, round *int) {
 	units = make([]NextUnit, 0)
 	target := UnitTarget{TaskFile: taskFilePath, Spec: specPath}
 
-	switch phase {
-	case PhaseReview:
-		round = collectingRound(len(reviewRoundsOf(st)))
-	case PhaseAudit:
-		round = collectingRound(len(auditRoundsOf(st)))
+	recorded, roundBased := recordedRounds(phase, st)
+	if roundBased {
+		round = collectingRound(recorded)
 	}
 
 	if phase == PhaseRelease || hasEscalateBlocker(blockers) {
@@ -67,12 +65,98 @@ func BuildNextUnits(taskFilePath, specPath, phase string, tf *model.TaskFile, st
 		}
 	case PhaseDecompose:
 		units = append(units, newNextUnit(UnitDecompose, SpecBaseName(specPath), target))
-	case PhaseReview:
-		units = append(units, roleUnits(UnitReviewRole, specPath, PhaseReviewers, target)...)
-	case PhaseAudit:
-		units = append(units, roleUnits(UnitAuditRole, specPath, PhaseAuditors, target)...)
+	case PhaseReview, PhaseAudit:
+		units, round = roundBasedUnits(root, phase, recorded, target)
 	}
 	return soloIfNotConcurrent(units), round
+}
+
+// recordedRounds returns a phase's count of recorded rounds and whether it is
+// round-based at all. The count is the pivot for everything below: round N
+// recorded means round N's findings may still need disposing, and round N+1 is
+// the one being collected.
+func recordedRounds(phase string, st *ReviewState) (int, bool) {
+	switch phase {
+	case PhaseReview:
+		return len(reviewRoundsOf(st)), true
+	case PhaseAudit:
+		return len(auditRoundsOf(st)), true
+	}
+	return 0, false
+}
+
+// roundBasedUnits derives a round-based phase's units and the round they belong
+// to (§4.1). Two rounds are in play and durable state alone decides which owns
+// the phase.
+//
+// A recorded round whose merged findings still hold work owns it: its
+// review-resolve or audit-fix unit comes before another round is collected, and
+// the reported round is that recorded one rather than the next. Otherwise the
+// phase is collecting round recorded+1, and its units are the role panel minus
+// every role whose findings file already satisfies §3.3's predicate — so a
+// resumed round never re-runs a role that finished, and does re-run a role that
+// left a malformed file rather than skipping it.
+//
+// The panel and the roles still pending are kept apart because they answer
+// different questions: an empty panel is a corpus that could not be resolved or
+// one wholly deactivated, while a non-empty panel with nothing pending is a
+// collected round — the two cases §4.1 separates with its non-empty guard.
+func roundBasedUnits(root, phase string, recorded int, target UnitTarget) (units []NextUnit, round *int) {
+	roleKind, corpusPhase := UnitReviewRole, PhaseReviewers
+	if phase == PhaseAudit {
+		roleKind, corpusPhase = UnitAuditRole, PhaseAuditors
+	}
+
+	if recorded > 0 {
+		dir := RoundDir(root, target.TaskFile, phase, recorded)
+		if unit, ok := dispositionUnit(phase, dir, target); ok {
+			return []NextUnit{unit}, &recorded
+		}
+	}
+
+	collecting := recorded + 1
+	dir := RoundDir(root, target.TaskFile, phase, collecting)
+	panel := roleUnits(roleKind, target.Spec, corpusPhase, target)
+	pending := make([]NextUnit, 0, len(panel))
+	for _, unit := range panel {
+		if roleKind.DurableWrite(UnitTarget{RoundDir: dir, ID: unit.ID}) {
+			continue
+		}
+		pending = append(pending, unit)
+	}
+	return pending, &collecting
+}
+
+// dispositionUnit returns the one resolve or fix unit a recorded round still
+// owes, and false when it owes none (§4.1).
+//
+// The emission condition is the exact negation of the kind's own §3.3 durable
+// write, read from the same file, so the oracle can never hand the driver a unit
+// that is already complete. A merged file that is absent or holds an unparseable
+// line yields no unit either: a round whose findings cannot be read is not a
+// round with a finding to dispose, and inventing one would put the driver in a
+// loop over a file nothing can fix.
+//
+// review-resolve is one unit for the whole spec and audit-fix is one unit per
+// row, which is why only the audit side needs a row selector — the `role:item_id`
+// key rowIsDisposed parses back.
+func dispositionUnit(phase, roundDir string, target UnitTarget) (NextUnit, bool) {
+	rows, ok := readNDJSONRows(MergedFindingsPath(roundDir))
+	if !ok {
+		return NextUnit{}, false
+	}
+	for _, row := range rows {
+		if phase == PhaseAudit {
+			if AuditRowIsPass(row) || rowDisposed(row) {
+				continue
+			}
+			return newNextUnit(UnitAuditFix, auditRowKey(row), target), true
+		}
+		if !rowDisposed(row) {
+			return newNextUnit(UnitReviewResolve, SpecBaseName(target.Spec), target), true
+		}
+	}
+	return NextUnit{}, false
 }
 
 // collectingRound returns the round a phase is currently collecting given its
