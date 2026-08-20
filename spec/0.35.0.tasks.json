@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-20T10:40:22.011774Z",
+  "updated_at": "2026-08-20T10:47:47.668843Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -1010,10 +1010,11 @@
       "status": "open",
       "tags": [],
       "depends_on": [
-        "next-units"
+        "next-units",
+        "round-resumption"
       ],
       "estimate_minutes": 8,
-      "acceptance": "When every role in the panel satisfies the role predicate and the round has no recorded entry, next_units returns the single review-record or audit-record unit for that round.\nnext_units is never empty while a collected round is unrecorded, so the run does not stop with no-units before its round is recorded.",
+      "acceptance": "When the panel is non-empty and every role in it satisfies the role predicate and the round has no recorded entry, next_units returns the single review-record or audit-record unit for that round.\nAn empty or unresolvable panel returns no record unit, and absent a blocker of the two documented empty cases next_units is not empty while a collected round is unrecorded.",
       "source_sections": [
         "### 4.1 One component owns \"done\""
       ],
