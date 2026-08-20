@@ -188,6 +188,16 @@ func Execute() {
 			output.Error(ExitState, lockErr.Error(), lockErr.Hint())
 			os.Exit(ExitState)
 		}
+		// §3.1.1: a second tp run over a task file another run already drives is
+		// the same class of answer — the state is not yours — so it exits 4 too.
+		// It is a distinct error from the write-lock timeout because its hint
+		// must not offer raising lock_timeout_seconds: the holder is a whole
+		// run, and no timeout outlasts it.
+		var runLockErr *engine.RunLockBusyError
+		if errors.As(err, &runLockErr) {
+			output.Error(ExitState, runLockErr.Error(), runLockErr.Hint())
+			os.Exit(ExitState)
+		}
 		// Rare: any other RunE-returned error emits as the standard tp error
 		// object with exit 1 (validation). The dispatcher cannot name the failing
 		// object — the error came from whichever command ran — so it points at
