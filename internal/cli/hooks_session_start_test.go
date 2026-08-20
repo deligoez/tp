@@ -218,3 +218,17 @@ func TestSessionStartHookInjectsResumeCompact(t *testing.T) {
 	assert.Empty(t, run.stderr, "a successful preflight is silent")
 }
 
+// TestSessionStartHookStaysSilentWithoutACycle covers the session that is not a
+// tp cycle at all: `tp resume` fails, and the hook has no orientation to inject.
+// Failing the session there would make the plugin unusable in any other
+// repository, and §6.1 scopes the preflight's failure to tp's absence or age.
+func TestSessionStartHookStaysSilentWithoutACycle(t *testing.T) {
+	run := runSessionStartHook(t, "v"+pluginMinVersion, map[string]string{
+		"TP_FAKE_RESUME":      "",
+		"TP_FAKE_RESUME_EXIT": "3",
+	})
+
+	assert.Zero(t, run.exitCode, "no cycle is not a preflight failure; stderr: %s", run.stderr)
+	assert.Empty(t, strings.TrimSpace(run.stdout), "nothing to orient with, so nothing is injected")
+}
+
