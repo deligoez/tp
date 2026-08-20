@@ -754,7 +754,8 @@ func isBinaryFile(path string) bool {
 }
 
 // isAuditableType reports whether a path survives the type filtering the
-// auto-detection applies: binary files, markdown, and task files are skipped.
+// auto-detection applies: binary files, markdown, task files, tp's own state
+// directory and extensionless repository metadata are skipped.
 func isAuditableType(path string) bool {
 	if isBinaryFile(path) {
 		return false
@@ -765,7 +766,43 @@ func isAuditableType(path string) bool {
 	if strings.HasSuffix(path, ".tasks.json") {
 		return false
 	}
+	if isTPStatePath(path) {
+		return false
+	}
+	if isRepoMetadataDotfile(path) {
+		return false
+	}
 	return true
+}
+
+// isTPStatePath reports whether the path lies inside tp's own state directory.
+// .tp/ holds the project config, the active pointer, the role corpus and the
+// run state: tp's bookkeeping about the cycle, never the code a spec is audited
+// against. A task that edits one commits it like any other file, so the path
+// reaches an auto-detected file list honestly and costs every role its
+// attention.
+func isTPStatePath(path string) bool {
+	for _, part := range strings.Split(filepath.ToSlash(path), "/") {
+		if part == ".tp" {
+			return true
+		}
+	}
+	return false
+}
+
+// isRepoMetadataDotfile reports whether the base name is a dotfile carrying no
+// further extension — .gitignore, .gitattributes, .dockerignore.
+//
+// The leading dot is stripped before the check because filepath.Ext(".gitignore")
+// returns ".gitignore", not "": the final dot is at index 0, so the whole name
+// reads as the extension. A dotfile that does carry a real extension is left
+// auditable, which is what keeps .golangci.yml and .github workflows in the set.
+func isRepoMetadataDotfile(path string) bool {
+	base := filepath.Base(path)
+	if !strings.HasPrefix(base, ".") || base == "." || base == ".." {
+		return false
+	}
+	return !strings.Contains(base[1:], ".")
 }
 
 func buildChecklist(specLines []string, specPath string, findingRows []findingRow) []checklistEntry {
