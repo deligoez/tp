@@ -4,3 +4,6 @@
 dist/
 *.tasks.json.lock
 codedb.snapshot
+
+# codedbpro/zigrep search cache — a tool artifact, never project data
+.zigrep_archive
