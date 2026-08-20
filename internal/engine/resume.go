@@ -20,8 +20,12 @@ type BookkeepingEntry struct {
 // ResumeResult is the resume oracle's output object (§4.2): the lifecycle phase,
 // the resolved spec path, the byte-sorted uncommitted changes not on the
 // keep-list, the byte-sorted keep-list matches, the tp-owned bookkeeping (§5.2),
-// the implement-phase execution-model guidance note, the next action, and the
-// blockers.
+// the implement-phase execution-model guidance note, the units to execute now
+// and the round they belong to (§4.1), the next action, and the blockers.
+//
+// Phase, NextUnits and Round are the whole machine surface: an unattended driver
+// parses those three and nothing else. Everything beside them — NextAction
+// included — is for a reader.
 type ResumeResult struct {
 	Phase       string             `json:"phase"`
 	Spec        string             `json:"spec"`
@@ -29,6 +33,8 @@ type ResumeResult struct {
 	Kept        []model.KeepEntry  `json:"kept"`
 	Bookkeeping []BookkeepingEntry `json:"bookkeeping"`
 	Guidance    string             `json:"guidance,omitempty"`
+	NextUnits   []NextUnit         `json:"next_units"`
+	Round       *int               `json:"round"`
 	NextAction  NextAction         `json:"next_action"`
 	Blockers    []Blocker          `json:"blockers"`
 }
@@ -107,6 +113,11 @@ func AssembleResume(start, taskFilePath, specPath string, tf *model.TaskFile) (R
 		ReviewStale:     reviewStale,
 	})
 
+	// The units come after the blockers because an escalate blocker is what
+	// empties them (§4.1), and next_action is rendered from the first unit so
+	// the human summary and the machine surface describe the same work.
+	nextUnits, round := BuildNextUnits(taskFilePath, specPath, phase, tf, st, blockers)
+
 	return ResumeResult{
 		Phase:       phase,
 		Spec:        specPath,
@@ -114,7 +125,9 @@ func AssembleResume(start, taskFilePath, specPath string, tf *model.TaskFile) (R
 		Kept:        kept,
 		Bookkeeping: bookkeeping,
 		Guidance:    guidance,
-		NextAction:  BuildNextAction(phase, specPath, tf, st),
+		NextUnits:   nextUnits,
+		Round:       round,
+		NextAction:  renderNextAction(BuildNextAction(phase, specPath, tf, st), nextUnits),
 		Blockers:    blockers,
 	}, nil
 }
