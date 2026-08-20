@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -21,7 +22,7 @@ the spec, .tp-review/, .tp/local.json, and git) it reports which lifecycle phase
 the project is in and the concrete next action — the note a finishing agent
 leaves for the next one. Read-only: it writes no file.
 
-Output: {phase, spec, changes, kept, next_action, blockers}`,
+Output: {phase, spec, changes, kept, bookkeeping, next_units, round, next_action, blockers}`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: runResume,
 	}
@@ -123,12 +124,28 @@ func resumeJSON(r *engine.ResumeResult, compact bool) map[string]any {
 		})
 	}
 
+	// §4.1: next_units and round are the machine surface an unattended driver
+	// parses, so they carry no human-facing field to strip and survive --compact
+	// whole. The array is built with make so an empty one serializes as [] and
+	// never as null — a driver distinguishing "no unit" from "no field" would be
+	// distinguishing nothing.
+	nextUnits := make([]map[string]any, 0, len(r.NextUnits))
+	for _, u := range r.NextUnits {
+		nextUnits = append(nextUnits, map[string]any{
+			"kind":          string(u.Kind),
+			"id":            u.ID,
+			"brief_command": u.BriefCommand,
+		})
+	}
+
 	out := map[string]any{
 		"phase":       r.Phase,
 		"spec":        r.Spec,
 		"changes":     r.Changes,
 		"kept":        kept,
 		"bookkeeping": bookkeeping,
+		"next_units":  nextUnits,
+		"round":       r.Round,
 		"next_action": nextAction,
 		"blockers":    blockers,
 	}
@@ -148,6 +165,16 @@ func printResumeSummary(r *engine.ResumeResult) {
 	fmt.Printf("next:  %s — %s\n", next, r.NextAction.Summary)
 	if r.NextAction.BriefCommand != nil {
 		fmt.Printf("brief: %s\n", *r.NextAction.BriefCommand)
+	}
+	if len(r.NextUnits) > 0 {
+		names := make([]string, 0, len(r.NextUnits))
+		for _, u := range r.NextUnits {
+			names = append(names, string(u.Kind)+" "+u.ID)
+		}
+		fmt.Printf("units: %s\n", strings.Join(names, ", "))
+	}
+	if r.Round != nil {
+		fmt.Printf("round: %d\n", *r.Round)
 	}
 	if r.Guidance != "" {
 		fmt.Printf("guidance: %s\n", r.Guidance)
