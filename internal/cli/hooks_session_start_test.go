@@ -159,3 +159,21 @@ func TestSessionStartHookFailsWhenTpAbsent(t *testing.T) {
 	assert.Empty(t, run.tpArgs, "there was no tp to invoke")
 }
 
+// TestSessionStartHookFailsWhenTpTooOld is test 50's second half, and the case
+// a happy-path-only test would pass whether or not the comparison works: tp is
+// present, answers --version, and is below plugin.json's minimum.
+func TestSessionStartHookFailsWhenTpTooOld(t *testing.T) {
+	for _, version := range []string{"v0.34.9", "v0.9.0", "0.34.0", "v0.34.3-0.20260820093420-104822c4904b+dirty"} {
+		t.Run(version, func(t *testing.T) {
+			run := runSessionStartHook(t, version, nil)
+
+			assert.NotZero(t, run.exitCode, "%s is below the plugin minimum", version)
+			output := run.stdout + run.stderr
+			assert.Contains(t, output, installCommand)
+			assert.Contains(t, output, pluginMinVersion, "the failure names the minimum it compared against")
+			assert.NotContains(t, strings.Join(run.tpArgs, "\n"), "resume",
+				"a failed preflight injects no orientation")
+		})
+	}
+}
+
