@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-20T11:29:32.107762Z",
+  "updated_at": "2026-08-20T11:36:42.709378Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -246,7 +246,7 @@
     {
       "id": "run-lock",
       "title": "Take a run-scoped lock",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "child-env"
@@ -256,11 +256,24 @@
       "source_sections": [
         "#### 3.1.1 Units, ids and the child environment"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-20T11:30:15.797323Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-20T11:36:42.665906Z",
+      "closed_reason": "- engine.WithRunLock takes the run-scoped lock $3.1.1 fixes — .tp/locks/run-\u003cbase\u003e.lock, from RunLockPath, a distinct file from LockFilePath's task-file write lock — for the whole callback, and refuses a second acquirer with *RunLockBusyError on a single TryLock rather than the write lock's retry-with-backoff, because a run's holder is a whole run and no timeout outlasts it; internal/cli/root.go maps that error to exit 4 (STATE) beside the existing LockTimeoutError branch, so tp run inherits the exit code the moment driver-loop lands.\n- The driver never holds the task-file write lock while a child is in flight: a real child process's tp set lands in under a second while this process holds the run lock (internal/cli/run_lock_test.go), and a second acquirer of the run lock is refused in the same window; engine tests pin the literal path, the prompt refusal, the reacquisition after release, the zero-byte marker surviving release (the flock-inode rule) and the .tp/.gitignore entry.\n- Verified by running: both new test files were watched failing first (undefined symbols), then two mutations were applied and their blast radius read — neutering the !locked guard reddened exactly the two refusal tests, and pointing RunLockPath at LockFilePath reddened the distinctness and free-write tests plus the CLI test, whose child tp set then timed out at exit 4 after 5.03s, reproducing the deadlock the guard prevents. Gate green run separately: go test -race ./... = 0, golangci-lint run = 0, ./scripts/check-deadcode.sh = 0.\nOut of scope: the end-to-end \"a second tp run exits 4\" assertion cannot run until tp run exists (driver-loop); the dispatcher branch and RunLockBusyError.Hint() are in place and unit-covered, so that task only needs to call WithRunLock and return its error.",
+      "gate_passed_at": "2026-08-20T11:36:42.665906Z",
+      "commit_sha": "8727191",
+      "commit_shas": [
+        "8727191",
+        "f00ba15",
+        "95f3cdb",
+        "4b75969"
+      ],
+      "commit_files": [
+        "internal/cli/root.go",
+        "internal/cli/run_lock_test.go",
+        "internal/engine/runlock.go",
+        "internal/engine/runlock_test.go"
+      ]
     },
     {
       "id": "next-units",
