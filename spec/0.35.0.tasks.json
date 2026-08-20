@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-20T09:33:26.759598Z",
+  "updated_at": "2026-08-20T09:48:23.310685Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -857,7 +857,7 @@
     {
       "id": "hook-session-start",
       "title": "Inject orientation on SessionStart",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "plugin-layout"
@@ -867,11 +867,28 @@
       "source_sections": [
         "### 6.2 Hooks"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-20T09:39:30.620856Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-20T09:48:23.243152Z",
+      "closed_reason": "- hooks/session-start.sh preflights tp before a unit does any work: it resolves the plugin root from CLAUDE_PLUGIN_ROOT or from its own location, reads the minimum from .claude-plugin/plugin.json, and exits 2 naming the brew and go install commands when tp is absent from PATH or reports a version numerically below that minimum (a leading v and any pseudo-version/+dirty suffix are stripped, so a working-tree build of the minimum still satisfies it and tp's own dogfooding is not blocked by its own hook). Verified by running the script against a PATH holding no tp and against fakes reporting v0.34.9, v0.9.0, 0.34.0 and the dev pseudo-version, and by mutating the version comparison into a no-op and watching all four cases go red for the right reason before restoring it.\n- On a current tp the hook prints tp resume --compact and nothing else on stdout, which is what Claude Code adds to the session's context; hooks/hooks.json registers it as one SessionStart group with matcher \"*\" so it never branches on the source, and declares the 10-second timeout section 6.4 requires. Verified by a fake tp that logs every invocation - the log is exactly [--version, resume --compact] - with the payload arriving byte for byte through quotes, backslashes and an embedded newline; by the boundary versions 0.35.0, v0.35.0, v0.35.1, v1.0.0 and v0.36.0 all passing; by a failing tp resume leaving the session silent at exit 0 rather than failing every non-tp repository; and by dogfooding the script against this repo, where it injected 1072 bytes of real tp resume --compact output.\n- Out of scope: codedbpro's edit tool drops a file's executable bit, so hooks/session-start.sh needed re-chmod after every edit - the guard test asserts the bit and git records 100755. An untracked .zigrep_archive appeared at the repo root during this unit (a codedbpro artifact); it is neither committed nor gitignored, and tp resume now counts it as an unexplained change.",
+      "gate_passed_at": "2026-08-20T09:48:23.243152Z",
+      "commit_sha": "e2f1cc9",
+      "commit_shas": [
+        "e2f1cc9",
+        "c1cf75d",
+        "7ec8924",
+        "a189bcd",
+        "d805766",
+        "5dcaf52",
+        "8fc6e18",
+        "d3e4e9e",
+        "732e785"
+      ],
+      "commit_files": [
+        "hooks/hooks.json",
+        "hooks/session-start.sh",
+        "internal/cli/hooks_session_start_test.go"
+      ]
     },
     {
       "id": "hook-write-deny",
