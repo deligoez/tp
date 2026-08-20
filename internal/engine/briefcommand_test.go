@@ -123,3 +123,32 @@ func runBrief(t *testing.T, kind UnitKind, mergedExists bool) []string {
 	return calls
 }
 
+// TestUnitKind_Succeeded is test 51: a unit succeeded when it exited 0 AND its
+// durable write is present. A zero exit with nothing written, and a non-zero
+// exit over a complete write, are both failed attempts.
+func TestUnitKind_Succeeded(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		exitCode int
+		written  bool
+		want     bool
+	}{
+		{"exit 0 with the durable write present", 0, true, true},
+		{"exit 0 with the durable write absent", 0, false, false},
+		{"non-zero exit with the durable write present", 1, true, false},
+		{"non-zero exit with the durable write absent", 2, false, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			status := "open"
+			if tc.written {
+				status = "done"
+			}
+			writeUnitFile(t, unitTaskFile(dir), taskFileJSON(status))
+			target := UnitTarget{TaskFile: unitTaskFile(dir), ID: "t1"}
+
+			assert.Equal(t, tc.written, UnitImplement.DurableWrite(target))
+			assert.Equal(t, tc.want, UnitImplement.Succeeded(tc.exitCode, target))
+		})
+	}
+}
