@@ -58,3 +58,14 @@ func recordBriefCommand(phase, spec string) string {
 	)
 }
 
+// Succeeded reports whether one attempt at a unit of this kind succeeded: the
+// child exited 0 **and** the kind's durable write is present (§3.3.1). Either
+// alone is a failed attempt — an exit 0 with nothing written is a child that
+// gave up politely, and a non-zero exit over a complete write is a harness
+// failure after the fact; the driver retries both (test 51).
+//
+// The driver reads these two and never the unit's output, so this is the whole
+// success test.
+func (k UnitKind) Succeeded(exitCode int, t UnitTarget) bool {
+	return exitCode == 0 && k.DurableWrite(t)
+}
