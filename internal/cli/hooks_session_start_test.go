@@ -177,3 +177,25 @@ func TestSessionStartHookFailsWhenTpTooOld(t *testing.T) {
 	}
 }
 
+// TestSessionStartHookAcceptsTheMinimumVersion pins the boundary rather than a
+// value comfortably past it: a check written with 999 passes whether the bound
+// is inclusive or exclusive, and §6.1 makes plugin.json's own version the
+// minimum, so exactly that version must be accepted.
+func TestSessionStartHookAcceptsTheMinimumVersion(t *testing.T) {
+	// The last entry is the build tp's own self-development runs against: a
+	// binary built from a working tree at the minimum reports a pseudo-version
+	// with a suffix, and the preflight compares the numbers only, so dogfooding
+	// the release under development is not blocked by its own hook.
+	for _, version := range []string{
+		pluginMinVersion, "v" + pluginMinVersion, "v0.35.1", "v1.0.0", "v0.36.0",
+		"v" + pluginMinVersion + "-0.20260820093420-104822c4904b+dirty",
+	} {
+		t.Run(version, func(t *testing.T) {
+			run := runSessionStartHook(t, version, map[string]string{"TP_FAKE_RESUME": "{}"})
+
+			assert.Zero(t, run.exitCode, "%s satisfies the minimum", version)
+			assert.NotContains(t, run.stdout+run.stderr, installCommand)
+		})
+	}
+}
+
