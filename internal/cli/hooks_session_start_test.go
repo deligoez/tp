@@ -232,3 +232,27 @@ func TestSessionStartHookStaysSilentWithoutACycle(t *testing.T) {
 	assert.Empty(t, strings.TrimSpace(run.stdout), "nothing to orient with, so nothing is injected")
 }
 
+// TestSessionStartHookResolvesItsOwnPluginRoot proves the fallback: a client
+// that does not export CLAUDE_PLUGIN_ROOT must still find plugin.json, since
+// that file is where the minimum version comes from. Without it the preflight
+// would silently compare against nothing.
+func TestSessionStartHookResolvesItsOwnPluginRoot(t *testing.T) {
+	binDir := t.TempDir()
+	logPath := filepath.Join(t.TempDir(), "tp-args.log")
+	require.NoError(t, os.WriteFile(filepath.Join(binDir, "tp"), []byte(fakeTpScript), 0o700)) //nolint:gosec // test fixture
+
+	script := filepath.Join(repoRoot(t), filepath.FromSlash(sessionStartHookPath))
+	cmd := exec.Command(script) //nolint:gosec // a fixed path inside the repo under test
+	cmd.Env = []string{
+		"PATH=" + binDir + ":/usr/bin:/bin",
+		"TP_FAKE_LOG=" + logPath,
+		"TP_FAKE_VERSION=v0.1.0",
+	}
+	cmd.Dir = t.TempDir() // not the repo, so only the script's own location can locate the manifest
+
+	out, err := cmd.CombinedOutput()
+	require.Error(t, err, "v0.1.0 is below the minimum, so the preflight must fail")
+	assert.Contains(t, string(out), installCommand)
+	assert.Contains(t, string(out), pluginMinVersion,
+		"the minimum was read from plugin.json without CLAUDE_PLUGIN_ROOT")
+}
