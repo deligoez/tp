@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -197,4 +198,84 @@ func TestResume_NextUnitsRoundAdvancesWithRecordedRounds(t *testing.T) {
 	require.Equal(t, "review", res["phase"], "one clean round does not converge the default policy")
 	assert.Equal(t, float64(2), res["round"], "round 2 is now the one being collected")
 	assert.NotEmpty(t, nextUnitsOf(t, res))
+}
+
+// roundDirOf returns (and creates) a round's own directory inside a test repo —
+// the .tp/rounds/<base>/<phase>-r<round> the driver hands a unit as
+// TP_ROUND_DIR (§3.1.1).
+func roundDirOf(t *testing.T, dir, phase string, round int) string {
+	t.Helper()
+	p := filepath.Join(dir, ".tp", "rounds", "spec", fmt.Sprintf("%s-r%d", phase, round))
+	require.NoError(t, os.MkdirAll(p, 0o755))
+	return p
+}
+
+// TestResume_NextUnitsOmitsRolesThatAlreadyAnsweredTheRound is test 45 through
+// the command: a resumed round omits the role whose findings file is present and
+// wholly parseable, and still returns the role that left a malformed one.
+func TestResume_NextUnitsOmitsRolesThatAlreadyAnsweredTheRound(t *testing.T) {
+	dir := newPayloadRepo(t, `[]`)
+	round1 := roundDirOf(t, dir, "review", 1)
+	require.NoError(t, os.WriteFile(filepath.Join(round1, "role-implementer.ndjson"),
+		[]byte("{\"id\":\"f1\"}\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(round1, "role-tester.ndjson"),
+		[]byte("{\"id\":\"f2\"}\nnot json\n"), 0o600))
+
+	res := resumeResult(t, dir)
+	units := nextUnitsOf(t, res)
+	ids := make([]string, 0, len(units))
+	for _, u := range units {
+		ids = append(ids, u["id"].(string))
+	}
+	assert.Equal(t, []string{"tester", "architect"}, ids,
+		"implementer finished the round; tester's file is malformed; architect wrote none")
+	assert.Equal(t, float64(1), res["round"])
+	assertRendersFirstUnit(t, res)
+}
+
+// TestResume_NextUnitsReviewResolveAfterARecordedRound: §4.1 — a recorded round
+// whose merged findings are not all disposed returns the single review-resolve
+// unit, carrying the round just recorded rather than the next one.
+func TestResume_NextUnitsReviewResolveAfterARecordedRound(t *testing.T) {
+	dir := newPayloadRepo(t, `[]`)
+	writeConvergedRounds(t, dir, 1, 0)
+	round1 := roundDirOf(t, dir, "review", 1)
+	require.NoError(t, os.WriteFile(filepath.Join(round1, "merged.ndjson"),
+		[]byte("{\"id\":\"f1\",\"resolved\":{\"disposition\":\"fixed\"}}\n{\"id\":\"f2\"}\n"), 0o600))
+
+	res := resumeResult(t, dir)
+	require.Equal(t, "review", res["phase"], "one clean round does not converge the default policy")
+	units := nextUnitsOf(t, res)
+	require.Len(t, units, 1, "review-resolve runs alone")
+	assert.Equal(t, map[string]any{
+		"kind":          "review-resolve",
+		"id":            "spec",
+		"brief_command": "tp review spec.md --status",
+	}, units[0])
+	assert.Equal(t, float64(1), res["round"], "the round just recorded, not the one being collected")
+	assertRendersFirstUnit(t, res)
+}
+
+// TestResume_NextUnitsAuditFixAfterARecordedRound mirrors it on the audit side:
+// one audit-fix unit for the first row that is neither PASS nor disposed, keyed
+// role:item_id.
+func TestResume_NextUnitsAuditFixAfterARecordedRound(t *testing.T) {
+	dir := newPayloadRepo(t, `[{"id":"t1","title":"T","status":"done","depends_on":[],"estimate_minutes":5,"acceptance":"a","source_sections":["x"]}]`)
+	writeConvergedRounds(t, dir, 2, 1)
+	round1 := roundDirOf(t, dir, "audit", 1)
+	require.NoError(t, os.WriteFile(filepath.Join(round1, "merged.ndjson"), []byte(
+		"{\"role\":\"spec-coverage\",\"item_id\":\"i1\",\"status\":\"PASS\"}\n"+
+			"{\"role\":\"security\",\"item_id\":\"i2\",\"status\":\"FAIL\"}\n"), 0o600))
+
+	res := resumeResult(t, dir)
+	require.Equal(t, "audit", res["phase"])
+	units := nextUnitsOf(t, res)
+	require.Len(t, units, 1, "audit-fix runs alone: one finding at a time")
+	assert.Equal(t, map[string]any{
+		"kind":          "audit-fix",
+		"id":            "security:i2",
+		"brief_command": "tp audit spec.md --status",
+	}, units[0], "the PASS row is not a finding to fix")
+	assert.Equal(t, float64(1), res["round"])
+	assertRendersFirstUnit(t, res)
 }
