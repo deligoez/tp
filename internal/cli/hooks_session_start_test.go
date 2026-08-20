@@ -147,3 +147,15 @@ func runSessionStartHook(t *testing.T, version string, extraEnv map[string]strin
 	return run
 }
 
+// TestSessionStartHookFailsWhenTpAbsent is test 50's first half: nothing on
+// PATH, so the hook must name the install command instead of letting the
+// session start with no tp.
+func TestSessionStartHookFailsWhenTpAbsent(t *testing.T) {
+	run := runSessionStartHook(t, "", nil)
+
+	assert.NotZero(t, run.exitCode, "an absent tp fails the preflight")
+	output := run.stdout + run.stderr
+	assert.Contains(t, output, installCommand, "the failure carries the install command (§6.1)")
+	assert.Empty(t, run.tpArgs, "there was no tp to invoke")
+}
+
