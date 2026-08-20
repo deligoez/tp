@@ -1,5 +1,5 @@
 {
-  "description": "tp session orientation: preflight the binary, then inject where the cycle stands",
+  "description": "tp session hooks: preflight and orient at SessionStart, and hold the unit scope fence on writes",
   "hooks": {
     "SessionStart": [
       {
@@ -8,6 +8,18 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-use-write-deny.sh",
             "timeout": 10
           }
         ]
