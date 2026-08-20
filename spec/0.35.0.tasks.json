@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-13T21:41:37.523508Z",
+  "updated_at": "2026-08-20T09:21:35.5017Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -188,7 +188,7 @@
     {
       "id": "brief-commands",
       "title": "Map each unit kind to its brief command",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "unit-kinds"
@@ -198,11 +198,22 @@
       "source_sections": [
         "#### 3.3.1 What completes a unit"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-20T09:16:58.07421Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-20T09:21:35.467446Z",
+      "closed_reason": "- internal/engine/briefcommand.go maps every §3.3.1 unit kind to the brief_command the oracle supplies: tp next --brief (implement), tp review/tp audit \u003cspec\u003e (the role kinds), tp review/tp audit \u003cspec\u003e --status (review-resolve / audit-fix), tp resume (decompose), and the two-step record brief '[ -f $TP_ROUND_DIR/merged.ndjson ] || tp \u003cphase\u003e --merge $TP_ROUND_DIR/role-*.ndjson -o $TP_ROUND_DIR/merged.ndjson; tp \u003cphase\u003e \u003cspec\u003e --record $TP_ROUND_DIR/merged.ndjson' for review-record and audit-record, with an unknown kind returning \"\" the way DurableWrite returns false; verified by a table pinning all eight strings byte for byte against the spec text, and by running each record brief through /bin/sh with a fake tp on PATH — the merge step is invoked when merged.ndjson is absent and skipped when it is present, so a re-run never merges over the dispositions §6.3 accumulates (test 57).\n- UnitKind.Succeeded(exitCode, target) is the driver's whole success test — exit 0 AND the kind's durable write present — verified over the four combinations: only exit 0 with the write present succeeds, and both an exit 0 with nothing written and a non-zero exit over a complete write are failed attempts (test 51).\n- Gate green before closing: go test -race ./... = 0, golangci-lint run = 0 issues, ./scripts/check-deadcode.sh = 0.",
+      "gate_passed_at": "2026-08-20T09:21:35.467446Z",
+      "commit_sha": "94a4b05",
+      "commit_shas": [
+        "94a4b05",
+        "89500fe",
+        "7120000",
+        "beb0d9b"
+      ],
+      "commit_files": [
+        "internal/engine/briefcommand.go",
+        "internal/engine/briefcommand_test.go"
+      ]
     },
     {
       "id": "child-env",
