@@ -28,6 +28,7 @@ func runSetProjectWorkflow(args []string) error {
 	surfaceConfigWarnings()
 
 	ints := make(map[string]int)
+	floats := make(map[string]float64)
 	var qualityGate *string
 	var commitStrategy *string
 	var reviewConvergeOn *string
@@ -40,6 +41,12 @@ func runSetProjectWorkflow(args []string) error {
 			return nil
 		}
 		field, valueStr := parts[0], parts[1]
+		// §5.1: the project config is a layer like any other, and runner and
+		// notify_cmd are fenced at every one of them.
+		if engine.Unattended() && engine.FencedCommandField(field) {
+			refuseUnattendedCommandField(field)
+			return nil
+		}
 		switch {
 		case field == "quality_gate":
 			v := valueStr
@@ -81,6 +88,16 @@ func runSetProjectWorkflow(args []string) error {
 				checks = []model.Check{}
 			}
 			checksValue = &checks
+		case floatWorkflowFields[field]:
+			val, convErr := strconv.ParseFloat(valueStr, 64)
+			if convErr != nil {
+				output.Error(ExitValidation, fmt.Sprintf("%s must be a number", field))
+				os.Exit(ExitValidation)
+				return nil
+			}
+			fenceWorkflowWrite(field, val)
+			validateWorkflowFloat(field, val)
+			floats[field] = val
 		case editableWorkflowFields[field]:
 			val, convErr := strconv.Atoi(valueStr)
 			if convErr != nil {
@@ -88,6 +105,7 @@ func runSetProjectWorkflow(args []string) error {
 				os.Exit(ExitValidation)
 				return nil
 			}
+			fenceWorkflowWrite(field, float64(val))
 			lo, hi := workflowFieldRange(field)
 			if val < lo || val > hi {
 				output.Error(ExitValidation, fmt.Sprintf("%s must be between %d and %d", field, lo, hi))
@@ -138,6 +156,22 @@ func runSetProjectWorkflow(args []string) error {
 				pc.Workflow.ReviewMaxRounds = &v
 			case "audit_max_rounds":
 				pc.Workflow.AuditMaxRounds = &v
+			case "run_max_units":
+				pc.Workflow.RunMaxUnits = &v
+			case "run_max_wall_clock_seconds":
+				pc.Workflow.RunMaxWallClockSeconds = &v
+			case "run_max_unit_retries":
+				pc.Workflow.RunMaxUnitRetries = &v
+			}
+			updated[field] = val
+		}
+		for field, val := range floats {
+			v := val
+			switch field {
+			case "run_max_budget_usd":
+				pc.Workflow.RunMaxBudgetUSD = &v
+			case "run_max_unit_budget_usd":
+				pc.Workflow.RunMaxUnitBudgetUSD = &v
 			}
 			updated[field] = val
 		}
