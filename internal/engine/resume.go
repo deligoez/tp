@@ -35,6 +35,7 @@ type ResumeResult struct {
 	Guidance    string             `json:"guidance,omitempty"`
 	NextUnits   []NextUnit         `json:"next_units"`
 	Round       *int               `json:"round"`
+	LastFailure *LastFailure       `json:"last_failure"`
 	NextAction  NextAction         `json:"next_action"`
 	Blockers    []Blocker          `json:"blockers"`
 }
@@ -127,6 +128,7 @@ func AssembleResume(start, taskFilePath, specPath string, tf *model.TaskFile) (R
 		Guidance:    guidance,
 		NextUnits:   nextUnits,
 		Round:       round,
+		LastFailure: ReadLastFailure(start, taskFilePath),
 		NextAction:  renderNextAction(BuildNextAction(phase, specPath, tf, st), nextUnits),
 		Blockers:    blockers,
 	}, nil
