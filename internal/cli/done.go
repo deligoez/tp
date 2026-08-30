@@ -70,6 +70,12 @@ func runDone(cmd *cobra.Command, args []string) error {
 		os.Exit(ExitUsage)
 		return nil
 	}
+	// §5.1: skipping the gate is one of the decisions reserved for the user, so
+	// an unattended unit cannot take it.
+	if skipGateSet && engine.Unattended() {
+		refuseUnattended("--skip-gate", "skip-gate")
+		return nil
+	}
 
 	// --batch mode: mutually exclusive with positional args
 	if doneBatch != "" {
