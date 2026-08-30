@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -333,11 +334,51 @@ func (d *driver) record(attempts []*unitAttempt) error {
 			}
 			continue
 		}
+		d.recordLastFailure(a)
 		if err := d.rec.FinishUnit(a.seq, a.exitCode, a.duration, nil); err != nil && firstErr == nil {
 			firstErr = driverErrorf(err, "record the result of %s unit %q", a.unit.Kind, a.unit.ID)
 		}
 	}
 	return firstErr
+}
+
+// recordLastFailure keeps §4.2's advisory record in step with what the child
+// did: a non-zero exit writes it, and a success of that same unit clears it.
+//
+// The two triggers are deliberately not each other's negation. §4.2 records a
+// child that exited non-zero, while §3.3's success is exit 0 *and* the durable
+// write — so an attempt that exited 0 having written nothing is a failed
+// attempt that writes no record and clears none, which is the honest answer for
+// a unit whose exit code says nothing went wrong.
+//
+// Every write error is dropped, because the record is advisory (§4.2): its
+// absence never changes which unit runs next, and turning a bookkeeping failure
+// into a driver error would stop a run over a hint.
+func (d *driver) recordLastFailure(a *unitAttempt) {
+	switch {
+	case a.exitCode != 0:
+		_ = WriteLastFailure(d.opts.Root, d.opts.TaskFile, &LastFailure{
+			UnitKind: a.unit.Kind,
+			UnitID:   a.unit.ID,
+			Phase:    a.env.Phase,
+			ExitCode: a.exitCode,
+			Summary:  failureSummary(a),
+		})
+	case a.succeeded():
+		_ = ClearLastFailure(d.opts.Root, d.opts.TaskFile, a.unit.Kind, a.unit.ID)
+	}
+}
+
+// failureSummary is the driver's half of §4.2's tp-authored summary: the
+// command that failed and the log it wrote.
+//
+// It is assembled from what the driver itself resolved, and the log is named
+// rather than read — §4.2 forbids either writer from copying the child's prose,
+// so the next unit is handed a pointer to the evidence instead of an agent's
+// account of it.
+func failureSummary(a *unitAttempt) string {
+	command := strings.Join(append([]string{a.runner.Cmd}, a.runner.Args...), " ")
+	return "command: " + command + "; log: " + a.logPath
 }
 
 // concurrentBatch picks the units one iteration spawns together (§3.1 step 4):
