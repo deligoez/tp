@@ -63,6 +63,28 @@ func TestReviewNextAction_MechanizeSkipsOverSpecToNextClass(t *testing.T) {
 	assert.Contains(t, got, "naming")
 }
 
+// TestReviewNextAction_MechanizePhaseQualifier guards §8a.2: branch 3 names the
+// class AND states that a check is only worth registering when the artifact it
+// measures already exists in the review phase. The qualifier belongs to that
+// branch alone — no other reachable state advises registering a check, so no
+// other state may carry the qualifier.
+func TestReviewNextAction_MechanizePhaseQualifier(t *testing.T) {
+	got := ReviewNextAction("spec.md", false, false, []string{"naming"})
+	assert.Contains(t, got, "naming", "the qualified advice still names the recurring class")
+	assert.Contains(t, got, MechanizePhaseQualifier,
+		"branch 3 qualifies the registration by phase")
+
+	for name, other := range map[string]string{
+		"branch 1 (converged)":          ReviewNextAction("spec.md", true, false, []string{"naming"}),
+		"branch 2 (blocking)":           ReviewNextAction("spec.md", false, true, []string{"naming"}),
+		"branch 4 (no class)":           ReviewNextAction("spec.md", false, false, nil),
+		"branch 4 (over-specification)": ReviewNextAction("spec.md", false, false, []string{"over-specification"}),
+	} {
+		assert.NotContains(t, other, MechanizePhaseQualifier,
+			"%s advises no registration, so it carries no registration qualifier", name)
+	}
+}
+
 func TestReviewNextAction_CleanNotConverged(t *testing.T) {
 	got := ReviewNextAction("spec.md", false, false, nil)
 	assert.Contains(t, got, "run the next review round", "branch 4 is the lowest-precedence default")
