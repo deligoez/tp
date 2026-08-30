@@ -29,37 +29,7 @@ Output: {phase, spec, changes, kept, bookkeeping, next_units, round, next_action
 }
 
 func runResume(_ *cobra.Command, args []string) error {
-	var taskFilePath, specPath string
-	var tf *model.TaskFile
-
-	if len(args) == 1 {
-		// A spec argument is authoritative: use its adjacent <base>.tasks.json,
-		// treating an absent adjacent file as an empty task set (§4.1).
-		specPath = args[0]
-		taskFilePath = engine.SpecAdjacentTaskFile(specPath)
-		if loaded, err := model.ReadTaskFile(taskFilePath); err == nil {
-			tf = loaded
-		} else {
-			tf = &model.TaskFile{Spec: specPath, Tasks: []model.Task{}}
-		}
-	} else {
-		// No spec argument: discover the active task file and derive the spec.
-		discovered, err := engine.DiscoverTaskFile(".", flagFile)
-		if err != nil {
-			output.Error(ExitFile, "no task file found", "run tp init <spec> or pass a spec path")
-			os.Exit(ExitFile)
-			return nil
-		}
-		taskFilePath = discovered
-		loaded, readErr := model.ReadTaskFile(discovered)
-		if readErr != nil {
-			output.Error(ExitFile, readErr.Error())
-			os.Exit(ExitFile)
-			return nil
-		}
-		tf = loaded
-		specPath, _ = engine.ResolveSpecPath(discovered, loaded.Spec)
-	}
+	taskFilePath, specPath, tf := resolveCycle(args)
 
 	result, err := engine.AssembleResume(".", taskFilePath, specPath, tf)
 	if err != nil {
@@ -78,6 +48,47 @@ func runResume(_ *cobra.Command, args []string) error {
 	}
 	printResumeSummary(&result)
 	return nil
+}
+
+// resolveCycle resolves the cycle a cycle-level command works on — its task
+// file, its spec and its task set — the one way tp resume has always done it,
+// so tp run discovers exactly the same target (§3.1).
+//
+// An explicit spec argument is authoritative and its adjacent <base>.tasks.json
+// is used, an absent one counting as an empty task set (§4.1); with no
+// argument the active task file is discovered and its spec derived from it.
+// It exits rather than returning an error on a discovery or read failure, so a
+// caller that returns from it is holding a resolved cycle.
+func resolveCycle(args []string) (taskFilePath, specPath string, tf *model.TaskFile) {
+	if len(args) == 1 {
+		// A spec argument is authoritative: use its adjacent <base>.tasks.json,
+		// treating an absent adjacent file as an empty task set (§4.1).
+		specPath = args[0]
+		taskFilePath = engine.SpecAdjacentTaskFile(specPath)
+		if loaded, err := model.ReadTaskFile(taskFilePath); err == nil {
+			tf = loaded
+		} else {
+			tf = &model.TaskFile{Spec: specPath, Tasks: []model.Task{}}
+		}
+	} else {
+		// No spec argument: discover the active task file and derive the spec.
+		discovered, err := engine.DiscoverTaskFile(".", flagFile)
+		if err != nil {
+			output.Error(ExitFile, "no task file found", "run tp init <spec> or pass a spec path")
+			os.Exit(ExitFile)
+			return "", "", nil
+		}
+		taskFilePath = discovered
+		loaded, readErr := model.ReadTaskFile(discovered)
+		if readErr != nil {
+			output.Error(ExitFile, readErr.Error())
+			os.Exit(ExitFile)
+			return "", "", nil
+		}
+		tf = loaded
+		specPath, _ = engine.ResolveSpecPath(discovered, loaded.Spec)
+	}
+	return taskFilePath, specPath, tf
 }
 
 // resumeJSON renders the resume result as JSON, stripping the human-facing
