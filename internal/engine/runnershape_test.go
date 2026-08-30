@@ -152,6 +152,28 @@ func TestResolveRunner_MapIsCheckedWholeNotJustTheSelectedKind(t *testing.T) {
 	assert.Contains(t, shapeErr.Error(), "audit-role", "the error names the entry at fault")
 }
 
+// The missing default is a property of the map, not of the kind that happens
+// to be spawning: the case the shipped test could not see is a default-less map
+// whose CURRENT kind is listed, which resolved with no error at all and left
+// the run to discover the hole at the first unlisted kind — the very lateness
+// whole-map validation exists to prevent. Both listed kinds are asserted, so
+// the check cannot pass by being right about one of them.
+func TestResolveRunner_MapWithoutDefaultFailsForAListedKindToo(t *testing.T) {
+	const raw = `{"implement":"claude","review-role":"opencode"}`
+
+	for _, kind := range []UnitKind{UnitImplement, UnitReviewRole} {
+		var shapeErr *RunnerShapeError
+		require.ErrorAs(t, resolveErr(t, raw, kind), &shapeErr,
+			"%s is listed, but the map still has no default", kind)
+		assert.Contains(t, shapeErr.Error(), runnerDefaultKey,
+			"the error names the missing key")
+		assert.Equal(t, runnerField, shapeErr.Field,
+			"the map as a whole is at fault, not the entry for the current kind")
+		assert.NotContains(t, shapeErr.Error(), string(kind),
+			"a whole-map verdict does not depend on which kind asked")
+	}
+}
+
 // resolveErr is the error half of resolve, for the cases that must fail.
 func resolveErr(t *testing.T, raw string, kind UnitKind) error {
 	t.Helper()
