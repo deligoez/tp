@@ -181,3 +181,25 @@ func TestAuditMerge_BlankAndZeroByteInputsExitZero(t *testing.T) {
 	assert.Equal(t, [2]int{0, 0}, inputs[empty])
 }
 
+// TestMerge_DroppedInputStillWritesOutput pins that the exit-1 path is a report,
+// not an abort: the surviving roles' findings are still merged and still written
+// to -o, so an operator can read what did parse while the driver reads the
+// non-zero code.
+func TestMerge_DroppedInputStillWritesOutput(t *testing.T) {
+	dir := t.TempDir()
+
+	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{goodFinding1, goodFinding2})
+	f2 := writeFindingsFile(t, dir, "f2.ndjson", []string{`{bad`})
+	out := filepath.Join(dir, "merged.ndjson")
+
+	stdout, stderr, code := runTPMerge(t, dir, "review", "--merge", "-o", out, f1, f2)
+	require.Equal(t, 1, code, "the dropped input still fails the merge: %s", stderr)
+
+	var summary map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &summary))
+	assert.Equal(t, float64(2), summary["merged_count"], "the surviving role's findings still merge")
+
+	content, err := os.ReadFile(out)
+	require.NoError(t, err, "-o file is still written")
+	assert.Len(t, parseNDJSON(t, string(content)), 2)
+}
