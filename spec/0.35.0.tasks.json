@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-30T15:05:51.252541Z",
+  "updated_at": "2026-08-30T15:25:39.320724Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -656,7 +656,7 @@
     {
       "id": "cap-timing",
       "title": "Evaluate caps between iterations only",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "stop-reasons"
@@ -666,11 +666,28 @@
       "source_sections": [
         "### 3.4 Caps and stop conditions"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-30T15:06:52.654325Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-30T15:25:39.27857Z",
+      "closed_reason": "- Caps stay evaluated between iterations only and the driver kills nothing (test 63): driven as a real run whose three role children sleep 1500ms past a one-second wall-clock cap, then asserted as an absence — every claimed fake-runner record slot also holds a completed record, every run-state row carries an exit code, and each child exited after started_at plus the cap, so the deadline passed with the panel still alive. Mutating spawn into exec.CommandContext with a 1.3s timeout (a driver that kills) turned that equality into 0 completed against 3 claimed; the restore was checksum-verified.\n- SIGINT and SIGTERM now stop the run with interrupted (test 41): internal/engine/interrupt.go watches both for the run's duration and the loop reads the watch before spawning, before a retry and before the caps, so a signalled run lets its in-flight children finish, spawns no new unit and writes stop_reason before exiting. Both signals were delivered for real to the driver process mid-panel — the tests failed first with no-units and unit-failure, and a retry test went from 2 attempts to 1 — and mutating signalled() into a never-observe no-op reddened exactly those three tests and nothing else. Dogfooded on a scratch project: a real tp run SIGINT left its sleep-30 child running to completion, exited 4 and recorded interrupted in .tp/run-spec.json.\n- Out of scope: capStop still runs at the end of the iteration body, before the next readCycle, so a run reaching a cap on the iteration that made the cycle releasable records the cap rather than converged, which section 3.4's converged-leads rule forbids — that is a precedence change rather than this task's timing fence. Separately, children share the driver's process group, so a terminal Ctrl-C reaches them directly; making in-flight children finish under that delivery too would need Setpgid, which no section of the spec asks for.",
+      "gate_passed_at": "2026-08-30T15:25:39.27857Z",
+      "commit_sha": "3317c3d",
+      "commit_shas": [
+        "3317c3d",
+        "783e1a0",
+        "90ed5d0",
+        "dbc7354",
+        "f2fd7d7",
+        "0e37606",
+        "d0aebae"
+      ],
+      "commit_files": [
+        "internal/engine/driver.go",
+        "internal/engine/driver_test.go",
+        "internal/engine/interrupt.go",
+        "internal/engine/interrupt_test.go",
+        "internal/engine/stopreason_test.go"
+      ]
     },
     {
       "id": "driver-error",
