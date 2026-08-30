@@ -10,7 +10,7 @@ import (
 )
 
 func newRunCmd() *cobra.Command {
-	var statusMode bool
+	var statusMode, dryRunMode bool
 
 	cmd := &cobra.Command{
 		Use:   "run [spec]",
@@ -33,17 +33,33 @@ exits 3 when no run state exists for the resolved task file. Under --compact the
 stop reason and the cap totals survive and the last unit's row — its log path
 with it — is stripped.
 
-Output: {run_id, phase, stop_reason, units}`,
+--dry-run reports the units the driver would execute next instead of driving
+them: the same reading of the cycle the loop opens each iteration with, and the
+same batch it would spawn, printed as tp resume's next_units. It spawns
+nothing, writes no run state and takes no run lock, so it is safe to point at a
+cycle another run is already driving.
+
+Output: {run_id, phase, stop_reason, units}
+        --dry-run: {phase, round, next_units}`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// The two read-only sub-modes are checked before the driving
+			// one, --status first. Neither spawns, writes or locks
+			// anything, so the combination is harmless rather than a usage
+			// error — but the order is fixed here so that it is an answer
+			// rather than a coin toss.
 			if statusMode {
 				return runRunStatus(args)
+			}
+			if dryRunMode {
+				return runRunDryRun(args)
 			}
 			return runRun(cmd, args)
 		},
 	}
 
 	cmd.Flags().BoolVar(&statusMode, "status", false, "report the current or last run instead of driving one")
+	cmd.Flags().BoolVar(&dryRunMode, "dry-run", false, "list the units the driver would execute next, without spawning any of them")
 	return cmd
 }
 
@@ -107,4 +123,46 @@ func runExitCode(reason engine.StopReason) int {
 		return ExitSuccess
 	}
 	return ExitState
+}
+
+// runRunDryRun implements `tp run --dry-run` (§3.5): the units the driver would
+// execute next, printed instead of driven.
+//
+// It takes no run lock, spawns nothing and writes no run state, so it answers
+// "what happens if I start this?" without changing the answer — including while
+// another run holds the lock, which is exactly when an operator asks.
+//
+// The workflow is deliberately not resolved: the caps bound a run and the runner
+// says what to spawn, and this mode does neither. Leaving it zero keeps the
+// mode's promise structural rather than a rule to remember, since there is no
+// resolved runner here for a later edit to accidentally spawn.
+func runRunDryRun(args []string) error {
+	taskFilePath, specPath, _ := resolveCycle(args)
+
+	phase, round, units, err := engine.DryRunUnits(&engine.DriverOptions{
+		Root:     ".",
+		TaskFile: taskFilePath,
+		Spec:     specPath,
+	})
+	if err != nil {
+		return err
+	}
+
+	// §4.1: the entries are tp resume's next_units, key for key, so an
+	// operator and a driver read one contract rather than two spellings of
+	// it. The array is built with make so an empty listing serializes as []
+	// and never as null.
+	rows := make([]map[string]any, 0, len(units))
+	for _, u := range units {
+		rows = append(rows, map[string]any{
+			"kind":          string(u.Kind),
+			"id":            u.ID,
+			"brief_command": u.BriefCommand,
+		})
+	}
+	return output.JSON(map[string]any{
+		"phase":      phase,
+		"round":      round,
+		"next_units": rows,
+	})
 }
