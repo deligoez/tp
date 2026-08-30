@@ -62,7 +62,10 @@ func runReviewMerge(args []string, outputPath string) error {
 		bySeverity[sev]++
 	}
 
-	// Build JSON summary
+	// Build JSON summary. location_clusters (§8a.1) is derived from `unique`
+	// after the counts above are already fixed: it is a second cut of the same
+	// records, grouped by location instead of by (location, class), and feeds
+	// neither merged_count nor duplicates_removed nor by_severity.
 	overlapReport, attributionExcludes := overlapReportWithAttribution(unique)
 	summary := map[string]any{
 		"merged_count":       len(unique),
@@ -71,6 +74,13 @@ func runReviewMerge(args []string, outputPath string) error {
 		"by_severity":        bySeverity,
 		"overlap_report":     overlapReport,
 		"inputs":             inputs,
+	}
+	// §8a.1 / §8.4: location_clusters is reporting only — it feeds no arithmetic,
+	// no flag and no exit code — so it is an explanatory field and --compact
+	// strips it, the way it strips attribution_excludes. overlap_report survives
+	// because trim_candidate is a decision.
+	if !IsCompact() {
+		summary["location_clusters"] = computeLocationClusters(unique)
 	}
 	// §9.2 / §8.4: attribution_excludes surfaces the regression exclusion only
 	// when it caused merged_count to exceed the overlap-report finding count;
