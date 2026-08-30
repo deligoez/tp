@@ -176,7 +176,7 @@ Output includes `reordered` (bool) and `skipped` (count of already-done entries)
 
 ## Review File Management
 
-You manage findings files yourself. Each emitted prompt carries an **`output_path`** (`review-r<N>-<role>.ndjson` / `audit-r<N>-<role>.ndjson`, relative to the working directory) and names that file in its text, so the merge glob is predictable rather than invented. Convention:
+You manage findings files yourself. Each emitted prompt carries an **`output_path`** (`review-r<N>-<role>.ndjson` / `audit-r<N>-<role>.ndjson`, relative to the working directory) and names that file in its text, so the merge glob is predictable rather than invented. Inside a `tp run` unit — where `TP_ROUND_DIR` is set — the same field instead carries `$TP_ROUND_DIR/role-<role>.ndjson.part`, the single path that unit is allowed to write and the one the driver renames when it exits 0; the name above is what you get everywhere else. Convention:
 ```
 spec/
   feature.md                    # spec (keep)
