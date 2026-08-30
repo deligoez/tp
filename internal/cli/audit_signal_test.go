@@ -454,10 +454,18 @@ func TestAuditGate_ResumeIsUnchangedByTheDivergence(t *testing.T) {
 // Test 30 (Non-Goals 1, 2, 5 and 6) — the gate has no escape hatch and the
 // signal carries no gate input. There is no audit_converge_on knob to flip
 // (Non-Goal 2 of v0.33.0, deferred again by v0.34.0 §11 and still carried in
-// spec/0.34.0-candidates.md) and no audit-side --resolve to park a finding with
-// (Non-Goal 5); a per-role streak entry carries the three keys of §2.2 and
-// nothing else, so neither a per-role threshold (Non-Goal 6) nor a scope label
-// (Non-Goal 1) can arrive unnoticed.
+// spec/0.34.0-candidates.md); a per-role streak entry carries the three keys of
+// §2.2 and nothing else, so neither a per-role threshold (Non-Goal 6) nor a
+// scope label (Non-Goal 1) can arrive unnoticed.
+//
+// v0.35.0 §3.3 adds the audit-side --resolve this test used to pin as absent,
+// because audit-fix has no other way to record the no-code-change outcome. What
+// Non-Goal 5 actually protects survives that and is what is asserted here
+// instead: a disposition is not a way to park a finding past the gate.
+// v0.35.0 §6.3 states the mechanism — tp audit --record counts every row whose
+// status is not exactly PASS and reads no disposition at all — so disposing the
+// open row leaves the round's finding, the role streak and --check exactly
+// where they were.
 func TestAuditGate_NoEscapeHatchFromTheGate(t *testing.T) {
 	dir, record := divergingFixture(t)
 
@@ -465,9 +473,21 @@ func TestAuditGate_NoEscapeHatchFromTheGate(t *testing.T) {
 	assert.NotEqual(t, 0, code, "audit_converge_on is not a workflow field")
 	assert.Contains(t, stdout+stderr, "unknown workflow field: audit_converge_on")
 
-	stdout, stderr, code = runTP(t, dir, "audit", "spec.md", "--resolve", "x")
-	assert.Equal(t, 2, code, "tp audit exposes no --resolve")
-	assert.Contains(t, stdout+stderr, "unknown flag: --resolve")
+	// divergingFixture left the second round's rows in results.ndjson: one PASS
+	// and go-safety's open FAIL. Dispose the FAIL and re-record from the same
+	// file the round was recorded from.
+	results := filepath.Join(dir, "results.ndjson")
+	_, stderr, code = runTP(t, dir, "audit", results, "--resolve", "go-safety:go-safety-item", "wontfix", "parked")
+	require.Equal(t, 0, code, "v0.35.0 §3.3 exposes an audit-side --resolve: %s", stderr)
+
+	reRecord, stderr, code := runTP(t, dir, "audit", "spec.md", "--record", results)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.Contains(t, decodeSignal(t, reRecord)["role_streaks"],
+		map[string]any{"role": "go-safety", "consecutive_clean": float64(0), "open": float64(1)},
+		"a wontfix disposition does not clear go-safety's open finding")
+
+	_, stderr, code = runTP(t, dir, "audit", "spec.md", "--status", "--check")
+	assert.Equal(t, 1, code, "the gate is still shut over the disposed finding: %s", stderr)
 
 	streaks, ok := decodeSignal(t, record)["role_streaks"].([]any)
 	require.True(t, ok, "record payload: %s", record)
