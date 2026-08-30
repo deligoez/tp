@@ -83,3 +83,22 @@ func TestRunCommand_ReportsWhatNotifyCmdDid(t *testing.T) {
 		"the command was told which run stopped and why")
 }
 
+// With no notify_cmd configured the payload carries no notification at all,
+// rather than an empty report of a command that was never run.
+func TestRunCommand_NoNotifyCmdReportsNothing(t *testing.T) {
+	dir := runProject(t)
+	bin, err := fakerunner.Build(t.TempDir())
+	require.NoError(t, err)
+	records := filepath.Join(t.TempDir(), "records")
+	require.NoError(t, os.MkdirAll(records, 0o750))
+
+	stdout, stderr, code := runTPEnv(t, dir, []string{
+		engine.EnvRunnerSeam + "=" + bin,
+		fakerunner.EnvDir + "=" + records,
+	}, "run")
+	require.Equal(t, 4, code, "tp run: %s", stderr)
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &payload))
+	assert.NotContains(t, payload, "notify")
+}
