@@ -35,6 +35,13 @@ func runSetLocal(args []string) error {
 			os.Exit(ExitUsage)
 			return nil
 		}
+		// §5.1: .tp/local.json is notify_cmd's only layer, and notify_cmd names
+		// a command the driver executes, so an unattended unit cannot set it
+		// here either.
+		if engine.Unattended() && engine.FencedCommandField(parts[0]) {
+			refuseUnattendedCommandField(parts[0])
+			return nil
+		}
 		flag, ok := strings.CutPrefix(parts[0], "defaults.")
 		if !ok {
 			output.Error(ExitValidation, "tp set --local only accepts defaults.<flag>=<bool>")
