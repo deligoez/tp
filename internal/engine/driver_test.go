@@ -190,16 +190,25 @@ func TestRunDriver_AdvancesThroughImplementAndStopsConverged(t *testing.T) {
 // The two role kinds are the only ones §3.3 lets run together, and the loop
 // spawns the whole panel in one iteration. The role files land at their final
 // names, which is the driver's rename of the .part each role wrote (§3.3.1);
-// the next iteration then has nothing pending and stops with no-units.
+// the collected round then owes its record unit, which the driver spawns alone
+// rather than emptying next_units and stopping with no-units (§4.1, test 45a).
+//
+// The run ends in unit-failure because the fake runner performs no record
+// kind's durable write — merging and recording a round is tp's own work, not a
+// fixture's — so what this asserts is the handover into the record unit, never
+// the recorder's behaviour.
 func TestRunDriver_RoleUnitsRunConcurrently(t *testing.T) {
 	cases := []struct {
-		name  string
-		tasks string
-		phase string
-		roles []string
+		name   string
+		tasks  string
+		phase  string
+		roles  []string
+		record UnitKind
 	}{
-		{"review", `{"spec":"s.md","tasks":[]}`, PhaseReview, []string{"implementer", "tester", "architect"}},
-		{"audit", oneDoneTask, PhaseAudit, []string{"spec-coverage", "security", "maintainability-conventions"}},
+		{"review", `{"spec":"s.md","tasks":[]}`, PhaseReview,
+			[]string{"implementer", "tester", "architect"}, UnitReviewRecord},
+		{"audit", oneDoneTask, PhaseAudit,
+			[]string{"spec-coverage", "security", "maintainability-conventions"}, UnitAuditRecord},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -209,19 +218,29 @@ func TestRunDriver_RoleUnitsRunConcurrently(t *testing.T) {
 
 			res := driveOnce(t, root, spec, taskFile, driverWorkflow())
 
-			assert.Equal(t, StopNoUnits, res.StopReason,
-				"a collected round owes no further role unit today")
+			assert.Equal(t, StopUnitFailure, res.StopReason,
+				"the collected round owes a record unit the fake runner cannot write")
 			assert.Equal(t, tc.phase, res.Phase)
 
 			recs := invocations(t, records)
-			require.Len(t, recs, len(tc.roles), "one unit per active role, once")
-			assert.ElementsMatch(t, tc.roles, spawnedIDs(recs))
-			for i := range recs {
-				for j := i + 1; j < len(recs); j++ {
-					assert.True(t, overlapped(&recs[i], &recs[j]),
+			require.Len(t, recs, len(tc.roles)+1,
+				"one unit per active role, once, then the round's record unit")
+
+			roles, record := recs[:len(tc.roles)], &recs[len(tc.roles)]
+			assert.ElementsMatch(t, tc.roles, spawnedIDs(roles))
+			for i := range roles {
+				for j := i + 1; j < len(roles); j++ {
+					assert.True(t, overlapped(&roles[i], &roles[j]),
 						"role siblings run concurrently: %s and %s did not overlap",
-						recs[i].Env[EnvUnitID], recs[j].Env[EnvUnitID])
+						roles[i].Env[EnvUnitID], roles[j].Env[EnvUnitID])
 				}
+			}
+
+			assert.Equal(t, string(tc.record), record.Env[EnvUnitKind])
+			assert.Equal(t, "1", record.Env[EnvUnitID], "a record unit's id is its round number")
+			for i := range roles {
+				assert.False(t, overlapped(&roles[i], record),
+					"the record unit runs alone, after the panel whose files it merges")
 			}
 
 			roundDir := RoundDir(root, taskFile, tc.phase, 1)
