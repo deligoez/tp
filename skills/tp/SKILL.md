@@ -319,7 +319,7 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 ### Data
 | Command | Purpose |
 |---------|---------|
-| `tp init spec.md` | Create the task file shell (also writes `.tp/.gitignore`, which covers `.tp/locks/`) |
+| `tp init spec.md` | Create the task file shell (also writes `.tp/.gitignore`, which covers `.tp/locks/` and the run artifacts) |
 | `tp init --eject-roles [--domain <name>] [--force]` | Write the default role corpus into `.tp/reviewers` and `.tp/auditors` |
 | `tp init spec.md --quality-gate "<cmd>"` | Write a task-file-level `quality_gate` override (otherwise the project default in `.tp/config.json` applies) |
 | `tp init spec.md --commit-strategy <builtin\|auto\|hc>` | Write a task-file-level `commit_strategy` override |
