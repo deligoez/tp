@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-30T12:24:32.698381Z",
+  "updated_at": "2026-08-30T12:44:46.312107Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -821,7 +821,7 @@
     {
       "id": "unattended-fence",
       "title": "Refuse user-only decisions when unattended",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "workflow-fields"
@@ -831,11 +831,37 @@
       "source_sections": [
         "### 5.1 User-only decisions fail closed"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-30T12:27:56.243638Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-30T12:44:46.244267Z",
+      "closed_reason": "- All four of section 5.1's user-only operations now exit 2 under TP_UNATTENDED with a hint naming them a user-approved decision and pointing at tp escalate: tp done --skip-gate (and the same decision at its other sinks, a batch entry's skip_gate and tp close --skip-gate), tp import --force, and a tp set --workflow raise of review_max_rounds/audit_max_rounds or of any run_max_* cap; each exits 0 without the variable. Every test was written first and watched failing against unchanged code.\n- The comparison is against the currently resolved value, so an equal or lower non-zero value exits 0, while 0 exits 2 wherever a non-zero value resolves for a field whose 0 means disabled (both round budgets and both run budgets) and is accepted where 0 already resolves; run_max_unit_retries=0 stays the strictest value and is accepted.\n- The env layer is ignored for every fenced field: the fence reads only the resolved on-disk layers, proved by a test where TP_REVIEW_MAX_ROUNDS=50 leaves 40 a refused raise against the resolved 5. Mutating the fence to consult TP_\u003cFIELD\u003e reddened exactly that test and no other.\n- runner and notify_cmd are refused at every layer tp can write (tp set --workflow, --workflow --project and --local), and the mode activates on any present non-empty value other than 0. Mutating UnattendedActive to value == \"1\" reddened only the two activation-vocabulary tests; dropping the zero-means-disabled branch reddened only the 0-semantics assertions.\n- Making the acceptance testable required the five run_max_* fields to become settable through tp set --workflow and its --project form, which they were not: this adds decimal parsing and range checks for the two budget fields and write paths for all five. No other task owned that surface.\n- Gate green: go test -race ./... 0, golangci-lint run 0, scripts/check-deadcode.sh 0. The freshly built binary was dogfooded on a scratch project for every refusal and every accepted write.\nOut of scope: no environment layer exists in the workflow resolver today, so the 'env layer is ignored' property is structural rather than a live layer being suppressed; the mutation above is what makes the test discriminating. skills/tp/REFERENCE.md's workflow field table still omits the seven run fields and SKILL.md carries no TP_UNATTENDED section, both owned by docs-surface.",
+      "gate_passed_at": "2026-08-30T12:44:46.244267Z",
+      "commit_sha": "bdd84c8",
+      "commit_shas": [
+        "bdd84c8",
+        "d78e037",
+        "3521eb8",
+        "7d1bd9d5",
+        "25adacd",
+        "e5f3938",
+        "0451d2b",
+        "a2f6942",
+        "6684d5b",
+        "c7aaecd",
+        "22b488e"
+      ],
+      "commit_files": [
+        "internal/cli/close.go",
+        "internal/cli/done.go",
+        "internal/cli/importcmd.go",
+        "internal/cli/set.go",
+        "internal/cli/set_local.go",
+        "internal/cli/set_project.go",
+        "internal/cli/unattended.go",
+        "internal/cli/unattended_fence_test.go",
+        "internal/engine/unattended.go",
+        "internal/engine/unattended_test.go"
+      ]
     },
     {
       "id": "tp-escalate",
