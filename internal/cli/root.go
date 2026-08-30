@@ -202,6 +202,17 @@ func dispatchError(err error) (code int, msg, hint string) {
 	if errors.As(err, &runLockErr) {
 		return ExitState, runLockErr.Error(), runLockErr.Hint()
 	}
+	// §3.4: a driver-side fatal error — a runner that will not exec, a run
+	// directory or run state file the driver cannot write — is a state error
+	// (exit 4) for the same reason. It is checked after the two runner
+	// classifications above and never wraps one, so a configuration mistake
+	// keeps its exit 2: what separates them is that the run really started
+	// and its environment is not in the shape it needs, which is a report to
+	// a human rather than a value to correct.
+	var driverErr *engine.DriverError
+	if errors.As(err, &driverErr) {
+		return ExitState, driverErr.Error(), driverErr.Hint()
+	}
 	// Rare: any other RunE-returned error emits as the standard tp error
 	// object with exit 1 (validation). The dispatcher cannot name the failing
 	// object — the error came from whichever command ran — so it points at
