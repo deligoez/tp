@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-30T15:25:39.320724Z",
+  "updated_at": "2026-08-30T15:38:08.6916Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -435,7 +435,7 @@
     {
       "id": "last-failure-gate",
       "title": "Record a gate failure from tp done",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "last-failure-store"
@@ -445,11 +445,30 @@
       "source_sections": [
         "### 4.2 `last_failure`"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-30T15:26:39.541504Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-30T15:38:08.632785Z",
+      "closed_reason": "- tp done now writes section 4.2's last_failure when the quality gate it ran fails and TP_UNIT_KIND is set: internal/cli/gate.go's recordGateFailure takes unit_kind, unit_id and phase from the child environment, exit_code from the gate itself, and a tp-authored summary naming the gate command and carrying the gate's own output tail (falling back to the failure message when the gate said nothing), never the closing agent's prose; both entry points are covered, the pre-flock path used by tp done and tp done \u003cids\u003e, and the batch path, which does not exit through runQualityGatePreFlock and so records the failure itself.\n- Outside a run it writes nothing at all: TP_UNIT_KIND is the fence, since the record's unit_kind, unit_id and phase have no value there, and the shipped error object (gate_cmd, exit_code, output_tail, hint) and exit 4 are unchanged. tp close passes the new recordFailure parameter as false, so the writer stays the one the spec names.\n- Verified by running: all eight tests in internal/cli/last_failure_gate_test.go were written first and watched fail against the unchanged binary, then four mutations each reddened exactly the right tests - dropping the TP_UNIT_KIND fence reddened only the outside-a-run test, removing the pre-flock record call reddened the four pre-flock positives while the batch test stayed green, forcing the recorded exit code to 4 reddened the four exit-code assertions, and ignoring recordFailure reddened only the tp close test; each was restored byte-identically (gate.go sha256 aca9e8d7...). A fifth mutation, emptying the summary's output, first survived because the assertion searched for a token the gate command also contained - the gate was changed to print a string absent from its own command text, after which the mutation reddened the two output-carrying tests.\n- Dogfooded with the freshly built binary on a scratch project: the same failing gate leaves no file outside a run and writes .tp/last_failure-spec.json under TP_UNIT_KIND, and tp next --brief then surfaces that record.\n- Gate green, each step run separately: go test -race ./... 0, golangci-lint run 0, ./scripts/check-deadcode.sh 0.\n- Out of scope: nothing found.",
+      "gate_passed_at": "2026-08-30T15:38:08.632785Z",
+      "commit_sha": "c287a36",
+      "commit_shas": [
+        "c287a36",
+        "e2f4089",
+        "8475e03",
+        "5d540d6",
+        "4319e0e",
+        "b0bed70",
+        "c3943c1",
+        "5fdbf71",
+        "ed8586e",
+        "97b724e"
+      ],
+      "commit_files": [
+        "internal/cli/close.go",
+        "internal/cli/done.go",
+        "internal/cli/gate.go",
+        "internal/cli/last_failure_gate_test.go"
+      ]
     },
     {
       "id": "run-state-file",
