@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-30T11:48:37.346495Z",
+  "updated_at": "2026-08-30T11:59:27.910236Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -1007,7 +1007,7 @@
     {
       "id": "merge-inputs",
       "title": "Report per-input merge accounting",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 10,
@@ -1015,11 +1015,39 @@
       "source_sections": [
         "### 8a.4 A dropped role does not merge clean"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-30T11:49:24.782059Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-30T11:59:27.800797Z",
+      "closed_reason": "- tp review --merge and tp audit --merge now report an inputs array of {path, parsed, skipped}, one entry per input file in argument order (internal/cli/merge_inputs.go plus both loaders), and exit 1 when an input had at least one content line and parsed none of them; verified by writing all eight tests first and watching every one fail against unchanged code, then dogfooding the freshly built binary on a scratch project (dropped role: exit 1 in both merges, in JSON and text mode; clean round: exit 0).\n- Blank and whitespace-only lines are counted as neither parsed nor skipped and a zero-byte file keeps exiting 0, so a clean round is unaffected; proved by mutation - dropping the Skipped \u003e 0 conjunct (still exit 1 on every real dropped role, the right thing for the wrong reason) reddened exactly the four blank/zero-byte tests including the two pre-existing clean-round ones, while making droppedInputs a no-op reddened exactly the six exit-1 tests and nothing else.\n- The two tests pinning the old exit 0 moved with the change: TestReviewMergeAllInvalid now requires exit 1 and TestAuditMerge_OnlyMalformedSucceeds was renamed TestAuditMerge_OnlyMalformedFails; the exit-1 path still emits the full payload and still writes -o, pinned by a test that reads the merged output back. Gate green: go test -race 0, golangci-lint 0 issues, check-deadcode 0. SKILL.md and REFERENCE.md carry the new accounting and exit code.",
+      "gate_passed_at": "2026-08-30T11:59:27.800797Z",
+      "commit_sha": "9448369",
+      "commit_shas": [
+        "9448369",
+        "f2f3f5a",
+        "8306edf",
+        "4031dd3",
+        "223009f",
+        "101258a",
+        "306a79e",
+        "db054fa",
+        "e1bd5dd",
+        "8cc8902",
+        "da068ec",
+        "f04cee3",
+        "65899b9",
+        "89e9e1a",
+        "edfe8d8"
+      ],
+      "commit_files": [
+        "internal/cli/audit_merge.go",
+        "internal/cli/audit_merge_test.go",
+        "internal/cli/merge_inputs.go",
+        "internal/cli/merge_inputs_test.go",
+        "internal/cli/review_merge.go",
+        "internal/cli/review_merge_test.go",
+        "skills/tp/REFERENCE.md",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "arity-exit-two",
