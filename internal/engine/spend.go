@@ -109,3 +109,63 @@ func spendFromLine(line []byte, key string) *float64 {
 	return &amount
 }
 
+// unmeteredKinds returns the unit kinds whose runner declares no spend_key
+// (§3.2.2), in §3.3's table order.
+//
+// It asks the question of every kind rather than of the runner value's shape,
+// because a per-kind map is exactly the case where the answer differs between
+// kinds: the cap then accrues only the reporting ones, and naming the others is
+// what keeps a partial total from reading as a complete one.
+//
+// The seam is read first, for the same reason ResolveUnitRunner reads it first:
+// it replaces the field entirely, and it declares the claude template's key, so
+// a run under it meters everything whatever the configuration says.
+//
+// A runner value the resolver rejects contributes no kind. It is a usage error
+// that stops the run at its first spawn with its own message (§3.2), and a
+// second, vaguer report of it here would be noise before that one.
+func unmeteredKinds(raw json.RawMessage) []UnitKind {
+	if _, seam := SeamRunner(); seam {
+		return nil
+	}
+	var unmetered []UnitKind
+	for _, kind := range unitKindOrder {
+		spec, err := ResolveRunner(raw, kind)
+		if err != nil {
+			continue
+		}
+		runner := spec.Runner
+		if runner == nil {
+			if runner, err = BuiltinRunner(spec.Template, TemplateValues{Kind: kind}); err != nil {
+				continue
+			}
+		}
+		if strings.TrimSpace(runner.SpendKey) == "" {
+			unmetered = append(unmetered, kind)
+		}
+	}
+	return unmetered
+}
+
+// spendNotice is §3.2.2's run-start report, or "" for a run whose every kind is
+// metered.
+//
+// A run that meters nothing names no kind: there is no partial total to
+// explain, and listing all eight would spend the operator's attention on the
+// less informative half of the message. A run that meters some of them names
+// the rest, because that is the case where a total is real and incomplete.
+func spendNotice(unmetered []UnitKind) string {
+	switch {
+	case len(unmetered) == 0:
+		return ""
+	case len(unmetered) == len(unitKindOrder):
+		return "spend is not metered: the runner declares no spend_key, " +
+			"so every unit reports spend null and run_max_budget_usd is inert"
+	}
+	names := make([]string, 0, len(unmetered))
+	for _, kind := range unmetered {
+		names = append(names, string(kind))
+	}
+	return "spend is not metered for " + strings.Join(names, ", ") +
+		": their runner declares no spend_key, so run_max_budget_usd accrues only the other kinds"
+}
