@@ -122,14 +122,14 @@ func runValidateProject() error {
 		}
 		loc = relOrSelf(root, loc)
 		skipped = append(skipped, loc)
-		fmt.Fprintf(os.Stderr, "warning: project scan incomplete at %s: %v\n", loc, scanErr)
+		output.Notice(fmt.Sprintf("warning: project scan incomplete at %s: %v", loc, scanErr))
 	}
 	for _, f := range files {
 		rel := relOrSelf(root, f)
 		override, err := engine.LoadTaskWorkflowOverride(f)
 		if err != nil {
 			skipped = append(skipped, rel)
-			fmt.Fprintf(os.Stderr, "warning: skipping malformed task file %s: %v\n", rel, err)
+			output.Notice(fmt.Sprintf("warning: skipping malformed task file %s: %v", rel, err))
 			continue
 		}
 		deviations = append(deviations, workflowDeviations(rel, &override, &project)...)
