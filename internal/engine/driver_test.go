@@ -228,3 +228,16 @@ func TestRunDriver_CrashedDriverResumesAtTheSameUnit(t *testing.T) {
 	assert.Equal(t, []string{"alpha", "alpha"}, spawnedIDs(recs), "the second run resumes at the same unit")
 }
 
+// §3.1 step 3: an empty next_units on a non-releasable cycle stops the run on
+// the first iteration rather than re-polling.
+func TestRunDriver_EmptyNextUnitsStopsWithNoUnits(t *testing.T) {
+	root, spec, taskFile, records := seamProject(t,
+		`{"spec":"s.md","tasks":[{"id":"alpha","title":"A","status":"open","depends_on":["absent"],"estimate_minutes":5,"acceptance":"a","source_sections":["x"]}]}`)
+
+	res := driveOnce(t, root, spec, taskFile, driverWorkflow())
+
+	assert.Equal(t, StopNoUnits, res.StopReason)
+	assert.Equal(t, PhaseImplement, res.Phase)
+	assert.Empty(t, invocations(t, records), "nothing is spawned when the oracle names no unit")
+}
+
