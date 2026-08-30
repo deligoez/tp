@@ -67,3 +67,20 @@ func TestLocationClusters_EmptyLocationSkipped(t *testing.T) {
 	assert.Empty(t, out)
 }
 
+// TestLocationClusters_SortedByLocationAndNeverNil: entries come back sorted by
+// location, and no clustered location yields an empty (non-nil) slice.
+func TestLocationClusters_SortedByLocationAndNeverNil(t *testing.T) {
+	out := LocationClusters([]LocationClusterRecord{
+		{Location: "§9", Roles: []string{"a"}, Severity: "high"},
+		{Location: "§9 x", Roles: []string{"b"}, Severity: "high"},
+		{Location: "§2", Roles: []string{"a"}, Severity: "high"},
+		{Location: "§2 x", Roles: []string{"b"}, Severity: "high"},
+	})
+	require.Len(t, out, 2)
+	assert.Equal(t, "§2", out[0].Location)
+	assert.Equal(t, "§9", out[1].Location)
+
+	empty := LocationClusters(nil)
+	assert.NotNil(t, empty)
+	assert.Empty(t, empty)
+}
