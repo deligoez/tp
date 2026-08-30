@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"os"
+
 	"github.com/spf13/cobra"
 
 	"github.com/deligoez/tp/internal/engine"
@@ -71,10 +73,38 @@ func runRun(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	return output.JSON(map[string]any{
+	if err := output.JSON(map[string]any{
 		"run_id":      result.RunID,
 		"phase":       result.Phase,
 		"stop_reason": result.StopReason,
 		"units":       result.Units,
-	})
+	}); err != nil {
+		return err
+	}
+	// §3.4: the payload is emitted first and the exit code is decided over it,
+	// so a caller that reads stdout and a caller that branches on the exit code
+	// are told the same thing about the same run. Exiting before the write
+	// would leave the non-converged stops — every stop that actually needs a
+	// human — as the only ones with no report.
+	if code := runExitCode(result.StopReason); code != ExitSuccess {
+		os.Exit(code)
+	}
+	return nil
+}
+
+// runExitCode is §3.4's exit-code contract: 0 on `converged`, 4 on every other
+// stop reason. (A usage error raised before the loop starts exits 2 through
+// dispatchError, and never reaches here.)
+//
+// It is a whitelist of the one reason that exits 0 rather than a list of the
+// eight that exit 4, so a stop reason added later — or an empty one from a run
+// that ended without naming its reason — is reported as needing a human instead
+// of being silently accepted as convergence. That asymmetry is the point: every
+// non-converged stop is a report to a human, never an acceptance, so the
+// direction the default falls in is the whole safety property.
+func runExitCode(reason engine.StopReason) int {
+	if reason == engine.StopConverged {
+		return ExitSuccess
+	}
+	return ExitState
 }
