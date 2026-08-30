@@ -143,3 +143,23 @@ func TestRunDriver_NotifyOmitsTheEscalationPathOnEveryOtherStop(t *testing.T) {
 	}, notifyLines(t, out))
 }
 
+// §5.2: the command is exec'd without a shell and split on whitespace. The
+// configured string carries what a shell would act on — a command separator, a
+// variable reference, a run of spaces — and every one of them arrives at the
+// child as literal text in its own argument.
+func TestRunDriver_NotifyIsExecdWithoutAShell(t *testing.T) {
+	root, spec, taskFile, _ := seamProject(t, oneOpenTask)
+	t.Setenv(fakerunner.EnvExits, "1")
+	script, out := notifyProbe(t, 0)
+
+	wf := driverWorkflow()
+	wf.NotifyCmd = script + " one;two $HOME   spaced"
+	res := driveOnce(t, root, spec, taskFile, wf)
+
+	require.Equal(t, StopUnitFailure, res.StopReason)
+	lines := notifyLines(t, out)
+	require.Len(t, lines, 6, "the three fixed lines, then one per argument")
+	assert.Equal(t, []string{"arg=one;two", "arg=$HOME", "arg=spaced"}, lines[3:],
+		"a shell would have split on the semicolon and expanded $HOME")
+}
+
