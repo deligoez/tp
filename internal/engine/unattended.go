@@ -90,8 +90,11 @@ func UnattendedRaise(field string, requested, resolved float64) bool {
 // ResolvedCapValue returns an already-resolved workflow's value for a fenced
 // cap field, and whether field is one. Reading the number out of the resolved
 // workflow is what keeps the comparison layer-agnostic: the fence consults no
-// layer of its own, so §7's env layer — TP_ plus the upper-cased field name —
-// cannot supply the value it compares against.
+// layer of its own, so it compares whatever the documented precedence resolved
+// and cannot be fed a different number by a route that bypasses it. tp reads no
+// TP_<FIELD> environment variable for any workflow field (section 7), so there
+// is no env layer here to exclude — an earlier draft of this comment said there
+// was, and a test written against it could not have discriminated.
 func ResolvedCapValue(wf *model.Workflow, field string) (float64, bool) {
 	switch field {
 	case "review_max_rounds":

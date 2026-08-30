@@ -83,9 +83,10 @@ func formatCapValue(v float64) string {
 
 // resolvedWorkflowForFence returns the workflow the fence compares against: the
 // discovered task file's effective workflow, or the project config's alone when
-// no task file is discoverable. It deliberately reads only the layers §7's
-// precedence stores on disk, which is how the env layer ends up ignored for
-// every fenced field.
+// no task file is discoverable. Those two layers plus the built-in are the whole
+// of section 7's precedence for workflow fields — tp reads no TP_<FIELD>
+// environment variable and exposes no CLI flag for any of them — so the fence
+// has no upper layer to ignore, rather than ignoring one.
 func resolvedWorkflowForFence() model.Workflow {
 	if path, err := engine.DiscoverTaskFile(".", flagFile); err == nil {
 		return engine.EffectiveWorkflowForTaskFile(path)
