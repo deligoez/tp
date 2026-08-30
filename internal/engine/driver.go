@@ -154,18 +154,25 @@ func RunDriver(o *DriverOptions) (DriverResult, error) {
 
 		// 4. Spawn a runner process per unit, retrying a unit that failed
 		//    until its attempt budget is spent.
-		escalation, finished, iterErr := d.runIteration(&res)
+		out, iterErr := d.runIteration(&res)
 		if iterErr != nil {
 			return d.fail(&result, iterErr)
 		}
 		// A unit that asked for a user-only decision ends the run before
 		// any failed sibling does (§3.4): the operator has to answer
 		// before anything here can be retried in good faith.
-		if escalation != "" {
-			result.EscalationPath = escalation
+		if out.escalation != "" {
+			result.EscalationPath = out.escalation
 			return d.stop(&result, StopEscalation), nil
 		}
-		if !finished {
+		if !out.finished {
+			// A retry the signal cut short is not a unit that exhausted
+			// its attempts, so §3.4's ranking of unit-failure above
+			// interrupted does not reach it: the attempts are still
+			// there, unspent.
+			if out.interrupted {
+				return d.stop(&result, StopInterrupted), nil
+			}
 			return d.stop(&result, StopUnitFailure), nil
 		}
 
@@ -268,9 +275,26 @@ type unitAttempt struct {
 	escalationPath string
 }
 
+// iterationOutcome is what one iteration ended as, in the terms §3.4's
+// precedence is expressed in. The three are not exclusive alternatives so much
+// as three separate questions the loop asks in order — an escalation outranks a
+// failure, and a failure the operator's signal cut short is not a failure at
+// all — which is why they travel together rather than as one enum.
+type iterationOutcome struct {
+	// escalation is the record an attempt's unit wrote (§5.2), or "".
+	escalation string
+	// finished reports that every unit of the iteration succeeded.
+	finished bool
+	// interrupted reports that a retry was withheld because the operator
+	// signalled the driver mid-iteration (§3.4). It is only ever set with
+	// finished false, and it is what keeps that case out of unit-failure:
+	// the unit still has attempts nobody spent.
+	interrupted bool
+}
+
 // runIteration spawns one iteration's units and retries the ones that failed,
-// reporting the escalation record an attempt left (§5.2) and whether every
-// unit finished.
+// reporting the escalation record an attempt left (§5.2), whether every unit
+// finished, and whether a signal stopped it short of the unit's last attempt.
 //
 // An escalation returns immediately, before the retry loop and before any
 // failed sibling is carried forward: §3.4 ranks it above unit-failure, and a
@@ -289,27 +313,36 @@ type unitAttempt struct {
 // as an error and is returned rather than retried: §3.4 keeps that apart from
 // a failed attempt, and charging the unit for it would spend a budget the unit
 // never got to use.
-func (d *driver) runIteration(res *ResumeResult) (escalation string, finished bool, err error) {
+func (d *driver) runIteration(res *ResumeResult) (iterationOutcome, error) {
 	units := concurrentBatch(res.NextUnits)
 	budget := attemptBudget(&d.opts.Workflow)
 	for attempt := 1; attempt <= budget; attempt++ {
+		// §3.4's "no new unit is spawned" reaches inside the iteration as
+		// well: a retry is another child, and one spawned after the
+		// operator signalled would be work started against a decision
+		// already made. The first attempt is not guarded here — the loop
+		// read the signal immediately before calling this — so the check
+		// costs the run a retry rather than the iteration.
+		if attempt > 1 && d.sig.signalled() {
+			return iterationOutcome{interrupted: true}, nil
+		}
 		batch, prepErr := d.prepare(res, units, attempt)
 		if prepErr != nil {
-			return "", false, prepErr
+			return iterationOutcome{}, prepErr
 		}
 		spawnAll(d.opts.Root, batch)
 		if recErr := d.record(batch); recErr != nil {
-			return "", false, recErr
+			return iterationOutcome{}, recErr
 		}
 		if asked := lowestEscalation(batch); asked != "" {
-			return asked, false, nil
+			return iterationOutcome{escalation: asked}, nil
 		}
 		units = failedUnits(batch)
 		if len(units) == 0 {
-			return "", true, nil
+			return iterationOutcome{finished: true}, nil
 		}
 	}
-	return "", false, nil
+	return iterationOutcome{}, nil
 }
 
 // prepare resolves everything one attempt at a set of units needs and returns
