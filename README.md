@@ -76,6 +76,8 @@ tp done <id> <reason>          # Close with implicit claim + verification; runs 
 tp done --batch file.ndjson    # Batch close from NDJSON
 tp resume [spec]               # Report phase + the single next action from durable state (read-only)
 tp brief [id]                  # The unit brief: identity, scope fence, prior work, close recipe
+tp run [spec]                  # Drive the whole cycle unattended, one unit at a time (--status, --dry-run)
+tp escalate --decision <name>  # Record an operator-only decision from inside a run and stop the unit
 ```
 
 ### Incremental (fallback)
