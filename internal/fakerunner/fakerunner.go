@@ -54,6 +54,14 @@ const (
 	// writes and every later one does not — the arrangement a retry test
 	// needs to tell a cleared leftover from a promoted one.
 	EnvDurable = "TP_FAKE_RUNNER_DURABLE"
+	// EnvEscalate makes the invocation write §5.2's escalation record before
+	// it exits, which is how a loop test reaches the escalation stop without
+	// an agent. Like EnvDurable it is a comma-separated list read by
+	// invocation order whose last entry repeats, and its three entries are
+	// the three cases §5.2 judges differently: "1" writes a valid record,
+	// "bad" writes one that fails schema validation, and any other entry
+	// writes none.
+	EnvEscalate = "TP_FAKE_RUNNER_ESCALATE"
 )
 
 // Invocation is one spawn of the fake runner, as it recorded itself.

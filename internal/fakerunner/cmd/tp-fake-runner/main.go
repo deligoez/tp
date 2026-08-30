@@ -33,6 +33,12 @@ const (
 // fake having never run at all.
 const exitSetup = 97
 
+// The two escalation records EnvEscalate can script.
+const (
+	escalateValid   = "1"
+	escalateInvalid = "bad"
+)
+
 func main() {
 	os.Exit(run())
 }
@@ -64,6 +70,12 @@ func run() int {
 	}
 	if durableAt(os.Getenv(fakerunner.EnvDurable), seq) {
 		if err := durableWrite(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return exitSetup
+		}
+	}
+	if mode := escalateAt(os.Getenv(fakerunner.EnvEscalate), seq); mode != "" {
+		if err := writeEscalation(mode); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return exitSetup
 		}
@@ -199,6 +211,66 @@ func writeRoleFindings(roundDir, roleID string) error {
 	path := filepath.Join(roundDir, "role-"+roleID+".ndjson.part")
 	if err := os.WriteFile(path, append(line, '\n'), 0o600); err != nil {
 		return fmt.Errorf("write findings: %w", err)
+	}
+	return nil
+}
+
+// escalateAt reports which escalation record this invocation writes: the
+// scripted entry for its own sequence, with the last entry repeating the way
+// durableAt's does, so the plain "1" every caller writes means every
+// invocation. An entry that is neither "1" nor "bad" writes nothing.
+func escalateAt(scripted string, seq int) string {
+	if scripted == "" {
+		return ""
+	}
+	entries := strings.Split(scripted, ",")
+	if seq >= len(entries) {
+		seq = len(entries) - 1
+	}
+	switch entry := strings.TrimSpace(entries[seq]); entry {
+	case escalateValid, escalateInvalid:
+		return entry
+	}
+	return ""
+}
+
+// writeEscalation writes the record §5.2 has the driver read, at the path the
+// child environment names.
+//
+// The JSON is assembled here rather than through engine.WriteEscalation on
+// purpose. The driver's contract is with a file on disk, so a fixture that
+// shared tp's own writer could neither produce the malformed record the "bad"
+// arm needs nor catch a writer and a reader that agree with each other and
+// with nothing else.
+func writeEscalation(mode string) error {
+	runDir, seq := os.Getenv("TP_RUN_DIR"), os.Getenv("TP_UNIT_SEQ")
+	if runDir == "" || seq == "" {
+		return errors.New("TP_RUN_DIR or TP_UNIT_SEQ is unset: an escalation record has nowhere to go")
+	}
+	record := map[string]any{
+		"decision":  "skip-gate",
+		"unit_kind": os.Getenv("TP_UNIT_KIND"),
+		"unit_id":   os.Getenv("TP_UNIT_ID"),
+		"phase":     os.Getenv("TP_PHASE"),
+		"evidence":  "the fake runner escalated",
+		"options":   []string{},
+		"at":        time.Now().UTC().Format(time.RFC3339Nano),
+	}
+	if mode == escalateInvalid {
+		// Valid JSON carrying a decision outside §5.2's closed five, which
+		// is a record that fails schema validation rather than one that
+		// fails to parse.
+		record["decision"] = "invent-one"
+	}
+	data, err := json.Marshal(record)
+	if err != nil {
+		return fmt.Errorf("escalation record: %w", err)
+	}
+	if err := os.MkdirAll(runDir, 0o750); err != nil {
+		return fmt.Errorf("run directory: %w", err)
+	}
+	if err := os.WriteFile(filepath.Join(runDir, seq+"-escalation.json"), append(data, '\n'), 0o600); err != nil {
+		return fmt.Errorf("write escalation record: %w", err)
 	}
 	return nil
 }
