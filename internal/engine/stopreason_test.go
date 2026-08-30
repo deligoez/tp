@@ -242,3 +242,22 @@ func TestRunDriver_TheUnitCapAndTheTotalCountTheSameAttempts(t *testing.T) {
 	assert.Len(t, st.Units, spawned, "one row per attempt, which is what --status reports as units-done")
 }
 
+// A retry counts again (§3.4): the counter the unit cap reads is rows, and a
+// second attempt at the same unit is a second row. Asserted at the recorder
+// because the retry loop itself is a later unit of work — what is pinned here
+// is that the counter cannot be the one to lose the repeat.
+func TestRunTotals_ASecondAttemptAtTheSameUnitCountsAgain(t *testing.T) {
+	root := t.TempDir()
+	rec, err := NewRunRecorder(root, "s.tasks.json", "run", PhaseImplement)
+	require.NoError(t, err)
+
+	for attempt := 1; attempt <= 2; attempt++ {
+		require.NoError(t, rec.StartUnit(&RunUnitRow{Seq: attempt, Kind: UnitImplement, ID: "alpha", Attempt: attempt}))
+		require.NoError(t, rec.FinishUnit(attempt, 1, time.Millisecond, nil))
+	}
+
+	snapshot := rec.Snapshot()
+	assert.Equal(t, 2, snapshot.Totals.Units, "two attempts at one unit count twice")
+	assert.Equal(t, StopCapUnits, capStop(&snapshot, &model.Workflow{RunMaxUnits: 2, RunMaxWallClockSeconds: 600}),
+		"run_max_units is compared against that same number")
+}
