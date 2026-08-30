@@ -106,14 +106,13 @@ func runValidateProject() error {
 	deviations := make([]map[string]any, 0)
 	skipped := make([]string, 0)
 	for _, f := range files {
+		rel := relOrSelf(root, f)
 		override, err := engine.LoadTaskWorkflowOverride(f)
 		if err != nil {
-			rel, _ := filepath.Rel(root, f)
 			skipped = append(skipped, rel)
 			fmt.Fprintf(os.Stderr, "warning: skipping malformed task file %s: %v\n", rel, err)
 			continue
 		}
-		rel, _ := filepath.Rel(root, f)
 		deviations = append(deviations, workflowDeviations(rel, &override, &project)...)
 	}
 
@@ -126,6 +125,16 @@ func runValidateProject() error {
 		os.Exit(ExitValidation)
 	}
 	return output.JSON(result)
+}
+
+// relOrSelf abbreviates p relative to root, falling back to p itself when the
+// two share no common base. A path is always reported, never silently dropped.
+func relOrSelf(root, p string) string {
+	rel, err := filepath.Rel(root, p)
+	if err != nil {
+		return p
+	}
+	return rel
 }
 
 func fileExists(p string) bool {
