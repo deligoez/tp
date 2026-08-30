@@ -125,9 +125,15 @@ skills/tp/
   ```
   Use the exact version tag (e.g., `v0.17.0`), not `@latest` — the Go module proxy and skill registry may not update immediately.
 
-### Reset-native self-development via subagent-per-unit (v0.28.0+)
+### Reset-native self-development: `tp run` first, subagent-per-unit as the fallback (v0.35.0)
 
-Prefer running each **unit** in a **fresh subagent context** (Agent/Task tool), not inline in the orchestrator: one implementation task, or one review/audit round's per-role reviewers/auditors. (Verified: a fresh subagent implemented, gated, committed, and closed a task end-to-end from injected context alone.)
+**The primary model is `tp run`.** tp ships the driver now, so the default way to advance a cycle here is `/tmp/tp-dev/tp run` — it reads the cycle through the same path `tp resume` uses, spawns one runner process per unit (role siblings concurrently, everything else alone), re-reads the state from disk, checks its caps, and loops until the oracle says `release`. Exit **0** means `stop_reason: converged` and exit **4** names one of the other eight stop reasons, so the orchestrator branches on the exit code rather than on the transcript. `tp run --dry-run` shows the batch it would spawn without spawning it or taking the lock, and `tp run --status` reports the run in flight or the last one that stopped. The five `run_max_*` caps, `runner` and `notify_cmd` configure it; the eight unit kinds, nine stop reasons, run state, child environment and the plugin's hooks are in `skills/tp/REFERENCE.md`.
+
+**Under a run the policy is enforced, not merely stated.** Every child gets `TP_UNATTENDED=1`, and the four user-approved decisions this file has always reserved for the operator — `--skip-gate` at any sink, `tp import --force`, a raise of `review_max_rounds`/`audit_max_rounds`, a raise of any `run_max_*` cap — exit 2 under it. A unit that reaches one records it with `tp escalate --decision <name> --evidence <text> [--option <text>]…`, the run stops with `stop_reason: escalation`, and **the operator answers and starts `tp run` again**. That is the same rule as before; it is now a fence rather than an instruction.
+
+**Budget a run before starting it.** The caps are the budget: `run_max_units` (default 100), `run_max_wall_clock_seconds` (28800) and `run_max_budget_usd` (0 = disabled). Caps are checked **between iterations**, so a run can overshoot wall-clock and budget by at most one iteration. A cap stop is a report to a human, never an acceptance — it never records a round or marks a phase converged.
+
+**Interactive fallback — subagent-per-unit (v0.28.0+).** When a run is not appropriate — no runner configured, a unit that wants a human in the loop, or a one-off repair — run each **unit** in a **fresh subagent context** (Agent/Task tool), not inline in the orchestrator: one implementation task, or one review/audit round's per-role reviewers/auditors. (Verified: a fresh subagent implemented, gated, committed, and closed a task end-to-end from injected context alone.)
 
 **Brief the unit, don't retype its context (v0.30.0).** `skills/tp/SKILL.md` describes what the brief carries and why the orchestrator produces it rather than remembering it. In this repo the unit's first call is `/tmp/tp-dev/tp next --brief`, and the orchestrator injects only what tp cannot know: native Read/Edit/Write/grep are hook-blocked → use codedbpro (same-file range/insert edits apply in **list order**); run the quality gate yourself before `tp done`; the `TP_HC` env seam gives tests a deterministic strategy.
 
