@@ -163,3 +163,35 @@ func TestRunDriver_NotifyIsExecdWithoutAShell(t *testing.T) {
 		"a shell would have split on the semicolon and expanded $HOME")
 }
 
+// §5.2: a notify_cmd that fails never changes the run's stop_reason — neither
+// one that exits non-zero nor one that cannot be exec'd at all. The run's own
+// answer is what a driver reports; the operator's notification is a side
+// effect of it.
+func TestRunDriver_NotifyFailureChangesNothing(t *testing.T) {
+	failing, _ := notifyProbe(t, 7)
+	cases := []struct {
+		name string
+		cmd  string
+	}{
+		{name: "a command that exits non-zero", cmd: failing},
+		{name: "a command that cannot be exec'd", cmd: "/nonexistent/notify-command"},
+		{name: "no command configured", cmd: ""},
+		{name: "a command that is only whitespace", cmd: "   "},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root, spec, taskFile, records := seamProject(t, oneOpenTask)
+			t.Setenv(fakerunner.EnvExits, "1")
+
+			wf := driverWorkflow()
+			wf.NotifyCmd = tc.cmd
+			wf.RunMaxUnitRetries = 1
+			res := driveOnce(t, root, spec, taskFile, wf)
+
+			assert.Equal(t, StopUnitFailure, res.StopReason)
+			assert.Len(t, invocations(t, records), 2,
+				"the run itself is unchanged: the unit still spent both attempts")
+		})
+	}
+}
+
