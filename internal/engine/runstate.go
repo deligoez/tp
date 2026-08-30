@@ -21,7 +21,7 @@ type RunState struct {
 	RunID      string       `json:"run_id"`
 	StartedAt  string       `json:"started_at"`
 	Phase      string       `json:"phase"`
-	StopReason *string      `json:"stop_reason"`
+	StopReason *StopReason  `json:"stop_reason"`
 	Totals     RunTotals    `json:"totals"`
 	Units      []RunUnitRow `json:"units"`
 }
@@ -180,7 +180,15 @@ func (r *RunRecorder) SetPhase(phase string) error {
 // Stop records the run's stop reason (§3.4) and writes the final state. Its
 // presence is what separates a stopped run from one whose driver died: a
 // crashed run's file simply never gains one.
-func (r *RunRecorder) Stop(reason string) error {
+//
+// A reason outside §3.4's nine is refused here rather than written, because
+// this is the one writer of the field: guarding at the sink covers every
+// caller, including ones written later, and a run state carrying a reason no
+// reader can match on would be worse than one write short.
+func (r *RunRecorder) Stop(reason StopReason) error {
+	if !reason.Known() {
+		return fmt.Errorf("run state: %q is not one of the nine stop reasons", string(reason))
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.state.StopReason = &reason

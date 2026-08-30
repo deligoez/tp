@@ -13,25 +13,8 @@ import (
 	"github.com/deligoez/tp/internal/model"
 )
 
-// The §3.4 stop reasons this loop can reach. A run stops for exactly one of
-// them, recorded verbatim in the run state, and every non-converged stop is a
-// report to a human rather than an acceptance: no stop reason records a round,
-// marks a phase converged, or closes a task its own unit did not close.
-const (
-	// StopConverged is the oracle reporting the cycle releasable (§4.1). It is
-	// the only reason the loop reaches by agreement rather than by exhaustion.
-	StopConverged = "converged"
-	// StopNoUnits is the oracle reporting no pending unit on a cycle that is
-	// not releasable — a blocked phase, or one awaiting an operator decision.
-	StopNoUnits = "no-units"
-	// StopUnitFailure is a unit that exhausted its attempts: it exited
-	// non-zero, or exited 0 with its durable write absent (§3.3.1).
-	StopUnitFailure = "unit-failure"
-	// The three caps. They bound the run; they never conclude it.
-	StopCapUnits     = "cap-units"
-	StopCapWallClock = "cap-wall-clock"
-	StopCapBudget    = "cap-budget"
-)
+// The §3.4 stop reasons are the StopReason vocabulary in stopreason.go; the
+// loop names them and never composes one of its own.
 
 // roleFindingsPartSuffix is what a role unit writes and the driver renames
 // away on exit 0 (§3.3.1). The unit may only write the .part — §6.3's
@@ -67,7 +50,7 @@ type DriverOptions struct {
 type DriverResult struct {
 	RunID      string
 	Phase      string
-	StopReason string
+	StopReason StopReason
 	Units      int
 }
 
@@ -179,7 +162,7 @@ func (d *driver) readCycle() (ResumeResult, error) {
 // recorder that cannot write its last state does not change what the run did,
 // so the reason is reported either way — losing the answer to a bookkeeping
 // failure would be strictly worse than an observability file one write behind.
-func (d *driver) stop(result *DriverResult, reason string) DriverResult {
+func (d *driver) stop(result *DriverResult, reason StopReason) DriverResult {
 	_ = d.rec.Stop(reason)
 	result.StopReason = reason
 	result.Units = d.rec.Snapshot().Totals.Units
@@ -420,7 +403,7 @@ func allSucceeded(attempts []*unitAttempt) bool {
 // clamps the unit and wall-clock caps above zero so only the budget can
 // legitimately arrive that way, and a zero cap that did arrive should stop
 // nothing rather than stop everything.
-func capStop(st *RunState, wf *model.Workflow) string {
+func capStop(st *RunState, wf *model.Workflow) StopReason {
 	switch {
 	case wf.RunMaxBudgetUSD > 0 && st.Totals.SpendUSD >= wf.RunMaxBudgetUSD:
 		return StopCapBudget
