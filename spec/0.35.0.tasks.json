@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-30T14:19:24.672457Z",
+  "updated_at": "2026-08-30T14:39:11.143687Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -783,7 +783,7 @@
     {
       "id": "run-compact",
       "title": "Strip the run surface under --compact",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "run-status"
@@ -793,11 +793,22 @@
       "source_sections": [
         "## 7. Workflow fields"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-30T14:34:01.300391Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-30T14:39:11.120715Z",
+      "closed_reason": "- tp run --status now omits last_unit under --compact (internal/cli/run_status.go): stop_reason, units_done, wall_clock_seconds, spend_usd and the whole caps object survive, and the per-unit row — the only carrier of log_path in the payload — is stripped, which is section 7's requirement and test 68.\n- Verified by running, not reading: internal/cli/run_status_test.go TestRunStatus_CompactStripsUnitRowsAndLogPaths drives one real run through the seam, then reads it twice. The control arm requires the non-compact payload to actually carry a row with a non-empty log_path, so the strip assertions cannot pass on an empty fixture. The test was watched failing on unchanged code with exactly the two expected assertions red.\n- Two mutations confirmed the discrimination: forcing the branch always-off (the right answer for the wrong reason — always strip) reddened only the control arm and TestRunStatus_ReportsAStoppedRun; forcing it always-on reddened only the two strip assertions. The file was then restored byte-identically (sha256 5c6ce7dd… before and after).\n- tp run's own driving payload was checked in the same test to carry no log_path under --compact: it reports a unit COUNT, so it has no row to strip. tp run --help now states the compact behaviour.\n- Gate green, each step run separately: go test -race ./... = 0, golangci-lint run = 0, ./scripts/check-deadcode.sh = 0. Dogfooded on a scratch project with the freshly built binary: the full report carries last_unit with its log path, --compact carries neither and keeps caps, stop_reason and the three totals.\nOut of scope: section 3.5 also specifies tp run --dry-run (print the units the driver would execute next, exit 0, no run state written); no flag registers it and no task in this cycle names it.",
+      "gate_passed_at": "2026-08-30T14:39:11.120715Z",
+      "commit_sha": "5957e1e",
+      "commit_shas": [
+        "5957e1e",
+        "d27e0be",
+        "4e42926"
+      ],
+      "commit_files": [
+        "internal/cli/run.go",
+        "internal/cli/run_status.go",
+        "internal/cli/run_status_test.go"
+      ]
     },
     {
       "id": "gitignore-entries",
