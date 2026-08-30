@@ -104,3 +104,23 @@ func TestReviewMerge_SoleMalformedLineExitsOne(t *testing.T) {
 	assert.Equal(t, 1, code, "a sole malformed content line exits 1: %s", stderr)
 }
 
+// TestReviewMerge_BlankAndZeroByteInputsExitZero covers test 49's first half:
+// blank and whitespace-only lines are neither parsed nor skipped, and a
+// zero-byte file stays the documented way a role reports nothing found — so a
+// clean round is unaffected.
+func TestReviewMerge_BlankAndZeroByteInputsExitZero(t *testing.T) {
+	dir := t.TempDir()
+
+	blank := filepath.Join(dir, "blank.ndjson")
+	require.NoError(t, os.WriteFile(blank, []byte("\n   \n\t\n\n"), 0o600))
+	empty := filepath.Join(dir, "empty.ndjson")
+	require.NoError(t, os.WriteFile(empty, nil, 0o600))
+
+	stdout, stderr, code := runTPMerge(t, dir, "review", "--merge", "--json", blank, empty)
+	require.Equal(t, 0, code, "blank-only and zero-byte inputs are a clean round: %s", stderr)
+
+	inputs := mergeInputsOf(t, stdout)
+	assert.Equal(t, [2]int{0, 0}, inputs[blank], "blank lines are neither parsed nor skipped")
+	assert.Equal(t, [2]int{0, 0}, inputs[empty])
+}
+
