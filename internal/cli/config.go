@@ -114,8 +114,20 @@ func surfaceConfigWarnings() {
 	if tpDir == "" {
 		return
 	}
-	_, cw, _ := engine.LoadProjectConfig(tpDir)
-	_, lw, _ := engine.LoadLocalConfig(tpDir)
+	// The third return is the malformed-config error, and dropping it made
+	// `tp validate --project` exit 0 with an empty deviation list over a
+	// truncated .tp/config.json — indistinguishable from a genuinely clean
+	// project, which is the failure that file already guards against for scan
+	// errors and malformed task files. A malformed config is still not fatal
+	// here (each command's own loader owns exit 3); it is reported, so a clean
+	// report means the config was read.
+	_, cw, cErr := engine.LoadProjectConfig(tpDir)
+	_, lw, lErr := engine.LoadLocalConfig(tpDir)
+	for _, e := range []error{cErr, lErr} {
+		if e != nil {
+			output.Notice(fmt.Sprintf("warning: %v", e))
+		}
+	}
 	// Sorted because both loaders walk a map: unsorted, the same config emitted
 	// its warnings in a different order run to run, which makes two identical
 	// invocations differ in bytes and costs a driving agent context on churn.
