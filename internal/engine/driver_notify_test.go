@@ -122,3 +122,24 @@ func TestRunDriver_NotifyCarriesTheEscalationPath(t *testing.T) {
 	}, notifyLines(t, out))
 }
 
+// §5.2: TP_ESCALATION_PATH exists on an escalation and nowhere else. A stale
+// value inherited from the driver's own environment is removed rather than
+// carried, so the variable's presence is the fact it claims to be.
+func TestRunDriver_NotifyOmitsTheEscalationPathOnEveryOtherStop(t *testing.T) {
+	root, spec, taskFile, _ := seamProject(t, oneOpenTask)
+	t.Setenv(fakerunner.EnvExits, "1")
+	t.Setenv("TP_ESCALATION_PATH", "/a/path/from/the/parent/environment")
+	script, out := notifyProbe(t, 0)
+
+	wf := driverWorkflow()
+	wf.NotifyCmd = script
+	res := driveOnce(t, root, spec, taskFile, wf)
+
+	require.Equal(t, StopUnitFailure, res.StopReason)
+	assert.Equal(t, []string{
+		"reason=unit-failure",
+		"run_id=" + res.RunID,
+		"escalation=<unset>",
+	}, notifyLines(t, out))
+}
+
