@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-30T11:22:39.396879Z",
+  "updated_at": "2026-08-30T11:36:31.990717Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -1121,7 +1121,7 @@
     {
       "id": "hook-stop",
       "title": "Block an incomplete role unit on Stop",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "plugin-layout"
@@ -1131,11 +1131,31 @@
       "source_sections": [
         "### 6.2 Hooks"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-30T11:23:24.6088Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-30T11:36:31.878202Z",
+      "closed_reason": "- hooks/stop-role-incomplete.sh is the plugin's Stop hook (section 6.2), registered in hooks/hooks.json with section 6.4's 10-second timeout: it fires only when TP_UNIT_KIND ends in -role, stands down on stop_hook_active, allows the stop when $TP_RUN_DIR/$TP_UNIT_SEQ-escalation.json exists or $TP_ROUND_DIR/role-$TP_UNIT_ID.ndjson.part satisfies section 3.3's predicate, and otherwise blocks once on exit 2 with a reason naming the file and 'tp escalate'.\n- The predicate is a full JSON scan in awk rather than a bracket count, so the hook, the driver and the oracle agree: TestStopHookAppliesTheSameRolePredicateAsTheDriver writes 26 bodies under both the .part and the final name and asserts the hook's exit matches engine.UnitReviewRole.DurableWrite on each, covering truncation, arrays, bare scalars, trailing commas, leading zeros, bad \\\\u escapes, and the blank-line and empty-file cases that must pass.\n- Verified by running: all ten tests were written first and watched fail against the absent hook, then four mutations were applied one at a time and each reddened exactly its own tests - dropping the -role gate reddened only NeverFiresForANonRoleKind, renaming stop_hook_active reddened only BlocksAtMostOncePerUnit, short-circuiting the parse check to always-true reddened 14 malformed cases while the complete-role test still passed, and turning the final exit 2 into exit 0 reddened the three blocking tests; the script was then restored byte-identically (sha256 666f94da...).\n- Dogfooded by hand outside Go: the six shipped behaviours (nothing written, second stop, non-role kind, truncated findings, valid findings, empty findings, escalation record) each produced the documented exit code, and claude plugin validate --strict still passes over the plugin root with the new Stop group.\n- Out of scope: mcp__codedbpro__edit silently clears a shell file's executable bit on every write - it cost one contaminated mutation run here, and TestStopHookIsRegisteredForEveryStop asserts the mode so the gate catches it, but the same hazard applies to the three hooks that shipped earlier.",
+      "gate_passed_at": "2026-08-30T11:36:31.878202Z",
+      "commit_sha": "42b0d66",
+      "commit_shas": [
+        "42b0d66",
+        "c02f6e2",
+        "abc9405",
+        "22bf482",
+        "bba5e31",
+        "bc96d08",
+        "3042422",
+        "659afee",
+        "1315d73",
+        "1aab546",
+        "caf7369",
+        "5b73bd9"
+      ],
+      "commit_files": [
+        "hooks/hooks.json",
+        "hooks/stop-role-incomplete.sh",
+        "internal/cli/hooks_stop_test.go"
+      ]
     },
     {
       "id": "hook-timeouts",
