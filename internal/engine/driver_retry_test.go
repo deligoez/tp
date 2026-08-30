@@ -137,3 +137,21 @@ func TestRunDriver_ClearsARoleLeftoverBeforeEachRetry(t *testing.T) {
 	}
 }
 
+// The attempt budget is 1 + run_max_unit_retries, and a workflow carrying a
+// value below the range's floor still buys one attempt: a unit attempted zero
+// times is not a unit the driver can report on at all.
+func TestAttemptBudget(t *testing.T) {
+	cases := []struct {
+		retries int
+		want    int
+	}{
+		{retries: 0, want: 1},
+		{retries: 1, want: 2},
+		{retries: 5, want: 6},
+		{retries: -1, want: 1},
+	}
+	for _, tc := range cases {
+		assert.Equal(t, tc.want, attemptBudget(&model.Workflow{RunMaxUnitRetries: tc.retries}),
+			"run_max_unit_retries=%d buys %d attempts", tc.retries, tc.want)
+	}
+}
