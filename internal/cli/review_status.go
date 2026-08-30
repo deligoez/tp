@@ -80,7 +80,12 @@ func runReviewStatus(specPath string, check bool) error {
 	// latest recorded round. overlap_report itself is decision-critical
 	// (trim-candidate signal) and survives --compact (§8.4); attribution_excludes
 	// is explanatory and is omitted under --compact.
-	overlapReport, attributionExcludes := latestRoundOverlapAndAttribution(specPath, rounds)
+	// §8a.1: location_clusters is the same rows cut by location instead of by
+	// role — reporting only, so nothing below reads it. It is recomputed here
+	// from the latest recorded round rather than stored, which is why no round's
+	// finding count or clean flag can move because of it. Being explanatory, it
+	// is stripped under --compact (§8.4).
+	overlapReport, attributionExcludes, locationClusters := latestRoundSignals(specPath, rounds)
 	result := map[string]any{
 		"review_rounds":         rounds,
 		"consecutive_clean":     engine.ConsecutiveClean(rounds),
@@ -90,6 +95,9 @@ func runReviewStatus(specPath string, check bool) error {
 		"roles_stale":           engine.RolesStale(rounds, rolesHash),
 		"mechanical_checks":     mechChecks,
 		"overlap_report":        overlapReport,
+	}
+	if !IsCompact() {
+		result["location_clusters"] = locationClusters
 	}
 	// §8.4: harness_stale and harness_note are explanatory and are omitted under
 	// --compact; next_action and nonblocking_open are decision-critical and

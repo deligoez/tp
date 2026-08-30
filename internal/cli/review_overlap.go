@@ -67,17 +67,18 @@ func computeLocationClusters(findings []map[string]any) []engine.LocationCluster
 // when no round is recorded or its NDJSON file cannot be read.
 func latestRoundSignals(specPath string, rounds []engine.ReviewRound) (report []engine.RoleOverlap, excludes []string, clusters []engine.LocationCluster) {
 	if len(rounds) == 0 {
-		return []engine.RoleOverlap{}, nil
+		return []engine.RoleOverlap{}, nil, []engine.LocationCluster{}
 	}
 	last := rounds[len(rounds)-1]
 	if last.File == "" {
-		return []engine.RoleOverlap{}, nil
+		return []engine.RoleOverlap{}, nil, []engine.LocationCluster{}
 	}
 	findings, err := parseNDJSONFile(filepath.Join(engine.ReviewStateDir(specPath), last.File))
 	if err != nil {
-		return []engine.RoleOverlap{}, nil
+		return []engine.RoleOverlap{}, nil, []engine.LocationCluster{}
 	}
-	return overlapReportWithAttribution(findings)
+	report, excludes = overlapReportWithAttribution(findings)
+	return report, excludes, computeLocationClusters(findings)
 }
 
 // overlapReportWithAttribution computes the per-role overlap report (§8.5) and,
