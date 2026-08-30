@@ -605,14 +605,32 @@ func spawnAll(root string, attempts []*unitAttempt) {
 // fixes, and with stdin closed: a backgrounded run that inherits a TTY-less
 // stdin hangs silently, which is the hardest unattended failure to diagnose.
 //
+// Its stdout and stderr go to the unit's log (§3.5), unless the runner was
+// handed the log path itself — then that process owns the file and the driver
+// writes none of it. Both streams share one descriptor: a log read for
+// post-hoc diagnosis is more use with the child's own interleaving intact than
+// with its two streams separated.
+//
 // A runner that will not exec at all is a driver-side failure rather than a
 // failed attempt, so it is kept apart from a non-zero exit code and reported
-// up rather than charged to the unit (§3.4).
+// up rather than charged to the unit (§3.4). A log the driver cannot open is
+// the same kind of failure — the ground the child was to be spawned on, not
+// the child — and takes the same path.
 func (a *unitAttempt) spawn(root string, parent []string) {
 	cmd := exec.Command(a.runner.Cmd, a.runner.Args...) //nolint:gosec // the runner is the operator's own configured command
 	cmd.Dir = root
 	cmd.Env = ChildEnv(parent, a.runner.Env, &a.env)
 	cmd.Stdin = nil
+
+	if !a.childOwnsLog() {
+		log, err := os.OpenFile(a.logPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
+		if err != nil {
+			a.err = driverErrorf(err, "open the log for %s unit %q", a.unit.Kind, a.unit.ID)
+			return
+		}
+		defer log.Close()
+		cmd.Stdout, cmd.Stderr = log, log
+	}
 
 	start := time.Now()
 	err := cmd.Run()
@@ -769,4 +787,26 @@ func isRoleKind(k UnitKind) bool {
 // overwrites the log of the attempt that failed.
 func unitLogPath(runDir string, seq int, kind UnitKind, id string) string {
 	return filepath.Join(runDir, strconv.Itoa(seq)+"-"+string(kind)+"-"+id+".jsonl")
+}
+
+// childOwnsLog reports whether this attempt's runner was handed the unit's log
+// path, which is §3.5's test for which of the two processes writes that file:
+// a template using {log_path} receives it and owns the file, and one that omits
+// the placeholder does not and gets the driver's redirect instead.
+//
+// The question is asked of the resolved argv rather than of the template it
+// was expanded from, so what decides is what the child actually receives. That
+// is one rule covering the two built-in templates, the test seam, and an
+// operator's own runner — including one naming the path without going through
+// the placeholder, which owns the file for exactly the same reason.
+func (a *unitAttempt) childOwnsLog() bool {
+	if a.logPath == "" {
+		return false
+	}
+	for _, arg := range a.runner.Args {
+		if strings.Contains(arg, a.logPath) {
+			return true
+		}
+	}
+	return false
 }
