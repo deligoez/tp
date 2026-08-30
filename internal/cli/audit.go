@@ -94,6 +94,9 @@ func newAuditCmd() *cobra.Command {
 	var statusMode bool
 	var checkFlag bool
 	var mergeMode bool
+	var resolveMode bool
+	var resolveAllMode bool
+	var forceFlag bool
 	var affectedFromTasks bool
 	var outputPath string
 	var harnessNote string
@@ -109,6 +112,40 @@ Use --findings to also verify review findings were addressed.`,
 		Args:              cobra.ArbitraryArgs,
 		DisableAutoGenTag: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// §3.3: --resolve/--resolve-all act on the round's results NDJSON,
+			// which is the positional. They are routed ahead of every other
+			// mode so the combination guard below sees the whole flag set, and
+			// so a results file is never mistaken for the spec positional.
+			if resolveMode && resolveAllMode {
+				output.Error(ExitUsage, "--resolve and --resolve-all are mutually exclusive")
+				os.Exit(ExitUsage)
+				return nil
+			}
+			if resolveMode || resolveAllMode {
+				flagName := "--resolve"
+				if resolveAllMode {
+					flagName = "--resolve-all"
+				}
+				if mergeMode || recordPath != "" || statusMode || len(affectedFiles) > 0 || findingsPath != "" || base != "" || affectedFromTasks || checkFlag || cmd.Flags().Changed("harness-note") || cmd.Flags().Changed("output") {
+					output.Error(ExitUsage, flagName+" cannot be combined with --merge/--record/--status/--affected-files/--affected-from-tasks/--findings/--base/--check/--harness-note/-o",
+						"run "+flagName+" on its own: it takes the audit results NDJSON as the positional")
+					os.Exit(ExitUsage)
+					return nil
+				}
+				if resolveMode {
+					return runAuditResolve(args, forceFlag)
+				}
+				return runAuditResolveAll(args, forceFlag)
+			}
+			// --force is read only by the two resolve modes. Accepting it
+			// elsewhere would let a caller believe an emission or record run had
+			// overridden something it never looked at.
+			if cmd.Flags().Changed("force") {
+				output.Error(ExitUsage, "--force requires --resolve or --resolve-all",
+					"--force re-resolves an audit row that already carries a disposition")
+				os.Exit(ExitUsage)
+				return nil
+			}
 			if mergeMode {
 				// --harness-note belongs in this list too: --merge records no
 				// round, so accepting it would silently drop the note while
@@ -183,6 +220,9 @@ Use --findings to also verify review findings were addressed.`,
 	cmd.Flags().BoolVar(&checkFlag, "check", false, "With --status: exit 0 only when audit is converged")
 	cmd.Flags().StringVar(&harnessNote, "harness-note", "", "With --record: store an optional free-text note on the recorded round")
 	cmd.Flags().BoolVar(&mergeMode, "merge", false, "Merge and deduplicate audit-result NDJSON files")
+	cmd.Flags().BoolVar(&resolveMode, "resolve", false, "Dispose one audit row as fixed/wontfix/duplicate (selector: 0-based index or role:item_id; results NDJSON is the positional)")
+	cmd.Flags().BoolVar(&resolveAllMode, "resolve-all", false, "Dispose every undisposed audit row with a status (results NDJSON is the positional)")
+	cmd.Flags().BoolVar(&forceFlag, "force", false, "With --resolve/--resolve-all: re-resolve rows that already carry a disposition")
 	cmd.Flags().StringVarP(&outputPath, "output", "o", "", "Output file path (for --merge)")
 
 	return cmd
