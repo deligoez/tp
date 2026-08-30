@@ -1,7 +1,9 @@
 package engine
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -63,25 +65,32 @@ func RunLockPath(taskFile string) string {
 // writing a pid file beside the lock, would be the second source of truth §3.5
 // exists to avoid.
 //
-// Every failure reads as "not held": a missing .tp/locks directory is a cycle
-// no run has ever locked, which is exactly the absence the caller asks about.
+// A missing .tp/locks directory or lock file reads as "not held": that is a
+// cycle no run has ever locked, which is exactly the absence the caller asks
+// about. Any other stat or flock failure answers a different question, and is
+// returned rather than folded into "not held" — the caller decides what to do
+// with a probe it could not perform, and §3.5 gives that probe more weight than
+// a false negative can carry.
 // The lock file itself is never created here — a reporting command that made a
 // file would be reporting on its own footprint.
-func RunLockHeld(taskFile string) bool {
+func RunLockHeld(taskFile string) (bool, error) {
 	lockPath := RunLockPath(taskFile)
 	if _, err := os.Stat(lockPath); err != nil {
-		return false
+		if errors.Is(err, fs.ErrNotExist) {
+			return false, nil
+		}
+		return false, err
 	}
 	fl := flock.New(lockPath)
 	locked, err := fl.TryLock()
 	if err != nil {
-		return false
+		return false, err
 	}
 	if !locked {
-		return true
+		return true, nil
 	}
 	_ = fl.Unlock()
-	return false
+	return false, nil
 }
 
 // WithRunLock acquires the run-scoped lock for a cycle, runs fn — the whole run

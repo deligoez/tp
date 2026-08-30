@@ -91,7 +91,16 @@ func runStateOf(st *engine.RunState, taskFilePath string) string {
 	if st.StopReason != nil {
 		return runStateStopped
 	}
-	if engine.RunLockHeld(taskFilePath) {
+	held, err := engine.RunLockHeld(taskFilePath)
+	if err != nil {
+		// The probe §3.5 makes the discriminator could not be performed, so
+		// there is no evidence the driver died. The two wrong answers are not
+		// symmetric: `crashed` invites a second driver over a cycle that may
+		// still have one, while `in_flight` costs a look.
+		output.Notice(fmt.Sprintf("warning: run lock could not be probed, reporting the run as in flight: %v", err))
+		return runStateInFlight
+	}
+	if held {
 		return runStateInFlight
 	}
 	return runStateCrashed
