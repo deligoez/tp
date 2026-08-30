@@ -51,6 +51,18 @@ func computeCommonPolicy(overrides []model.WorkflowOverride) model.WorkflowOverr
 	common.AuditCleanRounds = commonPtr(overrides, func(o *model.WorkflowOverride) *int { return o.AuditCleanRounds })
 	common.ReviewMaxRounds = commonPtr(overrides, func(o *model.WorkflowOverride) *int { return o.ReviewMaxRounds })
 	common.AuditMaxRounds = commonPtr(overrides, func(o *model.WorkflowOverride) *int { return o.AuditMaxRounds })
+	// quality_gate is hoisted even though it is read-only at the task level
+	// (readOnlyWorkflowFields, set.go) — being non-authorable by tp set does not
+	// make a field unhoistable, because after the hoist it lands at the project
+	// layer, where the project setter can author it.
+	//
+	// commit_strategy is in that same read-only set and is deliberately NOT
+	// hoisted, and the reason is scheduling rather than technique: v0.31.1's
+	// Non-Goal 1 fenced it out and nothing since has re-opened it. An audit
+	// round recorded a different reason — that hoisting it would strip a field
+	// tp keeps non-authorable — which this line refutes. validate_project.go
+	// does report a commit_strategy deviation, so the two field sets differ on
+	// purpose; spec/0.35.0-candidates.md carries the routing.
 	common.QualityGate = commonPtr(overrides, func(o *model.WorkflowOverride) *string { return o.QualityGate })
 	common.ReviewConvergeOn = commonPtr(overrides, func(o *model.WorkflowOverride) *string { return o.ReviewConvergeOn })
 	common.RunMaxUnits = commonPtr(overrides, func(o *model.WorkflowOverride) *int { return o.RunMaxUnits })
