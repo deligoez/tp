@@ -112,7 +112,7 @@ func RunDriver(o *DriverOptions) (DriverResult, error) {
 
 	for {
 		// 1. Read the cycle state through the same path tp resume uses.
-		res, readErr := d.readCycle()
+		res, readErr := readCycle(d.opts)
 		if readErr != nil {
 			return d.fail(&result, readErr)
 		}
@@ -166,12 +166,37 @@ func RunDriver(o *DriverOptions) (DriverResult, error) {
 // as an error, matching tp resume's own handling of a spec whose adjacent task
 // file does not exist yet — a cycle before decomposition has no task file, and
 // refusing to drive it would refuse the phase that creates one.
-func (d *driver) readCycle() (ResumeResult, error) {
-	tf, err := model.ReadTaskFile(d.opts.TaskFile)
+func readCycle(o *DriverOptions) (ResumeResult, error) {
+	tf, err := model.ReadTaskFile(o.TaskFile)
 	if err != nil {
-		tf = &model.TaskFile{Spec: d.opts.Spec, Tasks: []model.Task{}}
+		tf = &model.TaskFile{Spec: o.Spec, Tasks: []model.Task{}}
 	}
-	return AssembleResume(d.opts.Root, d.opts.TaskFile, d.opts.Spec, tf)
+	return AssembleResume(o.Root, o.TaskFile, o.Spec, tf)
+}
+
+// DryRunUnits reports the units `tp run` would spawn next without spawning any
+// of them (§3.5), alongside the phase and the round they belong to.
+//
+// It reaches them through the driver's own first steps — the same readCycle
+// every iteration of the loop starts with, then the same concurrentBatch that
+// picks what one iteration spawns — so the listing is the driver's own answer
+// rather than a second derivation that could quietly disagree with it.
+//
+// Nothing the loop does after that runs: no run directory, no run state, no run
+// lock and no child. That is what makes the mode safe to point at a cycle
+// another run is already driving, and it is why this is a function beside the
+// loop rather than a flag threaded through it — a dry run sharing the loop's
+// body would have a spawn to suppress, and a suppression is the kind of thing
+// that can be got wrong once and never noticed again.
+func DryRunUnits(o *DriverOptions) (phase string, round *int, units []NextUnit, err error) {
+	res, err := readCycle(o)
+	if err != nil {
+		return "", nil, nil, err
+	}
+	// A releasable cycle is where the loop stops rather than spawns (§3.1
+	// step 2) and the oracle already returns no unit for it, so naming the
+	// phase with an empty listing is the whole honest report of that case.
+	return res.Phase, res.Round, concurrentBatch(res.NextUnits), nil
 }
 
 // stop records the run's stop reason and returns the finished result. A
