@@ -288,3 +288,54 @@ func TestStopHookBlocksWhenTheEnvironmentNamesNoFindingsFile(t *testing.T) {
 	assert.NotEmpty(t, run.stderr, "the reason says the environment does not name the file")
 }
 
+// TestStopHookAppliesTheSameRolePredicateAsTheDriver is the invariant behind
+// test 52, checked where a divergence would actually show. Every body is
+// written twice — under the .part the hook reads inside the child, and under
+// the final name the driver reads after its rename — and the hook's verdict is
+// asserted to be the driver's own, so a hook with its own private idea of
+// "parseable" fails here rather than in production.
+func TestStopHookAppliesTheSameRolePredicateAsTheDriver(t *testing.T) {
+	bodies := map[string]string{
+		"one finding":           `{"class":"x","location":"a.go:1"}` + "\n",
+		"two findings":          "{\"a\":1}\n{\"b\":2}\n",
+		"no trailing newline":   `{"a":1}`,
+		"empty file":            "",
+		"blank lines only":      "\n\n   \t\n",
+		"trailing blank line":   "{\"a\":1}\n\n",
+		"null row":              "null\n",
+		"nested row":            `{"a":{"b":[1,2,{"c":null}]},"d":true,"e":1.5e-3,"f":"q\"uote"}` + "\n",
+		"brace inside a string": `{"note":"a { and a } inside"}` + "\n",
+		"unicode escape":        "{\"note\":\"caf\\u00e9\"}\n",
+		"raw utf-8 in a string": `{"note":"café"}` + "\n",
+		"bad unicode escape":    `{"note":"caf\u00zz"}` + "\n",
+		"empty object":          "{}\n",
+		"truncated line":        "{\"a\":1}\n{\"b\":",
+		"not json at all":       "role findings go here\n",
+		"prose starting with n": "nothing to report\n",
+		"array row":             "[1,2]\n",
+		"string row":            `"just a string"` + "\n",
+		"number row":            "42\n",
+		"bare true":             "true\n",
+		"trailing comma":        `{"a":1,}` + "\n",
+		"two values on a line":  `{"a":1} {"b":2}` + "\n",
+		"leading zero":          `{"a":01}` + "\n",
+		"unterminated string":   `{"a":"x}` + "\n",
+		"unquoted key":          `{a:1}` + "\n",
+		"single quotes":         `{'a':1}` + "\n",
+	}
+
+	for name, body := range bodies {
+		t.Run(name, func(t *testing.T) {
+			unit := stopUnit(t, string(engine.UnitReviewRole))
+			require.NoError(t, os.WriteFile(unit.findingsPath(), []byte(body), 0o600))
+			require.NoError(t, os.WriteFile(engine.RoleFindingsPath(unit.roundDir, unit.unitID), []byte(body), 0o600))
+
+			driver := engine.UnitReviewRole.DurableWrite(engine.UnitTarget{RoundDir: unit.roundDir, ID: unit.unitID})
+			run := runStopHook(t, unit, false)
+
+			assert.Equal(t, driver, run.exitCode == 0,
+				"driver says complete=%v, hook exited %d; stderr=%q", driver, run.exitCode, run.stderr)
+		})
+	}
+}
+
