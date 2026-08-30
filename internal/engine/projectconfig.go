@@ -376,23 +376,31 @@ func WriteLocalConfig(tpDir string, lc model.LocalConfig) error {
 	return os.WriteFile(filepath.Join(tpDir, "local.json"), append(data, '\n'), 0o600)
 }
 
-// EnsureTPGitignore ensures tpDir/.gitignore exists and contains a "local.json"
-// entry plus a "locks/" entry, so .tp/local.json and the centralized lock files
-// under .tp/locks/ stay git-ignored even when the .tp/ directory was created by
-// hand rather than by tp. It creates the file when absent and appends each
-// missing entry when the file exists without it.
+// EnsureTPGitignore ensures tpDir/.gitignore exists and lists every .tp/ path
+// tp writes but never commits: "local.json", the centralized lock files under
+// "locks/", and §3.5's four run artifacts — the per-cycle run state
+// ("run-*.json"), the per-run log and escalation directory ("runs/"), the
+// per-cycle round directory ("rounds/") and the last-failure record
+// ("last_failure-*.json"). They stay git-ignored even when the .tp/ directory
+// was created by hand rather than by tp. It creates the file when absent and
+// appends each missing entry when the file exists without it.
+//
+// The run entries are globs because both the run state and the last-failure
+// record are named per task file, and they are deliberately narrow: an entry
+// broad enough to also swallow .tp/config.json or the role corpus would
+// untrack the project state tp expects to be committed.
 //
 // It RETURNS EARLY when every entry is already present, and that early return
 // is load-bearing rather than an optimization. This is a lock-free
 // read-modify-write, and WithFileLock now calls it on every locked write: a
-// process reading while another was mid-rewrite wrote back only the two wanted
-// entries, permanently dropping whatever else the user had in the file —
+// process reading while another was mid-rewrite wrote back only the entries tp
+// wants, permanently dropping whatever else the user had in the file —
 // measured at 7 losses in 25 concurrent tp set runs, and silent, since callers
 // discard the error. Off the hot path the window closes: the only writes left
 // are the first one and the one-time upgrade that adds a missing entry.
 func EnsureTPGitignore(tpDir string) error {
 	path := filepath.Join(tpDir, ".gitignore")
-	want := []string{"local.json", "locks/"}
+	want := []string{"local.json", "locks/", "run-*.json", "runs/", "rounds/", "last_failure-*.json"}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
