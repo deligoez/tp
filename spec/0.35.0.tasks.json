@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-30T12:09:31.619722Z",
+  "updated_at": "2026-08-30T12:24:32.698381Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -873,7 +873,7 @@
     {
       "id": "escalation-detection",
       "title": "Stop the run on an escalation record",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "tp-escalate",
@@ -884,11 +884,35 @@
       "source_sections": [
         "### 5.2 Escalation"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-30T12:10:20.176038Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-30T12:24:32.602637Z",
+      "closed_reason": "- The driver now reads each attempt's escalation record and stops the run with stop_reason escalation whatever the harness exited with: internal/engine/driver.go reads TP_RUN_DIR/\u003cseq\u003e-escalation.json after every spawn and returns it from runIteration before the retry loop, so the unit is never counted as a failed attempt, and reports the lowest seq's path when concurrent siblings each wrote one; verified through TP_RUNNER_SEAM at exit 0 with and without the durable write, at exit 2 and at exit 9, all four stopping with escalation after a single invocation.\n- An escalating unit sets no last_failure and clears none: recordLastFailure returns early for it, verified by a run that began with a record for that same unit and left it unchanged.\n- A record that fails schema validation, and an exit 2 with none, are judged as ordinary attempts (tests 21 and 47): engine.Escalation.Validate rejects a decision outside section 5.2's closed five, an unknown unit_kind, an empty unit_id, phase, evidence or at, and a null options array; both arms retry to the budget, end with unit-failure and write last_failure, while the rejected record stays on disk to prove the driver read it and refused it.\n- Proved by running rather than reading: every test was watched failing first (the driver ignored the record; a parse-only reader accepted every malformed one), then three mutations - the escalation stop made unreachable, Validate made a no-op, the last_failure guard removed - reddened exactly the escalation-stop tests, exactly the schema tests plus the invalid-record driver test, and exactly the last_failure test, each file restored to its byte-identical checksum. Dogfooded with the freshly built binary on a scratch project: a harness that ran tp escalate and exited 0 stopped the run with escalation and wrote no last_failure, and one writing a decision outside the five was retried and ended unit-failure.\n- Honest limit: the lowest-seq rule was proved against a highest-seq mutation, but it cannot discriminate lowest seq from first-in-list, because prepare assigns ascending seqs in list order.\n- Out of scope: tp run still exits 0 on a non-converged stop where section 3.4 asks for 4; that belongs to the open run-exit-codes task rather than being a new finding.",
+      "gate_passed_at": "2026-08-30T12:24:32.602637Z",
+      "commit_sha": "81d6642",
+      "commit_shas": [
+        "81d6642",
+        "14db703",
+        "bf58cfe",
+        "d3c808c",
+        "7c4a037",
+        "b08a20e",
+        "40caf75",
+        "2f9b745",
+        "14aa536",
+        "9bcb72c",
+        "d06e4cf",
+        "f395b70",
+        "cfd171e"
+      ],
+      "commit_files": [
+        "internal/engine/driver.go",
+        "internal/engine/driver_escalation_test.go",
+        "internal/engine/escalation.go",
+        "internal/engine/escalation_test.go",
+        "internal/fakerunner/cmd/tp-fake-runner/main.go",
+        "internal/fakerunner/fakerunner.go"
+      ]
     },
     {
       "id": "notify-cmd",
