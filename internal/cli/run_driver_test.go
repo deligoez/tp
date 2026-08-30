@@ -70,7 +70,9 @@ func TestRunCommand_DrivesTheCycleThroughTheSeam(t *testing.T) {
 		fakerunner.EnvDir + "=" + records,
 		fakerunner.EnvDurable + "=1",
 	}, "run")
-	require.Equal(t, 0, code, "tp run: %s", stderr)
+	// §3.4: the run really did drive the whole cycle, but it stopped on
+	// no-units rather than converged, and every non-converged stop exits 4.
+	require.Equal(t, 4, code, "tp run: %s", stderr)
 
 	var out map[string]any
 	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
