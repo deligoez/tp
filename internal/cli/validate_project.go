@@ -54,6 +54,12 @@ func workflowDeviations(file string, override, project *model.WorkflowOverride) 
 	if override.QualityGate != nil && project.QualityGate != nil && *override.QualityGate != *project.QualityGate {
 		add("quality_gate", *override.QualityGate, *project.QualityGate)
 	}
+	// commit_strategy resolves through the project layer like any other field:
+	// .tp/config.json sets the project default and tp init authors the
+	// task-file value, so the two can genuinely contradict each other.
+	if override.CommitStrategy != nil && project.CommitStrategy != nil && *override.CommitStrategy != *project.CommitStrategy {
+		add("commit_strategy", *override.CommitStrategy, *project.CommitStrategy)
+	}
 	if override.ReviewConvergeOn != nil && project.ReviewConvergeOn != nil && *override.ReviewConvergeOn != *project.ReviewConvergeOn {
 		add("review_converge_on", *override.ReviewConvergeOn, *project.ReviewConvergeOn)
 	}
