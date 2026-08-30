@@ -939,7 +939,7 @@ func buildReviewPrompts(specPath string, panel *rolePanel, elems *engine.Structu
 	}
 	inlinerDone := false
 	for i := range prompts {
-		outputPath := fmt.Sprintf("review-r%d-%s.ndjson", round, prompts[i].Role)
+		outputPath := roleOutputPath("review", round, prompts[i].Role)
 		prompts[i].OutputPath = outputPath
 		f := promptFraming{
 			phase:            "review",
