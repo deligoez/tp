@@ -406,3 +406,24 @@ func hookFailClosedCases() map[string][]hookFailClosedCase {
 	}
 }
 
+// TestEveryShippedHookFailsClosedInsideTheBound is the discriminating half of
+// test 43. The adverse-stdin sweep shows a hook terminates; these show it
+// terminates having done its job — the refusal is still a refusal, and the one
+// hook that reads a file it did not write still decides its predicate inside the
+// bound.
+func TestEveryShippedHookFailsClosedInsideTheBound(t *testing.T) {
+	cases := hookFailClosedCases()
+
+	for _, rel := range shippedHookScripts(t) {
+		entries := cases[rel]
+		require.NotEmpty(t, entries,
+			"%s ships without an experiment showing what it does when it cannot do its job; §6.4's second clause is a behaviour, and a hook added without one is unverified", rel)
+
+		for _, tc := range entries {
+			t.Run(rel+" "+tc.name, func(t *testing.T) {
+				run := runBoundedHook(t, rel, tc.env(t), hookStdin{name: tc.name, payload: tc.payload(t)})
+				assertHookBounded(t, rel, tc.name, run, tc.wantExit)
+			})
+		}
+	}
+}
