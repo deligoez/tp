@@ -241,3 +241,19 @@ func TestRunDriver_EmptyNextUnitsStopsWithNoUnits(t *testing.T) {
 	assert.Empty(t, invocations(t, records), "nothing is spawned when the oracle names no unit")
 }
 
+// §3.1 step 6: caps are checked between iterations, and reaching one ends the
+// run with that cap's own reason rather than with the cycle's.
+func TestRunDriver_CapUnitsStopsTheRun(t *testing.T) {
+	root, spec, taskFile, records := seamProject(t, twoOpenTasks)
+	recordRounds(t, spec, 0, 2, true)
+	t.Setenv(fakerunner.EnvDurable, "1")
+
+	wf := driverWorkflow()
+	wf.RunMaxUnits = 1
+	res := driveOnce(t, root, spec, taskFile, wf)
+
+	assert.Equal(t, StopCapUnits, res.StopReason)
+	assert.Equal(t, 1, res.Units)
+	assert.Len(t, invocations(t, records), 1, "the cap stops the run after one spawned child")
+}
+
