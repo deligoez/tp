@@ -174,3 +174,47 @@ func TestRunDriver_CapWallClockStopsTheRun(t *testing.T) {
 		"the cap closed no task of its own")
 }
 
+// §3.4's closing rule, driven rather than read: every non-converged stop is a
+// report to a human. A cap that trips records no round, leaves the phase where
+// it was, and closes nothing its own unit did not close.
+func TestRunDriver_ACapStopConcludesNothing(t *testing.T) {
+	// A review round in flight: three role units land their findings, the
+	// cap trips before any record unit runs, and the round stays unrecorded.
+	t.Run("records no round and converges no phase", func(t *testing.T) {
+		root, spec, taskFile, records := seamProject(t, `{"spec":"s.md","tasks":[]}`)
+		t.Setenv(fakerunner.EnvDurable, "1")
+
+		wf := driverWorkflow()
+		wf.RunMaxUnits = 3
+		res := driveOnce(t, root, spec, taskFile, wf)
+
+		assert.Equal(t, StopCapUnits, res.StopReason)
+		assert.Equal(t, PhaseReview, res.Phase, "a cap never advances the cycle to release")
+		assert.Len(t, invocations(t, records), 3, "the role panel ran; the cap stopped what came after")
+
+		review, audit := roundsRecorded(t, spec)
+		assert.Equal(t, 0, review, "the cap recorded no review round")
+		assert.Equal(t, 0, audit, "the cap recorded no audit round")
+	})
+
+	// An implement iteration with a converged audit waiting behind it: the
+	// cap must not borrow that convergence for the tasks nobody ran.
+	t.Run("closes no task its own unit did not close", func(t *testing.T) {
+		root, spec, taskFile, _ := seamProject(t, twoOpenTasks)
+		recordRounds(t, spec, 0, 2, true)
+		t.Setenv(fakerunner.EnvDurable, "1")
+
+		wf := driverWorkflow()
+		wf.RunMaxUnits = 1
+		res := driveOnce(t, root, spec, taskFile, wf)
+
+		assert.Equal(t, StopCapUnits, res.StopReason)
+		assert.Equal(t, model.StatusDone, taskStatus(t, taskFile, "alpha"), "the unit's own close stands")
+		assert.Equal(t, model.StatusOpen, taskStatus(t, taskFile, "beta"), "no other task was closed")
+
+		review, audit := roundsRecorded(t, spec)
+		assert.Equal(t, 0, review)
+		assert.Equal(t, 2, audit, "the rounds the run found are the rounds it left")
+	})
+}
+
