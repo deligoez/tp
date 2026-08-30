@@ -101,3 +101,24 @@ func TestDriverStop_NotifyFiresOnEveryNonConvergedStop(t *testing.T) {
 	}
 }
 
+// §5.2: on an escalation the command carries all three variables, and
+// TP_ESCALATION_PATH is the record the run stopped on.
+func TestRunDriver_NotifyCarriesTheEscalationPath(t *testing.T) {
+	root, spec, taskFile, _ := seamProject(t, oneOpenTask)
+	t.Setenv(fakerunner.EnvExits, "2")
+	t.Setenv(fakerunner.EnvEscalate, "1")
+	script, out := notifyProbe(t, 0)
+
+	wf := driverWorkflow()
+	wf.NotifyCmd = script
+	res := driveOnce(t, root, spec, taskFile, wf)
+
+	require.Equal(t, StopEscalation, res.StopReason)
+	require.NotEmpty(t, res.EscalationPath)
+	assert.Equal(t, []string{
+		"reason=escalation",
+		"run_id=" + res.RunID,
+		"escalation=" + res.EscalationPath,
+	}, notifyLines(t, out))
+}
+
