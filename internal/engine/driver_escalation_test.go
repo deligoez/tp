@@ -38,3 +38,38 @@ func TestRunDriver_ValidEscalationRecordStopsTheRun(t *testing.T) {
 	assert.Equal(t, 2, *st.Units[0].ExitCode)
 }
 
+// Test 47: the record, not the exit code, is the signal — the driver spawns a
+// harness rather than tp, so the harness's exit code need not carry the inner
+// command's.
+//
+// Every row is an exit code that means something else without the record: 0
+// with nothing written is a failed attempt (§3.3), 0 with the durable write is
+// a success the loop would carry on past, and a non-zero code is the ordinary
+// failure. All three stop the run as an escalation.
+func TestRunDriver_EscalatesWhateverTheHarnessExitedWith(t *testing.T) {
+	cases := []struct {
+		name    string
+		exits   string
+		durable string
+	}{
+		{name: "exit 0 with nothing written", exits: "0"},
+		{name: "exit 0 with the durable write", exits: "0", durable: "1"},
+		{name: "the exit 2 tp escalate itself returns", exits: "2"},
+		{name: "an exit code the harness invented", exits: "9"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root, spec, taskFile, records := seamProject(t, oneOpenTask)
+			t.Setenv(fakerunner.EnvExits, tc.exits)
+			t.Setenv(fakerunner.EnvDurable, tc.durable)
+			t.Setenv(fakerunner.EnvEscalate, "1")
+
+			res := driveOnce(t, root, spec, taskFile, driverWorkflow())
+
+			assert.Equal(t, StopEscalation, res.StopReason)
+			assert.Len(t, invocations(t, records), 1, "the run stops at the unit that asked")
+			assert.Equal(t, EscalationPath(RunDir(root, res.RunID), "1"), res.EscalationPath)
+		})
+	}
+}
+
