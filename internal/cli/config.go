@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/spf13/cobra"
 
@@ -115,8 +116,19 @@ func surfaceConfigWarnings() {
 	}
 	_, cw, _ := engine.LoadProjectConfig(tpDir)
 	_, lw, _ := engine.LoadLocalConfig(tpDir)
-	for _, w := range append(cw, lw...) {
-		fmt.Fprintf(os.Stderr, "warning: %s\n", w)
+	// Sorted because both loaders walk a map: unsorted, the same config emitted
+	// its warnings in a different order run to run, which makes two identical
+	// invocations differ in bytes and costs a driving agent context on churn.
+	warnings := make([]string, 0, len(cw)+len(lw))
+	warnings = append(warnings, cw...)
+	warnings = append(warnings, lw...)
+	sort.Strings(warnings)
+	for _, w := range warnings {
+		// output.Notice, not a raw stderr write: this is the channel that
+		// honours --quiet. The raw form left `tp validate --project --quiet`
+		// printing config warnings one line above a repair that had just made
+		// its own two warnings quiet.
+		output.Notice(fmt.Sprintf("warning: %s", w))
 	}
 }
 
