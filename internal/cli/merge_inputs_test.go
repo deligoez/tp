@@ -146,3 +146,20 @@ func TestAuditMerge_InputsReportPerFileCounts(t *testing.T) {
 	assert.Equal(t, [2]int{1, 0}, inputs[f2])
 }
 
+// TestAuditMerge_DroppedRoleExitsOne covers test 32's exit rule for the audit
+// merge.
+func TestAuditMerge_DroppedRoleExitsOne(t *testing.T) {
+	dir := t.TempDir()
+
+	f1 := writeFindingsFile(t, dir, "a1.ndjson", []string{goodAuditRow1, goodAuditRow2})
+	f2 := writeFindingsFile(t, dir, "a2.ndjson", []string{goodAuditRow3 + `,`})
+
+	stdout, stderr, code := runTPMerge(t, dir, "audit", "--merge", "--json", f1, f2)
+	require.Equal(t, 1, code, "an input with content rows and no parsed row exits 1: %s", stderr)
+	assert.Contains(t, stderr, f2)
+
+	inputs := mergeInputsOf(t, stdout)
+	assert.Equal(t, [2]int{2, 0}, inputs[f1])
+	assert.Equal(t, [2]int{0, 1}, inputs[f2])
+}
+
