@@ -1,5 +1,5 @@
 {
-  "description": "tp session hooks: preflight and orient at SessionStart, and hold the unit scope fence on writes",
+  "description": "tp session hooks: preflight and orient at SessionStart, hold the unit scope fence on writes, and refuse a role unit's stop before it has written its findings",
   "hooks": {
     "SessionStart": [
       {
@@ -20,6 +20,17 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-use-write-deny.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/stop-role-incomplete.sh",
             "timeout": 10
           }
         ]
