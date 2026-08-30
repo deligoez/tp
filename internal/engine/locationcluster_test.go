@@ -56,3 +56,14 @@ func TestLocationClusters_RegressionAndBlankExcluded(t *testing.T) {
 	assert.Equal(t, []string{"architect", "implementer", "tester"}, out[0].Roles, "trimmed, deduplicated, sorted")
 }
 
+// TestLocationClusters_EmptyLocationSkipped: a record with no location key is
+// dropped rather than grouped under "", which would collapse unrelated findings.
+func TestLocationClusters_EmptyLocationSkipped(t *testing.T) {
+	out := LocationClusters([]LocationClusterRecord{
+		{Location: "", Roles: []string{"implementer"}, Severity: "high"},
+		{Location: "   ", Roles: []string{"tester"}, Severity: "low"},
+	})
+	assert.NotNil(t, out)
+	assert.Empty(t, out)
+}
+
