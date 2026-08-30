@@ -48,12 +48,36 @@ fi
 
 cwd=$PWD
 
+# physical_path echoes a path with its DIRECTORY resolved through symlinks. The
+# file itself is usually the one about to be created, so it cannot be resolved -
+# but its directory exists, and `cd ... && pwd -P` is the POSIX way to get the
+# physical form. A directory that cannot be entered echoes the path unchanged,
+# which leaves the textual comparisons below as the only ones that can match.
+physical_path() {
+	pp_dir=$(dirname "$1")
+	pp_base=$(basename "$1")
+	if pp_real=$(cd "$pp_dir" 2>/dev/null && pwd -P); then
+		printf '%s/%s' "$pp_real" "$pp_base"
+	else
+		printf '%s' "$1"
+	fi
+}
+
 # same_path reports whether the path a tool named is the permitted one. The
-# comparison is textual rather than filesystem-resolved because the file
-# usually does not exist yet - it is the one about to be created. The driver
-# may hand the round directory absolutely or relative to the session's cwd, and
-# the agent may name the target either way, so both directions are reconciled
-# against $PWD; a leading ./ is stripped from both sides first.
+# comparison is textual first because the file usually does not exist yet - it
+# is the one about to be created. The driver may hand the round directory
+# absolutely or relative to the session's cwd, and the agent may name the target
+# either way, so both directions are reconciled against $PWD; a leading ./ is
+# stripped from both sides first.
+#
+# The physical comparison is last and exists because a textual one over-DENIES:
+# when the project path traverses a symlink - on macOS /tmp is /private/tmp, and
+# this repo's own QA convention puts projects under /tmp - the driver hands the
+# round directory by its symlinked spelling while the child's $PWD is physical,
+# so the unit's ONE permitted write was refused. The role then wrote no findings
+# and the Stop hook blocked it for not having written them, deterministically on
+# every retry. Resolving cannot widen the allowlist: two paths that resolve alike
+# are the same file.
 same_path() {
 	given=$1
 	want=$2
@@ -69,6 +93,8 @@ same_path() {
 	/*) : ;;
 	*) [ "$given" = "$cwd/$want" ] && return 0 ;;
 	esac
+
+	[ "$(physical_path "$given")" = "$(physical_path "$want")" ] && return 0
 	return 1
 }
 
