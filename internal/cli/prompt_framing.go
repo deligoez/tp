@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/deligoez/tp/internal/engine"
 )
 
 // perRoleReadingBudget is the per-role byte threshold (§10.7, default 12 KB)
@@ -32,6 +34,23 @@ type promptFraming struct {
 // renderFraming produces the framing block appended to a role prompt. It states
 // the output file (§10.4), the reset discipline (§10.5), the loop budget
 // (§10.6), and the file-reading situation (§10.7) — explicitly, never implied.
+// roleOutputPath returns the file one role writes this round's findings to —
+// the emitted prompt's output_path and the path §10.4's line names in its body.
+//
+// Outside a run the name is unchanged: <phase>-r<round>-<role>.ndjson, relative
+// to wherever the operator is standing, which is what the interactive loop has
+// always collected. Inside a run TP_ROUND_DIR is set, and §6.3 puts a role's
+// findings at $TP_ROUND_DIR/role-<role>.ndjson.part — the single path the
+// reviewer and auditor agents may write, which the driver renames to the final
+// name on exit 0 — so the prompt and the write allowlist name one filename
+// rather than two. Each role is told its own id's file and no other.
+func roleOutputPath(phase string, round int, role string) string {
+	if roundDir := os.Getenv(engine.EnvRoundDir); roundDir != "" {
+		return engine.RoleFindingsPartPath(roundDir, role)
+	}
+	return fmt.Sprintf("%s-r%d-%s.ndjson", phase, round, role)
+}
+
 func renderFraming(f *promptFraming) string {
 	var b strings.Builder
 	b.WriteString("\n\n## Unit framing\n\n")
