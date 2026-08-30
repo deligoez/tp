@@ -85,3 +85,41 @@ func TestRunDryRun_ListsTheNextUnitsAndSpawnsNothing(t *testing.T) {
 	assert.Contains(t, showOut, `"status": "open"`, "--dry-run advances nothing")
 }
 
+// §3.5 (test 58): the dry-run sub-mode takes no run lock.
+//
+// The lock is held for the whole assertion, and the control arm in the same
+// fixture is a real `tp run` refused with exit 4 — so a dry run that exits 0
+// here is evidence the lock was not taken, rather than evidence the lock was
+// never held.
+func TestRunDryRun_TakesNoRunLock(t *testing.T) {
+	dir := runProject(t)
+	taskFile := filepath.Join(dir, "spec.tasks.json")
+
+	acquired := make(chan struct{})
+	release := make(chan struct{})
+	held := make(chan struct{})
+	go func() {
+		defer close(held)
+		lockErr := engine.WithRunLock(taskFile, func() error {
+			close(acquired)
+			<-release
+			return nil
+		})
+		assert.NoError(t, lockErr)
+	}()
+	<-acquired
+	defer func() {
+		close(release)
+		<-held
+	}()
+
+	_, _, code := runTP(t, dir, "run")
+	require.Equal(t, 4, code, "control: a driving run does take the run lock")
+
+	stdout, stderr, code := runTP(t, dir, "run", "--dry-run")
+	assert.Equal(t, 0, code, "--dry-run takes no run lock: %s%s", stdout, stderr)
+	assert.Equal(t, []string{"implement seed"},
+		unitPairs(t, decodeDryRun(t, stdout)["next_units"]),
+		"it still reports, rather than reporting nothing because it was blocked")
+}
+
