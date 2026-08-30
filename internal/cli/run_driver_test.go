@@ -75,7 +75,7 @@ func TestRunCommand_DrivesTheCycleThroughTheSeam(t *testing.T) {
 	var out map[string]any
 	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
 	assert.Equal(t, engine.PhaseAudit, out["phase"], "the loop crossed from implement into audit")
-	assert.Equal(t, engine.StopNoUnits, out["stop_reason"])
+	assert.Equal(t, string(engine.StopNoUnits), out["stop_reason"])
 	assert.NotEmpty(t, out["run_id"])
 
 	recs, err := fakerunner.Records(records)
@@ -102,7 +102,7 @@ func TestRunCommand_DrivesTheCycleThroughTheSeam(t *testing.T) {
 	require.NoError(t, err)
 	var state map[string]any
 	require.NoError(t, json.Unmarshal(stateData, &state))
-	assert.Equal(t, engine.StopNoUnits, state["stop_reason"])
+	assert.Equal(t, string(engine.StopNoUnits), state["stop_reason"])
 	assert.Len(t, state["units"], 4)
 }
 
