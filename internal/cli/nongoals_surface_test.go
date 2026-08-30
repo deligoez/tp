@@ -50,7 +50,7 @@ reopen:
 report:
 resume:
 review: affected-files check diff-from docs-path final-round findings force harness-note merge no-state output perspective record report resolve resolve-all round spec-inline status test-path verify
-run:
+run: status
 set: bulk local project workflow
 show:
 stats:

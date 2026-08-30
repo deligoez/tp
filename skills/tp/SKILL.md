@@ -233,6 +233,8 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp resume [spec]` | Report phase + next action from durable state (reset-native, read-only; `--compact`) |
 | `tp brief [id]` | The unit brief (read-only): identity + scope fence + prior work + the task + the close recipe; claims nothing |
 | `tp brief <id> --prior <n>` | Override the prior-work recency cap (0-20; 0 = dependency entries only) |
+| `tp run [spec]` | Drive the cycle unattended, one unit at a time |
+| `tp run --status` | Report the current or last run: phase, units done, the accrual against each cap, the last unit's exit code and log path, `stop_reason`, and `run_state` (`in_flight`/`crashed`/`stopped`); takes no run lock; exits 3 when no run state exists |
 
 ### Incremental
 | Command | Purpose |

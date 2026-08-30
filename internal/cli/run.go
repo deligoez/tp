@@ -8,7 +8,9 @@ import (
 )
 
 func newRunCmd() *cobra.Command {
-	return &cobra.Command{
+	var statusMode bool
+
+	cmd := &cobra.Command{
 		Use:   "run [spec]",
 		Short: "Drive the cycle unattended, one unit at a time",
 		Long: `The unattended driver. It takes the same optional spec argument and --file flag
@@ -21,10 +23,24 @@ A unit's result is whatever it wrote to disk. The driver reads a child's exit
 code and nothing else it said, and tp resume remains the single authority on
 whether the cycle is finished.
 
+--status reports the current or last run instead of driving one: phase, units
+done, the accrual against each cap, the last unit's exit code and log path,
+stop_reason once the run has ended, and run_state (in_flight, crashed or
+stopped). It takes no run lock, so it reports on a run still in flight, and it
+exits 3 when no run state exists for the resolved task file.
+
 Output: {run_id, phase, stop_reason, units}`,
 		Args: cobra.MaximumNArgs(1),
-		RunE: runRun,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if statusMode {
+				return runRunStatus(args)
+			}
+			return runRun(cmd, args)
+		},
 	}
+
+	cmd.Flags().BoolVar(&statusMode, "status", false, "report the current or last run instead of driving one")
+	return cmd
 }
 
 // runRun drives one run to its stop reason.
