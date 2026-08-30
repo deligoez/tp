@@ -23,7 +23,7 @@ import (
 //
 // A release that does add a command or a flag updates this baseline in the same
 // task that adds it, and renames the constant to the tag it then pins.
-// spec/0.35.0.md §3.1 adds exactly one command, `tp run`, which is listed below
+// spec/0.35.0.md §3.1 adds `tp run` and §5.2 adds `tp escalate`, both listed below
 // with the flags it ships, and §3.3 adds the three audit-side resolve flags
 // (`--resolve`, `--resolve-all`, `--force`) an audit-fix unit disposes its row
 // with; nothing else about the surface moves in that release.
@@ -38,6 +38,7 @@ close: reason-file skip-gate stdin
 commit: files
 config: dry-run extract force resolved
 done: auto-commit batch commit covered-by files gate-passed reason-file skip-gate stdin
+escalate: decision evidence option
 graph: from tag
 import: force spec
 init: commit-strategy domain eject-roles force quality-gate
