@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"bytes"
 	"encoding/json"
 	"os"
 	"os/exec"
@@ -89,11 +88,21 @@ func runPreToolUseHook(t *testing.T, toolName string, toolInput map[string]any) 
 	})
 	require.NoError(t, err)
 
+	return runPreToolUseHookRaw(t, string(payload))
+}
+
+// runPreToolUseHookRaw feeds the hook a payload byte for byte. json.Marshal
+// re-escapes whatever it is handed, so a case about JSON escape sequences in
+// the path argument cannot be written through runPreToolUseHook: the escape
+// under test would be escaped away before the hook ever saw it.
+func runPreToolUseHookRaw(t *testing.T, payload string) preToolUseRun {
+	t.Helper()
+
 	script := filepath.Join(repoRoot(t), filepath.FromSlash(preToolUseHookPath))
 	cmd := exec.Command(script) //nolint:gosec // a fixed path inside the repo under test
 	cmd.Env = []string{"PATH=/usr/bin:/bin"}
 	cmd.Dir = repoRoot(t)
-	cmd.Stdin = bytes.NewReader(payload)
+	cmd.Stdin = strings.NewReader(payload)
 
 	var stdout, stderr strings.Builder
 	cmd.Stdout = &stdout
@@ -204,6 +213,8 @@ func TestPreToolUseHookAllowsOrdinaryWrites(t *testing.T) {
 		"docs/tp-config.json.md",
 		"internal/engine/tasksjson/reader.go",
 		".tp/reviewers/../reviewers/implementer.json",
+		// A space in the path is ordinary, and the fence must not split on it.
+		"docs/design notes/tp config.md",
 	}
 
 	for _, tool := range writeTools {
@@ -277,4 +288,55 @@ func TestPreToolUseHookSurvivesAPayloadWithoutAPath(t *testing.T) {
 	assert.Zero(t, run.exitCode, "stderr=%q", run.stderr)
 	assert.Empty(t, run.stderr)
 	assert.Empty(t, run.stdout)
+}
+
+// TestPreToolUseHookDeniesAnEscapedPathArgument covers the hole the normalizing
+// pass left open. normalize() compares the spelling that arrived and the hook
+// never decodes JSON, so every escape sequence is a spelling it cannot see
+// through. A `\` before a `/`, or a `u0074` code-point escape in place of a
+// letter, both spell `.tp/config.json` in valid JSON, and both were allowed.
+//
+// The fence answers by refusing rather than by decoding. Section 6.2 scopes it
+// to stopping hand-editing, not to sandboxing, and a JSON parser written in
+// POSIX sh is more than that should carry; its sibling, the role write-allow
+// hook, already fails closed when it cannot judge a call.
+//
+// The decoded assertion is what makes each case evidence rather than a guess:
+// it proves the payload really is a fenced path wearing another spelling, so a
+// hook that let it through would be letting the fenced write through.
+func TestPreToolUseHookDeniesAnEscapedPathArgument(t *testing.T) {
+	for _, tc := range []struct{ escaped, decodes string }{
+		{`.tp\/config.json`, ".tp/config.json"},
+		{`.tp\/local.json`, ".tp/local.json"},
+		{"." + `\` + "u0074p" + `\` + "/config.json", ".tp/config.json"},
+		{`\` + "u002etp/config.json", ".tp/config.json"},
+		{"spec/0.35.0.tasks" + `\` + "u002ejson", "spec/0.35.0.tasks.json"},
+		{`spec\/.tp-review\/0.35.0\/rounds.json`, "spec/.tp-review/0.35.0/rounds.json"},
+		{`spec/.tp-review\/0.35.0/round-3/merged.ndjson`, "spec/.tp-review/0.35.0/round-3/merged.ndjson"},
+	} {
+		t.Run(tc.escaped, func(t *testing.T) {
+			payload := `{"session_id":"0e1f2a3b","hook_event_name":"PreToolUse",` +
+				`"tool_name":"Write","tool_input":{"file_path":"` + tc.escaped +
+				`","content":"whatever the agent wanted to write"}}`
+
+			var probe struct {
+				ToolInput struct {
+					FilePath string `json:"file_path"`
+				} `json:"tool_input"`
+			}
+			require.NoError(t, json.Unmarshal([]byte(payload), &probe),
+				"the case must be valid JSON, or it tests nothing a real payload could carry")
+			require.Equal(t, tc.decodes, probe.ToolInput.FilePath,
+				"the escaped spelling must decode to the fenced path, or the case proves nothing")
+
+			run := runPreToolUseHookRaw(t, payload)
+
+			assert.True(t, run.denied(),
+				"%s decodes to %s and must not be hand-written; exit=%d stderr=%q",
+				tc.escaped, tc.decodes, run.exitCode, run.stderr)
+			assert.Contains(t, run.stderr, "tp",
+				"the refusal points at the tp command that owns the file")
+			assert.Empty(t, run.stdout, "the reason reaches the agent on stderr")
+		})
+	}
 }
