@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-30T17:45:11.564158Z",
+  "updated_at": "2026-08-30T17:59:27.104317Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -1200,7 +1200,7 @@
     {
       "id": "location-clusters",
       "title": "Cluster merged findings by location",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 10,
@@ -1208,11 +1208,37 @@
       "source_sections": [
         "### 8a.1 Clustered counts"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-30T17:46:03.980548Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-30T17:59:27.023913Z",
+      "closed_reason": "- tp review --merge and --status now carry location_clusters: one {location, roles[], severities[], count} entry per location key that two or more roles reported. engine.LocationClusters groups the merged records by location key (section 8.2), takes a record's roles from found_by_roles where the merge attributed it and from its own role otherwise, excludes the regression and blank roles the way the overlap report does, sorts roles lexicographically and severities most-severe-first, and returns an empty (never nil) slice. On --status the clusters are recomputed at read time from the latest recorded round beside the overlap report, never stored. Being reporting-only they are stripped under --compact, the way section 8.4 strips attribution_excludes, while the decision-critical overlap_report survives.\n- The unchanged half is the acceptance and is verified as a regression guard by construction: fixtures put three roles on one location so a clustering bug feeding the arithmetic would read 1 where the pinned numbers say 5, 4 and 3. merged_count, duplicates_removed, by_severity, the merged record set, --record's finding count, the stored and live clean flags, converged, and the --status --check exit code are all asserted at literal values that already held before the field existed.\n- Every test was watched failing first against the unwired code (missing key), and the --compact assertions were flipped and watched failing before the disposition was implemented. Four mutations, each reddening exactly the expected set and nothing else: neutering the two-role threshold reddened the multi-role, regression-exclusion and empty-array tests; degrading the severity ordering to lexicographic reddened the severity-order test and the three-severity status test; disconnecting the merge emission reddened only the three merge subtests; disconnecting the status emission reddened only the two status tests. No mutation survived. All four touched files restored byte-identical by sha256. Gate run separately: TESTS=0, LINT=0, DEADCODE=0. Dogfooded on a scratch project with the freshly built binary across --merge, --record, --status, --status --check and --compact.\n- Out of scope: the spec leaves the field's semantics open (count vs roles, dedup, ordering, --compact) - reviewers flagged this in rounds 5, 9, 14, 15, 16 and 18 and it was never pinned. The choices above are documented in skills/tp/REFERENCE.md and in the engine doc comments; if a later round wants different ones, that is a spec amendment, not a bug here. README.md and SKILL.md were left to the open docs-surface task.",
+      "gate_passed_at": "2026-08-30T17:59:27.023913Z",
+      "commit_sha": "d40d3ad",
+      "commit_shas": [
+        "d40d3ad",
+        "6614c55",
+        "66a22dd",
+        "29d8d61",
+        "0103a74",
+        "98da4a0",
+        "eb53766",
+        "dfe1046",
+        "d65ccfc",
+        "505d147",
+        "74ad2fe",
+        "15d405d",
+        "687bb47",
+        "dc8a9af"
+      ],
+      "commit_files": [
+        "internal/cli/location_clusters_test.go",
+        "internal/cli/review_merge.go",
+        "internal/cli/review_overlap.go",
+        "internal/cli/review_status.go",
+        "internal/engine/locationcluster.go",
+        "internal/engine/locationcluster_test.go",
+        "skills/tp/REFERENCE.md"
+      ]
     },
     {
       "id": "mechanize-qualifier",
