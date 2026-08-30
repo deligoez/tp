@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-30T12:51:44.818405Z",
+  "updated_at": "2026-08-30T14:19:24.672457Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -1297,7 +1297,7 @@
     {
       "id": "hook-timeouts",
       "title": "Bound every shipped hook",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "hook-session-start",
@@ -1309,11 +1309,22 @@
       "source_sections": [
         "### 6.4 Hook safety"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-30T12:52:29.555204Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-30T14:19:24.641939Z",
+      "closed_reason": "- Every hook the plugin ships is now held to section 6.4 by an invariant rather than by four per-hook assertions: internal/cli/hooks_bound_test.go discovers the declarations from both places a plugin can carry one (hooks/hooks.json and each agent definition's frontmatter, where the role write allowlist lives and the manifest names it nowhere), asserts each declares timeout 10, resolves through the plugin root and points at an executable script, and checks the scripts on disk against that set so a hook that ships unregistered is bounded by nothing. Verified by mutation: dropping one timeout from the manifest reddened the invariant plus that hook's own registration test, and adding a fifth unregistered hooks/*.sh reddened both new tests with the unregistered-and-unverified messages, each restored byte-identically and checksum-confirmed.\n- The behavioural half is run, not read: every shipped script is executed under a deadline of half the declared bound against empty stdin, no stdin at all, a closed pipe, non-JSON bytes, JSON cut off mid-key and a payload over 2 MiB, and a per-script table of fail-closed experiments (a fenced path behind two megabytes of content, a missing round environment, a role unit with no findings file) requires an entry per shipped hook, so a hook added without one fails rather than passing unverified.\n- Running it found a real violation the declaration hides: the Stop hook's awk validator used substr(str, pos, 1), which walks the whole string per call, so judging a findings file with one megabyte on a single line took 18.3 seconds - past the 10-second timeout declared for that hook, and the kill left the shell dead with awk still running. Character access now goes through a block reader engaged only above 1024 characters, with a substr fallback on an awk that does not split on the empty separator; the same file now takes 0.61 seconds at 16 MB, an 8 MB line takes 4.7 seconds, and every verdict is unchanged (rechecked over valid, blank, null, leading-zero, bad-escape and non-object lines). Mutating the block reader off reddened exactly the one-megabyte subtest and nothing else.\nOut of scope: mcp__codedbpro__patch clears a shell file's executable bit on every write, exactly as edit does; hooks/stop-role-incomplete.sh was chmod +x'd back and all four scripts are mode 100755 in the tree.",
+      "gate_passed_at": "2026-08-30T14:19:24.641939Z",
+      "commit_sha": "4fb389d",
+      "commit_shas": [
+        "4fb389d",
+        "ece4048",
+        "4620257",
+        "3a768d4"
+      ],
+      "commit_files": [
+        "hooks/stop-role-incomplete.sh",
+        "internal/cli/hooks_bound_test.go"
+      ]
     },
     {
       "id": "plugin-agents",
