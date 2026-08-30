@@ -43,6 +43,18 @@ var (
 		"audit_max_rounds":     true,
 		"checks":               true,
 		"review_converge_on":   true,
+
+		// §7's integer run caps. runner is deliberately absent: it takes three
+		// shapes rather than a scalar, so it is authored in the file itself.
+		"run_max_units":              true,
+		"run_max_wall_clock_seconds": true,
+		"run_max_unit_retries":       true,
+	}
+	// floatWorkflowFields are the editable workflow fields whose value is a
+	// decimal rather than an integer — §7's two budgets, in dollars.
+	floatWorkflowFields = map[string]bool{
+		"run_max_budget_usd":      true,
+		"run_max_unit_budget_usd": true,
 	}
 	readOnlyWorkflowFields = map[string]bool{
 		"quality_gate":    true,
@@ -319,6 +331,7 @@ func runSetWorkflow(args []string) error {
 
 	// Parse all field=value pairs first
 	pairs := make(map[string]int)
+	floatPairs := make(map[string]float64)
 	var checksValue []model.Check
 	checksSet := false
 	var convergeOnValue string
@@ -341,7 +354,15 @@ func runSetWorkflow(args []string) error {
 			os.Exit(ExitUsage)
 			return nil
 		}
-		if !editableWorkflowFields[field] {
+		// §5.1: runner and notify_cmd name commands the driver executes, so an
+		// unattended unit cannot set them at any layer. Checked before the
+		// unknown-field reply, which would otherwise be the only answer and
+		// would not say why the value is out of reach.
+		if engine.Unattended() && engine.FencedCommandField(field) {
+			refuseUnattendedCommandField(field)
+			return nil
+		}
+		if !editableWorkflowFields[field] && !floatWorkflowFields[field] {
 			output.Error(ExitUsage, fmt.Sprintf("unknown workflow field: %s", field))
 			os.Exit(ExitUsage)
 			return nil
@@ -382,12 +403,29 @@ func runSetWorkflow(args []string) error {
 			continue
 		}
 
+		// §7's two budgets are decimal dollars rather than integers.
+		if floatWorkflowFields[field] {
+			val, convErr := strconv.ParseFloat(valueStr, 64)
+			if convErr != nil {
+				output.Error(ExitValidation, fmt.Sprintf("%s must be a number", field))
+				os.Exit(ExitValidation)
+				return nil
+			}
+			fenceWorkflowWrite(field, val)
+			validateWorkflowFloat(field, val)
+			floatPairs[field] = val
+			continue
+		}
+
 		val, convErr := strconv.Atoi(valueStr)
 		if convErr != nil {
 			output.Error(ExitValidation, fmt.Sprintf("%s must be an integer", field))
 			os.Exit(ExitValidation)
 			return nil
 		}
+		// §5.1's fence runs before the range check, so a raise is answered as
+		// the refused decision it is whatever value it names.
+		fenceWorkflowWrite(field, float64(val))
 		lo, hi := workflowFieldRange(field)
 		if val < lo || val > hi {
 			output.Error(ExitValidation, fmt.Sprintf("%s must be between %d and %d", field, lo, hi))
@@ -428,6 +466,22 @@ func runSetWorkflow(args []string) error {
 				tf.Workflow.ReviewMaxRounds = &v
 			case "audit_max_rounds":
 				tf.Workflow.AuditMaxRounds = &v
+			case "run_max_units":
+				tf.Workflow.RunMaxUnits = &v
+			case "run_max_wall_clock_seconds":
+				tf.Workflow.RunMaxWallClockSeconds = &v
+			case "run_max_unit_retries":
+				tf.Workflow.RunMaxUnitRetries = &v
+			}
+			updated[field] = val
+		}
+		for field, val := range floatPairs {
+			v := val
+			switch field {
+			case "run_max_budget_usd":
+				tf.Workflow.RunMaxBudgetUSD = &v
+			case "run_max_unit_budget_usd":
+				tf.Workflow.RunMaxUnitBudgetUSD = &v
 			}
 			updated[field] = val
 		}
@@ -452,6 +506,9 @@ func runSetWorkflow(args []string) error {
 }
 
 // workflowFieldRange returns the valid write range for an editable workflow field.
+// workflowFieldRange returns the valid write range for an editable integer
+// workflow field. §7's run caps carry their bounds in the engine, so the range
+// a write is checked against is the one the resolver clamps to.
 func workflowFieldRange(field string) (lo, hi int) {
 	switch field {
 	case "gate_timeout_seconds":
@@ -460,7 +517,27 @@ func workflowFieldRange(field string) (lo, hi int) {
 		return 1, 60
 	case "review_max_rounds", "audit_max_rounds":
 		return 0, 50
+	case "run_max_units":
+		return engine.RunMaxUnitsMin, engine.RunMaxUnitsMax
+	case "run_max_wall_clock_seconds":
+		return engine.RunMaxWallClockSecondsMin, engine.RunMaxWallClockSecondsMax
+	case "run_max_unit_retries":
+		return engine.RunMaxUnitRetriesMin, engine.RunMaxUnitRetriesMax
 	default:
 		return 1, 10 // convergence fields
+	}
+}
+
+// validateWorkflowFloat rejects a decimal workflow field written outside §7's
+// range and exits 1. Both budgets share a floor of 0 — the documented
+// "disabled" value — and differ only in their ceiling.
+func validateWorkflowFloat(field string, val float64) {
+	lo, hi := engine.RunMaxBudgetUSDMin, engine.RunMaxBudgetUSDMax
+	if field == "run_max_unit_budget_usd" {
+		lo, hi = engine.RunMaxUnitBudgetUSDMin, engine.RunMaxUnitBudgetUSDMax
+	}
+	if val < lo || val > hi {
+		output.Error(ExitValidation, fmt.Sprintf("%s must be between %g and %g", field, lo, hi))
+		os.Exit(ExitValidation)
 	}
 }
