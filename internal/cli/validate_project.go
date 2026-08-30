@@ -17,9 +17,6 @@ import (
 // workflowDeviations reports each workflow field where a task file's override
 // differs from a value the project config explicitly sets. A field the project
 // does not set carries no policy and is not a deviation.
-// workflowDeviations reports each workflow field where a task file's override
-// differs from a value the project config explicitly sets. A field the project
-// does not set carries no policy and is not a deviation.
 //
 // notify_cmd is absent by construction: §7 reads it from .tp/local.json only,
 // so neither layer compared here can carry it and it can never deviate.

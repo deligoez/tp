@@ -15,8 +15,6 @@ import (
 	"github.com/deligoez/tp/internal/output"
 )
 
-// computeCommonPolicy returns the workflow fields that EVERY override sets with
-// an identical value — the only fields tp config --extract hoists.
 // commonPtr returns the value every override sets identically for one pointer
 // field, or nil when any override omits it or sets a different value. The
 // overrides are addressed rather than copied: WorkflowOverride is wide enough
@@ -91,7 +89,6 @@ func computeCommonPolicy(overrides []model.WorkflowOverride) model.WorkflowOverr
 }
 
 // hoistedFields lists the field names set in common, in a deterministic order.
-// hoistedFields lists the field names set in common, in a deterministic order.
 func hoistedFields(common *model.WorkflowOverride) []string {
 	var fields []string
 	if common.QualityGate != nil {
@@ -142,8 +139,6 @@ func hoistedFields(common *model.WorkflowOverride) []string {
 	return fields
 }
 
-// mergeCommon overwrites dst's hoisted keys with common's values, preserving
-// any other hand-set project field.
 // mergeCommon overwrites dst's hoisted keys with common's values, preserving
 // any other hand-set project field.
 func mergeCommon(dst, common *model.WorkflowOverride) {
