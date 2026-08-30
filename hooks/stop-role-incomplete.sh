@@ -57,10 +57,25 @@ fi
 # megabyte on a single line - which is exactly the runaway this hook exists to
 # block - took 18 seconds to judge, past the 10-second timeout the plugin
 # declares for it, and a hook the runtime has to kill reports nothing to anyone.
-# ch() reads a fixed block of characters at a time instead, which bounds both
-# the time and the memory the scan can cost without changing a single verdict.
+# ch() reads a fixed block of characters at a time instead, which makes the
+# scan linear in the line without changing a single verdict.
 # An awk that does not split on the empty separator falls back to substr, so the
 # predicate is decided identically everywhere and only the cost differs.
+#
+# Linear is not bounded, and the difference is the residual risk here. Measured
+# on the reference machine (BSD awk 20200816): a 1MB single line costs ~0.6s
+# idle and ~0.8s with four such scans running at once, against the declared
+# 10-second timeout. Two v0.35.0 auditors observed the same case reach ~10s on a
+# machine loaded by four concurrent agent sessions, so the margin is roughly
+# fifteenfold and it is contention, not line length, that consumes it. The cost
+# tracks how far the scan gets before failing - a line invalid at character one
+# costs ~0.07s - so the expensive case is a line that is valid deep into its
+# length. That matters because a killed hook does not exit 2 and the stop
+# proceeds, which is the right verdict for a valid line and the wrong one for
+# the narrow case of a long valid prefix followed by garbage. Making the scan
+# sublinear means giving up the shared character-by-character predicate that
+# test 52 pins across the hook, the driver and the oracle, so the trade is
+# recorded here rather than taken.
 ndjson_parses() {
 	awk '
 	BEGIN {
