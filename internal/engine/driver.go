@@ -80,8 +80,9 @@ type driver struct {
 // mid-run loses nothing but the attempts already in flight.
 //
 // The error return is for a failure the driver itself could not recover from —
-// a runner that will not exec, a run directory it cannot write. It is
-// deliberately not charged to the unit as a failed attempt (§3.4).
+// a runner that will not exec, a run directory it cannot write. It arrives as a
+// DriverError, stops the run with driver-error and exits 4, and is deliberately
+// not charged to the unit as a failed attempt (§3.4).
 func RunDriver(o *DriverOptions) (DriverResult, error) {
 	runID := NewULID()
 	result := DriverResult{RunID: runID}
@@ -89,12 +90,17 @@ func RunDriver(o *DriverOptions) (DriverResult, error) {
 	// The run directory exists before the first child, because a child
 	// addresses TP_RUN_DIR for its log and its escalation record and cannot
 	// be asked to create the directory its driver named.
+	//
+	// These two failures are driver errors with no recorder to record them
+	// in: the run state file is the very thing that could not be written, so
+	// the classification travels in the error alone and the caller's exit 4
+	// is the whole report.
 	if err := os.MkdirAll(RunDir(o.Root, runID), 0o750); err != nil {
-		return result, fmt.Errorf("create run directory: %w", err)
+		return result, driverErrorf(err, "create run directory")
 	}
 	rec, err := NewRunRecorder(o.Root, o.TaskFile, runID, "")
 	if err != nil {
-		return result, err
+		return result, driverErrorf(err, "create run state")
 	}
 	d := &driver{opts: o, runID: runID, rec: rec}
 
@@ -102,11 +108,11 @@ func RunDriver(o *DriverOptions) (DriverResult, error) {
 		// 1. Read the cycle state through the same path tp resume uses.
 		res, readErr := d.readCycle()
 		if readErr != nil {
-			return result, readErr
+			return d.fail(&result, readErr)
 		}
 		result.Phase = res.Phase
 		if err := rec.SetPhase(res.Phase); err != nil {
-			return result, err
+			return d.fail(&result, driverErrorf(err, "record the run's phase"))
 		}
 
 		// 2. A releasable cycle is the run's only agreed ending.
@@ -124,7 +130,7 @@ func RunDriver(o *DriverOptions) (DriverResult, error) {
 		//    until its attempt budget is spent.
 		finished, iterErr := d.runIteration(&res)
 		if iterErr != nil {
-			return result, iterErr
+			return d.fail(&result, iterErr)
 		}
 		if !finished {
 			return d.stop(&result, StopUnitFailure), nil
@@ -164,6 +170,21 @@ func (d *driver) stop(result *DriverResult, reason StopReason) DriverResult {
 	result.StopReason = reason
 	result.Units = d.rec.Snapshot().Totals.Units
 	return *result
+}
+
+// fail ends a run on an error the loop could not continue past, recording
+// driver-error for the ones §3.4 gives that name.
+//
+// Only a DriverError takes the reason. The other error the loop can return is a
+// runner value the configuration got wrong (§3.2), which is a usage error the
+// caller exits 2 on; giving it a stop reason would tell a driver's caller a run
+// had reached a state it never reached.
+func (d *driver) fail(result *DriverResult, err error) (DriverResult, error) {
+	var driverErr *DriverError
+	if errors.As(err, &driverErr) {
+		return d.stop(result, StopDriverError), err
+	}
+	return *result, err
 }
 
 // unitAttempt is one attempt at one unit: what the driver resolved before
@@ -256,13 +277,18 @@ func (d *driver) prepare(res *ResumeResult, units []NextUnit, attempt int) ([]*u
 	}
 
 	for _, a := range attempts {
+		// Both of these are the driver failing to prepare the ground it
+		// spawns on rather than the unit failing, so both are driver
+		// errors. The resolver's own errors above are not: a runner value
+		// that is none of §3.2's three shapes is the configuration being
+		// wrong, which exits 2 and keeps its own hint.
 		if err := clearUnitArtifacts(a); err != nil {
-			return nil, err
+			return nil, driverErrorf(err, "prepare %s unit %q", a.unit.Kind, a.unit.ID)
 		}
 		if err := d.rec.StartUnit(&RunUnitRow{
 			Seq: a.seq, Kind: a.unit.Kind, ID: a.unit.ID, Attempt: attempt, LogPath: a.logPath,
 		}); err != nil {
-			return nil, err
+			return nil, driverErrorf(err, "record the start of %s unit %q", a.unit.Kind, a.unit.ID)
 		}
 	}
 	return attempts, nil
@@ -308,7 +334,7 @@ func (d *driver) record(attempts []*unitAttempt) error {
 			continue
 		}
 		if err := d.rec.FinishUnit(a.seq, a.exitCode, a.duration, nil); err != nil && firstErr == nil {
-			firstErr = err
+			firstErr = driverErrorf(err, "record the result of %s unit %q", a.unit.Kind, a.unit.ID)
 		}
 	}
 	return firstErr
@@ -404,7 +430,7 @@ func (a *unitAttempt) spawn(root string, parent []string) {
 	case errors.As(err, &exitErr):
 		a.exitCode = exitErr.ExitCode()
 	default:
-		a.err = fmt.Errorf("spawn %s unit %q: %w", a.unit.Kind, a.unit.ID, err)
+		a.err = driverErrorf(err, "spawn %s unit %q", a.unit.Kind, a.unit.ID)
 	}
 	a.promoteRoleFindings()
 }
