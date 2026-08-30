@@ -116,3 +116,20 @@ func TestDoneGate_SilentGateFailureStillSummarizes(t *testing.T) {
 	assert.Contains(t, record.Summary, "exit 3", "the summary names the gate that failed")
 }
 
+// §4.2 holds at most one object: a second failure overwrites the first rather
+// than accumulating, and the surviving record belongs to the second unit.
+func TestDoneGate_SecondFailureOverwritesTheFirst(t *testing.T) {
+	dir := setupProjectWithGate(t, "echo boom; exit 7")
+	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+	addTask(t, dir, `{"id":"t2","title":"Task two","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+
+	_, _, code := runTPEnv(t, dir, gateUnitEnv("implement", "t1", "implement"), "done", "t1", "task complete and verified fully")
+	require.Equal(t, 4, code)
+	_, _, code = runTPEnv(t, dir, gateUnitEnv("implement", "t2", "implement"), "done", "t2", "task complete and verified fully")
+	require.Equal(t, 4, code)
+
+	record := readGateLastFailure(t, dir)
+	require.NotNil(t, record)
+	assert.Equal(t, "t2", record.UnitID, "the second failure overwrites the first")
+}
+
