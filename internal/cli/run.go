@@ -39,7 +39,13 @@ same batch it would spawn, printed as tp resume's next_units. It spawns
 nothing, writes no run state and takes no run lock, so it is safe to point at a
 cycle another run is already driving.
 
+A stop for any reason other than converged invokes the configured notify_cmd,
+exec'd without a shell and split on whitespace, carrying TP_STOP_REASON,
+TP_RUN_ID and — on an escalation — TP_ESCALATION_PATH. What it did is reported
+under notify; its own exit code changes nothing about the run.
+
 Output: {run_id, phase, stop_reason, units}
+        notify: {cmd, exit_code, error} when a notify_cmd ran
         --dry-run: {phase, round, next_units}`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -89,12 +95,21 @@ func runRun(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	if err := output.JSON(map[string]any{
+	payload := map[string]any{
 		"run_id":      result.RunID,
 		"phase":       result.Phase,
 		"stop_reason": result.StopReason,
 		"units":       result.Units,
-	}); err != nil {
+	}
+	// §5.2: a configured notify_cmd reports what it did, beside the stop it
+	// announced. The key is absent when no command ran, so the common case
+	// costs a reader nothing, and it is a report rather than a result: the
+	// exit code below is decided over stop_reason alone, so a notification
+	// that failed never reads as a run that ended differently.
+	if n := result.Notify; n != nil {
+		payload["notify"] = notifyPayload(n)
+	}
+	if err := output.JSON(payload); err != nil {
 		return err
 	}
 	// §3.4: the payload is emitted first and the exit code is decided over it,
@@ -106,6 +121,22 @@ func runRun(_ *cobra.Command, args []string) error {
 		os.Exit(code)
 	}
 	return nil
+}
+
+// notifyPayload renders one notify_cmd invocation (§5.2).
+//
+// exit_code and error are both always present, one of them null: the command
+// either came back with a code or never ran, and a shape that changes with the
+// outcome would make a reader test for a key before it can read a value.
+func notifyPayload(n *engine.NotifyOutcome) map[string]any {
+	row := map[string]any{"cmd": n.Cmd, "exit_code": nil, "error": nil}
+	if n.ExitCode != nil {
+		row["exit_code"] = *n.ExitCode
+	}
+	if n.Err != nil {
+		row["error"] = n.Err.Error()
+	}
+	return row
 }
 
 // runExitCode is §3.4's exit-code contract: 0 on `converged`, 4 on every other
