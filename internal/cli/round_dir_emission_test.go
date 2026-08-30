@@ -80,3 +80,32 @@ func TestRoleOutputPathIsRoundScopedUnderARun(t *testing.T) {
 	}
 }
 
+// TestRoleOutputPathIsUnchangedOutsideARun is §6.3's last sentence: outside a
+// run the emitted filename is unchanged, so the interactive loop that has always
+// collected <phase>-r<N>-<role>.ndjson in the working directory keeps working.
+// It is the arm that fails if the round-scoped path is emitted unconditionally.
+func TestRoleOutputPathIsUnchangedOutsideARun(t *testing.T) {
+	dir, specPath, codePath := emissionFixture(t)
+
+	for _, tc := range []struct {
+		phase string
+		args  []string
+	}{
+		{"review", []string{"review", specPath, "--no-state"}},
+		{"audit", []string{"audit", specPath, "--affected-files", codePath}},
+	} {
+		t.Run(tc.phase, func(t *testing.T) {
+			// TP_ROUND_DIR is cleared explicitly rather than merely left
+			// unset: the child inherits the test process's environment, so
+			// an ambient value — a `go test` run from inside a unit — would
+			// otherwise turn this arm red for a reason that is not the code.
+			prompts := emittedPrompts(t, dir, []string{engine.EnvRoundDir + "="}, tc.args...)
+			for _, pm := range prompts {
+				role := pm["role"].(string)
+				assert.Equal(t, tc.phase+"-r1-"+role+".ndjson", pm["output_path"].(string),
+					"with no TP_ROUND_DIR in the environment the name is the one tp always emitted")
+			}
+		})
+	}
+}
+
