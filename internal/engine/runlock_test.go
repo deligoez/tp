@@ -9,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/deligoez/tp/internal/output"
 )
 
 // runLockTarget lays down a task file in a fresh temp project and returns its
@@ -150,4 +152,40 @@ func TestWithRunLock_FnErrorPropagated(t *testing.T) {
 	assert.ErrorIs(t, err, assert.AnError)
 	var busy *RunLockBusyError
 	assert.False(t, errors.As(err, &busy), "a failing run is not lock contention")
+}
+
+// TestWithRunLock_GitignoreWarningIsANotice pins the channel of the one thing
+// WithRunLock reports without failing. output.Notice is the helper that honours
+// --quiet; a raw write to os.Stderr does not, so a run started with --quiet
+// still printed this advisory.
+//
+// The failure is induced rather than described: .tp/.gitignore is made a
+// directory, so EnsureTPGitignore's ReadFile fails with something that is not
+// os.IsNotExist and the warning branch is genuinely taken. Without the loud
+// half first, the quiet assertion would hold against a branch that never ran
+// and would pass whatever channel the warning used.
+func TestWithRunLock_GitignoreWarningIsANotice(t *testing.T) {
+	t.Cleanup(func() { output.Configure(false, false, false) })
+
+	blockGitignore := func(target string) {
+		t.Helper()
+		require.NoError(t, os.MkdirAll(filepath.Join(filepath.Dir(target), ".tp", ".gitignore"), 0o755))
+	}
+
+	loud := runLockTarget(t)
+	blockGitignore(loud)
+	output.Configure(false, false, true)
+	warned := captureAuditRoundNotices(t, func() {
+		assert.NoError(t, WithRunLock(loud, func() error { return nil }))
+	})
+	require.Contains(t, warned, ".gitignore",
+		"the induced failure must reach the warning, or the quiet case proves nothing")
+
+	quiet := runLockTarget(t)
+	blockGitignore(quiet)
+	output.Configure(false, true, true)
+	silent := captureAuditRoundNotices(t, func() {
+		assert.NoError(t, WithRunLock(quiet, func() error { return nil }))
+	})
+	assert.Empty(t, silent, "--quiet suppresses the advisory")
 }

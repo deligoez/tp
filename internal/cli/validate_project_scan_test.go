@@ -76,3 +76,23 @@ func TestValidateProject_ReportsAnIncompleteScan(t *testing.T) {
 	assert.Contains(t, stderr, "a-locked",
 		"the unreadable location is warned about on stderr")
 }
+
+// A task file the scan cannot parse is skipped with an advisory, and the
+// advisory has to travel on output.Notice: Notice is the helper that honours
+// --quiet, and a raw write to os.Stderr ignores it. The loud half is not
+// decoration — it proves the warning was reachable at all, so the quiet half
+// is a suppression rather than an absence.
+func TestValidateProject_MalformedTaskFileWarningRespectsQuiet(t *testing.T) {
+	dir := writeProjectConfigDir(t, `{"review_max_rounds":8}`)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "broken.tasks.json"),
+		[]byte(`{"spec":"s.md","tasks":[`), 0o600))
+
+	_, stderr, code := runTP(t, dir, "validate", "--project")
+	require.Equal(t, 0, code, "a malformed task file is skipped, not fatal: %s", stderr)
+	require.Contains(t, stderr, "broken.tasks.json",
+		"the skipped file is named on stderr when the run is not quiet")
+
+	_, quietStderr, quietCode := runTP(t, dir, "validate", "--project", "--quiet")
+	require.Equal(t, 0, quietCode, "%s", quietStderr)
+	assert.Empty(t, quietStderr, "--quiet suppresses the advisory")
+}
