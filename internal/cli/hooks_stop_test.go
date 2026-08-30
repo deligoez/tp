@@ -254,3 +254,24 @@ func TestStopHookNeverFiresForANonRoleKind(t *testing.T) {
 	}
 }
 
+// TestStopHookBlocksAtMostOncePerUnit is test 39. A hook that always blocks
+// produces an agent that can never finish, which is the loop this whole version
+// exists to make terminating: once Claude Code reports the stop was already
+// blocked, the hook stands down whatever the unit did or did not write.
+func TestStopHookBlocksAtMostOncePerUnit(t *testing.T) {
+	role, _ := roleKinds(t)
+
+	for _, kind := range role {
+		t.Run(kind, func(t *testing.T) {
+			unit := stopUnit(t, kind)
+
+			first := runStopHook(t, unit, false)
+			require.Equal(t, 2, first.exitCode, "the first stop is blocked; stderr=%q", first.stderr)
+
+			second := runStopHook(t, unit, true)
+			assert.Zero(t, second.exitCode, "stop_hook_active allows the second stop; stderr=%q", second.stderr)
+			assert.Empty(t, second.stderr)
+		})
+	}
+}
+
