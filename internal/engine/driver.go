@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/deligoez/tp/internal/model"
+	"github.com/deligoez/tp/internal/output"
 )
 
 // The §3.4 stop reasons are the StopReason vocabulary in stopreason.go; the
@@ -125,6 +126,16 @@ func RunDriver(o *DriverOptions) (DriverResult, error) {
 	sig := watchInterrupts()
 	defer sig.stop()
 	d := &driver{opts: o, runID: runID, rec: rec, sig: sig}
+
+	// §3.2.2: a runner that meters nothing is reported here and nowhere
+	// else, which is what makes "once at run start" a property of where the
+	// line sits rather than of a flag somebody has to remember to clear. A
+	// partial spend total — or none at all — is then never mistaken for a
+	// complete one, and run_max_budget_usd being inert for those kinds is
+	// said out loud rather than discovered from a cap that never trips.
+	if msg := spendNotice(unmeteredKinds(o.Workflow.Runner)); msg != "" {
+		output.Notice(msg)
+	}
 
 	// prev is what the previous iteration ended as, nil before the first has
 	// run. It is carried into the next iteration's read rather than answered
