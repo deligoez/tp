@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-30T11:10:22.223819Z",
+  "updated_at": "2026-08-30T11:22:39.396879Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -872,7 +872,7 @@
     {
       "id": "audit-resolve",
       "title": "Add tp audit --resolve",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "unit-kinds"
@@ -882,11 +882,31 @@
       "source_sections": [
         "### 3.3 Unit kinds"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-30T11:11:08.687309Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-30T11:22:39.306417Z",
+      "closed_reason": "- tp audit --resolve / --resolve-all now dispose audit rows with the same three dispositions (fixed/wontfix/duplicate) and the same --force and --resolve-all flags as tp review's counterparts, and additionally accept a role:item_id selector beside the 0-based index (internal/cli/audit_resolve.go, wired in newAuditCmd): the selector is told apart by the colon a role id never contains, a spec-looking positional exits 2, an already-disposed row exits 1 without --force, a missing results file exits 3, and the two modes reject every flag they do not read while --force outside them is a usage error rather than a silent no-op.\n- An audit-fix unit that disposes its row without any code change satisfies its predicate (test 53): a subprocess test writes a merged.ndjson into a round directory, asserts UnitAuditFix.DurableWrite is false, runs tp audit merged.ndjson --resolve go-safety:item-4 wontfix, and asserts it is then true. Verified by running: the whole suite was written first and watched fail against unchanged code (unknown flag: --resolve), then four mutations were injected and each reddened only the tests that should have — writing the disposition without persisting it reddened five tests while the success JSON stayed identical, an untrimmed role comparison reddened exactly the two trimming rows, a last-colon split reddened only the multi-colon key row, and making tp audit --record treat a disposition as PASS reddened the reasserted gate test. Every mutation was restored byte-identically (checksum-verified).\n- Section 3.3's addition invalidates v0.33.0's Non-Goal 5 test, which pinned the absence of an audit-side --resolve; it now asserts what that non-goal actually protects — a disposition is not an escape hatch, since tp audit --record counts every non-PASS row and reads no disposition at all. The v0.34.2 surface baseline gained the three flags in the same commit that adds them, as its own comment requires, and SKILL.md's inventory and Workflow D document them.\n- Gate green, each step run separately: go test -race ./... = 0, golangci-lint run = 0, ./scripts/check-deadcode.sh = 0. Dogfooded with a freshly built /tmp/tp-dev/tp on a scratch round directory: both selectors, the refusal, --force, --resolve-all's skip counts, and all four usage errors behave as specified.\nOut of scope: --resolve-all mirrors review exactly and therefore also stamps PASS rows, which carry no finding to dispose; nothing reads it (the oracle skips PASS rows and --record reads no disposition), but a future version may want it to skip them.",
+      "gate_passed_at": "2026-08-30T11:22:39.306417Z",
+      "commit_sha": "da659a7",
+      "commit_shas": [
+        "da659a7",
+        "7951cb2",
+        "aca4e0f",
+        "a6781c7",
+        "3719774",
+        "50aa8df",
+        "4b8c2d4",
+        "40ce0ce"
+      ],
+      "commit_files": [
+        "internal/cli/audit.go",
+        "internal/cli/audit_resolve.go",
+        "internal/cli/audit_resolve_internal_test.go",
+        "internal/cli/audit_resolve_test.go",
+        "internal/cli/audit_signal_test.go",
+        "internal/cli/nongoals_surface_test.go",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "round-dir-emission",
