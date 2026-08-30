@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-30T09:39:04.375994Z",
+  "updated_at": "2026-08-30T09:50:34.076463Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -143,7 +143,7 @@
     {
       "id": "runner-seam",
       "title": "Add the TP_RUNNER_SEAM test seam",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "runner-templates"
@@ -153,11 +153,28 @@
       "source_sections": [
         "#### 3.2.1 Templates and placeholders"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-30T09:39:53.862822Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-30T09:50:34.025979Z",
+      "closed_reason": "- engine.SeamRunner resolves TP_RUNNER_SEAM to a runner whose cmd is the variable value, whose args are section 3.2.1 positional list {unit_kind} {unit_id} {log_path} {max_budget_usd} and whose spend_key is total_cost_usd, and ResolveUnitRunner reads it before the runner field so it outranks every layer including a CLI-level value; verified in both arms (without the seam the CLI-level runner object wins, with it the seam wins even over a value the resolver rejects), watched failing first with SeamRunner deliberately unwired, then by mutating the seam into a no-op, which reddened exactly the five seam tests and left the control arm and every other runner test green.\n- internal/fakerunner is the fake runner the seam pins: a real executable that claims its sequence number by exclusive file creation and records each invocation argv, whole environment, spawn time and exit time, exits with a scripted code and writes the final total_cost_usd log line, with fakerunner.Records reading the completed records back in order; verified by running it rather than reading it, including two concurrent children whose recorded windows overlap (test 1 and section 10.1 test 5), and by mutating the recorded spawn time, the argv/environment capture and the scripted exit each into a no-op, which reddened exactly the overlap test, the two argv tests and the exit-code test respectively, restored byte-identically each time.\nOut of scope: a doc-comment paragraph is duplicated verbatim in internal/engine/configresolve.go (ResolveWorkflowLayers) and in internal/engine/runnertemplate_test.go (TestBuiltinRunner_ClaudeArgv), a copy-paste artifact left by earlier units.",
+      "gate_passed_at": "2026-08-30T09:50:34.025979Z",
+      "commit_sha": "bcc950e",
+      "commit_shas": [
+        "bcc950e",
+        "dd27bf1",
+        "1bf2d25",
+        "a47900d",
+        "ba1e498",
+        "7e4bcd1"
+      ],
+      "commit_files": [
+        "internal/engine/runnerseam.go",
+        "internal/engine/runnerseam_test.go",
+        "internal/engine/runnertemplate.go",
+        "internal/fakerunner/cmd/tp-fake-runner/main.go",
+        "internal/fakerunner/fakerunner.go",
+        "internal/fakerunner/fakerunner_test.go"
+      ]
     },
     {
       "id": "runner-spend",
