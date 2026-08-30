@@ -257,3 +257,23 @@ func TestRunDriver_CapUnitsStopsTheRun(t *testing.T) {
 	assert.Len(t, invocations(t, records), 1, "the cap stops the run after one spawned child")
 }
 
+// The spawn set is §3.1 step 4's rule as a function: concurrent kinds go
+// together, and a non-concurrent kind goes alone whatever it was returned with.
+func TestConcurrentBatch(t *testing.T) {
+	role := func(id string) NextUnit { return NextUnit{Kind: UnitReviewRole, ID: id} }
+	cases := []struct {
+		name  string
+		units []NextUnit
+		want  int
+	}{
+		{"role siblings spawn together", []NextUnit{role("a"), role("b"), role("c")}, 3},
+		{"a lone implement unit", []NextUnit{{Kind: UnitImplement, ID: "t"}}, 1},
+		{"a non-concurrent kind never brings a sibling", []NextUnit{{Kind: UnitAuditFix, ID: "r:1"}, role("a")}, 1},
+		{"a non-concurrent kind behind siblings still goes alone", []NextUnit{role("a"), {Kind: UnitDecompose, ID: "s"}}, 1},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Len(t, concurrentBatch(tc.units), tc.want)
+		})
+	}
+}
