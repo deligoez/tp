@@ -31,9 +31,6 @@ type promptFraming struct {
 	hasFiles         bool     // §10.7: any source files are in scope for this role
 }
 
-// renderFraming produces the framing block appended to a role prompt. It states
-// the output file (§10.4), the reset discipline (§10.5), the loop budget
-// (§10.6), and the file-reading situation (§10.7) — explicitly, never implied.
 // roleOutputPath returns the file one role writes this round's findings to —
 // the emitted prompt's output_path and the path §10.4's line names in its body.
 //
@@ -51,6 +48,9 @@ func roleOutputPath(phase string, round int, role string) string {
 	return fmt.Sprintf("%s-r%d-%s.ndjson", phase, round, role)
 }
 
+// renderFraming produces the framing block appended to a role prompt. It states
+// the output file (§10.4), the reset discipline (§10.5), the loop budget
+// (§10.6), and the file-reading situation (§10.7) — explicitly, never implied.
 func renderFraming(f *promptFraming) string {
 	var b strings.Builder
 	b.WriteString("\n\n## Unit framing\n\n")
