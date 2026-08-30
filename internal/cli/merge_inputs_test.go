@@ -124,3 +124,25 @@ func TestReviewMerge_BlankAndZeroByteInputsExitZero(t *testing.T) {
 	assert.Equal(t, [2]int{0, 0}, inputs[empty])
 }
 
+// TestAuditMerge_InputsReportPerFileCounts covers test 32 for the audit merge —
+// the same rule applies to both, because an unattended driver reads the exit
+// code alone.
+func TestAuditMerge_InputsReportPerFileCounts(t *testing.T) {
+	dir := t.TempDir()
+
+	f1 := writeFindingsFile(t, dir, "a1.ndjson", []string{
+		goodAuditRow1,
+		`{"role":"go-safety","item_id":"z"}`, // incomplete: no status
+		goodAuditRow2,
+	})
+	f2 := writeFindingsFile(t, dir, "a2.ndjson", []string{goodAuditRow3})
+
+	stdout, stderr, code := runTPMerge(t, dir, "audit", "--merge", "--json", f1, f2)
+	require.Equal(t, 0, code, "an input that parsed at least one row is not a dropped role: %s", stderr)
+
+	inputs := mergeInputsOf(t, stdout)
+	assert.Len(t, inputs, 2)
+	assert.Equal(t, [2]int{2, 1}, inputs[f1])
+	assert.Equal(t, [2]int{1, 0}, inputs[f2])
+}
+
