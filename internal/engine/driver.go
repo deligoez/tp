@@ -120,16 +120,13 @@ func RunDriver(o *DriverOptions) (DriverResult, error) {
 			return d.stop(&result, StopNoUnits), nil
 		}
 
-		// 4. Spawn a runner process per unit.
-		batch, prepErr := d.prepare(&res)
-		if prepErr != nil {
-			return result, prepErr
+		// 4. Spawn a runner process per unit, retrying a unit that failed
+		//    until its attempt budget is spent.
+		finished, iterErr := d.runIteration(&res)
+		if iterErr != nil {
+			return result, iterErr
 		}
-		spawnAll(o.Root, batch)
-		if err := d.record(batch); err != nil {
-			return result, err
-		}
-		if !allSucceeded(batch) {
+		if !finished {
 			return d.stop(&result, StopUnitFailure), nil
 		}
 
@@ -183,15 +180,50 @@ type unitAttempt struct {
 	err      error
 }
 
-// prepare resolves everything one iteration's units need and returns the
-// attempts to spawn.
+// runIteration spawns one iteration's units and retries the ones that failed,
+// reporting whether every unit finished.
+//
+// A unit gets `1 + run_max_unit_retries` attempts (§3.4), and only the units
+// that failed are carried into the next attempt: a role sibling that already
+// wrote its findings has finished, and re-spawning it would spend an attempt
+// on work that is already durable. Each retry goes back through prepare, so it
+// takes a fresh seq and log path and has its findings file cleared again
+// (§3.1.1) — a leftover from the attempt that failed can never answer for the
+// one that replaces it.
+//
+// A driver-side failure — a runner that will not exec — comes back from record
+// as an error and is returned rather than retried: §3.4 keeps that apart from
+// a failed attempt, and charging the unit for it would spend a budget the unit
+// never got to use.
+func (d *driver) runIteration(res *ResumeResult) (bool, error) {
+	units := concurrentBatch(res.NextUnits)
+	budget := attemptBudget(&d.opts.Workflow)
+	for attempt := 1; attempt <= budget; attempt++ {
+		batch, prepErr := d.prepare(res, units, attempt)
+		if prepErr != nil {
+			return false, prepErr
+		}
+		spawnAll(d.opts.Root, batch)
+		if err := d.record(batch); err != nil {
+			return false, err
+		}
+		units = failedUnits(batch)
+		if len(units) == 0 {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// prepare resolves everything one attempt at a set of units needs and returns
+// the attempts to spawn. attempt is the 1-based attempt number the run state's
+// rows carry (§3.5).
 //
 // Every command line is fully resolved before anything is spawned, which is
 // how §3.2.1's "raised before any child is spawned" is kept structurally: a
 // bad template or an unresolvable placeholder returns here, with the run
 // having done nothing to recover from.
-func (d *driver) prepare(res *ResumeResult) ([]*unitAttempt, error) {
-	units := concurrentBatch(res.NextUnits)
+func (d *driver) prepare(res *ResumeResult, units []NextUnit, attempt int) ([]*unitAttempt, error) {
 	attempts := make([]*unitAttempt, 0, len(units))
 	for _, u := range units {
 		d.seq++
@@ -228,7 +260,7 @@ func (d *driver) prepare(res *ResumeResult) ([]*unitAttempt, error) {
 			return nil, err
 		}
 		if err := d.rec.StartUnit(&RunUnitRow{
-			Seq: a.seq, Kind: a.unit.Kind, ID: a.unit.ID, Attempt: 1, LogPath: a.logPath,
+			Seq: a.seq, Kind: a.unit.Kind, ID: a.unit.ID, Attempt: attempt, LogPath: a.logPath,
 		}); err != nil {
 			return nil, err
 		}
@@ -383,16 +415,31 @@ func (a *unitAttempt) promoteRoleFindings() {
 	_ = os.Rename(final+roleFindingsPartSuffix, final)
 }
 
-// allSucceeded reports whether every attempt in the batch succeeded, by the
-// kind's own two-part test: exit 0 and the durable write present (§3.3.1). The
-// driver reads those two and never the unit's output.
-func allSucceeded(attempts []*unitAttempt) bool {
+// succeeded reports whether this attempt succeeded, by the kind's own two-part
+// test: exit 0 and the durable write present (§3.3.1). The driver reads those
+// two and never the unit's output.
+//
+// A driver-side spawn failure is not a success either, but it is not a failed
+// attempt: runIteration returns it as an error before this is consulted.
+func (a *unitAttempt) succeeded() bool {
+	return a.err == nil && a.unit.Kind.Succeeded(a.exitCode, a.target)
+}
+
+// failedUnits returns the units of a spawned batch whose attempt did not
+// succeed — the set a retry re-spawns, and the set that stops the run with
+// unit-failure once the budget is spent.
+//
+// It is the one place an attempt's outcome is turned into "try again", so a
+// later outcome that must not be charged as a failed attempt is added here
+// rather than in the loop.
+func failedUnits(attempts []*unitAttempt) []NextUnit {
+	failed := make([]NextUnit, 0, len(attempts))
 	for _, a := range attempts {
-		if a.err != nil || !a.unit.Kind.Succeeded(a.exitCode, a.target) {
-			return false
+		if !a.succeeded() {
+			failed = append(failed, a.unit)
 		}
 	}
-	return true
+	return failed
 }
 
 // capStop returns the cap a run has reached, or "" while it is within all of
@@ -413,6 +460,22 @@ func capStop(st *RunState, wf *model.Workflow) StopReason {
 		return StopCapUnits
 	}
 	return ""
+}
+
+// attemptBudget is how many times one unit is attempted: 1 + the workflow's
+// run_max_unit_retries (§3.4), so the default of 1 gives two attempts and 0
+// gives one attempt and no retry.
+//
+// A negative value — outside §7's 0-5 range, which the config layer clamps and
+// only a caller building a workflow by hand can produce — still buys one
+// attempt. A unit attempted zero times is not a unit the driver can report an
+// exit code or a durable write for, so there is nothing it could honestly say
+// about it.
+func attemptBudget(wf *model.Workflow) int {
+	if wf.RunMaxUnitRetries < 1 {
+		return 1
+	}
+	return 1 + wf.RunMaxUnitRetries
 }
 
 // isRoleKind reports whether a kind is one of the two that write a role
