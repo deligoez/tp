@@ -302,6 +302,18 @@ tp ships a Claude Code skill via the [Agent Skills](https://agentskills.io) stan
 updated with the `npx skills` commands under [Install](#install). The skill teaches the agent the
 2-call workflow, decomposition rules, NDJSON format, closure verification, and commit conventions.
 
+The repository is also a Claude Code **plugin**: `.claude-plugin/plugin.json` beside the marketplace
+manifest, that same `skills/tp`, plus `hooks/` and `agents/`. **The binary is not inside it** — a
+marketplace is a git repository, so installation stays Homebrew or `go install`, and the
+`SessionStart` hook preflights `tp`'s presence and version and fails with the install command rather
+than degrading quietly. It also injects `tp resume --compact` as orientation. A `PreToolUse` hook
+denies hand-writes to tp's own state — `.tp-review/` contents, `*.tasks.json`, `.tp/config.json`,
+`.tp/local.json` — and a `Stop` hook refuses a review or audit role unit's stop, once, while its
+findings file is still missing and it has written no escalation record. `agents/` declares
+`tp-implementer`, `tp-reviewer` and `tp-auditor`, carrying tool restrictions only: a role's content
+lives in the corpus and reaches the unit through the prompt tp emits. Every hook is bounded by a
+`timeout` of 10 seconds.
+
 ## Research
 
 tp's design is backed by:
