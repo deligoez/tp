@@ -103,3 +103,37 @@ func TestRunDriver_AUnitThatSucceedsOnItsRetryLetsTheRunContinue(t *testing.T) {
 	assert.Len(t, spawnedIDs(invocations(t, records)), 2, "one failed attempt and one that finished it")
 }
 
+// §3.1.1 applies to every attempt, not only the first: the role's findings file
+// and any stale .part are deleted immediately before each spawn.
+//
+// The arrangement is the only one that discriminates. The first attempt writes
+// its .part and exits non-zero, so the driver does not promote it; the second
+// writes nothing at all. A driver that cleared the leftover has nothing to
+// rename and reports the unit unfinished; one that did not would rename the
+// dead attempt's file into place and count a child that wrote nothing as a
+// success.
+func TestRunDriver_ClearsARoleLeftoverBeforeEachRetry(t *testing.T) {
+	root, spec, taskFile, records := seamProject(t, `{"spec":"s.md","tasks":[]}`)
+
+	roles := []string{"implementer", "tester", "architect"}
+	t.Setenv(fakerunner.EnvDurable, "1,1,1,0")
+	t.Setenv(fakerunner.EnvExits, "1,1,1")
+
+	wf := driverWorkflow()
+	wf.RunMaxUnitRetries = 1
+	res := driveOnce(t, root, spec, taskFile, wf)
+
+	assert.Equal(t, StopUnitFailure, res.StopReason,
+		"the retry wrote nothing, so the unit exhausted its attempts")
+	assert.Len(t, spawnedIDs(invocations(t, records)), 2*len(roles), "every role is attempted twice")
+
+	roundDir := RoundDir(root, taskFile, PhaseReview, 1)
+	for _, role := range roles {
+		findings := RoleFindingsPath(roundDir, role)
+		assert.NoFileExists(t, findings,
+			"the first attempt's .part must not be promoted into the retry's durable write")
+		assert.NoFileExists(t, findings+roleFindingsPartSuffix,
+			"the retry starts from a cleared findings file")
+	}
+}
+
