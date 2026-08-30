@@ -133,8 +133,10 @@ tp config                      # Effective project configuration (--resolved, --
 Multi-spec repos share **one** workflow policy instead of copying it into every `*.tasks.json` — so
 an agent working across specs reads a single source of truth and cannot silently drift. A repo-root
 `.tp/` directory holds it: `.tp/config.json` carries the shared workflow defaults (commit it),
-`.tp/local.json` carries per-checkout state — the active task-file pointer and CLI flag defaults —
-and is git-ignored automatically. Effective values resolve at read time, so a task file's `workflow`
+`.tp/local.json` carries per-checkout state — the active task-file pointer, CLI flag defaults, and
+`tp run`'s `notify_cmd`, which is per-operator rather than per-project — and is git-ignored
+automatically, along with the run artifacts (`run-*.json`, `runs/`, `rounds/`, `locks/`,
+`last_failure-*.json`). Effective values resolve at read time, so a task file's `workflow`
 block holds only explicit overrides.
 
 The layers, the `tp config` / `tp set --project` / `tp set --local` forms and the task-file discovery
