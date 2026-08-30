@@ -2,6 +2,7 @@ package engine
 
 import (
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/deligoez/tp/internal/model"
@@ -100,7 +101,9 @@ func recordedRounds(phase string, st *ReviewState) (int, bool) {
 // The panel and the roles still pending are kept apart because they answer
 // different questions: an empty panel is a corpus that could not be resolved or
 // one wholly deactivated, while a non-empty panel with nothing pending is a
-// collected round — the two cases §4.1 separates with its non-empty guard.
+// collected round — the two cases §4.1 separates with its non-empty guard. Only
+// the second gets the round's record unit; the first keeps returning nothing, so
+// its emptiness stays a no-units stop a human sees.
 func roundBasedUnits(root, phase string, recorded int, target UnitTarget) (units []NextUnit, round *int) {
 	roleKind, corpusPhase := UnitReviewRole, PhaseReviewers
 	if phase == PhaseAudit {
@@ -124,7 +127,41 @@ func roundBasedUnits(root, phase string, recorded int, target UnitTarget) (units
 		}
 		pending = append(pending, unit)
 	}
+	if len(panel) > 0 && len(pending) == 0 {
+		if unit, ok := recordUnit(phase, collecting, target); ok {
+			return []NextUnit{unit}, &collecting
+		}
+	}
 	return pending, &collecting
+}
+
+// recordUnit returns the single review-record or audit-record unit a collected
+// round still owes, and false when that round already has its recorded entry
+// (§4.1). Its id is the round number, which is the record kinds' durable
+// subject (§3.1.1) and what makes `(kind, id)` identify the unit.
+//
+// The suppressing condition is the round file's own presence rather than the
+// negation of the kind's §3.3 durable write, and the two differ in exactly one
+// direction. That predicate is the merged file AND the round file, so it is
+// also false for a round already recorded whose merged file has since gone;
+// emitting there would re-record a recorded round and inflate the very
+// convergence count §3.4 says no stop reason may touch. The round file's
+// absence implies the durable write's absence, so testing it alone is the
+// conjunction of both — and the caller's non-empty panel guard is what keeps
+// the emission off a round holding zero role files.
+//
+// It is deliberately not derived from the review state's round count: the
+// writers put round files first (WithReviewStateLock), so a crash between the
+// two leaves a round recorded that the count has not yet seen.
+func recordUnit(phase string, round int, target UnitTarget) (NextUnit, bool) {
+	if fileExists(roundFilePath(target.Spec, phase, round)) {
+		return NextUnit{}, false
+	}
+	kind := UnitReviewRecord
+	if phase == PhaseAudit {
+		kind = UnitAuditRecord
+	}
+	return newNextUnit(kind, strconv.Itoa(round), target), true
 }
 
 // dispositionUnit returns the one resolve or fix unit a recorded round still
