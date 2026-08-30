@@ -72,6 +72,11 @@ type driver struct {
 	runID string
 	rec   *RunRecorder
 	seq   int
+	// sig is the operator's signal, watched for the whole run (§3.4). It is
+	// read at every point the loop is about to spawn something, which is
+	// what makes "no new unit is spawned" a property of the code rather
+	// than of how quickly the driver happens to notice.
+	sig *interrupts
 }
 
 // RunDriver executes §3.1's loop and returns the reason it stopped.
@@ -108,7 +113,13 @@ func RunDriver(o *DriverOptions) (DriverResult, error) {
 	if err != nil {
 		return result, driverErrorf(err, "create run state")
 	}
-	d := &driver{opts: o, runID: runID, rec: rec}
+	// §3.4's two signals are watched for the whole loop and released when it
+	// ends. The watch starts after the two driver errors above: until there is
+	// a recorder, a signal has nowhere to record the stop it causes, and the
+	// default disposition is the more honest answer.
+	sig := watchInterrupts()
+	defer sig.stop()
+	d := &driver{opts: o, runID: runID, rec: rec, sig: sig}
 
 	for {
 		// 1. Read the cycle state through the same path tp resume uses.
@@ -124,6 +135,15 @@ func RunDriver(o *DriverOptions) (DriverResult, error) {
 		// 2. A releasable cycle is the run's only agreed ending.
 		if res.Phase == PhaseRelease {
 			return d.stop(&result, StopConverged), nil
+		}
+		// 2a. A signal is read before anything is spawned. §3.4 ranks
+		//     `interrupted` below `converged` and above everything the rest
+		//     of this iteration could produce, so this is where it belongs:
+		//     a cycle that became releasable is still releasable, and a
+		//     signalled run spawns nothing further — not even against an
+		//     empty next_units, whose `no-units` it outranks.
+		if d.sig.signalled() {
+			return d.stop(&result, StopInterrupted), nil
 		}
 		// 3. An empty next_units stops the run rather than re-polling: the
 		//    oracle has said the phase cannot proceed, and a driver that
@@ -151,7 +171,13 @@ func RunDriver(o *DriverOptions) (DriverResult, error) {
 
 		// 5. The next iteration's read is step five: the cycle is re-read
 		//    from disk, never carried over from what a child claimed.
-		// 6. Check caps; loop.
+		// 6. Check caps; loop. The signal is read first because §3.4
+		//    ranks `interrupted` above all three caps, and because a run
+		//    that reached both is one an operator stopped rather than one
+		//    a cap bounded.
+		if d.sig.signalled() {
+			return d.stop(&result, StopInterrupted), nil
+		}
 		snapshot := rec.Snapshot()
 		if reason := capStop(&snapshot, &o.Workflow); reason != "" {
 			return d.stop(&result, reason), nil
