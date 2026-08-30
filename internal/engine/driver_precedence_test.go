@@ -155,3 +155,25 @@ func TestRunDriver_UnitFailureOutranksACapTheSameIterationReached(t *testing.T) 
 	assert.Len(t, invocations(t, records), 1, "the one attempt is all the budget bought")
 }
 
+// A cap outranks no-units: a role panel that reached the unit cap and left the
+// oracle with nothing pending records the cap, because a run that was cut short
+// is not a phase that has run out of work.
+func TestRunDriver_ACapOutranksAnEmptyNextUnits(t *testing.T) {
+	root, spec, taskFile, records := seamProject(t, `{"spec":"s.md","tasks":[]}`)
+	t.Setenv(fakerunner.EnvDurable, "1")
+
+	wf := driverWorkflow()
+	wf.RunMaxUnits = 3
+	res := driveOnce(t, root, spec, taskFile, wf)
+
+	require.Len(t, invocations(t, records), 3, "the whole review panel ran and wrote its findings")
+	_, _, units, err := DryRunUnits(&DriverOptions{Root: root, TaskFile: taskFile, Spec: spec, Workflow: *wf})
+	require.NoError(t, err)
+	require.Empty(t, units,
+		"the oracle owes no further unit, so no-units was satisfied at the same checkpoint")
+
+	st := readRunStateFile(t, root, taskFile)
+	require.Equal(t, StopCapUnits, capStop(&st, wf), "and so was the unit cap")
+	assert.Equal(t, StopCapUnits, res.StopReason,
+		"cap-units precedes no-units: the run was bounded, not out of work")
+}
