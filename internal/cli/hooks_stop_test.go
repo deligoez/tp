@@ -230,3 +230,27 @@ func TestStopHookAllowsACompleteRoleUnit(t *testing.T) {
 	}
 }
 
+// TestStopHookNeverFiresForANonRoleKind is test 26's last case. §6.2 scopes the
+// hook to the two kinds whose durable write is a file at a path the environment
+// already names; every other kind is judged by the driver after the child
+// exits, so the hook must stay out of the way even with nothing on disk.
+func TestStopHookNeverFiresForANonRoleKind(t *testing.T) {
+	_, nonRole := roleKinds(t)
+
+	// An unset kind is not a role unit either: the hook fires on the suffix,
+	// and a session outside a run has no unit at all.
+	for _, kind := range append(nonRole, "") {
+		t.Run("kind="+kind, func(t *testing.T) {
+			unit := stopUnit(t, kind)
+			// Nothing the role predicate would accept, deliberately: the kind
+			// alone must decide it.
+			require.NoError(t, os.WriteFile(unit.findingsPath(), []byte("not json at all\n"), 0o600))
+
+			run := runStopHook(t, unit, false)
+			assert.Zero(t, run.exitCode, "%q is not a role kind; stderr=%q", kind, run.stderr)
+			assert.Empty(t, run.stderr)
+			assert.Empty(t, run.stdout)
+		})
+	}
+}
+
