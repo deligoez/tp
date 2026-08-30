@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-30T12:44:46.312107Z",
+  "updated_at": "2026-08-30T12:51:44.818405Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -802,7 +802,7 @@
     {
       "id": "gitignore-entries",
       "title": "Git-ignore the run artifacts",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "run-state-file"
@@ -812,11 +812,30 @@
       "source_sections": [
         "### 3.5 Run state, logs and status"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-30T12:45:34.760886Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-30T12:51:44.771136Z",
+      "closed_reason": "- EnsureTPGitignore now writes six entries instead of two: section 3.5's four run artifacts (run-*.json, runs/, rounds/, last_failure-*.json) join local.json and locks/, so the run state, the per-run log directory, the per-cycle round directory and the last-failure record are git-ignored wherever tp creates or upgrades a .tp/.gitignore; the repo's own shipped .tp/.gitignore carries the same six lines.\n- Verified by asking git rather than by matching strings: a new engine test initialises a throwaway repository, calls EnsureTPGitignore and runs git check-ignore over a real path of each of the four kinds, plus the negative half that .tp/config.json, the role corpus and .tp/.gitignore itself stay committable. A second test reads the repo's own committed file. Both were written first and watched failing against unchanged code.\n- Mutation-checked twice with byte-identical restores (sha256 confirmed): replacing run-*.json with *.json kept every positive assertion green and reddened only the three committable-path assertions, and replacing the two globs with the spec's literal run-\u003cbase\u003e.json / last_failure-\u003cbase\u003e.json placeholders reddened exactly those two ignore assertions while the others stayed green - so both the too-broad and the present-but-never-matching failure modes are discriminated.\n- Test 15's fixture updates land in the same commits as the field they pin: both exact-content assertions in projectconfig_test.go gained the four entries, and the concurrency preserve fixture gained them too; reverting that fixture alone reddens the preserve test with real lost user entries, which is the defect it guards.\n- Gate green, each step run separately: go test -race ./... = 0, golangci-lint run = 0, ./scripts/check-deadcode.sh = 0. Dogfooded the freshly built binary on a scratch git project: tp init wrote the six lines, and git status -uall showed none of the four artifact kinds while .tp/config.json, .tp/.gitignore, the spec and the task file stayed visible.\n- Out of scope: skills/tp/REFERENCE.md and SKILL.md stated that .tp/.gitignore covers only local.json and locks/ and is rewritten when one of 'the two required lines' is missing, which this change falsified, so those three sentences were corrected in place; the wider docs-surface gaps (REFERENCE's workflow-field table and SKILL's TP_UNATTENDED section) were left to the docs-surface task.",
+      "gate_passed_at": "2026-08-30T12:51:44.771136Z",
+      "commit_sha": "84075c4",
+      "commit_shas": [
+        "84075c4",
+        "a55cf3d",
+        "6eed549",
+        "edcd2b0",
+        "e9b5bbe",
+        "f0cd50d",
+        "5b92c9f"
+      ],
+      "commit_files": [
+        ".tp/.gitignore",
+        "internal/engine/gitignore_preserve_test.go",
+        "internal/engine/gitignore_test.go",
+        "internal/engine/projectconfig.go",
+        "internal/engine/projectconfig_test.go",
+        "skills/tp/REFERENCE.md",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "unattended-fence",
