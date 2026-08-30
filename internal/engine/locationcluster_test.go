@@ -40,3 +40,19 @@ func TestLocationClusters_SeverityOrder(t *testing.T) {
 	assert.Equal(t, []string{"critical", "high", "medium", "low", "alpaca", "zebra"}, out[0].Severities)
 }
 
+// TestLocationClusters_RegressionAndBlankExcluded: the built-in regression role
+// and blank roles never contribute, so a location one diversity role and
+// regression reported is not a multi-role location.
+func TestLocationClusters_RegressionAndBlankExcluded(t *testing.T) {
+	out := LocationClusters([]LocationClusterRecord{
+		{Location: "§1", Roles: []string{"implementer"}, Severity: "high"},
+		{Location: "§1 words", Roles: []string{RegressionRoleID}, Severity: "high"},
+		{Location: "§1 more", Roles: []string{"  "}, Severity: "high"},
+		{Location: "§2", Roles: []string{" tester ", "implementer", "tester"}, Severity: "low"},
+		{Location: "§2 words", Roles: []string{"architect"}, Severity: "low"},
+	})
+	require.Len(t, out, 1, "§1 has only one diversity role once regression and blank drop")
+	assert.Equal(t, "§2", out[0].Location)
+	assert.Equal(t, []string{"architect", "implementer", "tester"}, out[0].Roles, "trimmed, deduplicated, sorted")
+}
+
