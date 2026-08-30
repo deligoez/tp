@@ -99,17 +99,43 @@ func checksEqual(a, b []model.Check) bool {
 func runValidateProject() error {
 	surfaceConfigWarnings()
 	tpDir := engine.DiscoverTPDir(".")
-	if tpDir == "" || !fileExists(filepath.Join(tpDir, "config.json")) {
+	root := engine.ProjectRoot(".")
+	configPath := filepath.Join(tpDir, "config.json")
+
+	present := false
+	var statErr error
+	if tpDir != "" {
+		present, statErr = fileExists(configPath)
+	}
+	if statErr != nil {
+		// Not "there is no project config": there is no way to tell. Reporting
+		// the absent form would answer a question this run could not ask, and
+		// --strict would then pass a gate over a policy it never read.
+		loc := relOrSelf(root, configPath)
+		output.Notice(fmt.Sprintf("warning: project config unreadable at %s: %v", loc, statErr))
+		return output.JSON(map[string]any{
+			"project_config": false,
+			"deviations":     []any{},
+			"skipped":        []string{loc},
+		})
+	}
+	if !present {
 		output.Info("no project config found (.tp/config.json)")
 		return output.JSON(map[string]any{"project_config": false, "deviations": []any{}})
 	}
 
 	project := engine.ProjectWorkflowOverride()
-	root := engine.ProjectRoot(".")
 	files, scanErr := engine.ScanProjectTaskFiles(root)
 
 	deviations := make([]map[string]any, 0)
 	skipped := make([]string, 0)
+	// A config that does not parse sets no field, so every deviation silently
+	// becomes a non-deviation. surfaceConfigWarnings has already said so on
+	// stderr, which --quiet erases; this is the same fact in the payload a
+	// driver actually branches on.
+	if _, _, cfgErr := engine.LoadProjectConfig(tpDir); cfgErr != nil {
+		skipped = append(skipped, relOrSelf(root, configPath))
+	}
 	if scanErr != nil {
 		// The walk stops at the first directory it cannot read, so files holds
 		// only what was reached before it. Report the gap on the same channel a
@@ -156,7 +182,17 @@ func relOrSelf(root, p string) string {
 	return rel
 }
 
-func fileExists(p string) bool {
+// fileExists reports whether p is present. A stat error that is not "does not
+// exist" answers a different question than the caller asked, so it is returned
+// rather than folded into false: read as absence it makes an unreadable file
+// look like a missing one, and both callers act on that difference.
+func fileExists(p string) (bool, error) {
 	_, err := os.Stat(p)
-	return err == nil
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, fs.ErrNotExist) {
+		return false, nil
+	}
+	return false, err
 }

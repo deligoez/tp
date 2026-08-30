@@ -267,7 +267,10 @@ func runConfigExtract() error {
 
 	tpDir := engine.ProjectConfigDir(".")
 	configPath := filepath.Join(tpDir, "config.json")
-	if fileExists(configPath) && !configExtractForce {
+	// A stat error is not permission to overwrite: the guard fails closed, so
+	// an unreadable config is treated as present rather than as absent.
+	configPresent, statErr := fileExists(configPath)
+	if (configPresent || statErr != nil) && !configExtractForce {
 		output.Error(ExitState, ".tp/config.json already exists; re-run with --force to merge",
 			"--force merges the hoisted fields into the existing workflow block, preserving other fields")
 		os.Exit(ExitState)
