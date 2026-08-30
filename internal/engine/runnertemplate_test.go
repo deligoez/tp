@@ -38,8 +38,15 @@ var claudeBaseArgs = []string{
 // The claude template ships the documented argv, including --permission-mode
 // auto: an unattended child that stops to ask for permission is the failure the
 // whole version exists to prevent.
+// The claude template ships the documented argv, including --permission-mode
+// auto: an unattended child that stops to ask for permission is the failure the
+// whole version exists to prevent.
+//
+// It is measured on a kind §6.3 leaves alone, so this test keeps saying what
+// §3.2.1 says and nothing about the per-kind --agent pair layered on top of it;
+// that pair has its own test, over all eight kinds.
 func TestBuiltinRunner_ClaudeArgv(t *testing.T) {
-	runner, err := engine.BuiltinRunner(engine.TemplateClaude, values(0))
+	runner, err := engine.BuiltinRunner(engine.TemplateClaude, kindValues(agentlessKind, 0))
 	require.NoError(t, err)
 
 	assert.Equal(t, "claude", runner.Cmd)
@@ -51,8 +58,13 @@ func TestBuiltinRunner_ClaudeArgv(t *testing.T) {
 // The budget flag is appended only when the resolved run_max_unit_budget_usd is
 // non-zero. Both directions are asserted, because a test with only a non-zero
 // value passes whether or not the condition exists at all.
+// The budget flag is appended only when the resolved run_max_unit_budget_usd is
+// non-zero. Both directions are asserted, because a test with only a non-zero
+// value passes whether or not the condition exists at all. Like the argv test
+// above it runs on an agentless kind, so the budget condition is measured on
+// its own.
 func TestBuiltinRunner_ClaudeAppendsBudgetOnlyWhenNonZero(t *testing.T) {
-	zero, err := engine.BuiltinRunner(engine.TemplateClaude, values(0))
+	zero, err := engine.BuiltinRunner(engine.TemplateClaude, kindValues(agentlessKind, 0))
 	require.NoError(t, err)
 	assert.Equal(t, claudeBaseArgs, zero.Args, "0 omits the flag entirely rather than passing a literal 0")
 	assert.NotContains(t, zero.Args, "--max-budget-usd")
@@ -67,12 +79,12 @@ func TestBuiltinRunner_ClaudeAppendsBudgetOnlyWhenNonZero(t *testing.T) {
 		{5, "5"},
 		{1000, "1000"},
 	} {
-		runner, budgetErr := engine.BuiltinRunner(engine.TemplateClaude, values(tc.budget))
+		runner, budgetErr := engine.BuiltinRunner(engine.TemplateClaude, kindValues(agentlessKind, tc.budget))
 		require.NoError(t, budgetErr)
 		assert.Equal(t, append(append([]string{}, claudeBaseArgs...), "--max-budget-usd", "{max_budget_usd}"),
 			runner.Args, "the pair is appended after the base argv, which is otherwise unchanged")
 
-		argv, expandErr := engine.ExpandArgs(runner.Args, values(tc.budget))
+		argv, expandErr := engine.ExpandArgs(runner.Args, kindValues(agentlessKind, tc.budget))
 		require.NoError(t, expandErr)
 		assert.Equal(t, tc.want, argv[len(argv)-1], "the placeholder expands to the resolved dollars")
 	}
