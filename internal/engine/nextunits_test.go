@@ -379,3 +379,109 @@ func TestBuildNextUnits_AuditFixOneRowAtATime(t *testing.T) {
 	require.NotNil(t, round)
 	assert.Equal(t, 2, *round)
 }
+
+// TestBuildNextUnits_RecordUnitOnceEveryRoleAnswered is test 45a: §4.1's record
+// emission. A round whose panel is non-empty and whose every role satisfies
+// §3.3's predicate returns exactly one record unit for that round — the step
+// between collecting a round and acting on it, and the one point at which
+// next_units would otherwise empty and stop the run with no-units while the
+// round's own work is unfinished. The unit's id is its round number (§3.1.1).
+func TestBuildNextUnits_RecordUnitOnceEveryRoleAnswered(t *testing.T) {
+	for _, tc := range []struct {
+		phase string
+		roles []string
+		kind  UnitKind
+		verb  string
+	}{
+		{PhaseReview, []string{"implementer", "tester", "architect"}, UnitReviewRecord, "review"},
+		{PhaseAudit, []string{"spec-coverage", "security", "maintainability-conventions"}, UnitAuditRecord, "audit"},
+	} {
+		t.Run(tc.phase, func(t *testing.T) {
+			root, taskFile, spec := nextUnitsRepo(t)
+			tf := &model.TaskFile{Spec: spec, Tasks: []model.Task{}}
+
+			last := tc.roles[len(tc.roles)-1]
+			for _, role := range tc.roles[:len(tc.roles)-1] {
+				writeRoundFile(t, root, taskFile, tc.phase, 1, "role-"+role+".ndjson", ndjson(`{"id":"f"}`))
+			}
+			units, _ := BuildNextUnits(root, taskFile, spec, tc.phase, tf, nil, nil)
+			require.Equal(t, []string{last}, unitIDs(units),
+				"one role has still not answered, so the round is not collected yet")
+
+			writeRoundFile(t, root, taskFile, tc.phase, 1, "role-"+last+".ndjson", ndjson(`{"id":"f"}`))
+
+			units, round := BuildNextUnits(root, taskFile, spec, tc.phase, tf, nil, nil)
+			require.Len(t, units, 1, "a record unit runs alone")
+			assert.Equal(t, NextUnit{
+				Kind: tc.kind,
+				ID:   "1",
+				BriefCommand: "[ -f $TP_ROUND_DIR/merged.ndjson ] || tp " + tc.verb +
+					" --merge $TP_ROUND_DIR/role-*.ndjson -o $TP_ROUND_DIR/merged.ndjson; tp " +
+					tc.verb + " " + spec + " --record $TP_ROUND_DIR/merged.ndjson",
+			}, units[0])
+			require.NotNil(t, round)
+			assert.Equal(t, 1, *round, "the record unit belongs to the round it records")
+		})
+	}
+}
+
+// TestBuildNextUnits_NoRecordUnitForAnEmptyPanel is test 45a's other half and
+// §4.1's non-empty guard: a panel that could not be resolved, or one a spec's
+// frontmatter has wholly deactivated, satisfies "every role in it" vacuously.
+// A record unit there would merge an unmatched glob and freeze a round holding
+// zero role files, so the emptiness stays a no-units stop a human sees.
+func TestBuildNextUnits_NoRecordUnitForAnEmptyPanel(t *testing.T) {
+	t.Run("wholly deactivated", func(t *testing.T) {
+		root, taskFile, spec := nextUnitsRepo(t)
+		require.NoError(t, os.WriteFile(spec, []byte("---\ntp:\n  review_roles:\n"+
+			"    implementer:\n      enabled: false\n"+
+			"    tester:\n      enabled: false\n"+
+			"    architect:\n      enabled: false\n---\n# S\n"), 0o600))
+		tf := &model.TaskFile{Spec: spec, Tasks: []model.Task{}}
+
+		units, round := BuildNextUnits(root, taskFile, spec, PhaseReview, tf, nil, nil)
+		assert.Empty(t, units, "no role was asked, so no role file exists to merge")
+		require.NotNil(t, round, "the round stays a property of the phase")
+		assert.Equal(t, 1, *round)
+	})
+
+	t.Run("unresolvable", func(t *testing.T) {
+		root, taskFile, spec := nextUnitsRepo(t)
+		corpus := filepath.Join(root, ".tp", PhaseReviewers)
+		require.NoError(t, os.MkdirAll(corpus, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(corpus, "broken.json"), []byte("{not json"), 0o600))
+		tf := &model.TaskFile{Spec: spec, Tasks: []model.Task{}}
+
+		units, _ := BuildNextUnits(root, taskFile, spec, PhaseReview, tf, nil, nil)
+		assert.Empty(t, units, "a panel the oracle could not resolve is not a collected round")
+	})
+}
+
+// TestBuildNextUnits_NoRecordUnitWhenTheRoundIsAlreadyRecorded: §4.1's "and the
+// round has no recorded entry". The condition is the round file's own presence
+// rather than the review state's count of rounds, so the crash window tp's
+// writers leave open — the round file written before state.json names it — never
+// re-records a recorded round.
+func TestBuildNextUnits_NoRecordUnitWhenTheRoundIsAlreadyRecorded(t *testing.T) {
+	root, taskFile, spec := nextUnitsRepo(t)
+	tf := &model.TaskFile{Spec: spec, Tasks: []model.Task{}}
+	for _, role := range []string{"implementer", "tester", "architect"} {
+		writeRoundFile(t, root, taskFile, PhaseReview, 1, "role-"+role+".ndjson", ndjson(`{"id":"f"}`))
+	}
+
+	units, _ := BuildNextUnits(root, taskFile, spec, PhaseReview, tf, nil, nil)
+	require.Len(t, units, 1, "the round is collected and unrecorded")
+	assert.Equal(t, UnitReviewRecord, units[0].Kind)
+
+	// No merged.ndjson: the record kind's own durable write is still absent, so
+	// only the recorded entry can suppress the unit.
+	require.NoError(t, os.MkdirAll(ReviewStateDir(spec), 0o755))
+	require.NoError(t, os.WriteFile(roundFilePath(spec, PhaseReview, 1),
+		[]byte(ndjson(`{"id":"f"}`)), 0o600))
+	require.False(t, UnitReviewRecord.DurableWrite(UnitTarget{
+		Spec: spec, RoundDir: RoundDir(root, taskFile, PhaseReview, 1), Round: 1,
+	}), "the merged file is absent, so the kind's own predicate is still false")
+
+	units, _ = BuildNextUnits(root, taskFile, spec, PhaseReview, tf, nil, nil)
+	assert.Empty(t, units, "round 1 already has its recorded entry")
+}
