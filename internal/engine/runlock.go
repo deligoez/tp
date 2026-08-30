@@ -48,6 +48,40 @@ func RunLockPath(taskFile string) string {
 	return filepath.Join(tpDir, "locks", "run-"+RunBase(taskFile)+".lock")
 }
 
+// RunLockHeld reports whether some process is holding a cycle's run-scoped
+// lock right now. It is §3.5's evidence for `tp run --status`: a run state with
+// no stop_reason belongs either to a driver still working or to one that died,
+// and the lock is the only thing that separates the two.
+//
+// Probing a flock means trying to take it, so this does take the lock for the
+// instant between TryLock and Unlock. That is not the run lock being held —
+// nothing runs inside it, and a --status that failed to take it reports rather
+// than refuses — but it does mean a tp run starting in that same instant could
+// see contention. The window is one syscall pair wide and the alternative,
+// writing a pid file beside the lock, would be the second source of truth §3.5
+// exists to avoid.
+//
+// Every failure reads as "not held": a missing .tp/locks directory is a cycle
+// no run has ever locked, which is exactly the absence the caller asks about.
+// The lock file itself is never created here — a reporting command that made a
+// file would be reporting on its own footprint.
+func RunLockHeld(taskFile string) bool {
+	lockPath := RunLockPath(taskFile)
+	if _, err := os.Stat(lockPath); err != nil {
+		return false
+	}
+	fl := flock.New(lockPath)
+	locked, err := fl.TryLock()
+	if err != nil {
+		return false
+	}
+	if !locked {
+		return true
+	}
+	_ = fl.Unlock()
+	return false
+}
+
 // WithRunLock acquires the run-scoped lock for a cycle, runs fn — the whole run
 // — then releases. A second tp run over the same task file gets a
 // *RunLockBusyError while fn is in flight (§3.1.1).
