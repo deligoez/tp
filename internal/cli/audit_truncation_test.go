@@ -63,3 +63,18 @@ func TestAuditTruncated_PayloadCarriesTheCap(t *testing.T) {
 	assert.Contains(t, stderr, "50", "the notice names the audited count")
 }
 
+// --quiet erases the notice; it cannot erase the flag, because the flag is in
+// the payload.
+func TestAuditTruncated_SurvivesQuiet(t *testing.T) {
+	dir, specPath := auditRepoWithChangedFiles(t, 63)
+
+	stdout, stderr, code := runTP(t, dir, "audit", specPath, "--quiet")
+	require.Equal(t, 0, code)
+	assert.NotContains(t, stderr, "auditing first", "--quiet erases the stderr notice")
+
+	fs := auditFileSummary(t, stdout)
+	assert.Equal(t, true, fs["truncated"], "--quiet cannot erase the truncation flag")
+	assert.Equal(t, float64(63), fs["total_changed"])
+	assert.Equal(t, float64(50), fs["total_files"])
+}
+
