@@ -133,16 +133,22 @@ func resolveRunnerMap(obj map[string]json.RawMessage, kind UnitKind) (RunnerSpec
 		}
 	}
 
+	// The missing key is a property of the map, not of the kind that happens to
+	// be resolving, so it is reported whether or not that kind is listed. A
+	// check made only on the way to the default entry would clear the map for
+	// every listed kind and leave the run to fail at the first unlisted one —
+	// exactly the lateness whole-map validation exists to prevent.
+	if _, ok := obj[runnerDefaultKey]; !ok {
+		return RunnerSpec{}, &RunnerShapeError{
+			Field: runnerField,
+			Msg: fmt.Sprintf("a per-kind runner map needs a %q key covering the kinds it does not list",
+				runnerDefaultKey),
+		}
+	}
+
 	selected, field := obj[string(kind)], runnerField+"."+string(kind)
 	if selected == nil {
 		selected, field = obj[runnerDefaultKey], runnerField+"."+runnerDefaultKey
-		if selected == nil {
-			return RunnerSpec{}, &RunnerShapeError{
-				Field: runnerField,
-				Msg: fmt.Sprintf("a per-kind runner map needs a %q key covering the kinds it does not list; %q is not listed",
-					runnerDefaultKey, string(kind)),
-			}
-		}
 	}
 	return parseRunnerLeaf(selected, field)
 }
