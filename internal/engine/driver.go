@@ -121,6 +121,15 @@ func RunDriver(o *DriverOptions) (DriverResult, error) {
 	defer sig.stop()
 	d := &driver{opts: o, runID: runID, rec: rec, sig: sig}
 
+	// prev is what the previous iteration ended as, nil before the first has
+	// run. It is carried into the next iteration's read rather than answered
+	// where it was produced, because §3.4's precedence is a rule over the
+	// conditions satisfied at one checkpoint: a unit that escalated or spent
+	// its last attempt may have made the cycle releasable on its way, and
+	// §5.2 says such an iteration still records converged. Answering it
+	// before re-reading the cycle would decide that case without ever having
+	// asked the question.
+	var prev *iterationOutcome
 	for {
 		// 1. Read the cycle state through the same path tp resume uses.
 		res, readErr := readCycle(d.opts)
@@ -132,24 +141,16 @@ func RunDriver(o *DriverOptions) (DriverResult, error) {
 			return d.fail(&result, driverErrorf(err, "record the run's phase"))
 		}
 
-		// 2. A releasable cycle is the run's only agreed ending.
-		if res.Phase == PhaseRelease {
-			return d.stop(&result, StopConverged), nil
-		}
-		// 2a. A signal is read before anything is spawned. §3.4 ranks
-		//     `interrupted` below `converged` and above everything the rest
-		//     of this iteration could produce, so this is where it belongs:
-		//     a cycle that became releasable is still releasable, and a
-		//     signalled run spawns nothing further — not even against an
-		//     empty next_units, whose `no-units` it outranks.
-		if d.sig.signalled() {
-			return d.stop(&result, StopInterrupted), nil
-		}
-		// 3. An empty next_units stops the run rather than re-polling: the
-		//    oracle has said the phase cannot proceed, and a driver that
-		//    looped here would spin against a state only a human can change.
-		if len(res.NextUnits) == 0 {
-			return d.stop(&result, StopNoUnits), nil
+		// 2, 3 and 6 are one checkpoint. Releasability, the operator's
+		//    signal, the three caps, an empty next_units and what the
+		//    previous iteration left are all read here, and §3.4's
+		//    precedence — not the order this code happens to ask in —
+		//    picks which of them the run records.
+		if reason := d.checkpoint(&res, prev); reason != "" {
+			if reason == StopEscalation {
+				result.EscalationPath = prev.escalation
+			}
+			return d.stop(&result, reason), nil
 		}
 
 		// 4. Spawn a runner process per unit, retrying a unit that failed
@@ -158,38 +159,75 @@ func RunDriver(o *DriverOptions) (DriverResult, error) {
 		if iterErr != nil {
 			return d.fail(&result, iterErr)
 		}
-		// A unit that asked for a user-only decision ends the run before
-		// any failed sibling does (§3.4): the operator has to answer
-		// before anything here can be retried in good faith.
-		if out.escalation != "" {
-			result.EscalationPath = out.escalation
-			return d.stop(&result, StopEscalation), nil
-		}
-		if !out.finished {
-			// A retry the signal cut short is not a unit that exhausted
-			// its attempts, so §3.4's ranking of unit-failure above
-			// interrupted does not reach it: the attempts are still
-			// there, unspent.
-			if out.interrupted {
-				return d.stop(&result, StopInterrupted), nil
-			}
-			return d.stop(&result, StopUnitFailure), nil
-		}
-
 		// 5. The next iteration's read is step five: the cycle is re-read
-		//    from disk, never carried over from what a child claimed.
-		// 6. Check caps; loop. The signal is read first because §3.4
-		//    ranks `interrupted` above all three caps, and because a run
-		//    that reached both is one an operator stopped rather than one
-		//    a cap bounded.
-		if d.sig.signalled() {
-			return d.stop(&result, StopInterrupted), nil
-		}
-		snapshot := rec.Snapshot()
-		if reason := capStop(&snapshot, &o.Workflow); reason != "" {
-			return d.stop(&result, reason), nil
+		//    from disk, never carried over from what a child claimed —
+		//    including the driver's own reading of how the iteration went.
+		prev = &out
+	}
+}
+
+// checkpoint returns the reason the run stops at this point in the loop, or ""
+// to carry on. res is the cycle just read from disk; prev is the previous
+// iteration's outcome, nil before the first one has run.
+//
+// Every condition is evaluated and the winner picked by rank, rather than by
+// the order the code tests them in. That is the difference §3.4's rule needs:
+// an if-chain records whichever condition it reaches first, which is how a run
+// that reached a cap on the very iteration that released the cycle came to
+// record the cap — while §3.4 has converged lead, because a cycle that became
+// releasable is releasable whatever else the iteration also hit.
+func (d *driver) checkpoint(res *ResumeResult, prev *iterationOutcome) StopReason {
+	// The four the checkpoint can hold at once: what the previous iteration
+	// left, the signal, a cap and what the cycle says.
+	//
+	// They are collected in an order deliberately unlike §3.4's precedence,
+	// converged last of all. Collecting them in precedence order would let a
+	// ranking that had stopped working go on producing right answers, which
+	// is the failure mode this whole function exists to remove — an ordering
+	// nobody can observe is an ordering nobody can test.
+	reasons := make([]StopReason, 0, 4)
+
+	if prev != nil {
+		switch {
+		case prev.escalation != "":
+			// A unit asked for a user-only decision (§5.2). It ends
+			// the run before any failed sibling does: the operator
+			// has to answer before anything here could be retried in
+			// good faith.
+			reasons = append(reasons, StopEscalation)
+		case prev.interrupted:
+			// A retry the signal cut short is not a unit that
+			// exhausted its attempts — the attempts are still there,
+			// unspent — which is why these two are exclusive rather
+			// than ranked against each other.
+			reasons = append(reasons, StopInterrupted)
+		case !prev.finished:
+			reasons = append(reasons, StopUnitFailure)
 		}
 	}
+	// The signal is read before anything is spawned, which is what makes
+	// §3.4's "no new unit is spawned" a property of the code rather than of
+	// how quickly the driver happens to notice.
+	if d.sig.signalled() {
+		reasons = append(reasons, StopInterrupted)
+	}
+	// Caps are evaluated here and nowhere else, which is what keeps them
+	// between iterations (§3.4): the totals are the recorder's, and nothing
+	// this function does can move them.
+	snapshot := d.rec.Snapshot()
+	reasons = append(reasons, capStop(&snapshot, &d.opts.Workflow))
+	// An empty next_units stops the run rather than re-polling: the oracle
+	// has said the phase cannot proceed, and a driver that looped here would
+	// spin against a state only a human can change.
+	if len(res.NextUnits) == 0 {
+		reasons = append(reasons, StopNoUnits)
+	}
+	// A releasable cycle is the run's only agreed ending, and §3.4 has it
+	// lead every other row it can be found beside.
+	if res.Phase == PhaseRelease {
+		reasons = append(reasons, StopConverged)
+	}
+	return highestPrecedence(reasons...)
 }
 
 // readCycle reads the cycle exactly as tp resume does: the task file from disk
