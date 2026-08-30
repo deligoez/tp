@@ -162,9 +162,16 @@ func TestUnattendedFence_RunCapRaiseRefused(t *testing.T) {
 	assert.InDelta(t, 42.5, workflow["run_max_budget_usd"].(map[string]any)["value"], 1e-9)
 }
 
-// §5.1: under the variable the env layer of §7's precedence is ignored for
-// every fenced field. TP_REVIEW_MAX_ROUNDS is that layer's spelling; if the
-// fence read it, 40 would be a lowering against 50 and would be accepted.
+// Section 5.1: the fence compares against the value section 7's precedence
+// actually resolves. TP_REVIEW_MAX_ROUNDS is set here as a decoy, not as a
+// layer: tp reads no TP_<FIELD> variable for any workflow field, so its mere
+// presence proves nothing — this assertion would pass with the fence removed if
+// the decoy were all it rested on.
+//
+// What discriminates is the pair of numbers. The resolved cap is 5; 40 is a
+// raise against it and must be refused. Were the fence reading the environment,
+// 40 would be a lowering against the decoy's 50 and would be accepted, so the
+// refusal is evidence about which number the fence compared.
 func TestUnattendedFence_EnvLayerIgnored(t *testing.T) {
 	dir := setupProject(t)
 
