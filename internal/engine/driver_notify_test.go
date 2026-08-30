@@ -195,3 +195,21 @@ func TestRunDriver_NotifyFailureChangesNothing(t *testing.T) {
 	}
 }
 
+// §5.2's report: the outcome of the invocation travels back with the run — the
+// code it exited with, or the error that kept it from running at all.
+func TestRunDriver_NotifyOutcomeIsReported(t *testing.T) {
+	root, spec, taskFile, _ := seamProject(t, oneOpenTask)
+	t.Setenv(fakerunner.EnvExits, "1")
+	script, _ := notifyProbe(t, 7)
+
+	wf := driverWorkflow()
+	wf.NotifyCmd = script
+	res := driveOnce(t, root, spec, taskFile, wf)
+
+	require.NotNil(t, res.Notify, "a configured notify_cmd reports what it did")
+	assert.Equal(t, script, res.Notify.Cmd)
+	require.NotNil(t, res.Notify.ExitCode)
+	assert.Equal(t, 7, *res.Notify.ExitCode)
+	assert.NoError(t, res.Notify.Err)
+}
+
