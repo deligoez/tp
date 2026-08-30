@@ -176,6 +176,15 @@ func dispatchError(err error) (code int, msg, hint string) {
 	if errors.As(err, &shapeErr) {
 		return ExitUsage, shapeErr.Error(), shapeErr.Hint()
 	}
+	// §3.2.1: the same classification for the two failures of the layer above
+	// the shapes — a template name that is not one tp ships, and a placeholder
+	// the driver cannot resolve. Both are raised before any child is spawned,
+	// so the run has done nothing to recover from; its hint lists the names or
+	// the placeholders rather than the three shapes.
+	var tmplErr *engine.RunnerTemplateError
+	if errors.As(err, &tmplErr) {
+		return ExitUsage, tmplErr.Error(), tmplErr.Hint()
+	}
 	// §12.2: write-lock contention that retried past lock_timeout_seconds is a
 	// state error (exit 4) with a hint naming the lock path and elapsed wait.
 	var lockErr *engine.LockTimeoutError
