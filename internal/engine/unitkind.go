@@ -106,6 +106,17 @@ func RoleFindingsPath(roundDir, roleID string) string {
 	return filepath.Join(roundDir, "role-"+roleID+".ndjson")
 }
 
+// RoleFindingsPartPath returns the name a role unit writes itself:
+// $TP_ROUND_DIR/role-<id>.ndjson.part. §6.3 grants the reviewer and the auditor
+// exactly this one path and denies every other write, and the driver renames it
+// to RoleFindingsPath when the child exits 0 — so tp emits this name in the
+// role's own prompt, and the prompt and the allowlist name one filename rather
+// than two. It is built from RoleFindingsPath so the emitted name and the name
+// the rename produces cannot drift apart.
+func RoleFindingsPartPath(roundDir, roleID string) string {
+	return RoleFindingsPath(roundDir, roleID) + roleFindingsPartSuffix
+}
+
 // MergedFindingsPath returns a round's merged findings file,
 // $TP_ROUND_DIR/merged.ndjson: what the record unit writes, what
 // review-resolve and audit-fix dispose rows in.
