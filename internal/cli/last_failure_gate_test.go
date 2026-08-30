@@ -133,3 +133,25 @@ func TestDoneGate_SecondFailureOverwritesTheFirst(t *testing.T) {
 	assert.Equal(t, "t2", record.UnitID, "the second failure overwrites the first")
 }
 
+// `tp done --batch` runs the same gate for the same reason, so its failure is
+// recorded on the same terms — the batch path does not exit through the
+// pre-flock writer, which is exactly why it is asserted separately.
+func TestDoneGate_BatchFailureUnderARunRecordsLastFailure(t *testing.T) {
+	dir := setupProjectWithGate(t, `printf 'gate-tail-%s\n' marker; exit 7`)
+	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"A complete","source_sections":["s1"]}`)
+
+	ndjson := filepath.Join(dir, "results.ndjson")
+	require.NoError(t, os.WriteFile(ndjson, []byte(`{"id":"a","reason":"A complete and verified"}`+"\n"), 0o600))
+
+	_, _, code := runTPEnv(t, dir, gateUnitEnv("review-record", "3", "review"), "done", "--batch", ndjson)
+	require.Equal(t, 4, code)
+
+	record := readGateLastFailure(t, dir)
+	require.NotNil(t, record, "the batch gate failure is recorded too")
+	assert.Equal(t, engine.UnitReviewRecord, record.UnitKind)
+	assert.Equal(t, "3", record.UnitID)
+	assert.Equal(t, "review", record.Phase)
+	assert.Equal(t, 7, record.ExitCode)
+	assert.Contains(t, record.Summary, "gate-tail-marker", "summary carries the gate's own output")
+}
+
