@@ -46,7 +46,11 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 	if stPre != nil {
 		preRounds = stPre.AuditRounds
 	}
-	refuseIfBudgetExhausted("audit", specPath, preRounds, wfPre.AuditMaxRounds, wfPre.AuditCleanRounds, "")
+	// The audit half of the same exemption: a re-record adds no round, so it
+	// cannot exhaust the round budget (section 6.3).
+	if _, rewrite := engine.RecordRound(len(preRounds)); !rewrite {
+		refuseIfBudgetExhausted("audit", specPath, preRounds, wfPre.AuditMaxRounds, wfPre.AuditCleanRounds, "")
+	}
 
 	data, err := os.ReadFile(recordPath)
 	if err != nil {
@@ -190,12 +194,15 @@ func recordAuditRoundEntry(specPath string, data []byte, findings int, clean boo
 			}
 		}
 		st = loaded
-		round = len(st.AuditRounds) + 1
+		// Section 6.3, the audit half of the same rule the review recorder
+		// applies: idempotent on TP_ROUND, additive by hand.
+		var rewrite bool
+		round, rewrite = engine.RecordRound(len(st.AuditRounds))
 		fileName := fmt.Sprintf("audit-round-%d.ndjson", round)
 		if writeErr := os.WriteFile(filepath.Join(engine.ReviewStateDir(specPath), fileName), data, 0o600); writeErr != nil {
 			return writeErr
 		}
-		st.AuditRounds = append(st.AuditRounds, engine.ReviewRound{
+		entry := engine.ReviewRound{
 			Round:       round,
 			Findings:    findings,
 			Clean:       clean,
@@ -205,7 +212,12 @@ func recordAuditRoundEntry(specPath string, data []byte, findings int, clean boo
 			RolesHash:   rolesHash,
 			IDScheme:    engine.IDSchemeSlug,
 			HarnessNote: harnessNote,
-		})
+		}
+		if rewrite {
+			st.AuditRounds[round-1] = entry
+		} else {
+			st.AuditRounds = append(st.AuditRounds, entry)
+		}
 		return engine.SaveReviewState(specPath, st)
 	})
 	return st, round, rolesHash, err

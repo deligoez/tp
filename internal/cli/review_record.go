@@ -55,7 +55,12 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 	if stPre != nil {
 		preRounds = stPre.ReviewRounds
 	}
-	refuseIfBudgetExhausted("review", specPath, preRounds, wfPre.ReviewMaxRounds, wfPre.ReviewCleanRounds, wfPre.ReviewConvergeOn)
+	// A re-record rewrites an entry rather than adding one (section 6.3), so it
+	// consumes no round and the budget it would otherwise exhaust does not
+	// apply — a retry after a partial failure must converge, not be refused.
+	if _, rewrite := engine.RecordRound(len(preRounds)); !rewrite {
+		refuseIfBudgetExhausted("review", specPath, preRounds, wfPre.ReviewMaxRounds, wfPre.ReviewCleanRounds, wfPre.ReviewConvergeOn)
+	}
 
 	data, err := os.ReadFile(recordPath)
 	if err != nil {
@@ -120,13 +125,18 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 				Reason: vanishedStateReason,
 			}
 		}
-		round = len(st.ReviewRounds) + 1
+		// Section 6.3: recording is idempotent on TP_ROUND. A record unit that
+		// retries after a partial failure re-records its own round rather than
+		// inflating the count; a hand `--record`, which cannot say which round
+		// it means, stays additive.
+		var rewrite bool
+		round, rewrite = engine.RecordRound(len(st.ReviewRounds))
 		fileName := fmt.Sprintf("review-round-%d.ndjson", round)
 		// Round file first, index entry second
 		if writeErr := os.WriteFile(filepath.Join(engine.ReviewStateDir(specPath), fileName), data, 0o600); writeErr != nil {
 			return writeErr
 		}
-		st.ReviewRounds = append(st.ReviewRounds, engine.ReviewRound{
+		entry := engine.ReviewRound{
 			Round:       round,
 			Findings:    findings,
 			Clean:       clean,
@@ -135,7 +145,12 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 			SpecHash:    specHash,
 			RolesHash:   rolesHash,
 			HarnessNote: harnessNote,
-		})
+		}
+		if rewrite {
+			st.ReviewRounds[round-1] = entry
+		} else {
+			st.ReviewRounds = append(st.ReviewRounds, entry)
+		}
 		return engine.SaveReviewState(specPath, st)
 	})
 	if lockErr != nil {
