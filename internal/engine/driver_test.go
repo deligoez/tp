@@ -68,6 +68,53 @@ func invocations(t *testing.T, records string) []fakerunner.Invocation {
 	return recs
 }
 
+// claimedInvocations counts the record slots the fake runner has claimed: one
+// per child that started, whether or not it lived to write its record.
+//
+// fakerunner.Records reports only the completed ones, so these two counts
+// differing is exactly a child that was spawned and never got to exit — the
+// kill §3.4 says the driver never performs. The slots are claimed from zero
+// upwards and contiguously, so the first absent one is the count.
+func claimedInvocations(t *testing.T, records string) int {
+	t.Helper()
+	for seq := 0; ; seq++ {
+		if _, err := os.Stat(filepath.Join(records, fakerunner.RecordName(seq))); err != nil {
+			return seq
+		}
+	}
+}
+
+// driveInBackground starts the loop and hands back the channel its result
+// arrives on, so a test can act on a run — signal it — while its children are
+// still in flight. Unlike driveOnce it does not bound the run: the caller
+// decides what it is waiting for and how long.
+func driveInBackground(t *testing.T, root, spec, taskFile string, wf *model.Workflow) <-chan DriverResult {
+	t.Helper()
+	done := make(chan DriverResult, 1)
+	go func() {
+		res, err := RunDriver(&DriverOptions{Root: root, TaskFile: taskFile, Spec: spec, Workflow: *wf})
+		assert.NoError(t, err)
+		done <- res
+	}()
+	return done
+}
+
+// awaitFirstChild blocks until the fake runner has claimed its first record
+// slot: the moment a child is in flight and the driver is inside the iteration
+// the caller means to interrupt. Waiting for the claim rather than sleeping a
+// fixed time is what keeps the signal inside the iteration on a slow machine.
+func awaitFirstChild(t *testing.T, records string) {
+	t.Helper()
+	deadline := time.Now().Add(30 * time.Second)
+	for time.Now().Before(deadline) {
+		if claimedInvocations(t, records) > 0 {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatal("no child was spawned")
+}
+
 // overlapped reports whether two children were alive at the same moment,
 // which is how §10.1 test 5 is asserted: from the children's own clocks, not
 // from the driver's bookkeeping about itself.
