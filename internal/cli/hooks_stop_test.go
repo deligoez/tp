@@ -339,3 +339,14 @@ func TestStopHookAppliesTheSameRolePredicateAsTheDriver(t *testing.T) {
 	}
 }
 
+// TestStopHookIgnoresAnUnrelatedRoleFile pins that the hook reads its own
+// unit's file and not whatever else the round directory holds: a sibling role's
+// complete findings must not let this unit stop.
+func TestStopHookIgnoresAnUnrelatedRoleFile(t *testing.T) {
+	unit := stopUnit(t, string(engine.UnitAuditRole))
+	sibling := filepath.Join(unit.roundDir, "role-go-safety.ndjson.part")
+	require.NoError(t, os.WriteFile(sibling, []byte("{\"a\":1}\n"), 0o600))
+
+	run := runStopHook(t, unit, false)
+	assert.Equal(t, 2, run.exitCode, "stderr=%q", run.stderr)
+}
