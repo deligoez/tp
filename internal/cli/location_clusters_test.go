@@ -183,3 +183,28 @@ func TestReviewStatus_LocationClusters(t *testing.T) {
 	assert.True(t, hasOverlap)
 }
 
+// TestReviewStatus_LocationClustersEmpty: with no recorded round, and with a
+// round whose findings all come from one role, --status still carries the key as
+// an empty array rather than null.
+func TestReviewStatus_LocationClustersEmpty(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## 1. A\ncontent\n"), 0o600))
+
+	stdout, _, code := runTP(t, dir, "review", "spec.md", "--status")
+	require.Equal(t, 0, code)
+	var status map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &status))
+	assert.Equal(t, []any{}, status["location_clusters"], "no recorded round → [] , never null")
+
+	merged := writeFindingsFile(t, dir, "one-role.ndjson", []string{
+		`{"severity":"high","role":"implementer","class":"A","location":"§1","finding":"impl"}`,
+		`{"severity":"low","role":"implementer","class":"B","location":"§1 words","finding":"impl again"}`,
+	})
+	_, _, code = runTP(t, dir, "review", "spec.md", "--record", merged)
+	require.Equal(t, 0, code)
+
+	stdout, _, code = runTP(t, dir, "review", "spec.md", "--status")
+	require.Equal(t, 0, code)
+	require.NoError(t, json.Unmarshal([]byte(stdout), &status))
+	assert.Equal(t, []any{}, status["location_clusters"], "single-role location → no entry")
+}
