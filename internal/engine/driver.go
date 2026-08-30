@@ -287,6 +287,13 @@ func (d *driver) unitTarget(u *UnitEnv) UnitTarget {
 // children already spawned run to completion: a sibling that finished normally
 // must still be recorded when another could not be executed at all.
 //
+// An attempt whose runner never exec'd is the exception, and it is why this
+// loop branches at all: its row keeps the nulls StartUnit wrote, which §3.5
+// already reads as "never finished". Finishing it would stamp exit_code 0 on a
+// child that does not exist, filing the driver's own failure as a unit that
+// succeeded — the one reading of the run state a human triaging an unattended
+// run must not be handed.
+//
 // spend is nil for every unit here: the driver reads one number from the
 // runner's final log line, which is the spend reader's own path (§3.2.2), and
 // a row that reported 0 for an unread number would be a measurement nobody
@@ -294,8 +301,11 @@ func (d *driver) unitTarget(u *UnitEnv) UnitTarget {
 func (d *driver) record(attempts []*unitAttempt) error {
 	var firstErr error
 	for _, a := range attempts {
-		if a.err != nil && firstErr == nil {
-			firstErr = a.err
+		if a.err != nil {
+			if firstErr == nil {
+				firstErr = a.err
+			}
+			continue
 		}
 		if err := d.rec.FinishUnit(a.seq, a.exitCode, a.duration, nil); err != nil && firstErr == nil {
 			firstErr = err
