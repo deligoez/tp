@@ -93,3 +93,25 @@ func TestAuditNotTruncated_ReportsTheWholeSet(t *testing.T) {
 	assert.NotContains(t, stderr, "auditing first", "no cap, no notice")
 }
 
+// The cap belongs to auto-detection: an explicitly named file set is never
+// truncated, however many paths it carries.
+func TestAuditAffectedFiles_NeverTruncated(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n## Table\n| Col |\n|-----|\n| a |\n"), 0o600))
+
+	named := make([]string, 0, 2)
+	for i := 0; i < 2; i++ {
+		p := filepath.Join(dir, fmt.Sprintf("n%d.go", i))
+		require.NoError(t, os.WriteFile(p, []byte("package main\n"), 0o600))
+		named = append(named, p)
+	}
+
+	stdout, _, code := runTP(t, dir, "audit", specPath, "--affected-files", named[0], "--affected-files", named[1])
+	require.Equal(t, 0, code)
+
+	fs := auditFileSummary(t, stdout)
+	assert.Equal(t, false, fs["truncated"])
+	assert.Equal(t, float64(2), fs["total_changed"])
+	assert.Equal(t, float64(2), fs["total_files"])
+}
