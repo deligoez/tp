@@ -95,3 +95,28 @@ func TestRunDriver_EscalationNeitherWritesNorClearsLastFailure(t *testing.T) {
 		"the record is the one the earlier run left, not one this attempt wrote")
 }
 
+// §5.2: a record that fails schema validation is judged by the unit's §3.3
+// predicate and its exit code as usual — so the unit is retried and the run
+// ends with unit-failure, exactly as if the file were not there.
+func TestRunDriver_InvalidEscalationRecordIsAnOrdinaryAttempt(t *testing.T) {
+	root, spec, taskFile, records := seamProject(t, oneOpenTask)
+	t.Setenv(fakerunner.EnvExits, "2")
+	t.Setenv(fakerunner.EnvEscalate, "bad")
+
+	wf := driverWorkflow()
+	wf.RunMaxUnitRetries = 1
+	res := driveOnce(t, root, spec, taskFile, wf)
+
+	assert.Equal(t, StopUnitFailure, res.StopReason)
+	assert.Empty(t, res.EscalationPath)
+	assert.Len(t, invocations(t, records), 2, "an ordinary failed attempt spends the retry budget")
+
+	// The file is on disk, so the driver read it and rejected it rather than
+	// never having looked.
+	assert.FileExists(t, EscalationPath(RunDir(root, res.RunID), "1"))
+
+	got := ReadLastFailure(root, taskFile)
+	require.NotNil(t, got, "an ordinary non-zero exit still records last_failure")
+	assert.Equal(t, 2, got.ExitCode)
+}
+
