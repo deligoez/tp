@@ -24,11 +24,13 @@ import (
 // A release that does add a command or a flag updates this baseline in the same
 // task that adds it, and renames the constant to the tag it then pins.
 // spec/0.35.0.md §3.1 adds exactly one command, `tp run`, which is listed below
-// with the flags it ships; nothing else about the surface moves in that release.
+// with the flags it ships, and §3.3 adds the three audit-side resolve flags
+// (`--resolve`, `--resolve-all`, `--force`) an audit-fix unit disposes its row
+// with; nothing else about the surface moves in that release.
 const v034Surface = `
 : color compact file json no-color no-compact no-quiet quiet
 add: bulk spec stdin
-audit: affected-files affected-from-tasks base check findings harness-note merge output record status
+audit: affected-files affected-from-tasks base check findings force harness-note merge output record resolve resolve-all status
 blocked:
 brief: prior
 claim: all-ready
