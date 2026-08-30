@@ -137,3 +137,25 @@ func TestRunDriver_ExitTwoWithNoRecordIsAnOrdinaryAttempt(t *testing.T) {
 	assert.NoFileExists(t, EscalationPath(RunDir(root, res.RunID), "1"))
 }
 
+// §5.2: the record is per unit, so concurrent siblings never clobber each
+// other. When an iteration produces several the driver reports the lowest seq
+// and preserves them all.
+func TestRunDriver_ConcurrentSiblingsEachKeepTheirOwnRecord(t *testing.T) {
+	root, spec, taskFile, records := seamProject(t, `{"spec":"s.md","tasks":[]}`)
+	t.Setenv(fakerunner.EnvEscalate, "1")
+	t.Setenv(fakerunner.EnvSleepMS, "50")
+
+	res := driveOnce(t, root, spec, taskFile, driverWorkflow())
+
+	assert.Equal(t, StopEscalation, res.StopReason)
+	recs := invocations(t, records)
+	require.Len(t, recs, 3, "the whole review panel ran, and each role escalated")
+
+	runDir := RunDir(root, res.RunID)
+	for seq := 1; seq <= len(recs); seq++ {
+		assert.FileExists(t, EscalationPath(runDir, strconv.Itoa(seq)),
+			"every sibling's record is preserved")
+	}
+	assert.Equal(t, EscalationPath(runDir, "1"), res.EscalationPath,
+		"the run reports the lowest seq")
+}
