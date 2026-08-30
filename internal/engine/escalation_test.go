@@ -95,3 +95,30 @@ func TestReadEscalation_RejectsANullOptionsArray(t *testing.T) {
 	assert.Nil(t, got)
 }
 
+// Absent, unreadable and unparseable are one answer with invalid, because §5.2
+// gives all four the same consequence.
+func TestReadEscalation_RejectsWhatIsNotARecordFile(t *testing.T) {
+	dir := t.TempDir()
+	cases := []struct {
+		name    string
+		content string
+		write   bool
+	}{
+		{name: "no record at all"},
+		{name: "an empty file", write: true},
+		{name: "prose rather than JSON", content: "escalating: the gate failed\n", write: true},
+		{name: "a JSON array", content: `[{"decision":"other"}]`, write: true},
+		{name: "a truncated object", content: `{"decision":"other","unit_kind":`, write: true},
+	}
+	for i, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(dir, string(rune('a'+i))+"-escalation.json")
+			if tc.write {
+				require.NoError(t, os.WriteFile(path, []byte(tc.content), 0o600))
+			}
+			got, err := ReadEscalation(path)
+			require.Error(t, err)
+			assert.Nil(t, got)
+		})
+	}
+}
