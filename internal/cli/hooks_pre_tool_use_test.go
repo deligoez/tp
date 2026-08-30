@@ -198,6 +198,12 @@ func TestPreToolUseHookAllowsOrdinaryWrites(t *testing.T) {
 		".tp/config.json.example",
 		// The directory itself, not its contents.
 		"spec/.tp-review",
+		// Normalizing the spelling must not widen the fence: a name that
+		// merely contains the fenced letters stays outside it, and a `..`
+		// that resolves away from a fenced path is an ordinary write.
+		"docs/tp-config.json.md",
+		"internal/engine/tasksjson/reader.go",
+		".tp/reviewers/../reviewers/implementer.json",
 	}
 
 	for _, tool := range writeTools {
