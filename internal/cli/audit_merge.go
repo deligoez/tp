@@ -38,7 +38,11 @@ func runAuditMerge(args []string, outputPath string) error {
 	}
 
 	totalFiles := len(args)
-	rows := loadAuditMergeRows(args)
+	rows, inputs := loadAuditMergeRows(args)
+	// §8a.4: the same rule as the review merge — an input whose every content
+	// line was skipped drops a whole role, and an unattended driver reads only
+	// the exit code.
+	dropped := droppedInputs(inputs)
 	unique := dedupAuditRows(rows)
 
 	var buf strings.Builder
@@ -78,6 +82,7 @@ func runAuditMerge(args []string, outputPath string) error {
 		"by_status":          byStatus,
 		"by_role":            byRole,
 		"findings":           findingsCount, // rows whose status is not PASS
+		"inputs":             inputs,
 	}
 	// §9.3 / §8.4: the audit overlap_report gives a trim-candidate signal over
 	// non-PASS rows clustered by (item_id, category); it is explanatory and is
@@ -93,27 +98,30 @@ func runAuditMerge(args []string, outputPath string) error {
 			return nil
 		}
 		summary["output_path"] = outputPath
-		return output.JSON(summary)
+		return finishMerge(output.JSON(summary), dropped)
 	}
 
 	if IsJSONOutput() {
 		summary["output_path"] = "stdout"
 		summary["rows"] = unique
-		return output.JSON(summary)
+		return finishMerge(output.JSON(summary), dropped)
 	}
 
 	fmt.Print(ndjson)
 	fmt.Fprintf(os.Stderr, "merged: %d rows from %d files (%d duplicates removed, %d non-PASS)\n",
 		len(unique), totalFiles, duplicatesRemoved, findingsCount)
-	return nil
+	return finishMerge(nil, dropped)
 }
 
 // loadAuditMergeRows reads and validates audit-result rows from the input files,
 // skipping blank, malformed (invalid JSON), and incomplete (missing item_id or
 // status) lines with a stderr warning that names which. It aborts only on a
-// missing/unreadable file (exit 3). An all-empty or all-invalid set of inputs is
-// a valid clean result (§3.1) and yields zero rows without failing.
-func loadAuditMergeRows(args []string) []map[string]any {
+// missing/unreadable file (exit 3), and returns the §8a.4 per-input accounting
+// beside the rows: blank lines count as neither, so an all-empty set of inputs
+// is a valid clean result and yields zero rows without failing. An input whose
+// content lines all fail is a dropped role, which runAuditMerge turns into
+// exit 1.
+func loadAuditMergeRows(args []string) ([]map[string]any, []mergeInputCounts) {
 	for _, path := range args {
 		if _, err := os.Stat(path); os.IsNotExist(err) {
 			output.Error(ExitFile, fmt.Sprintf("file not found: %s", path), ndjsonInputFileHint)
@@ -122,12 +130,14 @@ func loadAuditMergeRows(args []string) []map[string]any {
 	}
 
 	rows := make([]map[string]any, 0)
+	inputs := make([]mergeInputCounts, 0, len(args))
 	for _, path := range args {
 		f, err := os.Open(path)
 		if err != nil {
 			output.Error(ExitFile, fmt.Sprintf("cannot open file: %s", path), ndjsonInputFileHint)
 			os.Exit(ExitFile)
 		}
+		counts := mergeInputCounts{Path: path}
 		scanner := bufio.NewScanner(f)
 		scanner.Buffer(make([]byte, 0, 64*1024), ndjsonLineCap) // audit notes can be long
 		for scanner.Scan() {
@@ -138,6 +148,7 @@ func loadAuditMergeRows(args []string) []map[string]any {
 			var row map[string]any
 			if err := json.Unmarshal([]byte(line), &row); err != nil {
 				fmt.Fprintf(os.Stderr, "warning: skipping malformed line (invalid JSON) in %s\n", path)
+				counts.Skipped++
 				continue
 			}
 			itemID, idOK := row["item_id"].(string)
@@ -151,8 +162,10 @@ func loadAuditMergeRows(args []string) []map[string]any {
 					missing = append(missing, "status")
 				}
 				fmt.Fprintf(os.Stderr, "warning: skipping incomplete line (missing %s) in %s\n", strings.Join(missing, ", "), path)
+				counts.Skipped++
 				continue
 			}
+			counts.Parsed++
 			rows = append(rows, row)
 		}
 		if err := scanner.Err(); err != nil {
@@ -166,9 +179,10 @@ func loadAuditMergeRows(args []string) []map[string]any {
 			os.Exit(ExitFile)
 		}
 		f.Close()
+		inputs = append(inputs, counts)
 	}
 
-	return rows
+	return rows, inputs
 }
 
 // dedupAuditRows drops exact (role, item_id) duplicates, keeping the first
