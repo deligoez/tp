@@ -120,3 +120,20 @@ func TestRunDriver_InvalidEscalationRecordIsAnOrdinaryAttempt(t *testing.T) {
 	assert.Equal(t, 2, got.ExitCode)
 }
 
+// §5.2's other half: an exit 2 with no record at all is an ordinary attempt
+// too. The exit code alone never escalates, which is what keeps a harness that
+// happens to exit 2 from ending a run nobody asked to end.
+func TestRunDriver_ExitTwoWithNoRecordIsAnOrdinaryAttempt(t *testing.T) {
+	root, spec, taskFile, records := seamProject(t, oneOpenTask)
+	t.Setenv(fakerunner.EnvExits, "2")
+
+	wf := driverWorkflow()
+	wf.RunMaxUnitRetries = 1
+	res := driveOnce(t, root, spec, taskFile, wf)
+
+	assert.Equal(t, StopUnitFailure, res.StopReason)
+	assert.Empty(t, res.EscalationPath)
+	assert.Len(t, invocations(t, records), 2)
+	assert.NoFileExists(t, EscalationPath(RunDir(root, res.RunID), "1"))
+}
+
