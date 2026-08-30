@@ -90,6 +90,10 @@ func runBrief(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	// v0.35.0 §4.2: the cycle's last failure, when one is present, so the unit
+	// about to start reads it before it walks into the same wall.
+	b.LastFailure = engine.ReadLastFailure(".", taskFilePath)
+
 	if output.IsJSON() {
 		return output.JSON(b)
 	}
