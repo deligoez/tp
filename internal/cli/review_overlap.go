@@ -38,11 +38,34 @@ func stringSliceField(v any) []string {
 	}
 }
 
-// latestRoundOverlapAndAttribution computes both the overlap report and the
-// attribution_excludes list (§9.2) from the latest recorded review round's
-// merged findings. Returns an empty report and nil excludes when no round is
-// recorded or its NDJSON file cannot be read.
-func latestRoundOverlapAndAttribution(specPath string, rounds []engine.ReviewRound) (report []engine.RoleOverlap, excludes []string) {
+// computeLocationClusters derives the §8a.1 location clusters from a set of
+// merged review findings. A record's contributing roles are its found_by_roles —
+// the set the merge already attributed, regression- and blank-free — falling
+// back to its own role field for a row the merge never attributed, which is what
+// a hand-written or pre-v0.35 round file looks like on the --status path.
+func computeLocationClusters(findings []map[string]any) []engine.LocationCluster {
+	records := make([]engine.LocationClusterRecord, 0, len(findings))
+	for _, f := range findings {
+		roles := stringSliceField(f["found_by_roles"])
+		if len(roles) == 0 {
+			roles = []string{asString(f["role"])}
+		}
+		records = append(records, engine.LocationClusterRecord{
+			Location: asString(f["location"]),
+			Roles:    roles,
+			Severity: asString(f["severity"]),
+		})
+	}
+	return engine.LocationClusters(records)
+}
+
+// latestRoundSignals computes the reporting-only signals --status derives from
+// the latest recorded review round's merged findings: the overlap report and
+// attribution_excludes (§9.2), and the location clusters (§8a.1). All three are
+// recomputed at read time from the round's stored NDJSON and never persisted, so
+// no round's finding count or clean flag depends on them. Returns empty results
+// when no round is recorded or its NDJSON file cannot be read.
+func latestRoundSignals(specPath string, rounds []engine.ReviewRound) (report []engine.RoleOverlap, excludes []string, clusters []engine.LocationCluster) {
 	if len(rounds) == 0 {
 		return []engine.RoleOverlap{}, nil
 	}
