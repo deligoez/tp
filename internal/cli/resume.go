@@ -22,7 +22,8 @@ the spec, .tp-review/, .tp/local.json, and git) it reports which lifecycle phase
 the project is in and the concrete next action — the note a finishing agent
 leaves for the next one. Read-only: it writes no file.
 
-Output: {phase, spec, changes, kept, bookkeeping, next_units, round, next_action, blockers}`,
+Output: {phase, spec, changes, kept, bookkeeping, next_units, round, last_failure,
+next_action, blockers}`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: runResume,
 	}
@@ -150,15 +151,16 @@ func resumeJSON(r *engine.ResumeResult, compact bool) map[string]any {
 	}
 
 	out := map[string]any{
-		"phase":       r.Phase,
-		"spec":        r.Spec,
-		"changes":     r.Changes,
-		"kept":        kept,
-		"bookkeeping": bookkeeping,
-		"next_units":  nextUnits,
-		"round":       r.Round,
-		"next_action": nextAction,
-		"blockers":    blockers,
+		"phase":        r.Phase,
+		"spec":         r.Spec,
+		"changes":      r.Changes,
+		"kept":         kept,
+		"bookkeeping":  bookkeeping,
+		"next_units":   nextUnits,
+		"round":        r.Round,
+		"last_failure": r.LastFailure,
+		"next_action":  nextAction,
+		"blockers":     blockers,
 	}
 	if r.Guidance != "" {
 		out["guidance"] = r.Guidance
@@ -186,6 +188,10 @@ func printResumeSummary(r *engine.ResumeResult) {
 	}
 	if r.Round != nil {
 		fmt.Printf("round: %d\n", *r.Round)
+	}
+	if r.LastFailure != nil {
+		fmt.Printf("last failure: %s %s exited %d — %s\n",
+			r.LastFailure.UnitKind, r.LastFailure.UnitID, r.LastFailure.ExitCode, r.LastFailure.Summary)
 	}
 	if r.Guidance != "" {
 		fmt.Printf("guidance: %s\n", r.Guidance)

@@ -161,8 +161,10 @@ func TestResume_NextUnitsSurviveCompact(t *testing.T) {
 }
 
 // TestResume_ObjectSet pins tp resume's exact top-level object set (§10.8): the
-// shape gains next_units and round, and nothing else moves. guidance is present
-// only in the implement phase, which is why the phase is fixed here.
+// shape gains next_units, round and last_failure, and nothing else moves.
+// guidance is present only in the implement phase, which is why the phase is
+// fixed here; last_failure is always present, null when the cycle carries none,
+// so a driver parses one shape whatever happened.
 func TestResume_ObjectSet(t *testing.T) {
 	dir := newPayloadRepo(t, `[{"id":"t1","title":"T","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"a","source_sections":["x"]}]`)
 	res := resumeResult(t, dir)
@@ -173,7 +175,7 @@ func TestResume_ObjectSet(t *testing.T) {
 	}
 	assert.ElementsMatch(t, []string{
 		"phase", "spec", "changes", "kept", "bookkeeping", "guidance",
-		"next_units", "round", "next_action", "blockers",
+		"next_units", "round", "last_failure", "next_action", "blockers",
 	}, keys)
 }
 
