@@ -67,14 +67,27 @@ type auditPrompt struct {
 	AffectedFiles  *[]engine.AuditFileEntry `json:"affected_files,omitempty"`
 }
 
+// auditFileSummary is tp audit's file_summary: the shared affected-file counts
+// plus the auto-detect cap's own accounting (section 8a.3). total_files keeps
+// reporting the audited count, total_changed reports how many files changed
+// before the cap, and truncated says whether the two differ. All three live in
+// the payload rather than on stderr alone, because --quiet erases stderr and an
+// agent reading stdout would otherwise take a 50-file prefix for the whole
+// changed set.
+type auditFileSummary struct {
+	engine.AffectedSummary
+	Truncated    bool `json:"truncated"`
+	TotalChanged int  `json:"total_changed"`
+}
+
 type auditResult struct {
-	Spec             string                  `json:"spec"`
-	Files            []string                `json:"files"`
-	FileSummary      *engine.AffectedSummary `json:"file_summary,omitempty"`
-	Checklist        []checklistEntry        `json:"checklist"`
-	ChecklistSummary checklistSummary        `json:"checklist_summary"`
-	SkippedRoles     *[]engine.SkippedRole   `json:"skipped_roles,omitempty"`
-	Prompts          []auditPrompt           `json:"prompts"`
+	Spec             string                `json:"spec"`
+	Files            []string              `json:"files"`
+	FileSummary      *auditFileSummary     `json:"file_summary,omitempty"`
+	Checklist        []checklistEntry      `json:"checklist"`
+	ChecklistSummary checklistSummary      `json:"checklist_summary"`
+	SkippedRoles     *[]engine.SkippedRole `json:"skipped_roles,omitempty"`
+	Prompts          []auditPrompt         `json:"prompts"`
 }
 
 var binaryExtensions = map[string]bool{
@@ -259,7 +272,7 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 
 	// Expand comma-separated values in --affected-files
 	affectedFiles = expandCommaFiles(affectedFiles)
-	files := determineAuditFiles(specPath, affectedFiles, base, affectedFromTasks)
+	files, totalChanged := determineAuditFiles(specPath, affectedFiles, base, affectedFromTasks)
 
 	// §2.5 item 2: resolve the auditor panel — and with it decide the
 	// spec-coverage and empty-phase refusals — ahead of every write the
@@ -341,7 +354,14 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	}
 
 	if summary != nil {
-		result.FileSummary = summary
+		// Derive truncated from the two counts rather than from which
+		// resolution path ran: only auto-detection caps today, but any future
+		// path that hands over a prefix then reports itself honestly for free.
+		result.FileSummary = &auditFileSummary{
+			AffectedSummary: *summary,
+			Truncated:       totalChanged > len(files),
+			TotalChanged:    totalChanged,
+		}
 	}
 
 	// §9.1 / §8.4: skipped_roles names every non-emitted auditor; explanatory,
@@ -360,11 +380,13 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	return output.JSON(result)
 }
 
-// determineAuditFiles resolves the set of source files to audit. With
-// affectedFromTasks, files are derived from done-task commit_shas (§11.2);
-// otherwise the normal --affected-files / git-diff resolution applies. Errors
-// abort via exitAuditNoFiles / ExitFile, matching runAudit's exit contract.
-func determineAuditFiles(specPath string, affectedFiles []string, base string, affectedFromTasks bool) []string {
+// determineAuditFiles resolves the set of source files to audit, plus the
+// pre-cap count of files the resolution considered (§8a.3): the two differ only
+// when auto-detection truncated the set. With affectedFromTasks, files are
+// derived from done-task commit_shas (§11.2); otherwise the normal
+// --affected-files / git-diff resolution applies. Errors abort via
+// exitAuditNoFiles / ExitFile, matching runAudit's exit contract.
+func determineAuditFiles(specPath string, affectedFiles []string, base string, affectedFromTasks bool) (files []string, totalChanged int) {
 	if affectedFromTasks {
 		// --affected-from-tasks bypasses diff auto-detection and audits the
 		// union of files touched by done-task commit_shas directly (§11.2).
@@ -380,11 +402,12 @@ func determineAuditFiles(specPath string, affectedFiles []string, base string, a
 			// derived is the empty list the branch just computed; hand it over
 			// rather than making exitAuditNoFiles derive the same answer again.
 			exitAuditNoFilesWith(fmt.Sprintf("no files derivable from done-task commits (%s) — provide --affected-files", reason), derived)
-			return nil
+			return nil, 0
 		}
-		return derived
+		// Nothing caps this path, so the audited set is the whole derived set.
+		return derived, len(derived)
 	}
-	resolved, err := resolveAuditFiles(specPath, affectedFiles, base)
+	resolved, totalChanged, err := resolveAuditFiles(specPath, affectedFiles, base)
 	if err != nil {
 		// Route on sentinel identity. Classifying by substring meant that
 		// rewording an error silently changed its exit code.
@@ -395,14 +418,14 @@ func determineAuditFiles(specPath string, affectedFiles []string, base string, a
 			// names the task file, which is not what is wrong here.
 			output.Error(ExitFile, err.Error(), "check the --affected-files path, or drop the flag to auto-detect from the diff")
 			os.Exit(ExitFile)
-			return nil
+			return nil, 0
 		}
 		// No audit-able file in the diff (exit 4): carry suggested_files so
 		// the agent can pick targets without re-deriving them from git (§11.1).
 		exitAuditNoFiles(specPath, err.Error())
-		return nil
+		return nil, 0
 	}
-	return resolved
+	return resolved, totalChanged
 }
 
 // loadAuditSpec reads the spec, snapshots its raw bytes at audit-round start
@@ -622,48 +645,54 @@ func compactAuditChecklist(result *auditResult) {
 	}
 }
 
-func resolveAuditFiles(specPath string, affectedFiles []string, base string) ([]string, error) {
+func resolveAuditFiles(specPath string, affectedFiles []string, base string) (files []string, totalChanged int, err error) {
 	if len(affectedFiles) > 0 {
 		affectedFiles = engine.DedupPaths(affectedFiles)
 		for _, f := range affectedFiles {
-			info, err := os.Stat(f)
-			if err != nil {
+			info, statErr := os.Stat(f)
+			if statErr != nil {
 				// Carry the cause: a permission error reported as "not found"
 				// sends the caller looking for the wrong problem. Wrap the
 				// sentinel so the caller routes on identity, not on wording.
-				if os.IsNotExist(err) {
-					return nil, fmt.Errorf("%w: %s", errAffectedFileMissing, f)
+				if os.IsNotExist(statErr) {
+					return nil, 0, fmt.Errorf("%w: %s", errAffectedFileMissing, f)
 				}
-				return nil, fmt.Errorf("%w %s: %w", errAffectedFileUnreadable, f, err)
+				return nil, 0, fmt.Errorf("%w %s: %w", errAffectedFileUnreadable, f, statErr)
 			}
 			if info.IsDir() {
-				return nil, fmt.Errorf("%w: %s", errAffectedPathIsDir, f)
+				return nil, 0, fmt.Errorf("%w: %s", errAffectedPathIsDir, f)
 			}
 		}
-		return affectedFiles, nil
+		// The cap belongs to auto-detection: a named set is audited whole, so
+		// its pre-cap count is its own length and it never reads as truncated.
+		return affectedFiles, len(affectedFiles), nil
 	}
 
 	specDir := filepath.Dir(specPath)
-	files, err := detectChangedFiles(specDir, base)
+	files, totalChanged, err = detectChangedFiles(specDir, base)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	if len(files) == 0 {
 		if base != "" {
-			return nil, fmt.Errorf("no changed files detected (diff %s...HEAD is empty) — provide --affected-files", base)
+			return nil, 0, fmt.Errorf("no changed files detected (diff %s...HEAD is empty) — provide --affected-files", base)
 		}
-		return nil, fmt.Errorf("no changed files detected (staged+unstaged is empty) — use --base <tag> for committed changes, or --affected-files")
+		return nil, 0, fmt.Errorf("no changed files detected (staged+unstaged is empty) — use --base <tag> for committed changes, or --affected-files")
 	}
-	return files, nil
+	return files, totalChanged, nil
 }
 
-func detectChangedFiles(dir, base string) ([]string, error) {
+// detectChangedFiles returns the audit-able changed files, capped at
+// maxAutoDetectFiles, and — as its second result — how many there were before
+// the cap (§8a.3). The caller reports both, so a truncated set is legible in
+// the payload and not on stderr alone.
+func detectChangedFiles(dir, base string) (files []string, totalChanged int, err error) {
 	var allFiles []string
 
 	// A base that git would read as an option must never be concatenated into
 	// a revision range; runAudit rejects one up front, and this is the sink.
 	if base != "" && !engine.SafeGitRev(base) {
-		return nil, fmt.Errorf("invalid --base %q: must not start with %q", base, "-")
+		return nil, 0, fmt.Errorf("invalid --base %q: must not start with %q", base, "-")
 	}
 
 	// auditDiffRanges is the single definition of "the comparison this audit
@@ -671,11 +700,11 @@ func detectChangedFiles(dir, base string) ([]string, error) {
 	// the same list, so selection and stats can never describe different
 	// ranges — the failure that let a committed change be reported as +0/-0.
 	for i, rng := range auditDiffRanges(dir, base) {
-		files := execGitDiffProbe(dir, "diff --name-only", append([]string{"diff", "--name-only"}, rng...)...)
-		if i == 0 && len(files) == 0 && !gitExists(dir) {
-			return nil, fmt.Errorf("not in a git repo — provide --affected-files or run inside a git repo")
+		changed := execGitDiffProbe(dir, "diff --name-only", append([]string{"diff", "--name-only"}, rng...)...)
+		if i == 0 && len(changed) == 0 && !gitExists(dir) {
+			return nil, 0, fmt.Errorf("not in a git repo — provide --affected-files or run inside a git repo")
 		}
-		allFiles = append(allFiles, files...)
+		allFiles = append(allFiles, changed...)
 	}
 
 	allFiles = engine.DedupPaths(allFiles)
@@ -687,6 +716,11 @@ func detectChangedFiles(dir, base string) ([]string, error) {
 		filtered = append(filtered, f)
 	}
 	sort.Strings(filtered)
+
+	// The pre-cap count is taken over the audit-able set, which is what the
+	// cap acts on: reporting the raw diff would count files no audit would
+	// ever have read and overstate the loss.
+	totalChanged = len(filtered)
 
 	if len(filtered) > maxAutoDetectFiles {
 		filtered = filtered[:maxAutoDetectFiles]
@@ -709,10 +743,10 @@ func detectChangedFiles(dir, base string) ([]string, error) {
 			exts = append(exts, ext)
 		}
 		sort.Strings(exts)
-		return nil, fmt.Errorf("no audit-able files in diff — only skipped types changed (%s). Use --base <tag> or --affected-files", strings.Join(exts, ", "))
+		return nil, 0, fmt.Errorf("no audit-able files in diff — only skipped types changed (%s). Use --base <tag> or --affected-files", strings.Join(exts, ", "))
 	}
 
-	return filtered, nil
+	return filtered, totalChanged, nil
 }
 
 func gitExists(dir string) bool {

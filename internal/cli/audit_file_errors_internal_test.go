@@ -21,7 +21,7 @@ func TestResolveAuditFiles_MissingCarriesSentinel(t *testing.T) {
 	spec := filepath.Join(dir, "s.md")
 	require.NoError(t, os.WriteFile(spec, []byte("# S\n"), 0o600))
 
-	_, err := resolveAuditFiles(spec, []string{filepath.Join(dir, "ghost.go")}, "")
+	_, _, err := resolveAuditFiles(spec, []string{filepath.Join(dir, "ghost.go")}, "")
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, errAffectedFileMissing), "a missing file carries errAffectedFileMissing")
 	assert.False(t, errors.Is(err, errAffectedFileUnreadable))
@@ -34,7 +34,7 @@ func TestResolveAuditFiles_DirCarriesSentinel(t *testing.T) {
 	sub := filepath.Join(dir, "sub")
 	require.NoError(t, os.Mkdir(sub, 0o755))
 
-	_, err := resolveAuditFiles(spec, []string{sub}, "")
+	_, _, err := resolveAuditFiles(spec, []string{sub}, "")
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, errAffectedPathIsDir), "a directory carries errAffectedPathIsDir")
 }
@@ -56,7 +56,7 @@ func TestResolveAuditFiles_UnreadableCarriesSentinelAndCause(t *testing.T) {
 	require.NoError(t, os.Chmod(locked, 0o000))
 	t.Cleanup(func() { _ = os.Chmod(locked, 0o755) })
 
-	_, err := resolveAuditFiles(spec, []string{target}, "")
+	_, _, err := resolveAuditFiles(spec, []string{target}, "")
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, errAffectedFileUnreadable), "an unreadable path carries errAffectedFileUnreadable")
 	assert.False(t, errors.Is(err, errAffectedFileMissing), "it is not reported as missing")
