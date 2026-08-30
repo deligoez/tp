@@ -211,3 +211,20 @@ func TestRunDriver_RoleLeftoverIsClearedBeforeTheAttempt(t *testing.T) {
 		"a previous attempt's leftover must never be promoted into this attempt's durable write")
 }
 
+// §3.1's fifth step means a dead driver loses nothing: the second run
+// re-derives the same unit from durable state rather than skipping past it.
+func TestRunDriver_CrashedDriverResumesAtTheSameUnit(t *testing.T) {
+	root, spec, taskFile, records := seamProject(t, `{"spec":"s.md","tasks":[`+`{"id":"alpha","title":"A","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"a","source_sections":["x"]}]}`)
+
+	// The fake exits 0 and writes nothing: a unit that did not finish.
+	first := driveOnce(t, root, spec, taskFile, driverWorkflow())
+	assert.Equal(t, StopUnitFailure, first.StopReason, "exit 0 with no durable write is a failed attempt")
+
+	second := driveOnce(t, root, spec, taskFile, driverWorkflow())
+	assert.Equal(t, StopUnitFailure, second.StopReason)
+
+	recs := invocations(t, records)
+	require.Len(t, recs, 2, "each run attempted one unit")
+	assert.Equal(t, []string{"alpha", "alpha"}, spawnedIDs(recs), "the second run resumes at the same unit")
+}
+
