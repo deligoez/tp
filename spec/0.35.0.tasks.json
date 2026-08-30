@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-30T10:46:06.25632Z",
+  "updated_at": "2026-08-30T11:01:22.332972Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -649,7 +649,7 @@
     {
       "id": "driver-error",
       "title": "Stop on a driver-side fatal error",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "stop-reasons"
@@ -659,11 +659,27 @@
       "source_sections": [
         "### 3.4 Caps and stop conditions"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-30T10:47:03.797991Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-30T11:01:22.275722Z",
+      "closed_reason": "- A driver-side fatal error (section 3.4) now stops the run with driver-error and exits 4: engine.DriverError names the class, RunDriver's fail() records StopDriverError for it and only for it, and internal/cli/root.go's dispatchError maps it to ExitState (4) with its own hint, after the two runner-shape branches that keep exit 2. Verified by driving a real exec failure through TP_RUNNER_SEAM pointed at a nonexistent path (test 70 arm 1) and a run directory placed under a regular file (arm 2), watching both fail first against unchanged code, and dogfooded with the freshly built binary on a scratch project: exit 4, stop_reason driver-error, and tp run --status reporting run_state stopped instead of crashed.\n- No unit is charged a failed attempt for it: the exec failure returns before failedUnits is consulted, proved by setting run_max_unit_retries to 2 and asserting the run state carries exactly one attempt row rather than three.\n- Fixed a real bug the previous unit reported out of scope: record() called FinishUnit with exit code 0 for an attempt whose runner never exec'd, so the row read exit_code 0 for a child that does not exist. Reproduced first (the assertion saw a non-nil *int), then fixed by leaving the row's nulls, which section 3.5 already defines as never finished.\n- Gate green, each step run separately: go test -race ./... = 0, golangci-lint run = 0, ./scripts/check-deadcode.sh = 0. Mutation-checked all three additions: emptying fail() reddened only TestRunDriver_ARunnerThatCannotExecStopsWithDriverError, dropping record()'s continue reddened only that same test's exit_code assertion, and disabling the dispatchError branch reddened only TestDispatchError_DriverErrorIsState; every restore was checksum-verified byte-identical.\nOut of scope: the full stop-reason to exit-code mapping is still absent, so tp run exits 0 on converged, cap-*, escalation, unit-failure, no-units and interrupted alike — that is the open run-exit-codes task, and this unit pinned only driver-error's 4.",
+      "gate_passed_at": "2026-08-30T11:01:22.275722Z",
+      "commit_sha": "83ecdcb",
+      "commit_shas": [
+        "83ecdcb",
+        "b097563",
+        "dc5ef52",
+        "8ae61a4",
+        "1f19991",
+        "188abd8"
+      ],
+      "commit_files": [
+        "internal/cli/driver_error_exit_internal_test.go",
+        "internal/cli/root.go",
+        "internal/engine/driver.go",
+        "internal/engine/drivererror.go",
+        "internal/engine/drivererror_test.go"
+      ]
     },
     {
       "id": "run-exit-codes",
@@ -962,7 +978,7 @@
     {
       "id": "arity-exit-two",
       "title": "Exit 2 on an arity violation",
-      "status": "open",
+      "status": "wip",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 10,
@@ -970,7 +986,8 @@
       "source_sections": [
         "### 8a.5 Arity violations are usage errors"
       ],
-      "started_at": null,
+      "started_at": "2026-08-30T10:46:55.725897Z",
+      "duration_source": "claimed",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,
