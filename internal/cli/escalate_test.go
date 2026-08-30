@@ -246,13 +246,11 @@ func TestEscalateConcurrentSiblingsEachWriteTheirOwn(t *testing.T) {
 
 	var wg sync.WaitGroup
 	for _, unit := range siblings {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			_, stderr, code := runEscalate(t, t.TempDir(), unitEnv(t, unit),
 				"--decision", "raise-review-cap", "--evidence", unit.id+" cannot converge within the cap")
 			assert.Equal(t, 2, code, "stderr=%s", stderr)
-		}()
+		})
 	}
 	wg.Wait()
 

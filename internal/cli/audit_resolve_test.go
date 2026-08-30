@@ -41,7 +41,7 @@ func readAuditRows(t *testing.T, path string) []map[string]any {
 	data, err := os.ReadFile(path)
 	require.NoError(t, err)
 	rows := make([]map[string]any, 0)
-	for _, line := range strings.Split(string(data), "\n") {
+	for line := range strings.SplitSeq(string(data), "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue

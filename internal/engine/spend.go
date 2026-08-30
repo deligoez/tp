@@ -91,7 +91,7 @@ func spendFromLine(line []byte, key string) *float64 {
 	if err := json.Unmarshal(line, &value); err != nil {
 		return nil
 	}
-	for _, part := range strings.Split(key, ".") {
+	for part := range strings.SplitSeq(key, ".") {
 		obj, isObject := value.(map[string]any)
 		if !isObject {
 			return nil

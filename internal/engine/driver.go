@@ -618,11 +618,9 @@ func spawnAll(root string, attempts []*unitAttempt) {
 	parent := os.Environ()
 	var wg sync.WaitGroup
 	for _, a := range attempts {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			a.spawn(root, parent)
-		}()
+		})
 	}
 	wg.Wait()
 }

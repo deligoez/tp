@@ -27,7 +27,7 @@ func auditRepoWithChangedFiles(t *testing.T, n int) (dir, specPath string) {
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n## Table\n| Col |\n|-----|\n| a |\n"), 0o600))
 	writeTaskFileRaw(t, dir, `[]`)
 	initGitRepo(t, dir)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		name := fmt.Sprintf("f%03d.go", i)
 		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte("package main\n"), 0o600))
 	}
@@ -101,7 +101,7 @@ func TestAuditAffectedFiles_NeverTruncated(t *testing.T) {
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n## Table\n| Col |\n|-----|\n| a |\n"), 0o600))
 
 	named := make([]string, 0, 2)
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		p := filepath.Join(dir, fmt.Sprintf("n%d.go", i))
 		require.NoError(t, os.WriteFile(p, []byte("package main\n"), 0o600))
 		named = append(named, p)

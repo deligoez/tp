@@ -201,7 +201,7 @@ func SelectPriorWork(tf *model.TaskFile, taskID string, priorCount int, priorSet
 	for _, t := range depOrder {
 		entries = append(entries, buildPriorWorkEntry(t))
 	}
-	for i := 0; i < recencyLimit; i++ {
+	for i := range recencyLimit {
 		entries = append(entries, buildPriorWorkEntry(&candidates[i]))
 	}
 

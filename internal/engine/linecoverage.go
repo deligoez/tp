@@ -111,7 +111,7 @@ func ValidateLineCoverage(tf *model.TaskFile, specPath string) []Finding {
 
 	maxGaps := min(len(gaps), 5)
 
-	for i := 0; i < maxGaps; i++ {
+	for i := range maxGaps {
 		g := gaps[i]
 		findings = append(findings, Finding{
 			Severity: "warning",

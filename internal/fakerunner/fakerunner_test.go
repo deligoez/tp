@@ -113,11 +113,9 @@ func TestFakeRunner_ConcurrentInvocationsOverlap(t *testing.T) {
 
 	var wg sync.WaitGroup
 	for _, id := range []string{"role-a", "role-b"} {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			spawn(t, bin, dir, slow, "review-role", id, "", "0")
-		}()
+		})
 	}
 	wg.Wait()
 

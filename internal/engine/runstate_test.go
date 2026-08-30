@@ -235,16 +235,14 @@ func TestRunRecorder_ConcurrentSiblingsLeaveAParseableFile(t *testing.T) {
 	}
 	// A lock-free reader beside them: every read either parses or the file is
 	// not there yet, and it is never half-written.
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		for range 40 {
 			if data, err := os.ReadFile(RunStatePath(root, taskFile)); err == nil {
 				var st RunState
 				assert.NoError(t, json.Unmarshal(data, &st), "a reader never sees a partial file")
 			}
 		}
-	}()
+	})
 	wg.Wait()
 
 	state, err := ReadRunState(root, taskFile)

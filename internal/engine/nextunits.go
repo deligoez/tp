@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"maps"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -283,9 +284,7 @@ func renderNextAction(na NextAction, units []NextUnit) NextAction {
 		return na
 	}
 	payload := make(map[string]any, len(na.Payload)+1)
-	for k, v := range na.Payload {
-		payload[k] = v
-	}
+	maps.Copy(payload, na.Payload)
 	payload["unit"] = map[string]any{"kind": string(units[0].Kind), "id": units[0].ID}
 	na.Payload = payload
 	return na

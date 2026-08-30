@@ -115,7 +115,7 @@ func runBrief(t *testing.T, kind UnitKind, mergedExists bool) []string {
 	data, err := os.ReadFile(log)
 	require.NoError(t, err, "the brief invoked tp at least once")
 	calls := make([]string, 0)
-	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(string(data)), "\n") {
 		if strings.TrimSpace(line) != "" {
 			calls = append(calls, "tp "+line)
 		}

@@ -160,10 +160,7 @@ func levenshtein(a, b string) int {
 			del := prev[j] + 1
 			ins := curr[j-1] + 1
 			sub := prev[j-1] + cost
-			best := min(ins, del)
-			if sub < best {
-				best = sub
-			}
+			best := min(sub, min(ins, del))
 			curr[j] = best
 		}
 		prev, curr = curr, prev

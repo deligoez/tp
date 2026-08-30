@@ -2,6 +2,7 @@ package engine
 
 import (
 	"crypto/rand"
+	"maps"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -65,12 +66,8 @@ func ChildEnv(parent []string, runnerEnv map[string]string, u *UnitEnv) []string
 			merged[key] = value
 		}
 	}
-	for key, value := range runnerEnv {
-		merged[key] = value
-	}
-	for key, value := range driverEnv(u) {
-		merged[key] = value
-	}
+	maps.Copy(merged, runnerEnv)
+	maps.Copy(merged, driverEnv(u))
 	if u.Round == nil {
 		delete(merged, EnvRound)
 		delete(merged, EnvRoundDir)
