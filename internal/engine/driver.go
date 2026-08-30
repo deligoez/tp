@@ -53,6 +53,11 @@ type DriverResult struct {
 	Phase      string
 	StopReason StopReason
 	Units      int
+	// EscalationPath is the escalation record the run stopped on (§5.2), or
+	// "" when it stopped for any other reason. When one iteration produced
+	// several, it is the lowest seq's — the first unit that asked — and
+	// every record is left on disk.
+	EscalationPath string
 }
 
 // driver is one run in flight: the options it was given, the identity it
@@ -129,9 +134,16 @@ func RunDriver(o *DriverOptions) (DriverResult, error) {
 
 		// 4. Spawn a runner process per unit, retrying a unit that failed
 		//    until its attempt budget is spent.
-		finished, iterErr := d.runIteration(&res)
+		escalation, finished, iterErr := d.runIteration(&res)
 		if iterErr != nil {
 			return d.fail(&result, iterErr)
+		}
+		// A unit that asked for a user-only decision ends the run before
+		// any failed sibling does (§3.4): the operator has to answer
+		// before anything here can be retried in good faith.
+		if escalation != "" {
+			result.EscalationPath = escalation
+			return d.stop(&result, StopEscalation), nil
 		}
 		if !finished {
 			return d.stop(&result, StopUnitFailure), nil
@@ -200,10 +212,19 @@ type unitAttempt struct {
 	exitCode int
 	duration time.Duration
 	err      error
+	// escalationPath is the valid escalation record this attempt's unit
+	// wrote (§5.2), or "" when it wrote none the driver could read.
+	escalationPath string
 }
 
 // runIteration spawns one iteration's units and retries the ones that failed,
-// reporting whether every unit finished.
+// reporting the escalation record an attempt left (§5.2) and whether every
+// unit finished.
+//
+// An escalation returns immediately, before the retry loop and before any
+// failed sibling is carried forward: §3.4 ranks it above unit-failure, and a
+// retry of anything in an iteration that has already asked the operator a
+// question would be work done against an answer nobody has given yet.
 //
 // A unit gets `1 + run_max_unit_retries` attempts (§3.4), and only the units
 // that failed are carried into the next attempt: a role sibling that already
@@ -217,24 +238,27 @@ type unitAttempt struct {
 // as an error and is returned rather than retried: §3.4 keeps that apart from
 // a failed attempt, and charging the unit for it would spend a budget the unit
 // never got to use.
-func (d *driver) runIteration(res *ResumeResult) (bool, error) {
+func (d *driver) runIteration(res *ResumeResult) (escalation string, finished bool, err error) {
 	units := concurrentBatch(res.NextUnits)
 	budget := attemptBudget(&d.opts.Workflow)
 	for attempt := 1; attempt <= budget; attempt++ {
 		batch, prepErr := d.prepare(res, units, attempt)
 		if prepErr != nil {
-			return false, prepErr
+			return "", false, prepErr
 		}
 		spawnAll(d.opts.Root, batch)
-		if err := d.record(batch); err != nil {
-			return false, err
+		if recErr := d.record(batch); recErr != nil {
+			return "", false, recErr
+		}
+		if asked := lowestEscalation(batch); asked != "" {
+			return asked, false, nil
 		}
 		units = failedUnits(batch)
 		if len(units) == 0 {
-			return true, nil
+			return "", true, nil
 		}
 	}
-	return false, nil
+	return "", false, nil
 }
 
 // prepare resolves everything one attempt at a set of units needs and returns
@@ -351,10 +375,18 @@ func (d *driver) record(attempts []*unitAttempt) error {
 // attempt that writes no record and clears none, which is the honest answer for
 // a unit whose exit code says nothing went wrong.
 //
+// An escalating unit reaches neither branch. §5.2 says it sets no
+// last_failure, and it clears none either: an escalation is a question rather
+// than an outcome, so a record the unit's earlier failure left is still the
+// last thing that failed.
+//
 // Every write error is dropped, because the record is advisory (§4.2): its
 // absence never changes which unit runs next, and turning a bookkeeping failure
 // into a driver error would stop a run over a hint.
 func (d *driver) recordLastFailure(a *unitAttempt) {
+	if a.escalated() {
+		return
+	}
 	switch {
 	case a.exitCode != 0:
 		_ = WriteLastFailure(d.opts.Root, d.opts.TaskFile, &LastFailure{
@@ -474,6 +506,33 @@ func (a *unitAttempt) spawn(root string, parent []string) {
 		a.err = driverErrorf(err, "spawn %s unit %q", a.unit.Kind, a.unit.ID)
 	}
 	a.promoteRoleFindings()
+	a.readEscalation()
+}
+
+// readEscalation keeps the escalation record this attempt's unit wrote, when it
+// wrote a valid one (§5.2).
+//
+// The record is what the driver tests rather than the exit code, because the
+// driver spawns a harness and not tp itself: the harness's code need not carry
+// the inner command's. A record that is absent, unreadable or fails schema
+// validation leaves the path empty, which sends the attempt back to its §3.3
+// predicate and its exit code — the same judgement a unit that wrote nothing
+// gets, and the reason the read's error is not reported anywhere.
+//
+// The path is derived from this attempt's own seq, so a record a previous
+// attempt of the same unit left can never be read as this one's.
+func (a *unitAttempt) readEscalation() {
+	path := EscalationPath(RunDir(a.env.Root, a.env.RunID), strconv.Itoa(a.seq))
+	if _, err := ReadEscalation(path); err != nil {
+		return
+	}
+	a.escalationPath = path
+}
+
+// escalated reports whether this attempt's unit asked for a user-only
+// decision. It is neither a success nor a failed attempt (§5.2).
+func (a *unitAttempt) escalated() bool {
+	return a.escalationPath != ""
 }
 
 // promoteRoleFindings renames a role unit's .part to the final name on exit 0,
@@ -517,6 +576,27 @@ func failedUnits(attempts []*unitAttempt) []NextUnit {
 		}
 	}
 	return failed
+}
+
+// lowestEscalation returns the escalation record an iteration's attempts left,
+// the lowest seq's when several did (§5.2).
+//
+// Every record stays on disk — they are per unit, so concurrent siblings never
+// clobber each other — and the lowest seq is only which one the run reports.
+// It is chosen by seq rather than by position or by exit order so that the
+// reported record is the first unit that asked, whichever child happened to
+// finish first.
+func lowestEscalation(attempts []*unitAttempt) string {
+	lowest, path := 0, ""
+	for _, a := range attempts {
+		if !a.escalated() {
+			continue
+		}
+		if path == "" || a.seq < lowest {
+			lowest, path = a.seq, a.escalationPath
+		}
+	}
+	return path
 }
 
 // capStop returns the cap a run has reached, or "" while it is within all of
