@@ -155,3 +155,22 @@ func taskStatus(t *testing.T, taskFile, id string) string {
 	return ""
 }
 
+// The wall-clock cap produces its own reason from a real run: the unit cap is
+// nowhere near, so a stop recorded as cap-units here would be a cap reading a
+// counter that is not its own.
+func TestRunDriver_CapWallClockStopsTheRun(t *testing.T) {
+	root, spec, taskFile, records := seamProject(t, twoOpenTasks)
+	recordRounds(t, spec, 0, 2, true)
+	t.Setenv(fakerunner.EnvDurable, "1")
+	t.Setenv(fakerunner.EnvSleepMS, "1200")
+
+	wf := driverWorkflow()
+	wf.RunMaxWallClockSeconds = 1
+	res := driveOnce(t, root, spec, taskFile, wf)
+
+	assert.Equal(t, StopCapWallClock, res.StopReason)
+	assert.Len(t, invocations(t, records), 1, "the cap stops the run after the iteration that reached it")
+	assert.Equal(t, model.StatusOpen, taskStatus(t, taskFile, "beta"),
+		"the cap closed no task of its own")
+}
+
