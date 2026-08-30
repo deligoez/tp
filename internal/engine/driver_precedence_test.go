@@ -133,3 +133,25 @@ func TestRunDriver_ConvergedOutranksAnEscalationTheSameIterationRaised(t *testin
 	})
 }
 
+// unit-failure outranks every cap: a unit that spent its last attempt on the
+// iteration that also reached the unit cap is reported as the failure it is,
+// not as a run that was merely bounded.
+func TestRunDriver_UnitFailureOutranksACapTheSameIterationReached(t *testing.T) {
+	root, spec, taskFile, records := seamProject(t, oneOpenTask)
+
+	// The fake exits 0 and writes nothing, which is a failed attempt
+	// (section 3.3), and no retry is budgeted — so the unit exhausts its
+	// attempts on the same iteration that spends the run's only unit.
+	wf := driverWorkflow()
+	wf.RunMaxUnitRetries = 0
+	wf.RunMaxUnits = 1
+	res := driveOnce(t, root, spec, taskFile, wf)
+
+	st := readRunStateFile(t, root, taskFile)
+	require.Equal(t, StopCapUnits, capStop(&st, wf),
+		"the unit cap was reached at the checkpoint, so both rows were satisfied at once")
+	assert.Equal(t, StopUnitFailure, res.StopReason,
+		"unit-failure precedes cap-units, and a cap must not report an exhausted unit as a bounded run")
+	assert.Len(t, invocations(t, records), 1, "the one attempt is all the budget bought")
+}
+
