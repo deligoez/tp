@@ -154,6 +154,51 @@ INCREMENTAL (1 task at a time):
 // spec, an NDJSON or a config file (§9.2).
 const runtimeFailureHint = "the error message names the object that failed — check that one; 'tp validate' applies only when it is the task file"
 
+// dispatchError classifies an error the command dispatcher returned into the tp
+// error contract's (code, message, hint). It is a function rather than a run of
+// branches inside Execute because Execute ends in os.Exit: extracted, the
+// classification every exit code depends on can be tested directly.
+func dispatchError(err error) (code int, msg, hint string) {
+	var fe flagUsageError
+	if errors.As(err, &fe) {
+		// §13.1: a flag-parse failure is a usage error (exit 2) emitted as the
+		// standard tp error object {error, code, hint}, never bare cobra text.
+		msg, hint = usageErrorDetail(fe.cmd, fe.err)
+		return ExitUsage, msg, hint
+	}
+	// §3.2: a runner value that is none of the three shapes — a map missing
+	// default, a runner object missing cmd — is a usage error (exit 2), not
+	// the exit 4 the run-lock precedent above uses: nothing about the run
+	// state is wrong, the configuration simply does not say what to spawn, so
+	// neither waiting nor retrying can change the answer. Its own hint names
+	// the three shapes, which the code-1 default could not.
+	var shapeErr *engine.RunnerShapeError
+	if errors.As(err, &shapeErr) {
+		return ExitUsage, shapeErr.Error(), shapeErr.Hint()
+	}
+	// §12.2: write-lock contention that retried past lock_timeout_seconds is a
+	// state error (exit 4) with a hint naming the lock path and elapsed wait.
+	var lockErr *engine.LockTimeoutError
+	if errors.As(err, &lockErr) {
+		return ExitState, lockErr.Error(), lockErr.Hint()
+	}
+	// §3.1.1: a second tp run over a task file another run already drives is
+	// the same class of answer — the state is not yours — so it exits 4 too.
+	// It is a distinct error from the write-lock timeout because its hint
+	// must not offer raising lock_timeout_seconds: the holder is a whole
+	// run, and no timeout outlasts it.
+	var runLockErr *engine.RunLockBusyError
+	if errors.As(err, &runLockErr) {
+		return ExitState, runLockErr.Error(), runLockErr.Hint()
+	}
+	// Rare: any other RunE-returned error emits as the standard tp error
+	// object with exit 1 (validation). The dispatcher cannot name the failing
+	// object — the error came from whichever command ran — so it points at
+	// the message instead of at the task file the code-1 default assumes
+	// (§9.2).
+	return ExitValidation, err.Error(), runtimeFailureHint
+}
+
 func Execute() {
 	if os.Getenv("NO_COLOR") != "" {
 		flagNoColor = true
@@ -173,38 +218,9 @@ func Execute() {
 		// A cobra-level error aborted before PersistentPreRun configured output
 		// mode, so set it now (else a piped run would get TTY text, not JSON).
 		output.EnsureConfigured(os.Args)
-		var fe flagUsageError
-		if errors.As(err, &fe) {
-			// §13.1: a flag-parse failure is a usage error (exit 2) emitted as the
-			// standard tp error object {error, code, hint}, never bare cobra text.
-			msg, hint := usageErrorDetail(fe.cmd, fe.err)
-			output.Error(ExitUsage, msg, hint)
-			os.Exit(ExitUsage)
-		}
-		// §12.2: write-lock contention that retried past lock_timeout_seconds is a
-		// state error (exit 4) with a hint naming the lock path and elapsed wait.
-		var lockErr *engine.LockTimeoutError
-		if errors.As(err, &lockErr) {
-			output.Error(ExitState, lockErr.Error(), lockErr.Hint())
-			os.Exit(ExitState)
-		}
-		// §3.1.1: a second tp run over a task file another run already drives is
-		// the same class of answer — the state is not yours — so it exits 4 too.
-		// It is a distinct error from the write-lock timeout because its hint
-		// must not offer raising lock_timeout_seconds: the holder is a whole
-		// run, and no timeout outlasts it.
-		var runLockErr *engine.RunLockBusyError
-		if errors.As(err, &runLockErr) {
-			output.Error(ExitState, runLockErr.Error(), runLockErr.Hint())
-			os.Exit(ExitState)
-		}
-		// Rare: any other RunE-returned error emits as the standard tp error
-		// object with exit 1 (validation). The dispatcher cannot name the failing
-		// object — the error came from whichever command ran — so it points at
-		// the message instead of at the task file the code-1 default assumes
-		// (§9.2).
-		output.Error(ExitValidation, err.Error(), runtimeFailureHint)
-		os.Exit(ExitValidation)
+		code, msg, hint := dispatchError(err)
+		output.Error(code, msg, hint)
+		os.Exit(code)
 	}
 }
 
