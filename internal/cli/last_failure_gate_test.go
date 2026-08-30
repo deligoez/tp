@@ -99,3 +99,20 @@ func TestDoneGate_PassingGateUnderARunRecordsNothing(t *testing.T) {
 	assert.Nil(t, readGateLastFailure(t, dir), "a passing gate records nothing")
 }
 
+// A gate with no output of its own — a timeout, or a silent non-zero exit —
+// still produces a summary that says what failed, because a record whose
+// summary is empty tells the next unit nothing.
+func TestDoneGate_SilentGateFailureStillSummarizes(t *testing.T) {
+	dir := setupProjectWithGate(t, "exit 3")
+	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+
+	_, _, code := runTPEnv(t, dir, gateUnitEnv("implement", "t1", "implement"), "done", "t1", "task complete and verified fully")
+	require.Equal(t, 4, code)
+
+	record := readGateLastFailure(t, dir)
+	require.NotNil(t, record)
+	assert.Equal(t, 3, record.ExitCode)
+	assert.NotEmpty(t, strings.TrimSpace(record.Summary), "a silent gate still gets a summary")
+	assert.Contains(t, record.Summary, "exit 3", "the summary names the gate that failed")
+}
+
