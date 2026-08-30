@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-30T14:39:11.143687Z",
+  "updated_at": "2026-08-30T14:54:56.58985Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -710,7 +710,7 @@
     {
       "id": "run-exit-codes",
       "title": "Pin tp run's exit codes",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "stop-reasons"
@@ -720,11 +720,26 @@
       "source_sections": [
         "### 3.4 Caps and stop conditions"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-30T14:40:00.240973Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-30T14:54:56.558043Z",
+      "closed_reason": "- runExitCode in internal/cli/run.go is section 3.4's exit-code sentence: tp run exits 0 on converged and 4 on every other stop_reason, decided after the payload is written so a caller reading stdout and one branching on the exit code are told the same thing about the same run; it is a whitelist of the one converging reason, so an unmapped or empty reason exits 4 rather than being accepted as convergence.\n- Exhaustiveness is derived rather than remembered: run_exit_codes_internal_test.go parses every StopReason constant out of the engine package's own sources (the engine exports no enumerator over the nine — Known() answers membership one value at a time and cannot be walked) and requires the contract table to cover exactly them, so a tenth reason fails the package until someone maps it; verified by adding a tenth constant and watching 'tenth-reason has no exit code' before reverting it.\n- Test 54 is driven through the real binary in run_exit_codes_test.go: converged exits 0 having spawned nothing, no-units, unit-failure, cap-units and escalation each exit 4 with the recorded stop reason asserted beside the code, and both usage errors (too many arguments, unknown flag) exit 2 having spawned no child, written no .tp/run-spec.json and created no .tp/runs.\n- Three mutations were watched failing: returning ExitState unconditionally reddened only the converged arm; returning ExitSuccess unconditionally reddened all eight non-converged table rows and the four end-to-end exit-4 runs; and mapping an unknown reason to 0 — right for the eight it names, wrong by rule — reddened only TestRunExitCode_AnUnnamedReasonIsNotConvergence, so the whitelist direction is the assertion that discriminates it. run.go was then restored byte-identically.\n- Four pre-existing tp run --status fixtures and the driver test drove non-converged runs while asserting exit 0 and were updated to 4. Gate green run separately: go test -race ./... 0, golangci-lint run 0, ./scripts/check-deadcode.sh 0. Dogfooded on a scratch project with TP_RUNNER_SEAM plus internal/fakerunner: a real unit-failure run printed its payload and exited 4, .tp/runs was created, and both usage errors exited 2.",
+      "gate_passed_at": "2026-08-30T14:54:56.558043Z",
+      "commit_sha": "8124986",
+      "commit_shas": [
+        "8124986",
+        "0575a75",
+        "3841d27",
+        "096726f",
+        "a56cded"
+      ],
+      "commit_files": [
+        "internal/cli/run.go",
+        "internal/cli/run_driver_test.go",
+        "internal/cli/run_exit_codes_internal_test.go",
+        "internal/cli/run_exit_codes_test.go",
+        "internal/cli/run_status_test.go"
+      ]
     },
     {
       "id": "run-status",
