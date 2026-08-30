@@ -58,6 +58,11 @@ type DriverResult struct {
 	// several, it is the lowest seq's — the first unit that asked — and
 	// every record is left on disk.
 	EscalationPath string
+	// Notify is what the operator's notify_cmd did (§5.2), or nil when the
+	// run stopped converged or no command is configured. It is a report
+	// about the notification and never about the run: nothing here changes
+	// StopReason.
+	Notify *NotifyOutcome
 }
 
 // driver is one run in flight: the options it was given, the identity it
@@ -278,6 +283,18 @@ func (d *driver) stop(result *DriverResult, reason StopReason) DriverResult {
 	_ = d.rec.Stop(reason)
 	result.StopReason = reason
 	result.Units = d.rec.Snapshot().Totals.Units
+	// §5.2: every non-converged stop is a report to a human, so the operator
+	// is told through the command they configured. Convergence is the run's
+	// own agreed ending and notifies nobody.
+	//
+	// It happens here, at the one sink every stop passes through, rather than
+	// at each place a run can end: a reason that never reached this line
+	// would be a reason with no run state written for it either, so there is
+	// no second path a later stop could be added to and forget this one.
+	if reason != StopConverged {
+		result.Notify = InvokeNotify(
+			d.opts.Root, d.opts.Workflow.NotifyCmd, reason, d.runID, result.EscalationPath)
+	}
 	return *result
 }
 
