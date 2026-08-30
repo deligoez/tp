@@ -210,7 +210,8 @@ func TestResolveUnitRunner_ResolvesEachShapeToConcreteArgv(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "claude", fromMap.Cmd)
 	assert.Equal(t, []string{"-p", "run the brief", "--output-format", "stream-json",
-		"--verbose", "--permission-mode", "auto"}, fromMap.Args)
+		"--verbose", "--permission-mode", "auto", "--agent", "tp-implementer"}, fromMap.Args,
+		"the resolved argv carries §6.3's agent for the kind the map dispatched")
 
 	auditValues := v
 	auditValues.Kind = engine.UnitAuditRole
