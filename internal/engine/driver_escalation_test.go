@@ -73,3 +73,25 @@ func TestRunDriver_EscalatesWhateverTheHarnessExitedWith(t *testing.T) {
 	}
 }
 
+// §5.2: an escalation is a question rather than a failure, so it sets no
+// last_failure — and, being no success either, it clears none. The pre-existing
+// record is this unit's own, which is the only record a success of it would
+// have cleared.
+func TestRunDriver_EscalationNeitherWritesNorClearsLastFailure(t *testing.T) {
+	root, spec, taskFile, _ := seamProject(t, oneOpenTask)
+	require.NoError(t, WriteLastFailure(root, taskFile, &LastFailure{
+		UnitKind: UnitImplement, UnitID: "alpha", Phase: PhaseImplement,
+		ExitCode: 1, Summary: "an earlier run's failure", At: "2026-08-30T08:00:00Z",
+	}))
+	t.Setenv(fakerunner.EnvExits, "2")
+	t.Setenv(fakerunner.EnvEscalate, "1")
+
+	res := driveOnce(t, root, spec, taskFile, driverWorkflow())
+	require.Equal(t, StopEscalation, res.StopReason)
+
+	got := ReadLastFailure(root, taskFile)
+	require.NotNil(t, got, "an escalation neither writes a record nor clears the one already there")
+	assert.Equal(t, "an earlier run's failure", got.Summary,
+		"the record is the one the earlier run left, not one this attempt wrote")
+}
+
