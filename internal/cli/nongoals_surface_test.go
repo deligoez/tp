@@ -24,7 +24,8 @@ import (
 // A release that does add a command or a flag updates this baseline in the same
 // task that adds it, and renames the constant to the tag it then pins.
 // spec/0.35.0.md §3.1 adds `tp run` and §5.2 adds `tp escalate`, both listed below
-// with the flags it ships, and §3.3 adds the three audit-side resolve flags
+// with the flags it ships — including §3.5's two read-only run sub-modes,
+// `--status` and `--dry-run` — and §3.3 adds the three audit-side resolve flags
 // (`--resolve`, `--resolve-all`, `--force`) an audit-fix unit disposes its row
 // with; nothing else about the surface moves in that release.
 const v034Surface = `
@@ -53,7 +54,7 @@ reopen:
 report:
 resume:
 review: affected-files check diff-from docs-path final-round findings force harness-note merge no-state output perspective record report resolve resolve-all round spec-inline status test-path verify
-run: status
+run: dry-run status
 set: bulk local project workflow
 show:
 stats:
