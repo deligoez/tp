@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-30T11:59:27.910236Z",
+  "updated_at": "2026-08-30T12:09:31.619722Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -840,7 +840,7 @@
     {
       "id": "tp-escalate",
       "title": "Add the tp escalate command",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "child-env"
@@ -850,11 +850,25 @@
       "source_sections": [
         "### 5.2 Escalation"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-30T12:00:12.310017Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-30T12:09:31.588975Z",
+      "closed_reason": "- tp escalate writes $TP_RUN_DIR/$TP_UNIT_SEQ-escalation.json with section 5.2's seven fields (decision, unit_kind, unit_id, phase, evidence, options[], at) and exits 2; the identity fields come from the child environment tp run exports, at is stamped by tp in RFC3339Nano, and options is [] rather than null. Verified by writing every test first and watching each fail against unchanged code (unknown command \"escalate\"), then dogfooding the freshly built binary on a scratch run directory.\n- The decision is closed over the five documented values (skip-gate, raise-review-cap, raise-audit-cap, import-force, other); a near-miss such as skipgate, skip_gate or SKIP-GATE is a usage error that writes no record, and blank or missing evidence is refused the same way.\n- Two concurrent siblings sharing one TP_RUN_DIR each write their own record, since the path is keyed by TP_UNIT_SEQ rather than by unit id; a test runs both processes concurrently and reads both records back.\n- Outside a run (TP_RUN_DIR unset) it is a usage error naming the missing variable and writing nothing anywhere (test 22).\n- Mutation-checked three ways, each restored byte-identical (checksums compared): dropping the options normalization reddened only the empty-array test; removing the TP_RUN_DIR guard kept exit 2 but reddened the outside-a-run test on the wrong variable name; opening the decision set reddened exactly the four near-miss cases and left the empty-decision case green.\n- Both surface guards moved in the registering commit: the v0.34.2 command-surface baseline gained 'escalate: decision evidence option' and SKILL.md's inventory gained two rows. Gate green: go test -race 0, golangci-lint 0, check-deadcode 0.",
+      "gate_passed_at": "2026-08-30T12:09:31.588975Z",
+      "commit_sha": "d8ae0b2",
+      "commit_shas": [
+        "d8ae0b2",
+        "c8306e8",
+        "c6adacf"
+      ],
+      "commit_files": [
+        "internal/cli/escalate.go",
+        "internal/cli/escalate_test.go",
+        "internal/cli/nongoals_surface_test.go",
+        "internal/cli/root.go",
+        "internal/engine/escalation.go",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "escalation-detection",
