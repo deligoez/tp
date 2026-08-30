@@ -236,6 +236,14 @@ func Execute() {
 
 	cmd := NewRootCmd()
 	wrapFlagErrors(cmd)
+	// §8a.5: cobra registers help and completion (and its per-shell
+	// subcommands, which carry cobra.NoArgs) lazily inside ExecuteC, so they
+	// are put on the tree here — before wrapArityErrors walks it, which is the
+	// only way their built-in validators are covered too. Both initializers
+	// are idempotent, so cobra re-running them changes nothing.
+	cmd.InitDefaultHelpCmd()
+	cmd.InitDefaultCompletionCmd(os.Args[1:]...)
+	wrapArityErrors(cmd)
 	// §9.1: an unrecognized command or subcommand is a usage error (exit 2).
 	// The check runs before dispatch because cobra classifies it itself
 	// otherwise — as an exit-1 error at the top level, or as an exit-0 help
