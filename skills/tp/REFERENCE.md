@@ -97,8 +97,13 @@ Resolves the task file by the discovery order (a spec argument wins and uses its
 | `guidance` | one-line implement-phase note (run each unit in a fresh subagent/context); absent outside `implement` |
 | `next_action` | `{command, brief_command, summary, payload}`; `command` is null for `decompose`/`release`. `brief_command` names the command that produces the brief for this phase. Payload: review/audit `{round, unresolved_findings}` (round = recorded+1, 0 unresolved on round 1), implement `{task: {id}|null, wip}`, `{action:"record-round", round:N}` when a snapshot exists without its recorded round, decompose/release `{}` |
 | `blockers` | `{code, class, message, data}` in fixed code order |
+| `next_units` (v0.35.0) | ordered `[]` of `{kind, id, brief_command}` — the units a driver should execute **now**. `[]` when the phase is blocked, awaiting an operator decision, or `release`. Concurrency is not repeated per entry: it is fixed per kind (see [Unattended Run](#unattended-run-v0350)) |
+| `round` (v0.35.0) | the round `next_units` belongs to — the round being collected for role units, the round just recorded for the resolve/fix kinds — and `null` outside a round-based phase |
+| `last_failure` (v0.35.0) | `{unit_kind, unit_id, phase, exit_code, summary, at}` from `.tp/last_failure-<base>.json`, or `null`. Advisory: it never changes which unit runs next |
 
-`--compact` drops `next_action.summary`, each `kept[].reason`, and each `blockers[].message`; keeps every `data` plus `bookkeeping` and `guidance` (both decision-critical — §8.4).
+`next_units`, `round` and `phase` are the whole machine surface — a driver parses those three and nothing else. `next_action` stays the human-facing summary, and its `command`/`brief_command`/`payload` render `next_units[0]` when the array is non-empty. `tp brief` surfaces `last_failure` too, so a fresh unit sees the wall the previous attempt hit.
+
+`--compact` drops `next_action.summary`, each `kept[].reason`, and each `blockers[].message`; keeps every `data` plus `bookkeeping`, `guidance` and `next_units` (all decision-critical — §8.4).
 
 Blocker vocabulary (fixed order): `unexplained-changes` (**agent-clearable**, `{count}`), `no-ready-task` (escalate, `{blocked_by}`), `review-budget-exhausted` / `audit-budget-exhausted` (escalate, `{cap}`; 0 = no cap, never fires), `spec-stale` (escalate, `{spec}`).
 
