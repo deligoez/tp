@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-30T15:46:31.772214Z",
+  "updated_at": "2026-08-30T16:05:48.772486Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -656,7 +656,7 @@
     {
       "id": "stop-precedence",
       "title": "Order simultaneously satisfied stop reasons",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "stop-reasons"
@@ -666,11 +666,30 @@
       "source_sections": [
         "### 3.4 Caps and stop conditions"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-30T15:47:19.458307Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-30T16:05:48.658656Z",
+      "closed_reason": "- internal/engine/stopreason.go now carries section 3.4's precedence order as data: stopPrecedence lists the nine in the documented order (converged, driver-error, escalation, unit-failure, interrupted, cap-budget, cap-wall-clock, cap-units, no-units), with stopRank and highestPrecedence over it, so a checkpoint hands in every condition it found true and the order alone decides which is recorded. Verified by a test that recovers the vocabulary from the package's own StopReason declarations with go/ast and fails until a tenth reason is placed, and by asserting the earlier of every pair the order can form wins from either argument order.\n- internal/engine/driver.go's loop now judges releasability, the operator's signal, the three caps, an empty next_units and what the previous iteration left at that one ranked checkpoint, carrying the iteration's outcome into the next read instead of answering it where it was produced. The caps were checked at the end of the iteration body, so a run that reached one on the very iteration that released the cycle recorded the cap; that was reproduced as a failing test first, on both the unit and the wall-clock counter, and section 5.2's escalation case (converged still leads an escalation raised in the same iteration) reproduced the same way. Each pair is driven twice, once with both conditions true and once as a control that trips only the loser and records it, and the losing condition is asserted from what the run left behind (capStop over the recorded totals, the escalation record on disk, DryRunUnits reporting nothing pending), so a run that tripped one condition alone cannot pass for the wrong reason. unit-failure over cap-units and cap-units over no-units are pinned the same way.\n- Mutation checks, each restored byte-identically: collapsing stopRank to a constant reddened both converged-over-cap arms, converged-over-escalation, the ordering tests and every other converged assertion, and nothing else; reinstating the old immediate escalation return reddened exactly the converged-over-escalation arm; disabling the interrupted-mid-retry branch reddened exactly the signal-spends-no-retry test. The first mutation was informative twice over: it showed that collecting the conditions in precedence order would let a broken rank go on producing right answers, so checkpoint now collects them in an order deliberately unlike it, converged last of all.\n- Quality gate run separately: go test -race ./... exit 0, golangci-lint run exit 0 with 0 issues, ./scripts/check-deadcode.sh exit 0.",
+      "gate_passed_at": "2026-08-30T16:05:48.658656Z",
+      "commit_sha": "583ea98",
+      "commit_shas": [
+        "583ea98",
+        "728e2fb",
+        "e9262a5",
+        "40da9d9",
+        "cb26866",
+        "e700227",
+        "71ebb7b",
+        "b0684ea",
+        "dcc6d29",
+        "4cd6f7c"
+      ],
+      "commit_files": [
+        "internal/engine/driver.go",
+        "internal/engine/driver_precedence_test.go",
+        "internal/engine/stopprecedence_test.go",
+        "internal/engine/stopreason.go"
+      ]
     },
     {
       "id": "cap-timing",
