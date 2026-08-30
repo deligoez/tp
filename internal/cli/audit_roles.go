@@ -345,7 +345,7 @@ func generateRoleAuditPrompts(auditorRoles []model.Role, specItems []ChecklistIt
 			requiredClean:    requiredClean,
 			consecutiveClean: consecutiveClean,
 			maxRounds:        maxRounds,
-			outputPath:       fmt.Sprintf("audit-r%d-%s.ndjson", round, role.ID),
+			outputPath:       roleOutputPath("audit", round, role.ID),
 			hasFiles:         len(filePaths) > 0,
 		}
 		inlinedContent := ""
