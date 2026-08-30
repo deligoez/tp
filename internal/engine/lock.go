@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/deligoez/tp/internal/output"
 	"github.com/gofrs/flock"
 )
 
@@ -69,7 +70,7 @@ func WithFileLockTimeout(path string, timeoutSeconds int, fn func() error) error
 		// Not fatal: the lock still works, and refusing to take it would be a
 		// worse trade. But swallowing it reproduced the symptom this call
 		// exists to prevent, with nothing on the record saying why.
-		fmt.Fprintf(os.Stderr, "warning: could not write .tp/.gitignore (%v); .tp/locks/ may show up as an untracked change\n", err)
+		output.Notice(fmt.Sprintf("warning: could not write .tp/.gitignore (%v); .tp/locks/ may show up as an untracked change", err))
 	}
 
 	if sibling := path + ".lock"; sibling != lockPath {
