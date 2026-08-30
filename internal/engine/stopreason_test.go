@@ -68,3 +68,39 @@ func TestRunRecorder_StopRefusesAReasonOutsideTheVocabulary(t *testing.T) {
 	assert.Equal(t, StopCapUnits, *st.StopReason, "the refused write left the recorded reason alone")
 }
 
+// Each cap is produced by its own counter and by no other. The negative rows
+// are the load-bearing ones: a check reading the wrong total still stops a run,
+// and only a case where the other two counters are far from their caps can tell
+// the difference.
+func TestCapStop_EachCapIsProducedByItsOwnCounter(t *testing.T) {
+	wf := func(units, seconds int, budget float64) *model.Workflow {
+		return &model.Workflow{RunMaxUnits: units, RunMaxWallClockSeconds: seconds, RunMaxBudgetUSD: budget}
+	}
+	st := func(units, seconds int, spend float64) *RunState {
+		return &RunState{Totals: RunTotals{Units: units, WallClockSeconds: seconds, SpendUSD: spend}}
+	}
+	caps := wf(10, 100, 5)
+
+	cases := []struct {
+		name  string
+		state *RunState
+		wf    *model.Workflow
+		want  StopReason
+	}{
+		{"within every cap", st(9, 99, 4.99), caps, ""},
+		{"units reached, nothing else near", st(10, 1, 0), caps, StopCapUnits},
+		{"wall clock reached, nothing else near", st(1, 100, 0), caps, StopCapWallClock},
+		{"budget reached, nothing else near", st(1, 1, 5), caps, StopCapBudget},
+		{"units one below", st(9, 1, 0), caps, ""},
+		{"wall clock one below", st(1, 99, 0), caps, ""},
+		{"budget just below", st(1, 1, 4.99), caps, ""},
+		{"units past its cap", st(11, 1, 0), caps, StopCapUnits},
+		{"budget zero is disabled, not lowest", st(1, 1, 999), wf(10, 100, 0), ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, capStop(tc.state, tc.wf))
+		})
+	}
+}
+
