@@ -471,6 +471,29 @@ spec/
 | `review_converge_on` | string | `blocking` | `blocking`\|`all` | settable (a review round is **clean** when no surviving finding is critical/high under `blocking`, or when no finding survives under `all`; audit never reads it) |
 | `review_max_rounds` | int | 0 | 0-50 | settable (0 = no cap) |
 | `audit_max_rounds` | int | 0 | 0-50 | settable (0 = no cap) |
+| `run_max_units` | int | 100 | 1-10000 | settable (v0.35.0; `tp run` cap) |
+| `run_max_wall_clock_seconds` | int | 28800 | 60-604800 | settable (v0.35.0) |
+| `run_max_budget_usd` | number | 0 (disabled) | 0-10000 | settable (v0.35.0; decimal dollars) |
+| `run_max_unit_budget_usd` | number | 0 (flag omitted) | 0-1000 | settable (v0.35.0; decimal dollars, passed to the runner's own budget flag) |
+| `run_max_unit_retries` | int | 1 | 0-5 | settable (v0.35.0; a unit is attempted `1 + this`) |
+| `runner` | string or object | `"claude"` | built-in name, runner object, or per-kind map | **not a `tp set --workflow` field** (`unknown workflow field`, exit 2) — hand-written under `workflow` in `.tp/config.json` or a task file |
+| `notify_cmd` | string | unset | any command string | **not a `tp set` field of any form** — hand-written at the top level of `.tp/local.json` |
+
+The five `run_max_*` fields resolve through the normal precedence and are settable with
+`tp set --workflow` and `tp set --workflow --project`. `runner` and `notify_cmd` are the two
+exceptions, and both name a command the driver executes, so neither has a setter:
+
+- `runner` is read from a `workflow` block — a task file's or `.tp/config.json`'s — and
+  `tp config --resolved` reports it as `{value, source}` like any other field (`project` /
+  `override`). A `runner` key at the **top level** of `.tp/config.json` is ignored with
+  `warning: unknown top-level key: runner`.
+- `notify_cmd` is per-operator rather than per-project and is read from `.tp/local.json` **only**,
+  as a top-level key; `tp config --resolved` reports `source: "local"`. Put it under a `workflow`
+  block instead and it is ignored with `warning: unknown workflow key: notify_cmd`.
+- Both are fenced under `TP_UNATTENDED` at **every** layer (not just above the resolved value):
+  `tp set --workflow runner=…` and `tp set --local notify_cmd=…` exit 2 with
+  `names a command the driver executes and cannot be set under TP_UNATTENDED, at any layer`.
+- `TP_RUNNER_SEAM` is a test-only override of `runner` that outranks every layer including a CLI flag.
 
 Out-of-range `tp set --workflow` writes are rejected with exit 1. Out-of-range values in a hand-edited task file fall back at read time (`gate_timeout_seconds`→600, caps→0) and `tp validate` warns.
 
