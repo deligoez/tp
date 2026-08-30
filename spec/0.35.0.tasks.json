@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-30T16:44:42.086322Z",
+  "updated_at": "2026-08-30T17:07:25.646726Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -1554,7 +1554,7 @@
     {
       "id": "record-units",
       "title": "Return the round record unit",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "next-units",
@@ -1565,11 +1565,29 @@
       "source_sections": [
         "### 4.1 One component owns \"done\""
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-30T16:45:35.550819Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-30T17:07:25.60383Z",
+      "closed_reason": "- tp resume now returns the round's record unit: when a round-based phase's role panel is non-empty and every role in it satisfies section 3.3's findings predicate, engine.roundBasedUnits returns the single review-record or audit-record unit for that round, id = the round number, brief = the two-step merge-then-record command; verified by an engine table over both phases (pinning kind, id and brief byte for byte), a tp resume payload test, and the two driver tests that now spawn the record unit alone after the panel instead of stopping with no-units. Watched failing first against unchanged code (empty next_units), then mutated: deleting the emission reddened exactly the four emission tests plus the two driver handovers, and mutating kind+id reddened the same set minus the suppression test.\n- An empty or unresolvable panel returns no record unit, and an already-recorded round returns none either: the emission is guarded by len(panel) \u003e 0 and suppressed by the round file's own presence rather than by the negation of the record kind's durable write (which is the merged file AND the round file, so its negation is also true for a recorded round whose merged file has gone - emitting there would re-record the round). Verified by mutation: dropping the non-empty guard reddened only the empty-panel test's two subtests, and neutering the recorded-entry check reddened only the suppression test and the cap-precedence test. nextunits.go restored byte-identical after every mutation (sha256 16f55650...). No mutation survived.\n- Gate green, each step run separately: go test -race ./... = 0, golangci-lint run = 0, ./scripts/check-deadcode.sh = 0. Dogfooded with a freshly built binary on a scratch project: three role files present makes tp resume return one review-record unit with id 1 and next_action rendering it, and running that unit's own brief records the round and returns the phase to collecting round 2.\nOut of scope: TestRunDriver_ACapOutranksAnEmptyNextUnits now has to construct its empty next_units by pre-recording round 1, because the collected-round path no longer empties naturally; the fake runner covers no record kind's durable write, so a loop test cannot yet drive a round past recording.",
+      "gate_passed_at": "2026-08-30T17:07:25.60383Z",
+      "commit_sha": "e8fe2f0",
+      "commit_shas": [
+        "e8fe2f0",
+        "de05568",
+        "1b7a269",
+        "010537c",
+        "fbddac6",
+        "c647ef6",
+        "5d6da32"
+      ],
+      "commit_files": [
+        "internal/cli/resume_next_units_test.go",
+        "internal/cli/run_driver_test.go",
+        "internal/engine/driver_precedence_test.go",
+        "internal/engine/driver_test.go",
+        "internal/engine/nextunits.go",
+        "internal/engine/nextunits_test.go"
+      ]
     }
   ]
 }
