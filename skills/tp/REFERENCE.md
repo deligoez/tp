@@ -141,6 +141,274 @@ Acceptance: Model exists. Migration runs.
 
 Matching is Go `filepath.Match` (`*`/`?` do not cross `/`, no `**`); the first matching entry supplies the reason. After a successful close, `tp done`/`tp close` print a one-line stderr warning naming any uncommitted change not on the keep-list (exit 0; tp never commits or discards it).
 
+## Unattended Run (v0.35.0)
+
+`tp run [spec]` drives the whole cycle: read the cycle state through the same path `tp resume` uses,
+stop if it is releasable, take `next_units`, spawn one runner process per unit, re-read the state
+**from disk**, check caps, loop. A unit's result is whatever it wrote to disk; the driver reads a
+child's exit code and one spend number and nothing else it said. `tp resume` stays the single
+authority on whether the cycle is finished — `tp run` holds no opinion of its own.
+
+It resolves the task file exactly as `tp resume` does (spec positional, `--file`, or discovery) and
+takes a **run-scoped** lock at `.tp/locks/run-<base>.lock`, distinct from the task-file write lock
+and held for the whole run, so a second `tp run` over the same task file exits 4. It never holds the
+task-file write lock while a child is in flight — that lock stays the children's, taken and released
+by each `tp` write they make.
+
+| Mode | Exits | Lock | Writes run state |
+|------|-------|------|------------------|
+| `tp run` | **0** on `stop_reason: converged`, **4** on every other stop reason, **2** on a usage error raised before the loop starts | run lock | yes |
+| `tp run --status` | **0** whenever it can report, **3** when no run state exists for the resolved task file | none | no |
+| `tp run --dry-run` | **0** | none | no |
+
+`tp run` prints `{run_id, phase, stop_reason, units}`, plus `notify: {cmd, exit_code, error}` when a
+`notify_cmd` ran. `--dry-run` prints `{phase, round, next_units}` — the same batch the loop would
+spawn — so it is safe to point at a cycle another run is already driving.
+
+### Unit kinds
+
+A unit is the smallest piece of work that ends in a durable write. `next_units` returns these eight
+kinds and no others; `(kind, id)` identifies a unit, and `id` is its durable subject.
+
+| Kind | `id` | Durable write | Concurrency | `brief_command` |
+|------|------|---------------|-------------|-----------------|
+| `implement` | task id | the task's `status` is `done` | alone | `tp next --brief` |
+| `review-role` | role id | `$TP_ROUND_DIR/role-$TP_UNIT_ID.ndjson` exists and every content line parses | parallel with sibling roles | `tp review <spec>` |
+| `review-record` | round number | `$TP_ROUND_DIR/merged.ndjson` **and** a review round file for `$TP_ROUND` exist | alone | `[ -f $TP_ROUND_DIR/merged.ndjson ] \|\| tp review --merge $TP_ROUND_DIR/role-*.ndjson -o $TP_ROUND_DIR/merged.ndjson; tp review <spec> --record $TP_ROUND_DIR/merged.ndjson` |
+| `review-resolve` | spec base name | every finding in `$TP_ROUND_DIR/merged.ndjson` carries a disposition | alone | `tp review <spec> --status` |
+| `decompose` | spec base name | the task file holds at least one task | alone | `tp resume` |
+| `audit-role` | role id | `$TP_ROUND_DIR/role-$TP_UNIT_ID.ndjson` exists and every content line parses | parallel with sibling roles | `tp audit <spec>` |
+| `audit-record` | round number | `$TP_ROUND_DIR/merged.ndjson` **and** an audit round file for `$TP_ROUND` exist | alone | the `tp audit` form of the review-record command above |
+| `audit-fix` | the finding's `role:item_id` | that row carries a disposition in the round's results file | alone | `tp audit <spec> --status` |
+
+An attempt **succeeded** when the child exited 0 **and** the kind's durable write is present; either
+alone is a failed attempt. Every predicate is a state, never a delta, which is what lets the `Stop`
+hook and the driver test the same condition. The merge step of a record brief is guarded by the
+merged file's absence, so a retried record unit never merges over the dispositions `review-resolve`
+and `audit-fix` accumulate in that file.
+
+A role unit writes `role-<id>.ndjson.part`; the **driver's rename** to the final name on exit 0 is
+what completes the durable write, so a crashed unit's partial file is never mistaken for a clean
+role. A role file's predicate reads content lines only — blank and whitespace-only lines are
+ignored, so a trailing newline never fails a role.
+
+### Stop reasons
+
+A run stops for exactly one reason, recorded verbatim in the run state. Caps bound a run; they never
+conclude it — **every non-converged stop is a report to a human, never an acceptance**, and no stop
+reason ever records a round, marks a phase converged, or closes a task its own unit did not close.
+
+| `stop_reason` | Cause |
+|---|---|
+| `converged` | the oracle reports `phase: release` — the only exit-0 stop |
+| `cap-units` | spawned children reached `run_max_units` (a retry counts again) |
+| `cap-wall-clock` | elapsed seconds reached `run_max_wall_clock_seconds` |
+| `cap-budget` | accrued spend reached `run_max_budget_usd`; disabled when that value is 0 |
+| `escalation` | a unit wrote an escalation record |
+| `unit-failure` | one unit exhausted its `1 + run_max_unit_retries` attempts |
+| `no-units` | the oracle reports no pending units and the cycle is not releasable |
+| `interrupted` | `SIGINT`/`SIGTERM`: in-flight children finish, no new unit is spawned, run state is written |
+| `driver-error` | the driver could not spawn a unit or write its own state — charged to the driver, not to the unit |
+
+When one checkpoint satisfies several rows the recorded reason is the first of `converged`,
+`driver-error`, `escalation`, `unit-failure`, `interrupted`, `cap-budget`, `cap-wall-clock`,
+`cap-units`, `no-units`. Caps are evaluated **between iterations only**: children already spawned run
+to completion, so a run can overshoot its wall-clock and budget caps by at most one iteration, and
+the driver kills nothing.
+
+### Run state, logs and `--status`
+
+Run state lives at `.tp/run-<base>.json` (git-ignored, named per task file because the run lock is
+per task file):
+
+```json
+{"run_id": "", "started_at": "", "phase": "", "stop_reason": null,
+ "totals": {"units": 0, "wall_clock_seconds": 0, "spend_usd": 0},
+ "units": [{"seq": 0, "kind": "", "id": "", "attempt": 1, "exit_code": 0,
+            "duration_seconds": 0, "spend_usd": null, "log_path": ""}]}
+```
+
+A row is appended before its child is spawned (`exit_code`, `duration_seconds`, `spend_usd` null) and
+updated in place when the child exits; both writes are atomic (temp + rename) because concurrent
+siblings write rows in the same iteration. **The file is observability, not truth** — no decision,
+the driver's or a hook's, reads it back, and a new run restarts the accrued totals at zero. `seq`
+counts unit *attempts*, so `totals.units` and `--status`'s `units_done` read the same number.
+
+Each unit's log is `$TP_RUN_DIR/<seq>-<kind>-<id>.jsonl`. A runner template that omits `{log_path}`
+has its stdout and stderr redirected there by the driver; one that uses the placeholder receives that
+same path and owns the file. Both built-in templates take the first form. The driver reads only the
+spend key from the final line and never reads a log into any context.
+
+`tp run --status` reports `{phase, run_id, started_at, units_done, wall_clock_seconds, spend_usd,
+caps: {max_units, max_wall_clock_seconds, max_budget_usd}, last_unit: {…the whole row…},
+stop_reason, run_state}`. `run_state` is `stopped` once `stop_reason` is set, otherwise `in_flight`
+when `.tp/locks/run-<base>.lock` is held and `crashed` when it is not — the lock is the only evidence
+separating the last two. On a stop in the audit phase it also carries `spec_coverage_clean_rounds`,
+`role_streaks` and `divergence`, verbatim from `tp audit --status`. Under `--compact` `stop_reason`
+and the cap totals survive and `last_unit` — its log path with it — is stripped.
+
+### The child environment
+
+Every child is spawned in the repository root with stdin closed and these variables, applied **after**
+the `runner.env` merge so an `env` entry can never override them:
+
+| Variable | Value |
+|---|---|
+| `TP_RUN_ID` | the run's ULID (26 Crockford characters) |
+| `TP_RUN_DIR` | absolute `.tp/runs/$TP_RUN_ID` — logs and escalation records |
+| `TP_ROUND_DIR` | `.tp/rounds/<base>/$TP_PHASE-r$TP_ROUND`, keyed by the **cycle** rather than the run, so a round survives a driver death |
+| `TP_FILE` | the resolved task file, so a child works the target the driver resolved |
+| `TP_UNIT_ID`, `TP_UNIT_KIND`, `TP_UNIT_SEQ` | the unit's id, kind and attempt sequence |
+| `TP_PHASE`, `TP_ROUND` | the cycle's phase and round |
+| `TP_UNATTENDED` | `1` |
+
+`TP_ROUND` and `TP_ROUND_DIR` are **unset** — not empty — when the oracle reports `round` null (the
+`implement`, `decompose` and `release` phases).
+
+### The `runner` field
+
+`runner` takes one of three shapes, told apart by their JSON alone: a **built-in template name**
+(string), a **runner object** (an object carrying `cmd`), or a **per-kind map** (any other object,
+dispatching each unit kind to one of the first two, with a `default` key covering the rest). An
+object carrying both `cmd` and `default` is a runner; one carrying neither is a map. A map missing
+`default`, or a runner object missing `cmd`, is a usage error.
+
+| Runner-object field | Meaning |
+|---|---|
+| `cmd` | executable to spawn |
+| `args` | argument template; placeholders `{prompt}`, `{max_budget_usd}`, `{unit_id}`, `{unit_kind}`, `{log_path}` |
+| `env` | extra environment for the child, merged over the parent's |
+| `spend_key` | dot path to the cost field in the runner's final log line; optional |
+
+Two templates ship by name. `claude` is `claude -p {prompt} --output-format stream-json --verbose
+--permission-mode auto`, with `--max-budget-usd {max_budget_usd}` appended **only** when the resolved
+`run_max_unit_budget_usd` is non-zero (0 omits the pair rather than passing a literal 0), and
+`spend_key: total_cost_usd`; it also appends `--agent <name>` per unit kind — `tp-implementer`,
+`tp-reviewer`, `tp-auditor` — and none for the record, resolve, decompose and fix kinds. `opencode`
+is `opencode run {prompt}`, with no budget flag and no `spend_key`, so `cap-budget` is inert for it.
+
+`{prompt}` expands to a fixed per-kind instruction the driver owns: run this unit's `brief_command`,
+do that one unit, stop. The driver never executes `brief_command` itself and never reads its output.
+A placeholder the driver cannot resolve is a usage error (exit 2) raised before any child is spawned.
+
+**Spend.** After a child exits the driver reads one number from the final line of that unit's log —
+`spend_key`, or `total_cost_usd` for `claude`. A runner declaring none reports `spend_usd: null` for
+its units and `run_max_budget_usd` is inert for them, reported once at run start rather than
+silently. Under a per-kind map the cap accrues only the reporting kinds.
+
+`TP_RUNNER_SEAM` is the test seam: its value is the `cmd` of a runner object whose `args` are
+`["{unit_kind}", "{unit_id}", "{log_path}", "{max_budget_usd}"]` and whose `spend_key` is
+`total_cost_usd`. It outranks every layer including a CLI flag, and the driver reads it from its own
+environment at start, never from a child's.
+
+### `TP_UNATTENDED` — user-only decisions fail closed
+
+`tp run` sets `TP_UNATTENDED=1` for every child. The mode is active when the variable is present,
+non-empty and not `0`. Under it the decisions reserved for the user stop being available to the
+agent:
+
+| Attempt | Result |
+|---|---|
+| `tp done --skip-gate` (and its other sinks: a `--batch` row's `skip_gate`, `tp close --skip-gate`) | exit 2, hint naming it a user-approved decision and pointing at `tp escalate` |
+| `tp set --workflow review_max_rounds=` / `audit_max_rounds=` **above** the resolved value | exit 2, same shape |
+| `tp set --workflow run_max_*=` **above** the resolved value | exit 2, same shape |
+| `tp import --force` | exit 2, same shape |
+| `tp set --workflow runner=` / `tp set --local notify_cmd=`, at **any** layer | exit 2, `names a command the driver executes and cannot be set under TP_UNATTENDED, at any layer` |
+
+The cap comparison is against the currently **resolved** value; an equal or lower value is accepted
+and exits 0, since lowering a budget cannot manufacture convergence. The exception is `0`, which
+means *disabled* for both budget fields rather than *lowest*: setting either to 0 while the resolved
+value is non-zero is a **raise** and is refused, while setting 0 where 0 already resolves is
+accepted. Under the variable the **env layer** of the precedence (`TP_RUN_MAX_UNITS`,
+`TP_REVIEW_MAX_ROUNDS`, …) is ignored for every fenced field.
+
+This is a fence, not a sandbox: the refusals are enforced at tp's own CLI and the plugin's
+`PreToolUse` hook denies the file-writing tools a path to the same values. A unit that strips the
+variable from its own environment, or edits a config file through a shell, is outside what tp can
+prevent — the guarantee is that no unattended unit reaches those decisions through a supported route.
+
+### `tp escalate` — the escalation record
+
+An escalation is a normal, expected outcome, not a crash. `tp escalate --decision <name> --evidence
+<text> [--option <text>]…` writes `$TP_RUN_DIR/$TP_UNIT_SEQ-escalation.json` and exits **2**:
+
+```json
+{"decision": "raise-review-cap", "unit_kind": "review-role", "unit_id": "implementer",
+ "phase": "review", "evidence": "…", "options": ["…"], "at": "2026-01-01T00:00:00Z"}
+```
+
+`decision` is one of `skip-gate`, `raise-review-cap`, `raise-audit-cap`, `import-force`, `other`;
+`--option` is repeatable and `options` is `[]` when none is given. Outside a run (`TP_RUN_DIR` unset)
+the command is a **usage error**, so it cannot be used to fabricate a record.
+
+**The record, not the exit code, is the signal.** The driver spawns a harness, not `tp` itself, so
+the harness's exit code need not carry the inner command's. A unit that wrote a valid record stops
+the run with `stop_reason: escalation` whatever it exited with, is **not** counted as a failed
+attempt, and does **not** set `last_failure`. A unit that wrote none, or one that fails schema
+validation, is judged by its predicate and exit code as usual. The record is per unit, so concurrent
+siblings never clobber each other; when an iteration produces several, the driver reports the lowest
+`seq` and preserves them all. Resuming after an escalation is the operator making the decision and
+running `tp run` again — nothing is replayed.
+
+### `notify_cmd`
+
+Invoked on **every non-converged stop**, not on escalation alone. It is exec'd **without a shell**,
+split on whitespace, with `TP_STOP_REASON`, `TP_RUN_ID` and — on an escalation — `TP_ESCALATION_PATH`
+in its environment. What it did is reported under `notify: {cmd, exit_code, error}`; its own exit code
+is reported and changes nothing, so a failing `notify_cmd` never changes the run's `stop_reason`.
+
+### `last_failure`
+
+When a unit exits non-zero, or closes with a failed quality gate, tp records **one** object at
+`.tp/last_failure-<base>.json`: `{unit_kind, unit_id, phase, exit_code, summary, at}`. It has two
+writers, because the two triggers are visible to different processes:
+
+- `tp done` writes it when the quality gate **it** ran fails, with the gate's own output as
+  `summary`, and only when `TP_UNIT_KIND` is set — outside a run it writes nothing, since the
+  record's `unit_kind`, `unit_id` and `phase` have no value there.
+- the driver writes it when a child exits non-zero, with the failing command and the log path as
+  `summary`.
+
+Neither writer ever copies the child's prose. A second failure overwrites it; a success clears it
+only when `(unit_kind, unit_id)` matches — id alone collides, since both record kinds are identified
+by a round number. It lives outside the run state because it must survive the run that wrote it, it
+is git-ignored, and it is **advisory**: its absence never changes which unit runs next. `tp resume`
+and `tp brief` surface it when present.
+
+### The plugin
+
+The repository publishes a Claude Code plugin at its root: `.claude-plugin/plugin.json` (identity)
+beside the existing `.claude-plugin/marketplace.json`, the existing `skills/tp`, plus `hooks/` and
+`agents/`. **The Go binary is not shipped inside the plugin** — a marketplace is a git repository and
+cross-platform binaries do not belong in one; installation stays Homebrew and `go install`. The
+plugin preflights instead: if `tp` is absent from `PATH` or older than `plugin.json`'s own version,
+the `SessionStart` hook fails with the install command rather than degrading quietly.
+
+| Event | Matcher | Behaviour |
+|---|---|---|
+| `SessionStart` | `*` | preflight `tp`'s presence and version, then inject `tp resume --compact` as additional context |
+| `PreToolUse` | `Write\|Edit\|MultiEdit\|NotebookEdit` | deny writes to `.tp-review/` contents, `*.tasks.json`, `.tp/config.json` and `.tp/local.json` |
+| `Stop` | — | inside a role unit whose findings file fails its predicate and with no escalation record, block **once** with the reason |
+
+The session hook deliberately does not branch on the matcher (`clear` is not reliably reported on
+every client, and an occasionally redundant orientation costs less than an occasionally missing one).
+Shell tools are deliberately outside the `PreToolUse` matcher: the denial exists to stop
+hand-editing, not to sandbox, and tp's own commands rewrite `*.tasks.json` on every close. The stop
+hook is scoped to `review-role`/`audit-role` — the two kinds whose durable write is a file at a path
+already in its environment — reads `$TP_ROUND_DIR/role-$TP_UNIT_ID.ndjson.part` (it runs inside the
+child, before the driver's rename) alongside `$TP_RUN_DIR/$TP_UNIT_SEQ-escalation.json`, consults
+`stop_hook_active`, and blocks at most once per unit. **Every hook declares a `timeout` of 10
+seconds** and exits non-zero rather than hanging.
+
+`agents/` declares `tp-implementer`, `tp-reviewer` and `tp-auditor`, carrying **tool restrictions
+only** — role content stays in the corpus and reaches the unit through the prompt `tp review`/`tp
+audit` already emits. The reviewer and auditor register their own `PreToolUse` allowlist permitting
+exactly `$TP_ROUND_DIR/role-$TP_UNIT_ID.ndjson.part` and `$TP_RUN_DIR/$TP_UNIT_SEQ-escalation.json`
+and refusing every other path; the implementer registers none, because an implement unit's durable
+write is code. A runner that cannot load a plugin gets no agent definitions and the unit runs without
+them: the restrictions are defence in depth, and the durable contract is the brief and the tp
+commands the unit runs, which are identical in both paths.
+
 ## Phase Management
 
 Use **tags** to organize tasks into phases. No special `phase` field needed:
