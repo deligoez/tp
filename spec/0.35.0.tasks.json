@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-30T15:38:08.6916Z",
+  "updated_at": "2026-08-30T15:46:31.772214Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -1135,7 +1135,7 @@
     {
       "id": "mechanize-qualifier",
       "title": "Qualify the mechanize recommendation by phase",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 6,
@@ -1143,11 +1143,26 @@
       "source_sections": [
         "### 8a.2 Phase-honest mechanization advice"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-30T15:39:07.841328Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-30T15:46:31.741694Z",
+      "closed_reason": "- next_action's mechanize branch (engine.ReviewNextAction branch 3) now carries engine.MechanizePhaseQualifier beside the class name, so the advice states that a check is only worth registering when the artifact it measures already exists in the review phase; verified by writing the assertions first and watching them fail against the unqualified string, then by mutating the format verb to %.0s (dropping the qualifier while keeping the argument) which reddened exactly TestReviewNextAction_MechanizePhaseQualifier and the cli TestNextAction_ReviewMechanize payload assertion and left the docs test green, restore checksum-verified.\n- skills/tp/SKILL.md carries the same sentence verbatim on both lines section 8a.2 names: the Mechanization-candidate rule and the next_action precedence list's step 3, pinned per line (not per document) against the shipped constant by TestDocsCarryTheMechanizePhaseQualifier, so the emitted advice and the documented rule cannot drift; mutating the step-3 line to keep the words 'phase qualifier' but drop the sentence still reddened that test alone.\n- Out of scope: section 8a.2 names 'Workflow D step 3' as the second SKILL.md site, but Workflow D is the audit loop and its step 3 is the audit merge/record step; the only step 3 about registering a check is the next_action precedence list's, which is what this task updated.",
+      "gate_passed_at": "2026-08-30T15:46:31.741694Z",
+      "commit_sha": "1ba05fa",
+      "commit_shas": [
+        "1ba05fa",
+        "41fdc8f",
+        "2a3b451",
+        "7031a48",
+        "c77cfa1"
+      ],
+      "commit_files": [
+        "internal/cli/docs_contract_test.go",
+        "internal/cli/nextaction_test.go",
+        "internal/engine/nextaction.go",
+        "internal/engine/nextaction_test.go",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "audit-truncation",
