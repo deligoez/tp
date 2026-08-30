@@ -174,6 +174,56 @@ func TestRunDriver_CapWallClockStopsTheRun(t *testing.T) {
 		"the cap closed no task of its own")
 }
 
+// §3.4 test 63: a cap that trips mid-iteration lets the in-flight children
+// finish and kills nothing, and the run overshoots by at most that iteration.
+//
+// The arrangement puts the cap's deadline *inside* an iteration rather than
+// between two: three role siblings sleep well past a one-second wall-clock cap,
+// so the run is over its cap with the whole panel still alive. What is asserted
+// afterwards is an absence — nothing was killed — which only a run through the
+// real spawn path can establish, so the claimed record slots are counted beside
+// the completed records: a killed child claims a slot and never completes it.
+func TestRunDriver_ACapTrippingMidIterationKillsNothing(t *testing.T) {
+	root, spec, taskFile, records := seamProject(t, `{"spec":"s.md","tasks":[]}`)
+	t.Setenv(fakerunner.EnvDurable, "1")
+	t.Setenv(fakerunner.EnvSleepMS, "1500")
+
+	wf := driverWorkflow()
+	wf.RunMaxWallClockSeconds = 1
+	res := driveOnce(t, root, spec, taskFile, wf)
+
+	assert.Equal(t, StopCapWallClock, res.StopReason)
+
+	recs := invocations(t, records)
+	assert.Equal(t, len(recs), claimedInvocations(t, records),
+		"every child the driver spawned lived to write its record: the driver kills nothing")
+	require.Len(t, recs, 3, "the whole panel ran; the cap stopped the iteration that would have followed")
+	for i := range recs {
+		assert.Equal(t, 0, recs[i].ExitCode, "each child exited on its own terms")
+	}
+
+	st, err := ReadRunState(root, taskFile)
+	require.NoError(t, err)
+	assert.Len(t, st.Units, 3, "the run overshot its cap by that one iteration and no more")
+	for i := range st.Units {
+		assert.NotNil(t, st.Units[i].ExitCode, "the driver waited for every in-flight child")
+	}
+
+	// The cap's own deadline passed while the panel was still alive, which is
+	// what makes this a mid-iteration trip rather than a cap that was already
+	// reached at the boundary it was checked on. started_at is the run's, so a
+	// child still running after started_at + the cap is a child the cap did not
+	// stop.
+	started, err := time.Parse(time.RFC3339, st.StartedAt)
+	require.NoError(t, err)
+	deadline := started.Add(time.Duration(wf.RunMaxWallClockSeconds) * time.Second)
+	for i := range recs {
+		assert.True(t, recs[i].ExitedAt.After(deadline),
+			"child %q exited before the cap's deadline, so the cap never tripped mid-iteration",
+			recs[i].Env[EnvUnitID])
+	}
+}
+
 // §3.4's closing rule, driven rather than read: every non-converged stop is a
 // report to a human. A cap that trips records no round, leaves the phase where
 // it was, and closes nothing its own unit did not close.
