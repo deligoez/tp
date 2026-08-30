@@ -218,3 +218,27 @@ func TestRunDriver_ACapStopConcludesNothing(t *testing.T) {
 	})
 }
 
+// §3.4: run_max_units, totals.units and --status's units-done count attempts,
+// so all three read the same number. They are one counter — the rows the
+// recorder holds — which is what makes them unable to disagree.
+func TestRunDriver_TheUnitCapAndTheTotalCountTheSameAttempts(t *testing.T) {
+	root, spec, taskFile, records := seamProject(t, `{"spec":"s.md","tasks":[]}`)
+	t.Setenv(fakerunner.EnvDurable, "1")
+
+	wf := driverWorkflow()
+	wf.RunMaxUnits = 3
+	res := driveOnce(t, root, spec, taskFile, wf)
+
+	require.Equal(t, StopCapUnits, res.StopReason)
+	spawned := len(invocations(t, records))
+	assert.Equal(t, 3, spawned, "the cap stopped the run at the attempt that reached it")
+	assert.Equal(t, spawned, res.Units, "the driver's own count is the spawned attempts")
+
+	var st RunState
+	data, err := os.ReadFile(RunStatePath(root, taskFile))
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(data, &st))
+	assert.Equal(t, spawned, st.Totals.Units, "totals.units counts attempts")
+	assert.Len(t, st.Units, spawned, "one row per attempt, which is what --status reports as units-done")
+}
+
