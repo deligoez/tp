@@ -229,3 +229,14 @@ func TestRunDriver_NotifyExecFailureIsReported(t *testing.T) {
 	assert.Error(t, res.Notify.Err)
 }
 
+// An unconfigured notify_cmd reports nothing at all, rather than an outcome
+// with no invocation behind it.
+func TestRunDriver_NoNotifyCmdReportsNoOutcome(t *testing.T) {
+	root, spec, taskFile, _ := seamProject(t, oneOpenTask)
+	t.Setenv(fakerunner.EnvExits, "1")
+
+	res := driveOnce(t, root, spec, taskFile, driverWorkflow())
+
+	require.Equal(t, StopUnitFailure, res.StopReason)
+	assert.Nil(t, res.Notify)
+}
