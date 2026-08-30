@@ -385,6 +385,16 @@ in the review/audit family (`--merge`, `--report`, `--resolve`, `--verify`, `--r
 `tp audit --findings`). It used to warn and drop the rows after the over-long line, which could turn
 an unclean round clean. `tp add --bulk`/`tp set --bulk` keep their own warn-and-continue contract.
 
+Both `--merge` modes report **`inputs`** — one `{path, parsed, skipped}` entry per input file, in
+argument order — and exit **1** when an input had at least one content line and parsed none of them
+(v0.35.0). That is the shape a dropped role takes: a reviewer emitting every line with a trailing
+comma used to be skipped line by line on stderr, merge clean, and let `--record` freeze an
+undercounted round, with `--quiet` able to erase the only signal. Blank and whitespace-only lines are
+neither parsed nor skipped and never trigger it, and a **zero-byte file stays the way a role reports
+nothing found** and keeps exiting 0 — so a clean round is unaffected. The exit-1 path still emits the
+full payload and still writes `-o`: the surviving roles merge, only the exit code changes, because an
+unattended driver reads nothing else.
+
 `tp review --perspective code-audit --findings <file>` exits **2**: that perspective never reads the
 file, and previously accepted the flag while reporting `previous_findings: 0` about it. A
 spec-looking (`.md`) positional handed to `--merge` or `--resolve` exits **2** as well: those modes
