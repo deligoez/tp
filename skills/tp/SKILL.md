@@ -266,7 +266,8 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp reopen <id>` | done -> open (clears timestamps + SHAs) |
 | `tp remove <id>` | Remove task (--force cleans deps) |
 | `tp set <id> field=value` | Update field (managed fields protected) |
-| `tp set --workflow field=value` | Update workflow fields: `review_clean_rounds`/`audit_clean_rounds`, `review_converge_on`, `gate_timeout_seconds`, `review_max_rounds`/`audit_max_rounds`, `lock_timeout_seconds` |
+| `tp set --workflow field=value` | Update workflow fields: `review_clean_rounds`/`audit_clean_rounds`, `review_converge_on`, `gate_timeout_seconds`, `review_max_rounds`/`audit_max_rounds`, `lock_timeout_seconds`, and the five run caps `run_max_units`, `run_max_wall_clock_seconds`, `run_max_budget_usd`, `run_max_unit_budget_usd`, `run_max_unit_retries` |
+| `tp set --workflow runner=…` / `notify_cmd` | **Not settable.** `runner` is `unknown workflow field` (exit 2) — hand-write it under `workflow` in `.tp/config.json` or a task file; `notify_cmd` is a top-level key of `.tp/local.json` only. Both name a command the driver executes |
 | `tp set --workflow checks='[{"class":"s","cmd":"c"}]'` | Replace the mechanical-checks list (JSON array; `class` kebab-case unique, `cmd` non-empty) |
 | `tp set --workflow --project <field>=<value>` | Edit a project-level workflow field (writes `.tp/config.json`) |
 | `tp set --local defaults.<flag>=<bool>` | Set a CLI flag default (`compact`/`quiet`/`no_color`) |
