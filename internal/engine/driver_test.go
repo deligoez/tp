@@ -186,3 +186,28 @@ func TestRunDriver_RoleUnitsRunConcurrently(t *testing.T) {
 	}
 }
 
+// §3.1.1: the driver deletes a role's findings file — the final name and any
+// stale .part — immediately before spawning that role, so a leftover from an
+// earlier attempt can never answer for an attempt that wrote nothing.
+func TestRunDriver_RoleLeftoverIsClearedBeforeTheAttempt(t *testing.T) {
+	root, spec, taskFile, records := seamProject(t, `{"spec":"s.md","tasks":[]}`)
+
+	// A .part a crashed earlier attempt left behind. The oracle still returns
+	// the role — only the final name satisfies its predicate — so the driver
+	// is the one that has to clear it, and a driver that did not would rename
+	// the leftover into the final name and count a unit that wrote nothing.
+	roundDir := RoundDir(root, taskFile, PhaseReview, 1)
+	require.NoError(t, os.MkdirAll(roundDir, 0o750))
+	leftover := RoleFindingsPath(roundDir, "implementer")
+	require.NoError(t, os.WriteFile(leftover+".part", []byte(`{"role":"implementer"}`+"\n"), 0o600))
+
+	// The fake exits 0 and writes nothing this time.
+	res := driveOnce(t, root, spec, taskFile, driverWorkflow())
+
+	assert.Equal(t, StopUnitFailure, res.StopReason,
+		"an attempt that wrote nothing is a failed attempt")
+	assert.NotEmpty(t, invocations(t, records), "the role was re-run rather than skipped")
+	assert.NoFileExists(t, leftover,
+		"a previous attempt's leftover must never be promoted into this attempt's durable write")
+}
+
