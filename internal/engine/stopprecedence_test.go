@@ -124,3 +124,13 @@ func TestHighestPrecedence_TheEarlierOfAnyTwoIsWhatIsRecorded(t *testing.T) {
 	}
 }
 
+// The empty reason is the absence of a stop, not a stop of its own: capStop
+// returns it while a run is within every cap, and the loop hands that straight
+// through. A checkpoint that satisfied nothing carries on.
+func TestHighestPrecedence_TheEmptyReasonIsNotAStop(t *testing.T) {
+	assert.Equal(t, StopReason(""), highestPrecedence())
+	assert.Equal(t, StopReason(""), highestPrecedence("", "", ""))
+	assert.Equal(t, StopNoUnits, highestPrecedence("", StopNoUnits, ""),
+		"the last-ranked reason still wins against nothing at all")
+}
+
