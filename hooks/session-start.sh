@@ -41,8 +41,12 @@ manifest="$plugin_root/.claude-plugin/plugin.json"
 # version_number reduces a reported version to its comparable dotted numbers: a
 # release prints "v0.35.0" and a build from a working tree prints something like
 # "v0.35.0-0.20260820093420-104822c4904b+dirty". Only the numbers are ordered,
-# and a development build of the minimum still satisfies it - that is the build
-# tp's own self-development runs against.
+# and a development build of the minimum still satisfies it. Note what that does
+# and does not cover: a build made from a working tree AFTER the minimum's tag
+# passes, but one made BEFORE it reports the previous release's number and is
+# refused. tp's own pre-tag development window is therefore refused by its own
+# preflight, and self-heals at the tag - correct behaviour for a version gate,
+# and named here because an earlier draft of this comment claimed otherwise.
 version_number() {
 	printf '%s' "$1" | sed -e 's/^[vV]//' -e 's/[-+].*$//'
 }
