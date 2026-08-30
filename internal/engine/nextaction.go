@@ -12,6 +12,16 @@ import (
 // excluded and the state falls through to branch 4 (§8.2).
 const OverSpecificationClass = "over-specification"
 
+// MechanizePhaseQualifier is §8a.2's phase qualifier on the mechanize advice.
+// Registered workflow.checks run in the review phase only, so a check whose
+// subject a later phase writes can never verify it — while tp still tells every
+// reviewer to stop reporting the mechanized class, so registering early
+// suppresses a finding class and verifies nothing. next_action's mechanize
+// branch carries this sentence, and skills/tp/SKILL.md's mechanize-candidate
+// rule and its next_action step 3 carry it verbatim, so the emitted advice and
+// the documented rule cannot drift apart.
+const MechanizePhaseQualifier = "only worth registering when the artifact it measures already exists in the review phase"
+
 // ReviewNextAction returns the advisory next_action string for the review loop,
 // chosen by the fixed §8.2 precedence, total over reachable states (first match
 // wins):
@@ -23,7 +33,9 @@ const OverSpecificationClass = "over-specification"
 //     --verify: disposing of a blocking finding is an operator decision, never
 //     auto-advised (§3.1, §3.5, Principle 3).
 //  3. a mechanizable mechanize_candidates class is present and none is blocking →
-//     the compound directive: register a check, then run the next round. The
+//     the compound directive: register a check, then run the next round. It
+//     carries MechanizePhaseQualifier, so the driver is told what registering
+//     costs when the check's subject is not yet in the spec (§8a.2). The
 //     un-mechanizable over-specification class is excluded and does not fire this
 //     branch (it falls through to branch 4).
 //  4. clean but not yet converged (the lowest-precedence default) → run the next
@@ -41,8 +53,8 @@ func ReviewNextAction(specPath string, converged, blockingUnresolved bool, mecha
 	default:
 		if cls := firstMechanizableClass(mechanizeClasses); cls != "" {
 			return fmt.Sprintf(
-				"register a check for the recurring %q class (tp set --workflow checks='[{\"class\":%q,\"cmd\":\"…\"}]'), then run the next review round: tp review %s --record <file>",
-				cls, cls, specPath)
+				"register a check for the recurring %q class — %s (tp set --workflow checks='[{\"class\":%q,\"cmd\":\"…\"}]'), then run the next review round: tp review %s --record <file>",
+				cls, MechanizePhaseQualifier, cls, specPath)
 		}
 		return "run the next review round: tp review " + specPath + " --record <file>"
 	}
