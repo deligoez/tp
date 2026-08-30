@@ -66,7 +66,14 @@ func runRunStatus(args []string) error {
 			"max_wall_clock_seconds": wf.RunMaxWallClockSeconds,
 			"max_budget_usd":         wf.RunMaxBudgetUSD,
 		},
-		"last_unit": lastRunUnit(st),
+	}
+	// §7: under --compact the per-unit row goes, and the log path — the one
+	// unbounded string in the payload, an absolute path per attempt — goes
+	// with it. stop_reason and the cap totals above are what a driver or an
+	// operator decides on, so they survive; the row is diagnosis, and
+	// diagnosis is what --compact exists to defer to the full report.
+	if !flagCompact {
+		result["last_unit"] = lastRunUnit(st)
 	}
 	// §1/§3.5: the divergence signal travels on any audit-phase stop, so the
 	// operator gets at the end of a run what v0.32.0's operator had to derive
