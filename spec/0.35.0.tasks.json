@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-30T16:16:10.728358Z",
+  "updated_at": "2026-08-30T16:27:57.866737Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -1195,7 +1195,7 @@
     {
       "id": "audit-truncation",
       "title": "Report a truncated audit as truncated",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 8,
@@ -1203,11 +1203,25 @@
       "source_sections": [
         "### 8a.3 Truncated audits report as truncated"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-30T16:16:59.398496Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-30T16:27:57.826713Z",
+      "closed_reason": "- tp audit's file_summary now carries truncated and total_changed beside total_files: internal/cli/audit.go gains an auditFileSummary that embeds engine.AffectedSummary, and determineAuditFiles / resolveAuditFiles / detectChangedFiles each return the pre-cap count alongside the audited set, so a 50-file prefix is legible as a prefix in the payload where --quiet cannot erase it. total_files keeps reporting the audited count, and the notice now names both numbers - 63 files changed, auditing first 50 - name the rest with --affected-files - instead of naming the cap twice.\n- Verified by running, not reading: all four tests were written first and all four failed against unchanged code (truncated and total_changed absent from the payload, and the notice carrying no changed count), then dogfooded with the freshly built binary on a scratch repo of 63 staged Go files - total_files 50, total_changed 63, truncated true, identical with and without --quiet, and total_files 2 / total_changed 2 / truncated false for a named --affected-files set.\n- Three mutations, each reddening exactly the intended tests, each restore checksum-verified byte-identical: forcing Truncated to false reddened only the two truncated tests and left the two uncapped ones green; restoring the old notice string reddened only the notice-names-the-changed-count assertion; recomputing totalChanged after the cap reddened both truncated tests on truncated and total_changed together. The total_files assertions pass on the unfixed code and stand only as regression guards; truncated, total_changed and the notice assertion are the discriminating ones. Gate green: go test -race 0, golangci-lint 0 issues, check-deadcode 0.\n- Out of scope: --compact still drops file_summary wholesale (compactAuditChecklist nils it), so a --compact audit loses the truncation flag along with the counts. Section 8a.3 names only --quiet, so this was left alone rather than fixed here.",
+      "gate_passed_at": "2026-08-30T16:27:57.826713Z",
+      "commit_sha": "fa3c4a6",
+      "commit_shas": [
+        "fa3c4a6",
+        "949e866",
+        "999077d",
+        "f6a17ab",
+        "62921f4",
+        "91f6830"
+      ],
+      "commit_files": [
+        "internal/cli/audit.go",
+        "internal/cli/audit_file_errors_internal_test.go",
+        "internal/cli/audit_truncation_test.go"
+      ]
     },
     {
       "id": "merge-inputs",
