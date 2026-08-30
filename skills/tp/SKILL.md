@@ -308,6 +308,8 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp audit spec.md --record ... --harness-note "<text>"` | Record the round's orchestrator-wrapper framing (requires `--record`) |
 | `tp audit --merge r1.ndjson r2.ndjson -o results.ndjson` | Merge + dedup per-role audit results by `role`+`item_id` (`-o` is short for `--output`) |
 | `tp audit spec.md --status` / `--status --check` | Audit convergence state / exit 0 only when converged |
+| `tp audit results.ndjson --resolve <selector> <disposition> "<evidence>"` | Dispose one audit row — selector is a 0-based index or the row's `role:item_id` key; disposition is fixed/wontfix/duplicate (results NDJSON is the positional, a spec → exit 2) |
+| `tp audit results.ndjson --resolve-all <disposition> "<evidence>"` | Dispose every undisposed audit row; add `--force` to re-resolve rows already carrying a disposition |
 | `tp validate` | Task file validation + line coverage + atomicity |
 | `tp validate --strict` | Atomicity warnings become errors |
 | `tp validate --project` | Cross-spec workflow drift (informational; `--strict` → exit 1) |
