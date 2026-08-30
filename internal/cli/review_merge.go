@@ -34,7 +34,11 @@ func runReviewMerge(args []string, outputPath string) error {
 	}
 
 	totalFiles := len(args)
-	allFindings := loadMergeFindings(args)
+	allFindings, inputs := loadMergeFindings(args)
+	// §8a.4: an input whose every content line was skipped drops a whole role
+	// from the merged set. The payload names the counts; the exit code is what
+	// an unattended driver reads.
+	dropped := droppedInputs(inputs)
 	unique := clusterMergeFindings(allFindings)
 
 	// Build NDJSON output
@@ -66,6 +70,7 @@ func runReviewMerge(args []string, outputPath string) error {
 		"duplicates_removed": duplicatesRemoved,
 		"by_severity":        bySeverity,
 		"overlap_report":     overlapReport,
+		"inputs":             inputs,
 	}
 	// §9.2 / §8.4: attribution_excludes surfaces the regression exclusion only
 	// when it caused merged_count to exceed the overlap-report finding count;
@@ -83,14 +88,14 @@ func runReviewMerge(args []string, outputPath string) error {
 			return nil
 		}
 		summary["output_path"] = outputPath
-		return output.JSON(summary)
+		return finishMerge(output.JSON(summary), dropped)
 	}
 
 	if IsJSONOutput() {
 		// --json without -o: JSON with findings array
 		summary["output_path"] = "stdout"
 		summary["findings"] = unique
-		return output.JSON(summary)
+		return finishMerge(output.JSON(summary), dropped)
 	}
 
 	// Default: raw NDJSON to stdout
@@ -100,7 +105,7 @@ func runReviewMerge(args []string, outputPath string) error {
 	fmt.Fprintf(os.Stderr, "merged: %d unique findings from %d files (%d duplicates removed); line indices are 0-based (use with tp review --resolve)\n",
 		len(unique), totalFiles, duplicatesRemoved)
 
-	return nil
+	return finishMerge(nil, dropped)
 }
 
 // loadMergeFindings reads and validates the review findings from the input
@@ -110,10 +115,13 @@ func runReviewMerge(args []string, outputPath string) error {
 // loadMergeFindings reads and validates the review findings from the input
 // files, skipping blank, malformed (invalid JSON), and incomplete (missing any
 // of location, severity, finding) lines with a stderr warning that names which.
-// It aborts only on a missing/unreadable file (exit 3). An all-empty or
-// all-invalid set of inputs is a valid clean result (§3.1) and yields zero
-// findings without failing, so the merge→record chain works on a clean round.
-func loadMergeFindings(args []string) []map[string]any {
+// It aborts only on a missing/unreadable file (exit 3), and returns the §8a.4
+// per-input accounting beside the findings: blank lines count as neither, so an
+// all-empty set of inputs is a valid clean result and yields zero findings
+// without failing, and the merge→record chain works on a clean round. An input
+// whose content lines all fail is a dropped role, which runReviewMerge turns
+// into exit 1.
+func loadMergeFindings(args []string) ([]map[string]any, []mergeInputCounts) {
 	for _, path := range args {
 		if _, err := os.Stat(path); os.IsNotExist(err) {
 			output.Error(ExitFile, fmt.Sprintf("file not found: %s", path), ndjsonInputFileHint)
@@ -122,12 +130,14 @@ func loadMergeFindings(args []string) []map[string]any {
 	}
 
 	allFindings := make([]map[string]any, 0)
+	inputs := make([]mergeInputCounts, 0, len(args))
 	for _, path := range args {
 		f, err := os.Open(path)
 		if err != nil {
 			output.Error(ExitFile, fmt.Sprintf("cannot open file: %s", path), ndjsonInputFileHint)
 			os.Exit(ExitFile)
 		}
+		counts := mergeInputCounts{Path: path}
 		scanner := bufio.NewScanner(f)
 		scanner.Buffer(make([]byte, 0, 64*1024), ndjsonLineCap)
 		for scanner.Scan() {
@@ -138,12 +148,15 @@ func loadMergeFindings(args []string) []map[string]any {
 			var finding map[string]any
 			if err := json.Unmarshal([]byte(line), &finding); err != nil {
 				fmt.Fprintf(os.Stderr, "warning: skipping malformed line (invalid JSON) in %s\n", path)
+				counts.Skipped++
 				continue
 			}
 			if missing := missingFindingFields(finding); len(missing) > 0 {
 				fmt.Fprintf(os.Stderr, "warning: skipping incomplete line (missing %s) in %s\n", strings.Join(missing, ", "), path)
+				counts.Skipped++
 				continue
 			}
+			counts.Parsed++
 			allFindings = append(allFindings, finding)
 		}
 		if err := scanner.Err(); err != nil {
@@ -155,9 +168,10 @@ func loadMergeFindings(args []string) []map[string]any {
 			os.Exit(ExitFile)
 		}
 		f.Close()
+		inputs = append(inputs, counts)
 	}
 
-	return allFindings
+	return allFindings, inputs
 }
 
 // missingFindingFields returns the review-finding fields that are absent or empty
