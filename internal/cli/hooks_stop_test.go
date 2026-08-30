@@ -198,3 +198,16 @@ func TestStopHookAllowsARoleUnitThatEscalated(t *testing.T) {
 	}
 }
 
+// TestStopHookAllowsAnEscalationOverAMalformedFindingsFile pins the "either" in
+// §6.2: the two conditions are alternatives, so a unit that escalated is
+// allowed to stop however its half-written findings file looks.
+func TestStopHookAllowsAnEscalationOverAMalformedFindingsFile(t *testing.T) {
+	unit := stopUnit(t, string(engine.UnitAuditRole))
+	require.NoError(t, os.WriteFile(unit.findingsPath(), []byte("{\"item_id\":\"x\"\n"), 0o600))
+	require.NoError(t, os.WriteFile(unit.escalationPath(), []byte(`{"decision":"other"}`), 0o600))
+
+	run := runStopHook(t, unit, false)
+	assert.Zero(t, run.exitCode, "stderr=%q", run.stderr)
+	assert.Empty(t, run.stderr)
+}
+
