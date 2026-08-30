@@ -8,21 +8,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// v033Surface is the command-and-flag surface tp shipped at the v0.33.0 tag:
+// v034Surface is the command-and-flag surface tp shipped at the v0.34.2 tag:
 // one line per command — its name, a colon, then its long flags in byte order.
 // The first line, whose name is empty, carries the root's persistent (global)
 // flags. Shorthands are not listed, since a shorthand only exists alongside its
 // long name.
 //
-// spec/0.34.0.md §11 Non-Goal 3: every change in this release is a fix, a
-// removal, a hint, a test or a document — it adds no command and no flag. The
-// baseline is what makes that checkable while the release is still running,
-// rather than re-read from the tag once at the end: every task still to come is
-// measured against it at every close, because the quality gate runs the suite.
+// The baseline exists so a surface change is always deliberate. It began as
+// spec/0.34.0.md §11 Non-Goal 3 — that release added no command and no flag —
+// and it keeps its value for a release that does add surface: every task still
+// to come is measured against it at every close, because the quality gate runs
+// the suite, so an accidental flag is caught by the task after the one that
+// added it.
 //
 // A release that does add a command or a flag updates this baseline in the same
 // task that adds it, and renames the constant to the tag it then pins.
-const v033Surface = `
+// spec/0.35.0.md §3.1 adds exactly one command, `tp run`, which is listed below
+// with the flags it ships; nothing else about the surface moves in that release.
+const v034Surface = `
 : color compact file json no-color no-compact no-quiet quiet
 add: bulk spec stdin
 audit: affected-files affected-from-tasks base check findings harness-note merge output record status
@@ -47,6 +50,7 @@ reopen:
 report:
 resume:
 review: affected-files check diff-from docs-path final-round findings force harness-note merge no-state output perspective record report resolve resolve-all round spec-inline status test-path verify
+run:
 set: bulk local project workflow
 show:
 stats:
@@ -55,13 +59,13 @@ use: clear
 validate: project strict
 `
 
-// parseSurface reads v033Surface into per-command long-flag sets, keyed by
+// parseSurface reads v034Surface into per-command long-flag sets, keyed by
 // command name with "" holding the globals.
 func parseSurface(t *testing.T) map[string]map[string]bool {
 	t.Helper()
 
 	surface := map[string]map[string]bool{}
-	for line := range strings.SplitSeq(strings.TrimSpace(v033Surface), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(v034Surface), "\n") {
 		name, flags, ok := strings.Cut(line, ":")
 		require.True(t, ok, "every baseline line names a command before a colon: %q", line)
 		set := map[string]bool{}
@@ -85,24 +89,24 @@ func TestNonGoals_NoCommandOrFlagIsAdded(t *testing.T) {
 	for _, command := range sortedKeys(registered) {
 		shipped, known := baseline[command]
 		if !assert.True(t, known,
-			"the CLI registers `tp %s`, which v0.33.0 did not ship: this release adds no command (§11 Non-Goal 3)", command) {
+			"the CLI registers `tp %s`, which v0.34.2 did not ship: this release adds no command (§11 Non-Goal 3)", command) {
 			continue
 		}
 		for _, name := range sortedKeys(registered[command]) {
 			assert.True(t, shipped[name],
-				"the CLI registers `tp %s --%s`, which v0.33.0 did not ship: this release adds no flag (§11 Non-Goal 3)", command, name)
+				"the CLI registers `tp %s --%s`, which v0.34.2 did not ship: this release adds no flag (§11 Non-Goal 3)", command, name)
 		}
 	}
 
 	for _, command := range sortedKeys(baseline) {
 		flags, known := registered[command]
 		if !assert.True(t, known,
-			"v0.33.0 shipped `tp %s` and the CLI no longer registers it: dropping a command is a behaviour change outside the sections §11 Non-Goal 1 enumerates", command) {
+			"v0.34.2 shipped `tp %s` and the CLI no longer registers it: dropping a command is a behaviour change outside the sections §11 Non-Goal 1 enumerates", command) {
 			continue
 		}
 		for _, name := range sortedKeys(baseline[command]) {
 			assert.True(t, flags[name],
-				"v0.33.0 shipped `tp %s --%s` and the CLI no longer registers it: dropping a flag is a behaviour change outside the sections §11 Non-Goal 1 enumerates", command, name)
+				"v0.34.2 shipped `tp %s --%s` and the CLI no longer registers it: dropping a flag is a behaviour change outside the sections §11 Non-Goal 1 enumerates", command, name)
 		}
 	}
 }
