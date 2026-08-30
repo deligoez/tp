@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-30T16:27:57.866737Z",
+  "updated_at": "2026-08-30T16:44:42.086322Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -1069,7 +1069,7 @@
     {
       "id": "notify-cmd",
       "title": "Invoke notify_cmd on a non-converged stop",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "escalation-detection"
@@ -1079,11 +1079,34 @@
       "source_sections": [
         "### 5.2 Escalation"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-30T16:28:44.244152Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-30T16:44:42.009443Z",
+      "closed_reason": "- notify_cmd fires at driver.stop, the single sink every stop passes through, for every reason other than converged. engine.InvokeNotify runs it directly with strings.Fields and no shell, so a semicolon, a variable reference or a run of spaces in the configured string reaches the child as literal argument text. Verified by a table driven off the stop vocabulary itself (stopPrecedence), so a tenth reason is exercised the moment it exists, and by an argv assertion that a shell would fail.\n- The environment carries TP_STOP_REASON, TP_RUN_ID and, on an escalation only, TP_ESCALATION_PATH. All three are removed from the inherited environment before the run values are appended, so a stale TP_ESCALATION_PATH cannot be read as this stop record, and its absence on every other stop is a fact rather than an empty string. Two end-to-end runs through TP_RUNNER_SEAM pin the escalation and the unit-failure arms.\n- A notify_cmd that fails changes nothing: the outcome travels on DriverResult.Notify and tp run reports it under notify {cmd, exit_code, error}, while the exit code is still decided over stop_reason alone. Covered for a non-zero exit, a command that cannot be run at all, an unset command and a whitespace-only one (section 5.2, test 42).\n- Every test was written first and watched failing against unchanged code. Mutations: an unconditional call reddened only the converged row; removing the call reddened all eight notify tests; dropping the escalation-path guard and dropping the stale-variable removal each reddened only the absent-path test; running the command through /bin/sh reddened the no-shell test and the exec-failure test. No mutation survived, and every file was restored byte-identically under sha256.\n- Gate green: go test -race ./... 0, golangci-lint run 0, scripts/check-deadcode.sh 0. Dogfooded with the freshly built binary on a scratch project for a unit-failure stop and for a real tp escalate stop.\n\nOut of scope: a driver-error stop invokes notify_cmd but never reports the outcome, because tp run returns the error before printing the payload, and that reporting channel belongs to section 3.4. notify_cmd is run unbounded, so a hanging notification hangs a driver whose run has otherwise ended - section 6.4 bounds hooks only. README.md and skills/tp/SKILL.md still carry no notify_cmd description (docs-surface). Under heavy parallel load the hook test for a one-megabyte single-line findings file timed out once, and passed on every unloaded run.",
+      "gate_passed_at": "2026-08-30T16:44:42.009443Z",
+      "commit_sha": "5b51ca2",
+      "commit_shas": [
+        "5b51ca2",
+        "9fe1ecf",
+        "fe3716e",
+        "b3bb627",
+        "13c4730",
+        "f57fa3c",
+        "029d164",
+        "3304771",
+        "d30671c",
+        "aa2ead0",
+        "0d0b3f3",
+        "752646f",
+        "e93ff68"
+      ],
+      "commit_files": [
+        "internal/cli/run.go",
+        "internal/cli/run_notify_test.go",
+        "internal/engine/driver.go",
+        "internal/engine/driver_notify_test.go",
+        "internal/engine/notify.go"
+      ]
     },
     {
       "id": "audit-resolve",
