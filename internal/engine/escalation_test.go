@@ -83,3 +83,15 @@ func TestReadEscalation_RejectsARecordThatIsNotOne(t *testing.T) {
 	}
 }
 
+// options is documented as an array and WriteEscalation always emits one, so a
+// record without it did not come from the documented path.
+func TestReadEscalation_RejectsANullOptionsArray(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "1-escalation.json")
+	require.NoError(t, os.WriteFile(path, []byte(`{"decision":"other","unit_kind":"implement",`+
+		`"unit_id":"alpha","phase":"implement","evidence":"e","at":"2026-08-30T09:00:00Z"}`), 0o600))
+
+	got, err := ReadEscalation(path)
+	require.Error(t, err)
+	assert.Nil(t, got)
+}
+
