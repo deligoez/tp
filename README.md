@@ -187,12 +187,22 @@ tp's user is an AI agent whose context degrades over long runs, so every unit is
 **fresh context**, with tp as the durable state machine between resets. `tp resume` reports the
 lifecycle phase and the single next action from durable state alone, and
 `tp brief` / `tp next --brief` hands a fresh unit everything it needs: identity, scope fence, prior
-work, verbatim acceptance, and the close recipe for the effective `commit_strategy`. tp ships no
-driver — embedding the loop would bind tp to one agent runtime.
+work, verbatim acceptance, and the close recipe for the effective `commit_strategy`.
 
-The driver loop and the briefing duty are in [SKILL.md](skills/tp/SKILL.md); the field-by-field
-output, the blocker vocabulary, `commit_strategy` and the keep-list are in
-[REFERENCE.md](skills/tp/REFERENCE.md).
+**`tp run` drives that loop unattended.** It reads the cycle, spawns one runner process per unit —
+the two role kinds concurrently, everything else alone — re-reads the state from disk, checks its
+caps, and repeats. A unit's result is whatever it wrote to disk: tp reads a child's exit code and
+one spend number, never its prose. The run exits **0** only when the cycle converged and **4** on
+every other stop reason, so a caller never has to read the output to know what happened. Units run
+with `TP_UNATTENDED=1`, under which the decisions reserved for a human — skipping the quality gate,
+raising a round or run cap, forcing an import — fail closed; a unit records what it needs decided
+with `tp escalate` and the run stops for the operator. Which runner to spawn, the caps, and the
+notification command are configuration, so the loop stays runtime-neutral: built-in templates for
+`claude` and `opencode`, and a runner object for anything else.
+
+The loop, the unattended restrictions and the briefing duty are in [SKILL.md](skills/tp/SKILL.md);
+the unit kinds, stop reasons, run state, child environment, `commit_strategy` and the keep-list are
+in [REFERENCE.md](skills/tp/REFERENCE.md).
 
 ## Spec Quality
 
