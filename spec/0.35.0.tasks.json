@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-30T16:05:48.772486Z",
+  "updated_at": "2026-08-30T16:16:10.728358Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -512,7 +512,7 @@
     {
       "id": "unit-logs",
       "title": "Own each unit's log file",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "run-state-file"
@@ -522,11 +522,20 @@
       "source_sections": [
         "### 3.5 Run state, logs and status"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-30T16:06:54.03269Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-30T16:16:10.713375Z",
+      "closed_reason": "- The driver now owns the log of a template that omits {log_path} (section 3.5): unitAttempt.spawn opens $TP_RUN_DIR/\u003cseq\u003e-\u003ckind\u003e-\u003cid\u003e.jsonl and points both stdout and stderr at that one descriptor, while a runner whose resolved argv already carries the path owns the file and is not redirected; a log the driver cannot open is a driver error rather than a failed attempt. Verified by writing the pair first and watching the redirect arm fail for the right reason (no such file) against unchanged code, then by two mutations: forcing the redirect unconditional reddened only the owns-the-file arm on the log existing, and dropping cmd.Stderr reddened only the redirect arm on the missing to-stderr line. Restore checksum-verified byte-identical.\n- Every child is spawned with stdin closed, so a runner reading stdin sees EOF (test 62): both arms drive a script runner that reads stdin to completion and writes a marker afterwards, asserting the marker exists (the read returned rather than blocking) and the capture is empty. This pins existing behaviour rather than proving new code — cmd.Stdin = nil is Go's own default — so the discriminating evidence is the mutation: handing the child a strings.Reader reddened the stdin assertion in both arms while every log assertion stayed green.\n- Out of scope: the owns-the-file arm's argv assertion and the run-state log-path assertion also passed before the change; they are pinned contract, and only the file-absence assertion in that arm discriminates against an over-redirecting driver.",
+      "gate_passed_at": "2026-08-30T16:16:10.713375Z",
+      "commit_sha": "2f4bc1c",
+      "commit_shas": [
+        "2f4bc1c",
+        "e9609b6"
+      ],
+      "commit_files": [
+        "internal/engine/driver.go",
+        "internal/engine/driver_log_test.go"
+      ]
     },
     {
       "id": "driver-loop",
