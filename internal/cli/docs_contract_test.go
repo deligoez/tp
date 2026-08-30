@@ -1,12 +1,42 @@
 package cli
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/deligoez/tp/internal/engine"
 )
+
+// The two SKILL.md lines §8a.2 names: the mechanize-candidate rule and the
+// next_action precedence list's step 3. Both must carry engine's shipped
+// qualifier verbatim, so the emitted advice and the documented rule cannot
+// diverge. Anchoring per line rather than per document is what makes the
+// assertion discriminating — the sentence sitting anywhere else in SKILL.md
+// does not satisfy either anchor.
+const (
+	mechanizeRuleAnchor = "**Mechanization candidate:**"
+	mechanizeStepAnchor = "3. **A `mechanize_candidates` class recurs"
+)
+
+// TestDocsCarryTheMechanizePhaseQualifier guards §8a.2 (pinned by §10.5 test 29).
+func TestDocsCarryTheMechanizePhaseQualifier(t *testing.T) {
+	seen := map[string]bool{}
+	for _, line := range strings.Split(readRepoDoc(t, "skills/tp/SKILL.md"), "\n") {
+		for _, anchor := range []string{mechanizeRuleAnchor, mechanizeStepAnchor} {
+			if !strings.Contains(line, anchor) {
+				continue
+			}
+			seen[anchor] = true
+			assert.Contains(t, line, engine.MechanizePhaseQualifier,
+				"the SKILL.md line carrying %q states the phase qualifier verbatim", anchor)
+		}
+	}
+	for _, anchor := range []string{mechanizeRuleAnchor, mechanizeStepAnchor} {
+		assert.True(t, seen[anchor], "SKILL.md still carries the %q line", anchor)
+	}
+}
 
 const (
 	routingSubstring = "spec-coverage is the only auditor id that changes routing"
