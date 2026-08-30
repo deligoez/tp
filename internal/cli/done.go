@@ -652,6 +652,12 @@ func runDoneBatch() error {
 		gateRes = executeQualityGate(taskFilePath)
 		gateRan = gateRes.Passed
 		gateFailed = !gateRes.Passed
+		if gateFailed {
+			// §4.2: the batch path runs the same gate for the same reason,
+			// and does not exit through runQualityGatePreFlock, so it
+			// records the failure itself.
+			recordGateFailure(taskFilePath, &gateWf, gateRes)
+		}
 	}
 
 	return engine.WithFileLock(taskFilePath, func() error {
