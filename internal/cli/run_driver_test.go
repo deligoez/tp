@@ -57,7 +57,10 @@ func runProject(t *testing.T) (dir string) {
 
 // tp run drives the whole cycle from the command line: it spawns the implement
 // unit the oracle named, re-reads the cycle from disk, crosses into the audit
-// phase as the task closes, and fans the audit role panel out in one iteration.
+// phase as the task closes, fans the audit role panel out in one iteration, and
+// then takes the round's record unit (§4.1) rather than stopping on no-units.
+// The fake runner writes no record kind's durable artifact, so that unit
+// exhausts its attempts — which is where this end-to-end drive stops.
 func TestRunCommand_DrivesTheCycleThroughTheSeam(t *testing.T) {
 	dir := runProject(t)
 	bin, err := fakerunner.Build(t.TempDir())
@@ -70,23 +73,30 @@ func TestRunCommand_DrivesTheCycleThroughTheSeam(t *testing.T) {
 		fakerunner.EnvDir + "=" + records,
 		fakerunner.EnvDurable + "=1",
 	}, "run")
-	// §3.4: the run really did drive the whole cycle, but it stopped on
-	// no-units rather than converged, and every non-converged stop exits 4.
+	// §3.4: the run really did drive the whole cycle, but it stopped on the
+	// record unit's exhausted attempts rather than converged, and every
+	// non-converged stop exits 4.
 	require.Equal(t, 4, code, "tp run: %s", stderr)
 
 	var out map[string]any
 	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
 	assert.Equal(t, engine.PhaseAudit, out["phase"], "the loop crossed from implement into audit")
-	assert.Equal(t, string(engine.StopNoUnits), out["stop_reason"])
+	assert.Equal(t, string(engine.StopUnitFailure), out["stop_reason"])
 	assert.NotEmpty(t, out["run_id"])
 
 	recs, err := fakerunner.Records(records)
 	require.NoError(t, err)
-	require.Len(t, recs, 4, "one implement unit, then the three-role audit panel")
+	require.Len(t, recs, 6,
+		"one implement unit, the three-role audit panel, then the round's record unit twice")
 	assert.Equal(t, string(engine.UnitImplement), recs[0].Env[engine.EnvUnitKind])
 	assert.Equal(t, "seed", recs[0].Env[engine.EnvUnitID])
-	for _, rec := range recs[1:] {
+	for _, rec := range recs[1:4] {
 		assert.Equal(t, string(engine.UnitAuditRole), rec.Env[engine.EnvUnitKind])
+	}
+	for _, rec := range recs[4:] {
+		assert.Equal(t, string(engine.UnitAuditRecord), rec.Env[engine.EnvUnitKind],
+			"the collected round owes its record unit (§4.1), retried once by the default budget")
+		assert.Equal(t, "1", rec.Env[engine.EnvUnitID], "a record unit's id is its round number")
 	}
 	// Every child carries the identity §3.1.1 fixes, from a real spawn.
 	assert.Equal(t, "1", recs[0].Env[engine.EnvUnattended])
@@ -104,8 +114,8 @@ func TestRunCommand_DrivesTheCycleThroughTheSeam(t *testing.T) {
 	require.NoError(t, err)
 	var state map[string]any
 	require.NoError(t, json.Unmarshal(stateData, &state))
-	assert.Equal(t, string(engine.StopNoUnits), state["stop_reason"])
-	assert.Len(t, state["units"], 4)
+	assert.Equal(t, string(engine.StopUnitFailure), state["stop_reason"])
+	assert.Len(t, state["units"], 6)
 }
 
 // The run-scoped lock is held for the whole run, so a second tp run over the
