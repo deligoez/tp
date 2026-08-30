@@ -275,3 +275,16 @@ func TestStopHookBlocksAtMostOncePerUnit(t *testing.T) {
 	}
 }
 
+// TestStopHookBlocksWhenTheEnvironmentNamesNoFindingsFile is the fail-closed
+// direction. A role unit whose TP_ROUND_DIR or TP_UNIT_ID is missing has no
+// file the hook could check, and a hook that let that stop through would report
+// a role as finished on the strength of a broken environment.
+func TestStopHookBlocksWhenTheEnvironmentNamesNoFindingsFile(t *testing.T) {
+	unit := stopUnit(t, string(engine.UnitReviewRole))
+	unit.roundDir = ""
+
+	run := runStopHook(t, unit, false)
+	assert.Equal(t, 2, run.exitCode, "stderr=%q", run.stderr)
+	assert.NotEmpty(t, run.stderr, "the reason says the environment does not name the file")
+}
+
