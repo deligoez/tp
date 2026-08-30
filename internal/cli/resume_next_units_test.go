@@ -281,3 +281,29 @@ func TestResume_NextUnitsAuditFixAfterARecordedRound(t *testing.T) {
 	assert.Equal(t, float64(1), res["round"])
 	assertRendersFirstUnit(t, res)
 }
+
+// TestResume_NextUnitsRecordUnitOnceEveryRoleAnswered is test 45a through the
+// command: once every role of the panel has written a parseable findings file
+// for the collecting round, the oracle hands the driver that round's single
+// record unit instead of emptying next_units and stopping the run with no-units.
+func TestResume_NextUnitsRecordUnitOnceEveryRoleAnswered(t *testing.T) {
+	dir := newPayloadRepo(t, `[]`)
+	round1 := firstRoundDirOf(t, dir, "review")
+	for _, role := range []string{"implementer", "tester", "architect"} {
+		require.NoError(t, os.WriteFile(filepath.Join(round1, "role-"+role+".ndjson"),
+			[]byte("{\"id\":\"f1\"}\n"), 0o600))
+	}
+
+	res := resumeResult(t, dir)
+	units := nextUnitsOf(t, res)
+	require.Len(t, units, 1, "a record unit runs alone")
+	assert.Equal(t, map[string]any{
+		"kind": "review-record",
+		"id":   "1",
+		"brief_command": "[ -f $TP_ROUND_DIR/merged.ndjson ] || " +
+			"tp review --merge $TP_ROUND_DIR/role-*.ndjson -o $TP_ROUND_DIR/merged.ndjson; " +
+			"tp review spec.md --record $TP_ROUND_DIR/merged.ndjson",
+	}, units[0], "the id is the round number the driver also passes as TP_ROUND")
+	assert.Equal(t, float64(1), res["round"])
+	assertRendersFirstUnit(t, res)
+}
