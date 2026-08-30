@@ -247,6 +247,7 @@ func outputNextBrief(tf *model.TaskFile, task *model.Task, specPath, taskFilePat
 		os.Exit(ExitValidation)
 		return nil
 	}
+	b.LastFailure = engine.ReadLastFailure(".", taskFilePath)
 	if output.IsJSON() {
 		return output.JSON(b)
 	}
