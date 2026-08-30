@@ -106,3 +106,32 @@ func TestRunCommand_DrivesTheCycleThroughTheSeam(t *testing.T) {
 	assert.Len(t, state["units"], 4)
 }
 
+// The run-scoped lock is held for the whole run, so a second tp run over the
+// same task file is refused with exit 4 rather than driving the same cycle
+// twice (§3.1.1, test 9).
+func TestRunCommand_SecondRunOverTheSameCycleExitsFour(t *testing.T) {
+	dir := runProject(t)
+	taskFile := filepath.Join(dir, "spec.tasks.json")
+
+	acquired := make(chan struct{})
+	release := make(chan struct{})
+	held := make(chan struct{})
+	go func() {
+		defer close(held)
+		lockErr := engine.WithRunLock(taskFile, func() error {
+			close(acquired)
+			<-release
+			return nil
+		})
+		assert.NoError(t, lockErr)
+	}()
+	<-acquired
+	defer func() {
+		close(release)
+		<-held
+	}()
+
+	stdout, stderr, code := runTP(t, dir, "run")
+	assert.Equal(t, 4, code, "a second tp run over a driven cycle is a state error")
+	assert.Contains(t, stdout+stderr, "run-spec.lock", "the refusal names the run-scoped lock")
+}
