@@ -456,6 +456,13 @@ type Brief struct {
 	Close     string           `json:"close"`
 	Scope     string           `json:"scope"`
 
+	// LastFailure is §4.2's record of the last unit of this cycle that
+	// failed, when one is present. It is omitted otherwise rather than
+	// carried as null: the brief is what a unit reads first, and a key
+	// meaning "nothing went wrong last time" is a line of context the
+	// common case should not pay for.
+	LastFailure *LastFailure `json:"last_failure,omitempty"`
+
 	compact bool
 }
 
@@ -513,7 +520,9 @@ func compactPriorWork(prior *PriorWorkResult) *PriorWorkResult {
 
 // Text assembles the five-section implementation brief text (§4.1) from the
 // machine parts, in the fixed order Identity, Scope, Prior work, Your unit, How
-// to close — ready to paste into a sub-agent prompt. Under compact the identity
+// to close — ready to paste into a sub-agent prompt. A sixth section, Last
+// failure, is interleaved after Identity when the cycle carries one (v0.35.0
+// §4.2); it is absent whenever there is nothing to report. Under compact the identity
 // and scope sections shorten to their core line and prior-work entries collapse
 // (§12.1); the acceptance text, close recipe, and scope-fence prohibitions are
 // always present.
@@ -531,6 +540,17 @@ func (b *Brief) Text() string {
 		s.WriteString(b.Identity)
 	} else {
 		fmt.Fprintf(&s, "%s\n", b.Identity)
+	}
+
+	// v0.35.0 §4.2: the last failure of this cycle, when one is present. It
+	// comes directly after the identity because its whole value is being in
+	// front of the unit before it starts — a fresh process is otherwise fresh
+	// in the harmful sense too, and re-enters the same wall unwarned.
+	if b.LastFailure != nil {
+		s.WriteString("\n\n## Last failure\n\n")
+		fmt.Fprintf(&s, "The previous %s unit %q exited %d at %s.\n%s\n",
+			b.LastFailure.UnitKind, b.LastFailure.UnitID, b.LastFailure.ExitCode,
+			b.LastFailure.At, b.LastFailure.Summary)
 	}
 
 	// §4.1 Scope: the acceptance criteria are the boundary, plus the fence (§7).
