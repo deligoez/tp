@@ -83,7 +83,13 @@ func TestValidateProject_ReportsAnIncompleteScan(t *testing.T) {
 // decoration — it proves the warning was reachable at all, so the quiet half
 // is a suppression rather than an absence.
 func TestValidateProject_MalformedTaskFileWarningRespectsQuiet(t *testing.T) {
-	dir := writeProjectConfigDir(t, `{"review_max_rounds":8}`)
+	// The config carries an unknown key on purpose. surfaceConfigWarnings runs
+	// one line above the warnings this test is named for, and used to write raw
+	// to stderr; with a clean config it never fired, so the assertion below was
+	// strong enough to catch the leak and never presented with it. The audit
+	// found the real leak by hand, not through this test — the fixture is what
+	// had to change for the check to discriminate.
+	dir := writeProjectConfigDir(t, `{"review_max_rounds":8,"unknown_top_level":1}`)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "broken.tasks.json"),
 		[]byte(`{"spec":"s.md","tasks":[`), 0o600))
 
