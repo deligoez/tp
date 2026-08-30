@@ -26,7 +26,7 @@ import (
 func TestEnsureTPGitignore_PreservesCustomEntriesUnderConcurrency(t *testing.T) {
 	tpDir := t.TempDir()
 	path := filepath.Join(tpDir, ".gitignore")
-	custom := []string{"local.json", "locks/", "my-scratch/", "*.bak"}
+	custom := []string{"local.json", "locks/", "run-*.json", "runs/", "rounds/", "last_failure-*.json", "my-scratch/", "*.bak"}
 	require.NoError(t, os.WriteFile(path, []byte(strings.Join(custom, "\n")+"\n"), 0o600))
 
 	before, err := os.Stat(path)
