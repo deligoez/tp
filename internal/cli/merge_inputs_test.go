@@ -71,3 +71,26 @@ func TestReviewMerge_InputsReportPerFileCounts(t *testing.T) {
 	assert.Equal(t, [2]int{1, 0}, inputs[f2], "f2: one finding parsed, nothing skipped")
 }
 
+// TestReviewMerge_DroppedRoleExitsOne covers test 32's exit rule: a role file
+// whose every content line failed to parse is silently absent from the merged
+// set, so the merge exits 1 instead of letting --record freeze an undercounted
+// round.
+func TestReviewMerge_DroppedRoleExitsOne(t *testing.T) {
+	dir := t.TempDir()
+
+	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{goodFinding1, goodFinding2})
+	// The measured failure: a reviewer emitted every line with a trailing comma.
+	f2 := writeFindingsFile(t, dir, "f2.ndjson", []string{
+		goodFinding3 + `,`,
+		`{"role":"tester","severity":"low","class":"nit","location":"§4","finding":"x"},`,
+	})
+
+	stdout, stderr, code := runTPMerge(t, dir, "review", "--merge", "--json", f1, f2)
+	require.Equal(t, 1, code, "an input with content lines and no parsed line exits 1: %s", stderr)
+	assert.Contains(t, stderr, f2, "the error names the input that contributed nothing")
+
+	inputs := mergeInputsOf(t, stdout)
+	assert.Equal(t, [2]int{2, 0}, inputs[f1])
+	assert.Equal(t, [2]int{0, 2}, inputs[f2], "the dropped role reports parsed 0")
+}
+
