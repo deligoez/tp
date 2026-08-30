@@ -168,6 +168,14 @@ func dispatchError(err error) (code int, msg, hint string) {
 		msg, hint = usageErrorDetail(fe.cmd, fe.err)
 		return ExitUsage, msg, hint
 	}
+	// §8a.5: an Args validator's rejection is a usage error (exit 2) for the
+	// same reason a flag-parse failure is — tp did not run the request. Its
+	// hint names the argument the command wanted, which the code-1 default
+	// could not.
+	var ae arityUsageError
+	if errors.As(err, &ae) {
+		return ExitUsage, ae.Error(), arityHint(ae.cmd)
+	}
 	// §3.2: a runner value that is none of the three shapes — a map missing
 	// default, a runner object missing cmd — is a usage error (exit 2), not
 	// the exit 4 the run-lock precedent above uses: nothing about the run
