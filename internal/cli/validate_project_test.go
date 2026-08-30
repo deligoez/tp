@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/deligoez/tp/internal/model"
@@ -88,4 +89,42 @@ func TestWorkflowDeviations_ReviewConvergeOn(t *testing.T) {
 		&model.WorkflowOverride{ReviewConvergeOn: sptr("all")},
 		&model.WorkflowOverride{},
 	), "a review_converge_on the project does not set is not a deviation")
+}
+
+// commit_strategy is a genuine project-config field — .tp/config.json carries
+// it and tp init authors a task-file override — so a task file that contradicts
+// the project strategy is a deviation like any other.
+func TestWorkflowDeviations_CommitStrategy(t *testing.T) {
+	devs := workflowDeviations("x.tasks.json",
+		&model.WorkflowOverride{CommitStrategy: sptr("builtin")},
+		&model.WorkflowOverride{CommitStrategy: sptr("hc")},
+	)
+	require.Len(t, devs, 1)
+	assert.Equal(t, "commit_strategy", devs[0]["field"])
+	assert.Equal(t, "builtin", devs[0]["override"])
+	assert.Equal(t, "hc", devs[0]["project"])
+
+	// Equal → no deviation.
+	assert.Empty(t, workflowDeviations("x.tasks.json",
+		&model.WorkflowOverride{CommitStrategy: sptr("hc")},
+		&model.WorkflowOverride{CommitStrategy: sptr("hc")},
+	), "an equal commit_strategy is not a deviation")
+
+	// Project does not set it → no policy, no deviation.
+	assert.Empty(t, workflowDeviations("x.tasks.json",
+		&model.WorkflowOverride{CommitStrategy: sptr("hc")},
+		&model.WorkflowOverride{},
+	), "a commit_strategy the project does not set is not a deviation")
+}
+
+// relOrSelf never drops a path: a location filepath.Rel cannot express relative
+// to root is reported whole rather than as the empty string the discarded-error
+// form produced.
+func TestRelOrSelf_FallsBackToTheWholePath(t *testing.T) {
+	assert.Equal(t, filepath.Join("b", "x.tasks.json"),
+		relOrSelf(filepath.FromSlash("/a"), filepath.FromSlash("/a/b/x.tasks.json")))
+
+	abs := filepath.FromSlash("/abs/x.tasks.json")
+	assert.Equal(t, abs, relOrSelf(filepath.FromSlash("relative/root"), abs),
+		"a path that cannot be made relative to root is reported whole")
 }
