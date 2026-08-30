@@ -109,3 +109,36 @@ func TestRoleOutputPathIsUnchangedOutsideARun(t *testing.T) {
 	}
 }
 
+// TestEmittedRoleFileFeedsTheRecordUnitsGlob ties §6.3's two halves together.
+// The record unit merges $TP_ROUND_DIR/role-*.ndjson; the role is told to write
+// $TP_ROUND_DIR/role-<role>.ndjson.part, which the driver renames. Writing what
+// the prompt names and promoting it exactly as the driver does must therefore
+// produce a file that glob collects — an emitted name one character off would
+// merge as a dropped role rather than as an error.
+func TestEmittedRoleFileFeedsTheRecordUnitsGlob(t *testing.T) {
+	dir, specPath, _ := emissionFixture(t)
+	roundDir := filepath.Join(dir, ".tp", "rounds", "spec", "review-r1")
+	require.NoError(t, os.MkdirAll(roundDir, 0o750))
+
+	prompts := emittedPrompts(t, dir, []string{engine.EnvRoundDir + "=" + roundDir},
+		"review", specPath, "--no-state")
+
+	want := make([]string, 0, len(prompts))
+	for _, pm := range prompts {
+		part := pm["output_path"].(string)
+		require.True(t, strings.HasSuffix(part, ".ndjson.part"),
+			"the role writes the .part; the driver owns the final name")
+		require.NoError(t, os.WriteFile(part, []byte("{\"id\":\"f1\"}\n"), 0o600))
+		// Exactly the driver's promotion (engine.promoteRoleFindings).
+		final := strings.TrimSuffix(part, ".part")
+		require.NoError(t, os.Rename(part, final))
+		require.Equal(t, engine.RoleFindingsPath(roundDir, pm["role"].(string)), final,
+			"the promoted name is the one §3.3's predicate and the merge glob read")
+		want = append(want, final)
+	}
+
+	got, err := filepath.Glob(filepath.Join(roundDir, "role-*.ndjson"))
+	require.NoError(t, err)
+	assert.ElementsMatch(t, want, got,
+		"the record unit's role-*.ndjson glob collects exactly the files the prompts named")
+}
