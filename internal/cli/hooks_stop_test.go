@@ -179,3 +179,22 @@ func TestStopHookBlocksARoleUnitThatWroteNeither(t *testing.T) {
 	}
 }
 
+// TestStopHookAllowsARoleUnitThatEscalated is test 26's first case. An
+// escalation is a normal, expected outcome (§5.2), so a unit that wrote one has
+// ended legitimately even with no findings file at all.
+func TestStopHookAllowsARoleUnitThatEscalated(t *testing.T) {
+	role, _ := roleKinds(t)
+
+	for _, kind := range role {
+		t.Run(kind, func(t *testing.T) {
+			unit := stopUnit(t, kind)
+			record := `{"decision":"raise-review-cap","unit_kind":"` + kind + `","unit_id":"implementer"}`
+			require.NoError(t, os.WriteFile(unit.escalationPath(), []byte(record), 0o600))
+
+			run := runStopHook(t, unit, false)
+			assert.Zero(t, run.exitCode, "an escalation ends the unit; stderr=%q", run.stderr)
+			assert.Empty(t, run.stderr, "an allowed stop is silent")
+		})
+	}
+}
+
