@@ -615,6 +615,16 @@ func runDoneBatch() error {
 		os.Exit(ExitFile)
 		return nil
 	}
+	// §5.1: a per-entry skip_gate is the same user-only decision --skip-gate
+	// is, so the whole batch is refused rather than partially applied.
+	if engine.Unattended() {
+		for _, entry := range entries {
+			if entry.SkipGate != nil {
+				refuseUnattended("a batch entry's skip_gate", "skip-gate")
+				return nil
+			}
+		}
+	}
 
 	taskFilePath, err := engine.DiscoverTaskFile(".", flagFile)
 	if err != nil {
