@@ -213,3 +213,19 @@ func TestRunDriver_NotifyOutcomeIsReported(t *testing.T) {
 	assert.NoError(t, res.Notify.Err)
 }
 
+// A command that cannot be exec'd reports the error rather than an invented
+// exit code: no code came back, and reporting one would be the driver making a
+// number up.
+func TestRunDriver_NotifyExecFailureIsReported(t *testing.T) {
+	root, spec, taskFile, _ := seamProject(t, oneOpenTask)
+	t.Setenv(fakerunner.EnvExits, "1")
+
+	wf := driverWorkflow()
+	wf.NotifyCmd = "/nonexistent/notify-command"
+	res := driveOnce(t, root, spec, taskFile, wf)
+
+	require.NotNil(t, res.Notify)
+	assert.Nil(t, res.Notify.ExitCode)
+	assert.Error(t, res.Notify.Err)
+}
+
