@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-30T17:59:27.104317Z",
+  "updated_at": "2026-08-30T18:27:54.190212Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -1587,7 +1587,7 @@
     {
       "id": "docs-surface",
       "title": "Document the unattended run",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "run-status",
@@ -1602,11 +1602,36 @@
       "source_sections": [
         "## 8. Documentation"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-30T18:00:22.495495Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-30T18:27:54.091469Z",
+      "closed_reason": "- README.md, skills/tp/SKILL.md and CLAUDE.md now carry v0.35.0's surface: README indexes tp run and tp escalate and rewrites Reset-Native Workflow (its 'tp ships no driver' claim was false as of this release), names notify_cmd and the git-ignored run artifacts under Project Configuration, describes the plugin's installation, three hooks and three agents, and adds four AX rows; SKILL.md replaces the 'Reference driver (tp ships none)' paragraph with tp run, the TP_UNATTENDED fence, tp escalate and the plugin, keeps subagent-per-unit as the interactive fallback, adds next_units/round/last_failure to the resume oracle, lists the five run_max_* caps and the two unsettable command fields in the tp set inventory, and states the fence in the Gate, Budget and Escalation Policy.\n- CLAUDE.md's reset-native section is rewritten around tp run: the heading and lead now make tp run the primary self-development model with its exit-code contract, the unattended fence and the cap budget, and the subagent-per-unit guidance follows as the interactive fallback for when a run is not appropriate.\n- skills/tp/REFERENCE.md, left uncommitted and unverified by the previous attempt, was finished and checked rather than restarted: the Unattended Run section, the seven run workflow fields, next_units/round/last_failure and the arity-exit-2 note were verified as written, and the two items the attempt had not reached were added - the per-input merge accounting (inputs, and exit 1 on an input that parsed nothing) and the audit file_summary truncation fields.\n- Verified by running the freshly built binary on a scratch project, not by transcribing the spec: tp run --status exits 3 with no run state, tp run --dry-run prints {phase, round, next_units} and exits 0, a real TP_RUNNER_SEAM run exits 4 with stop_reason unit-failure and fires notify_cmd with TP_STOP_REASON, tp run --status reports caps/last_unit/run_state and --compact strips last_unit, tp escalate outside a run exits 2 and inside one writes the per-unit record and exits 2, tp show with no argument exits 2, TP_UNATTENDED refuses a run_max_units raise and tp import --force while accepting a lower cap, runner and notify_cmd are refused at any layer, notify_cmd resolves with source local and runner with source default, the five caps are settable at both task and project layer with the documented defaults, tp review --merge reports inputs and exits 1 on a role file whose every line was skipped, tp audit reports file_summary total_files 50 / total_changed 63 / truncated true identically with and without --quiet, tp audit --resolve accepts both a 0-based index and role:item_id with the documented exit codes, and the three plugin hooks were executed in every arm - SessionStart preflight failure, orientation injection, PreToolUse deny and allow, Stop block and its escalation and already-active arms.\n- Gate green, each command run separately: go test -race ./... 0, golangci-lint run 0 issues, ./scripts/check-deadcode.sh 0.\n- Out of scope: tp audit --compact drops file_summary wholesale, so a compact audit loses the truncated flag along with the counts; section 8a.3 names only --quiet, so this is documented in REFERENCE.md rather than fixed here.",
+      "gate_passed_at": "2026-08-30T18:27:54.091469Z",
+      "commit_sha": "ebe0a0b",
+      "commit_shas": [
+        "ebe0a0b",
+        "1418775",
+        "0d249f2",
+        "a8ff863",
+        "1ccf9e0",
+        "b2daf0c",
+        "051ef48",
+        "68de58e",
+        "3a5edc2",
+        "b82051f",
+        "d6d36be",
+        "fb1b91e",
+        "f694f29",
+        "a8b8171",
+        "6014b16",
+        "63b0155"
+      ],
+      "commit_files": [
+        "CLAUDE.md",
+        "README.md",
+        "skills/tp/REFERENCE.md",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "record-units",
