@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-30T11:01:22.332972Z",
+  "updated_at": "2026-08-30T11:10:22.223819Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -978,7 +978,7 @@
     {
       "id": "arity-exit-two",
       "title": "Exit 2 on an arity violation",
-      "status": "wip",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 10,
@@ -988,10 +988,21 @@
       ],
       "started_at": "2026-08-30T10:46:55.725897Z",
       "duration_source": "claimed",
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "closed_at": "2026-08-30T11:10:22.192701Z",
+      "closed_reason": "- Every command's Args validator now exits 2 (section 8a.5): arityUsageError tags a cobra validator rejection, wrapArityErrors walks the whole command tree installing it, and root.go's dispatchError maps it to ExitUsage with a hint of its own, so exit 2 uniformly means tp did not run the request and exit 1 stays it ran and failed. Verified by writing the table of fourteen wrong-argument invocations first and watching every row fail at exit 1 against unchanged code, then dogfooding the freshly built binary: tp show, remove, reopen, close, lint, import, use, init, add, brief, resume, run and commit all report code 2.\n- Cobra's own built-ins are covered because Execute registers help and completion, whose per-shell subcommands carry cobra.NoArgs, before the wrap walks the tree; mutating that ordering back (dropping the two initializers) reddened exactly TestArity_CobraBuiltinExitsTwo and nothing else, and tp completion bash extra now exits 2 where it exited 1.\n- tp show with no argument names the missing argument: arityHint reads the placeholders out of the command's own Use line, so the hint is 'usage: tp show \u003cid\u003e' instead of the code-1 default that blamed the task file and tp validate. Mutating arityHint to always return the generic --help hint reddened only TestArity_ShowHintNamesTheMissingArgument, and mutating the wrapper to reject every argument count reddened only the negative test that a correct count keeps its own exit 4.\n- No test asserting exit 1 for a wrong argument count existed to move: the full suite is green unchanged, and no test file matches cobra's arity messages.\n- Gate green, each step run separately: go test -race ./... = 0, golangci-lint run = 0, ./scripts/check-deadcode.sh = 0.\nOut of scope: tp help x y exits 0 with cobra's 'Unknown help topic' text - the built-in help command has no Args validator to reject, so it is outside section 8a.5's sentence, but a driver still cannot tell that typo from a successful run.",
+      "gate_passed_at": "2026-08-30T11:10:22.192701Z",
+      "commit_sha": "861ebdf",
+      "commit_shas": [
+        "861ebdf",
+        "4a85bff",
+        "2e79d81",
+        "0f64f00"
+      ],
+      "commit_files": [
+        "internal/cli/arity_error.go",
+        "internal/cli/arity_exit_test.go",
+        "internal/cli/root.go"
+      ]
     },
     {
       "id": "plugin-layout",
