@@ -74,7 +74,7 @@ func TestRunStatus_ReportsAStoppedRun(t *testing.T) {
 	env := append(seamEnv(t), fakerunner.EnvDurable+"=1")
 
 	runOut, stderr, code := runTPEnv(t, dir, env, "run")
-	require.Equal(t, 0, code, "tp run: %s", stderr)
+	require.Equal(t, 4, code, "the run stopped without converging, which section 3.4 exits 4 on: %s", stderr)
 	driven := decodeStatus(t, runOut)
 
 	stdout, stderr, code := runTP(t, dir, "run", "--status")
@@ -113,7 +113,7 @@ func TestRunStatus_UnitsDoneCountsAttemptsNotDistinctUnits(t *testing.T) {
 	// No EnvDurable: every attempt exits 0 having written nothing, so the one
 	// implement unit spends its whole attempt budget (1 + the default 1 retry).
 	_, stderr, code := runTPEnv(t, dir, seamEnv(t), "run")
-	require.Equal(t, 0, code, "tp run: %s", stderr)
+	require.Equal(t, 4, code, "the exhausted unit stops the run non-converged, which exits 4: %s", stderr)
 
 	stdout, stderr, code := runTP(t, dir, "run", "--status")
 	require.Equal(t, 0, code, "--status: %s", stderr)
@@ -193,7 +193,7 @@ func TestRunStatus_CarriesTheDivergenceSignalsOnAnAuditPhaseStop(t *testing.T) {
 	env := append(seamEnv(t), fakerunner.EnvDurable+"=1")
 
 	runOut, stderr, code := runTPEnv(t, dir, env, "run")
-	require.Equal(t, 0, code, "tp run: %s", stderr)
+	require.Equal(t, 4, code, "the run stopped without converging, which section 3.4 exits 4 on: %s", stderr)
 	require.Equal(t, engine.PhaseAudit, decodeStatus(t, runOut)["phase"],
 		"the fixture must stop in the audit phase for this test to discriminate")
 
@@ -225,7 +225,7 @@ func TestRunStatus_CompactStripsUnitRowsAndLogPaths(t *testing.T) {
 	env := append(seamEnv(t), fakerunner.EnvDurable+"=1")
 
 	runOut, stderr, code := runTPEnv(t, dir, env, "run", "--compact")
-	require.Equal(t, 0, code, "tp run: %s", stderr)
+	require.Equal(t, 4, code, "the run stopped without converging, which section 3.4 exits 4 on: %s", stderr)
 	driven := decodeStatus(t, runOut)
 	assert.NotNil(t, driven["stop_reason"], "the driving surface keeps its stop reason under --compact")
 	assert.NotContains(t, runOut, "log_path",
