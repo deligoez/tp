@@ -280,16 +280,23 @@ func isASCIILetter(c byte) bool {
 //
 // The returned runner is a copy: its Args are the expanded ones, and the
 // caller may not mutate the shared Env map.
+//
+// §3.2.1's test seam is read first and short-circuits the field entirely, which
+// is what "outranks every layer of §7's precedence, including a CLI flag"
+// means: raw is already whatever the layers resolved to, so anything that
+// outranks them has to be decided above it — including when raw is a value the
+// resolver would reject.
 func ResolveUnitRunner(raw json.RawMessage, v TemplateValues) (*Runner, error) {
-	spec, err := ResolveRunner(raw, v.Kind)
-	if err != nil {
-		return nil, err
-	}
-
-	runner := spec.Runner
-	if runner == nil {
-		if runner, err = BuiltinRunner(spec.Template, v); err != nil {
+	runner, seam := SeamRunner()
+	if !seam {
+		spec, err := ResolveRunner(raw, v.Kind)
+		if err != nil {
 			return nil, err
+		}
+		if runner = spec.Runner; runner == nil {
+			if runner, err = BuiltinRunner(spec.Template, v); err != nil {
+				return nil, err
+			}
 		}
 	}
 
