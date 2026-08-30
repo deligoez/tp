@@ -41,6 +41,13 @@ const (
 	// runner that declares a spend_key and reports nothing is its own case
 	// (§3.2.2) and should be reached on purpose.
 	EnvSpend = "TP_FAKE_RUNNER_SPEND"
+	// EnvDurable, set to "1", makes the invocation perform its unit kind's
+	// §3.3 durable write before it exits: an implement unit marks its task
+	// done, a role unit writes the role-<id>.ndjson.part the driver renames.
+	// It is off by default so a test that wants a failed attempt — exit 0
+	// with nothing written — gets one without scripting an exit code, and on
+	// when a test needs the cycle to actually advance a phase.
+	EnvDurable = "TP_FAKE_RUNNER_DURABLE"
 )
 
 // Invocation is one spawn of the fake runner, as it recorded itself.

@@ -10,6 +10,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -60,6 +61,12 @@ func run() int {
 	if err := writeSpendLine(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return exitSetup
+	}
+	if os.Getenv(fakerunner.EnvDurable) == "1" {
+		if err := durableWrite(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return exitSetup
+		}
 	}
 
 	code := scriptedExit(os.Getenv(fakerunner.EnvExits), seq)
@@ -119,6 +126,79 @@ func writeSpendLine() error {
 	defer file.Close()
 	if _, err := file.Write(append(line, '\n')); err != nil {
 		return fmt.Errorf("write spend line: %w", err)
+	}
+	return nil
+}
+
+// durableWrite performs the unit kind's §3.3 durable write, which is what lets
+// a test drive the cycle forward a phase instead of watching every unit fail.
+//
+// It reads the unit's identity from the child environment the driver exported
+// (§3.1.1) rather than from its own arguments, because that environment is
+// exactly what a real agent would work from. Only the kinds a loop test needs
+// are covered; anything else writes nothing and the driver's success test
+// reports the unit as unfinished, which is the honest answer.
+func durableWrite() error {
+	switch os.Getenv("TP_UNIT_KIND") {
+	case "implement":
+		return markTaskDone(os.Getenv("TP_FILE"), os.Getenv("TP_UNIT_ID"))
+	case "review-role", "audit-role":
+		return writeRoleFindings(os.Getenv("TP_ROUND_DIR"), os.Getenv("TP_UNIT_ID"))
+	}
+	return nil
+}
+
+// markTaskDone flips one task's status to done in the task file, the implement
+// kind's durable write. The document is edited as generic JSON so the fixture
+// carries no opinion about tp's own schema beyond the one field the predicate
+// reads.
+func markTaskDone(taskFile, id string) error {
+	data, err := os.ReadFile(taskFile) //nolint:gosec // a test fixture reading the path its driver exported
+	if err != nil {
+		return fmt.Errorf("read task file: %w", err)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return fmt.Errorf("parse task file: %w", err)
+	}
+	tasks, _ := doc["tasks"].([]any)
+	for _, entry := range tasks {
+		task, ok := entry.(map[string]any)
+		if !ok || task["id"] != id {
+			continue
+		}
+		task["status"] = "done"
+		task["closed_at"] = time.Now().UTC().Format(time.RFC3339)
+		task["closed_reason"] = "- closed by the fake runner"
+	}
+	out, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		return fmt.Errorf("render task file: %w", err)
+	}
+	if err := os.WriteFile(taskFile, append(out, '\n'), 0o600); err != nil {
+		return fmt.Errorf("write task file: %w", err)
+	}
+	return nil
+}
+
+// writeRoleFindings writes the role kinds' durable write: one parseable line
+// into role-<id>.ndjson.part. The .part suffix is deliberate — §3.3.1 makes
+// the driver's rename to the final name what completes the unit, so a fixture
+// that wrote the final name directly would hide a driver that never renames.
+func writeRoleFindings(roundDir, roleID string) error {
+	if roundDir == "" {
+		return errors.New("TP_ROUND_DIR is unset: a role unit has nowhere to write its findings")
+	}
+	if err := os.MkdirAll(roundDir, 0o750); err != nil {
+		return fmt.Errorf("round directory: %w", err)
+	}
+	line, err := json.Marshal(map[string]string{"role": roleID, "status": "PASS"})
+	if err != nil {
+		return fmt.Errorf("findings line: %w", err)
+	}
+	path := filepath.Join(roundDir, "role-"+roleID+".ndjson.part")
+	if err := os.WriteFile(path, append(line, '\n'), 0o600); err != nil {
+		return fmt.Errorf("write findings: %w", err)
 	}
 	return nil
 }
