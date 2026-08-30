@@ -51,3 +51,20 @@ func TestStopReason_KnownRejectsEverythingElse(t *testing.T) {
 	}
 }
 
+// The guard sits at the sink: the recorder is the one writer of stop_reason,
+// so a reason outside the vocabulary is refused there rather than trusted from
+// whichever caller composed it, and the file keeps whatever it already held.
+func TestRunRecorder_StopRefusesAReasonOutsideTheVocabulary(t *testing.T) {
+	root := t.TempDir()
+	rec, err := NewRunRecorder(root, "s.tasks.json", "run", PhaseImplement)
+	require.NoError(t, err)
+
+	require.NoError(t, rec.Stop(StopCapUnits))
+	require.Error(t, rec.Stop("cap_units"), "an unrecognized reason is never recorded")
+
+	st, err := ReadRunState(root, "s.tasks.json")
+	require.NoError(t, err)
+	require.NotNil(t, st.StopReason)
+	assert.Equal(t, StopCapUnits, *st.StopReason, "the refused write left the recorded reason alone")
+}
+
