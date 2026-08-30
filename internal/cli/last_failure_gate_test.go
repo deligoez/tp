@@ -67,3 +67,22 @@ func TestDoneGate_FailureUnderARunRecordsLastFailure(t *testing.T) {
 	assert.NotContains(t, record.Summary, reason, "the summary never copies the child's prose")
 }
 
+// §4.2: outside a run the record's unit_kind, unit_id and phase have no value,
+// so tp done writes nothing at all — the shipped command is unchanged there,
+// error shape included.
+func TestDoneGate_FailureOutsideARunRecordsNothing(t *testing.T) {
+	dir := setupProjectWithGate(t, "echo boom; exit 7")
+	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+
+	_, stderr, code := runTP(t, dir, "done", "t1", "task complete and verified fully")
+	require.Equal(t, 4, code, "gate failure still exits 4: %s", stderr)
+
+	assert.Nil(t, readGateLastFailure(t, dir),
+		"no TP_UNIT_KIND, no record: there is no unit to attribute the failure to")
+
+	var errOut map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stderr), &errOut), "stderr: %s", stderr)
+	assert.Equal(t, "echo boom; exit 7", errOut["gate_cmd"], "the shipped error object is unchanged")
+	assert.Equal(t, float64(7), errOut["exit_code"])
+}
+
