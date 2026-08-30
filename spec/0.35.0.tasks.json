@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-30T09:10:31.310093Z",
+  "updated_at": "2026-08-30T09:19:10.754277Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -111,7 +111,7 @@
     {
       "id": "runner-templates",
       "title": "Ship both built-in runner templates",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "runner-shape"
@@ -121,11 +121,24 @@
       "source_sections": [
         "#### 3.2.1 Templates and placeholders"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-30T09:11:18.422632Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-30T09:19:10.719637Z",
+      "closed_reason": "- engine.BuiltinRunner ships section 3.2.1's two templates: claude resolves to cmd claude with the documented argv -p {prompt} --output-format stream-json --verbose --permission-mode auto and spend_key total_cost_usd, appending --max-budget-usd {max_budget_usd} only when the resolved run_max_unit_budget_usd is non-zero (0 omits the pair rather than passing a literal 0), and opencode resolves to run with the prompt, no budget flag and no spend_key so cap-budget is inert for it; verified in both directions and by mutating the budget condition to always-true and always-false, which reddened the zero-budget assertions and the non-zero assertions respectively and nothing else.\n- engine.ExpandArgs resolves all five placeholders ({prompt}, {max_budget_usd}, {unit_id}, {unit_kind}, {log_path}), expands {max_budget_usd} to a literal 0 for a positional template, scans each argument once so a substituted value is never rescanned, leaves braces that are not placeholder-shaped untouched, and reports anything else as a *engine.RunnerTemplateError naming runner.args[N]; internal/cli/root.go maps that error and an unknown template name to exit 2 beside the shape branch.\n- engine.ResolveUnitRunner composes section 3.2's shape resolution with the template layer into one pure function returning argv, which is how 'before any child is spawned' is kept structurally: the unresolved-placeholder test points a runner's cmd at a script that would touch a sentinel and asserts the sentinel is absent after the error. Verified by mutating the unresolved-placeholder branch into a no-op that leaves the token literal, which reddened exactly those tests plus the CLI classification test.\n- engine.UnitPrompt renders the fixed per-kind instruction {prompt} expands to, built from the kind's own BriefCommand, and returns empty for a kind outside the eight.\n- Gate green, each step run separately: go test -race ./... 0, golangci-lint run 0, ./scripts/check-deadcode.sh 0.\nOut of scope: section 6.3's per-kind [\"--agent\", \"\u003cname\u003e\"] append is left to the plugin-agents task; BuiltinRunner takes the whole TemplateValues (which carries Kind) so it needs no new parameter to grow it.",
+      "gate_passed_at": "2026-08-30T09:19:10.719637Z",
+      "commit_sha": "b3e069b",
+      "commit_shas": [
+        "b3e069b",
+        "914d270",
+        "4d8e4ca",
+        "014497e"
+      ],
+      "commit_files": [
+        "internal/cli/root.go",
+        "internal/cli/runner_template_exit_internal_test.go",
+        "internal/engine/runnertemplate.go",
+        "internal/engine/runnertemplate_test.go"
+      ]
     },
     {
       "id": "runner-seam",
