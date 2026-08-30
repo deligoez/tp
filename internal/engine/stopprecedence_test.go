@@ -106,3 +106,21 @@ func TestStopPrecedence_RanksTheWholeVocabularyInSection34sOrder(t *testing.T) {
 	assert.Len(t, stopPrecedence, 9, "section 3.4 names nine stop reasons")
 }
 
+// The rule itself, over every pair the vocabulary can form: whichever of two
+// reasons stands earlier in the order is the one a checkpoint that satisfied
+// both records, whichever order the caller happened to find them in.
+//
+// Driving it off stopPrecedence rather than off a hand-written list of pairs is
+// deliberate — a tenth reason is ranked against all nine the moment it is
+// placed, and a pair nobody thought to write down cannot go untested.
+func TestHighestPrecedence_TheEarlierOfAnyTwoIsWhatIsRecorded(t *testing.T) {
+	for i, first := range stopPrecedence {
+		for _, second := range stopPrecedence[i+1:] {
+			assert.Equal(t, first, highestPrecedence(first, second),
+				"%q precedes %q", first, second)
+			assert.Equal(t, first, highestPrecedence(second, first),
+				"%q precedes %q whichever order they are given in", first, second)
+		}
+	}
+}
+
