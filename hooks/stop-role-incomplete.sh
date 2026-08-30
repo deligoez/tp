@@ -50,27 +50,62 @@ fi
 # three have to agree (test 52). awk is the only dependency: a hook that needed
 # python or jq would decide the predicate differently on the machines that lack
 # them, which is the divergence the shared predicate exists to prevent.
+#
+# Character access goes through ch() rather than substr(str, pos, 1), and that
+# is section 6.4 rather than style. awk's substr walks the whole string on every
+# call, so a char-by-char scan of one line costs O(line^2): a role that put a
+# megabyte on a single line - which is exactly the runaway this hook exists to
+# block - took 18 seconds to judge, past the 10-second timeout the plugin
+# declares for it, and a hook the runtime has to kill reports nothing to anyone.
+# ch() reads a fixed block of characters at a time instead, which bounds both
+# the time and the memory the scan can cost without changing a single verdict.
+# An awk that does not split on the empty separator falls back to substr, so the
+# predicate is decided identically everywhere and only the cost differs.
 ndjson_parses() {
 	awk '
+	BEGIN {
+		block = 65536
+		# A line short enough that substr costs nothing measurable is read with
+		# substr, which is what an ordinary findings file is made of; the blocks
+		# exist for the long line, and engaging them for every line would make
+		# the common case slower to make the rare case survivable.
+		threshold = 1024
+		charsplit = (split("ab", probe, "") == 2)
+	}
+
+	# ch returns character i of the current line. The grammar below only ever
+	# moves forward, so the block is refilled at most once per block of input;
+	# a backward read (the object check at the end) simply refills.
+	function ch(i,   n) {
+		if (!indexed) return substr(str, i, 1)
+		if (i < 1 || i > len) return ""
+		if (i < base || i > top) {
+			base = i
+			n = split(substr(str, base, block), buf, "")
+			top = base + n - 1
+		}
+		return buf[i - base + 1]
+	}
+
 	function skipws(   c) {
 		while (pos <= len) {
-			c = substr(str, pos, 1)
+			c = ch(pos)
 			if (c == " " || c == "\t" || c == "\r" || c == "\n") pos++
 			else return
 		}
 	}
 
-	function lit(word) {
-		if (substr(str, pos, length(word)) == word) {
-			pos += length(word)
-			return 1
+	function lit(word,   i) {
+		for (i = 1; i <= length(word); i++) {
+			if (ch(pos + i - 1) != substr(word, i, 1)) return 0
 		}
-		return 0
+		pos += length(word)
+		return 1
 	}
 
 	function digits(   n) {
 		n = 0
-		while (pos <= len && substr(str, pos, 1) ~ /^[0-9]$/) {
+		while (pos <= len && ch(pos) ~ /^[0-9]$/) {
 			pos++
 			n++
 		}
@@ -80,19 +115,19 @@ ndjson_parses() {
 	# JSON has no leading zeros, so 01 is rejected here exactly as the parsers
 	# on the other two sides of the predicate reject it.
 	function number(   c) {
-		if (substr(str, pos, 1) == "-") pos++
-		c = substr(str, pos, 1)
+		if (ch(pos) == "-") pos++
+		c = ch(pos)
 		if (c == "0") pos++
 		else if (c ~ /^[1-9]$/) { if (!digits()) return 0 }
 		else return 0
-		if (substr(str, pos, 1) == ".") {
+		if (ch(pos) == ".") {
 			pos++
 			if (!digits()) return 0
 		}
-		c = substr(str, pos, 1)
+		c = ch(pos)
 		if (c == "e" || c == "E") {
 			pos++
-			c = substr(str, pos, 1)
+			c = ch(pos)
 			if (c == "+" || c == "-") pos++
 			if (!digits()) return 0
 		}
@@ -102,10 +137,10 @@ ndjson_parses() {
 	function string(   c, i, h) {
 		pos++
 		while (pos <= len) {
-			c = substr(str, pos, 1)
+			c = ch(pos)
 			if (c == "\\") {
 				pos++
-				c = substr(str, pos, 1)
+				c = ch(pos)
 				if (c == "\"" || c == "\\" || c == "/" || c == "b" || c == "f" || c == "n" || c == "r" || c == "t") {
 					pos++
 					continue
@@ -113,7 +148,7 @@ ndjson_parses() {
 				if (c == "u") {
 					pos++
 					for (i = 0; i < 4; i++) {
-						h = substr(str, pos, 1)
+						h = ch(pos)
 						if (h !~ /^[0-9A-Fa-f]$/) return 0
 						pos++
 					}
@@ -133,14 +168,14 @@ ndjson_parses() {
 	function array(   c) {
 		pos++
 		skipws()
-		if (substr(str, pos, 1) == "]") {
+		if (ch(pos) == "]") {
 			pos++
 			return 1
 		}
 		for (;;) {
 			if (!value()) return 0
 			skipws()
-			c = substr(str, pos, 1)
+			c = ch(pos)
 			if (c == ",") { pos++; continue }
 			if (c == "]") { pos++; return 1 }
 			return 0
@@ -150,20 +185,20 @@ ndjson_parses() {
 	function object(   c) {
 		pos++
 		skipws()
-		if (substr(str, pos, 1) == "}") {
+		if (ch(pos) == "}") {
 			pos++
 			return 1
 		}
 		for (;;) {
 			skipws()
-			if (substr(str, pos, 1) != "\"") return 0
+			if (ch(pos) != "\"") return 0
 			if (!string()) return 0
 			skipws()
-			if (substr(str, pos, 1) != ":") return 0
+			if (ch(pos) != ":") return 0
 			pos++
 			if (!value()) return 0
 			skipws()
-			c = substr(str, pos, 1)
+			c = ch(pos)
 			if (c == ",") { pos++; continue }
 			if (c == "}") { pos++; return 1 }
 			return 0
@@ -173,7 +208,7 @@ ndjson_parses() {
 	function value(   c) {
 		skipws()
 		if (pos > len) return 0
-		c = substr(str, pos, 1)
+		c = ch(pos)
 		if (c == "{") return object()
 		if (c == "[") return array()
 		if (c == "\"") return string()
@@ -190,12 +225,15 @@ ndjson_parses() {
 		if (str == "") next
 		len = length(str)
 		pos = 1
+		base = 0
+		top = -1
+		indexed = (charsplit && len > threshold)
 		if (!value()) { bad = 1; exit }
 		skipws()
 		if (pos <= len) { bad = 1; exit }
 		# A row is an object; tp reads each line into one. `null` is the single
 		# other value its reader accepts, into an empty row.
-		if (substr(str, 1, 1) != "{" && str != "null") { bad = 1; exit }
+		if (ch(1) != "{" && str != "null") { bad = 1; exit }
 	}
 
 	END { exit (bad ? 1 : 0) }
