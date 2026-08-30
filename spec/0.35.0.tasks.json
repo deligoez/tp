@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-30T09:50:34.076463Z",
+  "updated_at": "2026-08-30T10:11:48.554994Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -486,7 +486,7 @@
     {
       "id": "driver-loop",
       "title": "Execute the driver loop",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "run-lock",
@@ -499,11 +499,39 @@
       "source_sections": [
         "### 3.1 The loop"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-30T09:51:26.148368Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-30T10:11:48.467517Z",
+      "closed_reason": "- engine.RunDriver in internal/engine/driver.go is section 3.1 as written: each iteration reads the cycle through AssembleResume (the same path tp resume uses, re-reading the task file from disk every time), stops converged when the oracle reports phase release, stops no-units on an empty next_units, spawns one runner process per unit through ResolveUnitRunner with concurrent kinds together and every other kind alone (concurrentBatch), and checks the unit, wall-clock and budget caps between iterations in section 3.4 precedence order; internal/cli/run.go adds tp run, resolving its cycle through the resolveCycle extracted from tp resume and holding the run-scoped lock for the whole run.\n- The loop advances phases and stops converged, proven by running rather than reading: two implement units taken in sequence to a release stop, the review and audit role panels fanned out and their overlap asserted from the children own clocks, each role .part renamed to the final name by the driver (section 3.3.1), a role leftover cleared before the attempt (section 3.1.1), and a crashed driver resuming at the same unit across two runs. Every loop test is bounded so a loop that never answers fails rather than hangs. All ten tests were watched failing against an inert stub first, then eight mutations were applied and reverted byte-identically (verified by checksum): concurrentBatch pass-through reddened only its two non-concurrent cases, the .part rename no-op only the role-concurrency test, the leftover clearing no-op only the leftover test, capStop always-empty only the cap test, allSucceeded always-true only the crash-resume and leftover tests, the release check only the two converged tests, sequential spawning only the role-concurrency test, and the no-units reason swap only its own test plus the role-concurrency stop.\n- Gate green and run separately: go test -race ./... 0, golangci-lint run 0, ./scripts/check-deadcode.sh 0. tp run was dogfooded through the freshly built binary on a scratch project with an operator shell script as TP_RUNNER_SEAM, producing the documented payload and a run state file with one row per attempt. The command-surface baseline in nongoals_surface_test.go was rebased onto v0.34.2 and admits tp run, in the same commit that registers it, as that guard own contract requires.\n- Out of scope, left as small additions for their own open tasks: retry budgets and the second attempt (retry-attempts), the remaining three stop reasons and their precedence table (stop-reasons, stop-precedence, cap-timing), converting a driver-side spawn failure into a driver-error stop rather than a returned error (driver-error), the exit-code mapping so a non-converged stop exits 4 (run-exit-codes), reading spend from the runner final log line so spend_usd stays null and cap-budget inert (runner-spend), the stdout/stderr redirect into the log path the driver already computes (unit-logs), and --status and --dry-run (run-status, run-dry-run). The loop cannot yet cross out of a collected review or audit round because the oracle does not emit the round record unit (record-units); the review and audit tests assert the honest no-units stop that follows, and will assert the crossing when that task lands.",
+      "gate_passed_at": "2026-08-30T10:11:48.467517Z",
+      "commit_sha": "25ba70b",
+      "commit_shas": [
+        "25ba70b",
+        "ee6a5b5",
+        "285397a",
+        "bb74d25",
+        "f412474",
+        "5f97cd3",
+        "730ed00",
+        "5a6b846",
+        "5150114",
+        "ab6b682",
+        "5e6aad9",
+        "115f7e0",
+        "7615e13",
+        "c245175"
+      ],
+      "commit_files": [
+        "internal/cli/nongoals_surface_test.go",
+        "internal/cli/resume.go",
+        "internal/cli/root.go",
+        "internal/cli/run.go",
+        "internal/cli/run_driver_test.go",
+        "internal/engine/driver.go",
+        "internal/engine/driver_test.go",
+        "internal/fakerunner/cmd/tp-fake-runner/main.go",
+        "internal/fakerunner/fakerunner.go"
+      ]
     },
     {
       "id": "retry-attempts",
