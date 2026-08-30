@@ -47,3 +47,39 @@ func TestReadEscalation_ReadsTheRecordTPEscalateWrote(t *testing.T) {
 	assert.Equal(t, validEscalation(), got)
 }
 
+// §5.2: a record that fails schema validation is not an escalation, and the
+// unit is judged by its predicate and its exit code instead. Each row is one
+// documented field made unusable, because a validator that only rejects
+// wholesale garbage would accept the record a truncated or hand-rolled writer
+// produces — the record that would end a run the unit never meant to end.
+func TestReadEscalation_RejectsARecordThatIsNotOne(t *testing.T) {
+	cases := []struct {
+		name   string
+		breaks func(e *Escalation)
+	}{
+		{"a decision outside the closed five", func(e *Escalation) { e.Decision = "invent-one" }},
+		{"no decision at all", func(e *Escalation) { e.Decision = "" }},
+		{"a unit kind outside the eight", func(e *Escalation) { e.UnitKind = "implementation" }},
+		{"no unit kind", func(e *Escalation) { e.UnitKind = "" }},
+		{"no unit id", func(e *Escalation) { e.UnitID = "" }},
+		{"no phase", func(e *Escalation) { e.Phase = "" }},
+		{"no evidence", func(e *Escalation) { e.Evidence = "" }},
+		{"blank evidence", func(e *Escalation) { e.Evidence = "   " }},
+		{"no timestamp", func(e *Escalation) { e.At = "" }},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			record := validEscalation()
+			tc.breaks(record)
+			// WriteEscalation stamps At when it is empty, so the broken
+			// record is written as-is rather than through tp's own writer.
+			path := filepath.Join(t.TempDir(), "1-escalation.json")
+			writeEscalationJSON(t, path, record)
+
+			got, err := ReadEscalation(path)
+			require.Error(t, err, "a record missing a documented field is not a valid escalation")
+			assert.Nil(t, got)
+		})
+	}
+}
+
