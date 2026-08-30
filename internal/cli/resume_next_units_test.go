@@ -2,7 +2,6 @@ package cli_test
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -202,12 +201,13 @@ func TestResume_NextUnitsRoundAdvancesWithRecordedRounds(t *testing.T) {
 	assert.NotEmpty(t, nextUnitsOf(t, res))
 }
 
-// roundDirOf returns (and creates) a round's own directory inside a test repo —
-// the .tp/rounds/<base>/<phase>-r<round> the driver hands a unit as
-// TP_ROUND_DIR (§3.1.1).
-func roundDirOf(t *testing.T, dir, phase string, round int) string {
+// firstRoundDirOf returns (and creates) round 1's own directory inside a test
+// repo — the .tp/rounds/<base>/<phase>-r1 the driver hands a unit as
+// TP_ROUND_DIR (§3.1.1). Every case below works the first round, so the round
+// is fixed here rather than passed.
+func firstRoundDirOf(t *testing.T, dir, phase string) string {
 	t.Helper()
-	p := filepath.Join(dir, ".tp", "rounds", "spec", fmt.Sprintf("%s-r%d", phase, round))
+	p := filepath.Join(dir, ".tp", "rounds", "spec", phase+"-r1")
 	require.NoError(t, os.MkdirAll(p, 0o755))
 	return p
 }
@@ -217,7 +217,7 @@ func roundDirOf(t *testing.T, dir, phase string, round int) string {
 // wholly parseable, and still returns the role that left a malformed one.
 func TestResume_NextUnitsOmitsRolesThatAlreadyAnsweredTheRound(t *testing.T) {
 	dir := newPayloadRepo(t, `[]`)
-	round1 := roundDirOf(t, dir, "review", 1)
+	round1 := firstRoundDirOf(t, dir, "review")
 	require.NoError(t, os.WriteFile(filepath.Join(round1, "role-implementer.ndjson"),
 		[]byte("{\"id\":\"f1\"}\n"), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(round1, "role-tester.ndjson"),
@@ -241,7 +241,7 @@ func TestResume_NextUnitsOmitsRolesThatAlreadyAnsweredTheRound(t *testing.T) {
 func TestResume_NextUnitsReviewResolveAfterARecordedRound(t *testing.T) {
 	dir := newPayloadRepo(t, `[]`)
 	writeConvergedRounds(t, dir, 1, 0)
-	round1 := roundDirOf(t, dir, "review", 1)
+	round1 := firstRoundDirOf(t, dir, "review")
 	require.NoError(t, os.WriteFile(filepath.Join(round1, "merged.ndjson"),
 		[]byte("{\"id\":\"f1\",\"resolved\":{\"disposition\":\"fixed\"}}\n{\"id\":\"f2\"}\n"), 0o600))
 
@@ -264,7 +264,7 @@ func TestResume_NextUnitsReviewResolveAfterARecordedRound(t *testing.T) {
 func TestResume_NextUnitsAuditFixAfterARecordedRound(t *testing.T) {
 	dir := newPayloadRepo(t, `[{"id":"t1","title":"T","status":"done","depends_on":[],"estimate_minutes":5,"acceptance":"a","source_sections":["x"]}]`)
 	writeConvergedRounds(t, dir, 2, 1)
-	round1 := roundDirOf(t, dir, "audit", 1)
+	round1 := firstRoundDirOf(t, dir, "audit")
 	require.NoError(t, os.WriteFile(filepath.Join(round1, "merged.ndjson"), []byte(
 		"{\"role\":\"spec-coverage\",\"item_id\":\"i1\",\"status\":\"PASS\"}\n"+
 			"{\"role\":\"security\",\"item_id\":\"i2\",\"status\":\"FAIL\"}\n"), 0o600))
