@@ -8,6 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/deligoez/tp/internal/engine"
 )
 
 // writeBareSpec writes a spec.md with no task file; review --record/--status
@@ -101,6 +103,8 @@ func TestNextAction_ReviewMechanize(t *testing.T) {
 	assert.Contains(t, na, "tp set --workflow checks", "branch 3 names the check-registration command")
 	assert.Contains(t, na, "naming")
 	assert.Contains(t, na, "tp review spec.md --record", "branch 3 is compound: then run the next round")
+	assert.Contains(t, na, engine.MechanizePhaseQualifier,
+		"the phase qualifier reaches the --record payload, not just the emitter")
 
 	stdout, _, code := runTP(t, dir, "review", "spec.md", "--status")
 	require.Equal(t, 0, code)
