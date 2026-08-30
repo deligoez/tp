@@ -27,7 +27,9 @@ whether the cycle is finished.
 done, the accrual against each cap, the last unit's exit code and log path,
 stop_reason once the run has ended, and run_state (in_flight, crashed or
 stopped). It takes no run lock, so it reports on a run still in flight, and it
-exits 3 when no run state exists for the resolved task file.
+exits 3 when no run state exists for the resolved task file. Under --compact the
+stop reason and the cap totals survive and the last unit's row — its log path
+with it — is stripped.
 
 Output: {run_id, phase, stop_reason, units}`,
 		Args: cobra.MaximumNArgs(1),
