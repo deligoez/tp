@@ -159,3 +159,23 @@ func TestStopHookIsRegisteredForEveryStop(t *testing.T) {
 	assert.NotZero(t, info.Mode().Perm()&0o111, "%s must be executable", stopHookPath)
 }
 
+// TestStopHookBlocksARoleUnitThatWroteNeither is test 26's middle case: a role
+// unit that is about to stop with neither its findings file nor an escalation
+// record has not finished, and the block is the only thing that tells it so
+// before the driver charges the attempt as a failure.
+func TestStopHookBlocksARoleUnitThatWroteNeither(t *testing.T) {
+	role, _ := roleKinds(t)
+
+	for _, kind := range role {
+		t.Run(kind, func(t *testing.T) {
+			unit := stopUnit(t, kind)
+			run := runStopHook(t, unit, false)
+
+			require.Equal(t, 2, run.exitCode, "the stop must be blocked; stderr=%q", run.stderr)
+			assert.Contains(t, run.stderr, unit.findingsPath(), "the reason names the file the unit owes")
+			assert.Contains(t, run.stderr, "tp escalate", "the reason names the other legitimate ending")
+			assert.Empty(t, run.stdout, "the reason reaches the agent on stderr")
+		})
+	}
+}
+
