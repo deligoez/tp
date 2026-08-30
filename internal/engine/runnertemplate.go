@@ -101,6 +101,34 @@ const templateNamesHint = `tp ships two built-in templates, "` + TemplateClaude 
 const placeholdersHint = "an args template resolves {prompt}, {max_budget_usd}, {unit_id}, {unit_kind} and {log_path}; " +
 	"anything else in braces is either a typo or a value the runner has to carry in its own env"
 
+// The three agents §6.3's plugin declares under agents/. The values are the
+// agent definitions' own `name` fields, which are also their filenames, so the
+// string tp passes to --agent and the file the runner loads are one constant
+// rather than two spellings that can drift.
+const (
+	AgentImplementer = "tp-implementer"
+	AgentReviewer    = "tp-reviewer"
+	AgentAuditor     = "tp-auditor"
+)
+
+// agentByKind is §6.3's per-kind table. Only the three kinds listed here run
+// under an agent; the record, resolve, decompose and fix kinds are absent
+// because they need the ordinary tool set, and absence rather than an empty
+// entry is what makes "takes no agent" the default for anything unlisted —
+// including a kind added later, which must be decided on purpose rather than
+// inherit a restriction nobody chose for it.
+var agentByKind = map[UnitKind]string{
+	UnitImplement:  AgentImplementer,
+	UnitReviewRole: AgentReviewer,
+	UnitAuditRole:  AgentAuditor,
+}
+
+// AgentForKind returns the agent a unit of this kind runs under, or "" for the
+// kinds §6.3 leaves with the ordinary tool set.
+func AgentForKind(kind UnitKind) string {
+	return agentByKind[kind]
+}
+
 // BuiltinRunner returns the runner one of §3.2.1's two built-in templates
 // expands to for a unit.
 //
@@ -114,6 +142,12 @@ const placeholdersHint = "an args template resolves {prompt}, {max_budget_usd}, 
 // != 0 for the same reason: §7 clamps the field to 0-1000 so nothing below zero
 // can arrive, and were one to, omitting the flag is a better answer than
 // handing a harness a negative cap.
+//
+// §6.3's --agent pair is appended before the budget pair: the agent is part of
+// what this kind of unit is, while the budget is a property of the run it
+// happens to be in. Only the claude template grows it — opencode has no such
+// flag, and handing an unknown argument to a harness stops it from starting at
+// all.
 //
 // The opencode template is `run` with the prompt: no budget flag and no
 // spend_key.
@@ -129,6 +163,9 @@ func BuiltinRunner(name string, v TemplateValues) (*Runner, error) {
 			"--output-format", "stream-json",
 			"--verbose",
 			"--permission-mode", "auto",
+		}
+		if agent := AgentForKind(v.Kind); agent != "" {
+			args = append(args, "--agent", agent)
 		}
 		if v.MaxBudgetUSD > 0 {
 			args = append(args, "--max-budget-usd", "{"+placeholderMaxBudgetUSD+"}")
