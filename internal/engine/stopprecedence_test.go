@@ -134,3 +134,17 @@ func TestHighestPrecedence_TheEmptyReasonIsNotAStop(t *testing.T) {
 		"the last-ranked reason still wins against nothing at all")
 }
 
+// A reason nobody placed ranks below every reason that is placed, rather than
+// above them. It is still returned when it is the only candidate — where
+// RunRecorder.Stop refuses it at the sink — so an unranked value surfaces as
+// the vocabulary error it is instead of hiding a genuine stop behind it.
+func TestHighestPrecedence_AnUnrankedReasonNeverOutranksARealOne(t *testing.T) {
+	for _, unranked := range []StopReason{"cap_units", "CONVERGED", "released", "converged "} {
+		require.False(t, unranked.Known(), "%q is outside the vocabulary", unranked)
+		assert.Equal(t, len(stopPrecedence), stopRank(unranked))
+		assert.Equal(t, StopNoUnits, highestPrecedence(unranked, StopNoUnits),
+			"%q loses even to the last-ranked reason", unranked)
+		assert.Equal(t, unranked, highestPrecedence(unranked),
+			"%q is still reported when it is all there is", unranked)
+	}
+}
