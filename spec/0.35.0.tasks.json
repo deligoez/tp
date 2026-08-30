@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-30T10:25:48.503842Z",
+  "updated_at": "2026-08-30T10:34:57.772602Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -536,7 +536,7 @@
     {
       "id": "retry-attempts",
       "title": "Attempt a unit its budgeted number of times",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "driver-loop"
@@ -546,11 +546,27 @@
       "source_sections": [
         "### 3.1 The loop"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-30T10:27:01.158914Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-30T10:34:57.722503Z",
+      "closed_reason": "- internal/engine/driver.go now attempts a unit 1 + run_max_unit_retries times (section 3.4): attemptBudget reads the resolved workflow field, runIteration re-spawns only the units whose attempt failed, and each retry goes back through prepare so it takes a fresh seq, a fresh log path and a run-state row carrying its own attempt number; exhausting the budget stops the run with unit-failure, and a driver-side spawn failure still returns as an error rather than being charged as a failed attempt.\n- Verified by running, never by reading: the three new driver tests were watched failing first (1 attempt where 2 and 3 were expected, unit-failure where converged was expected, a stale .part still present), and the count is pinned exactly at retries 0, 1 and 2 rather than as 'more than one attempt'. Mutating attemptBudget into a no-op reddened exactly the four retry tests; pinning Attempt to 1 reddened only the attempt-counter assertion; disabling the role-artifact clear reddened the new retry test and the existing first-attempt one. driver.go was restored byte-identically after each mutation (sha256 checked).\n- The role findings file and any stale .part are deleted immediately before every attempt, not only the first (section 3.1.1): the fake runner's TP_FAKE_RUNNER_DURABLE knob is now a per-invocation list so an attempt that writes nothing can follow one that wrote a .part, which is the only arrangement in which a driver that fails to clear behaves differently from one that clears.\n- Gate green, each step run separately: go test -race ./... = 0, golangci-lint run = 0, ./scripts/check-deadcode.sh = 0.\nOut of scope: tp next claimed run-status before this unit was redirected to retry-attempts, so run-status is left wip; tp reopen refuses a wip task (done only), so it needs the next unit's tp next to resume it.",
+      "gate_passed_at": "2026-08-30T10:34:57.722503Z",
+      "commit_sha": "5cba4a4",
+      "commit_shas": [
+        "5cba4a4",
+        "0566f8d",
+        "0f5bd70",
+        "829b4a7",
+        "da01fde",
+        "9a39f3c",
+        "b541c46"
+      ],
+      "commit_files": [
+        "internal/engine/driver.go",
+        "internal/engine/driver_retry_test.go",
+        "internal/fakerunner/cmd/tp-fake-runner/main.go",
+        "internal/fakerunner/fakerunner.go"
+      ]
     },
     {
       "id": "stop-reasons",
@@ -671,7 +687,7 @@
     {
       "id": "run-status",
       "title": "Report the run with tp run --status",
-      "status": "open",
+      "status": "wip",
       "tags": [],
       "depends_on": [
         "run-state-file",
@@ -682,7 +698,8 @@
       "source_sections": [
         "### 3.5 Run state, logs and status"
       ],
-      "started_at": null,
+      "started_at": "2026-08-30T10:26:51.083418Z",
+      "duration_source": "claimed",
       "closed_at": null,
       "closed_reason": null,
       "gate_passed_at": null,
