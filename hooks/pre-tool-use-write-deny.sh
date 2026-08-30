@@ -80,6 +80,35 @@ paths=$(printf '%s' "$payload" |
 IFS='
 '
 for path in $paths; do
+	# A path argument carrying a backslash is refused outright rather than
+	# decoded. The hook compares the spelling that arrived and never decodes
+	# JSON, so every escape sequence is a spelling normalize() cannot see
+	# through: a `\` before a `/`, or a `u0074` code-point escape in place of
+	# a letter, both name `.tp/config.json` while missing every pattern above.
+	#
+	# Decoding JSON is not the answer here. Section 6.2 scopes this fence to
+	# stopping hand-editing rather than to sandboxing, so a JSON parser in
+	# POSIX shell is more than it should carry, and a half-parser would be a
+	# new place for the same hole to reappear. Failing closed is what the
+	# fence's sibling already does: the role write-allow hook denies when the
+	# environment it judges by is absent.
+	#
+	# The trade is over-denial on a path that genuinely contains a backslash.
+	# That is legal but vanishingly rare on the systems a /bin/sh hook runs
+	# on, it is refused with a reason rather than silently, and an escaped
+	# spelling is not what a hand-editing agent produces by accident. Note
+	# the scope: this reads the extracted argument, not the payload, so a
+	# file's own contents may carry as many escapes as they like.
+	case $path in
+	*'\'*)
+		printf '%s\n' \
+			"tp scope fence: refusing \"$path\" - a write path carrying a backslash escape cannot be judged." \
+			'The fence compares path spellings and never decodes JSON, so an escaped path could name' \
+			"tp's own state while matching none of the fenced spellings. Write the path plainly, or make" \
+			'the change through the tp command that owns the file (tp done / tp set / tp config / tp use).' >&2
+		exit 2
+		;;
+	esac
 	denied "$path" || continue
 	printf '%s\n' \
 		"tp scope fence: $path is tp's own state and must not be hand-edited (v0.35.0 §6.2)." \
