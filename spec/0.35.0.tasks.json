@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-30T17:07:25.646726Z",
+  "updated_at": "2026-08-30T17:28:18.852138Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -1150,7 +1150,7 @@
     {
       "id": "round-dir-emission",
       "title": "Emit the round-scoped findings path",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "child-env"
@@ -1160,11 +1160,29 @@
       "source_sections": [
         "### 6.3 Agents"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-30T17:09:00.337586Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-30T17:28:18.802874Z",
+      "closed_reason": "- Under TP_ROUND_DIR, tp review and tp audit emit $TP_ROUND_DIR/role-\u003crole\u003e.ndjson.part per role: internal/cli/prompt_framing.go's roleOutputPath resolves the round directory once and both callsites (review.go buildReviewPrompts, audit_roles.go generateRoleAuditPrompts) use it, so output_path and the section 10.4 line in the prompt body name the one filename the section 6.2 write allowlist grants and the driver renames on exit 0. Outside a run the name is unchanged, \u003cphase\u003e-r\u003cN\u003e-\u003crole\u003e.ndjson.\n- The acceptance's second half was already shipped by record-units and re-verified rather than reimplemented: engine.recordBriefCommand guards the merge with [ -f $TP_ROUND_DIR/merged.ndjson ] || so a re-run record unit records from the accumulated dispositions instead of merging over them, and TestUnitKind_BriefCommand_RecordMergeSkippedWhenMergedExists proves it by running the brief through /bin/sh against a fake tp rather than by comparing the string.\n- Proved by running, not reading. Five mutations, each applied alone and restored byte-identically (sha256 verified on all four files): neutering the round-dir branch reddened both under-a-run phases plus the glob test and nothing else in the package; emitting round-scoped unconditionally reddened the outside-a-run test plus TestEmittedPromptsCarryFraming; emitting the final name instead of .part reddened the under-a-run tests; reverting the review callsite alone reddened only the review subtest, and the audit callsite alone only the audit subtest, so each phase is independently covered. No mutation survived.\n- Corrected two defects the interrupted work left. The feat commit had inserted roleOutputPath between renderFraming's doc comment and its declaration, so godoc attached that comment to the wrong function; the comment now sits with renderFraming again. And the outside-a-run test was not hermetic: an ambient TP_ROUND_DIR made it fail for a reason that was not the code, demonstrated by running it with TP_ROUND_DIR set, so it now clears the variable explicitly and still reddens under the unconditional mutation.\n- Gate green, each step read separately: go test -race ./... = 0, golangci-lint run = 0, scripts/check-deadcode.sh = 0. Dogfooded with a freshly built binary on a scratch project: outside a run the three roles emit review-r1-\u003crole\u003e.ndjson, under TP_ROUND_DIR they emit the round-scoped .part, and no prompt body carries the legacy name.",
+      "gate_passed_at": "2026-08-30T17:28:18.802874Z",
+      "commit_sha": "72f4728",
+      "commit_shas": [
+        "72f4728",
+        "a7e5b02",
+        "9877097",
+        "39b0f56",
+        "48fd128",
+        "b347e6a",
+        "ffd2848",
+        "d8faae3"
+      ],
+      "commit_files": [
+        "internal/cli/audit_roles.go",
+        "internal/cli/prompt_framing.go",
+        "internal/cli/review.go",
+        "internal/cli/round_dir_emission_test.go",
+        "skills/tp/REFERENCE.md"
+      ]
     },
     {
       "id": "location-clusters",
