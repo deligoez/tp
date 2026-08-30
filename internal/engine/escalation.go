@@ -2,9 +2,12 @@ package engine
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"time"
 )
 
@@ -67,6 +70,64 @@ type Escalation struct {
 	Evidence string   `json:"evidence"`
 	Options  []string `json:"options"`
 	At       string   `json:"at"`
+}
+
+// Validate reports why e is not §5.2's record, or nil when it is one.
+//
+// This is the whole of "schema validation" in §5.2's sense, and it is strict
+// about every documented field on purpose: the driver stops a run on this
+// record whatever the child exited with, so a record accepted loosely — a
+// truncated write, a hand-rolled file, a harness echoing something that looks
+// like one — would end a run no unit asked to end. A record that fails here is
+// not half-believed: the unit goes back to its §3.3 predicate and its exit
+// code, exactly as if it had written nothing.
+//
+// options is required to be present as an array rather than allowed to be
+// null, because WriteEscalation is the record's only writer and always emits
+// one: a record without it did not come from the documented path.
+func (e *Escalation) Validate() error {
+	if !IsEscalationDecision(e.Decision) {
+		return fmt.Errorf("decision %q is not one of %s", e.Decision, strings.Join(escalationDecisions, ", "))
+	}
+	if _, ok := ParseUnitKind(string(e.UnitKind)); !ok {
+		return fmt.Errorf("unit_kind %q is not one of the documented unit kinds", e.UnitKind)
+	}
+	for _, field := range []struct{ name, value string }{
+		{"unit_id", e.UnitID},
+		{"phase", e.Phase},
+		{"evidence", e.Evidence},
+		{"at", e.At},
+	} {
+		if strings.TrimSpace(field.value) == "" {
+			return fmt.Errorf("%s is empty", field.name)
+		}
+	}
+	if e.Options == nil {
+		return errors.New("options is absent or null, and is documented as an array")
+	}
+	return nil
+}
+
+// ReadEscalation returns the escalation record at path, or an error when there
+// is no valid one there.
+//
+// Absent, unreadable, unparseable and invalid are deliberately one answer to
+// the caller: §5.2 gives all four the same consequence — the unit is judged by
+// its predicate and its exit code — and a caller that told them apart would
+// have to decide which of them stops a run.
+func ReadEscalation(path string) (*Escalation, error) {
+	data, err := os.ReadFile(path) //nolint:gosec // the path is the driver's own run directory
+	if err != nil {
+		return nil, err
+	}
+	var e Escalation
+	if err := json.Unmarshal(data, &e); err != nil {
+		return nil, fmt.Errorf("parse %s: %w", path, err)
+	}
+	if err := e.Validate(); err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
+	}
+	return &e, nil
 }
 
 // EscalationPath returns one unit's escalation record,
