@@ -78,3 +78,18 @@ func TestAuditTruncated_SurvivesQuiet(t *testing.T) {
 	assert.Equal(t, float64(50), fs["total_files"])
 }
 
+// An uncapped set reports truncated false with total_changed equal to
+// total_files, and emits no notice.
+func TestAuditNotTruncated_ReportsTheWholeSet(t *testing.T) {
+	dir, specPath := auditRepoWithChangedFiles(t, 3)
+
+	stdout, stderr, code := runTP(t, dir, "audit", specPath)
+	require.Equal(t, 0, code)
+
+	fs := auditFileSummary(t, stdout)
+	assert.Equal(t, false, fs["truncated"], "an uncapped file set is not truncated")
+	assert.Equal(t, float64(3), fs["total_changed"])
+	assert.Equal(t, float64(3), fs["total_files"])
+	assert.NotContains(t, stderr, "auditing first", "no cap, no notice")
+}
+
