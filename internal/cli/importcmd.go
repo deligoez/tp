@@ -34,6 +34,13 @@ func newImportCmd() *cobra.Command {
 }
 
 func runImport(_ *cobra.Command, args []string) error {
+	// §5.1: --force bypasses the convergence guard and overwrites a task file
+	// with real tasks in it, which is a user-approved decision.
+	if importForce && engine.Unattended() {
+		refuseUnattended("tp import --force", "import-force")
+		return nil
+	}
+
 	data, err := os.ReadFile(args[0])
 	if err != nil {
 		output.Error(ExitFile, err.Error())
