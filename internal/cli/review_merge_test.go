@@ -236,6 +236,11 @@ func TestReviewMergeOutputFile(t *testing.T) {
 	assert.Equal(t, "some finding", lines[0]["finding"])
 }
 
+// TestReviewMergeAllInvalid pins §8a.4's reversal of the old contract: an input
+// with content lines and no parsed line used to be "a clean result", which is
+// precisely how a role whose whole file failed to parse merged clean and froze
+// an undercounted round. It now exits 1 — zero findings from a file that had
+// lines is a dropped role, not a converged one.
 func TestReviewMergeAllInvalid(t *testing.T) {
 	dir := t.TempDir()
 
@@ -245,7 +250,7 @@ func TestReviewMergeAllInvalid(t *testing.T) {
 	})
 
 	stdout, stderr, code := runTPMerge(t, dir, "review", "--merge", "--json", f1)
-	require.Equal(t, 0, code, "all-invalid input is a clean result (§3.3), not an error: %s", stderr)
+	require.Equal(t, 1, code, "an all-invalid input is a dropped role (§8a.4): %s", stderr)
 
 	// No findings survive: the JSON summary reports merged_count 0.
 	var summary map[string]any
