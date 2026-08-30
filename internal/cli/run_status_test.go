@@ -212,3 +212,44 @@ func TestRunStatus_CarriesTheDivergenceSignalsOnAnAuditPhaseStop(t *testing.T) {
 	assert.Equal(t, audit["divergence"], st["divergence"],
 		"divergence is carried when audit carries it and omitted when audit omits it")
 }
+
+// Section 7 test 68: under --compact the run surface keeps stop_reason and the
+// cap totals and strips per-unit rows and log paths.
+//
+// The control arm reads the SAME run without --compact and requires the row and
+// its log path to be there. Without it the compact assertions would pass on a
+// fixture that never carried the case — a run that spawned nothing has no row
+// to strip, and the test would be measuring its own fixture.
+func TestRunStatus_CompactStripsUnitRowsAndLogPaths(t *testing.T) {
+	dir := runProject(t)
+	env := append(seamEnv(t), fakerunner.EnvDurable+"=1")
+
+	runOut, stderr, code := runTPEnv(t, dir, env, "run", "--compact")
+	require.Equal(t, 0, code, "tp run: %s", stderr)
+	driven := decodeStatus(t, runOut)
+	assert.NotNil(t, driven["stop_reason"], "the driving surface keeps its stop reason under --compact")
+	assert.NotContains(t, runOut, "log_path",
+		"tp run reports a unit COUNT, so its own payload carries no row to strip")
+
+	full, stderr, code := runTP(t, dir, "run", "--status")
+	require.Equal(t, 0, code, "--status: %s", stderr)
+	fullSt := decodeStatus(t, full)
+	last, ok := fullSt["last_unit"].(map[string]any)
+	require.True(t, ok, "the control arm must carry a per-unit row, or --compact strips nothing")
+	require.NotEmpty(t, last["log_path"], "and a log path, for the same reason")
+
+	out, stderr, code := runTP(t, dir, "run", "--status", "--compact")
+	require.Equal(t, 0, code, "--status --compact: %s", stderr)
+	st := decodeStatus(t, out)
+
+	// Kept: stop_reason and the cap totals.
+	assert.Equal(t, fullSt["stop_reason"], st["stop_reason"], "stop_reason survives --compact")
+	assert.Equal(t, fullSt["caps"], st["caps"], "the caps survive whole")
+	assert.Equal(t, fullSt["units_done"], st["units_done"], "and so does the accrual against them")
+	assert.Contains(t, st, "wall_clock_seconds")
+	assert.Contains(t, st, "spend_usd")
+
+	// Stripped: the per-unit row, and with it every log path.
+	assert.NotContains(t, st, "last_unit", "the per-unit row is stripped")
+	assert.NotContains(t, out, "log_path", "and no log path survives anywhere in the payload")
+}
