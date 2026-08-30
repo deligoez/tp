@@ -84,3 +84,22 @@ func TestRunDriver_AttemptsAUnitItsBudgetedNumberOfTimes(t *testing.T) {
 	}
 }
 
+// A retry is a real second chance: a unit that fails once and succeeds on its
+// next attempt leaves the run to continue, rather than the first failure
+// standing.
+func TestRunDriver_AUnitThatSucceedsOnItsRetryLetsTheRunContinue(t *testing.T) {
+	root, spec, taskFile, records := seamProject(t, oneOpenTask)
+	recordRounds(t, spec, 0, 2, true)
+
+	// The first invocation exits 0 having written nothing — a failed attempt
+	// — and the second performs the durable write.
+	t.Setenv(fakerunner.EnvDurable, "0,1")
+
+	wf := driverWorkflow()
+	wf.RunMaxUnitRetries = 1
+	res := driveOnce(t, root, spec, taskFile, wf)
+
+	assert.Equal(t, StopConverged, res.StopReason, "the retry finished the unit and the cycle released")
+	assert.Len(t, spawnedIDs(invocations(t, records)), 2, "one failed attempt and one that finished it")
+}
+
