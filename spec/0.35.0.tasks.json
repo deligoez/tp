@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-30T09:19:10.754277Z",
+  "updated_at": "2026-08-30T09:39:04.375994Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -1016,7 +1016,7 @@
     {
       "id": "plugin-agents",
       "title": "Declare the three unit agents",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "plugin-layout",
@@ -1027,11 +1027,33 @@
       "source_sections": [
         "### 6.3 Agents"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-30T09:19:56.762904Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-30T09:39:04.309978Z",
+      "closed_reason": "- agents/ declares tp-implementer, tp-reviewer and tp-auditor at the plugin root, and the two role agents register a PreToolUse allowlist (hooks/pre-tool-use-role-write-allow.sh, matcher over all four write tools, section 6.4's timeout of 10) permitting exactly the role's own TP_ROUND_DIR/role-TP_UNIT_ID.ndjson.part and the TP_RUN_DIR/TP_UNIT_SEQ-escalation.json record and refusing every other path, while the implementer registers none because its durable write is code. Verified by running the hook rather than reading it: 112 subtests over the four write tools cover the allowed paths in absolute, relative and dot-slash spellings plus the near misses that matter - the final .ndjson name the driver renames to, a sibling role, another round, another phase, merged.ndjson, another unit's escalation - and a fail-closed case with the round environment absent; watched failing before the files existed, then mutated same_path to always-allow (only the two deny tests reddened), to always-deny (only the allow test reddened) and dropped the .part suffix (the allow test plus exactly the final-.ndjson deny case reddened), restoring byte-identically each time. claude plugin validate --strict passes on the plugin root and on agents/.\n- The claude template appends --agent tp-implementer for implement, tp-reviewer for review-role and tp-auditor for audit-role, and nothing at all for the other five kinds, with the pair placed before the budget pair and opencode growing no such flag. Verified over all eight kinds in both directions, watched failing first, then mutated in both directions: disabling the append reddened exactly the four presence tests, and appending for every kind reddened the per-kind test together with section 3.2.1's own argv and budget tests, which is why those two were moved onto an agentless kind.\nOut of scope: Claude Code agent frontmatter has no per-path permission block, so the write restriction is expressed as the hook the definition registers; the runtime honours plugin-agent frontmatter hooks (validate --strict accepts them and the loader registers them for a trusted source), but that path is not exercisable from tp's own test suite.",
+      "gate_passed_at": "2026-08-30T09:39:04.309978Z",
+      "commit_sha": "ea739b6",
+      "commit_shas": [
+        "ea739b6",
+        "515dee1",
+        "2833cfc",
+        "d62b50d",
+        "8b85100",
+        "a43992c",
+        "a2e8947",
+        "80e588d",
+        "d185300"
+      ],
+      "commit_files": [
+        "agents/tp-auditor.md",
+        "agents/tp-implementer.md",
+        "agents/tp-reviewer.md",
+        "hooks/pre-tool-use-role-write-allow.sh",
+        "internal/cli/plugin_agents_test.go",
+        "internal/engine/runneragent_test.go",
+        "internal/engine/runnertemplate.go",
+        "internal/engine/runnertemplate_test.go"
+      ]
     },
     {
       "id": "docs-surface",
