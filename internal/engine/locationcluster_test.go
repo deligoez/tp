@@ -25,3 +25,18 @@ func TestLocationClusters_MultiRoleOnly(t *testing.T) {
 	assert.Equal(t, 3, out[0].Count)
 }
 
+// TestLocationClusters_SeverityOrder pins the severity ordering — most severe
+// first, with unrecognised severities last and broken lexicographically.
+func TestLocationClusters_SeverityOrder(t *testing.T) {
+	out := LocationClusters([]LocationClusterRecord{
+		{Location: "§1", Roles: []string{"a"}, Severity: "low"},
+		{Location: "§1", Roles: []string{"b"}, Severity: "critical"},
+		{Location: "§1", Roles: []string{"c"}, Severity: "zebra"},
+		{Location: "§1", Roles: []string{"d"}, Severity: "medium"},
+		{Location: "§1", Roles: []string{"e"}, Severity: "alpaca"},
+		{Location: "§1", Roles: []string{"f"}, Severity: "high"},
+	})
+	require.Len(t, out, 1)
+	assert.Equal(t, []string{"critical", "high", "medium", "low", "alpaca", "zebra"}, out[0].Severities)
+}
+
