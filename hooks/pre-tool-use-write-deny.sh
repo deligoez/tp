@@ -23,11 +23,45 @@ set -u
 
 payload=$(cat)
 
+# normalize prints the form a path is compared in: lowercased, with runs of
+# separators collapsed and `.` / `..` segments resolved away. Without this the
+# fence is a spelling match, and every one of `.tp/./config.json`,
+# `.tp//config.json`, `.tp/locks/../config.json` (`.tp/locks/` exists in every
+# tp project) and `.TP/config.json` names the fenced file while missing the
+# pattern. Case is not cosmetic: on a case-insensitive filesystem - APFS and
+# NTFS - a write to `.TP/config.json` clobbers the real `.tp/config.json`.
+# awk is POSIX and needs no interpreter beyond the hook's own, and one pass over
+# one path stays far inside the 10-second bound section 6.4 puts on every hook.
+normalize() {
+	printf '%s\n' "$1" | awk '
+	{
+		p = tolower($0)
+		gsub(/\/+/, "/", p)
+		lead = (substr(p, 1, 1) == "/") ? "/" : ""
+		n = split(p, seg, "/")
+		split("", out)
+		top = 0
+		for (i = 1; i <= n; i++) {
+			s = seg[i]
+			if (s == "" || s == ".") continue
+			if (s == "..") {
+				if (top > 0 && out[top] != "..") { top--; continue }
+				if (lead != "") continue
+			}
+			out[++top] = s
+		}
+		r = ""
+		for (i = 1; i <= top; i++) r = r (i > 1 ? "/" : "") out[i]
+		print lead r
+	}'
+}
+
 # denied reports whether one path is inside the fence. `?*` requires a non-empty
 # remainder, so the `.tp-review` directory itself is not a denied write - its
-# contents are.
+# contents are. The patterns are all lowercase because they are matched against
+# the normalized spelling, never the raw argument.
 denied() {
-	case $1 in
+	case $(normalize "$1") in
 	*/.tp-review/?* | .tp-review/?*) return 0 ;;
 	*.tasks.json) return 0 ;;
 	*/.tp/config.json | .tp/config.json) return 0 ;;
