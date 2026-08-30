@@ -171,3 +171,22 @@ func TestCloseGate_FailureUnderARunRecordsNothing(t *testing.T) {
 	assert.Nil(t, readGateLastFailure(t, dir), "tp close is not §4.2's writer")
 }
 
+// The record surfaces where §4.2 says it does: the next unit's brief reads it
+// back, which is the whole point of writing it from tp done.
+func TestDoneGate_RecordedFailureReachesTheNextBrief(t *testing.T) {
+	dir := setupProjectWithGate(t, "echo boom; exit 7")
+	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+
+	_, _, code := runTPEnv(t, dir, gateUnitEnv("implement", "t1", "implement"), "done", "t1", "task complete and verified fully")
+	require.Equal(t, 4, code)
+
+	stdout, stderr, code := runTP(t, dir, "next", "--brief")
+	require.Equal(t, 0, code, "next --brief failed: %s", stderr)
+
+	var brief map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &brief))
+	failure, ok := brief["last_failure"].(map[string]any)
+	require.True(t, ok, "the brief surfaces the record tp done wrote: %s", stdout)
+	assert.Equal(t, "t1", failure["unit_id"])
+	assert.Equal(t, float64(7), failure["exit_code"])
+}
