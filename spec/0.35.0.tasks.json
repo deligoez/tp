@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-30T10:11:48.554994Z",
+  "updated_at": "2026-08-30T10:25:48.503842Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -555,7 +555,7 @@
     {
       "id": "stop-reasons",
       "title": "Record the nine stop reasons",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "driver-loop"
@@ -565,11 +565,32 @@
       "source_sections": [
         "### 3.4 Caps and stop conditions"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-30T10:13:14.741167Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-30T10:25:48.428496Z",
+      "closed_reason": "- engine.StopReason (internal/engine/stopreason.go) is section 3.4's nine reasons as one closed, named vocabulary in the spec's cause-table order — converged, cap-units, cap-wall-clock, cap-budget, escalation, unit-failure, no-units, interrupted, driver-error — replacing the six untyped string constants the loop carried and naming the three (escalation, interrupted, driver-error) that had no name at all; RunRecorder.Stop is the one writer of stop_reason and now refuses anything outside the nine at that sink, so a reason no reader can match on is never recorded. Every reason the loop's own causes reach is produced by that cause and by no other: converged at phase release, no-units on an empty next_units, unit-failure on an attempt that did not succeed, and each cap from its own counter — proved by driving real runs through TP_RUNNER_SEAM plus a capStop table whose negative rows hold the other two counters far from their caps. run_max_units and totals.units are one counter, the recorder's rows, one per attempt: a three-role panel reads 3 in the driver's result, in totals.units and in the row count, and two rows for the same unit count twice, so units-done cannot disagree with either.\n- The negative invariant was driven, not read: a cap stop in a collecting review round leaves zero review and zero audit rounds recorded and the phase at review rather than release, and a cap stop in the implement phase with a converged audit behind it leaves the second task open, the audit rounds at the two it found, and only the task its own unit closed done.\n- Watched red first: the whole test file failed to compile against the unnamed constants. Then four mutations, each restored byte-identically and checksum-verified — cap-units reading the wall-clock counter reddened the units rows and left the wall-clock row green; the wall-clock arm returning StopCapUnits (right cause, wrong reason) reddened exactly the two wall-clock assertions and nothing else; dropping the Known guard reddened only the recorder refusal; counting distinct units instead of rows reddened only the attempt counters. Gate run separately: go test -race 0, golangci-lint 0, check-deadcode 0.\n- Out of scope: escalation, interrupted and driver-error are named here but not yet produced — their causes are the open escalation-detection, cap-timing and driver-error tasks, which this leaves untouched; likewise retry-attempts owns the retry loop (the counter it feeds is pinned here), stop-precedence the ordering among simultaneously satisfied reasons, run-exit-codes the 0-on-converged/4-otherwise mapping, and run-status the units-done rendering of totals.units. cap-budget is covered over the recorder's real accrual rather than end to end because the driver still passes nil spend until the open runner-spend task reads the runner's final log line.",
+      "gate_passed_at": "2026-08-30T10:25:48.428496Z",
+      "commit_sha": "83c62c0",
+      "commit_shas": [
+        "83c62c0",
+        "86a745e",
+        "8e1a75e",
+        "ac4b3fa",
+        "0c09785",
+        "202a0a0",
+        "250ec86",
+        "fee46e1",
+        "e3269e6",
+        "beac34c",
+        "bb269d0"
+      ],
+      "commit_files": [
+        "internal/cli/run_driver_test.go",
+        "internal/engine/driver.go",
+        "internal/engine/runstate.go",
+        "internal/engine/stopreason.go",
+        "internal/engine/stopreason_test.go"
+      ]
     },
     {
       "id": "stop-precedence",
