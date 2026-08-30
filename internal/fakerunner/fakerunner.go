@@ -47,6 +47,12 @@ const (
 	// It is off by default so a test that wants a failed attempt — exit 0
 	// with nothing written — gets one without scripting an exit code, and on
 	// when a test needs the cycle to actually advance a phase.
+	//
+	// Like EnvExits it is a comma-separated list read by invocation order,
+	// except that an invocation past its end repeats the last entry: "1"
+	// therefore still means every invocation, and "1,0" means the first one
+	// writes and every later one does not — the arrangement a retry test
+	// needs to tell a cleared leftover from a promoted one.
 	EnvDurable = "TP_FAKE_RUNNER_DURABLE"
 )
 
