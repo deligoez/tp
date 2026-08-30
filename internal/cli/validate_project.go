@@ -2,7 +2,9 @@ package cli
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -101,10 +103,24 @@ func runValidateProject() error {
 
 	project := engine.ProjectWorkflowOverride()
 	root := engine.ProjectRoot(".")
-	files, _ := engine.ScanProjectTaskFiles(root)
+	files, scanErr := engine.ScanProjectTaskFiles(root)
 
 	deviations := make([]map[string]any, 0)
 	skipped := make([]string, 0)
+	if scanErr != nil {
+		// The walk stops at the first directory it cannot read, so files holds
+		// only what was reached before it. Report the gap on the same channel a
+		// malformed task file uses: an incomplete scan that prints an empty
+		// deviation list is indistinguishable from a genuinely clean project.
+		loc := root
+		var pathErr *fs.PathError
+		if errors.As(scanErr, &pathErr) {
+			loc = pathErr.Path
+		}
+		loc = relOrSelf(root, loc)
+		skipped = append(skipped, loc)
+		fmt.Fprintf(os.Stderr, "warning: project scan incomplete at %s: %v\n", loc, scanErr)
+	}
 	for _, f := range files {
 		rel := relOrSelf(root, f)
 		override, err := engine.LoadTaskWorkflowOverride(f)
