@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-30T17:28:18.852138Z",
+  "updated_at": "2026-08-30T17:45:11.564158Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -179,7 +179,7 @@
     {
       "id": "runner-spend",
       "title": "Read spend from the runner log",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "runner-templates"
@@ -189,11 +189,24 @@
       "source_sections": [
         "#### 3.2.2 Spend"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-30T17:29:12.67125Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-30T17:45:11.529981Z",
+      "closed_reason": "- After a child exits the driver reads one number from the final line of that unit's log under the key its runner declares - total_cost_usd for claude, the declared spend_key for any other runner, walked as a dot path - and records it on the unit's run-state row, so the accrued total is the sum of what the units actually reported. Every way of having no number reports spend null rather than zero: a runner declaring no spend_key, a log that is absent or empty, a final line that is not JSON, a key the line does not carry, a value that is not a number, and a final line longer than the bounded tail read. Verified by a readSpend table over each of those, watched failing first against unwired code, then by two mutations - turning the empty-key guard into a total_cost_usd fallback reddened exactly the no-spend_key arm and the unmetered driver test, and disconnecting the driver call reddened exactly the three spend-reading driver tests. Restores checksum-verified byte-identical.\n- A runner with no spend_key leaves cap-budget inert and is reported once at run start (section 3.2.2, tests 11 and 66). The cap now trips from a real run - a metered run reporting 1.00 a unit against a 0.50 cap stops with cap-budget after one child, which nothing could exercise while spend was always null - while an unmetered runner drives to convergence with the cap at 0.01 and its own log carrying the unread number, which is the control that makes this a test of the declaration rather than of an empty log. The report is emitted in RunDriver and nowhere else, so once-at-run-start is where the line sits rather than a flag to clear; a per-kind map names the kinds its entries leave unmetered and not the metered one. A mutation suppressing the notice reddened exactly the two run-start tests. Both paths dogfooded on a scratch project through the freshly built binary.\n- Method note: the first oversized-log test passed against the mutated tail guard, because a fragment is not valid JSON either way. It was rewritten to align the fragment exactly on the tail boundary so it parses and carries the key, which is the only arrangement that can tell the guard from the parser - a surviving mutation was a finding about the test, not about the code.\n- Out of scope: tp run --status reports totals.spend_usd as 0 for an unmetered run and for a metered run that cost nothing, with no field separating them; the run-start notice is the only signal, and it is gone by the time --status is read.",
+      "gate_passed_at": "2026-08-30T17:45:11.529981Z",
+      "commit_sha": "ee50ce0",
+      "commit_shas": [
+        "ee50ce0",
+        "f6c27ce",
+        "c210e08",
+        "07369ec",
+        "fc242a2"
+      ],
+      "commit_files": [
+        "internal/engine/driver.go",
+        "internal/engine/driver_spend_test.go",
+        "internal/engine/spend.go"
+      ]
     },
     {
       "id": "unit-kinds",
