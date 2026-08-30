@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -161,6 +162,12 @@ func TestRunDriver_UnitFailureOutranksACapTheSameIterationReached(t *testing.T) 
 func TestRunDriver_ACapOutranksAnEmptyNextUnits(t *testing.T) {
 	root, spec, taskFile, records := seamProject(t, `{"spec":"s.md","tasks":[]}`)
 	t.Setenv(fakerunner.EnvDurable, "1")
+
+	// Round 1 already carries its recorded entry, so the collected panel owes
+	// no record unit either (§4.1) and next_units genuinely empties once the
+	// three roles have written their findings.
+	recordRounds(t, spec, 0, 0, true) // state.json, which a round file may not exist without
+	require.NoError(t, os.WriteFile(roundFilePath(spec, PhaseReview, 1), []byte("\n"), 0o600))
 
 	wf := driverWorkflow()
 	wf.RunMaxUnits = 3
