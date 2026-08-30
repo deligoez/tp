@@ -57,12 +57,16 @@ func computeCommonPolicy(overrides []model.WorkflowOverride) model.WorkflowOverr
 	// layer, where the project setter can author it.
 	//
 	// commit_strategy is in that same read-only set and is deliberately NOT
-	// hoisted, and the reason is scheduling rather than technique: v0.31.1's
-	// Non-Goal 1 fenced it out and nothing since has re-opened it. An audit
+	// hoisted, and the reason is scheduling rather than technique. An audit
 	// round recorded a different reason — that hoisting it would strip a field
-	// tp keeps non-authorable — which this line refutes. validate_project.go
-	// does report a commit_strategy deviation, so the two field sets differ on
-	// purpose; spec/0.35.0-candidates.md carries the routing.
+	// tp keeps non-authorable — which this line refutes.
+	//
+	// Be exact about the fence, because half of it was lifted: v0.31.1's
+	// Non-Goal 1 covered both the extract and the validate side, and v0.35.0
+	// re-opened the validate half on the ground that reporting a deviation only
+	// reports. The extract half stays closed because --extract *writes*, and
+	// changing which fields a writing command hoists is a decision of its own.
+	// spec/0.35.0-candidates.md section 15 carries the routing.
 	common.QualityGate = commonPtr(overrides, func(o *model.WorkflowOverride) *string { return o.QualityGate })
 	common.ReviewConvergeOn = commonPtr(overrides, func(o *model.WorkflowOverride) *string { return o.ReviewConvergeOn })
 	common.RunMaxUnits = commonPtr(overrides, func(o *model.WorkflowOverride) *int { return o.RunMaxUnits })
