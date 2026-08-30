@@ -129,3 +129,57 @@ func mergeNDJSON(t *testing.T, dir, path string) string {
 	return stdout
 }
 
+// TestReviewStatus_LocationClusters covers §8a.1 on the --status surface: the
+// clusters are recomputed at read time from the latest recorded round, and the
+// recorded finding count, the clean flag and the --status --check exit code are
+// unchanged. Those three are regression guards by construction — they hold on
+// the code before location_clusters existed. The fixture puts three roles on one
+// location precisely so that a clustering bug feeding the arithmetic would read
+// 1 finding instead of 3.
+func TestReviewStatus_LocationClusters(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## 1. A\ncontent\n"), 0o600))
+	merged := writeFindingsFile(t, dir, "merged.ndjson", []string{
+		`{"severity":"high","role":"implementer","class":"A","location":"§1","finding":"impl"}`,
+		`{"severity":"medium","role":"tester","class":"B","location":"§1 words","finding":"tester"}`,
+		`{"severity":"low","role":"architect","class":"C","location":"§1 more","finding":"arch"}`,
+	})
+	recordOut, _, code := runTP(t, dir, "review", "spec.md", "--record", merged)
+	require.Equal(t, 0, code)
+	var rec map[string]any
+	require.NoError(t, json.Unmarshal([]byte(recordOut), &rec))
+	assert.Equal(t, float64(3), rec["findings"], "regression guard: --record still counts every record")
+	assert.Equal(t, false, rec["clean"], "regression guard: the stored clean flag is unchanged")
+
+	stdout, _, code := runTP(t, dir, "review", "spec.md", "--status")
+	require.Equal(t, 0, code)
+	clusters := clustersFrom(t, stdout)
+	require.Len(t, clusters, 1, "one entry for §1")
+	assert.Equal(t, "§1", clusters[0]["location"])
+	assert.Equal(t, []any{"architect", "implementer", "tester"}, clusters[0]["roles"])
+	assert.Equal(t, []any{"high", "medium", "low"}, clusters[0]["severities"], "critical → high → medium → low")
+	assert.Equal(t, float64(3), clusters[0]["count"])
+
+	var status map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &status))
+	rounds := status["review_rounds"].([]any)
+	require.Len(t, rounds, 1)
+	assert.Equal(t, float64(3), rounds[0].(map[string]any)["findings"], "regression guard: recorded finding count")
+	assert.Equal(t, false, rounds[0].(map[string]any)["clean"], "regression guard: live clean flag")
+	assert.Equal(t, false, status["converged"])
+
+	// Regression guard: --status --check still exits 1 on an unconverged spec.
+	_, _, checkCode := runTP(t, dir, "review", "spec.md", "--status", "--check")
+	assert.Equal(t, 1, checkCode, "regression guard: --status --check exit code")
+
+	// §8.4: reporting-only, so --compact strips it; overlap_report stays.
+	stdout, _, code = runTP(t, dir, "review", "spec.md", "--status", "--compact")
+	require.Equal(t, 0, code)
+	var compact map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &compact))
+	_, hasClusters := compact["location_clusters"]
+	assert.False(t, hasClusters, "location_clusters omitted under --compact")
+	_, hasOverlap := compact["overlap_report"]
+	assert.True(t, hasOverlap)
+}
+
