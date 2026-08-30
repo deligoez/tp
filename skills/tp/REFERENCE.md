@@ -675,6 +675,15 @@ When a task has `source_sections` and no `source_lines`, `spec_excerpt` is the c
 
 Exit scheme: 0 success, 1 validation, 2 usage, 3 file, 4 state. `tp add '{not valid json'` exits 2 (decoder detail in `hint`); any cobra flag-parse failure exits 2 as a tp error object; `tp done <id> "<reason starting with a dash>"` exits 2 with a hint naming the `--` separator. Every non-zero error object carries a `hint` naming the next command to run.
 
+**An arity violation exits 2 (v0.35.0).** Every command's `Args` validator is a usage error, so
+exit **2** uniformly means "tp did not run the request" and exit **1** stays "it ran and failed" —
+the distinction a driver branches on. It used to exit 1 while an unknown command exited 2. Exit 2 is
+deliberately not subdivided further: a refusal and a typo are the same instruction to the driver,
+which is to stop and hand the unit's log to a human; what separates an *escalation* from either is
+the record, and a unit that refuses to write one is a unit failure, which is the same stop.
+`tp show`'s arity hint names the **missing argument** (`usage: tp show <id>`) rather than claiming to
+name the failing object.
+
 A path that names a **missing file** exits **3** everywhere it can (v0.32.0). A missing `--findings`
 path now exits 3 in both phases: `tp review` previously exited 2, and `tp audit` previously accepted
 it, verified zero review findings, and recorded the round as clean — a path typo could declare
