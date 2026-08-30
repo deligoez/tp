@@ -727,7 +727,11 @@ func detectChangedFiles(dir, base string) (files []string, totalChanged int, err
 		// Notice, not Info: the caller asked for the whole changed set and got a
 		// prefix of it. On the Info channel that truncation is invisible in JSON
 		// mode, which is every piped run.
-		output.Notice(fmt.Sprintf("more than %d files changed, auditing first %d", maxAutoDetectFiles, maxAutoDetectFiles))
+		//
+		// Name both numbers. "more than 50 files changed" read identically at 51
+		// and at 113, so the caller could size neither the loss nor the
+		// --affected-files list that works around it.
+		output.Notice(fmt.Sprintf("%d files changed, auditing first %d — name the rest with --affected-files", totalChanged, maxAutoDetectFiles))
 	}
 
 	if len(filtered) == 0 && len(allFiles) > 0 {
