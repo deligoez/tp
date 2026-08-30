@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-20T11:36:42.709378Z",
+  "updated_at": "2026-08-30T09:10:31.310093Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -79,7 +79,7 @@
     {
       "id": "runner-shape",
       "title": "Resolve the runner field's three shapes",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "workflow-fields"
@@ -89,11 +89,24 @@
       "source_sections": [
         "### 3.2 The runner abstraction"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-20T11:37:29.943109Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-30T09:10:31.277522Z",
+      "closed_reason": "- engine.ResolveRunner resolves section 3.2's runner field to the runner one unit kind spawns with, telling the three shapes apart by their JSON alone: a string is a built-in template name, an object carrying cmd is a runner object, and any other object is a per-kind map dispatching each kind to one of the first two with a default key covering the rest, so an object carrying both cmd and default is a runner and one carrying neither is a map; verified by tests over each shape plus the two ambiguous objects, and by mutating the cmd discriminator in both directions (always-false, always-true) and watching exactly the shape tests go red before restoring it.\n- Test 56's two named usage errors — a map without default, a runner object without cmd — are both *engine.RunnerShapeError, and internal/cli/root.go maps that type to exit 2 (USAGE) with the error's own three-shapes hint, distinct from the run-lock precedent's exit 4 because no wait or retry can fix a configuration that does not say what to spawn; the dispatcher's classification was extracted from Execute into dispatchError so the mapping is callable, and the new CLI test was watched failing (exit 1, exit-1 default hint) against the unwired code before the branch was added.\n- Gate green, each step run separately: go test -race ./... = 0, golangci-lint run = 0, ./scripts/check-deadcode.sh = 0.\nOut of scope: the map's entries are validated whole on every resolve, so a driver resolving per unit re-validates the same map each time; if that ever shows up as cost, the fix is a resolve-once-at-run-start cache in the driver task, not here.",
+      "gate_passed_at": "2026-08-30T09:10:31.277522Z",
+      "commit_sha": "e25c333",
+      "commit_shas": [
+        "e25c333",
+        "2cf7c45",
+        "5413853",
+        "a53bd1f"
+      ],
+      "commit_files": [
+        "internal/cli/root.go",
+        "internal/cli/runner_shape_exit_internal_test.go",
+        "internal/engine/runnershape.go",
+        "internal/engine/runnershape_test.go"
+      ]
     },
     {
       "id": "runner-templates",
