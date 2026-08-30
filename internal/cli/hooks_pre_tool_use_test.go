@@ -140,6 +140,23 @@ func TestPreToolUseHookDeniesTheFencedPaths(t *testing.T) {
 		"spec/.tp-review/0.35.0/round-3/role-implementer.ndjson",
 		"./spec/.tp-review/0.35.0/rounds.json",
 		filepath.Join(root, "spec", ".tp-review", "0.35.0", "round-3", "merged.ndjson"),
+		// Non-canonical spellings of the same four classes. A textual match
+		// lets every one of these through, so the fence has to normalize
+		// before it compares: redundant separators, `.` and `..` segments —
+		// `.tp/locks/` exists in every tp project — and case, which is not
+		// cosmetic on a case-insensitive filesystem (APFS, NTFS), where
+		// `.TP/config.json` opens the real `.tp/config.json`.
+		".tp/./config.json",
+		".tp//config.json",
+		".tp/locks/../config.json",
+		"./spec/./0.35.0.tasks.json",
+		"spec/.tp-review//0.35.0/rounds.json",
+		"spec/.tp-review/0.35.0/round-3/../round-3/merged.ndjson",
+		".TP/config.json",
+		".Tp/local.json",
+		"A.TASKS.JSON",
+		".TP-REVIEW/0.35.0/rounds.json",
+		"spec/.TP-Review/0.35.0/round-3/Merged.NDJSON",
 	}
 
 	for _, tool := range writeTools {
