@@ -62,7 +62,7 @@ func run() int {
 		fmt.Fprintln(os.Stderr, err)
 		return exitSetup
 	}
-	if os.Getenv(fakerunner.EnvDurable) == "1" {
+	if durableAt(os.Getenv(fakerunner.EnvDurable), seq) {
 		if err := durableWrite(); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return exitSetup
@@ -220,6 +220,26 @@ func scriptedExit(scripted string, seq int) int {
 		return 0
 	}
 	return code
+}
+
+// durableAt reports whether this invocation performs its unit kind's durable
+// write. The knob is a comma-separated list read by invocation order, and an
+// invocation past its end repeats the last entry rather than defaulting: the
+// plain "1" every caller writes therefore still means every invocation, while
+// "1,0" makes the first invocation write and every later one leave the artifact
+// absent. That asymmetry is what a retry test needs — an attempt that writes
+// nothing after one that wrote a .part is the only arrangement in which a
+// driver that fails to clear the leftover behaves differently from one that
+// clears it.
+func durableAt(scripted string, seq int) bool {
+	if scripted == "" {
+		return false
+	}
+	entries := strings.Split(scripted, ",")
+	if seq >= len(entries) {
+		seq = len(entries) - 1
+	}
+	return strings.TrimSpace(entries[seq]) == "1"
 }
 
 // intEnv reads an integer knob, treating absent and unparseable alike as 0.
