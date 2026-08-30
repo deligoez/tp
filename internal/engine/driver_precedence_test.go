@@ -95,3 +95,41 @@ func TestRunDriver_ConvergedOutranksACapTheSameIterationReached(t *testing.T) {
 	}
 }
 
+// Section 5.2 names this pair outright: a unit that wrote a valid escalation
+// record stops the run with escalation, subject only to section 3.4's
+// precedence, where a cycle that became releasable in the same iteration still
+// records converged.
+//
+// The record on disk is what proves the escalation row was satisfied — the
+// driver read it and ranked it, rather than never having seen it — and
+// EscalationPath stays empty because the run did not stop on it.
+func TestRunDriver_ConvergedOutranksAnEscalationTheSameIterationRaised(t *testing.T) {
+	drive := func(t *testing.T, auditRounds int) (DriverResult, string) {
+		t.Helper()
+		root, spec, taskFile, _ := seamProject(t, oneOpenTask)
+		recordRounds(t, spec, 0, auditRounds, true)
+		t.Setenv(fakerunner.EnvDurable, "1")
+		t.Setenv(fakerunner.EnvEscalate, "1")
+
+		res := driveOnce(t, root, spec, taskFile, driverWorkflow())
+		return res, EscalationPath(RunDir(root, res.RunID), "1")
+	}
+
+	t.Run("armed: the escalation alone stops a cycle that is not releasable", func(t *testing.T) {
+		res, record := drive(t, 1)
+		assert.Equal(t, StopEscalation, res.StopReason)
+		assert.Equal(t, record, res.EscalationPath)
+	})
+
+	t.Run("converged wins when the same iteration also released the cycle", func(t *testing.T) {
+		res, record := drive(t, 2)
+
+		require.FileExists(t, record,
+			"the unit did write its escalation record, so both rows were satisfied at once")
+		assert.Equal(t, StopConverged, res.StopReason,
+			"section 5.2: an escalation raised in an iteration that released the cycle still records converged")
+		assert.Equal(t, PhaseRelease, res.Phase)
+		assert.Empty(t, res.EscalationPath, "the run reports a record only when it stopped on one")
+	})
+}
+
