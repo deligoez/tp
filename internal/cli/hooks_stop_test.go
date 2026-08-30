@@ -211,3 +211,22 @@ func TestStopHookAllowsAnEscalationOverAMalformedFindingsFile(t *testing.T) {
 	assert.Empty(t, run.stderr)
 }
 
+// TestStopHookAllowsACompleteRoleUnit is test 67: the role's .part satisfies
+// §3.3's predicate, so the stop goes through. A hook that only ever blocked
+// would pass every test above this one and make an agent that can never finish.
+func TestStopHookAllowsACompleteRoleUnit(t *testing.T) {
+	role, _ := roleKinds(t)
+
+	for _, kind := range role {
+		t.Run(kind, func(t *testing.T) {
+			unit := stopUnit(t, kind)
+			body := `{"class":"missing-guard","location":"internal/engine/driver.go:88","severity":"major"}` + "\n"
+			require.NoError(t, os.WriteFile(unit.findingsPath(), []byte(body), 0o600))
+
+			run := runStopHook(t, unit, false)
+			assert.Zero(t, run.exitCode, "the durable write is present; stderr=%q", run.stderr)
+			assert.Empty(t, run.stderr, "an allowed stop is silent")
+		})
+	}
+}
+
