@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-30T14:54:56.58985Z",
+  "updated_at": "2026-08-30T15:05:51.252541Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -779,7 +779,7 @@
     {
       "id": "run-dry-run",
       "title": "List the next units with --dry-run",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "driver-loop"
@@ -789,11 +789,28 @@
       "source_sections": [
         "### 3.5 Run state, logs and status"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-30T14:55:51.359961Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-30T15:05:51.210278Z",
+      "closed_reason": "- tp run --dry-run lists the units the driver would execute next as {phase, round, next_units} and exits 0: engine.DryRunUnits reaches them through the driver's own first steps (the same readCycle every iteration opens with, then the same concurrentBatch that picks one iteration's batch), so the listing is the driver's answer rather than a second derivation; verified by a test asserting the implement unit and its brief_command, and by one comparing the whole array, phase and round against tp resume's own next_units in a multi-unit audit panel, so the listing is driven off the oracle's set rather than a hand-copied list.\n- It spawns nothing, writes no run state and takes no run lock (tests 13 and 58): every negative half is driven through the real path, not asserted about a path not taken - the runner seam is pinned to the fake runner with a live record directory and no record appears, the task stays open, .tp/run-spec.json and .tp/runs are absent afterwards, and a dry run exits 0 while another holder owns the run lock in the same fixture whose control arm is a real tp run refused with exit 4. Mutations: routing the flag to the driving path reddened exactly the three dry-run tests, wrapping the handler in WithRunLock reddened only the lock test, and creating a run recorder reddened only the run-state assertion; the restore is byte-identical by checksum.\n- Surface bookkeeping moved with the flag: the v0.34.2 command-surface baseline now reads 'run: dry-run status' and SKILL.md's flag inventory carries the sub-mode. Gate green: go test -race ./... 0, golangci-lint 0, check-deadcode.sh 0. Dogfooded on tp's own repo (empty listing, matching tp resume under the standing escalate blocker) and on a scratch project in both the implement and the three-role audit phase.",
+      "gate_passed_at": "2026-08-30T15:05:51.210278Z",
+      "commit_sha": "7b0042c",
+      "commit_shas": [
+        "7b0042c",
+        "5b00ab0",
+        "e819cf3",
+        "3d8866b",
+        "ffd3085",
+        "acace0b",
+        "1ac6f5c"
+      ],
+      "commit_files": [
+        "internal/cli/nongoals_surface_test.go",
+        "internal/cli/run.go",
+        "internal/cli/run_dry_run_test.go",
+        "internal/engine/driver.go",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "run-compact",
