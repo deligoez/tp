@@ -41,6 +41,12 @@ func runClose(cmd *cobra.Command, args []string) error {
 		os.Exit(ExitUsage)
 		return nil
 	}
+	// §5.1: the fence is on the decision, not on one command's flag, so the
+	// low-level close refuses it exactly as tp done does.
+	if cmd.Flags().Changed("skip-gate") && engine.Unattended() {
+		refuseUnattended("--skip-gate", "skip-gate")
+		return nil
+	}
 	// Determine reason source
 	sources := 0
 	if len(args) > 1 {
