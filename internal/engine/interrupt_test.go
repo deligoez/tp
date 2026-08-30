@@ -114,3 +114,32 @@ func TestRunDriver_SignalStopsTheRunWithInterrupted(t *testing.T) {
 		})
 	}
 }
+
+// §3.4's "no new unit is spawned" reaches inside the iteration as well: a unit
+// that failed its first attempt still has a retry in its budget, and a signal
+// that arrived while that attempt was running spends it on nothing.
+//
+// The stop is `interrupted` rather than `unit-failure` because the unit did not
+// exhaust its attempts — §3.4 ranks unit-failure above interrupted only for the
+// unit that actually ran out of them.
+func TestRunDriver_SignalDuringAnAttemptSpendsNoRetry(t *testing.T) {
+	guardSignal(t, os.Interrupt)
+	root, spec, taskFile, records := seamProject(t,
+		`{"spec":"s.md","tasks":[{"id":"alpha","title":"A","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"a","source_sections":["x"]}]}`)
+	recordRounds(t, spec, 0, 2, true)
+	t.Setenv(fakerunner.EnvExits, "1")
+	t.Setenv(fakerunner.EnvSleepMS, "1000")
+
+	wf := driverWorkflow()
+	wf.RunMaxUnitRetries = 1 // two attempts, so a retry is available to be skipped
+
+	done := driveInBackground(t, root, spec, taskFile, wf)
+	awaitFirstChild(t, records)
+	signalSelf(t, os.Interrupt)
+	res := awaitStop(t, done)
+
+	assert.Equal(t, StopInterrupted, res.StopReason,
+		"a unit with a retry left in its budget did not exhaust its attempts")
+	assert.Equal(t, 1, claimedInvocations(t, records), "the retry was never spawned")
+	require.Len(t, invocations(t, records), 1)
+}
