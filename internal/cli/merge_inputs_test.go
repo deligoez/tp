@@ -94,3 +94,13 @@ func TestReviewMerge_DroppedRoleExitsOne(t *testing.T) {
 	assert.Equal(t, [2]int{0, 2}, inputs[f2], "the dropped role reports parsed 0")
 }
 
+// TestReviewMerge_SoleMalformedLineExitsOne covers test 49's second half for
+// the review merge: one input, one content line, malformed.
+func TestReviewMerge_SoleMalformedLineExitsOne(t *testing.T) {
+	dir := t.TempDir()
+	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{`not json at all`})
+
+	_, stderr, code := runTPMerge(t, dir, "review", "--merge", "--json", f1)
+	assert.Equal(t, 1, code, "a sole malformed content line exits 1: %s", stderr)
+}
+
