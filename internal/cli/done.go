@@ -167,7 +167,7 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 	}
 	gateRan := false
 	if doneSkipGate == "" {
-		gateRan = runQualityGatePreFlock(taskFilePath)
+		gateRan = runQualityGatePreFlock(taskFilePath, true)
 	}
 
 	// Post-gate: flock, re-read, re-validate; a task whose state changed
@@ -400,7 +400,7 @@ func runDoneMulti(taskFilePath string, taskIDs []string, reason string) error {
 	}
 	gateRan := false
 	if survivors > 0 && doneSkipGate == "" {
-		gateRan = runQualityGatePreFlock(taskFilePath)
+		gateRan = runQualityGatePreFlock(taskFilePath, true)
 	}
 
 	return engine.WithFileLock(taskFilePath, func() error {

@@ -58,6 +58,63 @@ func gateFailureMessage(wf *model.Workflow, res engine.RunResult) string {
 	return fmt.Sprintf("quality gate failed: %s", wf.QualityGate)
 }
 
+// gateFailureSummary is `tp done`'s half of §4.2's tp-authored summary: the
+// gate command and the gate's own output.
+//
+// The output is the gate's, never the closing agent's prose — §4.2 forbids
+// either writer from copying the child's — and a gate that failed without
+// saying anything (a timeout, or a bare non-zero exit) falls back to the
+// message the command already prints, so the record is never handed to the
+// next unit with an empty summary.
+func gateFailureSummary(wf *model.Workflow, res engine.RunResult) string {
+	out := strings.TrimSpace(strings.Join(res.OutputTail, "\n"))
+	if out == "" {
+		out = gateFailureMessage(wf, res)
+	}
+	return "gate: " + wf.QualityGate + "; output: " + out
+}
+
+// gateExitCode is the code §4.2's record carries for a failed gate: the gate's
+// own when it produced one, and ExitState — the code the close itself exits
+// with — when the gate timed out and produced none.
+func gateExitCode(res engine.RunResult) int {
+	if res.ExitCode != nil {
+		return *res.ExitCode
+	}
+	return ExitState
+}
+
+// recordGateFailure writes §4.2's last_failure record for a quality gate
+// `tp done` ran and that failed.
+//
+// It is the second of the record's two writers, and it exists because the two
+// triggers are visible to different processes: the driver sees a child's exit
+// code, but a harness that swallows a failed gate never lets that code out, so
+// the failure would otherwise reach the next unit as silence.
+//
+// TP_UNIT_KIND is the fence. Outside a run the record's unit_kind, unit_id and
+// phase have no value, so nothing is written at all rather than a record
+// carrying three empty fields — which also leaves the shipped command's
+// behavior outside a run exactly as it was.
+//
+// The root is ".", the same root `tp brief` and `tp next --brief` read the
+// record back with, so the writer and the readers of one cycle always name the
+// same file. The write is best-effort for the reason the driver's is: the
+// record is advisory (§4.2), and a close must not fail over a hint file.
+func recordGateFailure(taskFilePath string, wf *model.Workflow, res engine.RunResult) {
+	kind := os.Getenv(engine.EnvUnitKind)
+	if kind == "" {
+		return
+	}
+	_ = engine.WriteLastFailure(".", taskFilePath, &engine.LastFailure{
+		UnitKind: engine.UnitKind(kind),
+		UnitID:   os.Getenv(engine.EnvUnitID),
+		Phase:    os.Getenv(engine.EnvPhase),
+		ExitCode: gateExitCode(res),
+		Summary:  gateFailureSummary(wf, res),
+	})
+}
+
 // runQualityGatePreFlock executes the resolved quality gate once per invocation,
 // before the task-file flock is acquired. The gate command and timeout come from
 // the effective workflow — the project config layered under the task file's own
@@ -65,7 +122,12 @@ func gateFailureMessage(wf *model.Workflow, res engine.RunResult) string {
 // Returns true when the gate executed and passed, false when no gate is
 // configured. On failure it emits the error object carrying gate_cmd, exit_code,
 // and output_tail, then exits with ExitState — no task closes.
-func runQualityGatePreFlock(taskFilePath string) bool {
+//
+// recordFailure asks for §4.2's last_failure record on the way out. `tp done`
+// passes true because §4.2 names it as the record's second writer; `tp close`
+// passes false, so the record stays what the spec describes rather than
+// whatever ran a gate.
+func runQualityGatePreFlock(taskFilePath string, recordFailure bool) bool {
 	wf := engine.EffectiveWorkflowForTaskFile(taskFilePath)
 	if wf.QualityGate == "" {
 		return false
@@ -73,6 +135,9 @@ func runQualityGatePreFlock(taskFilePath string) bool {
 	res := engine.RunCommand(wf.QualityGate, gateDir(taskFilePath), time.Duration(wf.EffectiveGateTimeoutSeconds())*time.Second, gateOutputTailLines)
 	if res.Passed {
 		return true
+	}
+	if recordFailure {
+		recordGateFailure(taskFilePath, &wf, res)
 	}
 	errOut := map[string]any{
 		"error":       gateFailureMessage(&wf, res),

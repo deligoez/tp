@@ -128,7 +128,9 @@ func runClose(cmd *cobra.Command, args []string) error {
 	}
 	gateRan := false
 	if closeSkipGate == "" {
-		gateRan = runQualityGatePreFlock(taskFilePath)
+		// false: §4.2 names `tp done` as last_failure's second writer, so a
+		// low-level close does not write the record.
+		gateRan = runQualityGatePreFlock(taskFilePath, false)
 	}
 
 	return engine.WithFileLock(taskFilePath, func() error {
