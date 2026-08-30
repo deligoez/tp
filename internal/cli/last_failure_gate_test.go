@@ -155,3 +155,19 @@ func TestDoneGate_BatchFailureUnderARunRecordsLastFailure(t *testing.T) {
 	assert.Contains(t, record.Summary, "gate-tail-marker", "summary carries the gate's own output")
 }
 
+// §4.2 names `tp done` as the record's second writer, and the low-level
+// `tp close` is not it: the same failing gate under the same environment
+// records nothing there, so the parameter that says so is load-bearing rather
+// than decorative.
+func TestCloseGate_FailureUnderARunRecordsNothing(t *testing.T) {
+	dir := setupProjectWithGate(t, "echo boom; exit 7")
+	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
+	_, stderr, code := runTP(t, dir, "claim", "t1")
+	require.Equal(t, 0, code, "claim failed: %s", stderr)
+
+	_, stderr, code = runTPEnv(t, dir, gateUnitEnv("implement", "t1", "implement"), "close", "t1", "task complete and fully verified")
+	require.Equal(t, 4, code, "the gate still fails the close: %s", stderr)
+
+	assert.Nil(t, readGateLastFailure(t, dir), "tp close is not §4.2's writer")
+}
+
