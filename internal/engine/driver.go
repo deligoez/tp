@@ -484,10 +484,10 @@ func (d *driver) unitTarget(u *UnitEnv) UnitTarget {
 // succeeded — the one reading of the run state a human triaging an unattended
 // run must not be handed.
 //
-// spend is nil for every unit here: the driver reads one number from the
-// runner's final log line, which is the spend reader's own path (§3.2.2), and
-// a row that reported 0 for an unread number would be a measurement nobody
-// made.
+// The spend each row carries is read from the runner's final log line (§3.2.2)
+// once its child has exited, and is null for every way of not having a number —
+// a runner declaring no spend_key first among them. A row reporting 0 for an
+// unread number would be a measurement nobody made.
 func (d *driver) record(attempts []*unitAttempt) error {
 	var firstErr error
 	for _, a := range attempts {
@@ -498,7 +498,7 @@ func (d *driver) record(attempts []*unitAttempt) error {
 			continue
 		}
 		d.recordLastFailure(a)
-		if err := d.rec.FinishUnit(a.seq, a.exitCode, a.duration, nil); err != nil && firstErr == nil {
+		if err := d.rec.FinishUnit(a.seq, a.exitCode, a.duration, a.spend()); err != nil && firstErr == nil {
 			firstErr = driverErrorf(err, "record the result of %s unit %q", a.unit.Kind, a.unit.ID)
 		}
 	}
@@ -826,4 +826,20 @@ func (a *unitAttempt) childOwnsLog() bool {
 		}
 	}
 	return false
+}
+
+// spend is what this attempt's unit cost, read from the final line of its log
+// under the key its runner declares (§3.2.2), or nil when there is no number to
+// read — a runner declaring no spend_key first among the ways of that being so.
+//
+// It is asked of the attempt rather than of the log alone because the key and
+// the path are both properties of the attempt: the runner is the one resolved
+// for this unit's kind, which is what makes a per-kind map meter some kinds and
+// not others without this call having to know that is what it is doing.
+//
+// The read happens after the child has exited, so the file is whatever the
+// child left; whether the driver or the child wrote it makes no difference,
+// since both write to the same path (§3.5).
+func (a *unitAttempt) spend() *float64 {
+	return readSpend(a.logPath, a.runner.SpendKey)
 }
