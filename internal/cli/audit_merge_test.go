@@ -74,11 +74,11 @@ func TestAuditMerge_EmptyInputSucceeds(t *testing.T) {
 	assert.Equal(t, float64(0), summary["merged_count"])
 }
 
-// TestAuditMerge_OnlyMalformedSucceeds covers §3.3 row 3 for the audit phase:
-// files holding only malformed/incomplete lines succeed (exit 0), create an
-// empty -o file, report merged_count 0, and emit a stderr warning per skipped
-// line.
-func TestAuditMerge_OnlyMalformedSucceeds(t *testing.T) {
+// TestAuditMerge_OnlyMalformedFails covers §8a.4 for the audit phase, reversing
+// the old "only-malformed is a clean result" contract: files holding only
+// malformed/incomplete lines now exit 1, while still creating the -o file,
+// reporting merged_count 0, and emitting a stderr warning per skipped line.
+func TestAuditMerge_OnlyMalformedFails(t *testing.T) {
 	dir := t.TempDir()
 	bad := filepath.Join(dir, "bad.ndjson")
 	require.NoError(t, os.WriteFile(bad,
@@ -88,7 +88,7 @@ func TestAuditMerge_OnlyMalformedSucceeds(t *testing.T) {
 
 	out := filepath.Join(dir, "merged.ndjson")
 	stdout, stderr, code := runTP(t, dir, "audit", "--merge", bad, "-o", out)
-	require.Equal(t, 0, code, "only-malformed input is a clean result (§3.3): %s", stderr)
+	require.Equal(t, 1, code, "an only-malformed input is a dropped role (§8a.4): %s", stderr)
 
 	var summary map[string]any
 	require.NoError(t, json.Unmarshal([]byte(stdout), &summary))
