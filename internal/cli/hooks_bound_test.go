@@ -282,3 +282,127 @@ func hookAdverseStdin(t *testing.T) []hookStdin {
 	}
 }
 
+// TestEveryShippedHookTerminatesOnAdverseInput is test 43's behavioural half,
+// and the reason it is not a manifest assertion: reading `timeout: 10` out of a
+// declaration proves the bound was written down, not that the hook stays inside
+// it. Every shipped script is run against every adverse stdin, discovered rather
+// than listed, so a hook added later is exercised on the same inputs.
+func TestEveryShippedHookTerminatesOnAdverseInput(t *testing.T) {
+	env := []string{"PATH=/usr/bin:/bin"}
+
+	for _, rel := range shippedHookScripts(t) {
+		for _, in := range hookAdverseStdin(t) {
+			t.Run(rel+" "+in.name, func(t *testing.T) {
+				assertHookBounded(t, rel, in.name, runBoundedHook(t, rel, env, in), -1)
+			})
+		}
+	}
+}
+
+// hookFailClosedCase is the experiment the second clause needs. An adverse
+// payload a hook simply ignores cannot discriminate: the hook exits 0 whether it
+// is bounded or merely lucky. Each case below hands one hook the input on which
+// it must do its job — refuse, or decide a predicate over a file it did not
+// write — and asserts it does so inside the margin rather than grinding.
+type hookFailClosedCase struct {
+	name     string
+	env      func(t *testing.T) []string
+	payload  func(t *testing.T) []byte
+	wantExit int
+}
+
+// stopHookUnitEnv builds the child environment §3.1 gives a role unit, with the
+// findings file written by the caller's own function.
+func stopHookUnitEnv(t *testing.T, findings []byte) []string {
+	t.Helper()
+
+	root := t.TempDir()
+	roundDir := filepath.Join(root, "rounds", "0.35.0", "review-r1")
+	runDir := filepath.Join(root, "runs", "01JB0000000000000000000000")
+	require.NoError(t, os.MkdirAll(roundDir, 0o750))
+	require.NoError(t, os.MkdirAll(runDir, 0o750))
+
+	if findings != nil {
+		require.NoError(t, os.WriteFile(filepath.Join(roundDir, "role-implementer.ndjson.part"), findings, 0o600))
+	}
+
+	return []string{
+		"PATH=/usr/bin:/bin",
+		"TP_UNIT_KIND=review-role",
+		"TP_UNIT_ID=implementer",
+		"TP_ROUND_DIR=" + roundDir,
+		"TP_RUN_DIR=" + runDir,
+		"TP_UNIT_SEQ=1",
+	}
+}
+
+// hookFailClosedCases keys one or more experiments to each shipped hook. The
+// test below requires an entry per shipped script, so a hook added without an
+// experiment fails rather than passing unverified.
+func hookFailClosedCases() map[string][]hookFailClosedCase {
+	minimal := func(*testing.T) []string { return []string{"PATH=/usr/bin:/bin"} }
+	writePayload := func(path string, content string) func(*testing.T) []byte {
+		return func(t *testing.T) []byte {
+			t.Helper()
+			payload, err := json.Marshal(map[string]any{
+				"hook_event_name": "PreToolUse",
+				"tool_name":       "Write",
+				"tool_input":      map[string]any{"content": content, "file_path": path},
+			})
+			require.NoError(t, err)
+			return payload
+		}
+	}
+	stopPayload := func(*testing.T) []byte {
+		return []byte(`{"hook_event_name":"Stop","stop_hook_active":false}`)
+	}
+
+	return map[string][]hookFailClosedCase{
+		sessionStartHookPath: {{
+			name: "tp is not on PATH",
+			env: func(t *testing.T) []string {
+				t.Helper()
+				return []string{"PATH=" + t.TempDir(), "CLAUDE_PLUGIN_ROOT=" + repoRoot(t)}
+			},
+			payload:  func(*testing.T) []byte { return []byte(`{"hook_event_name":"SessionStart","source":"startup"}`) },
+			wantExit: 2,
+		}},
+		preToolUseHookPath: {{
+			// The fenced path sits after two megabytes of content, so a hook that
+			// gave up on the payload rather than scanning it would fall open here.
+			name:     "a fenced path behind 2 MiB of content",
+			env:      minimal,
+			payload:  writePayload(".tp/config.json", strings.Repeat("payload ", 262144)),
+			wantExit: 2,
+		}},
+		roleWriteHookPath: {{
+			name:     "no round environment to build the allowlist from",
+			env:      minimal,
+			payload:  writePayload("internal/cli/root.go", "package cli"),
+			wantExit: 2,
+		}},
+		stopHookPath: {
+			{
+				name:     "a role unit that wrote no findings file",
+				env:      func(t *testing.T) []string { t.Helper(); return stopHookUnitEnv(t, nil) },
+				payload:  stopPayload,
+				wantExit: 2,
+			},
+			{
+				// The hook decides §3.3's predicate over a file the unit wrote and
+				// nothing bounds the size of. A role that dumps a large blob on one
+				// line is exactly when the block matters, so it is exactly when the
+				// predicate must still be decidable inside the bound.
+				name: "a findings file that is one megabyte on a single line",
+				env: func(t *testing.T) []string {
+					t.Helper()
+					line := `{"role":"implementer","evidence":"` + strings.Repeat("x", 1<<20) + `"}` + "\n"
+					return stopHookUnitEnv(t, []byte(line))
+				},
+				payload:  stopPayload,
+				wantExit: 0,
+			},
+		},
+	}
+}
+
