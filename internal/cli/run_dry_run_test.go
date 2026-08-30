@@ -123,3 +123,30 @@ func TestRunDryRun_TakesNoRunLock(t *testing.T) {
 		"it still reports, rather than reporting nothing because it was blocked")
 }
 
+// §3.5/§4.1: the listing is exactly the oracle's next_units, taken from the
+// oracle itself rather than from a list copied by hand — so a phase whose panel
+// later changes fails here until both surfaces are handled together.
+//
+// The fixture is driven to a phase whose panel holds more than one unit, which
+// is the case a single-unit listing could not tell apart from a truncated one.
+func TestRunDryRun_ListsEveryUnitTheOracleWouldSpawn(t *testing.T) {
+	dir := runProject(t)
+	_, stderr, code := runTP(t, dir, "done", "seed", "Seeded the project fixture.")
+	require.Equal(t, 0, code, "done: %s", stderr)
+
+	resumeOut, stderr, code := runTP(t, dir, "resume")
+	require.Equal(t, 0, code, "resume: %s", stderr)
+	var resume map[string]any
+	require.NoError(t, json.Unmarshal([]byte(resumeOut), &resume))
+	require.Greater(t, len(resume["next_units"].([]any)), 1,
+		"the fixture reaches a phase whose panel holds several units")
+
+	dryOut, stderr, code := runTP(t, dir, "run", "--dry-run")
+	require.Equal(t, 0, code, "dry-run: %s", stderr)
+	dry := decodeDryRun(t, dryOut)
+
+	assert.Equal(t, resume["phase"], dry["phase"])
+	assert.Equal(t, resume["round"], dry["round"])
+	assert.Equal(t, resume["next_units"], dry["next_units"],
+		"--dry-run lists exactly the units the oracle named")
+}
