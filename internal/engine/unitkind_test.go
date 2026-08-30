@@ -316,10 +316,13 @@ func TestUnitKind_AuditFix_RowSelector(t *testing.T) {
 	}
 }
 
-// TestUnitKind_FindingsPaths pins the two round-scoped artifact names §3.3
-// addresses by name, so a later unit writing them and this predicate reading
-// them cannot drift apart.
+// TestUnitKind_FindingsPaths pins the round-scoped artifact names §3.3 and §6.3
+// address by name, so a later unit writing them and this predicate reading them
+// cannot drift apart. The .part is the one tp emits into the role's prompt and
+// the one §6.3's allowlist grants; dropping the suffix would make the emitted
+// name the driver's final name, which a role unit is denied.
 func TestUnitKind_FindingsPaths(t *testing.T) {
 	assert.Equal(t, filepath.Join("rd", "role-architect.ndjson"), RoleFindingsPath("rd", "architect"))
+	assert.Equal(t, filepath.Join("rd", "role-architect.ndjson.part"), RoleFindingsPartPath("rd", "architect"))
 	assert.Equal(t, filepath.Join("rd", "merged.ndjson"), MergedFindingsPath("rd"))
 }
