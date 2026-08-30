@@ -106,3 +106,37 @@ func TestRunDriver_StopsConvergedWhenTheOracleReportsRelease(t *testing.T) {
 	assert.NotEmpty(t, res.RunID, "every run carries its own id")
 }
 
+// §3.1 end to end for the implement phase: the loop spawns the unit the oracle
+// named, re-reads the cycle from disk, sees the phase advance as the durable
+// writes land, and stops with converged. The two implement units never overlap,
+// which is §3.3's "Alone" enforced by the driver rather than assumed.
+func TestRunDriver_AdvancesThroughImplementAndStopsConverged(t *testing.T) {
+	root, spec, taskFile, records := seamProject(t, twoOpenTasks)
+	recordRounds(t, spec, 0, 2, true)
+	t.Setenv(fakerunner.EnvDurable, "1")
+
+	res := driveOnce(t, root, spec, taskFile, driverWorkflow())
+
+	assert.Equal(t, StopConverged, res.StopReason)
+	assert.Equal(t, PhaseRelease, res.Phase)
+
+	recs := invocations(t, records)
+	require.Len(t, recs, 2, "one implement unit per open task, then release")
+	assert.Equal(t, []string{"alpha", "beta"}, spawnedIDs(recs), "the driver spawns the unit the oracle named")
+	for i := range recs {
+		assert.Equal(t, string(UnitImplement), recs[i].Env[EnvUnitKind])
+	}
+	assert.False(t, overlapped(&recs[0], &recs[1]), "a non-concurrent kind is never spawned beside a sibling")
+
+	// The run state carries a row per attempt with the child's exit code.
+	var st RunState
+	data, err := os.ReadFile(RunStatePath(root, taskFile))
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(data, &st))
+	require.Len(t, st.Units, 2)
+	require.NotNil(t, st.Units[0].ExitCode)
+	assert.Equal(t, 0, *st.Units[0].ExitCode)
+	require.NotNil(t, st.StopReason)
+	assert.Equal(t, StopConverged, *st.StopReason)
+}
+
