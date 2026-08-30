@@ -104,3 +104,54 @@ func TestCapStop_EachCapIsProducedByItsOwnCounter(t *testing.T) {
 	}
 }
 
+// cap-budget accrues through the recorder rather than through a total the
+// driver keeps beside it, so the cap is exercised over the rows a metered
+// runner produced. An unmetered row contributes nothing and leaves the cap
+// inert, which is the same path §3.2.2 describes.
+func TestCapStop_BudgetAccruesFromTheMeteredRows(t *testing.T) {
+	root := t.TempDir()
+	rec, err := NewRunRecorder(root, "s.tasks.json", "run", PhaseImplement)
+	require.NoError(t, err)
+
+	spend := 0.75
+	for seq, amount := range []*float64{&spend, nil, &spend} {
+		require.NoError(t, rec.StartUnit(&RunUnitRow{Seq: seq, Kind: UnitImplement, ID: "t", Attempt: 1}))
+		require.NoError(t, rec.FinishUnit(seq, 0, time.Second, amount))
+	}
+
+	snapshot := rec.Snapshot()
+	assert.InDelta(t, 1.5, snapshot.Totals.SpendUSD, 1e-9, "the unmetered row contributes nothing")
+
+	wf := &model.Workflow{RunMaxUnits: 100, RunMaxWallClockSeconds: 10000, RunMaxBudgetUSD: 1.5}
+	assert.Equal(t, StopCapBudget, capStop(&snapshot, wf))
+
+	wf.RunMaxBudgetUSD = 0
+	assert.Equal(t, StopReason(""), capStop(&snapshot, wf), "a budget of 0 is disabled")
+}
+
+// roundsRecorded returns how many review and audit rounds the spec's state
+// index holds, which is what "no stop reason records a round" is measured on.
+func roundsRecorded(t *testing.T, specPath string) (review, audit int) {
+	t.Helper()
+	st, err := LoadReviewState(specPath)
+	require.NoError(t, err)
+	if st == nil {
+		return 0, 0
+	}
+	return len(st.ReviewRounds), len(st.AuditRounds)
+}
+
+// taskStatus reads one task's status from the task file on disk.
+func taskStatus(t *testing.T, taskFile, id string) string {
+	t.Helper()
+	tf, err := model.ReadTaskFile(taskFile)
+	require.NoError(t, err)
+	for i := range tf.Tasks {
+		if tf.Tasks[i].ID == id {
+			return tf.Tasks[i].Status
+		}
+	}
+	t.Fatalf("no task %q in %s", id, taskFile)
+	return ""
+}
+
