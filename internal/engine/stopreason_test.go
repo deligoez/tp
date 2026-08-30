@@ -42,3 +42,12 @@ func TestStopReason_IsSection34sNineValuesVerbatim(t *testing.T) {
 	}
 }
 
+// The vocabulary is closed: anything that is not one of the nine — including
+// the empty string capStop returns while a run is within every cap — is not a
+// stop reason.
+func TestStopReason_KnownRejectsEverythingElse(t *testing.T) {
+	for _, near := range []StopReason{"", "cap_units", "CONVERGED", "capunits", "cap-unit", "done", "converged "} {
+		assert.False(t, near.Known(), "%q is not one of §3.4's nine", string(near))
+	}
+}
+
