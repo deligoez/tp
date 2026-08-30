@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.35.0.md",
   "created_at": "2026-08-13T20:48:04.077016Z",
-  "updated_at": "2026-08-30T11:36:31.990717Z",
+  "updated_at": "2026-08-30T11:48:37.346495Z",
   "workflow": {},
   "coverage": {
     "total_sections": 42,
@@ -390,7 +390,7 @@
     {
       "id": "last-failure-store",
       "title": "Store last_failure outside the run state",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "next-units"
@@ -400,11 +400,37 @@
       "source_sections": [
         "### 4.2 `last_failure`"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-08-30T11:37:21.456533Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-08-30T11:48:37.252942Z",
+      "closed_reason": "- A non-zero unit exit writes .tp/last_failure-\u003cbase\u003e.json with section 4.2's six fields (unit_kind, unit_id, phase, exit_code, summary, at) and a tp-authored summary naming the failing command and the log path, never the child's prose (internal/engine/lastfailure.go plus the driver's recordLastFailure/failureSummary); a second failure overwrites it and a success clears it only when the (unit_kind, unit_id) pair matches, since id alone collides between the two record kinds.\n- tp resume carries last_failure as a top-level key that survives --compact and is null when there is none (the section 10.8 object-set assertion moved with the field), and tp brief plus tp next --brief carry it under an omitempty key with a Last failure section rendered right after Identity; it lives outside the run state, so a second run neither clears nor rewrites it (test 23).\n- Verified by running: the driver and surface tests were written first and watched fail against unchanged code (no file written; last_failure key absent), then four mutations were confirmed to redden exactly the right tests and restored byte-identically — dropping the kind from the clear key reddened only the clear-key test, writing on !succeeded() instead of a non-zero exit reddened only the exit-0-no-durable-write test, neutering the clear branch reddened only the clear test, and nil-ing both reads reddened the three surfacing tests while leaving the null-without-record test green. Gate green separately: go test -race ./... 0, golangci-lint run 0, ./scripts/check-deadcode.sh 0; dogfooded with a freshly built binary on a scratch project across tp resume (JSON and TTY), tp brief and tp next --brief, present and absent.\nOut of scope: .tp/.gitignore still does not list .tp/run-\u003cbase\u003e.json, .tp/runs/, .tp/rounds/ or .tp/last_failure-\u003cbase\u003e.json — that is the gitignore-entries task (test 15).",
+      "gate_passed_at": "2026-08-30T11:48:37.252942Z",
+      "commit_sha": "57a9ada",
+      "commit_shas": [
+        "57a9ada",
+        "669b2b4",
+        "baaee00",
+        "58bbecb",
+        "4c2af29",
+        "6319d21",
+        "d601b6a",
+        "9724425",
+        "5124920",
+        "2ffbe63"
+      ],
+      "commit_files": [
+        "internal/cli/brief.go",
+        "internal/cli/last_failure_surface_test.go",
+        "internal/cli/next.go",
+        "internal/cli/resume.go",
+        "internal/cli/resume_next_units_test.go",
+        "internal/engine/brief.go",
+        "internal/engine/driver.go",
+        "internal/engine/driver_lastfailure_test.go",
+        "internal/engine/lastfailure.go",
+        "internal/engine/lastfailure_test.go",
+        "internal/engine/resume.go"
+      ]
     },
     {
       "id": "last-failure-gate",
