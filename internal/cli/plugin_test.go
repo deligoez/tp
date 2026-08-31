@@ -212,6 +212,53 @@ func TestPluginValidatesWithClaudeCLI(t *testing.T) {
 	require.NoError(t, runErr, "claude plugin validate --strict failed:\n%s", out)
 }
 
+// TestPluginVersionIsNotBehindTheLatestTag catches the failure mode that makes
+// a published plugin update invisible.
+//
+// Claude Code resolves a plugin's version from plugin.json's `version` field
+// first, and a set field PINS it: users are offered an update only when that
+// field changes, no matter how many commits or tags ship. The documented remedy
+// is to omit the field and let git tags drive versioning — which tp cannot do,
+// because `hooks/session-start.sh` reads that same field as the minimum tp
+// version the plugin will run against (§6.1). The field is load-bearing twice,
+// so the bump is mandatory rather than optional, and this is the check that
+// makes it mechanical instead of a line in a checklist.
+//
+// The comparison is >= rather than ==, which is what makes it usable inside the
+// release itself: bumping plugin.json and then tagging is the correct order, so
+// the manifest legitimately runs ahead of the newest tag for the length of that
+// window. It falls behind only when a release was tagged without the bump.
+func TestPluginVersionIsNotBehindTheLatestTag(t *testing.T) {
+	git, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git not on PATH")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, git, "-C", repoRoot(t), "describe", "--tags", "--abbrev=0")
+	out, describeErr := cmd.Output()
+	if describeErr != nil {
+		t.Skip("no reachable tag to compare against (shallow clone or fresh repo)")
+	}
+	tag := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(string(out)), "v"))
+
+	raw, err := os.ReadFile(filepath.Join(repoRoot(t), ".claude-plugin", "plugin.json"))
+	require.NoError(t, err)
+	var manifest struct {
+		Version string `json:"version"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &manifest))
+	require.NotEmpty(t, manifest.Version,
+		"plugin.json must carry a version: the SessionStart preflight reads it as the minimum tp version")
+
+	assert.GreaterOrEqual(t, comparePluginVersions(t, manifest.Version, tag), 0,
+		"plugin.json says %s but the newest tag is v%s — a release was tagged without bumping the "+
+			"manifest, so Claude Code still reports the old version and no user is offered the update",
+		manifest.Version, tag)
+}
+
 // TestMarketplaceEntryDoesNotDoubleDeclareComponents guards the one manifest
 // error `claude plugin validate` cannot see.
 //
