@@ -186,8 +186,12 @@ func TestSessionStartHookAcceptsTheMinimumVersion(t *testing.T) {
 	// binary built from a working tree at the minimum reports a pseudo-version
 	// with a suffix, and the preflight compares the numbers only, so dogfooding
 	// the release under development is not blocked by its own hook.
+	// The literals are all above the minimum by construction rather than by a
+	// number that happened to be above it when they were written: a fixed
+	// "v0.35.1" was accepted until the minimum reached 0.35.2 and then failed
+	// this test, which is the version-pinning trap one level down.
 	for _, version := range []string{
-		pluginMinVersion, "v" + pluginMinVersion, "v0.35.1", "v1.0.0", "v0.36.0",
+		pluginMinVersion, "v" + pluginMinVersion, "v1.0.0", "v99.0.0",
 		"v" + pluginMinVersion + "-0.20260820093420-104822c4904b+dirty",
 	} {
 		t.Run(version, func(t *testing.T) {

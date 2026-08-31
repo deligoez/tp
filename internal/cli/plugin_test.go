@@ -30,10 +30,10 @@ const pluginManifestPath = ".claude-plugin/plugin.json"
 //
 // It tracks plugin.json rather than lagging it: because the manifest's version
 // IS the minimum, bumping the plugin raises the bar for the binary too, and the
-// release that carries the bump ships that binary. 0.35.1 is the plugin fix
-// that made the plugin loadable at all — v0.35.0's manifest declared its skills
-// twice and the runtime refused it.
-const pluginMinVersion = "0.35.1"
+// release that carries the bump ships that binary. 0.35.2 closes the fence gap: both PreToolUse
+// matchers named only the four native editors, while this repository routes
+// every agent to codedbpro, so a role unit's writes met no fence at all.
+const pluginMinVersion = "0.35.2"
 
 // pluginManifest is the subset of the manifest this guard asserts: identity,
 // nothing else. Components (skills/, hooks/, agents/) are discovered by
