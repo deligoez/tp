@@ -1,0 +1,644 @@
+# tp v0.36.0 — The emitted round
+
+## 1. Overview
+
+tp emits one prompt per role per round. That prompt carries the checklist, the role rules, the
+affected files and the output schema — everything about *what to judge*. It carries nothing about
+*how the unit must behave while judging*, and every invocation emits the whole panel to whoever
+asked, however many roles that caller actually needs.
+
+The consequence is that every round costs the orchestrator the same manual additions, and a round
+that does not get them loses work or produces false findings. Two independent cycles measured the
+same shortfalls, on different projects, in different languages:
+
+- tp's own v0.35.0 audit — nine rounds, four roles, this repository.
+- A field cycle on a PHP package, nine rounds, five roles, driven by a different operator.
+
+This release makes the emitted prompt self-sufficient, lets a caller ask for one role's prompt
+instead of the panel's, and changes the brief `tp run` hands a role unit so that it asks for its own
+(§4.2.3) — the release's only change outside the emitter. It does not change the checklist, the role rules, the output schema, or how
+convergence is counted.
+
+**Where the benefit lands, stated up front because it is not uniform.** §2 and §3 both address the
+**interactive path** — an orchestrator that spawns sub-agents itself, this repository's documented
+fallback and the PHP cycle's method. Under `tp run` §2's constraint is already a fence (§2.1) and
+§3's salvage is already refused by the driver (§3.1), so on that path the two clauses are
+belt-and-braces rather than the mechanism. §4 is the reverse: its measured cost is paid hardest
+under `tp run`. The release is worth shipping because the two paths need different halves of it,
+not because every half serves both.
+
+### 1.1 What it costs
+
+**467 bytes per role prompt.** The arithmetic is written out because §6.2 test 5
+asserts it as an exact integer, and an earlier draft stated 468 — one more than its own construction
+in §2.3 produces:
+
+| | Bytes |
+|---|---|
+| trailing newline removed from the existing body | **−1** |
+| `LF LF` before §2.2's clause | +2 |
+| §2.2's clause | +287 |
+| `LF LF` before §3.2's clause | +2 |
+| §3.2's clause | +177 |
+| appended **suffix** | **468** |
+| **net delta** | **+467** |
+
+**The two numbers are different and both are used.** The suffix tp appends is 468 bytes; the net
+change to the body is 467, because the strip removes one. §6 names whichever applies and never
+substitutes one for the other — an earlier draft called the suffix "467-byte", which is an off-by-one
+in the opposite direction from the one this table exists to fix. Every other mention in this document
+refers back to this table rather than restating a figure.
+
+The −1 is not optional and not cosmetic: measured on this spec's own emission, every role prompt
+body ends with `\n`, so a construction that appends without stripping produces a blank line and a
+different total. Against a round-4 role prompt of 12,376 bytes the net is **3.77%**; against the
+whole 131,727-byte payload the same round emits, **0.35%**. Every figure in this spec is stated with
+the round it was measured on, because §4 establishes that the panel and its size are round-dependent.
+
+The clauses are emitted on every path, including the one where §2's constraint is already enforced
+by a fence — tp emits the prompt before anything knows which runner will consume it, so a
+conditional emission is not computable at the point of emission. §4's flag adds no prompt bytes and
+removes them from what a unit receives.
+
+## 2. The prompt does not carry its own isolation constraint
+
+**The field instance is a false finding, not an inconvenience.** In round 2 of the PHP cycle an
+auditor mutated a file in the repository to test whether a test was tautological — a legitimate
+experiment, and the one this project's own evidence rule asks for. A *different* auditor, running
+concurrently, read the mutated file and reported the static analyser's failure as a real defect. The
+finding was caused entirely by the absence of isolation guidance in the prompt both agents received.
+The operator then added "DO NOT modify the working tree" to all five role prompts, by hand, every
+round.
+
+tp's own cycle paid the same cost without the failure: the orchestrator injected "Do NOT modify any
+repo source file" into all four role prompts for nine consecutive rounds.
+
+### 2.1 Which fence exists, and on which path
+
+tp ships two `PreToolUse` hooks and they are not interchangeable.
+
+| Hook | Registered in | Denies a source write? |
+|---|---|---|
+| `pre-tool-use-write-deny.sh` (`spec/0.35.0.md` §6.2) | `hooks.json` | **No** — denies four tp state paths, allows every source file |
+| `pre-tool-use-role-write-allow.sh` (`spec/0.35.0.md` §6.3) | frontmatter of `agents/tp-reviewer.md`, `agents/tp-auditor.md` | **Yes** — a role unit may write exactly one path |
+
+Both were verified against the shipped hooks rather than read: `internal/cli/audit.go` is allowed by
+the §6.2 hook and denied by the §6.3 hook.
+
+The split is drawn on §6.3, and **the clause is for the path §6.3 does not reach**. A runner that
+loads the agent definitions gets the fence; an orchestrator that spawns sub-agents itself loads
+nothing and gets no fence. Under `tp run` the clause therefore restates a rule the fence already
+enforces — which is why §1 prices it rather than claiming it. `spec/0.35.0.md` §6.3 itself calls the
+restriction "defence in depth", which is a statement that it is not meant to be the only thing that
+is true.
+
+### 2.2 The clause
+
+Emitted verbatim as this exact string, one line, no embedded newline:
+
+```text
+Do not edit any file in the working tree. Read anything, and run tp itself freely — its own state writes are expected. Write no other file except the output file this prompt names. If proving a defect would require changing code, report it with its evidence instead of making the edit.
+```
+
+**It is one line, not a wrapped paragraph.** Tests assert byte equality against this string, so the
+spec gives it unwrapped: a hard-wrapped blockquote would leave an implementer three transcription
+decisions (join the lines with a space, or with `\n`; keep the `> ` prefixes or strip them) that
+each produce a different artifact and each pass a loose reading of "verbatim".
+
+**Running tp is carved out because the earlier wording forbade the unit's own verification.** A
+draft said "write only the output file this prompt names". A role unit is told to run
+`tp review <spec>`, and that command writes repository state as a side effect — it takes the round's
+snapshot under `spec/.tp-review/<base>/`. Observed twice while this spec was being written: once by
+a round-3 reviewer, and once by the orchestrator, whose read-only measurement invocation rewrote
+`snapshot-round-3.md`. Under the draft wording a unit that obeyed the clause could not run the
+command its brief names, and a unit that ran it violated the clause. The carve-out is narrow on
+purpose: tp's own state writes, not a general licence.
+
+**This is also a channel neither hook in §2.1 covers.** Both hooks match tool calls; a state write
+performed inside a `tp` subprocess is not one. So on the `tp run` path the clause is not purely
+belt-and-braces after all — it is the only statement about a write channel the fence cannot see.
+
+**"the output file" is the antecedent the prompt already supplies.** The emitted prompt's last
+section names the file. Its exact text is environment-dependent — interactive emission writes a
+round-relative name, and under `tp run` the same line carries an absolute path because `TP_ROUND_DIR`
+is set — so the clause names the *role* of the file rather than quoting either form. §2.3 pins the
+clause's position so the antecedent always precedes it.
+
+**Naming the output file also makes the clause work for both commands.** `tp audit` produces result
+rows, not findings; a clause that said "the findings file" would be wrong in half the prompts it is
+emitted into. `output_path` is a key both commands emit, so one string serves both. The framing line
+the prompt already carries is itself in findings vocabulary; this release does not reword it, and
+the clause is written so that it does not have to.
+
+### 2.3 Placement, to the byte
+
+Both clauses are appended **at the very end of the prompt body**, §2's first and §3's second. The
+emitted body ends with exactly:
+
+```text
+<the body as assembled before this release's append, trailing newline removed>
+LF LF
+<§2.2's clause>
+LF LF
+<§3.2's clause>
+```
+
+and no trailing newline. That is 4 separator bytes, which is the figure §1 prices and test 5
+asserts.
+
+**The anchor is the end of the body, not the `## Unit framing` heading.** An earlier draft pinned
+the position relative to that literal heading. It does not survive on this spec: tp embeds changed
+spec sections verbatim into the prompt, and this document contains the string `## Unit framing`, so
+on the round-3 architect prompt the heading occurs **three** times. Any anchor drawn from the
+prompt's own prose can be forged by the spec under review — an end-of-body anchor cannot.
+
+**Ordering is pinned because the clauses are not independent.** Both refer to the output file that
+the prompt's last section names, so both must follow it; and §3's "the output file" is the same
+antecedent §2's clause has just used. A test asserting only presence would pass on a prompt where
+the reference dangles, which is why test 3 asserts on offsets.
+
+**Emission predicate.** The clauses are appended to every prompt whose `output_path` is non-empty,
+and to no other. That is the positive statement §6 test 4 tests the negative of; §4.4 records why
+the predicate is a property of the prompt rather than of the role.
+
+### 2.4 What is deliberately not provisioned
+
+**No perturbation recipe is offered.** An earlier draft told the unit to copy the subject out of the
+repository and mutate the copy. Three things defeat it: the copy is a second write, which
+`spec/0.35.0.md` §6.3 forbids outright; a source file moved out of its package does not build, so
+the experiment the motivating story describes cannot be run on it; and `spec/0.42.0.md` §9 has
+already assessed exactly this recipe and found against it, noting that N auditors each building a
+scratch copy would dissolve the concurrency argument `spec/0.35.0.md` §3.3 rests on. Giving an
+auditor a way to perturb is that file's open question. This release constrains; it does not
+provision.
+
+**The clause creates a finding class this release does not close.** Telling a unit to report what it
+would have had to edit to prove converts one class of row — a defect whose proof needs a mutation,
+a broken precondition or an injected failure — from run evidence into asserted evidence, and tp has
+no verdict for "asserted, not run". That gap is `spec/0.42.0.md`'s subject and Non-Goal 2 names it
+rather than pretending the clause is free.
+
+**Why the prompt rather than the agent definitions.** The definitions are the cheaper channel — they
+cost nothing per round — and they are the right home for a standing rule under `tp run`. They are
+also loaded by nothing on the interactive path, which is the only path where this constraint is not
+already enforced. A future release that makes the interactive path load a definition should move the
+clause there and delete it here.
+
+## 3. A unit that buffers its findings loses all of them
+
+Both cycles lost whole rounds to the same shape. An agent accumulates its rows in context and writes
+the NDJSON once, at the end; the process dies before that write; nothing survives.
+
+The field cycle lost **six** subagents this way over one session. The single run that had been
+instructed to append each row as it was decided preserved **72 rows** despite dying near the end.
+tp's own cycle lost four, and the one told to write early kept 9 of its 10 rows — so the relaunch
+completed the round instead of redoing it, and the recovered rows were the expensive ones.
+
+The asymmetry is the argument: buffering saves nothing and risks everything, because a findings file
+is append-only NDJSON whose partial state is already valid input to `--merge`. Verified on the
+shipped binary: a file whose trailing line is truncated mid-object merges with
+`warning: skipping malformed line (invalid JSON)`, keeps every complete row, and exits **0**.
+
+### 3.1 Where the salvage is real, and where it is not
+
+The measured recoveries above are **interactive-path** results, and they do not carry to `tp run`
+unchanged. `spec/0.35.0.md` §3.3 defines a role unit's durable write as
+`$TP_ROUND_DIR/role-$TP_UNIT_ID.ndjson` existing with **every line parsing**, and §3.3.1 has the
+unit write `role-<id>.ndjson.part` while the driver renames it to the final name **only on exit 0**.
+A unit that dies therefore leaves rows that are never promoted, and a truncated trailing line would
+fail the predicate even if they were.
+
+Under `tp run` the clause's benefit is consequently smaller and different: the `.part` file survives
+on disk with its complete rows intact, so a human — or a later release that decides to promote a
+partial file — can recover the round's expensive work instead of finding an empty context. It does
+not salvage the round automatically, and this spec does not change the driver to make it do so.
+
+**Whether a partial file should ever complete a unit has no owner, and this spec does not invent
+one.** Two drafts named an owner without checking, which is worth recording because the second did
+it in the same paragraph that diagnosed the first. `spec/0.41.0.md` §2 is "Sharding a role's
+checklist" and §3 is "Incremental rounds" — neither states a completeness predicate. `spec/0.38.0.md`
+was named next; searched, it contains zero occurrences of *partial*, *complete*, *.part* or
+*promote*, and its six sections are about output shape, batch input, sub-mode precedence, the
+warning channel, resolve safety and evidence counting.
+
+So the honest statement is a question with no owner and an action, not a filename: **a section
+defining when a partial role file completes a unit has to be written, and no spec contains it yet**.
+Sharding (`spec/0.41.0.md`) is the release that will be unable to proceed without it, because its N
+shards are jointly complete and no single one is. Naming a file that does not contain the question is worse
+than naming none — it converts an open problem into a closed-looking reference.
+
+### 3.2 The clause
+
+Emitted verbatim as this exact string, on the terms §2.2 and §2.3 fix:
+
+```text
+Write each row to the output file as you decide it, not once at the end. A run that dies with its rows unwritten loses the whole round; a partially written file is still usable.
+```
+
+### 3.3 What this does not change
+
+A findings file that exists and parses does not mean the unit finished. It never did: completion is
+`exit 0` **plus** the driver's rename (`promoteRoleFindings`, `spec/0.35.0.md` §3.3.1), and
+`spec/0.35.0.md` §6.2's Stop hook applies an "exists and parses" predicate that is a liveness check
+— it catches a unit stopping with nothing — not a completeness check. Incremental append makes
+partial files the normal intermediate state, so it makes that misreading easier; it does not create
+it. A unit that stops cleanly having judged three of forty items merges as complete today, before
+this release and after it. That hole is the unowned one §3.1 describes.
+
+## 4. Every caller gets the whole panel
+
+`tp review <spec>` and `tp audit <spec>` emit one `prompts[]` entry per emitted role, always, to
+whoever ran the command. Under `tp run` each role unit's brief command is exactly that invocation
+(`spec/0.35.0.md` §3.3.1), so **every unit receives every role's prompt and reads one**.
+
+### 4.1 The measurement, and why it has to name its round
+
+The panel is **round-dependent**, which an earlier draft of this section got wrong by quoting one
+round's figures as general. From round 2 onward, when the spec has changed or findings were resolved
+fixed, `buildReviewPrompts` auto-appends the built-in `regression` role; at round 1 it is skipped
+with reason `no-baseline`. So the same command emits a different panel on different rounds.
+
+Measured on this spec, current binary, `TP_*` cleared from the environment:
+
+| Round | Prompts | Payload | Largest entry |
+|---|---|---|---|
+| 3 (spec unchanged at emission, nothing resolved) | 4 | 41,015 B | tester 10,183 – ax-economist 10,334 |
+| 4 (spec rewritten, 36 findings resolved fixed) | **5** | **131,727 B** | **`regression` 82,160 B** |
+
+At round 4 the four corpus roles are 12,321 – 12,472 bytes each, 49,567 together. `regression` alone
+is **62% of the payload**.
+
+**The driver spawns four units, not five, and it is the corpus that decides.**
+`engine.BuildNextUnits` derives the panel through `roleUnits`, which calls `ResolveActiveCorpus` —
+corpus roles only. `regression` is a reserved built-in that `engine.ParseRoleBytes` refuses as a
+corpus file (`role id %q is reserved for the built-in regression role`). So no `regression` unit
+exists to be spawned.
+
+Per round 4, under `tp run`:
+
+| | Bytes |
+|---|---|
+| Emitted — 4 units × 131,727 | 526,908 |
+| Read — each unit's own prompt | 49,567 |
+| **Never read** | **477,341 (90.6%)** |
+
+**And the regression prompt is emitted to everyone and executed by nobody.** Verified on round 3's
+own merged findings: the role histogram is `tester 13, implementer 11, architect 9, ax-economist 8`
+— **zero regression rows**. Its 82,160 bytes reach four units, are assigned to none, and produce no
+output file. That is a defect in the driver's panel derivation, not in emission; §4.4 says what this
+release does and does not do about it.
+
+A human orchestrator pays the same shape differently: both cycles piped the JSON into a script and
+split it by role, every round. That script re-derives `prompts[].role`, which tp already computed,
+and it is the step most likely to be skipped or mis-written under time pressure.
+
+### 4.2 Mechanism — `--role <name>`
+
+- `tp review <spec> --role <name>` and `tp audit <spec> --role <name>` emit the payload with
+  `prompts[]` reduced to the single entry whose `role` equals `<name>`.
+- **The match set is what this invocation would emit with `--role` removed** — not the corpus, and
+  not the active role set for the phase. The qualifier matters: "what this invocation emits" is
+  circular, because the invocation being described carries the flag whose effect is under
+  definition. Every other argument — the spec, the round, `--perspective`, `--diff-from` — is held
+  fixed, and only `--role` is dropped. The two differ: `regression` is emitted and is in no corpus, and
+  `--perspective testing` emits `test-planner`, which is in neither. Defining the set as "what this
+  invocation emits" is the only definition that holds in all the modes the table below legalises,
+  and it makes `--role regression` — the largest entry in the payload — selectable.
+#### 4.2.1 A recognised name the round does not emit
+
+- **A name the round does not emit but tp recognises is not an error.** It exits **0** with
+  `prompts: []` and the role's own entry present in `skipped_roles`, carrying the reason tp already
+  computes. Only a name tp recognises nowhere — absent from the corpus for either phase, from
+  `skipped_roles`, and from the built-ins — exits **2**, with a hint listing what the invocation
+  would have emitted.
+
+  This split is forced by the driver, not chosen for taste. §4.2.3's brief change makes `--role <id>`
+  a *unit's own first command*, and the unit set and the emitted set are computed by different
+  filters, so they legitimately diverge. `engine.roleUnits` applies domain filtering and the spec's
+  `enabled: false` drop; emission applies those **and** three more skips that
+  `internal/engine/skipped.go` enumerates:
+
+  | Skip reason | Drops a unit? | Drops a prompt? |
+  |---|---|---|
+  | `domain-mismatch` | yes | yes |
+  | `disabled-by-spec` | yes | yes |
+  | `no-checklist-items` | **no** | yes |
+  | `no-spec-change` (under `--diff-from`) | **no** | yes |
+  | `no-baseline` (`regression` at round 1) | n/a — never a unit | yes |
+
+  The two rows in bold are the failure: a corpus role with an empty checklist is spawned as a unit
+  and emits no prompt, so under an exit-2 rule its own brief would fail before it did any work. An
+  earlier draft asserted "the mapping is exact and already exists" without checking, and it is not
+  exact. Exit 0 with an empty `prompts[]` lets that unit finish cleanly and record nothing, which is
+  the correct outcome for a role that had nothing to review.
+
+  **A unit that receives no prompt still creates its findings file, empty.** Without that sentence
+  the exit-0 rule trades one failure for another: `hooks/stop-role-incomplete.sh` fires for every
+  `*-role` unit and applies `spec/0.35.0.md` §3.3's predicate to
+  `$TP_ROUND_DIR/role-$TP_UNIT_ID.ndjson.part`, so a unit that writes nothing at all is refused its
+  first stop. The hook already admits the empty case — its own comment reads "a role with nothing to
+  report writes an empty file and passes" — so no hook change is needed, only the instruction. The
+  refusal is bounded rather than fatal (the hook stands down on `stop_hook_active`), which is why
+  this is a wasted round-trip and a confusing message rather than a hang.
+
+- **The hint enumerates the reason, it does not classify the mistake.** An earlier draft promised
+  "three distinct operator mistakes, three distinct hints" and then ruled on one of the five reasons
+  in the table above. There is no need to invent a taxonomy: the exit-0 case reports tp's own
+  `skipped_roles` reason verbatim, and the exit-2 case has exactly one hint because it has exactly
+  one cause — a name tp does not recognise at all.
+- `--role` takes exactly one value. It is a string flag, not repeatable; `--role ""` is refused as
+  an unknown role rather than treated as absent, so "flag given empty" and "flag absent" are never
+  the same command.
+
+#### 4.2.2 Where the flag is legal
+
+- `--role` is legal wherever prompts are emitted and refused with exit **2** where none are. The
+  refusal is evaluated **before** the mode's own argument validation, so the hint an operator sees
+  names the flag conflict rather than a missing `--findings`. The two commands do not have the same
+  flag sets, so the modes are enumerated separately rather than as "and audit's equivalents":
+
+| Command | `--role` legal in | `--role` refused in |
+|---|---|---|
+| `tp review` | default, `--perspective`, `--diff-from` | `--verify`, `--merge`, `--record`, `--status`, `--report`, `--resolve`, `--resolve-all` |
+| `tp audit` | default only | `--merge`, `--record`, `--status`, `--resolve`, `--resolve-all` |
+
+Verified against the shipped binary: `tp audit` registers no `--perspective`, `--diff-from`,
+`--verify` or `--report`. `--verify` moves to the refused column because it already emits exactly
+one prompt (role `verifier`); `--role` there could only be a no-op or a refusal, and a flag that
+cannot change the output should not be accepted.
+
+#### 4.2.3 The brief that passes it
+
+**The driver must pass it, or the saving is unreachable.** This is the half an earlier draft
+omitted, and without it `--role` repeats `--out-dir`'s mistake in a new shape: `spec/0.35.0.md`
+§3.3.1 fixes the role kinds' brief command as `tp review <spec>` / `tp audit <spec>`, and nothing on
+any path appends a flag to it. So this release also changes `UnitKind.BriefCommand` for
+`review-role` and `audit-role` to emit `tp review <spec> --role <id>` and
+`tp audit <spec> --role <id>`, where `<id>` is the unit's own id — the same value that becomes
+`TP_UNIT_ID` and names `role-<id>.ndjson`.
+
+The flag is passed even though `TP_UNIT_ID` already carries the same value, and that is deliberate:
+the brief is the *interactive* path's instruction too, where no `TP_*` variable is set, and a brief
+that only worked under the driver would leave the operator back at the split script. One string
+serves both, at the cost of one redundant token under `tp run`.
+
+**The id-to-role mapping is not assumed.** An earlier draft called it "exact and already exists";
+the skip table above shows it is not, which is why the exit-0 rule exists and why §6.4 test 15
+asserts the mapping rather than trusting it.
+
+**`review_loop.instruction` is addressed to a caller holding the whole panel, and `--role` makes it
+false.** The key is emitted on every review payload and currently reads, in part: *"For each prompt,
+spawn a sub-agent via the Agent tool… Process the regression prompt first and apply its findings
+before or together with the three role prompts."* A unit invoked with `--role` holds exactly one
+prompt, is not the orchestrator, and has no regression prompt to process first — so the instruction
+tells it to do three things it cannot do. A draft changed what a unit receives and left this key
+untouched, which is how a release breaks a shipped contract it never mentions.
+
+Under `--role`, `review_loop.instruction` therefore addresses the single prompt: it drops the
+spawn-a-sub-agent sentence and the regression-ordering sentence, and keeps the round's convergence
+statement and the path to the spec. Without `--role` the key is unchanged, byte for byte. §6.3 test
+19 pins both directions.
+
+Two things this deliberately does not do. It does not reword the unrestricted instruction — the
+sentence naming "the three role prompts" is stale against a four-role corpus, but that is a
+pre-existing defect and fixing it here would change what every non-`--role` caller reads, which
+Non-Goal 7 forbids. And it does not invent a new key: the same key carries different text under a
+different invocation, which is what it already does across `--perspective` modes.
+
+### 4.3 Who it is for
+
+P1 asks whether a change serves the agent. Under `tp run` at round 4 a role unit receives 131,727
+bytes to read 12,376 of them; with the brief of §4.2.3 it receives only its own. Across the round that
+is 526,908 emitted bytes down to 49,567 — a **90.6%** reduction in bytes handed to units.
+
+P2 asks whether N is as easy as 1. It is: the driver already spawns one process per role and now
+gives each its own brief, so the N case needs no new surface. For a human orchestrator the N case
+becomes one invocation per role instead of one invocation plus a split script — more invocations,
+but no script to write, skip or mis-write.
+
+**`--perspective` is the adjacent knob and is not the same axis.** `--perspective regression` also
+emits exactly one prompt, so the two look alike; they are not. `--perspective` selects a *kind* of
+review with its own prompt builder and its own preconditions, and its four values are fixed in
+`review.go`. `--role` selects one member of whatever panel the current invocation produces. A
+release that added `--perspective <role-name>` would have to make every corpus role a perspective,
+which is the coupling the corpus exists to avoid.
+
+### 4.4 What this release does not fix about the panel
+
+The regression prompt reaching four units and no unit is a **driver** defect: the emitter is right
+and `BuildNextUnits` is short one unit kind. Fixing it means either a `regression` role unit or a
+rule that folds regression into one of the corpus units, and both are new unit-lifecycle surface —
+more than this release's size. Non-Goal 6 records where it should land and that nothing there
+covers it yet.
+
+What this release does change is that the loss stops being silent. With §4.2.3's brief every unit
+receives exactly the roles it was assigned, so a role nobody is assigned is visibly emitted to
+nobody rather than buried inside a payload every unit happens to receive. §6.4 test 17 pins that
+visibility to an exact set, so it cannot quietly change.
+
+### 4.5 Why not `--out-dir`
+
+An earlier draft wrote one `<role>.prompt.md` per prompt into a directory and added a `prompt_path`
+key. It was cut for reasons that were measured, not argued:
+
+1. Its only P1 claim — that under `tp run` "the spawner reads `prompt_path` and passes a file rather
+   than carrying a 75 KB body through its own context" — is false. Verified in
+   `internal/engine/childenv.go`: the child environment carries `TP_RUN_ID`, `TP_ROUND_DIR`,
+   `TP_UNIT_ID` and five others, and **no prompt at all** — neither a body nor a path. The unit
+   calls `tp review` itself. The driver never pays the cost the flag claimed to remove.
+2. It multiplies the waste it was meant to fix. Each of N units still emits the whole panel, so a
+   round with five prompts and four units writes twenty files, sixteen of them redundant.
+3. `prompt_path` carries no information its consumer lacks: the caller passed the directory and
+   `prompts[].role` is on the same object.
+4. `<role>.prompt.md` has no phase discriminator, so a review role and an audit role of the same
+   name collide in one directory.
+
+`--role` answers the same measurement without any of the four — but only with §4.2.3's brief change,
+which is the lesson item 1 should have taught the first time.
+
+## 5. Non-Goals
+
+1. **Sharding a role's checklist.** `spec/0.41.0.md`. This release does not claim to be a
+   precondition for it: sharding is more entries in a `prompts[]` array that already carries N of
+   them, and that file names `spec/0.40.0.md`'s measurement as its real precondition.
+2. **Provisioning an auditor with a way to perturb, or grading the evidence it returns.** §2's
+   clause converts the one class §2.4 names — a defect whose proof needs a code change — into an
+   asserted finding, and `spec/0.42.0.md` owns both the recipe (§9) and the verdict for un-run
+   evidence. §2.4 states the gap rather than closing it.
+3. **Convergence arithmetic.** `spec/0.37.0.md` owns the rule that turns a row set into a verdict.
+4. **Enforcing the isolation constraint on the interactive path.** It gets the instruction, not a
+   fence; a fence there needs a hook that path does not install.
+5. **Admitting a partial file as a complete unit.** §3.1 and §3.3 explain why the predicate is
+   unchanged. No spec owns the question yet and §3.1 declines to name one.
+6. **Giving the `regression` role a unit of its own.** §4.1 measures that its prompt reaches every
+   unit and is executed by none; §4.4 explains why the repair is new unit-lifecycle surface. No spec
+   contains that section today, and §3.1's rule applies here too: this one names no owner either.
+   This release makes the loss visible, not fixed.
+7. **Changing what a round asks.** The checklist items, role rules and output schema are untouched.
+   The prompt does gain two behavioural clauses — that is §2 and §3, and §1 prices them; the claim
+   here is narrower than "nothing changes".
+
+## 6. Tests
+
+### 6.1 Two conditions every test below runs under
+
+**No test may write the repository's review state.** `tp review <spec>` and `tp audit <spec>` take
+the round's snapshot as a side effect — §2.2 records that this spec's own author tripped over it,
+and the tests here invoke those commands many times. A suite that ran against the live tree would
+rewrite `spec/.tp-review/` and advance rounds it does not own, and would do so while reporting
+green.
+
+**`--no-state` is not one of the ways to achieve that, and a draft wrongly offered it as a free
+choice.** It disables review-state reads *and* writes, and the state is the subject: the round
+number, `skipped_roles`, the consecutive-clean count and whether `regression` is appended all come
+from it. A suite run under `--no-state` would pass while measuring a machine that had been switched
+off. The isolation must therefore preserve state behaviour and only relocate it — a temporary state
+directory, or a copy of the tree — and the outcome is fixed rather than the mechanism:
+**`spec/.tp-review/` and `.tp/rounds/` under the repository root are byte-identical before and after
+the suite runs.** §6.4 test 18 owns that assertion, so it is a test with a number rather than a
+property nobody runs.
+
+**There is no cross-version baseline.**
+
+Earlier drafts had tests 5 and 12 compare against "the v0.35.2 payload, obtained by running the
+v0.35.2 emitter in-process". That is not buildable: a `go test` binary compiles one source tree —
+the current one — so the old emitter is not callable from the new one, and the two phrasings the
+draft used — "in-process" here, and a separate binary in the release gate — described different
+harnesses for the same number.
+
+**The comparison does not need a second version, and this spec does not say how to obtain it.** A
+draft did — "the test calls the prompt builder twice, once with the append enabled and once without"
+— and that sentence buys a production toggle whose only false caller is a test. Prescribing the
+harness is how a spec acquires constraints that only code can evaluate, so what follows is the
+property the test must establish, and the implementer chooses the construction:
+
+> For a fixed spec, corpus and state directory, the emitted role prompt equals the same prompt
+> without the clauses, with its trailing newline removed, plus §1's 468-byte suffix — and differs
+> nowhere else.
+
+Both sides of that equality are obtainable from the current tree — how is a task's decision, not
+this spec's.
+
+**What the spec does fix is what must not be committed.** The payload embeds the round number, the
+loop budget, the consecutive-clean count and the `output_path`, so a stored fixture would encode
+this repository's review state on the day it was written and fail on the next recorded round. Any
+construction that pins those four inputs satisfies this; one that reads them from the live
+`spec/.tp-review/` tree does not.
+
+### 6.2 Clause emission
+
+1. The emitted role prompt for `tp review` contains §2.2's clause as an exact byte-equal line, and
+   the same for `tp audit`.
+2. The same, for §3.2's clause.
+3. The prompt body **ends with** exactly `LF LF` + §2.2's clause + `LF LF` + §3.2's clause, and no
+   trailing newline — asserted as a suffix comparison on the whole body, which pins order, position
+   and every separator byte in one assertion and cannot be satisfied by a prompt that merely
+   contains both strings.
+4. Neither clause appears in any prompt whose `output_path` is empty. The mode list is **derived,
+   not enumerated**: the test emits from every value `--perspective` accepts (`documentation`,
+   `testing`, `code-audit`, `regression` — the four `review.go` validates) plus `--verify`, collects
+   every prompt whose `output_path` is empty, and asserts the absence over all of them. An
+   enumeration written by hand missed `regression`, which is exactly the prompt this test exists to
+   classify; deriving the list from the validated set cannot miss a value the code accepts.
+5. Byte cost: the prompt with the clauses appended is exactly **467** bytes longer than the same
+   prompt without them — the −1 trailing newline, two 2-byte separators, and the two clause strings,
+   as §1 tabulates. Both sides come from the same tree per §6.1. Asserted as an exact integer, so
+   rewording either clause, or dropping the strip, fails it.
+
+### 6.3 `--role`
+
+6. `tp review <spec> --role <name>` emits exactly one `prompts[]` entry, whose `role` is `<name>`
+   and whose `prompt` is byte-identical to that role's entry in the unrestricted invocation of the
+   same command. `tp audit` likewise.
+7. `--role regression` emits one prompt at a round where regression is emitted, proving the match
+   set is the emitted set and not the corpus. At round 1, where regression is skipped
+   `no-baseline`, the same command exits **0** with `prompts: []` and `regression` present in
+   `skipped_roles` with that reason — not exit 2. This is the rule §4.2.1 states, and getting it wrong
+   is what would break every unit's brief.
+8. A name tp recognises nowhere exits 2 with a hint listing the names the invocation would have
+   emitted.
+9. Each of the five skip reasons in §4.2.1's table is exercised: `--role <name>` for a role skipped
+   `no-checklist-items`, `no-spec-change`, `domain-mismatch`, `disabled-by-spec` and `no-baseline`
+   each exits 0 with an empty `prompts[]` and that role's reason echoed from `skipped_roles`. The
+   test builds a fixture per reason rather than asserting the two the driver happens to produce
+   today.
+10. `--role` with each refusing mode in §4.2.2's table exits 2 with a hint naming both flags — run per
+    command against that command's own list. Where the mode's own arguments can be omitted the case
+    is run without them, which makes it discriminating: it fails if the flag conflict is checked
+    after argument validation. Where the mode cannot parse without them (`--record`, `--resolve`,
+    `--resolve-all` take a positional) the arguments are supplied and the test asserts the hint
+    names `--role`, since precedence cannot be observed there.
+11. `--role` with `--perspective` and with `--diff-from` exits 0 and emits one prompt. `tp review`
+    only; `tp audit` has none of those flags. `--verify` is not in this list — it is in test 10's,
+    per §4.2.
+12. Without `--role`, the payload differs from the same tree's pre-clause emission only by the
+    468-byte suffix inside each `prompts[].prompt` — §6.1's property, not a cross-version
+    comparison. 468 is the suffix; 467 is the net delta test 5 asserts. §1's table separates them.
+13. **Nothing is lost across the whole panel.** The per-role invocations' entries, concatenated in
+    the *unrestricted* payload's own order, equal that payload's `prompts[]`. Order is taken from
+    the unrestricted payload rather than from the sequence the invocations were made in, which the
+    caller controls and which would make the assertion satisfiable by construction. This is the test
+    that catches suppression: a role that stops being emitted, or an entry that changes when
+    selected alone, fails it. Run for `tp review` and for `tp audit`.
+14. Test 13 again, run against **every spec in `spec/` the repository can emit prompts for**, not
+    only a fixture. §7 says why breadth is the part a fixture cannot supply.
+
+### 6.4 The driver's brief
+
+15. `tp resume`'s `next_units[].brief_command` for a `review-role` unit is
+    `tp review <spec> --role <id>` with `<id>` equal to the unit's own id, and the `audit-role`
+    equivalent. Asserted against `engine.BuildNextUnits` directly, and end-to-end through
+    `tp run --dry-run`.
+16. **Every unit's own brief runs.** For each unit `BuildNextUnits` returns, execute its
+    `brief_command` and assert exit 0 — under a fixture where a corpus role is skipped
+    `no-checklist-items`, so the divergence §4.2.1's table names is present rather than hypothetical.
+    An earlier draft asserted instead that "every role the round emits either has a unit or is
+    absent from the units list", which is a tautology over any two sets and passes on an
+    implementation that spawns nothing.
+17. The emitted role set minus the unit set equals exactly `{regression}` on a round where
+    regression is emitted, asserted as set equality rather than as a difference being non-empty.
+    That is §4.4's visibility pinned to a value, so a future release that adds a regression unit
+    fails this test and has to update it deliberately.
+18. **The suite writes no review state.** `spec/.tp-review/` and `.tp/rounds/` under the repository
+    root hash identically before and after the whole suite runs. Asserted as a directory hash, not
+    per file, so a file the suite creates fails it as loudly as a file it edits. This is §6.1's
+    first condition, owned by a numbered test rather than left as prose.
+19. **`review_loop.instruction` matches what the caller holds.** With `--role`, it carries neither
+    the spawn-a-sub-agent sentence nor the regression-ordering sentence, and still names the spec
+    path and the convergence statement. Without `--role`, it is byte-identical to v0.35.2's. Both
+    directions are asserted, because only the pair distinguishes "addressed the single prompt" from
+    "stopped emitting the key".
+
+## 7. Release gate
+
+Every mechanism in this release hides, regroups or narrows what a reviewer sees — `--role` most of
+all — which is the shape that cost v0.34.0 §7.1 eight rounds of suppressed findings. So the release
+is gated, and the gate is **§6 test 14**: the whole-panel equality of test 13, run against every
+spec in the repository rather than a fixture. Failing it blocks the release.
+
+**Breadth is the only thing this adds, and the claim is measured rather than assumed.** A draft
+justified it with "the repository has specs with deactivated roles, with domain frontmatter, with
+empty checklists" — checked: **zero** specs carry `enabled: false` and **zero** carry a `domain`, so
+that sentence was invented, and it was the section's whole argument. What the repository does supply
+is narrower and real: **22 version specs, 5 KB to 79 KB, 15 with recorded rounds and 7 with none** —
+so the corpus exercises both sides of the one skip reason that is round-dependent (`regression`,
+skipped `no-baseline` at round 1 and emitted after), across section structures no fixture author
+would think to write. The other four skip reasons do not occur here and must be built as fixtures;
+§6.3 test 9 owns them. Breadth buys the shapes, not the skips.
+
+**Why this section is three paragraphs and not a procedure.** Three drafts specified the gate as its
+own mechanism — a replay of recorded rounds, then a per-spec comparison with a cost model and a
+scope predicate — and each drew more findings than the last: 3, then 8, then 11 across rounds 3 to
+5, while §2, the release's actual clause, went 11 → 2 → 1 over the same rounds. The section that was
+diverging was the one describing *how to verify* rather than *what must be true*, which is the
+distinction §6.1 applies to the tests and this paragraph applies to itself. The gate's content is a
+test; the procedure was surface.
+
+Two things earlier drafts required are recorded here as measured dead ends, so they are not
+re-proposed. **Replaying recorded rounds does not work**: all 145 recorded review rounds under
+`spec/.tp-review/` have a snapshot, but for 35 of them (24%) the snapshot's sha256 does not equal
+the `spec_hash` that round recorded — tp refreshes a snapshot when the spec changes, so a quarter of
+the corpus is not the text its round reviewed, and a gate reading it as history compares against the
+wrong spec and reports clean. **Checking that each finding's class still reaches its role does not
+work either**: it needs a `class` → checklist-item mapping that exists nowhere in tp, and 303 of the
+corpus's 2,802 recorded rows (10.8%) carry no `role` or `class` at all.
