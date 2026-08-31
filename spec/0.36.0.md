@@ -30,7 +30,7 @@ not because every half serves both.
 ### 1.1 What it costs
 
 **467 bytes per role prompt.** The arithmetic is written out because §6.2 property 3
-fixes it as an exact integer, and an earlier draft stated 468 — one more than its own construction
+fixes the suffix it derives from, and an earlier draft stated 468 — one more than its own construction
 in §2.3 produces:
 
 | | Bytes |
@@ -50,8 +50,9 @@ Two later drafts tried to legislate against that drift — first an index naming
 which figure, then a rule that every later use must write "suffix" or "net delta" beside the number.
 The index was wrong at half its entries the round it was written; the rule was violated in the same
 round. Both were documents about the document, and both drifted faster than the thing they guarded.
-There is no third attempt: this table is the derivation, and §6.2 property 3 fixes the net delta as an
-integer, which is the only guard that runs.
+There is no third attempt: this table is the derivation. §6.2 property 3 fixes the **suffix** at 468
+bytes, which is the figure an assertion can reach; 467 is this table's arithmetic on it and no
+property asserts it separately.
 
 The −1 is not optional and not cosmetic: measured on this spec's own emission, every role prompt
 body ends with `\n`, so a construction that appends without stripping produces a blank line and a
@@ -516,9 +517,11 @@ own workflow already puts them.
 
 ### 6.1 Conditions on the suite as a whole
 
-**S1. The suite neither reads nor writes the repository's live review state.** Two halves, and a
-draft stated only the first: `spec/.tp-review/` and `.tp/rounds/` are byte-identical after the suite
-runs **and** unchanged throughout it. The second half is load-bearing because properties 7 and 8
+**S1. The suite does not write the repository's live review state.** It must *read* it — property 8
+emits from every spec in the repository, and a draft that said "neither reads nor writes" made the
+release gate unsatisfiable by its own precondition. What is forbidden is mutation:
+`spec/.tp-review/` and `.tp/rounds/` are byte-identical after the suite runs **and** unchanged
+throughout it. The second half is load-bearing because properties 7 and 8
 compare emissions across separate invocations, and a panel that shifted between them — a round
 advancing, `regression` starting or stopping being appended — would make those comparisons fail or
 pass for reasons that have nothing to do with `--role`. The tests
@@ -544,22 +547,34 @@ it was written and fail on the next recorded round. Those four inputs are pinned
 2. No prompt whose `output_path` is empty contains either clause. The modes that produce such a
    prompt are derived from what the code accepts — every `--perspective` value `review.go`
    validates, plus `--verify` — not from a list written here.
-3. The 468 bytes are the whole change: strip the suffix property 1 fixes from an emitted body and
-   the remainder contains neither clause string and ends with the newline §2.3 removes. This is
-   decidable from **one** emission — the pre-clause body is the emitted body minus its last 468
-   bytes plus that newline — which is why it needs neither a second version nor a build-time toggle,
-   the two constructions §6.3 records as withdrawn. (467 is the net delta of §1.1's table; 468 is
-   the suffix. The arithmetic is derivation, not a second measurement.)
+3. The 468 bytes are the whole change, decidable from **one** emission: an emitted body's last 468
+   bytes are property 1's suffix, and the remainder is the pre-clause body with its trailing newline
+   already removed — so restoring that one byte reconstructs it. No second version and no build-time
+   toggle, the two constructions §6.3 records as withdrawn. A draft also said the remainder "ends
+   with the newline §2.3 removes", which contradicts §2.3 in the same sentence: the strip is what
+   §2.3 does, so the remainder is exactly what it leaves.
+
+   **The negative form is asserted on a fixture spec, not on a live one.** "The remainder contains
+   neither clause string" is forgeable by the document under review — tp embeds changed spec
+   sections verbatim, so a round in which §2.2 or §3.2 changed puts those strings in the body
+   legitimately. Measured on this round's own emission the count is zero, so the hazard is latent
+   rather than live, which is precisely when it is cheapest to fence. The fixture spec quotes
+   neither clause. (467 is §1.1's net delta; 468 is the suffix this property fixes.)
 
 #### 6.2.2 `--role`
 
 4. `--role <name>` emits exactly one `prompts[]` entry, byte-identical to that role's entry in the
-   otherwise identical invocation without the flag. Every other top-level key is unchanged **except
-   `review_loop.instruction`**, which property 12 requires to change: `review_loop` is a top-level
-   key, so a draft that said "every other top-level key unchanged" contradicted property 12
-   outright, and three reviewers reported it in one round.
-5. A name tp recognises but the round does not emit exits **0** with `prompts: []` and that role's
-   reason echoed from `skipped_roles`. A name tp recognises nowhere exits **2**, with a hint naming
+   otherwise identical invocation without the flag. Every other top-level key is unchanged, and
+   `review_loop` is unchanged **except its `instruction` member**, which property 12 governs — the
+   exception is stated at the member's granularity because the rule quantifies over keys and
+   `review_loop` is one of them. A draft said "every other top-level key unchanged" with no
+   exception at all and contradicted property 12 outright; its successor granted the exception at
+   the wrong level and left `review_loop`'s other members unconstrained.
+5. A name tp recognises but the round does not emit exits **0** with `prompts: []`, and in the
+   default mode that role's reason is echoed from `skipped_roles`. Measured: the `--perspective`
+   and `--verify` payloads carry no `skipped_roles` key at all, so there the exit is 0 with an empty
+   `prompts[]` and no reason to echo — a draft required the echo everywhere and made the branch
+   unsatisfiable in four of the five modes §4.2.2 legalises. A name tp recognises nowhere exits **2**, with a hint naming
    what the invocation would have emitted. §4.2.1's five reasons are a union across both commands,
    not a matrix either one can produce: `no-baseline` is `tp review`'s built-in regression role and
    `no-spec-change` needs `--diff-from`, which `tp audit` does not have. Each reason is exercised on
