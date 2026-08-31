@@ -44,6 +44,33 @@ npx skills add -g deligoez/tp
 npx skills update -g
 ```
 
+### Claude Code plugin (optional)
+
+The skill above teaches the agent tp's workflow. The **plugin** adds what has to be true inside an
+agent process: the brief arrives at session start, the scope fence is denied rather than requested,
+and a role unit cannot stop before writing its findings. Install it if you use `tp run` or the
+review/audit role units.
+
+```bash
+claude plugin marketplace add deligoez/tp
+claude plugin install tp@tp
+```
+
+It ships the same `skills/tp`, so install **either** the plugin or the `npx skills` package, not
+both — the plugin's copy is the one that stays in step with `hooks/` and `agents/`. To switch, run
+`npx skills remove -g tp` after installing the plugin.
+
+The binary is not inside the plugin: a marketplace is a git repository, so tp itself still comes
+from Homebrew or `go install`. The `SessionStart` hook preflights tp's presence and version and
+fails with the install command rather than degrading quietly, so a plugin newer than the installed
+binary tells you so instead of misbehaving.
+
+Verify what got installed — component inventory and its token cost — with:
+
+```bash
+claude plugin details tp@tp
+```
+
 ## Quick Start
 
 ```bash
