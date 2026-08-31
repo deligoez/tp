@@ -1,0 +1,65 @@
+# Functions already over the cognitive-complexity threshold when the ratchet
+# was introduced (v0.35.3, threshold 22). scripts/check-complexity.sh fails on
+# anything NOT listed here, so this file is the debt: it is meant to shrink,
+# and a function that improves must be deleted from it.
+#
+# The four worst are all in internal/cli/done.go and are the natural first
+# target: runDoneBatch 143, runDoneMulti 110, runDoneSingle 106,
+# toposortBatchEntries 70.
+#
+# format: <package> <function>
+
+cli addTasks
+cli buildFindingsSummary
+cli buildReviewPrompts
+cli checkAffectedFilesScope
+cli computeReport
+cli computeRoundStats
+cli computeSeverityBreakdown
+cli loadAuditMergeRows
+cli newAuditCmd
+cli newReviewCmd
+cli printReportTTY
+cli rankFilesBySpecTerms
+cli runClaim
+cli runClose
+cli runCommit
+cli runConfigExtract
+cli runDone
+cli runDoneBatch
+cli runDoneMulti
+cli runDoneSingle
+cli runGraph
+cli runImport
+cli runNext
+cli runPlan
+cli runReady
+cli runRemove
+cli runReviewRecord
+cli runReviewRegression
+cli runReviewResolve
+cli runReviewStatus
+cli runReviewVerify
+cli runSet
+cli runSetBulk
+cli runSetLocal
+cli runSetProjectWorkflow
+cli runSetWorkflow
+cli runStats
+cli selectBriefTarget
+cli toposortBatchEntries
+cli validateModeFlags
+cli validateReviewInputs
+engine (*Frontmatter).parseRoleOverrides
+engine CheckOrphanListItems
+engine CheckStructuredElements
+engine ComputeParallelismLevels
+engine ExtractTableRows
+engine largestListRun
+engine LoadLocalConfig
+engine parseWorkflowOverride
+engine topoOrderSubset
+engine TopoSort
+engine Validate
+engine ValidateLineCoverage
+model (*Task).UnmarshalJSON
