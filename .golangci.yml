@@ -14,6 +14,15 @@ linters:
     - dupl
 
   settings:
+    # funlen is deliberately NOT in `enable` above: scripts/check-complexity.sh
+    # runs it on its own (--default=none --enable=funlen) against a committed
+    # baseline, because 71 production functions are over these thresholds today.
+    # The numbers are pinned here rather than left to golangci-lint's defaults
+    # so that a change to those defaults cannot silently invalidate that
+    # baseline — the gocognit half of the same script pins its threshold too.
+    funlen:
+      lines: 60
+      statements: 40
     gocritic:
       enabled-tags:
         - diagnostic
