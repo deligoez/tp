@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -205,6 +206,65 @@ func TestRoleWriteHookStaysCheapOnADeepMissingPath(t *testing.T) {
 	require.Less(t, deepCost, 3*shallowCost,
 		"the ancestor walk must be bounded (deep %v vs shallow %v): an unbounded one lets the runtime kill the hook past its declared timeout, and a killed PreToolUse hook denies nothing",
 		deepCost, shallowCost)
+}
+
+// TestRoleWriteHookReadsTheMCPPathArgument pins the half of the v0.35.2 fence
+// repair that a matcher change alone would not deliver.
+//
+// The hook extracts the target from `file_path` and `notebook_path`, the names
+// the four native editors use. codedbpro — the toolset this repository routes
+// every agent to, because the native editors are blocked at the user level —
+// names it `file`. So before this repair the hook found no path in an MCP
+// payload, and a payload with no path is allowed: adding the MCP tools to the
+// matcher would have sent them to a hook that still waved them through.
+//
+// That is the shape this project keeps having to relearn — a change that looks
+// like a fix and discriminates nothing — so the two halves get one test each
+// rather than a single test that could pass on either.
+func TestRoleWriteHookReadsTheMCPPathArgument(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "real")
+	round := filepath.Join(root, "rounds", "review-r1")
+	run := filepath.Join(root, "runs", "01JB0000000000000000000000")
+	require.NoError(t, os.MkdirAll(round, 0o755))
+	require.NoError(t, os.MkdirAll(run, 0o755))
+
+	env := []string{
+		"TP_ROUND_DIR=" + round,
+		"TP_RUN_DIR=" + run,
+		"TP_UNIT_ID=implementer",
+		"TP_UNIT_KIND=review-role",
+		"TP_UNIT_SEQ=3",
+	}
+	script := filepath.Join(repoRoot(t), "hooks", "pre-tool-use-role-write-allow.sh")
+
+	// The payload shape is codedbpro's: the target is `file`, not `file_path`.
+	probe := func(tool, path string) int {
+		cmd := exec.Command(script) //nolint:gosec // a fixed path inside the repo under test
+		cmd.Env = env
+		cmd.Dir = root
+		cmd.Stdin = strings.NewReader(
+			fmt.Sprintf(`{"tool_name":%q,"tool_input":{"file":%q}}`, tool, path))
+		if err := cmd.Run(); err != nil {
+			var exitErr *exec.ExitError
+			require.ErrorAs(t, err, &exitErr, "the hook must exit rather than fail to start")
+			return exitErr.ExitCode()
+		}
+		return 0
+	}
+
+	own := filepath.Join(round, "role-implementer.ndjson.part")
+	assert.Equal(t, 0, probe("mcp__codedbpro__create", own),
+		"the unit's own findings file is its one permitted write, whichever tool spells the path")
+
+	for _, tool := range []string{
+		"mcp__codedbpro__create", "mcp__codedbpro__edit",
+		"mcp__codedbpro__patch", "mcp__codedbpro__replace",
+	} {
+		assert.Equal(t, 2, probe(tool, filepath.Join(repoRoot(t), "internal", "cli", "audit.go")),
+			"%s must not reach a source file: the fence reads `file`, not only `file_path`", tool)
+		assert.Equal(t, 2, probe(tool, filepath.Join(round, "role-tester.ndjson.part")),
+			"%s must not reach another role's findings file", tool)
+	}
 }
 
 // runRoleWriteHookAt runs the shipped hook with cwd at dir and returns its exit

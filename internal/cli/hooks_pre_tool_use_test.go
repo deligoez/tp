@@ -21,7 +21,23 @@ const preToolUseHookPath = "hooks/pre-tool-use-write-deny.sh"
 // tools that must stay outside it: the denial exists to stop hand-editing, not
 // to sandbox, and tp's own commands rewrite the fenced files through a shell.
 var (
-	writeTools = []string{"Write", "Edit", "MultiEdit", "NotebookEdit"}
+	// writeTools is every tool that can put bytes on disk and must therefore
+	// reach both fences. The four native editors were the whole list until
+	// v0.35.2, when a `tp run` round showed the gap: this repository blocks the
+	// native editors at the user level and routes every agent to codedbpro, so
+	// each of the four role units did its work through MCP tools that neither
+	// matcher named. A fence that covers only the tools an agent is configured
+	// not to use is decoration.
+	//
+	// The MCP readers are deliberately absent. codedbpro's read and create both
+	// take a `file` argument, so the field cannot separate them and the tool
+	// name is the only discriminator; matching the readers would extract their
+	// path, find it is not the unit's permitted one, and deny every read.
+	writeTools = []string{
+		"Write", "Edit", "MultiEdit", "NotebookEdit",
+		"mcp__codedbpro__create", "mcp__codedbpro__edit",
+		"mcp__codedbpro__patch", "mcp__codedbpro__replace",
+	}
 	shellTools = []string{"Bash", "BashOutput", "KillShell", "Read", "Glob", "Grep", "Task"}
 )
 
