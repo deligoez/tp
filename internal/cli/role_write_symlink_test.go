@@ -1,12 +1,14 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -116,6 +118,93 @@ func TestRoleWriteHookAllowsAcrossASymlinkedRootBeforeTheRoundDirExists(t *testi
 	code, _ = runRoleWriteHookAt(t, target,
 		env, filepath.Join(physicalRound, "role-tester.ndjson.part"))
 	require.Equal(t, 2, code, "another role's file is still denied")
+}
+
+// TestRoleWriteHookStaysCheapOnADeepMissingPath bounds the cost of the ancestor
+// walk the test above needs.
+//
+// Each step of the walk costs a subshell, so an unbounded walk makes the hook's
+// cost linear in path depth. That is not a mere slowdown: the plugin declares a
+// 10-second timeout for this hook, and a PreToolUse hook the runtime kills does
+// NOT exit 2 — so past the bound an allowlist fails OPEN, which is the one
+// direction a fence must never fail. Found by audit round 7, which measured a
+// 490-component path at 8.2s alone and 11.0s beside the four concurrent role
+// siblings a `tp run` round actually spawns.
+//
+// The assertion is a RATIO against a shallow path, not a wall-clock deadline,
+// and that is the whole design of this test. An absolute deadline measures the
+// machine as much as the hook: the unbounded walk cost 0.22s on an idle machine
+// and 5.2s with four agents running, so a deadline either passes when it should
+// fail or fails when the machine is merely busy. Both halves here are measured
+// back to back and share whatever load exists, so the ratio cancels it out.
+// Unbounded, deep costs ~6x shallow; bounded, the two are within noise.
+func TestRoleWriteHookStaysCheapOnADeepMissingPath(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "real")
+	require.NoError(t, os.MkdirAll(root, 0o755))
+
+	// Single-character components on purpose. The walk is bounded by path
+	// DEPTH, but `dirname` refuses a path longer than PATH_MAX and returns
+	// empty, which ends the walk after one step — so a fixture built from
+	// wider components silently stops measuring the thing it is named for.
+	// That is not hypothetical: the first version of this test used five-byte
+	// components, came to 2494 bytes, and passed while the defect was live.
+	deep := root
+	for i := 0; i < 440; i++ {
+		deep = filepath.Join(deep, string(rune('a'+i%26)))
+	}
+	require.Less(t, len(deep), 1000,
+		"the fixture must stay under PATH_MAX or dirname ends the walk before it starts")
+
+	env := []string{
+		"TP_ROUND_DIR=" + filepath.Join(root, "rounds", "review-r1"),
+		"TP_RUN_DIR=" + filepath.Join(root, "runs", "01JB0000000000000000000000"),
+		"TP_UNIT_ID=implementer",
+		"TP_UNIT_KIND=review-role",
+		"TP_UNIT_SEQ=3",
+	}
+
+	// The script path is resolved ONCE, outside the timing loop. Going through
+	// runRoleWriteHookAt would call repoRoot on every invocation, and that
+	// fixed ~80ms swamps the ~100ms the walk costs — measured, and it made the
+	// deep case look faster than the shallow one.
+	script := filepath.Join(repoRoot(t), "hooks", "pre-tool-use-role-write-allow.sh")
+
+	// Fastest of three: contention only ever adds time, so the minimum is the
+	// honest estimate of what each case costs.
+	best := func(path string) (time.Duration, int) {
+		fastest, code := time.Hour, 0
+		for i := 0; i < 3; i++ {
+			cmd := exec.Command(script) //nolint:gosec // a fixed path inside the repo under test
+			cmd.Env = env
+			cmd.Dir = root
+			cmd.Stdin = strings.NewReader(
+				fmt.Sprintf(`{"tool_name":"Write","tool_input":{"file_path":%q}}`, path))
+			start := time.Now()
+			err := cmd.Run()
+			elapsed := time.Since(start)
+			var exitErr *exec.ExitError
+			if errors.As(err, &exitErr) {
+				code = exitErr.ExitCode()
+			} else {
+				require.NoError(t, err, "the hook must exit rather than fail to start")
+				code = 0
+			}
+			if elapsed < fastest {
+				fastest = elapsed
+			}
+		}
+		return fastest, code
+	}
+
+	deepCost, deepCode := best(filepath.Join(deep, "role-implementer.ndjson.part"))
+	// Same shape, same verdict, one level of missing directory instead of 490.
+	shallowCost, _ := best(filepath.Join(root, "rounds", "review-r1", "role-tester.ndjson.part"))
+
+	t.Logf("MEASURED deep=%v shallow=%v", deepCost, shallowCost)
+	require.Equal(t, 2, deepCode, "a path outside the unit is denied however deep it is")
+	require.Less(t, deepCost, 3*shallowCost,
+		"the ancestor walk must be bounded (deep %v vs shallow %v): an unbounded one lets the runtime kill the hook past its declared timeout, and a killed PreToolUse hook denies nothing",
+		deepCost, shallowCost)
 }
 
 // runRoleWriteHookAt runs the shipped hook with cwd at dir and returns its exit

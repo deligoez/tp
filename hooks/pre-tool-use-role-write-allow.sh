@@ -63,24 +63,51 @@ cwd=$PWD
 #
 # Walking up cannot widen the allowlist: the unresolved components are appended
 # to the resolved ancestor unchanged, so two paths still compare equal only when
-# they name the same file. A path with no enterable ancestor at all echoes
-# unchanged, leaving the textual comparisons below as the only ones that match.
+# they name the same file. A path with no enterable ancestor within the bound
+# echoes unchanged, leaving the textual comparisons below as the only ones that
+# match - which is exactly what this hook did before the walk existed.
+#
+# The bound is not decoration. Each step costs a subshell, so an unbounded walk
+# makes the hook linear in path depth: a 440-component path measured 3.7s here
+# against the 10-second timeout the agent definitions declare, and past that
+# timeout the runtime kills the hook - which does NOT exit 2, so an allowlist
+# fails OPEN. Eight steps is far more than the real case needs: under `tp run`
+# the driver creates the round directory before spawning, so the miss is the
+# leaf, and a missing round directory is two or three. Splitting with parameter
+# expansion rather than dirname/basename keeps each step to the one subshell
+# `cd` needs instead of three.
+physical_path_climb_max=8
+
 physical_path() {
-	pp_dir=$(dirname "$1")
-	pp_rest=$(basename "$1")
-	while :; do
+	pp_rest=${1##*/}
+	pp_dir=${1%/*}
+	if [ "$pp_dir" = "$1" ]; then
+		pp_dir=.
+	elif [ -z "$pp_dir" ]; then
+		pp_dir=/
+	fi
+
+	pp_climb=0
+	while [ "$pp_climb" -le "$physical_path_climb_max" ]; do
 		if pp_real=$(cd "$pp_dir" 2>/dev/null && pwd -P); then
 			printf '%s/%s' "$pp_real" "$pp_rest"
 			return
 		fi
-		pp_up=$(dirname "$pp_dir")
+		case $pp_dir in
+		/ | .) break ;;
+		esac
+		pp_rest="${pp_dir##*/}/$pp_rest"
+		pp_up=${pp_dir%/*}
 		if [ "$pp_up" = "$pp_dir" ]; then
-			printf '%s' "$1"
-			return
+			pp_dir=.
+		elif [ -z "$pp_up" ]; then
+			pp_dir=/
+		else
+			pp_dir=$pp_up
 		fi
-		pp_rest="$(basename "$pp_dir")/$pp_rest"
-		pp_dir=$pp_up
+		pp_climb=$((pp_climb + 1))
 	done
+	printf '%s' "$1"
 }
 
 # same_path reports whether the path a tool named is the permitted one. The
