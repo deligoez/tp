@@ -44,5 +44,17 @@ run:
   timeout: 5m
 
 issues:
-  max-issues-per-linter: 50
-  max-same-issues: 3
+  # No truncation. The gate requires 0 issues, so a cap can never let a run
+  # pass that would otherwise fail — it can only hide work from the person
+  # fixing it: with the old 50/3, introducing 60 issues showed 50, and fixing
+  # those 50 looked like finishing. Both were measured as inert today (0 issues
+  # either way) and removed as a latent trap rather than a live one.
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  # One issue per line is golangci-lint's default and it silently drops the
+  # second linter to report on the same line. gocognit and funlen both report on
+  # the function declaration line: measured here, funlen alone finds 89 and
+  # funlen alongside gocognit finds 58 — 31 swallowed. Neither is enabled in
+  # this file (scripts/check-complexity.sh runs them), so this is defence for
+  # any future pair that shares a line.
+  uniq-by-line: false
