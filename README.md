@@ -56,8 +56,16 @@ claude plugin marketplace add deligoez/tp
 claude plugin install tp@tp
 ```
 
+Update it with:
+
+```bash
+claude plugin update tp@tp
+```
+
 It ships the same `skills/tp`, so install **either** the plugin or the `npx skills` package, not
-both — the plugin's copy is the one that stays in step with `hooks/` and `agents/`. To switch, run
+both. Claude Code namespaces a plugin skill (`/tp:tp`) separately from a standalone one (`/tp`), so
+both load rather than one overriding the other — two entries for the same skill, kept up to date by
+two different commands. Pick the plugin if you use Claude Code; it is the superset. To switch, run
 `npx skills remove -g tp` after installing the plugin.
 
 The binary is not inside the plugin: a marketplace is a git repository, so tp itself still comes
