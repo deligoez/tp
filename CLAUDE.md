@@ -214,10 +214,25 @@ complete, a dropped role merging clean, exit codes that cannot separate a typo f
 under 25 distinct class slugs. `spec/0.35.0-candidates.md` §0 names what v0.34.1 and v0.34.2 already
 closed and what moved to a spec — read it first so nothing gets re-opened or claimed twice.
 
-**v0.36.0's own hazard is suppression, and its §8 is a release gate rather than a test appendix.**
-Every mechanism in it hides, regroups or narrows what reviewers see, which is exactly what burned
-v0.34.0 §7.1 for eight rounds. Nothing there ships until it is replayed against the recorded rounds
-in `spec/.tp-review/` and shown not to lose a finding tp used to surface.
+**v0.36.0's own hazard is suppression, and it is gated — but not by a replay.** Every mechanism in
+it hides, regroups or narrows what reviewers see, which is exactly what burned v0.34.0 §7.1 for
+eight rounds. This file used to require that nothing ship until the release was "replayed against
+the recorded rounds in `spec/.tp-review/`". **That instruction was measured and is impossible**, so
+it is withdrawn rather than left as a standing demand no cycle can meet: all 145 recorded review
+rounds have a snapshot, but for **35 of them (24%)** the snapshot's sha256 does not equal the
+`spec_hash` that round recorded — tp refreshes a snapshot when the spec changes, so a quarter of the
+corpus is not the text its round reviewed and a replay compares against the wrong spec and reports
+clean. A second variant, checking that each recorded finding's `class` still reaches its role, needs
+a `class` → checklist-item mapping that exists nowhere in tp, and **303 of 2,802 recorded rows
+(10.8%)** carry no `role` or `class` at all.
+
+The gate that replaced it is a test, not a procedure: the per-role emissions, concatenated in the
+unrestricted payload's order, must equal that payload — run against every spec in the repository
+rather than a fixture (`spec/0.36.0.md` §6 test 14, §7). The lesson generalises and is worth keeping
+when the next release writes a gate: **three drafts specified this one as its own mechanism and each
+drew more findings than the last — 3, then 8, then 11 across rounds 3–5, while §2, the release's
+actual clause, went 11 → 2 → 1.** The section that was diverging was the one describing *how to
+verify* rather than *what must be true*.
 
 `spec/feedback.md` is gone: every finding it held now has an owner. Field feedback should land in the
 spec that will answer it, not in a file nobody is required to read.
