@@ -288,7 +288,7 @@ else
 fi
 
 printf '%s\n' \
-	"tp unit not finished: a $TP_UNIT_KIND unit ends in its findings file, and $reason (v0.35.0 §6.2)." \
+	"tp unit not finished: this $TP_UNIT_KIND unit ends in its findings file, and $reason (v0.35.0 §6.2)." \
 	'Write one JSON object per line to that file and stop again. A role with nothing to report writes an empty file, which passes.' \
 	'If what you need is a decision only the operator can make, run `tp escalate --decision <name> --evidence <text>` instead; that ends the unit legitimately.' >&2
 exit 2
