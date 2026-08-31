@@ -205,3 +205,49 @@ func TestPluginValidatesWithClaudeCLI(t *testing.T) {
 	out, runErr := cmd.CombinedOutput()
 	require.NoError(t, runErr, "claude plugin validate --strict failed:\n%s", out)
 }
+
+// TestMarketplaceEntryDoesNotDoubleDeclareComponents guards the one manifest
+// error `claude plugin validate` cannot see.
+//
+// With `strict: false` the runtime discovers components by convention from the
+// directories beside plugin.json — skills/, hooks/, agents/. A marketplace
+// entry that ALSO lists any of them declares the same component twice, and the
+// runtime refuses to load the plugin at install time with "conflicting
+// manifests: both plugin.json and marketplace entry specify components".
+//
+// v0.35.0 shipped exactly that: the entry carried `"skills": ["./skills/tp"]`
+// beside `"strict": false`. Validation passed, the install reported success,
+// and the plugin then failed to load — so none of the hooks or agents this
+// version exists to ship were ever active. The lesson is the one this repo
+// keeps relearning: `claude plugin validate` checks the manifest's shape, not
+// whether the plugin loads, so a green validate is not evidence of a working
+// plugin. `claude plugin install` is the experiment that can fail.
+func TestMarketplaceEntryDoesNotDoubleDeclareComponents(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join(repoRoot(t), ".claude-plugin", "marketplace.json"))
+	require.NoError(t, err)
+
+	var manifest struct {
+		Plugins []map[string]any `json:"plugins"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &manifest))
+	require.NotEmpty(t, manifest.Plugins, "the marketplace lists at least one plugin")
+
+	// The keys the runtime treats as component declarations.
+	component := []string{"skills", "hooks", "agents", "commands", "mcpServers"}
+
+	for _, entry := range manifest.Plugins {
+		strict, _ := entry["strict"].(bool)
+		if strict {
+			// Under strict the entry is the only source, so listing is required
+			// rather than duplicated — but then it must list everything shipped.
+			continue
+		}
+		for _, key := range component {
+			assert.NotContains(t, entry, key,
+				"marketplace entry %q declares %q while strict is false, so the runtime "+
+					"sees it declared twice (convention discovery + this entry) and refuses "+
+					"to load the plugin; drop the key and let the directory be discovered",
+				entry["name"], key)
+		}
+	}
+}
