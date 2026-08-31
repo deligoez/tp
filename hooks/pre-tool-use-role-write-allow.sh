@@ -50,17 +50,37 @@ cwd=$PWD
 
 # physical_path echoes a path with its DIRECTORY resolved through symlinks. The
 # file itself is usually the one about to be created, so it cannot be resolved -
-# but its directory exists, and `cd ... && pwd -P` is the POSIX way to get the
-# physical form. A directory that cannot be entered echoes the path unchanged,
-# which leaves the textual comparisons below as the only ones that can match.
+# but some ancestor of it exists, and `cd ... && pwd -P` is the POSIX way to get
+# the physical form of that ancestor.
+#
+# It walks up to the nearest ancestor that can be entered rather than requiring
+# the immediate parent, because resolving only the parent makes the whole
+# reconciliation conditional on the round directory already existing. Under
+# `tp run` it does - the driver creates it in prepare(), before spawnAll() - so
+# the narrower version denied nothing live. What it did do is make this repo's
+# own suite pass or fail on whether the checkout path traverses a symlink, and a
+# test that passes for a reason unrelated to the code is not evidence about it.
+#
+# Walking up cannot widen the allowlist: the unresolved components are appended
+# to the resolved ancestor unchanged, so two paths still compare equal only when
+# they name the same file. A path with no enterable ancestor at all echoes
+# unchanged, leaving the textual comparisons below as the only ones that match.
 physical_path() {
 	pp_dir=$(dirname "$1")
-	pp_base=$(basename "$1")
-	if pp_real=$(cd "$pp_dir" 2>/dev/null && pwd -P); then
-		printf '%s/%s' "$pp_real" "$pp_base"
-	else
-		printf '%s' "$1"
-	fi
+	pp_rest=$(basename "$1")
+	while :; do
+		if pp_real=$(cd "$pp_dir" 2>/dev/null && pwd -P); then
+			printf '%s/%s' "$pp_real" "$pp_rest"
+			return
+		fi
+		pp_up=$(dirname "$pp_dir")
+		if [ "$pp_up" = "$pp_dir" ]; then
+			printf '%s' "$1"
+			return
+		fi
+		pp_rest="$(basename "$pp_dir")/$pp_rest"
+		pp_dir=$pp_up
+	done
 }
 
 # same_path reports whether the path a tool named is the permitted one. The

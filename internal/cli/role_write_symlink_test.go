@@ -75,6 +75,49 @@ func TestRoleWriteHookAllowsAcrossASymlinkedRoot(t *testing.T) {
 	}
 }
 
+// TestRoleWriteHookAllowsAcrossASymlinkedRootBeforeTheRoundDirExists is the
+// case the test above does not reach: it creates the round directory, so the
+// physical comparison always had an existing directory to resolve.
+//
+// Resolving only the immediate parent means the reconciliation is available
+// exactly when that parent already exists. Under `tp run` it does — the driver
+// creates the round directory in prepare(), before spawnAll() — so this is not
+// a live denial. It is a gate defect: the repo's own suite passes or fails on
+// whether the checkout path happens to traverse a symlink, which is how it was
+// found (green at /Users/..., red at /tmp/...). A test that passes for a reason
+// unrelated to the code is not evidence about the code.
+func TestRoleWriteHookAllowsAcrossASymlinkedRootBeforeTheRoundDirExists(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "real")
+	require.NoError(t, os.MkdirAll(target, 0o755))
+
+	link := filepath.Join(t.TempDir(), "link")
+	require.NoError(t, os.Symlink(target, link))
+
+	// Deliberately NOT created: this is the whole point of the case.
+	linkRound := filepath.Join(link, "rounds", "review-r1")
+	physicalRound := filepath.Join(target, "rounds", "review-r1")
+	require.NoDirExists(t, physicalRound,
+		"the round directory must be absent, or this test proves nothing new")
+
+	env := []string{
+		"TP_ROUND_DIR=" + linkRound,
+		"TP_RUN_DIR=" + filepath.Join(link, "runs", "01JB0000000000000000000000"),
+		"TP_UNIT_ID=implementer",
+		"TP_UNIT_KIND=review-role",
+		"TP_UNIT_SEQ=3",
+	}
+
+	code, stderr := runRoleWriteHookAt(t, target,
+		env, filepath.Join(physicalRound, "role-implementer.ndjson.part"))
+	require.Equal(t, 0, code,
+		"the unit's own findings file is allowed by its physical spelling: %s", stderr)
+
+	// The allowlist must not widen just because the directory is missing.
+	code, _ = runRoleWriteHookAt(t, target,
+		env, filepath.Join(physicalRound, "role-tester.ndjson.part"))
+	require.Equal(t, 2, code, "another role's file is still denied")
+}
+
 // runRoleWriteHookAt runs the shipped hook with cwd at dir and returns its exit
 // code and stderr. The package's other hook runner pins cwd to the repo root,
 // which is exactly the variable under test here, so this one takes it.
