@@ -3,7 +3,7 @@ name: tp-auditor
 description: Runs one tp `audit-role` unit under `tp run` - verifies the implementation against the spec through the role prompt `tp audit` emits and writes that one role's results file for the round.
 hooks:
   PreToolUse:
-    - matcher: "Write|Edit|MultiEdit|NotebookEdit"
+    - matcher: "Write|Edit|MultiEdit|NotebookEdit|mcp__codedbpro__create|mcp__codedbpro__edit|mcp__codedbpro__patch|mcp__codedbpro__replace"
       hooks:
         - type: command
           command: "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-use-role-write-allow.sh"

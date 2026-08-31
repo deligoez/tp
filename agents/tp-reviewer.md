@@ -3,7 +3,7 @@ name: tp-reviewer
 description: Runs one tp `review-role` unit under `tp run` - reads the spec through the role prompt `tp review` emits and writes that one role's findings file for the round.
 hooks:
   PreToolUse:
-    - matcher: "Write|Edit|MultiEdit|NotebookEdit"
+    - matcher: "Write|Edit|MultiEdit|NotebookEdit|mcp__codedbpro__create|mcp__codedbpro__edit|mcp__codedbpro__patch|mcp__codedbpro__replace"
       hooks:
         - type: command
           command: "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-use-role-write-allow.sh"

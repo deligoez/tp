@@ -74,7 +74,7 @@ denied() {
 # have been seen under both `file_path` and `notebook_path`, so both are read
 # and one hook covers all four tools in the matcher.
 paths=$(printf '%s' "$payload" |
-	grep -Eo '"(file_path|notebook_path)"[[:space:]]*:[[:space:]]*"[^"]*"' |
+	grep -Eo '"(file_path|notebook_path|file)"[[:space:]]*:[[:space:]]*"[^"]*"' |
 	sed -e 's/^[^:]*:[[:space:]]*"//' -e 's/"$//')
 
 IFS='
