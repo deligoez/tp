@@ -259,6 +259,68 @@ func TestPluginVersionIsNotBehindTheLatestTag(t *testing.T) {
 		manifest.Version, tag)
 }
 
+// TestPluginVersionIsBumpedWhenPluginContentChanges closes the half of the
+// version trap the test above cannot see.
+//
+// The marketplace entry's source is `./`, so the plugin IS this repository at
+// whatever commit the user's marketplace clone sits on — and a marketplace
+// source tracks the default branch, not a tag. Plugin content therefore follows
+// main immediately, while `claude plugin update` decides purely on plugin.json's
+// version string. The two move independently, and that gap is the trap: push a
+// change to skills/, hooks/, agents/ or .claude-plugin/ without bumping the
+// version and an existing user is told "already at the latest version" forever,
+// while a fresh installer silently receives different bytes under the same
+// version number.
+//
+// So the rule is content-addressed rather than calendar-based: if anything the
+// plugin carries differs from the newest tag, the manifest must already be
+// AHEAD of that tag. Between releases nothing differs and the test is quiet;
+// the moment a plugin-carried file changes it demands the bump that makes the
+// change reachable.
+func TestPluginVersionIsBumpedWhenPluginContentChanges(t *testing.T) {
+	git, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git not on PATH")
+	}
+	root := repoRoot(t)
+
+	run := func(args ...string) (string, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		out, runErr := exec.CommandContext(ctx, git, append([]string{"-C", root}, args...)...).Output()
+		return strings.TrimSpace(string(out)), runErr
+	}
+
+	tag, err := run("describe", "--tags", "--abbrev=0")
+	if err != nil {
+		t.Skip("no reachable tag to compare against")
+	}
+
+	// Everything the plugin ships. The Go binary is deliberately absent: it is
+	// installed separately, so a code change alone does not require a bump.
+	carried := []string{".claude-plugin", "skills", "hooks", "agents"}
+	changed, err := run(append([]string{"diff", "--name-only", tag + "..HEAD", "--"}, carried...)...)
+	if err != nil {
+		t.Skip("cannot diff against " + tag)
+	}
+	if changed == "" {
+		return // nothing the plugin carries has moved since the tag
+	}
+
+	raw, err := os.ReadFile(filepath.Join(root, ".claude-plugin", "plugin.json"))
+	require.NoError(t, err)
+	var manifest struct {
+		Version string `json:"version"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &manifest))
+
+	assert.Positive(t, comparePluginVersions(t, manifest.Version, strings.TrimPrefix(tag, "v")),
+		"these plugin files changed since %s:\n%s\n\nbut plugin.json still says %s. Claude Code "+
+			"decides updates on that string alone, so every existing user would be told they are "+
+			"already current while receiving none of this. Bump plugin.json before tagging.",
+		tag, changed, manifest.Version)
+}
+
 // TestMarketplaceEntryDoesNotDoubleDeclareComponents guards the one manifest
 // error `claude plugin validate` cannot see.
 //
