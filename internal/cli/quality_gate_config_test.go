@@ -10,16 +10,23 @@ import (
 )
 
 // repoQualityGate is the literal gate every task file in this repo must resolve
-// to (v0.34.0 §5, extended with the deadcode step). It is spelled out here
-// rather than read from .tp/config.json on purpose: comparing the resolved
-// value against the project value passes when the project gate itself weakens,
-// and a substring check for "-race" passes when the rest of the gate changes.
+// to (v0.34.0 §5, extended with the deadcode and complexity steps). It is
+// spelled out here rather than read from .tp/config.json on purpose: comparing
+// the resolved value against the project value passes when the project gate
+// itself weakens, and a substring check for "-race" passes when the rest of the
+// gate changes.
 //
 // The third step closes a hole the first two cannot see: golangci-lint's
 // `unused` skips exported identifiers by design, so an exported function with
 // no callers passes both. Dropping it would restore that blindness silently,
 // which is why it belongs in the literal rather than in prose somewhere.
-const repoQualityGate = "go test -race ./... && golangci-lint run && ./scripts/check-deadcode.sh"
+//
+// The fourth is a ratchet rather than a threshold: scripts/check-complexity.sh
+// fails on a cognitive-complexity violation absent from its committed baseline,
+// and equally on a baseline entry that no longer violates — so the baseline can
+// only shrink. A plain gocognit linter entry would have to fail the 54 existing
+// functions on day one, or sit at a threshold high enough to measure nothing.
+const repoQualityGate = "go test -race ./... && golangci-lint run && ./scripts/check-deadcode.sh && ./scripts/check-complexity.sh"
 
 // TestRepoTaskFilesResolveRaceQualityGate guards the v0.34.0 §5 outcome: the
 // gate resolved for every task file in this repo — this release's included —
