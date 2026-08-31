@@ -1,22 +1,30 @@
 #!/bin/sh
-# Fail when a function's cognitive complexity exceeds the threshold, unless it
-# was already over it when the baseline was taken.
+# Fail when a function exceeds a size or complexity threshold, unless it was
+# already over it when the baseline was taken. Two measures, two baselines:
+# cognitive complexity via gocognit, and length/statement count via funlen.
 #
 # WHY A BASELINE RATCHET AND NOT A LINTER SETTING
 #
 # Enabling gocognit in .golangci.yml at a meaningful threshold turns the gate
-# red on 54 existing functions across 38 files — too dispersed for an exclusion
-# list, and refactoring them is a release of its own, not a prerequisite for the
-# next commit. golangci-lint's `new-from-rev` would scope the check to changed
-# code, but it applies to EVERY linter, so buying this one would quietly stop
-# `unused`, `dupl` and the rest from reporting on existing code. That trade is
-# not worth making.
+# red on 54 existing functions across 38 files, and funlen on 71 more — too
+# dispersed for an exclusion list, and refactoring them is a release of its own,
+# not a prerequisite for the next commit. golangci-lint's `new-from-rev` would
+# scope the check to changed code, but it applies to EVERY linter, so buying
+# this one would quietly stop `unused`, `dupl` and the rest from reporting on
+# existing code. That trade is not worth making.
 #
-# So the debt is written down instead. baseline-complexity.txt lists every
-# function that was already over the threshold; this script fails only on a
-# function that is not in it. New code meets the real bar, existing code is
-# visible and countable, and no other check is weakened. Shrinking the file is
-# the work; it is meant to shrink.
+# The rejected third option was a `//nolint:gocognit,funlen` comment on each
+# offender plus `nolintlint`. It gives the same "the 126th violation fails
+# immediately" property, and it puts the number at the top of the function where
+# a reader sees it — but it means editing 109 functions across 38 files to buy
+# it, and every one of those edits is a chance to suppress more than intended.
+# A ratchet keeps the same property with the debt in two files nobody has to
+# read to understand the code.
+#
+# So the debt is written down instead. The baseline files list every function
+# that was already over threshold; this script fails only on a function that is
+# not in them. New code meets the real bar, existing code is visible and
+# countable, and no other check is weakened. Shrinking the files is the work.
 #
 # WHY COGNITIVE AND NOT CYCLOMATIC
 #
@@ -26,54 +34,109 @@
 # Cyclomatic counts paths; cognitive counts the nesting that makes paths hard to
 # follow. Adding gocyclo alongside would report a strict subset.
 #
+# WHY funlen IS RUN ALONE, AND WHY uniq-by-line IS PASSED
+#
+# golangci-lint's `issues.uniq-by-line` defaults to TRUE: one issue per line.
+# gocognit and funlen both report on the function's declaration line, so running
+# them together silently drops every funlen issue on a function gocognit already
+# flagged. Measured here: funlen alone reports 89, funlen+gocognit reports 58 —
+# 31 findings swallowed. This script sidesteps it by running funlen with
+# --default=none so nothing else is enabled, and passes --uniq-by-line=false
+# anyway so the invocation stays correct if a linter is ever added to it.
+#
+# funlen also emits TWO messages — "is too long" and "has too many statements",
+# 44 and 45 of them here. Matching only one would silently permit the other; the
+# extraction below matches both and collapses them to one key per function.
+#
 # WHY TEST FILES ARE EXCLUDED
 #
-# 8 of the 62 violations are in _test.go files, and on the clone side the same
-# measurement put 83% of hits in test code. Table-driven and property tests are
-# deliberately flat and repetitive; holding them to a complexity budget pushes
-# them toward abstraction, which is the opposite of what makes a test readable
-# when it fails. gocognit is given only non-test files.
+# 8 of gocognit's 62 violations and 17 of funlen's 89 are in _test.go files, and
+# on the clone side the same measurement put 83% of hits in test code.
+# Table-driven and property tests are deliberately flat and repetitive; holding
+# them to a complexity budget pushes them toward abstraction, which is the
+# opposite of what makes a test readable when it fails.
 #
 #   go install github.com/uudashr/gocognit/cmd/gocognit@latest
 
 set -eu
 
 threshold=${TP_COGNIT_THRESHOLD:-22}
-baseline=$(dirname "$0")/baseline-complexity.txt
+scripts=$(dirname "$0")
+
+# compare <label> <baseline-file> <current-keys>
+# Fails on a key not in the baseline, and equally on a baseline line that no
+# longer violates: a function that got better must leave the list, or the
+# improvement is hidden and a future regression slips back in under its name.
+compare() {
+	label=$1
+	baseline=$2
+	current=$3
+
+	known=$(grep -v '^#' "$baseline" 2>/dev/null | grep -v '^[[:space:]]*$' | sort -u || true)
+
+	new=$(printf '%s\n' "$current" | grep -vxF "$known" 2>/dev/null || true)
+	if [ -n "$new" ]; then
+		echo "$label in code that was not already over the threshold:" >&2
+		printf '%s\n' "$new" >&2
+		echo >&2
+		echo "Split the function, or — if it genuinely has to be this shape — add it" >&2
+		echo "to $baseline with a comment saying why." >&2
+		exit 1
+	fi
+
+	stale=$(printf '%s\n' "$known" | grep -vxF "$current" 2>/dev/null || true)
+	if [ -n "$stale" ]; then
+		echo "these are in $baseline but no longer violate — delete their lines:" >&2
+		printf '%s\n' "$stale" >&2
+		exit 1
+	fi
+}
+
+# --- cognitive complexity -------------------------------------------------
+#
+# gocognit prints "<score> <package> <func> <file>:<line>:<col>". The baseline
+# key is package+function, deliberately without the line number: moving a
+# function down a file is not a new violation, and keying on the line would
+# make every edit above it look like one.
 
 if ! command -v gocognit >/dev/null 2>&1; then
 	echo "gocognit not on PATH: go install github.com/uudashr/gocognit/cmd/gocognit@latest" >&2
 	exit 1
 fi
 
-# gocognit prints "<score> <package> <func> <file>:<line>:<col>". The baseline
-# key is package+function, deliberately without the line number: moving a
-# function down a file is not a new violation, and keying on the line would
-# make every edit above it look like one.
-current=$(gocognit -over "$threshold" ./cmd ./internal 2>/dev/null |
+cognit=$(gocognit -over "$threshold" ./cmd ./internal 2>/dev/null |
 	grep -v '_test\.go' |
 	awk '{print $2 " " $3}' |
 	sort -u)
 
-known=$(grep -v '^#' "$baseline" 2>/dev/null | grep -v '^[[:space:]]*$' | sort -u || true)
+compare "cognitive complexity over $threshold" "$scripts/baseline-complexity.txt" "$cognit"
 
-new=$(printf '%s\n' "$current" | grep -vxF "$known" 2>/dev/null || true)
+# --- function length ------------------------------------------------------
+#
+# funlen's key is the package DIRECTORY plus the function, because its output
+# gives a path rather than a package name. Same stability property: it survives
+# a function moving within its file.
 
-if [ -n "$new" ]; then
-	echo "cognitive complexity over $threshold in code that was not already over it:" >&2
-	printf '%s\n' "$new" >&2
-	echo >&2
-	echo "Split the function, or — if it genuinely has to be this shape — add it to" >&2
-	echo "$baseline with a comment saying why." >&2
+if ! command -v golangci-lint >/dev/null 2>&1; then
+	echo "golangci-lint not on PATH" >&2
 	exit 1
 fi
 
-# A function that left the baseline is a function that got better; keeping it
-# listed hides the improvement and lets a future regression slip back in under
-# its name.
-stale=$(printf '%s\n' "$known" | grep -vxF "$current" 2>/dev/null || true)
-if [ -n "$stale" ]; then
-	echo "these are in $baseline but no longer over $threshold — delete their lines:" >&2
-	printf '%s\n' "$stale" >&2
-	exit 1
-fi
+# Three steps rather than one expression: path+function, drop _test.go, then
+# strip the file name to leave the directory.
+#
+# The two message forms get one -e each rather than a `\(a\|b\)` alternation:
+# BSD sed has no alternation in a basic regex, so the combined expression
+# matches nothing on macOS while working on GNU sed in CI. Caught here because
+# the ratchet's stale half failed loudly on an empty result — a check that only
+# looked for NEW violations would have passed vacuously and measured nothing.
+funlen=$(golangci-lint run --default=none --enable=funlen \
+	--max-issues-per-linter=0 --max-same-issues=0 --uniq-by-line=false 2>/dev/null |
+	sed -n \
+		-e "s|^\(.*\)\.go:[0-9]*:[0-9]*: Function '\([^']*\)' is too long.*|\1 \2|p" \
+		-e "s|^\(.*\)\.go:[0-9]*:[0-9]*: Function '\([^']*\)' has too many statements.*|\1 \2|p" |
+	grep -v '^[^ ]*_test ' |
+	sed 's|/[^/ ]* | |' |
+	sort -u)
+
+compare "function length or statement count over funlen's thresholds" "$scripts/baseline-funlen.txt" "$funlen"

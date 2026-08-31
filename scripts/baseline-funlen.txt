@@ -1,0 +1,83 @@
+# Functions already over funlen's thresholds when this baseline was taken
+# (2026-08-31). Key is "<package dir> <function>" — deliberately without the
+# line number, so moving a function down a file is not a new violation.
+#
+# funlen emits TWO messages per function and a baseline built from one of them
+# silently permits the other: "is too long (N > 60)" and "has too many
+# statements (N > 40)". On this tree that is 44 + 45 = 89 issues over 71
+# distinct production functions. Both forms collapse to the same key here.
+#
+# check-complexity.sh fails on a violation absent from this list, and equally on
+# a line here that no longer violates. The list is meant to shrink.
+
+internal/cli NewRootCmd
+internal/cli addTasks
+internal/cli buildFindingsSummary
+internal/cli buildReviewPrompts
+internal/cli buildRolePrompt
+internal/cli buildVerifyPrompt
+internal/cli checkAffectedFilesScope
+internal/cli checkTaskFileQuality
+internal/cli claimBatch
+internal/cli computeReport
+internal/cli computeRoundStats
+internal/cli computeSeverityBreakdown
+internal/cli loadAuditMergeRows
+internal/cli loadReviewRoundState
+internal/cli newAuditCmd
+internal/cli newReviewCmd
+internal/cli printReportTTY
+internal/cli rankFilesBySpecTerms
+internal/cli resumeJSON
+internal/cli runAudit
+internal/cli runAuditMerge
+internal/cli runAuditRecord
+internal/cli runAuditResolve
+internal/cli runAuditStatus
+internal/cli runClose
+internal/cli runCommit
+internal/cli runConfigExtract
+internal/cli runDone
+internal/cli runDoneBatch
+internal/cli runDoneMulti
+internal/cli runDoneSingle
+internal/cli runGraph
+internal/cli runImport
+internal/cli runInit
+internal/cli runLint
+internal/cli runNext
+internal/cli runPlan
+internal/cli runReady
+internal/cli runRemove
+internal/cli runReview
+internal/cli runReviewMerge
+internal/cli runReviewRecord
+internal/cli runReviewRegression
+internal/cli runReviewResolve
+internal/cli runReviewResolveAll
+internal/cli runReviewStatus
+internal/cli runReviewVerify
+internal/cli runSet
+internal/cli runSetBulk
+internal/cli runSetLocal
+internal/cli runSetProjectWorkflow
+internal/cli runSetWorkflow
+internal/cli runStats
+internal/cli runValidateProject
+internal/cli selectBriefTarget
+internal/cli toposortBatchEntries
+internal/cli validateReviewInputs
+internal/engine AssembleResume
+internal/engine CheckNumberingGaps
+internal/engine CheckOrphanListItems
+internal/engine CheckStructuredElements
+internal/engine ComputeParallelismLevels
+internal/engine DiffSections
+internal/engine ExtractNumberedItems
+internal/engine ExtractTableRows
+internal/engine LoadLocalConfig
+internal/engine ParseFrontmatterBytes
+internal/engine Validate
+internal/engine ValidateLineCoverage
+internal/engine parseRoleOverrides
+internal/engine parseWorkflowOverride
