@@ -365,12 +365,7 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	// §4.2.1 classifies against the FINISHED skip list, not the partial one: a
 	// role dropped by domain or deactivated by the spec is recognised, and
 	// reading the list before these two appends would call it unknown and exit 2.
-	prompts = filterAuditPrompts(prompts, roleQuery{
-		name:    roleFilter,
-		given:   roleGiven,
-		specDir: filepath.Dir(specPath),
-		domain:  panel.fm.Domain,
-	}, auditSkipped)
+	prompts = filterAuditPrompts(prompts, roleQueryFor(specPath, roleFilter, roleGiven), auditSkipped)
 
 	summary := engine.BuildAffectedSummary(files, nil)
 

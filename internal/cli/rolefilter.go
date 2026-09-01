@@ -55,8 +55,13 @@ type roleQuery struct {
 // default path reaches it, so `--role` was accepted and silently discarded
 // there. §4.2.2 calls those modes legal and §6.2 property 6 says the flag is
 // accepted in every mode that emits prompts -- accepted-and-ignored is not
-// accepted. One constructor is what keeps the seven call sites from drifting
-// into seven answers.
+// accepted.
+//
+// All seven call sites use it, and that is worth stating because the first
+// version of this comment claimed it while two of them still built the struct
+// by hand, taking `domain` from panel.fm.Domain instead. Those were equal
+// today, so it was latent drift rather than a defect -- but a comment that
+// counts its own callers has to be able to count.
 func roleQueryFor(specPath, name string, given bool) roleQuery {
 	return roleQuery{
 		name:    name,
