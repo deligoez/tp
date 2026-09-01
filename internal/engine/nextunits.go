@@ -253,6 +253,11 @@ func roleUnits(kind UnitKind, specPath, corpusPhase string, target UnitTarget) [
 // newNextUnit builds one entry, taking the brief from the kind's own mapping so
 // no command string is spelled twice.
 func newNextUnit(kind UnitKind, id string, target UnitTarget) NextUnit {
+	// The id goes onto the target as well as the entry: UnitTarget carries an
+	// ID field and BriefCommand reads it, so the role kinds can name their own
+	// role (v0.36.0 §4.2.3). Passing it only alongside — as a draft of the spec
+	// assumed BriefCommand was forced to do — is what left the flag unreachable.
+	target.ID = id
 	return NextUnit{Kind: kind, ID: id, BriefCommand: kind.BriefCommand(target)}
 }
 

@@ -19,9 +19,9 @@ func (k UnitKind) BriefCommand(t UnitTarget) string {
 	case UnitImplement:
 		return "tp next --brief"
 	case UnitReviewRole:
-		return "tp review " + t.Spec
+		return "tp review " + t.Spec + roleArg(t.ID)
 	case UnitAuditRole:
-		return "tp audit " + t.Spec
+		return "tp audit " + t.Spec + roleArg(t.ID)
 	case UnitReviewRecord:
 		return recordBriefCommand("review", t.Spec)
 	case UnitAuditRecord:
@@ -35,6 +35,21 @@ func (k UnitKind) BriefCommand(t UnitTarget) string {
 	default:
 		return ""
 	}
+}
+
+// roleArg renders the --role argument a role unit's brief carries (v0.36.0
+// §4.2.3), or nothing when the target names no id.
+//
+// Passing the name is what makes the flag reachable at all: without it every
+// unit runs the bare command, receives every role's prompt and reads one, which
+// is the cost §4 measures. The empty case is not decoration — UnitTarget is
+// built by more than one caller, and a dangling `--role` would be worse than
+// the whole panel.
+func roleArg(id string) string {
+	if id == "" {
+		return ""
+	}
+	return " --role " + id
 }
 
 // recordBriefCommand renders the two-step brief the record kinds share, with
