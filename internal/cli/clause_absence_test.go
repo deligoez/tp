@@ -68,7 +68,7 @@ func TestNoPromptWithoutAnOutputPathEndsWithTheSuffix(t *testing.T) {
 	spec := relocatedSpec(t, "spec/0.36.0.md")
 	dir := filepath.Dir(spec)
 	base := filepath.Base(spec)
-	suffix := clauseSuffixFromLiveEmission(t, spec)
+	suffix := clauseSuffixFromSpec(t)
 
 	modes := map[string][]string{}
 	for _, p := range acceptedPerspectives(t, dir, base) {
@@ -110,20 +110,6 @@ func TestNoPromptWithoutAnOutputPathEndsWithTheSuffix(t *testing.T) {
 				"%s must produce at least one prompt with an empty output_path, or it measures nothing", name)
 		})
 	}
-}
-
-// clauseSuffixFromLiveEmission reads the suffix off a prompt that does carry an
-// output file, so the two halves of the property are measured against the same
-// bytes rather than against a literal typed here.
-func clauseSuffixFromLiveEmission(t *testing.T, spec string) string {
-	t.Helper()
-	bodies, order := promptsOf(t, emitPayload(t, spec))
-	require.NotEmpty(t, order)
-
-	const suffixLen = 468
-	body := bodies[order[0]]
-	require.Greater(t, len(body), suffixLen, "the emitted body is longer than the suffix")
-	return body[len(body)-suffixLen:]
 }
 
 // writeOneFinding produces the minimal --findings input --verify needs.

@@ -59,3 +59,44 @@ func TestClauseByteCounts(t *testing.T) {
 	assert.Len(t, []byte(isolationClause), 287, "§1.1's table prices §2.2's clause at 287 bytes")
 	assert.Len(t, []byte(incrementalClause), 177, "§1.1's table prices §3.2's clause at 177 bytes")
 }
+
+// TestAppendClausesSkipsAPromptWithNoOutputPath tests §2.3's predicate WHERE IT
+// CAN FAIL.
+//
+// Audit round 1 measured that the guard inside appendClausesReview/Audit is
+// unreachable through the CLI: the only call sites take the default panel, and
+// every prompt there names an output file. Replacing the guard with a panic left
+// the whole suite green, and deleting it left the end-to-end property-2 sweep
+// green too — so that sweep, for all its breadth, asserts nothing about the
+// predicate it is named for. It is a structural statement: the modes that
+// produce an empty output_path never reach the appender at all.
+//
+// The predicate is still worth keeping, because "unreachable today" is a fact
+// about today's call sites and not a property of the function. So it is tested
+// as a unit, on a mixed slice the CLI cannot currently produce. Deleting the
+// guard fails this and only this.
+func TestAppendClausesSkipsAPromptWithNoOutputPath(t *testing.T) {
+	suffix := clauseSuffix()
+
+	t.Run("review", func(t *testing.T) {
+		got := appendClausesReview([]reviewPrompt{
+			{Role: "named", OutputPath: "r-named.ndjson", Prompt: "body\n"},
+			{Role: "unnamed", OutputPath: "", Prompt: "body\n"},
+		})
+		require.Len(t, got, 2)
+		assert.True(t, strings.HasSuffix(got[0].Prompt, suffix),
+			"a prompt that names an output file gets the suffix")
+		assert.Equal(t, "body\n", got[1].Prompt,
+			"a prompt with no output file is left byte-identical, trailing newline included")
+	})
+
+	t.Run("audit", func(t *testing.T) {
+		got := appendClausesAudit([]auditPrompt{
+			{Role: "named", OutputPath: "a-named.ndjson", Prompt: "body\n"},
+			{Role: "unnamed", OutputPath: "", Prompt: "body\n"},
+		})
+		require.Len(t, got, 2)
+		assert.True(t, strings.HasSuffix(got[0].Prompt, suffix))
+		assert.Equal(t, "body\n", got[1].Prompt)
+	})
+}
