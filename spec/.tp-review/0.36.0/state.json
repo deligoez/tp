@@ -177,6 +177,16 @@
       "spec_hash": "sha256:bfbce41bfbfa8b7c7347109607b4d10455af0eb7dc310ba088f1a5442ca348b9",
       "roles_hash": "sha256:730320c4db9d73cde41740c32ebcacba23380e89d7964db005f25085a432b9fd",
       "id_scheme": "slug"
+    },
+    {
+      "round": 5,
+      "findings": 9,
+      "clean": false,
+      "recorded_at": "2026-09-01T10:55:36Z",
+      "file": "audit-round-5.ndjson",
+      "spec_hash": "sha256:0eca293dff5e49cc5a7daf934dfb64b107d627b95e7cba94795efce6d4510230",
+      "roles_hash": "sha256:730320c4db9d73cde41740c32ebcacba23380e89d7964db005f25085a432b9fd",
+      "id_scheme": "slug"
     }
   ]
 }
