@@ -150,11 +150,17 @@ func TestEveryUnitBriefCommandRunsInItsOwnPhase(t *testing.T) {
 // under test -- CLAUDE.md's rule is that self-development always runs the
 // in-progress binary. Substituting the test's own binary for the leading token
 // is what keeps this measuring the code being shipped.
+//
+// Every check here is `assert`, never `require`: this runs on a goroutine now,
+// and require's FailNow must be called from the goroutine running the test.
+// A failure marks the test and returns a code the caller's own assertion fails
+// on, rather than tearing down the wrong stack.
 func runShellIn(t *testing.T, dir, command string) (output string, exitCode int) {
 	t.Helper()
 	fields := strings.Fields(command)
-	require.NotEmpty(t, fields)
-	require.Equal(t, "tp", fields[0], "a brief command starts with tp")
+	if !assert.NotEmpty(t, fields) || !assert.Equal(t, "tp", fields[0], "a brief command starts with tp") {
+		return "", -1
+	}
 
 	cmd := exec.Command(binaryPath, fields[1:]...) //nolint:gosec // arguments come from tp's own brief
 	cmd.Dir = dir
@@ -163,10 +169,12 @@ func runShellIn(t *testing.T, dir, command string) (output string, exitCode int)
 
 	code := 0
 	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	switch {
+	case errors.As(err, &exitErr):
 		code = exitErr.ExitCode()
-	} else {
-		require.NoError(t, err, "the brief command must run")
+	case err != nil:
+		assert.NoError(t, err, "the brief command must run")
+		code = -1
 	}
 	return string(out), code
 }
