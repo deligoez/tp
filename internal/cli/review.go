@@ -283,6 +283,16 @@ Modes (mutually exclusive):
 				os.Exit(ExitUsage)
 				return nil
 			}
+			// §4.2.2: --role selects one prompt, so it is refused by every mode
+			// that emits none. The check sits before the mode dispatch so the
+			// operator sees the flag conflict rather than that mode's own
+			// argument complaint.
+			if roleFilter != "" && mode != "" && mode != "verify" {
+				output.Error(ExitUsage, "--role cannot be combined with --"+mode,
+					"--role selects one emitted prompt; --"+mode+" emits none")
+				os.Exit(ExitUsage)
+				return nil
+			}
 			if mode == "" {
 				// Default review mode — requires exactly 1 spec arg
 				if len(args) != 1 {
