@@ -16,29 +16,13 @@ import (
 // leaves this package blind — a mutation run here could not have scored the
 // function at all.
 
-// writeScopedRole drops one role file into a phase's corpus directory.
-//
-// rolecorpus_test.go's writeRole is the plain version; this one carries a
-// domains list, which is the field recognition must deliberately ignore.
-func writeScopedRole(t *testing.T, root, phase, id, domains string) {
-	t.Helper()
-	dir := filepath.Join(root, ".tp", phase)
-	require.NoError(t, os.MkdirAll(dir, 0o750))
-	body := `{"id":"` + id + `","title":"` + id + `","instructions":"You work."`
-	if domains != "" {
-		body += `,"domains":[` + domains + `]`
-	}
-	body += "}"
-	require.NoError(t, os.WriteFile(filepath.Join(dir, id+".json"), []byte(body), 0o600))
-}
-
 func TestRoleIsRecognised(t *testing.T) {
 	root := t.TempDir()
-	writeScopedRole(t, root, "reviewers", "my-reviewer", "")
-	writeScopedRole(t, root, "auditors", "my-auditor", "")
+	writeRoleWithDomains(t, filepath.Join(root, ".tp", "reviewers"), "my-reviewer", nil)
+	writeRoleWithDomains(t, filepath.Join(root, ".tp", "auditors"), "my-auditor", nil)
 	// A role the spec's domain excludes: still a name tp knows, which is the
 	// point — recognition is deliberately unfiltered by domain.
-	writeScopedRole(t, root, "reviewers", "prose-only", `"prose"`)
+	writeRoleWithDomains(t, filepath.Join(root, ".tp", "reviewers"), "prose-only", []string{"prose"})
 
 	for _, c := range []struct {
 		name, role string
