@@ -1,6 +1,6 @@
 {
   "name": "tp",
-  "version": "0.35.2",
+  "version": "0.36.0",
   "description": "Spec-to-task lifecycle manager for AI coding agents. Decomposes specs into atomic tasks, manages execution order via dependency graph, and batch-closes with evidence.",
   "author": {
     "name": "Yunus Emre Deligöz",
