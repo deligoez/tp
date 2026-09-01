@@ -238,7 +238,7 @@ rounds at 146 lines, so splitting shortens the expected cycle without guaranteei
 | # | Spec | What it does | Lines |
 |---|---|---|---|
 | 0.36.0 | the emitted round | The emitted prompt carries its own isolation and incremental-write constraints, and `--role` emits one role's prompt instead of the panel. **Shipped** | 763 |
-| 0.37.0 | audit convergence | `audit_converge_on`, accepted rows stop blocking, a changed spec ends the streak | 287 |
+| 0.37.0 | audit convergence | `audit_converge_on` with a fence: the first string-valued workflow field whose non-default value relaxes a gate, so it is opt-in and human-only | 265 |
 | 0.38.0 | the round reports its progress | `--status` says how far an in-flight round has got, for the interactive fallback the driver cannot see | 78 |
 | 0.39.0 | the v0.35.0 backlog | The defects v0.32.0–v0.35.0 deferred with reasons; cites `spec/0.35.0-candidates.md` rather than restating it | 144 |
 | 0.40.0 | the gate sequence and the red gate | `quality_gate` as an ordered array, plus the bounded procedure a unit follows when it goes red | 120 |
