@@ -320,7 +320,7 @@ Modes (mutually exclusive):
 					os.Exit(ExitUsage)
 					return nil
 				}
-				return runReviewVerify(args[0], findingsPath, affectedFiles, diffFrom, specInline)
+				return runReviewVerify(args[0], findingsPath, affectedFiles, diffFrom, specInline, roleQueryFor(args[0], roleFilter, cmd.Flags().Changed("role")))
 			case "report":
 				return runReviewReport(args)
 			case "record":
@@ -491,7 +491,7 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 	}
 
 	if perspective == "regression" {
-		return runReviewRegression(specPath, diffFrom, findingsPath)
+		return runReviewRegression(specPath, diffFrom, findingsPath, roleQueryFor(specPath, roleFilter, roleGiven))
 	}
 
 	affectedFiles = validateReviewInputs(perspective, round, findingsPath, affectedFiles, docsPath, testPath, finalRound, diffFrom, specPath)
@@ -500,11 +500,11 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 
 	switch perspective {
 	case "code-audit":
-		return runReviewCodeAudit(specPath, specContent, affectedFiles, round)
+		return runReviewCodeAudit(specPath, specContent, affectedFiles, round, roleQueryFor(specPath, roleFilter, roleGiven))
 	case "documentation":
-		return runReviewDocPlan(specPath, specContent, docsPath, affectedFiles)
+		return runReviewDocPlan(specPath, specContent, docsPath, affectedFiles, roleQueryFor(specPath, roleFilter, roleGiven))
 	case "testing":
-		return runReviewTestPlan(specPath, specContent, testPath, affectedFiles)
+		return runReviewTestPlan(specPath, specContent, testPath, affectedFiles, roleQueryFor(specPath, roleFilter, roleGiven))
 	}
 
 	if round < 1 {
@@ -782,7 +782,7 @@ func appendFinalRoundInstruction(b *strings.Builder) {
 }
 
 // runReviewCodeAudit emits the single-pass code-audit perspective prompt.
-func runReviewCodeAudit(specPath, specContent string, affectedFiles []string, round int) error {
+func runReviewCodeAudit(specPath, specContent string, affectedFiles []string, round int, q roleQuery) error {
 	affectedContent := engine.ReadAffectedFiles(affectedFiles)
 	summary := engine.BuildAffectedSummary(affectedFiles, affectedContent)
 	prompt := generateCodeAuditPrompt(specContent, affectedContent)
@@ -791,7 +791,7 @@ func runReviewCodeAudit(specPath, specContent string, affectedFiles []string, ro
 		Perspective:     "code-audit",
 		AffectedFiles:   affectedFiles,
 		AffectedSummary: summary,
-		Prompts:         []reviewPrompt{prompt},
+		Prompts:         filterReviewPrompts([]reviewPrompt{prompt}, q, nil),
 		ReviewLoop: reviewLoop{
 			Round:            round,
 			Convergence:      "single-pass code audit",
@@ -802,7 +802,7 @@ func runReviewCodeAudit(specPath, specContent string, affectedFiles []string, ro
 }
 
 // runReviewDocPlan emits the single-pass documentation-plan perspective prompt.
-func runReviewDocPlan(specPath, specContent, docsPath string, affectedFiles []string) error {
+func runReviewDocPlan(specPath, specContent, docsPath string, affectedFiles []string, q roleQuery) error {
 	structureMap, files := walkDocTree(docsPath, ".md")
 	ranked := rankFilesBySpecTerms(files, strings.Split(specContent, "\n"))
 	docContent := readFilesContent(ranked, 30000)
@@ -817,7 +817,7 @@ func runReviewDocPlan(specPath, specContent, docsPath string, affectedFiles []st
 		AffectedFiles:   affectedFiles,
 		AffectedSummary: engine.BuildAffectedSummary(affectedFiles, nil),
 		DocsStructure:   &docStructure{TotalFiles: len(files), ReviewedFiles: len(ranked), StructureMap: structureMap},
-		Prompts:         []reviewPrompt{prompt},
+		Prompts:         filterReviewPrompts([]reviewPrompt{prompt}, q, nil),
 		ReviewLoop: reviewLoop{
 			Round:            1,
 			Convergence:      "single-pass plan generation",
@@ -828,7 +828,7 @@ func runReviewDocPlan(specPath, specContent, docsPath string, affectedFiles []st
 }
 
 // runReviewTestPlan emits the single-pass test-plan perspective prompt.
-func runReviewTestPlan(specPath, specContent, testPath string, affectedFiles []string) error {
+func runReviewTestPlan(specPath, specContent, testPath string, affectedFiles []string, q roleQuery) error {
 	structureMap, files := walkDocTree(testPath, "_test.go")
 	ranked := rankFilesBySpecTerms(files, strings.Split(specContent, "\n"))
 	testContent := readFilesContent(ranked, 20000)
@@ -843,7 +843,7 @@ func runReviewTestPlan(specPath, specContent, testPath string, affectedFiles []s
 		AffectedFiles:   affectedFiles,
 		AffectedSummary: engine.BuildAffectedSummary(affectedFiles, nil),
 		TestStructure:   &docStructure{TotalFiles: len(files), ReviewedFiles: len(ranked), StructureMap: structureMap},
-		Prompts:         []reviewPrompt{prompt},
+		Prompts:         filterReviewPrompts([]reviewPrompt{prompt}, q, nil),
 		ReviewLoop: reviewLoop{
 			Round:            1,
 			Convergence:      "single-pass plan generation",

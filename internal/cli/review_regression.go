@@ -15,7 +15,7 @@ const regressionFixedFindingsCap = 50
 // runReviewRegression implements `tp review <spec> --perspective regression`
 // standalone. Mode (a): a state directory with at least one recorded round,
 // read-only. Mode (b): explicit --diff-from plus --findings, touching no state.
-func runReviewRegression(specPath, diffFrom, findingsPath string) error {
+func runReviewRegression(specPath, diffFrom, findingsPath string, q roleQuery) error {
 	if _, err := os.Stat(specPath); err != nil {
 		output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath), specFileMissingHint)
 		os.Exit(ExitFile)
@@ -114,11 +114,11 @@ func runReviewRegression(specPath, diffFrom, findingsPath string) error {
 		Spec:             specPath,
 		Perspective:      "regression",
 		MechanicalChecks: mechChecks,
-		Prompts: []reviewPrompt{{
+		Prompts: filterReviewPrompts([]reviewPrompt{{
 			Role:     "regression",
 			Category: "regression",
 			Prompt:   prompt,
-		}},
+		}}, q, nil),
 		ReviewLoop: reviewLoop{
 			Round:            0,
 			Convergence:      "uncounted delta pass — counted rounds stay full-panel",

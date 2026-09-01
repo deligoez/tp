@@ -2,6 +2,7 @@ package cli
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/deligoez/tp/internal/engine"
@@ -44,6 +45,25 @@ type roleQuery struct {
 	given   bool
 	specDir string
 	domain  string
+}
+
+// roleQueryFor builds the query from a spec path, so every emitting mode
+// classifies a name the same way.
+//
+// It exists because five of tp review's seven emitting modes used to bypass the
+// filter entirely: --verify and the four --perspective values return before the
+// default path reaches it, so `--role` was accepted and silently discarded
+// there. §4.2.2 calls those modes legal and §6.2 property 6 says the flag is
+// accepted in every mode that emits prompts -- accepted-and-ignored is not
+// accepted. One constructor is what keeps the seven call sites from drifting
+// into seven answers.
+func roleQueryFor(specPath, name string, given bool) roleQuery {
+	return roleQuery{
+		name:    name,
+		given:   given,
+		specDir: filepath.Dir(specPath),
+		domain:  engine.ParseFrontmatter(specPath).Domain,
+	}
 }
 
 // roleOutcome is how §4.2.1 classifies the name a caller passed.

@@ -12,7 +12,7 @@ import (
 	"github.com/deligoez/tp/internal/output"
 )
 
-func runReviewVerify(specPath, findingsPath string, affectedFiles []string, diffFrom string, specInline bool) error {
+func runReviewVerify(specPath, findingsPath string, affectedFiles []string, diffFrom string, specInline bool, q roleQuery) error {
 	if findingsPath == "" {
 		output.Error(ExitUsage, "--verify requires --findings (nothing to verify without previous findings)")
 		os.Exit(ExitUsage)
@@ -119,11 +119,11 @@ func runReviewVerify(specPath, findingsPath string, affectedFiles []string, diff
 	absPath, _ := filepath.Abs(specPath)
 	result := reviewResult{
 		Spec: specPath,
-		Prompts: []reviewPrompt{{
+		Prompts: filterReviewPrompts([]reviewPrompt{{
 			Role:     "verifier",
 			Category: "verification",
 			Prompt:   prompt,
-		}},
+		}}, q, nil),
 		ReviewLoop: reviewLoop{
 			Round:            0,
 			Convergence:      "verification pass",
