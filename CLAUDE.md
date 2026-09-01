@@ -129,7 +129,7 @@ All five real survivors became `TIMED OUT`; `NOT COVERED` was untouched, because
   whose note names a doc comment "claims more than its body delivers", inside a round counted toward
   the `spec_coverage_clean_rounds: 4` that release shipped on. **Read the notes of PASS rows before
   reading a clean streak as clean**, and treat a PASS carrying such a note as unresolved.
-  `spec/0.37.0.md` §5a takes it. On that rule v0.36.0's counter was 3, not 4 — the shipping
+  `spec/0.46.0.md` §8a takes it. On that rule v0.36.0's counter was 3, not 4 — the shipping
   condition still held, which is luck about the margin and not a defence of the counter.
 
 - **Prove a fix by running it, not by reading it — write the test first and watch it fail.** A test
@@ -204,7 +204,12 @@ findings. It shipped with `tp audit spec/0.36.0.md --status --check` returning *
 is not an oversight: `consecutive_clean` counts rounds clean across *every* role, while this file's
 own shipping rule is phrased on `spec_coverage_clean_rounds` plus no-FAIL. The two are different
 gates and v0.36.0 is the worked case — `spec/0.37.0.md` §5 takes the divergence, so **do not
-re-derive it, and do not read `--check` as the ship signal until 0.37.0 lands.**
+re-derive it. **And v0.37.0 does not fix it** — four review rounds established that the
+divergence is *role* scoping while `audit_converge_on` is *severity* scoping, and that severity
+parity provably does not close it: on v0.36.0's rounds 12–13 every `error` row belongs to
+`maintainability-conventions` while `spec-coverage` was clean four rounds running, so a parity
+`--check` still exits 1 for exactly the rounds the gap is about. It is `spec/0.46.0.md` §8, and until
+that ships `--check` is not the ship signal.**
 
 **`spec/0.46.0.md` is where that cycle's undone work went, and it is worth reading before 0.37.0**:
 §7 carries ten built-and-run inputs proving tp's CI and gate guards certify a step merely *named* in
@@ -319,7 +324,12 @@ spec that will answer it, not in a file nobody is required to read.
 - ✅ **Full audit NDJSON parser** (`tp audit --merge`) — **shipped.** Merges + dedups per-role audit-result files (by `role`+`item_id`) with a status/role breakdown, mirroring `tp review --merge`; `--record` still counts non-PASS rows for convergence.
 - ✅ **Broken cross-reference lint** (`broken-cross-ref`) — **shipped.** Flags `§X.Y step N` when section X.Y has fewer than N numbered steps. Kept conservative to hold the false-positive rate down: fires only when the section is a heading whose content holds a numbered list and N exceeds the largest such list (sized by both item count and highest literal number, so `1. 1. 1.` markdown numbering counts correctly); refs into listless or unknown sections, and refs inside code blocks, are never reported. Zero false positives across tp's own specs.
 - ✅ **Duplicate paragraph lint** (`duplicate-paragraph`) — **shipped.** Flags two consecutive identical blank-line-separated paragraphs (a copy-paste artifact `duplicate-line` misses); a code block between two blocks breaks their adjacency, and single-line heading or horizontal-rule paragraphs are skipped to avoid double-reporting.
-- ✅ **Project-level workflow config** (`.tp/config.json`) — **shipped in v0.24.0.** Repo-root `.tp/config.json` holds workflow **defaults** (committed); each `<base>.tasks.json` `workflow` block holds only explicit **overrides**; effective values **resolve at read time** (CLI > env > task override > project config > built-in). `.tp/local.json` (git-ignored) holds the `active` pointer + CLI flag `defaults`. See "Project Configuration" in `skills/tp/REFERENCE.md`.
+- ✅ **Project-level workflow config** (`.tp/config.json`) — **shipped in v0.24.0.** Repo-root `.tp/config.json` holds workflow **defaults** (committed); each `<base>.tasks.json` `workflow` block holds only explicit **overrides**; effective values **resolve at read time** (**task override > project config > built-in** — there is
+  no CLI layer and no `TP_<FIELD>` environment layer for a workflow field: `engine/configresolve.go`
+  merges two layers over the default and a search for `TP_REVIEW_CONVERGE_ON` returns zero. This line
+  carried the five-layer form until v0.37.0's review round 4, and `spec/0.35.0.md` §7 records the same
+  claim being removed from that spec after its audit spent two rounds unable to verify the top two
+  layers. A spec drafted from this line inherited the error, which is what makes it worth the sentence). `.tp/local.json` (git-ignored) holds the `active` pointer + CLI flag `defaults`. See "Project Configuration" in `skills/tp/REFERENCE.md`.
 
 ## Tech Stack
 
