@@ -2,6 +2,7 @@ package cli
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -63,44 +64,85 @@ func TestRepoTaskFilesResolveRaceQualityGate(t *testing.T) {
 	}
 }
 
-// TestCIQuotesTheWrapperCommandItActuallyRuns pins ONE pairing: the command
-// ci.yml's comment says the wrapper RUNS must be the command the wrapper's
-// no-argument branch runs. It does not close the stale-quoted-literal class,
-// and an earlier version of this comment claimed it did.
+// wrapperArgv runs scripts/check-suite-state.sh with a stub `go` first on PATH
+// and returns the arguments the wrapper actually handed it.
 //
-// That claim was falsified by audit round 11 with an input the three mutations
-// behind it never built. The guard compared against the script's whole FILE
-// TEXT, so a command quoted in ci.yml that appeared in the script only as a
-// `# TODO:` comment satisfied it — a fresh instance of the very class, green.
-// The refuted shape was a bare Contains over the body, which the sibling guard
-// eight lines below already records as measured and rejected for this reason;
-// this one reintroduced it.
-//
-// So: exact equality against the extracted invocation line, and a claim sized
-// to that. What stays outside it, named rather than implied — CLAUDE.md quotes
-// this command too, and a comment elsewhere in ci.yml that mentions a command
-// historically rather than assertively is deliberately not the subject here.
-func TestCIQuotesTheWrapperCommandItActuallyRuns(t *testing.T) {
+// Every text-based version of this guard has been falsified, three times, each
+// by an input its author did not build. The last one scanned the script for a
+// `go test … ./...` line and kept the LAST match, with no notion of the if/else
+// it sat inside: audit round 12 inverted the comparator, gave both branches an
+// explicit ./..., and watched the race detector vanish from the branch that
+// runs while three guards stayed green. Reading the script cannot answer which
+// branch executes. Running it can, so this runs it.
+func wrapperArgv(t *testing.T, args ...string) string {
+	t.Helper()
 	root := repoRoot(t)
-	workflow, err := os.ReadFile(filepath.Join(root, ".github", "workflows", "ci.yml")) //nolint:gosec // a fixed path inside the repo under test
-	require.NoError(t, err)
-	script, err := os.ReadFile(filepath.Join(root, "scripts", "check-suite-state.sh")) //nolint:gosec // a fixed path inside the repo under test
-	require.NoError(t, err)
+	bin := t.TempDir()
+	record := filepath.Join(bin, "argv")
 
-	claimed := regexp.MustCompile("RUNS `(go test [^`]*)`").FindStringSubmatch(string(workflow))
-	require.Len(t, claimed, 2,
-		"ci.yml must still say what the wrapper RUNS; without that line this guard has no subject")
+	stub := "#!/bin/sh\nprintf '%s\\n' \"$*\" >> " + record + "\nexit 0\n"
+	require.NoError(t, os.WriteFile(filepath.Join(bin, "go"), []byte(stub), 0o755)) //nolint:gosec // a stub the test executes itself
 
-	var whole string
-	for _, line := range strings.Split(string(script), "\n") {
-		if trimmed := strings.TrimSpace(line); strings.HasPrefix(trimmed, "go test ") && strings.HasSuffix(trimmed, "./...") {
-			whole = trimmed
-		}
+	cmd := exec.Command(filepath.Join(root, "scripts", "check-suite-state.sh"), args...)
+	cmd.Dir = root
+	cmd.Env = append(os.Environ(), "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, "the wrapper must run under a stub go: %s", out)
+
+	argv, readErr := os.ReadFile(record) //nolint:gosec // a path this test built
+	require.NoError(t, readErr, "the wrapper never invoked go at all")
+	return string(argv)
+}
+
+// TestTheWrapperActuallyInvokesTheSuiteItClaims measures the wrapper's own
+// no-argument branch by executing it, not by reading it.
+//
+// Two flags and a scope, and each fails in a different direction. Without
+// -race the repo gate stops running the race detector. Without -count=1
+// `go test` serves a cached PASS for a package it did not run, so the
+// before/after digest brackets nothing (measured in audit round 8: caught on
+// run 1, "(cached)" and exit 0 on runs 2 and 3, mutation present each time).
+// Without ./... it is not the suite.
+func TestTheWrapperActuallyInvokesTheSuiteItClaims(t *testing.T) {
+	argv := wrapperArgv(t)
+	for _, want := range []string{"test", "-count=1", "-race", "./..."} {
+		assert.Contains(t, argv, want,
+			"the wrapper's no-argument branch invoked go with %q; it must carry %s", argv, want)
 	}
-	require.NotEmpty(t, whole, "the wrapper must still have a whole-suite invocation")
+}
 
-	assert.Equal(t, whole, claimed[1],
-		"ci.yml says the wrapper runs %q; it runs %q", claimed[1], whole)
+// TestTheWrapperNarrowsWithoutLosingTheCache checks the other branch, which no
+// guard reached before: a caller narrowing the run must still defeat the test
+// cache, or the digest brackets nothing there too.
+func TestTheWrapperNarrowsWithoutLosingTheCache(t *testing.T) {
+	argv := wrapperArgv(t, "./internal/model/")
+	assert.Contains(t, argv, "-count=1",
+		"the narrowed branch invoked go with %q; -count=1 is what makes the digest mean anything", argv)
+	assert.Contains(t, argv, "./internal/model/",
+		"the narrowed branch must pass the caller's arguments through: %q", argv)
+}
+
+// TestCIQuotesTheWrapperCommandItActuallyRuns pins ONE pairing: the command
+// ci.yml's comment says the wrapper RUNS must be a command the wrapper really
+// invokes. The two tests above own the behaviour; this one owns the prose, so
+// that a correct wrapper cannot be described by a wrong comment.
+//
+// It compares against the executed argv rather than the script's text, because
+// every text-to-text version of this has been falsified. Deliberately outside
+// it, named rather than implied: CLAUDE.md quotes this command too, and a
+// comment elsewhere in ci.yml mentioning a command historically rather than
+// assertively is not the subject.
+func TestCIQuotesTheWrapperCommandItActuallyRuns(t *testing.T) {
+	workflow, err := os.ReadFile(filepath.Join(repoRoot(t), ".github", "workflows", "ci.yml")) //nolint:gosec // a fixed path inside the repo under test
+	require.NoError(t, err)
+
+	claimed := regexp.MustCompile("RUNS `go test ([^`]*)`").FindAllStringSubmatch(string(workflow), -1)
+	require.Len(t, claimed, 1,
+		"ci.yml must say exactly once what the wrapper RUNS; without it this guard has no subject, and twice is two claims to keep true")
+
+	argv := strings.TrimSpace(wrapperArgv(t))
+	assert.Equal(t, "test "+claimed[0][1], argv,
+		"ci.yml says the wrapper runs `go test %s`; it invoked go with %q", claimed[0][1], argv)
 }
 
 // TestSuiteStateWrapperStillRunsTheRaceDetector keeps the guard above able to
