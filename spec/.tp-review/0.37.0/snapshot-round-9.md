@@ -1,0 +1,270 @@
+# tp v0.37.0 — Audit convergence
+
+> **Rewritten after review round 7, which diagnosed why six rounds of repair did not converge.**
+> §2 and §4 had become a survey of the repository — line-number citations, counted enumerations,
+> which of eleven assertions survive, which documented sentence this release falsifies. Each round
+> rewrote the survey and the next round re-falsified it against the tree, so the reviewed surface
+> grew with every repair and the finding count stayed flat while the *kind* narrowed to "this
+> citation is wrong". Nine of round 7's twelve architect findings were of that kind.
+>
+> A survey is checked by reading, and reading is what a review round does — so it can be re-falsified
+> forever. **The decisions are what a spec owes; the survey belongs in task acceptance, where it is
+> checked by running.** This file is the decisions. The measurements that justify them stay; the
+> forensics belong in task acceptance and are **re-derived there from the tree**, which is where they
+> can be checked by running. They are not relocated to a file: `spec/0.37.0.tasks.json` does not exist
+> until decomposition, and calling a deletion a move would be the same substitution this release's
+> siblings are about.
+
+## 1. Overview
+
+`review_converge_on` lets the review loop stop counting advisory findings against convergence. The
+audit loop has no equivalent: `--record` counts every row whose `status` is not exactly `PASS`, at
+any severity. Two cycles in this repository and one field cycle in another project each ran long
+past the point where the only surviving findings were advisory.
+
+Measured on v0.35.0's audit corpus — nine recorded rounds, 42 non-`PASS` rows: **3 `error`,
+22 `warning`, 17 `info`**. 93% of what kept that phase open could not have blocked a release.
+
+**Three deliverables.**
+
+1. **`audit_converge_on`** (§2) — the field, its resolution, its validation, its documentation.
+   Default `all`, which is the behaviour tp ships today, so a project that does not set it sees no
+   change.
+2. **The fence** (§3) — the field is opt-in *and human-only*. This is what the release buys.
+3. **`by_severity` on `tp audit --merge`** (§4) — the breakdown that makes a `blocking` round's
+   verdict readable. Emitted unconditionally, so it is the one part every project sees.
+
+A fourth, a spec-hash reset for `consecutive_clean`, was in this release through five rounds and is
+now `spec/0.46.0.md` §8.4. §5 records why, so the next reader does not re-propose it.
+
+## 2. `audit_converge_on`
+
+**The field.** A workflow field taking `all` or `blocking`, resolved *task override > project config
+> built-in* — the precedence workflow fields actually use; there is no CLI layer and no `TP_<FIELD>`
+layer for one. Invalid values are refused at both the write sink (a usage error) and the consuming
+sink (a validation error), on the same terms and with the same hint as `review_converge_on`.
+
+| value | a round is clean when |
+|---|---|
+| `all` | the round has no non-`PASS` row |
+| `blocking` | no non-`PASS` row in the round carries a blocking severity |
+
+`blocking`'s predicate is over the round's non-`PASS` rows; `all`'s is over their existence, which is
+what tp counts today. An earlier draft wrote `all` as "carries any severity", which a non-`PASS` row
+with `severity: null` does not — inverting the default the release promises changes nothing. It was
+written while deleting the word *surviving* for imprecision. Measured across v0.35.0's and v0.36.0's audit
+rounds, every one of 2,913 `PASS` rows carries `severity: null`, so a predicate phrased over "any row
+of any severity" would read the wrong population. *Surviving* is deliberately not the word: it would
+imply a disposition that removes a row from the count, which §6 declines to create.
+
+**Blocking severity is `error`.** Audit rows use `error | warning | info`; `review_converge_on`'s set
+is `critical | high` over the review vocabulary. The two vocabularies do not overlap, so the audit
+predicate does not reuse the review ranker — one that did would rank every audit severity as unknown.
+
+**An unrecognised severity is treated as blocking.** Not rejected, not ignored. A row tp cannot grade
+is a row tp must not stop counting. Stated normatively because two earlier drafts left it to be
+inferred and both inferred it wrong.
+
+**`clean` is stamped at record time, not recomputed live.** This is a decision and the alternative was
+real: the review twin recomputes live, by design, "so a later `--resolve` or converge-on switch
+re-evaluates it without re-recording". Copied here, that would re-grade every recorded round the day
+the knob is set — and 67 non-`PASS` rows across v0.29.0–v0.32.0 carry severities outside the enum, in
+fifteen round files, which the fail-closed rule above would then make blocking. Converged historical
+cycles would report `converged: false` on install. **Setting the knob governs rounds recorded after
+it is set**, which is the same prospective property that cut the fourth deliverable.
+
+**Stamping is symmetric and the relaxing direction is the one to state.** A round recorded under
+`blocking` keeps `clean: true` after the knob returns to `all`, so one operator-approved round of
+`blocking` relaxes that cycle's streak permanently. That is the intended meaning of a stamp — the
+verdict is a fact about the round, recorded once, under the policy in force — and it is why §3 fences
+the write rather than the read. An operator who wants it undone re-records the round.
+
+**Default `all`,** because §2.1's missing column says so.
+
+**`blocking` governs `clean`, and therefore also `next_action`, which is derived from it.** Both audit
+sinks compute `next_action` from the round's `clean`, each carrying a comment asserting the
+equivalence this release breaks — that a round's non-`PASS` rows are exactly `!clean`. Under
+`blocking` the first clean round of a streak that still holds `warning`/`info` rows changes branch,
+and the recommendation must name the accepted rows rather than report an empty round. That is part of
+this release. `role_streaks[].open`, its `consecutive_clean` and `spec_coverage_clean_rounds` stay
+severity-blind. Under `blocking` a round can record `clean: true`
+beside a non-zero `open`, and that is correct: `open` counts findings, `clean` answers whether the
+phase may end. Making the streak surfaces severity-aware is the role-scoping question §6 defers.
+
+**`severity` on a non-`PASS` row is self-declared and this release does not pretend otherwise.**
+Nothing on the audit path validates or reads it today. An operator setting `blocking` is choosing to
+gate on the audited agent's own judgement — which is exactly why §3 exists and why the default is
+not `blocking`. Making the label checkable is `spec/0.46.0.md` §8.2.
+
+### 2.1 Why the default is `all`
+
+| cycle | audit rounds | converges under `blocking` | converges under `all` |
+|---|---|---|---|
+| v0.35.0 | 9, converged | round 3 | round 9 |
+| v0.36.0 | 13, never converged | round 3 | never — no round reaches zero |
+
+The saving is real: v0.35.0 spent six of nine rounds on a population that was 93% advisory. **It is
+also conditional on two things this table used to leave unsaid.**
+
+First, `consecutive_clean` is a trailing run that breaks at the first unclean round, and §2 stamps
+`clean` at record time — so a round recorded before the knob is set keeps `clean: false` for ever,
+and setting it at round *k* converges no earlier than *k* + `audit_clean_rounds`. **The cells below
+are reachable only when the field resolves before round 1 is recorded**, which is the moment an
+operator has none of the evidence this table offers. That is the honest shape of the offer: the
+decision is made at the start of a phase, on the previous cycle's numbers.
+
+Second, the cells assume `audit_clean_rounds: 2`. At 1, `blocking` converges at 2 and `all` at 8.
+
+**The column this table did not have is what decides the default.** It asks *when the loop stops*, and
+never asked *what was still to be found after it stopped*. That column reads `error` in both rows —
+v0.35.0's round 4 carries `{error 1, warning 2, info 1}` one round after `blocking` would have halted,
+and v0.36.0's rounds 7, 12 and 13 each carry `error` rows. **`blocking` would have shipped over an
+`error` row in 2 of 2 measured cycles.** That is decisive against it as a default and is not an
+argument against the field: an operator who sets it accepts that trade with the numbers in front of
+them.
+
+## 3. The fence
+
+**This is the first *string-valued* workflow field whose non-default value relaxes a gate.** The cap
+fields are fenced already; `review_converge_on`'s weak value is its own default, so nothing has
+needed this before. Without a fence, a unit stuck in an audit phase under `tp run` could set
+`blocking` and end its own phase — the failure unattended mode exists to prevent.
+
+**`blocking` is refused on every write path; `all` is not.** The fence is scoped to the *value*, not
+to a transition and not to the field. A transition-scoped fence — refusing only `all` → `blocking` —
+is one a unit walks around, since every route to `blocking` is a write of `blocking`. A
+*field*-scoped fence is wider than the argument for it: `all` is the built-in default and the only
+value that tightens the gate, so refusing it buys nothing and costs a run-halting escalation for a
+write that cannot end a phase early.
+
+The distinction is load-bearing rather than tidy. `tp import` assigns the whole workflow block and
+carries the existing one forward when the imported document omits it, so a field-scoped fence would
+refuse **every** import a project makes after it has once set the field — deadlocking Workflow A
+step 6 under `tp run`, for exactly the opt-in users this release is for. Value-scoped, an import that
+does not introduce `blocking` passes.
+
+The three write paths are `tp set --workflow`, its `--project` form, and `tp import`. **The existing
+numeric fence is not the mechanism**: it is numeric by signature and every one of its call sites sits
+after the value has been parsed as a number, so widening it for a string field ships a silent no-op.
+The string-shaped fence tp already runs — placed before the type dispatch — is what to copy.
+
+**The refusal is nameable.** `--decision` is a closed, validated enum, and a field that is not in it
+stops a run under `other` with the reason recoverable only from free text. This release adds
+`audit-converge-on` to that enum, maps the field to it, and refuses with a message that describes
+*this* field rather than reusing one written for command fields.
+
+## 4. `by_severity` on `tp audit --merge`
+
+Under `blocking` a clean round can carry `warning` and `info` rows. The *count* of them is already
+emitted — `role_streaks[].open` is severity-blind and unconditional on both `--status` and
+`--record` — so what is missing is the **breakdown**, and without it an agent reading `clean: true`
+cannot see what was suppressed.
+
+`--merge` already loops the round's rows building `by_status` and `by_role`, on the command the loop
+runs immediately before `--record`. A `by_severity` counter over non-`PASS` rows goes in that loop.
+**Emitted when the round has at least one non-`PASS` row, and it survives `--compact`** — the review
+twin's grounds, taken whole rather than half: `nonblocking_open` survives `--compact` *because* its
+mere presence signals the state, and it is emitted only when there is something to signal. Emitting
+unconditionally would discard that signal and put the key on every merge of every default-`all`
+project, which is the case the twin excludes by name.
+
+**Every row lands in a named bucket, because the point is that nothing hides.** `error`, `warning`
+and `info` key on themselves. A severity that is a string outside the enum keys on that string. A
+severity that is JSON `null`, absent, or not a string at all keys on **`unrecognised`** — one bucket,
+because §2's predicate treats all three identically and a breakdown that split them would suggest a
+distinction the gate does not make. `""` is not a bucket: it is what a naive type assertion produces
+for three different shapes, and it is the hiding this section exists to prevent.
+
+This is the audit-side visibility this release ships. `nonblocking_open` on `--record` and `--status`
+is a different surface with four pinned guards against it and stays deferred (§6).
+
+## 5. What this release deliberately does not contain
+
+A spec-hash reset for `consecutive_clean` was here through five review rounds. Rounds 3, 4 and 5 each
+falsified a different draft and each time the class survived: the retroactive clause went and the
+mechanism stayed retroactive; "prospective only" arrived as prose with nothing implementing it; then
+`IsLegacyRound` was named as the marker and is inert — it has marked every audit round since v0.30.0,
+and across all fifteen recorded audit histories the check changes the streak in **0 of 15**.
+
+The section needed a **decision** — store a per-round vintage byte, or accept a retroactive reset and
+re-measure §2.1 against it — and a review round cannot make one. It is `spec/0.46.0.md` §8.4 with both
+options priced.
+
+## 6. Non-Goals
+
+1. **The `--check` divergence.** `consecutive_clean` counts every role while the shipping rule reads
+   `spec_coverage_clean_rounds` plus no-FAIL. That is role scoping, not severity scoping, and severity
+   parity does not close it: on v0.36.0's rounds 12–13 every `error` row belongs to one role while the
+   conformance role was clean four rounds running. `spec/0.46.0.md` §8.
+2. **A disposition that stops blocking.** `spec/0.46.0.md` §8.1, with the record-time/live choice and
+   the merge-ordering defect that breaks it either way.
+3. **Making `severity` checkable.** `spec/0.46.0.md` §8.2.
+4. **`nonblocking_open` on `--record` and `--status`.** Four places pin its absence there by name.
+   `spec/0.46.0.md` §8.3. §4's `--merge` breakdown is a different surface and none of the four
+   reaches it.
+5. **Review's convergence.** Unchanged, and nothing here touches the walks review's `--status` reads.
+6. **A fourth row status.** `AuditRowIsPass` stays byte-exact on `status == "PASS"`.
+
+## 6a. Three shipped assertions are reversed
+
+This is work, not a Non-Goal, and it is stated as its own section because an earlier draft left it
+inside the Non-Goals list — where a decomposer reads to learn what *not* to build. The count is three
+because earlier drafts said one and then two.
+
+1. **The gate guard's** assertion that `audit_converge_on` is an unknown workflow field. Two of its
+   eleven assertions; the other nine stand.
+2. **The docs-contract guard's** pinned sentence saying audit convergence counts every non-`PASS`
+   row. It is pinned against a shipped document, so the document and the constant move together or
+   the guard reddens.
+3. **`engine.DivergenceHint`**, a shipped constant emitted verbatim as `divergence.hint`, which ends
+   with that same sentence and is therefore false under `blocking` in exactly the situation the
+   signal fires for. The document that quotes it verbatim is `skills/tp/REFERENCE.md`, which is what
+   the docs-contract guard compares against — so this reversal and the one above are one edit.
+
+Each replacement states a rule true under **both** values of the field, so no future switch
+re-falsifies it.
+
+## 7. Tests
+
+Each test names the input that makes it fail. Six earlier drafts of this list each contained a test
+that passed against unmodified tp.
+
+1. **The built-in default is `all`.** Asserted directly: six drafts never asserted it, and an
+   implementation shipping `blocking` as the built-in passed all of them while inverting §2.1.
+2. **Resolution.** Task override beats project config beats built-in. No CLI or environment layer is
+   asserted, because none exists.
+3. **Both refusal sinks.** An invalid literal at the write sink is a usage error; an invalid stored
+   value reaching a consuming command is a validation error. Two exit codes, two commands — the twin
+   has both and one test covering one of them would pass while the other path shipped ungraded.
+4. **The config surfaces.** `tp config --extract` emits the field and `tp validate --project` accepts
+   and rejects it. v0.31.0 shipped the twin without these and needed v0.31.1 to add them.
+5. **`info` is advisory** — not clean under `all`, clean under `blocking`.
+6. **`warning` is advisory**, tested separately from `info`: it is 158 of the corpus's 360 non-`PASS`
+   rows and carries most of §1's 93%.
+7. **`error` blocks.**
+8. **Unrecognised fails closed** — three fixtures, for a severity outside the enum, `null`, and
+   absent. A legacy row supplies only the first.
+9. **`clean` is stamped, not recomputed.** Recording rounds under `all`, then switching to `blocking`
+   without re-recording, leaves every stored round's verdict unchanged. The mutation that kills it is
+   the review twin's live re-grade, which is the natural thing to copy.
+10. **The replay, by re-recording.** Each of v0.35.0's nine and v0.36.0's thirteen recorded rounds is
+    re-recorded from committed testdata against a fixture spec, reproducing §2.1: `blocking` at 3 and
+    `all` at 9; `blocking` at 3 and `all` never — at `audit_clean_rounds: 2`, stated because at 1 the
+    first pair is 2 and 8. Re-recording rather than synthesising round entries is what makes the
+    answer reachable: `Converged` also folds a staleness term, and a synthesised history carries the
+    original spec's hashes. The test reads committed testdata, never `spec/.tp-review/`, which is live
+    state for cycles still in flight.
+11. **Every write path is fenced.** Each of `tp set --workflow`, `tp set --workflow --project` and
+    `tp import` exits 2 under `TP_UNATTENDED=1` for both `all` and `blocking`, and 0 without it. One
+    assertion per path: they are separate guards and a test covering one passes while another stays
+    open.
+12. **The refusal names this field.** The message describes `audit_converge_on` and the escalation
+    records `--decision audit-converge-on` rather than `other`.
+13. **`by_severity` on `--merge`.** Present, correct over a mixed round, and still present under
+    `--compact`.
+14. **The three reversals and nothing more.** All **nine** surviving assertions of the gate guard
+    still pass — nine, because it carries eleven and exactly two are reversed; an earlier draft said
+    two, which an implementation satisfies by keeping two and deleting seven, including the one this
+    repository records as that file's mutation-killing assertion — and both `SKILL.md` and `engine.DivergenceHint` state a rule true under both values of the
+    field — asserted against the shipped docs-contract guard, so the documentation cannot drift from
+    the constant.
