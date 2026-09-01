@@ -29,8 +29,17 @@ import (
 // Relocating the spec is the only mechanism that preserves the behaviour and
 // moves the writes, because the state directory follows the spec.
 func TestRelocatedSpecKeepsStateOutOfTheRepository(t *testing.T) {
+	for _, rel := range []string{"spec/0.36.0.md", "spec/0.35.0.md"} {
+		t.Run(rel, func(t *testing.T) { assertRelocated(t, rel) })
+	}
+}
+
+// assertRelocated is the body, run against more than one spec: a helper that
+// only ever moved one file would satisfy every assertion below by accident.
+func assertRelocated(t *testing.T, rel string) {
+	t.Helper()
 	root := repoRootDir(t)
-	spec := relocatedSpec(t, "spec/0.36.0.md")
+	spec := relocatedSpec(t, rel)
 
 	assert.False(t, strings.HasPrefix(spec, root+string(filepath.Separator)),
 		"the relocated spec must not sit under the repository root, or its state directory will too")
@@ -41,7 +50,7 @@ func TestRelocatedSpecKeepsStateOutOfTheRepository(t *testing.T) {
 
 	body, err := os.ReadFile(spec)
 	require.NoError(t, err)
-	original, err := os.ReadFile(filepath.Join(root, "spec", "0.36.0.md"))
+	original, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
 	require.NoError(t, err)
 	assert.Equal(t, string(original), string(body),
 		"the relocated copy must be byte-identical, or the emission under test is not the repository's")
