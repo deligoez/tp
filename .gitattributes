@@ -1,3 +1,9 @@
 
 # Use bd merge for beads JSONL files
 .beads/issues.jsonl merge=beads
+
+# Headings are the section boundary in specs and docs. Without this a prose
+# file has no sections at all: `hc diff --json` reports `sections: null`, so
+# hc plan falls back to a contiguity gap and the "review granularity" warning
+# can never fire on a spec. Measured on this repo's own spec files.
+*.md diff=markdown
