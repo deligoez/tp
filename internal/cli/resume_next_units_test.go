@@ -77,7 +77,8 @@ func TestResume_NextUnitsReviewRoles(t *testing.T) {
 	for _, u := range units {
 		kinds = append(kinds, u["kind"].(string))
 		ids = append(ids, u["id"].(string))
-		assert.Equal(t, "tp review spec.md", u["brief_command"])
+		assert.Equal(t, "tp review spec.md --role "+u["id"].(string), u["brief_command"],
+			"each role unit asks for its own prompt (v0.36.0 §4.2.3)")
 	}
 	assert.Equal(t, []string{"review-role", "review-role", "review-role"}, kinds,
 		"only the role kinds may share an array")
@@ -95,7 +96,8 @@ func TestResume_NextUnitsAuditRoles(t *testing.T) {
 	ids := make([]string, 0, len(units))
 	for _, u := range units {
 		assert.Equal(t, "audit-role", u["kind"])
-		assert.Equal(t, "tp audit spec.md", u["brief_command"])
+		assert.Equal(t, "tp audit spec.md --role "+u["id"].(string), u["brief_command"],
+			"each role unit asks for its own prompt (v0.36.0 §4.2.3)")
 		ids = append(ids, u["id"].(string))
 	}
 	assert.Equal(t, []string{"spec-coverage", "security", "maintainability-conventions"}, ids)

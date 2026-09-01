@@ -109,14 +109,16 @@ func TestBuildNextUnits_RolePanelIsTheCorpus(t *testing.T) {
 	assert.Equal(t, []string{"implementer", "tester", "architect"}, unitIDs(review))
 	for _, u := range review {
 		assert.Equal(t, UnitReviewRole, u.Kind)
-		assert.Equal(t, "tp review "+spec, u.BriefCommand)
+		assert.Equal(t, "tp review "+spec+" --role "+u.ID, u.BriefCommand,
+			"each role unit asks for its own prompt (v0.36.0 §4.2.3)")
 	}
 
 	audit, _ := BuildNextUnits(root, taskFile, spec, PhaseAudit, tf, nil, nil)
 	assert.Equal(t, []string{"spec-coverage", "security", "maintainability-conventions"}, unitIDs(audit))
 	for _, u := range audit {
 		assert.Equal(t, UnitAuditRole, u.Kind)
-		assert.Equal(t, "tp audit "+spec, u.BriefCommand)
+		assert.Equal(t, "tp audit "+spec+" --role "+u.ID, u.BriefCommand,
+			"each role unit asks for its own prompt (v0.36.0 §4.2.3)")
 	}
 }
 

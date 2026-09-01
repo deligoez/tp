@@ -32,11 +32,11 @@ func TestUnitKind_BriefCommand_DocumentedPerKind(t *testing.T) {
 
 	want := map[UnitKind]string{
 		UnitImplement:     "tp next --brief",
-		UnitReviewRole:    "tp review spec/0.35.0.md",
+		UnitReviewRole:    "tp review spec/0.35.0.md --role implementer",
 		UnitReviewRecord:  reviewRecord,
 		UnitReviewResolve: "tp review spec/0.35.0.md --status",
 		UnitDecompose:     "tp resume",
-		UnitAuditRole:     "tp audit spec/0.35.0.md",
+		UnitAuditRole:     "tp audit spec/0.35.0.md --role implementer",
 		UnitAuditRecord:   auditRecord,
 		UnitAuditFix:      "tp audit spec/0.35.0.md --status",
 	}
