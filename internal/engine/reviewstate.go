@@ -358,9 +358,15 @@ func hasAnyPrefixed(dir string, prefixes []string) bool {
 }
 
 // WriteSnapshotAtomic writes the round-N spec snapshot atomically — write to a
-// sibling snapshot-round-N.md.tmp then rename — so a crash mid-write never
-// leaves a partial snapshot on disk (§10.2). The state directory is created
-// when absent.
+// unique sibling temp file then rename — so a crash mid-write never leaves a
+// partial snapshot on disk, and concurrent siblings do not race to rename one
+// shared path. The state directory is created when absent.
+//
+// spec/0.29.0.md §10.2 specifies the temp name as path+".tmp". This deviates
+// from it deliberately: §10.2 predates v0.35.0 making sibling role units
+// concurrent, and every one of them writes this snapshot. The fixed name is
+// what audit round 7 measured racing, so the clause holds for atomicity and
+// not for the name.
 //
 // phase scopes the snapshot namespace so review and audit never collide:
 // review keeps the legacy "snapshot-round-N.md" name (read by the regression
