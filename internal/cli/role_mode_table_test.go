@@ -136,12 +136,25 @@ func legalModeCases(t *testing.T) (dir string, cases map[string]legalModeCase) {
 	}
 }
 
-// TestModeTableCoversEveryFlagEachCommandRegisters keeps the two tables above
-// honest as the flag sets grow.
+// TestModeTableCoversEveryFlagEachCommandRegisters checks the two tables above
+// against the hand-written modeFlags map below, and NOT against the flags each
+// command actually registers.
 //
-// Without it, a mode added to either command joins neither column and is tested
-// by nothing — the failure §4.2.2 guards against, since a new non-emitting mode
-// that accepts --role hands a caller a payload with no prompt in it.
+// The distinction is the whole content of this comment, because an earlier
+// version claimed the wider property — that a mode added to either command
+// "joins neither column and is tested by nothing" would be caught here. It is
+// not. Measured in v0.36.0's audit round 12: registering a genuinely new mode
+// flag (`--zzprobe`) that is absent from modeFlags leaves this test green. What
+// it catches is drift between the map and the two columns, which is narrower
+// and still worth having.
+//
+// It is left narrow deliberately. No clause in v0.36.0 requires this guard to
+// be exhaustive over registered flags — five were checked for such a
+// requirement (§4.2.2's two tables, list-2-6, task-role-mode-legality,
+// task-role-mode-test) and all five speak of a per-command enumerated list. The
+// derived-from-the-code requirement lives elsewhere and is honoured elsewhere:
+// clause_absence_test.go asks the binary for its own perspective list rather
+// than restating it. Widening this one is spec/0.46.0.md's, not this release's.
 func TestModeTableCoversEveryFlagEachCommandRegisters(t *testing.T) {
 	// Flags that select a MODE, as opposed to flags that shape one. The split
 	// is the same one §4.2.2 draws: a mode decides whether prompts are emitted
