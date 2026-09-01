@@ -16,7 +16,7 @@
 # The rejected third option was a `//nolint:gocognit,funlen` comment on each
 # offender plus `nolintlint`. It gives the same "the 126th violation fails
 # immediately" property, and it puts the number at the top of the function where
-# a reader sees it — but it means editing 109 functions across 38 files to buy
+# a reader sees it — but it means editing every currently-violating function to buy
 # it, and every one of those edits is a chance to suppress more than intended.
 # A ratchet keeps the same property with the debt in two files nobody has to
 # read to understand the code.

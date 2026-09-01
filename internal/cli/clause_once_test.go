@@ -20,14 +20,19 @@ const clauseSuffixBytes = 468
 
 // TestSuffixIsAppendedOnceAndTheStripHappened is v0.36.0 §6.2 property 3.
 //
-// An earlier version of this comment called it "the only assertion in this
-// release that fails on a double append or a missing strip". Audit round 4
-// falsified that: clause_emission_test.go's sibling assertions catch both, over
-// a superset of modes. What is unique here is the 468-byte POSITIONAL removal —
-// TrimSuffix removes nothing when the suffix is absent, so a body that never
-// received one satisfies the sibling's form.
+// This file makes NO uniqueness claim, and that is the third answer to the same
+// question. It first said it was "the only assertion in this release" that
+// catches a double append or a missing strip — falsified in round 4, since
+// clause_emission_test.go catches both over a superset of modes. It was then
+// narrowed to the 468-byte positional removal being what TrimSuffix cannot
+// substitute for — falsified in round 5 by a 3x2 mutation matrix: the two forms
+// are indistinguishable, because the case cited is unreachable behind the
+// require.True below, which aborts first.
 //
-// Property 1's "ends with" cannot see either defect. `…A B A B` ends with the suffix
+// What survives is not a claim about other tests but a statement about this one:
+// property 1's "ends with" cannot see a double append or a byte removed before
+// the suffix, and these two assertions can. Whether a sibling also can is not
+// this comment's business, and asserting it twice cost two rounds. `…A B A B` ends with the suffix
 // exactly as `…A B` does, and a byte removed before the suffix is invisible to
 // a suffix check — so without this, an implementation that appends without
 // stripping passes every other property, and §1.1 calls that one byte not
