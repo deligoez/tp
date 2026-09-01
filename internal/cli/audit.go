@@ -355,7 +355,7 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	prompts, auditSkipped := generateRoleAuditPrompts(panel.roles, specItems, &sel, specContent, claudeMDExcerptFor(specPath), priorByRole, auditRound, auditWf.AuditCleanRounds, auditConsecutive, auditWf.AuditMaxRounds)
 
 	prompts = appendClausesAudit(prompts)
-	prompts = filterAuditPrompts(prompts, roleFilter)
+	prompts = filterAuditPrompts(prompts, roleFilter, auditSkipped)
 	// §9.1: name every non-emitted auditor — empty-checklist roles above plus
 	// any domain-filtered user corpus roles.
 	auditSkipped = append(auditSkipped, engine.DomainSkippedRoles(filepath.Dir(specPath), panel.fm.Domain, engine.PhaseAuditors)...)
