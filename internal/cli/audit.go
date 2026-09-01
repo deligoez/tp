@@ -364,7 +364,10 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 
 	// §4.2.1 classifies against the finished skip list, because unknownRoleHint
 	// renders the list the filter was handed. Measured in round 7 with the call
-	// moved above the two appends, on a spec deactivating one auditor:
+	// moved above the two appends. The fixture is what produces this exact pair:
+	// a spec whose `domain` is software, over a corpus holding one role with no
+	// checklist items and one scoped to `prose`. A spec that merely DEACTIVATES a
+	// role cannot produce it -- that reads `(disabled-by-spec)`, a third string.
 	//
 	//   here:   "skipped this round: spec-coverage (no-checklist-items), prose-only (domain-mismatch)"
 	//   moved:  "skipped this round: spec-coverage (no-checklist-items)"
