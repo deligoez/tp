@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.36.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-01T06:36:17.769612Z",
+  "updated_at": "2026-09-01T08:44:25.789264Z",
   "workflow": {
     "run_max_units": 6,
     "run_max_budget_usd": 5
@@ -36,7 +36,7 @@
     {
       "id": "clause-constants",
       "title": "Define the two clause strings",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [],
       "estimate_minutes": 5,
@@ -45,16 +45,25 @@
         "### 2.2 The clause",
         "### 3.2 The clause"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-01T06:43:09.383722Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-01T06:46:12.556032Z",
+      "closed_reason": "- Two unexported constants hold §2.2's and §3.2's strings byte-for-byte: isolationClause and incrementalClause in internal/cli/clauses.go, generated from the spec's fenced blocks so no transcription step sits between them.\n- A test asserts each against the literal: TestClauseConstantsMatchTheSpec reads §2.2's and §3.2's fenced text out of spec/0.36.0.md and compares, rather than repeating the strings - a literal in the test would be a third copy, and three copies drift in pairs, with the constant and the test agreeing while the spec said something else. Because generating the constants from the spec made them match by construction, discrimination was proven by mutation instead of by writing the test first: changing one byte (a period to a comma) failed the guard with the full diff, and restoring it returned the file to sha256 1e2db365865ae07526e71a6a2557c4ef2f778fdd621e2869b3ea4df793db5ee2.\nTwo further guards pin the shape (one line, no leading or trailing whitespace) and the 287/177 byte counts §1.1's table prices, so a reworded clause fails at the constant rather than downstream in the suffix arithmetic. Gate green, four steps run separately: test -race 0, golangci-lint 0, deadcode 0, complexity 0.",
+      "gate_passed_at": "2026-09-01T06:46:12.556032Z",
+      "commit_sha": "0e25a22",
+      "commit_shas": [
+        "0e25a22",
+        "350877d"
+      ],
+      "commit_files": [
+        "internal/cli/clauses.go",
+        "internal/cli/clauses_test.go"
+      ]
     },
     {
       "id": "clause-suffix",
       "title": "Build the 468-byte suffix",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "clause-constants"
@@ -64,16 +73,25 @@
       "source_sections": [
         "### 2.3 Placement, to the byte"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-01T06:46:17.749928Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-01T06:49:24.992666Z",
+      "closed_reason": "- One helper returns LF LF + clause A + LF LF + clause B: clauseSuffix in internal/cli/clauses.go. The arithmetic lives there rather than at the call site because §1.1's table carries two figures - 468 for the suffix, 467 for the net change after §2.3's strip - and two spec drafts confused them in opposite directions.\n- A test asserts its length is exactly 468: TestClauseSuffixIsFourHundredSixtyEightBytes, plus TestClauseSuffixShape, which pins the order and separators because a length check alone passes on a suffix assembled wrongly. Observed failing BEHAVIOURALLY rather than on a missing symbol: a deliberately wrong first draft using single newlines reported 466 bytes where 468 were required and fired all three shape assertions, then the corrected version went green.\nNoted rather than assumed: clauseSuffix currently has no production caller, so deadcode reports it as test-only. That is the expected intermediate state - the production caller is the clause-append task, which this one is a dependency of - and not a case where the missing caller is the defect. Gate green, four steps run separately: test -race 0, golangci-lint 0, deadcode 0, complexity 0.",
+      "gate_passed_at": "2026-09-01T06:49:24.992666Z",
+      "commit_sha": "436f27a",
+      "commit_shas": [
+        "436f27a",
+        "9424995"
+      ],
+      "commit_files": [
+        "internal/cli/clauses.go",
+        "internal/cli/clausesuffix_test.go"
+      ]
     },
     {
       "id": "clause-append",
       "title": "Append the suffix to role prompts",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "clause-suffix"
@@ -83,11 +101,22 @@
       "source_sections": [
         "### 2.3 Placement, to the byte"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-01T06:49:31.729608Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-01T06:54:31.588091Z",
+      "closed_reason": "- A prompt whose output_path is non-empty ends with the 468-byte suffix and the byte before it is not a newline: appendClausesReview and appendClausesAudit in internal/cli/clauses.go strip the body's trailing newline then append clauseSuffix(), applied at one point per command rather than in each prompt builder, because several builders produce bodies and the rule is a property of the finished prompt. TestClausesAppendedByOutputPath observed RED first on every review prompt, failing on both the suffix and the strip.\n- A prompt whose output_path is empty does not end with the suffix: the same sweep covers --perspective testing, whose prompt carries an empty output_path, and asserts the negative. The run also asserts it saw BOTH kinds, since a one-sided sweep would pass on an implementation that appended everywhere or nowhere.\nThe predicate is output_path and not the role, because the same role carries a non-empty output_path in one mode and an empty one in another. The test rebuilds the suffix from the spec's own fenced blocks rather than repeating it, so the assertion cannot drift with the implementation it checks. Dogfooded on the freshly built binary against tp's own spec: tp review spec/0.36.0.md --role architect emits one 20,285-byte prompt ending exactly on §3.2's clause with no trailing newline. gocritic caught that strings.Index can return -1 in the test helper; guarded. Gate green, four steps run separately: test -race 0, golangci-lint 0, deadcode 0, complexity 0.",
+      "gate_passed_at": "2026-09-01T06:54:31.588091Z",
+      "commit_sha": "4266c80",
+      "commit_shas": [
+        "4266c80",
+        "831756a"
+      ],
+      "commit_files": [
+        "internal/cli/audit.go",
+        "internal/cli/clause_emission_test.go",
+        "internal/cli/clauses.go",
+        "internal/cli/review.go"
+      ]
     },
     {
       "id": "suite-state-sandbox",
@@ -118,7 +147,7 @@
     {
       "id": "suite-state-assert",
       "title": "Assert the suite mutates no state",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "suite-state-sandbox"
@@ -128,16 +157,28 @@
       "source_sections": [
         "### 6.1 Conditions on the suite as a whole"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-01T08:21:04.186336Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-01T08:28:03.897148Z",
+      "closed_reason": "- spec/.tp-review/ and .tp/rounds/ hash identically before and after a full run: scripts/check-suite-state.sh takes a sha256 over the names AND contents of every file under both directories, runs the suite between the two hashes, and compares. Names as well as contents, so a file added or removed is caught even when every surviving file is untouched; a missing watched directory is legal and hashes to nothing, which makes CREATING one a mutation.\n- It fails the build: the script exits 1 on a difference and is now the FIRST step of the project gate in .tp/config.json, mirrored into .github/workflows/ci.yml. TestCIRunsEveryStepOfTheProjectGate and TestRepoTaskFilesResolveRaceQualityGate both pass against the new list.\n- It cannot be an ordinary test observing its own suite, and the code says why: whatever a test hashes, the tests scheduled after it have not run yet, and §6.3 records the TestMain bracket as withdrawn for the same reason -- TestMain is per-package and these tests span packages. So the observer sits outside the process that runs them.\n- It WRAPS go test -race ./... rather than running beside it: hashing around ONE run is what attributes a change to the suite, and a second run would double the gate's slowest step for nothing.\n- Observed failing first, on a real S1 violation rather than a synthetic one: a test emitting tp review against spec/0.40.0.md (a spec with no recorded state) made the digest differ and the script exited 1, printing before/after hashes and 'What changed (git): ?? spec/.tp-review/0.40.0/'. The fixture was removed afterwards and the same package re-run green. A first attempt against spec/0.36.0.md did NOT fail -- its snapshot already existed and was rewritten byte-identically -- which is why the fixture had to be a spec with no state.\n- The diagnostic names the fix and the non-fix: relocatedSpec (copy the spec plus its .tp-review/\u003cbase\u003e into t.TempDir()), and NOT --no-state, which disables the reads the tests measure.\n- One consequence was found and closed rather than shipped: substituting the wrapper removed '-race' from the gate literal, so TestRepoTaskFilesResolveRaceQualityGate -- named for the race detector -- could no longer see it. TestSuiteStateWrapperStillRunsTheRaceDetector now asserts the script carries 'go test -race ./...' and is executable; both halves were observed failing (dropping -race from the script; chmod -x on it), each reverted. git ls-files reports mode 100755, so the bit survived the commit.\n- CLAUDE.md's Quick Reference and gate rule were updated to the new list, with what a failure means and why --no-state is not the fix.\n- Gate green in four separately-run steps with the NEW step 1: ./scripts/check-suite-state.sh exit 0 (cli 84.5s, engine 43.1s, state unchanged); golangci-lint run 0 issues, exit 0; check-deadcode.sh exit 0; check-complexity.sh exit 0; gofmt -l clean.",
+      "gate_passed_at": "2026-09-01T08:28:03.897148Z",
+      "commit_sha": "68bf526",
+      "commit_shas": [
+        "68bf526",
+        "86f987d"
+      ],
+      "commit_files": [
+        ".github/workflows/ci.yml",
+        ".tp/config.json",
+        "CLAUDE.md",
+        "internal/cli/quality_gate_config_test.go",
+        "scripts/check-suite-state.sh"
+      ]
     },
     {
       "id": "clause-position-test",
       "title": "Test the suffix position",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "clause-append",
@@ -148,16 +189,23 @@
       "source_sections": [
         "#### 6.2.1 Clause emission"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-01T07:58:02.164479Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-01T08:01:12.172965Z",
+      "closed_reason": "- Every emitted prompt with a non-empty output_path ends with the suffix, for tp review AND tp audit: TestEveryPromptWithAnOutputPathEndsWithTheSuffix sweeps six emissions -- review, review --compact, review --role implementer, audit, audit --compact, audit --role spec-coverage -- and asserts HasSuffix on every prompt whose output_path is non-empty, plus that the body does not end with a newline (§2.3 fixes none).\n- The matrix is the point rather than repetition: the append happens at one place per command, and each flag is a chance to bypass it -- --role slices the payload AFTER the append, --compact rewrites prompt fields, and audit assembles its prompts in a different function than review.\n- The suffix is rebuilt from the spec's own fenced blocks (clauseSuffixFromSpec reads ### 2.2 The clause and ### 3.2 The clause out of spec/0.36.0.md), not from the implementation's constants, so the test cannot pass by agreeing with a mistake in the code it checks.\n- Observed failing first, by three mutations, each reverted:\n  - removing 'prompts = appendClausesReview(prompts)': FAIL on review, review/compact, review/role; PASS on all three audit subtests.\n  - removing 'prompts = appendClausesAudit(prompts)': FAIL on audit, audit/compact, audit/role; PASS on all three review subtests.\n  - swapping the clause order in clauseSuffix(): FAIL on all six.\n  The first two failing disjointly is what shows the two commands are measured independently rather than one standing in for the other.\n- Non-vacuous by assertion: require.Positive(seen) per subtest fails a mode that stopped producing any prompt with an output_path. Measured, the six emit 5, 5, 1, 4, 4 and 1.\n- Gate green in four separately-run steps: gofmt -l clean; go test -race ./... ok (cli 42.3s, engine 30.9s); golangci-lint run 0 issues, exit 0; check-deadcode.sh exit 0; check-complexity.sh exit 0.",
+      "gate_passed_at": "2026-09-01T08:01:12.172965Z",
+      "commit_sha": "95de126",
+      "commit_shas": [
+        "95de126"
+      ],
+      "commit_files": [
+        "internal/cli/clause_position_test.go"
+      ]
     },
     {
       "id": "clause-absence-test",
       "title": "Test prompts with an empty output_path",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "clause-append",
@@ -168,16 +216,26 @@
       "source_sections": [
         "#### 6.2.1 Clause emission"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-01T07:45:40.951295Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-01T07:50:59.628064Z",
+      "closed_reason": "- No prompt whose output_path is empty ends with the suffix, over every --perspective value review.go validates plus --verify: TestNoPromptWithoutAnOutputPathEndsWithTheSuffix runs five subtests (documentation, testing, code-audit, regression, verify) and asserts !strings.HasSuffix on every prompt with an empty output_path. Positional, not containment, for the reason property 3 gives -- containment is forgeable by the document under review, since tp embeds changed spec sections verbatim and this spec quotes both clauses.\n- The mode list is derived from the code, not written out: acceptedPerspectives parses a live refusal from tp review --perspective zzz-not-a-perspective, and invalidPerspectiveMessage now renders that refusal from the same package-level reviewPerspectives slice runReview branches on. Previously the map literal and the format string were two independent copies of the four names. TestInvalidPerspectiveMessageNamesExactlyTheAcceptedSet (internal, package cli) pins the round-trip, so the derivation is one link with a guard rather than an unchecked indirection.\n- A new perspective cannot be silently skipped: perspectiveInputs pairs each mode with the flags its own exit-2 refusal demands, and a perspective present in the code with no entry fails the require. Proven by mutation: adding 'security' to reviewPerspectives failed with 'perspective \"security\" has no required-input entry; add one'.\n- Each subtest is non-vacuous by assertion, not assumption: require.NotZero(empties) fails a mode that stopped producing any empty-output_path prompt. Measured, all five produce exactly one.\n- The suffix is read off a live emission that does carry an output file (last 468 bytes), not typed into the test, so both halves of the property are measured against the same bytes.\n- Observed failing first, and the mutation had to be chosen carefully: removing the output_path guard in appendClausesReview changed nothing, because the perspective and verify paths never reach it. That is itself the measurement -- the property holds today by code-path construction. So the mutation is the regression it guards against: appending clauseSuffix() in each emitter. All five subtests were failed independently -- generateCodeAuditPrompt / generateDocPlanPrompt / generateTestPlanPrompt in review.go, the verifier prompt in review_verify.go, and the regression prompt in review_regression.go -- each reverted, git status clean afterwards.\n- Gate green in four separately-run steps: gofmt -l clean; go test -race ./... ok (cli 39.9s, engine 30.5s); golangci-lint run 0 issues, exit 0; check-deadcode.sh exit 0; check-complexity.sh exit 0.",
+      "gate_passed_at": "2026-09-01T07:50:59.628064Z",
+      "commit_sha": "b8ec10e",
+      "commit_shas": [
+        "b8ec10e",
+        "0e704ed"
+      ],
+      "commit_files": [
+        "internal/cli/clause_absence_test.go",
+        "internal/cli/perspective_list_test.go",
+        "internal/cli/review.go"
+      ]
     },
     {
       "id": "clause-once-test",
       "title": "Test the suffix appends once",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "clause-append",
@@ -188,11 +246,18 @@
       "source_sections": [
         "#### 6.2.1 Clause emission"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-01T07:51:03.615566Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-01T07:57:57.871013Z",
+      "closed_reason": "- The body minus its last 468 bytes neither ends with the suffix nor ends with a newline: TestSuffixIsAppendedOnceAndTheStripHappened computes head := body[:len(body)-clauseSuffixBytes] and asserts !HasSuffix(head, suffix) and !HasSuffix(head, \"\\\\n\"), over both tp review and tp audit.\n- Positional removal rather than strings.TrimSuffix, and the code comment says why: TrimSuffix removes nothing when the suffix is absent, so both assertions would pass on a body that never received one. Removing a fixed length cannot. The 468 is asserted against the spec's own clauses first (require.Len on clauseSuffixFromSpec), so the constant cannot drift from §1.1's price.\n- This is the only assertion that fails on a double append or a missing strip, and that was MEASURED, not assumed. Two mutations of internal/cli/clauses.go, each reverted:\n  - double append (an extra += suffix after the strip): FAIL on this test and on its sibling TestClausesAppendedByOutputPath; PASS on TestNoPromptWithoutAnOutputPathEndsWithTheSuffix (all 5 subtests), TestPerRoleEmissionsConcatenateToTheWholePanel, TestRoleSelectionIsByteIdenticalToTheUnrestrictedEntry, TestRoleSelectionLeavesEveryOtherTopLevelKeyUnchanged, TestClauseConstantsMatchTheSpec, TestClauseConstantsAreSingleLines, TestClauseByteCounts, TestClauseSuffixIsFourHundredSixtyEightBytes, TestClauseSuffixShape.\n  - no strip (TrimSuffix on a token that never matches, so no byte is removed): identical verdict -- the same two FAIL, the same ten PASS.\n  That is property 1's blind spot demonstrated on the running binary: '...A B A B' ends with the suffix exactly as '...A B' does, and a byte removed before the suffix is invisible to a suffix check.\n- Run over both commands, because the append happens at one point per command and a defect can live in one and not the other; require.Positive(checked) fails a run where neither emission produced a prompt with an output_path.\n- Gate green in four separately-run steps: gofmt -l clean; go test -race ./... ok (cli 40.7s, engine 30.9s); golangci-lint run 0 issues, exit 0; check-deadcode.sh exit 0; check-complexity.sh exit 0.",
+      "gate_passed_at": "2026-09-01T07:57:57.871013Z",
+      "commit_sha": "579c5c2",
+      "commit_shas": [
+        "579c5c2"
+      ],
+      "commit_files": [
+        "internal/cli/clause_once_test.go"
+      ]
     },
     {
       "id": "role-flag",
@@ -266,7 +331,7 @@
     {
       "id": "role-unemitted-exit",
       "title": "Exit 0 for a recognised unemitted role",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "role-flag"
@@ -276,16 +341,30 @@
       "source_sections": [
         "#### 4.2.1 A recognised name the round does not emit"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-01T07:26:05.26135Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-01T07:34:13.057092Z",
+      "closed_reason": "- A name tp recognises per §4.2.1 that this invocation does not emit exits 0 with prompts: []. classifyRole returns roleSkipped for a name in skipped_roles or accepted by engine.RoleIsRecognised, and applyRoleFilter answers emit=false, so the payload carries an empty array (never null). TestRecognisedUnemittedRoleExitsZeroWithEmptyPrompts asserts exit 0 plus Empty+NotNil on prompts.\n- Recognition spans BOTH phases and both corpora, which is what §4.2.1 means by 'the corpus for either phase': engine.RoleIsRecognised reads the user corpus and the embedded default corpus for reviewers and auditors, unfiltered by domain, plus the built-in regression sentinel. TestRoleInTheOtherPhasesCorpusIsRecognised pins tp review --role spec-coverage and tp audit --role implementer at exit 0; observed RED first (exit 2, hint listing only the four reviewer names).\n- That role's skipped_roles reason is echoed where the payload carries the key: the guard reads the reason from the unrestricted payload and asserts the same reason on the role's own entry in the --role payload. Measured on a round-1 fixture, where regression is skipped with no-baseline.\n- The case is measurable rather than vacuous: relocatedSpecAtRoundOne copies a spec WITHOUT its .tp-review state, putting the emission at round 1 -- the only round in this repository that skips a role. Against the existing relocatedSpec the guard skipped itself and asserted nothing.\n- --role \"\" is refused as an unknown role, not treated as an absent flag: roleQuery.given comes from cmd.Flags().Changed(\"role\") in both commands, for the mode-legality refusal and the filter alike. TestEmptyRoleIsRefusedAsUnknown asserts exit 2; observed RED first (exit 0).\n- Ordering defect found and fixed while wiring: tp audit filtered before appending the domain-mismatch and disabled-by-spec skips, so a role dropped by either would have been classified against a partial list and refused as unknown. The filter now runs after the list is complete; tp review already had the order right.\n- Both new assertions proven discriminating by mutation, each reverted: dropping recognition entirely failed both tests; narrowing recognition to one phase failed the cross-phase test alone with exit 2 on spec-coverage.\n- Gate green in four separately-run steps: gofmt -l clean; go test -race ./... ok (cli 41.8s, engine 31.0s); golangci-lint run 0 issues; check-deadcode.sh exit 0; check-complexity.sh exit 0.",
+      "gate_passed_at": "2026-09-01T07:34:13.057092Z",
+      "commit_sha": "c364140",
+      "commit_shas": [
+        "c364140",
+        "69e462a",
+        "668b699"
+      ],
+      "commit_files": [
+        "internal/cli/audit.go",
+        "internal/cli/review.go",
+        "internal/cli/role_unemitted_test.go",
+        "internal/cli/rolefilter.go",
+        "internal/cli/sandbox_helpers_test.go",
+        "internal/engine/rolerecognition.go"
+      ]
     },
     {
       "id": "role-unknown-exit",
       "title": "Exit 2 for an unrecognised role",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "role-flag"
@@ -295,16 +374,27 @@
       "source_sections": [
         "#### 4.2.1 A recognised name the round does not emit"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-01T07:19:02.818027Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-01T07:26:02.389112Z",
+      "closed_reason": "- A name tp recognises nowhere exits 2: classifyRole returns roleUnknown and applyRoleFilter calls output.Error(ExitUsage) + os.Exit(ExitUsage). TestUnknownRoleExitsTwoWithTheEmittedNames asserts code==2 for both review and audit; observed RED first (exit 0, full panel returned silently).\n- The hint lists the names the invocation would have emitted: unknownRoleHint joins the emitted role names (plus skipped_roles with their reasons). The guard reads the expected names from the invocation's own payload rather than a written-down list, and asserts each appears in stderr.\n- The hint is not corpus-derived: TestUnknownRoleHintIsNotJustTheCorpus pins that 'regression' -- emitted every round, in no corpus -- appears in the hint, and skips itself when the round does not emit that role.\n- Gate green in four separately-run steps: go test -race ./... ok (cli 40.1s, engine 30.8s); golangci-lint run 0 issues; check-deadcode.sh silent; check-complexity.sh silent (no new gocognit/funlen violation, no stale baseline entry).",
+      "gate_passed_at": "2026-09-01T07:26:02.389112Z",
+      "commit_sha": "2f7350d",
+      "commit_shas": [
+        "2f7350d",
+        "eaa80eb"
+      ],
+      "commit_files": [
+        "internal/cli/audit.go",
+        "internal/cli/review.go",
+        "internal/cli/role_unknown_test.go",
+        "internal/cli/rolefilter.go"
+      ]
     },
     {
       "id": "role-mode-legality",
       "title": "Refuse --role in non-emitting modes",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "role-flag"
@@ -314,16 +404,29 @@
       "source_sections": [
         "#### 4.2.2 Where the flag is legal"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-01T06:38:25.990538Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-01T06:43:05.482633Z",
+      "closed_reason": "- Per each command's own flag set, --role is accepted wherever prompts are emitted and exits 2 wherever none are: review refuses --merge, --record, --status, --report, --resolve and --resolve-all while accepting the default mode, --perspective, --diff-from and --verify; audit refuses its five non-emitting modes and accepts the default alone, since it registers no --perspective, --diff-from, --verify or --report. Both checks sit before the mode dispatch so the operator sees the flag conflict rather than that mode's own argument complaint. TestRoleRefusedInNonEmittingModes and TestRoleAcceptedInEveryEmittingMode were written first; all eleven refusals observed RED, returning 0 where 2 was required.\n- The refusal hint names both flags: each message is '--role cannot be combined with --\u003cmode\u003e' with the hint '--role selects one emitted prompt; --\u003cmode\u003e emits none', and the guard asserts stderr contains --role.\nEach refusal case supplies the mode's own arguments so the command reaches its dispatch - a case failing on a missing positional would report exit 2 for the wrong reason and keep passing after the rule was deleted. The acceptances are asserted too, because a guard checking only refusals would pass on an implementation that refused everywhere. unparam then caught that relocatedSpec's parameter only ever received one value; fixed by running the sandbox guard against two specs rather than by shrinking the signature, since a helper that only ever moved one file would satisfy its own assertions by accident. Gate green, four steps run separately: test -race 0, golangci-lint 0, deadcode 0, complexity 0.",
+      "gate_passed_at": "2026-09-01T06:43:05.482633Z",
+      "commit_sha": "17f6f77",
+      "commit_shas": [
+        "17f6f77",
+        "c89fafc",
+        "e89f211",
+        "c9fd01a"
+      ],
+      "commit_files": [
+        "internal/cli/audit.go",
+        "internal/cli/review.go",
+        "internal/cli/role_mode_test.go",
+        "internal/cli/specsandbox_test.go"
+      ]
     },
     {
       "id": "role-selection-test",
       "title": "Test role selection fidelity",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "role-selection",
@@ -334,16 +437,23 @@
       "source_sections": [
         "#### 6.2.2 `--role`"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-01T08:16:22.998853Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-01T08:20:59.879071Z",
+      "closed_reason": "- The selected entry is byte-identical to that role's entry in the unrestricted invocation, for tp review AND tp audit: TestSelectedEntryIsByteIdenticalWholeEntry marshals each prompts[] element whole and compares the encodings, table-driven over both commands so the audit half cannot be quietly weaker.\n- It is asserted at the granularity property 4 is written at -- the ENTRY, not its body. The pre-existing TestRoleSelectionIsByteIdenticalToTheUnrestrictedEntry and TestAuditRoleSelectionIsByteIdentical compare the prompt string only, and an entry also carries output_path, category, checklist_items and affected_files.\n- Observed failing first, and the gap was measured rather than argued: blanking one.OutputPath on the selected review prompt while leaving the body untouched left BOTH body-only tests PASS on every subtest (implementer, tester, architect, regression; spec-coverage, security, maintainability-conventions) and failed only the new whole-entry review subtest. output_path is the field every other emission property in this release keys off.\n- Property 4's second sentence gains its audit half: TestAuditRoleLeavesEveryOtherTopLevelKeyUnchanged asserts the key set and every non-prompts key are unchanged under --role. The review half already existed in role_panel_test.go; the two payloads are assembled by different functions, so one cannot stand in for the other. Proven by dropping the checklist under --role in runAudit, which failed 'top-level key \"checklist\" is unchanged by --role' and 'checklist_summary' and nothing else.\n- tp audit emits no review_loop, so property 12's exception has no subject there and every other key is compared whole -- stated in the code rather than left as an unexplained asymmetry with the review half.\n- Both mutations reverted; git status clean afterwards.\n- Gate green in four separately-run steps: gofmt -l clean; go test -race -count=1 ./... ok (cli 58.5s, engine 35.4s); golangci-lint run 0 issues, exit 0; check-deadcode.sh exit 0; check-complexity.sh exit 0.",
+      "gate_passed_at": "2026-09-01T08:20:59.879071Z",
+      "commit_sha": "caeb438",
+      "commit_shas": [
+        "caeb438"
+      ],
+      "commit_files": [
+        "internal/cli/role_entry_test.go"
+      ]
     },
     {
       "id": "role-classes-test",
       "title": "Test the five skip reasons",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "role-unemitted-exit",
@@ -355,16 +465,23 @@
       "source_sections": [
         "#### 6.2.2 `--role`"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-01T08:40:08.381706Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-01T08:44:25.778696Z",
+      "closed_reason": "- Each of §4.2.1's five reasons exits 0 on the command that can produce it: TestEverySkipReasonExitsZeroUnderRole runs one fixture per reason -- no-baseline (tp review, round 1, the built-in regression role), disabled-by-spec (tp review, enabled: false frontmatter), domain-mismatch (tp review, a corpus role whose domains omit the spec's), no-checklist-items (tp audit, every affected file dropped by the universe filter), no-spec-change (tp review --diff-from, a role focused on the unchanged section) -- and asserts exit 0, prompts == [] (a list, never null), and that the --role payload still echoes that role's own reason.\n- The five are treated as a UNION across both commands rather than a matrix: no-baseline is tp review's built-in regression role and no-spec-change needs --diff-from, which tp audit does not register, so each case names its own command instead of asserting cases the code cannot reach.\n- Every case is verified twice, and the extra guard caught a real fixture error rather than decorating: the unrestricted emission must carry that role with that reason before the --role assertion runs. The no-spec-change fixture's first version used focus [\"gadgets\"] and produced NO skip -- engine.RoleFocusOutsideDiff scopes a role to a section only through an explicit §N reference, and a generic focus keeps the role emitted. Observed as a failure ('the fixture must skip \"gadgets\" with reason \"no-spec-change\", not something else'), then fixed to focus [\"§2 does the gadget rule hold?\"]. Without the guard it would have passed as an ordinary emitted role and measured nothing.\n- An unrecognised name exits 2 with a distinguishable hint: TestUnrecognisedNameIsDistinguishableFromASkippedOne runs the same fixture with the skipped role (exit 0) and with that name plus '-typo' (exit 2), decodes tp's JSON refusal off stderr, and asserts the error repeats what was typed and the hint is non-empty and names the skipped role -- which is exactly what lets a caller tell a typo from a role the round simply did not emit.\n- Observed failing first, by two mutations, each reverted: making a recognised-but-unemitted role exit 2 failed all five cases AND the distinguishability test; making an unrecognised name exit 0 failed only the latter, which is the asymmetry that shows the two tests measure different things.\n- Gate green in four separately-run steps: gofmt -l clean; ./scripts/check-suite-state.sh exit 0 (cli 46.2s, engine 31.0s, review state unchanged); golangci-lint run 0 issues, exit 0; check-deadcode.sh exit 0; check-complexity.sh exit 0.",
+      "gate_passed_at": "2026-09-01T08:44:25.778696Z",
+      "commit_sha": "9ccea5c",
+      "commit_shas": [
+        "9ccea5c"
+      ],
+      "commit_files": [
+        "internal/cli/role_classes_test.go"
+      ]
     },
     {
       "id": "role-mode-test",
       "title": "Test the per-command mode table",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "role-mode-legality",
@@ -375,16 +492,23 @@
       "source_sections": [
         "#### 6.2.2 `--role`"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-01T08:32:36.882275Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-01T08:36:07.891862Z",
+      "closed_reason": "- Every legal mode emits ONE prompt, run per command against that command's own list: TestEveryLegalModeEmitsExactlyOnePrompt covers tp review's four legal modes across eight cases (default, --diff-from, --verify, and --perspective in all four values regression/code-audit/documentation/testing) plus tp audit's one legal mode, asserting require.Len(prompts, 1) and that the survivor is the role asked for.\n- Exit 0 is explicitly NOT treated as the property, and the code says why: --role selects one prompt, so a mode that accepted the flag and emitted the whole panel would pass an exit-code check while breaking what the flag exists for. The pre-existing TestRoleAcceptedInEveryEmittingMode checked only the exit code and covered three of review's modes; this covers all eight cases and the count.\n- Every refusing mode exits 2: TestRoleRefusedInNonEmittingModes already covers review's six (--merge, --record, --status, --report, --resolve, --resolve-all) and audit's five, each invoked with its own arguments supplied so the refusal is the flag conflict and not a missing positional.\n- The table cannot silently go stale: TestModeTableCoversEveryFlagEachCommandRegisters reads each command's --help and requires every mode-selecting flag that command REGISTERS to appear in one of its two columns, and requires --perspective/--diff-from/--verify/--report to be absent from tp audit -- which is the measured fact that makes §4.2.2 per command rather than 'and audit's equivalents'.\n- The role name is per case rather than shared, because the modes emit different ones: --perspective testing emits test-planner and --perspective documentation emits documentation-planner, neither of which belongs to any corpus.\n- Observed failing first, by two mutations, each reverted: returning the whole panel from filterReviewPrompts' emitted-role branch failed review/default and review/diff-from on the count; adding a --report flag to tp audit failed the completeness guard with 'tp audit registers --report but the mode table names it in neither column' and the absence assertion.\n- Gate green in four separately-run steps: gofmt -l clean; ./scripts/check-suite-state.sh exit 0 (cli 54.7s, engine 36.1s, review state unchanged); golangci-lint run 0 issues, exit 0; check-deadcode.sh exit 0; check-complexity.sh exit 0.",
+      "gate_passed_at": "2026-09-01T08:36:07.891862Z",
+      "commit_sha": "cfb5d25",
+      "commit_shas": [
+        "cfb5d25"
+      ],
+      "commit_files": [
+        "internal/cli/role_mode_table_test.go"
+      ]
     },
     {
       "id": "role-panel-test",
       "title": "Test whole-panel equality",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "role-selection",
@@ -395,11 +519,18 @@
       "source_sections": [
         "#### 6.2.2 `--role`"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-01T07:34:17.434468Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-01T07:37:59.066955Z",
+      "closed_reason": "- Observed failing first, by three mutations of the implementation, each reverted: appending a marker to the selected review prompt body failed the review subtest; returning prompts[:1] from filterAuditPrompts failed the audit subtest; dropping structured_elements under --role failed the top-level-key test with 'the key set is unchanged'.\n- The per-role emissions concatenated in the unrestricted payload's own order equal that payload's prompts[]: TestPerRoleEmissionsConcatenateToTheWholePanel builds the expected slice by indexing the unrestricted bodies with the unrestricted order, then compares it against one --role call per role in that same order. Order is read from the payload, never from the call sequence, so an implementation that reordered the panel could not pass.\n- It holds for BOTH commands: the test is table-driven over a panelEmitter pair, so the audit half cannot be quietly weaker than the review half. The audit emitter passes --affected-files \u003cspec\u003e because measured, tp audit on a clean tree exits 4 with 'no changed files detected' -- without it that half would not run at all, which is exactly the state a release tree is in when this gate fires.\n- Non-vacuity measured rather than assumed: the review panel emits 5 roles (architect, ax-economist, implementer, tester, regression) and the audit panel 4 (ax-contract, go-safety, maintainability-conventions, spec-coverage), so each subtest compares a real multi-role panel.\n- Property 4's other half is pinned alongside: TestRoleSelectionLeavesEveryOtherTopLevelKeyUnchanged asserts the key set is unchanged and every top-level key equal, with review_loop compared member by member and only 'instruction' exempted -- measured 7 top-level keys and 8 review_loop members, so exempting the whole key would have left 7 members unwatched.\n- Gate green in four separately-run steps: gofmt -l clean; go test -race ./... ok (cli 41.0s, engine 30.7s); golangci-lint run 0 issues; check-deadcode.sh exit 0; check-complexity.sh exit 0.",
+      "gate_passed_at": "2026-09-01T07:37:59.066955Z",
+      "commit_sha": "56f1d46",
+      "commit_shas": [
+        "56f1d46"
+      ],
+      "commit_files": [
+        "internal/cli/role_panel_test.go"
+      ]
     },
     {
       "id": "brief-passes-role",
@@ -437,7 +568,7 @@
     {
       "id": "instruction-narrowing",
       "title": "Narrow review_loop.instruction under --role",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "role-selection"
@@ -447,16 +578,26 @@
       "source_sections": [
         "#### 4.2.3.1 `review_loop.instruction`"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-01T07:38:02.640616Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-01T07:42:15.961412Z",
+      "closed_reason": "- Under --role the key is a sentence-subset of the unrestricted one: narrowInstructionForRole (internal/cli/instruction.go) splits the finished string on period-plus-space, keeps only sentences a single-prompt caller can act on, and rejoins with the same separator, so the result is a subset by construction. TestRoleInstructionIsASentenceSubsetDirectingNothingUnsupported asserts every narrowed sentence appears verbatim among the unrestricted sentences -- a reworded sentence fails even if it says something true.\n- It directs no action the single-prompt payload cannot support: the same test asserts the narrowed key contains none of the orchestrator directives (spawn a sub-agent via the Agent tool, tp review --merge, --record \u003cfindings.ndjson\u003e, --status --check exits 0). Dogfooded on tp's own spec: the unrestricted key is six sentences, --role implementer emits one -- 'Read the spec at \u003cabs\u003e before processing each prompt.'\n- Built as an allow-list rather than a subtraction, because §6.3 records the enumerated forbidden list as withdrawn ('measured short by one'). unitActionableSentence answers what a one-prompt caller CAN do, so an unanticipated sentence is dropped rather than kept, and the subset test cannot measure short either: an unanticipated survivor fails by being absent from the unrestricted sentence list.\n- Without --role the key is byte-identical to before: the narrowing is gated on roleGiven and buildReviewLoopInstruction is untouched. Asserted positively by TestUnrestrictedInstructionStillCarriesEveryOrchestratorDirective, because §6.3 records the cross-version baseline as unavailable -- a go test binary compiles one tree, so v0.35.2's emitter is not callable.\n- Narrowing to nothing is refused: TestRoleInstructionKeepsWhatOnePromptCanAct pins that the key is non-empty and still names the spec path, which is the one thing this key tells a unit that its own prompt does not.\n- Observed failing first: --role returned the whole six-sentence orchestrator instruction, and the subset test failed on 'an unchanged key is the defect this property exists for'.\n- Splitting on period-plus-space rather than a bare period is load-bearing and stated in the code: the key carries spec/0.36.0.md and \u003cfindings.ndjson\u003e, whose dots are never followed by a space; a bare-period split would cut a sentence in half and the result would no longer be a subset.\n- Gate green in four separately-run steps: gofmt -l clean; go test -race ./... ok (cli 40.6s, engine 30.7s); golangci-lint run 0 issues, exit 0; check-deadcode.sh exit 0; check-complexity.sh exit 0.",
+      "gate_passed_at": "2026-09-01T07:42:15.961412Z",
+      "commit_sha": "3fc2eea",
+      "commit_shas": [
+        "3fc2eea",
+        "f6ae7cf"
+      ],
+      "commit_files": [
+        "internal/cli/instruction.go",
+        "internal/cli/instruction_narrowing_test.go",
+        "internal/cli/review.go"
+      ]
     },
     {
       "id": "brief-runs-test",
       "title": "Test every unit brief runs",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "brief-passes-role",
@@ -467,16 +608,23 @@
       "source_sections": [
         "#### 6.2.3 The driver's brief"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-01T08:28:08.807687Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-01T08:32:32.664676Z",
+      "closed_reason": "- Each unit's brief_command exits 0 in the phase that unit belongs to: TestEveryUnitBriefCommandRunsInItsOwnPhase builds the unit set with engine.BuildNextUnits for review and for audit, then RUNS each unit's brief_command verbatim and requires exit 0, alongside asserting the command names '--role \u003cthat unit's id\u003e'.\n- Measured under a fixture where a corpus role is skipped no-checklist-items, and the fixture PRODUCES that rather than assuming it: divergentAuditRepo git-inits a tree whose only dirty file is under testdata/, which the audit universe filter drops, so security and maintainability-conventions are skipped no-checklist-items while spec-coverage still emits. The test requires that skip set to be non-empty before measuring, and requires a skipped role to appear in the audit unit set -- the row §4.2.1 puts in bold, where a prompt is dropped and a unit is not.\n- The phase qualifier is honoured rather than worked around: the tree is left DIRTY on purpose, because §7 measures that tp audit exits 4 on a clean tree, and an audit-role unit runs after implementation when the tree is not clean. A clean-tree fixture would have measured that refusal instead of the property.\n- The brief is executed through the test's own freshly built binary rather than whatever 'tp' PATH resolves to, matching the self-development rule that the version under test is the one measured; the leading 'tp' token is asserted rather than assumed.\n- Observed failing first, by two mutations, each reverted:\n  - making a recognised-but-unemitted role exit 2 (the rule §4.2.1 rejects) failed audit/security and audit/maintainability-conventions with 'unknown role: security ... this invocation emits: spec-coverage; skipped this round: security', and left the review half passing.\n  - removing 'target.ID = id' from engine.newNextUnit failed the review half on implementer, tester and architect with 'a unit's brief names its own id'.\n- Gate green in four separately-run steps: gofmt -l clean; ./scripts/check-suite-state.sh exit 0 (cli 52.7s, engine 35.6s, review state unchanged); golangci-lint run 0 issues, exit 0 (one gocritic unnamedResult was reported on the first attempt and fixed by naming runShellIn's results); check-deadcode.sh exit 0; check-complexity.sh exit 0.",
+      "gate_passed_at": "2026-09-01T08:32:32.664676Z",
+      "commit_sha": "5e74a3c",
+      "commit_shas": [
+        "5e74a3c"
+      ],
+      "commit_files": [
+        "internal/cli/brief_runs_test.go"
+      ]
     },
     {
       "id": "regression-gap-test",
       "title": "Test regression stays unassigned",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "brief-passes-role",
@@ -487,16 +635,23 @@
       "source_sections": [
         "#### 6.2.3 The driver's brief"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-01T07:42:20.602375Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-01T07:45:37.485774Z",
+      "closed_reason": "- The emitted role set minus the unit set equals exactly the regression role, as SET EQUALITY: TestEmittedRolesMinusUnitsIsExactlyRegression asserts difference(emitted, units) == [\"regression\"], not membership, so a release that adds a regression unit or drops any other role from the unit set must update this deliberately. The reverse difference is asserted empty too -- no unit is spawned for a role nothing emits.\n- Measured at a round where regression emits, and that precondition is a require rather than an assumption: the relocated spec carries its recorded rounds, so the emission is past round 1; require.Contains(emitted, RegressionRoleID) fails the test rather than passing it vacuously if a future change stops emitting regression. At round 1 regression is skipped no-baseline and the difference would be empty for an unrelated reason.\n- The two sets come from the two producers that actually diverge: the emitted set from a real tp review emission, the unit set from engine.BuildNextUnits -- the same oracle tp run reads -- with its kind asserted to be review-role.\n- Observed failing first, by two mutations of engine.roleUnits, each reverted: appending a regression unit made the difference empty and failed with 'the emitted role set minus the unit set is exactly {regression}'; dropping one role from the panel made the difference two elements and failed the same assertion.\n- Gate green in four separately-run steps: gofmt -l clean; go test -race ./... ok (cli 40.5s, engine 30.6s); golangci-lint run 0 issues, exit 0; check-deadcode.sh exit 0; check-complexity.sh exit 0.",
+      "gate_passed_at": "2026-09-01T07:45:37.485774Z",
+      "commit_sha": "2ac6174",
+      "commit_shas": [
+        "2ac6174"
+      ],
+      "commit_files": [
+        "internal/cli/regression_gap_test.go"
+      ]
     },
     {
       "id": "instruction-test",
       "title": "Test the instruction narrowing",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "instruction-narrowing",
@@ -507,16 +662,23 @@
       "source_sections": [
         "#### 6.2.3 The driver's brief"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-01T08:05:45.117135Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-01T08:16:15.18474Z",
+      "closed_reason": "- The --role instruction is a sentence-subset of the unrestricted one and carries none of its orchestrator directives, quantified over EVERY mode §4.2.2 calls legal rather than over the default alone: TestInstructionIsASubsetInEveryModeRoleIsLegalIn runs six subtests (default, --perspective regression / code-audit / documentation / testing, --verify), asserting each narrowed sentence appears verbatim among the unrestricted sentences and that none of the four orchestrator directives survives.\n- Without the flag it is unchanged: the same test asserts the default key MUST shorten under --role (NotEqual) while every single-prompt mode's key is byte-equal with and without it. The sibling TestUnrestrictedInstructionStillCarriesEveryOrchestratorDirective pins the unrestricted default key positively, since §6.3 rules out a cross-version baseline.\n- The orchestrator fixture is the task's own reading, and it was measured before being written: only the default key is addressed to a panel holder -- it directs a merge, a record, a repeat, and an ordering against a regression prompt the payload does not have. The five single-prompt keys already speak to one prompt ('Feed findings back into spec revision', 'append the plan to the spec', 'run a full review round' are all things the holder of one prompt's output can do), so the subset is the whole string there and equality is asserted rather than assumed.\n- The role name per mode is read from that mode's own emission, never written down: --perspective testing emits test-planner, which is in no corpus, so a hard-coded list would rot silently.\n- Observed failing first, by three mutations, each reverted, each failing a different subtest: removing 'instruction = narrowInstructionForRole(instruction)' failed default; making the narrowing return a reworded sentence instead of a subset failed default; appending 'Merge findings (tp review --merge), verify and resolve them.' to the code-audit emitter failed code-audit and no other.\n- Gate green in four separately-run steps: gofmt -l clean; go test -race -count=1 ./... ok (cli 58.9s, engine 37.3s); golangci-lint run 0 issues, exit 0; check-deadcode.sh exit 0; check-complexity.sh exit 0.\nOut of scope: TestRoleWriteHookStaysCheapOnADeepMissingPath (internal/cli/role_write_symlink_test.go:206, shipped in v0.35.0) is FLAKY under load and failed one of four full gate runs during this task. It asserts deep \u003c 3*shallow on wall-clock; the failing run measured deep=56.95ms shallow=17.82ms, a ratio of 3.198. The design is sound -- a ratio rather than a deadline, fastest-of-three each side -- but the constant sits too close to the noise floor: the comment records bounded as 'within noise' and unbounded as ~6x, so 3x leaves only a 2x margin. Not touched here (it is neither this task's acceptance nor this release's surface); it needs a wider constant or more repetitions, and it will randomly fail the release gate until then.",
+      "gate_passed_at": "2026-09-01T08:16:15.18474Z",
+      "commit_sha": "1f45f0d",
+      "commit_shas": [
+        "1f45f0d"
+      ],
+      "commit_files": [
+        "internal/cli/instruction_modes_test.go"
+      ]
     },
     {
       "id": "release-gate",
       "title": "Run panel equality across every spec",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "role-panel-test"
@@ -526,16 +688,23 @@
       "source_sections": [
         "## 7. Release gate"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-01T08:36:12.437694Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-01T08:40:04.224683Z",
+      "closed_reason": "- Whole-panel equality holds for every spec an unrestricted invocation emits prompts for: TestReleaseGate_PanelEqualityAcrossEverySpec globs spec/*.md, and per spec per command emits unrestricted, then once per role, and asserts the per-role bodies concatenated in the UNRESTRICTED payload's order equal that payload. Measured: 39 specs, 78 emissions in scope, 0 out of scope, 3.0s.\n- The audit half is given affected files, via --affected-files subject.go written into each sandbox. §7 measured that tp audit \u003cspec\u003e exits 4 on a clean tree with 'no changed files detected', and a release tree is clean exactly when this gate fires, so a gate naming neither --affected-files nor --base would report nothing for half its scope. All 39 specs pass the audit half, so that half is not vacuous.\n- A spec emitting nothing is named out of scope rather than silently dropped: emitOrSkip returns ok=false on a non-zero exit, unparseable JSON or an empty prompts[], and the caller records 'spec/\u003cname\u003e.md (review|audit)' into a list the test logs with its counts, guarded by require.Positive(inScope). This run reports zero out of scope.\n- Breadth buys what §7 claims and no more, verified: 15 of the 39 specs carry recorded rounds and emit regression, 24 carry none and skip it no-baseline, so both sides of the one round-dependent skip are exercised without a fixture.\n- Every spec is relocated before emitting, because §6.1 S1 forbids the suite mutating live review state and emission writes the round snapshot; the copy carries the spec's own .tp-review/\u003cbase\u003e, so the round number and the panel travel with it. ./scripts/check-suite-state.sh confirms the whole suite, this gate included, left spec/.tp-review/ and .tp/rounds/ byte-identical.\n- Observed failing first, by two suppression mutations -- the exact shape §7 exists for -- each reverted, each failing ALL 39 specs: appending a marker to the selected prompt in filterReviewPrompts, and returning prompts[:1] from filterAuditPrompts.\n- A third mutation was written first and produced ZERO failures: it altered the prompt inside appendClausesReview under 'if len(prompts) == 1', which never fires because the append runs BEFORE the filter. Recorded here rather than discarded, because a mutation that changes nothing is not evidence, and reading the code is what found the reason.\n- Gate green in four separately-run steps: gofmt -l clean; ./scripts/check-suite-state.sh exit 0 (cli 49.0s, engine 31.3s, review state unchanged); golangci-lint run 0 issues, exit 0; check-deadcode.sh exit 0; check-complexity.sh exit 0.",
+      "gate_passed_at": "2026-09-01T08:40:04.224683Z",
+      "commit_sha": "6c3efe5",
+      "commit_shas": [
+        "6c3efe5"
+      ],
+      "commit_files": [
+        "internal/cli/release_gate_test.go"
+      ]
     },
     {
       "id": "docs-refresh",
       "title": "Document --role in the skill files",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "role-mode-legality",
@@ -546,11 +715,21 @@
       "source_sections": [
         "#### 4.2.2 Where the flag is legal"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-01T08:01:15.728558Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-01T08:05:40.754571Z",
+      "closed_reason": "- skills/tp/SKILL.md carries the flag, its three name classes and its per-command mode table: a new '## --role — one prompt at a time (v0.36.0)' section with the single-value rule, the --role \"\" refusal, a three-row class table (emitted / recognised-not-emitted / recognised-nowhere with exits 0/0/2), the cross-phase meaning of 'recognises', the two-column legal/refused table per command, and the review_loop.instruction narrowing. The two inventory rows for tp review --role and tp audit --role were already in place.\n- skills/tp/REFERENCE.md carries the payload contract, which is that file's job (SKILL owns the forms, REFERENCE owns what they produce): a per-class table of exit / prompts[] / other keys, the verbatim stderr shape of the exit-2 refusal, why the hint is built from the emitted set rather than the corpus, and that prompts[] and review_loop.instruction are the ONLY differences from the unrestricted payload.\n- README.md's index lists it: 'tp review spec.md --role NAME  # Emit one role's prompt only (also on tp audit)' in the Spec \u0026 Validation block, plus an AX-table row naming what it buys.\n- Verified by RUNNING every documented command against a freshly built binary, not by reading:\n  - three name classes: implementer -\u003e 0, spec-coverage -\u003e 0, no-such-role -\u003e 2, --role \"\" -\u003e 2.\n  - review legal modes: default 0, --perspective regression 0, --verify 0.\n  - review refused modes, all exit 2: --merge, --record, --status, --report, --resolve, --resolve-all.\n  - audit refused modes, all exit 2: --merge, --record, --status, --resolve, --resolve-all.\n  - 'tp audit registers no --perspective, --diff-from, --verify or --report': confirmed against tp audit --help for all four.\n  - payload contract: --role spec-coverage gives prompts == [] (a list, not null); the unrestricted vs --role payloads differ in exactly ['prompts', 'review_loop'], and review_loop in exactly ['instruction']; --perspective carries no skipped_roles key.\n- One documented claim was corrected by that measurement rather than shipped: both files first said the exit-0-empty class always echoes the role's skipped_roles reason. Measured, tp review --role spec-coverage exits 0 with skipped_roles: [] -- an auditor id is recognised through the other phase's corpus, and this phase skipped nothing. The text now splits the two cases, and the other direction was run too: at round 1 in a fresh directory, --role regression gives prompts [] with skipped_roles [{regression, no-baseline}].\n- tp lint skills/tp/SKILL.md exits 0.\n- Gate green in four separately-run steps: gofmt -l clean; go test -race ./... ok (cli 42.7s, engine 34.5s); golangci-lint run 0 issues, exit 0; check-deadcode.sh exit 0; check-complexity.sh exit 0.",
+      "gate_passed_at": "2026-09-01T08:05:40.754571Z",
+      "commit_sha": "ec5943d",
+      "commit_shas": [
+        "ec5943d",
+        "4dca782"
+      ],
+      "commit_files": [
+        "README.md",
+        "skills/tp/REFERENCE.md",
+        "skills/tp/SKILL.md"
+      ]
     }
   ]
 }
