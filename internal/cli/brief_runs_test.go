@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -96,17 +97,44 @@ func TestEveryUnitBriefCommandRunsInItsOwnPhase(t *testing.T) {
 			for _, u := range units {
 				assert.Contains(t, u.BriefCommand, "--role "+u.ID,
 					"%s: a unit's brief names its own id", u.ID)
-
-				out, code := runShellIn(t, dir, u.BriefCommand)
-				assert.Equal(t, 0, code,
-					"%s/%s: `%s` must exit 0 in its own phase; got: %s",
-					phase, u.ID, u.BriefCommand, truncate(out))
-
 				for _, name := range skippedByEmission {
 					if u.ID == name && phase == engine.PhaseAudit {
 						sawSkipped = true
 					}
 				}
+			}
+
+			// The briefs run CONCURRENTLY, because that is how they run: §4.1
+			// marks role units concurrent and REFERENCE.md says sibling roles
+			// are spawned in parallel. Running them one at a time made this
+			// guard blind to the only code defect audit round 7 found — every
+			// sibling writes the round's snapshot, and a shared temp path made
+			// them race to rename it. Sequentially: 0 failures in 20. In
+			// parallel, before the fix: 5 of 40 on review, 9 of 40 on audit.
+			//
+			// The arrangement is part of the property, not an implementation
+			// detail of the test.
+			type result struct {
+				id   string
+				out  string
+				code int
+			}
+			results := make([]result, len(units))
+			var wg sync.WaitGroup
+			for i, u := range units {
+				wg.Add(1)
+				go func(i int, u engine.NextUnit) {
+					defer wg.Done()
+					out, code := runShellIn(t, dir, u.BriefCommand)
+					results[i] = result{u.ID, out, code}
+				}(i, u)
+			}
+			wg.Wait()
+
+			for _, r := range results {
+				assert.Equal(t, 0, r.code,
+					"%s/%s: the brief must exit 0 in its own phase, run beside its siblings; got: %s",
+					phase, r.id, truncate(r.out))
 			}
 			if phase == engine.PhaseAudit {
 				assert.True(t, sawSkipped,
