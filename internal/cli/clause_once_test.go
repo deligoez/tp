@@ -11,9 +11,12 @@ import (
 )
 
 // clauseSuffixBytes is the suffix's length, and the number the removal below is
-// positional on. §1.1 prices it and also names 467 — the NET delta after the
-// body's trailing newline is stripped — as the off-by-one its table exists to
-// prevent; an earlier version of this comment reproduced exactly that error.
+// positional on. §1.1 prices it and distinguishes it from 467, the NET delta
+// after the body's trailing newline is stripped. Which of the two is an error
+// depends on the slot it sits in: the off-by-one §1.1's table exists to fix is
+// 468 written where the net delta belongs, and calling the SUFFIX "467-byte" is
+// the same error in the opposite direction. An earlier version of this comment
+// inverted that attribution, naming 467 as the error the table prevents.
 const clauseSuffixBytes = 468
 
 // TestSuffixIsAppendedOnceAndTheStripHappened is v0.36.0 §6.2 property 3.
