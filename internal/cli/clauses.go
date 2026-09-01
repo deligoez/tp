@@ -20,3 +20,15 @@ const (
 	// unit that buffers and dies loses the whole round.
 	incrementalClause = "Write each row to the output file as you decide it, not once at the end. A run that dies with its rows unwritten loses the whole round; a partially written file is still usable."
 )
+
+// clauseSuffix returns what §2.3 appends to an emitted role prompt: a blank
+// line, §2.2's clause, a blank line, §3.2's clause, and no trailing newline.
+//
+// 468 bytes — 2 + 287 + 2 + 177. The net change to a body is one less, because
+// §2.3 removes the body's trailing newline before appending; §1.1's table
+// carries both figures and two drafts of the spec confused them in opposite
+// directions, which is why the suffix is built here and the arithmetic is not
+// repeated at the call site.
+func clauseSuffix() string {
+	return "\n\n" + isolationClause + "\n\n" + incrementalClause
+}
