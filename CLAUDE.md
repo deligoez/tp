@@ -100,6 +100,38 @@ skills/tp/
 | `--test-cpu 2` | 2 | **0** | 52 | 26 | **100.00%** |
 
 All five real survivors became `TIMED OUT`; `NOT COVERED` was untouched, because the coverage profile is collected before any mutant runs. **The tell is `Lived: 0` beside `Not covered > 0`** — an exhaustive suite can honestly report `Lived: 0` and 100%, but not next to a non-zero not-covered count. Do not use the raw `Lived: 0` + 100% as the signature: a peer repo hit a package that produced it honestly and doubted a correct result. The *symptom* is machine-dependent too — a peer measured survivors becoming `KILLED` where this workspace sees `TIMED OUT` — so trust the signature, not the mechanism. And note which direction this fails in: it manufactures exactly the number someone would be pleased by, in a repo whose own rule is that the survivor count is not a score to drive down. **`-D, --diff <branch|commit>` does not work in v0.6.0 — narrow by PACKAGE instead.** It was recorded here as the untried idea most likely to turn "an hour before the tag" into something runnable per task. The experiment has now been run and it fails: on a clean tree, `-D <the current branch>` — an empty diff, which must yield zero mutants — produced all **80**, the unrestricted set. Upstream has three open bugs on it (#278, #296, #301). Narrowing by package name is the replacement and is an EXACT substitute rather than an approximation: in default mode gremlins runs only the mutated package's own tests (`--integration` inverts this), so an unchanged package's mutants cannot change verdict. The same fact has a corollary worth knowing before reading any efficacy number here — a package driven only by another package's tests scores as undetected, so the figure understates detection. What it is worth: the files v0.34.0's manual sweep examined score 96–100% efficacy, the files it did not sit at 25–78%, so the manual work was real — and `internal/engine/validate.go` at **25% with 46 survivors** is the standing backlog. The two decision points, named here so they are not re-derived each cycle and do not die with the orchestrator's context: **when a version's new engine surface is complete, before its audit loop opens**, and **before the release tag** — never while task gates are running, for the load reason above. `spec/0.49.0.md` §8 is where this becomes a documented gate entry instead of a rule in this file.
+- **Force a commitment in the brief, or the round returns a reading it cannot use.** Six instances
+  across two repositories, three of them this repo's own v0.36.0 audit, all recorded. The pattern is
+  one sentence, and in every case the reading was already available to the role — what the sentence
+  bought was the obligation to conclude something from it.
+
+  | put this in the brief | measured effect |
+  |---|---|
+  | *the inputs behind this repair were chosen by the person who wrote it, which is the condition under which this cycle has been wrong N times — construct one that set does not reach* | round 11 built the input the repair's own six missed and found both gate guards green on a fresh instance of the class the repair claimed to close; round 12 repeated it and returned **two `error`-severity findings** |
+  | *do you still hold this earlier judgement — either answer is fine* | round 13 **withdrew its own** round-12 conclusion that two claims admitted no falsifying input, and built the reconstruction it had said did not exist |
+  | *state what your prose knows that your row cannot carry, **and say what should be done about it*** | a peer cycle's role narrowed its own note from four files to three call sites and retracted its earlier framing; without the second clause the same note sat unactioned for a round |
+
+  **The count is load-bearing in the first one.** "Chosen by the author" reads as a caveat; "the
+  condition under which this cycle has been wrong nine times" reads as a standing defect, and only
+  the second changed what the role did. And note what all three have in common: an unforced record
+  — a tick, a carried-forward ground, a note — is not usable evidence. The same shape appears one
+  level down in tooling: a summarising model asked to tick four claims **confirmed a claim and its
+  negation**, while the same model asked one claim at a time with the verdict forced before the
+  reasoning answered both correctly. So when delegating a reading: one claim per call, verdict
+  first, asked both ways — **a reader that confirms both did not read.** `spec/0.49.0.md` §1c owns
+  the rule; §1b.1 pre-registers the trial now running on `spec/0.37.0.md`'s review, including the
+  prediction that would embarrass it.
+
+- **A PASS row can carry a defect in its note, and `spec_coverage_clean_rounds` cannot see it.**
+  Measured in two repositories; the sharper case is a peer cycle where a role scored 55/55 PASS in
+  three consecutive rounds while its prose named a real spec defect each time, all three fixed by
+  commit. This repo has one, weaker instance — v0.36.0 round 13's `task-role-mode-test`, PASS,
+  whose note names a doc comment "claims more than its body delivers", inside a round counted toward
+  the `spec_coverage_clean_rounds: 4` that release shipped on. **Read the notes of PASS rows before
+  reading a clean streak as clean**, and treat a PASS carrying such a note as unresolved.
+  `spec/0.37.0.md` §5a takes it. On that rule v0.36.0's counter was 3, not 4 — the shipping
+  condition still held, which is luck about the margin and not a defence of the counter.
+
 - **Prove a fix by running it, not by reading it — write the test first and watch it fail.** A test
   that has never been observed failing proves nothing about the code; it may be asserting a
   tautology, and it passes identically either way. Write the assertion, run it against the unfixed
@@ -201,19 +233,19 @@ rounds at 146 lines, so splitting shortens the expected cycle without guaranteei
 | # | Spec | What it does | Lines |
 |---|---|---|---|
 | 0.36.0 | the emitted round | The emitted prompt carries its own isolation and incremental-write constraints, and `--role` emits one role's prompt instead of the panel. **Shipped** | 763 |
-| 0.37.0 | audit convergence | `audit_converge_on`, accepted rows stop blocking, a changed spec ends the streak | 177 |
+| 0.37.0 | audit convergence | `audit_converge_on`, accepted rows stop blocking, a changed spec ends the streak | 287 |
 | 0.38.0 | the round reports its progress | `--status` says how far an in-flight round has got, for the interactive fallback the driver cannot see | 78 |
-| 0.39.0 | the v0.35.0 backlog | The defects v0.32.0–v0.35.0 deferred with reasons; cites `spec/0.35.0-candidates.md` rather than restating it | 127 |
+| 0.39.0 | the v0.35.0 backlog | The defects v0.32.0–v0.35.0 deferred with reasons; cites `spec/0.35.0-candidates.md` rather than restating it | 144 |
 | 0.40.0 | the gate sequence and the red gate | `quality_gate` as an ordered array, plus the bounded procedure a unit follows when it goes red | 120 |
 | 0.41.0 | a durable home for an accepted finding | Where an accepted audit finding goes so it becomes maintenance pressure rather than archived prose | 63 |
-| 0.42.0 | the binary check | The advisory that fires when the running tp is older than the spec being developed | 46 |
+| 0.42.0 | the binary check | The advisory that fires when the running tp is older than the spec being developed | 108 |
 | 0.43.0 | what the loop costs | Repair locality and class families, measured from data tp already stores | 259 |
 | 0.44.0 | what reading alone can decide | The identifier pass and the contradictory-comparator rule, plus a `workflow.checks` entry and the four candidates prototyped and refuted before any reached the spec | 177 |
-| 0.45.0 | when the spec moves between rounds | `next_action` recommends the shipped delta pass; `--reconcile` records why the spec moved | 140 |
-| 0.46.0 | what v0.36.0's audit handed over | Seven measured items that cycle deferred, §7 and §8 the largest; unblocked, v0.36.0 has shipped | 197 |
+| 0.45.0 | when the spec moves between rounds | `next_action` recommends the shipped delta pass; `--reconcile` records why the spec moved | 178 |
+| 0.46.0 | what v0.36.0's audit handed over | Seven measured items that cycle deferred, §7 and §8 the largest; unblocked, v0.36.0 has shipped | 253 |
 | 0.47.0 | the fence, the example, the split | Test-file fence, example-table lint rule, unexecutable test-task warning. **All three need a design pass** | 115 |
 | 0.48.0 | the divisible round | Sharding a role's checklist, incremental rounds | 100 |
-| 0.49.0 | the evidence contract | Stop accepting an assertion where an experiment was meant. **Pre-design** — §4–§7 and §10 name no mechanism | 246 |
+| 0.49.0 | the evidence contract | Stop accepting an assertion where an experiment was meant. **Pre-design** — §4–§7 and §10 name no mechanism | 501 |
 
 **Why this order.** Value over size first, then hard dependencies. 0.37.0 leads on this repo's own
 numbers (see its §2.1: `blocking` converges at round 3 where `all` takes 9). 0.38.0 is next because
@@ -230,7 +262,7 @@ still says "v0.36.0" in two places). After any future renumber, run a cross-refe
 do not exist, and re-read every surviving reference for whether it still means what it says — a
 reference that resolves to a file is not thereby correct, because the file's subject may have moved.
 
-**Field feedback drives four of the thirteen.** `spec/0.49.0.md` came from a Rust NLP project; three
+**Field feedback drives seven of the thirteen, and one exchange on 2026-09-01 supplied four of them.** `spec/0.49.0.md` came from a Rust NLP project; three
 of their seven reports are answered there (audit evidence is a keyword search, no `UNVERIFIED`
 verdict, closure evidence unchecked for kind); `spec/0.45.0.md` §3 answers the reconcile request and
 its Non-Goals record what was deliberately not taken. A second cycle, on a PHP package, produced
