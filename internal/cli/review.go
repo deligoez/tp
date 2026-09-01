@@ -619,9 +619,9 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 		result.AffectedSummary = engine.BuildAffectedSummary(affectedFiles, affectedContent)
 	}
 
-	// §9.1 / §8.4: skipped_roles names every non-emitted corpus role; it is an
-	// explanatory field omitted under --compact.
-	if !IsCompact() {
+	// §9.1: skipped_roles names every non-emitted role. Whether it survives
+	// --compact is skippedRolesSurviveCompact's question, not this function's.
+	if skippedRolesSurviveCompact(roleGiven, len(prompts)) {
 		if skippedRoles == nil {
 			skippedRoles = []engine.SkippedRole{}
 		}

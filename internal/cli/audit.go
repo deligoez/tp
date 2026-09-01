@@ -396,9 +396,9 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 		}
 	}
 
-	// §9.1 / §8.4: skipped_roles names every non-emitted auditor; explanatory,
-	// omitted under --compact.
-	if !IsCompact() {
+	// §9.1: skipped_roles names every non-emitted role. Whether it survives
+	// --compact is skippedRolesSurviveCompact's question, not this function's.
+	if skippedRolesSurviveCompact(roleGiven, len(prompts)) {
 		if auditSkipped == nil {
 			auditSkipped = []engine.SkippedRole{}
 		}

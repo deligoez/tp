@@ -184,3 +184,23 @@ func filterAuditPrompts(prompts []auditPrompt, q roleQuery, skipped []engine.Ski
 		return prompts
 	}
 }
+
+// skippedRolesSurviveCompact answers §8.4's question for one emission: does
+// this payload carry its skipped_roles?
+//
+// §8.4 omits the field under --compact because it is explanatory, and for a
+// payload with prompts in it that is right. An empty --role payload flips which
+// of the two it is. Audit round 3 measured `--compact --role
+// <recognised-but-skipped>` returning {"prompts": [], "skipped_roles": null}
+// with an empty instruction and an empty stderr -- zero bytes saying why --
+// while the same call with a TYPO was diagnosed in full, so the correct
+// invocation was the only one left in the dark. When --role empties the
+// payload the reason stops being commentary on the payload and becomes the
+// payload, which is §8.4's own criterion for surviving --compact.
+//
+// It lives here rather than inline in each command because both ask it, and
+// because the condition is the kind that reads as a typo when it is spelled
+// twice.
+func skippedRolesSurviveCompact(roleGiven bool, prompts int) bool {
+	return !IsCompact() || (roleGiven && prompts == 0)
+}
