@@ -110,17 +110,34 @@ fi
 # reported all 71 funlen entries as no-longer-violating and told the operator to
 # delete them. Obeying that message disarms half the ratchet. A gate that fails
 # open is worse than no gate, so each tool's exit status is checked on its own.
-# Measured: gocognit exits 0 with no violations, 1 WITH violations, and 127 when
-# it cannot run at all. So 1 is a result, not a failure, and only >1 is a tool
-# error — the same shape golangci-lint has below.
-cognit_raw=$(gocognit -over "$threshold" ./cmd ./internal) || cognit_status=$?
-if [ "${cognit_status:-0}" -gt 1 ]; then
-	echo "gocognit failed to run (exit ${cognit_status}); the complexity ratchet cannot be evaluated" >&2
+# gocognit's EXIT CODE cannot separate a result from a failure — measured:
+# violations exit 1, a parse error exits 1, a missing directory exits 1. An
+# earlier version of this guard claimed "127 when it cannot run"; that 127 was
+# the SHELL's command-not-found, because the experiment removed gocognit from
+# PATH rather than breaking gocognit. It measured the shell and was recorded as
+# the tool's convention.
+#
+# What does discriminate, measured on all four cases: gocognit writes to stderr
+# ONLY on failure. Violations go to stdout with stderr empty; a failure leaves
+# stdout empty and stderr non-empty.
+cognit_err=$(mktemp)
+cognit_raw=$(gocognit -over "$threshold" ./cmd ./internal 2>"$cognit_err") || true
+if [ -s "$cognit_err" ]; then
+	echo "gocognit failed to run; the complexity ratchet cannot be evaluated:" >&2
+	cat "$cognit_err" >&2
+	rm -f "$cognit_err"
 	exit 1
 fi
+rm -f "$cognit_err"
+
+# `NF &&` is load-bearing: with zero violations gocognit prints nothing, and a
+# bare `{print $2 " " $3}` turns that empty line into a single space, which the
+# ratchet then reports as a new violation named " ". Reachable today through
+# TP_COGNIT_THRESHOLD, and permanently the day the baseline empties — which this
+# script's own header calls the work.
 cognit=$(printf '%s\n' "$cognit_raw" |
 	grep -v '_test\.go' |
-	awk '{print $2 " " $3}' |
+	awk 'NF {print $2 " " $3}' |
 	sort -u)
 
 compare "cognitive complexity over $threshold" "$scripts/baseline-complexity.txt" "$cognit"
