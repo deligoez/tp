@@ -1,17 +1,527 @@
 {
   "version": 1,
   "spec": "spec/0.36.0.md",
-  "created_at": "2026-08-31T08:35:53.642941Z",
-  "updated_at": "2026-08-31T09:26:30.15841Z",
+  "created_at": "0001-01-01T00:00:00Z",
+  "updated_at": "2026-09-01T06:14:53.226081Z",
   "workflow": {
     "run_max_units": 6,
     "run_max_budget_usd": 5
   },
   "coverage": {
-    "total_sections": 0,
-    "mapped_sections": 0,
-    "context_only": [],
+    "total_sections": 31,
+    "mapped_sections": 13,
+    "context_only": [
+      "# tp v0.36.0 — The emitted round",
+      "## 1. Overview",
+      "### 1.1 What it costs",
+      "## 2. The prompt does not carry its own isolation constraint",
+      "### 2.1 Which fence exists, and on which path",
+      "### 2.4 What is deliberately not provisioned",
+      "## 3. A unit that buffers its findings loses all of them",
+      "### 3.1 Where the salvage is real, and where it is not",
+      "### 3.3 What this does not change",
+      "## 4. Every caller gets the whole panel",
+      "### 4.1 The measurement, and why it has to name its round",
+      "### 4.3 Who it is for",
+      "### 4.4 What this release does not fix about the panel",
+      "### 4.5 Why not `--out-dir`",
+      "## 5. Non-Goals",
+      "## 6. What must be true",
+      "### 6.2 Properties",
+      "### 6.3 Dead ends, recorded once"
+    ],
     "unmapped": []
   },
-  "tasks": []
+  "tasks": [
+    {
+      "id": "clause-constants",
+      "title": "Define the two clause strings",
+      "status": "open",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 5,
+      "acceptance": "Two unexported constants hold §2.2's and §3.2's strings byte-for-byte as the fenced blocks give them. A test asserts each against the literal.",
+      "source_sections": [
+        "### 2.2 The clause",
+        "### 3.2 The clause"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "clause-suffix",
+      "title": "Build the 468-byte suffix",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "clause-constants"
+      ],
+      "estimate_minutes": 5,
+      "acceptance": "One helper returns LF LF + clause A + LF LF + clause B. A test asserts its length is exactly 468.",
+      "source_sections": [
+        "### 2.3 Placement, to the byte"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "clause-append",
+      "title": "Append the suffix to role prompts",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "clause-suffix"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "In tp review's and tp audit's prompt assembly, a prompt whose output_path is non-empty has its trailing newline removed then the suffix appended. A prompt whose output_path is empty is left untouched.",
+      "source_sections": [
+        "### 2.3 Placement, to the byte"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "suite-state-sandbox",
+      "title": "Relocate review state for tests",
+      "status": "done",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "Tests invoking tp review or tp audit run against a relocated spec so engine.ReviewStateDir resolves outside the repository. --no-state is not used, because it disables the state under test.",
+      "source_sections": [
+        "### 6.1 Conditions on the suite as a whole"
+      ],
+      "started_at": "2026-09-01T05:57:59.304384Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-01T06:02:34.950187Z",
+      "closed_reason": "- Tests emit against a relocated spec: relocatedSpec in internal/cli/testhelpers_test.go copies a repo spec plus any existing .tp-review/\u003cbase\u003e into t.TempDir(), so engine.ReviewStateDir follows the spec out of the repository. Guard written first and observed RED against a deliberately wrong helper returning the repo path (both location assertions fired; the second named spec/.tp-review/0.36.0 as the directory that would have been written), then green. Measured beforehand: the existing suite already leaves spec/.tp-review/ and .tp/rounds/ byte-identical, so this closes the gap for the new tests that emit from the repository's real specs.\n- --no-state is not used: it appears nowhere in the helper or the guard, and the doc comment records why. It disables review-state reads as well as writes, and that state is the subject (round number, skipped_roles, consecutive-clean count, whether regression is appended), so a suite run under it would pass while measuring a machine that had been switched off.\nGate green, four steps run separately: test -race 0, golangci-lint 0, deadcode 0, complexity 0.",
+      "gate_passed_at": "2026-09-01T06:02:34.950187Z",
+      "commit_sha": "4368b5b",
+      "commit_shas": [
+        "4368b5b",
+        "f794c6d"
+      ],
+      "commit_files": [
+        "internal/cli/specsandbox_test.go",
+        "internal/cli/testhelpers_test.go"
+      ]
+    },
+    {
+      "id": "suite-state-assert",
+      "title": "Assert the suite mutates no state",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "suite-state-sandbox"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "spec/.tp-review/ and .tp/rounds/ hash identically before and after a full go test ./... run. The check fails the build, and cannot be an ordinary test observing its own suite.",
+      "source_sections": [
+        "### 6.1 Conditions on the suite as a whole"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "clause-position-test",
+      "title": "Test the suffix position",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "clause-append",
+        "suite-state-sandbox"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Observed failing first: every emitted prompt with a non-empty output_path ends with the suffix, for tp review and for tp audit.",
+      "source_sections": [
+        "#### 6.2.1 Clause emission"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "clause-absence-test",
+      "title": "Test prompts with an empty output_path",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "clause-append",
+        "suite-state-sandbox"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Observed failing first: no prompt whose output_path is empty ends with the suffix, over every --perspective value review.go validates plus --verify. The mode list is derived from the code, not written out.",
+      "source_sections": [
+        "#### 6.2.1 Clause emission"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "clause-once-test",
+      "title": "Test the suffix appends once",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "clause-append",
+        "suite-state-sandbox"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Observed failing first: the body minus its last 468 bytes neither ends with the suffix nor ends with a newline. This is the only assertion that fails on a double append or a missing strip.",
+      "source_sections": [
+        "#### 6.2.1 Clause emission"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "role-flag",
+      "title": "Register the --role flag",
+      "status": "done",
+      "tags": [],
+      "depends_on": [],
+      "estimate_minutes": 5,
+      "acceptance": "tp review and tp audit accept --role \u003cname\u003e as a single-valued string. It is not repeatable, and an empty value is treated as a name rather than as absent.",
+      "source_sections": [
+        "### 4.2 Mechanism — `--role \u003cname\u003e`"
+      ],
+      "started_at": "2026-09-01T06:02:59.353501Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-01T06:14:53.188318Z",
+      "closed_reason": "- Both commands accept --role \u003cname\u003e as a single-valued string: registered in internal/cli/review.go and internal/cli/audit.go via Flags().StringVar, so pflag reports Value.Type() == string. TestRoleFlagIsRegisteredOnBothCommands asserts presence, type, empty default and usage text for review and audit; observed RED first on both subtests ('tp review must register --role', same for audit), then green.\n- Not repeatable, and an empty value is a name rather than absent: StringVar takes one value, so a repeated occurrence overwrites instead of appending, and the guard pins the type against a StringArrayVar regression. The empty default is asserted, which is what lets a later task distinguish --role \"\" from an absent flag via Flags().Changed.\nThree shipped guards fired in sequence the moment the flag existed, each one the mechanism working. TestNonGoals_NoCommandOrFlagIsAdded pins the command-and-flag surface, and its own comment fixes the procedure: a release that adds a flag updates the baseline in the same task and renames the constant to the tag it pins - so v034Surface became v036Surface with role on the review and audit lines, and the two failure messages stopped naming v0.34.2, which was about to become a stale claim on every future addition. TestSkillFlagInventoryIsComplete then required the flag in SKILL.md's inventory; two rows added, naming the three name classes rather than the flag alone, because the exit-0 case is the one an operator meets first and would otherwise read as a silent failure. That edit made SKILL.md plugin content that had changed, so TestPluginVersionIsBumpedWhenPluginContentChanges required the manifest bump to 0.36.0, and five session-start guards then failed until pluginMinVersion followed it - the preflight was correctly refusing a binary older than the plugin now demands. Gate green, four steps run separately: test -race 0, golangci-lint 0, deadcode 0, complexity 0.",
+      "gate_passed_at": "2026-09-01T06:14:53.188318Z",
+      "commit_sha": "c993575",
+      "commit_shas": [
+        "c993575",
+        "e227d75",
+        "07f0497",
+        "157610f",
+        "4c4607b",
+        "f83f51f"
+      ],
+      "commit_files": [
+        ".claude-plugin/plugin.json",
+        "internal/cli/audit.go",
+        "internal/cli/nongoals_surface_test.go",
+        "internal/cli/plugin_test.go",
+        "internal/cli/review.go",
+        "internal/cli/role_flag_test.go",
+        "skills/tp/SKILL.md"
+      ]
+    },
+    {
+      "id": "role-selection",
+      "title": "Select one emitted role",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "role-flag"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "A name in the set the same invocation would emit without --role reduces prompts[] to that one byte-identical entry. Every other top-level key is unchanged except review_loop.instruction.",
+      "source_sections": [
+        "#### 4.2.1 A recognised name the round does not emit"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "role-unemitted-exit",
+      "title": "Exit 0 for a recognised unemitted role",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "role-flag"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "A name tp recognises per §4.2.1 that this invocation does not emit exits 0 with prompts: [], echoing that role's skipped_roles reason where the payload carries the key.",
+      "source_sections": [
+        "#### 4.2.1 A recognised name the round does not emit"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "role-unknown-exit",
+      "title": "Exit 2 for an unrecognised role",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "role-flag"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "A name tp recognises nowhere exits 2 with a hint listing the names the invocation would have emitted.",
+      "source_sections": [
+        "#### 4.2.1 A recognised name the round does not emit"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "role-mode-legality",
+      "title": "Refuse --role in non-emitting modes",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "role-flag"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "Per each command's own flag set, --role is accepted wherever prompts are emitted and exits 2 wherever none are. The refusal hint names both flags.",
+      "source_sections": [
+        "#### 4.2.2 Where the flag is legal"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "role-selection-test",
+      "title": "Test role selection fidelity",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "role-selection",
+        "suite-state-sandbox"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Observed failing first: the selected entry is byte-identical to that role's entry in the unrestricted invocation, for tp review and tp audit.",
+      "source_sections": [
+        "#### 6.2.2 `--role`"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "role-classes-test",
+      "title": "Test the five skip reasons",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "role-unemitted-exit",
+        "role-unknown-exit",
+        "suite-state-sandbox"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "Observed failing first: each of §4.2.1's five reasons exits 0 on the command that can produce it, and an unrecognised name exits 2 with a distinguishable hint.",
+      "source_sections": [
+        "#### 6.2.2 `--role`"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "role-mode-test",
+      "title": "Test the per-command mode table",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "role-mode-legality",
+        "suite-state-sandbox"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "Observed failing first: every legal mode emits one prompt and every refusing mode exits 2, run per command against that command's own list.",
+      "source_sections": [
+        "#### 6.2.2 `--role`"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "role-panel-test",
+      "title": "Test whole-panel equality",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "role-selection",
+        "suite-state-sandbox"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "Observed failing first: the per-role emissions concatenated in the unrestricted payload's own order equal that payload's prompts[], for both commands.",
+      "source_sections": [
+        "#### 6.2.2 `--role`"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "brief-passes-role",
+      "title": "Pass --role in the unit brief",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "role-flag"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "tp resume's next_units[].brief_command for a role unit names that unit's own id. The change is made where the kind and the id are both in scope, since UnitKind.BriefCommand cannot see the id.",
+      "source_sections": [
+        "#### 4.2.3 The brief that passes it"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "instruction-narrowing",
+      "title": "Narrow review_loop.instruction under --role",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "role-selection"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "Under --role the key is a sentence-subset of the unrestricted one, directing no action the single-prompt payload cannot support. Without --role it is byte-identical to before.",
+      "source_sections": [
+        "#### 4.2.3.1 `review_loop.instruction`"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "brief-runs-test",
+      "title": "Test every unit brief runs",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "brief-passes-role",
+        "suite-state-sandbox"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "Observed failing first: each unit's brief_command exits 0 in the phase that unit belongs to, under a fixture where a corpus role is skipped no-checklist-items.",
+      "source_sections": [
+        "#### 6.2.3 The driver's brief"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "regression-gap-test",
+      "title": "Test regression stays unassigned",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "brief-passes-role",
+        "suite-state-sandbox"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "Observed failing first: the emitted role set minus the unit set equals exactly the regression role, as set equality, at a round where regression emits.",
+      "source_sections": [
+        "#### 6.2.3 The driver's brief"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "instruction-test",
+      "title": "Test the instruction narrowing",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "instruction-narrowing",
+        "suite-state-sandbox"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Observed failing first: the --role instruction is a sentence-subset of the unrestricted one and carries none of its orchestrator directives; without the flag it is unchanged.",
+      "source_sections": [
+        "#### 6.2.3 The driver's brief"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "release-gate",
+      "title": "Run panel equality across every spec",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "role-panel-test"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "Whole-panel equality holds for every spec an unrestricted invocation emits prompts for, with the audit half given affected files via --affected-files or --base. A spec emitting nothing is named out of scope.",
+      "source_sections": [
+        "## 7. Release gate"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "docs-refresh",
+      "title": "Document --role in the skill files",
+      "status": "open",
+      "tags": [],
+      "depends_on": [
+        "role-mode-legality",
+        "clause-append"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "skills/tp/SKILL.md and skills/tp/REFERENCE.md carry the flag, its three name classes, its per-command mode table. README.md's index lists it. Verified by running the documented commands.",
+      "source_sections": [
+        "#### 4.2.2 Where the flag is legal"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ]
 }
