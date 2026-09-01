@@ -40,6 +40,12 @@ const pluginManifestPath = ".claude-plugin/plugin.json"
 // against a literal that had to be edited to match. A guard whose expected value
 // is a copy of the thing it guards fails twice for one change, and the second
 // failure teaches nothing.
+// preflightFloor is the release that introduced the SessionStart preflight.
+// The manifest's version is the minimum tp must satisfy, so it may rise freely
+// and may never fall below this. Unlike the minimum itself, this is a fixed
+// historical fact and restating it cannot drift.
+const preflightFloor = "0.35.0"
+
 func pluginMinVersion(t *testing.T) string {
 	t.Helper()
 	raw, err := os.ReadFile(filepath.Join(repoRoot(t), pluginManifestPath)) //nolint:gosec // a fixed path inside the repo under test
@@ -89,8 +95,18 @@ func TestPluginManifestDeclaresIdentity(t *testing.T) {
 	assert.NotEmpty(t, manifest.Keywords, "the marketplace lists the plugin by its keywords")
 
 	require.NotEmpty(t, manifest.Version, "the preflight compares tp --version against this field")
-	assert.GreaterOrEqual(t, comparePluginVersions(t, manifest.Version, pluginMinVersion(t)), 0,
-		"plugin.json's version is the preflight minimum, so it may not fall below itself")
+
+	// The floor is the release that INTRODUCED the preflight, not the manifest.
+	// Deriving pluginMinVersion from the manifest — the right fix for the tests
+	// that assert the hook reports what it compared against — made this line
+	// read the same field of the same file on both sides, so it returned 0
+	// whatever the manifest said and could not fail. A guard repaired into a
+	// tautology is worse than the restatement it replaced, because the
+	// restatement at least reddened when it drifted.
+	assert.GreaterOrEqual(t, comparePluginVersions(t, manifest.Version, preflightFloor), 0,
+		"plugin.json's version is the preflight minimum, so it may never fall below %s, "+
+			"the release that introduced the preflight — a lower value would let an older tp "+
+			"satisfy a check written for this one", preflightFloor)
 
 	// The skills the plugin ships live at skills/tp and are discovered by
 	// convention. The rejected pre-v0.35.0 manifest instead inlined them as
