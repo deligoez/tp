@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.36.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-01T06:14:53.226081Z",
+  "updated_at": "2026-09-01T06:36:17.769612Z",
   "workflow": {
     "run_max_units": 6,
     "run_max_budget_usd": 5
@@ -79,7 +79,7 @@
         "clause-suffix"
       ],
       "estimate_minutes": 10,
-      "acceptance": "In tp review's and tp audit's prompt assembly, a prompt whose output_path is non-empty has its trailing newline removed then the suffix appended. A prompt whose output_path is empty is left untouched.",
+      "acceptance": "In tp review's and tp audit's emission, a prompt whose output_path is non-empty ends with the 468-byte suffix and the byte before it is not a newline; a prompt whose output_path is empty does not end with the suffix.",
       "source_sections": [
         "### 2.3 Placement, to the byte"
       ],
@@ -232,7 +232,7 @@
     {
       "id": "role-selection",
       "title": "Select one emitted role",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "role-flag"
@@ -242,11 +242,26 @@
       "source_sections": [
         "#### 4.2.1 A recognised name the round does not emit"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-01T06:29:18.245739Z",
+      "duration_source": "implicit",
+      "closed_at": "2026-09-01T06:29:18.245839Z",
+      "closed_reason": "- A name in the emitted set reduces prompts[] to that one byte-identical entry: filterReviewPrompts and filterAuditPrompts in internal/cli/rolefilter.go slice the prompts after the panel, the per-spec skips and the auto-appended regression role are all decided, which is the only point where 'what this invocation would emit without the flag' exists. TestRoleSelectionIsByteIdenticalToTheUnrestrictedEntry and TestAuditRoleSelectionIsByteIdentical read the role names out of the unrestricted emission rather than hard-coding them; observed RED first on all four the fixture emits (implementer, tester, architect, regression), each reporting four entries where one was required.\n- Every other top-level key is unchanged: the filter touches only the prompts slice and nothing else in the payload assembly, and the byte-identity assertion on the surviving prompt would fail if the entry were rebuilt rather than selected. review_loop.instruction is governed by its own task and is untouched here.\nThe complexity ratchet fired during this task and was right: inlining the filter pushed runReview over the threshold, and runReview is not in the baseline, so adding it there would have been the wrong repair - the baseline may only shrink. Extracted to two helpers instead, which is better code anyway: a filter with its own loop and branch is a second idea inside a function that already assembles a payload. gocritic also asked for named results on the test helper. The sandbox helper moved to package cli_test, where every consumer lives, because Go cannot share test helpers across the internal and external test packages in one directory. Gate green, four steps run separately: test -race 0, golangci-lint 0, deadcode 0, complexity 0.",
+      "gate_passed_at": "2026-09-01T06:29:18.245839Z",
+      "commit_sha": "cade116",
+      "commit_shas": [
+        "cade116",
+        "928ac41",
+        "7a39df7"
+      ],
+      "commit_files": [
+        "internal/cli/audit.go",
+        "internal/cli/review.go",
+        "internal/cli/role_selection_test.go",
+        "internal/cli/rolefilter.go",
+        "internal/cli/sandbox_helpers_test.go",
+        "internal/cli/specsandbox_test.go",
+        "internal/cli/testhelpers_test.go"
+      ]
     },
     {
       "id": "role-unemitted-exit",
@@ -389,7 +404,7 @@
     {
       "id": "brief-passes-role",
       "title": "Pass --role in the unit brief",
-      "status": "open",
+      "status": "done",
       "tags": [],
       "depends_on": [
         "role-flag"
@@ -399,11 +414,25 @@
       "source_sections": [
         "#### 4.2.3 The brief that passes it"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-01T06:29:35.750003Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-01T06:35:34.102589Z",
+      "closed_reason": "- next_units[].brief_command for a role unit names that unit's own id: roleArg in internal/engine/briefcommand.go appends --role \u003ct.ID\u003e for UnitReviewRole and UnitAuditRole. TestRoleUnitBriefNamesItsOwnRole, TestRoleUnitBriefWithoutAnIDStaysWhole and TestBuildNextUnitsBriefsCarryTheirOwnRole were written first and observed RED (expected 'tp review spec/0.36.0.md --role architect', actual 'tp review spec/0.36.0.md'). The third is the one that matters: a brief correct only in a unit test would still hand every driver-spawned unit the whole panel, because the oracle is what fills the target.\n- The change is made where the kind and the id are both in scope: newNextUnit sets target.ID = id before calling BriefCommand. The spec's claim that UnitKind.BriefCommand cannot see the id is WRONG and is corrected in the next commit - UnitTarget carries an ID field and BriefCommand already takes a UnitTarget; what was missing is that newNextUnit received the id alongside the target and never put it on the target. roleArg returns empty for an id-less target, since UnitTarget is built by more than one caller and a dangling --role would be worse than the whole panel.\nFour shipped guards pinned the previous brief and were updated: the documented-per-kind table, the corpus panel, and the two resume next_units assertions. The latter two now build the expectation from each unit's own id rather than a literal, so they assert that the brief names THAT role rather than matching one spelling. Gate green, four steps run separately: test -race 0, golangci-lint 0, deadcode 0, complexity 0.",
+      "gate_passed_at": "2026-09-01T06:35:34.102589Z",
+      "commit_sha": "93d66d7",
+      "commit_shas": [
+        "93d66d7",
+        "71f7266",
+        "fe49399"
+      ],
+      "commit_files": [
+        "internal/cli/resume_next_units_test.go",
+        "internal/engine/briefcommand.go",
+        "internal/engine/briefcommand_test.go",
+        "internal/engine/briefrole_test.go",
+        "internal/engine/nextunits.go",
+        "internal/engine/nextunits_test.go"
+      ]
     },
     {
       "id": "instruction-narrowing",
