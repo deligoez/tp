@@ -433,6 +433,33 @@ Opening role authoring is a power feature — a project-authored role is only as
 
 The embedded default corpus is authored to exemplify this guidance, so an ejected default role is itself a worked example — run `tp init --eject-roles` to read them.
 
+## Recording language — read in any language, record in English
+
+**A unit reads the spec in whatever language its author wrote, and records in English.** The two
+halves are separate rules and collapsing them either way is wrong.
+
+Forcing the *input* to English would mean nobody could write a spec in their own language, and a
+reviewer told to "work in English" against a Turkish spec may translate it in its head before
+judging it — losing exactly the precision a review is for. So the spec, and the spec content the
+prompt embeds, are the author's.
+
+The *recorded output* is English without exception: finding text, audit row text, `class` slugs,
+closure reasons passed to `tp done`, and commit messages. Three reasons, in the order they bite:
+
+1. **They are committed artifacts.** `review-round-N.ndjson` and the audit results are checked in;
+   a repo's English-only convention for committed files applies to them like any other file.
+2. **The next round reads them.** `--merge` clusters by `(location, class)` and hands the
+   representative to every role. A corpus with two languages splits one idea across two slug
+   families, and `mechanize_candidates` — which matches slugs byte-for-byte — stops seeing it. One
+   cycle in this repository already produced **20 distinct slugs for a single idea** in one
+   language; a second language multiplies that, it does not add to it.
+3. **A human reads the round later.** The recorded rounds are the only durable account of why a
+   spec says what it says.
+
+**This is a convention, not yet a fence.** Nothing in the emitted prompt states it today — measured:
+the role prompt carries zero mentions of language. Until a release puts it in the output contract,
+an orchestrator that spawns units itself should say it when it spawns them.
+
 ## Where judgement-shaping text belongs (v0.31.0)
 
 Standing instructions that shape a reviewer's judgement — what counts as a real defect, what to treat as intentional, what altitude to hold — do **not** belong in the orchestrator's prompt wrapper. tp cannot see that wrapper, so framing hidden there makes two rounds look comparable when their instructions differed materially. Standing framing has two sanctioned homes, both recorded via `roles_hash`:
