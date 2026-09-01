@@ -1,5 +1,7 @@
 package cli
 
+import "strings"
+
 // The two clauses v0.36.0 §2 and §3 append to every emitted role prompt.
 //
 // They are constants rather than composed strings because §6.2 property 1
@@ -31,4 +33,38 @@ const (
 // repeated at the call site.
 func clauseSuffix() string {
 	return "\n\n" + isolationClause + "\n\n" + incrementalClause
+}
+
+// appendClausesReview puts §2.3's suffix on every review prompt that names an
+// output file, and on no other.
+//
+// The predicate is the prompt's own output_path rather than its role: the same
+// role carries a non-empty output_path in one mode and an empty one in another,
+// so a rule written against role names would classify one prompt two ways.
+//
+// The trailing newline goes first. §1.1 calls that byte not optional — without
+// the strip the body gains a blank line and the net change is 468 rather than
+// the 467 the table derives.
+func appendClausesReview(prompts []reviewPrompt) []reviewPrompt {
+	suffix := clauseSuffix()
+	for i := range prompts {
+		if prompts[i].OutputPath == "" {
+			continue
+		}
+		prompts[i].Prompt = strings.TrimSuffix(prompts[i].Prompt, "\n") + suffix
+	}
+	return prompts
+}
+
+// appendClausesAudit is appendClausesReview for the audit payload; the two
+// commands carry different prompt structs over the same two fields.
+func appendClausesAudit(prompts []auditPrompt) []auditPrompt {
+	suffix := clauseSuffix()
+	for i := range prompts {
+		if prompts[i].OutputPath == "" {
+			continue
+		}
+		prompts[i].Prompt = strings.TrimSuffix(prompts[i].Prompt, "\n") + suffix
+	}
+	return prompts
 }

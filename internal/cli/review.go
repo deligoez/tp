@@ -557,6 +557,7 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 
 	prompts, regressionIncluded, skippedRoles := buildReviewPrompts(specPath, &panel, elems, specContent, round, summary, affectedFiles, finalRound, &wfChecks, diffFrom, noState, reviewSt)
 
+	prompts = appendClausesReview(prompts)
 	prompts = filterReviewPrompts(prompts, roleFilter)
 
 	uniqueCount := len(dedupFindings(findings))

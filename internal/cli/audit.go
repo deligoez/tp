@@ -354,6 +354,7 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	// §7.2: one prompt per active auditor role in the resolved panel.
 	prompts, auditSkipped := generateRoleAuditPrompts(panel.roles, specItems, &sel, specContent, claudeMDExcerptFor(specPath), priorByRole, auditRound, auditWf.AuditCleanRounds, auditConsecutive, auditWf.AuditMaxRounds)
 
+	prompts = appendClausesAudit(prompts)
 	prompts = filterAuditPrompts(prompts, roleFilter)
 	// §9.1: name every non-emitted auditor — empty-checklist roles above plus
 	// any domain-filtered user corpus roles.
