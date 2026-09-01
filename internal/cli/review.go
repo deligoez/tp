@@ -577,12 +577,7 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 	prompts, regressionIncluded, skippedRoles := buildReviewPrompts(specPath, &panel, elems, specContent, round, summary, affectedFiles, finalRound, &wfChecks, diffFrom, noState, reviewSt)
 
 	prompts = appendClausesReview(prompts)
-	prompts = filterReviewPrompts(prompts, roleQuery{
-		name:    roleFilter,
-		given:   roleGiven,
-		specDir: filepath.Dir(specPath),
-		domain:  panel.fm.Domain,
-	}, skippedRoles)
+	prompts = filterReviewPrompts(prompts, roleQueryFor(specPath, roleFilter, roleGiven), skippedRoles)
 
 	uniqueCount := len(dedupFindings(findings))
 	convergence, instruction := buildReviewLoopInstruction(round, findings, findingsPath, specPath, specInline, noState, stateRequired, regressionIncluded, len(wfChecks.Checks) > 0)
@@ -593,7 +588,7 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 	// there is no single quoted text to subtract from, and a subset of the
 	// finished string is a subset by construction.
 	if roleGiven {
-		instruction = narrowInstructionForRole(instruction)
+		instruction = instructionForPayload(narrowInstructionForRole(instruction), len(prompts))
 	}
 
 	result := reviewResult{
@@ -786,17 +781,18 @@ func runReviewCodeAudit(specPath, specContent string, affectedFiles []string, ro
 	affectedContent := engine.ReadAffectedFiles(affectedFiles)
 	summary := engine.BuildAffectedSummary(affectedFiles, affectedContent)
 	prompt := generateCodeAuditPrompt(specContent, affectedContent)
+	selected := filterReviewPrompts([]reviewPrompt{prompt}, q, nil)
 	return output.JSON(reviewResult{
 		Spec:            specPath,
 		Perspective:     "code-audit",
 		AffectedFiles:   affectedFiles,
 		AffectedSummary: summary,
-		Prompts:         filterReviewPrompts([]reviewPrompt{prompt}, q, nil),
+		Prompts:         selected,
 		ReviewLoop: reviewLoop{
 			Round:            round,
 			Convergence:      "single-pass code audit",
 			PreviousFindings: 0,
-			Instruction:      "Spawn a sub-agent with this prompt. Collect NDJSON findings. Feed findings back into spec revision or task acceptance updates.",
+			Instruction:      instructionForPayload("Spawn a sub-agent with this prompt. Collect NDJSON findings. Feed findings back into spec revision or task acceptance updates.", len(selected)),
 		},
 	})
 }
@@ -810,6 +806,7 @@ func runReviewDocPlan(specPath, specContent, docsPath string, affectedFiles []st
 		maps.Copy(docContent, engine.ReadAffectedFiles(affectedFiles))
 	}
 	prompt := generateDocPlanPrompt(specContent, structureMap, docContent)
+	selected := filterReviewPrompts([]reviewPrompt{prompt}, q, nil)
 	return output.JSON(reviewResult{
 		Spec:            specPath,
 		Perspective:     "documentation",
@@ -817,12 +814,12 @@ func runReviewDocPlan(specPath, specContent, docsPath string, affectedFiles []st
 		AffectedFiles:   affectedFiles,
 		AffectedSummary: engine.BuildAffectedSummary(affectedFiles, nil),
 		DocsStructure:   &docStructure{TotalFiles: len(files), ReviewedFiles: len(ranked), StructureMap: structureMap},
-		Prompts:         filterReviewPrompts([]reviewPrompt{prompt}, q, nil),
+		Prompts:         selected,
 		ReviewLoop: reviewLoop{
 			Round:            1,
 			Convergence:      "single-pass plan generation",
 			PreviousFindings: 0,
-			Instruction:      "Spawn a sub-agent with this prompt. Collect the NDJSON plan. Review the plan for completeness, then append the plan to the spec.",
+			Instruction:      instructionForPayload("Spawn a sub-agent with this prompt. Collect the NDJSON plan. Review the plan for completeness, then append the plan to the spec.", len(selected)),
 		},
 	})
 }
@@ -836,6 +833,7 @@ func runReviewTestPlan(specPath, specContent, testPath string, affectedFiles []s
 		maps.Copy(testContent, engine.ReadAffectedFiles(affectedFiles))
 	}
 	prompt := generateTestPlanPrompt(specContent, structureMap, testContent)
+	selected := filterReviewPrompts([]reviewPrompt{prompt}, q, nil)
 	return output.JSON(reviewResult{
 		Spec:            specPath,
 		Perspective:     "testing",
@@ -843,12 +841,12 @@ func runReviewTestPlan(specPath, specContent, testPath string, affectedFiles []s
 		AffectedFiles:   affectedFiles,
 		AffectedSummary: engine.BuildAffectedSummary(affectedFiles, nil),
 		TestStructure:   &docStructure{TotalFiles: len(files), ReviewedFiles: len(ranked), StructureMap: structureMap},
-		Prompts:         filterReviewPrompts([]reviewPrompt{prompt}, q, nil),
+		Prompts:         selected,
 		ReviewLoop: reviewLoop{
 			Round:            1,
 			Convergence:      "single-pass plan generation",
 			PreviousFindings: 0,
-			Instruction:      "Spawn a sub-agent with this prompt. Collect the NDJSON plan. Review the plan for completeness, then append the plan to the spec.",
+			Instruction:      instructionForPayload("Spawn a sub-agent with this prompt. Collect the NDJSON plan. Review the plan for completeness, then append the plan to the spec.", len(selected)),
 		},
 	})
 }

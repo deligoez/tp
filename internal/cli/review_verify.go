@@ -117,18 +117,20 @@ func runReviewVerify(specPath, findingsPath string, affectedFiles []string, diff
 
 	// Build result
 	absPath, _ := filepath.Abs(specPath)
+	selected := filterReviewPrompts([]reviewPrompt{{
+		Role:     "verifier",
+		Category: "verification",
+		Prompt:   prompt,
+	}}, q, nil)
+
 	result := reviewResult{
-		Spec: specPath,
-		Prompts: filterReviewPrompts([]reviewPrompt{{
-			Role:     "verifier",
-			Category: "verification",
-			Prompt:   prompt,
-		}}, q, nil),
+		Spec:    specPath,
+		Prompts: selected,
 		ReviewLoop: reviewLoop{
 			Round:            0,
 			Convergence:      "verification pass",
 			PreviousFindings: len(findings),
-			Instruction:      "If verifier finds 0 issues, review is complete. If issues found, run a full review round.",
+			Instruction:      instructionForPayload("If verifier finds 0 issues, review is complete. If issues found, run a full review round.", len(selected)),
 			Mode:             "verification",
 		},
 	}

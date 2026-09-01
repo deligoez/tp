@@ -21,10 +21,18 @@ import "strings"
 // holding one prompt can do.
 //
 // Two survive today. "Read the spec at <path>" is the one thing this key tells
-// a unit that its own prompt does not, so narrowing to nothing would leave the
-// unit worse off than narrowing at all. The --no-state notice reports state
+// a unit that its own prompt does not; the --no-state notice reports state
 // rather than directing an action, and dropping a true statement about the
 // round would be a second, unasked change.
+//
+// An earlier version of this comment said "narrowing to nothing would leave the
+// unit worse off than narrowing at all". Audit round 2 falsified it in a
+// reachable combination: under --spec-inline the "Read the spec at" sentence is
+// never built, so the subset is empty. That is the RIGHT answer there — the
+// spec is already in the payload, so there is no path to tell the unit about —
+// and it is the right answer for an empty prompts[] too. The empty set is a
+// sentence-subset, and inventing a sentence to avoid it would break the rule
+// the narrowing exists to keep.
 func unitActionableSentence(s string) bool {
 	switch {
 	case strings.HasPrefix(s, "Read the spec at "):
@@ -34,6 +42,31 @@ func unitActionableSentence(s string) bool {
 	default:
 		return false
 	}
+}
+
+// instructionForPayload returns the instruction a --role payload should carry.
+//
+// An EMPTY payload gets an empty key. Audit round 2 found the gap: making
+// prompts: [] reachable in the five single-prompt modes left their instruction
+// literals untouched, so a payload with nothing in it still read "Spawn a
+// sub-agent with this prompt". §4.2.3.1 forbids exactly that — no sentence may
+// direct an action the caller's own payload cannot support, and an empty
+// payload supports none of them.
+//
+// The empty string rather than a new sentence, because the rule is
+// sentence-SUBSET: the empty set is one, and any sentence written here would
+// not be.
+// It does NOT narrow. Narrowing is the default panel's business, and the
+// caller applies it: the five single-prompt modes' keys already address a
+// one-prompt payload ("Feed findings back into spec revision", "append the plan
+// to the spec"), and running them through the subset filter emptied keys that
+// were correct. Measured while making this change — the first version of this
+// function narrowed unconditionally and blanked all five.
+func instructionForPayload(instruction string, prompts int) string {
+	if prompts == 0 {
+		return ""
+	}
+	return instruction
 }
 
 // narrowInstructionForRole returns the sentence-subset of instruction that a

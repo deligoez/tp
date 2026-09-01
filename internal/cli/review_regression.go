@@ -110,20 +110,22 @@ func runReviewRegression(specPath, diffFrom, findingsPath string, q roleQuery) e
 		prompt += mechanizedExclusionPrefix + strings.Join(classes, ", ")
 	}
 
+	selected := filterReviewPrompts([]reviewPrompt{{
+		Role:     "regression",
+		Category: "regression",
+		Prompt:   prompt,
+	}}, q, nil)
+
 	result := reviewResult{
 		Spec:             specPath,
 		Perspective:      "regression",
 		MechanicalChecks: mechChecks,
-		Prompts: filterReviewPrompts([]reviewPrompt{{
-			Role:     "regression",
-			Category: "regression",
-			Prompt:   prompt,
-		}}, q, nil),
+		Prompts:          selected,
 		ReviewLoop: reviewLoop{
 			Round:            0,
 			Convergence:      "uncounted delta pass — counted rounds stay full-panel",
 			PreviousFindings: len(fixed),
-			Instruction:      "Spawn a sub-agent with this prompt. Fix what it reports, then generate the next counted round. This pass records no state.",
+			Instruction:      instructionForPayload("Spawn a sub-agent with this prompt. Fix what it reports, then generate the next counted round. This pass records no state.", len(selected)),
 			Mode:             "regression",
 		},
 	}
