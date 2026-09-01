@@ -176,46 +176,61 @@ Two things that cycle deliberately did NOT fix, both recorded with reasons in
 `spec/0.35.0-candidates.md` — read §16 (the mutation run) and §17 (the two degraded-scan repairs
 choosing different channels) before opening the next release, so neither is re-derived from scratch.
 
-**Seven releases are planned, and the order below is by measured value over size, not by authoring
-order.** Three specs were renumbered to match it; a spec filename is the release that ships it, and
-that convention is kept. None of the seven has been reviewed.
+**Thirteen releases are planned. They were seven until the pending set was split, and the split is
+the most load-bearing fact in this section.** A spec filename is the release that ships it, and that
+convention is kept. None of the thirteen has been reviewed.
 
-| # | Spec | What it does | Size |
+**Why they were split, measured.** Across the fifteen cycles recorded in `spec/.tp-review/`, spec
+length is the strongest single predictor of cycle length (r ≈ +0.56 against total review + audit
+rounds); section count is *negatively* correlated (≈ −0.17) and finding stickiness only weakly
+positive (≈ +0.36). In plain terms: specs under 200 lines cost roughly 8–9 total rounds, specs over
+300 cost roughly 23. The rule that came out of it is the one the split follows — **if a piece can be
+released independently, it is its own release** — and the exceptions matter, because 0.31.0 cost 25
+rounds at 146 lines, so splitting shortens the expected cycle without guaranteeing any single one.
+
+| # | Spec | What it does | Lines |
 |---|---|---|---|
-| 0.36.0 | `spec/0.36.0.md` — the emitted round | The emitted prompt carries its own isolation and incremental-write constraints, and `--role` emits one role's prompt instead of the panel | XS |
-| 0.37.0 | `spec/0.37.0.md` — audit convergence | `audit_converge_on` (severity-aware, the twin of `review_converge_on`), accepted rows stop blocking, a changed spec ends the streak | S |
-| 0.38.0 | `spec/0.38.0.md` — the backlog release | The defects v0.32.0–v0.35.0 deferred with reasons; cites `spec/0.35.0-candidates.md` rather than restating it | M |
-| 0.39.0 | `spec/0.39.0.md` — the rules become checks | `quality_gate` as an ordered array; the binary advisory. Was `0.37.0.md` | S–M |
-| 0.40.0 | `spec/0.40.0.md` — what the loop costs | Repair locality and class families, measured from data tp already stores. Was `0.36.0.md` | M |
-| 0.41.0 | `spec/0.41.0.md` — the divisible round | Sharding a role's checklist, incremental rounds, a durable home for an accepted finding | L |
-| 0.42.0 | `spec/0.42.0.md` — the evidence contract | Stop accepting an assertion where an experiment was meant. Was `0.38.0.md`. **Pre-design** — §4–§7 and §10 name no mechanism yet | ? |
+| 0.36.0 | the emitted round | The emitted prompt carries its own isolation and incremental-write constraints, and `--role` emits one role's prompt instead of the panel. **In flight** | 755 |
+| 0.37.0 | audit convergence | `audit_converge_on`, accepted rows stop blocking, a changed spec ends the streak | 141 |
+| 0.38.0 | the round reports its progress | `--status` says how far an in-flight round has got, for the interactive fallback the driver cannot see | 76 |
+| 0.39.0 | the v0.35.0 backlog | The defects v0.32.0–v0.35.0 deferred with reasons; cites `spec/0.35.0-candidates.md` rather than restating it | 127 |
+| 0.40.0 | the gate sequence and the red gate | `quality_gate` as an ordered array, plus the bounded procedure a unit follows when it goes red | 120 |
+| 0.41.0 | a durable home for an accepted finding | Where an accepted audit finding goes so it becomes maintenance pressure rather than archived prose | 63 |
+| 0.42.0 | the binary check | The advisory that fires when the running tp is older than the spec being developed | 46 |
+| 0.43.0 | what the loop costs | Repair locality and class families, measured from data tp already stores | 259 |
+| 0.44.0 | `tp lint --identifiers` | An identifier referenced but never introduced, decided by reading the document | 72 |
+| 0.45.0 | when the spec moves between rounds | `next_action` recommends the shipped delta pass; `--reconcile` records why the spec moved | 140 |
+| 0.46.0 | what v0.36.0's audit handed over | Four measured items that cycle deferred; waits for it to ship | 106 |
+| 0.47.0 | the fence, the example, the split | Test-file fence, example-table lint rule, unexecutable test-task warning. **All three need a design pass** | 115 |
+| 0.48.0 | the divisible round | Sharding a role's checklist, incremental rounds | 100 |
+| 0.49.0 | the evidence contract | Stop accepting an assertion where an experiment was meant. **Pre-design** — §4–§7 and §10 name no mechanism | 224 |
 
-**Why this order.** 0.36.0 is first because it is the smallest and its cost is paid by every cycle
-after it — two cycles measured the same three manual additions per round, and losing a subagent
-mid-round loses the round. 0.37.0 is second on this repo's own numbers: across v0.35.0's nine audit
-rounds the non-`PASS` rows were 3 `error`, 22 `warning`, 17 `info`, so a severity-aware policy would
-have closed the phase several rounds earlier. 0.38.0 is third because its items are live defects with
-no design risk. 0.41.0 follows 0.40.0 deliberately: sharding is the expensive answer to a question
-0.40.0's measurement should be allowed to ask first. 0.42.0 is last by readiness, not by preference —
-it cannot be decomposed at all until its design pass.
+**Why this order.** Value over size first, then hard dependencies. 0.37.0 leads on this repo's own
+numbers (see its §2.1: `blocking` converges at round 3 where `all` takes 9). 0.38.0 is next because
+it is the smallest thing here and answers a cost paid every cycle. 0.39.0 is third — live defects,
+no design risk. Then the dependencies bind: 0.49.0 §8 composes into 0.40.0 §2, so the gate sequence
+ships before the evidence contract; 0.41.0 is the durability half of 0.37.0 §3; 0.48.0 follows
+0.43.0 because sharding is the expensive answer to a question 0.43.0's measurement should ask first;
+0.46.0 waits on v0.36.0 shipping; 0.47.0 and 0.49.0 are last by readiness rather than preference —
+neither can be decomposed until its design pass closes.
 
-**One earlier claim was checked and dropped.** This file used to say v0.36.0 must go first because it
-measures the loop the other rules are validated in. The spec text does not support it — the
-loop-costs spec makes no reference to the others. The ordering above rests on measured size and value
-instead.
+**Three renumberings have now happened and each left stale references behind** (`spec/0.34.0.md`
+still says "v0.36.0" in two places). After any future renumber, run a cross-reference sweep over
+`spec/*.md`, `CLAUDE.md`, `README.md` and `skills/tp/SKILL.md` for `spec/<version>.md` targets that
+do not exist, and re-read every surviving reference for whether it still means what it says — a
+reference that resolves to a file is not thereby correct, because the file's subject may have moved.
 
-**Field feedback drives three of the seven.** `spec/0.42.0.md` came from a Rust NLP project; three of
-their seven reports are answered there (audit evidence is a keyword search, no `UNVERIFIED` verdict,
-closure evidence unchecked for kind); `spec/0.40.0.md` §6.1 answers the reconcile request and its
-Non-Goals 7-8 record what was deliberately not taken. A second cycle, on a PHP package, produced
-eleven findings that became `spec/0.36.0.md`, `spec/0.37.0.md` and `spec/0.41.0.md` — its measured
-round times (44 min for one agent, unchanged when a role was dropped) are the whole argument for
-sharding. Two more reports did
-not survive verification against tp's own source and are worth remembering as a class: *diagnostics
-poison `--json`* (false — `output.Notice` has written to stderr since v0.31.2; their runtime merges
-the child's streams) and *`--record` accepts a missing file* (false — `review_record.go` exits
-`ExitFile`). **Field feedback arrives with the reporter's environment baked in, so verify each claim
-against the source before routing it to a spec.**
+**Field feedback drives four of the thirteen.** `spec/0.49.0.md` came from a Rust NLP project; three
+of their seven reports are answered there (audit evidence is a keyword search, no `UNVERIFIED`
+verdict, closure evidence unchecked for kind); `spec/0.45.0.md` §3 answers the reconcile request and
+its Non-Goals record what was deliberately not taken. A second cycle, on a PHP package, produced
+eleven findings that became `spec/0.36.0.md`, `spec/0.37.0.md`, `spec/0.41.0.md` and `spec/0.48.0.md`
+— its measured round times (44 min for one agent, unchanged when a role was dropped) are the whole
+argument for sharding. Two more reports did not survive verification against tp's own source and are
+worth remembering as a class: *diagnostics poison `--json`* (false — `output.Notice` has written to
+stderr since v0.31.2; their runtime merges the child's streams) and *`--record` accepts a missing
+file* (false — `review_record.go` exits `ExitFile`). **Field feedback arrives with the reporter's
+environment baked in, so verify each claim against the source before routing it to a spec.**
 
 **Findings are already routed, so do not re-derive them.** `spec/0.35.0.md` §8a carries the five
 things an unattended driver amplifies (an inflated convergence count from `--merge`'s dedup key,
