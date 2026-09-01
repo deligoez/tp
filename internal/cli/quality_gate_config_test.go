@@ -3,6 +3,7 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/deligoez/tp/internal/engine"
@@ -74,8 +75,35 @@ func TestSuiteStateWrapperStillRunsTheRaceDetector(t *testing.T) {
 	body, err := os.ReadFile(script) //nolint:gosec // a fixed path inside the repo under test
 	require.NoError(t, err, "the gate's first step must exist")
 
-	assert.Contains(t, string(body), "go test -race ./...",
-		"the wrapper is where -race lives now; without it the repo gate stops running the race detector")
+	// The assertion is over the script's `go test` INVOCATION LINES, not over
+	// the file text, and that distinction was measured rather than assumed. A
+	// bare assert.Contains(body, "-count=1") does not discriminate: the flag
+	// appears in two branches and again in the comment explaining it, so
+	// deleting it from one branch leaves the assertion true. That mutation was
+	// run — dropping it from the ./... branch left a Contains-based guard GREEN
+	// while dropping -race turned it red, which is the same defect this cycle
+	// found eight times: an assertion whose falsifying input was never built.
+	//
+	// Both flags fail in opposite directions and every invocation needs both.
+	// Without -race the repo gate stops running the race detector. Without
+	// -count=1 `go test` serves a cached PASS for a package it did not run, so
+	// the wrapper's before/after digest brackets nothing and reports green with
+	// a live-state mutation still in the tree (audit round 8: caught on run 1,
+	// "(cached)" and exit 0 on runs 2 and 3, mutation present each time).
+	var invocations []string
+	for _, line := range strings.Split(string(body), "\n") {
+		if trimmed := strings.TrimSpace(line); strings.HasPrefix(trimmed, "go test ") {
+			invocations = append(invocations, trimmed)
+		}
+	}
+	require.Len(t, invocations, 2,
+		"the wrapper runs go test in exactly two branches — a narrowed run and the gate's own")
+	for _, invocation := range invocations {
+		assert.Contains(t, invocation, "-count=1",
+			"every branch must defeat the test cache: %q", invocation)
+	}
+	assert.Contains(t, strings.Join(invocations, "\n"), "-race ./...",
+		"the no-argument branch is where -race lives now; it must run the whole suite under it")
 
 	info, statErr := os.Stat(script)
 	require.NoError(t, statErr)
