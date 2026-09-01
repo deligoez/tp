@@ -81,3 +81,24 @@ func copyTree(t *testing.T, src, dst string) {
 		require.NoError(t, os.WriteFile(filepath.Join(dst, e.Name()), body, 0o600))
 	}
 }
+
+// relocatedSpecAtRoundOne copies a repo spec WITHOUT its review state, so the
+// emission is round 1.
+//
+// Round 1 is the only round that skips the built-in `regression` role, with
+// reason `no-baseline` — there is no snapshot-round-0.md to diff against. It is
+// what makes §6 property 5's exit-0 case measurable in this repository at all:
+// every spec here is many rounds in, and a later round skips nothing, so a
+// guard written against the current state would skip itself and assert nothing.
+func relocatedSpecAtRoundOne(t *testing.T, rel string) string {
+	t.Helper()
+	root := repoRootDir(t)
+	src := filepath.Join(root, filepath.FromSlash(rel))
+
+	dir := t.TempDir()
+	dst := filepath.Join(dir, filepath.Base(src))
+	body, err := os.ReadFile(src)
+	require.NoError(t, err, "%s must exist at the repo root", rel)
+	require.NoError(t, os.WriteFile(dst, body, 0o600))
+	return dst
+}
