@@ -146,6 +146,7 @@ tp report                      # Per-task duration + estimation accuracy
 ```bash
 tp lint spec.md                # Spec quality + structured element detection
 tp review spec.md              # Adversarial review prompts, rounds, merge/resolve/record/status
+tp review spec.md --role NAME  # Emit one role's prompt only (also on tp audit)
 tp audit spec.md               # Post-implementation: verify the code matches the spec
 tp validate                    # Task file + coverage + atomicity (--strict, --project)
 ```
@@ -333,6 +334,7 @@ tp is designed for AI agents first (AX), not humans (DX):
 | **Unattended run** | `tp run` drives the whole cycle; exit 0 means converged, exit 4 names one of nine stop reasons |
 | **Fail-closed decisions** | under `TP_UNATTENDED` the user-only decisions exit 2 and `tp escalate` records what needs deciding |
 | **Honest merges** | `--merge` reports `inputs` per file and exits 1 when a role's whole file failed to parse |
+| **One prompt per unit** | `tp review`/`tp audit --role <name>` emit a single role's prompt, so a lost sub-agent costs one role, not the round |
 | **Honest audits** | `file_summary.truncated`/`total_changed` put the 50-file cap in the payload, where `--quiet` cannot erase it |
 
 ## Claude Code Integration
