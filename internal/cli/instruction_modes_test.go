@@ -125,3 +125,49 @@ func TestAnEmptyPayloadDirectsNothing(t *testing.T) {
 		})
 	}
 }
+
+// TestCompactKeepsTheReasonWhenRoleEmptiesThePayload pins §8.4's own criterion
+// applied to §4.2.1's exit-0-empty case.
+//
+// §8.4 omits skipped_roles under --compact because it is explanatory. An empty
+// payload flips that: audit round 3 measured `--compact --role
+// <recognised-but-skipped>` returning {"prompts": [], "skipped_roles": null}
+// with an empty instruction and an empty stderr — zero bytes of explanation —
+// while the same invocation with a TYPO was diagnosed in full. The correct call
+// was the one left in the dark.
+//
+// Both halves are asserted, because keeping the field unconditionally would
+// break §8.4 just as surely: with a prompt in the payload, --compact still
+// omits it.
+func TestCompactKeepsTheReasonWhenRoleEmptiesThePayload(t *testing.T) {
+	dir, cases := legalModeCases(t)
+
+	c, ok := cases["review/default"]
+	require.True(t, ok, "the default panel is the mode §8.4's rule is written for")
+
+	skipped := func(args ...string) (present bool, prompts int) {
+		t.Helper()
+		stdout, stderr, code := runTPIn(t, dir, args...)
+		require.Equal(t, 0, code, "stderr: %s", stderr)
+		var payload struct {
+			Prompts []json.RawMessage `json:"prompts"`
+			Skipped []json.RawMessage `json:"skipped_roles"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(stdout), &payload))
+		return payload.Skipped != nil, len(payload.Prompts)
+	}
+
+	emptyHas, emptyPrompts := skipped(append(c.args, "--compact", "--role", c.foreignRole, "--json")...)
+	require.Zero(t, emptyPrompts, "the case this test exists for is an empty payload")
+	assert.True(t, emptyHas,
+		"--compact keeps skipped_roles when --role emptied the payload: the reason is the payload, not commentary on it")
+
+	fullHas, fullPrompts := skipped(append(c.args, "--compact", "--role", c.ownRole, "--json")...)
+	require.Equal(t, 1, fullPrompts)
+	assert.False(t, fullHas,
+		"--compact still omits skipped_roles when there is a prompt to explain: §8.4 is not repealed")
+
+	plainHas, plainPrompts := skipped(append(c.args, "--compact", "--json")...)
+	require.Positive(t, plainPrompts)
+	assert.False(t, plainHas, "--compact without --role is untouched")
+}
