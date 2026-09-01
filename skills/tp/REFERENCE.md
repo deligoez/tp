@@ -616,20 +616,22 @@ one role. Its exact form and the reasoning are in [SKILL.md](SKILL.md); what the
 | Name class | Exit | `prompts[]` | Other keys |
 |---|---|---|---|
 | in the emitted set | 0 | exactly one entry, **byte-identical** to that role's entry in the same invocation without the flag | unchanged, except `review_loop.instruction` (below) |
-| recognised, not emitted this round | 0 | `[]` — an array, never `null` | when the name is one *this* phase skipped, `skipped_roles` carries its own reason. A name recognised only through the **other** phase's corpus appears nowhere in `skipped_roles` — `tp review <spec> --role spec-coverage` exits 0, and the array holds whatever else the round skipped (at round 1, `regression`/`no-baseline`). `--perspective` and `--verify` carry no `skipped_roles` key at all, and `--compact` omits it in every mode — so under `--compact` this case carries no reason anywhere |
+| recognised, not emitted this round | 0 | `[]` — an array, never `null` | when the name is one *this* phase skipped, `skipped_roles` carries its own reason. A name recognised only through the **other** phase's corpus appears nowhere in `skipped_roles` — `tp review <spec> --role spec-coverage` exits 0, and the array holds whatever else the round skipped (at round 1, `regression`/`no-baseline`). `--perspective` and `--verify` carry no `skipped_roles` key at all. Under `--compact` the key is kept **only for this case** — an empty `--role` payload — because there the reason is the payload rather than commentary on it (§8.4's own criterion); with a prompt present `--compact` omits it as before |
 | recognised nowhere | 2 | — | stderr carries `{"error":"unknown role: <name>","code":2,"hint":"this invocation emits: …"}`; the hint is built from the invocation's own emitted set plus `skipped_roles`, not from the corpus, because `regression` is emitted and belongs to no corpus |
 
 Recognition spans the user corpus **and** the embedded default corpus for **both** phases, plus the
 built-in `regression`. `tp review` never emits an auditor id, so a set built from one phase's
 emission would make an auditor's own first command a usage error.
 
-`review_loop.instruction` is the one key `--role` rewrites. Unrestricted it is addressed to a caller
-holding the whole panel (spawn a sub-agent per prompt, `--merge`, `--record`, `--status --check`,
+`review_loop.instruction` is the one key `--role` rewrites, and it has two rules. **An empty
+`prompts[]` gets an empty key** — a payload with no prompt can support no directive at all, in every
+mode. **A one-prompt payload gets a sentence-subset**, described next. Unrestricted the key is
+addressed to a caller holding the whole panel (spawn a sub-agent per prompt, `--merge`, `--record`, `--status --check`,
 the regression ordering, the uncounted delta pass); under `--role` it is a **sentence-subset** of
 that string containing no directive a single-prompt payload cannot support. Nothing else moves:
 `prompts[]` and `review_loop.instruction` are the only differences between a `--role` payload and
 the unrestricted one, `review_loop`'s other members included.
-**`--compact` disposition (§8.4):** decision-critical new fields survive `--compact` — `bookkeeping`, `suggested_files`, `max_rounds`/`rounds_remaining`/`in_flight_round`, `next_action`, `nonblocking_open` (review-only, emitted only on an accepted-open clean round); explanatory fields are omitted — `skipped_roles`, `attribution_excludes`, `location_clusters`, the audit `overlap_report`, the report `note`, and the wrapper-drift diagnostics `harness_note`/`harness_stale`. `tp audit --compact` also omits `prompts[].checklist_items` and `prompts[].affected_files`: both duplicate content already rendered into `prompts[].prompt`, and together they are about a fifth of the audit payload (a 3-role/5-file run drops from ~24 KB to ~17 KB). Default output is unchanged — both stay arrays, never `null`.
+**`--compact` disposition (§8.4):** decision-critical new fields survive `--compact` — `bookkeeping`, `suggested_files`, `max_rounds`/`rounds_remaining`/`in_flight_round`, `next_action`, `nonblocking_open` (review-only, emitted only on an accepted-open clean round); explanatory fields are omitted — `skipped_roles`, `attribution_excludes`, `location_clusters`, the audit `overlap_report`, the report `note`, and the wrapper-drift diagnostics `harness_note`/`harness_stale`. **One exception, v0.36.0:** `skipped_roles` survives `--compact` when `--role` reduced `prompts[]` to empty, because an empty payload is exactly where the reason stops being explanatory — it is the only content the payload has. `tp audit --compact` also omits `prompts[].checklist_items` and `prompts[].affected_files`: both duplicate content already rendered into `prompts[].prompt`, and together they are about a fifth of the audit payload (a 3-role/5-file run drops from ~24 KB to ~17 KB). Default output is unchanged — both stay arrays, never `null`.
 
 **Role staleness** (`tp review --status`/`tp audit --status`): each recorded round stores `roles_hash` (`"builtin"` on the defaults, else a clone-stable sha256 over the phase's user files). `--status` reports `roles_stale` beside the spec `stale` flag; a pre-v0.25.0 round with no stored hash is treated as matching.
 

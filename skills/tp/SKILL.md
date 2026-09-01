@@ -505,9 +505,10 @@ flag sets:
 
 **`review_loop.instruction` narrows with the payload.** That key is addressed to a caller holding
 the whole panel — spawn a sub-agent per prompt, merge, record the round, order the regression prompt
-against the others. Under `--role` the payload holds one prompt and no regression prompt, so tp
-emits a sentence-subset of the key that directs no action the payload cannot support. Without
-`--role` the key is unchanged.
+against the others. Under `--role` it follows the payload it now describes: a payload holding **one**
+prompt gets a sentence-subset that directs no action that payload cannot support; a payload holding
+**none** gets an empty key, because nothing at all is supportable there. Without `--role` the key is
+unchanged.
 
 ## Where judgement-shaping text belongs (v0.31.0)
 
