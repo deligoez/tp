@@ -609,6 +609,26 @@ tp does **not** guard against deactivating a role that has open findings — no 
 
 **Transparency fields (v0.29.0, §9):** prompt emission (`tp review`/`tp audit`) reports `skipped_roles: [{role, reason}]` naming every corpus role it did not emit (`reason` ∈ `no-checklist-items` / `no-spec-change` / `domain-mismatch` / `no-baseline` / `disabled-by-spec`; `[]` when none skipped). Merge/`--status` summary adds `attribution_excludes: ["regression"]` **only** when excluding the built-in `regression` role causes `merged_count` to exceed the overlap-report finding count (omitted otherwise). `tp audit --merge`/`--status` emit their own `overlap_report` over non-PASS rows clustered by `(item_id, category)` with the same `{role, unique, shared, trim_candidate}` shape.
 
+
+**`--role` payload contract (v0.36.0).** `--role <name>` narrows a `tp review`/`tp audit` emission to
+one role. Its exact form and the reasoning are in [SKILL.md](SKILL.md); what the payload does is:
+
+| Name class | Exit | `prompts[]` | Other keys |
+|---|---|---|---|
+| in the emitted set | 0 | exactly one entry, **byte-identical** to that role's entry in the same invocation without the flag | unchanged, except `review_loop.instruction` (below) |
+| recognised, not emitted this round | 0 | `[]` — an array, never `null` | when the name is one *this* phase skipped, `skipped_roles` carries its own reason. A name recognised only through the **other** phase's corpus is in no `skipped_roles` entry — measured: `tp review <spec> --role spec-coverage` exits 0 with `skipped_roles: []`. `--perspective` and `--verify` carry no `skipped_roles` key at all |
+| recognised nowhere | 2 | — | stderr carries `{"error":"unknown role: <name>","code":2,"hint":"this invocation emits: …"}`; the hint is built from the invocation's own emitted set plus `skipped_roles`, not from the corpus, because `regression` is emitted and belongs to no corpus |
+
+Recognition spans the user corpus **and** the embedded default corpus for **both** phases, plus the
+built-in `regression`. `tp review` never emits an auditor id, so a set built from one phase's
+emission would make an auditor's own first command a usage error.
+
+`review_loop.instruction` is the one key `--role` rewrites. Unrestricted it is addressed to a caller
+holding the whole panel (spawn a sub-agent per prompt, `--merge`, `--record`, `--status --check`,
+the regression ordering, the uncounted delta pass); under `--role` it is a **sentence-subset** of
+that string containing no directive a single-prompt payload cannot support. Nothing else moves:
+`prompts[]` and `review_loop.instruction` are the only differences between a `--role` payload and
+the unrestricted one, `review_loop`'s other members included.
 **`--compact` disposition (§8.4):** decision-critical new fields survive `--compact` — `bookkeeping`, `suggested_files`, `max_rounds`/`rounds_remaining`/`in_flight_round`, `next_action`, `nonblocking_open` (review-only, emitted only on an accepted-open clean round); explanatory fields are omitted — `skipped_roles`, `attribution_excludes`, `location_clusters`, the audit `overlap_report`, the report `note`, and the wrapper-drift diagnostics `harness_note`/`harness_stale`. `tp audit --compact` also omits `prompts[].checklist_items` and `prompts[].affected_files`: both duplicate content already rendered into `prompts[].prompt`, and together they are about a fifth of the audit payload (a 3-role/5-file run drops from ~24 KB to ~17 KB). Default output is unchanged — both stay arrays, never `null`.
 
 **Role staleness** (`tp review --status`/`tp audit --status`): each recorded round stores `roles_hash` (`"builtin"` on the defaults, else a clone-stable sha256 over the phase's user files). `--status` reports `roles_stale` beside the spec `stale` flag; a pre-v0.25.0 round with no stored hash is treated as matching.

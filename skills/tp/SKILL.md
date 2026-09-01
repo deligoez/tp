@@ -460,6 +460,55 @@ closure reasons passed to `tp done`, and commit messages. Three reasons, in the 
 the role prompt carries zero mentions of language. Until a release puts it in the output contract,
 an orchestrator that spawns units itself should say it when it spawns them.
 
+## `--role` — one prompt at a time (v0.36.0)
+
+`tp review <spec> --role <name>` and `tp audit <spec> --role <name>` narrow an emission to a single
+role's prompt. It is what a **unit** runs as its own first command: the emission the whole panel
+would produce is many times the size of the one prompt the unit will act on, and a run that loses a
+sub-agent mid-round loses only that role's work rather than the round's.
+
+`--role` takes exactly one value and is not repeatable. `--role ""` is refused as an unknown role
+rather than treated as an absent flag, so "flag given empty" and "flag absent" are never the same
+command.
+
+**Three name classes, three outcomes.** The set that produces a prompt is what *that invocation*
+would emit — not the corpus, and not the phase's active role set: the built-in `regression` role is
+emitted and belongs to no corpus, and `--perspective testing` emits `test-planner`, which is in
+neither.
+
+| The name is… | Outcome |
+|---|---|
+| in the emitted set | exit **0**, exactly one `prompts[]` entry, byte-identical to that role's entry in the same invocation without the flag |
+| recognised but not emitted this round | exit **0**, `prompts: []`. A name *this* phase skipped keeps its own `skipped_roles` entry; a name recognised only through the other phase's corpus is in none |
+| recognised nowhere | exit **2**, with a hint naming what the invocation would have emitted |
+
+"Recognised" spans **both phases**: the user corpus and the embedded default corpus for reviewers
+*and* auditors, plus `regression`. So an auditor running `tp audit <spec> --role spec-coverage` and
+one running `tp review <spec> --role spec-coverage` both exit 0 — the second emits nothing, because
+`tp review` never emits an auditor.
+
+The exit-0-empty class is not a courtesy, it is forced: the unit set and the emitted set are
+computed by different filters. A corpus role with an empty checklist is spawned as a unit and emits
+no prompt, so under an exit-2 rule its own brief would fail before it did any work.
+
+**Where the flag is legal.** It is legal wherever prompts are emitted and refused with exit 2 where
+none are, and the refusal is evaluated *before* the mode's own argument validation, so the hint
+names the flag conflict rather than a missing `--findings`. The two commands do not have the same
+flag sets:
+
+| Command | `--role` legal in | `--role` refused in |
+|---|---|---|
+| `tp review` | default, `--perspective`, `--diff-from`, `--verify` | `--merge`, `--record`, `--status`, `--report`, `--resolve`, `--resolve-all` |
+| `tp audit` | default only | `--merge`, `--record`, `--status`, `--resolve`, `--resolve-all` |
+
+`tp audit` registers no `--perspective`, `--diff-from`, `--verify` or `--report` at all.
+
+**`review_loop.instruction` narrows with the payload.** That key is addressed to a caller holding
+the whole panel — spawn a sub-agent per prompt, merge, record the round, order the regression prompt
+against the others. Under `--role` the payload holds one prompt and no regression prompt, so tp
+emits a sentence-subset of the key that directs no action the payload cannot support. Without
+`--role` the key is unchanged.
+
 ## Where judgement-shaping text belongs (v0.31.0)
 
 Standing instructions that shape a reviewer's judgement — what counts as a real defect, what to treat as intentional, what altitude to hold — do **not** belong in the orchestrator's prompt wrapper. tp cannot see that wrapper, so framing hidden there makes two rounds look comparable when their instructions differed materially. Standing framing has two sanctioned homes, both recorded via `roles_hash`:
