@@ -287,7 +287,7 @@ Modes (mutually exclusive):
 			// that emits none. The check sits before the mode dispatch so the
 			// operator sees the flag conflict rather than that mode's own
 			// argument complaint.
-			if roleFilter != "" && mode != "" && mode != "verify" {
+			if cmd.Flags().Changed("role") && mode != "" && mode != "verify" {
 				output.Error(ExitUsage, "--role cannot be combined with --"+mode,
 					"--role selects one emitted prompt; --"+mode+" emits none")
 				os.Exit(ExitUsage)
@@ -300,7 +300,7 @@ Modes (mutually exclusive):
 					os.Exit(ExitUsage)
 					return nil
 				}
-				return runReview(cmd, args[0], round, findingsPath, perspective, docsPath, testPath, affectedFiles, finalRound, diffFrom, roleFilter, specInline, noState)
+				return runReview(cmd, args[0], round, findingsPath, perspective, docsPath, testPath, affectedFiles, finalRound, diffFrom, roleFilter, cmd.Flags().Changed("role"), specInline, noState)
 			}
 			if err := validateModeFlags(mode, round, findingsPath, affectedFiles, finalRound, diffFrom, specInline, perspective); err != nil {
 				output.Error(ExitUsage, err.Error())
@@ -462,7 +462,7 @@ func validateModeFlags(mode string, round int, findingsPath string, affectedFile
 // runReviewVerify — implemented in review_verify.go.
 // runReviewReport — implemented in review_report.go.
 
-func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, perspective, docsPath, testPath string, affectedFiles []string, finalRound bool, diffFrom, roleFilter string, specInline, noState bool) error {
+func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, perspective, docsPath, testPath string, affectedFiles []string, finalRound bool, diffFrom, roleFilter string, roleGiven, specInline, noState bool) error {
 	validPerspectives := map[string]bool{"documentation": true, "testing": true, "code-audit": true, "regression": true}
 
 	if perspective != "" && !validPerspectives[perspective] {
@@ -558,7 +558,12 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 	prompts, regressionIncluded, skippedRoles := buildReviewPrompts(specPath, &panel, elems, specContent, round, summary, affectedFiles, finalRound, &wfChecks, diffFrom, noState, reviewSt)
 
 	prompts = appendClausesReview(prompts)
-	prompts = filterReviewPrompts(prompts, roleFilter, skippedRoles)
+	prompts = filterReviewPrompts(prompts, roleQuery{
+		name:    roleFilter,
+		given:   roleGiven,
+		specDir: filepath.Dir(specPath),
+		domain:  panel.fm.Domain,
+	}, skippedRoles)
 
 	uniqueCount := len(dedupFindings(findings))
 	convergence, instruction := buildReviewLoopInstruction(round, findings, findingsPath, specPath, specInline, noState, stateRequired, regressionIncluded, len(wfChecks.Checks) > 0)

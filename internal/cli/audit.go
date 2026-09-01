@@ -139,7 +139,7 @@ Use --findings to also verify review findings were addressed.`,
 			// that emits none refuses it. Placed before the mode branches so the
 			// operator sees the flag conflict rather than that mode's own
 			// argument complaint.
-			if roleFilter != "" {
+			if cmd.Flags().Changed("role") {
 				for _, m := range []struct {
 					on   bool
 					name string
@@ -244,7 +244,7 @@ Use --findings to also verify review findings were addressed.`,
 			if statusMode {
 				return runAuditStatus(args[0], checkFlag)
 			}
-			return runAudit(cmd, args[0], affectedFiles, base, findingsPath, roleFilter, affectedFromTasks)
+			return runAudit(cmd, args[0], affectedFiles, base, findingsPath, roleFilter, cmd.Flags().Changed("role"), affectedFromTasks)
 		},
 	}
 
@@ -266,7 +266,7 @@ Use --findings to also verify review findings were addressed.`,
 	return cmd
 }
 
-func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, findingsPath, roleFilter string, affectedFromTasks bool) error {
+func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, findingsPath, roleFilter string, roleGiven, affectedFromTasks bool) error {
 	if _, err := os.Stat(specPath); os.IsNotExist(err) {
 		// First contact with the path: a spec-path mistake, so the shared
 		// hint. The code-3 default names the TASK file — 'tp use' / 'tp init'
@@ -355,13 +355,22 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	prompts, auditSkipped := generateRoleAuditPrompts(panel.roles, specItems, &sel, specContent, claudeMDExcerptFor(specPath), priorByRole, auditRound, auditWf.AuditCleanRounds, auditConsecutive, auditWf.AuditMaxRounds)
 
 	prompts = appendClausesAudit(prompts)
-	prompts = filterAuditPrompts(prompts, roleFilter, auditSkipped)
 	// §9.1: name every non-emitted auditor — empty-checklist roles above plus
 	// any domain-filtered user corpus roles.
 	auditSkipped = append(auditSkipped, engine.DomainSkippedRoles(filepath.Dir(specPath), panel.fm.Domain, engine.PhaseAuditors)...)
 	// §2.4: plus every auditor this spec deactivated with enabled: false, so the
 	// drop is visible rather than silent.
 	auditSkipped = append(auditSkipped, engine.DisabledSkippedRoles(panel.disabled)...)
+
+	// §4.2.1 classifies against the FINISHED skip list, not the partial one: a
+	// role dropped by domain or deactivated by the spec is recognised, and
+	// reading the list before these two appends would call it unknown and exit 2.
+	prompts = filterAuditPrompts(prompts, roleQuery{
+		name:    roleFilter,
+		given:   roleGiven,
+		specDir: filepath.Dir(specPath),
+		domain:  panel.fm.Domain,
+	}, auditSkipped)
 
 	summary := engine.BuildAffectedSummary(files, nil)
 
