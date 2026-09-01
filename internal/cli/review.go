@@ -568,6 +568,15 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 	uniqueCount := len(dedupFindings(findings))
 	convergence, instruction := buildReviewLoopInstruction(round, findings, findingsPath, specPath, specInline, noState, stateRequired, regressionIncluded, len(wfChecks.Checks) > 0)
 
+	// §4.2.3.1: the key is addressed to a caller holding the whole panel, and
+	// --role makes it false. Narrowing runs on the finished string rather than
+	// inside the builder, which assembles it across nine assignment sites —
+	// there is no single quoted text to subtract from, and a subset of the
+	// finished string is a subset by construction.
+	if roleGiven {
+		instruction = narrowInstructionForRole(instruction)
+	}
+
 	result := reviewResult{
 		Spec:               specPath,
 		StructuredElements: elems,
