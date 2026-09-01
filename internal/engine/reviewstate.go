@@ -374,12 +374,14 @@ func WriteSnapshotAtomic(specPath, phase string, round int, data []byte) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	final := filepath.Join(dir, snapshotFilename(phase, round))
-	tmp := final + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o600); err != nil {
-		return err
-	}
-	return os.Rename(tmp, final)
+	// writeFileAtomic rather than a local path+".tmp": every role unit in a
+	// round emits, and REFERENCE.md runs sibling roles in parallel, so they all
+	// write this snapshot at once. Sharing one temp path made them race to
+	// rename it — audit round 7 measured six of eight siblings failing with
+	// ENOENT after the winner moved it away, and 24 of 80 through the real
+	// brief_command strings at eight-way concurrency. The fixed name is
+	// v0.29.0 §10.2's, written before v0.35.0 made siblings concurrent.
+	return writeFileAtomic(filepath.Join(dir, snapshotFilename(phase, round)), data)
 }
 
 // snapshotFilename returns the on-disk snapshot name for a phase and round.
