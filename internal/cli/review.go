@@ -462,11 +462,30 @@ func validateModeFlags(mode string, round int, findingsPath string, affectedFile
 // runReviewVerify — implemented in review_verify.go.
 // runReviewReport — implemented in review_report.go.
 
-func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, perspective, docsPath, testPath string, affectedFiles []string, finalRound bool, diffFrom, roleFilter string, roleGiven, specInline, noState bool) error {
-	validPerspectives := map[string]bool{"documentation": true, "testing": true, "code-audit": true, "regression": true}
+// reviewPerspectives is the set --perspective accepts, in the order the refusal
+// names them.
+//
+// It is a package-level slice rather than a map literal inside runReview so one
+// declaration is both the validator's source and the refusal's, and a test can
+// read the same list the code branches on instead of restating it (§6.2
+// property 2: the mode list is derived from the code, not written out).
+var reviewPerspectives = []string{"documentation", "testing", "code-audit", "regression"}
 
-	if perspective != "" && !validPerspectives[perspective] {
-		output.Error(ExitUsage, fmt.Sprintf("invalid perspective: %q (must be 'documentation', 'testing', 'code-audit', or 'regression')", perspective))
+// invalidPerspectiveMessage renders the refusal from reviewPerspectives, so a
+// perspective added to the slice cannot be missing from the message.
+func invalidPerspectiveMessage(got string) string {
+	quoted := make([]string, 0, len(reviewPerspectives))
+	for _, p := range reviewPerspectives {
+		quoted = append(quoted, "'"+p+"'")
+	}
+	last := len(quoted) - 1
+	list := strings.Join(quoted[:last], ", ") + ", or " + quoted[last]
+	return fmt.Sprintf("invalid perspective: %q (must be %s)", got, list)
+}
+
+func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, perspective, docsPath, testPath string, affectedFiles []string, finalRound bool, diffFrom, roleFilter string, roleGiven, specInline, noState bool) error {
+	if perspective != "" && !slices.Contains(reviewPerspectives, perspective) {
+		output.Error(ExitUsage, invalidPerspectiveMessage(perspective))
 		os.Exit(ExitUsage)
 		return nil
 	}
