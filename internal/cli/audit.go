@@ -135,6 +135,29 @@ Use --findings to also verify review findings were addressed.`,
 				os.Exit(ExitUsage)
 				return nil
 			}
+			// §4.2.2: --role selects one emitted prompt, so every audit mode
+			// that emits none refuses it. Placed before the mode branches so the
+			// operator sees the flag conflict rather than that mode's own
+			// argument complaint.
+			if roleFilter != "" {
+				for _, m := range []struct {
+					on   bool
+					name string
+				}{
+					{mergeMode, "--merge"},
+					{recordPath != "", "--record"},
+					{statusMode, "--status"},
+					{resolveMode, "--resolve"},
+					{resolveAllMode, "--resolve-all"},
+				} {
+					if m.on {
+						output.Error(ExitUsage, "--role cannot be combined with "+m.name,
+							"--role selects one emitted prompt; "+m.name+" emits none")
+						os.Exit(ExitUsage)
+						return nil
+					}
+				}
+			}
 			if resolveMode || resolveAllMode {
 				flagName := "--resolve"
 				if resolveAllMode {
