@@ -30,11 +30,25 @@ const pluginManifestPath = ".claude-plugin/plugin.json"
 //
 // It tracks plugin.json rather than lagging it: because the manifest's version
 // IS the minimum, bumping the plugin raises the bar for the binary too, and the
-// release that carries the bump ships that binary. 0.36.0 ships §4.2's --role
-// flag and §2's two emitted clauses; the bump was forced by SKILL.md's flag
-// inventory, which TestSkillFlagInventoryIsComplete requires the moment a flag
-// is registered, and SKILL.md is plugin content.
-const pluginMinVersion = "0.36.0"
+// release that carries the bump ships that binary.
+//
+// It is READ from the manifest rather than restated beside it. Restating it cost
+// a gate run during v0.37.0's review: correcting the workflow-field precedence in
+// REFERENCE.md — plugin content — reddened
+// TestPluginVersionIsBumpedWhenPluginContentChanges, and bumping the manifest to
+// satisfy that reddened four subtests of TestSessionStartHookFailsWhenTpTooOld
+// against a literal that had to be edited to match. A guard whose expected value
+// is a copy of the thing it guards fails twice for one change, and the second
+// failure teaches nothing.
+func pluginMinVersion(t *testing.T) string {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(repoRoot(t), pluginManifestPath)) //nolint:gosec // a fixed path inside the repo under test
+	require.NoError(t, err)
+	var m pluginManifest
+	require.NoError(t, json.Unmarshal(raw, &m))
+	require.NotEmpty(t, m.Version, "plugin.json must declare a version; it is the preflight minimum")
+	return m.Version
+}
 
 // pluginManifest is the subset of the manifest this guard asserts: identity,
 // nothing else. Components (skills/, hooks/, agents/) are discovered by
@@ -75,8 +89,8 @@ func TestPluginManifestDeclaresIdentity(t *testing.T) {
 	assert.NotEmpty(t, manifest.Keywords, "the marketplace lists the plugin by its keywords")
 
 	require.NotEmpty(t, manifest.Version, "the preflight compares tp --version against this field")
-	assert.GreaterOrEqual(t, comparePluginVersions(t, manifest.Version, pluginMinVersion), 0,
-		"plugin.json's version is the preflight minimum, so it may not fall below %s", pluginMinVersion)
+	assert.GreaterOrEqual(t, comparePluginVersions(t, manifest.Version, pluginMinVersion(t)), 0,
+		"plugin.json's version is the preflight minimum, so it may not fall below itself")
 
 	// The skills the plugin ships live at skills/tp and are discovered by
 	// convention. The rejected pre-v0.35.0 manifest instead inlined them as

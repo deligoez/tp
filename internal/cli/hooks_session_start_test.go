@@ -170,7 +170,7 @@ func TestSessionStartHookFailsWhenTpTooOld(t *testing.T) {
 			assert.NotZero(t, run.exitCode, "%s is below the plugin minimum", version)
 			output := run.stdout + run.stderr
 			assert.Contains(t, output, installCommand)
-			assert.Contains(t, output, pluginMinVersion, "the failure names the minimum it compared against")
+			assert.Contains(t, output, pluginMinVersion(t), "the failure names the minimum it compared against")
 			assert.NotContains(t, strings.Join(run.tpArgs, "\n"), "resume",
 				"a failed preflight injects no orientation")
 		})
@@ -182,6 +182,8 @@ func TestSessionStartHookFailsWhenTpTooOld(t *testing.T) {
 // is inclusive or exclusive, and §6.1 makes plugin.json's own version the
 // minimum, so exactly that version must be accepted.
 func TestSessionStartHookAcceptsTheMinimumVersion(t *testing.T) {
+	minimum := pluginMinVersion(t)
+
 	// The last entry is the build tp's own self-development runs against: a
 	// binary built from a working tree at the minimum reports a pseudo-version
 	// with a suffix, and the preflight compares the numbers only, so dogfooding
@@ -191,8 +193,8 @@ func TestSessionStartHookAcceptsTheMinimumVersion(t *testing.T) {
 	// "v0.35.1" was accepted until the minimum reached 0.35.2 and then failed
 	// this test, which is the version-pinning trap one level down.
 	for _, version := range []string{
-		pluginMinVersion, "v" + pluginMinVersion, "v1.0.0", "v99.0.0",
-		"v" + pluginMinVersion + "-0.20260820093420-104822c4904b+dirty",
+		minimum, "v" + minimum, "v1.0.0", "v99.0.0",
+		"v" + minimum + "-0.20260820093420-104822c4904b+dirty",
 	} {
 		t.Run(version, func(t *testing.T) {
 			run := runSessionStartHook(t, version, map[string]string{"TP_FAKE_RESUME": "{}"})
@@ -212,7 +214,7 @@ func TestSessionStartHookAcceptsTheMinimumVersion(t *testing.T) {
 func TestSessionStartHookInjectsResumeCompact(t *testing.T) {
 	payload := "{\"phase\":\"implement\",\"note\":\"a \\\"quoted\\\" path C:\\\\tmp\"}\ntrailing"
 
-	run := runSessionStartHook(t, "v"+pluginMinVersion, map[string]string{"TP_FAKE_RESUME": payload})
+	run := runSessionStartHook(t, "v"+pluginMinVersion(t), map[string]string{"TP_FAKE_RESUME": payload})
 
 	require.Zero(t, run.exitCode, "stderr: %s", run.stderr)
 	assert.Equal(t, []string{"--version", "resume --compact"}, run.tpArgs,
@@ -227,7 +229,7 @@ func TestSessionStartHookInjectsResumeCompact(t *testing.T) {
 // Failing the session there would make the plugin unusable in any other
 // repository, and §6.1 scopes the preflight's failure to tp's absence or age.
 func TestSessionStartHookStaysSilentWithoutACycle(t *testing.T) {
-	run := runSessionStartHook(t, "v"+pluginMinVersion, map[string]string{
+	run := runSessionStartHook(t, "v"+pluginMinVersion(t), map[string]string{
 		"TP_FAKE_RESUME":      "",
 		"TP_FAKE_RESUME_EXIT": "3",
 	})
@@ -257,6 +259,6 @@ func TestSessionStartHookResolvesItsOwnPluginRoot(t *testing.T) {
 	out, err := cmd.CombinedOutput()
 	require.Error(t, err, "v0.1.0 is below the minimum, so the preflight must fail")
 	assert.Contains(t, string(out), installCommand)
-	assert.Contains(t, string(out), pluginMinVersion,
+	assert.Contains(t, string(out), pluginMinVersion(t),
 		"the minimum was read from plugin.json without CLAUDE_PLUGIN_ROOT")
 }
