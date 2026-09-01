@@ -198,7 +198,7 @@ rounds at 146 lines, so splitting shortens the expected cycle without guaranteei
 | 0.41.0 | a durable home for an accepted finding | Where an accepted audit finding goes so it becomes maintenance pressure rather than archived prose | 63 |
 | 0.42.0 | the binary check | The advisory that fires when the running tp is older than the spec being developed | 46 |
 | 0.43.0 | what the loop costs | Repair locality and class families, measured from data tp already stores | 259 |
-| 0.44.0 | `tp lint --identifiers` | An identifier referenced but never introduced, decided by reading the document | 72 |
+| 0.44.0 | what reading alone can decide | The identifier pass and the contradictory-comparator rule, plus a `workflow.checks` entry and the four candidates prototyped and refuted before any reached the spec | 177 |
 | 0.45.0 | when the spec moves between rounds | `next_action` recommends the shipped delta pass; `--reconcile` records why the spec moved | 140 |
 | 0.46.0 | what v0.36.0's audit handed over | Four measured items that cycle deferred; waits for it to ship | 106 |
 | 0.47.0 | the fence, the example, the split | Test-file fence, example-table lint rule, unexecutable test-task warning. **All three need a design pass** | 115 |
