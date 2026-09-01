@@ -362,11 +362,17 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	// drop is visible rather than silent.
 	auditSkipped = append(auditSkipped, engine.DisabledSkippedRoles(panel.disabled)...)
 
-	// §4.2.1 classifies against the finished skip list. (An earlier comment here
-	// justified the ordering with a counterfactual — that reading the list early
-	// would call a dropped role unknown — which audit round 6 measured false:
+	// §4.2.1 classifies against the finished skip list, because unknownRoleHint
+	// renders the list the filter was handed. Measured in round 7 with the call
+	// moved above the two appends, on a spec deactivating one auditor:
+	//
+	//   here:   "skipped this round: spec-coverage (no-checklist-items), prose-only (domain-mismatch)"
+	//   moved:  "skipped this round: spec-coverage (no-checklist-items)"
+	//
+	// Two earlier comments here gave reasons that were not this one and were
+	// both measured false — the classification itself is unaffected, since
 	// classifyRole falls through to engine.RoleIsRecognised, which reads the
-	// corpus directly, so the output is byte-identical either way.)
+	// corpus directly. The diagnostic is what the ordering buys.
 	prompts = filterAuditPrompts(prompts, roleQueryFor(specPath, roleFilter, roleGiven), auditSkipped)
 
 	summary := engine.BuildAffectedSummary(files, nil)

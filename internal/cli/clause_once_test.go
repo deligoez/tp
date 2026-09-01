@@ -10,8 +10,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// clauseSuffixBytes is §1.1's priced length: -1 strip, +2, +287, +2, +177.
-// It is the number the removal below is positional on.
+// clauseSuffixBytes is the suffix's length, and the number the removal below is
+// positional on. §1.1 prices it and also names 467 — the NET delta after the
+// body's trailing newline is stripped — as the off-by-one its table exists to
+// prevent; an earlier version of this comment reproduced exactly that error.
 const clauseSuffixBytes = 468
 
 // TestSuffixIsAppendedOnceAndTheStripHappened is v0.36.0 §6.2 property 3.
