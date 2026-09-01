@@ -198,6 +198,7 @@ const (
 func newReviewCmd() *cobra.Command {
 	var round int
 	var findingsPath string
+	var roleFilter string
 	var perspective string
 	var docsPath string
 	var testPath string
@@ -336,6 +337,7 @@ Modes (mutually exclusive):
 	// Default review flags
 	cmd.Flags().IntVar(&round, "round", 1, "Current review round number (1-indexed)")
 	cmd.Flags().StringVar(&findingsPath, "findings", "", "Path to NDJSON file with previous round findings")
+	cmd.Flags().StringVar(&roleFilter, "role", "", "Emit only this role's prompt (§4.2); one name, not repeatable")
 	cmd.Flags().StringVar(&perspective, "perspective", "", "Review perspective: documentation, testing, or code-audit")
 	cmd.Flags().StringVar(&docsPath, "docs-path", "", "Path to documentation directory (required with --perspective documentation)")
 	cmd.Flags().StringVar(&testPath, "test-path", "", "Path to test directory (required with --perspective testing)")

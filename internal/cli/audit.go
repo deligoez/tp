@@ -102,6 +102,7 @@ const maxAutoDetectFiles = 50
 func newAuditCmd() *cobra.Command {
 	var affectedFiles []string
 	var base string
+	var roleFilter string
 	var findingsPath string
 	var recordPath string
 	var statusMode bool
@@ -227,6 +228,7 @@ Use --findings to also verify review findings were addressed.`,
 	cmd.Flags().StringArrayVar(&affectedFiles, "affected-files", nil, "Source files to audit (auto-detect via git diff if omitted)")
 	cmd.Flags().BoolVar(&affectedFromTasks, "affected-from-tasks", false, "Audit the union of files touched by done-task commit_shas")
 	cmd.Flags().StringVar(&base, "base", "", "Git ref to diff against (omit for staged+unstaged)")
+	cmd.Flags().StringVar(&roleFilter, "role", "", "Emit only this role's prompt (§4.2); one name, not repeatable")
 	cmd.Flags().StringVar(&findingsPath, "findings", "", "Path to NDJSON findings from tp review")
 	cmd.Flags().StringVar(&recordPath, "record", "", "Record an audit round from an NDJSON results file")
 	cmd.Flags().BoolVar(&statusMode, "status", false, "Show recorded audit rounds and convergence state")
