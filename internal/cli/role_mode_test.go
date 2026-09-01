@@ -75,3 +75,33 @@ func TestRoleAcceptedInEveryEmittingMode(t *testing.T) {
 		})
 	}
 }
+
+// TestRoleRefusalNeverNamesAFlagThatDoesNotExist pins §4.2.2's refusal against
+// an internal sentinel leaking into the operator's message.
+//
+// detectReviewMode returns "conflict:<a>+<b>" when two modes are given, and the
+// --role refusal used to interpolate that verbatim — inventing a flag named
+// `--conflict:merge+status`. Adding --role made the message strictly WORSE:
+// without it, validateModeFlags reports "--merge and --status are mutually
+// exclusive", which is both true and actionable.
+//
+// Found by audit round 5. It is v0.36.0's own refusal, on a path no earlier
+// round had entered, because reaching it needs two conflicting modes AND
+// --role.
+func TestRoleRefusalNeverNamesAFlagThatDoesNotExist(t *testing.T) {
+	dir, spec, ndjson := roleModeFixture(t)
+
+	for name, args := range map[string][]string{
+		"merge+status":  {"review", spec, "--merge", ndjson, "--status", "--role", "architect"},
+		"status+report": {"review", spec, "--status", "--report", "--role", "architect"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, stderr, code := runTPIn(t, dir, args...)
+			assert.Equal(t, 2, code, "two conflicting modes is still a usage error")
+			assert.NotContains(t, stderr, "conflict:",
+				"the internal sentinel must not reach the operator: %s", stderr)
+			assert.Contains(t, stderr, "mutually exclusive",
+				"the mode conflict is the more specific complaint and should be the one reported: %s", stderr)
+		})
+	}
+}
