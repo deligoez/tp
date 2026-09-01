@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,41 +28,111 @@ var (
 // Exit 0 alone is not the property. --role selects one prompt, so a mode that
 // accepted the flag and emitted the whole panel would pass an exit-code check
 // while breaking the thing the flag exists for. Every case asserts the count.
+//
+// This test ALONE is not the property either, and audit round 1 proved it: in a
+// mode that emits exactly one prompt anyway, passing that mode's own role name
+// and asserting "one prompt, and it is that role" holds identically whether the
+// filter ran or the flag was discarded. Five of the eight cases below were
+// tautologies, and `--role` was in fact ignored in all five. The three
+// name-class assertions in TestEveryLegalModeClassifiesTheNameItIsGiven are
+// what could have failed; this one is kept for the count, not for the class.
 func TestEveryLegalModeEmitsExactlyOnePrompt(t *testing.T) {
+	dir, cases := legalModeCases(t)
+
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			prompts := emitFor(t, dir, append(c.args, "--role", c.ownRole)...)
+			require.Len(t, prompts, 1,
+				"%s: --role reduces the emission to exactly one prompt", name)
+			assert.Equal(t, c.ownRole, prompts[0].role,
+				"%s: the surviving prompt is the role that was asked for", name)
+		})
+	}
+}
+
+// TestEveryLegalModeClassifiesTheNameItIsGiven is the experiment that can fail.
+//
+// §4.2.1's three name classes must hold in EVERY mode §4.2.2 calls legal, not
+// only in the two that happen to route through the default emission path. Round
+// 1 measured all three collapsing to one outcome in five of tp review's seven
+// emitting modes: `--verify` and the four `--perspective` values returned before
+// the filter, so an unrecognised name exited 0 with a prompt, and asking for a
+// role that mode does not emit handed back a DIFFERENT role's prompt.
+//
+// Each case uses a name the mode cannot emit, which is what makes the assertion
+// discriminating: the mode's own name proves nothing, because it is what an
+// ignored flag produces too.
+func TestEveryLegalModeClassifiesTheNameItIsGiven(t *testing.T) {
+	dir, cases := legalModeCases(t)
+
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			// A name tp recognises nowhere: exit 2.
+			_, stderr, code := runTPIn(t, dir, append(c.args, "--role", "zzz-not-a-role")...)
+			assert.Equal(t, 2, code,
+				"%s: an unrecognised name is a usage error, not a silent full emission; stderr: %s",
+				name, stderr)
+
+			// --role "" is a name, not an absent flag.
+			_, _, emptyCode := runTPIn(t, dir, append(c.args, "--role", "")...)
+			assert.Equal(t, 2, emptyCode,
+				`%s: --role "" is refused as an unknown role`, name)
+
+			// A name tp recognises that this mode does not emit: exit 0, empty.
+			require.NotEqual(t, c.ownRole, c.foreignRole, "the foreign role must differ from the mode's own")
+			stdout, foreignErr, foreignCode := runTPIn(t, dir,
+				append(c.args, "--role", c.foreignRole, "--json")...)
+			require.Equal(t, 0, foreignCode,
+				"%s: a recognised name is not an error; stderr: %s", name, foreignErr)
+
+			var payload struct {
+				Prompts []struct {
+					Role string `json:"role"`
+				} `json:"prompts"`
+			}
+			require.NoError(t, json.Unmarshal([]byte(stdout), &payload))
+			assert.Empty(t, payload.Prompts,
+				"%s: --role %s emits nothing here; handing back %q instead is the defect round 1 found",
+				name, c.foreignRole, c.ownRole)
+		})
+	}
+}
+
+// legalModeCase is one row of §4.2.2's acceptance column.
+//
+// ownRole is what the mode emits; foreignRole is a name tp recognises that this
+// mode never emits. Both are needed: the first tests selection, the second
+// tests that the filter ran at all.
+type legalModeCase struct {
+	args        []string
+	ownRole     string
+	foreignRole string
+}
+
+func legalModeCases(t *testing.T) (dir string, cases map[string]legalModeCase) {
+	t.Helper()
 	dir, spec, ndjson := roleModeFixture(t)
-	baseline := filepath.Join(dir, "baseline.md")
-	require.NoError(t, os.WriteFile(baseline,
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "baseline.md"),
 		[]byte("# tp v0.36.0 — The emitted round\n\n## 1. Overview\n\nold\n"), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "subject.go"), []byte("package subject\n"), 0o600))
 
-	cases := map[string][]string{
-		// tp review — four legal modes. The role name per case is whatever
-		// that mode emits: --perspective testing emits `test-planner`, which
-		// belongs to no corpus, so a single name would not do for all of them.
-		"review/default": {"review", spec, "--role", "architect"},
+	// `architect` is an embedded reviewer role, so it is recognised everywhere
+	// and emitted only by the default panel. `spec-coverage` plays the same
+	// part for tp audit, where the default panel is the only emitting mode, so
+	// its foreign name has to come from the reviewer corpus instead.
+	return dir, map[string]legalModeCase{
+		"review/default": {[]string{"review", spec}, "architect", "spec-coverage"},
 		// No --round: the sandbox carries the spec's recorded state, so the
 		// round is state-derived and a literal would conflict with it.
-		"review/diff-from":                 {"review", spec, "--diff-from", "baseline.md", "--role", "architect"},
-		"review/verify":                    {"review", "--verify", spec, "--findings", ndjson, "--role", "verifier"},
-		"review/perspective/regression":    {"review", spec, "--perspective", "regression", "--role", "regression"},
-		"review/perspective/code-audit":    {"review", spec, "--perspective", "code-audit", "--affected-files", "subject.go", "--role", "code-auditor"},
-		"review/perspective/documentation": {"review", spec, "--perspective", "documentation", "--docs-path", ".", "--role", "documentation-planner"},
-		"review/perspective/testing":       {"review", spec, "--perspective", "testing", "--test-path", ".", "--role", "test-planner"},
+		"review/diff-from":                 {[]string{"review", spec, "--diff-from", "baseline.md"}, "architect", "spec-coverage"},
+		"review/verify":                    {[]string{"review", "--verify", spec, "--findings", ndjson}, "verifier", "architect"},
+		"review/perspective/regression":    {[]string{"review", spec, "--perspective", "regression"}, "regression", "architect"},
+		"review/perspective/code-audit":    {[]string{"review", spec, "--perspective", "code-audit", "--affected-files", "subject.go"}, "code-auditor", "architect"},
+		"review/perspective/documentation": {[]string{"review", spec, "--perspective", "documentation", "--docs-path", "."}, "documentation-planner", "architect"},
+		"review/perspective/testing":       {[]string{"review", spec, "--perspective", "testing", "--test-path", "."}, "test-planner", "architect"},
 
 		// tp audit — default only.
-		"audit/default": {"audit", spec, "--affected-files", "subject.go", "--role", "spec-coverage"},
-	}
-
-	for name, args := range cases {
-		t.Run(name, func(t *testing.T) {
-			prompts := emitFor(t, dir, args...)
-			require.Len(t, prompts, 1,
-				"%s: --role reduces the emission to exactly one prompt", name)
-
-			wanted := args[len(args)-1]
-			assert.Equal(t, wanted, prompts[0].role,
-				"%s: the surviving prompt is the role that was asked for", name)
-		})
+		"audit/default": {[]string{"audit", spec, "--affected-files", "subject.go"}, "spec-coverage", "architect"},
 	}
 }
 
