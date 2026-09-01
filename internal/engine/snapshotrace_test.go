@@ -46,7 +46,7 @@ func TestWriteSnapshotAtomicSurvivesParallelSiblings(t *testing.T) {
 			var wg sync.WaitGroup
 			errs := make([]error, writers)
 			start := make(chan struct{})
-			for i := 0; i < writers; i++ {
+			for i := range writers {
 				wg.Add(1)
 				go func(i int) {
 					defer wg.Done()
@@ -103,7 +103,7 @@ func TestWriteSnapshotAtomicIsWholeUnderARewrite(t *testing.T) {
 
 	final := filepath.Join(ReviewStateDir(spec), snapshotFilename(PhaseReview, 1))
 	for i := 1; i <= 20; i++ {
-		body := []byte(fmt.Sprintf("# round %d\n%s\n", i, string(make([]byte, i*512))))
+		body := fmt.Appendf(nil, "# round %d\n%s\n", i, string(make([]byte, i*512)))
 		require.NoError(t, WriteSnapshotAtomic(spec, PhaseReview, 1, body))
 
 		got, err := os.ReadFile(final) //nolint:gosec // a path this test built

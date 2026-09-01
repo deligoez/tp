@@ -50,7 +50,7 @@ func instructionOf(t *testing.T, payload map[string]any) string {
 // `<findings.ndjson>` — whose dots are never followed by a space.
 func sentencesOf(s string) []string {
 	out := make([]string, 0, 8)
-	for _, part := range strings.Split(s, ". ") {
+	for part := range strings.SplitSeq(s, ". ") {
 		part = strings.TrimSpace(part)
 		if part != "" {
 			out = append(out, strings.TrimSuffix(part, "."))

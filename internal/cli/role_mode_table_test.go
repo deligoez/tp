@@ -210,8 +210,8 @@ func helpText(t *testing.T, command string) string {
 // it collects the tokens that begin a line's flag column.
 func helpFlags(help string) []string {
 	out := make([]string, 0, 32)
-	for _, line := range strings.Split(help, "\n") {
-		for _, field := range strings.Fields(line) {
+	for line := range strings.SplitSeq(help, "\n") {
+		for field := range strings.FieldsSeq(line) {
 			if strings.HasPrefix(field, "--") {
 				out = append(out, strings.TrimSuffix(field, ","))
 			}
