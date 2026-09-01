@@ -23,8 +23,11 @@ jobs:
         with:
           go-version: stable
 
-      # check-suite-state.sh RUNS `go test -race ./...` between two hashes of
-      # spec/.tp-review/ and .tp/rounds/ (v0.36.0 §6.1 S1). It wraps the suite
+      # check-suite-state.sh RUNS `go test -count=1 -race ./...` between two
+      # hashes of spec/.tp-review/ and .tp/rounds/ (v0.36.0 §6.1 S1). -count=1 is
+      # not decoration: without it `go test` serves a cached PASS for a package
+      # it did not run, so the two hashes bracket nothing. Quoting the command
+      # without it quotes the disarmed form. It wraps the suite
       # rather than running beside it: hashing before and after ONE run is what
       # attributes a change to the suite, and a second run would double CI's
       # slowest step for nothing.
