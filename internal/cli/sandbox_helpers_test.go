@@ -43,8 +43,16 @@ func repoRootDir(t *testing.T) string {
 // recorded round needs the rounds that produced it — an empty state directory
 // silently changes the panel, since `regression` is appended only from round 2.
 //
-// --no-state is deliberately not used, here or anywhere in this suite: it
-// disables review-state reads as well as writes, and that state is the subject.
+// --no-state is deliberately not used BY THE RELOCATION, and that is the whole
+// claim: it disables review-state reads as well as writes, and that state is
+// what the tests using this helper measure. A suite run under it would pass
+// while measuring a machine that had been switched off.
+//
+// An earlier version said "here or anywhere in this suite", which audit round 3
+// measured false — 47 uses across 15 files in this package. Those are fine and
+// unrelated: they run against t.TempDir fixtures where there is no live state to
+// protect, so the flag costs them nothing. The rule is about specs that carry
+// review state, not about the flag.
 func relocatedSpec(t *testing.T, rel string) string {
 	t.Helper()
 	root := repoRootDir(t)

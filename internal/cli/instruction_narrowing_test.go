@@ -13,10 +13,18 @@ import (
 // payload cannot support.
 //
 // It is a reading, not a computation. §6.3 records the enumerated *forbidden*
-// list as a withdrawn construction — it measured short by one — so this list is
-// used only to assert what the UNRESTRICTED key still says. The narrowed form
-// is checked by subset, which cannot measure short: a sentence nobody thought
-// of is dropped by default rather than kept by default.
+// list as a withdrawn construction — it measured short by one — so the LOAD-
+// BEARING check on the narrowed key is the subset assertion, which cannot
+// measure short: a sentence nobody thought of is dropped by default rather than
+// kept by default.
+//
+// This list is used two ways, and an earlier version of this comment claimed
+// only the first. Positively, it asserts what the UNRESTRICTED key still says,
+// which is how "unchanged without --role" is checked with no cross-version
+// baseline to compare against. Negatively, it spot-checks the narrowed key here
+// and in instruction_modes_test.go — a redundant belt beside the subset braces,
+// and sound only because it is redundant. Nothing rests on this list being
+// complete.
 var orchestratorDirectives = []string{
 	"spawn a sub-agent via the Agent tool",
 	"tp review --merge",
@@ -100,12 +108,17 @@ func TestRoleInstructionIsASentenceSubsetDirectingNothingUnsupported(t *testing.
 	}
 }
 
-// TestRoleInstructionKeepsWhatOnePromptCanAct is the other direction: narrowing
-// that empties the key would satisfy every assertion above and leave a unit
-// with nothing.
+// TestRoleInstructionKeepsWhatOnePromptCanAct is the other direction: on this
+// invocation, narrowing that emptied the key would satisfy every assertion
+// above while telling the unit nothing.
 //
-// The spec path is the one thing the key tells a unit that its own prompt does
-// not, so it is the sentence that has to survive.
+// "On this invocation" is doing work, and an earlier version of this comment
+// left it out — it framed an emptied key as the defect the test exists to
+// catch, which two later measurements falsified. Under --spec-inline the key is
+// legitimately empty (the spec is in the payload, so there is no path to name),
+// and for an empty prompts[] it is empty by rule (§4.2.3.1: a payload with no
+// prompt supports no directive). What this test pins is narrower: with one
+// prompt and an out-of-line spec, the sentence naming that spec survives.
 func TestRoleInstructionKeepsWhatOnePromptCanAct(t *testing.T) {
 	spec := relocatedSpec(t, "spec/0.36.0.md")
 

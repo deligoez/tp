@@ -33,8 +33,17 @@ WATCHED=(spec/.tp-review .tp/rounds)
 
 # Hash names and contents together: a file added or removed changes the digest
 # even when every surviving file is untouched. Missing directories are legal —
-# .tp/rounds/ exists only after a `tp run` — and hash to nothing, so a run that
-# CREATES one is a mutation and is caught.
+# .tp/rounds/ exists only after a `tp run` — and hash to nothing.
+#
+# KNOWN BLIND SPOT, measured in audit round 3: an EMPTY watched directory hashes
+# identically to a missing one, because BSD xargs runs nothing on empty input.
+# So a run that creates a directory and leaves it empty is NOT caught, and
+# engine.clearUnitArtifacts does exactly that MkdirAll. An earlier version of
+# this comment claimed the opposite. The blindness is to directory-only changes:
+# every file written under either path is still caught, and review state lives in
+# files, so S1's actual hazard — a test advancing a round it does not own — is
+# detected. Routed to a later release rather than repaired here; what could not
+# stand was the claim.
 state_digest() {
 	local dir
 	for dir in "${WATCHED[@]}"; do

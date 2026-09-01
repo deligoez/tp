@@ -20,9 +20,11 @@ import (
 // in place would therefore rewrite spec/.tp-review/ and advance rounds it does
 // not own — while reporting green.
 //
-// --no-state is not the answer and is deliberately not used anywhere in this
-// suite: it disables review-state reads as well as writes, and that state is
-// the subject. The round number, skipped_roles, the consecutive-clean count and
+// --no-state is not the answer for a spec that carries review state: it
+// disables the reads as well as the writes, and that state is the subject.
+// (It is used freely elsewhere in this package — 47 times across 15 files — on
+// t.TempDir fixtures with no live state to protect. An earlier version of this
+// comment said "anywhere in this suite", which audit round 3 measured false.) The round number, skipped_roles, the consecutive-clean count and
 // whether `regression` is appended all come from it, so a suite run under it
 // would pass while measuring a machine that had been switched off.
 //
