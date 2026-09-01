@@ -1,4 +1,4 @@
-package cli
+package cli_test
 
 import (
 	"os"
@@ -29,7 +29,7 @@ import (
 // Relocating the spec is the only mechanism that preserves the behaviour and
 // moves the writes, because the state directory follows the spec.
 func TestRelocatedSpecKeepsStateOutOfTheRepository(t *testing.T) {
-	root := repoRoot(t)
+	root := repoRootDir(t)
 	spec := relocatedSpec(t, "spec/0.36.0.md")
 
 	assert.False(t, strings.HasPrefix(spec, root+string(filepath.Separator)),
