@@ -58,10 +58,23 @@ before=$(state_digest)
 # The suite itself. "$@" lets a caller narrow the run (a package, a -run
 # pattern) while keeping the measurement; with no arguments it is the gate's
 # own test step.
+#
+# -count=1 is what makes the measurement mean anything. `go test` caches a
+# passing package, and a cached package DOES NOT RUN -- so the digest is taken
+# around nothing and the wrapper reports green with the defect still in the
+# tree. Measured in audit round 8: a probe that mutates spec/.tp-review/ was
+# caught on run 1 (exit 1) and passed on runs 2 and 3 as "(cached)", exit 0,
+# with the mutation present each time.
+#
+# The trap is narrower than "caching" and that is why it survived: a test that
+# writes the watched files DIRECTLY is marked uncacheable by go test and is
+# caught on every run. What the cache cannot see is a SUBPROCESS write -- tp
+# emitting a round snapshot, which is S1's own named hazard and the only way
+# this suite reaches those files.
 if [ "$#" -gt 0 ]; then
-	go test "$@"
+	go test -count=1 "$@"
 else
-	go test -race ./...
+	go test -count=1 -race ./...
 fi
 
 after=$(state_digest)
