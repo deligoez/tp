@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"testing"
 
@@ -80,6 +81,47 @@ func TestInstructionIsASubsetInEveryModeRoleIsLegalIn(t *testing.T) {
 			// edit that started narrowing them without a rule saying to.
 			assert.Equal(t, fullText, narrowText,
 				"%s already addresses a one-prompt payload, so --role leaves its key alone", name)
+		})
+	}
+}
+
+// TestAnEmptyPayloadDirectsNothing is the experiment the test above could not
+// run, and audit round 2 said so in as many words: it builds the narrowed
+// payload with `order[0]` — the name the mode emits anyway — so it never
+// constructs an empty prompts[], and property 12 was only ever asked the
+// question it passes.
+//
+// Making prompts: [] reachable in the five single-prompt modes is what created
+// the case. Before that repair those modes ignored --role, so an empty payload
+// could not happen and their "Spawn a sub-agent with this prompt" was true.
+// Afterwards it was a directive over nothing.
+//
+// The foreign role is what constructs the case: a name tp recognises that this
+// mode cannot emit. Asking for the mode's own name proves nothing here.
+func TestAnEmptyPayloadDirectsNothing(t *testing.T) {
+	dir, cases := legalModeCases(t)
+
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			stdout, stderr, code := runTPIn(t, dir,
+				append(c.args, "--role", c.foreignRole, "--json")...)
+			require.Equal(t, 0, code, "%s: a recognised name is not an error; stderr: %s", name, stderr)
+
+			var payload struct {
+				Prompts    []json.RawMessage `json:"prompts"`
+				ReviewLoop *struct {
+					Instruction string `json:"instruction"`
+				} `json:"review_loop"`
+			}
+			require.NoError(t, json.Unmarshal([]byte(stdout), &payload))
+			require.Empty(t, payload.Prompts,
+				"%s: the case this test exists for is an EMPTY payload", name)
+
+			if payload.ReviewLoop == nil {
+				return // tp audit emits no review_loop; nothing to direct.
+			}
+			assert.Empty(t, payload.ReviewLoop.Instruction,
+				"%s: a payload with no prompt can support no directive, so the key is empty", name)
 		})
 	}
 }
