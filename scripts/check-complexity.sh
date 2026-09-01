@@ -104,7 +104,21 @@ if ! command -v gocognit >/dev/null 2>&1; then
 	exit 1
 fi
 
-cognit=$(gocognit -over "$threshold" ./cmd ./internal 2>/dev/null |
+# Run the tool and the pipeline separately. Inside $( … ) ending in `sort -u`,
+# $? is sort's, so `set -e` never fires on the tool: audit round 1 measured
+# golangci-lint dying with "go command required, not found" while the ratchet
+# reported all 71 funlen entries as no-longer-violating and told the operator to
+# delete them. Obeying that message disarms half the ratchet. A gate that fails
+# open is worse than no gate, so each tool's exit status is checked on its own.
+# Measured: gocognit exits 0 with no violations, 1 WITH violations, and 127 when
+# it cannot run at all. So 1 is a result, not a failure, and only >1 is a tool
+# error — the same shape golangci-lint has below.
+cognit_raw=$(gocognit -over "$threshold" ./cmd ./internal) || cognit_status=$?
+if [ "${cognit_status:-0}" -gt 1 ]; then
+	echo "gocognit failed to run (exit ${cognit_status}); the complexity ratchet cannot be evaluated" >&2
+	exit 1
+fi
+cognit=$(printf '%s\n' "$cognit_raw" |
 	grep -v '_test\.go' |
 	awk '{print $2 " " $3}' |
 	sort -u)
@@ -130,8 +144,16 @@ fi
 # matches nothing on macOS while working on GNU sed in CI. Caught here because
 # the ratchet's stale half failed loudly on an empty result — a check that only
 # looked for NEW violations would have passed vacuously and measured nothing.
-funlen=$(golangci-lint run --default=none --enable=funlen \
-	--max-issues-per-linter=0 --max-same-issues=0 --uniq-by-line=false 2>/dev/null |
+# golangci-lint exits 1 when it REPORTS issues and 3+ when it fails to run, so
+# only the latter is a tool failure — the same distinction the gocognit check
+# above makes with its plain exit status.
+funlen_raw=$(golangci-lint run --default=none --enable=funlen \
+	--max-issues-per-linter=0 --max-same-issues=0 --uniq-by-line=false) || funlen_status=$?
+if [ "${funlen_status:-0}" -gt 1 ]; then
+	echo "golangci-lint failed to run (exit ${funlen_status}); the funlen ratchet cannot be evaluated" >&2
+	exit 1
+fi
+funlen=$(printf '%s\n' "$funlen_raw" |
 	sed -n \
 		-e "s|^\(.*\)\.go:[0-9]*:[0-9]*: Function '\([^']*\)' is too long.*|\1 \2|p" \
 		-e "s|^\(.*\)\.go:[0-9]*:[0-9]*: Function '\([^']*\)' has too many statements.*|\1 \2|p" |
