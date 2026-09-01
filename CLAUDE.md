@@ -241,6 +241,14 @@ complete, a dropped role merging clean, exit codes that cannot separate a typo f
 under 25 distinct class slugs. `spec/0.35.0-candidates.md` §0 names what v0.34.1 and v0.34.2 already
 closed and what moved to a spec — read it first so nothing gets re-opened or claimed twice.
 
+**Two corpus facts every future gate must respect, both counted rather than assumed.** No recorded
+row carries a `disposition` — 0 of 12,958, review side included; the `resolved` key on 1,403 rows
+holds `{evidence, resolved_at}` with no verdict. And a quarter of recorded review rounds carry a
+snapshot whose sha256 is not the `spec_hash` that round recorded. Together they mean **a gate phrased
+as "replay the recorded rounds" cannot run**, which three specs discovered separately
+(`spec/0.43.0.md` §6.1, `spec/0.48.0.md` §5, `spec/0.49.0.md` §10). The replacement that works is a
+gate stated as an invariant checkable against a live tree.
+
 **v0.36.0's own hazard is suppression, and it is gated — but not by a replay.** Every mechanism in
 it hides, regroups or narrows what reviewers see, which is exactly what burned v0.34.0 §7.1 for
 eight rounds. This file used to require that nothing ship until the release was "replayed against
