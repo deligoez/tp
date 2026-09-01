@@ -324,8 +324,10 @@ The cap comparison is against the currently **resolved** value; an equal or lowe
 and exits 0, since lowering a budget cannot manufacture convergence. The exception is `0`, which
 means *disabled* for both budget fields rather than *lowest*: setting either to 0 while the resolved
 value is non-zero is a **raise** and is refused, while setting 0 where 0 already resolves is
-accepted. Under the variable the **env layer** of the precedence (`TP_RUN_MAX_UNITS`,
-`TP_REVIEW_MAX_ROUNDS`, …) is ignored for every fenced field.
+accepted. Under the variable the fence applies to
+every write path a fenced field has. (An earlier version of this sentence named `TP_RUN_MAX_UNITS`
+and `TP_REVIEW_MAX_ROUNDS` as an env layer the fence ignores; neither variable exists in any
+non-test source, and workflow fields have no env layer to ignore.)
 
 This is a fence, not a sandbox: the refusals are enforced at tp's own CLI and the plugin's
 `PreToolUse` hook denies the file-writing tools a path to the same values. A unit that strips the
@@ -516,10 +518,15 @@ A repo-root `.tp/` directory holds workflow policy shared across every spec, so 
 
 **Discovery**: walk up from the CWD to the first `.git` boundary; the `.tp/` there is the project config (single deterministic anchor).
 
-**Resolution (resolve-at-read)** — effective value per field, highest layer wins:
+**Resolution (resolve-at-read)** — effective value per field, highest layer wins. **The chain differs
+by field kind**, and conflating them has cost two specs a review round each:
 ```
-CLI flag  >  environment  >  task-file workflow override  >  .tp/config.json  >  built-in default
+workflow fields   task-file workflow override  >  .tp/config.json  >  built-in default
+output defaults   CLI flag  >  environment  >  .tp/local.json  >  built-in default
 ```
+No workflow field has a CLI flag or a `TP_<FIELD>` environment layer: `engine/configresolve.go`
+merges exactly two layers over the default for every one of them. Output defaults such as `no_color`
+do have both, which is why the upper two rows exist at all.
 A field in a task file's `workflow` block counts as an override only when present (absent ≠ zero). `checks` uses replace semantics (the winning layer's array wins whole).
 
 | Command | Purpose |
