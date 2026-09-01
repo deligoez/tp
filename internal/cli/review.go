@@ -287,7 +287,17 @@ Modes (mutually exclusive):
 			// that emits none. The check sits before the mode dispatch so the
 			// operator sees the flag conflict rather than that mode's own
 			// argument complaint.
-			if cmd.Flags().Changed("role") && mode != "" && mode != "verify" {
+			//
+			// A conflict sentinel is excluded, and that is not the same
+			// exception: detectReviewMode returns "conflict:<a>+<b>" when two
+			// modes are given, and interpolating it invented a flag named
+			// --conflict:merge+status. §4.2.2 defers to this check over a
+			// mode's own ARGUMENT validation -- a missing --findings -- not
+			// over the prior question of which mode this is. Two conflicting
+			// modes have a truer complaint, and validateModeFlags below makes
+			// it: "--merge and --status are mutually exclusive".
+			if cmd.Flags().Changed("role") && mode != "" && mode != "verify" &&
+				!strings.HasPrefix(mode, "conflict:") {
 				output.Error(ExitUsage, "--role cannot be combined with --"+mode,
 					"--role selects one emitted prompt; --"+mode+" emits none")
 				os.Exit(ExitUsage)
