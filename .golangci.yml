@@ -53,8 +53,13 @@ issues:
   max-same-issues: 0
   # One issue per line is golangci-lint's default and it silently drops the
   # second linter to report on the same line. gocognit and funlen both report on
-  # the function declaration line: measured here, funlen alone finds 89 and
-  # funlen alongside gocognit finds 58 — 31 swallowed. Neither is enabled in
-  # this file (scripts/check-complexity.sh runs them), so this is defence for
-  # any future pair that shares a line.
+  # the function declaration line, so running them together loses every funlen
+  # issue on a function gocognit already flagged. Neither is enabled in this
+  # file (scripts/check-complexity.sh runs them), so this is defence for any
+  # future pair that shares a line.
+  #
+  # The counts that used to sit here went stale within one release and were
+  # falsified by audit round 4. To re-measure, run funlen with and without a
+  # second line-sharing linter and diff the counts; the mechanism is what this
+  # setting is for, and the mechanism does not go stale.
   uniq-by-line: false

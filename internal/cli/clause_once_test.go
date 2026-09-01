@@ -18,11 +18,16 @@ import (
 // body that never got one.
 const clauseSuffixBytes = 468
 
-// TestSuffixIsAppendedOnceAndTheStripHappened is v0.36.0 §6.2 property 3, and
-// it is the only assertion in this release that fails on a double append or a
-// missing strip.
+// TestSuffixIsAppendedOnceAndTheStripHappened is v0.36.0 §6.2 property 3.
 //
-// Property 1's "ends with" cannot see either. `…A B A B` ends with the suffix
+// An earlier version of this comment called it "the only assertion in this
+// release that fails on a double append or a missing strip". Audit round 4
+// falsified that: clause_emission_test.go's sibling assertions catch both, over
+// a superset of modes. What is unique here is the 468-byte POSITIONAL removal —
+// TrimSuffix removes nothing when the suffix is absent, so a body that never
+// received one satisfies the sibling's form.
+//
+// Property 1's "ends with" cannot see either defect. `…A B A B` ends with the suffix
 // exactly as `…A B` does, and a byte removed before the suffix is invisible to
 // a suffix check — so without this, an implementation that appends without
 // stripping passes every other property, and §1.1 calls that one byte not

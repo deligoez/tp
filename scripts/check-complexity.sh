@@ -39,19 +39,17 @@
 # golangci-lint's `issues.uniq-by-line` defaults to TRUE: one issue per line.
 # gocognit and funlen both report on the function's declaration line, so running
 # them together silently drops every funlen issue on a function gocognit already
-# flagged. Measured here: funlen alone reports 89, funlen+gocognit reports 58 —
-# 31 findings swallowed. This script sidesteps it by running funlen with
+# flagged. This script sidesteps it by running funlen with
 # --default=none so nothing else is enabled, and passes --uniq-by-line=false
 # anyway so the invocation stays correct if a linter is ever added to it.
 #
-# funlen also emits TWO messages — "is too long" and "has too many statements",
-# 44 and 45 of them here. Matching only one would silently permit the other; the
+# funlen also emits TWO messages — "is too long" and "has too many statements".
+# Matching only one would silently permit the other; the
 # extraction below matches both and collapses them to one key per function.
 #
 # WHY TEST FILES ARE EXCLUDED
 #
-# 8 of gocognit's 62 violations and 17 of funlen's 89 are in _test.go files, and
-# on the clone side the same measurement put 83% of hits in test code.
+# A substantial minority of both tools' violations land in _test.go files.
 # Table-driven and property tests are deliberately flat and repetitive; holding
 # them to a complexity budget pushes them toward abstraction, which is the
 # opposite of what makes a test readable when it fails.
