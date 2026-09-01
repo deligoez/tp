@@ -1,0 +1,229 @@
+# tp v0.37.0 — Audit convergence
+
+## 1. Overview
+
+The review phase knows the difference between a finding that must be fixed and one that was merely
+worth saying. The audit phase does not. `review_converge_on` has taken `blocking` or `all` since
+v0.31.0; there is no `audit_converge_on`, and `engine.AuditRowIsPass` makes every row whose status is
+not exactly `PASS` a finding of equal weight.
+
+Three consequences, all measured:
+
+- **tp's own v0.35.0 audit.** Across nine recorded rounds the non-`PASS` rows were **3 `error`, 22
+  `warning`, 17 `info`**. Two of the three `error` rows were the same defect seen by two roles. The
+  loop ran to nine rounds on a population that was 93% advisory.
+- **A field cycle on a PHP package.** Rounds 3 through 9 produced 15–30 findings each, *zero* `FAIL`
+  in the last three, and never converged. Its `spec-coverage` role carried 4–7 `PARTIAL` rows that
+  the operator had already accepted as backlog. Because an accepted row never becomes `PASS`, that
+  role could never be clean, `spec_coverage_clean_rounds` stayed 0, and the `divergence` signal — the
+  one mechanism built to detect exactly that situation — never fired.
+- **The same cycle's spec edits went unnoticed.** `tp audit --status` reported the round as
+  non-stale while the spec hash changed twice mid-audit (`b5eabd59` → `8cac418b` → `467e1e8f`). In
+  the review phase a `fixed` resolution forces a re-review; audit has no equivalent, so an agent can
+  amend the spec to match code it just wrote and keep its clean-round streak.
+
+This release gives audit the two things review already has: a severity-aware convergence policy, and
+a reason to distrust a streak that spans a changed spec.
+
+## 2. `audit_converge_on`
+
+**What §2.1 measures, and the column it does not have.** The table below asks *when the loop stops*
+under each predicate. Round 1 supplied the column it omits — *what was still to be found after it
+stopped* — and it reads `error` in both rows: v0.35.0's round 4 carries `{error 1, warning 2, info 1}`
+one round after `blocking` would have halted at round 3, and v0.36.0's rounds 7, 12 and 13 each carry
+`error` rows. So the instrument scores **2 of 2 cycles in which `blocking` would have shipped over an
+`error` row**, not 1 of 2. That is the honest case against the default and it is not a reason to drop
+the field — it is the reason the sink validation above is a precondition rather than a nicety.
+
+**It is the twin of a shipped mechanism, not a new idea.** `engine/reviewconvergeon.go` is
+twenty-four lines: two constants, a hint string, and a predicate shared by the setter and every
+consumer. `audit_converge_on` takes the same two values on the same terms — `blocking` counts a round
+clean when no surviving non-`PASS` row carries a blocking severity, `all` when no non-`PASS` row
+survives whatever its severity. Both predicates are over non-`PASS` rows: measured across this
+repository's v0.35.0 and v0.36.0 audit rounds, every `PASS` row carries `severity: null`, so a
+predicate phrased over "any row of any severity" would read the wrong population.
+
+**The field it reads exists and is NOT validated, and this release's first job is to fix that.** An
+earlier draft of this section claimed `audit_schema.go` "rejects a row that omits it" and concluded
+"nothing new is asserted by the agent being measured" — the one sentence separating `severity` from
+the thrice-deferred `scope`. Both review arms falsified it independently in round 1 and it is false
+three ways over:
+
+| the claim | what is there |
+|---|---|
+| `audit_schema.go` validates severity | it holds one function, `renderAuditOutputSchema`; line 24 *writes the requirement into the prompt* and rejects nothing |
+| the record path validates it | `audit_record.go` contains `severity` zero times; `invalidCategoryRows` checks `category` alone |
+| the vocabulary is understood | `engine.SeverityRank` knows `critical|high|medium|low` — the **review** vocabulary — so `error`, `warning` and `info` all rank as unknown |
+
+And the corpus already occupies the undefined case: across recorded audit rows, **67 non-`PASS` rows
+carry out-of-enum severities** (`high` 16, `medium` 15, `low` 36) in the v0.29.0–v0.32.0 cycles.
+
+The sibling field is the precedent and the warning. `category` *is* checked at the sink, and
+`invalidCategoryRows`' own doc comment records this repository paying for the identical mistake once
+already — tp renders an enum into every prompt "in words that promise unknown values are rejected —
+and then never looked at what came back."
+
+**So the safety argument has to be built rather than cited.** `severity` on a non-`PASS` row is today
+a self-declared judgement with nothing to check it against, which is `scope`'s position, not `role`'s.
+This release therefore ships validation at the sink **before** the gate reads the field: a non-`PASS`
+row whose severity is missing or outside `error | warning | info` is rejected by `--record` the way an
+unknown `category` is, and the 67 historical rows are what the migration path has to answer for. The
+conservative rule for an unrecognised value must be stated normatively and must fail **closed** —
+v0.31.0 §4.1 states its review counterpart that way and this section did not.
+
+**This is not the deferred `scope` idea, and the distinction is the reason this ships.**
+`spec/0.33.0.md` §1, `spec/0.34.0.md` §1–2 and `spec/0.35.0.md` §1 defer a `scope` field on audit
+rows through three consecutive cycles, each time for the same sound reason: a self-declared label
+that gates a release is strictly worse than over-counting, because the agent whose work is being
+gated writes the label. That objection does not touch `severity` — it is an existing enum, validated
+at the schema, carried by every row already recorded. The two were bundled under one heading and only
+one of them was risky. `scope` stays deferred.
+
+**Default.** `blocking`, matching `review_converge_on`, so the asymmetry disappears rather than
+inverting. An operator who wants the old behaviour sets `all`.
+
+### 2.0a A second cycle reached the same stop, in a different repository
+
+The measurement below is from this repository. An independent one arrived from a Laravel package's
+6-round Workflow D audit and lands in the same place, which is worth recording because a single
+repository's numbers are a weak argument for a default.
+
+Findings ran 15 → 3 → 1 → 2 → 1 → 1 and the run was stopped by operator decision, never reaching two
+consecutive clean rounds. At the stop, `spec-coverage` — the only role measuring spec conformance —
+was **55/55 for four consecutive rounds** and `src/` had seen no behavioural change since round 2.
+Every round stayed unclean on info- and warning-severity prose findings in docs and comments.
+
+**The reason it could not converge is structural and is the argument for this release.** Rewriting a
+paragraph to fix one claim creates new surface for the next round; rounds 5 and 6 each found a defect
+introduced by the *previous* round's fix. There is no fixed point for prose the way there is for
+code. v0.36.0's own audit is the second instance of the identical shape — four consecutive fully
+clean `spec-coverage` rounds while `consecutive_clean` never left zero, and four repairs each
+falsified by the round after (`spec/0.46.0.md` §7).
+
+**`divergence` did its job and that is precisely the point.** It fired from round 4 and its hint was
+acted on correctly: it told the operator to surface and stop rather than decide. It gates nothing by
+design, so `--status --check` still reports "not converged" indefinitely. `audit_converge_on=blocking`
+would have converged that run at round 3–4 with the remaining rows surfaced as `nonblocking_open` —
+nothing hidden, and the gate answering the question the operator was actually asking. §5 records the
+same gap from the `--check` side.
+
+**One caveat this release must carry, because the severity gate is what makes it safe to stop.** Both
+cycles' late rounds looked like prose churn and one of them was not: v0.36.0's rounds 12 and 13
+produced two `error`-severity findings — guards certifying a CI step that never runs — invisible to
+the conformance role and found only because those rounds were asked to build a *new instrument*
+rather than to re-read. A severity gate is right, and it must not become a default stop at round 3
+that ends rounds which would have changed their own method. `spec/0.49.0.md` §1c carries the cheapest
+known way to tell the two apart: ask the role whether it still holds its own prior reasoning.
+
+### 2.1 What the default would have cost, measured in both directions
+
+Replaying the two predicates over this repository's own recorded audit rounds, with
+`audit_clean_rounds: 2`:
+
+| Cycle | rounds recorded | converges under `blocking` | converges under `all` |
+|---|---|---|---|
+| v0.35.0 | 9 | **round 3** (r2, r3 carry zero `error`) | round 9 |
+| v0.36.0 | 13, converged | **round 3** (r2, r3 carry zero `error`) | round 13 |
+
+v0.35.0 is the case for the release: six rounds of a nine-round phase spent on a population that was
+93% advisory, and `all` reproduces the recorded history exactly, which is what makes the change
+opt-in rather than a reinterpretation.
+
+**v0.36.0 is the case against the default, and it is not hypothetical.** That cycle's round 7 — four
+rounds after `blocking` would have closed the phase — recorded three `error` rows. Two are repair
+artifacts of round 6 and would not exist in a cycle that had stopped at round 3. The third is not:
+`engine.WriteSnapshotAtomic` builds its temporary file from a fixed `final + ".tmp"`, so role units
+that `REFERENCE.md` runs parallel with their siblings collide and the loser's rename fails with
+`ENOENT` — measured on the literal brief commands at 0/20 sequential and 5/40 parallel. It is a
+defect in shipped code that predates every repair in that cycle, and `blocking` would have shipped
+over it.
+
+The honest reading is not that `blocking` is wrong but that **the two cycles disagree, and one
+sample each way is not a policy.** What the release owes is that the disagreement is visible: the
+field is opt-in either way, the default is stated with this measurement beside it, and whichever
+default ships, a later cycle can settle it from data rather than from preference. Decomposition
+should treat the default as the one decision in this release with a recorded argument against it.
+
+## 3. A disposition that says "accepted" stops blocking
+
+v0.35.0 shipped `tp audit --resolve`, so an audit row can be marked. What it cannot do is stop
+counting: a resolved row is still not `PASS`, and `AuditRowIsPass` is what convergence reads.
+
+That is what stranded the field cycle. Its accepted backlog items were correctly recorded and
+correctly re-reported, round after round, as reasons the phase was not done.
+
+**Mechanism.** A row carrying a `wontfix` or `duplicate` disposition is excluded from the round's
+finding count on the same terms review already excludes a resolved finding. `fixed` is not excluded
+— a fix changes the code, and the next round is what checks it.
+
+**Bound.** This is the counting rule only. Where an accepted finding *goes* so that it becomes
+maintenance pressure rather than archived prose is `spec/0.41.0.md` — this release stops it blocking,
+that one gives it somewhere to live. Recording the disposition without the durable home is the
+smaller half and the one convergence needs.
+
+## 4. A changed spec ends the streak
+
+`consecutive_clean` is a claim about a spec. When the spec changes, rounds recorded against the old
+text no longer support the claim, and the review phase already acts on this: a `fixed` resolution
+forces a further round, and `tp resume` raises a `spec-stale` blocker.
+
+**Mechanism.** When `tp audit --record` sees a `spec_hash` different from the previous round's, it
+resets `consecutive_clean` to zero and says so in the payload. The rounds themselves are not
+discarded — a recorded round stays a frozen fact — only the streak they were feeding.
+
+**What this is not.** `spec/0.45.0.md` §3's `--reconcile` records *why* a spec moved, preserving
+the hash the round actually read. This section resets *what the movement invalidates*. They compose:
+reconcile explains the change for a reader, the reset makes the loop re-earn its streak. Neither
+substitutes for the other, and neither is a prerequisite for the other.
+
+## 5. What is deliberately not in this release, and why it was here three hours ago
+
+Three sections stood here — the `--check` divergence, the PASS row whose note the counter cannot see,
+and the one-role round that nulls the counter. They were placed here on the reasoning that this
+release *owns* convergence arithmetic and ships first, so shipping a gate that a later release amends
+would be two releases touching one number. That reasoning was right about ownership and wrong about
+readiness, and review round 1 said so from both arms:
+
+- **None of the three names a mechanism.** §5's own text offered two candidate shapes and chose
+  neither; §5a's rule needs a machine-readable marker that does not exist; §5b reverses a contract
+  that `internal/cli/docs_contract_test.go:113` pins verbatim — *"A role with no rows in a round is
+  not clean in it, so its streak ends."* — without recording the reversal.
+- **§5a was inert here anyway.** Both `audit_converge_on` predicates are over non-`PASS` rows, so
+  neither can see a PASS row carrying a note, whatever the note says.
+- **The three added ~100 of 288 lines** to a release whose remainder (§2, §3, §4) has mechanisms and
+  tests today, pushing it across the length threshold this repository measured as the strongest single
+  predictor of cycle cost.
+
+They are `spec/0.46.0.md` §8, §8a and §8b — the file for measured observations from v0.36.0's audit
+with no chosen mechanism, which is what they are. This release is §2, §3 and §4.
+
+## 6. Non-Goals
+
+1. **`scope` on audit rows.** Deferred a fourth time, with the reasoning above, and now separated
+   from the field that made the deferral look expensive.
+2. **A durable home for accepted findings.** `spec/0.41.0.md`.
+3. **Changing severity's meaning or vocabulary.** `error | warning | info` is unchanged; this release
+   only reads it.
+4. **Touching review convergence.** `review_converge_on` keeps its current behaviour and default.
+5. **A fourth row status.** Whether audit needs a way to say "I could not verify this" is
+   `spec/0.49.0.md` §5, and it is open there for four recorded reasons.
+
+## 7. Tests
+
+1. `audit_converge_on` resolves through the documented precedence with default `blocking`, and an
+   illegal literal is refused with the hint naming both legal values.
+2. Under `blocking`, a round whose only non-`PASS` rows are `warning` and `info` counts clean; the
+   same round under `all` does not.
+3. Under `blocking`, one `error` row keeps the round dirty however many advisory rows accompany it.
+4. Replayed against this repository's nine recorded v0.35.0 audit rounds, `blocking` converges at
+   round 3 and `all` at round 9, reproducing the recorded history exactly — the second half is what
+   proves the change is opt-in rather than a silent reinterpretation. The replay reads `status` and
+   `severity` off recorded rows and needs no spec snapshot, which is why it is runnable where
+   `spec/0.43.0.md` §6's corpus gates are not.
+5. A row dispositioned `wontfix` or `duplicate` is excluded from the finding count; a row
+   dispositioned `fixed` is not.
+6. `tp audit --record` with a `spec_hash` differing from the previous round resets
+   `consecutive_clean` to zero and reports the reset on the machine-readable surface.
+7. The reset does not delete or rewrite any recorded round.
+8. A cycle whose spec never changes records an identical streak to today's, so the reset costs
+   nothing when nothing moved.
