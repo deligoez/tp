@@ -616,7 +616,7 @@ one role. Its exact form and the reasoning are in [SKILL.md](SKILL.md); what the
 | Name class | Exit | `prompts[]` | Other keys |
 |---|---|---|---|
 | in the emitted set | 0 | exactly one entry, **byte-identical** to that role's entry in the same invocation without the flag | unchanged, except `review_loop.instruction` (below) |
-| recognised, not emitted this round | 0 | `[]` — an array, never `null` | when the name is one *this* phase skipped, `skipped_roles` carries its own reason. A name recognised only through the **other** phase's corpus is in no `skipped_roles` entry — measured: `tp review <spec> --role spec-coverage` exits 0 with `skipped_roles: []`. `--perspective` and `--verify` carry no `skipped_roles` key at all |
+| recognised, not emitted this round | 0 | `[]` — an array, never `null` | when the name is one *this* phase skipped, `skipped_roles` carries its own reason. A name recognised only through the **other** phase's corpus appears nowhere in `skipped_roles` — `tp review <spec> --role spec-coverage` exits 0, and the array holds whatever else the round skipped (at round 1, `regression`/`no-baseline`). `--perspective` and `--verify` carry no `skipped_roles` key at all, and `--compact` omits it in every mode — so under `--compact` this case carries no reason anywhere |
 | recognised nowhere | 2 | — | stderr carries `{"error":"unknown role: <name>","code":2,"hint":"this invocation emits: …"}`; the hint is built from the invocation's own emitted set plus `skipped_roles`, not from the corpus, because `regression` is emitted and belongs to no corpus |
 
 Recognition spans the user corpus **and** the embedded default corpus for **both** phases, plus the
