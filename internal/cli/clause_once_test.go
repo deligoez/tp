@@ -11,11 +11,7 @@ import (
 )
 
 // clauseSuffixBytes is §1.1's priced length: -1 strip, +2, +287, +2, +177.
-//
-// It is the number the removal below is positional on. Using it rather than
-// strings.TrimSuffix is the whole point of property 3: TrimSuffix removes
-// nothing when the suffix is absent, so the second assertion would pass on a
-// body that never got one.
+// It is the number the removal below is positional on.
 const clauseSuffixBytes = 468
 
 // TestSuffixIsAppendedOnceAndTheStripHappened is v0.36.0 §6.2 property 3.
@@ -73,9 +69,6 @@ func TestSuffixIsAppendedOnceAndTheStripHappened(t *testing.T) {
 			require.Greater(t, len(p.body), clauseSuffixBytes,
 				"%s: the body is longer than the suffix", label)
 
-			// Positional removal, not TrimSuffix: TrimSuffix removes nothing
-			// when the suffix is absent, which would let a body that never
-			// received one satisfy both assertions below.
 			head := p.body[:len(p.body)-clauseSuffixBytes]
 
 			assert.False(t, strings.HasSuffix(head, suffix),

@@ -14,7 +14,7 @@ import (
 // §4.2.2's table, per command. The two commands do not have the same flag sets,
 // so the lists are separate rather than "and audit's equivalents" — tp audit
 // registers no --perspective, --diff-from, --verify or --report at all, and a
-// shared list would silently test nothing for four of review's six rows.
+// shared list would silently skip every mode only one command has.
 var (
 	reviewLegalModes   = []string{"", "--perspective", "--diff-from", "--verify"}
 	reviewRefusedModes = []string{"--merge", "--record", "--status", "--report", "--resolve", "--resolve-all"}

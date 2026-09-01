@@ -57,17 +57,4 @@ issues:
   # issue on a function gocognit already flagged. Neither is enabled in this
   # file (scripts/check-complexity.sh runs them), so this is defence for any
   # future pair that shares a line.
-  #
-  # The counts that used to sit here went stale within one release. Their
-  # replacement — "run funlen with and without a second line-sharing linter and
-  # diff the counts" — was WORSE, and audit round 5 caught it by running it:
-  # the delta is 0 at gocognit's default min-complexity, so a reader following
-  # the instruction concludes this setting is unnecessary and deletes it. The
-  # collision only appears at the threshold the ratchet actually uses,
-  # TP_COGNIT_THRESHOLD (22), which lives in scripts/check-complexity.sh and not
-  # here: at 22 it is 42 against 90, 48 funlen issues swallowed.
-  #
-  # A wrong number is falsifiable and was caught in one round. An
-  # under-specified recipe appears to confirm the opposite of what it defends,
-  # and nothing catches that.
   uniq-by-line: false

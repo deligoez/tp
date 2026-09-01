@@ -2,10 +2,11 @@
 # (2026-08-31). Key is "<package dir> <function>" — deliberately without the
 # line number, so moving a function down a file is not a new violation.
 #
-# funlen emits TWO messages per function and a baseline built from one of them
-# silently permits the other: "is too long (N > 60)" and "has too many
-# statements (N > 40)". On this tree that is 44 + 45 = 89 issues over 71
-# distinct production functions. Both forms collapse to the same key here.
+# funlen emits TWO message forms and a baseline built from one of them silently
+# permits the other: "is too long (N > 60)" and "has too many statements
+# (N > 40)". Most functions trip only one of the two, which is why
+# check-complexity.sh matches both forms with a -e each. Both collapse to the
+# same key here, so this list is one line per function.
 #
 # check-complexity.sh fails on a violation absent from this list, and equally on
 # a line here that no longer violates. The list is meant to shrink.
