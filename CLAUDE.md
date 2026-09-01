@@ -166,15 +166,25 @@ All five real survivors became `TIMED OUT`; `NOT COVERED` was untouched, because
 
 ### Where the next work is (read this before starting anything)
 
-**`spec/0.35.0.md`** (the unattended runner, `tp run`) is **complete and audit-converged** — 21
-review rounds, 45/45 tasks done, 9 audit rounds with the last two clean, and both
-`tp review spec/0.35.0.md --status --check` and `tp audit spec/0.35.0.md --status --check` exit 0.
-`tp resume` reports `phase: release`. Everything before the tag is done; the release itself is the
-operator's.
+**`spec/0.36.0.md`** (the emitted round, `--role`) is **complete and shipped** — 24/24 tasks, 13
+audit rounds, and `spec-coverage` 74/74 PASS for the last four of them with zero open spec-scoped
+findings. It shipped with `tp audit spec/0.36.0.md --status --check` returning **exit 1**, and that
+is not an oversight: `consecutive_clean` counts rounds clean across *every* role, while this file's
+own shipping rule is phrased on `spec_coverage_clean_rounds` plus no-FAIL. The two are different
+gates and v0.36.0 is the worked case — `spec/0.37.0.md` §5 takes the divergence, so **do not
+re-derive it, and do not read `--check` as the ship signal until 0.37.0 lands.**
 
-Two things that cycle deliberately did NOT fix, both recorded with reasons in
-`spec/0.35.0-candidates.md` — read §16 (the mutation run) and §17 (the two degraded-scan repairs
-choosing different channels) before opening the next release, so neither is re-derived from scratch.
+**`spec/0.46.0.md` is where that cycle's undone work went, and it is worth reading before 0.37.0**:
+§7 carries ten built-and-run inputs proving tp's CI and gate guards certify a step merely *named* in
+executable text, and §8 the measured fact that a round recorded with one role sets
+`spec_coverage_clean_rounds` to null. Four repairs were attempted inside the audit and every one was
+falsified by the round after — the lesson this cycle paid for twice is the one already written
+above: **an audit repair that introduces a new abstraction belongs to the next version.**
+
+`spec/0.35.0.md` (the unattended runner) shipped before it. Two things that cycle deliberately did
+NOT fix are recorded with reasons in `spec/0.35.0-candidates.md` — read §16 (the mutation run) and
+§17 (the two degraded-scan repairs choosing different channels) before opening the next release, so
+neither is re-derived from scratch.
 
 **Thirteen releases are planned. They were seven until the pending set was split, and the split is
 the most load-bearing fact in this section.** A spec filename is the release that ships it, and that
@@ -190,9 +200,9 @@ rounds at 146 lines, so splitting shortens the expected cycle without guaranteei
 
 | # | Spec | What it does | Lines |
 |---|---|---|---|
-| 0.36.0 | the emitted round | The emitted prompt carries its own isolation and incremental-write constraints, and `--role` emits one role's prompt instead of the panel. **In flight** | 755 |
-| 0.37.0 | audit convergence | `audit_converge_on`, accepted rows stop blocking, a changed spec ends the streak | 141 |
-| 0.38.0 | the round reports its progress | `--status` says how far an in-flight round has got, for the interactive fallback the driver cannot see | 76 |
+| 0.36.0 | the emitted round | The emitted prompt carries its own isolation and incremental-write constraints, and `--role` emits one role's prompt instead of the panel. **Shipped** | 763 |
+| 0.37.0 | audit convergence | `audit_converge_on`, accepted rows stop blocking, a changed spec ends the streak | 177 |
+| 0.38.0 | the round reports its progress | `--status` says how far an in-flight round has got, for the interactive fallback the driver cannot see | 78 |
 | 0.39.0 | the v0.35.0 backlog | The defects v0.32.0–v0.35.0 deferred with reasons; cites `spec/0.35.0-candidates.md` rather than restating it | 127 |
 | 0.40.0 | the gate sequence and the red gate | `quality_gate` as an ordered array, plus the bounded procedure a unit follows when it goes red | 120 |
 | 0.41.0 | a durable home for an accepted finding | Where an accepted audit finding goes so it becomes maintenance pressure rather than archived prose | 63 |
@@ -200,10 +210,10 @@ rounds at 146 lines, so splitting shortens the expected cycle without guaranteei
 | 0.43.0 | what the loop costs | Repair locality and class families, measured from data tp already stores | 259 |
 | 0.44.0 | what reading alone can decide | The identifier pass and the contradictory-comparator rule, plus a `workflow.checks` entry and the four candidates prototyped and refuted before any reached the spec | 177 |
 | 0.45.0 | when the spec moves between rounds | `next_action` recommends the shipped delta pass; `--reconcile` records why the spec moved | 140 |
-| 0.46.0 | what v0.36.0's audit handed over | Four measured items that cycle deferred; waits for it to ship | 106 |
+| 0.46.0 | what v0.36.0's audit handed over | Seven measured items that cycle deferred, §7 and §8 the largest; unblocked, v0.36.0 has shipped | 197 |
 | 0.47.0 | the fence, the example, the split | Test-file fence, example-table lint rule, unexecutable test-task warning. **All three need a design pass** | 115 |
 | 0.48.0 | the divisible round | Sharding a role's checklist, incremental rounds | 100 |
-| 0.49.0 | the evidence contract | Stop accepting an assertion where an experiment was meant. **Pre-design** — §4–§7 and §10 name no mechanism | 224 |
+| 0.49.0 | the evidence contract | Stop accepting an assertion where an experiment was meant. **Pre-design** — §4–§7 and §10 name no mechanism | 246 |
 
 **Why this order.** Value over size first, then hard dependencies. 0.37.0 leads on this repo's own
 numbers (see its §2.1: `blocking` converges at round 3 where `all` takes 9). 0.38.0 is next because
