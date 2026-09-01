@@ -78,13 +78,24 @@ func TestWriteSnapshotAtomicSurvivesParallelSiblings(t *testing.T) {
 	}
 }
 
-// TestWriteSnapshotAtomicIsWholeUnderARewrite guards the property the temp file
-// exists for at all: a reader taking no lock sees the old bytes or the new
-// ones, never a prefix.
+// TestWriteSnapshotAtomicIsWholeUnderARewrite pins that a rewrite lands whole
+// — the full new bytes, not the old ones and not a mix.
 //
-// Separate from the race above because the two fail for different reasons — a
-// unique temp name fixes the race and would not, on its own, tell anyone the
-// write is still atomic.
+// It does NOT measure atomicity against a concurrent reader, and an earlier
+// version of this comment claimed it did. Audit round 8 replaced the body with
+// a plain os.WriteFile and the test still passed: every read here happens after
+// its write returns, so no reader is ever mid-write. The experiment could not
+// have failed at what it claimed.
+//
+// Proving atomicity needs a reader racing the writer, which is the arrangement
+// this test does not build. What it does catch is a rewrite that truncates,
+// short-writes or leaves the previous round's bytes — worth having, and all it
+// is claimed to be.
+//
+// The boundary of both tests in this file, measured: replacing the body with a
+// plain os.WriteFile leaves BOTH passing, because a write with no temp file is
+// non-atomic but race-free. What the sibling test discriminates is a SHARED
+// temp path — the defect that existed — and not non-atomicity in general.
 func TestWriteSnapshotAtomicIsWholeUnderARewrite(t *testing.T) {
 	dir := t.TempDir()
 	spec := filepath.Join(dir, "spec.md")
