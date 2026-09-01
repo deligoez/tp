@@ -221,7 +221,7 @@ Use --findings to also verify review findings were addressed.`,
 			if statusMode {
 				return runAuditStatus(args[0], checkFlag)
 			}
-			return runAudit(cmd, args[0], affectedFiles, base, findingsPath, affectedFromTasks)
+			return runAudit(cmd, args[0], affectedFiles, base, findingsPath, roleFilter, affectedFromTasks)
 		},
 	}
 
@@ -243,7 +243,7 @@ Use --findings to also verify review findings were addressed.`,
 	return cmd
 }
 
-func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, findingsPath string, affectedFromTasks bool) error {
+func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, findingsPath, roleFilter string, affectedFromTasks bool) error {
 	if _, err := os.Stat(specPath); os.IsNotExist(err) {
 		// First contact with the path: a spec-path mistake, so the shared
 		// hint. The code-3 default names the TASK file — 'tp use' / 'tp init'
@@ -330,6 +330,8 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	}
 	// §7.2: one prompt per active auditor role in the resolved panel.
 	prompts, auditSkipped := generateRoleAuditPrompts(panel.roles, specItems, &sel, specContent, claudeMDExcerptFor(specPath), priorByRole, auditRound, auditWf.AuditCleanRounds, auditConsecutive, auditWf.AuditMaxRounds)
+
+	prompts = filterAuditPrompts(prompts, roleFilter)
 	// §9.1: name every non-emitted auditor — empty-checklist roles above plus
 	// any domain-filtered user corpus roles.
 	auditSkipped = append(auditSkipped, engine.DomainSkippedRoles(filepath.Dir(specPath), panel.fm.Domain, engine.PhaseAuditors)...)

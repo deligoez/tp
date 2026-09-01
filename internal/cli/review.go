@@ -290,7 +290,7 @@ Modes (mutually exclusive):
 					os.Exit(ExitUsage)
 					return nil
 				}
-				return runReview(cmd, args[0], round, findingsPath, perspective, docsPath, testPath, affectedFiles, finalRound, diffFrom, specInline, noState)
+				return runReview(cmd, args[0], round, findingsPath, perspective, docsPath, testPath, affectedFiles, finalRound, diffFrom, roleFilter, specInline, noState)
 			}
 			if err := validateModeFlags(mode, round, findingsPath, affectedFiles, finalRound, diffFrom, specInline, perspective); err != nil {
 				output.Error(ExitUsage, err.Error())
@@ -452,7 +452,7 @@ func validateModeFlags(mode string, round int, findingsPath string, affectedFile
 // runReviewVerify — implemented in review_verify.go.
 // runReviewReport — implemented in review_report.go.
 
-func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, perspective, docsPath, testPath string, affectedFiles []string, finalRound bool, diffFrom string, specInline, noState bool) error {
+func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, perspective, docsPath, testPath string, affectedFiles []string, finalRound bool, diffFrom, roleFilter string, specInline, noState bool) error {
 	validPerspectives := map[string]bool{"documentation": true, "testing": true, "code-audit": true, "regression": true}
 
 	if perspective != "" && !validPerspectives[perspective] {
@@ -546,6 +546,8 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 	}
 
 	prompts, regressionIncluded, skippedRoles := buildReviewPrompts(specPath, &panel, elems, specContent, round, summary, affectedFiles, finalRound, &wfChecks, diffFrom, noState, reviewSt)
+
+	prompts = filterReviewPrompts(prompts, roleFilter)
 
 	uniqueCount := len(dedupFindings(findings))
 	convergence, instruction := buildReviewLoopInstruction(round, findings, findingsPath, specPath, specInline, noState, stateRequired, regressionIncluded, len(wfChecks.Checks) > 0)
