@@ -311,9 +311,11 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp review spec.md --status` / `--status --check` | Convergence state / exit 0 only when converged AND every check passes |
 | `tp review spec.md --perspective regression` | Standalone regression pass (needs state R≥2, or `--diff-from` + `--findings`) |
 | `tp review spec.md --no-state` | Disable all state reads/writes; restores pre-0.23.0 manual `--round` numbering |
+| `tp review spec.md --role <name>` | Emit only that role's prompt. A name the round does not emit but tp recognises exits 0 with an empty `prompts[]`; a name it recognises nowhere exits 2 |
 | `tp audit spec.md` | Post-implementation audit: verify code matches spec. No audit-able file → exit 4 with `suggested_files` + hint |
 | `tp audit spec.md --affected-files src/a.go` | Manual file selection (comma or repeated) |
 | `tp audit spec.md --affected-from-tasks` | Audit exactly the files touched by done tasks' `commit_shas` |
+| `tp audit spec.md --role <name>` | Emit only that role's prompt; same three name classes as `tp review --role` |
 | `tp audit spec.md --findings review.ndjson` | Also verify review findings were addressed (routed to spec-coverage) |
 | `tp audit spec.md --record results.ndjson` | Record an audit round (non-PASS rows = findings); independent sequence |
 | `tp audit spec.md --base <git-ref>` | Diff against a git ref to detect the audited files (omit for staged + unstaged) |
