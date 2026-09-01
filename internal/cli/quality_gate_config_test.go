@@ -3,6 +3,7 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -70,6 +71,31 @@ func TestRepoTaskFilesResolveRaceQualityGate(t *testing.T) {
 // literal comparison alone would go on passing while the wrapper quietly
 // dropped it, which is the exact failure mode v0.34.0 §5 added the guard for.
 // Naming a thing is not the same as being able to observe it.
+// TestCIQuotesTheWrapperCommandItActuallyRuns closes a class rather than an
+// instance. Twice in v0.36.0's audit a comment quoted a `go test` command that
+// the script no longer ran, and both times the omitted flag was the one that
+// makes the measurement mean anything -- so the quoted form was precisely the
+// disarmed form, and it read as documentation of a working gate.
+//
+// Prose cannot hold this: ci.yml and the script are edited in different commits
+// on different days, which is exactly how the second one happened. So the
+// comment's quoted literal is compared against the script byte for byte.
+func TestCIQuotesTheWrapperCommandItActuallyRuns(t *testing.T) {
+	root := repoRoot(t)
+	workflow, err := os.ReadFile(filepath.Join(root, ".github", "workflows", "ci.yml")) //nolint:gosec // a fixed path inside the repo under test
+	require.NoError(t, err)
+	script, err := os.ReadFile(filepath.Join(root, "scripts", "check-suite-state.sh")) //nolint:gosec // a fixed path inside the repo under test
+	require.NoError(t, err)
+
+	quoted := regexp.MustCompile("`(go test [^`]*)`").FindAllStringSubmatch(string(workflow), -1)
+	require.NotEmpty(t, quoted,
+		"ci.yml must still quote the wrapper's command; if the comment goes, so does this guard's subject")
+	for _, m := range quoted {
+		assert.Contains(t, string(script), m[1],
+			"ci.yml quotes %q, which check-suite-state.sh does not run", m[1])
+	}
+}
+
 func TestSuiteStateWrapperStillRunsTheRaceDetector(t *testing.T) {
 	script := filepath.Join(repoRoot(t), "scripts", "check-suite-state.sh")
 	body, err := os.ReadFile(script) //nolint:gosec // a fixed path inside the repo under test
