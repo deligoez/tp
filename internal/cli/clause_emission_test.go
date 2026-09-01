@@ -34,9 +34,11 @@ func clauseSuffixFromSpec(t *testing.T) string {
 	return "\n\n" + fenced("### 2.2 The clause") + "\n\n" + fenced("### 3.2 The clause")
 }
 
-// emitFor runs one emission and returns its prompts as (role, output_path, body).
+// emittedPrompt is one entry of an emission's prompts[], reduced to the three
+// fields these tests compare.
 type emittedPrompt struct{ role, outputPath, body string }
 
+// emitFor runs one emission and returns its prompts as (role, output_path, body).
 func emitFor(t *testing.T, dir string, args ...string) []emittedPrompt {
 	t.Helper()
 	stdout, stderr, code := runTPIn(t, dir, append(args, "--json")...)
