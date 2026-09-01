@@ -23,8 +23,13 @@ jobs:
         with:
           go-version: stable
 
-      - name: Test
-        run: go test -race ./...
+      # check-suite-state.sh RUNS `go test -race ./...` between two hashes of
+      # spec/.tp-review/ and .tp/rounds/ (v0.36.0 §6.1 S1). It wraps the suite
+      # rather than running beside it: hashing before and after ONE run is what
+      # attributes a change to the suite, and a second run would double CI's
+      # slowest step for nothing.
+      - name: Test (and prove the suite mutated no review state)
+        run: ./scripts/check-suite-state.sh
 
       # Every tool below is pinned to the exact version the gate is measured at
       # locally. A floating @latest makes the result a function of the day the

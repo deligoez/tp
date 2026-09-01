@@ -1,6 +1,6 @@
 {
   "workflow": {
-    "quality_gate": "go test -race ./... && golangci-lint run && ./scripts/check-deadcode.sh && ./scripts/check-complexity.sh",
+    "quality_gate": "./scripts/check-suite-state.sh && golangci-lint run && ./scripts/check-deadcode.sh && ./scripts/check-complexity.sh",
     "review_clean_rounds": 2,
     "audit_clean_rounds": 2
   }

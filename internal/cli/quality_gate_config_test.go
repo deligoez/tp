@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -26,7 +27,7 @@ import (
 // and equally on a baseline entry that no longer violates — so the baseline can
 // only shrink. A plain gocognit linter entry would have to fail the 54 existing
 // functions on day one, or sit at a threshold high enough to measure nothing.
-const repoQualityGate = "go test -race ./... && golangci-lint run && ./scripts/check-deadcode.sh && ./scripts/check-complexity.sh"
+const repoQualityGate = "./scripts/check-suite-state.sh && golangci-lint run && ./scripts/check-deadcode.sh && ./scripts/check-complexity.sh"
 
 // TestRepoTaskFilesResolveRaceQualityGate guards the v0.34.0 §5 outcome: the
 // gate resolved for every task file in this repo — this release's included —
@@ -58,4 +59,26 @@ func TestRepoTaskFilesResolveRaceQualityGate(t *testing.T) {
 		assert.Equal(t, repoQualityGate, workflow.QualityGate,
 			"the gate resolved for %s must be the literal repo gate", rel)
 	}
+}
+
+// TestSuiteStateWrapperStillRunsTheRaceDetector keeps the guard above able to
+// see what it is named for.
+//
+// v0.36.0 §6.1 moved the suite behind scripts/check-suite-state.sh, so the gate
+// literal no longer contains `-race` — the flag is inside the script now. A
+// literal comparison alone would go on passing while the wrapper quietly
+// dropped it, which is the exact failure mode v0.34.0 §5 added the guard for.
+// Naming a thing is not the same as being able to observe it.
+func TestSuiteStateWrapperStillRunsTheRaceDetector(t *testing.T) {
+	script := filepath.Join(repoRoot(t), "scripts", "check-suite-state.sh")
+	body, err := os.ReadFile(script) //nolint:gosec // a fixed path inside the repo under test
+	require.NoError(t, err, "the gate's first step must exist")
+
+	assert.Contains(t, string(body), "go test -race ./...",
+		"the wrapper is where -race lives now; without it the repo gate stops running the race detector")
+
+	info, statErr := os.Stat(script)
+	require.NoError(t, statErr)
+	assert.NotZero(t, info.Mode().Perm()&0o111,
+		"the gate invokes it as ./scripts/check-suite-state.sh, so it must be executable")
 }
