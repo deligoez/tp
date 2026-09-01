@@ -8,7 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// v034Surface is the command-and-flag surface tp shipped at the v0.34.2 tag:
+// v036Surface is the command-and-flag surface tp ships at v0.36.0, grown from
+// the v0.34.2 baseline this guard was written against:
 // one line per command — its name, a colon, then its long flags in byte order.
 // The first line, whose name is empty, carries the root's persistent (global)
 // flags. Shorthands are not listed, since a shorthand only exists alongside its
@@ -28,10 +29,14 @@ import (
 // `--status` and `--dry-run` — and §3.3 adds the three audit-side resolve flags
 // (`--resolve`, `--resolve-all`, `--force`) an audit-fix unit disposes its row
 // with; nothing else about the surface moves in that release.
-const v034Surface = `
+//
+// spec/0.36.0.md §4.2 adds `--role` to `tp review` and `tp audit`, and that is
+// the only surface this release moves: it selects one entry from a panel the
+// command already emits, so it appears on both commands and nowhere else.
+const v036Surface = `
 : color compact file json no-color no-compact no-quiet quiet
 add: bulk spec stdin
-audit: affected-files affected-from-tasks base check findings force harness-note merge output record resolve resolve-all status
+audit: affected-files affected-from-tasks base check findings force harness-note merge output record resolve resolve-all role status
 blocked:
 brief: prior
 claim: all-ready
@@ -53,7 +58,7 @@ remove: force
 reopen:
 report:
 resume:
-review: affected-files check diff-from docs-path final-round findings force harness-note merge no-state output perspective record report resolve resolve-all round spec-inline status test-path verify
+review: affected-files check diff-from docs-path final-round findings force harness-note merge no-state output perspective record report resolve resolve-all role round spec-inline status test-path verify
 run: dry-run status
 set: bulk local project workflow
 show:
@@ -63,13 +68,13 @@ use: clear
 validate: project strict
 `
 
-// parseSurface reads v034Surface into per-command long-flag sets, keyed by
+// parseSurface reads v036Surface into per-command long-flag sets, keyed by
 // command name with "" holding the globals.
 func parseSurface(t *testing.T) map[string]map[string]bool {
 	t.Helper()
 
 	surface := map[string]map[string]bool{}
-	for line := range strings.SplitSeq(strings.TrimSpace(v034Surface), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(v036Surface), "\n") {
 		name, flags, ok := strings.Cut(line, ":")
 		require.True(t, ok, "every baseline line names a command before a colon: %q", line)
 		set := map[string]bool{}
@@ -93,12 +98,12 @@ func TestNonGoals_NoCommandOrFlagIsAdded(t *testing.T) {
 	for _, command := range sortedKeys(registered) {
 		shipped, known := baseline[command]
 		if !assert.True(t, known,
-			"the CLI registers `tp %s`, which v0.34.2 did not ship: this release adds no command (§11 Non-Goal 3)", command) {
+			"the CLI registers `tp %s`, which the pinned surface does not list: adding a command updates the baseline in the same task", command) {
 			continue
 		}
 		for _, name := range sortedKeys(registered[command]) {
 			assert.True(t, shipped[name],
-				"the CLI registers `tp %s --%s`, which v0.34.2 did not ship: this release adds no flag (§11 Non-Goal 3)", command, name)
+				"the CLI registers `tp %s --%s`, which the pinned surface does not list: adding a flag updates the baseline in the same task", command, name)
 		}
 	}
 
