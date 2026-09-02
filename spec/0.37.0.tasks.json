@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.37.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-02T04:10:54.296749Z",
+  "updated_at": "2026-09-02T04:33:21.293467Z",
   "workflow": {},
   "coverage": {
     "total_sections": 9,
@@ -614,7 +614,7 @@
     {
       "id": "reverse-docs-and-constant",
       "title": "SKILL.md's sentence and engine.DivergenceHint, coordinated",
-      "status": "open",
+      "status": "done",
       "tags": [
         "reversal"
       ],
@@ -626,16 +626,29 @@
       "source_sections": [
         "## 6. Five shipped assertions are reversed"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-02T04:21:12.726629Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-02T04:27:47.625831Z",
+      "closed_reason": "- skills/tp/SKILL.md's divergence paragraph (line 149) now reads \"audit convergence counts every non-PASS row the resolved policy does not accept, and under the default `audit_converge_on: all` that is every one of them\", and engine.DivergenceHint closes with the same clause; both are true under `all`, where nothing is accepted, and under `blocking`, and neither is phrased over a severity, which section 2 defines as `error` only.\n- internal/cli/docs_contract_test.go's two independent checks both pass: the test-local literal against SKILL.md — now anchored to the divergence paragraph's own line rather than to the document — and engine.DivergenceHint against skills/tp/REFERENCE.md, whose verbatim quote was updated with the constant.\n- Editing the constant alone leaves SKILL.md failing: in an rsync copy with the constant and REFERENCE.md carrying the new sentence and SKILL.md reverted, the run fails at docs_contract_test.go:132 (the SKILL.md assertion) while the constant-versus-REFERENCE.md assertion stays green.\n- Section 7 row 19 passes, and both its mutants are killed. The second mutant — phrasing the rule as \"whose severity is blocking\" across the constant, both documents and the test literal — passed the whole pre-existing guard, so a killing assertion was added: the constant and the SKILL.md sentence must not state the rule over a severity. Measured both ways in the copy — with the new assertion the mutant fails twice, with it disabled the same mutant is green. A third variant not named by section 7 also survived the document-wide `Contains`: the required sentence pasted into an unrelated SKILL.md section while the divergence paragraph kept the pre-release wording. The anchored assertion kills it. Full gate green (gofmt required one pass over the test file).",
+      "gate_passed_at": "2026-09-02T04:27:47.625831Z",
+      "commit_sha": "84bc7c6",
+      "commit_shas": [
+        "84bc7c6",
+        "1223c91",
+        "16f9c1d",
+        "5325922"
+      ],
+      "commit_files": [
+        "internal/cli/docs_contract_test.go",
+        "internal/engine/divergence.go",
+        "skills/tp/REFERENCE.md",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "reverse-reference-paragraph",
       "title": "REFERENCE.md's Honest Convergence Signals paragraph, with a guard",
-      "status": "open",
+      "status": "done",
       "tags": [
         "reversal"
       ],
@@ -645,16 +658,25 @@
       "source_sections": [
         "## 6. Five shipped assertions are reversed"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-02T04:28:40.808142Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-02T04:33:21.277757Z",
+      "closed_reason": "- internal/cli/docs_contract_test.go gains TestReferenceDoesNotPromiseTheStoredCleanFlagIsUnchanged, the first assertion anything makes over that paragraph. It extracts the \"Honest Convergence Signals (v0.33.0)\" section body with a new docSectionBody helper (heading to next heading, whitespace collapsed so the assertion is not hostage to line wrapping), requires the section to state what governs the stored per-round `clean` flag now, and requires that no sentence naming that flag carries a parity marker.\n- The paragraph no longer lists the stored per-round `clean` flag among what behaves exactly as in v0.32.0. All five clauses the sentence got wrong were repaired, not only the one section 6.4 names: \"The audit gate is untouched\" is gone, and `engine.Converged`, `engine.ConsecutiveClean`, the stored `clean` flag, the `tp audit --status --check` exit code and `next_action`'s three-state audit precedence now appear as what `audit_converge_on` moves rather than as what it leaves alone. The surviving true claim — that adding v0.33.0's four fields moved no gate — is kept and scoped to those fields.\n- Re-adding the flag reddens the new assertion, measured in an rsync copy against an unmutated baseline: restoring the original four-line paragraph fails it three times (the positive sentence missing, plus \"exactly as\" and \"untouched\" on the flag's sentence), and a subtler variant that keeps the new sentence and appends \"The stored per-round `clean` flag is unchanged.\" fails on \"unchanged\". A variant section 7 does not name — re-listing the flag as behaving \"exactly as they always did\", the same promise with the version number dropped — survived the first marker list, so the markers were rewritten without the version and it now fails; a fourth variant, repairing by deleting the false sentence and writing nothing in its place, fails the positive assertion.\n- Section 7 row 20 passes. Full quality gate green.",
+      "gate_passed_at": "2026-09-02T04:33:21.277757Z",
+      "commit_sha": "b1f6525",
+      "commit_shas": [
+        "b1f6525",
+        "2d4cf1e"
+      ],
+      "commit_files": [
+        "internal/cli/docs_contract_test.go",
+        "skills/tp/REFERENCE.md"
+      ]
     },
     {
       "id": "reverse-divergence-comment",
       "title": "ComputeAuditDivergence's condition-4 comment, and the suppression pinned",
-      "status": "open",
+      "status": "done",
       "tags": [
         "reversal"
       ],
@@ -666,11 +688,21 @@
       "source_sections": [
         "## 6. Five shipped assertions are reversed"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-02T04:13:39.307367Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-02T04:20:23.658914Z",
+      "closed_reason": "- The doc comment now opens \"Condition 4 is load-bearing, not redundant\" and explains why the two conditions coincide under `all` and come apart under `blocking`; the word redundant survives only as the claim being denied.\n- No line of the function's logic changes: filtering `git diff internal/engine/divergence.go` for changed lines that are not comments returns 0.\n- Two fixtures stamped through engine.AuditRowsClean under `blocking` assert no object: TestComputeAuditDivergence_ConvergedUnderBlockingWithholdsTheObject (roled open rows) and TestComputeAuditDivergence_ConvergedUnderBlockingSuppressesTheUnattributedCaveat (roleless rows, pinning that the unattributed_open caveat goes with the object). Both require conditions 1, 3 and 5 to hold before asserting, so the nil cannot come from a condition the row is not testing, and each contrasts against the same rounds stamped under `all`, where the object fires.\n- Section 7 rows 21 and 22 pass, and their named mutants kill them in an rsync copy: deleting condition 4 fails both; exempting roleless rows from condition 4 fails row 22's alone. An unnamed variant, re-deriving condition 4 from the pre-release equality findings == 0, fails both. Full quality gate green.",
+      "gate_passed_at": "2026-09-02T04:20:23.658914Z",
+      "commit_sha": "6ea5dd9",
+      "commit_shas": [
+        "6ea5dd9",
+        "464e621",
+        "d6f9a73"
+      ],
+      "commit_files": [
+        "internal/engine/divergence.go",
+        "internal/engine/divergence_test.go"
+      ]
     },
     {
       "id": "reversal-sweep",
