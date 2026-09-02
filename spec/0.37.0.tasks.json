@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.37.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-02T01:50:32.363085Z",
+  "updated_at": "2026-09-02T02:13:05.858839Z",
   "workflow": {},
   "coverage": {
     "total_sections": 9,
@@ -269,7 +269,7 @@
     {
       "id": "fence-change-rule",
       "title": "The unattended change-rule fence at every write path",
-      "status": "open",
+      "status": "done",
       "tags": [
         "fence"
       ],
@@ -281,11 +281,38 @@
       "source_sections": [
         "## 3. The fence"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-02T01:52:28.466452Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-02T02:13:05.78332Z",
+      "closed_reason": "Section 3's change rule is implemented at all four write paths and proved by running.\n\n- tp set --workflow audit_converge_on=blocking exits 2 under TP_UNATTENDED=1 when it changes what resolves, leaving the task file byte-identical.\n- Its --project form exits 2 on the same terms and creates no .tp/config.json.\n- tp import exits 2, placed after the exists-guard and after the workflow-preservation step, so it compares the block that will actually be written.\n- tp config --extract calls the rule over every scanned base before the merge; the refusing input does not exist yet and that was measured, not reasoned (see the note below), so only the passing half is asserted.\n- A write of all passes at both set sinks, including over an already-resolved blocking, which tightens the gate.\n- A --project write of blocking beneath a task override of all passes: the value reaches the project layer and all still resolves.\n- An import carrying an already-resolved blocking forward passes, which is the case a field- or value-scoped fence would deadlock for ever.\n- The fence is string-shaped and its call sites sit in the string-enum arm before the integer and float dispatch; the numeric fenceWorkflowWrite is untouched, since its float64 signature runs after the literal is parsed as a number.\n- Every test decides TP_UNATTENDED for its own child through a runner that filters the variable out of os.Environ() and re-adds it only when the arm needs it; row 13c removes it rather than omitting it.\n- Rows 12, 13, 13b and 13c pass, and seven mutants were built and run in rsync copies against a baseline binary from the unmutated tree: all seven fail. The two the spec names no row for -- an import fence reading the active pointer instead of its own target, and a rule refusing any change rather than a change to blocking -- both survived the first matrix and are now killed by two added tests.\n\nGate green: check-suite-state.sh, golangci-lint, check-deadcode.sh, check-complexity.sh, exit 0. Under TP_UNATTENDED=1 the cli package's failing set is byte-identical to HEAD's 21 pre-existing failures (TestImport_WorkflowPreserved's three subtests among them); three tests this fence broke under the ambient variable now state their own environment. Out of scope and reported: --extract's widened scope, the refusal's three exits, and the escalate enum value, so the hint still says --decision other.",
+      "gate_passed_at": "2026-09-02T02:13:05.78332Z",
+      "commit_sha": "a10588b",
+      "commit_shas": [
+        "a10588b",
+        "8fe8f9d",
+        "7d0e95d",
+        "5875b52",
+        "9f36c56",
+        "95cc839",
+        "81328e8",
+        "d957e24",
+        "6660e9b",
+        "e9ee9ec",
+        "90a2e6d",
+        "b4f881c",
+        "d6bc03c"
+      ],
+      "commit_files": [
+        "internal/cli/audit_signal_test.go",
+        "internal/cli/auditconvergeon_fence_test.go",
+        "internal/cli/auditconvergeon_write_test.go",
+        "internal/cli/config_extract.go",
+        "internal/cli/importcmd.go",
+        "internal/cli/set.go",
+        "internal/cli/set_project.go",
+        "internal/cli/unattended.go",
+        "internal/engine/auditconvergeon.go"
+      ]
     },
     {
       "id": "fence-extract-scope",
