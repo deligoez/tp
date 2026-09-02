@@ -72,3 +72,40 @@ func TestGroundOnlyStateDirIsInvisibleToReviewState(t *testing.T) {
 	require.NoError(t, err, "a ground-only directory must not read as corrupt state")
 	assert.Nil(t, st, "no state.json means no state, not an empty one")
 }
+
+// groundRoundFixture writes the named files into the review state directory of
+// a fresh spec and returns the spec's path. The files hold no meaningful
+// content: numbering is a filename question (§7.3), so a fixture that had to
+// write valid rounds would be testing something else.
+func groundRoundFixture(t *testing.T, names ...string) string {
+	t.Helper()
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
+
+	stateDir := ReviewStateDir(specPath)
+	require.NoError(t, os.MkdirAll(stateDir, 0o755))
+	for _, name := range names {
+		require.NoError(t, os.WriteFile(filepath.Join(stateDir, name), []byte("{}\n"), 0o600))
+	}
+	return specPath
+}
+
+// TestNextGroundRoundPreservesAGap is §11 row 13. A directory holding rounds 1
+// and 3 yields 4, never 2 and never 3: the missing round is a deleted or lost
+// artifact, and refilling its number would make two different rounds share an
+// identifier.
+//
+// The fixture's discriminating property is asserted rather than assumed. Two
+// round files plus one is 3, so this fixture separates the shipped rule from
+// the count-plus-one mutant — a fixture of rounds 1 and 2 would score both
+// readings identically and prove nothing.
+func TestNextGroundRoundPreservesAGap(t *testing.T) {
+	names := []string{"ground-round-1.ndjson", "ground-round-3.ndjson"}
+	require.NotEqual(t, 4, len(names)+1,
+		"the fixture must separate highest-plus-one from count-plus-one")
+
+	n, err := NextGroundRound(groundRoundFixture(t, names...))
+	require.NoError(t, err)
+	assert.Equal(t, 4, n)
+}
