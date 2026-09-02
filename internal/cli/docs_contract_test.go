@@ -229,6 +229,71 @@ func TestReferenceDoesNotPromiseTheStoredCleanFlagIsUnchanged(t *testing.T) {
 	}
 }
 
+// auditSideDenials are the ways a shipped document can deny that tp has an
+// audit-side counterpart to review_converge_on. v0.37.0 §2 ships one, so every
+// such sentence is false — and this class is the reason §6 refuses to state a
+// count: the sentence these markers catch survived several sweeps of this
+// release because it wraps across two source lines, which a single-line search
+// misses and a whole-document NotContains does not.
+//
+// "audit never reads it", said of review_converge_on, is deliberately not a
+// marker: that one is true and is what the Workflow Fields table says.
+var auditSideDenials = []string{
+	"no audit-side equivalent",
+	"has no audit-side",
+	"no equivalent on the audit side",
+}
+
+// auditScopeAnchor opens SKILL.md's Workflow D audit-scope paragraph — the one
+// that carried the denial. Anchored rather than asserted document-wide for the
+// reason TestDocsCarryTheConvergenceSignalWording anchors: the field is named
+// in several places, so a document-wide positive assertion would stay green
+// with this paragraph silent about it.
+const auditScopeAnchor = "**Scope the audit, or it will not converge"
+
+// divergenceSectionHeading and divergenceCarriedForward pin REFERENCE.md's
+// divergence section against the §6.4 defect in its second form. That section
+// said next_action reads the fix-and-re-audit directive on every round emitting
+// divergence. Measured on this tree before the sentence was rewritten: two
+// rounds under audit_converge_on=blocking with audit_clean_rounds=2 — an error
+// row then a warning row, spec-coverage clean throughout — emit divergence on
+// round 2 beside clean:true and next_action "1 accepted row carried forward".
+const (
+	divergenceSectionHeading = "### `divergence` (audit, §2.4)"
+	divergenceCarriedForward = "carried forward"
+)
+
+// TestDocsStateTheConvergenceRuleUnderBothPolicies guards v0.37.0 §6's sweep
+// where it has no other reader. §6.4's lesson was that nothing read the
+// paragraph it repaired, so the two repairs most likely to be silently undone
+// get a guard here: the denial that the field exists, and the divergence
+// section's claim about next_action.
+func TestDocsStateTheConvergenceRuleUnderBothPolicies(t *testing.T) {
+	skill := readRepoDoc(t, "skills/tp/SKILL.md")
+	for _, path := range []string{"skills/tp/SKILL.md", "skills/tp/REFERENCE.md", "README.md"} {
+		doc := readRepoDoc(t, path)
+		for _, denial := range auditSideDenials {
+			assert.NotContains(t, doc, denial,
+				"%s may not deny tp has an audit-side counterpart to review_converge_on; v0.37.0 ships audit_converge_on", path)
+		}
+	}
+
+	anchored := false
+	for _, para := range strings.Split(skill, "\n\n") {
+		if !strings.Contains(para, auditScopeAnchor) {
+			continue
+		}
+		anchored = true
+		assert.Contains(t, para, "audit_converge_on",
+			"SKILL.md's audit-scope paragraph states the counting rule in terms of the field that decides it")
+	}
+	assert.True(t, anchored, "SKILL.md still carries the %q paragraph", auditScopeAnchor)
+
+	section := docSectionBody(t, readRepoDoc(t, "skills/tp/REFERENCE.md"), divergenceSectionHeading)
+	assert.Contains(t, section, divergenceCarriedForward,
+		"the divergence section says what next_action reads under blocking, where a divergent round can be clean")
+}
+
 // docSectionBody returns a markdown section's own body — the text between its
 // heading and the next heading of any level — with whitespace collapsed, so an
 // assertion over a sentence is not hostage to where the document happens to
