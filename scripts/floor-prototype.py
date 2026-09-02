@@ -66,7 +66,11 @@ def table_row_unit(line):
     # §7.2 field table.
     body = line.strip()
     body = re.sub(r"^\|", "", body)
-    body = re.sub(r"\|$", "", body)
+    # The trailing pipe is stripped only when it is NOT itself escaped. `\|$`
+    # ate the pipe and left the bare backslash on a row ending in an escaped
+    # pipe — `| a | b\|` gave `a — b\` where the Go port gives `a — b|`. Found
+    # by the port, which is the direction that check is supposed to run in.
+    body = re.sub(r"(?<!\\)\|$", "", body)
     cells = [c.strip().replace(r"\|", "|") for c in re.split(r"(?<!\\)\|", body)]
     return re.sub(r"\s+", " ", " — ".join(c for c in cells if c)).strip()
 
