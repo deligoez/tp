@@ -131,6 +131,29 @@ func TestAuditNextAction_ConvergedWinsOverFindings(t *testing.T) {
 	assert.NotContains(t, got, "address the findings")
 }
 
+// TestAuditNextAction_AcceptedCountOnBothChangedBranches is §7 rows 10 and 10b
+// at the unit level: the two branches §2's table names each render the count as
+// a numeral and each read differently from the same branch on an empty round.
+// The count and the verdict are supplied independently here, which is the state
+// `blocking` produces and `all` never can — a clean round holding rows.
+func TestAuditNextAction_AcceptedCountOnBothChangedBranches(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		converged bool
+		empty     string
+	}{
+		{"converged", true, AuditNextAction("spec.md", true, true, 0)},
+		{"clean not converged", false, AuditNextAction("spec.md", false, true, 0)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := AuditNextAction("spec.md", tc.converged, true /*clean*/, 3)
+			assert.Contains(t, got, "3", "the accepted count is rendered as a numeral")
+			assert.NotEqual(t, tc.empty, got,
+				"a round closing over accepted rows reads differently from an empty one")
+		})
+	}
+}
+
 // TestFirstMechanizableClass covers the over-specification skip directly.
 func TestFirstMechanizableClass(t *testing.T) {
 	assert.Equal(t, "naming", firstMechanizableClass([]string{"naming"}))
