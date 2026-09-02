@@ -29,11 +29,46 @@ var advisoryAuditSeverities = map[string]bool{
 // identity true — the rows that block are exactly the rows its `error` and
 // `unrecognised` buckets hold.
 func auditSeverityBlocking(row map[string]any) bool {
+	return !advisoryAuditSeverities[AuditSeverityBucket(row)]
+}
+
+// AuditSeverityError and AuditSeverityUnrecognised name the two buckets §4's
+// by_severity breakdown does not take verbatim from a row: the blocking
+// severity of the audit vocabulary, and the one bucket every row tp cannot
+// grade lands in. warning and info key on themselves and are the
+// advisoryAuditSeverities set above.
+const (
+	AuditSeverityError        = "error"
+	AuditSeverityUnrecognised = "unrecognised"
+)
+
+// AuditSeverityBucket names the by_severity bucket a non-PASS audit row falls
+// in (§4). error, warning and info key on themselves; everything else — a
+// string outside the enum, JSON null, an absent key, and a value that is not a
+// string — keys on unrecognised.
+//
+// It is the SAME derivation auditSeverityBlocking grades on, not a second copy
+// of the vocabulary: that predicate is now phrased over this bucket, so the four
+// unrecognised shapes are exactly the rows §2 blocks on and §4's identity —
+// error + unrecognised equals the round's blocking-row count — holds by
+// construction rather than by two lists agreeing. A separate classifier in the
+// merge command is the drift §4 exists to prevent, which is why this is
+// exported for internal/cli rather than reimplemented there.
+//
+// `""` is deliberately not a bucket: it is what the naive type assertion
+// row["severity"].(string) produces for three of the four unrecognised shapes,
+// and folding them under an empty key is the hiding §4 exists to prevent. The
+// comparison stays byte-for-byte with no trimming and no case folding, so
+// WARNING is outside the enum, lands in unrecognised, and blocks.
+func AuditSeverityBucket(row map[string]any) string {
 	sev, ok := row["severity"].(string)
 	if !ok {
-		return true
+		return AuditSeverityUnrecognised
 	}
-	return !advisoryAuditSeverities[sev]
+	if sev != AuditSeverityError && !advisoryAuditSeverities[sev] {
+		return AuditSeverityUnrecognised
+	}
+	return sev
 }
 
 // AuditRowsClean grades one audit round's rows under audit_converge_on (§2).
