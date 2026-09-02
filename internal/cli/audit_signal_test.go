@@ -451,12 +451,13 @@ func TestAuditGate_ResumeIsUnchangedByTheDivergence(t *testing.T) {
 		"resume still names the next audit round beside a diverging state")
 }
 
-// Test 30 (Non-Goals 1, 2, 5 and 6) — the gate has no escape hatch and the
-// signal carries no gate input. There is no audit_converge_on knob to flip
-// (Non-Goal 2 of v0.33.0, deferred again by v0.34.0 §11 and still carried in
-// spec/0.34.0-candidates.md); a per-role streak entry carries the three keys of
-// §2.2 and nothing else, so neither a per-role threshold (Non-Goal 6) nor a
-// scope label (Non-Goal 1) can arrive unnoticed.
+// Test 30 (Non-Goals 1, 5 and 6) — the gate has no escape hatch and the signal
+// carries no gate input. v0.37.0 §2 ships the audit_converge_on knob v0.33.0's
+// Non-Goal 2 held back and v0.34.0 §11 deferred again, so §6.1 reverses the two
+// assertions naming it: the field is settable, and what this test still guards
+// is that setting it is not an escape hatch. A per-role streak entry carries the
+// three keys of §2.2 and nothing else, so neither a per-role threshold
+// (Non-Goal 6) nor a scope label (Non-Goal 1) can arrive unnoticed.
 //
 // v0.35.0 §3.3 adds the audit-side --resolve this test used to pin as absent,
 // because audit-fix has no other way to record the no-code-change outcome. What
@@ -469,9 +470,14 @@ func TestAuditGate_ResumeIsUnchangedByTheDivergence(t *testing.T) {
 func TestAuditGate_NoEscapeHatchFromTheGate(t *testing.T) {
 	dir, record := divergingFixture(t)
 
+	// §6.1 / §7 row 18 — reversed, not deleted: a deletion leaves the rest of
+	// this test passing and no assertion anywhere that the field is legal at the
+	// write sink this guard drives. require, because everything below now runs
+	// under the policy this write installs.
 	stdout, stderr, code := runTP(t, dir, "set", "--workflow", "--project", "audit_converge_on=blocking")
-	assert.NotEqual(t, 0, code, "audit_converge_on is not a workflow field")
-	assert.Contains(t, stdout+stderr, "unknown workflow field: audit_converge_on")
+	require.Equal(t, 0, code, "audit_converge_on is a known workflow field (§2): %s", stderr)
+	assert.NotContains(t, stdout+stderr, "unknown workflow field: audit_converge_on",
+		"the project write sink recognises the field rather than refusing it as unknown")
 
 	// divergingFixture left the second round's rows in results.ndjson: one PASS
 	// and go-safety's open FAIL. Dispose the FAIL and re-record from the same
