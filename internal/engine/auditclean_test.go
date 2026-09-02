@@ -31,3 +31,15 @@ func TestAuditRowsClean_InfoIsAdvisory(t *testing.T) {
 		"under blocking, an info row is advisory and does not block")
 }
 
+// TestAuditRowsClean_WarningIsAdvisory pins §7 row 6: the same predicate over a
+// `warning` row, asserted separately from info so the mutant that special-cases
+// info alone fails here.
+func TestAuditRowsClean_WarningIsAdvisory(t *testing.T) {
+	rows := auditRoundWith(map[string]any{"status": "PARTIAL", "item_id": "item-2", "severity": "warning"})
+
+	assert.False(t, AuditRowsClean(rows, AuditConvergeOnAll),
+		"under all, the existence of a non-PASS row makes the round unclean")
+	assert.True(t, AuditRowsClean(rows, AuditConvergeOnBlocking),
+		"under blocking, a warning row is advisory and does not block")
+}
+
