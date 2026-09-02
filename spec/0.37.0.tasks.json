@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.37.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-02T00:53:44.731798Z",
+  "updated_at": "2026-09-02T01:02:36.603734Z",
   "workflow": {},
   "coverage": {
     "total_sections": 9,
@@ -58,7 +58,7 @@
     {
       "id": "converge-resolution-layers",
       "title": "Assert the resolver consults exactly two layers",
-      "status": "open",
+      "status": "done",
       "tags": [
         "field"
       ],
@@ -70,11 +70,21 @@
       "source_sections": [
         "## 2. `audit_converge_on`"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-02T01:00:10.432165Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-02T01:02:36.583073Z",
+      "closed_reason": "v0.37.0 §7 row 2: three tests assert audit_converge_on resolves through exactly two layers, and each was proved discriminating by running its named mutant.\n- Precedence: TestResolveWorkflowLayers_AuditConvergeOnConsultsExactlyTwoLayers/'the two layers rank' asserts task override beats project config beats built-in (all/blocking/all) in internal/engine/configresolve_test.go.\n- No environment layer: the sibling subtest sets TP_AUDIT_CONVERGE_ON=blocking — the value neither real layer names — and asserts all resolves in all three configurations, so the assertion is not the tautology an unset variable would give; TestAuditConvergeOnHasNoEnvironmentLayer repeats it end to end through a tp config --resolved child, asserting value=all and source=default.\n- No flag layer: TestAuditConvergeOnHasNoCommandFlag asserts tp audit/config/set/run/review each refuse --audit-converge-on with exit 2 and 'unknown flag: --audit-converge-on', so silent acceptance is what fails.\n- Mutant A (env layer at the TOP rank of engine.ResolveWorkflowLayers): all three environment assertions red (got blocking, wanted all), 'the two layers rank' green, TestAuditConvergeOnHasNoEnvironmentLayer red, the flag subtests and the shipped row-1 tests green.\n- Mutant A2 (same layer at the LOWEST rank, below project config): only the built-in case red, the two rank-pinning cases and 'the two layers rank' green — so the row is caught at any rank, not just the top.\n- Mutant B (a real --audit-converge-on flag registered on tp audit): only the audit subtest red, config/set/run/review green, both environment tests green — per-command discrimination.\n- Reverted both mutants (git diff on internal/engine/configresolve.go and internal/cli/audit.go empty) and the quality gate passed on the final tree: suite-state wrapper ok, golangci-lint 0 issues, deadcode and complexity clean, exit 0.",
+      "gate_passed_at": "2026-09-02T01:02:36.583073Z",
+      "commit_sha": "34ced11",
+      "commit_shas": [
+        "34ced11",
+        "91e33b6",
+        "b879360"
+      ],
+      "commit_files": [
+        "internal/cli/auditconvergeon_test.go",
+        "internal/engine/configresolve_test.go"
+      ]
     },
     {
       "id": "converge-write-sinks",
