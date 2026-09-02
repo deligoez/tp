@@ -313,15 +313,14 @@ guaranteed reduction in rounds.
 | 0.43.0 | the loop's own state writes | Three defects re-run against `HEAD` while the spec was written: a refused `--role` invocation still writes a snapshot, the round findings file is not atomic while the snapshot beside it is, and the gate's walk cannot see an empty watched directory — a blind spot its own comment names | tool | **written** |
 | 0.44.0 | the binary check | The advisory when the running tp is older than the spec being developed | tool | ready |
 | 0.45.0 | the untracked task file | A second advisory, once, at `PhaseRelease` — different trigger, different cadence, so not the same release | tool | ready |
-| 0.46.0 | the contradictory comparator | One file stating one numeric rule with opposite comparators, over whitespace-normalised text | tool | ready |
-| 0.47.0 | mutation score as a gate entry | The entry establishes that a run **completed and over which mutants** before any score is read | tool | ready |
-| 0.48.0 | the gate sequence | `quality_gate` as an ordered array of named entries, each with its own exit code. Takes the three v0.36.0 handovers 0.43.0 left: two CI guards narrower than their own claims, and a load-sensitive gate test | tool | ready |
-| 0.49.0 | the red gate | The bounded procedure a unit follows when the gate goes red — text in a brief, enforcing nothing | tool | ready |
-| 0.50.0 | `next_action` recommends the delta pass | One branch on a shipped surface after a repair touching more than three sections | loop | ready |
-| 0.51.0 | what stops counting against convergence | Three things stop gating: a recorded `resolved.status`, a PASS row whose note contradicts it, and a role that does not decide the question — the last is 0.39.0's *too strict* half, a fenced list field reading its `expected_roles` | loop | needs 0.39.0 |
-| 0.52.0 | `--reconcile` | Records why the spec moved between rounds, without overwriting what the round read | loop | needs 0.40.0 |
-| 0.53.0 | repair locality | The share of a round's findings sitting in text the previous round wrote, reported and gating nothing | loop | needs 0.40.0 |
-| 0.54.0 | the spec-hash reset | `consecutive_clean` resets when the spec it is a claim about changes | loop | needs 0.40.0 |
+| 0.46.0 | mutation score as a gate entry | The entry establishes that a run **completed and over which mutants** before any score is read | tool | ready |
+| 0.47.0 | the gate sequence | `quality_gate` as an ordered array of named entries, each with its own exit code. Takes the three v0.36.0 handovers 0.43.0 left: two CI guards narrower than their own claims, and a load-sensitive gate test | tool | ready |
+| 0.48.0 | the red gate | The bounded procedure a unit follows when the gate goes red — text in a brief, enforcing nothing | tool | ready |
+| 0.49.0 | `next_action` recommends the delta pass | One branch on a shipped surface after a repair touching more than three sections | loop | ready |
+| 0.50.0 | what stops counting against convergence | Three things stop gating: a recorded `resolved.status`, a PASS row whose note contradicts it, and a role that does not decide the question — the last is 0.39.0's *too strict* half, a fenced list field reading its `expected_roles` | loop | needs 0.39.0 |
+| 0.51.0 | `--reconcile` | Records why the spec moved between rounds, without overwriting what the round read | loop | needs 0.40.0 |
+| 0.52.0 | repair locality | The share of a round's findings sitting in text the previous round wrote, reported and gating nothing | loop | needs 0.40.0 |
+| 0.53.0 | the spec-hash reset | `consecutive_clean` resets when the spec it is a claim about changes | loop | needs 0.40.0 |
 
 **`spec/candidates.md` holds what is not numbered**, in two sections that must not be confused:
 *refuted* (prototyped, did not survive, recorded with the measurement that killed it — a refuted
@@ -332,15 +331,27 @@ undecided — the divisible round, the test-file fence, a durable home for an ac
 identifier pass, class families, the evidence contract, and whether `tp review` should have a
 prior-round section at all.
 
-**Three things are refuted, not deferred**, and the third correction is the one that matters. The
-example-table lint rule died in both forms its spec named. **The unexecutable-split rule died while
-this roadmap was being written**: prototyped over this repository's 520 tasks in 26 task files, the
+**Four things are refuted, not deferred, and two of them died while this roadmap was being written.**
+The example-table lint rule died in both forms its spec named, and the corpus-replay gate is restated
+rather than withdrawn (`spec/candidates.md` carries why the reason first given for it was wrong).
+
+**The unexecutable-split rule** was prototyped over this repository's 520 tasks in 26 task files: the
 broad predicate fires on 114 (21.9%), the keyword form on 11 with ~9 false positives, and the
 `tags: [test]` form on **exactly one task, which is a false positive** — a negative-requirement task
 whose closure reads *"No production change"*. It cannot be repaired by tightening: `tags` is present
 on 185 of 520 tasks (36%) and optional, and every stronger signal (`commit_files`) exists only after
-the task closes, while `tp validate` runs at decomposition. That freed 0.44.0, which is why the rows
-above shift by one against any earlier copy of this table.
+the task closes, while `tp validate` runs at decomposition.
+
+**The contradictory-comparator rule** was prototyped over every `spec/*.md` at `v0.36.0` and
+`v0.37.0` — both states its own text called *before this cycle's repairs* — and flags **2 groups,
+both false positives, with zero true positives**; the same-section narrowing flags **zero, on
+anything**. Its claimed true positive is in no tagged state of the repository, so the one piece of
+evidence it rested on is not checkable.
+
+**Both freed a number, which is why the rows above shift by two against any earlier copy of this
+table.** Prototyping cost minutes each; had either shipped, it would have cost a cycle to discover in
+review — and the comparator rule's false positives are systematic rather than incidental, so it would
+have kept firing.
 
 **The corpus-replay gate is *restated*, not withdrawn, and the reason it was withdrawn was wrong.**
 Three specs dropped it citing a missing disposition; the disposition exists (see the correction
