@@ -179,6 +179,22 @@ independent case does not ship.
 
 ---
 
+## Fog — in scope, not yet sharp enough to state as a question
+
+**The test is whether the question can be stated precisely now, not whether it can be answered now.**
+An entry below is coarser than the table that follows it: one patch may graduate into several
+questions, or none, once the frontier reaches it. Keeping the two apart stops a half-seen problem
+from being pre-sliced into confident-looking entries it does not yet deserve.
+
+- **Claim enumeration.** The weakest step of the grounding protocol: intuition counted 11 where a spec
+  carried 17, and 10 where another carried 17 again after a second read. Whether that is a parsing
+  problem, a definition problem, or irreducibly a reading problem is not yet clear.
+- **What `UNVERIFIABLE` costs.** Zero instances across 44 grounded claims, so the verdict is designed
+  and untested. A spec resting on a field report would produce one; none has been grounded yet.
+- **Whether the emission's prohibitions are worth sweeping.** 14% of the review prompt and 12% of
+  `CLAUDE.md` steer by ban. Some are hard guardrails that earn it. No measurement separates the two,
+  and a rewrite without one is prose churn.
+
 ## Undecided — each names the decision nobody has taken
 
 | candidate | the decision |
