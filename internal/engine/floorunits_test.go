@@ -110,3 +110,29 @@ func TestUnitsRowsNumberOverEveryUnitAndCarryNoCutOne(t *testing.T) {
 	assert.Equal(t, []string{"u1", "u3"}, indexIDs,
 		"and they are the ids the index prints for the same text")
 }
+
+// TestFormatFloorUnitsIsOneTerminatedLinePerFloorUnit is §2.2's "one line per
+// floor unit" as a property of the whole rendering rather than of one row.
+//
+// The fixture's first unit is hard-wrapped across two source lines, which is
+// what makes the line count discriminating: a unit that carried its source
+// newlines would render as two lines while the row count stayed at two. Both
+// halves are required — that the source wraps, and that the unit does not.
+func TestFormatFloorUnitsIsOneTerminatedLinePerFloorUnit(t *testing.T) {
+	const text = "The round is recorded 3 times\nbefore the snapshot is written.\n\n" +
+		"A second claim carries `a span`.\n"
+	require.Contains(t, text, "3 times\nbefore",
+		"the fixture's first unit must wrap across source lines")
+
+	rows := FloorUnitRows(text)
+	require.Len(t, rows, 2)
+	require.Equal(t, "The round is recorded 3 times before the snapshot is written.", rows[0].Text,
+		"the wrap is joined with a single space, so the unit holds no newline")
+
+	out := FormatFloorUnits(rows)
+	require.True(t, strings.HasSuffix(out, "\n"), "every line is terminated")
+	lines := strings.Split(strings.TrimSuffix(out, "\n"), "\n")
+	assert.Len(t, lines, len(rows), "one line per floor unit")
+	assert.Equal(t, rows[0].String(), lines[0])
+	assert.Equal(t, rows[1].String(), lines[1])
+}
