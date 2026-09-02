@@ -359,18 +359,19 @@ func TestAuditConvergeOnFence_ImportExistsGuardPrecedesTheFence(t *testing.T) {
 //
 // This asserts the passing half only, and the reason is measured rather than
 // reasoned — which is the mistake §3 records a draft of itself making at this
-// very command. No input reaches the refusal at this sink today, for two
-// independent reasons. hoistedFields does not yet carry audit_converge_on, so
-// --extract cannot move the field at all; and — this one survives that landing —
-// the scanned-file population is resolution-preserving by construction, since a
-// task file whose blocking is hoisted into .tp/config.json and then stripped
-// from its own block resolves blocking from the project layer afterwards exactly
-// as it resolved it from the task layer before.
+// very command. It had two independent reasons when it was written; the first
+// has since been removed by config-surfaces, which added the field to
+// computeCommonPolicy, hoistedFields and mergeCommon, so --extract now does move
+// the field. The reason that survives it is the one that matters here: the
+// scanned-file population is resolution-preserving by construction, since a task
+// file whose blocking is hoisted into .tp/config.json and then stripped from its
+// own block resolves blocking from the project layer afterwards exactly as it
+// resolved it from the task layer before.
 //
-// Built and run rather than argued: with the field added to computeCommonPolicy,
-// hoistedFields and mergeCommon in a copy of this tree, `TP_UNATTENDED=1 tp
-// config --extract` over two task files carrying blocking exits 0 and hoists it,
-// while a third spec with no task file at all moves from default/all to
+// Built and run rather than argued, twice — predicted from a copy of this tree
+// before the hoist landed, and re-run here after it: `TP_UNATTENDED=1 tp config
+// --extract` over two task files carrying blocking exits 0 and hoists it, while
+// a third spec with no task file at all moves from default/all to
 // project/blocking. That third base is the refusing input, and widening the
 // population to reach it is a separate piece of work.
 func TestAuditConvergeOnFence_ExtractPassesWhatPreservesResolution(t *testing.T) {
@@ -390,10 +391,12 @@ func TestAuditConvergeOnFence_ExtractPassesWhatPreservesResolution(t *testing.T)
 	require.NoError(t, json.Unmarshal([]byte(out), &res))
 	assert.Contains(t, res["hoisted"], "review_max_rounds",
 		"the common field was hoisted, so the fence ran on a command that had work to do")
+	assert.Contains(t, res["hoisted"], "audit_converge_on",
+		"and the fenced field is one of the ones it moved, so the fence had a change to grade")
 
-	data, err := os.ReadFile(filepath.Join(dir, "a.tasks.json"))
+	config, err := os.ReadFile(filepath.Join(dir, ".tp", "config.json"))
 	require.NoError(t, err)
-	assert.Contains(t, string(data), `"audit_converge_on": "blocking"`,
+	assert.Contains(t, string(config), `"audit_converge_on": "blocking"`,
 		"and the command completed rather than aborting part-written")
 }
 
