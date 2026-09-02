@@ -466,6 +466,66 @@ func FormatFloorIndex(rows []FloorIndexRow) string {
 	return b.String()
 }
 
+// FloorUnitRow is one line of `tp ground <spec> --units`: a floor unit's
+// `unit_id` and the WHOLE canonical text that id stands for.
+//
+// There is no `text_sha` field, and that is §11 row 4b's whole content made
+// unwriteable. The row's only claim is that the hash printed on a line is the
+// sha256 of the text that follows it on the same line; a struct carrying both
+// as settable fields can express a line where they disagree, which is exactly
+// the defect row 4b's named mutant — printing a truncation — produces. Here the
+// hash is derived from the text at render time, so no caller can state one.
+//
+// The companion to the index. `FloorIndexRow` says what a disposition is owed
+// for and deliberately has nowhere to put the text; this says what each unit
+// is, in one call, so a reader never guesses where a unit ends.
+type FloorUnitRow struct {
+	ID   string // §7.2's `unit_id`: `u<N>` over every unit §2.1 produces
+	Text string // the whole canonical unit, never a prefix of it
+}
+
+// String renders one `--units` line: id, hash and the whole unit, tab-separated.
+//
+// The separator is a tab rather than a space because the third field is prose
+// full of spaces, so a reader splitting the line has to know where the text
+// begins; two tabs make "everything after the second separator" exact. The unit
+// itself cannot contain one: §2.1 step 3 collapses every whitespace run in a
+// prose block to a single space, and a table row's cells are joined with an em
+// dash.
+func (r FloorUnitRow) String() string {
+	return r.ID + "\t" + FloorTextSHA(r.Text) + "\t" + r.Text
+}
+
+// FloorUnitRows derives the `--units` rows for a spec's text, in emission order.
+//
+// `unit_id` is numbered over EVERY unit §2.1 produces, the ones the arms cut
+// included, exactly as `FloorIndexRows` numbers them — the two artifacts are
+// read side by side and join on that id, so a unit numbered over the floor
+// alone here would name a different unit there.
+//
+// Only floor units get a row. A cut unit owes no disposition (§2.2), and giving
+// the cut set its text is the cost the index exists to avoid.
+func FloorUnitRows(text string) []FloorUnitRow {
+	rows := make([]FloorUnitRow, 0)
+	for i, u := range FloorUnits(text) {
+		if !inFloor(u) {
+			continue
+		}
+		rows = append(rows, FloorUnitRow{ID: fmt.Sprintf("u%d", i+1), Text: u})
+	}
+	return rows
+}
+
+// FormatFloorUnits renders the units listing: one row per line, each terminated.
+func FormatFloorUnits(rows []FloorUnitRow) string {
+	var b strings.Builder
+	for _, r := range rows {
+		b.WriteString(r.String())
+		b.WriteString("\n")
+	}
+	return b.String()
+}
+
 // floorSectionHeadingRe recognises the `§n(.n)*` heading §7.3's anchor is named
 // after: an ATX heading of level 2 or deeper whose first token is a dotted
 // number.
