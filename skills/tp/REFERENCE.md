@@ -330,31 +330,33 @@ every write path a fenced field has. (An earlier version of this sentence named 
 and `TP_REVIEW_MAX_ROUNDS` as an env layer the fence ignores; neither variable exists in any
 non-test source, and workflow fields have no env layer to ignore.)
 
-**`audit_converge_on` is fenced by a change rule, not by field or value (v0.37.0).** The refusal
-fires when the write moves the **resolved** value — task override > project config > built-in — to
-`blocking`, and only then. So a `--project` write of `blocking` underneath a task-level `all` passes
-**for that base** (it uncovers nothing an audit reads there) — but the write lands in the layer every
-base resolves through, so it is evaluated once per **scanned task file** — every `*.tasks.json` the
-project scan reaches, and nothing else — and is refused, naming that base, as soon as one of them
-names no `audit_converge_on` and would newly resolve `blocking` from the project layer. A base with
-**no task file**, in a tree that has others, is outside the population; tp scans task files and has
-no enumeration of specs. (A tree with no task file at all is compared as one empty override, so the
-write is refused there too.) The two degraded reads differ. A task file that will not parse is
-compared as an empty override rather than dropped. An unreadable directory stops the scan's walk, so
-every base sorting after it is absent from the list — and rather than compare what it managed to
-read, the command refuses on the incomplete scan itself with **exit 3**, `tp config --extract`'s code
-for the same error from the same call; that refusal is the error envelope, not a notice, so `--quiet`
-does not erase it. An
-`import` carrying an already-resolved `blocking` forward
-passes (nothing changes); a write of `all` never trips it (`all` is the default and the only value
-that tightens the gate); and writing `all` first and `blocking` second is refused on the second
-write, so there is no walk-around. Fencing the *field* or the *value* instead would refuse every
-import an opted-in project makes, because `tp import` carries the existing block forward. The fourth
-sink, `tp config --extract`, is fenced with the other three and evaluated over **every** base the
-repository resolves: the hoist changes resolution for every context that had no task-level override,
-and it is prospective — after the hoist the next `tp init`/`tp import` writes an empty workflow block
-that resolves `blocking` from the project layer, with no fenced write ever occurring. `--force` does
-not exempt it.
+**`audit_converge_on` is fenced under `TP_UNATTENDED=1` at all four write paths, and the rule differs
+by sink (v0.37.0).** At `tp set --workflow`, `tp import` and `tp config --extract` it is a **change
+rule**: the refusal fires when the write moves the **resolved** value — task override > project
+config > built-in — to `blocking`, and only then. So an `import` carrying an already-resolved
+`blocking` forward passes (nothing changes); a write of `all` never trips it (`all` is the default
+and the only value that tightens the gate); and writing `all` first and `blocking` second is refused
+on the second write, so there is no walk-around. Fencing the *field* or the *value* at `tp import`
+instead would refuse every import an opted-in project makes, because `tp import` carries the existing
+block forward.
+
+At `tp set --workflow --project` the rule is the **value**: a `--project` write of `blocking` is
+refused whatever any single base resolves today. That write lands in the layer every base resolves
+through, and some of those bases tp cannot enumerate — a task file named with `--file` from outside
+the project root, or any base under `vendor/`, `node_modules/`, `.tp/`, `.git/` or a nested submodule,
+which the project scan skips by design and without returning an error. Three change-rule
+implementations were each falsified by a base their population did not reach, so this sink enumerates
+nothing and reads the value alone. Two consequences a unit will notice: the refusal names no base,
+because it speaks for all of them at once; and a `--project` write of `all` lands even in a tree
+holding a directory the scan cannot read, since `all` can relax nothing. A value rule costs nothing at
+this sink because `tp set` names a value rather than carrying state forward, which is the same fact
+that makes it unusable at `tp import`.
+
+The fourth sink, `tp config --extract`, is fenced with the other three and evaluated over **every**
+base the repository resolves: the hoist changes resolution for every context that had no task-level
+override, and it is prospective — after the hoist the next `tp init`/`tp import` writes an empty
+workflow block that resolves `blocking` from the project layer, with no fenced write ever occurring.
+`--force` does not exempt it.
 
 The refusal message names **all three** exits and the condition selecting each, because a unit
 reading only "refused" stops a run over an authoring error one edit fixes, while a unit that meant
