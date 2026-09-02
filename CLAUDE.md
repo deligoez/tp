@@ -333,6 +333,7 @@ guaranteed reduction in rounds.
 | 0.51.0 | `--reconcile` | Records why the spec moved between rounds, without overwriting what the round read | loop | needs 0.40.0 |
 | 0.52.0 | repair locality | The share of a round's findings sitting in text the previous round wrote, reported and gating nothing | loop | needs 0.40.0 |
 | 0.53.0 | the spec-hash reset | `consecutive_clean` resets when the spec it is a claim about changes | loop | needs 0.40.0 |
+| **0.54.0** | **`tp ground`** | Nothing checks the spec against the world, and review is *told* not to: it receives *"the spec content above is complete and authoritative"*. Written from **three pilot runs over 44 claims that found 7 defects in specs already reviewed**. One command, one prompt, five verdicts, coverage convergence; records by filename so it touches no `state.json` key. **Its number is last and its value is not** — but it is also the one release that improves with every cycle run before it, since each produces pilot data | loop | **written** |
 
 **`spec/candidates.md` holds what is not numbered**, in two sections that must not be confused:
 *refuted* (prototyped, did not survive, recorded with the measurement that killed it — a refuted
