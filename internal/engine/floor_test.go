@@ -446,3 +446,77 @@ func TestStep5TrimsAndDropsEmpties(t *testing.T) {
 		floorSplitUnits(". "), "the empty tail after the terminator is dropped")
 	assert.Empty(t, floorSplitUnits("   "), "a whitespace-only input yields no unit")
 }
+
+// TestAListMarkerIsStrippedOnlyWhenTheBlockOpensAList is §2.1 step 3's third
+// clause: strip a leading `- `, `* ` or `N. ` from every line, but only when the
+// block's first line opens a list.
+//
+// Both halves matter and they fail in opposite directions. Stripping only the
+// first line leaves each later item's marker embedded, and step 4 then emits the
+// bare strings `2.` through `9.` as units — the defect §11 row 18b names.
+// Stripping every line unconditionally deletes text from hard-wrapped prose,
+// which is §11 row 20's. The negative case here is the guard for the second;
+// row 20 asserts the consequence that makes it matter.
+func TestAListMarkerIsStrippedOnlyWhenTheBlockOpensAList(t *testing.T) {
+	tests := []struct {
+		name string
+		text string
+		want []string
+	}{
+		{
+			name: "a numbered list loses every marker",
+			text: "1. Alpha holds 1.\n2. Beta holds 2.\n3. Gamma holds 3.",
+			want: []string{"Alpha holds 1.", "Beta holds 2.", "Gamma holds 3."},
+		},
+		{
+			name: "a bulleted list loses every marker",
+			text: "- Alpha holds 1.\n- Beta holds 2.",
+			want: []string{"Alpha holds 1.", "Beta holds 2."},
+		},
+		{
+			name: "the star and plus bullets are markers too",
+			text: "* Alpha holds 1.\n+ Beta holds 2.",
+			want: []string{"Alpha holds 1.", "Beta holds 2."},
+		},
+		{
+			name: "an indented marker is still a marker",
+			text: "  - Alpha holds 1.\n  - Beta holds 2.",
+			want: []string{"Alpha holds 1.", "Beta holds 2."},
+		},
+		{
+			// The gate. The block's first line is prose, so the `2. ` on the
+			// second line is content and survives — under an unconditional
+			// strip the unit silently loses it, and the two units here become
+			// one that reads "…by input of the six built here.".
+			//
+			// The `2.` then splits the sentence, because step 4 is a terminator
+			// followed by whitespace and knows nothing about ordinals. That is
+			// the rule as written and it is what the prototype does on §7.1's
+			// own paragraph; §11 row 20 calls the result "the same single unit",
+			// which no input of this shape can produce.
+			name: "a block that does not open a list keeps a later line's marker",
+			text: "The rule was refuted by input\n2. of the six built here.",
+			want: []string{"The rule was refuted by input 2.", "of the six built here."},
+		},
+		{
+			name: "a marker needs whitespace after it",
+			text: "1.Alpha holds 1.",
+			want: []string{"1.Alpha holds 1."},
+		},
+		{
+			name: "a marker that is not leading is content",
+			text: "Alpha - beta holds 1.",
+			want: []string{"Alpha - beta holds 1."},
+		},
+		{
+			name: "a quoted list loses both prefixes",
+			text: "> - Alpha holds 1.\n> - Beta holds 2.",
+			want: []string{"Alpha holds 1.", "Beta holds 2."},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, FloorUnits(tt.text))
+		})
+	}
+}
