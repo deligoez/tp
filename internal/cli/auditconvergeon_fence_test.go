@@ -818,3 +818,109 @@ func TestAuditConvergeOnFence_TheBlockTPWritesTakesTheRefusedPath(t *testing.T) 
 	assertFenceRefused(t, stderr, code, "a document carrying the block tp itself writes")
 	assert.Equal(t, "all", fenceResolved(t, shell), "and the block stayed covered")
 }
+
+// fenceScanShell builds the two-base tree the --project sink's population is
+// measured over: a covered base whose task override is all and an uncovered
+// base whose block names nothing, with the active pointer on the covered one.
+// A --project write of blocking passes for the first and must refuse on the
+// second, so anything that drops the second base from the population turns the
+// refusal into an exit 0 — which is exactly what the degraded-scan tests below
+// observe against the unrepaired fence.
+func fenceScanShell(t *testing.T) string {
+	t.Helper()
+	dir := extractShell(t, "",
+		extractBase{"a", `{"audit_converge_on":"all"}`},
+		extractBase{"b", "{}"})
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".tp"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".tp", "local.json"),
+		[]byte(`{"active":"a.tasks.json"}`), 0o600))
+	return dir
+}
+
+// fenceEnvelope returns the last line of stderr. output.Notice and output.Error
+// share that stream, so a refusal preceded by a warning writes two lines and
+// errJSON — which parses the whole of stderr as one document — cannot read the
+// pair. The envelope is always last, because the refusal exits on writing it.
+func fenceEnvelope(stderr string) string {
+	lines := strings.Split(strings.TrimSpace(stderr), "\n")
+	return lines[len(lines)-1]
+}
+
+// TestAuditConvergeOnFence_SetProjectFailsClosedOnADegradedScan covers the two
+// ways the --project sink can be prevented from seeing a base, and the one
+// property both owe: a base the fence could not read is not thereby a base the
+// fence may pass over.
+//
+// Both were observed exiting 0 against the unrepaired fence, each beside the
+// control this file already carries — the same tree with a valid, workflow-less
+// b.tasks.json refuses. So neither subtest is asserting a property the input
+// could satisfy by accident.
+//
+// The mechanisms differ and are not interchangeable. engine.ScanProjectTaskFiles
+// returns its partial list *and* the walk error, so a guard that keeps the list
+// only when err == nil discards every base the walk did reach and silently
+// reverts the fence to the single-base form it was widened out of. A task file
+// that will not parse is the other half: dropping it is the opposite of what
+// fenceOverrideLayers does with the same error, which leaves an empty override
+// that is still compared.
+func TestAuditConvergeOnFence_SetProjectFailsClosedOnADegradedScan(t *testing.T) {
+	t.Run("a task file that will not parse", func(t *testing.T) {
+		dir := fenceScanShell(t)
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "b.tasks.json"),
+			[]byte(`{"version":1,"spec":"b.md","tasks":[],"workflow":{`), 0o600))
+
+		_, stderr, code := runTPFence(t, dir, true,
+			"set", "--workflow", "--project", "audit_converge_on=blocking")
+		assertFenceRefused(t, stderr, code, "set --project over an unparseable base")
+
+		_, statErr := os.Stat(filepath.Join(dir, ".tp", "config.json"))
+		assert.True(t, os.IsNotExist(statErr), "the refused write created no project config")
+	})
+
+	t.Run("a directory the scan cannot read", func(t *testing.T) {
+		if os.Geteuid() == 0 {
+			t.Skip("root can walk a 0000 directory, so the scan cannot be made to fail")
+		}
+		dir := fenceScanShell(t)
+		blocked := filepath.Join(dir, "zz")
+		require.NoError(t, os.Mkdir(blocked, 0o755))
+		require.NoError(t, os.Chmod(blocked, 0o000))
+		t.Cleanup(func() { _ = os.Chmod(blocked, 0o755) })
+
+		_, stderr, code := runTPFence(t, dir, true,
+			"set", "--workflow", "--project", "audit_converge_on=blocking")
+		assertFenceRefused(t, fenceEnvelope(stderr), code, "set --project over a partial scan")
+		assert.Contains(t, stderr, "project scan incomplete",
+			"and the gap that made the population partial is reported, not swallowed")
+
+		_, statErr := os.Stat(filepath.Join(dir, ".tp", "config.json"))
+		assert.True(t, os.IsNotExist(statErr), "the refused write created no project config")
+	})
+}
+
+// TestAuditConvergeOnFence_SetProjectRefusalNamesTheBase pins the one thing the
+// refusing loop knows and used to throw away. The --project fence iterates a
+// population of bases and refuses on the first that relaxes; without the name,
+// the message is byte-identical whether one base moved or fifty, and no second
+// command recovers it — `tp validate --project` reports no deviation, because
+// the project layer does not set the field yet, which is the whole reason the
+// write was refused. The unit is left running `tp config --resolved --file` once
+// per base.
+//
+// The vocabulary is the passing path's own: `tp set --workflow --project`
+// already names the shadowing task file by base name when the write lands.
+func TestAuditConvergeOnFence_SetProjectRefusalNamesTheBase(t *testing.T) {
+	dir := fenceScanShell(t)
+
+	_, stderr, code := runTPFence(t, dir, true,
+		"set", "--workflow", "--project", "audit_converge_on=blocking")
+	require.Equal(t, 2, code, "the uncovered base is refused: %s", stderr)
+
+	e := errJSON(t, stderr)
+	msg, ok := e["error"].(string)
+	require.True(t, ok, "the envelope carries a message")
+	assert.Contains(t, msg, "b.tasks.json",
+		"the refusal names the base whose resolution the write would change")
+	assert.NotContains(t, msg, "a.tasks.json",
+		"and not the covered base, which passes on its own account")
+}
