@@ -660,6 +660,12 @@ func TestSection11Row1TheThreeArmsDecideFloorMembership(t *testing.T) {
 	}{
 		{"digit only", "The gate runs 4 steps and stops at the first red one.",
 			true, false, false, true},
+		// Zero is a digit. §2.1's arm is the character range [0-9], and every
+		// other fixture here reaches it through 1-9, so narrowing the class to
+		// [1-9] passed the whole table — a mutant left in the tree by an
+		// interrupted run, and green until this row existed.
+		{"the only digit is zero", "A round that dispositioned 0 units is still a round.",
+			true, false, false, true},
 		{"backtick span only", "The flag is spelled `--record` in every prompt.",
 			false, true, false, true},
 		{"listed verb only", "the round is recorded before the snapshot is written",
