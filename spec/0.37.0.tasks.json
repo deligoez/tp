@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.37.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-02T04:33:21.293467Z",
+  "updated_at": "2026-09-02T04:43:52.621242Z",
   "workflow": {},
   "coverage": {
     "total_sections": 9,
@@ -730,7 +730,7 @@
     {
       "id": "document-the-field",
       "title": "Document the field, its fence and its decision input",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -746,11 +746,32 @@
         "## 2. `audit_converge_on`",
         "### 2.1 Why the default is `all`"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-02T04:35:20.143104Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-02T04:43:52.551243Z",
+      "closed_reason": "- SKILL.md Workflow D gains \"`audit_converge_on` — what an audit round has to be clean of\": the value table, the built-in default `all` (opposite of `review_converge_on`'s `blocking`), resolution task override \u003e project config \u003e built-in with no CLI or env layer, blocking severity `error` plus fail-closed unrecognised grades, record-time stamping, and the exit-2/exit-1 split for an illegal literal vs an illegal stored value.\n- The fence is documented on both sides: SKILL.md names all four write paths (`tp set --workflow`, its `--project` form, `tp import`, `tp config --extract`), the change-rule (a write that changes the RESOLVED value to `blocking`), that attended writes are never refused, and the escalation name `tp escalate --decision audit-converge-on`; REFERENCE.md gains a row in the `TP_UNATTENDED` fence table plus two paragraphs on the change rule and the three-exit refusal message. The pre-existing `runner`/`notify_cmd` wording at REFERENCE.md:321 and :502 is byte-unchanged.\n- Both field tables list it: REFERENCE.md's Workflow Fields table gains an `audit_converge_on` row (string, default `all`, `blocking|all`, settable and fenced), and SKILL.md's `tp set --workflow field=value` row now names it with its default and fence. The escalation enum gains `audit-converge-on` in both files, and `by_severity` on `tp audit --merge` plus the accepted-row count in `next_action` are documented in both.\n- SKILL.md carries the severity-mix one-liner beside the field's documentation, with the reason the decision needs it (per-round `by_severity` is not persisted, and the choice is made before round 1). It was RUN, not written: against `spec/.tp-review/0.35.0/audit-round-*.ndjson` it reports `Counter({'warning': 22, 'info': 17, 'error': 3})` and against `0.36.0/` `Counter({'warning': 44, 'info': 32, 'error': 15})` — both exactly the release-measured mixes (42 and 91 non-PASS rows).\n- README.md reflects the surface: the audit section names `audit_converge_on`, its default and that `blocking` is human-only and fenced at four write paths; the `tp run` paragraph adds relaxing the audit convergence policy to the fail-closed decisions; and the AX table gains rows for the policy and for `by_severity`/the accepted count.\n- Every documented behaviour was verified by running the freshly-built binary, not by reading source: attended `tp set --workflow audit_converge_on=blocking` exits 0; the same write under `TP_UNATTENDED=1` over a resolved `all` exits 2 with the message and three-exit hint quoted in the docs; a write of `all` and a write of `blocking` over an already-resolved `blocking` both pass; an illegal literal exits 2 and an illegal stored value reaching `--status`/`--record` exits 1, both with `must be one of: blocking, all`; `tp audit --merge` emits `{error 1, info 1, unrecognised 1, warning 1}`, survives `--compact` while `overlap_report` is dropped, and omits the key on an all-PASS round; `tp escalate --decision audit-converge-on` is accepted; and under `blocking` `next_action` renders `3 accepted rows carried forward — run the next audit round: …` then `converged over 3 accepted rows — implementation verified, proceed to release`.\n- Quality gate green: `./scripts/check-suite-state.sh` 0, `golangci-lint run` 0 issues, `./scripts/check-deadcode.sh` 0, `./scripts/check-complexity.sh` 0. `gofmt -l internal/ cmd/` is empty (no Go changed).\nOut of scope: SKILL.md:152-153's stale \"tp has no audit-side equivalent of `review_converge_on` yet\" is left for the `reversal-sweep` task, per the brief.",
+      "gate_passed_at": "2026-09-02T04:43:52.551243Z",
+      "commit_sha": "f15c13c6092e2b6d6efc221630481ce2a05f225f",
+      "commit_shas": [
+        "f15c13c6092e2b6d6efc221630481ce2a05f225f",
+        "b31d3729f58b6deafa3e82b5e46df6885c4279e8",
+        "704de7cfec7a639bb2cf839061b90a97bcc6ac3d",
+        "4a374fe6cc987e2ee6362b04a6be8cbaceb89b76",
+        "fa9d969378331985110c850c83eb171e7f93a1e2",
+        "174b1347cfb845b39adaf0a07e2474d3c88a4ae7",
+        "48b0a301d416af26737a2319e325b4e4d619377a",
+        "79503764006bdb66cc36953f9f0fbd03d23bc66b",
+        "19492addc316b89b629d2c4aae51e5b90c2b5ef1",
+        "a27c44a4dec9286a7146c87d56bf1fadd6b24fa8",
+        "fcda98cf8f1df2067c9790b5bb2d32f9c18f093a",
+        "4f914fc2844a64e88fb1aa27b6ba0791d06e0c45",
+        "91442c2d46ae33f2b19105a365bb01ab766d3ebd"
+      ],
+      "commit_files": [
+        "README.md",
+        "skills/tp/REFERENCE.md",
+        "skills/tp/SKILL.md"
+      ]
     }
   ]
 }
