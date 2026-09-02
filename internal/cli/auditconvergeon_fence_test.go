@@ -105,7 +105,21 @@ func fenceImportDoc(t *testing.T, dir, workflow string) string {
 // a write and §3 fences only writes.
 func fenceResolved(t *testing.T, dir string) string {
 	t.Helper()
-	out, stderr, code := runTPFence(t, dir, false, "config", "--resolved")
+	return fenceResolvedBase(t, dir, "")
+}
+
+// fenceResolvedBase is the same reading addressed at one base rather than at
+// the active pointer: taskFile names the base's task file, which need not
+// exist. A --file naming a task file that is absent discovers nothing, so the
+// override layer is empty and the project layer alone decides — which is
+// exactly how §3's third spec, the base with no task file, resolves.
+func fenceResolvedBase(t *testing.T, dir, taskFile string) string {
+	t.Helper()
+	args := []string{"config", "--resolved"}
+	if taskFile != "" {
+		args = append(args, "--file", taskFile)
+	}
+	out, stderr, code := runTPFence(t, dir, false, args...)
 	require.Equal(t, 0, code, "config --resolved: %s", stderr)
 	var res map[string]any
 	require.NoError(t, json.Unmarshal([]byte(out), &res))
@@ -351,53 +365,244 @@ func TestAuditConvergeOnFence_ImportExistsGuardPrecedesTheFence(t *testing.T) {
 	assertFenceRefused(t, stderr, code, "the same document over a zero-task shell")
 }
 
-// TestAuditConvergeOnFence_ExtractPassesWhatPreservesResolution pins the fourth
-// write path. tp config --extract runs §3's change rule over the population it
-// already reads: each scanned task file's own override, resolved over the
-// project block before and after the merge, with the hoisted fields stripped
-// from the task layer exactly as the thinning strips them.
-//
-// This asserts the passing half only, and the reason is measured rather than
-// reasoned — which is the mistake §3 records a draft of itself making at this
-// very command. It had two independent reasons when it was written; the first
-// has since been removed by config-surfaces, which added the field to
-// computeCommonPolicy, hoistedFields and mergeCommon, so --extract now does move
-// the field. The reason that survives it is the one that matters here: the
-// scanned-file population is resolution-preserving by construction, since a task
-// file whose blocking is hoisted into .tp/config.json and then stripped from its
-// own block resolves blocking from the project layer afterwards exactly as it
-// resolved it from the task layer before.
-//
-// Built and run rather than argued, twice — predicted from a copy of this tree
-// before the hoist landed, and re-run here after it: `TP_UNATTENDED=1 tp config
-// --extract` over two task files carrying blocking exits 0 and hoists it, while
-// a third spec with no task file at all moves from default/all to
-// project/blocking. That third base is the refusing input, and widening the
-// population to reach it is a separate piece of work.
-func TestAuditConvergeOnFence_ExtractPassesWhatPreservesResolution(t *testing.T) {
+// extractBase names one base in an --extract fixture: a spec, plus a task file
+// carrying workflow when workflow is non-empty. A base whose workflow text is
+// empty gets a spec and no task file at all — §3's third spec, and the base the
+// scanned-file population cannot see.
+type extractBase struct {
+	name     string
+	workflow string
+}
+
+// extractShell builds an --extract fixture: one spec per base, a task file for
+// each base that names a workflow block, and — when projectWorkflow is
+// non-empty — a .tp/config.json carrying it.
+func extractShell(t *testing.T, projectWorkflow string, bases ...extractBase) string {
+	t.Helper()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
-	for _, base := range []string{"a", "b"} {
-		require.NoError(t, os.WriteFile(filepath.Join(dir, base+".md"),
+	for _, b := range bases {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, b.name+".md"),
 			[]byte("# S\n\n## 1. Setup\n\nDo the thing.\n"), 0o600))
-		require.NoError(t, os.WriteFile(filepath.Join(dir, base+".tasks.json"),
-			[]byte(`{"version":1,"spec":"`+base+`.md","tasks":[],"workflow":`+
-				`{"audit_converge_on":"blocking","review_max_rounds":7}}`), 0o600))
+		if b.workflow == "" {
+			continue
+		}
+		require.NoError(t, os.WriteFile(filepath.Join(dir, b.name+".tasks.json"),
+			[]byte(`{"version":1,"spec":"`+b.name+`.md","tasks":[],"workflow":`+b.workflow+`}`), 0o600))
 	}
+	if projectWorkflow != "" {
+		require.NoError(t, os.Mkdir(filepath.Join(dir, ".tp"), 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, ".tp", "config.json"),
+			[]byte(`{"workflow":`+projectWorkflow+`}`), 0o600))
+	}
+	return dir
+}
 
-	out, stderr, code := runTPFence(t, dir, true, "config", "--extract")
-	require.Equal(t, 0, code, "the hoist preserves what every scanned file resolves: %s", stderr)
-	var res map[string]any
-	require.NoError(t, json.Unmarshal([]byte(out), &res))
-	assert.Contains(t, res["hoisted"], "review_max_rounds",
-		"the common field was hoisted, so the fence ran on a command that had work to do")
-	assert.Contains(t, res["hoisted"], "audit_converge_on",
-		"and the fenced field is one of the ones it moved, so the fence had a change to grade")
-
-	config, err := os.ReadFile(filepath.Join(dir, ".tp", "config.json"))
+// extractTreeState returns the bytes of every file --extract writes: each task
+// file it would thin, and the project config it would merge into. A refusal
+// asserted only as an exit code cannot tell a sink that refuses from one that
+// refuses after writing, and the second is the mutant this helper exists to
+// kill.
+func extractTreeState(t *testing.T, dir string) map[string]string {
+	t.Helper()
+	state := make(map[string]string)
+	entries, err := os.ReadDir(dir)
 	require.NoError(t, err)
-	assert.Contains(t, string(config), `"audit_converge_on": "blocking"`,
-		"and the command completed rather than aborting part-written")
+	for _, e := range entries {
+		if !strings.HasSuffix(e.Name(), ".tasks.json") {
+			continue
+		}
+		data, readErr := os.ReadFile(filepath.Join(dir, e.Name()))
+		require.NoError(t, readErr)
+		state[e.Name()] = string(data)
+	}
+	data, readErr := os.ReadFile(filepath.Join(dir, ".tp", "config.json"))
+	if readErr == nil {
+		state[".tp/config.json"] = string(data)
+	} else {
+		require.True(t, os.IsNotExist(readErr), "the project config is either readable or absent")
+	}
+	return state
+}
+
+// extractBlockingBlock is the task-level block §3 measured: the opt-in this
+// release exists for, plus one unfenced field so the hoist has work to do
+// either way.
+const extractBlockingBlock = `{"audit_converge_on":"blocking","review_max_rounds":7}`
+
+// TestAuditConvergeOnFence_ExtractEvaluatesEveryBase is §3's measured
+// counterexample, and it was run against the unwidened fence first and observed
+// passing there before a line of the fix was written: two task files carrying
+// blocking and one spec with no task file, over which `TP_UNATTENDED=1 tp config
+// --extract` exited 0, hoisted audit_converge_on, and moved the third spec from
+// default/all to project/blocking.
+//
+// The population §3 requires is every base the repository resolves. It is
+// implemented as the scanned overrides plus ONE empty override rather than one
+// per spec, because engine.ResolveWorkflowLayers is a pure function of the two
+// layers it is handed — no base contributes anything else — so every base
+// without a task-level override resolves identically and enumerating the
+// repository's specs would run the same comparison once per spec.
+//
+// The empty override is appended unconditionally, and the third subtest is
+// where that decision is paid for and asserted rather than left implicit.
+func TestAuditConvergeOnFence_ExtractEvaluatesEveryBase(t *testing.T) {
+	t.Run("a base with no task file", func(t *testing.T) {
+		dir := extractShell(t, "",
+			extractBase{"a", extractBlockingBlock},
+			extractBase{"b", extractBlockingBlock},
+			extractBase{"c", ""})
+		require.Equal(t, "all", fenceResolvedBase(t, dir, "c.tasks.json"),
+			"the third spec resolves the default before the hoist")
+		before := extractTreeState(t, dir)
+
+		_, stderr, code := runTPFence(t, dir, true, "config", "--extract")
+		assertFenceRefused(t, stderr, code, "config --extract")
+
+		assert.Equal(t, "all", fenceResolvedBase(t, dir, "c.tasks.json"),
+			"and the base with no task file still resolves it")
+		assert.Equal(t, before, extractTreeState(t, dir),
+			"the refused hoist reached neither the project config nor a task file")
+	})
+
+	// §3: "--force does not exempt it; it is not tp import --force, which is a
+	// named unattended decision, and it must not become one silently." The
+	// first half of this subtest is what stops it passing green on the wrong
+	// guard: without --force the same tree exits 4 at the exists-guard, which
+	// an assertion phrased only as "refused" cannot tell from the fence's 2.
+	t.Run("--force is not an exemption", func(t *testing.T) {
+		dir := extractShell(t, `{"review_clean_rounds":3}`,
+			extractBase{"a", extractBlockingBlock},
+			extractBase{"b", extractBlockingBlock},
+			extractBase{"c", ""})
+		before := extractTreeState(t, dir)
+
+		_, stderr, code := runTPFence(t, dir, true, "config", "--extract")
+		e := errJSON(t, stderr)
+		require.Equal(t, 4, code, "without --force the exists-guard answers first: %s", stderr)
+		msg, ok := e["error"].(string)
+		require.True(t, ok, "the envelope carries a message")
+		assert.Contains(t, msg, "already exists", "and it is the exists-guard that answered")
+		assert.NotContains(t, msg, "audit_converge_on",
+			"so the fence was never reached and cannot be what refused")
+
+		_, stderr, code = runTPFence(t, dir, true, "config", "--extract", "--force")
+		assertFenceRefused(t, stderr, code, "config --extract --force")
+
+		assert.Equal(t, "all", fenceResolvedBase(t, dir, "c.tasks.json"),
+			"the base with no task file still resolves the default")
+		assert.Equal(t, before, extractTreeState(t, dir),
+			"and --force reached no file either")
+	})
+
+	// The cost of appending the empty override unconditionally, stated as an
+	// assertion rather than left to be discovered. Here every base already has
+	// a task file and every one of them carries blocking, so the hoist changes
+	// nothing that resolves today — and it is still refused.
+	//
+	// That is deliberate. Whether a spec currently lacks a task file is a
+	// property of the tree's shape at this instant, not of the write, and §3's
+	// prospective case is exactly what that shape hides: after the hoist the
+	// next tp init or tp import writes a task file whose empty workflow block
+	// resolves blocking from the project layer, and the later import compares
+	// equal and passes. A fence conditioned on the shape would wave this
+	// through; the routes out are an attended operator or tp escalate
+	// --decision audit-converge-on.
+	t.Run("no base without a task file, and still refused", func(t *testing.T) {
+		dir := extractShell(t, "",
+			extractBase{"a", extractBlockingBlock},
+			extractBase{"b", extractBlockingBlock})
+		before := extractTreeState(t, dir)
+
+		_, stderr, code := runTPFence(t, dir, true, "config", "--extract")
+		assertFenceRefused(t, stderr, code, "config --extract over a fully covered tree")
+		assert.Equal(t, before, extractTreeState(t, dir), "and it reached no file")
+	})
+}
+
+// TestAuditConvergeOnFence_ExtractPassesWhatPreservesResolution pins the other
+// direction at the fourth write path, because a fence that refused every
+// --extract would satisfy every assertion above while shipping a command nobody
+// can run. Both halves complete the hoist rather than merely exiting 0, and the
+// second runs under --force, so "--force is not an exemption" above cannot be
+// satisfied by a --force that is simply always refused.
+func TestAuditConvergeOnFence_ExtractPassesWhatPreservesResolution(t *testing.T) {
+	t.Run("a hoist that does not move the fenced field", func(t *testing.T) {
+		dir := extractShell(t, "",
+			extractBase{"a", `{"review_max_rounds":7}`},
+			extractBase{"b", `{"review_max_rounds":7}`},
+			extractBase{"c", ""})
+
+		out, stderr, code := runTPFence(t, dir, true, "config", "--extract")
+		require.Equal(t, 0, code, "the hoist moves no fenced field: %s", stderr)
+		var res map[string]any
+		require.NoError(t, json.Unmarshal([]byte(out), &res))
+		assert.Contains(t, res["hoisted"], "review_max_rounds",
+			"the common field was hoisted, so the fence ran on a command that had work to do")
+		assert.NotContains(t, res["hoisted"], "audit_converge_on",
+			"and the fenced field was not among the ones it moved")
+		assert.Equal(t, "all", fenceResolvedBase(t, dir, "c.tasks.json"),
+			"so no base resolves the field differently")
+	})
+
+	// --dry-run writes nothing, so it changes no resolved value and §3's rule
+	// has nothing to refuse — which is why the fence sits past the --dry-run
+	// return. That placement is load-bearing and was previously unasserted:
+	// a copy of this tree with the fence moved one block earlier turned the
+	// read-only preview into an exit 2 while every other test in this file
+	// stayed green, and under tp run that stops a run over a *read*. The
+	// closing half is what makes this subtest about --dry-run rather than
+	// about a tree nothing refuses: the same tree, the same environment, no
+	// --dry-run, is refused.
+	t.Run("--dry-run previews a hoist the fence would refuse", func(t *testing.T) {
+		dir := extractShell(t, "",
+			extractBase{"a", extractBlockingBlock},
+			extractBase{"b", extractBlockingBlock},
+			extractBase{"c", ""})
+		before := extractTreeState(t, dir)
+
+		out, stderr, code := runTPFence(t, dir, true, "config", "--extract", "--dry-run")
+		require.Equal(t, 0, code, "a preview writes nothing, so it relaxes nothing: %s", stderr)
+		var res map[string]any
+		require.NoError(t, json.Unmarshal([]byte(out), &res))
+		assert.Equal(t, true, res["dry_run"], "and it reports itself as the preview")
+		assert.Contains(t, res["hoisted"], "audit_converge_on",
+			"the preview still names the fenced field it would move")
+		assert.Equal(t, before, extractTreeState(t, dir), "and it reached no file")
+		assert.Equal(t, "all", fenceResolvedBase(t, dir, "c.tasks.json"),
+			"so no base resolves differently after a preview")
+
+		_, stderr, code = runTPFence(t, dir, true, "config", "--extract")
+		assertFenceRefused(t, stderr, code, "the same tree without --dry-run")
+	})
+
+	// The one hoist of blocking that changes nothing for any base: the project
+	// layer already resolves it, so the base with no task file reads blocking
+	// before the hoist and blocking after it.
+	t.Run("a hoist of blocking beneath a project layer that already resolves it", func(t *testing.T) {
+		dir := extractShell(t, `{"audit_converge_on":"blocking"}`,
+			extractBase{"a", extractBlockingBlock},
+			extractBase{"b", extractBlockingBlock},
+			extractBase{"c", ""})
+		require.Equal(t, "blocking", fenceResolvedBase(t, dir, "c.tasks.json"),
+			"every base is already opted in before the hoist")
+
+		out, stderr, code := runTPFence(t, dir, true, "config", "--extract", "--force")
+		require.Equal(t, 0, code, "the hoist changes no resolved value: %s", stderr)
+		var res map[string]any
+		require.NoError(t, json.Unmarshal([]byte(out), &res))
+		assert.Contains(t, res["hoisted"], "audit_converge_on",
+			"the fenced field is one of the ones it moved, so the fence had a change to grade")
+
+		config, err := os.ReadFile(filepath.Join(dir, ".tp", "config.json"))
+		require.NoError(t, err)
+		assert.Contains(t, string(config), `"audit_converge_on": "blocking"`,
+			"and the command completed rather than aborting part-written")
+		assert.NotContains(t, extractTreeState(t, dir)["a.tasks.json"], "audit_converge_on",
+			"the thinning ran too")
+		assert.Equal(t, "blocking", fenceResolvedBase(t, dir, "c.tasks.json"),
+			"and every base still resolves what it resolved before")
+	})
 }
 
 // TestAuditConvergeOnFence_ImportComparesItsOwnTarget pins which file the
