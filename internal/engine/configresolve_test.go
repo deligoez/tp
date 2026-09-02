@@ -111,6 +111,56 @@ func TestResolveWorkflowLayers_AuditConvergeOn(t *testing.T) {
 	assert.Equal(t, "bogus", wf.AuditConvergeOn, "an invalid stored value resolves raw, not clamped")
 }
 
+// TestResolveWorkflowLayers_AuditConvergeOnConsultsExactlyTwoLayers covers
+// v0.37.0 §7 row 2: the resolver consults task override > project config >
+// built-in and nothing else. The mutant that must fail it is adding an
+// environment layer to ResolveWorkflowLayers, at any rank.
+//
+// The environment subtest is the half that carries the row. Asserting a
+// resolved value with no TP_AUDIT_CONVERGE_ON set is a tautology — it passes
+// whether or not such a layer exists — so the variable is set here to the value
+// neither real layer names, and every case then answers with what the two real
+// layers say. pickString walks its list in order and falls through to the
+// default only when every entry is nil, so an environment entry inserted
+// anywhere in that list wins the third case; the first two pin the ranks above
+// it as well. The precedence subtest deliberately leaves the environment alone,
+// which is what makes the pair discriminating: under the mutant it stays green
+// while the environment subtest reddens.
+func TestResolveWorkflowLayers_AuditConvergeOnConsultsExactlyTwoLayers(t *testing.T) {
+	all := ptr(AuditConvergeOnAll)
+	blocking := ptr(AuditConvergeOnBlocking)
+
+	t.Run("the two layers rank", func(t *testing.T) {
+		wf := ResolveWorkflowLayers(
+			&model.WorkflowOverride{AuditConvergeOn: all},
+			&model.WorkflowOverride{AuditConvergeOn: blocking},
+		)
+		assert.Equal(t, AuditConvergeOnAll, wf.AuditConvergeOn, "task override beats project config")
+
+		wf = ResolveWorkflowLayers(&model.WorkflowOverride{}, &model.WorkflowOverride{AuditConvergeOn: blocking})
+		assert.Equal(t, AuditConvergeOnBlocking, wf.AuditConvergeOn, "project config beats the built-in")
+
+		wf = ResolveWorkflowLayers(&model.WorkflowOverride{}, &model.WorkflowOverride{})
+		assert.Equal(t, AuditConvergeOnAll, wf.AuditConvergeOn, "the built-in answers when neither layer sets it")
+	})
+
+	t.Run("there is no environment layer", func(t *testing.T) {
+		t.Setenv("TP_AUDIT_CONVERGE_ON", AuditConvergeOnBlocking)
+
+		wf := ResolveWorkflowLayers(
+			&model.WorkflowOverride{AuditConvergeOn: all},
+			&model.WorkflowOverride{AuditConvergeOn: all},
+		)
+		assert.Equal(t, AuditConvergeOnAll, wf.AuditConvergeOn, "the environment does not outrank the task override")
+
+		wf = ResolveWorkflowLayers(&model.WorkflowOverride{}, &model.WorkflowOverride{AuditConvergeOn: all})
+		assert.Equal(t, AuditConvergeOnAll, wf.AuditConvergeOn, "the environment does not outrank the project config")
+
+		wf = ResolveWorkflowLayers(&model.WorkflowOverride{}, &model.WorkflowOverride{})
+		assert.Equal(t, AuditConvergeOnAll, wf.AuditConvergeOn, "the environment does not displace the built-in")
+	})
+}
+
 func TestResolveEffectiveWorkflow_SparseMerge(t *testing.T) {
 	root := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
