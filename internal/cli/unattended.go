@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/deligoez/tp/internal/engine"
 	"github.com/deligoez/tp/internal/model"
@@ -61,8 +60,10 @@ func refuseUnattendedCommandField(field string) {
 type fenceSink int
 
 const (
-	// fenceSinkSet is tp set --workflow and its --project form: the write
-	// names the value itself.
+	// fenceSinkSet is tp set --workflow: the write names the value itself.
+	// Its --project form does not use this sink — that layer is refused on
+	// the value alone and carries its own message, because it has no single
+	// resolved value to name.
 	fenceSinkSet fenceSink = iota
 	// fenceSinkImport is tp import, the one sink whose input the unit can
 	// re-author into a document that resolves the same value — which is why
@@ -94,8 +95,8 @@ func auditConvergeOnUnintendedExit(sink fenceSink, resolved string) string {
 			`do not run this hoist: --extract moves every field the task files share in one write, so no form of it lands while audit_converge_on still resolves %s`,
 			resolved)
 	}
-	// fenceSinkSet, which is also the zero value: tp set --workflow and its
-	// --project form both name the literal, so the write is the change.
+	// fenceSinkSet, which is also the zero value: tp set --workflow names
+	// the literal, so the write is the change.
 	return fmt.Sprintf(
 		`do not make this write: it names the value itself, so no form of it lands while audit_converge_on still resolves %s`,
 		resolved)
@@ -146,8 +147,8 @@ const (
 // a refusal at a sink that has not yet decided anything.
 //
 // It speaks for the active pointer alone, which is the whole of what the
-// task-level write can change. The --project form does not read it: that write
-// lands under every base, and the bases it is compared over come from the scan.
+// task-level write can change. The --project form does not call it at all: that
+// write lands under every base, so no single base's layers decide it.
 func fenceOverrideLayers() (task, project model.WorkflowOverride) {
 	if path, err := engine.DiscoverTaskFile(".", flagFile); err == nil {
 		if o, loadErr := engine.LoadTaskWorkflowOverride(path); loadErr == nil {
@@ -157,115 +158,83 @@ func fenceOverrideLayers() (task, project model.WorkflowOverride) {
 	return task, engine.ProjectWorkflowOverride()
 }
 
-// fenceAuditConvergeOnSet applies §3's change rule to a tp set --workflow write
-// of audit_converge_on, at whichever layer the command addresses.
+// refuseUnattendedAuditConvergeOnProject reports a tp set --workflow --project
+// write of blocking under TP_UNATTENDED and exits 2.
+//
+// It is separate from refuseUnattendedAuditConvergeOn because that message
+// names the resolved value the write moves off, and this sink has no single
+// such value: the write lands under every base at once, and the bases it moves
+// include ones tp cannot enumerate. A message saying "from all to blocking"
+// here would report one base's resolution as if it were the tree's.
+//
+// The unintended-case exit is the phrase tp set's other layer already uses —
+// the write names the value itself, so no form of it lands — carrying the scope
+// the value rule actually has, which is every tree rather than this one.
+func refuseUnattendedAuditConvergeOnProject(what string) {
+	output.Error(ExitUsage,
+		fmt.Sprintf("%s writes blocking into the layer every base resolves through, including bases tp cannot enumerate, which relaxes the audit gate and is a user-approved decision refused under TP_UNATTENDED",
+			what),
+		fmt.Sprintf("if you did not mean to change it, do not make this write: blocking at the project layer is refused whatever any single base resolves today; if you did, escalate: tp escalate --decision %s --evidence <what you found>",
+			escalationDecision("audit_converge_on")))
+	os.Exit(ExitUsage)
+}
+
+// fenceAuditConvergeOnSet applies §3's fence to a tp set --workflow write of
+// audit_converge_on, at whichever layer the command addresses. The two layers
+// get different rules, and that asymmetry is the point rather than an
+// inconsistency:
+//
+//   - The task-level form writes one base's own top layer. That base is the
+//     whole of what the write can change, so single-base reasoning is correct
+//     there and the rule is §3's change rule, resolved through §2's precedence.
+//
+//   - The --project form writes the layer every base resolves through,
+//     including bases tp cannot enumerate. A write of blocking is refused on
+//     its VALUE, whatever any single base resolves today.
+//
+// The value rule replaced three attempts at a per-base change rule here, each
+// falsified by a base the population could not reach: a --file naming a task
+// file outside the project root, and any base under vendor/, node_modules/,
+// .tp/, .git/ or a nested submodule, which engine.ScanProjectTaskFiles skips by
+// design and without returning an error. The discriminating pair was the same
+// base with the same content in two places — refused in spec/, exit 0 in
+// vendor/. A fence that must enumerate its population cannot be correct over a
+// population it cannot enumerate, so this one enumerates nothing.
+//
+// The other three sinks keep the change rule, because the sinks have different
+// shapes and not because the rule is better. tp import carries the existing
+// block forward, so a value rule there would refuse every import a project
+// makes once it resolves blocking — the Workflow A step 6 deadlock §3
+// documents. tp config --extract already appends an unconditional empty
+// override, which makes it a value rule in effect, and its scan is its own
+// input rather than only the fence's. tp set is the sink that NAMES A VALUE
+// rather than carrying state forward, which is why a value rule costs nothing
+// here: there is no document to re-author and nothing carried in.
+//
+// A write of all never trips it at either layer, since all is the default and
+// the only value that tightens the gate. That is also why no scan runs: a
+// degraded scan used to exit 3 on a write of all, which can relax nothing.
 //
 // It is string-shaped and its call sites sit before the type dispatch, which is
 // the point §3 makes about the existing numeric fence: fenceWorkflowWrite takes
 // a float64 and every one of its call sites runs after the literal has been
 // parsed as a number, so widening it for a string field ships a silent no-op.
-//
-// The comparison is resolved-before against resolved-after rather than the
-// literal against the layer it was written to. That is what makes a --project
-// write of blocking beneath a task override of all pass (§7 row 13).
-//
-// The two layers are evaluated over different populations, because they do not
-// write the same thing. The task-level form writes the top layer of the one base
-// it discovers, so that base is the whole of what it can change and it stays
-// single-base. The --project form writes the layer every base resolves through,
-// so it is evaluated per base over the bases the scan enumerates. Row 13's
-// carve-out is per base rather than global — a base whose task override of all
-// shields it passes on its own account, while the rest are still compared.
-//
-// The population is the scanned overrides and nothing else. Seeding it with the
-// discovered override as well was measured refusing a tree in which nothing
-// moves: two bases both carrying all and no .tp/local.json make discovery
-// ambiguous, so the seed is the ZERO override — an entry matching no file, which
-// resolves the default and therefore relaxes against any project write of
-// blocking. .tp/local.json is git-ignored, so that is the state of every fresh
-// clone, CI checkout and worktree of a repository holding more than one task
-// file. The seed never carried a base the scan does not: the file discovery
-// finds is a scanned task file too.
-//
-// The population deliberately does NOT carry --extract's unconditional empty
-// override, and row 13 is the reason: measured, appending it refuses a
-// --project write of blocking into a tree whose only base carries a task
-// override of all, which is the write that row requires to pass. The single
-// empty override below is the zero-file case alone, where no base shields
-// anything and there is nothing else to compare. The cost is that a base with no
-// task file at all, in a tree that has other task files, is outside this
-// population — tp scans task files and has no enumeration of specs, so such a
-// base has no shape this fence can see.
-//
-// A degraded read does not shrink the population, because the command refuses
-// rather than comparing what it managed to read. engine.ScanProjectTaskFiles
-// returns its partial list *and* the walk error, and filepath.WalkDir stops at
-// the first error handed back to it, so every base sorting after an unreadable
-// directory is simply absent — and a base the fence cannot see cannot refuse.
-// Measured against the earlier warn-and-proceed form: a 0000 directory sorting
-// before the task files landed the write at exit 0, and under --quiet
-// output.Notice returned early, so the gap was neither fenced nor reported. A
-// task file that will not parse is the other case and is still compared — it
-// contributes an empty override, exactly as fenceOverrideLayers does with the
-// same error — so the two degraded reads are not treated alike.
-//
-// The refusal names the base it speaks for. The loop is per base, so a message
-// that named none would be byte-identical whether one base moved or fifty, and
-// no second command recovers it — tp validate --project reports no deviation
-// here, because the project layer does not set the field yet, which is the
-// whole reason the write was refused.
 func fenceAuditConvergeOnSet(what, value string, layer auditConvergeOnLayer) {
 	if !engine.Unattended() {
 		return
 	}
-	task, project := fenceOverrideLayers()
-	if layer == auditConvergeOnTaskLayer {
-		before := engine.ResolveWorkflowLayers(&task, &project).AuditConvergeOn
-		task.AuditConvergeOn = &value
-		after := engine.ResolveWorkflowLayers(&task, &project).AuditConvergeOn
-		if engine.AuditConvergeOnRelaxes(before, after) {
-			refuseUnattendedAuditConvergeOn(what, fenceSinkSet, before)
+	if layer == auditConvergeOnProjectLayer {
+		if value == engine.AuditConvergeOnBlocking {
+			refuseUnattendedAuditConvergeOnProject(what)
 		}
 		return
 	}
-	afterProject := project
-	afterProject.AuditConvergeOn = &value
-	files, scanErr := engine.ScanProjectTaskFiles(engine.ProjectRoot("."))
-	if scanErr != nil {
-		// ExitFile rather than this fence's own ExitUsage, because an
-		// unreadable path is not a refused decision: there is no approval
-		// that would make it listable and nothing for tp escalate to
-		// record, so a unit sent to escalate here would stop a run over a
-		// chmod. tp config --extract exits ExitFile on this identical error
-		// from this identical call. output.Error writes on every stream
-		// mode, --quiet included, which output.Notice does not.
-		output.Error(ExitFile,
-			fmt.Sprintf("project scan incomplete: %v; audit_converge_on cannot be compared over every base", scanErr),
-			"make that path readable, or move it outside the project root, then re-run")
-		os.Exit(ExitFile)
-	}
-	population := make([]model.WorkflowOverride, 0, len(files))
-	bases := make([]string, 0, len(files))
-	for _, f := range files {
-		o, _ := engine.LoadTaskWorkflowOverride(f)
-		population = append(population, o)
-		bases = append(bases, filepath.Base(f))
-	}
-	if len(population) == 0 {
-		population = append(population, model.WorkflowOverride{})
-		bases = append(bases, "")
-	}
-	for i := range population {
-		before := engine.ResolveWorkflowLayers(&population[i], &project).AuditConvergeOn
-		after := engine.ResolveWorkflowLayers(&population[i], &afterProject).AuditConvergeOn
-		if engine.AuditConvergeOnRelaxes(before, after) {
-			attempt := what
-			if bases[i] != "" {
-				attempt = fmt.Sprintf("%s, resolved through %s,", what, bases[i])
-			}
-			refuseUnattendedAuditConvergeOn(attempt, fenceSinkSet, before)
-			return
-		}
+	task, project := fenceOverrideLayers()
+	before := engine.ResolveWorkflowLayers(&task, &project).AuditConvergeOn
+	task.AuditConvergeOn = &value
+	after := engine.ResolveWorkflowLayers(&task, &project).AuditConvergeOn
+	if engine.AuditConvergeOnRelaxes(before, after) {
+		refuseUnattendedAuditConvergeOn(what, fenceSinkSet, before)
 	}
 }
 
