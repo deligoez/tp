@@ -151,7 +151,13 @@ func floorTableRowUnit(line string) string {
 }
 
 // floorCanonicalise is §2.1 step 3 for a prose block: strip a leading `> ` from
-// every line, then join the block's lines with a single space.
+// every line, then join the block's lines with a single space and collapse
+// whitespace runs to one.
+//
+// The collapse is not cosmetic. `text_sha` (§7.2) is the sha256 of exactly this
+// string, so a surviving double space is a hash tp and a reader compute
+// differently — and one is produced by ordinary markdown, where a `>` alone on a
+// line canonicalises to nothing and leaves a gap where it was.
 //
 // The blockquote prefix is stripped per line rather than per block because this
 // repository hard-wraps quoted prose, so every line of a quote carries the
@@ -163,7 +169,8 @@ func floorCanonicalise(lines []string) string {
 	for _, ln := range lines {
 		stripped = append(stripped, strings.TrimSpace(floorBlockquoteRe.ReplaceAllString(ln, "")))
 	}
-	return strings.TrimSpace(strings.Join(stripped, " "))
+	joined := floorWhitespaceRe.ReplaceAllString(strings.Join(stripped, " "), " ")
+	return strings.TrimSpace(joined)
 }
 
 // floorUnitsFromBlock is the seam §2.1 steps 3 to 5 fill in — canonicalising a
