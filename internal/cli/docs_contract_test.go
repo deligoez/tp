@@ -337,11 +337,19 @@ func docSectionBody(t *testing.T, doc, heading string) string {
 //
 // The dividing line is SCOPE, not polarity. Contains and a windowed NotContains
 // are both local assertions inside an unbounded text, so the complement is free
-// and a negation simply goes there. Only two shapes are immune: a subject that
-// is the whole of a BOUNDED artifact (assert.NotContains over
-// engine.DivergenceHint, where there is no elsewhere), and a claim DERIVED from
-// the artifact rather than matched in it (ci_gate_test.go, and the eight-tree
-// fence test named above).
+// and a negation simply goes there. Two shapes survive it: a subject that is
+// the whole of a BOUNDED artifact (assert.NotContains over
+// engine.DivergenceHint, where there is no elsewhere), and a claim DERIVED on
+// BOTH SIDES from the artifact rather than matched in it — the eight-tree fence
+// test named above, which runs the commands and reads exit codes and resolved
+// values back.
+//
+// Not ci_gate_test.go, which an earlier draft of this comment cited and which
+// an auditor caught: it derives the step list from .tp/config.json and then
+// asserts Contains over the whole of ci.yml, so only the left side is derived.
+// spec/0.46.0.md §7.2 records that shape measured — `if: false` on a step, or
+// continue-on-error: true, leaves every guard green. No claim is made here
+// about shapes nobody has enumerated.
 //
 // So what the guards above catch is a document that stops saying what it says
 // today, or drifts from the shipped constant at the matched site. What they do
