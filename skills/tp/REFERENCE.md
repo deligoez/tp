@@ -750,10 +750,12 @@ take NDJSON inputs only.
 
 ## Honest Convergence Signals (v0.33.0)
 
-Four fields report *what* an audit or review round found without changing what the gate counts.
-The audit gate is untouched: `engine.Converged`, `engine.ConsecutiveClean`, the stored per-round
-`clean` flag, the exit code of `tp audit --status --check`, and `next_action`'s three-state audit
-precedence all behave exactly as in v0.32.0.
+Four fields report *what* an audit or review round found without changing what the gate counts:
+adding them in v0.33.0 moved no gate, and nothing reads them to decide one today. What the audit
+gate counts is instead governed by `audit_converge_on` (v0.37.0), which changes what the stored
+per-round `clean` flag records — and with it `engine.Converged`, `engine.ConsecutiveClean`, the exit
+code of `tp audit --status --check` and `next_action`'s three-state audit precedence, each derived
+from that flag.
 
 ### `role_streaks` (audit, §2.2)
 
