@@ -937,8 +937,13 @@ spec-coverage is the only role that measures spec conformance; the remaining fin
 
 It names the operator rather than issuing a bare imperative: the reader is usually an agent, and
 accepting open findings is a user-approved decision. Whenever `divergence` is emitted over state tp
-itself recorded, `next_action` reads the fix-and-re-audit directive — `next_action` names the only
-step tp can verify, `hint` names a decision tp cannot execute or record.
+itself recorded, `next_action` names **another audit round** and never the terminal
+proceed-to-release — condition 4 is what guarantees that. Which round-naming form it takes depends on
+`audit_converge_on`: under `all`, condition 2's rows also make the latest round unclean, so
+`next_action` reads the fix-and-re-audit directive; under `blocking`, a round whose open rows are all
+advisory is stamped clean, and `next_action` reads the carried-forward form naming the accepted count
+(`N accepted rows carried forward — run the next audit round: …`). Either way `next_action` names the
+only step tp can verify, and `hint` names a decision tp cannot execute or record.
 
 ### `mechanized_classes` (review, §3.3)
 
