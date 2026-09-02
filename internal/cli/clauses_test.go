@@ -42,10 +42,14 @@ func TestClauseConstantsMatchTheSpec(t *testing.T) {
 // no embedded newline. The suffix §2.3 builds puts the separators in, so a
 // clause carrying its own would double them and change the 468-byte figure
 // §6.2 property 3 asserts.
+//
+// spec/1.0.0.md §4.2's clause is in the map because groundClauseSuffix() is
+// assembled the same way; only the shipped pair carries the byte figure.
 func TestClauseConstantsAreSingleLines(t *testing.T) {
 	for name, clause := range map[string]string{
-		"isolationClause":   isolationClause,
-		"incrementalClause": incrementalClause,
+		"isolationClause":       isolationClause,
+		"incrementalClause":     incrementalClause,
+		"groundIsolationClause": groundIsolationClause,
 	} {
 		assert.NotContains(t, clause, "\n", "%s must be one line", name)
 		assert.Equal(t, strings.TrimSpace(clause), clause,
