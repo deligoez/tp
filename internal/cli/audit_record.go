@@ -167,7 +167,7 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 // audit command. Prompt emission, `tp audit --merge` and every `tp review` mode
 // stay free of them.
 //
-// All three survive --compact whole, so both call sites make this call
+// All three survive --compact whole, so all three call sites make this call
 // unconditionally: role_streaks is always an emitted array, never null;
 // spec_coverage_clean_rounds is always an emitted key whose value is null when
 // the latest recorded round measured no conformance; and divergence is an
