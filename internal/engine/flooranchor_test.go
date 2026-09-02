@@ -144,3 +144,23 @@ func TestAnH1IsNotASectionAndAnH4Is(t *testing.T) {
 	assert.Equal(t, []string{"§0", "§4.2.1"}, anchorsOfEveryUnit(text))
 }
 
+// TestTheAnchorIndexIsOverEveryUnitIncludingTheOnesTheArmsCut is the numbering
+// half of §7.2's `unit_id`, asserted at the one arrangement that separates the
+// two readings: a cut unit sits BETWEEN two floor units and across a heading
+// boundary, so numbering the anchors over the floor alone shifts the last unit's
+// anchor into the previous section — or off the end of the list.
+func TestTheAnchorIndexIsOverEveryUnitIncludingTheOnesTheArmsCut(t *testing.T) {
+	text := "## 1. One\n\nThe run measured 3 things.\n\n" +
+		"Plain prose sits alone.\n\n" +
+		"## 2. Two\n\nIt `ran` twice.\n"
+
+	units := FloorUnits(text)
+	require.Len(t, units, 3)
+	require.True(t, inFloor(units[0]), "u1 must be in the floor")
+	require.False(t, inFloor(units[1]), "u2 must be CUT, or the arrangement is not the one under test")
+	require.True(t, inFloor(units[2]), "u3 must be in the floor")
+
+	assert.Equal(t, []string{"§1", "§1", "§2"}, anchorsOfEveryUnit(text))
+	assert.Equal(t, []string{"u1 §1", "u3 §2"}, anchorsOfIndexRows(text))
+}
+
