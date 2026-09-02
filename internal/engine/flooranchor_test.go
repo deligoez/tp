@@ -87,3 +87,22 @@ func TestATableRowAnchorsToItsOwnSectionNotToSectionZero(t *testing.T) {
 	assert.Equal(t, []string{"u2 §7.2", "u3 §8"}, anchorsOfIndexRows(text))
 }
 
+// TestTheAnchorIsTheLastNumberedHeadingAtOrAboveTheUnit is §7.3's rule stated
+// as a sequence, so the three readings that are not it each fail: the next
+// heading below, the first heading of the document, and the last heading of any
+// kind.
+//
+// `## Motivation` is the third: it is a heading and it is not a `§n(.n)*` one,
+// so the unit under it stays in §1.1. The corpus has that shape —
+// `spec/0.20.0-review-state.md` opens with it.
+func TestTheAnchorIsTheLastNumberedHeadingAtOrAboveTheUnit(t *testing.T) {
+	text := "## 1. One\n\nA holds 1.\n\n" +
+		"### 1.1 Sub\n\nB holds 2.\n\n" +
+		"## Motivation\n\nC holds 3.\n\n" +
+		"## 2. Two\n\nD holds 4.\n"
+
+	require.Len(t, FloorUnits(text), 4)
+
+	assert.Equal(t, []string{"§1", "§1.1", "§1.1", "§2"}, anchorsOfEveryUnit(text))
+}
+
