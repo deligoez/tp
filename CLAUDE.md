@@ -306,7 +306,7 @@ guaranteed reduction in rounds.
 | 0.36.0 | the emitted round | The emitted prompt carries its own isolation constraints, and `--role` emits one role's prompt instead of the panel | loop | **shipped** |
 | 0.37.0 | audit convergence | `audit_converge_on`, fenced per sink — a value rule at `tp set --project`, a change rule at the other three | loop | **shipped** |
 | **0.38.0** | **the checklist covers what changed** | `CodeFileCap` stops dropping two thirds of the changed surface unannounced: rank by churn not by filename, never truncate what the operator named, say so when it truncates | tool | **ready** |
-| 0.39.0 | the ship signal | `--check` measures the predicate this project ships on; a round that did not receive a role neither advances nor erases its streak | loop | ready |
+| 0.39.0 | the round knows which roles it expects | Two deliverables over one new derivation — the expected-role set for a round. `--check` measures the predicate this project ships on, and a round that did not receive a role neither advances nor erases its streak; `--status` reports the in-flight round from the per-role files tp itself named and told the roles to write incrementally | loop | ready |
 | 0.40.0 | the round carries the text it read | The round's `spec_hash` is written at **emit**, not at record, so a round cannot certify a spec its roles never saw | loop | ready |
 | 0.41.0 | forced commitment in the brief | Three sentences tp emits, so an unattended run gets the brief a human writes by hand today | loop | ready |
 | 0.42.0 | the v0.35.0 backlog | The defects v0.32.0–v0.35.0 deferred with reasons, plus `unresolved_findings`, which only `wontfix` ever decrements | tool | ready |
