@@ -259,23 +259,12 @@ func TestAuditConvergeOnFence_WritesThatChangeNothingPass(t *testing.T) {
 		assert.Equal(t, "all", fenceResolved(t, dir), "and the tightening landed")
 	})
 
-	// §3: "'Resolved' means resolved, not stored at the written layer." The
-	// task override wins, so this write changes nothing an audit will read.
-	// A fence comparing the value against the layer it was written to refuses
-	// this and is the reason the clause is in the spec at all.
-	t.Run("a project write of blocking beneath a task override of all", func(t *testing.T) {
-		dir := fenceShell(t, `{"audit_converge_on":"all"}`, "")
-
-		_, stderr, code := runTPFence(t, dir, true, "set", "--workflow", "--project", "audit_converge_on=blocking")
-		require.Equal(t, 0, code, "the write is covered and changes no resolution: %s", stderr)
-
-		data, err := os.ReadFile(filepath.Join(dir, ".tp", "config.json"))
-		require.NoError(t, err)
-		assert.Contains(t, string(data), `"audit_converge_on": "blocking"`,
-			"the value reached the project layer it was addressed to")
-		assert.Equal(t, "all", fenceResolved(t, dir),
-			"and the task override still decides what an audit reads")
-	})
+	// §3's withdrawn carve-out used to sit here: a --project write of
+	// blocking beneath a task override of all, passing because it changed
+	// nothing an audit reads FOR THAT BASE. That is single-base reasoning
+	// about a write that lands under every base, and it is now refused —
+	// TestAuditConvergeOnFence_SetProjectRefusesBlockingWhateverTheTreeHolds
+	// owns that row and the three bases that falsified the carve-out.
 
 	// §3: "an import carrying an already-resolved blocking forward changes
 	// nothing and passes". The document omits the top-level workflow key, so
