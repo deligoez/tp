@@ -60,6 +60,15 @@ func workflowDeviations(file string, override, project *model.WorkflowOverride) 
 	if override.ReviewConvergeOn != nil && project.ReviewConvergeOn != nil && *override.ReviewConvergeOn != *project.ReviewConvergeOn {
 		add("review_converge_on", *override.ReviewConvergeOn, *project.ReviewConvergeOn)
 	}
+	// audit_converge_on is compared on its twin's terms, and only compared:
+	// v0.37.0 §2 places the refusal of an illegal literal at the write sinks
+	// (exit 2) and of an illegal stored value at the consuming audit sinks
+	// (exit 1), so this surface reports a task file that contradicts the
+	// project policy and lets --strict promote that report to exit 1. An
+	// illegal value is reported here as the deviation it is rather than graded.
+	if override.AuditConvergeOn != nil && project.AuditConvergeOn != nil && *override.AuditConvergeOn != *project.AuditConvergeOn {
+		add("audit_converge_on", *override.AuditConvergeOn, *project.AuditConvergeOn)
+	}
 	// runner is compared as raw JSON bytes for the same reason --extract hoists
 	// it that way: this surface reports the field, it does not interpret it.
 	if override.Runner != nil && project.Runner != nil && !bytes.Equal(override.Runner, project.Runner) {
