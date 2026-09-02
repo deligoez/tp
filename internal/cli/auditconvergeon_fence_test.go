@@ -270,3 +270,26 @@ func TestAuditConvergeOnFence_WritesThatChangeNothingPass(t *testing.T) {
 	})
 }
 
+// TestAuditConvergeOnFence_ImportUncoversProjectBlocking covers v0.37.0 §7 row
+// 13b, the case that discriminates the change rule from every narrower one. The
+// imported document names neither literal: it carries a workflow key holding
+// only review_max_rounds, which makes tp import replace the task-level block
+// wholesale, drop the task-level all, and let the project-level blocking become
+// what resolves. A fence keyed on the field, on the value written, or on an
+// all → blocking transition passes this document, so this is the row that fails
+// under all three mutants at once.
+//
+// The zero-task shell is load-bearing and is asserted rather than assumed by the
+// sibling below: over a tasks-bearing target the exists-guard exits 3 first.
+func TestAuditConvergeOnFence_ImportUncoversProjectBlocking(t *testing.T) {
+	dir := fenceShell(t, `{"audit_converge_on":"all"}`, `{"audit_converge_on":"blocking"}`)
+	require.Equal(t, "all", fenceResolved(t, dir),
+		"the task override covers the project block before the import")
+	doc := fenceImportDoc(t, dir, `{"review_max_rounds":5}`)
+
+	_, stderr, code := runTPFence(t, dir, true, "import", doc)
+	assertFenceRefused(t, stderr, code, "import uncovering the project layer")
+
+	assert.Equal(t, "all", fenceResolved(t, dir), "and the block stayed covered")
+}
+
