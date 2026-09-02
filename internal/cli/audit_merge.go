@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/deligoez/tp/internal/engine"
 	"github.com/deligoez/tp/internal/output"
 )
 
@@ -60,12 +61,20 @@ func runAuditMerge(args []string, outputPath string) error {
 
 	byStatus := make(map[string]int)
 	byRole := make(map[string]map[string]int)
+	// §4: the severity breakdown of the round's non-PASS rows, built in the
+	// same loop as by_status and by_role. Every such row lands in one of four
+	// named buckets — engine.AuditSeverityBucket is the classifier §2's clean
+	// predicate grades on, called rather than copied, so error + unrecognised
+	// is exactly the round's blocking-row count and the two sections cannot
+	// drift.
+	bySeverity := make(map[string]int)
 	findingsCount := 0
 	for _, r := range unique {
 		status, _ := r["status"].(string)
 		byStatus[status]++
 		if status != "PASS" {
 			findingsCount++
+			bySeverity[engine.AuditSeverityBucket(r)]++
 		}
 		if role, _ := r["role"].(string); role != "" {
 			if byRole[role] == nil {
@@ -83,6 +92,17 @@ func runAuditMerge(args []string, outputPath string) error {
 		"by_role":            byRole,
 		"findings":           findingsCount, // rows whose status is not PASS
 		"inputs":             inputs,
+	}
+	// §4: emitted when the round holds at least one non-PASS row, and absent —
+	// not empty — otherwise. The condition is a property of the rows and
+	// nothing else, deliberately not of the resolved audit_converge_on: --merge
+	// takes NDJSON inputs and rejects a spec-looking positional at entry, so it
+	// has no spec path, engine.ResolveWorkflow cannot reach the task-override
+	// layer from here, and the only substitute would be the active pointer —
+	// under which the key would appear or vanish according to .tp/local.json.
+	// It is decision-critical, so unlike overlap_report it survives --compact.
+	if findingsCount > 0 {
+		summary["by_severity"] = bySeverity
 	}
 	// §9.3 / §8.4: the audit overlap_report gives a trim-candidate signal over
 	// non-PASS rows clustered by (item_id, category); it is explanatory and is
