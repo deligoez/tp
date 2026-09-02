@@ -166,6 +166,16 @@ func TestAuditNextAction_AcceptedCountAgreesWithItsNoun(t *testing.T) {
 	assert.NotContains(t, AuditNextAction("spec.md", true, true, 0), "accepted")
 }
 
+// TestAuditNextAction_UncleanRoundIsSilentAboutTheCount pins the boundary of
+// this release: §2 changes two of the three branches, and the fix-and-re-audit
+// branch is not one of them. A count rendered there would be reporting rows the
+// directive is already sending the reader to.
+func TestAuditNextAction_UncleanRoundIsSilentAboutTheCount(t *testing.T) {
+	assert.Equal(t,
+		AuditNextAction("spec.md", false, false, 1),
+		AuditNextAction("spec.md", false, false, 7))
+}
+
 // TestFirstMechanizableClass covers the over-specification skip directly.
 func TestFirstMechanizableClass(t *testing.T) {
 	assert.Equal(t, "naming", firstMechanizableClass([]string{"naming"}))
