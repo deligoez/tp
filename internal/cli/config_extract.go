@@ -229,13 +229,26 @@ func mergeCommon(dst, common *model.WorkflowOverride) {
 // --force does not exempt it: it is not tp import --force, which is a named
 // unattended decision, and it must not become one silently.
 //
-// This is the sink, evaluated over the population the command already reads:
-// each scanned task file's own override, resolved over the project block before
-// and after the merge, with the hoisted fields stripped from the task layer
-// exactly as StripTaskWorkflowFields will strip them. Widening the population
-// to every base the repository resolves — the bases with no task file, which
-// are the ones §3's measurement moved from default to project — is a separate
-// piece of work and is not done here.
+// This is the sink, evaluated over every base the repository resolves: each
+// scanned task file's own override, plus one empty override standing for every
+// base with no task-level override. Each is resolved over the project block
+// before and after the merge, with the hoisted fields stripped from the task
+// layer exactly as StripTaskWorkflowFields will strip them. The bases with no
+// task file are the ones §3's measurement moved from default to project, and
+// the empty override is the only shape they have.
+//
+// The empty override is appended UNCONDITIONALLY rather than only when a spec
+// without a task file exists today, and that is a deliberate over-refusal:
+// whether some base currently lacks a task file is a property of the tree's
+// shape at this instant, not of the write. §3's prospective case is exactly
+// what that shape hides — after the hoist the next tp init or tp import writes
+// a task file whose empty workflow block resolves blocking from the project
+// layer, so the relax lands with no fenced write ever occurring and the later
+// import compares equal and passes. The cost is that in a tree where every base
+// already has a task file and all of them carry blocking, the hoist changes
+// nothing today and is still refused. The routes out are an attended operator
+// and tp escalate --decision audit-converge-on; a fence that opened on tree
+// shape is not one.
 func fenceAuditConvergeOnExtract(overrides []model.WorkflowOverride, project, common *model.WorkflowOverride, hoisted []string) {
 	if !engine.Unattended() {
 		return
@@ -243,9 +256,20 @@ func fenceAuditConvergeOnExtract(overrides []model.WorkflowOverride, project, co
 	after := *project
 	mergeCommon(&after, common)
 	stripped := slices.Contains(hoisted, "audit_converge_on")
-	for i := range overrides {
-		beforeValue := engine.ResolveWorkflowLayers(&overrides[i], project).AuditConvergeOn
-		taskLayer := overrides[i]
+	// The evaluated population: every scanned task file's own override, plus
+	// one empty override. The empty override is the whole of "every base the
+	// repository resolves" that the scan cannot see, and it is ONE element
+	// rather than one per spec because engine.ResolveWorkflowLayers is a pure
+	// function of the two layers it is handed — no base contributes anything
+	// else — so every base without a task-level override resolves identically
+	// and enumerating the repository's specs would run the same comparison
+	// once per spec.
+	population := make([]model.WorkflowOverride, 0, len(overrides)+1)
+	population = append(population, overrides...)
+	population = append(population, model.WorkflowOverride{})
+	for i := range population {
+		beforeValue := engine.ResolveWorkflowLayers(&population[i], project).AuditConvergeOn
+		taskLayer := population[i]
 		if stripped {
 			taskLayer.AuditConvergeOn = nil
 		}
