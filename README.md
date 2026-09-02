@@ -233,10 +233,11 @@ caps, and repeats. A unit's result is whatever it wrote to disk: tp reads a chil
 one spend number, never its prose. The run exits **0** only when the cycle converged and **4** on
 every other stop reason, so a caller never has to read the output to know what happened. Units run
 with `TP_UNATTENDED=1`, under which the decisions reserved for a human — skipping the quality gate,
-raising a round or run cap, forcing an import — fail closed; a unit records what it needs decided
-with `tp escalate` and the run stops for the operator. Which runner to spawn, the caps, and the
-notification command are configuration, so the loop stays runtime-neutral: built-in templates for
-`claude` and `opencode`, and a runner object for anything else.
+raising a round or run cap, forcing an import, relaxing the audit convergence policy — fail closed; a
+unit records what it needs decided with `tp escalate` and the run stops for the operator. Which
+runner to spawn, the caps, and the notification command are configuration, so the loop stays
+runtime-neutral: built-in templates for `claude` and `opencode`, and a runner object for anything
+else.
 
 The loop, the unattended restrictions and the briefing duty are in [SKILL.md](skills/tp/SKILL.md);
 the unit kinds, stop reasons, run state, child environment, `commit_strategy` and the keep-list are
