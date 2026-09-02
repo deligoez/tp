@@ -3,6 +3,7 @@ package engine
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"regexp"
 	"strings"
 )
@@ -365,4 +366,90 @@ func FloorOrdinals(hashes []string) []int {
 		ordinals = append(ordinals, seen[h])
 	}
 	return ordinals
+}
+
+// FloorIndexRow is one floor unit as §2.2's index carries it:
+// `(unit_id, anchor, text_sha, ordinal, byte length)` and nothing else.
+//
+// There is no field for the unit's text, and that is the design rather than an
+// omission. Two earlier drafts of §2.2 carried the first 60 bytes of each unit,
+// and the first end-to-end run of the protocol refuted the shape: locating was
+// never the problem — the run found 23 of 23 units from a 60-byte head — but
+// EXTENT was, because one head stopped 90 bytes short of the defect inside its
+// unit and the run graded the wrong sentence. A prefix locates a unit and hides
+// where it ends. A struct with nowhere to put the text cannot regress to that;
+// `tp ground <spec> --units` prints every unit's whole text in one call instead.
+type FloorIndexRow struct {
+	ID      string // §7.2's `unit_id`: `u<N>` over every unit §2.1 produces
+	Anchor  string // §7.2's `anchor`: the `§n(.n)*` section the unit sits in
+	TextSHA string // §7.2's `text_sha`
+	Ordinal int    // §7.2's `ordinal`, within the units sharing that hash
+	Bytes   int    // the unit's length in UTF-8 bytes
+}
+
+// String renders one index line in the labelled shape §2.2 settles on.
+//
+// The encoding is named rather than left open because §11 row 4's bound —
+// `units × 48 + 256` bytes — is undecidable without it: three conforming
+// serialisations of the same five fields differ by 70%, and one JSON object per
+// unit is over the bound on all but one spec in this repository, its ~79-byte
+// field-name skeleton dwarfing a ~53-byte payload. The sigils carry the labels
+// instead: `§` before the anchor, `#` before the ordinal, `B` after the length.
+func (r FloorIndexRow) String() string {
+	return fmt.Sprintf("%s %s %s #%d %dB", r.ID, r.Anchor, r.TextSHA, r.Ordinal, r.Bytes)
+}
+
+// FloorIndexRows derives §2.2's index rows for the floor units of a spec's text,
+// in emission order.
+//
+// `unit_id` is numbered over EVERY unit §2.1 produces, the ones the arms cut
+// included, so a row's id is not its position in this result. §2.2 gives the
+// reason: numbering over the floor alone renumbers every later unit when an edit
+// changes one unit's arms, and §8 joins dispositions across rounds on ids that
+// have to survive that.
+//
+// anchorOf supplies §7.2's `anchor` and is called with the same 1-based N that
+// becomes the unit's id — never with the row's index. The anchor is a parameter
+// because deriving it is a different question from segmenting: §7.3's rule is
+// "the last `§n(.n)*` heading at or above the unit", which needs the unit's line
+// in the file, and §2.1's derivation is a pure function of a string that has
+// dropped every heading by step 1. anchorOf must not be nil.
+func FloorIndexRows(text string, anchorOf func(unitIndex int) string) []FloorIndexRow {
+	units := FloorUnits(text)
+
+	kept := make([]int, 0, len(units))
+	hashes := make([]string, 0, len(units))
+	for i, u := range units {
+		if !inFloor(u) {
+			continue
+		}
+		kept = append(kept, i)
+		hashes = append(hashes, FloorTextSHA(u))
+	}
+	ordinals := FloorOrdinals(hashes)
+
+	rows := make([]FloorIndexRow, 0, len(kept))
+	for j, i := range kept {
+		rows = append(rows, FloorIndexRow{
+			ID:      fmt.Sprintf("u%d", i+1),
+			Anchor:  anchorOf(i + 1),
+			TextSHA: hashes[j],
+			Ordinal: ordinals[j],
+			Bytes:   len(units[i]),
+		})
+	}
+	return rows
+}
+
+// FormatFloorIndex renders the index: one row per line, each line terminated.
+//
+// It takes rows rather than a spec's text, so the one payload §2.2 forbids in
+// the index is not reachable from here at all.
+func FormatFloorIndex(rows []FloorIndexRow) string {
+	var b strings.Builder
+	for _, r := range rows {
+		b.WriteString(r.String())
+		b.WriteString("\n")
+	}
+	return b.String()
 }
