@@ -136,6 +136,17 @@ func assertFenceRefused(t *testing.T, stderr string, code int, sink string) {
 	assert.Contains(t, msg, "audit_converge_on", "%s: the refusal names the field", sink)
 	assert.NotContains(t, msg, "names a command the driver executes",
 		"%s: and does not reuse the command-field refusal's wording", sink)
+
+	// §7 row 14: the decision the hint names is the field's own, not the
+	// fallback. A run stopped under `other` is recoverable only from the free
+	// text of --evidence, so the hint sending a unit there is the difference
+	// between a nameable stop and an unnameable one.
+	hint, ok := e["hint"].(string)
+	require.True(t, ok, "%s: the envelope carries a hint", sink)
+	assert.Contains(t, hint, "--decision audit-converge-on",
+		"%s: the hint names the field's own decision", sink)
+	assert.NotContains(t, hint, "--decision other",
+		"%s: and not the fallback", sink)
 }
 
 // TestAuditConvergeOnFence_RelaxRefusedAtEveryWriteSink covers v0.37.0 §7 row
