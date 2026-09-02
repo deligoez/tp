@@ -334,13 +334,17 @@ non-test source, and workflow fields have no env layer to ignore.)
 fires when the write moves the **resolved** value — task override > project config > built-in — to
 `blocking`, and only then. So a `--project` write of `blocking` underneath a task-level `all` passes
 **for that base** (it uncovers nothing an audit reads there) — but the write lands in the layer every
-base resolves through, so it is evaluated once per **scanned task file** — the discovered override
-plus every `*.tasks.json` the project scan reaches — and is refused, naming that base, as soon as one
-of them names no `audit_converge_on` and would newly resolve `blocking` from the project layer. A
-base with **no task file at all** is outside that population; tp scans task files and has no
-enumeration of specs. A degraded read never shrinks the population: an unreadable subtree is reported
-on stderr and the bases the walk did reach are still compared, and a task file that will not parse is
-compared as an empty override rather than dropped. An
+base resolves through, so it is evaluated once per **scanned task file** — every `*.tasks.json` the
+project scan reaches, and nothing else — and is refused, naming that base, as soon as one of them
+names no `audit_converge_on` and would newly resolve `blocking` from the project layer. A base with
+**no task file**, in a tree that has others, is outside the population; tp scans task files and has
+no enumeration of specs. (A tree with no task file at all is compared as one empty override, so the
+write is refused there too.) The two degraded reads differ. A task file that will not parse is
+compared as an empty override rather than dropped. An unreadable directory stops the scan's walk, so
+every base sorting after it is absent from the list — and rather than compare what it managed to
+read, the command refuses on the incomplete scan itself with **exit 3**, `tp config --extract`'s code
+for the same error from the same call; that refusal is the error envelope, not a notice, so `--quiet`
+does not erase it. An
 `import` carrying an already-resolved `blocking` forward
 passes (nothing changes); a write of `all` never trips it (`all` is the default and the only value
 that tightens the gate); and writing `all` first and `blocking` second is refused on the second
