@@ -115,7 +115,9 @@ it. Four results are worth carrying out of it:
   phase's isolation clause as already requiring a scratch copy. The clause forbids the edit outright
   (`internal/cli/clauses.go:19`), and `spec/0.36.0.md` §2.4 — headed *"What is deliberately not
   provisioned"* — rejected that exact recipe for three reasons. **Grounding a citation means reading
-  what it cites**, and here it turned a settled paragraph back into an open decision.
+  what it cites**: two of the three do not bind a one-prompt phase, and the third rests on a reference
+  to a section that turned out to be *Agents*. The operator then took the decision the paragraph had
+  been assuming — the unit makes its own copy, tp provisions nothing — and §4.1 now states it.
 - **Absence claims want the whole surface.** *"Nothing checks the spec against the world"* is false as
   written: `scripts/check-spec-code-citations.py` is registered in `workflow.checks`, and
   `scripts/check-measured-claims.py` re-runs a claim's derivation and fails when it goes stale. Both
