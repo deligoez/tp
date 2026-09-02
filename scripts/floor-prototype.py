@@ -166,12 +166,16 @@ def measure(path):
         "arms": dict(Counter(in_floor(u) for u in floor)),
         "fragments": len(frag),
         "fragment_examples": sorted(set(frag))[:10],
-        "colliding_hashes": len(dup),
+        # NAMED, because the spec quoted this line and read a group count as a
+        # multiplicity: a row asserted "no text_sha collides more than twice"
+        # from a `3` that meant three groups. Both are reported now.
+        "colliding_hash_groups": len(dup),
+        "max_hash_multiplicity": max(dup.values()) if dup else 1,
         "units_in_collisions": sum(dup.values()),
         "step4_hash_agreement": f"{agree}/{len(floor)}",
-        "floor_marker_fix": len(floor_fixed),
-        "fragments_after_fix": len(frag_fixed),
-        "collisions_after_fix": len(dup_fixed),
+        "floor_superseded_rule": len(floor_first),
+        "fragments_superseded_rule": len(frag_first),
+        "colliding_groups_superseded_rule": len(dup_first),
         "bound": bound,
         "bytes_json": payload_bytes(floor, "json"),
         "bytes_labelled": payload_bytes(floor, "labelled"),
@@ -189,31 +193,39 @@ def main():
         print(json.dumps(rows, indent=2, ensure_ascii=False))
         return 0
 
-    print(f"{'spec':34s} {'units':>6s} {'floor':>6s} {'frag':>5s} {'coll':>5s} "
-          f"{'fix→frag':>9s} {'fix→coll':>9s} {'bound':>7s} {'json':>7s} {'lbl':>7s} {'tsv':>7s}")
+    print(f"{'spec':34s} {'units':>6s} {'floor':>6s} {'frag':>5s} {'grps':>5s} "
+          f"{'maxmul':>7s} {'old→frag':>9s} {'bound':>7s} {'json':>7s} {'lbl':>7s} {'tsv':>7s}")
     tot = Counter()
     over = {"json": 0, "labelled": 0, "tsv": 0}
+    worst_ratio, worst_path, max_mult = 0.0, "", 1
     for r in rows:
         print(f"{r['path']:34s} {r['units']:6d} {r['floor']:6d} {r['fragments']:5d} "
-              f"{r['colliding_hashes']:5d} {r['fragments_after_fix']:9d} "
-              f"{r['collisions_after_fix']:9d} {r['bound']:7d} {r['bytes_json']:7d} "
+              f"{r['colliding_hash_groups']:5d} {r['max_hash_multiplicity']:7d} "
+              f"{r['fragments_superseded_rule']:9d} {r['bound']:7d} {r['bytes_json']:7d} "
               f"{r['bytes_labelled']:7d} {r['bytes_tsv']:7d}")
-        for k in ("units", "floor", "fragments", "colliding_hashes",
-                  "fragments_after_fix", "collisions_after_fix"):
+        for k in ("units", "floor", "fragments", "colliding_hash_groups",
+                  "fragments_superseded_rule", "colliding_groups_superseded_rule"):
             tot[k] += r[k]
+        max_mult = max(max_mult, r["max_hash_multiplicity"])
         for enc in over:
             if r[f"bytes_{enc}"] > r["bound"]:
                 over[enc] += 1
+        ratio = r["bytes_labelled"] / r["bound"] if r["bound"] else 0
+        if ratio > worst_ratio:
+            worst_ratio, worst_path = ratio, r["path"]
 
     n = len(rows)
     print()
     print(f"{n} specs. units {tot['units']}, floor {tot['floor']}.")
-    print(f"§2.1 AS WRITTEN      fragments (<=3 chars) {tot['fragments']}, "
-          f"colliding text_sha {tot['colliding_hashes']}")
-    print(f"§2.1 + marker repair fragments {tot['fragments_after_fix']}, "
-          f"colliding text_sha {tot['collisions_after_fix']}")
+    print(f"§2.1 as it reads:  fragments (<=3 chars) {tot['fragments']}, "
+          f"colliding-hash GROUPS {tot['colliding_hash_groups']}, "
+          f"max multiplicity of one hash in a file {max_mult}")
+    print(f"superseded rule:   fragments {tot['fragments_superseded_rule']}, "
+          f"colliding-hash groups {tot['colliding_groups_superseded_rule']}")
     print(f"§11 row 4 bound exceeded by: json {over['json']}/{n}, "
           f"labelled {over['labelled']}/{n}, tsv {over['tsv']}/{n}")
+    print(f"  worst labelled/bound ratio: {worst_ratio:.3f} ({worst_path}) — "
+          f"headroom is why row 4 asserts over a constructed input, not this corpus")
     agree_all = [r["step4_hash_agreement"] for r in rows]
     a = sum(int(x.split("/")[0]) for x in agree_all)
     b = sum(int(x.split("/")[1]) for x in agree_all)
