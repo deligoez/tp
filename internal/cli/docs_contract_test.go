@@ -310,59 +310,22 @@ func docSectionBody(t *testing.T, doc, heading string) string {
 	return body
 }
 
-// The paragraph in each shipped document that states audit_converge_on's fence,
-// and the two qualifiers both owe.
+// TestDocsScopeTheAuditConvergeOnFence used to live here, and it is deleted
+// rather than repaired. It anchored on a phrase in each document's fence
+// paragraph and then asserted that two qualifier substrings appeared in the
+// same paragraph — which pins that a topic is still discussed and nothing at
+// all about what is claimed of it. An auditor built two paragraphs that keep
+// the anchor AND both qualifiers while asserting the opposite of what the guard
+// was written to deny, and the guard passed green on both. No phrase exists
+// that a negation cannot restate, so no rewording of it would have helped.
 //
-// The defect this guards is a document promising coverage the code does not
-// ship, and it was measured in both files at once while the code's own comment
-// recorded the residue honestly: SKILL.md said a write that changes the
-// resolved value to blocking "exits 2", full stop, and REFERENCE.md said the
-// --project form is "evaluated once per base". It is evaluated once per scanned
-// task file, so a base with no task file — in a tree that has others — is
-// outside the population, and a unit reading either sentence meets that as a
-// surprise.
+// What replaced it is behaviour, in
+// internal/cli/auditconvergeon_fence_test.go: the fence's rule is asserted by
+// running the commands over eight trees, including the two bases the deleted
+// prose used to carve out. That is the shape ci_gate_test.go already uses here
+// — derive the claim from the artifact rather than matching text about it.
 //
-// The scope qualifier used to be the phrase "no task file at all". That is now
-// the wrong anchor rather than a weak one: a tree with NO task file is compared
-// as one empty override and the write IS refused there, so both documents now
-// say that phrase while stating something the guard was written to deny. The
-// anchor is the residual clause itself.
-//
-// The second qualifier is the degraded scan. Three of this repair's own rows
-// turned on it and none of the earlier prose said anything about it, so the
-// exit is pinned where a unit reads it: an unreadable directory stops the walk,
-// every base after it is absent, and the command refuses on the incomplete scan
-// with exit 3 rather than comparing what it reached.
-//
-// Anchored per paragraph rather than per document, for the reason the
-// convergence-wording guards anchor: `audit_converge_on` is named in several
-// places in each file, so a document-wide positive assertion would stay green
-// with the fence paragraph itself silent.
-const (
-	fenceSkillAnchor     = "`blocking` is opt-in and human-only"
-	fenceReferenceAnchor = "is fenced by a change rule, not by field or value"
-	fenceScopeQualifier  = "outside the population"
-	fenceScanQualifier   = "exit 3"
-)
-
-// TestDocsScopeTheAuditConvergeOnFence guards v0.37.0 §3's residue where the
-// unit that meets it reads.
-func TestDocsScopeTheAuditConvergeOnFence(t *testing.T) {
-	for _, doc := range []struct{ path, anchor string }{
-		{"skills/tp/SKILL.md", fenceSkillAnchor},
-		{"skills/tp/REFERENCE.md", fenceReferenceAnchor},
-	} {
-		anchored := false
-		for _, para := range strings.Split(readRepoDoc(t, doc.path), "\n\n") {
-			if !strings.Contains(para, doc.anchor) {
-				continue
-			}
-			anchored = true
-			assert.Contains(t, para, fenceScopeQualifier,
-				"%s's fence paragraph scopes the refusal to the bases the --project sink can see", doc.path)
-			assert.Contains(t, para, fenceScanQualifier,
-				"%s's fence paragraph names the exit a scan the walk could not finish takes", doc.path)
-		}
-		assert.True(t, anchored, "%s still carries the %q paragraph", doc.path, doc.anchor)
-	}
-}
+// The guards above are kept because each states something a negation cannot
+// satisfy: they assert a phrase is ABSENT (the stored clean flag is no longer
+// listed), or compare one document's sentence against a constant the code
+// itself ships, so the document and the code cannot drift apart silently.
