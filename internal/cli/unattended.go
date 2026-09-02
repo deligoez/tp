@@ -172,7 +172,7 @@ func fenceOverrideLayers() (task, project model.WorkflowOverride) {
 // the value rule actually has, which is every tree rather than this one.
 func refuseUnattendedAuditConvergeOnProject(what string) {
 	output.Error(ExitUsage,
-		fmt.Sprintf("%s writes blocking into the layer every base resolves through, including bases tp cannot enumerate, which relaxes the audit gate and is a user-approved decision refused under TP_UNATTENDED",
+		fmt.Sprintf("%s writes blocking into the layer every base resolves through, including bases tp cannot enumerate; blocking is the value that relaxes the audit gate, and setting it is a user-approved decision refused under TP_UNATTENDED",
 			what),
 		fmt.Sprintf("if you did not mean to change it, do not make this write: blocking at the project layer is refused whatever any single base resolves today; if you did, escalate: tp escalate --decision %s --evidence <what you found>",
 			escalationDecision("audit_converge_on")))
