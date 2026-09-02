@@ -325,3 +325,48 @@ func TestABlockquotePrefixIsStrippedFromEveryLine(t *testing.T) {
 		})
 	}
 }
+
+// TestBlockLinesJoinWithOneSpaceAndWhitespaceCollapses is §2.1 step 3's second
+// clause: "join the block's lines with a single space and collapse whitespace
+// runs to one". Collapsing is not cosmetic — `text_sha` (§7.2) is the sha256 of
+// exactly this string, so a run of two spaces surviving anywhere is a hash tp
+// and a reader compute differently.
+//
+// The empty-quote-line case is the one real markdown produces: a `>` alone
+// canonicalises to nothing, and without the collapse the join leaves a double
+// space where that line was.
+func TestBlockLinesJoinWithOneSpaceAndWhitespaceCollapses(t *testing.T) {
+	tests := []struct {
+		name string
+		text string
+		want string
+	}{
+		{
+			name: "lines join with a single space",
+			text: "alpha holds 1\nbeta holds 2.",
+			want: "alpha holds 1 beta holds 2.",
+		},
+		{
+			name: "a run inside a line collapses",
+			text: "alpha  holds\t\t1.",
+			want: "alpha holds 1.",
+		},
+		{
+			name: "a line's own leading and trailing whitespace goes",
+			text: "   alpha holds 1   \n\tbeta holds 2.  ",
+			want: "alpha holds 1 beta holds 2.",
+		},
+		{
+			name: "an empty quote line leaves no gap",
+			text: "> alpha holds 1\n>\n> beta holds 2.",
+			want: "alpha holds 1 beta holds 2.",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			units := FloorUnits(tt.text)
+			require.Len(t, units, 1, "the fixture is one block of one sentence")
+			assert.Equal(t, tt.want, units[0])
+		})
+	}
+}
