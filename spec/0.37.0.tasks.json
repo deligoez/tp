@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.37.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-02T00:36:46.696724Z",
+  "updated_at": "2026-09-02T00:45:47.218292Z",
   "workflow": {},
   "coverage": {
     "total_sections": 9,
@@ -17,7 +17,7 @@
     {
       "id": "converge-field",
       "title": "audit_converge_on on the workflow types with built-in all",
-      "status": "open",
+      "status": "done",
       "tags": [
         "field"
       ],
@@ -27,11 +27,33 @@
       "source_sections": [
         "## 2. `audit_converge_on`"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-02T00:37:41.341321Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-02T00:45:47.166325Z",
+      "closed_reason": "audit_converge_on now exists on the workflow types and resolves to the built-in all, the deliberate asymmetry with review_converge_on's blocking that section 2.1 measures.\n- model.Workflow gains AuditConvergeOn string and model.WorkflowOverride the *string twin, counted by IsEmpty so a config setting only this field is not read as empty; verified by the package building and by TestResolveWorkflowLayers_AuditConvergeOn constructing both.\n- engine/projectconfig.go admits audit_converge_on to knownWorkflowKeys and parses it with review_converge_on's exact string-type warning; verified by an assertion over parseWorkflowOverride({\"audit_converge_on\":7}) requiring the field nil and the warning 'workflow.audit_converge_on: expected a string, ignored'.\n- ResolveWorkflowLayers merges task override over project config over the built-in via pickString; verified in TestResolveWorkflowLayers_AuditConvergeOn that the task override wins over project, that project applies with no override, and that an invalid stored value resolves raw rather than clamped.\n- tp config --resolved reports the field with its source; verified by two CLI tests run through the freshly built binary: TestAuditConvergeOnDefaultAll gets value all / source default on a repo with no configuration, and TestAuditConvergeOnResolvedNamesItsSource gets project then override as the layers are added.\n- Section 7 row 1 passes, and its mutant was constructed rather than reasoned about: the built-in was first shipped as AuditConvergeOnBlocking and both default assertions were observed failing with 'expected all, actual blocking' (engine configresolve_test.go:100, cli auditconvergeon_test.go:37) while every other assertion in the same tests stayed green, which is what isolates the default from the precedence; switching the built-in to AuditConvergeOnAll turned both green. Dogfooded on tp's own repo: config --resolved reports audit_converge_on all/default beside review_converge_on blocking/default. Gate green end to end, exit 0.\nOut of scope, each owned by a later task in this cycle: the write sinks (set --workflow still rejects audit_converge_on as an unknown workflow field, which is what keeps TestAuditGate_NoEscapeHatchFromTheGate green until reverse-gate-guard reverses it), the consuming-sink validation, ValidAuditConvergeOn and its hint, config --extract hoisting and validate --project, the unattended fence, the severity predicate, by_severity, and the documentation.",
+      "gate_passed_at": "2026-09-02T00:45:47.166325Z",
+      "commit_sha": "da9e04d",
+      "commit_shas": [
+        "da9e04d",
+        "c30004c",
+        "05a8df0",
+        "311dfcc",
+        "8c1d4e7",
+        "33d4b05",
+        "090de4c",
+        "5cafb7a",
+        "9f00bac"
+      ],
+      "commit_files": [
+        "internal/cli/auditconvergeon_test.go",
+        "internal/cli/config.go",
+        "internal/engine/auditconvergeon.go",
+        "internal/engine/configresolve.go",
+        "internal/engine/configresolve_test.go",
+        "internal/engine/projectconfig.go",
+        "internal/model/projectconfig.go",
+        "internal/model/workflow.go"
+      ]
     },
     {
       "id": "converge-resolution-layers",
