@@ -113,8 +113,11 @@ func auditConvergeOnUnintendedExit(sink fenceSink, resolved string) string {
 // who most needs the truth — a unit deciding whether it has an authoring error
 // it can fix itself or a decision it must escalate.
 //
-// The message names all three exits AND the condition selecting each, because
-// it has two audiences and the wrong pairing is silent: a unit that reads only
+// The message names the exits ITS OWN SINK has, and the condition selecting
+// each — three at tp import, two at tp set (either layer) and at
+// tp config --extract, since the two authoring exits are an import's and no
+// other sink's. It names them because the refusal has two audiences and the
+// wrong pairing is silent: a unit that reads only
 // "refused" stops a run over something one edit fixes, and a unit that meant
 // the relax and reads only the authoring exits writes the resolved value back,
 // passes, and reverts an operator-approved blocking with no escalation and no
