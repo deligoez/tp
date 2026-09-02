@@ -38,6 +38,31 @@ LIST_MARKER = re.compile(r"^\s*(?:[-*+]\s+|\d+\.\s+)")
 SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
 
 
+TABLE_SEP = re.compile(r"^\s*\|[\s:|-]+\|\s*$")
+# A sentinel no markdown line begins with, so a table row survives blocking and
+# is recognisable at canonicalise/split time. A row is ONE unit even when its
+# cells hold full stops, so it must not reach the sentence splitter.
+TABLE_MARK = "﻿TBL"
+
+
+def table_row_unit(line):
+    """A table DATA row, canonicalised into one unit.
+
+    Measured, and this is why the rule exists: table rows are **22% of this
+    corpus's candidate content and up to 60% of an individual spec** (36% of
+    spec/1.0.0.md itself). Dropping them made §8's coverage a ratio over two
+    thirds of a document reported as complete, and the first end-to-end run of
+    the protocol found a FAIL in a table that produced no floor unit at all —
+    "a floor that cannot see a table cannot hold anyone to it".
+
+    Cells are joined with an em dash so the row reads as one sentence; the three
+    arms then apply unchanged, which is what cuts header rows (labels carry no
+    digit, no code span and no measurement verb) without a special case.
+    """
+    cells = [c.strip() for c in line.strip().strip("|").split("|")]
+    return re.sub(r"\s+", " ", " — ".join(c for c in cells if c)).strip()
+
+
 def blocks(text):
     """Steps 1 and 2: drop, then split into blank-line-separated blocks."""
     kept, fence = [], False
@@ -50,7 +75,14 @@ def blocks(text):
         if not line.strip():
             kept.append(None)          # block boundary
             continue
-        if HEADING.match(line) or TABLE_ROW.match(line) or HRULE.match(line):
+        if TABLE_ROW.match(line):
+            if TABLE_SEP.match(line):
+                continue
+            kept.append(None)          # each data row is its own block
+            kept.append(TABLE_MARK + line)
+            kept.append(None)
+            continue
+        if HEADING.match(line) or HRULE.match(line):
             continue
         kept.append(line)
     out, cur = [], []
@@ -75,6 +107,8 @@ def canonicalise(block, strip_markers="every"):
     which is how three figures in §2.1/§2.2 came from a branch the spec no
     longer specifies.
     """
+    if block and block[0].startswith(TABLE_MARK):
+        return table_row_unit(block[0][len(TABLE_MARK):])
     lines = [BLOCKQUOTE.sub("", ln) for ln in block]
     if strip_markers == "first":
         lines[0] = LIST_MARKER.sub("", lines[0])
@@ -82,6 +116,19 @@ def canonicalise(block, strip_markers="every"):
         lines = [LIST_MARKER.sub("", ln) for ln in lines]
     joined = " ".join(ln.strip() for ln in lines)
     return re.sub(r"\s+", " ", joined).strip()
+
+
+def units_from_block(block, strip_markers="every", keep_terminator=True):
+    """Steps 3, 4 and 5 for one block — the ONE place a block becomes units.
+
+    A table data row is a single unit however many full stops its cells hold, so
+    it must not reach the sentence splitter; every other block does. Both call
+    sites go through here so the two cannot diverge.
+    """
+    if block and block[0].startswith(TABLE_MARK):
+        u = canonicalise(block, strip_markers)
+        return [u] if u else []
+    return split_units(canonicalise(block, strip_markers), keep_terminator)
 
 
 def split_units(joined, keep_terminator=True):
@@ -114,7 +161,7 @@ def in_floor(unit):
 def floor_of(text, strip_markers="every", keep_terminator=True):
     units = []
     for b in blocks(text):
-        units.extend(split_units(canonicalise(b, strip_markers), keep_terminator))
+        units.extend(units_from_block(b, strip_markers, keep_terminator))
     return units, [u for u in units if in_floor(u)]
 
 
@@ -237,7 +284,7 @@ def emit(path):
     # locate each unit by its first words, so `line` is the file line it starts on
     units = []
     for b in blocks(text):
-        for u in split_units(canonicalise(b)):
+        for u in units_from_block(b):
             units.append((u, b))
     seen = Counter()
     out = []
@@ -281,7 +328,7 @@ def units_of(path):
     text = open(path, encoding="utf-8").read()
     out = []
     for n, u in enumerate(
-            [u for b in blocks(text) for u in split_units(canonicalise(b))], 1):
+            [u for b in blocks(text) for u in units_from_block(b)], 1):
         if in_floor(u):
             out.append(f"u{n}\t{sha(u)}\t{u}")
     return out
