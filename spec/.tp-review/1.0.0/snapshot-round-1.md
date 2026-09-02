@@ -1,0 +1,332 @@
+# tp v1.0.0 — `tp ground`
+
+> **This file is decisions.** It was written from **three pilot runs over 44 claims**, run by hand
+> before any of it was specified. Most rules below fired in one of those runs or were refuted by one,
+> and the exceptions are named where they sit: `UNVERIFIABLE` has zero pilot instances (§3), §7's
+> storage decision rests on a probe rather than on a pilot run, and §9's advisory has no pilot
+> instance at all. Where the pilot has no data, §10 says so rather than guessing.
+
+## 1. Overview
+
+`tp lint` checks the document's form. `tp validate` checks the plan against the spec. `tp audit`
+checks the code against the spec. **No tp command checks the spec against the world.**
+
+**Two narrow checkers already do it by hand, and they are the precedent this generalises rather than
+a gap it invents.** `scripts/check-spec-code-citations.py` is registered as `code-citation-drift` in
+`.tp/config.json`'s `workflow.checks` and resolves a spec's path citations against the tree — it is
+what found the 49 unresolvable citations in the pending set. `scripts/check-measured-claims.py`
+re-runs the derivation behind one registered claim and fails when it goes stale. Its header records
+four escapes a reviewer found by breaking it in a clone, and each one is a constraint on §2 and §7: a
+claim reworded past its pattern must still fail, the derivation rule is read from the document rather
+than held in the checker, a claimed list compares as a **set** because cardinality alone passed a body
+of 100 fabricated entries, and a placeholder sitting beside real entries is a contradiction rather
+than an exemption. Both guard one claim class in one named file, and neither is a phase.
+
+That gap is not incidental to review — review is *told* to leave it alone. The framing tp emits to
+every review role in the default flow reads:
+
+> *"no source files are carried; the spec content above is complete and authoritative."*
+
+**A review role is instructed to treat the premises as settled.** `tp ground` is what makes that
+sentence true before it is said.
+
+### 1.1 The pilot
+
+Three specs ground by hand, with no tooling:
+
+| spec | claims | refuted or imprecise | deepest evidence needed |
+|---|---|---|---|
+| 1.52.0 | 17 | **3** | corpus query |
+| 1.53.0 | 10 | **1** | simulation probe |
+| 0.37.1 | 17 | **3** | reachability read + tag history |
+
+**Seven defects in 44 claims, and every one of them was invisible to review.** Two examples fix the
+shape: a spec asserted *"most `PASS` rows carry an empty note"* where the corpus says **97.0% carry
+one** — inverted, and the design resting on it was unusable; and a spec asserted a dependency whose
+stated reason did not connect to its own mechanism, while a **real** dependency sat underneath it.
+
+**None of the three had been through `tp review`, and this spec therefore does not claim review missed
+them.** Measured: `review_rounds` is empty for all three, and `spec/.tp-review/` holds no directory
+for any pending spec or for the `0.38.0`–`0.54.0` files they were renamed from. The claim that
+survives is narrower and is a reading of the prompt rather than of an outcome — every review role is
+told the spec is *"complete and authoritative"* (§1), so a role that went and verified a premise would
+be working against its own brief. **Whether review finds these seven anyway is unmeasured**, and the
+cheapest way to settle it is to run one review round on one of the three pilot specs and count how
+many of its defects the round returns.
+
+**Every refutation was a sentence that was cheap to write** — a borrowed number, an unstated rounding
+rule, a plausible reason, four quantifiers. Not one claim that cost something to produce was wrong,
+because producing it *was* the verification. §5 turns that into an ordering rule.
+
+### 1.2 Why this is 1.0, and what 1.0 promises
+
+**tp's value is a loop that converges on truth, and until this release nothing checked whether the
+loop's input was true.** Review reads the spec; audit reads the code against the spec; both take the
+spec's claims as given. `tp ground` is the piece that makes the premises verified rather than
+asserted, so the version marks a change in what tp's output is worth rather than a count of features.
+
+**The promise is stated narrowly, because a promise this project cannot keep is worse than no
+promise.** Within `1.x`:
+
+- **The CLI surface is stable** — command names, flag names, and exit codes do not change meaning.
+- **JSON payload shapes — and the meaning of the fields inside them — may still change**, and each
+  change is named in the release that makes it. Three are already scheduled, and **two of them change
+  no shape at all**: `unresolved_findings` keeps its type and changes what it counts, `clean` keeps its
+  type and changes what it means for a round missing a role, and an accepted finding stops gating
+  convergence. A promise worded over shapes alone would cover none of the three, which is why it is
+  worded over both.
+
+**Stating the second half is the point.** A silent contract change under a stable-looking major is how
+a version number becomes a lie; naming the three that are coming costs one paragraph and keeps the
+number honest.
+
+**The minor numbers of the pending set carry over from `0.x` unchanged** — `1.38.0` is the release
+that was `0.38.0` — so a reference that named a pending release by its digit still finds it. **This
+file is the single exception, and deliberately so: it was `0.54.0`.** The move renamed sixteen specs,
+fifteen of them minor-preserving (`git show --name-status e73788ab -- 'spec/*.md'`). That leaves a gap
+between `1.0.0` and `1.38.0` which is cosmetic and permanent, and it was preferred to renumbering
+those sixteen a fifth time.
+
+## 2. What a claim is, and why enumeration is the reader's job
+
+A **claim** is a statement about how the world *is*, or about what a proposed mechanism *does when
+run*. A decision is not a claim. A prediction about people is not a claim.
+
+**Enumeration cannot be mechanised, and the reason is not the one an earlier draft of this section
+gave.** That draft said a heuristic over numbers, code citations and measurement verbs catches *"15 of
+46 sentences"* on the repair-locality spec. **The figure is withdrawn**: it states no counting rule,
+and sixteen readings of one — sentence-split or whole line, table rows in or out, headings in or out,
+a narrow verb list or a wide one, over both the pre-grounding and the current text of that spec —
+produce nothing near it. The closest is 21 of 55.
+
+**Re-derived with the rule stated, the heuristic fails in the opposite direction: it is too wide, not
+too narrow.** Over non-fenced, non-heading prose split on sentence boundaries, counting a unit as
+caught when it holds a digit, a backticked identifier, a `path.go:N` citation, or one of
+{measured, ran, counted, derived, reproduced, observed, verified, asserted, recorded, fired, held,
+refuted}:
+
+| document | prose units | caught by the floor | share |
+|---|---|---|---|
+| this file | 73 | 55 | **75%** |
+| the repair-locality spec | 36 | 28 | **78%** |
+
+**So the floor is not a shortlist to be extended; it is most of the document.** Its value is not
+recall — on this repository's prose it has near-total recall and almost no precision — but the
+obligation it creates: a unit that receives the floor owes a verdict, or an explicit *not a claim*,
+for **every** unit in it. That is checkable in a way *"read the spec and find the claims"* is not, and
+it is the only property this release asks of the floor.
+
+**Which arm catches what decides a real case, so the arms are defined rather than named.** The claim
+this section used to cite as invisible — that a measurement *"never reads `spec_hash` at all"* — is
+caught by the **digit** arm, because the sentence carrying it reads *"compares snapshot N−1 against
+snapshot N"*. Cut down to the fragment, it is caught by the **backtick** arm and missed by the
+`path.go:N` arm. A spec that says *"a code citation"* without saying which leaves that claim's
+membership undecided, and test 2 turns on exactly this arm.
+
+**The cheap ambiguity tier finds nothing here, which is why the floor is not the answer.** `tp lint`'s
+`vague-language` rule fires **zero times across all sixteen pending specs**, and the detector is not
+broken: an injected *"returns a reasonable value as needed"* trips it immediately, while the same file
+without the injection stays clean. The ambiguity that mattered — an unstated rounding rule that made
+one table cell wrong — was found by *recomputing both readings*, not by reading the sentence.
+
+**It costs this file one warning, and the warning is left standing.** The rule also fires once on
+**this document**, on the sentence above, which quotes the probe phrase. `vague-language` has no
+notion of quoted material, so a spec that discusses the rule cannot be clean under it. That is the
+rule's defect rather than this document's, and the sentence is not reworded around it, because
+rewording would hide the only instance the pending set contains.
+
+## 3. The verdicts
+
+| verdict | meaning | what it demands |
+|---|---|---|
+| `PASS` | evidence of the right kind supports it | nothing |
+| `PARTIAL` | true under one reading and not another, or the conclusion holds while the stated reason does not, or it was true when written | repair the text, and say which of the three |
+| `FAIL` | evidence of the right kind contradicts it | repair the claim |
+| `UNVERIFIABLE` | no evidence of the right kind is obtainable | mark it; it never gates |
+| `QUESTION` | the attempt failed and the failure is ambiguous | §6 |
+
+**`PARTIAL` carries three distinct repairs and one verdict, deliberately.** All three end in *fix the
+sentence*; splitting them into three verdicts would price a vocabulary the pilot cannot yet justify —
+and the pilot prices it thinly: **one of the three runs produced two `PARTIAL`s and the other two
+produced none** (2, 0, 0; `spec/working-map.md`'s ground log). A tier carried by a single run is not
+evidence for a three-way distinction, which is the argument for one verdict rather than three.
+
+**`UNVERIFIABLE` is designed and untested.** Zero instances in 44 claims, and zero again in the 32 of
+this document. It exists because this
+repository has already recorded the gap — *"tp has no verdict for asserted, not run"* — and a
+verdict absent from the vocabulary is a verdict a unit will fake as `PASS`.
+
+## 4. The evidence must match the claim's kind
+
+**Reading is evidence about text; only running is evidence about behaviour.** Both were tried on
+behavioural claims **in the wider cycle rather than in the three pilot runs** — the two examples come
+from the delta-pass spec and the state-writes spec, neither of which is in §1.1's table — and their
+outcomes were opposite.
+
+**Running refuted one.** A proposed mechanism — adding `-type d` to a `find … | shasum` digest
+pipeline — read perfectly and **changed nothing whatsoever** when executed: `shasum` cannot hash a
+directory, the error goes to `/dev/null`, and both walks digest empty input.
+
+**Reading passed the other, and this spec now counts that as an unpaid bill.** Three claims about a
+shipped command were passed on a *read*; `spec/working-map.md`'s protocol §3 records them that way,
+and an earlier draft of this section reported them as run. That upgrade — a read reported as a run,
+because the run is what the argument needed — is precisely what §6's anchoring rule exists to catch,
+and it happened inside the document specifying the rule. Under this spec's own table those three are
+`QUESTION`, not `PASS`, and **test 4 is what stops the same upgrade happening inside a recorded
+round.**
+
+| the claim is about | the evidence |
+|---|---|
+| what a document says | read it |
+| how code is structured | read it |
+| what the corpus contains | run a query |
+| existing behaviour | run the command |
+| whether a proposed mechanism works | build a probe and run it |
+| whether a defect is real | write the test, watch it red, fix, watch it green |
+| whether a guard measures anything | break its subject, run the suite, **then run the control** |
+
+**A claim about behaviour confirmed only by reading is not confirmed.** It is `QUESTION` at best, and
+the row records which tier was used so a later reader can tell a checked claim from a read one.
+
+### 4.1 Where the probe runs
+
+**The repository is never modified. Where the probe runs instead is an open decision, and the
+precedent runs the other way.** The shipped isolation clause does not require a copy — it forbids the
+edit outright (`internal/cli/clauses.go:19`): *"Do not edit any file in the working tree. … If proving
+a defect would require changing code, report it with its evidence instead of making the edit."* And
+`spec/0.36.0.md` §2.4, headed **"What is deliberately not provisioned"**, considered exactly the
+scratch-copy recipe and rejected it for three reasons: a copy is a second write, forbidden by the
+runner release; a source file moved out of its package does not build, so the motivating experiment
+cannot be run on the copy; and N units each building a copy dissolves that release's concurrency
+argument.
+
+**Two of the three do not bind a `ground` unit; one does.** Grounding emits **one** prompt (§7), so the
+concurrency reason is inapplicable by construction. Most of the tier table needs a fresh script or a
+corpus query rather than a source file lifted out of its package, so the build reason reaches only the
+bottom two rows. The second-write reason binds, and its stated authority does not resolve: §2.4 cites
+`spec/0.35.0.md` §6.3 for it, and that section is *Agents*.
+
+**Decision: a probe runs in a copy the unit makes for itself, outside the repository.** The invariant
+is what Non-Goal 7 and test 10 assert — the working tree is byte-identical after a round that built
+and ran a probe — and the copy is how a unit reaches the bottom two tiers without touching it. **tp
+provisions nothing.** The copy is one sentence in the emitted prompt rather than a mechanism, because
+a release already adding a command, five verdicts and a coverage gate should not also acquire a
+scratch-tree lifecycle to create, name, and clean up.
+
+**The one reason that still binds is recorded as a limit on the tier, not waved away.** A source file
+lifted out of its package does not build, so a probe whose subject is a package-internal symbol cannot
+be run in a copy; that claim is `QUESTION` and its row says which tier it failed on. The concurrency
+reason is inapplicable by construction — §7 emits one prompt, so there is no N. And the second-write
+reason's authority does not resolve: 1.0.0 does not inherit a rule from a citation pointing at
+*Agents*.
+
+**A probe that refutes a claim is the acceptance test's skeleton**, so the work is not thrown away.
+
+## 5. Order by what the sentence cost to write
+
+**Start with the cheap sentences.** All seven pilot defects were cheap: a number borrowed from
+another context, a rule left unstated, a reason that sounded right, four counts nobody counted. The
+expensive claims — the ones that needed a simulator or a probe — held without exception, because
+building them was the verification.
+
+**A claim whose verdict depends on an unsettled claim belongs to a later pass.** One spec's
+*"concentration 2.0×"* could not be judged until *"how is the ratio derived"* was settled, and the
+second was never stated anywhere in the document.
+
+## 6. Three ranked causes before concluding; facts are yours; show without blocking
+
+**Name three to five falsifiable causes and rank them before testing any.** Single-cause reasoning
+anchors on the first plausible idea. The pilot cycle anchored three times and was wrong each time: a
+checker read as failing open when a shell pipeline was eating its exit code; a digest fix that read
+correctly and did nothing; a false-positive class characterised from the wrong reading. **On its first
+deliberate use the rule produced a refutation** — a field asserted to be driver-facing turned out to
+be written at two sites and read nowhere.
+
+**Finding facts is the unit's job, never the operator's.** Where a claim needs a fact from the
+environment, go and get it. Two things reach the operator and nothing else: a fact **only the author
+holds**, and a **decision**.
+
+**A `QUESTION` shows the ranked causes and does not stop the run.** The unit carries on with every
+claim that does not depend on the answer. Stopping is escalation, and escalation is for a decision.
+
+## 7. What is recorded, and where
+
+`tp ground <spec>` emits one prompt. `tp ground <spec> --record <file>` records the round.
+`tp ground <spec> --status` reports coverage.
+
+**One prompt, not a panel.** Review and audit fan out because their roles ask different questions;
+grounding asks one question of every claim. Sharding a large claim set is the divisible round's
+subject, not this release's.
+
+**The round is discovered by filename, and writes nothing into `state.json`.**
+`ground-round-N.ndjson` sits beside the review and audit rounds, found by prefix exactly as snapshots
+already are (`snapshotPrefixes`, `internal/engine/reviewstate.go:318`; `InFlightRound` stats a
+filename rather than reading an index).
+
+**That is a deliberate choice with a measured reason.** `SaveReviewState` marshals a typed struct, so
+**any key it does not know is dropped on the next write** — measured: a field injected into
+`state.json` is gone after one `--record`. A new index key would need the key-preservation work as a
+hard prerequisite; a filename convention needs nothing.
+
+## 8. Convergence is coverage, not absence
+
+**Review converges when nobody finds anything. Grounding converges when every claim has a verdict.**
+Those are different gates, and this repository has already paid for conflating an absence signal with
+a coverage one.
+
+**A repaired claim is a new claim.** A correction that arrives with the command that produced it is
+verified at birth; one that does not is ungrounded, and corrections **can** be wrong — two were, in
+the pilot cycle. So a second pass covers the claims whose text changed, and nothing else.
+
+**Grounding therefore recurs, and does not run once.** A review repair rewrites part of the spec, and
+the next review round reads that text as authoritative too. In this repository's own corpus the share
+of a round's findings landing in text the previous round had just written is a **median of 70.2%**
+across 44 rounds and runs **45.2% → 79.9% → 92.5%** over the last three cycles — the repair-locality
+spec §1.1 carries the table and the derivation. Naming the cycle matters: an earlier draft quoted the
+80% with no cycle attached, and the same table holds a higher figure. That text is where the new
+claims are.
+
+## 9. Review is told, and not stopped
+
+`tp review` reports how many of the spec's claims carry a verdict, and emits an advisory when any do
+not. **It does not refuse.**
+
+**Gating is a later decision, and this release does not take it.** The false-positive rate of
+"ungrounded" is unknown — the floor in §2 is deliberately incomplete, so a coverage gate would fail on
+claims the reader correctly judged were not claims. `divergence` is the precedent: it reported for a
+release before anything gated on it.
+
+## 10. Non-Goals
+
+1. **No new phase in the oracle.** No `DetectPhase` branch, no ninth unit kind, no `tp run` unit. A
+   command and an advisory; the phase question is what §9 leaves for a later release.
+2. **No `state.json` key.** §7.
+3. **No gate on coverage.** §9.
+4. **No panel, no roles, no per-role streaks.** §7.
+5. **No claim extraction beyond the floor.** tp emits the heuristic set and names it as a floor; it
+   does not attempt to be the list, because §2 measures why it cannot.
+6. **No verdict on decisions or predictions.** They are not claims; a unit that grades them is
+   reviewing, which is the next phase's job.
+7. **Nothing is written to the repository under test.** §4.
+
+## 11. Tests
+
+Every row derives from a numbered decision, names the artifact it depends on, and names a mutant that
+must fail it.
+
+| # | from | assertion | the mutant that must fail it |
+|---|---|---|---|
+| 1 | §2 | the emitted prompt names the heuristic set **as a floor**, asks the reader to extend it, and demands a verdict or an explicit *not a claim* for **every** unit in it | emit it as the claim list with no per-unit obligation, which on this file covers 75% of the prose units and settles none of them — a reader stops having read almost everything and concluded nothing |
+| 2 | §2 *arms* | the four arms are asserted separately: a digit, a backticked identifier, a `path.go:N` citation, and a listed measurement verb each put a unit in the floor | define *code citation* as the path form alone, which drops the fragment *"never reads `spec_hash` at all"* out of the floor; or drop the path arm, which loses the class the registered check found 49 of |
+| 3 | §3 | all five verdicts round-trip through `--record`, including the two with no pilot instance | accept only PASS/FAIL, so a unit with no verdict for "could not be checked" records `PASS` |
+| 4 | §4 | a row records which evidence tier was used, and a behavioural claim marked `PASS` on a *read* tier is rejected at record | accept any tier for any claim, which is the case where reading a mechanism confirmed one that does not work |
+| 5 | §6 | a `QUESTION` row carries three to five ranked causes, each with its prediction | accept a bare question, which is the "this is unclear" a review round already produces |
+| 6 | §6 *non-blocking* | a round holding a `QUESTION` still records, and the remaining claims still get verdicts | exit on the first question, turning a checkpoint into an escalation |
+| 7 | §7 | recording a round writes `ground-round-N.ndjson` and leaves `state.json` **byte-identical** | index it in `state.json`, where an older binary drops the key on its next write |
+| 8 | §8 | coverage is reported as *verdicts over claims*, and a round with a claim lacking a verdict is not covered | report a finding count, which is the absence signal §8 separates this from |
+| 9 | §9 | `tp review` emits the advisory and its exit code is **unchanged** with and without ungrounded claims | refuse to emit, which gates on a floor §2 says is incomplete |
+| 10 | §4 *isolation* | the working tree is byte-identical after a ground round that built and ran a probe | let the unit write its probe into the repository |
+
+**Row 4 is the one this release exists for.** A verdict that does not record how it was reached lets a
+read stand in for a run, and the pilot has one instance of exactly that being wrong and one of it
+being right — which is the whole reason the tier has to be on the row rather than in the unit's head.
