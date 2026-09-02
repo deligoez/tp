@@ -32,6 +32,7 @@ func runSetProjectWorkflow(args []string) error {
 	var qualityGate *string
 	var commitStrategy *string
 	var reviewConvergeOn *string
+	var auditConvergeOn *string
 	var checksValue *[]model.Check
 	for _, arg := range args {
 		parts := strings.SplitN(arg, "=", 2)
@@ -72,6 +73,19 @@ func runSetProjectWorkflow(args []string) error {
 			}
 			v := valueStr
 			reviewConvergeOn = &v
+		case field == "audit_converge_on":
+			// v0.37.0 §2's audit twin, refused on the same terms and with the
+			// same hint. This case sits above the editableWorkflowFields arm
+			// below, which would otherwise parse the literal as an integer and
+			// report ExitValidation — the very code §7 row 3 keeps distinct
+			// from the write sinks'.
+			if !engine.ValidAuditConvergeOn(valueStr) {
+				output.Error(ExitUsage, fmt.Sprintf("invalid audit_converge_on value %q", valueStr), engine.AuditConvergeOnHint)
+				os.Exit(ExitUsage)
+				return nil
+			}
+			v := valueStr
+			auditConvergeOn = &v
 		case field == "checks":
 			var checks []model.Check
 			if err := json.Unmarshal([]byte(valueStr), &checks); err != nil {
@@ -186,6 +200,10 @@ func runSetProjectWorkflow(args []string) error {
 		if reviewConvergeOn != nil {
 			pc.Workflow.ReviewConvergeOn = reviewConvergeOn
 			updated["review_converge_on"] = *reviewConvergeOn
+		}
+		if auditConvergeOn != nil {
+			pc.Workflow.AuditConvergeOn = auditConvergeOn
+			updated["audit_converge_on"] = *auditConvergeOn
 		}
 		if checksValue != nil {
 			pc.Workflow.Checks = checksValue
