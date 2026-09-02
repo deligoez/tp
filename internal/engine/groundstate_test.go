@@ -171,3 +171,20 @@ func TestNextGroundRoundCountsOnlyTheRecordedRoundFile(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, n, "an emitted artifact is not a recorded round")
 }
+
+// TestNextGroundRoundFailsClosedOnAnUnreadableStateDir: a directory tp cannot
+// list may hold anything, and answering 1 for it hands the next round a number
+// an existing round already holds — the collision §7.3 forbids. hasAnyPrefixed
+// refuses to guess on an unreadable directory for the same reason.
+func TestNextGroundRoundFailsClosedOnAnUnreadableStateDir(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root can list a 0o000 directory, so the fixture is not unreadable")
+	}
+	specPath := groundRoundFixture(t, "ground-round-1.ndjson")
+	stateDir := ReviewStateDir(specPath)
+	require.NoError(t, os.Chmod(stateDir, 0o000))
+	t.Cleanup(func() { _ = os.Chmod(stateDir, 0o755) })
+
+	_, err := NextGroundRound(specPath)
+	require.Error(t, err, "guessing here would reuse the number of an existing round")
+}
