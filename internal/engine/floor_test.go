@@ -687,14 +687,26 @@ func TestSection11Row1TheThreeArmsDecideFloorMembership(t *testing.T) {
 		})
 	}
 
-	// The two single-arm cases carry their arm ALONE, checked without the
+	// Each single-arm case carries its arm ALONE, checked without the
 	// predicates under test: a fixture whose isolation is asserted only by the
 	// code it is meant to discriminate proves nothing about that code.
-	require.False(t, strings.ContainsAny(tests[2].unit, "0123456789`"),
+	//
+	// Looked up by NAME, not by index. These were index-based and a row
+	// inserted in the middle silently repointed them at the wrong fixtures —
+	// the assertions still ran, still passed their own check, and no longer
+	// guarded anything.
+	byName := make(map[string]string, len(tests))
+	for _, tc := range tests {
+		byName[tc.name] = tc.unit
+	}
+	require.Len(t, byName, len(tests), "fixture names must be unique to look up by")
+	require.False(t, strings.ContainsAny(byName["listed verb only"], "0123456789`"),
 		"the verb-only unit must hold neither a digit nor a backtick")
-	require.False(t, strings.ContainsAny(tests[0].unit, "`"),
+	require.False(t, strings.ContainsAny(byName["digit only"], "`"),
 		"the digit-only unit must hold no backtick")
-	require.False(t, strings.ContainsAny(tests[3].unit, "0123456789`"),
+	require.False(t, strings.ContainsAny(byName["the only digit is zero"], "123456789`"),
+		"the zero unit's only digit must be 0, and it must hold no backtick")
+	require.False(t, strings.ContainsAny(byName["no arm at all"], "0123456789`"),
 		"the no-arm unit must hold neither a digit nor a backtick")
 }
 
