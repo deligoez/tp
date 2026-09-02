@@ -319,6 +319,7 @@ agent:
 | `tp set --workflow run_max_*=` **above** the resolved value | exit 2, same shape |
 | `tp import --force` | exit 2, same shape |
 | `tp set --workflow runner=` / `tp set --local notify_cmd=`, at **any** layer | exit 2, `names a command the driver executes and cannot be set under TP_UNATTENDED, at any layer` |
+| any write that **changes the resolved `audit_converge_on` to `blocking`** — `tp set --workflow`, its `--project` form, `tp import`, `tp config --extract` (v0.37.0) | exit 2, `<what> changes the resolved audit_converge_on from <before> to blocking, which relaxes the audit gate and is a user-approved decision refused under TP_UNATTENDED`; the hint names all three exits and escalates under `--decision audit-converge-on` |
 
 The cap comparison is against the currently **resolved** value; an equal or lower value is accepted
 and exits 0, since lowering a budget cannot manufacture convergence. The exception is `0`, which
@@ -328,6 +329,31 @@ accepted. Under the variable the fence applies to
 every write path a fenced field has. (An earlier version of this sentence named `TP_RUN_MAX_UNITS`
 and `TP_REVIEW_MAX_ROUNDS` as an env layer the fence ignores; neither variable exists in any
 non-test source, and workflow fields have no env layer to ignore.)
+
+**`audit_converge_on` is fenced by a change rule, not by field or value (v0.37.0).** The refusal
+fires when the write moves the **resolved** value — task override > project config > built-in — to
+`blocking`, and only then. So a `--project` write of `blocking` underneath a task-level `all` passes
+(it uncovers nothing an audit reads); an `import` carrying an already-resolved `blocking` forward
+passes (nothing changes); a write of `all` never trips it (`all` is the default and the only value
+that tightens the gate); and writing `all` first and `blocking` second is refused on the second
+write, so there is no walk-around. Fencing the *field* or the *value* instead would refuse every
+import an opted-in project makes, because `tp import` carries the existing block forward. The fourth
+sink, `tp config --extract`, is fenced with the other three and evaluated over **every** base the
+repository resolves: the hoist changes resolution for every context that had no task-level override,
+and it is prospective — after the hoist the next `tp init`/`tp import` writes an empty workflow block
+that resolves `blocking` from the project layer, with no fenced write ever occurring. `--force` does
+not exempt it.
+
+The refusal message names **all three** exits and the condition selecting each, because a unit
+reading only "refused" stops a run over an authoring error one edit fixes, while a unit that meant
+the relax and reads only the authoring exits writes the resolved value back, passes, and silently
+reverts an operator-approved `blocking`. The authoring exits differ by sink: at `tp import` the
+document is the fix (omit its top-level `workflow` key to carry the current block forward, or write
+`"audit_converge_on": "<resolved>"` into it); at `tp set` and `tp config --extract` the write *is*
+the change, so the exit is not to make it. `tp escalate --decision audit-converge-on` is reserved
+for a unit that **intends** the relax — escalating an authoring error stops the run for a decision
+that does not fix the document, and the next unit regenerates the same document and is refused
+again.
 
 This is a fence, not a sandbox: the refusals are enforced at tp's own CLI and the plugin's
 `PreToolUse` hook denies the file-writing tools a path to the same values. A unit that strips the
