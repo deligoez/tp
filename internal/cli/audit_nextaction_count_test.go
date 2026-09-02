@@ -100,3 +100,36 @@ func TestAuditNextAction_CleanRoundNamesTheAcceptedCount(t *testing.T) {
 	}
 }
 
+// TestAuditNextAction_ConvergedRoundNamesTheAcceptedCount covers §7 row 10: the
+// converged arm. The named mutant is branching on `clean` alone, which makes
+// the two strings equal — which is why the assertion is NotEqual against the
+// empty round rather than a presence check.
+func TestAuditNextAction_ConvergedRoundNamesTheAcceptedCount(t *testing.T) {
+	held, heldStatus := auditNextActionRun(t, auditThreeAdvisoryRound, 2)
+	require.Equal(t, true, held["converged"],
+		"two clean rounds meet the default audit_clean_rounds, so this is the converged arm")
+	none, noneStatus := auditNextActionRun(t, auditAllPassRound, 2)
+	require.Equal(t, true, none["converged"])
+
+	for _, tc := range []struct {
+		sink       string
+		held, none map[string]any
+	}{
+		{"--record", held, none},
+		{"--status", heldStatus, noneStatus},
+	} {
+		t.Run(tc.sink, func(t *testing.T) {
+			withRows, empty := nextActionOf(t, tc.held), nextActionOf(t, tc.none)
+			assert.Equal(t, auditReleaseDirective, empty,
+				"an empty converged round says exactly what it said before this release")
+			assert.Contains(t, withRows, "3",
+				"the accepted count is rendered as a numeral")
+			assert.Contains(t, withRows, "proceed to release",
+				"the terminal marker survives; the count is added to it, not substituted for it")
+			assert.NotContains(t, withRows, "tp audit",
+				"the terminal marker still names no further tp command")
+			assert.NotEqual(t, empty, withRows,
+				"a release reached over accepted rows reads differently from one reached clean")
+		})
+	}
+}
