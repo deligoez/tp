@@ -378,3 +378,43 @@ func TestAuditConvergeOnFence_ImportComparesItsOwnTarget(t *testing.T) {
 	assert.NotContains(t, string(data), "blocking", "the refused import reached no file")
 }
 
+// TestAuditConvergeOnFence_UnsetEnvironmentRefusesNothing covers v0.37.0 §7 row
+// 13c: with TP_UNATTENDED unset, every write rows 12 and 13b refuse succeeds.
+// The mutant is scoping the fence to the field rather than to the environment,
+// which ships a knob nobody can turn — §3's whole point being that this is a
+// human decision, not a forbidden one.
+//
+// The variable is removed from the child's environment rather than merely not
+// added, so this test states its own environment on a machine whose suite runs
+// under TP_UNATTENDED=1.
+func TestAuditConvergeOnFence_UnsetEnvironmentRefusesNothing(t *testing.T) {
+	t.Run("set --workflow", func(t *testing.T) {
+		dir := fenceShell(t, "{}", "")
+		_, stderr, code := runTPFence(t, dir, false, "set", "--workflow", "audit_converge_on=blocking")
+		require.Equal(t, 0, code, "an attended operator writes blocking: %s", stderr)
+		assert.Equal(t, "blocking", fenceResolved(t, dir), "and it resolves")
+	})
+
+	t.Run("set --workflow --project", func(t *testing.T) {
+		dir := fenceShell(t, "{}", "")
+		_, stderr, code := runTPFence(t, dir, false, "set", "--workflow", "--project", "audit_converge_on=blocking")
+		require.Equal(t, 0, code, "an attended operator writes blocking: %s", stderr)
+		assert.Equal(t, "blocking", fenceResolved(t, dir), "and it resolves")
+	})
+
+	t.Run("import", func(t *testing.T) {
+		dir := fenceShell(t, "{}", "")
+		doc := fenceImportDoc(t, dir, `{"audit_converge_on":"blocking"}`)
+		_, stderr, code := runTPFence(t, dir, false, "import", doc)
+		require.Equal(t, 0, code, "an attended operator imports blocking: %s", stderr)
+		assert.Equal(t, "blocking", fenceResolved(t, dir), "and it resolves")
+	})
+
+	t.Run("import uncovering the project layer", func(t *testing.T) {
+		dir := fenceShell(t, `{"audit_converge_on":"all"}`, `{"audit_converge_on":"blocking"}`)
+		doc := fenceImportDoc(t, dir, `{"review_max_rounds":5}`)
+		_, stderr, code := runTPFence(t, dir, false, "import", doc)
+		require.Equal(t, 0, code, "row 13b's document is refused only under the variable: %s", stderr)
+		assert.Equal(t, "blocking", fenceResolved(t, dir), "and the project block is uncovered")
+	})
+}
