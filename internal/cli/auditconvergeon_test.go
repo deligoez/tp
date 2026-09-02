@@ -61,3 +61,26 @@ func TestAuditConvergeOnResolvedNamesItsSource(t *testing.T) {
 	assert.Equal(t, "all", field["value"], "the task override outranks the project config")
 	assert.Equal(t, "override", field["source"], "the override layer is named")
 }
+
+// TestAuditConvergeOnHasNoEnvironmentLayer covers the environment half of
+// v0.37.0 §7 row 2 through the whole read path rather than the resolver alone:
+// a child process carrying TP_AUDIT_CONVERGE_ON=blocking still resolves all,
+// and still attributes it to the built-in default. The value is the opposite of
+// the built-in, so the assertion fails under the named mutant — an environment
+// entry added to engine.ResolveWorkflowLayers at any rank answers this repo,
+// which sets the field at no layer, with blocking.
+func TestAuditConvergeOnHasNoEnvironmentLayer(t *testing.T) {
+	dir := writeStrategyProject(t, "{}")
+
+	out, stderr, code := runTPEnv(t, dir, []string{"TP_AUDIT_CONVERGE_ON=blocking"}, "config", "--resolved")
+	require.Equal(t, 0, code, "config --resolved: %s", stderr)
+	var res map[string]any
+	require.NoError(t, json.Unmarshal([]byte(out), &res))
+	wf, ok := res["workflow"].(map[string]any)
+	require.True(t, ok, "config --resolved carries a workflow object")
+	entry, ok := wf["audit_converge_on"].(map[string]any)
+	require.True(t, ok, "config --resolved reports audit_converge_on")
+
+	assert.Equal(t, "all", entry["value"], "an environment variable does not set the field")
+	assert.Equal(t, "default", entry["source"], "and no layer is invented to attribute it to")
+}
