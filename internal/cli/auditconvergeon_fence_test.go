@@ -515,3 +515,45 @@ func TestAuditConvergeOnFence_ImportRemediesPass(t *testing.T) {
 		assert.Equal(t, "all", fenceResolved(t, dir), "so nothing resolves differently")
 	})
 }
+
+// TestAuditConvergeOnFence_TheBlockTPWritesTakesTheRefusedPath pins the note
+// §7 row 13d carries: model.TaskFile gives workflow no omitempty, so every file
+// tp itself writes carries the top-level key, and a document built from one
+// takes row 13b's path rather than row 13d's. The refusing input is therefore
+// the common shape, not an exotic one — which is the whole reason the two
+// remedies have to be reachable by a unit that never wrote a workflow block on
+// purpose.
+//
+// The block is read out of the file tp init emits and fed straight back into
+// the document, rather than restated as a literal here. A test that hard-coded
+// {} would keep passing on the day the field gained an omitempty tag and the
+// claim stopped being true.
+func TestAuditConvergeOnFence_TheBlockTPWritesTakesTheRefusedPath(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "s.md"),
+		[]byte("# S\n\n## 1. Setup\n\nDo the thing.\n"), 0o600))
+
+	_, stderr, code := runTPFence(t, dir, true, "init", "s.md")
+	require.Equal(t, 0, code, "init: %s", stderr)
+
+	raw, err := os.ReadFile(filepath.Join(dir, "s.tasks.json"))
+	require.NoError(t, err)
+	var keys map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(raw, &keys))
+	emitted, ok := keys["workflow"]
+	require.True(t, ok,
+		"workflow has no omitempty, so a file tp writes carries the top-level key")
+	assert.JSONEq(t, "{}", string(emitted), "and a fresh init emits it empty")
+
+	// That same block, imported over row 13b's shell, replaces the task-level
+	// all and lets the project-level blocking resolve — naming neither literal.
+	shell := fenceShell(t, `{"audit_converge_on":"all"}`, `{"audit_converge_on":"blocking"}`)
+	require.Equal(t, "all", fenceResolved(t, shell),
+		"the task override covers the project block before the import")
+	doc := fenceImportDoc(t, shell, string(emitted))
+
+	_, stderr, code = runTPFence(t, shell, true, "import", doc)
+	assertFenceRefused(t, stderr, code, "a document carrying the block tp itself writes")
+	assert.Equal(t, "all", fenceResolved(t, shell), "and the block stayed covered")
+}
