@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.37.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-02T04:43:52.621242Z",
+  "updated_at": "2026-09-02T04:55:10.185794Z",
   "workflow": {},
   "coverage": {
     "total_sections": 9,
@@ -707,7 +707,7 @@
     {
       "id": "reversal-sweep",
       "title": "Run the reversal sweep over every comment, constant and assertion",
-      "status": "open",
+      "status": "done",
       "tags": [
         "reversal"
       ],
@@ -721,11 +721,27 @@
       "source_sections": [
         "## 6. Five shipped assertions are reversed"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-02T04:45:10.783278Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-02T04:55:10.147818Z",
+      "closed_reason": "- Ran the §6 sweep over all four criteria across skills/, README.md, internal/engine/ and internal/cli/, searching with git grep per criterion and per path rather than one truncated pass: (a) 'non-PASS|zero findings|clean round|counts as a finding', (b) 'moved no gate|gates nothing|untouched|unchanged|changes no', (c) 'review_converge_on' and 'audit_converge_on', (d) every workflow-field enumeration reachable from 'review_clean_rounds|gate_timeout_seconds|hoistedFields'. The first sweep pass was itself falsified: 'git grep ... | head -80' hid every skills/ hit, because skills/ sorts after internal/.\n- Five shipped assertions were false under one value of the field and are repaired, each stating a rule true under both: SKILL.md:144 ('a clean round has zero findings' — false under blocking, where findings stays the raw non-PASS count); SKILL.md:152-153 (the two-line denial that tp has no audit-side equivalent of review_converge_on); REFERENCE.md:939-941 ('whenever divergence is emitted ... next_action reads the fix-and-re-audit directive' — false under blocking); engine/reviewclean.go:93 ('audit convergence has no non-blocking notion'); cli/audit_merge.go:193 ('zero rows is what a genuinely clean round looks like', a definition it is not under blocking).\n- Every repair was established by running, not reading. Fixture at audit_converge_on=blocking, audit_clean_rounds=2, an error row then a warning row with spec-coverage clean throughout: round 2 records clean=true, findings=1, converged=false, emits divergence, and next_action reads '1 accepted row carried forward — run the next audit round'. That single run falsifies both SKILL.md:144 and REFERENCE.md:939-941.\n- The two failure modes §6 names were both applied. Second false clause: SKILL.md:145, :149 and REFERENCE.md:648, :808 were each re-read for a clause beyond the one their item names, and all four are true under both values (149's counting clause is repaired and its leading clause is scoped to emitting divergence; 145's disposition-invariance holds under both). Falsifying by omission: every settable-field enumeration was checked for audit_converge_on and all carry it — REFERENCE.md:497-515, SKILL.md:336, cli/set.go:49, set_project.go:76, config.go:82, config_extract.go:142, validate_project.go:70; engine/validate.go carries only int range checks, so a string enum's absence there is not an omission.\n- The four handoff items were verified rather than trusted. SKILL.md:152-153 confirmed false and fixed. review_merge_test.go:357 confirmed TRUE by experiment, not by reading: the same two same-(location,class) FAIL rows record findings=2 under all and under blocking alike, so the previous unit's judgement holds and the comment stands. REFERENCE.md:321 and :502 confirmed byte-exact and untouched. document-the-field's work was audited and is correct, including the TP_UNATTENDED fence-table row and the Workflow Fields row.\n- The repairs most likely to be silently undone now have a reader, which §6.4's lesson says they need: docs_contract_test.go's TestDocsStateTheConvergenceRuleUnderBothPolicies asserts the audit-side denial nowhere appears in SKILL.md, REFERENCE.md or README.md — as a whole-document NotContains, so a sentence wrapping across lines cannot hide from it — that SKILL.md's audit-scope paragraph names the field, and that REFERENCE.md's divergence section states the carried-forward form. Run against the pre-repair text (git stash of the two docs) it fails all three assertions with the expected messages; restored, it passes.\n- Quality gate green: ./scripts/check-suite-state.sh \u0026\u0026 golangci-lint run \u0026\u0026 ./scripts/check-deadcode.sh \u0026\u0026 ./scripts/check-complexity.sh — suite ok across cli/engine/fakerunner/model/output, golangci-lint '0 issues.', deadcode exit 0, complexity exit 0, gofmt clean.",
+      "gate_passed_at": "2026-09-02T04:55:10.147818Z",
+      "commit_sha": "f63e96a3",
+      "commit_shas": [
+        "f63e96a3",
+        "3dd0333f",
+        "ed1e9d76",
+        "20a06730",
+        "268b4b5f",
+        "cb658d01"
+      ],
+      "commit_files": [
+        "internal/cli/audit_merge.go",
+        "internal/cli/docs_contract_test.go",
+        "internal/engine/reviewclean.go",
+        "skills/tp/REFERENCE.md",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "document-the-field",
