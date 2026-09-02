@@ -123,3 +123,47 @@ func TestAuditRecord_StampSurvivesTighteningTheKnob(t *testing.T) {
 		"reporting under the new policy rewrote nothing in the store")
 }
 
+// TestAuditRecord_StampSurvivesRelaxingTheKnob covers v0.37.0 §7 row 9b, the
+// direction §2 says is the one to state: a round recorded under `blocking`
+// keeps `clean: true` after the knob returns to `all`. A read-side floor —
+// clean only when the round also holds no non-PASS row — satisfies row 9 and
+// fails here, which is why the two directions are asserted separately.
+//
+// The `findings` assertion is part of the contract and not decoration: the
+// count stays 1 while the verdict is true, so `clean` is visibly the policy's
+// verdict over the rows rather than a restatement of the count. That is the
+// equality the pre-release code held — `clean := findings == 0` — and the one
+// this row breaks.
+//
+// Both stored layers are run because a stamp taking its policy from the task
+// override alone, or from the project config alone, is green on one subtest and
+// red on the other; a single-layer test would ship the half that was dropped.
+func TestAuditRecord_StampSurvivesRelaxingTheKnob(t *testing.T) {
+	for _, layer := range []string{"project", "override"} {
+		t.Run(layer, func(t *testing.T) {
+			dir := auditStampingProject(t)
+			setAuditConvergeOn(t, dir, layer, "blocking")
+
+			out, stderr, code := auditRecord(t, dir, auditAdvisoryRound)
+			require.Equal(t, 0, code, "audit --record: %s", stderr)
+			assert.Equal(t, true, out["clean"],
+				"under blocking, an advisory row does not block the round")
+			assert.Equal(t, float64(1), out["findings"],
+				"the non-PASS row is still counted; clean is the verdict, not the count")
+
+			setAuditConvergeOn(t, dir, layer, "all")
+
+			stored := roundEntries(t, dir, "audit_rounds")
+			require.Len(t, stored, 1)
+			assert.Equal(t, true, stored[0]["clean"],
+				"the stamp is a fact about the round, recorded once")
+
+			payload, rounds := auditStatusPayload(t, dir)
+			require.Len(t, rounds, 1)
+			assert.Equal(t, true, rounds[0]["clean"],
+				"and the report reads the stamp rather than re-grading the rows")
+			assert.Equal(t, float64(1), payload["consecutive_clean"],
+				"one operator-approved blocking round relaxes the streak permanently")
+		})
+	}
+}
