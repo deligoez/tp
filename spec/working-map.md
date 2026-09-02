@@ -8,7 +8,7 @@ Not a release. It carries no version number so it cannot be mistaken for one.
 
 ## Destination
 
-**Reached: `spec/0.54.0.md` — `tp ground` — is written**, from three pilot runs over 44 claims. The
+**Reached: `spec/1.0.0.md` — `tp ground` — is written**, from three pilot runs over 44 claims. The
 protocol below was its input; the spec is now the single source of truth for it, and this section of
 the map is history rather than instruction.
 
@@ -21,15 +21,15 @@ nothing here starts a tp cycle.
 | # | work | state |
 |---|---|---|
 | W1 | **Ground the pending specs.** Protocol below; log below | 3 fully ground; the citation and numeric classes ground across all 18 |
-| W2 | Route the skills-examination findings into the specs that own them | **done** — 0.48.0, 0.41.0, 0.50.0, candidates |
+| W2 | Route the skills-examination findings into the specs that own them | **done** — 1.48.0, 1.41.0, 1.50.0, candidates |
 | W3 | **v0.37.1 ships.** Spec written and ground, both fixes built and green in a scratch copy | ready — waiting only on the operator |
 | W4 | `forward-spec-ref` lint rule — survived prototyping (18 findings pre-repair, 0 today, 0 false positives) | needs a decision: it wants the shipped boundary, which `tp lint` has no git access for |
 | W5 | CLAUDE.md carries **326 of 632 lines (53%)** of planning reference in an always-loaded document | separate effort; sized, not started |
-| W6 | tp's emitted prompts steer by prohibition — **14%** of the review prompt, **12%** of CLAUDE.md | routed into 0.41.0; the CLAUDE.md half is W5 |
+| W6 | tp's emitted prompts steer by prohibition — **14%** of the review prompt, **12%** of CLAUDE.md | routed into 1.41.0; the CLAUDE.md half is W5 |
 
 ## The ground protocol — superseded
 
-**`spec/0.54.0.md` is now the single source of truth for every rule below.** What follows is kept as
+**`spec/1.0.0.md` is now the single source of truth for every rule below.** What follows is kept as
 the pilot's working text, because the spec cites it as its input; it is not a second home for the
 rules and must not be edited to disagree with the spec.
 
@@ -38,12 +38,12 @@ mechanism *does when run*. Decisions and predictions are not claims. **Counting 
 undercounts**: a keyword heuristic said 11 for a spec that carried 17.
 
 **2. Order them.** A claim whose verdict depends on another unsettled claim belongs to a later pass.
-`0.52.0`'s *"concentration 2.0×"* could not be judged before *"how is the ratio derived"* was settled,
+`1.52.0`'s *"concentration 2.0×"* could not be judged before *"how is the ratio derived"* was settled,
 and the second was never stated.
 
 **3. Match the evidence to the claim's kind.** Reading is evidence about text; only running is
-evidence about behaviour. Both were tried on behavioural claims this cycle: `0.49.0`'s three held
-under reading, and `0.43.0`'s `-type d` mechanism read perfectly and **did not work at all**.
+evidence about behaviour. Both were tried on behavioural claims this cycle: `1.49.0`'s three held
+under reading, and `1.43.0`'s `-type d` mechanism read perfectly and **did not work at all**.
 
 | the claim is about | the evidence |
 |---|---|
@@ -81,8 +81,8 @@ positive phrasing, and pair it with the target even then.
 
 | spec | claims | PASS | PARTIAL | FAIL | UNVERIFIABLE | QUESTION | deepest evidence used |
 |---|---|---|---|---|---|---|---|
-| 0.52.0 | 17 | 14 | 2 | 1 | 0 | 0 | corpus query |
-| 0.53.0 | 10 | 9 | 0 | 1 | 0 | 0 | **simulation probe** |
+| 1.52.0 | 17 | 14 | 2 | 1 | 0 | 0 | corpus query |
+| 1.53.0 | 10 | 9 | 0 | 1 | 0 | 0 | **simulation probe** |
 | 0.37.1 | 17 | 14 | 0 | 3 | 0 | 0 | reachability read + tag history |
 | *all 18 files* | — | — | — | **49** | — | — | the registered citation check, run over the corpus |
 
@@ -115,15 +115,15 @@ substance lives in the target, never here.
 
 | finding | source skill | target | state |
 |---|---|---|---|
-| Build the loop before any hypothesis; the loop is the work, everything else is mechanical | `diagnosing-bugs` | 0.48.0 | routed |
-| 3–5 ranked falsifiable hypotheses before testing any | `diagnosing-bugs` | 0.48.0 + protocol §4 | **routed** — 0.48.0 §2 step 3 |
-| Completion criterion as a checklist the unit can check itself against | `diagnosing-bugs` | 0.48.0 | routed |
-| Minimality test: every remaining element is load-bearing, remove one and it goes green | `diagnosing-bugs` | 0.48.0 | **routed** — 0.48.0 §3 |
-| "If no correct seam exists, that itself is the finding" | `diagnosing-bugs` | 0.48.0 | **routed** — 0.48.0 §3 |
-| Demand drives legwork — *"every modified model accounted for"* forces work that *"produce a list"* does not | `writing-for-agents` | 0.41.0 | **routed** — 0.41.0 §3 |
-| Negation is a failure mode; prompt the positive | `writing-for-agents` | 0.41.0 (emission) + W5 (CLAUDE.md) | **routed** — 0.41.0 §4a; CLAUDE.md half parked as W5 |
+| Build the loop before any hypothesis; the loop is the work, everything else is mechanical | `diagnosing-bugs` | 1.48.0 | routed |
+| 3–5 ranked falsifiable hypotheses before testing any | `diagnosing-bugs` | 1.48.0 + protocol §4 | **routed** — 1.48.0 §2 step 3 |
+| Completion criterion as a checklist the unit can check itself against | `diagnosing-bugs` | 1.48.0 | routed |
+| Minimality test: every remaining element is load-bearing, remove one and it goes green | `diagnosing-bugs` | 1.48.0 | **routed** — 1.48.0 §3 |
+| "If no correct seam exists, that itself is the finding" | `diagnosing-bugs` | 1.48.0 | **routed** — 1.48.0 §3 |
+| Demand drives legwork — *"every modified model accounted for"* forces work that *"produce a list"* does not | `writing-for-agents` | 1.41.0 | **routed** — 1.41.0 §3 |
+| Negation is a failure mode; prompt the positive | `writing-for-agents` | 1.41.0 (emission) + W5 (CLAUDE.md) | **routed** — 1.41.0 §4a; CLAUDE.md half parked as W5 |
 | Leading words recruit pretraining; an invented word pays in definition tokens | `writing-for-agents` | naming, `ground` | settled — validates the name |
-| Two axes reported separately, never merged or reranked, because one masks the other | `code-review` | 0.50.0 | **routed** — 0.50.0 §4.1 |
+| Two axes reported separately, never merged or reranked, because one masks the other | `code-review` | 1.50.0 | **routed** — 1.50.0 §4.1 |
 | Facts are the agent's job; decisions are the user's | `grilling` | protocol §5 | done |
 | Frontier: a question depending on an open question belongs to a later round | `grilling` | protocol §2 | done |
 | Show the ranked list; do not block on it | `diagnosing-bugs` | protocol §6 | done |
