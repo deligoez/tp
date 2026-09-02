@@ -19,7 +19,7 @@ import (
 // distinguishing review from audit, and both kinds exist (`review-record`,
 // `audit-record`).
 
-// auditFailRow is one non-PASS audit result — a finding for countAuditFindings.
+// auditFailRow is one non-PASS audit result — a finding for parseAuditRows.
 const auditFailRow = `{"role":"spec-coverage","item_id":"i1","status":"FAIL","location":"L1","finding":"missing","suggestion":"add it"}` + "\n"
 
 // recordUnitRound records one merged file the way a record unit does, with the

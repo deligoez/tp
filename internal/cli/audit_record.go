@@ -76,7 +76,7 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 		return nil
 	}
 
-	findings, parseErr := countAuditFindings(recordPath, data)
+	rows, findings, parseErr := parseAuditRows(recordPath, data)
 	if parseErr != nil {
 		// A malformed row is a fault in the results file, not in the invocation,
 		// so it is a validation error (exit 1) — and its hint names that file,
@@ -85,7 +85,19 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 		os.Exit(ExitValidation)
 		return nil
 	}
-	clean := findings == 0
+	// §2: `clean` is stamped here, once, under the policy in force at record
+	// time, and nothing downstream recomputes it. The policy comes from wfPre
+	// and not from the wf resolved after recordAuditRoundEntry, for the reason
+	// the refusal above uses wfPre: the round is written before that second
+	// resolution, so a stamp taken from it would be a verdict computed after
+	// the round it grades was already in a store §2 declares immutable.
+	//
+	// This is where the two values part company. `findings` stays the raw count
+	// of non-PASS rows — under `blocking` a round can be clean while findings
+	// is non-zero, which is exactly the accepted-rows case §2 describes — so
+	// the pre-release equality `clean := findings == 0` is not a shortcut worth
+	// keeping beside this call.
+	clean := engine.AuditRowsClean(rows, wfPre.AuditConvergeOn)
 
 	specHash, err := engine.SpecHash(specPath)
 	if err != nil {
@@ -240,9 +252,15 @@ func recordAuditRoundEntry(specPath string, data []byte, findings int, clean boo
 	return st, round, rolesHash, err
 }
 
-// countAuditFindings parses rows with the shared line rules and counts rows
-// whose status is absent or not exactly "PASS".
-func countAuditFindings(path string, data []byte) (findings int, err error) {
+// parseAuditRows parses rows with the shared line rules, returning them
+// alongside the count of rows whose status is absent or not exactly "PASS".
+//
+// The rows are returned and not only their count because §2 stamps the round's
+// `clean` from engine.AuditRowsClean, whose subject is the non-PASS rows
+// themselves: under `blocking` the verdict turns on each row's severity, which
+// a tally has already thrown away. One walk produces both, so the count the
+// round records and the rows it is graded from cannot describe different files.
+func parseAuditRows(path string, data []byte) (rows []map[string]any, findings int, err error) {
 	lineNum := 0
 	var rl rolelessRows
 	var ic invalidCategoryRows
@@ -254,8 +272,9 @@ func countAuditFindings(path string, data []byte) (findings int, err error) {
 		}
 		var row map[string]any
 		if jsonErr := json.Unmarshal([]byte(trimmed), &row); jsonErr != nil {
-			return 0, fmt.Errorf("line %d: invalid JSON: %w", lineNum, jsonErr)
+			return nil, 0, fmt.Errorf("line %d: invalid JSON: %w", lineNum, jsonErr)
 		}
+		rows = append(rows, row)
 		rl.observe(row, lineNum)
 		ic.observe(row, lineNum)
 		// engine.AuditRowIsPass is the same predicate §2.1 pins for the streak
@@ -267,10 +286,10 @@ func countAuditFindings(path string, data []byte) (findings int, err error) {
 		}
 	}
 	if err := ic.err(); err != nil {
-		return 0, err
+		return nil, 0, err
 	}
 	rl.notice(path)
-	return findings, nil
+	return rows, findings, nil
 }
 
 // invalidCategoryRows collects rows whose category is outside the enum
