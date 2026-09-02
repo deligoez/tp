@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-02T20:29:55.771352Z",
+  "updated_at": "2026-09-02T20:30:23.445346Z",
   "workflow": {},
   "coverage": {
     "total_sections": 21,
@@ -93,7 +93,9 @@
       "tags": [
         "engine"
       ],
-      "depends_on": [],
+      "depends_on": [
+        "floor-index"
+      ],
       "estimate_minutes": 5,
       "acceptance": "The anchor is the last §n(.n)* heading at or above the unit, and §0 before the first. A table row anchors to its own section, not to §0. §11 row 21 passes on this spec's preamble blockquote, and a table row in §7.2 reports §7.2.",
       "source_sections": [
