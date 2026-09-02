@@ -336,11 +336,19 @@ func TestAuditSignal_CompactKeepsAllThreeWhole(t *testing.T) {
 	assert.Contains(t, quietRecord, `"role_streaks": []`)
 }
 
-// Test 31 — the three fields appear nowhere else: not on tp audit --merge, not
-// on tp audit <spec> prompt emission, and not on tp review <spec> --record or
-// tp review <spec> --status, which pins the review-side half of §2.5's absence
-// rule (Non-Goal 3).
-func TestAuditSignal_AbsentFromEveryOtherOutput(t *testing.T) {
+// Test 31 — the three fields are absent from the four outputs named here: tp
+// audit --merge, tp audit <spec> prompt emission, and tp review <spec> --record
+// and --status, which pins the review-side half of §2.5's absence rule
+// (Non-Goal 3).
+//
+// The name and this comment used to claim the fields appear nowhere else. That
+// is false and the body never checked it: auditSignalFields has a third call
+// site at run_status.go:147, so `tp run --status` carries all three on an
+// audit-phase stop. Their presence there is asserted byte-for-byte against `tp
+// audit --status`'s payload by
+// TestRunStatus_CarriesTheDivergenceSignalsOnAnAuditPhaseStop, which owns that
+// claim; naming it here rather than re-asserting it keeps one owner per claim.
+func TestAuditSignal_AbsentFromPromptMergeAndReviewOutputs(t *testing.T) {
 	dir, _ := divergingFixture(t)
 	rows := filepath.Join(dir, "results.ndjson")
 
