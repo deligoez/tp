@@ -83,3 +83,44 @@ func TestMergeCommon_WritesReviewConvergeOn(t *testing.T) {
 	require.NotNil(t, dst.AuditMaxRounds)
 	assert.Equal(t, 3, *dst.AuditMaxRounds, "other hand-set fields are preserved")
 }
+
+// audit_converge_on is hoisted on its twin's terms above: a value every scanned
+// task file sets identically moves to the project layer, and one that diverges
+// or is absent from any file does not. Three functions carry the field —
+// computeCommonPolicy, hoistedFields and mergeCommon — and each has its own
+// assertion here, because the named mutant is only the middle one and dropping
+// either of the others is silently worse: strip-without-write destroys the
+// value outright.
+func TestComputeCommonPolicy_HoistsUnanimousAuditConvergeOn(t *testing.T) {
+	common := computeCommonPolicy([]model.WorkflowOverride{
+		{AuditConvergeOn: sptr("blocking")},
+		{AuditConvergeOn: sptr("blocking")},
+	})
+	require.NotNil(t, common.AuditConvergeOn)
+	assert.Equal(t, "blocking", *common.AuditConvergeOn, "a unanimous audit_converge_on is hoisted")
+	assert.Contains(t, hoistedFields(&common), "audit_converge_on")
+}
+
+func TestComputeCommonPolicy_AuditConvergeOnNotHoistedWhenDivergentOrAbsent(t *testing.T) {
+	divergent := computeCommonPolicy([]model.WorkflowOverride{
+		{AuditConvergeOn: sptr("all")},
+		{AuditConvergeOn: sptr("blocking")},
+	})
+	assert.Nil(t, divergent.AuditConvergeOn, "a divergent audit_converge_on is not hoisted")
+	assert.NotContains(t, hoistedFields(&divergent), "audit_converge_on")
+
+	partial := computeCommonPolicy([]model.WorkflowOverride{
+		{AuditConvergeOn: sptr("all")},
+		{}, // unset in one file
+	})
+	assert.Nil(t, partial.AuditConvergeOn, "audit_converge_on absent from any file is not hoisted")
+}
+
+func TestMergeCommon_WritesAuditConvergeOn(t *testing.T) {
+	dst := model.WorkflowOverride{AuditMaxRounds: iptr(3)} // hand-set project field
+	mergeCommon(&dst, &model.WorkflowOverride{AuditConvergeOn: sptr("blocking")})
+	require.NotNil(t, dst.AuditConvergeOn)
+	assert.Equal(t, "blocking", *dst.AuditConvergeOn, "hoisted audit_converge_on is written")
+	require.NotNil(t, dst.AuditMaxRounds)
+	assert.Equal(t, 3, *dst.AuditMaxRounds, "other hand-set fields are preserved")
+}
