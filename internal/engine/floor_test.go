@@ -983,3 +983,49 @@ func TestFloorOrdinalsCountWithinAHashInEmissionOrder(t *testing.T) {
 		})
 	}
 }
+
+// TestSection11Row18cTheJoinKeyIsTheHashAndTheOrdinal is the half of §11 row 18c
+// this derivation owns: two units with identical canonical text in one round are
+// told apart by `(text_sha, ordinal)`, and are not told apart by `text_sha`
+// alone. The carrying forward is §8's and is asserted where the join is
+// implemented; what is checkable here is that the key the join needs exists.
+//
+// The repeated sentence is the corpus's own — `**Exit codes:** 0 = success.`
+// occurs five times in `spec/0.1.0.md`, re-derived through
+// `scripts/floor-prototype.py` at the commit this test was written — which is
+// why §8 says `text_sha` alone "is not unique and cannot be made so". The
+// fixture is constructed rather than read from that file, because §2.1 rules out
+// a test quantified over `spec/*.md`.
+//
+// The row's named mutant is run rather than described: the last assertion is
+// what joining on the hash alone would see.
+func TestSection11Row18cTheJoinKeyIsTheHashAndTheOrdinal(t *testing.T) {
+	const repeated = "**Exit codes:** 0 = success."
+	const other = "A sentence carrying `a span` and nothing else."
+	units := FloorUnits(repeated + "\n\n" + other + "\n\n" + repeated)
+	require.Equal(t, []string{repeated, other, repeated}, units,
+		"the fixture is two identical units with a third between them")
+
+	hashes := make([]string, 0, len(units))
+	for _, u := range units {
+		hashes = append(hashes, FloorTextSHA(u))
+	}
+	ordinals := FloorOrdinals(hashes)
+
+	require.Equal(t, hashes[0], hashes[2], "identical canonical text, identical hash")
+	require.NotEqual(t, hashes[0], hashes[1])
+	assert.Equal(t, []int{1, 1, 2}, ordinals)
+
+	type joinKey struct {
+		sha string
+		ord int
+	}
+	pairs := make(map[joinKey]int, len(units))
+	byHashAlone := make(map[string]int, len(units))
+	for i := range units {
+		pairs[joinKey{hashes[i], ordinals[i]}]++
+		byHashAlone[hashes[i]]++
+	}
+	assert.Len(t, pairs, 3, "(text_sha, ordinal) is a key over the round's units")
+	assert.Len(t, byHashAlone, 2, "text_sha alone is not: it matches the first for both")
+}
