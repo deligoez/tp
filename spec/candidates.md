@@ -155,8 +155,14 @@ whose name is not a version (`candidates.md`, `0.35.0-candidates.md`) yields no 
 skipped; a caller that cannot determine the shipped boundary reports nothing rather than guessing.
 
 **It is a rot predictor, not a correctness claim.** A reference to a higher-numbered spec is not wrong
-the day it is written; it is wrong the day that spec is renumbered, and that has now happened four
+the day it is written; it is wrong the day that spec is renumbered, and that has now happened five
 times.
+
+**The fifth renumbering taught the rule one thing the prototype had wrong: it must skip fenced
+blocks**, exactly as the code-citation check already does. Run over the renumbered corpus it reported
+two violations, and one was a **transcript line** — a fixture spec named in a shell session, not a
+reference to anything. The citation checker gets this right and this rule did not; a rule that flags
+example output teaches the reader to skip it.
 
 ### Refuted alongside it: `broken-cross-ref` extended across files
 
