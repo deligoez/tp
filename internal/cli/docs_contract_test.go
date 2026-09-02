@@ -160,4 +160,20 @@ func TestDocsCarryTheConvergenceSignalWording(t *testing.T) {
 	}
 	assert.Contains(t, reference, engine.DivergenceHint,
 		"REFERENCE.md quotes the shipped engine.DivergenceHint verbatim, so the constant, the document and this test cannot drift apart")
+
+	// §7 row 19's second mutant. The counting rule has to hold under both
+	// values of audit_converge_on, so it is phrased over what the resolved
+	// policy accepts and never over a severity name: §2 makes `error` the
+	// blocking severity, so a sentence saying convergence counts the rows
+	// whose severity is blocking would exclude the warning and info rows that
+	// count under `all` — while reading as true to anyone checking it under
+	// `blocking` alone. Both halves of the pair above are asserted, since that
+	// rewording would be applied to both.
+	for name, text := range map[string]string{
+		"engine.DivergenceHint":   engine.DivergenceHint,
+		"SKILL.md's own sentence": divergenceCountingSubstring,
+	} {
+		assert.NotContains(t, text, "severity",
+			"%s states the counting rule over the resolved policy, not over a severity", name)
+	}
 }
