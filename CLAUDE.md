@@ -264,39 +264,115 @@ neither is re-derived from scratch.
 the most load-bearing fact in this section.** A spec filename is the release that ships it, and that
 convention is kept. None of the thirteen has been reviewed.
 
-**Why they were split, measured.** Across the fifteen cycles recorded in `spec/.tp-review/`, spec
-length is the strongest single predictor of cycle length (r ≈ +0.56 against total review + audit
-rounds); section count is *negatively* correlated (≈ −0.17) and finding stickiness only weakly
-positive (≈ +0.36). In plain terms: specs under 200 lines cost roughly 8–9 total rounds, specs over
-300 cost roughly 23. The rule that came out of it is the one the split follows — **if a piece can be
-released independently, it is its own release** — and the exceptions matter, because 0.31.0 cost 25
-rounds at 146 lines, so splitting shortens the expected cycle without guaranteeing any single one.
+**Why they were split — and the number that justified it measures the wrong direction.** This file
+used to say spec length is the strongest single predictor of cycle length, r ≈ +0.56. Re-derived over
+sixteen cycles with v0.37.0 added, the correlation depends entirely on *when* you measure the length,
+and that was never stated:
 
-| # | Spec | What it does | Lines |
-|---|---|---|---|
-| 0.36.0 | the emitted round | The emitted prompt carries its own isolation and incremental-write constraints, and `--role` emits one role's prompt instead of the panel. **Shipped** | 763 |
-| 0.37.0 | audit convergence | `audit_converge_on` with a fence: the first string-valued workflow field whose non-default value relaxes a gate, so it is opt-in and human-only. **Shipped** | 396 |
-| 0.38.0 | the round reports its progress | `--status` says how far an in-flight round has got, for the interactive fallback the driver cannot see | 78 |
-| 0.39.0 | the v0.35.0 backlog | The defects v0.32.0–v0.35.0 deferred with reasons; cites `spec/0.35.0-candidates.md` rather than restating it | 144 |
-| 0.40.0 | the gate sequence and the red gate | `quality_gate` as an ordered array, plus the bounded procedure a unit follows when it goes red | 120 |
-| 0.41.0 | a durable home for an accepted finding | Where an accepted audit finding goes so it becomes maintenance pressure rather than archived prose | 63 |
-| 0.42.0 | the binary check | The advisory that fires when the running tp is older than the spec being developed | 108 |
-| 0.43.0 | what the loop costs | Repair locality and class families, measured from data tp already stores | 259 |
-| 0.44.0 | what reading alone can decide | The identifier pass and the contradictory-comparator rule, plus a `workflow.checks` entry and the four candidates prototyped and refuted before any reached the spec | 177 |
-| 0.45.0 | when the spec moves between rounds | `next_action` recommends the shipped delta pass; `--reconcile` records why the spec moved | 178 |
-| 0.46.0 | what v0.36.0's audit handed over | Seven measured items that cycle deferred, §7 and §8 the largest; unblocked, v0.36.0 has shipped | 253 |
-| 0.47.0 | the fence, the example, the split | Test-file fence, example-table lint rule, unexecutable test-task warning. **All three need a design pass** | 115 |
-| 0.48.0 | the divisible round | Sharding a role's checklist, incremental rounds | 100 |
-| 0.49.0 | the evidence contract | Stop accepting an assertion where an experiment was meant. **Pre-design** — §4–§7 and §10 name no mechanism | 501 |
+| length measured | r against total rounds |
+|---|---|
+| **at round 1 — the length you can choose** | **+0.24** |
+| at the last round | +0.59 |
+| today | +0.61 |
 
-**Why this order.** Value over size first, then hard dependencies. 0.37.0 leads on this repo's own
-numbers (see its §2.1: `blocking` converges at round 3 where `all` takes 9). 0.38.0 is next because
-it is the smallest thing here and answers a cost paid every cycle. 0.39.0 is third — live defects,
-no design risk. Then the dependencies bind: 0.49.0 §8 composes into 0.40.0 §2, so the gate sequence
-ships before the evidence contract; 0.41.0 is the durability half of 0.37.0 §3; 0.48.0 follows
-0.43.0 because sharding is the expensive answer to a question 0.43.0's measurement should ask first;
-0.46.0 waits on v0.36.0 shipping; 0.47.0 and 0.49.0 are last by readiness rather than preference —
-neither can be decomposed until its design pass closes.
+The published figure is the **final** length, which is an *outcome* of the cycle rather than an input
+to it: a spec grows because the rounds grew it (median growth ≈ 2.6×, v0.36.0 4.8×). So the
+correlation is largely reverse causation, and the number you actually hold when deciding whether to
+split is +0.24. The outliers say the same thing: **v0.36.0 was 108 lines at round 1 and cost 28
+rounds**, the dearest cycle in the corpus and one of the shortest specs; v0.23.0 was 770 lines and
+cost 17.
+
+**What does predict cost is what the spec is about.** Classifying the sixteen recorded cycles by
+whether the spec's subject is the review/audit loop itself — its signals, its convergence, its
+prompts — against everything else:
+
+| class | n | median rounds | range | median lines at round 1 |
+|---|---|---|---|---|
+| **the loop reviews itself** | 9 | **23** | 4–30 | 129 |
+| everything else | 7 | **11** | 8–25 | 185 |
+
+**2.1× the cost, from shorter specs.** The mechanism is the one this repository has watched twice: a
+release that changes the loop is reviewed by the mechanism it is changing. v0.36.0 hid, regrouped and
+narrowed what reviewers see, and cost 28 rounds; v0.37.0 changed the byte that decides whether a round
+counts as clean, and every signal the reviewers read hangs off it. So **budget a self-referential
+release at roughly twice a comparable one, and split it on its seams rather than on its line count.**
+
+The split rule itself is unchanged and is not what was wrong — **if a piece can be released
+independently, it is its own release.** Splitting buys *predictability* and reviewable surface, not a
+guaranteed reduction in rounds.
+
+| # | Release | What it does | Class | State |
+|---|---|---|---|---|
+| 0.36.0 | the emitted round | The emitted prompt carries its own isolation constraints, and `--role` emits one role's prompt instead of the panel | loop | **shipped** |
+| 0.37.0 | audit convergence | `audit_converge_on`, fenced per sink — a value rule at `tp set --project`, a change rule at the other three | loop | **shipped** |
+| **0.38.0** | **the checklist covers what changed** | `CodeFileCap` stops silently dropping two thirds of the changed surface: rank by churn not by filename, tell the operator, let `--affected-files` reach it | tool | **ready** |
+| 0.39.0 | the round carries the text it read | The round's `spec_hash` is written at **emit**, not at record, so a round cannot certify a spec its roles never saw | loop | ready |
+| 0.40.0 | forced commitment in the brief | The three sentences that halve what a role files and make it withdraw what it cannot falsify | loop | ready |
+| 0.41.0 | the v0.35.0 backlog | The defects v0.32.0–v0.35.0 deferred with reasons, plus `unresolved_findings` counting rows nobody will ever resolve | tool | ready |
+| 0.42.0 | the gate sequence | `quality_gate` as an ordered array of named entries, each with its own exit code | tool | ready |
+| 0.43.0 | the unexecutable split | `tp validate` warns when a test-only task depends on exactly one task in the same section | tool | ready |
+| 0.44.0 | the binary check | The advisory when the running tp is older than the spec being developed | tool | ready |
+| 0.45.0 | the untracked task file | A second advisory, once, at `PhaseRelease` — different trigger, different cadence, so not the same release | tool | ready |
+| 0.46.0 | the contradictory comparator | One file stating one numeric rule with opposite comparators, over whitespace-normalised text | tool | ready |
+| 0.47.0 | mutation score as a gate entry | The entry establishes that a run **completed and over which mutants** before any score is read | tool | ready |
+| 0.48.0 | the red gate | The bounded procedure a unit follows when the gate goes red — text in a brief, enforcing nothing | tool | ready |
+| 0.49.0 | six deferred defects | v0.36.0's audit handed these over: the `--role` snapshot, the empty-directory blind spot, the atomic round write, the `.yml` filter, and two more | tool | ready |
+| 0.50.0 | the ship signal | `--check` measures the predicate this project ships on, and a round that did not receive a role neither advances nor erases its streak | loop | ready |
+| 0.51.0 | an accepted finding stops blocking | A recorded `resolved.status`, and a PASS row whose note contradicts it, stop counting against convergence | loop | needs 0.50.0 |
+| 0.52.0 | `--reconcile` | Records why the spec moved between rounds, without overwriting what the round read | loop | needs 0.39.0 |
+| 0.53.0 | `next_action` recommends the delta pass | One branch on a shipped surface after a repair touching more than three sections | loop | ready |
+| 0.54.0 | repair locality | The share of a round's findings sitting in text the previous round wrote, reported and gating nothing | loop | needs 0.39.0 |
+| 0.55.0 | the spec-hash reset | `consecutive_clean` resets when the spec it is a claim about changes | loop | needs 0.39.0 |
+| 0.56.0 | the divisible round | Covering an N-file surface with a bounded per-prompt count, and skipping what did not change | loop | design pass |
+| 0.57.0 | the test-file fence | A unit's write permission resolved per unit, so an implementer cannot edit the test that judges it | tool | design pass |
+| 0.58.0 | a durable home for an accepted finding | Where an accepted finding goes so it becomes maintenance pressure rather than archived prose | loop | design pass |
+| 0.59.0 | the identifier pass | References a spec never introduces — blocked on a known-identifier set | tool | design pass |
+| 0.60.0 | class families | Recurring finding classes grouped by normalised slug — blocked on its own measured yield | loop | design pass |
+| 0.61.0 | the evidence contract | Stop accepting an assertion where an experiment was meant | loop | pre-design |
+| — | *withdrawn* | the example-table lint rule (refuted twice), the corpus-replay gate (impossible), and the old 0.49.0's §1a/§1b/§1b.1 (a settled research record) | — | → candidates |
+
+**Why this order — the first three pay for every cycle after them, and each was measured on v0.37.0's
+own corpus.**
+
+**0.38.0 first, because every audit until it ships runs under the defect.** `engine.CodeFileCap = 10`
+(`internal/engine/auditfiles.go:19`) is a compile-time constant with no config path: `selectCodeFiles`
+sorts the whole changed universe **alphabetically**, promotes five substrings (`lock`, `validate`,
+`auth`, `secret`, `perm`), and truncates at ten — and `generateRoleAuditPrompts` hands the same ten to
+every non-`spec-coverage` role. Measured over v0.37.0's seven audit rounds: **13 files ever reached a
+code lens; 29 that `spec-coverage` cited never did**, among them `internal/engine/auditconvergeon.go`
+— *the release's own new engine file* — plus `auditclean.go`, `divergence.go`, `nextaction.go`,
+`set.go`, `config_extract.go`, `importcmd.go` and all five `auditconvergeon_*_test.go`. Coverage ran
+31–40%. **`internal/cli/unattended.go`, where the fence lives, changed in 6 of 6 inter-round diffs and
+was on the generated checklist in 0 of 7 rounds**; it reached rounds 4–7 only because `go-safety`
+self-added it and wrote *"cut from the checklist a fifth round"* in the row. In rounds 1–3 nobody
+audited the file the cycle's four hardest rounds were about. Two aggravations: the cap notice is gated
+on `maxAutoDetectFiles = 50`, so a 30-file universe drops 20 files **silently**; and `--affected-files`
+cannot rescue it, because it replaces the universe *upstream* of the cap.
+
+**0.39.0 second, because three releases are blocked on the artefact it repairs.** The round's
+`spec_hash` is written when results are *recorded*, so nothing pins a round to the text its prompts
+were emitted from. 0.54.0, 0.55.0 and 0.56.0 have each withdrawn a gate over that, and two of the
+three withdrew it citing the disposition instead — which, as corrected above, was never the reason.
+
+**0.40.0 third, because it halves what every later cycle costs.** v0.37.0 ran the trial with the arms
+swapped between rounds: briefed 15 and 23, control **35 both times**. The effect follows the arm, not
+the role. Three sentences in a brief, no new field, and twenty-one releases still to come.
+
+**After that, readiness and dependencies.** The `tool`-class releases (0.41.0–0.49.0) are small, live
+and carry no design risk; they are ordered by size. The `loop`-class ones follow, because a release
+that changes the loop is reviewed by the mechanism it is changing and costs about twice as much — the
+2.1× above. 0.51.0 needs 0.50.0's role-scoped streak; 0.52.0, 0.54.0 and 0.55.0 need 0.39.0's
+emit-time hash. The six `design pass` and `pre-design` entries are last **by readiness, not
+preference**: each names a decision nobody has taken, and this repository's own rule is that a test
+written before that decision pins the guess rather than the requirement.
+
+**Two things were withdrawn rather than scheduled**, and the reasons are measured. The example-table
+lint rule was prototyped in both forms its spec named: the keyword-and-shape heuristic fires on
+3.9–22.6% of this repository's 1,032 spec sections against a shipped bar of *zero* false positives,
+and the narrower form reads task acceptance criteria — data that does not exist when `tp lint` runs,
+since lint is workflow step 2 and decomposition is step 5. And the corpus-replay gate is impossible
+for the snapshot reason above. Both go to a candidates file; a refuted predicate is not a backlog
+item.
 
 **Three renumberings have now happened and each left stale references behind** (`spec/0.34.0.md`
 still says "v0.36.0" in two places). After any future renumber, run a cross-reference sweep over
