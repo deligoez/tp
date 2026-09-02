@@ -310,38 +310,37 @@ guaranteed reduction in rounds.
 | 0.40.0 | the round carries the text it read | The round's `spec_hash` is written at **emit**, not at record, so a round cannot certify a spec its roles never saw | loop | ready |
 | 0.41.0 | forced commitment in the brief | Three sentences tp emits, so an unattended run gets the brief a human writes by hand today | loop | ready |
 | 0.42.0 | `unresolved_findings` reports what is open | **Measured: on v0.37.0's round 7 the field reports 103 where 3 findings are open, and the 103 is exactly the set of PASS rows — the complement, not an approximation.** A driver-facing field; `fixed` closes nothing today, which is 1,308 of the corpus's 1,406 dispositions. Displaced the v0.35.0 backlog, which was a grab-bag and is being triaged per defect | tool | ready |
-| 0.43.0 | six deferred defects | v0.36.0's audit handed these over: the `--role` snapshot, the empty-directory blind spot, the atomic round write, the `.yml` filter, and two more | tool | ready |
-| 0.44.0 | the unexecutable split | `tp validate` warns when a test-only task depends on exactly one task in the same section | tool | ready |
-| 0.45.0 | the binary check | The advisory when the running tp is older than the spec being developed | tool | ready |
-| 0.46.0 | the untracked task file | A second advisory, once, at `PhaseRelease` — different trigger, different cadence, so not the same release | tool | ready |
-| 0.47.0 | the contradictory comparator | One file stating one numeric rule with opposite comparators, over whitespace-normalised text | tool | ready |
-| 0.48.0 | mutation score as a gate entry | The entry establishes that a run **completed and over which mutants** before any score is read | tool | ready |
-| 0.49.0 | the gate sequence | `quality_gate` as an ordered array of named entries, each with its own exit code | tool | ready |
-| 0.50.0 | the red gate | The bounded procedure a unit follows when the gate goes red — text in a brief, enforcing nothing | tool | ready |
-| 0.51.0 | `next_action` recommends the delta pass | One branch on a shipped surface after a repair touching more than three sections | loop | ready |
-| 0.52.0 | what stops counting against convergence | Three things stop gating: a recorded `resolved.status`, a PASS row whose note contradicts it, and a role that does not decide the question — the last is 0.39.0's *too strict* half, a fenced list field reading its `expected_roles` | loop | needs 0.39.0 |
-| 0.53.0 | `--reconcile` | Records why the spec moved between rounds, without overwriting what the round read | loop | needs 0.40.0 |
-| 0.54.0 | repair locality | The share of a round's findings sitting in text the previous round wrote, reported and gating nothing | loop | needs 0.40.0 |
-| 0.55.0 | the spec-hash reset | `consecutive_clean` resets when the spec it is a claim about changes | loop | needs 0.40.0 |
+| 0.43.0 | the loop's own state writes | Three defects re-run against `HEAD` while the spec was written: a refused `--role` invocation still writes a snapshot, the round findings file is not atomic while the snapshot beside it is, and the gate's walk cannot see an empty watched directory — a blind spot its own comment names | tool | **written** |
+| 0.44.0 | the binary check | The advisory when the running tp is older than the spec being developed | tool | ready |
+| 0.45.0 | the untracked task file | A second advisory, once, at `PhaseRelease` — different trigger, different cadence, so not the same release | tool | ready |
+| 0.46.0 | the contradictory comparator | One file stating one numeric rule with opposite comparators, over whitespace-normalised text | tool | ready |
+| 0.47.0 | mutation score as a gate entry | The entry establishes that a run **completed and over which mutants** before any score is read | tool | ready |
+| 0.48.0 | the gate sequence | `quality_gate` as an ordered array of named entries, each with its own exit code. Takes the three v0.36.0 handovers 0.43.0 left: two CI guards narrower than their own claims, and a load-sensitive gate test | tool | ready |
+| 0.49.0 | the red gate | The bounded procedure a unit follows when the gate goes red — text in a brief, enforcing nothing | tool | ready |
+| 0.50.0 | `next_action` recommends the delta pass | One branch on a shipped surface after a repair touching more than three sections | loop | ready |
+| 0.51.0 | what stops counting against convergence | Three things stop gating: a recorded `resolved.status`, a PASS row whose note contradicts it, and a role that does not decide the question — the last is 0.39.0's *too strict* half, a fenced list field reading its `expected_roles` | loop | needs 0.39.0 |
+| 0.52.0 | `--reconcile` | Records why the spec moved between rounds, without overwriting what the round read | loop | needs 0.40.0 |
+| 0.53.0 | repair locality | The share of a round's findings sitting in text the previous round wrote, reported and gating nothing | loop | needs 0.40.0 |
+| 0.54.0 | the spec-hash reset | `consecutive_clean` resets when the spec it is a claim about changes | loop | needs 0.40.0 |
 
-**Not numbered, because none of them can be decomposed and a number that moves leaves stale
-references** — CLAUDE.md has already paid for three renumberings. Each names the decision it is
-waiting on:
+**`spec/candidates.md` holds what is not numbered**, in two sections that must not be confused:
+*refuted* (prototyped, did not survive, recorded with the measurement that killed it — a refuted
+predicate is not a backlog item) and *undecided* (a real need whose design has no answer, each naming
+the decision nobody has taken). Nothing there carries a version number, because a number that moves
+leaves stale references and this file has already paid for three renumberings. Seven candidates are
+undecided — the divisible round, the test-file fence, a durable home for an accepted finding, the
+identifier pass, class families, the evidence contract, and whether `tp review` should have a
+prior-round section at all.
 
-| candidate | the decision nobody has taken |
-|---|---|
-| the divisible round | the split key. Measured: `spec-coverage` produced a non-`PASS` on **6 of 97 distinct items (6.2%)** across seven rounds, four of the six in §2 — so splitting 74 items by *count* gives two ~97%-PASS shards. The key the data recommends is **spec location**, and none of the spec's three candidates is that |
-| the test-file fence | where the permission resolves — a `tp` call per write inside the hook, or precomputed into the child environment at spawn. Also `test_globs`' list-layer semantics: `Checks` is the only existing list field and it *replaces* rather than merges |
-| a durable home for an accepted finding | the target shape. Three options are named, none chosen |
-| the identifier pass | the known-identifier set. Measured: the pass as written yields **979 findings over 46 specs**, all references to things that exist elsewhere in the repository, while Non-Goal 2 forbids resolving them — so its own zero-findings gate is unreachable |
-| class families | its own yield. Measured over six cycles the normaliser groups **0–8.7% of findings, median 0.5%**; on v0.37.0 it forms **one family of three findings out of 630**. The release must state what result would make it worth shipping |
-| the evidence contract | four sections name no field, no writer and no arithmetic. Its two ready pieces have already been lifted out as 0.41.0 and 0.48.0 |
-
-**Withdrawn, not deferred.** The example-table lint rule, refuted in both forms its spec named — the
-heuristic fires on 3.9–22.6% of this repository's 1,032 spec sections against a shipped bar of *zero*
-false positives, and the narrower form reads task acceptance criteria, data that does not exist when
-`tp lint` runs. And the old 0.49.0's §1a/§1b/§1b.1: a pre-registration whose trial has now run, which
-belongs in this file's results, not in a spec a review round re-reads. Both go to a candidates file.
+**Three things are refuted, not deferred**, and the third correction is the one that matters. The
+example-table lint rule died in both forms its spec named. **The unexecutable-split rule died while
+this roadmap was being written**: prototyped over this repository's 520 tasks in 26 task files, the
+broad predicate fires on 114 (21.9%), the keyword form on 11 with ~9 false positives, and the
+`tags: [test]` form on **exactly one task, which is a false positive** — a negative-requirement task
+whose closure reads *"No production change"*. It cannot be repaired by tightening: `tags` is present
+on 185 of 520 tasks (36%) and optional, and every stronger signal (`commit_files`) exists only after
+the task closes, while `tp validate` runs at decomposition. That freed 0.44.0, which is why the rows
+above shift by one against any earlier copy of this table.
 
 **The corpus-replay gate is *restated*, not withdrawn, and the reason it was withdrawn was wrong.**
 Three specs dropped it citing a missing disposition; the disposition exists (see the correction
