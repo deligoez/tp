@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-02T21:59:10.211569Z",
+  "updated_at": "2026-09-02T22:20:21.203861Z",
   "workflow": {},
   "coverage": {
     "total_sections": 21,
@@ -616,7 +616,7 @@
     {
       "id": "floor-canonical",
       "title": "canonicalise, split and trim",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -628,11 +628,29 @@
       "source_sections": [
         "### 2.1 The floor"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-02T21:59:36.005364Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-02T22:20:21.138132Z",
+      "closed_reason": "- floorCanonicalise (internal/engine/floor.go) strips a leading `\u003e ` from EVERY line of a block, anchored so a `\u003e` anywhere else is content: TestABlockquotePrefixIsStrippedFromEveryLine states the whole expected unit for six inputs (every line prefixed, a bare continuation line, an indented marker, no space after the marker, a nested quote losing one level, and a mid-line `\u003e` that must survive). Observed red on five of the six against HEAD's no-strip implementation.\n- A list marker (`- `, `* `, `+ `, `N. `) is stripped from every line ONLY when the block's first line opens a list, gated on stripped[0] after the blockquote pass. TestAListMarkerIsStrippedOnlyWhenTheBlockOpensAList covers both directions in eight cases; observed red on six against HEAD. Both named mutants were built and observed red: stripping the first line only returns {\"Alpha holds 1.\", \"2.\", \"Beta holds 2.\", \"3.\", ...} — §2.1's own bare `2.` through `9.` fragments — and stripping every line unconditionally eats the ordinal from a continuation line, returning one unit reading \"…by input of the six built here.\" where the rule returns two.\n- Lines join with a single space and whitespace runs collapse to one, asserted by TestBlockLinesJoinWithOneSpaceAndWhitespaceCollapses on four inputs; two were red against the pre-collapse implementation. The discriminating one is ordinary markdown rather than a contrivance: a `\u003e` alone on a line canonicalises to nothing and leaves a double space where it was, and `text_sha` is the sha256 of exactly this string.\n- Prose splits at each `.`, `!` or `?` followed by whitespace with the terminator kept on the left, in floorSplitUnits — a hand-written byte scan, because the rule is stated from the terminator's side (Python's lookbehind, which Go's regexp cannot express). TestProseSplitsAtATerminatorFollowedByWhitespace has seven cases and was observed red five times against a no-split stub, five times against a mutant dropping the terminator, and three times against a mutant splitting on any terminator regardless of what follows (which loses \"Version 1.2 holds.\" and \"Alpha holds 1... Beta holds 2.\"). Step 5's trim and empty drop are asserted at the seam by TestStep5TrimsAndDropsEmpties, with the reason stated: step 3 has already trimmed everything FloorUnits can reach, so the rule is asserted where it can be rather than counted as unreachable.\n- §11 row 18b passes: TestSection11Row18bListMarkers builds ONE block holding a nine-item numbered list, a bulleted list and a list whose items carry bold markers (`**1.`), states all thirteen expected units, and re-asserts the row's own words as a property over whatever came back. Under the row's named mutant it returns 21 units of which eight are the bare fragments `2.` through `9.`, and both halves of the test fire.\n- §11 row 20 passes on the paragraph whose continuation line begins `14. ` — §7.1's own — with the fixture's discriminating property asserted (require.True on the ordinal prefix) rather than assumed. The wrapped and one-line copies yield the same units AND the same `text_sha` values, computed in the test as sha256[:12] since the shipped hash is a later task. Both of the row's named mutants are red, each on its own clause: the unconditional strip loses the `14.` and collapses two units into one, the first-line-only strip leaves the nine-item list's markers embedded.\n- Ported rather than designed: FloorUnits and scripts/floor-prototype.py agree byte-for-byte on 2,451 units over seven real documents (spec/1.0.0.md, spec/0.1.0.md, spec/0.36.0.md, spec/0.37.0.md, CLAUDE.md, README.md, skills/tp/SKILL.md), via a throwaway test since deleted. The comparison was then shown to discriminate on every clause of this task: dropping the list gate moves 114 lines, dropping the blockquote strip 24, dropping the terminator 2,408, dropping the collapse 350. Its reach is uneven and that is the caveat — spec/0.37.0.md holds nothing the list-marker mutant touches, and spec/0.1.0.md and README.md nothing the collapse mutant touches, so a smaller corpus would have reported MATCH under a real defect.\n- Quality gate green on the committed tree, all four steps: ./scripts/check-suite-state.sh (full suite, -race -count=1), golangci-lint run (0 issues), ./scripts/check-deadcode.sh, ./scripts/check-complexity.sh.\nOut of scope: §11 row 20 asserts something no input of its own shape can produce. It requires a paragraph whose continuation line begins `14. ` to yield \"the same single unit\" as the one-line copy, but `14. ` is a terminator followed by whitespace, so §2.1 step 4 splits there — scripts/floor-prototype.py segments §7.1's actual paragraph into TWO units in both copies, and so does the port. The property the row is about survives intact (the segmentation and every text_sha are decided by the text, not by where the line breaks fell) and is what the test asserts; only the word \"single\" is wrong. Row 18b's `**1.` list is also untouched by any marker pattern in §2.1 or the prototype, so \"every unit is a sentence\" holds there by the lists around it rather than by a rule the spec states.",
+      "gate_passed_at": "2026-09-02T22:20:21.138132Z",
+      "commit_sha": "2eb5423d",
+      "commit_shas": [
+        "2eb5423d",
+        "d626efd3",
+        "02b9066e",
+        "6ac59246",
+        "c4d48d6b",
+        "d254a379",
+        "8b25c874",
+        "8b3388e2",
+        "b1054031",
+        "034ec4c7",
+        "bf6e18d5"
+      ],
+      "commit_files": [
+        "internal/engine/floor.go",
+        "internal/engine/floor_test.go"
+      ]
     },
     {
       "id": "floor-index",
