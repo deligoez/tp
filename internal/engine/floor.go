@@ -269,3 +269,46 @@ func FloorUnits(text string) []string {
 	}
 	return units
 }
+
+// floorVerbs is §2.1's third arm, the twelve measurement verbs verbatim from
+// the spec's table. The list is stated once and the pattern is built from it,
+// so a verb cannot be present in one and absent from the other.
+var floorVerbs = []string{
+	"measured", "ran", "counted", "derived", "reproduced", "observed",
+	"verified", "asserted", "recorded", "fired", "held", "refuted",
+}
+
+var (
+	// The digit arm, literally §2.1's `[0-9]` — ASCII digits, not a Unicode
+	// class, because the table names the character range.
+	floorDigitRe = regexp.MustCompile(`[0-9]`)
+	// The identifier arm. §2.1 says a backtick-delimited SPAN, so both
+	// delimiters must be present in the same unit; the prototype tested for a
+	// single backtick, which differs on 21 of this corpus's 7,368 units — every
+	// one of them a span the sentence split cut in half.
+	floorCodeSpanRe = regexp.MustCompile("`[^`]*`")
+	// The verb arm. Whole words, because "Transition", "branches" and
+	// "withheld" each contain a listed verb as a substring: over `spec/*.md` a
+	// substring reading and this one disagree on 254 units. Case-insensitive,
+	// because a claim's verb is routinely its sentence's first word — nine
+	// units of this corpus reach the floor only through the fold, among them
+	// "Measured while implementing: it can."
+	floorVerbRe = regexp.MustCompile(`(?i)\b(?:` + strings.Join(floorVerbs, "|") + `)\b`)
+)
+
+// floorHasDigit is §2.1's first arm.
+func floorHasDigit(unit string) bool { return floorDigitRe.MatchString(unit) }
+
+// floorHasCodeSpan is §2.1's second arm.
+func floorHasCodeSpan(unit string) bool { return floorCodeSpanRe.MatchString(unit) }
+
+// floorHasMeasurementVerb is §2.1's third arm.
+func floorHasMeasurementVerb(unit string) bool { return floorVerbRe.MatchString(unit) }
+
+// inFloor reports whether a unit is in the floor: §2.1's three arms, in
+// disjunction. The arms are three separate predicates rather than one scan so
+// each is assertable on its own as well as through this, and so dropping one
+// cannot hide behind the other two.
+func inFloor(unit string) bool {
+	return floorHasDigit(unit) || floorHasCodeSpan(unit) || floorHasMeasurementVerb(unit)
+}
