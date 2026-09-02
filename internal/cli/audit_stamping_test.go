@@ -68,7 +68,7 @@ func auditStateBytes(t *testing.T, dir string) []byte {
 // the convergence signals derived from them.
 func auditStatusPayload(t *testing.T, dir string) (payload map[string]any, rounds []map[string]any) {
 	t.Helper()
-	stdout, stderr, code := runTP(t, dir, "audit", "spec.md", "--status")
+	stdout, stderr, code := runTPFence(t, dir, false, "audit", "spec.md", "--status")
 	require.Equal(t, 0, code, "audit --status: %s", stderr)
 	require.NoError(t, json.Unmarshal([]byte(stdout), &payload))
 	raw, _ := payload["audit_rounds"].([]any)

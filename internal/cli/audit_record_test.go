@@ -13,12 +13,21 @@ import (
 	"github.com/deligoez/tp/internal/engine"
 )
 
+// The run goes through runTPFence with unattended false rather than through
+// runTP, so TP_UNATTENDED is decided here instead of inherited: runTP builds
+// every child from os.Environ(), and under tp run the quality gate itself runs
+// in a child carrying TP_UNATTENDED=1. No caller of this helper is about the
+// unattended fence, so the variable is pinned off for all of them. Measured
+// with a probe that exits 2 from runAuditRecord under the variable: with it
+// inherited, four tests in audit_stamping_test.go and
+// audit_nextaction_count_test.go fail under an ambient TP_UNATTENDED=1; pinned,
+// they pass either way.
 func auditRecord(t *testing.T, dir, ndjsonContent string) (out map[string]any, stderr string, code int) {
 	t.Helper()
 	f := filepath.Join(dir, "results.ndjson")
 	require.NoError(t, os.WriteFile(f, []byte(ndjsonContent), 0o600))
 	var stdout string
-	stdout, stderr, code = runTP(t, dir, "audit", "spec.md", "--record", f)
+	stdout, stderr, code = runTPFence(t, dir, false, "audit", "spec.md", "--record", f)
 	if code == 0 {
 		require.NoError(t, json.Unmarshal([]byte(stdout), &out))
 	}
