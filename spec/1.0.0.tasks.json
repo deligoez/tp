@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-02T20:43:45.113983Z",
+  "updated_at": "2026-09-02T21:11:36.075609Z",
   "workflow": {},
   "coverage": {
     "total_sections": 21,
@@ -527,7 +527,7 @@
     {
       "id": "floor-blocks",
       "title": "what the derivation drops and how it blocks",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -537,11 +537,24 @@
       "source_sections": [
         "### 2.1 The floor"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-02T20:58:21.654245Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-02T21:11:36.03495Z",
+      "closed_reason": "- engine.FloorUnits(text string) []string takes the spec's TEXT, not a path: internal/engine/floor.go opens no file, and TestFloorUnitsTakesTheSpecTextNotAPath writes a real file in t.TempDir, passes its path, and asserts the single returned unit is the path string. Observed red against a FloorUnits that os.ReadFile'd its argument (2 units, not 1). No test in the file reads spec/*.md.\n- Fenced blocks, ATX headings, horizontal rules and table separator rows are dropped by floorBlocks, one table-driven case per class in TestFloorBlocksDropsWhatStep1Drops, each keeping prose on both sides. Observed red against five mutants, one per class: a fence arm setting inFence=false (content survives), a dropped heading arm, len(s)\u003c2 as the rule length bound, a rule arm knowing only '-', and a separator row blocked as a data row. `-*-` and `--` are asserted NOT to be rules, so the bound and the same-marker rule are both pinned.\n- What remains splits into blank-line-separated blocks (TestFloorBlocksSplitsOnBlankLines: whitespace-only line, runs of blanks, leading/trailing blanks, no-blank document, empty document). Observed red against a floorBlocks that never flushes on a blank line.\n- Each table data row is its own block, carrying IsTableRow (TestEachTableDataRowIsItsOwnBlock, rows deliberately adjacent and bracketed by prose with no blank line). Observed red against a data row appended to the surrounding block. TestTableRowsInsideAFenceAreNotTableRows pins the rule order: a pipe line inside a fence is code.\n- Ported from scripts/floor-prototype.py rather than designed: the blocking is byte-identical to the prototype's on seven real documents (1,248 blocks over spec/1.0.0.md, spec/0.1.0.md, spec/0.36.0.md, spec/0.37.0.md, CLAUDE.md, README.md, skills/tp/SKILL.md), checked with a throwaway test that was deleted afterwards. That comparison was itself shown to discriminate by mutating the horizontal-rule arm (16 blocks moved in spec/0.1.0.md, 2 in SKILL.md) — and the first two files I tried it on, spec/1.0.0.md and README.md, contain zero horizontal rules and reported MATCH under the mutant, so the check is only as strong as the constructs the file happens to hold.\n- Steps 3 to 5 are left as a seam: floorUnitsFromBlock is the single place a block becomes units, so floor-tables and floor-canonical cannot make the prose and table paths diverge. The prototype's sentinel-string marker is replaced by a struct field, which removes the bug its own comment records (the sentinel matched no line in the file, so every table row anchored to §0).\n- Quality gate green, all four steps: ./scripts/check-suite-state.sh (full suite, -race -count=1), golangci-lint run (0 issues), ./scripts/check-deadcode.sh, ./scripts/check-complexity.sh. deadcode passes with FloorUnits exported and only test-called because the script runs deadcode -test.\n\nOut of scope: two observations on §2.1 that I implemented literally rather than resolving. (1) Step 1 says \"drop\" and step 2 says \"split on blank lines\", so a heading between two prose lines carrying no blank line leaves those lines in ONE block — the prototype does the same, and I pinned it in a test case (\"a dropped line is dropped, not turned into a boundary\"), but the spec never says so and a reader could conform either way. (2) §2.1 does not define \"ATX heading\" or \"horizontal rule\" precisely; the prototype's `^\\s*#` also drops a line like `#tag`, and its rule test rejects markdown's legal spaced form (`- - -`). Both are ported verbatim so tp and the prototype agree, but a spec that named the patterns would remove the ambiguity.",
+      "gate_passed_at": "2026-09-02T21:11:36.03495Z",
+      "commit_sha": "c2d3f597",
+      "commit_shas": [
+        "c2d3f597",
+        "36cebc7a",
+        "f8116094",
+        "2bc474e8",
+        "150e1d83",
+        "8f42ffdb"
+      ],
+      "commit_files": [
+        "internal/engine/floor.go",
+        "internal/engine/floor_test.go"
+      ]
     },
     {
       "id": "floor-tables",
