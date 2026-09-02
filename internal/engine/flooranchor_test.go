@@ -205,3 +205,53 @@ func TestAnIndexOutsideTheTextsUnitsHasNoAnchor(t *testing.T) {
 	assert.Empty(t, anchorOf(-1))
 }
 
+// TestSection11Row21OnThisReleasesOwnSpec is row 21 itself: the row names this
+// document's own preamble blockquote, so the fixture is the file.
+//
+// It reads one named file rather than a glob, and every assertion is structural
+// — that the first block is the preamble quote, that its units anchor to `§0`,
+// that no table row in the file anchors there, and that §7.2's table reports
+// §7.2 — so editing the preamble's wording cannot make it red while editing the
+// anchor rule can.
+func TestSection11Row21OnThisReleasesOwnSpec(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "..", "spec", "1.0.0.md"))
+	require.NoError(t, err)
+	text := string(raw)
+
+	blocks := floorBlocks(text)
+	require.NotEmpty(t, blocks)
+	require.True(t, strings.HasPrefix(strings.TrimSpace(blocks[0].Lines[0]), ">"),
+		"the document's first block must be the preamble blockquote row 21 names")
+
+	anchorOf := FloorAnchorOf(text)
+	rows := FloorIndexRows(text, anchorOf)
+	require.NotEmpty(t, rows)
+	assert.Equal(t, "u1", rows[0].ID, "the preamble's first unit is in the floor, so it counts toward coverage")
+	assert.Equal(t, "§0", rows[0].Anchor)
+
+	unit, preamble, tablesAtZero, tablesIn72 := 0, 0, 0, 0
+	for i, b := range blocks {
+		for range floorUnitsFromBlock(b) {
+			unit++
+			anchor := anchorOf(unit)
+			if i == 0 {
+				preamble++
+				assert.Equal(t, "§0", anchor, "every unit of the preamble blockquote")
+			}
+			if !b.IsTableRow {
+				continue
+			}
+			switch anchor {
+			case "§0":
+				tablesAtZero++
+			case "§7.2":
+				tablesIn72++
+			}
+		}
+	}
+
+	require.Equal(t, len(FloorUnits(text)), unit, "the walk must cover every unit")
+	assert.Positive(t, preamble)
+	assert.Zero(t, tablesAtZero, "the prototype anchored every table row to §0 while its §0 test passed")
+	assert.Positive(t, tablesIn72, "§7.2's field table must report §7.2")
+}
