@@ -43,3 +43,15 @@ func TestAuditRowsClean_WarningIsAdvisory(t *testing.T) {
 		"under blocking, a warning row is advisory and does not block")
 }
 
+// TestAuditRowsClean_ErrorBlocksUnderBoth pins §7 row 7: `error` is the audit
+// vocabulary's blocking severity, so it blocks under both policy values. The
+// mutant that must fail it returns clean whenever the policy is `blocking`.
+func TestAuditRowsClean_ErrorBlocksUnderBoth(t *testing.T) {
+	rows := auditRoundWith(map[string]any{"status": "FAIL", "item_id": "item-2", "severity": "error"})
+
+	assert.False(t, AuditRowsClean(rows, AuditConvergeOnAll),
+		"under all, the existence of a non-PASS row makes the round unclean")
+	assert.False(t, AuditRowsClean(rows, AuditConvergeOnBlocking),
+		"under blocking, error is the blocking severity")
+}
+
