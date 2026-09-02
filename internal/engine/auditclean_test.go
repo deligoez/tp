@@ -82,3 +82,20 @@ func TestAuditRowsClean_UnusableSeverityBlocks(t *testing.T) {
 	}
 }
 
+// TestAuditRowsClean_PassRowsAreNotGraded pins the population the predicate
+// reads: its subject is the round's non-PASS rows, so a round holding only PASS
+// rows is clean under both values. It is asserted because every recorded PASS
+// row carries `severity: null` (§2) — a predicate phrased over the rows of any
+// severity would read that null under the fail-closed rule and report every
+// all-PASS round unclean under `blocking`.
+func TestAuditRowsClean_PassRowsAreNotGraded(t *testing.T) {
+	rows := []map[string]any{
+		{"status": "PASS", "item_id": "item-1", "severity": nil},
+		{"status": "PASS", "item_id": "item-2"},
+	}
+
+	assert.True(t, AuditRowsClean(rows, AuditConvergeOnAll), "an all-PASS round is clean under all")
+	assert.True(t, AuditRowsClean(rows, AuditConvergeOnBlocking), "an all-PASS round is clean under blocking")
+	assert.True(t, AuditRowsClean(nil, AuditConvergeOnBlocking), "a round with no rows has nothing to grade")
+}
+
