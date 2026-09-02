@@ -953,3 +953,33 @@ func TestFloorTextSHACoversTheWholeUnitNotAPrefix(t *testing.T) {
 	assert.NotEqual(t, FloorTextSHA(a), FloorTextSHA(b),
 		"a rewrite from character 61 on must move the hash")
 }
+
+// TestFloorOrdinalsCountWithinAHashInEmissionOrder is §7.2's `ordinal`: the
+// 1-based index of a unit among those sharing its `text_sha`, in emission order,
+// and 1 when the hash is unique.
+//
+// The interleaved case is the one that separates the three readings a plain
+// "index" admits — per-hash (this rule), position in the whole round, and
+// per-hash counted from the end — because on two adjacent duplicates all three
+// agree on at least half the slice.
+func TestFloorOrdinalsCountWithinAHashInEmissionOrder(t *testing.T) {
+	tests := []struct {
+		name  string
+		units []string
+		want  []int
+	}{
+		{"every hash unique", []string{"alpha 1.", "beta 2.", "gamma 3."}, []int{1, 1, 1}},
+		{"one repeat, not adjacent", []string{"alpha 1.", "beta 2.", "alpha 1."}, []int{1, 1, 2}},
+		{"two hashes interleaved", []string{"x 1.", "y 2.", "x 1.", "y 2.", "x 1."}, []int{1, 1, 2, 2, 3}},
+		{"nothing to number", []string{}, []int{}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			hashes := make([]string, 0, len(tc.units))
+			for _, u := range tc.units {
+				hashes = append(hashes, FloorTextSHA(u))
+			}
+			assert.Equal(t, tc.want, FloorOrdinals(hashes))
+		})
+	}
+}
