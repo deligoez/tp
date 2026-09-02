@@ -20,7 +20,7 @@ nothing here starts a tp cycle.
 
 | # | work | state |
 |---|---|---|
-| W1 | **Ground the pending specs.** Protocol below; log below | 3 fully ground; the citation and numeric classes ground across all 18 |
+| W1 | **Ground the pending specs.** Rules in `spec/1.0.0.md` §2–§6; log below | 4 fully ground, `1.0.0` by its own rules; the citation and numeric classes ground across all 18 |
 | W2 | Route the skills-examination findings into the specs that own them | **done** — 1.48.0, 1.41.0, 1.50.0, candidates |
 | W3 | **v0.37.1 ships.** Spec written and ground, both fixes built and green in a scratch copy | ready — waiting only on the operator |
 | W4 | `forward-spec-ref` lint rule — survived prototyping (18 findings pre-repair, 0 today, 0 false positives) | needs a decision: it wants the shipped boundary, which `tp lint` has no git access for |
@@ -84,6 +84,7 @@ positive phrasing, and pair it with the target even then.
 | 1.52.0 | 17 | 14 | 2 | 1 | 0 | 0 | corpus query |
 | 1.53.0 | 10 | 9 | 0 | 1 | 0 | 0 | **simulation probe** |
 | 0.37.1 | 17 | 14 | 0 | 3 | 0 | 0 | reachability read + tag history |
+| **1.0.0** | **32** | **20** | **4** | **8** | 0 | 0 | **built-and-run probe, with a control** |
 | *all 18 files* | — | — | — | **49** | — | — | the registered citation check, run over the corpus |
 
 **Three runs, and the pattern has not moved: every refutation was a cheap sentence.** A borrowed
