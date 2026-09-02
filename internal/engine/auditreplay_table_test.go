@@ -142,3 +142,22 @@ func TestAuditReplayCellsNeedTheFieldResolvedBeforeRoundOne(t *testing.T) {
 	}
 }
 
+// TestAuditReplayNeverCellIsNoRoundReachingZero pins the reason behind §2.1's
+// two "never" cells. The table does not say v0.36.0 ran out of rounds; it says
+// "no round reaches zero", and the two readings differ — a cycle whose final
+// round were clean would converge under `all` had it run one round longer.
+// Asserting the reason keeps the cell from being satisfied by the wrong fact.
+func TestAuditReplayNeverCellIsNoRoundReachingZero(t *testing.T) {
+	for i, rows := range loadAuditReplayRounds(t, "0.36.0") {
+		assert.Falsef(t, AuditRowsClean(rows, AuditConvergeOnAll),
+			"v0.36.0 round %d holds no non-PASS row, so the cycle does reach zero", i+1)
+	}
+
+	// And the contrast the same predicate must draw: v0.35.0's `all` column is a
+	// pair of rounds that do reach zero — round 8, its cell at
+	// audit_clean_rounds 1, and round 9, its cell at 2.
+	rounds := loadAuditReplayRounds(t, "0.35.0")
+	require.Len(t, rounds, 9)
+	assert.True(t, AuditRowsClean(rounds[7], AuditConvergeOnAll), "v0.35.0 round 8")
+	assert.True(t, AuditRowsClean(rounds[8], AuditConvergeOnAll), "v0.35.0 round 9")
+}
