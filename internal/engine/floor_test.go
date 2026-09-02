@@ -845,3 +845,42 @@ func TestTheVerbArmIgnoresCase(t *testing.T) {
 		})
 	}
 }
+
+// TestTheIdentifierArmNeedsADelimitedSpan is the one place this port departs
+// from `scripts/floor-prototype.py`, and §2.1 decides it: the arm's test is "the
+// unit contains a backtick-delimited SPAN", while the prototype's `in_floor`
+// asks only whether a backtick is present.
+//
+// The two disagree on 21 of the 7,368 units this corpus's derivation produces —
+// 16 of which are in the floor under one reading and cut under the other — and
+// every one of them is the same shape: a code span whose two delimiters landed
+// in different units because step 4 split between them. A lone delimiter is the
+// wreckage of a span, not a span, so this asserts the spec's wording.
+//
+// The pair is asserted both ways on the SAME sentence, differing only in the
+// closing backtick, so nothing but the delimiter can carry the verdict.
+func TestTheIdentifierArmNeedsADelimitedSpan(t *testing.T) {
+	tests := []struct{ name, unit string }{
+		{"constructed", "The sentence trails off with a stray ` and never closes it."},
+		// spec/0.12.0-review-rounds.md, verbatim: the corpus's own instance of
+		// a span the sentence split cut in half.
+		{"from the corpus", "If more, append: `..."},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, 1, strings.Count(tc.unit, "`"),
+				"the fixture is the discriminating case only with exactly one backtick")
+			require.False(t, strings.ContainsAny(tc.unit, "0123456789"),
+				"no digit, so the identifier arm is the only one that could hold")
+			require.False(t, floorHasMeasurementVerb(tc.unit), "and no listed verb")
+
+			assert.False(t, floorHasCodeSpan(tc.unit), "identifier arm")
+			assert.False(t, inFloor(tc.unit), "an unclosed delimiter is not a span")
+
+			closed := tc.unit + "`"
+			require.Equal(t, 2, strings.Count(closed, "`"))
+			assert.True(t, floorHasCodeSpan(closed), "identifier arm")
+			assert.True(t, inFloor(closed), "closing the span is the whole difference")
+		})
+	}
+}
