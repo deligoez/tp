@@ -205,7 +205,6 @@ func floorCanonicalise(lines []string) string {
 	return strings.TrimSpace(joined)
 }
 
-// STUB — the no-split mutant, to observe the split test red.
 // floorSplitUnits is §2.1 steps 4 and 5: split the canonical block at each `.`,
 // `!` or `?` followed by whitespace, keep the terminator with the unit on its
 // left, trim, and drop the empties.
