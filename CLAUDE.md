@@ -305,31 +305,52 @@ guaranteed reduction in rounds.
 |---|---|---|---|---|
 | 0.36.0 | the emitted round | The emitted prompt carries its own isolation constraints, and `--role` emits one role's prompt instead of the panel | loop | **shipped** |
 | 0.37.0 | audit convergence | `audit_converge_on`, fenced per sink — a value rule at `tp set --project`, a change rule at the other three | loop | **shipped** |
-| **0.38.0** | **the checklist covers what changed** | `CodeFileCap` stops silently dropping two thirds of the changed surface: rank by churn not by filename, tell the operator, let `--affected-files` reach it | tool | **ready** |
-| 0.39.0 | the round carries the text it read | The round's `spec_hash` is written at **emit**, not at record, so a round cannot certify a spec its roles never saw | loop | ready |
-| 0.40.0 | forced commitment in the brief | The three sentences that halve what a role files and make it withdraw what it cannot falsify | loop | ready |
-| 0.41.0 | the v0.35.0 backlog | The defects v0.32.0–v0.35.0 deferred with reasons, plus `unresolved_findings` counting rows nobody will ever resolve | tool | ready |
-| 0.42.0 | the gate sequence | `quality_gate` as an ordered array of named entries, each with its own exit code | tool | ready |
-| 0.43.0 | the unexecutable split | `tp validate` warns when a test-only task depends on exactly one task in the same section | tool | ready |
-| 0.44.0 | the binary check | The advisory when the running tp is older than the spec being developed | tool | ready |
-| 0.45.0 | the untracked task file | A second advisory, once, at `PhaseRelease` — different trigger, different cadence, so not the same release | tool | ready |
-| 0.46.0 | the contradictory comparator | One file stating one numeric rule with opposite comparators, over whitespace-normalised text | tool | ready |
-| 0.47.0 | mutation score as a gate entry | The entry establishes that a run **completed and over which mutants** before any score is read | tool | ready |
-| 0.48.0 | the red gate | The bounded procedure a unit follows when the gate goes red — text in a brief, enforcing nothing | tool | ready |
-| 0.49.0 | six deferred defects | v0.36.0's audit handed these over: the `--role` snapshot, the empty-directory blind spot, the atomic round write, the `.yml` filter, and two more | tool | ready |
-| 0.50.0 | the ship signal | `--check` measures the predicate this project ships on, and a round that did not receive a role neither advances nor erases its streak | loop | ready |
-| 0.51.0 | an accepted finding stops blocking | A recorded `resolved.status`, and a PASS row whose note contradicts it, stop counting against convergence | loop | needs 0.50.0 |
-| 0.52.0 | `--reconcile` | Records why the spec moved between rounds, without overwriting what the round read | loop | needs 0.39.0 |
-| 0.53.0 | `next_action` recommends the delta pass | One branch on a shipped surface after a repair touching more than three sections | loop | ready |
-| 0.54.0 | repair locality | The share of a round's findings sitting in text the previous round wrote, reported and gating nothing | loop | needs 0.39.0 |
-| 0.55.0 | the spec-hash reset | `consecutive_clean` resets when the spec it is a claim about changes | loop | needs 0.39.0 |
-| 0.56.0 | the divisible round | Covering an N-file surface with a bounded per-prompt count, and skipping what did not change | loop | design pass |
-| 0.57.0 | the test-file fence | A unit's write permission resolved per unit, so an implementer cannot edit the test that judges it | tool | design pass |
-| 0.58.0 | a durable home for an accepted finding | Where an accepted finding goes so it becomes maintenance pressure rather than archived prose | loop | design pass |
-| 0.59.0 | the identifier pass | References a spec never introduces — blocked on a known-identifier set | tool | design pass |
-| 0.60.0 | class families | Recurring finding classes grouped by normalised slug — blocked on its own measured yield | loop | design pass |
-| 0.61.0 | the evidence contract | Stop accepting an assertion where an experiment was meant | loop | pre-design |
-| — | *withdrawn* | the example-table lint rule (refuted twice), the corpus-replay gate (impossible), and the old 0.49.0's §1a/§1b/§1b.1 (a settled research record) | — | → candidates |
+| **0.38.0** | **the checklist covers what changed** | `CodeFileCap` stops dropping two thirds of the changed surface unannounced: rank by churn not by filename, never truncate what the operator named, say so when it truncates | tool | **ready** |
+| 0.39.0 | the ship signal | `--check` measures the predicate this project ships on; a round that did not receive a role neither advances nor erases its streak | loop | ready |
+| 0.40.0 | the round carries the text it read | The round's `spec_hash` is written at **emit**, not at record, so a round cannot certify a spec its roles never saw | loop | ready |
+| 0.41.0 | forced commitment in the brief | Three sentences tp emits, so an unattended run gets the brief a human writes by hand today | loop | ready |
+| 0.42.0 | the v0.35.0 backlog | The defects v0.32.0–v0.35.0 deferred with reasons, plus `unresolved_findings`, which only `wontfix` ever decrements | tool | ready |
+| 0.43.0 | six deferred defects | v0.36.0's audit handed these over: the `--role` snapshot, the empty-directory blind spot, the atomic round write, the `.yml` filter, and two more | tool | ready |
+| 0.44.0 | the unexecutable split | `tp validate` warns when a test-only task depends on exactly one task in the same section | tool | ready |
+| 0.45.0 | the binary check | The advisory when the running tp is older than the spec being developed | tool | ready |
+| 0.46.0 | the untracked task file | A second advisory, once, at `PhaseRelease` — different trigger, different cadence, so not the same release | tool | ready |
+| 0.47.0 | the contradictory comparator | One file stating one numeric rule with opposite comparators, over whitespace-normalised text | tool | ready |
+| 0.48.0 | mutation score as a gate entry | The entry establishes that a run **completed and over which mutants** before any score is read | tool | ready |
+| 0.49.0 | the gate sequence | `quality_gate` as an ordered array of named entries, each with its own exit code | tool | ready |
+| 0.50.0 | the red gate | The bounded procedure a unit follows when the gate goes red — text in a brief, enforcing nothing | tool | ready |
+| 0.51.0 | `next_action` recommends the delta pass | One branch on a shipped surface after a repair touching more than three sections | loop | ready |
+| 0.52.0 | an accepted finding stops blocking | A recorded `resolved.status`, and a PASS row whose note contradicts it, stop counting against convergence | loop | needs 0.39.0 |
+| 0.53.0 | `--reconcile` | Records why the spec moved between rounds, without overwriting what the round read | loop | needs 0.40.0 |
+| 0.54.0 | repair locality | The share of a round's findings sitting in text the previous round wrote, reported and gating nothing | loop | needs 0.40.0 |
+| 0.55.0 | the spec-hash reset | `consecutive_clean` resets when the spec it is a claim about changes | loop | needs 0.40.0 |
+
+**Not numbered, because none of them can be decomposed and a number that moves leaves stale
+references** — CLAUDE.md has already paid for three renumberings. Each names the decision it is
+waiting on:
+
+| candidate | the decision nobody has taken |
+|---|---|
+| the divisible round | the split key. Measured: `spec-coverage` produced a non-`PASS` on **6 of 97 distinct items (6.2%)** across seven rounds, four of the six in §2 — so splitting 74 items by *count* gives two ~97%-PASS shards. The key the data recommends is **spec location**, and none of the spec's three candidates is that |
+| the test-file fence | where the permission resolves — a `tp` call per write inside the hook, or precomputed into the child environment at spawn. Also `test_globs`' list-layer semantics: `Checks` is the only existing list field and it *replaces* rather than merges |
+| a durable home for an accepted finding | the target shape. Three options are named, none chosen |
+| the identifier pass | the known-identifier set. Measured: the pass as written yields **979 findings over 46 specs**, all references to things that exist elsewhere in the repository, while Non-Goal 2 forbids resolving them — so its own zero-findings gate is unreachable |
+| class families | its own yield. Measured over six cycles the normaliser groups **0–8.7% of findings, median 0.5%**; on v0.37.0 it forms **one family of three findings out of 630**. The release must state what result would make it worth shipping |
+| the evidence contract | four sections name no field, no writer and no arithmetic. Its two ready pieces have already been lifted out as 0.41.0 and 0.48.0 |
+
+**Withdrawn, not deferred.** The example-table lint rule, refuted in both forms its spec named — the
+heuristic fires on 3.9–22.6% of this repository's 1,032 spec sections against a shipped bar of *zero*
+false positives, and the narrower form reads task acceptance criteria, data that does not exist when
+`tp lint` runs. And the old 0.49.0's §1a/§1b/§1b.1: a pre-registration whose trial has now run, which
+belongs in this file's results, not in a spec a review round re-reads. Both go to a candidates file.
+
+**The corpus-replay gate is *restated*, not withdrawn, and the reason it was withdrawn was wrong.**
+Three specs dropped it citing a missing disposition; the disposition exists (see the correction
+above), and **1,117 review rows carry `resolved.status: fixed` together with both `class` and
+`location`** — the baseline is buildable. What actually breaks a replay is the snapshot divergence,
+and that is now bounded: it is zero in the most recent 27 rounds and will be structurally impossible
+once 0.40.0 pins the emit-time hash. So the honest form is: **a replay cannot gate the release that
+introduces the mechanism it would test, because it must wait for rounds to accumulate** — not that it
+cannot be built.
 
 **Why this order — the first three pay for every cycle after them, and each was measured on v0.37.0's
 own corpus.**
@@ -349,22 +370,36 @@ audited the file the cycle's four hardest rounds were about. Two aggravations: t
 on `maxAutoDetectFiles = 50`, so a 30-file universe drops 20 files **silently**; and `--affected-files`
 cannot rescue it, because it replaces the universe *upstream* of the cap.
 
-**0.39.0 second, because three releases are blocked on the artefact it repairs.** The round's
-`spec_hash` is written when results are *recorded*, so nothing pins a round to the text its prompts
-were emitted from. 0.54.0, 0.55.0 and 0.56.0 have each withdrawn a gate over that, and two of the
-three withdrew it citing the disposition instead — which, as corrected above, was never the reason.
+**0.39.0 second, because the gate that decides shipping returns the wrong answer, and the last two
+releases both worked around it by hand.** v0.36.0 and v0.37.0 each shipped with
+`tp audit --status --check` at exit 1 while `spec-coverage` was clean and no role held a FAIL — the
+two gates measure different things, and the operator has adjudicated the difference in writing twice.
+Until it ships, every ship decision is a judgement call dressed as a check.
 
-**0.40.0 third, because it halves what every later cycle costs.** v0.37.0 ran the trial with the arms
-swapped between rounds: briefed 15 and 23, control **35 both times**. The effect follows the arm, not
-the role. Three sentences in a brief, no new field, and twenty-one releases still to come.
+**0.40.0 third, because it makes the record mean what it says and three later releases need it.** The
+round's `spec_hash` is written when results are *recorded*, so nothing pins a round to the text its
+prompts were emitted from. Its urgency is honestly low — the divergence is zero across the most recent
+27 rounds, because this operator stopped editing mid-round — but 0.53.0, 0.54.0 and 0.55.0 each
+withdrew a gate over it, and a record that *may* be a lie is indistinguishable from one that is.
 
-**After that, readiness and dependencies.** The `tool`-class releases (0.41.0–0.49.0) are small, live
-and carry no design risk; they are ordered by size. The `loop`-class ones follow, because a release
-that changes the loop is reviewed by the mechanism it is changing and costs about twice as much — the
-2.1× above. 0.51.0 needs 0.50.0's role-scoped streak; 0.52.0, 0.54.0 and 0.55.0 need 0.39.0's
-emit-time hash. The six `design pass` and `pre-design` entries are last **by readiness, not
-preference**: each names a decision nobody has taken, and this repository's own rule is that a test
-written before that decision pins the guess rather than the requirement.
+**0.41.0 fourth, and the argument is `tp run`, not this loop.** v0.37.0 swapped the trial's arms
+between rounds and the briefed arm filed 15 and 23 against a control of **35 both times** — the effect
+follows the arm, not the role. But note what was measured: **what a role files**, not how many rounds
+a cycle takes; the second has never been measured and should not be claimed. And in an attended cycle
+the orchestrator already writes those sentences by hand, so the marginal gain here is small. The gap
+is unattended: under `tp run` tp emits the brief and nobody adds them.
+
+**After that, readiness and dependency.** 0.42.0–0.50.0 are `tool`-class — small, live, no design
+risk — ordered by size; the historical range for a small tool spec is 4–8 rounds (v0.31.1 at 57 lines
+cost 4), not the 11 the class median suggests. The remaining `loop` entries follow, because a release
+that changes the loop is reviewed by the mechanism it is changing and costs about twice as much.
+0.52.0 needs 0.39.0's role-scoped streak; 0.53.0, 0.54.0 and 0.55.0 need 0.40.0's emit-time hash.
+
+**What this costs, stated rather than implied.** Eighteen numbered releases at this corpus's own rates
+— 4–8 rounds for a small tool spec, ~23 for a loop-class one — projects to roughly 200 review-plus-audit
+rounds. v0.37.0's 19 rounds took about seven hours of agent time, so the pending set is on the order of
+seventy hours. Splitting did not create that cost; it made it visible and divisible, and it is the
+reason the six undecided candidates carry no number.
 
 **Two things were withdrawn rather than scheduled**, and the reasons are measured. The example-table
 lint rule was prototyped in both forms its spec named: the keyword-and-shape heuristic fires on
