@@ -370,3 +370,65 @@ func TestBlockLinesJoinWithOneSpaceAndWhitespaceCollapses(t *testing.T) {
 		})
 	}
 }
+
+// TestProseSplitsAtATerminatorFollowedByWhitespace is §2.1 step 4: "split the
+// joined block at each `.`, `!` or `?` followed by whitespace; the terminator
+// stays with the unit on its left".
+//
+// The second clause is asserted by keeping the whole expected unit, not by
+// counting: the two readings of step 4 that the spec's own repair chose between
+// give the SAME segmentation and different strings, so a count cannot tell them
+// apart and a `text_sha` computed from the wrong one never matches.
+//
+// The abbreviation case is deliberate. "e.g. 1 thing" splits, because the rule
+// is a terminator followed by whitespace and nothing else; that coarseness is
+// the rule as written, and pinning it here means a later reader changes it on
+// purpose rather than by accident.
+func TestProseSplitsAtATerminatorFollowedByWhitespace(t *testing.T) {
+	tests := []struct {
+		name string
+		text string
+		want []string
+	}{
+		{
+			name: "the terminator stays with the unit on its left",
+			text: "Alpha holds 1. Beta holds 2.",
+			want: []string{"Alpha holds 1.", "Beta holds 2."},
+		},
+		{
+			name: "the exclamation and question marks split too",
+			text: "Alpha holds 1! Beta holds 2? Gamma holds 3.",
+			want: []string{"Alpha holds 1!", "Beta holds 2?", "Gamma holds 3."},
+		},
+		{
+			name: "a terminator not followed by whitespace does not split",
+			text: "Version 1.2 holds.",
+			want: []string{"Version 1.2 holds."},
+		},
+		{
+			name: "the rule is literal, so an abbreviation splits",
+			text: "It holds e.g. 1 thing.",
+			want: []string{"It holds e.g.", "1 thing."},
+		},
+		{
+			name: "a trailing terminator yields no empty unit",
+			text: "Alpha holds 1.",
+			want: []string{"Alpha holds 1."},
+		},
+		{
+			name: "a run of terminators splits after the last one",
+			text: "Alpha holds 1... Beta holds 2.",
+			want: []string{"Alpha holds 1...", "Beta holds 2."},
+		},
+		{
+			name: "the split runs across a line join",
+			text: "Alpha holds 1.\nBeta holds 2.",
+			want: []string{"Alpha holds 1.", "Beta holds 2."},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, FloorUnits(tt.text))
+		})
+	}
+}
