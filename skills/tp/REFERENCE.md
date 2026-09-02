@@ -334,8 +334,13 @@ non-test source, and workflow fields have no env layer to ignore.)
 fires when the write moves the **resolved** value — task override > project config > built-in — to
 `blocking`, and only then. So a `--project` write of `blocking` underneath a task-level `all` passes
 **for that base** (it uncovers nothing an audit reads there) — but the write lands in the layer every
-base resolves through, so it is evaluated once per base and is refused as soon as another base's task
-file names no `audit_converge_on` and would newly resolve `blocking` from the project layer; an
+base resolves through, so it is evaluated once per **scanned task file** — the discovered override
+plus every `*.tasks.json` the project scan reaches — and is refused, naming that base, as soon as one
+of them names no `audit_converge_on` and would newly resolve `blocking` from the project layer. A
+base with **no task file at all** is outside that population; tp scans task files and has no
+enumeration of specs. A degraded read never shrinks the population: an unreadable subtree is reported
+on stderr and the bases the walk did reach are still compared, and a task file that will not parse is
+compared as an empty override rather than dropped. An
 `import` carrying an already-resolved `blocking` forward
 passes (nothing changes); a write of `all` never trips it (`all` is the default and the only value
 that tightens the gate); and writing `all` first and `blocking` second is refused on the second
