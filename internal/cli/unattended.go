@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/deligoez/tp/internal/engine"
 	"github.com/deligoez/tp/internal/model"
@@ -143,13 +144,18 @@ const (
 // contributes no override, exactly as EffectiveWorkflowForTaskFile treats it —
 // because a fence that aborted on a malformed file would turn a read error into
 // a refusal at a sink that has not yet decided anything.
-func fenceOverrideLayers() (task, project model.WorkflowOverride) {
+//
+// taskPath is the discovered file, returned so a refusal can name the base it
+// speaks for; it is "" when discovery found nothing, which is the one case
+// there is no name to give.
+func fenceOverrideLayers() (taskPath string, task, project model.WorkflowOverride) {
 	if path, err := engine.DiscoverTaskFile(".", flagFile); err == nil {
+		taskPath = path
 		if o, loadErr := engine.LoadTaskWorkflowOverride(path); loadErr == nil {
 			task = o
 		}
 	}
-	return task, engine.ProjectWorkflowOverride()
+	return taskPath, task, engine.ProjectWorkflowOverride()
 }
 
 // fenceAuditConvergeOnSet applies §3's change rule to a tp set --workflow write
@@ -180,11 +186,27 @@ func fenceOverrideLayers() (task, project model.WorkflowOverride) {
 // that a base with no task file at all is outside this population — tp scans
 // task files and has no enumeration of specs, so such a base has no shape this
 // fence can see.
+//
+// What a degraded read does NOT do is shrink the population. A missing base
+// cannot trigger a refusal, so every base dropped is a hole in the fence rather
+// than a conservative default, and both ways of dropping one were measured
+// landing the write: engine.ScanProjectTaskFiles returns its partial list *and*
+// the walk error, so keeping the list only when err == nil discards every base
+// the walk did reach and reverts this fence to the single-base form it was
+// widened out of; and skipping a task file that will not parse is the opposite
+// of what fenceOverrideLayers does with the same error, which leaves an empty
+// override that is still compared.
+//
+// The refusal names the base it speaks for. The loop is per base, so a message
+// that named none would be byte-identical whether one base moved or fifty, and
+// no second command recovers it — tp validate --project reports no deviation
+// here, because the project layer does not set the field yet, which is the
+// whole reason the write was refused.
 func fenceAuditConvergeOnSet(what, value string, layer auditConvergeOnLayer) {
 	if !engine.Unattended() {
 		return
 	}
-	task, project := fenceOverrideLayers()
+	taskPath, task, project := fenceOverrideLayers()
 	if layer == auditConvergeOnTaskLayer {
 		before := engine.ResolveWorkflowLayers(&task, &project).AuditConvergeOn
 		task.AuditConvergeOn = &value
@@ -196,19 +218,35 @@ func fenceAuditConvergeOnSet(what, value string, layer auditConvergeOnLayer) {
 	}
 	afterProject := project
 	afterProject.AuditConvergeOn = &value
+	files, scanErr := engine.ScanProjectTaskFiles(engine.ProjectRoot("."))
+	if scanErr != nil {
+		// The same fact validate --project reports for the same reason: an
+		// incomplete scan that refuses nothing is indistinguishable from a
+		// population that was fully compared. The error value already names
+		// the directory the walk stopped at, so it is not re-derived here.
+		output.Notice(fmt.Sprintf(
+			"warning: project scan incomplete: %v; bases behind it were not compared", scanErr))
+	}
+	discovered := ""
+	if taskPath != "" {
+		discovered = filepath.Base(taskPath)
+	}
 	population := []model.WorkflowOverride{task}
-	if files, err := engine.ScanProjectTaskFiles(engine.ProjectRoot(".")); err == nil {
-		for _, f := range files {
-			if o, loadErr := engine.LoadTaskWorkflowOverride(f); loadErr == nil {
-				population = append(population, o)
-			}
-		}
+	bases := []string{discovered}
+	for _, f := range files {
+		o, _ := engine.LoadTaskWorkflowOverride(f)
+		population = append(population, o)
+		bases = append(bases, filepath.Base(f))
 	}
 	for i := range population {
 		before := engine.ResolveWorkflowLayers(&population[i], &project).AuditConvergeOn
 		after := engine.ResolveWorkflowLayers(&population[i], &afterProject).AuditConvergeOn
 		if engine.AuditConvergeOnRelaxes(before, after) {
-			refuseUnattendedAuditConvergeOn(what, fenceSinkSet, before)
+			attempt := what
+			if bases[i] != "" {
+				attempt = fmt.Sprintf("%s, resolved through %s,", what, bases[i])
+			}
+			refuseUnattendedAuditConvergeOn(attempt, fenceSinkSet, before)
 			return
 		}
 	}
