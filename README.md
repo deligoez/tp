@@ -337,6 +337,8 @@ tp is designed for AI agents first (AX), not humans (DX):
 | **Candidate retirement** | a registered check retires its mechanize candidate; `mechanized_classes` names what was withheld |
 | **Unattended run** | `tp run` drives the whole cycle; exit 0 means converged, exit 4 names one of nine stop reasons |
 | **Fail-closed decisions** | under `TP_UNATTENDED` the user-only decisions exit 2 and `tp escalate` records what needs deciding |
+| **Audit convergence policy** | `audit_converge_on` (default `all`) decides what an audit round must be clean of; `blocking` is human-only, fenced at all four write paths |
+| **Accepted rows are visible** | `tp audit --merge` breaks the round's non-`PASS` rows down as `by_severity`, and `next_action` names the accepted count |
 | **Honest merges** | `--merge` reports `inputs` per file and exits 1 when a role's whole file failed to parse |
 | **One prompt per unit** | `tp review`/`tp audit --role <name>` emit a single role's prompt, so a lost sub-agent costs one role, not the round |
 | **Honest audits** | `file_summary.truncated`/`total_changed` put the 50-file cap in the payload, where `--quiet` cannot erase it |
