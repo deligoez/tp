@@ -117,6 +117,44 @@ func TestWorkflowDeviations_CommitStrategy(t *testing.T) {
 	), "a commit_strategy the project does not set is not a deviation")
 }
 
+// audit_converge_on deviates on its twin's terms: this surface compares the two
+// layers and --strict promotes any non-empty deviation set to exit 1, which is
+// what arms --strict for the field. It does not grade the literal — §2 places
+// that refusal at the write sinks (exit 2) and the consuming audit sinks
+// (exit 1) — so an illegal stored value is reported here as the deviation it is.
+func TestWorkflowDeviations_AuditConvergeOn(t *testing.T) {
+	devs := workflowDeviations("x.tasks.json",
+		&model.WorkflowOverride{AuditConvergeOn: sptr("blocking")},
+		&model.WorkflowOverride{AuditConvergeOn: sptr("all")},
+	)
+	require.Len(t, devs, 1)
+	assert.Equal(t, "audit_converge_on", devs[0]["field"])
+	assert.Equal(t, "blocking", devs[0]["override"])
+	assert.Equal(t, "all", devs[0]["project"])
+
+	// An illegal value against a legal project policy is reported on the same
+	// terms — the comparison is over values, not over legality.
+	illegal := workflowDeviations("x.tasks.json",
+		&model.WorkflowOverride{AuditConvergeOn: sptr("nope")},
+		&model.WorkflowOverride{AuditConvergeOn: sptr("all")},
+	)
+	require.Len(t, illegal, 1)
+	assert.Equal(t, "audit_converge_on", illegal[0]["field"])
+	assert.Equal(t, "nope", illegal[0]["override"])
+
+	// Equal → no deviation.
+	assert.Empty(t, workflowDeviations("x.tasks.json",
+		&model.WorkflowOverride{AuditConvergeOn: sptr("all")},
+		&model.WorkflowOverride{AuditConvergeOn: sptr("all")},
+	), "an equal audit_converge_on is not a deviation")
+
+	// Project does not set it → no policy, no deviation.
+	assert.Empty(t, workflowDeviations("x.tasks.json",
+		&model.WorkflowOverride{AuditConvergeOn: sptr("all")},
+		&model.WorkflowOverride{},
+	), "an audit_converge_on the project does not set is not a deviation")
+}
+
 // relOrSelf never drops a path: a location filepath.Rel cannot express relative
 // to root is reported whole rather than as the empty string the discarded-error
 // form produced.
