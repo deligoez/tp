@@ -159,11 +159,13 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 }
 
 // auditSignalFields writes §2.5's three fields onto an audit payload:
-// role_streaks, spec_coverage_clean_rounds and divergence. It is called from the
-// two outputs that carry them — `tp audit <spec> --status`, with or without
-// --check and before its exit-code branch, and `tp audit <spec> --record <file>`
-// after the round is stored — and from nowhere else, so prompt emission,
-// `tp audit --merge` and every `tp review` mode stay free of them.
+// role_streaks, spec_coverage_clean_rounds and divergence. Three outputs carry
+// them: `tp audit <spec> --status`, with or without --check and before its
+// exit-code branch; `tp audit <spec> --record <file>` after the round is
+// stored; and `tp run --status` on an audit-phase stop, through
+// addAuditSignals, which §1/§3.5 requires to report the same numbers as the
+// audit command. Prompt emission, `tp audit --merge` and every `tp review` mode
+// stay free of them.
 //
 // All three survive --compact whole, so both call sites make this call
 // unconditionally: role_streaks is always an emitted array, never null;
