@@ -257,7 +257,7 @@ func writeEscalation(mode string) error {
 		"at":        time.Now().UTC().Format(time.RFC3339Nano),
 	}
 	if mode == escalateInvalid {
-		// Valid JSON carrying a decision outside §5.2's closed five, which
+		// Valid JSON carrying a decision outside §5.2's closed set, which
 		// is a record that fails schema validation rather than one that
 		// fails to parse.
 		record["decision"] = "invent-one"

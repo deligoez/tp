@@ -57,7 +57,7 @@ func TestReadEscalation_RejectsARecordThatIsNotOne(t *testing.T) {
 		name   string
 		breaks func(e *Escalation)
 	}{
-		{"a decision outside the closed five", func(e *Escalation) { e.Decision = "invent-one" }},
+		{"a decision outside the closed set", func(e *Escalation) { e.Decision = "invent-one" }},
 		{"no decision at all", func(e *Escalation) { e.Decision = "" }},
 		{"a unit kind outside the eight", func(e *Escalation) { e.UnitKind = "implementation" }},
 		{"no unit kind", func(e *Escalation) { e.UnitKind = "" }},
