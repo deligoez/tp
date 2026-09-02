@@ -641,3 +641,53 @@ func TestSection11Row20CanonicalForm(t *testing.T) {
 		"Iota holds 9.",
 	}, FloorUnits(list), "a genuine nine-item list loses every marker")
 }
+
+// TestSection11Row1TheThreeArmsDecideFloorMembership is §11 row 1: a unit
+// holding only a digit, only a backtick span, and only a listed verb each land
+// in the floor, and a unit holding none does not.
+//
+// Every case states all three arms rather than only the one it is about, so a
+// unit that reaches the floor through the WRONG arm fails here instead of
+// passing as a membership test — which is what "separately assertable" has to
+// mean if the row's mutant is to die. The verb-only case is the row's own
+// example, and it is the unit that mutant loses.
+func TestSection11Row1TheThreeArmsDecideFloorMembership(t *testing.T) {
+	tests := []struct {
+		name              string
+		unit              string
+		digit, span, verb bool
+		want              bool
+	}{
+		{"digit only", "The gate runs 4 steps and stops at the first red one.",
+			true, false, false, true},
+		{"backtick span only", "The flag is spelled `--record` in every prompt.",
+			false, true, false, true},
+		{"listed verb only", "the round is recorded before the snapshot is written",
+			false, false, true, true},
+		{"no arm at all", "the round precedes the snapshot in every prompt the command emits",
+			false, false, false, false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// The table may not contradict itself: membership is the
+			// disjunction, so a row claiming otherwise is a broken fixture
+			// rather than a finding about the code.
+			require.Equal(t, tc.digit || tc.span || tc.verb, tc.want)
+
+			assert.Equal(t, tc.digit, floorHasDigit(tc.unit), "digit arm")
+			assert.Equal(t, tc.span, floorHasCodeSpan(tc.unit), "identifier arm")
+			assert.Equal(t, tc.verb, floorHasMeasurementVerb(tc.unit), "verb arm")
+			assert.Equal(t, tc.want, inFloor(tc.unit), "floor membership")
+		})
+	}
+
+	// The two single-arm cases carry their arm ALONE, checked without the
+	// predicates under test: a fixture whose isolation is asserted only by the
+	// code it is meant to discriminate proves nothing about that code.
+	require.False(t, strings.ContainsAny(tests[2].unit, "0123456789`"),
+		"the verb-only unit must hold neither a digit nor a backtick")
+	require.False(t, strings.ContainsAny(tests[0].unit, "`"),
+		"the digit-only unit must hold no backtick")
+	require.False(t, strings.ContainsAny(tests[3].unit, "0123456789`"),
+		"the no-arm unit must hold neither a digit nor a backtick")
+}
