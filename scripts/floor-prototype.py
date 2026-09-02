@@ -314,8 +314,10 @@ def emit(path):
         # file. This index is ~0.05x, and `--units` prints every unit's full text
         # in ONE call, which is what the run ended up doing by hand.
         out.append(f"u{n} {anchor_for(lineno)} {d} #{seen[d]} {len(u.encode())}B")
-    out.append(f"# {len(seen)} in floor, {cut} cut, "
-               f"{len([l for l in lines if l.lstrip().startswith('|')])} table rows not segmented")
+    tbl = len([l for l in lines
+               if l.lstrip().startswith("|") and not TABLE_SEP.match(l)])
+    out.append(f"# {len(seen)} in floor, {cut} cut; {tbl} table data rows are "
+               f"segmented into units (§2.1 step 1) and are counted above")
     return out
 
 
