@@ -53,21 +53,76 @@ func refuseUnattendedCommandField(field string) {
 	os.Exit(ExitUsage)
 }
 
+// fenceSink names which of §3's four write paths is refusing, because the
+// unintended-case exits are not the same at all four and a message that offered
+// all of them everywhere would send a unit at tp set to go and re-author a
+// document that is not what refused.
+type fenceSink int
+
+const (
+	// fenceSinkSet is tp set --workflow and its --project form: the write
+	// names the value itself.
+	fenceSinkSet fenceSink = iota
+	// fenceSinkImport is tp import, the one sink whose input the unit can
+	// re-author into a document that resolves the same value — which is why
+	// §3's two documents are remedies here and nowhere else.
+	fenceSinkImport
+	// fenceSinkExtract is tp config --extract, which hoists every field the
+	// task files share in one move and cannot leave one behind.
+	fenceSinkExtract
+)
+
+// auditConvergeOnUnintendedExit returns the exits a unit that did NOT mean to
+// change the value has at this sink, with resolved naming the value the write
+// moves off so "carry the resolved value explicitly" is something a unit can
+// act on rather than a pointer to a value it has to go and look up.
+//
+// The two import remedies are §3's own and are stated only at tp import. At the
+// other two sinks the write IS the change: tp set names the literal, and
+// --extract moves every common field at once, so at neither is there a form of
+// the command that both lands and leaves the value alone. Offering the
+// documents there would be as wrong as offering nothing.
+func auditConvergeOnUnintendedExit(sink fenceSink, resolved string) string {
+	switch sink {
+	case fenceSinkImport:
+		return fmt.Sprintf(
+			`the document is the fix: omit its top-level "workflow" key to carry the current block forward, or write "audit_converge_on": %q into it`,
+			resolved)
+	case fenceSinkExtract:
+		return fmt.Sprintf(
+			`do not run this hoist: --extract moves every field the task files share in one write, so no form of it lands while audit_converge_on still resolves %s`,
+			resolved)
+	}
+	// fenceSinkSet, which is also the zero value: tp set --workflow and its
+	// --project form both name the literal, so the write is the change.
+	return fmt.Sprintf(
+		`do not make this write: it names the value itself, so no form of it lands while audit_converge_on still resolves %s`,
+		resolved)
+}
+
 // refuseUnattendedAuditConvergeOn reports a write that would change the
 // resolved audit_converge_on to blocking under TP_UNATTENDED and exits 2.
-// what names the attempt in the operator's own words ("tp import").
+// what names the attempt in the operator's own words ("tp import"), sink
+// selects the authoring exits, and resolved is the value the write moves off.
 //
 // §3 gives this field its own refusal rather than reusing
 // refuseUnattendedCommandField: that message says the field "names a command
 // the driver executes", which is false here and would mislead the one reader
 // who most needs the truth — a unit deciding whether it has an authoring error
-// it can fix itself or a decision it must escalate. The three exits and the
-// condition selecting each are the refusal's own deliverable and are not stated
-// here yet.
-func refuseUnattendedAuditConvergeOn(what string) {
+// it can fix itself or a decision it must escalate.
+//
+// The message names all three exits AND the condition selecting each, because
+// it has two audiences and the wrong pairing is silent: a unit that reads only
+// "refused" stops a run over something one edit fixes, and a unit that meant
+// the relax and reads only the authoring exits writes the resolved value back,
+// passes, and reverts an operator-approved blocking with no escalation and no
+// record.
+func refuseUnattendedAuditConvergeOn(what string, sink fenceSink, resolved string) {
 	output.Error(ExitUsage,
-		fmt.Sprintf("%s changes the resolved audit_converge_on to blocking, which relaxes the audit gate and is a user-approved decision refused under TP_UNATTENDED", what),
-		fmt.Sprintf("escalate instead: tp escalate --decision %s --evidence <what you found>",
+		fmt.Sprintf("%s changes the resolved audit_converge_on from %s to blocking, which relaxes the audit gate and is a user-approved decision refused under TP_UNATTENDED",
+			what, resolved),
+		fmt.Sprintf("if you did not mean to change it, %s; if you did, escalate: tp escalate --decision %s --evidence <what you found>",
+			auditConvergeOnUnintendedExit(sink, resolved),
 			escalationDecision("audit_converge_on")))
 	os.Exit(ExitUsage)
 }
@@ -122,7 +177,7 @@ func fenceAuditConvergeOnSet(what, value string, layer auditConvergeOnLayer) {
 	}
 	after := engine.ResolveWorkflowLayers(&task, &project).AuditConvergeOn
 	if engine.AuditConvergeOnRelaxes(before, after) {
-		refuseUnattendedAuditConvergeOn(what)
+		refuseUnattendedAuditConvergeOn(what, fenceSinkSet, before)
 	}
 }
 
@@ -152,7 +207,7 @@ func fenceAuditConvergeOnImport(targetPath string, incoming *model.WorkflowOverr
 	before := engine.ResolveWorkflowLayers(&existing, &project).AuditConvergeOn
 	after := engine.ResolveWorkflowLayers(incoming, &project).AuditConvergeOn
 	if engine.AuditConvergeOnRelaxes(before, after) {
-		refuseUnattendedAuditConvergeOn("tp import")
+		refuseUnattendedAuditConvergeOn("tp import", fenceSinkImport, before)
 	}
 }
 

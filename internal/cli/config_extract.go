@@ -275,7 +275,7 @@ func fenceAuditConvergeOnExtract(overrides []model.WorkflowOverride, project, co
 		}
 		afterValue := engine.ResolveWorkflowLayers(&taskLayer, &after).AuditConvergeOn
 		if engine.AuditConvergeOnRelaxes(beforeValue, afterValue) {
-			refuseUnattendedAuditConvergeOn("tp config --extract")
+			refuseUnattendedAuditConvergeOn("tp config --extract", fenceSinkExtract, beforeValue)
 			return
 		}
 	}
