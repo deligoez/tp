@@ -317,6 +317,15 @@ var roundFilePrefixes = []string{"review-round-", "audit-round-"}
 // recorded.
 var snapshotPrefixes = []string{"snapshot-round-", "snapshot-audit-round-"}
 
+// groundFilePrefixes name the artifacts a ground round writes: the snapshot and
+// the floor an emission derives from it, plus the round file --record writes
+// beside them. A third list rather than entries in the two above, because a
+// ground round writes nothing into state.json and precedes review — the
+// directory it leaves behind holds no index, so a review or audit predicate
+// that matched a ground artifact would read that directory as state artifacts
+// with a missing index and abort every command that loads state for the spec.
+var groundFilePrefixes = []string{"ground-round-", "snapshot-ground-round-", "floor-ground-round-"}
+
 // hasRecordedRoundFiles reports whether dir holds a round file — the artifact
 // only --record writes. Snapshots do not count: an emission writes those before
 // any round exists, so their presence alone says nothing was ever recorded.
