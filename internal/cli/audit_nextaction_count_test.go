@@ -90,8 +90,8 @@ func TestAuditNextAction_CleanRoundNamesTheAcceptedCount(t *testing.T) {
 			withRows, empty := nextActionOf(t, tc.held), nextActionOf(t, tc.none)
 			assert.Equal(t, auditNextRoundDirective, empty,
 				"an empty clean round says exactly what it said before this release")
-			assert.Contains(t, withRows, "3",
-				"the accepted count is rendered as a numeral")
+			assert.Contains(t, withRows, "3 accepted rows",
+				"the accepted count is rendered as a numeral, in the noun phrase")
 			assert.Contains(t, withRows, "run the next audit round",
 				"the clean round still takes the default arm, not the fix-and-re-audit branch")
 			assert.NotEqual(t, empty, withRows,
@@ -122,8 +122,8 @@ func TestAuditNextAction_ConvergedRoundNamesTheAcceptedCount(t *testing.T) {
 			withRows, empty := nextActionOf(t, tc.held), nextActionOf(t, tc.none)
 			assert.Equal(t, auditReleaseDirective, empty,
 				"an empty converged round says exactly what it said before this release")
-			assert.Contains(t, withRows, "3",
-				"the accepted count is rendered as a numeral")
+			assert.Contains(t, withRows, "3 accepted rows",
+				"the accepted count is rendered as a numeral, in the noun phrase")
 			assert.Contains(t, withRows, "proceed to release",
 				"the terminal marker survives; the count is added to it, not substituted for it")
 			assert.NotContains(t, withRows, "tp audit",
