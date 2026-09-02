@@ -84,10 +84,11 @@ func runSetProjectWorkflow(args []string) error {
 				os.Exit(ExitUsage)
 				return nil
 			}
-			// §3's change rule at the project layer. It resolves the write
-			// through §2's precedence rather than reading the layer it lands
-			// in, so blocking written beneath a task override of all changes
-			// nothing an audit reads and passes.
+			// §3's fence at the project layer, which is a value rule and not
+			// the change rule the other three sinks use: this write lands in
+			// the layer every base resolves through, including bases tp cannot
+			// enumerate, so blocking is refused whatever any single base
+			// resolves today.
 			fenceAuditConvergeOnSet(
 				fmt.Sprintf("tp set --workflow --project audit_converge_on=%s", valueStr),
 				valueStr, auditConvergeOnProjectLayer)
