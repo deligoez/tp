@@ -26,10 +26,22 @@ type divergenceFixture struct {
 
 // newDivergenceFixture writes one recorded round per NDJSON body, oldest first.
 // Each round carries the corpus hash and spec hash computed at fixture time and
-// the `clean` flag the record path would have stored — findings == 0 — so
-// engine.Converged and engine.StateStale see the state they would see in a real
-// repository.
+// the `clean` flag the record path would have stored under the built-in
+// audit_converge_on — so engine.Converged and engine.StateStale see the state
+// they would see in a real repository.
 func newDivergenceFixture(t *testing.T, bodies ...string) *divergenceFixture {
+	t.Helper()
+	return newDivergenceFixtureUnder(t, AuditConvergeOnAll, bodies...)
+}
+
+// newDivergenceFixtureUnder is the same fixture with every round's `clean` flag
+// stamped under a stated audit_converge_on, through AuditRowsClean — the
+// predicate the record path itself calls (§2). It is what lets a fixture reach
+// the state §6.5 is about: a round that is clean, and a sequence that is
+// converged, while the round still holds non-PASS rows. Under `all` the stamp
+// is findings == 0, so every caller of newDivergenceFixture sees exactly the
+// rounds it saw before this argument existed.
+func newDivergenceFixtureUnder(t *testing.T, convergeOn string, bodies ...string) *divergenceFixture {
 	t.Helper()
 	root := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o750))
@@ -53,11 +65,11 @@ func newDivergenceFixture(t *testing.T, bodies ...string) *divergenceFixture {
 	for i, body := range bodies {
 		name := fmt.Sprintf("audit-round-%d.ndjson", i+1)
 		require.NoError(t, os.WriteFile(filepath.Join(stateDir, name), []byte(body), 0o600))
-		findings := countNonPassRows(t, body)
+		rows := parseDivergenceFixtureRows(t, body)
 		f.rounds = append(f.rounds, ReviewRound{
 			Round:     i + 1,
-			Findings:  findings,
-			Clean:     findings == 0,
+			Findings:  countNonPassRows(rows),
+			Clean:     AuditRowsClean(rows, convergeOn),
 			File:      name,
 			SpecHash:  specHash,
 			RolesHash: rolesHash,
@@ -66,10 +78,12 @@ func newDivergenceFixture(t *testing.T, bodies ...string) *divergenceFixture {
 	return f
 }
 
-// countNonPassRows is the record path's finding count over a round body.
-func countNonPassRows(t *testing.T, body string) int {
+// parseDivergenceFixtureRows decodes a round body the way the record path
+// decodes one, so the rows the fixture is graded from are the rows the file
+// holds.
+func parseDivergenceFixtureRows(t *testing.T, body string) []map[string]any {
 	t.Helper()
-	n := 0
+	var rows []map[string]any
 	for line := range strings.SplitSeq(body, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
@@ -77,6 +91,15 @@ func countNonPassRows(t *testing.T, body string) int {
 		}
 		var row map[string]any
 		require.NoError(t, json.Unmarshal([]byte(line), &row))
+		rows = append(rows, row)
+	}
+	return rows
+}
+
+// countNonPassRows is the record path's finding count over those rows.
+func countNonPassRows(rows []map[string]any) int {
+	n := 0
+	for _, row := range rows {
 		if !AuditRowIsPass(row) {
 			n++
 		}
