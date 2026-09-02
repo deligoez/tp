@@ -319,7 +319,7 @@ agent:
 | `tp set --workflow run_max_*=` **above** the resolved value | exit 2, same shape |
 | `tp import --force` | exit 2, same shape |
 | `tp set --workflow runner=` / `tp set --local notify_cmd=`, at **any** layer | exit 2, `names a command the driver executes and cannot be set under TP_UNATTENDED, at any layer` |
-| any write that **changes the resolved `audit_converge_on` to `blocking`** — `tp set --workflow`, its `--project` form, `tp import`, `tp config --extract` (v0.37.0) | exit 2, `<what> changes the resolved audit_converge_on from <before> to blocking, which relaxes the audit gate and is a user-approved decision refused under TP_UNATTENDED`; the hint names all three exits and escalates under `--decision audit-converge-on` |
+| a write of `audit_converge_on` that relaxes the audit gate (v0.37.0) — at `tp set --workflow`, `tp import` and `tp config --extract`, one that **changes the resolved value to `blocking`**; at `tp set --workflow --project`, **any** write of `blocking` | exit 2. The three change-rule sinks say `<what> changes the resolved audit_converge_on from <before> to blocking, which relaxes the audit gate and is a user-approved decision refused under TP_UNATTENDED`; the `--project` sink names no resolved value and says `<what> writes blocking into the layer every base resolves through, including bases tp cannot enumerate; blocking is the value that relaxes the audit gate, …`. Each hint names that sink's own exits and escalates under `--decision audit-converge-on` |
 
 The cap comparison is against the currently **resolved** value; an equal or lower value is accepted
 and exits 0, since lowering a budget cannot manufacture convergence. The exception is `0`, which
