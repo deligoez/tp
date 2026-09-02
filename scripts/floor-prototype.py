@@ -113,7 +113,22 @@ def canonicalise(block, strip_markers="every"):
     if strip_markers == "first":
         lines[0] = LIST_MARKER.sub("", lines[0])
     elif strip_markers == "every":
-        lines = [LIST_MARKER.sub("", ln) for ln in lines]
+        # ONLY when the block is a list — that is, its first line opens one.
+        #
+        # Stripping every line unconditionally DELETES TEXT, and it had already
+        # corrupted this repository's own spec when the second end-to-end run
+        # found it. Hard-wrapped prose puts an ordinal at the start of a
+        # continuation line — "…pinned to a named input by test\n14. The mapping
+        # is…" — and the rule ate the `14. `, so the unit read "…by test The
+        # mapping is…". Same sentence, different text, different text_sha,
+        # depending only on where the author's line breaks fell.
+        #
+        # A genuine list opens with a marker, and this repository indents its
+        # continuation lines, so no marker survives to be missed. Two review
+        # rounds and one full grounding pass read over the corrupted unit; the
+        # run that executed the derivation found it.
+        if LIST_MARKER.match(lines[0]):
+            lines = [LIST_MARKER.sub("", ln) for ln in lines]
     joined = " ".join(ln.strip() for ln in lines)
     return re.sub(r"\s+", " ", joined).strip()
 
