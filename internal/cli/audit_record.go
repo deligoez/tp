@@ -42,6 +42,23 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 
 	// Round-budget refusal comes before line parsing and any state write
 	wfPre, _ := engine.ResolveWorkflow(specPath, flagFile)
+
+	// A consuming command validates the resolved audit_converge_on: an illegal
+	// value winning from a stored layer (.tp/config.json or a task override) is
+	// a validation error (exit 1), not the usage error (exit 2) a write sink
+	// reports for an illegal literal argument (§2).
+	//
+	// It is checked HERE, on wfPre, and not on the wf resolved further down:
+	// EnsureReviewState and recordAuditRoundEntry both run before that second
+	// resolution, so a refusal placed there would exit non-zero with round N
+	// already written into a store §2 declares immutable — recorded under a
+	// policy tp refused to read. Nothing above this line writes.
+	if !engine.ValidAuditConvergeOn(wfPre.AuditConvergeOn) {
+		output.Error(ExitValidation, fmt.Sprintf("invalid audit_converge_on value %q", wfPre.AuditConvergeOn), engine.AuditConvergeOnHint)
+		os.Exit(ExitValidation)
+		return nil
+	}
+
 	preRounds := []engine.ReviewRound{}
 	if stPre != nil {
 		preRounds = stPre.AuditRounds
@@ -319,6 +336,18 @@ func runAuditStatus(specPath string, check bool) error {
 	}
 
 	wf, _ := engine.ResolveWorkflow(specPath, flagFile)
+
+	// The read half of the same rule (§2): --status reports convergence, so an
+	// illegal stored audit_converge_on is refused here too, with the same
+	// validation code (exit 1) and the same hint. Refusing on only one of the
+	// two sinks would let a gated driver read `converged` off a policy tp would
+	// not accept from the sink that records it.
+	if !engine.ValidAuditConvergeOn(wf.AuditConvergeOn) {
+		output.Error(ExitValidation, fmt.Sprintf("invalid audit_converge_on value %q", wf.AuditConvergeOn), engine.AuditConvergeOnHint)
+		os.Exit(ExitValidation)
+		return nil
+	}
+
 	specHash, err := engine.SpecHash(specPath)
 	if err != nil {
 		output.Error(ExitFile, fmt.Sprintf("cannot hash spec: %s", specPath), err.Error())
