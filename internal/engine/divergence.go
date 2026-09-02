@@ -98,15 +98,22 @@ type DivergenceInputs struct {
 //  4. The sequence is not converged.
 //  5. The latest recorded round's stored roles_hash equals CurrentRolesHash.
 //
-// Condition 4 is redundant in every sane configuration, since condition 2 makes
-// the latest round unclean and that is what convergence counts. It is stated
-// anyway because it is the object's own premise: divergence hands the driver a
-// decision about whether open findings should gate a release, and once the gate
-// is open there is no such decision. It is also what makes the signal immune to
-// a resolved audit_clean_rounds of 0, where condition 1 is satisfied by a streak
-// of 0 and engine.Converged reduces to "not stale" — a state in which the
-// object would otherwise be emitted beside converged: true and a hint that
-// misdescribes an open gate.
+// Condition 4 is load-bearing, not redundant. Under audit_converge_on: all,
+// condition 2's rows also make the latest round unclean, so the two conditions
+// coincide and only one of them appears to do any work; under blocking they
+// come apart — a round holding open rows that are all advisory is stamped clean
+// and can converge the sequence, and condition 4 is then the only thing
+// withholding the object (§6.5). It is also the object's own premise:
+// divergence hands the driver a decision about whether open findings should
+// gate a release, and once the gate is open there is no such decision. The same
+// condition is what makes the signal immune to a resolved audit_clean_rounds of
+// 0, where condition 1 is satisfied by a streak of 0 and engine.Converged
+// reduces to "not stale" — a state in which the object would otherwise be
+// emitted beside converged: true and a hint that misdescribes an open gate.
+//
+// What the suppression costs is §6.5's, and §7 rows 21 and 22 pin it: an open
+// row carrying no role may be spec-coverage's, and under blocking the
+// unattributed_open caveat is withheld along with the object.
 //
 // The evaluation order below is not observable — nothing here reads a file,
 // emits an advisory or otherwise has an effect — so the four scalar conditions
