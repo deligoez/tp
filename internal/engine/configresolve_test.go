@@ -78,6 +78,39 @@ func TestResolveWorkflowLayers_ReviewConvergeOn(t *testing.T) {
 	assert.Equal(t, "bogus", wf.ReviewConvergeOn, "an invalid stored value resolves raw, not clamped")
 }
 
+// TestResolveWorkflowLayers_AuditConvergeOn covers v0.37.0 §2: audit_converge_on
+// parses out of a workflow block with the same string-type warning as its twin,
+// resolves task override > project config > built-in, and its built-in is all.
+// The default assertion is the one v0.37.0 §7 row 1 names: the mutant that must
+// fail it is shipping blocking — review_converge_on's default — as this field's.
+func TestResolveWorkflowLayers_AuditConvergeOn(t *testing.T) {
+	// Parsed from a task-file workflow block, then resolved by precedence.
+	wo, warnings := parseWorkflowOverride([]byte(`{"audit_converge_on":"blocking"}`))
+	require.Empty(t, warnings)
+	require.NotNil(t, wo.AuditConvergeOn)
+	assert.Equal(t, AuditConvergeOnBlocking, *wo.AuditConvergeOn)
+
+	wf := ResolveWorkflowLayers(&wo, &model.WorkflowOverride{AuditConvergeOn: ptr(AuditConvergeOnAll)})
+	assert.Equal(t, AuditConvergeOnBlocking, wf.AuditConvergeOn, "task override wins over project")
+
+	wf = ResolveWorkflowLayers(&model.WorkflowOverride{}, &model.WorkflowOverride{AuditConvergeOn: ptr(AuditConvergeOnBlocking)})
+	assert.Equal(t, AuditConvergeOnBlocking, wf.AuditConvergeOn, "project applies when no task override")
+
+	wf = ResolveWorkflowLayers(&model.WorkflowOverride{}, &model.WorkflowOverride{})
+	assert.Equal(t, AuditConvergeOnAll, wf.AuditConvergeOn, "built-in default is all, not the twin's blocking")
+
+	// A non-string value is collected as a warning and leaves the field unset,
+	// on the same terms as review_converge_on's parse.
+	bad, warnings := parseWorkflowOverride([]byte(`{"audit_converge_on":7}`))
+	assert.Nil(t, bad.AuditConvergeOn, "a wrong-typed value leaves the field unset")
+	assert.Contains(t, warnings, "workflow.audit_converge_on: expected a string, ignored")
+
+	// A stored bad value is preserved raw (not rejected) at resolution — a
+	// consuming command validates it, config --resolved surfaces it (§2).
+	wf = ResolveWorkflowLayers(&model.WorkflowOverride{AuditConvergeOn: ptr("bogus")}, &model.WorkflowOverride{})
+	assert.Equal(t, "bogus", wf.AuditConvergeOn, "an invalid stored value resolves raw, not clamped")
+}
+
 func TestResolveEffectiveWorkflow_SparseMerge(t *testing.T) {
 	root := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
