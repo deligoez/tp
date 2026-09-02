@@ -194,3 +194,82 @@ func TestTableRowsInsideAFenceAreNotTableRows(t *testing.T) {
 
 	assert.Equal(t, []string{"After."}, renderBlocks(floorBlocks(text)))
 }
+
+// TestATableDataRowBecomesOneUnit is §2.1 step 1's second paragraph: "strip the
+// outer pipes, join the cells with an em dash, collapse whitespace. It is one
+// unit however many full stops its cells hold."
+//
+// Each case names the rule it is the only witness for, so a port that gets the
+// join right and the escape wrong fails on exactly one row.
+func TestATableDataRowBecomesOneUnit(t *testing.T) {
+	tests := []struct {
+		name string
+		text string
+		want []string
+	}{
+		{
+			name: "three cells joined by an em dash, outer pipes gone",
+			text: "| a | b | c |\n",
+			want: []string{"a — b — c"},
+		},
+		{
+			name: "one unit however many full stops its cells hold",
+			text: "| One. | Two. | Three. |\n",
+			want: []string{"One. — Two. — Three."},
+		},
+		{
+			name: "an escaped pipe is content, not a separator",
+			text: "| `string \\| null` | yes |\n",
+			want: []string{"`string | null` — yes"},
+		},
+		{
+			name: "an escaped pipe at end of line is not the closing pipe",
+			text: "| a | b \\|\n",
+			want: []string{"a — b |"},
+		},
+		{
+			name: "an empty cell contributes nothing",
+			text: "| a || b |\n",
+			want: []string{"a — b"},
+		},
+		{
+			name: "whitespace inside a cell collapses to one space",
+			text: "|  a   b  |  c |\n",
+			want: []string{"a b — c"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, FloorUnits(tt.text))
+		})
+	}
+}
+
+// TestSection11Row18dTable is §11 row 18d on a constructed three-column table:
+// one unit per data row with cells joined by an em dash, no unit for the
+// separator row, no special case for a header row of bare labels, and a data row
+// whose cells hold three full stops is still one unit.
+//
+// The row's remaining clause — that a header row of bare labels produces no
+// FLOOR unit — is "through the arms, with no special case", and the arms are not
+// this seam. What is asserted here is the antecedent that makes that clause
+// true: the header row goes through the same derivation as a data row and comes
+// out as an ordinary unit, which is what leaves the arms something to cut.
+// Whether they cut it is `floor-arms`, which depends on this task.
+func TestSection11Row18dTable(t *testing.T) {
+	text := "| kind | tier | note |\n" +
+		"|---|---|---|\n" +
+		"| behaviour | run | One. Two. Three. |\n" +
+		"| document | read | plain |\n"
+
+	units := FloorUnits(text)
+
+	// Four table lines in, three units out: the separator contributed none.
+	assert.Equal(t, []string{
+		"kind — tier — note",
+		"behaviour — run — One. Two. Three.",
+		"document — read — plain",
+	}, units)
+	assert.Equal(t, 4, strings.Count(text, "\n"), "the fixture is four table lines")
+}
