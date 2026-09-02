@@ -183,6 +183,60 @@ every sentence reasoning *from* the old vocabulary; seven of its nine silent cha
 sentences adjacent to rewritten ones, which is the signature of a section-by-section rewrite with no
 downstream sweep.
 
+### Round 3's outcome — the pre-registered rule missed, and what was done instead
+
+**Both predictions missed, and the record says so before it says anything else.**
+
+| cluster | round 2 | round 3 | predicted | |
+|---|---|---|---|---|
+| §7.2 + §4.1 + §4.2 + §6 + §3 | 24 | **12** | < 8 | missed |
+| §11 | 9 | **9** | < 4 | missed |
+| total | 61 | **54** | (stop rule: < 45 with both clean) | clusters not clean, so the stop rule did not fire |
+
+**The rule's consequences were not applied, and that is an override rather than an oversight.** It
+said a missed tier cluster means the tier concept is wrong and should be cut to `read`/`run`. The
+round's own evidence says otherwise: `architect` verified the tier machinery against shipped code and
+found the gap had **moved** — to §3's `QUESTION` definition, which defines the verdict over a
+disjunction while §7.2 had legalised only one disjunct — and `tester` found rows 6, 7 and 7b all
+discriminate. Cutting a mechanism three roles report working, on a threshold guessed a round earlier,
+would be worse than the defect.
+
+**Why the rule missed is the lesson, and it is not "the threshold was wrong".** It was pre-registered
+on **location counts**, and a location is not a lens. §11's count held at 9 while the role that owns
+§11 went from 16 rows to 9, withdrew **12 of 14** judgements, and found **one** unfailable mutant
+against five and then seven. The section's count stayed flat because *other* roles moved into it. A
+count per `location` conflates *this section is defective* with *roles are looking here*.
+
+### The decision: stop repairing in prose, build the derivation and run it
+
+Four of five roles said it independently and the fifth's measurements support it. The evidence that
+settled it: **`scripts/floor-prototype.py`, one run, found four defects three review rounds had not.**
+
+| what the run settled | prose could not |
+|---|---|
+| §2.1 step 3 strips list markers from the first line only → **777 sub-four-character floor units and 143 colliding `text_sha`** across 53 specs, 0 and 3 after the repair | eight of them sat in this spec's own §10 through two full rounds of five-role review |
+| §2.1 step 4's terminator is unstated → two conforming readings agree on **5.0%** of hashes | same segmentation, so no reading of the prose exposes it |
+| §11 row 4's byte bound is undecidable without an encoding → JSON over on **52 of 53**, the labelled shape under on **53 of 53** | three serialisations differ by 70% and the spec named none |
+| the floor grew **74 → 98 → 143** across three snapshots | every figure the spec quoted about itself was stale within one round |
+
+**The companion-file split went in with it.** `spec/1.0.0-corrections.md` holds the withdrawal
+derivations; the spec cites a row in one clause. `ax-economist` measured why: §2.2 obliges a
+disposition per floor unit **per round**, so a paragraph of forensics is priced once per round for the
+life of the cycle, and 16% of round 2's new floor units narrated deleted drafts. The pattern is the
+repository's own — `0.34.0-guard-tests.md`, `0.34.0-release-counts.md`, `0.35.0-candidates.md`.
+
+### Pre-registered for round 4 — on better instruments this time
+
+Location counts are abandoned. Two measurements from outside the loop's own inputs:
+
+| instrument | round 1 | 2 | 3 | round 4 rule |
+|---|---|---|---|---|
+| `implementer`'s blocked tasks | 13 | 11 | 10 | **below 6, or the spec stops converging toward buildability** — decompose what is buildable and let task acceptance carry the rest |
+| findings on §2.1 + §2.2, now prototype-backed | — | 6 | 13 | **below 5, or running did not settle them either** and the floor is cut from the release |
+
+**And a standing note so a round does not spend a finding on it:** `long-spec` and `section-size` fire
+on this document and on three of five shipped specs. They are advisories, not defects.
+
 ## Routed from the skills examination
 
 Source: `mattpocock/skills`, read in full (37 skills, 164 files). Each row is routed or parked; the
