@@ -189,17 +189,17 @@ by `tp audit --record`/`--status`, is a validation error (exit 1). Both carry
 `must be one of: blocking, all`.
 
 **`blocking` is opt-in and human-only.** Its four write paths — `tp set --workflow`, its `--project`
-form, `tp import`, and `tp config --extract` — are all fenced under `TP_UNATTENDED=1`: a write that
-**changes the resolved value** to `blocking` exits 2. A write of `all` never trips it, and an import
-carrying an already-resolved `blocking` forward passes. The `--project` form is evaluated **per base**
-over the task files a project scan finds, so a `--project` write beneath a task-level `all` passes for
-that base and is refused — naming the base — as soon as another one would newly resolve `blocking`.
-Two things scope that exit-2 promise. A base with **no task file**, in a tree that has others, is
-outside the population — tp scans task files and has no enumeration of specs (a tree with no task
-file at all is compared as one empty override, and the write is still refused there). And a scan the
-walk could not finish — an unreadable directory stops it, so every base sorting after it is absent —
-refuses with **exit 3** rather than 2: nothing was compared, so there is nothing to escalate; make
-the path readable and re-run. An **attended** operator writes `blocking` at any sink
+form, `tp import`, and `tp config --extract` — are all fenced under `TP_UNATTENDED=1`, and the rule
+differs by sink because the sinks differ in shape. At `tp set --workflow`, `tp import` and
+`tp config --extract` a write that **changes the resolved value** to `blocking` exits 2; a write of
+`all` never trips it, and an import carrying an already-resolved `blocking` forward passes. At
+`tp set --workflow --project` the rule is the **value**: a `--project` write of `blocking` exits 2
+whatever any single base resolves today, because it lands in the layer every base resolves through —
+including bases tp cannot enumerate, such as one named with `--file` from outside the project root or
+one under `vendor/`. So that refusal names no base, and a `--project` write of `all` lands even in a
+tree holding a directory the scan cannot read. The other three keep the change rule because
+`tp import` carries the existing block forward, so a value rule there would refuse every import an
+opted-in project makes. An **attended** operator writes `blocking` at any sink
 with no refusal. Under a run, if the refusal is an authoring error the unit fixes the document itself
 (omit the imported document's top-level `workflow` key, or carry `"audit_converge_on": "<resolved>"`
 in it); if the unit
