@@ -22,6 +22,11 @@ func escalationDecision(field string) string {
 		return "raise-review-cap"
 	case "audit_max_rounds":
 		return "raise-audit-cap"
+	case "audit_converge_on":
+		// v0.37.0 §3: the field has its own name so that a run stopped over
+		// it is nameable. Under `other` the reason survives only in the free
+		// text of --evidence, which no driver can route on.
+		return "audit-converge-on"
 	}
 	return "other"
 }
