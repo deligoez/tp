@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.37.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-02T01:02:36.603734Z",
+  "updated_at": "2026-09-02T01:11:14.822279Z",
   "workflow": {},
   "coverage": {
     "total_sections": 9,
@@ -110,7 +110,7 @@
     {
       "id": "converge-consume-sinks",
       "title": "Reject an illegal stored value at the audit sinks with ExitValidation",
-      "status": "open",
+      "status": "done",
       "tags": [
         "validation"
       ],
@@ -122,11 +122,23 @@
       "source_sections": [
         "## 2. `audit_converge_on`"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-02T01:03:45.229088Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-02T01:11:14.7935Z",
+      "closed_reason": "Both audit consuming sinks now refuse an illegal stored audit_converge_on with ExitValidation, and the refusal precedes every write.\n\n- An illegal value stored in .tp/config.json makes both `tp audit \u003cspec\u003e --record` and `tp audit \u003cspec\u003e --status` exit 1 (ExitValidation): TestAuditConvergeOn_InvalidStoredInProjectConfigExitsValidation asserts the exit code, the quoted value and the hint through the parsed error envelope.\n- An illegal value stored in a task file's workflow block does the same on both sinks: TestAuditConvergeOn_InvalidStoredInTaskFileExitsValidation. The two layers are separate tests, not subtests of one fixture, because they are reached differently — dropping the project layer from resolution leaves the task-file test green and reddens the project-config one (mutant M5, run).\n- The code is ExitValidation (1) and is distinct from the write sinks' ExitUsage (2): the guard is `engine.ValidAuditConvergeOn` with `engine.AuditConvergeOnHint`, byte-identical to ReviewConvergeOnHint as section 2 requires (\"the same hint as review_converge_on\"). Mutant M1, mapping both consume sinks to ExitUsage, reddens four assertions across the two tests.\n- Section 7 row 3's consume half passes; the write half stays with converge-write-sinks. Row 3's named mutant (\"map both to one code\") is M1 above. Two further half-graded mutants were built and run: deleting only the --status guard (M3) and deleting only the --record guard (M4) each redden their own half and leave the other green.\n- The ordering hazard did NOT require reordering, and the reason was measured rather than assumed. runAuditRecord already resolves the workflow once into wfPre at the top, before EnsureReviewState and recordAuditRoundEntry, so the guard was placed there; nothing above that line writes. Mutant M2 — the same guard moved onto the later `wf` resolve, after the round is stored — was built and run: every exit-code assertion stayed GREEN while only \"a refused --record wrote no audit-round-1.ndjson\" and \"... no state.json\" reddened, which is the defect an exit-code-only check cannot see.\n- Verified by running, not by reading: on the shipped binary before the change, `tp audit spec.md --record` over a tree storing \"bogus\" exited 0 and wrote .tp-review/spec/audit-round-1.ndjson plus state.json; the new tests were watched failing on exactly those five assertions before the guards were added. After the change the same tree exits 1 and creates no .tp-review directory at all, while a legal `blocking` still records round 1 — dogfooded with a freshly built /tmp/tp-dev/tp.\n- Quality gate green: `./scripts/check-suite-state.sh \u0026\u0026 golangci-lint run \u0026\u0026 ./scripts/check-deadcode.sh \u0026\u0026 ./scripts/check-complexity.sh` exited 0 (cli 47.7s, engine 30.4s, all packages ok; golangci-lint \"0 issues.\"; deadcode and complexity silent-clean).",
+      "gate_passed_at": "2026-09-02T01:11:14.7935Z",
+      "commit_sha": "ec47da6",
+      "commit_shas": [
+        "ec47da6",
+        "fb19231",
+        "8aece9d",
+        "cc04c71"
+      ],
+      "commit_files": [
+        "internal/cli/audit_record.go",
+        "internal/cli/auditconvergeon_test.go",
+        "internal/engine/auditconvergeon.go"
+      ]
     },
     {
       "id": "clean-predicate",
