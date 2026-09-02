@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-02T23:27:23.163249Z",
+  "updated_at": "2026-09-02T23:48:39.898447Z",
   "workflow": {},
   "coverage": {
     "total_sections": 21,
@@ -94,7 +94,7 @@
     {
       "id": "floor-units-mode",
       "title": "--units prints every floor unit's full text",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -106,11 +106,23 @@
       "source_sections": [
         "### 2.2 The floor is a coverage obligation, not a shortlist"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-02T23:29:20.976013Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-02T23:48:39.866371Z",
+      "closed_reason": "- engine.FloorUnitRows(text) + engine.FormatFloorUnits(rows) (internal/engine/floor.go) are §2.2's `--units`: one line per floor unit, `\u003cunit_id\u003e\\t\u003ctext_sha\u003e\\t\u003ctext\u003e`, ids numbered over EVERY unit §2.1 produces so they are the ids the index prints. TestUnitsRowsNumberOverEveryUnitAndCarryNoCutOne puts a cut unit BETWEEN two floor units — the only arrangement the two numberings disagree on, with `require.False(inFloor(dropped))` making that a fact of the fixture rather than its author's assumption — and asserts u1/u3 plus equality with FloorIndexRows' ids. Observed red under a floor-alone numbering mutant (\"u2\" for \"u3\") and under a mutant emitting cut units too (3 lines for 2).\n- Never a truncation: TestAUnitsLineIsIdHashAndTheWholeCanonicalUnit states the whole line for an 83-byte unit, and `require.Greater(len(unit), 60)` pins the fixture's discriminating property, because §2.2's truncation is a 60-byte head and a shorter fixture is identical under the mutant and the rule. The digest is computed OUTSIDE Go (python3 hashlib and `shasum -a 256` agreeing on 5c6b8ae4e8c6), so the line is stated rather than re-derived by the code under test.\n- The hash equals the sha256 of the text beside it: TestTheHashOnAUnitsLineIsTheSHAOfTheTextThatFollowsIt splits each rendered line on tab and recomputes the digest from the line's OWN third field, so what is asserted is the relation between two printed fields and not the value of either. FloorUnitRow has no `text_sha` field at all — String() derives the hash from Text at render time — so a line whose hash disagrees with its text is not expressible through the API; the test covers the rendering, the signature covers the caller.\n- §11 row 4b passes, and its named mutant splits into two that were each built and run. Truncating only the printed text (hash over the whole unit) turned BOTH tests red; truncating the text AND hashing the same prefix left the line self-consistent, so the relation test stayed GREEN and only the whole-unit assertion caught it — measured, not asserted, and recorded in the test's doc comment. Neither test subsumes the other. Two further mutants observed red: FormatFloorUnits joining with a space instead of \"\\n\" (TestFormatFloorUnitsIsOneTerminatedLinePerFloorUnit, whose fixture's first unit is hard-wrapped across two source lines so the line count discriminates).\n- Cross-checked as a throwaway probe, since §2.1 forbids a corpus-quantified test as a standing tax: the Go rendering is BYTE-IDENTICAL to `python3 scripts/floor-prototype.py --units` on all 54 spec/*.md (274 units on spec/1.0.0.md). The probe was deleted; `git -c diff.external= diff --no-ext-diff` shows no residue and every one of the five commits passes `go vet` on its own (the test file was authored in four passes so each import arrives with the test that needs it).\n- Quality gate green on the final tree: check-suite-state.sh, golangci-lint (0 issues), check-deadcode.sh, check-complexity.sh.\nOut of scope: internal/engine/floor.go:208 carries a committed leftover marker, \"// STUB — the no-split mutant, to observe the split test red.\", immediately above floorSplitUnits' doc comment. The code below it is the correct splitting implementation, so this is a stale line from a killed run rather than a live mutant, but it now heads the doc comment of a function it misdescribes. It belongs to floor-canonical's surface, not this task's.",
+      "gate_passed_at": "2026-09-02T23:48:39.866371Z",
+      "commit_sha": "af2ba081",
+      "commit_shas": [
+        "af2ba081",
+        "cd47c245",
+        "6b370116",
+        "17a0794b",
+        "9642e564"
+      ],
+      "commit_files": [
+        "internal/engine/floor.go",
+        "internal/engine/floorunits_test.go"
+      ]
     },
     {
       "id": "anchor-zero",
