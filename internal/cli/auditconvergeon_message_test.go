@@ -41,6 +41,17 @@ const (
 	// interpolates the field's own name and so satisfies any assertion
 	// phrased as "the message names the field".
 	fenceCommandFieldWording = "names a command the driver executes"
+
+	// What each sink's message says about the change it refuses. The
+	// change-rule sinks name the resolved value the write moves off, which
+	// is what makes "carry the resolved value explicitly" actionable. tp
+	// set --workflow --project applies a value rule over a layer every base
+	// resolves through, so it has no single resolved value: a message
+	// naming one would report one base's resolution as the tree's. The two
+	// clauses are asserted against each other below, so a project message
+	// that went back to the change rule's wording fails.
+	fenceMsgFromAllToBlocking = "from all to blocking"
+	fenceMsgEveryBase         = "the layer every base resolves through"
 )
 
 // fenceAllExits is every unintended-case exit any sink offers. Each sink names
@@ -83,7 +94,13 @@ func TestAuditConvergeOnFence_RefusalNamesEveryExitAndItsCondition(t *testing.T)
 	sinks := []struct {
 		name  string
 		build func(t *testing.T) (dir string, args []string)
-		exits []string
+		// msgClause is what this sink's message says about the change it
+		// is refusing. Three sinks apply §3's change rule and name the
+		// resolved value the write moves off; tp set --workflow --project
+		// applies a value rule and has no single such value to name, so
+		// it says what it does know — the layer the write lands in.
+		msgClause string
+		exits     []string
 	}{
 		{
 			name: "set --workflow",
@@ -91,7 +108,8 @@ func TestAuditConvergeOnFence_RefusalNamesEveryExitAndItsCondition(t *testing.T)
 				return fenceShell(t, "{}", ""),
 					[]string{"set", "--workflow", "audit_converge_on=blocking"}
 			},
-			exits: []string{fenceExitDoNotWrite},
+			msgClause: fenceMsgFromAllToBlocking,
+			exits:     []string{fenceExitDoNotWrite},
 		},
 		{
 			name: "set --workflow --project",
@@ -99,7 +117,8 @@ func TestAuditConvergeOnFence_RefusalNamesEveryExitAndItsCondition(t *testing.T)
 				return fenceShell(t, "{}", ""),
 					[]string{"set", "--workflow", "--project", "audit_converge_on=blocking"}
 			},
-			exits: []string{fenceExitDoNotWrite},
+			msgClause: fenceMsgEveryBase,
+			exits:     []string{fenceExitDoNotWrite},
 		},
 		{
 			name: "import",
@@ -107,7 +126,8 @@ func TestAuditConvergeOnFence_RefusalNamesEveryExitAndItsCondition(t *testing.T)
 				dir := fenceShell(t, "{}", "")
 				return dir, []string{"import", fenceImportDoc(t, dir, `{"audit_converge_on":"blocking"}`)}
 			},
-			exits: []string{fenceExitOmitKey, fenceExitCarryValue},
+			msgClause: fenceMsgFromAllToBlocking,
+			exits:     []string{fenceExitOmitKey, fenceExitCarryValue},
 		},
 		{
 			name: "config --extract",
@@ -118,7 +138,8 @@ func TestAuditConvergeOnFence_RefusalNamesEveryExitAndItsCondition(t *testing.T)
 						extractBase{"c", ""}),
 					[]string{"config", "--extract"}
 			},
-			exits: []string{fenceExitDoNotHoist},
+			msgClause: fenceMsgFromAllToBlocking,
+			exits:     []string{fenceExitDoNotHoist},
 		},
 	}
 
@@ -127,13 +148,20 @@ func TestAuditConvergeOnFence_RefusalNamesEveryExitAndItsCondition(t *testing.T)
 			dir, args := sink.build(t)
 			msg, hint := fenceRefusal(t, dir, args...)
 
-			// The message names the resolved value the write moves off,
-			// which is what makes "carry the resolved value explicitly"
-			// a remedy a unit can act on rather than a pointer to a
-			// value it has to go and look up.
+			// The message says which change it is refusing, in this
+			// sink's own terms — and only in this sink's terms, so a
+			// message that adopted the other rule's wording fails here
+			// rather than passing a positive assertion by accident.
 			assert.Contains(t, msg, "audit_converge_on", "the refusal names the field")
-			assert.Contains(t, msg, "from all to blocking",
-				"and names the resolved value it moves off, not just the one it moves to")
+			assert.Contains(t, msg, sink.msgClause,
+				"and says which change it refuses in this sink's own terms")
+			for _, clause := range []string{fenceMsgFromAllToBlocking, fenceMsgEveryBase} {
+				if clause == sink.msgClause {
+					continue
+				}
+				assert.NotContains(t, msg, clause,
+					"and not %q, which belongs to the other rule", clause)
+			}
 
 			// The three exits, each with its condition. Both conditions
 			// have to be present: a message naming only the remedies
