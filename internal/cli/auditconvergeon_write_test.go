@@ -87,7 +87,12 @@ func TestAuditConvergeOn_WriteSinksRefuseIllegalLiteral(t *testing.T) {
 func TestAuditConvergeOn_LegalLiteralPersistsAtTaskSink(t *testing.T) {
 	dir := writeStrategyProject(t, "{}")
 
-	out, stderr, code := runTP(t, dir, "set", "--workflow", "audit_converge_on=blocking")
+	// TP_UNATTENDED is removed from the child rather than inherited (§7's
+	// closing note): §3 fences this exact write under that variable, so under a
+	// suite run with it set this test would assert the opposite of what it
+	// names. Legality at the sink and the fence are different questions, and
+	// this test asks the first one.
+	out, stderr, code := runTPFence(t, dir, false, "set", "--workflow", "audit_converge_on=blocking")
 	require.Equal(t, 0, code, "blocking is a legal value: %s", stderr)
 	var res map[string]any
 	require.NoError(t, json.Unmarshal([]byte(out), &res))
@@ -116,7 +121,8 @@ func TestAuditConvergeOn_LegalLiteralPersistsAtTaskSink(t *testing.T) {
 func TestAuditConvergeOn_LegalLiteralPersistsAtProjectSink(t *testing.T) {
 	dir := writeStrategyProject(t, "{}")
 
-	out, stderr, code := runTP(t, dir, "set", "--workflow", "--project", "audit_converge_on=blocking")
+	// Attended, for the reason its task-level sibling above gives.
+	out, stderr, code := runTPFence(t, dir, false, "set", "--workflow", "--project", "audit_converge_on=blocking")
 	require.Equal(t, 0, code, "the project sink accepts a legal value: %s", stderr)
 	var res map[string]any
 	require.NoError(t, json.Unmarshal([]byte(out), &res))

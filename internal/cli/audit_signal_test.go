@@ -493,7 +493,15 @@ func TestAuditGate_NoEscapeHatchFromTheGate(t *testing.T) {
 	// this test passing and no assertion anywhere that the field is legal at the
 	// write sink this guard drives. require, because everything below now runs
 	// under the policy this write installs.
-	stdout, stderr, code := runTP(t, dir, "set", "--workflow", "--project", "audit_converge_on=blocking")
+	//
+	// The write runs with TP_UNATTENDED removed from the child rather than
+	// inherited (§7's closing note). §3 fences a write that changes the resolved
+	// value to blocking under that variable, and this is exactly such a write —
+	// so a suite run under TP_UNATTENDED=1, which is what tp run gives the
+	// quality gate, would otherwise redden this guard for a reason it is not
+	// about. What it guards is that the field is a known one at this sink; the
+	// operator writing it here is a human.
+	stdout, stderr, code := runTPFence(t, dir, false, "set", "--workflow", "--project", "audit_converge_on=blocking")
 	require.Equal(t, 0, code, "audit_converge_on is a known workflow field (§2): %s", stderr)
 	assert.NotContains(t, stdout+stderr, "unknown workflow field: audit_converge_on",
 		"the project write sink recognises the field rather than refusing it as unknown")
