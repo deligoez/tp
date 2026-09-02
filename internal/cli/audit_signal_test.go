@@ -534,6 +534,15 @@ func TestAuditGate_NoEscapeHatchFromTheGate(t *testing.T) {
 	_, stderr, code = runTP(t, dir, "audit", "spec.md", "--status", "--check")
 	assert.Equal(t, 1, code, "the gate is still shut over the disposed finding: %s", stderr)
 
+	// And the round tp itself stamped under `blocking` is unclean, read from
+	// state.json rather than from a payload, so a reporting path that re-graded
+	// on read could not hide it.
+	st, err := engine.LoadReviewState(filepath.Join(dir, "spec.md"))
+	require.NoError(t, err)
+	require.Len(t, st.AuditRounds, 3, "the re-record above is this fixture's third round")
+	assert.False(t, st.AuditRounds[2].Clean,
+		"the round recorded under blocking is stamped unclean by the fail-closed rule")
+
 	streaks, ok := decodeSignal(t, record)["role_streaks"].([]any)
 	require.True(t, ok, "record payload: %s", record)
 	require.NotEmpty(t, streaks)
