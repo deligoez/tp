@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-02T20:30:23.445346Z",
+  "updated_at": "2026-09-02T20:43:45.113983Z",
   "workflow": {},
   "coverage": {
     "total_sections": 21,
@@ -215,7 +215,7 @@
     {
       "id": "ground-prefixes",
       "title": "ground artifacts are their own prefix list",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -225,11 +225,21 @@
       "source_sections": [
         "### 7.3 Where it lives, and what it must not disturb"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-02T20:31:01.511143Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-02T20:43:45.091662Z",
+      "closed_reason": "- groundFilePrefixes holds ground-round-, snapshot-ground-round- and floor-ground-round- in internal/engine/reviewstate.go; roundFilePrefixes and snapshotPrefixes are byte-identical to HEAD, verified by diff\n- TestGroundOnlyStateDirIsInvisibleToReviewState builds a ground-only directory in t.TempDir() and asserts hasRecordedRoundFiles and hasStateArtifacts both false and LoadReviewState returning (nil, nil) rather than a StateCorruptError, with require.NoFileExists on state.json so the fixture cannot pass by not being ground-only\n- Section 11 row 11 passes: TestGroundArtifactsAreTheirOwnPrefixList asserts through hasAnyPrefixed on the three real artifact filenames rather than restating the prefixes, and was observed red four times before green, including row 11's named mutant of adding ground-round- to roundFilePrefixes",
+      "gate_passed_at": "2026-09-02T20:43:45.091662Z",
+      "commit_sha": "0fc81d65",
+      "commit_shas": [
+        "0fc81d65",
+        "3b538e28",
+        "f192db84"
+      ],
+      "commit_files": [
+        "internal/engine/groundstate_test.go",
+        "internal/engine/reviewstate.go"
+      ]
     },
     {
       "id": "round-number",
