@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.37.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-02T04:55:10.185794Z",
+  "updated_at": "2026-09-02T07:26:37.897821Z",
   "workflow": {},
   "coverage": {
     "total_sections": 9,
@@ -310,7 +310,7 @@
         "converge-write-sinks"
       ],
       "estimate_minutes": 15,
-      "acceptance": "Under TP_UNATTENDED=1 a write that changes the resolved value to blocking exits 2 at tp set --workflow, its --project form, tp import and tp config --extract; a write of all, a --project write of blocking beneath a task override of all, and an import carrying an already-resolved blocking forward all pass. The fence is string-shaped and placed before the type dispatch, not a widening of the numeric fence. Every test sets the variable it names rather than relying on the ambient value. Section 7 rows 12, 13, 13b and 13c pass.",
+      "acceptance": "Under TP_UNATTENDED=1 a write that changes the resolved value to blocking exits 2 at tp set --workflow, tp import and tp config --extract, and a --project write of blocking exits 2 on its value alone, whatever any single base resolves today; a write of all at either layer, and an import carrying an already-resolved blocking forward, both pass. The fence is string-shaped and placed before the type dispatch, not a widening of the numeric fence. Every test sets the variable it names rather than relying on the ambient value. Section 7 rows 12, 13, 13b and 13c pass.",
       "source_sections": [
         "## 3. The fence"
       ],
