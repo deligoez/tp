@@ -344,8 +344,12 @@ def emit(path):
         out.append(f"u{n} {anchor_for(lineno)} {d} #{seen[d]} {len(u.encode())}B")
     tbl = len([l for l in lines
                if l.lstrip().startswith("|") and not TABLE_SEP.match(l)])
-    out.append(f"# {len(seen)} in floor, {cut} cut; {tbl} table data rows are "
-               f"segmented into units (§2.1 step 1) and are counted above")
+    # sum(seen.values()), NOT len(seen): the counter is keyed by hash, so a
+    # distinct-key count under-reports by exactly the collisions §8 introduces
+    # `ordinal` to handle — four units short on spec/0.1.0.md, in the direction
+    # that makes coverage look higher than it is.
+    out.append(f"# {sum(seen.values())} in floor, {cut} cut; {tbl} table data rows "
+               f"are segmented into units (§2.1 step 1) and are counted above")
     return out
 
 
