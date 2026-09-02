@@ -726,3 +726,46 @@ func TestSection11Row2ABareCodeSpanIsInTheFloor(t *testing.T) {
 		})
 	}
 }
+
+// TestTheVerbArmIsExactlyTheTwelveListedVerbs pins §2.1's third arm to the
+// twelve verbs its table names — no fewer, and no more.
+//
+// The expectation is restated from the spec rather than read from `floorVerbs`:
+// a test that derived its list from the code would agree with that list however
+// wrong it was. Both halves are needed and they catch different mutants. The
+// equality pins WHICH verbs are listed, including a thirteenth quietly added;
+// the loop pins that the arm is actually built from that list, which a pattern
+// compiled from some other literal would pass the equality and fail here.
+func TestTheVerbArmIsExactlyTheTwelveListedVerbs(t *testing.T) {
+	listed := []string{
+		"measured", "ran", "counted", "derived", "reproduced", "observed",
+		"verified", "asserted", "recorded", "fired", "held", "refuted",
+	}
+	require.Len(t, listed, 12, "§2.1's table names twelve verbs")
+	assert.Equal(t, listed, floorVerbs, "the shipped list is §2.1's, in its order")
+
+	for _, verb := range listed {
+		t.Run(verb, func(t *testing.T) {
+			unit := "The round " + verb + " what the prompt asked for."
+			require.False(t, strings.ContainsAny(unit, "0123456789`"),
+				"the verb must be the unit's only arm")
+
+			assert.True(t, floorHasMeasurementVerb(unit), "verb arm")
+			assert.True(t, inFloor(unit), "the verb arm alone puts the unit in the floor")
+		})
+	}
+
+	// Verbs of the same family that §2.1 does NOT list, plus two inflections of
+	// listed ones. The arm is a closed list, so a unit reporting a result in any
+	// of these words is invisible to it by construction (§2.2), and a reading
+	// that generalised the list would fail here.
+	for _, verb := range []string{"showed", "found", "checked", "confirmed", "measures", "running"} {
+		t.Run("not listed: "+verb, func(t *testing.T) {
+			unit := "The round " + verb + " what the prompt asked for."
+			require.False(t, strings.ContainsAny(unit, "0123456789`"))
+
+			assert.False(t, floorHasMeasurementVerb(unit), "verb arm")
+			assert.False(t, inFloor(unit), "no arm holds, so the unit is cut")
+		})
+	}
+}
