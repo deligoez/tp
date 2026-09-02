@@ -70,6 +70,12 @@ func computeCommonPolicy(overrides []model.WorkflowOverride) model.WorkflowOverr
 	// spec/0.35.0-candidates.md section 15 carries the routing.
 	common.QualityGate = commonPtr(overrides, func(o *model.WorkflowOverride) *string { return o.QualityGate })
 	common.ReviewConvergeOn = commonPtr(overrides, func(o *model.WorkflowOverride) *string { return o.ReviewConvergeOn })
+	// audit_converge_on is hoisted on the same terms as the twin above. v0.31.0
+	// shipped that twin with its resolution and neither config surface, and
+	// needed v0.31.1 to finish it; v0.37.0 §7 row 4 exists so this field does
+	// not repeat that, and the fence §3 places on this command is what makes
+	// hoisting it safe rather than the hoist being harmless.
+	common.AuditConvergeOn = commonPtr(overrides, func(o *model.WorkflowOverride) *string { return o.AuditConvergeOn })
 	common.RunMaxUnits = commonPtr(overrides, func(o *model.WorkflowOverride) *int { return o.RunMaxUnits })
 	common.RunMaxWallClockSeconds = commonPtr(overrides, func(o *model.WorkflowOverride) *int { return o.RunMaxWallClockSeconds })
 	common.RunMaxUnitRetries = commonPtr(overrides, func(o *model.WorkflowOverride) *int { return o.RunMaxUnitRetries })
@@ -132,6 +138,9 @@ func hoistedFields(common *model.WorkflowOverride) []string {
 	if common.ReviewConvergeOn != nil {
 		fields = append(fields, "review_converge_on")
 	}
+	if common.AuditConvergeOn != nil {
+		fields = append(fields, "audit_converge_on")
+	}
 	if common.Checks != nil {
 		fields = append(fields, "checks")
 	}
@@ -182,6 +191,12 @@ func mergeCommon(dst, common *model.WorkflowOverride) {
 	}
 	if common.ReviewConvergeOn != nil {
 		dst.ReviewConvergeOn = common.ReviewConvergeOn
+	}
+	// Listing the field in hoistedFields without writing it here is worse than
+	// not hoisting it at all: the thinning strips every listed field from the
+	// task layer, so the value would be deleted rather than moved.
+	if common.AuditConvergeOn != nil {
+		dst.AuditConvergeOn = common.AuditConvergeOn
 	}
 	if common.Checks != nil {
 		dst.Checks = common.Checks
