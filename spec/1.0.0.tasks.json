@@ -1,14 +1,619 @@
 {
   "version": 1,
   "spec": "spec/1.0.0.md",
-  "created_at": "2026-09-02T17:00:11.645245Z",
-  "updated_at": "2026-09-02T17:00:11.645257Z",
+  "created_at": "0001-01-01T00:00:00Z",
+  "updated_at": "2026-09-02T20:29:55.771352Z",
   "workflow": {},
   "coverage": {
-    "total_sections": 0,
-    "mapped_sections": 0,
-    "context_only": [],
+    "total_sections": 21,
+    "mapped_sections": 12,
+    "context_only": [
+      "# tp v1.0.0 — `tp ground`",
+      "## 1. Overview",
+      "### 1.1 The pilot",
+      "### 1.2 Why this is 1.0, and what 1.0 promises",
+      "## 2. What a claim is, and why enumeration is the reader's job",
+      "## 4. The evidence must match the claim's kind",
+      "## 5. Order by what the sentence cost to write",
+      "## 10. Non-Goals",
+      "## 11. Tests"
+    ],
     "unmapped": []
   },
-  "tasks": []
+  "tasks": [
+    {
+      "id": "floor-arms",
+      "title": "the three arms decide floor membership",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [
+        "floor-canonical",
+        "floor-tables"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "A unit is in the floor when it holds a digit, a backtick-delimited span, or one of §2.1's twelve listed verbs. The three arms are separately assertable. §11 rows 1 and 2 pass, row 2 on a bare `internal/cli/audit.go` carrying no digit.",
+      "source_sections": [
+        "### 2.1 The floor"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "floor-hash",
+      "title": "text_sha and ordinal",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [
+        "floor-arms"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "text_sha is the first twelve lowercase hex characters of the sha256 of the canonical unit text, UTF-8 encoded. ordinal is the 1-based index of a unit among those sharing its hash, in emission order. §11 row 18c passes on two units with identical canonical text.",
+      "source_sections": [
+        "### 2.1 The floor",
+        "### 7.2 The row"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "floor-units-mode",
+      "title": "--units prints every floor unit's full text",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [
+        "floor-index"
+      ],
+      "estimate_minutes": 5,
+      "acceptance": "One line per floor unit carrying unit_id, text_sha and the whole canonical text, never a truncation, with the hash equal to the sha256 of the text beside it. §11 row 4b passes.",
+      "source_sections": [
+        "### 2.2 The floor is a coverage obligation, not a shortlist"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "anchor-zero",
+      "title": "a pre-heading unit anchors to §0",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 5,
+      "acceptance": "The anchor is the last §n(.n)* heading at or above the unit, and §0 before the first. A table row anchors to its own section, not to §0. §11 row 21 passes on this spec's preamble blockquote, and a table row in §7.2 reports §7.2.",
+      "source_sections": [
+        "### 7.3 Where it lives, and what it must not disturb"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "verdict-enums",
+      "title": "six verdicts, seven kinds, six tiers",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 8,
+      "acceptance": "All six verdicts including NOT-A-CLAIM round-trip; kind and tier are closed enums; acceptability is a per-kind SET with no ordering anywhere in the implementation. §11 rows 5, 6 and 7 pass, row 6 asserting {document, run, PASS} and {behaviour, probe, PASS} both rejected.",
+      "source_sections": [
+        "## 3. The dispositions",
+        "### 4.1 Kinds and tiers"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "row-schema",
+      "title": "the recorded row's field requirements",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [
+        "verdict-enums"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "§7.2's field table is a type with validation: unit_id nullable, anchor, text_sha, ordinal, verdict, kind and tier required except on NOT-A-CLAIM where they are optional, evidence required whenever tier is present, partial_kind iff PARTIAL, held_at iff partial_kind is true-when-written, causes iff QUESTION, carried_from optional. A row failing any cell is rejected naming the field.",
+      "source_sections": [
+        "### 7.2 The row"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "tier-rule",
+      "title": "the per-verdict acceptability rule at record",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [
+        "row-schema"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "PASS, PARTIAL and FAIL require an acceptable tier for the kind; QUESTION accepts either relation; UNVERIFIABLE carries a tier with no constraint. §11 row 7b passes with {behaviour, read, QUESTION} and {behaviour, run, QUESTION} both accepted.",
+      "source_sections": [
+        "### 7.2 The row",
+        "### 4.1 Kinds and tiers"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "causes-bound",
+      "title": "a QUESTION carries three to five causes",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [
+        "row-schema"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "causes is an array of {cause, prediction} objects; lengths 2 and 6 are rejected, 3 and 5 accepted. §11 row 8 passes, and its mutant of a 1–10 bound fails it.",
+      "source_sections": [
+        "## 6. Ranked causes, facts, and not blocking"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "record-atomic",
+      "title": "one invalid row writes no round file",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [
+        "row-schema"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "--record validates every row before writing; one invalid row means no round file and a state directory byte-identical to before the attempt. §11 row 10 passes.",
+      "source_sections": [
+        "### 7.2 The row"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "ground-prefixes",
+      "title": "ground artifacts are their own prefix list",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 8,
+      "acceptance": "groundFilePrefixes holds ground-round-, snapshot-ground-round- and floor-ground-round-, and neither roundFilePrefixes nor snapshotPrefixes gains an entry. On a ground-only spec hasRecordedRoundFiles and hasStateArtifacts are both false and LoadReviewState returns (nil, nil) rather than a StateCorruptError. §11 row 11 passes.",
+      "source_sections": [
+        "### 7.3 Where it lives, and what it must not disturb"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "round-number",
+      "title": "N is the highest ground round plus one",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [
+        "ground-prefixes"
+      ],
+      "estimate_minutes": 5,
+      "acceptance": "A directory holding ground-round-1 and ground-round-3 yields N=4; a gap is preserved. §11 row 13 passes and its count-plus-one mutant fails.",
+      "source_sections": [
+        "### 7.3 Where it lives, and what it must not disturb"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "bookkeeping-ref",
+      "title": "roundNumberRe gains ground",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [
+        "ground-prefixes"
+      ],
+      "estimate_minutes": 5,
+      "acceptance": "roundNumberRe's alternation includes ground, so DeriveBookkeeping classifies a dirty ground-round-3.ndjson with ref \"3\" like its review and audit siblings rather than with the filename. Numbering still uses groundFilePrefixes.",
+      "source_sections": [
+        "### 7.3 Where it lives, and what it must not disturb"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "state-untouched",
+      "title": "a ground round leaves state.json byte-identical",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [
+        "ground-prefixes"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "Recording a ground round on a spec whose state.json already exists leaves that file byte-identical, and creates none on a spec without one. §11 rows 12 and 21b pass.",
+      "source_sections": [
+        "### 7.3 Where it lives, and what it must not disturb"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "ground-clause",
+      "title": "tp ground emits its own isolation clause",
+      "status": "open",
+      "tags": [
+        "cli"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 6,
+      "acceptance": "A third constant beside isolationClause and incrementalClause permits writing inside a copy the unit creates outside the repository and forbids every write inside it except the round's output file. A ground prompt ends with it and incrementalClause byte for byte, and that suffix differs from the one review and audit share. §11 row 18 passes; the assertion covers three commands over two suffixes.",
+      "source_sections": [
+        "### 4.2 Where the probe runs"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cmd-emit",
+      "title": "tp ground emits prompt, snapshot, floor",
+      "status": "open",
+      "tags": [
+        "cli"
+      ],
+      "depends_on": [
+        "floor-index-meta",
+        "floor-units-mode",
+        "ground-clause",
+        "round-number"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "tp ground \u003cspec\u003e writes snapshot-ground-round-N.md and floor-ground-round-N.txt, creates spec/.tp-review/\u003cbase\u003e/ when absent, and emits one prompt naming ground-rN.ndjson as its output_path. Editing the spec between emit and --record does not change the floor --record validates against. §11 rows 12 and 19 pass.",
+      "source_sections": [
+        "### 7.1 Invocations and exit codes",
+        "### 7.3 Where it lives, and what it must not disturb"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "cmd-record",
+      "title": "tp ground --record validates against the recorded floor",
+      "status": "open",
+      "tags": [
+        "cli"
+      ],
+      "depends_on": [
+        "cmd-emit",
+        "tier-rule",
+        "causes-bound",
+        "record-atomic"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "--record reads floor-ground-round-N.txt rather than re-deriving from the current spec, validates every row against §7.2, and writes ground-round-N.ndjson. --record with no prior emit exits 3 with a message naming the emit command.",
+      "source_sections": [
+        "### 7.1 Invocations and exit codes",
+        "### 7.2 The row"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "exit-codes",
+      "title": "each of 0/1/2/3/4 from a named input",
+      "status": "open",
+      "tags": [
+        "cli"
+      ],
+      "depends_on": [
+        "cmd-record"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "The mapping is taken from exitStateError: 1 for a row failing validation including a line that is not JSON, 2 for --check without --status and --record with no path, 3 for a missing --record file and a corrupt state directory, 4 for a held write lock. §11 row 14 passes with one test per code, and its mutant mapping a corrupt directory to 4 fails.",
+      "source_sections": [
+        "### 7.1 Invocations and exit codes"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "coverage",
+      "title": "coverage is dispositions over the emitted floor",
+      "status": "open",
+      "tags": [
+        "cli"
+      ],
+      "depends_on": [
+        "cmd-record"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "Coverage counts dispositioned floor units over emitted floor units; a row with unit_id null moves neither side and appears in a separate count; UNVERIFIABLE counts as dispositioned. §11 row 15 passes and its mutant counting reader-added rows in the numerator fails.",
+      "source_sections": [
+        "## 8. Convergence is coverage, not absence"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "carry-forward",
+      "title": "the second pass carries on (text_sha, ordinal)",
+      "status": "open",
+      "tags": [
+        "cli"
+      ],
+      "depends_on": [
+        "coverage"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "A unit whose (text_sha, ordinal) matches the immediately preceding round carries its disposition into round N's own file with carried_from naming the source round; a unit changed by one character does not; a unit reverted to a wording last seen two rounds ago is uncovered. §11 row 16 passes over a three-round fixture, and row 18c over five identical units.",
+      "source_sections": [
+        "## 8. Convergence is coverage, not absence"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "status-report",
+      "title": "--status reports coverage and breakdown",
+      "status": "open",
+      "tags": [
+        "cli"
+      ],
+      "depends_on": [
+        "coverage"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "--status carries the ratio, the latest round's per-verdict counts and the NOT-A-CLAIM share, so a round of 84 FAILs and a round of 84 PASSes are distinguishable at identical coverage. §11 row 22 passes.",
+      "source_sections": [
+        "## 8. Convergence is coverage, not absence",
+        "### 7.1 Invocations and exit codes"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "status-check",
+      "title": "--status --check gates on coverage only",
+      "status": "open",
+      "tags": [
+        "cli"
+      ],
+      "depends_on": [
+        "status-report"
+      ],
+      "estimate_minutes": 5,
+      "acceptance": "--status --check exits 0 when coverage is complete and 1 otherwise, and gates nothing else. Non-Goal 3 holds: no tp command refuses on coverage.",
+      "source_sections": [
+        "### 7.1 Invocations and exit codes"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "review-advisory",
+      "title": "tp review emits ungrounded once",
+      "status": "open",
+      "tags": [
+        "cli"
+      ],
+      "depends_on": [
+        "coverage"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "tp review carries an ungrounded object in the top-level envelope holding the latest ground round, the undispositioned count and the floor size, absent entirely when coverage is complete or no ground round exists, surviving --compact. Its exit code is identical with and without ungrounded units. §11 row 17 passes on a run emitting more than one role prompt.",
+      "source_sections": [
+        "## 9. Review is told, and not stopped"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "docs",
+      "title": "SKILL, REFERENCE and README carry tp ground",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [
+        "status-check",
+        "review-advisory",
+        "exit-codes",
+        "carry-forward"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "skills/tp/SKILL.md gains the grounding workflow and its place before review; skills/tp/REFERENCE.md gains the row schema, the kind-tier sets, the exit codes and the ungrounded key; README.md gains the command. The pre-release checklist in CLAUDE.md is satisfied for all three.",
+      "source_sections": [
+        "## 7. The command and the record"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "floor-blocks",
+      "title": "what the derivation drops and how it blocks",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 6,
+      "acceptance": "engine.FloorUnits takes the spec text, not a path. Fenced blocks, ATX headings, horizontal rules and table separator rows are dropped. What remains splits into blank-line-separated blocks, and each table data row is its own block.",
+      "source_sections": [
+        "### 2.1 The floor"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "floor-tables",
+      "title": "a table data row becomes one unit",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [
+        "floor-blocks"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "A data row yields one unit with its cells joined by an em dash, however many full stops the cells hold. An escaped pipe is content, not a separator. Section 11 row 18d passes.",
+      "source_sections": [
+        "### 2.1 The floor"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "floor-canonical",
+      "title": "canonicalise, split and trim",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [
+        "floor-blocks"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "A leading blockquote prefix is stripped from every line, and a list marker only when the block first line opens a list. Lines join with one space, whitespace collapses, and prose splits at a terminator followed by whitespace with the terminator kept. Section 11 rows 18b and 20 pass, row 20 on a paragraph whose continuation line begins with an ordinal.",
+      "source_sections": [
+        "### 2.1 The floor"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "floor-index",
+      "title": "the emitted index rows",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [
+        "floor-hash"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "Each floor unit emits unit_id, anchor, text_sha, ordinal and byte length, where unit_id is u followed by the index over every unit the derivation produces including cut ones. The index contains no substring of any unit text. Section 11 row 4 passes on a constructed 1200-unit floor.",
+      "source_sections": [
+        "### 2.2 The floor is a coverage obligation, not a shortlist"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "floor-index-meta",
+      "title": "cut rows, the commit line and the summary",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [
+        "floor-index"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "A cut unit emits its id and anchor with no hash and no text. The first line names the commit the index was derived from. The summary counts units rather than distinct hashes.",
+      "source_sections": [
+        "### 2.2 The floor is a coverage obligation, not a shortlist"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ]
 }
