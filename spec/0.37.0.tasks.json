@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.37.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-02T03:22:58.478384Z",
+  "updated_at": "2026-09-02T03:36:32.630896Z",
   "workflow": {},
   "coverage": {
     "total_sections": 9,
@@ -227,7 +227,7 @@
     {
       "id": "next-action-count",
       "title": "next_action names the accepted count on both changed branches",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -239,11 +239,27 @@
       "source_sections": [
         "## 2. `audit_converge_on`"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-02T03:24:22.379405Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-02T03:36:32.593655Z",
+      "closed_reason": "AuditNextAction's third argument is now the latest recorded round's stamped clean verdict and its fourth the count of that round's non-PASS rows; the boolean latestRoundHasFindings, which folded the two questions audit_converge_on separates, is gone from the signature and from both sinks.\n- Both audit sinks pass the pair from the same round: internal/cli/audit_record.go's --record path passes (clean, findings) and its --status path reads Clean and Findings off the latest stored round, so neither surface names rows the other is silent about.\n- On the converged branch a round holding accepted rows renders 'converged over 3 accepted rows — implementation verified, proceed to release' against an empty round's unchanged 'converged — implementation verified, proceed to release'; on the clean-but-not-yet-converged branch it renders '3 accepted rows carried forward — run the next audit round: tp audit spec.md --record \u003cfile\u003e' against the unchanged 'run the next audit round: tp audit spec.md --record \u003cfile\u003e'. Both verified by dogfooding the freshly built binary on a blocking-configured project, on both sinks.\n- Section 7 rows 10 and 10b pass as internal/cli/audit_nextaction_count_test.go, each covering both sinks as subtests and asserting textual difference against an empty round rather than mere presence; internal/engine/nextaction_test.go adds the unit-level pair plus the noun-agreement boundary at 1, 2 and 0 and a pin that the fix-and-re-audit branch stays silent about the count.\n- The tests were written first and watched fail on all four sink/branch combinations for the expected reason before any code changed.\n- Four mutants were built in an rsync copy with the baseline from the unmutated tree and all four were killed: row 10's named mutant (converged arm ignores the count) reddened the converged tests only, row 10b's named mutant (count in the converged arm only) reddened the clean-round tests only, an unnamed variant leaving the --status sink at the pre-release call reddened exactly the --status subtests while every --record subtest stayed green, and a second unnamed variant branching on findings \u003e 0 instead of !clean reddened the clean-round tests by routing a blocking-clean round to the fix directive.\n- Quality gate green on the final tree: check-suite-state.sh, golangci-lint run (0 issues, unparam included), check-deadcode.sh, check-complexity.sh.",
+      "gate_passed_at": "2026-09-02T03:36:32.593655Z",
+      "commit_sha": "3acef8f",
+      "commit_shas": [
+        "3acef8f",
+        "6b7a740",
+        "a811138",
+        "1b92eb4",
+        "52c301a",
+        "adbcf15"
+      ],
+      "commit_files": [
+        "internal/cli/audit_nextaction_count_test.go",
+        "internal/cli/audit_record.go",
+        "internal/cli/audit_signal_test.go",
+        "internal/engine/nextaction.go",
+        "internal/engine/nextaction_test.go"
+      ]
     },
     {
       "id": "config-surfaces",
