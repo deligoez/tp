@@ -202,7 +202,7 @@ All five real survivors became `TIMED OUT`; `NOT COVERED` was untouched, because
 
 **`spec/0.37.0.md`** (`audit_converge_on`) is **complete and shipped** — 22/22 tasks, 12 review
 rounds, 7 audit rounds, `spec-coverage` 74/74 for the last two with zero FAIL from any role in
-either. **Next is `spec/0.38.0.md`** (the round reports its progress, 78 lines), then 0.39.0.
+either. **Next is `spec/0.38.0.md`** (the checklist covers what changed), then 0.39.0.
 
 Four things that cycle established, in the order they are worth knowing:
 
