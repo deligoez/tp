@@ -15,6 +15,7 @@ var (
 	floorTableSepRe   = regexp.MustCompile(`^\s*\|[\s:|-]+\|\s*$`)
 	floorAtxHeadingRe = regexp.MustCompile(`^\s*#`)
 	floorWhitespaceRe = regexp.MustCompile(`\s+`)
+	floorBlockquoteRe = regexp.MustCompile(`^\s*>\s?`)
 )
 
 // floorBlock is one block of §2.1 step 2: the lines that survived step 1's
@@ -149,6 +150,22 @@ func floorTableRowUnit(line string) string {
 	return strings.TrimSpace(floorWhitespaceRe.ReplaceAllString(strings.Join(kept, " — "), " "))
 }
 
+// floorCanonicalise is §2.1 step 3 for a prose block: strip a leading `> ` from
+// every line, then join the block's lines with a single space.
+//
+// The blockquote prefix is stripped per line rather than per block because this
+// repository hard-wraps quoted prose, so every line of a quote carries the
+// marker and a first-line-only strip would leave the rest inside the unit. The
+// pattern is anchored, so a `>` anywhere but the start of a line is content, and
+// a nested quote loses one level per pass exactly as the prototype's does.
+func floorCanonicalise(lines []string) string {
+	stripped := make([]string, 0, len(lines))
+	for _, ln := range lines {
+		stripped = append(stripped, strings.TrimSpace(floorBlockquoteRe.ReplaceAllString(ln, "")))
+	}
+	return strings.TrimSpace(strings.Join(stripped, " "))
+}
+
 // floorUnitsFromBlock is the seam §2.1 steps 3 to 5 fill in — canonicalising a
 // prose block, splitting it into sentences, and joining a table row's cells with
 // an em dash. It exists so both kinds of block reach the later steps through one
@@ -163,7 +180,7 @@ func floorUnitsFromBlock(b floorBlock) []string {
 		}
 		return nil
 	}
-	joined := strings.TrimSpace(strings.Join(b.Lines, " "))
+	joined := floorCanonicalise(b.Lines)
 	if joined == "" {
 		return nil
 	}
