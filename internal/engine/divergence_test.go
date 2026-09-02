@@ -538,6 +538,76 @@ func TestComputeAuditDivergence_UnreadableCorpusWithholdsByBothRoutes(t *testing
 	})
 }
 
+// §7 row 21 — under `blocking` a round can be clean, and its sequence
+// converged, while it still holds open rows from the other lenses. Condition 4
+// is what withholds the object there, and it is the ONLY condition that fails:
+// that is why §6.5 calls it load-bearing rather than redundant, and it is the
+// state the old doc comment said could not arise.
+//
+// Conditions 1 and 5 are asserted rather than assumed. Without them the
+// function returns nil for a reason this test is not about, and the mutant that
+// deletes condition 4 survives a green assertion.
+func TestComputeAuditDivergence_ConvergedUnderBlockingWithholdsTheObject(t *testing.T) {
+	round := auditRows(
+		auditRow("spec-coverage", "PASS"),
+		`{"role":"go-safety","status":"PARTIAL","severity":"warning"}`,
+	)
+	f := newDivergenceFixtureUnder(t, AuditConvergeOnBlocking, round, round)
+
+	in := f.inputs(t, 2)
+	latest := in.Rounds[len(in.Rounds)-1]
+	require.NotNil(t, in.SpecCoverageCleanRounds)
+	require.GreaterOrEqual(t, *in.SpecCoverageCleanRounds, 2, "condition 1 holds")
+	require.False(t, in.Stale, "condition 3 holds")
+	require.Equal(t, latest.RolesHash, in.CurrentRolesHash, "condition 5 holds")
+	require.True(t, latest.Clean, "the latest round is clean under blocking")
+	require.Positive(t, latest.Findings, "and it is clean while holding a non-PASS row")
+	require.True(t, in.Converged, "so condition 4 is the one that fails")
+
+	assertKeyOmitted(t, ComputeAuditDivergence(in))
+
+	// The same rounds stamped under `all` are unclean, so the sequence is not
+	// converged and the object fires: condition 2 holds over these rows, and
+	// the withholding above is condition 4 and nothing else.
+	under := newDivergenceFixture(t, round, round).divergenceOver(t, 2)
+	require.NotNil(t, under)
+	assert.Equal(t, 1, under.OtherRolesOpen)
+	assert.Equal(t, []string{"go-safety"}, under.OpenRoles)
+}
+
+// §7 row 22 — the same state with every open row carrying no role. The object
+// is withheld there too, so the `unattributed_open` caveat — the one signal
+// saying a roleless open row may be spec-coverage's — is suppressed with it.
+// That is the cost §6.5 accepts and names, pinned here so it cannot change
+// silently: making divergence severity-aware is spec/0.46.0.md §8's decision,
+// not this release's.
+func TestComputeAuditDivergence_ConvergedUnderBlockingSuppressesTheUnattributedCaveat(t *testing.T) {
+	round := auditRows(
+		auditRow("spec-coverage", "PASS"),
+		`{"status":"PARTIAL","severity":"warning"}`,
+	)
+	f := newDivergenceFixtureUnder(t, AuditConvergeOnBlocking, round, round)
+
+	in := f.inputs(t, 2)
+	latest := in.Rounds[len(in.Rounds)-1]
+	require.NotNil(t, in.SpecCoverageCleanRounds)
+	require.GreaterOrEqual(t, *in.SpecCoverageCleanRounds, 2, "condition 1 holds")
+	require.False(t, in.Stale, "condition 3 holds")
+	require.Equal(t, latest.RolesHash, in.CurrentRolesHash, "condition 5 holds")
+	require.True(t, latest.Clean, "the latest round is clean under blocking")
+	require.Positive(t, latest.Findings)
+	require.True(t, in.Converged, "so condition 4 is the one that fails")
+
+	assertKeyOmitted(t, ComputeAuditDivergence(in))
+
+	// And what is being given up: stamped under `all`, the same rounds emit the
+	// caveat this release accepts losing.
+	under := newDivergenceFixture(t, round, round).divergenceOver(t, 2)
+	require.NotNil(t, under)
+	assert.Equal(t, 1, under.UnattributedOpen)
+	assert.Contains(t, under.Message, "none attributed to a role (possibly spec-coverage's)")
+}
+
 // jsonString renders a Go string as a JSON string literal for an inline JSONEq
 // expectation.
 func jsonString(s string) string {
