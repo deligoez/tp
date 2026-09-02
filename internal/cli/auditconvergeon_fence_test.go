@@ -465,3 +465,53 @@ func TestAuditConvergeOnFence_UnsetEnvironmentRefusesNothing(t *testing.T) {
 		assert.Equal(t, "blocking", fenceResolved(t, dir), "and the project block is uncovered")
 	})
 }
+
+// TestAuditConvergeOnFence_ImportRemediesPass covers v0.37.0 §7 row 13d: over
+// row 13b's own shell — a task-level all covering a project-level blocking —
+// two documents import cleanly under TP_UNATTENDED=1. Either is writable by the
+// unit itself, which is what makes row 13b's refusal an authoring error rather
+// than an escalation, and why tp escalate --decision audit-converge-on stays
+// reserved for a unit that intends the relax.
+//
+// Row 13d's mutant is refusing whenever the imported block omits the field.
+// That mutant refuses the first document here, and refusing it returns the
+// deadlock the change rule was written to remove: the document with no
+// top-level workflow key is the one tp import's preservation step is built
+// around.
+//
+// The shell is the refusing one, asserted before each import rather than
+// assumed. A remedy that passed over some other shell would not be a remedy for
+// anything.
+func TestAuditConvergeOnFence_ImportRemediesPass(t *testing.T) {
+	t.Run("omitting the top-level workflow key", func(t *testing.T) {
+		dir := fenceShell(t, `{"audit_converge_on":"all"}`, `{"audit_converge_on":"blocking"}`)
+		require.Equal(t, "all", fenceResolved(t, dir),
+			"the task override covers the project block before the import")
+		doc := fenceImportDoc(t, dir, "")
+
+		_, stderr, code := runTPFence(t, dir, true, "import", doc)
+		require.Equal(t, 0, code, "preservation carries the task-level all forward: %s", stderr)
+
+		data, err := os.ReadFile(filepath.Join(dir, "s.tasks.json"))
+		require.NoError(t, err)
+		assert.Contains(t, string(data), `"audit_converge_on": "all"`,
+			"the carried-forward block is what was written")
+		assert.Equal(t, "all", fenceResolved(t, dir), "so nothing resolves differently")
+	})
+
+	t.Run("carrying audit_converge_on all explicitly", func(t *testing.T) {
+		dir := fenceShell(t, `{"audit_converge_on":"all"}`, `{"audit_converge_on":"blocking"}`)
+		require.Equal(t, "all", fenceResolved(t, dir),
+			"the task override covers the project block before the import")
+		doc := fenceImportDoc(t, dir, `{"audit_converge_on":"all","review_max_rounds":5}`)
+
+		_, stderr, code := runTPFence(t, dir, true, "import", doc)
+		require.Equal(t, 0, code, "the document carries the resolved value itself: %s", stderr)
+
+		data, err := os.ReadFile(filepath.Join(dir, "s.tasks.json"))
+		require.NoError(t, err)
+		assert.Contains(t, string(data), `"audit_converge_on": "all"`,
+			"the document's own block replaced the old one and still covers the project layer")
+		assert.Equal(t, "all", fenceResolved(t, dir), "so nothing resolves differently")
+	})
+}
