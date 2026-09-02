@@ -65,6 +65,7 @@ type WorkflowOverride struct {
 	ReviewMaxRounds    *int     `json:"review_max_rounds,omitempty"`
 	AuditMaxRounds     *int     `json:"audit_max_rounds,omitempty"`
 	ReviewConvergeOn   *string  `json:"review_converge_on,omitempty"`
+	AuditConvergeOn    *string  `json:"audit_converge_on,omitempty"`
 	Checks             *[]Check `json:"checks,omitempty"`
 
 	// The unattended run's caps and runner (§7). Runner is raw JSON because the
@@ -95,6 +96,7 @@ func (o *WorkflowOverride) IsEmpty() bool {
 		o.Checks == nil &&
 		o.CommitStrategy == nil &&
 		o.ReviewConvergeOn == nil &&
+		o.AuditConvergeOn == nil &&
 		o.RunMaxUnits == nil &&
 		o.RunMaxWallClockSeconds == nil &&
 		o.RunMaxBudgetUSD == nil &&
