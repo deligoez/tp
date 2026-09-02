@@ -201,15 +201,22 @@ func refuseUnattendedAuditConvergeOnProject(what string) {
 // vendor/. A fence that must enumerate its population cannot be correct over a
 // population it cannot enumerate, so this one enumerates nothing.
 //
-// The other three sinks keep the change rule, because the sinks have different
-// shapes and not because the rule is better. tp import carries the existing
-// block forward, so a value rule there would refuse every import a project
-// makes once it resolves blocking — the Workflow A step 6 deadlock §3
-// documents. tp config --extract already appends an unconditional empty
-// override, which makes it a value rule in effect, and its scan is its own
-// input rather than only the fence's. tp set is the sink that NAMES A VALUE
-// rather than carrying state forward, which is why a value rule costs nothing
-// here: there is no document to re-author and nothing carried in.
+// The change rule stands at every sink that is not this one, because the sinks
+// have different shapes and not because one rule is better.
+//
+//   - tp set --workflow at the task layer: the change rule, for the reason
+//     above — that base's own top layer is the whole of what the write changes.
+//   - tp import: the change rule, because it carries the existing block
+//     forward, so a value rule there would refuse every import a project makes
+//     once it resolves blocking — the Workflow A step 6 deadlock §3 documents.
+//   - tp config --extract: the change rule, evaluated over an unconditional
+//     empty override, which is what makes it equivalent to a value rule in
+//     effect; its scan is its own input rather than only the fence's.
+//
+// What makes a value rule free at THIS sink is that tp set names a value rather
+// than carrying state forward: there is no document to re-author and nothing
+// carried in. That is the whole of why the --project layer can take one and tp
+// import cannot.
 //
 // A write of all never trips it at either layer, since all is the default and
 // the only value that tightens the gate. That is also why no scan runs: a
