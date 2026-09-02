@@ -14,6 +14,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/deligoez/tp/internal/engine"
 )
 
 // escalationRecord is §5.2's per-unit record, read back from disk exactly as
@@ -151,11 +153,29 @@ func TestEscalateWritesThePerUnitRecord(t *testing.T) {
 	assert.WithinRange(t, at, before, time.Now().UTC().Add(time.Second))
 }
 
-// TestEscalateAcceptsTheFiveDecisions pins §5.2's closed set, in both
+// TestEscalateAcceptsTheDocumentedDecisions pins §5.2's closed set, in both
 // directions: each documented value writes a record, and a value outside the
 // set is a usage error that writes none.
-func TestEscalateAcceptsTheFiveDecisions(t *testing.T) {
-	for _, decision := range []string{"skip-gate", "raise-review-cap", "raise-audit-cap", "import-force", "other"} {
+//
+// The literal list is asserted against engine.EscalationDecisions() as well as
+// iterated, because iterating the exported slice alone would pass on any set at
+// all — an empty one included. Equality fails in both directions: a value the
+// enum gained and this list did not, and a value this list names that the enum
+// dropped. That is also what makes the size of the set a fact this test owns,
+// rather than a number written down somewhere and left to rot.
+func TestEscalateAcceptsTheDocumentedDecisions(t *testing.T) {
+	documented := []string{
+		"skip-gate",
+		"raise-review-cap",
+		"raise-audit-cap",
+		"import-force",
+		"audit-converge-on",
+		"other",
+	}
+	assert.Equal(t, documented, engine.EscalationDecisions(),
+		"the closed set, in the order §5.2 writes it and a hint lists it")
+
+	for _, decision := range documented {
 		t.Run(decision, func(t *testing.T) {
 			unit := sampleUnit(t)
 			_, stderr, code := runEscalate(t, t.TempDir(), unitEnv(t, unit),
@@ -167,7 +187,13 @@ func TestEscalateAcceptsTheFiveDecisions(t *testing.T) {
 		})
 	}
 
-	for _, decision := range []string{"", "skipgate", "skip_gate", "SKIP-GATE", "raise-cap"} {
+	// audit_converge_on is the field's own spelling and audit-converge is a
+	// truncation of the value that names it: both are near-misses v0.37.0 §3
+	// makes newly available, and neither is a decision.
+	for _, decision := range []string{
+		"", "skipgate", "skip_gate", "SKIP-GATE", "raise-cap",
+		"audit_converge_on", "audit-converge", "AUDIT-CONVERGE-ON",
+	} {
 		t.Run("rejects "+decision, func(t *testing.T) {
 			unit := sampleUnit(t)
 			args := []string{"--evidence", "a decision only the operator can make"}
