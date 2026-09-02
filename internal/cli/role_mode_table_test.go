@@ -154,7 +154,8 @@ func legalModeCases(t *testing.T) (dir string, cases map[string]legalModeCase) {
 // task-role-mode-test) and all five speak of a per-command enumerated list. The
 // derived-from-the-code requirement lives elsewhere and is honoured elsewhere:
 // clause_absence_test.go asks the binary for its own perspective list rather
-// than restating it. Widening this one is spec/0.46.0.md's, not this release's.
+// than restating it. Widening this one belongs to whichever release revisits
+// the mode table; naming that release here is a pointer that rots, and has.
 func TestModeTableCoversEveryFlagEachCommandRegisters(t *testing.T) {
 	// Flags that select a MODE, as opposed to flags that shape one. The split
 	// is the same one §4.2.2 draws: a mode decides whether prompts are emitted

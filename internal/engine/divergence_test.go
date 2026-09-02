@@ -579,7 +579,8 @@ func TestComputeAuditDivergence_ConvergedUnderBlockingWithholdsTheObject(t *test
 // is withheld there too, so the `unattributed_open` caveat — the one signal
 // saying a roleless open row may be spec-coverage's — is suppressed with it.
 // That is the cost §6.5 accepts and names, pinned here so it cannot change
-// silently: making divergence severity-aware is spec/0.46.0.md §8's decision,
+// silently: making divergence severity-aware belongs to the release that
+// corrects a round's ledger, and is that release's decision,
 // not this release's.
 func TestComputeAuditDivergence_ConvergedUnderBlockingSuppressesTheUnattributedCaveat(t *testing.T) {
 	round := auditRows(
