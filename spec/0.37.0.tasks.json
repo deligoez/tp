@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.37.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-02T02:48:29.548268Z",
+  "updated_at": "2026-09-02T03:06:03.704178Z",
   "workflow": {},
   "coverage": {
     "total_sections": 9,
@@ -334,7 +334,7 @@
     {
       "id": "fence-extract-scope",
       "title": "The extract fence evaluates every base the repository resolves",
-      "status": "open",
+      "status": "done",
       "tags": [
         "fence"
       ],
@@ -347,11 +347,20 @@
       "source_sections": [
         "## 3. The fence"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-02T02:49:56.4936Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-02T03:06:03.687725Z",
+      "closed_reason": "The extract fence now evaluates every base the repository resolves, not only the scanned task files.\n\n- tp config --extract compares resolved-before against resolved-after over the scanned task-file overrides PLUS one empty override, which is every base with no task-level override; it is one element rather than one per spec because engine.ResolveWorkflowLayers is a pure function of the two layers it is handed, so every such base resolves identically.\n- --force does not exempt it, asserted against the exists-guard's exit 4 so the row cannot pass green on the wrong guard, and paired with a --force hoist that does pass so the assertion cannot be satisfied by a --force that is always refused.\n- The measured counterexample is a test: two task files carrying blocking, one spec with none; exit 2, the third spec still resolves all, and neither the project config nor a task file was written.\n- Written after running the pre-fix behaviour and observing it pass: on the shipped binary the same tree exited 0, hoisted [review_max_rounds, audit_converge_on], and moved base c from default/all to project/blocking. The new tests were then run red against the unfixed fence for that same reason before a line of the fix was written.\n- Mutant matrix, baseline green: M1 population without the empty override, M2 --force exempts the fence, M3 the fence moved after the write, all killed. The variant the spec names nowhere, M4 the fence moved ahead of the --dry-run return, SURVIVED the first matrix and turns a read-only preview into an exit 2; the killing test was added and the whole matrix re-run with all four killed.\n- The empty override is appended unconditionally, which covers the prospective case (the next tp init or tp import resolving blocking from the hoisted project layer) at the stated cost of a deliberate over-refusal where every base already has a task file; both are asserted rather than implied.",
+      "gate_passed_at": "2026-09-02T03:06:03.687725Z",
+      "commit_sha": "9ee1a76",
+      "commit_shas": [
+        "9ee1a76",
+        "2208df1"
+      ],
+      "commit_files": [
+        "internal/cli/auditconvergeon_fence_test.go",
+        "internal/cli/config_extract.go"
+      ]
     },
     {
       "id": "fence-import-remedies",
