@@ -590,10 +590,10 @@ The wrapper is only for what tp cannot know — runtime setup (e.g. hook-blocked
 
 `tp review --status`/`--record` and `tp audit --status`/`--record` return a `next_action` naming the one next step the current state calls for, by a fixed precedence (retained under `--compact`):
 
-1. **Converged** → the forward step: review names the directive `decompose the spec into tasks, then tp import <base>.tasks.json`; audit names the terminal `converged — implementation verified, proceed to release`. Convergence wins even when non-blocking findings remain open.
+1. **Converged** → the forward step: review names the directive `decompose the spec into tasks, then tp import <base>.tasks.json`; audit names the terminal `converged — implementation verified, proceed to release`. Convergence wins even when non-blocking findings remain open. Under `audit_converge_on: blocking` the audit string also **names the accepted count as a numeral** (`converged over N accepted rows — …`), so the round that closed over open advisory rows says so.
 2. **Blocking (critical/high) findings open** → `revise the spec to address the blocking findings, then run the next review round` (audit: fix the findings, then re-audit). It never steers toward `--resolve`/`--resolve-all`: disposing a blocking finding is an operator decision, never auto-advised.
 3. **A `mechanize_candidates` class recurs, none blocking** (review only) → register a check (`tp set --workflow checks='[…]'`), then run the next round. The directive carries the phase qualifier: a check is **only worth registering when the artifact it measures already exists in the review phase**, because registered checks run in that phase alone. The un-mechanizable `over-specification` class never triggers this — it falls through to step 4. Since v0.33.0 a class with a registered check falls through too: it is suppressed from the candidate list, so the driver is never told to write a check that already exists.
-4. **Clean but not yet converged** → run the next round: `tp review <spec> --record <file>` (audit: `tp audit <spec> --record <file>`).
+4. **Clean but not yet converged** → run the next round: `tp review <spec> --record <file>` (audit: `tp audit <spec> --record <file>`). Under `audit_converge_on: blocking` the audit string is prefixed with the same numeral (`N accepted rows carried forward — run the next audit round: …`) — this is the branch a `blocking` cycle takes on *every* clean round, where the converged branch fires once.
 
 `next_action` is advisory and read-only; it gates no exit code.
 
