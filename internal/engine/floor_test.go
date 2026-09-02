@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"crypto/sha256"
 	"encoding/hex"
 	"os"
 	"path/filepath"
@@ -573,16 +572,6 @@ func TestSection11Row18bListMarkers(t *testing.T) {
 	}
 }
 
-// floorTextSHA is §7.2's `text_sha` — the first twelve lowercase hex characters
-// of the sha256 of exactly the unit string, UTF-8 encoded. It is computed here
-// rather than called, because the shipped function is a later task; §11 row 20
-// asserts over hashes, and a test that compared unit strings alone would be
-// asserting something weaker than the row.
-func floorTextSHA(unit string) string {
-	sum := sha256.Sum256([]byte(unit))
-	return hex.EncodeToString(sum[:])[:12]
-}
-
 // TestSection11Row20CanonicalForm is §11 row 20: reflow stability asserted on
 // the case that breaks it rather than on a benign one.
 //
@@ -622,11 +611,11 @@ func TestSection11Row20CanonicalForm(t *testing.T) {
 
 	wrappedSHAs := make([]string, 0, len(want))
 	for _, u := range FloorUnits(wrapped) {
-		wrappedSHAs = append(wrappedSHAs, floorTextSHA(u))
+		wrappedSHAs = append(wrappedSHAs, FloorTextSHA(u))
 	}
 	oneLineSHAs := make([]string, 0, len(want))
 	for _, u := range FloorUnits(oneLine) {
-		oneLineSHAs = append(oneLineSHAs, floorTextSHA(u))
+		oneLineSHAs = append(oneLineSHAs, FloorTextSHA(u))
 	}
 	assert.Equal(t, oneLineSHAs, wrappedSHAs, "a reflow does not move a text_sha")
 
