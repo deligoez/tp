@@ -189,3 +189,84 @@ func TestAuditMerge_BySeveritySurvivesCompact(t *testing.T) {
 	assert.Equal(t, full["by_severity"], compact["by_severity"], "and survives it whole")
 }
 
+// TestAuditMerge_BySeverityBucketsMatchTheBlockingPopulation pins §7 row 17:
+// over one fixture carrying all four unrecognised shapes plus an `error`, a
+// `warning` and an `info`, `error` + `unrecognised` equals the round's
+// blocking-row count and `warning` + `info` equals the rest. The mutants that
+// must fail it are a `""` bucket and a split of the four shapes into four keys:
+// each moves the unrecognised count away from the blocking population while
+// every individual row is still counted somewhere.
+func TestAuditMerge_BySeverityBucketsMatchTheBlockingPopulation(t *testing.T) {
+	shapes := map[string]bool{}
+	for _, row := range decodeAuditRows(t, auditMergeSeverityRows) {
+		if row["status"] == "PASS" {
+			continue
+		}
+		v, present := row["severity"]
+		switch s, isString := v.(string); {
+		case !present:
+			shapes["an absent key"] = true
+		case v == nil:
+			shapes["JSON null"] = true
+		case !isString:
+			shapes["not a string"] = true
+		case s != "error" && s != "warning" && s != "info":
+			shapes["outside the enum"] = true
+		}
+	}
+	require.Len(t, shapes, 4, "the fixture must carry all four unrecognised shapes, got %v", shapes)
+
+	blocking, advisory := blockingAndAdvisory(t, auditMergeSeverityRows)
+	require.Positive(t, blocking, "the fixture must carry blocking rows")
+	require.Positive(t, advisory, "and advisory rows, or the two sums are the same assertion")
+
+	dir := t.TempDir()
+	summary := mergeSummary(t, dir, auditMergeSeverityRows)
+	buckets := bySeverityOf(t, summary)
+
+	assert.Equal(t, float64(blocking), buckets["error"]+buckets["unrecognised"],
+		"error + unrecognised is exactly the population §2's fail-closed rule blocks on")
+	assert.Equal(t, float64(advisory), buckets["warning"]+buckets["info"],
+		"and warning + info is the rest")
+
+	assert.NotContains(t, buckets, "",
+		`"" is not a bucket: it is what a naive type assertion produces for three of the four shapes`)
+	assert.ElementsMatch(t, []string{"error", "warning", "info", "unrecognised"}, bucketNames(buckets),
+		"four named buckets, not one key per unrecognised shape")
+
+	total := 0.0
+	for _, n := range buckets {
+		total += n
+	}
+	assert.Equal(t, summary["findings"], total, "every non-PASS row lands in exactly one bucket")
+
+	// And the population is the MERGED rows, not the input rows. Nothing else
+	// in the summary pins that: by_status, by_role and findings are all built
+	// over the deduplicated set, so a breakdown built over the raw input
+	// agrees with every assertion above and disagrees with all of them the
+	// moment a round carries a duplicate — which is the case --merge exists
+	// for, since two roles' files routinely repeat a row. Measured while
+	// writing this test: that variant survived the whole of ./internal/cli and
+	// ./internal/engine.
+	t.Run("counts the merged rows, not the input rows", func(t *testing.T) {
+		withDuplicate := append(append([]string{}, auditMergeSeverityRows...),
+			`{"role":"spec-coverage","item_id":"e","status":"FAIL","severity":"error"}`)
+
+		duplicated := mergeSummary(t, t.TempDir(), withDuplicate)
+		require.Equal(t, float64(1), duplicated["duplicates_removed"],
+			"the fixture must really carry a duplicate, or this asserts nothing")
+		require.Equal(t, summary["findings"], duplicated["findings"],
+			"and the duplicate must really be a non-PASS row the merge drops")
+
+		assert.Equal(t, summary["by_severity"], duplicated["by_severity"],
+			"a duplicated row is merged away before the breakdown counts it")
+	})
+}
+
+func bucketNames(buckets map[string]float64) []string {
+	names := make([]string, 0, len(buckets))
+	for k := range buckets {
+		names = append(names, k)
+	}
+	return names
+}
