@@ -116,6 +116,44 @@ the release that pins the emit-time hash makes structurally possible.
 
 ---
 
+## Survived prototyping — two lint rules this review produced
+
+Both were prototyped against **the pre-repair text of the defect that motivated them**, which is the
+bar the two refuted rules above failed. Both go to zero after the repair, so neither is a permanent
+scold.
+
+### `forward-spec-ref` — a shipped spec must not name a spec above the latest tag
+
+| corpus | violations |
+|---|---|
+| 17 shipped specs, pre-repair | **18** |
+| the same 17 today | **0** |
+
+Every one of the eighteen was verified stale by hand during the review that found them. **The false
+positive rate is zero by construction**: each was reworded to name the release's *subject* with no
+loss, so a legitimate need to name a pending file never arose.
+
+**The rule is a rot predictor, not a correctness claim.** A shipped→pending reference is not wrong the
+day it is written; it is wrong the day the pending file is renumbered, and that has now happened four
+times. Detection needs only `git describe --tags` and two filename parses.
+
+### `broken-cross-ref`, extended across files
+
+tp already flags `§X.Y step N` when section X.Y has fewer than N items — **inside one file**. The same
+predicate across files finds a reference to a section the target does not have:
+
+| corpus | sectioned cross-file refs | broken |
+|---|---|---|
+| 51 spec files, pre-repair | 35 | **10** |
+| the same today | 22 | **0** |
+
+**`spec/.tp-review/` must be excluded and that is the whole design risk.** Over the raw corpus the
+rule fires **173** times, of which **163 are inside round snapshots** — frozen photographs whose
+references were correct when taken. Flagging them would make the rule 94% noise and is the obvious way
+to get this wrong.
+
+---
+
 ## Undecided — each names the decision nobody has taken
 
 | candidate | the decision |
