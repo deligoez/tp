@@ -154,6 +154,18 @@ func TestAuditNextAction_AcceptedCountOnBothChangedBranches(t *testing.T) {
 	}
 }
 
+// TestAuditNextAction_AcceptedCountAgreesWithItsNoun covers the one boundary the
+// rendering has. A count is a plural by default and 1 is the value that makes
+// the default wrong, so it is asserted rather than assumed; 0 is asserted from
+// the other side, as the absence of the clause entirely.
+func TestAuditNextAction_AcceptedCountAgreesWithItsNoun(t *testing.T) {
+	assert.Contains(t, AuditNextAction("spec.md", false, true, 1), "1 accepted row ")
+	assert.Contains(t, AuditNextAction("spec.md", false, true, 2), "2 accepted rows")
+	assert.NotContains(t, AuditNextAction("spec.md", false, true, 0), "accepted",
+		"an empty round names no count at all rather than naming zero")
+	assert.NotContains(t, AuditNextAction("spec.md", true, true, 0), "accepted")
+}
+
 // TestFirstMechanizableClass covers the over-specification skip directly.
 func TestFirstMechanizableClass(t *testing.T) {
 	assert.Equal(t, "naming", firstMechanizableClass([]string{"naming"}))
