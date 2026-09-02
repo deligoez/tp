@@ -157,3 +157,17 @@ func TestNextGroundRoundIgnoresACrashLeftoverTemp(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 2, n, "an unfinished write is not a recorded round")
 }
+
+// TestNextGroundRoundCountsOnlyTheRecordedRoundFile: emit writes
+// snapshot-ground-round-N.md and floor-ground-round-N.txt from the number this
+// function returns, so if they counted toward it, the --record that follows an
+// emit would compute one more than the round its rows were graded against.
+func TestNextGroundRoundCountsOnlyTheRecordedRoundFile(t *testing.T) {
+	specPath := groundRoundFixture(t,
+		"snapshot-ground-round-4.md",
+		"floor-ground-round-4.txt")
+
+	n, err := NextGroundRound(specPath)
+	require.NoError(t, err)
+	assert.Equal(t, 1, n, "an emitted artifact is not a recorded round")
+}
