@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-02T21:11:36.075609Z",
+  "updated_at": "2026-09-02T21:27:44.316898Z",
   "workflow": {},
   "coverage": {
     "total_sections": 21,
@@ -244,7 +244,7 @@
     {
       "id": "round-number",
       "title": "N is the highest ground round plus one",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -256,11 +256,25 @@
       "source_sections": [
         "### 7.3 Where it lives, and what it must not disturb"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-02T21:12:55.88417Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-02T21:27:44.259721Z",
+      "closed_reason": "- engine.NextGroundRound(specPath) returns the highest existing ground-round-\u003cN\u003e plus one (internal/engine/groundstate.go): a state directory holding ground-round-1.ndjson and ground-round-3.ndjson yields 4, asserted by TestNextGroundRoundPreservesAGap. The gap is preserved because the answer is the maximum number present, never the count of round files.\n- Section 11 row 13's named mutant was built and observed red: replacing the max comparison with \"highest++\" per matching file reports expected 4, actual 3 on the same fixture. The fixture's discriminating property is asserted in the test rather than assumed (require.NotEqual on len(names)+1), since a directory of rounds 1 and 2 would score both readings identically.\n- Six further mutants were built and each observed red for its own reason: no implementation at all (compile failure, six undefined references); dropping the \"n \u003e highest\" guard so the last filename walked wins, red at expected 11 actual 3 on a directory of rounds 2 and 10, where ReadDir's lexical order puts 10 first — a mutant the gap fixture passes; disabling the .tmp skip, red at expected 2 actual 3 on a crash-leftover writeFileAtomic sibling; unanchoring the filename pattern, red at expected 1 actual 5 on a directory holding only snapshot-ground-round-4.md and floor-ground-round-4.txt; returning 0 rather than 1 for an absent state directory, red at expected 1 actual 0; and returning 1 rather than an error for an unreadable one, red on the missing error. The file was restored to its pre-mutation revision after each and verified byte-identical by content hash.\n- Quality gate green on the committed tree: check-suite-state.sh, golangci-lint run (0 issues), check-deadcode.sh and check-complexity.sh all pass, exit 0.\nOut of scope: section 7.1's table gives the emitted prompt's output_path as ground-rN.ndjson while sections 7.2 and 7.3 name the recorded file ground-round-N.ndjson. These are consistent with the shipped convention rather than contradictory — roleOutputPath (internal/cli/prompt_framing.go:44) already emits \u003cphase\u003e-r\u003cround\u003e-\u003crole\u003e.ndjson as the scratch path an operator collects, distinct from the recorded \u003cphase\u003e-round-N.ndjson — but the spec never says so, and a reader deriving the recorded filename from section 7.1 would get it wrong.",
+      "gate_passed_at": "2026-09-02T21:27:44.259721Z",
+      "commit_sha": "2ac773e7",
+      "commit_shas": [
+        "2ac773e7",
+        "97a4b174",
+        "0ee23238",
+        "d19e913d",
+        "f54533da",
+        "1c87bbc0",
+        "23879760"
+      ],
+      "commit_files": [
+        "internal/engine/groundstate.go",
+        "internal/engine/groundstate_test.go"
+      ]
     },
     {
       "id": "bookkeeping-ref",
