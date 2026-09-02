@@ -284,27 +284,20 @@ func TestAuditConvergeOnFence_WritesThatChangeNothingPass(t *testing.T) {
 	})
 }
 
-// TestAuditConvergeOnFence_SetProjectEvaluatesEveryBase is the --project sink's
-// half of §3's change rule, and it was run against the single-base fence first
-// and observed passing there: two task files, one carrying an override of all
-// and one carrying an empty workflow block, with the active pointer naming the
-// first, over which `TP_UNATTENDED=1 tp set --workflow --project
-// audit_converge_on=blocking` exited 0 and moved the second base from
-// default/all to project/blocking with no refusal and no escalation record.
+// TestAuditConvergeOnFence_SetProjectLeavesEveryBaseWhereItWas is the
+// consequence of the value rule that a refusal alone does not show: the tree is
+// as it was found, base by base, so a fence that refused after writing would
+// fail here even though it exited 2.
 //
-// The active pointer is load-bearing rather than scenery. Without it two task
-// files make discovery ambiguous, the discovered override is empty, and the
-// unwidened fence refuses on that empty override alone — so the same tree would
-// pass green against the code this test exists to fail.
+// The tree is the one three repairs were measured on — a covered base whose
+// task override is all and an uncovered base whose block names nothing, with
+// the active pointer on the covered one.
 //
-// The population is every base the fence can observe: the discovered override
-// plus every scanned task file's own. It does NOT carry --extract's
-// unconditional empty override, and §7 row 13 is why — measured, appending it
-// refuses the sibling subtest above, where the one base in the tree carries a
-// task override of all and the write is covered. A base with no task file at
-// all is therefore still outside this sink's population; tp scans task files and
-// has no enumeration of specs, so that base has no shape the fence can see.
-func TestAuditConvergeOnFence_SetProjectEvaluatesEveryBase(t *testing.T) {
+// It is deliberately recorded that this row does NOT discriminate: run against
+// the pre-correction fence it passes, because the enumerating fence also
+// refused this particular tree. It pins a consequence, not the rule. The rule
+// is the sibling table, every row of which was observed failing first.
+func TestAuditConvergeOnFence_SetProjectLeavesEveryBaseWhereItWas(t *testing.T) {
 	dir := extractShell(t, "",
 		extractBase{"a", `{"audit_converge_on":"all"}`},
 		extractBase{"b", "{}"})
@@ -318,10 +311,12 @@ func TestAuditConvergeOnFence_SetProjectEvaluatesEveryBase(t *testing.T) {
 
 	_, stderr, code := runTPFence(t, dir, true,
 		"set", "--workflow", "--project", "audit_converge_on=blocking")
-	assertFenceRefused(t, stderr, code, "set --workflow --project over an uncovered base")
+	assertFenceRefused(t, stderr, code, "set --workflow --project")
 
 	_, statErr := os.Stat(filepath.Join(dir, ".tp", "config.json"))
 	assert.True(t, os.IsNotExist(statErr), "the refused write created no project config")
+	assert.Equal(t, "all", fenceResolvedBase(t, dir, "a.tasks.json"),
+		"the covered base is untouched")
 	assert.Equal(t, "all", fenceResolvedBase(t, dir, "b.tasks.json"),
 		"and the uncovered base still resolves the default")
 }
