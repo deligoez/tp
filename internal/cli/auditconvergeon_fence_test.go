@@ -295,6 +295,48 @@ func TestAuditConvergeOnFence_WritesThatChangeNothingPass(t *testing.T) {
 	})
 }
 
+// TestAuditConvergeOnFence_SetProjectEvaluatesEveryBase is the --project sink's
+// half of §3's change rule, and it was run against the single-base fence first
+// and observed passing there: two task files, one carrying an override of all
+// and one carrying an empty workflow block, with the active pointer naming the
+// first, over which `TP_UNATTENDED=1 tp set --workflow --project
+// audit_converge_on=blocking` exited 0 and moved the second base from
+// default/all to project/blocking with no refusal and no escalation record.
+//
+// The active pointer is load-bearing rather than scenery. Without it two task
+// files make discovery ambiguous, the discovered override is empty, and the
+// unwidened fence refuses on that empty override alone — so the same tree would
+// pass green against the code this test exists to fail.
+//
+// The population is every base the fence can observe: the discovered override
+// plus every scanned task file's own. It does NOT carry --extract's
+// unconditional empty override, and §7 row 13 is why — measured, appending it
+// refuses the sibling subtest above, where the one base in the tree carries a
+// task override of all and the write is covered. A base with no task file at
+// all is therefore still outside this sink's population; tp scans task files and
+// has no enumeration of specs, so that base has no shape the fence can see.
+func TestAuditConvergeOnFence_SetProjectEvaluatesEveryBase(t *testing.T) {
+	dir := extractShell(t, "",
+		extractBase{"a", `{"audit_converge_on":"all"}`},
+		extractBase{"b", "{}"})
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".tp"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".tp", "local.json"),
+		[]byte(`{"active":"a.tasks.json"}`), 0o600))
+	require.Equal(t, "all", fenceResolvedBase(t, dir, "a.tasks.json"),
+		"the covered base resolves its own override")
+	require.Equal(t, "all", fenceResolvedBase(t, dir, "b.tasks.json"),
+		"and the base whose block names no override resolves the default")
+
+	_, stderr, code := runTPFence(t, dir, true,
+		"set", "--workflow", "--project", "audit_converge_on=blocking")
+	assertFenceRefused(t, stderr, code, "set --workflow --project over an uncovered base")
+
+	_, statErr := os.Stat(filepath.Join(dir, ".tp", "config.json"))
+	assert.True(t, os.IsNotExist(statErr), "the refused write created no project config")
+	assert.Equal(t, "all", fenceResolvedBase(t, dir, "b.tasks.json"),
+		"and the uncovered base still resolves the default")
+}
+
 // TestAuditConvergeOnFence_ImportUncoversProjectBlocking covers v0.37.0 §7 row
 // 13b, the case that discriminates the change rule from every narrower one. The
 // imported document names neither literal: it carries a workflow key holding
