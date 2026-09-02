@@ -479,6 +479,13 @@ func TestAuditGate_NoEscapeHatchFromTheGate(t *testing.T) {
 	assert.NotContains(t, stdout+stderr, "unknown workflow field: audit_converge_on",
 		"the project write sink recognises the field rather than refusing it as unknown")
 
+	// §7 row 18's second half. The reversal above changes what the rest of this
+	// test runs under: while the write was refused every round here was graded
+	// under the built-in `all`, and now the project layer resolves to `blocking`
+	// and the round re-recorded below is stamped under it.
+	assert.Equal(t, engine.AuditConvergeOnBlocking, resolvedAuditConvergeOn(t, dir)["value"],
+		"the reversed write takes effect, so what follows is graded under blocking")
+
 	// divergingFixture left the second round's rows in results.ndjson: one PASS
 	// and go-safety's open FAIL. Dispose the FAIL and re-record from the same
 	// file the round was recorded from.
