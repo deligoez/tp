@@ -2,14 +2,15 @@ package cli
 
 import "strings"
 
-// The two clauses v0.36.0 §2 and §3 append to every emitted role prompt.
+// The clauses appended to an emitted role prompt: v0.36.0 §2 and §3's pair,
+// plus spec/1.0.0.md §4.2's ground replacement for the first of them.
 //
 // They are constants rather than composed strings because §6.2 property 1
 // asserts the emitted body's suffix byte for byte: a version assembled from
 // fragments would let a reworded fragment pass while the prompt changed.
 //
-// Both are single lines with no embedded newline. The spec gives them as fenced
-// blocks for exactly that reason — a hard-wrapped blockquote left an
+// All are single lines with no embedded newline. The spec gives the first two
+// as fenced blocks for exactly that reason — a hard-wrapped blockquote left an
 // implementer three transcription choices (join with a space, join with \n,
 // keep or strip the "> " prefixes), each producing a different artefact and
 // each passing a loose reading of "verbatim".
@@ -21,6 +22,17 @@ const (
 	// incrementalClause is §3.2: write each row as it is decided, because a
 	// unit that buffers and dies loses the whole round.
 	incrementalClause = "Write each row to the output file as you decide it, not once at the end. A run that dies with its rows unwritten loses the whole round; a partially written file is still usable."
+
+	// groundIsolationClause is spec/1.0.0.md §4.2: the clause tp ground puts
+	// where isolationClause goes, because isolationClause forbids the probe
+	// §4.1's tier table requires.
+	//
+	// Unlike its two siblings it has no fenced block in the spec to be asserted
+	// against byte for byte — §4.2 states what the clause must do and quotes
+	// only the two sentences it overrides. What is guarded instead is that
+	// conflict: the ground clause carries neither quoted sentence, and it
+	// permits the copy outside the repository they forbid.
+	groundIsolationClause = "Do not edit any file in the repository. Read anything, and run tp itself freely — its own state writes are expected. To verify a claim by building or running code, copy what you need to a directory outside the repository and write freely inside that copy. Inside the repository, write no file except the output file this prompt names."
 )
 
 // clauseSuffix returns what §2.3 appends to an emitted role prompt: a blank
@@ -33,6 +45,17 @@ const (
 // repeated at the call site.
 func clauseSuffix() string {
 	return "\n\n" + isolationClause + "\n\n" + incrementalClause
+}
+
+// groundClauseSuffix returns what a tp ground prompt ends with: §4.2's clause
+// where clauseSuffix() puts §2.2's, and §3.2's clause unchanged after it.
+//
+// This is the SECOND suffix, not a third. clauseSuffix() is built once and
+// called by both appendClausesReview and appendClausesAudit, so review's and
+// audit's are already byte-identical and only ground's is new
+// (spec/1.0.0-corrections.md C9).
+func groundClauseSuffix() string {
+	return "\n\n" + groundIsolationClause + "\n\n" + incrementalClause
 }
 
 // appendClausesReview puts §2.3's suffix on every review prompt that names an
@@ -67,4 +90,14 @@ func appendClausesAudit(prompts []auditPrompt) []auditPrompt {
 		prompts[i].Prompt = strings.TrimSuffix(prompts[i].Prompt, "\n") + suffix
 	}
 	return prompts
+}
+
+// appendClausesGround puts §4.2's suffix on the prompt tp ground emits.
+//
+// It takes the body rather than a slice of prompts because grounding emits one
+// prompt (§7.1), so the output_path predicate its two siblings carry would have
+// nothing here to discriminate. The trailing newline goes first for §2.3's
+// reason: without the strip the body gains a blank line before the suffix.
+func appendClausesGround(prompt string) string {
+	return strings.TrimSuffix(prompt, "\n") + groundClauseSuffix()
 }
