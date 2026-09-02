@@ -3,6 +3,7 @@ package engine
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -123,4 +124,22 @@ func TestNextGroundRoundOnASpecWithNoStateDirectoryIsOne(t *testing.T) {
 	n, err := NextGroundRound(specPath)
 	require.NoError(t, err)
 	assert.Equal(t, 1, n)
+}
+
+// TestNextGroundRoundComparesNumbersNotFilenames pins that the highest round is
+// found by integer comparison. os.ReadDir returns entries sorted by filename
+// and "ground-round-10" sorts before "ground-round-2", so an implementation
+// that keeps the last match it walks past answers 3 here and collides with the
+// existing round 10. The sort order is the property that makes this fixture
+// discriminating, so it is asserted.
+func TestNextGroundRoundComparesNumbersNotFilenames(t *testing.T) {
+	names := []string{"ground-round-2.ndjson", "ground-round-10.ndjson"}
+	sorted := slices.Clone(names)
+	slices.Sort(sorted)
+	require.Equal(t, "ground-round-10.ndjson", sorted[0],
+		"the fixture only discriminates while 10 sorts before 2")
+
+	n, err := NextGroundRound(groundRoundFixture(t, names...))
+	require.NoError(t, err)
+	assert.Equal(t, 11, n)
 }
