@@ -8,9 +8,13 @@ Not a release. It carries no version number so it cannot be mistaken for one.
 
 ## Destination
 
-Every pending spec is **grounded** — its claims measured rather than asserted — the process findings
-this effort surfaced are routed into the specs that own them, and **v0.37.1 ships**. Implementing any
-spec is out of scope: nothing here starts a tp cycle.
+**Reached: `spec/0.54.0.md` — `tp ground` — is written**, from three pilot runs over 44 claims. The
+protocol below was its input; the spec is now the single source of truth for it, and this section of
+the map is history rather than instruction.
+
+What remains of the effort: the process findings are routed into the specs that own them (**done**),
+and **v0.37.1 ships** (ready, waiting on the operator). Implementing any spec is out of scope:
+nothing here starts a tp cycle.
 
 ## Work items
 
@@ -23,9 +27,11 @@ spec is out of scope: nothing here starts a tp cycle.
 | W5 | CLAUDE.md carries **326 of 632 lines (53%)** of planning reference in an always-loaded document | separate effort; sized, not started |
 | W6 | tp's emitted prompts steer by prohibition — **14%** of the review prompt, **12%** of CLAUDE.md | routed into 0.41.0; the CLAUDE.md half is W5 |
 
-## The ground protocol
+## The ground protocol — superseded
 
-Stable before it is used, because it runs 14 more times and every improvement pays off 14×.
+**`spec/0.54.0.md` is now the single source of truth for every rule below.** What follows is kept as
+the pilot's working text, because the spec cites it as its input; it is not a second home for the
+rules and must not be edited to disagree with the spec.
 
 **1. Enumerate the claims.** A claim is a statement about how the world *is*, or about what a proposed
 mechanism *does when run*. Decisions and predictions are not claims. **Counting by intuition
