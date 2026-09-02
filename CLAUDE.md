@@ -466,11 +466,17 @@ is a gate stated as an invariant checkable against a live tree.
 it hides, regroups or narrows what reviewers see, which is exactly what burned v0.34.0 §7.1 for
 eight rounds. This file used to require that nothing ship until the release was "replayed against
 the recorded rounds in `spec/.tp-review/`". **That instruction was measured and is impossible**, so
-it is withdrawn rather than left as a standing demand no cycle can meet: all 156 recorded review
-rounds have a snapshot, but for **35 of them (22.4%)** the snapshot's sha256 does not equal the
-`spec_hash` that round recorded — tp refreshes a snapshot when the spec changes, so a quarter of the
-corpus is not the text its round reviewed and a replay compares against the wrong spec and reports
-clean. A second variant, checking that each recorded finding's `class` still reaches its role, needs
+it is withdrawn rather than left as a standing demand no cycle can meet: all recorded review rounds
+have a snapshot, but for **35 of them** the snapshot's sha256 does not equal the `spec_hash` that
+round recorded — the snapshot is written at emission and the hash re-read at record, so that fraction
+of the corpus is not the text its round reviewed, and a replay compares against the wrong spec and
+reports clean. **Quote the count, not the percentage**: the 35 was 22.4% of 156 rounds when first
+measured and is 20.8% of 168 now, because v0.36.0 and v0.37.0 added twelve rounds and no mismatches —
+the ratio improved while the defect did not, and 19 of the 35 are v0.31.0's cycle alone, so the mean
+is nobody's experience. The audit phase runs 3 of 97, plus 20 rounds predating snapshots there.
+`spec/0.40.0.md` closes it forward by hashing the round's own snapshot; it does not repair the 35.
+
+A second variant, checking that each recorded finding's `class` still reaches its role, needs
 a `class` → checklist-item mapping that exists nowhere in tp, and **303 of 3,047 recorded rows
 (9.9%)** carry no `role` or `class` at all.
 
