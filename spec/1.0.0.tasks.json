@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-02T22:54:19.584796Z",
+  "updated_at": "2026-09-02T23:10:30.301198Z",
   "workflow": {},
   "coverage": {
     "total_sections": 21,
@@ -384,6 +384,7 @@
       "depends_on": [
         "floor-index-meta",
         "floor-units-mode",
+        "anchor-zero",
         "ground-clause",
         "round-number"
       ],
@@ -681,7 +682,7 @@
     {
       "id": "floor-index",
       "title": "the emitted index rows",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -693,11 +694,20 @@
       "source_sections": [
         "### 2.2 The floor is a coverage obligation, not a shortlist"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-02T22:56:20.264651Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-02T23:09:34.146778Z",
+      "closed_reason": "- engine.FloorIndexRow and engine.FloorIndexRows (internal/engine/floor.go) emit §2.2's five fields per floor unit — ID, Anchor, TextSHA, Ordinal, Bytes — and `unit_id` is `u\u003cN\u003e` over EVERY unit §2.1 produces, the cut ones included: TestFloorIndexRowsNumberOverEveryUnitIncludingTheOnesTheArmsCut puts a cut unit BETWEEN two floor units (the only arrangement the two readings disagree on) and asserts u1/u3. Observed red against the floor-alone numbering mutant, which returned u2 and also called anchorOf with 2 — the fixture asserts the argument anchorOf receives, not just the id. That the middle unit is cut is a require, not an assumption. TestAFloorIndexRowCarriesTheFiveFields states the whole row and its rendering for a table-row unit carrying an em dash, so Bytes is UTF-8 bytes and not runes: 21 against 19, both stated, observed red under a utf8.RuneCountInString mutant.\n- The index carries no unit text, pinned two ways because the literal reading is vacuous — any single character of a unit is a substring of it, and the index is made of characters. Structurally: FloorIndexRow has no text field and FormatFloorIndex takes rows rather than a spec's text, so the payload is not reachable from the encoder. Behaviourally: §11 row 4's own named input (a unit holding the non-hex token zqxjvwkfgb, searched for in the index) plus an exhaustive grammar `^(?:u\\d+ §[0-9.]+ [0-9a-f]{12} #\\d+ \\d+B\\n)+$` that accounts for every byte of the index, leaving nowhere for text to sit.\n- §11 row 4 passes on a constructed 1,200-unit floor at the worst case §2.2 admits, and the floor is derived from text rather than hand-built structs so the row's named mutant fails the size half too: 1,200 identical 1,045-byte units (ordinal reaches 1200, four digits; length field four digits; id u1200) under a seven-segment anchor §1.2.3.4.5.6.7 — each of those three properties asserted, since each is what makes the case a worst case. Index 56,400 bytes against the bound of 1200*48+256 = 57,856. The named mutant (carry the first 60 bytes of each unit) was built and run: 127,386 bytes, 2.2x the bound, and it failed all three assertions of the row including the token search and the grammar.\n- The port was cross-checked against scripts/floor-prototype.py rather than trusted: a throwaway probe emitted (unit_id, text_sha, ordinal, byte length) for every floor unit of all 54 spec/*.md and diffed byte-for-byte against the prototype's --emit rows — 5,311 rows, zero disagreements, on ids that count cut units. The probe is deleted and the tree is byte-clean. The same corpus under this encoding is 159,334 bytes against a bound of 255,184, mean 30 bytes per row.\n- Out of scope: (1) §2.2 says the anchor is emitted in \"the labelled shape internal/cli/review.go:1054 already uses\", but that line renders \"Table '%s' (line %d, %d rows)\" — word labels — while the encoding the spec's own byte figures were measured from is scripts/floor-prototype.py's sigil form `u1 §7.2 \u003csha\u003e #1 21B`. The citation does not describe the encoding that was measured; the sigil form is what is ported, because it is the one the bound was derived against. (2) The anchor is a parameter (anchorOf) rather than derived here, since §7.3's rule needs the unit's line in the file and anchor-zero owns it; but cmd-emit's depends_on does not include anchor-zero, so on the current graph the emit task can be reached with no anchor derivation in the tree.",
+      "gate_passed_at": "2026-09-02T23:09:34.146778Z",
+      "commit_sha": "12c9985c",
+      "commit_shas": [
+        "12c9985c",
+        "555ae2b7"
+      ],
+      "commit_files": [
+        "internal/engine/floor.go",
+        "internal/engine/floor_test.go"
+      ]
     },
     {
       "id": "floor-index-meta",
