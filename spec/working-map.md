@@ -16,9 +16,9 @@ spec is out of scope: nothing here starts a tp cycle.
 
 | # | work | state |
 |---|---|---|
-| W1 | **Ground the 14 remaining pending specs.** Protocol below; log below | in flight — 2 of 16 done |
-| W2 | Route the skills-examination findings into the specs that own them | in flight — see the routing table |
-| W3 | **v0.37.1 ships.** Spec written, both fixes built and green in a scratch copy | waiting on W1 for 0.37.1 |
+| W1 | **Ground the pending specs.** Protocol below; log below | 3 fully ground; the citation and numeric classes ground across all 18 |
+| W2 | Route the skills-examination findings into the specs that own them | **done** — 0.48.0, 0.41.0, 0.50.0, candidates |
+| W3 | **v0.37.1 ships.** Spec written and ground, both fixes built and green in a scratch copy | ready — waiting only on the operator |
 | W4 | `forward-spec-ref` lint rule — survived prototyping (18 findings pre-repair, 0 today, 0 false positives) | needs a decision: it wants the shipped boundary, which `tp lint` has no git access for |
 | W5 | CLAUDE.md carries **326 of 632 lines (53%)** of planning reference in an always-loaded document | separate effort; sized, not started |
 | W6 | tp's emitted prompts steer by prohibition — **14%** of the review prompt, **12%** of CLAUDE.md | routed into 0.41.0; the CLAUDE.md half is W5 |
@@ -77,10 +77,30 @@ positive phrasing, and pair it with the target even then.
 |---|---|---|---|---|---|---|---|
 | 0.52.0 | 17 | 14 | 2 | 1 | 0 | 0 | corpus query |
 | 0.53.0 | 10 | 9 | 0 | 1 | 0 | 0 | **simulation probe** |
+| 0.37.1 | 17 | 14 | 0 | 3 | 0 | 0 | reachability read + tag history |
+| *all 18 files* | — | — | — | **49** | — | — | the registered citation check, run over the corpus |
 
-**What the two runs have already settled.** The refuted claims were all *cheap to write* — a borrowed
-number, an unstated rounding rule, a plausible-sounding reason, a quantifier. Every claim that cost
-something to make held, because making it *was* the verification. **Start with the cheap sentences.**
+**Three runs, and the pattern has not moved: every refutation was a cheap sentence.** A borrowed
+number, an unstated rounding rule, a plausible-sounding reason, and four quantifiers — *four patch
+releases* (ten), *five releases* (seventeen), *fifteen audit histories* (sixteen), *the driver
+branches on it* (nothing reads it). Every claim that cost something to make held, because making it
+**was** the verification. **Start with the cheap sentences.**
+
+**The three-hypothesis step earned its place on first use.** 0.37.1 claimed
+`unresolved_findings` was driver-facing. Three hypotheses — the driver branches on it / it reports
+only / nothing reads it — and the third held: the field is written at two sites and **read nowhere in
+tp**. The severity argument survived, but its subject changed from the driver to a reader, and the one
+documented misled reader is this repository's own orchestrator.
+
+**A whole claim class was ground at once, and the check this effort registered found it.** 49 path
+citations across the pending set named a file that does not resolve — `audit.go:355` rather than
+`internal/cli/audit.go:355`. Bare names without a line number are an accepted shorthand and were left
+alone; the checker's rule is *slash or line number*, which a hand replication of it got wrong before
+the real thing was run.
+
+**A numeric sweep over every bolded figure in the pending set found nothing further.** Two suspects
+resolved on inspection: `156 rounds` is correctly framed as history beside the current 168, and
+`3,046 rows` is scoped to a 22-file subset rather than the 16,635-row corpus.
 
 ## Routed from the skills examination
 
@@ -89,19 +109,19 @@ substance lives in the target, never here.
 
 | finding | source skill | target | state |
 |---|---|---|---|
-| Build the loop before any hypothesis; the loop is the work, everything else is mechanical | `diagnosing-bugs` | 0.48.0 | to route |
-| 3–5 ranked falsifiable hypotheses before testing any | `diagnosing-bugs` | 0.48.0 + protocol §4 | protocol done; spec to route |
-| Completion criterion as a checklist the unit can check itself against | `diagnosing-bugs` | 0.48.0 | to route |
-| Minimality test: every remaining element is load-bearing, remove one and it goes green | `diagnosing-bugs` | 0.48.0 | to route |
-| "If no correct seam exists, that itself is the finding" | `diagnosing-bugs` | 0.48.0 | to route |
-| Demand drives legwork — *"every modified model accounted for"* forces work that *"produce a list"* does not | `writing-for-agents` | 0.41.0 | to route |
-| Negation is a failure mode; prompt the positive | `writing-for-agents` | 0.41.0 (emission) + W5 (CLAUDE.md) | to route |
+| Build the loop before any hypothesis; the loop is the work, everything else is mechanical | `diagnosing-bugs` | 0.48.0 | routed |
+| 3–5 ranked falsifiable hypotheses before testing any | `diagnosing-bugs` | 0.48.0 + protocol §4 | **routed** — 0.48.0 §2 step 3 |
+| Completion criterion as a checklist the unit can check itself against | `diagnosing-bugs` | 0.48.0 | routed |
+| Minimality test: every remaining element is load-bearing, remove one and it goes green | `diagnosing-bugs` | 0.48.0 | **routed** — 0.48.0 §3 |
+| "If no correct seam exists, that itself is the finding" | `diagnosing-bugs` | 0.48.0 | **routed** — 0.48.0 §3 |
+| Demand drives legwork — *"every modified model accounted for"* forces work that *"produce a list"* does not | `writing-for-agents` | 0.41.0 | **routed** — 0.41.0 §3 |
+| Negation is a failure mode; prompt the positive | `writing-for-agents` | 0.41.0 (emission) + W5 (CLAUDE.md) | **routed** — 0.41.0 §4a; CLAUDE.md half parked as W5 |
 | Leading words recruit pretraining; an invented word pays in definition tokens | `writing-for-agents` | naming, `ground` | settled — validates the name |
-| Two axes reported separately, never merged or reranked, because one masks the other | `code-review` | 0.50.0 | to route — direct challenge to `--merge` |
+| Two axes reported separately, never merged or reranked, because one masks the other | `code-review` | 0.50.0 | **routed** — 0.50.0 §4.1 |
 | Facts are the agent's job; decisions are the user's | `grilling` | protocol §5 | done |
 | Frontier: a question depending on an open question belongs to a later round | `grilling` | protocol §2 | done |
 | Show the ranked list; do not block on it | `diagnosing-bugs` | protocol §6 | done |
-| Fog of war — *can you state the question precisely now*, not answer it | `wayfinder` | `candidates.md` | to route |
+| Fog of war — *can you state the question precisely now*, not answer it | `wayfinder` | `candidates.md` | **routed** — `candidates.md` |
 | Context load vs cognitive load; the second is the price of human agency | `writing-for-agents` | W5 | parked |
 | No-op test: an instruction the model already obeys pays load to say nothing; settle it by running | `writing-for-agents` | W5 | parked |
 
