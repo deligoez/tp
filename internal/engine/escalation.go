@@ -11,19 +11,26 @@ import (
 	"time"
 )
 
-// The five decisions §5.2 closes `tp escalate --decision` over. Four name a
-// user-only operation §5.1 fences off — the ones a unit can reach and must not
-// take itself — and `other` carries everything else an operator has to decide.
+// The decisions §5.2 closes `tp escalate --decision` over. Every value but
+// `other` names a user-only operation a fence refuses under TP_UNATTENDED —
+// §5.1's, and v0.37.0 §3's relax of audit_converge_on — the ones a unit can
+// reach and must not take itself; `other` carries everything else an operator
+// has to decide.
+//
+// How many there are is escalationDecisions' business rather than this
+// comment's: the set has grown once already, and a count written in prose goes
+// stale in the release that grows it again.
 //
 // The set is closed so that a driver reading a run's records can route them
-// without parsing prose: a decision outside it is a usage error, not a sixth
+// without parsing prose: a decision outside it is a usage error, not a further
 // category.
 const (
-	EscalateSkipGate       = "skip-gate"
-	EscalateRaiseReviewCap = "raise-review-cap"
-	EscalateRaiseAuditCap  = "raise-audit-cap"
-	EscalateImportForce    = "import-force"
-	EscalateOther          = "other"
+	EscalateSkipGate        = "skip-gate"
+	EscalateRaiseReviewCap  = "raise-review-cap"
+	EscalateRaiseAuditCap   = "raise-audit-cap"
+	EscalateImportForce     = "import-force"
+	EscalateAuditConvergeOn = "audit-converge-on"
+	EscalateOther           = "other"
 )
 
 // escalationDecisions is the closed set in the order §5.2 writes it, which is
@@ -33,10 +40,11 @@ var escalationDecisions = []string{
 	EscalateRaiseReviewCap,
 	EscalateRaiseAuditCap,
 	EscalateImportForce,
+	EscalateAuditConvergeOn,
 	EscalateOther,
 }
 
-// EscalationDecisions returns the five documented decisions. The copy is
+// EscalationDecisions returns the documented decisions. The copy is
 // defensive: the slice reaches a hint builder, and a caller that sorted or
 // truncated it in place would silently change what every later escalation is
 // validated against.
@@ -44,10 +52,10 @@ func EscalationDecisions() []string {
 	return slices.Clone(escalationDecisions)
 }
 
-// IsEscalationDecision reports whether decision is one of the five. The
-// comparison is exact — no case folding, no trimming — because the value is a
-// record field a driver switches on, and a decision tp had to guess at is one
-// the operator did not write.
+// IsEscalationDecision reports whether decision is one of the documented
+// values. The comparison is exact — no case folding, no trimming — because the
+// value is a record field a driver switches on, and a decision tp had to guess
+// at is one the operator did not write.
 func IsEscalationDecision(decision string) bool {
 	return slices.Contains(escalationDecisions, decision)
 }
