@@ -56,7 +56,7 @@ Announce: "I will review until N clean rounds, audit until M clean rounds." If n
 
 1. `tp lint <spec.md>` — fix issues; review `structured_elements` and the `frontmatter` object.
 2. `tp init <spec.md>` — creates the spec-adjacent `<base>.tasks.json` shell (zero tasks) with an empty `workflow` block. Author the gate one layer up: `tp set --workflow --project quality_gate="<cmd>"` (writes `.tp/config.json`, resolved by every task file); passing `--quality-gate` here writes a task-file override that masks it.
-3. `tp set --workflow review_clean_rounds=N audit_clean_rounds=M` — convergence counts (only if non-default).
+3. `tp set --workflow review_clean_rounds=N audit_clean_rounds=M` — convergence counts (only if non-default). `review_converge_on`/`audit_converge_on` belong here too if either is non-default: an audit round's `clean` verdict is stamped at record time, so `audit_converge_on` has to resolve **before audit round 1** to be worth anything (Workflow D).
 4. `tp set --workflow review_max_rounds=R audit_max_rounds=A` — round budgets (only if capping).
 5. `tp set --workflow checks='[{"class":"<slug>","cmd":"<detector>"}]'` — register mechanical checks (see Class & Checks Guidance).
 
