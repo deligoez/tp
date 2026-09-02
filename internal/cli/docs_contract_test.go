@@ -93,8 +93,16 @@ func TestDocsStateOneAuditRoutingContract(t *testing.T) {
 }
 
 const (
-	divergenceCountingSubstring = "audit convergence still counts every non-PASS row"
-	checkRetirementSubstring    = "a registered check retires its mechanize candidate"
+	divergenceCountingSubstring = "audit convergence counts every non-PASS row the resolved policy does not accept"
+
+	// The SKILL.md line that must carry it: the divergence paragraph itself,
+	// not the document. Anchored for the reason
+	// TestDocsCarryTheMechanizePhaseQualifier anchors — measured on this
+	// change, the sentence pasted into an unrelated section kept a
+	// document-wide assertion green while the divergence paragraph still said
+	// convergence counts every non-PASS row full stop.
+	divergenceParagraphAnchor = "**`divergence` gates nothing — it is reporting only.**"
+	checkRetirementSubstring  = "a registered check retires its mechanize candidate"
 
 	claudeSignalFieldSubstring = "spec_coverage_clean_rounds"
 )
@@ -129,8 +137,16 @@ var referenceSignalSentences = []string{
 // meaning depends on the field.
 func TestDocsCarryTheConvergenceSignalWording(t *testing.T) {
 	skill := readRepoDoc(t, "skills/tp/SKILL.md")
-	assert.Contains(t, skill, divergenceCountingSubstring,
-		"SKILL.md states that audit convergence still counts every non-PASS row")
+	anchored := false
+	for _, line := range strings.Split(skill, "\n") {
+		if !strings.Contains(line, divergenceParagraphAnchor) {
+			continue
+		}
+		anchored = true
+		assert.Contains(t, line, divergenceCountingSubstring,
+			"SKILL.md's divergence paragraph states what audit convergence counts, in terms true under both values of audit_converge_on")
+	}
+	assert.True(t, anchored, "SKILL.md still carries the %q paragraph", divergenceParagraphAnchor)
 	assert.Contains(t, skill, checkRetirementSubstring,
 		"SKILL.md states that a registered check retires its mechanize candidate")
 
