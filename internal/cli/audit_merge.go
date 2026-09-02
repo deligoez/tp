@@ -190,10 +190,10 @@ func loadAuditMergeRows(args []string) ([]map[string]any, []mergeInputCounts) {
 		}
 		if err := scanner.Err(); err != nil {
 			// Aborting, not warning: a read that failed produces zero rows, and
-			// zero rows is what a genuinely clean round looks like — so a
-			// swallowed error here lets an input tp never read record a clean
-			// round. The old warning also named one cause (an over-long line)
-			// for every failure, including reading a directory.
+			// zero rows records a clean round under either audit_converge_on
+			// value — so a swallowed error here lets an input tp never read
+			// record a clean round. The old warning also named one cause (an
+			// over-long line) for every failure, including reading a directory.
 			f.Close()
 			output.Error(ExitFile, fmt.Sprintf("cannot read %s: %v", path, err), ndjsonReadHint(err))
 			os.Exit(ExitFile)
