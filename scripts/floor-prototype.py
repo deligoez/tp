@@ -313,10 +313,15 @@ def emit(path):
     out = []
     cut = 0
     for n, (u, b) in enumerate(units, 1):
+        # A table block's first entry is TABLE_MARK + the source line, which
+        # matches no line in the file. Left unhandled, EVERY table row anchored
+        # to §0 — 91 of 243 units on this repository's own spec, while the test
+        # asserting the §0 case passed. Strip the sentinel before locating.
+        b0 = b[0][len(TABLE_MARK):] if b and b[0].startswith(TABLE_MARK) else (b[0] if b else "")
         head = " ".join(u.split()[:4])
         lineno = next((i for i, l in enumerate(lines, 1)
-                       if head and head.split()[0] in l and b and b[0].strip()[:20] in l), 0) or \
-                 next((i for i, l in enumerate(lines, 1) if b and l.strip() == b[0].strip()), 0)
+                       if head and head.split()[0] in l and b0.strip()[:20] in l), 0) or \
+                 next((i for i, l in enumerate(lines, 1) if l.strip() == b0.strip()), 0)
         if not in_floor(u):
             # Named but not carried. The first end-to-end run found three of the
             # graded spec's worst defects in units the arms had cut, so the cut
