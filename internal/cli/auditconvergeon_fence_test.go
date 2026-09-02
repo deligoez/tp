@@ -837,32 +837,41 @@ func fenceScanShell(t *testing.T) string {
 	return dir
 }
 
-// fenceEnvelope returns the last line of stderr. output.Notice and output.Error
-// share that stream, so a refusal preceded by a warning writes two lines and
-// errJSON — which parses the whole of stderr as one document — cannot read the
-// pair. The envelope is always last, because the refusal exits on writing it.
-func fenceEnvelope(stderr string) string {
-	lines := strings.Split(strings.TrimSpace(stderr), "\n")
-	return lines[len(lines)-1]
+// assertScanRefused asserts the --project sink's degraded-scan refusal: exit 3,
+// the same code tp config --extract gives for the same error from the same call,
+// and a message naming the scan rather than the change rule. It is deliberately
+// not assertFenceRefused: an unreadable path is not a user-approved decision, so
+// a message sending the unit to tp escalate would stop a run over a chmod.
+func assertScanRefused(t *testing.T, stderr string, code int, sink string) {
+	t.Helper()
+	e := errJSON(t, stderr)
+	assert.Equal(t, 3, code, "%s: an incomplete scan exits 3", sink)
+	assert.Equal(t, float64(3), e["code"], "%s: and the envelope reports the same code", sink)
+	msg, ok := e["error"].(string)
+	require.True(t, ok, "%s: the envelope carries a message", sink)
+	assert.Contains(t, msg, "project scan incomplete",
+		"%s: the refusal names the gap that made the population partial", sink)
+	assert.NotContains(t, msg, "relaxes the audit gate",
+		"%s: and does not claim a comparison it never made", sink)
 }
 
 // TestAuditConvergeOnFence_SetProjectFailsClosedOnADegradedScan covers the two
-// ways the --project sink can be prevented from seeing a base, and the one
-// property both owe: a base the fence could not read is not thereby a base the
-// fence may pass over.
+// ways the --project sink can be prevented from seeing a base. They are not the
+// same case and no longer take the same exit, so each subtest states its own.
 //
-// Both were observed exiting 0 against the unrepaired fence, each beside the
-// control this file already carries — the same tree with a valid, workflow-less
-// b.tasks.json refuses. So neither subtest is asserting a property the input
-// could satisfy by accident.
+// A task file that will not parse leaves an empty override that is still
+// compared, exactly as fenceOverrideLayers treats the same error, so the change
+// rule reaches it and refuses under §3 with exit 2.
 //
-// The mechanisms differ and are not interchangeable. engine.ScanProjectTaskFiles
-// returns its partial list *and* the walk error, so a guard that keeps the list
-// only when err == nil discards every base the walk did reach and silently
-// reverts the fence to the single-base form it was widened out of. A task file
-// that will not parse is the other half: dropping it is the opposite of what
-// fenceOverrideLayers does with the same error, which leaves an empty override
-// that is still compared.
+// A directory the walk cannot read is different in kind: engine.ScanProjectTaskFiles
+// hands filepath.WalkDir's error back, WalkDir stops there, and every base
+// sorting after that directory is absent from the list — so the fence cannot
+// compare the population it claims to. The blocked directory is named A-blocked
+// precisely so it sorts BEFORE a.tasks.json and b.tasks.json: the earlier
+// fixture blocked a directory named zz, which sorts after both, so the walk
+// collected both bases before erroring, no base was ever dropped, and the
+// subtest passed without exhibiting the property its own name claims. Against
+// A-blocked the unrepaired fence exited 0 and landed the write.
 func TestAuditConvergeOnFence_SetProjectFailsClosedOnADegradedScan(t *testing.T) {
 	t.Run("a task file that will not parse", func(t *testing.T) {
 		dir := fenceScanShell(t)
@@ -874,28 +883,111 @@ func TestAuditConvergeOnFence_SetProjectFailsClosedOnADegradedScan(t *testing.T)
 		assertFenceRefused(t, stderr, code, "set --project over an unparseable base")
 
 		_, statErr := os.Stat(filepath.Join(dir, ".tp", "config.json"))
-		assert.True(t, os.IsNotExist(statErr), "the refused write created no project config")
+		assert.True(t, statErr != nil && os.IsNotExist(statErr), "the refused write created no project config")
 	})
 
-	t.Run("a directory the scan cannot read", func(t *testing.T) {
-		if os.Geteuid() == 0 {
-			t.Skip("root can walk a 0000 directory, so the scan cannot be made to fail")
-		}
-		dir := fenceScanShell(t)
-		blocked := filepath.Join(dir, "zz")
-		require.NoError(t, os.Mkdir(blocked, 0o755))
-		require.NoError(t, os.Chmod(blocked, 0o000))
-		t.Cleanup(func() { _ = os.Chmod(blocked, 0o755) })
+	// Both arms below block the same directory. They differ only in --quiet,
+	// because the repair this test guards replaced an output.Notice warning
+	// with a refusal, and output.Notice returns early under --quiet: the
+	// warn-and-proceed form left an operator running with --quiet an exit 0
+	// and an empty stderr over a fence that had compared nothing.
+	for _, tc := range []struct {
+		name string
+		args []string
+	}{
+		{"a directory the scan cannot read", nil},
+		{"the same directory under --quiet", []string{"--quiet"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if os.Geteuid() == 0 {
+				t.Skip("root can walk a 0000 directory, so the scan cannot be made to fail")
+			}
+			dir := fenceScanShell(t)
+			blocked := filepath.Join(dir, "A-blocked")
+			require.NoError(t, os.Mkdir(blocked, 0o755))
+			// The fixture only exhibits the property while the blocked
+			// directory is walked before any task file, so that is asserted
+			// rather than assumed: os.ReadDir sorts, and WalkDir walks in
+			// the same order.
+			entries, err := os.ReadDir(dir)
+			require.NoError(t, err)
+			var firstTaskFile string
+			for _, e := range entries {
+				if strings.HasSuffix(e.Name(), ".tasks.json") {
+					firstTaskFile = e.Name()
+					break
+				}
+			}
+			require.NotEmpty(t, firstTaskFile, "the shell must carry at least one task file")
+			require.Less(t, "A-blocked", firstTaskFile,
+				"the blocked directory must sort before every task file, or the walk reaches them all before it errors")
+			require.NoError(t, os.Chmod(blocked, 0o000))
+			t.Cleanup(func() { _ = os.Chmod(blocked, 0o755) })
 
-		_, stderr, code := runTPFence(t, dir, true,
-			"set", "--workflow", "--project", "audit_converge_on=blocking")
-		assertFenceRefused(t, fenceEnvelope(stderr), code, "set --project over a partial scan")
-		assert.Contains(t, stderr, "project scan incomplete",
-			"and the gap that made the population partial is reported, not swallowed")
+			args := append([]string{"set", "--workflow", "--project", "audit_converge_on=blocking"}, tc.args...)
+			_, stderr, code := runTPFence(t, dir, true, args...)
+			assertScanRefused(t, stderr, code, tc.name)
 
-		_, statErr := os.Stat(filepath.Join(dir, ".tp", "config.json"))
-		assert.True(t, os.IsNotExist(statErr), "the refused write created no project config")
-	})
+			_, statErr := os.Stat(filepath.Join(dir, ".tp", "config.json"))
+			assert.True(t, statErr != nil && os.IsNotExist(statErr), "the refused write created no project config")
+		})
+	}
+}
+
+// TestAuditConvergeOnFence_SetProjectPassesWithNoActivePointer is the row the
+// fence's population was wrong on in both directions at once, and it is the
+// state of every fresh clone: .tp/local.json is git-ignored, so a repository
+// with more than one task file has ambiguous discovery until somebody runs
+// tp use. Both bases here carry all, so the write changes nothing for either
+// and must land. The unrepaired fence refused it — the population was seeded
+// with the discovered override, which on failed discovery is the zero override:
+// an entry matching no file, resolving the default, relaxing against any
+// project write of blocking, and named in the refusal as nothing at all.
+//
+// The sibling with the pointer present is asserted beside it, because that is
+// the tree every other fence test in this file seeds and the reason the suite
+// was green over the defect.
+func TestAuditConvergeOnFence_SetProjectPassesWithNoActivePointer(t *testing.T) {
+	both := []extractBase{
+		{"a", `{"audit_converge_on":"all"}`},
+		{"b", `{"audit_converge_on":"all"}`},
+	}
+	for _, tc := range []struct{ name, pointer string }{
+		{"no active pointer", ""},
+		{"active pointer present", "a.tasks.json"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := extractShell(t, "", both...)
+			if tc.pointer != "" {
+				require.NoError(t, os.MkdirAll(filepath.Join(dir, ".tp"), 0o755))
+				require.NoError(t, os.WriteFile(filepath.Join(dir, ".tp", "local.json"),
+					[]byte(`{"active":"`+tc.pointer+`"}`), 0o600))
+			}
+
+			_, stderr, code := runTPFence(t, dir, true,
+				"set", "--workflow", "--project", "audit_converge_on=blocking")
+			require.Equal(t, 0, code, "nothing resolves differently for either base: %s", stderr)
+
+			assert.Equal(t, "all", fenceResolvedBase(t, dir, "a.tasks.json"))
+			assert.Equal(t, "all", fenceResolvedBase(t, dir, "b.tasks.json"),
+				"and the write that landed still changes neither")
+		})
+	}
+}
+
+// TestAuditConvergeOnFence_SetProjectRefusesWithNoTaskFileAtAll pins the one
+// empty override the population keeps. A tree with no task file has no base
+// shielding anything, so a project write of blocking moves whatever base is
+// added next; dropping the phantom seed must not drop this refusal with it.
+func TestAuditConvergeOnFence_SetProjectRefusesWithNoTaskFileAtAll(t *testing.T) {
+	dir := extractShell(t, "", extractBase{"a", ""})
+
+	_, stderr, code := runTPFence(t, dir, true,
+		"set", "--workflow", "--project", "audit_converge_on=blocking")
+	assertFenceRefused(t, stderr, code, "set --project over a tree with no task file")
+
+	_, statErr := os.Stat(filepath.Join(dir, ".tp", "config.json"))
+	assert.True(t, statErr != nil && os.IsNotExist(statErr), "the refused write created no project config")
 }
 
 // TestAuditConvergeOnFence_SetProjectRefusalNamesTheBase pins the one thing the
