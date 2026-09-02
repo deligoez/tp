@@ -691,3 +691,38 @@ func TestSection11Row1TheThreeArmsDecideFloorMembership(t *testing.T) {
 	require.False(t, strings.ContainsAny(tests[3].unit, "0123456789`"),
 		"the no-arm unit must hold neither a digit nor a backtick")
 }
+
+// TestSection11Row2ABareCodeSpanIsInTheFloor is §11 row 2: a unit whose only
+// signal is a bare `internal/cli/audit.go` — no line number, no other digit, no
+// listed verb — is in the floor, via the identifier arm.
+//
+// The path is the row's own and it is chosen for what it LACKS. §2.1 argues
+// there is no fourth path-citation arm because a path in this family is written
+// inside a code span; a path carrying `:N` would reach the floor through the
+// digit arm whatever the identifier arm did, so it cannot discriminate. This one
+// carries no digit at all, which makes it the input under which a fourth arm
+// would have been load-bearing — and the input the row's mutant loses.
+func TestSection11Row2ABareCodeSpanIsInTheFloor(t *testing.T) {
+	const path = "internal/cli/audit.go"
+	// The fixture's discriminating property, asserted without the predicates
+	// under test: this path must carry no line number and no other digit.
+	require.False(t, strings.ContainsAny(path, "0123456789"),
+		"row 2's citation is bare — a digit anywhere in it would let the digit arm carry the unit")
+
+	tests := []struct{ name, unit string }{
+		{"the span alone", "`" + path + "`"},
+		{"the span inside a sentence", "The fence lives in `" + path + "` and nowhere else."},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			require.False(t, strings.ContainsAny(tc.unit, "0123456789"),
+				"the unit as a whole must carry no digit either")
+
+			assert.False(t, floorHasDigit(tc.unit), "digit arm")
+			assert.False(t, floorHasMeasurementVerb(tc.unit), "verb arm")
+			assert.True(t, floorHasCodeSpan(tc.unit), "identifier arm")
+			assert.True(t, inFloor(tc.unit),
+				"the identifier arm alone must put this unit in the floor")
+		})
+	}
+}
