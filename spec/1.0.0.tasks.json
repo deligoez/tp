@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-02T21:27:44.316898Z",
+  "updated_at": "2026-09-02T21:43:00.57348Z",
   "workflow": {},
   "coverage": {
     "total_sections": 21,
@@ -573,7 +573,7 @@
     {
       "id": "floor-tables",
       "title": "a table data row becomes one unit",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -585,11 +585,22 @@
       "source_sections": [
         "### 2.1 The floor"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-02T21:29:02.150161Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-02T21:43:00.552365Z",
+      "closed_reason": "- floorTableRowUnit yields one unit per data row with cells joined by an em dash; floorUnitsFromBlock returns it directly so a row with three full stops in its cells never reaches step 4's sentence split, asserted in TestATableDataRowBecomesOneUnit\n- floorTableCells is a hand-written scan rather than a regexp, because the rule is a pipe not preceded by a backslash and Go's regexp has no lookbehind; an escaped pipe becomes content and the trailing pipe is stripped only when unescaped, so `| a | b\\|` gives `a — b|`\n- Section 11 row 18d passes. The port also refuted the prototype it was ported from: scripts/floor-prototype.py stripped the trailing pipe with `\\|$`, which on a row ending in an escaped pipe ate the pipe and left the bare backslash. Both now agree on all three cases; the prototype fix is d2f04f67. The em-dash joiner itself was caught by the one subtest that reaches it, the others carrying an em dash inside a cell and never exercising the join.",
+      "gate_passed_at": "2026-09-02T21:43:00.552365Z",
+      "commit_sha": "4fa9f200",
+      "commit_shas": [
+        "4fa9f200",
+        "683f7cf2",
+        "d2f04f67"
+      ],
+      "commit_files": [
+        "internal/engine/floor.go",
+        "internal/engine/floor_test.go",
+        "scripts/floor-prototype.py"
+      ]
     },
     {
       "id": "floor-canonical",
