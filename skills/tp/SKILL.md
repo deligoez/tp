@@ -193,9 +193,13 @@ form, `tp import`, and `tp config --extract` — are all fenced under `TP_UNATTE
 **changes the resolved value** to `blocking` exits 2. A write of `all` never trips it, and an import
 carrying an already-resolved `blocking` forward passes. The `--project` form is evaluated **per base**
 over the task files a project scan finds, so a `--project` write beneath a task-level `all` passes for
-that base and is refused — naming the base — as soon as another one would newly resolve `blocking`;
-a base with **no task file at all** is outside that population, which is the one place the exit-2
-promise is scoped rather than unconditional. An **attended** operator writes `blocking` at any sink
+that base and is refused — naming the base — as soon as another one would newly resolve `blocking`.
+Two things scope that exit-2 promise. A base with **no task file**, in a tree that has others, is
+outside the population — tp scans task files and has no enumeration of specs (a tree with no task
+file at all is compared as one empty override, and the write is still refused there). And a scan the
+walk could not finish — an unreadable directory stops it, so every base sorting after it is absent —
+refuses with **exit 3** rather than 2: nothing was compared, so there is nothing to escalate; make
+the path readable and re-run. An **attended** operator writes `blocking` at any sink
 with no refusal. Under a run, if the refusal is an authoring error the unit fixes the document itself
 (omit the imported document's top-level `workflow` key, or carry `"audit_converge_on": "<resolved>"`
 in it); if the unit
