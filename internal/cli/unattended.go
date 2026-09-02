@@ -145,17 +145,16 @@ const (
 // because a fence that aborted on a malformed file would turn a read error into
 // a refusal at a sink that has not yet decided anything.
 //
-// taskPath is the discovered file, returned so a refusal can name the base it
-// speaks for; it is "" when discovery found nothing, which is the one case
-// there is no name to give.
-func fenceOverrideLayers() (taskPath string, task, project model.WorkflowOverride) {
+// It speaks for the active pointer alone, which is the whole of what the
+// task-level write can change. The --project form does not read it: that write
+// lands under every base, and the bases it is compared over come from the scan.
+func fenceOverrideLayers() (task, project model.WorkflowOverride) {
 	if path, err := engine.DiscoverTaskFile(".", flagFile); err == nil {
-		taskPath = path
 		if o, loadErr := engine.LoadTaskWorkflowOverride(path); loadErr == nil {
 			task = o
 		}
 	}
-	return taskPath, task, engine.ProjectWorkflowOverride()
+	return task, engine.ProjectWorkflowOverride()
 }
 
 // fenceAuditConvergeOnSet applies §3's change rule to a tp set --workflow write
@@ -174,28 +173,41 @@ func fenceOverrideLayers() (taskPath string, task, project model.WorkflowOverrid
 // write the same thing. The task-level form writes the top layer of the one base
 // it discovers, so that base is the whole of what it can change and it stays
 // single-base. The --project form writes the layer every base resolves through,
-// so it is evaluated per base over every base the fence can observe: the
-// discovered override plus every scanned task file's own. Row 13's carve-out is
-// per base rather than global — a base whose task override of all shields it
-// passes on its own account, while the rest are still compared.
+// so it is evaluated per base over the bases the scan enumerates. Row 13's
+// carve-out is per base rather than global — a base whose task override of all
+// shields it passes on its own account, while the rest are still compared.
+//
+// The population is the scanned overrides and nothing else. Seeding it with the
+// discovered override as well was measured refusing a tree in which nothing
+// moves: two bases both carrying all and no .tp/local.json make discovery
+// ambiguous, so the seed is the ZERO override — an entry matching no file, which
+// resolves the default and therefore relaxes against any project write of
+// blocking. .tp/local.json is git-ignored, so that is the state of every fresh
+// clone, CI checkout and worktree of a repository holding more than one task
+// file. The seed never carried a base the scan does not: the file discovery
+// finds is a scanned task file too.
 //
 // The population deliberately does NOT carry --extract's unconditional empty
 // override, and row 13 is the reason: measured, appending it refuses a
 // --project write of blocking into a tree whose only base carries a task
-// override of all, which is the write that row requires to pass. The cost is
-// that a base with no task file at all is outside this population — tp scans
-// task files and has no enumeration of specs, so such a base has no shape this
-// fence can see.
+// override of all, which is the write that row requires to pass. The single
+// empty override below is the zero-file case alone, where no base shields
+// anything and there is nothing else to compare. The cost is that a base with no
+// task file at all, in a tree that has other task files, is outside this
+// population — tp scans task files and has no enumeration of specs, so such a
+// base has no shape this fence can see.
 //
-// What a degraded read does NOT do is shrink the population. A missing base
-// cannot trigger a refusal, so every base dropped is a hole in the fence rather
-// than a conservative default, and both ways of dropping one were measured
-// landing the write: engine.ScanProjectTaskFiles returns its partial list *and*
-// the walk error, so keeping the list only when err == nil discards every base
-// the walk did reach and reverts this fence to the single-base form it was
-// widened out of; and skipping a task file that will not parse is the opposite
-// of what fenceOverrideLayers does with the same error, which leaves an empty
-// override that is still compared.
+// A degraded read does not shrink the population, because the command refuses
+// rather than comparing what it managed to read. engine.ScanProjectTaskFiles
+// returns its partial list *and* the walk error, and filepath.WalkDir stops at
+// the first error handed back to it, so every base sorting after an unreadable
+// directory is simply absent — and a base the fence cannot see cannot refuse.
+// Measured against the earlier warn-and-proceed form: a 0000 directory sorting
+// before the task files landed the write at exit 0, and under --quiet
+// output.Notice returned early, so the gap was neither fenced nor reported. A
+// task file that will not parse is the other case and is still compared — it
+// contributes an empty override, exactly as fenceOverrideLayers does with the
+// same error — so the two degraded reads are not treated alike.
 //
 // The refusal names the base it speaks for. The loop is per base, so a message
 // that named none would be byte-identical whether one base moved or fifty, and
@@ -206,7 +218,7 @@ func fenceAuditConvergeOnSet(what, value string, layer auditConvergeOnLayer) {
 	if !engine.Unattended() {
 		return
 	}
-	taskPath, task, project := fenceOverrideLayers()
+	task, project := fenceOverrideLayers()
 	if layer == auditConvergeOnTaskLayer {
 		before := engine.ResolveWorkflowLayers(&task, &project).AuditConvergeOn
 		task.AuditConvergeOn = &value
@@ -220,23 +232,28 @@ func fenceAuditConvergeOnSet(what, value string, layer auditConvergeOnLayer) {
 	afterProject.AuditConvergeOn = &value
 	files, scanErr := engine.ScanProjectTaskFiles(engine.ProjectRoot("."))
 	if scanErr != nil {
-		// The same fact validate --project reports for the same reason: an
-		// incomplete scan that refuses nothing is indistinguishable from a
-		// population that was fully compared. The error value already names
-		// the directory the walk stopped at, so it is not re-derived here.
-		output.Notice(fmt.Sprintf(
-			"warning: project scan incomplete: %v; bases behind it were not compared", scanErr))
+		// ExitFile rather than this fence's own ExitUsage, because an
+		// unreadable path is not a refused decision: there is no approval
+		// that would make it listable and nothing for tp escalate to
+		// record, so a unit sent to escalate here would stop a run over a
+		// chmod. tp config --extract exits ExitFile on this identical error
+		// from this identical call. output.Error writes on every stream
+		// mode, --quiet included, which output.Notice does not.
+		output.Error(ExitFile,
+			fmt.Sprintf("project scan incomplete: %v; audit_converge_on cannot be compared over every base", scanErr),
+			"make that path readable, or move it outside the project root, then re-run")
+		os.Exit(ExitFile)
 	}
-	discovered := ""
-	if taskPath != "" {
-		discovered = filepath.Base(taskPath)
-	}
-	population := []model.WorkflowOverride{task}
-	bases := []string{discovered}
+	population := make([]model.WorkflowOverride, 0, len(files))
+	bases := make([]string, 0, len(files))
 	for _, f := range files {
 		o, _ := engine.LoadTaskWorkflowOverride(f)
 		population = append(population, o)
 		bases = append(bases, filepath.Base(f))
+	}
+	if len(population) == 0 {
+		population = append(population, model.WorkflowOverride{})
+		bases = append(bases, "")
 	}
 	for i := range population {
 		before := engine.ResolveWorkflowLayers(&population[i], &project).AuditConvergeOn
