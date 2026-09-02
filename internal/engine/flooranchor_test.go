@@ -106,3 +106,18 @@ func TestTheAnchorIsTheLastNumberedHeadingAtOrAboveTheUnit(t *testing.T) {
 	assert.Equal(t, []string{"§1", "§1.1", "§1.1", "§2"}, anchorsOfEveryUnit(text))
 }
 
+// TestAHeadingInsideAFencedBlockIsNotAnAnchor pins that the anchor scan reads
+// fences the way step 1 does. Over `spec/*.md` four numbered headings sit inside
+// fenced blocks — `spec/0.1.0.md:921` and `spec/0.16.0-review-orchestration.md`
+// carry them as sample output — and a fence-blind scan re-anchors every unit
+// after one of them to a section the document does not have.
+func TestAHeadingInsideAFencedBlockIsNotAnAnchor(t *testing.T) {
+	text := "## 1. One\n\n```\n## 9. Fenced\n```\n\nA holds 1.\n\n" +
+		"## 2. Two\n\n~~~\n### 9.9 Also fenced\n~~~\n\nB holds 2.\n"
+
+	require.Equal(t, []string{"A holds 1.", "B holds 2."}, FloorUnits(text),
+		"the fenced lines must be gone, or this asserts nothing about anchoring")
+
+	assert.Equal(t, []string{"§1", "§2"}, anchorsOfEveryUnit(text))
+}
+
