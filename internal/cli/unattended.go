@@ -163,21 +163,54 @@ func fenceOverrideLayers() (task, project model.WorkflowOverride) {
 // The comparison is resolved-before against resolved-after rather than the
 // literal against the layer it was written to. That is what makes a --project
 // write of blocking beneath a task override of all pass (§7 row 13).
+//
+// The two layers are evaluated over different populations, because they do not
+// write the same thing. The task-level form writes the top layer of the one base
+// it discovers, so that base is the whole of what it can change and it stays
+// single-base. The --project form writes the layer every base resolves through,
+// so it is evaluated per base over every base the fence can observe: the
+// discovered override plus every scanned task file's own. Row 13's carve-out is
+// per base rather than global — a base whose task override of all shields it
+// passes on its own account, while the rest are still compared.
+//
+// The population deliberately does NOT carry --extract's unconditional empty
+// override, and row 13 is the reason: measured, appending it refuses a
+// --project write of blocking into a tree whose only base carries a task
+// override of all, which is the write that row requires to pass. The cost is
+// that a base with no task file at all is outside this population — tp scans
+// task files and has no enumeration of specs, so such a base has no shape this
+// fence can see.
 func fenceAuditConvergeOnSet(what, value string, layer auditConvergeOnLayer) {
 	if !engine.Unattended() {
 		return
 	}
 	task, project := fenceOverrideLayers()
-	before := engine.ResolveWorkflowLayers(&task, &project).AuditConvergeOn
-	switch layer {
-	case auditConvergeOnTaskLayer:
+	if layer == auditConvergeOnTaskLayer {
+		before := engine.ResolveWorkflowLayers(&task, &project).AuditConvergeOn
 		task.AuditConvergeOn = &value
-	case auditConvergeOnProjectLayer:
-		project.AuditConvergeOn = &value
+		after := engine.ResolveWorkflowLayers(&task, &project).AuditConvergeOn
+		if engine.AuditConvergeOnRelaxes(before, after) {
+			refuseUnattendedAuditConvergeOn(what, fenceSinkSet, before)
+		}
+		return
 	}
-	after := engine.ResolveWorkflowLayers(&task, &project).AuditConvergeOn
-	if engine.AuditConvergeOnRelaxes(before, after) {
-		refuseUnattendedAuditConvergeOn(what, fenceSinkSet, before)
+	afterProject := project
+	afterProject.AuditConvergeOn = &value
+	population := []model.WorkflowOverride{task}
+	if files, err := engine.ScanProjectTaskFiles(engine.ProjectRoot(".")); err == nil {
+		for _, f := range files {
+			if o, loadErr := engine.LoadTaskWorkflowOverride(f); loadErr == nil {
+				population = append(population, o)
+			}
+		}
+	}
+	for i := range population {
+		before := engine.ResolveWorkflowLayers(&population[i], &project).AuditConvergeOn
+		after := engine.ResolveWorkflowLayers(&population[i], &afterProject).AuditConvergeOn
+		if engine.AuditConvergeOnRelaxes(before, after) {
+			refuseUnattendedAuditConvergeOn(what, fenceSinkSet, before)
+			return
+		}
 	}
 }
 
