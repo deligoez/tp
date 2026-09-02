@@ -66,11 +66,14 @@ def blocks(text):
     return out
 
 
-def canonicalise(block, strip_markers="first"):
-    """Step 3. `strip_markers` is the variable under test.
+def canonicalise(block, strip_markers="every"):
+    """Step 3. `strip_markers` selects the rule.
 
-    "first" is §2.1 as written: strip a leading list marker from the block's
-    FIRST line only. "every" is the candidate repair.
+    "every" is §2.1 as it now reads and is the DEFAULT. "first" is the
+    superseded reading, kept so the repair's effect stays measurable — leaving
+    it as the default meant the headline table reported the pre-repair floor,
+    which is how three figures in §2.1/§2.2 came from a branch the spec no
+    longer specifies.
     """
     lines = [BLOCKQUOTE.sub("", ln) for ln in block]
     if strip_markers == "first":
@@ -108,7 +111,7 @@ def in_floor(unit):
     return None
 
 
-def floor_of(text, strip_markers="first", keep_terminator=True):
+def floor_of(text, strip_markers="every", keep_terminator=True):
     units = []
     for b in blocks(text):
         units.extend(split_units(canonicalise(b, strip_markers), keep_terminator))
@@ -141,19 +144,19 @@ def payload_bytes(floor, shape):
 
 def measure(path):
     text = open(path, encoding="utf-8").read()
-    units, floor = floor_of(text)
-    _, floor_notérm = floor_of(text, keep_terminator=False)
-    _, floor_fixed = floor_of(text, strip_markers="every")
+    units, floor = floor_of(text)                                   # §2.1 as it reads
+    _, floor_noterm = floor_of(text, keep_terminator=False)
+    _, floor_first = floor_of(text, strip_markers="first")           # superseded rule
 
     hashes = [sha(u) for u in floor]
     dup = {h: c for h, c in Counter(hashes).items() if c > 1}
     frag = [u for u in floor if len(u) <= 3]
-    hashes_fixed = [sha(u) for u in floor_fixed]
-    dup_fixed = {h: c for h, c in Counter(hashes_fixed).items() if c > 1}
-    frag_fixed = [u for u in floor_fixed if len(u) <= 3]
+    hashes_first = [sha(u) for u in floor_first]
+    dup_first = {h: c for h, c in Counter(hashes_first).items() if c > 1}
+    frag_first = [u for u in floor_first if len(u) <= 3]
 
     # step-4 canonicality: same segmentation, do the hashes agree?
-    agree = sum(1 for a, b in zip(hashes, [sha(u) for u in floor_notérm]) if a == b)
+    agree = sum(1 for a, b in zip(hashes, [sha(u) for u in floor_noterm]) if a == b)
 
     bound = len(floor) * 96 + 512
     return {
