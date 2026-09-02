@@ -87,8 +87,8 @@ var knownWorkflowKeys = map[string]bool{
 	"lock_timeout_seconds": true,
 	"review_clean_rounds":  true, "audit_clean_rounds": true,
 	"review_max_rounds": true, "audit_max_rounds": true, "checks": true,
-	"review_converge_on": true,
-	"run_max_units":      true, "run_max_wall_clock_seconds": true,
+	"review_converge_on": true, "audit_converge_on": true,
+	"run_max_units": true, "run_max_wall_clock_seconds": true,
 	"run_max_budget_usd": true, "run_max_unit_budget_usd": true,
 	"run_max_unit_retries": true, "runner": true,
 }
@@ -147,6 +147,16 @@ func parseWorkflowOverride(raw json.RawMessage) (wo model.WorkflowOverride, warn
 				warnings = append(warnings, "workflow.review_converge_on: expected a string, ignored")
 			} else {
 				wo.ReviewConvergeOn = &s
+			}
+		case "audit_converge_on":
+			// Parsed on the same terms as its twin above: the value is not
+			// validated here, so a stored bad value is surfaced raw by tp config
+			// --resolved and rejected only by a consuming sink (§2).
+			var s string
+			if err := json.Unmarshal(v, &s); err != nil {
+				warnings = append(warnings, "workflow.audit_converge_on: expected a string, ignored")
+			} else {
+				wo.AuditConvergeOn = &s
 			}
 		case "gate_timeout_seconds":
 			wo.GateTimeoutSeconds = intField(k, v)
