@@ -1,6 +1,8 @@
 package engine
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"regexp"
 	"strings"
 )
@@ -315,4 +317,52 @@ func floorHasMeasurementVerb(unit string) bool { return floorVerbRe.MatchString(
 // cannot hide behind the other two.
 func inFloor(unit string) bool {
 	return floorHasDigit(unit) || floorHasCodeSpan(unit) || floorHasMeasurementVerb(unit)
+}
+
+// FloorTextSHA is §2.1 step 5's and §7.2's `text_sha`: the first twelve
+// lowercase hex characters of the sha256 of exactly the canonical unit text,
+// UTF-8 encoded.
+//
+// The algorithm is spelled out in the spec rather than left to the
+// implementation, and this is why: §7.2 has a reader supply the hash for a
+// claim tp did not emit, so a reader with no access to this source has to
+// compute the same twelve characters. The first end-to-end run of the protocol
+// agreed with tp only because the unit read the prototype's source.
+//
+// The truncation is written as the spec's sentence — twelve characters off the
+// encoded digest — rather than as the six bytes it is equivalent to, so a
+// reader comparing the two has nothing to re-derive.
+//
+// The argument is the canonical unit text, never the spec line it came from and
+// never the index's display prefix: §2.2 records that most units of that
+// document exceed the prefix, so a hash over one would carry a disposition
+// across a sentence rewritten from character 61 on.
+func FloorTextSHA(unit string) string {
+	sum := sha256.Sum256([]byte(unit))
+	return hex.EncodeToString(sum[:])[:12]
+}
+
+// FloorOrdinals is §7.2's `ordinal` for a round's units: the 1-based index of
+// each unit among those sharing its `text_sha`, in emission order, and 1 when
+// the hash is unique. The result is parallel to the argument.
+//
+// It takes the HASHES rather than the units, and that is the whole of the
+// design. §7.2 keys the ordinal on `text_sha` and §8 joins on
+// `(text_sha, ordinal)`; an implementation counting by unit text agrees with
+// this one on every input but a sha256 collision, which no test can construct.
+// The wrong reading would therefore be unobservable rather than merely
+// untested, so the argument makes it unwriteable instead.
+//
+// The caller passes the units that carry a hash — the floor, not the set the
+// arms cut (§2.2). That cannot renumber anything: `inFloor` is a function of
+// the unit text alone, so two units with the same text are cut or kept
+// together.
+func FloorOrdinals(hashes []string) []int {
+	ordinals := make([]int, 0, len(hashes))
+	seen := make(map[string]int, len(hashes))
+	for _, h := range hashes {
+		seen[h]++
+		ordinals = append(ordinals, seen[h])
+	}
+	return ordinals
 }
