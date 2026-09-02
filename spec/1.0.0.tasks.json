@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-02T21:43:00.57348Z",
+  "updated_at": "2026-09-02T21:59:10.211569Z",
   "workflow": {},
   "coverage": {
     "total_sections": 21,
@@ -321,7 +321,7 @@
     {
       "id": "ground-clause",
       "title": "tp ground emits its own isolation clause",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli"
       ],
@@ -331,11 +331,22 @@
       "source_sections": [
         "### 4.2 Where the probe runs"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-02T21:43:30.247882Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-02T21:59:10.186326Z",
+      "closed_reason": "- groundIsolationClause is a third constant beside isolationClause and incrementalClause; it permits copying what a probe needs to a directory outside the repository and writing freely inside that copy, and forbids every write inside the repository except the output file the prompt names\n- appendClausesGround takes the body rather than a slice, because grounding emits one prompt so the output_path predicate its two siblings carry would have nothing to discriminate; it strips the body's trailing newline first for the same reason clauseSuffix does, then appends groundIsolationClause and incrementalClause unchanged\n- The ground suffix differs from the one review and audit share, verified by running: groundClauseSuffix() != clauseSuffix(), and the ground suffix carries neither sentence section 4.2 says it overrides — not \"Do not edit any file in the working tree\" and not \"report it with its evidence instead of making the edit\" — while it does carry the outside-the-repository permission\n- Section 11 row 18 passes over three commands and two suffixes, not three: clauseSuffix() is built once and called by both appendClausesReview and appendClausesAudit, so review's and audit's are already byte-identical and only ground's is new. TestClauseConstantsAreSingleLines now covers all three constants.",
+      "gate_passed_at": "2026-09-02T21:59:10.186326Z",
+      "commit_sha": "caf7cab1",
+      "commit_shas": [
+        "caf7cab1",
+        "ed49cee1",
+        "274e269f"
+      ],
+      "commit_files": [
+        "internal/cli/clauses.go",
+        "internal/cli/clauses_test.go",
+        "internal/cli/groundclause_test.go"
+      ]
     },
     {
       "id": "cmd-emit",
