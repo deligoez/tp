@@ -35,3 +35,24 @@ const AuditConvergeOnHint = "must be one of: blocking, all"
 func ValidAuditConvergeOn(v string) bool {
 	return v == AuditConvergeOnAll || v == AuditConvergeOnBlocking
 }
+
+// AuditConvergeOnRelaxes reports whether a write moving the resolved
+// audit_converge_on from before to after relaxes the audit gate — §3's change
+// rule, and the whole of it.
+//
+// It is deliberately a *change* rule rather than the three narrower rules §3
+// names and rejects. Fencing the field, or the value blocking, refuses every
+// import a project makes once it has resolved blocking, because tp import
+// carries the existing block forward — which deadlocks Workflow A step 6 for
+// exactly the opt-in users this release is for. Fencing the transition
+// all → blocking is walked around by writing blocking over an unset field, and
+// misses the import that names neither literal (§7 row 13b).
+//
+// Both arguments are *resolved* values, not stored ones. Under §2's precedence
+// a task override outranks the project config, so a project write of blocking
+// beneath a task override of all leaves after equal to before and passes here.
+// That is why the comparison takes two resolved values rather than a field name
+// and a literal: a caller cannot supply the layer it wrote to instead.
+func AuditConvergeOnRelaxes(before, after string) bool {
+	return after == AuditConvergeOnBlocking && before != AuditConvergeOnBlocking
+}
