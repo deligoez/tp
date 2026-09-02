@@ -32,9 +32,14 @@ var (
 // The prototype carried the same fact as a sentinel string prefixed to the
 // line, which cost it a bug — every table row anchored to §0 because the
 // sentinel matched no line in the file — and a struct field has no such reach.
+//
+// Line is the 1-based line the block's first surviving line sits on, and it is
+// where §7.3's anchor is resolved. It is carried here rather than recovered
+// afterwards because recovering it is the prototype's recorded bug.
 type floorBlock struct {
 	Lines      []string
 	IsTableRow bool
+	Line       int
 }
 
 // isFloorHorizontalRule reports whether a line is a horizontal rule: three or
@@ -66,15 +71,17 @@ func isFloorHorizontalRule(line string) bool {
 func floorBlocks(text string) []floorBlock {
 	blocks := make([]floorBlock, 0)
 	var current []string
+	currentLine := 0
 	flush := func() {
 		if len(current) > 0 {
-			blocks = append(blocks, floorBlock{Lines: current})
+			blocks = append(blocks, floorBlock{Lines: current, Line: currentLine})
 			current = nil
 		}
 	}
 
 	inFence := false
-	for _, line := range strings.Split(text, "\n") {
+	for i, line := range strings.Split(text, "\n") {
+		lineNo := i + 1
 		switch {
 		case floorFenceRe.MatchString(line):
 			inFence = !inFence
@@ -85,11 +92,16 @@ func floorBlocks(text string) []floorBlock {
 		case floorTableRowRe.MatchString(line):
 			if !floorTableSepRe.MatchString(line) {
 				flush()
-				blocks = append(blocks, floorBlock{Lines: []string{line}, IsTableRow: true})
+				blocks = append(blocks, floorBlock{
+					Lines: []string{line}, IsTableRow: true, Line: lineNo,
+				})
 			}
 		case floorAtxHeadingRe.MatchString(line) || isFloorHorizontalRule(line):
 			// dropped
 		default:
+			if len(current) == 0 {
+				currentLine = lineNo
+			}
 			current = append(current, line)
 		}
 	}
