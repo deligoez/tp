@@ -82,6 +82,54 @@ func TestAuditRowsClean_UnusableSeverityBlocks(t *testing.T) {
 	}
 }
 
+// TestAuditSeverityBucket_IsTheBlockingClassifier pins §4's identity where it
+// is decided rather than where it is printed: a non-PASS row's bucket is
+// `error` or `unrecognised` exactly when §2's clean predicate blocks on it, and
+// `warning` or `info` exactly when it does not. That equivalence is what makes
+// `error` + `unrecognised` sum the round's blocking rows for any round at all,
+// rather than for the one fixture the merge test counts.
+//
+// The mutant that must fail it derives the buckets from a second copy of the
+// vocabulary. Such a copy passes every per-shape assertion in this file on the
+// day it is written and drifts silently afterwards, which is the failure §4
+// names — so the assertion is over the two functions agreeing, not over either
+// one's output.
+func TestAuditSeverityBucket_IsTheBlockingClassifier(t *testing.T) {
+	rows := []map[string]any{
+		{"status": "FAIL", "item_id": "a"}, // an absent key
+	}
+	for _, sev := range []any{
+		"error", "warning", "info", // the enum
+		"moderate", "WARNING", " info ", "", // strings outside it, case and space included
+		nil, float64(3), true, []any{"error"}, // and values that are not strings
+	} {
+		rows = append(rows, map[string]any{"status": "FAIL", "item_id": "a", "severity": sev})
+	}
+
+	named := map[string]bool{}
+	for _, row := range rows {
+		bucket := AuditSeverityBucket(row)
+		named[bucket] = true
+
+		blocks := bucket == AuditSeverityError || bucket == AuditSeverityUnrecognised
+		assert.Equal(t, blocks, auditSeverityBlocking(row),
+			"severity %#v buckets as %q, so the clean predicate must agree", row["severity"], bucket)
+		assert.Equal(t, blocks, !AuditRowsClean([]map[string]any{row}, AuditConvergeOnBlocking),
+			"and so must the exported predicate the sinks call")
+	}
+
+	assert.ElementsMatch(t, []string{"error", "warning", "info", AuditSeverityUnrecognised},
+		keysOf(named), `four named buckets and no "" among them`)
+}
+
+func keysOf(m map[string]bool) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	return out
+}
+
 // TestAuditRowsClean_PassRowsAreNotGraded pins the population the predicate
 // reads: its subject is the round's non-PASS rows, so a round holding only PASS
 // rows is clean under both values. It is asserted because every recorded PASS
