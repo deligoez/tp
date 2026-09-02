@@ -1,7 +1,13 @@
 {
   "workflow": {
-    "quality_gate": "./scripts/check-suite-state.sh && golangci-lint run && ./scripts/check-deadcode.sh && ./scripts/check-complexity.sh",
+    "quality_gate": "./scripts/check-suite-state.sh \u0026\u0026 golangci-lint run \u0026\u0026 ./scripts/check-deadcode.sh \u0026\u0026 ./scripts/check-complexity.sh",
     "review_clean_rounds": 2,
-    "audit_clean_rounds": 2
+    "audit_clean_rounds": 2,
+    "checks": [
+      {
+        "class": "code-citation-drift",
+        "cmd": "python3 scripts/check-spec-code-citations.py \"$(tp resume 2\u003e/dev/null | python3 -c 'import sys,json;print(json.load(sys.stdin)[\"spec\"])')\""
+      }
+    ]
   }
 }
