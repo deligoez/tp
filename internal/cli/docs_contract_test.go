@@ -309,3 +309,45 @@ func docSectionBody(t *testing.T, doc, heading string) string {
 	require.NotEmpty(t, body, "the %q section has a body to assert over", heading)
 	return body
 }
+
+// The paragraph in each shipped document that states audit_converge_on's fence,
+// and the qualifier both owe.
+//
+// The defect this guards is a document promising coverage the code does not
+// ship, and it was measured in both files at once while the code's own comment
+// recorded the residue honestly: SKILL.md said a write that changes the
+// resolved value to blocking "exits 2", full stop, and REFERENCE.md said the
+// --project form is "evaluated once per base". It is evaluated once per scanned
+// task file, so a base with no task file at all is outside the population — the
+// fence cannot refuse for it, and a unit reading either sentence meets that as
+// a surprise.
+//
+// Anchored per paragraph rather than per document, for the reason the
+// convergence-wording guards anchor: `audit_converge_on` is named in several
+// places in each file, so a document-wide positive assertion would stay green
+// with the fence paragraph itself silent.
+const (
+	fenceSkillAnchor     = "`blocking` is opt-in and human-only"
+	fenceReferenceAnchor = "is fenced by a change rule, not by field or value"
+	fenceScopeQualifier  = "no task file at all"
+)
+
+// TestDocsScopeTheAuditConvergeOnFence guards v0.37.0 §3's residue where the
+// unit that meets it reads.
+func TestDocsScopeTheAuditConvergeOnFence(t *testing.T) {
+	for _, doc := range []struct{ path, anchor string }{
+		{"skills/tp/SKILL.md", fenceSkillAnchor},
+		{"skills/tp/REFERENCE.md", fenceReferenceAnchor},
+	} {
+		anchored := false
+		for _, para := range strings.Split(readRepoDoc(t, doc.path), "\n\n") {
+			if !strings.Contains(para, doc.anchor) {
+				continue
+			}
+			anchored = true
+			assert.Contains(t, para, fenceScopeQualifier,
+				"%s's fence paragraph scopes the refusal to the bases the --project sink can see", doc.path)
+		}
+		assert.True(t, anchored, "%s still carries the %q paragraph", doc.path, doc.anchor)
+	}
+}
