@@ -76,3 +76,37 @@ func TestTheHashOnAUnitsLineIsTheSHAOfTheTextThatFollowsIt(t *testing.T) {
 			"the hash on the line is the sha256 of the text that follows it")
 	}
 }
+
+// TestUnitsRowsNumberOverEveryUnitAndCarryNoCutOne pins the id `--units` prints
+// to the id the index prints. The two artifacts are read side by side and join
+// on `unit_id`, so a numbering over the floor alone here would name a different
+// unit there.
+//
+// The cut unit sits BETWEEN two floor units, which is the only arrangement the
+// two numberings disagree on: with the cut unit first or last, both readings
+// return the same ids. That the middle unit is cut is a require, not an
+// assumption of the fixture's author.
+func TestUnitsRowsNumberOverEveryUnitAndCarryNoCutOne(t *testing.T) {
+	const kept1 = "The first claim carries `a span`."
+	const dropped = "This sentence tells you nothing about the world."
+	const kept2 = "The third claim carries 3 items."
+	text := kept1 + "\n\n" + dropped + "\n\n" + kept2 + "\n"
+
+	require.Equal(t, []string{kept1, dropped, kept2}, FloorUnits(text),
+		"the fixture is three units in this order")
+	require.False(t, inFloor(dropped), "the MIDDLE unit must be one the arms cut")
+
+	rows := FloorUnitRows(text)
+	require.Len(t, rows, 2, "a cut unit owes no disposition, so it gets no line")
+	assert.Equal(t, "u1", rows[0].ID)
+	assert.Equal(t, "u3", rows[1].ID, "the cut unit consumed u2")
+	assert.Equal(t, kept1, rows[0].Text)
+	assert.Equal(t, kept2, rows[1].Text)
+
+	indexIDs := make([]string, 0, 2)
+	for _, r := range FloorIndexRows(text, func(int) string { return "§1" }) {
+		indexIDs = append(indexIDs, r.ID)
+	}
+	assert.Equal(t, []string{"u1", "u3"}, indexIDs,
+		"and they are the ids the index prints for the same text")
+}
