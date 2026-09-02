@@ -293,3 +293,49 @@ func TestAuditConvergeOnFence_ImportUncoversProjectBlocking(t *testing.T) {
 	assert.Equal(t, "all", fenceResolved(t, dir), "and the block stayed covered")
 }
 
+// TestAuditConvergeOnFence_ExtractPassesWhatPreservesResolution pins the fourth
+// write path. tp config --extract runs §3's change rule over the population it
+// already reads: each scanned task file's own override, resolved over the
+// project block before and after the merge, with the hoisted fields stripped
+// from the task layer exactly as the thinning strips them.
+//
+// This asserts the passing half only, and the reason is measured rather than
+// reasoned — which is the mistake §3 records a draft of itself making at this
+// very command. No input reaches the refusal at this sink today, for two
+// independent reasons. hoistedFields does not yet carry audit_converge_on, so
+// --extract cannot move the field at all; and — this one survives that landing —
+// the scanned-file population is resolution-preserving by construction, since a
+// task file whose blocking is hoisted into .tp/config.json and then stripped
+// from its own block resolves blocking from the project layer afterwards exactly
+// as it resolved it from the task layer before.
+//
+// Built and run rather than argued: with the field added to computeCommonPolicy,
+// hoistedFields and mergeCommon in a copy of this tree, `TP_UNATTENDED=1 tp
+// config --extract` over two task files carrying blocking exits 0 and hoists it,
+// while a third spec with no task file at all moves from default/all to
+// project/blocking. That third base is the refusing input, and widening the
+// population to reach it is a separate piece of work.
+func TestAuditConvergeOnFence_ExtractPassesWhatPreservesResolution(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
+	for _, base := range []string{"a", "b"} {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, base+".md"),
+			[]byte("# S\n\n## 1. Setup\n\nDo the thing.\n"), 0o600))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, base+".tasks.json"),
+			[]byte(`{"version":1,"spec":"`+base+`.md","tasks":[],"workflow":`+
+				`{"audit_converge_on":"blocking","review_max_rounds":7}}`), 0o600))
+	}
+
+	out, stderr, code := runTPFence(t, dir, true, "config", "--extract")
+	require.Equal(t, 0, code, "the hoist preserves what every scanned file resolves: %s", stderr)
+	var res map[string]any
+	require.NoError(t, json.Unmarshal([]byte(out), &res))
+	assert.Contains(t, res["hoisted"], "review_max_rounds",
+		"the common field was hoisted, so the fence ran on a command that had work to do")
+
+	data, err := os.ReadFile(filepath.Join(dir, "a.tasks.json"))
+	require.NoError(t, err)
+	assert.Contains(t, string(data), `"audit_converge_on": "blocking"`,
+		"and the command completed rather than aborting part-written")
+}
+
