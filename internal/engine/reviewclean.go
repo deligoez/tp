@@ -90,8 +90,10 @@ func ReviewRoundClean(specPath string, entry *ReviewRound, convergeOn string) bo
 // survivor is never counted here. A round whose recorded findings file is
 // missing yields 0. Read live from the round's recorded findings, mirroring
 // ReviewRoundClean, so a later --resolve or converge-on switch re-evaluates it
-// without re-recording. Review-only; audit convergence has no non-blocking
-// notion.
+// without re-recording. Review-only: no audit payload carries nonblocking_open.
+// Under audit_converge_on=blocking the audit side does have rows a clean round
+// closed over, but it reports them as tp audit --merge's by_severity and as the
+// accepted-row numeral in next_action, never through this count.
 func ReviewRoundNonBlockingOpen(specPath string, entry *ReviewRound, convergeOn string) int {
 	if convergeOn == ReviewConvergeOnAll {
 		return 0
