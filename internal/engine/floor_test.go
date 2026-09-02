@@ -769,3 +769,45 @@ func TestTheVerbArmIsExactlyTheTwelveListedVerbs(t *testing.T) {
 		})
 	}
 }
+
+// TestTheVerbArmMatchesWholeWordsOnly settles what §2.1 leaves open. Its table
+// says the unit "contains one of" the twelve, and read as plain substring
+// containment that is untenable: "Transition" contains `ran`, "withheld"
+// contains `held`, "discounted" contains `counted`. Over `spec/*.md` the two
+// readings disagree on 254 units, every one of them a false positive for the
+// substring reading, so the arm matches whole words.
+//
+// Each case carries the substring INSIDE a longer word and nothing else, so the
+// unit is in the floor under the substring reading and out under this one — and
+// the positives are asserted beside them, because a rule that stopped matching
+// altogether would pass a negatives-only test.
+func TestTheVerbArmMatchesWholeWordsOnly(t *testing.T) {
+	notAVerb := map[string]string{
+		"ran inside Transition":     "Transition open to wip.",
+		"ran inside branches":       "The branches diverge and nobody merges them.",
+		"held inside withheld":      "Nothing about the round was withheld.",
+		"counted inside discounted": "The cost of a second pass is discounted here.",
+		"fired inside misfired":     "A misfired hook leaves the gate green.",
+	}
+	for name, unit := range notAVerb {
+		t.Run(name, func(t *testing.T) {
+			require.False(t, strings.ContainsAny(unit, "0123456789`"),
+				"the verb arm must be the only arm that could hold")
+
+			assert.False(t, floorHasMeasurementVerb(unit), "verb arm")
+			assert.False(t, inFloor(unit), "a verb inside a longer word is not the verb")
+		})
+	}
+
+	for name, unit := range map[string]string{
+		"ran as a word":  "The suite ran clean on the third attempt of the morning.",
+		"held as a word": "The invariant held for every input the round put to it.",
+	} {
+		t.Run(name, func(t *testing.T) {
+			require.False(t, strings.ContainsAny(unit, "0123456789`"))
+
+			assert.True(t, floorHasMeasurementVerb(unit), "verb arm")
+			assert.True(t, inFloor(unit), "the whole word still matches")
+		})
+	}
+}
