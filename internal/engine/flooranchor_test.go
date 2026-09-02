@@ -164,3 +164,27 @@ func TestTheAnchorIndexIsOverEveryUnitIncludingTheOnesTheArmsCut(t *testing.T) {
 	assert.Equal(t, []string{"u1 §1", "u3 §2"}, anchorsOfIndexRows(text))
 }
 
+// TestABlockThatStraddlesADroppedHeadingKeepsTheSectionItOpensIn states the one
+// case §7.3's rule does not settle, so it is a decision rather than an accident.
+//
+// §2.1 step 2 splits blocks on blank lines and a dropped heading is not a
+// boundary, so a heading with prose flush against it on both sides leaves one
+// block whose lines span two sections — and a unit of that block can straddle
+// the heading, which has no per-unit answer at all. The anchor is resolved at
+// the line the block opens on, so the whole block stays in the section it
+// started in.
+//
+// Measured over this repository's 54 specs: six headings are not preceded by a
+// blank line and NONE is followed by prose, so the corpus has zero instances;
+// the fixture is constructed, and `require` on the block count is what makes it
+// the case under test rather than two ordinary blocks.
+func TestABlockThatStraddlesADroppedHeadingKeepsTheSectionItOpensIn(t *testing.T) {
+	text := "## 1. One\n1 before the heading.\n## 2. Two\n2 after the heading.\n"
+
+	blocks := floorBlocks(text)
+	require.Len(t, blocks, 1, "the heading must not have split the block")
+	require.Len(t, blocks[0].Lines, 2)
+
+	assert.Equal(t, []string{"§1", "§1"}, anchorsOfEveryUnit(text))
+}
+
