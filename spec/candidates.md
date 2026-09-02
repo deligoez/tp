@@ -116,41 +116,66 @@ the release that pins the emit-time hash makes structurally possible.
 
 ---
 
-## Survived prototyping — two lint rules this review produced
+## Survived prototyping — one lint rule
 
-Both were prototyped against **the pre-repair text of the defect that motivated them**, which is the
-bar the two refuted rules above failed. Both go to zero after the repair, so neither is a permanent
-scold.
-
-### `forward-spec-ref` — a shipped spec must not name a spec above the latest tag
+### `forward-spec-ref` — a spec must not name a spec numbered above itself
 
 | corpus | violations |
 |---|---|
-| 17 shipped specs, pre-repair | **18** |
-| the same 17 today | **0** |
+| 51 spec files, pre-repair | **18** |
+| the same today | **0** |
 
-Every one of the eighteen was verified stale by hand during the review that found them. **The false
-positive rate is zero by construction**: each was reworded to name the release's *subject* with no
-loss, so a legitimate need to name a pending file never arose.
+Every one of the eighteen was verified stale by hand during the review that found them, and each was
+reworded to name the release's *subject* with no loss — so **a legitimate need to name a
+higher-numbered file never arose, and the false-positive rate is zero by construction.**
 
-**The rule is a rot predictor, not a correctness claim.** A shipped→pending reference is not wrong the
-day it is written; it is wrong the day the pending file is renumbered, and that has now happened four
-times. Detection needs only `git describe --tags` and two filename parses.
+**The predicate needs the shipped boundary, and a draft that claimed otherwise was falsified by a
+stress test.** *"Target numbered above the referrer"* alone looked sufficient across four directions —
+until it was run for false positives and produced one: `spec/0.36.0.md:566` names `spec/0.37.0.md`,
+which has since shipped, so that reference is frozen at both ends and will never rot. Flagging it is
+noise, and one false positive in nineteen fails this project's own zero-FP bar.
 
-### `broken-cross-ref`, extended across files
-
-tp already flags `§X.Y step N` when section X.Y has fewer than N items — **inside one file**. The same
-predicate across files finds a reference to a section the target does not have:
-
-| corpus | sectioned cross-file refs | broken |
+| direction | at risk? | instances |
 |---|---|---|
-| 51 spec files, pre-repair | 35 | **10** |
-| the same today | 22 | **0** |
+| shipped → **pending** | **yes** — every renumber breaks it | 18 |
+| shipped → later **shipped** | no — both ends frozen | 1, and it is the false positive |
+| pending → *lower* pending | no — the target ships first and stops moving | 2, both fine |
+| pending → *higher* pending | **yes** — the target can still move | 0 |
 
-**`spec/.tp-review/` must be excluded and that is the whole design risk.** Over the raw corpus the
-rule fires **173** times, of which **163 are inside round snapshots** — frozen photographs whose
-references were correct when taken. Flagging them would make the rule 94% noise and is the obvious way
-to get this wrong.
+So the rule is: **the target is numbered above the referrer *and* is not yet shipped.** 18 findings,
+0 false positives.
+
+**It still fits tp's lint architecture, but the fit is narrower than it first appeared.** All thirteen
+existing rules are pure functions of the spec's own text — **not one receives a path** — and the
+repo-aware checks (`check-spec-code-citations.py`) live outside lint as `workflow.checks` scripts for
+exactly that reason. This rule stays pure only if the *caller* supplies two strings: the referrer's own
+version (from the filename it already holds) and the latest shipped version. **The caller therefore
+takes a git dependency `tp lint` does not have today**, which is the open cost, not a detail. A file
+whose name is not a version (`candidates.md`, `0.35.0-candidates.md`) yields no self-version and is
+skipped; a caller that cannot determine the shipped boundary reports nothing rather than guessing.
+
+**It is a rot predictor, not a correctness claim.** A reference to a higher-numbered spec is not wrong
+the day it is written; it is wrong the day that spec is renumbered, and that has now happened four
+times.
+
+### Refuted alongside it: `broken-cross-ref` extended across files
+
+The obvious companion — flag `spec/X.md §Y` where X has no §Y — was prototyped and **its marginal
+yield over `forward-spec-ref` is zero.**
+
+| | |
+|---|---|
+| broken sectioned refs across both trees, snapshots included | **312** |
+| of those, target ≤ referrer (the only case `forward-spec-ref` cannot see) | **0** |
+
+Every broken section reference in the entire corpus points at a **higher-numbered** spec, so the
+cheaper rule — which never opens the target file — catches all of them. The cross-file rule would also
+have needed `spec/.tp-review/` excluded: 163 of its 173 raw hits are inside round snapshots, frozen
+photographs whose references were correct when taken.
+
+**It is not refuted in principle** — a mistyped section reference into a shipped spec would be its
+alone. There is simply no instance of one in 312 findings, and a rule with no demonstrated
+independent case does not ship.
 
 ---
 
