@@ -293,6 +293,53 @@ func TestAuditConvergeOnFence_ImportUncoversProjectBlocking(t *testing.T) {
 	assert.Equal(t, "all", fenceResolved(t, dir), "and the block stayed covered")
 }
 
+// TestAuditConvergeOnFence_ImportExistsGuardPrecedesTheFence asserts row 13b's
+// precondition rather than assuming it, which is the sibling the test above
+// names.
+//
+// §7 row 13b records that over a tasks-bearing target tp import exits 3 at the
+// exists-guard before the fence is reached. That is not a footnote about
+// fixture hygiene: an import row built over a populated target is refused
+// either way, so an assertion phrased as "the import is refused" passes green
+// with no fence built at all. 3 and 2 are different answers, and this test
+// makes the difference the assertion — the exit code, the guard that produced
+// it, and the absence of the fence's own wording from a message that would
+// otherwise be indistinguishable to an agent reading only "refused".
+//
+// The closing half runs the same document over the zero-task shell, so the two
+// answers are a discrimination made in one place rather than a claim about
+// what some other test would have seen.
+func TestAuditConvergeOnFence_ImportExistsGuardPrecedesTheFence(t *testing.T) {
+	dir := fenceShell(t, `{"audit_converge_on":"all"}`, `{"audit_converge_on":"blocking"}`)
+	// Everything but the target's emptiness is row 13b's fixture.
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "s.tasks.json"),
+		[]byte(`{"version":1,"spec":"s.md","tasks":[{"id":"t0","title":"T0","status":"open",`+
+			`"estimate_minutes":5,"acceptance":"Already here.","source_sections":["## 1. Setup"]}],`+
+			`"workflow":{"audit_converge_on":"all"}}`), 0o600))
+	doc := fenceImportDoc(t, dir, `{"review_max_rounds":5}`)
+
+	_, stderr, code := runTPFence(t, dir, true, "import", doc)
+
+	e := errJSON(t, stderr)
+	require.Equal(t, 3, code, "the exists-guard answers first, and 3 is not 2: %s", stderr)
+	assert.Equal(t, float64(3), e["code"], "and the envelope reports the same code")
+	msg, ok := e["error"].(string)
+	require.True(t, ok, "the envelope carries a message")
+	assert.Contains(t, msg, "task file already exists",
+		"it is the exists-guard that answered")
+	assert.NotContains(t, msg, "audit_converge_on",
+		"and the fence was never reached, so it cannot be what refused")
+	assert.Equal(t, "all", fenceResolved(t, dir), "the refused import reached no file")
+
+	// The same document, the same environment, the same two layers — only the
+	// target's emptiness differs, and that is what moves the answer from the
+	// exists-guard to the fence.
+	shell := fenceShell(t, `{"audit_converge_on":"all"}`, `{"audit_converge_on":"blocking"}`)
+	shellDoc := fenceImportDoc(t, shell, `{"review_max_rounds":5}`)
+	_, stderr, code = runTPFence(t, shell, true, "import", shellDoc)
+	assertFenceRefused(t, stderr, code, "the same document over a zero-task shell")
+}
+
 // TestAuditConvergeOnFence_ExtractPassesWhatPreservesResolution pins the fourth
 // write path. tp config --extract runs §3's change rule over the population it
 // already reads: each scanned task file's own override, resolved over the
