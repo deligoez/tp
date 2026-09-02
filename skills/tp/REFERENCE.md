@@ -476,6 +476,7 @@ spec/
 | `review_clean_rounds` | int | 2 | 1-10 | settable |
 | `audit_clean_rounds` | int | 2 | 1-10 | settable |
 | `review_converge_on` | string | `blocking` | `blocking`\|`all` | settable (a review round is **clean** when no surviving finding is critical/high under `blocking`, or when no finding survives under `all`; audit never reads it) |
+| `audit_converge_on` | string | `all` | `blocking`\|`all` | settable, and the one **fenced under `TP_UNATTENDED`** by a change rule (v0.37.0; an audit round is **clean** when it has no non-`PASS` row under `all`, or when no non-`PASS` row carries a blocking severity under `blocking`; review never reads it) |
 | `review_max_rounds` | int | 0 | 0-50 | settable (0 = no cap) |
 | `audit_max_rounds` | int | 0 | 0-50 | settable (0 = no cap) |
 | `run_max_units` | int | 100 | 1-10000 | settable (v0.35.0; `tp run` cap) |
@@ -501,6 +502,30 @@ exceptions, and both name a command the driver executes, so neither has a setter
   `tp set --workflow runner=…` and `tp set --local notify_cmd=…` exit 2 with
   `names a command the driver executes and cannot be set under TP_UNATTENDED, at any layer`.
 - `TP_RUNNER_SEAM` is a test-only override of `runner` that outranks every layer including a CLI flag.
+
+**The two converge-on fields are twins with deliberately opposite defaults (v0.37.0).**
+`review_converge_on` defaults to `blocking`; `audit_converge_on` defaults to `all`, which is the
+behaviour tp shipped before the field existed. The vocabularies do not overlap and neither field is
+read by the other phase: review grades `critical`/`high` as blocking, audit grades `error` — plus
+**any severity tp cannot grade**, which is treated as blocking rather than ignored, so a row with
+`severity: null`, an absent key, a non-string value or a string outside the enum keeps a round from
+being clean under `blocking`. `severity` on an audit row is self-declared and nothing on the audit
+path validates it, which is why the default is not `blocking`.
+
+An audit round's `clean` verdict is **stamped at record time, not recomputed live** (the review twin
+recomputes). Setting the knob therefore governs rounds recorded *after* it is set, in both
+directions: a round recorded under `blocking` keeps `clean: true` when the knob returns to `all`, so
+one approved round of `blocking` relaxes that cycle's streak permanently — re-record the round to
+undo it. `role_streaks[].open`, `consecutive_clean` and `spec_coverage_clean_rounds` stay
+severity-blind, so under `blocking` a round can record `clean: true` beside a non-zero `open`.
+
+Illegal values are refused at both ends with the same hint as `review_converge_on`
+(`must be one of: blocking, all`): a bad literal at a write sink is a **usage error (exit 2)**, and a
+bad value already stored, reaching `tp audit --record`/`--status`, is a **validation error (exit 1)**.
+The four write paths are `tp set --workflow`, its `--project` form, `tp import` and
+`tp config --extract`; all four are fenced under `TP_UNATTENDED` by the change rule described in
+[`TP_UNATTENDED`](#tp_unattended--user-only-decisions-fail-closed), and an attended operator writes
+`blocking` at any of them with no refusal.
 
 Out-of-range `tp set --workflow` writes are rejected with exit 1. Out-of-range values in a hand-edited task file fall back at read time (`gate_timeout_seconds`→600, caps→0) and `tp validate` warns.
 
