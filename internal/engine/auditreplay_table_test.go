@@ -96,3 +96,49 @@ func TestAuditReplayReproducesTheTableThatDecidesTheDefault(t *testing.T) {
 	}
 }
 
+// TestAuditReplayCellsNeedTheFieldResolvedBeforeRoundOne measures §2.1's
+// precondition rather than leaving it to the reader. Because §2 stamps `clean`
+// at record time, a round recorded before the knob resolves keeps the verdict
+// `all` gave it, so the round the field resolves at is an input to every cell
+// above — and the cells are the best column of that input.
+//
+// The property asserted is that delaying resolution never converges earlier and
+// somewhere converges later. §2.1 states this as an arithmetic floor —
+// "setting it at round k converges no earlier than k + audit_clean_rounds" —
+// and **that floor is false on this corpus under either reading of k**: v0.35.0
+// rounds 8 and 9 are clean under `all` as well, so a replay resolving at round 9
+// converges at round 8 for audit_clean_rounds 1 and at 9 for 2, both below the
+// floor. The floor holds only while every pre-resolution round is unclean, which
+// is a condition §2.1 does not state; monotonicity is the part that is true of
+// the whole corpus, and it carries the same conclusion about the table.
+//
+// Monotonicity alone would also hold for a replay that ignored resolvesAt, so
+// the strict-degradation guard is what makes this a test of the precondition.
+func TestAuditReplayCellsNeedTheFieldResolvedBeforeRoundOne(t *testing.T) {
+	for _, tc := range auditReplayTable {
+		t.Run(fmt.Sprintf("v%s/audit_clean_rounds=%d", tc.cycle, tc.cleanRounds), func(t *testing.T) {
+			rounds := loadAuditReplayRounds(t, tc.cycle)
+			n := len(rounds)
+
+			best := auditReplayConvergence(rounds, AuditConvergeOnBlocking, tc.cleanRounds, 1)
+			require.Equal(t, tc.blocking, best,
+				"the table's cell must be the column this test calls the best one")
+
+			worse, previous := 0, auditReplayRank(best, n)
+			for resolvesAt := 2; resolvesAt <= n; resolvesAt++ {
+				got := auditReplayRank(
+					auditReplayConvergence(rounds, AuditConvergeOnBlocking, tc.cleanRounds, resolvesAt), n)
+				assert.GreaterOrEqualf(t, got, previous,
+					"resolving at round %d converged earlier than resolving at round %d did",
+					resolvesAt, resolvesAt-1)
+				if got > auditReplayRank(best, n) {
+					worse++
+				}
+				previous = got
+			}
+			require.NotZero(t, worse,
+				"the precondition is untested unless some later resolution loses the table's cell")
+		})
+	}
+}
+
