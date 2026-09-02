@@ -432,3 +432,17 @@ func TestProseSplitsAtATerminatorFollowedByWhitespace(t *testing.T) {
 		})
 	}
 }
+
+// TestStep5TrimsAndDropsEmpties asserts §2.1 step 5 at the seam rather than
+// through FloorUnits, and says why: step 3 has already collapsed and trimmed
+// everything FloorUnits can reach, so no spec text produces a segment needing
+// either. Asserting it here is the difference between a rule that holds and a
+// rule that is merely unreachable — floorSplitUnits is also what a later step
+// would reuse, and it must not hand back a padded or empty unit.
+func TestStep5TrimsAndDropsEmpties(t *testing.T) {
+	assert.Equal(t, []string{"Alpha holds 1."},
+		floorSplitUnits("  Alpha holds 1.  "), "the segment is trimmed")
+	assert.Equal(t, []string{"."},
+		floorSplitUnits(". "), "the empty tail after the terminator is dropped")
+	assert.Empty(t, floorSplitUnits("   "), "a whitespace-only input yields no unit")
+}
