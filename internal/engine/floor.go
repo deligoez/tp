@@ -16,6 +16,7 @@ var (
 	floorAtxHeadingRe = regexp.MustCompile(`^\s*#`)
 	floorWhitespaceRe = regexp.MustCompile(`\s+`)
 	floorBlockquoteRe = regexp.MustCompile(`^\s*>\s?`)
+	floorListMarkerRe = regexp.MustCompile(`^\s*(?:[-*+]\s+|\d+\.\s+)`)
 )
 
 // floorBlock is one block of §2.1 step 2: the lines that survived step 1's
@@ -151,8 +152,16 @@ func floorTableRowUnit(line string) string {
 }
 
 // floorCanonicalise is §2.1 step 3 for a prose block: strip a leading `> ` from
-// every line, then join the block's lines with a single space and collapse
-// whitespace runs to one.
+// every line, strip a leading list marker from every line only when the block's
+// first line opens a list, then join the block's lines with a single space and
+// collapse whitespace runs to one.
+//
+// Both halves of the marker rule are repairs and they fail in opposite
+// directions. Stripping only the first line leaves each later item's marker
+// embedded, and step 4 then emits the bare strings `2.` through `9.` as units.
+// Stripping every line unconditionally deletes text: hard-wrapped prose puts an
+// ordinal at the start of a continuation line, and the unit silently loses it —
+// same sentence, different `text_sha`, decided by where the line breaks fell.
 //
 // The collapse is not cosmetic. `text_sha` (§7.2) is the sha256 of exactly this
 // string, so a surviving double space is a hash tp and a reader compute
@@ -167,7 +176,15 @@ func floorTableRowUnit(line string) string {
 func floorCanonicalise(lines []string) string {
 	stripped := make([]string, 0, len(lines))
 	for _, ln := range lines {
-		stripped = append(stripped, strings.TrimSpace(floorBlockquoteRe.ReplaceAllString(ln, "")))
+		stripped = append(stripped, floorBlockquoteRe.ReplaceAllString(ln, ""))
+	}
+	// The gate: a real list opens with a marker, so the block's FIRST line
+	// decides for all of them. Stripping every line unconditionally deletes
+	// text, and stripping only the first leaves the rest embedded.
+	if len(stripped) > 0 && floorListMarkerRe.MatchString(stripped[0]) {
+		for i, ln := range stripped {
+			stripped[i] = floorListMarkerRe.ReplaceAllString(ln, "")
+		}
 	}
 	joined := floorWhitespaceRe.ReplaceAllString(strings.Join(stripped, " "), " ")
 	return strings.TrimSpace(joined)
