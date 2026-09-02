@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-02T22:20:21.203861Z",
+  "updated_at": "2026-09-02T22:42:55.195501Z",
   "workflow": {},
   "coverage": {
     "total_sections": 21,
@@ -24,7 +24,7 @@
     {
       "id": "floor-arms",
       "title": "the three arms decide floor membership",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -37,11 +37,24 @@
       "source_sections": [
         "### 2.1 The floor"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-02T22:22:03.836228Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-02T22:42:55.162943Z",
+      "closed_reason": "- inFloor returns true when a unit holds a digit, a backtick-delimited span, or one of section 2.1's twelve verbs, and the twelve are pinned as a set so neither an addition nor a removal passes\n- The three arms are separately assertable as floorHasDigit, floorHasCodeSpan and floorHasMeasurementVerb, and every single-arm fixture's isolation is asserted without the predicates under test, looked up by name rather than by index after an inserted row silently repointed the index-based assertions at the wrong fixtures\n- Section 11 rows 1 and 2 pass, row 2 on a bare `internal/cli/audit.go` carrying no digit and no listed verb. The digit arm is spelled \\d, which RE2 defines as exactly [0-9]: verified by running, it matches ASCII 0 and does not match Arabic-Indic U+0664. A [1-9] mutant was found green against the whole table because every other fixture reached the arm through 1-9; the \"the only digit is zero\" case now kills it.\n- Out of scope, recorded: the port refuted scripts/floor-prototype.py's identifier arm, which tested for a lone backtick where section 2.1 says a span. They disagree on 21 of the corpus's 7,368 units, every one a code span whose delimiters landed in different units when step 4 split between them. The prototype is fixed in 60dbd4c8.",
+      "gate_passed_at": "2026-09-02T22:42:55.162943Z",
+      "commit_sha": "ee8288be",
+      "commit_shas": [
+        "ee8288be",
+        "81cd4952",
+        "fbb10b0c",
+        "4c054954",
+        "60dbd4c8"
+      ],
+      "commit_files": [
+        "internal/engine/floor.go",
+        "internal/engine/floor_test.go",
+        "scripts/floor-prototype.py"
+      ]
     },
     {
       "id": "floor-hash",
