@@ -518,7 +518,7 @@ spec/
 | `review_clean_rounds` | int | 2 | 1-10 | settable |
 | `audit_clean_rounds` | int | 2 | 1-10 | settable |
 | `review_converge_on` | string | `blocking` | `blocking`\|`all` | settable (a review round is **clean** when no surviving finding is critical/high under `blocking`, or when no finding survives under `all`; audit never reads it) |
-| `audit_converge_on` | string | `all` | `blocking`\|`all` | settable, and the one **fenced under `TP_UNATTENDED`** by a change rule (v0.37.0; an audit round is **clean** when it has no non-`PASS` row under `all`, or when no non-`PASS` row carries a blocking severity under `blocking`; review never reads it) |
+| `audit_converge_on` | string | `all` | `blocking`\|`all` | settable, and the one **fenced under `TP_UNATTENDED`** — by a change rule at `tp set --workflow`, `tp import` and `tp config --extract`, and by a value rule at `tp set --workflow --project` (v0.37.0; an audit round is **clean** when it has no non-`PASS` row under `all`, or when no non-`PASS` row carries a blocking severity under `blocking`; review never reads it) |
 | `review_max_rounds` | int | 0 | 0-50 | settable (0 = no cap) |
 | `audit_max_rounds` | int | 0 | 0-50 | settable (0 = no cap) |
 | `run_max_units` | int | 100 | 1-10000 | settable (v0.35.0; `tp run` cap) |
@@ -565,9 +565,10 @@ Illegal values are refused at both ends with the same hint as `review_converge_o
 (`must be one of: blocking, all`): a bad literal at a write sink is a **usage error (exit 2)**, and a
 bad value already stored, reaching `tp audit --record`/`--status`, is a **validation error (exit 1)**.
 The four write paths are `tp set --workflow`, its `--project` form, `tp import` and
-`tp config --extract`; all four are fenced under `TP_UNATTENDED` by the change rule described in
-[`TP_UNATTENDED`](#tp_unattended--user-only-decisions-fail-closed), and an attended operator writes
-`blocking` at any of them with no refusal.
+`tp config --extract`; all four are fenced under `TP_UNATTENDED` — by the change rule at
+`tp set --workflow`, `tp import` and `tp config --extract`, and by a value rule at the `--project`
+form, both described in [`TP_UNATTENDED`](#tp_unattended--user-only-decisions-fail-closed) — and an
+attended operator writes `blocking` at any of them with no refusal.
 
 Out-of-range `tp set --workflow` writes are rejected with exit 1. Out-of-range values in a hand-edited task file fall back at read time (`gate_timeout_seconds`→600, caps→0) and `tp validate` warns.
 
