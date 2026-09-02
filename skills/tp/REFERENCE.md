@@ -358,7 +358,8 @@ override, and it is prospective — after the hoist the next `tp init`/`tp impor
 workflow block that resolves `blocking` from the project layer, with no fenced write ever occurring.
 `--force` does not exempt it.
 
-The refusal message names **all three** exits and the condition selecting each, because a unit
+The refusal names the exits **its own sink has** and the condition selecting each — three at
+`tp import`, two at `tp set` (either layer) and at `tp config --extract` — because a unit
 reading only "refused" stops a run over an authoring error one edit fixes, while a unit that meant
 the relax and reads only the authoring exits writes the resolved value back, passes, and silently
 reverts an operator-approved `blocking`. The authoring exits differ by sink: at `tp import` the
