@@ -29,6 +29,7 @@ type Workflow struct {
 	ReviewMaxRounds    int     `json:"review_max_rounds"`
 	AuditMaxRounds     int     `json:"audit_max_rounds"`
 	ReviewConvergeOn   string  `json:"review_converge_on,omitempty"`
+	AuditConvergeOn    string  `json:"audit_converge_on,omitempty"`
 
 	RunMaxUnits            int             `json:"run_max_units"`
 	RunMaxWallClockSeconds int             `json:"run_max_wall_clock_seconds"`
