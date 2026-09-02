@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/deligoez/tp/internal/engine"
@@ -205,6 +206,42 @@ func mergeCommon(dst, common *model.WorkflowOverride) {
 	}
 }
 
+// fenceAuditConvergeOnExtract applies v0.37.0 §3's change rule to tp config
+// --extract, the fourth write path. A draft of §3 exempted this command as
+// "resolution-preserving by construction"; that was reasoned rather than run,
+// and running it refuted it — --extract preserves resolution for the task files
+// it *scanned*, and changes it for every context without a task-level override.
+// --force does not exempt it: it is not tp import --force, which is a named
+// unattended decision, and it must not become one silently.
+//
+// This is the sink, evaluated over the population the command already reads:
+// each scanned task file's own override, resolved over the project block before
+// and after the merge, with the hoisted fields stripped from the task layer
+// exactly as StripTaskWorkflowFields will strip them. Widening the population
+// to every base the repository resolves — the bases with no task file, which
+// are the ones §3's measurement moved from default to project — is a separate
+// piece of work and is not done here.
+func fenceAuditConvergeOnExtract(overrides []model.WorkflowOverride, project, common *model.WorkflowOverride, hoisted []string) {
+	if !engine.Unattended() {
+		return
+	}
+	after := *project
+	mergeCommon(&after, common)
+	stripped := slices.Contains(hoisted, "audit_converge_on")
+	for i := range overrides {
+		beforeValue := engine.ResolveWorkflowLayers(&overrides[i], project).AuditConvergeOn
+		taskLayer := overrides[i]
+		if stripped {
+			taskLayer.AuditConvergeOn = nil
+		}
+		afterValue := engine.ResolveWorkflowLayers(&taskLayer, &after).AuditConvergeOn
+		if engine.AuditConvergeOnRelaxes(beforeValue, afterValue) {
+			refuseUnattendedAuditConvergeOn("tp config --extract")
+			return
+		}
+	}
+}
+
 // gitWorkingTreeDirty reports whether `git status --porcelain` is non-empty in
 // dir. inRepo is false when dir is not inside a git repository.
 func gitWorkingTreeDirty(dir string) (dirty, inRepo bool) {
@@ -294,6 +331,12 @@ func runConfigExtract() error {
 			os.Exit(ExitFile)
 			return nil
 		}
+		// The fence runs on the loaded project block rather than a
+		// re-discovered one, so it compares the exact bytes the merge below
+		// is about to change. It is deliberately past the --dry-run return
+		// above: --dry-run writes nothing, so it changes no resolved value
+		// and §3's rule has nothing to refuse.
+		fenceAuditConvergeOnExtract(overrides, &pc.Workflow, &common, fields)
 		mergeCommon(&pc.Workflow, &common)
 		if err := engine.WriteProjectConfig(tpDir, &pc); err != nil {
 			output.Error(ExitFile, err.Error())
