@@ -62,3 +62,28 @@ func TestSection11Row21APreHeadingUnitAnchorsToSectionZero(t *testing.T) {
 	assert.Equal(t, []string{"u1 §0", "u2 §0", "u3 §1"}, anchorsOfIndexRows(text))
 }
 
+// TestATableRowAnchorsToItsOwnSectionNotToSectionZero is the defect
+// `scripts/floor-prototype.py` records against itself: it located a unit by
+// searching the file for its first words, a table row's block began with a
+// sentinel that matched no line, and every table row in the document anchored
+// to §0 — while the test asserting the §0 case passed.
+//
+// The header row is cut by the arms and the data row is not, so this also fixes
+// that a cut unit still occupies its `unit_id`.
+func TestATableRowAnchorsToItsOwnSectionNotToSectionZero(t *testing.T) {
+	text := "## 7. The record\n\n### 7.2 The row\n\n" +
+		"| field | type |\n|---|---|\n| `unit_id` | string |\n\n" +
+		"## 8. Convergence\n\nGrounding converges when 100% of units carry a disposition.\n"
+
+	units := FloorUnits(text)
+	require.Equal(t, []string{
+		"field — type",
+		"`unit_id` — string",
+		"Grounding converges when 100% of units carry a disposition.",
+	}, units)
+	require.False(t, inFloor(units[0]), "the header row must be cut, or the row ids below shift")
+
+	assert.Equal(t, []string{"§7.2", "§7.2", "§8"}, anchorsOfEveryUnit(text))
+	assert.Equal(t, []string{"u2 §7.2", "u3 §8"}, anchorsOfIndexRows(text))
+}
+
