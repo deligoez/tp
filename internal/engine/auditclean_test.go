@@ -55,3 +55,30 @@ func TestAuditRowsClean_ErrorBlocksUnderBoth(t *testing.T) {
 		"under blocking, error is the blocking severity")
 }
 
+// TestAuditRowsClean_UnusableSeverityBlocks pins §7 row 8: a round whose only
+// non-PASS row carries a severity tp cannot grade is unclean under `blocking`.
+// Four fixtures, one per unrecognised shape — a string outside the enum, JSON
+// null, an absent key, and a value that is not a string. The mutant that must
+// fail it grades a row with no usable severity as advisory.
+func TestAuditRowsClean_UnusableSeverityBlocks(t *testing.T) {
+	cases := []struct {
+		name    string
+		nonPass map[string]any
+	}{
+		{"a string outside the enum", map[string]any{"status": "FAIL", "item_id": "item-2", "severity": "moderate"}},
+		{"JSON null", map[string]any{"status": "FAIL", "item_id": "item-2", "severity": nil}},
+		{"an absent key", map[string]any{"status": "FAIL", "item_id": "item-2"}},
+		{"a value that is not a string", map[string]any{"status": "FAIL", "item_id": "item-2", "severity": float64(3)}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rows := auditRoundWith(tc.nonPass)
+
+			assert.False(t, AuditRowsClean(rows, AuditConvergeOnBlocking),
+				"a row tp cannot grade is blocking, not ignored")
+			assert.False(t, AuditRowsClean(rows, AuditConvergeOnAll),
+				"and under all it is unclean for the ordinary reason: it is non-PASS")
+		})
+	}
+}
+
