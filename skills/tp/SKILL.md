@@ -160,6 +160,73 @@ with `tp review --resolve`-style evidence, name the version that will take them,
 audit repairs minimal for the same reason — a repair that introduces a new abstraction is the next
 version's task, not this audit's.
 
+### `audit_converge_on` — what an audit round has to be clean of (v0.37.0)
+
+A workflow field taking `all` or `blocking`, resolving **task override > project config > built-in**
+(there is no CLI flag and no `TP_<FIELD>` environment layer for a workflow field). Its built-in
+default is **`all`** — deliberately the opposite of `review_converge_on`'s `blocking`, and the
+behaviour tp shipped before the field existed, so a project that does not set it sees no change in
+what any gate decides.
+
+| value | an audit round is clean when |
+|---|---|
+| `all` (default) | the round has no non-`PASS` row |
+| `blocking` | no non-`PASS` row in the round carries a blocking severity |
+
+**Blocking severity is `error`** — audit rows use `error`/`warning`/`info`, a different vocabulary
+from review's `critical`/`high`, and neither field is read by the other phase. **A severity tp cannot
+grade is blocking, not ignored**: `severity: null`, an absent key, a non-string value, or a string
+outside the enum all keep the round unclean under `blocking`. The `clean` verdict is **stamped at
+record time**, so setting the knob governs rounds recorded afterwards and never re-grades recorded
+history — and symmetrically, one approved round of `blocking` keeps its `clean: true` after the knob
+returns to `all`. `role_streaks[].open`, `consecutive_clean` and `spec_coverage_clean_rounds` stay
+severity-blind, so under `blocking` a round can read `clean: true` beside a non-zero `open`; that is
+correct — `open` counts findings, `clean` answers whether the phase may end.
+
+An illegal literal at a write sink is a usage error (exit 2); an illegal value already stored, read
+by `tp audit --record`/`--status`, is a validation error (exit 1). Both carry
+`must be one of: blocking, all`.
+
+**`blocking` is opt-in and human-only.** Its four write paths — `tp set --workflow`, its `--project`
+form, `tp import`, and `tp config --extract` — are all fenced under `TP_UNATTENDED=1`: a write that
+**changes the resolved value** to `blocking` exits 2. A write of `all` never trips it, a `--project`
+write beneath a task-level `all` passes, and an import carrying an already-resolved `blocking`
+forward passes. An **attended** operator writes `blocking` at any sink with no refusal. Under a run,
+if the refusal is an authoring error the unit fixes the document itself (omit the imported
+document's top-level `workflow` key, or carry `"audit_converge_on": "<resolved>"` in it); if the unit
+**intends** the relax it records `tp escalate --decision audit-converge-on --evidence "<what you
+found>"` and the run stops for the operator.
+
+**`tp audit --merge` emits `by_severity`** — the round's non-`PASS` rows bucketed as
+`error`/`warning`/`info`/`unrecognised` — on any round holding a non-`PASS` row, under either
+policy, and it survives `--compact`. Under `blocking` it is how you see what a `clean: true` round
+accepted. Both audit sinks' `next_action` names that accepted count as a numeral on the converged
+branch and on the clean-but-not-converged branch, so an operator reading either learns the round
+closed over open rows.
+
+**Decide the default from the previous cycle's severity mix, before round 1.** The saving is only
+reachable when the field resolves before the first round is recorded — the moment you have none of
+this cycle's evidence — and `by_severity` is computed per round rather than persisted, so the
+previous cycle's mix is recoverable only by counting `severity` across its `audit-round-*.ndjson`.
+No flag derives it; this one-liner does:
+
+```bash
+python3 -c 'import json,sys,collections;print(collections.Counter((r.get("severity") if r.get("severity") in ("error","warning","info") else "unrecognised") for f in sys.argv[1:] for l in open(f) if l.strip() for r in [json.loads(l)] if r.get("status")!="PASS"))' <spec-dir>/.tp-review/<previous-version>/audit-round-*.ndjson
+```
+
+The glob is `audit-round-*.ndjson` on purpose: it is the recorded round, and it excludes the raw
+per-role files (`audit-r<N>-<role>.ndjson`) a round may sit beside, which would double-count.
+Run against tp's own corpus it reports
+`Counter({'warning': 22, 'info': 17, 'error': 3})` for v0.35.0 and
+`Counter({'warning': 44, 'info': 32, 'error': 15})` for v0.36.0.
+
+**Read the `error` column, not the round saving.** On those two cycles `blocking` would have
+converged at round 3 where `all` took 9 and never — and it would have **shipped over an `error` row
+in both**, because v0.35.0's round 4 and v0.36.0's rounds 7, 12 and 13 each carry one *after* the
+point `blocking` halts. That is why `all` is the default. Setting `blocking` is choosing to gate on
+the audited agent's own self-declared `severity`, which nothing on the audit path validates — take
+it with the numbers above in front of you, per cycle, never as a standing repo default.
+
 **Both refusals are emission-only.** `enabled: false` that empties a phase, or names `spec-coverage`,
 exits 2 before any prompt is emitted and before any state is written — so `--record`, `--status`,
 `--merge` and the rest are unaffected, and a refused run leaves no `.tp-review/<spec>/` behind.
