@@ -902,3 +902,34 @@ func TestTheIdentifierArmNeedsADelimitedSpan(t *testing.T) {
 		})
 	}
 }
+
+// TestFloorTextSHAIsTheFirstTwelveLowercaseHexOfTheSha256 pins §2.1 step 5's
+// three separable decisions — the digest, the truncation and the case — against
+// vectors computed outside Go (`python3 -c` and `shasum -a 256` agreeing), so
+// none of them is asserted by re-running the implementation.
+//
+// "" and "abc" are sha256's published test vectors. The third is U+2014 alone,
+// the em dash §2.1 step 1 joins table cells with: its UTF-8 encoding is asserted
+// beside its hash, because "UTF-8 encoded" is a clause of the rule and every
+// unit derived from a multi-cell table row carries that character.
+//
+// The vectors are the assertion and the pattern is the generalisation: a case
+// the table does not hold still has to be twelve lowercase hex characters.
+func TestFloorTextSHAIsTheFirstTwelveLowercaseHexOfTheSha256(t *testing.T) {
+	tests := []struct{ name, unit, utf8, want string }{
+		{"the empty string", "", "", "e3b0c44298fc"},
+		{"abc", "abc", "616263", "ba7816bf8f01"},
+		{"an em dash", "—", "e28094", "bda050585a00"},
+		{"a table row's unit", "ölçüm — measured", "c3b66cc3a7c3bc6d20e28094206d65617375726564", "12a00876e2e1"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.utf8, hex.EncodeToString([]byte(tc.unit)),
+				"the vector was computed over exactly these bytes")
+
+			got := FloorTextSHA(tc.unit)
+			assert.Equal(t, tc.want, got)
+			assert.Regexp(t, `^[0-9a-f]{12}$`, got, "twelve characters, lowercase, hex")
+		})
+	}
+}
