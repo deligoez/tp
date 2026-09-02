@@ -149,6 +149,40 @@ the real thing was run.
 resolved on inspection: `156 rounds` is correctly framed as history beside the current 168, and
 `3,046 rows` is scoped to a 22-file subset rather than the 16,635-row corpus.
 
+## The v1.0.0 review loop — decision rule, pre-registered before round 3
+
+Written **after** round 2 recorded and **before** its repair, because this repository's own lesson is
+that a loop ended on a rule written afterwards has been ended on the result.
+
+**Counts so far: 45, then 61.** The rise is expected and is not by itself a signal — the round-1
+repair rewrote most of the document, and `ax-economist` measured that **71 of round 2's 84 floor
+units (84.5%) are new or changed against round 1's 63**. A round that reviews mostly new text draws
+findings on mostly new text.
+
+**So the signal is two clusters, not the total.** Round 2's 61 split into a tier cluster and a test
+cluster, and `architect` supplied the diagnosis the repair is built on: the five highs are not five
+defects but one — *the spec decided which tier is enough and never decided what the record does with
+the tier actually reached* — with the instruction to **repair §7.2 first and re-derive §4.1, §4.2 and
+§6 from it, not in parallel.**
+
+| cluster | round 2 | round 3 prediction | what a miss means |
+|---|---|---|---|
+| §7.2 + §4.1 + §4.2 + §6 + §3 | **24** | **< 8** | the tier concept is wrong rather than underspecified; cut `tier` to `read`/`run` and delete the kind table rather than refine it a third time |
+| §11 | **9** | **< 4** | the table's format is the defect; drop the mutant column for a per-row named input |
+
+**And a stop rule.** If round 3's total is not below **45** while both clusters are clean, the loop is
+reviewing this document's prose rather than its decisions, and the answer is to cut the document
+rather than repair it again — the same rule that ended `spec/0.37.0.md`'s review at twelve flat
+rounds.
+
+**Two structural repairs go in with the rest, because both roles said the row could not carry them.**
+`tester`: the input a row's mutant column claims is discriminating must appear in that row's
+*assertion* column — three of round 2's §11 findings are one defect with that one cause, and the
+format invites it. `regression`: after a repair that changes a vocabulary, sweep the document for
+every sentence reasoning *from* the old vocabulary; seven of its nine silent changes sit in untouched
+sentences adjacent to rewritten ones, which is the signature of a section-by-section rewrite with no
+downstream sweep.
+
 ## Routed from the skills examination
 
 Source: `mattpocock/skills`, read in full (37 skills, 164 files). Each row is routed or parked; the
