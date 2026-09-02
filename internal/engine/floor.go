@@ -14,6 +14,7 @@ var (
 	floorTableRowRe   = regexp.MustCompile(`^\s*\|`)
 	floorTableSepRe   = regexp.MustCompile(`^\s*\|[\s:|-]+\|\s*$`)
 	floorAtxHeadingRe = regexp.MustCompile(`^\s*#`)
+	floorWhitespaceRe = regexp.MustCompile(`\s+`)
 )
 
 // floorBlock is one block of §2.1 step 2: the lines that survived step 1's
@@ -91,13 +92,77 @@ func floorBlocks(text string) []floorBlock {
 	return blocks
 }
 
+// floorTableCells splits a table data row's body at each pipe that is not
+// escaped, and returns the cells with their escapes resolved.
+//
+// It is a hand-written scan because the rule is "a pipe not preceded by a
+// backslash" and Go's regexp has no lookbehind. The escape is dropped for a
+// pipe — the backslash was there to keep the pipe out of this split, and §2.1
+// wants the pipe as content — and kept for anything else, so a cell holding a
+// path escape is not silently rewritten.
+func floorTableCells(body string) []string {
+	cells := make([]string, 0)
+	var cur strings.Builder
+	escaped := false
+	for _, r := range body {
+		switch {
+		case escaped:
+			if r != '|' {
+				cur.WriteRune('\\')
+			}
+			cur.WriteRune(r)
+			escaped = false
+		case r == '\\':
+			escaped = true
+		case r == '|':
+			cells = append(cells, cur.String())
+			cur.Reset()
+		default:
+			cur.WriteRune(r)
+		}
+	}
+	if escaped {
+		cur.WriteRune('\\')
+	}
+	return append(cells, cur.String())
+}
+
+// floorTableRowUnit is §2.1 step 1's second paragraph: strip the outer pipes,
+// join the cells with an em dash, collapse whitespace. Empty cells contribute
+// nothing, so `| a || b |` reads "a — b" rather than carrying a gap.
+//
+// The trailing pipe is stripped only when it is not itself escaped. The
+// prototype cut it with `\|$`, which on a row ending in an escaped pipe eats the
+// pipe and leaves the bare backslash in the unit; §2.1's rule is that an escaped
+// pipe is content, and this is the one input where the two readings differ.
+func floorTableRowUnit(line string) string {
+	body := strings.TrimPrefix(strings.TrimSpace(line), "|")
+	if strings.HasSuffix(body, "|") && !strings.HasSuffix(body, `\|`) {
+		body = body[:len(body)-1]
+	}
+	kept := make([]string, 0)
+	for _, c := range floorTableCells(body) {
+		if c = strings.TrimSpace(c); c != "" {
+			kept = append(kept, c)
+		}
+	}
+	return strings.TrimSpace(floorWhitespaceRe.ReplaceAllString(strings.Join(kept, " — "), " "))
+}
+
 // floorUnitsFromBlock is the seam §2.1 steps 3 to 5 fill in — canonicalising a
 // prose block, splitting it into sentences, and joining a table row's cells with
-// an em dash. It exists now so both kinds of block reach the later steps through
-// one place and cannot diverge, and it is where the one decision steps 1 and 2
-// already made will be honoured: a table data row is exactly one unit however
-// many full stops its cells hold, so it never reaches step 4's sentence split.
+// an em dash. It exists so both kinds of block reach the later steps through one
+// place and cannot diverge, and it is where the one decision steps 1 and 2
+// already made is honoured: a table data row is exactly one unit however many
+// full stops its cells hold, so it returns here and never reaches step 4's
+// sentence split.
 func floorUnitsFromBlock(b floorBlock) []string {
+	if b.IsTableRow {
+		if u := floorTableRowUnit(strings.Join(b.Lines, " ")); u != "" {
+			return []string{u}
+		}
+		return nil
+	}
 	joined := strings.TrimSpace(strings.Join(b.Lines, " "))
 	if joined == "" {
 		return nil
