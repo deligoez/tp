@@ -144,3 +144,46 @@ func TestAuditConvergeOn_InvalidStoredInTaskFileExitsValidation(t *testing.T) {
 			"a refused --record wrote no %s; the exit code alone cannot see this", name)
 	}
 }
+
+// assertQuotesTheStoredValue asserts that an audit sink's error envelope names
+// the illegal value it read and carries the shared legal-values hint. It reads
+// the parsed envelope rather than the raw stderr: output.Error JSON-encodes the
+// message, so a raw substring assertion for a quoted literal never matches and
+// reddens on a refusal that is in fact correct.
+func assertQuotesTheStoredValue(t *testing.T, stderr string) {
+	t.Helper()
+	e := errJSON(t, stderr)
+	assert.Equal(t, float64(1), e["code"], "the envelope reports the validation code")
+	assert.Equal(t, `invalid audit_converge_on value "bogus"`, e["error"],
+		"the refusal quotes the value it read, so the operator can find it")
+	assert.Equal(t, "must be one of: blocking, all", e["hint"],
+		"and carries the same hint the review twin gives for its own field")
+}
+
+// TestAuditConvergeOn_InvalidStoredInProjectConfigExitsValidation is the same
+// refusal reached from the other stored layer. It is a separate test rather
+// than a subtest of a shared fixture because the two layers fail differently:
+// a task-file value is read through the base tp resolves from the spec path,
+// while .tp/config.json is found by walking up to the repository root, so a
+// check keyed on the task file alone passes the sibling test and misses every
+// project that sets the field once for the whole repo — the way a repo is
+// expected to set it. The mutant is validating only the override layer.
+func TestAuditConvergeOn_InvalidStoredInProjectConfigExitsValidation(t *testing.T) {
+	dir := writeStrategyProject(t, "{}")
+	tpDir := filepath.Join(dir, ".tp")
+	require.NoError(t, os.Mkdir(tpDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(tpDir, "config.json"),
+		[]byte(`{"workflow":{"audit_converge_on":"bogus"}}`), 0o600))
+
+	_, stderr, code := runTP(t, dir, "audit", "spec.md", "--status")
+	assert.Equal(t, 1, code, "--status exits ExitValidation on an illegal project-config value")
+	assertQuotesTheStoredValue(t, stderr)
+
+	_, stderr, code = auditRecord(t, dir, `{"id":"a","status":"PASS"}`+"\n")
+	assert.Equal(t, 1, code, "--record exits ExitValidation on an illegal project-config value")
+	assertQuotesTheStoredValue(t, stderr)
+
+	stateDir := filepath.Join(dir, ".tp-review", "spec")
+	_, err := os.Stat(stateDir)
+	assert.True(t, os.IsNotExist(err), "a refused --record created no state directory at all")
+}
