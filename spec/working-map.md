@@ -87,11 +87,49 @@ positive phrasing, and pair it with the target even then.
 | **1.0.0** | **32** | **20** | **4** | **8** | 0 | 0 | **built-and-run probe, with a control** |
 | *all 18 files* | — | — | — | **49** | — | — | the registered citation check, run over the corpus |
 
-**Three runs, and the pattern has not moved: every refutation was a cheap sentence.** A borrowed
+**Four runs, and the pattern has not moved: every refutation was a cheap sentence.** A borrowed
 number, an unstated rounding rule, a plausible-sounding reason, and four quantifiers — *four patch
 releases* (ten), *five releases* (seventeen), *fifteen audit histories* (sixteen), *the driver
 branches on it* (nothing reads it). Every claim that cost something to make held, because making it
 **was** the verification. **Start with the cheap sentences.**
+
+### The fourth run: the protocol turned on its own spec
+
+**The fourth run put the protocol on the document that specifies it, and the refutation rate went up,
+not down: 8 of 32 against 7 of 44.** Enumeration undercounted again — a first reading found ~21 claims
+where a second found 32 — which is the map's own weakest step firing on the run that was watching for
+it. Four results are worth carrying out of it:
+
+- **A spec is likeliest to be wrong about its own evidence.** Three of the eight refutations were the
+  document mis-describing how it knew something: the three pilot specs *"had already been reviewed"*
+  (`review_rounds` is empty for all three, and no `.tp-review/` directory exists for any pending spec
+  or its `0.38.0`–`0.54.0` predecessor); a read reported as a run, because the run was what the
+  argument needed; and a rule claimed to have *"fired or been refuted"* in the pilot while the
+  document's own §3 says that verdict has zero pilot instances.
+- **A figure with no counting rule is not merely unproven, it is unreproducible — and it can point the
+  wrong way.** *"15 of 46 sentences"* survived sixteen readings of the counting rule across two file
+  versions without coming close (nearest 21 of 55). Re-derived with the rule stated, the heuristic
+  catches **75%** of the ground spec's own prose units, not a third: the claim was wrong in direction,
+  not just in magnitude, and the section's argument had to be rebuilt on the measurement.
+- **A precedent citation is a claim, and this one was inverted.** The ground spec appealed to the audit
+  phase's isolation clause as already requiring a scratch copy. The clause forbids the edit outright
+  (`internal/cli/clauses.go:19`), and `spec/0.36.0.md` §2.4 — headed *"What is deliberately not
+  provisioned"* — rejected that exact recipe for three reasons. **Grounding a citation means reading
+  what it cites**, and here it turned a settled paragraph back into an open decision.
+- **Absence claims want the whole surface.** *"Nothing checks the spec against the world"* is false as
+  written: `scripts/check-spec-code-citations.py` is registered in `workflow.checks`, and
+  `scripts/check-measured-claims.py` re-runs a claim's derivation and fails when it goes stale. Both
+  are narrow, both are precedent, and the second's four recorded escapes are now constraints on the
+  spec that overlooked it.
+
+**Two defects found in neighbours while grounding this one, routed and not restated here.** The
+PASS-note release quotes **21,924 of 22,592** `PASS` rows carrying a note; the committed corpus holds
+**11,505 of 11,839** under the field `notes` — the **share** (97.0% vs 97.2%) is right and the counts
+are not reproducible from the tree. And `spec/0.36.0.md` §2.4 cites `spec/0.35.0.md` §6.3 for its
+no-second-write rule; that section is *Agents* — a fifth renumbering casualty, found by reading the
+citation rather than by checking that the file exists.
+
+### The first three runs
 
 **The three-hypothesis step earned its place on first use.** 0.37.1 claimed
 `unresolved_findings` was driver-facing. Three hypotheses — the driver branches on it / it reports
