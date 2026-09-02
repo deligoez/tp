@@ -933,3 +933,23 @@ func TestFloorTextSHAIsTheFirstTwelveLowercaseHexOfTheSha256(t *testing.T) {
 		})
 	}
 }
+
+// TestFloorTextSHACoversTheWholeUnitNotAPrefix is §2.2's reason for emitting the
+// hash rather than letting a reader derive one from the index: most units of
+// this document exceed the 60-character display prefix, so a hash over that
+// prefix carries a disposition forward across a sentence rewritten from
+// character 61 on — exactly the defect §8 introduces `text_sha` to prevent.
+//
+// The two fixtures are identical for exactly 60 bytes, asserted rather than
+// eyeballed, so the prefix reading and this one differ on nothing else.
+func TestFloorTextSHACoversTheWholeUnitNotAPrefix(t *testing.T) {
+	const shared = "The floor is a coverage obligation and the index carries no "
+	require.Len(t, shared, 60, "the fixtures discriminate only if the shared head is exactly the prefix")
+
+	a, b := shared+"unit text at all.", shared+"unit text whatsoever."
+	require.Equal(t, a[:60], b[:60])
+	require.NotEqual(t, a, b)
+
+	assert.NotEqual(t, FloorTextSHA(a), FloorTextSHA(b),
+		"a rewrite from character 61 on must move the hash")
+}
