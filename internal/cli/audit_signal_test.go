@@ -58,6 +58,25 @@ func recordSignalRound(t *testing.T, dir string, flags []string, rows ...string)
 	return stdout, stderr
 }
 
+// ndjsonRows parses recorded audit rows out of an NDJSON file, so a test can
+// hand a shipped engine predicate the very bytes an invocation was given rather
+// than a hand-built restatement of them.
+func ndjsonRows(t *testing.T, path string) []map[string]any {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	rows := make([]map[string]any, 0)
+	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+		if line == "" {
+			continue
+		}
+		var row map[string]any
+		require.NoError(t, json.Unmarshal([]byte(line), &row), "line: %s", line)
+		rows = append(rows, row)
+	}
+	return rows
+}
+
 // decodeSignal parses an audit payload.
 func decodeSignal(t *testing.T, stdout string) map[string]any {
 	t.Helper()
@@ -492,6 +511,19 @@ func TestAuditGate_NoEscapeHatchFromTheGate(t *testing.T) {
 	results := filepath.Join(dir, "results.ndjson")
 	_, stderr, code = runTP(t, dir, "audit", results, "--resolve", "go-safety:go-safety-item", "wontfix", "parked")
 	require.Equal(t, 0, code, "v0.35.0 §3.3 exposes an audit-side --resolve: %s", stderr)
+
+	// What keeps the assertions below green under `blocking` is §2's fail-closed
+	// rule rather than the disposition: signalRow states no severity at all, and
+	// a row tp cannot grade is a row tp must not stop counting. Both halves are
+	// asserted, because the premise is invisible in the fixture and the rule is
+	// invisible in the payload.
+	rows := ndjsonRows(t, results)
+	for _, row := range rows {
+		assert.NotContains(t, row, "severity",
+			"the fixture states no severity, so the fail-closed rule is what grades it: %v", row)
+	}
+	assert.False(t, engine.AuditRowsClean(rows, engine.AuditConvergeOnBlocking),
+		"an ungradeable non-PASS row blocks under blocking")
 
 	reRecord, stderr, code := runTP(t, dir, "audit", "spec.md", "--record", results)
 	require.Equal(t, 0, code, "stderr: %s", stderr)
