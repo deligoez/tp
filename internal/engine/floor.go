@@ -279,9 +279,13 @@ var floorVerbs = []string{
 }
 
 var (
-	// The digit arm, literally §2.1's `[0-9]` — ASCII digits, not a Unicode
-	// class, because the table names the character range.
-	floorDigitRe = regexp.MustCompile(`[0-9]`)
+	// The digit arm. §2.1 names the character range `[0-9]`, and RE2's `\d` IS
+	// that range — ASCII only, where a Unicode class would need `\p{Nd}`. The
+	// spelling is `\d` because gocritic's regexpSimplify rejects the longhand;
+	// the meaning is the spec's, and zero is one of the ten (floor_test.go's
+	// "the only digit is zero" case exists because every other fixture reaches
+	// this arm through 1-9, so `[1-9]` passed the whole table).
+	floorDigitRe = regexp.MustCompile(`\d`)
 	// The identifier arm. §2.1 says a backtick-delimited SPAN, so both
 	// delimiters must be present in the same unit; the prototype tested for a
 	// single backtick, which differs on 21 of this corpus's 7,368 units — every
