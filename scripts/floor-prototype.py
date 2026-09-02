@@ -59,7 +59,15 @@ def table_row_unit(line):
     arms then apply unchanged, which is what cuts header rows (labels carry no
     digit, no code span and no measurement verb) without a special case.
     """
-    cells = [c.strip() for c in line.strip().strip("|").split("|")]
+    # Split on an UNESCAPED pipe. `\|` inside a cell is markdown's escape and is
+    # content: splitting on it turned `string \| null` into two cells and the
+    # unit read "`unit_id` — string \ — null — yes", which is a mangling rather
+    # than a sentence. Found by the second end-to-end run, on this spec's own
+    # §7.2 field table.
+    body = line.strip()
+    body = re.sub(r"^\|", "", body)
+    body = re.sub(r"\|$", "", body)
+    cells = [c.strip().replace(r"\|", "|") for c in re.split(r"(?<!\\)\|", body)]
     return re.sub(r"\s+", " ", " — ".join(c for c in cells if c)).strip()
 
 
