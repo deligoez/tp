@@ -387,7 +387,7 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp audit spec.md --record results.ndjson` | Record an audit round (non-PASS rows = findings); independent sequence |
 | `tp audit spec.md --base <git-ref>` | Diff against a git ref to detect the audited files (omit for staged + unstaged) |
 | `tp audit spec.md --record ... --harness-note "<text>"` | Record the round's orchestrator-wrapper framing (requires `--record`) |
-| `tp audit --merge r1.ndjson r2.ndjson -o results.ndjson` | Merge + dedup per-role audit results by `role`+`item_id` (`-o` is short for `--output`); same `inputs` accounting and same exit 1 on an input that parsed nothing |
+| `tp audit --merge r1.ndjson r2.ndjson -o results.ndjson` | Merge + dedup per-role audit results by `role`+`item_id` (`-o` is short for `--output`); same `inputs` accounting and same exit 1 on an input that parsed nothing; adds `by_severity` over the non-`PASS` rows on any round holding one (survives `--compact`) |
 | `tp audit spec.md --status` / `--status --check` | Audit convergence state / exit 0 only when converged |
 | `tp audit results.ndjson --resolve <selector> <disposition> "<evidence>"` | Dispose one audit row — selector is a 0-based index or the row's `role:item_id` key; disposition is fixed/wontfix/duplicate (results NDJSON is the positional, a spec → exit 2) |
 | `tp audit results.ndjson --resolve-all <disposition> "<evidence>"` | Dispose every undisposed audit row; add `--force` to re-resolve rows already carrying a disposition |
