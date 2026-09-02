@@ -233,7 +233,8 @@ func ResolveEffectiveWorkflow(start string, taskOverride *model.WorkflowOverride
 func ResolveWorkflowLayers(taskOverride, project *model.WorkflowOverride) model.Workflow {
 	// The built-in default layer: 2 clean rounds, no round caps, 600s gate
 	// timeout, 5s lock timeout, no checks, blocking-severity review convergence,
-	// and §7's run caps and runner.
+	// every-row audit convergence, and §7's run caps and runner. The two
+	// convergence defaults differ deliberately: v0.37.0 §2.1 measures why.
 	def := model.Workflow{
 		ReviewCleanRounds:      2,
 		AuditCleanRounds:       2,
@@ -241,6 +242,7 @@ func ResolveWorkflowLayers(taskOverride, project *model.WorkflowOverride) model.
 		LockTimeoutSeconds:     5,
 		Checks:                 []model.Check{},
 		ReviewConvergeOn:       ReviewConvergeOnBlocking,
+		AuditConvergeOn:        AuditConvergeOnAll,
 		RunMaxUnits:            RunMaxUnitsDefault,
 		RunMaxWallClockSeconds: RunMaxWallClockSecondsDefault,
 		RunMaxBudgetUSD:        RunMaxBudgetUSDDefault,
@@ -259,6 +261,7 @@ func ResolveWorkflowLayers(taskOverride, project *model.WorkflowOverride) model.
 		AuditMaxRounds:     pickInt([]*int{taskOverride.AuditMaxRounds, project.AuditMaxRounds}, def.AuditMaxRounds),
 		Checks:             pickChecks([]*[]model.Check{taskOverride.Checks, project.Checks}, def.Checks),
 		ReviewConvergeOn:   pickString([]*string{taskOverride.ReviewConvergeOn, project.ReviewConvergeOn}, def.ReviewConvergeOn),
+		AuditConvergeOn:    pickString([]*string{taskOverride.AuditConvergeOn, project.AuditConvergeOn}, def.AuditConvergeOn),
 
 		RunMaxUnits:            pickInt([]*int{taskOverride.RunMaxUnits, project.RunMaxUnits}, def.RunMaxUnits),
 		RunMaxWallClockSeconds: pickInt([]*int{taskOverride.RunMaxWallClockSeconds, project.RunMaxWallClockSeconds}, def.RunMaxWallClockSeconds),
