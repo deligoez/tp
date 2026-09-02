@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.37.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-02T03:47:27.057919Z",
+  "updated_at": "2026-09-02T03:59:09.466463Z",
   "workflow": {},
   "coverage": {
     "total_sections": 9,
@@ -540,7 +540,7 @@
     {
       "id": "replay-test",
       "title": "The replay reproduces the table that decides the default",
-      "status": "open",
+      "status": "done",
       "tags": [
         "fixture"
       ],
@@ -554,11 +554,20 @@
         "### 2.1 Why the default is `all`",
         "## 7. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-02T03:48:46.941313Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-02T03:59:09.443811Z",
+      "closed_reason": "Replayed tp's own recorded audit cycles through engine.AuditRowsClean in internal/engine/auditreplay_table_test.go; the fixture reproduces all eight of §2.1's cells and §7 row 11 passes.\n\n- At audit_clean_rounds 2 the replay gives v0.35.0 blocking 3 / all 9 and v0.36.0 blocking 3 / all never, and at 1 it gives 2 / 8 and 2 / never - the eight cells §2.1 states, asserted by TestAuditReplayReproducesTheTableThatDecidesTheDefault over the committed projection, never over spec/.tp-review/.\n- The field resolving before round 1 is asserted rather than assumed: auditReplayConvergence takes the first round graded under the policy as a parameter, the cells are its resolvesAt 1 column, and TestAuditReplayCellsNeedTheFieldResolvedBeforeRoundOne requires that delaying resolution never converges earlier and somewhere converges later. §2.1's own arithmetic form of that claim - no earlier than k + audit_clean_rounds - is false on this corpus under either reading of k, because v0.35.0 rounds 8 and 9 are clean under all as well, so the true property is asserted instead and the measurement recorded in the test's comment.\n- The named mutant, grading error as advisory, was built in an rsync copy and observed failing: it moves every blocking cell and only those, 3 to 2 and 2 to 1 in both cycles, leaving the four all cells untouched.\n- Row 11's rejected mutant was re-verified rather than trusted: counting the streak as a running total instead of a trailing run leaves the suite green, so it still cannot fail.\n- Two unnamed variants were built. An inverted comparator making all grade like blocking is killed and moves exactly the four all cells the named mutant never reaches; grading PASS rows too is killed and makes every cycle never converge. A third, row 8's unrecognised-as-advisory mutant, is unobservable here - green on the replay, killed by its own test - which confirms the fixture census and that row 11 does not overlap row 8.\n- Quality gate green, exit 0: ./scripts/check-suite-state.sh \u0026\u0026 golangci-lint run \u0026\u0026 ./scripts/check-deadcode.sh \u0026\u0026 ./scripts/check-complexity.sh.",
+      "gate_passed_at": "2026-09-02T03:59:09.443811Z",
+      "commit_sha": "dac48a6e065884d78ee3c2532ed4e62335db53e2",
+      "commit_shas": [
+        "dac48a6e065884d78ee3c2532ed4e62335db53e2",
+        "fbc49276132f75eaf5eefe89c3791c0ffabdd446",
+        "43be9b59901d25859074bc2a3e582af1b340717b"
+      ],
+      "commit_files": [
+        "internal/engine/auditreplay_table_test.go"
+      ]
     },
     {
       "id": "reverse-gate-guard",
