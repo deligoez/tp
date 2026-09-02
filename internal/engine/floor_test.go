@@ -273,3 +273,55 @@ func TestSection11Row18dTable(t *testing.T) {
 	}, units)
 	assert.Equal(t, 4, strings.Count(text, "\n"), "the fixture is four table lines")
 }
+
+// TestABlockquotePrefixIsStrippedFromEveryLine is §2.1 step 3's first clause:
+// "strip a leading `> ` from every line". Every case keeps the whole expected
+// unit rather than a count, and the last one is the over-stripping guard — a
+// `>` that is not at the start of a line is content, not a prefix.
+func TestABlockquotePrefixIsStrippedFromEveryLine(t *testing.T) {
+	tests := []struct {
+		name string
+		text string
+		want string
+	}{
+		{
+			// The discriminating case: an implementation stripping only the
+			// block's first line leaves "> beta" inside the joined unit.
+			name: "every line carries the prefix",
+			text: "> alpha holds 1\n> beta holds 2.",
+			want: "alpha holds 1 beta holds 2.",
+		},
+		{
+			name: "a continuation line without the prefix is untouched",
+			text: "> alpha holds 1\nbeta holds 2.",
+			want: "alpha holds 1 beta holds 2.",
+		},
+		{
+			name: "the prefix may be indented",
+			text: "  > alpha holds 1.",
+			want: "alpha holds 1.",
+		},
+		{
+			name: "the space after the marker is optional",
+			text: ">alpha holds 1.",
+			want: "alpha holds 1.",
+		},
+		{
+			name: "only one marker is stripped from a nested quote",
+			text: "> > alpha holds 1.",
+			want: "> alpha holds 1.",
+		},
+		{
+			name: "a marker that is not leading is content",
+			text: "alpha > beta holds 1.",
+			want: "alpha > beta holds 1.",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			units := FloorUnits(tt.text)
+			require.Len(t, units, 1, "the fixture is one block of one sentence")
+			assert.Equal(t, tt.want, units[0])
+		})
+	}
+}
