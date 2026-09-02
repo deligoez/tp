@@ -1,6 +1,8 @@
 package engine
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -569,4 +571,73 @@ func TestSection11Row18bListMarkers(t *testing.T) {
 		assert.NotRegexp(t, bareFloorMarkerRe, u, "no unit is a bare marker fragment")
 		assert.Contains(t, u, " ", "every unit is a sentence, not a fragment")
 	}
+}
+
+// floorTextSHA is §7.2's `text_sha` — the first twelve lowercase hex characters
+// of the sha256 of exactly the unit string, UTF-8 encoded. It is computed here
+// rather than called, because the shipped function is a later task; §11 row 20
+// asserts over hashes, and a test that compared unit strings alone would be
+// asserting something weaker than the row.
+func floorTextSHA(unit string) string {
+	sum := sha256.Sum256([]byte(unit))
+	return hex.EncodeToString(sum[:])[:12]
+}
+
+// TestSection11Row20CanonicalForm is §11 row 20: reflow stability asserted on
+// the case that breaks it rather than on a benign one.
+//
+// The fixture is §7.1's own paragraph, whose continuation line begins `14. `.
+// A paragraph with no ordinal at a line start passes under all three readings of
+// step 3 and so proves nothing; this one separates them. Under an unconditional
+// marker strip the wrapped copy loses its `14. ` and every hash after that point
+// differs from the one-line copy's, which is the row's first named mutant.
+//
+// The row says the two "yield the same single unit". They do not, and no input
+// of this shape can: `14. ` is a terminator followed by whitespace, so step 4
+// splits there, and `scripts/floor-prototype.py` segments §7.1's paragraph into
+// two units in both copies. What the row is actually about — that the
+// segmentation and every `text_sha` are decided by the text and not by where the
+// author's line breaks fell — is what is asserted here.
+func TestSection11Row20CanonicalForm(t *testing.T) {
+	const wrapped = "Exit codes follow tp's existing table with no additions, " +
+		"and each is pinned to a named input by test\n" +
+		"14. The mapping is read from `exitStateError` rather than invented."
+	oneLine := strings.ReplaceAll(wrapped, "\n", " ")
+
+	// The fixture's discriminating property, asserted rather than assumed: the
+	// continuation line must actually begin with an ordinal.
+	lines := strings.Split(wrapped, "\n")
+	require.Len(t, lines, 2)
+	require.True(t, strings.HasPrefix(lines[1], "14. "),
+		"the fixture is the breaking case only if its continuation line opens with an ordinal")
+	require.NotContains(t, oneLine, "\n")
+
+	want := []string{
+		"Exit codes follow tp's existing table with no additions, " +
+			"and each is pinned to a named input by test 14.",
+		"The mapping is read from `exitStateError` rather than invented.",
+	}
+	assert.Equal(t, want, FloorUnits(wrapped), "the ordinal survives the reflow")
+	assert.Equal(t, want, FloorUnits(oneLine))
+
+	wrappedSHAs := make([]string, 0, len(want))
+	for _, u := range FloorUnits(wrapped) {
+		wrappedSHAs = append(wrappedSHAs, floorTextSHA(u))
+	}
+	oneLineSHAs := make([]string, 0, len(want))
+	for _, u := range FloorUnits(oneLine) {
+		oneLineSHAs = append(oneLineSHAs, floorTextSHA(u))
+	}
+	assert.Equal(t, oneLineSHAs, wrappedSHAs, "a reflow does not move a text_sha")
+
+	// The row's second clause, which is what kills its other named mutant: a
+	// genuine numbered list still loses every marker.
+	list := "1. Alpha holds 1.\n2. Beta holds 2.\n3. Gamma holds 3.\n" +
+		"4. Delta holds 4.\n5. Epsilon holds 5.\n6. Zeta holds 6.\n" +
+		"7. Eta holds 7.\n8. Theta holds 8.\n9. Iota holds 9."
+	assert.Equal(t, []string{
+		"Alpha holds 1.", "Beta holds 2.", "Gamma holds 3.", "Delta holds 4.",
+		"Epsilon holds 5.", "Zeta holds 6.", "Eta holds 7.", "Theta holds 8.",
+		"Iota holds 9.",
+	}, FloorUnits(list), "a genuine nine-item list loses every marker")
 }
