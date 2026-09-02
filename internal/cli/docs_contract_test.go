@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/deligoez/tp/internal/engine"
 )
@@ -176,4 +177,70 @@ func TestDocsCarryTheConvergenceSignalWording(t *testing.T) {
 		assert.NotContains(t, text, "severity",
 			"%s states the counting rule over the resolved policy, not over a severity", name)
 	}
+}
+
+const (
+	honestSignalsHeading = "## Honest Convergence Signals (v0.33.0)"
+
+	// What that section must say instead, asserted positively so that deleting
+	// the false promise rather than replacing it does not pass here.
+	honestSignalsGovernedBy = "governed by `audit_converge_on` (v0.37.0), " +
+		"which changes what the stored per-round `clean` flag records"
+
+	storedCleanFlagPhrase = "`clean` flag"
+)
+
+// v032ParityMarkers are the ways a sentence can promise a signal still behaves
+// as it always has. The section's original wording used the first two about the
+// stored per-round `clean` flag, naming the version it claimed parity with; the
+// markers are deliberately phrased without that version, because §6.4's defect
+// is the promise and not its wording. Measured while writing this: with the
+// first marker written as the full "exactly as in v0.32.0", a paragraph that
+// re-listed the flag as behaving "exactly as they always did" passed green.
+var v032ParityMarkers = []string{
+	"exactly as",
+	"untouched",
+	"unchanged",
+	"as before",
+	"as it always",
+	"as they always",
+}
+
+// TestReferenceDoesNotPromiseTheStoredCleanFlagIsUnchanged guards §6.4, pinned
+// by §7 row 20. REFERENCE.md's "Honest Convergence Signals" paragraph listed
+// the stored per-round `clean` flag among the signals behaving exactly as in
+// v0.32.0, and §2 changes what that flag records. Nothing read this paragraph
+// before this test — the guard extension is part of the work, not a bonus —
+// and re-adding the flag to that list must redden it.
+func TestReferenceDoesNotPromiseTheStoredCleanFlagIsUnchanged(t *testing.T) {
+	section := docSectionBody(t, readRepoDoc(t, "skills/tp/REFERENCE.md"), honestSignalsHeading)
+
+	assert.Contains(t, section, honestSignalsGovernedBy,
+		"the section states what governs the stored per-round clean flag now")
+
+	for _, sentence := range strings.Split(section, ". ") {
+		if !strings.Contains(sentence, storedCleanFlagPhrase) {
+			continue
+		}
+		for _, marker := range v032ParityMarkers {
+			assert.NotContains(t, sentence, marker,
+				"no sentence naming the stored clean flag may promise it is unmoved: %q", sentence)
+		}
+	}
+}
+
+// docSectionBody returns a markdown section's own body — the text between its
+// heading and the next heading of any level — with whitespace collapsed, so an
+// assertion over a sentence is not hostage to where the document happens to
+// wrap its lines.
+func docSectionBody(t *testing.T, doc, heading string) string {
+	t.Helper()
+	_, after, found := strings.Cut(doc, heading)
+	require.True(t, found, "the document still carries the %q heading", heading)
+	if end := strings.Index(after, "\n#"); end >= 0 {
+		after = after[:end]
+	}
+	body := strings.Join(strings.Fields(after), " ")
+	require.NotEmpty(t, body, "the %q section has a body to assert over", heading)
+	return body
 }
