@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.37.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-02T02:13:05.858839Z",
+  "updated_at": "2026-09-02T02:23:54.462545Z",
   "workflow": {},
   "coverage": {
     "total_sections": 9,
@@ -339,7 +339,7 @@
     {
       "id": "fence-import-remedies",
       "title": "The import refusal and the two documents that must pass",
-      "status": "open",
+      "status": "done",
       "tags": [
         "fence"
       ],
@@ -351,11 +351,20 @@
       "source_sections": [
         "## 3. The fence"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-02T02:14:36.812472Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-02T02:23:54.440119Z",
+      "closed_reason": "Rows 13b and 13d are now asserted rather than assumed, over row 13b's own shell (task-level all, project-level blocking) with TP_UNATTENDED set per child.\n\n- The refusal: a document carrying a workflow key without the field exits 2 at the fence. TestAuditConvergeOnFence_ImportUncoversProjectBlocking already covered the review_max_rounds document; TestAuditConvergeOnFence_TheBlockTPWritesTakesTheRefusedPath adds the block tp itself writes, read out of the file tp init emits rather than restated as a literal.\n- The precondition, asserted not assumed: over a tasks-bearing target tp import exits 3 with 'task file already exists' and no mention of audit_converge_on, and the same document over the zero-task shell exits 2 at the fence. 3 and 2 are different answers and both are pinned in one test.\n- The two remedies pass: omitting the top-level workflow key (preservation carries the task-level all forward) and carrying audit_converge_on: all explicitly, each exit 0 with the written file and tp config --resolved both still reporting all.\n- tp init's emitted shape verified: model.TaskFile gives workflow no omitempty, the emitted file carries \"workflow\": {}, and that block takes 13b's refused path, so the refusing input is the common shape.\n- Mutant matrix, baseline built from the unmutated tree in an rsync copy, per test: M1 (row 13b's mutant, fence on the literal written) killed by ImportUncoversProjectBlocking, WritesThatChangeNothingPass, ImportExistsGuardPrecedesTheFence and TheBlockTPWritesTakesTheRefusedPath; M2 (row 13d's mutant, refuse when the imported block omits the field) killed by ImportRemediesPass and WritesThatChangeNothingPass with 13b surviving as the row predicts; M3, a variant section 7 does not name (the fence moved above the exists-guard), killed only by ImportExistsGuardPrecedesTheFence while all six pre-existing fence tests stay green. No variant survived.\n- Quality gate green: check-suite-state, golangci-lint (0 issues), check-deadcode, check-complexity all exit 0. 21 pre-existing failures under a suite-wide TP_UNATTENDED=1 were measured in the copy and left alone; none is a fence test.",
+      "gate_passed_at": "2026-09-02T02:23:54.440119Z",
+      "commit_sha": "23c28d9ec2d43b731851e9f57b2f726006c71561",
+      "commit_shas": [
+        "23c28d9ec2d43b731851e9f57b2f726006c71561",
+        "907fc425fa0dc18da48c7be2ac347c0940c0ef98",
+        "b71ae5c32b37f75ac8fafbb3c143187fc13eccbe"
+      ],
+      "commit_files": [
+        "internal/cli/auditconvergeon_fence_test.go"
+      ]
     },
     {
       "id": "fence-message",
