@@ -333,7 +333,10 @@ non-test source, and workflow fields have no env layer to ignore.)
 **`audit_converge_on` is fenced by a change rule, not by field or value (v0.37.0).** The refusal
 fires when the write moves the **resolved** value — task override > project config > built-in — to
 `blocking`, and only then. So a `--project` write of `blocking` underneath a task-level `all` passes
-(it uncovers nothing an audit reads); an `import` carrying an already-resolved `blocking` forward
+**for that base** (it uncovers nothing an audit reads there) — but the write lands in the layer every
+base resolves through, so it is evaluated once per base and is refused as soon as another base's task
+file names no `audit_converge_on` and would newly resolve `blocking` from the project layer; an
+`import` carrying an already-resolved `blocking` forward
 passes (nothing changes); a write of `all` never trips it (`all` is the default and the only value
 that tightens the gate); and writing `all` first and `blocking` second is refused on the second
 write, so there is no walk-around. Fencing the *field* or the *value* instead would refuse every
