@@ -201,3 +201,72 @@ func TestAuditConvergeOnFence_RelaxRefusedAtEveryWriteSink(t *testing.T) {
 	})
 }
 
+// TestAuditConvergeOnFence_WritesThatChangeNothingPass covers v0.37.0 §7 row 13
+// — the three writes that must pass under the same environment. Row 13's mutant
+// is a field-scoped or value-scoped fence: either refuses the third case here
+// and deadlocks Workflow A step 6 for the opt-in users this release exists for,
+// which is the whole reason §3 is a change rule.
+func TestAuditConvergeOnFence_WritesThatChangeNothingPass(t *testing.T) {
+	t.Run("a write of all at both set sinks", func(t *testing.T) {
+		dir := fenceShell(t, "{}", "")
+
+		_, stderr, code := runTPFence(t, dir, true, "set", "--workflow", "audit_converge_on=all")
+		require.Equal(t, 0, code, "task sink: %s", stderr)
+
+		_, stderr, code = runTPFence(t, dir, true, "set", "--workflow", "--project", "audit_converge_on=all")
+		require.Equal(t, 0, code, "project sink: %s", stderr)
+
+		assert.Equal(t, "all", fenceResolved(t, dir), "all is the default and tightens nothing")
+	})
+
+	// §3: "a write of all never trips it, since all is the default and the only
+	// value that tightens the gate." The direction is the assertion. A rule
+	// phrased as "the resolved value changed" rather than "changed to
+	// blocking" refuses this write and leaves a unit unable to tighten its own
+	// gate — a fence pointed the wrong way, which the three mutants §7 names
+	// for these rows all leave standing.
+	t.Run("a write of all over an already-resolved blocking", func(t *testing.T) {
+		dir := fenceShell(t, `{"audit_converge_on":"blocking"}`, "")
+		require.Equal(t, "blocking", fenceResolved(t, dir), "the shell starts out opted in")
+
+		_, stderr, code := runTPFence(t, dir, true, "set", "--workflow", "audit_converge_on=all")
+		require.Equal(t, 0, code, "tightening the gate is never a user-approved decision: %s", stderr)
+		assert.Equal(t, "all", fenceResolved(t, dir), "and the tightening landed")
+	})
+
+	// §3: "'Resolved' means resolved, not stored at the written layer." The
+	// task override wins, so this write changes nothing an audit will read.
+	// A fence comparing the value against the layer it was written to refuses
+	// this and is the reason the clause is in the spec at all.
+	t.Run("a project write of blocking beneath a task override of all", func(t *testing.T) {
+		dir := fenceShell(t, `{"audit_converge_on":"all"}`, "")
+
+		_, stderr, code := runTPFence(t, dir, true, "set", "--workflow", "--project", "audit_converge_on=blocking")
+		require.Equal(t, 0, code, "the write is covered and changes no resolution: %s", stderr)
+
+		data, err := os.ReadFile(filepath.Join(dir, ".tp", "config.json"))
+		require.NoError(t, err)
+		assert.Contains(t, string(data), `"audit_converge_on": "blocking"`,
+			"the value reached the project layer it was addressed to")
+		assert.Equal(t, "all", fenceResolved(t, dir),
+			"and the task override still decides what an audit reads")
+	})
+
+	// §3: "an import carrying an already-resolved blocking forward changes
+	// nothing and passes". The document omits the top-level workflow key, so
+	// tp import's preservation step carries the existing block over — which is
+	// exactly the import a field-scoped or value-scoped fence would refuse
+	// every time, for ever, once a project has opted in.
+	t.Run("an import carrying an already-resolved blocking forward", func(t *testing.T) {
+		dir := fenceShell(t, `{"audit_converge_on":"blocking"}`, "")
+		require.Equal(t, "blocking", fenceResolved(t, dir), "the shell starts out opted in")
+		doc := fenceImportDoc(t, dir, "")
+
+		_, stderr, code := runTPFence(t, dir, true, "import", doc)
+		require.Equal(t, 0, code, "the import changes no resolved value: %s", stderr)
+
+		assert.Equal(t, "blocking", fenceResolved(t, dir),
+			"and the block it carried forward is still what resolves")
+	})
+}
+
