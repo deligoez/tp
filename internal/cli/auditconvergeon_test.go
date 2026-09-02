@@ -107,3 +107,40 @@ func TestAuditConvergeOnHasNoCommandFlag(t *testing.T) {
 		})
 	}
 }
+
+// TestAuditConvergeOn_InvalidStoredInTaskFileExitsValidation covers the consume
+// half of v0.37.0 §7 row 3: an illegal audit_converge_on already stored in a
+// task file — a hand edit, or a layer no write sink guards — makes both audit
+// sinks exit ExitValidation (1) with the legal-values hint. The code is
+// deliberately not ExitUsage (2): nothing on this invocation's command line is
+// wrong, so it is a fault in the tree, not in the call. The mutant row 3 names
+// is mapping both sinks to one code.
+//
+// The assertion on --record is not the exit code alone. Measured on the shipped
+// binary before this test existed, `tp audit <spec> --record` over exactly this
+// tree exited 0 and stored round 1, because the round is written before the
+// workflow the payload reports is resolved. A refusal that lands after that
+// write leaves a round recorded under a policy tp refused to read, in a store §2
+// declares immutable — so the round file and the state index must both still be
+// absent.
+func TestAuditConvergeOn_InvalidStoredInTaskFileExitsValidation(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.tasks.json"),
+		[]byte(`{"spec":"spec.md","workflow":{"audit_converge_on":"bogus"},"tasks":[]}`), 0o600))
+
+	_, stderr, code := runTP(t, dir, "audit", "spec.md", "--status")
+	assert.Equal(t, 1, code, "--status exits ExitValidation on an illegal stored audit_converge_on")
+	assert.Contains(t, stderr, "must be one of: blocking, all", "the refusal names the legal values")
+
+	_, stderr, code = auditRecord(t, dir, `{"id":"a","status":"PASS"}`+"\n")
+	assert.Equal(t, 1, code, "--record exits ExitValidation on an illegal stored audit_converge_on")
+	assert.Contains(t, stderr, "must be one of: blocking, all", "the refusal names the legal values")
+
+	stateDir := filepath.Join(dir, ".tp-review", "spec")
+	for _, name := range []string{"audit-round-1.ndjson", "state.json"} {
+		_, err := os.Stat(filepath.Join(stateDir, name))
+		assert.True(t, os.IsNotExist(err),
+			"a refused --record wrote no %s; the exit code alone cannot see this", name)
+	}
+}
