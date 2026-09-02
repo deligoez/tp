@@ -1,0 +1,484 @@
+{
+  "version": 1,
+  "spec": "spec/0.37.0.md",
+  "created_at": "0001-01-01T00:00:00Z",
+  "updated_at": "2026-09-02T00:36:46.696724Z",
+  "workflow": {},
+  "coverage": {
+    "total_sections": 9,
+    "mapped_sections": 7,
+    "context_only": [
+      "# tp v0.37.0 — Audit convergence",
+      "## 5. Non-Goals"
+    ],
+    "unmapped": []
+  },
+  "tasks": [
+    {
+      "id": "converge-field",
+      "title": "audit_converge_on on the workflow types with built-in all",
+      "status": "open",
+      "tags": [
+        "field"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 8,
+      "acceptance": "model.Workflow and model.WorkflowOverride carry AuditConvergeOn; engine/projectconfig.go parses workflow.audit_converge_on with the same string-type warning as its twin; ResolveWorkflowLayers merges task override over project config over the built-in `all`; tp config --resolved reports it with its source on a repo with no configuration. Section 7 row 1 passes.",
+      "source_sections": [
+        "## 2. `audit_converge_on`"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "converge-resolution-layers",
+      "title": "Assert the resolver consults exactly two layers",
+      "status": "open",
+      "tags": [
+        "field"
+      ],
+      "depends_on": [
+        "converge-field"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "A test asserts task override beats project config beats built-in, and that neither a TP_AUDIT_CONVERGE_ON environment variable nor an --audit-converge-on flag changes what resolves — the mutant is adding either layer to engine.ResolveWorkflowLayers. Section 7 row 2 passes.",
+      "source_sections": [
+        "## 2. `audit_converge_on`"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "converge-write-sinks",
+      "title": "Reject an illegal literal at both set sinks with ExitUsage",
+      "status": "open",
+      "tags": [
+        "validation"
+      ],
+      "depends_on": [
+        "converge-field"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "tp set --workflow audit_converge_on=nope and its --project form exit ExitUsage with a hint naming the field and its two literals; a legal value persists. Section 7 row 3's write half passes.",
+      "source_sections": [
+        "## 2. `audit_converge_on`"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "converge-consume-sinks",
+      "title": "Reject an illegal stored value at the audit sinks with ExitValidation",
+      "status": "open",
+      "tags": [
+        "validation"
+      ],
+      "depends_on": [
+        "converge-resolution-layers"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "An illegal value stored in .tp/config.json or in a task file makes tp audit --record and tp audit --status exit ExitValidation, a code distinct from the write sinks'. Section 7 row 3's consume half passes.",
+      "source_sections": [
+        "## 2. `audit_converge_on`"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "clean-predicate",
+      "title": "The severity predicate that grades a round under the resolved policy",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [
+        "converge-field"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "One engine predicate over (rows, policy): under `all` clean iff no non-PASS row; under `blocking` clean iff no non-PASS row carries a blocking severity, where `error` blocks and a severity outside the enum, JSON null, an absent key or a non-string value all block. Four fixtures, one per unrecognised shape; the mutant that must fail is grading a row with no usable severity as advisory. Section 7 rows 5, 6, 7 and 8 pass.",
+      "source_sections": [
+        "## 2. `audit_converge_on`"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "record-time-stamping",
+      "title": "Stamp clean at record time, both directions, and never re-grade on read",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [
+        "clean-predicate",
+        "converge-consume-sinks"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "tp audit --record stamps the round's clean from the predicate under the policy resolved at record time; recording under all then setting blocking without re-recording leaves every round's clean unchanged in state.json AND as tp audit --status reports it; a round recorded under blocking keeps clean:true after the knob returns to all. The mutant is re-grading each stored round from its rows in the reporting path. Section 7 rows 9 and 9b pass.",
+      "source_sections": [
+        "## 2. `audit_converge_on`"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "next-action-count",
+      "title": "next_action names the accepted count on both changed branches",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [
+        "record-time-stamping"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "AuditNextAction gains the count of the latest recorded round's non-PASS rows; on both audit sinks, a round holding accepted rows renders that numeral in the recommendation on the converged branch AND on the clean-but-not-yet-converged branch, textually different from an empty round's. The boolean latestRoundHasFindings is not kept beside a count that subsumes it — this repo enables unparam. Section 7 rows 10 and 10b pass.",
+      "source_sections": [
+        "## 2. `audit_converge_on`"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "config-surfaces",
+      "title": "Hoist the field in config --extract and check it in validate --project",
+      "status": "open",
+      "tags": [
+        "config"
+      ],
+      "depends_on": [
+        "converge-resolution-layers"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "hoistedFields includes audit_converge_on so tp config --extract hoists it when every scanned task file carries it; tp validate --project accepts a legal value and rejects an illegal one; tp config --extract emits the field. Section 7 row 4 passes.",
+      "source_sections": [
+        "## 2. `audit_converge_on`"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "fence-change-rule",
+      "title": "The unattended change-rule fence at every write path",
+      "status": "open",
+      "tags": [
+        "fence"
+      ],
+      "depends_on": [
+        "converge-write-sinks"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "Under TP_UNATTENDED=1 a write that changes the resolved value to blocking exits 2 at tp set --workflow, its --project form, tp import and tp config --extract; a write of all, a --project write of blocking beneath a task override of all, and an import carrying an already-resolved blocking forward all pass. The fence is string-shaped and placed before the type dispatch, not a widening of the numeric fence. Every test sets the variable it names rather than relying on the ambient value. Section 7 rows 12, 13, 13b and 13c pass.",
+      "source_sections": [
+        "## 3. The fence"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "fence-extract-scope",
+      "title": "The extract fence evaluates every base the repository resolves",
+      "status": "open",
+      "tags": [
+        "fence"
+      ],
+      "depends_on": [
+        "fence-change-rule",
+        "config-surfaces"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "tp config --extract compares resolved-before against resolved-after for every base the repository resolves, not only the task files it scanned, and --force does not exempt it. A test builds the measured counterexample — two task files carrying the field, one spec with none — and asserts the third spec's resolution is unchanged or the command exits 2. Written after running the pre-fix behaviour and observing it pass.",
+      "source_sections": [
+        "## 3. The fence"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "fence-import-remedies",
+      "title": "The import refusal and the two documents that must pass",
+      "status": "open",
+      "tags": [
+        "fence"
+      ],
+      "depends_on": [
+        "fence-change-rule"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "Into a zero-task shell under TP_UNATTENDED=1 over a task-level all and a project-level blocking: a document carrying a workflow key without the field exits 2 at the fence, and two documents import cleanly — one omitting the top-level workflow key, one carrying audit_converge_on: all. The precondition is asserted, not assumed: over a tasks-bearing target tp import exits 3 at the exists-guard before the fence is reached. Section 7 rows 13b and 13d pass.",
+      "source_sections": [
+        "## 3. The fence"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "fence-message",
+      "title": "The refusal message names all three exits",
+      "status": "open",
+      "tags": [
+        "fence"
+      ],
+      "depends_on": [
+        "fence-import-remedies",
+        "escalate-decision"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "The refusal names the condition selecting each exit — omit the workflow key, carry the resolved value explicitly, or escalate — and does not contain the command-field refusal's wording `names a command the driver executes`. Section 7 row 14 passes.",
+      "source_sections": [
+        "## 3. The fence"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "escalate-decision",
+      "title": "audit-converge-on joins the --decision enum",
+      "status": "open",
+      "tags": [
+        "fence"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 6,
+      "acceptance": "engine's escalation decision enum carries audit-converge-on, the field maps to it, and an unknown decision still exits usage.",
+      "source_sections": [
+        "## 3. The fence"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "merge-by-severity",
+      "title": "by_severity on tp audit --merge",
+      "status": "open",
+      "tags": [
+        "merge"
+      ],
+      "depends_on": [
+        "clean-predicate"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "The existing by_status/by_role loop in runAuditMerge gains a by_severity counter over the round's non-PASS rows with buckets error, warning, info and unrecognised and no empty-string bucket; the key is present on any round holding a non-PASS row under both policies, absent on an all-PASS round, and survives --compact. Over one fixture carrying all four unrecognised shapes plus an error, a warning and an info, error+unrecognised equals the blocking-row count and warning+info the rest. Section 7 rows 15, 16 and 17 pass.",
+      "source_sections": [
+        "## 4. `by_severity` on `tp audit --merge`"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "replay-fixture",
+      "title": "Commit the replay projection of the recorded audit rounds",
+      "status": "open",
+      "tags": [
+        "fixture"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 12,
+      "acceptance": "testdata carries a projection of v0.35.0's nine and v0.36.0's thirteen recorded audit rounds — status, severity, role, item_id and the round ordinal — 3,046 rows taken at a named commit, with the generator committed beside it. The replay test does not read spec/.tp-review/, which is live state for cycles in flight.",
+      "source_sections": [
+        "## 7. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "replay-test",
+      "title": "The replay reproduces the table that decides the default",
+      "status": "open",
+      "tags": [
+        "fixture"
+      ],
+      "depends_on": [
+        "replay-fixture",
+        "clean-predicate"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "Replaying the projection at audit_clean_rounds 2 gives blocking 3 / all 9 for v0.35.0 and blocking 3 / all never for v0.36.0, and at 1 gives 2 / 8 and 2 / never, with the field resolving before round 1. The named mutant — grading error as advisory — moves every blocking cell to 2 and 1, and is observed failing before the code is written. Section 7 row 11 passes.",
+      "source_sections": [
+        "### 2.1 Why the default is `all`",
+        "## 7. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "reverse-gate-guard",
+      "title": "Reverse the gate guard's two assertions",
+      "status": "open",
+      "tags": [
+        "reversal"
+      ],
+      "depends_on": [
+        "converge-write-sinks",
+        "clean-predicate"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "In TestAuditGate_NoEscapeHatchFromTheGate the two assertions naming audit_converge_on assert it is a known workflow field; every other assertion in that test is unchanged and passes. The test's fixture rows carry no severity key, so the fail-closed rule is what keeps them green once the guard's project-level blocking write takes effect — asserted, not assumed. Section 7 row 18 passes.",
+      "source_sections": [
+        "## 6. Five shipped assertions are reversed"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "reverse-docs-and-constant",
+      "title": "SKILL.md's sentence and engine.DivergenceHint, coordinated",
+      "status": "open",
+      "tags": [
+        "reversal"
+      ],
+      "depends_on": [
+        "record-time-stamping"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "skills/tp/SKILL.md's own prose and engine.DivergenceHint each say convergence counts every non-PASS row the resolved policy does not accept — true under both values — and internal/cli/docs_contract_test.go's two independent checks both pass. Editing the constant alone must leave SKILL.md failing. Section 7 row 19 passes.",
+      "source_sections": [
+        "## 6. Five shipped assertions are reversed"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "reverse-reference-paragraph",
+      "title": "REFERENCE.md's Honest Convergence Signals paragraph, with a guard",
+      "status": "open",
+      "tags": [
+        "reversal"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 8,
+      "acceptance": "internal/cli/docs_contract_test.go gains an assertion over that paragraph — nothing reads it today — and the paragraph no longer lists the stored per-round clean flag among what behaves exactly as in v0.32.0. Re-adding the flag must redden the new assertion. Section 7 row 20 passes.",
+      "source_sections": [
+        "## 6. Five shipped assertions are reversed"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "reverse-divergence-comment",
+      "title": "ComputeAuditDivergence's condition-4 comment, and the suppression pinned",
+      "status": "open",
+      "tags": [
+        "reversal"
+      ],
+      "depends_on": [
+        "record-time-stamping"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "The doc comment no longer calls condition 4 redundant; no line of the function's logic changes. Two fixtures satisfying conditions 1 and 5 assert that a round clean and converged under blocking emits no object — once with roled open rows, once with roleless ones, the second pinning the unattributed_open cost the release accepts. Section 7 rows 21 and 22 pass.",
+      "source_sections": [
+        "## 6. Five shipped assertions are reversed"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "reversal-sweep",
+      "title": "Run the reversal sweep over every comment, constant and assertion",
+      "status": "open",
+      "tags": [
+        "reversal"
+      ],
+      "depends_on": [
+        "reverse-docs-and-constant",
+        "reverse-reference-paragraph",
+        "reverse-divergence-comment"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "Every shipped assertion matching the four criteria in section 6 — what convergence counts; the stored clean flag, next_action or the --check exit code being unchanged; tp having no audit-side equivalent of review_converge_on; and any enumeration of the settable workflow fields — across skills/, README.md and every comment, constant and test assertion in internal/engine/ and internal/cli/, states a rule true under both values. A sentence already covered by another item is re-read for a second false clause, and a field table is checked for falsifying by omission.",
+      "source_sections": [
+        "## 6. Five shipped assertions are reversed"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "document-the-field",
+      "title": "Document the field, its fence and its decision input",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [
+        "converge-field",
+        "escalate-decision",
+        "fence-change-rule"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "skills/tp/SKILL.md and REFERENCE.md document audit_converge_on, its default, its fence, its escalation name and the four write paths, and both field tables list it; SKILL.md carries beside it the one-line command that counts severity across a cycle's audit-round files, which is the input the default decision needs. README.md reflects the new flag surface.",
+      "source_sections": [
+        "## 1. Overview",
+        "## 2. `audit_converge_on`",
+        "### 2.1 Why the default is `all`"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ]
+}
