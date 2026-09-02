@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.37.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-02T03:36:32.630896Z",
+  "updated_at": "2026-09-02T03:47:27.057919Z",
   "workflow": {},
   "coverage": {
     "total_sections": 9,
@@ -508,7 +508,7 @@
     {
       "id": "replay-fixture",
       "title": "Commit the replay projection of the recorded audit rounds",
-      "status": "open",
+      "status": "done",
       "tags": [
         "fixture"
       ],
@@ -518,11 +518,24 @@
       "source_sections": [
         "## 7. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-02T03:37:58.8309Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-02T03:47:27.035905Z",
+      "closed_reason": "- testdata/auditreplay carries the projection of v0.35.0's 9 and v0.36.0's 13 recorded audit rounds: status, severity, role, item_id and the round ordinal, 3,046 rows over 22 audit-round-\u003cn\u003e.ndjson files, counted by the generator rather than taken from the spec (v0.35.0 1,800 rows / 9 rounds, v0.36.0 1,246 / 13). The spec's 3,046 and 1.4 MiB both hold: sources are 1,453,664 bytes; the projection is 311,400 bytes (304.1 KiB) against the spec's 'about 295 KiB', 5.6% larger.\n- Provenance is manifest.json beside the data: source_commit 6f7e3bfa73d7e8d1b8d9aa9bd38428bbc75b3686, sources_clean_at_commit true (checked with git status over both source directories, not assumed), the sha256 and row count of every one of the 22 sources, the sha256 of each output, and a syntactic census (status literals, severity key shapes) that embeds no grading rule.\n- The generator is committed beside the data at internal/engine/testdata/auditreplay/gen.go, run as 'go run internal/engine/testdata/auditreplay/gen.go'. It reads only files named exactly audit-round-\u003cn\u003e.ndjson, so 0.36.0's per-role audit-r9..r13 files are not double-counted, copies each projected key as raw JSON so absent stays absent and null stays null, and is byte-deterministic: two runs produced identical sha256 for both outputs.\n- The replay test does not read spec/.tp-review/: the loader added here, loadAuditReplayRounds in internal/engine/auditreplay_test.go, reads testdata/auditreplay only and returns rows grouped by round, index i holding round i+1, in the map[string]any shape AuditRowsClean consumes. The loader ships here rather than with replay-test so the fixture arrives with its own consumer.\n- TestAuditReplayFixtureMatchesItsManifest was watched failing before it was trusted: dropping a severity key from one row reddened both the sha256 assertion and the null-severity census assertion (1758 vs 1757), and moving one row's ordinal from 1 to 3 reddened the contiguity check ('round 3 follows round 0'). Regeneration restored both sha256 values exactly.\n- Independently verified that the projection reproduces spec 0.37.0 section 2.1 and section 7 row 11 before handover: at audit_clean_rounds 2, v0.35.0 converges at round 3 under blocking and round 9 under all; v0.36.0 at round 3 under blocking and never under all; at 1, 2/8 and 2/never. Rounds 7, 12 and 13 of v0.36.0 and round 4 of v0.35.0 are unclean under blocking, matching the error rows section 2.1 names.\n- Quality gate green: ./scripts/check-suite-state.sh \u0026\u0026 golangci-lint run \u0026\u0026 ./scripts/check-deadcode.sh \u0026\u0026 ./scripts/check-complexity.sh - all six packages ok, 0 issues, no deadcode or complexity regression.",
+      "gate_passed_at": "2026-09-02T03:47:27.035905Z",
+      "commit_sha": "789358e",
+      "commit_shas": [
+        "789358e",
+        "a0460e5",
+        "2c7ca0d"
+      ],
+      "commit_files": [
+        "internal/engine/auditreplay_test.go",
+        "internal/engine/testdata/auditreplay/0.35.0.ndjson",
+        "internal/engine/testdata/auditreplay/0.36.0.ndjson",
+        "internal/engine/testdata/auditreplay/gen.go",
+        "internal/engine/testdata/auditreplay/manifest.json"
+      ]
     },
     {
       "id": "replay-test",
