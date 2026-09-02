@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.37.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-02T00:45:47.218292Z",
+  "updated_at": "2026-09-02T00:53:44.731798Z",
   "workflow": {},
   "coverage": {
     "total_sections": 9,
@@ -121,7 +121,7 @@
     {
       "id": "clean-predicate",
       "title": "The severity predicate that grades a round under the resolved policy",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -133,11 +133,25 @@
       "source_sections": [
         "## 2. `audit_converge_on`"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-02T00:47:06.791525Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-02T00:53:44.686687Z",
+      "closed_reason": "- One engine predicate over (rows, policy): engine.AuditRowsClean(rows []map[string]any, convergeOn string) bool in internal/engine/auditclean.go, a pure function of its two arguments because section 2 stamps clean at record time rather than recomputing it live.\n- Under all, clean iff the round holds no non-PASS row: the loop returns false on the first row AuditRowIsPass rejects, and any policy literal other than the exact string blocking takes that arm, so an unrefused value grades under the stricter default.\n- Under blocking, clean iff no non-PASS row carries a blocking severity: auditSeverityBlocking names the advisory half of the vocabulary (warning, info) and blocks by exclusion, so error blocks and a string outside the enum, JSON null, an absent key and a non-string value all block. The comparison is byte-for-byte like AuditRowIsPass, so WARNING is outside the enum and blocks, which keeps section 4 identity error plus unrecognised equals the blocking rows true. It never consults engine.SeverityRank, which is built for the review words and ranks every audit severity unknown.\n- Four fixtures, one per unrecognised shape: TestAuditRowsClean_UnusableSeverityBlocks subtests a string outside the enum, JSON null, an absent key, and a value that is not a string, each unclean under blocking and under all.\n- The mutant that must fail is grading a row with no usable severity as advisory: built as blocking iff the severity type assertion equals error, and run. It reddened exactly the four row-8 subtests at auditclean_test.go:77, the blocking assertion, while rows 5, 6 and 7 stayed green. Three further named mutants were run for discrimination: grade on status alone reddened rows 5 and 6 only; return clean whenever the policy is blocking reddened rows 7 and 8 only; special-case info only reddened row 6 alone, which is why section 7 asserts it apart from row 5. The real implementation then turned all six functions and four subtests green.\n- Section 7 rows 5, 6, 7 and 8 pass: TestAuditRowsClean_InfoIsAdvisory, _WarningIsAdvisory, _ErrorBlocksUnderBoth and _UnusableSeverityBlocks all PASS, plus _PassRowsAreNotGraded (PASS rows carry severity null, so a predicate over rows of any severity would report every all-PASS round unclean) and _UnknownPolicyGradesAsAll.\n- Quality gate green: check-suite-state.sh, golangci-lint run with 0 issues, check-deadcode.sh and check-complexity.sh all passed, exit 0.",
+      "gate_passed_at": "2026-09-02T00:53:44.686687Z",
+      "commit_sha": "fe34e8e",
+      "commit_shas": [
+        "fe34e8e",
+        "09980fd",
+        "43d8e12",
+        "1dad5f3",
+        "8485d9a",
+        "4bf40e9",
+        "e3ae4fd"
+      ],
+      "commit_files": [
+        "internal/engine/auditclean.go",
+        "internal/engine/auditclean_test.go"
+      ]
     },
     {
       "id": "record-time-stamping",
