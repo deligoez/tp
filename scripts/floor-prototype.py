@@ -36,6 +36,9 @@ HRULE = re.compile(r"^\s*([-*_])\1{2,}\s*$")
 BLOCKQUOTE = re.compile(r"^\s*>\s?")
 LIST_MARKER = re.compile(r"^\s*(?:[-*+]\s+|\d+\.\s+)")
 SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
+# §2.1's second arm is a backtick-delimited SPAN, so both delimiters must be in
+# the same unit.
+CODE_SPAN = re.compile(r"`[^`]*`")
 
 
 TABLE_SEP = re.compile(r"^\s*\|[\s:|-]+\|\s*$")
@@ -177,7 +180,14 @@ def in_floor(unit):
     """The three arms of §2.1's table."""
     if re.search(r"[0-9]", unit):
         return "digit"
-    if "`" in unit:
+    # A SPAN, not a lone backtick. `"`" in unit` was this script's reading and
+    # the Go port refuted it against §2.1's wording, which is the direction that
+    # check is supposed to run in. The two disagree on 21 of this corpus's 7,368
+    # units — 16 of them in the floor under one reading and cut under the other —
+    # and every one is the same shape: a code span whose two delimiters landed in
+    # different units because step 4 split between them. A lone delimiter is the
+    # wreckage of a span, not a span.
+    if CODE_SPAN.search(unit):
         return "identifier"
     low = unit.lower()
     if any(re.search(rf"\b{v}\b", low) for v in VERBS):
