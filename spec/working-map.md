@@ -237,6 +237,46 @@ Location counts are abandoned. Two measurements from outside the loop's own inpu
 **And a standing note so a round does not spend a finding on it:** `long-spec` and `section-size` fire
 on this document and on three of five shipped specs. They are advisories, not defects.
 
+### Round 4's outcome — the rule fired, and this time it is followed
+
+| instrument | 1 | 2 | 3 | 4 | rule | |
+|---|---|---|---|---|---|---|
+| `implementer`'s blocked tasks | 13 | 11 | 10 | **8** | below 6 | **missed** |
+| findings on §2.1 + §2.2 | — | 6 | 13 | **9** | below 5 | **missed** |
+| total findings | 45 | 61 | 54 | **46** | — | |
+
+**Everything that measures the document says it is converging.** Findings falling since round 2;
+blocked tasks falling; `regression`'s defect rate **15.5% → 14.8% → 10.3%**; blocker locality
+**8 of 10 → 4 of 8** in freshly written text; zero duplicates in the merge, so five roles are finding
+genuinely distinct things; `tester` withdrew 12 of 14 judgements in round 3 and `architect` discharged
+three in round 4 by reading the artifact rather than the spec's claim about it.
+
+**And one measurement says those numbers overstate it.** `tester` checked its own nine round-3
+findings against the post-repair text: **five were textually unchanged** while all nine carried
+`resolved.status: fixed` with one blanket evidence string. Re-derived over the whole round with the
+guard `tester` prescribed — a finding quoting a baseline anchor should not still find that anchor —
+**15 of 21 (71%)** survive their own repair. That is an upper bound rather than a count, since a
+finding can quote a correct sentence and argue about its consequence. It is still the decisive fact of
+the cycle: **a `--resolve-all` with one evidence string is not a record of repair**, and every later
+round was told not to re-report what it named.
+
+**So the pre-registered consequence is taken as written: decompose what is buildable and let task
+acceptance carry the rest.** Round 3's consequence was overridden with reasons; overriding a second
+time would mean there was never a rule. Three things make it the right call independently of the rule:
+four roles have said for two rounds that the remaining defects need *building* rather than
+specifying; the cycle's most valuable findings came from running (`scripts/floor-prototype.py` found
+in one run what three review rounds missed, and `implementer` then broke the prototype by running it
+harder); and tp's own workflow puts code-versus-spec conformance in the audit phase, which is what
+half of round 4's findings actually want.
+
+**Two process repairs go in first, because decomposing broken text produces broken tasks.**
+Round 4's findings are applied as a **shrinking** repair — the first of the cycle: `question_shape` is
+deleted (`ax-economist` proved it a total function of `(kind, tier)`, carrying zero bits), §11's
+corpus-quantified rows are restated over constructed inputs (`implementer`: a test over a directory
+that changes every release is a standing tax, and two of three instances were already red), and §3's
+asymmetry paragraph loses the ordering claim it derived from the section that denies ordering. And
+resolution stops being blanket: each finding is dispositioned on its own anchor.
+
 ## Routed from the skills examination
 
 Source: `mattpocock/skills`, read in full (37 skills, 164 files). Each row is routed or parked; the
