@@ -150,8 +150,11 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 	}
 	// §8.1/§8.2: next_action names the single next step by the audit precedence.
 	// Advisory/read-only — it changes nothing and never gates the exit code. The
-	// just-recorded round is the latest, so its non-PASS rows are exactly !clean.
-	result["next_action"] = engine.AuditNextAction(specPath, converged, !clean)
+	// just-recorded round is the latest, and v0.37.0 §2 makes its two facts two
+	// arguments: the stamped `clean` verdict picks the branch, while `findings`
+	// — the raw non-PASS count, positive on a clean round under `blocking` — is
+	// what the converged and clean-but-not-converged branches render.
+	result["next_action"] = engine.AuditNextAction(specPath, converged, clean, findings)
 	return output.JSON(result)
 }
 
@@ -434,9 +437,19 @@ func runAuditStatus(specPath string, check bool) error {
 
 	// §8.1/§8.2: next_action names the single next step by the audit precedence.
 	// Advisory/read-only — it changes nothing and never gates the exit code. The
-	// latest recorded round holding open non-PASS rows is exactly !Clean.
-	latestHasFindings := len(rounds) > 0 && !rounds[len(rounds)-1].Clean
-	result["next_action"] = engine.AuditNextAction(specPath, converged, latestHasFindings)
+	// latest recorded round supplies both inputs v0.37.0 §2 separated, and both
+	// are read from the store rather than recomputed: its stamped Clean verdict
+	// picks the branch, its stored Findings count is the numeral the converged
+	// and clean-but-not-converged branches render. This sink is changed with the
+	// --record one and not after it — otherwise `--status`, the invocation a
+	// gated driver actually runs, stays silent about rows `--record` named. With
+	// no round recorded there is nothing to be unclean about and nothing to
+	// count, which is the state the pre-release `len(rounds) > 0 &&` guarded.
+	latestClean, latestFindings := true, 0
+	if n := len(rounds); n > 0 {
+		latestClean, latestFindings = rounds[n-1].Clean, rounds[n-1].Findings
+	}
+	result["next_action"] = engine.AuditNextAction(specPath, converged, latestClean, latestFindings)
 
 	if jsonErr := output.JSON(result); jsonErr != nil {
 		// Exiting, not falling through: without this the process printed a

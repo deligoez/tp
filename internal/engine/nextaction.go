@@ -3,6 +3,7 @@ package engine
 import (
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -65,23 +66,54 @@ func ReviewNextAction(specPath string, converged, blockingUnresolved bool, mecha
 //
 //  1. converged → the terminal proceed-to-release marker; it names no further tp
 //     command (release is outside tp).
-//  2. non-converged with open non-PASS rows in the latest recorded round → the
-//     fix-and-re-audit directive.
+//  2. the latest recorded round is unclean → the fix-and-re-audit directive.
 //  3. clean but not yet converged (the default) → run the next audit round.
+//
+// v0.37.0 §2 splits the single boolean this took — latestRoundHasFindings, the
+// callers' `!clean` — into the two questions audit_converge_on separates, and
+// drops it: latestRoundClean is the round's STORED verdict, whether the resolved
+// policy lets the phase end, and it alone picks the branch; latestRoundFindings
+// is the count of that round's non-PASS rows, which under `blocking` is positive
+// on rounds that are clean. Branches 1 and 3 — the two §2's table names — render
+// that count as a numeral, so the string differs observably from an empty
+// round's and an operator reading either audit sink learns that the round closed
+// over accepted rows. Branch 2 is unchanged: an unclean round's rows are what the
+// fix directive already sends the reader to. Under the default `all` the two
+// inputs agree, latestRoundFindings is zero on every clean round, and all three
+// branches read exactly as they did before this release.
 //
 // The review revise-and-re-review and mechanize_candidates branches do not apply
 // to audit: audit findings are PASS/FAIL rows with no --resolve/--verify path and
 // audit --record surfaces no mechanize_candidates. Advisory/read-only; gates no
 // exit code (§8.1).
-func AuditNextAction(specPath string, converged, latestRoundHasFindings bool) string {
+func AuditNextAction(specPath string, converged, latestRoundClean bool, latestRoundFindings int) string {
 	switch {
 	case converged:
+		if latestRoundFindings > 0 {
+			return "converged over " + acceptedRows(latestRoundFindings) +
+				" — implementation verified, proceed to release"
+		}
 		return "converged — implementation verified, proceed to release"
-	case latestRoundHasFindings:
+	case !latestRoundClean:
 		return "address the findings, then re-audit: tp audit " + specPath + " --record <file>"
 	default:
+		if latestRoundFindings > 0 {
+			return acceptedRows(latestRoundFindings) + " carried forward — run the next audit round: tp audit " +
+				specPath + " --record <file>"
+		}
 		return "run the next audit round: tp audit " + specPath + " --record <file>"
 	}
+}
+
+// acceptedRows renders the accepted-row count as the numeral §2 asks for, with
+// the noun agreeing with it. The numeral is the whole point: it is what makes
+// the rendered string differ observably from the one an empty round produces,
+// which a mutant branching on `clean` alone cannot do.
+func acceptedRows(n int) string {
+	if n == 1 {
+		return "1 accepted row"
+	}
+	return strconv.Itoa(n) + " accepted rows"
 }
 
 // specTaskBase resolves <base>.tasks.json from a spec path — the spec's base name

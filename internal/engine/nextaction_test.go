@@ -101,30 +101,32 @@ func TestReviewNextAction_BaseResolution(t *testing.T) {
 	assert.Contains(t, got, "tp import 0.31.0.tasks.json")
 }
 
-// Audit precedence: converged > non-PASS-rows-present > next-round.
+// Audit precedence: converged > latest round unclean > next-round. Since
+// v0.37.0 §2 the branch input is the round's stamped `clean` verdict and the
+// non-PASS count is a separate argument, because `blocking` separates them.
 
 func TestAuditNextAction_Converged(t *testing.T) {
-	got := AuditNextAction("spec.md", true /*converged*/, false)
+	got := AuditNextAction("spec.md", true /*converged*/, true /*clean*/, 0)
 	assert.Contains(t, got, "proceed to release", "converged names the terminal release marker")
 	assert.NotContains(t, got, "tp audit", "the terminal marker names no further tp command")
 }
 
 func TestAuditNextAction_CleanNotConverged(t *testing.T) {
-	got := AuditNextAction("spec.md", false, false /*no non-PASS rows*/)
+	got := AuditNextAction("spec.md", false, true /*clean*/, 0 /*no non-PASS rows*/)
 	assert.Contains(t, got, "run the next audit round")
 	assert.Contains(t, got, "tp audit spec.md --record <file>")
 }
 
 func TestAuditNextAction_NonPassRowsPresent(t *testing.T) {
-	got := AuditNextAction("spec.md", false, true /*non-PASS rows present*/)
+	got := AuditNextAction("spec.md", false, false /*unclean*/, 1)
 	assert.Contains(t, got, "address the findings", "names the fix-and-re-audit directive")
 	assert.Contains(t, got, "tp audit spec.md --record <file>")
 }
 
 // TestAuditNextAction_ConvergedWinsOverFindings pins the audit ordering: a
-// converged state names the forward step even if findings are (unreachably) flagged.
+// converged state names the forward step even if the round is (unreachably) unclean.
 func TestAuditNextAction_ConvergedWinsOverFindings(t *testing.T) {
-	got := AuditNextAction("spec.md", true, true)
+	got := AuditNextAction("spec.md", true, false, 1)
 	assert.Contains(t, got, "proceed to release")
 	assert.NotContains(t, got, "address the findings")
 }

@@ -430,7 +430,7 @@ func TestAuditGate_DivergenceReachesNeitherConvergenceNorNextAction(t *testing.T
 	assert.Equal(t, 0, engine.ConsecutiveClean(st.AuditRounds))
 	assert.False(t, engine.Converged(st.AuditRounds, 2, specHash),
 		"two rounds, the latest of them unclean, is not two consecutive clean rounds")
-	assert.Equal(t, fixDirective, engine.AuditNextAction("spec.md", false, true),
+	assert.Equal(t, fixDirective, engine.AuditNextAction("spec.md", false, false /*unclean*/, 1),
 		"branch 2 of the three-state audit precedence is unchanged")
 }
 
