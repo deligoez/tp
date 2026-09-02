@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.37.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-02T03:59:09.466463Z",
+  "updated_at": "2026-09-02T04:10:54.296749Z",
   "workflow": {},
   "coverage": {
     "total_sections": 9,
@@ -411,7 +411,7 @@
     {
       "id": "fence-message",
       "title": "The refusal message names all three exits",
-      "status": "open",
+      "status": "done",
       "tags": [
         "fence"
       ],
@@ -424,11 +424,21 @@
       "source_sections": [
         "## 3. The fence"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-02T04:01:24.125991Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-02T04:10:54.281295Z",
+      "closed_reason": "v0.37.0 §7 row 14: the refusal names all three exits and the condition selecting each, and the exits are the sink's own.\n- The message text at all four sinks, run on the freshly built binary in a scratch tree, exit 2 each: the error is '\u003csink\u003e changes the resolved audit_converge_on from all to blocking, which relaxes the audit gate and is a user-approved decision refused under TP_UNATTENDED' and the hint is 'if you did not mean to change it, \u003csink exit\u003e; if you did, escalate: tp escalate --decision audit-converge-on --evidence \u003cwhat you found\u003e'. The sink exit reads 'the document is the fix: omit its top-level \"workflow\" key to carry the current block forward, or write \"audit_converge_on\": \"all\" into it' at tp import, 'do not make this write: it names the value itself, so no form of it lands while audit_converge_on still resolves all' at tp set --workflow and its --project form, and 'do not run this hoist: --extract moves every field the task files share in one write, so no form of it lands while audit_converge_on still resolves all' at tp config --extract.\n- The remedies are sink-specific rather than a shared list, which is the acceptance's substance and not a simplification of it: only tp import has an input the unit can re-author, so §3's two documents are exits there and nowhere else; tp set names the literal and --extract moves every shared field in one write, so at neither is there a form of the command that lands while leaving the value alone. An over-general message that offered all four exits everywhere would satisfy every positive assertion and send a unit at tp set to edit a document that is not what refused.\n- Neither the message nor the hint contains the command-field refusal's wording 'names a command the driver executes', asserted at every sink on both strings; the shipped helper checked the message alone.\n- The test was written first and watched failing against unchanged code at all four sinks for the expected reasons: the hint carried neither condition clause and no exit at all, and the message named no resolved value. The negative half was already green then, so it was proved discriminating by mutation rather than by construction.\n- Three mutants built and run in an rsync copy with the baseline taken from the unmutated tree; no survivors, and internal/cli/unattended.go restored byte-identical by sha256 after each. M1 is §7 row 14's named mutant, delegating to refuseUnattendedCommandField: red at all four sinks in both the new test and the shipped assertFenceRefused helper. V1 is the variant row 14 names no mutant for and the one the reviewer's second reading is about, an over-general message offering all four exits at every sink: red at all four sinks in the new test alone, with the entire pre-existing fence suite green, so the negative half is the only thing standing between the release and that defect. V2 drops the two condition clauses while keeping the remedies: red at all four sinks, again only in the new test. V3 swaps the set and extract remedies, keeping both conditions and both texts sink-specific: red at set --workflow, its --project form and config --extract, and correctly green at import, whose text it did not touch.\n- Full project gate green on the final tree: ./scripts/check-suite-state.sh \u0026\u0026 golangci-lint run \u0026\u0026 ./scripts/check-deadcode.sh \u0026\u0026 ./scripts/check-complexity.sh exited 0, with 0 lint issues and every package ok under -race -count=1.\nOut of scope, left for the documentation tasks: skills/tp/REFERENCE.md lines 321 and 502 quote the command-field refusal and neither mentions this field's message, and no shipped document carries the new three-exit wording.",
+      "gate_passed_at": "2026-09-02T04:10:54.281295Z",
+      "commit_sha": "24f25ba",
+      "commit_shas": [
+        "24f25ba",
+        "6c825fb"
+      ],
+      "commit_files": [
+        "internal/cli/auditconvergeon_message_test.go",
+        "internal/cli/config_extract.go",
+        "internal/cli/unattended.go"
+      ]
     },
     {
       "id": "escalate-decision",
