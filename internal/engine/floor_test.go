@@ -186,3 +186,11 @@ func TestEachTableDataRowIsItsOwnBlock(t *testing.T) {
 	}
 }
 
+// TestTableRowsInsideAFenceAreNotTableRows pins the order step 1 applies its
+// rules in: the fence is read first, so a pipe line inside a code block is
+// dropped with the block rather than promoted to a unit of its own.
+func TestTableRowsInsideAFenceAreNotTableRows(t *testing.T) {
+	text := "```\n| a | b |\n|---|---|\n| 1 | 2 |\n```\n\nAfter.\n"
+
+	assert.Equal(t, []string{"After."}, renderBlocks(floorBlocks(text)))
+}
