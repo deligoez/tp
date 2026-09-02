@@ -10,9 +10,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// resolvedWorkflowField returns one workflow field's {value, source} object from
-// tp config --resolved, run in dir.
-func resolvedWorkflowField(t *testing.T, dir, field string) map[string]any {
+// resolvedAuditConvergeOn returns audit_converge_on's {value, source} object
+// from tp config --resolved, run in dir. It takes no field name: every caller
+// asks for this one field, and a parameter that only ever receives one literal
+// is generality the gate's unparam linter rejects.
+func resolvedAuditConvergeOn(t *testing.T, dir string) map[string]any {
 	t.Helper()
 	out, stderr, code := runTP(t, dir, "config", "--resolved")
 	require.Equal(t, 0, code, "config --resolved: %s", stderr)
@@ -20,8 +22,8 @@ func resolvedWorkflowField(t *testing.T, dir, field string) map[string]any {
 	require.NoError(t, json.Unmarshal([]byte(out), &res))
 	wf, ok := res["workflow"].(map[string]any)
 	require.True(t, ok, "config --resolved carries a workflow object")
-	entry, ok := wf[field].(map[string]any)
-	require.True(t, ok, "config --resolved reports %s", field)
+	entry, ok := wf["audit_converge_on"].(map[string]any)
+	require.True(t, ok, "config --resolved reports audit_converge_on")
 	return entry
 }
 
@@ -33,7 +35,7 @@ func resolvedWorkflowField(t *testing.T, dir, field string) map[string]any {
 func TestAuditConvergeOnDefaultAll(t *testing.T) {
 	dir := writeStrategyProject(t, "{}")
 
-	field := resolvedWorkflowField(t, dir, "audit_converge_on")
+	field := resolvedAuditConvergeOn(t, dir)
 	assert.Equal(t, "all", field["value"], "the built-in default is all, not blocking")
 	assert.Equal(t, "default", field["source"], "no layer sets it")
 }
@@ -50,14 +52,14 @@ func TestAuditConvergeOnResolvedNamesItsSource(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(tpDir, "config.json"),
 		[]byte(`{"workflow":{"audit_converge_on":"blocking"}}`), 0o600))
 
-	field := resolvedWorkflowField(t, dir, "audit_converge_on")
+	field := resolvedAuditConvergeOn(t, dir)
 	assert.Equal(t, "blocking", field["value"], "the project default flows into resolution")
 	assert.Equal(t, "project", field["source"], "the project layer is named")
 
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "s.tasks.json"),
 		[]byte(`{"spec":"spec.md","tasks":[],"workflow":{"audit_converge_on":"all"}}`), 0o600))
 
-	field = resolvedWorkflowField(t, dir, "audit_converge_on")
+	field = resolvedAuditConvergeOn(t, dir)
 	assert.Equal(t, "all", field["value"], "the task override outranks the project config")
 	assert.Equal(t, "override", field["source"], "the override layer is named")
 }
