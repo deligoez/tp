@@ -43,3 +43,32 @@ func TestGroundArtifactsAreTheirOwnPrefixList(t *testing.T) {
 	}
 }
 
+// TestGroundOnlyStateDirIsInvisibleToReviewState is §11 row 11. A ground-only
+// state directory — the ground round and its emitted artifacts, no state.json —
+// is the state §7.3 mandates, and grounding precedes review, so it is what
+// every spec looks like before its first review round. If either predicate saw
+// it, LoadReviewState would find state artifacts with no index and return
+// StateCorruptError{MissingIndex: true}, and every command that loads state for
+// that spec would abort.
+func TestGroundOnlyStateDirIsInvisibleToReviewState(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
+
+	stateDir := ReviewStateDir(specPath)
+	require.NoError(t, os.MkdirAll(stateDir, 0o755))
+	for _, name := range groundArtifactNames {
+		require.NoError(t, os.WriteFile(filepath.Join(stateDir, name), []byte("x"), 0o600))
+	}
+	require.NoFileExists(t, filepath.Join(stateDir, stateFileName),
+		"the fixture is only ground-only if it holds no index")
+
+	assert.False(t, hasRecordedRoundFiles(stateDir),
+		"a ground round is not a recorded review or audit round")
+	assert.False(t, hasStateArtifacts(stateDir),
+		"a ground-only directory holds no review state artifact")
+
+	st, err := LoadReviewState(specPath)
+	require.NoError(t, err, "a ground-only directory must not read as corrupt state")
+	assert.Nil(t, st, "no state.json means no state, not an empty one")
+}
