@@ -188,3 +188,20 @@ func TestABlockThatStraddlesADroppedHeadingKeepsTheSectionItOpensIn(t *testing.T
 	assert.Equal(t, []string{"§1", "§1"}, anchorsOfEveryUnit(text))
 }
 
+// TestAnIndexOutsideTheTextsUnitsHasNoAnchor pins the failure direction of a
+// mismatched pairing — an anchorer built from one text asked for another's unit
+// — as empty rather than `§0`. `§0` is a legal anchor and a structurally valid
+// row; empty is neither, and §7.2 requires the field, so the row is rejected at
+// record instead of carrying a plausible wrong section.
+func TestAnIndexOutsideTheTextsUnitsHasNoAnchor(t *testing.T) {
+	text := "## 1. One\n\nA holds 1.\n"
+	anchorOf := FloorAnchorOf(text)
+
+	require.Len(t, FloorUnits(text), 1)
+	assert.Equal(t, "§1", anchorOf(1))
+
+	assert.Empty(t, anchorOf(0), "unit ids are 1-based")
+	assert.Empty(t, anchorOf(2), "this text has no second unit")
+	assert.Empty(t, anchorOf(-1))
+}
+
