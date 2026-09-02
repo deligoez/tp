@@ -93,8 +93,8 @@ tp**. The severity argument survived, but its subject changed from the driver to
 documented misled reader is this repository's own orchestrator.
 
 **A whole claim class was ground at once, and the check this effort registered found it.** 49 path
-citations across the pending set named a file that does not resolve — `audit.go:355` rather than
-`internal/cli/audit.go:355`. Bare names without a line number are an accepted shorthand and were left
+citations across the pending set named a file that does not resolve: a bare filename plus a line
+number, where `internal/cli/audit.go:355` was meant. Bare names without a line number are an accepted shorthand and were left
 alone; the checker's rule is *slash or line number*, which a hand replication of it got wrong before
 the real thing was run.
 
