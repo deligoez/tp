@@ -48,11 +48,22 @@ func ValidAuditConvergeOn(v string) bool {
 // all → blocking is walked around by writing blocking over an unset field, and
 // misses the import that names neither literal (§7 row 13b).
 //
-// Both arguments are *resolved* values, not stored ones. Under §2's precedence
-// a task override outranks the project config, so a project write of blocking
-// beneath a task override of all leaves after equal to before and passes here.
-// That is why the comparison takes two resolved values rather than a field name
-// and a literal: a caller cannot supply the layer it wrote to instead.
+// Both arguments are *resolved* values, not stored ones, because resolution is
+// what an audit round reads. A tp import document naming neither literal still
+// moves what resolves when a layer beneath it carries blocking (§7 row 13b), so
+// a fence reading the written literal passes it. That is why the comparison
+// takes two resolved values rather than a field name and a literal: a caller
+// cannot supply the layer it wrote to instead.
+//
+// This paragraph used to justify that signature with a --project write of
+// blocking beneath a task override of all, which it said leaves after equal to
+// before and passes here. No sink produces that outcome any more.
+// fenceAuditConvergeOnSet refuses a project-layer write on its value and
+// returns before reaching this call (§7 row 13e), and tp config --extract
+// compares over an unconditional empty override, which catches the analogous
+// element. fenceAuditConvergeOnSet's task layer, fenceAuditConvergeOnImport and
+// tp config --extract each hand this function two genuinely resolved values, so
+// the function is unchanged and only its example was withdrawn.
 func AuditConvergeOnRelaxes(before, after string) bool {
 	return after == AuditConvergeOnBlocking && before != AuditConvergeOnBlocking
 }
