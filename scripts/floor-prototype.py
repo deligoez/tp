@@ -183,7 +183,73 @@ def measure(path):
     }
 
 
+def truncate_bytes(s, limit=60):
+    """§2.2: first `limit` BYTES, cut on a rune boundary."""
+    b = s.encode("utf-8")
+    if len(b) <= limit:
+        return s
+    cut = b[:limit]
+    while cut and (cut[-1] & 0xC0) == 0x80:
+        cut = cut[:-1]
+    if cut and cut[-1] >= 0x80:
+        cut = cut[:-1]
+    return cut.decode("utf-8", "ignore")
+
+
+def emit(path):
+    """§2.2's anchor payload, in §11 row 4's labelled-prose shape.
+
+    Emits `(unit_id, anchor, line, text_sha, ordinal, first 60 bytes)` per floor
+    unit and nothing else — the unit reads the spec file itself. Whether that is
+    enough to locate and disposition a unit is the release's central untested
+    bet, and this mode exists to run it rather than argue about its cost.
+    """
+    text = open(path, encoding="utf-8").read()
+    lines = text.split("\n")
+
+    # anchor = the last §n(.n)* heading at or above the unit; §0 before the first
+    heads = []
+    for i, l in enumerate(lines, 1):
+        m = re.match(r"^#{2,3}\s+(\d+(?:\.\d+)*)", l)
+        if m:
+            heads.append((i, "§" + m.group(1)))
+
+    def anchor_for(lineno):
+        cur = "§0"
+        for i, a in heads:
+            if i <= lineno:
+                cur = a
+            else:
+                break
+        return cur
+
+    # locate each unit by its first words, so `line` is the file line it starts on
+    units = []
+    for b in blocks(text):
+        for u in split_units(canonicalise(b)):
+            units.append((u, b))
+    seen = Counter()
+    out = []
+    for n, (u, b) in enumerate(units, 1):
+        if not in_floor(u):
+            continue
+        head = " ".join(u.split()[:4])
+        lineno = next((i for i, l in enumerate(lines, 1)
+                       if head and head.split()[0] in l and b and b[0].strip()[:20] in l), 0) or \
+                 next((i for i, l in enumerate(lines, 1) if b and l.strip() == b[0].strip()), 0)
+        d = sha(u)
+        seen[d] += 1
+        out.append(f"u{n} {anchor_for(lineno)} (line {lineno}, {d}, #{seen[d]}): "
+                   f"{truncate_bytes(u)}")
+    return out
+
+
 def main():
+    if "--emit" in sys.argv:
+        i = sys.argv.index("--emit")
+        for row in emit(sys.argv[i + 1]):
+            print(row)
+        return 0
     args = [a for a in sys.argv[1:] if a != "--json"]
     as_json = "--json" in sys.argv
     paths = sorted(_glob(args[0] if args else "spec/*.md"))
