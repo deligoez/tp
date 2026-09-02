@@ -401,6 +401,13 @@ func runSetWorkflow(args []string) error {
 				os.Exit(ExitUsage)
 				return nil
 			}
+			// §3's change rule, string-shaped and placed here — before the
+			// integer and float dispatch below — rather than folded into
+			// fenceWorkflowWrite, whose float64 signature would have parsed
+			// this literal as a number first and never seen it.
+			fenceAuditConvergeOnSet(
+				fmt.Sprintf("tp set --workflow audit_converge_on=%s", valueStr),
+				valueStr, auditConvergeOnTaskLayer)
 			auditConvergeOnValue = valueStr
 			auditConvergeOnSet = true
 			continue
