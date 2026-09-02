@@ -370,7 +370,8 @@ An escalation is a normal, expected outcome, not a crash. `tp escalate --decisio
  "phase": "review", "evidence": "…", "options": ["…"], "at": "2026-01-01T00:00:00Z"}
 ```
 
-`decision` is one of `skip-gate`, `raise-review-cap`, `raise-audit-cap`, `import-force`, `other`;
+`decision` is one of `skip-gate`, `raise-review-cap`, `raise-audit-cap`, `import-force`,
+`audit-converge-on`, `other`;
 `--option` is repeatable and `options` is `[]` when none is given. Outside a run (`TP_RUN_DIR` unset)
 the command is a **usage error**, so it cannot be used to fabricate a record.
 

@@ -311,7 +311,7 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp run [spec]` | Drive the cycle unattended, one unit at a time |
 | `tp run --status` | Report the current or last run: phase, units done, the accrual against each cap, the last unit's exit code and log path, `stop_reason`, and `run_state` (`in_flight`/`crashed`/`stopped`); takes no run lock; exits 3 when no run state exists |
 | `tp run --dry-run` | List the units the driver would execute next as `{phase, round, next_units}` and exit 0; spawns nothing, writes no run state, takes no run lock |
-| `tp escalate --decision <name> --evidence <text>` | Record a decision only the operator can take and stop the unit: writes `$TP_RUN_DIR/$TP_UNIT_SEQ-escalation.json` and exits 2; `--decision` is one of `skip-gate`, `raise-review-cap`, `raise-audit-cap`, `import-force`, `other`; outside a run (no `TP_RUN_DIR`) it is a usage error |
+| `tp escalate --decision <name> --evidence <text>` | Record a decision only the operator can take and stop the unit: writes `$TP_RUN_DIR/$TP_UNIT_SEQ-escalation.json` and exits 2; `--decision` is one of `skip-gate`, `raise-review-cap`, `raise-audit-cap`, `import-force`, `audit-converge-on`, `other`; outside a run (no `TP_RUN_DIR`) it is a usage error |
 | `tp escalate ... --option <text>` | Add a way forward the unit saw; repeatable, and `options` is `[]` when none is given |
 
 ### Incremental
