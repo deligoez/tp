@@ -325,13 +325,31 @@ complete, a dropped role merging clean, exit codes that cannot separate a typo f
 under 25 distinct class slugs. `spec/0.35.0-candidates.md` §0 names what v0.34.1 and v0.34.2 already
 closed and what moved to a spec — read it first so nothing gets re-opened or claimed twice.
 
-**Two corpus facts every future gate must respect, both counted rather than assumed.** No recorded
-row carries a `disposition` — 0 of 12,958, review side included; the `resolved` key on 1,403 rows
-holds `{evidence, resolved_at}` with no verdict. And a quarter of recorded review rounds carry a
-snapshot whose sha256 is not the `spec_hash` that round recorded. Together they mean **a gate phrased
-as "replay the recorded rounds" cannot run**, which three specs discovered separately
-(`spec/0.43.0.md` §6.1, `spec/0.48.0.md` §5, `spec/0.49.0.md` §10). The replacement that works is a
-gate stated as an invariant checkable against a live tree.
+**One corpus fact every future gate must respect — and one this file got wrong, which three specs
+inherited.**
+
+**WRONG, and corrected here:** this file used to say *"no recorded row carries a `disposition` — 0 of
+12,958; the `resolved` key holds `{evidence, resolved_at}` with no verdict."* The corpus does carry
+the verdict. Measured over `spec/.tp-review/*/*.ndjson`: `resolved` is on **1,406** rows and every one
+of them has three sub-keys — `evidence`, `resolved_at` and **`status`** — with values `fixed` 1,308 and
+`wontfix` 98. tp writes it itself (`tp audit <file> --resolve <id> <fixed|wontfix|duplicate>`,
+`internal/cli/audit_resolve.go:20`). The old sentence was a search for the *key name* `disposition`
+reported as a claim about the *data*, and 0 is the honest answer to that search and to no other
+question. **The derivation, so it cannot rot again:**
+`python3 -c 'import json,glob,collections;c=collections.Counter(json.loads(l)["resolved"]["status"] for f in glob.glob("spec/.tp-review/*/*.ndjson") for l in open(f) if l.strip() and isinstance(json.loads(l).get("resolved"),dict));print(c)'`
+What the corpus genuinely lacks is the **section a repair edited** — the input `spec/0.43.0.md` §6.2
+item 1 actually needs, absent for a different reason than the one that was written down.
+
+**Still true, and it is the one that kills a replay gate on its own:** a fifth of recorded review
+rounds carry a snapshot whose sha256 is not the `spec_hash` that round recorded — 35 of 168 (20.8%),
+and the distribution is nothing like uniform: **19 of the 35 are v0.31.0 alone**, the last three
+cycles hold 2 in 48 rounds, and the most recent 27 rounds hold none. So the honest form of the
+argument is not "a quarter of the corpus is wrong" but **"the record cannot distinguish a corrupt
+round from a clean one, so 4% and 86% look identical to a reader"** — which survives the rate falling
+to zero. **A gate phrased as "replay the recorded rounds" therefore cannot run**, which three specs
+discovered separately (`spec/0.43.0.md` §6.1, `spec/0.48.0.md` §5, `spec/0.49.0.md` §10) — but two of
+the three withdrew it citing the disposition, which was never the reason. The replacement that works
+is a gate stated as an invariant checkable against a live tree.
 
 **v0.36.0's own hazard is suppression, and it is gated — but not by a replay.** Every mechanism in
 it hides, regroups or narrows what reviewers see, which is exactly what burned v0.34.0 §7.1 for
