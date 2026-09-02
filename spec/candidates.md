@@ -58,6 +58,39 @@ which is what a zero-false-positive bar decides on.
 **What could revive it:** a corpus from a project that does *not* follow the rule, or a required
 task-kind field that makes "test-only" a fact rather than an inference. Neither exists today.
 
+### The contradictory-comparator lint rule
+
+**What it tried to catch:** a spec stating one numeric rule twice with opposite comparators — *more
+than three sections* in one place, *at most three sections* in another.
+
+**Its claimed true positive could not be reproduced, and its false positives are systematic.** The
+proxy groups statements by `(number, noun)` and flags a group carrying both a greater-family and a
+lesser-family comparator. Run over every `spec/*.md` at the `v0.36.0` and `v0.37.0` tags — both
+states the candidate described as *before this cycle's repairs* — and over every historical revision
+of the file the defect was said to be in:
+
+| corpus | flagged | true positives |
+|---|---|---|
+| 46 spec files at `v0.36.0` | 2 | **0** |
+| 46 spec files at `v0.37.0` | 2 | **0** |
+| every recorded revision of the delta-pass spec | **0** | 0 |
+| 47 spec files today, narrowed to same-section grouping | **0** | 0 |
+
+**Both flags are the same false positive and it is not noise.** In `spec/0.31.0.md`,
+`mechanize_candidates` needs *"at least two rounds"* and `harness_stale` is false with *"fewer than
+two rounds"*. Two different rules sharing a number and a noun — which is what the candidate's own text
+said the design work owed: *"a correct predicate has to establish that the two statements govern the
+same subject."* No predicate was named, and none is available at lint time.
+
+**The obvious narrowing removes the false positives by removing everything.** Grouping within a
+section instead of a file flags **zero** across 47 files. A rule that has never fired on anything
+cannot be shown to work.
+
+**What could revive it:** a reproducible instance. The candidate asserted it *"caught the defect that
+motivated it"*; that defect is not in any tagged state of the repository, so either it lived only in
+an uncommitted draft or the prototype differed from the one described. Either way the claim is not
+checkable, and a lint rule whose only evidence is unreproducible is not a release.
+
 ### The example-table lint rule
 
 Refuted in both forms its spec named: the keyword-and-shape heuristic fires on **3.9–22.6%** of this
