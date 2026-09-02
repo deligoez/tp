@@ -43,6 +43,10 @@ var (
 		"audit_max_rounds":     true,
 		"checks":               true,
 		"review_converge_on":   true,
+		// v0.37.0 §2's audit twin. Listed here rather than folded into the
+		// review entry because the two fields grade different vocabularies:
+		// each is validated against its own predicate below.
+		"audit_converge_on": true,
 
 		// §7's integer run caps. runner is deliberately absent: it takes three
 		// shapes rather than a scalar, so it is authored in the file itself.
@@ -336,6 +340,8 @@ func runSetWorkflow(args []string) error {
 	checksSet := false
 	var convergeOnValue string
 	convergeOnSet := false
+	var auditConvergeOnValue string
+	auditConvergeOnSet := false
 	for _, arg := range args {
 		parts := strings.SplitN(arg, "=", 2)
 		if len(parts) != 2 {
@@ -379,6 +385,24 @@ func runSetWorkflow(args []string) error {
 			}
 			convergeOnValue = valueStr
 			convergeOnSet = true
+			continue
+		}
+
+		// audit_converge_on: v0.37.0 §2's string enum, validated on the same
+		// terms as its review twin — the value is a command-line argument, so a
+		// bad literal is a usage error (exit 2). The consuming audit sinks
+		// refuse an illegal *stored* value with ExitValidation instead; the two
+		// classes are deliberately different and §7 row 3 pins the split.
+		// The predicate and hint are the engine's, not re-derived here, so a
+		// future change to the legal set reaches both sinks at once.
+		if field == "audit_converge_on" {
+			if !engine.ValidAuditConvergeOn(valueStr) {
+				output.Error(ExitUsage, fmt.Sprintf("invalid audit_converge_on value %q", valueStr), engine.AuditConvergeOnHint)
+				os.Exit(ExitUsage)
+				return nil
+			}
+			auditConvergeOnValue = valueStr
+			auditConvergeOnSet = true
 			continue
 		}
 
@@ -493,6 +517,11 @@ func runSetWorkflow(args []string) error {
 			v := convergeOnValue
 			tf.Workflow.ReviewConvergeOn = &v
 			updated["review_converge_on"] = convergeOnValue
+		}
+		if auditConvergeOnSet {
+			v := auditConvergeOnValue
+			tf.Workflow.AuditConvergeOn = &v
+			updated["audit_converge_on"] = auditConvergeOnValue
 		}
 
 		if err := model.WriteTaskFile(taskFilePath, tf); err != nil {
