@@ -196,6 +196,17 @@ def truncate_bytes(s, limit=60):
     return cut.decode("utf-8", "ignore")
 
 
+def tail_bytes(s, limit=30):
+    """The unit's LAST `limit` bytes, cut on a rune boundary."""
+    b = s.encode("utf-8")
+    if len(b) <= limit:
+        return ""
+    cut = b[-limit:]
+    while cut and (cut[0] & 0xC0) == 0x80:
+        cut = cut[1:]
+    return cut.decode("utf-8", "ignore")
+
+
 def emit(path):
     """§2.2's anchor payload, in §11 row 4's labelled-prose shape.
 
@@ -230,17 +241,49 @@ def emit(path):
             units.append((u, b))
     seen = Counter()
     out = []
+    cut = 0
     for n, (u, b) in enumerate(units, 1):
-        if not in_floor(u):
-            continue
         head = " ".join(u.split()[:4])
         lineno = next((i for i, l in enumerate(lines, 1)
                        if head and head.split()[0] in l and b and b[0].strip()[:20] in l), 0) or \
                  next((i for i, l in enumerate(lines, 1) if b and l.strip() == b[0].strip()), 0)
+        if not in_floor(u):
+            # Named but not carried. The first end-to-end run found three of the
+            # graded spec's worst defects in units the arms had cut, so the cut
+            # set is announced — an id and an anchor, no text. The obligation
+            # stays on the floor; the reader is told where to look past it.
+            cut += 1
+            out.append(f"u{n} {anchor_for(lineno)} (cut)")
+            continue
         d = sha(u)
         seen[d] += 1
-        out.append(f"u{n} {anchor_for(lineno)} (line {lineno}, {d}, #{seen[d]}): "
-                   f"{truncate_bytes(u)}")
+        # NO TEXT IN THE INDEX. The first end-to-end run settled this. The unit
+        # reads the spec file anyway, and the one anchor defect it hit was
+        # EXTENT: a 60-byte head stopped 90 bytes short of the defect and the
+        # unit graded the wrong sentence. Carrying a tail too costs more than it
+        # buys — measured over spec/*.md, inlining the floor is 99,633B, a
+        # 60-byte head 46,337B (0.47x), head-50 plus tail-30 52,326B (0.53x). A
+        # 2x saving on a payload the reader does not need, because it has the
+        # file. This index is ~0.05x, and `--units` prints every unit's full text
+        # in ONE call, which is what the run ended up doing by hand.
+        out.append(f"u{n} {anchor_for(lineno)} {d} #{seen[d]} {len(u.encode())}B")
+    out.append(f"# {len(seen)} in floor, {cut} cut, "
+               f"{len([l for l in lines if l.lstrip().startswith('|')])} table rows not segmented")
+    return out
+
+
+def units_of(path):
+    """Every floor unit's FULL text, one per line, keyed by the index's id.
+
+    The companion to `emit`: the index says what you owe a disposition for, this
+    says what each unit is. One call, so the reader never guesses an extent.
+    """
+    text = open(path, encoding="utf-8").read()
+    out = []
+    for n, u in enumerate(
+            [u for b in blocks(text) for u in split_units(canonicalise(b))], 1):
+        if in_floor(u):
+            out.append(f"u{n}\t{sha(u)}\t{u}")
     return out
 
 
@@ -248,6 +291,11 @@ def main():
     if "--emit" in sys.argv:
         i = sys.argv.index("--emit")
         for row in emit(sys.argv[i + 1]):
+            print(row)
+        return 0
+    if "--units" in sys.argv:
+        i = sys.argv.index("--units")
+        for row in units_of(sys.argv[i + 1]):
             print(row)
         return 0
     args = [a for a in sys.argv[1:] if a != "--json"]
