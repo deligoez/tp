@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.37.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-02T02:34:35.079198Z",
+  "updated_at": "2026-09-02T02:48:29.548268Z",
   "workflow": {},
   "coverage": {
     "total_sections": 9,
@@ -248,7 +248,7 @@
     {
       "id": "config-surfaces",
       "title": "Hoist the field in config --extract and check it in validate --project",
-      "status": "open",
+      "status": "done",
       "tags": [
         "config"
       ],
@@ -260,11 +260,28 @@
       "source_sections": [
         "## 2. `audit_converge_on`"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-02T02:36:00.49163Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-02T02:48:29.50886Z",
+      "closed_reason": "v0.37.0 §7 row 4: tp config --extract hoists audit_converge_on and tp validate --project reports it, each half asserted separately because the row's named mutant reaches only one of them.\n- Extract half: computeCommonPolicy, hoistedFields and mergeCommon all carry the field (internal/cli/config_extract.go). TestConfigExtract_HoistsAuditConvergeOn asserts the payload emits it, .tp/config.json receives it and the task file loses it — the three together, since a hoist that strips without writing destroys the value and either assertion alone passes that. TestConfigExtract_AuditConvergeOnStillResolvesAfterTheHoist reads the same fact through tp config --resolved: blocking/override before, blocking/project after.\n- Validate half: workflowDeviations compares the two layers (internal/cli/validate_project.go). TestValidateProject_AuditConvergeOn_AcceptsLegalRejectsIllegal runs the command: a legal value the project also holds is accepted (exit 0, nothing reported), an illegal one against a legal project policy is reported and refused by --strict with exit 1, and a legal value that contradicts the policy is reported on the same terms. It does not grade the literal, because §2 places that refusal at the write sinks (exit 2) and the consuming audit sinks (exit 1).\n- Red first: all six new tests were run before the implementation and failed for the expected reasons — hoisted was [review_max_rounds], .tp/config.json held only review_max_rounds, a.tasks.json still held the field, and the deviations array was empty. TestComputeCommonPolicy_AuditConvergeOnNotHoistedWhenDivergentOrAbsent passed pre-implementation and is reported as the non-discriminating negative guard it is.\n- Mutant matrix, built in an rsync copy with the baseline from the unmutated tree, five mutants, no survivors. M1, the named mutant (drop the field from hoistedFields): kills the two extract e2e tests, the computeCommonPolicy test and the fence test; leaves both validate tests GREEN, which is why the halves are asserted separately. M2 (variant, drop from mergeCommon only — hoisted and stripped but never written, so the value is destroyed): kills TestMergeCommon_WritesAuditConvergeOn and both extract e2e tests. M3 (variant, drop from computeCommonPolicy only): kills the same extract set. M4 (variant, drop the comparison from workflowDeviations): kills both validate tests and leaves every extract test green — the complement of M1. M5 (variant, invert the comparator to ==): kills all three validate subtests, including the accepts subtest, which M4 alone leaves green — so the accepts half is discriminating rather than decoration.\n- The measurement fence-extract-scope needs, run on the live tree after this change: TP_UNATTENDED=1 tp config --extract over two task files both carrying blocking exits 0 and now hoists audit_converge_on, while a third spec with no task file at all moves from {source: default, value: all} to {source: project, value: blocking}. The refusing input the fence cannot see is therefore live now.\n- TestAuditConvergeOnFence_ExtractPassesWhatPreservesResolution went red on this landing exactly as its own comment predicted; its assertion moved from the task file to .tp/config.json and its comment records that the first of its two reasons is gone.\n- Quality gate on the final tree: check-suite-state.sh ok (cli, engine, fakerunner, model, output all ok), golangci-lint 0 issues, check-deadcode.sh exit 0, check-complexity.sh exit 0.",
+      "gate_passed_at": "2026-09-02T02:48:29.50886Z",
+      "commit_sha": "274ea0c",
+      "commit_shas": [
+        "274ea0c",
+        "dd89d25",
+        "5091668",
+        "a1348c2",
+        "5733160",
+        "e6433f6"
+      ],
+      "commit_files": [
+        "internal/cli/auditconvergeon_config_test.go",
+        "internal/cli/auditconvergeon_fence_test.go",
+        "internal/cli/config_extract.go",
+        "internal/cli/config_extract_test.go",
+        "internal/cli/validate_project.go",
+        "internal/cli/validate_project_test.go"
+      ]
     },
     {
       "id": "fence-change-rule",
