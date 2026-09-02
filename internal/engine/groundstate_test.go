@@ -143,3 +143,17 @@ func TestNextGroundRoundComparesNumbersNotFilenames(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 11, n)
 }
+
+// TestNextGroundRoundIgnoresACrashLeftoverTemp: a crash mid-record leaves
+// writeFileAtomic's unique sibling temp behind — "<name>.<random>.tmp" — and
+// that round was never recorded. Counting it would skip a number, which is the
+// same reason hasAnyPrefixed skips .tmp.
+func TestNextGroundRoundIgnoresACrashLeftoverTemp(t *testing.T) {
+	specPath := groundRoundFixture(t,
+		"ground-round-1.ndjson",
+		"ground-round-2.ndjson.2841913.tmp")
+
+	n, err := NextGroundRound(specPath)
+	require.NoError(t, err)
+	assert.Equal(t, 2, n, "an unfinished write is not a recorded round")
+}
