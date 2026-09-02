@@ -322,8 +322,7 @@ func docSectionBody(t *testing.T, doc, heading string) string {
 // What replaced it is behaviour, in
 // internal/cli/auditconvergeon_fence_test.go: the fence's rule is asserted by
 // running the commands over eight trees, including the two bases the deleted
-// prose used to carve out. That is the shape ci_gate_test.go already uses here
-// — derive the claim from the artifact rather than matching text about it.
+// prose used to carve out.
 //
 // The guards above are kept, but NOT because a negation cannot satisfy them.
 // That was this comment's earlier claim and an auditor falsified both halves of
@@ -337,12 +336,14 @@ func docSectionBody(t *testing.T, doc, heading string) string {
 //
 // The dividing line is SCOPE, not polarity. Contains and a windowed NotContains
 // are both local assertions inside an unbounded text, so the complement is free
-// and a negation simply goes there. Two shapes survive it: a subject that is
-// the whole of a BOUNDED artifact (assert.NotContains over
-// engine.DivergenceHint, where there is no elsewhere), and a claim DERIVED on
-// BOTH SIDES from the artifact rather than matched in it — the eight-tree fence
-// test named above, which runs the commands and reads exit codes and resolved
-// values back.
+// and a negation simply goes there. These survive it: a subject that is the
+// whole of a BOUNDED artifact (assert.NotContains over engine.DivergenceHint,
+// where there is no elsewhere), and a verdict that rests on BOUNDED read-backs
+// rather than on matching text — the eight-tree fence test named above decides
+// on the process exit code, the envelope's code field and os.IsNotExist. Note
+// what that does NOT say: the same test also runs five Contains/NotContains
+// over the generated message, and those are the unbounded shape. What rescues
+// it is that they are not what the verdict rests on.
 //
 // Not ci_gate_test.go, which an earlier draft of this comment cited and which
 // an auditor caught: it derives the step list from .tp/config.json and then
