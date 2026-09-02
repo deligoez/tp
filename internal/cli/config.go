@@ -77,6 +77,9 @@ func resolvedConfig(wf *model.Workflow, override *model.WorkflowOverride) map[st
 		// review_converge_on reports the raw resolved value and its source; an
 		// invalid stored value is surfaced, not rejected here (§3.3).
 		"review_converge_on": vs(wf.ReviewConvergeOn, override.ReviewConvergeOn != nil, project.ReviewConvergeOn != nil),
+		// audit_converge_on reports on the same terms as its twin: the raw
+		// resolved value and the layer it won on, unvalidated here (§2).
+		"audit_converge_on": vs(wf.AuditConvergeOn, override.AuditConvergeOn != nil, project.AuditConvergeOn != nil),
 
 		// §7's run fields. runner reports its raw JSON value whatever shape it
 		// takes, so a per-kind map is visible here before the runner resolver
