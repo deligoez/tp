@@ -187,7 +187,10 @@ In scope, not yet sharp enough to state as a question.
 
 - **Where the ground record lives.** Two runs suggest a precondition to review rather than a phase of
   its own, but two points do not settle it, and the shape decides whether a record is needed at all.
-- **Claim enumeration.** The weakest step: intuition undercounted 11 against 17. Whether this is a
-  parsing problem, a definition problem, or irreducibly a reading problem is not yet clear.
-- **What `UNVERIFIABLE` costs.** Zero instances in 27 grounded claims, so the verdict is designed and
+- **Claim enumeration.** The weakest step, and the only one that has now failed on every run:
+  intuition undercounted 11 against 17, then 21 against 32 on the ground spec itself. The mechanical
+  floor is not the answer either — measured over that spec it flags 75% of the prose units, so it
+  substitutes a coverage obligation for a shortlist. Whether this is a parsing problem, a definition
+  problem, or irreducibly a reading problem is not yet clear.
+- **What `UNVERIFIABLE` costs.** Zero instances in 76 grounded claims, so the verdict is designed and
   untested. A spec resting on a field report would produce one; none has been grounded yet.
