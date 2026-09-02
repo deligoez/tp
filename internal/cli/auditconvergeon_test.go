@@ -2,6 +2,8 @@ package cli_test
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -34,4 +36,28 @@ func TestAuditConvergeOnDefaultAll(t *testing.T) {
 	field := resolvedWorkflowField(t, dir, "audit_converge_on")
 	assert.Equal(t, "all", field["value"], "the built-in default is all, not blocking")
 	assert.Equal(t, "default", field["source"], "no layer sets it")
+}
+
+// TestAuditConvergeOnResolvedNamesItsSource covers v0.37.0 §2's resolution order
+// at the reporting surface: a project-config value is attributed to project, and
+// a task-file workflow block outranks it and is attributed to override. Neither
+// literal is written through a set command, which §3 fences and a later task
+// builds; both are stored values the parser must accept.
+func TestAuditConvergeOnResolvedNamesItsSource(t *testing.T) {
+	dir := writeStrategyProject(t, "{}")
+	tpDir := filepath.Join(dir, ".tp")
+	require.NoError(t, os.Mkdir(tpDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(tpDir, "config.json"),
+		[]byte(`{"workflow":{"audit_converge_on":"blocking"}}`), 0o600))
+
+	field := resolvedWorkflowField(t, dir, "audit_converge_on")
+	assert.Equal(t, "blocking", field["value"], "the project default flows into resolution")
+	assert.Equal(t, "project", field["source"], "the project layer is named")
+
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "s.tasks.json"),
+		[]byte(`{"spec":"spec.md","tasks":[],"workflow":{"audit_converge_on":"all"}}`), 0o600))
+
+	field = resolvedWorkflowField(t, dir, "audit_converge_on")
+	assert.Equal(t, "all", field["value"], "the task override outranks the project config")
+	assert.Equal(t, "override", field["source"], "the override layer is named")
 }
