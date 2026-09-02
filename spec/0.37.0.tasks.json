@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.37.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-02T03:06:03.704178Z",
+  "updated_at": "2026-09-02T03:22:58.478384Z",
   "workflow": {},
   "coverage": {
     "total_sections": 9,
@@ -456,7 +456,7 @@
     {
       "id": "merge-by-severity",
       "title": "by_severity on tp audit --merge",
-      "status": "open",
+      "status": "done",
       "tags": [
         "merge"
       ],
@@ -468,11 +468,26 @@
       "source_sections": [
         "## 4. `by_severity` on `tp audit --merge`"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-02T03:07:26.298729Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-02T03:22:58.439186Z",
+      "closed_reason": "by_severity ships on tp audit --merge (v0.37.0 section 4), verified by running rather than reading.\n\n- The counter is built in the existing by_status/by_role loop over the round's non-PASS rows, with buckets error, warning, info and unrecognised and no empty-string bucket; the four unrecognised shapes are one bucket.\n- The classifier was LIFTED, not re-derived: engine.auditSeverityBlocking's inline vocabulary became engine.AuditSeverityBucket and the predicate is now phrased over it, so one derivation serves both sections and a second copy cannot drift.\n- Present on any round holding a non-PASS row under both policies: asserted over an advisory-only fixture (clean under blocking, unclean under all) with .tp/config.json set each way, which is the only input separating a rows-keyed emission from a cleanliness-keyed one.\n- Absent on an all-PASS round, and present on both output forms, including the -o form Workflow D actually calls.\n- Survives --compact, with overlap_report's disappearance as the control that --compact took effect on that payload.\n- Over the seven-non-PASS-row fixture, error + unrecognised equals the round's blocking-row count and warning + info the rest, both sums derived by running each row through engine.AuditRowsClean rather than written beside the fixture.\n- Section 7 rows 15, 16 and 17 pass; six mutants were built and run in an rsync copy against an unmutated baseline and all six were killed, including two variants section 7 does not name (a breakdown over the pre-dedup input rows, and one emitted on the stdout branch only) that survived the entire suite until their killing tests were added.\n- Dogfooded on tp's own corpus with a freshly built binary: v0.35.0 audit round 4 reports {error 1, warning 2, info 1}, reproducing section 2.1's independently measured mix, and v0.36.0 round 9 reports {warning 2, info 2} - the advisory-only round the section exists for.",
+      "gate_passed_at": "2026-09-02T03:22:58.439186Z",
+      "commit_sha": "e707907",
+      "commit_shas": [
+        "e707907",
+        "74d3d3b",
+        "0a02b3d",
+        "d0f2a71",
+        "b5d00e3",
+        "5e0ee07"
+      ],
+      "commit_files": [
+        "internal/cli/audit_merge.go",
+        "internal/cli/audit_merge_severity_test.go",
+        "internal/engine/auditclean.go",
+        "internal/engine/auditclean_test.go"
+      ]
     },
     {
       "id": "replay-fixture",
