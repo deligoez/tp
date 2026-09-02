@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.37.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-02T01:22:50.591729Z",
+  "updated_at": "2026-09-02T01:50:32.363085Z",
   "workflow": {},
   "coverage": {
     "total_sections": 9,
@@ -89,7 +89,7 @@
     {
       "id": "converge-write-sinks",
       "title": "Reject an illegal literal at both set sinks with ExitUsage",
-      "status": "open",
+      "status": "done",
       "tags": [
         "validation"
       ],
@@ -101,11 +101,26 @@
       "source_sections": [
         "## 2. `audit_converge_on`"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-02T01:24:18.350658Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-02T01:49:05.357984Z",
+      "closed_reason": "Both tp set write sinks accept audit_converge_on and refuse an illegal literal with ExitUsage, verified by running the freshly built binary rather than by reading the code.\n- The task sink (internal/cli/set.go) and the project sink (internal/cli/set_project.go) each refuse the literal nope with exit 2, the envelope error `invalid audit_converge_on value \"nope\"` and the hint `must be one of: blocking, all`. Asserted on the exit status and on the decoded envelope in TestAuditConvergeOn_WriteSinksRefuseIllegalLiteral, and re-run here against a scratch project on the dev binary: both forms printed that envelope and exited 2.\n- A refused write leaves the tree untouched, which is the half a refusal test can miss: the task file is byte-identical before and after (shasum compared across both refusals), and the refused project write creates no .tp/config.json.\n- A legal value persists at both sinks and resolves back with its layer named: after the project write, tp config --resolved reports value blocking source project; after a task override is added on top, value all source override. Pinned by TestAuditConvergeOn_LegalLiteralPersistsAtProjectSink and _AtTaskSink.\n- Both sinks call engine.ValidAuditConvergeOn and engine.AuditConvergeOnHint rather than re-deriving the legal set or the wording (set.go:399-400, set_project.go:82-83), so a future change to the enum reaches both paths at once.\n- Five mutants were built and run in an rsync copy by the unit that wrote this code: four killed, and M5 - reusing the review twin's predicate and hint at these sinks - survives and is undetectable by design. That is confirmed from source here rather than taken on trust: AuditConvergeOnHint is byte-identical to ReviewConvergeOnHint by intent (auditconvergeon.go documents why), and ValidAuditConvergeOn accepts exactly the two literals its twin does, so no input can separate the two implementations today. Inventing a divergence to make it testable was declined.\n- The persistence half of those tests was shown to discriminate by an independent sixth mutant built while closing reverse-gate-guard: a project sink that accepts audit_converge_on and persists nothing was killed by TestAuditConvergeOn_LegalLiteralPersistsAtProjectSink.\n- 20556e0 is a refactor this sink forced rather than an unrelated cleanup: golangci-lint's unparam rejects a resolved-field helper whose parameter only ever receives one literal.\n- Quality gate green on the tree this closes: check-suite-state.sh, golangci-lint run reporting 0 issues, check-deadcode.sh and check-complexity.sh, exit 0.\nOut of scope, and reported rather than hidden: these six commits ALONE leave the suite red. Making the field settable reddens the two assertions in TestAuditGate_NoEscapeHatchFromTheGate that assert it is unknown, which is reverse-gate-guard's work, so the two changes are one atomic edit and the task graph has the dependency backwards. The reversal was therefore made first and the gate above was run over both; the commit lists are kept separate.",
+      "gate_passed_at": "2026-09-02T01:49:05.357984Z",
+      "commit_sha": "4362778",
+      "commit_shas": [
+        "4362778",
+        "0fcd69b",
+        "20556e0",
+        "5692e79",
+        "1cfc580",
+        "cc14f64"
+      ],
+      "commit_files": [
+        "internal/cli/auditconvergeon_test.go",
+        "internal/cli/auditconvergeon_write_test.go",
+        "internal/cli/set.go",
+        "internal/cli/set_project.go"
+      ]
     },
     {
       "id": "converge-consume-sinks",
@@ -422,7 +437,7 @@
     {
       "id": "reverse-gate-guard",
       "title": "Reverse the gate guard's two assertions",
-      "status": "open",
+      "status": "done",
       "tags": [
         "reversal"
       ],
@@ -435,11 +450,21 @@
       "source_sections": [
         "## 6. Five shipped assertions are reversed"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-02T01:49:10.796369Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-02T01:50:32.336829Z",
+      "closed_reason": "The two assertions naming audit_converge_on in TestAuditGate_NoEscapeHatchFromTheGate now assert it IS a known workflow field, and the fail-closed interaction that keeps the round unclean under blocking is asserted rather than assumed. Section 7 row 18 passes.\n- The red state was observed first, not taken from the brief: on the tree as inherited, go test -run TestAuditGate_NoEscapeHatchFromTheGate reported exactly two failures, at audit_signal_test.go:473 and :474, and nothing else. Both are assert rather than require, so the test ran on, and the require at :481 and every assertion after it were green - which is the independent confirmation that only these two needed reversing.\n- Reversed, not deleted: `assert.NotEqual(t, 0, code)` became `require.Equal(t, 0, code)` and `assert.Contains(..., \"unknown workflow field: audit_converge_on\")` became `assert.NotContains(...)`. require, because everything below the write now runs under the policy that write installs. The header comment moved with them: it stated that there is no audit_converge_on knob to flip, which is the opposite of what the code below now asserts.\n- Row 18's named mutant was built and run, and it SURVIVES: deleting the two assertions instead of reversing them (keeping the runTP call, discarding stdout) leaves TestAuditGate_NoEscapeHatchFromTheGate green and the whole internal/cli package green, 41s, exit 0. So no bare count or suite run discriminates a deletion from a reversal - only row 18's positively stated requirement does. Reporting it rather than inventing a guard the release did not ask for.\n- The reversal itself is load-bearing, shown by the inverse mutant: restoring the two pre-v0.37.0 assertions reddens exactly those two lines and nothing else.\n- The fail-closed interaction is now asserted in three places: that the project write actually resolves (config --resolved reports blocking, not merely exit 0), that no fixture row carries a severity key, and that engine.AuditRowsClean still grades those rows unclean under blocking; plus the round tp itself stamped, read from state.json rather than from a payload.\n- Those assertions were proven able to fail. Inverting the fail-closed rule (auditSeverityBlocking returning false for an ungradeable severity) reddens exactly the AuditRowsClean assertion and the stored-clean assertion. A mutant the spec does not name - the project sink accepting audit_converge_on and persisting nothing - reddens exactly the resolved-value assertion, and is not caught by the two reversed assertions, which pass on a write that reports success and stores nothing.\n- One claim in this task's own acceptance was measured and does NOT hold as worded, so it is corrected rather than repeated. \"The fail-closed rule is what keeps them green\" is false of the pre-existing assertions: under the fail-open mutant, go-safety's streak entry is still {consecutive_clean 0, open 1} because a per-role streak counts non-PASS rows and not severities, and --status --check still exits 1 because one clean round leaves consecutive_clean at 1 against a required 2. Both pre-existing assertions survive the inverted rule by that one-round margin. Measured on binaries built from the mutated and unmutated trees: baseline stores clean flags [true, false, false] with consecutive_clean 0, the fail-open mutant [true, false, true] with consecutive_clean 1, and both exit 1 on --check. What the rule actually governs at this guard is the stored clean flag and the streak margin, and nothing here asserted either until this task - which is precisely why row 18 asks for it to be asserted.\n- A measurement error was caught and corrected mid-task rather than reported as a result: the first probe built its baseline and its mutant binary from the same tree while the mutation was still applied, so the two ran identically and appeared to show the shipped code grading an ungradeable row clean. Rebuilding the baseline from the unmutated tree reversed that reading. The mutation copy was an rsync copy throughout; git status over the working tree confirms only the intended test file changed, and every mutated file was restored byte-identical to the working tree afterwards.\n- Every other assertion in the test is unchanged: the --resolve invocation, the role_streaks membership assertion, the --status --check exit code and the streak-entry shape loop are untouched, and all pass.\n- Quality gate green over the whole tree: ./scripts/check-suite-state.sh \u0026\u0026 golangci-lint run \u0026\u0026 ./scripts/check-deadcode.sh \u0026\u0026 ./scripts/check-complexity.sh, with golangci-lint reporting 0 issues and steps 3 and 4 silent, exit 0.\nOut of scope and left to reversal-sweep: only this test's header comment was corrected, because it sat directly above the assertions being reversed and contradicted them. The rest of section 6's sweep across skills/, README.md and the other comments and constants in internal/engine and internal/cli is untouched here.",
+      "gate_passed_at": "2026-09-02T01:50:32.336829Z",
+      "commit_sha": "bf174fb",
+      "commit_shas": [
+        "bf174fb",
+        "39ef522",
+        "cfe6419",
+        "616cb67"
+      ],
+      "commit_files": [
+        "internal/cli/audit_signal_test.go"
+      ]
     },
     {
       "id": "reverse-docs-and-constant",
