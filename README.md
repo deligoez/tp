@@ -300,7 +300,10 @@ tp validate --json | jq .checks.line_coverage
 `tp audit` verifies that the spec's requirements actually made it into the code. It emits one prompt
 per auditor role over a spec-derived checklist and the affected files, records each round, and
 reports whether the implementation diverges from the spec or the general lenses are simply reading
-the rest of the repository. The round-by-round recipe is in
+the rest of the repository. What a round must be clean **of** is `audit_converge_on`: the default
+`all` counts every non-`PASS` row, and `blocking` — which stops advisory rows from holding a phase
+open — is opt-in, human-only, and refused at all four of its write paths under `TP_UNATTENDED`. The
+round-by-round recipe is in
 [SKILL.md](skills/tp/SKILL.md); the fields and the audit JSON schema are in
 [REFERENCE.md](skills/tp/REFERENCE.md).
 
