@@ -109,3 +109,51 @@ func TestFloorBlocksDropsWhatStep1Drops(t *testing.T) {
 	}
 }
 
+// TestFloorBlocksSplitsOnBlankLines is §2.1 step 2. A whitespace-only line is a
+// blank line, runs of them produce no empty block, and neither do leading or
+// trailing ones.
+func TestFloorBlocksSplitsOnBlankLines(t *testing.T) {
+	tests := []struct {
+		name string
+		text string
+		want []string
+	}{
+		{
+			name: "two paragraphs, each keeping its own lines",
+			text: "one\ntwo\n\nthree\nfour\n",
+			want: []string{"one\\ntwo", "three\\nfour"},
+		},
+		{
+			name: "a run of blank lines yields no empty block",
+			text: "one\n\n\n\ntwo\n",
+			want: []string{"one", "two"},
+		},
+		{
+			name: "a whitespace-only line is a boundary",
+			text: "one\n   \ntwo\n",
+			want: []string{"one", "two"},
+		},
+		{
+			name: "leading and trailing blanks add nothing",
+			text: "\n\none\n\n\n",
+			want: []string{"one"},
+		},
+		{
+			name: "a document with no blank line is one block",
+			text: "one\ntwo\nthree",
+			want: []string{"one\\ntwo\\nthree"},
+		},
+		{
+			name: "an empty document has no blocks",
+			text: "",
+			want: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, renderBlocks(floorBlocks(tt.text)))
+		})
+	}
+}
+
