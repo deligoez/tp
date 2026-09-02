@@ -876,7 +876,7 @@ the third when the two are equal — the state where `open_roles` is `[]`.
 `hint` is `engine.DivergenceHint`, emitted verbatim on every round the five conditions hold:
 
 ```
-spec-coverage is the only role that measures spec conformance; the remaining findings are outside it. Whether they gate this release is the operator's decision, not the agent's — surface it rather than deciding either way; audit convergence still counts every non-PASS row.
+spec-coverage is the only role that measures spec conformance; the remaining findings are outside it. Whether they gate this release is the operator's decision, not the agent's — surface it rather than deciding either way; audit convergence counts every non-PASS row the resolved policy does not accept.
 ```
 
 It names the operator rather than issuing a bare imperative: the reader is usually an agent, and

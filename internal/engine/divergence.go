@@ -11,12 +11,20 @@ import (
 // is a user-approved decision; the action it asks for — surface the divergence
 // and stop — is one that reader can take.
 //
+// Its closing clause is phrased over what the resolved audit_converge_on
+// accepts rather than over a severity, so it stays true under both values of
+// the field (§6.3): under `all` no non-PASS row is accepted and the sentence
+// reads as it always did, while under `blocking` the advisory rows the operator
+// has chosen to accept are exactly the ones it excludes. Saying instead that
+// convergence counts the rows whose severity is blocking would be false under
+// the default, where a warning and an info row both count.
+//
 // The constant lives here rather than at the emitting call site so the code,
 // skills/tp/REFERENCE.md and the guard tests all quote one string.
 const DivergenceHint = "spec-coverage is the only role that measures spec conformance; " +
 	"the remaining findings are outside it. Whether they gate this release is the operator's " +
 	"decision, not the agent's — surface it rather than deciding either way; audit convergence " +
-	"still counts every non-PASS row."
+	"counts every non-PASS row the resolved policy does not accept."
 
 // Divergence is §2.4's divergence object: the report that spec conformance has
 // been clean long enough to converge while findings from the other lenses are
