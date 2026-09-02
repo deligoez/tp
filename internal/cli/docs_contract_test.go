@@ -311,16 +311,28 @@ func docSectionBody(t *testing.T, doc, heading string) string {
 }
 
 // The paragraph in each shipped document that states audit_converge_on's fence,
-// and the qualifier both owe.
+// and the two qualifiers both owe.
 //
 // The defect this guards is a document promising coverage the code does not
 // ship, and it was measured in both files at once while the code's own comment
 // recorded the residue honestly: SKILL.md said a write that changes the
 // resolved value to blocking "exits 2", full stop, and REFERENCE.md said the
 // --project form is "evaluated once per base". It is evaluated once per scanned
-// task file, so a base with no task file at all is outside the population — the
-// fence cannot refuse for it, and a unit reading either sentence meets that as
-// a surprise.
+// task file, so a base with no task file — in a tree that has others — is
+// outside the population, and a unit reading either sentence meets that as a
+// surprise.
+//
+// The scope qualifier used to be the phrase "no task file at all". That is now
+// the wrong anchor rather than a weak one: a tree with NO task file is compared
+// as one empty override and the write IS refused there, so both documents now
+// say that phrase while stating something the guard was written to deny. The
+// anchor is the residual clause itself.
+//
+// The second qualifier is the degraded scan. Three of this repair's own rows
+// turned on it and none of the earlier prose said anything about it, so the
+// exit is pinned where a unit reads it: an unreadable directory stops the walk,
+// every base after it is absent, and the command refuses on the incomplete scan
+// with exit 3 rather than comparing what it reached.
 //
 // Anchored per paragraph rather than per document, for the reason the
 // convergence-wording guards anchor: `audit_converge_on` is named in several
@@ -329,7 +341,8 @@ func docSectionBody(t *testing.T, doc, heading string) string {
 const (
 	fenceSkillAnchor     = "`blocking` is opt-in and human-only"
 	fenceReferenceAnchor = "is fenced by a change rule, not by field or value"
-	fenceScopeQualifier  = "no task file at all"
+	fenceScopeQualifier  = "outside the population"
+	fenceScanQualifier   = "exit 3"
 )
 
 // TestDocsScopeTheAuditConvergeOnFence guards v0.37.0 §3's residue where the
@@ -347,6 +360,8 @@ func TestDocsScopeTheAuditConvergeOnFence(t *testing.T) {
 			anchored = true
 			assert.Contains(t, para, fenceScopeQualifier,
 				"%s's fence paragraph scopes the refusal to the bases the --project sink can see", doc.path)
+			assert.Contains(t, para, fenceScanQualifier,
+				"%s's fence paragraph names the exit a scan the walk could not finish takes", doc.path)
 		}
 		assert.True(t, anchored, "%s still carries the %q paragraph", doc.path, doc.anchor)
 	}
