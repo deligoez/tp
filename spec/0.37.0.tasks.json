@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.37.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-02T02:23:54.462545Z",
+  "updated_at": "2026-09-02T02:34:35.079198Z",
   "workflow": {},
   "coverage": {
     "total_sections": 9,
@@ -391,7 +391,7 @@
     {
       "id": "escalate-decision",
       "title": "audit-converge-on joins the --decision enum",
-      "status": "open",
+      "status": "done",
       "tags": [
         "fence"
       ],
@@ -401,11 +401,31 @@
       "source_sections": [
         "## 3. The fence"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-02T02:25:08.729244Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-02T02:34:35.035443Z",
+      "closed_reason": "- engine's escalation decision enum carries audit-converge-on: EscalateAuditConvergeOn joins the const block and escalationDecisions between import-force and other, so EscalationDecisions(), IsEscalationDecision() and Escalation.Validate() all take it without a second list. Verified by running the freshly built binary on a scratch run directory: tp escalate --decision audit-converge-on writes the record and exits 2, and the refusal hint now enumerates six values because it is built from the slice.\n- The field maps to it: cli's escalationDecision(\"audit_converge_on\") returns audit-converge-on instead of falling through to other, so the section 3 fence's hint at all four sinks reads 'tp escalate --decision audit-converge-on'. Asserted in the shared assertFenceRefused helper, positively and negatively (the old text --decision other must be absent), which is section 7 row 14.\n- An unknown decision still exits usage: the rejected table gains audit_converge_on, audit-converge and AUDIT-CONVERGE-ON on top of the four near-misses it carried; each exits 2 and writes no record. TestEscalateAcceptsTheDocumentedDecisions also asserts the literal list equals engine.EscalationDecisions() rather than merely iterating it, so a value added to the enum, dropped from it, or reordered fails here.\n- Every test was written first and watched failing against unchanged code for the expected reason: 'other' != 'audit-converge-on' on the mapping, the hint containing --decision other at three sinks, and the set equality reporting len=5 against len=6.\n- Five mutants built and run in an rsync copy with the baseline taken from the unmutated tree, each restored byte-identical by sha256; no survivors. Removing the switch case reddened the mapping test and the fence hint at every sink but neither enum test; opening IsEscalationDecision to return true reddened the reject half and engine's record validator only; mapping the field to the plausible non-member audit-converge reddened three tests including the drift guard; landing the mapping without the enum entry (the half-landing the spec names no mutant for) reddened only the set equality and the drift guard while the fence hint stayed green, which is why both of those tests exist; and reordering the slice reddened the equality alone.\n- Full project gate green after the change: check-suite-state.sh 0, golangci-lint 0 issues, check-deadcode.sh 0, check-complexity.sh 0.\nOut of scope: the refusal message's three exits are fence-message's. Three shipped enumerations of the decision set are documentation and were left for document-the-field / reversal-sweep: skills/tp/REFERENCE.md line 347, skills/tp/SKILL.md line 247 and skills/tp/SKILL.md line 372 all list five values and omit audit-converge-on (SKILL.md 372 also calls them 'the four decisions'). CLAUDE.md lines 89 and 180 name the same four user-approved decisions and are equally one short.",
+      "gate_passed_at": "2026-09-02T02:34:35.035443Z",
+      "commit_sha": "a9da512",
+      "commit_shas": [
+        "a9da512",
+        "e57ce56",
+        "f4e15d4",
+        "5d9c427",
+        "2831fb6",
+        "fbc80da",
+        "7433771"
+      ],
+      "commit_files": [
+        "internal/cli/auditconvergeon_fence_test.go",
+        "internal/cli/escalate.go",
+        "internal/cli/escalate_test.go",
+        "internal/cli/escalation_decision_internal_test.go",
+        "internal/cli/unattended.go",
+        "internal/engine/escalation.go",
+        "internal/engine/escalation_test.go",
+        "internal/fakerunner/cmd/tp-fake-runner/main.go"
+      ]
     },
     {
       "id": "merge-by-severity",
