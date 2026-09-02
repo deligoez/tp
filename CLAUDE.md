@@ -211,7 +211,7 @@ row names the mutant that must fail it. Two candidate lint rules were prototyped
 the process (`spec/candidates.md`), which is why the numbering shifts by two against any earlier copy
 of the table below. Three defects were found by measurement while writing and are now each a release's
 acceptance row: **`--check` exits 0 on an audit that did not happen** (0.39.0), **`unresolved_findings`
-returns the complement of the answer** (0.42.0), and **an accepted finding blocks convergence forever**
+returns the complement of the answer** (0.37.1), and **an accepted finding blocks convergence forever**
 (0.50.0). Nine of the sixteen carry a first-person transcript from a built fixture.
 
 Four things that cycle established, in the order they are worth knowing:
@@ -316,11 +316,12 @@ guaranteed reduction in rounds.
 |---|---|---|---|---|
 | 0.36.0 | the emitted round | The emitted prompt carries its own isolation constraints, and `--role` emits one role's prompt instead of the panel | loop | **shipped** |
 | 0.37.0 | audit convergence | `audit_converge_on`, fenced per sink — a value rule at `tp set --project`, a change rule at the other three | loop | **shipped** |
+| **0.37.1** | **two measured defects** | A patch, not a reordering. `unresolved_findings` returns the complement of the answer (103 reported, 3 open, and the 103 is exactly the PASS rows) plus the two counters that make it checkable; and a refused `--role` invocation writes a snapshot before refusing. **Both fixes were built and run before the spec was written — test red against `HEAD`, green after, full suite passing** | fix | **ready** |
 | **0.38.0** | **the checklist covers what changed** | `CodeFileCap` stops dropping two thirds of the changed surface unannounced: rank by churn not by filename, never truncate what the operator named, say so when it truncates | tool | **ready** |
 | 0.39.0 | the round knows which roles it expects | One new recorded fact — the panel a round expected — and two uses. **Measured in a built fixture: two rounds carrying 1 of 3 emitted roles make `tp audit --status --check` exit 0, on a spec whose conformance role never ran and whose only task is still open.** A round missing an expected role stops being clean; `--status` reports the in-flight round from the per-role files tp itself names and tells the roles to write incrementally. The *too strict* half is 0.52.0 | loop | ready |
 | 0.40.0 | the round carries the text it read | The round's `spec_hash` is written at **emit**, not at record, so a round cannot certify a spec its roles never saw | loop | ready |
 | 0.41.0 | forced commitment in the brief | Three sentences tp emits, so an unattended run gets the brief a human writes by hand today | loop | ready |
-| 0.42.0 | `unresolved_findings` reports what is open | **Measured: on v0.37.0's round 7 the field reports 103 where 3 findings are open, and the 103 is exactly the set of PASS rows — the complement, not an approximation.** A driver-facing field; `fixed` closes nothing today, which is 1,308 of the corpus's 1,406 dispositions. Displaced the v0.35.0 backlog, which was a grab-bag and is being triaged per defect | tool | ready |
+| ~~0.42.0~~ | — | **Retired.** Its `unresolved_findings` fix and the two counters that make it checkable both moved to **0.37.1**, leaving nothing that earns a minor. The number is skipped, not reused | — | — |
 | 0.43.0 | the loop's own state writes | Three defects re-run against `HEAD` while the spec was written: a refused `--role` invocation still writes a snapshot, the round findings file is not atomic while the snapshot beside it is, and the gate's walk cannot see an empty watched directory — a blind spot its own comment names | tool | **written** |
 | 0.44.0 | the binary check | The advisory when the running tp is older than the spec being developed | tool | ready |
 | 0.45.0 | the untracked task file | A second advisory, once, at `PhaseRelease` — different trigger, different cadence, so not the same release | tool | ready |
@@ -410,7 +411,7 @@ a cycle takes; the second has never been measured and should not be claimed. And
 the orchestrator already writes those sentences by hand, so the marginal gain here is small. The gap
 is unattended: under `tp run` tp emits the brief and nobody adds them.
 
-**After that, readiness and dependency.** 0.42.0–0.50.0 are `tool`-class — small, live, no design
+**After that, readiness and dependency.** 0.43.0–0.49.0 are `tool`-class — small, live, no design
 risk — ordered by size; the historical range for a small tool spec is 4–8 rounds (v0.31.1 at 57 lines
 cost 4), not the 11 the class median suggests. The remaining `loop` entries follow, because a release
 that changes the loop is reviewed by the mechanism it is changing and costs about twice as much.
