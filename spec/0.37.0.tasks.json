@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/0.37.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-02T01:11:14.822279Z",
+  "updated_at": "2026-09-02T01:22:50.591729Z",
   "workflow": {},
   "coverage": {
     "total_sections": 9,
@@ -178,7 +178,7 @@
     {
       "id": "record-time-stamping",
       "title": "Stamp clean at record time, both directions, and never re-grade on read",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -191,11 +191,23 @@
       "source_sections": [
         "## 2. `audit_converge_on`"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-02T01:12:27.098349Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-02T01:22:50.570819Z",
+      "closed_reason": "tp audit --record now stamps clean from engine.AuditRowsClean under the resolved audit_converge_on; the predicate had no production caller before this.\n\n- clean is stamped once at record time from the predicate under the resolved policy: internal/cli/audit_record.go replaces `clean := findings == 0` (the `all` policy written as an equality) with engine.AuditRowsClean(rows, wfPre.AuditConvergeOn); countAuditFindings becomes parseAuditRows and returns the rows, because the blocking predicate grades each non-PASS row's severity and a tally has discarded it\n- the policy is taken from wfPre, the resolve that precedes every state write, not from the wf resolved after recordAuditRoundEntry: the round is stored before that second resolution, so a stamp from it would grade a round already in a store section 2 declares immutable\n- recording under all then setting blocking without re-recording leaves every round's clean unchanged in state.json AND as tp audit --status reports it: TestAuditRecord_StampSurvivesTighteningTheKnob asserts the reported audit_rounds[].clean, consecutive_clean, converged and the verbatim state.json bytes over two rounds; row 9's named mutant (re-grade each stored round from its rows in the reporting path) reddens the first three and leaves the bytes green, exactly as the spec predicts\n- a round recorded under blocking keeps clean:true after the knob returns to all: TestAuditRecord_StampSurvivesRelaxingTheKnob was red before the fix for the expected reason, and asserts findings:1 beside clean:true so the verdict is visibly not the count; run at both stored layers because a stamp reading only one of them is green on the other\n- five mutants built and run in an rsync copy, red/green matrix recorded: row 9's named mutant, row 9b's read-side floor (leaves row 9 wholly green), re-grade only the derived signals (leaves audit_rounds[].clean honest), store the old equality while reporting the new stamp (leaves the --record payload honest), and drop the project layer (reddens only the project subtest)\n- gate green: ./scripts/check-suite-state.sh \u0026\u0026 golangci-lint run \u0026\u0026 ./scripts/check-deadcode.sh \u0026\u0026 ./scripts/check-complexity.sh, exit 0; dogfooded on the freshly built /tmp/tp-dev/tp — recorded under blocking gives findings 1 / clean true, and clean survives the knob returning to all in both state.json and --status",
+      "gate_passed_at": "2026-09-02T01:22:50.570819Z",
+      "commit_sha": "d0cc236",
+      "commit_shas": [
+        "d0cc236",
+        "c7ced2e",
+        "e7ca611"
+      ],
+      "commit_files": [
+        "internal/cli/audit_category_sink_test.go",
+        "internal/cli/audit_record.go",
+        "internal/cli/audit_stamping_test.go",
+        "internal/cli/record_idempotent_test.go"
+      ]
     },
     {
       "id": "next-action-count",
