@@ -84,3 +84,26 @@ func TestAuditConvergeOnHasNoEnvironmentLayer(t *testing.T) {
 	assert.Equal(t, "all", entry["value"], "an environment variable does not set the field")
 	assert.Equal(t, "default", entry["source"], "and no layer is invented to attribute it to")
 }
+
+// TestAuditConvergeOnHasNoCommandFlag covers the flag half of v0.37.0 §7 row 2.
+// There is no --audit-converge-on layer, so the observable fact is a refusal:
+// every command that reads or writes the field must reject the flag as unknown
+// rather than accept it silently. That refusal IS the assertion — adding the
+// flag to any one of these commands reddens that subtest and leaves the others
+// green.
+func TestAuditConvergeOnHasNoCommandFlag(t *testing.T) {
+	dir := writeStrategyProject(t, "{}")
+
+	for _, name := range []string{"audit", "config", "set", "run", "review"} {
+		t.Run(name, func(t *testing.T) {
+			_, stderr, code := runTP(t, dir, name, "--audit-converge-on=blocking")
+			e := errJSON(t, stderr)
+			assert.Equal(t, 2, code, "an unknown flag is a usage error")
+			assert.Equal(t, float64(2), e["code"])
+			msg, ok := e["error"].(string)
+			require.True(t, ok, "the error object carries a message")
+			assert.Contains(t, msg, "unknown flag: --audit-converge-on",
+				"the flag is refused, not accepted as a resolution layer")
+		})
+	}
+}
