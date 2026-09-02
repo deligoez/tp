@@ -3,6 +3,7 @@ package engine
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -518,5 +519,54 @@ func TestAListMarkerIsStrippedOnlyWhenTheBlockOpensAList(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, FloorUnits(tt.text))
 		})
+	}
+}
+
+// bareFloorMarkerRe matches a unit that is nothing but a list marker — the
+// fragment §11 row 18b exists to keep out of the floor. `2.` and `-` are what
+// step 4 emits from a marker the canonicaliser left embedded.
+var bareFloorMarkerRe = regexp.MustCompile(`^(?:\d+\.|[-*+])$`)
+
+// TestSection11Row18bListMarkers is §11 row 18b on a constructed block holding a
+// nine-item numbered list, a bulleted list and a list whose items carry bold
+// markers: every unit is a sentence and none is a bare marker fragment.
+//
+// The three lists share ONE block, which is the arrangement that exercises the
+// gate: the block's first line opens a numbered list, so the strip runs over the
+// bullets too, and over the `**1.` lines, which no marker pattern matches and
+// which must therefore come through untouched rather than mangled.
+//
+// The expected units are stated in full rather than counted. A count cannot tell
+// the row's mutant from the rule — stripping the first line only yields MORE
+// units, not fewer, and every extra one is the defect.
+func TestSection11Row18bListMarkers(t *testing.T) {
+	text := "1. Alpha holds 1.\n" +
+		"2. Beta holds 2.\n" +
+		"3. Gamma holds 3.\n" +
+		"4. Delta holds 4.\n" +
+		"5. Epsilon holds 5.\n" +
+		"6. Zeta holds 6.\n" +
+		"7. Eta holds 7.\n" +
+		"8. Theta holds 8.\n" +
+		"9. Iota holds 9.\n" +
+		"- Kappa holds 10.\n" +
+		"- Lambda holds 11.\n" +
+		"**1.** Mu holds 12.\n" +
+		"**2.** Nu holds 13."
+
+	units := FloorUnits(text)
+
+	assert.Equal(t, []string{
+		"Alpha holds 1.", "Beta holds 2.", "Gamma holds 3.", "Delta holds 4.",
+		"Epsilon holds 5.", "Zeta holds 6.", "Eta holds 7.", "Theta holds 8.",
+		"Iota holds 9.", "Kappa holds 10.", "Lambda holds 11.",
+		"**1.** Mu holds 12.", "**2.** Nu holds 13.",
+	}, units)
+
+	// The row's own words, asserted as a property over whatever came back, so
+	// this half still fails if the expectation above is ever loosened.
+	for _, u := range units {
+		assert.NotRegexp(t, bareFloorMarkerRe, u, "no unit is a bare marker fragment")
+		assert.Contains(t, u, " ", "every unit is a sentence, not a fragment")
 	}
 }
