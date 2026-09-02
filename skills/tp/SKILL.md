@@ -190,11 +190,15 @@ by `tp audit --record`/`--status`, is a validation error (exit 1). Both carry
 
 **`blocking` is opt-in and human-only.** Its four write paths — `tp set --workflow`, its `--project`
 form, `tp import`, and `tp config --extract` — are all fenced under `TP_UNATTENDED=1`: a write that
-**changes the resolved value** to `blocking` exits 2. A write of `all` never trips it, a `--project`
-write beneath a task-level `all` passes, and an import carrying an already-resolved `blocking`
-forward passes. An **attended** operator writes `blocking` at any sink with no refusal. Under a run,
-if the refusal is an authoring error the unit fixes the document itself (omit the imported
-document's top-level `workflow` key, or carry `"audit_converge_on": "<resolved>"` in it); if the unit
+**changes the resolved value** to `blocking` exits 2. A write of `all` never trips it, and an import
+carrying an already-resolved `blocking` forward passes. The `--project` form is evaluated **per base**
+over the task files a project scan finds, so a `--project` write beneath a task-level `all` passes for
+that base and is refused — naming the base — as soon as another one would newly resolve `blocking`;
+a base with **no task file at all** is outside that population, which is the one place the exit-2
+promise is scoped rather than unconditional. An **attended** operator writes `blocking` at any sink
+with no refusal. Under a run, if the refusal is an authoring error the unit fixes the document itself
+(omit the imported document's top-level `workflow` key, or carry `"audit_converge_on": "<resolved>"`
+in it); if the unit
 **intends** the relax it records `tp escalate --decision audit-converge-on --evidence "<what you
 found>"` and the run stops for the operator.
 
