@@ -173,3 +173,19 @@ func TestAuditMerge_BySeverityEmittedOnRowsNotCleanliness(t *testing.T) {
 	})
 }
 
+// TestAuditMerge_BySeveritySurvivesCompact pins §7 row 16. The overlap_report
+// arm is the control: without it the compact assertion would pass on a payload
+// --compact never touched.
+func TestAuditMerge_BySeveritySurvivesCompact(t *testing.T) {
+	dir := t.TempDir()
+
+	full := mergeSummary(t, dir, auditMergeSeverityRows)
+	require.Contains(t, full, "overlap_report", "the control arm needs the key --compact strips")
+
+	compact := mergeSummary(t, dir, auditMergeSeverityRows, "--compact")
+	require.NotContains(t, compact, "overlap_report", "--compact took effect on this payload")
+
+	require.Contains(t, compact, "by_severity", "§4: by_severity survives --compact")
+	assert.Equal(t, full["by_severity"], compact["by_severity"], "and survives it whole")
+}
+
