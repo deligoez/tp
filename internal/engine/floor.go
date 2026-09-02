@@ -465,3 +465,87 @@ func FormatFloorIndex(rows []FloorIndexRow) string {
 	}
 	return b.String()
 }
+
+// floorSectionHeadingRe recognises the `§n(.n)*` heading §7.3's anchor is named
+// after: an ATX heading of level 2 or deeper whose first token is a dotted
+// number.
+//
+// The level bound is a decision §7.3 does not state, and both plausible bounds
+// are wrong on an input this repository already holds. Level 1 is excluded
+// because a spec's H1 is its title: five specs title themselves with a version
+// (`spec/0.19.0-agent-friction.md` opens `# 0.19.0 — Agent Friction
+// Reduction`), which under a level-1-inclusive rule anchors that document's
+// whole preamble to `§0.19.0` rather than to §7.3's `§0`. Levels 4 to 6 are
+// included because a numbered heading is a section at any depth, and
+// `scripts/floor-prototype.py`'s level-2-to-3 rule reports `spec/0.36.0.md`'s
+// `#### 4.2.1` as §4.2.
+var floorSectionHeadingRe = regexp.MustCompile(`^\s*#{2,6}\s+(\d+(?:\.\d+)*)`)
+
+// floorAnchorsByLine returns the section each line of text sits in: entry i-1
+// is line i's anchor, `§0` until the first `§n(.n)*` heading. A heading line
+// carries its own section, which is §7.3's "at or above".
+//
+// The scan tracks fences for the reason step 1 does — `## 9. Fenced` inside a
+// code block is sample output, not a heading. Over `spec/*.md` four numbered
+// headings sit inside fenced blocks, and a fence-blind scan moves every unit
+// after one of them into a section the document does not have.
+func floorAnchorsByLine(text string) []string {
+	lines := strings.Split(text, "\n")
+	anchors := make([]string, len(lines))
+	current := "§0"
+	inFence := false
+	for i, line := range lines {
+		switch {
+		case floorFenceRe.MatchString(line):
+			inFence = !inFence
+		case inFence:
+			// a heading inside a fence is code
+		default:
+			if m := floorSectionHeadingRe.FindStringSubmatch(line); m != nil {
+				current = "§" + m[1]
+			}
+		}
+		anchors[i] = current
+	}
+	return anchors
+}
+
+// FloorAnchorOf returns §7.3's anchor function for one spec's text: given the
+// 1-based index of a unit over EVERY unit §2.1 produces — the ones the arms cut
+// included, which is the numbering §7.2's `unit_id` uses and the index
+// FloorIndexRows passes — the last `§n(.n)*` heading at or above it, and `§0`
+// before the first.
+//
+// The anchor is resolved at the line the unit's BLOCK opens on, never by
+// locating the unit's text in the file, and that is this port's one substantive
+// departure from `scripts/floor-prototype.py`. The prototype searched for a
+// unit's first words; a table row's block began with a sentinel that matched no
+// line in the file, so every table row in a document anchored to `§0` — 91 of
+// 243 units on this repository's own spec — while the test asserting the `§0`
+// case passed. A line number carried on the block cannot fail to be found.
+//
+// Block granularity and unit granularity differ only for a block whose lines
+// span a heading, which needs prose flush against the heading on both sides
+// (§2.1 step 2 splits on blank lines, and a dropped heading is not a boundary).
+// Measured over this repository's 54 specs: zero instances. A unit of such a
+// block can straddle the heading, so no per-unit answer exists for it; the
+// block keeps the section it opens in.
+//
+// An index this text has no unit for answers "" rather than `§0`: `§0` is a
+// legal anchor and would ship as a structurally valid row, while §7.2 requires
+// the field, so an empty one is rejected at record.
+func FloorAnchorOf(text string) func(unitIndex int) string {
+	byLine := floorAnchorsByLine(text)
+	anchors := make([]string, 0)
+	for _, b := range floorBlocks(text) {
+		for range floorUnitsFromBlock(b) {
+			anchors = append(anchors, byLine[b.Line-1])
+		}
+	}
+	return func(unitIndex int) string {
+		if unitIndex < 1 || unitIndex > len(anchors) {
+			return ""
+		}
+		return anchors[unitIndex-1]
+	}
+}
