@@ -2,11 +2,13 @@ package engine
 
 import (
 	"encoding/hex"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1017,4 +1019,138 @@ func TestSection11Row18cTheJoinKeyIsTheHashAndTheOrdinal(t *testing.T) {
 	}
 	assert.Len(t, pairs, 3, "(text_sha, ordinal) is a key over the round's units")
 	assert.Len(t, byHashAlone, 2, "text_sha alone is not: it matches the first for both")
+}
+
+// TestFloorIndexRowsNumberOverEveryUnitIncludingTheOnesTheArmsCut is §7.2's
+// `unit_id`: `u<N>` where N is the 1-based index of the unit over every unit
+// §2.1 produces, in document order, counting the ones the arms cut. §2.2 gives
+// the reason — numbering over the floor alone renumbers every later unit when an
+// edit changes one unit's arms, and §8 joins dispositions across rounds.
+//
+// The cut unit sits BETWEEN two floor units, because that is the only
+// arrangement the two readings disagree on: they agree on every unit up to the
+// first cut one, so a fixture whose cut unit is last passes under both.
+//
+// That the middle unit is cut is asserted rather than assumed. It carries no
+// digit, no backtick span and no listed verb — "asserts" is not "asserted" to a
+// whole-word arm — and if a later change to the arms made it a floor unit this
+// test would be measuring nothing.
+//
+// The anchors the rows carry are asserted too, and against the ids rather than
+// against the row positions: `anchorOf` is called with the same N that becomes
+// the id, so an implementation passing the row index would anchor u3 to whatever
+// sits at unit 2.
+func TestFloorIndexRowsNumberOverEveryUnitIncludingTheOnesTheArmsCut(t *testing.T) {
+	const kept1 = "The first claim carries `a span`."
+	const dropped = "This sentence asserts nothing about the world."
+	const kept2 = "The third claim carries 3 items."
+	text := kept1 + "\n\n" + dropped + "\n\n" + kept2
+
+	units := FloorUnits(text)
+	require.Equal(t, []string{kept1, dropped, kept2}, units, "the fixture is three units in this order")
+	require.True(t, inFloor(kept1), "the first unit must be in the floor")
+	require.False(t, inFloor(dropped), "the middle unit must be one the arms cut")
+	require.True(t, inFloor(kept2), "the third unit must be in the floor")
+
+	asked := make([]int, 0, len(units))
+	rows := FloorIndexRows(text, func(n int) string {
+		asked = append(asked, n)
+		return fmt.Sprintf("§%d", n)
+	})
+
+	require.Len(t, rows, 2, "a cut unit owes no disposition, so it gets no index row")
+	assert.Equal(t, "u1", rows[0].ID)
+	assert.Equal(t, "u3", rows[1].ID, "the cut unit consumed u2")
+	assert.Equal(t, []int{1, 3}, asked, "anchorOf is called with the unit's id, not the row's index")
+	assert.Equal(t, "§1", rows[0].Anchor)
+	assert.Equal(t, "§3", rows[1].Anchor)
+}
+
+// TestAFloorIndexRowCarriesTheFiveFields is §2.2's row: every floor unit emits
+// `(unit_id, anchor, text_sha, ordinal, byte length)`.
+//
+// The fixture is a table data row so the unit carries an em dash, which is what
+// makes the length assertion discriminating: `Bytes` is the unit's length in
+// UTF-8 BYTES and a rune count reads two short on exactly this input. Both
+// numbers are stated, so neither can be read off the other.
+func TestAFloorIndexRowCarriesTheFiveFields(t *testing.T) {
+	const text = "| the field | 2 bytes |\n"
+	units := FloorUnits(text)
+	require.Equal(t, []string{"the field — 2 bytes"}, units)
+	require.Equal(t, 19, utf8.RuneCountInString(units[0]), "19 runes")
+	require.Equal(t, 21, len(units[0]), "21 bytes: the em dash is three of them")
+
+	rows := FloorIndexRows(text, func(int) string { return "§7.2" })
+	require.Len(t, rows, 1)
+
+	assert.Equal(t, FloorIndexRow{
+		ID:      "u1",
+		Anchor:  "§7.2",
+		TextSHA: FloorTextSHA(units[0]),
+		Ordinal: 1,
+		Bytes:   21,
+	}, rows[0])
+	assert.Equal(t, "u1 §7.2 "+FloorTextSHA(units[0])+" #1 21B", rows[0].String())
+}
+
+// TestSection11Row4TheIndexIsBoundedAndCarriesNoUnitText is §11 row 4.
+//
+// The row names one mutant — carry the first 60 bytes of each unit — and both
+// halves of the assertion are built so that it fails them: a 60-byte head more
+// than doubles a row, and the head of a short unit IS the unit.
+//
+// The bound is asserted on a floor derived from real text rather than on
+// hand-built structs, so the same mutant that leaks text also inflates the
+// measured size. Getting the worst case §2.2 admits out of a derivation means
+// 1,200 identical units (so the ordinal reaches four digits) each over 1,000
+// bytes long (so the length field does too), under a seven-segment anchor. Each
+// of those three properties is asserted, because every one of them is what makes
+// the size a worst case rather than a comfortable case.
+func TestSection11Row4TheIndexIsBoundedAndCarriesNoUnitText(t *testing.T) {
+	t.Run("1,200 units at the worst case stay under units*48+256 bytes", func(t *testing.T) {
+		const count = 1200
+		const anchor = "§1.2.3.4.5.6.7"
+		require.Equal(t, 6, strings.Count(anchor, "."), "seven segments is the worst case §2.2 admits")
+
+		unit := strings.Repeat("payload ", 130) + "1234."
+		require.Len(t, unit, 1045, "a four-digit byte length is the worst case for the length field")
+
+		var text strings.Builder
+		for i := 0; i < count; i++ {
+			text.WriteString(unit)
+			text.WriteString("\n\n")
+		}
+		rows := FloorIndexRows(text.String(), func(int) string { return anchor })
+
+		require.Len(t, rows, count)
+		require.Equal(t, "u1200", rows[count-1].ID, "four-digit ids")
+		require.Equal(t, count, rows[count-1].Ordinal, "identical units, so the ordinal reaches four digits")
+		require.Equal(t, len(unit), rows[count-1].Bytes)
+
+		index := FormatFloorIndex(rows)
+		assert.Less(t, len(index), count*48+256,
+			"the index is bounded at units*48+256; carrying 60 bytes of each unit is over it")
+	})
+
+	t.Run("no substring of a unit's text reaches the index", func(t *testing.T) {
+		// Row 4's own input: a unit whose text is a rare token, searched for in
+		// the index. The token is not hex, so it cannot turn up inside a hash.
+		const rare = "zqxjvwkfgb"
+		const unit = "The claim names zqxjvwkfgb and 1 other thing."
+		require.Contains(t, unit, rare)
+
+		units := FloorUnits(unit)
+		require.Equal(t, []string{unit}, units, "the rare token is inside a floor unit")
+
+		index := FormatFloorIndex(FloorIndexRows(unit, func(int) string { return "§0" }))
+		assert.NotContains(t, index, rare, "the index carries no unit text")
+
+		// The token search is row 4's named input and it is not sufficient on its
+		// own: read literally, "no substring of any unit's text" is false of any
+		// single character, since the index is made of characters. So the
+		// property is also pinned exhaustively — every byte of the index is
+		// accounted for by this grammar, which leaves nowhere for text to sit.
+		shape := regexp.MustCompile(`^(?:u\d+ §[0-9.]+ [0-9a-f]{12} #\d+ \d+B\n)+$`)
+		assert.Regexp(t, shape, index, "every byte of the index is an id, an anchor, a hash, an ordinal or a length")
+	})
 }
