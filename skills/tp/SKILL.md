@@ -148,9 +148,10 @@ Repeat until `tp audit <spec> --status --check` exits 0:
 
    **`divergence` gates nothing — it is reporting only.** Emitting it changes no convergence arithmetic, no stored per-round `clean` flag, no `next_action` and no `--status --check` exit code: audit convergence counts every non-PASS row the resolved policy does not accept, and under the default `audit_converge_on: all` that is every one of them — so `--check` still exits 1 and `next_action` still reads fix-and-re-audit. When `divergence` appears, **surface it and stop** — accepting findings outside spec conformance is a user-approved decision, never the agent's.
 
-**Scope the audit, or it will not converge (v0.32.0 lesson, the hard way).** A row counts against
-convergence whether it is about the spec or about the codebase at large — tp has no audit-side
-equivalent of `review_converge_on` yet. General lenses (`go-safety`, `maintainability-conventions`,
+**Scope the audit, or it will not converge (v0.32.0 lesson, the hard way).** Neither value of
+`audit_converge_on` reads whether a row is about the spec or about the codebase at large: under `all`
+every non-`PASS` row counts against convergence, and under `blocking` a general lens's `error` counts
+exactly as a spec-coverage `error` does. General lenses (`go-safety`, `maintainability-conventions`,
 `ax-contract`) always find *something* in a real codebase, so there is no fixed point: tp's own
 v0.32.0 audit ran 11 rounds while `spec-coverage` — the only role measuring spec conformance — was
 55/55 clean from round 2 onward, and every repair round created fresh surface for the next round to
