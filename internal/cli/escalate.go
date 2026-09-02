@@ -30,16 +30,18 @@ func newEscalateCmd() *cobra.Command {
 
 An escalation is a normal, expected outcome — not a crash. A unit that reaches a
 user-only decision (--skip-gate, raising a review or audit cap, tp import
---force) records what it needs decided instead of deciding it, and the run stops
-with stop_reason "escalation" so an operator can answer.
+--force, relaxing audit_converge_on to blocking) records what it needs decided
+instead of deciding it, and the run stops with stop_reason "escalation" so an
+operator can answer.
 
 The record is written to $TP_RUN_DIR/$TP_UNIT_SEQ-escalation.json — per unit, so
 concurrent role siblings never clobber each other — and carries {decision,
 unit_kind, unit_id, phase, evidence, options[], at}. The record, not the exit
 code, is what the driver reads.
 
---decision is one of skip-gate, raise-review-cap, raise-audit-cap, import-force
-or other. --option is repeatable and lists the ways forward the unit saw.
+--decision is one of skip-gate, raise-review-cap, raise-audit-cap, import-force,
+audit-converge-on or other. --option is repeatable and lists the ways forward
+the unit saw.
 
 Outside a run (TP_RUN_DIR unset) this is a usage error, so the command cannot be
 used to fabricate a record.`,
