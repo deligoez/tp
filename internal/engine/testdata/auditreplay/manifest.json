@@ -1,0 +1,225 @@
+{
+  "generator": "internal/engine/testdata/auditreplay/gen.go",
+  "command": "go run internal/engine/testdata/auditreplay/gen.go",
+  "source_commit": "6f7e3bfa73d7e8d1b8d9aa9bd38428bbc75b3686",
+  "sources_clean_at_commit": true,
+  "source_root": "spec/.tp-review",
+  "projected_keys": [
+    "item_id",
+    "role",
+    "severity",
+    "status"
+  ],
+  "round_ordinal": "added as \"round\"; it is the n of the source file's audit-round-\u003cn\u003e.ndjson name, not a recorded field",
+  "absent_keys": "a projected key absent from the source row stays absent here; null is preserved as null",
+  "cycles": [
+    {
+      "cycle": "0.35.0",
+      "rounds": 9,
+      "rows": 1800,
+      "source_bytes": 805180,
+      "output_file": "0.35.0.ndjson",
+      "output_bytes": 178905,
+      "output_sha256": "758c7ec071f735da5cea2d9ea2b5254fafbc2b1b3077d30a1fe0ab91ad7961f0",
+      "census": {
+        "status": {
+          "string:FAIL": 5,
+          "string:PARTIAL": 37,
+          "string:PASS": 1758
+        },
+        "severity_shapes": {
+          "null": 1758,
+          "string:error": 3,
+          "string:info": 17,
+          "string:warning": 22
+        }
+      },
+      "sources": [
+        {
+          "file": "spec/.tp-review/0.35.0/audit-round-1.ndjson",
+          "round": 1,
+          "rows": 200,
+          "bytes": 90878,
+          "sha256": "95e50f40263ad2c89f17bc5dc748aeee42f7a050757086601c306c32f940977f"
+        },
+        {
+          "file": "spec/.tp-review/0.35.0/audit-round-2.ndjson",
+          "round": 2,
+          "rows": 200,
+          "bytes": 83872,
+          "sha256": "a90484fb90a146148508ddebafed39fd076441183135f8199beccc08067bdf75"
+        },
+        {
+          "file": "spec/.tp-review/0.35.0/audit-round-3.ndjson",
+          "round": 3,
+          "rows": 200,
+          "bytes": 77533,
+          "sha256": "62b1f7bb04a20a20264307e82aaf2a4adf70d3ed54c2b5003a4d678a380a4b58"
+        },
+        {
+          "file": "spec/.tp-review/0.35.0/audit-round-4.ndjson",
+          "round": 4,
+          "rows": 200,
+          "bytes": 80392,
+          "sha256": "27eece7143b0924c6e47cf0078b38f6c3ad92438cc65607615323ef631cf7d0c"
+        },
+        {
+          "file": "spec/.tp-review/0.35.0/audit-round-5.ndjson",
+          "round": 5,
+          "rows": 200,
+          "bytes": 90642,
+          "sha256": "f162b3f23a3411b205eb6d65ce49fc358db5d18f29b725cd4ce037d5db9b3162"
+        },
+        {
+          "file": "spec/.tp-review/0.35.0/audit-round-6.ndjson",
+          "round": 6,
+          "rows": 200,
+          "bytes": 94700,
+          "sha256": "1c6a5f4ab22082a6dab1e6199f9d773ffb9c0063d3b512f85d472fa6b401dee8"
+        },
+        {
+          "file": "spec/.tp-review/0.35.0/audit-round-7.ndjson",
+          "round": 7,
+          "rows": 200,
+          "bytes": 92619,
+          "sha256": "e29819de68f85d120b9ebe5c5d5db6329841864894b3cfb51ebd54a4cc7fc11f"
+        },
+        {
+          "file": "spec/.tp-review/0.35.0/audit-round-8.ndjson",
+          "round": 8,
+          "rows": 200,
+          "bytes": 111161,
+          "sha256": "49b6668d9d0e7533662bfba37991960d9cd7e9635a88735455402f346ada7d8a"
+        },
+        {
+          "file": "spec/.tp-review/0.35.0/audit-round-9.ndjson",
+          "round": 9,
+          "rows": 200,
+          "bytes": 83383,
+          "sha256": "47951abb3e9c7958e004b2a7fb8a574622005f41b5c2396882f1eb6b376a97a4"
+        }
+      ]
+    },
+    {
+      "cycle": "0.36.0",
+      "rounds": 13,
+      "rows": 1246,
+      "source_bytes": 648484,
+      "output_file": "0.36.0.ndjson",
+      "output_bytes": 132495,
+      "output_sha256": "f72456cb3458bbea639bab53bd95558d784f6f97c603707c3e86b8859b7ce6df",
+      "census": {
+        "status": {
+          "string:FAIL": 15,
+          "string:PARTIAL": 76,
+          "string:PASS": 1155
+        },
+        "severity_shapes": {
+          "null": 1155,
+          "string:error": 15,
+          "string:info": 32,
+          "string:warning": 44
+        }
+      },
+      "sources": [
+        {
+          "file": "spec/.tp-review/0.36.0/audit-round-1.ndjson",
+          "round": 1,
+          "rows": 102,
+          "bytes": 55946,
+          "sha256": "d7c0bd419a96844415caa1af5649bad1e1915de6c37963359e05a2145034ef84"
+        },
+        {
+          "file": "spec/.tp-review/0.36.0/audit-round-2.ndjson",
+          "round": 2,
+          "rows": 102,
+          "bytes": 54194,
+          "sha256": "74085b4bf2bcbc6a82bdbc05c5ae8f0b67341ae0d9f44c1e4805df1a4efec9e5"
+        },
+        {
+          "file": "spec/.tp-review/0.36.0/audit-round-3.ndjson",
+          "round": 3,
+          "rows": 102,
+          "bytes": 54355,
+          "sha256": "b4d6bd9d4c9ec95855f49a869686398b60cfd561724b32d40923f9f11825db41"
+        },
+        {
+          "file": "spec/.tp-review/0.36.0/audit-round-4.ndjson",
+          "round": 4,
+          "rows": 104,
+          "bytes": 55125,
+          "sha256": "c0ca95ca1f0b881cff509ad59a7720744315ccc8317658388aa2200e2d8eb319"
+        },
+        {
+          "file": "spec/.tp-review/0.36.0/audit-round-5.ndjson",
+          "round": 5,
+          "rows": 104,
+          "bytes": 53937,
+          "sha256": "16e3816cfd7f64b99ea22bd12d775453c146183d30096b9625be43fa4d9d0a50"
+        },
+        {
+          "file": "spec/.tp-review/0.36.0/audit-round-6.ndjson",
+          "round": 6,
+          "rows": 104,
+          "bytes": 51584,
+          "sha256": "1cebe29510cdf77b57f779a3617a6622244cb9f9827743956e70696695eead24"
+        },
+        {
+          "file": "spec/.tp-review/0.36.0/audit-round-7.ndjson",
+          "round": 7,
+          "rows": 104,
+          "bytes": 49473,
+          "sha256": "649b166f9312535fe8e2d602fa30d2e268e9b6c0015467e064e99ea88f94faa7"
+        },
+        {
+          "file": "spec/.tp-review/0.36.0/audit-round-8.ndjson",
+          "round": 8,
+          "rows": 104,
+          "bytes": 47428,
+          "sha256": "e7677196ad9fc26a5c20bbd739b6d2c4bb277bc64aaffbd9b49f8f31dcd934be"
+        },
+        {
+          "file": "spec/.tp-review/0.36.0/audit-round-9.ndjson",
+          "round": 9,
+          "rows": 84,
+          "bytes": 43644,
+          "sha256": "6f11aac35306adc5bdc07808f27baef6d89257706fa1a27cdf21f3796efee15d"
+        },
+        {
+          "file": "spec/.tp-review/0.36.0/audit-round-10.ndjson",
+          "round": 10,
+          "rows": 84,
+          "bytes": 43287,
+          "sha256": "d00c6edfefd5d0a9c550f01f7860a1a2ef608b31f487fbe6024aba8ef40c4608"
+        },
+        {
+          "file": "spec/.tp-review/0.36.0/audit-round-11.ndjson",
+          "round": 11,
+          "rows": 84,
+          "bytes": 41631,
+          "sha256": "3010dadd990e80cbe3ad7f6575b89a7dbc7c5e12e1da051d9e6554ec74ec3b29"
+        },
+        {
+          "file": "spec/.tp-review/0.36.0/audit-round-12.ndjson",
+          "round": 12,
+          "rows": 84,
+          "bytes": 47330,
+          "sha256": "442171cadb5e69df621793ed0ea76fd4b4e9efbd88e1f5821fdc9d685f0a65fd"
+        },
+        {
+          "file": "spec/.tp-review/0.36.0/audit-round-13.ndjson",
+          "round": 13,
+          "rows": 84,
+          "bytes": 50550,
+          "sha256": "317d23d465325bf14869d0629d5429337a751ea031fd960d07d7bf48194c1787"
+        }
+      ]
+    }
+  ],
+  "totals": {
+    "rounds": 22,
+    "rows": 3046,
+    "source_bytes": 1453664,
+    "output_bytes": 311400
+  }
+}
