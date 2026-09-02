@@ -109,3 +109,18 @@ func TestNextGroundRoundPreservesAGap(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 4, n)
 }
+
+// TestNextGroundRoundOnASpecWithNoStateDirectoryIsOne is the first run of the
+// ordering this release advocates (§11 row 12): grounding precedes review, so
+// the first `tp ground` on a spec meets no state directory at all.
+func TestNextGroundRoundOnASpecWithNoStateDirectoryIsOne(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "spec.md")
+	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
+	require.NoDirExists(t, ReviewStateDir(specPath),
+		"the fixture is only a first run while the directory is absent")
+
+	n, err := NextGroundRound(specPath)
+	require.NoError(t, err)
+	assert.Equal(t, 1, n)
+}
