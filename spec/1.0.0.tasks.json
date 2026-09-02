@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-02T23:10:30.301198Z",
+  "updated_at": "2026-09-02T23:27:23.163249Z",
   "workflow": {},
   "coverage": {
     "total_sections": 21,
@@ -115,7 +115,7 @@
     {
       "id": "anchor-zero",
       "title": "a pre-heading unit anchors to §0",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -127,11 +127,29 @@
       "source_sections": [
         "### 7.3 Where it lives, and what it must not disturb"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-02T23:11:02.51493Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-02T23:27:23.096094Z",
+      "closed_reason": "- engine.FloorAnchorOf(text) is §7.3's anchor: the last §n(.n)* heading at or above the unit and §0 before the first, resolved at the line the unit's BLOCK opens on and indexed over EVERY unit §2.1 produces (floorBlock gained a Line field so step 2 carries the line rather than recovering it). Five mutants observed red, each on the test that names it: an empty anchor before the first heading (row 21's own mutant), a fence-blind heading scan, the block's LAST line, anchors numbered over the floor alone, and §0 for an index the text has no unit for.\n- A table row anchors to its own section: TestATableRowAnchorsToItsOwnSectionNotToSectionZero asserts §7.2, §7.2, §8 over a constructed table under a subsection, and the corpus test counts ZERO table rows at §0 in spec/1.0.0.md. Observed red under the mutant that reproduces the prototype's recorded bug (a table row's block was unlocatable, so 91 of 243 units anchored to §0 while its §0 test passed) — killed by both the constructed case and the corpus one.\n- §11 row 21 passes on this spec's own preamble: TestSection11Row21OnThisReleasesOwnSpec reads spec/1.0.0.md, requires the first block to BE the preamble blockquote, and asserts rows[0] is u1 with anchor §0 (so the unit counts toward coverage), every preamble unit §0, zero table rows at §0, and §7.2's table reporting §7.2 (18 rows). Every assertion is structural, so rewording the preamble cannot make it red while changing the anchor rule can.\n- §7.3 does not state which heading LEVELS are sections and both plausible bounds are wrong on inputs this repo holds, so the bound was decided by measurement and pinned in one fixture: level 1 is excluded because five specs title themselves with a version (`# 0.19.0 — Agent Friction Reduction` would anchor a whole preamble to §0.19.0), levels 4-6 are included because spec/0.36.0.md carries `#### 4.2.1`. Both mutants (#{1,6} and the prototype's #{2,3}) observed red on TestAnH1IsNotASectionAndAnH4Is, each getting exactly one of its two entries wrong.\n- Gate green at the committed tree (all four steps, exit 0). The rewrite that split the test commit per test reports tree_identical.\nOut of scope: two findings. (1) \"at or above\" is UNKILLABLE through this API — the mutant that gives a heading line the PREVIOUS section passes the whole suite, measured, because a heading is dropped by step 1 and so never opens a block; no test claims to cover it. (2) Block granularity and unit granularity differ for a block whose lines span a heading, which §7.3 does not settle and whose units can straddle the heading (no per-unit answer exists); measured over the 54 specs, six headings lack a preceding blank line and NONE is followed by prose, so the corpus has zero instances. The decision (the block keeps the section it opens in) is documented on FloorAnchorOf and pinned by TestABlockThatStraddlesADroppedHeadingKeepsTheSectionItOpensIn.",
+      "gate_passed_at": "2026-09-02T23:27:23.096094Z",
+      "commit_sha": "ce44e218",
+      "commit_shas": [
+        "ce44e218",
+        "0400e515",
+        "af290c40",
+        "a32ae03c",
+        "43e8b560",
+        "f4e00ddc",
+        "f855a6e8",
+        "1291c178",
+        "2225b4c9",
+        "b28d63b8",
+        "d65034a5"
+      ],
+      "commit_files": [
+        "internal/engine/floor.go",
+        "internal/engine/flooranchor_test.go"
+      ]
     },
     {
       "id": "verdict-enums",
