@@ -99,3 +99,13 @@ func TestAuditRowsClean_PassRowsAreNotGraded(t *testing.T) {
 	assert.True(t, AuditRowsClean(nil, AuditConvergeOnBlocking), "a round with no rows has nothing to grade")
 }
 
+// TestAuditRowsClean_UnknownPolicyGradesAsAll pins the default arm: the
+// relaxation is reached only by the exact literal `blocking`, so a value the
+// sinks failed to refuse is graded under `all`, the stricter of the two and
+// this field's built-in default.
+func TestAuditRowsClean_UnknownPolicyGradesAsAll(t *testing.T) {
+	rows := auditRoundWith(map[string]any{"status": "PARTIAL", "item_id": "item-2", "severity": "info"})
+
+	assert.False(t, AuditRowsClean(rows, "Blocking"), "the policy literal is matched byte for byte")
+	assert.False(t, AuditRowsClean(rows, ""), "an unset policy grades under all, not blocking")
+}
