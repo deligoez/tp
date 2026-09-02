@@ -47,3 +47,65 @@ func TestFloorUnitsTakesTheSpecTextNotAPath(t *testing.T) {
 	assert.Equal(t, path, units[0])
 }
 
+// TestFloorBlocksDropsWhatStep1Drops is §2.1 step 1's drop list: fenced blocks,
+// ATX headings, horizontal rules and table separator rows. Each case names one
+// class and keeps a prose line on either side, so a rule that dropped too much
+// fails alongside one that dropped too little.
+func TestFloorBlocksDropsWhatStep1Drops(t *testing.T) {
+	tests := []struct {
+		name string
+		text string
+		want []string
+	}{
+		{
+			name: "backtick fence and everything inside it",
+			text: "Before.\n\n```go\n# not a heading\n| not | a table |\nfmt.Println(1)\n```\n\nAfter.\n",
+			want: []string{"Before.", "After."},
+		},
+		{
+			name: "tilde fence",
+			text: "Before.\n\n~~~\ndropped\n~~~\n\nAfter.\n",
+			want: []string{"Before.", "After."},
+		},
+		{
+			name: "an unterminated fence swallows the rest of the document",
+			text: "Before.\n\n```\nstill code\n\nalso code\n",
+			want: []string{"Before."},
+		},
+		{
+			name: "ATX headings at every level, indented or not",
+			text: "# One\n\nBefore.\n\n## Two\n\n   ### Three\n\nAfter.\n",
+			want: []string{"Before.", "After."},
+		},
+		{
+			name: "horizontal rules of each marker",
+			text: "Before.\n\n---\n\n***\n\n___\n\n  -----  \n\nAfter.\n",
+			want: []string{"Before.", "After."},
+		},
+		{
+			name: "two markers are not a rule, and a mixed run is not one either",
+			text: "--\n\n-*-\n",
+			want: []string{"--", "-*-"},
+		},
+		{
+			name: "table separator rows, aligned or not",
+			text: "| a | b |\n|---|---|\n| 1 | 2 |\n\n| c | d |\n| :--- | ---: |\n| 3 | 4 |\n",
+			want: []string{
+				"TABLE:| a | b |", "TABLE:| 1 | 2 |",
+				"TABLE:| c | d |", "TABLE:| 3 | 4 |",
+			},
+		},
+		{
+			name: "a dropped line is dropped, not turned into a boundary",
+			text: "Before.\n## Heading\nAfter.\n",
+			want: []string{"Before.\\nAfter."},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, renderBlocks(floorBlocks(tt.text)))
+		})
+	}
+}
+
