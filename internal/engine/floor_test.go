@@ -811,3 +811,37 @@ func TestTheVerbArmMatchesWholeWordsOnly(t *testing.T) {
 		})
 	}
 }
+
+// TestTheVerbArmIgnoresCase settles the other thing §2.1 leaves open: its table
+// lists the twelve in lower case and says nothing about how a unit spells them.
+//
+// The fold is not a convenience. A claim's measurement verb is routinely its
+// sentence's FIRST word, so a case-sensitive arm cuts exactly the sentences the
+// arm exists to catch: over `spec/*.md` nine units reach the floor only through
+// it, and every fixture below is one of them, taken verbatim from a spec in this
+// repository rather than written for the test.
+func TestTheVerbArmIgnoresCase(t *testing.T) {
+	for _, unit := range []string{
+		"Measured while implementing: it can.",
+		"Recorded so neither is re-proposed:",
+		"Verified against the installed copy across six paths.",
+		"Measured on this repository, that predicate is wrong in both directions.",
+	} {
+		t.Run(unit, func(t *testing.T) {
+			require.False(t, strings.ContainsAny(unit, "0123456789`"),
+				"the verb arm must be the only arm that could hold")
+			// The fixture discriminates only if the VERB itself is not lower
+			// case; one spelled the table's way passes either reading. The
+			// property is asserted on the verb rather than on the unit, so a
+			// capital elsewhere in the sentence cannot stand in for it.
+			first := strings.Fields(unit)[0]
+			require.NotEqual(t, first, strings.ToLower(first),
+				"the fixture's verb must differ from the table's spelling")
+			require.Contains(t, floorVerbs, strings.ToLower(first),
+				"the fixture must open with one of §2.1's twelve")
+
+			assert.True(t, floorHasMeasurementVerb(unit), "verb arm")
+			assert.True(t, inFloor(unit), "a capitalised verb is still the verb")
+		})
+	}
+}
