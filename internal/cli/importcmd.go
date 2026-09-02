@@ -179,6 +179,18 @@ func runImport(_ *cobra.Command, args []string) error {
 			}
 		}
 
+		// v0.37.0 §3's change rule. It runs after the exists-guard above and
+		// not before it, which §7 row 13b pins: over a tasks-bearing target
+		// tp import exits 3 there, so only a zero-task shell reaches the fence
+		// — and an import row built over a populated target would pass green
+		// with no fence built at all.
+		//
+		// tf.Workflow is read after the preservation step above has decided
+		// it, so a document omitting the top-level workflow key is compared as
+		// the carried-forward block it will actually become rather than as the
+		// empty one it parsed to.
+		fenceAuditConvergeOnImport(targetPath, &tf.Workflow)
+
 		// Resolve spec, normalize source_sections to canonical form (lenient — accepts
 		// plain-text headings from tp lint output), then auto-fill coverage.
 		specPath, specExists := engine.ResolveSpecPath(targetPath, tf.Spec)
