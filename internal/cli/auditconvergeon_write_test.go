@@ -106,3 +106,31 @@ func TestAuditConvergeOn_LegalLiteralPersistsAtTaskSink(t *testing.T) {
 	assert.Equal(t, "override", field["source"], "attributed to the override layer")
 }
 
+// TestAuditConvergeOn_LegalLiteralPersistsAtProjectSink is the same assertion at
+// the other sink, and is a separate test rather than a subtest because the two
+// sinks are separate implementations over separate files: `tp set --workflow`
+// writes the task file's workflow block, `--project` writes .tp/config.json
+// through a different parse loop and a different write path. A fix applied to
+// one leaves the other exactly as it was, which is the shape of the mutant §7
+// row 12 names for the fence and applies unchanged here.
+func TestAuditConvergeOn_LegalLiteralPersistsAtProjectSink(t *testing.T) {
+	dir := writeStrategyProject(t, "{}")
+
+	out, stderr, code := runTP(t, dir, "set", "--workflow", "--project", "audit_converge_on=blocking")
+	require.Equal(t, 0, code, "the project sink accepts a legal value: %s", stderr)
+	var res map[string]any
+	require.NoError(t, json.Unmarshal([]byte(out), &res))
+	updated, ok := res["updated"].(map[string]any)
+	require.True(t, ok, "the reply carries an updated object: %s", out)
+	assert.Equal(t, "blocking", updated["audit_converge_on"],
+		"the reply names the field it wrote")
+
+	data, err := os.ReadFile(filepath.Join(dir, ".tp", "config.json"))
+	require.NoError(t, err)
+	assert.Contains(t, string(data), `"audit_converge_on": "blocking"`,
+		"the literal reached the project config's workflow block")
+
+	field := resolvedAuditConvergeOn(t, dir)
+	assert.Equal(t, "blocking", field["value"], "and resolves back out of it")
+	assert.Equal(t, "project", field["source"], "attributed to the project layer")
+}
