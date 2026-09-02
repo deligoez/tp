@@ -204,6 +204,16 @@ All five real survivors became `TIMED OUT`; `NOT COVERED` was untouched, because
 rounds, 7 audit rounds, `spec-coverage` 74/74 for the last two with zero FAIL from any role in
 either. **Next is `spec/0.38.0.md`** (the checklist covers what changed), then 0.39.0.
 
+**All sixteen pending specs — 0.38.0 through 0.53.0 — were rewritten from scratch on 2026-09-02,
+against the tree rather than against their own prose. None has been reviewed.** Each states its
+decisions, gives the command that derives every figure it quotes, and ends in a test table whose every
+row names the mutant that must fail it. Two candidate lint rules were prototyped and **refuted** in
+the process (`spec/candidates.md`), which is why the numbering shifts by two against any earlier copy
+of the table below. Three defects were found by measurement while writing and are now each a release's
+acceptance row: **`--check` exits 0 on an audit that did not happen** (0.39.0), **`unresolved_findings`
+returns the complement of the answer** (0.42.0), and **an accepted finding blocks convergence forever**
+(0.50.0). Nine of the sixteen carry a first-person transcript from a built fixture.
+
 Four things that cycle established, in the order they are worth knowing:
 
 1. **Four audit rounds chased an implementation defect that was a requirement defect.** §7 row 13's
