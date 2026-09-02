@@ -61,6 +61,21 @@ func TestResolveWorkflow_Defaults(t *testing.T) {
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# spec"), 0o600))
 
+	// t.Chdir, because ResolveWorkflow discovers the PROJECT layer by walking up
+	// from the working directory (workflow_resolve.go:20), not from specPath.
+	// Under `go test` that directory is inside this repository, so without this
+	// the test resolved tp's own .tp/config.json and asserted against it.
+	//
+	// It passed anyway for as long as every value the repo set happened to equal
+	// the built-in default — review_clean_rounds and audit_clean_rounds are both
+	// 2 in each. Registering `checks` at the project layer was the first value to
+	// diverge, and the assertion this test had never really made finally failed.
+	// A test that reaches the repository is a test whose verdict the repository
+	// can change.
+	t.Chdir(dir)
+	require.NoFileExists(t, filepath.Join(dir, ".tp", "config.json"),
+		"the fixture must have no project layer, or this asserts the defaults against a config")
+
 	wf, src := ResolveWorkflow(specPath, "")
 	assert.Equal(t, "", src)
 	assert.Equal(t, 2, wf.ReviewCleanRounds)
