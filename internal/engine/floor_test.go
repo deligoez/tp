@@ -157,3 +157,32 @@ func TestFloorBlocksSplitsOnBlankLines(t *testing.T) {
 	}
 }
 
+// TestEachTableDataRowIsItsOwnBlock is the second half of §2.1 step 1: a data
+// row is one unit, so it must not share a block with the row above it, with the
+// prose above it, or with the prose below it — none of which carries a blank
+// line in a real table. The rows here are deliberately adjacent, because that is
+// the input a blank-line-only blocking rule gets wrong.
+func TestEachTableDataRowIsItsOwnBlock(t *testing.T) {
+	text := "Prose above.\n| a | b |\n|---|---|\n| 1 | 2 |\n| 3 | 4 |\nProse below.\n"
+
+	blocks := floorBlocks(text)
+
+	assert.Equal(t, []string{
+		"Prose above.",
+		"TABLE:| a | b |",
+		"TABLE:| 1 | 2 |",
+		"TABLE:| 3 | 4 |",
+		"Prose below.",
+	}, renderBlocks(blocks))
+
+	require.Len(t, blocks, 5)
+	for i, b := range blocks {
+		if i == 0 || i == 4 {
+			assert.False(t, b.IsTableRow, "block %d is prose", i)
+			continue
+		}
+		assert.True(t, b.IsTableRow, "block %d is a table row", i)
+		assert.Len(t, b.Lines, 1, "a table row block holds exactly its own line")
+	}
+}
+
