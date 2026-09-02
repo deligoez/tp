@@ -339,3 +339,42 @@ func TestAuditConvergeOnFence_ExtractPassesWhatPreservesResolution(t *testing.T)
 		"and the command completed rather than aborting part-written")
 }
 
+// TestAuditConvergeOnFence_ImportComparesItsOwnTarget pins which file the
+// import fence resolves. §7 names no mutant for this, and it is here because
+// building one showed every row above surviving it: tp import writes the file
+// its own document's spec names, while every other sink in §3 resolves the
+// active pointer, and in a one-cycle fixture those are the same path — so a
+// fence that read the active pointer passed rows 12, 13, 13b and 13c unchanged.
+//
+// Two cycles separate them. The active pointer a.tasks.json is already opted in;
+// the import's own target b.tasks.json is not, and the document relaxes it. A
+// fence comparing the active pointer sees blocking before and blocking after and
+// waves the relax through.
+func TestAuditConvergeOnFence_ImportComparesItsOwnTarget(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
+	for _, base := range []string{"a", "b"} {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, base+".md"),
+			[]byte("# S\n\n## 1. Setup\n\nDo the thing.\n"), 0o600))
+	}
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.tasks.json"),
+		[]byte(`{"version":1,"spec":"a.md","tasks":[],"workflow":{"audit_converge_on":"blocking"}}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.tasks.json"),
+		[]byte(`{"version":1,"spec":"b.md","tasks":[],"workflow":{}}`), 0o600))
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".tp"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".tp", "local.json"),
+		[]byte(`{"active":"a.tasks.json"}`), 0o600))
+
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "doc.json"),
+		[]byte(`{"version":1,"spec":"b.md","tasks":[{"id":"t1","title":"T",`+
+			`"estimate_minutes":5,"acceptance":"Done.","source_sections":["## 1. Setup"]}],`+
+			`"workflow":{"audit_converge_on":"blocking"}}`), 0o600))
+
+	_, stderr, code := runTPFence(t, dir, true, "import", "doc.json")
+	assertFenceRefused(t, stderr, code, "import against its own target")
+
+	data, err := os.ReadFile(filepath.Join(dir, "b.tasks.json"))
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), "blocking", "the refused import reached no file")
+}
+
