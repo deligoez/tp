@@ -325,7 +325,28 @@ func docSectionBody(t *testing.T, doc, heading string) string {
 // prose used to carve out. That is the shape ci_gate_test.go already uses here
 // — derive the claim from the artifact rather than matching text about it.
 //
-// The guards above are kept because each states something a negation cannot
-// satisfy: they assert a phrase is ABSENT (the stored clean flag is no longer
-// listed), or compare one document's sentence against a constant the code
-// itself ships, so the document and the code cannot drift apart silently.
+// The guards above are kept, but NOT because a negation cannot satisfy them.
+// That was this comment's earlier claim and an auditor falsified both halves of
+// it by running them. TestReferenceDoesNotPromiseTheStoredCleanFlagIsUnchanged,
+// the "asserts a phrase is ABSENT" half, misses two REFERENCE.md variants that
+// re-add the exact promise §6.4 deleted: one crosses a ". " split boundary, one
+// is worded outside the marker blacklist. And the "compares against a constant
+// the code ships" half, TestDocsCarryTheConvergenceSignalWording, misses a
+// paragraph inserted right after the quoted constant declaring that sentence
+// obsolete.
+//
+// The dividing line is SCOPE, not polarity. Contains and a windowed NotContains
+// are both local assertions inside an unbounded text, so the complement is free
+// and a negation simply goes there. Only two shapes are immune: a subject that
+// is the whole of a BOUNDED artifact (assert.NotContains over
+// engine.DivergenceHint, where there is no elsewhere), and a claim DERIVED from
+// the artifact rather than matched in it (ci_gate_test.go, and the eight-tree
+// fence test named above).
+//
+// So what the guards above catch is a document that stops saying what it says
+// today, or drifts from the shipped constant at the matched site. What they do
+// not catch is a document that keeps every matched phrase and contradicts it
+// somewhere else — which is the failure the deleted guard shipped. They are
+// left alone rather than reworded, because no phrase-based assertion over prose
+// can be made sound by rewording; a derivation-based replacement is a new
+// mechanism rather than an audit repair, and is routed to a later version.
