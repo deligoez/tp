@@ -73,3 +73,36 @@ func TestAuditConvergeOn_WriteSinksRefuseIllegalLiteral(t *testing.T) {
 		"and did not reach the task file either")
 }
 
+// TestAuditConvergeOn_LegalLiteralPersistsAtTaskSink covers the other half of
+// the acceptance: a legal value is not merely accepted, it is written and then
+// resolves from the layer it was written to. A sink that validates the literal
+// and never persists it refuses everything row 3 asks it to refuse and passes
+// the refusal test above unchanged — so the persist assertion, not the exit
+// code, is what pins the field as settable.
+//
+// The on-disk substring and tp config --resolved are both asserted because they
+// answer different questions: the first that the byte reached the task file's
+// workflow block, the second that the resolver reads it back from there. A
+// write into a field the resolver does not consult passes the first alone.
+func TestAuditConvergeOn_LegalLiteralPersistsAtTaskSink(t *testing.T) {
+	dir := writeStrategyProject(t, "{}")
+
+	out, stderr, code := runTP(t, dir, "set", "--workflow", "audit_converge_on=blocking")
+	require.Equal(t, 0, code, "blocking is a legal value: %s", stderr)
+	var res map[string]any
+	require.NoError(t, json.Unmarshal([]byte(out), &res))
+	updated, ok := res["updated"].(map[string]any)
+	require.True(t, ok, "the reply carries an updated object: %s", out)
+	assert.Equal(t, "blocking", updated["audit_converge_on"],
+		"the reply names the field it wrote")
+
+	data, err := os.ReadFile(filepath.Join(dir, "s.tasks.json"))
+	require.NoError(t, err)
+	assert.Contains(t, string(data), `"audit_converge_on": "blocking"`,
+		"the literal reached the task file's workflow block")
+
+	field := resolvedAuditConvergeOn(t, dir)
+	assert.Equal(t, "blocking", field["value"], "and resolves back out of it")
+	assert.Equal(t, "override", field["source"], "attributed to the override layer")
+}
+
