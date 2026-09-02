@@ -173,6 +173,54 @@ func floorCanonicalise(lines []string) string {
 	return strings.TrimSpace(joined)
 }
 
+// STUB — the no-split mutant, to observe the split test red.
+// floorSplitUnits is §2.1 steps 4 and 5: split the canonical block at each `.`,
+// `!` or `?` followed by whitespace, keep the terminator with the unit on its
+// left, trim, and drop the empties.
+//
+// It is a hand-written scan rather than a regexp because the rule is stated from
+// the terminator's side — Python's `(?<=[.!?])\s+`, which Go's regexp cannot
+// express — and because the terminator must survive the cut. Splitting on the
+// whitespace alone would either consume the terminator or need a capture, and
+// both readings of that were live long enough for the spec to record the repair:
+// they agree on the segmentation and disagree on every `text_sha`.
+//
+// Bytes are safe to compare here: every terminator and every space is ASCII, and
+// no ASCII byte occurs inside a multi-byte UTF-8 sequence.
+func floorSplitUnits(joined string) []string {
+	units := make([]string, 0)
+	keep := func(s string) {
+		if u := strings.TrimSpace(s); u != "" {
+			units = append(units, u)
+		}
+	}
+	start := 0
+	for i := 0; i < len(joined); i++ {
+		if c := joined[i]; c != '.' && c != '!' && c != '?' {
+			continue
+		}
+		// The whitespace run belongs to neither unit: it is the separator.
+		j := i + 1
+		for j < len(joined) && isFloorSpaceByte(joined[j]) {
+			j++
+		}
+		if j == i+1 {
+			continue // no whitespace follows, so this terminator does not split
+		}
+		keep(joined[start : i+1])
+		start = j
+		i = j - 1
+	}
+	keep(joined[start:])
+	return units
+}
+
+// isFloorSpaceByte reports whether one byte is whitespace for §2.1 step 4's
+// "followed by whitespace".
+func isFloorSpaceByte(c byte) bool {
+	return strings.IndexByte(" \t\n\v\f\r", c) >= 0
+}
+
 // floorUnitsFromBlock is the seam §2.1 steps 3 to 5 fill in — canonicalising a
 // prose block, splitting it into sentences, and joining a table row's cells with
 // an em dash. It exists so both kinds of block reach the later steps through one
@@ -187,11 +235,7 @@ func floorUnitsFromBlock(b floorBlock) []string {
 		}
 		return nil
 	}
-	joined := floorCanonicalise(b.Lines)
-	if joined == "" {
-		return nil
-	}
-	return []string{joined}
+	return floorSplitUnits(floorCanonicalise(b.Lines))
 }
 
 // FloorUnits derives §2.1's candidate units from a spec's text.
