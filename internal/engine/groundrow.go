@@ -30,8 +30,10 @@ func (e *GroundRowError) Error() string {
 	return fmt.Sprintf("field %q: %s", e.Field, e.Msg)
 }
 
-// groundRowErr is the only constructor for a cell failure, so a rejection that
-// does not name a field is not reachable from this file.
+// groundRowErr is the only constructor for a CELL failure, so no cell in this
+// file can be rejected without naming its field. It is not the only rejection
+// here: ParseGroundRow returns two bare errors for a line that is not a JSON
+// object, and those name no field because a line with no object has no cells.
 func groundRowErr(field, msg string) error {
 	return &GroundRowError{Field: field, Msg: msg}
 }
