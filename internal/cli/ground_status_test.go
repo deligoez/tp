@@ -22,9 +22,48 @@ import (
 // The id is a parameter and never `u<n>` computed from a loop index: which ids
 // an emission emits is a fact of the floor, and a test that assumed the
 // numbering would stop naming the units the moment a fixture gained a cut one.
-func groundVerdictRow(id, verdict string) string {
-	return fmt.Sprintf(`{"unit_id":%q,"anchor":"§1","text_sha":"0123456789ab","ordinal":1,`+
-		`"verdict":%q,"kind":"document","tier":"read","evidence":"read spec.md"}`, id, verdict)
+//
+// `text_sha` is read back from that same floor for the same reason, now that
+// §7.3 compares it: a row naming a floor unit must carry that unit's hash, and
+// the floor is the artifact tp grades the row against.
+func groundVerdictRow(t *testing.T, dir, id, verdict string) string {
+	t.Helper()
+	return fmt.Sprintf(`{"unit_id":%q,"anchor":"§1","text_sha":%q,"ordinal":1,`+
+		`"verdict":%q,"kind":"document","tier":"read","evidence":"read spec.md"}`,
+		id, groundEmittedSHA(t, dir, id), verdict)
+}
+
+// groundEmittedSHA is the hash the LATEST EMITTED floor gives id — which is the
+// round --record is about, since only a record advances the number.
+//
+// A unit the arms cut carries no hash there and none to match, so it falls back
+// to a well-formed placeholder: §7.3's check skips a cut row, and §7.2's shape
+// still has to hold.
+func groundEmittedSHA(t *testing.T, dir, id string) string {
+	t.Helper()
+	specPath := filepath.Join(dir, "spec.md")
+	// The latest floor ON DISK, not the round --record is about: once a round
+	// has been recorded the next number has no floor yet, and a payload built
+	// before its emission still names the units the last one emitted.
+	round, err := engine.NextGroundRound(specPath)
+	require.NoError(t, err)
+	var data []byte
+	for ; round > 0; round-- {
+		if data, err = os.ReadFile(engine.GroundFloorPath(specPath, round)); err == nil {
+			break
+		}
+		require.True(t, os.IsNotExist(err), "%v", err)
+	}
+	require.NotNil(t, data, "the fixture must have emitted a floor before a row is written for it")
+
+	rows, err := engine.ParseFloorIndex(string(data))
+	require.NoError(t, err)
+	for i := range rows {
+		if rows[i].ID == id && rows[i].TextSHA != "" {
+			return rows[i].TextSHA
+		}
+	}
+	return "0123456789ab"
 }
 
 // groundReaderAddedRow is §2.2's reader-added claim: `unit_id` null, with the
@@ -139,7 +178,7 @@ func recordGroundVerdicts(t *testing.T, dir string, ids, verdicts []string) map[
 	require.Len(t, verdicts, len(ids), "one verdict per emitted floor unit")
 	lines := make([]string, 0, len(ids))
 	for i, id := range ids {
-		lines = append(lines, groundVerdictRow(id, verdicts[i]))
+		lines = append(lines, groundVerdictRow(t, dir, id, verdicts[i]))
 	}
 	rows := writeGroundRows(t, dir, lines...)
 	_, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", rows)
@@ -251,9 +290,9 @@ func TestStatusCountsReaderAddedAndOffFloorApart(t *testing.T) {
 	require.Len(t, cut, 1, "and cuts one between them, which is what an off-floor row names")
 
 	rows := writeGroundRows(t, dir,
-		groundVerdictRow(emitted[0], "PASS"),
+		groundVerdictRow(t, dir, emitted[0], "PASS"),
 		groundReaderAddedRow(),
-		groundVerdictRow(cut[0], "PASS"),
+		groundVerdictRow(t, dir, cut[0], "PASS"),
 	)
 	_, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", rows)
 	require.Equal(t, 0, code, "stderr: %s", stderr)
@@ -279,18 +318,26 @@ func TestStatusCountsReaderAddedAndOffFloorApart(t *testing.T) {
 // EMISSION: between `tp ground` and `tp ground --record` nothing in the round
 // has been decided, and that is the state a coverage report most needs to name.
 //
-// Round 1 is recorded to 100% first and asserted, so the mutant's answer is a
-// real state of this fixture rather than a number no reading produces.
+// Round 1 is recorded and asserted first, so the mutant's answer is a real state
+// of this fixture rather than a number no reading produces.
+//
+// It decides ONE of its two units, not both, and that is forced by §8 rather
+// than chosen: a round 1 covering every unit is carried forward whole, so every
+// later round on an unmoved spec is fully covered too and the coverage number
+// stops separating the readings. With round 1 at 1-of-2, round 2 re-deciding
+// that same unit carries nothing — a round does not also carry a disposition it
+// made itself — and 1-of-2 with a FAIL is a state no reading of round 1's record
+// produces.
 func TestStatusReportsTheLatestEmittedRoundAndNotTheLatestRecorded(t *testing.T) {
 	dir := writeGroundFixture(t)
 	groundEmit(t, dir)
 	emitted, _ := groundFloorIDs(t, dir, 1)
 	require.Len(t, emitted, 2)
 
-	first := recordGroundVerdicts(t, dir, emitted, []string{"PASS", "PASS"})
+	first := recordGroundVerdicts(t, dir, emitted[:1], []string{"PASS"})
 	require.Equal(t, float64(1), first["round"])
 	require.Equal(t, float64(2), first["emitted"])
-	require.Equal(t, float64(2), first["dispositioned"], "round 1 is fully dispositioned")
+	require.Equal(t, float64(1), first["dispositioned"], "round 1 decided one of its two units")
 
 	require.Equal(t, float64(2), groundEmit(t, dir)["round"])
 
@@ -308,7 +355,7 @@ func TestStatusReportsTheLatestEmittedRoundAndNotTheLatestRecorded(t *testing.T)
 	emittedTwo, _ := groundFloorIDs(t, dir, 2)
 	require.Equal(t, emitted, emittedTwo, "the spec has not moved, so round 2's floor is round 1's")
 
-	rows := writeGroundRows(t, dir, groundVerdictRow(emittedTwo[0], "FAIL"))
+	rows := writeGroundRows(t, dir, groundVerdictRow(t, dir, emittedTwo[0], "FAIL"))
 	_, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", rows)
 	require.Equal(t, 0, code, "stderr: %s", stderr)
 
@@ -345,7 +392,7 @@ func TestStatusWithNoEmittedRoundExitsThree(t *testing.T) {
 		dir := writeGroundFixture(t)
 		groundEmit(t, dir)
 		emitted, _ := groundFloorIDs(t, dir, 1)
-		rows := writeGroundRows(t, dir, groundVerdictRow(emitted[0], "PASS"))
+		rows := writeGroundRows(t, dir, groundVerdictRow(t, dir, emitted[0], "PASS"))
 		_, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", rows)
 		require.Equal(t, 0, code, "stderr: %s", stderr)
 

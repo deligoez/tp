@@ -31,7 +31,7 @@ func recordGroundRound(t *testing.T, dir string, ids, verdicts []string) {
 	require.Len(t, verdicts, len(ids), "one verdict per row")
 	lines := make([]string, 0, len(ids))
 	for i, id := range ids {
-		lines = append(lines, groundVerdictRow(id, verdicts[i]))
+		lines = append(lines, groundVerdictRow(t, dir, id, verdicts[i]))
 	}
 	rows := writeGroundRows(t, dir, lines...)
 	_, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", rows)
@@ -184,7 +184,7 @@ func TestCheckWithoutStatusIsAUsageErrorByTheRuleAndNotAnUnknownFlag(t *testing.
 	})
 
 	t.Run("--check beside --record", func(t *testing.T) {
-		rows := writeGroundRows(t, dir, groundVerdictRow(emitted[0], "PASS"))
+		rows := writeGroundRows(t, dir, groundVerdictRow(t, dir, emitted[0], "PASS"))
 		stdout, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", rows, "--check")
 		require.Equal(t, 2, code, "stdout: %s stderr: %s", stdout, stderr)
 		assert.Equal(t, float64(2), groundErrorEnvelope(t, stderr)["code"])
