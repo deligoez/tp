@@ -126,13 +126,17 @@ var groundTierOrder = []GroundTier{
 // row 6 rules out is not merely unused, it has nothing to be written against.
 // The sets are the whole rule: a tier is acceptable for a kind or it is not.
 //
-// Where the entries come from, one line per §4.1 row: running a command says
-// nothing about what a text contains, so `document` takes only `read`; a
-// call-graph or dead-code tool is a query over the tree, so `code-structure`
-// takes `read` and `query`; reading a command is not running it, so `behaviour`
-// refuses `read`; a claim about a mechanism that does not exist yet is settled
-// by building a probe; and a guard that passes proves nothing until its subject
-// is broken and the control is run.
+// Where the entries come from, one clause per §4.1 row, in the table's order:
+// running a command says nothing about what a text contains, so `document`
+// takes only `read`; a call-graph or dead-code tool is a query over the tree, so
+// `code-structure` takes `read` and `query`; reading one file says nothing about
+// what a set of them holds and reading all of them IS a query, so `corpus` takes
+// `query` alone; reading a command is not running it, so `behaviour` refuses
+// `read`; a claim about a mechanism that does not exist yet has nothing shipped
+// to run and is settled by building a probe; a test that has never been observed
+// failing may be asserting a tautology, so `defect` takes `red-green` alone; and
+// a guard that passes proves nothing until its subject is broken and the control
+// is run.
 var groundAcceptableTiers = map[GroundKind]map[GroundTier]bool{
 	KindDocument:      {TierRead: true},
 	KindCodeStructure: {TierRead: true, TierQuery: true},
