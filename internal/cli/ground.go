@@ -115,6 +115,26 @@ const groundRecordEmptyHint = "record a file holding at least one row, or ground
 // levers are the artifact itself and re-recording the round that wrote it.
 const groundCarrySourceHint = "the preceding ground round's file is tp's own artifact and could not be read back: restore or re-record spec/.tp-review/<base>/ground-round-<N-1>.ndjson — §8 carries its dispositions into this round"
 
+// groundStdoutHint is what every mode of this command says when the result it
+// built could not be written to stdout: a closed pipe, a read-only redirect, a
+// full disk. Nothing the operator named is at fault and no other file repairs
+// it.
+//
+// Its own words rather than internalEncodeHint, which two of the four modes
+// cannot honestly use: --units prints TEXT and encodes nothing, and the failure
+// is at the SINK rather than in the marshalling either way. internalEncodeHint
+// tells the reader to report a bug; an fd 1 they cannot write to is theirs to
+// fix, and telling them so is the difference between a hint and a dead end.
+const groundStdoutHint = "tp built its result and could not write it to stdout: check that stdout is open for writing — a closed pipe, a read-only redirect or a full disk"
+
+// groundRecordWrittenHint is --record's, and it carries the one fact the exit
+// code cannot: the round file was written BEFORE the report failed, so the
+// round exists. Re-running --record would take the NEXT round number, for which
+// no emission has frozen a floor, and answer exit 3 about a missing floor
+// instead — which is how a failed report turns into a story about the wrong
+// file.
+const groundRecordWrittenHint = "the round was recorded at %s before its report could be written: read that file rather than re-running --record, which would take the next round number and find no emitted floor for it"
+
 func newGroundCmd() *cobra.Command {
 	var (
 		recordPath string
@@ -144,54 +164,12 @@ change the floor the round is graded against.`,
 				os.Exit(ExitUsage)
 				return nil
 			}
-			// §7.1 names each mode on its own line and never pairs two. The
-			// combination is refused rather than resolved by the dispatch's
-			// order: --status reports a round, --record writes one and --units
-			// prints the floor's text, so running whichever came first would
-			// hand the operator an exit 0 for the mode they did not ask for.
-			// The refusal is taken before any of the three opens a file, so a
-			// pairing that also names a missing --record path is still usage
-			// (2) rather than the file error (3) that path alone would give.
-			//
 			// Whether --record was PASSED and what it was passed are two
-			// questions, and both this count and the dispatch below asked the
-			// second. `--record ""` is a path argument of no characters, so
-			// `recordPath != ""` answered no at both sites: the invocation
-			// selected neither this refusal nor the record mode and fell
-			// through to the EMISSION, which rewrites the floor §7.3 freezes
-			// for a round already in flight. Changed() answers the first
-			// question, which is the one a mode is chosen by.
+			// different questions; groundModesPassed says why the first is
+			// the one a mode is chosen by.
 			recordPassed := cmd.Flags().Changed("record")
-			if groundModesPassed(unitsMode, statusMode, recordPassed) > 1 {
-				output.Error(ExitUsage, "--units, --status and --record are separate modes: pass one",
-					"tp ground <spec> --record <file> writes the round; --status reports it; --units prints the floor's units")
-				os.Exit(ExitUsage)
-				return nil
-			}
-			// §7.1's second exit-2 input. --check is one bit added to
-			// --status's answer and has no reading of its own: on --record it
-			// would gate a mode that reports no coverage, and on the emission
-			// it would gate a round nobody has dispositioned yet. Refusing it
-			// here is also what keeps the code a RULE — an unregistered flag
-			// exits 2 through cobra, which is the same number for a different
-			// reason and tells the operator nothing about --status.
-			if checkMode && !statusMode {
-				output.Error(ExitUsage, "--check requires --status",
-					"run tp ground <spec> --status --check: --check is the exit code of the coverage --status reports")
-				os.Exit(ExitUsage)
-				return nil
-			}
-			// §7.1's exit-2 row names `--record` with no path argument, and an
-			// empty path is that input: cobra refuses a bare `--record` before
-			// this body runs, so `--record ""` is the only spelling of it that
-			// reaches here. Refused beside the other two usage rules — before
-			// any mode opens a file — for the reason stated above them.
-			if recordPassed && recordPath == "" {
-				output.Error(ExitUsage, "--record needs a path argument",
-					"run tp ground <spec> --record <file>: --record names the NDJSON the round is recorded from, and an empty path names none")
-				os.Exit(ExitUsage)
-				return nil
-			}
+			groundRefuseUsage(unitsMode, statusMode, checkMode, recordPassed, recordPath)
+
 			if unitsMode {
 				return runGroundUnits(args[0])
 			}
@@ -209,6 +187,53 @@ change the floor the round is graded against.`,
 	cmd.Flags().BoolVar(&checkMode, "check", false, "With --status: exit 0 only when every emitted floor unit carries a disposition")
 	cmd.Flags().BoolVar(&unitsMode, "units", false, "Print the floor's units with their full text, one per line")
 	return cmd
+}
+
+// groundRefuseUsage takes §7.1's three exit-2 inputs. Every one exits the
+// process, so returning at all is the answer "none of these applies".
+//
+// It is a function rather than three blocks inside RunE because the command
+// body is long enough to trip the funlen ratchet as one, and the usage rules
+// are its own seam: nothing above them refuses and nothing in them dispatches.
+//
+// All three are taken before any mode opens a file, which is what makes a
+// pairing that ALSO names a missing --record path still usage (2) rather than
+// the file error (3) that path alone would give.
+func groundRefuseUsage(units, status, check, recordPassed bool, recordPath string) {
+	// §7.1 names each mode on its own line and never pairs two. The
+	// combination is refused rather than resolved by the dispatch's order:
+	// --status reports a round, --record writes one and --units prints the
+	// floor's text, so running whichever came first would hand the operator an
+	// exit 0 for the mode they did not ask for.
+	if groundModesPassed(units, status, recordPassed) > 1 {
+		output.Error(ExitUsage, "--units, --status and --record are separate modes: pass one",
+			"tp ground <spec> --record <file> writes the round; --status reports it; --units prints the floor's units")
+		os.Exit(ExitUsage)
+		return
+	}
+	// §7.1's second exit-2 input. --check is one bit added to --status's
+	// answer and has no reading of its own: on --record it would gate a mode
+	// that reports no coverage, and on the emission it would gate a round
+	// nobody has dispositioned yet. Refusing it here is also what keeps the
+	// code a RULE — an unregistered flag exits 2 through cobra, which is the
+	// same number for a different reason and tells the operator nothing about
+	// --status.
+	if check && !status {
+		output.Error(ExitUsage, "--check requires --status",
+			"run tp ground <spec> --status --check: --check is the exit code of the coverage --status reports")
+		os.Exit(ExitUsage)
+		return
+	}
+	// §7.1's exit-2 row names `--record` with no path argument, and an empty
+	// path is that input: cobra refuses a bare `--record` before this command's
+	// body runs, so `--record ""` is the only spelling of it that reaches here.
+	// Unrefused, it selected no mode at all and fell through to the EMISSION,
+	// which rewrites the floor §7.3 freezes for a round already in flight.
+	if recordPassed && recordPath == "" {
+		output.Error(ExitUsage, "--record needs a path argument",
+			"run tp ground <spec> --record <file>: --record names the NDJSON the round is recorded from, and an empty path names none")
+		os.Exit(ExitUsage)
+	}
 }
 
 // groundModesPassed counts how many of §7.1's three mode-selecting flags the
@@ -281,7 +306,11 @@ func runGround(specPath string) error {
 
 	snapshotPath := engine.GroundSnapshotPath(specPath, round)
 	outputPath := fmt.Sprintf("ground-r%d.ndjson", round)
-	return output.JSON(groundResult{
+	// The snapshot and the floor are already on disk, and a re-emission of an
+	// unrecorded round rewrites the same two files, so the recovery here is
+	// simply to run it again with a stdout that works — which is why this
+	// carries the shared hint and --record's carries its own.
+	if err := output.JSON(groundResult{
 		Spec:       specPath,
 		Round:      round,
 		Snapshot:   snapshotPath,
@@ -290,7 +319,11 @@ func runGround(specPath string) error {
 		Prompt: buildGroundPrompt(specPath, snapshotPath,
 			engine.FormatFloorIndexCarried(commit, rows, carried), outputPath, round,
 			groundFloorSize(rows), len(carried)),
-	})
+	}); err != nil {
+		output.Error(ExitFile, err.Error(), groundStdoutHint)
+		os.Exit(ExitFile)
+	}
+	return nil
 }
 
 // groundCarriedUnits is the set of this round's floor units that already carry
@@ -367,7 +400,14 @@ func runGroundUnits(specPath string) error {
 		return nil
 	}
 
-	fmt.Print(engine.FormatFloorUnits(engine.FloorUnitRows(string(data))))
+	// fmt.Print's error is read, and that is the whole of this mode's sink.
+	// Dropped, a stdout tp cannot write to made --units the one mode that
+	// printed nothing, said nothing and exited 0 — a listing a caller cannot
+	// tell from an empty floor.
+	if _, err := fmt.Print(engine.FormatFloorUnits(engine.FloorUnitRows(string(data)))); err != nil {
+		output.Error(ExitFile, err.Error(), groundStdoutHint)
+		os.Exit(ExitFile)
+	}
 	return nil
 }
 
@@ -421,7 +461,7 @@ func runGroundStatus(specPath string, check bool) error {
 		// Exiting rather than returning: a truncated payload followed by a 0 —
 		// or by a 1 under --check — is a status a caller cannot tell from a
 		// complete one.
-		output.Error(ExitFile, err.Error(), internalEncodeHint)
+		output.Error(ExitFile, err.Error(), groundStdoutHint)
 		os.Exit(ExitFile)
 		return nil
 	}
@@ -550,14 +590,24 @@ func recordGroundRoundLocked(specPath, recordPath string) error {
 		return nil
 	}
 
-	return output.JSON(groundRecordResult{
+	roundPath := engine.GroundRoundPath(specPath, round)
+	// The round is on disk by now, so a report that cannot be written is a
+	// failure ABOUT the report and not about the payload. Returning the error
+	// exited 1 with task-file advice, which reads as "fix your file and run it
+	// again" — and the re-run takes the next round number, for which no
+	// emission has frozen a floor.
+	if err := output.JSON(groundRecordResult{
 		Spec:    specPath,
 		Round:   round,
 		Floor:   floorPath,
-		File:    engine.GroundRoundPath(specPath, round),
+		File:    roundPath,
 		Rows:    len(rows),
 		Carried: len(carried),
-	})
+	}); err != nil {
+		output.Error(ExitFile, err.Error(), fmt.Sprintf(groundRecordWrittenHint, roundPath))
+		os.Exit(ExitFile)
+	}
+	return nil
 }
 
 // exitGroundRecordError maps a RecordGroundRound failure onto §7.1's exit codes.
