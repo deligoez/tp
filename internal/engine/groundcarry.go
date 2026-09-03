@@ -99,8 +99,14 @@ func groundCarryForward(floor []FloorIndexRow, prev []GroundRow, prevRound int, 
 	carried := make([]GroundRow, 0, len(floor))
 	for _, unit := range floor {
 		// The absence of the hash is the cut (§2.2). A cut unit owes no
-		// disposition, so it inherits none — and matching on an empty hash
-		// would join every cut unit of one round to every cut unit of the next.
+		// disposition, so it inherits none.
+		//
+		// This half of the condition is a fence on the argument rather than a
+		// branch a validated record reaches: §7.2 makes `text_sha` twelve hex
+		// characters and `ordinal` at least 1, so no source key can be the
+		// `("", 0)` a cut index row would look itself up under. Measured —
+		// deleting it leaves the suite green until the test's own fixture
+		// carries that key on both sides.
 		if unit.TextSHA == "" || own[unit.ID] {
 			continue
 		}
