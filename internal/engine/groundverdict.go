@@ -35,6 +35,28 @@ var groundVerdictOrder = []GroundVerdict{
 	VerdictNotAClaim,
 }
 
+// GroundPartialKind is which of §3's three shapes a `PARTIAL` row is, recorded
+// in §7.2's `partial_kind`.
+//
+// `PARTIAL` is the one verdict whose meaning is incomplete without it — "true
+// under one reading and not another" and "it was true when written" call for
+// different repairs — and `true-when-written` is the value §7.2 makes `held_at`
+// conditional on, so the enum has to be readable back rather than free text.
+type GroundPartialKind string
+
+const (
+	PartialTwoReadings         GroundPartialKind = "two-readings"
+	PartialReasonNotConclusion GroundPartialKind = "reason-not-conclusion"
+	PartialTrueWhenWritten     GroundPartialKind = "true-when-written"
+)
+
+// groundPartialKindOrder lists the three shapes in §7.2's order.
+var groundPartialKindOrder = []GroundPartialKind{
+	PartialTwoReadings,
+	PartialReasonNotConclusion,
+	PartialTrueWhenWritten,
+}
+
 // GroundKind is one of §4.1's seven claim kinds — what the claim is about. The
 // kind is what decides which tiers of evidence say anything about it, and a row
 // names it so a test can read it back; a prose description cannot be asserted
@@ -126,6 +148,12 @@ var groundAcceptableTiers = map[GroundKind]map[GroundTier]bool{
 // reordering the sequence every other reader depends on.
 func GroundVerdicts() []GroundVerdict { return groundEnumListing(groundVerdictOrder) }
 
+// GroundPartialKinds returns the three `partial_kind` shapes in §7.2's order,
+// as a copy.
+func GroundPartialKinds() []GroundPartialKind {
+	return groundEnumListing(groundPartialKindOrder)
+}
+
 // GroundKinds returns the seven kinds in §4.1's table order, as a copy.
 func GroundKinds() []GroundKind { return groundEnumListing(groundKindOrder) }
 
@@ -139,6 +167,12 @@ func GroundTiers() []GroundTier { return groundEnumListing(groundTierOrder) }
 // false for anything outside §3's six.
 func ParseGroundVerdict(s string) (GroundVerdict, bool) {
 	return parseGroundEnum(groundVerdictOrder, s)
+}
+
+// ParseGroundPartialKind maps a recorded row's `partial_kind` onto the enum,
+// reporting false for anything outside §7.2's three.
+func ParseGroundPartialKind(s string) (GroundPartialKind, bool) {
+	return parseGroundEnum(groundPartialKindOrder, s)
 }
 
 // ParseGroundKind maps a recorded row's `kind` onto the enum, reporting false
