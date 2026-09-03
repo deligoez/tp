@@ -167,6 +167,40 @@ func TestGroundRecordReadsTheEmittedFloorAndNotTheCurrentSpec(t *testing.T) {
 	})
 }
 
+// TestRecordOnAMissingSpecDiagnosesTheSpecLikeItsSiblings is --status's repair
+// applied to the mode beside it. A path naming no file was reported as a round
+// with no emitted floor, and the hint sent the operator to
+// `tp ground <the same wrong path>` — which fails too.
+//
+// The stat runs inside the no-floor branch and not at the top of --record, for
+// the reason the subtest above measures: a spec deleted AFTER its emission
+// records at exit 0 (§7.3 grades the round against the floor, not the text),
+// and a top-level existence check would refuse it. That state never reaches
+// this branch, because its floor is on disk. os.Stat is not a read, so §7.3's
+// rule that --record never opens the spec is untouched, and ExitFile is the
+// code on both paths, so nothing branching on the code sees a change.
+//
+// The verdict is the three envelopes being EQUAL, not any phrase inside them:
+// a reworded ground message cannot satisfy it, and the same typo reads the same
+// way whichever mode catches it.
+func TestRecordOnAMissingSpecDiagnosesTheSpecLikeItsSiblings(t *testing.T) {
+	dir := t.TempDir()
+	rows := writeGroundRows(t, dir, groundRecordRow(1))
+
+	envelopeOf := func(t *testing.T, mode string) map[string]any {
+		t.Helper()
+		stdout, stderr, code := runTP(t, dir, mode, "nope.md", "--record", rows)
+		require.Equal(t, 3, code, "%s --record on a missing spec: stdout %s stderr %s", mode, stdout, stderr)
+		return groundErrorEnvelope(t, stderr)
+	}
+
+	ground := envelopeOf(t, "ground")
+	assert.Equal(t, envelopeOf(t, "review"), ground,
+		"tp review --record and tp ground --record must name the same fault on the same typo")
+	assert.Equal(t, envelopeOf(t, "audit"), ground,
+		"and so must tp audit --record")
+}
+
 // TestARecordHoldingNoRowsIsRejectedAndConsumesNoRoundNumber is the acceptance's
 // second clause and §7.1's empty-record rule.
 //
