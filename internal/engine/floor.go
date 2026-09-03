@@ -513,6 +513,32 @@ func FloorIndexRows(text string, anchorOf func(unitIndex int) string) []FloorInd
 // spec's text, and this function is given rows precisely so that the text is
 // out of its reach.
 func FormatFloorIndex(commit string, rows []FloorIndexRow) string {
+	return formatFloorIndex(commit, rows, nil)
+}
+
+// FormatFloorIndexCarried renders the index a round's PROMPT carries: §2.2's
+// index, with each unit named in carried marked `(carried)` (§8).
+//
+// **Every row is still emitted.** §8 narrows the ask and not the index — "a
+// reader who cannot see the whole floor cannot tell it what the floor missed"
+// (§2.2) — so the marker is added to a row and never removes one.
+//
+// carried is a set of `unit_id`s and not the carried rows themselves, because
+// the only thing a renderer may know about a disposition is which unit already
+// has one. A nil or empty set renders §2.2's index unchanged, which is round 1
+// and every round whose preceding one decided nothing that survived.
+//
+// The set is applied to floor rows alone. A cut unit owes no disposition, so it
+// can inherit none, and a caller naming one gets `(cut)` back regardless — the
+// row §2.2 forbids is unwriteable from here rather than merely unwritten.
+func FormatFloorIndexCarried(commit string, rows []FloorIndexRow, carried map[string]bool) string {
+	return formatFloorIndex(commit, rows, carried)
+}
+
+// formatFloorIndex is the one renderer behind both spellings, so §2.2's index
+// and §8's marked view of it cannot drift into two shapes: the commit line, the
+// rows, and the summary are written once.
+func formatFloorIndex(commit string, rows []FloorIndexRow, carried map[string]bool) string {
 	named := commit
 	if named == "" {
 		named = "unknown"
@@ -523,11 +549,15 @@ func FormatFloorIndex(commit string, rows []FloorIndexRow) string {
 	b.WriteString("# commit " + named + "\n")
 	for _, r := range rows {
 		b.WriteString(r.String())
-		b.WriteString("\n")
 		if r.TextSHA == "" {
+			b.WriteString("\n")
 			cut++
 			continue
 		}
+		if carried[r.ID] {
+			b.WriteString(" " + floorIndexCarriedMarker)
+		}
+		b.WriteString("\n")
 		floor++
 	}
 	fmt.Fprintf(&b, "# %d in floor, %d cut\n", floor, cut)
@@ -542,6 +572,16 @@ func FormatFloorIndex(commit string, rows []FloorIndexRow) string {
 // writes would read every cut row as a malformed one, and a renderer writing a
 // marker the parser does not know would do the same in the other direction.
 const floorIndexCutMarker = "(cut)"
+
+// floorIndexCarriedMarker is what §8's second pass puts on the row of a unit
+// this round can already carry a disposition for.
+//
+// It is a SUFFIX to the five fields rather than a replacement for one of them,
+// because a carried unit is still a floor unit: it keeps its hash, its ordinal
+// and its length, and §8's coverage counts it in the denominator exactly as it
+// counts a unit the round decides. `(cut)` replaces those fields because a cut
+// unit has none to carry; this one is added to them.
+const floorIndexCarriedMarker = "(carried)"
 
 // ParseFloorIndex reads back the index an emission wrote (§7.3), returning the
 // rows in file order.
