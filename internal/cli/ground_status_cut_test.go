@@ -66,3 +66,46 @@ func TestStatusReportsTheCutCountCheckGatesOn(t *testing.T) {
 	})
 }
 
+// TestTheEmptiedFloorIsDecidableFromThePayloadUnderQuiet is the measurement the
+// key was added for, and it is the half a stderr notice cannot cover.
+//
+// The notice explaining the refusal is an `output.Notice`, and `--quiet`
+// suppresses it — so under the flag an unattended driver gets exit 1 beside a
+// payload whose own coverage predicate, `dispositioned == emitted`, holds. The
+// two arms here are that exact pair of runs: identical stdout shape, empty
+// stderr in both, and opposite exit codes. `cut` is what makes the exit code
+// reconstructible from the payload, which is what the two shipped precedents in
+// this area already do — audit's `file_summary.truncated` and grounding's own
+// `carried`, both payload keys added because `--quiet` erases the line beside
+// them.
+//
+// The stderr assertion is the load-bearing one: without it this test would pass
+// on a build that keeps the explanation on stderr and adds no key.
+func TestTheEmptiedFloorIsDecidableFromThePayloadUnderQuiet(t *testing.T) {
+	emptied := writeGroundSpec(t, groundAllCutSpec)
+	groundEmit(t, emptied)
+	_, emptiedCut := groundFloorSummary(t, emptied)
+	require.Positive(t, emptiedCut)
+
+	noUnits := writeGroundSpec(t, groundNoUnitsSpec)
+	groundEmit(t, noUnits)
+
+	emptiedPayload, emptiedStderr, emptiedCode := groundStatusCheckQuiet(t, emptied)
+	noUnitsPayload, noUnitsStderr, noUnitsCode := groundStatusCheckQuiet(t, noUnits)
+
+	require.Empty(t, emptiedStderr, "--quiet erases the notice, which is why the payload has to carry the reason")
+	require.Empty(t, noUnitsStderr)
+	require.Equal(t, 1, emptiedCode)
+	require.Equal(t, 0, noUnitsCode)
+
+	// The two runs agree on every key the gate is described in terms of, so
+	// coverage alone cannot reconstruct the codes above.
+	for _, key := range []string{"emitted", "dispositioned", "reader_added", "off_floor"} {
+		require.Equal(t, noUnitsPayload[key], emptiedPayload[key],
+			"the coverage keys are identical across the two states; %q cannot be what separates them", key)
+	}
+	assert.Equal(t, float64(emptiedCut), emptiedPayload["cut"])
+	assert.Equal(t, float64(0), noUnitsPayload["cut"])
+	assert.NotEqual(t, noUnitsPayload["cut"], emptiedPayload["cut"],
+		"cut is the one key that reproduces the exit code from the payload alone")
+}
