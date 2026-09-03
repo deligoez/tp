@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-03T02:37:48.266115Z",
+  "updated_at": "2026-09-03T02:58:35.89317Z",
   "workflow": {},
   "coverage": {
     "total_sections": 21,
@@ -572,7 +572,7 @@
     {
       "id": "exit-codes",
       "title": "each of 0/1/2/3/4 from a named input",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli"
       ],
@@ -584,11 +584,24 @@
       "source_sections": [
         "### 7.1 Invocations and exit codes"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-03T02:38:24.429618Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-03T02:57:37.925259Z",
+      "closed_reason": "- §7.1's five exit codes are each pinned to one of its own named inputs, one test per code, in internal/cli/ground_exit_codes_test.go: 0 from an emit and a record that complete; 1 from a payload whose second line is `{` and from an empty file (§11 row 14 names both), each asserting the state directory is unchanged; 2 from `--record` with no path argument; 3 from a `--record` path that does not exist and from a spec whose state directory already holds an unparseable state.json; 4 from a held write lock. The mapping is exitStateError's own — nothing new classifies, and the two codes it separates are asserted on inputs that reach it by different routes.\n- `tp ground \u003cspec\u003e --record` now takes the write lock (internal/cli/ground.go): the round number is read from the state directory and the round file written into it, so both moved inside one engine.WithFileLock, and contention past lock_timeout_seconds comes back as *LockTimeoutError, which exitStateError maps to exit 4. Dogfooded outside the repository on a copy of spec/1.0.0.md with the lock held by a NON-Go process (python fcntl.flock): exit 4 after 1.05s, the error and hint naming .tp/locks/1.0.0.md-0214904d.lock, exactly the path §7.1 names. Two concurrent `--record` runs on the same round now serialise — one records round 1, the other computes N=2 and exits 3 — where before this task both computed N=1 and both exited 0.\n- The lock's target is the SPEC PATH, not state.json, and that was a measurement rather than a preference: keyed on WithReviewStateLock the first implementation created a `.tp/` directory INSIDE spec/.tp-review/\u003cbase\u003e/, because LockFilePath resolves .tp/ from the target's own directory and a bare fixture has no git boundary. Three ground tests caught it as a fourth entry in a directory §11 row 12 states exhaustively. Ground writes no state.json (§7.3), so what it must exclude is another ground round on the same spec, never a review record whose files and round numbers are disjoint from it.\n- Exit 3's second named input was UNREACHABLE before this task: `--record` read no state at all, so a spec whose state directory held an unparseable state.json recorded happily and exited 0 (measured on a copy of spec/1.0.0.md before the change). `--record` now loads the state index first and refuses what it cannot read, while a GROUND-ONLY directory still records — LoadReviewState answers (nil, nil) for one, which is §11 row 11 and is exactly the caveat the exit-3 row states (\"**Not** a ground-only directory\"). A third subtest asserts that control, requiring the absence of state.json as a fact of the fixture.\n- Five mutants observed red, each on the test that names it. §11 row 14's OWN named mutant — map a corrupt state directory to 4 — reddens the unparseable-state.json subtest ALONE, expected 3 actual 4. Deleting the state gate reddens the same subtest alone (exit 0). Deleting the lock reddens the exit-4 test alone (expected 4, actual 0), and so does pointing the lock at a different target, which is why the test names the lock target independently rather than calling whatever wrapper the command calls: a shared wrapper would move both sides at once and stay green under that mutant. The fifth — gating the ground-only directory too — reddens 14 subtests including the control, so it tests the setup as much as the claim and is reported as the weak one.\n- Quality gate green, all four steps run separately: check-suite-state.sh 0, golangci-lint 0 issues, check-deadcode.sh 0, check-complexity.sh 0.\nOut of scope: §7.1's OTHER named exit-2 input, `--check` without `--status`, cannot be tested yet and no test claims it — neither flag is registered until the status-report/status-check tasks land, and `tp ground \u003cspec\u003e --check` today exits 2 as an UNKNOWN FLAG, so a test written now would pass without reaching the rule. The test file says so where the assertion would go; the status-check unit owns it.\nOut of scope: in a project with no .git and no .tp above the spec, `tp ground --record` now creates a `.tp/locks/` beside the spec (measured: spec/.tp for a spec at spec/1.0.0.md). That is ProjectConfigDir's shipped behaviour for every tp lock target, not new here, and it resolves to the project's own .tp/ in any git repository; the alternative targets are all worse, since state.json's would put it inside the round's own artifacts. lock_timeout_seconds still resolved correctly from the project config in that layout (measured: 1.05s, not the 5s default), so nothing is shadowed.",
+      "gate_passed_at": "2026-09-03T02:57:37.925259Z",
+      "commit_sha": "2efdb001",
+      "commit_shas": [
+        "2efdb001",
+        "9eb68e8b",
+        "77502689",
+        "a076f76c",
+        "67d2ab86",
+        "b4f22e78"
+      ],
+      "commit_files": [
+        "internal/cli/ground.go",
+        "internal/cli/ground_exit_codes_test.go"
+      ]
     },
     {
       "id": "coverage",
@@ -680,7 +693,7 @@
         "status-report"
       ],
       "estimate_minutes": 5,
-      "acceptance": "--status --check exits 0 when coverage is complete and 1 otherwise, and gates nothing else. Non-Goal 3 holds: no tp command refuses on coverage.",
+      "acceptance": "--status --check exits 0 when coverage is complete and 1 otherwise, and gates nothing else. Non-Goal 3 holds: no tp command refuses on coverage. --check without --status exits 2 by the rule rather than as an unknown flag — before this task tp ground --check exits 2 because the flag is unregistered, so §7.1's second exit-2 input is untestable and exit-codes deliberately left it unasserted; the test must distinguish the rule from the unknown-flag path.",
       "source_sections": [
         "### 7.1 Invocations and exit codes"
       ],
