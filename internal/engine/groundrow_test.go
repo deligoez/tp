@@ -65,6 +65,67 @@ func groundNotAClaimRow() map[string]any {
 	}
 }
 
+// groundEnumNames renders an enum listing as the strings a message would carry.
+func groundEnumNames[T ~string](vs []T) []string {
+	out := make([]string, 0, len(vs))
+	for _, v := range vs {
+		out = append(out, string(v))
+	}
+	return out
+}
+
+// TestAnEnumRefusalNamesTheValuesItWouldHaveAccepted holds the four enum cells
+// to the standard their numeric siblings in the same validator already meet.
+//
+// `ordinal` refuses with `must be 1 or more` and `carried_from` with `must be an
+// integer` — each states the constraint it applied. The enums refused with
+// `"MAYBE" is not one of the values the spec lists` and named no values and no
+// section, so the only recovery was re-reading the emitted prompt, measured at
+// 21,714 bytes on this repository's own spec. That is a round-trip a message
+// this validator can already avoid: the ordered listings exist, the prompt
+// renders from them, and only this call site had the parse without the listing.
+//
+// The expectation is derived from those listings rather than restated, so a
+// value added to §7.2's table reaches this assertion without anyone editing it,
+// and the four cases are asserted together because the defect was that all four
+// shared one uninformative sentence.
+func TestAnEnumRefusalNamesTheValuesItWouldHaveAccepted(t *testing.T) {
+	cases := []struct {
+		field  string
+		bad    string
+		listed []string
+	}{
+		{"verdict", "MAYBE", groundEnumNames(GroundVerdicts())},
+		{"kind", "vibes", groundEnumNames(GroundKinds())},
+		{"tier", "squinted", groundEnumNames(GroundTiers())},
+		{"partial_kind", "sort-of", groundEnumNames(GroundPartialKinds())},
+	}
+	for _, tc := range cases {
+		t.Run(tc.field, func(t *testing.T) {
+			require.NotEmpty(t, tc.listed,
+				"the listing must be readable, or this asserts that a message contains nothing")
+
+			base := groundClaimRow()
+			if tc.field == "partial_kind" {
+				base["verdict"] = "PARTIAL"
+			}
+			line := groundWireRow(t, base, map[string]any{tc.field: tc.bad}, nil)
+
+			_, err := parseGroundRows(line, nil)
+			require.Error(t, err)
+
+			var rowErr *GroundRowError
+			require.ErrorAs(t, err, &rowErr, "the refusal still names its field as a typed value")
+			assert.Equal(t, tc.field, rowErr.Field)
+
+			for _, want := range tc.listed {
+				assert.Contains(t, err.Error(), want,
+					"%s's refusal must name %q among the values it would have taken", tc.field, want)
+			}
+		})
+	}
+}
+
 // groundRowCase is one row of the rejection table: an input, and the §7.2 field
 // the rejection must name.
 type groundRowCase struct {
