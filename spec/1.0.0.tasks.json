@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-03T01:17:30.974076Z",
+  "updated_at": "2026-09-03T01:33:30.457592Z",
   "workflow": {},
   "coverage": {
     "total_sections": 21,
@@ -237,7 +237,7 @@
     {
       "id": "tier-rule",
       "title": "the per-verdict acceptability rule at record",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -250,11 +250,21 @@
         "### 7.2 The row",
         "### 4.1 Kinds and tiers"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-03T01:18:00.997825Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-03T01:33:30.435858Z",
+      "closed_reason": "- PASS, PARTIAL and FAIL require an acceptable tier for the kind: validateGroundRowTier (internal/engine/groundrow.go) rejects such a row when `tier` is outside the set §4.1 grants its `kind`, naming `tier` as the failed cell, and runs after validateGroundRowConditional so a claim carrying no `kind` is still rejected naming `kind` — observed red by swapping the two, which makes the pre-existing \"kind absent on a claim\" case report `tier`. Which verdicts the rule binds is groundTierRuleBinds, a map listing ALL SIX verdicts including the three exempt ones, so no verdict's answer is the zero value of a lookup and the values are per verdict rather than a boundary, leaving no ordering of the six for a mutant to be arithmetic on. Mutants observed red: the rule never wired into ParseGroundRow (the four rejected cases, which is the pre-implementation red); the rule bound to PASS alone (PARTIAL and FAIL); PASS dropped from the map, which reddens the guard tests ALONE because the fail-closed lookup makes it behaviourally identical — the reason the coverage guard is not redundant.\n- QUESTION accepts either relation: it is exempt in both directions, and TestTheTierRuleIsPerVerdict accepts a QUESTION row at a tier the kind takes and at one it does not, so which relation holds derives §3's two shapes rather than deciding legality. Two mutants observed red, one per direction: requiring the MISMATCH — §11 row 7b's own mutant — reddens only the ambiguous case, and holding QUESTION to the rule the way PASS is held reddens only the tier-unreached case. Dropping QUESTION from the map reddens both the behavioural case and the coverage guard.\n- UNVERIFIABLE carries a tier with no constraint: {mechanism, read, UNVERIFIABLE} records, its `tier` naming the deepest attempt, alongside {mechanism, probe, UNVERIFIABLE}. NOT-A-CLAIM is exempt too, which §7.2's table states by omission; observed red under a mutant binding the rule to every verdict (the three exempt cases) and under one binding it to NOT-A-CLAIM (the mismatched NOT-A-CLAIM case plus a pre-existing allowed-row case), and a mutant waiving an unlisted verdict instead of holding it reddens exactly the test written for that direction.\n- §11 row 7b passes with {behaviour, read, QUESTION} and {behaviour, run, QUESTION} both accepted, while the same two under PASS are rejected and accepted respectively. Every case asserts its own (kind, tier) acceptability against TierAcceptableFor before parsing, so a change to §4.1's sets cannot silently turn an \"unmatched\" case into one that tests nothing. The bound/exempt classification is read out of §7.2's own per-verdict table rather than restated in Go — rows selected structurally, each required to classify as exactly one of bound or exempt, and NOT-A-CLAIM's ABSENCE asserted rather than its exemption inferred — and proved not to be a tautology by two spec mutants: moving QUESTION into the bound row reddens naming the disagreement, and rewording the bound row so it matches neither classifier reddens loudly instead of being read as exempt.\n\nOut of scope: §11's paragraph at spec/1.0.0.md lines 831-832 contradicts row 7b and §7.2. It reads \"row 7b pins the mirror — that `QUESTION` requires the mismatch the other verdicts forbid\", but row 7b's own assertion column says QUESTION takes EITHER relation with both {behaviour, read, QUESTION} and {behaviour, run, QUESTION} accepted, its mutant column names \"require an unacceptable tier for QUESTION\" as the mutant, and §7.2's per-verdict table says \"**no constraint** — either relation is legal\". The prose describes the mutant as the requirement. The implementation follows the table and row 7b; the sentence needs repair.",
+      "gate_passed_at": "2026-09-03T01:33:30.435858Z",
+      "commit_sha": "954be5fb",
+      "commit_shas": [
+        "954be5fb",
+        "4191736a",
+        "2f82976a"
+      ],
+      "commit_files": [
+        "internal/engine/groundrow.go",
+        "internal/engine/groundtierrule_test.go"
+      ]
     },
     {
       "id": "causes-bound",
