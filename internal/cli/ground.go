@@ -44,6 +44,40 @@ type groundRecordResult struct {
 	Rows  int    `json:"rows"`
 }
 
+// groundStatusResult is what `tp ground <spec> --status` prints: which round it
+// is about, §8's coverage of it, and the per-verdict breakdown that says what
+// the round found (§8, §11 row 22).
+//
+// **The ratio is two integers and the share is two integers, deliberately.**
+// A fraction would have to decide what to report for an empty floor, and a
+// reader wanting one can divide — the same reading GroundCoverage and
+// GroundAdvisory already ship. So §8's "NOT-A-CLAIM share is the first number
+// to read" is served by putting its numerator and its denominator on one
+// object: `by_verdict["NOT-A-CLAIM"]` over `emitted`.
+//
+// ReaderAdded and OffFloor are two fields and not one because §8 keeps them
+// apart: they are evidence about different halves of §2.1 — the arms never
+// produced this unit, against the arms produced it and then cut it — and
+// collapsing them loses which half to go and look at.
+type groundStatusResult struct {
+	Spec  string `json:"spec"`
+	Round int    `json:"round"`
+	// Emitted and Dispositioned are §8's denominator and numerator, over
+	// floor UNITS.
+	Emitted       int `json:"emitted"`
+	Dispositioned int `json:"dispositioned"`
+	// ReaderAdded and OffFloor are the rows that move neither side.
+	ReaderAdded int `json:"reader_added"`
+	OffFloor    int `json:"off_floor"`
+	// ByVerdict counts the round's ROWS, keyed by §3's verdict, all six
+	// present. It is not a partition of Dispositioned: the two counts above
+	// carry a verdict each while dispositioning nothing.
+	ByVerdict map[string]int `json:"by_verdict"`
+}
+
+// groundStatusEmitHint tells an operator with no emitted round what to run.
+const groundStatusEmitHint = "emit the round first: tp ground %s — --status reports the coverage of the latest EMITTED round, and this spec has none"
+
 // groundRecordRowHint explains a --record file tp could read but would not
 // record.
 //
@@ -55,7 +89,10 @@ type groundRecordResult struct {
 const groundRecordRowHint = "fix the row the message names in the --record NDJSON, or record a file holding at least one row: every non-blank line is one JSON object carrying one floor unit's disposition"
 
 func newGroundCmd() *cobra.Command {
-	var recordPath string
+	var (
+		recordPath string
+		statusMode bool
+	)
 
 	cmd := &cobra.Command{
 		Use:   "ground <spec.md>",
@@ -78,6 +115,20 @@ change the floor the round is graded against.`,
 				os.Exit(ExitUsage)
 				return nil
 			}
+			// §7.1 names each mode on its own line and never pairs two. The
+			// combination is refused rather than resolved by the dispatch's
+			// order: --status reports a round and --record writes one, so
+			// running whichever came first would hand the operator an exit 0
+			// for the mode they did not ask for.
+			if statusMode && recordPath != "" {
+				output.Error(ExitUsage, "--status and --record are separate modes: pass one",
+					"tp ground <spec> --record <file> writes the round; tp ground <spec> --status reports it")
+				os.Exit(ExitUsage)
+				return nil
+			}
+			if statusMode {
+				return runGroundStatus(args[0])
+			}
 			if recordPath != "" {
 				return runGroundRecord(args[0], recordPath)
 			}
@@ -85,6 +136,7 @@ change the floor the round is graded against.`,
 		},
 	}
 	cmd.Flags().StringVar(&recordPath, "record", "", "Record a ground round from an NDJSON dispositions file")
+	cmd.Flags().BoolVar(&statusMode, "status", false, "Report the latest emitted round's coverage and per-verdict breakdown")
 	return cmd
 }
 
@@ -138,6 +190,47 @@ func runGround(specPath string) error {
 		Floor:      engine.GroundFloorPath(specPath, round),
 		OutputPath: outputPath,
 		Prompt:     buildGroundPrompt(specPath, snapshotPath, index, outputPath, round),
+	})
+}
+
+// runGroundStatus implements `tp ground <spec> --status` (§7.1): report the
+// latest emitted round's coverage and the per-verdict breakdown beside it.
+//
+// It takes no lock and writes nothing — reads are lock-free in this package —
+// and it never opens the spec, on §7.3's rule that the round is graded against
+// the floor its emission froze.
+//
+// A spec with no emitted round is refused with exit 3 rather than reported as
+// 0-of-0. There is no round for a status to be about, and the shape a vacuous
+// answer would take is the one a later `--check` reads as converged.
+func runGroundStatus(specPath string) error {
+	status, err := engine.LatestGroundStatus(specPath)
+	if err != nil {
+		if errors.Is(err, engine.ErrNoGroundEmission) {
+			output.Error(ExitFile, fmt.Sprintf("no emitted ground round for %s", specPath),
+				fmt.Sprintf(groundStatusEmitHint, specPath))
+			os.Exit(ExitFile)
+			return nil
+		}
+		output.Error(ExitFile, fmt.Sprintf("cannot read the ground round for %s: %v", specPath, err),
+			"check the permissions and the contents of spec/.tp-review/<base>/")
+		os.Exit(ExitFile)
+		return nil
+	}
+
+	byVerdict := make(map[string]int, len(status.ByVerdict))
+	for verdict, n := range status.ByVerdict {
+		byVerdict[string(verdict)] = n
+	}
+
+	return output.JSON(groundStatusResult{
+		Spec:          specPath,
+		Round:         status.Round,
+		Emitted:       status.Coverage.Emitted,
+		Dispositioned: status.Coverage.Dispositioned,
+		ReaderAdded:   status.Coverage.ReaderAdded,
+		OffFloor:      status.Coverage.OffFloor,
+		ByVerdict:     byVerdict,
 	})
 }
 
