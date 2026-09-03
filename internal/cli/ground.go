@@ -226,8 +226,9 @@ func runGround(specPath string) error {
 
 	// The index is derived from the bytes written as the snapshot — one read,
 	// so the floor and the text it claims to be over cannot disagree.
-	index := engine.FormatFloorIndex(groundCommit(specPath),
-		engine.FloorIndexRows(text, engine.FloorAnchorOf(text)))
+	commit := groundCommit(specPath)
+	rows := engine.FloorIndexRows(text, engine.FloorAnchorOf(text))
+	index := engine.FormatFloorIndex(commit, rows)
 
 	if err := engine.WriteGroundEmission(specPath, round, data, []byte(index)); err != nil {
 		output.Error(ExitFile, fmt.Sprintf("cannot write the ground round's artifacts: %v", err),
@@ -235,6 +236,15 @@ func runGround(specPath string) error {
 		os.Exit(ExitFile)
 		return nil
 	}
+
+	// §8's second pass, asked at emit. What goes to disk above is §2.2's index
+	// — the artifact §7.3 grades the round against, in the two row shapes
+	// ParseFloorIndex reads back — and what goes to the prompt below is the
+	// same rows with the carried ones marked. The marks are deliberately NOT
+	// written to the floor: `--record` re-derives the carry from round N-1
+	// itself, so a copy in the floor file would be a second statement of the
+	// same fact with nothing comparing the two.
+	carried := groundCarriedUnits(specPath, round, rows)
 
 	snapshotPath := engine.GroundSnapshotPath(specPath, round)
 	outputPath := fmt.Sprintf("ground-r%d.ndjson", round)
@@ -244,8 +254,54 @@ func runGround(specPath string) error {
 		Snapshot:   snapshotPath,
 		Floor:      engine.GroundFloorPath(specPath, round),
 		OutputPath: outputPath,
-		Prompt:     buildGroundPrompt(specPath, snapshotPath, index, outputPath, round),
+		Prompt: buildGroundPrompt(specPath, snapshotPath,
+			engine.FormatFloorIndexCarried(commit, rows, carried), outputPath, round,
+			groundFloorSize(rows), len(carried)),
 	})
+}
+
+// groundCarriedUnits is the set of this round's floor units that already carry
+// a disposition from the round before it (§8), as `unit_id`s.
+//
+// It asks engine.GroundCarriedRows with no decided rows, because a round that
+// has only just been emitted has decided nothing — and it is the same call
+// `--record` makes, so the units the prompt marks are the units the record
+// carries. A rule of its own here would let the prompt promise a carry the
+// record does not make.
+//
+// A preceding round tp cannot read back answers "nothing carried" rather than
+// refusing the emission. §7.1's table gives the emission no failure of its own
+// for this, and asking for every unit is the honest ask when nothing can be
+// carried: the rows a unit then writes are a superset of what is owed, and the
+// round still records once the operator repairs the artifact. The refusal
+// belongs at `--record`, the sink that acts on the carry, and is already there
+// (exit 3). The notice is what keeps that from being silent.
+func groundCarriedUnits(specPath string, round int, rows []engine.FloorIndexRow) map[string]bool {
+	carried, err := engine.GroundCarriedRows(specPath, round, rows, nil)
+	if err != nil {
+		output.Notice(fmt.Sprintf("nothing carried into ground round %d: %v", round, err))
+		return nil
+	}
+	units := make(map[string]bool, len(carried))
+	for i := range carried {
+		if carried[i].UnitID != nil {
+			units[*carried[i].UnitID] = true
+		}
+	}
+	return units
+}
+
+// groundFloorSize counts the units the round owes a disposition for before §8's
+// carry is taken off, on §2.2's convention that the absence of the hash is the
+// cut. A cut unit is in the index and owes nothing.
+func groundFloorSize(rows []engine.FloorIndexRow) int {
+	n := 0
+	for _, r := range rows {
+		if r.TextSHA != "" {
+			n++
+		}
+	}
+	return n
 }
 
 // runGroundUnits implements `tp ground <spec> --units` (§7.1): print the
@@ -559,11 +615,15 @@ var groundVerdictMeaning = map[engine.GroundVerdict]string{
 //
 // The three sections are three functions because the prompt is long enough to
 // trip the funlen ratchet as one, and its seams are its own headings.
-func buildGroundPrompt(specPath, snapshotPath, index, outputPath string, round int) string {
+// floorSize is the units in the index owing a disposition — every unit the arms
+// kept — and carried how many of them §8 inherits, so the ask the floor section
+// states is derived from the emission's own two numbers rather than counted out
+// of the rendered index.
+func buildGroundPrompt(specPath, snapshotPath, index, outputPath string, round, floorSize, carried int) string {
 	return appendClausesGround(
 		groundPromptRow(specPath, snapshotPath, round) +
 			groundPromptEvidence() +
-			groundPromptFloor(index, outputPath))
+			groundPromptFloor(index, outputPath, round, floorSize, carried))
 }
 
 // groundPromptRow opens the prompt and states the row: what the unit is being
@@ -574,8 +634,9 @@ func groundPromptRow(specPath, snapshotPath string, round int) string {
 	fmt.Fprintf(&b, "# Ground round %d — check this spec's claims against the world\n\n", round)
 	fmt.Fprintf(&b, "Spec: %s\nText this round reads: %s (the spec's bytes as of this emission)\n\n", specPath, snapshotPath)
 	b.WriteString(`Every claim in this document is a premise the next review round is told to treat
-as settled. Your job is to decide, for EVERY unit of the floor below, what it is
-worth against the world outside the document. You are not reviewing the spec:
+as settled. Your job is to decide, for EVERY unit of the floor below this round
+asks you for, what it is worth against the world outside the document. The floor
+section says which those are. You are not reviewing the spec:
 wording, coherence and design are the next phase's subject, not yours.
 
 ## The row
@@ -668,26 +729,51 @@ claim that does not depend on the answer.
 }
 
 // groundPromptFloor carries the emitted index whole, says how to read a row,
-// and names the file this round's rows go to.
-func groundPromptFloor(index, outputPath string) string {
+// states what this round is actually asked for, and names the file its rows go
+// to.
+func groundPromptFloor(index, outputPath string, round, floorSize, carried int) string {
 	var b strings.Builder
 
 	b.WriteString("\n## The floor\n\n")
 	b.WriteString(index)
-	fmt.Fprintf(&b, `
-Each row is `+"`<unit_id> <anchor> <text_sha> #<ordinal> <bytes>B`"+`, and a row ending
-in `+"`(cut)`"+` is a unit the arms dropped: it owes no disposition. The index carries
+	b.WriteString(`
+Each row is ` + "`<unit_id> <anchor> <text_sha> #<ordinal> <bytes>B`" + `, and a row ending
+in ` + "`(cut)`" + ` is a unit the arms dropped: it owes no disposition. The index carries
 no unit text; the text is in the snapshot named at the top of this prompt. A unit
 is one sentence of it, canonicalised — its wrapped lines joined, whitespace
 collapsed to single spaces, a list or blockquote marker dropped, and a table row's
-cells joined with an em dash; `+"`<bytes>`"+` is that text's length in UTF-8 bytes, which
+cells joined with an em dash; ` + "`<bytes>`" + ` is that text's length in UTF-8 bytes, which
 is how you tell where it ends.
 
 This is a FLOOR, not the set of claims. A claim it missed — including one inside a
 cut unit — is recorded with "unit_id": null and is reported apart from coverage.
 
-Write this round's rows to: %s
-`, outputPath)
+`)
+	b.WriteString(groundPromptAsk(round, floorSize, carried))
+	fmt.Fprintf(&b, "\nWrite this round's rows to: %s\n", outputPath)
 
 	return b.String()
+}
+
+// groundPromptAsk is §8's narrowed ask: what this round owes, and why the rest
+// of the index is not being asked about.
+//
+// The index above it lists every unit and this sentence says which of them the
+// round is for — §8 narrows the ask and not the index, because "a reader who
+// cannot see the whole floor cannot tell it what the floor missed" (§2.2).
+//
+// The count is stated rather than left to be counted off the marks. It is what
+// §8's saving is measured in — a one-sentence edit left 1 disposition owed and
+// the shipped prompt asked for 308 — and a reader who has to derive it from a
+// 300-row index is paying the cost the number exists to report.
+func groundPromptAsk(round, floorSize, carried int) string {
+	if carried == 0 {
+		return fmt.Sprintf(
+			"This round owes a disposition for each of the %d floor units above.\n", floorSize)
+	}
+	return fmt.Sprintf(`This round owes a disposition for %d of the %d floor units above: the other %d
+already carry one from round %d, and their rows end in `+"`(carried)`"+`. A carried
+disposition stands while its unit's text stands (§8) — do not decide those units
+again, and write no row for them.
+`, floorSize-carried, floorSize, carried, round-1)
 }
