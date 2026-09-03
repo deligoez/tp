@@ -81,10 +81,33 @@ func LatestGroundAdvisory(specPath string) *GroundAdvisory {
 // The floor is what it looks for rather than the round file, because §9's
 // advisory is about the round a reader is inside: --record cannot write a round
 // whose floor is absent, so this is never behind the recorded number.
+//
+// A state directory it cannot read is also 0, which is the advisory's rule that
+// every failure is silence (§9). A caller that must tell that apart from a spec
+// with no emission takes latestEmittedGroundRoundErr instead.
 func latestEmittedGroundRound(specPath string) int {
-	entries, err := os.ReadDir(ReviewStateDir(specPath))
+	round, err := latestEmittedGroundRoundErr(specPath)
 	if err != nil {
 		return 0
+	}
+	return round
+}
+
+// latestEmittedGroundRoundErr is the same scan for a caller that must tell an
+// unreadable state directory from a spec with no emission.
+//
+// A state directory that does not exist is the second of those and not a
+// failure: it is every spec before its first `tp ground`, and the answer is 0
+// with no error. Anything else the operating system refuses is reported, so
+// `--status` cannot tell an operator to emit a round when what is actually
+// wrong is that tp cannot open the directory the round would be in.
+func latestEmittedGroundRoundErr(specPath string) (int, error) {
+	entries, err := os.ReadDir(ReviewStateDir(specPath))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0, nil
+		}
+		return 0, err
 	}
 	highest := 0
 	for _, e := range entries {
@@ -96,7 +119,7 @@ func latestEmittedGroundRound(specPath string) int {
 			highest = n
 		}
 	}
-	return highest
+	return highest, nil
 }
 
 // readGroundFloor reads the index that round's emission froze (§7.3).
