@@ -778,10 +778,11 @@ stderr's **last** line. Parse the last line for `code`; read anything above it a
 `by_verdict` carries all six verdicts, zeros included, and counts **every row the round recorded** —
 so it is larger than `dispositioned` alone, which counts only floor units. **The two sides count
 different things and are not an identity: `by_verdict` counts ROWS, `dispositioned` counts UNITS.**
-Nothing stops two rows from naming the same floor unit, and then the totals separate. Measured on a
-377-unit floor: a round of two rows naming two units records `dispositioned 2` and a `by_verdict`
-total of 2; adding a third row naming the first unit again records at exit 0 with `dispositioned 2`
-and a `by_verdict` total of **3**, `reader_added` and `off_floor` both 0. So read the sum as
+Nothing stops two rows from naming the same floor unit, and then the totals separate. Measured
+against a control: a round of two rows naming two floor units records `dispositioned 2` and a
+`by_verdict` total of 2; the same round with a third row naming the first unit again records at exit
+0 with `dispositioned 2` and a `by_verdict` total of **3**, `reader_added` and `off_floor` both 0.
+So read the sum as
 `dispositioned` plus `reader_added` plus `off_floor` **plus any repeat rows**, or do not sum it at
 all — each verdict's own count is what it is for.
 `reader_added` counts rows whose `unit_id` is `null`; `off_floor` counts rows naming a unit the index
@@ -934,11 +935,12 @@ does not stop.
 
 `floor_size` and `tp ground --status`'s `emitted` are the **same quantity under two names**, so a
 driver reading both must not treat them as two facts: `internal/engine/groundadvisory.go` builds the
-advisory as `FloorSize: cov.Emitted` from the very `GroundCoverageOf` result `--status` reports. On a
-checkout of this repository with two of `spec/1.0.0.md`'s floor units dispositioned, `--status` gave
-`emitted: 377` and the same tree's `tp review` gave `ungrounded: {round: 1, undispositioned: 375,
-floor_size: 377}`. `undispositioned` is likewise `emitted - dispositioned`, the numerator of the gap
-rather than a third count.
+advisory as `FloorSize: cov.Emitted` from the very `GroundCoverageOf` result `--status` reports. Run
+on a checkout of this repository with two of `spec/1.0.0.md`'s floor units dispositioned, `--status`'s
+`emitted` and the same tree's `ungrounded.floor_size` were the same number, and `undispositioned` was
+that number less 2. **The number itself is deliberately not written here** — the floor moves with
+every edit to the spec, and it moved by one while this paragraph was being checked. The identity is
+the assignment above, not the value.
 
 ## Loop Integrity (v0.29.0)
 
