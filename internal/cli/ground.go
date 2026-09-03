@@ -89,6 +89,16 @@ type groundRecordResult struct {
 // apart: they are evidence about different halves of §2.1 — the arms never
 // produced this unit, against the arms produced it and then cut it — and
 // collapsing them loses which half to go and look at.
+//
+// **Cut is here because `--check` gates on it.** §7.1 makes `--check` the exit
+// code of the coverage this payload reports, so a quantity the gate reads and
+// the payload hides makes the two disagree: `emitted: 0, dispositioned: 0`
+// satisfies the payload's own coverage predicate while the exit says the
+// opposite. The reason it is a key and not the stderr line alone was measured
+// rather than preferred — `--quiet` suppresses `output.Notice`
+// (internal/output/output.go), so under that flag a driver gets the exit code
+// and nothing else. This release already made the same call twice for the same
+// reason: audit's `file_summary.truncated`, and grounding's own `carried`.
 type groundStatusResult struct {
 	Spec  string `json:"spec"`
 	Round int    `json:"round"`
@@ -99,6 +109,12 @@ type groundStatusResult struct {
 	// ReaderAdded and OffFloor are the rows that move neither side.
 	ReaderAdded int `json:"reader_added"`
 	OffFloor    int `json:"off_floor"`
+	// Cut is how many units §2.1 produced and the arms dropped. It is no part
+	// of the ratio — a cut unit owes no disposition — and it is present at
+	// zero rather than omitted, because it is the one key that separates the
+	// two states a denominator of zero can mean, and a key a reader must
+	// first decide whether an absence stands for is not a key they can read.
+	Cut int `json:"cut"`
 	// ByVerdict counts the round's ROWS, keyed by §3's verdict, all six
 	// present. It is not a partition of Dispositioned: the two counts above
 	// carry a verdict each while dispositioning nothing.
@@ -483,13 +499,18 @@ func runGroundUnits(specPath string, jsonAsked bool) error {
 // 0-of-0. There is no round for a status to be about, and the shape a vacuous
 // answer would take is the one a later `--check` reads as converged.
 //
-// check is §7.1's fifth invocation: exit 1 when a unit of the emitted floor
-// carries no disposition, 0 otherwise. It gates on §8's coverage and on nothing
-// else — a round of nothing but FAILs is fully covered and exits 0, because
-// coverage answers *did anyone look* and the verdicts beside it answer *what
-// did they find*. The branch is taken AFTER the payload is written, so the
-// invocation a gated driver actually runs prints exactly what `--status` prints
-// (Non-Goal 3: the code is a read-back, never a refusal).
+// check is §7.1's fifth invocation, and it has TWO conditions. Exit 1 when a
+// unit of the emitted floor carries no disposition; exit 1 also when the
+// emitted floor is empty and the arms cut units to empty it, which is the one
+// state coverage certifies falsely. It gates on nothing else — a round of
+// nothing but FAILs is fully covered and exits 0, because coverage answers *did
+// anyone look* and the verdicts beside it answer *what did they find*.
+//
+// Both conditions read a key of the payload — `dispositioned` against
+// `emitted`, then `emitted` against `cut` — so the code is reconstructible from
+// what the invocation printed. The branch is taken AFTER the payload is
+// written, so the invocation a gated driver actually runs prints exactly what
+// `--status` prints (Non-Goal 3: the code is a read-back, never a refusal).
 func runGroundStatus(specPath string, check bool) error {
 	status, err := engine.LatestGroundStatus(specPath)
 	if err != nil {
@@ -517,6 +538,7 @@ func runGroundStatus(specPath string, check bool) error {
 		Dispositioned: status.Coverage.Dispositioned,
 		ReaderAdded:   status.Coverage.ReaderAdded,
 		OffFloor:      status.Coverage.OffFloor,
+		Cut:           status.Cut,
 		ByVerdict:     byVerdict,
 	}); err != nil {
 		// Exiting rather than returning: a truncated payload followed by a 0 —
@@ -551,11 +573,14 @@ func runGroundStatus(specPath string, check bool) error {
 	// it. Measured on a fixture carrying four prose claims that no arm keeps:
 	// round 1 emitted, nothing dispositioned, and this exited 0.
 	//
-	// The notice carries the reason because the payload cannot. `--check` is a
-	// read-back and prints no error (Non-Goal 3), and what it prints is
-	// `emitted: 0, dispositioned: 0` — which reads as complete. Adding a key
-	// would put the explanation in documented surface for a state one line of
-	// stderr answers.
+	// The payload carries the reason, and the notice says it in words. That
+	// order was a repair: this comment used to argue against the key on the
+	// ground that one line of stderr answers the state, and `--quiet`
+	// suppresses `output.Notice` — measured, the flag leaves an unattended
+	// driver exit 1, an empty stderr, and a payload whose own coverage
+	// predicate holds. `--check` is a read-back and prints no error (Non-Goal
+	// 3), so `cut` is what makes the code reconstructible from what it read
+	// back; the notice is for the operator reading a terminal.
 	// The notice names the FLOOR file and not `--units`, which was the first
 	// wording and does not work: FloorUnitRows emits a row only for a unit the
 	// arms kept, so on this exact input `tp ground <spec> --units` prints zero
