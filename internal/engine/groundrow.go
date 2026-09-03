@@ -110,15 +110,16 @@ const (
 // type.
 //
 // **Presence is encoded in the value, not in a parallel flag**, and that is
-// what makes the conditional cells checkable. §7.2 has five cells whose
-// legality depends on another cell being present — `evidence` on `tier`,
-// `held_at` on `partial_kind`, `causes` on `verdict` — so a separate "was this
-// key in the JSON" bitmask would be a second source of truth that can disagree
-// with the fields beside it. Instead every optional cell has a zero value that
-// is not a legal value: an enum's "" is outside its listing, a required string
-// is rejected when present and empty, and `ordinal`/`carried_from` are 1-based
-// so 0 is not a round or an index. The validator therefore reads the same
-// struct a caller does, and there is no flag to leave stale.
+// what makes the conditional cells checkable. §7.2 has six cells whose legality
+// depends on another cell — `kind`, `tier`, `partial_kind` and `causes` on
+// `verdict`, `evidence` on `tier`, `held_at` on `partial_kind` — so a separate
+// "was this key in the JSON" bitmask would be a second source of truth that can
+// disagree with the fields beside it. Instead every optional cell has a zero
+// value that is not a legal value: an enum's "" is outside its listing, a
+// required string is rejected when present and empty, and
+// `ordinal`/`carried_from` are 1-based so 0 is not a round or an index. The
+// validator therefore reads the same struct a caller does, and there is no flag
+// to leave stale.
 //
 // `unit_id` is the one exception and needs the pointer: `null` is a legal
 // value there — it records a reader-added claim — and has to be distinguishable
