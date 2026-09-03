@@ -28,9 +28,12 @@ import (
 //   - the FRESH claim exists only in round 3 and is what that round's payload
 //     decides, since §7.1 refuses a record holding no rows.
 //
-// The headings carry no digit, no code span and none of §2.1's verbs, so they
-// are cut and the floor is exactly the sentences — which is what lets this test
-// state each round's floor size rather than count around the document's furniture.
+// The headings produce no unit at all — not a cut one — so the floor is exactly
+// the sentences, which is what lets this test state each round's floor size
+// rather than count around the document's furniture. "Cut" was the wrong word
+// here and the require below is what refutes it: a cut unit gets an index row
+// with no hash and would still be counted, while a two-heading document indexes
+// as 0 in floor and 0 cut. Measured, not read.
 const (
 	groundCarryStable   = "The stable claim measured 3 things."
 	groundCarryPrefix60 = "The changing claim measured 5 things across the whole corpus"
@@ -174,7 +177,7 @@ func TestTheSecondPassCarriesOnOverThreeRounds(t *testing.T) {
 	writeGroundCarrySpec(t, dir, groundCarryRound2)
 	groundEmit(t, dir)
 	floor2 := groundEmittedFloor(t, dir, 2)
-	require.Len(t, floor2, 3, "round 2's floor is the three sentences; the headings are cut")
+	require.Len(t, floor2, 3, "round 2's floor is the three sentences; the headings produce no unit")
 	rows2 := writeGroundRows(t, dir,
 		groundCarryRowFor(groundUnitFor(t, floor2, groundCarryStable), 2),
 		groundCarryRowFor(groundUnitFor(t, floor2, groundCarryChangedA), 2),
