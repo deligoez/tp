@@ -311,10 +311,18 @@ func groundFreeText(raw map[string]json.RawMessage, field string) (string, error
 // groundText decodes a string cell whose presence is load-bearing, returning ""
 // when the key is absent.
 //
-// A present-but-blank value is rejected rather than read as absent. Without
-// that, "" would mean two things at once and the conditional cells built on it
-// would be satisfiable by a value that says nothing — `{"tier": "run",
-// "evidence": ""}` would clear §7.2's evidence rule while recording no evidence.
+// A present-but-blank value is rejected rather than read as absent, which keeps
+// "" meaning exactly one thing — the key was not there — and so keeps the
+// presence encoding GroundRow's own comment rests on.
+//
+// It buys less than it looks like, and the difference was measured rather than
+// reasoned: on a row whose conditional cell is REQUIRED, reading a blank as
+// absent rejects the same row and names the same field, because the cell is
+// then missing. The two readings part only where the condition does not hold —
+// `{"verdict": "PARTIAL", "partial_kind": "two-readings", "held_at": ""}` is
+// accepted outright by a blank-reads-as-absent parser and rejected here. A
+// draft of this comment claimed the bypass was `{"tier": "run", "evidence":
+// ""}`; running the mutant showed that row is rejected either way.
 func groundText(raw map[string]json.RawMessage, field string) (string, error) {
 	s, err := groundFreeText(raw, field)
 	if err != nil {
