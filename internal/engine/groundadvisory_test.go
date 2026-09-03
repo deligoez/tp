@@ -134,6 +134,26 @@ func TestTheAdvisoryIsTheLatestRoundAndNotTheFirst(t *testing.T) {
 		LatestGroundAdvisory(specPath))
 }
 
+// TestEachRoundIsJoinedToItsOwnRecord: round 1 is complete and round 2 has been
+// emitted AND partially recorded, so the answer is round 2's own coverage — not
+// round 1's, which is 100%, and not round 2's floor read against round 1's rows,
+// which is also 100% because the two floors are the same units.
+//
+// Only a fixture whose rounds differ in their RECORDS can tell those apart, and
+// only a round after the first can be joined to the wrong one at all.
+func TestEachRoundIsJoinedToItsOwnRecord(t *testing.T) {
+	specPath := groundAdvisorySpec(t)
+	floor := groundFloorWithACutUnit(t)
+	emitGroundFloor(t, specPath, 1, floor)
+	recordGroundDispositions(t, specPath, 1, floor[0], floor[2])
+
+	emitGroundFloor(t, specPath, 2, floor)
+	recordGroundDispositions(t, specPath, 2, floor[0])
+
+	assert.Equal(t, &GroundAdvisory{Round: 2, Undispositioned: 1, FloorSize: 2},
+		LatestGroundAdvisory(specPath), "round 2's floor against round 2's rows")
+}
+
 // TestTwoRowsForOneUnitLeaveTheOtherUndispositioned: the count of open units is
 // derived from the floor — of each emitted unit, did a row decide it — never
 // from the number of rows recorded. Subtracting the row count instead reports
