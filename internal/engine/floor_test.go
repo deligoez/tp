@@ -775,11 +775,20 @@ func TestSection11Row2ABareCodeSpanIsInTheFloor(t *testing.T) {
 // a test that derived its list from the code would agree with that list however
 // wrong it was. Three arms are needed and they catch different mutants. The
 // first equality pins the shipped list against this file's literal; the second
-// pins it against §2.1's own table, which is the arm a thirteenth verb quietly
-// added to the document fails on — measured, the equality against the literal
-// stays green there. The loop pins that the arm is actually built from that
-// list, which a pattern compiled from some other literal would pass both
-// equalities and fail here.
+// pins it against §2.1's own table, and it is the arm a thirteenth verb added
+// to the document fails on — measured, the equality against the literal stays
+// green there. The loop pins that the arm is actually built from that list,
+// which a pattern compiled from some other literal would pass both equalities
+// and fail here.
+//
+// **The second arm sees a verb only if floorSection21Verbs can spell it**, and
+// that limit is stated rather than papered over, because an earlier draft of
+// this comment claimed the thirteenth-verb property without it and a `re-ran`
+// falsified the claim in the round after. The cell class is `[a-z-]`, so a
+// verb carrying a capital, a digit or a non-ASCII hyphen is dropped from the
+// extracted list and the count still matches: silently green. Nothing here
+// closes that, and no rewording would — the replacement is a check over the
+// row's backticked spans as a whole, which is a later release's work.
 func TestTheVerbArmIsExactlyTheTwelveListedVerbs(t *testing.T) {
 	listed := []string{
 		"measured", "ran", "counted", "derived", "reproduced", "observed",
