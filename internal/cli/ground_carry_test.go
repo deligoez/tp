@@ -233,3 +233,77 @@ func TestTheSecondPassCarriesOnOverThreeRounds(t *testing.T) {
 	assert.Equal(t, float64(2), status["dispositioned"],
 		"one decided this round and one carried; the changed and the reverted claims are open")
 }
+
+// groundRecordSecondRound emits a second round over the same spec and records
+// one row against a unit of its floor, returning the invocation's streams and
+// exit code.
+//
+// The payload is impeccable by construction — the row is built from the floor tp
+// itself emitted — so any refusal the caller sees is about something else.
+func groundRecordSecondRound(t *testing.T, dir string) (stdout, stderr string, code int) {
+	t.Helper()
+	groundEmit(t, dir)
+	floor := groundEmittedFloor(t, dir, 2)
+	require.NotEmpty(t, floor, "the second round must have a floor to record against")
+	rows := writeGroundRows(t, dir, groundCarryRowFor(floor[0], 2))
+	return runTP(t, dir, "ground", "spec.md", "--record", rows)
+}
+
+// TestACorruptPrecedingRoundIsExitThreeAndNotExitOne pins the ORDER of the two
+// branches --record's error mapping has, which is the only thing that separates
+// them.
+//
+// A truncated round file fails to parse as a *GroundLineError, and §8 wraps that
+// in a *GroundCarryError because the file is tp's own. Both types are reachable
+// through errors.As from the same error, so a mapping that asks about the line
+// error first answers 1 — "a row fails validation" — and sends the operator to
+// fix a line of a file they did not write. The verdict rests on the envelope's
+// own `code` field and on the round file not appearing, never on the wording.
+func TestACorruptPrecedingRoundIsExitThreeAndNotExitOne(t *testing.T) {
+	dir := t.TempDir()
+	writeGroundCarrySpec(t, dir, groundCarryRound2)
+	groundEmit(t, dir)
+	floor := groundEmittedFloor(t, dir, 1)
+	require.NotEmpty(t, floor)
+	rows := writeGroundRows(t, dir, groundCarryRowFor(floor[0], 1))
+	_, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", rows)
+	require.Equal(t, 0, code, "the control: round 1 records cleanly, so round 2's refusal is about round 1's FILE")
+
+	roundFile := groundStatePath(dir, filepath.Base(engine.GroundRoundPath("spec.md", 1)))
+	require.NoError(t, os.WriteFile(roundFile, []byte("{\n"), 0o600))
+
+	_, stderr, code = groundRecordSecondRound(t, dir)
+
+	assert.Equal(t, 3, code, "tp's own broken artifact is a file failure, not a rejected payload")
+	assert.Equal(t, float64(3), groundErrorEnvelope(t, stderr)["code"])
+	_, statErr := os.Stat(groundStatePath(dir, filepath.Base(engine.GroundRoundPath("spec.md", 2))))
+	assert.True(t, os.IsNotExist(statErr),
+		"and no round file is written, because a round that could not inherit would claim coverage it does not have")
+}
+
+// TestAFloorThatDoesNotParseIsRefused is the other artifact --record now reads
+// rather than merely opens.
+//
+// §8's carry asks, of each emitted floor unit, whether the preceding round
+// decided the same text — so the index has to be read back, and a half-written
+// one read short would shrink §8's denominator silently and make coverage look
+// higher than it is. The fixture breaks the floor of the round being recorded,
+// which is the one the rows are graded against.
+func TestAFloorThatDoesNotParseIsRefused(t *testing.T) {
+	dir := t.TempDir()
+	writeGroundCarrySpec(t, dir, groundCarryRound2)
+	groundEmit(t, dir)
+	floor := groundEmittedFloor(t, dir, 1)
+	require.NotEmpty(t, floor)
+	rows := writeGroundRows(t, dir, groundCarryRowFor(floor[0], 1))
+
+	floorFile := groundStatePath(dir, floorFileName(1))
+	require.NoError(t, os.WriteFile(floorFile, []byte("u1 §0 not-an-index-row\n"), 0o600))
+
+	_, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", rows)
+
+	assert.Equal(t, 3, code, "an index tp cannot read back is a file failure")
+	assert.Equal(t, float64(3), groundErrorEnvelope(t, stderr)["code"])
+	_, statErr := os.Stat(groundStatePath(dir, filepath.Base(engine.GroundRoundPath("spec.md", 1))))
+	assert.True(t, os.IsNotExist(statErr), "and the round is not recorded against a floor tp could not read")
+}
