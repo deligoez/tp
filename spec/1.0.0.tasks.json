@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-03T05:36:54.660964Z",
+  "updated_at": "2026-09-03T06:01:37.118736Z",
   "workflow": {},
   "coverage": {
     "total_sections": 21,
@@ -1080,7 +1080,7 @@
     {
       "id": "carry-prompt",
       "title": "The emitted prompt asks only for the dispositions a round owes",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli"
       ],
@@ -1092,6 +1092,51 @@
       "acceptance": "An emission whose preceding round dispositioned units that still carry marks each carrying unit in the index and asks for dispositions only for the rest, while the index still lists every unit (§2.2). §11 row 16b passes: on a spec whose round 1 dispositioned every unit and whose round 2 changes one unit text, the round-2 prompt asks for one disposition. The carry set is computed by the same engine.groundCarryForward join that --record uses, never by a second rule.",
       "source_sections": [
         "## 8. Convergence is coverage, not absence"
+      ],
+      "started_at": "2026-09-03T05:59:42.312123Z",
+      "duration_source": "implicit",
+      "closed_at": "2026-09-03T05:59:42.312334Z",
+      "closed_reason": "- An emission now marks each unit it can already carry and asks only for the rest: runGround calls groundCarriedUnits, renders the prompt's index through the new engine.FormatFloorIndexCarried, and groundPromptAsk states the count. The marker is a SUFFIX to the five fields, so a carried unit keeps its hash, ordinal and length and stays in §8's denominator — the summary line is unchanged at \"# 2 in floor, 1 cut\". Four engine mutants observed red, each on the assertion written for it: the cut guard removed (a cut unit named in the carry set rendered \"u2 §2 (cut) (carried)\"), the marker replacing the fields instead of following them (\"u1 §1 (carried)\"), a carried unit counted as cut (\"# 1 in floor, 2 cut\"), and marking every floor row regardless of the set — the last caught only by the control test, whose empty-map and unknown-id cases an empty carry set does not reach.\n- The index still lists every unit: the prompt's row ids equal the emitted floor's row ids, cut rows included. §11 row 16b's second named mutant — narrow the index rather than the ask — was built (drop the carried rows before rendering) and observed red on exactly that assertion. Dogfooded on a copy of spec/1.0.0.md outside the repository: round 2 after three round-1 dispositions asked for \"318 of the 321 floor units above\", marked u1/u2/u3, and still listed all 425 rows.\n- §11 row 16b passes end to end through the command: round 1 dispositions all four units of a fixture, one unit's text changes, and the round-2 prompt reads \"This round owes a disposition for 1 of the 4 floor units above\". Round 1 is the control in the same test and is not decoration — the mutant that counts every index row rather than every floor unit reddens both asks and nothing else. The fixture's cut row is a unit written to be one, NOT a heading: measured on its own first emission, a two-heading document indexes as \"# 4 in floor, 0 cut\", so §2.1 produces no unit for a heading at all and a fixture leaning on headings for its cut rows has none.\n- The carry set is engine.GroundCarriedRows, the same join --record makes, asked with no decided rows because a round just emitted has decided nothing; the unexported groundCarriedRows was exported rather than copied, so there is one function and two callers. That is asserted on artifacts rather than on the code: the ids the round-2 prompt marked must equal the ids --record then wrote into round 2's file as carried. A second rule on the emit side (mark every floor unit) was built and observed red on both the count and that comparison.\n- The floor file on disk stays §2.2's unmarked index. Writing the marked index there instead was built and observed red three tests over, with ParseFloorIndex refusing the row: \"floor index line 2: not an index row: \\\"u1 §1 1f1d01f19247 #1 34B (carried)\\\"\" — so a mark in the graded artifact fails loudly rather than shrinking a denominator quietly.\n- Gate green, all four steps run separately: check-suite-state.sh 0, golangci-lint 0, check-deadcode.sh 0, check-complexity.sh 0. golangci-lint was red once, on gocritic regexpSimplify in the new test, and is fixed.\n- Out of scope: four findings. (1) §7.1's \"the prompt asks a question of every unit in the index\" (the empty-record rationale) and §2.2's \"a unit that receives the floor returns a disposition for every unit in it\" are both falsified by §8's narrowing — the same summary-beside-a-normative-statement shape §11's closing paragraph records. (2) That is not only wording: a round in which every floor unit carries owes ZERO dispositions, so the prompt asks for no rows, the unit writes an empty file, and --record refuses it with exit 1 under §7.1's \"An empty record is rejected rather than recorded\". Reachable by re-emitting on an unedited spec; observed as \"This round owes a disposition for 0 of the 4 floor units above\" while building a mutant. The spec has no answer for it. (3) §8 and §7.1 are silent on what an emission does when round N-1 cannot be read back; this carries nothing and says so with output.Notice on stderr rather than inventing a refusal, because §7.1's table gives the emission no failure of its own and --record already refuses at the sink (exit 3). (4) internal/cli/ground_carry_test.go's fixture comment says its headings \"are cut\", which is false — headings are not units at all; its own require.Len on the floor is what refutes it.",
+      "gate_passed_at": "2026-09-03T05:59:42.312334Z",
+      "commit_sha": "e93410a7",
+      "commit_shas": [
+        "e93410a7",
+        "db53502c",
+        "d1fdf5e5",
+        "5b9cd65b",
+        "a9795ca4",
+        "665f5a1a",
+        "a4226107",
+        "f3e8f554",
+        "dd5f4bbf",
+        "bbdd5b5d",
+        "87b8bef8"
+      ],
+      "commit_files": [
+        "internal/cli/ground.go",
+        "internal/cli/ground_ask_test.go",
+        "internal/cli/groundprompt_test.go",
+        "internal/engine/floor.go",
+        "internal/engine/floorindexcarried_test.go",
+        "internal/engine/groundrecord.go",
+        "skills/tp/SKILL.md"
+      ]
+    },
+    {
+      "id": "empty-when-owed",
+      "title": "A record whose payload is empty because nothing is owed is accepted",
+      "status": "open",
+      "tags": [
+        "cli"
+      ],
+      "depends_on": [
+        "carry-prompt",
+        "record-atomic"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "ErrGroundRoundEmpty fires on the payload rows plus the carried rows both being zero, never on the payload alone. Reproduced first as a red test from the built three-command sequence: record round 1 dispositioning every unit, re-emit on an unedited spec so the prompt asks for 0 of N, record an empty payload — exit 0 with N carried rows written, where HEAD exits 1. An empty payload with nothing to carry is still exit 1.",
+      "source_sections": [
+        "### 7.1 Invocations and exit codes"
       ],
       "started_at": null,
       "closed_at": null,
