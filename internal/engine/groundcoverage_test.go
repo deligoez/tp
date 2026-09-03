@@ -82,3 +82,37 @@ func TestGroundCoverageIsDispositionsOverTheEmittedFloor(t *testing.T) {
 	assert.Equal(t, GroundCoverage{Emitted: 4, Dispositioned: 2}, GroundCoverageOf(floor, rows))
 }
 
+// TestAReaderAddedRowMovesNeitherSideAndIsCountedApart is §11 row 15.
+//
+// The fixture is sized so that row 15's named mutant — counting the
+// reader-added rows in the numerator — reads exactly 100%: four emitted units,
+// two of them dispositioned, and two added rows. That is the defect stated as
+// an input rather than as a sentence, and it is asserted below rather than
+// eyeballed, because it is the property that makes this fixture discriminating.
+//
+// The added rows are interleaved with the dispositions so that a reader keyed
+// on a prefix of the record fails too.
+func TestAReaderAddedRowMovesNeitherSideAndIsCountedApart(t *testing.T) {
+	floor := groundFloorOf("u1", "u2", "u3", "u4")
+	rows := []GroundRow{
+		groundDisposition("u2", VerdictPass),
+		groundReaderAdded(VerdictFail),
+		groundDisposition("u4", VerdictFail),
+		groundReaderAdded(VerdictQuestion),
+	}
+
+	added := 0
+	for _, r := range rows {
+		if r.UnitID == nil {
+			added++
+		}
+	}
+	require.Equal(t, 2, added, "the fixture's added rows are the ones carrying a null unit_id")
+	require.Equal(t, len(floor)-2, added,
+		"and there are exactly as many of them as there are undispositioned floor units, "+
+			"so counting them in the numerator reads exactly 100%")
+
+	assert.Equal(t, GroundCoverage{Emitted: 4, Dispositioned: 2, ReaderAdded: 2},
+		GroundCoverageOf(floor, rows))
+}
+
