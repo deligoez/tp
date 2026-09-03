@@ -215,3 +215,33 @@ func TestThePromptMarksTheUnitsTheRecordActuallyCarries(t *testing.T) {
 		"the units the prompt said it would carry are the units the record carried")
 }
 
+// TestTheEmittedFloorFileIsUnmarked pins where the marker does and does not go.
+//
+// The prompt's index is a VIEW for a reader; `floor-ground-round-N.txt` is the
+// artifact §7.3 grades the round against, and `ParseFloorIndex` accepts §2.2's
+// two row shapes and no third. A marker written into that file would be a
+// second copy of a fact the record re-derives anyway — one that can go stale
+// between emit and record while nothing compares them — and it would make the
+// floor unreadable to the very command that reads it.
+func TestTheEmittedFloorFileIsUnmarked(t *testing.T) {
+	dir := t.TempDir()
+	writeGroundCarrySpec(t, dir, groundAskRound1)
+	groundEmit(t, dir)
+	floor1 := groundEmittedFloor(t, dir, 1)
+	rows1 := writeGroundRows(t, dir, groundCarryRowFor(groundUnitFor(t, floor1, groundAskUnit1), 1))
+	_, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", rows1)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	writeGroundCarrySpec(t, dir, groundAskRound2)
+	prompt := groundEmit(t, dir)["prompt"].(string)
+	require.NotEmpty(t, groundMarkedIDs(prompt),
+		"the prompt must mark a unit here, or the assertion below holds for the wrong reason")
+
+	data := groundFloorFileBytes(t, dir, 2)
+	assert.NotContains(t, string(data), groundCarriedMark,
+		"§2.2's index is what the round is graded against, and it has two row shapes, not three")
+	parsed, err := engine.ParseFloorIndex(string(data))
+	require.NoError(t, err, "and it still reads back")
+	assert.Equal(t, rowIDsOf(parsed), groundRowIDs(groundPromptIndexRows(prompt)),
+		"the two carry the same units in the same order; only the marks differ")
+}
