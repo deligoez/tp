@@ -266,3 +266,38 @@ func TestARowFailingSection72IsRejectedAndWritesNoRoundFile(t *testing.T) {
 	assert.Contains(t, message, "tier", "and names the cell of §7.2's table that failed")
 	assert.Equal(t, before, stateDirNames(t, dir), "one invalid row writes no round file (§11 row 10)")
 }
+
+// TestTheMissingRecordFileHintIsGroundsOwnAndNotTheSharedOne is the live half of
+// the carve-out the in-package constant test states: what tp actually prints on
+// exit 3 for a --record path it cannot open is not what `tp review --record`
+// prints for the same failure.
+//
+// **The verdict rests on the comparison, not on matched text.** The two
+// invocations are the same failure of the same flag against the same spec, so a
+// hint that is byte-identical between them is the shared constant still in place
+// whatever either sentence says; a Contains over one of them would be a presence
+// check inside an unbounded string, and the wording it pins can be restated
+// beside it. Which words grounding's hint must not carry is asserted where the
+// subject is bounded — over the constant itself, in package cli.
+//
+// The round is emitted first, deliberately. Without it the floor check refuses
+// earlier and this measures the no-prior-emit path instead, which is the
+// subtest directly above.
+func TestTheMissingRecordFileHintIsGroundsOwnAndNotTheSharedOne(t *testing.T) {
+	dir := writeGroundFixture(t)
+	groundEmit(t, dir)
+
+	_, groundStderr, groundCode := runTP(t, dir, "ground", "spec.md", "--record", "absent.ndjson")
+	require.Equal(t, 3, groundCode, "a --record path tp cannot open is exit 3: %s", groundStderr)
+	groundHint := fmt.Sprint(groundErrorEnvelope(t, groundStderr)["hint"])
+	require.NotEmpty(t, groundHint, "§13.2: every non-zero envelope carries a hint")
+
+	_, reviewStderr, reviewCode := runTP(t, dir, "review", "spec.md", "--record", "absent.ndjson")
+	require.Equal(t, 3, reviewCode, "the same failure of the same flag on the panelled command: %s", reviewStderr)
+	reviewHint := fmt.Sprint(groundErrorEnvelope(t, reviewStderr)["hint"])
+	require.NotEmpty(t, reviewHint)
+
+	assert.NotEqual(t, reviewHint, groundHint,
+		"grounding has no reviewers, no auditors and no task file (§7.1, Non-Goal 4), "+
+			"so it does not answer this failure with the panelled commands' sentence")
+}
