@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-03T06:13:13.716017Z",
+  "updated_at": "2026-09-03T06:30:14.771071Z",
   "workflow": {},
   "coverage": {
     "total_sections": 21,
@@ -845,7 +845,7 @@
     {
       "id": "docs",
       "title": "SKILL, REFERENCE and README carry tp ground",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -860,11 +860,26 @@
       "source_sections": [
         "## 7. The command and the record"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-03T06:16:31.925026Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-03T06:30:14.726232Z",
+      "closed_reason": "- skills/tp/SKILL.md gains \"Step 1.5: Ground loop\", placed between Step 1 and Step 2 with the order line updated to \"ground loop → review loop\": the five numbered steps, the round-2 narrowing and its two consequences (an empty payload is legal when everything carries; an unrepaired FAIL carries while its sentence stands), that --check gates on coverage alone, and that grounding is a command rather than a phase. Every behavioural sentence was run against a copy of spec/1.0.0.md and a constructed two-unit spec outside the repository, never read off ground.go: the emit envelope carries `prompt` (a string) where review carries `prompts[]`; a round-2 emission marks the carried unit `(carried)` in the prompt while floor-ground-round-2.txt on disk holds the unmarked index (grep -c carried = 0); an empty payload with everything carrying records rows 0 / carried 2 at exit 0, and the same payload with nothing to carry exits 1; a round of one FAIL and one PASS reports 2 of 2 and --status --check exits 0. Verified against the tree that DetectPhase returns five constants with no `ground` among them and that `tp run --dry-run` names no ground unit kind, which is what the \"not a phase\" paragraph rests on.\n- skills/tp/REFERENCE.md gains \"## Grounding (`tp ground`, v1.0.0)\": the five modes and their exact payload keys, §7.2's thirteen-field row table, the six verdicts, the seven kind→tier sets with the tier table and the per-verdict acceptability rule, the five exit codes, the three state files, and the `ungrounded` key. The State Directory table gains the three ground artifacts plus a sentence on their separate prefix list. Four validation classes were provoked and their real messages transcribed — an unknown top-level key, a null in a non-nullable cell, a missing `unit_id` key, and a two-entry `causes` — each exiting 1 with no round file written; `{behaviour, read, PASS}` was rejected naming `tier`; the lock path was read off disk as spec/.tp/locks/mini.md-\u003chash\u003e.lock, confirming the spec path is the target; `ungrounded` was confirmed absent at full coverage, present as {round, undispositioned, floor_size} after a bare emission, surviving --compact, and leaving `tp review`'s exit code at 0.\n- README.md gains `tp ground spec.md` in the Spec \u0026 Validation index and three paragraphs in Spec Quality: what no other tp command checked, the floor and the six dispositions with kind and tier, that a PASS at a tier saying nothing about the kind is rejected at record, that convergence here is coverage rather than absence and why the per-verdict breakdown sits beside the ratio, and that review is told rather than stopped. The pre-release checklist is satisfied for all three files: each names the new command and its flags, and nothing in them restates a rule the others own.\n- Repaired one false sentence found while writing: SKILL.md's `tp ground spec.md --record` inventory row said \"A record holding no rows exits 1\", which is the payload-alone reading §7.1 explicitly refuses — measured, an empty payload whose every unit carries records at exit 0. The row now states the rule on what the round records and names both outcomes.",
+      "gate_passed_at": "2026-09-03T06:30:14.726232Z",
+      "commit_sha": "19a0a87d",
+      "commit_shas": [
+        "19a0a87d",
+        "d8162574",
+        "8ce92582",
+        "2dd30dbb",
+        "2d889abf",
+        "c9668cac",
+        "979e21b1"
+      ],
+      "commit_files": [
+        "README.md",
+        "skills/tp/REFERENCE.md",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "floor-blocks",
