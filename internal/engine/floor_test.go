@@ -773,10 +773,13 @@ func TestSection11Row2ABareCodeSpanIsInTheFloor(t *testing.T) {
 //
 // The expectation is restated from the spec rather than read from `floorVerbs`:
 // a test that derived its list from the code would agree with that list however
-// wrong it was. Both halves are needed and they catch different mutants. The
-// equality pins WHICH verbs are listed, including a thirteenth quietly added;
-// the loop pins that the arm is actually built from that list, which a pattern
-// compiled from some other literal would pass the equality and fail here.
+// wrong it was. Three arms are needed and they catch different mutants. The
+// first equality pins the shipped list against this file's literal; the second
+// pins it against §2.1's own table, which is the arm a thirteenth verb quietly
+// added to the document fails on — measured, the equality against the literal
+// stays green there. The loop pins that the arm is actually built from that
+// list, which a pattern compiled from some other literal would pass both
+// equalities and fail here.
 func TestTheVerbArmIsExactlyTheTwelveListedVerbs(t *testing.T) {
 	listed := []string{
 		"measured", "ran", "counted", "derived", "reproduced", "observed",
