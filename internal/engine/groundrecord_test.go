@@ -129,3 +129,46 @@ func TestARecordedRoundIsWrittenWhenEveryRowValidates(t *testing.T) {
 		"the recorded round is the rows as the unit wrote them")
 }
 
+// TestOneInvalidRowWritesNoRoundFileAndLeavesTheDirectoryByteIdentical is §11
+// row 10.
+//
+// Each case puts the one invalid row somewhere different, and the position is
+// the point rather than the decoration. A validate-as-you-write implementation
+// passes the "invalid first" case — there was nothing to write before it — and
+// fails the other three, where two legal rows precede the bad one. The
+// unknown-key case binds this task's second acceptance to the first: a
+// misspelled `carried_from` is a rejection, and a rejection writes nothing.
+func TestOneInvalidRowWritesNoRoundFileAndLeavesTheDirectoryByteIdentical(t *testing.T) {
+	good1, good2 := groundNumberedRow(t, 1), groundNumberedRow(t, 2)
+	unknownKey := groundWireRow(t, groundClaimRow(), map[string]any{"carried_form": 1}, nil)
+	badCell := groundWireRow(t, groundClaimRow(), map[string]any{"ordinal": 0}, nil)
+
+	cases := []struct {
+		name    string
+		payload []byte
+	}{
+		{"invalid row first", groundRecordPayload(badCell, good1, good2)},
+		{"invalid row last", groundRecordPayload(good1, good2, badCell)},
+		{"unknown top-level key on the last row", groundRecordPayload(good1, good2, unknownKey)},
+		{"a trailing partial line", append(groundRecordPayload(good1, good2), '{')},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			specPath := groundEmittedDir(t, 3)
+			dir := ReviewStateDir(specPath)
+			before := groundDirDigest(t, dir)
+
+			rows, err := RecordGroundRound(specPath, 3, tc.payload)
+			require.Error(t, err, "a payload holding one invalid row is rejected")
+			assert.Nil(t, rows, "a rejected round yields no rows")
+
+			_, statErr := os.Stat(filepath.Join(dir, "ground-round-3.ndjson"))
+			assert.True(t, os.IsNotExist(statErr),
+				"no round file may exist: a partially valid round would make coverage a lie")
+			assert.Equal(t, before, groundDirDigest(t, dir),
+				"the state directory must be byte-identical to before the attempt")
+		})
+	}
+}
+
