@@ -47,7 +47,7 @@ const groundCarriedMark = " (carried)"
 // groundIndexRowRe matches an index row inside the prompt. Every row opens with
 // `u<N> `, which no other line of the prompt does — the commit and summary lines
 // open with `#`, and the prose is prose.
-var groundIndexRowRe = regexp.MustCompile(`^u[0-9]+ `)
+var groundIndexRowRe = regexp.MustCompile(`^u\d+ `)
 
 // groundPromptIndexRows returns the index rows the prompt carries, whole, in
 // the order it lists them.
