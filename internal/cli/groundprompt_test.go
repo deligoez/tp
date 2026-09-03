@@ -89,8 +89,15 @@ func TestThePromptsPartialKindListNamesEveryValueTheRecorderAccepts(t *testing.T
 // pays for the drift — every row it writes under the prompt's reading is
 // rejected at --record, with the whole round refused (§7.2).
 //
-// The check runs over every (kind, tier) pair rather than over a stated table,
-// so a kind added to §4.1 cannot be silently absent from the prompt.
+// The comparison is between SETS, one per kind. The form this replaces asked
+// TierAcceptableFor about every (kind, tier) pair and looked each tier up in
+// the row, which is blind in the direction that costs a unit its round: a name
+// in the row that is not a tier at all is never asked about. Measured —
+// appending "stale-tier" to every row's list left that form green, so every
+// kind advertised a tier the recorder rejects and no assertion moved.
+//
+// It still runs over every kind rather than over a stated table, so a kind
+// added to §4.1 cannot be silently absent from the prompt either.
 func TestThePromptsKindTierTableIsDerivedFromTheRuleThatRejectsRows(t *testing.T) {
 	prompt := groundTestPrompt()
 
@@ -108,14 +115,19 @@ func TestThePromptsKindTierTableIsDerivedFromTheRuleThatRejectsRows(t *testing.T
 		// the list itself joins with ", " and so holds no double space.
 		gap := strings.LastIndex(line, "  ")
 		require.GreaterOrEqual(t, gap, 0, "row %q must be columnar", line)
-		listed := make(map[string]bool)
-		for _, tier := range strings.Split(strings.TrimSpace(line[gap:]), ", ") {
-			listed[tier] = true
+		listed := make([]string, 0, len(engine.GroundTiers()))
+		if rest := strings.TrimSpace(line[gap:]); rest != "" {
+			listed = strings.Split(rest, ", ")
 		}
 
+		acceptable := make([]string, 0, len(engine.GroundTiers()))
 		for _, tier := range engine.GroundTiers() {
-			assert.Equal(t, engine.TierAcceptableFor(kind, tier), listed[string(tier)],
-				"the prompt and TierAcceptableFor must agree on {%s, %s}", kind, tier)
+			if engine.TierAcceptableFor(kind, tier) {
+				acceptable = append(acceptable, string(tier))
+			}
 		}
+
+		assert.ElementsMatch(t, acceptable, listed,
+			"the prompt's tier list for %q and the tiers TierAcceptableFor accepts must be the same set", kind)
 	}
 }
