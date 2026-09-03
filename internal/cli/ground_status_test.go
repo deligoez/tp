@@ -286,3 +286,40 @@ func TestStatusReportsTheLatestEmittedRoundAndNotTheLatestRecorded(t *testing.T)
 		"round 1's two PASSes belong to round 1")
 }
 
+// TestStatusWithNoEmittedRoundExitsThree is the state in which there is no
+// round to report: --status refuses with §7.1's exit 3 and names the emit
+// command, rather than answering 0-of-0 — a shape from which a later --check
+// could exit 0 for a spec nobody has ever grounded.
+//
+// The second half is the other direction, and neither is decidable from the
+// first: --status reads the floor the emission froze and never opens the spec,
+// so a spec deleted after its emission still has a round to report.
+func TestStatusWithNoEmittedRoundExitsThree(t *testing.T) {
+	t.Run("nothing has been emitted", func(t *testing.T) {
+		dir := writeGroundFixture(t)
+		stdout, stderr, code := runTP(t, dir, "ground", "spec.md", "--status")
+		require.Equal(t, 3, code, "stdout: %s stderr: %s", stdout, stderr)
+
+		envelope := groundErrorEnvelope(t, stderr)
+		assert.Equal(t, float64(3), envelope["code"])
+		assert.Contains(t, fmt.Sprint(envelope["error"], " ", envelope["hint"]), "tp ground spec.md",
+			"the refusal names the emit command")
+	})
+
+	t.Run("the spec is gone and the emission is not", func(t *testing.T) {
+		dir := writeGroundFixture(t)
+		groundEmit(t, dir)
+		emitted, _ := groundFloorIDs(t, dir, 1)
+		rows := writeGroundRows(t, dir, groundVerdictRow(emitted[0], "PASS"))
+		_, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", rows)
+		require.Equal(t, 0, code, "stderr: %s", stderr)
+
+		require.NoError(t, os.Remove(filepath.Join(dir, "spec.md")),
+			"the floor and the round are the round's record of the spec (§7.3)")
+
+		status := groundStatus(t, dir)
+		assert.Equal(t, float64(2), status["emitted"])
+		assert.Equal(t, float64(1), status["dispositioned"])
+	})
+}
+
