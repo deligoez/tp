@@ -302,9 +302,16 @@ var (
 	// this arm through 1-9, so `[1-9]` passed the whole table).
 	floorDigitRe = regexp.MustCompile(`\d`)
 	// The identifier arm. §2.1 says a backtick-delimited SPAN, so both
-	// delimiters must be present in the same unit; the prototype tested for a
-	// single backtick, which differs on 21 of this corpus's 7,368 units — every
-	// one of them a span the sentence split cut in half.
+	// delimiters must be present in the same unit;
+	// `scripts/floor-prototype.py` tested for a single backtick until 60dbd4c8,
+	// and every unit the two readings disagreed on was the same shape — a span
+	// the sentence split cut in half. The decision is pinned by
+	// TestTheIdentifierArmNeedsADelimitedSpan, which asserts both readings on
+	// one sentence differing only in its closing backtick and carries the
+	// corpus's own instance from `spec/0.12.0-review-rounds.md` verbatim. The
+	// count over `spec/*.md` that stood here is deleted rather than refreshed:
+	// §2.1 rules a figure over a glob worse than an unpinned one, because the
+	// glob's size moves under it when a release adds a spec.
 	floorCodeSpanRe = regexp.MustCompile("`[^`]*`")
 	// The verb arm. Whole words, because "Transition", "branches" and
 	// "withheld" each contain a listed verb as a substring: over `spec/*.md` a
