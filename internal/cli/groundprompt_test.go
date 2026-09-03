@@ -42,10 +42,17 @@ func TestTheEmittedGroundPromptEndsWithItsOwnSuffix(t *testing.T) {
 
 // TestThePromptsPartialKindListNamesEveryValueTheRecorderAccepts is the
 // kind-tier test's rule applied to §7.2's third enum: the values the prompt
-// tells a unit to choose between are the values ParseGroundPartialKind accepts.
-// A value the recorder takes and the prompt never names is a value no unit will
-// ever write, and a value the prompt names and the recorder rejects refuses the
-// whole round (§7.2).
+// tells a unit to choose between are exactly the values ParseGroundPartialKind
+// accepts. A value the recorder takes and the prompt never names is a value no
+// unit will ever write, and a value the prompt names and the recorder rejects
+// refuses the whole round (§7.2).
+//
+// The comparison is between SETS, not a Contains per accepted value. A
+// Contains loop is sound in one direction only, and it is the direction this
+// test's own doc comment does not claim: an extra value in the prompt leaves
+// every Contains satisfied, so the mutant that names a kind the recorder
+// rejects — the one that costs a unit its whole round — passed the loop this
+// replaces. Its sibling below asserts set equality for the same reason.
 //
 // The assertion is over the sentence bounded by the partial_kind marker and the
 // held_at line that follows it, not over the whole prompt, so a value that
@@ -61,10 +68,18 @@ func TestThePromptsPartialKindListNamesEveryValueTheRecorderAccepts(t *testing.T
 	require.GreaterOrEqual(t, end, 0, "the partial_kind sentence ends where held_at's line begins")
 	sentence = sentence[:end]
 
+	const lead = "exactly one of "
+	listAt := strings.Index(sentence, lead)
+	require.GreaterOrEqual(t, listAt, 0, "the sentence must offer the choice before listing it: %q", sentence)
+	listed := strings.Split(strings.TrimSuffix(strings.TrimSpace(sentence[listAt+len(lead):]), "."), ", ")
+
+	accepted := make([]string, 0, len(engine.GroundPartialKinds()))
 	for _, kind := range engine.GroundPartialKinds() {
-		assert.Contains(t, sentence, string(kind),
-			"the prompt must name %q, which ParseGroundPartialKind accepts", kind)
+		accepted = append(accepted, string(kind))
 	}
+
+	assert.ElementsMatch(t, accepted, listed,
+		"the prompt's partial_kind list and the values ParseGroundPartialKind accepts are the same set")
 }
 
 // TestThePromptsKindTierTableIsDerivedFromTheRuleThatRejectsRows checks the
