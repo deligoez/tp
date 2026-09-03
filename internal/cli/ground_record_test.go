@@ -301,3 +301,63 @@ func TestTheMissingRecordFileHintIsGroundsOwnAndNotTheSharedOne(t *testing.T) {
 		"grounding has no reviewers, no auditors and no task file (§7.1, Non-Goal 4), "+
 			"so it does not answer this failure with the panelled commands' sentence")
 }
+
+// groundQuestionRow is §7.2's QUESTION row for one floor unit: `causes` carries
+// three ranked {cause, prediction} objects, which is §6's lower bound, and the
+// pair is `{behaviour, read}` — a tier §4.1 does NOT grant that kind, which is
+// legal here because §7.2 exempts QUESTION from the acceptability rule in both
+// directions and derives §3's `tier-unreached` shape from exactly that mismatch.
+func groundQuestionRow(t *testing.T, dir, id string) string {
+	t.Helper()
+	return fmt.Sprintf(`{"unit_id":%q,"anchor":"§1","text_sha":%q,"ordinal":1,`+
+		`"verdict":"QUESTION","kind":"behaviour","tier":"read",`+
+		`"evidence":"read internal/cli/ground.go",`+
+		`"causes":[`+
+		`{"cause":"the shipped command was never run","prediction":"running it settles the claim"},`+
+		`{"cause":"the tier reached says nothing about behaviour","prediction":"a run at tier run decides it"},`+
+		`{"cause":"the sentence names two subjects","prediction":"splitting it settles each half"}]}`,
+		id, groundEmittedSHA(t, dir, id))
+}
+
+// TestARoundHoldingAQuestionRecordsAndSoDoesEveryRowBesideIt is §11 row 9: a
+// QUESTION is a checkpoint and not an escalation, so the round records and
+// every other row in it records with it.
+//
+// The payload puts a row on EACH SIDE of the question, and that placement is
+// what makes this row 9's test rather than a test that a QUESTION row is a legal
+// shape. Row 9's mutant exits on the first question: a payload whose question
+// came last would record every row before it and pass, and one holding nothing
+// but a question would not distinguish a round refused from a round truncated.
+//
+// The verdict rests on the recorded round read back through `--status` rather
+// than on the exit code, because a mutant that recorded a truncated round would
+// also exit 0. The two floor units and the reader-added row are counted
+// separately there, so the breakdown says which rows survived and the coverage
+// says the question dispositioned its unit like any other verdict.
+func TestARoundHoldingAQuestionRecordsAndSoDoesEveryRowBesideIt(t *testing.T) {
+	dir := writeGroundFixture(t)
+	groundEmit(t, dir)
+
+	emitted, _ := groundFloorIDs(t, dir, 1)
+	require.Len(t, emitted, 2,
+		"the fixture's floor must carry a unit on each side of the question for the placement to mean anything")
+
+	rows := writeGroundRows(t, dir,
+		groundVerdictRow(t, dir, emitted[0], "PASS"),
+		groundQuestionRow(t, dir, emitted[1]),
+		groundReaderAddedRow(),
+	)
+	stdout, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", rows)
+	require.Equal(t, 0, code, "a QUESTION does not stop the round (§6): stdout %s stderr %s", stdout, stderr)
+
+	status := groundStatus(t, dir)
+	assert.EqualValues(t, 2, status["emitted"])
+	assert.EqualValues(t, 2, status["dispositioned"],
+		"the question dispositions its floor unit like any other verdict (§8)")
+	assert.EqualValues(t, 1, status["reader_added"],
+		"the row after the question reached the round file")
+
+	byVerdict := groundStatusVerdicts(t, status)
+	assert.EqualValues(t, 1, byVerdict["QUESTION"], "the question itself recorded")
+	assert.EqualValues(t, 2, byVerdict["PASS"], "so did the rows on both sides of it")
+}
