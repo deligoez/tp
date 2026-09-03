@@ -58,7 +58,7 @@ var (
 // The cell-by-cell validation below says nothing about a key that is no cell,
 // so without this a misspelled `carried_from` is silently dropped — a row that
 // records as decided while the thing it meant to say is gone. Every entry here
-// is a field the parse above reads, and a test matches the set against §7.2's
+// is a field ParseGroundRow reads, and a test matches the set against §7.2's
 // table parsed out of the spec in both directions, so a cell added there with
 // no entry here fails rather than being rejected on every row that carries it.
 var groundRowKeys = map[string]bool{
