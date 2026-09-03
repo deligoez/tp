@@ -98,6 +98,18 @@ func GroundFloorPath(specPath string, round int) string {
 	return filepath.Join(ReviewStateDir(specPath), fmt.Sprintf("floor-ground-round-%d.txt", round))
 }
 
+// GroundRoundPath is where a recorded ground round lives:
+// spec/.tp-review/<base>/ground-round-N.ndjson.
+//
+// It joins GroundSnapshotPath and GroundFloorPath for the same reason: the
+// writer is in the engine and the reader that reports the path is in the CLI,
+// so a second spelling would let the two disagree about the file --record just
+// wrote. groundRoundFileName stays unexported behind it, so this is the only
+// way out of the package to that name.
+func GroundRoundPath(specPath string, round int) string {
+	return filepath.Join(ReviewStateDir(specPath), groundRoundFileName(round))
+}
+
 // WriteGroundEmission writes the two files §7.3 says an emission writes: the
 // spec's text as this round read it, and the index derived from that text. The
 // state directory is created when absent, which is the ordering this release

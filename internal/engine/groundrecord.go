@@ -3,7 +3,6 @@ package engine
 import (
 	"errors"
 	"fmt"
-	"path/filepath"
 	"strings"
 )
 
@@ -118,7 +117,7 @@ func RecordGroundRound(specPath string, round int, data []byte) ([]GroundRow, er
 	if len(rows) == 0 {
 		return nil, ErrGroundRoundEmpty
 	}
-	path := filepath.Join(ReviewStateDir(specPath), groundRoundFileName(round))
+	path := GroundRoundPath(specPath, round)
 	if err := writeFileAtomic(path, data); err != nil {
 		return nil, err
 	}
