@@ -161,23 +161,30 @@ func groundSHAForID(t *testing.T, index []engine.FloorIndexRow, id string) strin
 // Contains/NotContains below is corroboration that this repair is still in it —
 // it catches the sentence being deleted or reverted, and nothing else.
 func TestTheListingAndTheIndexAgreeOnlyWhileTheSpecHasNotMoved(t *testing.T) {
+	// The opening sentence carries no digit, no backtick and no listed verb, so
+	// the arms cut it. That is not decoration: it is what makes the unedited arm
+	// discriminating. Measured — on a fixture whose every unit is in the floor,
+	// numbering over the floor alone and numbering over every unit agree, and
+	// this test stayed GREEN under that mutant until the cut unit was added.
 	const emitted = "# Fixture\n\n## 1. Claims\n\n" +
+		"It writes nothing at all. " +
 		"The cap is `10` files here. The budget is 28800 seconds in every run.\n"
 	const edited = "# Fixture\n\n## 1. Claims\n\n" +
-		"A probe sentence measured 1 thing. " +
+		"It writes nothing at all. A probe sentence measured 1 thing. " +
 		"The cap is `10` files here. The budget is 28800 seconds in every run.\n"
 
 	anchor := func(int) string { return "§1" }
 	index := engine.FloorIndexRows(emitted, anchor)
-	require.Len(t, index, 2, "the emitted index is the frozen artifact both arms are read against")
+	require.Len(t, index, 3, "the emitted index is the frozen artifact both arms are read against")
+	require.Empty(t, index[0].TextSHA, "u1 must be a unit the arms cut, or the unedited arm below decides nothing")
 
 	// The control. On the text the round emitted from, every id agrees on its
 	// hash — so a mismatch means the spec moved and never means the check is
-	// noisy. Without this arm the break arm passes under a `--units` that
+	// noisy. Without this arm the edited arm passes under a `--units` that
 	// numbered over the floor alone, where the ids disagree unconditionally and
-	// the instruction would mean nothing.
+	// the prescribed comparison would fire on every round and mean nothing.
 	unmoved := engine.FloorUnitRows(emitted)
-	require.Len(t, unmoved, 2)
+	require.Len(t, unmoved, 2, "the cut unit gets an id and no row")
 	for _, row := range unmoved {
 		require.Equal(t, groundSHAForID(t, index, row.ID), engine.FloorTextSHA(row.Text),
 			"unedited, the listing and the index agree on both cells at every id")
@@ -187,11 +194,12 @@ func TestTheListingAndTheIndexAgreeOnlyWhileTheSpecHasNotMoved(t *testing.T) {
 	listing := engine.FloorUnitRows(edited)
 	require.Len(t, listing, 3, "the inserted sentence carries a digit, so the arms keep it")
 	require.Equal(t, "A probe sentence measured 1 thing.", listing[0].Text)
+	require.Equal(t, "u2", listing[0].ID, "the id the index gives the first floor unit")
 
-	assert.NotEqual(t, groundSHAForID(t, index, "u1"), engine.FloorTextSHA(listing[0].Text),
-		"the listing's u1 is now the inserted sentence, which the index's u1 does not name")
-	assert.Equal(t, groundSHAForID(t, index, "u1"), engine.FloorTextSHA(listing[1].Text),
-		"the sentence the index calls u1 has moved to u2 — the join holds on neither cell of that id")
+	assert.NotEqual(t, groundSHAForID(t, index, "u2"), engine.FloorTextSHA(listing[0].Text),
+		"the listing's u2 is now the inserted sentence, which the index's u2 does not name")
+	assert.Equal(t, groundSHAForID(t, index, "u2"), engine.FloorTextSHA(listing[1].Text),
+		"the sentence the index calls u2 has moved to u3 — the join holds on neither cell of that id")
 
 	section := groundFloorSectionOf(t, "spec.md")
 	assert.Contains(t, section, "COMPARE THE HASHES BEFORE YOU GRADE",
