@@ -502,7 +502,11 @@ func runGroundUnits(specPath string, jsonAsked bool) error {
 //
 // A spec with no emitted round is refused with exit 3 rather than reported as
 // 0-of-0. There is no round for a status to be about, and the shape a vacuous
-// answer would take is the one a later `--check` reads as converged.
+// answer would take is the one a later `--check` reads as converged. That
+// refusal splits on whether the path names a file at all: a mistyped path gets
+// the same `cannot read spec` its `tp review --status` and `tp audit --status`
+// siblings give, because the emit hint would otherwise name a command built out
+// of the operator's own typo.
 //
 // check is §7.1's fifth invocation, and it has TWO conditions. Exit 1 when a
 // unit of the emitted floor carries no disposition; exit 1 also when the
@@ -520,6 +524,22 @@ func runGroundStatus(specPath string, check bool) error {
 	status, err := engine.LatestGroundStatus(specPath)
 	if err != nil {
 		if errors.Is(err, engine.ErrNoGroundEmission) {
+			// A path naming no file is a mistyped spec path, not a spec
+			// nobody has grounded, and the emit hint would send the operator
+			// to `tp ground <the same wrong path>` — which fails too. The
+			// stat is HERE and not at the top of the function because a spec
+			// deleted after its emission is a state §7.3 makes legitimate
+			// (the round is graded against the floor, not the text), and a
+			// top-level existence check would refuse it; that state never
+			// reaches this branch, since its round is on disk. os.Stat is not
+			// a read, so the rule that --status never opens the spec holds,
+			// and ExitFile is the code on both paths, so nothing branching on
+			// the code sees a change.
+			if _, statErr := os.Stat(specPath); statErr != nil {
+				output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath), specFileMissingHint)
+				os.Exit(ExitFile)
+				return nil
+			}
 			output.Error(ExitFile, fmt.Sprintf("no emitted ground round for %s", specPath),
 				fmt.Sprintf(groundStatusEmitHint, specPath))
 			os.Exit(ExitFile)
