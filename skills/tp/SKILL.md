@@ -403,6 +403,7 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp ground spec.md` | Check the spec's claims against the world before review is told they hold: emits one prompt carrying the floor's index, and writes the snapshot plus the floor derived from it |
 | `tp ground spec.md --record rows.ndjson` | Record a ground round: validates every row, then writes `ground-round-N.ndjson` beside the floor that emission froze — never re-deriving one from the spec as it now stands. A record holding no rows exits 1; no prior emit exits 3 |
 | `tp ground spec.md --status` | Report the latest EMITTED round's coverage — dispositioned over emitted floor units — with the reader-added and off-floor counts that move neither side, and the per-verdict breakdown that says what the round found. No emitted round exits 3 |
+| `tp ground spec.md --status --check` | The same report, with the coverage read back as an exit code: 0 when every emitted floor unit carries a disposition, 1 otherwise. It gates on coverage and on nothing else — a round of nothing but `FAIL`s is fully covered and exits 0 — and `--check` without `--status` exits 2 |
 | `tp validate` | Task file validation + line coverage + atomicity |
 | `tp validate --strict` | Atomicity warnings become errors |
 | `tp validate --project` | Cross-spec workflow drift (informational; `--strict` → exit 1) |
