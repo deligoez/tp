@@ -88,3 +88,46 @@ func TestGroundRecordWritesTheRoundFileBesideTheEmission(t *testing.T) {
 		"the result names the floor the round was recorded against")
 }
 
+// TestGroundRecordReadsTheEmittedFloorAndNotTheCurrentSpec is the acceptance's
+// first clause, asserted in the two directions that separate reading the
+// recorded floor from re-deriving one.
+//
+// Neither half is decidable from the other. A re-deriving implementation
+// SUCCEEDS on the first — the spec is still there, so it can build a floor for a
+// round whose emission is gone — and FAILS on the second, where the artifact it
+// would derive from no longer exists. Together they pin that the floor on disk
+// is the input and the spec at record time is not one.
+func TestGroundRecordReadsTheEmittedFloorAndNotTheCurrentSpec(t *testing.T) {
+	t.Run("the emitted floor is gone", func(t *testing.T) {
+		dir := writeGroundFixture(t)
+		groundEmit(t, dir)
+		require.NoError(t, os.Remove(groundStatePath(dir, "floor-ground-round-1.txt")))
+		require.FileExists(t, groundStatePath(dir, "snapshot-ground-round-1.md"),
+			"only the floor is removed, so a refusal here is about the floor and not about the directory")
+		require.FileExists(t, filepath.Join(dir, "spec.md"),
+			"the spec remains, which is what a re-deriving implementation would floor from")
+
+		rows := writeGroundRows(t, dir, groundRecordRow(1))
+		stdout, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", rows)
+		require.Equal(t, 3, code, "stdout: %s stderr: %s", stdout, stderr)
+
+		envelope := groundErrorEnvelope(t, stderr)
+		assert.Equal(t, float64(3), envelope["code"])
+		assert.Contains(t, fmt.Sprint(envelope["error"], " ", envelope["hint"]), "tp ground spec.md",
+			"the refusal names the emit command (§7.3)")
+	})
+
+	t.Run("the spec is gone", func(t *testing.T) {
+		dir := writeGroundFixture(t)
+		groundEmit(t, dir)
+		require.NoError(t, os.Remove(filepath.Join(dir, "spec.md")),
+			"nothing --record needs is in the spec: the floor and the snapshot are the round's record of it")
+
+		rows := writeGroundRows(t, dir, groundRecordRow(1))
+		stdout, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", rows)
+		require.Equal(t, 0, code, "stdout: %s stderr: %s", stdout, stderr)
+		require.FileExists(t, groundStatePath(dir, "ground-round-1.ndjson"),
+			"the round records against the floor the emission froze")
+	})
+}
+
