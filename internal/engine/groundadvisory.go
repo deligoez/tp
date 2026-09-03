@@ -30,9 +30,18 @@ type GroundAdvisory struct {
 
 // groundFloorFileRe matches an emitted floor's filename and captures its round.
 //
-// Anchored at both ends, like groundRoundFileRe and for the same reason: a
-// search would find "snapshot-ground-round-1.md" too, and the two files an
-// emission writes would each answer for the round.
+// Anchored at both ends, so only the exact name answers. The closing anchor is
+// the load-bearing one: WriteGroundEmission writes this file through
+// writeFileAtomic, whose temp sibling is "<base>.<random>.tmp", and a scan that
+// accepted "floor-ground-round-7.txt.1234.tmp" would report a round from a write
+// that had not landed. An unanchored search would additionally count a name that
+// merely contains this one.
+//
+// groundRoundFileRe is NOT this shape, and reading it as a precedent is how that
+// distinction gets lost: it anchors the start only and requires the digits to end
+// the name's first segment, so "ground-round-7.ndjson.1234.tmp" DOES match it and
+// NextGroundRound drops the temp by suffix instead. Two regexes, two exclusion
+// mechanisms.
 var groundFloorFileRe = regexp.MustCompile(`^floor-ground-round-(\d+)\.txt$`)
 
 // LatestGroundAdvisory answers §9 for specPath: the latest ground round's
