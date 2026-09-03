@@ -1123,9 +1123,15 @@ func groundPromptAsk(round, floorSize, carried int) string {
 		return fmt.Sprintf(
 			"This round owes a disposition for each of the %d floor units above.\n", floorSize)
 	}
-	return fmt.Sprintf(`This round owes a disposition for %d of the %d floor units above: the other %d
-already carry one from round %d, and their rows end in `+"`(carried)`"+`. A carried
-disposition stands while its unit's text stands (§8) — do not decide those units
-again, and write no row for them.
-`, floorSize-carried, floorSize, carried, round-1)
+	// The sentence agrees with its own count. `carried == 1` is not an edge
+	// case but the ordinary shape of a settling round, and "the other 1 already
+	// carry one" is the reading a unit meets most often near convergence.
+	rest := fmt.Sprintf("the other %d already carry one from round %d, and their rows end in", carried, round-1)
+	if carried == 1 {
+		rest = fmt.Sprintf("the other one already carries one from round %d, and its row ends in", round-1)
+	}
+	return fmt.Sprintf(`This round owes a disposition for %d of the %d floor units above: %s
+`+"`(carried)`"+`. A carried disposition stands while its unit's text stands (§8)
+— do not decide those units again, and write no row for them.
+`, floorSize-carried, floorSize, rest)
 }
