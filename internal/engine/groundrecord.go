@@ -118,7 +118,7 @@ func RecordGroundRound(specPath string, round int, data []byte, floor []FloorInd
 		return nil, nil, ErrGroundRoundEmpty
 	}
 
-	carried, err = groundCarriedRows(specPath, round, floor, rows)
+	carried, err = GroundCarriedRows(specPath, round, floor, rows)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -136,9 +136,20 @@ func RecordGroundRound(specPath string, round int, data []byte, floor []FloorInd
 	return rows, carried, nil
 }
 
-// groundCarriedRows reads the immediately preceding round and returns the
+// GroundCarriedRows reads the immediately preceding round and returns the
 // dispositions round carries forward from it (§8).
-func groundCarriedRows(specPath string, round int, floor []FloorIndexRow, decided []GroundRow) ([]GroundRow, error) {
+//
+// It is exported because §8 has two readers of the same answer and they must
+// not be two rules. `--record` asks it what to write into the round file, with
+// the payload's own rows as decided; the EMISSION asks it which units to mark
+// `(carried)` and leave out of what the prompt asks for, with decided nil —
+// nothing has been decided in a round that has only just been emitted. A second
+// implementation on the emit side would let the prompt promise a carry the
+// record then does not make, and nothing downstream compares the two.
+//
+// round is the round being emitted or recorded; the source is always round-1,
+// and round 1 carries nothing because there is no round 0.
+func GroundCarriedRows(specPath string, round int, floor []FloorIndexRow, decided []GroundRow) ([]GroundRow, error) {
 	if round <= 1 {
 		return nil, nil
 	}
