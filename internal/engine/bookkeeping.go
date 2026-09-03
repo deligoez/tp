@@ -20,8 +20,15 @@ const (
 )
 
 // roundNumberRe captures the trailing integer in a .tp-review/ round or snapshot
-// filename (review-round-N.ndjson, audit-round-N.ndjson, snapshot-round-N.md).
-var roundNumberRe = regexp.MustCompile(`(?:review|audit|snapshot)-round-(\d+)`)
+// filename (review-round-N.ndjson, audit-round-N.ndjson, snapshot-round-N.md,
+// ground-round-N.ndjson and the two artifacts a ground emission writes beside
+// it). The alternation carries "ground" although ground artifacts are their own
+// prefix list (§7.3): the prefix decision keeps a ground round out of review's
+// state predicates, while this one is DeriveBookkeeping's, which classifies
+// every dirty path under .tp-review/ on the path prefix alone and would
+// otherwise report a ground round by filename where its siblings report "3".
+// Numbering is not shared — that is groundRoundFileRe's, anchored.
+var roundNumberRe = regexp.MustCompile(`(?:review|audit|snapshot|ground)-round-(\d+)`)
 
 // DeriveBookkeeping splits the dirty working-tree paths into tp-owned
 // bookkeeping entries (§5.2) and the remaining unexplained-change candidates.
