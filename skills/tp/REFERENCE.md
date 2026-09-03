@@ -752,7 +752,7 @@ its place in Workflow A are in [SKILL.md](SKILL.md); this section is the record'
 | `tp ground <spec>` | JSON | `{spec, round, snapshot, floor, output_path, floor_size, carried, prompt}` — one `prompt` **string**, not review's `prompts[]` array. Grounding asks one question of every unit, so there is no panel, no role and no `--role`. `floor_size` is the **floor, not the ask**: the ask is the difference, `floor_size - carried`, and the prompt states it in words |
 | `--units` | **plain text** | one line per floor unit, `<unit_id>\t<text_sha>\t<text>`, in emission order. It writes nothing and emits no round, and it derives from the spec as it stands rather than from a snapshot — which is why every line carries its own hash: a spec edited since the emission disagrees with the index visibly |
 | `--record <file>` | JSON | `{spec, round, floor, file, rows, carried}` — `rows` counts the payload's rows, `carried` the dispositions the carry brought forward |
-| `--status` | JSON | `{spec, round, emitted, dispositioned, reader_added, off_floor, cut, by_verdict}` for the latest **emitted** round |
+| `--status` | JSON | `{spec, round, emitted, dispositioned, reader_added, off_floor, cut, by_verdict}` for the latest **emitted** round. `emitted` is the same quantity `tp review`'s `ungrounded.floor_size` reports — one number, two names, and the `ungrounded` section below says where they meet |
 | `--status --check` | the same JSON | exit 0 when `dispositioned == emitted` **and** the floor is not one the arms emptied; 1 otherwise. Both conditions are `emitted`, `dispositioned` and `cut`, so the exit code is reconstructible from the payload it just printed |
 
 A round exists from its **emission**, not from its record, so `--status` reports a round nobody has
@@ -931,6 +931,14 @@ when no ground round exists, on `divergence`'s precedent that a permanently zero
 every reader learns to skip. It is emitted once in the envelope rather than per role, it survives
 `--compact`, and **review's exit code is identical with and without it** — the advisory tells, it
 does not stop.
+
+`floor_size` and `tp ground --status`'s `emitted` are the **same quantity under two names**, so a
+driver reading both must not treat them as two facts: `internal/engine/groundadvisory.go` builds the
+advisory as `FloorSize: cov.Emitted` from the very `GroundCoverageOf` result `--status` reports. On a
+checkout of this repository with two of `spec/1.0.0.md`'s floor units dispositioned, `--status` gave
+`emitted: 377` and the same tree's `tp review` gave `ungrounded: {round: 1, undispositioned: 375,
+floor_size: 377}`. `undispositioned` is likewise `emitted - dispositioned`, the numerator of the gap
+rather than a third count.
 
 ## Loop Integrity (v0.29.0)
 
