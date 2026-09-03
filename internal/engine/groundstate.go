@@ -24,8 +24,11 @@ const groundSnapshotPhase = "ground"
 // It is anchored, and the digits must end the name's first segment, so
 // "ground-round-3x.ndjson" is not round 3. Anchoring is also what keeps the two
 // artifacts emit writes — "snapshot-ground-round-N.md" and
-// "floor-ground-round-N.txt" — out of the count: both contain the round file's
-// name as a substring, and a search rather than a match would find them.
+// "floor-ground-round-N.txt" — out of the count: both contain this pattern's
+// literal prefix, "ground-round-", so a search rather than a match would find
+// them. (The prefix, not the whole round filename: "ground-round-1.ndjson" is
+// not a substring of "snapshot-ground-round-1.md", and an earlier wording that
+// said it was left the claim true on one reading and false on the other.)
 var groundRoundFileRe = regexp.MustCompile(`^ground-round-(\d+)(?:\.|$)`)
 
 // NextGroundRound returns the number the next ground round on specPath takes:
