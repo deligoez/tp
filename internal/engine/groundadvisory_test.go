@@ -99,3 +99,21 @@ func TestAnUndispositionedUnitIsReportedAgainstTheEmittedFloor(t *testing.T) {
 		LatestGroundAdvisory(specPath))
 }
 
+// TestAnEmittedRoundNobodyRecordedIsWhollyUndispositioned: a round exists from
+// its emission, and between the emission and the record NOTHING in it has been
+// decided. That is the state §9's advisory most needs to name, so it is the
+// reading of "the latest ground round" this takes: a round the operator emitted
+// and has not come back to is not silence, it is 100% ungrounded.
+//
+// Reading the latest ROUND FILE instead would report the previous round's
+// complete coverage here and drop the key altogether, which tells review that a
+// spec whose current round nobody has touched is fully grounded.
+func TestAnEmittedRoundNobodyRecordedIsWhollyUndispositioned(t *testing.T) {
+	specPath := groundAdvisorySpec(t)
+	floor := groundFloorWithACutUnit(t)
+	emitGroundFloor(t, specPath, 1, floor)
+
+	assert.Equal(t, &GroundAdvisory{Round: 1, Undispositioned: 2, FloorSize: 2},
+		LatestGroundAdvisory(specPath))
+}
+
