@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-03T01:33:30.457592Z",
+  "updated_at": "2026-09-03T01:57:32.122171Z",
   "workflow": {},
   "coverage": {
     "total_sections": 21,
@@ -475,7 +475,7 @@
     {
       "id": "cmd-emit",
       "title": "tp ground emits prompt, snapshot, floor",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli"
       ],
@@ -492,11 +492,32 @@
         "### 7.1 Invocations and exit codes",
         "### 7.3 Where it lives, and what it must not disturb"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-03T01:34:49.321406Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-03T01:57:32.063834Z",
+      "closed_reason": "- `tp ground \u003cspec\u003e` (internal/cli/ground.go, registered in root.go) writes snapshot-ground-round-N.md and floor-ground-round-N.txt through engine.WriteGroundEmission, deriving the index from the same bytes it wrote as the snapshot so the two cannot disagree. TestGroundEmitCreatesTheStateDirectoryAndWritesTheSnapshotAndTheFloor asserts the state directory's listing as a SET rather than by two os.Stat calls, so a third file — state.json above all — fails it. Observed red under a snapshot written with PhaseReview (3 tests) and under an emission writing only the snapshot (4 tests).\n- The state directory is created when absent: the fixture requires .tp-review to be missing before the emission, and that same listing assertion is what proves it appeared holding exactly the two artifacts and no state.json.\n- The prompt's output_path is ground-rN.ndjson, the scratch file a unit writes, never the recorded ground-round-N.ndjson: TestGroundEmitNamesTheScratchFileAndNotTheRecordedRound plants a recorded round 1, emits round 2 and asserts both names, so the four characters that separate them are load-bearing. Observed red under output_path = ground-round-N.ndjson and under a round hardcoded to 1 instead of engine.NextGroundRound.\n- Editing the spec after an emission does not move the floor on disk: TestTheFloorOnDiskIsFrozenUntilTheNextEmission requires that its own edit changes the derived floor — or the test could not tell the two derivations apart — asserts the floor and the snapshot unchanged, then asserts that a re-emission does move both. Observed red under a floor written only when absent, and on the re-emission assertion ALONE (line 189), so the frozen half and the re-emit half discriminate different mutants.\n- §11 rows 12 and 19 pass on their emission clauses. Each row's remaining clause is --record's and belongs to cmd-record: row 12's \"the following --record adds the round file and creates no state.json\", and row 19's \"--record validates against the emitted floor\". engine.GroundFloorPath is the one spelling of that path, so the writer here and the reader there cannot drift.\n- One prompt, not a panel, carrying the emitted index byte for byte (red under a 40-byte truncation), ending with section 4.2's ground suffix joined directly to its output-path line (red under review's clauseSuffix() and under a missing trailing-newline trim, which a bare HasSuffix would have passed), with the kind-tier table derived from engine.TierAcceptableFor rather than restated (red under a hardcoded table, naming {behaviour, red-green}). Dogfooded on a copy of spec/1.0.0.md outside the repository: 388 units, 290 in floor, 98 cut, a 10,555-byte index inside a 15.9 KB prompt, first line \"# commit 0f35c84\" in a git tree and \"# commit unknown\" outside one.\n- Gate green, four steps run separately: check-suite-state 0, golangci-lint 0 issues, check-deadcode 0, check-complexity 0. buildGroundPrompt tripped the funlen ratchet and was split at its own headings rather than baselined, and the two prompt guards were re-run against the split shape. The command-surface guard fired as designed and is updated in this task: nongoals_surface_test.go's baseline is renamed v100Surface with a flagless `ground:` line, verified non-vacuous by registering a probe flag and watching it fail.\nOut of scope: two spec disagreements, reported rather than fixed. (1) Section 11 row 12's assertion column says the emission \"writes only the snapshot\", which contradicts section 7.3's \"Emit writes two files and record writes one\" and this task's own acceptance; the normative text won, and a build matching row 12's wording fails four tests here — the row should read \"the snapshot and the floor\". (2) `tp ground \u003cspec\u003e --units` is named by section 2.2 and by row 4b but appears in neither section 7.1's invocation table nor any task in spec/1.0.0.tasks.json, so engine.FloorUnitRows and FormatFloorUnits still have no production caller. The emitted prompt therefore does not name the flag — naming a command that does not exist would send every unit to a failure — and points at the snapshot for a unit's text instead; until some task wires it, section 2.2's argument for a text-free index ships without the companion that makes it work.",
+      "gate_passed_at": "2026-09-03T01:57:32.063834Z",
+      "commit_sha": "9f44965d",
+      "commit_shas": [
+        "9f44965d",
+        "f1a5d5ca",
+        "38b0fe22",
+        "522117e0",
+        "1efb3871",
+        "52be4798",
+        "c788ecc3",
+        "e2c92a96",
+        "f37d95c1",
+        "ed42a328"
+      ],
+      "commit_files": [
+        "internal/cli/ground.go",
+        "internal/cli/ground_emit_test.go",
+        "internal/cli/groundprompt_test.go",
+        "internal/cli/nongoals_surface_test.go",
+        "internal/cli/root.go",
+        "internal/engine/groundstate.go"
+      ]
     },
     {
       "id": "cmd-record",
