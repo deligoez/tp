@@ -480,8 +480,8 @@ func FloorIndexRows(text string, anchorOf func(unitIndex int) string) []FloorInd
 	return rows
 }
 
-// FormatFloorIndex renders the index: the commit line, then one row per line,
-// each line terminated.
+// FormatFloorIndex renders the index: the commit line, one row per line, and a
+// summary, each line terminated.
 //
 // It takes rows rather than a spec's text, so the one payload §2.2 forbids in
 // the index is not reachable from here at all.
@@ -498,18 +498,38 @@ func FloorIndexRows(text string, anchorOf func(unitIndex int) string) []FloorInd
 // line is unconditional so that "derived at an unknown commit" and "derived at
 // the commit on line 1" are one parse apart rather than a row count apart, and
 // `unknown` cannot be mistaken for a revision because a revision is hex.
+//
+// The last line counts UNITS, never distinct hashes. That is the one thing
+// about the summary §2.2 does not state and `scripts/floor-prototype.py` does:
+// its counter is keyed by `text_sha`, so counting keys under-reports by exactly
+// the collisions §8 introduces `ordinal` to handle — four units short on
+// `spec/0.1.0.md`, in the direction that makes coverage look higher than it is.
+// Counting the rows makes the wrong reading something a caller would have to
+// build a set to get back to.
+//
+// The prototype's summary also names how many of the document's table data rows
+// were segmented into units. That clause is not ported: it is derived from the
+// spec's text, and this function is given rows precisely so that the text is
+// out of its reach.
 func FormatFloorIndex(commit string, rows []FloorIndexRow) string {
 	named := commit
 	if named == "" {
 		named = "unknown"
 	}
 
+	floor, cut := 0, 0
 	var b strings.Builder
 	b.WriteString("# commit " + named + "\n")
 	for _, r := range rows {
 		b.WriteString(r.String())
 		b.WriteString("\n")
+		if r.TextSHA == "" {
+			cut++
+			continue
+		}
+		floor++
 	}
+	fmt.Fprintf(&b, "# %d in floor, %d cut\n", floor, cut)
 	return b.String()
 }
 
