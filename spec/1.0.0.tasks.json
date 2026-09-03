@@ -753,7 +753,7 @@
     },
     {
       "id": "status-check",
-      "title": "--status --check gates on coverage only",
+      "title": "--status --check gates on two conditions",
       "status": "done",
       "tags": [
         "cli"
@@ -762,7 +762,7 @@
         "status-report"
       ],
       "estimate_minutes": 5,
-      "acceptance": "--status --check exits 0 when coverage is complete and 1 otherwise, and gates nothing else. Non-Goal 3 holds: no tp command refuses on coverage. --check without --status exits 2 by the rule rather than as an unknown flag — before this task tp ground --check exits 2 because the flag is unregistered, so §7.1's second exit-2 input is untestable and exit-codes deliberately left it unasserted; the test must distinguish the rule from the unknown-flag path.",
+      "acceptance": "--status --check exits 1 when a floor unit carries no disposition and exits 1 also when the emitted floor is empty while cut is positive, exits 0 otherwise, and gates on nothing else. Non-Goal 3 holds: no tp command refuses on coverage. --check without --status exits 2 by the rule rather than as an unknown flag — before this task tp ground --check exits 2 because the flag is unregistered, so §7.1's second exit-2 input is untestable and exit-codes deliberately left it unasserted; the test must distinguish the rule from the unknown-flag path.",
       "source_sections": [
         "### 7.1 Invocations and exit codes"
       ],
