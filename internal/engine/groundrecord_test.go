@@ -221,3 +221,30 @@ func TestAnUnknownTopLevelKeyIsRejectedNamingIt(t *testing.T) {
 	}
 }
 
+// TestARecordedRoundIsTheOneTheNumberingCounts holds the name --record writes
+// accountable to the code that reads it back.
+//
+// Two places spell `ground-round-<N>.ndjson`: the formatter this file uses and
+// groundRoundFileRe, which NextGroundRound counts with. Asserting the name as a
+// literal in both would let them agree with the literal and disagree with each
+// other, and the cost of that is not cosmetic — a round whose file the counter
+// cannot see is a round the next one silently overwrites.
+func TestARecordedRoundIsTheOneTheNumberingCounts(t *testing.T) {
+	specPath := groundEmittedDir(t, 1)
+	require.Equal(t, 1, mustNextGroundRound(t, specPath),
+		"an emitted-but-unrecorded round is still the round to record")
+
+	_, err := RecordGroundRound(specPath, 1, groundRecordPayload(groundNumberedRow(t, 1)))
+	require.NoError(t, err)
+
+	assert.Equal(t, 2, mustNextGroundRound(t, specPath),
+		"the file --record writes is the file NextGroundRound counts")
+}
+
+func mustNextGroundRound(t *testing.T, specPath string) int {
+	t.Helper()
+	n, err := NextGroundRound(specPath)
+	require.NoError(t, err)
+	return n
+}
+
