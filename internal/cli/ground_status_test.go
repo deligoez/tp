@@ -107,6 +107,31 @@ func groundStatusVerdicts(t *testing.T, status map[string]any) map[string]any {
 	return byVerdict
 }
 
+// assertEverySixVerdictsPresent checks that the breakdown names all of §3's
+// verdicts, whatever the round recorded.
+//
+// It is only discriminating on a round whose rows carry FEWER than six
+// verdicts, because a verdict the rows supply puts its own key in the map: a
+// breakdown seeded from a five-verdict literal was built and observed GREEN
+// against a mixed round, and reddens only where the missing verdict is one
+// nobody recorded. So this is called on the two single-verdict rounds below,
+// where five of the six keys exist by seeding alone.
+func assertEverySixVerdictsPresent(t *testing.T, status map[string]any) {
+	t.Helper()
+	byVerdict := groundStatusVerdicts(t, status)
+
+	names := make([]string, 0, len(engine.GroundVerdicts()))
+	for _, v := range engine.GroundVerdicts() {
+		names = append(names, string(v))
+	}
+	present := make([]string, 0, len(byVerdict))
+	for name := range byVerdict {
+		present = append(present, name)
+	}
+	assert.ElementsMatch(t, names, present,
+		"the breakdown names every one of §3's six verdicts, zeros included")
+}
+
 // recordGroundVerdicts records one round giving each emitted floor unit the
 // verdict verdicts[i] names, and returns the resulting --status payload.
 func recordGroundVerdicts(t *testing.T, dir string, ids, verdicts []string) map[string]any {
@@ -163,17 +188,30 @@ func TestStatusDistinguishesARoundOfFailsFromARoundOfPassesAtIdenticalCoverage(t
 		"a round of 84 FAILs and a round of 84 PASSes are distinguishable at identical coverage (§11 row 22)")
 	assert.Equal(t, float64(units), groundStatusVerdicts(t, failed)["FAIL"])
 	assert.Equal(t, float64(units), groundStatusVerdicts(t, passed)["PASS"])
+
+	// Each round carries exactly ONE verdict, so the other five keys are there
+	// only because the breakdown seeds §3's set before counting. Asserting it
+	// on both rounds covers all six: every verdict is unrecorded in at least
+	// one of them — PASS in the FAIL round, FAIL in the PASS round, the other
+	// four in both — so dropping any one from the seed reddens here.
+	assertEverySixVerdictsPresent(t, failed)
+	assertEverySixVerdictsPresent(t, passed)
 }
 
-// TestStatusCarriesEverySixVerdictsSoTheNotAClaimShareIsReadable is §8's "the
-// NOT-A-CLAIM share is the first number to read": the breakdown names all six
-// of §3's verdicts every time, so a zero is a zero rather than a key the reader
-// has to know the meaning of the absence of, and the share is the two integers
-// `by_verdict["NOT-A-CLAIM"]` and `emitted` sitting on one object.
+// TestStatusMakesTheNotAClaimShareReadableBesideTheRatio is §8's "the
+// NOT-A-CLAIM share is the first number to read": its numerator and its
+// denominator sit on one object, as `by_verdict["NOT-A-CLAIM"]` over `emitted`,
+// on the same two-integers reading GroundCoverage and GroundAdvisory ship.
 //
-// The six are taken from engine.GroundVerdicts() rather than written out, so a
-// verdict added to §3 without a place in the breakdown fails here.
-func TestStatusCarriesEverySixVerdictsSoTheNotAClaimShareIsReadable(t *testing.T) {
+// The round is deliberately MIXED, which is what this fixture can decide and
+// the single-verdict rounds above cannot: that the breakdown separates the
+// units that needed looking at from the ones that did not. What it cannot
+// decide is that §3's set is seeded — a five-verdict seed was built and
+// observed green here — so assertEverySixVerdictsPresent is called where it
+// discriminates instead. The `FAIL` zero below is still load-bearing: it is a
+// verdict this round does not record, so a breakdown that seeds nothing at all
+// reports it absent.
+func TestStatusMakesTheNotAClaimShareReadableBesideTheRatio(t *testing.T) {
 	const units, notAClaim = 84, 48
 
 	dir := groundWideFixture(t, units)
@@ -190,17 +228,6 @@ func TestStatusCarriesEverySixVerdictsSoTheNotAClaimShareIsReadable(t *testing.T
 	}
 	status := recordGroundVerdicts(t, dir, emitted, verdicts)
 	byVerdict := groundStatusVerdicts(t, status)
-
-	names := make([]string, 0, len(engine.GroundVerdicts()))
-	for _, v := range engine.GroundVerdicts() {
-		names = append(names, string(v))
-	}
-	present := make([]string, 0, len(byVerdict))
-	for name := range byVerdict {
-		present = append(present, name)
-	}
-	assert.ElementsMatch(t, names, present,
-		"the breakdown names every one of §3's six verdicts, zeros included")
 
 	assert.Equal(t, float64(notAClaim), byVerdict["NOT-A-CLAIM"])
 	assert.Equal(t, float64(units-notAClaim), byVerdict["PASS"])
