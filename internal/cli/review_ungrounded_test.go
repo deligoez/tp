@@ -125,3 +125,12 @@ func TestTheUngroundedAdvisorySurvivesCompact(t *testing.T) {
 	}, out["ungrounded"], "--compact does not drop it")
 }
 
+// TestReviewOnASpecWithNoGroundRoundCarriesNoUngroundedKey: absent ENTIRELY,
+// not present and zeroed. A key that is always there is a key every reader
+// learns to skip, which is the economy §9 inherits from `divergence`.
+func TestReviewOnASpecWithNoGroundRoundCarriesNoUngroundedKey(t *testing.T) {
+	out, raw := reviewEnvelope(t, writeGroundFixture(t))
+
+	assert.NotContains(t, out, "ungrounded", "no ground round, so nothing to say")
+	assert.NotContains(t, raw, "ungrounded")
+}
