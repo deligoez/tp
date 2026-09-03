@@ -739,6 +739,157 @@ Item ids are deterministic: `table-<t>-<r>`, `list-<l>-<n>`, `task-<id>`, `file-
 
 **`file_summary` (v0.35.0):** `{total_files, total_lines, chars_included, truncated, total_changed}`. Auto-detect caps the audited set at **50** files. `total_files` stays the **audited** count, `total_changed` is the **pre-cap** count, and `truncated` is true exactly when the cap bit. The stderr notice names both numbers — `63 files changed, auditing first 50 — name the rest with --affected-files` — but the flag lives in the payload, so `--quiet`, which erases that line, cannot hide the truncation from a driver. `--compact` drops `file_summary` in its entirety, and the flag with it, so a `--compact` audit is not the place to read truncation from.
 
+## Grounding (`tp ground`, v1.0.0)
+
+`tp ground` checks a spec's claims against the world before review is told they hold. The loop and
+its place in Workflow A are in [SKILL.md](SKILL.md); this section is the record's schema, the enums
+`--record` validates against, and what each mode returns.
+
+### What each mode returns
+
+| mode | stdout | shape |
+|------|--------|-------|
+| `tp ground <spec>` | JSON | `{spec, round, snapshot, floor, output_path, prompt}` — one `prompt` **string**, not review's `prompts[]` array. Grounding asks one question of every unit, so there is no panel, no role and no `--role` |
+| `--units` | **plain text** | one line per floor unit, `<unit_id>\t<text_sha>\t<text>`, in emission order. It writes nothing and emits no round, and it derives from the spec as it stands rather than from a snapshot — which is why every line carries its own hash: a spec edited since the emission disagrees with the index visibly |
+| `--record <file>` | JSON | `{spec, round, floor, file, rows, carried}` — `rows` counts the payload's rows, `carried` the dispositions the carry brought forward |
+| `--status` | JSON | `{spec, round, emitted, dispositioned, reader_added, off_floor, by_verdict}` for the latest **emitted** round |
+| `--status --check` | the same JSON | exit 0 when `dispositioned == emitted`, 1 otherwise |
+
+A round exists from its **emission**, not from its record, so `--status` reports a round nobody has
+come back to as wholly undispositioned rather than reporting the previous round's completeness. N is
+the highest existing `ground-round-<N>` plus one and a gap is preserved (rounds 1 and 3 present
+yields 4, never 2), so re-emitting before recording rewrites that round's snapshot and floor instead
+of consuming a new number.
+
+`by_verdict` carries all six verdicts, zeros included, and counts **every row the round recorded** —
+its total is `dispositioned` plus `reader_added` plus `off_floor`, not `dispositioned` alone.
+`reader_added` counts rows whose `unit_id` is `null`; `off_floor` counts rows naming a unit the index
+emitted as `(cut)`. Neither moves either side of the ratio, and they are two counts rather than one
+because they are evidence about different halves of the derivation: *the arms never produced this
+unit* against *the arms produced it and then cut it*.
+
+### The recorded row
+
+`ground-round-N.ndjson` holds one JSON object per line — the payload's own bytes, never a
+re-serialisation, so a key the table below does not name survives the record instead of being
+dropped. Blank lines are skipped; every other line is a row. **An unknown top-level key is rejected**
+(`field "carried_form": is not a field §7.2's table names`), and `null` fails every cell but
+`unit_id` and `note`.
+
+| field | type | required | meaning |
+|-------|------|----------|---------|
+| `unit_id` | string \| null | the **key** always | `u<N>` copied from the index row. `null` for a claim the reader added; a missing key is an error, because absence and `null` must differ here and nowhere else |
+| `anchor` | string | yes | the `§n(.n)*` heading the unit sits under, `§0` before the first one |
+| `text_sha` | string | yes | the index's hash for that unit — the first 12 lowercase hex characters of the sha256 of the canonical unit text, UTF-8 encoded. A reader-added row supplies its own |
+| `ordinal` | integer | yes | the 1-based index of this unit among those sharing its `text_sha`, in emission order; `1` when the hash is unique. The carry joins on `(text_sha, ordinal)`, so neither half is optional |
+| `verdict` | enum | yes | one of the six below |
+| `kind` | enum | unless `NOT-A-CLAIM` | one of the seven below. Optional on `NOT-A-CLAIM`, where a unit may state a decision *and* a checked fact — and optional per cell, so `kind` may be carried there without `tier` |
+| `tier` | enum | unless `NOT-A-CLAIM` | one of the six below — **the deepest tier actually reached**, never the tier the kind requires |
+| `evidence` | string | iff `tier` is present | free text: the command that was run, or the artifact and line that was read. Deliberately unstructured, because `tier` is the structured field and `evidence` is what a later reader re-runs |
+| `partial_kind` | enum | iff verdict is `PARTIAL` | `two-readings`, `reason-not-conclusion`, `true-when-written` |
+| `held_at` | string | iff `partial_kind` is `true-when-written` | the commit, tag or date at which the claim held |
+| `causes` | array | iff verdict is `QUESTION` | three to five `{cause, prediction}` objects, ranked. Both halves are required in **every** entry, and a count of 2 or of 6 is rejected |
+| `carried_from` | integer | no | written by the carry: the round the disposition was **first** decided in, which is not in general the preceding round |
+| `note` | string | no | free text |
+
+**Validation is atomic.** The whole payload is parsed before anything is opened, created or
+truncated, so one bad row writes no round file and leaves the state directory exactly as the emission
+made it. The message names the field and the **file's** line number — blank lines counted, so the
+number indexes the file an operator opens.
+
+### Verdicts
+
+| verdict | means | and demands |
+|---------|-------|-------------|
+| `PASS` | evidence at a tier acceptable for the kind supports the claim | nothing |
+| `PARTIAL` | true under one reading and not another, or the conclusion holds while the stated reason does not, or it was true when written | `partial_kind` says which |
+| `FAIL` | evidence at an acceptable tier contradicts it | repair the claim |
+| `UNVERIFIABLE` | no acceptable tier is reachable at all | `tier` records the deepest one attempted |
+| `QUESTION` | the attempt did not settle it — either the result was unclear at an acceptable tier, or the tier reached is not one the kind accepts | `causes` |
+| `NOT-A-CLAIM` | the unit is a decision, a prediction, or prose carrying no assertion about the world | nothing |
+
+`NOT-A-CLAIM` is a verdict rather than an omission: coverage obliges a disposition for every floor
+unit, so without a recordable value for a non-claim every spec would be permanently uncovered.
+`UNVERIFIABLE` counts as dispositioned — it is a settled answer, not a gap.
+
+### Kinds and tiers
+
+**The tiers are not ordered.** A tier is acceptable for a kind or it is not; the sets are the whole
+rule. Past `run`, a "deeper" tier is not more of the same evidence but evidence about a *different
+subject* — `probe`, `red-green` and `break-and-control` rank rigour on an artifact the unit built,
+while `read`, `query` and `run` examine the real one.
+
+| `kind` | the claim is about | acceptable `tier`s |
+|--------|--------------------|--------------------|
+| `document` | what a document says | `read` |
+| `code-structure` | how code is structured | `read`, `query` |
+| `corpus` | what the corpus contains | `query` |
+| `behaviour` | existing behaviour | `run`, `red-green` |
+| `mechanism` | whether a proposed mechanism works | `probe` |
+| `defect` | whether a defect is real | `red-green` |
+| `guard` | whether a guard measures anything | `break-and-control` |
+
+| `tier` | what was done |
+|--------|---------------|
+| `read` | read the artifact |
+| `query` | ran a query over the corpus |
+| `run` | ran the shipped command |
+| `probe` | built a probe and ran it |
+| `red-green` | wrote the test, watched it red, fixed, watched it green |
+| `break-and-control` | broke the subject, ran the suite, **then** ran the control |
+
+Acceptability is enforced **per verdict**, at record:
+
+| the row says | and the rule reads |
+|--------------|--------------------|
+| `PASS`, `PARTIAL` or `FAIL` | `tier` **must** be acceptable for `kind`, or the row is rejected naming `tier` (`"read" says nothing about a "behaviour" claim (§4.1), and a PASS row must be reached at a tier that does`) |
+| `QUESTION` | **no constraint** — either relation is legal, and which one holds *is* the question's shape: an acceptable tier means the unit got there and the result did not settle it, an unacceptable one means it did not get there |
+| `UNVERIFIABLE` | no constraint — `tier` names the deepest tier attempted, and the point is that none is reachable |
+
+A row carrying no `kind` on a claim verdict is rejected naming `kind`, before the tier rule runs.
+
+### Exit codes
+
+| code | outcome |
+|------|---------|
+| 0 | the invocation completed |
+| 1 | a row failed validation, **or** the round would record no row at all — the payload's rows plus the carried rows both zero. An empty payload whose every unit carries is not this case and exits 0 |
+| 2 | usage: `--check` without `--status`, two of `--units`/`--status`/`--record` together, or `--record` with no path argument |
+| 3 | file or corrupt state: a `--record` path that does not exist, no prior emission for the round, an unreadable preceding round, or a state directory holding an unparseable `state.json`. An unreadable preceding round is a **notice at emit** (exit 0) and a refusal at `--record` — the round is decided at the record |
+| 4 | the write lock could not be taken within `lock_timeout_seconds` |
+
+The lock's target is the **spec path**, not the state file: `<spec-dir>/.tp/locks/<spec-file>-<hash>.lock`,
+where every other tp lock lives. `--record` reads the round number from the state directory and
+writes the round file into it, so both are inside one lock and two concurrent records cannot compute
+the same N.
+
+### Files, and what a ground round must not disturb
+
+| File | Written by | Content |
+|------|------------|---------|
+| `snapshot-ground-round-<N>.md` | emission | the spec's bytes as that round read them |
+| `floor-ground-round-<N>.txt` | emission | the index derived from those bytes: one row per unit, `<unit_id> <anchor> <text_sha> #<ordinal> <bytes>B`, or `<unit_id> <anchor> (cut)` for a unit the arms dropped |
+| `ground-round-<N>.ndjson` | `--record` | the round's rows, payload bytes plus the carried ones |
+
+`--record` reads the **frozen floor**, never the spec, so a spec edited between emit and record does
+not re-floor the round. The `(carried)` marking a round-2 prompt shows lives in the prompt alone —
+the floor on disk is the unmarked index the round is graded against.
+
+A ground round writes **nothing** into `state.json`: it creates none, and leaves an existing one
+byte-identical. Grounding is discovered by filename through its own prefix list, so a directory
+holding only a ground round and its snapshot loads cleanly rather than reading as review state with a
+missing index. A ground round also runs on a spec with no state directory and creates it — which is
+the ordering this release advocates, grounding before review.
+
+### `ungrounded` — the advisory in `tp review`
+
+`tp review`'s top-level envelope carries `ungrounded`: `{round, undispositioned, floor_size}` for the
+latest **emitted** ground round. The key is **absent** when every floor unit is dispositioned and
+when no ground round exists, on `divergence`'s precedent that a permanently zero-valued key is one
+every reader learns to skip. It is emitted once in the envelope rather than per role, it survives
+`--compact`, and **review's exit code is identical with and without it** — the advisory tells, it
+does not stop.
+
 ## Loop Integrity (v0.29.0)
 
 Cross-cutting correctness, transparency, and contract fixes — no new lifecycle phase.
