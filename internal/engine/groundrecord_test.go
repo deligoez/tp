@@ -112,7 +112,7 @@ func TestARecordedRoundIsWrittenWhenEveryRowValidates(t *testing.T) {
 		groundNumberedRow(t, 3),
 	)
 
-	rows, err := RecordGroundRound(specPath, 2, payload)
+	rows, _, err := RecordGroundRound(specPath, 2, payload, nil)
 	require.NoError(t, err)
 
 	require.Len(t, rows, 3, "every row is returned, not just the first")
@@ -159,7 +159,7 @@ func TestOneInvalidRowWritesNoRoundFileAndLeavesTheDirectoryByteIdentical(t *tes
 			dir := ReviewStateDir(specPath)
 			before := groundDirDigest(t, dir)
 
-			rows, err := RecordGroundRound(specPath, 3, tc.payload)
+			rows, _, err := RecordGroundRound(specPath, 3, tc.payload, nil)
 			require.Error(t, err, "a payload holding one invalid row is rejected")
 			assert.Nil(t, rows, "a rejected round yields no rows")
 
@@ -234,7 +234,7 @@ func TestARecordedRoundIsTheOneTheNumberingCounts(t *testing.T) {
 	require.Equal(t, 1, mustNextGroundRound(t, specPath),
 		"an emitted-but-unrecorded round is still the round to record")
 
-	_, err := RecordGroundRound(specPath, 1, groundRecordPayload(groundNumberedRow(t, 1)))
+	_, _, err := RecordGroundRound(specPath, 1, groundRecordPayload(groundNumberedRow(t, 1)), nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, 2, mustNextGroundRound(t, specPath),
@@ -266,7 +266,7 @@ func TestARecordHoldingNoRowsIsRefusedAndConsumesNoRoundNumber(t *testing.T) {
 			dir := ReviewStateDir(specPath)
 			before := groundDirDigest(t, dir)
 
-			rows, err := RecordGroundRound(specPath, 1, payload)
+			rows, _, err := RecordGroundRound(specPath, 1, payload, nil)
 			require.Error(t, err)
 			assert.ErrorIs(t, err, ErrGroundRoundEmpty,
 				"the refusal is readable back as the empty-record rule, not as a parse failure")

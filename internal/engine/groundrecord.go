@@ -105,21 +105,46 @@ func groundRoundFileName(round int) string {
 // no-prior-emit case and surfaces as the file error it is, rather than as a
 // round file sitting alone in a directory with no floor to have been graded
 // against.
-func RecordGroundRound(specPath string, round int, data []byte) ([]GroundRow, error) {
-	rows, err := ParseGroundRows(data)
+func RecordGroundRound(specPath string, round int, data []byte, floor []FloorIndexRow) (rows, carried []GroundRow, err error) {
+	rows, err = ParseGroundRows(data)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	// After the parse and before the write, which is the only point at which
 	// both facts are in hand: that every row validates, and that there are
 	// none. A guard on len(data) instead would record a file of blank lines,
 	// which parses — correctly — to nothing.
 	if len(rows) == 0 {
-		return nil, ErrGroundRoundEmpty
+		return nil, nil, ErrGroundRoundEmpty
 	}
+
+	carried, err = groundCarriedRows(specPath, round, floor, rows)
+	if err != nil {
+		return nil, nil, err
+	}
+	out := data
+	if len(carried) > 0 {
+		if out, err = appendGroundRows(data, carried); err != nil {
+			return nil, nil, err
+		}
+	}
+
 	path := GroundRoundPath(specPath, round)
-	if err := writeFileAtomic(path, data); err != nil {
-		return nil, err
+	if err := writeFileAtomic(path, out); err != nil {
+		return nil, nil, err
 	}
-	return rows, nil
+	return rows, carried, nil
+}
+
+// groundCarriedRows reads the immediately preceding round and returns the
+// dispositions round carries forward from it (§8).
+func groundCarriedRows(specPath string, round int, floor []FloorIndexRow, decided []GroundRow) ([]GroundRow, error) {
+	if round <= 1 {
+		return nil, nil
+	}
+	prev, err := readGroundRoundRows(specPath, round-1)
+	if err != nil {
+		return nil, &GroundCarryError{Round: round - 1, Err: err}
+	}
+	return groundCarryForward(floor, prev, round-1, decided), nil
 }

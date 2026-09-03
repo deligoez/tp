@@ -41,7 +41,17 @@ type groundRecordResult struct {
 	Round int    `json:"round"`
 	Floor string `json:"floor"`
 	File  string `json:"file"`
-	Rows  int    `json:"rows"`
+	// Rows counts the rows the unit wrote, and Carried the dispositions §8
+	// carried into this round's file from the one before it.
+	//
+	// Two counts and not one sum. `rows` is what the operator handed in and can
+	// check against their own file; `carried` is what tp added, and folding the
+	// two would report a number that matches neither artifact. `carried` is
+	// present at zero rather than omitted, because a second pass reporting
+	// nothing carried is the answer an operator most needs to see — it means
+	// every unit's text moved, or the preceding round is gone.
+	Rows    int `json:"rows"`
+	Carried int `json:"carried"`
 }
 
 // groundStatusResult is what `tp ground <spec> --status` prints: which round it
@@ -350,15 +360,26 @@ func recordGroundRoundLocked(specPath, recordPath string) error {
 	}
 
 	// The floor is read, not derived, and its absence is the no-prior-emit case
-	// (§7.3). The bytes are discarded: what a round is joined to its floor BY is
-	// §8's question, and answering it here would mean this command reading the
-	// index for a purpose no rule of §7.2 has. What the read establishes is that
-	// there is a floor at all, and that it can be opened.
+	// (§7.3). It is also PARSED here rather than only opened: §8's carry-forward
+	// asks, of each emitted floor unit, whether the preceding round decided the
+	// same text, and the index is where the units of this round are. A floor
+	// that cannot be read back is refused for ParseFloorIndex's own reason —
+	// reading it short silently shrinks §8's denominator, and a denominator that
+	// is too small makes coverage look higher than it is.
 	floorPath := engine.GroundFloorPath(specPath, round)
-	if _, err := os.ReadFile(floorPath); err != nil {
+	floorData, err := os.ReadFile(floorPath)
+	if err != nil {
 		output.Error(ExitFile,
 			fmt.Sprintf("no emitted floor for ground round %d: cannot read %s: %v", round, floorPath, err),
 			fmt.Sprintf("emit the round first: tp ground %s — --record validates against the floor that emission froze, never against the spec as it now stands", specPath))
+		os.Exit(ExitFile)
+		return nil
+	}
+	floor, err := engine.ParseFloorIndex(string(floorData))
+	if err != nil {
+		output.Error(ExitFile,
+			fmt.Sprintf("the emitted floor for ground round %d does not parse: %s: %v", round, floorPath, err),
+			"re-emit the round with tp ground <spec>: the floor is tp's own artifact, and a round cannot be graded against an index it cannot read back")
 		os.Exit(ExitFile)
 		return nil
 	}
@@ -370,18 +391,19 @@ func recordGroundRoundLocked(specPath, recordPath string) error {
 		return nil
 	}
 
-	rows, err := engine.RecordGroundRound(specPath, round, data)
+	rows, carried, err := engine.RecordGroundRound(specPath, round, data, floor)
 	if err != nil {
 		exitGroundRecordError(err)
 		return nil
 	}
 
 	return output.JSON(groundRecordResult{
-		Spec:  specPath,
-		Round: round,
-		Floor: floorPath,
-		File:  engine.GroundRoundPath(specPath, round),
-		Rows:  len(rows),
+		Spec:    specPath,
+		Round:   round,
+		Floor:   floorPath,
+		File:    engine.GroundRoundPath(specPath, round),
+		Rows:    len(rows),
+		Carried: len(carried),
 	})
 }
 
