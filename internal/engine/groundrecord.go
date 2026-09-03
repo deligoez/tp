@@ -40,6 +40,18 @@ func (e *GroundLineError) Unwrap() error { return e.Err }
 // failure of a round that is not going to be written, and reporting one
 // rejection with its line and its field is what an operator fixes.
 func ParseGroundRows(data []byte) ([]GroundRow, error) {
+	return parseGroundRows(data, nil)
+}
+
+// parseGroundRows is ParseGroundRows with §7.3's floor check folded into the
+// same pass, so the refusal carries the line the table's own refusals carry and
+// arrives before RecordGroundRound opens anything.
+//
+// A nil floor is the shape-check-only reading, which is what every reader of a
+// round tp itself wrote wants: those rows were graded against a floor that is
+// not this one's, and re-comparing them would refuse tp's own artifacts.
+func parseGroundRows(data []byte, floor []FloorIndexRow) ([]GroundRow, error) {
+	byID := groundFloorHashes(floor)
 	rows := make([]GroundRow, 0, 64)
 	line := 0
 	for raw := range strings.SplitSeq(string(data), "\n") {
@@ -48,12 +60,62 @@ func ParseGroundRows(data []byte) ([]GroundRow, error) {
 			continue
 		}
 		row, err := ParseGroundRow([]byte(raw))
+		if err == nil {
+			err = groundRowMatchesFloor(row, byID)
+		}
 		if err != nil {
 			return nil, &GroundLineError{Line: line, Err: err}
 		}
 		rows = append(rows, row)
 	}
 	return rows, nil
+}
+
+// groundFloorHashes indexes an emitted floor's units by `unit_id`.
+//
+// A unit the arms CUT is deliberately absent: §2.2 makes the absence of the hash
+// the cut, so a cut row carries no value for a payload row to be compared
+// against, and demanding its empty string would refuse every legal row on it.
+func groundFloorHashes(floor []FloorIndexRow) map[string]string {
+	if len(floor) == 0 {
+		return nil
+	}
+	byID := make(map[string]string, len(floor))
+	for _, r := range floor {
+		if r.TextSHA != "" {
+			byID[r.ID] = r.TextSHA
+		}
+	}
+	return byID
+}
+
+// groundRowMatchesFloor is §7.3's one value check: a row whose `unit_id` names a
+// floor row must carry that row's `text_sha`. Every other cell of §7.2 is
+// shape-checked and nothing else is compared.
+//
+// The exception earns itself because the alternative is a SILENT loss rather
+// than a wrong number. §8's carry joins on `(text_sha, ordinal)` while coverage
+// joins on `unit_id`, so a row with a valid id and a fabricated hash counts as
+// dispositioned in this round and fails to carry into the next, with nothing in
+// either record saying why — and `--check` certifies a disposition of text
+// nobody read, which is the exact failure this release exists to remove.
+//
+// Two readings stay valid and are not this check's business. A `unit_id` the
+// floor does not carry is `off_floor`, §8's fact to report at `--status` rather
+// than a parse failure; and `unit_id: null` is a reader-added claim, which §7.2
+// has supply its own hash over text tp never emitted.
+func groundRowMatchesFloor(row GroundRow, byID map[string]string) error {
+	if row.UnitID == nil {
+		return nil
+	}
+	want, onFloor := byID[*row.UnitID]
+	if !onFloor || want == row.TextSHA {
+		return nil
+	}
+	return groundRowErr("text_sha", fmt.Sprintf(
+		"the emitted floor gives %s the hash %s, and this row carries %s: "+
+			"copy text_sha from the index row for the unit the row names",
+		*row.UnitID, want, row.TextSHA))
 }
 
 // ErrGroundRoundEmpty is what RecordGroundRound refuses a round that would write
@@ -101,6 +163,11 @@ func groundRoundFileName(round int) string {
 // Validating row by row as each is appended would satisfy the wording for a
 // payload whose first row is bad and break it for every other one.
 //
+// floor is what §7.3's one value check is made against — a row whose `unit_id`
+// names a floor row must carry that row's `text_sha` — and it is checked in the
+// same pass as §7.2's table, so that refusal is atomic on the same terms as
+// every other one. Everything else the floor is used for is §8's carry.
+//
 // The bytes written are the ones handed in, not a re-marshalling of the rows:
 // §7.2's table is what a row must satisfy, not the exhaustive set of what it
 // may carry through a reader, and the recorded round is the artifact a later
@@ -112,7 +179,7 @@ func groundRoundFileName(round int) string {
 // round file sitting alone in a directory with no floor to have been graded
 // against.
 func RecordGroundRound(specPath string, round int, data []byte, floor []FloorIndexRow) (rows, carried []GroundRow, err error) {
-	rows, err = ParseGroundRows(data)
+	rows, err = parseGroundRows(data, floor)
 	if err != nil {
 		return nil, nil, err
 	}
