@@ -95,18 +95,44 @@ func reviewEnvelope(t *testing.T, dir string, args ...string) (map[string]any, s
 // row's mutant, emitting the advisory per role, is indistinguishable from the
 // shipped behaviour — and the count of the key in the RAW payload is what
 // separates them: a per-role emission puts one copy in every prompt.
+// TestReviewCarriesTheUngroundedAdvisoryOnceInTheEnvelope is §11 row 17's second
+// half: the advisory appears exactly ONCE, in the top-level envelope, on a run
+// emitting more than one role prompt.
+//
+// The verdict rests on the SAME spec, in the SAME directory, at the SAME round —
+// --no-state keeps it at 1 — reviewed before and after it is grounded, so the
+// only difference between the two payloads is the ground round. The prompts must
+// come back byte-identical: the advisory changed the envelope and nothing else.
+//
+// That is deliberately not a search for a phrase. Row 17's mutant puts one copy
+// in each prompt, and NO wording of that copy survives an equality against the
+// prompts of a run that had nothing to say — where a substring search does not
+// even see it, which was measured: a mutant appending the advisory to every
+// prompt left a `strings.Count` over `"ungrounded"` green, because JSON escapes
+// the quotes inside a prompt string.
+//
+// The prompt count is a require rather than an assumption: with one prompt the
+// mutant is indistinguishable from the shipped behaviour.
 func TestReviewCarriesTheUngroundedAdvisoryOnceInTheEnvelope(t *testing.T) {
-	out, raw := reviewEnvelope(t, groundedFixture(t, 1))
+	dir := writeGroundFixture(t)
 
-	prompts, ok := out["prompts"].([]any)
-	require.True(t, ok, "prompts: %T", out["prompts"])
+	before, beforeRaw := reviewEnvelope(t, dir, "--no-state")
+	require.NotContains(t, before, "ungrounded", "the control run has nothing to say")
+	require.NotContains(t, beforeRaw, "ungrounded")
+	prompts, ok := before["prompts"].([]any)
+	require.True(t, ok, "prompts: %T", before["prompts"])
 	require.Greater(t, len(prompts), 1, "row 17 asks for a run emitting more than one role prompt")
+
+	groundFixtureRound(t, dir, 1)
+	after, afterRaw := reviewEnvelope(t, dir, "--no-state")
 
 	assert.Equal(t, map[string]any{
 		"round": float64(1), "undispositioned": float64(1), "floor_size": float64(2),
-	}, out["ungrounded"], "the round, the units without a disposition, and the floor's size")
-	assert.Equal(t, 1, strings.Count(raw, `"ungrounded"`),
-		"once in the envelope, never one copy per role — the reader is the operator, not the role")
+	}, after["ungrounded"], "the round, the units without a disposition, and the floor's size")
+	assert.Equal(t, before["prompts"], after["prompts"],
+		"the advisory changed the envelope and not one byte of any role prompt")
+	assert.Equal(t, 1, strings.Count(afterRaw, "ungrounded"),
+		"once in the whole payload — the reader is the operator, not the role")
 }
 
 // TestReviewsExitCodeIsIdenticalWithAndWithoutUngroundedUnits is §11 row 17's
