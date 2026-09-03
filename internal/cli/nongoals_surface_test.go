@@ -35,12 +35,11 @@ import (
 // command already emits, so it appears on both commands and nowhere else.
 //
 // spec/1.0.0.md §7.1 adds `tp ground`, which arrived with no flags at all and
-// gains them one task at a time. `--record`, `--status` and `--check` are
-// listed below, each added by the task that registered it; `--units`, the one
-// §7.1 also names, belongs to the task that implements it and adds its own to
-// this line as it lands. The baseline is checked in both directions, so a flag
-// written here before the command registers it fails this guard rather than
-// waiting for it.
+// gained them one task at a time: `--record`, `--status`, `--check` and
+// `--units` are all listed below, each added by the task that registered it,
+// and §7.1's table names no fifth. The baseline is checked in both directions,
+// so a flag written here before the command registers it fails this guard
+// rather than waiting for it.
 const v100Surface = `
 : color compact file json no-color no-compact no-quiet quiet
 add: bulk spec stdin
@@ -54,7 +53,7 @@ config: dry-run extract force resolved
 done: auto-commit batch commit covered-by files gate-passed reason-file skip-gate stdin
 escalate: decision evidence option
 graph: from tag
-ground: check record status
+ground: check record status units
 import: force spec
 init: commit-strategy domain eject-roles force quality-gate
 keep: list remove
