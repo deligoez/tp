@@ -177,6 +177,24 @@ func groundRowRejectionCases() []groundRowCase {
 			field: "causes",
 		},
 		{
+			// The same shape as the blank-string pair: on a QUESTION row a null
+			// `causes` is rejected whether it is read as a bad value or as an
+			// absent key, because the key is required there either way. This is
+			// the row that separates them, and it is the one a Go emitter
+			// writes by accident — a nil slice marshals to `null`.
+			name:  "causes null on a PASS row",
+			set:   map[string]any{"causes": nil},
+			field: "causes",
+		},
+		{
+			// `null` is a value the writer put there, not a missing key. Only
+			// `unit_id` declares null legal; everywhere else it fails its cell.
+			name:  "kind null on a NOT-A-CLAIM row",
+			base:  groundNotAClaimRow(),
+			set:   map[string]any{"kind": nil},
+			field: "kind",
+		},
+		{
 			name:  "causes not an array",
 			set:   map[string]any{"verdict": "QUESTION", "causes": "three of them"},
 			field: "causes",
