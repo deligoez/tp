@@ -209,3 +209,33 @@ func TestStatusCarriesEverySixVerdictsSoTheNotAClaimShareIsReadable(t *testing.T
 		"the share's denominator is the emitted floor, on the same object as its numerator")
 }
 
+// TestStatusCountsReaderAddedAndOffFloorApart is the acceptance's third clause:
+// the two counts that move neither side of the ratio are reported separately,
+// because they are evidence about different halves of §2.1 — the arms never
+// produced this unit, against the arms produced it and then cut it.
+//
+// The fixture's cut unit sits BETWEEN two floor units, and both the emitted ids
+// and the cut one are read back from the floor rather than assumed.
+func TestStatusCountsReaderAddedAndOffFloorApart(t *testing.T) {
+	dir := writeGroundFixture(t)
+	groundEmit(t, dir)
+	emitted, cut := groundFloorIDs(t, dir, 1)
+	require.Len(t, emitted, 2, "the fixture emits two floor units")
+	require.Len(t, cut, 1, "and cuts one between them, which is what an off-floor row names")
+
+	rows := writeGroundRows(t, dir,
+		groundVerdictRow(emitted[0], "PASS"),
+		groundReaderAddedRow(),
+		groundVerdictRow(cut[0], "PASS"),
+	)
+	_, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", rows)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	status := groundStatus(t, dir)
+	assert.Equal(t, float64(2), status["emitted"])
+	assert.Equal(t, float64(1), status["dispositioned"],
+		"three rows, one emitted floor unit decided: neither off-ratio row raises coverage")
+	assert.Equal(t, float64(1), status["reader_added"], "the row carrying unit_id null")
+	assert.Equal(t, float64(1), status["off_floor"], "the row naming the cut unit's id")
+}
+
