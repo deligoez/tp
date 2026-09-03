@@ -34,6 +34,30 @@ func TestTheGroundRecordFileHintNamesNoPanel(t *testing.T) {
 	}
 }
 
+// TestTheEmptyRecordHintCoversTheFloorItCannotRepair holds the empty-record
+// hint to both states that reach it, not only the one it was written for.
+//
+// The refusal fires when the payload and the carry are both zero, and that has
+// two causes with opposite recoveries. A reader who dispositioned nothing
+// should go and disposition something — the sentence already said so. A reader
+// on an all-cut document was told the same thing, and for them "ground the
+// units the emitted prompt asks for" names a set with no members: §2.1 cut
+// every unit, so there is nothing to ground and no round to record. Three
+// commands reach it, and `--status --check` reports that floor permanently.
+//
+// **The subject is the whole of a bounded artifact** — one const string — which
+// is what makes an assertion over its text sound here, and it is the same
+// ground the NotContains above stands on. The same words checked inside the
+// emitted prompt would be a presence test in an unbounded document.
+func TestTheEmptyRecordHintCoversTheFloorItCannotRepair(t *testing.T) {
+	assert.Contains(t, groundRecordEmptyHint, "cut",
+		"the all-cut floor reaches this refusal, and dispositioning something is not its recovery")
+	assert.Contains(t, groundRecordEmptyHint, "--status --check",
+		"and the hint names where that floor is reported instead")
+	assert.NotContains(t, groundRecordEmptyHint, "ground the units the emitted prompt asks for",
+		"which is not an instruction when the prompt asked for none")
+}
+
 // TestEveryGroundRecordHintIsItsOwn keeps the three apart as a set rather than
 // one at a time.
 //
