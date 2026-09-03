@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-02T23:48:39.898447Z",
+  "updated_at": "2026-09-03T00:15:35.953904Z",
   "workflow": {},
   "coverage": {
     "total_sections": 21,
@@ -742,7 +742,7 @@
     {
       "id": "floor-index-meta",
       "title": "cut rows, the commit line and the summary",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -754,11 +754,30 @@
       "source_sections": [
         "### 2.2 The floor is a coverage obligation, not a shortlist"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-02T23:55:34.722564Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-03T00:15:35.899328Z",
+      "closed_reason": "- A cut unit now emits its id and anchor and nothing else: FloorIndexRows (internal/engine/floor.go) returns a row for EVERY unit §2.1 produces and FloorIndexRow.String renders `u2 §2 (cut)` for one carrying no hash. There is no Cut flag — the ABSENCE of the hash is the cut, so a row marked cut that still ships a hash is unwriteable, and that reading is sound because FloorTextSHA returns twelve hex characters for every input including \"\" (required in the test, not assumed). Two mutants observed red on TestACutUnitEmitsItsIdAndAnchorWithNoHashAndNoText, whose cut unit sits BETWEEN two floor units — the only arrangement in which the row can be seen to occupy an id: HEAD's floor-only rows (2 rows, not 3) and String with the cut branch deleted (`u2 §2  #0 0B`).\n- The first line names the commit: FormatFloorIndex(commit, rows) writes `# commit \u003csha\u003e` ahead of the rows, and `# commit unknown` when the caller has none, so the line is unconditional and `unknown` cannot be read as a revision. TestTheIndexNamesTheCommitOnItsFirstLine holds three assertions proven not to subsume each other by running each mutant: the parameter accepted and dropped and the line moved below the rows each leave line 1 reading `u1 §1 ...`; a hard-coded `7ced1edb` fails ONLY the second commit's assertion; omitting the line on an empty commit fails ONLY the `unknown` one, with the other two green.\n- The summary counts units, not distinct hashes: the last line is `# \u003cfloor\u003e in floor, \u003ccut\u003e cut`, counted over the rows. TestTheSummaryCountsUnitsNotDistinctHashes uses the one arrangement where the readings differ — two floor units of identical canonical text plus a cut one, with \"2 units, 1 distinct hash\" required rather than assumed — and both named mutants were observed red there while the cut, commit and row-4 cases stayed green: counting distinct hashes gives `# 1 in floor, 1 cut`, counting every row as floor gives `# 3 in floor, 0 cut`.\n- Dogfooded against the release's own spec through a throwaway probe (deleted): the Go index over spec/1.0.0.md agrees with `python3 scripts/floor-prototype.py --emit spec/1.0.0.md` unit for unit — same first rows, 367 unit rows, `# 274 in floor, 93 cut` in both. §11 row 4's exhaustive grammar was extended to cover the whole artifact (commit line, cut rows, summary), so it still accounts for every byte and leaves nowhere for unit text to sit.\n- Gate green at the closing commit: check-suite-state, golangci-lint (0 issues), check-deadcode, check-complexity all exit 0.\nOut of scope: §2.2 states the cut row and the commit line but says NOTHING about a summary line — the acceptance criterion's wording and the counting rule come from scripts/floor-prototype.py, and `# commit unknown` for a caller with no commit is a decision this task made rather than one the spec settles; both are recorded in the doc comments. The prototype's summary also reports how many table data rows were segmented into units; that clause is deliberately not ported, because it is derived from the spec's text and FormatFloorIndex takes rows precisely so the text is out of its reach. Also recorded: making every unit a row cost the previous task's \"anchorOf is called with the unit's id, not the row's index\" assertion its discriminating power (with a row per unit the two numbers are identical, so no input separates them); the distinction survives in FloorUnitRows, and the comment in floor_test.go says so rather than leaving a green assertion that proves nothing.",
+      "gate_passed_at": "2026-09-03T00:15:35.899328Z",
+      "commit_sha": "89101f27",
+      "commit_shas": [
+        "89101f27",
+        "b7df7b7f",
+        "b12a3705",
+        "b858a8ad",
+        "4e53ee58",
+        "c4faa6b3",
+        "62be7e1f",
+        "937cf081",
+        "d1af02c0"
+      ],
+      "commit_files": [
+        "internal/engine/floor.go",
+        "internal/engine/floor_test.go",
+        "internal/engine/flooranchor_test.go",
+        "internal/engine/floorindexmeta_test.go",
+        "internal/engine/floorunits_test.go"
+      ]
     }
   ]
 }
