@@ -711,6 +711,22 @@ func recordGroundRoundLocked(specPath, recordPath string) {
 	floorPath := engine.GroundFloorPath(specPath, round)
 	floorData, err := os.ReadFile(floorPath)
 	if err != nil {
+		// A path naming no file is a mistyped spec path, not a spec nobody has
+		// grounded, and the emit hint would send the operator to `tp ground
+		// <the same wrong path>` — which fails too. This is --status's repair
+		// at the sibling sink, and the stat sits HERE for the same reason it
+		// sits inside that branch: a spec deleted after its emission records at
+		// exit 0 (the round is graded against the floor, not the text), and a
+		// top-level existence check would refuse it; that state never reaches
+		// this branch, since its floor is on disk. os.Stat is not a read, so
+		// §7.3's rule that --record never opens the spec holds, and ExitFile is
+		// the code on both paths, so nothing branching on the code sees a
+		// change.
+		if _, statErr := os.Stat(specPath); statErr != nil {
+			output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath), specFileMissingHint)
+			os.Exit(ExitFile)
+			return
+		}
 		output.Error(ExitFile,
 			fmt.Sprintf("no emitted floor for ground round %d: cannot read %s: %v", round, floorPath, err),
 			fmt.Sprintf("emit the round first: tp ground %s — --record validates against the floor that emission froze, never against the spec as it now stands", specPath))
