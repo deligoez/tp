@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-03T03:48:50.808357Z",
+  "updated_at": "2026-09-03T04:03:19.901209Z",
   "workflow": {},
   "coverage": {
     "total_sections": 21,
@@ -710,7 +710,7 @@
     {
       "id": "status-check",
       "title": "--status --check gates on coverage only",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli"
       ],
@@ -722,11 +722,24 @@
       "source_sections": [
         "### 7.1 Invocations and exit codes"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-03T03:50:29.55198Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-03T04:03:19.87316Z",
+      "closed_reason": "- --status --check exits 0 when coverage is complete and 1 otherwise: TestCheckExitsZeroOnCompleteCoverageAndOneOtherwise covers nothing-recorded, one-of-two, and every-unit-dispositioned. Mutant \"the coverage comparison dropped\" (always exit 0) reddens it, and mutant \"\u003c becomes \u003c=\" reddens it too.\n- It gates nothing else: TestCheckGatesOnCoverageAndNotOnWhatTheRoundFound holds a round of refusals at exit 0, so the gate reads coverage and not what the round found.\n- Non-Goal 3 holds, no tp command refuses on coverage: TestNothingRefusesOnCoverage runs --status alone, a second emission and --record against an uncovered spec, each at exit 0. It establishes that the spec really is uncovered by asserting --check exits 1 first, so the exit-0 arms are measured against a known-uncovered control rather than against an accidentally complete one.\n- --check without --status exits 2 by the rule rather than as an unknown flag: TestCheckWithoutStatusIsAUsageErrorByTheRuleAndNotAnUnknownFlag asserts the message. Dogfooded on a copy of spec/1.0.0.md outside the repository, tp ground \u003cspec\u003e --check exits 2 with {\"error\":\"--check requires --status\",\"code\":2,\"hint\":\"...\"}, which the unregistered-flag path cannot produce.\n- The quality gate ran as four separate steps on the final tree: check-suite-state.sh 0, golangci-lint 0, check-deadcode.sh 0, check-complexity.sh 0.\n- Closed by the orchestrator: the implementing unit was killed by an API error after committing all four commits and finishing its mutation phase, but before reporting. Its own mutant verdicts are therefore not claimed here; the two mutants named above were run and observed red by the orchestrator, and the tree was verified byte-clean afterwards.",
+      "gate_passed_at": "2026-09-03T04:03:19.87316Z",
+      "commit_sha": "ea3df151",
+      "commit_shas": [
+        "ea3df151",
+        "35631b3c",
+        "3d8bd850",
+        "e49a2b1d"
+      ],
+      "commit_files": [
+        "internal/cli/ground.go",
+        "internal/cli/ground_check_test.go",
+        "internal/cli/nongoals_surface_test.go",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "review-advisory",
