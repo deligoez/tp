@@ -731,13 +731,15 @@ func FormatFloorUnits(rows []FloorUnitRow) string {
 //
 // The level bound is a decision §7.3 does not state, and both plausible bounds
 // are wrong on an input this repository already holds. Level 1 is excluded
-// because a spec's H1 is its title: five specs title themselves with a version
-// (`spec/0.19.0-agent-friction.md` opens `# 0.19.0 — Agent Friction
-// Reduction`), which under a level-1-inclusive rule anchors that document's
-// whole preamble to `§0.19.0` rather than to §7.3's `§0`. Levels 4 to 6 are
-// included because a numbered heading is a section at any depth, and
+// because a spec's H1 is its title and a title is routinely a version:
+// `spec/0.19.0-agent-friction.md` opens `# 0.19.0 — Agent Friction Reduction`,
+// which under a level-1-inclusive rule anchors that document's whole preamble
+// to `§0.19.0` rather than to §7.3's `§0`. Levels 4 to 6 are included because a
+// numbered heading is a section at any depth, and
 // `scripts/floor-prototype.py`'s level-2-to-3 rule reports `spec/0.36.0.md`'s
-// `#### 4.2.1` as §4.2.
+// `#### 4.2.1` as §4.2. TestAnH1IsNotASectionAndAnH4Is pins both ends in one
+// constructed fixture carrying both shapes, where each rejected bound gets
+// exactly one of the two entries wrong.
 var floorSectionHeadingRe = regexp.MustCompile(`^\s*#{2,6}\s+(\d+(?:\.\d+)*)`)
 
 // floorAnchorsByLine returns the section each line of text sits in: entry i-1
