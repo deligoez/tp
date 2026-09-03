@@ -61,7 +61,7 @@ func parseGroundRows(data []byte, floor []FloorIndexRow) ([]GroundRow, error) {
 		}
 		row, err := ParseGroundRow([]byte(raw))
 		if err == nil {
-			err = groundRowMatchesFloor(row, byID)
+			err = groundRowMatchesFloor(&row, byID)
 		}
 		if err != nil {
 			return nil, &GroundLineError{Line: line, Err: err}
@@ -104,7 +104,9 @@ func groundFloorHashes(floor []FloorIndexRow) map[string]string {
 // floor does not carry is `off_floor`, §8's fact to report at `--status` rather
 // than a parse failure; and `unit_id: null` is a reader-added claim, which §7.2
 // has supply its own hash over text tp never emitted.
-func groundRowMatchesFloor(row GroundRow, byID map[string]string) error {
+// The row is taken by pointer because GroundRow is 192 bytes and this runs once
+// per line of the record; gocritic's hugeParam flags the copy.
+func groundRowMatchesFloor(row *GroundRow, byID map[string]string) error {
 	if row.UnitID == nil {
 		return nil
 	}
