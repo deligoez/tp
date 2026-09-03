@@ -177,8 +177,14 @@ type reviewResult struct {
 	TestStructure      *docStructure              `json:"test_structure,omitempty"`
 	MechanicalChecks   []map[string]any           `json:"mechanical_checks,omitempty"`
 	SkippedRoles       *[]engine.SkippedRole      `json:"skipped_roles,omitempty"`
-	Prompts            []reviewPrompt             `json:"prompts"`
-	ReviewLoop         reviewLoop                 `json:"review_loop"`
+	// Ungrounded is §9's advisory: the latest ground round, the floor units
+	// nobody dispositioned, and the floor's size. A pointer with omitempty,
+	// because §9 makes it absent ENTIRELY when every unit is dispositioned or
+	// no ground round exists — on `divergence`'s precedent that a permanent
+	// zero-valued key is a key every reader learns to skip.
+	Ungrounded *engine.GroundAdvisory `json:"ungrounded,omitempty"`
+	Prompts    []reviewPrompt         `json:"prompts"`
+	ReviewLoop reviewLoop             `json:"review_loop"`
 }
 
 type docStructure struct {
@@ -617,6 +623,13 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 			Instruction:         instruction,
 		},
 	}
+
+	// §9's advisory: ONE key in the top-level envelope, never per role — its
+	// reader is the operator, not the role, and per role it would be one copy
+	// per role per round of a signal no role acts on. It survives --compact
+	// because it is the payload rather than commentary on the payload, and it
+	// reaches no exit code: review is told, and not stopped (Non-Goal 3).
+	result.Ungrounded = engine.LatestGroundAdvisory(specPath)
 
 	if !specInline {
 		absPath, _ := filepath.Abs(specPath)
