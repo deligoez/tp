@@ -210,9 +210,10 @@ def sha(u):
 def index_bytes(rows, shape):
     """§2.2's index in three serialisations of the SAME five cells.
 
-    §11 row 4 bounds the index at `units × 48 + 256` bytes over the FLOOR's
-    units, and until the encoding was named the bound was undecidable. §2.2
-    settles on the sigil shape, which `engine.FloorIndexRow.String` renders as
+    §11 row 4 bounds the index at `units × 48 + 256` bytes over EVERY unit §2.1
+    produces, cut ones included (§2.2), and until the encoding was named the
+    bound was undecidable. §2.2 settles on the sigil shape, which
+    `engine.FloorIndexRow.String` renders as
     `u1 §7.2 30afa78662b5 #1 21B`, with `u1 §7.2 (cut)` for a unit the arms cut,
     and no text in either. The framing `formatFloorIndex` writes -- a
     `# commit <sha>` line first and a `# N in floor, M cut` line last -- is
@@ -267,8 +268,14 @@ def measure(path):
     # step-4 canonicality: same segmentation, do the hashes agree?
     agree = sum(1 for a, b in zip(hashes, [sha(u) for u in floor_noterm]) if a == b)
 
-    bound = len(floor) * 48 + 256
     rows_index = index_rows(text)
+    # §2.2 settles the denominator: `units` in §11 row 4's bound is EVERY unit
+    # §2.1 produces, CUT ONES INCLUDED, because the index emits a row for each
+    # and the bound is over what it emits. This line read `len(floor)`, which is
+    # the denominator §2.2 rejects. No figure is restated here: the run's own
+    # `worst sigil/bound ratio` line prints the answer, and the two readings are
+    # far enough apart that that line alone tells them apart.
+    bound = len(rows_index) * 48 + 256
     return {
         "path": path,
         "units": len(units),
