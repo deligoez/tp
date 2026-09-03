@@ -428,6 +428,17 @@ func TestTheRowsTheTableAllows(t *testing.T) {
 			},
 		},
 		{
+			// The upper end of §6's bound, which the three-cause case above
+			// cannot reach: a max-of-three implementation passes that one.
+			name: "QUESTION with five causes",
+			set:  map[string]any{"verdict": "QUESTION", "causes": groundNCauses(5)},
+			assert: func(t *testing.T, row GroundRow) {
+				require.Len(t, row.Causes, 5)
+				assert.Equal(t, "cause 5", row.Causes[4].Cause)
+				assert.Equal(t, "removing cause 5 moves the count", row.Causes[4].Prediction)
+			},
+		},
+		{
 			// §3: UNVERIFIABLE carries the deepest tier attempted, and §7.2's
 			// per-verdict rule puts no acceptability constraint on it. Nothing
 			// about `causes` either.
