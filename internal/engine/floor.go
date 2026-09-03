@@ -379,8 +379,9 @@ func FloorOrdinals(hashes []string) []int {
 	return ordinals
 }
 
-// FloorIndexRow is one floor unit as §2.2's index carries it:
-// `(unit_id, anchor, text_sha, ordinal, byte length)` and nothing else.
+// FloorIndexRow is one unit as §2.2's index carries it: a floor unit as
+// `(unit_id, anchor, text_sha, ordinal, byte length)`, a unit the arms cut as
+// `(unit_id, anchor)` and nothing else.
 //
 // There is no field for the unit's text, and that is the design rather than an
 // omission. Two earlier drafts of §2.2 carried the first 60 bytes of each unit,
@@ -390,10 +391,17 @@ func FloorOrdinals(hashes []string) []int {
 // unit and the run graded the wrong sentence. A prefix locates a unit and hides
 // where it ends. A struct with nowhere to put the text cannot regress to that;
 // `tp ground <spec> --units` prints every unit's whole text in one call instead.
+//
+// There is no `Cut` flag either, and for the same kind of reason: a flag makes
+// expressible the one row §2.2 forbids — a unit announced as cut that still
+// ships a hash and the obligation that comes with it. The ABSENCE of the hash
+// is the cut. That reading is sound because `FloorTextSHA` returns twelve hex
+// characters for every input, the empty string included, so no floor unit can
+// collide with the marker.
 type FloorIndexRow struct {
 	ID      string // §7.2's `unit_id`: `u<N>` over every unit §2.1 produces
 	Anchor  string // §7.2's `anchor`: the `§n(.n)*` section the unit sits in
-	TextSHA string // §7.2's `text_sha`
+	TextSHA string // §7.2's `text_sha`; empty on a unit the arms cut
 	Ordinal int    // §7.2's `ordinal`, within the units sharing that hash
 	Bytes   int    // the unit's length in UTF-8 bytes
 }
@@ -406,18 +414,36 @@ type FloorIndexRow struct {
 // unit is over the bound on all but one spec in this repository, its ~79-byte
 // field-name skeleton dwarfing a ~53-byte payload. The sigils carry the labels
 // instead: `§` before the anchor, `#` before the ordinal, `B` after the length.
+//
+// A cut unit renders as `<unit_id> <anchor> (cut)` and stops there: no hash, no
+// ordinal, no length, no text. §2.2 accepts that the announcement alone is not
+// always enough to decide whether to grade one — the second end-to-end run said
+// so — because giving the cut set its text costs the whole saving the index
+// exists for, and the reader has the spec file.
 func (r FloorIndexRow) String() string {
+	if r.TextSHA == "" {
+		return r.ID + " " + r.Anchor + " (cut)"
+	}
 	return fmt.Sprintf("%s %s %s #%d %dB", r.ID, r.Anchor, r.TextSHA, r.Ordinal, r.Bytes)
 }
 
-// FloorIndexRows derives §2.2's index rows for the floor units of a spec's text,
-// in emission order.
+// FloorIndexRows derives §2.2's index rows for a spec's text, in document
+// order.
 //
-// `unit_id` is numbered over EVERY unit §2.1 produces, the ones the arms cut
-// included, so a row's id is not its position in this result. §2.2 gives the
-// reason: numbering over the floor alone renumbers every later unit when an edit
-// changes one unit's arms, and §8 joins dispositions across rounds on ids that
-// have to survive that.
+// EVERY unit §2.1 produces gets a row. The ones the three arms keep carry the
+// five fields; the ones they cut carry an id and an anchor and nothing else,
+// because §2.2 announces the cut set so a reader knows the floor is not the
+// document — both end-to-end runs of the protocol found defects in units the
+// arms had cut. The obligation is unchanged: coverage still runs over the
+// floor alone (§8), and a cut unit a reader grounds is a reader-added row.
+//
+// `unit_id` is the 1-based index of the unit over every unit §2.1 produces
+// (§7.2), and since every unit has a row here, the id is also the row's
+// position in this result. That is a property of this result and not of the
+// id — `FloorUnitRows` numbers the same way over the floor alone — so the ids
+// are derived from the unit index rather than from the row index. §2.2 gives
+// the reason: numbering over the floor alone renumbers every later unit when
+// an edit changes one unit's arms, and §8 joins dispositions across rounds.
 //
 // anchorOf supplies §7.2's `anchor` and is called with the same 1-based N that
 // becomes the unit's id — never with the row's index. The anchor is a parameter
@@ -439,15 +465,17 @@ func FloorIndexRows(text string, anchorOf func(unitIndex int) string) []FloorInd
 	}
 	ordinals := FloorOrdinals(hashes)
 
-	rows := make([]FloorIndexRow, 0, len(kept))
-	for j, i := range kept {
+	rows := make([]FloorIndexRow, 0, len(units))
+	for i := range units {
 		rows = append(rows, FloorIndexRow{
-			ID:      fmt.Sprintf("u%d", i+1),
-			Anchor:  anchorOf(i + 1),
-			TextSHA: hashes[j],
-			Ordinal: ordinals[j],
-			Bytes:   len(units[i]),
+			ID:     fmt.Sprintf("u%d", i+1),
+			Anchor: anchorOf(i + 1),
 		})
+	}
+	for j, i := range kept {
+		rows[i].TextSHA = hashes[j]
+		rows[i].Ordinal = ordinals[j]
+		rows[i].Bytes = len(units[i])
 	}
 	return rows
 }
