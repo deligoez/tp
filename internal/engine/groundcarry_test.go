@@ -69,6 +69,43 @@ func TestAUnitUnchangedFromThePrecedingRoundCarriesItsDisposition(t *testing.T) 
 	assert.Equal(t, 2, carried[0].CarriedFrom, "carried_from names the round the disposition was made in")
 }
 
+// TestARepeatedUnitCarriesItsFirstRowAndTheRecordKeepsBoth names the case the
+// first-wins tie-break decides, which nothing did before.
+//
+// `--record` accepts more than one row for a unit, so round N−1 can hold two
+// dispositions under one `(text_sha, ordinal)` while round N has room for one.
+// Measured through the commands on a copy of `spec/1.0.0.md`: a round-1 file of
+// `u1 PASS`, `u2 PASS`, `u1 FAIL` records at exit 0 with all three rows in the
+// round-1 file, and round 2 carries `u1` as PASS.
+//
+// Both halves are asserted, because the second is what makes the first
+// acceptable: the FAIL does not reach round 2, AND round N−1's own record is
+// untouched — `prev` still holds both rows after the carry, so the disposition
+// a reader would go back for was not destroyed. Refusing the repeat outright is
+// the stronger answer and belongs at `--record`, not here.
+func TestARepeatedUnitCarriesItsFirstRowAndTheRecordKeepsBoth(t *testing.T) {
+	floor := []FloorIndexRow{
+		{ID: "u1", Anchor: "§1", TextSHA: "aaaaaaaaaaaa", Ordinal: 1, Bytes: 30},
+	}
+	prev := []GroundRow{
+		groundCarriedSource("aaaaaaaaaaaa", 1, VerdictPass),
+		groundCarriedSource("aaaaaaaaaaaa", 1, VerdictFail),
+	}
+	require.Equal(t, prev[0].TextSHA, prev[1].TextSHA)
+	require.Equal(t, prev[0].Ordinal, prev[1].Ordinal,
+		"the two rows must share the join key, or this is not the repeat case")
+
+	carried := groundCarryForward(floor, prev, 1, nil)
+
+	require.Len(t, carried, 1, "round N has one row per unit however many round N-1 held")
+	assert.Equal(t, VerdictPass, carried[0].Verdict,
+		"the FIRST row in emission order wins, and the FAIL does not reach round N")
+
+	assert.Equal(t, VerdictPass, prev[0].Verdict)
+	assert.Equal(t, VerdictFail, prev[1].Verdict,
+		"round N-1's record still holds both rows: the tie-break drops a row from the CARRY, not from the record")
+}
+
 // TestAUnitTheRoundDecidedItselfIsNotAlsoCarried keeps a round from holding two
 // dispositions for one unit.
 //
