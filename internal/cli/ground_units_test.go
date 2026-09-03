@@ -118,3 +118,26 @@ func TestGroundUnitsPrintsEveryFloorUnitWholeWithTheIndexsHash(t *testing.T) {
 		"the fixture must hold a unit longer than a sixty-byte head, or a truncation cannot be seen here")
 }
 
+// TestGroundUnitsReadsTheSpecAndWritesNothing pins the two halves §7.1's table
+// leaves implicit: `--units` answers from the spec named on the command line —
+// so it works before any round has been emitted — and it is a report, so it
+// writes nothing.
+//
+// The state directory is asserted absent AFTER the run as well as before it: an
+// implementation routed through the emission would answer this listing
+// correctly and leave a round behind, and a pair of assertions on stdout alone
+// cannot see that.
+func TestGroundUnitsReadsTheSpecAndWritesNothing(t *testing.T) {
+	dir := writeGroundUnitsFixture(t)
+	_, err := os.Stat(filepath.Join(dir, ".tp-review"))
+	require.True(t, os.IsNotExist(err), "the fixture must start with no state directory")
+
+	stdout, stderr, code := runTP(t, dir, "ground", "spec.md", "--units")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.Equal(t, engine.FormatFloorUnits(engine.FloorUnitRows(groundUnitsFixtureSpec)), stdout,
+		"--units prints the engine's units listing over the spec's own text, with no emission behind it")
+
+	_, err = os.Stat(filepath.Join(dir, ".tp-review"))
+	assert.True(t, os.IsNotExist(err), "--units reports; it does not emit a round")
+}
+
