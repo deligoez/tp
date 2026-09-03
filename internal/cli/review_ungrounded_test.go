@@ -113,3 +113,15 @@ func TestReviewsExitCodeIsIdenticalWithAndWithoutUngroundedUnits(t *testing.T) {
 	assert.NotEqual(t, withRaw, withoutRaw, "the two payloads differ, so the exit codes are not trivially equal")
 }
 
+// TestTheUngroundedAdvisorySurvivesCompact: §9 puts the advisory on
+// `divergence`'s footing — one key in the envelope, absent rather than
+// zero-valued when there is nothing to say, surviving --compact. What --compact
+// drops is explanatory; this is the payload.
+func TestTheUngroundedAdvisorySurvivesCompact(t *testing.T) {
+	out, _ := reviewEnvelope(t, groundedFixture(t, 1), "--compact")
+
+	assert.Equal(t, map[string]any{
+		"round": float64(1), "undispositioned": float64(1), "floor_size": float64(2),
+	}, out["ungrounded"], "--compact does not drop it")
+}
+
