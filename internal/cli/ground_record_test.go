@@ -204,3 +204,29 @@ func TestGroundRecordWithNoPriorEmitExitsThree(t *testing.T) {
 	})
 }
 
+// TestARowFailingSection72IsRejectedAndWritesNoRoundFile is the acceptance's
+// second clause in the other direction: every row is validated against §7.2, and
+// one failure refuses the whole round.
+//
+// The bad row is §7.1's own named exit-1 input — `{kind: behaviour, tier: read,
+// verdict: PASS}` — and it sits SECOND, so an implementation validating only the
+// first row records this payload instead of refusing it.
+func TestARowFailingSection72IsRejectedAndWritesNoRoundFile(t *testing.T) {
+	dir := writeGroundFixture(t)
+	groundEmit(t, dir)
+	before := stateDirNames(t, dir)
+
+	bad := `{"unit_id":"u2","anchor":"§1","text_sha":"0123456789ab","ordinal":1,` +
+		`"verdict":"PASS","kind":"behaviour","tier":"read","evidence":"read internal/cli/ground.go"}`
+	rows := writeGroundRows(t, dir, groundRecordRow(1), bad)
+
+	stdout, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", rows)
+	require.Equal(t, 1, code, "stdout: %s stderr: %s", stdout, stderr)
+
+	envelope := groundErrorEnvelope(t, stderr)
+	assert.Equal(t, float64(1), envelope["code"])
+	message := fmt.Sprint(envelope["error"])
+	assert.Contains(t, message, "line 2", "the rejection places the row in the file the operator opens")
+	assert.Contains(t, message, "tier", "and names the cell of §7.2's table that failed")
+	assert.Equal(t, before, stateDirNames(t, dir), "one invalid row writes no round file (§11 row 10)")
+}
