@@ -125,3 +125,77 @@ func TestThePromptNamesUnitsAndMeasuresTheTextThatModePrints(t *testing.T) {
 	assert.NotContains(t, section, "is how you tell where it ends",
 		"and no longer says the byte count locates the unit's end in the snapshot")
 }
+
+// groundSHAForID returns the hash the emitted index carries for one unit_id.
+func groundSHAForID(t *testing.T, index []engine.FloorIndexRow, id string) string {
+	t.Helper()
+	for _, row := range index {
+		if row.ID == id {
+			return row.TextSHA
+		}
+	}
+	t.Fatalf("the index carries no row for %s", id)
+	return ""
+}
+
+// TestTheListingAndTheIndexAgreeOnlyWhileTheSpecHasNotMoved is §11 row 4c: the
+// two artifacts join on `unit_id` CONDITIONALLY, and the emission owes the
+// reader the check rather than the assurance.
+//
+// **The defect the row exists for.** `--units` reads the spec as it now stands
+// while the index was frozen at emission, and `unit_id` is numbered over every
+// unit §2.1 produces — so one sentence inserted above a unit renumbers every
+// unit below it (`groundcarry.go`'s `groundJoinKey`, which is why §8's key is
+// `(text_sha, ordinal)` and not the id). Measured end to end on a copy of this
+// release's own spec before the prompt was corrected: after the insert, the
+// listing's `u4` was the new sentence and the index's `u4` was the old one, a
+// row copying `unit_id`/`text_sha`/`ordinal` from the index while grading the
+// listing's text recorded at **exit 0**, and `--status --check` reported the
+// unit covered. `groundRowMatchesFloor` cannot see it — the cells ARE the
+// index's — so the only place it can be caught is before the grading.
+//
+// **The verdict is the two hash arms, not the prose.** They are bounded
+// read-backs over two derived artifacts, and together they say the prescribed
+// check is worth prescribing: it fires on the edit and is silent on the spec
+// the round emitted from. A prompt sentence is an unbounded text, so the
+// Contains/NotContains below is corroboration that this repair is still in it —
+// it catches the sentence being deleted or reverted, and nothing else.
+func TestTheListingAndTheIndexAgreeOnlyWhileTheSpecHasNotMoved(t *testing.T) {
+	const emitted = "# Fixture\n\n## 1. Claims\n\n" +
+		"The cap is `10` files here. The budget is 28800 seconds in every run.\n"
+	const edited = "# Fixture\n\n## 1. Claims\n\n" +
+		"A probe sentence measured 1 thing. " +
+		"The cap is `10` files here. The budget is 28800 seconds in every run.\n"
+
+	anchor := func(int) string { return "§1" }
+	index := engine.FloorIndexRows(emitted, anchor)
+	require.Len(t, index, 2, "the emitted index is the frozen artifact both arms are read against")
+
+	// The control. On the text the round emitted from, every id agrees on its
+	// hash — so a mismatch means the spec moved and never means the check is
+	// noisy. Without this arm the break arm passes under a `--units` that
+	// numbered over the floor alone, where the ids disagree unconditionally and
+	// the instruction would mean nothing.
+	unmoved := engine.FloorUnitRows(emitted)
+	require.Len(t, unmoved, 2)
+	for _, row := range unmoved {
+		require.Equal(t, groundSHAForID(t, index, row.ID), engine.FloorTextSHA(row.Text),
+			"unedited, the listing and the index agree on both cells at every id")
+	}
+
+	// The break. One sentence inserted above the floor's first unit.
+	listing := engine.FloorUnitRows(edited)
+	require.Len(t, listing, 3, "the inserted sentence carries a digit, so the arms keep it")
+	require.Equal(t, "A probe sentence measured 1 thing.", listing[0].Text)
+
+	assert.NotEqual(t, groundSHAForID(t, index, "u1"), engine.FloorTextSHA(listing[0].Text),
+		"the listing's u1 is now the inserted sentence, which the index's u1 does not name")
+	assert.Equal(t, groundSHAForID(t, index, "u1"), engine.FloorTextSHA(listing[1].Text),
+		"the sentence the index calls u1 has moved to u2 — the join holds on neither cell of that id")
+
+	section := groundFloorSectionOf(t, "spec.md")
+	assert.Contains(t, section, "COMPARE THE HASHES BEFORE YOU GRADE",
+		"the emission owes the reader the check, not the assurance")
+	assert.NotContains(t, section, "join on `unit_id` and agree on both cells. The snapshot",
+		"and no longer states the agreement unconditionally")
+}
