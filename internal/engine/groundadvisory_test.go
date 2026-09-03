@@ -149,3 +149,15 @@ func TestTwoRowsForOneUnitLeaveTheOtherUndispositioned(t *testing.T) {
 		LatestGroundAdvisory(specPath))
 }
 
+// TestAFloorNoLongerReadableSaysNothingRatherThanSomethingWrong: §9's advisory
+// never changes `tp review`'s exit code, so every failure it can meet is a
+// reason to stay silent rather than to report a count derived from a file it
+// could not read.
+func TestAFloorNoLongerReadableSaysNothingRatherThanSomethingWrong(t *testing.T) {
+	specPath := groundAdvisorySpec(t)
+	emitGroundFloor(t, specPath, 1, groundFloorWithACutUnit(t))
+	require.NotNil(t, LatestGroundAdvisory(specPath), "the fixture must have something to say first")
+
+	require.NoError(t, os.WriteFile(GroundFloorPath(specPath, 1), []byte("# commit c0ffee\nu1 §1 half\n"), 0o600))
+	assert.Nil(t, LatestGroundAdvisory(specPath), "an index that does not parse is not a count")
+}
