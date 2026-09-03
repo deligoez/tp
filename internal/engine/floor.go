@@ -794,9 +794,13 @@ func floorAnchorsByLine(text string) []string {
 // Block granularity and unit granularity differ only for a block whose lines
 // span a heading, which needs prose flush against the heading on both sides
 // (§2.1 step 2 splits on blank lines, and a dropped heading is not a boundary).
-// Measured over this repository's 54 specs: zero instances. A unit of such a
-// block can straddle the heading, so no per-unit answer exists for it; the
-// block keeps the section it opens in.
+// No spec in this repository supplies one — the headings that open flush against
+// the line above are each followed by a blank line — so the case is constructed
+// rather than found, in
+// TestABlockThatStraddlesADroppedHeadingKeepsTheSectionItOpensIn, whose
+// `require` on the block count is what keeps it the case under test. A unit of
+// such a block can straddle the heading, so no per-unit answer exists for it;
+// the block keeps the section it opens in.
 //
 // An index this text has no unit for answers "" rather than `§0`: `§0` is a
 // legal anchor and would ship as a structurally valid row, while §7.2 requires
