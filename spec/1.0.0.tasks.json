@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-03T00:50:32.142991Z",
+  "updated_at": "2026-09-03T01:01:03.534275Z",
   "workflow": {},
   "coverage": {
     "total_sections": 21,
@@ -259,7 +259,7 @@
     {
       "id": "causes-bound",
       "title": "a QUESTION carries three to five causes",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -271,11 +271,22 @@
       "source_sections": [
         "## 6. Ranked causes, facts, and not blocking"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-03T00:51:02.929968Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-03T01:01:03.507642Z",
+      "closed_reason": "- `causes` is an array of `{cause, prediction}` objects and each entry must carry both halves: groundCauses (internal/engine/groundrow.go) rejects an entry whose `cause` or whose `prediction` is absent or blank, through one groundCausePair applied to EVERY entry, not the first. The defective entry sits last in one fixture, in the middle in another and first in a third, so a loop checking only the entry it reaches first fails two of the three — observed, red on exactly those two under a first-entry-only mutant. This is also what catches a misspelled key inside an entry: §7.2's unknown-key rule is stated for top-level keys, so `{\"cause\": …, \"predicton\": …}` is not an unknown key, it is an entry with no prediction. Two mutants observed red per half: the prediction check disabled (2 cases) and the cause check disabled (1 case), plus the whole per-entry loop disabled (4 cases).\n- Lengths 2 and 6 are rejected, 3 and 5 accepted: `groundCausesMin = 3` / `groundCausesMax = 5`, checked at decode so a bad count never reaches the row. TestTheCauseCountBoundIsThreeToFive sweeps 0 through 8 and states the verdict for each rather than sampling, because \"3 and 5 are accepted\" is satisfied by every bound containing them. Both off-by-ones observed red on exactly their own boundary — `\u003c=` at the lower end reddens only the two 3-cause cases, `\u003e=` at the upper end only the two 5-cause ones — and each half of the bound observed red alone (upper deleted: 6, 7, 8; lower deleted: 0, 1, 2).\n- §11 row 8 passes and its 1–10 mutant fails it: run against the shipped bound the row's four inputs pass; with the constants set to 1 and 10, `2 causes`, `6 causes`, `7 causes`, `8 causes` and `1 causes` go red in the sweep, the two rejection cases go red, and TestTheCauseBoundIsTheOneTheSpecStates goes red as well. That third test is what stops the bound being a number nobody re-reads: it parses the two numbers back out of spec/1.0.0.md everywhere the document states them — §6's prose, §3's verdict table and §7.2's field table, three sites confirmed by count — maps the number words, and requires all of them to agree with each other and with the constants. Gate green on all four steps at the closing tree.\n- Out of scope: the doc comment on GroundCause said the entry count and contents were \"not decided here\", which this task falsified; it is rewritten in place rather than left standing.",
+      "gate_passed_at": "2026-09-03T01:01:03.507642Z",
+      "commit_sha": "a1e258ef",
+      "commit_shas": [
+        "a1e258ef",
+        "c1be3627",
+        "62bf9328",
+        "1b9d4108"
+      ],
+      "commit_files": [
+        "internal/engine/groundrow.go",
+        "internal/engine/groundrow_test.go"
+      ]
     },
     {
       "id": "record-atomic",
