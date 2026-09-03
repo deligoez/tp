@@ -34,12 +34,16 @@ type GroundCoverage struct {
 	// end-to-end run's five added claims were cut units — or an id the index
 	// never emitted.
 	//
-	// §8 names one separate count, keyed on `unit_id: null`, and §2.2 says a
-	// cut unit a reader grounds "is a reader-added row". Those two sentences
-	// cannot both be read into one counter without one of them bending, so the
-	// case §8's parenthetical does not reach gets its own number rather than
-	// being folded into `ReaderAdded` or, worse, counted nowhere: a row that no
-	// counter sees is a row an operator cannot find.
+	// §8 now names this count in its own right — "three counts sit beside the
+	// ratio, not two" — and separates it from `ReaderAdded` because the two are
+	// evidence about different halves of §2.1: the arms never produced this
+	// unit, against the arms produced it and then cut it and the cut was wrong.
+	//
+	// It did not say that when this field was written. §8 named one separate
+	// count keyed on `unit_id: null` while §2.2 said a cut unit a reader grounds
+	// "is a reader-added row" — and since a cut unit HAS an id, such a row
+	// satisfied neither sentence and would have been counted nowhere. This field
+	// is what forced the repair, so the field predates the rule it now cites.
 	OffFloor int
 }
 
