@@ -827,7 +827,7 @@ dropped. Blank lines are skipped; every other line is a row. **An unknown top-le
 | `partial_kind` | enum | iff verdict is `PARTIAL` | `two-readings`, `reason-not-conclusion`, `true-when-written` |
 | `held_at` | string | iff `partial_kind` is `true-when-written` | the commit, tag or date at which the claim held |
 | `causes` | array | iff verdict is `QUESTION` | three to five `{cause, prediction}` objects, ranked. Both halves are required in **every** entry, and a count of 2 or of 6 is rejected |
-| `carried_from` | integer | no | the round the disposition was **first** decided in, which is not in general the preceding round. Written by the carry when it is absent — but **descriptive**, not owned: a row that supplies its own value keeps it, and the carry does not overwrite it. The type and a 1-based floor are enforced; the value's relation to its round is not, because nothing downstream reads it (§7.2) |
+| `carried_from` | integer | no | the round the disposition was **first** decided in, which is not in general the preceding round. Written by the carry when it is absent — but **descriptive**, not owned: a row that supplies its own value keeps it, and the carry does not overwrite it. The type and a 1-based floor are enforced; the value's relation to its round is not (§7.2) |
 | `note` | string | no | free text |
 
 **Validation is atomic.** The whole payload is parsed before anything is opened, created or
