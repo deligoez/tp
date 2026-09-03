@@ -31,6 +31,15 @@ type GroundStatus struct {
 	Round int
 	// Coverage is §8's ratio and its two off-ratio counts.
 	Coverage GroundCoverage
+	// Cut is how many units of the emitted index the arms dropped (§2.2: the
+	// absence of the hash is the cut). It is NOT part of §8's ratio — a cut
+	// unit owes no disposition and is neither numerator nor denominator.
+	//
+	// It is here for one question the ratio cannot answer: whether a
+	// denominator of zero means the arms dropped everything or §2.1 produced
+	// nothing. `0 in floor, 4 cut` and `0 in floor, 0 cut` are both 0-of-0 to
+	// coverage, and only the first is a document nobody checked.
+	Cut int
 	// ByVerdict counts the round's recorded rows by §3's verdict, and carries
 	// all six every time — zeros included.
 	//
@@ -73,9 +82,16 @@ func LatestGroundStatus(specPath string) (*GroundStatus, error) {
 		return nil, err
 	}
 
+	cut := 0
+	for i := range floor {
+		if floor[i].TextSHA == "" {
+			cut++
+		}
+	}
 	return &GroundStatus{
 		Round:     round,
 		Coverage:  GroundCoverageOf(floor, rows),
+		Cut:       cut,
 		ByVerdict: groundVerdictCounts(rows),
 	}, nil
 }
