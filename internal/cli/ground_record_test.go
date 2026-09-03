@@ -68,9 +68,17 @@ func writeGroundRows(t *testing.T, dir string, lines ...string) string {
 // than on a substring of a sentence.
 func groundErrorEnvelope(t *testing.T, stderr string) map[string]any {
 	t.Helper()
+	// The envelope is the LAST line, not the whole stream. stderr is also
+	// output.Notice's channel, so a command that has something to say before it
+	// fails writes a plain-text line first -- `--units --json` does exactly
+	// that. Parsing the whole of stderr made every such command untestable
+	// through this helper, and the failure looked like a broken error envelope
+	// rather than a helper that had assumed one writer.
+	lines := strings.Split(strings.TrimSpace(stderr), "\n")
+	last := lines[len(lines)-1]
 	var envelope map[string]any
-	require.NoError(t, json.Unmarshal([]byte(strings.TrimSpace(stderr)), &envelope),
-		"stderr is one JSON error envelope under --json: %q", stderr)
+	require.NoError(t, json.Unmarshal([]byte(last), &envelope),
+		"stderr's last line is the JSON error envelope under --json: %q", stderr)
 	return envelope
 }
 
