@@ -220,11 +220,14 @@ func TestTheListingAndTheIndexAgreeOnlyWhileTheSpecHasNotMoved(t *testing.T) {
 	// why that is not hypothetical. So the condition has to travel with the
 	// instruction, not only with the explanation.
 	//
-	// The subject is bounded — the whole of groundPromptRow's return value, not
-	// a window into an unbounded text — which is what keeps this out of the
-	// shape §11 row 4c's own comment warns about. It is still only a reversion
-	// detector: it catches the clause being deleted or the old wording coming
-	// back, and it cannot see a third sentence added below that contradicts it.
+	// This is only a reversion detector: it catches the clause being deleted or
+	// the old wording coming back, and it cannot see a third sentence added
+	// below that contradicts it. That limit is measured rather than reasoned —
+	// appending a paragraph to groundPromptRow's output telling the reader the
+	// comparison is a formality and to copy the cells unchanged leaves the whole
+	// package green. The return is a built string and not a constant, so there
+	// is an elsewhere for a negation to sit, which is the shape §11 row 4c's own
+	// comment warns about.
 	row := groundPromptRow("spec.md", ".tp-review/spec/snapshot-ground-round-1.md", 1)
 	assert.Contains(t, row, "and copy them only once the floor section's hash",
 		"the copy instruction carries the condition where the copying is asked for")
