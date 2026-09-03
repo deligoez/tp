@@ -98,6 +98,15 @@ const groundStatusEmitHint = "emit the round first: tp ground %s — --status re
 // both about that prompt's schema.
 const groundRecordRowHint = "fix the row the message names in the --record NDJSON, or record a file holding at least one row: every non-blank line is one JSON object carrying one floor unit's disposition"
 
+// groundCarrySourceHint answers the one failure whose subject is neither the
+// operator's file nor this round: §8 reads the immediately preceding round to
+// carry its dispositions forward, and that file is tp's own.
+//
+// It names the recovery rather than the cell, because there is no cell to fix —
+// the round file was written by an earlier --record and the operator's only
+// levers are the artifact itself and re-recording the round that wrote it.
+const groundCarrySourceHint = "the preceding ground round's file is tp's own artifact and could not be read back: restore or re-record spec/.tp-review/<base>/ground-round-<N-1>.ndjson — §8 carries its dispositions into this round"
+
 func newGroundCmd() *cobra.Command {
 	var (
 		recordPath string
@@ -411,10 +420,23 @@ func recordGroundRoundLocked(specPath, recordPath string) error {
 //
 // A row that fails §7.2's table and a file holding no rows are both refusals of
 // what the operator handed in, so both are validation (exit 1); the two are told
-// apart by their types rather than by their wording. Anything else reached the
-// state layer, where exitStateError already separates corrupt state (3) from a
-// write lock it could not take (4).
+// apart by their types rather than by their wording. A preceding round tp could
+// not read back is not one of those — the operator's file is fine and the broken
+// artifact is tp's own — so it takes exit 3, the code §7.1 gives a file that
+// cannot be used. Anything else reached the state layer, where exitStateError
+// already separates corrupt state (3) from a write lock it could not take (4).
 func exitGroundRecordError(err error) {
+	// The carry's own failure is checked FIRST, and the order is the assertion.
+	// A *GroundCarryError wraps whatever reading the preceding round failed on,
+	// which for a truncated round file is a *GroundLineError — so the branch
+	// below matches it too, and would send the operator to fix a line of a file
+	// they did not write and cannot see from the message.
+	var carryErr *engine.GroundCarryError
+	if errors.As(err, &carryErr) {
+		output.Error(ExitFile, err.Error(), groundCarrySourceHint)
+		os.Exit(ExitFile)
+		return
+	}
 	var lineErr *engine.GroundLineError
 	if errors.As(err, &lineErr) || errors.Is(err, engine.ErrGroundRoundEmpty) {
 		output.Error(ExitValidation, err.Error(), groundRecordRowHint)
