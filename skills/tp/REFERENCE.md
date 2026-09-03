@@ -776,7 +776,14 @@ site is within a few lines of an `os.Exit`, with no exceptions — so when an en
 stderr's **last** line. Parse the last line for `code`; read anything above it as notices.
 
 `by_verdict` carries all six verdicts, zeros included, and counts **every row the round recorded** —
-its total is `dispositioned` plus `reader_added` plus `off_floor`, not `dispositioned` alone.
+so it is larger than `dispositioned` alone, which counts only floor units. **The two sides count
+different things and are not an identity: `by_verdict` counts ROWS, `dispositioned` counts UNITS.**
+Nothing stops two rows from naming the same floor unit, and then the totals separate. Measured on a
+377-unit floor: a round of two rows naming two units records `dispositioned 2` and a `by_verdict`
+total of 2; adding a third row naming the first unit again records at exit 0 with `dispositioned 2`
+and a `by_verdict` total of **3**, `reader_added` and `off_floor` both 0. So read the sum as
+`dispositioned` plus `reader_added` plus `off_floor` **plus any repeat rows**, or do not sum it at
+all — each verdict's own count is what it is for.
 `reader_added` counts rows whose `unit_id` is `null`; `off_floor` counts rows naming a unit the index
 emitted as `(cut)`. Neither moves either side of the ratio, and they are two counts rather than one
 because they are evidence about different halves of the derivation: *the arms never produced this
