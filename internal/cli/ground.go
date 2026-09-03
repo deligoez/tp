@@ -133,6 +133,18 @@ const groundRecordEmptyHint = "record a file holding at least one row, or ground
 // It names the recovery rather than the cell, because there is no cell to fix —
 // the round file was written by an earlier --record and the operator's only
 // levers are the artifact itself and re-recording the round that wrote it.
+// groundRecordFileHint is the third of --record's hints to be carved out of the
+// shared constant, and it is carved out for the reason the two above it were.
+//
+// recordFileMissingHint names "the NDJSON results file the reviewers/auditors
+// wrote, not the spec or the task file". Grounding has neither role — §7.1
+// emits ONE prompt and Non-Goal 4 says why there is no panel — and no task
+// file is involved in this mode at all, so the shared sentence sent an operator
+// looking for artifacts nothing in this command produces. It says instead where
+// the file this mode wants comes from: the scratch path the emission's own
+// `output_path` named.
+const groundRecordFileHint = "check the --record path — this flag takes the NDJSON dispositions file the ground prompt's unit wrote to the emission's output_path, not the spec and not the floor"
+
 const groundCarrySourceHint = "the preceding ground round's file is tp's own artifact and could not be read back: restore or re-record spec/.tp-review/<base>/ground-round-<N-1>.ndjson — §8 carries its dispositions into this round"
 
 // groundStateDirError is the one refusal both writing modes make for the same
@@ -629,7 +641,7 @@ func recordGroundRoundLocked(specPath, recordPath string) {
 
 	data, err := os.ReadFile(recordPath)
 	if err != nil {
-		output.Error(ExitFile, fmt.Sprintf("cannot read dispositions file: %s: %v", recordPath, err), recordFileMissingHint)
+		output.Error(ExitFile, fmt.Sprintf("cannot read dispositions file: %s: %v", recordPath, err), groundRecordFileHint)
 		os.Exit(ExitFile)
 		return
 	}
