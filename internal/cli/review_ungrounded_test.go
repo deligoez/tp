@@ -93,3 +93,23 @@ func TestReviewCarriesTheUngroundedAdvisoryOnceInTheEnvelope(t *testing.T) {
 		"once in the envelope, never one copy per role — the reader is the operator, not the role")
 }
 
+// TestReviewsExitCodeIsIdenticalWithAndWithoutUngroundedUnits is §11 row 17's
+// first half, and Non-Goal 3: review is told, and not stopped.
+//
+// The two runs are asserted to actually DIFFER in the advisory before their exit
+// codes are compared. Without that, the equality is a statement about two runs
+// that were the same, which is the shape this claim is easiest to fake.
+func TestReviewsExitCodeIsIdenticalWithAndWithoutUngroundedUnits(t *testing.T) {
+	withUnits, withRaw := reviewEnvelope(t, groundedFixture(t, 1))
+	withoutUnits, withoutRaw := reviewEnvelope(t, groundedFixture(t, 2))
+
+	require.Contains(t, withUnits, "ungrounded", "the open fixture must have something to say")
+	require.NotContains(t, withoutUnits, "ungrounded", "and the grounded one must not")
+
+	_, _, openCode := runTP(t, groundedFixture(t, 1), "review", "spec.md")
+	_, _, closedCode := runTP(t, groundedFixture(t, 2), "review", "spec.md")
+	assert.Equal(t, closedCode, openCode, "the exit code is identical with and without ungrounded units")
+	assert.Equal(t, 0, openCode)
+	assert.NotEqual(t, withRaw, withoutRaw, "the two payloads differ, so the exit codes are not trivially equal")
+}
+
