@@ -51,13 +51,29 @@ var (
 // struct rather than free text because §6's whole point is that a record can be
 // checked for a prediction.
 //
-// How many entries are legal, and what each must carry, is §6's bound and is
-// not decided here — this file decides only that `causes` is an array of these
-// and that it appears exactly on a `QUESTION` row.
+// How many entries are legal, and that each must carry both halves, is §6's
+// bound and is enforced in groundCauses below; a previous revision of this
+// comment said neither was decided here, which stopped being true when the
+// bound landed.
 type GroundCause struct {
 	Cause      string `json:"cause"`
 	Prediction string `json:"prediction"`
 }
+
+// groundCausesMin and groundCausesMax are §6's bound: "name three to five
+// falsifiable causes and rank them", restated as `causes`' meaning in §7.2's
+// table and in §3's verdict table.
+//
+// Both ends are load-bearing and neither is a round number chosen for tidiness.
+// The lower one is the rule itself — the point of §6 is that single-cause
+// reasoning anchors on the first plausible idea, so a list of two is the
+// failure mode with one extra entry. The upper one is what stops the list
+// becoming a place to put everything that was thought of, which is not a
+// ranking.
+const (
+	groundCausesMin = 3
+	groundCausesMax = 5
+)
 
 // GroundRow is one line of `ground-round-N.ndjson`: §7.2's field table as a
 // type.
@@ -391,5 +407,38 @@ func groundCauses(raw map[string]json.RawMessage) ([]GroundCause, error) {
 	if err := json.Unmarshal(msg, &cs); err != nil || cs == nil {
 		return nil, groundRowErr("causes", "must be an array of {cause, prediction} objects")
 	}
+	if len(cs) < groundCausesMin || len(cs) > groundCausesMax {
+		return nil, groundRowErr("causes", fmt.Sprintf(
+			"must hold %d to %d causes, not %d", groundCausesMin, groundCausesMax, len(cs)))
+	}
+	for i, c := range cs {
+		if err := groundCausePair(i, c); err != nil {
+			return nil, err
+		}
+	}
 	return cs, nil
+}
+
+// groundCausePair enforces that one entry is a `{cause, prediction}` pair
+// rather than an object that merely decoded into one.
+//
+// Both halves are checked, because §6's rule is the pairing: "a cause with no
+// prediction is a vibe", and the pair is a struct so that "a record can be
+// checked for one". Absent and blank fail alike, for the reason groundText
+// gives — and here the two are not even distinguishable to a reader of the
+// record, since neither survives into the row as anything but "".
+//
+// This is also the only thing that catches a misspelled key inside an entry.
+// §7.2's unknown-key rule is stated for top-level keys, so `{"cause": …,
+// "predicton": …}` is not rejected as an unknown key; it is rejected because
+// the entry then carries no prediction.
+func groundCausePair(i int, c GroundCause) error {
+	if strings.TrimSpace(c.Cause) == "" {
+		return groundRowErr("causes", fmt.Sprintf("entry %d carries no cause", i+1))
+	}
+	if strings.TrimSpace(c.Prediction) == "" {
+		return groundRowErr("causes", fmt.Sprintf(
+			"entry %d carries no prediction, and a cause with no prediction is a vibe", i+1))
+	}
+	return nil
 }
