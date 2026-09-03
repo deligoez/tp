@@ -165,3 +165,47 @@ func TestStatusDistinguishesARoundOfFailsFromARoundOfPassesAtIdenticalCoverage(t
 	assert.Equal(t, float64(units), groundStatusVerdicts(t, passed)["PASS"])
 }
 
+// TestStatusCarriesEverySixVerdictsSoTheNotAClaimShareIsReadable is §8's "the
+// NOT-A-CLAIM share is the first number to read": the breakdown names all six
+// of §3's verdicts every time, so a zero is a zero rather than a key the reader
+// has to know the meaning of the absence of, and the share is the two integers
+// `by_verdict["NOT-A-CLAIM"]` and `emitted` sitting on one object.
+//
+// The six are taken from engine.GroundVerdicts() rather than written out, so a
+// verdict added to §3 without a place in the breakdown fails here.
+func TestStatusCarriesEverySixVerdictsSoTheNotAClaimShareIsReadable(t *testing.T) {
+	const units, notAClaim = 84, 48
+
+	dir := groundWideFixture(t, units)
+	groundEmit(t, dir)
+	emitted, _ := groundFloorIDs(t, dir, 1)
+	require.Len(t, emitted, units)
+
+	verdicts := make([]string, units)
+	for i := range verdicts {
+		verdicts[i] = "PASS"
+		if i < notAClaim {
+			verdicts[i] = "NOT-A-CLAIM"
+		}
+	}
+	status := recordGroundVerdicts(t, dir, emitted, verdicts)
+	byVerdict := groundStatusVerdicts(t, status)
+
+	names := make([]string, 0, len(engine.GroundVerdicts()))
+	for _, v := range engine.GroundVerdicts() {
+		names = append(names, string(v))
+	}
+	present := make([]string, 0, len(byVerdict))
+	for name := range byVerdict {
+		present = append(present, name)
+	}
+	assert.ElementsMatch(t, names, present,
+		"the breakdown names every one of §3's six verdicts, zeros included")
+
+	assert.Equal(t, float64(notAClaim), byVerdict["NOT-A-CLAIM"])
+	assert.Equal(t, float64(units-notAClaim), byVerdict["PASS"])
+	assert.Equal(t, float64(0), byVerdict["FAIL"], "a verdict nobody recorded reports 0 and is not absent")
+	assert.Equal(t, float64(units), status["emitted"],
+		"the share's denominator is the emitted floor, on the same object as its numerator")
+}
+
