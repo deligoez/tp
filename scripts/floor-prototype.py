@@ -51,11 +51,12 @@ TABLE_MARK = "﻿TBL"
 def table_row_unit(line):
     """A table DATA row, canonicalised into one unit.
 
-    Measured, and this is why the rule exists: table rows are **22% of this
-    corpus's candidate content and up to 60% of an individual spec** (36% of
-    spec/1.0.0.md itself). Dropping them made §8's coverage a ratio over two
-    thirds of a document reported as complete, and the first end-to-end run of
-    the protocol found a FAIL in a table that produced no floor unit at all —
+    Measured, and this is why the rule exists: table rows are a large and uneven
+    share of the floor -- run this script for the current numbers rather than
+    reading them here, because three glob figures stood in this docstring and
+    every one of them had drifted. Dropping table rows made section 8's coverage
+    a ratio over prose alone, reported as complete, and the first end-to-end run
+    of the protocol found a FAIL in a table that produced no floor unit at all --
     "a floor that cannot see a table cannot hold anyone to it".
 
     Cells are joined with an em dash so the row reads as one sentence; the three
