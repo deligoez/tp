@@ -150,3 +150,45 @@ func TestGroundEmitNamesTheScratchFileAndNotTheRecordedRound(t *testing.T) {
 	}, stateDirNames(t, dir), "round 2's emission writes beside round 1's artifacts, not over them")
 }
 
+// TestTheFloorOnDiskIsFrozenUntilTheNextEmission is §11 row 19: the snapshot
+// and the floor are written at EMIT, so editing the spec afterwards cannot
+// change what a later --record validates against. Row 19's named mutant —
+// write the snapshot at record — leaves both files absent here.
+//
+// The require in the middle is what makes the assertion discriminating: an
+// edit whose floor is identical to the original's would let a re-derivation
+// pass this test. The fixture asserts that its own edit moves the floor rather
+// than assuming it.
+func TestTheFloorOnDiskIsFrozenUntilTheNextEmission(t *testing.T) {
+	dir := writeGroundFixture(t)
+	groundEmit(t, dir)
+
+	snapshotPath := filepath.Join(dir, ".tp-review", "spec", "snapshot-ground-round-1.md")
+	floorPath := filepath.Join(dir, ".tp-review", "spec", "floor-ground-round-1.txt")
+	emitted, err := os.ReadFile(floorPath)
+	require.NoError(t, err)
+
+	edited := groundFixtureSpec + groundFixtureEdit
+	require.NotEqual(t, expectedFloorIndex(edited), string(emitted),
+		"the edit must move the floor, or this test cannot tell the two derivations apart")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(edited), 0o600))
+
+	frozen, err := os.ReadFile(floorPath)
+	require.NoError(t, err)
+	assert.Equal(t, string(emitted), string(frozen), "editing the spec does not re-floor the emitted round")
+	snapshot, err := os.ReadFile(snapshotPath)
+	require.NoError(t, err)
+	assert.Equal(t, groundFixtureSpec, string(snapshot), "the snapshot still holds the text the round read")
+
+	// The one thing that does move it: emitting again. Nothing has been
+	// recorded, so this is round 1 a second time, and both artifacts are
+	// rewritten from the spec as it now stands.
+	groundEmit(t, dir)
+	reEmitted, err := os.ReadFile(floorPath)
+	require.NoError(t, err)
+	assert.Equal(t, expectedFloorIndex(edited), string(reEmitted), "a re-emission of the same round re-floors it")
+	snapshot, err = os.ReadFile(snapshotPath)
+	require.NoError(t, err)
+	assert.Equal(t, edited, string(snapshot), "and rewrites the snapshot beside it")
+}
+
