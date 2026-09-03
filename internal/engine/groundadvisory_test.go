@@ -117,3 +117,20 @@ func TestAnEmittedRoundNobodyRecordedIsWhollyUndispositioned(t *testing.T) {
 		LatestGroundAdvisory(specPath))
 }
 
+// TestTheAdvisoryIsTheLatestRoundAndNotTheFirst: round 1 is complete and round
+// 2 has been emitted and not recorded, which is the only arrangement in which
+// the two readings give different answers — the first round says nothing, the
+// latest says everything is open.
+func TestTheAdvisoryIsTheLatestRoundAndNotTheFirst(t *testing.T) {
+	specPath := groundAdvisorySpec(t)
+	floor := groundFloorWithACutUnit(t)
+	emitGroundFloor(t, specPath, 1, floor)
+	recordGroundDispositions(t, specPath, 1, floor[0], floor[2])
+	require.Nil(t, LatestGroundAdvisory(specPath), "round 1 alone is complete")
+
+	emitGroundFloor(t, specPath, 2, floor)
+
+	assert.Equal(t, &GroundAdvisory{Round: 2, Undispositioned: 2, FloorSize: 2},
+		LatestGroundAdvisory(specPath))
+}
+
