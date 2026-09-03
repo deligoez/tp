@@ -827,9 +827,15 @@ func TestTheVerbArmMatchesWholeWordsOnly(t *testing.T) {
 //
 // The fold is not a convenience. A claim's measurement verb is routinely its
 // sentence's FIRST word, so a case-sensitive arm cuts exactly the sentences the
-// arm exists to catch: over `spec/*.md` nine units reach the floor only through
-// it, and every fixture below is one of them, taken verbatim from a spec in this
-// repository rather than written for the test.
+// arm exists to catch.
+//
+// How many units that is over `spec/*.md` is deliberately not stated. It is a
+// glob figure, it moves with every spec written, and the two comments either
+// side of this one had theirs deleted for that reason while this one survived
+// the sweep. What is checkable is here instead: each fixture below was taken
+// from a spec in this repository rather than written for the test, and the
+// `require`s in the loop pin the property that makes it discriminating — the
+// verb is not spelled the table's way, so a case-sensitive arm would cut it.
 func TestTheVerbArmIgnoresCase(t *testing.T) {
 	for _, unit := range []string{
 		"Measured while implementing: it can.",

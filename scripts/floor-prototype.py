@@ -183,11 +183,16 @@ def in_floor(unit):
         return "digit"
     # A SPAN, not a lone backtick. `"`" in unit` was this script's reading and
     # the Go port refuted it against §2.1's wording, which is the direction that
-    # check is supposed to run in. The two disagree on 21 of this corpus's 7,368
-    # units — 16 of them in the floor under one reading and cut under the other —
-    # and every one is the same shape: a code span whose two delimiters landed in
-    # different units because step 4 split between them. A lone delimiter is the
-    # wreckage of a span, not a span.
+    # check is supposed to run in. No corpus size is stated here: a glob figure
+    # stood in this line as the denominator and had drifted by more than a
+    # hundred units before anyone re-ran it — the same class `table_row_unit`'s
+    # docstring above had swept out of it one commit earlier, left behind here.
+    #
+    # What the readings disagree ABOUT is checkable on any tree and does not
+    # rot: every disagreeing unit holds an ODD number of backticks. It is a code
+    # span whose two delimiters landed in different units because step 4 split
+    # between them, so one reading sees an identifier and the other sees the
+    # wreckage of one. A lone delimiter is the wreckage of a span, not a span.
     if CODE_SPAN.search(unit):
         return "identifier"
     low = unit.lower()
