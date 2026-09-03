@@ -98,10 +98,15 @@ carry both empty), and an unrepaired `FAIL` carries forward for as long as its s
 Carrying is not forgetting: a carried unit is deliberately not re-asked, which is that same rule seen
 from the emitting end.
 
-**`--check` gates on coverage and on nothing else.** A round of nothing but `FAIL`s is fully covered
-and exits 0. That is why `--status` reports the per-verdict breakdown beside
-the ratio: coverage answers *did anyone look*, the breakdown answers *what did they find*. Read the
-`NOT-A-CLAIM` share first, because it bounds what the ratio can mean on a decisions document.
+**`--check` gates on two conditions and on nothing else.** Exit 1 when a unit of the emitted floor
+carries no disposition — and exit 1 **also** when the emitted floor is empty while `cut` is
+positive, because `0 < 0` is false and coverage alone would certify a document whose every sentence
+the arms dropped. So exit 1 here is not always undercoverage: read `cut` before hunting for
+undispositioned units that may not exist. `emitted: 0, cut: 0` is honestly covered and exits 0, and
+so does a round of nothing but `FAIL`s — a fully covered round. That is why `--status` reports the
+per-verdict breakdown beside the ratio: coverage answers *did anyone look*, the breakdown answers
+*what did they find*. Read the `NOT-A-CLAIM` share first, because it bounds what the ratio can mean
+on a decisions document.
 
 **Grounding is a command an operator runs, not a phase.** `tp resume` reports no `ground` phase and
 `tp run` has no ground unit kind, by design — so nothing schedules a round for you. The signal that a
