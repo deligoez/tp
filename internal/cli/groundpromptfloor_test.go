@@ -86,9 +86,11 @@ func TestACutUnitIsGroundedUnderItsOwnIdAndNotUnderNull(t *testing.T) {
 // and called `<bytes>` "how you tell where it ends". A unit is canonicalised, so
 // it is generally not a byte range of any file: the fixture below wraps one
 // sentence across two blockquoted lines, and the canonical unit is then not a
-// substring of the source at all — measured at scale on `spec/1.0.0.md`, 327 of
-// 351 units. The index's own byte count is a length of the CANONICAL text, which
-// is what `--units` prints, and the two agreeing is §11 row 4b's shipped test.
+// substring of the source at all — at scale on `spec/1.0.0.md` that is most of
+// the floor, and groundPromptFloor's doc carries the derivation rather than a
+// number, because two runs a few hours apart disagreed while the spec moved
+// under them. The index's own byte count is a length of the CANONICAL text,
+// which is what `--units` prints, and the two agreeing is §11 row 4b's test.
 //
 // The flag assertion is a read-back on the command tp actually registers, not a
 // search for the word: a prompt naming a mode that does not exist is worse than

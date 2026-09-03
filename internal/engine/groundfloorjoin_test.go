@@ -47,8 +47,10 @@ func groundFloorJoinFloor(t *testing.T) []FloorIndexRow {
 //     nobody dispositioned — while the prompt told the next unit not to decide
 //     it.
 //
-// The second is the worse of the two and is reachable in the corpus: 9 of 5,396
-// floor units across this repository's 54 specs carry `ordinal > 1`.
+// The second is the worse of the two and is reachable in the corpus — 9 index
+// rows across four of this repository's specs carry `ordinal > 1`, and
+// groundRowMatchesFloor's doc carries the derivation and why the denominator is
+// not quoted with it.
 //
 // **Neither input alone is enough**, which is §11 row 18c's own clause and the
 // reason there are three refused arms rather than two. A check comparing the
