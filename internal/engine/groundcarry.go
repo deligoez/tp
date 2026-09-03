@@ -87,6 +87,25 @@ func groundCarryForward(floor []FloorIndexRow, prev []GroundRow, prevRound int, 
 			continue
 		}
 		key := groundJoinKey{textSHA: row.TextSHA, ordinal: row.Ordinal}
+		// FIRST WINS on a repeated key, and the round it came from keeps both
+		// rows. `--record` accepts more than one row for a unit, so round N-1
+		// can hold two dispositions under one `(text_sha, ordinal)` while round
+		// N has room for exactly one — this is where that is decided, and it
+		// was the only decision in this function with nothing saying so.
+		//
+		// Measured through the commands on a copy of `spec/1.0.0.md`: a round-1
+		// file of `u1 PASS`, `u2 PASS`, `u1 FAIL` records at exit 0 with all
+		// three rows written, and round 2 carries `u1` as PASS. The FAIL is not
+		// destroyed — round N-1's file is what a reader goes back to and still
+		// holds it — but it does not reach round N, and round N's file does not
+		// say a second disposition existed.
+		//
+		// First rather than last, because emission order is how this package
+		// reads a round's file everywhere else; a silent preference for the last
+		// row would make the carry the one place order runs backwards. Refusing
+		// the repeat is the stronger answer and is deliberately NOT taken here:
+		// it is a change at `--record`, where the second row is accepted, and
+		// not at the carry, which only ever sees what that sink let through.
 		if _, seen := source[key]; !seen {
 			source[key] = row
 		}
