@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-03T01:58:45.437822Z",
+  "updated_at": "2026-09-03T02:22:28.427567Z",
   "workflow": {},
   "coverage": {
     "total_sections": 21,
@@ -522,7 +522,7 @@
     {
       "id": "cmd-record",
       "title": "tp ground --record validates against the recorded floor",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli"
       ],
@@ -538,11 +538,36 @@
         "### 7.1 Invocations and exit codes",
         "### 7.2 The row"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-03T01:59:31.817975Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-03T02:22:28.355243Z",
+      "closed_reason": "- `tp ground \u003cspec\u003e --record \u003cfile\u003e` (runGroundRecord, internal/cli/ground.go) reads engine.GroundFloorPath's file for the round NextGroundRound answers and never opens the spec: TestGroundRecordReadsTheEmittedFloorAndNotTheCurrentSpec asserts both directions in one test, because neither is decidable from the other — with the floor deleted and the spec still present it exits 3, and with the spec deleted and the floor present it records. Observed red under the named mutant (read specPath instead of floorPath), which reddens BOTH halves plus the three no-prior-emit cases, and under the floor gate deleted, which reddens four subtests and leaves \"the spec is gone\" green.\n- Every row goes through engine.RecordGroundRound, so §7.2's table decides the round before anything is opened: TestARowFailingSection72IsRejectedAndWritesNoRoundFile feeds §7.1's own named exit-1 input {kind: behaviour, tier: read, verdict: PASS} as the SECOND row, gets exit 1 naming line 2 and the tier cell, and asserts the state directory listing is unchanged. exitGroundRecordError maps the failure by type (errors.As on *GroundLineError, errors.Is on ErrGroundRoundEmpty), not by wording; observed red with the whole branch disabled (row failure and both empty cases) and, strictly narrower, with only the errors.Is arm dropped (the two empty cases alone), which is what shows the two arms are separately load-bearing.\n- The round file is written beside the emission and the state directory gains nothing else: TestGroundRecordWritesTheRoundFileBesideTheEmission asserts the listing as a SET — floor, round file, snapshot, no state.json — and that the recorded bytes equal the payload's. engine.GroundRoundPath is now the one spelling of that name, exported beside GroundSnapshotPath/GroundFloorPath so the engine's writer and the CLI's reported path cannot disagree.\n- A record holding no rows is refused between the parse and the write (ErrGroundRoundEmpty, internal/engine/groundrecord.go) and exits 1: asserted at both layers over the only two shapes \"no rows\" takes — an empty file and a file of blank lines. \"Takes no round number\" is a measurement, not a hope: the engine test digests the directory before and after and re-checks NextGroundRound, and the CLI test re-emits and requires round 1 again. Two mutants observed: the check deleted (all four subtests red), and the check keyed on len(data) instead of len(rows), which reddens the blank-lines subtests ALONE and is the boundary proving the rule reads the parsed rows.\n- `--record` with no prior emit exits 3 with a hint naming `tp ground \u003cspec\u003e`, over the two shapes it takes in a real flow — no state directory at all, and a previous round recorded without a second emission (TestGroundRecordWithNoPriorEmitExitsThree). The floor is checked before the payload is read so an operator who emitted nothing is told that; the ordering is asserted by the third subtest, and a mutant swapping the two reads reddens EXACTLY that one. A first attempt at that mutant was a no-op (the blocks were already adjacent in the order I \"swapped\" them) and the empty git diff caught it before any verdict was read.\n- Surface and docs updated in the same task the flag lands in: v100Surface reads `ground: record`; SKILL.md's inventory gains a `tp ground` row and a `tp ground --record` row (TestSkillFlagInventoryIsComplete failed until it did, which is how tp ground's total absence from SKILL.md was found); and that SKILL.md edit made TestPluginVersionIsBumpedWhenPluginContentChanges demand the manifest bump to 1.0.0. Dogfooded outside the repository on a copy of spec/1.0.0.md: 391 index rows, 291 carrying a hash; a 3-row record wrote ground-round-1.ndjson with no state.json, a second --record without a new emit exited 3 naming the emit command, an empty file exited 1, and the behaviour/read PASS row exited 1 naming tier. Gate: all four steps run separately, all green.\nOut of scope: --record takes no write lock, so §7.1's exit-4 input — a concurrent --record holding .tp/locks/\u003ctarget\u003e.lock — is currently unreachable, and two concurrent records both compute the same N and one clobbers the other. exit-codes owns the code mapping and is where the lock belongs; exitGroundRecordError already routes state-layer failures through exitStateError, so the 4 branch works the moment a lock is taken.",
+      "gate_passed_at": "2026-09-03T02:22:28.355243Z",
+      "commit_sha": "07504c33",
+      "commit_shas": [
+        "07504c33",
+        "addee75a",
+        "201f2a86",
+        "f48dc00a",
+        "c0a589cd",
+        "69b01b18",
+        "70786e12",
+        "f3871a75",
+        "923cbd89",
+        "868de0b0",
+        "9bc46614",
+        "f74d53e5"
+      ],
+      "commit_files": [
+        ".claude-plugin/plugin.json",
+        "internal/cli/ground.go",
+        "internal/cli/ground_record_test.go",
+        "internal/cli/nongoals_surface_test.go",
+        "internal/engine/groundrecord.go",
+        "internal/engine/groundrecord_test.go",
+        "internal/engine/groundstate.go",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "exit-codes",
