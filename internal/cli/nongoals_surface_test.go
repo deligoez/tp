@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// v036Surface is the command-and-flag surface tp ships at v0.36.0, grown from
+// v100Surface is the command-and-flag surface tp ships at v1.0.0, grown from
 // the v0.34.2 baseline this guard was written against:
 // one line per command — its name, a colon, then its long flags in byte order.
 // The first line, whose name is empty, carries the root's persistent (global)
@@ -31,9 +31,15 @@ import (
 // with; nothing else about the surface moves in that release.
 //
 // spec/0.36.0.md §4.2 adds `--role` to `tp review` and `tp audit`, and that is
-// the only surface this release moves: it selects one entry from a panel the
+// the only surface that release moves: it selects one entry from a panel the
 // command already emits, so it appears on both commands and nowhere else.
-const v036Surface = `
+//
+// spec/1.0.0.md §7.1 adds `tp ground`, listed below with no flags at all. The
+// three §7.1 also names — `--record`, `--status` and `--check` — belong to the
+// tasks that implement them, each adding its own to this line as it lands: the
+// baseline is checked in both directions, so a flag written here before the
+// command registers it fails this guard rather than waiting for it.
+const v100Surface = `
 : color compact file json no-color no-compact no-quiet quiet
 add: bulk spec stdin
 audit: affected-files affected-from-tasks base check findings force harness-note merge output record resolve resolve-all role status
@@ -46,6 +52,7 @@ config: dry-run extract force resolved
 done: auto-commit batch commit covered-by files gate-passed reason-file skip-gate stdin
 escalate: decision evidence option
 graph: from tag
+ground:
 import: force spec
 init: commit-strategy domain eject-roles force quality-gate
 keep: list remove
@@ -68,13 +75,13 @@ use: clear
 validate: project strict
 `
 
-// parseSurface reads v036Surface into per-command long-flag sets, keyed by
+// parseSurface reads v100Surface into per-command long-flag sets, keyed by
 // command name with "" holding the globals.
 func parseSurface(t *testing.T) map[string]map[string]bool {
 	t.Helper()
 
 	surface := map[string]map[string]bool{}
-	for line := range strings.SplitSeq(strings.TrimSpace(v036Surface), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(v100Surface), "\n") {
 		name, flags, ok := strings.Cut(line, ":")
 		require.True(t, ok, "every baseline line names a command before a colon: %q", line)
 		set := map[string]bool{}
