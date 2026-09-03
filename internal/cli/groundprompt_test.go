@@ -40,6 +40,33 @@ func TestTheEmittedGroundPromptEndsWithItsOwnSuffix(t *testing.T) {
 	assert.Contains(t, prompt, incrementalClause, "§3.2's clause is carried unchanged")
 }
 
+// TestThePromptsPartialKindListNamesEveryValueTheRecorderAccepts is the
+// kind-tier test's rule applied to §7.2's third enum: the values the prompt
+// tells a unit to choose between are the values ParseGroundPartialKind accepts.
+// A value the recorder takes and the prompt never names is a value no unit will
+// ever write, and a value the prompt names and the recorder rejects refuses the
+// whole round (§7.2).
+//
+// The assertion is over the sentence bounded by the partial_kind marker and the
+// held_at line that follows it, not over the whole prompt, so a value that
+// happens to appear elsewhere cannot satisfy it.
+func TestThePromptsPartialKindListNamesEveryValueTheRecorderAccepts(t *testing.T) {
+	prompt := groundTestPrompt()
+
+	const marker = "partial_kind — required on PARTIAL:"
+	start := strings.Index(prompt, marker)
+	require.GreaterOrEqual(t, start, 0, "the prompt must carry the partial_kind line")
+	sentence := prompt[start+len(marker):]
+	end := strings.Index(sentence, "\nheld_at")
+	require.GreaterOrEqual(t, end, 0, "the partial_kind sentence ends where held_at's line begins")
+	sentence = sentence[:end]
+
+	for _, kind := range engine.GroundPartialKinds() {
+		assert.Contains(t, sentence, string(kind),
+			"the prompt must name %q, which ParseGroundPartialKind accepts", kind)
+	}
+}
+
 // TestThePromptsKindTierTableIsDerivedFromTheRuleThatRejectsRows checks the
 // one thing in the prompt that is normative: the tiers it tells a unit are
 // acceptable for a kind are the tiers TierAcceptableFor accepts. A prompt
