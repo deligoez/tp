@@ -134,3 +134,18 @@ func TestTheAdvisoryIsTheLatestRoundAndNotTheFirst(t *testing.T) {
 		LatestGroundAdvisory(specPath))
 }
 
+// TestTwoRowsForOneUnitLeaveTheOtherUndispositioned: the count of open units is
+// derived from the floor — of each emitted unit, did a row decide it — never
+// from the number of rows recorded. Subtracting the row count instead reports
+// zero here and drops the advisory, so a round that graded one unit twice would
+// read as a round that graded both.
+func TestTwoRowsForOneUnitLeaveTheOtherUndispositioned(t *testing.T) {
+	specPath := groundAdvisorySpec(t)
+	floor := groundFloorWithACutUnit(t)
+	emitGroundFloor(t, specPath, 1, floor)
+	recordGroundDispositions(t, specPath, 1, floor[0], floor[0])
+
+	assert.Equal(t, &GroundAdvisory{Round: 1, Undispositioned: 1, FloorSize: 2},
+		LatestGroundAdvisory(specPath))
+}
+
