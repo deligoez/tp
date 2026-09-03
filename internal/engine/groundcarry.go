@@ -32,13 +32,16 @@ func (e *GroundCarryError) Unwrap() error { return e.Err }
 
 // groundJoinKey is §8's join key: `(text_sha, ordinal)`.
 //
-// **`text_sha` alone is not unique and cannot be made so.** Measured over this
-// repository's `spec/*.md`, one unit's text occurs five times in a single file
-// (`**Exit codes:** 0 = success.` in `spec/0.1.0.md`), so a hash-only join
-// matches the first recorded row for all five and hands every one of them the
-// same disposition. `ordinal` is the 1-based index of a unit among those sharing
-// its hash in emission order, which separates them and is stable under an edit
-// anywhere else in the document.
+// **`text_sha` alone is not unique and cannot be made so.** In `spec/0.1.0.md`
+// at 4d839c79 the unit `**Exit codes:** 0 = success.` occurs five times, hashing
+// to 80218b571f18 each time, so a hash-only join matches the first recorded row
+// for all five and hands every one of them the same disposition. Re-derive with
+// `python3 scripts/floor-prototype.py --units spec/0.1.0.md | cut -f2 | sort |
+// uniq -c | sort -rn | head -1`.
+//
+// `ordinal` is the 1-based index of a unit among those sharing its hash in
+// emission order, which separates them and is stable under an edit anywhere else
+// in the document.
 //
 // The two cells the key does NOT use are `unit_id` and `anchor`, and that is the
 // whole of what makes a second pass cheap. `unit_id` is numbered over every unit
