@@ -1119,19 +1119,47 @@ over the claim's own text: the index carries no hash for a cut unit.
 // floor than it does today, and the "308" they turned on matched neither — the
 // same rot the two comments above deleted their own counts for.
 func groundPromptAsk(round, floorSize, carried int) string {
-	if carried == 0 {
+	// **The sentence states two counts and then declines the words around
+	// them, so every count it can reach is a case here.** An earlier repair
+	// fixed `carried == 1` alone, having been verified by reading one emission,
+	// and three auditors then produced three more counts it had not reached —
+	// each of them ordinary rather than exotic: a floor of one, the convergent
+	// round where every unit carries, and the all-cut document whose floor is
+	// empty. TestTheAskAgreesWithTheCountsItStates walks the whole set.
+	units := "floor units"
+	if floorSize == 1 {
+		units = "floor unit"
+	}
+	switch {
+	case floorSize == 0:
+		// §2.1 cuts before the arms are consulted, so a document of prose and
+		// headings reaches this with nothing wrong. Asking for "each of the 0"
+		// names a set that does not exist, and the reader who writes the empty
+		// file that ask implies is then refused by --record.
+		return "This round owes no dispositions: every unit in this document was cut (§2.1), so\nthere is no floor to ground.\n"
+	case carried == 0 && floorSize == 1:
+		return "This round owes a disposition for the 1 floor unit above.\n"
+	case carried == 0:
 		return fmt.Sprintf(
 			"This round owes a disposition for each of the %d floor units above.\n", floorSize)
 	}
-	// The sentence agrees with its own count. `carried == 1` is not an edge
-	// case but the ordinary shape of a settling round, and "the other 1 already
-	// carry one" is the reading a unit meets most often near convergence.
-	rest := fmt.Sprintf("the other %d already carry one from round %d, and their rows end in", carried, round-1)
-	if carried == 1 {
-		rest = fmt.Sprintf("the other one already carries one from round %d, and its row ends in", round-1)
+
+	// Reached only with carried in [1, floorSize], which is what lets the first
+	// case be stated on floorSize alone: a floor of one that carries anything
+	// carries all of it.
+	who, rows := fmt.Sprintf("the other %d already carry", carried), "their rows end in"
+	switch {
+	case floorSize == 1:
+		who, rows = "the only one already carries", "its row ends in"
+	case carried == floorSize:
+		// There is no first group for these to be the other of.
+		who = fmt.Sprintf("all %d already carry", carried)
+	case carried == 1:
+		who, rows = "the other one already carries", "its row ends in"
 	}
-	return fmt.Sprintf(`This round owes a disposition for %d of the %d floor units above: %s
-`+"`(carried)`"+`. A carried disposition stands while its unit's text stands (§8)
-— do not decide those units again, and write no row for them.
-`, floorSize-carried, floorSize, rest)
+	return fmt.Sprintf(`This round owes a disposition for %d of the %d %s above: %s
+one from round %d, and %s `+"`(carried)`"+`. A carried disposition stands while
+its unit's text stands (§8) — do not decide those units again, and write no
+row for them.
+`, floorSize-carried, floorSize, units, who, round-1, rows)
 }
