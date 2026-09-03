@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-03T01:01:03.534275Z",
+  "updated_at": "2026-09-03T01:17:30.974076Z",
   "workflow": {},
   "coverage": {
     "total_sections": 21,
@@ -291,7 +291,7 @@
     {
       "id": "record-atomic",
       "title": "one invalid row writes no round file",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -303,11 +303,28 @@
       "source_sections": [
         "### 7.2 The row"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-03T01:02:27.793824Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-03T01:15:41.81088Z",
+      "closed_reason": "- engine.RecordGroundRound (internal/engine/groundrecord.go) parses the WHOLE payload through §7.2's table before anything is opened, created or truncated: validation and writing are two statements in that order, not one loop, so the file is written from the bytes handed in only after the last row has passed. engine.ParseGroundRows is the validating half — blank lines skipped, every other line a row, on the shipped parseRecordRows convention (internal/cli/review_record.go:246) — and it reports the first failure wrapped in a *GroundLineError carrying the file's line number, with the *GroundRowError's field still reachable through Unwrap. Observed red: a write-before-validate mutant (all four atomicity cases), a mutant returning after the first row, and a mutant counting rows rather than lines, which reddens the line-number assertion on a payload whose bad row is line 3 and row 2.\n- One invalid row leaves no round file and a byte-identical directory: TestOneInvalidRowWritesNoRoundFileAndLeavesTheDirectoryByteIdentical digests every path, permission bit and byte under the state directory, and asserts after the rejection that no ground-round-N.ndjson exists and the digest is unchanged. The one invalid row sits first, last, and last-as-an-unknown-key, plus a trailing partial \"{\" line, and the positions are the measurement rather than decoration — a validate-as-you-write mutant flushing each row as it passes was observed passing the invalid-row-first case and failing the other three. A mutant treating an unparseable line as noise reddens the trailing-partial case alone.\n- An unknown top-level key is a rejection naming the key: groundRowKeys (internal/engine/groundrow.go) is the exact §7.2 key set on allowedRoleKeys' precedent, checked in ParseGroundRow before any cell is decoded, and the offender named is the lexically first so one input cannot produce two messages across runs. GroundRowError.Field's doc said it was \"the §7.2 field name\"; that stopped being true and now says the failing cell or the offending key. The set is bound to the artifact rather than restated: TestTheAllowedKeySetIsExactlySection72sTable matches it against §7.2's table parsed out of spec/1.0.0.md in BOTH directions — observed red with \"note\" removed from the set and red again with \"severity\" added, the second also reddening that key's behavioural subtest, while deleting the check in ParseGroundRow reddens all four subtests plus the unknown-key atomicity case.\n- §11 row 10 passes as stated, on the directory row 12 describes: the fixture is the tree an emit leaves behind (snapshot-ground-round-N.md plus floor-ground-round-N.txt), and the digest helper requires it covers at least two files, so an empty fixture cannot carry the verdict. It is not a tautology — an implementation that never writes satisfies row 10 perfectly, so TestARecordedRoundIsWrittenWhenEveryRowValidates pins the other side and goes red under a no-write mutant, as does TestARecordedRoundIsTheOneTheNumberingCounts, which holds the written name accountable to groundRoundFileRe by recording a round and reading NextGroundRound back rather than by restating the name in a second literal (red under a \"ground-round1.ndjson\" mutant).\n\nOut of scope: three things §7 does not decide, each resolved here by following a shipped convention rather than by inventing a rule, and each worth a sentence in the spec. (1) §7.1's exit-1 wording — \"a line that is not JSON (a trailing partial line included)\" — read literally rejects every --record file that ends in a newline, since the final split yields an empty line that is not JSON; blank lines are skipped here, as parseRecordRows already does, and only a non-blank unparseable line is the exit-1 case. (2) Nothing says whether the recorded file is the payload's bytes or a re-serialisation of the parsed rows; it is written verbatim, which matters because §8 joins against that file and a re-serialisation would drop anything §7.2's table does not name. (3) Nothing bounds an EMPTY --record file: zero rows currently records a round that decided nothing and consumes a round number. A round with no rows is arguably §7.1's exit 1, but the spec does not say so and this task did not invent it.",
+      "gate_passed_at": "2026-09-03T01:15:41.81088Z",
+      "commit_sha": "ba1180d8",
+      "commit_shas": [
+        "ba1180d8",
+        "5902d06b",
+        "e53f90ec",
+        "7eeda753",
+        "772a8341",
+        "98bd3f3f",
+        "3e5f40fb",
+        "65527fdd",
+        "98425ca7"
+      ],
+      "commit_files": [
+        "internal/engine/groundrecord.go",
+        "internal/engine/groundrecord_test.go",
+        "internal/engine/groundrow.go"
+      ]
     },
     {
       "id": "ground-prefixes",
@@ -485,7 +502,7 @@
         "record-atomic"
       ],
       "estimate_minutes": 10,
-      "acceptance": "--record reads floor-ground-round-N.txt rather than re-deriving from the current spec, validates every row against §7.2, and writes ground-round-N.ndjson. --record with no prior emit exits 3 with a message naming the emit command.",
+      "acceptance": "--record reads floor-ground-round-N.txt rather than re-deriving from the current spec, validates every row against §7.2, and writes ground-round-N.ndjson. A record holding no rows is rejected with exit 1 (§7.1), so an empty file cannot consume a round number. --record with no prior emit exits 3 with a message naming the emit command.",
       "source_sections": [
         "### 7.1 Invocations and exit codes",
         "### 7.2 The row"
