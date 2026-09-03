@@ -206,4 +206,22 @@ func TestTheListingAndTheIndexAgreeOnlyWhileTheSpecHasNotMoved(t *testing.T) {
 		"the emission owes the reader the check, not the assurance")
 	assert.NotContains(t, section, "join on `unit_id` and agree on both cells. The snapshot",
 		"and no longer states the agreement unconditionally")
+
+	// The same repair in the section a unit reads FIRST. `## The row` gives the
+	// copy instruction and `## The floor`, further down, gives the check; read
+	// in order they agree, but a unit acting on the copy instruction alone does
+	// exactly what the check exists to prevent, and the two hash arms above are
+	// why that is not hypothetical. So the condition has to travel with the
+	// instruction, not only with the explanation.
+	//
+	// The subject is bounded — the whole of groundPromptRow's return value, not
+	// a window into an unbounded text — which is what keeps this out of the
+	// shape §11 row 4c's own comment warns about. It is still only a reversion
+	// detector: it catches the clause being deleted or the old wording coming
+	// back, and it cannot see a third sentence added below that contradicts it.
+	row := groundPromptRow("spec.md", ".tp-review/spec/snapshot-ground-round-1.md", 1)
+	assert.Contains(t, row, "and copy them only once the floor section's hash",
+		"the copy instruction carries the condition where the copying is asked for")
+	assert.NotContains(t, row, "sentence you graded. Required on every row",
+		"and no longer runs straight from the copy instruction to the field list")
 }
