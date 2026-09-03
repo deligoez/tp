@@ -873,9 +873,16 @@ kind, tier — required unless the verdict is NOT-A-CLAIM, where the pair is
   optional: a unit that states a decision AND a checked fact records both.
 evidence — required whenever tier is present: the command you ran, or the
   artifact and line you read. Free text, because a later reader re-runs it.
-partial_kind — required on PARTIAL: two-readings, reason-not-conclusion, or
-  true-when-written.
-held_at — required when partial_kind is true-when-written: the commit, tag or
+`)
+	// Derived from the enum for the reason the kind-tier table below is: this
+	// list is what a unit reads before writing a row, and ParseGroundPartialKind
+	// is what refuses the whole round when it wrote something else.
+	partialKinds := make([]string, 0, len(engine.GroundPartialKinds()))
+	for _, kind := range engine.GroundPartialKinds() {
+		partialKinds = append(partialKinds, string(kind))
+	}
+	fmt.Fprintf(&b, "partial_kind — required on PARTIAL: exactly one of %s.\n", strings.Join(partialKinds, ", "))
+	b.WriteString(`held_at — required when partial_kind is true-when-written: the commit, tag or
   date at which the claim held.
 causes — required on QUESTION: three to five {"cause": ..., "prediction": ...}
   objects, ranked, each prediction an observation that would confirm or kill its
