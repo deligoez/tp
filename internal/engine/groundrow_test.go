@@ -2,6 +2,7 @@ package engine
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -199,6 +200,71 @@ func groundRowRejectionCases() []groundRowCase {
 			set:   map[string]any{"verdict": "QUESTION", "causes": "three of them"},
 			field: "causes",
 		},
+		{
+			// §6's bound, and the two rejections §11 row 8 names. The mutant
+			// that row names — a 1–10 bound — accepts both of these.
+			name:  "two causes on a QUESTION row",
+			set:   map[string]any{"verdict": "QUESTION", "causes": groundNCauses(2)},
+			field: "causes",
+		},
+		{
+			name:  "six causes on a QUESTION row",
+			set:   map[string]any{"verdict": "QUESTION", "causes": groundNCauses(6)},
+			field: "causes",
+		},
+		{
+			// An empty array is a written value, not an absent key: it fails
+			// the bound rather than reading as a row with no causes at all.
+			name:  "an empty causes array on a QUESTION row",
+			set:   map[string]any{"verdict": "QUESTION", "causes": []map[string]any{}},
+			field: "causes",
+		},
+		{
+			// §6: a cause with no prediction is a vibe. The defective entry is
+			// the LAST of the three, so a loop that checks only the entry it
+			// reaches first still accepts this row.
+			name: "a cause carrying no prediction",
+			set: map[string]any{"verdict": "QUESTION", "causes": []map[string]any{
+				{"cause": "the scan is fence-blind", "prediction": "fencing the scan moves the count"},
+				{"cause": "the anchor is resolved by text search", "prediction": "carrying a line number moves it"},
+				{"cause": "the arms cut the unit"},
+			}},
+			field: "causes",
+		},
+		{
+			// The same cell blank rather than absent, and in the MIDDLE entry.
+			// A misspelled `prediction` key inside an entry arrives here too:
+			// §7.2's unknown-key rule is stated for top-level keys, so this is
+			// what stops the misspelling being silently dropped.
+			name: "a cause whose prediction is blank",
+			set: map[string]any{"verdict": "QUESTION", "causes": []map[string]any{
+				{"cause": "the scan is fence-blind", "prediction": "fencing the scan moves the count"},
+				{"cause": "the arms cut the unit", "prediction": "  "},
+				{"cause": "the anchor is resolved by text search", "prediction": "carrying a line number moves it"},
+			}},
+			field: "causes",
+		},
+		{
+			name: "a prediction carrying no cause",
+			set: map[string]any{"verdict": "QUESTION", "causes": []map[string]any{
+				{"prediction": "fencing the scan moves the count"},
+				{"cause": "the arms cut the unit", "prediction": "the index shows it as cut"},
+				{"cause": "the anchor is resolved by text search", "prediction": "carrying a line number moves it"},
+			}},
+			field: "causes",
+		},
+		{
+			// `null` entries decode without error into three zero pairs, so
+			// nothing but the per-entry check rejects this row.
+			name:  "causes entries that are null",
+			set:   map[string]any{"verdict": "QUESTION", "causes": []any{nil, nil, nil}},
+			field: "causes",
+		},
+		{
+			name:  "causes entries that are strings",
+			set:   map[string]any{"verdict": "QUESTION", "causes": []any{"fence-blind", "cut", "searched"}},
+			field: "causes",
+		},
 
 		{name: "ordinal absent", omit: []string{"ordinal"}, field: "ordinal"},
 		{name: "ordinal zero", set: map[string]any{"ordinal": 0}, field: "ordinal"},
@@ -227,6 +293,23 @@ func groundThreeCauses() []map[string]any {
 		{"cause": "the anchor is resolved by text search", "prediction": "carrying a line number moves it"},
 		{"cause": "the arms cut the unit", "prediction": "the index shows it as cut"},
 	}
+}
+
+// groundNCauses builds a legal `causes` array of exactly n entries, each
+// carrying both halves of §6's pair.
+//
+// The length is the parameter because §6's bound is the thing under test: a
+// fixture written out at one length can only ever assert that length, and §11
+// row 8 needs four of them.
+func groundNCauses(n int) []map[string]any {
+	cs := make([]map[string]any, 0, n)
+	for i := 1; i <= n; i++ {
+		cs = append(cs, map[string]any{
+			"cause":      fmt.Sprintf("cause %d", i),
+			"prediction": fmt.Sprintf("removing cause %d moves the count", i),
+		})
+	}
+	return cs
 }
 
 // TestAMinimalLegalRowParsesAndReadsBack pins the fixtures every rejection case
