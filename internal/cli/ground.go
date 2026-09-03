@@ -135,6 +135,20 @@ const groundRecordEmptyHint = "record a file holding at least one row, or ground
 // levers are the artifact itself and re-recording the round that wrote it.
 const groundCarrySourceHint = "the preceding ground round's file is tp's own artifact and could not be read back: restore or re-record spec/.tp-review/<base>/ground-round-<N-1>.ndjson — §8 carries its dispositions into this round"
 
+// groundStateDirError is the one refusal both writing modes make for the same
+// reason: NextGroundRound would not answer, so neither the emission nor the
+// record knows which round it is.
+//
+// It is a function and not two literals because it was two literals -- the same
+// message and the same hint, written out at both sites, in a file that hoists
+// four other hints into named constants. An audit counted them; the one hint
+// that was actually repeated was the one left inline.
+func groundStateDirError(specPath string, err error) {
+	output.Error(ExitFile, fmt.Sprintf("cannot read the state directory for %s: %v", specPath, err),
+		"check the permissions on spec/.tp-review/<base>/")
+	os.Exit(ExitFile)
+}
+
 // groundStdoutHint is what every mode of this command says when the result it
 // built could not be written to stdout: a closed pipe, a read-only redirect, a
 // full disk. Nothing the operator named is at fault and no other file repairs
@@ -301,9 +315,7 @@ func runGround(specPath string) error {
 		// An unreadable state directory, which NextGroundRound refuses to
 		// answer 1 for: emitting under a guessed number would hand this round
 		// an identifier an existing one already holds.
-		output.Error(ExitFile, fmt.Sprintf("cannot read the state directory for %s: %v", specPath, err),
-			"check the permissions on spec/.tp-review/<base>/")
-		os.Exit(ExitFile)
+		groundStateDirError(specPath, err)
 		return nil
 	}
 
@@ -562,15 +574,18 @@ func runGroundRecord(specPath, recordPath string) error {
 	// Contention that outlasts lock_timeout_seconds comes back as a
 	// *LockTimeoutError, which exitStateError maps to exit 4 with the hint
 	// naming the lock and the wait.
-	var result error
+	// recordGroundRoundLocked returns nothing: every failure inside it is an
+	// os.Exit through output.Error, so a returned error could only ever be nil
+	// and a caller reading one would be reading a value that carries no case.
+	// unparam says the same thing.
 	if lockErr := engine.WithFileLock(specPath, func() error {
-		result = recordGroundRoundLocked(specPath, recordPath)
+		recordGroundRoundLocked(specPath, recordPath)
 		return nil
 	}); lockErr != nil {
 		exitStateError(lockErr)
 		return nil
 	}
-	return result
+	return nil
 }
 
 // recordGroundRoundLocked is --record's body, run under the state-directory
@@ -580,13 +595,11 @@ func runGroundRecord(specPath, recordPath string) error {
 //
 // Its failures abort through output.Error and os.Exit as the rest of this
 // package's command bodies do; the flock is released by the process exiting.
-func recordGroundRoundLocked(specPath, recordPath string) error {
+func recordGroundRoundLocked(specPath, recordPath string) {
 	round, err := engine.NextGroundRound(specPath)
 	if err != nil {
-		output.Error(ExitFile, fmt.Sprintf("cannot read the state directory for %s: %v", specPath, err),
-			"check the permissions on spec/.tp-review/<base>/")
-		os.Exit(ExitFile)
-		return nil
+		groundStateDirError(specPath, err)
+		return
 	}
 
 	// The floor is read, not derived, and its absence is the no-prior-emit case
@@ -603,7 +616,7 @@ func recordGroundRoundLocked(specPath, recordPath string) error {
 			fmt.Sprintf("no emitted floor for ground round %d: cannot read %s: %v", round, floorPath, err),
 			fmt.Sprintf("emit the round first: tp ground %s — --record validates against the floor that emission froze, never against the spec as it now stands", specPath))
 		os.Exit(ExitFile)
-		return nil
+		return
 	}
 	floor, err := engine.ParseFloorIndex(string(floorData))
 	if err != nil {
@@ -611,20 +624,20 @@ func recordGroundRoundLocked(specPath, recordPath string) error {
 			fmt.Sprintf("the emitted floor for ground round %d does not parse: %s: %v", round, floorPath, err),
 			"re-emit the round with tp ground <spec>: the floor is tp's own artifact, and a round cannot be graded against an index it cannot read back")
 		os.Exit(ExitFile)
-		return nil
+		return
 	}
 
 	data, err := os.ReadFile(recordPath)
 	if err != nil {
 		output.Error(ExitFile, fmt.Sprintf("cannot read dispositions file: %s: %v", recordPath, err), recordFileMissingHint)
 		os.Exit(ExitFile)
-		return nil
+		return
 	}
 
 	rows, carried, err := engine.RecordGroundRound(specPath, round, data, floor)
 	if err != nil {
 		exitGroundRecordError(err)
-		return nil
+		return
 	}
 
 	roundPath := engine.GroundRoundPath(specPath, round)
@@ -644,7 +657,6 @@ func recordGroundRoundLocked(specPath, recordPath string) error {
 		output.Error(ExitFile, err.Error(), fmt.Sprintf(groundRecordWrittenHint, roundPath))
 		os.Exit(ExitFile)
 	}
-	return nil
 }
 
 // exitGroundRecordError maps a RecordGroundRound failure onto §7.1's exit codes.
