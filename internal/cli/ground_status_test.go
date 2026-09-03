@@ -239,3 +239,50 @@ func TestStatusCountsReaderAddedAndOffFloorApart(t *testing.T) {
 	assert.Equal(t, float64(1), status["off_floor"], "the row naming the cut unit's id")
 }
 
+// TestStatusReportsTheLatestEmittedRoundAndNotTheLatestRecorded pins which
+// round --status is about, on §9's reading that a round exists from its
+// EMISSION: between `tp ground` and `tp ground --record` nothing in the round
+// has been decided, and that is the state a coverage report most needs to name.
+//
+// Round 1 is recorded to 100% first and asserted, so the mutant's answer is a
+// real state of this fixture rather than a number no reading produces.
+func TestStatusReportsTheLatestEmittedRoundAndNotTheLatestRecorded(t *testing.T) {
+	dir := writeGroundFixture(t)
+	groundEmit(t, dir)
+	emitted, _ := groundFloorIDs(t, dir, 1)
+	require.Len(t, emitted, 2)
+
+	first := recordGroundVerdicts(t, dir, emitted, []string{"PASS", "PASS"})
+	require.Equal(t, float64(1), first["round"])
+	require.Equal(t, float64(2), first["emitted"])
+	require.Equal(t, float64(2), first["dispositioned"], "round 1 is fully dispositioned")
+
+	require.Equal(t, float64(2), groundEmit(t, dir)["round"])
+
+	second := groundStatus(t, dir)
+	assert.Equal(t, float64(2), second["round"], "--status is about the latest EMITTED round")
+	assert.Equal(t, float64(2), second["emitted"])
+	assert.Equal(t, float64(0), second["dispositioned"],
+		"round 2 has been emitted and not recorded, so nothing in it has been decided")
+
+	// Round 2 is then recorded PARTIALLY, against the ids read back from its
+	// own floor. The spec has not moved, so round 2's floor is round 1's — and
+	// that is what makes this discriminating: 1-of-2 is a coverage no reading
+	// of round 1's rows produces, so an implementation joining round N's floor
+	// to round 1's record answers 2 here.
+	emittedTwo, _ := groundFloorIDs(t, dir, 2)
+	require.Equal(t, emitted, emittedTwo, "the spec has not moved, so round 2's floor is round 1's")
+
+	rows := writeGroundRows(t, dir, groundVerdictRow(emittedTwo[0], "FAIL"))
+	_, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", rows)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	third := groundStatus(t, dir)
+	assert.Equal(t, float64(2), third["round"])
+	assert.Equal(t, float64(1), third["dispositioned"], "round 2 decided one of its two floor units")
+	assert.Equal(t, float64(1), groundStatusVerdicts(t, third)["FAIL"],
+		"and the breakdown is round 2's rows, not round 1's")
+	assert.Equal(t, float64(0), groundStatusVerdicts(t, third)["PASS"],
+		"round 1's two PASSes belong to round 1")
+}
+
