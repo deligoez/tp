@@ -285,6 +285,26 @@ Every rule identifier tp can put in a `findings[].rule` field, and the command t
 
 `tp import` runs the same task-file checks as `tp validate`, so it emits that half of the table too.
 
+`tp ground` is the step before review, and the release that made tp 1.0. `tp lint` checks the
+document's form, `tp validate` checks the plan against the spec, `tp audit` checks the code against
+the spec — and until then nothing checked the spec against the world. Review reads the opposite
+instruction: every role is handed *"the spec content above is complete and authoritative"*.
+
+`tp ground` emits one prompt over a mechanically derived floor of the spec's own sentences and asks
+for a disposition for each — `PASS`, `PARTIAL`, `FAIL`, `UNVERIFIABLE`, `QUESTION` or `NOT-A-CLAIM`,
+with the `kind` of claim and the `tier` of evidence actually reached. A `PASS` whose tier says
+nothing about that kind of claim, such as a behavioural claim confirmed by reading rather than by
+running, is rejected at record. Convergence here is **coverage**, not absence:
+`tp ground <spec> --status --check` exits 0 when every emitted floor unit carries a disposition, and
+`--status` reports the per-verdict breakdown beside the ratio — a spec whose every claim was refuted
+is also 100% covered. From the second round a disposition carries forward for every unit whose text
+has not moved, so a repaired spec is re-grounded where it changed rather than from scratch.
+
+`tp review` is told, not stopped: its envelope carries an `ungrounded` key while any floor unit is
+undispositioned, and its exit code is the same with it and without it. The loop is in
+[SKILL.md](skills/tp/SKILL.md); the row schema, the kind-tier sets and the exit codes are in
+[REFERENCE.md](skills/tp/REFERENCE.md).
+
 `tp review` generates the adversarial review prompts an agent feeds to sub-agents, records each
 round, and makes convergence a recorded fact rather than a judgement. Roles are project-owned files,
 per-spec focus comes from the spec's `tp:` frontmatter, and a recurring finding class can be
