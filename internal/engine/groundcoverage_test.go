@@ -150,3 +150,18 @@ func TestTheDenominatorIsTheEmittedFloorAndNotEveryUnit(t *testing.T) {
 	assert.Equal(t, GroundCoverage{Emitted: 2, Dispositioned: 2}, GroundCoverageOf(floor, rows))
 }
 
+// TestARowNamingACutUnitDispositionsNothing is the other half of the same rule.
+// §2.2 says a cut unit a reader grounds is a reader-added row, and a row naming
+// one therefore moves neither side of the ratio: the unit it names is not an
+// obligation tp emitted.
+func TestARowNamingACutUnitDispositionsNothing(t *testing.T) {
+	floor := groundFloorWithACutUnit(t)
+	rows := []GroundRow{
+		groundDisposition("u1", VerdictPass),
+		groundDisposition("u2", VerdictFail),
+	}
+
+	assert.Equal(t, GroundCoverage{Emitted: 2, Dispositioned: 1, OffFloor: 1},
+		GroundCoverageOf(floor, rows))
+}
+
