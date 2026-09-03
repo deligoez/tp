@@ -1,6 +1,11 @@
 package engine
 
 import (
+	"os"
+	"path/filepath"
+	"regexp"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -116,4 +121,142 @@ func TestTheTierRuleIsPerVerdict(t *testing.T) {
 				"the cell that failed is `tier`: the kind is one of §4.1's seven and the tier one of its six")
 		})
 	}
+}
+
+// TestEveryVerdictHasAWrittenAnswerToTheTierRule is the guard the map's own
+// comment claims: every verdict's answer is written down, none is the zero
+// value of a lookup.
+//
+// Without it a seventh verdict — or a sixth deleted from the map by an edit
+// elsewhere — is silently exempt from §7.2's rule, which is the permissive
+// direction and the one nothing else here would notice: TestTheTierRuleIsPerVerdict
+// asserts on the four verdicts it names, and a verdict absent from both is
+// absent from the record's constraints too.
+func TestEveryVerdictHasAWrittenAnswerToTheTierRule(t *testing.T) {
+	verdicts := GroundVerdicts()
+	for _, v := range verdicts {
+		_, listed := groundTierRuleBinds[v]
+		assert.True(t, listed,
+			"verdict %q has no entry in §7.2's per-verdict table, so its answer is a map default rather than a decision", v)
+	}
+	assert.Len(t, groundTierRuleBinds, len(verdicts),
+		"the table answers §3's six verdicts and nothing else")
+}
+
+// TestThePerVerdictTableIsTheOneSection72States binds the map to the artifact
+// it is a transcription of.
+//
+// The classification is read out of §7.2's own per-verdict table rather than
+// restated here, so a spec edit moving a verdict between the bound and the
+// exempt row fails on the map instead of leaving two documents disagreeing
+// about which verdicts the record enforces. The verdicts are taken from the
+// left column through ParseGroundVerdict, so the enum is what decides what
+// counts as a verdict there rather than this file's idea of one.
+//
+// Each row must classify as exactly one of bound or exempt. A reworded right
+// column that matches neither — or both — fails loudly here rather than being
+// quietly read as exempt, which is the permissive direction.
+func TestThePerVerdictTableIsTheOneSection72States(t *testing.T) {
+	rows := groundSection72VerdictRule(t)
+	require.NotEmpty(t, rows, "§7.2 must carry a table classifying verdicts by the tier rule")
+
+	want := make(map[GroundVerdict]bool, len(GroundVerdicts()))
+	for _, r := range rows {
+		for _, v := range r.verdicts {
+			_, seen := want[v]
+			require.False(t, seen, "verdict %q is classified by two rows of §7.2's table", v)
+			want[v] = r.binds
+		}
+	}
+
+	// NOT-A-CLAIM is the one verdict the table does not name, and its absence
+	// is what makes it exempt: §7.2 makes `kind` and `tier` optional there, and
+	// a row asserting nothing about the world has nothing for a tier to be
+	// evidence about. Asserting the absence keeps that reading honest — if the
+	// spec ever gives NOT-A-CLAIM a row, this stops being an inference.
+	_, named := want[VerdictNotAClaim]
+	require.False(t, named,
+		"NOT-A-CLAIM is exempt because §7.2's per-verdict table does not name it; a row for it would have to be read, not inferred")
+	want[VerdictNotAClaim] = false
+
+	require.Len(t, want, len(GroundVerdicts()),
+		"§7.2's table plus the one verdict it omits must account for all six")
+	for _, v := range GroundVerdicts() {
+		assert.Equal(t, want[v], groundTierRuleBinds[v],
+			"§7.2 and this package disagree about whether the tier rule binds %q", v)
+	}
+}
+
+// groundVerdictRuleRow is one row of §7.2's per-verdict table: the verdicts its
+// left column names, and whether its right column binds them to §4.1's sets.
+type groundVerdictRuleRow struct {
+	verdicts []GroundVerdict
+	binds    bool
+}
+
+// groundSection72VerdictRule reads §7.2's per-verdict table out of the spec.
+//
+// It selects rows structurally rather than by the table's header: within §7.2,
+// a table row whose first cell names at least one of §3's verdicts is a row of
+// this table, and the field table above it — whose first cells are lowercase
+// field names — has none. So a reworded header does not hide the table.
+func groundSection72VerdictRule(t *testing.T) []groundVerdictRuleRow {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join("..", "..", "spec", "1.0.0.md"))
+	require.NoError(t, err, "this rule is §7.2's table; the spec must be readable for that to be checkable")
+
+	lines := strings.Split(string(data), "\n")
+	start := slices.Index(lines, "### 7.2 The row")
+	require.GreaterOrEqual(t, start, 0, "§7.2 must be findable by its heading")
+	end := start + 1
+	for end < len(lines) && !strings.HasPrefix(lines[end], "## ") && !strings.HasPrefix(lines[end], "### ") {
+		end++
+	}
+
+	token := regexp.MustCompile("`([A-Z][A-Z-]*)`")
+	rows := make([]groundVerdictRuleRow, 0, 3)
+	for _, line := range lines[start:end] {
+		if !strings.HasPrefix(line, "|") {
+			continue
+		}
+		cells := strings.SplitN(strings.TrimPrefix(line, "|"), "|", 2)
+		if len(cells) != 2 {
+			continue
+		}
+		named := make([]GroundVerdict, 0, 3)
+		for _, m := range token.FindAllStringSubmatch(cells[0], -1) {
+			if v, ok := ParseGroundVerdict(m[1]); ok {
+				named = append(named, v)
+			}
+		}
+		if len(named) == 0 {
+			continue
+		}
+		binds := strings.Contains(cells[1], "**must** be acceptable")
+		exempt := strings.Contains(cells[1], "no constraint") ||
+			strings.Contains(cells[1], "no acceptability constraint")
+		require.NotEqual(t, binds, exempt,
+			"§7.2's row for %v classifies as neither bound nor exempt, or as both: %q", named, cells[1])
+		rows = append(rows, groundVerdictRuleRow{verdicts: named, binds: binds})
+	}
+	return rows
+}
+
+// TestAVerdictOutsideTheSixIsHeldToTheTierRule pins the direction the lookup
+// fails in, the way TestAnUnknownKindOrTierIsNeverAcceptable does for the sets.
+//
+// No such row reaches the validator — ParseGroundVerdict closes the enum before
+// it — so this calls the predicate directly. It is held to the rule rather than
+// waived from it, and both halves are asserted: an unrecognised verdict is not
+// rejected outright, it is required to have reached a tier the kind accepts.
+// The permissive default would be the other way round, and a map lookup's zero
+// value is exactly that default.
+func TestAVerdictOutsideTheSixIsHeldToTheTierRule(t *testing.T) {
+	unmatched := &GroundRow{Verdict: "SKIP", Kind: KindBehaviour, Tier: TierRead}
+	require.Error(t, validateGroundRowTier(unmatched),
+		"a verdict the per-verdict table does not answer is held to the rule, not waived from it")
+
+	matched := &GroundRow{Verdict: "SKIP", Kind: KindBehaviour, Tier: TierRun}
+	require.NoError(t, validateGroundRowTier(matched),
+		"and held to the rule means exactly that: an acceptable tier still passes")
 }
