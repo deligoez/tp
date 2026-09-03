@@ -524,10 +524,13 @@ func FloorIndexRows(text string, anchorOf func(unitIndex int) string) []FloorInd
 // The last line counts UNITS, never distinct hashes. That is the one thing
 // about the summary §2.2 does not state and `scripts/floor-prototype.py` does:
 // its counter is keyed by `text_sha`, so counting keys under-reports by exactly
-// the collisions §8 introduces `ordinal` to handle — four units short on
-// `spec/0.1.0.md`, in the direction that makes coverage look higher than it is.
-// Counting the rows makes the wrong reading something a caller would have to
-// build a set to get back to.
+// the collisions §8 introduces `ordinal` to handle. On `spec/0.1.0.md` at
+// 4d839c79 that is four units — 337 floor units over 333 distinct hashes — in
+// the direction that makes coverage look higher than it is. Re-derive the pair
+// with `python3 scripts/floor-prototype.py --units spec/0.1.0.md | cut -f2 |
+// sort | wc -l` and the same pipeline through `sort -u`. Counting the rows
+// makes the wrong reading something a caller would have to build a set to get
+// back to.
 //
 // The prototype's summary also names how many of the document's table data rows
 // were segmented into units. That clause is not ported: it is derived from the
