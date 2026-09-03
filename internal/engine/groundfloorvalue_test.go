@@ -91,3 +91,21 @@ func TestTheFloorHashCheckIsTheOnlyValueCompared(t *testing.T) {
 		})
 	}
 }
+
+// TestAReaderAddedRowIsNotComparedToTheFloor is the fourth reading, kept apart
+// because it fails for a different reason: a `unit_id` of null names no floor
+// row at all, and §7.2 has such a row supply its own `text_sha` over text tp
+// never emitted. An implementation joining on the hash instead of on the id
+// would refuse it.
+func TestAReaderAddedRowIsNotComparedToTheFloor(t *testing.T) {
+	specPath := groundEmittedDir(t, 1)
+	payload := groundRecordPayload(groundWireRow(t, groundClaimRow(), map[string]any{
+		"unit_id":  nil,
+		"text_sha": "ffffffffffff",
+	}, nil))
+
+	rows, _, err := RecordGroundRound(specPath, 1, payload, groundFloorValueFloor())
+	require.NoError(t, err, "a claim the floor did not carry is recorded, not refused")
+	require.Len(t, rows, 1)
+	assert.Nil(t, rows[0].UnitID)
+}
