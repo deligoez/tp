@@ -109,10 +109,15 @@ func groundFloorKeys(floor []FloorIndexRow) map[string]groundJoinKey {
 // above says the check removes. Worse, on a spec with two identical sentences a
 // row naming `u2` with `ordinal: 1` recorded and round 2 marked `u1` CARRIED, so
 // a unit nobody dispositioned was struck off what the next round was asked for.
-// The second is reachable rather than hypothetical: 9 of 5,396 floor units
-// across this repository's 54 specs carry `ordinal > 1`, and on `spec/1.0.0.md`
-// every one of its 351 rows is `#1` — which is why a unit told to copy the cell
-// unchanged is likelier to fill it from memory than to look.
+// The second is reachable rather than hypothetical, and rare in a way that
+// makes it worse. Emitting a round over a copy of every `spec/*.md` and counting
+// index rows whose `#<ordinal>` is not 1 finds **9**, in four files — the count
+// was the same across two runs hours apart, while the floor total moved from
+// 5,396 to 5,407 because a spec was being edited between them, so the 9 is the
+// figure and the denominator is a recipe. `spec/1.0.0.md`, the spec this release
+// is developed against, has **zero**: every one of its rows is `#1`. That is
+// exactly why a unit told to copy the cell unchanged is likelier to fill it from
+// memory than to look — nothing it has seen makes the cell look load-bearing.
 //
 // The two halves report different cells rather than one message, because a
 // caller reads `Field` and the recoveries differ: a wrong hash means the row

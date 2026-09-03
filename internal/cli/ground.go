@@ -924,13 +924,18 @@ claim that does not depend on the answer.
 // and an audit measured both halves false on this repository's own spec. A unit
 // is CANONICALISED — §2.1 step 3 joins its wrapped lines, collapses whitespace
 // and drops a list or blockquote marker — so it is generally not a byte range of
-// any file: of `spec/1.0.0.md`'s 351 floor units, 327 are not substrings of the
-// snapshot at all, and `u1` says 168B against a raw span of 170B, because the
-// snapshot wraps that sentence across two `> `-prefixed lines. A reader
+// any file: on `spec/1.0.0.md` most floor units are not substrings of the
+// snapshot at all, and `u1` said 168B against a raw span of 170B because the
+// snapshot wraps that sentence across two `> `-prefixed lines — a reader
 // following the old sentence read 168 bytes and truncated `rounds.` to `round`.
-// Re-derive with `tp ground <spec> --units` against the emitted snapshot; the
-// same run gives 0 sha and 0 length mismatches against the index, which is the
-// agreement §11 row 4b already pins as a test.
+//
+// **The derivation, not the count.** Emit a round on a copy of the spec, then
+// compare `tp ground <copy> --units` against the snapshot beside it: the share
+// that are not substrings is the figure, and the same run gives 0 sha and 0
+// length mismatches against the index. Two runs a few hours apart returned
+// 327-of-351 and 338-of-362 on this file, because the spec was being edited
+// between them — which is why the recipe is here and the number is not.
+// The agreement half is §11 row 4b's shipped test rather than a claim here.
 //
 // specPath is threaded down for the one reason a prompt needs it: `--units` is
 // useless to a reader who has to work out what to put after it, and the emission
