@@ -200,10 +200,18 @@ func groundRoundFileName(round int) string {
 // Validating row by row as each is appended would satisfy the wording for a
 // payload whose first row is bad and break it for every other one.
 //
-// floor is what §7.3's one value check is made against — a row whose `unit_id`
-// names a floor row must carry that row's `text_sha` — and it is checked in the
-// same pass as §7.2's table, so that refusal is atomic on the same terms as
-// every other one. Everything else the floor is used for is §8's carry.
+// floor is what §7.3's join-key check is made against: a row whose `unit_id`
+// names a floor row must carry that row's `text_sha` AND that row's `ordinal`.
+// Both halves, never the hash alone — §8 carries a disposition forward on
+// (text_sha, ordinal), so on a spec holding units that share a hash the hash by
+// itself does not identify the unit, which is why groundRowMatchesFloor reports
+// the two as different `Field`s. An earlier draft of this doc said ONE value was
+// checked, and §7.3 records that sentence shape as the rule's own defect: the
+// implementation once followed the sentence, and both consequences — a unit
+// dropped from the next round's carry, and a unit mis-attributed to one sharing
+// its hash — were built and run. The check happens in the same pass as §7.2's
+// table, so that refusal is atomic on the same terms as every other one.
+// Everything else the floor is used for is §8's carry.
 //
 // The bytes written are the ones handed in, not a re-marshalling of the rows:
 // §7.2's table is what a row must satisfy, not the exhaustive set of what it
