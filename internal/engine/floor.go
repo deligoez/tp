@@ -787,9 +787,26 @@ func floorAnchorsByLine(text string) []string {
 // set because it is per-document and this release's own spec is still moving:
 // `python3 scripts/floor-prototype.py --emit <spec> | tail -1` prints it — the
 // document's table-row count, beside the floor and cut counts that sum to its
-// units — and the same command through `grep -c '§0'` prints how many units this
-// port actually leaves at `§0`. A line number carried on the block cannot fail
-// to be found.
+// units. A line number carried on the block cannot fail to be found.
+//
+// How many units THIS PORT leaves at `§0` has to be read off this port, and the
+// prototype cannot stand in for it. Its anchor comes from searching the file for
+// a unit's first words, so a unit it fails to locate falls to `§0` — the defect
+// this paragraph is about — and its `§0` count therefore conflates "before the
+// first heading" with "not found". (The two heading scans differ as well:
+// floorSectionHeadingRe takes ATX levels 2 through 6 and floorAnchorsByLine
+// skips fenced lines, where the prototype's takes levels 2 and 3 and reads
+// inside fences.) Emit a round in a scratch copy — the emission's `floor` key
+// names the index it just wrote — and count there:
+//
+//	tp ground <spec>            # JSON on stdout; read its "floor" path
+//	grep -c ' §0 ' <that path>
+//
+// Run it on a copy rather than in the repository: an emission is a state write.
+// Measured that way over every `spec/*.md` when this was written, the two
+// answers were equal on all but one file, where the prototype said 68 and this
+// port 66. The gap is small, which is why the wrong recipe stood here for a
+// round: neither number looks wrong on its own.
 //
 // Block granularity and unit granularity differ only for a block whose lines
 // span a heading, which needs prose flush against the heading on both sides
