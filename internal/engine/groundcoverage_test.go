@@ -178,3 +178,15 @@ func TestARowNamingNoEmittedUnitCannotRaiseCoverage(t *testing.T) {
 		GroundCoverageOf(floor, rows))
 }
 
+// TestTwoRowsForOneUnitDispositionItOnce: the numerator is a count of units,
+// never of rows, so a record holding a second row for a unit already decided
+// cannot push coverage past its floor.
+func TestTwoRowsForOneUnitDispositionItOnce(t *testing.T) {
+	floor := groundFloorOf("u1", "u2")
+	rows := []GroundRow{
+		groundDisposition("u1", VerdictPass),
+		groundDisposition("u1", VerdictFail),
+	}
+
+	assert.Equal(t, GroundCoverage{Emitted: 2, Dispositioned: 1}, GroundCoverageOf(floor, rows))
+}
