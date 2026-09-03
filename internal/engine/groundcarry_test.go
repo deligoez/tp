@@ -111,16 +111,40 @@ func TestAReaderAddedRowIsNotACarriableDisposition(t *testing.T) {
 // same reason §8 keeps them out of the denominator: a cut unit owes no
 // disposition, so there is nothing for a later round to inherit.
 //
-// The absence of the hash is the cut, so a carried row for one is only
-// producible by an implementation that ignores the hash — which is exactly the
-// implementation that would match every cut unit of round N against every cut
-// unit of round N-1, all of them on the empty key.
+// **This is a contract of the join, not a reachable state of the command, and
+// the difference was measured.** A first version of this test used a source row
+// with `ordinal: 1`, and the mutant that drops the hash guard ran GREEN through
+// it — the cut floor row's ordinal is 0, so the pair never matched whatever the
+// guard did, and the test passed for a reason it did not name. The fixture now
+// makes both halves of the key agree, which reddens that mutant; and the row it
+// takes to do so is one §7.2 rejects twice over, asserted through mustNotParse.
+// So the honest statement is that the guard cannot be reached from a validated
+// record and is a fence on this function's own argument.
 func TestACutUnitCarriesNothing(t *testing.T) {
 	floor := []FloorIndexRow{{ID: "u1", Anchor: "§1"}}
-	prev := []GroundRow{groundCarriedSource("", 1, VerdictFail)}
+	require.Zero(t, floor[0].Ordinal, "a cut index row carries no ordinal either, and the key is the pair")
 
-	assert.Empty(t, groundCarryForward(floor, prev, 2, nil),
+	source := groundCarriedSource("", 0, VerdictFail)
+	require.Error(t, mustNotParse(t, source), "the source row is one §7.2 refuses, which is the point")
+
+	assert.Empty(t, groundCarryForward(floor, []GroundRow{source}, 2, nil),
 		"a unit with no hash owes no disposition and inherits none")
+}
+
+// mustNotParse renders a row and reads it back through §7.2's table, returning
+// what the table said.
+//
+// It exists so the test above can state, rather than assume, that the source row
+// it feeds the join is one no recorded round can hold: `text_sha` must be twelve
+// hex characters and `ordinal` must be at least 1, so the empty key the cut
+// guard defends against is unreachable from a validated record. Without that
+// said out loud, the guard reads as protecting a state the command can be in.
+func mustNotParse(t *testing.T, row GroundRow) error {
+	t.Helper()
+	data, err := appendGroundRows(nil, []GroundRow{row})
+	require.NoError(t, err)
+	_, err = ParseGroundRows(data)
+	return err
 }
 
 // TestCarriedFromNamesTheRoundTheDispositionWasFirstDecidedIn is §7.2's cell:
