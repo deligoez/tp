@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-03T02:22:28.427567Z",
+  "updated_at": "2026-09-03T02:23:42.089246Z",
   "workflow": {},
   "coverage": {
     "total_sections": 21,
@@ -580,7 +580,7 @@
         "cmd-record"
       ],
       "estimate_minutes": 8,
-      "acceptance": "The mapping is taken from exitStateError: 1 for a row failing validation including a line that is not JSON, 2 for --check without --status and --record with no path, 3 for a missing --record file and a corrupt state directory, 4 for a held write lock. §11 row 14 passes with one test per code, and its mutant mapping a corrupt directory to 4 fails.",
+      "acceptance": "The mapping is taken from exitStateError: 1 for a row failing validation including a line that is not JSON and for a record holding no rows, 2 for --check without --status and --record with no path, 3 for a missing --record file and a corrupt state directory, 4 for a held write lock. --record takes the write lock on .tp/locks/\u003ctarget\u003e.lock, so exit 4 is reachable by a concurrent record rather than unreachable — before this task no ground write locks anything and two concurrent records compute the same N. §11 row 14 passes with one test per code, and its mutant mapping a corrupt directory to 4 fails.",
       "source_sections": [
         "### 7.1 Invocations and exit codes"
       ],
