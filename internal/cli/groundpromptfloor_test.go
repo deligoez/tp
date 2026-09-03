@@ -68,7 +68,12 @@ func TestACutUnitIsGroundedUnderItsOwnIdAndNotUnderNull(t *testing.T) {
 	section := groundFloorSectionOf(t, "spec.md")
 	assert.Contains(t, section, "that unit's own `unit_id`",
 		"the prompt sends a claim inside a cut unit to the cut unit's id")
-	assert.NotContains(t, section, `including one inside a\ncut unit — is recorded with "unit_id": null`,
+	// One line of the deleted sentence, not a span across its line break: the
+	// prompt is a raw string with real newlines in it, and a `\n` written inside
+	// a Go raw literal is two characters that cannot occur there — so the
+	// spanning form of this assertion passes on every input, including the text
+	// it was written to reject. Caught by running it against that text.
+	assert.NotContains(t, section, `cut unit — is recorded with "unit_id": null`,
 		"and not to null, which §2.2 deleted")
 }
 
