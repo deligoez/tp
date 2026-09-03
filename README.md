@@ -295,10 +295,14 @@ for a disposition for each — `PASS`, `PARTIAL`, `FAIL`, `UNVERIFIABLE`, `QUEST
 with the `kind` of claim and the `tier` of evidence actually reached. A `PASS` whose tier says
 nothing about that kind of claim, such as a behavioural claim confirmed by reading rather than by
 running, is rejected at record. Convergence here is **coverage**, not absence:
-`tp ground <spec> --status --check` exits 0 when every emitted floor unit carries a disposition, and
-`--status` reports the per-verdict breakdown beside the ratio — a spec whose every claim was refuted
-is also 100% covered. From the second round a disposition carries forward for every unit whose text
-has not moved, so a repaired spec is re-grounded where it changed rather than from scratch.
+`tp ground <spec> --status --check` exits 0 when every emitted floor unit carries a disposition —
+with one further condition, because an empty floor makes that comparison vacuous: a document whose
+every sentence the derivation's arms dropped exits 1 rather than certifying itself, and `--status`
+reports the `cut` count the exit code turns on, so a driver can tell the two apart with the notice
+suppressed. `--status` also reports the per-verdict breakdown beside the ratio — a spec whose every
+claim was refuted is also 100% covered. From the second round a disposition carries forward for every
+unit whose text has not moved, so a repaired spec is re-grounded where it changed rather than from
+scratch.
 
 `tp review` is told, not stopped: its envelope carries an `ungrounded` key while any floor unit is
 undispositioned, and its exit code is the same with it and without it. The loop is in
