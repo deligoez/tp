@@ -159,6 +159,105 @@ func TestTheRoundTwoPromptAsksOnlyForTheDispositionsItOwes(t *testing.T) {
 		"the fixture must carry cut rows, or 'every unit' and 'every floor unit' are the same claim here")
 }
 
+// Fixtures for the counts §8's ask can actually reach. The four-unit fixture
+// above reaches none of them: it is 3-of-4 and 4-of-4, so every number in its
+// sentences is plural and no clause is ever the whole floor.
+const (
+	groundAskTwoUnits = "# Fixture spec\n\n## 1. Claims\n\n" +
+		groundAskUnit1 + "\n\n" + groundAskUnit2 + "\n"
+	groundAskOneUnit = "# Fixture spec\n\n## 1. Claims\n\n" + groundAskUnit1 + "\n"
+	groundAskNoUnits = "# Fixture spec\n\n## 1. Claims\n\n" + groundAskCut + "\n"
+)
+
+// TestTheAskAgreesWithTheCountsItStates walks the ask over every count its own
+// two numbers can take, because the sentence states them and then declines them.
+//
+// This exists because the branch it covers shipped with nothing holding it: the
+// repair that introduced the singular carried clause was verified by reading
+// one emission, and deleting the whole branch afterwards left `go test ./...`
+// green — the string `already carries one` occurred exactly once in the
+// repository, in the production line itself. Three auditors then found three
+// further counts the repair had not reached, all of them ordinary: a floor of
+// one, a round where every unit carries, and a floor where every unit was cut.
+// So the rule this test is written to is: **state the input set you ran, and
+// run its complement at the nearest boundary.** The set is (floorSize ∈ {0, 1,
+// many}) × (carried ∈ {0, 1, all}), and the reachable combinations are here.
+//
+// Each subtest asserts the whole clause rather than a fragment, because the
+// defect being pinned is agreement BETWEEN the count and the words around it —
+// a `Contains` on "1 of the 2" alone is satisfied by any grammar that follows.
+func TestTheAskAgreesWithTheCountsItStates(t *testing.T) {
+	t.Run("one of two owed, one carried", func(t *testing.T) {
+		dir := t.TempDir()
+		writeGroundCarrySpec(t, dir, groundAskTwoUnits)
+		groundEmit(t, dir)
+		floor1 := groundEmittedFloor(t, dir, 1)
+		rows := writeGroundRows(t, dir,
+			groundCarryRowFor(groundUnitFor(t, floor1, groundAskUnit1), 1))
+		_, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", rows)
+		require.Equal(t, 0, code, "stderr: %s", stderr)
+
+		assert.Contains(t, groundEmit(t, dir)["prompt"].(string),
+			"for 1 of the 2 floor units above: the other one already carries\none from round 1, and its row ends in",
+			"one carried unit is singular in both halves of the clause")
+	})
+
+	t.Run("every unit carries", func(t *testing.T) {
+		dir := t.TempDir()
+		writeGroundCarrySpec(t, dir, groundAskTwoUnits)
+		groundEmit(t, dir)
+		floor1 := groundEmittedFloor(t, dir, 1)
+		rows := writeGroundRows(t, dir,
+			groundCarryRowFor(groundUnitFor(t, floor1, groundAskUnit1), 1),
+			groundCarryRowFor(groundUnitFor(t, floor1, groundAskUnit2), 1))
+		_, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", rows)
+		require.Equal(t, 0, code, "stderr: %s", stderr)
+
+		prompt := groundEmit(t, dir)["prompt"].(string)
+		assert.Contains(t, prompt,
+			"for 0 of the 2 floor units above: all 2 already carry\none from round 1, and their rows end in",
+			"when the carried set is the whole floor there is no other group for it to be the other of")
+		assert.NotContains(t, prompt, "the other 2 already carry",
+			"and the convergent round is the one a reader meets last, not an edge case")
+	})
+
+	t.Run("a floor of one, nothing carried", func(t *testing.T) {
+		dir := t.TempDir()
+		writeGroundCarrySpec(t, dir, groundAskOneUnit)
+		assert.Contains(t, groundEmit(t, dir)["prompt"].(string),
+			"This round owes a disposition for the 1 floor unit above.",
+			"a floor of one is not 'each of the 1 floor units'")
+	})
+
+	t.Run("a floor of one, that one carried", func(t *testing.T) {
+		dir := t.TempDir()
+		writeGroundCarrySpec(t, dir, groundAskOneUnit)
+		groundEmit(t, dir)
+		floor1 := groundEmittedFloor(t, dir, 1)
+		rows := writeGroundRows(t, dir,
+			groundCarryRowFor(groundUnitFor(t, floor1, groundAskUnit1), 1))
+		_, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", rows)
+		require.Equal(t, 0, code, "stderr: %s", stderr)
+
+		assert.Contains(t, groundEmit(t, dir)["prompt"].(string),
+			"for 0 of the 1 floor unit above: the only one already carries\none from round 1, and its row ends in",
+			"both numbers are one here, and each declines its own noun")
+	})
+
+	t.Run("an empty floor", func(t *testing.T) {
+		dir := t.TempDir()
+		writeGroundCarrySpec(t, dir, groundAskNoUnits)
+		prompt := groundEmit(t, dir)["prompt"].(string)
+		emitted, cut := groundFloorIDs(t, dir, 1)
+		require.Empty(t, emitted, "the fixture must have an empty floor, or this subtest is about a different state")
+		require.NotEmpty(t, cut, "and the emptiness must come from cutting, not from an empty document")
+		assert.Contains(t, prompt, "This round owes no dispositions",
+			"an all-cut document owes nothing, and saying 'each of the 0 floor units' asks for a set that does not exist")
+		assert.NotContains(t, prompt, "each of the 0 floor units",
+			"which is what §2.1's own cut rule makes reachable")
+	})
+}
+
 // rowIDsOf lists every emitted row's id, the cut ones included.
 func rowIDsOf(rows []engine.FloorIndexRow) []string {
 	ids := make([]string, 0, len(rows))
