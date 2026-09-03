@@ -50,3 +50,23 @@ func TestGroundRefusesAnEmptyRecordPathRatherThanEmitting(t *testing.T) {
 	require.NotEqual(t, string(before), string(reemitted),
 		"the fixture edit must be one a real emission would write, or the equality above is a tautology")
 }
+
+// TestGroundCountsAnEmptyRecordPathAsAModePassed is the same conflation at the
+// other site: groundModesPassed counted --record by the same `!= ""` predicate,
+// so `--record "" --status` saw ONE mode and ran --status, reporting exit 0 for
+// a mode the operator did not ask for on its own.
+//
+// It is asserted separately from the test above because the two sites fail
+// differently — one emits, one silently picks a mode — and a fix to the dispatch
+// alone leaves this one standing.
+func TestGroundCountsAnEmptyRecordPathAsAModePassed(t *testing.T) {
+	dir := writeGroundFixture(t)
+	groundEmit(t, dir)
+
+	stdout, stderr, code := runTP(t, dir, "ground", "spec.md", "--status", "--record", "")
+	require.Equal(t, 2, code, "stdout: %s stderr: %s", stdout, stderr)
+	envelope := groundErrorEnvelope(t, stderr)
+	assert.Equal(t, float64(2), envelope["code"])
+	assert.Contains(t, envelope["error"], "separate modes",
+		"the refusal is the pairing rule, not the missing-path one: two modes were passed")
+}
