@@ -266,13 +266,14 @@ func TestACorruptPrecedingRoundIsExitThreeAndNotExitOne(t *testing.T) {
 	floor := groundEmittedFloor(t, dir, 1)
 	require.NotEmpty(t, floor)
 	rows := writeGroundRows(t, dir, groundCarryRowFor(floor[0], 1))
-	_, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", rows)
-	require.Equal(t, 0, code, "the control: round 1 records cleanly, so round 2's refusal is about round 1's FILE")
+	_, controlStderr, code := runTP(t, dir, "ground", "spec.md", "--record", rows)
+	require.Equal(t, 0, code,
+		"the control: round 1 records cleanly, so round 2's refusal is about round 1's FILE. stderr: %s", controlStderr)
 
 	roundFile := groundStatePath(dir, filepath.Base(engine.GroundRoundPath("spec.md", 1)))
 	require.NoError(t, os.WriteFile(roundFile, []byte("{\n"), 0o600))
 
-	_, stderr, code = groundRecordSecondRound(t, dir)
+	_, stderr, code := groundRecordSecondRound(t, dir)
 
 	assert.Equal(t, 3, code, "tp's own broken artifact is a file failure, not a rejected payload")
 	assert.Equal(t, float64(3), groundErrorEnvelope(t, stderr)["code"])

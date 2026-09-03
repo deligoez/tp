@@ -125,7 +125,7 @@ func TestACutUnitCarriesNothing(t *testing.T) {
 	require.Zero(t, floor[0].Ordinal, "a cut index row carries no ordinal either, and the key is the pair")
 
 	source := groundCarriedSource("", 0, VerdictFail)
-	require.Error(t, mustNotParse(t, source), "the source row is one §7.2 refuses, which is the point")
+	require.Error(t, mustNotParse(t, &source), "the source row is one §7.2 refuses, which is the point")
 
 	assert.Empty(t, groundCarryForward(floor, []GroundRow{source}, 2, nil),
 		"a unit with no hash owes no disposition and inherits none")
@@ -139,9 +139,9 @@ func TestACutUnitCarriesNothing(t *testing.T) {
 // hex characters and `ordinal` must be at least 1, so the empty key the cut
 // guard defends against is unreachable from a validated record. Without that
 // said out loud, the guard reads as protecting a state the command can be in.
-func mustNotParse(t *testing.T, row GroundRow) error {
+func mustNotParse(t *testing.T, row *GroundRow) error {
 	t.Helper()
-	data, err := appendGroundRows(nil, []GroundRow{row})
+	data, err := appendGroundRows(nil, []GroundRow{*row})
 	require.NoError(t, err)
 	_, err = ParseGroundRows(data)
 	return err
