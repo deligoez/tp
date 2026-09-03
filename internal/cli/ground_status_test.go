@@ -237,6 +237,14 @@ func TestStatusCountsReaderAddedAndOffFloorApart(t *testing.T) {
 		"three rows, one emitted floor unit decided: neither off-ratio row raises coverage")
 	assert.Equal(t, float64(1), status["reader_added"], "the row carrying unit_id null")
 	assert.Equal(t, float64(1), status["off_floor"], "the row naming the cut unit's id")
+
+	// Coverage counts UNITS and the breakdown counts ROWS, so the two do not
+	// add up here and must not: all three rows are PASS while only one of them
+	// dispositions a floor unit. Without this the fixture's only PASS-bearing
+	// assertion is the coverage one, and a breakdown built over the
+	// dispositioning rows alone reports 1 with nothing to contradict it.
+	assert.Equal(t, float64(3), groundStatusVerdicts(t, status)["PASS"],
+		"the breakdown counts the round's rows, including the two that dispositioned nothing")
 }
 
 // TestStatusReportsTheLatestEmittedRoundAndNotTheLatestRecorded pins which
