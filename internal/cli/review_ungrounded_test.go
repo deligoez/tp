@@ -24,9 +24,26 @@ import (
 // anything: the fixture's floor must be exactly two units, so grading one
 // leaves exactly one open, and the index must carry a cut row, or `floor_size`
 // and the index's length agree and the difference between them is untested.
+// groundedFixture writes the shared fixture spec and grounds it.
 func groundedFixture(t *testing.T, dispositioned int) string {
 	t.Helper()
 	dir := writeGroundFixture(t)
+	groundFixtureRound(t, dir, dispositioned)
+	return dir
+}
+
+// groundFixtureRound emits a ground round on dir's spec and, when
+// dispositioned > 0, records a round grading that many of its EMITTED floor
+// units.
+//
+// The floor is read back from the file the emission wrote rather than derived
+// again, so the ids, anchors, hashes and ordinals in the record are the ones tp
+// itself emitted. The two requires are what make the tests built on it say
+// anything: the fixture's floor must be exactly two units, so grading one
+// leaves exactly one open, and the index must carry a cut row, or `floor_size`
+// and the index's length agree and the difference between them is untested.
+func groundFixtureRound(t *testing.T, dir string, dispositioned int) {
+	t.Helper()
 	_, stderr, code := runTP(t, dir, "ground", "spec.md")
 	require.Equal(t, 0, code, "ground: %s", stderr)
 
@@ -46,7 +63,7 @@ func groundedFixture(t *testing.T, dispositioned int) string {
 	require.LessOrEqual(t, dispositioned, len(emitted))
 
 	if dispositioned == 0 {
-		return dir
+		return
 	}
 	var b strings.Builder
 	for _, r := range emitted[:dispositioned] {
@@ -56,7 +73,6 @@ func groundedFixture(t *testing.T, dispositioned int) string {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "ground-r1.ndjson"), []byte(b.String()), 0o600))
 	_, stderr, code = runTP(t, dir, "ground", "spec.md", "--record", "ground-r1.ndjson")
 	require.Equal(t, 0, code, "record: %s", stderr)
-	return dir
 }
 
 // reviewEnvelope runs a review and returns its decoded top-level payload with
