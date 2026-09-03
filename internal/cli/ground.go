@@ -1107,10 +1107,17 @@ over the claim's own text: the index carries no hash for a cut unit.
 // round is for — §8 narrows the ask and not the index, because "a reader who
 // cannot see the whole floor cannot tell it what the floor missed" (§2.2).
 //
-// The count is stated rather than left to be counted off the marks. It is what
-// §8's saving is measured in — a one-sentence edit left 1 disposition owed and
-// the shipped prompt asked for 308 — and a reader who has to derive it from a
-// 300-row index is paying the cost the number exists to report.
+// **The derivation, not the count.** The number is stated rather than left to
+// be counted off the marks, because deriving it from the index is exactly the
+// cost the number exists to report — and the gap between the two is what §8's
+// saving is measured in. To see the size of that gap on any spec, emit a round,
+// disposition it, edit one sentence, and re-emit: the prompt's ask is what the
+// second round owes and the index is what it still lists.
+//
+// This comment carried three figures for one release and none reproduced. At
+// the commit that wrote them `tp ground spec/1.0.0.md` emitted a different
+// floor than it does today, and the "308" they turned on matched neither — the
+// same rot the two comments above deleted their own counts for.
 func groundPromptAsk(round, floorSize, carried int) string {
 	if carried == 0 {
 		return fmt.Sprintf(
