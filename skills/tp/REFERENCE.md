@@ -752,8 +752,8 @@ its place in Workflow A are in [SKILL.md](SKILL.md); this section is the record'
 | `tp ground <spec>` | JSON | `{spec, round, snapshot, floor, output_path, floor_size, carried, prompt}` — one `prompt` **string**, not review's `prompts[]` array. Grounding asks one question of every unit, so there is no panel, no role and no `--role`. `floor_size` is the **floor, not the ask**: the ask is the difference, `floor_size - carried`, and the prompt states it in words |
 | `--units` | **plain text** | one line per floor unit, `<unit_id>\t<text_sha>\t<text>`, in emission order. It writes nothing and emits no round, and it derives from the spec as it stands rather than from a snapshot — which is why every line carries its own hash: a spec edited since the emission disagrees with the index visibly |
 | `--record <file>` | JSON | `{spec, round, floor, file, rows, carried}` — `rows` counts the payload's rows, `carried` the dispositions the carry brought forward |
-| `--status` | JSON | `{spec, round, emitted, dispositioned, reader_added, off_floor, by_verdict}` for the latest **emitted** round |
-| `--status --check` | the same JSON | exit 0 when `dispositioned == emitted`, 1 otherwise |
+| `--status` | JSON | `{spec, round, emitted, dispositioned, reader_added, off_floor, cut, by_verdict}` for the latest **emitted** round |
+| `--status --check` | the same JSON | exit 0 when `dispositioned == emitted` **and** the floor is not one the arms emptied; 1 otherwise. Both conditions are `emitted`, `dispositioned` and `cut`, so the exit code is reconstructible from the payload it just printed |
 
 A round exists from its **emission**, not from its record, so `--status` reports a round nobody has
 come back to as wholly undispositioned rather than reporting the previous round's completeness. N is
@@ -781,6 +781,22 @@ its total is `dispositioned` plus `reader_added` plus `off_floor`, not `disposit
 emitted as `(cut)`. Neither moves either side of the ratio, and they are two counts rather than one
 because they are evidence about different halves of the derivation: *the arms never produced this
 unit* against *the arms produced it and then cut it*.
+
+**`cut` is the key `--check`'s second condition reads, and it is why exit 1 is not always undercoverage.**
+It counts the units §2.1 produced that the arms dropped, and it is no part of the ratio — a cut unit
+owes no disposition. A floor of no units makes `dispositioned < emitted` read `0 < 0`, which is
+false, so coverage alone certifies a document nobody checked. `cut` is what tells the two zeros
+apart: `emitted: 0, cut: 0` is a document §2.1 produced nothing from and exits **0**;
+`emitted: 0, cut: N` is a document whose every sentence the arms dropped and exits **1**. A stderr
+notice names the floor file where those units are listed, but the notice is an `output.Notice` and
+`--quiet` removes it — the key is what survives, on the same reading as `carried` above and audit's
+`file_summary.truncated`. `cut` is present at zero rather than omitted, so a driver never has to
+decide what an absence stands for.
+
+`tp review`'s `ungrounded` advisory is **absent** on that state and does not contradict it: no unit is
+undispositioned, so there is nothing for the advisory's own rule to report. The two answer different
+questions — *which units has this round not come back to* against *did this round check anything* —
+and `--status --check` is where the second one is answered.
 
 ### The recorded row
 
