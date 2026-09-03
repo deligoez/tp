@@ -1,0 +1,1080 @@
+# tp v1.0.0 — `tp ground`
+
+> **This file is decisions.** It was written from **three pilot runs over 44 claims**, run by hand
+> before any of it was specified, and then repaired by two review rounds. **§2–§5 carry the pilot's
+> evidence; §6–§9 are designed and unexercised**, and that split is the honest one rather than a list
+> of exceptions. Specifically unexercised: `UNVERIFIABLE` and `QUESTION` have zero instances in all
+> four grounding runs, §4.1's kind–tier sets and §7's record and exit contract were designed against
+> the pilot's transcripts rather than run, and §9's advisory has no instance at all.
+
+## 1. Overview
+
+`tp lint` checks the document's form. `tp validate` checks the plan against the spec. `tp audit`
+checks the code against the spec. **No tp command checks the spec against the world.**
+
+Two narrow checkers already do it by hand, and they are the precedent this generalises rather than a
+gap it invents. `scripts/check-spec-code-citations.py` is registered as `code-citation-drift` in
+`.tp/config.json`'s `workflow.checks` and resolves a spec's path citations against the tree.
+`scripts/check-measured-claims.py` re-runs the derivation behind one registered claim and fails when
+it goes stale. Its header records four escapes a reviewer found by breaking it in a clone, and this
+spec says where each lands rather than adopting them as a slogan:
+
+| the escape | where it lands here |
+|---|---|
+| a claim reworded past its pattern must still fail | §8's join is on `text_sha` over the unit's full canonical text, so a reworded unit stops matching |
+| the derivation rule is read from the document, not held in the checker | §2.1 states the rule in the document; the floor function implements that text and §11 row 20 pins it |
+| a claimed list compares as a set, because cardinality alone passed 100 fabricated entries | §8 joins unit by unit, never on a count; §11 row 16 asserts a per-unit outcome |
+| a placeholder beside real entries is a contradiction, not an exemption | **not adopted** — nothing here has an unpopulated state to declare, so there is no placeholder to contradict |
+
+Both checkers guard one claim class in one named file, and neither is a phase.
+
+The gap is not incidental to review — review is *told* to leave it alone. The framing tp emits to
+every review role in the default flow reads:
+
+> *"no source files are carried; the spec content above is complete and authoritative."*
+
+**A review role is instructed to treat the premises as settled.** `tp ground` is what makes that
+sentence true before it is said.
+
+### 1.1 The pilot
+
+Three specs ground by hand, with no tooling:
+
+| spec | claims | refuted or imprecise | deepest evidence needed |
+|---|---|---|---|
+| 1.52.0 | 17 | **3** | corpus query |
+| 1.53.0 | 10 | **1** | simulation probe |
+| 0.37.1 | 17 | **3** | reachability read + tag history |
+
+**Seven defects in 44 claims.** Two examples fix the shape: a spec asserted *"most `PASS` rows carry
+an empty note"* where the corpus says **97% carry one** — inverted, and the design resting on it was
+unusable; and a spec asserted a dependency whose stated reason did not connect to its own mechanism,
+while a real dependency sat underneath it.
+
+**None of the three had been through `tp review`, so this spec does not claim review missed them.**
+Measured over the three: `review_rounds` is empty for each, and `spec/.tp-review/` holds no directory
+for `1.52.0`, `1.53.0` or `0.37.1`, nor for the `0.38.0`–`0.54.0` names they were renamed from. The
+quantifier is over those three deliberately — an earlier draft said *any pending spec*, and grounding
+this document created `spec/.tp-review/1.0.0/`, which falsified the sentence in the same round that
+read it. The claim that survives is a reading of the prompt rather than of an outcome — a review
+role is told the spec is authoritative, so a role that went and verified a premise would be working
+against its brief. **Whether review finds these seven anyway is unmeasured**, and the cheapest way to
+settle it is to run one review round on one pilot spec and count.
+
+**Every refutation was a sentence that was cheap to write** — a borrowed number, an unstated rounding
+rule, a plausible reason, four quantifiers. Not one claim that cost something to produce was wrong,
+because producing it *was* the verification. §5 turns that into an ordering rule.
+
+### 1.2 Why this is 1.0, and what 1.0 promises
+
+**tp's value is a loop that converges on truth, and until this release nothing checked whether the
+loop's input was true.** Review reads the spec; audit reads the code against the spec; both take the
+spec's claims as given. `tp ground` makes the premises verified rather than asserted, so the version
+marks a change in what tp's output is worth rather than a count of features. It does so as a command
+an operator runs, not as a phase — §10 Non-Goal 1 — so an unattended run does not get it until the
+release that gives grounding a phase.
+
+**The promise is stated narrowly, because a promise this project cannot keep is worse than no
+promise.** Within `1.x`:
+
+- **Command and flag names do not change meaning, and an exit code already assigned to an outcome
+  keeps that outcome.** New codes may be assigned to outcomes that had none.
+- **JSON payload shapes — and the meaning of the fields inside them — may still change**, and each
+  change is named in the release that makes it. Three are already scheduled, and two of them change
+  no shape at all: `unresolved_findings` keeps its type and changes what it counts, `clean` keeps its
+  type and changes what it means for a round missing a role, and an accepted finding stops gating
+  convergence. A promise worded over shapes alone would cover none of the three.
+
+Naming the second half is the point: a silent contract change under a stable-looking major is how a
+version number becomes a lie.
+
+**The minor numbers of the pending set carry over from `0.x` unchanged** — `1.38.0` is the release
+that was `0.38.0` — so a reference that named a pending release by its digit still finds it. This
+file is the single exception and deliberately so: it was `0.54.0`. The move renamed sixteen specs,
+fifteen of them minor-preserving (`git show --name-status e73788ab -- 'spec/*.md'`). The gap between
+`1.0.0` and `1.38.0` is cosmetic and permanent, and was preferred to a fifth renumbering.
+
+## 2. What a claim is, and why enumeration is the reader's job
+
+A **claim** is a statement about how the world *is*, or about what a proposed mechanism *does when
+run*. A decision is not a claim. A prediction about people is not a claim.
+
+### 2.1 The floor
+
+**tp emits a mechanically derived set of candidate units and calls it a floor.** A **unit** is one
+sentence of the spec's prose. The five steps were written in prose, then implemented and run over
+every `spec/*.md` — **and the run changed two of them.** `scripts/floor-prototype.py` is that run, it
+is the artifact this section's figures come from, and it settled in one execution what three review
+rounds could not settle by reading.
+
+1. **Drop** fenced blocks, ATX headings, horizontal rules, and table **separator** rows. **A dropped
+   line is removed, not turned into a block boundary** — only a blank line splits (step 2), so a
+   heading with no blank line around it leaves the prose either side of it in one block. And the three
+   patterns are named rather than left to a reader: an ATX heading is `^\s*#`, a horizontal rule is a
+   line of three or more of the same `-`, `*` or `_` and nothing else, a table separator row is a line
+   whose non-space content is pipes, colons, dashes and spaces. These are narrower than markdown —
+   `#tag` is dropped and the legal spaced form `- - -` is not — and they are stated so tp and a reader
+   applying §2.1 by hand cannot disagree.
+
+   A table **data** row becomes one unit: strip the outer pipes, join the cells with an em dash,
+   collapse whitespace. It is one unit however many full stops its cells hold, so it never reaches step 4.
+   Header rows need no special case — column labels carry no digit, no code span and no measurement
+   verb, so the arms cut them.
+   **Two drafts dropped table rows and the first end-to-end run showed what that cost.** The run's
+   sharpest `FAIL` was in a table that produced no floor unit at all, and it exists *only* because the
+   unit read the file: *"a floor that cannot see a table cannot hold anyone to it"*. Table rows are a
+   large and uneven share of the floor — run `scripts/floor-prototype.py` for the current figures;
+   at the commit that added this rule it was **18.1% of the corpus's floor units, 49% at the extreme
+   and 32.7% of this document**. Dropping them made §8's coverage a ratio over the prose alone,
+   reported as complete. An earlier draft of this paragraph quoted 22 / 60 / 36, measured before the
+   rule it justifies changed the denominator.
+2. **Block:** what remains splits into blank-line-separated blocks.
+3. **Canonicalise** each block: strip a leading `>` and the one space that may follow it from every
+   line; strip a leading list marker (`- `, `* `, `N. `) from every line **only when the block's
+   first line opens a list**; then join the block's lines with a single space and collapse
+   whitespace runs to one. This repository hard-wraps prose, so joining is what makes a unit stable
+   under a reflow.
+
+   **Both halves of that rule are repairs, and the second undid damage the first did.** Stripping only
+   the block's first line leaves a list's later markers embedded, and step 4 then emits the bare
+   strings `2.` through `9.` as floor units — 777 sub-four-character units across the corpus, eight of
+   them in this document's own §10, through two review rounds. But stripping **every** line
+   unconditionally **deletes text**: hard-wrapped prose puts an ordinal at the start of a continuation
+   line, and §7.1's own paragraph — *"…pinned to a named input by test\n14. The mapping is…"* — lost
+   its `14. `, so the unit read *"…by test The mapping is…"*. Same sentence, different text, different
+   `text_sha`, decided by where the author's line breaks fell. Gating on the block's first line
+   removes them wherever the block opens with the list's own first item: a real list opens with a
+   marker, and this repository indents continuation lines. **Two review rounds and a full grounding
+   pass read over the corrupted unit; the run that executed the derivation found it.**
+
+   **It does not remove all of them, and the residue is in this document.** Where a numbered list's
+   items are separated by *indented* continuation paragraphs, the next item's ordinal falls inside a
+   block that opens with prose, so no marker is stripped and step 4 emits the ordinal on its own.
+   §2.1's own list is written that way, and `tp ground spec/1.0.0.md --units` prints `2.`, `3.`, `4.`
+   and `5.` as floor units of this section, each owing a disposition (§8). That is step 3 applied
+   exactly, not a departure from it, and it is named here rather than repaired because the only
+   repair that would reach it — stripping every line — is the one this paragraph records deleting
+   text.
+
+   A marker is `-`, `*`, `+` or `N.` followed by whitespace, at the start of the line **after any
+   leading whitespace**. Indentation does not stop it being a marker, and the alternative reading is
+   not equivalent: this repository indents nested list items, so under a column-zero rule their `- `
+   survives into the unit and the same sentence hashes differently for sitting one level deeper. A
+   bolded ordinal like `**1.` is not a marker and stays in the unit — this repository writes many of
+   them, and treating them as markers would delete the emphasis that makes the sentence read.
+
+   The blockquote strip is anchored the same way, and the space is optional: leading whitespace may
+   precede the `>`, and `>quoted` loses its `>` too. Both allowances are stated because they are
+   constructible, not because they bite — every quoted line in this repository's specs is written
+   flush left as `> `, and `grep -n '^[[:space:]]\+>\|^>[^ ]' spec/*.md` prints nothing.
+4. **Split** the joined block at each `.`, `!` or `?` followed by whitespace; **the terminator stays
+   with the unit on its left.** The second clause is the other repair. Both readings conformed to the
+   prose as it stood, both give the *same* segmentation, and they agree on a **minority** of
+   `text_sha` values — a hash tp and the reader compute differently is a join (§8) that never
+   matches. `python3 scripts/floor-prototype.py` prints the rate, and it is not written here because
+   it was: this clause carried a bare **5.0%** and that figure rotted inside one cycle, which is what
+   the closing paragraph of this section forbids. The rot is the whole of it — an earlier draft of
+   this paragraph also claimed the figure "never reproduced against the artifact this section names
+   even when new", and that claim was itself wrong: checked out clean at `5089222c` and run twice,
+   the script of that commit over the corpus of that commit prints exactly **5.0%**. The 4.9% that
+   sentence quoted came from running that commit's script over **today's** `spec/`, which is a third
+   thing again. A figure over a glob has two moving parts, and a correction that fixes one while
+   moving the other is how this document arrived at three numbers for one question.
+5. **Trim**; drop the empties. What is left is the unit, and `text_sha` (§7.2) is the **first twelve
+   lowercase hex characters of the sha256 of exactly this string, UTF-8 encoded**. The algorithm is
+   stated because §7.2 requires a reader-added row to supply its own: the first run of this protocol
+   used `sha256(text)[:12]` only because the unit read the prototype's source, and two readers with
+   no such access would agree on nothing.
+
+A unit is **in the floor** when it holds any of three arms:
+
+| arm | test |
+|---|---|
+| **digit** | the unit contains `[0-9]` |
+| **identifier** | the unit contains a backtick-delimited span |
+| **verb** | the unit contains one of `measured`, `ran`, `counted`, `derived`, `reproduced`, `observed`, `verified`, `asserted`, `recorded`, `fired`, `held`, `refuted`, as a **whole word** and in **either case** |
+
+**The verb arm reads whole words and folds case, and each half is refuted by a sentence this
+repository writes.** Under a substring reading *"Transition open -> wip."*, *"The withheld answer
+stays put."* and *"The branches were pruned away."* are floor units, on `ran`, `held` and `ran`
+inside `Transition`, `withheld` and `branches` — three sentences that assert nothing anyone could
+check, each owing a disposition. Under a case-sensitive reading *"Measured while implementing: it
+can."* and *"Held over from before."* are cut, and both are exactly what the arm is for, because a
+claim's verb is routinely its sentence's first word. Neither half is a convenience: put the five
+sentences in a file and `tp ground <file> --units` prints the last two and not the first three.
+
+**There is no separate path-citation arm.** A path citation in this family is written inside a code
+span, so the **identifier** arm catches it whether or not it carries a line number — which most do
+not, `PATH_CITE` in `scripts/check-spec-code-citations.py` making `:N` optional. Three arms, not
+four. (An earlier draft reached the same conclusion through the digit arm, which is wrong for the
+majority of citations: `spec/1.0.0-corrections.md` C2.)
+
+**A figure about this corpus appears only with the artifact that derives it and the commit it was
+measured on.** The rule is not *state no figure* — that was tried, and the repair that stated it broke
+it four times in the same commit (`spec/1.0.0-corrections.md` C1, which records three wrong floor
+sizes and what refuted each). It is: `scripts/floor-prototype.py` derives it, the figure names the
+commit, and a figure with neither is a defect. **A figure over a glob is worse than either**, because
+the glob's size changes when a release adds a file — which happened to this section's own "53 specs"
+one commit after it was written. An implementation ships the derivation as a function taking the
+spec's **text**, and its tests assert the rule on constructed inputs, never a corpus total; a test
+quantified over `spec/*.md` is a standing tax that goes red when someone adds a spec.
+
+### 2.2 The floor is a coverage obligation, not a shortlist
+
+**The floor's value is not recall.** On this repository's prose the three arms catch most of a
+document, so a reader who treats the floor as a candidate shortlist has been handed almost the whole
+text and told nothing. What the floor buys is an obligation tp can check: **a unit that receives the
+floor returns a disposition for every unit it is asked for** — one of §3's six values, `NOT-A-CLAIM`
+included. In round 1 that is every unit in the floor; from round 2, §8's carry answers the units whose
+text has not moved and the ask is the remainder.
+That is checkable in a way *"read the spec and find the claims"* is not, and it is the only property
+this release asks of the floor.
+
+**The floor is a floor.** The emitted prompt says so and asks the reader to add claims it missed;
+behavioural claims carrying no digit, no backtick and no listed verb are invisible to it by
+construction. A reader-added claim is recorded exactly like a floor unit (§7.2) and is reported apart
+from coverage, because tp cannot know the set it did not emit (Non-Goal 5).
+
+**tp emits the floor as an index, and the index carries no unit text.** Each unit travels as
+`(unit_id, anchor, text_sha, ordinal, byte length)`, and `tp ground <spec> --units` prints every
+unit's full text in one call. The index says what a disposition is owed for; `--units` says what each
+unit is; the unit reads the spec file for everything around it.
+
+**`--units` derives from the spec on the command line, not from the round's frozen snapshot**, and
+the `text_sha` it prints on every line is what keeps that honest. The listing is a view of the
+document as it stands, so an edit between an emission and its record makes it disagree with the index
+the prompt carries — but the disagreement is **visible**, because every line names its own hash and
+the index names the hash it expects. That is the whole difference from `--record`, where §7.3 freezes
+the floor precisely because nothing would surface the divergence. Deriving from the snapshot instead
+would trade a visible mismatch for a command that exits 3 on any spec with no emission, which is the
+first thing a reader runs.
+
+**Two earlier drafts carried text in the index — 60 bytes of each unit — and the first end-to-end run
+of this protocol refuted the shape.** Locating was never the problem: the unit found 23 of 23 units
+from a 60-byte head, with no ambiguity and no searching. **Extent was.** One unit's head stopped 90
+bytes short of the defect inside it and the unit graded the wrong sentence, recovering only by
+re-deriving the segmentation itself — which is `--units`, done by hand. A prefix locates a unit and
+hides where it ends, and lengthening it does not fix that: measured over `spec/*.md`, inlining the
+floor costs 898,131 bytes, a 60-byte head 420,992 (**0.47×**), a head plus a 30-byte tail more still,
+and **the index 157,654 (0.18×)**. The index is 2.7× cheaper than the shape it replaces *and* removes
+the defect, because a unit that needs the text asks for all of it once.
+
+**The index also names what the arms cut.** A unit the three arms rejected appears as
+`unit_id anchor (cut)` — no hash, no obligation, no text. **Both end-to-end runs found defects there:
+three of the first run's five added claims were cut units, and two of the second's five added `FAIL`s
+were** — and the second said the announcement alone is not enough
+to decide whether to grade one. That is accepted rather than fixed: giving cut units their text costs
+the whole saving, and both runs read the spec file anyway. The set is announced so a reader knows the
+floor is not the document; the coverage obligation still runs over the floor alone (§8), and a cut
+unit a reader grounds is neither dispositioned nor reader-added — it is **off-floor**, the third count
+§8 names.
+
+This sentence used to say a grounded cut unit *is* a reader-added row, which §7.2 makes impossible:
+reader-added is keyed on `unit_id: null` and a cut unit has an id, because the index emits its row and
+withholds only the hash. So the row satisfied neither sentence and would have been counted nowhere.
+The unit implementing §8 found it by building the row rather than by reading either sentence, and gave
+it its own field instead of bending one of them — the case is not hypothetical: three of the five
+claims the first end-to-end run added were cut units.
+
+**The index opens with its commit and closes with its counts.** The first line is
+`# commit <sha>`, and `# commit unknown` when the caller has none — unconditional, so a reader never
+has to count rows to tell missing provenance from present, and `unknown` is not hex so it cannot be
+misread as a revision. The last line is `# <floor> in floor, <cut> cut`, **counted over rows**: a
+count of distinct hashes runs short by exactly the collisions §8's `ordinal` exists to handle, in the
+direction that flatters coverage.
+
+**The commit is supplied to the renderer, not discovered by it.** A formatter that shelled out to git
+would produce output no test could state.
+
+**The index carries the commit it was derived from**, on its first line. A round takes hours — the
+second run took two and a half — and the spec moved three commits underneath the first one, so five
+dispositioned units no longer existed by the time it finished, and the run found that by accident.
+§7.3 pins the round to a snapshot; the index says which snapshot it *is*, so a stale one is
+recognisable without a diff.
+
+**`text_sha` and `anchor` are emitted rather than derived, because a unit cannot compute either from
+what it receives.** The 60-character prefix is a display aid; **most units of this document exceed
+it**, so a hash over the prefix would carry a disposition forward across a sentence rewritten from
+character 61 on — exactly the defect §8 introduces `text_sha` to prevent. Deriving it instead would
+make every unit re-implement §2.1's five steps, and the failure would be silent: §7.2 constrains the
+field's type and not its value, so a wrong hash records as a covered unit that never matches again.
+tp computed both at emit; sending them costs about a quarter of the anchor payload and removes a
+silent-disagreement channel per round.
+
+**The index is emitted in a sigil-labelled line, not as JSON, and that is a measured decision rather
+than a taste.** One row is `u1 §7.2 30afa78662b5 #1 21B` — id, anchor, hash, ordinal, byte length,
+separated by spaces, with the ordinal's `#` and the length's `B` doing the labelling. §11 row 4 bounds
+the index at `units × 48 + 256`, and until the encoding was named the bound was undecidable: three
+conforming serialisations differ by 70%. This shape is under the bound on every spec in this
+repository, TSV likewise, and one JSON object per unit is over it on **every** spec in it — the field
+names cost a skeleton per unit larger than the payload it wraps. Run
+`python3 scripts/floor-prototype.py` for the three counts rather than reading them here: an earlier
+draft of this sentence said JSON was over "on all but one", which was derived against a model of the
+sigil shape the script no longer carries — the shape it modelled was the word-labelled one this
+paragraph disowns two sentences above, measured against twice the bound. Correcting the script moved
+the figure and left the sentence behind, which is the rot this section's own closing paragraph forbids
+a glob figure for.
+
+**`units` in that bound is every unit §2.1 produces, cut ones included**, because the index emits a
+row for each and the bound is over what it emits. Naming it matters more than it looks: the two
+readings differ by roughly 1.7× of headroom, and the floor-units-only one leaves about a single row of
+slack — `python3 scripts/floor-prototype.py` prints the worst ratio under the reading this paragraph
+decides, and the script's denominator was corrected to match it. The sentence above already says the
+bound was undecidable until the encoding was named; leaving the denominator unnamed reopened exactly
+that, one level down, and it was found by a repair unit re-deriving the figure rather than by anyone
+reading the row.
+
+This paragraph carried both ratios as figures for one round and one of them was already wrong when the
+next round measured it — which is the third time in this cycle that a number in a comment or a spec
+outlived the thing it was about. The figures are gone rather than refreshed, on §2.1's own rule: a
+figure appears with the artifact that derives it, and here the artifact prints it.
+
+**The kinship with `tp review`'s structured-element lines is one of purpose, not of format.** An
+earlier draft said the shape was the one `internal/cli/review.go:1054` "already uses"; that line
+renders *word* labels — `Table '%s' (line %d, %d rows)` — and the bound above was derived against the
+sigil form, so the citation named the wrong artifact. What the two share is the decision: emit an
+index of what the reader owes attention to, and no content.
+
+**The tally is not written here** — `python3 scripts/floor-prototype.py` prints it, and the
+denominator is the size of `spec/*.md`, which the commit adding `spec/1.0.0-corrections.md` changed
+from 53 to 54 while three sentences of this section still said 53. A glob is a live quantity; only the
+script may state its size.
+
+**The saving over inlining is real and it is not an order of magnitude**, and the release quotes no
+ratio for it, because every ratio this section has quoted went stale within one round (C1). The
+decision stands on the bound above and on nothing else — in particular not on the slogan an earlier
+draft used, that an inlining `tp ground` would be the one tp command contradicting `tp review`'s own
+*"The spec is NOT included inline to save context."*: `tp review` already inlines up to 6,000
+characters of changed sections per role prompt (`internal/cli/review_autodiff.go:15`).
+
+**And the cheap alternative was tried first.** `tp lint`'s `vague-language` rule fires **zero times on
+every pending spec but this one** — the set is `spec/0.37.1.md` plus `spec/1.38.0.md`–`spec/1.53.0.md`,
+and its size is whatever
+`ls spec/*.md | grep -E 'spec/(1\.[0-9]+\.0|0\.37\.1)\.md' | grep -v 1\.0\.0` returns rather than a
+number written here. The detector is not broken: an injected *"returns a reasonable value as needed"*
+trips it immediately while the same file without the injection stays clean. It fires once on this
+document, on the sentence above, because the rule has no notion of quoted material; that sentence is
+left standing rather than reworded, since rewording would hide the pending set's only instance. **So a
+lexical rule was not going to do this job** — the ambiguity that actually mattered in the pilot, an
+unstated rounding rule that made one table cell wrong, was found by recomputing both readings and
+carries no vague word at all.
+
+## 3. The dispositions
+
+Every row carries exactly one `verdict`:
+
+| verdict | meaning | what it demands |
+|---|---|---|
+| `PASS` | evidence at a tier acceptable for the claim's kind (§4.1) supports it | nothing |
+| `PARTIAL` | true under one reading and not another, or the conclusion holds while the stated reason does not, or it was true when written | repair the text; `partial_kind` says which of the three |
+| `FAIL` | evidence at an acceptable tier contradicts it | repair the claim |
+| `UNVERIFIABLE` | no acceptable tier is reachable at all; `tier` records the deepest one attempted | mark it; it never gates and never blocks coverage |
+| `QUESTION` | the claim is unsettled, in one of two shapes — *ambiguous*: the attempt reached an acceptable tier and the **result** did not settle it; *tier-unreached*: the tier reached is not acceptable for the kind | §6 — `causes` carries three to five ranked `{cause, prediction}` objects. The shape is derived from `kind` and `tier`, not recorded |
+| `NOT-A-CLAIM` | the unit is a decision, a prediction, or prose carrying no assertion about the world | nothing |
+
+**`NOT-A-CLAIM` is a verdict rather than an omission.** §2.2 obliges a disposition for every floor
+unit, and the arms have high recall and low precision by design, so a floor holds units that are not
+claims. How many is not stated here: it is a different measurement per document, and two earlier
+drafts of this paragraph asserted *"the majority"* without deriving it. The argument needs no count —
+without a recordable value for a non-claim, a conforming run leaves those units blank and every spec
+is permanently uncovered. It is a verdict and not a separate field so that
+one enum answers "is this unit dispositioned?", which is what §8 counts.
+
+**`QUESTION` covers two shapes, and both are the same failure: the claim is not settled.** The second
+shape is the one this release exists for — a behavioural claim confirmed by reading looks exactly like
+a `PASS` and is not one (§4). Recording it as `QUESTION` rather than rejecting the round keeps the
+run going while marking the debt.
+
+**Both shapes are legal, which is the correction of a draft that legalised only the second** and so
+left a unit that ran the shipped command and got an unclear result with no legal row anywhere
+(`spec/1.0.0-corrections.md` C5).
+
+**Which shape a row is, is *derived* rather than declared, and nothing records it.** Under §7.2's rule
+the two shapes partition the `(kind, tier)` space exactly: a tier acceptable for the kind makes the row
+`ambiguous`, an unacceptable one makes it `tier-unreached`, and across all forty-two pairs there is no
+pair where both are legal. A field would carry zero bits and a record would reject any row disagreeing
+with its own derivation, so `QUESTION` has no shape field. §3 names the shapes because a reader needs
+them; §7.2 computes them.
+
+**Do not derive anything further from tier *cardinality*.** Five of the seven kinds have a single
+acceptable tier, and an earlier draft concluded from that a `document` claim "can only ever be
+`ambiguous`" — which is false, and false in a specific way worth naming: it reasons from there being
+"nothing below `read`", which is an **ordering** claim, in a document whose §4.1 says in bold that the
+tiers are not ordered. Under the sets, `{document, run, QUESTION}` is legal and derives to
+`tier-unreached`. Whether such a row is *meaningful* is the unit's judgement, not tp's.
+
+**`PARTIAL` carries three repairs and one verdict, deliberately** — all three end in *fix the
+sentence*. The three-way distinction is not free, so it lands in `partial_kind` rather than in three
+verdicts: the pilot produced two `PARTIAL`s in one run and none in the other two, which is not
+evidence for three verdicts, and a required subfield costs one enum instead of expanding §8's counter
+three ways.
+
+**`UNVERIFIABLE` is designed and untested.** Zero instances in 44 pilot claims. It exists because this
+repository has already recorded the gap — *"tp has no verdict for asserted, not run"* — and a verdict
+absent from the vocabulary is a verdict a unit will fake as `PASS`.
+
+## 4. The evidence must match the claim's kind
+
+**Reading is evidence about text; only running is evidence about behaviour.** Both were tried on
+behavioural claims in the wider cycle rather than in the three pilot runs, with opposite outcomes.
+Running refuted one: a proposed mechanism — adding `-type d` to a `find … | shasum` digest pipeline —
+read perfectly and **changed nothing whatsoever** when executed, because `shasum` cannot hash a
+directory, the error goes to `/dev/null`, and both walks digest empty input. Reading passed the other:
+three claims about a shipped command were passed on a read, and an earlier draft of this section
+reported them as run because the run was what the argument needed. That upgrade is what §6's ranked-
+cause rule exists to catch, and it happened inside the document specifying the rule.
+
+### 4.1 Kinds and tiers
+
+**A row names the claim's `kind` and the `tier` of evidence actually used.** Both are closed enums, so
+a test can read them back; prose descriptions cannot be asserted over.
+
+| `kind` | the claim is about | acceptable `tier`s | and not the others, because |
+|---|---|---|---|
+| `document` | what a document says | `read` | running a command says nothing about what a text contains |
+| `code-structure` | how code is structured | `read`, `query` | a call-graph or dead-code tool is a query over the tree |
+| `corpus` | what the corpus contains | `query` | reading one file says nothing about what a set of them holds, and reading all of them **is** a query |
+| `behaviour` | existing behaviour | `run`, `red-green` | reading a command is not running it |
+| `mechanism` | whether a proposed mechanism works | `probe` | there is nothing shipped to run, so the only evidence is an artifact you build — and §4's `-type d` pipeline is what a read of one costs |
+| `defect` | whether a defect is real | `red-green` | a test that has never been observed failing may be asserting a tautology, and passes identically either way |
+| `guard` | whether a guard measures anything | `break-and-control` | a guard that passes proves nothing until its subject is broken |
+
+| `tier` | what was done |
+|---|---|
+| `read` | read the artifact |
+| `query` | ran a query over the corpus |
+| `run` | ran the shipped command |
+| `probe` | built a probe and ran it |
+| `red-green` | wrote the test, watched it red, fixed, watched it green |
+| `break-and-control` | broke the subject, ran the suite, **then ran the control** |
+
+**A claim about a mechanism that does not exist yet is `mechanism`, and its tier is `probe`** —
+including a claim about how *often* the mechanism would act. The first run of this protocol reached
+for a `kind` for *"would fire on essentially every invocation"* and found none, filing `behaviour`
+with a tier `behaviour` does not accept. It is `mechanism`: the subject is proposed, not shipped. When
+the probe cannot be built — there the frequency depends on invocation data tp records nowhere — the
+verdict is `UNVERIFIABLE` with `tier` naming the deepest attempt, which is what that row means.
+
+**The tiers are NOT ordered.** A tier is acceptable for a kind or it is not; the sets above are the
+whole rule. Past `run`, a "deeper" tier is not more of the same evidence but evidence about **a
+different subject** — `probe`, `red-green` and `break-and-control` rank rigour on an artifact the unit
+*built*, in a copy outside the repository (§4.2), while `read`, `query` and `run` examine the real
+one. The falsifying instance is in this section's opening: the `-type d` pipeline that read perfectly
+and changed nothing when run. A probe of a mechanism is not evidence about a shipped command's
+behaviour. Under an ordering `{behaviour, probe}` and `{document, run}` both pass; under the sets both
+are rejected (`spec/1.0.0-corrections.md` C6).
+
+**Rejecting at record rather than warning is the whole mechanism.** A verdict that does not record how
+it was reached lets a read stand in for a run, and the pilot holds one instance of that being wrong
+and one of it being right. §7.2 states the rule per verdict; this section supplies only the sets it
+reads.
+
+### 4.2 Where the probe runs
+
+**A probe runs in a copy the unit makes for itself, outside the repository, and tp provisions
+nothing.** The copy is a sentence in the emitted prompt, not a mechanism: a release already adding a
+command, six verdicts and a coverage counter should not also acquire a scratch-tree lifecycle.
+
+**This overrides a shipped clause, which is why it is stated rather than assumed.** The isolation
+clause appended to every review and audit prompt (`internal/cli/clauses.go:19`) reads *"Write no other
+file except the output file this prompt names"* and *"If proving a defect would require changing code,
+report it with its evidence instead of making the edit"* — which forbids the probe the tier table
+requires. **`tp ground` therefore emits its own isolation clause**, a third constant beside
+`isolationClause` (v0.36.0 §2.2) and `incrementalClause` (§3.2), appended together with
+`incrementalClause` unchanged. The ground clause permits writing inside a copy the unit creates
+outside the repository and forbids every write inside it except the round's own output file.
+
+**v0.36.0's suffix property must be amended, not merely left alone.** Its §6.2 property 1 quantifies
+over *every emitted prompt whose `output_path` is non-empty* — which a ground prompt is — so a third
+suffix does not sit outside it. This release widens the property to *each command's prompts carry
+that command's suffix, byte for byte*, and asserts it for all three commands over **two** suffixes —
+`clauseSuffix()` (`internal/cli/clauses.go:34`) is built once and both `appendClausesReview` and
+`appendClausesAudit` call it, so review's and audit's are already identical and only ground's is new
+(`spec/1.0.0-corrections.md` C9). Reading the shipped test and concluding the property was untouched
+is the error §3 calls `reason-not-conclusion`, and it was made in this section.
+
+**One objection to the copy still binds and is recorded as a tier limit rather than waved away.** A
+source file lifted out of its package does not build, so a claim whose probe would need a
+package-internal symbol cannot reach `probe`, `red-green` or `break-and-control` in a copy. That claim
+is `UNVERIFIABLE` — no acceptable tier is reachable — and its row still carries `tier`, naming the
+deepest one attempted (§7.2). It is not `QUESTION`: `QUESTION` is for a tier that *could* have been
+reached and was not. `spec/0.36.0.md` §2.4's other two reasons do not bind: its concurrency reason
+assumes N units, and grounding emits one prompt (§7.1); its second-write reason cites
+`spec/0.35.0.md` §6.3, which is the *Agents* section.
+
+**A probe that refutes a claim is the acceptance test's skeleton**, so the work is not thrown away.
+
+## 5. Order by what the sentence cost to write
+
+**Start with the cheap sentences.** All seven pilot defects were cheap: a number borrowed from another
+context, a rule left unstated, a reason that sounded right, four counts nobody counted. The expensive
+claims — the ones needing a simulator or a probe — held without exception, because building them was
+the verification.
+
+**A claim whose verdict depends on an unsettled claim belongs to a later pass.** One spec's
+*"concentration 2.0×"* could not be judged until *"how is the ratio derived"* was settled, and the
+second was never stated anywhere in the document.
+
+## 6. Ranked causes, facts, and not blocking
+
+**Before concluding on a claim whose first attempt did not settle it, name three to five falsifiable
+causes and rank them.** The scope is the first attempt's failure, not the verdict that follows — the
+rule is what a unit does *instead of* guessing, and it is not a tax on a claim the first read settled.
+It is **recorded** only on a `QUESTION` row, because that is the verdict where the causes are still
+open; where ranking them produced an answer, the answer is the verdict and the winning cause is the
+`evidence`.
+
+**Scoping it to the recorded row alone would have cost it its evidence.** All four grounding runs to
+date recorded **zero** `QUESTION` rows, and §6's own success story ended in a refutation — a `FAIL`.
+A rule whose stated scope excludes every instance offered for it is a rule with no instances.
+Single-cause reasoning anchors on the first plausible idea — the pilot cycle anchored three times and
+was wrong each time: a checker read as failing open when a shell pipeline was eating
+its exit code; a digest fix that read correctly and did nothing; a false-positive class characterised
+from the wrong reading. On its first deliberate use the rule produced a refutation: a field asserted
+to be driver-facing turned out to be written at two sites and read nowhere.
+
+**Each cause carries its prediction** — *if X is the cause, changing Y removes it.* A cause with no
+prediction is a vibe, so an entry whose `cause` or whose `prediction` is missing or blank is
+**rejected at record**, not merely noted. A pairing a record can be checked for and is not is the
+shape this document has paid for more than any other.
+
+**The ranking is the array's order, most likely first.** §3 and §6 both call the causes ranked and
+nothing else in the row can carry that, so the order is the rank and a re-ordered array is a different
+claim. tp cannot check a ranking — no rule it could apply distinguishes a considered order from an
+arbitrary one — so this is a statement about what the field *means*, and the only thing that would go
+wrong silently is a unit writing five causes in the order it thought of them.
+
+**An unknown key inside a `causes` entry is accepted.** §7.2's rejection is over the row's top-level
+keys, and the failure it would catch here — a misspelled `prediction` — is already caught, because the
+entry then carries no prediction.
+
+**Finding facts is the unit's job, never the operator's.** Where a claim needs a fact from the
+environment, go and get it. Two things reach the operator and nothing else: a fact **only the author
+holds**, and a **decision**.
+
+**A `QUESTION` does not stop the run.** The unit carries on with every claim that does not depend on
+the answer. Stopping is escalation, and escalation is for a decision.
+
+## 7. The command and the record
+
+### 7.1 Invocations and exit codes
+
+| invocation | does |
+|---|---|
+| `tp ground <spec>` | emits one prompt carrying the floor's index, naming `ground-rN.ndjson` as its `output_path` |
+| `tp ground <spec> --record <file>` | validates and records the round |
+| `tp ground <spec> --units` | prints the floor's units with their full text, one per line, derived from the spec **as it stands now** |
+| `tp ground <spec> --status` | reports coverage, the counts beside it, and the number of units the arms **cut** |
+| `tp ground <spec> --status --check` | exits 1 when a unit of the emitted floor carries no disposition, **and also** when the emitted floor is empty while units were cut to empty it; 0 otherwise |
+
+Exit codes follow tp's existing table with no additions, and each is pinned to a named input by test
+14. The mapping is **read from `exitStateError`** (`internal/cli/review_record.go:342`) rather than
+invented (`spec/1.0.0-corrections.md` C7):
+
+| code | outcome | a named input |
+|---|---|---|
+| **0** | success | any invocation in the table above completing |
+| **1** | a row fails validation — a line that is not JSON, an unknown top-level key, an unknown enum value, a missing required field, or a `tier` the rule in §7.2 refuses for that verdict and kind; or the round would record **no row at all** — the payload's rows plus §8's carried rows both zero | a `--record` file holding `{kind: behaviour, tier: read, verdict: PASS}`; a `--record` file whose second line is `{`; an empty file |
+| **2** | usage | `--check` without `--status`; `--record` with no path argument |
+| **3** | file or corrupt state — what `exitStateError` returns for `StateCorruptError` | a `--record` path that does not exist; a spec whose `spec/.tp-review/<base>/` already holds an unparseable `state.json`. **Not** a ground-only directory, which §7.3 requires to load cleanly |
+| **4** | the write lock could not be taken — `exitStateError`'s other branch | a concurrent `--record` holding `.tp/locks/<target>.lock`, where **the target is the spec path** |
+
+**An unreadable preceding round is a notice at emit and a refusal at record.** Emit carries nothing,
+says so on stderr, and exits 0; `--record` exits 3, which is where the round is actually decided. The
+asymmetry is deliberate: fail-closed at emit would make §7.1's own exit-3 input unreachable through
+the command sequence, since a reader who cannot emit never records. §7.1's table has no code for a
+degraded emission and this release does not invent one.
+
+**The lock's target is the spec, not the state file, and that was measured rather than preferred.**
+Keyed on the state file, `LockFilePath` resolves `.tp/` from *the target's own directory*, so a bare
+fixture with no git boundary gets a `.tp/` created **inside `spec/.tp-review/<base>/`** — a fourth
+entry in a directory §7.3 and row 12 state exhaustively, and three ground tests caught it as one.
+Keyed on the spec path the lock lands where every other tp lock does. `--record` reads the round
+number from the state directory and writes the round file into it, so both are inside one lock: two
+concurrent records must not compute the same `N`.
+
+**A blank line is skipped, and that is why exit 1 can be stated at all.** The row above used to say
+"a trailing partial line included", which is unsatisfiable as written: every file ending in a newline
+splits to a final empty line that is not JSON, so the rule rejected every well-formed record. tp's
+shipped NDJSON readers already skip blank lines (`parseRecordRows`, `internal/cli/review_record.go`),
+and grounding follows them rather than inventing a second convention. The line the operator cares
+about — a truncated write leaving `{` at the end — is not blank and is still rejected, and the round's
+**line numbers count blank lines**, so a reported number indexes the file the operator can open.
+
+**A record that would write no row at all is rejected. A record whose payload is empty because the
+round owes nothing is not.** The rule is on what the round *records*, which is the payload's rows plus
+§8's carried rows — never on the payload alone. Zero rows written would consume a round number for a
+round that decided nothing, and §8 would join it against no dispositions and report coverage that
+stalled. A round that carries 300 dispositions decided 300 things, and its payload being empty is the
+narrowing working, not a mistake.
+
+Stating it on the payload alone was a **reachable deadlock**, reproduced on a built fixture in three
+commands: re-emit on an unedited spec, every unit carries, the prompt asks for `0 of the 2 floor
+units`, the unit writes the empty file it was asked for, and `--record` refuses it with `code: 1`.
+The narrowing and the refusal were written one release apart and each was right on its own; the ask
+is what made them meet.
+
+An empty payload with nothing to carry is still refused, and that is the case the rule was written
+for — the reader who ran nothing.
+
+**The prompt asks for every unit the round still owes a disposition for**, which in round 1 is the
+whole floor and from round 2 is what §8's carry has not already answered. The index still lists every
+unit, so nothing is hidden from the reader; only the ask narrows. An earlier draft said the prompt
+"asks a question of every unit in the index", and that stopped being true when the narrowing shipped.
+
+**The recorded file holds the payload's bytes, not a re-serialisation of the parsed rows.** Rewriting
+them would silently drop every key §7.2's table does not name, and §8 reads this file back — so a
+round would lose, at record, exactly the material a later reader has no other copy of. Validation
+therefore decides *whether* to write and never *what*.
+
+**`--check` is a read-back, not a gate.** Non-Goal 3 forbids tp *refusing* on coverage; it does not
+forbid an exit code an operator can branch on, which every other phase already has and whose absence
+would make an unattended reader parse JSON to learn one bit.
+
+**`--check` has a second condition, because coverage certifies one state falsely.** A floor of no
+units makes `dispositioned < emitted` read `0 < 0`, which is false — so a document nobody checked
+exits 0 on the gate that decides shipping. **Which zero it is decides the answer, and only the cut
+count can tell.** A document §2.1 produced no unit from is honestly 0-of-0: there is no claim the
+round skipped, and refusing there would refuse every spec that is all headings. A document whose
+sentences the arms all *dropped* is the opposite — units existed, none was checked, and §2.2's whole
+reason for announcing the cut set is that both end-to-end runs found defects inside it. Measured on a
+fixture carrying four prose claims that no arm keeps: round 1 emits, the index records `0 in floor, 4
+cut`, and nothing is dispositioned. So `--check` exits 1 there and 0 on `0 in floor, 0 cut`.
+
+**The cut count is therefore a key of `--status`'s payload and not a line of stderr alone.** §7.1
+makes `--check` the exit code of the coverage `--status` reports, so a quantity the gate reads and
+the report hides makes the two disagree: on that fixture the payload's own coverage predicate holds
+while the exit says the opposite. The stderr notice that names the cut set is an `output.Notice`, and
+`--quiet` suppresses it — measured, the flag leaves an unattended driver exit 1, an empty stderr, and
+a payload it cannot tell from a covered round's. The same call was already made twice for the same
+reason, in `file_summary.truncated` and in this command's own `carried`. `cut` is present at zero
+rather than omitted: it is the key that separates the two states a denominator of zero can mean, and
+§8's rule against a key a reader must first decide whether an absence stands for applies to it
+exactly as it applies to `by_verdict`'s six.
+
+**One prompt, not a panel.** Review and audit fan out because their roles ask different questions;
+grounding asks one question of every unit. Sharding a large floor is the divisible round's subject.
+
+### 7.2 The row
+
+`ground-round-N.ndjson` holds one JSON object per line:
+
+| field | type | required | meaning |
+|---|---|---|---|
+| `unit_id` | string \| null | yes | `u<N>`, where **N is the 1-based index of the unit over every unit §2.1 produces, in document order, counting the ones the arms cut**. Numbering over the floor alone would renumber every later unit when an edit changes one unit's arms, and §8 joins across rounds. `null` for a reader-added claim |
+| `anchor` | string | yes | the `§n(.n)*` section the unit sits in |
+| `text_sha` | string | yes | first 12 hex of the sha256 of the unit's text as emitted; the unit supplies it for a reader-added claim |
+| `verdict` | enum | yes | one of §3's six |
+| `kind` | enum | iff verdict ≠ `NOT-A-CLAIM` | one of §4.1's seven. **Optional on `NOT-A-CLAIM`**, with `tier` and `evidence`, when the unit states a decision *and* a checked fact — the first run had five such units and had to bury real evidence in `note`, where no counter sees it |
+| `tier` | enum | iff verdict ≠ `NOT-A-CLAIM` | one of §4.1's tier table; **the deepest tier the unit actually reached**, never the tier the kind requires |
+| `evidence` | string | iff `tier` is present | free text: the command that was run, or the artifact and line that was read. **Deliberately unstructured** — the six tiers span a shell command, a corpus query, a file-and-line citation and a red-green transcript, and a schema wide enough for all six constrains none of them. `tier` is the structured field; `evidence` is what a later reader re-runs |
+| `partial_kind` | enum | iff verdict is PARTIAL | `two-readings`, `reason-not-conclusion`, `true-when-written` |
+| `held_at` | string | iff `partial_kind` is `true-when-written` | the commit, tag or date at which the claim held. The verdict names a moment and the row could not carry it: the second run bisected history for seven such units and had to bury each answer in `note` |
+| `causes` | array | iff verdict is QUESTION | three to five `{cause, prediction}` objects |
+| `ordinal` | integer | yes | the 1-based index of this unit among those sharing its `text_sha`, in emission order; `1` when the hash is unique. §8 joins on `(text_sha, ordinal)` |
+| `carried_from` | integer | no | present only on a disposition carried forward by §8; the round it was first decided in |
+| `note` | string | no | free text |
+
+A row failing any cell of this table is rejected at record with the field named, and **the round is
+not written** — a partially valid round would make coverage a lie.
+
+**An unknown top-level key is rejected, not ignored**, on `allowedRoleKeys`' precedent
+(`internal/engine/rolefile.go:18`, which does the same for a role file's key set). The cell-by-cell
+rejection above says nothing about a key that is no cell, and ignoring one means a misspelled
+`carried_from` is silently dropped — which is the failure shape this document has paid for more than
+any other.
+
+**`null` is a written value that fails its cell, everywhere except `unit_id` and `note`.** `unit_id`
+declares `null` legal and must tell it from a missing key, so it is the one field where absence and
+`null` differ; `note` is free text. Elsewhere the distinction does not arise, and a Go emitter writes
+`null` for a nil slice by accident — a `QUESTION`-less row carrying `"causes": null` is the row that
+separates the two readings, not the `QUESTION` row anyone would reach for.
+
+**On `NOT-A-CLAIM`, `kind` may be carried without `tier`.** The pair is optional there (above), and
+optional is per-cell: a unit that says what a decision is *about* without having gone looking is a
+legitimate row.
+
+**`tier` is the field the rest of this spec is derived from, and it records what happened rather than
+what was required.** Every verdict except `NOT-A-CLAIM` carries it, including `QUESTION` and
+`UNVERIFIABLE`, because the tier a unit reached is the fact that decides which of the six the row is:
+
+| the row says | and the rule reads |
+|---|---|
+| `PASS`, `PARTIAL` or `FAIL` | `tier` **must** be acceptable for `kind` (§4.1). Otherwise the row is rejected at record |
+| `QUESTION` | **no constraint** — either relation is legal, and which one holds *is* the row's shape (§3): acceptable means the unit got there and the result did not settle it, unacceptable means it did not get there |
+| `UNVERIFIABLE` | `tier` names the deepest tier that was attempted; no acceptability constraint, because the point is that none is reachable |
+
+**This is the correction of a design that had the rule and lost the fact.** An earlier draft forbade
+`tier` on a `QUESTION` row while §3 defined the second `QUESTION` shape as *evidence below the
+required tier* — so the release's headline row could not record the thing that made it that row.
+Three roles found it independently. `PARTIAL` is inside the rule for the same reason: outside it, a
+unit that could not carry a `FAIL` at the required tier could downgrade to `PARTIAL` and keep a read
+standing in for a run.
+
+### 7.3 Where it lives, and what it must not disturb
+
+**The round is discovered by filename and writes nothing into `state.json`.** `SaveReviewState`
+marshals a typed struct, so any key it does not know is dropped on the next write — measured: a field
+injected into `state.json` is gone after one `--record`. A new index key would need the
+key-preservation work as a hard prerequisite; a filename convention needs nothing.
+
+**Emit writes two files and record writes one.** `tp ground <spec>` writes
+`snapshot-ground-round-N.md` — the spec's text as the round read it — and `floor-ground-round-N.txt`,
+the index it derived from that text. `--record` writes `ground-round-N.ndjson` beside them and
+validates against the **recorded floor**, not against the spec as it stands at record time.
+
+To be exact about what "validates against" means, because the phrase promises more than the rules
+deliver: the floor's **existence** is an input to `--record` and its **content** is not. No rule in
+§7.2 joins a row to a floor row **by content**, so a record whose `unit_id` matches nothing in the
+floor is a valid record. That join is §8's, at `--status`, where an unmatched id is a coverage fact —
+`off_floor` — rather than a parse failure.
+
+**The whole join key is checked against the floor, and nothing else is: a row whose `unit_id` names a
+floor row must carry that row's `text_sha` and that row's `ordinal`.** Everything else in §7.2 is
+shape-checked and nothing else is compared. The check exists because the alternative is a **silent**
+loss rather than a wrong number: the row asserts it grounded the unit that key names, §8's carry joins
+on `(text_sha, ordinal)` while coverage joins on `unit_id`, so a row with a valid id and either half
+of the key wrong counts as dispositioned in this round and **fails to carry in the next**, with
+nothing saying why. Measured on a built fixture: a row on `u1` carrying `deadbeef0000` recorded at
+exit 0, `--status` reported 4 of 4 with `off_floor: 0`, `--check` exited 0, and round 2 on the
+unchanged spec carried 3 of 4. A `--check` certifying a disposition of text nobody read is the exact
+failure this release exists to remove.
+
+It is also the *predicted* failure rather than a hypothetical one: `FloorTextSHA`'s own comment records
+that the first end-to-end run agreed with tp only because the unit read the prototype's source. A
+reader computing the hash by hand gets it wrong, and before this rule nothing told them.
+
+An earlier draft of this paragraph named a field called `unit_sha`, which is in no §7.2 cell. The
+`unit_id` reading is the one that was implemented; the `text_sha` reading is the rule above, and the
+two sentences are separated here because conflating them is what let the second go unstated.
+
+**A later draft checked the hash alone, which was this rule's own defect, and both of its
+consequences were built and run.** That draft said *one* value was checked while naming
+`(text_sha, ordinal)` on its very next line as the reason, and the implementation followed the
+sentence. Under it, a row on `u1` carrying the right hash and `ordinal: 9` recorded at exit 0,
+`--status` reported every unit dispositioned, and round 2 on the unedited spec carried every unit
+**but `u1`** — the drop this check exists to remove, reached through the half the sentence left out.
+Worse, on a spec holding two identical sentences, a row naming `u2` with `ordinal: 1` recorded at
+exit 0 and round 2 marked **`u1`** carried: a unit nobody graded, withheld from the round that would
+have asked for it, while the unit that was graded went uncovered. A drop leaves its unit visible;
+mis-attribution does not. The code was right about the sentence and the sentence was wrong about its
+own reason — a rule naming a key and then checking a projection of it. Units sharing a hash exist in
+this corpus: §8 names five of them in one file.
+
+What the recorded floor buys `--record` is that the spec's own text is never opened
+in this mode — which is the whole difference between reading the floor and re-deriving it, and is what
+the implementing unit's sharpest mutant tests by pointing the read at `specPath`.
+
+**The prompt's `output_path` and the recorded file are different artifacts with different names, and
+the difference is deliberate.** `ground-rN.ndjson` is the scratch file a unit writes and an operator
+collects; `ground-round-N.ndjson` is what `--record` writes into the state directory. That is the
+shipped convention — `roleOutputPath` (`internal/cli/prompt_framing.go:44`) already emits
+`<phase>-r<round>-<role>.ndjson` beside the recorded `<phase>-round-N.ndjson` — and it is stated here
+because a reader deriving the recorded name from §7.1's table alone would get it wrong.
+
+**`--record` with no prior emit exits 3.** There is no floor to validate against, and inventing one by
+re-deriving from the current text is the emit-time-hash defect: the round would certify a floor its
+rows were never graded against. The message names the emit command.
+
+**The snapshot is written at emit, not at record**, which is the shipped convention its own comment
+states: `snapshotPrefixes` names *"the artifacts an emission writes before any round is recorded"*
+(`internal/engine/reviewstate.go:316`). `tp ground <spec>` therefore writes
+`snapshot-ground-round-N.md` and the floor it derived from it; `--record` reads that floor rather than
+re-deriving one from the spec as it stands at record time. Without this, `unit_id` "assigned at emit"
+is unverifiable and a spec edited mid-round is silently re-floored — which is the emit-time-hash
+defect this repository already has open elsewhere, reintroduced.
+
+**A unit's anchor is the numbered heading it sits under, and `§0` before the first one.** This
+document's own preamble blockquote is prose under §2.1 and its units are in the floor, so without a
+value for them `tp ground spec/1.0.0.md --status --check` could never exit 0 on the release's own
+spec.
+
+**A numbered heading is `##` through `######`, never `#`.** Level 1 is excluded because five specs in
+this repository title themselves with a version — `# 0.20.0 — Review Enhancements` — and treating that
+as a section would anchor a whole preamble to `§0.20.0`. Levels 4 to 6 are included because
+`spec/0.36.0.md` carries `#### 4.2.1`, which a level-2-and-3 rule reports as `§4.2`.
+
+**The anchor is resolved from a line number the block carries, never by finding the unit's text in the
+file.** A canonicalised unit does not appear verbatim in the source — step 3 joined its wrapped lines —
+and the prototype's text-locating version is what put every table row at `§0` while its own `§0` test
+passed.
+
+**A block whose lines span a heading has no per-unit answer, and the case does not arise.** A dropped
+heading is not a block boundary (§2.1 step 1), so in principle a unit could straddle one. Measured
+fence-aware over `spec/*.md`: six headings have no blank line before them and **none** is followed by
+prose, so no such block exists. The implementation resolves from the block's first line and says so
+rather than leaving it implicit.
+
+**N is the highest existing `ground-round-<N>` plus one, and a gap is preserved.** A directory holding
+rounds 1 and 3 yields 4, never 2: the missing round is a deleted or lost artifact, and silently
+refilling its number would make two different rounds share an identifier.
+
+**Ground artifacts are their own prefix list and join neither existing one.** `ground-round-`,
+`snapshot-ground-round-` and `floor-ground-round-` — all three files this phase writes — go in a new
+`groundFilePrefixes`, not in `roundFilePrefixes`
+(`internal/engine/reviewstate.go:314`) and not in `snapshotPrefixes` (`:318`). This is the correction
+of a citation an earlier draft got wrong, and the consequence is an **abort**, not a phase change as
+that draft said. Measured: `hasRecordedRoundFiles` and `hasStateArtifacts` have exactly one caller
+between them — `LoadReviewState` (`internal/engine/reviewstate.go:130`) — and neither reaches phase
+detection. On the ground-only directory §7.3 mandates (the ground round and its snapshot, no
+`state.json`), a widened prefix list makes `LoadReviewState` find state artifacts with no index and
+return `StateCorruptError{MissingIndex: true}`, so **every command that loads state for that spec
+aborts**. The conclusion is better supported by the real mechanism than by the asserted one.
+
+**`roundNumberRe` (`internal/engine/bookkeeping.go:24`) is widened, and that is the opposite of the
+prefix decision above.** Its alternation gains `ground`, because it has a second consumer the prefix
+analysis does not reach: `roundRefFromName` feeds `DeriveBookkeeping`, which classifies **every** dirty
+path under `.tp-review/` on the path prefix alone. Left alone, a ground round would be classified as a
+round whose reference is the filename instead of its number — review and audit report `"3"` and ground
+would report `"ground-round-3.ndjson"`. Numbering is not widened with it. It keeps its own matcher,
+`groundRoundFileRe`, anchored on `ground-round-<N>`: `groundFilePrefixes` also names the snapshot and
+the floor an emission writes, so numbering routed through that list would count artifacts written
+*from* the number it is computing, and break the rule above that N is the highest existing
+`ground-round-<N>` plus one. Only the bookkeeping reference is shared.
+
+**A ground round runs on a spec with no state directory, and creates it.** That is the ordering this
+release advocates — grounding precedes review — so the first `--record` on a fresh spec must create
+`spec/.tp-review/<base>/` holding only the ground round and its snapshot, with no `state.json`.
+
+## 8. Convergence is coverage, not absence
+
+**Review converges when nobody finds anything. Grounding converges when every emitted floor unit
+carries a disposition.** Those are different gates, and this repository has already paid for
+conflating an absence signal with a coverage one.
+
+**A claim about a past event that left no artifact is `UNVERIFIABLE`, and that is a property of the
+claim rather than of the search.** §1.1's pilot rows are the standing case: the runs happened, nothing
+recorded them, and no tier reaches them. The second run recorded six such units and observed that they
+read as six failures to search. They are not — they are the verdict working, and a spec that rests an
+argument on an unrecorded event should expect to see it.
+
+**Coverage says a unit was decided, never that it was decided well — so `--status` reports the
+per-verdict breakdown beside the ratio.** A `FAIL` is a disposition, so a spec whose every claim was
+refuted is 100% covered, and §8's carry-forward makes an unrepaired `FAIL` permanent while its text
+stands. Without the breakdown, `--check` exiting 0 would be readable as *the premises hold*, which is
+the misreading this release exists to remove. Coverage answers *did anyone look*; the breakdown
+answers *what did they find*; `--status` carries both. This clause used to say that **§9's
+advisory** carries both, which the next section's own normative sentence contradicts: the
+`ungrounded` object carries `round`, `undispositioned` and `floor_size`, and no verdict. The
+advisory is one key inside another command's envelope and its reader is an operator deciding
+whether to look, so the breakdown belongs where the question is asked. Found by the unit
+implementing `--status`, which followed §9's enumeration over this summary of it — §11's closing
+paragraph records the same shape of defect, a summary beside a normative statement being the
+wrong one.
+**The `NOT-A-CLAIM` share is the first
+number to read**, because it bounds what coverage can mean: on this document's own floor the second
+run dispositioned **138 of 243 units as `NOT-A-CLAIM`**, so 100% coverage there says that 57% of the
+floor needed no looking at. A high share is honest for a decisions document and it makes the ratio a
+weaker signal, which the reader should be able to see without computing it.
+
+**Coverage is dispositions over the emitted floor, and the denominator is what tp emitted.** tp knows
+that set exactly, because it produced it. **Three counts sit beside the ratio, not two**: reader-added
+rows (`unit_id: null`), off-floor rows (an id the index emitted **without** a hash — a cut unit a
+reader chose to ground anyway), and the per-verdict breakdown. The first two move neither side of the
+ratio and are separated because they are evidence about **different halves of §2.1**: *the arms never
+produced this unit* against *the arms produced it and then cut it, and the cut was wrong*. Collapsing
+them loses which half to go and look at. Neither ever enters the denominator — tp cannot know the set
+it did not emit (Non-Goal 5), so a denominator that pretended to would be unmeasurable.
+`UNVERIFIABLE` counts as dispositioned: it is a settled answer, not a gap.
+
+**A repaired claim is a new claim.** A correction that arrives with the command that produced it is
+verified at birth; one that does not is ungrounded, and corrections can be wrong — two were, in the
+pilot cycle.
+
+**So a second pass covers the units whose text changed, and `text_sha` is what makes that computable.**
+
+**The prompt narrows to what is owed, or the carry saves nothing that costs anything.** The carry runs
+at `--record`, so without this the second round's prompt still asks for every unit and the saving is
+confined to bytes tp writes for itself — while the reading, which is where the tokens and the agent's
+time actually go, is unchanged. Measured on a copy of this document: a one-sentence edit left **1**
+disposition owed in round 3 and the prompt asked for **308**. A round therefore emits an index that
+marks each unit tp can already carry, and asks for dispositions only for the rest; the index still
+lists every unit, because a reader who cannot see the whole floor cannot tell it what the floor missed
+(§2.2). A carried unit is deliberately not re-asked — that is the same rule as an unrepaired `FAIL`
+staying `FAIL` while its text stands, seen from the emitting end.
+Re-emit the floor; a unit whose `text_sha` matches a disposition in the **immediately preceding**
+round carries it forward, and every other unit is uncovered. **The join key is `(text_sha, ordinal)`,
+where `ordinal` is the 1-based index of that unit among the units sharing its hash, in emission
+order** — `text_sha` alone is not unique and cannot be made so: measured over `spec/*.md`, one unit's
+text occurs **five** times in a single file (`**Exit codes:** 0 = success.` in `spec/0.1.0.md`). An
+earlier draft asserted a uniqueness bound instead, which is false of the corpus and would have been
+false of any corpus containing a repeated sentence. Two things are pinned because the
+readings diverge only at round 3 and a two-round fixture cannot separate them: **the lookup is round
+N−1 alone**, not the union of all earlier rounds, so a unit reverted to a wording last dispositioned
+in round 1 is re-decided rather than resurrected; and **a carried disposition is written into round
+N's own file**, with its original `tier` and `evidence` and a `carried_from` naming **the round it
+was first decided in**, rather than being computed at `--status`. A round file that does not hold
+every disposition it claims coverage for is not a record. Without the hash on the row nothing joins a
+recorded disposition to a sentence, and pass N re-decides the whole floor — which on a twelve-round
+cycle is twelve full passes where the design intends one and eleven scoped ones.
+
+`carried_from` used to read *"the round it came from"* here, which §7.2's own table contradicts — it
+says *the round it was first decided in* — and the two diverge on a unit already carried once, so no
+two-round fixture separates them either. The table's reading is the one that survives: a disposition
+made in round 1 and unchanged since is carried into round 2 as `carried_from: 1` and into round 3 as
+`carried_from: 1`, not 2. **A field that were always N−1 would be derivable from the round it sits in
+and would carry no information at all**, which is this repository's standing reason against a key
+whose value is fixed; as written it answers how long an unrepaired `FAIL` has stood, which is the
+question the clause above puts on it. Measured on a copy of this document: round 3 of a real cycle
+carried 307 dispositions, 306 of them stamped `carried_from: 1`.
+
+**Grounding therefore recurs, and does not run once.** A review repair rewrites part of the spec, and
+the next review round reads that text as authoritative too. In this repository's corpus the share of a
+round's findings landing in text the previous round had just written is a median of **70.2%** across 44
+rounds and runs **45.2% → 79.9% → 92.5%** over the last three cycles; the repair-locality spec §1.1
+carries the table and the derivation. That text is where the new claims are.
+
+## 9. Review is told, and not stopped
+
+`tp review` reports coverage — dispositioned floor units over emitted floor units, for the latest
+ground round — and emits an advisory when any floor unit is undispositioned. **It does not refuse:**
+its exit code is identical with and without ungrounded units.
+
+**The key is `ungrounded`**, an object carrying `round`, `undispositioned` and `floor_size` — the
+latest ground round's number, the count of floor units without a disposition, and the floor's size —
+absent entirely when every unit is dispositioned or when no ground round exists, on `divergence`'s
+precedent that a permanent zero-valued key is a key every reader learns to skip.
+
+**A round exists from its EMISSION, not from its record**, so the latest ground round is the latest
+one `tp ground` wrote a floor for. Between the emission and the record nothing in that round has been
+decided, which is the state the advisory most needs to name; keying on the latest RECORDED round
+instead reports the *previous* round's complete coverage and drops the key, so a spec whose current
+round nobody has come back to would read as fully grounded. The paragraph above used to add *"or when
+no ground round exists"* to the emission condition, which contradicts the absence rule two lines
+below it and which the object cannot express in any case — its first field is the round's number, and
+in that state there is none. The implementing unit followed the absence rule, on §11's standing
+reading that a normative rule beats a summary of it.
+
+**The advisory is emitted once, in the top-level envelope, not per role.** `divergence` is the
+precedent and this inherits its economy: one key in the envelope, absent rather than zero-valued when
+there is nothing to say, surviving `--compact`. Per role it would be one emission per role per round
+— the shape rather than a product, because the panel size is a corpus setting and any figure written
+here is falsified by a role being added — of a signal whose reader is the operator, not the role.
+
+**Gating is a later decision and this release does not take it — and the reason it gives is not the
+one an earlier draft gave.** That draft said a gate would fail on units correctly dispositioned
+`NOT-A-CLAIM`; adding the sixth verdict made those units *covered*, which destroyed the reason and
+left it standing. The surviving reason is the opposite direction: **full coverage does not mean every
+claim is grounded.** The denominator is the floor, and §2.2 says the floor is a floor — a claim the
+reader added carries a row and moves neither side of the ratio, so a document can report 100% with a
+behavioural claim nobody looked at. Gating on a number that can be complete and wrong is worse than
+reporting it. `divergence` reported for a release before anything gated on it.
+
+**The advisory is deliberately silent on the one floor `--check` refuses, so this release ships two
+signals that answer differently on one input.** A document whose sentences the arms all cut has an
+emitted floor of no units, so no unit is undispositioned, so the absence rule two paragraphs up
+removes the key — while `tp ground <spec> --status --check` exits 1 on that same round (§7.1). Saying
+so here rather than leaving a reader to find it: the two are not one gate read twice. The advisory's
+subject is *units this round has not come back to*, and there are none; `--check`'s is *whether this
+round checked anything*, and it did not. Firing the advisory here would mean emitting an object whose
+`undispositioned` **and** `floor_size` are both zero — the permanently-uninformative shape the
+absence rule exists to remove — to restate a fact `--check`'s exit code and `--status`'s `cut` both
+already carry. The reader who needs the disagreement resolved is the one running `--check`, which is
+where §7.1 puts the answer.
+
+## 10. Non-Goals
+
+1. **No new phase in the oracle.** No `DetectPhase` branch, no ninth unit kind, no `tp run` unit — and
+   §7.3's separate prefix list is what keeps that true. A command and an advisory; the phase question
+   is a later release's, and §1.2 states the limit rather than claiming the gap is closed everywhere.
+2. **No `state.json` key.** §7.3.
+3. **No refusal on coverage.** §9. `--check`'s exit code is a read-back, not a gate.
+4. **No panel, no roles, no per-role streaks.** §7.1.
+5. **No claim extraction beyond the floor.** tp emits the arms' output and names it a floor; it does
+   not attempt to be the list, and §2.2 says why it cannot.
+6. **No verdict on decisions or predictions.** They are `NOT-A-CLAIM`; a unit that grades them is
+   reviewing, which is the next phase's job.
+7. **No artifact of the round is written outside `spec/.tp-review/<base>/` and the unit's own copy.**
+   The round file, its snapshot and the floor are written there by design (§7.3); the working tree is
+   otherwise untouched. tp's own write lock is the exception, and it is one §7.1 chooses on purpose:
+   `--record` takes `.tp/locks/<spec>-<hash>.lock` like every other write command, creating `.tp/`
+   and the `.gitignore` that keeps the lock out of git if they are absent. Measured on a tree holding
+   one spec and no `.tp/`, those two files are everything a `--record` leaves outside the state
+   directory. Keying the lock on the spec path is what stops it landing a **fourth** entry *inside*
+   `spec/.tp-review/<base>/`, which §7.3 and row 12 state exhaustively — so an earlier wording of this
+   Non-Goal forbade what a decision two sections up requires, and the sentence was the defect rather
+   than the lock.
+8. **No round budget field.** The reason is that `tp ground` is a command an operator runs, with no
+   driver to run away with it (Non-Goal 1) — **not** that the loop shrinks fast, which was asserted
+   from a single measured interval and then contradicted by the next one, 15% against 52%
+   (`spec/1.0.0-corrections.md` C10). `ground_max_rounds` belongs to the release that gives grounding
+   a phase, where something else decides how often it runs.
+9. **No claim inside a fenced block reaches the floor.** §2.1 step 1. Code, transcripts and command
+   output are quoted evidence rather than assertions, and a fenced block that *does* carry a claim is
+   introduced by prose the floor already holds. (An earlier draft made the same exemption for table
+   **rows**; §2.1 now segments them, because §2.1's own measurement — the one
+   `scripts/floor-prototype.py` re-derives — said they are a large and uneven share of it.)
+
+## 11. Tests
+
+Every row derives from a numbered decision, names the artifact it depends on, and names a mutant that
+must fail it. Two rules govern the table, and both are repairs:
+
+1. **A mutant that no input distinguishes from the shipped code is not a mutant.** Three successive
+   drafts shipped rows that failed this; `spec/1.0.0-corrections.md` C8 records the three and how each
+   was found — in every case by constructing the input rather than by reading the row.
+2. **The input a row's mutant column claims is discriminating must appear in that row's *assertion*
+   column.** The mutant column is where the reasoning goes and the assertion column is where the test
+   goes, so the format itself invites the split. **This rule is necessary and not sufficient**, which
+   `tester` established by satisfying it and still shipping an unfailable row: it checks that the
+   input is *named*, not that it is **reachable** under the rest of the spec, nor that the asserted
+   outcome is **decidable** without a choice the document has not made. Rows failing the second and
+   third clauses are in C8.
+
+**Every subsection that constrains `tp ground`'s behaviour appears in at least one row's `from`
+column** — §2.1, §2.2, §3, §4.1, §4.2, §6, §7.1, §7.2, §7.3, §8, §9. The quantifier is over that set and
+not over every heading: §1.1, §1.2, §5 and §10 constrain a reader or record a decision and pin no
+behaviour, and an earlier draft's unqualified *"every normative subsection"* was false of §5. The
+observation that §4.2 was absent from the previous table and was the least-repaired subsection stands;
+the **causal** reading of it — that absence from §11 confers exemption — was withdrawn by the role that
+filed it, on n=1 and a confound this round supplied: §11 carries the most rows and drew the most
+findings.
+
+| # | from | assertion | the mutant that must fail it |
+|---|---|---|---|
+| 1 | §2.1 *arms* | the three arms are asserted separately: a unit holding only a digit, only a backtick span, and only a listed verb each land in the floor, and a unit holding none does not | drop the verb arm, which loses a unit like *"the round is recorded before the snapshot is written"* — no digit, no backtick |
+| 2 | §2.1 *no fourth arm* | a unit whose only signal is a bare `` `internal/cli/audit.go` `` — no line number, no other digit, no listed verb — **is in the floor**, via the identifier arm | require a digit inside the code span for the identifier arm, which drops that unit and is the reading under which a fourth path arm would have been load-bearing |
+| 4 | §2.2 *the index* | on a **constructed** floor of 1,200 units with the worst case §2.2 admits — a 7-segment anchor and 4-digit ordinals — the index is under `units × 48 + 256` bytes, and **contains no substring of any unit's text**, asserted by constructing a unit whose text is a rare token and searching the index for it | carry the first 60 bytes of each unit's text in its row, which fails **both** halves at once: the constructed unit's rare token is then in the index, and 60 bytes per row exceeds a bound of 48 per row on its own. No ratio against inlining is quoted for it — `scripts/floor-prototype.py` has no inlining column, and §2.2's closing rule forbids the figure. It is also row 4b's defect arriving through row 4: a prefix puts the reader back to guessing each unit's extent |
+| 4b | §2.2 *`--units`* | `--units` prints one line per floor unit whose text is the **whole** canonical unit, of the **byte length the emitted index records for that unit** | print a truncation, which puts the reader back to guessing an extent. Note that the row's other clause — the line's `text_sha` is the sha256 of what follows it — **cannot be made to fail**: `FloorUnitRow` has no settable hash field, so the hash is derived from whatever text is printed and a truncation takes both with it. That is the make-it-unwriteable rule working, and the length read from the index is what actually catches the mutant. Do not re-file the untestable clause as a gap |
+| 5 | §3 | all **six** verdicts round-trip through `--record`, `NOT-A-CLAIM` included | accept only the five of an earlier draft, so a floor unit that is not a claim has no legal value and every spec is permanently uncovered |
+| 6 | §4.1 *sets, not an order* | `{behaviour, read, PASS}` **rejected**, `{behaviour, run, PASS}` accepted, `{document, read, PASS}` accepted, and — the two an ordering admits — `{document, run, PASS}` **rejected** and `{behaviour, probe, PASS}` **rejected** | treat the tiers as ordered and accept anything at or above the kind's first listed tier, which accepts both of the last two |
+| 7 | §4.1 *set edges* | membership is asserted on both sides for a kind with one acceptable tier and for one with two: `{corpus, read}` rejected and `{corpus, query}` accepted; `{code-structure, read}` and `{code-structure, query}` both accepted while `{code-structure, run}` is rejected | accept any tier for a kind listing more than one, which passes every single-tier case and fails only on `code-structure` and `behaviour` |
+| 7b | §7.2 *the rule is per verdict* | `QUESTION` takes **either** tier relation: `{behaviour, read, QUESTION}` and `{behaviour, run, QUESTION}` are **both accepted**, while the same two under `PASS` are rejected and accepted respectively. Plus `{mechanism, read, UNVERIFIABLE}` accepted, since `tier` there names the deepest attempt | require an unacceptable tier for `QUESTION`, which rejects `{behaviour, run, QUESTION}` — a unit that ran the shipped command and got an unclear result, and the case with no other legal verdict |
+| 8 | §6 *cause count* | `causes` of length 2 and of length 6 are both rejected; 3 and 5 are both accepted | bound the count at 1–10, which accepts 2 and 6 and is indistinguishable from the shipped bound on 3 and 5 alone |
+| 9 | §6 *non-blocking* | a round holding a `QUESTION` records, and every other row in it still records | exit on the first question, turning a checkpoint into an escalation |
+| 10 | §7.2 *atomicity* | a `--record` holding one invalid row writes **no round file**, and the state directory — which the preceding emit already created (row 12) — is byte-identical to before the attempt | record the valid rows and report the invalid ones, which makes coverage count a round that was never fully decided |
+| 11 | §7.3 *isolation from review state* | on a **ground-only** spec — one whose `spec/.tp-review/<base>/` holds a ground round and its snapshot and nothing else — `hasRecordedRoundFiles` and `hasStateArtifacts` are both false, and `LoadReviewState` returns `(nil, nil)` rather than a `StateCorruptError` | add `ground-round-` to `roundFilePrefixes`, under which `LoadReviewState` finds state artifacts with no index and returns `StateCorruptError{MissingIndex: true}`, so every command loading state for that spec aborts |
+| 12 | §7.3 *first run* | `tp ground <spec>` on a spec with no `spec/.tp-review/<base>/` creates it and writes **both** emission files — the snapshot and the floor — and the following `--record` adds the round file and creates **no** `state.json` | require the directory, which fails on the ordering this release advocates; or write the snapshot alone, which is what this row said for four rounds against §7.3's "emit writes two files", and which the implementing unit measured as four failing tests |
+| 13 | §7.3 *numbering* | a directory holding `ground-round-1` and `ground-round-3` yields N=4 | count files plus one, which yields 3 and collides with an existing round |
+| 14 | §7.1 *exit codes* | each of 0/1/2/3/4 is produced by §7.1's named input, one test per code — **1** from a file whose second line is `{` **and** from an empty file, **3** from a `--record` path that does not exist and from a spec whose directory already holds an unparseable `state.json`, **4** from a held write lock | map a corrupt state directory to 4, which `exitStateError` (`internal/cli/review_record.go:342`) contradicts. The exit-3 input must be one a ground flow can **reach** — a ground-only directory cannot be corrupt (row 11), which is how an earlier version of this row named an unreachable case (C8) |
+| 15 | §8 *denominator* | coverage is dispositioned-over-emitted; a row with `unit_id: null` and a row naming a **cut** unit's id each move neither numerator nor denominator, and each appears in its own count | count reader-added rows in the numerator, which lets a unit reach 100% by adding claims instead of dispositioning the floor; or fold the cut-unit row into the reader-added count, which is what §2.2 said until the implementing unit built the row and found it counted nowhere |
+| 16c | §7.1 *the empty record counts carried rows* | reached **through the commands**, not asserted of the engine: record round 1 dispositioning every floor unit, re-emit on an unedited spec so the prompt asks for `0 of the N`, then record an empty payload — exit 0, `rows: 0`, `carried: N`, and `--status` reports N of N. The control is a second round that carries **nothing**: the same empty payload exits 1 and the state directory is unchanged | refuse on the payload's row count alone, which is what shipped and which deadlocks the first case — the unit is asked for nothing, writes the empty file it was asked for, and is refused. A one-clause version of this row cannot see the defect: the accept case alone passes if the refusal is deleted outright, and the refuse case alone passes under the shipped rule |
+| 16b | §8 *the prompt narrows* | on a spec whose round 1 dispositioned every unit and whose round 2 changes **one** unit's text, the round-2 prompt asks for **one** disposition and its index still lists every unit, each carrying unit marked as such | emit the unrestricted index in every round, which is the shipped behaviour this row was written to change and which makes §8's saving invisible to the only reader that pays for it; or narrow the **index** rather than the ask, which hides from the reader the floor they are asked to add to (§2.2) |
+| 16 | §8 *second pass* | over **three** rounds: a unit unchanged since round 2 carries forward into round 3 with `carried_from: 2` written into round 3's own file; a unit whose text changed at character 61 does **not**; and a unit reverted in round 3 to its round-1 wording, absent from round 2, is uncovered | join on `anchor` alone (carries across a rewritten sentence), or look the disposition up across all earlier rounds (resurrects the reverted unit) — a two-round fixture separates neither |
+| 17 | §9 | `tp review`'s exit code is identical with and without ungrounded units, and the advisory appears exactly once in the envelope on a run emitting more than one role prompt | emit it per role, which puts one copy in each prompt for a signal the roles do not act on |
+| 21b | §7.3 *`state.json` untouched* | recording a ground round on a spec whose `spec/.tp-review/<base>/state.json` **already exists** leaves that file byte-identical — the case row 12 does not reach, and every spec this release's ordering does not run on first | index the ground round in `state.json`, whose typed struct an older binary then drops on its next write |
+| 22 | §8 *breakdown* | `--status` reports the latest round's per-verdict counts beside the ratio, so a round of 84 `FAIL`s and a round of 84 `PASS`es are distinguishable at 100% coverage | report the ratio alone, under which `--check` exiting 0 reads as *the premises hold* |
+| 23 | §7.1 *`--check`'s second condition* | both zeros, under `--quiet` so the stderr notice is not what decides it. On a document whose every sentence the arms cut — floor index `0 in floor, N cut` — `--status --check` exits **1**; on one §2.1 produced no unit from — `0 in floor, 0 cut` — it exits **0**. And the payload reports what the gate read: across those two runs `emitted`, `dispositioned`, `reader_added` and `off_floor` are **equal**, `cut` is not, and `cut` equals the count read back off the emitted floor index | gate on coverage alone, which exits 0 on the first document because `0 < 0` is false — the state that shipped; or keep the two conditions and drop the `cut` key, under which the two runs' payloads are byte-identical and `--quiet` leaves an unattended driver an exit code it cannot explain from anything the invocation printed. Neither arm alone decides it: the second document alone passes under coverage-only, and the first alone passes under a blanket refusal of every empty floor |
+| 18 | §4.2 *the ground clause* | a `tp ground` prompt ends with the ground isolation clause and `incrementalClause` byte for byte, and that suffix **differs** from the one review and audit share | append `isolationClause` to the ground prompt, which forbids the copy the tier table requires. There are **two** suffixes, not three — `clauseSuffix()` (`internal/cli/clauses.go:34`) is built once and called by both review and audit (C9) |
+| 18e | §2.1 step 3 *the residue* | the **interleaved** shape, which 18b's fixture cannot reach: a numbered list whose items are separated by indented continuation paragraphs, so the block holding item N opens with prose and no marker is stripped. `2.`, `3.`, `4.` and `5.` are emitted as floor units, and the test asserts that rather than asserting their absence | assert that no bare marker survives, which is 18b's claim and is false of this shape — §2.1's own list is written this way and `tp ground spec/1.0.0.md --units` prints all four. A row claiming the fix is total would be refuted by the document it ships in |
+| 18f | §2.1 step 3 *blockquote* | a line beginning with whitespace then `>` is stripped like a flush-left one, and a `>` with no following space likewise: the constructed block's units carry neither the marker nor the leading space | anchor the pattern at column zero, which is what §2.1 said until the code was measured. This row exists **because the corpus cannot test it** — every quoted line in this repository's specs is flush left, so a regression here is invisible to every corpus check and needs a constructed input or nothing |
+| 18b | §2.1 step 3 | on a **constructed** block holding a nine-item numbered list and a bulleted list — one that opens with the list's own first item, which is what makes 18e a separate row — every unit is a sentence and none is a bare marker fragment | strip the list marker from the block's first line only, which turns each later item's marker into its own unit — over `spec/*.md` that yielded **777** fragments and **143** colliding hashes, eight of them inside this document's own §10, through two review rounds |
+| 18d | §2.1 step 1 *tables* | a constructed three-column table yields one unit per **data** row with cells joined by an em dash, no unit for the separator row, and — through the arms, with no special case — no unit for a header row of bare labels; a data row whose cells hold three full stops is still **one** unit | drop table rows, which on this document alone loses 80 of 237 floor units and makes coverage a ratio over the prose only |
+| 18c | §8 *join key*, §7.3 *the value check* | two units with identical canonical text in one round carry forward independently, each matched by its `(text_sha, ordinal)`. And §7.3's value check reads **both** halves of that key: on the same fixture a row naming the second unit while carrying the first's `ordinal` is refused, and on a unit whose hash is unique a row carrying the right hash and a wrong `ordinal` is refused | join on `text_sha` alone, which on `spec/0.1.0.md`'s five identical units matches the first for all five; or compare only `text_sha` at record, under which both refused rows record at exit 0 — the first marks a unit nobody graded as carried while the graded one goes uncovered, the second drops its unit from the next round's carry while `--status` reports it dispositioned. Neither input alone is enough: the unique-unit row passes a check that compares the pair only when the hash repeats |
+| 19 | §7.3 *snapshot at emit* | `tp ground <spec>` writes `snapshot-ground-round-N.md`; editing the spec between emit and `--record` does not change the floor `--record` validates against | write the snapshot at record, which re-floors the edited spec and makes `unit_id` unverifiable |
+| 20 | §2.1 *canonical form* | reflow stability is asserted on the case that breaks it, not on a benign one: a paragraph whose **continuation line begins `14. `** yields the same units, in the same order, with the same `text_sha`s, as the identical paragraph on one line — and a genuine nine-item numbered list still loses every marker | strip a list marker from every line unconditionally, which eats the `14. ` and silently shortens a unit; or strip only the first line, which is row 18b's defect. A wrapped paragraph with no ordinal at a line start passes under all three. Note that the paragraph yields **two** units either way, because `14. ` is also a terminator followed by whitespace — what reflow must not change is the segmentation and the hashes, not the count being one |
+| 21 | §7.3 *`§0`* | a unit in this document's own preamble blockquote, before the first `§` heading, records `anchor: "§0"` and counts toward coverage | leave the anchor empty, which makes `tp ground spec/1.0.0.md --status --check` unable to exit 0 on this release's own spec |
+
+**Rows 6, 7 and 7b are the trio this release exists for.** A verdict that does not record how it was
+reached lets a read stand in for a run. Row 6 pins that the kind–tier sets are sets and not an order,
+row 7 pins membership at both edges, and row 7b pins that the rule is **per verdict** — `QUESTION`
+takes either relation, because a unit that could not reach the tier its kind wants is exactly the unit
+that has a question. Each of the three names, in its assertion column, the input that kills its own
+mutant.
+
+This paragraph used to say `QUESTION` *requires* the mismatch, which is the reading row 7b's own
+mutant column names as the mutant, and which §7.2's table and row 7b's assertion column both
+contradict. It survived four review rounds and was found by the unit implementing the rule, which
+followed the normative table over the prose — and over an orchestrator brief that had inherited the
+same error. **A summary sentence beside a table is a second definition**, and this document now has
+one measured instance of the summary being the wrong one.
