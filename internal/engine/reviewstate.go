@@ -324,6 +324,16 @@ var snapshotPrefixes = []string{"snapshot-round-", "snapshot-audit-round-"}
 // directory it leaves behind holds no index, so a review or audit predicate
 // that matched a ground artifact would read that directory as state artifacts
 // with a missing index and abort every command that loads state for the spec.
+//
+// It has no production consumer on purpose, and that is not the test-only sink
+// this repo usually treats as a missing caller. The list IS the claim: its test
+// asserts that every ground artifact matches this list and matches NEITHER of
+// the two above, so the load-bearing half is the pair of negatives. A caller
+// would not strengthen it — adding "ground-" to roundFilePrefixes is the defect
+// the negatives catch, and a call site cannot notice that. Numbering does not
+// read this list either: NextGroundRound uses groundRoundFileRe, because a list
+// naming the snapshot and the floor would count artifacts written FROM the
+// number it is computing.
 var groundFilePrefixes = []string{"ground-round-", "snapshot-ground-round-", "floor-ground-round-"}
 
 // hasRecordedRoundFiles reports whether dir holds a round file — the artifact
