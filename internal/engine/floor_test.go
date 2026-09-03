@@ -1170,12 +1170,14 @@ func TestSection11Row4TheIndexIsBoundedAndCarriesNoUnitText(t *testing.T) {
 		// property is also pinned exhaustively — every byte of the index is
 		// accounted for by this grammar, which leaves nowhere for text to sit.
 		// The grammar covers the whole artifact and not just the rows: the
-		// commit line (§2.2) is the only other thing in it, and it is pinned to
-		// a hex revision or the literal `unknown`, so no free text sits there
-		// either.
+		// commit line and the summary are the only other things in it, and both
+		// are pinned to a shape with no free text in it — a hex revision or the
+		// literal `unknown`, and two counts.
 		shape := regexp.MustCompile(
 			`^# commit (?:[0-9a-f]+|unknown)\n` +
-				`(?:u\d+ §[0-9.]+ (?:[0-9a-f]{12} #\d+ \d+B|\(cut\))\n)+$`)
-		assert.Regexp(t, shape, index, "every byte of the index is an id, an anchor, a hash, an ordinal, a length or the commit")
+				`(?:u\d+ §[0-9.]+ (?:[0-9a-f]{12} #\d+ \d+B|\(cut\))\n)+` +
+				`# \d+ in floor, \d+ cut\n$`)
+		assert.Regexp(t, shape, index,
+			"every byte of the index is an id, an anchor, a hash, an ordinal, a length, the commit or a count")
 	})
 }
