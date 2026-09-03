@@ -185,6 +185,9 @@ func ParseGroundRow(line []byte) (GroundRow, error) {
 	if err := validateGroundRowConditional(&row); err != nil {
 		return GroundRow{}, err
 	}
+	if err := validateGroundRowTier(&row); err != nil {
+		return GroundRow{}, err
+	}
 	return row, nil
 }
 
@@ -320,6 +323,68 @@ func groundRowRequiredOnAClaim(field string, present, isClaim bool) error {
 		return groundRowErr(field, "is required unless the verdict is NOT-A-CLAIM")
 	}
 	return nil
+}
+
+// groundTierRuleBinds is §7.2's per-verdict table: for each verdict, whether
+// the row's `tier` must be one §4.1 accepts for its `kind`.
+//
+// **All six verdicts are listed, the three the rule does not bind included.**
+// A three-entry map answers the other three by the zero value of a lookup,
+// which is a default and not a decision; here every verdict's answer is a byte
+// somebody wrote, and TestEveryVerdictHasAWrittenAnswerToTheTierRule holds the
+// key set to GroundVerdicts() so a seventh verdict cannot arrive unanswered.
+//
+// It is a per-verdict set for the reason groundAcceptableTiers is a per-kind
+// set: there is no ordering of the six verdicts here for a comparison to reach
+// for, so "every verdict from PASS through FAIL" is not a thing that can be
+// written. Each of the six is an independent fact.
+//
+// Where the entries come from. `PASS`, `PARTIAL` and `FAIL` all assert
+// something about the world and are bound — `PARTIAL` explicitly, because
+// outside the rule a unit that could not carry a `FAIL` at the required tier
+// could downgrade to `PARTIAL` and keep a read standing in for a run.
+// `QUESTION` is exempt in BOTH directions: either relation is legal, and which
+// one holds is what derives §3's two shapes — acceptable means the unit got
+// there and the result did not settle it, unacceptable means it did not get
+// there. Requiring the mismatch is the mutant §11 row 7b names, and it rejects
+// the unit that ran the shipped command and got an unclear result, which has
+// no other legal verdict. `UNVERIFIABLE` is exempt because its `tier` names the
+// deepest attempt and the point of the verdict is that none is reachable.
+// `NOT-A-CLAIM` is the one verdict §7.2's table does not name at all: the trio
+// is optional there, and a row that asserts nothing about the world has nothing
+// for a tier to be evidence about.
+var groundTierRuleBinds = map[GroundVerdict]bool{
+	VerdictPass:         true,
+	VerdictPartial:      true,
+	VerdictFail:         true,
+	VerdictQuestion:     false,
+	VerdictUnverifiable: false,
+	VerdictNotAClaim:    false,
+}
+
+// validateGroundRowTier enforces §7.2's per-verdict acceptability rule, naming
+// `tier` as the cell that failed — the row carries a kind and a tier that are
+// each one of §4.1's own, and what is wrong is the pairing.
+//
+// It runs after the conditional cells rather than beside them, so a claim row
+// that carries no `kind` at all is rejected naming `kind`. Reaching this
+// predicate first would report `tier` for it, since an empty kind accepts
+// nothing.
+//
+// A verdict the table does not list is held to the rule rather than waived
+// from it. The enum is closed by ParseGroundVerdict so no such row reaches
+// here, and the direction is the same one TierAcceptableFor fails in: nothing
+// unrecognised is certified as evidence.
+func validateGroundRowTier(row *GroundRow) error {
+	if binds, listed := groundTierRuleBinds[row.Verdict]; listed && !binds {
+		return nil
+	}
+	if TierAcceptableFor(row.Kind, row.Tier) {
+		return nil
+	}
+	return groundRowErr("tier", fmt.Sprintf(
+		"%q says nothing about a %q claim (§4.1), and a %s row must be reached at a tier that does",
+		row.Tier, row.Kind, row.Verdict))
 }
 
 // groundUnknownKey rejects a top-level key that is no cell of §7.2's table.
