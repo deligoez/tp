@@ -603,6 +603,14 @@ func TestEveryFieldSection72NamesHasARejectionCase(t *testing.T) {
 // It stops at the first line after the table that is not a row, which is what
 // keeps the per-verdict table further down §7.2 — whose first column holds
 // `PASS` and `QUESTION` — out of the result.
+//
+// The search for the table is bounded by the next `### ` for the reason its
+// twin floorSection21Verbs now is: unbounded, a §7.2 that carried no table at
+// all would walk into a later section's and report its first column as this
+// one's. Both callers pin the result hard enough to fail loud there — one on a
+// count of thirteen, the other on set equality with the code's key set — so
+// this is the weaker of the two holes, and it is closed because the bound is
+// one line and the twin's cost four auditor-rounds to find.
 func groundSection72Fields(t *testing.T) []string {
 	t.Helper()
 	data, err := os.ReadFile(filepath.Join("..", "..", "spec", "1.0.0.md"))
@@ -612,8 +620,9 @@ func groundSection72Fields(t *testing.T) []string {
 	i := slices.Index(lines, "### 7.2 The row")
 	require.GreaterOrEqual(t, i, 0, "§7.2 must be findable by its heading")
 
-	for i < len(lines) && !strings.HasPrefix(lines[i], "|") {
-		i++
+	for i++; i < len(lines) && !strings.HasPrefix(lines[i], "|"); i++ {
+		require.False(t, strings.HasPrefix(lines[i], "### "),
+			"§7.2 must carry a table before the next section opens")
 	}
 	require.Less(t, i, len(lines), "§7.2 must carry a table")
 
