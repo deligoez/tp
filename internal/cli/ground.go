@@ -138,12 +138,15 @@ change the floor the round is graded against.`,
 			}
 			// §7.1 names each mode on its own line and never pairs two. The
 			// combination is refused rather than resolved by the dispatch's
-			// order: --status reports a round and --record writes one, so
-			// running whichever came first would hand the operator an exit 0
-			// for the mode they did not ask for.
-			if statusMode && recordPath != "" {
-				output.Error(ExitUsage, "--status and --record are separate modes: pass one",
-					"tp ground <spec> --record <file> writes the round; tp ground <spec> --status reports it")
+			// order: --status reports a round, --record writes one and --units
+			// prints the floor's text, so running whichever came first would
+			// hand the operator an exit 0 for the mode they did not ask for.
+			// The refusal is taken before any of the three opens a file, so a
+			// pairing that also names a missing --record path is still usage
+			// (2) rather than the file error (3) that path alone would give.
+			if groundModesPassed(unitsMode, statusMode, recordPath) > 1 {
+				output.Error(ExitUsage, "--units, --status and --record are separate modes: pass one",
+					"tp ground <spec> --record <file> writes the round; --status reports it; --units prints the floor's units")
 				os.Exit(ExitUsage)
 				return nil
 			}
@@ -177,6 +180,19 @@ change the floor the round is graded against.`,
 	cmd.Flags().BoolVar(&checkMode, "check", false, "With --status: exit 0 only when every emitted floor unit carries a disposition")
 	cmd.Flags().BoolVar(&unitsMode, "units", false, "Print the floor's units with their full text, one per line")
 	return cmd
+}
+
+// groundModesPassed counts how many of §7.1's three mode-selecting flags the
+// operator passed. --check is not one of them: it modifies --status's answer
+// rather than choosing a mode, and its own refusal is stated separately.
+func groundModesPassed(units, status bool, recordPath string) int {
+	n := 0
+	for _, passed := range []bool{units, status, recordPath != ""} {
+		if passed {
+			n++
+		}
+	}
+	return n
 }
 
 // runGround emits one ground round: it writes the snapshot and the floor index
