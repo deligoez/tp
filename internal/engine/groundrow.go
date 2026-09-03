@@ -224,19 +224,20 @@ func decodeGroundRowUnit(raw map[string]json.RawMessage, row *GroundRow) error {
 // itself and what it was reached by.
 func decodeGroundRowDisposition(raw map[string]json.RawMessage, row *GroundRow) error {
 	var err error
-	if row.Verdict, err = groundEnumCell(raw, "verdict", ParseGroundVerdict); err != nil {
+	if row.Verdict, err = groundEnumCell(raw, "verdict", ParseGroundVerdict, GroundVerdicts()); err != nil {
 		return err
 	}
-	if row.Kind, err = groundEnumCell(raw, "kind", ParseGroundKind); err != nil {
+	if row.Kind, err = groundEnumCell(raw, "kind", ParseGroundKind, GroundKinds()); err != nil {
 		return err
 	}
-	if row.Tier, err = groundEnumCell(raw, "tier", ParseGroundTier); err != nil {
+	if row.Tier, err = groundEnumCell(raw, "tier", ParseGroundTier, GroundTiers()); err != nil {
 		return err
 	}
 	if row.Evidence, err = groundText(raw, "evidence"); err != nil {
 		return err
 	}
-	if row.PartialKind, err = groundEnumCell(raw, "partial_kind", ParseGroundPartialKind); err != nil {
+	if row.PartialKind, err = groundEnumCell(
+		raw, "partial_kind", ParseGroundPartialKind, GroundPartialKinds()); err != nil {
 		return err
 	}
 	if row.HeldAt, err = groundText(raw, "held_at"); err != nil {
@@ -495,7 +496,18 @@ func groundIndex(raw map[string]json.RawMessage, field string) (int, error) {
 // parse, returning the zero string when the key is absent. Routing every enum
 // cell through the closed parses is what keeps an unrecognised value out of the
 // record, where §8's counters could not read it back.
-func groundEnumCell[T ~string](raw map[string]json.RawMessage, field string, parse func(string) (T, bool)) (T, error) {
+//
+// **The refusal names the values it would have taken**, and `listing` is what
+// it names them from. That is the standard this validator's numeric cells
+// already met — `ordinal` refuses with `must be 1 or more` — while all four
+// enums shared one sentence that stated no set and no section, leaving a unit
+// nothing to recover from but a re-read of the emitted prompt. The listing is
+// passed in rather than looked up because the parse is generic over the enum
+// and each enum owns its own §7.2 order; taking both from the same call site
+// is what keeps the message and the acceptance from drifting apart.
+func groundEnumCell[T ~string](
+	raw map[string]json.RawMessage, field string, parse func(string) (T, bool), listing []T,
+) (T, error) {
 	var zero T
 	msg, ok := raw[field]
 	if !ok {
@@ -507,7 +519,12 @@ func groundEnumCell[T ~string](raw map[string]json.RawMessage, field string, par
 	}
 	v, ok := parse(s)
 	if !ok {
-		return zero, groundRowErr(field, fmt.Sprintf("%q is not one of the values the spec lists", s))
+		names := make([]string, 0, len(listing))
+		for _, allowed := range listing {
+			names = append(names, string(allowed))
+		}
+		return zero, groundRowErr(field, fmt.Sprintf(
+			"%q is not one of the values the spec lists: %s", s, strings.Join(names, ", ")))
 	}
 	return v, nil
 }
