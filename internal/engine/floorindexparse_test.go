@@ -58,3 +58,30 @@ func TestParseFloorIndexSkipsTheLinesThatAreNotRows(t *testing.T) {
 	assert.Equal(t, []FloorIndexRow{{ID: "u1", Anchor: "§1", TextSHA: "aabbccddeeff", Ordinal: 1, Bytes: 24}}, parsed)
 }
 
+// TestParseFloorIndexRejectsALineThatIsNeitherShape: every case here is one
+// field or one sigil away from a legal row, which is what a truncated or
+// half-written floor looks like. Reading one of them as a row would put a
+// wrong denominator behind §9's advisory, and the advisory's whole content is
+// that denominator.
+//
+// The line number is asserted, not just the failure: the bad line sits third in
+// every case, so a parser counting rows rather than lines — which the commit
+// line makes different here — reports 2.
+func TestParseFloorIndexRejectsALineThatIsNeitherShape(t *testing.T) {
+	for name, bad := range map[string]string{
+		"two fields":          "u1 §1",
+		"four fields":         "u1 §1 aabbccddeeff #1",
+		"six fields":          "u1 §1 aabbccddeeff #1 24B extra",
+		"no ordinal sigil":    "u1 §1 aabbccddeeff 1 24B",
+		"no byte suffix":      "u1 §1 aabbccddeeff #1 24",
+		"ordinal not a numer": "u1 §1 aabbccddeeff #x 24B",
+		"bytes not a number":  "u1 §1 aabbccddeeff #1 xB",
+		"cut marker misspelt": "u1 §1 (cutt)",
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := ParseFloorIndex("# commit unknown\nu1 §1 aabbccddeeff #1 24B\n" + bad + "\n")
+			require.Error(t, err, "a line that is neither shape is not a row")
+			assert.Contains(t, err.Error(), "line 3", "the failure names the line of the file, not the row")
+		})
+	}
+}
