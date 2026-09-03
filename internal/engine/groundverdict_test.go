@@ -129,3 +129,41 @@ func TestSetMembershipHoldsAtBothEdgesForOneAndTwoTierKinds(t *testing.T) {
 		"the two-tier kind still rejects a third tier — the pair that separates a set from 'any tier will do'")
 }
 
+// TestEveryOneOfTheFortyTwoKindTierPairsMatchesSection41 states §4.1's third
+// column in full and walks the whole (kind, tier) space.
+//
+// Rows 6 and 7 pin the pairs their two named mutants turn on; this pins the
+// other thirty-five, so an edit to any single cell of the table fails a test.
+// The expected sets are written out here from §4.1 rather than derived from the
+// implementation, and the walk is over GroundKinds() × GroundTiers() so a kind
+// or tier added without an entry is a failure rather than an untested pair —
+// §3's own claim that the space has forty-two pairs is asserted, not assumed.
+// Membership on the expected side is the standard library's, so the expectation
+// is never computed by anything the implementation shares.
+func TestEveryOneOfTheFortyTwoKindTierPairsMatchesSection41(t *testing.T) {
+	acceptable := map[GroundKind][]GroundTier{
+		KindDocument:      {TierRead},
+		KindCodeStructure: {TierRead, TierQuery},
+		KindCorpus:        {TierQuery},
+		KindBehaviour:     {TierRun, TierRedGreen},
+		KindMechanism:     {TierProbe},
+		KindDefect:        {TierRedGreen},
+		KindGuard:         {TierBreakAndControl},
+	}
+
+	kinds, tiers := GroundKinds(), GroundTiers()
+	require.Len(t, acceptable, len(kinds), "every kind in the enum needs a row in §4.1's table")
+
+	pairs := 0
+	for _, kind := range kinds {
+		want, listed := acceptable[kind]
+		require.True(t, listed, "kind %q has no §4.1 entry here", kind)
+		for _, tier := range tiers {
+			pairs++
+			assert.Equal(t, slices.Contains(want, tier), TierAcceptableFor(kind, tier),
+				"{%s, %s}", kind, tier)
+		}
+	}
+	assert.Equal(t, 42, pairs, "§3 counts forty-two (kind, tier) pairs")
+}
+
