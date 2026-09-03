@@ -142,13 +142,6 @@ const groundRecordRowHint = "fix the row the message names in the --record NDJSO
 // disposition something, never to edit a row.
 const groundRecordEmptyHint = "record a file holding at least one row, or ground the units the emitted prompt asks for: the round carried nothing from a preceding round, so an empty payload would record nothing at all"
 
-// groundCarrySourceHint answers the one failure whose subject is neither the
-// operator's file nor this round: §8 reads the immediately preceding round to
-// carry its dispositions forward, and that file is tp's own.
-//
-// It names the recovery rather than the cell, because there is no cell to fix —
-// the round file was written by an earlier --record and the operator's only
-// levers are the artifact itself and re-recording the round that wrote it.
 // groundRecordFileHint is the third of --record's hints to be carved out of the
 // shared constant, and it is carved out for the reason the two above it were.
 //
@@ -161,6 +154,13 @@ const groundRecordEmptyHint = "record a file holding at least one row, or ground
 // `output_path` named.
 const groundRecordFileHint = "check the --record path — this flag takes the NDJSON dispositions file the ground prompt's unit wrote to the emission's output_path, not the spec and not the floor"
 
+// groundCarrySourceHint answers the one failure whose subject is neither the
+// operator's file nor this round: §8 reads the immediately preceding round to
+// carry its dispositions forward, and that file is tp's own.
+//
+// It names the recovery rather than the cell, because there is no cell to fix —
+// the round file was written by an earlier --record and the operator's only
+// levers are the artifact itself and re-recording the round that wrote it.
 const groundCarrySourceHint = "the preceding ground round's file is tp's own artifact and could not be read back: restore or re-record spec/.tp-review/<base>/ground-round-<N-1>.ndjson — §8 carries its dispositions into this round"
 
 // groundStateDirError is the one refusal both writing modes make for the same
