@@ -131,3 +131,35 @@ func TestGroundRecordReadsTheEmittedFloorAndNotTheCurrentSpec(t *testing.T) {
 	})
 }
 
+// TestARecordHoldingNoRowsIsRejectedAndConsumesNoRoundNumber is the acceptance's
+// second clause and §7.1's empty-record rule.
+//
+// The re-emission at the end is what makes "cannot consume a round number" an
+// assertion rather than a hope: a round file written for a payload that decided
+// nothing would advance N, and the second emission would come back as round 2.
+func TestARecordHoldingNoRowsIsRejectedAndConsumesNoRoundNumber(t *testing.T) {
+	cases := []struct {
+		name string
+		body string
+	}{
+		{"an empty file", ""},
+		{"blank lines only", "\n\n   \n"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := writeGroundFixture(t)
+			groundEmit(t, dir)
+			before := stateDirNames(t, dir)
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "rows.ndjson"), []byte(tc.body), 0o600))
+
+			stdout, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", "rows.ndjson")
+			require.Equal(t, 1, code, "stdout: %s stderr: %s", stdout, stderr)
+			assert.Equal(t, float64(1), groundErrorEnvelope(t, stderr)["code"])
+			assert.Equal(t, before, stateDirNames(t, dir), "a rejected record writes no round file")
+
+			assert.Equal(t, float64(1), groundEmit(t, dir)["round"],
+				"the refused round number is still free: the next emission is round 1 again")
+		})
+	}
+}
+
