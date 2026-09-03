@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -56,6 +57,21 @@ func ParseGroundRows(data []byte) ([]GroundRow, error) {
 	return rows, nil
 }
 
+// ErrGroundRoundEmpty is what RecordGroundRound refuses a payload holding no
+// rows with (§7.1).
+//
+// Zero rows would consume a round number for a round that decided nothing, and
+// §8 would then join that round against no dispositions and report it as
+// coverage that stalled — which is indistinguishable from a round that ran and
+// found nothing, except that the second cannot happen: the prompt asks a
+// question of every unit in the index.
+//
+// It is a sentinel rather than a *GroundLineError because there is no line to
+// name: the failure is a property of the file, not of one of its rows. The
+// caller that maps failures onto §7.1's exit codes reads it back with errors.Is
+// and reports it as the same validation refusal (exit 1) a bad row gets.
+var ErrGroundRoundEmpty = errors.New("the record holds no rows, so there is nothing to record")
+
 // groundRoundFileName is the name a recorded ground round takes in the state
 // directory (§7.3).
 //
@@ -67,8 +83,9 @@ func groundRoundFileName(round int) string {
 	return fmt.Sprintf("ground-round-%d.ndjson", round)
 }
 
-// RecordGroundRound validates data and, only if every row of it passes, writes
-// it into specPath's state directory as `ground-round-<round>.ndjson`.
+// RecordGroundRound validates data and, only if it holds at least one row and
+// every one of them passes, writes it into specPath's state directory as
+// `ground-round-<round>.ndjson`.
 //
 // **Validation completes before anything is opened, created or truncated**, so
 // a payload holding one invalid row leaves the state directory byte-identical
@@ -93,6 +110,13 @@ func RecordGroundRound(specPath string, round int, data []byte) ([]GroundRow, er
 	rows, err := ParseGroundRows(data)
 	if err != nil {
 		return nil, err
+	}
+	// After the parse and before the write, which is the only point at which
+	// both facts are in hand: that every row validates, and that there are
+	// none. A guard on len(data) instead would record a file of blank lines,
+	// which parses — correctly — to nothing.
+	if len(rows) == 0 {
+		return nil, ErrGroundRoundEmpty
 	}
 	path := filepath.Join(ReviewStateDir(specPath), groundRoundFileName(round))
 	if err := writeFileAtomic(path, data); err != nil {
