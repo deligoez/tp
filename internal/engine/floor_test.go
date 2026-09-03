@@ -861,11 +861,13 @@ func TestTheVerbArmIgnoresCase(t *testing.T) {
 // unit contains a backtick-delimited SPAN", while the prototype's `in_floor`
 // asks only whether a backtick is present.
 //
-// The two disagree on 21 of the 7,368 units this corpus's derivation produces —
-// 16 of which are in the floor under one reading and cut under the other — and
-// every one of them is the same shape: a code span whose two delimiters landed
-// in different units because step 4 split between them. A lone delimiter is the
-// wreckage of a span, not a span, so this asserts the spec's wording.
+// A unit the two readings disagree on holds exactly one backtick — with two or
+// more, `[^`]*` finds a pair and both readings say yes — so every disagreement
+// is the same shape: a code span whose delimiters landed in different units
+// because step 4 split between them. A lone delimiter is the wreckage of a span,
+// not a span, so this asserts the spec's wording. The count over `spec/*.md`
+// that stood here is deleted rather than refreshed: §2.1 rules a figure over a
+// glob worse than an unpinned one.
 //
 // The pair is asserted both ways on the SAME sentence, differing only in the
 // closing backtick, so nothing but the delimiter can carry the verdict.
