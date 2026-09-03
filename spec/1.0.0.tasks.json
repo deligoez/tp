@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-03T03:23:52.495865Z",
+  "updated_at": "2026-09-03T03:48:50.808357Z",
   "workflow": {},
   "coverage": {
     "total_sections": 21,
@@ -663,7 +663,7 @@
     {
       "id": "status-report",
       "title": "--status reports coverage and breakdown",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli"
       ],
@@ -676,11 +676,36 @@
         "## 8. Convergence is coverage, not absence",
         "### 7.1 Invocations and exit codes"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-03T03:28:37.318818Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-03T03:48:50.738415Z",
+      "closed_reason": "- `tp ground \u003cspec\u003e --status` (internal/cli/ground.go, engine.LatestGroundStatus in internal/engine/groundstatus.go) reports the ratio as two integers, the latest round's per-verdict counts and the NOT-A-CLAIM share as its numerator beside its denominator on one object — `by_verdict[\"NOT-A-CLAIM\"]` over `emitted` — on the same two-integers reading GroundCoverage and GroundAdvisory already ship, rather than as a fraction that would have to decide what an empty floor reports. §11 row 22's own mutant, the ratio alone, was built and observed red on four tests: the verdict rests on the two payloads being UNEQUAL as whole objects, with every other field asserted identical first, so no substring search decides it.\n- The two off-ratio counts are separate fields: `reader_added` (a row carrying `unit_id: null`) and `off_floor` (a row naming a cut unit's id), each asserted at 1 on a fixture whose cut unit sits BETWEEN two floor units and whose ids are read back from the emitted floor, never assumed. Folding off-floor into reader-added was built and reddened exactly that test. A second mutant, a breakdown skipping reader-added rows, reddens the same test's `PASS == 3` against `dispositioned == 1` — the assertion that makes the type's claim that coverage counts UNITS while the breakdown counts ROWS measurable rather than a comment.\n- The breakdown seeds all six of §3's verdicts before counting, so a verdict nobody recorded reports 0 and is not an absence. That assertion was FALSIFIED once and repaired: a five-verdict seed omitting NOT-A-CLAIM was built and observed GREEN, because the mixed round it ran against records NOT-A-CLAIM and so supplies the key itself. It now runs on the two single-verdict rounds, and on both — every verdict is unrecorded in at least one of them — and was re-observed red with the seed missing NOT-A-CLAIM and again with it missing PASS.\n- --status is about the latest EMITTED round, on §9's reading that a round exists from its emission; keying on the latest recorded round was built and reddens exactly the test that names it. A spec with no emitted round exits 3 naming the emit command rather than reporting 0-of-0, and reporting 0-of-0 instead was built and reddens exactly that subtest. --status with --record is exit 2, and deleting that guard reddens exactly its test. Six further mutants observed red, each on the assertions that name it; the tree was verified byte-clean after every restore.\n- Dogfooded against a copy of spec/1.0.0.md outside the repository: 305 emitted floor units, 0 dispositioned before recording, then a 202-row round giving 200-of-305 with reader_added 1, off_floor 1 and FAIL/NOT-A-CLAIM/UNVERIFIABLE 50 each beside PASS 52 — the breakdown's total of 202 against 200 dispositioned is the units-versus-rows distinction visible on real data. The refusal, the usage error and the spec-deleted read were each exercised there too.\n- Spec repair, §8: the clause \"§9's advisory carries both\" contradicted §9's own normative enumeration of `ungrounded` as `round`, `undispositioned` and `floor_size`, and contradicted its own paragraph's opening sentence that --status reports the breakdown. Rewritten to name --status, with what was wrong recorded in place. `tp lint spec/1.0.0.md` exits 0 with 0 errors.\n- Gate green, four steps run separately: check-suite-state.sh 0, golangci-lint 0 issues, check-deadcode.sh 0, check-complexity.sh 0. `unparam` flagged a test helper whose round argument was always 1 — taken as a finding rather than silenced: round 2 is now recorded partially against ids read back from its own floor, a 1-of-2 coverage no reading of round 1's rows produces.\n\nOut of scope: internal/engine/groundcoverage.go's OffFloor doc comment says \"§8 names one separate count, keyed on `unit_id: null`\", which §8's current text no longer supports — it now says \"Three counts sit beside the ratio, not two\" and names off-floor rows as their own count. The comment is a true record of the text at the time it was written and a stale reading of the text today.",
+      "gate_passed_at": "2026-09-03T03:48:50.738415Z",
+      "commit_sha": "3af86f12",
+      "commit_shas": [
+        "3af86f12",
+        "6f19517c",
+        "b3701f7b",
+        "7d487470",
+        "867c4957",
+        "8c0df508",
+        "d0793179",
+        "f42947c3",
+        "f3f06b69",
+        "563bdd78",
+        "9141677a",
+        "1d03f149",
+        "5a690434"
+      ],
+      "commit_files": [
+        "internal/cli/ground.go",
+        "internal/cli/ground_status_test.go",
+        "internal/cli/nongoals_surface_test.go",
+        "internal/engine/groundadvisory.go",
+        "internal/engine/groundstatus.go",
+        "skills/tp/SKILL.md",
+        "spec/1.0.0.md"
+      ]
     },
     {
       "id": "status-check",
