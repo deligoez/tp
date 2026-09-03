@@ -67,3 +67,16 @@ func TestASpecWithNoGroundRoundHasNoAdvisory(t *testing.T) {
 		"no emission, so nothing to say")
 }
 
+// TestAFullyDispositionedRoundHasNoAdvisory: §9's key is absent when every
+// floor unit is dispositioned, on divergence's precedent that a permanent
+// zero-valued key is a key every reader learns to skip.
+func TestAFullyDispositionedRoundHasNoAdvisory(t *testing.T) {
+	specPath := groundAdvisorySpec(t)
+	floor := groundFloorWithACutUnit(t)
+	emitGroundFloor(t, specPath, 1, floor)
+	recordGroundDispositions(t, specPath, 1, floor[0], floor[2])
+
+	assert.Nil(t, LatestGroundAdvisory(specPath),
+		"every EMITTED unit is dispositioned — the cut one owes nothing")
+}
+
