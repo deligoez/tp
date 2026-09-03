@@ -73,3 +73,39 @@ func TestTheKindAndTierEnumsAreSevenAndSixInTableOrder(t *testing.T) {
 	assert.Equal(t, VerdictPass, GroundVerdicts()[0])
 }
 
+// TestKindTierAcceptabilityIsASetAndNotAnOrder is §11 row 6.
+//
+// The mutant it must fail treats the tiers as ordered — read, query, run,
+// probe, red-green, break-and-control — and accepts anything at or above the
+// kind's first listed tier. Three of these five pairs cannot tell that mutant
+// from the shipped rule; the last two are the whole point of the row, and each
+// is named here as its own subtest so a failure says which reading broke:
+//
+//   - {document, run}: an ordering starts `document` at `read` and so admits
+//     every tier above it. Under the sets, running a command says nothing about
+//     what a text contains.
+//   - {behaviour, probe}: an ordering starts `behaviour` at `run` and so admits
+//     `probe`. Under the sets a probe is evidence about an artifact the unit
+//     built, not about the shipped command's behaviour — which is the
+//     falsifying instance §4 opens with, a `-type d` pipeline that read
+//     perfectly and changed nothing when run.
+func TestKindTierAcceptabilityIsASetAndNotAnOrder(t *testing.T) {
+	cases := []struct {
+		name string
+		kind GroundKind
+		tier GroundTier
+		want bool
+	}{
+		{"behaviour+read is rejected: reading a command is not running it", KindBehaviour, TierRead, false},
+		{"behaviour+run is accepted", KindBehaviour, TierRun, true},
+		{"document+read is accepted", KindDocument, TierRead, true},
+		{"document+run is rejected, which an ordering would admit", KindDocument, TierRun, false},
+		{"behaviour+probe is rejected, which an ordering would admit", KindBehaviour, TierProbe, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			assert.Equal(t, c.want, TierAcceptableFor(c.kind, c.tier))
+		})
+	}
+}
+
