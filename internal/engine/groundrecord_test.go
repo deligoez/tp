@@ -60,7 +60,7 @@ func groundDirDigest(t *testing.T, dir string) string {
 		if infoErr != nil {
 			return infoErr
 		}
-		fmt.Fprintf(h, "%s\x00%v\x00%o\x00", rel, d.IsDir(), info.Mode().Perm())
+		_, _ = fmt.Fprintf(h, "%s\x00%v\x00%o\x00", rel, d.IsDir(), info.Mode().Perm())
 		if d.IsDir() {
 			return nil
 		}
