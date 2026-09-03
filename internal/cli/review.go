@@ -183,11 +183,14 @@ type reviewResult struct {
 	// no ground round exists — on `divergence`'s precedent that a permanent
 	// zero-valued key is a key every reader learns to skip.
 	//
-	// **There is a THIRD case, and this sentence used to deny it.** An audit
-	// built a spec whose prose claims carry no digit, no backtick span and no
-	// listed verb, so all three arms cut everything: round 1 is emitted,
-	// nothing is dispositioned, and the key is still absent — under neither
-	// disjunct above, because the floor has no units for either to be about.
+	// **The first disjunct has a second, vacuous cause, and this sentence used
+	// to call it a third case.** An audit built a spec whose prose claims carry
+	// no digit, no backtick span and no listed verb, so all three arms cut
+	// everything: round 1 is emitted, nothing is dispositioned, and the key is
+	// still absent. LatestGroundAdvisory has ONE coverage branch —
+	// `Emitted - Dispositioned == 0` — and `0 - 0` satisfies it, so an all-cut
+	// floor drops the key under "every unit is dispositioned" without any unit
+	// having been looked at.
 	//
 	// The advisory stays silent there, deliberately. Its two integers are
 	// counts over emitted floor units, and on an empty floor both are honestly
