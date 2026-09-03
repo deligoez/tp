@@ -80,3 +80,22 @@ func TestAFullyDispositionedRoundHasNoAdvisory(t *testing.T) {
 		"every EMITTED unit is dispositioned — the cut one owes nothing")
 }
 
+// TestAnUndispositionedUnitIsReportedAgainstTheEmittedFloor is §9's advisory:
+// the round, the count of floor units without a disposition, and the floor's
+// size.
+//
+// The floor's size is 2 while the index carries 3 rows, and the middle row is
+// the cut one — required, not assumed, by groundFloorWithACutUnit. So a
+// denominator counting every index row rather than every EMITTED one is visible
+// here rather than only in a comment.
+func TestAnUndispositionedUnitIsReportedAgainstTheEmittedFloor(t *testing.T) {
+	specPath := groundAdvisorySpec(t)
+	floor := groundFloorWithACutUnit(t)
+	require.Len(t, floor, 3, "the index carries a row for every unit, cut ones included")
+	emitGroundFloor(t, specPath, 1, floor)
+	recordGroundDispositions(t, specPath, 1, floor[0])
+
+	assert.Equal(t, &GroundAdvisory{Round: 1, Undispositioned: 1, FloorSize: 2},
+		LatestGroundAdvisory(specPath))
+}
+
