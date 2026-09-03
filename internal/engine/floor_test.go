@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -784,6 +785,22 @@ func TestTheVerbArmIsExactlyTheTwelveListedVerbs(t *testing.T) {
 	require.Len(t, listed, 12, "§2.1's table names twelve verbs")
 	assert.Equal(t, listed, floorVerbs, "the shipped list is §2.1's, in its order")
 
+	// And the literal above is bound to the spec rather than restated from it.
+	// Without this, `listed` and `floorVerbs` and §2.1's table were three
+	// copies of one set with only the first two compared: adding a thirteenth
+	// verb to the table left the whole suite green, so the doc comment's
+	// "verbatim from the spec's table" was a correspondence nothing enforced.
+	//
+	// This reads ONE section of ONE file, which is why it is allowed where a
+	// test quantified over the corpus would not be — §7.2's own key set is
+	// pinned the same way by TestTheAllowedKeySetIsExactlySection72sTable, and
+	// this borrows its shape, including the NotEmpty that makes a parse failure
+	// loud instead of vacuously true.
+	inSpec := floorSection21Verbs(t)
+	require.NotEmpty(t, inSpec, "§2.1's verb row must be readable for this to be checkable")
+	assert.Equal(t, inSpec, floorVerbs,
+		"the shipped verbs are exactly §2.1's, in the table's own order")
+
 	for _, verb := range listed {
 		t.Run(verb, func(t *testing.T) {
 			unit := "The round " + verb + " what the prompt asked for."
@@ -1220,4 +1237,31 @@ func TestSection11Row4TheIndexIsBoundedAndCarriesNoUnitText(t *testing.T) {
 		assert.Regexp(t, shape, index,
 			"every byte of the index is an id, an anchor, a hash, an ordinal, a length, the commit or a count")
 	})
+}
+
+// floorSection21Verbs reads the verbs out of §2.1's arms table, in the table's
+// own order, so the shipped list can be compared against the document rather
+// than against a second copy of itself.
+//
+// It finds the verb row by the arm's name in the first cell rather than by a
+// line number, because a line number is the thing this repository has watched
+// rot three times in one cycle. Every `require` here is what keeps a parse
+// failure from passing as an empty set that trivially matches nothing.
+func floorSection21Verbs(t *testing.T) []string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join("..", "..", "spec", "1.0.0.md"))
+	require.NoError(t, err, "this list is §2.1's table; the spec must be readable for that to be checkable")
+
+	lines := strings.Split(string(data), "\n")
+	i := slices.IndexFunc(lines, func(l string) bool {
+		return strings.HasPrefix(l, "| **verb** |")
+	})
+	require.GreaterOrEqual(t, i, 0, "§2.1's arms table must carry a row whose first cell is **verb**")
+
+	quoted := regexp.MustCompile("`([a-z]+)`")
+	verbs := make([]string, 0, 12)
+	for _, m := range quoted.FindAllStringSubmatch(lines[i], -1) {
+		verbs = append(verbs, m[1])
+	}
+	return verbs
 }
