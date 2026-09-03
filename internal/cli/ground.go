@@ -138,7 +138,7 @@ from that text, into spec/.tp-review/<base>/. Editing the spec afterwards does n
 change the floor the round is graded against.`,
 		Args:              cobra.ArbitraryArgs,
 		DisableAutoGenTag: true,
-		RunE: func(_ *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 {
 				output.Error(ExitUsage, "spec path required")
 				os.Exit(ExitUsage)
@@ -152,7 +152,17 @@ change the floor the round is graded against.`,
 			// The refusal is taken before any of the three opens a file, so a
 			// pairing that also names a missing --record path is still usage
 			// (2) rather than the file error (3) that path alone would give.
-			if groundModesPassed(unitsMode, statusMode, recordPath) > 1 {
+			//
+			// Whether --record was PASSED and what it was passed are two
+			// questions, and both this count and the dispatch below asked the
+			// second. `--record ""` is a path argument of no characters, so
+			// `recordPath != ""` answered no at both sites: the invocation
+			// selected neither this refusal nor the record mode and fell
+			// through to the EMISSION, which rewrites the floor §7.3 freezes
+			// for a round already in flight. Changed() answers the first
+			// question, which is the one a mode is chosen by.
+			recordPassed := cmd.Flags().Changed("record")
+			if groundModesPassed(unitsMode, statusMode, recordPassed) > 1 {
 				output.Error(ExitUsage, "--units, --status and --record are separate modes: pass one",
 					"tp ground <spec> --record <file> writes the round; --status reports it; --units prints the floor's units")
 				os.Exit(ExitUsage)
@@ -171,13 +181,24 @@ change the floor the round is graded against.`,
 				os.Exit(ExitUsage)
 				return nil
 			}
+			// §7.1's exit-2 row names `--record` with no path argument, and an
+			// empty path is that input: cobra refuses a bare `--record` before
+			// this body runs, so `--record ""` is the only spelling of it that
+			// reaches here. Refused beside the other two usage rules — before
+			// any mode opens a file — for the reason stated above them.
+			if recordPassed && recordPath == "" {
+				output.Error(ExitUsage, "--record needs a path argument",
+					"run tp ground <spec> --record <file>: --record names the NDJSON the round is recorded from, and an empty path names none")
+				os.Exit(ExitUsage)
+				return nil
+			}
 			if unitsMode {
 				return runGroundUnits(args[0])
 			}
 			if statusMode {
 				return runGroundStatus(args[0], checkMode)
 			}
-			if recordPath != "" {
+			if recordPassed {
 				return runGroundRecord(args[0], recordPath)
 			}
 			return runGround(args[0])
@@ -193,9 +214,13 @@ change the floor the round is graded against.`,
 // groundModesPassed counts how many of §7.1's three mode-selecting flags the
 // operator passed. --check is not one of them: it modifies --status's answer
 // rather than choosing a mode, and its own refusal is stated separately.
-func groundModesPassed(units, status bool, recordPath string) int {
+//
+// record is whether the flag was PASSED, not whether its value is non-empty.
+// Counting `--record ""` as unpassed let `--record "" --status` see one mode
+// and run --status, reporting exit 0 for a mode nobody asked for on its own.
+func groundModesPassed(units, status, record bool) int {
 	n := 0
-	for _, passed := range []bool{units, status, recordPath != ""} {
+	for _, passed := range []bool{units, status, record} {
 		if passed {
 			n++
 		}
