@@ -102,3 +102,52 @@ func TestTheIndexNamesTheCommitOnItsFirstLine(t *testing.T) {
 	assert.Contains(t, FormatFloorIndex("7ced1edb", rows), "\n"+rows[0].String()+"\n",
 		"the line is added ahead of the rows, not in place of one")
 }
+
+// TestTheSummaryCountsUnitsNotDistinctHashes is the index's last line, and the
+// one thing about it §2.2 does not state. `scripts/floor-prototype.py` is the
+// run this is ported from: it counts `sum(seen.values())` and records in the
+// same breath why `len(seen)` is wrong — the counter is keyed by hash, so a
+// distinct-key count under-reports by exactly the collisions §8 introduces
+// `ordinal` to handle. Four units short on `spec/0.1.0.md`, in the direction
+// that makes coverage look higher than it is.
+//
+// The fixture is the arrangement in which the two readings differ: two floor
+// units of identical canonical text, so two units share one hash. That they
+// share it is required rather than assumed, and so is the resulting 2-against-1
+// — a fixture whose units happened to differ passes under both readings and
+// would be asserting nothing.
+//
+// The cut count is asserted beside it, and the two numbers differ, so a summary
+// that reported one for the other, or counted every row as a floor unit, fails
+// here too.
+func TestTheSummaryCountsUnitsNotDistinctHashes(t *testing.T) {
+	const twin = "The claim carries 3 items."
+	const dropped = "This sentence tells you nothing."
+	text := twin + "\n\n" + dropped + "\n\n" + twin + "\n"
+
+	units := FloorUnits(text)
+	require.Equal(t, []string{twin, dropped, twin}, units,
+		"the fixture is three units in this order")
+	require.False(t, inFloor(dropped), "the middle unit must be one the arms cut")
+	require.Equal(t, FloorTextSHA(units[0]), FloorTextSHA(units[2]),
+		"the two floor units must share a hash, or the two readings agree here")
+
+	rows := FloorIndexRows(text, func(int) string { return "§1" })
+	require.Len(t, rows, 3)
+	require.Equal(t, 2, rows[2].Ordinal, "the second of the twins, by §8's join key")
+
+	floor, distinct := 0, map[string]bool{}
+	for _, r := range rows {
+		if r.TextSHA == "" {
+			continue
+		}
+		floor++
+		distinct[r.TextSHA] = true
+	}
+	require.Equal(t, 2, floor, "two floor units")
+	require.Len(t, distinct, 1, "one distinct hash: the two readings differ by one here")
+
+	index := FormatFloorIndex("7ced1edb", rows)
+	lines := strings.Split(strings.TrimSuffix(index, "\n"), "\n")
+	assert.Equal(t, "# 2 in floor, 1 cut", lines[len(lines)-1])
+}
