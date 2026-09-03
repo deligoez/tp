@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-03T02:58:35.89317Z",
+  "updated_at": "2026-09-03T03:23:52.495865Z",
   "workflow": {},
   "coverage": {
     "total_sections": 21,
@@ -706,7 +706,7 @@
     {
       "id": "review-advisory",
       "title": "tp review emits ungrounded once",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli"
       ],
@@ -718,11 +718,47 @@
       "source_sections": [
         "## 9. Review is told, and not stopped"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-03T02:59:13.877958Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-03T03:23:52.352638Z",
+      "closed_reason": "- `tp review` carries `ungrounded` in the top-level envelope: engine.LatestGroundAdvisory (internal/engine/groundadvisory.go) returns {round, undispositioned, floor_size} for the latest ground round, and internal/cli/review.go assigns it to reviewResult.Ungrounded in one statement. The count is derived through GroundCoverageOf over the floor READ back from the emitted index — new engine.ParseFloorIndex, the inverse of FormatFloorIndex — never re-derived from the spec, so §7.3's frozen floor is what the advisory reports. Dogfooded outside the repo on a copy of spec/1.0.0.md: 302 in floor / 100 cut, and the advisory reports floor_size 302.\n- Absent entirely when coverage is complete or no ground round exists: the function returns nil in both states and the field is a pointer with omitempty, so the key never appears zero-valued. Verified by running: the real-spec copy reports {\"round\":1,\"undispositioned\":2,\"floor_size\":302} at 300/302, and grep finds zero occurrences of \"ungrounded\" once all 302 are dispositioned or before any `tp ground`. Two mutants observed red — the complete-coverage guard deleted (2 engine tests plus the CLI exit-code test), and a zero-valued key substituted for nil (3 CLI tests, one of which passed trivially until then).\n- Surviving `--compact`: the assignment is unconditional. TestTheUngroundedAdvisorySurvivesCompact asserts the whole object under --compact, and is the ONLY test reddened by a mutant gating the assignment on !IsCompact().\n- The exit code is identical with and without ungrounded units: nothing on the path reaches os.Exit — every failure the advisory can meet (no emission, an unreadable state directory, an index or round file that does not parse) answers nil. TestReviewsExitCodeIsIdenticalWithAndWithoutUngroundedUnits requires the two payloads to actually differ in the key before comparing codes, so the equality is not a statement about two identical runs; both exit 0, and the corrupt-floor case was reproduced by hand at exit 0 too.\n- §11 row 17 passes on a run emitting more than one role prompt (3 prompts, a require not an assumption). The verdict rests on the same spec, same directory, same round (--no-state) reviewed before and after grounding: the prompts must come back byte-identical, so the advisory changed the envelope and nothing else. This replaced a strings.Count over `\"ungrounded\"` that a per-role mutant SURVIVED — JSON escapes the quotes inside a prompt string, so the search could not see the copies it was written to count. The replacement was re-run against a mutant stripped of the word entirely and reddens on the prompt equality alone; the wider mutant (per role INSTEAD of the envelope) reddens three tests.\n- Spec defect found and repaired (8babf006): §9 ¶1 emitted the advisory \"when any unit is undispositioned or when no ground round exists\" while ¶2 makes the key absent entirely in that same state and ¶3 makes the two one thing — and the object cannot express it, its first field being the round's number. ¶1 now stops at the undispositioned condition. §9 also never decided whether a round exists from its emission or its record; the two differ on every round in flight, and the recorded reading drops the key for a spec whose current round nobody has touched. The emission is now normative, with the reason. The three field names are named since they are shipped.\nOut of scope: `tp ground --status` does not exist yet, so the per-verdict breakdown §8 puts beside the ratio has no sink; the advisory reports coverage only, which is what §9 asks of `tp review`.",
+      "gate_passed_at": "2026-09-03T03:23:52.352638Z",
+      "commit_sha": "4852754c",
+      "commit_shas": [
+        "4852754c",
+        "bcd0a639",
+        "e7cff80b",
+        "b5a647e9",
+        "0c951644",
+        "2762ccde",
+        "fcdf9623",
+        "a4b37615",
+        "d2934102",
+        "5f756600",
+        "87e75aca",
+        "6761f11a",
+        "4dfb9070",
+        "b6fc21e9",
+        "44bd77b0",
+        "ac72c8b7",
+        "a4b56647",
+        "58372ece",
+        "642867af",
+        "9d76079f",
+        "d4eb2eaf",
+        "9ab0803a",
+        "9c7a24af",
+        "8babf006"
+      ],
+      "commit_files": [
+        "internal/cli/review.go",
+        "internal/cli/review_ungrounded_test.go",
+        "internal/engine/floor.go",
+        "internal/engine/floorindexparse_test.go",
+        "internal/engine/groundadvisory.go",
+        "internal/engine/groundadvisory_test.go",
+        "spec/1.0.0.md"
+      ]
     },
     {
       "id": "docs",
