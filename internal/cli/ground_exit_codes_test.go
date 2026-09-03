@@ -153,3 +153,49 @@ func groundLockFixture(t *testing.T) string {
 	return dir
 }
 
+// TestGroundExitsFourWhenTheWriteLockIsHeld is §7.1's exit-4 row: a concurrent
+// --record holding .tp/locks/<target>.lock.
+//
+// The lock this test holds is named by the one path the command itself is
+// invoked with — the spec — and NOT by calling whatever wrapper ground calls: a
+// shared wrapper would move both sides at once, so a --record that locked some
+// other target would still contend with it and the test would stay green. Named
+// independently, that mutant finds no contention here and exits 0. Before this
+// task nothing in the ground flow locked anything and exit 4 was unreachable.
+func TestGroundExitsFourWhenTheWriteLockIsHeld(t *testing.T) {
+	dir := groundLockFixture(t)
+	groundEmit(t, dir)
+	rows := writeGroundRows(t, dir, groundRecordRow(1))
+	before := stateDirNames(t, dir)
+
+	acquired := make(chan struct{})
+	release := make(chan struct{})
+	held := make(chan struct{})
+	go func() {
+		defer close(held)
+		_ = engine.WithFileLock(filepath.Join(dir, "spec.md"), func() error {
+			close(acquired)
+			<-release
+			return nil
+		})
+	}()
+	<-acquired
+	defer func() {
+		close(release)
+		<-held
+	}()
+
+	start := time.Now()
+	stdout, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", rows)
+	elapsed := time.Since(start)
+	require.Equal(t, 4, code, "stdout: %s stderr: %s", stdout, stderr)
+
+	// The window pins that the timeout resolved: the project config says 1s,
+	// so the record retried for about that long — it neither gave up on the
+	// first failed TryLock nor fell back to the 5s built-in default.
+	assert.GreaterOrEqual(t, elapsed, 900*time.Millisecond, "the record retried for the configured 1s, not less")
+	assert.Less(t, elapsed, 4*time.Second, "the record used the configured 1s, not the 5s built-in default")
+
+	assertLockTimeoutErrorObject(t, stderr)
+	assert.Equal(t, before, stateDirNames(t, dir), "a record that never took the lock writes nothing")
+}
