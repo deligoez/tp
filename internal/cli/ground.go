@@ -887,6 +887,17 @@ func buildGroundPrompt(specPath, snapshotPath, index, outputPath string, round, 
 
 // groundPromptRow opens the prompt and states the row: what the unit is being
 // asked, and the six verdicts it may answer with.
+//
+// **The copy instruction carries the condition, because it is read first.**
+// This section says copy the index's cells and `## The floor` says compare the
+// hashes before grading; read in order the two agree, but a unit acting on the
+// copy instruction alone does precisely the thing the comparison exists to
+// prevent — a row carrying the index's own cells while grading a listing that
+// has moved on records at exit 0 and `--status --check` exits 0 over it, so the
+// prompt is the only defence there is (§2.2, §11 row 4c). An instruction stated
+// unconditionally in the section a reader acts from is not rescued by a
+// condition stated two sections later, so both sentences now point the same
+// way.
 func groundPromptRow(specPath, snapshotPath string, round int) string {
 	var b strings.Builder
 
@@ -902,9 +913,12 @@ wording, coherence and design are the next phase's subject, not yours.
 
 One JSON object per line. Copy unit_id, anchor, text_sha and ordinal from the
 index row unchanged — they are how a later round joins your disposition to the
-sentence you graded. Required on every row: unit_id, anchor, text_sha, ordinal,
-verdict. An unknown top-level key is rejected, and one rejected row refuses the
-whole round.
+sentence you graded — and copy them only once the floor section's hash
+comparison holds for that unit: where it does not, that index row does not
+describe the text you read, and copying its cells records a wrong grade at
+exit 0. Required on every row: unit_id, anchor, text_sha, ordinal, verdict.
+An unknown top-level key is rejected, and one rejected row refuses the whole
+round.
 
 verdict — exactly one of:
 `)
