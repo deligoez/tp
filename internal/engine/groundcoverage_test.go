@@ -151,9 +151,16 @@ func TestTheDenominatorIsTheEmittedFloorAndNotEveryUnit(t *testing.T) {
 }
 
 // TestARowNamingACutUnitDispositionsNothing is the other half of the same rule.
-// §2.2 says a cut unit a reader grounds is a reader-added row, and a row naming
-// one therefore moves neither side of the ratio: the unit it names is not an
-// obligation tp emitted.
+// A row naming a cut unit moves neither side of the ratio: the unit it names is
+// not an obligation tp emitted. What the row IS counted as is OffFloor, under
+// that unit's own id.
+//
+// This comment used to cite §2.2 for "a cut unit a reader grounds is a
+// reader-added row". §2.2 deleted that sentence — reader-added is keyed on
+// `unit_id: null` and a cut unit has an id — and the assertion below was always
+// about the ratio rather than about which counter the row lands in, so only the
+// citation was wrong. It is the fourth copy of that sentence found, after the
+// spec, the emitted prompt and floor.go's own comment.
 func TestARowNamingACutUnitDispositionsNothing(t *testing.T) {
 	floor := groundFloorWithACutUnit(t)
 	rows := []GroundRow{
