@@ -168,3 +168,50 @@ func rowIDsOf(rows []engine.FloorIndexRow) []string {
 	return ids
 }
 
+// TestThePromptMarksTheUnitsTheRecordActuallyCarries is the third clause of the
+// task this test file exists for: the carry set the emission marks is computed
+// by the same join `--record` uses, never by a second rule.
+//
+// That cannot be asserted by reading the code, and it cannot be asserted by
+// re-running the same function — a test calling engine.GroundCarriedRows to
+// build its expectation would agree with any second rule the CLI happened to
+// hold. So the verdict rests on two artifacts the command itself produced: the
+// ids the ROUND-2 PROMPT marked, and the ids `--record` then wrote into round
+// 2's file as carried. A second rule on either side makes the two sets differ.
+//
+// The payload records the one owed unit alone, which is what the prompt asked
+// for — so this is also the round-trip row 16b's saving is measured in.
+func TestThePromptMarksTheUnitsTheRecordActuallyCarries(t *testing.T) {
+	dir := t.TempDir()
+	writeGroundCarrySpec(t, dir, groundAskRound1)
+	groundEmit(t, dir)
+	floor1 := groundEmittedFloor(t, dir, 1)
+	rows1 := writeGroundRows(t, dir,
+		groundCarryRowFor(groundUnitFor(t, floor1, groundAskUnit1), 1),
+		groundCarryRowFor(groundUnitFor(t, floor1, groundAskUnit2), 1),
+		groundCarryRowFor(groundUnitFor(t, floor1, groundAskUnit3), 1),
+		groundCarryRowFor(groundUnitFor(t, floor1, groundAskUnit4), 1),
+	)
+	_, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", rows1)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	writeGroundCarrySpec(t, dir, groundAskRound2)
+	marked := groundMarkedIDs(groundEmit(t, dir)["prompt"].(string))
+	require.Len(t, marked, 3, "the prompt must mark something, or the comparison below is vacuous")
+
+	floor2 := groundEmittedFloor(t, dir, 2)
+	rows2 := writeGroundRows(t, dir, groundCarryRowFor(groundUnitFor(t, floor2, groundAskEdited), 2))
+	_, stderr, code = runTP(t, dir, "ground", "spec.md", "--record", rows2)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	recorded := make([]string, 0, 4)
+	for _, row := range groundRecordedRows(t, dir, 2) {
+		if row.CarriedFrom != 0 {
+			require.NotNil(t, row.UnitID, "a carried row names the unit it decides")
+			recorded = append(recorded, *row.UnitID)
+		}
+	}
+	assert.ElementsMatch(t, marked, recorded,
+		"the units the prompt said it would carry are the units the record carried")
+}
+
