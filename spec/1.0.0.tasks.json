@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-03T00:27:05.866952Z",
+  "updated_at": "2026-09-03T00:50:32.142991Z",
   "workflow": {},
   "coverage": {
     "total_sections": 21,
@@ -201,7 +201,7 @@
     {
       "id": "row-schema",
       "title": "the recorded row's field requirements",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -213,11 +213,26 @@
       "source_sections": [
         "### 7.2 The row"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-03T00:28:59.654345Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-03T00:49:06.287126Z",
+      "closed_reason": "- engine.GroundRow + engine.ParseGroundRow (internal/engine/groundrow.go) are §7.2's field table as a type: unit_id nullable but its key required, anchor/text_sha/verdict/ordinal required, kind and tier required except on NOT-A-CLAIM where they are optional, evidence iff tier is present, partial_kind iff PARTIAL, held_at iff partial_kind is true-when-written, causes iff QUESTION, carried_from optional. Presence is encoded in the value rather than in a parallel flag — every optional cell has a zero value that is not a legal value — so the validator reads the same struct a caller does and there is no bitmask to leave stale; unit_id takes the pointer because null is legal there and must differ from a missing key. The four two-sided cells go through one groundRowIff enforcing both directions, so the one-directional reading is not producible by omitting a branch; kind and tier deliberately do not, because §7.2's meaning column overrides its required column in bold. Observed red under: the forbidden branch of groundRowIff deleted (4 cells red at once); kind/tier made two-sided; evidence keyed on the verdict instead of on tier; held_at keyed on PARTIAL instead of on partial_kind; a missing unit_id read as null; a blank string read as absent; n\u003c1 relaxed to n\u003c0; each of the three shape patterns dropped or case-folded; an explicit null read as absent in causes and in an enum. §7.2's thirteen field names are parsed out of spec/1.0.0.md itself and matched in both directions against the fields the tests exercise, so a cell added to the spec with no case fails there — observed red by deleting one case.\n- A row failing any cell is rejected with a *GroundRowError carrying the Field, and groundRowErr is the only constructor for one, so a rejection that names no field is not reachable from this file. Every rejection case asserts rowErr.Field as data rather than a substring of the sentence, because §7.2's requirement is that the field be named and a Contains over an unbounded message would pin the wording instead. A line that is not a JSON object is the one rejection that names no field, and is asserted NotErrorAs. A misspelled field literal in the implementation fails the spec-bound match, and the three shape patterns are held accountable to FloorIndexRows and FloorAnchorOf rather than to the test's own literals — observed red by changing the emitter's u\u003cN\u003e format, which reddens the floor round-trip test and none of the hand-written ones. Full gate green (suite-state, golangci-lint 0 issues, deadcode, complexity); tree byte-clean after every mutation.\n\nTwo claims in this code were falsified by running its own mutants and are corrected in place with the measurement beside them, because both mutants survived the whole table on the first pass. groundText's comment named {\"tier\": \"run\", \"evidence\": \"\"} as the row a blank-reads-as-absent parser would let through: that row is rejected either way and names the same field, because a blank on a REQUIRED cell simply becomes a missing cell. The rows that do separate the two readings are ones whose condition does not hold — a blank evidence with no tier, a blank held_at on a two-readings row — and both are now cases. groundCauses' comment made the identical error about null on a QUESTION row; the row that separates them is a non-QUESTION row carrying \"causes\": null, which is what a Go emitter writes by accident since a nil slice marshals to null.\n\nOut of scope: three points where §7.2 is silent and this task took the literal reading rather than inventing a rule. (1) On NOT-A-CLAIM the table says kind and tier are optional and says nothing about carrying one without the other; a row with kind and no tier is therefore accepted, asserted in TestTheRowsTheTableAllows so the undecided case has a stated answer rather than an accidental one. (2) An unknown top-level key is ignored, not rejected — §7.2's rejection is stated per cell and an unknown key is no cell, so the allowedRoleKeys precedent in internal/engine/rolefile.go was deliberately not followed; the cost is that a misspelled carried_from is silently dropped. (3) null is treated as a written value that fails its cell everywhere except unit_id, where §7.2 declares it legal, and note, which is free text; §7.2 does not distinguish absent from null for the other eleven cells. §7.2 also never bounds ordinal or carried_from beyond calling them 1-based, which is what the \u003e= 1 check enforces.",
+      "gate_passed_at": "2026-09-03T00:49:06.287126Z",
+      "commit_sha": "d9c49d07",
+      "commit_shas": [
+        "d9c49d07",
+        "184f0666",
+        "ca3359cc",
+        "b9995972",
+        "ca8f2974",
+        "1ea32111",
+        "0d37f95c"
+      ],
+      "commit_files": [
+        "internal/engine/groundrow.go",
+        "internal/engine/groundrow_test.go",
+        "internal/engine/groundverdict.go"
+      ]
     },
     {
       "id": "tier-rule",
@@ -273,7 +288,7 @@
         "row-schema"
       ],
       "estimate_minutes": 8,
-      "acceptance": "--record validates every row before writing; one invalid row means no round file and a state directory byte-identical to before the attempt. §11 row 10 passes.",
+      "acceptance": "--record validates every row before writing; one invalid row means no round file and a state directory byte-identical to before the attempt. An unknown top-level key on any row is a rejection, on allowedRoleKeys precedent. Section 11 row 10 passes.",
       "source_sections": [
         "### 7.2 The row"
       ],
