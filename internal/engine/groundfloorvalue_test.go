@@ -55,3 +55,39 @@ func TestARowMustCarryTheFloorHashOfTheUnitItNames(t *testing.T) {
 	_, statErr := os.Stat(filepath.Join(ReviewStateDir(specPath), "ground-round-1.ndjson"))
 	assert.True(t, os.IsNotExist(statErr), "a refused round writes no round file")
 }
+
+// TestTheFloorHashCheckIsTheOnlyValueCompared fences §7.3's exception to exactly
+// what it says, in all three directions the rule has.
+//
+// The first arm is the control that stops the test above being a check on
+// nothing: the same row with the floor's own hash records. The second and third
+// are the halves §7.3 keeps shape-checked — a row whose `unit_id` matches no
+// floor row stays valid, because that is `off_floor` and §8's fact to report,
+// and a row on a unit the arms CUT is not compared either, since a cut floor row
+// carries no hash for it to match. Without them a stricter implementation —
+// refusing every unmatched id, or demanding a cut unit's empty hash — passes the
+// test above while breaking the two readings §7.3 names.
+func TestTheFloorHashCheckIsTheOnlyValueCompared(t *testing.T) {
+	cases := []struct {
+		name string
+		over map[string]any
+	}{
+		{"the floor's own hash on the unit it names", map[string]any{
+			"unit_id": "u1", "anchor": "§1", "text_sha": "0123456789ab"}},
+		{"an id no floor row carries", map[string]any{
+			"unit_id": "u9", "anchor": "§9", "text_sha": "ffffffffffff"}},
+		{"a unit the arms cut", map[string]any{
+			"unit_id": "u2", "anchor": "§2", "text_sha": "ffffffffffff"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			specPath := groundEmittedDir(t, 1)
+			payload := groundRecordPayload(groundWireRow(t, groundClaimRow(), tc.over, nil))
+
+			rows, _, err := RecordGroundRound(specPath, 1, payload, groundFloorValueFloor())
+			require.NoError(t, err)
+			require.Len(t, rows, 1)
+			assert.FileExists(t, filepath.Join(ReviewStateDir(specPath), "ground-round-1.ndjson"))
+		})
+	}
+}
