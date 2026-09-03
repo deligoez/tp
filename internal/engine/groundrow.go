@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -17,7 +18,9 @@ import (
 // quietly stop it holding; a test asserting on the sentence would be pinning
 // the wording instead of the property.
 type GroundRowError struct {
-	// Field is the §7.2 field name, spelled as it is on the wire.
+	// Field is the key the failure is about, spelled as it is on the wire:
+	// the §7.2 field whose cell failed, or — for a key that is no cell at all
+	// — the offending key itself.
 	Field string
 	// Msg says what is wrong with that cell.
 	Msg string
@@ -45,6 +48,32 @@ var (
 	groundAnchorRe  = regexp.MustCompile(`^§\d+(\.\d+)*$`)
 	groundTextSHARe = regexp.MustCompile(`^[0-9a-f]{12}$`)
 )
+
+// groundRowKeys is the exact set of top-level keys §7.2's table names; any
+// other key is a rejection, on allowedRoleKeys' precedent (rolefile.go:18,
+// which does the same for a role file's key set).
+//
+// The cell-by-cell validation below says nothing about a key that is no cell,
+// so without this a misspelled `carried_from` is silently dropped — a row that
+// records as decided while the thing it meant to say is gone. Every entry here
+// is a field the parse above reads, and a test matches the set against §7.2's
+// table parsed out of the spec in both directions, so a cell added there with
+// no entry here fails rather than being rejected on every row that carries it.
+var groundRowKeys = map[string]bool{
+	"unit_id":      true,
+	"anchor":       true,
+	"text_sha":     true,
+	"verdict":      true,
+	"kind":         true,
+	"tier":         true,
+	"evidence":     true,
+	"partial_kind": true,
+	"held_at":      true,
+	"causes":       true,
+	"ordinal":      true,
+	"carried_from": true,
+	"note":         true,
+}
 
 // GroundCause is one entry of a `QUESTION` row's `causes` array: §6's
 // falsifiable cause with the prediction that would remove it. The pair is a
@@ -137,6 +166,10 @@ func ParseGroundRow(line []byte) (GroundRow, error) {
 	}
 	if raw == nil {
 		return GroundRow{}, fmt.Errorf("row is not a JSON object: null")
+	}
+
+	if err := groundUnknownKey(raw); err != nil {
+		return GroundRow{}, err
 	}
 
 	var row GroundRow
@@ -287,6 +320,26 @@ func groundRowRequiredOnAClaim(field string, present, isClaim bool) error {
 		return groundRowErr(field, "is required unless the verdict is NOT-A-CLAIM")
 	}
 	return nil
+}
+
+// groundUnknownKey rejects a top-level key that is no cell of §7.2's table.
+//
+// The offender named is the lexically first of them rather than whichever the
+// map happens to yield: Go randomises map iteration order, and an error whose
+// message differs between two runs on one input is not something an operator
+// can act on or a test can assert.
+func groundUnknownKey(raw map[string]json.RawMessage) error {
+	unknown := make([]string, 0, len(raw))
+	for key := range raw {
+		if !groundRowKeys[key] {
+			unknown = append(unknown, key)
+		}
+	}
+	if len(unknown) == 0 {
+		return nil
+	}
+	slices.Sort(unknown)
+	return groundRowErr(unknown[0], "is not a field §7.2's table names")
 }
 
 // groundUnitID decodes §7.2's one nullable cell. The key is required; its
