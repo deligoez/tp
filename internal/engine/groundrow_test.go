@@ -608,6 +608,73 @@ func TestARowCarryingWhatTheFloorEmittedParses(t *testing.T) {
 	assert.Contains(t, anchors, "§7", "and one under a numbered heading")
 }
 
+// TestTheCauseCountBoundIsThreeToFive is §11 row 8.
+//
+// The lengths are swept rather than sampled, because "3 and 5 are accepted" is
+// satisfied by every bound that contains them — the 1–10 bound row 8 names
+// among them. What separates them is the pair either side, so the sweep runs
+// from 0 to 8 and states the verdict for each: 2 and 6 are the two the mutant
+// gets wrong, 3 and 5 are the two an off-by-one at either end gets wrong.
+func TestTheCauseCountBoundIsThreeToFive(t *testing.T) {
+	for n := 0; n <= 8; n++ {
+		t.Run(fmt.Sprintf("%d causes", n), func(t *testing.T) {
+			row, err := ParseGroundRow(groundWireRow(t, groundClaimRow(), map[string]any{
+				"verdict": "QUESTION",
+				"causes":  groundNCauses(n),
+			}, nil))
+
+			if n >= 3 && n <= 5 {
+				require.NoError(t, err, "§6 asks for three to five causes")
+				assert.Len(t, row.Causes, n)
+				return
+			}
+			require.Error(t, err, "§6 asks for three to five causes")
+			var rowErr *GroundRowError
+			require.ErrorAs(t, err, &rowErr)
+			assert.Equal(t, "causes", rowErr.Field)
+		})
+	}
+}
+
+// TestTheCauseBoundIsTheOneTheSpecStates binds the two constants to the
+// document they are a reading of.
+//
+// The bound is a number, and a number in Go says nothing about the sentence it
+// came from: 1–10 compiles as readily as 3–5 and no assertion written from the
+// same head catches the difference. So the numbers are re-read out of the spec
+// here, in every place it states them — §6's prose, §3's verdict table and
+// §7.2's field table — and the three are required to agree with each other as
+// well as with the code. Deleting one of the three sentences fails the count;
+// changing one of them fails the comparison.
+func TestTheCauseBoundIsTheOneTheSpecStates(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "spec", "1.0.0.md"))
+	require.NoError(t, err, "this bound is §6's; the spec must be readable for that to be checkable")
+
+	numbers := map[string]int{
+		"one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+		"six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+	}
+	stated := [][2]int{}
+	for _, re := range []*regexp.Regexp{
+		regexp.MustCompile(`name ([a-z]+) to ([a-z]+) falsifiable`),
+		regexp.MustCompile("([a-z]+) to ([a-z]+) (?:ranked )?`\\{cause, prediction\\}` objects"),
+	} {
+		for _, m := range re.FindAllStringSubmatch(string(data), -1) {
+			lo, okLo := numbers[m[1]]
+			hi, okHi := numbers[m[2]]
+			require.True(t, okLo && okHi, "%q and %q must be number words", m[1], m[2])
+			stated = append(stated, [2]int{lo, hi})
+		}
+	}
+
+	require.GreaterOrEqual(t, len(stated), 3,
+		"the spec states this bound in §6, in §3's verdict table and in §7.2's field table")
+	for _, b := range stated {
+		assert.Equal(t, groundCausesMin, b[0], "every statement of the bound must agree with the code")
+		assert.Equal(t, groundCausesMax, b[1], "every statement of the bound must agree with the code")
+	}
+}
+
 // TestThePartialKindEnumIsThreeValues pins §7.2's third enum the way §3's six
 // and §4.1's seven and six are pinned: closed, round-tripping, and rejecting a
 // near-miss rather than folding it.
