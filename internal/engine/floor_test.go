@@ -99,6 +99,37 @@ func TestFloorBlocksDropsWhatStep1Drops(t *testing.T) {
 				"TABLE:| c | d |", "TABLE:| 3 | 4 |",
 			},
 		},
+		// §2.1 step 1's outer-pipe half: a separator row must begin AND end
+		// with a pipe. The three rows below are the three inputs §2.1 names as
+		// kept, each kept differently — and none of them was asserted anywhere
+		// until this was written, so the shipped `floorTableSepRe` requiring
+		// both pipes was correct and unguarded.
+		//
+		// **Two mutants, and only one of them reaches all three — measured.**
+		// Relaxing `floorTableSepRe` to `^\s*[\s:|-]+$` kills the first case
+		// alone: the separator check runs INSIDE the `floorTableRowRe` branch,
+		// so a line that does not begin with a pipe never reaches it, and the
+		// other two are decided by `floorTableRowRe`'s leading pipe and by
+		// `isFloorHorizontalRule`'s three-marker minimum instead. §2.1's own
+		// looser reading — drop such a line wherever it sits — is the mutant
+		// that kills all three, and it is the one §11 row 18g names. So the
+		// three cases are not three views of one rule; naming them as such is
+		// what made the paragraph read as if the outer pipes decided all three.
+		{
+			name: "a separator missing its trailing pipe stays a table data row",
+			text: "| a | b |\n|--- |---\n| 1 | 2 |\n",
+			want: []string{"TABLE:| a | b |", "TABLE:|--- |---", "TABLE:| 1 | 2 |"},
+		},
+		{
+			name: "a separator with no outer pipes at all leaves its whole table one prose block",
+			text: "c | d\n--- | ---\n3 | 4\n",
+			want: []string{"c | d\\n--- | ---\\n3 | 4"},
+		},
+		{
+			name: "a lone dash is neither a horizontal rule nor a separator",
+			text: "Before.\n\n-\n\nAfter.\n",
+			want: []string{"Before.", "-", "After."},
+		},
 		{
 			name: "a dropped line is dropped, not turned into a boundary",
 			text: "Before.\n## Heading\nAfter.\n",
