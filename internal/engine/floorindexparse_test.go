@@ -26,3 +26,26 @@ func TestParseFloorIndexIsTheInverseOfFormatFloorIndex(t *testing.T) {
 	assert.Equal(t, rows, parsed, "the index reads back as the rows it was rendered from")
 }
 
+// TestParseFloorIndexKeepsACutRowCut pins the one confusion the two shapes admit:
+// a cut row is three fields and a floor row is five, so a parser that read any
+// three-field line as id/anchor/hash would give the cut unit the hash "(cut)" —
+// non-empty, which is precisely what §2.2 says makes a unit a floor unit.
+//
+// The consequence is asserted through GroundCoverageOf rather than only on the
+// field, because that is where the defect is felt: the cut unit would enter the
+// denominator and owe a disposition no reader was ever asked for.
+func TestParseFloorIndexKeepsACutRowCut(t *testing.T) {
+	parsed, err := ParseFloorIndex("# commit unknown\n" +
+		"u1 §1 aabbccddeeff #1 24B\n" +
+		"u2 §2 (cut)\n" +
+		"# 1 in floor, 1 cut\n")
+	require.NoError(t, err)
+	require.Len(t, parsed, 2)
+
+	assert.Equal(t, FloorIndexRow{ID: "u1", Anchor: "§1", TextSHA: "aabbccddeeff", Ordinal: 1, Bytes: 24}, parsed[0])
+	assert.Equal(t, FloorIndexRow{ID: "u2", Anchor: "§2"}, parsed[1],
+		"the ABSENCE of the hash is the cut (§2.2), so a cut row carries no hash, ordinal or length")
+	assert.Equal(t, 1, GroundCoverageOf(parsed, nil).Emitted,
+		"a cut unit owes no disposition, so it is not in §8's denominator")
+}
+
