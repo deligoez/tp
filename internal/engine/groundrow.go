@@ -560,3 +560,78 @@ func groundCausePair(i int, c GroundCause) error {
 	}
 	return nil
 }
+
+// groundRowWire is §7.2's table as an encoder, and it lives beside the parser
+// so the two cannot drift: every tag here is a key groundRowKeys allows, and a
+// key this wrote that the table did not name would be rejected by
+// ParseGroundRow on the round's next reader.
+//
+// **`omitempty` is on exactly the cells §7.2 makes optional or conditional, and
+// on no other.** The table rejects an empty string on every required cell and
+// on every conditional one whose condition holds, so an encoder writing all
+// thirteen keys unconditionally produces a row that no longer parses —
+// `"kind": ""` on a `NOT-A-CLAIM` row is not an absent kind, it is an unknown
+// enum value. The zero value of each optional cell is outside its legal set,
+// which is what makes omitting it the same statement the parser reads as absent.
+//
+// `unit_id` is the exception and carries no `omitempty`: §7.2 declares `null`
+// legal there and requires the key, so a pointer that omitted itself when nil
+// would turn a reader-added claim into a row with no `unit_id` at all.
+type groundRowWire struct {
+	UnitID      *string           `json:"unit_id"`
+	Anchor      string            `json:"anchor"`
+	TextSHA     string            `json:"text_sha"`
+	Verdict     GroundVerdict     `json:"verdict"`
+	Kind        GroundKind        `json:"kind,omitempty"`
+	Tier        GroundTier        `json:"tier,omitempty"`
+	Evidence    string            `json:"evidence,omitempty"`
+	PartialKind GroundPartialKind `json:"partial_kind,omitempty"`
+	HeldAt      string            `json:"held_at,omitempty"`
+	Causes      []GroundCause     `json:"causes,omitempty"`
+	Ordinal     int               `json:"ordinal"`
+	CarriedFrom int               `json:"carried_from,omitempty"`
+	Note        string            `json:"note,omitempty"`
+}
+
+// appendGroundRows appends rows to a `--record` payload as NDJSON, one row per
+// line, and returns the bytes a round file is written from.
+//
+// **The payload's own bytes are never re-encoded.** §7.1 requires the recorded
+// file to hold what the unit wrote rather than a re-serialisation of the parsed
+// rows, so this only ever adds after them — the rows tp itself derived, which no
+// other copy of exists. A payload whose last line has no newline is terminated
+// first: appending to it directly would glue its last row and tp's first into
+// one line that parses as neither.
+func appendGroundRows(data []byte, rows []GroundRow) ([]byte, error) {
+	// Copied rather than appended to in place: os.ReadFile returns a slice
+	// whose capacity may exceed its length, and appending to the caller's
+	// buffer would write into bytes it still owns.
+	out := make([]byte, len(data), len(data)+len(rows)*192+1)
+	copy(out, data)
+	if len(out) > 0 && out[len(out)-1] != '\n' {
+		out = append(out, '\n')
+	}
+	for i := range rows {
+		line, err := json.Marshal(groundRowWire{
+			UnitID:      rows[i].UnitID,
+			Anchor:      rows[i].Anchor,
+			TextSHA:     rows[i].TextSHA,
+			Verdict:     rows[i].Verdict,
+			Kind:        rows[i].Kind,
+			Tier:        rows[i].Tier,
+			Evidence:    rows[i].Evidence,
+			PartialKind: rows[i].PartialKind,
+			HeldAt:      rows[i].HeldAt,
+			Causes:      rows[i].Causes,
+			Ordinal:     rows[i].Ordinal,
+			CarriedFrom: rows[i].CarriedFrom,
+			Note:        rows[i].Note,
+		})
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, line...)
+		out = append(out, '\n')
+	}
+	return out, nil
+}
