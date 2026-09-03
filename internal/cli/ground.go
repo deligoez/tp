@@ -164,7 +164,19 @@ var groundVerdictMeaning = map[engine.GroundVerdict]string{
 // the floor at 898,131 bytes against the index's 157,654, and the prefix shapes
 // that tried to split the difference lost the one thing a prefix cannot carry —
 // where a unit ends — which is why the byte length is on every row instead.
+//
+// The three sections are three functions because the prompt is long enough to
+// trip the funlen ratchet as one, and its seams are its own headings.
 func buildGroundPrompt(specPath, snapshotPath, index, outputPath string, round int) string {
+	return appendClausesGround(
+		groundPromptRow(specPath, snapshotPath, round) +
+			groundPromptEvidence() +
+			groundPromptFloor(index, outputPath))
+}
+
+// groundPromptRow opens the prompt and states the row: what the unit is being
+// asked, and the six verdicts it may answer with.
+func groundPromptRow(specPath, snapshotPath string, round int) string {
 	var b strings.Builder
 
 	fmt.Fprintf(&b, "# Ground round %d — check this spec's claims against the world\n\n", round)
@@ -182,9 +194,8 @@ sentence you graded. Required on every row: unit_id, anchor, text_sha, ordinal,
 verdict. An unknown top-level key is rejected, and one rejected row refuses the
 whole round.
 
+verdict — exactly one of:
 `)
-
-	b.WriteString("verdict — exactly one of:\n")
 	for _, v := range engine.GroundVerdicts() {
 		fmt.Fprintf(&b, "  %-13s %s\n", v, groundVerdictMeaning[v])
 	}
@@ -203,7 +214,22 @@ causes — required on QUESTION: three to five {"cause": ..., "prediction": ...}
 note — free text, optional.
 unit_id is null on a claim you add that the floor did not carry; supply the
   text_sha yourself, over the claim's own text.
+`)
+	return b.String()
+}
 
+// groundPromptEvidence renders §4.1: what each tier means, which tiers say
+// anything about which kind of claim, and §7.2's per-verdict reading of that
+// rule.
+//
+// The kind–tier column is derived from TierAcceptableFor rather than written
+// out, because that predicate is what rejects a row at --record: a prompt
+// stating the rule in its own words can drift from the recorder, and the unit
+// pays for the drift with a refused round.
+func groundPromptEvidence() string {
+	var b strings.Builder
+
+	b.WriteString(`
 ## Which evidence answers which claim
 
 tier records what you ACTUALLY did, never what the kind wanted:
@@ -245,10 +271,16 @@ falsifiable causes with their predictions and test them in rank order. Find fact
 yourself — two things reach the operator and nothing else: a fact only the author
 holds, and a decision. A QUESTION does not stop the round; carry on with every
 claim that does not depend on the answer.
-
-## The floor
-
 `)
+	return b.String()
+}
+
+// groundPromptFloor carries the emitted index whole, says how to read a row,
+// and names the file this round's rows go to.
+func groundPromptFloor(index, outputPath string) string {
+	var b strings.Builder
+
+	b.WriteString("\n## The floor\n\n")
 	b.WriteString(index)
 	fmt.Fprintf(&b, `
 Each row is `+"`<unit_id> <anchor> <text_sha> #<ordinal> <bytes>B`"+`, and a row ending
@@ -265,5 +297,5 @@ cut unit — is recorded with "unit_id": null and is reported apart from coverag
 Write this round's rows to: %s
 `, outputPath)
 
-	return appendClausesGround(b.String())
+	return b.String()
 }
