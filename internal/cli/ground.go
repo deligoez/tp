@@ -96,7 +96,15 @@ const groundStatusEmitHint = "emit the round first: tp ground %s — --status re
 // the one prompt `tp ground` emits, and the two refusals this hint answers —
 // a row that fails the field table, and a file holding no rows at all — are
 // both about that prompt's schema.
-const groundRecordRowHint = "fix the row the message names in the --record NDJSON, or record a file holding at least one row: every non-blank line is one JSON object carrying one floor unit's disposition"
+const groundRecordRowHint = "fix the row the message names in the --record NDJSON: every non-blank line is one JSON object carrying one floor unit's disposition"
+
+// groundRecordEmptyHint is the other exit-1 refusal, and it needs its own words.
+// The two shared one hint until an empty record was measured being told to "fix
+// the row the message names" when the message names no row -- a reader sent
+// looking for a line that is not in a file that has none. This refusal is
+// reachable only when nothing carries either (§7.1), so the way out is to
+// disposition something, never to edit a row.
+const groundRecordEmptyHint = "record a file holding at least one row, or ground the units the emitted prompt asks for: the round carried nothing from a preceding round, so an empty payload would record nothing at all"
 
 // groundCarrySourceHint answers the one failure whose subject is neither the
 // operator's file nor this round: §8 reads the immediately preceding round to
@@ -548,8 +556,13 @@ func exitGroundRecordError(err error) {
 		os.Exit(ExitFile)
 		return
 	}
+	if errors.Is(err, engine.ErrGroundRoundEmpty) {
+		output.Error(ExitValidation, err.Error(), groundRecordEmptyHint)
+		os.Exit(ExitValidation)
+		return
+	}
 	var lineErr *engine.GroundLineError
-	if errors.As(err, &lineErr) || errors.Is(err, engine.ErrGroundRoundEmpty) {
+	if errors.As(err, &lineErr) {
 		output.Error(ExitValidation, err.Error(), groundRecordRowHint)
 		os.Exit(ExitValidation)
 		return
