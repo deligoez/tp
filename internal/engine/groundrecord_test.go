@@ -197,3 +197,27 @@ func TestEveryLineIsValidatedAndTheRejectionNamesItsLine(t *testing.T) {
 	assert.Equal(t, "tier", rowErr.Field)
 }
 
+// TestAnUnknownTopLevelKeyIsRejectedNamingIt is §7.2's unknown-key rule, on
+// allowedRoleKeys' precedent.
+//
+// The same base row is parsed with and without the offending key, so the
+// rejection is attributable to the key rather than to anything else the fixture
+// happens to carry — without the second half a row that was invalid for some
+// other reason would pass this test.
+func TestAnUnknownTopLevelKeyIsRejectedNamingIt(t *testing.T) {
+	for _, key := range []string{"carried_form", "unitid", "severity", "role"} {
+		t.Run(key, func(t *testing.T) {
+			base := groundClaimRow()
+			_, err := ParseGroundRow(groundWireRow(t, base, nil, nil))
+			require.NoError(t, err, "the base row must be legal, or the rejection proves nothing")
+
+			_, err = ParseGroundRow(groundWireRow(t, base, map[string]any{key: "x"}, nil))
+			require.Error(t, err, "a key that is no cell of §7.2's table is rejected, not ignored")
+
+			var rowErr *GroundRowError
+			require.ErrorAs(t, err, &rowErr)
+			assert.Equal(t, key, rowErr.Field, "the rejection names the offending key")
+		})
+	}
+}
+
