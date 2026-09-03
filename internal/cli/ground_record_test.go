@@ -10,15 +10,43 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/deligoez/tp/internal/engine"
 )
 
-// groundRecordRow is a legal §7.2 row for unit u<n>: a `document` claim reached
-// at `read`, the one tier §4.1 grants that kind, so the row satisfies the
-// per-verdict tier rule as well as the field table. Each row's evidence differs,
-// so a test can tell which rows reached the file.
+// groundRecordRow is a legal §7.2 row for unit u<n> of groundFixtureSpec's
+// floor: a `document` claim reached at `read`, the one tier §4.1 grants that
+// kind, so the row satisfies the per-verdict tier rule as well as the field
+// table. Each row's evidence differs, so a test can tell which rows reached the
+// file.
+//
+// `text_sha` is DERIVED from the fixture's own index rather than written as a
+// literal, because §7.3's one value check compares it: a row naming a floor unit
+// must carry that unit's hash. A literal was what these fixtures used, and it
+// matched nothing — every one of them was the shape of row the check exists to
+// refuse.
 func groundRecordRow(n int) string {
-	return fmt.Sprintf(`{"unit_id":"u%d","anchor":"§1","text_sha":"0123456789ab","ordinal":1,`+
-		`"verdict":"PASS","kind":"document","tier":"read","evidence":"read spec.md line %d"}`, n, n)
+	return fmt.Sprintf(`{"unit_id":"u%d","anchor":"§1","text_sha":%q,"ordinal":1,`+
+		`"verdict":"PASS","kind":"document","tier":"read","evidence":"read spec.md line %d"}`,
+		n, groundFixtureTextSHA(n), n)
+}
+
+// groundFixtureTextSHA is the hash groundFixtureSpec's floor gives u<n>, taken
+// through the engine's own derivation so a fixture row cannot drift from the
+// index tp emits for the same text.
+//
+// A unit the arms CUT has no hash in the index and none to match, so it keeps a
+// well-formed placeholder: §7.3's check skips a cut row, and a row on one must
+// still satisfy §7.2's shape.
+func groundFixtureTextSHA(n int) string {
+	rows := engine.FloorIndexRows(groundFixtureSpec, engine.FloorAnchorOf(groundFixtureSpec))
+	id := fmt.Sprintf("u%d", n)
+	for _, r := range rows {
+		if r.ID == id && r.TextSHA != "" {
+			return r.TextSHA
+		}
+	}
+	return "0123456789ab"
 }
 
 // writeGroundRows puts a --record payload in dir and returns the relative name
