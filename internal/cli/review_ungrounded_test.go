@@ -78,7 +78,7 @@ func groundFixtureRound(t *testing.T, dir string, dispositioned int) {
 // reviewEnvelope runs a review and returns its decoded top-level payload with
 // the raw text beside it, because §11 row 17's second half is a claim about how
 // MANY times the key appears and a decoded map cannot answer that.
-func reviewEnvelope(t *testing.T, dir string, args ...string) (map[string]any, string) {
+func reviewEnvelope(t *testing.T, dir string, args ...string) (envelope map[string]any, raw string) {
 	t.Helper()
 	stdout, stderr, code := runTP(t, dir, append([]string{"review", "spec.md"}, args...)...)
 	require.Equal(t, 0, code, "review: %s", stderr)
