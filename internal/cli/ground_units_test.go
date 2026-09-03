@@ -78,7 +78,7 @@ func TestGroundUnitsPrintsEveryFloorUnitWholeWithTheIndexsHash(t *testing.T) {
 
 	byID := map[string]engine.FloorIndexRow{}
 	wantIDs := make([]string, 0, len(index))
-	cut := 0
+	cut, longest := 0, 0
 	for _, row := range index {
 		byID[row.ID] = row
 		if row.TextSHA == "" {
@@ -86,13 +86,22 @@ func TestGroundUnitsPrintsEveryFloorUnitWholeWithTheIndexsHash(t *testing.T) {
 			continue
 		}
 		wantIDs = append(wantIDs, row.ID)
+		longest = max(longest, row.Bytes)
 	}
-	// Facts of the fixture, required rather than assumed: without a cut unit
-	// between the floor units, numbering over every unit and numbering over the
-	// floor alone produce the same ids and the assertion below decides nothing.
+	// Facts of the fixture, required rather than assumed, and all three read off
+	// the EMITTED index rather than off the output under test — a fixture fact
+	// measured from stdout is falsified by the very mutant it is there to make
+	// reachable, which is how the third of these was found.
+	//
+	// Without a cut unit between the floor units, numbering over every unit and
+	// numbering over the floor alone produce the same ids and the id assertion
+	// below decides nothing. Without a unit longer than a sixty-byte head, a
+	// truncation to that head IS the whole unit and the length assertion decides
+	// nothing either.
 	require.Equal(t, 2, cut, "the fixture must hold units the arms cut")
 	require.Equal(t, []string{"u1", "u4"}, wantIDs,
 		"the fixture's floor units must be the first and the last of four, with the cut ones between them")
+	require.Greater(t, longest, 60, "the fixture must hold a floor unit longer than a sixty-byte head")
 
 	stdout, stderr, code := runTP(t, dir, "ground", "spec.md", "--units")
 	require.Equal(t, 0, code, "stderr: %s", stderr)
@@ -100,7 +109,6 @@ func TestGroundUnitsPrintsEveryFloorUnitWholeWithTheIndexsHash(t *testing.T) {
 	lines := strings.Split(strings.TrimSuffix(stdout, "\n"), "\n")
 	require.Len(t, lines, len(wantIDs), "one line per FLOOR unit and none for a unit the arms cut: %q", stdout)
 
-	longest := 0
 	for i, line := range lines {
 		fields := strings.SplitN(line, "\t", 3)
 		require.Len(t, fields, 3, "a line is <unit_id>\\t<text_sha>\\t<text>: %q", line)
@@ -112,10 +120,7 @@ func TestGroundUnitsPrintsEveryFloorUnitWholeWithTheIndexsHash(t *testing.T) {
 		assert.Equal(t, row.Bytes, len(text),
 			"the line carries the WHOLE unit: the index row for %s says %d bytes", id, row.Bytes)
 		assert.Equal(t, sha, engine.FloorTextSHA(text), "the text_sha on the line is the sha256 of what follows it")
-		longest = max(longest, len(text))
 	}
-	require.Greater(t, longest, 60,
-		"the fixture must hold a unit longer than a sixty-byte head, or a truncation cannot be seen here")
 }
 
 // TestGroundUnitsReadsTheSpecAndWritesNothing pins the two halves §7.1's table
