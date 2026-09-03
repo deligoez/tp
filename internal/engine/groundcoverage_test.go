@@ -116,3 +116,24 @@ func TestAReaderAddedRowMovesNeitherSideAndIsCountedApart(t *testing.T) {
 		GroundCoverageOf(floor, rows))
 }
 
+// TestEveryVerdictCountsAsADisposition covers §8's "`UNVERIFIABLE` counts as
+// dispositioned: it is a settled answer, not a gap" — and covers it for all six
+// of §3's verdicts, since none of them is a gap either. A `FAIL` is a
+// disposition, which is why §8 puts the per-verdict breakdown beside the ratio.
+//
+// The loop ranges over the enum's own listing rather than over six literals, so
+// a seventh verdict is covered the day it is added.
+func TestEveryVerdictCountsAsADisposition(t *testing.T) {
+	verdicts := GroundVerdicts()
+	require.Len(t, verdicts, 6, "§3 has six verdicts")
+	require.Contains(t, verdicts, VerdictUnverifiable, "UNVERIFIABLE is one of them")
+
+	for _, v := range verdicts {
+		t.Run(string(v), func(t *testing.T) {
+			cov := GroundCoverageOf(groundFloorOf("u1"), []GroundRow{groundDisposition("u1", v)})
+
+			assert.Equal(t, GroundCoverage{Emitted: 1, Dispositioned: 1}, cov)
+		})
+	}
+}
+
