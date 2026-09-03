@@ -172,3 +172,28 @@ func TestOneInvalidRowWritesNoRoundFileAndLeavesTheDirectoryByteIdentical(t *tes
 	}
 }
 
+// TestEveryLineIsValidatedAndTheRejectionNamesItsLine holds two properties one
+// test can decide together, because the same counter carries both.
+//
+// The invalid row is the third line and the second row: the blank line between
+// them means an implementation numbering rows rather than lines reports 2, and
+// an implementation that stops after the first row reports nothing at all.
+func TestEveryLineIsValidatedAndTheRejectionNamesItsLine(t *testing.T) {
+	payload := groundRecordPayload(
+		groundNumberedRow(t, 1),
+		[]byte("   "),
+		groundWireRow(t, groundClaimRow(), map[string]any{"tier": "guess"}, nil),
+	)
+
+	_, err := ParseGroundRows(payload)
+	require.Error(t, err)
+
+	var lineErr *GroundLineError
+	require.ErrorAs(t, err, &lineErr, "a rejection names the line of the file it is about")
+	assert.Equal(t, 3, lineErr.Line, "line numbers count the file's lines, blanks included")
+
+	var rowErr *GroundRowError
+	require.ErrorAs(t, err, &rowErr, "the cell failure survives the line wrapper")
+	assert.Equal(t, "tier", rowErr.Field)
+}
+
