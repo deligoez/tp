@@ -480,12 +480,32 @@ func FloorIndexRows(text string, anchorOf func(unitIndex int) string) []FloorInd
 	return rows
 }
 
-// FormatFloorIndex renders the index: one row per line, each line terminated.
+// FormatFloorIndex renders the index: the commit line, then one row per line,
+// each line terminated.
 //
 // It takes rows rather than a spec's text, so the one payload §2.2 forbids in
 // the index is not reachable from here at all.
-func FormatFloorIndex(rows []FloorIndexRow) string {
+//
+// The first line names the commit the index was derived from (§2.2), and the
+// caller supplies it because deriving it is a different question from
+// rendering: a round takes hours — the second end-to-end run took two and a
+// half — and the spec moved three commits underneath the first one, so five
+// dispositioned units no longer existed by the time it finished. §7.3 pins the
+// round to a snapshot; this line says which snapshot the index is, so a stale
+// one is recognisable without a diff.
+//
+// A caller with no commit to name gets the line anyway, saying `unknown`. The
+// line is unconditional so that "derived at an unknown commit" and "derived at
+// the commit on line 1" are one parse apart rather than a row count apart, and
+// `unknown` cannot be mistaken for a revision because a revision is hex.
+func FormatFloorIndex(commit string, rows []FloorIndexRow) string {
+	named := commit
+	if named == "" {
+		named = "unknown"
+	}
+
 	var b strings.Builder
+	b.WriteString("# commit " + named + "\n")
 	for _, r := range rows {
 		b.WriteString(r.String())
 		b.WriteString("\n")
