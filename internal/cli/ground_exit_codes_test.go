@@ -19,11 +19,12 @@ import (
 // separates — 3 for corrupt state, 4 for a write lock it could not take — are
 // asserted on inputs that reach it by different routes.
 //
-// §7.1 names two inputs for exit 2 and only one of them exists yet: `--record`
-// with no path argument is asserted below, while `--check` without `--status`
-// cannot be, because neither flag is registered until the status tasks land.
-// `tp ground <spec> --check` today exits 2 as an UNKNOWN FLAG, so a test written
-// now would pass without ever reaching the rule it claims to pin.
+// §7.1 names two inputs for exit 2 and both are asserted, in different files:
+// `--record` with no path argument below, and `--check` without `--status` in
+// TestCheckWithoutStatusIsAUsageErrorByTheRuleAndNotAnUnknownFlag
+// (ground_check_test.go). The second lives there because exit 2 alone cannot
+// decide it — cobra's unknown-flag path returns the same code — so its verdict
+// rests on `--status --check` exiting 0 first, which is that file's subject.
 
 // TestGroundExitsZeroOnAnInvocationThatCompletes is §7.1's exit-0 row: any
 // invocation in the table completing. Both of the two that exist are run, since
