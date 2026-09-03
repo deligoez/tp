@@ -68,3 +68,14 @@ func TestGroundExitsOneOnARecordItWillNotValidate(t *testing.T) {
 	}
 }
 
+// TestGroundExitsTwoOnUsage is §7.1's exit-2 row on the one input of its two
+// that is reachable today: `--record` with no path argument.
+func TestGroundExitsTwoOnUsage(t *testing.T) {
+	dir := writeGroundFixture(t)
+	groundEmit(t, dir)
+
+	stdout, stderr, code := runTP(t, dir, "ground", "spec.md", "--record")
+	require.Equal(t, 2, code, "stdout: %s stderr: %s", stdout, stderr)
+	assert.Equal(t, float64(2), groundErrorEnvelope(t, stderr)["code"])
+}
+
