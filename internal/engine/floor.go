@@ -314,11 +314,25 @@ var (
 	// glob's size moves under it when a release adds a spec.
 	floorCodeSpanRe = regexp.MustCompile("`[^`]*`")
 	// The verb arm. Whole words, because "Transition", "branches" and
-	// "withheld" each contain a listed verb as a substring: over `spec/*.md` a
-	// substring reading and this one disagree on 254 units. Case-insensitive,
-	// because a claim's verb is routinely its sentence's first word — nine
-	// units of this corpus reach the floor only through the fold, among them
-	// "Measured while implementing: it can."
+	// "withheld" each contain a listed verb as a substring. Whole-word matching
+	// is strictly narrower than substring matching, so a unit the two readings
+	// disagree on is always a false positive for the substring reading;
+	// TestTheVerbArmMatchesWholeWordsOnly carries five and asserts the positives
+	// beside them, so a rule that stopped matching altogether cannot pass it.
+	// Case-insensitive, because a claim's verb is routinely its sentence's first
+	// word: `spec/0.36.0.md`'s "Measured while implementing: it can." reaches the
+	// floor through the fold and through nothing else.
+	//
+	// Both counts over `spec/*.md` that stood here are deleted for the reason
+	// above, and the first was ambiguous as well as unpinned. Three readings of
+	// "the substring reading and this one disagree on N units" — drop the word
+	// boundary alone, drop the case fold with it, or count only the units whose
+	// FLOOR verdict flips — give three different N at one commit, none of them
+	// the 254 that stood here. The middle reading also disagrees in BOTH
+	// directions, since a case-sensitive substring misses a sentence-initial
+	// "Measured", so it cannot carry the false-positive claim above at all. A
+	// figure whose counting rule is unstated is not reproducible even by someone
+	// holding the same corpus.
 	floorVerbRe = regexp.MustCompile(`(?i)\b(?:` + strings.Join(floorVerbs, "|") + `)\b`)
 )
 
