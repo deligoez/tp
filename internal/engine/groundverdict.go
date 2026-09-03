@@ -216,11 +216,11 @@ func groundEnumListing[T ~string](order []T) []T {
 
 // parseGroundEnum maps a wire value onto one of order's members.
 //
-// One parse for all three enums, so they cannot drift into different rules. It
-// does not trim or case-fold: the values are the ones tp emits in the prompt's
-// own schema, so a near-miss like "pass" is a unit's bug and surfacing it is
-// the point — silently accepting it would let a row into the permanent record
-// that §8's counter then cannot read back.
+// One parse for all four enums — verdict, partial_kind, kind and tier — so they
+// cannot drift into different rules. It does not trim or case-fold: the values
+// are the ones tp emits in the prompt's own schema, so a near-miss like "pass"
+// is a unit's bug and surfacing it is the point — silently accepting it would
+// let a row into the permanent record that §8's counter then cannot read back.
 func parseGroundEnum[T ~string](order []T, s string) (T, bool) {
 	v := T(s)
 	if slices.Contains(order, v) {
