@@ -747,9 +747,10 @@ var floorSectionHeadingRe = regexp.MustCompile(`^\s*#{2,6}\s+(\d+(?:\.\d+)*)`)
 // carries its own section, which is §7.3's "at or above".
 //
 // The scan tracks fences for the reason step 1 does — `## 9. Fenced` inside a
-// code block is sample output, not a heading. Over `spec/*.md` four numbered
-// headings sit inside fenced blocks, and a fence-blind scan moves every unit
-// after one of them into a section the document does not have.
+// code block is sample output, not a heading. `spec/0.1.0.md` and
+// `spec/0.16.0-review-orchestration.md` each carry numbered headings inside a
+// fenced block, and a fence-blind scan moves every unit after one of them into
+// a section the document does not have.
 func floorAnchorsByLine(text string) []string {
 	lines := strings.Split(text, "\n")
 	anchors := make([]string, len(lines))
