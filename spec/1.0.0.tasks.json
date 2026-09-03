@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-03T00:15:35.953904Z",
+  "updated_at": "2026-09-03T00:27:05.866952Z",
   "workflow": {},
   "coverage": {
     "total_sections": 21,
@@ -166,7 +166,7 @@
     {
       "id": "verdict-enums",
       "title": "six verdicts, seven kinds, six tiers",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -177,11 +177,26 @@
         "## 3. The dispositions",
         "### 4.1 Kinds and tiers"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-03T00:17:09.127164Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-03T00:27:05.818192Z",
+      "closed_reason": "- engine.GroundVerdict, engine.GroundKind and engine.GroundTier (internal/engine/groundverdict.go) are §3's six verdicts, §4.1's seven kinds and §4.1's six tiers, each a closed enum: one generic parseGroundEnum over one ordered listing per enum, so the three cannot drift into different rules, and a rejected value comes back as the zero string rather than partially parsed. All six verdicts round-trip — the wire string in, the same string out — with NOT-A-CLAIM among them; observed red under the five-verdict mutant of an earlier draft (row 5), which makes ParseGroundVerdict(\"NOT-A-CLAIM\") false.\n- engine.TierAcceptableFor(kind, tier) is §4.1's third column and there is no ordering anywhere in it: groundAcceptableTiers is map[GroundKind]map[GroundTier]bool, a set per kind and not a list, so \"the kind's first listed tier\" does not exist to be compared against, and GroundTier is a string rather than an int so no tier carries an ordinal at all. The predicate takes the typed enums, so the only route to it from the wire is through a Parse — that is where the enums close.\n- Row 6 observed red under its own named mutant, built and run: the tiers ordered read \u003c query \u003c run \u003c probe \u003c red-green \u003c break-and-control, accepting anything at or above the kind's first listed tier. It turned exactly {document, run} and {behaviour, probe} true and left the row's other three pairs green — the spec's claim that those two are the discriminating ones, confirmed by construction rather than by reading. Each of the five pairs is its own named subtest, so the failure says which reading broke.\n- Row 7 observed red under \"accept any tier for a kind listing more than one\": {code-structure, run} is the pair that kills it, and the 42-pair matrix named the eight differing pairs as code-structure's four and behaviour's four — again the spec's own claim, measured. Membership is asserted on both sides for the one-tier kind (corpus rejects read, accepts query) and the two-tier kind (code-structure accepts read and query, rejects run).\n- TestEveryOneOfTheFortyTwoKindTierPairsMatchesSection41 walks GroundKinds() x GroundTiers(), pinning the thirty-five pairs rows 6 and 7 do not touch and asserting §3's own count of forty-two rather than assuming it; a kind or tier added without a §4.1 entry fails rather than going untested. Proved non-tautological by a fourth mutant: swapping defect's tier from red-green to run leaves rows 5, 6 and 7 all green and reddens only this test.\n- Gate green at the closing tree: ./scripts/check-suite-state.sh (suite ok, no round-state drift), golangci-lint run (0 issues), check-deadcode.sh, check-complexity.sh. Every mutant was reverted with git checkout and the tree re-verified byte-clean under git -c diff.external= diff --no-ext-diff before the next step.\n- Scope, stated rather than implied: rows 5, 6 and 7 are asserted at the acceptability predicate and the enum round-trip, which is the whole of the kind-tier rule and of §3's vocabulary. Their \"accepted\"/\"rejected\" AT --record needs the row type and the record path, which are row-schema's and tier-rule's acceptance; §7.2's per-verdict question (which verdicts must satisfy the sets) is deliberately not decided here, and TierAcceptableFor's doc comment says so.\n\nOut of scope: §4.1's `corpus` row is the one kind whose \"and not the others, because\" cell is empty, so the only kind-tier exclusion the table leaves unexplained is corpus rejecting `read` — the sets are unambiguous, but a reader asking why a corpus claim cannot be settled by reading gets no answer from §4.1.",
+      "gate_passed_at": "2026-09-03T00:27:05.818192Z",
+      "commit_sha": "5328045e",
+      "commit_shas": [
+        "5328045e",
+        "5f6ec992",
+        "04a8b744",
+        "33b14285",
+        "897f4378",
+        "1204ac0f",
+        "808782b3",
+        "c31feba5"
+      ],
+      "commit_files": [
+        "internal/engine/groundverdict.go",
+        "internal/engine/groundverdict_test.go"
+      ]
     },
     {
       "id": "row-schema",
