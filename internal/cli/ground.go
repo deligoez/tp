@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -28,7 +29,34 @@ type groundResult struct {
 	Prompt     string `json:"prompt"`
 }
 
+// groundRecordResult is what `tp ground <spec> --record <file>` prints: the
+// round it wrote, where it wrote it, and the floor those rows were graded
+// against (§7.3).
+//
+// Floor is carried rather than left implicit because it is the whole claim this
+// mode makes: the round was recorded against the index the emission froze, not
+// against the spec as it stands now.
+type groundRecordResult struct {
+	Spec  string `json:"spec"`
+	Round int    `json:"round"`
+	Floor string `json:"floor"`
+	File  string `json:"file"`
+	Rows  int    `json:"rows"`
+}
+
+// groundRecordRowHint explains a --record file tp could read but would not
+// record.
+//
+// Its own constant rather than recordRowHint, which names the reviewers and
+// auditors who write review and audit rounds: a ground round's rows come from
+// the one prompt `tp ground` emits, and the two refusals this hint answers —
+// a row that fails the field table, and a file holding no rows at all — are
+// both about that prompt's schema.
+const groundRecordRowHint = "fix the row the message names in the --record NDJSON, or record a file holding at least one row: every non-blank line is one JSON object carrying one floor unit's disposition"
+
 func newGroundCmd() *cobra.Command {
+	var recordPath string
+
 	cmd := &cobra.Command{
 		Use:   "ground <spec.md>",
 		Short: "Check a spec's claims against the world, before review is told they hold",
@@ -50,9 +78,13 @@ change the floor the round is graded against.`,
 				os.Exit(ExitUsage)
 				return nil
 			}
+			if recordPath != "" {
+				return runGroundRecord(args[0], recordPath)
+			}
 			return runGround(args[0])
 		},
 	}
+	cmd.Flags().StringVar(&recordPath, "record", "", "Record a ground round from an NDJSON dispositions file")
 	return cmd
 }
 
@@ -107,6 +139,80 @@ func runGround(specPath string) error {
 		OutputPath: outputPath,
 		Prompt:     buildGroundPrompt(specPath, snapshotPath, index, outputPath, round),
 	})
+}
+
+// runGroundRecord implements `tp ground <spec> --record <file>`: validate every
+// row of the file against §7.2's table and, only then, write it into the state
+// directory as ground-round-<N>.ndjson (§7.3).
+//
+// N is the round the last emission wrote, which is what NextGroundRound answers:
+// only a recorded round advances the number, so the floor and the snapshot on
+// disk belong to the round these rows are for.
+//
+// The spec's own text is never read here. §7.3 makes the recorded floor the
+// artifact a round is graded against precisely so that a spec edited — or gone —
+// between emit and record cannot re-floor it; re-deriving one from the current
+// text is the emit-time-hash defect this repository already has open elsewhere.
+func runGroundRecord(specPath, recordPath string) error {
+	round, err := engine.NextGroundRound(specPath)
+	if err != nil {
+		output.Error(ExitFile, fmt.Sprintf("cannot read the state directory for %s: %v", specPath, err),
+			"check the permissions on spec/.tp-review/<base>/")
+		os.Exit(ExitFile)
+		return nil
+	}
+
+	// The floor is read, not derived, and its absence is the no-prior-emit case
+	// (§7.3). The bytes are discarded: what a round is joined to its floor BY is
+	// §8's question, and answering it here would mean this command reading the
+	// index for a purpose no rule of §7.2 has. What the read establishes is that
+	// there is a floor at all, and that it can be opened.
+	floorPath := engine.GroundFloorPath(specPath, round)
+	if _, err := os.ReadFile(floorPath); err != nil {
+		output.Error(ExitFile,
+			fmt.Sprintf("no emitted floor for ground round %d: cannot read %s: %v", round, floorPath, err),
+			fmt.Sprintf("emit the round first: tp ground %s — --record validates against the floor that emission froze, never against the spec as it now stands", specPath))
+		os.Exit(ExitFile)
+		return nil
+	}
+
+	data, err := os.ReadFile(recordPath)
+	if err != nil {
+		output.Error(ExitFile, fmt.Sprintf("cannot read dispositions file: %s: %v", recordPath, err), recordFileMissingHint)
+		os.Exit(ExitFile)
+		return nil
+	}
+
+	rows, err := engine.RecordGroundRound(specPath, round, data)
+	if err != nil {
+		exitGroundRecordError(err)
+		return nil
+	}
+
+	return output.JSON(groundRecordResult{
+		Spec:  specPath,
+		Round: round,
+		Floor: floorPath,
+		File:  engine.GroundRoundPath(specPath, round),
+		Rows:  len(rows),
+	})
+}
+
+// exitGroundRecordError maps a RecordGroundRound failure onto §7.1's exit codes.
+//
+// A row that fails §7.2's table and a file holding no rows are both refusals of
+// what the operator handed in, so both are validation (exit 1); the two are told
+// apart by their types rather than by their wording. Anything else reached the
+// state layer, where exitStateError already separates corrupt state (3) from a
+// write lock it could not take (4).
+func exitGroundRecordError(err error) {
+	var lineErr *engine.GroundLineError
+	if errors.As(err, &lineErr) || errors.Is(err, engine.ErrGroundRoundEmpty) {
+		output.Error(ExitValidation, err.Error(), groundRecordRowHint)
+		os.Exit(ExitValidation)
+		return
+	}
+	exitStateError(err)
 }
 
 // groundCommit is the commit §2.2 puts on the index's first line, discovered
