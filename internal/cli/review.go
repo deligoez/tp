@@ -182,6 +182,27 @@ type reviewResult struct {
 	// because §9 makes it absent ENTIRELY when every unit is dispositioned or
 	// no ground round exists — on `divergence`'s precedent that a permanent
 	// zero-valued key is a key every reader learns to skip.
+	//
+	// **There is a THIRD case, and this sentence used to deny it.** An audit
+	// built a spec whose prose claims carry no digit, no backtick span and no
+	// listed verb, so all three arms cut everything: round 1 is emitted,
+	// nothing is dispositioned, and the key is still absent — under neither
+	// disjunct above, because the floor has no units for either to be about.
+	//
+	// The advisory stays silent there, deliberately. Its two integers are
+	// counts over emitted floor units, and on an empty floor both are honestly
+	// zero; emitting the key with `undispositioned: 0` would make its presence
+	// mean two incompatible things — "N units are open" and "no unit exists" —
+	// and a reader dividing gets 0/0. Saying it properly needs a field this
+	// object does not have, which is a documented key and so a release's work
+	// rather than an audit repair.
+	//
+	// What the audit's finding costs is therefore bounded to the reporting
+	// channel: the GATE was the other half and is repaired, because §7.1's
+	// `--check` is what a driver branches on. `tp ground <spec> --status
+	// --check` now exits 1 on that floor and names the cut count on stderr
+	// (runGroundStatus). An operator who reads only `tp review` still learns
+	// nothing on such a spec.
 	Ungrounded *engine.GroundAdvisory `json:"ungrounded,omitempty"`
 	Prompts    []reviewPrompt         `json:"prompts"`
 	ReviewLoop reviewLoop             `json:"review_loop"`
