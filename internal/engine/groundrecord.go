@@ -32,9 +32,9 @@ func (e *GroundLineError) Unwrap() error { return e.Err }
 // table and returns the rows in file order.
 //
 // Blank lines are skipped and every other line must be a row, which is the rule
-// the shipped record path already applies (`parseRecordRows`,
-// `internal/cli/review_record.go:246`). A trailing partial line is therefore
-// not blank and is rejected, as §7.1's exit 1 requires.
+// the shipped record path already applies (`parseRecordRows` in
+// `internal/cli/review_record.go`). A trailing partial line is therefore not
+// blank and is rejected, as §7.1's exit 1 requires.
 //
 // It stops at the first failure. Nothing downstream can act on the second
 // failure of a round that is not going to be written, and reporting one
