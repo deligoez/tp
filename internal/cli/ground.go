@@ -20,12 +20,32 @@ import (
 // Prompt is a string and not a slice. Grounding asks one question of every unit
 // of one floor, so there is no panel to fan out over (§7.1, Non-Goal 4), and a
 // one-element array would invite a caller to loop over a set that cannot grow.
+// FloorSize and Carried are the two numbers the prompt's ask is built from, in
+// the envelope because they are the two an operator branches on. They were
+// prose-only until an audit measured the asymmetry: --record's envelope has
+// carried `rows` and `carried` as integers since it shipped, so the same two
+// figures were machine-readable from one mode and English from the other,
+// costing a caller a second process for `floor_size` and offering no reading of
+// `carried` at all before the round was recorded.
+//
+// FloorSize is the floor, NOT the ask -- the ask is the difference, and the
+// prompt states it. On an unedited spec the floor does not move between rounds
+// while `carried` climbs to meet it, which is what makes the pair readable and
+// either number alone misleading.
+//
+// Carried is also the only machine-readable sign of a carry that FAILED. An
+// unreadable round N-1 leaves this mode at exit 0 with an unchanged-shape
+// envelope asking for every unit; the notice saying so goes to stderr and
+// --quiet removes it. `carried: 0` beside a floor that did not change is the
+// fact that survives.
 type groundResult struct {
 	Spec       string `json:"spec"`
 	Round      int    `json:"round"`
 	Snapshot   string `json:"snapshot"`
 	Floor      string `json:"floor"`
 	OutputPath string `json:"output_path"`
+	FloorSize  int    `json:"floor_size"`
+	Carried    int    `json:"carried"`
 	Prompt     string `json:"prompt"`
 }
 
@@ -316,6 +336,8 @@ func runGround(specPath string) error {
 		Snapshot:   snapshotPath,
 		Floor:      engine.GroundFloorPath(specPath, round),
 		OutputPath: outputPath,
+		FloorSize:  groundFloorSize(rows),
+		Carried:    len(carried),
 		Prompt: buildGroundPrompt(specPath, snapshotPath,
 			engine.FormatFloorIndexCarried(commit, rows, carried), outputPath, round,
 			groundFloorSize(rows), len(carried)),
