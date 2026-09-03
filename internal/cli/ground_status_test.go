@@ -216,7 +216,11 @@ func TestStatusDistinguishesARoundOfFailsFromARoundOfPassesAtIdenticalCoverage(t
 
 	failed, passed := roundOf("FAIL"), roundOf("PASS")
 
-	for _, key := range []string{"spec", "round", "emitted", "dispositioned", "reader_added", "off_floor"} {
+	// `cut` is on this list because it is a key of the payload: without it the
+	// sentence below over-claims, since a second key could separate the two
+	// rounds while the assertion still read as being about the breakdown. The
+	// fixture pins it at zero on both sides (require.Empty above).
+	for _, key := range []string{"spec", "round", "emitted", "dispositioned", "reader_added", "off_floor", "cut"} {
 		require.Equal(t, failed[key], passed[key],
 			"the two rounds are identical at %s, so the breakdown is the only thing that can separate them", key)
 	}
