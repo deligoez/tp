@@ -12,9 +12,13 @@ import (
 
 // groundTestPrompt renders a prompt over a one-row index, for the assertions
 // that are about the prompt's frame rather than about the floor in it.
+//
+// One floor unit and nothing carried, so §8's ask is the whole of it: these
+// assertions are about the suffix and the kind-tier table, and a narrowed ask
+// would put the round's arithmetic in front of them for no reason.
 func groundTestPrompt() string {
 	return buildGroundPrompt("spec.md", ".tp-review/spec/snapshot-ground-round-7.md",
-		"# commit unknown\nu1 §1 0123456789ab #1 12B\n# 1 in floor, 0 cut\n", "ground-r7.ndjson", 7)
+		"# commit unknown\nu1 §1 0123456789ab #1 12B\n# 1 in floor, 0 cut\n", "ground-r7.ndjson", 7, 1, 0)
 }
 
 // TestTheEmittedGroundPromptEndsWithItsOwnSuffix pins §4.2 at the emission:
