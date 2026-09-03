@@ -1031,15 +1031,24 @@ func TestSection11Row18cTheJoinKeyIsTheHashAndTheOrdinal(t *testing.T) {
 // arrangement the two readings disagree on: they agree on every unit up to the
 // first cut one, so a fixture whose cut unit is last passes under both.
 //
+// The index announces the cut unit rather than dropping it (§2.2), so the two
+// readings are no longer separated by the row COUNT — every unit has a row
+// under both. They are separated by the ids, and the rows are looked up by the
+// hash of the unit they stand for rather than by position, so a numbering over
+// the floor alone gives the third unit `u2` and fails here whatever order the
+// rows arrive in.
+//
+// For the same reason the `asked` assertion below no longer distinguishes "the
+// unit's id" from "the row's index": with a row per unit the two are the same
+// number, and no input of this shape can separate them. What it still pins is
+// that anchorOf is called exactly once per unit, in document order. The
+// distinction survives where the floor IS filtered — `FloorUnitRows`, in
+// TestUnitsRowsNumberOverEveryUnitAndCarryNoCutOne.
+//
 // That the middle unit is cut is asserted rather than assumed. It carries no
 // digit, no backtick span and no listed verb — "asserts" is not "asserted" to a
 // whole-word arm — and if a later change to the arms made it a floor unit this
 // test would be measuring nothing.
-//
-// The anchors the rows carry are asserted too, and against the ids rather than
-// against the row positions: `anchorOf` is called with the same N that becomes
-// the id, so an implementation passing the row index would anchor u3 to whatever
-// sits at unit 2.
 func TestFloorIndexRowsNumberOverEveryUnitIncludingTheOnesTheArmsCut(t *testing.T) {
 	const kept1 = "The first claim carries `a span`."
 	const dropped = "This sentence asserts nothing about the world."
@@ -1058,12 +1067,22 @@ func TestFloorIndexRowsNumberOverEveryUnitIncludingTheOnesTheArmsCut(t *testing.
 		return fmt.Sprintf("§%d", n)
 	})
 
-	require.Len(t, rows, 2, "a cut unit owes no disposition, so it gets no index row")
-	assert.Equal(t, "u1", rows[0].ID)
-	assert.Equal(t, "u3", rows[1].ID, "the cut unit consumed u2")
-	assert.Equal(t, []int{1, 3}, asked, "anchorOf is called with the unit's id, not the row's index")
-	assert.Equal(t, "§1", rows[0].Anchor)
-	assert.Equal(t, "§3", rows[1].Anchor)
+	require.Len(t, rows, 3, "a cut unit is announced, so every unit has a row")
+	assert.Equal(t, []int{1, 2, 3}, asked, "anchorOf is called once per unit, in document order")
+
+	byHash := make(map[string]FloorIndexRow, len(rows))
+	for _, r := range rows {
+		if r.TextSHA != "" {
+			byHash[r.TextSHA] = r
+		}
+	}
+	require.Len(t, byHash, 2, "two floor units, two distinct hashes")
+
+	first, third := byHash[FloorTextSHA(kept1)], byHash[FloorTextSHA(kept2)]
+	assert.Equal(t, "u1", first.ID)
+	assert.Equal(t, "u3", third.ID, "the cut unit consumed u2")
+	assert.Equal(t, "§1", first.Anchor)
+	assert.Equal(t, "§3", third.Anchor, "and the anchor asked for under that id")
 }
 
 // TestAFloorIndexRowCarriesTheFiveFields is §2.2's row: every floor unit emits

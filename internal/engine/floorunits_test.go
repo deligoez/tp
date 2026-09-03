@@ -103,8 +103,16 @@ func TestUnitsRowsNumberOverEveryUnitAndCarryNoCutOne(t *testing.T) {
 	assert.Equal(t, kept1, rows[0].Text)
 	assert.Equal(t, kept2, rows[1].Text)
 
+	// The index announces the cut unit too (§2.2), so the join is over the rows
+	// that carry a hash: those are the units a disposition is owed for, and they
+	// are the ones `--units` prints. The filter is what keeps this assertion
+	// discriminating — without it both sides would be u1, u2, u3 whatever
+	// `FloorUnitRows` numbered over.
 	indexIDs := make([]string, 0, 2)
 	for _, r := range FloorIndexRows(text, func(int) string { return "§1" }) {
+		if r.TextSHA == "" {
+			continue
+		}
 		indexIDs = append(indexIDs, r.ID)
 	}
 	assert.Equal(t, []string{"u1", "u3"}, indexIDs,

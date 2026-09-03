@@ -26,8 +26,9 @@ func anchorsOfEveryUnit(text string) []string {
 }
 
 // anchorsOfIndexRows renders `<unit_id> <anchor>` for the rows the index
-// carries, so a case can assert the anchor a row actually ships with rather
-// than only the function that supplies it.
+// carries — every unit §2.1 produces, the ones the arms cut included (§2.2) —
+// so a case can assert the anchor a row actually ships with rather than only
+// the function that supplies it.
 func anchorsOfIndexRows(text string) []string {
 	out := make([]string, 0)
 	for _, r := range FloorIndexRows(text, FloorAnchorOf(text)) {
@@ -84,7 +85,8 @@ func TestATableRowAnchorsToItsOwnSectionNotToSectionZero(t *testing.T) {
 	require.False(t, inFloor(units[0]), "the header row must be cut, or the row ids below shift")
 
 	assert.Equal(t, []string{"§7.2", "§7.2", "§8"}, anchorsOfEveryUnit(text))
-	assert.Equal(t, []string{"u2 §7.2", "u3 §8"}, anchorsOfIndexRows(text))
+	assert.Equal(t, []string{"u1 §7.2", "u2 §7.2", "u3 §8"}, anchorsOfIndexRows(text),
+		"the cut header row is announced under §7.2 too, and still occupies u1")
 }
 
 // TestTheAnchorIsTheLastNumberedHeadingAtOrAboveTheUnit is §7.3's rule stated
@@ -161,7 +163,8 @@ func TestTheAnchorIndexIsOverEveryUnitIncludingTheOnesTheArmsCut(t *testing.T) {
 	require.True(t, inFloor(units[2]), "u3 must be in the floor")
 
 	assert.Equal(t, []string{"§1", "§1", "§2"}, anchorsOfEveryUnit(text))
-	assert.Equal(t, []string{"u1 §1", "u3 §2"}, anchorsOfIndexRows(text))
+	assert.Equal(t, []string{"u1 §1", "u2 §1", "u3 §2"}, anchorsOfIndexRows(text),
+		"the cut u2 is announced under the section it sits in, not dropped")
 }
 
 // TestABlockThatStraddlesADroppedHeadingKeepsTheSectionItOpensIn states the one
