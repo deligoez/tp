@@ -53,3 +53,23 @@ func TestTheThreeEnumsRejectEverythingOutsideThem(t *testing.T) {
 	}
 }
 
+// TestTheKindAndTierEnumsAreSevenAndSixInTableOrder pins the two cardinalities
+// this task's title states, the §4.1 table order the listings render in, and
+// that the listings are copies — a caller reordering what it got back must not
+// reorder the package's own table for the next reader.
+func TestTheKindAndTierEnumsAreSevenAndSixInTableOrder(t *testing.T) {
+	assert.Equal(t, []GroundKind{
+		KindDocument, KindCodeStructure, KindCorpus, KindBehaviour, KindMechanism, KindDefect, KindGuard,
+	}, GroundKinds(), "§4.1's kind table, in its own order")
+	assert.Equal(t, []GroundTier{
+		TierRead, TierQuery, TierRun, TierProbe, TierRedGreen, TierBreakAndControl,
+	}, GroundTiers(), "§4.1's tier table, in its own order — a printing order that carries no rank")
+
+	GroundKinds()[0] = "mutated"
+	GroundTiers()[0] = "mutated"
+	GroundVerdicts()[0] = "mutated"
+	assert.Equal(t, KindDocument, GroundKinds()[0])
+	assert.Equal(t, TierRead, GroundTiers()[0])
+	assert.Equal(t, VerdictPass, GroundVerdicts()[0])
+}
+
