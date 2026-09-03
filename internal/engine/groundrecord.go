@@ -51,7 +51,7 @@ func ParseGroundRows(data []byte) ([]GroundRow, error) {
 // round tp itself wrote wants: those rows were graded against a floor that is
 // not this one's, and re-comparing them would refuse tp's own artifacts.
 func parseGroundRows(data []byte, floor []FloorIndexRow) ([]GroundRow, error) {
-	byID := groundFloorHashes(floor)
+	byID := groundFloorKeys(floor)
 	rows := make([]GroundRow, 0, 64)
 	line := 0
 	for raw := range strings.SplitSeq(string(data), "\n") {
@@ -71,34 +71,53 @@ func parseGroundRows(data []byte, floor []FloorIndexRow) ([]GroundRow, error) {
 	return rows, nil
 }
 
-// groundFloorHashes indexes an emitted floor's units by `unit_id`.
+// groundFloorKeys indexes an emitted floor's units by `unit_id`, each carrying
+// §8's whole join key — `(text_sha, ordinal)`.
 //
 // A unit the arms CUT is deliberately absent: §2.2 makes the absence of the hash
-// the cut, so a cut row carries no value for a payload row to be compared
-// against, and demanding its empty string would refuse every legal row on it.
-func groundFloorHashes(floor []FloorIndexRow) map[string]string {
+// the cut, so a cut row carries no key for a payload row to be compared
+// against, and demanding its `("", 0)` would refuse every legal row on it.
+func groundFloorKeys(floor []FloorIndexRow) map[string]groundJoinKey {
 	if len(floor) == 0 {
 		return nil
 	}
-	byID := make(map[string]string, len(floor))
+	byID := make(map[string]groundJoinKey, len(floor))
 	for _, r := range floor {
 		if r.TextSHA != "" {
-			byID[r.ID] = r.TextSHA
+			byID[r.ID] = groundJoinKey{textSHA: r.TextSHA, ordinal: r.Ordinal}
 		}
 	}
 	return byID
 }
 
-// groundRowMatchesFloor is §7.3's one value check: a row whose `unit_id` names a
-// floor row must carry that row's `text_sha`. Every other cell of §7.2 is
-// shape-checked and nothing else is compared.
+// groundRowMatchesFloor is §7.3's value check: a row whose `unit_id` names a
+// floor row must carry that row's `text_sha` AND that row's `ordinal`. Every
+// other cell of §7.2 is shape-checked and nothing else is compared.
 //
 // The exception earns itself because the alternative is a SILENT loss rather
 // than a wrong number. §8's carry joins on `(text_sha, ordinal)` while coverage
-// joins on `unit_id`, so a row with a valid id and a fabricated hash counts as
+// joins on `unit_id`, so a row with a valid id and a fabricated key counts as
 // dispositioned in this round and fails to carry into the next, with nothing in
 // either record saying why — and `--check` certifies a disposition of text
 // nobody read, which is the exact failure this release exists to remove.
+//
+// **The whole key is compared, because half of it is not a check on the join.**
+// The comparison read `text_sha` alone until an audit built both halves of what
+// that leaves open and recorded each at exit 0. A row on `u1` carrying `u1`'s
+// hash and `ordinal: 9` recorded, `--status` reported 3 dispositioned of 4, and
+// round 2 on the unchanged spec carried 2 — verbatim the drop the paragraph
+// above says the check removes. Worse, on a spec with two identical sentences a
+// row naming `u2` with `ordinal: 1` recorded and round 2 marked `u1` CARRIED, so
+// a unit nobody dispositioned was struck off what the next round was asked for.
+// The second is reachable rather than hypothetical: 9 of 5,396 floor units
+// across this repository's 54 specs carry `ordinal > 1`, and on `spec/1.0.0.md`
+// every one of its 351 rows is `#1` — which is why a unit told to copy the cell
+// unchanged is likelier to fill it from memory than to look.
+//
+// The two halves report different cells rather than one message, because a
+// caller reads `Field` and the recoveries differ: a wrong hash means the row
+// names the wrong text, a wrong ordinal means it names the wrong one of several
+// units sharing that text.
 //
 // Two readings stay valid and are not this check's business. A `unit_id` the
 // floor does not carry is `off_floor`, §8's fact to report at `--status` rather
@@ -106,18 +125,29 @@ func groundFloorHashes(floor []FloorIndexRow) map[string]string {
 // has supply its own hash over text tp never emitted.
 // The row is taken by pointer because GroundRow is 192 bytes and this runs once
 // per line of the record; gocritic's hugeParam flags the copy.
-func groundRowMatchesFloor(row *GroundRow, byID map[string]string) error {
+func groundRowMatchesFloor(row *GroundRow, byID map[string]groundJoinKey) error {
 	if row.UnitID == nil {
 		return nil
 	}
 	want, onFloor := byID[*row.UnitID]
-	if !onFloor || want == row.TextSHA {
+	if !onFloor {
 		return nil
 	}
-	return groundRowErr("text_sha", fmt.Sprintf(
-		"the emitted floor gives %s the hash %s, and this row carries %s: "+
-			"copy text_sha from the index row for the unit the row names",
-		*row.UnitID, want, row.TextSHA))
+	if want.textSHA != row.TextSHA {
+		return groundRowErr("text_sha", fmt.Sprintf(
+			"the emitted floor gives %s the hash %s, and this row carries %s: "+
+				"copy text_sha from the index row for the unit the row names",
+			*row.UnitID, want.textSHA, row.TextSHA))
+	}
+	if want.ordinal != row.Ordinal {
+		return groundRowErr("ordinal", fmt.Sprintf(
+			"the emitted floor gives %s the ordinal %d, and this row carries %d: "+
+				"copy ordinal from the index row for the unit the row names — §8 carries a "+
+				"disposition forward on (text_sha, ordinal), so the hash alone does not identify "+
+				"the unit when several share it",
+			*row.UnitID, want.ordinal, row.Ordinal))
+	}
+	return nil
 }
 
 // ErrGroundRoundEmpty is what RecordGroundRound refuses a round that would write
