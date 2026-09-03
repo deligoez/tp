@@ -1146,7 +1146,7 @@ func TestSection11Row4TheIndexIsBoundedAndCarriesNoUnitText(t *testing.T) {
 		require.Equal(t, count, rows[count-1].Ordinal, "identical units, so the ordinal reaches four digits")
 		require.Equal(t, len(unit), rows[count-1].Bytes)
 
-		index := FormatFloorIndex(rows)
+		index := FormatFloorIndex("7ced1edb", rows)
 		assert.Less(t, len(index), count*48+256,
 			"the index is bounded at units*48+256; carrying 60 bytes of each unit is over it")
 	})
@@ -1161,7 +1161,7 @@ func TestSection11Row4TheIndexIsBoundedAndCarriesNoUnitText(t *testing.T) {
 		units := FloorUnits(unit)
 		require.Equal(t, []string{unit}, units, "the rare token is inside a floor unit")
 
-		index := FormatFloorIndex(FloorIndexRows(unit, func(int) string { return "§0" }))
+		index := FormatFloorIndex("7ced1edb", FloorIndexRows(unit, func(int) string { return "§0" }))
 		assert.NotContains(t, index, rare, "the index carries no unit text")
 
 		// The token search is row 4's named input and it is not sufficient on its
@@ -1169,7 +1169,13 @@ func TestSection11Row4TheIndexIsBoundedAndCarriesNoUnitText(t *testing.T) {
 		// single character, since the index is made of characters. So the
 		// property is also pinned exhaustively — every byte of the index is
 		// accounted for by this grammar, which leaves nowhere for text to sit.
-		shape := regexp.MustCompile(`^(?:u\d+ §[0-9.]+ [0-9a-f]{12} #\d+ \d+B\n)+$`)
-		assert.Regexp(t, shape, index, "every byte of the index is an id, an anchor, a hash, an ordinal or a length")
+		// The grammar covers the whole artifact and not just the rows: the
+		// commit line (§2.2) is the only other thing in it, and it is pinned to
+		// a hex revision or the literal `unknown`, so no free text sits there
+		// either.
+		shape := regexp.MustCompile(
+			`^# commit (?:[0-9a-f]+|unknown)\n` +
+				`(?:u\d+ §[0-9.]+ (?:[0-9a-f]{12} #\d+ \d+B|\(cut\))\n)+$`)
+		assert.Regexp(t, shape, index, "every byte of the index is an id, an anchor, a hash, an ordinal, a length or the commit")
 	})
 }
