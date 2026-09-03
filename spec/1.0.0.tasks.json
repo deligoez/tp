@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-03T07:19:18.985098Z",
+  "updated_at": "2026-09-03T11:32:13.373776Z",
   "workflow": {},
   "coverage": {
     "total_sections": 21,
@@ -1067,7 +1067,7 @@
       "estimate_minutes": 8,
       "acceptance": "tp ground \u003cspec\u003e --units prints one line per floor unit carrying the whole canonical unit text and the same text_sha the index row for that unit carries, in emission order (§11 row 4b). The flag is added to the command-surface baseline in internal/cli. engine.FloorUnitRows and engine.FormatFloorUnits gain a production caller: before this task they are reachable only from tests, which is the test-only sink CLAUDE.md names.",
       "source_sections": [
-        "### 2.2 What the emitted prompt carries"
+        "### 2.2 The floor is a coverage obligation, not a shortlist"
       ],
       "started_at": "2026-09-03T05:19:51.10038Z",
       "duration_source": "claimed",
