@@ -119,8 +119,38 @@ func GroundRoundPath(specPath string, round int) string {
 // Both are written here rather than one here and one at record, because a floor
 // derived at record time would grade rows against a text its unit never saw: a
 // spec edited mid-round would be silently re-floored, and "unit_id assigned at
-// emit" would be unverifiable. The snapshot goes first so that a floor on disk
-// always has the text it was derived from beside it.
+// emit" would be unverifiable.
+//
+// The snapshot goes first, and that orders THIS call's two writes and nothing
+// else. Each file is written atomically; the PAIR is not, and emit takes no
+// lock — `--record` runs under WithFileLock(specPath), emit runs under nothing.
+// So two emitters on one spec, or a reader running beside one, can find a
+// snapshot and a floor derived from different texts. Per-file atomicity does
+// not help, because the reachable harm is a mismatched pair rather than a torn
+// file. An earlier version of this comment claimed the opposite — "a floor on
+// disk always has the text it was derived from beside it" — and the same claim
+// sat over the index derivation in runGround; both were false, and a falsified
+// invariant left standing is what the next auditor spends a round on.
+//
+// The lock is deliberately NOT added. It is a new abstraction at a sink this
+// release does not otherwise touch, and the hole needs two concurrent
+// processes: `tp run` has no ground unit kind, so no unattended run reaches it.
+//
+// To rebuild the measurement rather than believe it: point a symlink at one of
+// two specs with different text, take each one's floor from a lone emission as
+// a reference, flip the symlink in a loop while N `tp ground` processes run on
+// it, and classify the two files on disk against those references. Control the
+// detector first or it measures nothing — it must read GREEN on each lone
+// emission and RED on a hand-built snapshot-of-A/floor-of-B pair. Note that two
+// different claims come out of the same rig and they are not interchangeable.
+// Sampling the directory while writes are still in flight, which is what a
+// concurrent reader does, shows the mismatch readily and in both directions.
+// Sampling only after every writer has exited is a claim about the settled
+// state, and that one is thinly supported: an audit round reported three such
+// pairs, and re-running it at the commit that wrote this comment produced none
+// in 140 settled iterations at 8 and 16 writers. The correction above does not
+// rest on either count — the two writes below are independent and nothing
+// orders one process's against another's.
 //
 // It writes no state.json and takes no state lock. A ground round is discovered
 // by filename (§7.3, Non-Goal 2): SaveReviewState marshals a typed struct, so
