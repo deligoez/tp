@@ -165,3 +165,16 @@ func TestARowNamingACutUnitDispositionsNothing(t *testing.T) {
 		GroundCoverageOf(floor, rows))
 }
 
+// TestARowNamingNoEmittedUnitCannotRaiseCoverage: the numerator counts emitted
+// floor units, so an id the index never emitted at all raises nothing.
+func TestARowNamingNoEmittedUnitCannotRaiseCoverage(t *testing.T) {
+	floor := groundFloorOf("u1", "u2")
+	rows := []GroundRow{
+		groundDisposition("u1", VerdictPass),
+		groundDisposition("u99", VerdictPass),
+	}
+
+	assert.Equal(t, GroundCoverage{Emitted: 2, Dispositioned: 1, OffFloor: 1},
+		GroundCoverageOf(floor, rows))
+}
+
