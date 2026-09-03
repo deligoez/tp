@@ -457,7 +457,15 @@ func (r FloorIndexRow) String() string {
 // because §2.2 announces the cut set so a reader knows the floor is not the
 // document — both end-to-end runs of the protocol found defects in units the
 // arms had cut. The obligation is unchanged: coverage still runs over the
-// floor alone (§8), and a cut unit a reader grounds is a reader-added row.
+// floor alone (§8), and a cut unit a reader grounds is recorded under that
+// unit's own id, which makes it OFF-FLOOR rather than reader-added.
+//
+// This comment said "is a reader-added row" until §2.2 deleted that sentence:
+// reader-added is keyed on `unit_id: null` and a cut unit has an id, so such a
+// row satisfied neither counter and was counted nowhere. The same sentence was
+// removed from the emitted prompt in the same audit round — it had been telling
+// every reader to file the row under `null`, which left `off_floor` unreachable
+// by construction.
 //
 // `unit_id` is the 1-based index of the unit over every unit §2.1 produces
 // (§7.2), and since every unit has a row here, the id is also the row's
