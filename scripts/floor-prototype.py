@@ -206,23 +206,47 @@ def sha(u):
     return hashlib.sha256(u.encode("utf-8")).hexdigest()[:12]
 
 
-def payload_bytes(floor, shape):
-    """§11 row 4's bound is `units × 96 + 512`, stated with no encoding.
+def index_bytes(rows, shape):
+    """§2.2's index in three serialisations of the SAME five cells.
 
-    Three encodings a conforming implementation could pick. §2.2 names the
-    fields but not the wire format, and the three differ by 70%.
+    §11 row 4 bounds the index at `units × 48 + 256` bytes over the FLOOR's
+    units, and until the encoding was named the bound was undecidable. §2.2
+    settles on the sigil shape, which `engine.FloorIndexRow.String` renders as
+    `u1 §7.2 30afa78662b5 #1 21B`, with `u1 §7.2 (cut)` for a unit the arms cut,
+    and no text in either. The framing `formatFloorIndex` writes -- a
+    `# commit <sha>` line first and a `# N in floor, M cut` line last -- is
+    counted once for every shape, because the bound is over the index and not
+    over its rows.
+
+    It takes `index_rows`' output, which is what `emit` prints, so the figure is
+    the size of the index this script actually renders.
+
+    What stood here modelled word labels plus each unit's first 60 bytes against
+    `units × 96 + 512`, and so reported §11 row 4's bound exceeded on this
+    repository -- refuting §2.2's own sentence with a shape §2.2 disowns
+    (`internal/cli/review.go`'s word labels) and a bound §11 does not state.
     """
-    total = 0
-    for i, u in enumerate(floor, 1):
-        head, line, digest, prefix = f"u{i}", 123, sha(u), u[:60]
+    total = len("# commit 0123456789abcdef0123456789abcdef01234567\n".encode())
+    total += len("# 0000 in floor, 0000 cut\n".encode())
+    for rid, anchor, digest, ordinal, nbytes in rows:
+        if digest is None:
+            if shape == "json":
+                total += len(json.dumps(
+                    {"unit_id": rid, "anchor": anchor, "cut": True},
+                    ensure_ascii=False)) + 1
+            elif shape == "tsv":
+                total += len(f"{rid}\t{anchor}\tcut\n".encode())
+            else:
+                total += len(f"{rid} {anchor} (cut)\n".encode())
+            continue
         if shape == "json":
             total += len(json.dumps(
-                {"unit_id": head, "anchor": "§7.2", "line": line,
-                 "text_sha": digest, "text": prefix}, ensure_ascii=False)) + 1
-        elif shape == "labelled":     # the review.go:1054 shape §2.2 cites
-            total += len(f"{head} §7.2 (line {line}, {digest}): {prefix}\n".encode())
+                {"unit_id": rid, "anchor": anchor, "text_sha": digest,
+                 "ordinal": ordinal, "bytes": nbytes}, ensure_ascii=False)) + 1
         elif shape == "tsv":
-            total += len(f"{head}\t§7.2\t{line}\t{digest}\t{prefix}\n".encode())
+            total += len(f"{rid}\t{anchor}\t{digest}\t{ordinal}\t{nbytes}\n".encode())
+        else:
+            total += len(f"{rid} {anchor} {digest} #{ordinal} {nbytes}B\n".encode())
     return total
 
 
@@ -242,7 +266,8 @@ def measure(path):
     # step-4 canonicality: same segmentation, do the hashes agree?
     agree = sum(1 for a, b in zip(hashes, [sha(u) for u in floor_noterm]) if a == b)
 
-    bound = len(floor) * 96 + 512
+    bound = len(floor) * 48 + 256
+    rows_index = index_rows(text)
     return {
         "path": path,
         "units": len(units),
@@ -261,9 +286,9 @@ def measure(path):
         "fragments_superseded_rule": len(frag_first),
         "colliding_groups_superseded_rule": len(dup_first),
         "bound": bound,
-        "bytes_json": payload_bytes(floor, "json"),
-        "bytes_labelled": payload_bytes(floor, "labelled"),
-        "bytes_tsv": payload_bytes(floor, "tsv"),
+        "bytes_json": index_bytes(rows_index, "json"),
+        "bytes_sigil": index_bytes(rows_index, "sigil"),
+        "bytes_tsv": index_bytes(rows_index, "tsv"),
     }
 
 
@@ -291,15 +316,17 @@ def tail_bytes(s, limit=30):
     return cut.decode("utf-8", "ignore")
 
 
-def emit(path):
-    """§2.2's anchor payload, in §11 row 4's labelled-prose shape.
+def index_rows(text):
+    """§2.2's index as tuples: (unit_id, anchor, text_sha|None, ordinal, bytes).
 
-    Emits `(unit_id, anchor, line, text_sha, ordinal, first 60 bytes)` per floor
-    unit and nothing else — the unit reads the spec file itself. Whether that is
-    enough to locate and disposition a unit is the release's central untested
-    bet, and this mode exists to run it rather than argue about its cost.
+    A cut unit carries None for its hash, which is how §2.2 marks it: the
+    ABSENCE of the hash is the cut, so no row can announce a cut unit and still
+    ship the obligation a hash brings.
+
+    This is the ONE derivation `emit` and `index_bytes` both read, so the index
+    that is printed and the index that is measured cannot differ. They were two
+    derivations until the byte model was found measuring a shape §2.2 disowns.
     """
-    text = open(path, encoding="utf-8").read()
     lines = text.split("\n")
 
     # anchor = the last §n(.n)* heading at or above the unit; §0 before the first
@@ -318,19 +345,21 @@ def emit(path):
                 break
         return cur
 
-    # locate each unit by its first words, so `line` is the file line it starts on
+    # locate each unit by its first words, so the anchor is resolved at the file
+    # line the unit starts on
     units = []
     for b in blocks(text):
         for u in units_from_block(b):
             units.append((u, b))
     seen = Counter()
-    out = []
-    cut = 0
+    rows = []
     for n, (u, b) in enumerate(units, 1):
         # A table block's first entry is TABLE_MARK + the source line, which
         # matches no line in the file. Left unhandled, EVERY table row anchored
-        # to §0 — 91 of 243 units on this repository's own spec, while the test
-        # asserting the §0 case passed. Strip the sentinel before locating.
+        # to §0 while the test asserting the §0 case passed, and the size of that
+        # set is the document's table-row count — which the summary line `emit`
+        # appends prints, so it can be re-derived per file. Strip the sentinel
+        # before locating.
         b0 = b[0][len(TABLE_MARK):] if b and b[0].startswith(TABLE_MARK) else (b[0] if b else "")
         head = " ".join(u.split()[:4])
         lineno = next((i for i, l in enumerate(lines, 1)
@@ -341,28 +370,41 @@ def emit(path):
             # graded spec's worst defects in units the arms had cut, so the cut
             # set is announced — an id and an anchor, no text. The obligation
             # stays on the floor; the reader is told where to look past it.
-            cut += 1
-            out.append(f"u{n} {anchor_for(lineno)} (cut)")
+            rows.append((f"u{n}", anchor_for(lineno), None, 0, 0))
             continue
         d = sha(u)
         seen[d] += 1
-        # NO TEXT IN THE INDEX. The first end-to-end run settled this. The unit
-        # reads the spec file anyway, and the one anchor defect it hit was
-        # EXTENT: a 60-byte head stopped 90 bytes short of the defect and the
-        # unit graded the wrong sentence. Carrying a tail too costs more than it
-        # buys — measured over spec/*.md, inlining the floor is 99,633B, a
-        # 60-byte head 46,337B (0.47x), head-50 plus tail-30 52,326B (0.53x). A
-        # 2x saving on a payload the reader does not need, because it has the
-        # file. This index is ~0.05x, and `--units` prints every unit's full text
-        # in ONE call, which is what the run ended up doing by hand.
-        out.append(f"u{n} {anchor_for(lineno)} {d} #{seen[d]} {len(u.encode())}B")
-    tbl = len([l for l in lines
+        rows.append((f"u{n}", anchor_for(lineno), d, seen[d], len(u.encode())))
+    return rows
+
+
+def emit(path):
+    """§2.2's index, in the sigil shape §2.2 settles on.
+
+    One line per unit — `u1 §7.2 30afa78662b5 #1 21B`, or `u1 §7.2 (cut)` for a
+    unit the arms cut — and NO TEXT in either. The first end-to-end run settled
+    that: the unit reads the spec file anyway, and the one anchor defect that run
+    hit was EXTENT — a 60-byte head stopped 90 bytes short of the defect and the
+    unit graded the wrong sentence. `--units` prints every unit's full text in
+    ONE call, which is what the run ended up doing by hand.
+    """
+    text = open(path, encoding="utf-8").read()
+    out = []
+    floor = cut = 0
+    for rid, anchor, d, ordinal, nbytes in index_rows(text):
+        if d is None:
+            cut += 1
+            out.append(f"{rid} {anchor} (cut)")
+            continue
+        floor += 1
+        out.append(f"{rid} {anchor} {d} #{ordinal} {nbytes}B")
+    tbl = len([l for l in text.split("\n")
                if l.lstrip().startswith("|") and not TABLE_SEP.match(l)])
-    # sum(seen.values()), NOT len(seen): the counter is keyed by hash, so a
-    # distinct-key count under-reports by exactly the collisions §8 introduces
-    # `ordinal` to handle — four units short on spec/0.1.0.md, in the direction
-    # that makes coverage look higher than it is.
-    out.append(f"# {sum(seen.values())} in floor, {cut} cut; {tbl} table data rows "
+    # The floor count counts ROWS, never distinct hashes. A counter keyed by
+    # `text_sha` under-reports by exactly the collisions §8 introduces `ordinal`
+    # to handle — on spec/0.1.0.md at 4d839c79, 337 floor units over 333 distinct
+    # hashes, in the direction that makes coverage look higher than it is.
+    out.append(f"# {floor} in floor, {cut} cut; {tbl} table data rows "
                f"are segmented into units (§2.1 step 1) and are counted above")
     return out
 
@@ -403,15 +445,15 @@ def main():
         return 0
 
     print(f"{'spec':34s} {'units':>6s} {'floor':>6s} {'frag':>5s} {'grps':>5s} "
-          f"{'maxmul':>7s} {'old→frag':>9s} {'bound':>7s} {'json':>7s} {'lbl':>7s} {'tsv':>7s}")
+          f"{'maxmul':>7s} {'old→frag':>9s} {'bound':>7s} {'json':>7s} {'sigil':>7s} {'tsv':>7s}")
     tot = Counter()
-    over = {"json": 0, "labelled": 0, "tsv": 0}
+    over = {"json": 0, "sigil": 0, "tsv": 0}
     worst_ratio, worst_path, max_mult = 0.0, "", 1
     for r in rows:
         print(f"{r['path']:34s} {r['units']:6d} {r['floor']:6d} {r['fragments']:5d} "
               f"{r['colliding_hash_groups']:5d} {r['max_hash_multiplicity']:7d} "
               f"{r['fragments_superseded_rule']:9d} {r['bound']:7d} {r['bytes_json']:7d} "
-              f"{r['bytes_labelled']:7d} {r['bytes_tsv']:7d}")
+              f"{r['bytes_sigil']:7d} {r['bytes_tsv']:7d}")
         for k in ("units", "floor", "fragments", "colliding_hash_groups",
                   "fragments_superseded_rule", "colliding_groups_superseded_rule"):
             tot[k] += r[k]
@@ -419,7 +461,7 @@ def main():
         for enc in over:
             if r[f"bytes_{enc}"] > r["bound"]:
                 over[enc] += 1
-        ratio = r["bytes_labelled"] / r["bound"] if r["bound"] else 0
+        ratio = r["bytes_sigil"] / r["bound"] if r["bound"] else 0
         if ratio > worst_ratio:
             worst_ratio, worst_path = ratio, r["path"]
 
@@ -432,8 +474,8 @@ def main():
     print(f"superseded rule:   fragments {tot['fragments_superseded_rule']}, "
           f"colliding-hash groups {tot['colliding_groups_superseded_rule']}")
     print(f"§11 row 4 bound exceeded by: json {over['json']}/{n}, "
-          f"labelled {over['labelled']}/{n}, tsv {over['tsv']}/{n}")
-    print(f"  worst labelled/bound ratio: {worst_ratio:.3f} ({worst_path}) — "
+          f"sigil {over['sigil']}/{n}, tsv {over['tsv']}/{n}")
+    print(f"  worst sigil/bound ratio: {worst_ratio:.3f} ({worst_path}) — "
           f"headroom is why row 4 asserts over a constructed input, not this corpus")
     agree_all = [r["step4_hash_agreement"] for r in rows]
     a = sum(int(x.split("/")[0]) for x in agree_all)
