@@ -116,3 +116,37 @@ func TestGroundEmitCreatesTheStateDirectoryAndWritesTheSnapshotAndTheFloor(t *te
 	assert.Equal(t, filepath.Join(".tp-review", "spec", "floor-ground-round-1.txt"), out["floor"])
 }
 
+// TestGroundEmitNamesTheScratchFileAndNotTheRecordedRound pins §7.3's two
+// filenames apart: the prompt's output_path is ground-r<N>.ndjson, the scratch
+// file a unit writes, while ground-round-<N>.ndjson is what --record writes
+// into the state directory. A reader deriving the emitted name from §7.1's
+// table alone gets it wrong, so the recorded name is the mutant this fails on.
+//
+// The second round is what makes the assertion say anything: r1 and round-1
+// differ by four characters that a fixture at round 1 could still confuse with
+// a hard-coded string, and the round file planted here is also the input that
+// makes N advance.
+func TestGroundEmitNamesTheScratchFileAndNotTheRecordedRound(t *testing.T) {
+	dir := writeGroundFixture(t)
+
+	out := groundEmit(t, dir)
+	assert.Equal(t, "ground-r1.ndjson", out["output_path"])
+	prompt, ok := out["prompt"].(string)
+	require.True(t, ok, "one prompt, as a string, not a panel: %T", out["prompt"])
+	assert.NotContains(t, out, "prompts", "grounding emits one prompt, never an array of role prompts")
+	assert.Contains(t, prompt, "ground-r1.ndjson", "the prompt body names the file it writes")
+
+	// A recorded round 1 — the only artifact that numbers a round.
+	require.NoError(t, os.WriteFile(
+		filepath.Join(dir, ".tp-review", "spec", "ground-round-1.ndjson"), []byte("{}\n"), 0o600))
+
+	out = groundEmit(t, dir)
+	assert.Equal(t, float64(2), out["round"])
+	assert.Equal(t, "ground-r2.ndjson", out["output_path"])
+	assert.Equal(t, []string{
+		"floor-ground-round-1.txt", "floor-ground-round-2.txt",
+		"ground-round-1.ndjson",
+		"snapshot-ground-round-1.md", "snapshot-ground-round-2.md",
+	}, stateDirNames(t, dir), "round 2's emission writes beside round 1's artifacts, not over them")
+}
+
