@@ -433,9 +433,19 @@ type FloorIndexRow struct {
 // The encoding is named rather than left open because §11 row 4's bound —
 // `units × 48 + 256` bytes — is undecidable without it: three conforming
 // serialisations of the same five fields differ by 70%, and one JSON object per
-// unit is over the bound on all but one spec in this repository, its ~79-byte
-// field-name skeleton dwarfing a ~53-byte payload. The sigils carry the labels
-// instead: `§` before the anchor, `#` before the ordinal, `B` after the length.
+// unit is over the bound on EVERY spec in this repository, its field-name
+// skeleton costing more per row than the payload it wraps.
+//
+// Both of those are counts over a live corpus, so the artifact states them and
+// this comment does not: `python3 scripts/floor-prototype.py` prints the bound
+// beside all three encodings per spec, and its summary line reports how many
+// specs each one exceeds. An earlier version of this sentence said JSON was over
+// "on all but one spec" — what the script printed before it was corrected — and
+// it outlived the correction, which is exactly the rot §2.2 records against
+// itself for the ratios it used to quote. Two per-row byte figures went with it.
+//
+// The sigils carry the labels instead: `§` before the anchor, `#` before the
+// ordinal, `B` after the length.
 //
 // A cut unit renders as `<unit_id> <anchor> (cut)` and stops there: no hash, no
 // ordinal, no length, no text. §2.2 accepts that the announcement alone is not
