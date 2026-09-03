@@ -109,3 +109,23 @@ func TestKindTierAcceptabilityIsASetAndNotAnOrder(t *testing.T) {
 	}
 }
 
+// TestSetMembershipHoldsAtBothEdgesForOneAndTwoTierKinds is §11 row 7.
+//
+// The mutant it must fail accepts any tier for a kind listing more than one.
+// That mutant passes every single-tier kind, so a table asserting only
+// `document`, `corpus`, `mechanism`, `defect` and `guard` cannot see it: it is
+// distinguished exclusively by a rejected tier on `code-structure` or
+// `behaviour`. Membership is therefore asserted on both sides for a one-tier
+// kind (`corpus`) and for the two-tier kind, with `code-structure`'s rejected
+// `run` the pair that kills it.
+func TestSetMembershipHoldsAtBothEdgesForOneAndTwoTierKinds(t *testing.T) {
+	assert.False(t, TierAcceptableFor(KindCorpus, TierRead), "corpus rejects read: it is a query over the corpus")
+	assert.True(t, TierAcceptableFor(KindCorpus, TierQuery))
+
+	assert.True(t, TierAcceptableFor(KindCodeStructure, TierRead))
+	assert.True(t, TierAcceptableFor(KindCodeStructure, TierQuery),
+		"a call-graph or dead-code tool is a query over the tree")
+	assert.False(t, TierAcceptableFor(KindCodeStructure, TierRun),
+		"the two-tier kind still rejects a third tier — the pair that separates a set from 'any tier will do'")
+}
+
