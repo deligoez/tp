@@ -3,6 +3,7 @@ package engine
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -59,6 +60,45 @@ func TestACutUnitEmitsItsIdAndAnchorWithNoHashAndNoText(t *testing.T) {
 	assert.Equal(t, "u3 §3 "+FloorTextSHA(kept2)+" #1 "+strconv.Itoa(len(kept2))+"B",
 		rows[2].String())
 
-	assert.NotContains(t, FormatFloorIndex(rows), "zqxjvwkfgb",
+	assert.NotContains(t, FormatFloorIndex("7ced1edb", rows), "zqxjvwkfgb",
 		"the cut unit is announced, never carried")
+}
+
+// TestTheIndexNamesTheCommitOnItsFirstLine is §2.2: "The index carries the
+// commit it was derived from, on its first line."
+//
+// The reason is a measurement rather than a preference. A grounding round takes
+// hours — the second end-to-end run took two and a half — and the spec moved
+// three commits underneath the first one, so five dispositioned units no longer
+// existed by the time it finished, and the run found that by accident. §7.3
+// pins the round to a snapshot; this line says which snapshot the index IS, so
+// a stale one is recognisable without a diff.
+//
+// The three assertions do not subsume each other, and each names the mutant it
+// alone kills:
+//
+//   - the line is FIRST — an implementation appending it after the rows passes
+//     the other two;
+//   - the sha is the caller's, asserted on two different commits — a hard-coded
+//     or truncated line sits in first position and passes that assertion;
+//   - a caller with no commit still gets the line, and it says so — omitting
+//     the line when there is nothing to name passes both of the others. It has
+//     to be there unconditionally, or a reader cannot tell "derived at an
+//     unknown commit" from "derived at the commit on line 1" without first
+//     parsing the rest.
+func TestTheIndexNamesTheCommitOnItsFirstLine(t *testing.T) {
+	const text = "The claim carries 3 items.\n"
+	rows := FloorIndexRows(text, func(int) string { return "§1" })
+	require.Len(t, rows, 1, "one unit, so a first line that is not the commit line is a row")
+
+	firstLine := func(index string) string { return strings.SplitN(index, "\n", 2)[0] }
+
+	assert.Equal(t, "# commit 7ced1edb", firstLine(FormatFloorIndex("7ced1edb", rows)))
+	assert.Equal(t, "# commit c2b9b555", firstLine(FormatFloorIndex("c2b9b555", rows)),
+		"the commit is carried, not decorated: a different one is a different line")
+	assert.Equal(t, "# commit unknown", firstLine(FormatFloorIndex("", rows)),
+		"a caller with no commit to name still gets the line, and it says so")
+
+	assert.Contains(t, FormatFloorIndex("7ced1edb", rows), "\n"+rows[0].String()+"\n",
+		"the line is added ahead of the rows, not in place of one")
 }
