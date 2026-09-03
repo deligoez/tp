@@ -40,3 +40,31 @@ func TestGroundExitsZeroOnAnInvocationThatCompletes(t *testing.T) {
 	require.FileExists(t, groundStatePath(dir, "ground-round-1.ndjson"))
 }
 
+// TestGroundExitsOneOnARecordItWillNotValidate is §7.1's exit-1 row over the two
+// inputs row 14 names for it: a file whose second line is `{`, and an empty
+// file. They fail for different reasons — one row that is not JSON, and a
+// payload holding no rows at all — and tp tells them apart by the error's type
+// rather than by its wording, so both are asserted here.
+func TestGroundExitsOneOnARecordItWillNotValidate(t *testing.T) {
+	cases := []struct {
+		name string
+		body string
+	}{
+		{"a second line that is not JSON", groundRecordRow(1) + "\n{\n"},
+		{"an empty file", ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := writeGroundFixture(t)
+			groundEmit(t, dir)
+			before := stateDirNames(t, dir)
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "rows.ndjson"), []byte(tc.body), 0o600))
+
+			stdout, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", "rows.ndjson")
+			require.Equal(t, 1, code, "stdout: %s stderr: %s", stdout, stderr)
+			assert.Equal(t, float64(1), groundErrorEnvelope(t, stderr)["code"])
+			assert.Equal(t, before, stateDirNames(t, dir), "a refused round writes no round file")
+		})
+	}
+}
+
