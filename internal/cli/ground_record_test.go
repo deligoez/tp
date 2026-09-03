@@ -163,3 +163,44 @@ func TestARecordHoldingNoRowsIsRejectedAndConsumesNoRoundNumber(t *testing.T) {
 	}
 }
 
+// TestGroundRecordWithNoPriorEmitExitsThree is the acceptance's fourth clause,
+// over the two shapes "no prior emit" takes in a real flow.
+//
+// The second is the one an operator reaches by accident: round 1 was emitted and
+// recorded, so N is now 2, and a --record run without a second emission is
+// grading rows against a floor that was never written.
+func TestGroundRecordWithNoPriorEmitExitsThree(t *testing.T) {
+	t.Run("no state directory at all", func(t *testing.T) {
+		dir := writeGroundFixture(t)
+		rows := writeGroundRows(t, dir, groundRecordRow(1))
+
+		stdout, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", rows)
+		require.Equal(t, 3, code, "stdout: %s stderr: %s", stdout, stderr)
+		assert.Contains(t, fmt.Sprint(groundErrorEnvelope(t, stderr)["hint"]), "tp ground spec.md")
+	})
+
+	t.Run("the previous round was recorded and not re-emitted", func(t *testing.T) {
+		dir := writeGroundFixture(t)
+		groundEmit(t, dir)
+		rows := writeGroundRows(t, dir, groundRecordRow(1))
+		_, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", rows)
+		require.Equal(t, 0, code, "stderr: %s", stderr)
+
+		before := stateDirNames(t, dir)
+		stdout, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", rows)
+		require.Equal(t, 3, code, "stdout: %s stderr: %s", stdout, stderr)
+		assert.Equal(t, before, stateDirNames(t, dir),
+			"round 2 has no floor, so nothing is written under its number")
+	})
+
+	// The floor is checked before the payload is read, so an operator who has
+	// emitted nothing is told that rather than being sent to look at a file
+	// whose absence is not the reason the round cannot be recorded.
+	t.Run("the record path is missing too", func(t *testing.T) {
+		dir := writeGroundFixture(t)
+		stdout, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", "absent.ndjson")
+		require.Equal(t, 3, code, "stdout: %s stderr: %s", stdout, stderr)
+		assert.Contains(t, fmt.Sprint(groundErrorEnvelope(t, stderr)["hint"]), "tp ground spec.md")
+	})
+}
+
