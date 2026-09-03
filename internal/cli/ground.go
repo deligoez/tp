@@ -1017,6 +1017,19 @@ claim that does not depend on the answer.
 // between them — which is why the recipe is here and the number is not.
 // The agreement half is §11 row 4b's shipped test rather than a claim here.
 //
+// **The agreement between the listing and the index is CONDITIONAL, and saying
+// so is the sentence's job.** This paragraph asserted the join flatly until the
+// audit, where two roles falsified it independently on a built input:
+// `--units` reads the spec as it now stands, the index was frozen at emission,
+// and `unit_id` is numbered over every unit §2.1 produces — so one inserted
+// sentence renumbers every unit below it. Measured on a copy of `spec/1.0.0.md`,
+// the listing's `u4` was then the inserted sentence while the index's `u4` was
+// the old one, and a row copying `unit_id`/`text_sha`/`ordinal` off the index
+// while grading the listing's text recorded at exit 0 with the unit reported
+// covered. `groundRowMatchesFloor` cannot refuse it, because the cells ARE the
+// index's, which is why the check belongs in the prompt and before the grading.
+// §2.2 states the obligation; §11 row 4c is its test.
+//
 // specPath is threaded down for the one reason a prompt needs it: `--units` is
 // useless to a reader who has to work out what to put after it, and the emission
 // already knows.
@@ -1036,10 +1049,23 @@ range of any file, and cannot be read off the snapshot by counting.
 `)
 	fmt.Fprintf(&b, "Run `tp ground %s --units` for the text. It prints one line per floor unit,\n", specPath)
 	b.WriteString(`` + "`<unit_id>\\t<text_sha>\\t<text>`" + `, each carrying its unit WHOLE; ` + "`<bytes>`" + ` is the UTF-8
-length of THAT text and ` + "`<text_sha>`" + ` its hash, so the listing and the index above
-join on ` + "`unit_id`" + ` and agree on both cells. The snapshot named at the top of this
-prompt is the spec as this round found it: read it for a unit's surroundings — its
-section, what precedes it, what the sentence is about — never to measure a unit.
+length of THAT text and ` + "`<text_sha>`" + ` its hash.
+
+That mode reads the spec AS IT NOW STANDS, and the index above was frozen when this
+round was emitted — so the two join on ` + "`unit_id`" + ` and agree on both cells only while
+the spec has not been edited since. One sentence inserted above a unit renumbers
+every unit below it, and the same ` + "`unit_id`" + ` then names a different sentence in each
+artifact. COMPARE THE HASHES BEFORE YOU GRADE: the listing's ` + "`text_sha`" + ` for a
+` + "`unit_id`" + ` must equal the one that id's index row carries. Where they differ, the
+listing has moved on, the index row you would copy does not describe the text you
+just read, and nothing graded off that pair is a disposition of this round's spec —
+so stop and report that the spec was edited after this round was emitted, rather
+than grading it. Nothing downstream can catch this for you: a row carrying the
+index's own cells is accepted whatever text you read.
+
+The snapshot named at the top of this prompt is the spec as this round found it:
+read it for a unit's surroundings — its section, what precedes it, what the sentence
+is about — never to measure a unit.
 
 This is a FLOOR, not the set of claims. A claim the floor did not carry still gets a
 row, and the row says WHICH kind of miss it was. The two are reported apart from

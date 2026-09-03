@@ -717,8 +717,18 @@ func (r FloorUnitRow) String() string {
 //
 // `unit_id` is numbered over EVERY unit §2.1 produces, the ones the arms cut
 // included, exactly as `FloorIndexRows` numbers them — the two artifacts are
-// read side by side and join on that id, so a unit numbered over the floor
-// alone here would name a different unit there.
+// read side by side, so a unit numbered over the floor alone here would name a
+// different unit there.
+//
+// **They join on that id only while the spec has not moved between them.** This
+// function derives from the text it is handed, and `--units` hands it the spec
+// as it now stands while the index was frozen at emission — so one sentence
+// inserted above a unit renumbers every unit below it and the same id names a
+// different sentence in each artifact. That is `groundJoinKey`'s reason for
+// keying §8's carry on `(text_sha, ordinal)` rather than on the id, and it is
+// why the emitted prompt tells the reader to compare the two hashes BEFORE
+// grading: a row carrying the index's own cells is accepted whatever text was
+// read, so nothing downstream can catch the mismatch. §11 row 4c pins it.
 //
 // Only floor units get a row. A cut unit owes no disposition (§2.2), and giving
 // the cut set its text is the cost the index exists to avoid.
