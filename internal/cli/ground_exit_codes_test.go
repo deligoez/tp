@@ -79,3 +79,77 @@ func TestGroundExitsTwoOnUsage(t *testing.T) {
 	assert.Equal(t, float64(2), groundErrorEnvelope(t, stderr)["code"])
 }
 
+// TestGroundExitsThreeOnFileOrCorruptState is §7.1's exit-3 row over both of
+// row 14's named inputs, plus the control the row's own caveat demands.
+//
+// The two inputs reach exit 3 by different routes: a missing --record path is a
+// file tp could not open, while an unparseable state.json is what exitStateError
+// returns for a StateCorruptError. Each is emitted FIRST, so the round has a
+// floor and the refusal is about the input under test rather than about §7.3's
+// no-prior-emit rule, which exits 3 too.
+//
+// The third subtest is the caveat: **not** a ground-only directory. A directory
+// holding a ground round and its emission and nothing else must load cleanly
+// (§11 row 11), so an implementation that read the state directory's mere
+// existence as corruption — refusing every record on a spec that has never been
+// reviewed — is what this control fails.
+func TestGroundExitsThreeOnFileOrCorruptState(t *testing.T) {
+	t.Run("a --record path that does not exist", func(t *testing.T) {
+		dir := writeGroundFixture(t)
+		groundEmit(t, dir)
+		require.NoFileExists(t, filepath.Join(dir, "absent.ndjson"))
+
+		stdout, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", "absent.ndjson")
+		require.Equal(t, 3, code, "stdout: %s stderr: %s", stdout, stderr)
+		envelope := groundErrorEnvelope(t, stderr)
+		assert.Equal(t, float64(3), envelope["code"])
+		assert.Contains(t, fmt.Sprint(envelope["error"]), "absent.ndjson",
+			"the refusal names the file tp could not open, not the floor it already read")
+	})
+
+	t.Run("an unparseable state.json", func(t *testing.T) {
+		dir := writeGroundFixture(t)
+		groundEmit(t, dir)
+		require.NoError(t, os.WriteFile(groundStatePath(dir, "state.json"), []byte("{not json"), 0o600))
+		before := stateDirNames(t, dir)
+		rows := writeGroundRows(t, dir, groundRecordRow(1))
+
+		stdout, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", rows)
+		require.Equal(t, 3, code, "stdout: %s stderr: %s", stdout, stderr)
+		envelope := groundErrorEnvelope(t, stderr)
+		assert.Equal(t, float64(3), envelope["code"],
+			"a corrupt state directory is exitStateError's code 3, never its code 4")
+		assert.Contains(t, fmt.Sprint(envelope["error"]), "state.json",
+			"the refusal names the file that is unreadable")
+		assert.Equal(t, before, stateDirNames(t, dir),
+			"tp adds no round to a state directory it cannot read")
+	})
+
+	t.Run("a ground-only directory is not corrupt", func(t *testing.T) {
+		dir := writeGroundFixture(t)
+		groundEmit(t, dir)
+		require.NotContains(t, stateDirNames(t, dir), "state.json",
+			"the emission wrote no index, which is the condition this control is about")
+		rows := writeGroundRows(t, dir, groundRecordRow(1))
+
+		_, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", rows)
+		require.Equal(t, 0, code, "a ground-only directory loads cleanly (§11 row 11): %s", stderr)
+	})
+}
+
+// groundLockFixture is writeGroundFixture with the two things a contention test
+// needs: a symlink-resolved directory, so this process and the tp subprocess
+// hash the same absolute path into the same lock file (macOS maps /var to
+// /private/var), and a 1s lock_timeout_seconds, so the assertion costs a second
+// rather than the built-in five.
+func groundLockFixture(t *testing.T) string {
+	t.Helper()
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(groundFixtureSpec), 0o600))
+
+	_, stderr, code := runTP(t, dir, "set", "--workflow", "--project", "lock_timeout_seconds=1")
+	require.Equal(t, 0, code, "set lock_timeout_seconds: %s", stderr)
+	return dir
+}
+
