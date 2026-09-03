@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -422,7 +423,7 @@ type FloorIndexRow struct {
 // exists for, and the reader has the spec file.
 func (r FloorIndexRow) String() string {
 	if r.TextSHA == "" {
-		return r.ID + " " + r.Anchor + " (cut)"
+		return r.ID + " " + r.Anchor + " " + floorIndexCutMarker
 	}
 	return fmt.Sprintf("%s %s %s #%d %dB", r.ID, r.Anchor, r.TextSHA, r.Ordinal, r.Bytes)
 }
@@ -531,6 +532,73 @@ func FormatFloorIndex(commit string, rows []FloorIndexRow) string {
 	}
 	fmt.Fprintf(&b, "# %d in floor, %d cut\n", floor, cut)
 	return b.String()
+}
+
+// floorIndexCutMarker is what a cut unit's row carries where a floor unit's
+// carries its hash, its ordinal and its length.
+//
+// One constant, read by the renderer and by the parser, so the two cannot spell
+// the marker differently: a parser looking for a marker the renderer no longer
+// writes would read every cut row as a malformed one, and a renderer writing a
+// marker the parser does not know would do the same in the other direction.
+const floorIndexCutMarker = "(cut)"
+
+// ParseFloorIndex reads back the index an emission wrote (§7.3), returning the
+// rows in file order.
+//
+// It exists because the floor is READ and never re-derived. §7.3 makes the
+// emitted index the artifact a round is graded against precisely so that a spec
+// edited between emit and record cannot silently re-floor it, and every later
+// reader of that round — §8's coverage, §9's advisory — owes the round the same
+// treatment. Deriving the floor again from the snapshot would agree today and
+// disagree the moment §2.1's arms change under a round already in flight.
+//
+// Lines the renderer brackets the rows with are skipped: FormatFloorIndex writes
+// a commit line first and a summary line last, and both open with `#`, which no
+// row does. Every other non-blank line must be a row — a truncated or
+// half-written floor is refused rather than read short, because reading it short
+// silently shrinks §8's denominator, and a denominator that is too small makes
+// coverage look higher than it is.
+func ParseFloorIndex(text string) ([]FloorIndexRow, error) {
+	rows := make([]FloorIndexRow, 0, 256)
+	line := 0
+	for raw := range strings.SplitSeq(text, "\n") {
+		line++
+		trimmed := strings.TrimSpace(raw)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		row, err := parseFloorIndexRow(trimmed)
+		if err != nil {
+			return nil, fmt.Errorf("floor index line %d: %w", line, err)
+		}
+		rows = append(rows, row)
+	}
+	return rows, nil
+}
+
+// parseFloorIndexRow reads one index line in either of the two shapes
+// FloorIndexRow.String renders.
+//
+// The two are told apart by their field count and their sigils, never by a
+// field count alone: a three-field line is a cut row only when its third field
+// is the marker. The alternative — reading any three-field line as
+// id/anchor/hash — hands the cut unit a non-empty TextSHA, and §2.2 makes a
+// non-empty hash the definition of a floor unit, so the cut unit would enter
+// §8's denominator owing a disposition nobody was asked for.
+func parseFloorIndexRow(line string) (FloorIndexRow, error) {
+	f := strings.Fields(line)
+	switch {
+	case len(f) == 3 && f[2] == floorIndexCutMarker:
+		return FloorIndexRow{ID: f[0], Anchor: f[1]}, nil
+	case len(f) == 5 && strings.HasPrefix(f[3], "#") && strings.HasSuffix(f[4], "B"):
+		ordinal, ordErr := strconv.Atoi(strings.TrimPrefix(f[3], "#"))
+		size, sizeErr := strconv.Atoi(strings.TrimSuffix(f[4], "B"))
+		if ordErr == nil && sizeErr == nil {
+			return FloorIndexRow{ID: f[0], Anchor: f[1], TextSHA: f[2], Ordinal: ordinal, Bytes: size}, nil
+		}
+	}
+	return FloorIndexRow{}, fmt.Errorf("not an index row: %q", line)
 }
 
 // FloorUnitRow is one line of `tp ground <spec> --units`: a floor unit's
