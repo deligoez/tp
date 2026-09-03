@@ -248,3 +248,22 @@ func mustNextGroundRound(t *testing.T, specPath string) int {
 	return n
 }
 
+// TestTheAllowedKeySetIsExactlySection72sTable binds the key set to the
+// artifact it is derived from, in both directions.
+//
+// A cell added to §7.2 with no entry here would be rejected as unknown on every
+// row that carried it; an entry here that §7.2 does not have would let a key
+// through that no cell validates. Neither can be found by reading the map.
+func TestTheAllowedKeySetIsExactlySection72sTable(t *testing.T) {
+	inSpec := groundSection72Fields(t)
+	require.NotEmpty(t, inSpec, "§7.2's table must be readable for this to be checkable")
+
+	allowed := make([]string, 0, len(groundRowKeys))
+	for k := range groundRowKeys {
+		allowed = append(allowed, k)
+	}
+	slices.Sort(allowed)
+
+	assert.ElementsMatch(t, inSpec, allowed,
+		"the accepted top-level keys are exactly the fields §7.2's table names")
+}
