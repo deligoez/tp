@@ -73,3 +73,27 @@ func TestACarriedUnitIsMarkedInPlaceAndTheIndexStillListsEveryUnit(t *testing.T)
 		"a carried unit is still a floor unit, and still in §8's denominator")
 }
 
+// TestAnIndexWithNothingCarriedIsTheOneEveryOtherReaderGets pins the other
+// direction: the marked rendering and §2.2's are the same bytes when there is
+// nothing to mark.
+//
+// It matters because the two renderings are emitted to two places — the prompt
+// takes the marked one and `floor-ground-round-N.txt` takes §2.2's — and round 1
+// has no preceding round to carry from. A renderer that changed the row shape
+// unconditionally would leave round 1's prompt disagreeing with the floor
+// `--record` grades it against, which is exactly what nothing downstream checks.
+//
+// The second case is the one an empty map does not reach: a carry set naming an
+// id the index does not hold marks nothing rather than marking the row at that
+// position.
+func TestAnIndexWithNothingCarriedIsTheOneEveryOtherReaderGets(t *testing.T) {
+	rows := carriedFixtureRows(t)
+	plain := FormatFloorIndex("7ced1edb", rows)
+
+	assert.Equal(t, plain, FormatFloorIndexCarried("7ced1edb", rows, nil),
+		"no carry set is §2.2's index unchanged")
+	assert.Equal(t, plain, FormatFloorIndexCarried("7ced1edb", rows, map[string]bool{}),
+		"and so is an empty one")
+	assert.Equal(t, plain, FormatFloorIndexCarried("7ced1edb", rows, map[string]bool{"u9": true}),
+		"an id no row in this index carries marks no row in it")
+}
