@@ -782,9 +782,10 @@ func TestTheVerbArmIsExactlyTheTwelveListedVerbs(t *testing.T) {
 // TestTheVerbArmMatchesWholeWordsOnly settles what §2.1 leaves open. Its table
 // says the unit "contains one of" the twelve, and read as plain substring
 // containment that is untenable: "Transition" contains `ran`, "withheld"
-// contains `held`, "discounted" contains `counted`. Over `spec/*.md` the two
-// readings disagree on 254 units, every one of them a false positive for the
-// substring reading, so the arm matches whole words.
+// contains `held`, "discounted" contains `counted`. Whole-word matching is
+// strictly narrower than substring matching, so every unit the two readings
+// disagree on is a false positive for the substring reading, and the arm matches
+// whole words.
 //
 // Each case carries the substring INSIDE a longer word and nothing else, so the
 // unit is in the floor under the substring reading and out under this one — and
