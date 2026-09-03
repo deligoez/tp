@@ -618,8 +618,13 @@ tp owns the review/audit round lifecycle in `<spec-dir>/.tp-review/<spec-base>/`
 | `snapshot-round-<N>.md` | Byte copy of the spec at round N prompt generation |
 | `review-round-<N>.ndjson` | Recorded review round N findings |
 | `audit-round-<N>.ndjson` | Recorded audit round N results |
+| `snapshot-ground-round-<N>.md` | Byte copy of the spec at ground round N emission |
+| `floor-ground-round-<N>.txt` | The floor index that emission derived from that snapshot |
+| `ground-round-<N>.ndjson` | Recorded ground round N dispositions |
 
 Each round entry is `{round, findings, clean, recorded_at, file, spec_hash}`. `spec_hash` is `sha256:<hex>` of the spec bytes at record time and powers the staleness rule. tp writes `snapshot-round-<N>.md` **atomically** (write to a `.tmp` then rename) when round N begins (prompt emission) and `review-round-<N>.ndjson`/`audit-round-<N>.ndjson` when the round is recorded; a snapshot with no round file means a round was started and never recorded, and `--status` reports it as `in_flight_round: N` (`tp resume` then points at `{action:"record-round", round:N}`). A directory holding round files with no `state.json` aborts state-reading commands with exit 3 and a `repair or delete <path>` hint — that index referenced recorded history, and tp never rebuilds over it. A directory holding only snapshots is the in-flight window between emitting a round and recording it: nothing was ever recorded there, so the next `--record` rebuilds the index rather than refusing.
+
+The three ground artifacts are a separate prefix list: they carry no round entry in `state.json`, a directory holding only them loads cleanly rather than reading as review state with a missing index, and their round numbering is its own sequence. Their formats are in the Grounding section below.
 
 ## Spec Frontmatter (`tp:` mapping)
 
