@@ -167,3 +167,14 @@ func TestEveryOneOfTheFortyTwoKindTierPairsMatchesSection41(t *testing.T) {
 	assert.Equal(t, 42, pairs, "§3 counts forty-two (kind, tier) pairs")
 }
 
+// TestAnUnknownKindOrTierIsNeverAcceptable pins the direction the predicate
+// fails in. A value that never went through a Parse — an empty field, a typo
+// that a caller forgot to check — must not be certified as evidence for
+// anything.
+func TestAnUnknownKindOrTierIsNeverAcceptable(t *testing.T) {
+	assert.False(t, TierAcceptableFor("", TierRead))
+	assert.False(t, TierAcceptableFor("prose", TierRead))
+	assert.False(t, TierAcceptableFor(KindDocument, ""))
+	assert.False(t, TierAcceptableFor(KindDocument, "inspect"))
+	assert.False(t, TierAcceptableFor("", ""))
+}
