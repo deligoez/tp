@@ -191,7 +191,12 @@ change the floor the round is graded against.`,
 			groundRefuseUsage(unitsMode, statusMode, checkMode, recordPassed, recordPath)
 
 			if unitsMode {
-				return runGroundUnits(args[0])
+				// Same question as recordPassed above, asked of --json:
+				// output.IsJSON() is true for every piped invocation, so it
+				// cannot tell a caller who ASKED for JSON from one who was
+				// simply not on a terminal. Only the first is being ignored,
+				// and only the first is told.
+				return runGroundUnits(args[0], cmd.Flags().Changed("json"))
 			}
 			if statusMode {
 				return runGroundStatus(args[0], checkMode)
@@ -409,7 +414,17 @@ func groundFloorSize(rows []engine.FloorIndexRow) int {
 // terminal alone. Nothing is lost by it: the row is three tab-separated fields
 // and the unit itself cannot hold a tab, since §2.1 step 3 collapses every
 // whitespace run in a prose block and joins a table row's cells with an em dash.
-func runGroundUnits(specPath string) error {
+func runGroundUnits(specPath string, jsonAsked bool) error {
+	// --units prints text whatever --json says, and that is deliberate: row 4b's
+	// assertion is about LINES, and jsonMode is on for every piped invocation,
+	// so an envelope would leave the shipped shape reachable only from a
+	// terminal. What was wrong was the SILENCE -- exit 0, TSV on stdout, zero
+	// bytes on stderr, so a caller that asked for JSON and got TSV had nothing
+	// to read. output.Notice's own doc names "a flag ignored" as what the
+	// channel is for, and this is that case exactly.
+	if jsonAsked {
+		output.Notice("--json is ignored by --units: the floor's units are printed as text, one per line, because each line is a unit's whole text and an envelope would quote it")
+	}
 	data, err := os.ReadFile(specPath)
 	if err != nil {
 		if os.IsNotExist(err) {
