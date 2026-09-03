@@ -141,3 +141,33 @@ func TestGroundUnitsReadsTheSpecAndWritesNothing(t *testing.T) {
 	assert.True(t, os.IsNotExist(err), "--units reports; it does not emit a round")
 }
 
+// TestGroundUnitsIsAModeOfItsOwn holds §7.1's table to its shape: each
+// invocation names one mode and no row pairs two. Resolving a pair by the
+// dispatch's order hands the operator an exit 0 for the mode they did not ask
+// for.
+//
+// Neither subtest emits first, and the --record path names a file that does not
+// exist. Both are what make the assertion discriminating: an implementation
+// refusing the pair AFTER opening the record file exits 3, and one running
+// --status on an unemitted spec exits 3 too, so only a refusal taken before
+// either mode runs produces the 2 asserted here.
+func TestGroundUnitsIsAModeOfItsOwn(t *testing.T) {
+	cases := []struct {
+		name string
+		args []string
+	}{
+		{"paired with --record", []string{"--units", "--record", "absent.ndjson"}},
+		{"paired with --status", []string{"--units", "--status"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := writeGroundUnitsFixture(t)
+			require.NoFileExists(t, filepath.Join(dir, "absent.ndjson"))
+
+			stdout, stderr, code := runTP(t, dir, append([]string{"ground", "spec.md"}, tc.args...)...)
+			require.Equal(t, 2, code, "stdout: %s stderr: %s", stdout, stderr)
+			assert.Equal(t, float64(2), groundErrorEnvelope(t, stderr)["code"])
+			assert.Empty(t, stdout, "a refused pairing runs neither mode")
+		})
+	}
+}
