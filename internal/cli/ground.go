@@ -154,6 +154,62 @@ func runGround(specPath string) error {
 // between emit and record cannot re-floor it; re-deriving one from the current
 // text is the emit-time-hash defect this repository already has open elsewhere.
 func runGroundRecord(specPath, recordPath string) error {
+	// §7.1's exit 3, and the one input of its two that this mode does not
+	// reach by opening a file: a state directory tp cannot read is one no
+	// round may be added to. Recording into it writes a ground round beside
+	// review and audit artifacts tp has already lost track of, and the
+	// operator learns nothing until the next command that loads the index
+	// aborts on it.
+	//
+	// A ground-only directory is NOT that case and must not be refused here
+	// (§11 rows 11 and 14): ground's artifacts are their own prefix list, so
+	// LoadReviewState answers (nil, nil) for a directory holding a ground
+	// round and its emission and nothing else. The rebuildable window — a
+	// review or audit snapshot whose round is still in flight — is tolerated
+	// on the same terms as every other reader in this package.
+	if _, err := engine.LoadReviewState(specPath); err != nil && !engine.IsRebuildableStateIndex(err) {
+		exitStateError(err)
+		return nil
+	}
+
+	// §7.1's exit 4. The round number is read from the directory and the round
+	// file is written into it, so both belong inside one write lock: unlocked,
+	// two concurrent records compute the same N and the second overwrites the
+	// first, each exiting 0.
+	//
+	// The lock's target is the SPEC PATH, not the state.json that
+	// WithReviewStateLock keys on. Two reasons, the first measured.
+	// LockFilePath resolves .tp/ from the target's own directory, and for
+	// <dir>/.tp-review/<base>/state.json outside a git repository that resolves
+	// to a .tp/ created INSIDE the state directory — a lock file among the
+	// round's own artifacts, which the ground tests caught as a fourth entry in
+	// a directory §11 row 12 states exhaustively. And the spec path is what
+	// this command is keyed on: ground writes no state.json (§7.3), so what it
+	// must exclude is another ground round on the same spec, never a review
+	// record whose files and round numbers are disjoint from it.
+	//
+	// Contention that outlasts lock_timeout_seconds comes back as a
+	// *LockTimeoutError, which exitStateError maps to exit 4 with the hint
+	// naming the lock and the wait.
+	var result error
+	if lockErr := engine.WithFileLock(specPath, func() error {
+		result = recordGroundRoundLocked(specPath, recordPath)
+		return nil
+	}); lockErr != nil {
+		exitStateError(lockErr)
+		return nil
+	}
+	return result
+}
+
+// recordGroundRoundLocked is --record's body, run under the state-directory
+// write lock: it computes the round from the directory, reads the floor that
+// round's emission froze, validates the payload against §7.2's table and writes
+// the round file.
+//
+// Its failures abort through output.Error and os.Exit as the rest of this
+// package's command bodies do; the flock is released by the process exiting.
+func recordGroundRoundLocked(specPath, recordPath string) error {
 	round, err := engine.NextGroundRound(specPath)
 	if err != nil {
 		output.Error(ExitFile, fmt.Sprintf("cannot read the state directory for %s: %v", specPath, err),
