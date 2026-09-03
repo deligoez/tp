@@ -274,9 +274,11 @@ func validateGroundRowRequired(row *GroundRow) error {
 	return nil
 }
 
-// validateGroundRowConditional enforces §7.2's five conditional cells.
+// validateGroundRowConditional enforces the six cells §7.2's `required` column
+// states as `iff`: `kind`, `tier`, `evidence`, `partial_kind`, `held_at` and
+// `causes`.
 //
-// `kind` and `tier` go through groundRowRequiredOnAClaim and the other three
+// `kind` and `tier` go through groundRowRequiredOnAClaim and the other four
 // through groundRowIff, and the split is the table's own. The `required`
 // column reads "iff verdict ≠ NOT-A-CLAIM" for both, but the `meaning` column
 // overrides it in bold — they are **optional on NOT-A-CLAIM**, carried with
@@ -284,7 +286,7 @@ func validateGroundRowRequired(row *GroundRow) error {
 // first run had five of and had to bury in `note`. So they are required on a
 // claim and forbidden nowhere.
 //
-// The other three are genuine two-sided cells, and one helper enforces both
+// The other four are genuine two-sided cells, and one helper enforces both
 // directions of all of them: the one-directional reading is then not something
 // a caller can produce by leaving a branch out, because there is no branch here
 // to leave out.
