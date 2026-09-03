@@ -56,14 +56,20 @@ func ParseGroundRows(data []byte) ([]GroundRow, error) {
 	return rows, nil
 }
 
-// ErrGroundRoundEmpty is what RecordGroundRound refuses a payload holding no
-// rows with (§7.1).
+// ErrGroundRoundEmpty is what RecordGroundRound refuses a round that would write
+// no row at all with — the payload's rows plus §8's carried rows both zero
+// (§7.1).
 //
 // Zero rows would consume a round number for a round that decided nothing, and
 // §8 would then join that round against no dispositions and report it as
-// coverage that stalled — which is indistinguishable from a round that ran and
-// found nothing, except that the second cannot happen: the prompt asks a
-// question of every unit in the index.
+// coverage that stalled.
+//
+// **It is not a rule about the payload.** §8 narrows what a round asks for to
+// the units it still owes, so a re-emission on an unedited spec asks for none
+// and the unit correctly writes an empty file; refusing that file is a deadlock
+// reachable in three commands, and the round it refuses is the one carrying
+// every disposition forward. The case the sentinel is for is the reader who ran
+// nothing: an empty payload with nothing to carry.
 //
 // It is a sentinel rather than a *GroundLineError because there is no line to
 // name: the failure is a property of the file, not of one of its rows. The
@@ -82,9 +88,9 @@ func groundRoundFileName(round int) string {
 	return fmt.Sprintf("ground-round-%d.ndjson", round)
 }
 
-// RecordGroundRound validates data and, only if it holds at least one row and
-// every one of them passes, writes it into specPath's state directory as
-// `ground-round-<round>.ndjson`.
+// RecordGroundRound validates data and, only if every one of its rows passes and
+// the round would write at least one row — its own or one §8 carries — writes it
+// into specPath's state directory as `ground-round-<round>.ndjson`.
 //
 // **Validation completes before anything is opened, created or truncated**, so
 // a payload holding one invalid row leaves the state directory byte-identical
@@ -110,17 +116,19 @@ func RecordGroundRound(specPath string, round int, data []byte, floor []FloorInd
 	if err != nil {
 		return nil, nil, err
 	}
-	// After the parse and before the write, which is the only point at which
-	// both facts are in hand: that every row validates, and that there are
-	// none. A guard on len(data) instead would record a file of blank lines,
-	// which parses — correctly — to nothing.
-	if len(rows) == 0 {
-		return nil, nil, ErrGroundRoundEmpty
-	}
-
 	carried, err = GroundCarriedRows(specPath, round, floor, rows)
 	if err != nil {
 		return nil, nil, err
+	}
+	// After the parse and the carry, and before the write: the only point at
+	// which all three facts are in hand — that every row validates, how many
+	// there are, and how many §8 adds. The test is the SUM, because §7.1's rule
+	// is on what the round records and not on what the operator handed in: a
+	// round narrowed to owing nothing is asked for an empty payload and must be
+	// able to hand one back. A guard on len(data) instead would record a file
+	// of blank lines, which parses — correctly — to nothing.
+	if len(rows)+len(carried) == 0 {
+		return nil, nil, ErrGroundRoundEmpty
 	}
 	out := data
 	if len(carried) > 0 {
