@@ -772,7 +772,7 @@ func buildGroundPrompt(specPath, snapshotPath, index, outputPath string, round, 
 	return appendClausesGround(
 		groundPromptRow(specPath, snapshotPath, round) +
 			groundPromptEvidence() +
-			groundPromptFloor(index, outputPath, round, floorSize, carried))
+			groundPromptFloor(specPath, index, outputPath, round, floorSize, carried))
 }
 
 // groundPromptRow opens the prompt and states the row: what the unit is being
@@ -880,7 +880,25 @@ claim that does not depend on the answer.
 // groundPromptFloor carries the emitted index whole, says how to read a row,
 // states what this round is actually asked for, and names the file its rows go
 // to.
-func groundPromptFloor(index, outputPath string, round, floorSize, carried int) string {
+//
+// **It names `--units`, and the byte length it states is a length of what that
+// mode prints.** The sentence said the unit's text was "in the snapshot named at
+// the top of this prompt" and that `<bytes>` "is how you tell where it ends",
+// and an audit measured both halves false on this repository's own spec. A unit
+// is CANONICALISED — §2.1 step 3 joins its wrapped lines, collapses whitespace
+// and drops a list or blockquote marker — so it is generally not a byte range of
+// any file: of `spec/1.0.0.md`'s 351 floor units, 327 are not substrings of the
+// snapshot at all, and `u1` says 168B against a raw span of 170B, because the
+// snapshot wraps that sentence across two `> `-prefixed lines. A reader
+// following the old sentence read 168 bytes and truncated `rounds.` to `round`.
+// Re-derive with `tp ground <spec> --units` against the emitted snapshot; the
+// same run gives 0 sha and 0 length mismatches against the index, which is the
+// agreement §11 row 4b already pins as a test.
+//
+// specPath is threaded down for the one reason a prompt needs it: `--units` is
+// useless to a reader who has to work out what to put after it, and the emission
+// already knows.
+func groundPromptFloor(specPath, index, outputPath string, round, floorSize, carried int) string {
 	var b strings.Builder
 
 	b.WriteString("\n## The floor\n\n")
@@ -888,14 +906,30 @@ func groundPromptFloor(index, outputPath string, round, floorSize, carried int) 
 	b.WriteString(`
 Each row is ` + "`<unit_id> <anchor> <text_sha> #<ordinal> <bytes>B`" + `, and a row ending
 in ` + "`(cut)`" + ` is a unit the arms dropped: it owes no disposition. The index carries
-no unit text; the text is in the snapshot named at the top of this prompt. A unit
-is one sentence of it, canonicalised — its wrapped lines joined, whitespace
-collapsed to single spaces, a list or blockquote marker dropped, and a table row's
-cells joined with an em dash; ` + "`<bytes>`" + ` is that text's length in UTF-8 bytes, which
-is how you tell where it ends.
+no unit text. A unit is one sentence of the spec, CANONICALISED — its wrapped lines
+joined, whitespace collapsed to single spaces, a list or blockquote marker dropped,
+and a table row's cells joined with an em dash — so a unit is generally NOT a byte
+range of any file, and cannot be read off the snapshot by counting.
 
-This is a FLOOR, not the set of claims. A claim it missed — including one inside a
-cut unit — is recorded with "unit_id": null and is reported apart from coverage.
+`)
+	fmt.Fprintf(&b, "Run `tp ground %s --units` for the text. It prints one line per floor unit,\n", specPath)
+	b.WriteString(`` + "`<unit_id>\\t<text_sha>\\t<text>`" + `, each carrying its unit WHOLE; ` + "`<bytes>`" + ` is the UTF-8
+length of THAT text and ` + "`<text_sha>`" + ` its hash, so the listing and the index above
+join on ` + "`unit_id`" + ` and agree on both cells. The snapshot named at the top of this
+prompt is the spec as this round found it: read it for a unit's surroundings — its
+section, what precedes it, what the sentence is about — never to measure a unit.
+
+This is a FLOOR, not the set of claims. A claim the floor did not carry still gets a
+row, and the row says WHICH kind of miss it was. The two are reported apart from
+coverage and apart from each other:
+
+  the index never carried the claim      ` + "`\"unit_id\": null`" + `
+  the claim is inside a ` + "`(cut)`" + ` unit     that unit's own ` + "`unit_id`" + `
+
+A cut unit HAS an id, so naming it is what says the arms produced the unit and cut
+it wrongly; ` + "`null`" + ` there reports the opposite — that the arms never produced it —
+and leaves the cut nobody can go and look at. Either way supply ` + "`text_sha`" + ` yourself
+over the claim's own text: the index carries no hash for a cut unit.
 
 `)
 	b.WriteString(groundPromptAsk(round, floorSize, carried))
