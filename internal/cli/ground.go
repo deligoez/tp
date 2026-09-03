@@ -825,9 +825,16 @@ var groundVerdictMeaning = map[engine.GroundVerdict]string{
 // of those rows is owed for.
 //
 // The index travels whole and the spec's text does not. §2.2 measured inlining
-// the floor at 898,131 bytes against the index's 157,654, and the prefix shapes
+// every floor unit's text against sending the index alone, and the prefix shapes
 // that tried to split the difference lost the one thing a prefix cannot carry —
 // where a unit ends — which is why the byte length is on every row instead.
+//
+// **The derivation, not the count.** The index half is the size of the floor
+// files `tp ground <spec>` writes; the inlining half is that plus every unit's
+// text, which `tp ground <spec> --units` prints and nothing shipped re-derives
+// on its own. This comment carried a byte pair for both halves until an audit
+// re-derived the index half two ways and got neither of them, which is why the
+// recipe is here and the numbers are not.
 //
 // The three sections are three functions because the prompt is long enough to
 // trip the funlen ratchet as one, and its seams are its own headings.
