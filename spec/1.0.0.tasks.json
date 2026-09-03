@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-03T02:23:42.089246Z",
+  "updated_at": "2026-09-03T02:37:48.266115Z",
   "workflow": {},
   "coverage": {
     "total_sections": 21,
@@ -593,7 +593,7 @@
     {
       "id": "coverage",
       "title": "coverage is dispositions over the emitted floor",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli"
       ],
@@ -605,11 +605,26 @@
       "source_sections": [
         "## 8. Convergence is coverage, not absence"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-03T02:24:18.764891Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-03T02:36:19.671887Z",
+      "closed_reason": "- engine.GroundCoverage + engine.GroundCoverageOf (internal/engine/groundcoverage.go) are §8's ratio: the denominator is the EMITTED floor — index rows carrying a hash, on §2.2's convention that the absence of the hash is the cut — and the numerator is derived by asking, of each emitted floor unit, whether a recorded row decided it, never by counting rows. That construction settles three further readings with no rule for each: a second row for a unit already decided dispositions it once (TestTwoRowsForOneUnitDispositionItOnce, observed red under a numerator incrementing per row), a row naming an id the index never emitted raises nothing, and the ratio is bounded at 1 whatever the record holds. TestTheDenominatorIsTheEmittedFloorAndNotEveryUnit derives its floor from real text through FloorIndexRows with the cut unit BETWEEN two floor units — a require, not an assumption — and was observed red (Emitted 3, not 2) under a denominator counting every index row.\n- A row with unit_id null moves neither side and lands in ReaderAdded: the nil check is the first arm of the switch, so such a row never reaches the map the numerator is the size of. §11 row 15 is TestAReaderAddedRowMovesNeitherSideAndIsCountedApart, whose fixture is sized so that row 15's own named mutant reads exactly 100% — four emitted units, two dispositioned, two added rows — and that sizing is a require rather than the author's arithmetic. Observed red under the named mutant (Dispositioned 4 = Emitted) and under a mutant folding the null arm into the other separate count; each reddened that test ALONE, and no other test in the file, which is what makes it the assertion those readings turn on.\n- UNVERIFIABLE counts as dispositioned, and so does every other verdict, because nothing in the file reads `verdict` at all — the property is structural rather than a list of six a mutant can shorten. TestEveryVerdictCountsAsADisposition ranges over GroundVerdicts() rather than six literals, with the listing's length and the presence of UNVERIFIABLE required, so a seventh verdict is covered the day it is added; a mutant skipping UNVERIFIABLE rows reddened exactly that subtest.\n- Six mutants observed red, each on the test that names it and on no other: reader-added rows in the numerator (1 test), the cut filter dropped from the denominator (2), the off-floor arm dropped (2), the numerator counting rows (1), UNVERIFIABLE excluded (1 subtest), the null arm folded into OffFloor (1). The tree was verified byte-clean with `git -c diff.external= diff --no-ext-diff` after every restore. Dogfooded end to end on a copy of spec/1.0.0.md outside the repository: `tp ground` emitted 393 index rows summarised `# 295 in floor, 98 cut`, and coverage over a six-row recorded round returned {Emitted:295 Dispositioned:3 ReaderAdded:1 OffFloor:1} — Emitted equal to the floor file's own count, u1 dispositioned once from two rows, the cut unit u7 out of the ratio. Gate green on all four steps; the probe test used for the dogfood is deleted.\nOut of scope: §8 and §2.2 do not agree about a row naming a CUT unit's id. §8 keys its separate count on `unit_id: null`; §2.2 line 222 says \"a cut unit a reader grounds is a reader-added row\", and such a row carries an id, so it satisfies neither sentence and would be counted nowhere. This unit gave it its own field, GroundCoverage.OffFloor, rather than bending either sentence or letting a recorded row be invisible to every counter — the case is real, since §2.2 records that three of the first end-to-end run's five added claims were cut units. A later release should say which count it belongs in; --status (status-report) has to decide whether to print it.",
+      "gate_passed_at": "2026-09-03T02:36:19.671887Z",
+      "commit_sha": "65364f50",
+      "commit_shas": [
+        "65364f50",
+        "4b52e53f",
+        "f8c4cf1b",
+        "4c3086c5",
+        "bdd68632",
+        "6600833b",
+        "5933a76b",
+        "49fd137d"
+      ],
+      "commit_files": [
+        "internal/engine/groundcoverage.go",
+        "internal/engine/groundcoverage_test.go"
+      ]
     },
     {
       "id": "carry-forward",
@@ -643,7 +658,7 @@
         "coverage"
       ],
       "estimate_minutes": 8,
-      "acceptance": "--status carries the ratio, the latest round's per-verdict counts and the NOT-A-CLAIM share, so a round of 84 FAILs and a round of 84 PASSes are distinguishable at identical coverage. §11 row 22 passes.",
+      "acceptance": "--status carries the ratio, the latest round's per-verdict counts and the NOT-A-CLAIM share, so a round of 84 FAILs and a round of 84 PASSes are distinguishable at identical coverage. It also prints the two off-ratio counts separately — reader-added (unit_id null) and off-floor (a row naming a cut unit's id) — because they are evidence about different halves of §2.1 and engine.GroundCoverage already separates them. §11 row 22 passes.",
       "source_sections": [
         "## 8. Convergence is coverage, not absence",
         "### 7.1 Invocations and exit codes"
