@@ -137,3 +137,16 @@ func TestEveryVerdictCountsAsADisposition(t *testing.T) {
 	}
 }
 
+// TestTheDenominatorIsTheEmittedFloorAndNotEveryUnit: a cut unit owes no
+// disposition (§2.2), so it is not in the denominator even though the index
+// announces it.
+func TestTheDenominatorIsTheEmittedFloorAndNotEveryUnit(t *testing.T) {
+	floor := groundFloorWithACutUnit(t)
+	rows := []GroundRow{
+		groundDisposition("u1", VerdictPass),
+		groundDisposition("u3", VerdictNotAClaim),
+	}
+
+	assert.Equal(t, GroundCoverage{Emitted: 2, Dispositioned: 2}, GroundCoverageOf(floor, rows))
+}
+
