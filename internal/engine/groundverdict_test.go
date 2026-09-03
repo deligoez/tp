@@ -31,3 +31,25 @@ func TestAllSixVerdictsRoundTripIncludingNotAClaim(t *testing.T) {
 		"NOT-A-CLAIM is a verdict, not an omission: without it a non-claim has no recordable value")
 }
 
+// TestTheThreeEnumsRejectEverythingOutsideThem pins the closed half of "closed
+// enum". A near-miss is rejected rather than trimmed or case-folded, and the
+// rejected value comes back as the zero string so a caller that ignores the ok
+// cannot end up holding a plausible-looking verdict.
+func TestTheThreeEnumsRejectEverythingOutsideThem(t *testing.T) {
+	for _, s := range []string{"", "pass", "Pass", " PASS", "PASS ", "NOT A CLAIM", "NOTACLAIM", "SKIP"} {
+		v, ok := ParseGroundVerdict(s)
+		assert.False(t, ok, "verdict %q is outside §3's six", s)
+		assert.Empty(t, string(v), "a rejected verdict comes back empty, never partially parsed")
+	}
+	for _, s := range []string{"", "Document", "code structure", "behavior", "claim", "prose"} {
+		k, ok := ParseGroundKind(s)
+		assert.False(t, ok, "kind %q is outside §4.1's seven", s)
+		assert.Empty(t, string(k))
+	}
+	for _, s := range []string{"", "Read", "red green", "redgreen", "break-and-controls", "inspect"} {
+		tier, ok := ParseGroundTier(s)
+		assert.False(t, ok, "tier %q is outside §4.1's six", s)
+		assert.Empty(t, string(tier))
+	}
+}
+
