@@ -298,8 +298,12 @@ func groundRoundOnDisk(t *testing.T, specPath string, round int, rows ...GroundR
 // fails here even though every row survives.
 func TestARecordedRoundHoldsItsCarriedDispositions(t *testing.T) {
 	specPath := groundEmittedDir(t, 2)
+	// u1 carries the hash groundNumberedRow writes, because the payload below
+	// decides u1 and §7.3's value check refuses a row naming a floor unit while
+	// carrying a hash that unit does not have. u2's is the carry's own key and
+	// is unrelated to it.
 	floor := []FloorIndexRow{
-		{ID: "u1", Anchor: "§1", TextSHA: "aaaaaaaaaaaa", Ordinal: 1, Bytes: 30},
+		{ID: "u1", Anchor: "§1", TextSHA: "0123456789ab", Ordinal: 1, Bytes: 30},
 		{ID: "u2", Anchor: "§2", TextSHA: "bbbbbbbbbbbb", Ordinal: 1, Bytes: 30},
 	}
 	groundRoundOnDisk(t, specPath, 1, groundCarriedSource("bbbbbbbbbbbb", 1, VerdictFail))
