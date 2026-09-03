@@ -323,3 +323,18 @@ func TestStatusWithNoEmittedRoundExitsThree(t *testing.T) {
 	})
 }
 
+// TestStatusAndRecordTogetherAreAUsageError pins the one flag combination §7.1
+// does not name. The two are different modes over the same round: one reports
+// it and one writes it. Silently running whichever the dispatch reaches first
+// would leave the operator holding an exit 0 for the mode they did not ask for.
+func TestStatusAndRecordTogetherAreAUsageError(t *testing.T) {
+	dir := writeGroundFixture(t)
+	groundEmit(t, dir)
+	rows := writeGroundRows(t, dir, groundRecordRow(1))
+	before := stateDirNames(t, dir)
+
+	stdout, stderr, code := runTP(t, dir, "ground", "spec.md", "--status", "--record", rows)
+	require.Equal(t, 2, code, "stdout: %s stderr: %s", stdout, stderr)
+	assert.Equal(t, float64(2), groundErrorEnvelope(t, stderr)["code"])
+	assert.Equal(t, before, stateDirNames(t, dir), "a usage refusal records nothing")
+}
