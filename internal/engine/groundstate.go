@@ -1,11 +1,22 @@
 package engine
 
 import (
+	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 )
+
+// groundSnapshotPhase is the namespace ground's snapshot takes in
+// snapshotFilename, which produces "snapshot-ground-round-N.md" for it.
+//
+// It is a local constant and deliberately NOT a sixth entry in phase.go's
+// lifecycle constants: Non-Goal 1 says grounding adds no phase to the oracle,
+// and a value sitting in that block is one DetectPhase branch away from being
+// one. What it names here is a filename namespace, nothing more.
+const groundSnapshotPhase = "ground"
 
 // groundRoundFileRe matches a recorded ground round's filename and captures its
 // number.
@@ -63,4 +74,49 @@ func NextGroundRound(specPath string) (int, error) {
 		}
 	}
 	return highest + 1, nil
+}
+
+// GroundSnapshotPath is where a ground round's snapshot lives:
+// spec/.tp-review/<base>/snapshot-ground-round-N.md.
+//
+// The name comes from snapshotFilename rather than from a format string of its
+// own, so ground's snapshot cannot drift out of the convention review's and
+// audit's follow, and the "snapshot-ground-round-" entry §7.3 puts in
+// groundFilePrefixes cannot stop matching the file it names.
+func GroundSnapshotPath(specPath string, round int) string {
+	return filepath.Join(ReviewStateDir(specPath), snapshotFilename(groundSnapshotPhase, round))
+}
+
+// GroundFloorPath is where a ground round's floor lives:
+// spec/.tp-review/<base>/floor-ground-round-N.txt.
+//
+// This is the file --record validates against (§7.3). It is a path function
+// rather than a literal at each call site because the writer and the reader are
+// in different commands, and the one property that matters — that --record
+// reads what the emission wrote — is the one a second spelling would break.
+func GroundFloorPath(specPath string, round int) string {
+	return filepath.Join(ReviewStateDir(specPath), fmt.Sprintf("floor-ground-round-%d.txt", round))
+}
+
+// WriteGroundEmission writes the two files §7.3 says an emission writes: the
+// spec's text as this round read it, and the index derived from that text. The
+// state directory is created when absent, which is the ordering this release
+// advocates — grounding precedes review, so the first run on a spec has no
+// spec/.tp-review/<base>/ to write into.
+//
+// Both are written here rather than one here and one at record, because a floor
+// derived at record time would grade rows against a text its unit never saw: a
+// spec edited mid-round would be silently re-floored, and "unit_id assigned at
+// emit" would be unverifiable. The snapshot goes first so that a floor on disk
+// always has the text it was derived from beside it.
+//
+// It writes no state.json and takes no state lock. A ground round is discovered
+// by filename (§7.3, Non-Goal 2): SaveReviewState marshals a typed struct, so
+// an index key this release added would be dropped by the next binary that does
+// not know it.
+func WriteGroundEmission(specPath string, round int, snapshot, floor []byte) error {
+	if err := WriteSnapshotAtomic(specPath, groundSnapshotPhase, round, snapshot); err != nil {
+		return err
+	}
+	return writeFileAtomic(GroundFloorPath(specPath, round), floor)
 }
