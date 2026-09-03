@@ -140,7 +140,15 @@ const groundRecordRowHint = "fix the row the message names in the --record NDJSO
 // looking for a line that is not in a file that has none. This refusal is
 // reachable only when nothing carries either (§7.1), so the way out is to
 // disposition something, never to edit a row.
-const groundRecordEmptyHint = "record a file holding at least one row, or ground the units the emitted prompt asks for: the round carried nothing from a preceding round, so an empty payload would record nothing at all"
+//
+// **It names the empty floor too, because "ground the units the emitted prompt
+// asks for" is not a recovery when the prompt asked for none.** An all-cut
+// document reaches this in three commands -- emit, write the empty file the ask
+// implies, record -- and an earlier version of this sentence sent that operator
+// after a set with no members. That state is not an error to repair: §2.1 cut
+// every unit, so there is nothing to ground and --status --check says so
+// permanently.
+const groundRecordEmptyHint = "record a file holding at least one row: the round carried nothing from a preceding round, so an empty payload would record nothing at all. If the prompt asked for no dispositions because every unit was cut (§2.1), there is no round to record and --status --check reports that floor instead"
 
 // groundRecordFileHint is the third of --record's hints to be carved out of the
 // shared constant, and it is carved out for the reason the two above it were.
