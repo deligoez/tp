@@ -13,7 +13,13 @@ prose could not settle, then tests one candidate repair. Its output is evidence
 for the spec; nothing here is a proposed API.
 
 Usage:  python3 scripts/floor-prototype.py [--json] [glob]
-Exit 0 always — this measures, it does not gate.
+        python3 scripts/floor-prototype.py --emit|--units <spec>
+
+A run exits 0 whatever the figures say — this measures, it does not gate, so no
+number it prints can fail a caller. What does exit non-zero is a request it
+cannot carry out: a missing path after `--emit`/`--units`, a spec it cannot
+read, or a glob matching no file each exit **2** with a message on stderr. All
+three used to raise instead, the glob one on the primary usage form above.
 """
 
 import hashlib
@@ -437,20 +443,33 @@ def units_of(path):
     return out
 
 
+def _usage(msg):
+    """Report a usage error on stderr and give main() its exit code."""
+    print(f"floor-prototype: {msg}", file=sys.stderr)
+    return 2
+
+
 def main():
-    if "--emit" in sys.argv:
-        i = sys.argv.index("--emit")
-        for row in emit(sys.argv[i + 1]):
-            print(row)
-        return 0
-    if "--units" in sys.argv:
-        i = sys.argv.index("--units")
-        for row in units_of(sys.argv[i + 1]):
+    for flag, rows_of in (("--emit", emit), ("--units", units_of)):
+        if flag not in sys.argv:
+            continue
+        i = sys.argv.index(flag)
+        if i + 1 >= len(sys.argv):
+            return _usage(f"{flag} needs a spec path")
+        path = sys.argv[i + 1]
+        try:
+            rows = rows_of(path)
+        except OSError as e:
+            return _usage(f"cannot read {path}: {e.strerror}")
+        for row in rows:
             print(row)
         return 0
     args = [a for a in sys.argv[1:] if a != "--json"]
     as_json = "--json" in sys.argv
-    paths = sorted(_glob(args[0] if args else "spec/*.md"))
+    pattern = args[0] if args else "spec/*.md"
+    paths = sorted(_glob(pattern))
+    if not paths:
+        return _usage(f"no file matches {pattern!r}")
     rows = [measure(p) for p in paths]
 
     if as_json:
