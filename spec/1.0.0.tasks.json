@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-03T05:17:59.279534Z",
+  "updated_at": "2026-09-03T05:36:54.660964Z",
   "workflow": {},
   "coverage": {
     "total_sections": 21,
@@ -1042,7 +1042,7 @@
     {
       "id": "cmd-units",
       "title": "tp ground --units prints the floor units with their text",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli"
       ],
@@ -1054,11 +1054,28 @@
       "source_sections": [
         "### 2.2 What the emitted prompt carries"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-03T05:19:51.10038Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-03T05:36:54.607775Z",
+      "closed_reason": "- `tp ground \u003cspec\u003e --units` (internal/cli/ground.go, runGroundUnits) prints one line per floor unit, `\u003cunit_id\u003e\\t\u003ctext_sha\u003e\\t\u003ctext\u003e`, in emission order: it reads the spec named on the command line, takes no lock and writes nothing. Dogfooded on a copy of spec/1.0.0.md outside the repository — 318 lines against the emitted index's 318 floor rows, ids equal to the index's order, every line's sha equal to that index row's sha AND to the sha256 of the text on the line, every line's UTF-8 length equal to that row's Bytes; 289 of the 318 units exceed 60 bytes, so §11 row 4b's named truncation mutant would be visible on 91% of the document.\n- The WHOLE-unit and same-hash claims are pinned against the EMITTED index read back from disk, not against one re-derived in the test (TestGroundUnitsPrintsEveryFloorUnitWholeWithTheIndexsHash). Row 4b's own mutant — truncate to 60 bytes — observed red on the index-hash equality and on the byte-length equality. Its second clause, \"the text_sha on that line is the sha256 of what follows it\", stayed GREEN under that mutant and cannot be made to fail: FloorUnitRow has no settable hash field, so the hash is derived from whatever text is printed. The length read from the index is what catches a truncation; row 4b's second clause is unwriteable-false rather than tested.\n- The flag is on the command-surface baseline (`ground: check record status units` in internal/cli/nongoals_surface_test.go) and in SKILL.md's flag inventory; TestNonGoals_NoCommandOrFlagIsAdded and TestSkillFlagInventoryIsComplete both green. engine.FloorUnitRows and engine.FormatFloorUnits now have their production caller — TestGroundUnitsReadsTheSpecAndWritesNothing asserts stdout equals FormatFloorUnits(FloorUnitRows(fixture)) byte for byte, and a mutant returning an output.JSON envelope under the piped convention was observed red there and on the line-shape require (the envelope also drops text_sha entirely, since FloorUnitRow has no such field).\n- Five more mutants observed red, each on the assertion written for it: floor-alone numbering (ids u1,u2 for u1,u4 — the index's u2 is a CUT row with 0 bytes, so the join breaks); an emission written before the print (red on the state-directory assertion ALONE, stdout being identical, which is why that assertion exists); the mode fence reverted to the shipped two-flag form (both subtests of TestGroundUnitsIsAModeOfItsOwn red at exit 0 — the mode the operator did not ask for); and, wide, an engine FloorUnitRows emitting cut units too (red here on the line count and on two engine guards). No mutant survived.\n- Mutation found a defect in my own test and it is fixed in d89506c3: the `require.Greater(…, 60)` fixture fact was computed from stdout, so the truncation mutant falsified the require's own message (\"the fixture must hold a unit longer than a sixty-byte head\" — the fixture did; the output did not). It now reads the length off the emitted index, and under the same mutant it stays green while the two assertions written for that mutant fail.\n- §7.1's mode table pairs no two flags, so `--units` joins the existing refusal: groundModesPassed counts the three mode-selecting flags and refuses any pairing before any of them opens a file, which is why `--units --record \u003cmissing\u003e` is exit 2 (usage) and not exit 3. Registering the flag without this would have let the dispatch's order resolve the pair — the defect the shipped comment already names.\n- Quality gate green in four separate runs: check-suite-state 0, golangci-lint 0 issues, check-deadcode 0, check-complexity 0.\n\nOut of scope: §7.1 and §11 row 4b never say WHICH text `--units` reads, and the plain reading of `tp ground \u003cspec\u003e --units` — implemented here — is the spec named on the command line. That is the only reading under which row 4b is testable at all (reading a round's frozen snapshot would exit 3 on a spec with no emission), but it means that after an edit between emit and record the listing disagrees with the frozen index the prompt carries — precisely the divergence §7.3 freezes the snapshot to prevent for `--record`. The spec states the no-re-derivation rule for `--record` only. A later release may want `--units` to prefer the latest emitted snapshot when one exists.",
+      "gate_passed_at": "2026-09-03T05:36:54.607775Z",
+      "commit_sha": "4fe1d088",
+      "commit_shas": [
+        "4fe1d088",
+        "d5aa9225",
+        "9ad282c7",
+        "dd520c01",
+        "ce41187f",
+        "43b80f32",
+        "061e0aa6",
+        "d89506c3"
+      ],
+      "commit_files": [
+        "internal/cli/ground.go",
+        "internal/cli/ground_units_test.go",
+        "internal/cli/nongoals_surface_test.go",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "carry-prompt",
