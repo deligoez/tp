@@ -1247,16 +1247,32 @@ func TestSection11Row4TheIndexIsBoundedAndCarriesNoUnitText(t *testing.T) {
 // line number, because a line number is the thing this repository has watched
 // rot three times in one cycle. Every `require` here is what keeps a parse
 // failure from passing as an empty set that trivially matches nothing.
+//
+// The search is anchored to §2.1's heading and stops at the next one, so the
+// row it reads is the row this function claims to read. An earlier version
+// took the first such line in the whole file: a decoy `| **verb** |` row
+// carrying the twelve, placed anywhere above §2.1, left both packages green
+// while a thirteenth verb sat in the real table. The cell pattern tolerates
+// padding for the same reason the sibling's does — a cosmetically realigned
+// table is a true failure with a misleading cause.
 func floorSection21Verbs(t *testing.T) []string {
 	t.Helper()
 	data, err := os.ReadFile(filepath.Join("..", "..", "spec", "1.0.0.md"))
 	require.NoError(t, err, "this list is §2.1's table; the spec must be readable for that to be checkable")
 
 	lines := strings.Split(string(data), "\n")
-	i := slices.IndexFunc(lines, func(l string) bool {
-		return strings.HasPrefix(l, "| **verb** |")
-	})
-	require.GreaterOrEqual(t, i, 0, "§2.1's arms table must carry a row whose first cell is **verb**")
+	i := slices.Index(lines, "### 2.1 The floor")
+	require.GreaterOrEqual(t, i, 0, "§2.1 must be findable by its heading")
+
+	row := regexp.MustCompile(`^\|\s*\*\*verb\*\*\s*\|`)
+	for i++; i < len(lines) && !strings.HasPrefix(lines[i], "### "); i++ {
+		if row.MatchString(lines[i]) {
+			break
+		}
+	}
+	require.Less(t, i, len(lines), "§2.1's arms table must carry a row whose first cell is **verb**")
+	require.True(t, row.MatchString(lines[i]),
+		"the verb row must sit inside §2.1, not in a later section")
 
 	quoted := regexp.MustCompile("`([a-z]+)`")
 	verbs := make([]string, 0, 12)
