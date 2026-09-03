@@ -27,7 +27,7 @@ This is the reset-native contract: `tp resume` is the single source of truth bet
 
 ## Workflow A: Decompose (spec exists, no .tasks.json)
 
-Order (v0.23.0): **interview → `tp lint` → `tp init` → `tp set --workflow` → review loop → decompose → `tp import`**.
+Order (v0.23.0; grounding inserted v1.0.0): **interview → `tp lint` → `tp init` → `tp set --workflow` → ground loop → review loop → decompose → `tp import`**.
 
 Running `tp init` **before** the review loop creates the spec-adjacent task file that supplies the loop's workflow parameters (convergence counts, round budgets, checks). The quality gate is authored once at the project layer with `tp set --workflow --project quality_gate="<cmd>"` (writes `.tp/config.json`), not with `tp init --quality-gate`: a task-file override masks the project gate, so a later change to the project gate never reaches the task files carrying one. The task-level setter stays read-only (`tp set --workflow quality_gate=…` exits 2).
 
@@ -61,6 +61,52 @@ Announce: "I will review until N clean rounds, audit until M clean rounds." If n
 5. `tp set --workflow checks='[{"class":"<slug>","cmd":"<detector>"}]'` — register mechanical checks (see Class & Checks Guidance).
 
 **Multi-spec repos:** put the shared gate/convergence policy in a repo-root `.tp/config.json` once (see [Project configuration](#project-configuration-tpconfigjson)) and leave each `tp init` shell's `workflow` block empty except where a spec genuinely deviates — that keeps one source of truth instead of copying policy into every `<base>.tasks.json`.
+
+### Step 1.5: Ground loop (v1.0.0) — after `tp lint`, before the first review round
+
+`tp lint` checks the document's form and `tp review` argues about its design — but every review role
+is handed the line *"the spec content above is complete and authoritative"*. **Review is told the
+premises hold.** `tp ground` is what makes that true first, which is why it runs here and not after:
+the review rounds that rewrite a spec are exactly the rounds whose new sentences nobody has checked,
+so grounding after review grounds the text the loop has already finished arguing with.
+
+Repeat until `tp ground <spec> --status --check` exits 0:
+
+1. `tp ground <spec>` — emits **one** prompt (the envelope carries `prompt`, a string, where review
+   and audit carry `prompts[]`: grounding asks one question of every unit, so there is no panel and
+   no role), writes `snapshot-ground-round-N.md` and `floor-ground-round-N.txt` beside it, and names
+   `ground-rN.ndjson` as the file the unit writes.
+2. Spawn **one** sub-agent on that prompt. It needs no file list — the prompt names the snapshot it
+   was derived from, and `tp ground <spec> --units` prints every floor unit's full text when the unit
+   needs to know where a unit ends. The prompt's own isolation clause is the ground one: it permits
+   copying what a probe needs to a directory **outside** the repository and writing freely inside
+   that copy, because half the tiers are evidence about an artifact the unit builds.
+3. `tp ground <spec> --record <file>` — the whole payload is validated before anything is opened, so
+   **one bad row writes no round file at all** and the state directory is left as the emission made it.
+4. Repair the spec against the `FAIL` and `PARTIAL` rows, then run the next round. A `QUESTION` does
+   not block: it records with its three-to-five ranked causes and the round carries on.
+5. `tp ground <spec> --status` between rounds; `--status --check` is the same report read back as an
+   exit code.
+
+**From round 2 the ask narrows and the index does not.** A unit whose `(text_sha, ordinal)` matches
+the **immediately preceding** round's carries that round's disposition forward — written into the new
+round's own file with its original `tier` and `evidence`, stamped `carried_from` with the round it was
+**first** decided in — and the emitted index marks it `(carried)` while still listing every unit. Two
+consequences to plan for: an **empty payload is legal** when everything carries (the round records the
+carried rows and exits 0; it is refused only when the round would record nothing at all, payload and
+carry both empty), and an unrepaired `FAIL` carries forward for as long as its sentence stands.
+Carrying is not forgetting: a carried unit is deliberately not re-asked, which is that same rule seen
+from the emitting end.
+
+**`--check` gates on coverage and on nothing else.** A round of nothing but `FAIL`s is fully covered
+and exits 0. That is why `--status` reports the per-verdict breakdown beside
+the ratio: coverage answers *did anyone look*, the breakdown answers *what did they find*. Read the
+`NOT-A-CLAIM` share first, because it bounds what the ratio can mean on a decisions document.
+
+**Grounding is a command an operator runs, not a phase.** `tp resume` reports no `ground` phase and
+`tp run` has no ground unit kind, by design — so nothing schedules a round for you. The signal that a
+spec is ungrounded reaches an agent through `tp review`'s `ungrounded` envelope key, which is
+advisory: review's exit code is identical with and without it.
 
 ### Step 2: Review loop (explicit recipe)
 
