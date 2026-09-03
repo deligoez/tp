@@ -177,10 +177,10 @@ func TestTheAnchorIndexIsOverEveryUnitIncludingTheOnesTheArmsCut(t *testing.T) {
 // the line the block opens on, so the whole block stays in the section it
 // started in.
 //
-// Measured over this repository's 54 specs: six headings are not preceded by a
-// blank line and NONE is followed by prose, so the corpus has zero instances;
-// the fixture is constructed, and `require` on the block count is what makes it
-// the case under test rather than two ordinary blocks.
+// No spec in this repository supplies an instance — the headings that open flush
+// against the line above are each followed by a blank line — so the fixture is
+// constructed, and `require` on the block count is what makes it the case under
+// test rather than two ordinary blocks.
 func TestABlockThatStraddlesADroppedHeadingKeepsTheSectionItOpensIn(t *testing.T) {
 	text := "## 1. One\n1 before the heading.\n## 2. Two\n2 after the heading.\n"
 
