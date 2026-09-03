@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-03T04:03:19.901209Z",
+  "updated_at": "2026-09-03T04:49:35.364541Z",
   "workflow": {},
   "coverage": {
     "total_sections": 21,
@@ -642,7 +642,7 @@
     {
       "id": "carry-forward",
       "title": "the second pass carries on (text_sha, ordinal)",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli"
       ],
@@ -654,11 +654,36 @@
       "source_sections": [
         "## 8. Convergence is coverage, not absence"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-03T04:04:04.523375Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-03T04:47:41.687071Z",
+      "closed_reason": "- groundCarryForward (internal/engine/groundcarry.go) is §8's second pass: it asks, of each EMITTED floor unit of round N, whether round N-1 decided a row with the same (text_sha, ordinal), and returns that disposition rewritten into round N's identity — unit_id and anchor from the carrying round's index, tier and evidence untouched from the source. The join key is a struct, so neither half can be dropped by omission; the fixture rows deliberately carry unit_id u99 and anchor §99, ids no floor here holds, so an implementation copying the source row whole is visible rather than merely unasserted. Mutants observed red, each on the test written for it: the key reduced to text_sha alone (row 18c's own mutant, red on the five-identical-units test alone); an (anchor, ordinal) fallback that carries across a rewritten sentence (row 16's first mutant); the source's identity kept (5 tests); reader-added rows admitted to the join; a cut unit admitted.\n- carried_from names the round the disposition was FIRST decided in, not the round it was copied from — §7.2's reading, which §8's own summary contradicted. A source row that already carries one keeps it; only an original disposition is stamped with N-1. Observed red under the restamping mutant, on TestCarriedFromNamesTheRoundTheDispositionWasFirstDecidedIn alone, whose fixture is a round-2 carried copy of a round-1 decision so the carrying round, the source round and the deciding round are three different numbers. §8's sentence is repaired in place with the reason: a field that were always N-1 would be derivable from the round it sits in and would carry nothing.\n- The lookup is round N-1 alone. groundCarriedRows (internal/engine/groundrecord.go) reads exactly ground-round-(N-1).ndjson, so a unit reverted in round 3 to a wording last decided in round 1 and absent from round 2 is uncovered. Observed red under the all-earlier-rounds mutant on exactly the two three-round fixtures — the engine one and TestTheSecondPassCarriesOnOverThreeRounds, which drives three real emissions of one spec through tp ground and decides the outcome on the SET of unit ids round 3's file holds, so row 16's three clauses (carried / edited at byte 61 / reverted) are one assertion. The byte-61 property is required, not counted by eye.\n- The carried rows are written into round N's own file and not computed at --status: RecordGroundRound appends them after the payload's own bytes, which stay a PREFIX — asserted as such, so §7.1's rule that the recorded file is not a re-serialisation still holds. A mutant re-encoding the whole file reddens that assertion plus the two shipped tests that pin the same rule. Serialisation is groundRowWire in internal/engine/groundrow.go, beside §7.2's table: omitempty sits on exactly the optional and conditional cells (a mutant removing it reddens 7 tests, because \"kind\": \"\" is not an absent kind) and NOT on unit_id (a mutant adding it reddens the reader-added row alone). The carry is computed before anything is written — a write-first mutant reddens both atomicity assertions.\n- A preceding round tp cannot read back is exit 3 with its own hint, not exit 1: a truncated round file fails as a *GroundLineError, and *GroundCarryError wraps it, so errors.As matches BOTH and the branch order is the whole of the distinction. Swapping the two branches reddens TestACorruptPrecedingRoundIsExitThreeAndNotExitOne, which decides on the envelope's own `code` field. --record now PARSES the floor it previously only opened, since the carry needs round N's units; an unparseable floor is exit 3 (a mutant discarding that error reddens its test), and `carried` joins `rows` in the --record envelope (swapping the two reddens 2 tests).\n- Dogfooded on a copy of spec/1.0.0.md outside the repository, three rounds: round 1 recorded 307 dispositions; one sentence was edited and one appended, and round 2 needed 2 rows and carried 306, coverage 308/308, --check exit 0; the edit was then reverted and round 3 needed 1 row and carried 307 — 306 stamped carried_from: 1 through two carries and 1 carried_from: 2 — with the reverted unit re-decided rather than resurrected. A second pass over a real 308-unit spec cost one disposition instead of 308, which is the clause's whole claim.\n- Full gate green, each step run separately: check-suite-state 0, golangci-lint 0 issues, check-deadcode 0, check-complexity 0. Tree verified byte-clean after every one of the sixteen mutations.\n\nOne mutant survived and its fixture was the defect, twice. The (anchor, ordinal) fallback ran GREEN through the engine test named for row 16 because that test's source row was anchored at §99 while the floor sat at §0, so the fallback never fired; the fixture now takes the unedited unit's own anchor and the mutant reddens it. And dropping the cut-unit guard ran GREEN because a cut index row's ordinal is 0 while the fixture's source row carried 1, so the pair never matched whatever the guard did — the fixture now makes both halves agree, and the guard's comment is rewritten to say what the mutant proved: §7.2 makes text_sha twelve hex characters and ordinal at least 1, so the (\"\", 0) key is unreachable from a validated record and the guard fences this function's argument rather than a state the command can be in.\n\nOut of scope: §8 says a second pass \"covers the units whose text changed\" and every emitted prompt still carries the WHOLE index, carried units included, so a unit reading it is told to disposition rows the round already holds. Nothing in §2.2 or §7.1 says the prompt narrows, and no task owns it; the dogfood above shows the cost — round 3's prompt asked for 308 dispositions where 1 was owed. Also: the `round \u003c= 1` guard in groundCarriedRows is behaviourally invisible, because ground-round-0.ndjson does not exist and readGroundRoundRows answers (nil, nil) for an absent file — it is kept as a statement of intent, not as a tested branch.",
+      "gate_passed_at": "2026-09-03T04:47:41.687071Z",
+      "commit_sha": "c008ce0d",
+      "commit_shas": [
+        "c008ce0d",
+        "6c4633f7",
+        "690b0839",
+        "a88e3be8",
+        "e9fa0dfe",
+        "2d9dbac9",
+        "949b524e",
+        "bc4902f4",
+        "d0a22a2b",
+        "41423ff6",
+        "5255d21b",
+        "038d07ef"
+      ],
+      "commit_files": [
+        "internal/cli/ground.go",
+        "internal/cli/ground_carry_test.go",
+        "internal/engine/groundcarry.go",
+        "internal/engine/groundcarry_test.go",
+        "internal/engine/groundrecord.go",
+        "internal/engine/groundrecord_test.go",
+        "internal/engine/groundrow.go",
+        "spec/1.0.0.md"
+      ]
     },
     {
       "id": "status-report",
@@ -1009,6 +1034,28 @@
       "acceptance": "tp ground \u003cspec\u003e --units prints one line per floor unit carrying the whole canonical unit text and the same text_sha the index row for that unit carries, in emission order (§11 row 4b). The flag is added to the command-surface baseline in internal/cli. engine.FloorUnitRows and engine.FormatFloorUnits gain a production caller: before this task they are reachable only from tests, which is the test-only sink CLAUDE.md names.",
       "source_sections": [
         "### 2.2 What the emitted prompt carries"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "carry-prompt",
+      "title": "The emitted prompt asks only for the dispositions a round owes",
+      "status": "open",
+      "tags": [
+        "cli"
+      ],
+      "depends_on": [
+        "carry-forward",
+        "cmd-emit"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "An emission whose preceding round dispositioned units that still carry marks each carrying unit in the index and asks for dispositions only for the rest, while the index still lists every unit (§2.2). §11 row 16b passes: on a spec whose round 1 dispositioned every unit and whose round 2 changes one unit text, the round-2 prompt asks for one disposition. The carry set is computed by the same engine.groundCarryForward join that --record uses, never by a second rule.",
+      "source_sections": [
+        "## 8. Convergence is coverage, not absence"
       ],
       "started_at": null,
       "closed_at": null,
