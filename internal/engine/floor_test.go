@@ -1251,13 +1251,25 @@ func TestSection11Row4TheIndexIsBoundedAndCarriesNoUnitText(t *testing.T) {
 // rot three times in one cycle. Every `require` here is what keeps a parse
 // failure from passing as an empty set that trivially matches nothing.
 //
-// The search is anchored to §2.1's heading and stops at the next one, so the
-// row it reads is the row this function claims to read. An earlier version
-// took the first such line in the whole file: a decoy `| **verb** |` row
-// carrying the twelve, placed anywhere above §2.1, left both packages green
-// while a thirteenth verb sat in the real table. The cell pattern tolerates
-// padding for the same reason the sibling's does — a cosmetically realigned
-// table is a true failure with a misleading cause.
+// **Three inputs falsified two earlier versions of this helper, each found by
+// a different auditor in one round, and each is why a line here reads as it
+// does.** The first version took the first `| **verb** |` line in the whole
+// file, so a decoy row carrying the twelve, placed anywhere above §2.1, left
+// both packages green while a thirteenth verb sat in the real table. Anchoring
+// to the heading moved that territory rather than closing it: a decoy inside
+// §2.1 — plain, in the prose above the arms table, or fenced as a quoted
+// "earlier draft", which §2.1 step 1 itself rules non-content — was still the
+// row that got read. So the window now collects every match and requires
+// exactly ONE, which is a bounded read-back over §2.1 rather than a claim
+// about the first line found, and it closes the fenced and unfenced decoys
+// together without this file needing its own fence parser. The third input
+// was not about locating the row at all: the cell class was `[a-z]`, so a
+// thirteenth verb spelled `re-ran` was silently dropped and the count still
+// matched. It is `[a-z-]` now, and this repository writes `re-derived` and
+// `cross-checked`, so that was constructible rather than exotic.
+//
+// The padding in the row pattern is the fourth: a cosmetically realigned table
+// is a true failure with a misleading cause, and the sibling tolerates it too.
 func floorSection21Verbs(t *testing.T) []string {
 	t.Helper()
 	data, err := os.ReadFile(filepath.Join("..", "..", "spec", "1.0.0.md"))
@@ -1267,19 +1279,19 @@ func floorSection21Verbs(t *testing.T) []string {
 	i := slices.Index(lines, "### 2.1 The floor")
 	require.GreaterOrEqual(t, i, 0, "§2.1 must be findable by its heading")
 
-	row := regexp.MustCompile(`^\|\s*\*\*verb\*\*\s*\|`)
+	rowRe := regexp.MustCompile(`^\|\s*\*\*verb\*\*\s*\|`)
+	rows := make([]string, 0, 1)
 	for i++; i < len(lines) && !strings.HasPrefix(lines[i], "### "); i++ {
-		if row.MatchString(lines[i]) {
-			break
+		if rowRe.MatchString(lines[i]) {
+			rows = append(rows, lines[i])
 		}
 	}
-	require.Less(t, i, len(lines), "§2.1's arms table must carry a row whose first cell is **verb**")
-	require.True(t, row.MatchString(lines[i]),
-		"the verb row must sit inside §2.1, not in a later section")
+	require.Len(t, rows, 1,
+		"§2.1 must carry exactly one row whose first cell is **verb** — a second one, fenced or not, is what this helper cannot choose between")
 
-	quoted := regexp.MustCompile("`([a-z]+)`")
+	quoted := regexp.MustCompile("`([a-z-]+)`")
 	verbs := make([]string, 0, 12)
-	for _, m := range quoted.FindAllStringSubmatch(lines[i], -1) {
+	for _, m := range quoted.FindAllStringSubmatch(rows[0], -1) {
 		verbs = append(verbs, m[1])
 	}
 	return verbs
