@@ -112,6 +112,7 @@ func newGroundCmd() *cobra.Command {
 		recordPath string
 		statusMode bool
 		checkMode  bool
+		unitsMode  bool
 	)
 
 	cmd := &cobra.Command{
@@ -159,6 +160,9 @@ change the floor the round is graded against.`,
 				os.Exit(ExitUsage)
 				return nil
 			}
+			if unitsMode {
+				return runGroundUnits(args[0])
+			}
 			if statusMode {
 				return runGroundStatus(args[0], checkMode)
 			}
@@ -171,6 +175,7 @@ change the floor the round is graded against.`,
 	cmd.Flags().StringVar(&recordPath, "record", "", "Record a ground round from an NDJSON dispositions file")
 	cmd.Flags().BoolVar(&statusMode, "status", false, "Report the latest emitted round's coverage and per-verdict breakdown")
 	cmd.Flags().BoolVar(&checkMode, "check", false, "With --status: exit 0 only when every emitted floor unit carries a disposition")
+	cmd.Flags().BoolVar(&unitsMode, "units", false, "Print the floor's units with their full text, one per line")
 	return cmd
 }
 
@@ -225,6 +230,40 @@ func runGround(specPath string) error {
 		OutputPath: outputPath,
 		Prompt:     buildGroundPrompt(specPath, snapshotPath, index, outputPath, round),
 	})
+}
+
+// runGroundUnits implements `tp ground <spec> --units` (§7.1): print the
+// floor's units, one line per unit, each carrying the whole canonical text and
+// the same `text_sha` the index row for that unit carries (§11 row 4b).
+//
+// It reads the spec named on the command line, takes no lock and writes
+// nothing: no round is emitted, and a spec with no state directory answers
+// exactly as one with ten rounds behind it. §2.2 gives the reason the mode
+// exists — the index carries no unit text, and a prefix locates a unit while
+// hiding where it ends, so a reader who needs the text asks for all of it once.
+//
+// The listing goes to stdout as TEXT and not as JSON, deliberately. §11 row 4b
+// asserts a property of LINES — one per floor unit, with the hash and the text
+// the hash is over on the same line — and jsonMode is on for every piped
+// invocation, so an envelope would leave the shipped shape reachable from a
+// terminal alone. Nothing is lost by it: the row is three tab-separated fields
+// and the unit itself cannot hold a tab, since §2.1 step 3 collapses every
+// whitespace run in a prose block and joins a table row's cells with an em dash.
+func runGroundUnits(specPath string) error {
+	data, err := os.ReadFile(specPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			output.Error(ExitFile, fmt.Sprintf("spec not found: %s", specPath), specFileMissingHint)
+			os.Exit(ExitFile)
+			return nil
+		}
+		output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath), err.Error())
+		os.Exit(ExitFile)
+		return nil
+	}
+
+	fmt.Print(engine.FormatFloorUnits(engine.FloorUnitRows(string(data))))
+	return nil
 }
 
 // runGroundStatus implements `tp ground <spec> --status` (§7.1): report the
