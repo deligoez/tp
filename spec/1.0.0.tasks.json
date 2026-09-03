@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-03T05:00:37.09758Z",
+  "updated_at": "2026-09-03T05:17:59.279534Z",
   "workflow": {},
   "coverage": {
     "total_sections": 21,
@@ -436,7 +436,7 @@
     {
       "id": "state-untouched",
       "title": "a ground round leaves state.json byte-identical",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -448,11 +448,18 @@
       "source_sections": [
         "### 7.3 Where it lives, and what it must not disturb"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-03T05:02:27.174669Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-03T05:17:59.268194Z",
+      "closed_reason": "- §11 row 21b is now a test: TestAGroundRoundLeavesAnExistingStateJSONByteIdentical (internal/cli/ground_state_untouched_test.go) seeds a spec with a REAL state.json written by `tp review --record`, adds one top-level key ReviewState's typed struct does not know, and asserts that file byte-identical after `tp ground` and again after `tp ground --record`. The seeded key is what widens the assertion past a plain byte compare: a ground round that merely LOADED the state and saved it back unchanged already writes different bytes, because SaveReviewState marshals a typed struct. Both halves of the round carry their own control — the floor and the round file that half writes — so a ground command that failed or did nothing cannot read as leaving state.json alone, and the last step is the control that the seed is droppable at all: a second `tp review --record` over the same file changes its bytes and the seeded key is gone, which is §7.3's own measured claim now enforced rather than stated.\n- §11 row 12 needed no new test and was verified live rather than assumed: TestGroundEmitCreatesTheStateDirectoryAndWritesTheSnapshotAndTheFloor and TestGroundRecordWritesTheRoundFileBesideTheEmission already assert the state directory as a SET, which is the form that can see a state.json appear. Both were shown to be non-vacuous by injecting the mutant they exist for — an unconditional SaveReviewState at emit reddened three of them plus mine, and the same at record reddened the row-12 record test plus mine. All three tests pass under -race.\n- Mutants observed red, each named by where it landed: (1) --record loads the state and saves it back UNCHANGED — red on the record assertion, and on that test ALONE across the whole internal/cli package, so the assertion is redundant with no existing guard; (2) --record appends the ground round to state.json's existing review_rounds — red on the record assertion; (3) row 21b's own mutant in its faithful form, a typed `ground_rounds` field added to ReviewState and written by --record — red at the fixture guard (ground_state_untouched_test.go:49), which is the guard that exists to notice the seeded key becoming known; (4) emit loads and re-saves the state — red on the emit assertion first, and again on that test alone across the package; (5) emit and (6) record writing a state.json unconditionally — red on the row-12 tests as well as mine, which is how row 12 was verified live. No mutant survived. The tree was checked byte-clean with `git -c diff.external= diff --no-ext-diff` after each restore.\n- Dogfooded outside the repository on a copy of spec/1.0.0.md through a freshly built /tmp/tp-dev/tp: a real review round seeded state.json, then `tp ground` emitted round 1 (318 floor units, 423 index lines) and `--record` wrote ground-round-1.ndjson beside it; state.json's sha256 was 58d411b8… before, after emit and after record — identical all three times — and a later `tp review --record` still holds only spec/review_rounds/audit_rounds.\n- Gate green, four steps run separately: check-suite-state.sh 0, golangci-lint 0 issues, check-deadcode.sh 0, check-complexity.sh 0.\nOut of scope: the tp plugin's pre-tool-use-write-deny.sh scope fence refuses a hand edit of ANY path ending in .tp-review/\u003cbase\u003e/state.json, including a throwaway copy outside the repository under the agent scratchpad. That blocked the dogfood from reproducing the unit test's exact fixture (the injected future key), so the dogfood compared hashes instead. The fence is fail-closed and correct in the repo; its reach beyond the repo is the finding.",
+      "gate_passed_at": "2026-09-03T05:17:59.268194Z",
+      "commit_sha": "8893b339",
+      "commit_shas": [
+        "8893b339"
+      ],
+      "commit_files": [
+        "internal/cli/ground_state_untouched_test.go"
+      ]
     },
     {
       "id": "ground-clause",
