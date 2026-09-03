@@ -241,6 +241,45 @@ func TestARecordedRoundIsTheOneTheNumberingCounts(t *testing.T) {
 		"the file --record writes is the file NextGroundRound counts")
 }
 
+// TestARecordHoldingNoRowsIsRefusedAndConsumesNoRoundNumber is §7.1's empty
+// record: zero rows would consume a round number for a round that decided
+// nothing, and §8 would then join that round against no dispositions and report
+// it as coverage that stalled.
+//
+// The two payloads are the only two shapes "no rows" comes in, and they fail a
+// naive implementation differently: an empty file is caught by a length check on
+// the bytes, while a file of blank lines has bytes and parses — correctly, since
+// §7.1 skips blank lines — to nothing. A refusal keyed on the payload rather than
+// on the parsed rows records the second.
+//
+// The digest is what makes "consumes no round number" a measurement: the round
+// file's absence is asserted by the directory being byte-identical to the one
+// the emission left, and NextGroundRound still answering the same number.
+func TestARecordHoldingNoRowsIsRefusedAndConsumesNoRoundNumber(t *testing.T) {
+	payloads := map[string][]byte{
+		"an empty file":    {},
+		"blank lines only": []byte("\n\n   \n"),
+	}
+	for name, payload := range payloads {
+		t.Run(name, func(t *testing.T) {
+			specPath := groundEmittedDir(t, 1)
+			dir := ReviewStateDir(specPath)
+			before := groundDirDigest(t, dir)
+
+			rows, err := RecordGroundRound(specPath, 1, payload)
+			require.Error(t, err)
+			assert.ErrorIs(t, err, ErrGroundRoundEmpty,
+				"the refusal is readable back as the empty-record rule, not as a parse failure")
+			assert.Empty(t, rows)
+
+			assert.Equal(t, before, groundDirDigest(t, dir),
+				"a refused round leaves the emission's directory byte-identical")
+			assert.Equal(t, 1, mustNextGroundRound(t, specPath),
+				"round 1 is still the round to record")
+		})
+	}
+}
+
 func mustNextGroundRound(t *testing.T, specPath string) int {
 	t.Helper()
 	n, err := NextGroundRound(specPath)
