@@ -36,3 +36,40 @@ func TestTheEmittedGroundPromptEndsWithItsOwnSuffix(t *testing.T) {
 	assert.Contains(t, prompt, incrementalClause, "§3.2's clause is carried unchanged")
 }
 
+// TestThePromptsKindTierTableIsDerivedFromTheRuleThatRejectsRows checks the
+// one thing in the prompt that is normative: the tiers it tells a unit are
+// acceptable for a kind are the tiers TierAcceptableFor accepts. A prompt
+// stating the rule in its own words can drift from the recorder, and the unit
+// pays for the drift — every row it writes under the prompt's reading is
+// rejected at --record, with the whole round refused (§7.2).
+//
+// The check runs over every (kind, tier) pair rather than over a stated table,
+// so a kind added to §4.1 cannot be silently absent from the prompt.
+func TestThePromptsKindTierTableIsDerivedFromTheRuleThatRejectsRows(t *testing.T) {
+	prompt := groundTestPrompt()
+
+	for _, kind := range engine.GroundKinds() {
+		line := ""
+		for _, l := range strings.Split(prompt, "\n") {
+			if strings.HasPrefix(strings.TrimSpace(l), string(kind)+" ") {
+				line = l
+				break
+			}
+		}
+		require.NotEmpty(t, line, "the prompt must carry a row for kind %q", kind)
+
+		// The tier list is the line's last column: the columns are padded, and
+		// the list itself joins with ", " and so holds no double space.
+		gap := strings.LastIndex(line, "  ")
+		require.GreaterOrEqual(t, gap, 0, "row %q must be columnar", line)
+		listed := make(map[string]bool)
+		for _, tier := range strings.Split(strings.TrimSpace(line[gap:]), ", ") {
+			listed[tier] = true
+		}
+
+		for _, tier := range engine.GroundTiers() {
+			assert.Equal(t, engine.TierAcceptableFor(kind, tier), listed[string(tier)],
+				"the prompt and TierAcceptableFor must agree on {%s, %s}", kind, tier)
+		}
+	}
+}
