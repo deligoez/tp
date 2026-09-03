@@ -228,7 +228,17 @@ func TestAUnitChangedAtCharacter61DoesNotCarry(t *testing.T) {
 	require.Equal(t, beforeFloor[0].Ordinal, afterFloor[0].Ordinal, "and its ordinal")
 	require.NotEqual(t, beforeFloor[0].TextSHA, afterFloor[0].TextSHA, "only the hash moves")
 
-	prev := []GroundRow{groundCarriedSource(beforeFloor[0].TextSHA, 1, VerdictPass)}
+	// The source row takes the unedited unit's OWN anchor, not the fixture
+	// anchor the other tests here use. That is the realistic state — the edit
+	// moved the text and nothing else — and it is what makes the row 16 mutant
+	// visible: a join falling back to (anchor, ordinal) matches only when the
+	// two agree, so a source row anchored somewhere the floor is not would let
+	// that mutant pass this test. Measured: it did.
+	source := groundCarriedSource(beforeFloor[0].TextSHA, 1, VerdictPass)
+	source.Anchor = beforeFloor[0].Anchor
+	require.Equal(t, afterFloor[0].Anchor, source.Anchor,
+		"the source row must sit at the anchor the edited unit still has")
+	prev := []GroundRow{source}
 
 	assert.Empty(t, groundCarryForward(afterFloor, prev, 1, nil),
 		"a unit whose text changed is uncovered until this round decides it")
