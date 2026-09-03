@@ -12,7 +12,13 @@ import (
 )
 
 // groundFloorSectionOf returns the prompt's floor section for a floor holding a
-// cut unit, which is the state both tests below are about.
+// cut unit.
+//
+// The cut unit is what one caller is about; the others use this helper for a
+// floor section on any index and do not turn on it. The doc said "both tests
+// below" when there were two callers and only one of them was about the cut
+// unit, and a third arrived with a later repair — so the sentence was counting
+// callers rather than saying what the helper hands back.
 func groundFloorSectionOf(t *testing.T, specPath string) string {
 	t.Helper()
 	index := "# commit unknown\nu1 §1 0123456789ab #1 12B\nu2 §1 (cut)\n# 1 in floor, 1 cut\n"
