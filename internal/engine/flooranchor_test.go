@@ -127,7 +127,7 @@ func TestAHeadingInsideAFencedBlockIsNotAnAnchor(t *testing.T) {
 // which §7.3 does not state and which two plausible bounds get wrong in
 // opposite directions. Both are in this repository:
 //
-//   - Five specs title themselves with a version — `spec/0.19.0-agent-friction.md`
+//   - A spec's title is routinely a version — `spec/0.19.0-agent-friction.md`
 //     opens `# 0.19.0 — Agent Friction Reduction` — so a rule that reads level 1
 //     anchors that document's whole preamble to `§0.19.0` instead of `§0`.
 //   - `spec/0.36.0.md` carries `#### 4.2.1 A recognised name the round does not
