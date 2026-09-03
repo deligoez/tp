@@ -169,7 +169,7 @@ const groundCarrySourceHint = "the preceding ground round's file is tp's own art
 //
 // It is a function and not two literals because it was two literals -- the same
 // message and the same hint, written out at both sites, in a file that hoists
-// four other hints into named constants. An audit counted them; the one hint
+// seven other hints into named constants. An audit counted them; the one hint
 // that was actually repeated was the one left inline.
 func groundStateDirError(specPath string, err error) {
 	output.Error(ExitFile, fmt.Sprintf("cannot read the state directory for %s: %v", specPath, err),
