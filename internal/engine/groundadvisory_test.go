@@ -158,6 +158,12 @@ func TestAFloorNoLongerReadableSaysNothingRatherThanSomethingWrong(t *testing.T)
 	emitGroundFloor(t, specPath, 1, groundFloorWithACutUnit(t))
 	require.NotNil(t, LatestGroundAdvisory(specPath), "the fixture must have something to say first")
 
-	require.NoError(t, os.WriteFile(GroundFloorPath(specPath, 1), []byte("# commit c0ffee\nu1 §1 half\n"), 0o600))
+	// One good row and one half-written one. A parser that SKIPPED the bad
+	// line instead of refusing the file would read this as a one-unit floor
+	// and report a count over it, so the fixture separates "refused" from
+	// "read short" — a corrupt index whose rows all happen to be unreadable
+	// cannot.
+	require.NoError(t, os.WriteFile(GroundFloorPath(specPath, 1),
+		[]byte("# commit c0ffee\nu1 §1 aabbccddeeff #1 24B\nu2 §1 half\n"), 0o600))
 	assert.Nil(t, LatestGroundAdvisory(specPath), "an index that does not parse is not a count")
 }
