@@ -54,7 +54,7 @@ config: dry-run extract force resolved
 done: auto-commit batch commit covered-by files gate-passed reason-file skip-gate stdin
 escalate: decision evidence option
 graph: from tag
-ground: record
+ground: record status
 import: force spec
 init: commit-strategy domain eject-roles force quality-gate
 keep: list remove
