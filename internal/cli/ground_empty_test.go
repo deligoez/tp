@@ -101,8 +101,19 @@ func TestAnEmptyPayloadIsAcceptedWhenTheRoundOwesNothing(t *testing.T) {
 
 		stdout, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", writeGroundRows(t, dir))
 		require.Equal(t, 1, code, "stdout: %s stderr: %s", stdout, stderr)
-		assert.Equal(t, float64(1), groundErrorEnvelope(t, stderr)["code"])
+		envelope := groundErrorEnvelope(t, stderr)
+		assert.Equal(t, float64(1), envelope["code"])
 		assert.Equal(t, before, stateDirNames(t, dir),
 			"a round that would write no row at all writes no file either")
+
+		// The hint must be about THIS refusal. Both exit-1 refusals shared one
+		// hint, so an empty record was told to "fix the row the message names"
+		// when the message names no row — the reader is sent looking for a line
+		// that is not there, in a file that has none.
+		hint, _ := envelope["hint"].(string)
+		assert.NotContains(t, hint, "the row the message names",
+			"an empty record names no row, so a hint pointing at one sends the reader nowhere")
+		assert.Contains(t, hint, "at least one row",
+			"the hint must still say what would make the record recordable")
 	})
 }
