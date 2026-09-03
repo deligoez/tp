@@ -192,3 +192,18 @@ func TestTheFloorOnDiskIsFrozenUntilTheNextEmission(t *testing.T) {
 	assert.Equal(t, edited, string(snapshot), "and rewrites the snapshot beside it")
 }
 
+// TestTheEmittedPromptCarriesTheFloorIndexItWrote pins §7.1's "one prompt
+// carrying the floor's index": the index in the prompt is the index on disk,
+// byte for byte, so a unit grading from the prompt and a --record validating
+// against the file cannot be reading two different floors.
+func TestTheEmittedPromptCarriesTheFloorIndexItWrote(t *testing.T) {
+	dir := writeGroundFixture(t)
+	out := groundEmit(t, dir)
+
+	floor, err := os.ReadFile(filepath.Join(dir, ".tp-review", "spec", "floor-ground-round-1.txt"))
+	require.NoError(t, err)
+	prompt := out["prompt"].(string)
+	assert.Contains(t, prompt, string(floor), "the prompt carries the emitted index whole, not a summary of it")
+	assert.False(t, strings.Contains(prompt, groundFixtureSpec),
+		"the prompt carries the index, not the spec's text: §2.2 measured inlining at 5.7x the index's cost")
+}
