@@ -347,8 +347,13 @@ func runGround(specPath string) error {
 		return nil
 	}
 
-	// The index is derived from the bytes written as the snapshot — one read,
-	// so the floor and the text it claims to be over cannot disagree.
+	// The index is derived from the bytes handed to WriteGroundEmission as the
+	// snapshot, so THIS process's floor is over the same read of the spec as
+	// THIS process's snapshot. That is a property of this function, not of the
+	// directory it writes into: the two files land as two unpaired writes under
+	// no lock, so what a later reader finds on disk may still be a snapshot and
+	// a floor derived from different texts. WriteGroundEmission's doc carries
+	// the limit, why the lock is not added, and how to re-measure it.
 	commit := groundCommit(specPath)
 	rows := engine.FloorIndexRows(text, engine.FloorAnchorOf(text))
 	index := engine.FormatFloorIndex(commit, rows)
