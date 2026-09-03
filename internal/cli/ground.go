@@ -92,6 +92,7 @@ func newGroundCmd() *cobra.Command {
 	var (
 		recordPath string
 		statusMode bool
+		checkMode  bool
 	)
 
 	cmd := &cobra.Command{
@@ -126,8 +127,21 @@ change the floor the round is graded against.`,
 				os.Exit(ExitUsage)
 				return nil
 			}
+			// §7.1's second exit-2 input. --check is one bit added to
+			// --status's answer and has no reading of its own: on --record it
+			// would gate a mode that reports no coverage, and on the emission
+			// it would gate a round nobody has dispositioned yet. Refusing it
+			// here is also what keeps the code a RULE — an unregistered flag
+			// exits 2 through cobra, which is the same number for a different
+			// reason and tells the operator nothing about --status.
+			if checkMode && !statusMode {
+				output.Error(ExitUsage, "--check requires --status",
+					"run tp ground <spec> --status --check: --check is the exit code of the coverage --status reports")
+				os.Exit(ExitUsage)
+				return nil
+			}
 			if statusMode {
-				return runGroundStatus(args[0])
+				return runGroundStatus(args[0], checkMode)
 			}
 			if recordPath != "" {
 				return runGroundRecord(args[0], recordPath)
@@ -137,6 +151,7 @@ change the floor the round is graded against.`,
 	}
 	cmd.Flags().StringVar(&recordPath, "record", "", "Record a ground round from an NDJSON dispositions file")
 	cmd.Flags().BoolVar(&statusMode, "status", false, "Report the latest emitted round's coverage and per-verdict breakdown")
+	cmd.Flags().BoolVar(&checkMode, "check", false, "With --status: exit 0 only when every emitted floor unit carries a disposition")
 	return cmd
 }
 
@@ -203,7 +218,15 @@ func runGround(specPath string) error {
 // A spec with no emitted round is refused with exit 3 rather than reported as
 // 0-of-0. There is no round for a status to be about, and the shape a vacuous
 // answer would take is the one a later `--check` reads as converged.
-func runGroundStatus(specPath string) error {
+//
+// check is §7.1's fifth invocation: exit 1 when a unit of the emitted floor
+// carries no disposition, 0 otherwise. It gates on §8's coverage and on nothing
+// else — a round of nothing but FAILs is fully covered and exits 0, because
+// coverage answers *did anyone look* and the verdicts beside it answer *what
+// did they find*. The branch is taken AFTER the payload is written, so the
+// invocation a gated driver actually runs prints exactly what `--status` prints
+// (Non-Goal 3: the code is a read-back, never a refusal).
+func runGroundStatus(specPath string, check bool) error {
 	status, err := engine.LatestGroundStatus(specPath)
 	if err != nil {
 		if errors.Is(err, engine.ErrNoGroundEmission) {
@@ -223,7 +246,7 @@ func runGroundStatus(specPath string) error {
 		byVerdict[string(verdict)] = n
 	}
 
-	return output.JSON(groundStatusResult{
+	if err := output.JSON(groundStatusResult{
 		Spec:          specPath,
 		Round:         status.Round,
 		Emitted:       status.Coverage.Emitted,
@@ -231,7 +254,22 @@ func runGroundStatus(specPath string) error {
 		ReaderAdded:   status.Coverage.ReaderAdded,
 		OffFloor:      status.Coverage.OffFloor,
 		ByVerdict:     byVerdict,
-	})
+	}); err != nil {
+		// Exiting rather than returning: a truncated payload followed by a 0 —
+		// or by a 1 under --check — is a status a caller cannot tell from a
+		// complete one.
+		output.Error(ExitFile, err.Error(), internalEncodeHint)
+		os.Exit(ExitFile)
+		return nil
+	}
+
+	// §8's ratio, read back as one bit. Dispositioned is derived by asking of
+	// each EMITTED floor unit whether a row decided it, so it cannot exceed
+	// Emitted and the comparison needs no upper guard.
+	if check && status.Coverage.Dispositioned < status.Coverage.Emitted {
+		os.Exit(ExitValidation)
+	}
+	return nil
 }
 
 // runGroundRecord implements `tp ground <spec> --record <file>`: validate every
