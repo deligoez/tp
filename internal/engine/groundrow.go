@@ -374,9 +374,14 @@ func groundEnumCell[T ~string](raw map[string]json.RawMessage, field string, par
 }
 
 // groundCauses decodes the `causes` array, returning nil when the key is
-// absent. An explicit `null` is rejected rather than read as absent: it is a
-// value the writer put there, and on a QUESTION row it would otherwise pass for
-// the missing key that §7.2 forbids.
+// absent.
+//
+// An explicit `null` is rejected rather than read as absent — the same rule the
+// enum and text cells follow, and the one §7.2 states only for `unit_id`, where
+// null is declared legal. Measured, as with the blank strings: on a QUESTION
+// row the two readings are indistinguishable, because the key is required there
+// either way. They part on a row that is not a QUESTION, which is exactly the
+// row a Go emitter produces by accident, since a nil slice marshals to `null`.
 func groundCauses(raw map[string]json.RawMessage) ([]GroundCause, error) {
 	msg, ok := raw["causes"]
 	if !ok {
