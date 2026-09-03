@@ -49,3 +49,12 @@ func TestParseFloorIndexKeepsACutRowCut(t *testing.T) {
 		"a cut unit owes no disposition, so it is not in §8's denominator")
 }
 
+// TestParseFloorIndexSkipsTheLinesThatAreNotRows: FormatFloorIndex brackets the
+// rows with a commit line and a summary line, and both begin with `#`. A parser
+// that took every line for a row would reject the very file the emission writes.
+func TestParseFloorIndexSkipsTheLinesThatAreNotRows(t *testing.T) {
+	parsed, err := ParseFloorIndex("# commit unknown\n\nu1 §1 aabbccddeeff #1 24B\n\n# 1 in floor, 0 cut\n")
+	require.NoError(t, err)
+	assert.Equal(t, []FloorIndexRow{{ID: "u1", Anchor: "§1", TextSHA: "aabbccddeeff", Ordinal: 1, Bytes: 24}}, parsed)
+}
+
