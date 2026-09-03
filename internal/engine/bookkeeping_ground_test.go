@@ -90,3 +90,23 @@ func TestGroundArtifactsReportTheirRoundNumberLikeTheirSiblings(t *testing.T) {
 	}
 }
 
+// TestNextGroundRoundIsNotNumberedByTheBookkeepingRegex is the acceptance's
+// second half: widening roundNumberRe widens the bookkeeping reference and
+// nothing else. Numbering keeps its own matcher, which is anchored on
+// ground-round-<N>, while roundNumberRe is unanchored and matches review and
+// audit rounds by construction — so numbering routed through it would read the
+// review round 9 below and hand the next ground round the number 10.
+//
+// This guard is green before the widening as well as after; the mutant it exists
+// for is numbering that shares the bookkeeping regex.
+func TestNextGroundRoundIsNotNumberedByTheBookkeepingRegex(t *testing.T) {
+	names := []string{"review-round-9.ndjson", "audit-round-7.ndjson", "snapshot-round-9.md"}
+	for _, name := range names {
+		require.Regexp(t, roundNumberRe, name,
+			"the fixture only discriminates while the bookkeeping regex matches %s", name)
+	}
+
+	n, err := NextGroundRound(groundRoundFixture(t, names...))
+	require.NoError(t, err)
+	assert.Equal(t, 1, n, "a review or audit round is not a ground round")
+}
