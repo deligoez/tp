@@ -117,6 +117,18 @@ func groundRowRejectionCases() []groundRowCase {
 			set:   map[string]any{"evidence": "read spec/1.0.0.md line 512"},
 			field: "evidence",
 		},
+		{
+			// The blank cases above do not separate "blank is rejected" from
+			// "blank reads as absent": every cell that can be blank is also
+			// required where it appears, so both readings name the same field.
+			// These two are where they part — a blank cell whose condition does
+			// NOT hold is a row a blank-reads-as-absent parser accepts. Both
+			// were found by running that mutant, not by reading for it.
+			name:  "evidence blank with no tier",
+			base:  groundNotAClaimRow(),
+			set:   map[string]any{"evidence": "  "},
+			field: "evidence",
+		},
 
 		{name: "partial_kind on a PASS row", set: map[string]any{"partial_kind": "two-readings"}, field: "partial_kind"},
 		{
@@ -143,6 +155,13 @@ func groundRowRejectionCases() []groundRowCase {
 		{
 			name:  "held_at blank on a true-when-written row",
 			set:   map[string]any{"verdict": "PARTIAL", "partial_kind": "true-when-written", "held_at": ""},
+			field: "held_at",
+		},
+		{
+			// The second half of the pair above: blank-reads-as-absent accepts
+			// this row outright.
+			name:  "held_at blank on a two-readings row",
+			set:   map[string]any{"verdict": "PARTIAL", "partial_kind": "two-readings", "held_at": ""},
 			field: "held_at",
 		},
 
