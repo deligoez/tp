@@ -895,8 +895,13 @@ A row carrying no `kind` on a claim verdict is rejected naming `kind`, before th
 | 3 | file or corrupt state: a `--record` path that does not exist, no prior emission for the round, an unreadable preceding round, or a state directory holding an unparseable `state.json`. An unreadable preceding round is a **notice at emit** (exit 0) and a refusal at `--record` — the round is decided at the record |
 | 4 | the write lock could not be taken within `lock_timeout_seconds` |
 
-The lock's target is the **spec path**, not the state file: `<spec-dir>/.tp/locks/<spec-file>-<hash>.lock`,
-where every other tp lock lives. `--record` reads the round number from the state directory and
+The lock's target is the **spec path**, not the state file: `.tp/locks/<spec-file>-<hash>.lock`,
+where every other tp lock lives — and that `.tp/` is the **project's**, found by walking up from the
+spec, not a `.tp/` beside it. Running `tp ground spec/1.0.0.md --record` in a checkout of this
+repository put the lock at `.tp/locks/1.0.0.md-<hash>.lock` and created no `spec/.tp` at all. Only
+when the walk finds neither a `.tp/` nor a git root does it fall back to the spec's own directory,
+`<spec-dir>/.tp/locks/…` — the shape a bare fixture sees, and the one to expect in a temp dir.
+`--record` reads the round number from the state directory and
 writes the round file into it, so both are inside one lock and two concurrent records cannot compute
 the same N.
 
