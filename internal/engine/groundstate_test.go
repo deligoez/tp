@@ -15,10 +15,20 @@ import (
 // writes the round file beside them. The tests below assert on these names
 // rather than on the prefix strings, so a prefix list that stops matching a
 // real artifact fails even when its literals still read correctly.
-var groundArtifactNames = []string{
-	"snapshot-ground-round-1.md",
-	"floor-ground-round-1.txt",
-	"ground-round-1.ndjson",
+//
+// They are asked of the three path functions rather than written out, because
+// the sentence above is only true if the names follow the code that produces
+// them. Measured while they were literals: renaming GroundFloorPath's format to
+// "floorindex-ground-round-%d.txt" left this guard green while six advisory
+// tests went red — the guard was pinning its own copy of the name.
+func groundArtifactNames(t *testing.T) []string {
+	t.Helper()
+	spec := filepath.Join(t.TempDir(), "spec.md")
+	return []string{
+		filepath.Base(GroundSnapshotPath(spec, 1)),
+		filepath.Base(GroundFloorPath(spec, 1)),
+		filepath.Base(GroundRoundPath(spec, 1)),
+	}
 }
 
 // TestGroundArtifactsAreTheirOwnPrefixList guards §7.3: ground artifacts go in
@@ -29,7 +39,7 @@ var groundArtifactNames = []string{
 // say, or "snapshot-ground-" in snapshotPrefixes. Those are the additions the
 // acceptance forbids; an addition matching nothing of ground's is not.
 func TestGroundArtifactsAreTheirOwnPrefixList(t *testing.T) {
-	for _, name := range groundArtifactNames {
+	for _, name := range groundArtifactNames(t) {
 		t.Run(name, func(t *testing.T) {
 			dir := t.TempDir()
 			require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte("x"), 0o600))
@@ -58,7 +68,7 @@ func TestGroundOnlyStateDirIsInvisibleToReviewState(t *testing.T) {
 
 	stateDir := ReviewStateDir(specPath)
 	require.NoError(t, os.MkdirAll(stateDir, 0o755))
-	for _, name := range groundArtifactNames {
+	for _, name := range groundArtifactNames(t) {
 		require.NoError(t, os.WriteFile(filepath.Join(stateDir, name), []byte("x"), 0o600))
 	}
 	require.NoFileExists(t, filepath.Join(stateDir, stateFileName),
