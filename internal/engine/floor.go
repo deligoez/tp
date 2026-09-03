@@ -782,9 +782,14 @@ func floorAnchorsByLine(text string) []string {
 // locating the unit's text in the file, and that is this port's one substantive
 // departure from `scripts/floor-prototype.py`. The prototype searched for a
 // unit's first words; a table row's block began with a sentinel that matched no
-// line in the file, so every table row in a document anchored to `§0` — 91 of
-// 243 units on this repository's own spec — while the test asserting the `§0`
-// case passed. A line number carried on the block cannot fail to be found.
+// line in the file, so every table row in a document anchored to `§0` while the
+// test asserting the `§0` case passed. No figure is stated for the size of that
+// set because it is per-document and this release's own spec is still moving:
+// `python3 scripts/floor-prototype.py --emit <spec> | tail -1` prints it — the
+// document's table-row count, beside the floor and cut counts that sum to its
+// units — and the same command through `grep -c '§0'` prints how many units this
+// port actually leaves at `§0`. A line number carried on the block cannot fail
+// to be found.
 //
 // Block granularity and unit granularity differ only for a block whose lines
 // span a heading, which needs prose flush against the heading on both sides
