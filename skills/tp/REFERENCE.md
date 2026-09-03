@@ -749,7 +749,7 @@ its place in Workflow A are in [SKILL.md](SKILL.md); this section is the record'
 
 | mode | stdout | shape |
 |------|--------|-------|
-| `tp ground <spec>` | JSON | `{spec, round, snapshot, floor, output_path, prompt}` — one `prompt` **string**, not review's `prompts[]` array. Grounding asks one question of every unit, so there is no panel, no role and no `--role` |
+| `tp ground <spec>` | JSON | `{spec, round, snapshot, floor, output_path, floor_size, carried, prompt}` — one `prompt` **string**, not review's `prompts[]` array. Grounding asks one question of every unit, so there is no panel, no role and no `--role`. `floor_size` is the **floor, not the ask**: the ask is the difference, `floor_size - carried`, and the prompt states it in words |
 | `--units` | **plain text** | one line per floor unit, `<unit_id>\t<text_sha>\t<text>`, in emission order. It writes nothing and emits no round, and it derives from the spec as it stands rather than from a snapshot — which is why every line carries its own hash: a spec edited since the emission disagrees with the index visibly |
 | `--record <file>` | JSON | `{spec, round, floor, file, rows, carried}` — `rows` counts the payload's rows, `carried` the dispositions the carry brought forward |
 | `--status` | JSON | `{spec, round, emitted, dispositioned, reader_added, off_floor, by_verdict}` for the latest **emitted** round |
@@ -760,6 +760,20 @@ come back to as wholly undispositioned rather than reporting the previous round'
 the highest existing `ground-round-<N>` plus one and a gap is preserved (rounds 1 and 3 present
 yields 4, never 2), so re-emitting before recording rewrites that round's snapshot and floor instead
 of consuming a new number.
+
+**`carried` is the only machine-readable sign of a carry that FAILED.** A preceding round tp cannot
+read back does not refuse the emission: it emits at exit 0 with an envelope of the same shape, asking
+for every unit, and the line saying so is an `output.Notice` on stderr — which `--quiet` removes.
+`carried: 0` beside a floor that did not move is the fact that survives. `--record`'s envelope
+carries the same pair as two counts rather than one sum: `rows` is what the operator handed in and
+can check against their own file, `carried` is what tp added, and folding them reports a number that
+matches neither artifact.
+
+**Two kinds of line reach stderr, and a driver must expect both.** `output.Notice` writes plain text
+and `--quiet` suppresses it; `output.Error` writes the failure envelope, `{error, code, hint?}` under
+`--json`. `output.Error` is terminal — checked over the whole tree at `93d89673`, every non-test call
+site is within a few lines of an `os.Exit`, with no exceptions — so when an envelope appears it is
+stderr's **last** line. Parse the last line for `code`; read anything above it as notices.
 
 `by_verdict` carries all six verdicts, zeros included, and counts **every row the round recorded** —
 its total is `dispositioned` plus `reader_added` plus `off_floor`, not `dispositioned` alone.
