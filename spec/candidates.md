@@ -7,6 +7,77 @@ Not a release. Two kinds of thing live here, and the distinction is the point:
 - **Undecided** — a real need whose *design* has no answer yet. Each names the decision nobody has
   taken. None carries a version number, because a number that moves leaves stale references and this
   repository has already paid for that three times.
+- **Carried out of an audit** — a finding that was measured, was not repaired, and says why. Not the
+  same as undecided: the design is usually obvious. What is recorded is the reason the repair did
+  not belong to the audit that found it.
+
+---
+
+## Carried out of v1.0.0's audit — measured, not repaired
+
+**The decision, and the evidence for it.** v1.0.0's audit ran eleven rounds with **zero `FAIL` from
+any role in rounds 5–11**. Rounds 8, 9 and 10 each ended in a repair pass, and each pass produced the
+next round's findings — 5 repairs → 2 findings, 5 → 4, 4 → 5. In round 11 **all four roles
+independently recommended stopping**, and each named the mechanism rather than the instance:
+
+| role | its words |
+|---|---|
+| `spec-coverage` | *"The recommendation is to stop repairing."* Both its findings sit on surface the last two rounds touched |
+| `go-safety` | *"Every fix so far has widened the guard's parser one case at a time — anchor, then count, then character class — and each widening has left the next case"* |
+| `maintainability` | the over-claims are one sentence type: *"a claim of exhaustiveness over a set whose members the author enumerated from the inputs auditors had just handed them"* |
+| `ax-contract` | each repair added text on a state its author had just built a fixture for, and missed **the sibling state that fixture excluded**; *"a fourth sentence on this function is the pattern continuing"* |
+
+That is CLAUDE.md's v0.32.0 lesson reproduced exactly, and its rule applies: record the out-of-surface
+findings with justification, name the release that takes them, and ship.
+
+**Four of the ten are sentences that are false as written, and they are left in the tree
+deliberately.** Correcting them was offered as its own option and not taken, because a comment repair
+is still a repair by the author whose comment it is, and this cycle has three rounds of evidence for
+what that produces. They are named here so the next reader meets the measurement rather than the
+sentence:
+
+| where | the sentence | what falsifies it |
+|---|---|---|
+| `internal/engine/floor_test.go`, `floorSection21Verbs` | *"closes the fenced and unfenced decoys together without this file needing its own fence parser"* | true only of decoys **inside** the window; a fenced quotation of `### 2.1 The floor` above §2.1 moves the window itself, and a fenced `### ` line inside it truncates the window early. Both leave `internal/engine` and `internal/cli` green with a thirteenth verb in the real row |
+| `internal/cli/ground.go`, `groundPromptAsk` | *"TestTheAskAgreesWithTheCountsItStates walks the whole set"* | the set is stated as `carried ∈ {0, 1, all}` and omits `2 ≤ carried < floorSize` — the switch's **default** arm, and the ordinary shape of a settling round. Mutating `"already carry"` → `"already carries"` leaves `go test ./...` green; only `rows` is held, because the all-carried branch reuses it |
+| `internal/engine/groundrow_test.go`, the enum test's doc | *"a value added to §7.2's table reaches this assertion without anyone editing it"* | the expectation derives from `GroundPartialKinds()`, and nothing binds that listing to §7.2's table. A fourth `partial_kind` added to the table leaves both packages green |
+| `internal/engine/groundrow_test.go`, `groundSection72Fields` | *"bounded … for the reason its twin now is"* | the twin's hole was **silent**; this one is loud, because both callers pin on a count of thirteen and on set equality with the code's key set. Equating them sends the next reader to re-derive the difference |
+
+**The six that are defects rather than sentences**, each with the release-subject that takes it:
+
+| finding | measured | why not now | goes to |
+|---|---|---|---|
+| **the guard re-parses Markdown that production already parses** | five doors on one helper across four rounds — file-wide first match, unfenced in-window decoy, fenced in-window decoy, a `[a-z]`-unspellable verb, and the window's own heading anchor and terminator. `floorBlocks` (`floor.go:87-90`) toggles on fences and would drop every one of them | the replacement is for the guard to ask `floorBlocks`/`FloorUnitRows` which lines §2.1 actually contains, so guard and production share **one answer about what is fenced**. That is a new abstraction | the same release as *a verb-row guard that reads the whole cell*, below — this measurement is what says the replacement must fix the **window**, not only the cell class |
+| **an unrepaired `FAIL` is not permanent in the deletion direction** | two byte-identical floor units, `#1 PASS` / `#2 FAIL`; deleting the **first** copy carries the PASS onto the surviving text. `by_verdict.FAIL` 1 → 0, coverage 100%, `--status --check` **exit 0**, the failing text unchanged and the carried row's `evidence` citing a line the document no longer has. Falsifies §8's *"makes an unrepaired `FAIL` permanent while its text stands"*. The insertion direction is loud; only deletion is silent | the fix changes §8's `(text_sha, ordinal)` join key, which §8 chose knowingly after measuring five identical units in `spec/0.1.0.md`, and the alternative has its own failure mode (a unit that moves section loses its carry). New surface at round 11 | its own release — it is a **spec claim** that does not hold, not an implementation defect |
+| **the enum-refusal guard is a lower bound, not equality** | `GroundTiers()[:2]` reddens it, but appending `"document", "corpus", "vibes"` — a refusal telling a unit that `document` is a legal tier — leaves `internal/engine` green | one line (`assert.Contains(err.Error(), ": " + strings.Join(names, ", "))`), and the message is a bounded artifact so the immune shape is available. Deferred only because it is a repair to a repair | the release that takes the guard/production parser split |
+| **`tier` refuses two ways and only one names its set** | `groundEnumCell` now lists the six tiers; `validateGroundRowTier` still says *"`read` says nothing about a `behaviour` claim (§4.1)"* with `groundAcceptableTiers[KindBehaviour] = {run, red-green}` one lookup away. This is the refusal a **conforming** unit hits — a legal tier, wrong pairing | adding text to a shipped error surface at the last round, and the four subtests derive from `groundEnumCell`'s four call sites so they structurally cannot see the fifth | same release as the row above |
+| **the empty-floor ask collapses two zeros** | `# 0 in floor, 0 cut` (headings and fences only) and `# 0 in floor, 4 cut` produce **byte-identical** asks, both saying *"every unit in this document was cut"*. Three other places in the release separate exactly these two — §11 row 23's fixture pair, `GroundStatus.Cut`'s doc, and `runGroundStatus` (exit 0 against exit 1). The ask is the only sink that collapses them, because `groundPromptAsk` never receives `cut` | the unit's **action** is identical under both readings — the round owes nothing either way, `--record` refuses an empty payload either way, `--check` answers correctly either way. One false sentence, no wrong behaviour. The fix is `groundPromptAsk(round, floorSize, carried, cut)` plus `groundResult.cut`, and `ax-contract` asked that it be taken **together or not at all** | its own release, with the emission-envelope zeros |
+| **`rankFilesBySpecTerms` drops an unreadable file silently** | `review.go:1503-1507`, a bare `continue`, while `readFilesContent` 40 lines below documents the opposite convention on stderr. Pre-existing; this release's only change to `review.go` is the `Ungrounded` key | a channel move, which CLAUDE.md names as next-version work | the checklist release, which already owns the file-selection channel |
+
+**One process finding worth keeping**, from `go-safety`: `internal/cli/review.go` was on the audit
+checklist in rounds 9 and 11 and off it in round 10, and the deferral it carries **read as resolved
+for exactly the round it was absent**. Pinning a deferred finding's file into the next round's
+`--affected-files`, whatever the rotation would otherwise pick, is what stopped that. The checklist
+release should make it a rule rather than a habit.
+
+**And one correction that was itself wrong, recorded because it is the cycle's own failure mode
+happening one more time.** Round 11's `maintainability` reported that `CLAUDE.md`'s *"71 committed
+entries"* for `scripts/baseline-funlen.txt` was stale and the true figure was **84**. The
+orchestrator relayed that into this file without counting. Counted:
+
+```
+sum(1 for l in open('scripts/baseline-funlen.txt') if l.strip() and not l.strip().startswith('#'))
+```
+
+**71 — at HEAD and at `v0.37.0`.** The file holds 12 comment lines above the entries, so 83 lines are
+non-blank and 71 are entries; 84 is neither. `CLAUDE.md` was right. The lesson is not about the
+number: **a role's correction of a figure is itself a figure, and it was taken on trust by the one
+person in the loop whose job was to check it** — the same act this cycle recorded three times in
+other people's work. The durable form is the derivation above, not any count.
+
+What does hold, re-derived: `./scripts/check-complexity.sh` exits 0 at HEAD, and
+`git diff v0.37.0..HEAD -- scripts/baseline-*.txt` is empty against **4,041 production + 9,044 test**
+Go lines added — so neither baseline moved.
 
 ---
 
