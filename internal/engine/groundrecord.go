@@ -167,8 +167,18 @@ func groundRowMatchesFloor(row *GroundRow, byID map[string]groundJoinKey) error 
 // the units it still owes, so a re-emission on an unedited spec asks for none
 // and the unit correctly writes an empty file; refusing that file is a deadlock
 // reachable in three commands, and the round it refuses is the one carrying
-// every disposition forward. The case the sentinel is for is the reader who ran
-// nothing: an empty payload with nothing to carry.
+// every disposition forward. Summing the payload with the carry is what closes
+// that.
+//
+// **It does not follow that every reader who reaches this ran nothing**, and an
+// earlier draft of this paragraph said it did. Falsified by running: on an
+// all-cut document the floor is empty, the ask is for no dispositions, the
+// carry has nothing to carry, and the reader who writes the empty file the
+// prompt asked for lands here having done exactly what was asked. That state
+// is not repairable by dispositioning something, so the refusal's hint names it
+// separately -- there is no round to record, and --check reports the floor
+// permanently. What the sentinel actually says is narrower than a claim about
+// the reader: this round would write no row, from either source.
 //
 // It is a sentinel rather than a *GroundLineError because there is no line to
 // name: the failure is a property of the file, not of one of its rows. The
