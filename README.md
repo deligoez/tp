@@ -145,6 +145,7 @@ tp report                      # Per-task duration + estimation accuracy
 ### Spec & Validation
 ```bash
 tp lint spec.md                # Spec quality + structured element detection
+tp ground spec.md              # Check the spec's claims against the world (--units, --record, --status --check)
 tp review spec.md              # Adversarial review prompts, rounds, merge/resolve/record/status
 tp review spec.md --role NAME  # Emit one role's prompt only (also on tp audit)
 tp audit spec.md               # Post-implementation: verify the code matches the spec
