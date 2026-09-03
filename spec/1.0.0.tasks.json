@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-03T06:01:37.118736Z",
+  "updated_at": "2026-09-03T06:13:13.716017Z",
   "workflow": {},
   "coverage": {
     "total_sections": 21,
@@ -1125,7 +1125,7 @@
     {
       "id": "empty-when-owed",
       "title": "A record whose payload is empty because nothing is owed is accepted",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli"
       ],
@@ -1138,11 +1138,20 @@
       "source_sections": [
         "### 7.1 Invocations and exit codes"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-03T06:02:40.839244Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-03T06:13:13.698899Z",
+      "closed_reason": "- ErrGroundRoundEmpty now fires on the SUM: RecordGroundRound (internal/engine/groundrecord.go) computes GroundCarriedRows first and refuses only when len(rows)+len(carried) == 0, which is §7.1's rule as written — \"the payload's rows plus §8's carried rows both zero\" — rather than the payload alone. The narrow mutant is HEAD's own `len(rows) == 0` placed before the carry: it reddens exactly one subtest, mine, across internal/cli and internal/engine and nothing else.\n- The deadlock was reproduced through the three commands before it was fixed, not as an engine unit test: TestAnEmptyPayloadIsAcceptedWhenTheRoundOwesNothing/empty_because_every_unit_carries emits round 1, records a disposition for each of the two floor units (the cut row is skipped on the absence of its hash, and require.Len pins that two of three index rows are floor units), re-emits on an unedited spec and REQUIRES the prompt to read \"owes a disposition for 0 of the 2 floor units above\" before writing the empty file — so the empty payload is what tp asked for and not the test author's choice. It then exits 0 with rows 0, carried 2, two rows in ground-round-2.ndjson each carrying carried_from 1, and --status reporting 2 of 2 dispositioned. Observed red against HEAD with exactly that message: exit 1, \"the record holds no rows, so there is nothing to record\".\n- An empty payload with nothing to carry is still exit 1, asserted at a SECOND round rather than a first: subtest empty_with_nothing_to_carry records round 1 of a one-sentence spec, rewrites the spec so round 2 shares no wording with it, requires the prompt to ask for its whole floor, and then records an empty file — exit 1, envelope code 1, and the state directory listing byte-identical to what the emission left. Round 1 short-circuits before the carry runs, so a refusal there cannot tell a rule about the sum from a rule about the payload; this subtest can. Two further mutants observed: the check deleted entirely reddens this subtest plus the two pre-existing empty-record tests in cli and engine while leaving the accepted case green, and `||` for the sum reddens 30 tests across both packages — a wide mutant that measures the setup, not one assertion, and is reported as such.\n- Dogfooded on two copies of spec/1.0.0.md outside the repository through the freshly built binary: a 330-unit floor recorded with three rows in round 1, re-emitted (ask narrows to \"327 of the 330\"), then an empty payload at round 2 records `\"rows\": 0, \"carried\": 3` and exits 0; and in a second directory an empty payload at round 1 still exits 1 with the state directory holding only the snapshot and the floor. Gate green in four separate runs (suite-state, golangci-lint 0 issues, deadcode, complexity), and `git -c diff.external= diff --no-ext-diff` empty over internal/ after every mutant was reverted.\n\nOut of scope: the exit-1 envelope for an empty record reuses groundRecordRowHint, so it tells the operator to \"fix the row the message names\" when no row was named. Pre-existing, unchanged by this task, and now reachable only in the nothing-to-carry case. Also: one throwaway empty fixture in the scratchpad was created with a `: \u003e` shell redirection before I switched to codedbpro create for the second one — outside the repository, but the rule says redirection is file work and I broke it once.",
+      "gate_passed_at": "2026-09-03T06:13:13.698899Z",
+      "commit_sha": "5f2dc3a8",
+      "commit_shas": [
+        "5f2dc3a8",
+        "f80bb1f9"
+      ],
+      "commit_files": [
+        "internal/cli/ground_empty_test.go",
+        "internal/engine/groundrecord.go"
+      ]
     }
   ]
 }
