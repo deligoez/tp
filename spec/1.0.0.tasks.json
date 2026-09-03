@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-03T04:49:35.364541Z",
+  "updated_at": "2026-09-03T05:00:37.09758Z",
   "workflow": {},
   "coverage": {
     "total_sections": 21,
@@ -403,7 +403,7 @@
     {
       "id": "bookkeeping-ref",
       "title": "roundNumberRe gains ground",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -415,11 +415,23 @@
       "source_sections": [
         "### 7.3 Where it lives, and what it must not disturb"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-03T04:50:23.887031Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-03T05:00:37.068352Z",
+      "closed_reason": "- roundNumberRe (internal/engine/bookkeeping.go) now reads `(?:review|audit|snapshot|ground)-round-(\\d+)`, so DeriveBookkeeping reports a dirty ground-round-3.ndjson with ref \"3\" like its review and audit siblings, and so do snapshot-ground-round-3.md and floor-ground-round-3.txt. TestGroundArtifactsReportTheirRoundNumberLikeTheirSiblings compares each ground artifact's ref against the review sibling's rather than a literal, with state.json in the same call as the control for the filename fallback; it was red on exactly the three ground subtests before the widening. Dogfooded outside the repository on a copy of spec/1.0.0.md: three real `tp ground --record` rounds, and `tp resume` reports ref 1/2/3 across all nine artifacts while the scratch ground-rN.ndjson files stay in changes.\n- Numbering did not widen with it. NextGroundRound keeps groundRoundFileRe, anchored on ground-round-\u003cN\u003e, and TestNextGroundRoundIsNotNumberedByTheBookkeepingRegex pins it: a directory of review-round-9/audit-round-7/snapshot-round-9 still numbers the next ground round 1, with the fixture asserting that roundNumberRe does match those names so it only passes while it discriminates. Mutants: numbering routed through roundNumberRe reddens it and the pre-existing emitted-artifact guard; groundRoundFileRe widened to `^(?:review|audit|ground)-round-` reddens this test ALONE, which is what separates it from that guard. One survivor, reported rather than papered over: an over-broad `[a-z-]*-round-(\\d+)` passes every test, and it is equivalent over reachable inputs — across the whole spec/.tp-review/ corpus the only names carrying \"-round-N\" are the review, audit, snapshot and ground artifacts themselves, while the per-role \u003cphase\u003e-rN-\u003crole\u003e.ndjson files and the operator markdown carry no \"-round-\" at all.\n- Spec repair, in the paragraph this task is sourced from: §7.3 said \"Numbering still uses ground's own prefix list\", which is wrong twice — NextGroundRound uses groundRoundFileRe, and groundFilePrefixes also names the snapshot and the floor an emission writes, so numbering routed through that list would count artifacts written from the number it is computing and break the same section's rule that N is the highest existing ground-round-\u003cN\u003e plus one. The sentence now names the matcher and says why the prefix list cannot be it (b39b6f3b). `tp lint spec/1.0.0.md` still exits 0 with 0 errors.",
+      "gate_passed_at": "2026-09-03T05:00:37.068352Z",
+      "commit_sha": "b24857ab",
+      "commit_shas": [
+        "b24857ab",
+        "ae84155a",
+        "e14479ba",
+        "b39b6f3b"
+      ],
+      "commit_files": [
+        "internal/engine/bookkeeping.go",
+        "internal/engine/bookkeeping_ground_test.go",
+        "spec/1.0.0.md"
+      ]
     },
     {
       "id": "state-untouched",
