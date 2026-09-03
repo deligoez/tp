@@ -49,6 +49,13 @@ func groundFloorJoinFloor(t *testing.T) []FloorIndexRow {
 //
 // The second is the worse of the two and is reachable in the corpus: 9 of 5,396
 // floor units across this repository's 54 specs carry `ordinal > 1`.
+//
+// **Neither input alone is enough**, which is §11 row 18c's own clause and the
+// reason there are three refused arms rather than two. A check comparing the
+// pair ONLY where the hash repeats in the floor refuses both duplicate-hash
+// rows and is not caught by either; the third arm — the right hash and a wrong
+// ordinal on `u3`, whose hash nothing shares — is what kills it, and it was run
+// as a mutant to confirm that it is the only arm that does.
 func TestARowMustCarryTheWholeJoinKeyOfTheUnitItNames(t *testing.T) {
 	cases := []struct {
 		name  string
@@ -63,6 +70,11 @@ func TestARowMustCarryTheWholeJoinKeyOfTheUnitItNames(t *testing.T) {
 		{
 			name:  "a sibling's ordinal, on a hash the two units share",
 			over:  map[string]any{"unit_id": "u2", "anchor": "§1", "text_sha": "0123456789ab", "ordinal": 1},
+			field: "ordinal",
+		},
+		{
+			name:  "the right hash and a wrong ordinal, on a unit whose hash is unique",
+			over:  map[string]any{"unit_id": "u3", "anchor": "§2", "text_sha": "abcdef012345", "ordinal": 2},
 			field: "ordinal",
 		},
 		{
