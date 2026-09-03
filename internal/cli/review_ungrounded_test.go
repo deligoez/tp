@@ -91,14 +91,6 @@ func reviewEnvelope(t *testing.T, dir string, args ...string) (envelope map[stri
 // half: the advisory appears exactly ONCE, in the top-level envelope, on a run
 // emitting more than one role prompt.
 //
-// The prompt count is a require rather than an assumption — with one prompt the
-// row's mutant, emitting the advisory per role, is indistinguishable from the
-// shipped behaviour — and the count of the key in the RAW payload is what
-// separates them: a per-role emission puts one copy in every prompt.
-// TestReviewCarriesTheUngroundedAdvisoryOnceInTheEnvelope is §11 row 17's second
-// half: the advisory appears exactly ONCE, in the top-level envelope, on a run
-// emitting more than one role prompt.
-//
 // The verdict rests on the SAME spec, in the SAME directory, at the SAME round —
 // --no-state keeps it at 1 — reviewed before and after it is grounded, so the
 // only difference between the two payloads is the ground round. The prompts must
