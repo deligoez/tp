@@ -216,7 +216,7 @@ settled it: **`scripts/floor-prototype.py`, one run, found four defects three re
 |---|---|
 | §2.1 step 3 strips list markers from the first line only → **777 sub-four-character floor units and 143 colliding `text_sha`** across 53 specs, 0 and 3 after the repair | eight of them sat in this spec's own §10 through two full rounds of five-role review |
 | §2.1 step 4's terminator is unstated → two conforming readings agree on **5.0%** of hashes | same segmentation, so no reading of the prose exposes it |
-| §11 row 4's byte bound is undecidable without an encoding → JSON over on **52 of 53**, the labelled shape under on **53 of 53** | three serialisations differ by 70% and the spec named none |
+| §11 row 4's byte bound is undecidable without an encoding → JSON over on every spec, the sigil shape under on every spec | three serialisations differ by 70% and the spec named none. The counts that stood here were over the corpus at the time and against a model the script has since corrected; `python3 scripts/floor-prototype.py` prints the current three |
 | the floor grew **74 → 98 → 143** across three snapshots | every figure the spec quoted about itself was stale within one round |
 
 **The companion-file split went in with it.** `spec/1.0.0-corrections.md` holds the withdrawal
