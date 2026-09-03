@@ -409,6 +409,38 @@ func TestStatusWithNoEmittedRoundExitsThree(t *testing.T) {
 	})
 }
 
+// TestStatusOnAMissingSpecDiagnosesTheSpecLikeItsSiblings: a path naming no
+// file used to be reported as a spec nobody had grounded, and the hint sent the
+// operator to `tp ground <the same wrong path>`, which fails too.
+//
+// The stat runs inside the no-emission branch and not at the top of --status,
+// because the subtest above — a spec deleted after its emission — is a state
+// §7.3 makes legitimate, and a top-level existence check would refuse it. That
+// state never reaches this branch: its round is on disk. os.Stat is not a read,
+// so the rule that --status never opens the spec is untouched, and ExitFile is
+// the code either way, so nothing branching on the code sees a change.
+//
+// The verdict is the three envelopes being EQUAL, not any phrase inside them: a
+// reworded ground message cannot satisfy it, and specFileMissingHint's own doc
+// comment is the rule being asserted — the same typo reads the same way
+// whichever mode catches it.
+func TestStatusOnAMissingSpecDiagnosesTheSpecLikeItsSiblings(t *testing.T) {
+	dir := t.TempDir()
+
+	envelopeOf := func(t *testing.T, mode string) map[string]any {
+		t.Helper()
+		stdout, stderr, code := runTP(t, dir, mode, "nope.md", "--status")
+		require.Equal(t, 3, code, "%s --status on a missing spec: stdout %s stderr %s", mode, stdout, stderr)
+		return groundErrorEnvelope(t, stderr)
+	}
+
+	ground := envelopeOf(t, "ground")
+	assert.Equal(t, envelopeOf(t, "review"), ground,
+		"tp review --status and tp ground --status must name the same fault on the same typo")
+	assert.Equal(t, envelopeOf(t, "audit"), ground,
+		"and so must tp audit --status")
+}
+
 // TestStatusAndRecordTogetherAreAUsageError pins the one flag combination §7.1
 // does not name. The two are different modes over the same round: one reports
 // it and one writes it. Silently running whichever the dispatch reaches first
