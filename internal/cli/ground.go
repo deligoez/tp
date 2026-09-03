@@ -527,10 +527,47 @@ func runGroundStatus(specPath string, check bool) error {
 		return nil
 	}
 
+	if !check {
+		return nil
+	}
+
 	// §8's ratio, read back as one bit. Dispositioned is derived by asking of
 	// each EMITTED floor unit whether a row decided it, so it cannot exceed
 	// Emitted and the comparison needs no upper guard.
-	if check && status.Coverage.Dispositioned < status.Coverage.Emitted {
+	if status.Coverage.Dispositioned < status.Coverage.Emitted {
+		os.Exit(ExitValidation)
+	}
+
+	// The one state the ratio alone certifies falsely: an emitted floor of NO
+	// units. `0 < 0` is false, so a spec on which nothing was checked read as
+	// covered, and both signals SKILL.md tells an agent to look at said so.
+	//
+	// **Which zero it is decides the answer, and only the cut count can tell.**
+	// A document §2.1 produced no unit from is honestly 0-of-0 — there is no
+	// claim the round skipped, and refusing there would refuse every spec that
+	// is all headings. A document whose sentences the arms all DROPPED is the
+	// opposite: units existed, none was checked, and §2.2's whole reason for
+	// announcing the cut set is that both end-to-end runs found defects inside
+	// it. Measured on a fixture carrying four prose claims that no arm keeps:
+	// round 1 emitted, nothing dispositioned, and this exited 0.
+	//
+	// The notice carries the reason because the payload cannot. `--check` is a
+	// read-back and prints no error (Non-Goal 3), and what it prints is
+	// `emitted: 0, dispositioned: 0` — which reads as complete. Adding a key
+	// would put the explanation in documented surface for a state one line of
+	// stderr answers.
+	// The notice names the FLOOR file and not `--units`, which was the first
+	// wording and does not work: FloorUnitRows emits a row only for a unit the
+	// arms kept, so on this exact input `tp ground <spec> --units` prints zero
+	// lines and exits 0. The index is where a cut unit is visible at all — it
+	// carries the id and the anchor of every one (§2.2's announcement of the
+	// cut set), which is what an operator needs to go and look.
+	if status.Coverage.Emitted == 0 && status.Cut > 0 {
+		output.Notice(fmt.Sprintf(
+			"ground round %d has no floor to cover: §2.1 produced %d units and the arms cut every one, "+
+				"so nothing in %s has been checked against the world — the cut units are listed by id "+
+				"and anchor in %s, and --units prints nothing here because it prints floor units",
+			status.Round, status.Cut, specPath, engine.GroundFloorPath(specPath, status.Round)))
 		os.Exit(ExitValidation)
 	}
 	return nil
