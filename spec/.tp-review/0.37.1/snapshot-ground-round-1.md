@@ -1,0 +1,133 @@
+# tp v0.37.1 — Two defects with fixes already measured
+
+> **This file is decisions, and it is a patch release.** Both defects below were reproduced by a test
+> that failed against `HEAD`, fixed, and re-run green with the full suite passing — before this file
+> was written. Nothing here is a behaviour change beyond the defect; the two minor releases that
+> specified these items keep everything else they carry.
+
+## 1. Why a patch and not a reordering
+
+A hotfix does not move minor releases. tp has shipped **ten** patch releases, **six** of them carrying
+a defect found after the minor shipped — v0.31.1, v0.31.2, v0.34.1, v0.34.2, v0.35.1, v0.35.2 — and
+reordering the pending minors would be a fifth renumbering, which this repository has now measured at
+**47 broken citations** for the fourth.
+
+**The bar for this file is narrow, and two candidates were held back by it:** a defect qualifies only
+if its fix is measured, carries no semantic change beyond the repair, and needs no new recorded field.
+The `--check`-on-a-partial-round defect fails the third test (it needs the recorded panel and the
+key-preservation fix), and the audit checklist's alphabetical ordering fails the second (churn ranking
+is a behaviour change). Both stay in their minors.
+
+## 2. `unresolved_findings` counts open findings
+
+`roundPayload` (`internal/engine/resumepayload.go:95-110`) counts every row in the last round whose
+`resolved.status` is not `"wontfix"`. On the audit phase every checklist item is a row, so a clean
+round of 106 items reports 106.
+
+**Measured on v0.37.0's own audit round 7** — the round this project shipped on:
+
+| | |
+|---|---|
+| rows recorded | 106 |
+| rows dispositioned `wontfix` | 3 |
+| **`unresolved_findings` reports** | **103** |
+| rows actually non-`PASS` | **3** |
+
+**The 103 is exactly the set of `PASS` rows.** All three real findings were dispositioned, so the
+field excluded every row that was a finding and included every row that was not — the complement of
+the answer, not an approximation.
+
+**Who it misleads was measured, and it is not the driver.** A grounding pass tested three hypotheses
+and the shipped one was refuted: `unresolved_findings` is **written** at
+`internal/engine/resumepayload.go:172` and `:190` into `next_action.payload` and **read nowhere in tp**. The driver
+does not branch on it; `ReviewNextAction` branches on `blockingUnresolved`, computed separately from
+the round's `clean` flag (`internal/cli/review_status.go:155`). So the field is for a **reader** — a human, or an
+external driver that chooses to consume it — and the one documented instance of it misleading a
+reader is **this repository's own orchestrator**, which reported the 103 to its operator and had to
+retract it.
+
+**A row counts as unresolved when it is a finding and is not closed.** A finding is a row whose
+`status` is absent or not exactly `PASS` — tp's own documented rule, so review rows (which carry no
+`status`) all remain findings and that phase's count is unchanged. Closed means `resolved.status` is
+`wontfix` **or** `fixed`; the corpus carries **1,308 `fixed` against 98 `wontfix`**, so omitting
+`fixed` left thirteen of every fourteen closures inert.
+
+**An unrecognised `resolved.status` counts as open.** Fail-closed, matching `AuditRowsClean`'s
+treatment of a severity it cannot grade.
+
+### 2.1 The payload says what it counted
+
+`unresolved_findings` gains two siblings in the same payload: **`rows_recorded`** and
+**`findings_closed`** — the round's total row count, and the number of finding rows carrying a
+recognised disposition.
+
+**A bare count cannot be sanity-checked, and this one went unchecked for seventeen releases** —
+`roundPayload` landed on 2026-07-23 and every tag from v0.28.0 to v0.37.0 shipped over it. `103` looks
+plausible beside a round of unknown size and impossible beside `rows_recorded: 106`,
+`findings_closed: 3`. Both integers are already in hand at the moment §2's loop runs.
+
+**They are reported, not gated**, and they are in this patch rather than a minor because they are the
+same field's trustworthiness: the fix makes the number right, these make it checkable. Absorbing them
+here retires the minor that would otherwise carry them alone.
+
+## 3. A refused invocation writes no state
+
+`tp audit <spec> --role <unknown>` refuses with exit 2 and **creates a state directory anyway**.
+Measured on `HEAD`, in a repository with no state for that spec:
+
+```
+$ ls spec/.tp-review/demo/
+  (absent)
+$ tp audit spec/demo.md --role no-such-role --affected-files main.go
+{"error":"unknown role: no-such-role","code":2,"hint":"this invocation emits: go-safety"}
+$ ls spec/.tp-review/demo/
+snapshot-audit-round-1.md
+```
+
+**The fix is not "validate earlier", and that direction is structurally closed.** `applyRoleFilter`
+(`internal/cli/rolefilter.go:136`) needs the emitted and skipped role lists to decide whether a name
+is unknown, and those exist only after the prompts are generated (`internal/cli/audit.go:355`). The refusal at
+`:379` cannot precede the emission.
+
+**The snapshot write moves instead**, from `loadAuditSpec` (`internal/cli/audit.go:518`, which writes it while
+merely *loading* the spec) to just past the role filter — the first point at which tp knows this
+invocation emits a round. `loadAuditSpec` returns the bytes rather than writing them.
+
+**The bytes must be the pre-blanking spec.** `engine.BlankFrontmatter` runs immediately after the
+current write site, so they are copied before that call rather than re-read at the new one.
+
+**Why it matters more than a stray file.** A round that exists on disk because someone mistyped a flag
+is a round about nothing, and `--status` reports a directory's existence. A mistyped flag is the most
+likely way for one to appear.
+
+## 4. Non-Goals
+
+1. **No third defect.** §1 names the two that were held back and why.
+2. **No new field, no new flag, no config.** Both fixes are internal.
+3. **No convergence change.** `clean`, `consecutive_clean` and `--check` read neither field; §2 changes
+   what a driver is told and §3 changes when a file is written.
+4. **No repair of past state.** `unresolved_findings` is computed on read, so every recorded round
+   reports correctly the moment this ships. A state directory an earlier refusal created is
+   indistinguishable from a legitimately emitted round that was never recorded, and is left alone.
+5. **The review phase's count is unchanged.** §2's finding clause is vacuously true there.
+
+## 5. Tests
+
+Every row derives from a numbered decision, names the artifact it depends on, and names a mutant that
+must fail it. **Rows 1 and 5 have already been watched failing against `HEAD` and passing after the
+fix, with `go test ./...` green** — `internal/cli` 53.7s, `internal/engine` 30.5s.
+
+| # | from | assertion | the mutant that must fail it |
+|---|---|---|---|
+| 1 | §2 | v0.37.0's real round 7 as a fixture — 106 rows, 3 non-`PASS`, all 3 dispositioned — reports **0** | the shipped `!= "wontfix"` loop, which returns 103 |
+| 2 | §2 *finding* | an audit round of N `PASS` rows and zero findings reports 0 for every N | count rows rather than findings, making the number a function of checklist size |
+| 3 | §2 *fixed* | a non-`PASS` row with `resolved.status: "fixed"` does not count | keep `wontfix` as the only closing value, leaving 1,308 of 1,406 dispositions inert |
+| 4 | §2 *review* | a review round's count is byte-identical before and after | apply the `PASS` filter to review rows, which carry no `status` and would all be dropped |
+| 5 | §3 | after a `--role` refusal in a repo with no state directory, none exists | the shipped order, which writes the snapshot first |
+| 6 | §3 *scope* | a **valid** `--role` invocation still writes its snapshot, and the bytes equal the spec **before** frontmatter blanking | drop the write instead of moving it, or move it after `BlankFrontmatter` |
+| 7 | §3 *other refusals* | the same holds for every argument tp rejects before emitting — asserted over the refusal set | fix the `--role` branch alone, leaving every sibling refusal writing state |
+| 8 | §2.1 | the payload carries `rows_recorded` and `findings_closed`, consistent with the round file | emit them from a second read of the round, which can disagree with the count they explain |
+
+**Row 7 is quantified over the refusal set deliberately.** §3's transcript is one refusal, chosen
+because it is the one that was reported; a fix scoped to it passes rows 5 and 6 and leaves the class
+open.
