@@ -136,16 +136,48 @@ section with the clearest scope error in that cycle was invisible to every autom
 produced**: five ground rounds graded it clean and two review rounds barely noticed it. The only thing
 that surfaced it was asking a person whether they wanted it.
 
-**2. A goal-entailment question.** No new phase: one prompt asking, per section, *does §1's stated goal
-entail this section?* The reporter's §1 names a missing control contract plus three derivative
-problems; the doomed sections are not derivable from that sentence — they descend from a design choice
-made after §1 was written. An agent comparing §1 against each section would have flagged them without
-knowing the domain. **Untested.**
+**2. A goal-entailment question — better than density, and it also fails.** One prompt asking, per
+section, *does §1's stated goal entail this section?* Scored by the reporter against their own four cut
+sections: it catches §4.6, §4.7 and §5.4 — **24 findings and all five criticals** — and **misses §4.3**,
+the section their user cut first and most decisively. Their §1's second sentence names three derivative
+problems that map exactly onto §4.3, §4.4 and §4.5, so **§4.3 is explicitly entailed** and the test
+returns a confident *derivable, keep* on the one section that motivated the whole idea.
+
+**The failure mode is not the one this note predicted, and the prediction is recorded because it was
+wrong.** An earlier draft expected a *vague* §1 to make every section derivable and the question to
+return nothing. Their §1 is sharp and it failed anyway, for a different reason: **§1 was written by the
+same author, in the same sitting, as the sections.** Scope creep propagates into the goal statement
+ahead of the sections it licenses, so testing a document against its own §1 tests one author's single
+act against itself. **A sharp §1 does not help if it is sharply wrong about what belongs — that is
+worse than vagueness, because it produces a confident *derivable*.**
+
+**The condition is checkable, and it holds on this entire corpus.** Counting rule: for each pending
+spec, the commits that added the file —
+
+```
+for f in spec/*.md; do git log --format='%h' --diff-filter=A -- "$f" | wc -l; done
+```
+
+**All 22 pending specs were introduced in a single commit**, §1 and the body together, 17 of them in
+one sweep on 2026-09-02. So entailment would degrade to self-confirmation on every spec here, and the
+degradation is not detectable from inside the document.
+
+**What survives is a narrower rule**: the entailment test is only as independent as §1's *provenance*.
+It works where §1 comes from somewhere the section-writing did not — an issue description, a ticket, a
+recorded interview answer — and self-confirms where §1 was drafted alongside the body. tp knows which
+case it is in more often than not: Step 0's interview happens before §1 exists.
 
 **3. A scope pass proper, before ground.** Its output is neither findings nor dispositions but a
 **decision menu** — one row per section: *what it does / what exists today / what breaks if removed /
 why it is a candidate* — in domain language, with one column only the human fills. The reporter's user
-answered the whole menu in three lines.
+answered the whole menu in three lines, and it is the only one of the three that found **both** §4.3
+and §4.6.
+
+**All three internal signals fail for one reason, and that is the argument.** Density is uninformative
+in both directions; cross-role agreement is a coin flip; entailment self-confirms when the goal is
+home-grown. **Every one of them asks the document about itself.** Three independent failures, each
+measured on a corpus that had already converged, is a stronger case for a human-answered pass than any
+assertion about human judgement.
 
 ## 6. The property that separates it from every other pass
 
