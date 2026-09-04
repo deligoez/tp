@@ -92,6 +92,17 @@ stops with false claims standing in the spec. Each round:
 5. `tp ground <spec> --status` between rounds; `--status --check` is the same report read back as an
    exit code.
 
+**Six verdicts, and `by_verdict` is where you read them.** `PASS` — evidence at a tier acceptable for
+the kind supports the claim. `FAIL` — evidence contradicts it; repair the claim. `PARTIAL` — true
+under one reading and not another, or the conclusion holds while the stated reason does not, or it was
+true when written; repair it too. `QUESTION` — the attempt did not settle it; it records with its
+ranked causes and does not block. `UNVERIFIABLE` — no acceptable tier is reachable at all; it is a
+settled answer rather than a gap, so it counts as dispositioned and `--check` is satisfied by it,
+which is exactly why it has to be read out of the breakdown rather than inferred from coverage.
+`NOT-A-CLAIM` — a decision, a prediction, or prose asserting nothing about the world. The full
+definitions, and the `kind`/`tier` rules `--record` validates every row against, are in
+[REFERENCE.md](REFERENCE.md).
+
 **From round 2 the ask narrows and the index does not.** A unit whose `(text_sha, ordinal)` matches
 the **immediately preceding** round's carries that round's disposition forward — written into the new
 round's own file with its original `tier` and `evidence`, stamped `carried_from` with the round it was
