@@ -1,0 +1,82 @@
+# commit 020262d9
+u1 §0 (cut)
+u2 §0 (cut)
+u3 §0 9c5874db7c50 #1 87B
+u4 §0 (cut)
+u5 §1 (cut)
+u6 §1 cf4f9ca6e215 #1 248B
+u7 §1 (cut)
+u8 §1 e437493ce056 #1 493B
+u9 §1 57c5ca644071 #1 93B
+u10 §1 d4b4a5fed448 #1 183B
+u11 §1 80ebbfb1f31f #1 208B
+u12 §1 (cut)
+u13 §2 (cut)
+u14 §2 (cut)
+u15 §2 (cut)
+u16 §2 9855d7399ac4 #1 94B
+u17 §2 (cut)
+u18 §2 117cefbeb26f #1 189B
+u19 §2.1 (cut)
+u20 §2.1 4c988f5c2e90 #1 71B
+u21 §2.1 (cut)
+u22 §2.1 aab65d98c050 #1 124B
+u23 §2.1 (cut)
+u24 §2.1 (cut)
+u25 §2.1 (cut)
+u26 §2.1 c92e371479f6 #1 101B
+u27 §2.1 (cut)
+u28 §2.1 (cut)
+u29 §2.1 8ee71904afcf #1 174B
+u30 §2.1 (cut)
+u31 §2.2 (cut)
+u32 §2.2 (cut)
+u33 §2.2 50fe9ab1be60 #1 203B
+u34 §2.2 4ad3928d304b #1 257B
+u35 §2.3 eab2e94f1c2a #1 106B
+u36 §2.3 ff13ea06c1db #1 66B
+u37 §2.3 c9f7b732c8d9 #1 236B
+u38 §2.3 3f91d09e72c6 #1 126B
+u39 §2.3 (cut)
+u40 §2.3 (cut)
+u41 §2.3 (cut)
+u42 §3 d8fefd657b16 #1 284B
+u43 §3 534d5c14bed6 #1 126B
+u44 §3 (cut)
+u45 §3 (cut)
+u46 §3 57ebc587f0d5 #1 113B
+u47 §3 a94c3016a402 #1 165B
+u48 §3 1dc7bcde5755 #1 164B
+u49 §3 1be6559f959c #1 100B
+u50 §3.1 51177f474ddb #1 65B
+u51 §3.1 a7a525eccd99 #1 159B
+u52 §3.1 b75f7c3e0f46 #1 295B
+u53 §3.1 (cut)
+u54 §3.1 (cut)
+u55 §4 5b56b7b50c65 #1 341B
+u56 §4 c92acad6b2f5 #1 162B
+u57 §4 fb7a19c16f0b #1 96B
+u58 §4 (cut)
+u59 §4 1ca9dab7a360 #1 76B
+u60 §4 (cut)
+u61 §4 a1cdb8f05454 #1 51B
+u62 §4 (cut)
+u63 §4 8b890352cdcc #1 212B
+u64 §4 de4642a72299 #1 215B
+u65 §4 (cut)
+u66 §5 (cut)
+u67 §5 (cut)
+u68 §5 d5ffefbfd34d #1 207B
+u69 §5 4ce1fe7442d7 #1 206B
+u70 §5 07b1f0dc2d2b #1 195B
+u71 §5 7fb97df4c485 #1 202B
+u72 §5 fef8e8f9839d #1 198B
+u73 §5 c05bf6884f55 #1 252B
+u74 §5 be2d0af692f8 #1 190B
+u75 §5 a8b200b6ecff #1 134B
+u76 §5 d2bbbdeb695d #1 157B
+u77 §5 9a31accb12c9 #1 275B
+u78 §5 53ed856ffb22 #1 229B
+u79 §5 af36ce20026a #1 123B
+u80 §5 46d040c1c137 #1 359B
+# 47 in floor, 33 cut
