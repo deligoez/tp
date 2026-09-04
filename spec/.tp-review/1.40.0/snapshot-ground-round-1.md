@@ -1,0 +1,147 @@
+# tp v1.40.0 — The round carries the text it read
+
+> **This file is decisions.** Every figure names the command that derives it. The corpus counts in
+> §1.1 are re-derived here rather than quoted, because the figure this release used to rest on was
+> stated against a denominator that has since moved while its numerator did not.
+
+## 1. Overview
+
+A round's snapshot is written **at emission** — `internal/cli/review.go:1918-1921` calls `WriteSnapshotAtomic` with
+the comment *"snapshot the spec at round start (prompt emission)"*, and `internal/cli/audit.go:518` does the same
+for the audit phase. A round's `spec_hash` is computed **at record**: `internal/cli/review_record.go:91` calls
+`engine.SpecHash(specPath)`, which re-reads the file from disk.
+
+Between those two moments the spec is edited — that is what a review round is *for*. So the round ends
+up carrying two artifacts that describe different texts: a snapshot of what the roles were given, and
+a hash of whatever the file said when the operator got round to recording.
+
+**`spec_hash` becomes the hash of the round's own snapshot**, which makes the two agree by
+construction rather than by the operator's timing.
+
+### 1.1 The corpus, re-derived
+
+Over every recorded round in `spec/.tp-review/`:
+
+| phase | rounds | no snapshot on disk | snapshot sha256 ≠ recorded `spec_hash` |
+|---|---|---|---|
+| review | 168 | 0 | **35 (20.8%)** |
+| audit | 97 | 20 | 3 (3.1%) |
+
+```
+for each spec/.tp-review/<base>/state.json, for each recorded round:
+  sha256(snapshot-round-N.md)  vs  round.spec_hash        # review
+  sha256(snapshot-audit-round-N.md)  vs  round.spec_hash  # audit
+```
+
+**The asymmetry is the argument.** The phase whose purpose is to change the spec certifies a text it
+did not read in one round in five; the phase that changes code does it in one in thirty-three. This is
+not a rare race, it is the normal shape of a review round.
+
+**Two cautions about these numbers, both earned.** The 35 is unchanged from when it was last counted
+against 156 rounds — v0.36.0 and v0.37.0 added twelve rounds and *zero* mismatches, so the percentage
+fell without the defect improving, and a release quoting the old 22.4% would have been quoting a
+denominator. And 19 of the 35 are one cycle, v0.31.0's, so the mean is not the experience: most cycles
+have none, and one had nineteen.
+
+The audit phase's **20 rounds with no snapshot at all** predate snapshotting on that phase. They are
+not mismatches and are not fixed here; §2 states what they resolve to.
+
+## 2. `spec_hash` is the snapshot's hash
+
+At record time, `spec_hash` is `sha256` of the round's snapshot file rather than of the spec path.
+
+**This is not a new artifact, a new field or a new write.** The snapshot is already written, already
+atomic, already named per round and phase, and already read back by the regression path. The release
+replaces one argument to one hash call, and the invariant it buys — *a round's `spec_hash` is always
+the hash of the text stored beside it* — holds for every round recorded afterwards without any
+operator discipline.
+
+**A round whose snapshot is missing keeps today's behaviour and is not failed.** Twenty recorded audit
+rounds have no snapshot; `spec_hash` for such a round falls back to hashing the spec path, exactly as
+now. Upgrading tp must not make an old round unreadable, and a fallback that errors would do that to
+20 of 97 audit rounds.
+
+**What this does not claim.** It makes `spec_hash` equal *the last text emitted for that round*, not
+*the text each role actually read*. Those differ when a round is emitted, roles run, the spec is
+edited, and the round is emitted **again** before recording.
+
+**The overwrite is measured, not assumed:**
+
+```
+emission 1                      -> snapshot sha 359ad3ef…
+spec edited, emission 2         -> snapshot sha 0e3185a7…
+ls spec/.tp-review/1.0.0/       -> snapshot-audit-round-1.md      (one file)
+```
+
+One snapshot per round, rewritten in place, so **the first emission's text is unrecoverable** — which
+is why §2 cannot promise more than it does, and why §3 counts the event rather than trying to
+reconstruct it. That is the only residue.
+
+## 3. A re-emission that changes the text is recorded
+
+When `tp review` or `tp audit` writes a snapshot for a round that already has one, and the bytes
+differ, the round records that it happened: **`spec_moved_mid_round`**, a count of such re-emissions,
+absent on rounds where it never occurred.
+
+**The signal is produced here and consumed elsewhere.** This release does not warn, block, reset a
+streak or recommend anything on it — deciding what a mid-round spec move *means* is the reconcile
+release's subject, and a gate built on a signal nobody has yet seen data for is the mistake this
+project has already paid for eight rounds of suppression to learn.
+
+**Counted, not flagged.** A boolean cannot distinguish one repair from six, and the interesting cases
+in §1.1's corpus are the cycles with many. The count costs the same as the flag.
+
+**The count survives an older binary only because the ship-signal release made unknown keys durable.**
+Measured before that fix: `spec_moved_mid_round` injected onto a round entry is **gone after the next
+`--record`** — `SaveReviewState` marshals a typed struct and drops every key it does not know, while
+reading ignores them silently. That release is this one's prerequisite for exactly this reason.
+
+**Compared by bytes, not by hash of a re-read.** The comparison is between the snapshot already on
+disk and the bytes about to replace it — both are in hand at that moment, and re-reading the spec to
+hash it would reintroduce the very second read this release exists to remove.
+
+## 4. Why not the other two shapes
+
+Recorded so neither is re-proposed:
+
+**Pin the hash at emission into the state.** This means writing state on a read-only-looking command.
+`tp review` and `tp audit` already write a snapshot, so the objection is not purity — it is that
+emission state has no natural owner when a round is emitted several times, and choosing one is the
+same undecided question §2 leaves as residue. Hashing the snapshot inherits the answer instead of
+inventing one.
+
+**Make the emission the recorded unit.** Every downstream reader — `ConsecutiveClean`,
+`ComputeAuditRoleStreaks`, `--merge`, `--report` — is written against rounds. Re-basing them on
+emissions is a rewrite of the state model to fix a hash argument.
+
+## 5. Non-Goals
+
+1. **No repair of the 35 existing mismatches.** They are history; a round already recorded keeps its
+   stored hash. Rewriting them would fabricate a claim about what those rounds read.
+2. **No gate, warning or `next_action` on `spec_moved_mid_round`.** §3 produces the number and stops.
+3. **No change to `StateStale`.** Comparing the *current* spec against the latest round's hash stays
+   what it is; this release changes which text that hash denotes, and `StateStale`'s meaning improves
+   as a consequence rather than by being edited.
+4. **The 20 snapshot-less audit rounds are not backfilled.** No snapshot exists to hash, and
+   synthesising one from today's spec would assert exactly the falsehood this release removes.
+5. **No new workflow field.**
+
+## 6. Tests
+
+Every row derives from a numbered decision, names the artifact it depends on, and names a mutant that
+must fail it.
+
+| # | from | assertion | the mutant that must fail it |
+|---|---|---|---|
+| 1 | §2 | emit, edit the spec, record — the recorded `spec_hash` equals sha256 of the round's snapshot and **not** of the edited file | hash the spec path, which is the shipped behaviour and produces the 35 |
+| 2 | §2 | over every round in a fixture repo, `spec_hash` equals its snapshot's sha256 — asserted as an invariant over the set, not on one round | hash the path on the audit phase only, which a single-round review test cannot see |
+| 3 | §2 *fallback* | a round whose snapshot is absent records the spec path's hash and does not error | error on a missing snapshot, which makes 20 of 97 recorded audit rounds unreadable on upgrade |
+| 4 | §3 | emit, edit, emit, record — `spec_moved_mid_round` is 1; a third differing emission makes it 2 | store a boolean, which reports the v0.31.0-shaped cycle identically to a single repair |
+| 5 | §3 *identical* | a re-emission whose bytes are unchanged does **not** increment the count | compare timestamps or always increment, so re-running `tp review` to re-read a prompt registers as a spec move |
+| 6 | §3 *absent* | a round with no re-emission omits the key rather than recording 0 | emit 0 always, which makes every pre-v1.40.0 round indistinguishable from one measured at zero |
+| 7 | §5.1 | a round recorded before this release keeps its stored `spec_hash` byte for byte after upgrade | recompute historical hashes on read, rewriting what past rounds are understood to have covered |
+
+**Row 2 is the one that must be stated over the set.** Rows 1 and 3 are single cases and a fix applied
+to one phase passes both; only an assertion quantified over every recorded round in the fixture fails
+when the audit path is left behind — and this repository has lost rounds to exactly that shape, a
+claim about a set checked against one member the author chose.
