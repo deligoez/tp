@@ -334,6 +334,11 @@ guaranteed reduction in rounds.
 | 1.51.0 | `--reconcile` | Records why the spec moved between rounds, without overwriting what the round read | loop | needs 1.40.0 |
 | 1.52.0 | repair locality | The share of a round's findings sitting in text the previous round wrote, reported and gating nothing | loop | needs 1.40.0 |
 | 1.53.0 | the spec-hash reset | `consecutive_clean` resets when the spec it is a claim about changes | loop | needs 1.40.0 |
+| **1.54.0** | **the guard reads what production reads** | Three test helpers re-parse a Markdown section with `HasPrefix` and `regexp` while `floorBlocks` toggles on fences. Five doors on one helper across four v1.0.0 audit rounds, each repair widening the parser by one case and leaving the next. The seam — the guards ask production which lines a section contains — was **prototyped and run**: all four silent-green doors go red, two false failures go green, no export needed | tool | **written** |
+| **1.55.0** | **the refusals that name nothing** | `validateGroundRowTier` refuses a legal tier in the wrong pairing without naming `groundAcceptableTiers` — 33 of 42 pairings; the enum-refusal guard is a lower bound, not equality; `rankFilesBySpecTerms` drops an unreadable file in silence beside a sibling documenting the opposite | tool | **written** |
+| **1.56.0** | **the ask and the envelope separate the two zeros** | `# 0 in floor, 0 cut` and `# 0 in floor, N cut` produce byte-identical asks, both claiming every unit was cut. `groundPromptAsk` never receives `cut`, and the emission envelope cannot separate them either. Taken together or not at all | tool | **written** |
+| **1.57.0** | **what §8's carry can promise** | §8 promises an unrepaired `FAIL` is permanent while its text stands; deleting the earlier of two identical units carries the `PASS` onto the survivor and `--check` exits 0. A multiplicity fence was prototyped and run. Plus the whitespace set §2.1 never names, where a VT before a fence **silently drops the real claim** | loop | **written** |
+| **1.58.0** | **`forward-spec-ref`** | The only lint-rule candidate that survived prototyping: a spec must not name a spec numbered above itself that has not yet shipped. The shipped boundary is load-bearing — without it the one measured false positive returns. `scripts/forward-spec-ref-prototype.py` reports **2** at HEAD, both in `spec/1.0.0.md` | tool | **written** |
 
 
 **`spec/candidates.md` holds what is not numbered**, in two sections that must not be confused:
@@ -403,8 +408,8 @@ Until it ships, every ship decision is a judgement call dressed as a check.
 **1.40.0 third, because it makes the record mean what it says and three later releases need it.** The
 round's `spec_hash` is written when results are *recorded*, so nothing pins a round to the text its
 prompts were emitted from. Its urgency is honestly low — the divergence is zero across the most recent
-27 rounds, because this operator stopped editing mid-round — but 1.53.0, 1.0.0 and 1.55.0 each
-withdrew a gate over it, and a record that *may* be a lie is indistinguishable from one that is.
+27 rounds, because this operator stopped editing mid-round — but the spec-hash reset, `tp ground` and
+the reconcile release each withdrew a gate over it, and a record that *may* be a lie is indistinguishable from one that is.
 
 **1.41.0 fourth, and the argument is `tp run`, not this loop.** v0.37.0 swapped the trial's arms
 between rounds and the briefed arm filed 15 and 23 against a control of **35 both times** — the effect
@@ -417,7 +422,7 @@ is unattended: under `tp run` tp emits the brief and nobody adds them.
 risk — ordered by size; the historical range for a small tool spec is 4–8 rounds (v0.31.1 at 57 lines
 cost 4), not the 11 the class median suggests. The remaining `loop` entries follow, because a release
 that changes the loop is reviewed by the mechanism it is changing and costs about twice as much.
-1.52.0 needs 1.39.0's role-scoped streak; 1.53.0, 1.0.0 and 1.55.0 need 1.40.0's emit-time hash.
+1.52.0 needs 1.39.0's role-scoped streak; 1.53.0 and the reconcile release need 1.40.0's emit-time hash.
 
 **What this costs, stated rather than implied.** Eighteen numbered releases at this corpus's own rates
 — 4–8 rounds for a small tool spec, ~23 for a loop-class one — projects to roughly 200 review-plus-audit
