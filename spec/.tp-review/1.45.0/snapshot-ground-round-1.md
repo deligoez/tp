@@ -1,0 +1,111 @@
+# tp v1.45.0 — The untracked task file
+
+> **This file is decisions.** Its central decision was **refuted by the person the defect happened
+> to**, who read the first draft and rejected it. §2.1 quotes that refutation, because the rejected
+> form is the one an implementer would otherwise write — it is the obvious one.
+
+## 1. Overview
+
+**The rule being mechanized:** *a converged cycle's task file is the record of its closure evidence,
+and tp knows whether git can recover it.*
+
+A field cycle lost one. That project names a task file `spec/upcoming-<name>.tasks.json` until
+release and renames it at the tag, and its `.gitignore` carries `spec/upcoming-*.tasks.json` — so
+before the rename the file exists **only on disk**. It was deleted mid-session on a wrong scope note,
+had never been tracked, and is not in git history. Fourteen tasks' closure evidence and commit SHAs
+are unrecoverable.
+
+tp emits **one advisory, once, at the release phase**, when the resolved task file is untracked —
+naming what would be lost rather than what is true.
+
+**The naming convention is not tp's and is not adopted here.** tp ships no `upcoming-` prefix and no
+such `.gitignore` line; a check keyed on the prefix would help only projects that share it. What
+generalises is the loss: tp resolves the active task file's path on every invocation, and whether git
+tracks that path is one `git ls-files` away.
+
+## 2. The advisory names the loss, not the state
+
+```
+task file spec/upcoming-x.tasks.json is untracked — 14 closed tasks and 27 commit SHAs exist only on disk
+```
+
+### 2.1 Why not "the task file is untracked"
+
+The first draft specified this as a state advisory, one per invocation, the twin of the binary check.
+The operator who lost the file refuted it:
+
+> I did not lose the file because I was confused about whether git had it. I executed my own wrong
+> scope note saying to delete it. "Task file is untracked" does not contradict "this file should be
+> deleted" — if anything it *supports* it. An untracked file reads as disposable.
+
+**The two propositions are orthogonal**, so a state advisory can fire correctly, be read correctly,
+and change nothing. That is a claim about two sentences and is checkable by reading them; it does not
+rest on the recollection.
+
+**A count contradicts the deletion where a state does not.** *Fourteen tasks and twenty-seven SHAs
+exist only here* is incompatible with *this file is disposable*, and it is the same fact stated in the
+units the loss is measured in.
+
+## 3. Once, at the release phase
+
+The advisory fires when the audit converges, or when `tp resume` reports `phase: release` — the step
+that operator was at when the file went.
+
+**Not per invocation, and the cadence is the second half of §2.1's refutation.** That session ran tp
+dozens of times; habituation to a per-invocation warning would have been complete long before the
+moment it mattered. A per-invocation warning is right for a condition that is true all session and
+cheap to ignore correctly, and it is the failure mode for a single irreversible moment.
+
+**Every input exists at that moment.** `engine.PhaseRelease` (`internal/engine/phase.go:9`) is
+reached by `internal/engine/driver.go:243`, and the resolved task file carries the closed-task count and
+`commit_shas`. Measured on this repository's own v0.36.0 task file: **24 tasks, 24 closed, 47 SHAs** —
+so the sentence has real numbers to put in, not placeholders.
+
+**No new capability is proposed.** `internal/cli/report.go:114` already counts untracked files and
+`internal/cli/config_extract.go:290` already shells to `git status --porcelain`. What is new is that the answer
+reaches the operator before the file is gone rather than after.
+
+**Still an advisory.** Silenced by `--quiet`, never an error, never a refusal, no exit code changes.
+
+## 4. Non-Goals
+
+1. **No release-time rename command.** The same field report asked for one. It is a workflow verb that
+   would bake one project's naming convention into the tool, and the reporter agreed on re-reading,
+   ranking it *"clearly below the reframed advisory"*. If it is ever wanted, the shape that avoids the
+   objection takes its destination from the caller — `tp mv <spec> <path>` doing a `git mv` plus a
+   post-check that the file is now tracked, so tp supplies the guarantee and no convention.
+2. **No `.gitignore` inspection, no prefix heuristic.** The predicate is `git ls-files` on the resolved
+   path. *Why* a file is untracked does not change what is lost.
+3. **No merge with the binary check.** They share a subject — a fact about the repository tp can see —
+   and not a cadence; §3 is why, and the binary check's own release says the same from its side.
+4. **No refusal to converge, and no gate.** A cycle whose task file is untracked still converges,
+   ships and reports. The advisory informs a decision; it does not take it.
+5. **Nothing is written or moved.** tp reports; recovering the file is the operator's.
+
+## 5. One caveat, carried rather than dropped
+
+This is retrospective self-report about a decision that cannot be rerun. **The orthogonality argument
+in §2.1 does not depend on that** — it is a claim about two propositions, checkable by reading them.
+The stronger assertion, that the reframed sentence *would* have prevented the deletion, is
+unfalsifiable and is recorded as testimony, not measurement. A test can show the advisory fires with
+the right numbers at the right moment; no test can show it would have been obeyed.
+
+## 6. Tests
+
+Every row derives from a numbered decision, names the artifact it depends on, and names a mutant that
+must fail it.
+
+| # | from | assertion | the mutant that must fail it |
+|---|---|---|---|
+| 1 | §2 | the advisory names the closed-task count and the SHA total, both non-zero, matching the resolved task file | emit the state sentence — the refuted form, which passes any test asserting only that an advisory appeared |
+| 2 | §2 *counts* | a fixture with 24 closed tasks and 47 SHAs produces exactly those two numbers | count all tasks rather than closed ones, or count `commit_sha` rather than `commit_shas`, either of which understates the loss |
+| 3 | §3 | it fires at `PhaseRelease` and **not** on the invocations before it — asserted by running a sequence, not one call | fire per invocation, which is the habituation failure §3 exists to avoid |
+| 4 | §3 *converged* | it also fires when the audit converges, on a cycle that never calls `tp resume` | key it on `resume` alone, so a cycle driven by `tp audit` never sees it |
+| 5 | §1 *tracked* | a tracked task file produces nothing, whatever its `.gitignore` says | test `.gitignore` rather than `git ls-files`, which reports a tracked-then-ignored file as at risk |
+| 6 | §4.4 | convergence, exit codes and `--check` are unchanged by the advisory's presence | let it set an exit code, turning an advisory into a gate |
+| 7 | §3 *quiet* | `--quiet` silences it and the phase still reports release | route it to stdout, where it corrupts the JSON payload a driver parses |
+
+**Row 1 is the acceptance and row 3 is the one that would have been skipped.** A test that asserts
+"an advisory was emitted" passes under the refuted design; only asserting the *numbers* and the
+*cadence* separates the two forms, and the refutation is precisely that the two forms are not
+interchangeable.
