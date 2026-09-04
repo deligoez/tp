@@ -263,6 +263,24 @@ Each task is atomic — one commit, one verb, ≤15 minutes:
 }
 ```
 
+Status is three values and no more — `open`, `wip`, `done` (`internal/model/task.go`) — with one
+legal transition each way. Nothing writes a fourth:
+
+```mermaid
+stateDiagram-v2
+    [*] --> open
+    open --> wip: tp claim, tp next
+    wip --> done: tp done, tp close
+    done --> open: tp reopen
+    done --> [*]
+
+    note right of open
+        blocked is not a fourth state.
+        tp blocked computes it from depends_on,
+        so it can never disagree with the graph.
+    end note
+```
+
 The file's `workflow` block carries the gate and the convergence policy. Every field with its type,
 default and range, the accepted acceptance-criteria delimiters, and the JSON field aliases are in
 [REFERENCE.md](skills/tp/REFERENCE.md); how to write `source_sections` is in
