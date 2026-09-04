@@ -70,7 +70,11 @@ premises hold.** `tp ground` is what makes that true first, which is why it runs
 the review rounds that rewrite a spec are exactly the rounds whose new sentences nobody has checked,
 so grounding after review grounds the text the loop has already finished arguing with.
 
-Repeat until `tp ground <spec> --status --check` exits 0:
+Repeat until **both** hold: `tp ground <spec> --status --check` exits 0, **and** the latest round's
+`by_verdict` breakdown carries no `FAIL` or `PARTIAL` you have not repaired. They are two conditions,
+not one — `--check` answers *did every floor unit get a disposition* and gates on nothing else, so a
+round of nothing but `FAIL`s is fully covered and exits 0. A driver that stops on the exit code alone
+stops with false claims standing in the spec. Each round:
 
 1. `tp ground <spec>` — emits **one** prompt (the envelope carries `prompt`, a string, where review
    and audit carry `prompts[]`: grounding asks one question of every unit, so there is no panel and
@@ -103,10 +107,19 @@ carries no disposition — and exit 1 **also** when the emitted floor is empty w
 positive, because `0 < 0` is false and coverage alone would certify a document whose every sentence
 the arms dropped. So exit 1 here is not always undercoverage: read `cut` before hunting for
 undispositioned units that may not exist. `emitted: 0, cut: 0` is honestly covered and exits 0, and
-so does a round of nothing but `FAIL`s — a fully covered round. That is why `--status` reports the
-per-verdict breakdown beside the ratio: coverage answers *did anyone look*, the breakdown answers
-*what did they find*. Read the `NOT-A-CLAIM` share first, because it bounds what the ratio can mean
-on a decisions document.
+so does a round of nothing but `FAIL`s — a fully covered round. **Measured on this repository:**
+`spec/.tp-review/1.56.0/ground-round-1.ndjson` records 4 `FAIL` rows, and
+`tp ground spec/1.56.0.md --status --check` exits **0**. That is why `--status` reports the
+per-verdict breakdown beside the ratio, and why the loop condition above names both: coverage answers
+*did anyone look*, the breakdown answers *what did they find*. Read the `NOT-A-CLAIM` share first,
+because it bounds what the ratio can mean on a decisions document.
+
+**Ground's `--status` has no `next_action`, and a driver must not wait for one.** Its keys are exactly
+`spec`, `round`, `emitted`, `dispositioned`, `reader_added`, `off_floor`, `cut` and `by_verdict`;
+`tp review --status` and `tp audit --status` both carry `next_action` and ground's does not. A loop
+written by pattern-matching on the review loop therefore finds nothing to branch on and falls back to
+`--check`'s exit code, which is the one thing not to branch on alone. **Branch on `by_verdict`** for
+what the round found, and on `dispositioned` against `emitted` (with `cut`) for whether it is covered.
 
 **Grounding is a command an operator runs, not a phase.** `tp resume` reports no `ground` phase and
 `tp run` has no ground unit kind, by design — so nothing schedules a round for you. The signal that a
