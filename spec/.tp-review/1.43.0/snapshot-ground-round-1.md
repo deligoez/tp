@@ -1,0 +1,130 @@
+# tp v1.43.0 — The loop's own state writes
+
+> **This file is decisions.** Defects v0.36.0's audit handed over. Each was **re-run against `HEAD`
+> while writing this file** rather than carried forward from the handover text, because a deferred
+> defect is a claim about a tree that has since moved — v0.37.0 shipped in between. A third, *a
+> refused invocation still writes state*, was measured here and then **shipped in v0.37.1** with the
+> rest of that patch, because its fix was already built and green.
+
+## 1. Overview
+
+`spec/.tp-review/<base>/` is where the loop keeps what it knows: the round index, each round's
+snapshot, each round's findings. Two things are wrong with how it is written and watched, and they
+share a subject rather than a mechanism:
+
+1. **The round's findings file is not written atomically** (§2), while the snapshot beside it is.
+2. **The gate that watches the directory cannot see an empty one** (§3) — a blind spot the script
+   documents in its own comment and does not close.
+
+Neither adds a command, a flag or a workflow field.
+
+## 2. The round's findings file is written atomically
+
+`internal/cli/review_record.go:136` and `internal/cli/audit_record.go:236` both write the round file with a plain
+`os.WriteFile`. `WriteSnapshotAtomic` (`internal/engine/reviewstate.go:378`), used for the snapshot in
+the same directory during the same round, writes to a temporary name and renames.
+
+**Both writes use the same atomic path.** The snapshot already proved the pattern in this exact
+directory; the round file is the artifact every convergence count, every `--merge` and every replay
+reads, and it is the one written without the guarantee.
+
+**This is a live concurrency defect, not crash safety, and the difference was measured.** A probe
+writing a corpus-median 41 KB round file 4,000 times while four readers read it:
+
+| writer | whole reads | **partial reads** |
+|---|---|---|
+| `os.WriteFile` — the shipped shape | 9,944 | **8,988** |
+| temp file + `rename` | 80,696 | **0** |
+
+**A reader sees a truncated file in roughly half its reads.** tp's own reads are lock-free by design —
+`--status` and `tp resume` parse these files while a `--record` may be writing one — so this is
+reachable without a crash, and a truncated NDJSON parses to *fewer rows*, which makes the round clean
+more often than it should be.
+
+**Measured, and the severity is in the indistinguishability rather than the odds.** Over the 265
+recorded round files: median **41 KB**, max **112 KB**, and **236 of 265 (89%) exceed a single 4 KB
+page** — so a partial write is a real shape, not a theoretical one. More to the point, **12 of the 265
+are already zero bytes**, every one recorded `findings: 0, clean: true`, and every one checked is the
+*last* round of its cycle:
+
+```
+0.24.0 review-round-6, 0.23.0 review-round-14, 0.35.0 review-round-21, …
+```
+
+Those twelve are **legitimate** — a round in which every role found nothing writes an empty file, and
+that is what convergence looks like. That is exactly why this matters: **a truncated write lands in a
+state the corpus already contains twelve honest examples of.** Fewer rows read as a cleaner round, an
+empty file reads as a converged one, and nothing distinguishes the two. A defect whose signature is
+identical to success is not one an operator can catch by looking.
+
+**Ordering is unchanged.** The round file is written before the index entry, and that stays: an
+orphaned round file is rebuildable and an index entry pointing at nothing is not.
+
+## 3. The gate sees an empty watched directory
+
+`scripts/check-suite-state.sh` hashes `spec/.tp-review` and `.tp/rounds` before and after the suite:
+
+```sh
+find "$dir" -type f -print0 | LC_ALL=C sort -z | xargs -0 shasum -a 256
+```
+
+**`-type f` means an empty directory contributes nothing**, so creating one, deleting one, or emptying
+one is invisible to the wrapper. The script says so itself, at line 38, under the heading `KNOWN BLIND
+SPOT, measured in audit round 3` — the defect is documented and not closed.
+
+**The digest hashes the sorted path listing as well as the file contents — and adding `-type d` to
+the existing pipeline does NOT work.** That was this section's first mechanism and it is refuted:
+`shasum` cannot hash a directory, the error goes to `/dev/null`, and both walks return the digest of
+empty input. Measured:
+
+| walk | empty dir added | removed | file content changed |
+|---|---|---|---|
+| `-type f` (shipped) | **no change** | — | detected |
+| `-type f -o -type d`, same pipeline | **no change** | — | detected |
+| sorted path listing **+** file content hashes | **changes** | changes, back to baseline | detected |
+
+Only the third discriminates, and it must be checked in all four directions rather than only on
+addition — a walk that notices a directory appearing can still miss one being removed.
+
+**A comment naming a blind spot is not a mitigation, and this release deletes the comment by closing
+it.** `CLAUDE.md` already carries the general form — a gate step that certifies itself in text is the
+failure this project has measured ten ways — and a script that documents its own gap is the same shape
+one level down.
+
+**The `.tp/rounds` arm gets the same walk.** It exists only after a `tp run`, so it is usually absent
+rather than empty; making the two arms differ would leave the untested one to drift.
+
+## 4. Non-Goals
+
+1. **The other v0.36.0 handovers are not here.** Two CI guards narrower than their own claims, and a
+   load-sensitive gate test, are about what CI certifies rather than what the loop writes; they belong
+   with the gate sequence. The refused-invocation defect shipped in v0.37.1.
+2. **No cleanup command, no `--prune`, no GC.** Deciding what an orphaned state directory means is a
+   judgement tp cannot make from disk.
+3. **No lock added or removed.** `WithFileLock` already guards the record path; §2 changes how bytes
+   land inside it, not who may write.
+4. **No change to what the gate hashes, only to what the walk can see.** The watched set stays
+   `spec/.tp-review` and `.tp/rounds`.
+5. **No retroactive repair of round files already written non-atomically.** They are complete or they
+   are not, and rewriting them would fabricate their history.
+## 5. Tests
+
+Every row derives from a numbered decision, names the artifact it depends on, and names a mutant that
+must fail it.
+
+| # | from | assertion | the mutant that must fail it |
+|---|---|---|---|
+| 1 | §2 | with four readers against 4,000 writes of a 41 KB round file, **zero** reads observe a partial file | plain `os.WriteFile`, measured at 8,988 partial reads on the same probe — the test discriminates by a wide margin and needs no fault injection |
+| 1b | §2 *no content change* | the bytes the reader sees are byte-identical to what the writer wrote, on every whole read | rename a temp file whose contents were never flushed, which yields whole-but-empty reads that pass a length-only assertion |
+| 2 | §2 *ordering* | the round file lands before its index entry, unchanged by this release | swap them, producing an index entry pointing at a file that does not exist |
+| 3 | §2 *empty* | a round whose every role found nothing still writes its empty file and records `findings: 0, clean: true` | treat an empty write as a failure, which breaks the twelve legitimate terminal rounds the corpus already holds |
+| 4 | §3 | the wrapper's digest **differs** when the suite creates an empty directory under a watched path | `-type f`, the shipped walk, which reports the two states identical — and this is the assertion the existing comment says nobody has |
+| 5 | §3 *the refuted shape* | adding `-type d` to the existing `shasum` pipeline is **not** enough — the same fixture must still fail under it | ship that variant, which looks like the fix, reads like the fix, and measured no change in either direction |
+| 5b | §3 *removal* | the digest differs when an empty directory is removed, and returns to the baseline value | compare only the file set, which catches creation through a sibling file and misses deletion entirely |
+| 6 | §3 *both arms* | `.tp/rounds` gets the same walk as `spec/.tp-review`, asserted on both | widen one arm, leaving the untested one to drift |
+
+**Row 3 is the one an implementer will get backwards.** An empty round file is not a failed write —
+**12 of the 265 recorded round files are zero bytes**, every one a legitimate terminal clean round —
+so the atomic write must produce an empty file where the old one produced an empty file, and the test
+has to say so or the fix will "helpfully" reject it.
+author picked — and the count of times it has been wrong is the reason the row is written this way.
