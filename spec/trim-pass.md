@@ -210,6 +210,26 @@ sections **8 % smaller**. The payoff was not round counts, which had gone flat (
 next round and the blocked-task count at decomposition do not fall after the cut, the problem is the
 loop and not the document.* A pass run without it measures nothing.
 
+**And the growth is now measured on this repository's own repairs, not inferred.** Two specs repaired
+from a ground round on 2026-09-04, floor sizes taken with `tp ground <spec> --units | wc -l` inside
+`git archive <ref>` trees at the round's commit and after the repair:
+
+| spec | floor before | after | factor |
+|---|---|---|---|
+| `spec/1.58.0.md` | 47 | **114** | 2.43× |
+| `spec/1.0.1.md` | 211 | **257** | 1.22× |
+
+`spec/1.58.0.md` went 185 → 391 lines in one repair pass, and **every addition traces to a graded
+row** — its repair unit said so and the round file bears it out. So this is not a repair that padded;
+it is what answering seventeen `PARTIAL`s and five `FAIL`s costs when each answer must carry its own
+derivation. The next round on that spec reads 2.4× what the last one did.
+
+**That is the strongest form of the problem this note is about**, and it cuts both ways: the growth is
+the loop working, and the growth is what makes the next turn of the loop dearer. Neither the forensics
+trim (§1–§2) nor the scope pass (§3) touches it, because the added text is neither forensics nor
+out-of-scope — it is derivations for claims that were already in the document. **A third thing may be
+wanted and this note does not have it**: somewhere for a derivation to live that is not the spec's own
+floor. `spec/undecided.md` carries the nearest question under a different name.
 ## 8. Open, and named so it is not mistaken for design
 
 - **Whether the scope pass or the trim pass is the one worth building.** The evidence says scope: 21 %
