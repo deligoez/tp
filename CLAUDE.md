@@ -401,7 +401,12 @@ cannot rescue it, because it replaces the universe *upstream* of the cap.
 
 **1.39.0 second, because the gate that decides shipping returns the wrong answer, and the last two
 releases both worked around it by hand.** v0.36.0 and v0.37.0 each shipped with
-`tp audit --status --check` at exit 1 while `spec-coverage` was clean and no role held a FAIL — the
+`tp audit --status --check` at exit 1 while `spec-coverage` was clean — **but "no role held a FAIL" is
+v0.37.0's condition alone, and this sentence used to apply it to both.** v1.0.0's grounding of the
+role-panel spec measured v0.36.0's shipping round 13 carrying **two** `maintainability-conventions`
+rows at `status: FAIL`, `severity: error`, `resolved: null`; the v0.36.0 sentence further up this file
+is correctly the narrower *"zero open spec-scoped findings"*. Derive it rather than reading either:
+`python3 -c "import json;print([(r['role'],r['severity']) for r in (json.loads(l) for l in open('spec/.tp-review/0.36.0/audit-round-13.ndjson') if l.strip()) if r.get('status')=='FAIL'])"` — the
 two gates measure different things, and the operator has adjudicated the difference in writing twice.
 Until it ships, every ship decision is a judgement call dressed as a check.
 
