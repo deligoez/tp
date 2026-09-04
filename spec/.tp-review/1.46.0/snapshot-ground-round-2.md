@@ -1,0 +1,176 @@
+# tp v1.46.0 — Mutation score as a gate entry
+
+> **This file is decisions.** Every figure below about gremlins' output was produced by **running it**
+> in an `rsync -a --exclude .git` copy of `HEAD`, not by reading its documentation. Four runs, each
+> named where its figures are used: `gremlins unleash ./internal/model --workers 4 -o out.json`; the
+> same with `--test-cpu 2`; `gremlins unleash ./internal/engine --dry-run -o dry.json`; and a
+> throwaway two-file module (§4). A figure **borrowed** from an older record is marked with the tag it
+> was measured at and is never presented as this tree's. §3 and §4 exist because those runs
+> contradicted what gremlins' own field names say.
+
+## 1. Overview
+
+`CLAUDE.md` has carried mutation testing as a trigger, not a gate, since v0.34.1, with a standing
+warning that **the survivor count is not a score to drive down**. That stays true. What is missing is
+weaker and more important: nothing records that a run **happened**, or **over which mutants**, so
+every figure quoted from one is unverifiable afterwards.
+
+This release adds one gate entry that **establishes a run completed over a known mutant set, and
+records the set**. It does not grade the result.
+
+**Cheap, once narrowed.** `gremlins unleash ./internal/model --workers 4 -o out.json` at `HEAD` is
+**81 mutants in 11 seconds** of wall clock (`elapsed_time` 9.73). The expensive package is
+`./internal/engine`: `gremlins unleash ./internal/engine --dry-run` reports
+`Runnable: 1541, Not covered: 279` — **1820 mutants**, and the same dry run with `-o` writes 1820
+rows into `files[].mutations[]`, so the two derivations agree. `CLAUDE.md`'s 1540 and its 53 minutes
+are the same package measured at tag `v0.35.0`; budget against 1820. Per-package narrowing is an
+exact substitute — in default mode gremlins runs only the mutated package's own tests, so an
+unchanged package's mutants cannot change verdict.
+
+## 2. The entry reads the machine-readable output, never stdout
+
+`gremlins unleash -o <file>` writes JSON. Measured shape:
+
+```
+go_module, files[{file_name, mutations[{type, status, line, column}]}],
+test_efficacy, mutations_coverage, elapsed_time, mutator_statistics,
+mutants_total, mutants_killed, mutants_lived, mutants_not_viable, mutants_not_covered
+```
+
+**stdout is not parsed**, and neither stream contains the other. stdout prints
+`Timed out: N, Not viable: N, Skipped: N` — two of those three counts the JSON exports nowhere (§4) —
+while the JSON carries `mutants_total`, `mutator_statistics`, `go_module` and the whole `files[]`
+list, none of which stdout prints, and renders elapsed as `9.73` against stdout's
+`9 seconds 732 milliseconds`. The JSON is read because its shape is a Go struct
+(`internal/report/internal/structure.go`); stdout's is a presentation and changes with it.
+
+## 3. `mutants_total` is not the total, and the entry must not use it
+
+Measured on `./internal/model`:
+
+| | |
+|---|---|
+| `mutants_total` | **55** |
+| `mutants_killed` + `mutants_lived` | 55 |
+| `mutants_killed` + `mutants_lived` + `mutants_not_covered` | **81** |
+| rows in `files[].mutations[]` | **81** |
+
+**The field excludes not-covered mutants**, so it names the *tested* subset while reading as the
+population. A gate using it as a denominator silently drops 26 of 81 here — **32%** — and the
+direction is flattering: the excluded mutants are exactly the ones nothing tested.
+
+**The entry's mutant count is the length of `files[].mutations[]`.** Two independent derivations of
+one number, from the same file, is what makes "over which mutants" checkable rather than asserted —
+and this repository's own rule is that a claim bound to a named artifact cannot rot silently.
+
+**The second derivation is not `killed + lived + not_covered`, and an earlier draft of this section
+said it was.** `mutations[]` carries one row per mutant across every status the reporter emits, and
+those three are not all of them. The exemplar run `CLAUDE.md` points at is the counterexample, and it
+is the run this release exists to make checkable:
+
+```
+1540 mutants, 1033 killed, 253 lived, 227 not covered, 27 timed out
+```
+
+`1033 + 253 + 227 = 1513` against a length of **1540** — short by exactly the timeouts. A gate
+asserting the three-way sum would report that run as one that did not happen. Derive it from the
+recorded figures with `grep -n '1540 mutants' spec/0.35.0-candidates.md`, or from any run's own JSON.
+
+**So the cross-check sums every status the file reports, not a chosen three** — killed, lived,
+not-covered, timed out, not-viable and skipped, whichever of them the schema carries — and the entry
+fails when the sum and the length disagree. Naming three is how the check acquires a blind spot in
+exactly the direction that matters: a status the reporter grows is a mutant the gate stops counting,
+and the gate says the run is incomplete rather than that its own list is.
+
+## 4. The corruption tell is checked, because the timeout count is not in the file
+
+`CLAUDE.md` records a measured corruption: `--test-cpu N` makes gremlins pass `-cpu N` to
+`exec.Command` as a single argument, so `go test` never starts, every real survivor becomes
+`TIMED OUT`, and efficacy reads **100.00%** — *"it manufactures exactly the number someone would be
+pleased by."*
+
+**There is no timed-out key in the JSON.** stdout prints `Timed out: 0`; the machine-readable output
+has `elapsed_time` and nothing else matching. Measured — the eleven top-level keys are listed in §2
+and none of them counts timeouts. **So a gate reading the file cannot see the failure mode directly.**
+
+**What it can see is the signature.** The entry refuses to report a score when
+`mutants_lived == 0 && mutants_not_covered > 0`. Under the corruption every survivor moves out of
+`lived` while `not_covered` is untouched — the coverage profile is collected before any mutant runs —
+so the pair is exactly the fingerprint.
+
+**It refuses rather than fails, and the reason is stronger than the one this section used to give.**
+It cited `CLAUDE.md` for a peer repository hitting `Lived: 0` beside a non-zero not-covered count
+honestly. That is not what `CLAUDE.md` recorded — the peer's honest case was the weaker `Lived: 0`
+plus 100%, and `CLAUDE.md` went on to assert that the pair *with* a non-zero not-covered count could
+not occur honestly. **That assertion is false, and this cycle measured it.** A two-file package — one
+function fully killed by a table test, one never called — run with no flags at all:
+
+```
+Killed: 1, Lived: 0, Not covered: 6
+Timed out: 0, Not viable: 0, Skipped: 0
+Test efficacy: 100.00%
+```
+
+So the signature is **necessary under the corruption and not sufficient**, and no reading of the file
+alone can settle it: what decides is the argv — whether `--test-cpu` was passed. `CLAUDE.md` has since
+been corrected to say so, and this section no longer leans on the sentence it used to quote.
+
+That is exactly why the entry **refuses** rather than failing: it says *this result is not usable,
+re-run it without the flag*, and it does not assert the run was corrupt, because on this evidence it
+cannot.
+
+**`--test-cpu` is never passed and `--workers` always is.** The first is the corruption; the second
+is what makes two runs comparable. Both belong in the entry rather than in an operator's memory,
+which is where they have lived for three releases.
+
+## 5. The entry does not grade
+
+**No efficacy threshold, no survivor budget, no ratchet on the score.** `CLAUDE.md`'s rule is that
+survivors must be *classified*, not driven down — v0.34.1's ten survivors in one file were two
+equivalent mutants, three on an undocumented backoff schedule, and four on a documented contract with
+no boundary test, and only the last group was worth acting on. A number that gates invites the three
+cheap ways to move it.
+
+**What the entry gates on is completeness**: the output file exists, parses, carries a non-zero
+`elapsed_time`, its two mutant-count derivations agree, and §4's signature is absent. A run that
+fails any of these did not happen, whatever it printed.
+
+**The score is recorded, not judged.** `test_efficacy`, `mutations_coverage`, the four status counts
+and the per-file mutation list are written to a committed artifact per package, so a later claim about
+a package's mutation score has something to be checked against. `internal/engine/validate.go` at 25%
+efficacy with 46 survivors is the standing backlog, and today that figure exists only in a paragraph.
+
+**Load-sensitivity is stated, not corrected.** A run on a busy machine turned 75 kills into 80
+timeouts; the same package measured 92 timeouts busy and 88 idle. The entry runs at the two decision
+points `CLAUDE.md` already names — when a version's new engine surface is complete, and before the
+release tag — and never while task gates are running.
+
+## 6. Non-Goals
+
+1. **Not in `quality_gate`'s per-task run.** Ten seconds for one small package is cheap; the engine's
+   1540 mutants are not, and a gate that runs per task would run it hundreds of times.
+2. **No efficacy threshold.** §5 states why, and it is this repository's own standing rule.
+3. **No use of `-D`/`--diff`.** It does not work in v0.6.0 — measured, an empty diff produced all 80
+   mutants — and has three open upstream bugs. Per-package narrowing replaces it exactly.
+4. **No repair of gremlins.** The missing timeout field and the `mutants_total` naming are upstream's;
+   this release works around both and says so.
+5. **No run inside the repository.** `rsync` copy, always, because gremlins rewrites source in place.
+
+## 7. Tests
+
+Every row derives from a numbered decision, names the artifact it depends on, and names a mutant that
+must fail it.
+
+| # | from | assertion | the mutant that must fail it |
+|---|---|---|---|
+| 1 | §3 | on the measured `./internal/model` output, the entry reports **81** mutants | read `mutants_total`, which reports 55 — the shipped-looking choice, wrong by 32% |
+| 2 | §3 *cross-check* | an output whose `files[].mutations[]` length disagrees with the sum of **every** status the file reports is rejected as incomplete — and the recorded 1540/1513 run, whose three-way sum is short by its 27 timeouts, is **accepted** | derive the count once, so a truncated file passes with a self-consistent smaller number; and separately, sum only `killed+lived+not_covered`, which rejects the exemplar run this release exists to make checkable |
+| 3 | §4 | an output with `mutants_lived: 0` and `mutants_not_covered: 26` is refused, naming `--test-cpu` | report the efficacy, which is 100.00% under the corruption |
+| 4 | §4 *honest* | the refusal says the result is unusable and does **not** assert corruption | word it as a corruption verdict, which is wrong for the peer repository's honest 100% |
+| 5 | §4 *clean* | `mutants_lived: 0` with `mutants_not_covered: 0` is **accepted** — an exhaustive suite is not a corrupt run | trigger on `lived == 0` alone, which refuses a genuinely perfect package |
+| 6 | §5 | the entry's exit status does not depend on `test_efficacy` — asserted by feeding two outputs differing only in that field | gate on the score, which is the rule this repository has held since v0.34.1 |
+| 7 | §4 *flags* | the invoked command line contains `--workers` and does **not** contain `--test-cpu` — asserted on recorded argv under a stub binary | assert on the script's text, which this repository has measured three times to be insufficient |
+
+**Row 7 runs the entry under a stub and reads argv.** Reading a script for a flag was measured
+insufficient three times here — a bare `Contains` was satisfied by the flag appearing in a comment,
+and a per-line scan kept the last matching line with no notion of the `if`/`else` around it.
