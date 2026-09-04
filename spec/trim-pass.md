@@ -101,18 +101,40 @@ section has appeared which no interview answer entails.**
 
 ## 5. Three things tp could do, cheapest first — with what is verified
 
-**1. Findings per section in `tp review --status`. The data exists and is complete.** Verified here:
-`location` is present on **3,883 of 3,883** recorded review rows (100 %), counting rule = every row of
-every `spec/.tp-review/*/review-round-*.ndjson`. No new capture is needed; this is an aggregation over
-a field already written. The reporter's distribution was ~9 findings per section in the doomed cluster
-against ~2 elsewhere, with every critical in one place — a **4× density gap, visible after round 2**.
+**1. Findings per section in `tp review --status` — a reporting nicety, and NOT a scope signal.** The
+data exists and is complete: `location` is present on **3,883 of 3,883** recorded review rows (100 %),
+counting rule = every row of every `spec/.tp-review/*/review-round-*.ndjson`, so this is an aggregation
+over a field already written. Keep it if it is free. **Do not let it prompt the scope question** — it
+was demoted here after a false positive and a false negative arrived from opposite corpora.
 
-**But density alone is not sufficient, and this repository is the counter-example.** Bucketing
-v0.37.0's own review rounds by the leading section number in `location`: §2 drew **143** findings
-against §1's 37 — a 3.9× spread, the same magnitude — and §2 was that release's **core clause**, not a
-scope error. So the signal is *necessary and not sufficient*: it is a prompt to ask the question, never
-an answer. That is the same shape as this repository's mutation-corruption signature, and it should be
-written down the same way.
+**The false positive is this repository's.** Bucketing v0.37.0's review rounds by the leading section
+number in `location`: §2 drew **143** findings against §1's 37 — a 3.9× spread — and §2 was that
+release's **core clause**, not a scope error.
+
+**The false negative is the field report's, and it is the sharper half.** Their §4.3 is the section
+their user cut *first and most decisively* — one sentence, *"there is already a 30-day counter, we
+should not touch any of this at all"* — and it produced **2 findings from 2 roles**, at the bottom of
+the table beside sections nobody questioned. Seventeen floor units, every one `PASS` or `NOT-A-CLAIM`
+by round 5. Nothing was wrong with it; it was not wanted.
+
+**So density is uninformative in both directions — it is not even reliably necessary**, which is
+strictly stronger than *necessary but not sufficient* and is why the earlier draft of this paragraph
+was too generous. The obvious refinement fails too: cross-role agreement on their corpus scored doomed
+sections `[5, 5, 4, 2]` against surviving `[4, 4, 3, 2, 2, 1, 1, 1, 1, 1, 1, 1]`, and of the six
+sections drawing ≥ 3 roles, three were cut and three were kept — a coin flip.
+
+**And the blind spot is structural rather than one unlucky section.** Their §4.3's signature is a
+section grounding finds nothing in at all, and such sections are ordinary here: over sections with at
+least six graded rows, **13 of 106 (12 %) are 100 % `PASS`/`NOT-A-CLAIM` across every round** —
+
+```
+python3 -c 'import json,glob,collections,re;s=collections.defaultdict(list);[s[(f.split("/")[2],re.match(r"[^0-9]*(\d+(?:\.\d+)?)",json.loads(l).get("anchor") or "").group(1))].append(json.loads(l)["verdict"]) for f in glob.glob("spec/.tp-review/*/ground-round-*.ndjson") for l in open(f) if l.strip() and re.match(r"[^0-9]*(\d+)",json.loads(l).get("anchor") or "")];t=[k for k,v in s.items() if len(v)>=6];print(len([k for k in t if all(x in ("PASS","NOT-A-CLAIM") for x in s[k])]),"of",len(t))'
+```
+
+— so roughly one section in eight produces no ground signal whatever about whether it belongs. **The
+section with the clearest scope error in that cycle was invisible to every automated signal the cycle
+produced**: five ground rounds graded it clean and two review rounds barely noticed it. The only thing
+that surfaced it was asking a person whether they wanted it.
 
 **2. A goal-entailment question.** No new phase: one prompt asking, per section, *does §1's stated goal
 entail this section?* The reporter's §1 names a missing control contract plus three derivative
