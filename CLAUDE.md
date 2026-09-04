@@ -350,14 +350,21 @@ guaranteed reduction in rounds.
 | **1.58.0** | **`forward-spec-ref`** | The only lint-rule candidate that survived prototyping: a spec must not name a spec numbered above itself that has not yet shipped. The shipped boundary is load-bearing — without it the one measured false positive returns. `scripts/forward-spec-ref-prototype.py` reports **2** at HEAD, both in `spec/1.0.0.md` | tool | **written** |
 
 
-**`spec/candidates.md` holds what is not numbered**, in two sections that must not be confused:
+**`spec/undecided.md` holds what is not numbered**, in two sections that must not be confused:
 *refuted* (prototyped, did not survive, recorded with the measurement that killed it — a refuted
 predicate is not a backlog item) and *undecided* (a real need whose design has no answer, each naming
 the decision nobody has taken). Nothing there carries a version number, because a number that moves
-leaves stale references and this file has already paid for three renumberings. Seven candidates are
-undecided — the divisible round, the test-file fence, a durable home for an accepted finding, the
-identifier pass, class families, the evidence contract, and whether `tp review` should have a
-prior-round section at all.
+leaves stale references and this file has already paid for three renumberings.
+
+**`spec/candidates.md` was split and is now a forwarding note, not a file to read for content.** Its
+ground-related material became **`spec/1.0.1.md`** — four measured defects in `tp ground`'s own
+surfaces, found by running the command over every pending spec; its refuted record and its non-ground
+undecided rows went to `spec/undecided.md`; four undecided rows moved into the pending specs that own
+their subject; and its closed sections were deleted, each after being verified present in the release
+that took it. **The stub stays** because 29 references to it survive across the tree, six of them in
+shipped artifacts that must not be edited — derive the count with
+`git ls-files | grep -v .tp-review` and a search for the bare filename, excluding
+`0.35.0-candidates.md` and `1.0.0-corrections.md`, which are different files.
 
 **Four things are refuted, not deferred, and two of them died while this roadmap was being written.**
 The example-table lint rule died in both forms its spec named, and the corpus-replay gate is restated
