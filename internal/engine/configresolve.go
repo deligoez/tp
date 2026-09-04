@@ -117,8 +117,6 @@ func pickString(layers []*string, def string) string {
 
 // pickChecks returns the first present checks layer in precedence order — replace
 // semantics, so a present slice (even empty) wins over lower layers — or def.
-// pickChecks returns the first present checks layer in precedence order — replace
-// semantics, so a present slice (even empty) wins over lower layers — or def.
 func pickChecks(layers []*[]model.Check, def []model.Check) []model.Check {
 	for _, p := range layers {
 		if p != nil {
