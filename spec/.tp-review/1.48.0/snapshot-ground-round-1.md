@@ -1,0 +1,145 @@
+# tp v1.48.0 — The red gate
+
+> **This file is decisions.** It ships **text in a brief and enforces nothing**, which is the decision
+> rather than a shortfall — §4 records the three mechanical proxies considered and why each would
+> teach a unit to pass the proxy instead of doing the work.
+
+## 1. Overview
+
+A unit handed a red gate today gets two things and nothing between them: **the wall** — `tp brief`
+carries the resolved gate command verbatim (`internal/engine/brief.go:62`) and `last_failure` when a
+previous attempt recorded one (`internal/engine/brief.go:95`) — and **the prohibition**, that a red gate is never
+closed over and `--skip-gate` is a user decision.
+
+The failure that produces is not a wrong fix. It is a **loop**: an agent with no bound and no named
+exit re-runs the gate, edits, re-runs, and burns the unit.
+
+**Reset-native execution makes the loop expensive rather than annoying.** The context that learned
+*why* the gate was red dies with the unit, and the next attempt restarts from `last_failure`'s
+one-line summary. A rule living in `CLAUDE.md` or in an orchestrator's memory does not survive that
+reset. The brief does.
+
+**This release needs the gate sequence.** Step 1 below runs *one entry*, which is only a name once
+`quality_gate` is an ordered array of named entries. Under the string form that step is the manual
+split the sequence release exists to remove.
+
+## 2. The procedure
+
+The brief gains an ordered procedure. **Every step is a rule this repository already paid for; the
+contribution is the sequence and the bound, not the steps.**
+
+1. **Isolate, then reproduce.** Run the failing entry alone, not the gate. A failure that does not
+   reproduce is a finding about the gate, not about the change.
+2. **Observe the failure before editing it.** `CLAUDE.md`'s rule read in the other direction: a fix
+   accepted without watching the failure first proves nothing, and an assertion never seen failing
+   may be a tautology that passes identically either way.
+3. **Name three to five falsifiable causes and rank them, before testing any.** Each states its
+   prediction: *if X is the cause, then changing Y removes it.* A cause with no prediction is a
+   guess. Then **show the ranked list and carry on** — the operator often re-ranks it instantly from
+   knowledge the unit does not have, and a unit that stops to wait has turned a checkpoint into an
+   escalation.
+4. **Re-run the entry, then the whole gate.** Both, in that order. In v0.31.2 a red `golangci-lint`
+   stood behind a green test suite for **four audit rounds**, which is what this step exists to catch.
+5. **Exit by name when the investigation ends.**
+
+### 2.1 Why the ranked list is a step and not advice
+
+**Single-cause reasoning anchors on the first plausible idea, and this repository has the receipts.**
+Three times in one cycle: a checker read as failing open when a shell pipeline was eating its exit
+code; a digest fix that read correctly and changed nothing when run; a false-positive class
+characterised from the wrong reading of its own output. Each was settled in minutes once a second and
+third cause were written down — and each had cost a wrong conclusion first.
+
+**The step is cheap and it is the one a unit under pressure skips.** Steps 1 and 2 feel like progress;
+enumerating causes feels like delay. That is exactly the shape of the premature completion §3's bound
+is written against.
+
+## 3. When it ends, and how
+
+**It ends on a condition, not a count.** Either the next step would be a user-only decision, or an
+attempt produced no new information about the failure. An attempt count is exactly the gameable proxy
+§4 rejects — a unit that must finish in three attempts learns to declare victory on the third.
+
+**And it ends on a minimal reproduction, which is a checkable bound rather than a feeling.** Once the
+entry is red, cut inputs, config and steps one at a time, re-running after each cut. **Done when every
+remaining element is load-bearing: removing any one of them turns the entry green.** That test is what
+stops "I have reproduced it" from being the fuzzy criterion §3's clarity rule warns about — and the
+minimal case is also the regression test, so the work is not thrown away.
+
+**Where no seam can hold that test, the absence is itself the finding.** A red gate whose failure
+cannot be pinned at any available seam is reporting something about the codebase, not about the
+change; the unit records that rather than writing a test at a seam too shallow to catch it, which
+would hand back false confidence.
+
+**The exit differs by context and the brief resolves which one applies**, because naming a command
+that exits 2 on the path the unit is on is worse than naming none. Measured:
+
+```
+$ tp escalate --decision skip-gate --evidence "probe"
+{"error":"TP_RUN_DIR is not set: tp escalate runs only inside a unit tp run spawned","code":2,
+ "hint":"...outside a run there is no unit to stop, so make the decision directly"}
+```
+
+| context | the exit |
+|---|---|
+| under `tp run` | `tp escalate --decision skip-gate --evidence <text>`; the run stops with `stop_reason: escalation` and the operator answers |
+| outside a run | a hand-back: stop, leave the task `wip`, report the wall — `last_failure` carries it to the next attempt |
+
+**The procedure is short and always emitted.** It belongs where the prohibition already is: a *"never
+close over this"* with no stated alternative is the shape that produces the loop. The `last_failure`
+specifics — which entry failed, its exit code, the previous attempt's summary — appear only when a
+record exists, which is already how `tp brief` treats that key.
+
+## 4. Why this is not a check, stated so it is not re-proposed
+
+**Whether an investigation was systematic is not observable from its output.** Three proxies were
+considered and each is rejected for the same reason in a different costume:
+
+| proxy | why it fails |
+|---|---|
+| attempt count | §3's bound is a condition; a count teaches the unit to stop counting, not to stop learning |
+| diff size | punishes a legitimate large repair and rewards a wrong small one |
+| test-before-code, detected from diff or commit order | the only proxy here that would change what a green close means, and a unit that must pass it learns to pass it |
+
+**The third has a measured precedent in this repository.** v0.34.0 §7.1 registered a check that
+suppressed, for eight rounds, the very class it was meant to measure — and the first round after
+unregistering it surfaced three stale claims the suppression had hidden. A mechanism that shapes what
+a unit reports is not neutral about what the unit finds.
+
+**What tp can do instead is put the procedure and its exit in front of a unit that has lost the
+previous attempt's context, every time.** That is the whole release.
+
+## 5. Non-Goals
+
+1. **No enforcement, no gate, no exit code.** Nothing here changes what a green close means or what
+   any command returns.
+2. **No audit-repair surface check.** *"A repair that introduces a new abstraction belongs to the next
+   version"* is real and among the most expensive rules tp has learned, and every mechanical proxy
+   considered — diff size, new symbol count — is gameable and punishes legitimate repairs. It stays
+   prose until someone finds a predicate that is not.
+3. **No test-first gate.** §4's third row; not without a measurement showing the gate catches more
+   than it teaches.
+4. **No change to `--skip-gate`.** It remains a user-approved decision and remains fenced under
+   `TP_UNATTENDED=1`. §3's escalation path is how a unit *asks*, not a way to take it.
+5. **No new record.** `last_failure` is written and surfaced as it already is; this release adds no
+   field.
+
+## 6. Tests
+
+Every row derives from a numbered decision, names the artifact it depends on, and names a mutant that
+must fail it.
+
+| # | from | assertion | the mutant that must fail it |
+|---|---|---|---|
+| 1 | §2 | every brief carries all **five** steps in order, whether or not `last_failure` exists — asserted over both states | emit the procedure only when a failure is recorded, so the first attempt gets the prohibition alone |
+| 1b | §2 *the ranked list* | step 3 asks for **three to five** causes, each with its prediction, and says to carry on rather than wait | emit it as "consider alternatives", which is a no-op: the agent already believes it does that, so the line changes nothing |
+| 1c | §3 *minimality* | the procedure names the load-bearing test — remove any remaining element and the entry goes green | say "reduce the repro", which has no observable done-condition and reads as advice |
+| 2 | §3 | inside `TP_RUN_DIR` the brief names `tp escalate`; outside it the brief names the hand-back and **does not** name `tp escalate` | emit one exit for both, naming a command that exits 2 on the path the unit is on |
+| 3 | §3 *specifics* | the failing entry name, its exit code and the previous summary appear only when `last_failure` exists | emit empty placeholders, which teach a unit to read absent fields as facts |
+| 4 | §2 *entry* | step 1 names the failing **entry**, not the whole gate command | name the gate string, which is the manual split this release depends on the sequence to remove |
+| 5 | §5.1 | brief generation changes no exit code and writes no file — asserted across the brief's callers | let it record an attempt, turning a text procedure into state |
+| 6 | §5.4 | the procedure never instructs the unit to pass `--skip-gate` itself | name the flag as a step, converting a user decision into a unit's |
+
+**Row 2 is the acceptance and the transcript in §3 is its fixture.** A procedure naming the wrong exit
+is worse than none, and that is a claim about two contexts — so the test must run in both, not in the
+one its author is standing in.
