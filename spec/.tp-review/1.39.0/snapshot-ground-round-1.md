@@ -1,0 +1,219 @@
+# tp v1.39.0 — The round knows which roles it expects
+
+> **This file is decisions.** Every figure names the command that derives it. The two defects below
+> were reproduced in a built fixture before they were described, and §1.1 is that transcript — a
+> reading of the code would have justified either one, and only the run distinguishes them.
+
+## 1. Overview
+
+`tp audit` computes the panel a round expects — it emits one prompt per active role and a
+`skipped_roles` entry, with a reason, for each role it declined to emit — and then **throws that set
+away**. Nothing is recorded with the round, so when `--record` stamps `clean` and `--check` reads it,
+neither can tell *a role that reported nothing* from *a role that reported nothing wrong*.
+
+Two consequences, in opposite directions, both real:
+
+- **Too lax.** A round that receives one of three emitted roles stamps `clean: true`. Two such rounds
+  make `tp audit --status --check` exit **0** — this project's ship signal — on a spec whose
+  conformance role never ran and whose only task is still open. Measured, §1.1.
+- **Too strict.** v0.36.0 shipped with `--check` at exit 1 while `spec-coverage` was clean four rounds
+  running and no role held a FAIL, because a non-conformance role's `error` rows override a clean
+  conformance role. Recorded in `CLAUDE.md`; not re-derived here.
+
+This release ships **one new fact — the panel a round expected — and two uses of it**. It does not
+add a workflow field. Scoping convergence to the roles that decide it is the second half and is §5.1.
+
+### 1.1 The transcript
+
+A three-role corpus (`spec-coverage`, `go-safety`, `ax-contract`), one spec, one open task, one Go
+file. `tp audit` emits three prompts. A round is then recorded carrying **only `ax-contract`'s rows**,
+all PASS, and the same file is recorded a second time:
+
+```
+round: 1   clean: true   consecutive_clean: 1   converged: false
+           spec_coverage_clean_rounds: null
+           role_streaks: [{"role":"ax-contract","consecutive_clean":1,"open":0}]
+round: 2   clean: true   consecutive_clean: 2   converged: true
+           spec_coverage_clean_rounds: null
+           role_streaks: [{"role":"ax-contract","consecutive_clean":2,"open":0}]
+
+$ tp audit spec/demo.md --status --check   ->  exit 0
+```
+
+**Nothing was implemented and two thirds of the panel never ran.** `spec_coverage_clean_rounds: null`
+and a one-entry `role_streaks` both report the absence correctly — the honest signals are already
+there. `clean`, `consecutive_clean` and `converged` are the three that are blind, and `--check` reads
+the blind ones.
+
+## 2. The round records the panel it expected
+
+`ReviewRound` gains **`expected_roles`** — the role ids `tp audit` emitted a prompt for, plus each
+`skipped_roles` id paired with its reason — and **`received_roles`**, the distinct non-empty roles
+among the recorded rows.
+
+The producer already exists on both sides. `runAudit` builds `prompts` and `skipped_roles`
+(`internal/cli/audit.go`), and `auditRoundOpenByRole` (`internal/engine/rolestreaks.go:128-143`)
+already tallies a round's rows by role id and already treats a role with no rows as *not measured*
+rather than *clean*. **This release does not invent that distinction; it records the other half of it,
+so the round-level stamp can make it too.**
+
+**`expected_roles` is written at record time from the corpus in force, not re-derived on read.** A
+round is a claim about a panel, and a corpus edited afterwards must not silently change what a past
+round is understood to have covered. `roles_hash` already pins the corpus identity per round; this
+pins its membership.
+
+**A pre-v1.39.0 round has no `expected_roles`, and absence means "unknown", not "empty".** Such a
+round keeps exactly today's semantics — §3's rule cannot fire on it, and upgrading tp never
+retroactively unconverges a shipped release. This mirrors `RolesStale`'s treatment of a pre-v0.25.0
+round with no stored `roles_hash` (`internal/engine/reviewstate.go:450-459`).
+
+**But absence is rarer than it looks, and §3 does not wait for this field.** A round already records
+`roles_hash`, so when it equals the corpus now on disk, that corpus **is** the panel the round was
+emitted against and the expected set is derivable with no new field. Measured on the last cycle: all
+**7 of 7** v0.37.0 audit rounds carry a `roles_hash` equal to
+`ComputeRolesHash(dir, PhaseAuditors)` today, and each of v0.35.0, v0.36.0 and v0.37.0 has exactly
+one distinct value across its whole audit history.
+
+```go
+cur, _ := ComputeRolesHash(filepath.Dir(specPath), PhaseAuditors)
+// round.RolesHash == cur  ->  the panel is the corpus on disk
+```
+
+**So §3 is shippable on its own and `expected_roles` is the durable form, not a prerequisite.** The
+derived panel is correct until someone edits the corpus; the recorded one stays correct afterwards.
+Where the hash does not match, or is empty, the panel is unknown and §3 does not fire — the same
+conservative direction as an absent field.
+
+### 2.1 `state.json` preserves keys it does not understand
+
+**This release is the first to add a field to a round entry, so it carries the fix that makes doing so
+safe.** Measured on `HEAD`:
+
+```
+inject expected_roles + spec_moved_mid_round onto round 1   -> present
+tp audit <spec> --record <file>                             -> both GONE
+inject a top-level reconciliations[]                        -> present
+tp audit <spec> --record <file>                             -> GONE
+```
+
+`SaveReviewState` marshals a typed struct (`internal/engine/reviewstate.go:275`), and `ReviewState` has exactly three
+fields, so **any key it does not know is dropped on the next write**. Reading is safe — nothing calls
+`DisallowUnknownFields` — which is what makes the loss silent.
+
+**The hazard is live in tp's own workflow, not hypothetical.** `CLAUDE.md` already warns that the
+PATH-installed tp lags the repository; one stray invocation of it during a cycle erases every field
+the freshly-built binary wrote.
+
+**So `ReviewState` and `ReviewRound` round-trip unknown keys**: unmarshal them into a sibling map,
+merge them back on save, and let a typed field win where both exist. A field this release adds is then
+durable against an older binary, and so is every field added after it.
+
+**This is a prerequisite the two releases that follow inherit rather than restate** — the emit-time
+hash's mid-round counter and the reconcile release's rows are both keys an older tp would otherwise
+erase, and the reconcile release's whole premise is that a recorded fact is never overwritten.
+
+**A skipped role is expected-and-excused, not missing.** `spec-coverage` skipped with reason
+`no-checklist-items` is a fact about the task file, not a role that failed to report, so it is
+recorded with its reason and §3 does not count it against the round. The reason is what makes the two
+separable, which is why it is stored rather than a bare id list.
+
+## 3. A round missing an expected role is not clean
+
+`AuditRowsClean` gains the panel: **a round is clean only if every expected, non-skipped role appears
+in `received_roles` and the round's rows satisfy the severity policy.** The severity half is unchanged
+and `audit_converge_on` still governs it, and closing this must not change what any complete round
+already stamped.
+
+**The hole is orthogonal to severity, and that is measured rather than argued.** A single-row round
+carrying one `PASS` from one of three expected roles stamps `clean = true` under **both** policy
+values:
+
+```
+audit_converge_on=all       -> clean=true
+audit_converge_on=blocking  -> clean=true
+```
+
+So no setting of the severity axis closes it. That is the same conclusion four review rounds reached
+about the *too strict* direction from the other side, and it is why the panel is a separate input
+rather than a stricter reading of the rows tp already has.
+
+`clean` is stamped at record time and never re-graded, which this release preserves. The new input is
+available at exactly that moment and nowhere else, which is the same reason the stamp exists.
+
+**This makes `--check` stricter, and that is the whole point of this half.** The direction matters:
+the failure it closes is a ship signal firing on an audit that did not happen, and the conservative
+resolution of "did this role report?" is the one that keeps auditing. The opposite direction — a
+correct round held back by a role that does not decide the question — is §5.1's, and shipping this
+half alone leaves it open.
+
+**A round that receives a role it did not expect is clean-eligible and says so.** `received_roles`
+carries the id, `role_streaks` already reports it, and the round is not failed for it: a role adding
+rows outside its checklist is how `internal/cli/unattended.go` got audited at all during v0.37.0
+(`spec/1.38.0.md` §2.1). Recording the surplus is useful; refusing it would delete the one signal
+that a panel is mis-scoped.
+
+## 4. `--status` reports the round in flight
+
+`--status` today lists recorded rounds only; the round being worked has no representation, so the
+interactive fallback — where the orchestrator, not `tp run`, spawns the agents — has no way to ask how
+far it has got. Under `tp run` the driver knows; outside one, nobody does.
+
+**`--status` gains an `in_flight` object**: the next round number, its `expected_roles` from the
+corpus in force, and per role whether its output file is present and how many rows it holds.
+
+tp already names the file. `roleOutputPath` (`internal/cli/prompt_framing.go:44-49`) returns
+`<phase>-r<round>-<role>.ndjson`, the prompt's `output_path` and the name written into the prompt
+body, and the framing already instructs the role to *"write each row to the output file as you decide
+it, not once at the end"*. **A partially written file is therefore the expected state of a running
+role, not a corruption**, and row count is the progress signal.
+
+**Two resolutions, because there are two worlds, and the release states both rather than assuming
+one.** Inside a run `TP_ROUND_DIR` is set and the path is
+`$TP_ROUND_DIR/role-<role>.ndjson.part`, renamed by the driver on exit 0 — so `.part` present means
+running, final name present means finished, and the two are distinguishable. Outside a run the prompt
+names a bare filename relative to wherever the operator is standing, which tp does not control:
+`--status` looks in the current directory and in the round directory, reports which of the two it
+found each file in, and reports a role as `unknown` rather than `not-started` when it found neither.
+
+**`unknown` is not `not-started`, and conflating them would be the defect this release is about.**
+tp cannot see a file written into a directory it was not told about; reporting that as "this role has
+not begun" is the same class of error as stamping a round clean because a role's rows never arrived.
+
+## 5. Non-Goals
+
+1. **Convergence is not scoped to a subset of roles here.** That is the *too strict* direction, it
+   needs a fenced list field whose non-default value relaxes a gate, and it reads `expected_roles`,
+   which does not exist until this release ships. It belongs to the release that takes what stops
+   counting against convergence, alongside recorded dispositions.
+2. **No new workflow field.** `audit_converge_on` is unchanged and still governs severity.
+3. **`--status` does not spawn, wait, poll or time anything.** It reads files and returns. A progress
+   report that blocks is a driver, and tp already has one.
+4. **No retroactive effect.** A round recorded before this release has no `expected_roles`, keeps
+   today's semantics, and cannot be un-converged by upgrading.
+5. **The review phase is unchanged.** `ReviewConsecutiveClean` has its own convergence policy and its
+   own field; widening this to review doubles the surface for a defect measured only on the audit
+   side.
+
+## 6. Tests
+
+Every row derives from a numbered decision, names the artifact it depends on, and names a mutant that
+must fail it.
+
+| # | from | assertion | the mutant that must fail it |
+|---|---|---|---|
+| 1 | §1.1 | §1.1's fixture rebuilt: two rounds carrying 1 of 3 roles leave `--check` at a **non-zero** exit | the shipped behaviour, which exits 0 — this test must be seen failing against `HEAD` before the fix lands |
+| 2 | §2 | `expected_roles` records an emitted role and a skipped role **with its reason**, distinguishably | store a flat id list, which makes `no-checklist-items` indistinguishable from a role that never reported |
+| 3 | §2 *pinned* | deleting a role file after a round is recorded does not change that round's `expected_roles` | re-derive from the corpus on read, so editing `.tp/auditors/` rewrites history |
+| 4 | §2 *legacy* | a round with no `expected_roles` key stays clean and converged exactly as before | treat a missing key as an empty set, which un-converges every shipped release on upgrade |
+| 4b | §2.1 | a state file carrying an unknown top-level key **and** an unknown key on a round entry keeps both across a `--record` | marshal the typed struct alone — the shipped behaviour, measured to drop both, and this must be watched failing against `HEAD` first |
+| 4c | §2.1 *precedence* | where a typed field and a preserved unknown key share a name, the typed field wins and the stale copy does not resurface | merge the map last, letting a stale preserved value overwrite what this release just computed |
+| 5 | §3 | a complete round's `clean` stamp is **byte-identical** before and after this release, across both `audit_converge_on` values | apply the panel rule to the severity computation, changing rounds this release must not touch |
+| 6 | §3 *skipped* | a round missing only a role recorded as skipped-with-reason is clean | count a skipped role as missing, which makes a task file with no `source_sections` permanently unconvergeable |
+| 7 | §3 *surplus* | a round carrying a role not in `expected_roles` is clean-eligible and the surplus id is reported | fail the round on a surplus role, deleting the signal that covered `unattended.go` for six rounds |
+| 8 | §4 | with two of three role files present, `in_flight` reports both row counts and the third as absent | report file presence only, which cannot distinguish a role that has written one row from one that has written forty |
+| 9 | §4 *resolution* | a role file in neither the cwd nor the round dir is reported `unknown`, not `not-started`, and the found ones name which directory they came from | collapse the two, which reports a role that is running elsewhere as one that has not begun |
+| 10 | §4 *run* | inside `TP_ROUND_DIR`, a `.part` file reads as running and its renamed form as finished | ignore `TP_ROUND_DIR`, which sends `--status` to the cwd during a run and finds nothing |
+
+**Row 1 is the acceptance of this release and must be watched failing first.** It is the only row that
+asserts the whole predicate end to end, and a test that has never been observed red proves nothing
+about the code — it may be asserting a tautology and would pass identically either way.
