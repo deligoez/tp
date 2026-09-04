@@ -39,6 +39,7 @@ var referenceTrimLeverSubstrings = []string{
 // and the v0.34.0 audit narrowed it again to the single owner — REFERENCE.md's
 // copy of the lever sentence was one of the duplications §8.1 forbids.
 func TestDocsStateThePerSpecRoleLever(t *testing.T) {
+	t.Parallel()
 	assert.Contains(t, readRepoDoc(t, roleContractDoc), perSpecLeverSubstring,
 		"%s states the per-spec deactivation lever verbatim", roleContractDoc)
 

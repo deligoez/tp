@@ -25,6 +25,7 @@ import (
 // role from the unit set -- has to update this deliberately instead of
 // discovering it in a round's missing findings.
 func TestEmittedRolesMinusUnitsIsExactlyRegression(t *testing.T) {
+	t.Parallel()
 	// The relocated spec carries its recorded rounds, so the emission is past
 	// round 1 and `regression` is emitted rather than skipped no-baseline --
 	// the precondition the property names.

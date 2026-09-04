@@ -65,6 +65,7 @@ var perspectiveInputs = map[string][]string{
 // the perspective prompts), so the form is replaced for the hazard rather than
 // for the failure.
 func TestNoPromptWithoutAnOutputPathEndsWithTheSuffix(t *testing.T) {
+	t.Parallel()
 	spec := relocatedSpec(t, "spec/0.36.0.md")
 	dir := filepath.Dir(spec)
 	base := filepath.Base(spec)

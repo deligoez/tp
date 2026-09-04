@@ -49,6 +49,7 @@ func notifyProbeScript(t *testing.T, exitCode string) (script, out string) {
 // operator's notify_cmd, tells it which run stopped and why, and reports what
 // it did — while the stop reason and the exit code stay the run's own.
 func TestRunCommand_ReportsWhatNotifyCmdDid(t *testing.T) {
+	t.Parallel()
 	dir := runProject(t)
 	bin, err := fakerunner.Build(t.TempDir())
 	require.NoError(t, err)
@@ -86,6 +87,7 @@ func TestRunCommand_ReportsWhatNotifyCmdDid(t *testing.T) {
 // With no notify_cmd configured the payload carries no notification at all,
 // rather than an empty report of a command that was never run.
 func TestRunCommand_NoNotifyCmdReportsNothing(t *testing.T) {
+	t.Parallel()
 	dir := runProject(t)
 	bin, err := fakerunner.Build(t.TempDir())
 	require.NoError(t, err)

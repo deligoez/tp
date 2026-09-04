@@ -18,6 +18,7 @@ import (
 // tp review rejects the same typo. Replaces TestAuditFindingsAbsentIsOptional,
 // which asserted the silent-empty behavior.
 func TestAuditMissingFindingsFileFailsLoudly(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n## Table\n| Col |\n|-----|\n| a |\n"), 0o600))

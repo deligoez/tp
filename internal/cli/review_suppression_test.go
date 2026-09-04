@@ -91,6 +91,7 @@ func mechanizedClasses(t *testing.T, raw string) []string {
 // the observable form of "suppressing one class never changes whether another
 // crosses the frequency threshold" (§3.2).
 func TestReviewRecord_RegisteredCheckSuppressesItsClass(t *testing.T) {
+	t.Parallel()
 	dir := suppressionFixture(t, `[{"class":"registered-class","cmd":"true"}]`)
 	rows := append(fiveRowsOfClass("registered-class"), fiveRowsOfClass("unregistered-class")...)
 
@@ -104,6 +105,7 @@ func TestReviewRecord_RegisteredCheckSuppressesItsClass(t *testing.T) {
 // rejects both variants, so §3.1's validity rule alone would leave the candidate
 // listed and a trimming or case-folding implementation would pass unchanged.
 func TestReviewRecord_SuppressionMatchesTheFindingClassExactly(t *testing.T) {
+	t.Parallel()
 	dir := suppressionFixture(t, `[{"class":"duplicate-line","cmd":"true"}]`)
 	rows := fiveRowsOfClass("duplicate-line")
 	rows = append(rows, fiveRowsOfClass("Duplicate-Line")...)
@@ -121,6 +123,7 @@ func TestReviewRecord_SuppressionMatchesTheFindingClassExactly(t *testing.T) {
 // emitted array and the hint would leave unfiltered. The unregistered control
 // proves the fixture really does reach next_action's mechanize branch.
 func TestReviewRecord_SuppressingEveryCandidateDropsHintAndNextActionClass(t *testing.T) {
+	t.Parallel()
 	control := suppressionFixture(t, "")
 	controlOut := recordSuppressionRound(t, control, fiveRowsOfClass("only-class")...)
 	var controlPayload map[string]any
@@ -151,6 +154,7 @@ func TestReviewRecord_SuppressingEveryCandidateDropsHintAndNextActionClass(t *te
 // own and derives its class list from the recorded rounds by a separate call, so
 // filtering mode 1's array alone leaves it naming a class whose check exists.
 func TestReviewStatus_SuppressionReachesNextAction(t *testing.T) {
+	t.Parallel()
 	control := suppressionFixture(t, "")
 	recordSuppressionRound(t, control, fiveRowsOfClass("only-class")...)
 	controlOut, stderr, code := runTP(t, control, "review", "spec.md", "--status")
@@ -177,6 +181,7 @@ func TestReviewStatus_SuppressionReachesNextAction(t *testing.T) {
 // executes no check and a failing entry is indistinguishable from a passing one
 // there; `--status --check` is the mode that actually runs it.
 func TestReviewSuppression_FailingCheckStillSuppressesItsClass(t *testing.T) {
+	t.Parallel()
 	dir := suppressionFixture(t, `[{"class":"failing-class","cmd":"echo tail-marker; exit 1"}]`)
 	recordOut := recordSuppressionRound(t, dir, fiveRowsOfClass("failing-class")...)
 	assert.Empty(t, candidateClasses(t, recordOut), "--record withholds the class without running the check")
@@ -203,6 +208,7 @@ func TestReviewSuppression_FailingCheckStillSuppressesItsClass(t *testing.T) {
 // resolvable task file still appears in its mechanize_candidates, and the
 // report emits no mechanized_classes key.
 func TestReviewReport_SuppressionDoesNotReachReport(t *testing.T) {
+	t.Parallel()
 	dir := suppressionFixture(t, `[{"class":"registered-class","cmd":"true"}]`)
 	f := filepath.Join(dir, "r1.ndjson")
 	rows := fiveRowsOfClass("registered-class")
@@ -229,6 +235,7 @@ func TestReviewReport_SuppressionDoesNotReachReport(t *testing.T) {
 // leaving it out of an unfiltered candidate list, so the filter never saw it and
 // the field does not name it.
 func TestReviewRecord_MechanizedClassesIsSortedAndListsTheIntersection(t *testing.T) {
+	t.Parallel()
 	rows := fiveRowsOfClass("alpha-class")
 	rows = append(rows, fiveRowsOfClass("mid-class")...)
 	rows = append(rows, classRow("L5-mid-class", "sixth of mid-class", "mid-class"))
@@ -261,6 +268,7 @@ func TestReviewRecord_MechanizedClassesIsSortedAndListsTheIntersection(t *testin
 // needed because the two empty cases are opposite rounds — nothing withheld
 // empties mechanized_classes, everything withheld empties mechanize_candidates.
 func TestReviewRecord_BothArraysStayEmittedEmptyArrays(t *testing.T) {
+	t.Parallel()
 	nothingWithheld := recordSuppressionRound(t, suppressionFixture(t, ""), fiveRowsOfClass("only-class")...)
 	assert.Contains(t, nothingWithheld, `"mechanized_classes": []`,
 		"nothing withheld emits an empty array, not an absent key")
@@ -283,6 +291,7 @@ func TestReviewRecord_BothArraysStayEmittedEmptyArrays(t *testing.T) {
 // harness_stale key is what proves --compact actually took effect on this
 // payload.
 func TestReviewRecord_MechanizedClassesSurvivesCompact(t *testing.T) {
+	t.Parallel()
 	dir := suppressionFixture(t, `[{"class":"registered-class","cmd":"true"}]`)
 	rows := append(fiveRowsOfClass("registered-class"), fiveRowsOfClass("unregistered-class")...)
 	f := filepath.Join(dir, "findings.ndjson")
@@ -303,6 +312,7 @@ func TestReviewRecord_MechanizedClassesSurvivesCompact(t *testing.T) {
 // `tp set --workflow checks=` validates the whole slice and rejects the
 // duplicate class this test needs.
 func TestReviewRecord_ClassNamedByTwoEntriesWithheldOnce(t *testing.T) {
+	t.Parallel()
 	dir := exclusionFixture(t, `[{"class":"twice-class","cmd":"check-a"},{"class":"twice-class","cmd":"check-b"}]`)
 	stdout := recordSuppressionRound(t, dir, fiveRowsOfClass("twice-class")...)
 
@@ -315,6 +325,7 @@ func TestReviewRecord_ClassNamedByTwoEntriesWithheldOnce(t *testing.T) {
 // list alone — an implementation exempting it here too would leave the
 // register-a-check hint firing for a class whose check already exists.
 func TestReviewRecord_OverSpecificationIsWithheldLikeAnyOtherClass(t *testing.T) {
+	t.Parallel()
 	dir := suppressionFixture(t, `[{"class":"over-specification","cmd":"true"}]`)
 	rows := append(fiveRowsOfClass("over-specification"), fiveRowsOfClass("control-class")...)
 	stdout := recordSuppressionRound(t, dir, rows...)

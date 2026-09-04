@@ -21,6 +21,7 @@ import (
 // sink. The lock directory is made unreadable rather than the lock file itself,
 // because stat consults the directory's permissions, not the file's.
 func TestRunStatus_UnreadableLockIsNotReportedAsCrashed(t *testing.T) {
+	t.Parallel()
 	if os.Geteuid() == 0 {
 		t.Skip("root can stat inside a 0000 directory, so the probe cannot be made to fail")
 	}

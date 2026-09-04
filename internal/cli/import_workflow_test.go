@@ -24,6 +24,7 @@ func readPersistedWorkflow(t *testing.T, dir string) map[string]any {
 const importWorkflowTask = `{"id":"t1","title":"T","estimate_minutes":5,"acceptance":"setup done","source_sections":["1. Setup"],"depends_on":[]}`
 
 func TestImport_WorkflowPreserved(t *testing.T) {
+	t.Parallel()
 	setup := func(t *testing.T) string {
 		t.Helper()
 		dir := t.TempDir()

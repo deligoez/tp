@@ -88,6 +88,7 @@ func closeTaskFile(t *testing.T, dir, tasksArrayJSON string) {
 // commit_shas reference commits touching a.go and b.go — audit exits 4 with
 // suggested_files naming exactly those paths (§11.1).
 func TestAuditSuggestedFilesFromCommitSHAs(t *testing.T) {
+	t.Parallel()
 	dir, specPath := newAuditRepo(t)
 	sha1 := commitFile(t, dir, "a.go", "add a")
 	sha2 := commitFile(t, dir, "b.go", "add b")
@@ -109,6 +110,7 @@ func TestAuditSuggestedFilesFromCommitSHAs(t *testing.T) {
 // TestAuditSuggestedFilesEmpty: a done task with no commit_shas (covered-by /
 // legacy close) — audit still exits 4 with suggested_files: [] (§11.1).
 func TestAuditSuggestedFilesEmpty(t *testing.T) {
+	t.Parallel()
 	dir, specPath := newAuditRepo(t)
 	closeTaskFile(t, dir, `[{"id":"t1","title":"T","status":"done","depends_on":[],"estimate_minutes":5,"acceptance":"x done","source_sections":[],"closed_at":"2020-01-01T00:00:00Z","gate_passed_at":"2020-01-01T00:00:00Z"}]`)
 
@@ -126,6 +128,7 @@ func TestAuditSuggestedFilesEmpty(t *testing.T) {
 // .tasks.json — only the .go file survives into suggested_files (§11.1 type
 // filtering parity with auto-detection).
 func TestAuditSuggestedFilesTypeFilter(t *testing.T) {
+	t.Parallel()
 	dir, specPath := newAuditRepo(t)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "x.go"), []byte("package main\n"), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "doc.md"), []byte("# doc\n"), 0o600))
@@ -147,6 +150,7 @@ func TestAuditSuggestedFilesTypeFilter(t *testing.T) {
 // TestAuditSuggestedFilesSurvivesCompact: suggested_files is decision-critical
 // and must survive --compact (§8.4).
 func TestAuditSuggestedFilesSurvivesCompact(t *testing.T) {
+	t.Parallel()
 	dir, specPath := newAuditRepo(t)
 	sha1 := commitFile(t, dir, "a.go", "add a")
 	sha2 := commitFile(t, dir, "b.go", "add b")
@@ -164,6 +168,7 @@ func TestAuditSuggestedFilesSurvivesCompact(t *testing.T) {
 // directly (exit 0), so the common post-implementation case needs no manual
 // file list (§11.2).
 func TestAuditAffectedFromTasks(t *testing.T) {
+	t.Parallel()
 	dir, specPath := newAuditRepo(t)
 	sha1 := commitFile(t, dir, "a.go", "add a")
 	sha2 := commitFile(t, dir, "b.go", "add b")
@@ -180,6 +185,7 @@ func TestAuditAffectedFromTasks(t *testing.T) {
 // TestAuditAffectedFromTasksEmpty: when the derivation yields nothing,
 // --affected-from-tasks exits 4 with suggested_files: [] (§11.1, §11.2).
 func TestAuditAffectedFromTasksEmpty(t *testing.T) {
+	t.Parallel()
 	dir, specPath := newAuditRepo(t)
 	closeTaskFile(t, dir, `[{"id":"t1","title":"T","status":"done","depends_on":[],"estimate_minutes":5,"acceptance":"x done","source_sections":[],"closed_at":"2020-01-01T00:00:00Z","gate_passed_at":"2020-01-01T00:00:00Z"}]`)
 
@@ -197,6 +203,7 @@ func TestAuditAffectedFromTasksEmpty(t *testing.T) {
 // selector exclusive of --affected-files and --base, and rejected by
 // --record/--status.
 func TestAuditAffectedFromTasksConflicts(t *testing.T) {
+	t.Parallel()
 	dir, specPath := newAuditRepo(t)
 
 	_, stderr, code := runTP(t, dir, "audit", specPath, "--affected-from-tasks", "--affected-files", "x.go")
@@ -254,6 +261,7 @@ func specCoverageTasksFor(t *testing.T, stdout, path string) []string {
 // silently took its fallback file list at exit 0 with an empty stderr. Every
 // sibling git call in the audit path sets cmd.Dir; this one has to as well.
 func TestAudit_TaskFileMappingComesFromTheAuditedRepo(t *testing.T) {
+	t.Parallel()
 	audited := auditedRepoWithMappedTask(t)
 
 	// The caller's cwd: a different repository, which knows nothing of the
@@ -275,6 +283,7 @@ func TestAudit_TaskFileMappingComesFromTheAuditedRepo(t *testing.T) {
 // resolve is a silent cost — the task maps to zero files and spec-coverage
 // falls back — so it is named on the Notice channel rather than swallowed.
 func TestAudit_TaskFileMappingWarnsOnUnknownCommit(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "auth_helper.go"), []byte("package main\n"), 0o600))

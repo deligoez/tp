@@ -50,6 +50,7 @@ func emittedPrompts(t *testing.T, dir string, env []string, args ...string) []ma
 // <phase>-r<N>-<role>.ndjson name must be gone from the prompt entirely: a role
 // told two filenames writes the one the allowlist denies.
 func TestRoleOutputPathIsRoundScopedUnderARun(t *testing.T) {
+	t.Parallel()
 	dir, specPath, codePath := emissionFixture(t)
 
 	for _, tc := range []struct {
@@ -85,6 +86,7 @@ func TestRoleOutputPathIsRoundScopedUnderARun(t *testing.T) {
 // collected <phase>-r<N>-<role>.ndjson in the working directory keeps working.
 // It is the arm that fails if the round-scoped path is emitted unconditionally.
 func TestRoleOutputPathIsUnchangedOutsideARun(t *testing.T) {
+	t.Parallel()
 	dir, specPath, codePath := emissionFixture(t)
 
 	for _, tc := range []struct {
@@ -116,6 +118,7 @@ func TestRoleOutputPathIsUnchangedOutsideARun(t *testing.T) {
 // produce a file that glob collects — an emitted name one character off would
 // merge as a dropped role rather than as an error.
 func TestEmittedRoleFileFeedsTheRecordUnitsGlob(t *testing.T) {
+	t.Parallel()
 	dir, specPath, _ := emissionFixture(t)
 	roundDir := filepath.Join(dir, ".tp", "rounds", "spec", "review-r1")
 	require.NoError(t, os.MkdirAll(roundDir, 0o750))

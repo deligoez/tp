@@ -14,6 +14,7 @@ import (
 // --- explicit claim paths report "claimed" (§11.2) ---
 
 func TestDurationSource_ClaimSingle(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 	addTaskWithEstimate(t, dir, "t1", 5)
 
@@ -26,6 +27,7 @@ func TestDurationSource_ClaimSingle(t *testing.T) {
 }
 
 func TestDurationSource_ClaimBatch(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 	addTaskWithEstimate(t, dir, "t1", 5)
 	addTaskWithEstimate(t, dir, "t2", 5)
@@ -44,6 +46,7 @@ func TestDurationSource_ClaimBatch(t *testing.T) {
 }
 
 func TestDurationSource_Next(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 	addTaskWithEstimate(t, dir, "t1", 5)
 
@@ -59,6 +62,7 @@ func TestDurationSource_Next(t *testing.T) {
 // --- implicit claim paths report "implicit" (§11.2) ---
 
 func TestDurationSource_DoneImplicit(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 	addTaskWithEstimate(t, dir, "t1", 5)
 
@@ -69,6 +73,7 @@ func TestDurationSource_DoneImplicit(t *testing.T) {
 }
 
 func TestDurationSource_CommitImplicit(t *testing.T) {
+	t.Parallel()
 	dir := setupCommitProject(t, "t1")
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "impl.go"), []byte("package main\n"), 0o600))
 
@@ -82,6 +87,7 @@ func TestDurationSource_CommitImplicit(t *testing.T) {
 // --- covered-by is exempt: no duration_source classified as implicit (§11.2) ---
 
 func TestDurationSource_CoveredByExempt(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 	addTaskWithEstimate(t, dir, "t1", 5)
 	addTaskWithEstimate(t, dir, "t2", 5)
@@ -100,6 +106,7 @@ func TestDurationSource_CoveredByExempt(t *testing.T) {
 // --- managed field: tp set rejects, tp reopen clears (§11.2) ---
 
 func TestDurationSource_SetManaged(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 	addTaskWithEstimate(t, dir, "t1", 5)
 
@@ -109,6 +116,7 @@ func TestDurationSource_SetManaged(t *testing.T) {
 }
 
 func TestDurationSource_ReopenClears(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 	addTaskWithEstimate(t, dir, "t1", 5)
 
@@ -127,6 +135,7 @@ func TestDurationSource_ReopenClears(t *testing.T) {
 // --- tp report: implicit_duration count, disjoint from excluded_from_accuracy (§11.2) ---
 
 func TestDurationSource_ReportImplicitDisjointFromExcluded(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 
 	now := time.Now().UTC()
@@ -243,6 +252,7 @@ func TestDurationSource_ReportImplicitDisjointFromExcluded(t *testing.T) {
 // implicit-duration task whose near-zero duration WOULD round to 0.0 is counted
 // only in implicit_duration — never double-counted in excluded_from_accuracy.
 func TestDurationSource_ReportImplicitPrecedenceOverExcluded(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 
 	now := time.Now().UTC()
@@ -294,6 +304,7 @@ func TestDurationSource_ReportImplicitPrecedenceOverExcluded(t *testing.T) {
 // TestDurationSource_ReportCarriedPerTask verifies duration_source appears per
 // task in report output (§11.2: "tp report carries it per task").
 func TestDurationSource_ReportCarriedPerTask(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 	addTaskWithEstimate(t, dir, "t1", 5)
 

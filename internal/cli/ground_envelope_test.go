@@ -29,6 +29,7 @@ import (
 // is the only signal, which --quiet removes. `carried: 0` beside a floor that
 // did not change is a fact a reader can branch on.
 func TestTheEmissionReportsItsCountsAsNumbers(t *testing.T) {
+	t.Parallel()
 	dir := writeGroundFixture(t)
 
 	// Round 1: nothing precedes it, so the round owes its whole floor.
@@ -85,6 +86,7 @@ func TestTheEmissionReportsItsCountsAsNumbers(t *testing.T) {
 // TSV had nothing to read. output.Notice's own doc names "a flag ignored" as
 // exactly what the channel is for.
 func TestUnitsSaysSoWhenItIgnoresJSON(t *testing.T) {
+	t.Parallel()
 	dir := writeGroundFixture(t)
 
 	stdout, stderr, code := runTP(t, dir, "ground", "spec.md", "--units", "--json")

@@ -35,6 +35,7 @@ func initTwoTaskProject(t *testing.T) string {
 // tp set --bulk now reads at the shared ndjsonLineCap and, past it, aborts
 // exit 3 naming the file and the line, applying no row.
 func TestSet_BulkOverLongLineAborts(t *testing.T) {
+	t.Parallel()
 	dir := initTwoTaskProject(t)
 	before := readRawTaskFile(t, dir)
 
@@ -64,6 +65,7 @@ func TestSet_BulkOverLongLineAborts(t *testing.T) {
 // row. Without this the abort above would still pass at any cap, including one
 // lower than the old default.
 func TestSet_BulkReadsRowUpToTheCap(t *testing.T) {
+	t.Parallel()
 	dir := initTwoTaskProject(t)
 
 	const bigLen = 200 * 1024

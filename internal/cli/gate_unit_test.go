@@ -12,6 +12,7 @@ import (
 )
 
 func TestGateFailureMessage_TimeoutReportsSecondsAndNullExitCode(t *testing.T) {
+	t.Parallel()
 	wf := &model.Workflow{QualityGate: "sleep 999", GateTimeoutSeconds: 45}
 	res := engine.RunResult{TimedOut: true}
 
@@ -23,6 +24,7 @@ func TestGateFailureMessage_TimeoutReportsSecondsAndNullExitCode(t *testing.T) {
 }
 
 func TestGateFailureMessage_NonZeroExitNamesGateCmd(t *testing.T) {
+	t.Parallel()
 	wf := &model.Workflow{QualityGate: "go test ./...", GateTimeoutSeconds: 600}
 	code := 1
 	res := engine.RunResult{ExitCode: &code}

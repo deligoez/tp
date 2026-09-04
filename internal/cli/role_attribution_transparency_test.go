@@ -38,6 +38,7 @@ func skippedRolesFrom(t *testing.T, stdout string) []map[string]any {
 // regression role has no snapshot-round-0.md baseline and is named in
 // skipped_roles; once round 2 emits it (spec changed), skipped_roles is empty.
 func TestReviewSkippedRoles_RegressionNoBaseline(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## 1. A\noriginal\n"), 0o600))
 
@@ -69,6 +70,7 @@ func TestReviewSkippedRoles_RegressionNoBaseline(t *testing.T) {
 // TestReviewSkippedRoles_DomainMismatch: a user reviewer corpus with a
 // prose-only role under a software spec is named with reason domain-mismatch.
 func TestReviewSkippedRoles_DomainMismatch(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## 1. A\ncontent\n"), 0o600))
@@ -92,6 +94,7 @@ func TestReviewSkippedRoles_DomainMismatch(t *testing.T) {
 // TestReviewSkippedRoles_CompactOmits: --compact strips the explanatory
 // skipped_roles field from review prompt emission (§8.4).
 func TestReviewSkippedRoles_CompactOmits(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## 1. A\ncontent\n"), 0o600))
 
@@ -108,6 +111,7 @@ func TestReviewSkippedRoles_CompactOmits(t *testing.T) {
 // overlap-report finding count, and is omitted under --compact (overlap_report
 // survives --compact).
 func TestReviewMerge_AttributionExcludes(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	t.Run("present when a regression-only finding drops from overlap", func(t *testing.T) {
@@ -155,6 +159,7 @@ func TestReviewMerge_AttributionExcludes(t *testing.T) {
 // from the latest recorded round when a regression-only finding is present, and
 // omits it under --compact (overlap_report survives).
 func TestReviewStatus_AttributionExcludes(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## 1. A\ncontent\n"), 0o600))
 	merged := writeFindingsFile(t, dir, "merged.ndjson", []string{
@@ -184,6 +189,7 @@ func TestReviewStatus_AttributionExcludes(t *testing.T) {
 // TestAuditSkippedRoles_NoChecklistItems: an auditor whose routed checklist is
 // empty is named with reason no-checklist-items; --compact omits skipped_roles.
 func TestAuditSkippedRoles_NoChecklistItems(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	// Minimal spec with no numbered lists or tables: spec-coverage's checklist
 	// is empty, so it is skipped.
@@ -220,6 +226,7 @@ func TestAuditSkippedRoles_NoChecklistItems(t *testing.T) {
 // by (item_id, category) and credits contributing roles; PASS rows are excluded.
 // Omitted under --compact.
 func TestAuditMerge_OverlapReport(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	rows := []string{
 		`{"item_id":"i1","status":"FAIL","role":"spec-coverage","category":"security"}`,
@@ -261,6 +268,7 @@ func TestAuditMerge_OverlapReport(t *testing.T) {
 // TestAuditStatus_OverlapReport: --status reports the audit overlap report from
 // the latest recorded round over non-PASS rows; omitted under --compact.
 func TestAuditStatus_OverlapReport(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## 1. A\ncontent\n"), 0o600))
 	rows := []string{
@@ -294,6 +302,7 @@ func TestAuditStatus_OverlapReport(t *testing.T) {
 // a role with generic (non-§-scoped) focus, are both emitted (§9.1). Generic focus
 // always emits so the feature never hollows out a normal corpus.
 func TestReviewSkippedRoles_NoSpecChange(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "base.md"), []byte("# Spec\n## 1. A\nold\n## 2. B\nold\n"), 0o600))

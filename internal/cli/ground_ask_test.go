@@ -108,6 +108,7 @@ func groundFloorFileBytes(t *testing.T, dir string, round int) []byte {
 // itself froze, so "every unit" is the emission's own answer rather than a
 // number written here.
 func TestTheRoundTwoPromptAsksOnlyForTheDispositionsItOwes(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	writeGroundCarrySpec(t, dir, groundAskRound1)
 
@@ -187,6 +188,7 @@ const (
 // defect being pinned is agreement BETWEEN the count and the words around it —
 // a `Contains` on "1 of the 2" alone is satisfied by any grammar that follows.
 func TestTheAskAgreesWithTheCountsItStates(t *testing.T) {
+	t.Parallel()
 	t.Run("one of two owed, one carried", func(t *testing.T) {
 		dir := t.TempDir()
 		writeGroundCarrySpec(t, dir, groundAskTwoUnits)
@@ -281,6 +283,7 @@ func rowIDsOf(rows []engine.FloorIndexRow) []string {
 // The payload records the one owed unit alone, which is what the prompt asked
 // for — so this is also the round-trip row 16b's saving is measured in.
 func TestThePromptMarksTheUnitsTheRecordActuallyCarries(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	writeGroundCarrySpec(t, dir, groundAskRound1)
 	groundEmit(t, dir)
@@ -323,6 +326,7 @@ func TestThePromptMarksTheUnitsTheRecordActuallyCarries(t *testing.T) {
 // between emit and record while nothing compares them — and it would make the
 // floor unreadable to the very command that reads it.
 func TestTheEmittedFloorFileIsUnmarked(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	writeGroundCarrySpec(t, dir, groundAskRound1)
 	groundEmit(t, dir)

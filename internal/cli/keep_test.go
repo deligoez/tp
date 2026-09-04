@@ -21,6 +21,7 @@ func keepListEntries(t *testing.T, dir string) []map[string]any {
 }
 
 func TestKeep_AddOverwriteRemoveList(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	initGitRepo(t, dir)
 
@@ -48,6 +49,7 @@ func TestKeep_AddOverwriteRemoveList(t *testing.T) {
 }
 
 func TestKeep_RemoveAbsentIsNoOp(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	initGitRepo(t, dir)
 	_, _, code := runTP(t, dir, "keep", "--remove", "nope.txt")
@@ -55,6 +57,7 @@ func TestKeep_RemoveAbsentIsNoOp(t *testing.T) {
 }
 
 func TestKeep_MissingReasonExit2(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	initGitRepo(t, dir)
 	_, _, code := runTP(t, dir, "keep", "a.txt")
@@ -62,6 +65,7 @@ func TestKeep_MissingReasonExit2(t *testing.T) {
 }
 
 func TestKeep_MalformedGlobExit2(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	initGitRepo(t, dir)
 	_, _, code := runTP(t, dir, "keep", "[bad", "reason")
@@ -69,6 +73,7 @@ func TestKeep_MalformedGlobExit2(t *testing.T) {
 }
 
 func TestKeep_SubdirStoredRepoRootRelative(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	initGitRepo(t, dir)
 	sub := filepath.Join(dir, "sub")
@@ -82,6 +87,7 @@ func TestKeep_SubdirStoredRepoRootRelative(t *testing.T) {
 }
 
 func TestKeep_WritesOnlyLocalConfig(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# S\n"), 0o600))
 	_, _, code := runTP(t, dir, "init", "spec.md")

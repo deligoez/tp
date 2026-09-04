@@ -24,6 +24,7 @@ import (
 // that same flag. --merge generates no prompt, so every prompt-generation flag
 // belongs in the list.
 func TestReviewMergeRejectsForeignFlags(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	in := filepath.Join(dir, "in.ndjson")
 	require.NoError(t, os.WriteFile(in, []byte(""), 0o600))

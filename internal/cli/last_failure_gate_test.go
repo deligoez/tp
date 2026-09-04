@@ -45,6 +45,7 @@ func readGateLastFailure(t *testing.T, dir string) *engine.LastFailure {
 // walked into — and the summary is the gate's own output, not the closing
 // agent's prose.
 func TestDoneGate_FailureUnderARunRecordsLastFailure(t *testing.T) {
+	t.Parallel()
 	// The gate prints a string its own command text does not contain, so an
 	// assertion on the output cannot be satisfied by a summary that merely
 	// echoes the command back.
@@ -71,6 +72,7 @@ func TestDoneGate_FailureUnderARunRecordsLastFailure(t *testing.T) {
 // so tp done writes nothing at all — the shipped command is unchanged there,
 // error shape included.
 func TestDoneGate_FailureOutsideARunRecordsNothing(t *testing.T) {
+	t.Parallel()
 	dir := setupProjectWithGate(t, "echo boom; exit 7")
 	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
 
@@ -90,6 +92,7 @@ func TestDoneGate_FailureOutsideARunRecordsNothing(t *testing.T) {
 // the same environment records nothing, so the file cannot fill up with
 // successes and the record stays the one thing §4.2 says it is.
 func TestDoneGate_PassingGateUnderARunRecordsNothing(t *testing.T) {
+	t.Parallel()
 	dir := setupProjectWithGate(t, "echo ok")
 	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
 
@@ -103,6 +106,7 @@ func TestDoneGate_PassingGateUnderARunRecordsNothing(t *testing.T) {
 // still produces a summary that says what failed, because a record whose
 // summary is empty tells the next unit nothing.
 func TestDoneGate_SilentGateFailureStillSummarizes(t *testing.T) {
+	t.Parallel()
 	dir := setupProjectWithGate(t, "exit 3")
 	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
 
@@ -119,6 +123,7 @@ func TestDoneGate_SilentGateFailureStillSummarizes(t *testing.T) {
 // §4.2 holds at most one object: a second failure overwrites the first rather
 // than accumulating, and the surviving record belongs to the second unit.
 func TestDoneGate_SecondFailureOverwritesTheFirst(t *testing.T) {
+	t.Parallel()
 	dir := setupProjectWithGate(t, "echo boom; exit 7")
 	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
 	addTask(t, dir, `{"id":"t2","title":"Task two","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
@@ -137,6 +142,7 @@ func TestDoneGate_SecondFailureOverwritesTheFirst(t *testing.T) {
 // recorded on the same terms — the batch path does not exit through the
 // pre-flock writer, which is exactly why it is asserted separately.
 func TestDoneGate_BatchFailureUnderARunRecordsLastFailure(t *testing.T) {
+	t.Parallel()
 	dir := setupProjectWithGate(t, `printf 'gate-tail-%s\n' marker; exit 7`)
 	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"A complete","source_sections":["s1"]}`)
 
@@ -160,6 +166,7 @@ func TestDoneGate_BatchFailureUnderARunRecordsLastFailure(t *testing.T) {
 // records nothing there, so the parameter that says so is load-bearing rather
 // than decorative.
 func TestCloseGate_FailureUnderARunRecordsNothing(t *testing.T) {
+	t.Parallel()
 	dir := setupProjectWithGate(t, "echo boom; exit 7")
 	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
 	_, stderr, code := runTP(t, dir, "claim", "t1")
@@ -174,6 +181,7 @@ func TestCloseGate_FailureUnderARunRecordsNothing(t *testing.T) {
 // The record surfaces where §4.2 says it does: the next unit's brief reads it
 // back, which is the whole point of writing it from tp done.
 func TestDoneGate_RecordedFailureReachesTheNextBrief(t *testing.T) {
+	t.Parallel()
 	dir := setupProjectWithGate(t, "echo boom; exit 7")
 	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
 

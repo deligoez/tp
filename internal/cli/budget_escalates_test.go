@@ -15,6 +15,7 @@ import (
 // with the escalation hint, --status reports budget_exhausted, and import
 // enforcement is unchanged by the cap.
 func TestRoundBudget_Escalates(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(normSpec), 0o600))
 	_, _, code := runTP(t, dir, "init", "spec.md")

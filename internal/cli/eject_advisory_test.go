@@ -17,6 +17,7 @@ const ejectAdvisory = "note: these roles are starting points; rewrite their focu
 // output.Info would swallow — and the stdout payload keys stay exactly
 // {ejected, domain}.
 func TestInitEjectRoles_AdvisoryOnStderrWithPipedStdout(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 
@@ -42,6 +43,7 @@ func keysOf(m map[string]any) []string {
 
 // The wording names no language, so the same line is emitted for prose.
 func TestInitEjectRoles_AdvisoryForProseDomain(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 
@@ -52,6 +54,7 @@ func TestInitEjectRoles_AdvisoryForProseDomain(t *testing.T) {
 
 // --quiet suppresses the advisory.
 func TestInitEjectRoles_AdvisorySuppressedByQuiet(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 

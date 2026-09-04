@@ -24,6 +24,7 @@ import (
 // real invocations produce it. A unit test on the engine would assert the same
 // thing about a state nobody had shown was reachable.
 func TestAnEmptyPayloadIsAcceptedWhenTheRoundOwesNothing(t *testing.T) {
+	t.Parallel()
 	t.Run("empty because every unit carries", func(t *testing.T) {
 		dir := writeGroundFixture(t)
 

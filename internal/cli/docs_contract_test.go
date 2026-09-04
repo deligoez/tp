@@ -23,6 +23,7 @@ const (
 
 // TestDocsCarryTheMechanizePhaseQualifier guards §8a.2 (pinned by §10.5 test 29).
 func TestDocsCarryTheMechanizePhaseQualifier(t *testing.T) {
+	t.Parallel()
 	seen := map[string]bool{}
 	for _, line := range strings.Split(readRepoDoc(t, "skills/tp/SKILL.md"), "\n") {
 		for _, anchor := range []string{mechanizeRuleAnchor, mechanizeStepAnchor} {
@@ -63,6 +64,7 @@ const (
 // prompts[].role contract stay schema detail REFERENCE.md renders alone, and
 // both documents still have to be free of the superseded item-id prefixes.
 func TestDocsStateOneAuditRoutingContract(t *testing.T) {
+	t.Parallel()
 	skill := readRepoDoc(t, roleContractDoc)
 	assert.Contains(t, skill, routingSubstring, "%s states the routing rule", roleContractDoc)
 	assert.Contains(t, skill, upgradeSubstring,
@@ -137,6 +139,7 @@ var referenceSignalSentences = []string{
 // spec-coverage streak, because that rule is this repository's own and its
 // meaning depends on the field.
 func TestDocsCarryTheConvergenceSignalWording(t *testing.T) {
+	t.Parallel()
 	skill := readRepoDoc(t, "skills/tp/SKILL.md")
 	anchored := false
 	for _, line := range strings.Split(skill, "\n") {
@@ -213,6 +216,7 @@ var v032ParityMarkers = []string{
 // before this test — the guard extension is part of the work, not a bonus —
 // and re-adding the flag to that list must redden it.
 func TestReferenceDoesNotPromiseTheStoredCleanFlagIsUnchanged(t *testing.T) {
+	t.Parallel()
 	section := docSectionBody(t, readRepoDoc(t, "skills/tp/REFERENCE.md"), honestSignalsHeading)
 
 	assert.Contains(t, section, honestSignalsGovernedBy,
@@ -269,6 +273,7 @@ const (
 // get a guard here: the denial that the field exists, and the divergence
 // section's claim about next_action.
 func TestDocsStateTheConvergenceRuleUnderBothPolicies(t *testing.T) {
+	t.Parallel()
 	skill := readRepoDoc(t, "skills/tp/SKILL.md")
 	for _, path := range []string{"skills/tp/SKILL.md", "skills/tp/REFERENCE.md", "README.md"} {
 		doc := readRepoDoc(t, path)

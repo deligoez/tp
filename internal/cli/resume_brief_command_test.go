@@ -21,6 +21,7 @@ func briefCommandOf(t *testing.T, res map[string]any) any {
 // is tp next --brief (claims the task and delivers the brief), not the read-only
 // tp brief <id>.
 func TestResume_BriefCommandImplement(t *testing.T) {
+	t.Parallel()
 	dir := newPayloadRepo(t, `[{"id":"t1","title":"T","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"a","source_sections":["x"]}]`)
 	assert.Equal(t, "tp next --brief", briefCommandOf(t, resumeResult(t, dir)))
 }
@@ -28,12 +29,14 @@ func TestResume_BriefCommandImplement(t *testing.T) {
 // TestResume_BriefCommandReview: §9.3 — the review brief_command names the spec
 // and the next round (tp review <spec> --round N).
 func TestResume_BriefCommandReview(t *testing.T) {
+	t.Parallel()
 	dir := newPayloadRepo(t, `[]`)
 	assert.Equal(t, "tp review spec.md --round 1", briefCommandOf(t, resumeResult(t, dir)))
 }
 
 // TestResume_BriefCommandAudit: §9.3 — the audit brief_command is tp audit <spec>.
 func TestResume_BriefCommandAudit(t *testing.T) {
+	t.Parallel()
 	dir := newPayloadRepo(t, `[{"id":"t1","title":"T","status":"done","depends_on":[],"estimate_minutes":5,"acceptance":"a","source_sections":["x"]}]`)
 	assert.Equal(t, "tp audit spec.md", briefCommandOf(t, resumeResult(t, dir)))
 }
@@ -41,6 +44,7 @@ func TestResume_BriefCommandAudit(t *testing.T) {
 // TestResume_BriefCommandNullForDecompose: decompose is agent work with no tp
 // command, so it carries a null brief_command.
 func TestResume_BriefCommandNullForDecompose(t *testing.T) {
+	t.Parallel()
 	dir := newPayloadRepo(t, `[]`)
 	writeConvergedRounds(t, dir, 2, 0)
 	assert.Nil(t, briefCommandOf(t, resumeResult(t, dir)))
@@ -48,6 +52,7 @@ func TestResume_BriefCommandNullForDecompose(t *testing.T) {
 
 // TestResume_BriefCommandNullForRelease mirrors decompose for the release phase.
 func TestResume_BriefCommandNullForRelease(t *testing.T) {
+	t.Parallel()
 	dir := newPayloadRepo(t, `[{"id":"t1","title":"T","status":"done","depends_on":[],"estimate_minutes":5,"acceptance":"a","source_sections":["x"]}]`)
 	writeConvergedRounds(t, dir, 0, 2)
 	assert.Nil(t, briefCommandOf(t, resumeResult(t, dir)))
@@ -56,6 +61,7 @@ func TestResume_BriefCommandNullForRelease(t *testing.T) {
 // TestResume_BriefCommandSurvivesCompact: §9.3 — brief_command is
 // decision-critical, so it survives --compact.
 func TestResume_BriefCommandSurvivesCompact(t *testing.T) {
+	t.Parallel()
 	dir := newPayloadRepo(t, `[]`)
 	out, stderr, code := runTP(t, dir, "resume", "--compact")
 	require.Equal(t, 0, code, "resume --compact: %s", stderr)
@@ -68,6 +74,7 @@ func TestResume_BriefCommandSurvivesCompact(t *testing.T) {
 // flight, the brief_command still points at that round's prompt emission
 // (tp review <spec> --round N), even though the action is to record it.
 func TestResume_BriefCommandReviewInFlight(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## 1. A\na\n"), 0o600))

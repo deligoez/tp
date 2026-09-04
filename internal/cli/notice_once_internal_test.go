@@ -75,6 +75,7 @@ func rejectedGitError(t *testing.T) *exec.ExitError {
 // range, since auditDiffStats and auditDeletedFiles each run their probe over
 // every range auditDiffRanges yields.
 func TestWarnGitFailure_BoundedAndOncePerProbe(t *testing.T) {
+	t.Parallel()
 	exitErr := rejectedGitError(t)
 	require.Greater(t, len(exitErr.Stderr), 4000,
 		"the fixture must reproduce git's multi-line usage dump, or the cap is untested")
@@ -108,6 +109,7 @@ func TestWarnGitFailure_BoundedAndOncePerProbe(t *testing.T) {
 // a multi-line detail loses everything after its first line, and a single
 // over-long line is truncated rather than passed through whole.
 func TestFirstLineCapped(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "fatal: not a git repository",
 		firstLineCapped("fatal: not a git repository\nusage: git diff\n  more\n"))
 
@@ -121,6 +123,7 @@ func TestFirstLineCapped(t *testing.T) {
 // conditions must never collapse into one line just because the first one
 // already spoke.
 func TestNoticeOnce_SuppressesRepeatsPerKey(t *testing.T) {
+	t.Parallel()
 	clearNoticedKeys()
 	stderr := captureCLIStderr(t, func() {
 		noticeOnce("k1", "first condition")

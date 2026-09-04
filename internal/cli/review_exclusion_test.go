@@ -132,6 +132,7 @@ func assertExclusionAtBothSites(t *testing.T, dir string, want []string) {
 // than at this one; the predicate the two sinks share is pinned in package
 // engine by TestIsMechanizedClass_ValidityIsPerEntry.
 func TestReviewExclusion_InvalidEntryDroppedAtBothSites(t *testing.T) {
+	t.Parallel()
 	dir := exclusionFixture(t, `[{"class":"Bad_Slug","cmd":"true"},{"class":"kept-class","cmd":"true"}]`)
 	assertExclusionAtBothSites(t, dir, []string{"kept-class"})
 }
@@ -140,6 +141,7 @@ func TestReviewExclusion_InvalidEntryDroppedAtBothSites(t *testing.T) {
 // alphabetical order the list keeps registration order, which is what
 // distinguishes it from the ascending `mechanized_classes` of §3.3.
 func TestReviewExclusion_KeepsRegistrationOrder(t *testing.T) {
+	t.Parallel()
 	dir := exclusionFixture(t, `[{"class":"zeta-check","cmd":"true"},{"class":"alpha-check","cmd":"true"},{"class":"mid-check","cmd":"true"}]`)
 	assertExclusionAtBothSites(t, dir, []string{"zeta-check", "alpha-check", "mid-check"})
 }
@@ -151,6 +153,7 @@ func TestReviewExclusion_KeepsRegistrationOrder(t *testing.T) {
 // threshold, so an implementation deriving this list from the withheld
 // candidates would list frequent-class alone and fail.
 func TestReviewExclusion_KeepsAClassBelowCandidateFrequency(t *testing.T) {
+	t.Parallel()
 	rows := append(fiveRowsOfClass("frequent-class"), classRow("L9", "seen once", "rare-class"))
 
 	control := suppressionFixture(t, "")
@@ -167,6 +170,7 @@ func TestReviewExclusion_KeepsAClassBelowCandidateFrequency(t *testing.T) {
 // collapsing duplicates before dropping invalid entries keeps the invalid
 // occurrence, drops the class, and fails.
 func TestReviewExclusion_InvalidEntryDoesNotShadowAValidOne(t *testing.T) {
+	t.Parallel()
 	dir := exclusionFixture(t, `[{"class":"dup-class","cmd":"   "},{"class":"dup-class","cmd":"true"}]`)
 	assertExclusionAtBothSites(t, dir, []string{"dup-class"})
 }
@@ -174,6 +178,7 @@ func TestReviewExclusion_InvalidEntryDoesNotShadowAValidOne(t *testing.T) {
 // Test 35's exclusion-list half at prompt emission: a class named by two valid
 // entries is registered, not rejected, and the list names it once.
 func TestReviewExclusion_ClassNamedByTwoEntriesListedOnce(t *testing.T) {
+	t.Parallel()
 	dir := exclusionFixture(t, `[{"class":"twice-class","cmd":"check-a"},{"class":"twice-class","cmd":"check-b"}]`)
 	assertExclusionAtBothSites(t, dir, []string{"twice-class"})
 }
@@ -184,6 +189,7 @@ func TestReviewExclusion_ClassNamedByTwoEntriesListedOnce(t *testing.T) {
 // raise the class, so listing it would ship one prompt that both demands and
 // forbids the same finding.
 func TestReviewExclusion_OverSpecificationNeverJoinsTheList(t *testing.T) {
+	t.Parallel()
 	dir := exclusionFixture(t, `[{"class":"over-specification","cmd":"true"},{"class":"naming-class","cmd":"true"}]`)
 	assertExclusionAtBothSites(t, dir, []string{"naming-class"})
 
@@ -199,6 +205,7 @@ func TestReviewExclusion_OverSpecificationNeverJoinsTheList(t *testing.T) {
 // returned nothing or was never called — and it is also what proves the
 // surrounding checks-running branch kept its own guard.
 func TestReviewExclusion_EveryEntryInvalidAppendsNoSentence(t *testing.T) {
+	t.Parallel()
 	dir := exclusionFixture(t, `[{"class":"Bad_Slug","cmd":"true"},{"class":"blank-cmd","cmd":"   "}]`)
 
 	texts, panelStderr := panelPrompts(t, dir)

@@ -43,6 +43,7 @@ import (
 // shape the census cannot see, and failing on it would push the table toward
 // under-documenting.
 func TestLintRuleTableDocumentsEveryEmittableRule(t *testing.T) {
+	t.Parallel()
 	collected := collectEmittableRules(t)
 	documented := documentedLintRules(t)
 

@@ -35,6 +35,7 @@ func setupPerspectiveTestDir(t *testing.T, extraFiles map[string]string) (specPa
 }
 
 func TestReviewBasic(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte(`# Feature
@@ -121,6 +122,7 @@ Users need X.
 // or all. The field genuinely resolves differently in each setup (asserted via
 // tp config --resolved), yet the generated prompt is unchanged.
 func TestReviewConvergenceStringsIgnoreConvergeOn(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Feature\n\n## Problem\nUsers need X.\n\n## Solution\nAdd a field.\n"), 0o600))
@@ -166,6 +168,7 @@ func TestReviewConvergenceStringsIgnoreConvergeOn(t *testing.T) {
 }
 
 func TestReviewStructuredElementsInPrompts(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte(`# Spec
@@ -207,6 +210,7 @@ func TestReviewStructuredElementsInPrompts(t *testing.T) {
 }
 
 func TestReviewFindingFormatInPrompts(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Simple Spec\nDo the thing.\n"), 0o600))
@@ -228,6 +232,7 @@ func TestReviewFindingFormatInPrompts(t *testing.T) {
 }
 
 func TestReviewEmptySpec(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Empty\n"), 0o600))
@@ -249,6 +254,7 @@ func TestReviewEmptySpec(t *testing.T) {
 }
 
 func TestReviewListInventoryInPrompt(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte(`# Spec
@@ -277,6 +283,7 @@ func TestReviewListInventoryInPrompt(t *testing.T) {
 }
 
 func TestReviewRound1BackwardCompat(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Simple Spec\nDo the thing.\n"), 0o600))
@@ -298,6 +305,7 @@ func TestReviewRound1BackwardCompat(t *testing.T) {
 }
 
 func TestReviewRound2WithFindings(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Simple Spec\nDo the thing.\n"), 0o600))
@@ -328,6 +336,7 @@ func TestReviewRound2WithFindings(t *testing.T) {
 }
 
 func TestReviewRound2WithoutFindings(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Simple Spec\nDo the thing.\n"), 0o600))
@@ -344,6 +353,7 @@ func TestReviewRound2WithoutFindings(t *testing.T) {
 }
 
 func TestReviewRound0(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Simple Spec\nDo the thing.\n"), 0o600))
@@ -359,6 +369,7 @@ func TestReviewRound0(t *testing.T) {
 // usage error (2), so the same typo reported two different codes depending on
 // which subcommand read it.
 func TestReviewFindingsFileNotFound(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Simple Spec\nDo the thing.\n"), 0o600))
@@ -371,6 +382,7 @@ func TestReviewFindingsFileNotFound(t *testing.T) {
 }
 
 func TestReviewFindingsDedup(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Simple Spec\nDo the thing.\n"), 0o600))
@@ -392,6 +404,7 @@ func TestReviewFindingsDedup(t *testing.T) {
 }
 
 func TestReviewFindingsCappedAt50(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Simple Spec\nDo the thing.\n"), 0o600))
@@ -417,6 +430,7 @@ func TestReviewFindingsCappedAt50(t *testing.T) {
 }
 
 func TestReviewFindingsLongText(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Simple Spec\nDo the thing.\n"), 0o600))
@@ -437,6 +451,7 @@ func TestReviewFindingsLongText(t *testing.T) {
 }
 
 func TestReviewFindingsInvalidLines(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Simple Spec\nDo the thing.\n"), 0o600))
@@ -457,6 +472,7 @@ also not json
 }
 
 func TestReviewEmptyFindingsFile(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Simple Spec\nDo the thing.\n"), 0o600))
@@ -480,6 +496,7 @@ func TestReviewEmptyFindingsFile(t *testing.T) {
 }
 
 func TestReviewRound1WithFindings(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Simple Spec\nDo the thing.\n"), 0o600))
@@ -509,6 +526,7 @@ func TestReviewRound1WithFindings(t *testing.T) {
 }
 
 func TestReviewSeveritySortOrder(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Simple Spec\nDo the thing.\n"), 0o600))
@@ -537,6 +555,7 @@ func TestReviewSeveritySortOrder(t *testing.T) {
 }
 
 func TestReviewNegativeRound(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Simple Spec\nDo the thing.\n"), 0o600))
@@ -547,6 +566,7 @@ func TestReviewNegativeRound(t *testing.T) {
 }
 
 func TestReviewRound3Instruction(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Simple Spec\nDo the thing.\n"), 0o600))
@@ -566,6 +586,7 @@ func TestReviewRound3Instruction(t *testing.T) {
 }
 
 func TestReviewMissingSeverityDefaultsToUnknown(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Simple Spec\nDo the thing.\n"), 0o600))
@@ -586,6 +607,7 @@ func TestReviewMissingSeverityDefaultsToUnknown(t *testing.T) {
 }
 
 func TestReviewPerspectiveDocBasic(t *testing.T) {
+	t.Parallel()
 	specPath, docsDir := setupPerspectiveTestDir(t, nil)
 
 	stdout, _, code := runTP(t, filepath.Dir(specPath), "review", specPath, "--perspective", "documentation", "--docs-path", docsDir)
@@ -603,6 +625,7 @@ func TestReviewPerspectiveDocBasic(t *testing.T) {
 }
 
 func TestReviewPerspectiveTestBasic(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Feature\nNew feature.\n"), 0o600))
@@ -626,6 +649,7 @@ func TestReviewPerspectiveTestBasic(t *testing.T) {
 }
 
 func TestReviewPerspectiveInvalid(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
@@ -636,6 +660,7 @@ func TestReviewPerspectiveInvalid(t *testing.T) {
 }
 
 func TestReviewPerspectiveMissingDocsPath(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
@@ -646,6 +671,7 @@ func TestReviewPerspectiveMissingDocsPath(t *testing.T) {
 }
 
 func TestReviewPerspectiveMissingTestPath(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
@@ -656,6 +682,7 @@ func TestReviewPerspectiveMissingTestPath(t *testing.T) {
 }
 
 func TestReviewPerspectiveDocsPathNotFound(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
@@ -666,6 +693,7 @@ func TestReviewPerspectiveDocsPathNotFound(t *testing.T) {
 }
 
 func TestReviewPerspectiveTestPathNotFound(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
@@ -676,6 +704,7 @@ func TestReviewPerspectiveTestPathNotFound(t *testing.T) {
 }
 
 func TestReviewPerspectiveMutuallyExclusiveRound(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
@@ -686,6 +715,7 @@ func TestReviewPerspectiveMutuallyExclusiveRound(t *testing.T) {
 }
 
 func TestReviewPerspectiveMutuallyExclusiveFindings(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
@@ -699,6 +729,7 @@ func TestReviewPerspectiveMutuallyExclusiveFindings(t *testing.T) {
 }
 
 func TestReviewPerspectiveDefaultUnchanged(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Simple Spec\nDo the thing.\n"), 0o600))
@@ -715,6 +746,7 @@ func TestReviewPerspectiveDefaultUnchanged(t *testing.T) {
 }
 
 func TestReviewPerspectiveDocPromptContent(t *testing.T) {
+	t.Parallel()
 	specPath, docsDir := setupPerspectiveTestDir(t, nil)
 
 	stdout, _, code := runTP(t, filepath.Dir(specPath), "review", specPath, "--perspective", "documentation", "--docs-path", docsDir)
@@ -747,6 +779,7 @@ func TestReviewPerspectiveDocPromptContent(t *testing.T) {
 }
 
 func TestReviewPerspectiveTestPromptContent(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Feature\n\n## Commands\n\n| Flag | Type |\n|------|------|\n| --batch | string |\n\n## Acceptance\n1. Exit code 0 on valid input\n2. Exit code 2 on invalid input\n"), 0o600))
@@ -775,6 +808,7 @@ func TestReviewPerspectiveTestPromptContent(t *testing.T) {
 }
 
 func TestReviewPerspectiveEmptyDocsDir(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
@@ -798,6 +832,7 @@ func TestReviewPerspectiveEmptyDocsDir(t *testing.T) {
 }
 
 func TestReviewPerspectiveManyFilesCapped(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Feature\nFeature with many docs pages.\n"), 0o600))
@@ -821,6 +856,7 @@ func TestReviewPerspectiveManyFilesCapped(t *testing.T) {
 }
 
 func TestReviewAffectedFilesValid(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
@@ -838,6 +874,7 @@ func TestReviewAffectedFilesValid(t *testing.T) {
 }
 
 func TestReviewAffectedFilesNotFound(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
@@ -848,6 +885,7 @@ func TestReviewAffectedFilesNotFound(t *testing.T) {
 }
 
 func TestReviewAffectedFilesDirectory(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	subDir := filepath.Join(dir, "sub")
@@ -860,6 +898,7 @@ func TestReviewAffectedFilesDirectory(t *testing.T) {
 }
 
 func TestReviewAffectedFilesDedup(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
@@ -875,6 +914,7 @@ func TestReviewAffectedFilesDedup(t *testing.T) {
 }
 
 func TestReviewAffectedFilesWithRoundFindings(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
@@ -896,6 +936,7 @@ func TestReviewAffectedFilesWithRoundFindings(t *testing.T) {
 }
 
 func TestReviewCodeAuditRequiresAffectedFiles(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
@@ -906,6 +947,7 @@ func TestReviewCodeAuditRequiresAffectedFiles(t *testing.T) {
 }
 
 func TestReviewCodeAuditBasic(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Refactor\nRemove isPhoneCheckInProgress.\n"), 0o600))
@@ -939,6 +981,7 @@ func TestReviewCodeAuditBasic(t *testing.T) {
 }
 
 func TestReviewCodeAuditEmptyFiles(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
@@ -952,6 +995,7 @@ func TestReviewCodeAuditEmptyFiles(t *testing.T) {
 }
 
 func TestReviewFinalRoundRequiresRound2(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
@@ -962,6 +1006,7 @@ func TestReviewFinalRoundRequiresRound2(t *testing.T) {
 }
 
 func TestReviewFinalRoundWarning(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
@@ -976,6 +1021,7 @@ func TestReviewFinalRoundWarning(t *testing.T) {
 }
 
 func TestReviewFinalRoundWithAffectedFiles(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
@@ -993,6 +1039,7 @@ func TestReviewFinalRoundWithAffectedFiles(t *testing.T) {
 }
 
 func TestReviewAffectedFilesWithPerspectives(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
@@ -1018,6 +1065,7 @@ func TestReviewAffectedFilesWithPerspectives(t *testing.T) {
 }
 
 func TestReviewDefaultPromptWithAffectedFiles(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Feature\n\n## Commands\n\n| Flag | Type |\n|------|------|\n| --batch | string |\n\n## Acceptance\n1. Exit code 0\n"), 0o600))
@@ -1041,6 +1089,7 @@ func TestReviewDefaultPromptWithAffectedFiles(t *testing.T) {
 }
 
 func TestReviewFileTruncation(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
@@ -1059,6 +1108,7 @@ func TestReviewFileTruncation(t *testing.T) {
 }
 
 func TestReviewBudgetEnforcement(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	bigSpec := "# Spec\n" + strings.Repeat("x", 9900)
@@ -1109,16 +1159,19 @@ func assertAcceptanceQualityFinding(t *testing.T, acceptance, severity, msg stri
 }
 
 func TestLintAcceptanceQualityRemovalWarning(t *testing.T) {
+	t.Parallel()
 	assertAcceptanceQualityFinding(t, "isPhoneCheckInProgress computed was removed",
 		"warning", "should warn on removal-only acceptance")
 }
 
 func TestLintAcceptanceQualityShortAcceptance(t *testing.T) {
+	t.Parallel()
 	assertAcceptanceQualityFinding(t, "input disabled only when locked",
 		"info", "should info on short acceptance")
 }
 
 func TestLintAcceptanceQualityNoTaskFile(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\nEmpty.\n"), 0o600))
@@ -1139,6 +1192,7 @@ func TestLintAcceptanceQualityNoTaskFile(t *testing.T) {
 }
 
 func TestLintAcceptanceQualityNoWarning(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\nEmpty.\n"), 0o600))
@@ -1165,6 +1219,7 @@ func TestLintAcceptanceQualityNoWarning(t *testing.T) {
 }
 
 func TestLintAffectedFilesScopeWarns(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte(`# Spec
@@ -1198,6 +1253,7 @@ func TestLintAffectedFilesScopeWarns(t *testing.T) {
 }
 
 func TestLintAffectedFilesScopePasses(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte(`# Spec
@@ -1226,6 +1282,7 @@ func TestLintAffectedFilesScopePasses(t *testing.T) {
 }
 
 func TestLintAffectedFilesScopeNoTable(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\nNo affected files table here.\n"), 0o600))
@@ -1247,6 +1304,7 @@ func TestLintAffectedFilesScopeNoTable(t *testing.T) {
 
 // Test: prompts WITHOUT --affected-files should NOT contain the state-dependent checklist item
 func TestReviewDefaultPromptWithoutAffectedFilesNoChecklist(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Feature\n\n## Commands\n\n| Flag | Type |\n|------|------|\n| --batch | string |\n"), 0o600))
@@ -1268,6 +1326,7 @@ func TestReviewDefaultPromptWithoutAffectedFilesNoChecklist(t *testing.T) {
 
 // Test: --round 0 should always error with "round must be >= 1", even with --perspective
 func TestReviewRound0WithPerspective(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
@@ -1306,6 +1365,7 @@ func assertPromptDeterministic(t *testing.T, specBody, perspective, pathFlag, su
 
 // Test: doc prompt file iteration is deterministic (sorted)
 func TestReviewDocPromptDeterministic(t *testing.T) {
+	t.Parallel()
 	assertPromptDeterministic(t, "# Feature\n## Testing zeta\n## Docs alpha\n",
 		"documentation", "--docs-path", "docs",
 		map[string]string{"zeta.md": "# Zeta\n", "alpha.md": "# Alpha\n"})
@@ -1313,6 +1373,7 @@ func TestReviewDocPromptDeterministic(t *testing.T) {
 
 // Test: test prompt file iteration is deterministic (sorted)
 func TestReviewTestPromptDeterministic(t *testing.T) {
+	t.Parallel()
 	assertPromptDeterministic(t, "# Feature\n## Zeta\n## Alpha\n",
 		"testing", "--test-path", "tests",
 		map[string]string{"zeta_test.go": "package t\n", "alpha_test.go": "package t\n"})
@@ -1326,6 +1387,7 @@ func TestReviewTestPromptDeterministic(t *testing.T) {
 // count over a file tp never read. This test used to pin that acceptance while
 // asserting nothing about the findings; the refusal replaces it.
 func TestReviewCodeAuditWithRoundAndFindings(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
@@ -1351,6 +1413,7 @@ func TestReviewCodeAuditWithRoundAndFindings(t *testing.T) {
 
 // Test: code-audit prompt uses full file path, not just basename
 func TestReviewCodeAuditFullPath(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
@@ -1372,6 +1435,7 @@ func TestReviewCodeAuditFullPath(t *testing.T) {
 
 // Test: --perspective documentation with --affected-files merges files into context
 func TestReviewDocPerspectiveWithAffectedFiles(t *testing.T) {
+	t.Parallel()
 	specPath, docsDir := setupPerspectiveTestDir(t, nil)
 	dir := filepath.Dir(specPath)
 	aPath := filepath.Join(dir, "src.go")
@@ -1390,6 +1454,7 @@ func TestReviewDocPerspectiveWithAffectedFiles(t *testing.T) {
 
 // Test: --perspective testing with --affected-files merges files into context
 func TestReviewTestPerspectiveWithAffectedFiles(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Feature\n## Commands\n1. Do something\n"), 0o600))
@@ -1412,6 +1477,7 @@ func TestReviewTestPerspectiveWithAffectedFiles(t *testing.T) {
 
 // Test: multi-file total budget cap (>50000 chars total)
 func TestReviewMultiFileTotalCap(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
@@ -1442,6 +1508,7 @@ func TestReviewMultiFileTotalCap(t *testing.T) {
 
 // Test: review findings summary uses the Finding field from parseFindingsFile
 func TestReviewFindingsSummaryContent(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
@@ -1466,6 +1533,7 @@ func TestReviewFindingsSummaryContent(t *testing.T) {
 }
 
 func TestLintAffectedFilesScopeCaseInsensitive(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte(`# Spec
@@ -1497,6 +1565,7 @@ func TestLintAffectedFilesScopeCaseInsensitive(t *testing.T) {
 // === Mode mutual exclusivity tests ===
 
 func TestReviewModeMutualExclusivity(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
@@ -1522,6 +1591,7 @@ func TestReviewModeMutualExclusivity(t *testing.T) {
 }
 
 func TestReviewMergeRejectsModifierFlags(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	fPath := filepath.Join(dir, "f.ndjson")
 	require.NoError(t, os.WriteFile(fPath, []byte(`{"severity":"high","finding":"x"}`+"\n"), 0o600))
@@ -1546,6 +1616,7 @@ func TestReviewMergeRejectsModifierFlags(t *testing.T) {
 }
 
 func TestReviewDefaultStillWorks(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n\n## Section\n1. Item one\n"), 0o600))
@@ -1560,6 +1631,7 @@ func TestReviewDefaultStillWorks(t *testing.T) {
 }
 
 func TestReviewNoSpecArgErrors(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	_, _, code := runTP(t, dir, "review")
 	assert.Equal(t, 2, code, "review without spec should exit 2")

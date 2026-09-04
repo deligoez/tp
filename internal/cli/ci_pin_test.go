@@ -34,6 +34,7 @@ var goInstallRef = regexp.MustCompile(`go install\s+(\S+)@(\S+)`)
 // not a vN.N.N tag rather than matching `latest` alone: a branch name, a bare
 // major, or a commit-ish would drift the same way.
 func TestWorkflowToolsArePinned(t *testing.T) {
+	t.Parallel()
 	dir := filepath.Join(repoRoot(t), ".github", "workflows")
 	entries, err := os.ReadDir(dir)
 	require.NoError(t, err)

@@ -42,6 +42,7 @@ const clauseSuffixBytes = 468
 // Decidable on any live emission, in one comparison, with no fixture and no
 // second version of the binary.
 func TestSuffixIsAppendedOnceAndTheStripHappened(t *testing.T) {
+	t.Parallel()
 	suffix := clauseSuffixFromSpec(t)
 	require.Len(t, suffix, clauseSuffixBytes,
 		"§1.1 prices the suffix at %d bytes; the spec's own clauses must total that", clauseSuffixBytes)

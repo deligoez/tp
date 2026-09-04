@@ -13,6 +13,7 @@ import (
 )
 
 func TestAuditBasicWithAffectedFiles(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n## Table\n| Col | Desc |\n|-----|------|\n| a | first |\n"), 0o600))
@@ -31,6 +32,7 @@ func TestAuditBasicWithAffectedFiles(t *testing.T) {
 }
 
 func TestAuditNoAffectedFilesNoGit(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\nEmpty.\n"), 0o600))
@@ -41,6 +43,7 @@ func TestAuditNoAffectedFilesNoGit(t *testing.T) {
 }
 
 func TestAuditAffectedFileNotFound(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
@@ -51,6 +54,7 @@ func TestAuditAffectedFileNotFound(t *testing.T) {
 }
 
 func TestAuditAffectedFileDirectory(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	subDir := filepath.Join(dir, "sub")
@@ -63,6 +67,7 @@ func TestAuditAffectedFileDirectory(t *testing.T) {
 }
 
 func TestAuditAffectedFilesDedup(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
@@ -86,6 +91,7 @@ func TestAuditAffectedFilesDedup(t *testing.T) {
 // the run must name it rather than report "no changed files" and send the
 // caller looking for missing work instead of at the revision they typed.
 func TestAuditGitFailureWarnsInsteadOfClaimingZeros(t *testing.T) {
+	t.Parallel()
 	dir, _ := newAuditRepo(t)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.go"), []byte("package main\n"), 0o600))
 
@@ -106,6 +112,7 @@ func TestAuditGitFailureWarnsInsteadOfClaimingZeros(t *testing.T) {
 // about files that were selected precisely because they changed. The stats must
 // describe the same comparison the selection made.
 func TestAuditDiffStatsMeasureTheSelectedRange(t *testing.T) {
+	t.Parallel()
 	dir, _ := newAuditRepo(t)
 	git(t, dir, "tag", "v0.0.1")
 
@@ -157,6 +164,7 @@ func TestAuditDiffStatsMeasureTheSelectedRange(t *testing.T) {
 // claimed: no diff annotation on the prompt line, empty diff_summary in the
 // payload.
 func TestAuditCallerSuppliedFilesCarryNoUnmeasuredDiff(t *testing.T) {
+	t.Parallel()
 	dir, _ := newAuditRepo(t)
 
 	body := "package main\n\nfunc a1() {}\nfunc a2() {}\nfunc a3() {}\nfunc a4() {}\nfunc a5() {}\n"
@@ -197,6 +205,7 @@ func TestAuditCallerSuppliedFilesCarryNoUnmeasuredDiff(t *testing.T) {
 }
 
 func TestAuditNoSpecArg(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	_, stderr, code := runTP(t, dir, "audit")
 	assert.Equal(t, 2, code, "a missing spec is a usage error (exit 2), consistent with tp review")
@@ -204,6 +213,7 @@ func TestAuditNoSpecArg(t *testing.T) {
 }
 
 func TestAuditSpecNotFound(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	_, stderr, code := runTP(t, dir, "audit", "/nonexistent/spec.md", "--affected-files", "x.go")
 	assert.Equal(t, 3, code)
@@ -215,6 +225,7 @@ func TestAuditSpecNotFound(t *testing.T) {
 // <spec>'") — the wrong object entirely. The --affected-files branch in the
 // same command already overrides that hint; the spec path gets its own too.
 func TestAuditSpecNotFoundHint(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	_, stderr, code := runTP(t, dir, "audit", "/nonexistent/spec.md", "--affected-files", "x.go")
 	require.Equal(t, 3, code)
@@ -228,6 +239,7 @@ func TestAuditSpecNotFoundHint(t *testing.T) {
 }
 
 func TestAuditChecklistTableRows(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte(`# Spec
@@ -260,6 +272,7 @@ func TestAuditChecklistTableRows(t *testing.T) {
 }
 
 func TestAuditChecklistNumberedItems(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte(`# Spec
@@ -291,6 +304,7 @@ func TestAuditChecklistNumberedItems(t *testing.T) {
 }
 
 func TestAuditChecklistTaskAcceptance(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\nEmpty.\n"), 0o600))
@@ -322,6 +336,7 @@ func TestAuditChecklistTaskAcceptance(t *testing.T) {
 }
 
 func TestAuditChecklistFindings(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte(`# Spec
@@ -372,6 +387,7 @@ func TestAuditChecklistFindings(t *testing.T) {
 }
 
 func TestAuditEmptyChecklist(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\nProse only, no structured elements.\n"), 0o600))
@@ -392,6 +408,7 @@ func TestAuditEmptyChecklist(t *testing.T) {
 }
 
 func TestAuditChecklistSummary(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte(`# Spec
@@ -420,6 +437,7 @@ func TestAuditChecklistSummary(t *testing.T) {
 }
 
 func TestAuditPromptContainsSourceFiles(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n## Table\n| C | D |\n|---|---|\n| a | b |\n"), 0o600))
@@ -442,6 +460,7 @@ func TestAuditPromptContainsSourceFiles(t *testing.T) {
 
 // Test: filterChecklistByType returns empty slice (not nil) for JSON safety
 func TestAuditFilterChecklistEmpty(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	// Spec with no structured elements → empty checklist
@@ -464,6 +483,7 @@ func TestAuditFilterChecklistEmpty(t *testing.T) {
 
 // Test: findings field priority order (finding > message > description > title)
 func TestAuditChecklistFindingsPriority(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
@@ -502,6 +522,7 @@ func TestAuditChecklistFindingsPriority(t *testing.T) {
 
 // Test: binary file filtering — .png, .jpg etc. should be excluded
 func TestAuditBinaryFileFiltering(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n## Table\n| Col |\n|-----|\n| val |\n"), 0o600))
@@ -526,6 +547,7 @@ func TestAuditBinaryFileFiltering(t *testing.T) {
 
 // Test: prompt contains full file path (not just basename)
 func TestAuditPromptFullFilePath(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n## Table\n| Col |\n|-----|\n| val |\n"), 0o600))
@@ -547,6 +569,7 @@ func TestAuditPromptFullFilePath(t *testing.T) {
 
 // Test: prompt splitting when checklist >= 50 entries
 func TestAuditPromptSplitting(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	// Build a spec with many table rows (60 rows across multiple tables)
@@ -577,6 +600,7 @@ func TestAuditPromptSplitting(t *testing.T) {
 
 // Test: compact mode truncates text to exactly 80 chars (77 + "...")
 func TestAuditCompactTruncationExact(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	// Table row with exactly 90 characters of content
@@ -606,6 +630,7 @@ func TestAuditCompactTruncationExact(t *testing.T) {
 }
 
 func TestAuditCompact(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n## Table\n| Col | Desc |\n|-----|------|\n| a | a very long description that should be truncated in compact mode |\n"), 0o600))
@@ -635,6 +660,7 @@ func TestAuditCompact(t *testing.T) {
 // read as a regular file) is a real read error, not a missing file — it must
 // exit 3 (file) with a hint naming the findings path.
 func TestAuditFindingsUnreadableDirectory(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n## Table\n| Col |\n|-----|\n| a |\n"), 0o600))
@@ -669,6 +695,7 @@ func TestAuditFindingsUnreadableDirectory(t *testing.T) {
 // tp add --bulk and tp set --bulk to the same abort (add.go, set.go), so this
 // is the shared rule rather than this reader's exception.
 func TestAuditFindingsOverlongLineAborts(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n## Table\n| Col |\n|-----|\n| a |\n"), 0o600))

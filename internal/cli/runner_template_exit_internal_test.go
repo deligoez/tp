@@ -18,6 +18,7 @@ import (
 // change the answer. Asserted through dispatchError because Execute ends in
 // os.Exit.
 func TestDispatchError_RunnerTemplateIsUsage(t *testing.T) {
+	t.Parallel()
 	unknownName := func() error {
 		_, err := engine.ResolveUnitRunner(json.RawMessage(`"cladue"`), engine.TemplateValues{Kind: engine.UnitImplement})
 		return err
@@ -50,6 +51,7 @@ func TestDispatchError_RunnerTemplateIsUsage(t *testing.T) {
 // The classification survives wrapping: the driver that resolves a runner sits
 // several frames below the dispatcher, and %w is how its error gets there.
 func TestDispatchError_RunnerTemplateSurvivesWrapping(t *testing.T) {
+	t.Parallel()
 	_, err := engine.BuiltinRunner("gpt", engine.TemplateValues{Kind: engine.UnitImplement})
 	require.Error(t, err)
 

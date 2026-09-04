@@ -20,6 +20,7 @@ func writeRoundFile(t *testing.T, dir, name string, lines []string) string {
 }
 
 func TestReviewReportThreeFiles(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	r1 := writeRoundFile(t, dir, "r1.ndjson", []string{
@@ -75,6 +76,7 @@ func TestReviewReportThreeFiles(t *testing.T) {
 }
 
 func TestReviewReportFromDirectory(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	roundsDir := filepath.Join(dir, "rounds")
 	require.NoError(t, os.MkdirAll(roundsDir, 0o755))
@@ -108,6 +110,7 @@ func TestReviewReportFromDirectory(t *testing.T) {
 }
 
 func TestReviewReportConverged(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	r1 := writeRoundFile(t, dir, "r1.ndjson", []string{
@@ -129,6 +132,7 @@ func TestReviewReportConverged(t *testing.T) {
 }
 
 func TestReviewReportNotConverged(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	r1 := writeRoundFile(t, dir, "r1.ndjson", []string{
@@ -149,6 +153,7 @@ func TestReviewReportNotConverged(t *testing.T) {
 }
 
 func TestReviewReportBySeverityAndCategory(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	r1 := writeRoundFile(t, dir, "r1.ndjson", []string{
@@ -190,6 +195,7 @@ func TestReviewReportBySeverityAndCategory(t *testing.T) {
 }
 
 func TestReviewReportDeltaPercentNullForR1(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	r1 := writeRoundFile(t, dir, "r1.ndjson", []string{
@@ -210,6 +216,7 @@ func TestReviewReportDeltaPercentNullForR1(t *testing.T) {
 }
 
 func TestReviewReportNoFiles(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	_, _, code := runTP(t, dir, "review", "--report")
@@ -217,6 +224,7 @@ func TestReviewReportNoFiles(t *testing.T) {
 }
 
 func TestReviewReportEmptyDirectory(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	emptyDir := filepath.Join(dir, "empty")
 	require.NoError(t, os.MkdirAll(emptyDir, 0o755))
@@ -226,6 +234,7 @@ func TestReviewReportEmptyDirectory(t *testing.T) {
 }
 
 func TestReviewReportWithResolvedField(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	r1 := writeRoundFile(t, dir, "r1.ndjson", []string{

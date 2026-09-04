@@ -15,6 +15,7 @@ import (
 // values are validation errors (exit 1), unknown or non-settable fields are
 // usage errors (exit 2), and a rejected set leaves the file unmodified.
 func TestSetWorkflow_ErrorTaxonomyAndPresence(t *testing.T) {
+	t.Parallel()
 	setup := func(t *testing.T) string {
 		dir := t.TempDir()
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.tasks.json"),

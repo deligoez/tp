@@ -24,6 +24,7 @@ import (
 // implementation's constants, so a test asserting against the code it checks
 // cannot pass by agreeing with a mistake.
 func TestEveryPromptWithAnOutputPathEndsWithTheSuffix(t *testing.T) {
+	t.Parallel()
 	suffix := clauseSuffixFromSpec(t)
 	spec := relocatedSpec(t, "spec/0.36.0.md")
 	dir := filepath.Dir(spec)

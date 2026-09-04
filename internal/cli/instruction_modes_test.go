@@ -34,6 +34,7 @@ type legalRoleMode struct {
 // scoped to the default mode would pass while a future edit taught a
 // perspective emitter to talk about "the three role prompts".
 func TestInstructionIsASubsetInEveryModeRoleIsLegalIn(t *testing.T) {
+	t.Parallel()
 	spec := relocatedSpec(t, "spec/0.36.0.md")
 	dir := filepath.Dir(spec)
 	base := filepath.Base(spec)
@@ -101,6 +102,7 @@ func TestInstructionIsASubsetInEveryModeRoleIsLegalIn(t *testing.T) {
 // The foreign role is what constructs the case: a name tp recognises that this
 // mode cannot emit. Asking for the mode's own name proves nothing here.
 func TestAnEmptyPayloadDirectsNothing(t *testing.T) {
+	t.Parallel()
 	dir, cases := legalModeCases(t)
 
 	for name, c := range cases {
@@ -145,6 +147,7 @@ func TestAnEmptyPayloadDirectsNothing(t *testing.T) {
 // That was the fifth property this cycle lost to a guard that never built its
 // own case; it is asserted here on the reason, not on the box.
 func TestCompactKeepsTheReasonWhenRoleEmptiesThePayload(t *testing.T) {
+	t.Parallel()
 	// No .tp-review alongside it: round 1 is the only round that skips a role
 	// in this repository, and a skipped role is what carries a reason.
 	spec := relocatedSpecAtRoundOne(t, "spec/0.36.0.md")

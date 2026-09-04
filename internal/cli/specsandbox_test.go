@@ -31,6 +31,7 @@ import (
 // Relocating the spec is the only mechanism that preserves the behaviour and
 // moves the writes, because the state directory follows the spec.
 func TestRelocatedSpecKeepsStateOutOfTheRepository(t *testing.T) {
+	t.Parallel()
 	for _, rel := range []string{"spec/0.36.0.md", "spec/0.35.0.md"} {
 		t.Run(rel, func(t *testing.T) { assertRelocated(t, rel) })
 	}

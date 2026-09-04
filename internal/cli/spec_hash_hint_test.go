@@ -26,6 +26,7 @@ func lastLine(t *testing.T, s string) string {
 // ("run 'tp use <file>' …"), which is TASK-file advice for a path that is
 // correct. All four SpecHash call sites share the shape.
 func TestSpecHashFailureNamesTheRealCause(t *testing.T) {
+	t.Parallel()
 	if os.Geteuid() == 0 {
 		t.Skip("root reads regardless of mode bits")
 	}

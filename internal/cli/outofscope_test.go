@@ -16,6 +16,7 @@ import (
 // tp done (the line is not counted as an evidence line) and preserved verbatim
 // in closed_reason.
 func TestDone_OutOfScopeLineAcceptedAndPreserved(t *testing.T) {
+	t.Parallel()
 	dir := setupCloseStrategyProject(t, "builtin")
 	// A two-criterion task exercises evidence-line counting: the Out of scope:
 	// line must not count toward the two required evidence lines.
@@ -34,6 +35,7 @@ func TestDone_OutOfScopeLineAcceptedAndPreserved(t *testing.T) {
 // out-of-scope note a closing unit recorded, so it reaches a human rather than
 // dying in a context window. The note survives --compact for the same reason.
 func TestReport_SurfacesOutOfScopeNote(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 
 	now := time.Now().UTC()

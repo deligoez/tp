@@ -53,6 +53,7 @@ func sentencesGroundMustNotCarry(t *testing.T) []string {
 // emitted prompt would be forgeable, because tp embeds spec text verbatim and
 // this release's own spec quotes both sentences.
 func TestGroundClauseDropsTheProhibitionItOverrides(t *testing.T) {
+	t.Parallel()
 	for _, sentence := range sentencesGroundMustNotCarry(t) {
 		assert.NotContains(t, groundIsolationClause, sentence,
 			"§4.2 names this sentence as one that forbids the probe, so the ground clause must not carry it")
@@ -68,6 +69,7 @@ func TestGroundClauseDropsTheProhibitionItOverrides(t *testing.T) {
 // one of the two halves outright. The prohibition it replaces is pinned by
 // TestGroundClauseDropsTheProhibitionItOverrides, where the assertion can fail.
 func TestGroundClausePermitsTheCopyAndFencesTheRepository(t *testing.T) {
+	t.Parallel()
 	assert.Contains(t, groundIsolationClause, "outside the repository",
 		"§4.2: the probe runs in a copy the unit creates outside the repository")
 	assert.Contains(t, groundIsolationClause, "write no file except the output file this prompt names",
@@ -78,6 +80,7 @@ func TestGroundClausePermitsTheCopyAndFencesTheRepository(t *testing.T) {
 // suffix of the right length assembled in the wrong order — or with a single LF
 // between the clauses — satisfies a length check alone.
 func TestGroundClauseSuffixShape(t *testing.T) {
+	t.Parallel()
 	got := groundClauseSuffix()
 
 	assert.True(t, strings.HasPrefix(got, "\n\n"+groundIsolationClause),
@@ -103,6 +106,7 @@ func TestGroundClauseSuffixShape(t *testing.T) {
 // restatement of two functions — and a body whose trailing newline survived the
 // strip yields a suffix that is not the constant's, which fails here.
 func TestEachCommandCarriesItsOwnSuffix(t *testing.T) {
+	t.Parallel()
 	const head = "prompt body"
 	const body = head + "\n"
 

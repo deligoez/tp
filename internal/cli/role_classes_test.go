@@ -33,6 +33,7 @@ type skipCase struct {
 // else and the --role assertion would pass for the wrong cause -- and then
 // `--role <that role>` must exit 0 with an empty prompts[] echoing the reason.
 func TestEverySkipReasonExitsZeroUnderRole(t *testing.T) {
+	t.Parallel()
 	for _, c := range skipCases() {
 		t.Run(c.reason, func(t *testing.T) {
 			dir, args, role := c.setUp(t)
@@ -75,6 +76,7 @@ func TestEverySkipReasonExitsZeroUnderRole(t *testing.T) {
 // that exited 0 for every name would satisfy all five cases and tell a caller
 // nothing about a typo.
 func TestUnrecognisedNameIsDistinguishableFromASkippedOne(t *testing.T) {
+	t.Parallel()
 	dir, args, skipped := skipDisabledBySpec(t)
 
 	_, _, okCode := runTP(t, dir, append(args, "--role", skipped)...)

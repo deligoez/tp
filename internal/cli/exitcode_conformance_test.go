@@ -11,6 +11,7 @@ import (
 // detail lives in hint, never in error. (Decode happens before task-file
 // discovery, so no task file is required.)
 func TestExitCode_AddInvalidJSON_Exit2_DecoderInHint(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	_, stderr, code := runTP(t, dir, "add", `{not valid json`)
 	e := errJSON(t, stderr)
@@ -23,6 +24,7 @@ func TestExitCode_AddInvalidJSON_Exit2_DecoderInHint(t *testing.T) {
 // §13.1 row 2: any cobra flag-parse failure exits 2 as the tp error object
 // {error, code, hint}, not exit 1 with bare cobra text.
 func TestExitCode_FlagParseFailure_Exit2_TPErrorObject(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	_, stderr, code := runTP(t, dir, "--nope")
 	e := errJSON(t, stderr)
@@ -35,6 +37,7 @@ func TestExitCode_FlagParseFailure_Exit2_TPErrorObject(t *testing.T) {
 // §13.1 row 2 (subcommand): an unknown flag on a subcommand also exits 2 with a
 // tp error object.
 func TestExitCode_SubcommandFlagParseFailure_Exit2(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	_, stderr, code := runTP(t, dir, "list", "--bogus")
 	e := errJSON(t, stderr)
@@ -46,6 +49,7 @@ func TestExitCode_SubcommandFlagParseFailure_Exit2(t *testing.T) {
 // §13.1 row 3: a done reason starting with '-' is misread as a flag; the error
 // must exit 2 with a hint naming the '--' separator.
 func TestExitCode_DoneDashReason_Exit2_HintNamesSeparator(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	// Flag parsing fails before runDone runs, so no task file is required.
 	_, stderr, code := runTP(t, dir, "done", "some-task", "- evidence here")
@@ -60,6 +64,7 @@ func TestExitCode_DoneDashReason_Exit2_HintNamesSeparator(t *testing.T) {
 // §13.1 row 3 with a leading flag: even when a real flag precedes it, the
 // dash-leading reason is detected and the hint still names '--'.
 func TestExitCode_DoneDashReason_AfterCommitFlag(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	_, stderr, code := runTP(t, dir, "done", "some-task", "--commit", "abc123", "- dash reason")
 	e := errJSON(t, stderr)
@@ -71,6 +76,7 @@ func TestExitCode_DoneDashReason_AfterCommitFlag(t *testing.T) {
 
 // §13.1 row 3 (commit variant): tp commit also takes a trailing reason.
 func TestExitCode_CommitDashReason_Exit2_HintNamesSeparator(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	_, stderr, code := runTP(t, dir, "commit", "some-task", "- leading dash reason")
 	e := errJSON(t, stderr)
@@ -84,6 +90,7 @@ func TestExitCode_CommitDashReason_Exit2_HintNamesSeparator(t *testing.T) {
 // state error that historically emitted no hint (tp show on a missing id) now
 // carries one via the centralized default.
 func TestExitCode_StateErrorCarriesHint_ShowMissingID(t *testing.T) {
+	t.Parallel()
 	dir := initEntryProject(t)
 	_, stderr, code := runTP(t, dir, "show", "does-not-exist")
 	e := errJSON(t, stderr)
@@ -95,6 +102,7 @@ func TestExitCode_StateErrorCarriesHint_ShowMissingID(t *testing.T) {
 // §9.1: an unknown command is a usage error (exit 2). Cobra reports it as a
 // plain error, which tp used to classify as a validation failure (exit 1).
 func TestExitCode_UnknownCommand_Exit2(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	_, stderr, code := runTP(t, dir, "bogus-command")
 	e := errJSON(t, stderr)
@@ -107,6 +115,7 @@ func TestExitCode_UnknownCommand_Exit2(t *testing.T) {
 // §9.1: reclassifying the exit code keeps cobra's did-you-mean suggestion, the
 // one piece of recovery information the old exit-1 message carried.
 func TestExitCode_UnknownCommand_KeepsSuggestion(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	_, stderr, code := runTP(t, dir, "revie")
 	e := errJSON(t, stderr)
@@ -118,6 +127,7 @@ func TestExitCode_UnknownCommand_KeepsSuggestion(t *testing.T) {
 // error too. Cobra's default prints that command's help and exits 0, so a
 // driver could not tell a typo from a successful run.
 func TestExitCode_UnknownSubcommand_Exit2(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	_, stderr, code := runTP(t, dir, "completion", "bogus")
 	e := errJSON(t, stderr)
@@ -132,6 +142,7 @@ func TestExitCode_UnknownSubcommand_Exit2(t *testing.T) {
 // command (help, completion, the shell-completion helper) or a global flag's
 // value, which is a positional token but not a command name.
 func TestExitCode_UnknownCommandCheck_LeavesKnownInvocationsAlone(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	cases := []struct {
 		name string
@@ -154,6 +165,7 @@ func TestExitCode_UnknownCommandCheck_LeavesKnownInvocationsAlone(t *testing.T) 
 
 // §13.2: a usage error with no explicit hint still carries a default hint.
 func TestExitCode_UsageErrorCarriesHint_DoneNoArgs(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	_, stderr, code := runTP(t, dir, "done")
 	e := errJSON(t, stderr)

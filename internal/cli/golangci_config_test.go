@@ -16,6 +16,7 @@ import (
 // exits non-zero. Silently dropping that section re-opens the exact blind spot
 // the release closed — this test fails instead of passing unnoticed.
 func TestGolangciConfigEnablesGofmt(t *testing.T) {
+	t.Parallel()
 	data, err := os.ReadFile(filepath.Join(repoRoot(t), ".golangci.yml"))
 	require.NoError(t, err, ".golangci.yml must exist at the repo root")
 

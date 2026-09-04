@@ -28,6 +28,7 @@ func setupConvergeOnProject(t *testing.T) string {
 // switching to all re-evaluates the SAME recorded round as unclean in --status
 // with no re-record (§3.2, §3.3, §3.4).
 func TestReviewConvergeOn_BlockingCleanAllUnclean(t *testing.T) {
+	t.Parallel()
 	dir := setupConvergeOnProject(t)
 
 	out, stderr, code := recordRound(t, dir,
@@ -65,6 +66,7 @@ func TestReviewConvergeOn_BlockingCleanAllUnclean(t *testing.T) {
 // surviving high (blocking) finding, then resolves it wontfix; --status
 // re-evaluates the round as clean without re-recording (§3.4, §3.5).
 func TestReviewConvergeOn_ResolveWontfixAfterRecordCleans(t *testing.T) {
+	t.Parallel()
 	dir := setupConvergeOnProject(t)
 
 	out, stderr, code := recordRound(t, dir,
@@ -97,6 +99,7 @@ func TestReviewConvergeOn_ResolveWontfixAfterRecordCleans(t *testing.T) {
 // nonblocking_open = the count of surviving medium/low findings, on both
 // --record and --status; accepted_open is never emitted (§4.2).
 func TestReviewNonBlockingOpen_AcceptedOpen(t *testing.T) {
+	t.Parallel()
 	dir := setupConvergeOnProject(t)
 
 	out, stderr, code := recordRound(t, dir,
@@ -119,6 +122,7 @@ func TestReviewNonBlockingOpen_AcceptedOpen(t *testing.T) {
 // TestReviewNonBlockingOpen_AbsentOnNonClean: a non-clean round (surviving
 // high) omits nonblocking_open on both --record and --status (§4.2).
 func TestReviewNonBlockingOpen_AbsentOnNonClean(t *testing.T) {
+	t.Parallel()
 	dir := setupConvergeOnProject(t)
 
 	out, stderr, code := recordRound(t, dir,
@@ -139,6 +143,7 @@ func TestReviewNonBlockingOpen_AbsentOnNonClean(t *testing.T) {
 // surviving non-blocking findings (an empty round) omits nonblocking_open, so
 // the field's presence alone signals the accepted-open state (§4.2).
 func TestReviewNonBlockingOpen_AbsentWhenZeroSurvivors(t *testing.T) {
+	t.Parallel()
 	dir := setupConvergeOnProject(t)
 
 	out, stderr, code := recordRound(t, dir, "")
@@ -157,6 +162,7 @@ func TestReviewNonBlockingOpen_AbsentWhenZeroSurvivors(t *testing.T) {
 // is non-blocking, so a clean "all" round (zero survivors) omits
 // nonblocking_open (§4.2).
 func TestReviewNonBlockingOpen_AbsentUnderAll(t *testing.T) {
+	t.Parallel()
 	dir := setupConvergeOnProject(t)
 	_, _, code := runTP(t, dir, "set", "--workflow", "review_converge_on=all")
 	require.Equal(t, 0, code)
@@ -185,6 +191,7 @@ func TestReviewNonBlockingOpen_AbsentUnderAll(t *testing.T) {
 // TestReviewNonBlockingOpen_AuditUnaffected: audit convergence is status-based
 // and has no non-blocking notion — no audit path emits nonblocking_open (§4.2).
 func TestReviewNonBlockingOpen_AuditUnaffected(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.tasks.json"),
@@ -208,6 +215,7 @@ func TestReviewNonBlockingOpen_AuditUnaffected(t *testing.T) {
 // an invalid review_converge_on winning from a stored layer exits 1 with the
 // legal-values hint (§3.3). Write-time validation (exit 2) is separate.
 func TestReviewConvergeOn_InvalidStoredExitsOne(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 	// A task file with an invalid stored override (bypasses set's write-time
@@ -228,6 +236,7 @@ func TestReviewConvergeOn_InvalidStoredExitsOne(t *testing.T) {
 // never reads review_converge_on — an invalid stored value does not fault
 // audit, and audit convergence is unchanged (§3.4, acceptance).
 func TestReviewConvergeOn_AuditUnaffected(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 	// Invalid review_converge_on stored — must not affect audit at all.

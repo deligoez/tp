@@ -67,6 +67,7 @@ func roundFiles(t *testing.T, dir, prefix string) []string {
 }
 
 func TestRecordIdempotent_ReviewRewritesRecordedRound(t *testing.T) {
+	t.Parallel()
 	dir := specOnlyProject(t)
 
 	_, stderr, code := recordUnitRound(t, dir, "review", dirtyRow, nil)
@@ -94,6 +95,7 @@ func TestRecordIdempotent_ReviewRewritesRecordedRound(t *testing.T) {
 }
 
 func TestRecordIdempotent_AuditRewritesRecordedRound(t *testing.T) {
+	t.Parallel()
 	dir := specOnlyProject(t)
 
 	_, stderr, code := recordUnitRound(t, dir, "audit", auditFailRow, nil)
@@ -120,6 +122,7 @@ func TestRecordIdempotent_AuditRewritesRecordedRound(t *testing.T) {
 // round count. The merged file carries a disposition the earlier phase added,
 // which the retry must preserve rather than re-open.
 func TestRecordIdempotent_RetryAfterPartialFailureConverges(t *testing.T) {
+	t.Parallel()
 	const disposed = `{"severity":"high","category":"c","location":"L1","finding":"f","suggestion":"s",` +
 		`"resolved":{"status":"wontfix","evidence":"verifier: false positive"}}` + "\n"
 
@@ -153,6 +156,7 @@ func TestRecordIdempotent_RetryAfterPartialFailureConverges(t *testing.T) {
 // it means — so it must stay additive. Anything that names no recorded round is
 // treated the same way.
 func TestRecordIdempotent_HandRecordingIsNeverDestructive(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name string
 		env  []string
@@ -182,6 +186,7 @@ func TestRecordIdempotent_HandRecordingIsNeverDestructive(t *testing.T) {
 // has not already exhausted. Without this the guarantee would fail at exactly
 // the round a retry is most likely: the last one, sitting at the cap.
 func TestRecordIdempotent_RewriteAtRoundCapNotRefused(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct{ verb, field, key string }{
 		{"review", "review_max_rounds", "review_rounds"},
 		{"audit", "audit_max_rounds", "audit_rounds"},

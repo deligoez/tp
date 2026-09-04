@@ -51,6 +51,7 @@ func setupCommitProject(t *testing.T, taskID string) string {
 }
 
 func TestCommitBasic(t *testing.T) {
+	t.Parallel()
 	dir := setupCommitProject(t, "t1")
 
 	// Create a dirty file
@@ -68,6 +69,7 @@ func TestCommitBasic(t *testing.T) {
 }
 
 func TestCommitStructuredMessage(t *testing.T) {
+	t.Parallel()
 	dir := setupCommitProject(t, "auth-model")
 
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "model.go"), []byte("package model\n"), 0o600))
@@ -89,6 +91,7 @@ func TestCommitStructuredMessage(t *testing.T) {
 }
 
 func TestCommitRecordsSHA(t *testing.T) {
+	t.Parallel()
 	dir := setupCommitProject(t, "t1")
 
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "file.go"), []byte("package f\n"), 0o600))
@@ -103,6 +106,7 @@ func TestCommitRecordsSHA(t *testing.T) {
 }
 
 func TestCommitImplicitClaim(t *testing.T) {
+	t.Parallel()
 	dir := setupCommitProject(t, "t1")
 
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "file.go"), []byte("package f\n"), 0o600))
@@ -119,6 +123,7 @@ func TestCommitImplicitClaim(t *testing.T) {
 }
 
 func TestCommitNoChanges(t *testing.T) {
+	t.Parallel()
 	dir := setupCommitProject(t, "t1")
 
 	// No dirty files — should fail
@@ -128,6 +133,7 @@ func TestCommitNoChanges(t *testing.T) {
 }
 
 func TestCommitSelectiveFiles(t *testing.T) {
+	t.Parallel()
 	dir := setupCommitProject(t, "t1")
 
 	// Create two files
@@ -147,6 +153,7 @@ func TestCommitSelectiveFiles(t *testing.T) {
 }
 
 func TestCommitDoneTask(t *testing.T) {
+	t.Parallel()
 	dir := setupCommitProject(t, "t1")
 
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "f.go"), []byte("package f\n"), 0o600))
@@ -160,6 +167,7 @@ func TestCommitDoneTask(t *testing.T) {
 }
 
 func TestDoneAutoCommit(t *testing.T) {
+	t.Parallel()
 	dir := setupCommitProject(t, "t1")
 
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "f.go"), []byte("package f\n"), 0o600))
@@ -187,6 +195,7 @@ func TestDoneAutoCommit(t *testing.T) {
 }
 
 func TestCommitSequentialTasks(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	specPath := filepath.Join(dir, "spec.md")
@@ -236,6 +245,7 @@ func TestCommitSequentialTasks(t *testing.T) {
 // TestCommit_RefusesTasksJsonLockFile covers §5.3: tp commit refuses to stage a
 // path ending in .tasks.json.lock even when passed explicitly via --files.
 func TestCommit_RefusesTasksJsonLockFile(t *testing.T) {
+	t.Parallel()
 	dir := setupCommitProject(t, "t1")
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "new.go"), []byte("package main\n"), 0o600))
 

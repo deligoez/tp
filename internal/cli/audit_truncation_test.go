@@ -48,6 +48,7 @@ func auditFileSummary(t *testing.T, stdout string) map[string]any {
 // A capped set says so in the payload, sizes the loss, and keeps total_files
 // reporting what was actually audited.
 func TestAuditTruncated_PayloadCarriesTheCap(t *testing.T) {
+	t.Parallel()
 	dir, specPath := auditRepoWithChangedFiles(t, 63)
 
 	stdout, stderr, code := runTP(t, dir, "audit", specPath)
@@ -66,6 +67,7 @@ func TestAuditTruncated_PayloadCarriesTheCap(t *testing.T) {
 // --quiet erases the notice; it cannot erase the flag, because the flag is in
 // the payload.
 func TestAuditTruncated_SurvivesQuiet(t *testing.T) {
+	t.Parallel()
 	dir, specPath := auditRepoWithChangedFiles(t, 63)
 
 	stdout, stderr, code := runTP(t, dir, "audit", specPath, "--quiet")
@@ -81,6 +83,7 @@ func TestAuditTruncated_SurvivesQuiet(t *testing.T) {
 // An uncapped set reports truncated false with total_changed equal to
 // total_files, and emits no notice.
 func TestAuditNotTruncated_ReportsTheWholeSet(t *testing.T) {
+	t.Parallel()
 	dir, specPath := auditRepoWithChangedFiles(t, 3)
 
 	stdout, stderr, code := runTP(t, dir, "audit", specPath)
@@ -96,6 +99,7 @@ func TestAuditNotTruncated_ReportsTheWholeSet(t *testing.T) {
 // The cap belongs to auto-detection: an explicitly named file set is never
 // truncated, however many paths it carries.
 func TestAuditAffectedFiles_NeverTruncated(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n## Table\n| Col |\n|-----|\n| a |\n"), 0o600))

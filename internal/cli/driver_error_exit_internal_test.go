@@ -24,6 +24,7 @@ import (
 // really returns. The classification goes through dispatchError because Execute
 // itself ends in os.Exit.
 func TestDispatchError_DriverErrorIsState(t *testing.T) {
+	t.Parallel()
 	blocker := filepath.Join(t.TempDir(), "not-a-directory")
 	require.NoError(t, os.WriteFile(blocker, []byte("x"), 0o600))
 	root := filepath.Join(blocker, "root")

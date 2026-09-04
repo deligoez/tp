@@ -57,6 +57,7 @@ const crashedRunState = `{"run_id":"01HZZZZZZZZZZZZZZZZZZZZZZZ","started_at":"20
 // successful run never reaches, so it gets its own fixture: a cycle that has
 // never been driven.
 func TestRunStatus_ExitsThreeWhenNoRunStateExists(t *testing.T) {
+	t.Parallel()
 	dir := runProject(t)
 
 	stdout, stderr, code := runTP(t, dir, "run", "--status")
@@ -70,6 +71,7 @@ func TestRunStatus_ExitsThreeWhenNoRunStateExists(t *testing.T) {
 // against each cap, the last unit's exit code and log path, and its stop
 // reason, with run_state stopped.
 func TestRunStatus_ReportsAStoppedRun(t *testing.T) {
+	t.Parallel()
 	dir := runProject(t)
 	env := append(seamEnv(t), fakerunner.EnvDurable+"=1")
 
@@ -108,6 +110,7 @@ func TestRunStatus_ReportsAStoppedRun(t *testing.T) {
 // — one unit attempted twice — because a fixture where they are equal passes
 // whichever the implementation counts.
 func TestRunStatus_UnitsDoneCountsAttemptsNotDistinctUnits(t *testing.T) {
+	t.Parallel()
 	dir := runProject(t)
 
 	// No EnvDurable: every attempt exits 0 having written nothing, so the one
@@ -146,6 +149,7 @@ func TestRunStatus_UnitsDoneCountsAttemptsNotDistinctUnits(t *testing.T) {
 // lock file present but unheld, which is what discriminates "the lock is held"
 // from "a lock file exists".
 func TestRunStatus_ReportsInFlightCrashedAndStopped(t *testing.T) {
+	t.Parallel()
 	dir := runProject(t)
 	writeRunState(t, dir, crashedRunState)
 	taskFile := filepath.Join(dir, "spec.tasks.json")
@@ -189,6 +193,7 @@ func TestRunStatus_ReportsInFlightCrashedAndStopped(t *testing.T) {
 // divergence — travels in `tp run --status` on any audit-phase stop, verbatim
 // from `tp audit --status` (test 14).
 func TestRunStatus_CarriesTheDivergenceSignalsOnAnAuditPhaseStop(t *testing.T) {
+	t.Parallel()
 	dir := runProject(t)
 	env := append(seamEnv(t), fakerunner.EnvDurable+"=1")
 
@@ -221,6 +226,7 @@ func TestRunStatus_CarriesTheDivergenceSignalsOnAnAuditPhaseStop(t *testing.T) {
 // fixture that never carried the case — a run that spawned nothing has no row
 // to strip, and the test would be measuring its own fixture.
 func TestRunStatus_CompactStripsUnitRowsAndLogPaths(t *testing.T) {
+	t.Parallel()
 	dir := runProject(t)
 	env := append(seamEnv(t), fakerunner.EnvDurable+"=1")
 

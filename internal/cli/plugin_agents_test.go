@@ -73,6 +73,7 @@ func readAgentDefinition(t *testing.T, rel string) agentDefinition {
 // against engine.AgentForKind rather than against a literal, so the flag and
 // the file it loads can never drift apart.
 func TestPluginAgentsDeclareTheThreeUnitAgents(t *testing.T) {
+	t.Parallel()
 	want := map[string]engine.UnitKind{
 		engine.AgentImplementer: engine.UnitImplement,
 		engine.AgentReviewer:    engine.UnitReviewRole,
@@ -111,6 +112,7 @@ func TestPluginAgentsDeclareTheThreeUnitAgents(t *testing.T) {
 // whole job is writing code, and a restriction that fenced it would stop the
 // work rather than scope it.
 func TestRoleAgentsRegisterTheWriteAllowlist(t *testing.T) {
+	t.Parallel()
 	command := "${CLAUDE_PLUGIN_ROOT}/" + roleWriteHookPath
 
 	for _, rel := range []string{agentReviewerFile, agentAuditorFile} {
@@ -233,6 +235,7 @@ func relativeUnit() roleUnitEnv {
 // `.part` suffix is the one the prompt names too (§6.3), so prompt and
 // allowlist agree on one filename.
 func TestRoleWriteHookAllowsTheRolesOwnFindingsAndEscalation(t *testing.T) {
+	t.Parallel()
 	root := repoRoot(t)
 
 	for _, tc := range []struct {
@@ -289,6 +292,7 @@ func TestRoleWriteHookAllowsTheRolesOwnFindingsAndEscalation(t *testing.T) {
 // is one character away from the allowed path and none of them is this unit's
 // to write.
 func TestRoleWriteHookDeniesEveryOtherPath(t *testing.T) {
+	t.Parallel()
 	root := repoRoot(t)
 	unit := absoluteUnit(t)
 	round := filepath.Join(root, ".tp", "rounds", "0.35.0", "review-r3")
@@ -341,6 +345,7 @@ func TestRoleWriteHookDeniesEveryOtherPath(t *testing.T) {
 // compute, so every write is refused: an allowlist that fell open when it could
 // not build itself would be the prose fence all over again.
 func TestRoleWriteHookFailsClosedWithoutTheRoundEnvironment(t *testing.T) {
+	t.Parallel()
 	full := absoluteUnit(t)
 	own := filepath.Join(full.roundDir, "role-implementer.ndjson.part")
 
@@ -368,6 +373,7 @@ func TestRoleWriteHookFailsClosedWithoutTheRoundEnvironment(t *testing.T) {
 // the claude CLI is absent, so the tests above stay the durable guard and this
 // one is the confirmation on a machine that has the tool.
 func TestPluginAgentsValidateWithClaudeCLI(t *testing.T) {
+	t.Parallel()
 	claude, err := exec.LookPath("claude")
 	if err != nil {
 		t.Skip("claude CLI not on PATH")
@@ -386,6 +392,7 @@ func TestPluginAgentsValidateWithClaudeCLI(t *testing.T) {
 // hook to exit rather than hang or error, and a hook that objected on every
 // unrelated call would put a diagnostic in front of the agent constantly.
 func TestRoleWriteHookSurvivesAPayloadWithoutAPath(t *testing.T) {
+	t.Parallel()
 	run := runRoleWriteHook(t, absoluteUnit(t), "Edit", map[string]any{})
 
 	assert.Zero(t, run.exitCode, "stderr=%q", run.stderr)

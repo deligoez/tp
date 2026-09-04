@@ -106,6 +106,7 @@ func reviewEnvelope(t *testing.T, dir string, args ...string) (envelope map[stri
 // The prompt count is a require rather than an assumption: with one prompt the
 // mutant is indistinguishable from the shipped behaviour.
 func TestReviewCarriesTheUngroundedAdvisoryOnceInTheEnvelope(t *testing.T) {
+	t.Parallel()
 	dir := writeGroundFixture(t)
 
 	before, beforeRaw := reviewEnvelope(t, dir, "--no-state")
@@ -134,6 +135,7 @@ func TestReviewCarriesTheUngroundedAdvisoryOnceInTheEnvelope(t *testing.T) {
 // codes are compared. Without that, the equality is a statement about two runs
 // that were the same, which is the shape this claim is easiest to fake.
 func TestReviewsExitCodeIsIdenticalWithAndWithoutUngroundedUnits(t *testing.T) {
+	t.Parallel()
 	withUnits, withRaw := reviewEnvelope(t, groundedFixture(t, 1))
 	withoutUnits, withoutRaw := reviewEnvelope(t, groundedFixture(t, 2))
 
@@ -152,6 +154,7 @@ func TestReviewsExitCodeIsIdenticalWithAndWithoutUngroundedUnits(t *testing.T) {
 // zero-valued when there is nothing to say, surviving --compact. What --compact
 // drops is explanatory; this is the payload.
 func TestTheUngroundedAdvisorySurvivesCompact(t *testing.T) {
+	t.Parallel()
 	out, _ := reviewEnvelope(t, groundedFixture(t, 1), "--compact")
 
 	assert.Equal(t, map[string]any{
@@ -163,6 +166,7 @@ func TestTheUngroundedAdvisorySurvivesCompact(t *testing.T) {
 // not present and zeroed. A key that is always there is a key every reader
 // learns to skip, which is the economy §9 inherits from `divergence`.
 func TestReviewOnASpecWithNoGroundRoundCarriesNoUngroundedKey(t *testing.T) {
+	t.Parallel()
 	out, raw := reviewEnvelope(t, writeGroundFixture(t))
 
 	assert.NotContains(t, out, "ungrounded", "no ground round, so nothing to say")

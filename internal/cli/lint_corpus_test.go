@@ -20,6 +20,7 @@ func writeBadRole(t *testing.T, dir, phase string) {
 // TestLint_AbortsOnBadReviewer: tp lint validates the reviewer corpus and aborts
 // with exit 3 and a repair-or-delete hint (§3.6).
 func TestLint_AbortsOnBadReviewer(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
@@ -33,6 +34,7 @@ func TestLint_AbortsOnBadReviewer(t *testing.T) {
 
 // TestLint_AbortsOnBadAuditor: tp lint aborts on a bad auditor too (§3.6).
 func TestLint_AbortsOnBadAuditor(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
@@ -46,6 +48,7 @@ func TestLint_AbortsOnBadAuditor(t *testing.T) {
 // TestReview_AbortsOnBadReviewer: tp review aborts on a malformed reviewer with
 // exit 3 (§3.6).
 func TestReview_AbortsOnBadReviewer(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\ncontent\n"), 0o600))
@@ -59,6 +62,7 @@ func TestReview_AbortsOnBadReviewer(t *testing.T) {
 // TestAudit_BadAuditorDoesNotBlockReview: a malformed auditor aborts tp audit but
 // never blocks tp review — phase independence (§3.6).
 func TestAudit_BadAuditorDoesNotBlockReview(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"),

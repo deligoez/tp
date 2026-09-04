@@ -22,6 +22,7 @@ func countGateRuns(t *testing.T, dir string) int {
 }
 
 func TestDoneGate_RunsOncePerInvocation(t *testing.T) {
+	t.Parallel()
 	t.Run("batch of 3 runs gate once", func(t *testing.T) {
 		dir := setupProjectWithGate(t, "echo run >> gate_runs.txt")
 		for _, id := range []string{"a", "b", "c"} {
@@ -76,6 +77,7 @@ func TestDoneGate_RunsOncePerInvocation(t *testing.T) {
 }
 
 func TestDoneGate_AllSkipBatchNoRun(t *testing.T) {
+	t.Parallel()
 	dir := setupProjectWithGate(t, "echo run >> gate_runs.txt")
 	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"A complete","source_sections":["s1"]}`)
 	addTask(t, dir, `{"id":"b","title":"B","depends_on":[],"estimate_minutes":5,"acceptance":"B complete","source_sections":["s1"]}`)
@@ -100,6 +102,7 @@ func TestDoneGate_AllSkipBatchNoRun(t *testing.T) {
 }
 
 func TestDoneGate_SkipGateRecorded(t *testing.T) {
+	t.Parallel()
 	dir := setupProjectWithGate(t, "echo ok")
 	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
 
@@ -124,6 +127,7 @@ func TestDoneGate_SkipGateRecorded(t *testing.T) {
 }
 
 func TestDoneGate_GatePassedCompat(t *testing.T) {
+	t.Parallel()
 	t.Run("flag ignored when gate configured", func(t *testing.T) {
 		dir := setupProjectWithGate(t, "echo run >> gate_runs.txt")
 		addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)

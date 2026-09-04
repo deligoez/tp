@@ -25,6 +25,7 @@ import (
 // envelope, or over any unbounded text, would be a presence check against a
 // three-item blacklist and would prove nothing.
 func TestTheGroundRecordFileHintNamesNoPanel(t *testing.T) {
+	t.Parallel()
 	require.NotEqual(t, recordFileMissingHint, groundRecordFileHint,
 		"the point of the constant is that it is not the shared one")
 
@@ -50,6 +51,7 @@ func TestTheGroundRecordFileHintNamesNoPanel(t *testing.T) {
 // ground the NotContains above stands on. The same words checked inside the
 // emitted prompt would be a presence test in an unbounded document.
 func TestTheEmptyRecordHintCoversTheFloorItCannotRepair(t *testing.T) {
+	t.Parallel()
 	assert.Contains(t, groundRecordEmptyHint, "cut",
 		"the all-cut floor reaches this refusal, and dispositioning something is not its recovery")
 	assert.Contains(t, groundRecordEmptyHint, "--status --check",
@@ -68,6 +70,7 @@ func TestTheEmptyRecordHintCoversTheFloorItCannotRepair(t *testing.T) {
 // one of the other two would satisfy the test above and still send the operator
 // to the wrong artifact.
 func TestEveryGroundRecordHintIsItsOwn(t *testing.T) {
+	t.Parallel()
 	hints := map[string]string{
 		"file":  groundRecordFileHint,
 		"row":   groundRecordRowHint,

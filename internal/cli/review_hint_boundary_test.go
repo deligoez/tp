@@ -22,6 +22,7 @@ import (
 // indistinguishable there, so the spec-path hint is correct — what must never
 // appear is the task-file default.
 func TestReviewUnreadableSpecKeepsPathHint(t *testing.T) {
+	t.Parallel()
 	if os.Geteuid() == 0 {
 		t.Skip("root reads a 0o000 file, so the read never fails")
 	}
@@ -52,6 +53,7 @@ func TestReviewUnreadableSpecKeepsPathHint(t *testing.T) {
 // advice for a spec path that was perfectly correct — the exact defect
 // 85e8824 fixed on the audit side.
 func TestReviewSnapshotWriteFailureHint(t *testing.T) {
+	t.Parallel()
 	if os.Geteuid() == 0 {
 		t.Skip("root ignores the directory permission bits this test relies on")
 	}

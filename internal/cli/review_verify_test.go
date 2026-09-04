@@ -24,6 +24,7 @@ func setupVerifyTest(t *testing.T, findings string) (specPath, findingsPath stri
 // hintless "spec not found" site tp audit did, so a mistyped spec path drew
 // the code-3 default task-file advice instead of pointing at the path typed.
 func TestReviewVerifySpecNotFoundHint(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	findingsPath := filepath.Join(dir, "findings.ndjson")
 	require.NoError(t, os.WriteFile(findingsPath, []byte(""), 0o600))
@@ -40,6 +41,7 @@ func TestReviewVerifySpecNotFoundHint(t *testing.T) {
 }
 
 func TestReviewVerifyAllFixed(t *testing.T) {
+	t.Parallel()
 	specPath, findingsPath := setupVerifyTest(t, `{"severity":"high","category":"completeness","location":"## A","finding":"missing X","resolved":{"status":"fixed","evidence":"added in section 2"}}
 {"severity":"medium","category":"ambiguity","location":"## B","finding":"unclear Y","resolved":{"status":"fixed","evidence":"clarified"}}
 `)
@@ -66,6 +68,7 @@ func TestReviewVerifyAllFixed(t *testing.T) {
 }
 
 func TestReviewVerifyMixed(t *testing.T) {
+	t.Parallel()
 	specPath, findingsPath := setupVerifyTest(t, `{"severity":"high","category":"completeness","location":"## A","finding":"fixed one","resolved":{"status":"fixed","evidence":"done"}}
 {"severity":"medium","category":"ambiguity","location":"## B","finding":"wontfix one","resolved":{"status":"wontfix","evidence":"out of scope"}}
 {"severity":"low","category":"consistency","location":"## C","finding":"still open"}
@@ -87,6 +90,7 @@ func TestReviewVerifyMixed(t *testing.T) {
 }
 
 func TestReviewVerifyNoFindings(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
@@ -96,6 +100,7 @@ func TestReviewVerifyNoFindings(t *testing.T) {
 }
 
 func TestReviewVerifyModeField(t *testing.T) {
+	t.Parallel()
 	specPath, findingsPath := setupVerifyTest(t, `{"severity":"high","category":"completeness","location":"## A","finding":"test","resolved":{"status":"fixed","evidence":"done"}}
 `)
 
@@ -111,6 +116,7 @@ func TestReviewVerifyModeField(t *testing.T) {
 }
 
 func TestReviewVerifyWithAffectedFiles(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n\n## Section\nContent.\n"), 0o600))
@@ -130,6 +136,7 @@ func TestReviewVerifyWithAffectedFiles(t *testing.T) {
 }
 
 func TestReviewVerifyEmptyCategories(t *testing.T) {
+	t.Parallel()
 	// All unresolved — no fixed or wontfix sections
 	specPath, findingsPath := setupVerifyTest(t, `{"severity":"high","category":"completeness","location":"## A","finding":"still open"}
 `)
@@ -147,6 +154,7 @@ func TestReviewVerifyEmptyCategories(t *testing.T) {
 }
 
 func TestReviewVerifyRegressionGuidance(t *testing.T) {
+	t.Parallel()
 	specPath, findingsPath := setupVerifyTest(t, `{"severity":"high","category":"completeness","location":"## A","finding":"test","resolved":{"status":"fixed","evidence":"done"}}
 `)
 

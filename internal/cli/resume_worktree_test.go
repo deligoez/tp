@@ -74,6 +74,7 @@ func blockerByCode(res map[string]any, code string) map[string]any {
 }
 
 func TestResume_ChangesModifiedStagedUntracked(t *testing.T) {
+	t.Parallel()
 	dir := newResumeRepo(t)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "tracked.txt"), []byte("orig"), 0o600))
 	git(t, dir, "add", "tracked.txt")
@@ -94,6 +95,7 @@ func TestResume_ChangesModifiedStagedUntracked(t *testing.T) {
 }
 
 func TestResume_StagedRenameReportsDestination(t *testing.T) {
+	t.Parallel()
 	dir := newResumeRepo(t)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "old.txt"), []byte("content"), 0o600))
 	git(t, dir, "add", "old.txt")
@@ -106,6 +108,7 @@ func TestResume_StagedRenameReportsDestination(t *testing.T) {
 }
 
 func TestResume_KeepMovesChangeToKept(t *testing.T) {
+	t.Parallel()
 	dir := newResumeRepo(t)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "note.txt"), []byte("n"), 0o600))
 	assert.Contains(t, jsonStrings(resumeResult(t, dir)["changes"]), "note.txt")
@@ -119,6 +122,7 @@ func TestResume_KeepMovesChangeToKept(t *testing.T) {
 }
 
 func TestResume_GlobMatchesTwoFiles(t *testing.T) {
+	t.Parallel()
 	dir := newResumeRepo(t)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.log"), []byte(""), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.log"), []byte(""), 0o600))
@@ -132,6 +136,7 @@ func TestResume_GlobMatchesTwoFiles(t *testing.T) {
 }
 
 func TestResume_NonGitDirectoryEmptyArrays(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# S\n\n## 1. X\nx\n"), 0o600))
 	_, _, code := runTP(t, dir, "init", "spec.md")

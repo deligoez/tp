@@ -20,6 +20,7 @@ func readStateJSON(t *testing.T, dir string) map[string]any {
 }
 
 func TestReviewState_RoundLifecycle(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 
@@ -60,6 +61,7 @@ func TestReviewState_RoundLifecycle(t *testing.T) {
 }
 
 func TestReviewState_Staleness(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\noriginal\n"), 0o600))
 
@@ -86,6 +88,7 @@ func TestReviewState_Staleness(t *testing.T) {
 }
 
 func TestReviewState_CorruptIndexAborts(t *testing.T) {
+	t.Parallel()
 	corruptCases := []struct {
 		name  string
 		setup func(t *testing.T, stateDir string)

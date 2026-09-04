@@ -17,6 +17,7 @@ import (
 // hint. These tests pin the sentinels the routing now depends on.
 
 func TestResolveAuditFiles_MissingCarriesSentinel(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	spec := filepath.Join(dir, "s.md")
 	require.NoError(t, os.WriteFile(spec, []byte("# S\n"), 0o600))
@@ -28,6 +29,7 @@ func TestResolveAuditFiles_MissingCarriesSentinel(t *testing.T) {
 }
 
 func TestResolveAuditFiles_DirCarriesSentinel(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	spec := filepath.Join(dir, "s.md")
 	require.NoError(t, os.WriteFile(spec, []byte("# S\n"), 0o600))
@@ -40,6 +42,7 @@ func TestResolveAuditFiles_DirCarriesSentinel(t *testing.T) {
 }
 
 func TestResolveAuditFiles_UnreadableCarriesSentinelAndCause(t *testing.T) {
+	t.Parallel()
 	if os.Geteuid() == 0 {
 		t.Skip("root traverses a 0o000 directory, so the stat never fails")
 	}

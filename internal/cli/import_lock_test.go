@@ -67,6 +67,7 @@ func importLockTaskCount(t *testing.T, taskFilePath string) int {
 // the mid-window count; a locked one parks in the retry backoff and only lands
 // after the release.
 func TestImport_WaitsForTaskFileWriteLock(t *testing.T) {
+	t.Parallel()
 	dir, importPath, taskFilePath := importLockSetup(t)
 	require.Equal(t, 0, importLockTaskCount(t, taskFilePath), "init shell starts with no tasks")
 
@@ -120,6 +121,7 @@ func TestImport_WaitsForTaskFileWriteLock(t *testing.T) {
 // exit 4 (STATE) carrying LockTimeoutError's message and hint, which name the
 // lock path and the elapsed wait.
 func TestImport_LockContentionTimeoutExitsFour(t *testing.T) {
+	t.Parallel()
 	dir, importPath, taskFilePath := importLockSetup(t)
 
 	// Shorten the lock timeout to 1s so the test stays fast.
@@ -157,6 +159,7 @@ func TestImport_LockContentionTimeoutExitsFour(t *testing.T) {
 // no flag and no output change. A plain import into the init shell still exits
 // 0 with exactly {"imported": N, "path": ...} on stdout.
 func TestImport_SuccessPathUnchanged(t *testing.T) {
+	t.Parallel()
 	dir, importPath, taskFilePath := importLockSetup(t)
 
 	stdout, stderr, code := runTP(t, dir, "import", importPath)

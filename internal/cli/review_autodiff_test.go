@@ -24,6 +24,7 @@ func reviewPromptsOf(t *testing.T, stdout string) []string {
 }
 
 func TestReviewAutoDiff_SnapshotBaseline(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	spec1 := "# Spec\n## 1. Stable\nstable content\n## 2. Volatile\noriginal text\n"
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec1), 0o600))
@@ -55,6 +56,7 @@ func TestReviewAutoDiff_SnapshotBaseline(t *testing.T) {
 }
 
 func TestReviewAutoDiff_SectionLineCap(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	long := make([]string, 0, 60)
 	for range 60 {
@@ -77,6 +79,7 @@ func TestReviewAutoDiff_SectionLineCap(t *testing.T) {
 }
 
 func TestReviewAutoDiff_DiffFromForcesAtRound1(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "base.md"), []byte("# Spec\n## 1. A\nold\n"), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## 1. A\nnew\n"), 0o600))

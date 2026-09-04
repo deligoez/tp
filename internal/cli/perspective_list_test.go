@@ -20,6 +20,7 @@ var quotedName = regexp.MustCompile(`'([^']+)'`)
 // Here the message is rendered FROM the slice, and this asserts the rendering
 // round-trips.
 func TestInvalidPerspectiveMessageNamesExactlyTheAcceptedSet(t *testing.T) {
+	t.Parallel()
 	msg := invalidPerspectiveMessage("zzz")
 
 	named := make([]string, 0, len(reviewPerspectives))

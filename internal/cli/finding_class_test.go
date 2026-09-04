@@ -12,6 +12,7 @@ import (
 )
 
 func TestFindingClass_MergeClustersSameClassKeepsHighestSeverity(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	// Two findings share a (location key, class) and so cluster (§8.3); the
@@ -54,6 +55,7 @@ func TestFindingClass_MergeClustersSameClassKeepsHighestSeverity(t *testing.T) {
 // over-specification class is not filtered: class is free-form, so a finding
 // carrying it is carried through the merge untouched (§5.2).
 func TestFindingClass_MergePreservesOverSpecification(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	f := filepath.Join(dir, "f.ndjson")
 	require.NoError(t, os.WriteFile(f, []byte(
@@ -72,6 +74,7 @@ func TestFindingClass_MergePreservesOverSpecification(t *testing.T) {
 }
 
 func TestFindingClass_ResolvePreservesClass(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	findings := filepath.Join(dir, "findings.ndjson")
 	require.NoError(t, os.WriteFile(findings, []byte(

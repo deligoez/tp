@@ -16,6 +16,7 @@ import (
 // asked for is the one that refused — so a bare "unknown role" leaves them
 // running the command again without the flag to find out what to type.
 func TestUnknownRoleExitsTwoWithTheEmittedNames(t *testing.T) {
+	t.Parallel()
 	spec := relocatedSpec(t, "spec/0.36.0.md")
 	dir := filepath.Dir(spec)
 
@@ -48,6 +49,7 @@ func TestUnknownRoleExitsTwoWithTheEmittedNames(t *testing.T) {
 // hint built from the corpus would omit the one name a caller is most likely to
 // be reaching for after reading §4.1.
 func TestUnknownRoleHintIsNotJustTheCorpus(t *testing.T) {
+	t.Parallel()
 	spec := relocatedSpec(t, "spec/0.36.0.md")
 	dir := filepath.Dir(spec)
 

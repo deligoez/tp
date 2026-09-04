@@ -12,6 +12,7 @@ import (
 // Markdown extensions (.md, .markdown, case-insensitive) identify a spec; NDJSON
 // and extensionless data files do not.
 func TestIsSpecLookingPath(t *testing.T) {
+	t.Parallel()
 	for _, p := range []string{
 		"spec.md",
 		"spec.markdown",

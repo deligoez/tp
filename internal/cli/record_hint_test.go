@@ -24,6 +24,7 @@ import (
 // enumeration of the call site can see it. Reading the hint the binary actually
 // emitted covers both.
 func TestRecordRowHintNamesTheNDJSON(t *testing.T) {
+	t.Parallel()
 	for _, phase := range []string{"review", "audit"} {
 		t.Run(phase, func(t *testing.T) {
 			dir := t.TempDir()

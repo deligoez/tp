@@ -28,6 +28,7 @@ func importBare(t *testing.T, dir string, extra ...string) (stderr string, code 
 }
 
 func TestImport_ConvergenceEnforced(t *testing.T) {
+	t.Parallel()
 	t.Run("no state imports with info only", func(t *testing.T) {
 		dir := setupEnforceProject(t)
 		stderr, code := importBare(t, dir)
@@ -93,6 +94,7 @@ func TestImport_ConvergenceEnforced(t *testing.T) {
 }
 
 func TestImport_ShellOverwriteNoForce(t *testing.T) {
+	t.Parallel()
 	dir := setupEnforceProject(t)
 
 	// tp init creates a zero-task shell; plain import may overwrite it

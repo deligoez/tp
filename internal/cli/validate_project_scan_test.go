@@ -24,6 +24,7 @@ func writeProjectConfigDir(t *testing.T, workflow string) string {
 // End to end: the commit_strategy comparison is reachable through the command,
 // not only through workflowDeviations.
 func TestValidateProject_ReportsCommitStrategyDeviation(t *testing.T) {
+	t.Parallel()
 	dir := writeProjectConfigDir(t, `{"commit_strategy":"hc"}`)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "s.tasks.json"),
 		[]byte(`{"spec":"s.md","tasks":[],"workflow":{"commit_strategy":"builtin"}}`), 0o600))
@@ -47,6 +48,7 @@ func TestValidateProject_ReportsCommitStrategyDeviation(t *testing.T) {
 // goes unexamined. The report must say so: an incomplete scan that prints an
 // empty deviation list is indistinguishable from a genuinely clean project.
 func TestValidateProject_ReportsAnIncompleteScan(t *testing.T) {
+	t.Parallel()
 	if os.Geteuid() == 0 {
 		t.Skip("root can read a 0000 directory, so the scan cannot be made to fail")
 	}
@@ -83,6 +85,7 @@ func TestValidateProject_ReportsAnIncompleteScan(t *testing.T) {
 // decoration — it proves the warning was reachable at all, so the quiet half
 // is a suppression rather than an absence.
 func TestValidateProject_MalformedTaskFileWarningRespectsQuiet(t *testing.T) {
+	t.Parallel()
 	// The config carries an unknown key on purpose. surfaceConfigWarnings runs
 	// one line above the warnings this test is named for, and used to write raw
 	// to stderr; with a clean config it never fired, so the assertion below was

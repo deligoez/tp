@@ -33,6 +33,7 @@ func readFindingsFile(t *testing.T, path string) []map[string]any {
 }
 
 func TestRunReviewResolve_AddsResolvedField(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := writeFindingsFile(t, dir, []map[string]any{
 		{"severity": "high", "finding": "missing validation"},
@@ -57,6 +58,7 @@ func TestRunReviewResolve_AddsResolvedField(t *testing.T) {
 }
 
 func TestRunReviewResolve_AlreadyResolvedWithoutForce(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := writeFindingsFile(t, dir, []map[string]any{
 		{
@@ -79,6 +81,7 @@ func TestRunReviewResolve_AlreadyResolvedWithoutForce(t *testing.T) {
 }
 
 func TestRunReviewResolve_AlreadyResolvedWithForce(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := writeFindingsFile(t, dir, []map[string]any{
 		{
@@ -99,6 +102,7 @@ func TestRunReviewResolve_AlreadyResolvedWithForce(t *testing.T) {
 }
 
 func TestRunReviewResolveAll_ResolvesAllUnresolved(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := writeFindingsFile(t, dir, []map[string]any{
 		{"severity": "high", "finding": "issue1"},
@@ -133,6 +137,7 @@ func TestRunReviewResolveAll_ResolvesAllUnresolved(t *testing.T) {
 }
 
 func TestRunReviewResolveAll_WithForce(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := writeFindingsFile(t, dir, []map[string]any{
 		{
@@ -156,6 +161,7 @@ func TestRunReviewResolveAll_WithForce(t *testing.T) {
 }
 
 func TestRunReviewResolve_PreservesOtherFields(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := writeFindingsFile(t, dir, []map[string]any{
 		{
@@ -185,6 +191,7 @@ func TestRunReviewResolve_PreservesOtherFields(t *testing.T) {
 }
 
 func TestRunReviewResolve_OmittedEvidence(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := writeFindingsFile(t, dir, []map[string]any{
 		{"severity": "low", "finding": "minor"},
@@ -202,6 +209,7 @@ func TestRunReviewResolve_OmittedEvidence(t *testing.T) {
 }
 
 func TestReadWriteNDJSON_RoundTrip(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.ndjson")
 
@@ -222,6 +230,7 @@ func TestReadWriteNDJSON_RoundTrip(t *testing.T) {
 }
 
 func TestValidResolveStatuses(t *testing.T) {
+	t.Parallel()
 	assert.True(t, validResolveStatuses["fixed"])
 	assert.True(t, validResolveStatuses["wontfix"])
 	assert.True(t, validResolveStatuses["duplicate"])

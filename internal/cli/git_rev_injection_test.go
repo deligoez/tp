@@ -36,6 +36,7 @@ func setupInjectionRepo(t *testing.T, victim string) string {
 // plain run (which falls back to suggestFilesFromTasks) can be used to write a
 // file. resolveCommitSHAs guards only tp done, which is why the sink is guarded.
 func TestGitRevInjection_StoredCommitSHA(t *testing.T) {
+	t.Parallel()
 	victim := filepath.Join(t.TempDir(), "written-by-git")
 	dir := setupInjectionRepo(t, victim)
 
@@ -55,6 +56,7 @@ func TestGitRevInjection_StoredCommitSHA(t *testing.T) {
 // false when the task does carry one, and sends the caller after the wrong
 // problem.
 func TestGitRevInjection_SkippedSHAIsReported(t *testing.T) {
+	t.Parallel()
 	victim := filepath.Join(t.TempDir(), "written-by-git")
 	dir := setupInjectionRepo(t, victim)
 
@@ -71,6 +73,7 @@ func TestGitRevInjection_SkippedSHAIsReported(t *testing.T) {
 // re-derived the identical suggestion — and the advisory rode along both
 // times. One condition costs the reader one line.
 func TestGitRevInjection_SkippedSHAReportedOnce(t *testing.T) {
+	t.Parallel()
 	victim := filepath.Join(t.TempDir(), "written-by-git")
 	dir := setupInjectionRepo(t, victim)
 
@@ -85,6 +88,7 @@ func TestGitRevInjection_SkippedSHAReportedOnce(t *testing.T) {
 // that only build diff stats — a silent drop would look like a successful run
 // against the wrong base.
 func TestGitRevInjection_BaseFlag(t *testing.T) {
+	t.Parallel()
 	victim := filepath.Join(t.TempDir(), "written-by-git")
 	dir := setupInjectionRepo(t, victim)
 
@@ -101,6 +105,7 @@ func TestGitRevInjection_BaseFlag(t *testing.T) {
 // os.IsNotExist never fires and the warning prints on every ordinary run of a
 // spec that simply has no task file. errors.Is is the working form.
 func TestAuditTasksOf_NoWarningWhenTaskFileAbsent(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "s.md"), []byte(injectionSpec), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "code.go"), []byte("package main\n"), 0o600))
@@ -115,6 +120,7 @@ func TestAuditTasksOf_NoWarningWhenTaskFileAbsent(t *testing.T) {
 // a task file that exists but cannot be parsed must be reported, because
 // callers build user-facing claims on the empty result.
 func TestAuditTasksOf_WarnsOnCorruptTaskFile(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "s.md"), []byte(injectionSpec), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "code.go"), []byte("package main\n"), 0o600))

@@ -31,6 +31,7 @@ func readRoundIDSchemes(t *testing.T, dir string) (review, audit []roundIDScheme
 // rows dedup on (location, class) and neither carry nor consume the marker
 // (§10.9).
 func TestIDScheme_RecordedOnAuditOnly(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
@@ -55,6 +56,7 @@ func TestIDScheme_RecordedOnAuditOnly(t *testing.T) {
 // round is recorded — the index append leaves existing entries untouched, and a
 // legacy round keeps its positional ids (§10.9).
 func TestIDScheme_LegacyRoundStaysMarkerless(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 

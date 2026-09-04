@@ -23,6 +23,7 @@ func recordRound(t *testing.T, dir, ndjsonContent string) (out map[string]any, s
 }
 
 func TestReviewRecord_Lifecycle(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\ncontent\n"), 0o600))
 
@@ -64,6 +65,7 @@ func TestReviewRecord_Lifecycle(t *testing.T) {
 }
 
 func TestReviewRecord_RowRules(t *testing.T) {
+	t.Parallel()
 	setup := func(t *testing.T) string {
 		t.Helper()
 		dir := t.TempDir()
@@ -107,6 +109,7 @@ func TestReviewRecord_RowRules(t *testing.T) {
 }
 
 func TestReviewRecord_CorruptStateAborts(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 	stateDir := filepath.Join(dir, ".tp-review", "spec")
@@ -119,6 +122,7 @@ func TestReviewRecord_CorruptStateAborts(t *testing.T) {
 }
 
 func TestReviewRecord_MechanizeCandidatesInOutput(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 
@@ -136,6 +140,7 @@ func TestReviewRecord_MechanizeCandidatesInOutput(t *testing.T) {
 }
 
 func TestReviewRecord_RoleMissingWarns(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 

@@ -13,6 +13,7 @@ import (
 // TestReviewConvergeOnTaskLevelSetAndResolved covers §3.3: review_converge_on is
 // settable per task and flows into tp config --resolved attributed to override.
 func TestReviewConvergeOnTaskLevelSetAndResolved(t *testing.T) {
+	t.Parallel()
 	dir := writeStrategyProject(t, "{}")
 
 	out, stderr, code := runTP(t, dir, "set", "--workflow", "review_converge_on=all")
@@ -32,6 +33,7 @@ func TestReviewConvergeOnTaskLevelSetAndResolved(t *testing.T) {
 // TestReviewConvergeOnProjectLevelSet covers §3.3: the project default is
 // settable via --project into .tp/config.json and resolves at the project layer.
 func TestReviewConvergeOnProjectLevelSet(t *testing.T) {
+	t.Parallel()
 	dir := writeStrategyProject(t, "{}")
 
 	out, stderr, code := runTP(t, dir, "set", "--workflow", "--project", "review_converge_on=all")
@@ -51,6 +53,7 @@ func TestReviewConvergeOnProjectLevelSet(t *testing.T) {
 // TestReviewConvergeOnDefaultBlocking covers §3.3: the built-in default is
 // blocking, reported with source default when no layer sets it.
 func TestReviewConvergeOnDefaultBlocking(t *testing.T) {
+	t.Parallel()
 	dir := writeStrategyProject(t, "{}")
 
 	out, _, code := runTP(t, dir, "config", "--resolved")
@@ -66,6 +69,7 @@ func TestReviewConvergeOnDefaultBlocking(t *testing.T) {
 // validate the literal argument and reject a bad value as a usage error (exit 2)
 // with a hint naming the legal values.
 func TestReviewConvergeOnRejectsInvalidLiteral(t *testing.T) {
+	t.Parallel()
 	dir := writeStrategyProject(t, "{}")
 
 	_, stderr, code := runTP(t, dir, "set", "--workflow", "review_converge_on=bogus")
@@ -81,6 +85,7 @@ func TestReviewConvergeOnRejectsInvalidLiteral(t *testing.T) {
 // hand-edited stored value that is invalid is surfaced raw by tp config
 // --resolved without erroring, so an operator can locate the offending layer.
 func TestReviewConvergeOnConfigResolvedShowsRawInvalidStored(t *testing.T) {
+	t.Parallel()
 	dir := writeStrategyProject(t, `{"review_converge_on":"bogus"}`)
 
 	out, _, code := runTP(t, dir, "config", "--resolved")
@@ -96,6 +101,7 @@ func TestReviewConvergeOnConfigResolvedShowsRawInvalidStored(t *testing.T) {
 // legal value into the task file's workflow block (belt-and-suspenders on the
 // resolution test above, independent of config --resolved).
 func TestReviewConvergeOnValidWrittenToDisk(t *testing.T) {
+	t.Parallel()
 	dir := writeStrategyProject(t, "{}")
 
 	_, stderr, code := runTP(t, dir, "set", "--workflow", "review_converge_on=blocking")

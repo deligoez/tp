@@ -41,6 +41,7 @@ func emitAuditRound(t *testing.T) (dir, specPath string) {
 // oracle — which exited 3 telling the caller to delete the directory holding
 // its own in-flight round.
 func TestInFlightWindowIsReadableByEveryStateReader(t *testing.T) {
+	t.Parallel()
 	dir, specPath := emitAuditRound(t)
 
 	t.Run("tp resume", func(t *testing.T) {
@@ -87,6 +88,7 @@ func TestInFlightWindowIsReadableByEveryStateReader(t *testing.T) {
 // the budget guard returns before reading state, so this once emitted a prompt
 // and overwrote the round snapshot while --record on the same directory exited 3.
 func TestLostRoundIndexStillAborts(t *testing.T) {
+	t.Parallel()
 	dir, specPath := emitAuditRound(t)
 	goPath := filepath.Join(dir, "a.go")
 
@@ -129,6 +131,7 @@ func TestLostRoundIndexStillAborts(t *testing.T) {
 // state that does not exist — and --record then built a fresh index over the
 // round file already there, turning a recorded FAIL round into a clean round 1.
 func TestUnlistableStateDirIsNotReadAsAbsent(t *testing.T) {
+	t.Parallel()
 	if os.Geteuid() == 0 {
 		t.Skip("root lists a 0o300 directory, so the read never fails")
 	}

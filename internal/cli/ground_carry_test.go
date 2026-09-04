@@ -156,6 +156,7 @@ func groundRowByUnit(rows []engine.GroundRow, id string) (engine.GroundRow, bool
 // wrote, and the fixture's premises — the edit at byte 61, each round's floor
 // size — are required rather than assumed.
 func TestTheSecondPassCarriesOnOverThreeRounds(t *testing.T) {
+	t.Parallel()
 	require.Len(t, groundCarryPrefix60, 60, "the shared prefix must be exactly 60 bytes")
 	require.Equal(t, groundCarryChangedA[:60], groundCarryChangedB[:60],
 		"the changing claim's two wordings agree up to byte 60")
@@ -263,6 +264,7 @@ func groundRecordSecondRound(t *testing.T, dir string) (stdout, stderr string, c
 // fix a line of a file they did not write. The verdict rests on the envelope's
 // own `code` field and on the round file not appearing, never on the wording.
 func TestACorruptPrecedingRoundIsExitThreeAndNotExitOne(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	writeGroundCarrySpec(t, dir, groundCarryRound2)
 	groundEmit(t, dir)
@@ -294,6 +296,7 @@ func TestACorruptPrecedingRoundIsExitThreeAndNotExitOne(t *testing.T) {
 // higher than it is. The fixture breaks the floor of the round being recorded,
 // which is the one the rows are graded against.
 func TestAFloorThatDoesNotParseIsRefused(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	writeGroundCarrySpec(t, dir, groundCarryRound2)
 	groundEmit(t, dir)

@@ -90,6 +90,7 @@ func groundFloorSummary(t *testing.T, dir string) (inFloor, cut int) {
 // second; the shipped comparison alone passes the second and reddens the first.
 // Neither arm alone decides it.
 func TestCheckRefusesAFloorTheArmsEmptiedAndAcceptsADocumentWithNoUnits(t *testing.T) {
+	t.Parallel()
 	t.Run("every unit cut", func(t *testing.T) {
 		dir := writeGroundSpec(t, groundAllCutSpec)
 		groundEmit(t, dir)
@@ -133,6 +134,7 @@ func TestCheckRefusesAFloorTheArmsEmptiedAndAcceptsADocumentWithNoUnits(t *testi
 // The exit code is asserted beside it, so this cannot pass on a build that
 // prints the notice and still exits 0.
 func TestTheEmptiedFloorRefusalSaysWhyOnStderr(t *testing.T) {
+	t.Parallel()
 	dir := writeGroundSpec(t, groundAllCutSpec)
 	groundEmit(t, dir)
 

@@ -46,6 +46,7 @@ func unitPairs(t *testing.T, units any) []string {
 // child would leave a record behind, and the run artifacts are checked for
 // absence after the command has actually run.
 func TestRunDryRun_ListsTheNextUnitsAndSpawnsNothing(t *testing.T) {
+	t.Parallel()
 	dir := runProject(t)
 	bin, err := fakerunner.Build(t.TempDir())
 	require.NoError(t, err)
@@ -92,6 +93,7 @@ func TestRunDryRun_ListsTheNextUnitsAndSpawnsNothing(t *testing.T) {
 // here is evidence the lock was not taken, rather than evidence the lock was
 // never held.
 func TestRunDryRun_TakesNoRunLock(t *testing.T) {
+	t.Parallel()
 	dir := runProject(t)
 	taskFile := filepath.Join(dir, "spec.tasks.json")
 
@@ -130,6 +132,7 @@ func TestRunDryRun_TakesNoRunLock(t *testing.T) {
 // The fixture is driven to a phase whose panel holds more than one unit, which
 // is the case a single-unit listing could not tell apart from a truncated one.
 func TestRunDryRun_ListsEveryUnitTheOracleWouldSpawn(t *testing.T) {
+	t.Parallel()
 	dir := runProject(t)
 	_, stderr, code := runTP(t, dir, "done", "seed", "Seeded the project fixture.")
 	require.Equal(t, 0, code, "done: %s", stderr)

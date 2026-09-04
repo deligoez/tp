@@ -27,6 +27,7 @@ func roleModeFixture(t *testing.T) (dir, spec, ndjson string) {
 // command reaches its mode dispatch: a case that failed on a missing positional
 // would report exit 2 for the wrong reason and pass while the rule was absent.
 func TestRoleRefusedInNonEmittingModes(t *testing.T) {
+	t.Parallel()
 	dir, spec, ndjson := roleModeFixture(t)
 
 	cases := map[string][]string{
@@ -56,6 +57,7 @@ func TestRoleRefusedInNonEmittingModes(t *testing.T) {
 // mode that emits prompts takes the flag. Asserting only the refusals would
 // pass on an implementation that refused everywhere.
 func TestRoleAcceptedInEveryEmittingMode(t *testing.T) {
+	t.Parallel()
 	dir, spec, ndjson := roleModeFixture(t)
 	baseline := filepath.Join(dir, "baseline.md")
 	require.NoError(t, os.WriteFile(baseline, []byte("# tp v0.36.0 — The emitted round\n\n## 1. Overview\n\nold\n"), 0o600))
@@ -89,6 +91,7 @@ func TestRoleAcceptedInEveryEmittingMode(t *testing.T) {
 // round had entered, because reaching it needs two conflicting modes AND
 // --role.
 func TestRoleRefusalNeverNamesAFlagThatDoesNotExist(t *testing.T) {
+	t.Parallel()
 	dir, spec, ndjson := roleModeFixture(t)
 
 	for name, args := range map[string][]string{

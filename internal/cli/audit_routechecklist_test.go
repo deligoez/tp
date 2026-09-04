@@ -12,6 +12,7 @@ import (
 // task-acceptance and finding items, and never a file_check item — those are
 // built in generateRoleAuditPrompts' shared arm instead.
 func TestRouteChecklist_SpecCoverageOnly(t *testing.T) {
+	t.Parallel()
 	specEntries := []checklistEntry{
 		{ID: "task-t1", Type: "task_acceptance", SpecLine: 3, Section: "## A", Text: "acceptance"},
 		{ID: "row-1", Type: "table_row", SpecLine: 20, Section: "## B", Text: "row"},

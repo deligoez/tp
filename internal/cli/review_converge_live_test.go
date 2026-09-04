@@ -22,6 +22,7 @@ const mediumRow = `{"severity":"medium","category":"c","location":"L1","finding"
 // review budget refusal and prompt-generation convergence both treat the
 // sequence as converged — matching tp review --status.
 func TestReviewConvergeLive_BudgetAndPromptGen(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 	_, _, code := runTP(t, dir, "init", "spec.md")
@@ -64,6 +65,7 @@ func TestReviewConvergeLive_BudgetAndPromptGen(t *testing.T) {
 // gate uses the live severity-aware predicate: two medium/low-only blocking
 // rounds import cleanly, consistent with tp review --status/--record.
 func TestReviewConvergeLive_ImportEnforcement(t *testing.T) {
+	t.Parallel()
 	dir := setupEnforceProject(t)
 
 	for i := range 2 {

@@ -11,6 +11,7 @@ import (
 )
 
 func TestAuditSchema_PromptFieldsAndOutputSchema(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	spec := "# Spec\n## Table\n| C | D |\n|---|---|\n| a | b |\n"
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec), 0o600))

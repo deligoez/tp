@@ -12,6 +12,7 @@ import (
 )
 
 func TestAuditPrompts_BodyOrderAndEmbedding(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "auth_helper.go"), []byte("package main\n"), 0o600))
@@ -75,6 +76,7 @@ func TestAuditPrompts_BodyOrderAndEmbedding(t *testing.T) {
 // which repo answered. Every sibling git call (gitExists, latestGitTag,
 // execGitDiffProbe) sets cmd.Dir; this one has to as well.
 func TestAuditPrompts_ProjectContextComesFromTheAuditedRepo(t *testing.T) {
+	t.Parallel()
 	// The audited repo: spec + source, and NO task file, so the CLAUDE.md
 	// lookup falls through to the git-root branch under test.
 	audited := t.TempDir()
@@ -117,6 +119,7 @@ role's domain appears in it. Reserve PARTIAL and FAIL for a defect you actually 
 // affected files, never reaches spec-coverage, and is not repeated into any
 // item's expected_evidence (§7 item 8).
 func TestAuditPrompts_DispositionBlock(t *testing.T) {
+	t.Parallel()
 	stdout := setupThreeRoleAudit(t)
 	byRole := auditPromptsByRole(t, stdout)
 	require.NotEmpty(t, byRole)
@@ -152,6 +155,7 @@ func TestAuditPrompts_DispositionBlock(t *testing.T) {
 // "<n> of <total>" once the cap has bitten, with the total taken after the
 // drop rules removed binaries and test fixtures.
 func TestAuditPrompts_AffectedFilesHeaderForms(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
 	args := []string{"audit", "spec.md"}
@@ -194,6 +198,7 @@ func TestAuditPrompts_AffectedFilesHeaderForms(t *testing.T) {
 // The other header test only exercises spec-coverage's untruncated form, so
 // without this an implementation that never counts for spec-coverage passes.
 func TestAuditPrompts_SpecCoverageHeaderTruncated(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
 
@@ -214,6 +219,7 @@ func TestAuditPrompts_SpecCoverageHeaderTruncated(t *testing.T) {
 }
 
 func TestAuditPrompts_DeterministicRegeneration(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "plain.go"), []byte("package main\n"), 0o600))
@@ -265,6 +271,7 @@ func findItemEvidence(t *testing.T, prompt map[string]any, itemID string) string
 //     40-character truncation of the id-bearing item slug cuts both at the
 //     same point and a whole-token substitution maps one onto the other.
 func TestAuditPrompts_PromptEqualityAcrossInvocations(t *testing.T) {
+	t.Parallel()
 	const roleA, roleB = "security", "securitz"
 	require.Len(t, roleB, len(roleA), "the fixture ids must be of equal length")
 	require.Equal(t, roleA[:len(roleA)-1], roleB[:len(roleB)-1],

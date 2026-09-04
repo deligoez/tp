@@ -26,6 +26,7 @@ func fenceProject(t *testing.T) string {
 // §5.1 row 1: tp done --skip-gate is refused under the variable and is the
 // ordinary user decision without it.
 func TestUnattendedFence_DoneSkipGateRefused(t *testing.T) {
+	t.Parallel()
 	dir := fenceProject(t)
 
 	stdout, stderr, code := runTPEnv(t, dir, []string{unattendedOn},
@@ -46,6 +47,7 @@ func TestUnattendedFence_DoneSkipGateRefused(t *testing.T) {
 // skipped gate is fenced, since a unit that can reach it through --batch or
 // tp close has not been fenced at all.
 func TestUnattendedFence_SkipGateRefusedThroughEveryRoute(t *testing.T) {
+	t.Parallel()
 	dir := fenceProject(t)
 
 	ndjson := filepath.Join(dir, "batch.ndjson")
@@ -67,6 +69,7 @@ func TestUnattendedFence_SkipGateRefusedThroughEveryRoute(t *testing.T) {
 
 // §5.1 row 3: tp import --force.
 func TestUnattendedFence_ImportForceRefused(t *testing.T) {
+	t.Parallel()
 	dir := fenceProject(t)
 
 	importPath := filepath.Join(dir, "import.json")
@@ -87,6 +90,7 @@ func TestUnattendedFence_ImportForceRefused(t *testing.T) {
 // value, an equal or lower non-zero value is accepted, and 0 means *disabled*
 // rather than *lowest*, so it is a raise wherever a non-zero value resolves.
 func TestUnattendedFence_RoundBudgetRaiseRefused(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 
 	_, stderr, code := runTPEnv(t, dir, nil, "set", "--workflow", "review_max_rounds=5", "audit_max_rounds=5")
@@ -117,6 +121,7 @@ func TestUnattendedFence_RoundBudgetRaiseRefused(t *testing.T) {
 // could raise run_max_units or run_max_wall_clock_seconds could run itself
 // indefinitely.
 func TestUnattendedFence_RunCapRaiseRefused(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 
 	stdout, stderr, code := runTPEnv(t, dir, []string{unattendedOn}, "set", "--workflow", "run_max_units=200")
@@ -173,6 +178,7 @@ func TestUnattendedFence_RunCapRaiseRefused(t *testing.T) {
 // 40 would be a lowering against the decoy's 50 and would be accepted, so the
 // refusal is evidence about which number the fence compared.
 func TestUnattendedFence_EnvLayerIgnored(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 
 	_, stderr, code := runTPEnv(t, dir, nil, "set", "--workflow", "review_max_rounds=5")
@@ -190,6 +196,7 @@ func TestUnattendedFence_EnvLayerIgnored(t *testing.T) {
 // §5.1: runner and notify_cmd name commands the driver executes, so under the
 // variable a unit cannot set them at all, at any layer.
 func TestUnattendedFence_RunnerAndNotifyCmdRefusedAtEveryLayer(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 
 	for _, args := range [][]string{
@@ -208,6 +215,7 @@ func TestUnattendedFence_RunnerAndNotifyCmdRefusedAtEveryLayer(t *testing.T) {
 // §5.1 / test 64, end to end: the mode activates on any present, non-empty
 // value other than 0.
 func TestUnattendedFence_ActivationVocabulary(t *testing.T) {
+	t.Parallel()
 	for _, value := range []string{"1", "true", "yes"} {
 		dir := fenceProject(t)
 		_, _, code := runTPEnv(t, dir, []string{"TP_UNATTENDED=" + value},

@@ -31,6 +31,7 @@ func readRoundHashes(t *testing.T, dir string) (review, audit []roundRolesHash) 
 // recorded round: the reviewer hash on a review round, the auditor hash on an
 // audit round, independently (§9.2).
 func TestRolesHash_StoredAtRecordPerPhase(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
@@ -60,6 +61,7 @@ func TestRolesHash_StoredAtRecordPerPhase(t *testing.T) {
 // round's stored hash but never the audit round's — the sequences are independent
 // (§9.2).
 func TestRolesHash_SequenceIndependence(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
@@ -92,6 +94,7 @@ func TestRolesHash_SequenceIndependence(t *testing.T) {
 // TestRolesStale_StatusFlipsOnCorpusEdit: tp review --status reports roles_stale
 // and it flips true after a reviewer edit, read-only (§9.3).
 func TestRolesStale_StatusFlipsOnCorpusEdit(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
@@ -136,6 +139,7 @@ func TestRolesStale_StatusFlipsOnCorpusEdit(t *testing.T) {
 // "builtin" sentinel on both rounds and the equality would be trivially true;
 // the second role also keeps the deactivation from emptying the phase.
 func TestRolesHash_FrontmatterOverrideNotHashed(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	revDir := filepath.Join(dir, ".tp", "reviewers")

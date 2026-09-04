@@ -8,6 +8,7 @@ import (
 )
 
 func TestSetRejectsGateSkippedReason(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 	addTaskWithEstimate(t, dir, "t1", 5)
 

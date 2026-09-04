@@ -33,6 +33,7 @@ func resolvedAuditConvergeOn(t *testing.T, dir string) map[string]any {
 // review_converge_on deliberate, so the mutant that must fail this test is
 // shipping blocking — the twin's default — as this field's built-in.
 func TestAuditConvergeOnDefaultAll(t *testing.T) {
+	t.Parallel()
 	dir := writeStrategyProject(t, "{}")
 
 	field := resolvedAuditConvergeOn(t, dir)
@@ -46,6 +47,7 @@ func TestAuditConvergeOnDefaultAll(t *testing.T) {
 // literal is written through a set command, which §3 fences and a later task
 // builds; both are stored values the parser must accept.
 func TestAuditConvergeOnResolvedNamesItsSource(t *testing.T) {
+	t.Parallel()
 	dir := writeStrategyProject(t, "{}")
 	tpDir := filepath.Join(dir, ".tp")
 	require.NoError(t, os.Mkdir(tpDir, 0o755))
@@ -72,6 +74,7 @@ func TestAuditConvergeOnResolvedNamesItsSource(t *testing.T) {
 // entry added to engine.ResolveWorkflowLayers at any rank answers this repo,
 // which sets the field at no layer, with blocking.
 func TestAuditConvergeOnHasNoEnvironmentLayer(t *testing.T) {
+	t.Parallel()
 	dir := writeStrategyProject(t, "{}")
 
 	out, stderr, code := runTPEnv(t, dir, []string{"TP_AUDIT_CONVERGE_ON=blocking"}, "config", "--resolved")
@@ -94,6 +97,7 @@ func TestAuditConvergeOnHasNoEnvironmentLayer(t *testing.T) {
 // flag to any one of these commands reddens that subtest and leaves the others
 // green.
 func TestAuditConvergeOnHasNoCommandFlag(t *testing.T) {
+	t.Parallel()
 	dir := writeStrategyProject(t, "{}")
 
 	for _, name := range []string{"audit", "config", "set", "run", "review"} {
@@ -126,6 +130,7 @@ func TestAuditConvergeOnHasNoCommandFlag(t *testing.T) {
 // declares immutable — so the round file and the state index must both still be
 // absent.
 func TestAuditConvergeOn_InvalidStoredInTaskFileExitsValidation(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.tasks.json"),
@@ -171,6 +176,7 @@ func assertQuotesTheStoredValue(t *testing.T, stderr string) {
 // project that sets the field once for the whole repo — the way a repo is
 // expected to set it. The mutant is validating only the override layer.
 func TestAuditConvergeOn_InvalidStoredInProjectConfigExitsValidation(t *testing.T) {
+	t.Parallel()
 	dir := writeStrategyProject(t, "{}")
 	tpDir := filepath.Join(dir, ".tp")
 	require.NoError(t, os.Mkdir(tpDir, 0o755))

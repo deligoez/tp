@@ -97,6 +97,7 @@ func auditArgs(files []string, compact bool) []string {
 // nothing an agent needs was lost — every dropped item id and file path is still
 // inside prompts[].prompt.
 func TestAuditCompact_DropsDuplicatedPerPromptFields(t *testing.T) {
+	t.Parallel()
 	dir, files := setupCompactAuditProject(t)
 
 	full, stderr, code := runTP(t, dir, auditArgs(files, false)...)
@@ -142,6 +143,7 @@ func TestAuditCompact_DropsDuplicatedPerPromptFields(t *testing.T) {
 // saving is opt-in. A caller that did not ask for --compact still receives both
 // fields, spelled as arrays rather than omitted or null.
 func TestAuditCompact_DefaultOutputUnchanged(t *testing.T) {
+	t.Parallel()
 	dir, files := setupCompactAuditProject(t)
 
 	full, stderr, code := runTP(t, dir, auditArgs(files, false)...)

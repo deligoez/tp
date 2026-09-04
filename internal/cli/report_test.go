@@ -23,6 +23,7 @@ func addTaskWithEstimate(t *testing.T, dir, id string, estimate int) {
 // --- started_at tests ---
 
 func TestClaimSetsStartedAt(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 	addTaskWithEstimate(t, dir, "t1", 5)
 
@@ -42,6 +43,7 @@ func TestClaimSetsStartedAt(t *testing.T) {
 }
 
 func TestClaimBatchSetsStartedAt(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 	addTaskWithEstimate(t, dir, "t1", 5)
 	addTaskWithEstimate(t, dir, "t2", 5)
@@ -65,6 +67,7 @@ func TestClaimBatchSetsStartedAt(t *testing.T) {
 }
 
 func TestNextSetsStartedAt(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 	addTaskWithEstimate(t, dir, "t1", 5)
 
@@ -79,6 +82,7 @@ func TestNextSetsStartedAt(t *testing.T) {
 }
 
 func TestNextPeekDoesNotSetStartedAt(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 	addTaskWithEstimate(t, dir, "t1", 5)
 
@@ -93,6 +97,7 @@ func TestNextPeekDoesNotSetStartedAt(t *testing.T) {
 }
 
 func TestDoneImplicitClaimSetsStartedAt(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 	addTaskWithEstimate(t, dir, "t1", 5)
 
@@ -109,6 +114,7 @@ func TestDoneImplicitClaimSetsStartedAt(t *testing.T) {
 }
 
 func TestDoneOnAlreadyClaimedPreservesStartedAt(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 	addTaskWithEstimate(t, dir, "t1", 5)
 
@@ -132,6 +138,7 @@ func TestDoneOnAlreadyClaimedPreservesStartedAt(t *testing.T) {
 }
 
 func TestReopenClearsStartedAt(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 	addTaskWithEstimate(t, dir, "t1", 5)
 
@@ -149,6 +156,7 @@ func TestReopenClearsStartedAt(t *testing.T) {
 }
 
 func TestReopenAndReclaimGetsNewStartedAt(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 	addTaskWithEstimate(t, dir, "t1", 5)
 
@@ -174,6 +182,7 @@ func TestReopenAndReclaimGetsNewStartedAt(t *testing.T) {
 // --- batch NDJSON started_at tests ---
 
 func TestBatchDoneAcceptsStartedAt(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 	addTaskWithEstimate(t, dir, "t1", 5)
 
@@ -195,6 +204,7 @@ func TestBatchDoneAcceptsStartedAt(t *testing.T) {
 }
 
 func TestBatchDoneWithoutStartedAtUsesNow(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 	addTaskWithEstimate(t, dir, "t1", 5)
 
@@ -217,6 +227,7 @@ func TestBatchDoneWithoutStartedAtUsesNow(t *testing.T) {
 }
 
 func TestBatchDonePreservesClaimedStartedAt(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 	addTaskWithEstimate(t, dir, "t1", 5)
 
@@ -243,6 +254,7 @@ func TestBatchDonePreservesClaimedStartedAt(t *testing.T) {
 // --- tp report tests ---
 
 func TestReportBasic(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 	addTaskWithEstimate(t, dir, "t1", 5)
 
@@ -273,6 +285,7 @@ func TestReportBasic(t *testing.T) {
 }
 
 func TestReportNoCompletedTasks(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 	addTaskWithEstimate(t, dir, "t1", 5)
 
@@ -291,6 +304,7 @@ func TestReportNoCompletedTasks(t *testing.T) {
 }
 
 func TestReportUntrackedTasks(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 
 	// Directly write a task file with a done task that has no started_at
@@ -336,6 +350,7 @@ func TestReportUntrackedTasks(t *testing.T) {
 }
 
 func TestReportWithBatchStartedAt(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 	addTaskWithEstimate(t, dir, "t1", 5)
 
@@ -362,6 +377,7 @@ func TestReportWithBatchStartedAt(t *testing.T) {
 }
 
 func TestReportFastestSlowest(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 	addTaskWithEstimate(t, dir, "t1", 5)
 	addTaskWithEstimate(t, dir, "t2", 8)
@@ -438,6 +454,7 @@ func TestReportFastestSlowest(t *testing.T) {
 }
 
 func TestReportMixedTrackedAndUntracked(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 
 	now := time.Now().UTC()
@@ -516,6 +533,7 @@ func TestReportMixedTrackedAndUntracked(t *testing.T) {
 }
 
 func TestReportZeroDurationTask(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 	addTaskWithEstimate(t, dir, "t1", 5)
 
@@ -540,6 +558,7 @@ func TestReportZeroDurationTask(t *testing.T) {
 // rounds actual_minutes to 0.0 reports accuracy null with a note, the summary
 // excludes it from estimation_accuracy and reports the excluded count.
 func TestReportSubResolutionDuration(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 
 	now := time.Now().UTC()
@@ -636,6 +655,7 @@ func TestReportSubResolutionDuration(t *testing.T) {
 // null accuracy, the summary's estimation_accuracy is itself null and the
 // excluded count equals the tracked count.
 func TestReportAllExcludedAccuracy(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 
 	now := time.Now().UTC()
@@ -682,6 +702,7 @@ func TestReportAllExcludedAccuracy(t *testing.T) {
 // TestReportCompactOmitsNote covers §8.4: the report note is omitted under
 // --compact while the (decision-critical) accuracy stays null.
 func TestReportCompactOmitsNote(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 
 	now := time.Now().UTC()
@@ -734,6 +755,7 @@ func TestReportCompactOmitsNote(t *testing.T) {
 // --- started_at as managed field ---
 
 func TestSetStartedAtIsManaged(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 	addTaskWithEstimate(t, dir, "t1", 5)
 

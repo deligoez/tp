@@ -15,6 +15,7 @@ import (
 // per-role audit-result files, drops exact (role, item_id) duplicates, skips
 // blank lines, and reports a status/role breakdown with a non-PASS findings count.
 func TestAuditMerge_DedupAndStatusSummary(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	r1 := filepath.Join(dir, "r1.ndjson")
 	r2 := filepath.Join(dir, "r2.ndjson")
@@ -57,6 +58,7 @@ func TestAuditMerge_DedupAndStatusSummary(t *testing.T) {
 // present-but-empty input file succeeds (exit 0), creates a zero-byte -o file,
 // and reports merged_count 0.
 func TestAuditMerge_EmptyInputSucceeds(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	empty := filepath.Join(dir, "empty.ndjson")
 	require.NoError(t, os.WriteFile(empty, []byte{}, 0o600))
@@ -79,6 +81,7 @@ func TestAuditMerge_EmptyInputSucceeds(t *testing.T) {
 // malformed/incomplete lines now exit 1, while still creating the -o file,
 // reporting merged_count 0, and emitting a stderr warning per skipped line.
 func TestAuditMerge_OnlyMalformedFails(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	bad := filepath.Join(dir, "bad.ndjson")
 	require.NoError(t, os.WriteFile(bad,
@@ -105,6 +108,7 @@ func TestAuditMerge_OnlyMalformedFails(t *testing.T) {
 // TestAuditMerge_NoInputFilesExit2 covers §3.3 row 6: no input files given
 // exits 2.
 func TestAuditMerge_NoInputFilesExit2(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	_, stderr, code := runTPMerge(t, dir, "audit", "--merge")
 	assert.Equal(t, 2, code)
@@ -114,6 +118,7 @@ func TestAuditMerge_NoInputFilesExit2(t *testing.T) {
 // TestAuditMerge_MissingFileExit3 covers §3.3 rows 4-5: a missing/unreadable
 // input file exits 3.
 func TestAuditMerge_MissingFileExit3(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	_, stderr, code := runTPMerge(t, dir, "audit", "--merge", filepath.Join(dir, "nope.ndjson"))
 	assert.Equal(t, 3, code)
@@ -126,6 +131,7 @@ func TestAuditMerge_MissingFileExit3(t *testing.T) {
 // silently parsed (input_files counts it, one warning per spec line) — this
 // guards against that regression.
 func TestAuditMerge_RejectsSpecPositionalExit2(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	spec := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(spec, []byte("# Spec\n## 1. A\nbody\n"), 0o600))

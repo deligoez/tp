@@ -22,6 +22,7 @@ import (
 // wrong until someone cloned. It survived this long because tp's own
 // commit_strategy is hc, which refuses tp commit entirely.
 func TestCommitLeavesForeignLockFilesAlone(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, "sub"), 0o755))
 
@@ -79,6 +80,7 @@ func TestCommitLeavesForeignLockFilesAlone(t *testing.T) {
 // trailing /**), and without :(top) the whole thing resolves against the
 // current directory rather than the repo root.
 func TestCommitDropsAlreadyTrackedLockFiles(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	nested := filepath.Join(dir, "sub")
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".tp", "locks"), 0o755))
@@ -134,6 +136,7 @@ func TestCommitDropsAlreadyTrackedLockFiles(t *testing.T) {
 // never ran tp init left an untracked file behind, and tp resume reported an
 // unexplained change the agent could not clear by committing.
 func TestLockDirIsGitIgnoredWithoutInit(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n\n## 1. Thing\n\n1. Do it.\n"), 0o600))

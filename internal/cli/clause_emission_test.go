@@ -67,6 +67,7 @@ func emitFor(t *testing.T, dir string, args ...string) []emittedPrompt {
 // carries a non-empty output_path in one mode and an empty one in another — so
 // a rule written against role names would classify the same prompt two ways.
 func TestClausesAppendedByOutputPath(t *testing.T) {
+	t.Parallel()
 	suffix := clauseSuffixFromSpec(t)
 	spec := relocatedSpec(t, "spec/0.36.0.md")
 	dir := filepath.Dir(spec)

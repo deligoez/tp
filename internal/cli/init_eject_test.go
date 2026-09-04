@@ -13,6 +13,7 @@ import (
 // TestInitEjectRoles_Output writes the default software corpus into
 // .tp/reviewers and .tp/auditors as editable files (§5.3).
 func TestInitEjectRoles_Output(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 
@@ -38,6 +39,7 @@ func TestInitEjectRoles_Output(t *testing.T) {
 // TestInitEjectRoles_UnknownDomain is a usage error (exit 2) listing the known
 // domains (§5.3).
 func TestInitEjectRoles_UnknownDomain(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 
@@ -49,6 +51,7 @@ func TestInitEjectRoles_UnknownDomain(t *testing.T) {
 
 // TestInitEjectRoles_ProseDomain scaffolds the prose corpus (§5.3, §6.1).
 func TestInitEjectRoles_ProseDomain(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 
@@ -68,6 +71,7 @@ func TestInitEjectRoles_ProseDomain(t *testing.T) {
 // unless --force, which overwrites regardless of the existing file's validity
 // (§5.3, §3.6).
 func TestInitEjectRoles_ForceOverwrite(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 

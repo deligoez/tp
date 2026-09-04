@@ -13,6 +13,7 @@ func iptr(v int) *int       { return &v }
 func sptr(v string) *string { return &v }
 
 func TestWorkflowDeviations_ReportsDifferingFields(t *testing.T) {
+	t.Parallel()
 	project := model.WorkflowOverride{
 		ReviewMaxRounds:   iptr(8),
 		ReviewCleanRounds: iptr(2),
@@ -35,6 +36,7 @@ func TestWorkflowDeviations_ReportsDifferingFields(t *testing.T) {
 }
 
 func TestWorkflowDeviations_QualityGate(t *testing.T) {
+	t.Parallel()
 	devs := workflowDeviations("x.tasks.json",
 		&model.WorkflowOverride{QualityGate: sptr("make test")},
 		&model.WorkflowOverride{QualityGate: sptr("go test ./...")},
@@ -44,6 +46,7 @@ func TestWorkflowDeviations_QualityGate(t *testing.T) {
 }
 
 func TestWorkflowDeviations_ChecksSetEquality(t *testing.T) {
+	t.Parallel()
 	c1 := model.Check{Class: "a", Cmd: "run-a"}
 	c2 := model.Check{Class: "b", Cmd: "run-b"}
 
@@ -66,6 +69,7 @@ func TestWorkflowDeviations_ChecksSetEquality(t *testing.T) {
 }
 
 func TestWorkflowDeviations_ReviewConvergeOn(t *testing.T) {
+	t.Parallel()
 	// Both set and differ → deviation. --strict promotes any non-empty
 	// deviation set to exit 1 generically, so reporting it here is what arms
 	// --strict for review_converge_on.
@@ -95,6 +99,7 @@ func TestWorkflowDeviations_ReviewConvergeOn(t *testing.T) {
 // it and tp init authors a task-file override — so a task file that contradicts
 // the project strategy is a deviation like any other.
 func TestWorkflowDeviations_CommitStrategy(t *testing.T) {
+	t.Parallel()
 	devs := workflowDeviations("x.tasks.json",
 		&model.WorkflowOverride{CommitStrategy: sptr("builtin")},
 		&model.WorkflowOverride{CommitStrategy: sptr("hc")},
@@ -123,6 +128,7 @@ func TestWorkflowDeviations_CommitStrategy(t *testing.T) {
 // that refusal at the write sinks (exit 2) and the consuming audit sinks
 // (exit 1) — so an illegal stored value is reported here as the deviation it is.
 func TestWorkflowDeviations_AuditConvergeOn(t *testing.T) {
+	t.Parallel()
 	devs := workflowDeviations("x.tasks.json",
 		&model.WorkflowOverride{AuditConvergeOn: sptr("blocking")},
 		&model.WorkflowOverride{AuditConvergeOn: sptr("all")},
@@ -159,6 +165,7 @@ func TestWorkflowDeviations_AuditConvergeOn(t *testing.T) {
 // to root is reported whole rather than as the empty string the discarded-error
 // form produced.
 func TestRelOrSelf_FallsBackToTheWholePath(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, filepath.Join("b", "x.tasks.json"),
 		relOrSelf(filepath.FromSlash("/a"), filepath.FromSlash("/a/b/x.tasks.json")))
 

@@ -47,6 +47,7 @@ func assertRefusedLiteral(t *testing.T, stderr string, code int) {
 // second observable is what separates a sink that validates from one that
 // merely complains.
 func TestAuditConvergeOn_WriteSinksRefuseIllegalLiteral(t *testing.T) {
+	t.Parallel()
 	dir := writeStrategyProject(t, "{}")
 	taskFile := filepath.Join(dir, "s.tasks.json")
 	before, err := os.ReadFile(taskFile)
@@ -85,6 +86,7 @@ func TestAuditConvergeOn_WriteSinksRefuseIllegalLiteral(t *testing.T) {
 // workflow block, the second that the resolver reads it back from there. A
 // write into a field the resolver does not consult passes the first alone.
 func TestAuditConvergeOn_LegalLiteralPersistsAtTaskSink(t *testing.T) {
+	t.Parallel()
 	dir := writeStrategyProject(t, "{}")
 
 	// TP_UNATTENDED is removed from the child rather than inherited (§7's
@@ -119,6 +121,7 @@ func TestAuditConvergeOn_LegalLiteralPersistsAtTaskSink(t *testing.T) {
 // one leaves the other exactly as it was, which is the shape of the mutant §7
 // row 12 names for the fence and applies unchanged here.
 func TestAuditConvergeOn_LegalLiteralPersistsAtProjectSink(t *testing.T) {
+	t.Parallel()
 	dir := writeStrategyProject(t, "{}")
 
 	// Attended, for the reason its task-level sibling above gives.

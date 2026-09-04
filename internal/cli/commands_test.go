@@ -63,6 +63,7 @@ func runTP(t *testing.T, dir string, args ...string) (stdout, stderr string, exi
 }
 
 func TestFullLifecycle(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	// Create a spec file for init
@@ -123,6 +124,7 @@ func TestFullLifecycle(t *testing.T) {
 }
 
 func TestClaimDoneTask(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	// Setup: init + add + claim + close
@@ -144,6 +146,7 @@ func TestClaimDoneTask(t *testing.T) {
 }
 
 func TestCloseWithoutReason(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	specPath := filepath.Join(dir, "spec.md")

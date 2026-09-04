@@ -47,6 +47,7 @@ var (
 // hand-editing agent and invisible to tp itself. §6.4's timeout is pinned here
 // too, on the hook that ships with it.
 func TestPreToolUseHookIsRegisteredForTheWriteTools(t *testing.T) {
+	t.Parallel()
 	var manifest pluginHooksManifest
 	raw := readRepoDoc(t, pluginHooksManifestPath)
 	require.NoError(t, json.Unmarshal([]byte(raw), &manifest), "%s must be valid JSON", pluginHooksManifestPath)
@@ -148,6 +149,7 @@ func pathArguments(tool string) []string {
 // §6.2 fences is denied, through every tool in the matcher, whether it is named
 // relatively, with a leading ./ or absolutely.
 func TestPreToolUseHookDeniesTheFencedPaths(t *testing.T) {
+	t.Parallel()
 	root := repoRoot(t)
 	fenced := []string{
 		// *.tasks.json — tp's own task state, rewritten on every close.
@@ -208,6 +210,7 @@ func TestPreToolUseHookDeniesTheFencedPaths(t *testing.T) {
 // docs and the role corpus are all outside the fence, and so is the
 // `.tp-review` directory itself — §6.2 fences its contents.
 func TestPreToolUseHookAllowsOrdinaryWrites(t *testing.T) {
+	t.Parallel()
 	root := repoRoot(t)
 	allowed := []string{
 		"internal/cli/run.go",
@@ -256,6 +259,7 @@ func TestPreToolUseHookAllowsOrdinaryWrites(t *testing.T) {
 // argument. Without this the hook would refuse to let anyone edit a test that
 // merely mentions a task file — this one included.
 func TestPreToolUseHookReadsTheArgumentNotTheContent(t *testing.T) {
+	t.Parallel()
 	body := `payload := ` + "`" + `{"file_path": "spec/0.35.0.tasks.json"}` + "`" + `
 also := "{\"notebook_path\": \".tp/local.json\"}"
 and := ".tp-review/0.35.0/round-1/role-tester.ndjson"
@@ -275,6 +279,7 @@ and := ".tp-review/0.35.0/round-1/role-tester.ndjson"
 // refuse. tp closes a task by rewriting `*.tasks.json` through exactly this
 // path, and a fence that blocked it would stop the tool it exists to protect.
 func TestPreToolUseHookDoesNotFireForShellWrites(t *testing.T) {
+	t.Parallel()
 	for _, command := range []string{
 		"tp done hook-write-deny --commit abc1234 -- '- did the thing'",
 		"tp import spec/0.35.0.tasks.json",
@@ -299,6 +304,7 @@ func TestPreToolUseHookDoesNotFireForShellWrites(t *testing.T) {
 // error, and a hook that failed open loudly would put a diagnostic in front of
 // the agent on every unrelated call.
 func TestPreToolUseHookSurvivesAPayloadWithoutAPath(t *testing.T) {
+	t.Parallel()
 	run := runPreToolUseHook(t, "Edit", map[string]any{})
 
 	assert.Zero(t, run.exitCode, "stderr=%q", run.stderr)
@@ -321,6 +327,7 @@ func TestPreToolUseHookSurvivesAPayloadWithoutAPath(t *testing.T) {
 // it proves the payload really is a fenced path wearing another spelling, so a
 // hook that let it through would be letting the fenced write through.
 func TestPreToolUseHookDeniesAnEscapedPathArgument(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct{ escaped, decodes string }{
 		{`.tp\/config.json`, ".tp/config.json"},
 		{`.tp\/local.json`, ".tp/local.json"},

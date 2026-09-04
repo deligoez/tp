@@ -15,6 +15,7 @@ import (
 // `tp review <spec> --resolve f.ndjson 0 fixed "why"` reads the index as the
 // disposition — this guards against that regression.
 func TestReviewResolve_RejectsSpecPositionalExit2(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	spec := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(spec, []byte("# Spec\n## 1. A\nbody\n"), 0o600))
@@ -34,6 +35,7 @@ func TestReviewResolve_RejectsSpecPositionalExit2(t *testing.T) {
 // index is a usage error (exit 2) that names the expected form, not an
 // "invalid status" error. The 0-based base is stated in the message.
 func TestReviewResolve_NonNumericIndexNamesExpectedForm(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	findings := filepath.Join(dir, "f.ndjson")
 	require.NoError(t, os.WriteFile(findings, []byte(`{"severity":"low","finding":"x"}`+"\n"), 0o600))
@@ -49,6 +51,7 @@ func TestReviewResolve_NonNumericIndexNamesExpectedForm(t *testing.T) {
 // TestReviewResolve_HappyPathUnchanged confirms the findings-positional shape
 // still resolves a finding end-to-end after the §4.1/§4.3 changes.
 func TestReviewResolve_HappyPathUnchanged(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	findings := filepath.Join(dir, "f.ndjson")
 	require.NoError(t, os.WriteFile(findings, []byte(`{"severity":"low","finding":"x"}`+"\n"), 0o600))
@@ -62,6 +65,7 @@ func TestReviewResolve_HappyPathUnchanged(t *testing.T) {
 // a spec-looking positional where the findings file is expected exits 2 naming
 // the expected form.
 func TestReviewResolveAll_RejectsSpecPositionalExit2(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	spec := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(spec, []byte("# Spec\n## 1. A\nbody\n"), 0o600))
@@ -75,6 +79,7 @@ func TestReviewResolveAll_RejectsSpecPositionalExit2(t *testing.T) {
 // TestReviewResolve_ResolveUsageStatesZeroBased covers §4.3: the --help text
 // for --resolve states that indices are 0-based.
 func TestReviewResolve_ResolveUsageStatesZeroBased(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	stdout, _, code := runTP(t, dir, "review", "--help")
 	require.True(t, code == 0 || code == 2, "help should not hard-fail: code=%d", code)
@@ -85,6 +90,7 @@ func TestReviewResolve_ResolveUsageStatesZeroBased(t *testing.T) {
 // required for --record, --status, and --verify (all spec-scoped). The §4.1
 // changes must not relax these.
 func TestSpecScopedModesStillRequireSpec(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	findings := filepath.Join(dir, "f.ndjson")
 	require.NoError(t, os.WriteFile(findings, []byte(`{"severity":"low","finding":"x"}`+"\n"), 0o600))

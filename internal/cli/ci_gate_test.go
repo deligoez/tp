@@ -31,6 +31,7 @@ import (
 // legitimately adds installation steps around the commands, and pinning the
 // whole file would make every unrelated workflow edit a test failure.
 func TestCIRunsEveryStepOfTheProjectGate(t *testing.T) {
+	t.Parallel()
 	root := repoRoot(t)
 
 	raw, err := os.ReadFile(filepath.Join(root, ".tp", "config.json"))

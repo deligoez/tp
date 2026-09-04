@@ -46,6 +46,7 @@ func writeHarnessSpec(t *testing.T, dir string) string {
 // TestHarnessNote_StoredVerbatimPerPhase: --harness-note stores the note
 // verbatim on the just-recorded review and audit round independently.
 func TestHarnessNote_StoredVerbatimPerPhase(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	rec := writeHarnessSpec(t, dir)
 
@@ -64,6 +65,7 @@ func TestHarnessNote_StoredVerbatimPerPhase(t *testing.T) {
 // TestHarnessNote_OmittedStoresNothing: omitting --harness-note stores no note
 // (behavior exactly as before the field existed).
 func TestHarnessNote_OmittedStoresNothing(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	rec := writeHarnessSpec(t, dir)
 
@@ -77,6 +79,7 @@ func TestHarnessNote_OmittedStoresNothing(t *testing.T) {
 // TestHarnessNote_RequiresRecord: --harness-note without --record is a usage
 // error (exit 2) on both review and audit.
 func TestHarnessNote_RequiresRecord(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	writeHarnessSpec(t, dir)
 
@@ -102,6 +105,7 @@ func TestHarnessNote_RequiresRecord(t *testing.T) {
 // the sole outlier — went stale when 795060e and 5c4e4b2 repaired review's
 // guard too.
 func TestHarnessNote_RejectedByAuditMerge(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	writeHarnessSpec(t, dir)
 	in := filepath.Join(dir, "in.ndjson")
@@ -121,6 +125,7 @@ func TestHarnessNote_RejectedByAuditMerge(t *testing.T) {
 // the current round; --status agrees; harness_note is the verbatim latest note
 // and is omitted when not stale.
 func TestHarnessStale_RecordAndStatus(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	rec := writeHarnessSpec(t, dir)
 
@@ -163,6 +168,7 @@ func TestHarnessStale_RecordAndStatus(t *testing.T) {
 // against an audit round's. An audit round recorded between two identical
 // review notes does not make review stale.
 func TestHarnessStale_PerPhaseIsolation(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	rec := writeHarnessSpec(t, dir)
 
@@ -194,6 +200,7 @@ func TestHarnessStale_PerPhaseIsolation(t *testing.T) {
 // TestHarnessStale_AuditStatus: the audit phase surfaces harness_stale/note on
 // its own recorded rounds.
 func TestHarnessStale_AuditStatus(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	rec := writeHarnessSpec(t, dir)
 
@@ -214,6 +221,7 @@ func TestHarnessStale_AuditStatus(t *testing.T) {
 // --status and --record omit harness_note and harness_stale while retaining
 // next_action; non-compact output still carries both harness fields (§8.4).
 func TestCompact_ReviewOmitsHarnessKeepsNextAction(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	rec := writeHarnessSpec(t, dir)
 
@@ -262,6 +270,7 @@ func TestCompact_ReviewOmitsHarnessKeepsNextAction(t *testing.T) {
 // applies to audit --status and --record — harness_note/harness_stale omitted,
 // next_action retained (§8.4). nonblocking_open is review-only and never here.
 func TestCompact_AuditOmitsHarnessKeepsNextAction(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	rec := writeHarnessSpec(t, dir)
 
@@ -302,6 +311,7 @@ func TestCompact_AuditOmitsHarnessKeepsNextAction(t *testing.T) {
 // and survives --compact on both review --record and --status; accepted_open is
 // never emitted (§4.2, §8.4).
 func TestCompact_ReviewRetainsNonBlockingOpen(t *testing.T) {
+	t.Parallel()
 	dir := setupConvergeOnProject(t) // a single clean round converges
 	medium := `{"severity":"medium","category":"ambiguity","location":"L1","finding":"soft","suggestion":"clarify"}` + "\n"
 	f := filepath.Join(dir, "findings.ndjson")

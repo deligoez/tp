@@ -20,6 +20,7 @@ var selectorRows = []map[string]any{
 // and the last index resolve, one past the end does not, and a key is told from
 // an index by the colon alone.
 func TestAuditRowIndex_SelectorForms(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name     string
 		selector string
@@ -57,6 +58,7 @@ func TestAuditRowIndex_SelectorForms(t *testing.T) {
 // file holding no rows, and the index message stays readable rather than
 // pointing at a row that cannot exist.
 func TestAuditRowIndex_EmptyResultsFile(t *testing.T) {
+	t.Parallel()
 	empty := make([]map[string]any, 0)
 
 	index, usageErr := auditRowIndex(empty, "0")
@@ -71,6 +73,7 @@ func TestAuditRowIndex_EmptyResultsFile(t *testing.T) {
 // TestDispositionStatusOf covers the already-resolved refusal's reading of an
 // existing disposition, including the shapes it cannot read.
 func TestDispositionStatusOf(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "wontfix", dispositionStatusOf(map[string]any{"status": "wontfix"}))
 	assert.Equal(t, "unknown", dispositionStatusOf(map[string]any{"status": 7}))
 	assert.Equal(t, "unknown", dispositionStatusOf(map[string]any{}))
@@ -82,6 +85,7 @@ func TestDispositionStatusOf(t *testing.T) {
 // writes is the one tp review --resolve writes, so a durable-write predicate
 // reads one form whichever side produced it.
 func TestDisposition_ShapeMatchesReview(t *testing.T) {
+	t.Parallel()
 	d := disposition("duplicate", "same as item-4")
 	assert.Equal(t, "duplicate", d["status"])
 	assert.Equal(t, "same as item-4", d["evidence"])

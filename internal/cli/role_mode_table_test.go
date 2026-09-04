@@ -37,6 +37,7 @@ var (
 // name-class assertions in TestEveryLegalModeClassifiesTheNameItIsGiven are
 // what could have failed; this one is kept for the count, not for the class.
 func TestEveryLegalModeEmitsExactlyOnePrompt(t *testing.T) {
+	t.Parallel()
 	dir, cases := legalModeCases(t)
 
 	for name, c := range cases {
@@ -63,6 +64,7 @@ func TestEveryLegalModeEmitsExactlyOnePrompt(t *testing.T) {
 // discriminating: the mode's own name proves nothing, because it is what an
 // ignored flag produces too.
 func TestEveryLegalModeClassifiesTheNameItIsGiven(t *testing.T) {
+	t.Parallel()
 	dir, cases := legalModeCases(t)
 
 	for name, c := range cases {
@@ -157,6 +159,7 @@ func legalModeCases(t *testing.T) (dir string, cases map[string]legalModeCase) {
 // than restating it. Widening this one belongs to whichever release revisits
 // the mode table; naming that release here is a pointer that rots, and has.
 func TestModeTableCoversEveryFlagEachCommandRegisters(t *testing.T) {
+	t.Parallel()
 	// Flags that select a MODE, as opposed to flags that shape one. The split
 	// is the same one §4.2.2 draws: a mode decides whether prompts are emitted
 	// at all, so it is a mode flag exactly when it belongs in one of the two

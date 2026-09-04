@@ -40,6 +40,7 @@ func bookkeepingByPath(res map[string]any) map[string]map[string]any {
 // modified task file (closed task) appears in bookkeeping with kind=closure and
 // ref=task id, NOT in changes, and raises no unexplained-changes blocker.
 func TestResume_Bookkeeping_ClosureForClosedTaskFile(t *testing.T) {
+	t.Parallel()
 	dir := setupHCRepoWithClosedTask(t)
 
 	res := resumeResult(t, dir)
@@ -60,6 +61,7 @@ func TestResume_Bookkeeping_ClosureForClosedTaskFile(t *testing.T) {
 // TestResume_Bookkeeping_RoundFile covers §5.2: a dirty .tp-review/ round file
 // is bookkeeping with kind=round and ref=round number parsed from the filename.
 func TestResume_Bookkeeping_RoundFile(t *testing.T) {
+	t.Parallel()
 	dir := setupHCRepoWithClosedTask(t)
 	reviewDir := filepath.Join(dir, ".tp-review", "spec")
 	require.NoError(t, os.MkdirAll(reviewDir, 0o755))
@@ -79,6 +81,7 @@ func TestResume_Bookkeeping_RoundFile(t *testing.T) {
 // TestResume_Bookkeeping_ConfigFile covers §5.2: a dirty .tp/ state file is
 // bookkeeping with kind=config and ref=path basename.
 func TestResume_Bookkeeping_ConfigFile(t *testing.T) {
+	t.Parallel()
 	dir := setupHCRepoWithClosedTask(t)
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".tp"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, ".tp", "config.json"), []byte("{}\n"), 0o600))
@@ -94,6 +97,7 @@ func TestResume_Bookkeeping_ConfigFile(t *testing.T) {
 // TestResume_Bookkeeping_EmptyWhenClean covers §5.2: bookkeeping is [] when no
 // tp-owned file is dirty.
 func TestResume_Bookkeeping_EmptyWhenClean(t *testing.T) {
+	t.Parallel()
 	dir := newResumeRepo(t) // committed, clean working tree
 	res := resumeResult(t, dir)
 	assert.Equal(t, []any{}, res["bookkeeping"], "bookkeeping is [] when no tp-owned file is dirty")
@@ -102,6 +106,7 @@ func TestResume_Bookkeeping_EmptyWhenClean(t *testing.T) {
 // TestResume_Guidance_PresentAtImplement covers the execution-model guidance
 // note: it is emitted when phase is implement.
 func TestResume_Guidance_PresentAtImplement(t *testing.T) {
+	t.Parallel()
 	dir := setupHCRepoWithClosedTask(t) // t2 open -> implement phase
 	res := resumeResult(t, dir)
 	assert.Equal(t, "implement", res["phase"])
@@ -113,6 +118,7 @@ func TestResume_Guidance_PresentAtImplement(t *testing.T) {
 // TestResume_Guidance_AbsentOutsideImplement covers the guidance note's absence
 // outside the implement phase.
 func TestResume_Guidance_AbsentOutsideImplement(t *testing.T) {
+	t.Parallel()
 	// Zero tasks, no review state -> review phase; no guidance.
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# S\n"), 0o600))
@@ -129,6 +135,7 @@ func TestResume_Guidance_AbsentOutsideImplement(t *testing.T) {
 // TestResume_BookkeepingAndGuidance_SurviveCompact covers §8.4: both bookkeeping
 // and the guidance note survive --compact.
 func TestResume_BookkeepingAndGuidance_SurviveCompact(t *testing.T) {
+	t.Parallel()
 	dir := setupHCRepoWithClosedTask(t) // implement phase + dirty task file
 
 	out, stderr, code := runTP(t, dir, "resume", "--compact")

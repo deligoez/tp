@@ -51,6 +51,7 @@ func groundFloorSectionOf(t *testing.T, specPath string) string {
 // paragraph re-adding the instruction elsewhere in the section passes both. It
 // catches the sentence being deleted or reworded, which is what it is for.
 func TestACutUnitIsGroundedUnderItsOwnIdAndNotUnderNull(t *testing.T) {
+	t.Parallel()
 	floor := []engine.FloorIndexRow{
 		{ID: "u1", Anchor: "§1", TextSHA: "0123456789ab", Ordinal: 1, Bytes: 12},
 		{ID: "u2", Anchor: "§1", TextSHA: "", Ordinal: 0},
@@ -102,6 +103,7 @@ func TestACutUnitIsGroundedUnderItsOwnIdAndNotUnderNull(t *testing.T) {
 // search for the word: a prompt naming a mode that does not exist is worse than
 // one naming none.
 func TestThePromptNamesUnitsAndMeasuresTheTextThatModePrints(t *testing.T) {
+	t.Parallel()
 	source := "# Fixture\n\n## 1. Claims\n\n> The cap is `10` files, and the budget is 28800\n> seconds in every run.\n"
 
 	units := engine.FloorUnitRows(source)
@@ -167,6 +169,7 @@ func groundSHAForID(t *testing.T, index []engine.FloorIndexRow, id string) strin
 // Contains/NotContains below is corroboration that this repair is still in it —
 // it catches the sentence being deleted or reverted, and nothing else.
 func TestTheListingAndTheIndexAgreeOnlyWhileTheSpecHasNotMoved(t *testing.T) {
+	t.Parallel()
 	// The opening sentence carries no digit, no backtick and no listed verb, so
 	// the arms cut it. That is not decoration: it is what makes the unedited arm
 	// discriminating. Measured — on a fixture whose every unit is in the floor,

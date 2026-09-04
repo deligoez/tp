@@ -52,6 +52,7 @@ const (
 // merge: the payload names every input with its own parsed and skipped counts,
 // and a file that lost some lines but kept others still exits 0.
 func TestReviewMerge_InputsReportPerFileCounts(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{
@@ -76,6 +77,7 @@ func TestReviewMerge_InputsReportPerFileCounts(t *testing.T) {
 // set, so the merge exits 1 instead of letting --record freeze an undercounted
 // round.
 func TestReviewMerge_DroppedRoleExitsOne(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{goodFinding1, goodFinding2})
@@ -97,6 +99,7 @@ func TestReviewMerge_DroppedRoleExitsOne(t *testing.T) {
 // TestReviewMerge_SoleMalformedLineExitsOne covers test 49's second half for
 // the review merge: one input, one content line, malformed.
 func TestReviewMerge_SoleMalformedLineExitsOne(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{`not json at all`})
 
@@ -109,6 +112,7 @@ func TestReviewMerge_SoleMalformedLineExitsOne(t *testing.T) {
 // zero-byte file stays the documented way a role reports nothing found — so a
 // clean round is unaffected.
 func TestReviewMerge_BlankAndZeroByteInputsExitZero(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	blank := filepath.Join(dir, "blank.ndjson")
@@ -128,6 +132,7 @@ func TestReviewMerge_BlankAndZeroByteInputsExitZero(t *testing.T) {
 // the same rule applies to both, because an unattended driver reads the exit
 // code alone.
 func TestAuditMerge_InputsReportPerFileCounts(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	f1 := writeFindingsFile(t, dir, "a1.ndjson", []string{
@@ -149,6 +154,7 @@ func TestAuditMerge_InputsReportPerFileCounts(t *testing.T) {
 // TestAuditMerge_DroppedRoleExitsOne covers test 32's exit rule for the audit
 // merge.
 func TestAuditMerge_DroppedRoleExitsOne(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	f1 := writeFindingsFile(t, dir, "a1.ndjson", []string{goodAuditRow1, goodAuditRow2})
@@ -166,6 +172,7 @@ func TestAuditMerge_DroppedRoleExitsOne(t *testing.T) {
 // TestAuditMerge_BlankAndZeroByteInputsExitZero covers test 49's first half for
 // the audit merge.
 func TestAuditMerge_BlankAndZeroByteInputsExitZero(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	blank := filepath.Join(dir, "blank.ndjson")
@@ -186,6 +193,7 @@ func TestAuditMerge_BlankAndZeroByteInputsExitZero(t *testing.T) {
 // to -o, so an operator can read what did parse while the driver reads the
 // non-zero code.
 func TestMerge_DroppedInputStillWritesOutput(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{goodFinding1, goodFinding2})

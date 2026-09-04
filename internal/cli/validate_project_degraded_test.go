@@ -25,6 +25,7 @@ import (
 // stderr is deliberately not the assertion. It already carried both cases, and
 // --quiet erases it; the agent-facing payload is what a driver branches on.
 func TestValidateProject_UnreadableConfigIsNotReportedAsClean(t *testing.T) {
+	t.Parallel()
 	if os.Geteuid() == 0 {
 		t.Skip("root can read a 0000 directory, so the stat cannot be made to fail")
 	}
@@ -56,6 +57,7 @@ func TestValidateProject_UnreadableConfigIsNotReportedAsClean(t *testing.T) {
 // know what the project's policy is, so every deviation silently becomes a
 // non-deviation and the payload says the project is clean.
 func TestValidateProject_MalformedConfigIsNotReportedAsClean(t *testing.T) {
+	t.Parallel()
 	dir, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".tp"), 0o755))

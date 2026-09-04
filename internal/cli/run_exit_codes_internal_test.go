@@ -98,6 +98,7 @@ func declaredStopReasons(t *testing.T) []engine.StopReason {
 // declared reason is missing a mapping, and no mapping names a reason the
 // engine does not declare.
 func TestRunExitCode_CoversEveryDeclaredStopReason(t *testing.T) {
+	t.Parallel()
 	declared := declaredStopReasons(t)
 
 	seen := make(map[engine.StopReason]bool, len(declared))
@@ -122,6 +123,7 @@ func TestRunExitCode_CoversEveryDeclaredStopReason(t *testing.T) {
 
 // The mapping itself, over the whole vocabulary: exactly one reason exits 0.
 func TestRunExitCode_ZeroOnConvergedAndFourOnEveryOther(t *testing.T) {
+	t.Parallel()
 	// The two codes are section 3.4's literals, pinned here so a renumbered
 	// constant is caught rather than carried along by both sides at once.
 	require.Equal(t, 0, ExitSuccess)
@@ -147,6 +149,7 @@ func TestRunExitCode_ZeroOnConvergedAndFourOnEveryOther(t *testing.T) {
 // rather than a list of the eight, and it is what distinguishes the rule from
 // code that returns 4 for the eight it happens to know by name.
 func TestRunExitCode_AnUnnamedReasonIsNotConvergence(t *testing.T) {
+	t.Parallel()
 	for _, unnamed := range []engine.StopReason{"", "Converged", "converged ", "CONVERGED", "cap_units", "done", "released"} {
 		require.False(t, unnamed.Known(), "%q is outside the vocabulary", unnamed)
 		assert.Equal(t, ExitState, runExitCode(unnamed),

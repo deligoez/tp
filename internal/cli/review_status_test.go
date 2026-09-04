@@ -11,6 +11,7 @@ import (
 )
 
 func TestReviewStatus_EmptyStateFullShape(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 
@@ -30,6 +31,7 @@ func TestReviewStatus_EmptyStateFullShape(t *testing.T) {
 }
 
 func TestReviewStatus_RoundsAndConvergence(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 
@@ -56,6 +58,7 @@ func TestReviewStatus_RoundsAndConvergence(t *testing.T) {
 }
 
 func TestReviewStatus_CheckRunsChecksAndGatesExit(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 	// task file adjacent to spec so workflow resolution finds the checks
@@ -96,6 +99,7 @@ func TestReviewStatus_CheckRunsChecksAndGatesExit(t *testing.T) {
 }
 
 func TestReviewStatus_FlagRules(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 

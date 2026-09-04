@@ -12,6 +12,7 @@ import (
 // rolelessRows tracker so the wording cannot drift apart per phase — which is
 // why both phases run the same assertion body.
 func TestReviewRecordRolelessRowsAdviseOnce(t *testing.T) {
+	t.Parallel()
 	assertRolelessRowsAdviseOnce(t, "review",
 		`{"severity":"low","category":"consistency","location":"L1","finding":"f","suggestion":"s"}`,
 		"findings")

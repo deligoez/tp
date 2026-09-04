@@ -92,6 +92,7 @@ func groundEmit(t *testing.T, dir string) map[string]any {
 // os.Stat calls cannot see a third file appear, and the file this release must
 // not write is exactly the one a future edit would add without noticing.
 func TestGroundEmitCreatesTheStateDirectoryAndWritesTheSnapshotAndTheFloor(t *testing.T) {
+	t.Parallel()
 	dir := writeGroundFixture(t)
 	_, err := os.Stat(filepath.Join(dir, ".tp-review"))
 	require.True(t, os.IsNotExist(err), "the fixture must start with no state directory")
@@ -127,6 +128,7 @@ func TestGroundEmitCreatesTheStateDirectoryAndWritesTheSnapshotAndTheFloor(t *te
 // a hard-coded string, and the round file planted here is also the input that
 // makes N advance.
 func TestGroundEmitNamesTheScratchFileAndNotTheRecordedRound(t *testing.T) {
+	t.Parallel()
 	dir := writeGroundFixture(t)
 
 	out := groundEmit(t, dir)
@@ -160,6 +162,7 @@ func TestGroundEmitNamesTheScratchFileAndNotTheRecordedRound(t *testing.T) {
 // pass this test. The fixture asserts that its own edit moves the floor rather
 // than assuming it.
 func TestTheFloorOnDiskIsFrozenUntilTheNextEmission(t *testing.T) {
+	t.Parallel()
 	dir := writeGroundFixture(t)
 	groundEmit(t, dir)
 
@@ -197,6 +200,7 @@ func TestTheFloorOnDiskIsFrozenUntilTheNextEmission(t *testing.T) {
 // byte for byte, so a unit grading from the prompt and a --record validating
 // against the file cannot be reading two different floors.
 func TestTheEmittedPromptCarriesTheFloorIndexItWrote(t *testing.T) {
+	t.Parallel()
 	dir := writeGroundFixture(t)
 	out := groundEmit(t, dir)
 

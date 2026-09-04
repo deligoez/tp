@@ -23,6 +23,7 @@ import (
 // This test is an in-package test because the stamp is unexported and no other
 // test pinned it, which is how the contradiction survived.
 func TestOutputContractSeverityEnumAgreesWithTheAuditSchema(t *testing.T) {
+	t.Parallel()
 	auditPrompt := renderAuditOutputSchema() + outputContractInstruction("go-safety", engine.PhaseAuditors)
 
 	assert.Contains(t, auditPrompt, "one of error|warning|info",

@@ -20,6 +20,7 @@ import (
 // was wrong was reporting success without saying the value is shadowed.
 
 func TestSetProjectWorkflow_WarnsWhenTheWriteIsShadowed(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"),
 		[]byte("# Spec\n## 1. A\ncontent\n"), 0o600))
@@ -45,6 +46,7 @@ func TestSetProjectWorkflow_WarnsWhenTheWriteIsShadowed(t *testing.T) {
 }
 
 func TestSetProjectWorkflow_SilentWhenTheWriteResolves(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"),
 		[]byte("# Spec\n## 1. A\ncontent\n"), 0o600))

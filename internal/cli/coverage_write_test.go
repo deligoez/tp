@@ -43,6 +43,7 @@ func readCoverage(t *testing.T, dir string) map[string]any {
 
 // §7.1: tp init + tp add + tp validate is clean with no import round-trip.
 func TestAdd_ComputesCoverage_CleanValidate(t *testing.T) {
+	t.Parallel()
 	dir := initCoverageProject(t)
 	_, stderr, code := runTP(t, dir, "add",
 		`{"id":"setup","title":"Setup","estimate_minutes":5,"acceptance":"setup done","source_sections":["## 1. Setup"],"depends_on":[]}`)
@@ -66,6 +67,7 @@ func TestAdd_ComputesCoverage_CleanValidate(t *testing.T) {
 
 // §7.1: removing a task that mapped a heading drops the mapped count.
 func TestRemove_RecomputesCoverage(t *testing.T) {
+	t.Parallel()
 	dir := initCoverageProject(t)
 	// Two tasks, each mapping a distinct heading → mapped_sections == 2.
 	_, stderr, code := runTP(t, dir, "add",
@@ -83,6 +85,7 @@ func TestRemove_RecomputesCoverage(t *testing.T) {
 
 // §7.1: setting an anchor field recomputes coverage; a non-anchor field does not.
 func TestSet_SourceSections_RecomputesCoverage(t *testing.T) {
+	t.Parallel()
 	dir := initCoverageProject(t)
 	// Anchor via source_lines only → no heading mapped yet.
 	_, stderr, code := runTP(t, dir, "add",
@@ -107,6 +110,7 @@ func TestSet_SourceSections_RecomputesCoverage(t *testing.T) {
 // §7.2: when the spec cannot be read, coverage is left untouched and
 // tp validate's coverage finding hints the unreadable spec path.
 func TestValidate_UnreadableSpec_HintsPathAndLeavesCoverageUntouched(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	// init against spec.md but never create the file → spec is unreadable on
 	// every write, yet the task file lands at spec.tasks.json (the usual name).

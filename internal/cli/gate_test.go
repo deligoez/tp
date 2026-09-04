@@ -32,6 +32,7 @@ func showTask(t *testing.T, dir, id string) map[string]any {
 }
 
 func TestGate_DoneRunsGateAndStampsGatePassedAt(t *testing.T) {
+	t.Parallel()
 	dir := setupProjectWithGate(t, "echo ok")
 	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
 
@@ -44,6 +45,7 @@ func TestGate_DoneRunsGateAndStampsGatePassedAt(t *testing.T) {
 }
 
 func TestGate_FailureClosesNothingWithExit4(t *testing.T) {
+	t.Parallel()
 	dir := setupProjectWithGate(t, "echo boom; exit 7")
 	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
 
@@ -63,6 +65,7 @@ func TestGate_FailureClosesNothingWithExit4(t *testing.T) {
 }
 
 func TestGate_MultiIDRunsGateOnce(t *testing.T) {
+	t.Parallel()
 	dir := setupProjectWithGate(t, "echo run >> gate_runs.txt")
 	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"A complete","source_sections":["s1"]}`)
 	addTask(t, dir, `{"id":"b","title":"B","depends_on":[],"estimate_minutes":5,"acceptance":"B complete","source_sections":["s1"]}`)
@@ -82,6 +85,7 @@ func TestGate_MultiIDRunsGateOnce(t *testing.T) {
 }
 
 func TestGate_BatchRunsGateOnceBeforeEntries(t *testing.T) {
+	t.Parallel()
 	dir := setupProjectWithGate(t, "echo run >> gate_runs.txt")
 	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"A complete","source_sections":["s1"]}`)
 	addTask(t, dir, `{"id":"b","title":"B","depends_on":["a"],"estimate_minutes":5,"acceptance":"B complete","source_sections":["s1"]}`)
@@ -106,6 +110,7 @@ func TestGate_BatchRunsGateOnceBeforeEntries(t *testing.T) {
 }
 
 func TestGate_BatchFailureFailsEveryEntry(t *testing.T) {
+	t.Parallel()
 	dir := setupProjectWithGate(t, "exit 3")
 	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"A complete","source_sections":["s1"]}`)
 	addTask(t, dir, `{"id":"b","title":"B","depends_on":[],"estimate_minutes":5,"acceptance":"B complete","source_sections":["s1"]}`)
@@ -132,6 +137,7 @@ func TestGate_BatchFailureFailsEveryEntry(t *testing.T) {
 }
 
 func TestGate_CloseRunsGateAndStamps(t *testing.T) {
+	t.Parallel()
 	dir := setupProjectWithGate(t, "echo ok")
 	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
 	_, _, code := runTP(t, dir, "claim", "t1")
@@ -146,6 +152,7 @@ func TestGate_CloseRunsGateAndStamps(t *testing.T) {
 }
 
 func TestSkipGate_RecordsReasonAndSkipsExecution(t *testing.T) {
+	t.Parallel()
 	dir := setupProjectWithGate(t, "echo run >> gate_runs.txt")
 	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
 
@@ -162,6 +169,7 @@ func TestSkipGate_RecordsReasonAndSkipsExecution(t *testing.T) {
 }
 
 func TestSkipGate_UsageErrors(t *testing.T) {
+	t.Parallel()
 	dir := setupProjectWithGate(t, "echo ok")
 	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
 
@@ -176,6 +184,7 @@ func TestSkipGate_UsageErrors(t *testing.T) {
 }
 
 func TestSkipGate_RecordedEvenWithoutGate(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t) // no quality gate configured
 	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
 
@@ -187,6 +196,7 @@ func TestSkipGate_RecordedEvenWithoutGate(t *testing.T) {
 }
 
 func TestSkipGate_BatchEntriesCloseDespiteGateFailure(t *testing.T) {
+	t.Parallel()
 	dir := setupProjectWithGate(t, "exit 3")
 	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"A complete","source_sections":["s1"]}`)
 	addTask(t, dir, `{"id":"b","title":"B","depends_on":[],"estimate_minutes":5,"acceptance":"B complete","source_sections":["s1"]}`)
@@ -214,6 +224,7 @@ func TestSkipGate_BatchEntriesCloseDespiteGateFailure(t *testing.T) {
 }
 
 func TestSkipGate_BatchAllSkipNeverRunsGate(t *testing.T) {
+	t.Parallel()
 	dir := setupProjectWithGate(t, "echo run >> gate_runs.txt")
 	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"A complete","source_sections":["s1"]}`)
 	addTask(t, dir, `{"id":"b","title":"B","depends_on":[],"estimate_minutes":5,"acceptance":"B complete","source_sections":["s1"]}`)
@@ -233,6 +244,7 @@ func TestSkipGate_BatchAllSkipNeverRunsGate(t *testing.T) {
 }
 
 func TestSkipGate_BatchEmptySkipGateFailsEntry(t *testing.T) {
+	t.Parallel()
 	dir := setupProjectWithGate(t, "echo ok")
 	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"A complete","source_sections":["s1"]}`)
 
@@ -252,6 +264,7 @@ func TestSkipGate_BatchEmptySkipGateFailsEntry(t *testing.T) {
 }
 
 func TestSkipGate_CloseRecordsReason(t *testing.T) {
+	t.Parallel()
 	dir := setupProjectWithGate(t, "echo run >> gate_runs.txt")
 	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
 	_, _, code := runTP(t, dir, "claim", "t1")
@@ -269,6 +282,7 @@ func TestSkipGate_CloseRecordsReason(t *testing.T) {
 }
 
 func TestGateBatch_CheapCheckFailuresDoNotTriggerGate(t *testing.T) {
+	t.Parallel()
 	dir := setupProjectWithGate(t, "echo run >> gate_runs.txt")
 	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"First thing. Second thing.","source_sections":["s1"]}`)
 
@@ -292,6 +306,7 @@ func TestGateBatch_CheapCheckFailuresDoNotTriggerGate(t *testing.T) {
 }
 
 func TestGateBatch_MixedCheapFailureAndSurvivorRunsGateOnce(t *testing.T) {
+	t.Parallel()
 	dir := setupProjectWithGate(t, "echo run >> gate_runs.txt")
 	addTask(t, dir, `{"id":"a","title":"A","depends_on":[],"estimate_minutes":5,"acceptance":"First thing. Second thing.","source_sections":["s1"]}`)
 	addTask(t, dir, `{"id":"b","title":"B","depends_on":[],"estimate_minutes":5,"acceptance":"B complete","source_sections":["s1"]}`)
@@ -317,6 +332,7 @@ func TestGateBatch_MixedCheapFailureAndSurvivorRunsGateOnce(t *testing.T) {
 }
 
 func TestGatePassedCompat_IgnoredWithInfoWhenGateSet(t *testing.T) {
+	t.Parallel()
 	dir := setupProjectWithGate(t, "echo ok")
 	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
 
@@ -330,6 +346,7 @@ func TestGatePassedCompat_IgnoredWithInfoWhenGateSet(t *testing.T) {
 }
 
 func TestGatePassedCompat_AttestationPreservedWithoutGate(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t) // no quality gate configured
 	addTask(t, dir, `{"id":"t1","title":"Task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
 

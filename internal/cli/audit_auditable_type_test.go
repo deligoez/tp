@@ -15,6 +15,7 @@ import "testing"
 // are the cases that must survive — they are project configuration a spec can
 // legitimately govern.
 func TestIsAuditableType_SkipsNonSourceMetadata(t *testing.T) {
+	t.Parallel()
 	skipped := []string{
 		".gitignore",
 		".gitattributes",

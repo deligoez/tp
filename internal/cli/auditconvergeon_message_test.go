@@ -91,6 +91,7 @@ func fenceRefusal(t *testing.T, dir string, args ...string) (msg, hint string) {
 // every positive assertion here and tell a unit at tp set to go and edit a
 // document that is not what refused.
 func TestAuditConvergeOnFence_RefusalNamesEveryExitAndItsCondition(t *testing.T) {
+	t.Parallel()
 	sinks := []struct {
 		name  string
 		build func(t *testing.T) (dir string, args []string)

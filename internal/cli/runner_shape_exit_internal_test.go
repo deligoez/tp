@@ -19,6 +19,7 @@ import (
 // wait can change the answer. The classification is asserted through
 // dispatchError because Execute itself ends in os.Exit.
 func TestDispatchError_RunnerShapeIsUsage(t *testing.T) {
+	t.Parallel()
 	// Test 56's two named usage errors, produced by the resolver rather than
 	// hand-built, so the mapping is asserted over the errors tp really returns.
 	for _, raw := range []string{
@@ -42,6 +43,7 @@ func TestDispatchError_RunnerShapeIsUsage(t *testing.T) {
 // resolves a runner is several frames below the dispatcher, and %w is how it
 // gets there.
 func TestDispatchError_RunnerShapeSurvivesWrapping(t *testing.T) {
+	t.Parallel()
 	_, err := engine.ResolveRunner(json.RawMessage(`{}`), engine.UnitAuditRole)
 	require.Error(t, err)
 
@@ -57,6 +59,7 @@ func TestDispatchError_RunnerShapeSurvivesWrapping(t *testing.T) {
 // two lock errors are still state errors and everything else is still the
 // code-1 default.
 func TestDispatchError_NeighbouringClassificationsUnchanged(t *testing.T) {
+	t.Parallel()
 	lockCode, _, lockHint := dispatchError(&engine.LockTimeoutError{LockPath: "/tmp/x.lock", Elapsed: time.Second})
 	assert.Equal(t, ExitState, lockCode, "a write-lock timeout is still a state error")
 	assert.NotEmpty(t, lockHint)

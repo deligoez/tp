@@ -38,6 +38,7 @@ func extractProject(t *testing.T, value string, bases ...string) string {
 // (§7's closing note): the fence is a separate decision and this test is about
 // the hoist, so it runs with TP_UNATTENDED unset.
 func TestConfigExtract_HoistsAuditConvergeOn(t *testing.T) {
+	t.Parallel()
 	dir := extractProject(t, "blocking", "a", "b")
 
 	out, stderr, code := runTPFence(t, dir, false, "config", "--extract")
@@ -71,6 +72,7 @@ func TestConfigExtract_HoistsAuditConvergeOn(t *testing.T) {
 // task file, because tp config resolves against the discovered one and the
 // unanimity the test above needs is not what this one is measuring.
 func TestConfigExtract_AuditConvergeOnStillResolvesAfterTheHoist(t *testing.T) {
+	t.Parallel()
 	dir := extractProject(t, "blocking", "a")
 
 	before := resolvedAuditConvergeOn(t, dir)
@@ -91,6 +93,7 @@ func TestConfigExtract_AuditConvergeOnStillResolvesAfterTheHoist(t *testing.T) {
 // which is where tp validate --project refuses, since §2 places the literal's
 // refusal at the write sinks (exit 2) and the consuming audit sinks (exit 1).
 func TestValidateProject_AuditConvergeOn_AcceptsLegalRejectsIllegal(t *testing.T) {
+	t.Parallel()
 	deviationFields := func(t *testing.T, stdout string) []string {
 		t.Helper()
 		var payload struct {

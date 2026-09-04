@@ -41,6 +41,7 @@ func unemittedRecognised(t *testing.T, payload map[string]any) (name, reason str
 // prompt is skipped, and under an exit-2 rule that unit's own first command
 // would fail before it did any work.
 func TestRecognisedUnemittedRoleExitsZeroWithEmptyPrompts(t *testing.T) {
+	t.Parallel()
 	// Round 1: the only round that skips a role in this repository, so the
 	// case the property describes is actually present.
 	spec := relocatedSpecAtRoundOne(t, "spec/0.36.0.md")
@@ -81,6 +82,7 @@ func TestRecognisedUnemittedRoleExitsZeroWithEmptyPrompts(t *testing.T) {
 // auditor's own `tp review <spec> --role <id>` would exit 2 -- a usage error for
 // a name the repository's own corpus defines.
 func TestRoleInTheOtherPhasesCorpusIsRecognised(t *testing.T) {
+	t.Parallel()
 	spec := relocatedSpec(t, "spec/0.36.0.md")
 	dir := filepath.Dir(spec)
 
@@ -107,6 +109,7 @@ func TestRoleInTheOtherPhasesCorpusIsRecognised(t *testing.T) {
 // unknown role, not an absent flag, so "flag given empty" and "flag absent" are
 // never the same command.
 func TestEmptyRoleIsRefusedAsUnknown(t *testing.T) {
+	t.Parallel()
 	spec := relocatedSpec(t, "spec/0.36.0.md")
 	dir := filepath.Dir(spec)
 

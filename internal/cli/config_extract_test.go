@@ -9,6 +9,7 @@ import (
 )
 
 func TestComputeCommonPolicy_HoistsUnanimousFields(t *testing.T) {
+	t.Parallel()
 	overrides := []model.WorkflowOverride{
 		{ReviewMaxRounds: iptr(8), GateTimeoutSeconds: iptr(600), QualityGate: sptr("go test ./...")},
 		{ReviewMaxRounds: iptr(8), GateTimeoutSeconds: iptr(900), QualityGate: sptr("go test ./...")},
@@ -24,6 +25,7 @@ func TestComputeCommonPolicy_HoistsUnanimousFields(t *testing.T) {
 }
 
 func TestComputeCommonPolicy_AbsentFromAnyNotHoisted(t *testing.T) {
+	t.Parallel()
 	overrides := []model.WorkflowOverride{
 		{ReviewMaxRounds: iptr(8)},
 		{}, // absent
@@ -33,6 +35,7 @@ func TestComputeCommonPolicy_AbsentFromAnyNotHoisted(t *testing.T) {
 }
 
 func TestComputeCommonPolicy_NothingToHoist(t *testing.T) {
+	t.Parallel()
 	overrides := []model.WorkflowOverride{
 		{ReviewMaxRounds: iptr(8)},
 		{ReviewMaxRounds: iptr(3)}, // diverges → no common field
@@ -42,6 +45,7 @@ func TestComputeCommonPolicy_NothingToHoist(t *testing.T) {
 }
 
 func TestMergeCommon_PreservesOtherFields(t *testing.T) {
+	t.Parallel()
 	dst := model.WorkflowOverride{AuditMaxRounds: iptr(3)} // hand-set project field
 	mergeCommon(&dst, &model.WorkflowOverride{ReviewMaxRounds: iptr(8)})
 	require.NotNil(t, dst.ReviewMaxRounds)
@@ -51,6 +55,7 @@ func TestMergeCommon_PreservesOtherFields(t *testing.T) {
 }
 
 func TestComputeCommonPolicy_HoistsUnanimousReviewConvergeOn(t *testing.T) {
+	t.Parallel()
 	overrides := []model.WorkflowOverride{
 		{ReviewConvergeOn: sptr("all")},
 		{ReviewConvergeOn: sptr("all")},
@@ -62,6 +67,7 @@ func TestComputeCommonPolicy_HoistsUnanimousReviewConvergeOn(t *testing.T) {
 }
 
 func TestComputeCommonPolicy_ReviewConvergeOnNotHoistedWhenDivergentOrAbsent(t *testing.T) {
+	t.Parallel()
 	divergent := computeCommonPolicy([]model.WorkflowOverride{
 		{ReviewConvergeOn: sptr("all")},
 		{ReviewConvergeOn: sptr("blocking")},
@@ -76,6 +82,7 @@ func TestComputeCommonPolicy_ReviewConvergeOnNotHoistedWhenDivergentOrAbsent(t *
 }
 
 func TestMergeCommon_WritesReviewConvergeOn(t *testing.T) {
+	t.Parallel()
 	dst := model.WorkflowOverride{AuditMaxRounds: iptr(3)} // hand-set project field
 	mergeCommon(&dst, &model.WorkflowOverride{ReviewConvergeOn: sptr("all")})
 	require.NotNil(t, dst.ReviewConvergeOn)
@@ -92,6 +99,7 @@ func TestMergeCommon_WritesReviewConvergeOn(t *testing.T) {
 // either of the others is silently worse: strip-without-write destroys the
 // value outright.
 func TestComputeCommonPolicy_HoistsUnanimousAuditConvergeOn(t *testing.T) {
+	t.Parallel()
 	common := computeCommonPolicy([]model.WorkflowOverride{
 		{AuditConvergeOn: sptr("blocking")},
 		{AuditConvergeOn: sptr("blocking")},
@@ -102,6 +110,7 @@ func TestComputeCommonPolicy_HoistsUnanimousAuditConvergeOn(t *testing.T) {
 }
 
 func TestComputeCommonPolicy_AuditConvergeOnNotHoistedWhenDivergentOrAbsent(t *testing.T) {
+	t.Parallel()
 	divergent := computeCommonPolicy([]model.WorkflowOverride{
 		{AuditConvergeOn: sptr("all")},
 		{AuditConvergeOn: sptr("blocking")},
@@ -117,6 +126,7 @@ func TestComputeCommonPolicy_AuditConvergeOnNotHoistedWhenDivergentOrAbsent(t *t
 }
 
 func TestMergeCommon_WritesAuditConvergeOn(t *testing.T) {
+	t.Parallel()
 	dst := model.WorkflowOverride{AuditMaxRounds: iptr(3)} // hand-set project field
 	mergeCommon(&dst, &model.WorkflowOverride{AuditConvergeOn: sptr("blocking")})
 	require.NotNil(t, dst.AuditConvergeOn)

@@ -32,6 +32,7 @@ func addTask(t *testing.T, dir, taskJSON string) {
 }
 
 func Test2CallWorkflow(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 
 	// Add 3 tasks: a, b depends on a, c depends on b
@@ -93,6 +94,7 @@ func Test2CallWorkflow(t *testing.T) {
 }
 
 func TestDoneSingleImplicitClaim(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 
 	addTask(t, dir, `{"id":"t1","title":"Solo task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
@@ -117,6 +119,7 @@ func TestDoneSingleImplicitClaim(t *testing.T) {
 }
 
 func TestNextWIPResume(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 
 	addTask(t, dir, `{"id":"a","title":"Task A","depends_on":[],"estimate_minutes":10,"acceptance":"A done","source_sections":["s1"]}`)
@@ -158,6 +161,7 @@ func TestNextWIPResume(t *testing.T) {
 }
 
 func TestListFilters(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 
 	// Add tasks with different statuses and tags
@@ -204,6 +208,7 @@ func TestListFilters(t *testing.T) {
 }
 
 func TestDoneBatchPartialFailure(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 
 	// Add 2 tasks
@@ -244,6 +249,7 @@ func TestDoneBatchPartialFailure(t *testing.T) {
 }
 
 func TestNilSlicesInJSON(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 
 	// Add 1 task with no dependents → blocks should be []
@@ -284,6 +290,7 @@ func TestNilSlicesInJSON(t *testing.T) {
 }
 
 func TestImportWorkflow(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	// Create a spec file
@@ -323,6 +330,7 @@ func TestImportWorkflow(t *testing.T) {
 }
 
 func TestDoneWithCommitAndGatePassed(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 
 	addTask(t, dir, `{"id":"gated","title":"Gated task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
@@ -343,6 +351,7 @@ func TestDoneWithCommitAndGatePassed(t *testing.T) {
 }
 
 func TestClaimMultipleIDs(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 
 	addTask(t, dir, `{"id":"m1","title":"Multi 1","depends_on":[],"estimate_minutes":5,"acceptance":"Done","source_sections":["s1"]}`)
@@ -365,6 +374,7 @@ func TestClaimMultipleIDs(t *testing.T) {
 }
 
 func TestPlanSpecExcerpt(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	// Create a spec with known content at specific lines
@@ -400,6 +410,7 @@ func TestPlanSpecExcerpt(t *testing.T) {
 }
 
 func TestSpecExcerptParity_SectionsOnly(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specContent := "# App\n\n## Models\n\nCreate a Task model.\n\n### Task Model\n\nTask has title and status.\n\n## API\n\nGET /tasks.\n"
 	specPath := filepath.Join(dir, "spec.md")
@@ -459,6 +470,7 @@ func TestSpecExcerptParity_SectionsOnly(t *testing.T) {
 }
 
 func TestValidateStrict(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	// Create a spec with NO headings so coverage validation passes cleanly
@@ -492,6 +504,7 @@ func TestValidateStrict(t *testing.T) {
 }
 
 func TestDoneBatchAllFail(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 
 	addTask(t, dir, `{"id":"fail1","title":"Fail task 1","depends_on":[],"estimate_minutes":5,"acceptance":"Very specific acceptance criteria that must be fully addressed","source_sections":["s1"]}`)
@@ -518,6 +531,7 @@ func TestDoneBatchAllFail(t *testing.T) {
 }
 
 func TestDoneBatchIdempotent(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 
 	addTask(t, dir, `{"id":"idem","title":"Idempotent task","depends_on":[],"estimate_minutes":5,"acceptance":"Task complete","source_sections":["s1"]}`)
@@ -543,6 +557,7 @@ func TestDoneBatchIdempotent(t *testing.T) {
 }
 
 func TestListTagFilter(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 
 	addTask(t, dir, `{"id":"auth1","title":"Auth login","tags":["auth"],"depends_on":[],"estimate_minutes":5,"acceptance":"Done","source_sections":["s1"]}`)
@@ -565,6 +580,7 @@ func TestListTagFilter(t *testing.T) {
 }
 
 func TestRemoveForceCleansDepsToEmptyArray(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 
 	addTask(t, dir, `{"id":"base","title":"Base task","estimate_minutes":3,"acceptance":"Base done.","source_sections":["# Test Spec"],"depends_on":[]}`)

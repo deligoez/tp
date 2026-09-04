@@ -14,6 +14,7 @@ import (
 // findings exist; standalone mode requires inputs; standalone never writes
 // state.
 func TestRegressionPrompt_AutoInclusion(t *testing.T) {
+	t.Parallel()
 	t.Run("appended on diff at round 2 with process-first instruction", func(t *testing.T) {
 		dir := t.TempDir()
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## 1. A\noriginal\n"), 0o600))

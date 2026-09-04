@@ -71,6 +71,7 @@ func holdTaskFileLock(t *testing.T, taskFilePath string) (release func()) {
 // mid-window check; a locked one parks in the retry backoff and only lands
 // after the release.
 func TestInit_WaitsForTaskFileWriteLock(t *testing.T) {
+	t.Parallel()
 	dir, taskFilePath := initLockSetup(t)
 	require.NoFileExists(t, taskFilePath, "the spec starts with no task file")
 
@@ -113,6 +114,7 @@ func TestInit_WaitsForTaskFileWriteLock(t *testing.T) {
 // it — exit 4 (STATE) carrying LockTimeoutError's message and hint, which name
 // the lock path and the elapsed wait.
 func TestInit_LockContentionTimeoutExitsFour(t *testing.T) {
+	t.Parallel()
 	dir, taskFilePath := initLockSetup(t)
 
 	// Shorten the lock timeout to 1s so the test stays fast. The target does
@@ -160,6 +162,7 @@ func assertLockTimeoutErrorObject(t *testing.T, stderr string) {
 // shell must contend for the task-file lock exactly as a bare init does, and
 // fail identically: exit 4 (STATE) with LockTimeoutError's message and hint.
 func TestAddSpec_LockContentionTimeoutExitsFour(t *testing.T) {
+	t.Parallel()
 	dir, taskFilePath := initLockSetup(t)
 
 	_, stderr, code := runTP(t, dir, "set", "--workflow", "--project", "lock_timeout_seconds=1")

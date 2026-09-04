@@ -17,6 +17,7 @@ import (
 // out of the emitted prompts with no signal at all. The read error must reach
 // the caller and abort with tp's file exit code, naming the path.
 func TestReviewUnreadableFindingsFileFailsLoudly(t *testing.T) {
+	t.Parallel()
 	if os.Geteuid() == 0 {
 		t.Skip("root reads a 0o000 file, so the open never fails")
 	}
@@ -40,6 +41,7 @@ func TestReviewUnreadableFindingsFileFailsLoudly(t *testing.T) {
 // regression path reads the same file through the same helper, so it must fail
 // the same way rather than report an empty fixed-findings list.
 func TestReviewRegressionUnreadableFindingsFileFailsLoudly(t *testing.T) {
+	t.Parallel()
 	if os.Geteuid() == 0 {
 		t.Skip("root reads a 0o000 file, so the open never fails")
 	}

@@ -21,6 +21,7 @@ func classRow(location, finding, class string) string {
 }
 
 func TestReport_ByClassAndCandidates(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	// Round 1: two-rounds-class appears once; five-times-class appears 5x;
@@ -76,6 +77,7 @@ func TestReport_ByClassAndCandidates(t *testing.T) {
 }
 
 func TestReport_MechanizeCandidates_TieBreakAlphabetical(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	// Both classes appear in 2 rounds with total 2 — tie broken by class name.
@@ -106,6 +108,7 @@ func TestReport_MechanizeCandidates_TieBreakAlphabetical(t *testing.T) {
 // mechanize rule or threshold field is added — the per-role overlap report already
 // surfaces repeated overlap.
 func TestReport_MechanizeRetainedNoFoundByThreshold(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	// Round 1: overlap-class is found by two roles at one (location, class) —

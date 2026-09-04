@@ -9,6 +9,7 @@ import (
 )
 
 func TestSlugifySubject(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name string
 		in   string
@@ -32,6 +33,7 @@ func TestSlugifySubject(t *testing.T) {
 }
 
 func TestSlugifySubject_Cap40(t *testing.T) {
+	t.Parallel()
 	var long strings.Builder
 	for range 50 {
 		long.WriteString("a")
@@ -41,6 +43,7 @@ func TestSlugifySubject_Cap40(t *testing.T) {
 }
 
 func TestFileCheckItems_StableAcrossReorder(t *testing.T) {
+	t.Parallel()
 	files := []engine.AuditFileEntry{
 		{Path: "internal/foo.go"},
 		{Path: "internal/bar.go"},
@@ -62,6 +65,7 @@ func TestFileCheckItems_StableAcrossReorder(t *testing.T) {
 }
 
 func TestFileCheckItems_CollisionSuffix(t *testing.T) {
+	t.Parallel()
 	files := []engine.AuditFileEntry{
 		{Path: "a_b.go"},
 		{Path: "a-b.go"},
@@ -76,6 +80,7 @@ func TestFileCheckItems_CollisionSuffix(t *testing.T) {
 }
 
 func TestFileCheckItems_AlwaysContainsLetter(t *testing.T) {
+	t.Parallel()
 	files := []engine.AuditFileEntry{{Path: "123.go"}}
 	items := fileCheckItems(files, "security")
 	assert.Regexp(t, "[a-z]", items[0].ItemID, "slug id always contains a letter")

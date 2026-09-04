@@ -10,6 +10,7 @@ import (
 )
 
 func TestDoneWarning_UnexplainedChangeWarnsButExits0(t *testing.T) {
+	t.Parallel()
 	dir := setupCommitProject(t, "t1")
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "stray.txt"), []byte("leftover"), 0o600))
 
@@ -23,6 +24,7 @@ func TestDoneWarning_UnexplainedChangeWarnsButExits0(t *testing.T) {
 }
 
 func TestDoneWarning_KeptChangeProducesNoWarning(t *testing.T) {
+	t.Parallel()
 	dir := setupCommitProject(t, "t1")
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "kept.txt"), []byte("k"), 0o600))
 	_, _, code := runTP(t, dir, "keep", "kept.txt", "intentional")

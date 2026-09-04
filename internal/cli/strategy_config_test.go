@@ -45,6 +45,7 @@ func writeStrategyProject(t *testing.T, workflow string) string {
 }
 
 func TestConfigCommitStrategyEffective(t *testing.T) {
+	t.Parallel()
 	dir := writeStrategyProject(t, "{}")
 
 	out, _, code := runTPHC(t, dir, "1", "config")
@@ -60,6 +61,7 @@ func TestConfigCommitStrategyEffective(t *testing.T) {
 }
 
 func TestConfigResolvedCommitStrategyDefault(t *testing.T) {
+	t.Parallel()
 	dir := writeStrategyProject(t, "{}")
 
 	out, _, code := runTPHC(t, dir, "0", "config", "--resolved")
@@ -73,6 +75,7 @@ func TestConfigResolvedCommitStrategyDefault(t *testing.T) {
 }
 
 func TestConfigUnrecognizedStrategyWarns(t *testing.T) {
+	t.Parallel()
 	dir := writeStrategyProject(t, `{"commit_strategy":"squash"}`)
 
 	out, stderr, code := runTPHC(t, dir, "0", "config")
@@ -84,6 +87,7 @@ func TestConfigUnrecognizedStrategyWarns(t *testing.T) {
 }
 
 func TestProjectCommitStrategySettableAndResolved(t *testing.T) {
+	t.Parallel()
 	dir := writeStrategyProject(t, "{}")
 
 	// §16.2: the project default is now settable via --project and writes
@@ -105,6 +109,7 @@ func TestProjectCommitStrategySettableAndResolved(t *testing.T) {
 }
 
 func TestProjectCommitStrategyRejectsInvalidValue(t *testing.T) {
+	t.Parallel()
 	dir := writeStrategyProject(t, "{}")
 
 	_, stderr, code := runTPHC(t, dir, "0", "set", "--workflow", "--project", "commit_strategy=squash")
@@ -113,6 +118,7 @@ func TestProjectCommitStrategyRejectsInvalidValue(t *testing.T) {
 }
 
 func TestTaskLevelCommitStrategyRefusalNamesProjectSetter(t *testing.T) {
+	t.Parallel()
 	dir := writeStrategyProject(t, "{}")
 
 	// §16.2: the task-file value stays init-authored; task-level set keeps its

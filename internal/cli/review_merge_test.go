@@ -47,6 +47,7 @@ func writeFindingsFile(t *testing.T, dir, name string, lines []string) string {
 }
 
 func TestReviewMergeTwoFilesDedup(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{
@@ -82,6 +83,7 @@ func TestReviewMergeTwoFilesDedup(t *testing.T) {
 }
 
 func TestReviewMergeThreeFilesAllUniqueSorted(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{
@@ -109,6 +111,7 @@ func TestReviewMergeThreeFilesAllUniqueSorted(t *testing.T) {
 }
 
 func TestReviewMergeInvalidLinesSkipped(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{
@@ -130,6 +133,7 @@ func TestReviewMergeInvalidLinesSkipped(t *testing.T) {
 }
 
 func TestReviewMergeSingleFileNormalize(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{
@@ -153,6 +157,7 @@ func TestReviewMergeSingleFileNormalize(t *testing.T) {
 }
 
 func TestReviewMergeZeroFiles(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	_, stderr, code := runTPMerge(t, dir, "review", "--merge")
@@ -161,6 +166,7 @@ func TestReviewMergeZeroFiles(t *testing.T) {
 }
 
 func TestReviewMergeMissingFile(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	_, stderr, code := runTPMerge(t, dir, "review", "--merge", filepath.Join(dir, "nonexistent.ndjson"))
@@ -172,6 +178,7 @@ func TestReviewMergeMissingFile(t *testing.T) {
 // its explicit NDJSON inputs, so a spec-looking positional (a .md) among them
 // is rejected at entry with exit 2 rather than silently parsed as data.
 func TestReviewMerge_RejectsSpecPositionalExit2(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	spec := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(spec, []byte("# Spec\n## 1. A\nbody\n"), 0o600))
@@ -193,6 +200,7 @@ func TestReviewMerge_RejectsSpecPositionalExit2(t *testing.T) {
 }
 
 func TestReviewMergePreservesExtraFields(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{
@@ -212,6 +220,7 @@ func TestReviewMergePreservesExtraFields(t *testing.T) {
 }
 
 func TestReviewMergeOutputFile(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{
@@ -242,6 +251,7 @@ func TestReviewMergeOutputFile(t *testing.T) {
 // an undercounted round. It now exits 1 — zero findings from a file that had
 // lines is a dropped role, not a converged one.
 func TestReviewMergeAllInvalid(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{
@@ -266,6 +276,7 @@ func TestReviewMergeAllInvalid(t *testing.T) {
 // but holding zero findings succeed (exit 0), create a zero-byte -o file, and
 // report merged_count 0 with no warnings.
 func TestReviewMergeAllEmptyFilesCreateEmptyOutput(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{})
@@ -307,6 +318,7 @@ func parseNDJSON(t *testing.T, s string) []map[string]any {
 // whose representative is the highest-severity member, annotated with found_by
 // and found_by_roles (§8.1, §8.4).
 func TestReviewMergeClustersByLocationClass(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{
 		`{"severity":"high","role":"implementer","class":"dedup-gap","location":"§8.2 detail","finding":"empty key collapses"}`,
@@ -338,6 +350,7 @@ func TestReviewMergeClustersByLocationClass(t *testing.T) {
 // merged: each is its own singleton (§8.3), so an empty class cannot collapse
 // unrelated findings even at the same location.
 func TestReviewMergeAbsentClassNotMerged(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{
 		`{"severity":"high","role":"implementer","location":"§8.2","finding":"first no-class finding"}`,
@@ -357,6 +370,7 @@ func TestReviewMergeAbsentClassNotMerged(t *testing.T) {
 // --record still counts every non-PASS row, so two FAIL rows sharing a location
 // and class remain two findings (§8.1).
 func TestReviewMergeAuditRecordUntouched(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 	out, stderr, code := auditRecord(t, dir,
@@ -370,6 +384,7 @@ func TestReviewMergeAuditRecordUntouched(t *testing.T) {
 // JSON summary: unique/shared counts, the trim-candidate flag for a role that
 // found only shared clusters, and exclusion of the built-in regression role (§8.5).
 func TestReviewMergeOverlapReport(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{
 		`{"severity":"high","role":"implementer","class":"A","location":"§1","finding":"impl unique"}`,

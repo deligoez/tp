@@ -66,6 +66,7 @@ func sentencesOf(s string) []string {
 // because a cross-version baseline is not available to compare against (§6.3:
 // a go test binary compiles one tree, so v0.35.2's emitter is not callable).
 func TestUnrestrictedInstructionStillCarriesEveryOrchestratorDirective(t *testing.T) {
+	t.Parallel()
 	spec := relocatedSpec(t, "spec/0.36.0.md")
 	full := instructionOf(t, emitPayload(t, spec))
 
@@ -84,6 +85,7 @@ func TestUnrestrictedInstructionStillCarriesEveryOrchestratorDirective(t *testin
 // property instead of a list — a reworded sentence fails it even if it says
 // something true.
 func TestRoleInstructionIsASentenceSubsetDirectingNothingUnsupported(t *testing.T) {
+	t.Parallel()
 	spec := relocatedSpec(t, "spec/0.36.0.md")
 
 	full := emitPayload(t, spec)
@@ -120,6 +122,7 @@ func TestRoleInstructionIsASentenceSubsetDirectingNothingUnsupported(t *testing.
 // prompt supports no directive). What this test pins is narrower: with one
 // prompt and an out-of-line spec, the sentence naming that spec survives.
 func TestRoleInstructionKeepsWhatOnePromptCanAct(t *testing.T) {
+	t.Parallel()
 	spec := relocatedSpec(t, "spec/0.36.0.md")
 
 	full := emitPayload(t, spec)

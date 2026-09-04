@@ -18,6 +18,7 @@ import (
 // the task-acceptance checklist and the per-file task mapping, and two
 // differently worded lines for one unreadable file read as two problems.
 func TestAuditCorruptTaskFileWarns(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n## Table\n| Col |\n|-----|\n| a |\n"), 0o600))
@@ -40,6 +41,7 @@ func TestAuditCorruptTaskFileWarns(t *testing.T) {
 // tasks path, which os.ReadFile cannot read as a regular file — must warn
 // rather than being silently swallowed as "absent = optional".
 func TestAuditUnreadableTaskFileWarns(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n## Table\n| Col |\n|-----|\n| a |\n"), 0o600))
@@ -60,6 +62,7 @@ func TestAuditUnreadableTaskFileWarns(t *testing.T) {
 // warning naming the file, while valid lines are still picked up — representative
 // of the sweep that surfaces every silently-dropped parse error.
 func TestAuditFindingsMalformedLineWarns(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n## Table\n| Col |\n|-----|\n| a |\n"), 0o600))

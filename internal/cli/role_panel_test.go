@@ -75,6 +75,7 @@ func panelEmitters() []panelEmitter {
 // the caller controls -- a test that concatenated in call order would pass
 // against an implementation that reordered the panel.
 func TestPerRoleEmissionsConcatenateToTheWholePanel(t *testing.T) {
+	t.Parallel()
 	for _, e := range panelEmitters() {
 		t.Run(e.name, func(t *testing.T) {
 			spec := relocatedSpec(t, "spec/0.36.0.md")
@@ -109,6 +110,7 @@ func TestPerRoleEmissionsConcatenateToTheWholePanel(t *testing.T) {
 // key, because property 12 governs that member alone and leaving the rest of
 // review_loop unconstrained is what an earlier draft of the spec did.
 func TestRoleSelectionLeavesEveryOtherTopLevelKeyUnchanged(t *testing.T) {
+	t.Parallel()
 	spec := relocatedSpec(t, "spec/0.36.0.md")
 
 	full := emitPayload(t, spec)

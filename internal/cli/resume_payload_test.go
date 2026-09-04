@@ -53,6 +53,7 @@ func nextAction(res map[string]any) (command any, payload map[string]any) {
 }
 
 func TestResume_ImplementPayloadPrefersWIP(t *testing.T) {
+	t.Parallel()
 	dir := newPayloadRepo(t, `[{"id":"t1","title":"T","status":"wip","depends_on":[],"estimate_minutes":5,"acceptance":"a","source_sections":["x"]}]`)
 	res := resumeResult(t, dir)
 	cmd, payload := nextAction(res)
@@ -62,6 +63,7 @@ func TestResume_ImplementPayloadPrefersWIP(t *testing.T) {
 }
 
 func TestResume_ImplementPayloadFirstReady(t *testing.T) {
+	t.Parallel()
 	dir := newPayloadRepo(t, `[{"id":"t1","title":"T","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"a","source_sections":["x"]}]`)
 	_, payload := nextAction(resumeResult(t, dir))
 	assert.Equal(t, "t1", payload["task"].(map[string]any)["id"])
@@ -69,6 +71,7 @@ func TestResume_ImplementPayloadFirstReady(t *testing.T) {
 }
 
 func TestResume_ImplementPayloadNoReadyBlocker(t *testing.T) {
+	t.Parallel()
 	dir := newPayloadRepo(t, `[{"id":"t1","title":"T","status":"open","depends_on":["missing"],"estimate_minutes":5,"acceptance":"a","source_sections":["x"]}]`)
 	res := resumeResult(t, dir)
 	_, payload := nextAction(res)
@@ -79,6 +82,7 @@ func TestResume_ImplementPayloadNoReadyBlocker(t *testing.T) {
 }
 
 func TestResume_ReviewPayloadFirstRound(t *testing.T) {
+	t.Parallel()
 	dir := newPayloadRepo(t, `[]`)
 	res := resumeResult(t, dir)
 	assert.Equal(t, "review", res["phase"])
@@ -89,6 +93,7 @@ func TestResume_ReviewPayloadFirstRound(t *testing.T) {
 }
 
 func TestResume_AuditPayloadFirstRound(t *testing.T) {
+	t.Parallel()
 	dir := newPayloadRepo(t, `[{"id":"t1","title":"T","status":"done","depends_on":[],"estimate_minutes":5,"acceptance":"a","source_sections":["x"]}]`)
 	res := resumeResult(t, dir)
 	assert.Equal(t, "audit", res["phase"])
@@ -103,6 +108,7 @@ func TestResume_AuditPayloadFirstRound(t *testing.T) {
 // its own — only the unit next_units[0] names, since v0.35.0's §4.1 makes
 // next_action a rendering of that array rather than a second opinion.
 func TestResume_DecomposePayloadNullCommand(t *testing.T) {
+	t.Parallel()
 	dir := newPayloadRepo(t, `[]`)
 	writeConvergedRounds(t, dir, 2, 0)
 	res := resumeResult(t, dir)
@@ -113,6 +119,7 @@ func TestResume_DecomposePayloadNullCommand(t *testing.T) {
 }
 
 func TestResume_ReleasePayloadNullCommand(t *testing.T) {
+	t.Parallel()
 	dir := newPayloadRepo(t, `[{"id":"t1","title":"T","status":"done","depends_on":[],"estimate_minutes":5,"acceptance":"a","source_sections":["x"]}]`)
 	writeConvergedRounds(t, dir, 0, 2)
 	res := resumeResult(t, dir)

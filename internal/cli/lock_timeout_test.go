@@ -15,6 +15,7 @@ import (
 // backoff past the 1s lock_timeout_seconds, then exit 4 (STATE) with a hint
 // naming the centralized lock path (§12.2).
 func TestSet_LockContentionTimeoutExitsFour(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 	addTask(t, dir, `{"id":"t1","title":"T","depends_on":[],"estimate_minutes":10,"acceptance":"T is done","source_sections":["s1"]}`)
 

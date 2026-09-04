@@ -35,6 +35,7 @@ func auditPromptsByRole(t *testing.T, stdout string) map[string]map[string]any {
 // spec-coverage prompt; every other role's items are file_check items over the
 // same shared code-file list.
 func TestRouteChecklist_Disjoint(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
 	// A keyword-matching and a plain file; both reach every shared-arm role.
@@ -93,6 +94,7 @@ func TestRouteChecklist_Disjoint(t *testing.T) {
 // list has no relevance filter, so a single file matching no priority keyword
 // still gives security one file_check item — no role is skipped (§7 item 1).
 func TestGenerateAuditPrompts_SharedArmReachesEveryRole(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "plain.go"), []byte("package main\n"), 0o600))
@@ -122,6 +124,7 @@ func TestGenerateAuditPrompts_SharedArmReachesEveryRole(t *testing.T) {
 // role is named in skipped_roles with reason no-checklist-items and the audit
 // still exits 0 (§2.7 item 2).
 func TestAudit_AllFilesDroppedSkipsCodeRoles(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, "testdata"), 0o755))
@@ -156,6 +159,7 @@ func TestAudit_AllFilesDroppedSkipsCodeRoles(t *testing.T) {
 // ranking reads the path only, so a file whose content mentions auth but whose
 // path matches no keyword keeps its alphabetical position.
 func TestAudit_ContentKeywordDoesNotPromote(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "a_one.go"), []byte("package main\n"), 0o600))

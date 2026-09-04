@@ -16,6 +16,7 @@ import (
 // reads one on this path (§9.3). It now passes specFileMissingHint, the same
 // hint every pre-stat spec-path site across tp review and tp audit shares.
 func TestLintSpecNotFoundHint(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	missing := filepath.Join(dir, "nope.md")

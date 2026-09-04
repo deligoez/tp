@@ -14,6 +14,7 @@ import (
 // silently-ignored-flag hazard the --merge rejection lists guard in the opposite
 // direction.
 func TestOutputFlagRequiresMerge(t *testing.T) {
+	t.Parallel()
 	writeSpec := func(t *testing.T) string {
 		t.Helper()
 		dir := t.TempDir()

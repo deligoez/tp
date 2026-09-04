@@ -16,6 +16,7 @@ import (
 // and the only visible change is the prose default becoming the two prose lenses
 // (§13.1).
 func TestMigration_NoRoleFilesIdenticalPanel(t *testing.T) {
+	t.Parallel()
 	sdir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(sdir, "spec.md"), []byte("# Spec\ncontent\n"), 0o600))
 	stdout, _, code := runTP(t, sdir, "review", "spec.md", "--no-state")
@@ -40,6 +41,7 @@ func TestMigration_NoRoleFilesIdenticalPanel(t *testing.T) {
 // stored role hash and is treated as matching, so upgrading tp never forces a
 // re-review even when the current corpus differs (§13.2, §9.4).
 func TestMigration_PreV0250RoundCarriesForward(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	specPath := filepath.Join(dir, "spec.md")
@@ -73,6 +75,7 @@ func TestMigration_PreV0250RoundCarriesForward(t *testing.T) {
 // .tp/local.json, so a leftover .tp-active needs no user action — it is ignored
 // and discovery uses the migrated pointer (§13.4).
 func TestMigration_TPActiveNeedsNoAction(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "app.tasks.json"),

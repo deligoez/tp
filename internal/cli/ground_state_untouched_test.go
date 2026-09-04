@@ -71,6 +71,7 @@ func seedReviewStateWithAFutureKey(t *testing.T, dir string) []byte {
 // ground command that failed, or did nothing at all, cannot be read as
 // leaving state.json alone.
 func TestAGroundRoundLeavesAnExistingStateJSONByteIdentical(t *testing.T) {
+	t.Parallel()
 	dir := writeGroundFixture(t)
 	before := seedReviewStateWithAFutureKey(t, dir)
 	statePath := groundStatePath(dir, "state.json")

@@ -13,6 +13,7 @@ import (
 // TestAudit_FindingItemCarriesLocation: §3.2 says a `finding` checklist item's
 // Section carries the review finding's `location` field.
 func TestAudit_FindingItemCarriesLocation(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## S\ntext\n"), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.go"), []byte("package main\n"), 0o600))

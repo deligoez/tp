@@ -125,6 +125,7 @@ func sortedKeys[V any](m map[string]V) []string {
 // six missing flags: every flag the CLI registers appears in SKILL.md's
 // inventory, under the command that registers it.
 func TestSkillFlagInventoryIsComplete(t *testing.T) {
+	t.Parallel()
 	documented := documentedFlags(t)
 	registered, globals := registeredFlags()
 
@@ -146,6 +147,7 @@ func TestSkillFlagInventoryIsComplete(t *testing.T) {
 // that no command registers — one renamed, removed, or never shipped — fails
 // here.
 func TestSkillFlagInventoryRecordsOnlyWhatExists(t *testing.T) {
+	t.Parallel()
 	documented := documentedFlags(t)
 	registered, globals := registeredFlags()
 

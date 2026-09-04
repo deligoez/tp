@@ -25,6 +25,7 @@ func writeRecordedAuditRound(t *testing.T, dir, stateJSON, roundFile, roundConte
 // TestAuditPriorRound_Round1HasNone: a round-1 audit prompt (no recorded
 // round) carries no prior-round section at all (§10.2).
 func TestAuditPriorRound_Round1HasNone(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "auth_helper.go"), []byte("package main\n"), 0o600))
@@ -45,6 +46,7 @@ func TestAuditPriorRound_Round1HasNone(t *testing.T) {
 // the section frames prior findings as context to re-check, not a verdict to
 // repeat (§10.2). The redundant role field is retained per row for readability.
 func TestAuditPriorRound_Round2CarriesRoleScopedNonPass(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "auth_helper.go"), []byte("package main\n"), 0o600))
@@ -95,6 +97,7 @@ func TestAuditPriorRound_Round2CarriesRoleScopedNonPass(t *testing.T) {
 // recorded_at, and false otherwise (§10.2). Test commits are dated
 // 2020-01-01, so a 2019 recorded_at sees them (true) and a 2021 one does not.
 func TestAuditPriorRound_ChangedSinceFlag(t *testing.T) {
+	t.Parallel()
 	dir, specPath := newAuditRepo(t)
 	commitFile(t, dir, "code.go", "add code")
 
@@ -126,6 +129,7 @@ func auditPriorChangedSince(t *testing.T, dir, specPath, recordedAt string) stri
 // a marker-less (legacy) round states its ids are positional and not
 // comparable to this round's stable ids (§10.2, §10.9).
 func TestAuditPriorRound_LegacyRoundDisclaimer(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "auth_helper.go"), []byte("package main\n"), 0o600))
@@ -161,6 +165,7 @@ func TestAuditPriorRound_LegacyRoundDisclaimer(t *testing.T) {
 // JSON mode, and both halves of the Notice contract are pinned: visible in JSON
 // mode, silenced by --quiet.
 func TestAuditPriorRound_MissingRoundFileIsAnnounced(t *testing.T) {
+	t.Parallel()
 	const want = "round 1 file audit-round-1.ndjson is missing; skipping its rows"
 
 	setup := func(t *testing.T) string {

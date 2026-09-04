@@ -72,6 +72,7 @@ func skippedReasons(t *testing.T, dir string, args ...string) map[string]string 
 // brief_command names that unit's own id, AND running it exits 0 in the phase
 // that unit belongs to -- including for a role the emission skips.
 func TestEveryUnitBriefCommandRunsInItsOwnPhase(t *testing.T) {
+	t.Parallel()
 	dir := divergentAuditRepo(t)
 	spec := filepath.Join(dir, "spec.md")
 	taskFile := filepath.Join(dir, "spec.tasks.json")

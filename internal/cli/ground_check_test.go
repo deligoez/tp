@@ -49,6 +49,7 @@ func recordGroundRound(t *testing.T, dir string, ids, verdicts []string) {
 // state in which no row exists at all, which an implementation reading "no
 // undispositioned rows" instead of "every unit dispositioned" reports as clean.
 func TestCheckExitsZeroOnCompleteCoverageAndOneOtherwise(t *testing.T) {
+	t.Parallel()
 	t.Run("nothing recorded against an emitted round", func(t *testing.T) {
 		dir := writeGroundFixture(t)
 		groundEmit(t, dir)
@@ -97,6 +98,7 @@ func TestCheckExitsZeroOnCompleteCoverageAndOneOtherwise(t *testing.T) {
 // from the same payload, which is what makes the exit code's silence about it
 // visible: the round tp reports as two failures is the round tp exits 0 on.
 func TestCheckGatesOnCoverageAndNotOnWhatTheRoundFound(t *testing.T) {
+	t.Parallel()
 	dir := writeGroundFixture(t)
 	groundEmit(t, dir)
 	emitted, _ := groundFloorIDs(t, dir, 1)
@@ -121,6 +123,7 @@ func TestCheckGatesOnCoverageAndNotOnWhatTheRoundFound(t *testing.T) {
 // exit 1 under --check — so every exit 0 below is measured against a spec
 // grounding has not finished with, and not against a vacuous one.
 func TestNothingRefusesOnCoverage(t *testing.T) {
+	t.Parallel()
 	dir := writeGroundFixture(t)
 	groundEmit(t, dir)
 	emitted, _ := groundFloorIDs(t, dir, 1)
@@ -160,6 +163,7 @@ func TestNothingRefusesOnCoverage(t *testing.T) {
 // understands. The message assertion is corroboration, not the verdict: a
 // NotContains over prose is a presence assertion over a one-item blacklist.
 func TestCheckWithoutStatusIsAUsageErrorByTheRuleAndNotAnUnknownFlag(t *testing.T) {
+	t.Parallel()
 	dir := writeGroundFixture(t)
 	groundEmit(t, dir)
 	emitted, _ := groundFloorIDs(t, dir, 1)
@@ -201,6 +205,7 @@ func TestCheckWithoutStatusIsAUsageErrorByTheRuleAndNotAnUnknownFlag(t *testing.
 // Without this, an implementation folding every non-complete state into 1 is
 // indistinguishable from the shipped one on the tests above.
 func TestCheckOnASpecWithNoEmittedRoundExitsThree(t *testing.T) {
+	t.Parallel()
 	dir := writeGroundFixture(t)
 
 	stdout, stderr, code := runTP(t, dir, "ground", "spec.md", "--status", "--check")

@@ -63,6 +63,7 @@ func resolvedOf(t *testing.T, row map[string]any) map[string]any {
 // TestAuditResolve_IndexSelector: the 0-based index selector its review
 // counterpart takes disposes exactly that row and leaves the others alone.
 func TestAuditResolve_IndexSelector(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := writeAuditResults(t, filepath.Join(dir, "round"))
 
@@ -86,6 +87,7 @@ func TestAuditResolve_IndexSelector(t *testing.T) {
 // its own row by the `role:item_id` key the oracle handed it, without first
 // locating an index.
 func TestAuditResolve_RoleItemIDSelector(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := writeAuditResults(t, filepath.Join(dir, "round"))
 
@@ -104,6 +106,7 @@ func TestAuditResolve_RoleItemIDSelector(t *testing.T) {
 // audit-fix unit whose whole output is a disposition — no code change at all —
 // satisfies §3.3's durable-write predicate for its own row.
 func TestAuditFixUnit_DisposesWithoutACodeChange(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	roundDir := filepath.Join(dir, "round")
 	path := writeAuditResults(t, roundDir)
@@ -121,6 +124,7 @@ func TestAuditFixUnit_DisposesWithoutACodeChange(t *testing.T) {
 // TestAuditResolve_ForceFlag: an already-disposed row is refused (exit 1) and
 // --force re-disposes it — the same two behaviours as tp review --resolve.
 func TestAuditResolve_ForceFlag(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := writeAuditResults(t, filepath.Join(dir, "round"))
 
@@ -145,6 +149,7 @@ func TestAuditResolve_ForceFlag(t *testing.T) {
 // undisposed rows take the status, already-disposed rows are skipped, and
 // --force overwrites them.
 func TestAuditResolveAll_DisposesEveryUndisposedRow(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := writeAuditResults(t, filepath.Join(dir, "round"))
 
@@ -173,6 +178,7 @@ func TestAuditResolveAll_DisposesEveryUndisposedRow(t *testing.T) {
 // the three, a selector that is neither an index nor a role:item_id key, an
 // out-of-range index, a key naming no row, and a spec-looking positional.
 func TestAuditResolve_UsageErrors(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := writeAuditResults(t, filepath.Join(dir, "round"))
 	spec := filepath.Join(dir, "spec.md")
@@ -215,6 +221,7 @@ func TestAuditResolve_UsageErrors(t *testing.T) {
 // TestAuditResolve_MissingFileExitsThree: a results file that is not there is a
 // file error, as it is for tp review --resolve.
 func TestAuditResolve_MissingFileExitsThree(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	missing := filepath.Join(dir, "nope.ndjson")
 
@@ -228,6 +235,7 @@ func TestAuditResolve_MissingFileExitsThree(t *testing.T) {
 // TestAuditResolve_HelpNamesTheSelector: the help text states both selector
 // forms, so a unit reading --help learns it can name its own row.
 func TestAuditResolve_HelpNamesTheSelector(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	stdout, _, code := runTP(t, dir, "audit", "--help")
 	require.True(t, code == 0 || code == 2, "help should not hard-fail: code=%d", code)

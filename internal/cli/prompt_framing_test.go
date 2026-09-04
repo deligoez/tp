@@ -18,6 +18,7 @@ import (
 // the first role whose files fit under the 12 KB budget inlines complete
 // contents, and every later role gets named paths only.
 func TestEmittedPromptsCarryFraming(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n## 1. Models\n### 1.1 Task\nCreate a Task model.\n| Field | Type |\n|------|------|\n| id | int |\n"), 0o600))
@@ -89,6 +90,7 @@ func TestEmittedPromptsCarryFraming(t *testing.T) {
 // are checked: the review path and the audit path each own a copy of the
 // inliner decision.
 func TestUnreadableFileIsNeverToldComplete(t *testing.T) {
+	t.Parallel()
 	if os.Geteuid() == 0 {
 		t.Skip("root reads a 0o000 file, so the read never fails")
 	}

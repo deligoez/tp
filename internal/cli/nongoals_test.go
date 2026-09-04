@@ -13,6 +13,7 @@ import (
 // TestNonGoals_EmitsPromptsNoRuntime: tp emits prompts and instructs the
 // orchestrator to spawn sub-agents — it never executes agents (non-goal 1).
 func TestNonGoals_EmitsPromptsNoRuntime(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\ncontent\n"), 0o600))
 
@@ -31,6 +32,7 @@ func TestNonGoals_EmitsPromptsNoRuntime(t *testing.T) {
 // TestNonGoals_NoAutoTaper: the emitted panel size is a durable corpus decision;
 // recording rounds never trims the diversity panel (non-goal 3).
 func TestNonGoals_NoAutoTaper(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\ncontent\n"), 0o600))
@@ -64,6 +66,7 @@ func TestNonGoals_NoAutoTaper(t *testing.T) {
 // TestNonGoals_NoNewRoleFromFrontmatter: a frontmatter override never creates a
 // new role — an unknown override id is ignored (non-goal 6).
 func TestNonGoals_NoNewRoleFromFrontmatter(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	spec := "---\ntp:\n  review_roles:\n    brand-new-role:\n      focus:\n        - \"q\"\n---\n# Spec\ncontent\n"
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec), 0o600))
@@ -77,6 +80,7 @@ func TestNonGoals_NoNewRoleFromFrontmatter(t *testing.T) {
 // TestNonGoals_NoAuditClustering: audit --record counts every non-PASS row; audit
 // findings are never clustered (non-goal 8).
 func TestNonGoals_NoAuditClustering(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 
@@ -90,6 +94,7 @@ func TestNonGoals_NoAuditClustering(t *testing.T) {
 // TestNonGoals_NoNewConfigWorkflowField: v0.25.0 adds no .tp/config.json workflow
 // field (non-goal 4).
 func TestNonGoals_NoNewConfigWorkflowField(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 

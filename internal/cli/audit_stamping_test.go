@@ -97,6 +97,7 @@ func auditStatusPayload(t *testing.T, dir string) (payload map[string]any, round
 // the derived signals and leaves the array honest, which is the same false
 // convergence reached one step later.
 func TestAuditRecord_StampSurvivesTighteningTheKnob(t *testing.T) {
+	t.Parallel()
 	dir := auditStampingProject(t)
 	setAuditConvergeOn(t, dir, "project", "all")
 
@@ -139,6 +140,7 @@ func TestAuditRecord_StampSurvivesTighteningTheKnob(t *testing.T) {
 // override alone, or from the project config alone, is green on one subtest and
 // red on the other; a single-layer test would ship the half that was dropped.
 func TestAuditRecord_StampSurvivesRelaxingTheKnob(t *testing.T) {
+	t.Parallel()
 	for _, layer := range []string{"project", "override"} {
 		t.Run(layer, func(t *testing.T) {
 			dir := auditStampingProject(t)

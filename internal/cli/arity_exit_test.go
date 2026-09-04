@@ -13,6 +13,7 @@ import (
 // distinction an unattended driver branches on. Before this, cobra's validators
 // returned a plain error that the dispatcher classified as exit 1.
 func TestArity_EveryCommandExitsTwo(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	cases := []struct {
 		name string
@@ -50,6 +51,7 @@ func TestArity_EveryCommandExitsTwo(t *testing.T) {
 // NewRootCmd returns, so a wrap that ran at construction time would miss them
 // and leave the built-ins on exit 1.
 func TestArity_CobraBuiltinExitsTwo(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	_, stderr, code := runTP(t, dir, "completion", "bash", "extra")
 	e := errJSON(t, stderr)
@@ -62,6 +64,7 @@ func TestArity_CobraBuiltinExitsTwo(t *testing.T) {
 // to name the failing object." The exit-1 default hint pointed at the task file
 // and at tp validate, neither of which is at fault when the id was never typed.
 func TestArity_ShowHintNamesTheMissingArgument(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	_, stderr, code := runTP(t, dir, "show")
 	e := errJSON(t, stderr)
@@ -77,6 +80,7 @@ func TestArity_ShowHintNamesTheMissingArgument(t *testing.T) {
 // failed into a usage error — the whole point of the split is that a driver can
 // branch on it. A correct argument count that then fails keeps its own code.
 func TestArity_CorrectArgCountKeepsItsOwnExitCode(t *testing.T) {
+	t.Parallel()
 	dir := initEntryProject(t)
 	_, _, code := runTP(t, dir, "show", "does-not-exist")
 	assert.Equal(t, 4, code, "a well-formed invocation still reports its own failure")

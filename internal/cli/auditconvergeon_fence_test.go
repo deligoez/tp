@@ -171,6 +171,7 @@ func assertFenceRefused(t *testing.T, stderr string, code int, sink string) {
 // was found, which is what separates a sink that refuses from one that refuses
 // after writing.
 func TestAuditConvergeOnFence_RelaxRefusedAtEveryWriteSink(t *testing.T) {
+	t.Parallel()
 	t.Run("set --workflow", func(t *testing.T) {
 		dir := fenceShell(t, "{}", "")
 		taskFile := filepath.Join(dir, "s.tasks.json")
@@ -232,6 +233,7 @@ func TestAuditConvergeOnFence_RelaxRefusedAtEveryWriteSink(t *testing.T) {
 // and deadlocks Workflow A step 6 for the opt-in users this release exists for,
 // which is the whole reason §3 is a change rule.
 func TestAuditConvergeOnFence_WritesThatChangeNothingPass(t *testing.T) {
+	t.Parallel()
 	t.Run("a write of all at both set sinks", func(t *testing.T) {
 		dir := fenceShell(t, "{}", "")
 
@@ -298,6 +300,7 @@ func TestAuditConvergeOnFence_WritesThatChangeNothingPass(t *testing.T) {
 // refused this particular tree. It pins a consequence, not the rule. The rule
 // is the sibling table, every row of which was observed failing first.
 func TestAuditConvergeOnFence_SetProjectLeavesEveryBaseWhereItWas(t *testing.T) {
+	t.Parallel()
 	dir := extractShell(t, "",
 		extractBase{"a", `{"audit_converge_on":"all"}`},
 		extractBase{"b", "{}"})
@@ -333,6 +336,7 @@ func TestAuditConvergeOnFence_SetProjectLeavesEveryBaseWhereItWas(t *testing.T) 
 // The zero-task shell is load-bearing and is asserted rather than assumed by the
 // sibling below: over a tasks-bearing target the exists-guard exits 3 first.
 func TestAuditConvergeOnFence_ImportUncoversProjectBlocking(t *testing.T) {
+	t.Parallel()
 	dir := fenceShell(t, `{"audit_converge_on":"all"}`, `{"audit_converge_on":"blocking"}`)
 	require.Equal(t, "all", fenceResolved(t, dir),
 		"the task override covers the project block before the import")
@@ -361,6 +365,7 @@ func TestAuditConvergeOnFence_ImportUncoversProjectBlocking(t *testing.T) {
 // answers are a discrimination made in one place rather than a claim about
 // what some other test would have seen.
 func TestAuditConvergeOnFence_ImportExistsGuardPrecedesTheFence(t *testing.T) {
+	t.Parallel()
 	dir := fenceShell(t, `{"audit_converge_on":"all"}`, `{"audit_converge_on":"blocking"}`)
 	// Everything but the target's emptiness is row 13b's fixture.
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "s.tasks.json"),
@@ -473,6 +478,7 @@ const extractBlockingBlock = `{"audit_converge_on":"blocking","review_max_rounds
 // The empty override is appended unconditionally, and the third subtest is
 // where that decision is paid for and asserted rather than left implicit.
 func TestAuditConvergeOnFence_ExtractEvaluatesEveryBase(t *testing.T) {
+	t.Parallel()
 	t.Run("a base with no task file", func(t *testing.T) {
 		dir := extractShell(t, "",
 			extractBase{"a", extractBlockingBlock},
@@ -553,6 +559,7 @@ func TestAuditConvergeOnFence_ExtractEvaluatesEveryBase(t *testing.T) {
 // second runs under --force, so "--force is not an exemption" above cannot be
 // satisfied by a --force that is simply always refused.
 func TestAuditConvergeOnFence_ExtractPassesWhatPreservesResolution(t *testing.T) {
+	t.Parallel()
 	t.Run("a hoist that does not move the fenced field", func(t *testing.T) {
 		dir := extractShell(t, "",
 			extractBase{"a", `{"review_max_rounds":7}`},
@@ -643,6 +650,7 @@ func TestAuditConvergeOnFence_ExtractPassesWhatPreservesResolution(t *testing.T)
 // fence comparing the active pointer sees blocking before and blocking after and
 // waves the relax through.
 func TestAuditConvergeOnFence_ImportComparesItsOwnTarget(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	for _, base := range []string{"a", "b"} {
@@ -680,6 +688,7 @@ func TestAuditConvergeOnFence_ImportComparesItsOwnTarget(t *testing.T) {
 // added, so this test states its own environment on a machine whose suite runs
 // under TP_UNATTENDED=1.
 func TestAuditConvergeOnFence_UnsetEnvironmentRefusesNothing(t *testing.T) {
+	t.Parallel()
 	t.Run("set --workflow", func(t *testing.T) {
 		dir := fenceShell(t, "{}", "")
 		_, stderr, code := runTPFence(t, dir, false, "set", "--workflow", "audit_converge_on=blocking")
@@ -728,6 +737,7 @@ func TestAuditConvergeOnFence_UnsetEnvironmentRefusesNothing(t *testing.T) {
 // assumed. A remedy that passed over some other shell would not be a remedy for
 // anything.
 func TestAuditConvergeOnFence_ImportRemediesPass(t *testing.T) {
+	t.Parallel()
 	t.Run("omitting the top-level workflow key", func(t *testing.T) {
 		dir := fenceShell(t, `{"audit_converge_on":"all"}`, `{"audit_converge_on":"blocking"}`)
 		require.Equal(t, "all", fenceResolved(t, dir),
@@ -774,6 +784,7 @@ func TestAuditConvergeOnFence_ImportRemediesPass(t *testing.T) {
 // {} would keep passing on the day the field gained an omitempty tag and the
 // claim stopped being true.
 func TestAuditConvergeOnFence_TheBlockTPWritesTakesTheRefusedPath(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "s.md"),
@@ -830,6 +841,7 @@ var setProjectBlocking = []string{"set", "--workflow", "--project", "audit_conve
 // report one base's resolution as the tree's — which is exactly the claim three
 // repairs made and could not keep.
 func TestAuditConvergeOnFence_SetProjectRefusesBlockingWhateverTheTreeHolds(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name string
 		// build returns the tree to run in and any extra arguments the
@@ -959,6 +971,7 @@ func uncoveredBaseUnder(t *testing.T, sub string) string {
 // value. Both arms are asserted, --quiet included, since the earlier form of
 // this branch was an output.Notice that returned early under --quiet.
 func TestAuditConvergeOnFence_SetProjectAllPassesOverADegradedScan(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name string
 		args []string

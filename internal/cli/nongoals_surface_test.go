@@ -99,6 +99,7 @@ func parseSurface(t *testing.T) map[string]map[string]bool {
 // in the other direction too, since removing a command or a flag is a behaviour
 // change outside the sections §11 Non-Goal 1 enumerates.
 func TestNonGoals_NoCommandOrFlagIsAdded(t *testing.T) {
+	t.Parallel()
 	baseline := parseSurface(t)
 	registered, globals := registeredFlags()
 	registered[""] = globals

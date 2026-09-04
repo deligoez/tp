@@ -13,6 +13,7 @@ import (
 // TestEject_EmissionNeutral: ejecting writes byte-identical role files, so each
 // role's emitted prompt is unchanged from the embedded corpus (§5.4).
 func TestEject_EmissionNeutral(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## 1. X\ncontent\n"), 0o600))
@@ -37,6 +38,7 @@ func TestEject_EmissionNeutral(t *testing.T) {
 // "builtin" sentinel and is not roles-stale; ejecting flips the reviewer hash
 // from builtin to a file hash, staling the recorded round exactly once (§5.4).
 func TestEject_FlipsHashAndStalesOnce(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))

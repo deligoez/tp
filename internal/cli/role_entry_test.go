@@ -42,6 +42,7 @@ func entriesOf(t *testing.T, payload map[string]any) map[string]string {
 // of an object whose other members are what the driver and the emission
 // properties read.
 func TestSelectedEntryIsByteIdenticalWholeEntry(t *testing.T) {
+	t.Parallel()
 	for _, e := range panelEmitters() {
 		t.Run(e.name, func(t *testing.T) {
 			spec := relocatedSpec(t, "spec/0.36.0.md")
@@ -64,6 +65,7 @@ func TestSelectedEntryIsByteIdenticalWholeEntry(t *testing.T) {
 // the two payloads are assembled by different functions, so one standing in for
 // the other would leave half the contract unmeasured.
 func TestAuditRoleLeavesEveryOtherTopLevelKeyUnchanged(t *testing.T) {
+	t.Parallel()
 	spec := relocatedSpec(t, "spec/0.36.0.md")
 
 	full := emitAuditPayload(t, spec)

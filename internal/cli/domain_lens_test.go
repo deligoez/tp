@@ -43,6 +43,7 @@ func reviewPromptsByRole(t *testing.T, stdout string) map[string]string {
 // prose corpus panel (coherence + soundness), not the swapped software personas
 // — the persona swap is retired and domain only selects the corpus (§6.2, §6.3).
 func TestReview_ProseDomainEmitsProsePanel(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(proseSpec), 0o600))
 
@@ -63,6 +64,7 @@ func TestReview_ProseDomainEmitsProsePanel(t *testing.T) {
 }
 
 func TestDomainLens_SoftwareDomainUnchanged(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\ncontent\n"), 0o600))
 
@@ -77,6 +79,7 @@ func TestDomainLens_SoftwareDomainUnchanged(t *testing.T) {
 }
 
 func TestDomainLens_RegressionRejectsLens(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(proseSpec), 0o600))
 	_, _, code := runTP(t, dir, "review", "spec.md")
@@ -99,6 +102,7 @@ func TestDomainLens_RegressionRejectsLens(t *testing.T) {
 // panel — tp emits one prompt per corpus role, carrying its instructions and
 // focus (§7.1).
 func TestReview_CorpusDrivenEmission(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	writeReviewerRole(t, dir, "transaction-integrity.json",
@@ -119,6 +123,7 @@ func TestReview_CorpusDrivenEmission(t *testing.T) {
 // change, review appends the built-in regression role — never a corpus file —
 // alongside the corpus panel (§5.2, §7.1).
 func TestReview_RegressionAppendedNotCorpus(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	revDir := filepath.Join(dir, ".tp", "reviewers")
@@ -145,6 +150,7 @@ func TestReview_RegressionAppendedNotCorpus(t *testing.T) {
 // emits its persona verbatim regardless of the spec's domain — domain no longer
 // swaps Go personas; it only selects and filters the corpus (§6.2, §10.1).
 func TestReview_DomainDoesNotSwapPersona(t *testing.T) {
+	t.Parallel()
 	for _, domain := range []string{"software", "prose"} {
 		dir := t.TempDir()
 		require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
@@ -171,6 +177,7 @@ func TestReview_DomainDoesNotSwapPersona(t *testing.T) {
 // focus to the matching corpus role's focus at emission, project focus first
 // (§10.2, §10.3).
 func TestReview_FrontmatterOverrideFocus(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	spec := "---\ntp:\n  review_roles:\n    implementer:\n      focus:\n        - \"OVERRIDE FOCUS QUESTION\"\n---\n# Spec\ncontent\n"
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec), 0o600))
@@ -186,6 +193,7 @@ func TestReview_FrontmatterOverrideFocus(t *testing.T) {
 // stays in the emitted panel with its override focus layered onto the corpus
 // focus, exactly as an override without the key behaves (§2.1, test 3).
 func TestReview_EnabledTrueIsNoOp(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	spec := "---\ntp:\n  review_roles:\n    implementer:\n      enabled: true\n      focus:\n        - \"ENABLED TRUE FOCUS\"\n---\n# Spec\ncontent\n"
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec), 0o600))
@@ -202,6 +210,7 @@ func TestReview_EnabledTrueIsNoOp(t *testing.T) {
 // ignored — its focus reaches no emitted role (§10.2). The warning text itself is
 // covered by the engine test TestResolveOverrideFocus_UnknownID.
 func TestReview_OverrideUnknownIDIgnored(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	spec := "---\ntp:\n  review_roles:\n    ghost:\n      focus:\n        - \"GHOST QUESTION\"\n---\n# Spec\ncontent\n"
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec), 0o600))
@@ -221,6 +230,7 @@ func TestReview_OverrideUnknownIDIgnored(t *testing.T) {
 // corpus (§2.3, test 11). An implementation that dropped the role inside
 // ResolveActiveCorpus would exit 0 and emit the embedded panel instead.
 func TestReview_DeactivatingEveryUserRoleDoesNotFallBack(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	writeReviewerRole(t, dir, "solo.json", `{"id":"solo","title":"Solo","instructions":"You review."}`)
@@ -236,6 +246,7 @@ func TestReview_DeactivatingEveryUserRoleDoesNotFallBack(t *testing.T) {
 // TestAudit_DeactivatingEveryUserRoleDoesNotFallBack: the audit half of test 11
 // — the same placement, applied to the auditor panel.
 func TestAudit_DeactivatingEveryUserRoleDoesNotFallBack(t *testing.T) {
+	t.Parallel()
 	spec := "---\ntp:\n  audit_roles:\n    solo:\n      enabled: false\n---\n# Spec\n## 1. Widgets\ncontent\n"
 	dir := writeAuditorCorpusProject(t, spec, "solo")
 
@@ -251,6 +262,7 @@ func TestAudit_DeactivatingEveryUserRoleDoesNotFallBack(t *testing.T) {
 // visible rather than silent. The round-1 regression skip is asserted alongside
 // it: the new reason is added to the existing ones, not substituted for them.
 func TestReview_DeactivatedRoleNamedDisabledBySpec(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	writeReviewerRole(t, dir, "keeper.json", `{"id":"keeper","title":"Keeper","instructions":"You review.","focus":["q"]}`)
@@ -277,6 +289,7 @@ func TestReview_DeactivatedRoleNamedDisabledBySpec(t *testing.T) {
 // two payloads assemble skipped_roles in different places — buildReviewPrompts
 // for review, runAudit for audit — so each is pinned separately.
 func TestAudit_DeactivatedRoleNamedDisabledBySpec(t *testing.T) {
+	t.Parallel()
 	spec := "---\ntp:\n  audit_roles:\n    dropped:\n      enabled: false\n---\n# Spec\n## 1. Widgets\ncontent\n"
 	dir := writeAuditorCorpusProject(t, spec, "spec-coverage", "keeper", "dropped")
 
@@ -301,6 +314,7 @@ func TestAudit_DeactivatedRoleNamedDisabledBySpec(t *testing.T) {
 // survivors satisfies every panel assertion while leaking the question, so the
 // assertion is over the whole payload, not just the dropped role's prompt.
 func TestReview_DeactivatedRoleDropsItsFocus(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	writeReviewerRole(t, dir, "keeper.json", `{"id":"keeper","title":"Keeper","instructions":"You review.","focus":["q"]}`)
@@ -329,6 +343,7 @@ func TestReview_DeactivatedRoleDropsItsFocus(t *testing.T) {
 // phases resolve their overrides through the same ResolveOverrideFocus but
 // assemble their payloads separately, so each is pinned.
 func TestAudit_DeactivatedRoleDropsItsFocus(t *testing.T) {
+	t.Parallel()
 	spec := "---\ntp:\n  audit_roles:\n    dropped:\n      enabled: false\n      focus:\n        - \"DEACTIVATED AUDIT FOCUS\"\n---\n# Spec\n## 1. Widgets\ncontent\n"
 	dir := writeAuditorCorpusProject(t, spec, "spec-coverage", "keeper", "dropped")
 
@@ -352,6 +367,7 @@ func TestAudit_DeactivatedRoleDropsItsFocus(t *testing.T) {
 // entry IS emitted; without it the compact assertion would pass trivially
 // against an implementation that never produces a disabled-by-spec entry at all.
 func TestReview_CompactOmitsDisabledBySpec(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	writeReviewerRole(t, dir, "keeper.json", `{"id":"keeper","title":"Keeper","instructions":"You review.","focus":["q"]}`)
@@ -377,6 +393,7 @@ func TestReview_CompactOmitsDisabledBySpec(t *testing.T) {
 // assembles skipped_roles in runAudit, separately from review, so its --compact
 // gate is pinned separately too.
 func TestAudit_CompactOmitsDisabledBySpec(t *testing.T) {
+	t.Parallel()
 	spec := "---\ntp:\n  audit_roles:\n    dropped:\n      enabled: false\n---\n# Spec\n## 1. Widgets\ncontent\n"
 	dir := writeAuditorCorpusProject(t, spec, "spec-coverage", "keeper", "dropped")
 
@@ -404,6 +421,7 @@ func TestAudit_CompactOmitsDisabledBySpec(t *testing.T) {
 // LEGACY LENS QUESTION out to every surviving reviewer while every panel
 // assertion below still held.
 func TestReview_EnabledFalseOnlyEntrySuppressesLensShim(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	spec := "---\ntp:\n  review_roles:\n    tester:\n      enabled: false\n  lens:\n    all:\n      - \"LEGACY LENS QUESTION\"\n---\n# Spec\n## 1. A\ncontent\n"
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec), 0o600))
@@ -449,6 +467,7 @@ func refusalMessage(t *testing.T, stderr string) (msg, hint string) {
 // rendered from engine.PhaseReviewers and the deactivated ids sorted and
 // comma-separated — plus the fixed hint, and an empty stdout (test 7).
 func TestReview_EmptyPhaseMessageRendersSortedIDs(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	revDir := filepath.Join(dir, ".tp", "reviewers")
@@ -473,6 +492,7 @@ func TestReview_EmptyPhaseMessageRendersSortedIDs(t *testing.T) {
 // TestAudit_EmptyPhaseMessageRendersSortedIDs: the audit half of test 7 — the
 // same message with the phase word rendered from engine.PhaseAuditors.
 func TestAudit_EmptyPhaseMessageRendersSortedIDs(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	audDir := filepath.Join(dir, ".tp", "auditors")
@@ -502,6 +522,7 @@ func TestAudit_EmptyPhaseMessageRendersSortedIDs(t *testing.T) {
 // only the latter (§2.5). "aardvark" sorts first, so an implementation keyed on
 // the frontmatter entries rather than the drop set would lead the list with it.
 func TestReview_EmptyPhaseNamesOnlySpecDeactivatedIDs(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	revDir := filepath.Join(dir, ".tp", "reviewers")
@@ -530,6 +551,7 @@ func TestReview_EmptyPhaseNamesOnlySpecDeactivatedIDs(t *testing.T) {
 // rule — the auditor phase emptied partly by domains and partly by enabled:
 // false names only the deactivated ids (§2.5).
 func TestAudit_EmptyPhaseNamesOnlySpecDeactivatedIDs(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	audDir := filepath.Join(dir, ".tp", "auditors")
@@ -587,6 +609,7 @@ func writeAuditorCorpusProject(t *testing.T, spec string, auditorIDs ...string) 
 // spec-coverage entry would exit 2 in both halves and fail the second — that
 // failure mode is the point of this test.
 func TestAudit_SpecCoverageRefusalKeysOnDropSet(t *testing.T) {
+	t.Parallel()
 	t.Run("corpus holds spec-coverage", func(t *testing.T) {
 		// Not an emptiness check: routeChecklist routes every spec-derived item
 		// to spec-coverage alone, so deactivating it drops the whole
@@ -629,6 +652,7 @@ func TestAudit_SpecCoverageRefusalKeysOnDropSet(t *testing.T) {
 // review resolves overrides against the reviewer panel, where spec-coverage is
 // not an active role, so it contributes no drop and the run proceeds.
 func TestReview_SpecCoverageEntryTakesWarningPath(t *testing.T) {
+	t.Parallel()
 	dir := writeAuditorCorpusProject(t,
 		"---\ntp:\n  review_roles:\n    spec-coverage:\n      enabled: false\n---\n# Spec\n## 1. Widgets\ncontent\n",
 		"spec-coverage", "keeper")
@@ -652,6 +676,7 @@ func TestReview_SpecCoverageEntryTakesWarningPath(t *testing.T) {
 // the combined case it is the ordering, not a single condition holding, that
 // selects which message the agent reads.
 func TestAudit_SpecCoverageRefusalPrecedesEmptyPhase(t *testing.T) {
+	t.Parallel()
 	t.Run("both refusals hold", func(t *testing.T) {
 		dir := writeAuditorCorpusProject(t,
 			"---\ntp:\n  audit_roles:\n    keeper:\n      enabled: false\n    spec-coverage:\n      enabled: false\n---\n# Spec\n## 1. Widgets\ncontent\n",
@@ -736,6 +761,7 @@ func writeBothPhasesDeactivatedProject(t *testing.T) string {
 // resolved, and is asserted separately in
 // TestRefusals_PerspectiveShortCircuitsBeforeCorpus.
 func TestRefusals_FireOnlyOnPromptEmission(t *testing.T) {
+	t.Parallel()
 	t.Run("control: prompt emission refuses", func(t *testing.T) {
 		dir := writeBothPhasesDeactivatedProject(t)
 		_, stderr, code := runTP(t, dir, "review", "spec.md", "--no-state")
@@ -785,6 +811,7 @@ func TestRefusals_FireOnlyOnPromptEmission(t *testing.T) {
 // The control sub-test re-proves the fixture is armed, so a silent perspective
 // run measures the short-circuit and not a toothless spec.
 func TestRefusals_PerspectiveShortCircuitsBeforeCorpus(t *testing.T) {
+	t.Parallel()
 	t.Run("control: prompt emission refuses", func(t *testing.T) {
 		dir := writeBothPhasesDeactivatedProject(t)
 		_, stderr, code := runTP(t, dir, "review", "spec.md", "--no-state")
@@ -831,6 +858,7 @@ func TestRefusals_PerspectiveShortCircuitsBeforeCorpus(t *testing.T) {
 // that arms the state lifecycle, and it is the mode every other empty-phase
 // test avoids.
 func TestRefusals_WriteNothingBeforeRefusing(t *testing.T) {
+	t.Parallel()
 	t.Run("review", func(t *testing.T) {
 		dir := writeBothPhasesDeactivatedProject(t)
 
@@ -880,6 +908,7 @@ func skipReasonsFor(t *testing.T, stdout, role string) []string {
 // visibility on the CLI's stderr by
 // TestReview_NoActiveRoleWarningVisibleInJSONMode.
 func TestReview_EnabledFalseUnknownIDChangesNothing(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	spec := "---\ntp:\n  review_roles:\n    ghost:\n      enabled: false\n---\n# Spec\n## 1. A\ncontent\n"
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec), 0o600))
@@ -910,6 +939,7 @@ func TestReview_EnabledFalseUnknownIDChangesNothing(t *testing.T) {
 // never allocates a terminal, so this IS JSON mode), and stdout stays parseable
 // JSON — an advisory that leaked into the payload would break every caller.
 func TestReview_NoActiveRoleWarningVisibleInJSONMode(t *testing.T) {
+	t.Parallel()
 	writeSpec := func(t *testing.T) string {
 		t.Helper()
 		dir := t.TempDir()
@@ -972,6 +1002,7 @@ func writeDomainFilteredCorpusProject(t *testing.T, spec string) string {
 // drop set before checking the active set would report it a second time, with
 // disabled-by-spec, since the two skip lists are appended independently.
 func TestReview_DomainFilteredRoleTakesWarningPath(t *testing.T) {
+	t.Parallel()
 	t.Run("enabled false", func(t *testing.T) {
 		dir := writeDomainFilteredCorpusProject(t,
 			"---\ntp:\n  review_roles:\n    prose-role:\n      enabled: false\n---\n# Spec\n## 1. A\ncontent\n")
@@ -1019,6 +1050,7 @@ func TestReview_DomainFilteredRoleTakesWarningPath(t *testing.T) {
 // added. Under --no-state there is no baseline snapshot, regression is never a
 // candidate, and the refusal would hold for an implementation that did count it.
 func TestReview_RegressionDoesNotSatisfyTheEmptinessCheck(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	writeReviewerRole(t, dir, "solo.json",

@@ -18,6 +18,7 @@ func eval(t *testing.T, p string) string {
 }
 
 func TestGateDir_WalksUpToGitRootFromSubdir(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
 	sub := filepath.Join(root, "spec")
@@ -29,6 +30,7 @@ func TestGateDir_WalksUpToGitRootFromSubdir(t *testing.T) {
 }
 
 func TestGateDir_GitAsFileWorktree(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(root, ".git"), []byte("gitdir: /wt\n"), 0o600))
 
@@ -37,6 +39,7 @@ func TestGateDir_GitAsFileWorktree(t *testing.T) {
 }
 
 func TestGateDir_NoGitReturnsEmptyOrRealBoundary(t *testing.T) {
+	t.Parallel()
 	got := gateDir(filepath.Join(t.TempDir(), "z.tasks.json"))
 	if got != "" {
 		_, err := os.Stat(filepath.Join(got, ".git"))

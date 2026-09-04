@@ -20,6 +20,7 @@ func taskState(t *testing.T, dir, id string) map[string]any {
 }
 
 func TestCommitShas_RecordTwoWithMirror(t *testing.T) {
+	t.Parallel()
 	dir := setupCommitProject(t, "t1")
 	_, stderr, code := runTP(t, dir, "done", "t1", "--gate-passed", "--commit", "aaa", "--commit", "bbb", "--", "t1 acceptance met")
 	require.Equal(t, 0, code, "done: %s", stderr)
@@ -29,6 +30,7 @@ func TestCommitShas_RecordTwoWithMirror(t *testing.T) {
 }
 
 func TestCommitShas_RecordSingle(t *testing.T) {
+	t.Parallel()
 	dir := setupCommitProject(t, "t1")
 	_, _, code := runTP(t, dir, "done", "t1", "--gate-passed", "--commit", "aaa", "--", "t1 acceptance met")
 	require.Equal(t, 0, code)
@@ -38,6 +40,7 @@ func TestCommitShas_RecordSingle(t *testing.T) {
 }
 
 func TestCommitShas_DuplicateExit1(t *testing.T) {
+	t.Parallel()
 	dir := setupCommitProject(t, "t1")
 	_, stderr, code := runTP(t, dir, "done", "t1", "--gate-passed", "--commit", "ccc", "--commit", "ccc", "--", "t1 acceptance met")
 	assert.Equal(t, 1, code, "a duplicate sha exits 1")
@@ -51,6 +54,7 @@ func TestCommitShas_DuplicateExit1(t *testing.T) {
 // example "--output=<path>", which makes git write that file. Rejecting it at
 // resolveCommitSHAs closes that at the single entry point.
 func TestCommitShas_RejectsOptionLookalike(t *testing.T) {
+	t.Parallel()
 	dir := setupCommitProject(t, "t1")
 	victim := filepath.Join(dir, "written-by-git")
 
@@ -64,6 +68,7 @@ func TestCommitShas_RejectsOptionLookalike(t *testing.T) {
 }
 
 func TestCommitShas_CoveredByRecordsNone(t *testing.T) {
+	t.Parallel()
 	dir := setupCommitProject(t, "t1")
 	_, _, code := runTP(t, dir, "add", `{"id":"t2","title":"T2","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"t2 done","source_sections":["s1"]}`)
 	require.Equal(t, 0, code)
@@ -77,6 +82,7 @@ func TestCommitShas_CoveredByRecordsNone(t *testing.T) {
 }
 
 func TestCommitShas_SetRejectsManagedField(t *testing.T) {
+	t.Parallel()
 	dir := setupCommitProject(t, "t1")
 	_, stderr, code := runTP(t, dir, "set", "t1", "commit_shas=x")
 	assert.Equal(t, 2, code)
@@ -84,6 +90,7 @@ func TestCommitShas_SetRejectsManagedField(t *testing.T) {
 }
 
 func TestCommitShas_ReopenClears(t *testing.T) {
+	t.Parallel()
 	dir := setupCommitProject(t, "t1")
 	_, _, code := runTP(t, dir, "done", "t1", "--gate-passed", "--commit", "aaa", "--", "t1 acceptance met")
 	require.Equal(t, 0, code)
@@ -97,6 +104,7 @@ func TestCommitShas_ReopenClears(t *testing.T) {
 }
 
 func TestCommitShas_BuiltinCommitRecordsSingleElement(t *testing.T) {
+	t.Parallel()
 	dir := setupCommitProject(t, "t1")
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "impl.go"), []byte("package impl\n"), 0o600))
 	out, stderr, code := runTP(t, dir, "commit", "t1", "implemented t1")

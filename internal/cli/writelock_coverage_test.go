@@ -249,6 +249,7 @@ func walkLockAware(n ast.Node, locked bool, visit func(call *ast.CallExpr, locke
 // outside a lock, propagate it along unlocked same-package calls to a fixpoint,
 // then require that no cobra RunE entry point ended up in it.
 func TestNoUnlockedTaskFileWrite(t *testing.T) {
+	t.Parallel()
 	facts, runE, totalWrites := collectFuncFacts(t, ".")
 
 	// Instrument floors: a scan that found no writes, or no commands, proves
@@ -293,6 +294,7 @@ func TestNoUnlockedTaskFileWrite(t *testing.T) {
 // has no non-test caller elsewhere in the tool. A future caller in engine/ or
 // cmd/ would slip past TestNoUnlockedTaskFileWrite unnoticed; this fails first.
 func TestTaskFileWriteSinkIsCLIOnly(t *testing.T) {
+	t.Parallel()
 	cliDir, err := filepath.Abs(".")
 	require.NoError(t, err)
 	root, err := filepath.Abs("../..")

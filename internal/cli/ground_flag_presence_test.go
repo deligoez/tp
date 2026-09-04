@@ -27,6 +27,7 @@ import (
 // control at the end is what makes that equality a claim about the refusal
 // rather than about the fixture: the same edit, emitted, must move the floor.
 func TestGroundRefusesAnEmptyRecordPathRatherThanEmitting(t *testing.T) {
+	t.Parallel()
 	dir := writeGroundFixture(t)
 	groundEmit(t, dir)
 	before, err := os.ReadFile(groundStatePath(dir, "floor-ground-round-1.txt"))
@@ -60,6 +61,7 @@ func TestGroundRefusesAnEmptyRecordPathRatherThanEmitting(t *testing.T) {
 // differently — one emits, one silently picks a mode — and a fix to the dispatch
 // alone leaves this one standing.
 func TestGroundCountsAnEmptyRecordPathAsAModePassed(t *testing.T) {
+	t.Parallel()
 	dir := writeGroundFixture(t)
 	groundEmit(t, dir)
 

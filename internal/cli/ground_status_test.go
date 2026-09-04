@@ -198,6 +198,7 @@ func recordGroundVerdicts(t *testing.T, dir string, ids, verdicts []string) map[
 // below asserts field by field first, so the only thing left that can make them
 // differ is the breakdown.
 func TestStatusDistinguishesARoundOfFailsFromARoundOfPassesAtIdenticalCoverage(t *testing.T) {
+	t.Parallel()
 	const units = 84
 
 	roundOf := func(verdict string) map[string]any {
@@ -255,6 +256,7 @@ func TestStatusDistinguishesARoundOfFailsFromARoundOfPassesAtIdenticalCoverage(t
 // verdict this round does not record, so a breakdown that seeds nothing at all
 // reports it absent.
 func TestStatusMakesTheNotAClaimShareReadableBesideTheRatio(t *testing.T) {
+	t.Parallel()
 	const units, notAClaim = 84, 48
 
 	dir := groundWideFixture(t, units)
@@ -287,6 +289,7 @@ func TestStatusMakesTheNotAClaimShareReadableBesideTheRatio(t *testing.T) {
 // The fixture's cut unit sits BETWEEN two floor units, and both the emitted ids
 // and the cut one are read back from the floor rather than assumed.
 func TestStatusCountsReaderAddedAndOffFloorApart(t *testing.T) {
+	t.Parallel()
 	dir := writeGroundFixture(t)
 	groundEmit(t, dir)
 	emitted, cut := groundFloorIDs(t, dir, 1)
@@ -333,6 +336,7 @@ func TestStatusCountsReaderAddedAndOffFloorApart(t *testing.T) {
 // made itself — and 1-of-2 with a FAIL is a state no reading of round 1's record
 // produces.
 func TestStatusReportsTheLatestEmittedRoundAndNotTheLatestRecorded(t *testing.T) {
+	t.Parallel()
 	dir := writeGroundFixture(t)
 	groundEmit(t, dir)
 	emitted, _ := groundFloorIDs(t, dir, 1)
@@ -381,6 +385,7 @@ func TestStatusReportsTheLatestEmittedRoundAndNotTheLatestRecorded(t *testing.T)
 // first: --status reads the floor the emission froze and never opens the spec,
 // so a spec deleted after its emission still has a round to report.
 func TestStatusWithNoEmittedRoundExitsThree(t *testing.T) {
+	t.Parallel()
 	t.Run("nothing has been emitted", func(t *testing.T) {
 		dir := writeGroundFixture(t)
 		stdout, stderr, code := runTP(t, dir, "ground", "spec.md", "--status")
@@ -425,6 +430,7 @@ func TestStatusWithNoEmittedRoundExitsThree(t *testing.T) {
 // comment is the rule being asserted — the same typo reads the same way
 // whichever mode catches it.
 func TestStatusOnAMissingSpecDiagnosesTheSpecLikeItsSiblings(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	envelopeOf := func(t *testing.T, mode string) map[string]any {
@@ -446,6 +452,7 @@ func TestStatusOnAMissingSpecDiagnosesTheSpecLikeItsSiblings(t *testing.T) {
 // it and one writes it. Silently running whichever the dispatch reaches first
 // would leave the operator holding an exit 0 for the mode they did not ask for.
 func TestStatusAndRecordTogetherAreAUsageError(t *testing.T) {
+	t.Parallel()
 	dir := writeGroundFixture(t)
 	groundEmit(t, dir)
 	rows := writeGroundRows(t, dir, groundRecordRow(1))

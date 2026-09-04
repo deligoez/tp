@@ -95,6 +95,7 @@ func groundStatePath(dir, name string) string {
 // calls, and the round file must land BESIDE the two artifacts emit wrote
 // rather than in place of them.
 func TestGroundRecordWritesTheRoundFileBesideTheEmission(t *testing.T) {
+	t.Parallel()
 	dir := writeGroundFixture(t)
 	groundEmit(t, dir)
 	rows := writeGroundRows(t, dir, groundRecordRow(1), groundRecordRow(2))
@@ -134,6 +135,7 @@ func TestGroundRecordWritesTheRoundFileBesideTheEmission(t *testing.T) {
 // would derive from no longer exists. Together they pin that the floor on disk
 // is the input and the spec at record time is not one.
 func TestGroundRecordReadsTheEmittedFloorAndNotTheCurrentSpec(t *testing.T) {
+	t.Parallel()
 	t.Run("the emitted floor is gone", func(t *testing.T) {
 		dir := writeGroundFixture(t)
 		groundEmit(t, dir)
@@ -184,6 +186,7 @@ func TestGroundRecordReadsTheEmittedFloorAndNotTheCurrentSpec(t *testing.T) {
 // a reworded ground message cannot satisfy it, and the same typo reads the same
 // way whichever mode catches it.
 func TestRecordOnAMissingSpecDiagnosesTheSpecLikeItsSiblings(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	rows := writeGroundRows(t, dir, groundRecordRow(1))
 
@@ -208,6 +211,7 @@ func TestRecordOnAMissingSpecDiagnosesTheSpecLikeItsSiblings(t *testing.T) {
 // assertion rather than a hope: a round file written for a payload that decided
 // nothing would advance N, and the second emission would come back as round 2.
 func TestARecordHoldingNoRowsIsRejectedAndConsumesNoRoundNumber(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name string
 		body string
@@ -240,6 +244,7 @@ func TestARecordHoldingNoRowsIsRejectedAndConsumesNoRoundNumber(t *testing.T) {
 // recorded, so N is now 2, and a --record run without a second emission is
 // grading rows against a floor that was never written.
 func TestGroundRecordWithNoPriorEmitExitsThree(t *testing.T) {
+	t.Parallel()
 	t.Run("no state directory at all", func(t *testing.T) {
 		dir := writeGroundFixture(t)
 		rows := writeGroundRows(t, dir, groundRecordRow(1))
@@ -282,6 +287,7 @@ func TestGroundRecordWithNoPriorEmitExitsThree(t *testing.T) {
 // verdict: PASS}` — and it sits SECOND, so an implementation validating only the
 // first row records this payload instead of refusing it.
 func TestARowFailingSection72IsRejectedAndWritesNoRoundFile(t *testing.T) {
+	t.Parallel()
 	dir := writeGroundFixture(t)
 	groundEmit(t, dir)
 	before := stateDirNames(t, dir)
@@ -318,6 +324,7 @@ func TestARowFailingSection72IsRejectedAndWritesNoRoundFile(t *testing.T) {
 // earlier and this measures the no-prior-emit path instead, which is the
 // subtest directly above.
 func TestTheMissingRecordFileHintIsGroundsOwnAndNotTheSharedOne(t *testing.T) {
+	t.Parallel()
 	dir := writeGroundFixture(t)
 	groundEmit(t, dir)
 
@@ -369,6 +376,7 @@ func groundQuestionRow(t *testing.T, dir, id string) string {
 // separately there, so the breakdown says which rows survived and the coverage
 // says the question dispositioned its unit like any other verdict.
 func TestARoundHoldingAQuestionRecordsAndSoDoesEveryRowBesideIt(t *testing.T) {
+	t.Parallel()
 	dir := writeGroundFixture(t)
 	groundEmit(t, dir)
 

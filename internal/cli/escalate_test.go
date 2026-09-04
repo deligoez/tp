@@ -123,6 +123,7 @@ func readEscalation(t *testing.T, unit *escalateUnit) (record escalationRecord, 
 // TestEscalateWritesThePerUnitRecord is test 22's first half: the documented
 // path, the documented fields, and exit 2.
 func TestEscalateWritesThePerUnitRecord(t *testing.T) {
+	t.Parallel()
 	unit := sampleUnit(t)
 	before := time.Now().UTC().Add(-time.Second)
 
@@ -164,6 +165,7 @@ func TestEscalateWritesThePerUnitRecord(t *testing.T) {
 // dropped. That is also what makes the size of the set a fact this test owns,
 // rather than a number written down somewhere and left to rot.
 func TestEscalateAcceptsTheDocumentedDecisions(t *testing.T) {
+	t.Parallel()
 	documented := []string{
 		"skip-gate",
 		"raise-review-cap",
@@ -213,6 +215,7 @@ func TestEscalateAcceptsTheDocumentedDecisions(t *testing.T) {
 // TestEscalateRequiresEvidence: the record exists to be read by an operator, so
 // a record with nothing to read is refused rather than written empty.
 func TestEscalateRequiresEvidence(t *testing.T) {
+	t.Parallel()
 	for name, args := range map[string][]string{
 		"missing":    {"--decision", "other"},
 		"empty":      {"--decision", "other", "--evidence", ""},
@@ -233,6 +236,7 @@ func TestEscalateRequiresEvidence(t *testing.T) {
 // one place it would reach an agent: options[] is documented as an array, and a
 // null there is a shape a driver has to special-case.
 func TestEscalateWithNoOptionsWritesAnEmptyArray(t *testing.T) {
+	t.Parallel()
 	unit := sampleUnit(t)
 	_, stderr, code := runEscalate(t, t.TempDir(), unitEnv(t, unit),
 		"--decision", "other", "--evidence", "no option is obviously right here")
@@ -248,6 +252,7 @@ func TestEscalateWithNoOptionsWritesAnEmptyArray(t *testing.T) {
 // fence: without TP_RUN_DIR there is no run to escalate within, so the command
 // cannot be used to fabricate a record.
 func TestEscalateOutsideARunIsAUsageError(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	stdout, stderr, code := runEscalate(t, dir, escalateEnv(),
 		"--decision", "skip-gate", "--evidence", "the gate fails for an unrelated reason")
@@ -264,6 +269,7 @@ func TestEscalateOutsideARunIsAUsageError(t *testing.T) {
 // The record is per unit precisely so the two role siblings of one round never
 // clobber each other (§5.2).
 func TestEscalateConcurrentSiblingsEachWriteTheirOwn(t *testing.T) {
+	t.Parallel()
 	runDir := filepath.Join(t.TempDir(), ".tp", "runs", "01JB0000000000000000000001")
 	siblings := []*escalateUnit{
 		{runDir: runDir, seq: "3", kind: "review-role", id: "implementer", phase: "review"},

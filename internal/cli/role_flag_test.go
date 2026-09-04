@@ -29,6 +29,7 @@ func roleFlagOn(t *testing.T, name string) *pflag.Flag {
 // the last occurrence and give two spellings of the same request different
 // meanings, and a boolean could not name a role at all.
 func TestRoleFlagIsRegisteredOnBothCommands(t *testing.T) {
+	t.Parallel()
 	for _, cmd := range []string{"review", "audit"} {
 		t.Run(cmd, func(t *testing.T) {
 			f := roleFlagOn(t, cmd)

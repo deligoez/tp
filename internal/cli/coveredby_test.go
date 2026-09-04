@@ -11,6 +11,7 @@ import (
 )
 
 func TestDoneCoveredBy(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 
 	addTask(t, dir, `{"id":"t1","title":"First","depends_on":[],"estimate_minutes":5,"acceptance":"First done","source_sections":["s1"]}`)
@@ -30,6 +31,7 @@ func TestDoneCoveredBy(t *testing.T) {
 }
 
 func TestDoneCoveredByNotDone(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 
 	addTask(t, dir, `{"id":"t1","title":"First","depends_on":[],"estimate_minutes":5,"acceptance":"First done","source_sections":["s1"]}`)
@@ -42,6 +44,7 @@ func TestDoneCoveredByNotDone(t *testing.T) {
 }
 
 func TestDoneCoveredByNonExistent(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 
 	addTask(t, dir, `{"id":"t1","title":"First","depends_on":[],"estimate_minutes":5,"acceptance":"First done","source_sections":["s1"]}`)
@@ -52,6 +55,7 @@ func TestDoneCoveredByNonExistent(t *testing.T) {
 }
 
 func TestDoneCoveredByForbiddenPatternAllowed(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 
 	addTask(t, dir, `{"id":"t1","title":"First","depends_on":[],"estimate_minutes":5,"acceptance":"First done","source_sections":["s1"]}`)
@@ -66,6 +70,7 @@ func TestDoneCoveredByForbiddenPatternAllowed(t *testing.T) {
 }
 
 func TestBatchDoneCoveredBy(t *testing.T) {
+	t.Parallel()
 	dir := setupProject(t)
 
 	addTask(t, dir, `{"id":"t1","title":"First","depends_on":[],"estimate_minutes":5,"acceptance":"First done","source_sections":["s1"]}`)

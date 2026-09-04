@@ -25,6 +25,7 @@ func setupThreeRoleAudit(t *testing.T) (stdout string) {
 }
 
 func TestGenerateAuditPrompts_ThreeRolesPresent(t *testing.T) {
+	t.Parallel()
 	stdout := setupThreeRoleAudit(t)
 	var out map[string]any
 	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
@@ -36,6 +37,7 @@ func TestGenerateAuditPrompts_ThreeRolesPresent(t *testing.T) {
 }
 
 func TestGenerateAuditPrompts_StructuredItems(t *testing.T) {
+	t.Parallel()
 	stdout := setupThreeRoleAudit(t)
 	byRole := auditPromptsByRole(t, stdout)
 	spec := byRole["spec-coverage"]
@@ -49,6 +51,7 @@ func TestGenerateAuditPrompts_StructuredItems(t *testing.T) {
 }
 
 func TestGenerateAuditPrompts_NoCategoryField(t *testing.T) {
+	t.Parallel()
 	stdout := setupThreeRoleAudit(t)
 	var out map[string]any
 	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
@@ -59,6 +62,7 @@ func TestGenerateAuditPrompts_NoCategoryField(t *testing.T) {
 }
 
 func TestGenerateAuditPrompts_SpecExcerptOnlyForSpecCoverage(t *testing.T) {
+	t.Parallel()
 	stdout := setupThreeRoleAudit(t)
 	byRole := auditPromptsByRole(t, stdout)
 	assert.Contains(t, byRole["spec-coverage"]["prompt"].(string), "## Spec Excerpt")
@@ -70,6 +74,7 @@ func TestGenerateAuditPrompts_SpecExcerptOnlyForSpecCoverage(t *testing.T) {
 // Context block reaches every role taking the shared arm, and never
 // spec-coverage (§2.3).
 func TestGenerateAuditPrompts_CLAUDEmdForEveryNonSpecCoverageRole(t *testing.T) {
+	t.Parallel()
 	stdout := setupThreeRoleAudit(t)
 	byRole := auditPromptsByRole(t, stdout)
 	require.NotEmpty(t, byRole)
@@ -87,6 +92,7 @@ func TestGenerateAuditPrompts_CLAUDEmdForEveryNonSpecCoverageRole(t *testing.T) 
 // emitted roles and their Role Rules come from the corpus, not the removed
 // hardcoded persona/rules set (§7.2).
 func TestAudit_CorpusDrivenEmission(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	audDir := filepath.Join(dir, ".tp", "auditors")

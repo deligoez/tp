@@ -52,6 +52,7 @@ func promptsOf(t *testing.T, payload map[string]any) (bodies map[string]string, 
 // under it, and this repository has already paid for one hand-written list that
 // omitted the largest entry in the payload.
 func TestRoleSelectionIsByteIdenticalToTheUnrestrictedEntry(t *testing.T) {
+	t.Parallel()
 	spec := relocatedSpec(t, "spec/0.36.0.md")
 
 	full := emitPayload(t, spec)
@@ -76,6 +77,7 @@ func TestRoleSelectionIsByteIdenticalToTheUnrestrictedEntry(t *testing.T) {
 // files named: on a clean tree it exits 4 with "no changed files detected", so
 // a shared harness would have to branch on the command anyway.
 func TestAuditRoleSelectionIsByteIdentical(t *testing.T) {
+	t.Parallel()
 	spec := relocatedSpec(t, "spec/0.36.0.md")
 	dir := filepath.Dir(spec)
 

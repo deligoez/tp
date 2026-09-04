@@ -45,6 +45,7 @@ func committedTaskField(t *testing.T, dir, taskFile, id, field string) any {
 // via amend: the committed task file carries commit_sha, the working tree is
 // clean for tp-owned paths, and the recorded sha is the pre-amend C1 (§5.1a-c).
 func TestCloseCheckpoint_CommitFoldsClosure(t *testing.T) {
+	t.Parallel()
 	dir := setupCloseStrategyProject(t, "builtin")
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "impl.go"), []byte("package impl\n"), 0o600))
 
@@ -72,6 +73,7 @@ func TestCloseCheckpoint_CommitFoldsClosure(t *testing.T) {
 // the committed task file shows status:done, the working tree is clean, and the
 // recorded sha is the pre-amend C1 (§5.1a-c).
 func TestCloseCheckpoint_DoneAutoCommitFoldsClosure(t *testing.T) {
+	t.Parallel()
 	dir := setupCloseStrategyProject(t, "builtin")
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "impl.go"), []byte("package impl\n"), 0o600))
 
@@ -97,6 +99,7 @@ func TestCloseCheckpoint_DoneAutoCommitFoldsClosure(t *testing.T) {
 // tracked non-tp-owned path differs from HEAD, tp falls back to a follow-up
 // commit chore(tp): record <id> closure, leaving C1 as commit_sha (§5.1d).
 func TestCloseCheckpoint_FallbackDirtyNonTpPath(t *testing.T) {
+	t.Parallel()
 	dir := setupCloseStrategyProject(t, "builtin")
 	// A tracked, non-tp-owned file committed, then dirtied before tp runs.
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "tracked.txt"), []byte("v1\n"), 0o600))

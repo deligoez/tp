@@ -35,6 +35,7 @@ func longFindingLine(n int) string {
 // `--findings .tp-review/0.33.0` instead of the file inside it is the likelier
 // operator slip of the two.
 func TestReviewVerifyFindingsDirectoryFailsLoudly(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n\n## Section\n\nContent.\n"), 0o600))
@@ -50,6 +51,7 @@ func TestReviewVerifyFindingsDirectoryFailsLoudly(t *testing.T) {
 // rest, so a three-finding file reported one — a smaller set reaching the same
 // "review is complete" instruction, with a warning as its only signal.
 func TestReviewVerifyOverLongLineFailsLoudly(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n\n## Section\n\nContent.\n"), 0o600))
@@ -74,6 +76,7 @@ func TestReviewVerifyOverLongLineFailsLoudly(t *testing.T) {
 // tp had just written could not be read back by the next mode in its own loop.
 // One 200KB finding travels the whole chain.
 func TestNDJSONLineCapIsUniform(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	r1 := filepath.Join(dir, "r1.ndjson")
 	require.NoError(t, os.WriteFile(r1, []byte(longFindingLine(200*1024)+"\n"), 0o600))
@@ -94,6 +97,7 @@ func TestNDJSONLineCapIsUniform(t *testing.T) {
 // exit 3 that named neither the file nor the cap — it inherited the code-3
 // default's task-file advice, for a command that takes no task file.
 func TestReviewResolveOverLongLineHintNamesTheCap(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	for _, tc := range []struct {
@@ -126,6 +130,7 @@ func TestReviewResolveOverLongLineHintNamesTheCap(t *testing.T) {
 // right — a swallowed read here records a clean round — but it used to attach
 // the path hint, telling the operator to check a path that was never wrong.
 func TestReviewMergeOverLongLineHintNamesTheCap(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	r1 := filepath.Join(dir, "r1.ndjson")
 	require.NoError(t, os.WriteFile(r1, []byte(longFindingLine(2*1024*1024)+"\n"), 0o600))
@@ -145,6 +150,7 @@ func TestReviewMergeOverLongLineHintNamesTheCap(t *testing.T) {
 // fixes the two usage rows at exit 2; what was wrong was their hint, which was
 // the code-2 default ("see tp --help") and repairs neither.
 func TestReviewReportInputErrorContract(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	t.Run("no arguments", func(t *testing.T) {
@@ -187,6 +193,7 @@ func TestReviewReportInputErrorContract(t *testing.T) {
 // branch does leaves only the documented specContentCap truncation, which says
 // where it stopped.
 func TestReviewSpecInlineOverLongLineTruncationIsVisible(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	goPath := filepath.Join(dir, "g.go")
 	require.NoError(t, os.WriteFile(goPath, []byte("package main\n"), 0o600))
@@ -215,6 +222,7 @@ func TestReviewSpecInlineOverLongLineTruncationIsVisible(t *testing.T) {
 // that emitted no prompt still left a snapshot on disk and moved
 // in_flight_round to the round it never ran.
 func TestAuditFindingsAbortLeavesNoRoundStarted(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n## Table\n| Col |\n|-----|\n| a |\n"), 0o600))

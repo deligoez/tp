@@ -73,6 +73,7 @@ func nextActionOf(t *testing.T, payload map[string]any) string {
 // the converged arm fires once per cycle. The named mutant is carrying the
 // count into the converged arm only, which leaves the common branch silent.
 func TestAuditNextAction_CleanRoundNamesTheAcceptedCount(t *testing.T) {
+	t.Parallel()
 	held, heldStatus := auditNextActionRun(t, auditThreeAdvisoryRound, 1)
 	require.Equal(t, false, held["converged"],
 		"one clean round is not the default two, so this is the clean-but-not-converged arm")
@@ -105,6 +106,7 @@ func TestAuditNextAction_CleanRoundNamesTheAcceptedCount(t *testing.T) {
 // the two strings equal — which is why the assertion is NotEqual against the
 // empty round rather than a presence check.
 func TestAuditNextAction_ConvergedRoundNamesTheAcceptedCount(t *testing.T) {
+	t.Parallel()
 	held, heldStatus := auditNextActionRun(t, auditThreeAdvisoryRound, 2)
 	require.Equal(t, true, held["converged"],
 		"two clean rounds meet the default audit_clean_rounds, so this is the converged arm")

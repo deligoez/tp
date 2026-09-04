@@ -11,6 +11,7 @@ import (
 )
 
 func TestSetWorkflowChecks_ReplaceAndValidate(t *testing.T) {
+	t.Parallel()
 	t.Run("valid list replaces whole checks array", func(t *testing.T) {
 		dir := setupProject(t)
 		_, stderr, code := runTP(t, dir, "set", "--workflow",

@@ -93,6 +93,7 @@ func stopReasonOf(t *testing.T, stdout string) string {
 // loop reaches by agreement rather than by exhaustion. Nothing is spawned: the
 // releasable check is the loop's first step.
 func TestRunExitCodes_ConvergedExitsZero(t *testing.T) {
+	t.Parallel()
 	dir := runExitProject(t, exitDoneTask)
 	recordCleanAuditRounds(t, filepath.Join(dir, "spec.md"), 2)
 	env, records := seam(t)
@@ -110,6 +111,7 @@ func TestRunExitCodes_ConvergedExitsZero(t *testing.T) {
 // task whose dependency does not exist, which is §4.6's escalate blocker — and
 // the run stops without spawning anything. Not converged, so exit 4.
 func TestRunExitCodes_NoUnitsExitsFour(t *testing.T) {
+	t.Parallel()
 	dir := runExitProject(t, exitBlockedTask)
 	env, records := seam(t)
 
@@ -125,6 +127,7 @@ func TestRunExitCodes_NoUnitsExitsFour(t *testing.T) {
 // unit-failure: the child exits 0 but leaves no durable write, so every attempt
 // fails and the run stops on the exhausted unit. Exit 4.
 func TestRunExitCodes_UnitFailureExitsFour(t *testing.T) {
+	t.Parallel()
 	dir := runProject(t)
 	env, records := seam(t)
 
@@ -141,6 +144,7 @@ func TestRunExitCodes_UnitFailureExitsFour(t *testing.T) {
 // never an acceptance (§3.4), so the run reports 4 even though every unit it
 // ran succeeded.
 func TestRunExitCodes_CapUnitsExitsFour(t *testing.T) {
+	t.Parallel()
 	dir := runProject(t)
 	_, stderr, code := runTP(t, dir, "set", "--workflow", "run_max_units=1")
 	require.Equal(t, 0, code, "lowering a cap is accepted: %s", stderr)
@@ -162,6 +166,7 @@ func TestRunExitCodes_CapUnitsExitsFour(t *testing.T) {
 // escalation: a unit asked for a decision only a user can make. It is a normal,
 // expected outcome and still exits 4, because the run needs a human.
 func TestRunExitCodes_EscalationExitsFour(t *testing.T) {
+	t.Parallel()
 	dir := runProject(t)
 	env, _ := seam(t, fakerunner.EnvEscalate+"=1")
 
@@ -175,6 +180,7 @@ func TestRunExitCodes_EscalationExitsFour(t *testing.T) {
 // written, so the 2 really is "tp did not run the request" rather than a run
 // that started and then failed.
 func TestRunExitCodes_UsageErrorBeforeTheLoopExitsTwo(t *testing.T) {
+	t.Parallel()
 	for name, args := range map[string][]string{
 		"too many arguments": {"run", "spec.md", "extra"},
 		"unknown flag":       {"run", "--nope"},

@@ -12,6 +12,7 @@ import (
 // TestNextBrief_ClaimsAndReturnsBrief: tp next --brief claims the next ready
 // task (open→wip) and returns the brief for it in one call (§9.2).
 func TestNextBrief_ClaimsAndReturnsBrief(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"),
 		[]byte("# S\n\n## 1. A\nDo a thing.\n"), 0o600))
@@ -36,6 +37,7 @@ func TestNextBrief_ClaimsAndReturnsBrief(t *testing.T) {
 // TestNextBrief_ComposesWithJSON: under JSON the brief is the structured object
 // with the close recipe and scope fence (§9.2 composes with --json).
 func TestNextBrief_ComposesWithJSON(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# S\n"), 0o600))
 	runTP(t, dir, "init", "spec.md")
@@ -51,6 +53,7 @@ func TestNextBrief_ComposesWithJSON(t *testing.T) {
 // TestNextBrief_BriefAndMinimalMutuallyExclusive: §9.2 — one strips context, the
 // other assembles it, so together they are a usage error (exit 2).
 func TestNextBrief_BriefAndMinimalMutuallyExclusive(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# S\n"), 0o600))
 	runTP(t, dir, "init", "spec.md")

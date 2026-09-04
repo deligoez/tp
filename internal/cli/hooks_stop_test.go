@@ -140,6 +140,7 @@ func roleKinds(t *testing.T) (role, nonRole []string) {
 // the hook is wired to the Stop event with §6.4's timeout, and the script it
 // names exists and can be executed.
 func TestStopHookIsRegisteredForEveryStop(t *testing.T) {
+	t.Parallel()
 	var manifest pluginHooksManifest
 	raw := readRepoDoc(t, pluginHooksManifestPath)
 	require.NoError(t, json.Unmarshal([]byte(raw), &manifest), "%s must be valid JSON", pluginHooksManifestPath)
@@ -164,6 +165,7 @@ func TestStopHookIsRegisteredForEveryStop(t *testing.T) {
 // record has not finished, and the block is the only thing that tells it so
 // before the driver charges the attempt as a failure.
 func TestStopHookBlocksARoleUnitThatWroteNeither(t *testing.T) {
+	t.Parallel()
 	role, _ := roleKinds(t)
 
 	for _, kind := range role {
@@ -183,6 +185,7 @@ func TestStopHookBlocksARoleUnitThatWroteNeither(t *testing.T) {
 // escalation is a normal, expected outcome (§5.2), so a unit that wrote one has
 // ended legitimately even with no findings file at all.
 func TestStopHookAllowsARoleUnitThatEscalated(t *testing.T) {
+	t.Parallel()
 	role, _ := roleKinds(t)
 
 	for _, kind := range role {
@@ -202,6 +205,7 @@ func TestStopHookAllowsARoleUnitThatEscalated(t *testing.T) {
 // §6.2: the two conditions are alternatives, so a unit that escalated is
 // allowed to stop however its half-written findings file looks.
 func TestStopHookAllowsAnEscalationOverAMalformedFindingsFile(t *testing.T) {
+	t.Parallel()
 	unit := stopUnit(t, string(engine.UnitAuditRole))
 	require.NoError(t, os.WriteFile(unit.findingsPath(), []byte("{\"item_id\":\"x\"\n"), 0o600))
 	require.NoError(t, os.WriteFile(unit.escalationPath(), []byte(`{"decision":"other"}`), 0o600))
@@ -215,6 +219,7 @@ func TestStopHookAllowsAnEscalationOverAMalformedFindingsFile(t *testing.T) {
 // §3.3's predicate, so the stop goes through. A hook that only ever blocked
 // would pass every test above this one and make an agent that can never finish.
 func TestStopHookAllowsACompleteRoleUnit(t *testing.T) {
+	t.Parallel()
 	role, _ := roleKinds(t)
 
 	for _, kind := range role {
@@ -235,6 +240,7 @@ func TestStopHookAllowsACompleteRoleUnit(t *testing.T) {
 // already names; every other kind is judged by the driver after the child
 // exits, so the hook must stay out of the way even with nothing on disk.
 func TestStopHookNeverFiresForANonRoleKind(t *testing.T) {
+	t.Parallel()
 	_, nonRole := roleKinds(t)
 
 	// An unset kind is not a role unit either: the hook fires on the suffix,
@@ -259,6 +265,7 @@ func TestStopHookNeverFiresForANonRoleKind(t *testing.T) {
 // exists to make terminating: once Claude Code reports the stop was already
 // blocked, the hook stands down whatever the unit did or did not write.
 func TestStopHookBlocksAtMostOncePerUnit(t *testing.T) {
+	t.Parallel()
 	role, _ := roleKinds(t)
 
 	for _, kind := range role {
@@ -280,6 +287,7 @@ func TestStopHookBlocksAtMostOncePerUnit(t *testing.T) {
 // file the hook could check, and a hook that let that stop through would report
 // a role as finished on the strength of a broken environment.
 func TestStopHookBlocksWhenTheEnvironmentNamesNoFindingsFile(t *testing.T) {
+	t.Parallel()
 	unit := stopUnit(t, string(engine.UnitReviewRole))
 	unit.roundDir = ""
 
@@ -295,6 +303,7 @@ func TestStopHookBlocksWhenTheEnvironmentNamesNoFindingsFile(t *testing.T) {
 // asserted to be the driver's own, so a hook with its own private idea of
 // "parseable" fails here rather than in production.
 func TestStopHookAppliesTheSameRolePredicateAsTheDriver(t *testing.T) {
+	t.Parallel()
 	bodies := map[string]string{
 		"one finding":           `{"class":"x","location":"a.go:1"}` + "\n",
 		"two findings":          "{\"a\":1}\n{\"b\":2}\n",
@@ -343,6 +352,7 @@ func TestStopHookAppliesTheSameRolePredicateAsTheDriver(t *testing.T) {
 // unit's file and not whatever else the round directory holds: a sibling role's
 // complete findings must not let this unit stop.
 func TestStopHookIgnoresAnUnrelatedRoleFile(t *testing.T) {
+	t.Parallel()
 	unit := stopUnit(t, string(engine.UnitAuditRole))
 	sibling := filepath.Join(unit.roundDir, "role-go-safety.ndjson.part")
 	require.NoError(t, os.WriteFile(sibling, []byte("{\"a\":1}\n"), 0o600))

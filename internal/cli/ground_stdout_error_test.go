@@ -56,6 +56,7 @@ func runTPUnwritableStdout(t *testing.T, dir string, args ...string) (stderr str
 // rather than on any sentence, and every mode is asserted in one table — a
 // per-mode test is what let two of the three drift apart in the first place.
 func TestOneStdoutWriteErrorIsOneClassification(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name string
 		args func(dir string) []string
@@ -89,6 +90,7 @@ func TestOneStdoutWriteErrorIsOneClassification(t *testing.T) {
 // round number, which has no emitted floor. The refusal now names the file that
 // exists, so the operator's next step is to read it rather than to record again.
 func TestARecordThatCannotReportSaysTheRoundIsOnDisk(t *testing.T) {
+	t.Parallel()
 	dir := writeGroundFixture(t)
 	groundEmit(t, dir)
 	rows := writeGroundRows(t, dir, groundRecordRow(1))

@@ -30,6 +30,7 @@ import (
 // state, and emission writes the round snapshot; the copy carries the spec's
 // own `.tp-review/<base>` so the round number and the panel travel with it.
 func TestReleaseGate_PanelEqualityAcrossEverySpec(t *testing.T) {
+	t.Parallel()
 	root := repoRootDir(t)
 	specs, err := filepath.Glob(filepath.Join(root, "spec", "*.md"))
 	require.NoError(t, err)

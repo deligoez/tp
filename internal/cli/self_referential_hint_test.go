@@ -20,6 +20,7 @@ import (
 // this — it exempts init.go wholesale as a task-file command, which is right
 // for most of what that file reports and wrong for exactly this one.
 func TestInitAlreadyExists_HintDoesNotRecommendInit(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	spec := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(spec, []byte("# Spec\n## 1. A\ncontent\n"), 0o600))

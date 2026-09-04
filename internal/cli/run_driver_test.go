@@ -62,6 +62,7 @@ func runProject(t *testing.T) (dir string) {
 // The fake runner writes no record kind's durable artifact, so that unit
 // exhausts its attempts — which is where this end-to-end drive stops.
 func TestRunCommand_DrivesTheCycleThroughTheSeam(t *testing.T) {
+	t.Parallel()
 	dir := runProject(t)
 	bin, err := fakerunner.Build(t.TempDir())
 	require.NoError(t, err)
@@ -122,6 +123,7 @@ func TestRunCommand_DrivesTheCycleThroughTheSeam(t *testing.T) {
 // same task file is refused with exit 4 rather than driving the same cycle
 // twice (§3.1.1, test 9).
 func TestRunCommand_SecondRunOverTheSameCycleExitsFour(t *testing.T) {
+	t.Parallel()
 	dir := runProject(t)
 	taskFile := filepath.Join(dir, "spec.tasks.json")
 

@@ -13,6 +13,7 @@ import (
 const fixedRow = `{"severity":"high","category":"consistency","location":"L1","finding":"settled decision text","suggestion":"s","resolved":{"status":"fixed","evidence":"rewrote section 2"}}` + "\n"
 
 func TestRegression_StandaloneStateMode(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## 1. A\noriginal\n"), 0o600))
 
@@ -58,6 +59,7 @@ func TestRegression_StandaloneStateMode(t *testing.T) {
 }
 
 func TestRegression_StandaloneExplicitMode(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "base.md"), []byte("# Spec\n## 1. A\nold\n"), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## 1. A\nnew\n"), 0o600))
@@ -78,6 +80,7 @@ func TestRegression_StandaloneExplicitMode(t *testing.T) {
 }
 
 func TestRegression_UsageErrors(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 
@@ -102,6 +105,7 @@ func TestRegression_UsageErrors(t *testing.T) {
 // the same typo through its own guard, so it returns the same file error (3)
 // as every other --findings reader. It used to exit 2.
 func TestRegression_FindingsFileNotFound(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## 1. A\nnew\n"), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "base.md"), []byte("# Spec\n## 1. A\nold\n"), 0o600))

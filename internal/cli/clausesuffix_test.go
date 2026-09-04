@@ -16,6 +16,7 @@ import (
 // the two in opposite directions, so both numbers are asserted where they are
 // produced rather than left to arithmetic at the call site.
 func TestClauseSuffixIsFourHundredSixtyEightBytes(t *testing.T) {
+	t.Parallel()
 	assert.Len(t, []byte(clauseSuffix()), 468,
 		"§1.1: 2 + 287 + 2 + 177; the net delta is one less, after the strip")
 }
@@ -24,6 +25,7 @@ func TestClauseSuffixIsFourHundredSixtyEightBytes(t *testing.T) {
 // the right size assembled in the wrong order — or with a single LF between the
 // clauses — would satisfy a length check alone.
 func TestClauseSuffixShape(t *testing.T) {
+	t.Parallel()
 	got := clauseSuffix()
 
 	assert.True(t, strings.HasPrefix(got, "\n\n"+isolationClause),

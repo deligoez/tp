@@ -103,6 +103,7 @@ func divergingFixture(t *testing.T, recordFlags ...string) (dir, secondRecord st
 // without a following --status. An implementation computing the signal before
 // recordAuditRoundEntry reports the previous round and fails here.
 func TestAuditSignal_RecordComputesOverJustRecordedRound(t *testing.T) {
+	t.Parallel()
 	_, stdout := divergingFixture(t)
 	out := decodeSignal(t, stdout)
 
@@ -129,6 +130,7 @@ func TestAuditSignal_RecordComputesOverJustRecordedRound(t *testing.T) {
 // without the flag; an implementation writing the fields after the exit-code
 // branch emits nothing here.
 func TestAuditSignal_StatusCheckCarriesTheSamePayload(t *testing.T) {
+	t.Parallel()
 	dir, _ := divergingFixture(t)
 
 	plain, stderr, code := runTP(t, dir, "audit", "spec.md", "--status")
@@ -154,6 +156,7 @@ func TestAuditSignal_StatusCheckCarriesTheSamePayload(t *testing.T) {
 // no-rows round is necessarily below the just-recorded one, whose file always
 // exists.
 func TestAuditSignal_MissingRoundFileAdvisoryOnBothOutputs(t *testing.T) {
+	t.Parallel()
 	dir := auditSignalProject(t)
 	recordSignalRound(t, dir, nil, signalRow("spec-coverage", "PASS"))
 	require.NoError(t, os.Remove(filepath.Join(dir, ".tp-review", "spec", "audit-round-1.ndjson")))
@@ -177,6 +180,7 @@ func TestAuditSignal_MissingRoundFileAdvisoryOnBothOutputs(t *testing.T) {
 // streaks are unaffected and only the object is withheld. roles_stale reads true
 // on the same payload.
 func TestAuditSignal_CorpusEditedAfterLatestRoundSuppressesDivergence(t *testing.T) {
+	t.Parallel()
 	dir, secondRecord := divergingFixture(t)
 	require.Contains(t, decodeSignal(t, secondRecord), "divergence",
 		"the fixture must satisfy conditions 1-4 before the corpus moves")
@@ -201,6 +205,7 @@ func TestAuditSignal_CorpusEditedAfterLatestRoundSuppressesDivergence(t *testing
 // no recorded round at all (--status) and a latest round recorded with zero rows
 // (--record, then --status over it).
 func TestAuditSignal_EmptyStatesAreEmittedArrayAndNull(t *testing.T) {
+	t.Parallel()
 	dir := auditSignalProject(t)
 
 	assertEmptySignal := func(what, stdout string) {
@@ -228,6 +233,7 @@ func TestAuditSignal_EmptyStatesAreEmittedArrayAndNull(t *testing.T) {
 // a JSON null, in both states that withhold it: a spec-coverage streak below the
 // threshold, and a streak meeting it with no other role holding an open finding.
 func TestAuditSignal_DivergenceKeyIsOmittedNotNull(t *testing.T) {
+	t.Parallel()
 	below := auditSignalProject(t)
 	belowOut, _ := recordSignalRound(t, below,
 		nil, signalRow("spec-coverage", "PASS"), signalRow("go-safety", "FAIL"))
@@ -254,6 +260,7 @@ func TestAuditSignal_DivergenceKeyIsOmittedNotNull(t *testing.T) {
 // latest round holds a non-spec-coverage open finding. divergence is absent and
 // tp audit --status --check exits 0.
 func TestAuditSignal_ConvergedGateWithholdsDivergence(t *testing.T) {
+	t.Parallel()
 	dir := auditSignalProject(t)
 	_, stderr, code := runTP(t, dir, "init", "spec.md")
 	require.Equal(t, 0, code, "stderr: %s", stderr)
@@ -290,6 +297,7 @@ func TestAuditSignal_ConvergedGateWithholdsDivergence(t *testing.T) {
 // null-valued spec_coverage_clean_rounds key needs its own fixture, since
 // divergence is emitted only when that value is non-null.
 func TestAuditSignal_CompactKeepsAllThreeWhole(t *testing.T) {
+	t.Parallel()
 	// --record: two fixtures built the same way, one recorded with --compact.
 	_, fullRecord := divergingFixture(t)
 	_, compactRecord := divergingFixture(t, "--compact")
@@ -349,6 +357,7 @@ func TestAuditSignal_CompactKeepsAllThreeWhole(t *testing.T) {
 // TestRunStatus_CarriesTheDivergenceSignalsOnAnAuditPhaseStop, which owns that
 // claim; naming it here rather than re-asserting it keeps one owner per claim.
 func TestAuditSignal_AbsentFromPromptMergeAndReviewOutputs(t *testing.T) {
+	t.Parallel()
 	dir, _ := divergingFixture(t)
 	rows := filepath.Join(dir, "results.ndjson")
 
@@ -395,6 +404,7 @@ func TestAuditSignal_AbsentFromPromptMergeAndReviewOutputs(t *testing.T) {
 // tp stores no acceptance of a divergence, so the only assertion available is
 // the --status --check exit code beside the emitted object, made here.
 func TestAuditGate_DivergenceReachesNeitherConvergenceNorNextAction(t *testing.T) {
+	t.Parallel()
 	const fixDirective = "address the findings, then re-audit: tp audit spec.md --record <file>"
 	dir, record := divergingFixture(t)
 	specPath := filepath.Join(dir, "spec.md")
@@ -447,6 +457,7 @@ func TestAuditGate_DivergenceReachesNeitherConvergenceNorNextAction(t *testing.T
 // live in exactly that payload: resume names the next audit round and carries
 // none of §2.5's three fields while the recorded audit state diverges.
 func TestAuditGate_ResumeIsUnchangedByTheDivergence(t *testing.T) {
+	t.Parallel()
 	dir, record := divergingFixture(t)
 	require.Contains(t, decodeSignal(t, record), "divergence", "the fixture must diverge")
 
@@ -495,6 +506,7 @@ func TestAuditGate_ResumeIsUnchangedByTheDivergence(t *testing.T) {
 // open row leaves the round's finding, the role streak and --check exactly
 // where they were.
 func TestAuditGate_NoEscapeHatchFromTheGate(t *testing.T) {
+	t.Parallel()
 	dir, record := divergingFixture(t)
 
 	// §6.1 / §7 row 18 — reversed, not deleted: a deletion leaves the rest of

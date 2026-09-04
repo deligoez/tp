@@ -11,6 +11,7 @@ import (
 )
 
 func TestReviewStateRounds_Lifecycle(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\ncontent\n"), 0o600))
 	stateDir := filepath.Join(dir, ".tp-review", "spec")
@@ -53,6 +54,7 @@ func TestReviewStateRounds_Lifecycle(t *testing.T) {
 }
 
 func TestReviewStateRounds_RoundConflictAndNoState(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 
@@ -89,6 +91,7 @@ func TestReviewStateRounds_RoundConflictAndNoState(t *testing.T) {
 }
 
 func TestReviewStateRounds_PerspectivesDoNotTouchState(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "code.go"), []byte("package x\n"), 0o600))

@@ -36,6 +36,7 @@ func writeLastFailure(t *testing.T, dir string) map[string]any {
 // §4.2: tp resume surfaces last_failure when one is present, which is how a
 // fresh process learns what the previous attempt walked into.
 func TestResume_SurfacesLastFailure(t *testing.T) {
+	t.Parallel()
 	dir := newPayloadRepo(t, oneOpenTaskJSON)
 	want := writeLastFailure(t, dir)
 
@@ -52,6 +53,7 @@ func TestResume_SurfacesLastFailure(t *testing.T) {
 // The record is the one piece of continuity the loop needs, so --compact keeps
 // it whole: stripping it would strip the reason the next unit reads it at all.
 func TestResume_LastFailureSurvivesCompact(t *testing.T) {
+	t.Parallel()
 	dir := newPayloadRepo(t, oneOpenTaskJSON)
 	writeLastFailure(t, dir)
 
@@ -69,6 +71,7 @@ func TestResume_LastFailureSurvivesCompact(t *testing.T) {
 // rather than omitting the key, so the driver's parse of tp resume has one
 // shape whatever happened.
 func TestResume_LastFailureIsNullWithoutARecord(t *testing.T) {
+	t.Parallel()
 	dir := newPayloadRepo(t, oneOpenTaskJSON)
 
 	res := resumeResult(t, dir)
@@ -79,6 +82,7 @@ func TestResume_LastFailureIsNullWithoutARecord(t *testing.T) {
 // §4.2: tp brief surfaces the record too, which is what actually puts it in
 // front of the next unit — the brief is what a spawned unit reads first.
 func TestBrief_SurfacesLastFailure(t *testing.T) {
+	t.Parallel()
 	dir := newPayloadRepo(t, oneOpenTaskJSON)
 	want := writeLastFailure(t, dir)
 
@@ -97,6 +101,7 @@ func TestBrief_SurfacesLastFailure(t *testing.T) {
 // appear only when there is something to report, so the common brief costs the
 // unit no extra bytes (P3).
 func TestBrief_OmitsLastFailureWithoutARecord(t *testing.T) {
+	t.Parallel()
 	dir := newPayloadRepo(t, oneOpenTaskJSON)
 
 	out, stderr, code := runTP(t, dir, "brief", "a")

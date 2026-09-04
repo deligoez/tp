@@ -21,6 +21,7 @@ func parseStatusJSON(t *testing.T, stdout string) map[string]any {
 // rounds_remaining) and §10.2 (in_flight_round + atomic snapshot write) for
 // review.
 func TestReviewStatus_SurfacesBudgetAndInFlight(t *testing.T) {
+	t.Parallel()
 	dir := setupBudgetProject(t, "review_max_rounds") // cap = 2
 
 	// Fresh state: cap set, zero rounds recorded, no snapshot.
@@ -62,6 +63,7 @@ func TestReviewStatus_SurfacesBudgetAndInFlight(t *testing.T) {
 // TestReviewStatus_BudgetNullWhenUncapped: §10.1 — max_rounds and
 // rounds_remaining are null when no cap is set.
 func TestReviewStatus_BudgetNullWhenUncapped(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 	_, _, code := runTP(t, dir, "init", "spec.md")
@@ -77,6 +79,7 @@ func TestReviewStatus_BudgetNullWhenUncapped(t *testing.T) {
 
 // TestAuditStatus_SurfacesBudgetAndInFlight mirrors the review test for audit.
 func TestAuditStatus_SurfacesBudgetAndInFlight(t *testing.T) {
+	t.Parallel()
 	dir := setupBudgetProject(t, "audit_max_rounds") // cap = 2
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "code.go"), []byte("package main\n"), 0o600))
 
@@ -98,6 +101,7 @@ func TestAuditStatus_SurfacesBudgetAndInFlight(t *testing.T) {
 
 // TestAuditStatus_BudgetNullWhenUncapped: §10.1 mirror for audit.
 func TestAuditStatus_BudgetNullWhenUncapped(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 	_, _, code := runTP(t, dir, "init", "spec.md")
@@ -114,6 +118,7 @@ func TestAuditStatus_BudgetNullWhenUncapped(t *testing.T) {
 // TestStatus_BudgetFieldsSurviveCompact: §8.4 — max_rounds, rounds_remaining,
 // and in_flight_round survive --compact (a driver branches on remaining budget).
 func TestStatus_BudgetFieldsSurviveCompact(t *testing.T) {
+	t.Parallel()
 	dir := setupBudgetProject(t, "review_max_rounds")
 	_, _, code := recordRound(t, dir, dirtyRow)
 	require.Equal(t, 0, code)
@@ -131,6 +136,7 @@ func TestStatus_BudgetFieldsSurviveCompact(t *testing.T) {
 // TestResume_NextActionRecordRoundWhenInFlight: §10.2 — when a round's
 // snapshot exists without its round file, tp resume points at recording it.
 func TestResume_NextActionRecordRoundWhenInFlight(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## 1. A\na\n"), 0o600))
@@ -154,6 +160,7 @@ func TestResume_NextActionRecordRoundWhenInFlight(t *testing.T) {
 // TestResume_NextActionReviewWhenNoInFlight: the default review next_action
 // still applies when no round is in flight (regression guard).
 func TestResume_NextActionReviewWhenNoInFlight(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## 1. A\na\n"), 0o600))
@@ -173,6 +180,7 @@ func TestResume_NextActionReviewWhenNoInFlight(t *testing.T) {
 // TestRegressionPrompt_NamesBaselinePath: §10.3 — the regression prompt names
 // the snapshot it diffs against.
 func TestRegressionPrompt_NamesBaselinePath(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	spec1 := "# Spec\n## 1. A\noriginal\n"
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec1), 0o600))
@@ -199,6 +207,7 @@ func TestRegressionPrompt_NamesBaselinePath(t *testing.T) {
 // (snapshot-round-0.md does not exist), so the regression role is not emitted
 // with an empty diff.
 func TestRegressionPrompt_Round1NotEmitted(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## 1. A\na\n"), 0o600))
 

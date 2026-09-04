@@ -55,6 +55,7 @@ func readPersistedSourceSections(t *testing.T, dir string) map[string][]string {
 }
 
 func TestImport_NormalizesPlainTextSourceSections(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	taskJSON := `{
 		"version": 1,
@@ -73,6 +74,7 @@ func TestImport_NormalizesPlainTextSourceSections(t *testing.T) {
 }
 
 func TestImport_KeepsCanonicalSourceSections(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	taskJSON := `{
 		"version": 1,
@@ -91,6 +93,7 @@ func TestImport_KeepsCanonicalSourceSections(t *testing.T) {
 }
 
 func TestImport_NormalizesMixedFormat(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	taskJSON := `{
 		"version": 1,
@@ -113,6 +116,7 @@ func TestImport_NormalizesMixedFormat(t *testing.T) {
 }
 
 func TestImport_AmbiguousAborts(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	taskJSON := `{
 		"version": 1,
@@ -132,6 +136,7 @@ func TestImport_AmbiguousAborts(t *testing.T) {
 }
 
 func TestImport_UnresolvableTriggersDidYouMean(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	taskJSON := `{
 		"version": 1,
@@ -157,6 +162,7 @@ func TestImport_UnresolvableTriggersDidYouMean(t *testing.T) {
 }
 
 func TestAdd_NormalizesPlainTextSourceSections(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte(normSpec), 0o600))
@@ -173,6 +179,7 @@ func TestAdd_NormalizesPlainTextSourceSections(t *testing.T) {
 }
 
 func TestLint_HeadingFieldUnchanged(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	specContent := "# Top\nIntro paragraph.\n## 4. Backend Migration\n1. one\n2. two\n"

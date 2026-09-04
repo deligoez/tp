@@ -26,6 +26,7 @@ import (
 // came from git or from staging must carry an explicit hint. Everything else in
 // those files keeps the default the exemption exists for.
 func TestGitSubprocessFailuresNameGit(t *testing.T) {
+	t.Parallel()
 	gitMessage := func(s string) bool {
 		return strings.Contains(s, "git ") || strings.Contains(s, "stage ")
 	}

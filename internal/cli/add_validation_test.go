@@ -44,6 +44,7 @@ func errJSON(t *testing.T, stderr string) map[string]any {
 }
 
 func TestAdd_RejectsBlankID(t *testing.T) {
+	t.Parallel()
 	dir := initEntryProject(t)
 	cases := []string{
 		`{"id":"","title":"T","estimate_minutes":5,"acceptance":"done","source_sections":["## 1. Setup"]}`,
@@ -60,6 +61,7 @@ func TestAdd_RejectsBlankID(t *testing.T) {
 }
 
 func TestAdd_RejectsDuplicateID(t *testing.T) {
+	t.Parallel()
 	dir := initEntryProject(t)
 	_, stderr, code := runTP(t, dir, "add", validEntryTask)
 	require.Equal(t, 0, code, "first add failed: %s", stderr)
@@ -73,6 +75,7 @@ func TestAdd_RejectsDuplicateID(t *testing.T) {
 }
 
 func TestAdd_RejectsBlankTitle(t *testing.T) {
+	t.Parallel()
 	dir := initEntryProject(t)
 	_, stderr, code := runTP(t, dir, "add",
 		`{"id":"t1","title":"","estimate_minutes":5,"acceptance":"done","source_sections":["## 1. Setup"]}`)
@@ -84,6 +87,7 @@ func TestAdd_RejectsBlankTitle(t *testing.T) {
 }
 
 func TestAdd_RejectsBlankAcceptance(t *testing.T) {
+	t.Parallel()
 	dir := initEntryProject(t)
 	_, stderr, code := runTP(t, dir, "add",
 		`{"id":"t1","title":"T","estimate_minutes":5,"acceptance":"   ","source_sections":["## 1. Setup"]}`)
@@ -95,6 +99,7 @@ func TestAdd_RejectsBlankAcceptance(t *testing.T) {
 }
 
 func TestAdd_RejectsMissingSourceAnchor(t *testing.T) {
+	t.Parallel()
 	dir := initEntryProject(t)
 	_, stderr, code := runTP(t, dir, "add",
 		`{"id":"t1","title":"T","estimate_minutes":5,"acceptance":"done"}`)
@@ -107,6 +112,7 @@ func TestAdd_RejectsMissingSourceAnchor(t *testing.T) {
 }
 
 func TestAdd_SourceLinesSatisfiesAnchor(t *testing.T) {
+	t.Parallel()
 	dir := initEntryProject(t)
 	_, stderr, code := runTP(t, dir, "add",
 		`{"id":"t1","title":"T","estimate_minutes":5,"acceptance":"done","source_lines":"2-3"}`)
@@ -114,6 +120,7 @@ func TestAdd_SourceLinesSatisfiesAnchor(t *testing.T) {
 }
 
 func TestAdd_RejectsUnknownDependency(t *testing.T) {
+	t.Parallel()
 	dir := initEntryProject(t)
 	_, stderr, code := runTP(t, dir, "add",
 		`{"id":"t1","title":"T","estimate_minutes":5,"acceptance":"done","source_sections":["## 1. Setup"],"depends_on":["ghost","missing"]}`)
@@ -126,6 +133,7 @@ func TestAdd_RejectsUnknownDependency(t *testing.T) {
 }
 
 func TestAdd_RejectsInvalidJSON_UsageWithDecoderInHint(t *testing.T) {
+	t.Parallel()
 	dir := initEntryProject(t)
 	_, stderr, code := runTP(t, dir, "add", `{not valid json}`)
 	e := errJSON(t, stderr)
@@ -138,6 +146,7 @@ func TestAdd_RejectsInvalidJSON_UsageWithDecoderInHint(t *testing.T) {
 }
 
 func TestAdd_BulkRejectsInvalidJSON_UsageWithDecoderInHint(t *testing.T) {
+	t.Parallel()
 	dir := initEntryProject(t)
 	ndjson := validEntryTask + "\n" + `{bad json}` + "\n"
 	bulkPath := filepath.Join(dir, "bulk.ndjson")
@@ -155,6 +164,7 @@ func TestAdd_BulkRejectsInvalidJSON_UsageWithDecoderInHint(t *testing.T) {
 }
 
 func TestAdd_BulkResolvesForwardDependencyInSameBatch(t *testing.T) {
+	t.Parallel()
 	dir := initEntryProject(t)
 	// t1 depends on t2, which appears LATER in the same batch — must succeed
 	// because validation runs after the whole batch is staged (§6.1).
@@ -182,6 +192,7 @@ func TestAdd_BulkResolvesForwardDependencyInSameBatch(t *testing.T) {
 }
 
 func TestAdd_BulkRejectsIntraBatchDuplicate(t *testing.T) {
+	t.Parallel()
 	dir := initEntryProject(t)
 	ndjson := validEntryTask + "\n" + validEntryTask + "\n"
 	bulkPath := filepath.Join(dir, "bulk.ndjson")
@@ -203,6 +214,7 @@ func TestAdd_BulkRejectsIntraBatchDuplicate(t *testing.T) {
 // tp add --bulk now reads at the shared ndjsonLineCap and, past it, aborts
 // exit 3 naming the file and the line, applying no row.
 func TestAdd_BulkOverLongLineAborts(t *testing.T) {
+	t.Parallel()
 	dir := initEntryProject(t)
 	before := readRawTaskFile(t, dir)
 
@@ -232,6 +244,7 @@ func TestAdd_BulkOverLongLineAborts(t *testing.T) {
 // row. Without this the abort above would still pass at any cap, including one
 // lower than the old default.
 func TestAdd_BulkReadsRowUpToTheCap(t *testing.T) {
+	t.Parallel()
 	dir := initEntryProject(t)
 	row := `{"id":"big","title":"Big","estimate_minutes":5,"acceptance":"` +
 		strings.Repeat("x", 200*1024) +
@@ -254,6 +267,7 @@ func readRawTaskFile(t *testing.T, dir string) []byte {
 }
 
 func TestAdd_NormalizesSlicesToEmptyOnWrite(t *testing.T) {
+	t.Parallel()
 	dir := initEntryProject(t)
 	// A task with no tags, no depends_on, and source_lines only (no
 	// source_sections) — every task slice is nil before WriteTaskFile runs.
@@ -272,6 +286,7 @@ func TestAdd_NormalizesSlicesToEmptyOnWrite(t *testing.T) {
 }
 
 func TestImport_NormalizesSlicesToEmptyOnWrite(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(entryValidationSpec), 0o600))
 	// Import a task carrying nil slices (no tags/depends_on/source_sections;
@@ -290,6 +305,7 @@ func TestImport_NormalizesSlicesToEmptyOnWrite(t *testing.T) {
 }
 
 func TestLint_StructuredElementsEmptyAreArrayNotNull(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	// A spec with no tables and no numbered lists.
 	spec := "# Plain\n\nJust a paragraph, no structured elements.\n"
@@ -317,6 +333,7 @@ func extractSlice(t *testing.T, structuredElementsJSON json.RawMessage, key stri
 }
 
 func TestStats_TagsEmptyIsArrayNotNull(t *testing.T) {
+	t.Parallel()
 	dir := initEntryProject(t)
 	_, stderr, code := runTP(t, dir, "add", validEntryTask)
 	require.Equal(t, 0, code, "add failed: %s", stderr)

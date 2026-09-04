@@ -40,6 +40,7 @@ import (
 // add it. A site inside a covered file can still opt out with a
 // task-file-hint: comment saying why the default is right there.
 func TestFileErrorsCarryAHint(t *testing.T) {
+	t.Parallel()
 	const siteExemption = "task-file-hint:"
 
 	exemptFiles := taskFileCommands(t)
@@ -247,6 +248,7 @@ func emptyStringConsts(t *testing.T) map[string]bool {
 // site rather than in a list somewhere else that a new reader could quietly
 // join.
 func TestNDJSONReadersShareTheCap(t *testing.T) {
+	t.Parallel()
 	const siteExemption = "line-cap:"
 
 	uncapped := make([]string, 0)

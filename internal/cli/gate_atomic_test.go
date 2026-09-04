@@ -13,6 +13,7 @@ import (
 // changes during the gate run, a multi-ID `tp done` closes NO task and exits
 // with the state error (§6.2 item 6).
 func TestGate_MultiIDAtomicOnMidGateStateChange(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 

@@ -46,6 +46,7 @@ type pluginHooksManifest struct {
 // pins §6.4's timeout on the hook this task ships, so the bound arrives with
 // the hook rather than after it.
 func TestSessionStartHookIsRegisteredForEveryMatcher(t *testing.T) {
+	t.Parallel()
 	var manifest pluginHooksManifest
 	raw := readRepoDoc(t, pluginHooksManifestPath)
 	require.NoError(t, json.Unmarshal([]byte(raw), &manifest), "%s must be valid JSON", pluginHooksManifestPath)
@@ -151,6 +152,7 @@ func runSessionStartHook(t *testing.T, version string, extraEnv map[string]strin
 // PATH, so the hook must name the install command instead of letting the
 // session start with no tp.
 func TestSessionStartHookFailsWhenTpAbsent(t *testing.T) {
+	t.Parallel()
 	run := runSessionStartHook(t, "", nil)
 
 	assert.NotZero(t, run.exitCode, "an absent tp fails the preflight")
@@ -163,6 +165,7 @@ func TestSessionStartHookFailsWhenTpAbsent(t *testing.T) {
 // a happy-path-only test would pass whether or not the comparison works: tp is
 // present, answers --version, and is below plugin.json's minimum.
 func TestSessionStartHookFailsWhenTpTooOld(t *testing.T) {
+	t.Parallel()
 	for _, version := range []string{"v0.34.9", "v0.9.0", "0.34.0", "v0.34.3-0.20260820093420-104822c4904b+dirty"} {
 		t.Run(version, func(t *testing.T) {
 			run := runSessionStartHook(t, version, nil)
@@ -182,6 +185,7 @@ func TestSessionStartHookFailsWhenTpTooOld(t *testing.T) {
 // is inclusive or exclusive, and §6.1 makes plugin.json's own version the
 // minimum, so exactly that version must be accepted.
 func TestSessionStartHookAcceptsTheMinimumVersion(t *testing.T) {
+	t.Parallel()
 	minimum := pluginMinVersion(t)
 
 	// The last entry is the build tp's own self-development runs against: a
@@ -212,6 +216,7 @@ func TestSessionStartHookAcceptsTheMinimumVersion(t *testing.T) {
 // rather than a re-encoding of it — the fixture carries a quote, a backslash
 // and a newline precisely to catch a wrapper that mangles them.
 func TestSessionStartHookInjectsResumeCompact(t *testing.T) {
+	t.Parallel()
 	payload := "{\"phase\":\"implement\",\"note\":\"a \\\"quoted\\\" path C:\\\\tmp\"}\ntrailing"
 
 	run := runSessionStartHook(t, "v"+pluginMinVersion(t), map[string]string{"TP_FAKE_RESUME": payload})
@@ -229,6 +234,7 @@ func TestSessionStartHookInjectsResumeCompact(t *testing.T) {
 // Failing the session there would make the plugin unusable in any other
 // repository, and §6.1 scopes the preflight's failure to tp's absence or age.
 func TestSessionStartHookStaysSilentWithoutACycle(t *testing.T) {
+	t.Parallel()
 	run := runSessionStartHook(t, "v"+pluginMinVersion(t), map[string]string{
 		"TP_FAKE_RESUME":      "",
 		"TP_FAKE_RESUME_EXIT": "3",
@@ -243,6 +249,7 @@ func TestSessionStartHookStaysSilentWithoutACycle(t *testing.T) {
 // that file is where the minimum version comes from. Without it the preflight
 // would silently compare against nothing.
 func TestSessionStartHookResolvesItsOwnPluginRoot(t *testing.T) {
+	t.Parallel()
 	binDir := t.TempDir()
 	logPath := filepath.Join(t.TempDir(), "tp-args.log")
 	require.NoError(t, os.WriteFile(filepath.Join(binDir, "tp"), []byte(fakeTpScript), 0o700)) //nolint:gosec // test fixture

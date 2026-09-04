@@ -12,6 +12,7 @@ import (
 )
 
 func TestResume_NoTaskFileNoArgExit3(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	_, stderr, code := runTP(t, dir, "resume")
 	assert.Equal(t, 3, code)
@@ -19,6 +20,7 @@ func TestResume_NoTaskFileNoArgExit3(t *testing.T) {
 }
 
 func TestResume_SpecArgumentWinsOverDiscovered(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	// A discoverable task file that points at disc.md and holds an open task
 	// (which would read as implement).
@@ -39,6 +41,7 @@ func TestResume_SpecArgumentWinsOverDiscovered(t *testing.T) {
 }
 
 func TestResume_AbsentAdjacentTaskFileYieldsReview(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "solo.md"), []byte("# Solo\n"), 0o600))
 	// No solo.tasks.json adjacent: an empty task set, phase from review state.

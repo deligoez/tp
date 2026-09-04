@@ -38,6 +38,7 @@ func naStr(t *testing.T, m map[string]any) string {
 // TestNextAction_ReviewConverged: branch 1 — a clean converged round names the
 // decompose-then-tp-import forward step.
 func TestNextAction_ReviewConverged(t *testing.T) {
+	t.Parallel()
 	dir := setupConvergeOnProject(t) // one clean round converges
 	out, stderr, code := recordRound(t, dir, "")
 	require.Equal(t, 0, code, "record failed: %s", stderr)
@@ -53,6 +54,7 @@ func TestNextAction_ReviewConverged(t *testing.T) {
 // converged round with surviving non-blocking findings names the forward step,
 // never a disposal directive (§8.2 branch 1 wins over branch 2).
 func TestNextAction_ReviewConvergedWithNonBlockingOpen(t *testing.T) {
+	t.Parallel()
 	dir := setupConvergeOnProject(t) // one clean round converges
 	out, stderr, code := recordRound(t, dir, classedMediumRow("style", "L1")+"\n")
 	require.Equal(t, 0, code, "record failed: %s", stderr)
@@ -67,6 +69,7 @@ func TestNextAction_ReviewConvergedWithNonBlockingOpen(t *testing.T) {
 // TestNextAction_ReviewBlocking: branch 2 — a surviving blocking (high) finding
 // names the revise-and-re-review directive and never --resolve/--verify.
 func TestNextAction_ReviewBlocking(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	writeBareSpec(t, dir) // default review_clean_rounds=2
 	out, stderr, code := recordRound(t, dir,
@@ -87,6 +90,7 @@ func TestNextAction_ReviewBlocking(t *testing.T) {
 // TestNextAction_ReviewMechanize: branch 3 — a clean-but-not-converged round with
 // a mechanizable recurring class names the compound register-a-check directive.
 func TestNextAction_ReviewMechanize(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	writeBareSpec(t, dir) // default review_clean_rounds=2
 	// Five medium findings of the same class in one round hit the >=5-in-one-round
@@ -115,6 +119,7 @@ func TestNextAction_ReviewMechanize(t *testing.T) {
 // class is un-mechanizable, so branch 3 does not fire — the state falls through
 // to branch 4's plain next-round command.
 func TestNextAction_ReviewOverSpecificationExcluded(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	writeBareSpec(t, dir) // default review_clean_rounds=2
 	rows := strings.Join([]string{
@@ -134,6 +139,7 @@ func TestNextAction_ReviewOverSpecificationExcluded(t *testing.T) {
 // TestNextAction_ReviewCleanNotConverged: branch 4 — a clean round short of the
 // required consecutive count names the plain next-round command.
 func TestNextAction_ReviewCleanNotConverged(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	writeBareSpec(t, dir) // default review_clean_rounds=2
 	out, stderr, code := recordRound(t, dir, "")
@@ -149,6 +155,7 @@ func TestNextAction_ReviewCleanNotConverged(t *testing.T) {
 // TestNextAction_ReviewGatesNoExitCode: next_action is present but changes no exit
 // code — a non-converged --status --check still exits 1, and the field is there.
 func TestNextAction_ReviewGatesNoExitCode(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	writeBareSpec(t, dir)
 	_, stderr, code := recordRound(t, dir,
@@ -183,6 +190,7 @@ func setupAuditProject(t *testing.T, n string) string {
 
 // TestNextAction_AuditConverged: converged audit names the terminal release marker.
 func TestNextAction_AuditConverged(t *testing.T) {
+	t.Parallel()
 	dir := setupAuditProject(t, "1")
 	out, stderr, code := auditRecord(t, dir, `{"id":"x","role":"r","status":"PASS"}`+"\n")
 	require.Equal(t, 0, code, "record failed: %s", stderr)
@@ -199,6 +207,7 @@ func TestNextAction_AuditConverged(t *testing.T) {
 // TestNextAction_AuditCleanNotConverged: a clean audit round short of the required
 // count names the next-round command.
 func TestNextAction_AuditCleanNotConverged(t *testing.T) {
+	t.Parallel()
 	dir := setupAuditProject(t, "2")
 	out, stderr, code := auditRecord(t, dir, `{"id":"x","role":"r","status":"PASS"}`+"\n")
 	require.Equal(t, 0, code, "record failed: %s", stderr)
@@ -212,6 +221,7 @@ func TestNextAction_AuditCleanNotConverged(t *testing.T) {
 // TestNextAction_AuditNonConverged: an audit round with open non-PASS rows names
 // the fix-and-re-audit directive, and next_action gates no exit code.
 func TestNextAction_AuditNonConverged(t *testing.T) {
+	t.Parallel()
 	dir := setupAuditProject(t, "2")
 	out, stderr, code := auditRecord(t, dir, `{"id":"x","role":"r","status":"FAIL"}`+"\n")
 	require.Equal(t, 0, code, "record failed: %s", stderr)

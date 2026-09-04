@@ -11,6 +11,7 @@ import (
 )
 
 func TestResume_CompactStripsHumanFieldsKeepsData(t *testing.T) {
+	t.Parallel()
 	dir := newResumeRepo(t)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "keep.txt"), []byte("k"), 0o600))
 	_, _, code := runTP(t, dir, "keep", "keep.txt", "kept reason")
@@ -48,6 +49,7 @@ func TestResume_CompactStripsHumanFieldsKeepsData(t *testing.T) {
 }
 
 func TestResume_WritesNoFile(t *testing.T) {
+	t.Parallel()
 	dir := newResumeRepo(t)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "stray.txt"), []byte("s"), 0o600))
 

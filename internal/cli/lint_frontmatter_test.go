@@ -25,6 +25,7 @@ type lintFMResult struct {
 }
 
 func TestLintFrontmatter_ObjectShapes(t *testing.T) {
+	t.Parallel()
 	t.Run("with frontmatter", func(t *testing.T) {
 		dir := t.TempDir()
 		spec := "---\ntp:\n  domain: prose\n  lens:\n    all:\n      - \"q1\"\n    tester:\n      - \"q2\"\n    architect: []\n---\n# Heading\ncontent\n"

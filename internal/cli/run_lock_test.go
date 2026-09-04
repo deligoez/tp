@@ -17,6 +17,7 @@ import (
 // lands while the driver holds it. A driver that took the task-file lock for
 // the run instead would deadlock every child it spawned.
 func TestRunLock_ChildTPWriteSucceedsWhileRunLockHeld(t *testing.T) {
+	t.Parallel()
 	dir, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
 

@@ -52,5 +52,6 @@ func assertRolelessRowsAdviseOnce(t *testing.T, phase, row, fileStem string) {
 // 5367 bytes of unsuppressible stderr). One condition costs one Notice line
 // carrying the count.
 func TestAuditRecordRolelessRowsAdviseOnce(t *testing.T) {
+	t.Parallel()
 	assertRolelessRowsAdviseOnce(t, "audit", `{"id":"r","status":"FAIL","item_id":"i"}`, "results")
 }

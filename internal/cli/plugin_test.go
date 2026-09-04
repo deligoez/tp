@@ -81,6 +81,7 @@ type pluginManifest struct {
 // outright — so an unparseable or identity-less manifest is a regression this
 // test catches without needing the claude CLI installed.
 func TestPluginManifestDeclaresIdentity(t *testing.T) {
+	t.Parallel()
 	raw := readRepoDoc(t, pluginManifestPath)
 
 	var manifest pluginManifest
@@ -168,6 +169,7 @@ var executableMagics = [][]byte{
 // because the accident this catches is a stray `go build -o` output, which
 // carries no telling extension.
 func TestPluginShipsNoBinary(t *testing.T) {
+	t.Parallel()
 	root := repoRoot(t)
 	skipDirs := map[string]bool{".git": true, "dist": true, "node_modules": true}
 
@@ -230,6 +232,7 @@ func readFileHead(path string, n int) ([]byte, error) {
 // durable guard and this one is the confirmation on a machine that has the
 // tool.
 func TestPluginValidatesWithClaudeCLI(t *testing.T) {
+	t.Parallel()
 	claude, err := exec.LookPath("claude")
 	if err != nil {
 		t.Skip("claude CLI not on PATH")
@@ -260,6 +263,7 @@ func TestPluginValidatesWithClaudeCLI(t *testing.T) {
 // the manifest legitimately runs ahead of the newest tag for the length of that
 // window. It falls behind only when a release was tagged without the bump.
 func TestPluginVersionIsNotBehindTheLatestTag(t *testing.T) {
+	t.Parallel()
 	git, err := exec.LookPath("git")
 	if err != nil {
 		t.Skip("git not on PATH")
@@ -309,6 +313,7 @@ func TestPluginVersionIsNotBehindTheLatestTag(t *testing.T) {
 // the moment a plugin-carried file changes it demands the bump that makes the
 // change reachable.
 func TestPluginVersionIsBumpedWhenPluginContentChanges(t *testing.T) {
+	t.Parallel()
 	git, err := exec.LookPath("git")
 	if err != nil {
 		t.Skip("git not on PATH")
@@ -369,6 +374,7 @@ func TestPluginVersionIsBumpedWhenPluginContentChanges(t *testing.T) {
 // whether the plugin loads, so a green validate is not evidence of a working
 // plugin. `claude plugin install` is the experiment that can fail.
 func TestMarketplaceEntryDoesNotDoubleDeclareComponents(t *testing.T) {
+	t.Parallel()
 	raw, err := os.ReadFile(filepath.Join(repoRoot(t), ".claude-plugin", "marketplace.json"))
 	require.NoError(t, err)
 

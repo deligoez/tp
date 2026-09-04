@@ -15,6 +15,7 @@ import (
 // wording next to the shared const, which is how the rule drifted in the first
 // place — the const is only worth having if nothing paraphrases it.
 func TestSpecPathHintIsOneString(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	missing := filepath.Join(dir, "nope.md")
 

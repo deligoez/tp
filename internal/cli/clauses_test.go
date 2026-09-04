@@ -30,6 +30,7 @@ func fencedTextUnder(t *testing.T, spec, heading string) string {
 // impossible. Reading the source of truth is what makes it a guard rather than
 // a restatement.
 func TestClauseConstantsMatchTheSpec(t *testing.T) {
+	t.Parallel()
 	spec := readRepoDoc(t, "spec/0.36.0.md")
 
 	assert.Equal(t, fencedTextUnder(t, spec, "### 2.2 The clause"), isolationClause,
@@ -46,6 +47,7 @@ func TestClauseConstantsMatchTheSpec(t *testing.T) {
 // spec/1.0.0.md §4.2's clause is in the map because groundClauseSuffix() is
 // assembled the same way; only the shipped pair carries the byte figure.
 func TestClauseConstantsAreSingleLines(t *testing.T) {
+	t.Parallel()
 	for name, clause := range map[string]string{
 		"isolationClause":       isolationClause,
 		"incrementalClause":     incrementalClause,
@@ -60,6 +62,7 @@ func TestClauseConstantsAreSingleLines(t *testing.T) {
 // TestClauseByteCounts pins the two figures §1.1 derives its table from, so a
 // reworded clause fails here rather than in the suffix arithmetic downstream.
 func TestClauseByteCounts(t *testing.T) {
+	t.Parallel()
 	assert.Len(t, []byte(isolationClause), 287, "§1.1's table prices §2.2's clause at 287 bytes")
 	assert.Len(t, []byte(incrementalClause), 177, "§1.1's table prices §3.2's clause at 177 bytes")
 }
@@ -80,6 +83,7 @@ func TestClauseByteCounts(t *testing.T) {
 // as a unit, on a mixed slice the CLI cannot currently produce. Deleting the
 // guard fails this and only this.
 func TestAppendClausesSkipsAPromptWithNoOutputPath(t *testing.T) {
+	t.Parallel()
 	suffix := clauseSuffix()
 
 	t.Run("review", func(t *testing.T) {

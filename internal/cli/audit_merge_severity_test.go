@@ -123,6 +123,7 @@ func bySeverityOf(t *testing.T, summary map[string]any) map[string]float64 {
 // emission condition is a property of the rows and nothing else, and the
 // advisory-only fixture under `blocking` is the input where the two differ.
 func TestAuditMerge_BySeverityEmittedOnRowsNotCleanliness(t *testing.T) {
+	t.Parallel()
 	for _, policy := range []string{engine.AuditConvergeOnAll, engine.AuditConvergeOnBlocking} {
 		t.Run("advisory-only round under "+policy, func(t *testing.T) {
 			blocking, advisory := blockingAndAdvisory(t, auditMergeAdvisoryRows)
@@ -177,6 +178,7 @@ func TestAuditMerge_BySeverityEmittedOnRowsNotCleanliness(t *testing.T) {
 // arm is the control: without it the compact assertion would pass on a payload
 // --compact never touched.
 func TestAuditMerge_BySeveritySurvivesCompact(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	full := mergeSummary(t, dir, auditMergeSeverityRows)
@@ -197,6 +199,7 @@ func TestAuditMerge_BySeveritySurvivesCompact(t *testing.T) {
 // each moves the unrecognised count away from the blocking population while
 // every individual row is still counted somewhere.
 func TestAuditMerge_BySeverityBucketsMatchTheBlockingPopulation(t *testing.T) {
+	t.Parallel()
 	shapes := map[string]bool{}
 	for _, row := range decodeAuditRows(t, auditMergeSeverityRows) {
 		if row["status"] == "PASS" {

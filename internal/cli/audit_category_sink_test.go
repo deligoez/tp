@@ -13,6 +13,7 @@ import (
 // permanent round file that convergence is computed from. These pin the sink.
 
 func TestParseAuditRows_RejectsCategoryOutsideTheEnum(t *testing.T) {
+	t.Parallel()
 	data := []byte(`{"role":"go-safety","item_id":"a","status":"FAIL","category":"banana"}
 {"role":"go-safety","item_id":"b","status":"FAIL","category":"security"}
 {"role":"go-safety","item_id":"c","status":"FAIL","category":"misc"}
@@ -31,6 +32,7 @@ func TestParseAuditRows_RejectsCategoryOutsideTheEnum(t *testing.T) {
 }
 
 func TestParseAuditRows_AcceptsTheEnumAndAbsentCategory(t *testing.T) {
+	t.Parallel()
 	// PASS rows carry an explicit null, which unmarshals to no string at all;
 	// treating that as invalid would reject every clean round.
 	data := []byte(`{"role":"go-safety","item_id":"a","status":"FAIL","category":"security"}

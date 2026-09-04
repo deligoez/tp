@@ -30,6 +30,7 @@ import (
 // only make two paths compare equal when they name the same file, but that is
 // an argument, and an argument is what a test is for.
 func TestRoleWriteHookAllowsAcrossASymlinkedRoot(t *testing.T) {
+	t.Parallel()
 	target := filepath.Join(t.TempDir(), "real")
 	round := filepath.Join(target, "rounds", "review-r1")
 	run := filepath.Join(target, "runs", "01JB0000000000000000000000")
@@ -90,6 +91,7 @@ func TestRoleWriteHookAllowsAcrossASymlinkedRoot(t *testing.T) {
 // found (green at /Users/..., red at /tmp/...). A test that passes for a reason
 // unrelated to the code is not evidence about the code.
 func TestRoleWriteHookAllowsAcrossASymlinkedRootBeforeTheRoundDirExists(t *testing.T) {
+	t.Parallel()
 	target := filepath.Join(t.TempDir(), "real")
 	require.NoError(t, os.MkdirAll(target, 0o755))
 
@@ -140,6 +142,7 @@ func TestRoleWriteHookAllowsAcrossASymlinkedRootBeforeTheRoundDirExists(t *testi
 // back to back and share whatever load exists, so the ratio cancels it out.
 // Unbounded, deep costs ~6x shallow; bounded, the two are within noise.
 func TestRoleWriteHookStaysCheapOnADeepMissingPath(t *testing.T) {
+	t.Parallel()
 	root := filepath.Join(t.TempDir(), "real")
 	require.NoError(t, os.MkdirAll(root, 0o755))
 
@@ -222,6 +225,7 @@ func TestRoleWriteHookStaysCheapOnADeepMissingPath(t *testing.T) {
 // like a fix and discriminates nothing — so the two halves get one test each
 // rather than a single test that could pass on either.
 func TestRoleWriteHookReadsTheMCPPathArgument(t *testing.T) {
+	t.Parallel()
 	root := filepath.Join(t.TempDir(), "real")
 	round := filepath.Join(root, "rounds", "review-r1")
 	run := filepath.Join(root, "runs", "01JB0000000000000000000000")

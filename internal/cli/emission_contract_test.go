@@ -12,6 +12,7 @@ import (
 // TestEmission_ReviewOutputContract: every review prompt instructs the sub-agent
 // to stamp role, location (a §-anchor), class, and severity (§7.3).
 func TestEmission_ReviewOutputContract(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## 1. X\ncontent\n"), 0o600))
 
@@ -33,6 +34,7 @@ func TestEmission_ReviewOutputContract(t *testing.T) {
 // TestEmission_AuditOutputContract: every audit prompt additionally instructs the
 // sub-agent to stamp status ∈ PASS/PARTIAL/FAIL (§7.3).
 func TestEmission_AuditOutputContract(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"),
 		[]byte("# Spec\n## 1. Widgets\n| Name | Type |\n|------|------|\n| a | b |\n"), 0o600))

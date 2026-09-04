@@ -30,6 +30,7 @@ import (
 // invocation in the table completing. Both of the two that exist are run, since
 // a record cannot complete without the emission that froze its floor.
 func TestGroundExitsZeroOnAnInvocationThatCompletes(t *testing.T) {
+	t.Parallel()
 	dir := writeGroundFixture(t)
 
 	_, stderr, code := runTP(t, dir, "ground", "spec.md")
@@ -47,6 +48,7 @@ func TestGroundExitsZeroOnAnInvocationThatCompletes(t *testing.T) {
 // payload holding no rows at all — and tp tells them apart by the error's type
 // rather than by its wording, so both are asserted here.
 func TestGroundExitsOneOnARecordItWillNotValidate(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name string
 		body string
@@ -72,6 +74,7 @@ func TestGroundExitsOneOnARecordItWillNotValidate(t *testing.T) {
 // TestGroundExitsTwoOnUsage is §7.1's exit-2 row on the one input of its two
 // that is reachable today: `--record` with no path argument.
 func TestGroundExitsTwoOnUsage(t *testing.T) {
+	t.Parallel()
 	dir := writeGroundFixture(t)
 	groundEmit(t, dir)
 
@@ -95,6 +98,7 @@ func TestGroundExitsTwoOnUsage(t *testing.T) {
 // existence as corruption — refusing every record on a spec that has never been
 // reviewed — is what this control fails.
 func TestGroundExitsThreeOnFileOrCorruptState(t *testing.T) {
+	t.Parallel()
 	t.Run("a --record path that does not exist", func(t *testing.T) {
 		dir := writeGroundFixture(t)
 		groundEmit(t, dir)
@@ -164,6 +168,7 @@ func groundLockFixture(t *testing.T) string {
 // independently, that mutant finds no contention here and exits 0. Before this
 // task nothing in the ground flow locked anything and exit 4 was unreachable.
 func TestGroundExitsFourWhenTheWriteLockIsHeld(t *testing.T) {
+	t.Parallel()
 	dir := groundLockFixture(t)
 	groundEmit(t, dir)
 	rows := writeGroundRows(t, dir, groundRecordRow(1))

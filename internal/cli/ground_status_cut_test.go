@@ -34,6 +34,7 @@ func groundStatusCheckQuiet(t *testing.T, dir string) (payload map[string]any, s
 // written here as a literal, so the assertion cannot drift from the artifact
 // the notice sends the operator to.
 func TestStatusReportsTheCutCountCheckGatesOn(t *testing.T) {
+	t.Parallel()
 	t.Run("every unit cut", func(t *testing.T) {
 		dir := writeGroundSpec(t, groundAllCutSpec)
 		groundEmit(t, dir)
@@ -82,6 +83,7 @@ func TestStatusReportsTheCutCountCheckGatesOn(t *testing.T) {
 // The stderr assertion is the load-bearing one: without it this test would pass
 // on a build that keeps the explanation on stderr and adds no key.
 func TestTheEmptiedFloorIsDecidableFromThePayloadUnderQuiet(t *testing.T) {
+	t.Parallel()
 	emptied := writeGroundSpec(t, groundAllCutSpec)
 	groundEmit(t, emptied)
 	_, emptiedCut := groundFloorSummary(t, emptied)

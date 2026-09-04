@@ -29,6 +29,7 @@ func setupCloseStrategyProject(t *testing.T, strategy string) string {
 }
 
 func TestCloseStrategy_BuiltinCommitWorks(t *testing.T) {
+	t.Parallel()
 	dir := setupCloseStrategyProject(t, "builtin")
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "impl.go"), []byte("package impl\n"), 0o600))
 	_, stderr, code := runTP(t, dir, "commit", "t1", "implemented t1")
@@ -36,6 +37,7 @@ func TestCloseStrategy_BuiltinCommitWorks(t *testing.T) {
 }
 
 func TestCloseStrategy_BuiltinAutoCommitWorks(t *testing.T) {
+	t.Parallel()
 	dir := setupCloseStrategyProject(t, "builtin")
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "impl.go"), []byte("package impl\n"), 0o600))
 	_, stderr, code := runTP(t, dir, "done", "t1", "--gate-passed", "--auto-commit", "--", "t1 done")
@@ -43,6 +45,7 @@ func TestCloseStrategy_BuiltinAutoCommitWorks(t *testing.T) {
 }
 
 func TestCloseStrategy_HCRejectsCommit(t *testing.T) {
+	t.Parallel()
 	dir := setupCloseStrategyProject(t, "hc")
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "impl.go"), []byte("package impl\n"), 0o600))
 	_, stderr, code := runTP(t, dir, "commit", "t1", "did t1")
@@ -51,12 +54,14 @@ func TestCloseStrategy_HCRejectsCommit(t *testing.T) {
 }
 
 func TestCloseStrategy_HCRejectsAutoCommit(t *testing.T) {
+	t.Parallel()
 	dir := setupCloseStrategyProject(t, "hc")
 	_, _, code := runTP(t, dir, "done", "t1", "--gate-passed", "--auto-commit", "--", "t1 done")
 	assert.Equal(t, 2, code, "hc rejects --auto-commit with exit 2")
 }
 
 func TestCloseStrategy_HCRejectsBareDone(t *testing.T) {
+	t.Parallel()
 	dir := setupCloseStrategyProject(t, "hc")
 	_, stderr, code := runTP(t, dir, "done", "t1", "--gate-passed", "--", "t1 done")
 	assert.Equal(t, 2, code, "hc rejects a bare tp done with exit 2")
@@ -65,6 +70,7 @@ func TestCloseStrategy_HCRejectsBareDone(t *testing.T) {
 }
 
 func TestCloseStrategy_HCCommitAndCoveredByClose(t *testing.T) {
+	t.Parallel()
 	dir := setupCloseStrategyProject(t, "hc")
 	_, _, code := runTP(t, dir, "add", `{"id":"t2","title":"T2","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"t2 done","source_sections":["s1"]}`)
 	require.Equal(t, 0, code)
@@ -75,6 +81,7 @@ func TestCloseStrategy_HCCommitAndCoveredByClose(t *testing.T) {
 }
 
 func TestCloseStrategy_BatchBadRowIsFailedRow(t *testing.T) {
+	t.Parallel()
 	dir := setupCloseStrategyProject(t, "hc")
 	_, _, code := runTP(t, dir, "add", `{"id":"t2","title":"T2","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"t2 done","source_sections":["s1"]}`)
 	require.Equal(t, 0, code)

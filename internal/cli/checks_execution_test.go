@@ -11,6 +11,7 @@ import (
 )
 
 func TestChecksExecution_PromptExclusion(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\ncontent\n"), 0o600))
 	_, _, code := runTP(t, dir, "init", "spec.md")
@@ -52,6 +53,7 @@ func TestChecksExecution_PromptExclusion(t *testing.T) {
 }
 
 func TestChecksExecution_RunsUnderNoState(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 	_, _, code := runTP(t, dir, "init", "spec.md")

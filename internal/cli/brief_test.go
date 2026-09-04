@@ -69,6 +69,7 @@ func skipValue(dec *json.Decoder) error {
 }
 
 func TestBrief_ExplicitID_JSONPartsAndVerbatimAcceptance(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"),
 		[]byte("# S\n\n## 1. A\nDo a thing.\n"), 0o600))
@@ -95,6 +96,7 @@ func TestBrief_ExplicitID_JSONPartsAndVerbatimAcceptance(t *testing.T) {
 }
 
 func TestBrief_NoArg_TargetsSameTaskAsNextPeek(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# S\n"), 0o600))
 	runTP(t, dir, "init", "spec.md")
@@ -116,6 +118,7 @@ func TestBrief_NoArg_TargetsSameTaskAsNextPeek(t *testing.T) {
 }
 
 func TestBrief_NoArg_TargetsWIPAndIsReadOnly(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# S\n"), 0o600))
 	runTP(t, dir, "init", "spec.md")
@@ -137,6 +140,7 @@ func TestBrief_NoArg_TargetsWIPAndIsReadOnly(t *testing.T) {
 }
 
 func TestBrief_AllDone_Exit4DoneShape(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# S\n"), 0o600))
 	writeTaskFile(t, dir, `{"version":1,"spec":"spec.md","workflow":{},"tasks":[
@@ -152,6 +156,7 @@ func TestBrief_AllDone_Exit4DoneShape(t *testing.T) {
 }
 
 func TestBrief_UnknownID_Exit4DoneShape(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# S\n"), 0o600))
 	runTP(t, dir, "init", "spec.md")
@@ -166,6 +171,7 @@ func TestBrief_UnknownID_Exit4DoneShape(t *testing.T) {
 }
 
 func TestBrief_CompactDropsFileListsAndExcerpt(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"),
 		[]byte("# S\n\n## 1. A\nDo a thing.\n## 2. B\nDo b.\n"), 0o600))
@@ -195,6 +201,7 @@ func TestBrief_CompactDropsFileListsAndExcerpt(t *testing.T) {
 }
 
 func TestBrief_PriorOutOfRange_Exit2(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# S\n"), 0o600))
 	runTP(t, dir, "init", "spec.md")

@@ -14,6 +14,7 @@ import (
 // block with no default materialization; the quality-gate and commit-strategy
 // flags each write exactly their field, and both flags compose.
 func TestInit_SparseWorkflowBlock(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name   string
 		args   []string
@@ -45,6 +46,7 @@ func TestInit_SparseWorkflowBlock(t *testing.T) {
 // time (rather than lazily by the first tp keep) so it travels with the initial
 // tp state. The gitignore must cover the centralized lock dir (§5.3).
 func TestInit_CreatesTPGitignore(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\ncontent\n"), 0o600))
 	_, stderr, code := runTP(t, dir, "init", "spec.md")

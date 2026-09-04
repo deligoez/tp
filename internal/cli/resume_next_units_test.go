@@ -50,6 +50,7 @@ func assertRendersFirstUnit(t *testing.T, res map[string]any) {
 // one implement unit carrying {kind, id, brief_command}, round is null, and
 // next_action renders it.
 func TestResume_NextUnitsImplement(t *testing.T) {
+	t.Parallel()
 	dir := newPayloadRepo(t, `[{"id":"t1","title":"T","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"a","source_sections":["x"]}]`)
 	res := resumeResult(t, dir)
 
@@ -68,6 +69,7 @@ func TestResume_NextUnitsImplement(t *testing.T) {
 // concurrent role unit per active role, the collecting round beside them, and
 // next_action rendering the first.
 func TestResume_NextUnitsReviewRoles(t *testing.T) {
+	t.Parallel()
 	dir := newPayloadRepo(t, `[]`)
 	res := resumeResult(t, dir)
 
@@ -89,6 +91,7 @@ func TestResume_NextUnitsReviewRoles(t *testing.T) {
 
 // TestResume_NextUnitsAuditRoles mirrors the review half for the audit phase.
 func TestResume_NextUnitsAuditRoles(t *testing.T) {
+	t.Parallel()
 	dir := newPayloadRepo(t, `[{"id":"t1","title":"T","status":"done","depends_on":[],"estimate_minutes":5,"acceptance":"a","source_sections":["x"]}]`)
 	res := resumeResult(t, dir)
 
@@ -108,6 +111,7 @@ func TestResume_NextUnitsAuditRoles(t *testing.T) {
 // TestResume_NextUnitsDecompose: decompose is one unit whose subject is the spec
 // base name (§3.1.1) and whose brief is tp resume, with a null round.
 func TestResume_NextUnitsDecompose(t *testing.T) {
+	t.Parallel()
 	dir := newPayloadRepo(t, `[]`)
 	writeConvergedRounds(t, dir, 2, 0)
 	res := resumeResult(t, dir)
@@ -127,6 +131,7 @@ func TestResume_NextUnitsDecompose(t *testing.T) {
 // releasable phase, and a phase whose work is blocked. Both emit [] and leave
 // next_action's payload without a unit.
 func TestResume_NextUnitsEmptyOnReleaseAndWhenBlocked(t *testing.T) {
+	t.Parallel()
 	release := newPayloadRepo(t, `[{"id":"t1","title":"T","status":"done","depends_on":[],"estimate_minutes":5,"acceptance":"a","source_sections":["x"]}]`)
 	writeConvergedRounds(t, release, 0, 2)
 	res := resumeResult(t, release)
@@ -144,6 +149,7 @@ func TestResume_NextUnitsEmptyOnReleaseAndWhenBlocked(t *testing.T) {
 // TestResume_NextUnitsSurviveCompact: next_units and round are the machine
 // surface the driver parses, so --compact strips nothing from them.
 func TestResume_NextUnitsSurviveCompact(t *testing.T) {
+	t.Parallel()
 	dir := newPayloadRepo(t, `[{"id":"t1","title":"T","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"a","source_sections":["x"]}]`)
 	out, stderr, code := runTP(t, dir, "resume", "--compact")
 	require.Equal(t, 0, code, "resume --compact: %s", stderr)
@@ -167,6 +173,7 @@ func TestResume_NextUnitsSurviveCompact(t *testing.T) {
 // fixed here; last_failure is always present, null when the cycle carries none,
 // so a driver parses one shape whatever happened.
 func TestResume_ObjectSet(t *testing.T) {
+	t.Parallel()
 	dir := newPayloadRepo(t, `[{"id":"t1","title":"T","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"a","source_sections":["x"]}]`)
 	res := resumeResult(t, dir)
 
@@ -184,6 +191,7 @@ func TestResume_ObjectSet(t *testing.T) {
 // one being collected, so a second run of the same phase names the next round —
 // which is what the driver substitutes into TP_ROUND and TP_ROUND_DIR.
 func TestResume_NextUnitsRoundAdvancesWithRecordedRounds(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## 1. A\na\n"), 0o600))
@@ -218,6 +226,7 @@ func firstRoundDirOf(t *testing.T, dir, phase string) string {
 // the command: a resumed round omits the role whose findings file is present and
 // wholly parseable, and still returns the role that left a malformed one.
 func TestResume_NextUnitsOmitsRolesThatAlreadyAnsweredTheRound(t *testing.T) {
+	t.Parallel()
 	dir := newPayloadRepo(t, `[]`)
 	round1 := firstRoundDirOf(t, dir, "review")
 	require.NoError(t, os.WriteFile(filepath.Join(round1, "role-implementer.ndjson"),
@@ -241,6 +250,7 @@ func TestResume_NextUnitsOmitsRolesThatAlreadyAnsweredTheRound(t *testing.T) {
 // whose merged findings are not all disposed returns the single review-resolve
 // unit, carrying the round just recorded rather than the next one.
 func TestResume_NextUnitsReviewResolveAfterARecordedRound(t *testing.T) {
+	t.Parallel()
 	dir := newPayloadRepo(t, `[]`)
 	writeConvergedRounds(t, dir, 1, 0)
 	round1 := firstRoundDirOf(t, dir, "review")
@@ -264,6 +274,7 @@ func TestResume_NextUnitsReviewResolveAfterARecordedRound(t *testing.T) {
 // one audit-fix unit for the first row that is neither PASS nor disposed, keyed
 // role:item_id.
 func TestResume_NextUnitsAuditFixAfterARecordedRound(t *testing.T) {
+	t.Parallel()
 	dir := newPayloadRepo(t, `[{"id":"t1","title":"T","status":"done","depends_on":[],"estimate_minutes":5,"acceptance":"a","source_sections":["x"]}]`)
 	writeConvergedRounds(t, dir, 2, 1)
 	round1 := firstRoundDirOf(t, dir, "audit")
@@ -289,6 +300,7 @@ func TestResume_NextUnitsAuditFixAfterARecordedRound(t *testing.T) {
 // for the collecting round, the oracle hands the driver that round's single
 // record unit instead of emptying next_units and stopping the run with no-units.
 func TestResume_NextUnitsRecordUnitOnceEveryRoleAnswered(t *testing.T) {
+	t.Parallel()
 	dir := newPayloadRepo(t, `[]`)
 	round1 := firstRoundDirOf(t, dir, "review")
 	for _, role := range []string{"implementer", "tester", "architect"} {

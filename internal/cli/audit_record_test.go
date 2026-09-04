@@ -35,6 +35,7 @@ func auditRecord(t *testing.T, dir, ndjsonContent string) (out map[string]any, s
 }
 
 func TestAuditRecord_CountsNonPass(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 
@@ -84,6 +85,7 @@ func TestAuditRecord_CountsNonPass(t *testing.T) {
 // "pass" are non-PASS, a non-string status is non-PASS, and an absent key is
 // non-PASS.
 func TestAuditRecord_StoredFindingsFollowTheSharedPredicate(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
@@ -122,6 +124,7 @@ func TestAuditRecord_StoredFindingsFollowTheSharedPredicate(t *testing.T) {
 }
 
 func TestAuditStatus_Shapes(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 
@@ -154,6 +157,7 @@ func TestAuditStatus_Shapes(t *testing.T) {
 }
 
 func TestAuditRecordStatus_FlagRejections(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 
@@ -172,6 +176,7 @@ func TestAuditRecordStatus_FlagRejections(t *testing.T) {
 }
 
 func TestAuditRecord_RoleMissingWarns(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 

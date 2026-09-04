@@ -31,6 +31,7 @@ func groundTestPrompt() string {
 // newline §2.3 requires be stripped first: a body that keeps it still ends
 // with the suffix, with a blank line smuggled in front of it.
 func TestTheEmittedGroundPromptEndsWithItsOwnSuffix(t *testing.T) {
+	t.Parallel()
 	prompt := groundTestPrompt()
 
 	assert.True(t, strings.HasSuffix(prompt, "ground-r7.ndjson"+groundClauseSuffix()),
@@ -58,6 +59,7 @@ func TestTheEmittedGroundPromptEndsWithItsOwnSuffix(t *testing.T) {
 // held_at line that follows it, not over the whole prompt, so a value that
 // happens to appear elsewhere cannot satisfy it.
 func TestThePromptsPartialKindListNamesEveryValueTheRecorderAccepts(t *testing.T) {
+	t.Parallel()
 	prompt := groundTestPrompt()
 
 	const marker = "partial_kind — required on PARTIAL:"
@@ -99,6 +101,7 @@ func TestThePromptsPartialKindListNamesEveryValueTheRecorderAccepts(t *testing.T
 // It still runs over every kind rather than over a stated table, so a kind
 // added to §4.1 cannot be silently absent from the prompt either.
 func TestThePromptsKindTierTableIsDerivedFromTheRuleThatRejectsRows(t *testing.T) {
+	t.Parallel()
 	prompt := groundTestPrompt()
 
 	for _, kind := range engine.GroundKinds() {

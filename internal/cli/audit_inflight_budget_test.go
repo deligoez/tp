@@ -18,6 +18,7 @@ import (
 // was non-zero, and exited 0 when the cap was 0: a normal in-flight state read
 // as corruption, gated on an unrelated knob.
 func TestAuditSecondEmissionWithCapIsNotCorruptState(t *testing.T) {
+	t.Parallel()
 	// setupBudgetProject caps audit_max_rounds at 2, which is enough: the two
 	// emissions below record nothing, so the budget is never consumed.
 	dir := setupBudgetProject(t, "audit_max_rounds")

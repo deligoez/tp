@@ -32,6 +32,7 @@ func clustersFrom(t *testing.T, stdout string) []map[string]any {
 // this field existed, and their job is to fail if clustering ever feeds the
 // counts.
 func TestReviewMerge_LocationClusters(t *testing.T) {
+	t.Parallel()
 	t.Run("groups one location two roles reported under different classes", func(t *testing.T) {
 		dir := t.TempDir()
 		// §1 carries two roles under two classes; §2 carries two findings from
@@ -137,6 +138,7 @@ func mergeNDJSON(t *testing.T, dir, path string) string {
 // location precisely so that a clustering bug feeding the arithmetic would read
 // 1 finding instead of 3.
 func TestReviewStatus_LocationClusters(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## 1. A\ncontent\n"), 0o600))
 	merged := writeFindingsFile(t, dir, "merged.ndjson", []string{
@@ -187,6 +189,7 @@ func TestReviewStatus_LocationClusters(t *testing.T) {
 // round whose findings all come from one role, --status still carries the key as
 // an empty array rather than null.
 func TestReviewStatus_LocationClustersEmpty(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## 1. A\ncontent\n"), 0o600))
 

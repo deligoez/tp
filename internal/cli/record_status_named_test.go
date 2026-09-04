@@ -11,6 +11,7 @@ import (
 )
 
 func TestReviewRecord_CleanAndDirty(t *testing.T) {
+	t.Parallel()
 	setup := func(t *testing.T) string {
 		t.Helper()
 		dir := t.TempDir()
@@ -87,6 +88,7 @@ func TestReviewRecord_CleanAndDirty(t *testing.T) {
 }
 
 func TestReviewStatus_Check(t *testing.T) {
+	t.Parallel()
 	setup := func(t *testing.T, checksJSON string, cleanRounds int) string {
 		t.Helper()
 		dir := t.TempDir()
@@ -144,6 +146,7 @@ func TestReviewStatus_Check(t *testing.T) {
 }
 
 func TestAuditStatus_Check(t *testing.T) {
+	t.Parallel()
 	setup := func(t *testing.T) string {
 		t.Helper()
 		dir := t.TempDir()

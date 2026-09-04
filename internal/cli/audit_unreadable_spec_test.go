@@ -18,6 +18,7 @@ import (
 // specFileMissingHint would be wrong here too: the caller did not mistype the
 // path. The hint carries the real cause.
 func TestAuditUnreadableSpecHint(t *testing.T) {
+	t.Parallel()
 	if os.Geteuid() == 0 {
 		t.Skip("root ignores the permission bits this test relies on")
 	}

@@ -17,6 +17,7 @@ import (
 // with an empty "Spec content:" block, and the SAME command without
 // --spec-inline exited 3. The read error must reach the caller.
 func TestReviewSpecInlineMissingSpecFailsLoudly(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	gPath := filepath.Join(dir, "g.go")
 	require.NoError(t, os.WriteFile(gPath, []byte("package main\n"), 0o600))
@@ -33,6 +34,7 @@ func TestReviewSpecInlineMissingSpecFailsLoudly(t *testing.T) {
 // spec that exists but cannot be opened — the case an up-front existence check
 // would miss.
 func TestReviewSpecInlineUnreadableSpecFailsLoudly(t *testing.T) {
+	t.Parallel()
 	if os.Geteuid() == 0 {
 		t.Skip("root reads a 0o000 file, so the open never fails")
 	}
@@ -58,6 +60,7 @@ func TestReviewSpecInlineUnreadableSpecFailsLoudly(t *testing.T) {
 // pre-stat spec-path site across tp review and tp audit now shares
 // specFileMissingHint; this covers the most-hit one.
 func TestReviewSpecNotFoundHint(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	missing := filepath.Join(dir, "nope.md")
 

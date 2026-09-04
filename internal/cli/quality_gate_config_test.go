@@ -43,6 +43,7 @@ const repoQualityGate = "./scripts/check-suite-state.sh && golangci-lint run && 
 //     project layer even while it happens to agree with it — the shape
 //     `tp init --quality-gate "…"` used to create on every new task file.
 func TestRepoTaskFilesResolveRaceQualityGate(t *testing.T) {
+	t.Parallel()
 	root := repoRoot(t)
 	taskFiles, err := filepath.Glob(filepath.Join(root, "spec", "*.tasks.json"))
 	require.NoError(t, err)
@@ -104,6 +105,7 @@ func wrapperArgv(t *testing.T, args ...string) string {
 // run 1, "(cached)" and exit 0 on runs 2 and 3, mutation present each time).
 // Without ./... it is not the suite.
 func TestTheWrapperActuallyInvokesTheSuiteItClaims(t *testing.T) {
+	t.Parallel()
 	argv := wrapperArgv(t)
 	for _, want := range []string{"test", "-count=1", "-race", "./..."} {
 		assert.Contains(t, argv, want,
@@ -115,6 +117,7 @@ func TestTheWrapperActuallyInvokesTheSuiteItClaims(t *testing.T) {
 // guard reached before: a caller narrowing the run must still defeat the test
 // cache, or the digest brackets nothing there too.
 func TestTheWrapperNarrowsWithoutLosingTheCache(t *testing.T) {
+	t.Parallel()
 	argv := wrapperArgv(t, "./internal/model/")
 	assert.Contains(t, argv, "-count=1",
 		"the narrowed branch invoked go with %q; -count=1 is what makes the digest mean anything", argv)
@@ -133,6 +136,7 @@ func TestTheWrapperNarrowsWithoutLosingTheCache(t *testing.T) {
 // comment elsewhere in ci.yml mentioning a command historically rather than
 // assertively is not the subject.
 func TestCIQuotesTheWrapperCommandItActuallyRuns(t *testing.T) {
+	t.Parallel()
 	workflow, err := os.ReadFile(filepath.Join(repoRoot(t), ".github", "workflows", "ci.yml")) //nolint:gosec // a fixed path inside the repo under test
 	require.NoError(t, err)
 
@@ -154,6 +158,7 @@ func TestCIQuotesTheWrapperCommandItActuallyRuns(t *testing.T) {
 // dropped it, which is the exact failure mode v0.34.0 §5 added the guard for.
 // Naming a thing is not the same as being able to observe it.
 func TestSuiteStateWrapperStillRunsTheRaceDetector(t *testing.T) {
+	t.Parallel()
 	script := filepath.Join(repoRoot(t), "scripts", "check-suite-state.sh")
 	body, err := os.ReadFile(script) //nolint:gosec // a fixed path inside the repo under test
 	require.NoError(t, err, "the gate's first step must exist")

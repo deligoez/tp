@@ -27,6 +27,7 @@ func setupBudgetProject(t *testing.T, field string) string {
 }
 
 func TestRoundBudget_ReviewRefusals(t *testing.T) {
+	t.Parallel()
 	dir := setupBudgetProject(t, "review_max_rounds")
 
 	// Two dirty rounds exhaust the cap
@@ -57,6 +58,7 @@ func TestRoundBudget_ReviewRefusals(t *testing.T) {
 }
 
 func TestRoundBudget_ConvergedAtCapNotRefused(t *testing.T) {
+	t.Parallel()
 	dir := setupBudgetProject(t, "review_max_rounds")
 
 	// Two clean rounds: at the cap but converged (required_clean_rounds=2)
@@ -76,6 +78,7 @@ func TestRoundBudget_ConvergedAtCapNotRefused(t *testing.T) {
 }
 
 func TestRoundBudget_AuditRefusals(t *testing.T) {
+	t.Parallel()
 	dir := setupBudgetProject(t, "audit_max_rounds")
 
 	for i := range 2 {

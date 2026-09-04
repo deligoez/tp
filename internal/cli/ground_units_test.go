@@ -68,6 +68,7 @@ func writeGroundUnitsFixture(t *testing.T) string {
 // UTF-8 bytes each unit is, so a line carrying a head of the unit disagrees with
 // its own index row without the test ever stating a literal.
 func TestGroundUnitsPrintsEveryFloorUnitWholeWithTheIndexsHash(t *testing.T) {
+	t.Parallel()
 	dir := writeGroundUnitsFixture(t)
 	groundEmit(t, dir)
 
@@ -133,6 +134,7 @@ func TestGroundUnitsPrintsEveryFloorUnitWholeWithTheIndexsHash(t *testing.T) {
 // correctly and leave a round behind, and a pair of assertions on stdout alone
 // cannot see that.
 func TestGroundUnitsReadsTheSpecAndWritesNothing(t *testing.T) {
+	t.Parallel()
 	dir := writeGroundUnitsFixture(t)
 	_, err := os.Stat(filepath.Join(dir, ".tp-review"))
 	require.True(t, os.IsNotExist(err), "the fixture must start with no state directory")
@@ -157,6 +159,7 @@ func TestGroundUnitsReadsTheSpecAndWritesNothing(t *testing.T) {
 // --status on an unemitted spec exits 3 too, so only a refusal taken before
 // either mode runs produces the 2 asserted here.
 func TestGroundUnitsIsAModeOfItsOwn(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name string
 		args []string

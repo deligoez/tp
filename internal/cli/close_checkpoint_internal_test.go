@@ -37,6 +37,7 @@ func initInternalGitRepo(t *testing.T, dir string) {
 // between tp's implementation commit and the amend (HEAD no longer C1), the
 // amend is refused so tp falls back to the §5.1d follow-up.
 func TestCanAmendClosure_HeadsMoved(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	initInternalGitRepo(t, dir)
 	writeInternalFile(t, filepath.Join(dir, "spec.tasks.json"), "v1\n")
@@ -52,6 +53,7 @@ func TestCanAmendClosure_HeadsMoved(t *testing.T) {
 // TestCanAmendClosure_DirtyNonTpPath verifies §5.1b guard (ii): a non-tp-owned
 // path differing from HEAD forces the fallback even when HEAD is still C1.
 func TestCanAmendClosure_DirtyNonTpPath(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	initInternalGitRepo(t, dir)
 	writeInternalFile(t, filepath.Join(dir, "tracked.txt"), "v1\n")
@@ -68,6 +70,7 @@ func TestCanAmendClosure_DirtyNonTpPath(t *testing.T) {
 // TestCanAmendClosure_OnlyTpWrittenPath verifies both guards hold when HEAD is
 // still C1 and the only working-tree difference is a tp-written path.
 func TestCanAmendClosure_OnlyTpWrittenPath(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	initInternalGitRepo(t, dir)
 	writeInternalFile(t, filepath.Join(dir, "spec.tasks.json"), "v1\n")
@@ -84,6 +87,7 @@ func TestCanAmendClosure_OnlyTpWrittenPath(t *testing.T) {
 // end-to-end at the helper level: when HEAD moved past C1, a follow-up commit
 // chore(tp): record <id> closure is created and C1 is not the resulting HEAD.
 func TestFoldClosureCommit_FollowUpOnHeadsMoved(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	initInternalGitRepo(t, dir)
 	writeInternalFile(t, filepath.Join(dir, "spec.tasks.json"), "v1\n")

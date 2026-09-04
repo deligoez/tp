@@ -155,6 +155,7 @@ func shippedHookScripts(t *testing.T) []string {
 // state — a script that ships under hooks/ and is registered nowhere is bounded
 // by nothing.
 func TestEveryShippedHookDeclaresTheBound(t *testing.T) {
+	t.Parallel()
 	const prefix = "${CLAUDE_PLUGIN_ROOT}/"
 
 	declared := make(map[string]bool)
@@ -329,6 +330,7 @@ func hookAdverseStdin(t *testing.T) []hookStdin {
 // it. Every shipped script is run against every adverse stdin, discovered rather
 // than listed, so a hook added later is exercised on the same inputs.
 func TestEveryShippedHookTerminatesOnAdverseInput(t *testing.T) {
+	t.Parallel()
 	env := []string{"PATH=/usr/bin:/bin"}
 
 	for _, rel := range shippedHookScripts(t) {
@@ -453,6 +455,7 @@ func hookFailClosedCases() map[string][]hookFailClosedCase {
 // hook that reads a file it did not write still decides its predicate inside the
 // bound.
 func TestEveryShippedHookFailsClosedInsideTheBound(t *testing.T) {
+	t.Parallel()
 	cases := hookFailClosedCases()
 
 	for _, rel := range shippedHookScripts(t) {

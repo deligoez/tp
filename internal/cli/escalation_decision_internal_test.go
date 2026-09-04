@@ -16,6 +16,7 @@ import (
 // unit that intends the relax must have a name for what it is asking, and the
 // fence's hint is where it reads that name.
 func TestEscalationDecision_AuditConvergeOnHasItsOwnName(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "audit-converge-on", escalationDecision("audit_converge_on"),
 		"§3's field maps to its own decision rather than falling through to other")
 }
@@ -33,6 +34,7 @@ func TestEscalationDecision_AuditConvergeOnHasItsOwnName(t *testing.T) {
 // name, so the row cannot be satisfied by a switch that has stopped matching
 // anything.
 func TestEscalationDecision_ReturnsOnlyDocumentedDecisions(t *testing.T) {
+	t.Parallel()
 	for _, field := range []string{
 		"review_max_rounds",
 		"audit_max_rounds",

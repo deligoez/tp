@@ -12,6 +12,7 @@ import (
 )
 
 func TestAudit_FullShape(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	spec := "# Spec\n## Table\n| Col | Desc |\n|-----|------|\n| a | first |\n## Steps\n1. do the thing\n"
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec), 0o600))
@@ -55,6 +56,7 @@ func TestAudit_FullShape(t *testing.T) {
 }
 
 func TestAudit_FileFilterCap(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## S\ntext\n"), 0o600))
 
@@ -95,6 +97,7 @@ func TestAudit_FileFilterCap(t *testing.T) {
 }
 
 func TestAudit_NoLegacyCategoryField(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## Table\n| C |\n|---|\n| x |\n"), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.go"), []byte("package main\n"), 0o600))
@@ -105,6 +108,7 @@ func TestAudit_NoLegacyCategoryField(t *testing.T) {
 }
 
 func TestSelfLoop_ReviewToImport(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	spec := "# Feature\nOverview of the feature.\n## 1. Goal\ndo something useful\n## 2. Detail\nmore detail here\n"
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec), 0o600))
@@ -156,6 +160,7 @@ func TestSelfLoop_ReviewToImport(t *testing.T) {
 }
 
 func TestGateLoop_EndToEnd(t *testing.T) {
+	t.Parallel()
 	// Failing gate blocks tp done
 	t.Run("failing gate blocks done", func(t *testing.T) {
 		dir := t.TempDir()

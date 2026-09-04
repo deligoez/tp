@@ -12,6 +12,7 @@ import (
 )
 
 func TestCommitFiles_DoneCommitResolvesSortedDedup(t *testing.T) {
+	t.Parallel()
 	dir := setupCommitProject(t, "t1")
 	shaZ := commitFile(t, dir, "z.go", "add z")
 	shaA := commitFile(t, dir, "a.go", "add a")
@@ -24,6 +25,7 @@ func TestCommitFiles_DoneCommitResolvesSortedDedup(t *testing.T) {
 }
 
 func TestCommitFiles_RenameExcludesOld(t *testing.T) {
+	t.Parallel()
 	dir := setupCommitProject(t, "t1")
 	commitFile(t, dir, "old.go", "add old")
 	git(t, dir, "mv", "old.go", "new.go")
@@ -37,6 +39,7 @@ func TestCommitFiles_RenameExcludesOld(t *testing.T) {
 }
 
 func TestCommitFiles_CapFiftyWithTotal(t *testing.T) {
+	t.Parallel()
 	dir := setupCommitProject(t, "t1")
 	const n = 60
 	for i := range n {
@@ -62,6 +65,7 @@ func TestCommitFiles_CapFiftyWithTotal(t *testing.T) {
 }
 
 func TestCommitFiles_CoveredByRecordsNone(t *testing.T) {
+	t.Parallel()
 	dir := setupCommitProject(t, "t1")
 	_, _, code := runTP(t, dir, "add", `{"id":"t2","title":"T2","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"t2 done","source_sections":["s1"]}`)
 	require.Equal(t, 0, code)
@@ -76,6 +80,7 @@ func TestCommitFiles_CoveredByRecordsNone(t *testing.T) {
 }
 
 func TestCommitFiles_SetRejectsManagedField(t *testing.T) {
+	t.Parallel()
 	dir := setupCommitProject(t, "t1")
 	_, stderr, code := runTP(t, dir, "set", "t1", "commit_files=x")
 	assert.Equal(t, 2, code)
@@ -86,6 +91,7 @@ func TestCommitFiles_SetRejectsManagedField(t *testing.T) {
 }
 
 func TestCommitFiles_ReopenClears(t *testing.T) {
+	t.Parallel()
 	dir := setupCommitProject(t, "t1")
 	sha := commitFile(t, dir, "a.go", "add a")
 	_, _, code := runTP(t, dir, "done", "t1", "--gate-passed", "--commit", sha, "--", "t1 acceptance met")
@@ -99,6 +105,7 @@ func TestCommitFiles_ReopenClears(t *testing.T) {
 }
 
 func TestCommitFiles_UnresolvableShaOmitted(t *testing.T) {
+	t.Parallel()
 	dir := setupCommitProject(t, "t1")
 	_, stderr, code := runTP(t, dir, "done", "t1", "--gate-passed",
 		"--commit", "deadbeef", "--", "t1 acceptance met")
@@ -110,6 +117,7 @@ func TestCommitFiles_UnresolvableShaOmitted(t *testing.T) {
 }
 
 func TestCommitFiles_BuiltinCommitResolves(t *testing.T) {
+	t.Parallel()
 	dir := setupCommitProject(t, "t1")
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "impl.go"), []byte("package main\n"), 0o600))
 	out, stderr, code := runTP(t, dir, "commit", "t1", "implemented t1")
@@ -124,6 +132,7 @@ func TestCommitFiles_BuiltinCommitResolves(t *testing.T) {
 }
 
 func TestCommitFiles_BatchResolvesPerRow(t *testing.T) {
+	t.Parallel()
 	dir := setupCommitProject(t, "t1")
 	sha := commitFile(t, dir, "a.go", "add a")
 	batch := filepath.Join(dir, "batch.ndjson")
@@ -136,6 +145,7 @@ func TestCommitFiles_BatchResolvesPerRow(t *testing.T) {
 }
 
 func TestCommitFiles_MultiIDDoneResolves(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
