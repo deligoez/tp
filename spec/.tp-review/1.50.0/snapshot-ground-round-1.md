@@ -1,0 +1,175 @@
+# tp v1.50.0 — What a round's rows actually say
+
+> **This file is decisions.** Its three parts move in **two directions** — two stop gating, one starts
+> being reported — and an earlier statement of this release described all three as "stops gating",
+> which is wrong for the second. The correction is recorded because the symmetry is what made it
+> plausible.
+
+## 1. Overview
+
+A round's convergence is computed from its rows. Three times, the row's own field is not what the row
+means:
+
+| | today | this release |
+|---|---|---|
+| a finding recorded `wontfix` or `duplicate` — **accepted, with evidence** | blocks forever (§2, measured) | stops gating |
+| a `PASS` row whose note names a defect | invisible to every counter | **reported**, still not gating (§3) |
+| a role that does not decide the question | its rows gate like any other | stops gating, behind a fence (§4) |
+
+**This release needs the recorded panel.** §4 reads `expected_roles`, which the release that records
+the panel a round expected introduces.
+
+## 2. An accepted finding stops blocking
+
+Measured on a built fixture — one round, one `FAIL` row, already dispositioned with evidence:
+
+```json
+{"item_id":"i1","status":"FAIL","severity":"warning","role":"go-safety",
+ "resolved":{"status":"wontfix","evidence":"accepted, named next version",
+             "resolved_at":"2026-09-02T00:00:00Z"}}
+```
+
+```
+round: 1   clean: false   consecutive_clean: 0   converged: false
+```
+
+**An accepted finding blocks convergence permanently.** The only ways out are to stop recording it or
+to record it as `PASS` — both of which destroy the record.
+
+### 2.1 This is a documented decision, and reversing it is the release
+
+**This is not a bug report.** `skills/tp/SKILL.md:145` states the behaviour and its reason:
+
+> **A disposition is not an escape hatch from the gate:** `tp audit --record` counts every row whose
+> `status` is not exactly `PASS` and reads no disposition at all, so parking a finding leaves the
+> round's finding count, the role streak and `--status --check` exactly where they were.
+
+and `:149` repeats it — *accepting findings outside spec conformance is a user-approved decision,
+never the agent's.* **The fear is correct**: a disposition an agent can write is a way for an agent to
+make its own findings stop counting.
+
+**What the promise did not anticipate is that the project's own release rule requires shipping over an
+accepted finding.** `CLAUDE.md`'s rule is to record out-of-surface findings with justification, name
+the version that takes them, and ship. Both hold at once only because the project does not use
+`--check` as its ship signal — which is the divergence two releases have now shipped through by hand.
+
+**So the reversal is narrow and keeps the fear intact.** A disposition stops gating **only** when it
+carries non-empty `evidence` (§2's last rule) and only for `wontfix`/`duplicate`. The agent-safety
+property is preserved by the fence that already exists — recording a disposition is a user-approved
+decision under `TP_UNATTENDED=1` — not by making the disposition inert. **A rule enforced by making a
+recorded decision meaningless is enforced in the wrong place.**
+
+`skills/tp/SKILL.md:145` and `:149` are rewritten by this release. A shipped promise is being
+withdrawn deliberately, and the release is not complete until the two documents say the new thing.
+
+**`wontfix` and `duplicate` stop gating; nothing else does.** `fixed` still voids the round, correctly
+— a fix means the spec or code changed and the round's findings were read against older text.
+
+**The row stays in the round and stays visible.** It appears in `role_streaks`' open count, in
+`--merge`, in `--report`. It stops gating convergence; it does not stop existing. `CLAUDE.md`'s own
+shipping rule already works this way in prose — *record the out-of-surface findings with
+justification, name the version that takes them, and ship* — and this makes the tool agree with it.
+
+**`resolved.evidence` must be non-empty for the row to stop gating.** An acceptance without a stated
+reason is indistinguishable from a deletion, and the disposition is a user-approved decision. tp does
+not judge the reason; it requires one.
+
+## 3. A PASS row carrying a note is reported
+
+`CLAUDE.md` records a peer cycle where a role scored **55/55 PASS in three consecutive rounds while
+its prose named a real spec defect each time** — all three fixed by commit. This repository has a
+weaker instance of its own, inside a round counted toward the `spec_coverage_clean_rounds` a release
+shipped on.
+
+**`--status` reports how many `PASS` rows carry a non-empty note, per role.** A clean streak beside
+*"14 PASS rows carry notes"* is a different object from a clean streak beside zero.
+
+**It does not gate, and the reason is a limit rather than caution.** tp cannot distinguish a note
+naming a defect from a note recording what was read, and **the second kind is almost all of them:
+21,924 of 22,592 `PASS` rows carry a note — 97.0%** — because the audit prompt asks each role to
+record the range it inspected. A gate here would be a gate on prose length.
+
+**That 97% is also why the count is worth emitting at all.** A per-role count of noted PASS rows is
+near-constant and therefore uninformative on its own; what a reader needs beside a clean streak is the
+number, so that *"55/55 PASS, 55 carrying notes"* stops reading as *"55/55 PASS"*. The field asserts
+that prose exists to be read, not that it says anything.
+
+**This is the counter's half; the prompt's half ships separately.** The release that returns a
+`PASS`-with-note row to its own author next round closes the same gap from the other end. Neither
+needs the other, and both are cheap.
+
+## 4. A role that does not decide the question stops gating
+
+`audit_converge_roles` — a list of role ids whose rows gate convergence. Default: **every expected
+role**, which is today's behaviour exactly.
+
+**This is the *too strict* direction, and severity parity provably does not close it.** Two releases
+shipped with `--check` at exit 1 while the conformance role was clean and no role held a FAIL, because
+a non-conformance role's `error` rows override a clean conformance role. On the rounds where that
+happened, every `error` row belonged to one non-conformance role — so a severity-scoped `--check`
+still exits 1 for exactly the rounds the gap is about. The missing axis is **role**, not severity.
+
+**It is fenced exactly as `audit_converge_on` is**, and for the same reason: a non-default value
+relaxes a gate. `tp set --workflow --project` refuses any narrowing write on its value alone, because
+it writes the layer every base resolves through including bases tp cannot enumerate; the task layer,
+`tp import` and `tp config --extract` refuse a write that *changes what resolves*. A value rule at the
+latter three would deadlock import, which carries the block forward.
+
+**A narrowed panel does not silence anyone.** Non-gating roles still emit, still record, still appear
+in `role_streaks` and `--merge`. They stop deciding whether the loop continues.
+
+### 4.1 The separation is the point, and merging is what this release stops short of
+
+A sibling discipline outside this repository runs a two-axis review — *does the code follow the
+standards* and *does it match the spec* — in parallel agents whose contexts never touch, then reports
+them **side by side with an explicit rule never to merge or rerank them**, and never to name a single
+worst finding across axes, because *"reporting them separately stops one axis from masking the
+other."*
+
+**That is precisely the failure this release exists to fix, arrived at independently.** tp's
+`--check` collapses every role into one `clean` bit, and the measured consequence is one role's
+`error` rows masking a conformance role that was clean four rounds running — two releases shipped
+through it by hand.
+
+**But tp merges in a second place this release does not touch: `--merge` clusters findings across
+roles by `(location, class)`.** That is deduplication for a human reader rather than a verdict, so it
+does not mask a gate — and the sibling's rule is about the *verdict*, not the display. Widening the
+separation from convergence into `--merge` is a different question with a different cost, and it is
+not asked here.
+
+**A role listed but not expected is an error, not a silent no-op.** `audit_converge_roles: ["typo"]`
+would otherwise converge on an empty gating set — the failure mode of every allow-list that is not
+checked against its universe.
+
+## 5. Non-Goals
+
+1. **No new disposition value.** `fixed`, `wontfix`, `duplicate` are what the corpus contains.
+2. **No judgement of `resolved.evidence`'s content.** §2 requires it to be non-empty and reads no
+   further.
+3. **No gate on §3's count.** The limit is stated in §3 and is not a stance to be revisited by
+   tightening a keyword list.
+4. **The review phase keeps its own convergence policy.** `review_converge_on` and
+   `ReviewConsecutiveClean` are untouched; every measurement here is from the audit side.
+5. **No retroactive re-grading.** `clean` is stamped at record time and stays stamped. These rules
+   apply to rounds recorded after they ship.
+
+## 6. Tests
+
+Every row derives from a numbered decision, names the artifact it depends on, and names a mutant that
+must fail it.
+
+| # | from | assertion | the mutant that must fail it |
+|---|---|---|---|
+| 1 | §2 | §2's fixture — one `FAIL` dispositioned `wontfix` with evidence — records `clean: true` | the shipped behaviour, which records `false`; this must be watched failing against `HEAD` first |
+| 2 | §2 *fixed* | the same row with `resolved.status: "fixed"` still blocks | treat every disposition alike, converging on a round whose spec has moved underneath it |
+| 3 | §2 *evidence* | `wontfix` with an empty or missing `evidence` still blocks | accept the status alone, making an acceptance indistinguishable from a deletion |
+| 4 | §2 *visible* | the accepted row still appears in `role_streaks`' open count and in `--merge` output | drop it from the round, which is the record destruction this release exists to remove |
+| 5 | §3 | a round with 14 `PASS` rows carrying notes reports 14, per role | count notes across all rows, so a `FAIL`'s note inflates the `PASS` figure |
+| 6 | §3 *not gating* | `clean`, `consecutive_clean` and `--check` are identical with and without those notes | let the count gate, which gates on prose length |
+| 7 | §4 | with `audit_converge_roles: ["spec-coverage"]`, a round where only a non-listed role holds `error` rows converges | ignore the list, reproducing the two releases that shipped at exit 1 |
+| 8 | §4 *fence* | `TP_UNATTENDED=1 tp set --workflow --project audit_converge_roles=…` refuses on the value; the other three sinks refuse only a write that changes what resolves | apply one rule at all four sinks — a value rule at `tp import` deadlocks it, a change rule at `--project` cannot see the bases it needs |
+| 9 | §4 *unknown* | a listed role absent from `expected_roles` is an error | treat it as a no-op, converging on an empty gating set |
+
+**Row 1 is the acceptance and row 8 is the one four audit rounds were spent on.** The fence's rule
+differs by sink, and a release that unifies it will pass every single-sink test while deadlocking
+`tp import` — that diagnosis cost four rounds when the same shape shipped for `audit_converge_on`.
