@@ -1,0 +1,177 @@
+# tp v1.47.0 — The gate sequence
+
+> **This file is decisions.** Its central one is not the array — it is that **CI stops restating the
+> gate**. v0.36.0's audit spent four rounds trying to guard the restatement and closed none of it;
+> §1.1's inputs were all built and run, and they are why this release removes the thing being guarded
+> instead of guarding it better.
+
+## 1. Overview
+
+`quality_gate` is a shell string, `.tp/config.json` holds it, and **CI restates it** as four separate
+`run:` steps (`.github/workflows/ci.yml:34-60`). `TestCIRunsEveryStepOfTheProjectGate` ties the two by
+splitting the string on `&&` and asserting each step appears in `ci.yml`.
+
+That guard cannot work, and the reason is structural rather than a weakness in its wording.
+
+Three deliverables:
+
+1. **`quality_gate` becomes an ordered array of named entries** (§2), the string form still accepted.
+2. **`tp gate` runs it** (§3) — the verb that does not exist today, which is why CI has to restate.
+3. **CI invokes `tp gate`** (§4), so there is no restatement left to certify.
+
+### 1.1 Why a better guard is not the answer
+
+Every row was built and run against the guards as they ship. **The third row was re-run against
+`HEAD` while this file was being reviewed, with its control**, because an inherited measurement is a
+claim about a tree that has since moved:
+
+```
+baseline (untouched ci.yml)                                          ok
+run: |  echo "temporarily skipping ./scripts/check-suite-state.sh (flaky on CI)"
+        go test ./...                                                ok      <- green
+delete ONLY the echo, changing nothing CI runs                       FAIL    <- red
+                                                 TestCIRunsEveryStepOfTheProjectGate
+```
+
+Same CI behaviour in both of the last two — a bare `go test ./...`, no race detector, no state check —
+and the guard's verdict flips on the presence of a string in a comment-shaped line. **The guard tracks
+text, not execution**, and the control is what proves it rather than merely suggesting it.
+
+| input | result |
+|---|---|
+| the deadcode step deleted, `# TODO: re-enable ./scripts/check-deadcode.sh` left behind | every gate guard green, CI runs no deadcode |
+| `run: ./scripts/check-suite-state.sh` replaced by `run: go test ./...` plus a comment naming the wrapper | **all five gate guards green**, CI runs neither the race detector nor the state check |
+| `echo "temporarily skipping ./scripts/check-suite-state.sh (flaky on CI)"` above a bare `go test ./...` | **all six gate guards green**; deleting only the `echo` turns the guard red |
+| `if: false` on the deadcode step | every guard green |
+| `continue-on-error: true` on the suite-state step | every guard green, **and CI green while the gate fails** |
+
+**The third row decides the shape.** It carries no `#`, so restricting the search to executable lines
+does not help — the mention *is* executable. A guard matching text cannot separate a command from an
+argument that names one.
+
+**The shape has a name and the other three cells are immune by construction:**
+
+| assertion | subject is inert text | subject is a live value |
+|---|---|---|
+| **presence** | **self-certifying** — any mention satisfies it, including one saying the step is skipped | safe: the code must actually produce the string |
+| **absence** | safe: you cannot satisfy "this word does not appear" by mentioning it | safe |
+
+Every input above is the top-left cell. **This release moves the subject to the right-hand column** by
+making CI execute the gate rather than name it.
+
+## 2. `quality_gate` is an ordered array of named entries
+
+```json
+"quality_gate": [
+  {"name": "suite",      "cmd": "./scripts/check-suite-state.sh"},
+  {"name": "lint",       "cmd": "golangci-lint run"},
+  {"name": "deadcode",   "cmd": "./scripts/check-deadcode.sh"},
+  {"name": "complexity", "cmd": "./scripts/check-complexity.sh"}
+]
+```
+
+**Entries run in order and stop at the first failure**, which is what `&&` already means. The array
+makes the sequence data instead of syntax.
+
+**Each entry reports its own exit code**, which the string form cannot: `&&` collapses four outcomes
+into one, so today a red gate says only *something failed*. `CLAUDE.md` records the cost —
+`check-complexity.sh` once reported `sort`'s exit status instead of the tool's and told the operator
+to delete half the ratchet.
+
+**The string form is still accepted and resolves to a single unnamed entry.** Every existing task file
+and project config keeps working, and `tp config --resolved` reports the array form for both.
+
+**No `continue-on-error` and no per-entry skip.** A gate entry that may fail without failing the gate
+is not a gate entry, and §1.1's fifth row is what that flag does to CI.
+
+## 3. `tp gate` runs the resolved gate
+
+Today `executeQualityGate` (`internal/cli/gate.go:48`) is reachable only through
+`runQualityGatePreFlock` at a task close (`internal/cli/close.go:133`). **There is no way to ask tp to run the
+gate**, which is exactly why CI restates it.
+
+`tp gate` resolves the gate through the existing layers, runs the entries in order, and reports each
+entry's name, command, exit code and duration. Exit 0 when every entry passed; the failing entry's
+exit code otherwise, so a caller can distinguish which step failed without parsing output.
+
+**It is the same resolution and the same executor a task close uses.** Two code paths that run "the
+gate" would be a second thing to keep in step, which is the defect this release exists to remove.
+
+**`--json` reports the per-entry results.** A driver reading a red gate today learns nothing about
+which step; §5's red-gate procedure is the release that consumes this, and it needs the entry name.
+
+## 4. CI invokes `tp gate`
+
+`.github/workflows/ci.yml`'s four steps become one that runs `tp gate`. The tool installations stay —
+`golangci-lint`, `deadcode` and `gocognit` must be on `PATH` before the gate runs, and that is CI's
+job, not the gate's.
+
+**`TestCIRunsEveryStepOfTheProjectGate` is deleted, not repaired.** With no restatement there is
+nothing to compare, and §1.1 is the evidence that repairing it is not available. A guard whose subject
+has been removed is not a guard.
+
+**What replaces it is narrower and sound:** a test asserting that `ci.yml` contains no `run:` step
+naming a gate entry's command — an *absence* assertion over inert text, the bottom-left cell, which
+§1.1's table shows is immune. It catches a future drift back to restatement and cannot be satisfied by
+mentioning anything.
+
+## 5. Two guards narrower than their claims
+
+**`ci_pin_test.go` walks only `*.yml`.** GitHub Actions accepts `.yaml` identically, so a
+`release.yaml` installing `golangci-lint@latest` is invisible while the guard passes. The walk covers
+both extensions.
+
+**`checked > 0` is a global counter and that is the real defect.** A workflow contributing zero
+matches is indistinguishable from one fully pinned, because `ci.yml`'s three refs satisfy the
+assertion alone. Measured: floating **every** ref in `release.yml` left the test passing. The counter
+becomes per file, and `goInstallRef` extends to `uses:` refs — `checkout@v4`, `setup-go@v5`,
+`goreleaser-action@v6` and `go-version: stable` are the compiler and toolchain, the gate's largest
+floating inputs, and the exact class that file's own comment describes.
+
+**Scope, measured rather than assumed.** `release.yml` is not worse *in kind* than `ci.yml` — same
+mutable major tags, same `go-version: stable` line. It is worse in *impact*, because its output is
+what users install rather than a pass/fail signal.
+
+## 6. A load-sensitive gate test
+
+`TestRoleWriteHookStaysCheapOnADeepMissingPath` asserts `deep < 3*shallow` on wall-clock and **failed
+one of four full gate runs** during v0.36.0's implementation, at a measured ratio of 3.198 (deep
+56.95 ms, shallow 17.82 ms).
+
+**The design stays and the constant moves.** A ratio rather than a deadline, fastest-of-three each
+side, is right; the constant sits at the noise floor — the test's own comment records bounded as
+"within noise" and unbounded as ~6×, leaving a 2× margin. It widens, and the sample grows.
+
+**It is fixed here because a gate that randomly reddens is a gate people learn to re-run.** That
+habit is what makes §1.1's third row — *temporarily skipping (flaky on CI)* — a thing someone writes.
+
+## 7. Non-Goals
+
+1. **No new gate entries.** The four stay exactly what they are; only their representation and their
+   caller change.
+2. **No per-entry timeout, retry or parallelism.** Entries run in order, once, sequentially.
+3. **No `continue-on-error` equivalent, at any layer.** §2 states why.
+4. **`tp gate` does not record anything.** No round, no state, no task-file write. It runs and reports.
+5. **No change to when a task close runs the gate**, or to `--skip-gate`, which remains a user-approved
+   decision and remains fenced under `TP_UNATTENDED=1`.
+
+## 8. Tests
+
+Every row derives from a numbered decision, names the artifact it depends on, and names a mutant that
+must fail it.
+
+| # | from | assertion | the mutant that must fail it |
+|---|---|---|---|
+| 1 | §2 | a four-entry array stops at the first failure and reports **that entry's** exit code, not 1 | collapse to `&&`, which is the shipped behaviour and loses which step failed |
+| 2 | §2 *compat* | a string `quality_gate` resolves to one entry and behaves identically at a task close | accept only the array, breaking every existing task file |
+| 3 | §3 | `tp gate` and a task close run the same resolved entries — asserted on recorded argv under a stub, for both callers | give `tp gate` its own executor, recreating the drift this release removes |
+| 4 | §3 *exit* | `tp gate` exits with the failing entry's code; 0 when all pass | exit 1 always, which makes §5's red-gate consumer unable to branch |
+| 5 | §4 | §1.1's third input — an `echo` naming a gate command above a bare `go test` — is **rejected** by the replacement guard | keep a presence assertion, which §1.1 measured green on all six guards |
+| 6 | §4 *immunity* | the replacement guard cannot be satisfied by adding text; adding a comment naming a gate command leaves it red | invert it to presence, returning to the top-left cell |
+| 7 | §5 | a `release.yaml` with every ref floating fails the pin guard | keep `*.yml` and the global counter, the shipped behaviour, measured to pass |
+| 8 | §5 *per-file* | a fully pinned `ci.yml` does not rescue an unpinned second workflow | keep `checked > 0`, satisfied by `ci.yml` alone |
+| 9 | §6 | the widened constant passes on the measured 3.198 ratio | keep `3*shallow`, which reddened one run in four |
+
+**Row 5 is the acceptance and its fixture is a recorded input, not an invented one.** §1.1's rows were
+built and run against the shipping guards; using the one that turned **all six** green is what
+separates a fix from a reword.
