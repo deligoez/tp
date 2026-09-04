@@ -1,3 +1,8 @@
+// The review-side mirror in review_record_hint_test.go is deliberate: the same defect on both
+// sides of the loop, answered by the same shared const, asserted separately so either side can
+// regress alone. t.Parallel() tipped the pair over dupl's 150-token clone threshold.
+//
+//nolint:dupl // deliberate review/audit mirror, see above
 package cli_test
 
 import (
@@ -16,6 +21,7 @@ import (
 // ("run 'tp use <file>' … 'tp init <spec>'"), the wrong object entirely for the
 // NDJSON the auditors wrote.
 func TestAuditRecordMissingResultsHint(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 
