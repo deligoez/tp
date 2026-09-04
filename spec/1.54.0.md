@@ -1,0 +1,197 @@
+# tp v1.54.0 — The guard reads what production reads
+
+> **This file is decisions.** Every figure and every verdict in it was re-measured while it was
+> written, in an `rsync -a --exclude .git` copy outside the repository, against `HEAD` — not relayed
+> from the audit that recorded the class. Two inputs the handover called open turned out closed, and
+> two defects nobody had recorded turned up in the same helpers. Both are below, with the run.
+
+## 1. Overview
+
+Three test helpers in `internal/engine` re-parse a Markdown section of `spec/1.0.0.md` by hand — find
+a heading with `slices.Index`, walk until a line starting with `### `, match rows with a regexp —
+while production parses the same document with a block scanner that toggles on fences. Every repair
+so far has widened the guard's parser one case at a time: file-wide match, then a count, then a
+character class. Each widening left the next case.
+
+**This release stops maintaining the second parser.** The guards ask production which lines a section
+contains, so guard and production hold **one answer about what is fenced**. Nothing outside
+`*_test.go` changes.
+
+The derivation of "three", so it is not a count anyone has to trust:
+
+```
+git grep -c 'slices.Index(lines' -- 'internal/**/*_test.go'
+```
+
+→ `floor_test.go:1`, `groundrow_test.go:1`, `groundtierrule_test.go:1`. The third,
+`groundSection72VerdictRule` (`internal/engine/groundtierrule_test.go:203`), reads the **same
+section** as one of the other two with the same fence-blind bound. It was not in the handover; it
+surfaced by running row 12 below, which failed it alongside its sibling.
+
+## 2. What is true today, measured
+
+Every row is an edit to `spec/1.0.0.md` in a copy, then `go test -count=1`. The recipe is one line:
+
+```
+rsync -a --exclude .git . /tmp/probe && cd /tmp/probe   # then edit spec/1.0.0.md, then:
+go test -count=1 ./internal/engine ./internal/cli
+```
+
+"13th verb" below means `probed` appended to §2.1's real arms row — the defect a reader is trying to
+catch. A **silent** row is the dangerous one: a real defect present, suite green.
+
+| # | the input | packages run | result at `HEAD` |
+|---|---|---|---|
+| 1 | nothing changed | engine + cli | green |
+| 2 | 13th verb alone | engine | **red** — the guard works when nothing is hiding |
+| 3 | an unfenced decoy `\| **verb** \|` row **above** §2.1, plus the 13th verb | engine | red — the file-wide-first-match door is **closed** |
+| 4 | an unfenced decoy row **inside** §2.1, plus the 13th verb | engine | red at `floor_test.go:1298` |
+| 5 | a **fenced** decoy row inside §2.1, plus the 13th verb | engine | red at `floor_test.go:1298` — **closed, and the handover said open** |
+| 6 | a **fenced** decoy row inside §2.1, spec otherwise **correct** | engine | **red — a false failure**: §2.1 step 1 rules a fenced block non-content, and quoting the arms table reddens the suite |
+| 7 | a fenced quotation of the line `### 2.1 The floor` **above** §2.1 carrying a 12-verb decoy row, plus the 13th verb | engine + cli | **green — silent** |
+| 8 | a fenced block inside §2.1 carrying a 12-verb decoy row and then a `### ` line, plus the 13th verb | engine + cli | **green — silent** |
+| 9 | a fenced `### ` line inside §2.1, spec otherwise **correct** | engine | **red — a false failure**, and the message says *"a second one, fenced or not"* when there are **zero** |
+| 10 | a 13th verb spelled `` `Re-ran` `` | engine + cli | **green — silent** |
+| 11 | 13th and 14th verbs spelled `` `re‑ran` `` (U+2011) and `` `ran2` `` | engine + cli | **green — silent** |
+| 12 | a fenced `### 7.3 …` line inside §7.2 above its table | engine | red at `groundrow_test.go:624` in **three** tests, including `TestThePerVerdictTableIsTheOneSection72States` — a false failure |
+| 13 | a fenced decoy field table inside §7.2 above the real one | engine | red in both §7.2 field callers — a false failure |
+| 14 | a real 14th field `` `bogus` `` in §7.2's table | engine | red — the field guard works when nothing is hiding |
+| 15 | a real 14th field `` `Bogus_field` `` in §7.2's table | engine + cli | **green — silent** |
+
+**Two of these contradict what this release was handed, and both corrections matter to the design.**
+
+Row 5: a fenced in-window decoy is **not** an open door. `require.Len(rows, 1)` counts the fenced row
+too, so the helper refuses rather than choosing. What the same fence-blindness *does* buy is row 6 —
+the guard reddens on a **correct** document. The hole is in the other direction from the one recorded.
+
+Row 15: `groundSection72Fields`' first-cell class is `` `([a-z][a-z_]*)` ``, and a field it cannot
+spell is dropped from the list while the count of thirteen still matches. That is exactly its twin's
+character-class hole, in a helper the handover described as failing loud because *"both callers pin
+hard — a count of thirteen, set equality with the code's key set"*. They do pin hard, and it does not
+help: the pin is on a list the parser silently shortened. **The two helpers are the same defect, not
+one strong and one weak**, and a release that fixed only §2.1's cell would leave §7.2's standing.
+
+## 3. The seam
+
+**The guards call `floorBlocks` and `floorAnchorsByLine`** (`internal/engine/floor.go:72` and `:782`)
+through one test helper:
+
+```go
+func specTableRowsUnder(t *testing.T, rel, anchor string) []string
+```
+
+It reads `spec/<rel>`, requires `anchor` to appear in `floorAnchorsByLine`'s output, and returns
+`b.Lines[0]` for every block with `IsTableRow` whose line resolves to that anchor — the **raw row
+line**, so each guard keeps reading its own cells.
+
+Four things this settles, each with the reason:
+
+1. **Nothing is exported.** All three helpers are `package engine`, and both production functions are
+   unexported in that package. The helper lives in a new `internal/engine/specsection_test.go`.
+2. **`FloorUnitRows` is not the seam**, though it was the obvious candidate. It filters to floor units
+   (`floor.go:738`) and returns each table row as one em-dash-joined canonical string
+   (`floorTableRowUnit`, `floor.go:167`), so the cells are gone and no anchor travels with the row.
+   `floorBlocks` keeps the raw line and the line number; `floorAnchorsByLine` turns the line number
+   into `§n(.n)*`.
+3. **An absent section names itself.** `require.Contains(byLine, anchor)` fails with *"spec/1.0.0.md
+   must carry a §2.1 heading outside a fence"* — measured by renumbering §2.1 to §2.9. Without it an
+   absent section yields zero rows and the failure reads as a missing table, which is the wrong cause.
+   A heading inside a fence is not a heading, and the message says so.
+4. **This is re-use, not a new mechanism.** `internal/engine/flooranchor_test.go:224-259` already
+   walks `spec/1.0.0.md` through `floorBlocks` + `FloorAnchorOf` and asserts that §7.2's table rows
+   report `§7.2`. The seam this release adds is that walk, given a name.
+
+**The cost, stated rather than implied: the guards no longer check fencing independently.** A bug in
+`floorBlocks` becomes a bug the guards agree with. That is accepted because the alternative is the
+measured one — a second parser, weaker, repaired one input at a time — and because production's
+scanner is pinned by tests that state their whole input rather than reading a document
+(`TestFloorBlocksDropsWhatStep1Drops`, `TestTableRowsInsideAFenceAreNotTableRows`,
+`TestABlockThatStraddlesADroppedHeadingKeepsTheSectionItOpensIn`). The guard verifies the cell given
+production's fencing; the fencing is verified elsewhere, on constructed text.
+
+## 4. §2.1's verb row
+
+**The row is selected from `specTableRowsUnder(t, "1.0.0.md", "§2.1")`, and exactly one row may match
+`^\s*\|\s*\*\*verb\*\*\s*\|`.** Rows 3, 4 and 14 stay red; rows 6 and 9 — the false failures — go
+green, because a fenced quotation is no longer a row.
+
+**The verbs are every backticked span in that row, not the spans a class can spell.** The pattern
+becomes `` `([^`]*)` ``. §2.1's arms row carries the twelve verbs as its only backticked spans; its
+other emphasis (`**whole word**`, `**either case**`) is bold. The subject changes from *"the verbs I
+could parse"* to *"every backticked span in the cell"*, which is the difference between rows 10 and 11
+being silent and being red.
+
+## 5. §7.2's two guards
+
+**Both read `specTableRowsUnder(t, "1.0.0.md", "§7.2")`.** That set includes §7.2's per-verdict table
+as well as its field table, which the old scan excluded by stopping at the first non-row line — so
+the split has to be stated rather than inherited:
+
+- **A row whose first cell is a single backticked span is a field row, unless that span parses as one
+  of §3's verdicts.** `ParseGroundVerdict` is the discriminator, and `groundSection72VerdictRule`
+  already uses it on the same rows, so the two guards partition one row set with one rule instead of
+  two windows.
+- **A first cell that is a single backticked span and is neither a verdict nor `^[a-z][a-z_]*$` fails
+  loudly.** That is row 15's fix: an unspellable field is now a failure with a message, not a silent
+  omission from a list whose length is then asserted.
+- The `` `PASS`, `PARTIAL` or `FAIL` `` row is not a single-span first cell and is skipped by shape,
+  not by case — measured, the pristine document still yields exactly thirteen fields.
+
+`groundSection72VerdictRule` keeps its own logic and loses only its window. Its `## `/`### ` bound was
+fence-blind in the same way, which is how row 12 caught it.
+
+## 6. The two false sentences
+
+Both are corrected by this release's change, not reworded around it:
+
+| where | the sentence | what replaces it |
+|---|---|---|
+| `floorSection21Verbs` | *"closes the fenced and unfenced decoys together without this file needing its own fence parser"* | the file has no fence parser at all now — production's is the only one. The comment states the window's source and the one thing it still cannot do: it reads the cell, not the sentence around it |
+| `groundSection72Fields` | *"bounded … for the reason its twin now is"* | the two are the **same** defect. The comment states row 15 and its fix, and drops the loud/silent distinction, which row 15 refutes |
+
+**A third sentence goes with them, in the caller.** `TestTheVerbArmIsExactlyTheTwelveListedVerbs`'
+doc says the cell-class limit *"is a later release's work"*. This is that release; the paragraph is
+replaced by what the whole-cell reading does and does not cover.
+
+## 7. Non-Goals
+
+1. **No production change.** `floorBlocks`, `floorAnchorsByLine` and the fence regexp are read, not
+   rewritten. The diff is `*_test.go` only.
+2. **No exported symbol, no shared test package.** The seam works because all three helpers are
+   `package engine`. Exporting a parser so a guard elsewhere could call it is the new abstraction this
+   release refuses.
+3. **`internal/cli`'s spec-reading guards are out of scope.** `git grep -n 'readRepoDoc(t, "spec/' --
+   'internal/cli/*_test.go'` returns two — `groundclause_test.go:24` (§4.2, byte offsets, `\n## `) and
+   `clauses_test.go:33`. They are in another package and would need item 2.
+4. **`TestTheCauseBoundIsTheOneTheSpecStates` is not converted.** It reads the whole document on
+   purpose and has no window; the seam supplies rows and section membership, not a canonicalised prose
+   stream, and converting it would change which text its regexps see.
+5. **No spec text is edited.** §2.1 and §7.2 are the artifacts under test; a release that rewrote them
+   to suit its guard would be measuring itself.
+6. **No lint rule, no gate entry.** The class is three helpers in one package, all now converted;
+   generalising to a rule needs a corpus this does not have.
+
+## 8. Tests
+
+Every row derives from a numbered decision and names the mutant that must fail it. A mutant marked
+**not built** was reasoned, not run, and says so.
+
+| # | from | assertion | the mutant that must fail it |
+|---|---|---|---|
+| 1 | §3, §4 | §2.1's verb list is read from the rows production places under §2.1 | the shipped `slices.Index` window: measured **green** on §2's row 7 with a 13th verb in the real row, and **red** under the seam |
+| 2 | §3, §4 | a fenced `### ` line inside §2.1 does not end the window | the shipped `!strings.HasPrefix(lines[i], "### ")` terminator: measured **green** on §2's row 8, **red** under the seam |
+| 3 | §4 | the verbs are every backticked span in the cell | `` `([a-z-]+)` ``: measured **green** on §2's rows 10 and 11 — `Re-ran`, `re‑ran` (U+2011), `ran2` — and **red** under the seam |
+| 4 | §4 | exactly one **unfenced** `**verb**` row may sit in §2.1 | count fenced rows as well: §2's row 6 is then red on a correct document, measured both ways |
+| 5 | §3 item 3 | an absent §2.1 fails naming the anchor | locate the section by the first line equal to `### 2.1 The floor`: measured **green** on §2's row 7, where that check passes while pointing at a fenced quotation |
+| 6 | §4 | a real second unfenced verb row still reddens | drop the one-row requirement — **not built**; the fixture is §2's row 4, red before and after |
+| 7 | §5 | §7.2's field list is read from production's rows | the shipped `### `-bounded scan: measured **red on a correct document** for §2's rows 12 and 13, green under the seam |
+| 8 | §5 | a §7.2 field the name pattern cannot spell fails loudly | `` `([a-z][a-z_]*)` `` as the only filter: measured **green** on §2's row 15, **red** under the seam |
+| 9 | §5 | the per-verdict rows are excluded from the field list | drop the `ParseGroundVerdict` skip — **not built**; the correct-document run yields thirteen fields with it |
+| 10 | §5 | a real 14th field still reddens | none needed: §2's row 14 is red before and after, and the assertion is the count plus set equality with `groundRowKeys` |
+| 11 | §5 | `groundSection72VerdictRule` reads the same row set | its shipped `## `/`### ` bound: measured red on §2's row 12 on a correct document, green under the seam |
+| 12 | §3 | the whole suite is green on the unmodified document | none: this is the control, and it is what makes rows 4, 6, 7 and 11's green side meaningful |
+
+**Row 4 is the one an implementer will get backwards.** The requirement is *exactly one unfenced
+row*, and the temptation is to keep counting fenced ones "to be safe". That is the shipped behaviour
+and it is what makes a correct document red — the fixture that proves it is a fenced quotation of the
+arms table, which §2.1 step 1 itself rules non-content.
