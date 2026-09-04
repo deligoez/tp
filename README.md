@@ -461,7 +461,7 @@ tp is designed for AI agents first (AX), not humans (DX):
 | **Loop budget** | `--status` shows `max_rounds`/`rounds_remaining`/`in_flight_round` |
 | **Divergence signal** | `tp audit --status`/`--record` report `role_streaks`, `spec_coverage_clean_rounds` and a `divergence` object |
 | **Candidate retirement** | a registered check retires its mechanize candidate; `mechanized_classes` names what was withheld |
-| **Unattended run** | `tp run` drives the whole cycle; exit 0 means converged, exit 4 names one of nine stop reasons |
+| **Unattended run** | `tp run` drives the whole cycle; exit 0 means converged, exit 4 names one of the other eight stop reasons |
 | **Fail-closed decisions** | under `TP_UNATTENDED` the user-only decisions exit 2 and `tp escalate` records what needs deciding |
 | **Audit convergence policy** | `audit_converge_on` (default `all`) decides what an audit round must be clean of; `blocking` is human-only, fenced at all four write paths |
 | **Accepted rows are visible** | `tp audit --merge` breaks the round's non-`PASS` rows down as `by_severity`, and `next_action` names the accepted count |
