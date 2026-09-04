@@ -444,14 +444,13 @@ for the snapshot reason above. Both go to a candidates file; a refuted predicate
 item.
 
 **Name a pending release by its subject, never by its filename — outside the roadmap table above,
-which is the one place a number belongs.** A fourth renumbering has now happened and the sweep after
+which is the one place a number belongs.** **The ordinal is not checkable and this file used to assert one — v1.0.0's grounding of the patch release found `CLAUDE.md` saying *fourth* while `spec/candidates.md` said *fifth*, and a repair unit refused to pick a side.** What git records is **one** renumbering commit, `e73788ab` (2026-09-02, 16 spec renames), plus one deleted spec, `0.42.0.md`; derive it with `git log --diff-filter=R --name-status -- 'spec/*.md'`. Earlier renumberings predate the tracked names or were not recorded as renames, so cite the sweep rather than a count. That sweep, after the recorded one,
 it found **47 citations to renumbered specs**, of which ~35 were stale: six inside shipped
 `spec/0.36.0.md` and `spec/0.37.0.md`, twenty in this file, three in Go comments, three in the older
 candidates files. None was caught by checking that the target file exists — every one resolved, and
 every one had moved. The sharpest instance is `spec/0.36.0.md`'s own paragraph on this hazard, which
 says *"naming a file that does not contain the question is worse than naming none"* and carried two
-filenames that a renumbering then falsified — **the rule refuting itself in place, for the fourth
-time.** A shipped spec states what it did not do; which future release takes it is the roadmap's job
+filenames that a renumbering then falsified — **the rule refuting itself in place.** A shipped spec states what it did not do; which future release takes it is the roadmap's job
 and only the roadmap's.
 
 **Three earlier renumberings each left stale references behind** (`spec/0.34.0.md`

@@ -262,7 +262,7 @@ skipped; a caller that cannot determine the shipped boundary reports nothing rat
 the day it is written; it is wrong the day that spec is renumbered, and that has now happened five
 times.
 
-**The fifth renumbering taught the rule one thing the prototype had wrong: it must skip fenced
+**The renumbering taught the rule one thing the prototype had wrong — and note that the ordinal this sentence used to carry is not checkable: `git log --diff-filter=R --name-status -- 'spec/*.md'` records exactly one such commit, `e73788ab` with 16 renames, while `CLAUDE.md` said *fourth* and this file said *fifth*. The lesson survives the count: the rule must skip fenced
 blocks**, exactly as the code-citation check already does. Run over the renumbered corpus it reported
 two violations, and one was a **transcript line** — a fixture spec named in a shell session, not a
 reference to anything. The citation checker gets this right and this rule did not; a rule that flags
