@@ -1,0 +1,108 @@
+# tp v1.51.0 — `--reconcile`
+
+> **This file is decisions.** Two instances motivate it, one from a field report and one measured from
+> inside this repository's own v0.35.0 cycle. Both operators reached the same place: the correct action
+> and the only mechanical action pointed in opposite directions.
+
+## 1. Overview
+
+A round records the hash of the text it read. When the spec is then repaired — which is what a review
+round is *for* — the round reads stale, and **the only mechanical way to clear that is to overwrite
+the hash the round actually read.**
+
+**The invariant this protects is the one tp relies on everywhere else: a recorded round is a frozen
+fact.** Any surface that makes overwriting one the path of least resistance is a defect in tp, not in
+the operator.
+
+`tp review <spec> --reconcile --note "<text>"` records a reconciliation entry. The hash the round read
+is preserved; the note stating why the spec moved is added as **its own row**, overwriting nothing.
+Uncounted, gating nothing — accounting, not convergence.
+
+**This release needs the emit-time hash.** Reconciling against a hash that was itself re-read at record
+time explains a movement the record cannot locate; the release that pins the hash to the round's own
+snapshot is what makes "the hash the round read" a true description.
+
+### 1.1 Two instances
+
+**A Rust NLP project.** After nine commits — every one closing an item the rounds themselves had
+opened — the user hand-authored a `spec_hash_at_round` field with a note beside it rather than corrupt
+the record. They built the feature by hand because the tool offered only the lie.
+
+**This repository's v0.35.0 cycle, measured from inside.** Mid-implementation, verifying the converged
+spec against shipped code found two real gaps; the spec was repaired, and the repair went through the
+uncounted regression pass, which found eight defects in it. The blocker then had no honest exit —
+`--reconcile` does not exist, and the only mechanical clearance was overwriting what the rounds had
+read.
+
+**That cycle proceeded to audit with the blocker standing, and the reasoning is worth keeping**: after
+implementation is complete the audit subsumes what a re-review could ask, because `spec-coverage`
+derives its checklist from the repaired text and tests the code against it — strictly stronger than a
+reviewer reading prose about code that already exists. The cost avoided was real: `review_clean_rounds`
+is 2 and every `fixed` forces another round, so a five-role panel over a whole spec to settle a
+two-section repair is the shape one cycle paid eleven rounds for.
+
+**What was missing was not a way to re-review. It was a way to record why the spec moved without lying
+about what the rounds read.**
+
+## 2. The entry
+
+`--reconcile` appends a reconciliation row to the spec's state, carrying the note, the round it
+reconciles, the hash that round read, the hash now, and a timestamp.
+
+**It is a row, not a field on the round.** A field would be one note per round and would invite the
+next repair to overwrite it — the same shape one level down. Rows accumulate, so a spec repaired three
+times carries three.
+
+**The rows survive an older binary only because the ship-signal release made unknown keys durable.**
+Measured before that fix: a `reconciliations` array injected into `state.json` is **gone after the
+next `--record`**, because `SaveReviewState` marshals a typed struct and drops what it does not know.
+A release whose premise is *a recorded fact is never overwritten* cannot ship into a store that erases
+it, so the key-preservation work is a hard prerequisite rather than a convenience.
+
+**`--note` is required and must be non-empty.** A reconciliation with no stated reason records that
+something changed, which the hashes already say. The note is the entire contribution.
+
+**It records; it does not clear.** Staleness stays true — the spec *has* moved. `--reconcile` makes
+the movement explicable, not invisible. An operator reading a stale round now finds out why beside it.
+
+**Uncounted, and it touches no counter.** Not a round, not a clean streak, no effect on `--check`, no
+exit code beyond usage errors.
+
+## 3. How it composes with the streak reset
+
+The release that resets the audit streak when the spec hash changes makes the loop **re-earn** its
+streak; this one **explains** the movement for a reader, preserving the hash the round read.
+
+**Neither substitutes for the other and neither is a prerequisite.** A reset with no explanation tells
+an operator to redo work without saying why; an explanation with no reset lets a stale claim stand. Two
+different readers — the loop and the person.
+
+## 4. Non-Goals
+
+1. **No overwrite of anything, ever.** Not the hash, not the findings, not a prior reconciliation.
+   That is the defect, not the feature.
+2. **No convergence effect.** It does not clear staleness, reset a streak, advance a round or change
+   an exit code.
+3. **No automatic reconciliation.** tp does not infer why a spec moved; the note is the operator's.
+4. **No `--reconcile` on the audit phase in this release.** The two measured instances are both review;
+   an audit-side entry with no instance behind it is a shape guessed rather than observed.
+5. **No repair of rounds already cleared by overwriting.** Those records are gone; this stops the next
+   one.
+
+## 5. Tests
+
+Every row derives from a numbered decision, names the artifact it depends on, and names a mutant that
+must fail it.
+
+| # | from | assertion | the mutant that must fail it |
+|---|---|---|---|
+| 1 | §2 | after `--reconcile`, the reconciled round's `spec_hash` is **byte-identical** to what it was before | write the current hash onto the round, which is exactly the overwrite this release exists to prevent |
+| 2 | §2 *rows* | three reconciliations of one spec produce three rows, none replacing another | store it as a field on the round, keeping only the last |
+| 3 | §2 *note* | an empty or missing `--note` is a usage error | accept it, recording that something changed — which the two hashes already say |
+| 4 | §2 *uncounted* | round count, clean streak, `converged` and `--status --check`'s exit are identical before and after | let it touch a counter, making a note a way to advance the loop |
+| 5 | §2 *staleness* | the spec still reads stale after reconciling | clear staleness, which hides a real movement behind an explanation of it |
+| 6 | §1 | the recorded row names both hashes — the one the round read and the one now — and they differ | record one, leaving a reader unable to see what moved |
+
+**Row 1 is the acceptance and row 5 is the one an implementer will want to skip.** Making staleness go
+away is the operator's felt need in both instances of §1.1, and satisfying it is how this release would
+become the defect it was written against.
