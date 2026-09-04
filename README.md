@@ -386,6 +386,30 @@ undispositioned, and its exit code is the same with it and without it. The loop 
 [SKILL.md](skills/tp/SKILL.md); the row schema, the kind-tier sets and the exit codes are in
 [REFERENCE.md](skills/tp/REFERENCE.md).
 
+**What grounding finds.** Over this repository's own corpus — 28 recorded ground rounds across 19
+specs, 1,459 rows counting units freshly asked and units carried forward alike — **95 rows are
+`FAIL` (6.5%)** and 230 are `PARTIAL`. It reaches them because it is allowed to build and run
+things: **42.5% of the rows carrying a tier were settled at `run`, `probe`, `red-green` or
+`break-and-control`** rather than by reading, and so were **43.2% of the `FAIL`s**. That is the
+share of a specification a document review structurally cannot check. Two field reports from
+unrelated repositories — different languages, different domains — converged on the same shape: what
+failed was rarely a domain rule, it was the author's own measurement, quoted from a query they had
+run themselves, which is exactly why it read as authoritative.
+
+Re-derive every figure above. The tier percentages are over the 1,300 rows that carry a `tier`,
+because a `NOT-A-CLAIM` row may omit one; the verdict percentage is over all 1,459 rows:
+
+```bash
+python3 -c 'import json,glob,collections
+G=sorted(glob.glob("spec/.tp-review/*/ground-round-*.ndjson"))
+R=[json.loads(l) for f in G for l in open(f) if l.strip()]
+D={"run","probe","red-green","break-and-control"}
+print(len(G), len({f.split("/")[2] for f in G}))
+T=[r for r in R if r.get("tier")]; F=[r for r in R if r["verdict"]=="FAIL"]
+print(len(R), collections.Counter(r["verdict"] for r in R))
+print(len(T), sum(r["tier"] in D for r in T), len(F), sum(r.get("tier") in D for r in F))'
+```
+
 `tp review` generates the adversarial review prompts an agent feeds to sub-agents, records each
 round, and makes convergence a recorded fact rather than a judgement. Roles are project-owned files,
 per-spec focus comes from the spec's `tp:` frontmatter, and a recurring finding class can be
