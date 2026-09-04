@@ -1,0 +1,218 @@
+# tp v1.38.0 — The checklist covers what changed
+
+> **This file is decisions.** A measurement stays only where it justifies one, and every figure names
+> the command that derives it — a number whose counting rule is unstated is a defect even when the
+> number is right. This release was written by reading `internal/engine/auditfiles.go` and re-emitting
+> v0.37.0's round 7, not from the prose of the release it replaces.
+
+## 1. Overview
+
+`tp audit` hands its three code-lens roles a file list that is **truncated alphabetically**, and tells
+nobody but the roles. On v0.37.0's own audit each of `go-safety`, `ax-contract` and
+`maintainability-conventions` received a prompt headed `## Affected Files (10 of 46)` — the same ten
+files in rounds 2 through 7, differing from round 1 by one file — while re-emitting that round
+produced **zero bytes on stderr** and exit 0.
+
+The selection model this release changes is reproduced in §2.1 closely enough to regenerate round 7's
+ten files exactly, in order, from the git history alone. That is the evidence the sections below rest
+on: the defect was reproduced before it was described.
+
+Three deliverables, all inside `engine.selectCodeFiles` and its one caller:
+
+1. **Rank by churn, not by filename** (§2). The data is already on `AuditFileInputs`.
+2. **A universe the operator named is not truncated** (§3). tp already records that it happened.
+3. **Say so when it truncates** (§4). tp already computes the pre-cap size.
+
+**This is a stopgap and says so.** Ranking the ten better does not audit the other thirty-six.
+Covering an N-file surface with a bounded per-prompt count is the divisible round's subject, and that
+release is not numbered because its split key is undecided. This one makes the ten the ten that
+matter and stops the truncation being silent.
+
+## 2. Rank the non-priority group by churn
+
+`selectCodeFiles` (`internal/engine/auditfiles.go:173-194`) partitions the filtered universe into a
+priority group — paths matching `lock`, `validate`, `auth`, `secret` or `perm` — and everything else,
+takes them in that order, and stops at `CodeFileCap` = 10. Neither group is ranked: the universe was
+sorted once, alphabetically, by `filterAuditUniverse`'s closing `sort.Strings` (`internal/engine/auditfiles.go:93`),
+and nothing reorders it afterwards.
+
+**Both groups are now ordered by churn, descending — `DiffStats[path][0] + DiffStats[path][1]` — ties
+broken by path so the order stays total.** `AuditFileInputs.DiffStats` already carries `{added,
+deleted}` per path (`internal/engine/auditfiles.go:56`) and `diffSummaryOf` already renders it into every emitted
+entry, which is how the round-7 prompt above could print `(diff: +272/-0)`. **No new input is
+collected, no new field is stored, and no new failure mode is introduced** — the release re-uses a
+value that was already computed, already carried and already displayed, and only ever ignored.
+
+**The priority group survives, and the two keys are orthogonal.** The five substrings encode *this is
+dangerous when it changes*; churn encodes *how much it changed*. A file that is both should outrank a
+file that is only one, which is exactly what a stable partition with a churn sort inside each group
+gives. Collapsing to a single churn ranking would demote a small change to a locking path beneath an
+unrelated churn spike, which is the trade the substrings exist to refuse.
+
+**A path with no `DiffStats` entry sorts last, not first.** An absent entry means one of two things —
+the file did not change, or `DiffUnmeasured` says no comparison covers it — and neither is evidence of
+churn. Ranking an unmeasured file ahead of a measured one would make the release promote precisely the
+files tp knows least about.
+
+### 2.1 What this is worth, measured
+
+`internal/cli/unattended.go` is the file v0.37.0's four hardest audit rounds were about — §7 row 13's
+carve-out lives in it, and the repair that closed those rounds deleted 31 lines from it.
+
+**The universe is the release diff, not the round's.** With no `--base`, `auditDiffRanges`
+(`internal/cli/audit_roles.go:454-468`) returns unstaged, staged, and `<latest tag>...HEAD`, so every
+round of v0.37.0's audit ranked the same ~53 auditable files changed since `v0.36.0` — which is why
+each round's prompt read `10 of 46` rather than a number that shrank as the rounds converged. Ranking
+inter-round diffs instead gives 3–9 files, all under the cap, and would show this defect not existing.
+
+Over that universe, with the priority partition applied and the cap at 10:
+
+| | alphabetical (shipped) | by churn |
+|---|---|---|
+| rank of `internal/cli/unattended.go` | **30–31** of ~53 | **8–9** of ~53 |
+| rounds where it reached the checklist | **0 of 7** | **6 of 7** |
+
+Reproduction, per round *N* — `<tag>` is `v0.36.0` and `<commit>` the round's record commit:
+
+```
+git diff --numstat <tag>...<commit> \
+  | grep -vE '\.(md)$|^spec/\.tp-review/|^\.tp/' \
+  | awk '{print $1+$2"\t"$3}' | sort -rn | grep -n unattended
+```
+
+The file was cut in **all seven rounds** and covered only because `go-safety` added it to its own
+results file, writing *"self-added, cut from the checklist a sixth round"* in round 7's row. A role
+stepping outside its checklist is not a mechanism the loop can rely on: it happened here because one
+role's operator-written brief had named the file, and nothing in tp caused it.
+
+**Churn ranking is an improvement, not a guarantee, and the table says where it fails.** In round 1
+the file ranks 14th by churn and is still cut — it had not yet been edited enough to earn a slot.
+A ranking cannot cover a surface larger than its cap, which is why §1 names the divisible round as the
+real answer and this release as a stopgap.
+
+## 3. A universe the operator named is not truncated
+
+`AuditFileInputs.DiffUnmeasured` is set at `internal/cli/audit.go:335` when `--affected-files` or
+`--affected-from-tasks` replaced the universe. **When it is true, `CodeFileCap` does not apply.**
+
+An operator naming files is a statement that *these are the files*. Truncating that list to ten
+alphabetically discards the one input tp holds that is better than its own heuristic — and today it
+does exactly that, because the operator's list replaces the universe *upstream* of `SelectAuditFiles`
+and is then capped like any other.
+
+**This makes the notice at `internal/cli/audit.go:777` true for the first time.** That notice already tells the
+operator to *"name the rest with `--affected-files`"*; following the advice currently cannot work past
+the tenth file.
+
+**No cap replaces it.** A prompt built from two hundred named files may exceed what a role can read,
+and this release does not know that bound — measuring it is the divisible round's job. What ships here
+is the narrower claim: tp stops silently overriding an explicit instruction. If a named list is too
+large, the operator is the party who can see it and split it.
+
+## 4. Say so when it truncates
+
+`SelectAuditFiles` already computes `CodeFilesTotal: len(universe)` (`internal/engine/auditfiles.go:79`), and
+`buildRolePrompt` already renders `## Affected Files (10 of 46)` into the prompt
+(`internal/cli/audit_roles.go:254-257`). **The role is told; the operator is not.**
+
+The only truncation notice tp emits is `internal/cli/audit.go:768-777`, gated on `maxAutoDetectFiles` = 50
+(`internal/cli/audit.go:100`). A universe under fifty passes that gate in silence while `CodeFileCap` drops
+everything past ten — so on v0.37.0's audit, 46 files cleared the gate and 36 were dropped without a
+word, every round.
+
+**A notice fires whenever `len(sel.CodeFiles) < sel.CodeFilesTotal`**, naming both numbers and the
+remedy §3 has just made real. It is `output.Notice`, so it writes to stderr and leaves the JSON
+payload alone.
+
+**The emission payload carries the same two numbers**, and §7 row 5 asserts that separately. `--quiet`
+erases stderr; a driver reading the payload must still be able to tell that the audit was partial, and
+a signal only a human can see is not a signal to `tp run`.
+
+## 5. A file carrying last round's open finding reaches the role that filed it
+
+The three decisions above rank, exempt and announce. This one keeps a file from leaving.
+
+**A role's checklist rotates between rounds, and a deferred finding rotates with it.** `SelectAuditFiles`
+picks per role from one universe; nothing consults what the previous round found. So a finding a role
+filed and nobody repaired can simply not be asked about again — and its silence in the next round is
+indistinguishable from its repair.
+
+**Measured on v1.0.0's own audit, and the obvious statement of it is wrong.** Derive it with:
+
+```
+python3 -c "
+import json
+for n in (9,10,11):
+    for l in open(f'spec/.tp-review/1.0.0/audit-round-{n}.ndjson'):
+        r=json.loads(l)
+        if 'review-go' in (r.get('item_id') or ''):
+            print(n, r.get('role'), r.get('status'))"
+```
+
+| round | roles holding `internal/cli/review.go` | the `error-handling` finding on it |
+|---|---|---|
+| 9 | `ax-contract`, `go-safety`, `maintainability-conventions` | filed by `go-safety`, `warning` |
+| 10 | `ax-contract`, `maintainability-conventions` | **not filed by anyone** |
+| 11 | `ax-contract`, `go-safety`, `maintainability-conventions` | re-filed by `go-safety`, unrepaired |
+
+**The file never left the round's checklist; it left one role's.** `go-safety`'s own round-11 row says
+*"the file fell off round 10's checklist and is back on this one"*, and that sentence is false — two
+other roles held the file in round 10 and each filed `PASS` on its own subject, correctly, because an
+error-handling defect is not their lens. So the mechanism is not "pin the file into the round". It is:
+
+**A file named by an unresolved non-`PASS` row from the immediately preceding round is added to the
+selection of the role that filed it, before the cap, and is not truncated.** It is the same exemption
+§3 gives an operator's named list, for the same reason: tp holds an input better than its own churn
+heuristic, and the input is a finding tp itself recorded.
+
+Scope, stated so it cannot widen: the row must carry a `location` naming a file that still exists in
+the universe; a row already dispositioned `fixed`, `wontfix` or `duplicate` is not carried; only the
+immediately preceding round is read, never the whole history; and a file added this way counts toward
+`CodeFileCap` for the *other* files, so a role whose prior findings alone exceed the cap gets its
+findings and nothing else — which §4's notice then reports.
+
+## 6. Non-Goals
+
+1. **No new workflow field** — not the cap, not the ranking key, not the notice threshold. A workflow
+   field is a fenced surface with four write sinks and its own resolution order; this release is a sort
+   key, a conditional and a notice.
+2. **No change to `spec-coverage`'s selection.** Measured on the same round-7 emission, its heading
+   reads `max 20` where the other three read `10 of 46` — it is not truncated, and it ranks by
+   task-mapping count (`selectSpecCoverage`, `internal/engine/auditfiles.go:128-168`), which is the right key for a
+   conformance lens.
+3. **No raise of `CodeFileCap`.** Raising it trades a coverage hole for a prompt-size hole, and this
+   release has not measured where the second one starts.
+4. **No change to `filterAuditUniverse`'s drop rules.** Binaries, fixtures and deleted files stay
+   dropped, and the universe stays sorted before selection so the partition is deterministic.
+5. **No retroactive effect.** Rounds already recorded keep the lists they were emitted with.
+6. **§5 reads one round back, not the history.** A finding open for six rounds is carried by the round
+   that last recorded it, every round, which is the same thing — and a rule that walks the whole state
+   would resurrect a file whose finding was closed by a repair the record does not name.
+7. **§5 does not decide what a role files.** It puts the file in front of the lens that raised the
+   finding. Whether that lens raises it again is the role's judgement, and a role withdrawing its own
+   finding after re-checking is the outcome this loop wants, not a failure of the mechanism.
+
+## 7. Tests
+
+Every row derives from a numbered decision, names the artifact it depends on, and names a mutant that
+must fail it.
+
+| # | from | assertion | the mutant that must fail it |
+|---|---|---|---|
+| 1 | §2 | over a universe whose alphabetically-first files have the least churn, the emitted list is the highest-churn ten, ties by path | keep the alphabetical order — the shipped behaviour, which returns a disjoint set on this fixture |
+| 2 | §2 *priority* | a priority-substring path outranks a higher-churn path matching none, and within the priority group churn still decides | drop the partition and sort the whole universe by churn, which demotes a `lock` file beneath an unrelated churn spike |
+| 3 | §2 *absent* | a path with no `DiffStats` entry sorts **last** | treat a missing entry as zero and sort ascending, or as `MaxInt` — either puts unmeasured files at the head |
+| 4 | §3 | with `DiffUnmeasured` set, a 25-file named universe reaches every code-lens role entire | apply `CodeFileCap` regardless — the shipped behaviour, which discards 15 of the operator's own files |
+| 5 | §4 | truncation emits a notice naming both numbers, **and** the payload carries them — asserted separately, with `--quiet` and without | route the fact through `output.Notice` alone, which `--quiet` erases, leaving a driver unable to see the audit was partial |
+| 6 | §4 | the notice fires on a 46-file universe — below `maxAutoDetectFiles` — which is the case that shipped silently | keep the existing gate, which is the defect |
+| 7 | §6.2 | `spec-coverage`'s list is byte-identical before and after, on a fixture where the code list changes | apply the churn key to `selectSpecCoverage`, reordering a lens whose key is task coverage |
+| 8 | §5 | a file named by role R's unresolved non-`PASS` row in round N−1 is in **R's** round-N selection, on a fixture where churn alone would drop it | carry the file into every role's selection — which passes a naive assertion and re-creates the measured defect, since two roles held `review.go` in round 10 and neither filed the finding |
+| 9 | §5 | the same file is **absent** from role S's selection when S filed nothing on it and churn does not reach it | assert only presence-for-R, which a carry-into-everyone implementation also satisfies |
+| 10 | §5 | a row dispositioned `fixed`, `wontfix` or `duplicate` carries nothing | carry on non-`PASS` alone, which pins a closed finding's file in the selection forever |
+| 11 | §5 | with the carried files alone exceeding `CodeFileCap`, the selection is those files and §4's notice fires | let the carry raise the cap, which is §6.3's fence and turns a coverage rule into a prompt-size change |
+
+**The fixture's churn spread is asserted, not assumed.** A fixture whose alphabetical order happens to
+agree with its churn order passes row 1 under both the fix and the defect. The test therefore
+`require`s that the two orders differ *before* asserting which one the code produced — this repository
+has already lost a round to a guard whose fixture could not distinguish the behaviour it was named
+for.
