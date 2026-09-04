@@ -30,6 +30,15 @@ golangci-lint run
 ./scripts/check-suite-state.sh && golangci-lint run && ./scripts/check-deadcode.sh && ./scripts/check-complexity.sh
 # step 1 wraps `go test -count=1 -race ./...` in a before/after hash of spec/.tp-review/ and .tp/rounds/
 
+# Sweep round artifacts that belong to no recorded round (dry run by default)
+./scripts/clean-emissions.sh            # report;  --apply to remove
+# An emission writes a snapshot and a floor; `--record` writes the third file and commits all
+# three. An emitted-but-never-recorded round therefore leaves two files nothing references, and
+# re-emitting is idempotent, so removing them costs one command. THREE guards, each mutant-tested:
+# the round is unrecorded, the file is untracked, and it is older than --min-age-hours (default 1)
+# — the last because deleting the floor out from under a unit that is grading against it right now
+# makes its payload unrecordable, and there is no lock to read.
+
 # Stripped binary (production, <10MB)
 go build -ldflags="-s -w" -o tp ./cmd/tp
 ```
