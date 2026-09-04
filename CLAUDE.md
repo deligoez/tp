@@ -377,7 +377,9 @@ shipped artifacts that must not be edited — derive the count with
 
 **Four things are refuted, not deferred, and two of them died while this roadmap was being written.**
 The example-table lint rule died in both forms its spec named, and the corpus-replay gate is restated
-rather than withdrawn (`spec/candidates.md` carries why the reason first given for it was wrong).
+rather than withdrawn (`spec/undecided.md`'s `## Refuted` carries why the reason first given for it
+was wrong — it was `spec/candidates.md`'s until that file was emptied to a forwarding stub, and a
+reference that still *resolves* to a stub is the exact rot this line is about).
 
 **The unexecutable-split rule** was prototyped over this repository's 520 tasks in 26 task files: the
 broad predicate fires on 114 (21.9%), the keyword form on 11 with ~9 false positives, and the
