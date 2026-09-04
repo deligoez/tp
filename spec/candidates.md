@@ -289,6 +289,42 @@ independent case does not ship.
 
 ---
 
+## Found by the grounding programme — measured, unrouted
+
+Defects the grounding rounds hit in `tp` itself rather than in the spec they were reading. Each is
+reproducible today; none has a release, and none is large enough to earn one alone.
+
+**A bare ordered-list marker becomes a floor unit.** The floor's digit arm matches the digit in a
+Markdown list marker, so a line whose entire content is `2.` is promoted to a unit: two bytes, no
+claim, and a disposition the round is obliged to spend on it. Counting rule — floor units whose whole
+text matches `^[0-9]+[.)]$`, over every pending spec plus `spec/1.0.0.md`, via
+`tp ground <spec> --units` (TSV: `unit_id`, `text_sha`, `text`):
+
+**8 such units across 2 specs, out of 1,968 floor units scanned — 0.41%.** They are `u84 u87 u89 u91`
+in `spec/1.41.0.md` and `u71 u73 u93 u100` in **`spec/1.0.0.md`**, which is the document that defines
+the floor.
+
+**The marker is not a line in the source — the splitter makes it.** No line in either file matches
+`^\s*[0-9]+[.)]\s*$` (`0` hits in both). The items are single lines of the form
+`N. **Bold phrase.** text…`, and the split happens *inside* the line, leaving the marker on one side
+and the bolded claim on the other.
+
+**Two things about it are unexplained, and are stated as unexplained rather than guessed.** In
+`spec/1.41.0.md` the items are numbered 1–5 and only `2.` through `5.` become units — `1.` does not.
+In `spec/1.0.0.md`, `16` lines match `^\s*[0-9]+[.)]\s+\*\*` and only **4** produce a marker unit. So
+the shape above is necessary and not sufficient, and what selects the four is not known. An earlier
+draft of this entry asserted a mechanism (items whose bold phrase sits on the *following* line) and
+the derivation refuted it in one command; the mechanism is left open deliberately.
+
+Two things this is **not**, so neither is re-proposed. It is not the whitespace question a pending
+release already owns — that one is about characters *inside* a unit, this is about a unit that should
+not exist. And a length floor **would** work, contrary to what the same earlier draft claimed: the
+shortest legitimate non-marker floor unit across all pending specs plus `spec/1.0.0.md` is **9 bytes**
+(`Measured:`, `spec/1.48.0.md` `u49`), against the markers' 2, so any threshold in 3–8 separates them
+cleanly. That is an argument for a length floor being *sufficient here*, not for it being the right
+fix — a marker-shape test says what it means, and a byte count would silently start dropping real
+units the day someone writes a shorter one.
+
 ## Fog — in scope, not yet sharp enough to state as a question
 
 **The test is whether the question can be stated precisely now, not whether it can be answered now.**
