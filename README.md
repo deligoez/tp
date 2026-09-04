@@ -97,6 +97,65 @@ tp plan --minimal --json
 tp done create-model "User model at app/Models/User.php. Migration runs." --gate-passed --auto-commit
 ```
 
+## Lifecycle
+
+`tp resume` reports exactly five phases — `review`, `decompose`, `implement`, `audit`, `release`
+(`internal/engine/phase.go`), derivable with `tp resume --json | jq .phase` across a cycle. `tp lint`
+and `tp ground` are deliberately **not** among them. They are steps you run, not phases an oracle
+tracks, and `tp run` makes the same omission concrete: it drives eight unit kinds
+(`internal/engine/unitkind.go`) and none of them grounds anything, so no unattended run ever reaches
+grounding. Ground is the one loop you have to remember.
+
+```mermaid
+flowchart TD
+    SPEC["spec/my-feature.md"] --> LINT["tp lint<br/>does the document hold together?"]
+    LINT --> GROUND["tp ground<br/>do its claims hold in the world?"]
+    GROUND -->|"repair the spec"| GROUND
+    GROUND --> REVIEW
+
+    subgraph PHASES["the five phases tp resume reports"]
+      direction TB
+      REVIEW["review<br/>tp review"]
+      DECOMPOSE["decompose<br/>tp import"]
+      IMPLEMENT["implement<br/>tp next, tp done"]
+      AUDIT["audit<br/>tp audit"]
+      RELEASE["release"]
+      REVIEW -->|"repair the spec"| REVIEW
+      REVIEW --> DECOMPOSE --> IMPLEMENT --> AUDIT --> RELEASE
+      AUDIT -->|"fix the code"| AUDIT
+    end
+```
+
+Ground, review and audit are loops rather than steps, and they are the *same* loop — one shape, run
+three times against three different questions:
+
+```mermaid
+flowchart LR
+    EMIT["emit the prompt<br/>one for ground, one per role for review and audit"]
+    GRADE["grade it<br/>one fresh sub-agent context each"]
+    RECORD["record the round<br/>--record round.ndjson"]
+    CHECK{"--status --check"}
+    REPAIR["repair the spec or the code"]
+    NEXT["next phase"]
+
+    EMIT --> GRADE --> RECORD --> CHECK
+    CHECK -->|"exit 1"| REPAIR
+    REPAIR --> EMIT
+    CHECK -->|"exit 0"| NEXT
+```
+
+What ends each loop is not the same condition, and that difference is the point:
+
+| loop | `--status --check` exits 0 when |
+|------|--------------------------------|
+| `tp ground` | **coverage**: every emitted floor unit carries one of the six verdicts, and the floor is not empty |
+| `tp review` | **absence**: `review_clean_rounds` trailing rounds carry no finding that `review_converge_on` counts, the spec has not moved since the last one, and every registered `checks` entry passes |
+| `tp audit` | **absence**: `audit_clean_rounds` trailing rounds carry no row that `audit_converge_on` counts, under the same staleness rule |
+
+The built-in defaults are 2 clean rounds for both, `blocking` for `review_converge_on` and `all` for
+`audit_converge_on`; `tp config --resolved` prints what actually resolves in your repo and where each
+value came from.
+
 ## Commands
 
 One line per command — the index a human reads once to learn what exists. The exact forms, every
