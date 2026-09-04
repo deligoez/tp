@@ -324,7 +324,7 @@ guaranteed reduction in rounds.
 | 1.41.0 | forced commitment in the brief | Three sentences tp emits, so an unattended run gets the brief a human writes by hand today | loop | ready |
 | ~~1.42.0~~ | — | **Retired.** Its `unresolved_findings` fix and the two counters that make it checkable both moved to **0.37.1**, leaving nothing that earns a minor. The number is skipped, not reused | — | — |
 | 1.43.0 | the loop's own state writes | Three defects re-run against `HEAD` while the spec was written: a refused `--role` invocation still writes a snapshot, the round findings file is not atomic while the snapshot beside it is, and the gate's walk cannot see an empty watched directory — a blind spot its own comment names | tool | **written** |
-| 1.44.0 | the binary check | The advisory when the running tp is older than the spec being developed | tool | ready |
+| 1.44.0 | the binary check | An advisory when the running binary is not built from `HEAD`. **This row described the predicate the spec itself refutes** — "older than the spec being developed" — and grounding round 1 caught the roadmap never being updated. The shipped predicate is `vcs.revision` against `HEAD`, not a version comparison | tool | ready |
 | 1.45.0 | the untracked task file | A second advisory, once, at `PhaseRelease` — different trigger, different cadence, so not the same release | tool | ready |
 | 1.46.0 | mutation score as a gate entry | The entry establishes that a run **completed and over which mutants** before any score is read | tool | ready |
 | 1.47.0 | the gate sequence | `quality_gate` as an ordered array of named entries, each with its own exit code. Takes the three v0.36.0 handovers 1.43.0 left: two CI guards narrower than their own claims, and a load-sensitive gate test | tool | ready |
@@ -511,7 +511,7 @@ have a snapshot, but for **35 of them** the snapshot's sha256 does not equal the
 round recorded — the snapshot is written at emission and the hash re-read at record, so that fraction
 of the corpus is not the text its round reviewed, and a replay compares against the wrong spec and
 reports clean. **Quote the count, not the percentage**: the 35 was 22.4% of 156 rounds when first
-measured and is 20.8% of 168 now, because v0.36.0 and v0.37.0 added twelve rounds and no mismatches —
+measured and is 20.3% of 172 now — **re-derive it rather than reading this sentence: every denominator here has moved and every numerator has not.** Grounding measured review 35 of 172 and audit 3 of 108 today, against the 168 and 97 written here, and the whole drift is v1.0.0's own 4 review and 11 audit rounds. The twelve rounds this once credited to v0.36.0 and v0.37.0 were **v0.37.0's alone**: pre-v0.36.0 review rounds total 141, so 156 is 141+15 —
 the ratio improved while the defect did not, and 19 of the 35 are v0.31.0's cycle alone, so the mean
 is nobody's experience. The audit phase runs 3 of 97, plus 20 rounds predating snapshots there.
 `spec/1.40.0.md` closes it forward by hashing the round's own snapshot; it does not repair the 35.
