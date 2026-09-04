@@ -113,6 +113,21 @@ carry both empty), and an unrepaired `FAIL` carries forward for as long as its s
 Carrying is not forgetting: a carried unit is deliberately not re-asked, which is that same rule seen
 from the emitting end.
 
+**Re-emitting an unrecorded round costs nothing — it does not burn a round number.** A bare
+`tp ground <spec>` run twice on a round nobody has recorded returns the same `round` and the same
+`floor_size` and rewrites the snapshot and floor in place; measured byte-identical, prompt included.
+Round numbers are consumed by `--record`, not by emission, so re-running the emit to re-read the
+prompt needs no guard. Once the round **is** recorded, the next bare emit legitimately opens round
+N+1.
+
+**A recorded round file is longer than the payload you handed in.** `--record` reports `rows` and
+`carried` as two counts — `rows` is your payload, `carried` is what the carry added — and
+`ground-round-N.ndjson` holds **`rows + carried`** lines, every carried one stamped `carried_from`.
+Measured: `spec/.tp-review/1.49.0/ground-round-2.ndjson` holds 50 lines of which 20 carry
+`carried_from` — a round recorded as `rows 30, carried 20`. So **any share computed over a round
+file has two possible denominators** — the payload this round asked for, or the whole round
+including the carry — and a figure quoted without naming which one it used is ambiguous. Name it.
+
 **`--check` gates on two conditions and on nothing else.** Exit 1 when a unit of the emitted floor
 carries no disposition — and exit 1 **also** when the emitted floor is empty while `cut` is
 positive, because `0 < 0` is false and coverage alone would certify a document whose every sentence
