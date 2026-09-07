@@ -341,7 +341,6 @@ narrow-numerator variant is the one to implement, not the two-arm one. The measu
 `spec/1.0.1-measurements.md`.
 
 ---
----
 
 ## Survived, unscheduled
 
@@ -517,6 +516,7 @@ do. Two things to measure before it reaches a spec:
 instance is a bug report, not a rule. What would change that is a sweep of the other 18 files for
 fixtures whose declared value equals the parser's default — not run, and the honest reason the entry
 is here rather than in a release.
+
 ---
 
 ## Fog — in scope, not yet sharp enough to state as a question
