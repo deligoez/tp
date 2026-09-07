@@ -278,6 +278,33 @@ round snapshot: a frozen photograph whose references were correct when it was ta
 
 ---
 
+### Survived prototyping, waiting on a release: inferring a spec's class
+
+**The claim it refutes.** A draft release proposed a `class: loop | tool` frontmatter field, declared by
+the author, on the stated ground that *tp cannot infer it*. A unit told to construct a counter-example
+built three predicates against 23 hand-labelled specs and **refuted the "cannot"**: a density predicate
+— loop-lexicon occurrences per thousand words — scores **87% leave-one-out with zero false positives**,
+the threshold refitted with each item held out.
+
+**What makes it worth keeping rather than filing as a curiosity.** Applied to the seventeen shipped
+cycles' round-1 snapshots, the predicate reproduces `CLAUDE.md`'s published loop/tool round medians
+**exactly**, and yields `r(class, rounds) = +0.40`. The same unit's own hand-labels of those same
+seventeen give `r ≈ 0` and do **not** reproduce the published split. So two independent human labellings
+disagree, and the thing that tracks cycle length is the predicate rather than the label.
+
+**That is also why the frontmatter field was cut from the release.** `class:` is a hand label; a median
+computed over hand labels reports measured noise, and the field would have been empty on the day it
+shipped — one of sixty-six specs carried it, and no recorded round carried a class at all.
+
+**The design when a release takes this**: tp derives the class from the predicate and reports it,
+frontmatter overrides, both are visible. It is deliberately not in the release that discovered it,
+because the lexicon is a new surface that will drift and be argued over for rounds — this repository's
+rule is that a new abstraction belongs to the next version.
+
+**Honest limits, recorded so the next attempt does not overclaim**: n = 23; the two label sources are
+two separate hand-assignments rather than one rule; and leave-one-out fixes the threshold but not the
+lexicon, which was chosen after seeing the corpus.
+
 ## Undecided — each names the decision nobody has taken
 
 ### The divisible round
