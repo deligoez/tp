@@ -974,6 +974,29 @@ while that unit's live `text_sha` read `1638df7a4a1f` against the frozen index's
 per-unit hashes `--units` prints are what distinguish a matching count from matching text; the counts
 alone cannot.
 
+### `review_panel` — the round-1 panel without emitting a round
+
+`tp lint <spec>` also reports **`review_panel`**: the reviewer role ids a round-1
+`tp review <spec>` emission of the same spec would carry, with no `--diff-from`. It is a **list, not
+a count**, because a count cannot say *which* role is missing.
+
+It comes from the same resolver the emission uses — `engine.ResolveRolePanel`, the pure half of the
+split described above — so lint derives nothing a second time. What lint does not take is the
+wrapper: the refusals and the two notice loops stay with `tp review`, which is why the two commands
+disagree on exactly one input.
+
+| the spec's frontmatter | `tp lint` | `tp review` |
+|---|---|---|
+| nothing, or a partial `tp.review_roles` override | the surviving role ids | the same ids, as prompts |
+| **every** reviewer `enabled: false` | `review_panel: []`, exit **0** | exit **2**, no prompts |
+
+Measured on a scratch corpus holding this repository's four reviewers: deactivating `architect`
+alone leaves lint reporting `["ax-economist", "implementer", "tester"]`; deactivating all four leaves
+it reporting `[]` at exit 0 while `tp review` on the same tree exits 2. **Lint describes a spec; it
+does not refuse one** — the empty list is the answer, not an error.
+
+The list is always a JSON array, never `null`: an empty panel serialises as `[]`.
+
 ## Loop Integrity (v0.29.0)
 
 Cross-cutting correctness, transparency, and contract fixes — no new lifecycle phase.
