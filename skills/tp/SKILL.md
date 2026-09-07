@@ -27,7 +27,7 @@ This is the reset-native contract: `tp resume` is the single source of truth bet
 
 ## Workflow A: Decompose (spec exists, no .tasks.json)
 
-Order (v0.23.0; grounding inserted v1.0.0): **interview → `tp lint` → `tp init` → `tp set --workflow` → ground loop → review loop → decompose → `tp import`**.
+Order (v0.23.0; grounding inserted v1.0.0, the spec-writing rules v1.0.1): **interview → write the spec body → `tp lint` → `tp init` → `tp set --workflow` → ground loop → review loop → decompose → `tp import`**.
 
 Running `tp init` **before** the review loop creates the spec-adjacent task file that supplies the loop's workflow parameters (convergence counts, round budgets, checks). The quality gate is authored once at the project layer with `tp set --workflow --project quality_gate="<cmd>"` (writes `.tp/config.json`), not with `tp init --quality-gate`: a task-file override masks the project gate, so a later change to the project gate never reaches the task files carrying one. The task-level setter stays read-only (`tp set --workflow quality_gate=…` exits 2).
 
@@ -51,6 +51,62 @@ Then collect workflow parameters (hold in memory until `tp init` / `tp set --wor
 - Optional round budgets `review_max_rounds` / `audit_max_rounds` (default 0 = no cap) — a hard ceiling on counted rounds before escalation.
 
 Announce: "I will review until N clean rounds, audit until M clean rounds." If new ambiguities arise during spec writing, pause and return to step 3. Do not re-ask parameters.
+
+### Step 0.5: Writing the spec body
+
+`tp lint` checks the document's form; the ground loop (Step 1.5) checks its claims against the
+world. Neither writes the spec. The rules below govern what goes into it, and **none of them needs a
+grading round to settle** — each is answerable while you write, bar the one exception named under
+Test rows. That is the point: a rule you can only judge after a round costs a round rather than
+saving one.
+
+#### Numbers, commands, shape
+
+- **A number does not live in a spec. A reference does.** Derivations go in `<base>-measurements.md`,
+  which grounding does not grade; the spec names that artifact and does not quote the figure, and a
+  rationale that cites a figure is a figure. The test is whether a reader can re-derive the number
+  from something the spec names. So a count of a named artifact's own items stays — it is a
+  reference in numeral form — and so does a number that *is* the decision: an exit code, a round
+  count, a test row's two counts. What leaves is a measurement only the author's run supports.
+- **Every fenced command in a spec runs under `bash` at `HEAD` and prints something.** A command that
+  prints nothing is a finding, not a citation. Run every block mechanically before the round rather
+  than after it: it costs a minute and no grading token. The block must inherit neither of these
+  from whoever runs it.
+  - **The interpreter.** Invoke each block as `bash -c '<block>'`. One block here printed seventeen
+    rows under `bash` and nothing at all, at exit 0, under `zsh`, which reads `"$tag:…"` as a
+    history modifier — so "prints something" is not a property of the command alone.
+  - **The binary.** A bare `tp` in a block resolves against `PATH`, which lags the tree, so the
+    block certifies a release the spec is not about. Build the tree's own binary and call it by
+    path — `go build -o /tmp/tp-dev/tp ./cmd/tp`, then `/tmp/tp-dev/tp …`.
+- **The body is ADR-shaped**: decision, why, consequences, and a link to the supplemental material —
+  the same split and the same reason, which is that the decision must stand without the material.
+
+#### Test rows
+
+- **Write a test row's mutant before its assertion, and drop the row if the mutant cannot make it
+  red.** EARS shape alone does not achieve this: a correctly shaped row can still name a mutant that
+  survives. The shape helps a reader; the ordering is what makes the row a test. The row also quotes
+  its fixture and **both** counts — the value at `HEAD` and the value under the mutant — because a
+  mutant paired with the wrong fixture reads exactly like a mutant that works, and those two counts
+  are the only place the difference shows. This is the one rule with an exception to
+  check-while-writing: for a row whose subject does not exist at `HEAD` yet, the two counts are
+  confirmable only once the code lands. That is still before the first grading round, so it belongs
+  in the implementing task's acceptance and never in a round's rows.
+
+#### Sentences, briefs, prototypes
+
+- **A sentence describing behaviour the release does not change is a test name, or it is not in the
+  spec.** Scope is what the rule turns on. A sentence stating what the release *will make* true is a
+  requirement and belongs in the spec; a sentence stating what the tool *already* does is a claim
+  the author has to have run, and a reader will run it. Prefer an observable — a command whose
+  output the reader can compare — to a function name, because the author cannot check a function
+  name against behaviour that does not exist yet. The explanation goes to `REFERENCE.md`, where
+  being wrong is a documentation bug rather than a requirement.
+- **A grading brief names the record and repeats no figure from it.** A figure copied into a brief
+  travels with its errors: a brief carrying a verdict breakdown the recorded round contradicted got
+  the same wrong numbers reported straight back. Name the round file and let the unit read it.
+- **A check prototype states how it judged its findings** — which it read one by one, and which it
+  sampled and judged by class. A hit count without that distinction is not a result.
 
 ### Step 1: Init the task file and workflow
 
