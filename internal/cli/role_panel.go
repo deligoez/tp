@@ -96,7 +96,7 @@ type rolePanel struct {
 func resolveRolePanel(specPath, phase string) rolePanel {
 	// The resolution itself is engine.ResolveRolePanel, shared with tp resume's
 	// oracle and tp lint (1.0.1 §7). Everything below is the refusing half: the
-	// abort, the two notice loops and the two §2.5 refusals, in §2.6's order.
+	// abort, the notice loop and the two §2.5 refusals, in §2.6's order.
 	panel, err := engine.ResolveRolePanel(specPath, phase)
 	// A malformed role file aborts its own phase (§3.6, exit 3) and never the
 	// other one; the phase word doubles as the corpus directory name, so the

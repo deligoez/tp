@@ -66,7 +66,7 @@ func lintRoleCorpusOrAbort(specPath string) {
 // It goes through engine.ResolveRolePanel, the pure half §7's split created, so
 // lint gains no second derivation of a panel tp already resolves. The wrapper in
 // review.go is deliberately not the call: it refuses — exit 2 on an emptied
-// reviewer phase — and it writes the two advisory output.Notice loops, and lint
+// reviewer phase — and it writes the advisory output.Notice loop, and lint
 // describes a spec rather than refusing one or gaining a stderr channel it has
 // never had (§7's table, third row).
 //

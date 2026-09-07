@@ -990,7 +990,7 @@ a count**, because a count cannot say *which* role is missing.
 
 It comes from the same resolver the emission uses — `engine.ResolveRolePanel`, the pure half of the
 split described above — so lint derives nothing a second time. What lint does not take is the
-wrapper: the refusals and the two notice loops stay with `tp review`, which is why the two commands
+wrapper: the refusals and the notice loop stay with `tp review`, which is why the two commands
 disagree on exactly one input.
 
 | the spec's frontmatter | `tp lint` | `tp review` |
