@@ -72,10 +72,30 @@ denied() {
 
 # Write, Edit and MultiEdit name their target `file_path`. Notebook payloads
 # have been seen under both `file_path` and `notebook_path`, so both are read
-# and one hook covers all four tools in the matcher.
+# and one hook covers all four tools in the matcher. codedbpro's create, edit
+# and patch name it `file`; its `replace` names neither, taking `path` for a
+# single target and `paths` for a list.
+#
+# `path` and `paths` were missing until a hook run measured it: replace sits in
+# this hook's own matcher, so it was matched, nothing was extracted, the loop
+# below never ran, and a fenced write exited 0. The fence failed open on a tool
+# it names itself, and the existing test could not see it because it fed every
+# tool a `file_path` — proving the fence refuses an argument replace cannot send.
 paths=$(printf '%s' "$payload" |
-	grep -Eo '"(file_path|notebook_path|file)"[[:space:]]*:[[:space:]]*"[^"]*"' |
+	grep -Eo '"(file_path|notebook_path|file|path)"[[:space:]]*:[[:space:]]*"[^"]*"' |
 	sed -e 's/^[^:]*:[[:space:]]*"//' -e 's/"$//')
+
+# `paths` is a JSON array, so it needs its own pass: take the array body, then
+# every string inside it. The key itself is dropped -- it is quoted too, and
+# `grep -Eo` over the segment would otherwise return it as a target named
+# "paths". Newline is an IFS whitespace character, so an empty result here adds
+# no field to the loop below.
+paths="$paths
+$(printf '%s' "$payload" |
+	grep -Eo '"paths"[[:space:]]*:[[:space:]]*\[[^]]*\]' |
+	grep -Eo '"[^"]*"' |
+	grep -v '^"paths"$' |
+	sed -e 's/^"//' -e 's/"$//')"
 
 IFS='
 '
