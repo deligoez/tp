@@ -951,7 +951,15 @@ emission envelope (`internal/cli/ground.go`), and `tp review`'s `ungrounded`
 units** — so what separates them is not the arithmetic but the *text* it was counted over.
 
 - **`tp lint <spec>`** counts the spec **as it stands on disk**. Lint has no round and reads no
-  snapshot; its `floor_size` is the line count of `tp ground <spec> --units` on the same file.
+  snapshot; its `floor_size` is the line count of `tp ground <spec> --units` on the same file —
+  **while that file carries no frontmatter**. Lint counts `parseSpecFile`'s frontmatter-blanked
+  text and `--units` counts the raw bytes, so a frontmatter block can become a floor unit of its
+  own. Measured on a copy of `spec/1.0.1.md` prefixed with a six-line `tp:` block: lint reported
+  `floor_size: 96` while `--units` printed 97 lines, the extra one being the block itself. The same
+  block with no digit in it left both at 96, so *whether* the block adds a unit depends on its
+  content. The condition costs nothing across this repository — `tp lint`'s `frontmatter.present`
+  is `false` for all 67 files under `spec/` and `spec/backlog/`, and the two commands agree on
+  every one of them.
 - **`tp review <spec>`'s `ungrounded.floor_size`** counts the **latest emitted round's frozen
   index**, whatever the spec says now — the same number `--status` prints as `emitted`, by the
   identity above.
