@@ -1,0 +1,344 @@
+# tp v1.0.1 — tp says what round 1 will read
+
+> **This file is the first instance of the rule it ships.** It carries decisions and, for every
+> quantity it reports, the command that derives it; its measurements are in
+> `spec/1.0.1-measurements.md`, which `tp ground` does not grade. That shape came out of grading the
+> release that is now `spec/1.0.2.md`: counting its graded rows by `kind` put the highest finding rate
+> on design claims and a near-worthless one on re-derived figures — correct findings about sentences
+> that, unwritten, would have offered nothing to find.
+
+## 1. The decision
+
+tp reports what round 1 of a spec will cost to grade and makes no judgement about it. No threshold, no
+warning, no gate, no config field.
+
+**The restraint is measured rather than cautious, and the measurement removed a feature this file
+originally carried.** A floor-budget warning was designed and then dropped: over the converged shipped
+specs, round-1 floor size does not predict how many rounds a cycle took. Within each class it fails
+separately — the two within-class correlations have opposite signs — and within the class most of the
+backlog belongs to, line count predicts the outcome far better than floor does. Derive it:
+
+```
+for tag in $(git tag --list 'v*' | sort -V); do
+  v=${tag#v}
+  git show "${tag}:spec/.tp-review/${v}/snapshot-round-1.md" > /tmp/s.md 2>/dev/null || continue
+  units=$(cd /tmp && tp ground s.md --units 2>/dev/null | grep -c '^u[0-9]')
+  rounds=$(ls spec/.tp-review/${v}/{review,audit}-round-*.ndjson 2>/dev/null | wc -l | tr -d ' ')
+  echo "${v} ${units} ${rounds}"
+done
+```
+
+The braces are load-bearing and were added after a measurement, not for style: without them `zsh`
+parses `"$tag:spec/…"` as a `:s` history modifier, every `git show` fails, `|| continue` skips every
+iteration, and the block prints **nothing at exit 0** — which a reader checking §4's rule would score
+green under `bash` and red under `zsh` on the same tree. `spec/1.0.1-measurements.md` §10 has the
+transcript.
+
+`spec/1.0.1-measurements.md` §1 carries the stratification and why the pooled coefficient this file
+originally quoted was the wrong statistic to quote.
+
+What floor size does measure is one round's grading cost, which is a different quantity: total cost is
+rounds times cost-per-round, and the two have different drivers. tp reports the one it can compute and
+stays silent about the one it cannot.
+
+**`review_panel` is what this release demonstrates, not what justifies it.** What ships is the
+Step 0.5 rules in `skills/tp/SKILL.md` (§4), `vague-language` no longer firing on documentation of
+itself (§3), `engine.FloorSize` giving `tp ground` and `tp lint` one definition of the floor where
+there were two, and §7's split, which leaves one panel resolution with three consumers where there
+were two copies. An earlier draft called one field "the release" and rested the whole case on one
+ratio — the shape a single command can overturn, which is what `tp resume` then did.
+
+**What each field costs to obtain elsewhere.** `floor_size`: `tp ground <spec> --units` writes
+nothing and its line count is the number. `cut`: nothing reaches it without an emitted round, since
+it needs the floor index, and `tp ground <spec> --status` on an unground spec refuses with `no
+emitted ground round` at exit 3. `review_panel`: `tp lint` is the only route needing **neither** a
+task file **nor** an emission — but not, as the draft this replaced said, the only route without an
+emission. `tp resume` resolves it through the very `engine.ResolveRolePanel` that `lintReviewPanel`
+calls; it wants a task file, refusing with `no task file found` at exit 3, and `tp init` runs
+*after* `tp lint`. `spec/1.0.1-measurements.md` §11 has every route's byte count and precondition.
+
+## 2. What `tp lint` adds
+
+`tp lint` reports three quantities about the floor a round-1 grading would read. **This section states
+no sentence about what tp does at runtime**, and it does not name the functions either — five rounds
+of grading refuted five different sets of such sentences, the last of them disguised as a table.
+Each field is given by an **observable**: a command whose output a reader can compare against lint's.
+The implementing task writes the function and the test, runs the test red first, and *then* fills the
+last two columns in. The spec follows tested behaviour rather than predicting it.
+
+| field | value — the observable it must equal | derived by | pinned by |
+|---|---|---|---|
+| `floor_size` | the number of lines `tp ground <spec> --units` prints | `engine.FloorSize`, over the rows `engine.FloorIndexRows` derives with `engine.FloorAnchorOf` | `TestLintFloorSizeIsTheUnitsListingsLineCount`, in `internal/cli/lint_floor_test.go` |
+| `cut` | the floor index's row count less `floor_size` | those same rows, less `engine.FloorSize` of them | `TestLintCutIsTheFloorIndexRowCountLessFloorSize`, in the same file |
+| `review_panel` | the reviewer role ids a round-1 `tp review <spec>` emission of the same spec carries, with no `--diff-from` | `engine.ResolveRolePanel`, §7's pure resolver, through `lintReviewPanel` in `internal/cli/lint.go` | `TestLintReviewPanelOmitsADomainMismatchedRole` (§6 row 2) and `TestLintReviewPanelOmitsADeactivatedReviewer` (§6 row 3), both in `internal/cli/lint_review_panel_test.go`, beside `TestLintReportsAnEmptyPanelWhereReviewRefuses` in the same file for §7's first row |
+
+**The last two columns were empty on purpose and filling them is acceptance, not authorship.** The
+draft that named functions instead named two that compute different quantities: `engine.FloorUnits`
+returns candidate units *including* the arms' cuts, and `engine.FloorIndexRows` emits one row per
+unit unconditionally, so the difference the table called `cut` is identically zero. That zero was
+re-derived over six **named** specs by `floor-count-export`'s closure in `spec/1.0.1.tasks.json`,
+each with a non-zero real cut count; the draft's own version of the sentence quoted five counts and
+named no spec, so no reader could re-derive it, and the two lists do not agree. No exported function
+in `internal/engine` returned the uncut population when this section was written; `groundFloorSize`
+did, and it was unexported. That was task 2's work, and a spec cannot name its result in advance;
+`review_panel`'s two columns were task 4's and were filled the same way, after the row-2 test was
+watched failing under its own mutant.
+
+**A cell filled in advance was wrong too.** Both rows' `pinned by` named a real test that pins
+`engine.FloorSize` and never runs `tp lint`: under §6 row 1's mutant it stays green and these go red.
+
+The three are siblings of `structured_elements` in `tp lint`'s payload and are emitted on every
+invocation. `tp lint` varies its payload by neither `--compact` nor `--quiet` today and this release
+does not change that — `TestLintPayloadIsByteIdenticalUnderCompactAndQuiet` asserts it over the bytes
+of stdout under all three forms; a release that gives lint a compact form takes these three with it.
+
+**`review_panel` is a list, not a count**, because a count cannot say *which* role is missing and a
+list can.
+
+**Why `cut` is reported at all.** This repository's standing lesson is that the sharpest finding has
+repeatedly sat in a unit the arms cut. Cut units are a blind spot rather than a saving, and printing
+the count beside `floor_size` is what stops a small floor being read as a cheap round when it is a
+narrow one. Whether the share is *rising* takes two lints and is the reader's to notice.
+
+**Lint reports what round 1 will read, and nothing about later rounds.** Lint has no round; what a
+later round asks is `tp ground`'s to say.
+
+`floor_size` is a name tp already uses elsewhere for a different quantity. That is a documentation
+problem rather than a spec one, and task 6 owns it: `skills/tp/REFERENCE.md` gains the distinction.
+A draft of this section tried to explain it in prose three times and then tried a table.
+
+**`floor_by_section`, `spec_bytes` and `floor_figure_share` were designed into this section and
+dropped**, each by a measurement that refuted its own purpose; `spec/undecided.md` carries all three
+with the condition that would reopen them.
+
+## 3. The fence and the inline span
+
+Until `9297dd2b`, `CheckVagueLanguage` was the only rule in `internal/engine/vague.go` that skipped
+neither fenced code blocks nor inline code spans. The file defines six rules; of its five siblings,
+four track the delimiters and `CheckNumberingGaps` cannot, because it takes `[]*Heading` and never
+sees a line. Both omissions made the rule fire on documentation *of itself*:
+on sample review findings whose text names the trigger word, inside a fence, and on a citation of the
+trigger word in backticks. Run the first at both commits — it returns findings before the fix and
+nothing after, which is the assertion:
+
+```
+for c in 9297dd2b 65406160; do
+  d=$(mktemp -d); git worktree add -q --detach "$d" "$c" || continue
+  ( cd "$d" && go build -o tpc ./cmd/tp && printf "%s: " "$c" \
+    && ./tpc lint spec/0.12.0-review-rounds.md | python3 -c \
+       'import json,sys;print(sum(1 for x in json.load(sys.stdin)["findings"] if x["rule"]=="vague-language"))' )
+  git worktree remove --force "$d"
+done
+```
+
+It runs each commit in a throwaway worktree and never touches the checkout. A first version used
+`git stash` and `git checkout -`, which prints an error on a clean tree and — because `checkout -`
+returns to the *previous* ref rather than the starting one — left the repository detached at the older
+commit. That is the kind of defect the rule *"every fenced command runs and prints something"* exists
+to catch, and it was caught by running this one rather than by reading it.
+
+**Each rule excludes what its own predicate cannot judge, and that is the whole principle.**
+`vague-language` measures a property of *prose*; a code span is a literal token, not prose, so a
+trigger word inside one is being named rather than used. The five siblings measure *structure* —
+repetition, numbering, orphaned items, broken references — and for them a backticked line is still a
+repetition and still a broken reference, so excluding inline spans there would be wrong. That is why
+no fenced line reaches any of the six (none of them reads code) while code spans are excluded only in
+the one rule whose subject is prose. The exclusion arrives two ways, which is worth naming because
+the rules do not look alike from inside: four of the five siblings track the delimiters themselves,
+and `CheckNumberingGaps` never sees a fenced line at all, because `ParseHeadingsFromScanner` drops
+them before it builds the headings that rule is given. The asymmetry is in the predicates, not in the
+treatment.
+
+Unterminated fences stay open to end of file and `~~~` and indented blocks stay out of scope, in both
+cases because that is what every rule in the file already does and this release repairs one rule
+rather than redefining the family's notion of a code block.
+
+**Most of this section is already in the tree**, at `65406160`, with tests for rows 4 through 7. It
+is written up here because the *principle* is the release's — §4's rules rest on it — and because
+one thing was genuinely outstanding: **row 8 had no test.** No test in `vague_fence_test.go` called a
+sibling rule at all, so the behaviour held by construction and was pinned by nothing.
+`TestBrokenCrossRefStillReportsWhereVagueLanguageIsSilent` now pins it, observed failing against
+`blankInlineCode` inserted into `CheckBrokenCrossRefs`. Rows 4 through 7 close against that existing
+coverage. Rows 4 and 6 quote their test's counts exactly and rows 5 and 7 do not; both sets, and the
+reason the second pair differs, are recorded in `spec/1.0.1-measurements.md` §13.4.
+
+## 4. What ships in `skills/tp/SKILL.md`
+
+The rules are the release, as much as the code is — they reach users through the plugin and the skill
+package. The list below is the work, grouped as Step 0.5 groups it in the shipped file; its last
+bullet already shipped and is named as precedent only,
+so the count of new rules is the bullet count less one rather than a figure stated here. An earlier
+draft did state one, and three reviewers independently counted it wrong in the same round.
+
+
+### 4.1 Numbers, commands, shape
+- **A number does not live in a spec. A reference does.** Derivations go in `<base>-measurements.md`,
+  which ground does not grade; the spec names the artifact and does not quote the figure, and a
+  rationale that cites a figure is a figure. The line is whether a reader can re-derive the number
+  from something the spec names: a count of a named artifact's own items is a reference in numeral
+  form and stays, and so does a number that *is* the decision — an exit code, a round, a row's two
+  counts under the rule below. A measurement only the author's run supports is what leaves. The
+  distinction is not pedantry: a stated count of a list in the same section was miscounted in the
+  draft of this very bullet and caught by three reviewers independently, while every count bound to
+  an artifact survived.
+- **Every fenced command in a spec runs under `bash` at `HEAD` and prints something.** A command that
+  prints nothing is a finding, not a citation. The interpreter is part of the rule because it has to
+  be: this file shipped a block that prints its rows under `bash` and **nothing, at exit 0**, under
+  `zsh` — so "prints something" is not a property of the command alone, and a mechanical pre-round
+  check must invoke `bash -c` explicitly rather than inherit the operator's shell.
+- **The body is ADR-shaped**: decision, why, consequences, and a link to supplemental material — the
+  same split, and the same reason, which is that the decision must stand without the material.
+- **A citation convention holds only as far as a check travels.** The rules above leave a spec full
+  of references — named artifacts instead of figures, code citations, derivation cells filled at
+  implementation time — and every one of them rots silently when what it names moves. This
+  repository mechanises the class rather than trusting the convention: `.tp/config.json` registers a
+  `code-citation-drift` entry in `workflow.checks`, so a citation checker runs over the active spec
+  every review round and `tp review <spec> --status --check` will not exit 0 while it fails. A
+  project adopting these rules registers its own equivalent.
+
+### 4.2 Test rows
+- **Write a test row's mutant before its assertion, and drop the row if the mutant cannot make it
+  red.** EARS shape alone does not achieve this: rows in this release's own table were shaped
+  correctly and still named mutants that survive. The shape helps a reader; the ordering is what makes
+  the row a test. A row must quote the fixture and both counts — at `HEAD` and under the mutant —
+  because a mutant paired with the wrong fixture reads exactly like a mutant that works. The
+  `ground-round-*.ndjson` and `review-round-*.ndjson` files under `spec/.tp-review/1.0.1/` record
+  which rows failed it, including one that failed three rounds running: twice on its fixture, and
+  once because its assertion was invariant under every mutant of its own field.
+
+### 4.3 Sentences, briefs, prototypes
+- **A sentence describing behaviour the release does not change is a test name, or it is not in the
+  spec.** This is the same rule one level up, and it is this cycle's most expensive lesson: five
+  grading rounds refuted five different sets of such sentences in one section, each set written by
+  the repair for the round before, while the behaviour they described was never itself in question.
+  **The scope is what the rule turns on, and the first draft of this bullet omitted it**, which made
+  it forbid the release's own requirements. A sentence stating what the release *will make* true is
+  a requirement and belongs in the spec; a sentence stating what tp *already* does is a claim the
+  author has to have run, and a reader will run it. Prefer an observable — a command whose output
+  the reader can compare — to a function name, because the author cannot check a function name
+  against behaviour that does not exist yet. The explanation goes to `REFERENCE.md`, where being
+  wrong is a documentation bug rather than a requirement.
+- **A grading brief names the record, and repeats no figure from it.** A figure copied into a brief
+  travels with its errors: this cycle's brief carried a verdict breakdown that the recorded round
+  contradicts, and the grading unit reported the same wrong numbers back.
+- **A check prototype states how it judged its findings** — which it read one by one and which it
+  sampled and judged by class. A prototype that reports a hit count without that distinction is not a
+  result.
+- Already shipped, cited as precedent: a finding leaves a round as a spec change or as a `--resolve`
+  disposition, and the prose answer belongs in the disposition's evidence.
+
+## 5. Non-Goals
+
+1. **No threshold and no gate.** §1 gives the measurement that removed them.
+2. **No claim that any of this shortens a cycle.** One of the three is already reachable without a
+   round, as §1 says — `tp ground <spec> --units` lists the floor and writes nothing, which §1 of
+   this file uses. What lint adds is `cut`, which no command reaches without an emitted round;
+   `review_panel` with neither an emitted round nor a task file, `tp resume` being the route that
+   has the panel but wants the task file; and the convenience of `floor_size` at the moment a spec
+   is being written rather than after a round has been emitted. Whether seeing any of them changes
+   what an author writes is not measured, and this release does not assert it.
+3. **No new smell rules.** Six candidates were prototyped against this repository's own corpus and all
+   six were refuted; `spec/undecided.md` carries each measurement and the single condition under which
+   they reopen. §3's repair is a defect in the rule that already ships, not a new rule.
+4. **No class field.** A draft carried one, on the ground that tp cannot infer a spec's class; that
+   was refuted by construction, and the field would have been empty on the day it shipped.
+   `spec/undecided.md` carries the predicate and the design a later release would take.
+5. **No EARS requirement on spec bodies.** Test rows only.
+6. **No token figure.** `floor_size` is units, not tokens. One spec's rounds are the only evidence for
+   a conversion; a second cycle's measurement would earn it, and it would go in `SKILL.md` rather than
+   into tp.
+7. **Not the review side's per-section churn signal**, which needs a finding history keyed by section:
+   `spec/backlog/12-repair-locality.md`.
+8. **No audit-side counterpart to `review_panel` in this release.** Out of scope. Three drafts gave
+   a reason and grading refuted each in turn — including the one that said a reason dead twice gets
+   no third attempt, which was itself the third. A Non-Goal that is out of scope needs no reason,
+   and this one has now spent three rounds proving it.
+
+## 6. Tests
+
+Each row is `WHEN`/`WHILE`/`IF <trigger>`, `tp SHALL <response>`, with the mutant that must fail it
+and the fixture that separates them. A row whose mutant survives its own assertion is not in this
+table. Rows have been dropped for that reason in every one of this spec's grading rounds, and the
+shape did not prevent it: every dropped row was already `WHEN`/`IF`-formed. The
+`ground-round-*.ndjson` and `review-round-*.ndjson` files under `spec/.tp-review/1.0.1/` record which
+rows and why; `spec/1.0.1-measurements.md` §12 carries the two the review round killed by building
+their mutants and running them.
+
+| # | from | requirement | the mutant that must fail it | the fixture that separates them |
+|---|---|---|---|---|
+| 1 | §2 | WHILE a spec carries at least one cut unit, WHEN `tp lint <spec>` and `tp ground <spec> --units` run over it, tp SHALL report a `floor_size` equal to the latter's line count | count the floor index's rows in lint — the cut-inclusive population | a spec with at least one cut unit **and no frontmatter**. Both halves are the assertion: with no cut units the two populations coincide and the mutant passes, and with frontmatter present the two commands do not see the same text. How far apart depends on the block's *content* — a six-line frontmatter carrying no digit, code span or measurement verb left the listing unchanged while one carrying a digit added a unit — so a frontmatter fixture is a coin toss rather than a control, which is a stronger reason for excluding it than the fixed offset an earlier draft of this row asserted. Rows 2 and 3 need frontmatter, so they cannot share this fixture |
+| 2 | §2 | WHEN a role in the corpus declares `domains` that a spec's frontmatter does not match, tp SHALL report a `review_panel` that omits that role and equals the role ids of a round-1 `tp review` emission of the same spec | resolve the corpus but skip the domain filter | a temporary corpus in which exactly one role declares `domains: ["software"]`, plus a spec whose frontmatter says `tp.domain: prose`. Built and measured: `["universal"]` at `HEAD`, `["software-only", "universal"]` under the mutant. The spec's domain must not be `software`, which is what `ParseFrontmatter` returns for a spec with no frontmatter at all: an earlier fixture declared the default and stayed green under a second mutant that resolves the corpus against a hardcoded `"software"` and never reads the frontmatter — polarised, that mutant gives `["software-only", "universal"]` too, measured. `prose` is chosen because tp ships an embedded corpus for it, so the mismatch draws no unknown-domain notice and the row's empty-stderr assertion still measures what it is about. This repository's own corpus cannot serve — no reviewer role in it declares `domains`, so the filter is inert and the mutant changes nothing, measured as zero `domain-mismatch` skips across every spec in the repository |
+| 3 | §2 | WHEN a spec's frontmatter deactivates a reviewer, tp SHALL report a `review_panel` that does not contain that role id | ignore the frontmatter override and return the corpus's full role list | a spec deactivating one role that is actually in the corpus. Built and measured: `["keeper"]` at `HEAD`, `["dropped", "keeper"]` under the mutant. The role must be a *reviewer*: a deactivation naming an auditor id is ignored with a notice and leaves the panel whole, which is what an earlier version of this row mistook for a measurement |
+| 4 | §3 | WHEN a vague word appears inside a fenced block, tp SHALL report nothing for it | scan every line | a sample review finding, inside a fence, whose own text names the trigger word: 0 at `HEAD`, 1 under the mutant |
+| 5 | §3 | WHEN a vague word appears inside an inline code span, tp SHALL report nothing for it | blank only fenced blocks | a citation of a trigger word in backticks: 0 at `HEAD`, 1 under the mutant |
+| 6 | §3 | WHEN a vague word appears in prose before and after a fenced block, tp SHALL report both | skip everything after the first fence opens, which passes rows 4 and 5 | trigger words on both sides of a fence: 2 at `HEAD`, 1 under the mutant |
+| 7 | §3 | IF a fence never closes, THEN tp SHALL treat it as open to end of file | count fences and, on an odd count, ignore them entirely — a concrete implementation that passes rows 4 and 6 | a trigger word after an unterminated fence: 0 at `HEAD`, 1 under the mutant |
+| 8 | §3 *siblings* | WHEN a vague word appears inside an inline code span on a line `broken-cross-ref` also matches, tp SHALL report nothing for the vague word while `broken-cross-ref` still reports | blank inline spans for every rule in the file | a backticked `§X.Y step N` reference whose target section **holds a numbered list shorter than N**: `broken-cross-ref` 1 at `HEAD`, 0 under the mutant, `vague-language` 0 under both. The list is load-bearing — `sectionStepCounts` admits only sections that hold one, so the *listless* target this row prescribed for two rounds gives 0 at `HEAD` and 0 under the mutant and separates nothing. The sibling must also be `broken-cross-ref`: `blankInlineCode` is rune-preserving, not byte-preserving, and the substitution is a deterministic function of the line, so equal lines stay equal and the duplicate rules are invariant under the mutant, measured 1→1 for `duplicate-line`, `duplicate-paragraph` and `orphan-list-item`, while `numbering-gap` never sees a line |
+
+## 7. The resolver `tp lint` calls
+
+`review_panel` requires one change that is not lint's: **`resolveRolePanel` splits into a pure
+resolution function and a refusing wrapper.** `tp review` calls the wrapper and its behaviour is
+unchanged in every case. `tp lint` calls the pure function.
+
+The split is a requirement rather than an implementation note because §2's field cannot exist
+without it and none of the three alternatives is acceptable. Resolving the panel a second time
+inside lint would be a second derivation of a quantity tp already computes, which is the shape that
+produced this release's name collisions. Calling the current function would make `tp lint` refuse a
+spec, and lint describes a spec rather than refusing one. Reusing `engine.roleUnits`, which is
+already a pure resolution serving a read-only consumer, would be a third copy of the same logic in a
+third package rather than one shared function — the task's first act is to check whether the pure
+half belongs in `engine` beside it instead of in `cli`, and to say which it chose. **It chose
+`engine`**: `roleUnits` had the same resolution already, so a shared half in `cli` would have left
+that copy standing and made lint's the third, while `engine.ResolveRolePanel` leaves one resolution
+with three consumers — `roleUnits`, the `cli` wrapper, and lint.
+
+The function has **two** callers, `tp review` and `tp audit`, and one of the wrapper's refusals is
+auditors-only. Both keep the wrapper and neither changes.
+
+| | `tp review` | `tp audit` | `tp lint` |
+|---|---|---|---|
+| every reviewer deactivated | exits 2 | unaffected | reports `review_panel: []`, exits 0 |
+| a role file that will not parse | unchanged | unchanged | unchanged |
+| the wrapper's notices | unchanged | unchanged | **not emitted** |
+
+The third row is the one a reader would miss. The wrapper carries one unconditional `output.Notice`
+loop, over the warnings the resolver returns merged, so a lint that called it would gain an
+advisory stderr channel it has never had: measured on
+a corpus patched to declare `domains`, `tp review` writes 86 bytes of notice and `tp lint` on the
+same tree writes none. Keeping the notices on the wrapper is part of what the split is for.
+
+The tests, now green:
+
+| what it pins | test |
+|---|---|
+| row 1's pure half — an emptied phase resolves and returns | `TestResolveRolePanel_ResolvesAnEmptiedPhaseWithoutRefusing` (`internal/engine`) |
+| row 2's pure half — a malformed role file comes back as an error | `TestResolveRolePanel_ReturnsTheCorpusErrorInsteadOfExiting` (`internal/engine`) |
+| row 3's pure half — the warnings are data, and the resolver writes nothing | `TestResolveRolePanel_ReturnsWarningsWithoutWritingThem` (`internal/engine`) |
+| all three rows for the wrapper, through both callers | `TestRolePanelWrapper_RefusalsAndNoticesStayOnTheWrapper` (`internal/cli`) |
+
+Each was watched failing before it passed, and three mutants were then built against them: moving
+the notice loop into the resolver (row 3's engine assertion fails, and `tp review`'s stderr goes from
+86 bytes to 172), dropping the auditors-only refusal from the wrapper (the wrapper test's
+`spec-coverage` sub-test fails), and moving the empty-phase refusal into the resolver — which does
+not fail row 1's assertion but kills the package's test binary, the observable form of "lint would
+refuse a spec". Row 1's test passes against a resolver that swallows the warnings and the corpus
+error, so it does not stand alone; the first draft of the resolver was exactly that and the other two
+caught it.
+
+**`unchanged` in the second row is a delta, not an agreement.** Each of its cells says the split
+changed nothing about that command, and each was measured against a binary built one commit before
+the split: on a malformed *reviewer* file `tp lint` exits 3, `tp review` 3, `tp audit` 0; on a
+malformed *auditor* file `tp lint` exits 3, `tp review` 0, `tp audit` 3 — six exit codes, identical
+on both sides. The lint/review difference on the auditor file is real and predates this release by
+many versions, because `lintRoleCorpusOrAbort` validates BOTH corpora — lint is not scoped to a
+phase — while each emitting command aborts on its own. Reading the row's three `unchanged` cells as
+"the three commands agree" is what one reading of that measurement did.
+
+The `tp lint` column is now written and tested. `TestLintReportsAnEmptyPanelWhereReviewRefuses`
+(`internal/cli`) takes the first row's three columns on ONE fixture, because the row is about a
+difference and separate trees could not say the input was the same; it was watched red under two
+mutants, one per half — lint calling the wrapper (lint exits 2), and the resolver returning the
+undropped roles (lint reports `["keeper"]` while `tp review` stops refusing). And the wrapper test's
+lint half is no longer a baseline: under the notice-loop mutant lint's stderr goes from 0 bytes to
+the same 86 `tp review` writes, measured.
