@@ -51,7 +51,7 @@ housekeeping: real, measured, and not what the operator is paying for right now.
 | 11 | `11-reconcile.md` | records why the spec moved between rounds without overwriting what the round read | loop | needs 06a |
 | 12 | `12-repair-locality.md` | the share of a round's findings sitting in text the previous round wrote, reported and gating nothing | loop | measures the "drags on" half; reports only |
 | 13a | `13a-guards-read-what-production-reads.md` | three test helpers re-parse Markdown while production toggles on fences | tool | merge with 13b |
-| 13b | `13b-refusals-that-name-nothing.md` | refusals that do not name the set they refused against | tool | same subject |
+| 13b | `13b-refusals-that-name-nothing.md` | refusals that do not name the set they refused against | tool | same subject; §9 adds two silent-failure findings routed here by `v1.0.1`'s audit round 2 |
 | 14 | `14-what-the-carry-can-promise.md` | deleting the earlier of two identical units carries the `PASS` onto the survivor | loop | keep separate: it changes carry semantics |
 
 ## Merges
