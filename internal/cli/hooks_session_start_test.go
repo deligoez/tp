@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -180,6 +181,18 @@ func TestSessionStartHookFailsWhenTpTooOld(t *testing.T) {
 	}
 }
 
+// nextPatchVersion returns the version one patch above v — the smallest value
+// that is above the minimum for every minimum, so the fixture cannot be
+// overtaken by a bump the way a literal can.
+func nextPatchVersion(t *testing.T, v string) string {
+	t.Helper()
+	parts := strings.Split(strings.TrimPrefix(v, "v"), ".")
+	require.Len(t, parts, 3, "plugin.json's version must be major.minor.patch, got %q", v)
+	patch, err := strconv.Atoi(parts[2])
+	require.NoError(t, err, "patch component of %q must be numeric", v)
+	return parts[0] + "." + parts[1] + "." + strconv.Itoa(patch+1)
+}
+
 // TestSessionStartHookAcceptsTheMinimumVersion pins the boundary rather than a
 // value comfortably past it: a check written with 999 passes whether the bound
 // is inclusive or exclusive, and §6.1 makes plugin.json's own version the
@@ -196,8 +209,15 @@ func TestSessionStartHookAcceptsTheMinimumVersion(t *testing.T) {
 	// number that happened to be above it when they were written: a fixed
 	// "v0.35.1" was accepted until the minimum reached 0.35.2 and then failed
 	// this test, which is the version-pinning trap one level down.
+	//
+	// That paragraph was true of the comment and false of the list. A literal
+	// "v1.0.0" sat here beside it and did the identical thing one bump later:
+	// the manifest moved to 1.0.1 and this test failed on its own fixture, not
+	// on the hook. The near-boundary case is now derived from the minimum, so
+	// there is no literal left to go stale — which is what "by construction"
+	// was supposed to mean.
 	for _, version := range []string{
-		minimum, "v" + minimum, "v1.0.0", "v99.0.0",
+		minimum, "v" + minimum, "v" + nextPatchVersion(t, minimum), "v99.0.0",
 		"v" + minimum + "-0.20260820093420-104822c4904b+dirty",
 	} {
 		t.Run(version, func(t *testing.T) {
