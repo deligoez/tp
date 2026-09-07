@@ -235,17 +235,14 @@ func SpecBaseName(specPath string) string {
 // oracle; a malformed role file yields no unit at all, because a panel that
 // cannot be resolved is a panel the driver must not guess at.
 func roleUnits(kind UnitKind, specPath, corpusPhase string, target UnitTarget) []NextUnit {
-	fm := ParseFrontmatter(specPath)
-	roles, _, err := ResolveActiveCorpus(filepath.Dir(specPath), fm.Domain, corpusPhase)
+	panel, err := ResolveRolePanel(specPath, corpusPhase)
 	if err != nil {
 		return nil
 	}
-	roles, _, disabled := ResolveOverrideFocus(roles, fm, corpusPhase)
-	roles = DropDisabledRoles(roles, disabled)
 
-	units := make([]NextUnit, 0, len(roles))
-	for i := range roles {
-		units = append(units, newNextUnit(kind, roles[i].ID, target))
+	units := make([]NextUnit, 0, len(panel.Roles))
+	for i := range panel.Roles {
+		units = append(units, newNextUnit(kind, panel.Roles[i].ID, target))
 	}
 	return units
 }
