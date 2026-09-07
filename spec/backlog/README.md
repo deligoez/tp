@@ -32,6 +32,7 @@ housekeeping: real, measured, and not what the operator is paying for right now.
 
 | # | file | subject | class | note |
 |---|---|---|---|---|
+| 00 | `00-a-finding-can-leave-a-round.md` | the audit side of the acceptance channel: a finding accepted with recorded justification counts toward `clean` | loop | first after `1.1.0`, which takes the review side. Formerly `spec/1.0.2.md`; two ground rounds are recorded, a third was emitted and never graded. Its sidecar is `00-a-finding-can-leave-a-round-measurements.md` — the first backlog file to carry one |
 | 01 | `01-checklist-covers-what-changed.md` | rank the audit checklist by churn, never truncate what the operator named, say so when it truncates | tool | the "wrong things" half, measured above |
 | 02a | `02a-round-knows-its-panel.md` | the round records the panel it expected; a round missing an expected role is not clean | loop | absorbs 02b |
 | 02b | `02b-what-a-rounds-rows-say.md` | **to be absorbed by 02a, then deleted** | — | see *Merges* |
