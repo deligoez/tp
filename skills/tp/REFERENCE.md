@@ -954,10 +954,13 @@ units** — so what separates them is not the arithmetic but the *text* it was c
   snapshot; its `floor_size` is the line count of `tp ground <spec> --units` on the same file —
   **while that file carries no frontmatter**. Lint counts `parseSpecFile`'s frontmatter-blanked
   text and `--units` counts the raw bytes, so a frontmatter block can become a floor unit of its
-  own. Measured on a copy of `spec/1.0.1.md` prefixed with a six-line `tp:` block: lint reported
-  `floor_size: 96` while `--units` printed 97 lines, the extra one being the block itself. The same
-  block with no digit in it left both at 96, so *whether* the block adds a unit depends on its
-  content. The condition costs nothing across this repository — `tp lint`'s `frontmatter.present`
+  own. Measured on a copy of `spec/1.0.1.md` prefixed with a six-line `tp:` block: `--units` printed
+  **exactly one line more** than lint's `floor_size`, the extra one being the block itself, and the
+  same block with no digit in it left the two equal — so *whether* the block adds a unit depends on
+  its content. Only the difference is quoted, because the pair itself moves with every edit to the
+  spec, exactly as the paragraph above this section warns: it read 96 / 97 when this was written and
+  98 / 99 at `6d9be576`, with the +1 holding at both. Re-derive it rather than trusting either pair.
+  The condition costs nothing across this repository — `tp lint`'s `frontmatter.present`
   is `false` for all 67 files under `spec/` and `spec/backlog/`, and the two commands agree on
   every one of them.
 - **`tp review <spec>`'s `ungrounded.floor_size`** counts the **latest emitted round's frozen
