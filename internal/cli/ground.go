@@ -440,14 +440,14 @@ func groundCarriedUnits(specPath string, round int, rows []engine.FloorIndexRow)
 // groundFloorSize counts the units the round owes a disposition for before §8's
 // carry is taken off, on §2.2's convention that the absence of the hash is the
 // cut. A cut unit is in the index and owes nothing.
+//
+// The count is engine.FloorSize's rather than its own. §2 makes the same
+// quantity a field `tp lint` reports, so a loop here would be a second
+// definition of `floor_size` with nothing comparing the two — and the one
+// derivation both sinks read is what makes lint's field checkable against
+// `tp ground <spec> --units`.
 func groundFloorSize(rows []engine.FloorIndexRow) int {
-	n := 0
-	for _, r := range rows {
-		if r.TextSHA != "" {
-			n++
-		}
-	}
-	return n
+	return engine.FloorSize(rows)
 }
 
 // runGroundUnits implements `tp ground <spec> --units` (§7.1): print the
