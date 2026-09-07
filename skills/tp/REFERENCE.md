@@ -942,6 +942,38 @@ that number less 2. **The number itself is deliberately not written here** — t
 every edit to the spec, and it moved by one while this paragraph was being checked. The identity is
 the assignment above, not the value.
 
+### `floor_size` — one name, two quantities
+
+Three of tp's payloads carry a key spelled `floor_size`, and a search for `json:"floor_size"` under
+`internal/` returns exactly those three: `tp lint`'s (`internal/cli/lint.go`), `tp ground <spec>`'s
+emission envelope (`internal/cli/ground.go`), and `tp review`'s `ungrounded`
+(`internal/engine/groundadvisory.go`). All three count the same kind of thing — **uncut floor
+units** — so what separates them is not the arithmetic but the *text* it was counted over.
+
+- **`tp lint <spec>`** counts the spec **as it stands on disk**. Lint has no round and reads no
+  snapshot; its `floor_size` is the line count of `tp ground <spec> --units` on the same file.
+- **`tp review <spec>`'s `ungrounded.floor_size`** counts the **latest emitted round's frozen
+  index**, whatever the spec says now — the same number `--status` prints as `emitted`, by the
+  identity above.
+- **`tp ground <spec>`'s own `floor_size`** is where the two coincide by construction: the emission
+  counts the live text and freezes that very index, so at the moment it prints it is both.
+
+`cut` splits the same way: lint's is over the live text, `--status`'s over the frozen index.
+
+**The two agree while the spec's text has not changed since the latest emission — a condition that is
+sufficient, not necessary.** Measured on `spec/1.0.1.md` at `492a0691`, whose latest emission was
+round 3: `tp lint spec/1.0.1.md` reported `floor_size: 96, cut: 43` while
+`tp ground spec/1.0.1.md --status` reported `emitted: 54, cut: 28` — the spec had been edited many
+times since round 3 froze its index. Emitting round 4 from that same unedited text, in an `rsync` copy
+of the tree, moved `--status` to `emitted: 96, cut: 43` and closed the gap.
+
+Equal numbers are **not** evidence that the text is unchanged. On a throwaway spec whose round 1 froze
+three units, deleting a section added after the emission and rewording a sentence inside a surviving
+unit left `tp lint` at `floor_size: 3`, `--status` at `emitted: 3` and `ungrounded.floor_size` at `3`,
+while that unit's live `text_sha` read `1638df7a4a1f` against the frozen index's `982cda2bc138`. The
+per-unit hashes `--units` prints are what distinguish a matching count from matching text; the counts
+alone cannot.
+
 ## Loop Integrity (v0.29.0)
 
 Cross-cutting correctness, transparency, and contract fixes — no new lifecycle phase.
