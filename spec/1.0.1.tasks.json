@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.1.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-07T16:34:46.858205Z",
+  "updated_at": "2026-09-07T16:38:40.879073Z",
   "workflow": {
     "review_max_rounds": 2
   },
@@ -317,6 +317,27 @@
       "commit_files": [
         "skills/tp/REFERENCE.md"
       ]
+    },
+    {
+      "id": "reference-review-panel",
+      "title": "REFERENCE.md documents review_panel",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [
+        "reference-floor-size"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "skills/tp/REFERENCE.md documents review_panel in the section reference-floor-size opened: that it is a list rather than a count, that its source is the same resolver a round-1 tp review emission uses, and what it reports when every reviewer is deactivated. Verified by running rather than by reading: `grep -c review_panel skills/tp/REFERENCE.md` returns at least 1, and the paragraph quotes a value this unit obtained from tp lint rather than one copied from a brief. TestPluginVersionIsBumpedWhenPluginContentChanges stays green, since touching skills/ arms it and the manifest must stay strictly ahead of the latest tag.",
+      "source_sections": [
+        "## 2. What `tp lint` adds"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
     }
   ]
 }
