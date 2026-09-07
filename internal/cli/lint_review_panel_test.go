@@ -23,7 +23,7 @@ const (
 
 // writeDomainMismatchFixture builds §6 row 2's fixture: a temporary corpus whose
 // only `domains`-declaring reviewer asks for `prose`, beside a spec whose
-// frontmatter says `domain: software`. The domain filter therefore drops
+// frontmatter says `tp.domain: software`. The domain filter therefore drops
 // `prose-only` and leaves `universal`, which is the whole of what the row turns
 // on.
 func writeDomainMismatchFixture(t *testing.T) string {
@@ -33,7 +33,7 @@ func writeDomainMismatchFixture(t *testing.T) string {
 	writeReviewerRole(t, dir, "prose-only.json", domainFixtureProseRole)
 	writeReviewerRole(t, dir, "universal.json", domainFixtureUniversalRole)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"),
-		[]byte("---\ndomain: software\n---\n# Spec\n## 1. A\ncontent here.\n"), 0o600))
+		[]byte("---\ntp:\n  domain: software\n---\n# Spec\n## 1. A\ncontent here.\n"), 0o600))
 
 	require.True(t, strings.Contains(domainFixtureProseRole, `"domains"`),
 		"the fixture's mismatching role must declare domains, or nothing is filtered")

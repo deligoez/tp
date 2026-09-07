@@ -90,7 +90,7 @@ func TestRolePanelWrapper_RefusalsAndNoticesStayOnTheWrapper(t *testing.T) {
 		require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
 		writeReviewerRole(t, dir, "prose-only.json",
 			`{"id":"prose-only","title":"P","instructions":"You review.","domains":["prose"]}`)
-		spec := "---\ndomain: software\n---\n# Spec\n## 1. A\ncontent here.\n"
+		spec := "---\ntp:\n  domain: software\n---\n# Spec\n## 1. A\ncontent here.\n"
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec), 0o600))
 
 		_, reviewErr, reviewCode := runTP(t, dir, "review", "spec.md", "--no-state")

@@ -99,7 +99,7 @@ func TestResolveRolePanel_ReturnsTheCorpusErrorInsteadOfExiting(t *testing.T) {
 // keeps that byte sequence unchanged.
 func TestResolveRolePanel_ReturnsWarningsWithoutWritingThem(t *testing.T) {
 	specPath := rolePanelProject(t,
-		"domain: software\ntp:\n  review_roles:\n    nosuch:\n      enabled: false",
+		"tp:\n  domain: software\n  review_roles:\n    nosuch:\n      enabled: false",
 		map[string]string{"prose-only": `{"id":"prose-only","title":"P","instructions":"You review.","domains":["prose"]}`})
 
 	var panel RolePanel
