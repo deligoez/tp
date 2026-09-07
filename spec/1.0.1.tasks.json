@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.1.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-07T15:04:29.190386Z",
+  "updated_at": "2026-09-07T15:21:55.064251Z",
   "workflow": {
     "review_max_rounds": 2
   },
@@ -85,7 +85,7 @@
     {
       "id": "resolver-split",
       "title": "Split resolveRolePanel into resolver plus refusing wrapper",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "refactor"
@@ -96,11 +96,31 @@
       "source_sections": [
         "## 7. The resolver `tp lint` calls"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-07T15:06:07.225783Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-07T15:21:54.975633Z",
+      "closed_reason": "The pure half landed in internal/engine as engine.ResolveRolePanel (internal/engine/rolepanel.go), not in internal/cli, and that was the task's first act. engine.roleUnits already held the same resolution for tp resume's read-only oracle, so a shared half in cli would have left that copy standing and made tp lint's the third — the shape §7 rejects. Putting it in engine instead reduced two copies to one: roleUnits now calls it, the cli wrapper calls it, and tp lint will be the third consumer of one resolution.\n- The split: engine.ResolveRolePanel returns a RolePanel{Frontmatter, Roles, Disabled, Warnings} plus an error, and neither writes nor exits. internal/cli/resolveRolePanel keeps everything that refuses — the exit 3 abort on a malformed role file, the notice loop, refuseSpecCoverageDeactivated (auditors only) and refuseEmptyPhase — in §2.6's order. The cli rolePanel struct is unchanged, so review.go and audit.go are untouched by this commit series.\n- Both callers diffed identical, not reasoned about. A 19-case command matrix over tp review and tp audit — both refusals, both notice loops in isolation and together (pinning their stderr order), the exit 3 malformed-role path in both phases, plain emission from a user corpus and from the embedded corpus, --role, --no-state and stateful runs, and the refusal-writes-nothing-to-disk check — was captured with a binary built at HEAD before the change and again after: stdout, stderr and exit code are byte-identical in all 19, including the auditors-only path (spec-coverage deactivated: exit 2 with the verbatim message, and the same when both refusals are armed, where spec-coverage still wins). tp resume was also diffed before/after on tp's own repo and on a review-phase fixture that exercises roleUnits: identical.\n- The measurement §7 rests on was reproduced first, in a scratch fixture: on a corpus whose only reviewer declares domains: [prose] against a spec declaring domain: software, tp review writes exactly 86 bytes of notice to stderr and tp lint on the same tree writes none.\n- Tests were written red first and the red was informative, not just a build error. After the compile failure I wrote the resolver as roleUnits' body promoted verbatim — the careless third-copy version — and watched two of the three engine tests fail for the reason expected: the corpus error came back nil and Warnings came back nil. Test 1 passed against that draft, which is recorded in §7: it does not stand alone.\n- Three mutants were then built against the finished code and reverted: moving the notice loop into the resolver (engine test 3 fails on non-empty stderr; the cli test's review byte count goes 86 to 172), dropping refuseSpecCoverageDeactivated from the wrapper (the cli spec-coverage sub-test fails), and moving the empty-phase refusal into the resolver (engine test 1 does not fail — it kills the package test binary, which is the observable form of the defect).\n- §7 now records the decision inline in its alternatives paragraph and replaces its 'Task 3 names them' placeholder with a table naming TestResolveRolePanel_ResolvesAnEmptiedPhaseWithoutRefusing, TestResolveRolePanel_ReturnsTheCorpusErrorInsteadOfExiting, TestResolveRolePanel_ReturnsWarningsWithoutWritingThem (internal/engine) and TestRolePanelWrapper_RefusalsAndNoticesStayOnTheWrapper (internal/cli), plus the three mutants and the honest note that row 1 does not discriminate alone.\n- The two-caller claim was counted, not assumed: a search for resolveRolePanel across the repository returns its definition plus exactly two call sites, internal/cli/review.go:569 and internal/cli/audit.go:306.\n- Quality gate, each step's exit code read separately: check-suite-state.sh 0, golangci-lint run 0 (0 issues), check-deadcode.sh 0, check-complexity.sh 0. Dogfooded with a freshly built /tmp/tp-dev/tp: tp lint spec/1.0.1.md exit 0 with 0 issues, tp resume exit 0.\nOut of scope: tp lint does not call the resolver yet — the review_panel field and lint's empty-stderr guarantee are the next task's. The cli test pins lint's empty stderr today as a baseline, and the test comment says so rather than claiming it discriminates.",
+      "gate_passed_at": "2026-09-07T15:21:54.975633Z",
+      "commit_sha": "cc0af140",
+      "commit_shas": [
+        "cc0af140",
+        "46818efb",
+        "abd7c0eb",
+        "4ce22e1b",
+        "2ee04bc0",
+        "c74137d9",
+        "5f5c55db",
+        "6f62ada0",
+        "4323a4b3"
+      ],
+      "commit_files": [
+        "internal/cli/role_panel.go",
+        "internal/cli/role_panel_split_test.go",
+        "internal/engine/nextunits.go",
+        "internal/engine/rolepanel.go",
+        "internal/engine/rolepanel_test.go",
+        "spec/1.0.1.md"
+      ]
     },
     {
       "id": "lint-review-panel",
