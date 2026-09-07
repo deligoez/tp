@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -118,4 +119,75 @@ this block never closes, and mentions as appropriate
 	got := CheckVagueLanguage(strings.Split(doc, "\n"))
 	require.Len(t, got, 1, "only the prose line before the fence: %+v", got)
 	assert.Equal(t, 1, got[0].Line)
+}
+
+// §6 row 8 — the exclusion is scoped to the one rule whose subject is prose, and
+// the four tests above cannot see that scoping: none of them calls a sibling rule
+// at all, so "only CheckVagueLanguage blanks inline spans" held by construction
+// and was pinned by nothing.
+//
+// The sibling has to be CheckBrokenCrossRefs, and the referenced section has to
+// hold a numbered list. Neither is a stylistic choice, and both cost this row a
+// round when it was written the other way: blankInlineCode is length-preserving,
+// so equal lines stay equal and every duplicate rule is invariant under a mutant
+// that blanks spans for it (measured 1→1 for duplicate-line, duplicate-paragraph
+// and orphan-list-item, while numbering-gap takes []*Heading and never sees a
+// line); and sectionStepCounts admits only sections that hold a numbered list, so
+// a listless target gives broken-cross-ref 0 at HEAD and 0 under the mutant and
+// separates nothing.
+//
+// The mutant this test was observed failing against is blankInlineCode inserted
+// into CheckBrokenCrossRefs, mirroring its use in CheckVagueLanguage. Under it,
+// the backticked reference is blanked before the cross-ref patterns run and the
+// Len assertion below fails 0 against 1, while CheckVagueLanguage's own count is
+// 0 either way. The three require calls before it are fixture preconditions and
+// stay green under that mutant on purpose: what fails is the requirement.
+func TestBrokenCrossRefStillReportsWhereVagueLanguageIsSilent(t *testing.T) {
+	t.Parallel()
+	doc := "# Doc\n" +
+		"\n" +
+		"## 1.1 Retry policy\n" +
+		"\n" +
+		"1. Open the file\n" +
+		"2. Close the file\n" +
+		"\n" +
+		"## 2. Notes\n" +
+		"\n" +
+		"See `§1.1 step 5` and treat `appropriate` as a word being named.\n"
+
+	lines, headings := linesAndHeadings(t, doc)
+
+	refIdx := -1
+	for i, l := range lines {
+		if strings.Contains(l, "`§1.1 step 5`") {
+			refIdx = i
+		}
+	}
+	require.GreaterOrEqual(t, refIdx, 0, "the reference must be present and inside backticks")
+
+	// The fixture's separating properties are derived from the fixture, not
+	// asserted about it: the referenced step must exceed a step count that is
+	// itself non-zero. A row that skips the second half prescribes a listless
+	// target, which is how this row was wrong for two rounds.
+	m := crossRefSectionStep.FindStringSubmatch(lines[refIdx])
+	require.NotNil(t, m, "the fixture line must carry a §X.Y step N reference")
+	step, err := strconv.Atoi(m[2])
+	require.NoError(t, err)
+	steps := sectionStepCounts(lines, headings)[m[1]]
+	require.Positive(t, steps, "the target section must hold a numbered list, or nothing separates")
+	require.Greater(t, step, steps, "the referenced step must exceed that list's length")
+
+	// And the vague word must be a real trigger, or the silence below measures
+	// the absence of a trigger rather than the presence of an exclusion.
+	require.NotEmpty(t, CheckVagueLanguage([]string{strings.ReplaceAll(lines[refIdx], "`", "")}),
+		"the same line without its backticks must be reported")
+
+	assert.Empty(t, CheckVagueLanguage(lines),
+		"the trigger word is inside an inline span, so the prose rule stays silent")
+
+	refs := CheckBrokenCrossRefs(lines, headings)
+	require.Len(t, refs, 1,
+		"a backticked line is still a broken reference: the structural sibling reports where the prose rule does not; got %+v", refs)
+	assert.Equal(t, "broken-cross-ref", refs[0].Rule)
+	assert.Equal(t, refIdx+1, refs[0].Line)
 }
