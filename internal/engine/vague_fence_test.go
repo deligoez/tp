@@ -191,3 +191,32 @@ func TestBrokenCrossRefStillReportsWhereVagueLanguageIsSilent(t *testing.T) {
 	assert.Equal(t, "broken-cross-ref", refs[0].Rule)
 	assert.Equal(t, refIdx+1, refs[0].Line)
 }
+
+// Context quotes the spec, not the matcher's working copy. blankInlineCode exists
+// so a trigger word inside an inline span is not matched; when its result was
+// assigned back over the loop variable, the blanked text also reached
+// Finding.Context, and every vague-language finding on a line carrying any inline
+// span quoted a line that appears nowhere in the file. §3 is about what matches
+// and says nothing about Context, so the blanking must not outlive the match.
+//
+// The fixture carries both halves on one line: a trigger word inside a span, which
+// stays unreported, and a different trigger word in prose, which is reported
+// quoting the line as written.
+func TestVagueLanguageContextQuotesTheOriginalLine(t *testing.T) {
+	t.Parallel()
+	const line = "Handle `some cases` and various inputs here today."
+
+	// Preconditions derived from the fixture rather than asserted about it: the
+	// span must be one blankInlineCode actually changes, or Context is trivially
+	// equal and the assertion below measures nothing; and stripping the backticks
+	// must yield two findings, or the span is not suppressing a real trigger.
+	require.NotEqual(t, line, blankInlineCode(line),
+		"the fixture must carry an inline span blankInlineCode rewrites")
+	require.Len(t, CheckVagueLanguage([]string{strings.ReplaceAll(line, "`", "")}), 2,
+		"without its backticks the line carries two triggers, so the span suppresses exactly one")
+
+	got := CheckVagueLanguage([]string{line})
+	require.Len(t, got, 1, "only the prose trigger is reported: %+v", got)
+	assert.Equal(t, line, got[0].Context,
+		"Context must be the line as the document has it, not the blanked copy the matcher used")
+}
