@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.1.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-07T15:21:55.064251Z",
+  "updated_at": "2026-09-07T15:33:59.804263Z",
   "workflow": {
     "review_max_rounds": 2
   },
@@ -125,7 +125,7 @@
     {
       "id": "lint-review-panel",
       "title": "tp lint reports review_panel",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "lint"
@@ -140,11 +140,22 @@
         "## 2. What `tp lint` adds",
         "## 6. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-07T15:23:25.170158Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-07T15:33:59.757671Z",
+      "closed_reason": "tp lint \u003cspec\u003e now emits review_panel, the reviewer role ids a round-1 tp review emission of the same spec carries with no --diff-from. It is one derivation, not two: lintReviewPanel in internal/cli/lint.go calls engine.ResolveRolePanel, the pure half §7's split created, and never the refusing wrapper -- so lint neither refuses a spec nor gains the wrapper's two advisory output.Notice loops. The ids are built with make([]string, 0), so an empty panel answers [] rather than null.\n- The test was written first and observed red twice, and the second red is the informative one. Red 1 was the absent field. Red 2 was §6 row 2's own named mutant, resolve the corpus but skip the domain filter, built in an rsync copy as if true in ResolveActiveCorpus: it reproduces the recorded counts exactly, [\"universal\"] at HEAD against [\"prose-only\", \"universal\"] under the mutant, and it now fails on the row's own assertion rather than on a fixture guard -- the first draft caught it at a require precondition instead, so the assertions were reordered until the failure message is the requirement.\n- A second mutant was built and reverted to prove the equality assertion is not decoration: lint deriving the panel itself from engine.LoadRoleCorpus with no domain filter leaves the emission at [\"universal\"] and lint at [\"prose-only\", \"universal\"], and the Equal fails. So a mutant in the shared resolver is caught by the NotContains and a mutant that gives lint a second derivation is caught by the Equal.\n- The fixture is built for the row, and its own precondition is asserted rather than trusted: exactly one of its two reviewer roles declares domains, because a second would empty the panel and send tp to the embedded default corpus. This repository's corpus cannot serve -- no role in .tp/reviewers declares domains, the filter is inert here, and a test over it could not fail. No test asserts parity across it.\n- Dogfooded with a freshly built /tmp/tp-dev/tp. On spec/1.0.1.md in the repo, review_panel is [architect, ax-economist, implementer, tester] with floor_size 90 and cut 43, lint stderr empty; tp review on that spec cannot emit (its round budget is exhausted at 2), so parity was measured on the same spec and the same corpus relocated to a temp dir: lint and a round-1 tp review emission both report [architect, ax-economist, implementer, tester]. The empty-panel edge, which is the next task's, already answers review_panel [] on a spec deactivating its only reviewer.\n- §2's review_panel row now names engine.ResolveRolePanel through lintReviewPanel in internal/cli/lint.go, and TestLintReviewPanelOmitsADomainMismatchedRole in internal/cli/lint_review_panel_test.go for §6 row 2, saying plainly that row 3's fixture ships with the empty-panel task rather than claiming two fixtures this task did not write. The paragraph's forward reference is put in the past tense. python3 scripts/check-spec-code-citations.py spec/1.0.1.md exits 0.\n- TestLintPayloadIsByteIdenticalUnderCompactAndQuiet was run and passes with the new field present.\n- Quality gate, each step's exit code read separately: check-suite-state.sh 0, golangci-lint run 0 (0 issues), check-deadcode.sh 0, check-complexity.sh 0.",
+      "gate_passed_at": "2026-09-07T15:33:59.757671Z",
+      "commit_sha": "1af146f0",
+      "commit_shas": [
+        "1af146f0",
+        "2c49e2b1",
+        "2e6daeb9"
+      ],
+      "commit_files": [
+        "internal/cli/lint.go",
+        "internal/cli/lint_review_panel_test.go",
+        "spec/1.0.1.md"
+      ]
     },
     {
       "id": "sibling-rule-test",
