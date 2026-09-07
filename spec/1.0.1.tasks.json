@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.1.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-07T16:05:07.404458Z",
+  "updated_at": "2026-09-07T16:14:48.780218Z",
   "workflow": {
     "review_max_rounds": 2
   },
@@ -191,7 +191,7 @@
     {
       "id": "skill-and-reference-rules",
       "title": "Ship the spec-writing rules to SKILL.md",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -203,11 +203,18 @@
       "source_sections": [
         "## 4. What ships in `skills/tp/SKILL.md`"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-07T16:06:54.113359Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-07T16:14:48.766878Z",
+      "closed_reason": "Shipped section 4's rules to skills/tp/SKILL.md as \"Step 0.5: Writing the spec body\", placed between Step 0 (Interview) and Step 1 (Init) and split under three subheadings so no section crosses the 50-line section-size limit; Workflow A's order line now reads interview -\u003e write the spec body -\u003e tp lint -\u003e ... .\n\n- Count derived, not restated. `awk 'NR\u003e=154 \u0026\u0026 NR\u003c=204' spec/1.0.1.md | grep -c '^- '` returns 8 top-level bullets and `grep -c '^- Already shipped, cited as precedent'` returns 1, so 8 - 1 = 7 new rules. The shipped block returns 7 for `grep -c '^- \\*\\*'` over lines 55-110 of SKILL.md, one bolded bullet per rule: numbers-vs-references, fenced commands, ADR shape, test-row mutants, unchanged-behaviour sentences, grading briefs, check prototypes. A first draft split the test-row rule across two bullets and made the shipped count 8 - exactly the miscount section 4 warns about - so the two clauses were merged back into one bullet before commit.\n- The fenced-command rule names both the interpreter and the binary, as two named sub-bullets. Interpreter: invoke each block as `bash -c '\u003cblock\u003e'`, because a block that printed seventeen rows under bash printed nothing at exit 0 under zsh, which reads \"$tag:...\" as a history modifier. Binary: build the tree's own binary and call it by path (`go build -o /tmp/tp-dev/tp ./cmd/tp`, then `/tmp/tp-dev/tp ...`), because a bare `tp` resolves against PATH, which lags the tree, so the block would certify a release the spec is not about.\n- Check-point judgement, recorded for every rule: all seven are answerable while writing and none needs a grading round. Numbers-vs-references, ADR shape, the unchanged-behaviour scope test, the brief-repeats-no-figure rule and the check-prototype rule are each a judgement on the author's own text; the fenced-command rule is mechanical and runnable before any round. One exception is stated in the shipped text: a test row whose subject does not exist at HEAD has its form and fixture checkable while writing, but its two counts are confirmable only once the code lands - still before the first grading round, so it belongs in the implementing task's acceptance rather than in a round's rows.\n\nVerification: `tp lint skills/tp/SKILL.md` is unchanged from the pre-edit baseline - 0 errors, 7 warnings (the same 5 vague-language plus the 2 pre-existing section-size) and 33 info, so the new sections add no finding. Quality gate all four steps exit 0: check-suite-state.sh 0, golangci-lint run 0, check-deadcode.sh 0, check-complexity.sh 0.\n",
+      "gate_passed_at": "2026-09-07T16:14:48.766878Z",
+      "commit_sha": "73867184",
+      "commit_shas": [
+        "73867184"
+      ],
+      "commit_files": [
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "readme-and-release-notes",
