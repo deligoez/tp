@@ -23,6 +23,54 @@ was read from `git archive` rather than from the working tree.
 
 ## Refuted
 
+### Six requirements-smell lint rules — the whole adjacent family
+
+**What was tried.** `vague-language` is one member of a family the requirements literature and
+ISO/IEC/IEEE 29148 name: subjective, ambiguous, non-verifiable, vague, superlative, comparative,
+loophole, vague pronoun. Six candidates were prototyped against this repository's own corpus — 66
+files (`spec/*.md` and `spec/backlog/*.md`), 19,715 prose lines, **1,529 candidate findings judged**.
+The bar was the one this repository already applies: zero false positives at warning severity, at
+least one true positive, and it must catch the defect that motivates it.
+
+**All six are refuted, and the reason is a property of the corpus rather than of the patterns.** These
+specs are *forensic documents*: they argue from measurements, so their superlatives, pronouns,
+percentages and non-verifiable adjectives live in **evidence prose, not in requirements**. *"the
+strongest finding of that audit round"* is a claim about a measurement, not an acceptance property,
+and no line-scoped pattern separates the two. `vague-language` survives here because its eight words
+happen to be rare in that register; every neighbouring family is not.
+
+Each is refuted by its own measurement, phrased so it cannot be re-proposed without new evidence:
+
+| candidate | what killed it |
+|---|---|
+| **loophole** (`as appropriate`, `if necessary`, …) | With deferral contexts excluded, the yield over the whole corpus is **one** hit, and that one is resolved by the following sentence. A 24-form wide sweep found no additional loophole forms. Not re-proposable without exhibiting a loophole that qualifies a live requirement here — none exists. |
+| **superlative / comparative** | 104 hits after requiring no named baseline; only **6** sit on a line carrying a normative modal, and all 6 are false. The rest are the forensic register. Not re-proposable without a discriminator separating a *measured* superlative from a *required* one. |
+| **non-verifiable** (`efficient`, `robust`, `clean`, …) | 388 hits, **256 of them `clean`** — a defined technical term here (`clean_rounds`, `consecutive_clean`, *a clean tree*). The narrowing to normative clauses was built and run: **5 hits, 5 false**, two of them matching the tail of `self-sufficient`. Not re-proposable: the narrowing exists and returns zero true positives. |
+| **vague pronoun** | 377 hits, every one read unambiguous anaphora. The rule detects *pronouns*, not *ambiguity* — it carries no antecedent model, so it cannot test the claim in its own name. Not re-proposable without an antecedent resolver. |
+| **open-ended enumeration** (`and more`, `such as`) | All five `and more` hits are comparative conjunctions (`and more narrowly`, `and more strictly`), firing on the correct line for a mechanism that is not the smell. |
+| **percentage with no denominator** | The derivation lives at *section* scope while the rule is *line*-scoped, so it flags table rows whose deriving command sits above them, and every figure in the file that exists to derive them. Not re-proposable at line scope. |
+
+**The one condition under which this reopens.** These rules were measured against specs written in the
+style this repository is now leaving behind. If the sidecar rule works — forensics move to
+`<base>-measurements.md` and the body keeps decisions — the register the rules drown in is no longer in
+the body. **Reopen only after the sidecar rule has been applied to a stated number of specs, and then
+re-run the same six candidates against the same corpus.** Until that condition is met this stays
+refuted; "it might work later" is not a reason to re-propose it.
+
+**Two predictions were on record before the run and the scorecard is worth keeping**, because it is
+this repository's own rule applied to a forecast rather than to a role: one clause of four was right in
+its verdict, and **that one's stated mechanism was wrong**. `non-verifiable` was predicted to die from
+the corpus mixing English and Turkish — measured, the corpus carries Turkish letters on **5 lines in 2
+files**, and the apostrophe-suffix trap yields **zero** tokens. It dies for an unrelated reason.
+`vague pronoun` was predicted to duplicate `vague-language` — measured, **0 of 369 lines are shared**,
+and the same holds for every candidate. Both predictions reached a defensible verdict *through a
+mechanism the corpus does not contain*, which is precisely the failure mode this file exists to record.
+
+**One real defect surfaced while prototyping and is not part of this entry** — it went to the release
+that was being written at the time: `CheckVagueLanguage` is the only rule in `internal/engine/vague.go`
+that does not track fenced code blocks, so a share of its corpus findings fire *inside* fences, on
+examples of its own output.
+
 ### The unexecutable-split lint rule
 
 **The rule it tried to mechanize is sound:** *a change and the test it invalidates belong to the same
