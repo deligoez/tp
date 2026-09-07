@@ -120,6 +120,33 @@ saving one.
 - **A check prototype states how it judged its findings** — which it read one by one, and which it
   sampled and judged by class. A hit count without that distinction is not a result.
 
+#### What a spec is about (v1.1.0)
+
+These four came from a survey of how other tools and communities write and review specifications,
+checked against what this repository's own `v1.0.1` cycle measured; the sources and the measurements
+are in `spec/1.1.0-measurements.md`.
+
+- **A sentence that would have to change if the implementation changed is not spec.** Apply it per
+  sentence while writing. What survives is a decision, a rationale, a non-goal, or an acceptance row
+  whose subject is observable from outside. A function name, a package, a derivation path or an
+  exit-code branch for behaviour the release will create fails it and moves to the implementing
+  task, which names it after its test is green.
+- **The reviewed document is a decision record; behaviour is verified by executing, not by reading.**
+  The review loop's subject is whether the decisions are right and consistent with each other. Whether
+  the behaviour is right is the audit's subject, on code. Five grading rounds in one cycle refuted
+  five successive sets of sentences about unbuilt behaviour; the first five implementing tasks each
+  corrected something a round had asserted, every time by running it.
+- **A repair subtracts before it adds.** The safest output of a repair is fewer claims. A repair that
+  writes a new sentence about behaviour in place of the one it removed has written a claim nobody has
+  run; if it must be written, run it before committing. This is the runtime-sentence rule above at
+  its point of application, and the cycle that shipped that rule broke it in four consecutive
+  repairs before a subtracting repair ended the loop.
+- **A review round ends at its cap by design, not only by failure.** The surveyed tools gate on a
+  fixed number of approvals rather than on a clean round. When `review_max_rounds` is reached and the
+  open findings are about behaviour the release will create, the next step is decomposition with those
+  findings as task acceptance; the operator's `--force` at import is the acknowledgement that the
+  review ended on decisions, and the audit is the verification round that follows, on code.
+
 ### Step 1: Init the task file and workflow
 
 1. `tp lint <spec.md>` — fix issues; review `structured_elements` and the `frontmatter` object, and read `floor_size`, `cut` and `review_panel`: what a round-1 grading of this spec will read, and which reviewer roles a round-1 emission would carry. They are reports, not gates — no threshold, no warning, nothing fails on them. REFERENCE.md defines each and says which text it counts.
