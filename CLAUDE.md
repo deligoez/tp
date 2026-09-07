@@ -218,12 +218,24 @@ So `Lived: 0` next to `Not covered: 6` is honestly reachable, and the "stronger"
 
 ### Where the next work is (read this before starting anything)
 
-**In flight: `spec/1.0.1.md`**, the hotfix (a finding can leave a round). It is **grounding right
-now** — do not edit it, `spec/backlog/`, or anything under a `.tp-review/` directory until it finishes.
+**Two releases are in flight, in this order.** `spec/1.0.1.md` — *tp says what a round will read*:
+`tp lint` reports one round's grading cost (`floor_size`, its per-section split, the share of units
+carrying a figure, spec bytes × active roles) plus the author-declared `class` and that class's median
+rounds **derived live from this repository's corpus**. No threshold and no gate — a floor-budget
+warning was designed and dropped because round-1 floor does **not** predict cycle length; the
+derivation is in `spec/1.0.1-measurements.md` §1. It also ships the spec-writing rules to
+`skills/tp/SKILL.md`. Then `spec/1.0.2.md` — *a finding can leave a round* — which is ground round 2
+recorded and repaired, and is loop-class.
+
 **Everything else is `spec/backlog/README.md`, now the roadmap**: twenty-one unreleased specs named by
 **priority** rather than version (`01-checklist-covers-what-changed.md` …), plus the order, the reason
 for it with both field measurements, the merges, the two entries that are not releases at all, and what
-the hotfix already took. Do not restate any of it here — that duplication is what this section was.
+the hotfixes already took. Do not restate any of it here — that duplication is what this section was.
+
+**A spec carries its own forensics in `<base>-measurements.md`, which ground does not grade.** The
+body takes decisions and derivation commands; a figure in the body obliges every grader to re-derive
+it, and that class of finding was measured to be the most expensive and the least valuable. `1.0.1`
+is the first instance of its own rule — 41 floor units against a converged-spec median of 90.
 
 **Why the numbers went away, and the naming rule that replaces them.** A version number in a backlog is
 a promise about ordering, and this set has been renumbered repeatedly; the last sweep found **47
