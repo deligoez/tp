@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.1.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-07T16:38:40.879073Z",
+  "updated_at": "2026-09-07T16:42:03.634572Z",
   "workflow": {
     "review_max_rounds": 2
   },
@@ -321,7 +321,7 @@
     {
       "id": "reference-review-panel",
       "title": "REFERENCE.md documents review_panel",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -333,11 +333,18 @@
       "source_sections": [
         "## 2. What `tp lint` adds"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-07T16:39:16.389618Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-07T16:42:03.622315Z",
+      "closed_reason": "- skills/tp/REFERENCE.md gains \"review_panel — the round-1 panel without emitting a round\", placed in the Grounding section beside the floor_size distinction the previous task opened. It states that the field is a list rather than a count, that it comes from engine.ResolveRolePanel — the pure half of the split, so lint derives nothing twice — and that the wrapper's refusals and notice loops stay with tp review.\n- The empty-panel row was measured rather than restated. On a scratch corpus holding this repository's four reviewers, deactivating architect alone leaves lint reporting [\"ax-economist\",\"implementer\",\"tester\"], and deactivating all four leaves it reporting [] at exit 0 while tp review on the same tree exits 2. The first fixture attempt used a top-level review_roles key and silently changed nothing — the override lives under tp.review_roles, which is why the numbers here come from a run and not from the brief.\n- grep -c review_panel skills/tp/REFERENCE.md returns 3. tp lint on the file reports 43 findings, all pre-existing: the new section contributes none, adds no section-size warning, and the eight non-info findings are byte-identical to the baseline. Gate run with each exit code read separately: check-suite-state.sh 0, golangci-lint run 0, check-deadcode.sh 0, check-complexity.sh 0 — so TestPluginVersionIsBumpedWhenPluginContentChanges is green with the manifest at 1.0.1 against the latest tag v1.0.0.\n",
+      "gate_passed_at": "2026-09-07T16:42:03.622315Z",
+      "commit_sha": "5dd33b4c",
+      "commit_shas": [
+        "5dd33b4c"
+      ],
+      "commit_files": [
+        "skills/tp/REFERENCE.md"
+      ]
     }
   ]
 }
