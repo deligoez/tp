@@ -27,7 +27,7 @@ was read from `git archive` rather than from the working tree.
 
 **What was tried.** `vague-language` is one member of a family the requirements literature and
 ISO/IEC/IEEE 29148 name: subjective, ambiguous, non-verifiable, vague, superlative, comparative,
-loophole, vague pronoun. Six candidates were prototyped against this repository's own corpus — 66
+loophole, vague pronoun. Six candidates were prototyped against this repository's own corpus — 67
 files (`spec/*.md` and `spec/backlog/*.md`), 19,715 prose lines, **1,529 candidate findings judged**.
 The bar was the one this repository already applies: zero false positives at warning severity, at
 least one true positive, and it must catch the defect that motivates it.
