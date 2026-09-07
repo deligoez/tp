@@ -1,16 +1,171 @@
 {
   "version": 1,
   "spec": "spec/1.0.1.md",
-  "created_at": "2026-09-07T13:18:57.665193Z",
-  "updated_at": "2026-09-07T13:19:21.067663Z",
+  "created_at": "0001-01-01T00:00:00Z",
+  "updated_at": "2026-09-07T14:38:15.205156Z",
   "workflow": {
     "review_max_rounds": 2
   },
   "coverage": {
-    "total_sections": 0,
-    "mapped_sections": 0,
-    "context_only": [],
+    "total_sections": 8,
+    "mapped_sections": 7,
+    "context_only": [
+      "# tp v1.0.1 — tp says what round 1 will read"
+    ],
     "unmapped": []
   },
-  "tasks": []
+  "tasks": [
+    {
+      "id": "floor-count-export",
+      "title": "Export the uncut floor count from internal/engine",
+      "status": "open",
+      "tags": [
+        "engine",
+        "refactor"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 12,
+      "acceptance": "internal/engine exports the uncut floor population as a function, and internal/cli/ground.go's groundFloorSize is replaced by a call to it rather than duplicated. Verified by running, not by reading: the exported function's result equals the line count of `tp ground \u003cspec\u003e --units` on at least one spec carrying cut units and no frontmatter, and the two disagree on a spec with cut units when the candidate-inclusive population is used instead. Neither engine.FloorUnits nor engine.FloorIndexRows is the answer and the task must say why in its closure: FloorUnits returns candidate units including the arms' cuts, FloorIndexRows emits one row per unit unconditionally, so their difference is identically zero, measured across five specs whose real cut counts are 33, 15, 97, 53 and 6. GroundCoverageOf's Emitted answers a different question, over a parsed floor file rather than a spec's text, and is left alone; the closure states whether it now calls the new function or stays separate.",
+      "source_sections": [
+        "## 2. What `tp lint` adds"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "lint-floor-fields",
+      "title": "tp lint reports floor_size and cut",
+      "status": "open",
+      "tags": [
+        "cli",
+        "lint"
+      ],
+      "depends_on": [
+        "floor-count-export"
+      ],
+      "estimate_minutes": 14,
+      "acceptance": "`tp lint \u003cspec\u003e` emits floor_size and cut as siblings of structured_elements on every invocation, unchanged under --compact and --quiet, which the closure verifies by comparing byte counts across all three forms. §6 row 1's test is written FIRST and observed red against the unfixed code, on a fixture with at least one cut unit and no frontmatter; the row's own note says why both halves of that precondition are the assertion. A second test covers cut against the floor index's row count less floor_size. Then §2's `derived by` and `pinned by` cells for both fields are filled in with the real function and test names, and the spec is committed with that change: filling those cells is this task's acceptance, not the spec author's authorship.",
+      "source_sections": [
+        "## 2. What `tp lint` adds",
+        "## 6. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "resolver-split",
+      "title": "Split resolveRolePanel into a pure resolver and a refusing wrapper",
+      "status": "open",
+      "tags": [
+        "cli",
+        "refactor"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 15,
+      "acceptance": "resolveRolePanel becomes a pure resolution function plus a wrapper that carries the refusals and the two output.Notice loops. Both existing callers, internal/cli/review.go and internal/cli/audit.go, keep the wrapper and neither changes behaviour in any case — verified by running both commands before and after on the same tree and diffing stdout, stderr and exit codes, including the auditors-only refusal path. The task's FIRST act is the decision §7 asks for: engine.roleUnits is already a pure resolution serving a read-only consumer, so the closure states whether the shared pure half landed in internal/engine beside it or in internal/cli, and why. A third copy of the same logic is the failure mode. Tests are written red first and their names are then written into §7, which currently says task 3 names them.",
+      "source_sections": [
+        "## 7. The resolver `tp lint` calls"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "lint-review-panel",
+      "title": "tp lint reports review_panel",
+      "status": "open",
+      "tags": [
+        "cli",
+        "lint"
+      ],
+      "depends_on": [
+        "resolver-split",
+        "lint-floor-fields"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "`tp lint \u003cspec\u003e` emits review_panel as a JSON list of reviewer role ids, equal to those a round-1 `tp review \u003cspec\u003e` emission with no --diff-from carries. It goes through the pure resolver from resolver-split, so lint gains no second derivation and emits none of the wrapper's notices — the closure measures lint's stderr as empty on a corpus that makes review write notices. When a spec deactivates every reviewer, lint reports `review_panel: []` and exits 0 while review still exits 2. §6 rows 2 and 3 are written as two constructed fixtures, each observed red first, with the counts the rows already record: `[\"universal\"]` against `[\"prose-only\",\"universal\"]` for the domain filter, `[\"keeper\"]` against `[\"dropped\",\"keeper\"]` for the frontmatter deactivation. No test asserts parity across this repository's own corpus: no reviewer role in it declares domains, so the domain filter is inert there and such a test cannot discriminate. §2's cells for this field are then filled in.",
+      "source_sections": [
+        "## 2. What `tp lint` adds",
+        "## 6. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "sibling-rule-test",
+      "title": "Pin the sibling rule that still reports where vague-language does not",
+      "status": "open",
+      "tags": [
+        "engine",
+        "test"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 10,
+      "acceptance": "A test in internal/engine covers §6 row 8: a backticked `§X.Y step N` reference whose target section holds a numbered list shorter than N gives broken-cross-ref 1 and vague-language 0 at HEAD, and broken-cross-ref 0 under the mutant that blanks inline spans for every rule in the file. The mutant is built and observed red before the test is accepted. The listless target this row prescribed for two rounds gives 0 and 0 and must not be used: sectionStepCounts admits only sections holding a numbered list. The closure also MEASURES orphan-list-item's invariance under the same mutant rather than arguing it, which is the half of the row's proof that round 2 found unmeasured. Rows 4 through 7 are already covered by vague_fence_test.go at 65406160 and close with --covered-by citing that commit and each test's actual counts, which differ from the rows' fixture counts and must be quoted as they are.",
+      "source_sections": [
+        "## 3. The fence and the inline span"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "skill-and-reference-rules",
+      "title": "Ship the spec-writing rules to SKILL.md and the floor_size distinction to REFERENCE.md",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [
+        "lint-floor-fields"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "Every bullet in §4 except the last, which is precedent, lands in skills/tp/SKILL.md; the count is derived from the bullet list rather than stated, and the closure gives the number it derived. skills/tp/REFERENCE.md gains the distinction between lint's floor_size, which is the live text's, and the floor_size in tp review's ungrounded envelope, which is the latest emitted round's frozen index — with the condition under which they agree. The fenced-command rule as shipped says which INTERPRETER and which BINARY, since naming bash alone leaves the binary free and round 2 recorded that gap. For each rule the closure states whether an author can check it at the moment of writing or only after a grading round, because a rule that can only be judged afterwards costs rounds rather than saving them.",
+      "source_sections": [
+        "## 4. What ships in `skills/tp/SKILL.md`",
+        "## 1. The decision",
+        "## 5. Non-Goals"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "readme-and-release-notes",
+      "title": "README and release notes for the three lint fields",
+      "status": "open",
+      "tags": [
+        "docs",
+        "release"
+      ],
+      "depends_on": [
+        "lint-review-panel"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "README.md documents the three fields tp lint adds. The release notes state the case the cycle measured — review_panel replaces an emission with a lint invocation — and cite spec/1.0.1-measurements.md §11 for the byte counts rather than quoting them. They also state plainly that the release shipped with its review round unconverged at its cap, and why: five grading rounds refuted five successive sets of sentences about code that did not exist yet. .claude-plugin/plugin.json's version is bumped before the tag.",
+      "source_sections": [
+        "## 1. The decision"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ]
 }
