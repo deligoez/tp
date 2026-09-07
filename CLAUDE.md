@@ -228,8 +228,11 @@ conditions. It also shipped the spec-writing rules to `skills/tp/SKILL.md` as **
 duplicate copy onto the shared one, so two derivations became one. Its cycle is the evidence behind
 the repair rule and the anchored-figure rule below, and `spec/1.0.1-measurements.md` is the forensics.
 
-**Next is `spec/1.0.2.md`** — *a finding can leave a round* — which is ground round 2 recorded and
-repaired, and is loop-class, so budget it at roughly twice a comparable release.
+**Next is `spec/1.1.0.md`** — *the spec follows tested behaviour*: evidence demanded at record, a
+`routed` disposition, and the survey's writing rules into the skill. It is loop-class, so budget it
+at roughly twice a comparable release. The audit side of the same acceptance channel is the first
+backlog file, `spec/backlog/00-a-finding-can-leave-a-round.md`, formerly `spec/1.0.2.md` — two ground
+rounds are recorded with it and a third was emitted and never graded.
 
 **Everything else is `spec/backlog/README.md`, now the roadmap**: twenty-one unreleased specs named by
 **priority** rather than version (`01-checklist-covers-what-changed.md` …), plus the order, the reason
