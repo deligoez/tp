@@ -278,7 +278,9 @@ round snapshot: a frozen photograph whose references were correct when it was ta
 
 ---
 
-### Survived prototyping, waiting on a release: inferring a spec's class
+## Survived, unscheduled
+
+### Inferring a spec's class
 
 **The claim it refutes.** A draft release proposed a `class: loop | tool` frontmatter field, declared by
 the author, on the stated ground that *tp cannot infer it*. A unit told to construct a counter-example
