@@ -15,6 +15,8 @@ import (
 // captureCLIStderr runs fn with os.Stderr redirected to a pipe and returns what
 // was written. This is an in-package test so a helper that emits nothing on
 // stdout can be driven directly, without a subprocess and its JSON payload.
+// It swaps a process-global, so no test using it may run in parallel with
+// another.
 //
 // It does NOT configure output's mode, so Info and Notice behave identically
 // here: a guard whose whole point is WHICH channel an advisory travels must be
