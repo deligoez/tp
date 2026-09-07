@@ -20,11 +20,15 @@ import (
 // writes none. A lint that called the wrapper would gain an advisory stderr
 // channel it has never had, so the count is the fact the next task inherits.
 //
-// Be clear about what half of that sub-test discriminates today. The review byte
-// count does: moving the notice loop into engine.ResolveRolePanel doubles it to
-// 172, measured. The lint half does not yet — tp lint does not resolve a panel
-// at all until review_panel lands — so it is a baseline pin, not a measurement,
-// and it becomes discriminating the moment lint calls the resolver.
+// Both halves of that sub-test discriminate, and only one of them always did.
+// The review byte count did from the start: moving the notice loop into
+// engine.ResolveRolePanel doubles it to 172, measured. The lint half was a
+// baseline pin when this was written, because tp lint resolved no panel at all;
+// it became a measurement the moment lintReviewPanel started calling the
+// resolver, and the same mutant now takes lint's stderr from 0 bytes to the
+// same 86 — measured on this fixture, not carried forward. A second mutant
+// reaches the lint half from the other side: lintReviewPanel calling
+// resolveRolePanel, the wrapper below, gives lint the wrapper's notices too.
 func TestRolePanelWrapper_RefusalsAndNoticesStayOnTheWrapper(t *testing.T) {
 	t.Parallel()
 
