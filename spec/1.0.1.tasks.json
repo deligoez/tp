@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.1.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-07T16:25:20.639817Z",
+  "updated_at": "2026-09-07T16:34:46.858205Z",
   "workflow": {
     "review_max_rounds": 2
   },
@@ -219,7 +219,7 @@
     {
       "id": "readme-and-release-notes",
       "title": "Document the three lint fields for release",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs",
         "release"
@@ -236,11 +236,20 @@
         "## 1. The decision",
         "## 5. Non-Goals"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-07T16:26:58.585445Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-07T16:34:46.834256Z",
+      "closed_reason": "Three criteria, each measured rather than asserted.\n\n- Criterion 1 — README.md's Spec Quality section now names floor_size, cut and review_panel in a three-row table placed after the tp review paragraph, where both tp ground and tp review have already been introduced. The three keys were derived from the shipped binary, not from the spec: tp lint spec/1.0.1.md --json returns exactly ['cut','errors','file','findings','floor_size','frontmatter','info','review_panel','structured_elements','warnings'], with floor_size 96, cut 43, review_panel ['architect','ax-economist','implementer','tester']. Every claim in the table was run: tp ground spec/1.0.1.md --units prints 96 lines against floor_size 96 (and left spec/.tp-review/1.0.1/state.json md5-identical, so --units persists nothing); the payload is byte-identical under --json, --json --compact and --json --quiet (same md5 three times), which is what \"on every invocation\" rests on. tp lint README.md reports the same three findings before and after the edit (one pre-existing orphan-reference on the rule table's own example row, two pre-existing section-size warnings) — no new finding class; the Spec Quality section-size warning moved from 100 to 116 lines and it already carried that warning. No SKILL.md inventory and no REFERENCE.md field detail is restated: the floor_size distinction is linked, not copied.\n\n- Criterion 2 — spec/1.0.1-release-notes.md states the case as the cycle measured it: review_panel is the one field with no cheap alternative, because learning a round-1 panel used to mean emitting the round, and lint answers it from a resolver that writes nothing. The byte counts are cited to spec/1.0.1-measurements.md section 11 and are not quoted, which is also the rule section 4 of the spec ships. The notes name what did not ship — floor_by_section, spec_bytes and floor_figure_share — each with the measurement that refuted it and a pointer to spec/undecided.md for the reopen condition, and record that six candidate smell rules were prototyped and all six refuted.\n\n- Criterion 3 — the notes say plainly that tp review spec/1.0.1.md recorded two rounds against a cap of two and did not converge, and give the reason in one sentence: five grading rounds — three grounding, one review, one delta pass — refuted five successive sets of sentences about code that did not exist yet. Every quantifier was counted rather than repeated. spec/.tp-review/1.0.1/ holds ground-round-{1,2,3}.ndjson and review-round-{1,2}.ndjson, so five grading rounds; state.json records review rounds 1 and 2 with clean:false; tp config --resolved reports review_max_rounds 2 from the task-file override; tp review --status reports converged:false and budget_exhausted:true; and tp review spec/1.0.1.md --no-state now exits 4 with \"review round budget exhausted\" and prints nothing to stdout. The notes point at section 14 for what implementation corrected rather than narrating the cycle.\n\n- Plugin version verified rather than assumed. .claude-plugin/plugin.json says 1.0.1; git describe --tags --abbrev=0 is v1.0.0. TestPluginVersionIsNotBehindTheLatestTag asserts manifest \u003e= latest tag, which 1.0.1 \u003e= 1.0.0 satisfies; TestPluginVersionIsBumpedWhenPluginContentChanges asserts manifest \u003e tag whenever anything under .claude-plugin/, skills/, hooks/ or agents/ has moved since the tag, which this cycle's SKILL.md and REFERENCE.md commits make true, and 1.0.1 \u003e 1.0.0 satisfies that too. No bump was needed; the field was already correct.\n\n- Two corrections to what this task was handed. Section 11's own derivation command no longer reproduces on spec/1.0.1.md at HEAD: the review budget is exhausted, so tp review spec/1.0.1.md --no-state exits 4 and writes nothing to stdout, and the magnitude survives only on a spec with rounds left (spec/1.0.2.md emits 22,752 bytes against section 11's 22,181). That is why the notes cite the section instead of the numbers. And section 14's \"nine corrections across seven tasks\" is nine rows over six distinct task ids in its own task column — the count of tasks is not derivable from the table it sits beside, so the notes point at the section without repeating either figure.\n\n- Quality gate run in four separate invocations, each exit code read on its own: check-suite-state.sh 0, golangci-lint run 0 (0 issues), check-deadcode.sh 0, check-complexity.sh 0. Committed with hc as two commits, one per file. No tag, no push, no release was created: publishing is the operator's decision.\n",
+      "gate_passed_at": "2026-09-07T16:34:46.834256Z",
+      "commit_sha": "92a9c9f8",
+      "commit_shas": [
+        "92a9c9f8",
+        "e3d5a77b"
+      ],
+      "commit_files": [
+        "README.md",
+        "spec/1.0.1-release-notes.md"
+      ]
     },
     {
       "id": "review-panel-edges",
