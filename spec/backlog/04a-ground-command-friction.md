@@ -985,3 +985,28 @@ asserts a defect this release does not close, and its named mutant is the fix th
 | 22 | §14 | two bare emissions on an unrecorded round leave the round number and the floor file's bytes identical, asserted on the pair | assert only that the second call exits 0, which is true of a call that opened a new round |
 | 23 | §14 | the read-only re-print emits no round: the state directory is byte-identical before and after, and it refuses when no round is in flight | implement it as a bare emit with the write skipped, which is idempotent on an unrecorded round and advances the round on a recorded one |
 | 24 | §9 *the limitation* | on a fixture whose §1 and §2 hold **byte-identical** sentences, a round-1 `FAIL` recorded against the §2 copy is cleared at exit 0 by editing §1 alone and grading nothing — asserted as the shipped behaviour this release does **not** close (§9.3), so the row states the hole rather than denying it | land `spec/1.57.0.md` §2.2's multiplicity fence: under it the unit is re-asked instead, the `FAIL` survives, and this row goes red — which is its purpose. It is a characterisation row, and the only one here: it exists so the limitation §9.3 states is retired by a failing test rather than left standing unnoticed |
+
+## The silent overwrite: emitting over an unrecorded round
+
+**Measured on this repository's own hotfix cycle.** A round was graded, the spec repaired before the
+round was recorded, and `tp ground <spec>` re-emitted round 1 against the repaired text. The emission
+**overwrote the unrecorded round's floor file without a word**, and `--status` then reported a round
+with 0 dispositions — indistinguishable, from the record alone, from a round nobody has graded yet.
+
+Recovery was possible only by accident: an `rsync` copy taken for unrelated work held the pre-repair
+floor and most of the grader's rows. Recording those made the next round ask 38 of 44 units instead of
+44. The cost of the missing guard is therefore measurable: one full round of grading.
+
+**Review and audit already have the signal ground lacks.** Both expose `in_flight_round` — a snapshot
+with no recorded round file — and `tp resume` routes to `record-round` on it. Ground records by
+filename rather than through `state.json`, so it has no equivalent and nothing notices.
+
+**What this release should do**: when a floor exists for a round that carries no recorded findings
+file, and the floor the current text would produce differs from it, refuse the emission, name the
+round, and say the earlier one is unrecorded. `--force` overwrites. An identical floor is the
+idempotent re-emission the loop relies on and must stay silent.
+
+One fact worth carrying into the design, measured during the recovery: **`--record` matches rows
+against the floor file rather than against the spec's current hash.** That is what made recording a
+rescued round possible at all, and it means the guard belongs on the emit path rather than the record
+path.
