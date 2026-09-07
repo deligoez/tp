@@ -171,7 +171,9 @@ Repeat until `tp review <spec> --status --check` exits 0:
 
 **Convergence is a recorded fact, not a judgment.** Do not skip rounds, summarize findings as "minor", or declare convergence before `--status --check` exits 0. Counted rounds are always full-panel; the regression delta pass and the tail class-sweep (below) are uncounted.
 
-**The order inside a round is grade → record → repair → emit, and the three "not"s are the rule.** Do
+### Step 2a: The order inside a round
+
+**Grade → record → repair → emit, and the three "not"s are the rule.** Do
 not repair before recording, and do not re-emit before recording. A round's findings are a record of
 judgements about a text; once the text changes they cannot be recorded against it, and once a new
 emission runs it overwrites the unrecorded round's floor **silently** — `--status` then shows a round
@@ -192,6 +194,17 @@ Two corollaries, both paid for:
 **The tool does not stop you, and that is a known gap rather than a design.** Review and audit expose
 `in_flight_round` for exactly this state; ground has no counterpart, so a re-emission over an
 unrecorded round is not refused. Until that ships, the order above is the only guard.
+
+**A brief names the record and repeats no figure from it.** A number copied out of a round's report
+into the next unit's brief travels with whatever is wrong with it: measured on this repository's own
+hotfix, a brief carried a verdict breakdown the recorded round contradicts, and the grading unit
+reported the same wrong figures back — the error propagated *upward*, into the artifact the next
+decision reads. Give the unit the path to the round file and let it count.
+
+**Every fenced command in a spec runs and prints something.** A command that prints nothing is a
+finding, not a citation. Two shipped into a graded round here: one broken by a shell error that
+`|| continue` swallowed, and one whose output the release's own repair had removed. Run each before
+the round, not after.
 
 ### Step 3: Decompose and import
 
