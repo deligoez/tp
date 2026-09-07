@@ -23,6 +23,12 @@ type lintResult struct {
 	Frontmatter        lintFrontmatter            `json:"frontmatter"`
 	Findings           []engine.Finding           `json:"findings"`
 	StructuredElements *engine.StructuredElements `json:"structured_elements,omitempty"`
+	// FloorSize and Cut are §2's two floor quantities, siblings of
+	// structured_elements and emitted on every invocation. Neither carries
+	// omitempty: a spec whose floor is empty must say so, and an absent key
+	// reads as an older tp rather than as a zero.
+	FloorSize int `json:"floor_size"`
+	Cut       int `json:"cut"`
 }
 
 // lintFrontmatter is the frontmatter object of tp lint --json output.
@@ -118,7 +124,36 @@ func runLint(_ *cobra.Command, args []string) error {
 	specScopeFindings := checkAffectedFilesScope(lines, headings)
 	findings = append(findings, specScopeFindings...)
 
-	result := lintResult{File: specPath, Frontmatter: fmObj, Findings: findings, StructuredElements: structElems}
+	// §2's two floor quantities. Both come from engine.FloorSize over the rows
+	// engine.FloorIndexRows derives — the one derivation `tp ground` also
+	// reads, so lint's floor_size is checkable against
+	// `tp ground <spec> --units` rather than being a second definition of it.
+	// §2 records the two exported functions that look like the answer and are
+	// not: FloorUnits returns the candidates with the arms' cuts included, and
+	// FloorIndexRows gives every candidate a row unconditionally, so their
+	// difference is identically zero.
+	//
+	// The text is the one every other rule above reads: parseSpecFile blanks
+	// the frontmatter and leaves absolute line numbers alone. `--units` reads
+	// the spec's bytes as they are, so the two agree whenever the spec carries
+	// no frontmatter — which is why §6 row 1's fixture carries none. They may
+	// agree with one too: whether a frontmatter block moves the floor depends on
+	// its CONTENT, since the arms cut a candidate unit carrying no digit, no
+	// code span and no listed verb. Measured on two six-line blocks over the
+	// same fixture, one moved the listing from 2 units to 3 and the other moved
+	// nothing — which is why the fixture carries none rather than a harmless one.
+	floorText := strings.Join(lines, "\n")
+	floorRows := engine.FloorIndexRows(floorText, engine.FloorAnchorOf(floorText))
+	floorSize := engine.FloorSize(floorRows)
+
+	result := lintResult{
+		File:               specPath,
+		Frontmatter:        fmObj,
+		Findings:           findings,
+		StructuredElements: structElems,
+		FloorSize:          floorSize,
+		Cut:                len(floorRows) - floorSize,
+	}
 	for _, f := range findings {
 		switch f.Severity {
 		case "error":
