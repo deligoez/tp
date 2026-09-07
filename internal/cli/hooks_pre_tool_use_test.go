@@ -33,10 +33,21 @@ var (
 	// take a `file` argument, so the field cannot separate them and the tool
 	// name is the only discriminator; matching the readers would extract their
 	// path, find it is not the unit's permitted one, and deny every read.
+	//
+	// mcp__codedbpro__batch is on the list for a reason the other seven are
+	// not: it is a carrier. Its payload is {ops:[{tool, args}]}, so a create,
+	// edit, patch or replace reaches disk through it while the tool name on
+	// the call is `batch`. Both matchers enumerated the seven and named no
+	// carrier, so a batched write was never routed to either hook at all —
+	// not refused, not allowed, simply never judged. Measured: handed a batch
+	// payload directly, the deny script exits 2 (the nested `file` key is in
+	// the same payload the grep reads), so the scripts were already correct
+	// and only the matchers were short.
 	writeTools = []string{
 		"Write", "Edit", "MultiEdit", "NotebookEdit",
 		"mcp__codedbpro__create", "mcp__codedbpro__edit",
 		"mcp__codedbpro__patch", "mcp__codedbpro__replace",
+		"mcp__codedbpro__batch",
 	}
 	shellTools = []string{"Bash", "BashOutput", "KillShell", "Read", "Glob", "Grep", "Task"}
 )

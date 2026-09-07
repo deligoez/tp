@@ -47,6 +47,35 @@ func TestWriteDenyFenceReadsReplacesOwnPathArgument(t *testing.T) {
 	}
 }
 
+// A batched write carries its target two levels down, under the nested op's own
+// args, and the tool name on the call is `batch`. The shared writeTools list and
+// the two matcher tests cover membership; this covers the payload shape, which
+// membership alone cannot: a matcher naming batch is worthless if the extractor
+// cannot see through {ops:[{tool, args}]}.
+//
+// The nested spellings are all four writers, because batch accepts any of them
+// and the fence must not depend on which one a caller chose.
+func TestWriteDenyFenceSeesThroughABatchedOp(t *testing.T) {
+	t.Parallel()
+	fenced := "spec/.tp-review/0.35.0/round-3/merged.ndjson"
+
+	for _, op := range []map[string]any{
+		{"tool": "create", "args": map[string]any{"file": fenced, "content": "x"}},
+		{"tool": "edit", "args": map[string]any{"file": fenced, "pattern": "a", "content": "b", "scope": "line"}},
+		{"tool": "patch", "args": map[string]any{"file": fenced, "range": "1-1", "content": "b"}},
+		{"tool": "replace", "args": map[string]any{"path": fenced, "pattern": "a", "replacement": "b", "apply": true}},
+	} {
+		t.Run(op["tool"].(string), func(t *testing.T) {
+			t.Parallel()
+			run := runPreToolUseHook(t, "mcp__codedbpro__batch", map[string]any{
+				"ops": []map[string]any{op},
+			})
+			assert.Equal(t, 2, run.exitCode,
+				"a fenced write batched as %s must be refused; stderr=%q", op["tool"], run.stderr)
+		})
+	}
+}
+
 // The same hole in the sibling fence, and in the direction that matters more:
 // the allowlist exists to hold a role unit to its one findings file, so a
 // silently unextracted path lets that unit rewrite the spec, the source, or
