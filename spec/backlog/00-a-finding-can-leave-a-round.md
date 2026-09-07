@@ -1,6 +1,6 @@
-# tp v1.0.2 — A finding can leave a round
+# A finding can leave a round
 
-> **This file is decisions. Its measurements are in `spec/1.0.2-measurements.md`, which `tp ground`
+> **This file is decisions. Its measurements are in `spec/backlog/00-a-finding-can-leave-a-round-measurements.md`, which `tp ground`
 > does not grade.** That split is itself a result: grading round 2 of this spec measured 149 floor
 > units over 376 lines, and counting the graded rows by `kind` put the highest finding rate on design
 > claims and a near-worthless one on re-derived figures — correct findings about sentences that, had
@@ -33,7 +33,7 @@ the audit checklist's alphabetical ordering (`01-checklist-covers-what-changed.m
 ranking is a behaviour change) and `--check` on a partial round (`02a-round-knows-its-panel.md`,
 because it needs a recorded panel). §4.1 records the one place the bar itself had to move.
 
-Precedent, derivation and the corrected count are in `spec/1.0.2-measurements.md` §1.
+Precedent, derivation and the corrected count are in `spec/backlog/00-a-finding-can-leave-a-round-measurements.md` §1.
 
 ## 2. `unresolved_findings` counts open findings
 
@@ -49,7 +49,7 @@ and that phase's count is unchanged (Non-Goal 5). **Closed** means `resolved.sta
 treatment of a severity it cannot grade.
 
 The measurement this rests on — including the fact that it needs the round **as it stands at `HEAD`**,
-because the dispositions were written after the tag — is `spec/1.0.2-measurements.md` §2.1–§2.3.
+because the dispositions were written after the tag — is `spec/backlog/00-a-finding-can-leave-a-round-measurements.md` §2.1–§2.3.
 
 ### 2.1 The payload says what it counted
 
@@ -59,7 +59,7 @@ nothing is read twice.
 
 **`findings_total` is what makes the count checkable, because it replaces a plausibility judgement
 with an identity**: `unresolved_findings == findings_total - findings_closed`, exactly, by
-construction. Two counters cannot do this — `spec/1.0.2-measurements.md` §2.4 gives the round that
+construction. Two counters cannot do this — `spec/backlog/00-a-finding-can-leave-a-round-measurements.md` §2.4 gives the round that
 proves it, built rather than argued.
 
 **They are reported, not gated.** They are here rather than in a minor because they are the same
@@ -72,7 +72,7 @@ is an agent-facing contract (Non-Goal 2).
 ## 3. A refused invocation writes no state
 
 `tp audit <spec> --role <unknown>` refuses with exit 2 and **creates a state directory anyway**. The
-transcript is in `spec/1.0.2-measurements.md` §3.
+transcript is in `spec/backlog/00-a-finding-can-leave-a-round-measurements.md` §3.
 
 **The snapshot write moves**, from `loadAuditSpec` — which writes it while merely *loading* the spec —
 to just past the role filter, the last point at which a refusal can still occur before the payload is
@@ -96,7 +96,7 @@ about nothing, `--status` reports a directory's existence, and a typo is the lik
 written into the round's own **recorded** file, changes nothing: `clean` is stamped at record and
 `auditRoundOpenByRole` reads `AuditRowIsPass` alone, never `resolved`. The same disposition on the
 review side clears the round, because `engine.ReviewRoundClean` recomputes live. Both transcripts are
-in `spec/1.0.2-measurements.md` §4.
+in `spec/backlog/00-a-finding-can-leave-a-round-measurements.md` §4.
 
 So the only exits are repairing the finding, destroying the record, or **re-recording the same rows
 under a different `audit_converge_on`** — a third exit that reaches only non-`error` severities, is
@@ -121,7 +121,7 @@ the operator wrote evidence for; it cannot retroactively re-grade a round nobody
 
 **Two designs satisfy this without adding a recorded field**, and an earlier draft of this section
 claimed none existed. Both were built and run: one by a peer session asked to try, one by the grading
-unit whose brief told it to construct a counter-example. `spec/1.0.2-measurements.md` §4 has both, with
+unit whose brief told it to construct a counter-example. `spec/backlog/00-a-finding-can-leave-a-round-measurements.md` §4 has both, with
 their transcripts.
 
 - **A — re-stamp at `--resolve`.** After writing the disposition into the recorded round file,
@@ -188,7 +188,7 @@ the selector shape but the positional order appears only after you trigger the e
 carry committed evidence: `skills/tp/SKILL.md` step 5 pointed at `merged.ndjson`, where a disposition
 records nothing, until one commit before this spec; and `spec/0.31.0.md` §3.5 makes `--record` **reject**
 a file carrying `fixed` rows, so a cycle disposing everything `fixed` records zero dispositions by
-construction. `spec/1.0.2-measurements.md` §5 ranks them.
+construction. `spec/backlog/00-a-finding-can-leave-a-round-measurements.md` §5 ranks them.
 
 **That last fact fences the usage line above**: it offers `wontfix|duplicate` and not `fixed`, because
 `fixed` at `--record` is an error and `fixed` post-record does not clear a round.
@@ -196,7 +196,7 @@ construction. `spec/1.0.2-measurements.md` §5 ranks them.
 ## 8. Also shipped in this release
 
 Committed already, listed so the release notes and the tree agree; the measurements are in
-`spec/1.0.2-measurements.md` §6.
+`spec/backlog/00-a-finding-can-leave-a-round-measurements.md` §6.
 
 - Both write fences read the path argument `mcp__codedbpro__replace` actually sends (`path`, `paths`).
 - `mcp__codedbpro__batch` reaches both fences: it carries a nested write while the tool name on the
@@ -231,7 +231,7 @@ This is not a changelog: other commits shipped since `v1.0.0` and are not listed
    It is **not** vacuous by construction: `internal/cli/review_record.go` validates no key set, so a
    review row carrying `status: "PASS"` would be accepted today and would stop counting under §2's
    clause. This release does not make the vacuity structural, and row 4 measures the corpus rather than
-   a guarantee. The count and its command are in `spec/1.0.2-measurements.md`.
+   a guarantee. The count and its command are in `spec/backlog/00-a-finding-can-leave-a-round-measurements.md`.
 7. **Not a floor-budget signal.** Grading this spec measured that its own forensics dominated the
    floor. The remedy is `spec/backlog/04a-ground-command-friction.md`, which owns `tp ground`'s
    surfaces; the writing rule that follows from it belongs in `skills/tp/SKILL.md`. Neither is here.
@@ -247,7 +247,7 @@ are repaired below and the section says which rows have been **watched** and whi
 states.** Row 8 was **not**: it was reworded after that run from two counters to three plus the
 identity, and `findings_total` was never emitted or asserted in either colour — the run belongs to the
 row this one replaces. Rows 6 and 9–17 are written, not yet watched. Suite timings are in
-`spec/1.0.2-measurements.md` §7 rather than here, because the quoted ones predated a test
+`spec/backlog/00-a-finding-can-leave-a-round-measurements.md` §7 rather than here, because the quoted ones predated a test
 parallelisation commit.
 
 | # | from | assertion | the mutant that must fail it |

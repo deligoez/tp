@@ -1,6 +1,6 @@
 # 1.0.1 — measurements
 
-Forensics for `spec/1.0.2.md`. **This file is not a spec and `tp ground` never grades it.** It exists
+Forensics for `spec/backlog/00-a-finding-can-leave-a-round.md`. **This file is not a spec and `tp ground` never grades it.** It exists
 because the grading of that spec measured what the forensics cost: 149 floor units over 376 lines, one
 unit per 2.5 lines, and a round that spent 718k tokens across three graders. Counting the graded rows
 by `kind` says where the cost went and where the value did:
