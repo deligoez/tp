@@ -276,6 +276,29 @@ alone. There is simply no instance of one, and a rule with no demonstrated indep
 ship. It would also have needed `spec/.tp-review/` excluded, since almost every raw hit is inside a
 round snapshot: a frozen photograph whose references were correct when it was taken.
 
+### `floor_by_section` — an assertion no mutant of its own field can fail
+
+**What was tried.** `tp lint` was to report `floor_size` grouped by the floor's anchor, so an author
+could see which section a round's grading cost sits in. Drafted into `spec/1.0.1.md` §2 across three
+rounds; dropped in review round 1 and confirmed dead in round 2.
+
+**Why it died, in three independent measurements.** Its only assertion was that the values sum to
+`floor_size`, and that sum is **invariant under every possible anchor misassignment**: each uncut
+unit receives exactly one anchor whatever the mapping, so any grouping totals the same. A tester
+built the mutant and ran it — correct versus mutant on `spec/1.0.1.md` gives seven keys against six,
+both summing to 62. A field whose sole claim passes an implementation that assigns every section the
+wrong count and loses a section key entirely is not pinned by anything. Separately it was the only
+one of the four candidate fields **unbounded in output size** (about 149 bytes at seven anchors and
+1,641 at ninety-one, on a command that honours neither `--compact` nor `--quiet`), and the only one
+whose row named no decision it would feed.
+
+**The six anchor defects it kept trying to describe are real and are now owned elsewhere**, with
+fixtures, in `spec/backlog/04a-ground-command-friction.md`. That is the useful residue: the field was
+an attempt to publish a quantity whose keys nobody had checked, and checking them is the actual work.
+
+**It reopens** when `engine.FloorAnchorOf`'s anchors are pinned by fixtures rather than by arithmetic,
+and when an assertion exists that a wrong grouping can fail — a per-key expectation, not a total.
+
 ### `spec_bytes` — a lint field whose only use was a product tp does not support
 
 **What was tried.** `tp lint` was to report the spec's byte size beside `review_panel`, so that a
