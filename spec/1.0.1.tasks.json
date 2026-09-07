@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.1.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-07T15:33:59.804263Z",
+  "updated_at": "2026-09-07T15:50:53.98558Z",
   "workflow": {
     "review_max_rounds": 2
   },
@@ -227,7 +227,7 @@
     {
       "id": "review-panel-edges",
       "title": "Pin what lint reports where review refuses",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "lint"
@@ -241,11 +241,27 @@
         "## 2. What `tp lint` adds",
         "## 7. The resolver `tp lint` calls"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-07T15:35:31.804223Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-07T15:50:53.930135Z",
+      "closed_reason": "Three criteria, each measured.\n- Criterion 1: TestLintReportsAnEmptyPanelWhereReviewRefuses runs both commands on ONE fixture; tp lint exits 0 with review_panel [] and empty stderr while tp review exits 2, emits no prompt and leaves no .tp-review on disk. Watched red under two mutants: lintReviewPanel calling the refusing wrapper (lint exits 2, failing at the requirement rather than a fixture precondition), and ResolveRolePanel returning the undropped roles (lint reports [keeper] and review stops refusing, so one mutant reddens both halves in opposite directions).\n- Criterion 2: reproduced, not cited. On a domains-patched corpus tp review writes 86 bytes of notice and tp lint 0; under a notice-loop-in-the-resolver mutant review writes 172 and lint 86, so the wrapper test lint half is discriminating now. Its doc comment claimed otherwise and is corrected.\n- Criterion 3: TestLintReviewPanelOmitsADeactivatedReviewer is section 6 row 3, reproducing [keeper] at HEAD against [dropped, keeper] under the override-ignoring mutant, on two reviewer role files. An asserted control lint pins that both roles are in the corpus and survives the mutant, so the red lands on the row assertion rather than the fixture. It asserts the literal panel rather than an equality against the emission, which the shared-resolver mutant would move in step.\nAlso: section 7 malformed-file row kept as written, verified against a binary built at 8f18fa97 (one commit before the split) with six exit codes identical on both sides; unchanged is a per-command delta, and section 7 now says so, since the lint 3 / review 0 asymmetry on a malformed auditor file is real and predates the release. Section 2 pinned-by cell now names all three tests. A pre-existing data race in NewRootCmd across parallel tests (30 races per run, reproduces at HEAD~5) failed gate step 1 and is fixed in 3b9204e1. Gate exit codes 0 0 0 0.",
+      "gate_passed_at": "2026-09-07T15:50:53.930135Z",
+      "commit_sha": "028044e7",
+      "commit_shas": [
+        "028044e7",
+        "7093fe38",
+        "2416ce00",
+        "23b9e33c",
+        "e7881347",
+        "3b9204e1"
+      ],
+      "commit_files": [
+        "internal/cli/docs_flag_inventory_test.go",
+        "internal/cli/lint_review_panel_test.go",
+        "internal/cli/role_flag_test.go",
+        "internal/cli/role_panel_split_test.go",
+        "spec/1.0.1.md"
+      ]
     },
     {
       "id": "reference-floor-size",
