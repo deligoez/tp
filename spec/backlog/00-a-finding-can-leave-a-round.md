@@ -90,6 +90,15 @@ row cannot fail (§10 row 6).
 
 **Why it matters more than a stray file.** A round on disk because someone mistyped a flag is a round
 about nothing, `--status` reports a directory's existence, and a typo is the likeliest cause.
+
+**A second invocation that writes state it should refuse: a `wontfix` with no evidence.** Measured at
+`5058fc99` on a fresh one-finding recorded round, `tp review <round file> --resolve 0 wontfix` with no
+evidence argument prints `resolved finding 0 as wontfix`, exits **0**, and writes `"evidence": ""`
+into the row. `reviewFindingResolvedAway` then requires non-empty evidence, so the row stays in the
+surviving set and `consecutive_clean` stays at 0: accepted, reported as resolved, and silently
+ignored — the failure mode the operator cannot see. `spec/1.1.0.md` cited this case as already
+refused; the citation was false and has been removed, and the refusal belongs here, in the release
+that owns the disposition channel.
 ## 4. An accepted audit finding can clear the round
 
 **On the audit side there is no way to accept a finding.** A `FAIL` resolved `wontfix` with evidence,
