@@ -24,7 +24,7 @@
 
 ## 1. Overview
 
-Four places where tp holds the information a reader needs and does not say it, and one guard that was
+The places where tp holds the information a reader needs and does not say it, and one guard that was
 written to close the first of them and closes a weaker claim instead:
 
 1. **The pairing refusal names no acceptable set** (§2). `groundEnumCell` was raised to list its legal
@@ -35,10 +35,16 @@ written to close the first of them and closes a weaker claim instead:
    sentence is wrong in two independent ways rather than one.
 4. **`rankFilesBySpecTerms` drops an unreadable file in silence** (§5) while the next function in the
    same file documents the opposite convention as a convention.
+5. **`checkTaskFileQuality` swallows both of its failures** (§9.1) — an unreadable task file and an
+   unparseable one each produce zero findings, empty stderr and exit 0, indistinguishable from clean.
+6. **`vague.go` truncates a finding's `Context` by bytes** (§9.2), so a multi-byte rune on the
+   boundary reaches the reader as `U+FFFD` — text that is in no document. The two tests pinning the
+   cap assert a byte length, which the corruption satisfies.
 
 They share a subject and not a mechanism: in each, the failing party already holds the answer. §2 has
 `groundAcceptableTiers[kind]` one lookup away, §3 has the listing it was handed, §4 has a spec-reading
-helper in the same file, and §5 has the file path and the `error`.
+helper in the same file, §5 has the file path and the `error`, §9.1 has the `error` twice over, and
+§9.2 has the rune boundary `utf8.DecodeLastRuneInString` would give it.
 
 No command, no flag, no workflow field.
 
@@ -424,3 +430,62 @@ refusal accepts" (Non-Goal 2) a checked claim instead of an intention.
 **Row 8c is not decoration.** The `chmod 000` fixture decides the result of §5's entire measurement,
 and under a user that can read the file the probe returns three files, empty stderr, and a green test
 that has established nothing. The property the verdict rests on is asserted, not assumed.
+
+## 9. Two more of the same shape, added by `v1.0.1`'s audit round 2
+
+Both are **pre-existing**, both were out of scope for the release that found them, and both were
+re-run against `HEAD` (`6d9be576`) while this section was written rather than relayed. **§7's
+Non-Goals and §8's test table were written before these arrived and do not cover them**: the cycle
+that implements this file extends both, and the rows below are findings, not requirements.
+
+### 9.1 `checkTaskFileQuality` swallows an unreadable file and an unparseable one
+
+`checkTaskFileQuality` (`internal/cli/lint.go`) resolves the spec's task file and returns `nil` on
+both of its failure paths — `os.ReadFile` erroring and `json.Unmarshal` erroring. A missing file
+returning `nil` is correct and is a third, separate branch; the other two are not the same case.
+
+Measured with a control and a precondition, on one spec with one task whose acceptance is under ten
+words, so the check has something to report when it runs:
+
+| task file | `acceptance-quality` findings | stderr | exit |
+|---|---|---|---|
+| valid (**control**) | 1 | 0 bytes | 0 |
+| unparseable (`{ this is not json`) | **0** | 0 bytes | 0 |
+| unreadable (`chmod 000`) | **0** | 0 bytes | 0 |
+
+The control is what makes the two zeros readable: without it, zero findings is equally consistent
+with a task file that has nothing wrong. The unreadable arm asserts the file is genuinely unreadable
+before concluding anything, for the reason §8 row 8c gives.
+
+Nothing in the payload, on stderr or in the exit code separates a swallowed failure from a clean
+lint, so an operator who corrupts a task file is told their spec is fine. It is §5's mechanism in a
+different command: the failing party holds the `error` and drops it. Introduced at `8c2555a7`,
+`2026-04-02`, which `git merge-base --is-ancestor 8c2555a7 v1.0.0` confirms is an ancestor of
+`v1.0.0` — so it predates every release that could have been expected to catch it.
+
+### 9.2 `Context` is truncated by bytes, and the guard measures bytes too
+
+`internal/engine/vague.go` caps a finding's `Context` at 80 with `ctx = ctx[:80]` in two rules,
+`duplicate-line` and `duplicate-paragraph`. The slice is by **byte**, so a multi-byte rune straddling
+the boundary is cut in half and the reader receives `U+FFFD`.
+
+Built and run: a line of 78 ASCII characters followed by an em dash, duplicated so `duplicate-line`
+fires. Byte 79 begins `\xe2\x80\x94`; the cut lands after `\xe2\x80`. `tp lint --json` emits a
+`context` **ending in `U+FFFD`** — a character in no document, which is exactly the class round 1 of
+that release repaired one function up, where `blankInlineCode`'s working copy was reaching
+`Finding.Context`.
+
+**The two tests that pin the cap cannot see it.** `internal/engine/lint_test.go` asserts
+`assert.LessOrEqual(t, len(f.Context), 80)` for `duplicate-line` and again for
+`duplicate-paragraph`. `len` on a Go string is bytes, so the corrupt value is exactly 80 and both
+assertions pass. Note the emitted JSON is **84 bytes / 80 characters** — the encoder renders each of
+the two orphaned bytes as `U+FFFD` — so the shipped output does not even honour the cap the guard
+believes it is checking.
+
+**Scope, so the finding is not oversold: it fires on no document this repository has.** Swept all
+67 files under `spec/` and `spec/backlog/` at `6d9be576` for a `duplicate-line` or
+`duplicate-paragraph` context containing `U+FFFD`: **0**. The defect needs a duplicated line whose
+80th byte falls inside a rune, which is why it survived. What makes it worth a row is the guard, not
+the frequency: a byte-length assertion over a character-length claim passes identically whether the
+truncation is correct or not, so nothing in the suite would notice the day a spec produced one.
+`utf8.DecodeLastRuneInString`, or slicing on a rune boundary, is one call away in both places.
