@@ -371,6 +371,50 @@ to it survive in shipped artifacts that must not be edited.
 
 #### Lessons that outlived their release
 
+- **A repair that REPLACES a claim is unverified by construction; one that SUBTRACTS cannot be wrong.
+  Measured five times in one cycle, on one sentence.** v1.0.1's economic claim for a lint field was
+  repaired in three grounding rounds and two audit rounds. Every repair but the last wrote a
+  *replacement* — *"no command reaches the panel without an emitted round"* → *"`tp resume` needs a
+  task file"* → and each was refuted by the next round running **one more command**, the last one by
+  two roles independently who both landed on the **uniqueness quantifier** rather than on the
+  measured comparison underneath it. The fifth repair deleted the quantifier and wrote nothing in its
+  place; it held. So: **`SKILL.md`'s "a sentence about behaviour the release does not change is a test
+  name or it is not in the spec" governs the repair too** — the sentence a repair writes to replace
+  the one it drops is subject to the same rule, and the repairing unit must run it before committing.
+  A repair's safest output is fewer claims. Pre-register it when it matters: v1.0.1's last audit
+  repair was briefed *"subtraction only; if you write even one new claim, a fourth round is
+  required"*, which made the ship decision mechanical rather than a judgement.
+- **A figure bound to a commit survives; the same figure copied without the anchor rots — twice in one
+  cycle, in two files, one of them warning against it fifteen lines earlier.** `skills/tp/REFERENCE.md`
+  carried `96 / 97` for a demonstration and measured `98 / 99` by the end of its own release and
+  `103 / 104` a round later, while the paragraph beside it, anchored to `492a0691`, still reproduced
+  exactly — and fifteen lines above, the same document says *"the number itself is deliberately not
+  written here"*. Separately, `README.md` shipped eight grounding figures **copied from
+  `spec/backlog/04a-ground-command-friction.md`, where they carry a commit anchor**; the copy lost the
+  anchor and none of the eight reproduced. The defect is never the derivation, it is the copy.
+- **The fenced-command rule is blind to a command that prints the wrong thing.** *"Every fenced command
+  runs and prints something"* was satisfied by the README block above, which printed numbers matching
+  nothing in its own prose — its glob covered `spec/.tp-review/` and this repository's ground rounds
+  are **35 of 40** under `spec/backlog/.tp-review/`. "Runs and prints" is not "prints the truth", and
+  no rewording closes that; `spec/undecided.md` carries it as a candidate, prototype-first.
+- **Four measurement traps this cycle added, all of which look like a clean result.** (1) An `rsync -a`
+  copy and a `git clone --no-hardlinks` give **different audit file sets** — a fresh `git init`
+  resolves no task sha, so `spec-coverage` takes a fallback branch and receives every named file,
+  while the clone gives it the task-mapped subset. Measure `tp audit` in a clone, not a copy. (2)
+  **`tp audit` without `--record` still writes the round snapshot**, so any audit probe belongs outside
+  the repository. (3) `internal/engine/auditfiles.go` sets `AuditFileCap = 20` and **`CodeFileCap = 10`**:
+  naming twenty files in `--affected-files` gives each code role the **alphabetical first ten** and the
+  rest reach nobody. Pass ten. (4) **A race is red 4 of 5, not 5 of 5** — a green run proves nothing, so
+  a reproducer's claim needs the weaker form.
+- **`t.Parallel()` added in bulk can create a race in a helper that was safe for years.** `fa68051b`
+  marked every eligible top-level test parallel — 223 files, 1,027 added lines, every one literally
+  `t.Parallel()` — and two of them called a helper that swaps the process-global `os.Stderr`. The
+  helper predates `v1.0.0` and the `v1.0.0` tree is clean under `-race`; the parallelism created the
+  defect. The gate found it by being **red on one run and green on the next**, which is the failure
+  mode that teaches an operator to re-run. Counted: four helpers assign `os.Stderr`, twenty tests call
+  one, exactly two were parallel. **A sweep of that size is unreviewable through the audit's file
+  selector** — the offending file ranked 145 of 240 alphabetically and 125 of 240 by churn, and
+  `CodeFileCap` is 10.
 - **When a repair's own defect is found three rounds running, suspect the requirement.** Four of
   v0.37.0's audit rounds chased an implementation defect that was a requirement defect: a carve-out
   written when the fence was single-base, incompatible with per-base correctness. Each of three repairs
