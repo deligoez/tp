@@ -16,9 +16,10 @@ import (
 //
 // The last sub-test is §7's third row, the one a reader would miss, and it is
 // asserted as a byte count on stderr rather than as a substring: the wrapper's
-// two output.Notice loops write 86 bytes here, and tp lint on the same tree
-// writes none. A lint that called the wrapper would gain an advisory stderr
-// channel it has never had, so the count is the fact the next task inherits.
+// single output.Notice loop, over the merged warning slice the resolver
+// returns, writes 86 bytes here, and tp lint on the same tree writes none. A
+// lint that called the wrapper would gain an advisory stderr channel it has
+// never had, so the count is the fact the next task inherits.
 //
 // Both halves of that sub-test discriminate, and only one of them always did.
 // The review byte count did from the start: moving the notice loop into

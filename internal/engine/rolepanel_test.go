@@ -89,14 +89,14 @@ func TestResolveRolePanel_ReturnsTheCorpusErrorInsteadOfExiting(t *testing.T) {
 }
 
 // TestResolveRolePanel_ReturnsWarningsWithoutWritingThem is §7's third table row
-// at the engine layer, and the row a reader would miss: the two unconditional
-// output.Notice loops belong to the wrapper. The resolver returns the same
+// at the engine layer, and the row a reader would miss: the one unconditional
+// output.Notice loop belongs to the wrapper. The resolver returns the same
 // strings as data and writes nothing, so a caller that must not gain an
 // advisory stderr channel — tp lint — can have the panel without the notices.
 //
-// The order is asserted too, because the wrapper emits the corpus warnings and
-// the override warnings in two separate loops and the concatenation here is what
-// keeps that byte sequence unchanged.
+// The order is asserted too, because the resolver concatenates the corpus
+// warnings ahead of the override warnings and the wrapper's loop emits that
+// slice as it stands, so this order is the byte sequence tp review writes.
 func TestResolveRolePanel_ReturnsWarningsWithoutWritingThem(t *testing.T) {
 	specPath := rolePanelProject(t,
 		"tp:\n  domain: software\n  review_roles:\n    nosuch:\n      enabled: false",
