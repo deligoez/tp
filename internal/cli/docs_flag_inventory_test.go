@@ -4,8 +4,10 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -82,11 +84,35 @@ func documentedFlags(t *testing.T) map[string]map[string]bool {
 	return documented
 }
 
+// rootCmdMu serialises NewRootCmd across parallel tests, and newRootCmdForTest
+// is the only way this package's tests should build a root command.
+//
+// The constructor BINDS tp's package-level flag variables: pflag's StringVar
+// and BoolVar write through the pointer they are handed, so root.go's eight
+// PersistentFlags lines each assign a default to a shared word every time a
+// root command is built. Two parallel tests that build one therefore write the
+// same addresses concurrently. Measured with -race: the two
+// TestSkillFlagInventory tests run alone reported 30 data races per run, every
+// one a write from NewRootCmd, and none of them a defect in either test. It
+// reproduces at the commit that marked this package's tests parallel and is
+// not visible without -race, which is why it survived as an intermittent
+// suite failure rather than a reproducible one.
+//
+// The lock covers construction only. What callers read afterwards is the
+// returned command tree and its *pflag.Flag values, which no other test writes.
+var rootCmdMu sync.Mutex
+
+func newRootCmdForTest() *cobra.Command {
+	rootCmdMu.Lock()
+	defer rootCmdMu.Unlock()
+	return NewRootCmd()
+}
+
 // registeredFlags walks the command tree and returns the long flags tp declares
 // on each command, plus the root's persistent (global) flags. A command's set
 // excludes the globals, since LocalFlags() already drops inherited ones.
 func registeredFlags() (perCommand map[string]map[string]bool, globals map[string]bool) {
-	root := NewRootCmd()
+	root := newRootCmdForTest()
 
 	globals = map[string]bool{}
 	root.PersistentFlags().VisitAll(func(f *pflag.Flag) {

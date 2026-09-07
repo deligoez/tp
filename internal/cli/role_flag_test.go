@@ -12,7 +12,7 @@ import (
 // when the command does not register it at all.
 func roleFlagOn(t *testing.T, name string) *pflag.Flag {
 	t.Helper()
-	root := NewRootCmd()
+	root := newRootCmdForTest()
 	for _, c := range root.Commands() {
 		if c.Name() == name {
 			return c.Flags().Lookup("role")
