@@ -171,6 +171,28 @@ Repeat until `tp review <spec> --status --check` exits 0:
 
 **Convergence is a recorded fact, not a judgment.** Do not skip rounds, summarize findings as "minor", or declare convergence before `--status --check` exits 0. Counted rounds are always full-panel; the regression delta pass and the tail class-sweep (below) are uncounted.
 
+**The order inside a round is grade → record → repair → emit, and the three "not"s are the rule.** Do
+not repair before recording, and do not re-emit before recording. A round's findings are a record of
+judgements about a text; once the text changes they cannot be recorded against it, and once a new
+emission runs it overwrites the unrecorded round's floor **silently** — `--status` then shows a round
+with zero dispositions and nothing says why. Measured, on this repository's own hotfix: an unrecorded
+round was recovered only because an `rsync` copy taken for unrelated work happened to hold the
+pre-repair floor and most of the grader's rows; recording it made the next round ask 38 units instead
+of 44. The cost of the wrong order is a full round of grading spent re-deriving judgements that
+already existed.
+
+Two corollaries, both paid for:
+
+- **Do not `rm` a round's findings file by hand.** `scripts/clean-emissions.sh` exists for this and
+  carries three guards, one of which is *the round is unrecorded*. A manual tidy has none of them.
+- **Take any working copy of the tree after the grading unit finishes, not while it runs.** A copy
+  taken mid-run holds a partial findings file, and the rows missing from it are invisible until
+  coverage is computed.
+
+**The tool does not stop you, and that is a known gap rather than a design.** Review and audit expose
+`in_flight_round` for exactly this state; ground has no counterpart, so a re-emission over an
+unrecorded round is not refused. Until that ships, the order above is the only guard.
+
 ### Step 3: Decompose and import
 
 1. Decompose into tasks — **you are the decomposer, tp validates your output.**
