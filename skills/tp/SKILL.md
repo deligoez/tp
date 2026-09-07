@@ -122,7 +122,7 @@ saving one.
 
 ### Step 1: Init the task file and workflow
 
-1. `tp lint <spec.md>` — fix issues; review `structured_elements` and the `frontmatter` object.
+1. `tp lint <spec.md>` — fix issues; review `structured_elements` and the `frontmatter` object, and read `floor_size`, `cut` and `review_panel`: what a round-1 grading of this spec will read, and which reviewer roles a round-1 emission would carry. They are reports, not gates — no threshold, no warning, nothing fails on them. REFERENCE.md defines each and says which text it counts.
 2. `tp init <spec.md>` — creates the spec-adjacent `<base>.tasks.json` shell (zero tasks) with an empty `workflow` block. Author the gate one layer up: `tp set --workflow --project quality_gate="<cmd>"` (writes `.tp/config.json`, resolved by every task file); passing `--quality-gate` here writes a task-file override that masks it.
 3. `tp set --workflow review_clean_rounds=N audit_clean_rounds=M` — convergence counts (only if non-default). `review_converge_on`/`audit_converge_on` belong here too if either is non-default: an audit round's `clean` verdict is stamped at record time, so `audit_converge_on` has to resolve **before audit round 1** to be worth anything (Workflow D).
 4. `tp set --workflow review_max_rounds=R audit_max_rounds=A` — round budgets (only if capping).
@@ -563,7 +563,7 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 ### Spec & validation
 | Command | Purpose |
 |---------|---------|
-| `tp lint spec.md` | Spec quality + structured elements + duplicate lines/paragraphs + numbering gaps + orphan list items + broken cross-refs |
+| `tp lint spec.md` | Spec quality + structured elements + duplicate lines/paragraphs + numbering gaps + orphan list items + broken cross-refs. Also reports `floor_size`, `cut` and `review_panel` on every invocation — one round's grading cost and the round-1 reviewer panel, with no threshold and no gate; REFERENCE.md carries what each one counts |
 | `tp review spec.md` | Adversarial review prompts (one per active reviewer role) |
 | `tp review spec.md --perspective code-audit --affected-files src/a.go` | Code audit with source file injection (never reads `--findings`; passing it exits 2) |
 | `tp review spec.md --round N --findings file.ndjson` | Multi-round with previous findings exclusion |
