@@ -1,0 +1,133 @@
+---
+class: tool
+---
+
+# tp v1.0.1 — tp says what a round will read
+
+> **This file is the first instance of the rule it ships.** It carries decisions and derivation
+> commands, no figures; its measurements are in `spec/1.0.1-measurements.md`, which `tp ground` does
+> not grade. That shape came out of grading the release that is now `spec/1.0.2.md`: counting its
+> graded rows by `kind` put the highest finding rate on design claims and a near-worthless one on
+> re-derived figures — correct findings about sentences that, unwritten, would have offered nothing to
+> find.
+
+## 1. The decision
+
+**tp reports what a round of this spec will cost to grade, and what class the spec is. It makes no
+judgement about either.** No threshold, no warning, no gate, no config field.
+
+The restraint is measured rather than cautious. A floor-budget warning was designed and then dropped
+because its justification failed: over every converged shipped spec, round-1 floor size does **not**
+predict how many rounds the cycle took — it correlates worse than line count, which is itself weak,
+and the extremes run the wrong way. `spec/1.0.1-measurements.md` §1 has the derivation and the two
+specs that make the point sharpest.
+
+What floor size does measure is **one round's grading cost**, which is a different quantity: total
+cost is rounds × cost-per-round, and the two have different drivers. tp reports the one it can compute
+and stays silent about the one it cannot.
+
+## 2. What `tp lint` adds
+
+| field | what it is | phase it is a proxy for |
+|---|---|---|
+| `floor_size` | every unit the floor holds, **cut units included** | — |
+| `asked_units` | the units a grader is actually asked about — floor minus cut | ground, per round |
+| `cut_units` | the difference, and the blind spot it names | — |
+| `floor_by_section` | `asked_units` per section | ground, per round |
+| `floor_figure_share` | share of units carrying a digit or a backticked span | the `kind` the cost measurement found dominant |
+| `review_read_bytes` | spec bytes × active roles | review and audit, per round |
+| `class` | the frontmatter value, echoed | — |
+| `class_median_rounds` | median recorded rounds for that class **in this repository** | — |
+
+All three counts come from the exported floor surface `tp ground` itself uses — `engine.FloorUnits`
+and `engine.FloorIndexRows`, which `internal/cli/ground.go` already calls. There is one splitter and
+lint does not get a second one.
+
+**The three counts are separate because tp already distinguishes them and a single number would pick
+one silently.** The floor index lists every unit including the cut ones; `--units` prints only those a
+grader is asked about. Measured on this spec, the two differ by about a third. The **asked** count is
+the cost proxy, because a grader grades those. The **cut** count is reported for the opposite reason:
+this repository's standing lesson is that the sharpest finding has repeatedly sat in a unit the arms
+cut, so a rising cut share is a widening blind spot, not a cheaper round.
+
+`review_read_bytes` is bytes times
+active roles because every role reads the whole spec every round — the roles come from `.tp/reviewers/`
+and `.tp/auditors/` with per-spec deactivation applied.
+
+**`class_median_rounds` is derived at run time from the recorded rounds under `spec/.tp-review/`, never
+written into the binary.** A constant would be a lie three releases later; this repository has paid for
+that class of staleness repeatedly. Where the corpus holds no cycle of that class, tp reports the class
+and no number.
+
+**A line that only points at an artifact is not a claim and is not counted** — `see spec/x-measurements.md §2`
+or a bare commit SHA carries no assertion to grade. This is a lint-side filter on what `floor_size`
+reports, not a change to `floorBlocks`; ground's floor is unchanged.
+
+## 3. The class, and who declares it
+
+`class: loop | tool` in the spec's frontmatter, declared by the author because tp cannot infer it.
+
+**loop** — the spec changes a convergence field, `clean`, an emitted prompt, or what a round records.
+**tool** — everything else.
+
+tp echoes it and derives that class's median from its own corpus. It is recorded on the cycle so the
+corpus can be counted later; today the classification exists only as a hand-assigned column in prose.
+
+## 4. Requirements smells
+
+`vague-language` is one member of a family the requirements literature names (ISO/IEC/IEEE 29148):
+subjective, ambiguous, non-verifiable, vague, superlative, comparative, loophole, vague pronoun.
+
+**Candidates ship only if they survive prototyping against this repository's own specs and backlog at
+zero false positives, and against the pre-repair text of a defect that motivated them.** Four of five
+earlier lint candidates died there. Those that survive ship as **warnings**; those that die are recorded
+in `spec/undecided.md` with the measurement that killed them. This section blocks nothing else in the
+release.
+
+## 5. What ships in `skills/tp/SKILL.md`
+
+The rules are the release, as much as the code is — they reach users through the plugin and the skill
+package.
+
+- **A number does not live in a spec; a reference does.** Derivations go in `<base>-measurements.md`,
+  which ground does not grade; the spec names the artifact and does not quote the figure. A rationale
+  that cites a figure is a figure.
+- **The body is ADR-shaped**: decision, why, consequences, and a link to supplemental material — which
+  is the same split, and the same reason: the decision must stand without the material.
+- **Test rows are EARS-shaped** (§7), because a row whose trigger and precondition are not in the
+  sentence cannot name a mutant that fails it.
+- **A finding leaves a round as a spec change or as a `--resolve` disposition.** The prose answer to a
+  finding belongs in the disposition's evidence.
+- The grading brief: do not re-derive a figure, class it; run a behaviour claim; try to refute a design
+  claim.
+
+## 6. Non-Goals
+
+1. **No threshold and no gate.** §1 gives the measurement that removed them.
+2. **No claim that any of this shortens a cycle.** What is measured is that the loop's cost is
+   invisible to the author before the round runs. Whether seeing it changes what an author writes is
+   **not measured**, and this release does not assert it.
+3. **No EARS requirement on spec bodies.** Test rows only. Imposing it on bodies means rewriting the
+   backlog, which nothing has measured the value of.
+4. **No token figure.** `floor_size` is units, not tokens. One spec's rounds are the only evidence for
+   the conversion; a second cycle's measurement is what would earn it, and it would go in `SKILL.md`
+   rather than into tp.
+5. **Not the review side's per-section churn signal.** *"You re-reviewed §11 for six rounds"* needs a
+   finding history keyed by section, which is `spec/backlog/12-repair-locality.md`.
+
+## 7. Tests
+
+Each row is `WHEN`/`WHILE`/`IF <trigger>`, `tp SHALL <response>`, with the mutant that must fail it.
+
+| # | from | requirement | the mutant that must fail it |
+|---|---|---|---|
+| 1 | §2 | WHEN `tp lint <spec>` runs, tp SHALL report `asked_units` equal to the count `tp ground <spec> --units` emits for the same text, and `floor_size` equal to the floor index's row count, and `cut_units` equal to their difference | report one number for both. **The fixture is the assertion**: on a spec with no cut units the two counts coincide and any conflation passes, so the fixture must carry cut units — this spec's own text does |
+| 1b | §2 | WHEN the same text is measured twice, tp SHALL report the same three counts | re-implement the split in lint; a second parser drifts from the one `tp ground` uses and this row is what pins them together |
+| 2 | §2 | WHEN a spec line only points at an artifact, tp SHALL exclude it from `floor_size` | count it — a fixture whose only change is adding reference lines then reports a larger floor |
+| 3 | §2 | WHEN roles are active for a spec, tp SHALL report `review_read_bytes` as spec bytes times the active role count | use the corpus count and ignore per-spec deactivation — the fixture deactivates one role and the number must fall |
+| 4 | §3 | WHEN frontmatter declares `class`, tp SHALL echo it | infer the class from the text; a `tool` spec that mentions `clean` must still report `tool` |
+| 5 | §3 | IF frontmatter declares no `class`, THEN tp SHALL report neither a class nor a median | default to one — a defaulted class is a judgement, and §1 says tp makes none |
+| 6 | §3 | WHILE the corpus holds recorded cycles of the declared class, tp SHALL derive `class_median_rounds` from them | write the median as a constant. **The fixture is the assertion**: two corpora with different recorded rounds must produce different medians, so a hardcoded value passes one and fails the other |
+| 7 | §3 | IF the corpus holds no cycle of the declared class, THEN tp SHALL report the class and omit the median | emit zero or null as if it were a measurement |
+| 8 | §4 | WHEN a smell rule ships, tp SHALL emit it at warning severity | emit at error, which gates on a rule the release says gates nothing |
+| 9 | §1 | WHEN any of these fields is reported, tp SHALL exit 0 on that account alone | make a field's value affect the exit code, reintroducing the threshold §1 removed |
