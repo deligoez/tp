@@ -146,8 +146,9 @@ So `Lived: 0` next to `Not covered: 6` is honestly reachable, and the "stronger"
   whose note names a doc comment "claims more than its body delivers", inside a round counted toward
   the `spec_coverage_clean_rounds: 4` that release shipped on. **Read the notes of PASS rows before
   reading a clean streak as clean**, and treat a PASS carrying such a note as unresolved.
-  1.50.0 takes it. On that rule v0.36.0's counter was 3, not 4 — the shipping
-  condition still held, which is luck about the margin and not a defence of the counter.
+  `spec/backlog/02b-what-a-rounds-rows-say.md` carries it, and `spec/backlog/README.md` merges that
+  half into `02a`. On that rule v0.36.0's counter was 3, not 4 — the shipping condition still held,
+  which is luck about the margin and not a defence of the counter.
 
 - **Three measurement traps this repo has now hit, all of which look like a clean result.** `git diff` from a non-TTY child returns *near-empty* output under this machine's `~/.gitconfig`, which sets `diff.external difft` — exit 0, empty stderr, and a unit auditing a diff programmatically concludes the file is unchanged. Use `git -c diff.external= diff --no-ext-diff`. Second: a **"comment-only" edit still changes the binary**, because the line table moves; the way to check it is `go build -gcflags=-S` over both trees with `file.go:NNN` normalized (v0.37.0's audit measured 207,386 identical lines and one byte of pcdata delta, exactly the comment's +3 growth) and then a command matrix under both binaries — and then a **mutant, to prove the matrix is not a tautology**. Third: a fixture's own *filename* can decide the result — a guard blocking a directory named `zz` proved nothing about a stopped scan, because `zz` sorts after every `*.tasks.json` and `WalkDir` had already collected them; renaming it `A-blocked` falsified the test's own doc comment. **When a fixture's incidental property could carry the verdict, assert the property** (`require.Less` on the sort order), do not choose the name and move on.
 - **Prove a fix by running it, not by reading it — write the test first and watch it fail.** A test
@@ -217,350 +218,169 @@ So `Lived: 0` next to `Not covered: 6` is honestly reachable, and the "stronger"
 
 ### Where the next work is (read this before starting anything)
 
-**`spec/0.37.0.md`** (`audit_converge_on`) is **complete and shipped** — 22/22 tasks, 12 review
-rounds, 7 audit rounds, `spec-coverage` 74/74 for the last two with zero FAIL from any role in
-either. **Next is `spec/1.38.0.md`** (the checklist covers what changed), then 1.39.0.
+**In flight: `spec/1.0.1.md`**, the hotfix (a finding can leave a round). It is **grounding right
+now** — do not edit it, `spec/backlog/`, or anything under a `.tp-review/` directory until it finishes.
+**Everything else is `spec/backlog/README.md`, now the roadmap**: twenty-one unreleased specs named by
+**priority** rather than version (`01-checklist-covers-what-changed.md` …), plus the order, the reason
+for it with both field measurements, the merges, the two entries that are not releases at all, and what
+the hotfix already took. Do not restate any of it here — that duplication is what this section was.
 
-**All sixteen pending specs — 1.38.0 through 1.53.0 — were rewritten from scratch on 2026-09-02,
-against the tree rather than against their own prose. None has been reviewed.** Each states its
-decisions, gives the command that derives every figure it quotes, and ends in a test table whose every
-row names the mutant that must fail it. Two candidate lint rules were prototyped and **refuted** in
-the process (`spec/candidates.md`), which is why the numbering shifts by two against any earlier copy
-of the table below. Three defects were found by measurement while writing and are now each a release's
-acceptance row: **`--check` exits 0 on an audit that did not happen** (1.39.0), **`unresolved_findings`
-returns the complement of the answer** (0.37.1), and **an accepted finding blocks convergence forever**
-(1.50.0). Nine of the sixteen carry a first-person transcript from a built fixture.
+**Why the numbers went away, and the naming rule that replaces them.** A version number in a backlog is
+a promise about ordering, and this set has been renumbered repeatedly; the last sweep found **47
+citations to renumbered specs, ~35 of them stale** — six inside shipped specs, twenty in this file,
+three in Go comments — and **none was caught by checking that the target file exists**: every one
+resolved, and every one had moved. So **name a pending release by its subject and a backlog file by its
+slug, never by its priority number**, which moves on the next re-prioritisation exactly as a version
+number did; a release number is assigned once, at the tag. A shipped spec states what it did not do;
+which release takes it is the README's job. After any rename sweep, re-read every surviving reference
+for whether it still *means* what it says — one that resolves is not thereby correct. **The sharpest
+instance is `spec/0.36.0.md`'s own paragraph on this hazard**, which says *"naming a file that does not
+contain the question is worse than naming none"* and carried two filenames a renumbering falsified: the
+rule refuting itself in place. **The ordinal is not checkable either, and this file asserted one** —
+v1.0.0's grounding found `CLAUDE.md` saying *fourth* while `spec/candidates.md` said *fifth*, and a
+repair unit refused to pick a side. Git records two rename sweeps, `e73788ab` and `3aa992fd`, and
+earlier ones predate the tracked names, so cite the sweep rather than a count:
+`git log --diff-filter=R --name-status -- 'spec/*.md'`.
 
-Four things that cycle established, in the order they are worth knowing:
+**`--check` is not the ship signal** until the panel-record spec
+(`spec/backlog/02a-round-knows-its-panel.md`) ships. `consecutive_clean` counts rounds clean across
+*every* role, while this file's shipping rule is phrased on `spec_coverage_clean_rounds` plus no-FAIL;
+the two measure different things and the operator has adjudicated the difference in writing twice.
+Severity parity provably does not close it — the divergence is **role** scoping, not severity scoping.
+Derive a round's open FAIL rows from its `*-round-N.ndjson` rather than trusting either gate.
 
-1. **Four audit rounds chased an implementation defect that was a requirement defect.** §7 row 13's
-   carve-out — "a `--project` write of `blocking` beneath a task override of `all` must pass,
-   because it changes nothing *for that base*" — was written when the fence was single-base, and it
-   is incompatible with per-base correctness. Three repairs tried to satisfy it and each one's own
-   defect was found by the round after. The fix deleted code (`unattended.go` net −31) once the
-   diagnosis moved from the sink to the row. **When a repair's own defect is found three rounds
-   running, suspect the requirement.**
-2. **The review loop stopped converging on count and was ended on a decision rule written before the
-   round that tested it.** Counts ran 65, 56, 51, 47, 48, 60, 42, 40, 45, 53, 54, 69 — flat. The
-   measurement that ended it came from outside the loop's own inputs: this cycle drew ~50 findings a
-   round against its shipped twin `review_converge_on`'s ~5, for normative sections **8% smaller**,
-   and 24% of the file was forensics each repair round had written for the next round to review.
-   `implementer` then answered the only question that mattered — 19 tasks with 8 blocked became 20
-   with **0** — and the pre-registered rule ("if the count does not fall after the cut, the problem
-   is the loop and not the document") fired as written.
-3. **Forced commitment halves what a role files, and the arms swapped to prove it.** Briefs carrying
-   *provenance-and-count*, *do you still hold that reasoning*, and *say what should be done about it*
-   produced 15 and 23 findings against the control arm's 35 in both rounds — the effect followed the
-   arm, not the role. The mechanism is visible in the reports: briefed roles **withdrew** findings
-   after verifying by running, and never filed the ones whose falsifier they could not name. Five
-   auditor self-withdrawals across the cycle, every one measured, including one that re-derived a
-   count under the rule its consumer actually uses and found its own earlier finding wrong.
-4. **Seven of the orchestrator's own claims were falsified by units that ran them** — an arithmetic
-   floor, a fail-closed rationale, two mutants that could not fail, a "by construction" exemption, an
-   internally contradictory acceptance, and a figure whose counting rule was never stated. All seven
-   are corrected in `spec/0.37.0.md` with the measurement beside them. The last is the sharpest: the
-   number was *right under the rule its author used* and two auditors still could not reproduce it,
-   which is why §7's standard is now to give the derivation and state no figure.
+#### What a cycle costs
 
-**`spec/0.36.0.md`** (the emitted round, `--role`) is **complete and shipped** — 24/24 tasks, 13
-audit rounds, and `spec-coverage` 74/74 PASS for the last four of them with zero open spec-scoped
-findings. It shipped with `tp audit spec/0.36.0.md --status --check` returning **exit 1**, and that
-is not an oversight: `consecutive_clean` counts rounds clean across *every* role, while this file's
-own shipping rule is phrased on `spec_coverage_clean_rounds` plus no-FAIL. The two are different
-gates and v0.36.0 is the worked case — `spec/0.37.0.md` §5 takes the divergence, so **do not
-re-derive it. **And v0.37.0 does not fix it** — four review rounds established that the
-divergence is *role* scoping while `audit_converge_on` is *severity* scoping, and that severity
-parity provably does not close it: on v0.36.0's rounds 12–13 every `error` row belongs to
-`maintainability-conventions` while `spec-coverage` was clean four rounds running, so a parity
-`--check` still exits 1 for exactly the rounds the gap is about. **1.39.0 takes it, and until that
-ships `--check` is not the ship signal.**
-
-**v0.36.0's undone work is now spread across four releases and is worth reading before 0.37.0**: the
-ten built-and-run inputs proving tp's CI and gate guards certify a step merely *named* in executable
-text are the gate-sequence release's §1.1; the measured fact that a round recorded with one role sets
-`spec_coverage_clean_rounds` to null is 1.39.0's; the accepted-finding and PASS-note halves are
-1.50.0's; the spec-hash reset is 1.53.0's. Four repairs were attempted inside that audit and every one
-was falsified by the round after — the lesson this cycle paid for twice is the one already written
-above: **an audit repair that introduces a new abstraction belongs to the next version.**
-
-`spec/0.35.0.md` (the unattended runner) shipped before it. Two things that cycle deliberately did
-NOT fix are recorded with reasons in `spec/0.35.0-candidates.md` — read §16 (the mutation run) and
-§17 (the two degraded-scan repairs choosing different channels) before opening the next release, so
-neither is re-derived from scratch.
-
-**Thirteen releases are planned. They were seven until the pending set was split, and the split is
-the most load-bearing fact in this section.** A spec filename is the release that ships it, and that
-convention is kept. None of the thirteen has been reviewed.
-
-**Why they were split — and the number that justified it measures the wrong direction.** This file
-used to say spec length is the strongest single predictor of cycle length, r ≈ +0.56. Re-derived over
-sixteen cycles with v0.37.0 added, the correlation depends entirely on *when* you measure the length,
-and that was never stated:
+**Spec length at round 1 predicts almost nothing; final length predicts a lot *because it is an
+outcome*.** This file once published r ≈ +0.56 without saying when the length was measured. Re-derived
+over the seventeen cycles that have a `state.json` (round counts from `spec/.tp-review/*/state.json`;
+lengths from that cycle's `snapshot-round-1.md`, its last `snapshot-round-N.md`, and the spec today):
 
 | length measured | r against total rounds |
 |---|---|
-| **at round 1 — the length you can choose** | **+0.24** |
-| at the last round | +0.59 |
-| today | +0.61 |
+| **at round 1 — the length you can choose** | **+0.22** |
+| at the last round | +0.55 |
+| today | +0.45 |
 
-The published figure is the **final** length, which is an *outcome* of the cycle rather than an input
-to it: a spec grows because the rounds grew it (median growth ≈ 2.6×, v0.36.0 4.8×). So the
-correlation is largely reverse causation, and the number you actually hold when deciding whether to
-split is +0.24. The outliers say the same thing: **v0.36.0 was 108 lines at round 1 and cost 28
-rounds**, the dearest cycle in the corpus and one of the shortest specs; v0.23.0 was 770 lines and
-cost 17.
+A spec grows because the rounds grew it, so the published figure was largely reverse causation, and
+*today* is worst of the three because it also absorbs post-cycle edits. The outliers agree: **v0.36.0
+was 107 lines at round 1 and cost 28 rounds**, the dearest cycle in the corpus and one of the shortest
+specs; v0.23.0 was 769 lines and cost 17.
 
-**What does predict cost is what the spec is about.** Classifying the sixteen recorded cycles by
-whether the spec's subject is the review/audit loop itself — its signals, its convergence, its
-prompts — against everything else:
+**What does predict cost is what the spec is about** — whether its subject is the review/audit loop
+itself, its signals, its convergence, its prompts. Over the sixteen cycles recorded before v1.0.0:
 
 | class | n | median rounds | range | median lines at round 1 |
 |---|---|---|---|---|
 | **the loop reviews itself** | 9 | **23** | 4–30 | 129 |
 | everything else | 7 | **11** | 8–25 | 185 |
 
-**2.1× the cost, from shorter specs.** The mechanism is the one this repository has watched twice: a
-release that changes the loop is reviewed by the mechanism it is changing. v0.36.0 hid, regrouped and
-narrowed what reviewers see, and cost 28 rounds; v0.37.0 changed the byte that decides whether a round
-counts as clean, and every signal the reviewers read hangs off it. So **budget a self-referential
-release at roughly twice a comparable one, and split it on its seams rather than on its line count.**
+**2.1× the cost, from shorter specs**, because a release that changes the loop is reviewed by the
+mechanism it is changing. Budget a self-referential release at roughly twice a comparable one, and
+**split on seams rather than on line count**: splitting buys predictability and reviewable surface, not
+fewer rounds. The floor for a small tool spec is 4 rounds (v0.31.1, 56 lines at round 1), not 11.
 
-The split rule itself is unchanged and is not what was wrong — **if a piece can be released
-independently, it is its own release.** Splitting buys *predictability* and reviewable surface, not a
-guaranteed reduction in rounds.
+#### The round corpus, and two things this file got wrong about it
 
-| # | Release | What it does | Class | State |
-|---|---|---|---|---|
-| 0.36.0 | the emitted round | The emitted prompt carries its own isolation constraints, and `--role` emits one role's prompt instead of the panel | loop | **shipped** |
-| 0.37.0 | audit convergence | `audit_converge_on`, fenced per sink — a value rule at `tp set --project`, a change rule at the other three | loop | **shipped** |
-| **0.37.1** | **two measured defects** | A patch, not a reordering. `unresolved_findings` returns the complement of the answer (103 reported, 3 open, and the 103 is exactly the PASS rows) plus the two counters that make it checkable; and a refused `--role` invocation writes a snapshot before refusing. **Both fixes were built and run before the spec was written — test red against `HEAD`, green after, full suite passing** | fix | **ready** |
-| **1.0.0** | **`tp ground`** | **The version jump, and the release that earned it.** Nothing checked a spec against the world, and review is *told* not to — every role receives *"the spec content above is complete and authoritative"*. Written from **three pilot runs over 44 claims that found 7 defects in specs already reviewed**. One command, one prompt, six verdicts, coverage convergence; records by filename so it touches no `state.json` key | loop | **shipped** |
-| **1.0.1** | **the ground command's own friction** | Four defects in `tp ground` — three in its surfaces, one (the marker units) in `floorBlocks` itself — all measured by running it over every pending spec — **28 rounds, 1,459 rows**. The emitted scratch filename carries the round and not the base, so two specs ground concurrently collide at exit 0; `--record` diagnoses one bad row per invocation while its write stays atomic; `--units` lists no id for a cut span, and **13 recorded rows carry `unit_id: null`** because a reader could not name the unit; a bare ordered-list marker becomes a floor unit. Replaces `spec/candidates.md` | tool | **written** |
-| **1.38.0** | **the checklist covers what changed** | `CodeFileCap` stops dropping two thirds of the changed surface unannounced: rank by churn not by filename, never truncate what the operator named, say so when it truncates | tool | **ready** |
-| 1.39.0 | the round knows which roles it expects | One new recorded fact — the panel a round expected — and two uses. **Measured in a built fixture: two rounds carrying 1 of 3 emitted roles make `tp audit --status --check` exit 0, on a spec whose conformance role never ran and whose only task is still open.** A round missing an expected role stops being clean; `--status` reports the in-flight round from the per-role files tp itself names and tells the roles to write incrementally. The *too strict* half is 1.52.0 | loop | ready |
-| 1.40.0 | the round carries the text it read | The round's `spec_hash` is written at **emit**, not at record, so a round cannot certify a spec its roles never saw | loop | ready |
-| 1.41.0 | forced commitment in the brief | Three sentences tp emits, so an unattended run gets the brief a human writes by hand today | loop | ready |
-| ~~1.42.0~~ | — | **Retired.** Its `unresolved_findings` fix and the two counters that make it checkable both moved to **0.37.1**, leaving nothing that earns a minor. The number is skipped, not reused | — | — |
-| 1.43.0 | the loop's own state writes | Three defects re-run against `HEAD` while the spec was written: a refused `--role` invocation still writes a snapshot, the round findings file is not atomic while the snapshot beside it is, and the gate's walk cannot see an empty watched directory — a blind spot its own comment names | tool | **written** |
-| 1.44.0 | the binary check | An advisory when the running binary is not built from `HEAD`. **This row described the predicate the spec itself refutes** — "older than the spec being developed" — and grounding round 1 caught the roadmap never being updated. The shipped predicate is `vcs.revision` against `HEAD`, not a version comparison | tool | ready |
-| 1.45.0 | the untracked task file | A second advisory, once, at `PhaseRelease` — different trigger, different cadence, so not the same release | tool | ready |
-| 1.46.0 | mutation score as a gate entry | The entry establishes that a run **completed and over which mutants** before any score is read | tool | ready |
-| 1.47.0 | the gate sequence | `quality_gate` as an ordered array of named entries, each with its own exit code. Takes the three v0.36.0 handovers 1.43.0 left: two CI guards narrower than their own claims, and a load-sensitive gate test | tool | ready |
-| 1.48.0 | the red gate | The bounded procedure a unit follows when the gate goes red — text in a brief, enforcing nothing | tool | ready |
-| 1.49.0 | `next_action` recommends the delta pass | One branch on a shipped surface after a repair touching more than three sections | loop | ready |
-| 1.50.0 | what a round's rows actually say | Three corrections in **two** directions. **Measured: one FAIL row dispositioned `wontfix` with evidence records `clean: false` — an accepted finding blocks forever**, so the only way out is destroying the record. That and a role that does not decide the question stop gating (the second is 1.39.0's *too strict* half, a fenced list field reading `expected_roles`); a PASS row carrying a note starts being **reported**, not gating, because tp cannot judge prose | loop | needs 1.39.0 |
-| 1.51.0 | `--reconcile` | Records why the spec moved between rounds, without overwriting what the round read | loop | needs 1.40.0 |
-| 1.52.0 | repair locality | The share of a round's findings sitting in text the previous round wrote, reported and gating nothing | loop | needs 1.40.0 |
-| 1.53.0 | the spec-hash reset | `consecutive_clean` resets when the spec it is a claim about changes | loop | needs 1.40.0 |
-| **1.54.0** | **the guard reads what production reads** | Three test helpers re-parse a Markdown section with `HasPrefix` and `regexp` while `floorBlocks` toggles on fences. Five doors on one helper across four v1.0.0 audit rounds, each repair widening the parser by one case and leaving the next. The seam — the guards ask production which lines a section contains — was **prototyped and run**: all four silent-green doors go red, two false failures go green, no export needed | tool | **written** |
-| **1.55.0** | **the refusals that name nothing** | `validateGroundRowTier` refuses a legal tier in the wrong pairing without naming `groundAcceptableTiers` — 33 of 42 pairings; the enum-refusal guard is a lower bound, not equality; `rankFilesBySpecTerms` drops an unreadable file in silence beside a sibling documenting the opposite | tool | **written** |
-| **1.56.0** | **the ask and the envelope separate the two zeros** | `# 0 in floor, 0 cut` and `# 0 in floor, N cut` produce byte-identical asks, both claiming every unit was cut. `groundPromptAsk` never receives `cut`, and the emission envelope cannot separate them either. Taken together or not at all | tool | **written** |
-| **1.57.0** | **what §8's carry can promise** | §8 promises an unrepaired `FAIL` is permanent while its text stands; deleting the earlier of two identical units carries the `PASS` onto the survivor and `--check` exits 0. A multiplicity fence was prototyped and run. Plus the whitespace set §2.1 never names, where a VT before a fence **silently drops the real claim** | loop | **written** |
-| **1.58.0** | **`forward-spec-ref`** | The only lint-rule candidate that survived prototyping: a spec must not name a spec numbered above itself that has not yet shipped. The shipped boundary is load-bearing — without it the one measured false positive returns. `scripts/forward-spec-ref-prototype.py` reports **2** at HEAD, both in `spec/1.0.0.md` | tool | **written** |
+**Every derivation over the round corpus needs BOTH globs** — `spec/.tp-review/*/*.ndjson` and
+`spec/backlog/.tp-review/*/*.ndjson` — since the unreleased specs' round directories moved under
+`spec/backlog/`. Measured at the move, over canonical `*-round-N.ndjson` files:
 
+| | one glob | both |
+|---|---|---|
+| review rounds | 172 | **172** |
+| audit rounds | 108 | **108** |
+| `resolved` rows | 1,467 `fixed` / 99 `wontfix` | **identical** |
+| **ground rounds** | **1** | **36** |
+| rows | 18,707 | 21,147 |
 
-**`spec/undecided.md` holds what is not numbered**, in two sections that must not be confused:
-*refuted* (prototyped, did not survive, recorded with the measurement that killed it — a refuted
-predicate is not a backlog item) and *undecided* (a real need whose design has no answer, each naming
-the decision nobody has taken). Nothing there carries a version number, because a number that moves
-leaves stale references and this file has already paid for three renumberings.
-
-**`spec/candidates.md` was split and is now a forwarding note, not a file to read for content.** Its
-ground-related material became **`spec/1.0.1.md`** — four measured defects in `tp ground`'s own
-surfaces, found by running the command over every pending spec; its refuted record and its non-ground
-undecided rows went to `spec/undecided.md`; four undecided rows moved into the pending specs that own
-their subject; and its closed sections were deleted, each after being verified present in the release
-that took it. **The stub stays** because 29 references to it survive across the tree, six of them in
-shipped artifacts that must not be edited — derive the count with
-`git ls-files | grep -v .tp-review` and a search for the bare filename, excluding
-`0.35.0-candidates.md` and `1.0.0-corrections.md`, which are different files.
-
-**Four things are refuted, not deferred, and two of them died while this roadmap was being written.**
-The example-table lint rule died in both forms its spec named, and the corpus-replay gate is restated
-rather than withdrawn (`spec/undecided.md`'s `## Refuted` carries why the reason first given for it
-was wrong — it was `spec/candidates.md`'s until that file was emptied to a forwarding stub, and a
-reference that still *resolves* to a stub is the exact rot this line is about).
-
-**The unexecutable-split rule** was prototyped over this repository's 520 tasks in 26 task files: the
-broad predicate fires on 114 (21.9%), the keyword form on 11 with ~9 false positives, and the
-`tags: [test]` form on **exactly one task, which is a false positive** — a negative-requirement task
-whose closure reads *"No production change"*. It cannot be repaired by tightening: `tags` is present
-on 185 of 520 tasks (36%) and optional, and every stronger signal (`commit_files`) exists only after
-the task closes, while `tp validate` runs at decomposition.
-
-**The contradictory-comparator rule** was prototyped over every `spec/*.md` at `v0.36.0` and
-`v0.37.0` — both states its own text called *before this cycle's repairs* — and flags **2 groups,
-both false positives, with zero true positives**; the same-section narrowing flags **zero, on
-anything**. Its claimed true positive is in no tagged state of the repository, so the one piece of
-evidence it rested on is not checkable.
-
-**Both freed a number, which is why the rows above shift by two against any earlier copy of this
-table.** Prototyping cost minutes each; had either shipped, it would have cost a cycle to discover in
-review — and the comparator rule's false positives are systematic rather than incidental, so it would
-have kept firing.
-
-**The corpus-replay gate is *restated*, not withdrawn, and the reason it was withdrawn was wrong.**
-Three specs dropped it citing a missing disposition; the disposition exists (see the correction
-above), and **1,117 review rows carry `resolved.status: fixed` together with both `class` and
-`location`** — the baseline is buildable. What actually breaks a replay is the snapshot divergence,
-and that is now bounded: it is zero in the most recent 27 rounds and will be structurally impossible
-once 1.40.0 pins the emit-time hash. So the honest form is: **a replay cannot gate the release that
-introduces the mechanism it would test, because it must wait for rounds to accumulate** — not that it
-cannot be built.
-
-**Why this order — the first three pay for every cycle after them, and each was measured on v0.37.0's
-own corpus.**
-
-**1.38.0 first, because every audit until it ships runs under the defect.** `engine.CodeFileCap = 10`
-(`internal/engine/auditfiles.go:19`) is a compile-time constant with no config path: `selectCodeFiles`
-sorts the whole changed universe **alphabetically**, promotes five substrings (`lock`, `validate`,
-`auth`, `secret`, `perm`), and truncates at ten — and `generateRoleAuditPrompts` hands the same ten to
-every non-`spec-coverage` role. Measured over v0.37.0's seven audit rounds: **13 files ever reached a
-code lens; 29 that `spec-coverage` cited never did**, among them `internal/engine/auditconvergeon.go`
-— *the release's own new engine file* — plus `auditclean.go`, `divergence.go`, `nextaction.go`,
-`set.go`, `config_extract.go`, `importcmd.go` and all five `auditconvergeon_*_test.go`. Coverage ran
-31–40%. **`internal/cli/unattended.go`, where the fence lives, changed in 6 of 6 inter-round diffs and
-was on the generated checklist in 0 of 7 rounds**; it reached rounds 4–7 only because `go-safety`
-self-added it and wrote *"cut from the checklist a fifth round"* in the row. In rounds 1–3 nobody
-audited the file the cycle's four hardest rounds were about. Two aggravations: the cap notice is gated
-on `maxAutoDetectFiles = 50`, so a 30-file universe drops 20 files **silently**; and `--affected-files`
-cannot rescue it, because it replaces the universe *upstream* of the cap.
-
-**1.39.0 second, because the gate that decides shipping returns the wrong answer, and the last two
-releases both worked around it by hand.** v0.36.0 and v0.37.0 each shipped with
-`tp audit --status --check` at exit 1 while `spec-coverage` was clean — **but "no role held a FAIL" is
-v0.37.0's condition alone, and this sentence used to apply it to both.** v1.0.0's grounding of the
-role-panel spec measured v0.36.0's shipping round 13 carrying **two** `maintainability-conventions`
-rows at `status: FAIL`, `severity: error`, `resolved: null`; the v0.36.0 sentence further up this file
-is correctly the narrower *"zero open spec-scoped findings"*. Derive it rather than reading either:
-`python3 -c "import json;print([(r['role'],r['severity']) for r in (json.loads(l) for l in open('spec/.tp-review/0.36.0/audit-round-13.ndjson') if l.strip()) if r.get('status')=='FAIL'])"` — the
-two gates measure different things, and the operator has adjudicated the difference in writing twice.
-Until it ships, every ship decision is a judgement call dressed as a check.
-
-**1.40.0 third, because it makes the record mean what it says and three later releases need it.** The
-round's `spec_hash` is written when results are *recorded*, so nothing pins a round to the text its
-prompts were emitted from. Its urgency is honestly low — the divergence is zero across the most recent
-27 rounds, because this operator stopped editing mid-round — but the spec-hash reset, `tp ground` and
-the reconcile release each withdrew a gate over it, and a record that *may* be a lie is indistinguishable from one that is.
-
-**1.41.0 fourth, and the argument is `tp run`, not this loop.** v0.37.0 swapped the trial's arms
-between rounds and the briefed arm filed 15 and 23 against a control of **35 both times** — the effect
-follows the arm, not the role. But note what was measured: **what a role files**, not how many rounds
-a cycle takes; the second has never been measured and should not be claimed. And in an attended cycle
-the orchestrator already writes those sentences by hand, so the marginal gain here is small. The gap
-is unattended: under `tp run` tp emits the brief and nobody adds them.
-
-**After that, readiness and dependency.** 1.43.0–1.49.0 are `tool`-class — small, live, no design
-risk — ordered by size; the historical range for a small tool spec is 4–8 rounds (v0.31.1 at 57 lines
-cost 4), not the 11 the class median suggests. The remaining `loop` entries follow, because a release
-that changes the loop is reviewed by the mechanism it is changing and costs about twice as much.
-1.52.0 needs 1.39.0's role-scoped streak; 1.53.0 and the reconcile release need 1.40.0's emit-time hash.
-
-**What this costs, stated rather than implied.** Eighteen numbered releases at this corpus's own rates
-— 4–8 rounds for a small tool spec, ~23 for a loop-class one — projects to roughly 200 review-plus-audit
-rounds. v0.37.0's 19 rounds took about seven hours of agent time, so the pending set is on the order of
-seventy hours. Splitting did not create that cost; it made it visible and divisible, and it is the
-reason the six undecided candidates carry no number.
-
-**Two things were withdrawn rather than scheduled**, and the reasons are measured. The example-table
-lint rule was prototyped in both forms its spec named: the keyword-and-shape heuristic fires on
-3.9–22.6% of this repository's 1,032 spec sections against a shipped bar of *zero* false positives,
-and the narrower form reads task acceptance criteria — data that does not exist when `tp lint` runs,
-since lint is workflow step 2 and decomposition is step 5. And the corpus-replay gate is impossible
-for the snapshot reason above. Both go to a candidates file; a refuted predicate is not a backlog
-item.
-
-**Name a pending release by its subject, never by its filename — outside the roadmap table above,
-which is the one place a number belongs.** **The ordinal is not checkable and this file used to assert one — v1.0.0's grounding of the patch release found `CLAUDE.md` saying *fourth* while `spec/candidates.md` said *fifth*, and a repair unit refused to pick a side.** What git records is **one** renumbering commit, `e73788ab` (2026-09-02, 16 spec renames), plus one deleted spec, `0.42.0.md`; derive it with `git log --diff-filter=R --name-status -- 'spec/*.md'`. Earlier renumberings predate the tracked names or were not recorded as renames, so cite the sweep rather than a count. That sweep, after the recorded one,
-it found **47 citations to renumbered specs**, of which ~35 were stale: six inside shipped
-`spec/0.36.0.md` and `spec/0.37.0.md`, twenty in this file, three in Go comments, three in the older
-candidates files. None was caught by checking that the target file exists — every one resolved, and
-every one had moved. The sharpest instance is `spec/0.36.0.md`'s own paragraph on this hazard, which
-says *"naming a file that does not contain the question is worse than naming none"* and carried two
-filenames that a renumbering then falsified — **the rule refuting itself in place.** A shipped spec states what it did not do; which future release takes it is the roadmap's job
-and only the roadmap's.
-
-**Three earlier renumberings each left stale references behind** (`spec/0.34.0.md`
-still says "v0.36.0" in two places). After any future renumber, run a cross-reference sweep over
-`spec/*.md`, `CLAUDE.md`, `README.md` and `skills/tp/SKILL.md` for `spec/<version>.md` targets that
-do not exist, and re-read every surviving reference for whether it still means what it says — a
-reference that resolves to a file is not thereby correct, because the file's subject may have moved.
-
-**Field feedback drives seven of the pending set, and one exchange on 2026-09-01 supplied four of them.** The evidence-contract candidate came from a Rust NLP project; three
-of their seven reports are answered there (audit evidence is a keyword search, no `UNVERIFIED`
-verdict, closure evidence unchecked for kind); the reconcile release answers the reconcile request and
-its Non-Goals record what was deliberately not taken. A second cycle, on a PHP package, produced
-eleven findings that became `spec/0.36.0.md`, `spec/0.37.0.md`, `spec/1.41.0.md` and the mutation-score release
-— its measured round times (44 min for one agent, unchanged when a role was dropped) are the whole
-argument for sharding. Two more reports did not survive verification against tp's own source and are
-worth remembering as a class: *diagnostics poison `--json`* (false — `output.Notice` has written to
-stderr since v0.31.2; their runtime merges the child's streams) and *`--record` accepts a missing
-file* (false — `review_record.go` exits `ExitFile`). **Field feedback arrives with the reporter's
-environment baked in, so verify each claim against the source before routing it to a spec.**
-
-**Findings are already routed, so do not re-derive them.** `spec/0.35.0.md` §8a carries the five
-things an unattended driver amplifies (an inflated convergence count from `--merge`'s dedup key,
-`next_action` recommending a registration the phase cannot honour, a truncated audit reporting as
-complete, a dropped role merging clean, exit codes that cannot separate a typo from a failure).
-the repair-locality release carries the repair-verbosity rule with the measurements from v0.35.0's own loop —
-43% of that cycle's findings sat in text the previous round had just written, and one idea arrived
-under 25 distinct class slugs. `spec/0.35.0-candidates.md` §0 names what v0.34.1 and v0.34.2 already
-closed and what moved to a spec — read it first so nothing gets re-opened or claimed twice.
-
-**One corpus fact every future gate must respect — and one this file got wrong, which three specs
-inherited.**
+The two figures quoted most often are untouched: the backlog carries **ground** rounds, and no review
+or audit round moved. What one glob gets catastrophically wrong is anything counting ground rounds.
 
 **WRONG, and corrected here:** this file used to say *"no recorded row carries a `disposition` — 0 of
-12,958; the `resolved` key holds `{evidence, resolved_at}` with no verdict."* The corpus does carry
-the verdict. Measured over `spec/.tp-review/*/*.ndjson`: `resolved` is on **1,406** rows and every one
-of them has three sub-keys — `evidence`, `resolved_at` and **`status`** — with values `fixed` 1,308 and
-`wontfix` 98. tp writes it itself (`tp audit <file> --resolve <id> <fixed|wontfix|duplicate>`,
-`internal/cli/audit_resolve.go:20`). The old sentence was a search for the *key name* `disposition`
-reported as a claim about the *data*, and 0 is the honest answer to that search and to no other
-question. **The derivation, so it cannot rot again:**
-`python3 -c 'import json,glob,collections;c=collections.Counter(json.loads(l)["resolved"]["status"] for f in glob.glob("spec/.tp-review/*/*.ndjson") for l in open(f) if l.strip() and isinstance(json.loads(l).get("resolved"),dict));print(c)'`
-What the corpus genuinely lacks is the **section a repair edited** — the input the repair-locality release's §1.1
-item 1 actually needs, absent for a different reason than the one that was written down.
+12,958; the `resolved` key holds `{evidence, resolved_at}` with no verdict."* The corpus carries the
+verdict: `resolved` has three sub-keys wherever it appears — `evidence`, `resolved_at` and **`status`**
+— and tp writes it (`tp audit <file> --resolve <id> <fixed|wontfix|duplicate>`,
+`internal/cli/audit_resolve.go`). The counts move with every recorded round, so **run the command
+rather than reading a number**; the share does not move, ~93–94% `fixed`. The old sentence was a search
+for the *key name* `disposition` reported as a claim about the *data* — 0 is the honest answer to that
+search and to no other question. **The derivation, so it cannot rot again:**
+`python3 -c 'import json,glob,collections;c=collections.Counter(json.loads(l)["resolved"]["status"] for p in ("spec/.tp-review/*/*.ndjson","spec/backlog/.tp-review/*/*.ndjson") for f in glob.glob(p) for l in open(f) if l.strip() and isinstance(json.loads(l).get("resolved"),dict));print(c)'`
 
-**Still true, and it is the one that kills a replay gate on its own:** a fifth of recorded review
-rounds carry a snapshot whose sha256 is not the `spec_hash` that round recorded — 35 of 168 (20.8%),
-and the distribution is nothing like uniform: **19 of the 35 are v0.31.0 alone**, the last three
-cycles hold 2 in 48 rounds, and the most recent 27 rounds hold none. So the honest form of the
-argument is not "a quarter of the corpus is wrong" but **"the record cannot distinguish a corrupt
-round from a clean one, so 4% and 86% look identical to a reader"** — which survives the rate falling
-to zero. **A gate phrased as "replay the recorded rounds" therefore cannot run**, which three specs
-discovered separately (three separate pending specs) — but two of
-the three withdrew it citing the disposition, which was never the reason. The replacement that works
-is a gate stated as an invariant checkable against a live tree.
+**A gate phrased "replay the recorded rounds" cannot run.** The snapshot is written at emission and the
+`spec_hash` re-read at record, so a round's snapshot need not be the text its round reviewed.
+Re-derived today — strip the `sha256:` prefix before comparing, or every round looks divergent — **35
+of 172 review rounds** and **3 of 108 audit rounds** diverge, 20 further audit rounds predate snapshots
+entirely, and the distribution is nothing like uniform: **19 of the 35 are v0.31.0 alone**, with a
+clean trailing run (42 rounds at this writing; last divergence v0.35.0 round 10). So the honest
+argument is not "a quarter of the corpus is wrong" but **"the record cannot distinguish a corrupt round
+from a clean one, so 4% and 86% look identical to a reader"** — which survives the rate falling to
+zero. **Quote the count, not the percentage, and re-derive it**: every denominator here has moved and
+every numerator has not. `spec/backlog/06a-round-records-the-text-it-read.md` closes it forward by
+hashing at emit; it does not repair the 35. Pending specs withdrew a replay gate citing a missing
+disposition, and **that was never the reason** — the baseline is buildable (review rows carrying
+`resolved.status: fixed` plus both `class` and `location`: **1,276**, canonical round files, both
+globs). A second variant, checking that each finding's `class` still reaches its role, needs a
+`class` → checklist-item mapping that exists nowhere in tp, and **1,984 of 16,853 recorded rows carry
+neither `role` nor `class`**. What the corpus genuinely lacks is the **section a repair edited**, the
+input `spec/backlog/12-repair-locality.md` §1.1 actually needs.
 
-**v0.36.0's own hazard is suppression, and it is gated — but not by a replay.** Every mechanism in
-it hides, regroups or narrows what reviewers see, which is exactly what burned v0.34.0 §7.1 for
-eight rounds. This file used to require that nothing ship until the release was "replayed against
-the recorded rounds in `spec/.tp-review/`". **That instruction was measured and is impossible**, so
-it is withdrawn rather than left as a standing demand no cycle can meet: all recorded review rounds
-have a snapshot, but for **35 of them** the snapshot's sha256 does not equal the `spec_hash` that
-round recorded — the snapshot is written at emission and the hash re-read at record, so that fraction
-of the corpus is not the text its round reviewed, and a replay compares against the wrong spec and
-reports clean. **Quote the count, not the percentage**: the 35 was 22.4% of 156 rounds when first
-measured and is 20.3% of 172 now — **re-derive it rather than reading this sentence: every denominator here has moved and every numerator has not.** Grounding measured review 35 of 172 and audit 3 of 108 today, against the 168 and 97 written here, and the whole drift is v1.0.0's own 4 review and 11 audit rounds. The twelve rounds this once credited to v0.36.0 and v0.37.0 were **v0.37.0's alone**: pre-v0.36.0 review rounds total 141, so 156 is 141+15 —
-the ratio improved while the defect did not, and 19 of the 35 are v0.31.0's cycle alone, so the mean
-is nobody's experience. The audit phase runs 3 of 97, plus 20 rounds predating snapshots there.
-`spec/1.40.0.md` closes it forward by hashing the round's own snapshot; it does not repair the 35.
+**The gate that replaced it is a test, not a procedure** (`spec/0.36.0.md` §6.2.2 properties 7–8, and
+§7 for why breadth is what a fixture cannot buy), and the lesson generalises to any release writing a
+gate: **three drafts specified that one as its own mechanism and each drew more findings than the last
+— 3, then 8, then 11 across rounds 3–5 — while §2, the release's actual clause, went 11 → 2 → 1.** The
+diverging section was the one describing *how to verify* rather than *what must be true*.
 
-A second variant, checking that each recorded finding's `class` still reaches its role, needs
-a `class` → checklist-item mapping that exists nowhere in tp, and **303 of 3,047 recorded rows
-(9.9%)** carry no `role` or `class` at all.
+#### Refuted, not deferred — a refuted predicate is not a backlog item
 
-The gate that replaced it is a test, not a procedure: the per-role emissions, concatenated in the
-unrestricted payload's order, must equal that payload — run against every spec in the repository
-rather than a fixture (`spec/0.36.0.md` §6 test 14, §7). The lesson generalises and is worth keeping
-when the next release writes a gate: **three drafts specified this one as its own mechanism and each
-drew more findings than the last — 3, then 8, then 11 across rounds 3–5, while §2, the release's
-actual clause, went 11 → 2 → 1.** The section that was diverging was the one describing *how to
-verify* rather than *what must be true*.
+**Prototype a candidate rule against this repository's own artifacts before it reaches a spec, and
+budget for most candidates dying there** — each cost minutes; shipping one would have cost a cycle to
+discover in review. `spec/undecided.md` holds what carries no number, in two sections that must not be
+confused: *refuted* (prototyped, did not survive, recorded with the measurement that killed it) and
+*undecided* (a real need whose design has no answer, each naming the decision nobody has taken).
+`spec/candidates.md` is a forwarding stub, not a file to read for content; it stays because references
+to it survive in shipped artifacts that must not be edited.
 
-`spec/feedback.md` is gone: every finding it held now has an owner. Field feedback should land in the
-spec that will answer it, not in a file nobody is required to read.
+- **The unexecutable-split rule.** The broad predicate fired on 21.9% of this repository's tasks, the
+  keyword form on 11 with ~9 false positives, and the `tags: [test]` form on **exactly one task, which
+  is a false positive** — a negative-requirement task whose closure reads *"No production change"*. It
+  cannot be tightened: `tags` is optional and present on well under half the corpus (216 of 551 tasks
+  today), and every stronger signal (`commit_files`) exists only after the task closes, while
+  `tp validate` runs at decomposition.
+- **The contradictory-comparator rule**, prototyped over every `spec/*.md` at `v0.36.0` and `v0.37.0`:
+  **2 groups, both false positives, zero true positives**, and the same-section narrowing flags zero on
+  anything. Its claimed true positive is in no tagged state of the repository, and the false positives
+  are systematic rather than incidental, so it would have kept firing.
+- **The example-table lint rule**, in both forms its spec named: the keyword-and-shape heuristic fires
+  on 3.9–22.6% of this repository's spec sections against a shipped bar of *zero* false positives, and
+  the narrower form reads task acceptance criteria — data that does not exist when `tp lint` runs,
+  since lint is workflow step 2 and decomposition is step 5.
+- **The corpus-replay gate**, for the snapshot reason above.
+
+#### Lessons that outlived their release
+
+- **When a repair's own defect is found three rounds running, suspect the requirement.** Four of
+  v0.37.0's audit rounds chased an implementation defect that was a requirement defect: a carve-out
+  written when the fence was single-base, incompatible with per-base correctness. Each of three repairs
+  had its own defect found by the round after; the fix *deleted* code once the diagnosis moved from the
+  sink to the row.
+- **A review loop can stop converging on count, and the rule that ends it must be written before the
+  round that tests it.** v0.37.0's counts ran 65, 56, 51, 47, 48, 60, 42, 40, 45, 53, 54, 69 — flat.
+  What ended it came from outside the loop's own inputs: ~50 findings a round against its shipped
+  twin's ~5 for normative sections **8% smaller**, with 24% of the file forensics each repair round had
+  written for the next round to review. `implementer` then answered the only question that mattered —
+  19 tasks with 8 blocked became 20 with **0** — and the pre-registered rule fired as written.
+- **Field feedback arrives with the reporter's environment baked in, so verify each claim against the
+  source before routing it to a spec.** Two did not survive that check: *diagnostics poison `--json`*
+  (false — `output.Notice` has written to stderr since v0.31.2; their runtime merged the child's
+  streams) and *`--record` accepts a missing file* (false — `review_record.go` exits `ExitFile`).
+
+**Findings already routed, so do not re-derive them.** `spec/0.35.0.md` §8a carries the five things an
+unattended driver amplifies. `spec/0.35.0-candidates.md` §0 names what v0.34.1 and v0.34.2 already
+closed and what moved to a spec; its §16 (the pre-release mutation run) and §17 (two degraded-scan
+repairs choosing different channels) are deliberate non-fixes — read them before opening a release.
+`spec/feedback.md` is gone: field feedback lands in the spec that will answer it, not in a file nobody
+is required to read.
 
 ### Deferred Ideas (evaluate when agent feedback warrants)
 - 📋 **Next version's candidates live in `spec/0.35.0-candidates.md`** — read it before writing a new spec. It carries what the v0.34.0 cycle accepted with recorded justification because its own Non-Goals fenced it out, rather than judged harmless.
