@@ -29,6 +29,14 @@ type lintResult struct {
 	// reads as an older tp rather than as a zero.
 	FloorSize int `json:"floor_size"`
 	Cut       int `json:"cut"`
+	// ReviewPanel is §2's third field: the reviewer role ids a round-1
+	// `tp review <spec>` emission of this spec carries, with no
+	// --diff-from. A list rather than a count, because a count cannot say
+	// WHICH role is missing. No omitempty, for the same reason as the two
+	// fields above, and it is built with make rather than declared: a nil
+	// slice serializes as null here, and every other list field in this
+	// payload answers [].
+	ReviewPanel []string `json:"review_panel"`
 }
 
 // lintFrontmatter is the frontmatter object of tp lint --json output.
@@ -50,6 +58,32 @@ func lintRoleCorpusOrAbort(specPath string) {
 			os.Exit(ExitFile)
 		}
 	}
+}
+
+// lintReviewPanel is §2's `review_panel`: the reviewer role ids a round-1
+// `tp review <spec>` emission of this spec carries, with no --diff-from.
+//
+// It goes through engine.ResolveRolePanel, the pure half §7's split created, so
+// lint gains no second derivation of a panel tp already resolves. The wrapper in
+// review.go is deliberately not the call: it refuses — exit 2 on an emptied
+// reviewer phase — and it writes the two advisory output.Notice loops, and lint
+// describes a spec rather than refusing one or gaining a stderr channel it has
+// never had (§7's table, third row).
+//
+// An error means the corpus would not resolve, which lintRoleCorpusOrAbort has
+// already exited 3 on for a malformed role file; what survives to here is the
+// embedded corpus failing to load. There is no panel to name, and lint is
+// read-only, so it reports the empty list rather than guessing at one.
+func lintReviewPanel(specPath string) []string {
+	ids := make([]string, 0)
+	panel, err := engine.ResolveRolePanel(specPath, engine.PhaseReviewers)
+	if err != nil {
+		return ids
+	}
+	for i := range panel.Roles {
+		ids = append(ids, panel.Roles[i].ID)
+	}
+	return ids
 }
 
 func newLintCmd() *cobra.Command {
@@ -153,6 +187,7 @@ func runLint(_ *cobra.Command, args []string) error {
 		StructuredElements: structElems,
 		FloorSize:          floorSize,
 		Cut:                len(floorRows) - floorSize,
+		ReviewPanel:        lintReviewPanel(specPath),
 	}
 	for _, f := range findings {
 		switch f.Severity {
