@@ -478,6 +478,45 @@ repository at all — the hook prints its scope-fence message and exits **2**.
 a workaround rather than a wrong result. What has to be weighed is the other direction: an anchor that
 is wrong is a fence that silently stops fencing, and that is a worse failure than the one it removes.
 
+### `frontmatter-key-namespace` — a fixture whose frontmatter configures nothing
+
+**The decision: which predicate.** Two are on the table, they catch different defects, and the
+obvious one is the weaker.
+
+**What it would catch.** A test fixture writes spec frontmatter to put the code under test into a
+particular configuration, and the block does not do it. Two ways for that, both measured in this
+repository during 1.0.1's audit:
+
+1. **The key is outside the `tp:` mapping.** tp reads only `tp:`, so a top-level `domain:` key is
+   inert. Three instances, all repaired at `c00266a0`: `internal/cli/lint_review_panel_test.go`,
+   `internal/cli/role_panel_split_test.go`, `internal/engine/rolepanel_test.go`.
+2. **The key is live but its value is the parser's default.** `ParseFrontmatter` returns
+   `software` for a spec carrying no frontmatter at all, so a fixture declaring `tp.domain: software`
+   is indistinguishable from one declaring nothing. One instance, found the round after the repair
+   above and fixed by polarising the fixture — see `spec/1.0.1-measurements.md` §16 for the mutant
+   that survived and the three panels measured.
+
+**Predicate 1 is the obvious one and it misses the defect that matters.** The second instance's key
+is *inside* `tp:`; a namespace check reads it as correct. Only a default-value check reaches it, and
+that is the one that cost a round to find, because a fixture in class 2 is green under a mutant that
+deletes the whole frontmatter read. Class 1 is the cheaper check and the shallower defect.
+
+**Prototype first, and expect it to die there.** This repository's rule is that most candidate rules
+do. Two things to measure before it reaches a spec:
+
+- **The corpus is Go string literals, not markdown.** Swept at `HEAD`: **78** lines across **19** Go
+  files carry a literal `\n---`, and **zero** `.md` files under `internal/` carry a frontmatter
+  block. So the rule cannot be a `tp lint` rule over spec files — its subject is test source, which
+  puts it in the same family as `scripts/check-test-inventory.py` rather than in the lint table. Both
+  the file set and the parse are harder than a lint rule's.
+- **Predicate 2's false-positive rate is unmeasured, and it has an obvious source**: a fixture may
+  declare the default *on purpose*, as the control arm of a pair. A rule that cannot tell a control
+  from a dud fires on both.
+
+**One instance of class 2 is not a class.** Predicate 1 has three; predicate 2 has one, and one
+instance is a bug report, not a rule. What would change that is a sweep of the other 18 files for
+fixtures whose declared value equals the parser's default — not run, and the honest reason the entry
+is here rather than in a release.
 ---
 
 ## Fog — in scope, not yet sharp enough to state as a question
