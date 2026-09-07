@@ -411,6 +411,28 @@ them. **The `tp audit --merge` breakdown is a different surface and shipped sepa
 `by_severity` through `engine.AuditSeverityBucket` in `internal/cli/audit_merge.go`, on the merged
 payload rather than on the round's convergence signal.
 
+### 5a.4 A review-side `accepted_blocking`
+
+**The decision nobody has taken is whether an accepted blocking finding gets a counter of its own.**
+The review side already emits `nonblocking_open`, and it fires only for the case that does not matter.
+Measured at `5058fc99` on three one-round trees built from the same spec:
+
+- a round recorded from a zero-byte findings file — `clean: true`, `consecutive_clean: 1`;
+- a round holding one `critical` finding resolved `wontfix` with evidence — `clean: true`,
+  `consecutive_clean: 1`;
+- a round holding one **open** `medium` finding — `clean: true`, `consecutive_clean: 1`, and
+  `nonblocking_open: 1`.
+
+`tp review <spec> --status` on the first two returns payloads whose **key sets are identical** — the
+symmetric difference is empty — so no key names the accepted critical. The only value that moves is
+`review_rounds[].findings`, 0 against 1, which says nothing about severity or disposition. The third
+differs from the first by exactly one key, `nonblocking_open`. So the surface announces the harmless
+case and is silent on the one a reader would want stopped at.
+
+An `accepted_blocking` count — rows excluded from the surviving set whose severity is blocking —
+would close it. It is here rather than in §2 because it is review-side, and §2's subject is the audit
+side; it is true at `HEAD` and depends on nothing this file proposes.
+
 ## 6. Tests
 
 Every row derives from a numbered decision, names the artifact it depends on, and names a mutant that
