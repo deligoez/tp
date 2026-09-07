@@ -1,14 +1,24 @@
-# tp v0.37.1 — Two defects with fixes already measured
+# tp v1.0.1 — A finding can leave a round
 
-> **This file is decisions, and it is a patch release.** Both defects below were reproduced by a test
-> that failed against `HEAD`, fixed, and re-run green with the full suite passing. That this happened
-> *before* the file was written is the author's own report and nothing in the tree can settle it — no
-> test for either fix exists at `HEAD`, so that run left no committed trace. What is checkable is that
-> it reproduces: ground round 1 (`spec/.tp-review/0.37.1/ground-round-1.ndjson`) built both fixes in an
-> `rsync` copy, wrote the probes before touching the code, and watched five of the six §5 rows it
-> covered red at `HEAD` and green after — with row 4 green in both states, exactly as §5 predicts.
-> Nothing here is a behaviour change beyond the defect; the two minor releases that specified these
-> items keep everything else they carry.
+> **This file is decisions.** It carries two defects whose fixes were built and measured before it was
+> written, three repairs to what tp *tells* its reader, and one change to what a round's rows mean. The
+> theme is one sentence: **a finding leaves a round either as a spec change or as a `--resolve`
+> disposition, there is no third way out, and `--status` says which happened.** Two field reports
+> measured all three of the places that sentence is false today.
+>
+> **It was `spec/0.37.1.md` and is now `spec/1.0.1.md`, and the rename is forced rather than cosmetic.**
+> `.claude-plugin/plugin.json` is read twice — Claude Code resolves plugin updates from it, and
+> `hooks/session-start.sh` reads the same field as the **minimum tp version**. It says `1.0.1`. Tagging
+> `v0.37.1` would tell everyone who installed that binary their tp is too old, so after `v1.0.0` there
+> is no 0.x release. §4.1 records the one place this file's original bar had to move, and why.
+>
+> For the two pre-measured defects (§2, §3): both were reproduced by a test that failed against `HEAD`,
+> fixed, and re-run green with the full suite passing. That this happened *before* the file was written
+> is the author's own report and nothing in the tree can settle it — no test for either fix exists at
+> `HEAD`, so that run left no committed trace. What is checkable is that it reproduces: ground round 1
+> (`spec/.tp-review/1.0.1/ground-round-1.ndjson`) built both fixes in an `rsync` copy, wrote the probes
+> before touching the code, and watched five of the six §9 rows it covered red at `HEAD` and green
+> after — with row 4 green in both states, exactly as §9 predicts.
 
 ## 1. Why a patch and not a reordering
 
@@ -167,15 +177,149 @@ current write site, so they are copied before that call rather than re-read at t
 **Why it matters more than a stray file.** A round on disk because someone mistyped a flag is a round
 about nothing, `--status` reports a directory's existence, and a typo is the likeliest cause.
 
-## 4. Non-Goals
+## 4. An accepted audit finding can clear the round
 
-1. **No third defect.** §1 names the two that were held back and why.
-2. **No new recorded field, no new flag, no config.** §2's fix is internal. §2.1 is not: it adds three
-   keys to `next_action.payload`, an agent-facing JSON contract documented at
-   `skills/tp/REFERENCE.md:98`, and that file is owed an update (§2.1). What it adds nothing to is a
-   *recorded* round file or `state.json` — which is the test §1's bar actually states.
-3. **No convergence change.** `clean`, `consecutive_clean` and `--check` read neither field; §2 changes
-   what a driver is told and §3 changes when a file is written.
+**Measured at `HEAD`.** A `FAIL` row dispositioned `wontfix` with evidence, written into the round's
+own **recorded** file — not into the merged input, which is the mistake `skills/tp/SKILL.md` used to
+document — changes nothing:
+
+```
+$ tp audit .tp-review/alpha/audit-round-1.ndjson --resolve spec-coverage:i1 wontfix "accepted, out of scope"
+resolved audit row spec-coverage:i1 as wontfix
+$ tp audit alpha.md --status
+{'consecutive_clean': 0, 'converged': False, 'spec_coverage_clean_rounds': 0}
+role_streaks: [{'role': 'spec-coverage', 'consecutive_clean': 0, 'open': 1}]
+rounds     : [(1, clean=False, findings=1)]
+```
+
+The same disposition on the review side takes `consecutive_clean` from 0 to **1**, because
+`engine.ReviewRoundClean` recomputes a recorded round live from its rows and drops
+`wontfix`/`duplicate` carrying evidence. Audit has no counterpart: `clean` is stamped at record and
+`auditRoundOpenByRole` (`internal/engine/rolestreaks.go:128`) reads `AuditRowIsPass` alone, never
+`resolved`.
+
+**So on the audit side there is no way to accept a finding.** The only exits are repairing it or
+destroying the record, and a cycle that has decided to ship over a known, justified finding cannot say
+so. That is the mechanism behind the operator's complaint that cycles drag on, and it pairs with §7's
+half: on the review side the channel works and is invisible; on the audit side it is visible and does
+nothing.
+
+**The surviving set is computed live; the policy is not.** `AuditRoundClean(specPath, entry)` reads the
+round's recorded rows, drops every row closed `wontfix` or `duplicate` **with evidence**, and grades
+what remains. `fixed` does not close a round — a repair is a claim about the code and the next round is
+what tests it — which is the rule §7 states for review and is unchanged here.
+
+**This preserves `spec/0.37.0.md` §2's reason and changes its letter, and the distinction is the whole
+design.** §2 stamped `clean` so that a round could not be re-graded under a policy adopted after it was
+recorded. That is about **which policy grades**, not about **which rows are alive**. Dispositions are
+the second question, so the stamp keeps its job: the round entry records the `audit_converge_on` in
+force when it was recorded, and `AuditRoundClean` grades the surviving rows under **that** value,
+re-read never. A round recorded under `all` stays graded under `all` however the project is configured
+later.
+
+### 4.1 This adds a recorded field, and §1's bar is amended rather than stretched
+
+§1 says a defect qualifies only if it "needs no new recorded field." **This one does**: the round entry
+(`engine.ReviewRound`, shared by both phases) gains the `audit_converge_on` in force at record time.
+There is no design that both keeps §2's reason and adds no field — grading the surviving rows requires
+a policy, and the only policies available are the one in force now (which §2 forbids) and one that was
+written down.
+
+Two candidates were rejected rather than overlooked. **Grading live under the current policy** is what
+review does and it needs no field, but it is exactly what §2 refused for audit, and "review does it"
+is not an argument about audit. **Leaving `clean` alone and fixing only `open`/`role_streaks`** needs
+no field either and was the first draft here; it is refused because it makes the two disagree — a round
+would report `open: 0` and `clean: false`, and `--check` reads the second.
+
+So the bar moves, explicitly: this release adds **one** field to a recorded entry, and nothing else.
+Saying so here is cheaper than discovering it in review — `spec/0.37.0.md`'s §7 row 13 spent four audit
+rounds on a requirement that was wrong rather than on an implementation that was.
+
+## 5. One predicate, not two
+
+`open`, `role_streaks`, `spec_coverage_clean_rounds` and `--check` must all be derived from the
+function §4 introduces. `parseAuditRows` already requires this of its callers in prose; two predicates
+are two things to drift, and the drift is invisible because both produce plausible integers.
+
+`next_action` follows the same set: when every non-`PASS` row in the latest round carries a
+disposition, it says the round is disposed and the next step is to re-audit — not "address the
+findings, then re-audit", which is what a reader is told today after resolving everything.
+
+## 6. tp names every file it writes
+
+Three surfaces write a file and do not say which:
+
+| surface | today | after |
+|---|---|---|
+| `tp review\|audit <spec> --record <f>` | `{round, findings, clean, …}` | the same plus **`file`**, the recorded round's path |
+| `tp set --workflow <k>=<v>` | `{"updated": {…}}` | the same plus **`file`** |
+
+The `--project` branch of `tp set --workflow` already prints both the path it wrote and a warning when
+the value is shadowed; the task branch prints neither, and a field report traced a `checks` value
+silently landing in **another spec's** task file to exactly that asymmetry.
+
+`--record`'s `file` is what makes §7 actionable: the disposition belongs in the file `--record` wrote,
+and without the key a reader has to know the path shape `spec/.tp-review/<base>/<phase>-round-<N>.ndjson`
+by heart.
+
+## 7. `--resolve` is a command, and the emitted instruction says so
+
+A field cycle ran **8 review rounds and recorded 584 findings with 0 dispositions**. `--resolve` was
+never called, in either spelling. The emitted `instruction` is the reason:
+
+```
+For each prompt, spawn a sub-agent via the Agent tool. Merge findings (tp review --merge), verify and
+resolve them, then record the round: tp review <spec> --record <findings.ndjson>. Repeat until
+tp review <spec> --status --check exits 0.
+```
+
+`--merge`, `--record` and `--status --check` are named as commands. **`resolve` is the one step in the
+sentence that is a bare verb, and it is the one step that is also a flag.** Its author read it as
+ordinary English for eight rounds, and the document grew 852 → 1547 lines because editing the spec was
+the only exit a finding appeared to have.
+
+The line names `tp <phase> <findings> --resolve <idx> <fixed|wontfix|duplicate> [evidence]` alongside
+the other three. And `--help` gains the usage line: today the flag's description carries the selector
+shape but the positional order appears only after you trigger the error.
+
+## 8. Also shipped in this release
+
+These are already committed and are listed so the release notes and the tree agree. They are fence
+repairs, measured by running the hooks rather than reading them:
+
+- **Both write fences read the path argument `mcp__codedbpro__replace` actually sends.** Both matchers
+  name the tool; both extracted only `file_path`/`notebook_path`/`file`, and replace names its target
+  `path` or `paths`. Measured on a fenced path: `Write` and `create` exit 2, `replace` exited **0**
+  under both spellings. The role allowlist had the same hole, where failing open lets a role unit
+  rewrite the spec or another role's round.
+- **`mcp__codedbpro__batch` reaches both fences.** It carries a nested write while the tool name on the
+  call is `batch`, and neither matcher named it — so a batched write was never routed to either hook at
+  all. The scripts were already correct: handed a batch payload directly, the deny script exits 2.
+  Only the matchers were short, which made this a wider hole than the first — `replace` was at least
+  called.
+- The plugin manifest is bumped so both reach installed users, and the session-start test's
+  near-boundary version is derived from the minimum instead of pinned, after a literal `v1.0.0` in it
+  went stale on the same bump.
+
+## 9. Non-Goals
+
+1. **No third pre-measured defect.** §1 names the two that were held back and why. §§4–7 are a
+   different class: they close what two field reports measured, and each names the report line it
+   closes.
+2. **No new flag and no config.** §2's fix is internal. Two things are not: §2.1 adds three keys to
+   `next_action.payload`, an agent-facing contract documented at `skills/tp/REFERENCE.md:98`; and §4
+   adds one field to a recorded round entry. §4.1 states that the bar moved and why no design avoids
+   it. Nothing here adds a flag, a config key or a command.
+3. **One convergence change, scoped to one signal.** §4 changes which rows survive into the audit
+   grade, and nothing else: not what a round records beyond the stamped policy, not the panel, not the
+   `spec_hash`, not the review side. §2 changes what a driver is told and §3 changes when a file is
+   written; neither touches convergence. **This makes the release loop-class rather than tool-class**,
+   so budget it as such — the corpus median is ~23 rounds for a release that changes a convergence
+   signal against ~11 for one that does not. The stopping rule is stated up front: if the finding count
+   does not fall after a cut, the problem is the loop and not the document.
+4. **Not the review side's discoverability, beyond the emitted string.** §7 fixes what tp *says*. The
+   deeper half — that `--resolve` writes to whichever file it is handed, and a disposition in the
+   merged input reaches nothing — was fixed in `skills/tp/SKILL.md` and needs no code here.
 4. **No repair of past state.** `unresolved_findings` is computed on read, so every recorded round
    reports correctly the moment this ships. A state directory an earlier refusal created is
    indistinguishable from a legitimately emitted round that was never recorded, and is left alone.
@@ -188,7 +332,7 @@ about nothing, `--status` reports a directory's existence, and a typo is the lik
    clause. This release does not make the vacuity structural, and test row 4 measures the corpus
    behaviour rather than a guarantee.
 
-## 5. Tests
+## 10. Tests
 
 Every row derives from a numbered decision and names a mutant that must fail it. Only row 1 rests on a
 committed artifact — v0.37.0's round 7, read at test time with its own properties asserted rather than
@@ -211,6 +355,14 @@ author (`internal/cli` 53.7s, `internal/engine` 30.5s) and independently in grou
 | 6 | §3 *scope* | a `--role` invocation that **emits at least one prompt** still writes its snapshot, and the bytes equal the spec **before** frontmatter blanking | drop the write instead of moving it, or move it after `BlankFrontmatter` |
 | 7 | §3 *other refusals* | the same holds for every argument tp rejects before emitting — asserted over the refusal set | fix the `--role` branch alone, leaving every sibling refusal writing state |
 | 8 | §2.1 | the payload carries `rows_recorded`, `findings_total` and `findings_closed`, and `unresolved_findings == findings_total - findings_closed` holds on every fixture in this table | emit `rows_recorded` and `findings_closed` alone — measured, that pair leaves the shipped loop's 103 arithmetically consistent with a 106-row round; or compute a counter from a second read of the round, which can disagree with the count it explains |
+| 9 | §4 | a one-`FAIL` audit round, resolved `wontfix` with evidence in its **recorded** file, takes `consecutive_clean` 0 → 1 and `role_streaks[].open` 1 → 0 | the shipped stamp, which returns `clean: false` and `open: 1` — the transcript in §4 is this mutant's output |
+| 10 | §4 *fixed* | the same row resolved `fixed` does **not** clear the round | close on any disposition, which would let a repair certify itself instead of leaving the next round to test it |
+| 11 | §4 *evidence* | `wontfix` with an empty or absent evidence string does not clear the round | drop the evidence requirement, making acceptance free |
+| 12 | §4 *stamped policy* | a round recorded under `audit_converge_on: all` still grades under `all` after the project is reconfigured to `blocking`, and the reverse | read the policy live at `--status` time — the mutant that looks correct on a project whose policy never changes, which is every fixture that does not deliberately change it |
+| 13 | §5 | `open`, `role_streaks`, `spec_coverage_clean_rounds` and `--check` agree with `clean` on a round with one disposed and one open finding | give `open` its own predicate; measured over the same fixture the two disagree while both stay plausible |
+| 14 | §5 *next_action* | with every non-`PASS` row disposed, `next_action` names re-auditing rather than addressing findings | leave the string static, which is what a reader is told today after resolving everything |
+| 15 | §6 | both `--record` payloads and `tp set --workflow`'s task branch carry `file`, and the path each names is the file that changed on disk | assert the key's presence alone — a constant string passes that and names nothing |
+| 16 | §7 | the emitted `instruction` names `tp <phase> <findings> --resolve <idx> <status>` as a command, and `--help`'s usage line carries the positional order | keep `resolve` as a bare verb; the field measurement (584 findings, 0 dispositions over 8 rounds) is what this row is worth |
 
 **Row 7 is quantified over the refusal set deliberately, and it guards against regression rather than
 sweeping extant siblings.** §3's transcript is one refusal, chosen because it is the one that was
