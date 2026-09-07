@@ -35,8 +35,12 @@ type Finding struct {
 	Hint     string `json:"hint,omitempty"`
 }
 
-// blankInlineCode replaces the contents of every `…` span with spaces, keeping
-// the line's length so a finding's column arithmetic is unaffected. A vague word
+// blankInlineCode replaces the contents of every `…` span with spaces, one space
+// per rune. It is rune-preserving, not byte-preserving: a multi-byte rune blanks
+// to a one-byte space, so a span holding `café` comes back a byte shorter. Neither
+// count is load-bearing — Finding has no column field, so there is no column
+// arithmetic to unsettle — but every character outside the spans keeps its
+// position, which is what leaves a line's shape intact. A vague word
 // inside backticks is being *named* rather than used — which is how a document
 // discussing this rule must write its own trigger list — and reporting it makes
 // the rule unquotable in its own documentation.

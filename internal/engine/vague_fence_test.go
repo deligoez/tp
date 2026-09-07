@@ -128,13 +128,13 @@ this block never closes, and mentions as appropriate
 //
 // The sibling has to be CheckBrokenCrossRefs, and the referenced section has to
 // hold a numbered list. Neither is a stylistic choice, and both cost this row a
-// round when it was written the other way: blankInlineCode is length-preserving,
-// so equal lines stay equal and every duplicate rule is invariant under a mutant
-// that blanks spans for it (measured 1→1 for duplicate-line, duplicate-paragraph
-// and orphan-list-item, while numbering-gap takes []*Heading and never sees a
-// line); and sectionStepCounts admits only sections that hold a numbered list, so
-// a listless target gives broken-cross-ref 0 at HEAD and 0 under the mutant and
-// separates nothing.
+// round when it was written the other way: blankInlineCode rewrites each line the
+// same way, so equal lines stay equal and every duplicate rule is invariant under
+// a mutant that blanks spans for it (measured 1→1 for duplicate-line,
+// duplicate-paragraph and orphan-list-item, while numbering-gap takes []*Heading
+// and never sees a line); and sectionStepCounts admits only sections that hold a
+// numbered list, so a listless target gives broken-cross-ref 0 at HEAD and 0
+// under the mutant and separates nothing.
 //
 // The mutant this test was observed failing against is blankInlineCode inserted
 // into CheckBrokenCrossRefs, mirroring its use in CheckVagueLanguage. Under it,
