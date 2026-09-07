@@ -517,6 +517,28 @@ instance is a bug report, not a rule. What would change that is a sweep of the o
 fixtures whose declared value equals the parser's default — not run, and the honest reason the entry
 is here rather than in a release.
 
+### A fenced command that runs and prints the wrong thing
+
+**The decision: what a fenced-command check compares its output against.** §4.1 of `spec/1.0.1.md`
+asks that every fenced command run and print something. That is a liveness check, and liveness is
+not truth.
+
+**The instance, from this release's own audit round 3.** `README.md`'s *"What grounding finds"*
+block, added at `8dfa6fb3`, globbed only `spec/.tp-review/*/` — while this repository's ground rounds
+also live under `spec/backlog/.tp-review/*/`, the two-glob trap `CLAUDE.md` documents. The command
+ran, exited 0 and printed a full set of numbers; not one of them was a figure the prose beside it
+stated, and adding the second glob printed a third set again. Nothing in §4.1's rule can see that,
+because the rule's subject is whether output appeared. The repair was to add the second glob and
+delete the prose figures, which is what §4's own *"a number does not live in a spec, a reference
+does"* already asks for.
+
+**Prototype first, and expect it to die there.** The obvious predicate — re-run each fenced command
+and compare its output against the figures in the surrounding prose — needs a mapping from a figure
+in prose to a position in a command's output, and that mapping exists nowhere. The weaker one, *"a
+fenced derivation must not sit beside a literal number the prose asserts"*, is checkable and would
+fire across much of this corpus; whether it fires anywhere it should is unmeasured, and this
+repository's bar is zero false positives at warning severity.
+
 ---
 
 ## Fog — in scope, not yet sharp enough to state as a question
