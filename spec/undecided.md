@@ -539,6 +539,21 @@ fenced derivation must not sit beside a literal number the prose asserts"*, is c
 fire across much of this corpus; whether it fires anywhere it should is unmeasured, and this
 repository's bar is zero false positives at warning severity.
 
+### The `implementation-detail` lint over spec prose
+
+**The decision: what the predicate is, before whether it is worth having.** `spec/1.1.0.md`'s
+*Alternatives considered* names this rule and does not take it. Nothing has been prototyped — there is
+no candidate predicate, no run over this repository's own `spec/*.md`, and therefore no
+false-positive rate to hold against the zero-at-warning-severity bar.
+
+**Prototype first, and expect it to die there.** The rule this repository applies to every lexical
+candidate applies here unchanged: run it over `spec/*.md`, and over the pre-repair text of the defect
+that motivated it, before any spec names it as a decision. The motivating defect is on record —
+`v1.0.1`'s cycle spent five grading rounds refuting five successive sets of sentences about `tp lint`
+fields that did not exist yet, and `spec/1.1.0-measurements.md` carries it. What a candidate must
+separate is that text from the acceptance rows in the same documents, which name commands, fields and
+exit codes legitimately; the *Refuted* entries above are what happens when a candidate cannot.
+
 ---
 
 ## Fog — in scope, not yet sharp enough to state as a question
