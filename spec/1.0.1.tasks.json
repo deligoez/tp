@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.1.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-07T16:14:48.780218Z",
+  "updated_at": "2026-09-07T16:25:20.639817Z",
   "workflow": {
     "review_max_rounds": 2
   },
@@ -284,7 +284,7 @@
     {
       "id": "reference-floor-size",
       "title": "REFERENCE.md distinguishes the two floor_size quantities",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -296,11 +296,18 @@
       "source_sections": [
         "## 2. What `tp lint` adds"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-07T16:16:39.274753Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-07T16:25:20.629139Z",
+      "closed_reason": "- Criterion 1 — REFERENCE.md gains \"### `floor_size` — one name, two quantities\" at the end of the Grounding section, right after the paragraph that already equates `tp ground --status`'s `emitted` with `ungrounded.floor_size`. It states that all three `floor_size` keys count uncut floor units and differ only in the text counted: `tp lint`'s is the spec as it stands on disk, `tp review`'s `ungrounded.floor_size` (and `--status`'s `emitted`) is the latest emitted round's frozen index, and `tp ground \u003cspec\u003e`'s emission envelope is where the two coincide by construction; `cut` splits the same way. The condition is stated explicitly — they agree while the spec's text has not changed since the latest emission, and that condition is sufficient rather than necessary.\n- Criterion 2 — Written after running both, not from the brief. Measured on spec/1.0.1.md at 492a0691: `tp lint spec/1.0.1.md` reported floor_size 96 / cut 43, while `tp ground spec/1.0.1.md --status` reported round 3's emitted 54 / cut 28 — 96 against 54 on one spec. In an rsync copy of the same tree, `tp ground spec/1.0.1.md` emitted round 4 from that unedited text with floor_size 96, after which `--status` read emitted 96 / cut 43 and the gap closed. `tp review spec/1.0.1.md` cannot emit here (round budget exhausted at 2), so `ungrounded` was observed on a throwaway spec instead: round 1 froze 3 units and lint / emitted / ungrounded.floor_size all read 3; adding a section moved lint to 5 while emitted and ungrounded.floor_size stayed 3; a compensating edit (delete that section, reword a surviving unit) put all three back at 3 while the live text_sha read 1638df7a4a1f against the frozen index's 982cda2bc138 — the measurement behind \"sufficient, not necessary\".\n\n`tp lint skills/tp/REFERENCE.md` is unchanged against its baseline: 1 error, 6 warnings, 35 info, the same seven non-info findings, all pre-existing. Quality gate green: check-suite-state.sh 0, golangci-lint 0, check-deadcode.sh 0, check-complexity.sh 0.\n\nThree corrections to the brief. (1) It names two quantities under one name; there are three `json:\"floor_size\"` keys under internal/ (cli/lint.go, cli/ground.go, engine/groundadvisory.go) carrying two quantities — `tp ground \u003cspec\u003e`'s emission envelope is the third key, and the paragraph names it. (2) \"You may not need an emission at all\" held for the divergence but not for `ungrounded`, which never appears while every floor unit is dispositioned — spec/1.0.1.md's round 3 is 54/54, so LatestGroundAdvisory returns nil there. (3) The write fence blocks hand-editing round files even in an rsync copy under /tmp, so the planned probe of shortening ground-round-3.ndjson was refused; emitting a fresh round in the copy replaced it.\n",
+      "gate_passed_at": "2026-09-07T16:25:20.629139Z",
+      "commit_sha": "e69c6151",
+      "commit_shas": [
+        "e69c6151"
+      ],
+      "commit_files": [
+        "skills/tp/REFERENCE.md"
+      ]
     }
   ]
 }
