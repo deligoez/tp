@@ -173,6 +173,30 @@ gives **13, 10, 9, 11, 9, 8** files for rounds 2 through 7. Far smaller than the
 still not small enough: two of the six exceed `CodeFileCap`, so re-basing does not make the cap stop
 biting.
 
+**The cap is structural, not incidental — a second instance, from v1.0.1's audit.** That release
+changed **240** Go files against `v1.0.0`, and one commit is **223** of them: `fa68051b`, whose whole
+diff is 1,027 added lines and zero deleted, every added line reading `t.Parallel()`. The file that
+sweep made racy — `internal/cli/notice_once_internal_test.go`, where two callers of a helper that
+swaps `os.Stderr` were parallelised — ranks **145 of 240** alphabetically and **125 of 240** by
+churn. At `CodeFileCap` = 10 neither ordering brings it inside the cap in any round, so no
+auto-detected checklist could have surfaced it; what found it was the project gate, going red on one
+run and green on the next. **§2's churn ranking is not the answer to a mechanical sweep**: its files
+differ in churn only by how many `t.Parallel()` lines each received, which is a statement about how
+many test functions a file holds and not about risk.
+
+Derivation at `02ce05ef`:
+
+```bash
+git -c diff.external= diff --no-ext-diff --name-only v1.0.0...HEAD -- '*.go' | sort -u | wc -l
+git -c diff.external= show --no-ext-diff --name-only --format= fa68051b -- '*.go' | sort -u | wc -l
+git -c diff.external= show --no-ext-diff --format= -U0 fa68051b | grep '^+' | grep -v '^+++' \
+  | sed 's/[[:space:]]//g' | sort | uniq -c
+git -c diff.external= diff --no-ext-diff --name-only v1.0.0...HEAD -- '*.go' | sort -u \
+  | grep -n notice_once_internal_test.go
+git -c diff.external= diff --no-ext-diff --numstat v1.0.0...HEAD -- '*.go' \
+  | awk '{print $1+$2, $3}' | sort -rn | grep -n notice_once_internal_test.go
+```
+
 ## 3. A universe the operator named is not truncated
 
 `AuditFileInputs.DiffUnmeasured` is set at `internal/cli/audit.go:335` when `--affected-files` or
