@@ -35,10 +35,56 @@ type Finding struct {
 	Hint     string `json:"hint,omitempty"`
 }
 
+// blankInlineCode replaces the contents of every `…` span with spaces, keeping
+// the line's length so a finding's column arithmetic is unaffected. A vague word
+// inside backticks is being *named* rather than used — which is how a document
+// discussing this rule must write its own trigger list — and reporting it makes
+// the rule unquotable in its own documentation.
+func blankInlineCode(line string) string {
+	out := []rune(line)
+	inSpan := false
+	open := 0
+	for i, r := range out {
+		if r != '`' {
+			continue
+		}
+		if inSpan {
+			for j := open + 1; j < i; j++ {
+				out[j] = ' '
+			}
+			inSpan = false
+			continue
+		}
+		inSpan, open = true, i
+	}
+	return string(out)
+}
+
 // CheckVagueLanguage scans lines for vague words and returns findings.
+//
+// Fenced code block contents (between ``` delimiters) are excluded, matching the
+// four other rules in this file, and inline `…` spans are blanked before matching.
+// Both exclusions exist for the same reason and it is not stylistic: without them
+// the rule fires on documentation of itself. It reported a sample review finding
+// reading `'appropriate' is vague` inside a fenced block in this repository's own
+// specs, and a citation of its own trigger word inside backticks.
+//
+// An unterminated fence is treated as open to end of file, which is what the
+// sibling rules do; a third behaviour here would be a new asymmetry rather than a
+// repair of the existing one.
 func CheckVagueLanguage(lines []string) []Finding {
 	var findings []Finding
+	inFence := false
 	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "```") {
+			inFence = !inFence
+			continue
+		}
+		if inFence {
+			continue
+		}
+		line = blankInlineCode(line)
 		for _, vw := range vagueWords {
 			if vw.Pattern.MatchString(line) {
 				findings = append(findings, Finding{
