@@ -337,6 +337,44 @@ the only knob that answers it.
 **It is fixed here because a gate that randomly reddens is a gate people learn to re-run.** That
 habit is what makes §1.1's third row — *temporarily skipping (flaky on CI)* — a thing someone writes.
 
+## 6a. A gate step that is green on the first run and red on the second
+
+§6 is about a test whose *threshold* a tail defeats. This is the same class arriving by a different
+route — a gate step that is honestly green and honestly red on the same tree, minutes apart — and it
+is recorded here because it was found by running the gate twice, not by reading anything.
+
+**Measured during `spec/1.0.1.md`'s implementation.** A unit ran the four-step gate, got four zeroes,
+made an unrelated edit, ran it again, and step 1 failed with data races in tests it had never
+touched. Isolated: the two tests `TestSkillFlagInventoryIsComplete` and
+`TestSkillFlagInventoryRecordsOnlyWhatExists` each construct a root command, both are `t.Parallel()`,
+and `NewRootCmd()` binds tp's **package-level** flag variables through pflag. Run alone under `-race`
+the pair reports **30 races per run**. It reproduces on a tree five commits earlier and originates at
+`fa68051b`, *"mark every eligible top-level test parallel — 50.9s to ~14s"*: the parallelism was the
+speedup, and the shared globals were already there.
+
+**Why it belongs to this release rather than to the one that found it.** The defect is invisible
+without `-race` and timing-dependent with it, so whether the gate reddens is a property of machine
+load rather than of the code under test — exactly §6's shape, and exactly what §1.1's third row is
+about. A gate that passes once and fails once teaches its operator to re-run rather than to look.
+
+**Closed test-side, not at the source.** `3b9204e1` added a mutex-guarded `newRootCmdForTest()` and
+the races went to zero. The design smell stands: **a constructor that writes package globals**, so
+every future parallel test that builds a root command inherits the same trap, and the fix is a
+convention nothing enforces.
+
+**The open question, answered by counting rather than left open.** Is this only a test problem? At
+`HEAD`, `NewRootCmd` is defined in `internal/cli/root.go` and called from exactly one production
+site, `Execute()` in the same file, which `cmd/tp/main.go` calls once — so a shipped `tp` process
+constructs one root command and the globals are never contended. Today it is test-only. What makes
+it a design defect rather than a test defect is that **nothing says so**: a second in-process caller
+— an embedding host, an in-process driver, a future `tp` subcommand that shells to itself in-process
+— would share the flag variables silently, and would find out the way the gate did.
+
+**What a fix would have to decide**, stated so the next release does not re-derive it: whether
+`NewRootCmd` returns a command bound to *fresh* per-call storage (which changes how every flag's
+default is read), or whether the package globals become explicitly single-writer with the
+constructor refusing a second call. The first is the real repair and is a wider change than it looks;
+the second is a fence and would have caught this on the first parallel test rather than the thirtieth.
 ## 7. Non-Goals
 
 1. **No new gate entries.** The four stay exactly what they are; only their representation and their
