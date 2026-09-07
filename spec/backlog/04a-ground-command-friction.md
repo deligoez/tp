@@ -1010,3 +1010,36 @@ One fact worth carrying into the design, measured during the recovery: **`--reco
 against the floor file rather than against the spec's current hash.** That is what made recording a
 rescued round possible at all, and it means the guard belongs on the emit path rather than the record
 path.
+
+## `FloorAnchorOf` bills six kinds of unit to an anchor no reader would predict
+
+**Measured in `spec/1.0.1.md`'s third grounding round**, when a lint field grouped by anchor was
+being specified and the specification kept describing behaviour the function does not have. The
+field was dropped; the six defects are the function's and belong here. Each is a fixture built and
+run against `engine.FloorAnchorOf` at the commit that round graded.
+
+| # | fixture | anchor produced | what a reader expects |
+|---|---|---|---|
+| 1 | a unit under `## 2. Second` with no blank line above the heading | `§1` | `§2` |
+| 2 | a unit under a top-level `## Unnumbered parent` that follows a `### 1.1 Child` branch | `§1.1` | the preceding *top-level* numbered section |
+| 3 | a document whose numbered headings are all `# 1.`-style H1s | every unit `§0` | `§1` and after |
+| 4 | a `## 9.` heading inside a ` ``` ` block that is itself inside a `~~~` block | `§9` | no anchor — it is a code sample |
+| 5 | a `## 9.` heading in an indented code block | `§9` | no anchor |
+| 6 | `## 2026-09-07 release notes` and `## 0.19.0 — Agent Friction Reduction` | `§2026`, `§0.19.0` | no anchor — neither is a section number |
+
+Two of these are one bug with two faces. `floorSectionHeadingRe` matches `#{2,6}`, which is why a
+numbered H1 opens nothing (#3), and `floorFenceRe` toggles on ` ``` ` **or** `~~~` without recording
+which delimiter opened the block, so a ` ``` ` line closes a `~~~` fence (#4). Both have a code
+comment conceding the gap; neither has a test.
+
+**What makes this worth a release rather than a note.** The sum is not affected — every uncut unit
+gets exactly one anchor, so any grouping still totals the floor size, and that invariance is exactly
+why the defect survived a grading round that asserted the sum. A consumer of anchors therefore
+cannot detect any of the six by checking its own arithmetic; only a fixture whose expected anchor is
+written down can. Any release that ships an anchor-keyed output must ship these fixtures with it.
+
+**Non-goal, stated because it was the first proposal:** this is not a request to redefine the
+family's notion of a code block. `~~~` and indented blocks are out of scope for every rule in
+`internal/engine/vague.go` by decision. Defects 4 and 5 are in scope only because `floorAnchorsByLine`
+carries a comment claiming *"a heading inside a fence is code"* — the defect is the gap between the
+comment and the code, not the family's scope.
