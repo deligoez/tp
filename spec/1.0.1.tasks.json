@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.1.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-07T15:50:53.98558Z",
+  "updated_at": "2026-09-07T16:05:07.404458Z",
   "workflow": {
     "review_max_rounds": 2
   },
@@ -160,7 +160,7 @@
     {
       "id": "sibling-rule-test",
       "title": "Pin the sibling rule that still reports",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "test"
@@ -171,11 +171,22 @@
       "source_sections": [
         "## 3. The fence and the inline span"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-07T15:53:05.911112Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-07T16:05:07.382621Z",
+      "closed_reason": "- Row 8 is pinned by TestBrokenCrossRefStillReportsWhereVagueLanguageIsSilent in internal/engine/vague_fence_test.go, on the fixture that separates: a backticked `§1.1 step 5` reference whose target section holds a two-item numbered list, on the same line as a backticked trigger word. Measured at HEAD, vague-language 0 and broken-cross-ref 1; under the mutant -- blankInlineCode inserted into CheckBrokenCrossRefs, built in an rsync -a copy of the tree -- vague-language 0 and broken-cross-ref 0. The test was observed red there before it was accepted, failing at vague_fence_test.go:189 on the require.Len that carries the requirement (\"[] should have 1 item(s), but has 0\"), not on any of the three fixture preconditions, which stay green under that mutant by design. Those preconditions are derived from the fixture rather than asserted about it: the referenced step is read back out of the line with crossRefSectionStep and required to exceed a sectionStepCounts value that is itself required positive, which is exactly what the listless target this row carried for two rounds fails.\n- orphan-list-item's invariance is measured rather than argued. With blankInlineCode inserted into CheckOrphanListItems in its own copy of the tree, a numbered list starting at 2 whose items carry inline spans reports 1 at HEAD and 1 under the mutant, and a second fixture whose span contains a list marker reports 1 and 1. duplicate-line and duplicate-paragraph were re-measured beside it rather than carried forward, 1 to 1 each with the mutant inserted into that rule alone; numbering-gap is invariant by signature, since CheckNumberingGaps takes []*Heading and is never handed a line. spec/1.0.1-measurements.md section 13.4 records every mutant as built.\n- Rows 4 through 7 close against the tests 65406160 added, with each test's actual counts quoted as measured rather than as the rows state them: TestVagueLanguageSkipsFencedBlocks 0 to 1 (row 4 agrees), TestVagueLanguageSkipsInlineCodeSpans 0 to 2 (the row says 0 to 1), TestVagueLanguageStillReportsProse 2 to 1 (row 6 agrees), TestVagueLanguageTreatsUnterminatedFenceLikeItsSiblings 1 to 2 (the row says 0 to 1). Each figure comes from that row's own mutant built in its own tree copy, run through the rule directly so the copy reports a count instead of a verdict. Neither side is wrong -- a section 6 row counts the one trigger word it is about -- so the rows are left as written and 13.4 carries the tests' counts.\n- No number in row 8 needed correcting: all three of its measured counts reproduced exactly. Section 3's claim that row 8 has no test is now false and was rewritten to name the test and the mutant. One figure elsewhere did need correcting, and it was found by the same run: 13.3's closing paragraph says row 4's mutant sends rows 4, 5 and 7 all from 0 to 1, while the failing tests are rows 4, 6 and 7 and only row 4's goes 0 to 1 -- row 5's fixture contains no fence, so a fence-only mutant cannot move it, measured 0 under it. 13.4 records the correction and leaves the paragraph's surviving half standing.\n- Quality gate, each step's exit code read separately: check-suite-state.sh 0, golangci-lint run 0 with 0 issues, check-deadcode.sh 0, check-complexity.sh 0. Dogfooded with a freshly built /tmp/tp-dev/tp: lint spec/1.0.1.md exit 0 and 0 errors, lint spec/1.0.1-measurements.md exit 0 and 0 errors with no new section-size warning, since 13.3 was split into 13.4 rather than grown; scripts/check-spec-code-citations.py exits 0 on both files.\n",
+      "gate_passed_at": "2026-09-07T16:05:07.382621Z",
+      "commit_sha": "d56be390",
+      "commit_shas": [
+        "d56be390",
+        "c096cbc3",
+        "b1ed4731"
+      ],
+      "commit_files": [
+        "internal/engine/vague_fence_test.go",
+        "spec/1.0.1-measurements.md",
+        "spec/1.0.1.md"
+      ]
     },
     {
       "id": "skill-and-reference-rules",
