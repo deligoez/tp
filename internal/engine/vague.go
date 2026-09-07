@@ -84,9 +84,13 @@ func CheckVagueLanguage(lines []string) []Finding {
 		if inFence {
 			continue
 		}
-		line = blankInlineCode(line)
+		// Match against a copy with inline spans blanked, and quote the line as
+		// written. Assigning the blanked text back over `line` let it reach
+		// Finding.Context, so every finding on a line carrying any inline span
+		// quoted text that is in no document.
+		matchable := blankInlineCode(line)
 		for _, vw := range vagueWords {
-			if vw.Pattern.MatchString(line) {
+			if vw.Pattern.MatchString(matchable) {
 				findings = append(findings, Finding{
 					Line:     i + 1,
 					Severity: "warning",
