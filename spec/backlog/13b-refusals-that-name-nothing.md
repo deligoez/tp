@@ -1,8 +1,8 @@
 # tp v1.55.0 — The refusals that name nothing
 
-> **This file is decisions.** Four things v1.0.0's audit measured and did not repair: **three defects
-> and one comment that is false as written** — the split `spec/candidates.md` files them under, and §1
-> keeps it. Each of the three defects was re-run against `HEAD` while writing this file rather than
+> **This file is decisions.** What v1.0.0's audit measured and did not repair — the split
+> `spec/candidates.md` files them under, and §1 keeps it. Each of v1.0.0's defects was re-run
+> against `HEAD` while writing this file rather than
 > carried forward from the handover text, because a deferred finding is a claim about a tree that has
 > since moved. **§6 is the exception and is not a re-derivation**: `spec/candidates.md` already
 > carries that routing correction, in the same words and with the same search, and already re-routes
