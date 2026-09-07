@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.1.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-07T14:41:34.522679Z",
+  "updated_at": "2026-09-07T14:53:12.654715Z",
   "workflow": {
     "review_max_rounds": 2
   },
@@ -18,7 +18,7 @@
     {
       "id": "floor-count-export",
       "title": "Export the uncut floor count from internal/engine",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "refactor"
@@ -29,11 +29,24 @@
       "source_sections": [
         "## 2. What `tp lint` adds"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-07T14:43:13.597254Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-07T14:53:12.617334Z",
+      "closed_reason": "engine.FloorSize(rows []FloorIndexRow) int now exports the uncut floor population in internal/engine/floor.go -- it counts index rows carrying a hash, on 2.2's convention that the absence of the hash is the cut -- and internal/cli/ground.go's groundFloorSize is a one-line delegation to it, so the quantity has one definition serving both tp ground's floor_size and the lint field 2 specifies.\n- Verified by running on one fixture, internal/cli's --units fixture (four candidate units, two cut by the arms, no frontmatter): tp ground spec.md --units prints 2 lines and engine.FloorSize returns 2, while the candidate-inclusive population is 4. TestFloorSizeIsTheUnitsListingsLineCount in internal/cli/ground_floor_size_test.go was written first and observed red twice -- once as undefined, then against a deliberate mutant body returning len(rows), which failed 4 against 2 and collapsed cut to 0, so the test discriminates the two populations instead of asserting a tautology. Re-measured on real specs, --units line count equals engine.FloorSize on spec/1.0.1.md (82), spec/0.37.0.md (173), spec/0.36.0.md (244) and spec/0.34.0.md (95).\n- Neither engine.FloorUnits nor engine.FloorIndexRows was the answer: FloorUnits returns 2.1's candidate units with the arms' cuts included, and FloorIndexRows gives every candidate a row unconditionally because 2.2 announces the cut set, so their difference is identically zero. Re-derived here rather than inherited: the difference is 0 on all six specs measured (1.0.1, 0.37.0, 0.36.0, 0.35.0, 0.34.0, 0.31.1) whose real cut counts are 41, 53, 97, 100, 93 and 7.\n- GroundCoverageOf's Emitted stays separate and does not call FloorSize. Emitted is the size of the emitted-id SET GroundCoverageOf must build anyway for its off-floor branch, and a set is not a row count: an index carrying one id twice would make FloorSize the larger of the two, and Dispositioned, which counts units, could then never reach it, breaking the bound Emitted's own doc states. The decision is recorded in FloorSize's doc comment so a later refactor does not collapse them.\n- 2's table now names the derivation and the test in its last two columns, as 2 asks the implementing task to do, and its paragraph's claim that no exported function returns the uncut population is put in the past tense; review_panel's two columns stay task 4's. python3 scripts/check-spec-code-citations.py spec/1.0.1.md exits 0.\n- Quality gate green: check-suite-state.sh 0, golangci-lint run 0, check-deadcode.sh 0, check-complexity.sh 0.",
+      "gate_passed_at": "2026-09-07T14:53:12.617334Z",
+      "commit_sha": "999ae1cc",
+      "commit_shas": [
+        "999ae1cc",
+        "9a7c5af6",
+        "6af85845",
+        "ef9dbc32"
+      ],
+      "commit_files": [
+        "internal/cli/ground.go",
+        "internal/cli/ground_floor_size_test.go",
+        "internal/engine/floor.go",
+        "spec/1.0.1.md"
+      ]
     },
     {
       "id": "lint-floor-fields",
