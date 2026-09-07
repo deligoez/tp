@@ -43,11 +43,23 @@ func writeDomainMismatchFixture(t *testing.T) string {
 	return dir
 }
 
-// lintReviewPanel runs `tp lint <spec>` in dir and returns its `review_panel`
-// alongside the command's stderr, decoding the field as a list of strings.
+// lintReviewPanel runs `tp lint spec.md` in dir and returns its `review_panel`
+// alongside the command's stderr.
 func lintReviewPanel(t *testing.T, dir string) (panel []string, stderr string) {
 	t.Helper()
-	stdout, stderr, code := runTP(t, dir, "lint", "spec.md")
+	return lintReviewPanelOf(t, dir, "spec.md")
+}
+
+// lintReviewPanelOf runs `tp lint <specFile>` in dir and returns its
+// `review_panel` alongside the command's stderr, decoding the field as a list
+// of strings.
+//
+// The spec file is a parameter because §6 row 3's fixture lints two specs
+// against ONE corpus: that row turns on the difference the frontmatter makes,
+// and a second corpus could not tell that from a difference between corpora.
+func lintReviewPanelOf(t *testing.T, dir, specFile string) (panel []string, stderr string) {
+	t.Helper()
+	stdout, stderr, code := runTP(t, dir, "lint", specFile)
 	require.Equal(t, 0, code, "stderr: %s", stderr)
 
 	var payload map[string]any
