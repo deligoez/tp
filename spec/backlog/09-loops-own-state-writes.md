@@ -45,7 +45,7 @@ mechanism:
    path are still caught, emptying a directory included.
 
 Neither adds a command, a flag or a workflow field. A third defect in the same area — a refused
-`--role` invocation still writes state — is **not fixed and not here**; `spec/0.37.1.md` owns it and
+`--role` invocation still writes state — is **not fixed and not here**; `spec/1.0.1.md` owns it and
 has not shipped (§4 non-goal 2).
 
 ## 2. The round's findings file is written atomically
@@ -308,7 +308,7 @@ arm can be created *during* the bracketed run, not only before it.
    load-sensitive gate test, are about what CI certifies rather than what the loop writes; they belong
    with the gate sequence.
 2. **The refused-invocation defect is out of scope because another spec owns it, not because it is
-   fixed.** `spec/0.37.1.md` specifies it and has **not shipped**: `git tag -l 'v0.37*'` returns
+   fixed.** `spec/1.0.1.md` specifies it and has **not shipped**: `git tag -l 'v0.37*'` returns
    `v0.37.0` alone, `gh release list` goes from v0.37.0 straight to v1.0.0, and there is no
    `spec/0.37.1.tasks.json`, so it was never decomposed. The defect is live at `HEAD` — a `--role`
    invocation naming an unknown role exits 2 and still leaves `snapshot-audit-round-1.md` behind on

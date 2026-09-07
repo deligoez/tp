@@ -1,0 +1,391 @@
+# tp v1.52.0 — Repair locality
+
+> **This file is decisions.** §1.1 is measured for this release from the recorded snapshots, not
+> quoted, and the script in §1.1 *is* the derivation — running it is the only way the table is
+> checked. The first form of the number — *the share of a round's findings sitting in text the
+> previous round wrote* — reverses two of the three pairwise orderings between cycles and moves
+> v0.37.0 from first to last, and §2 is the correction.
+
+## 1. Overview
+
+A repair round rewrites part of the spec. The next round reviews it and files findings. **How much of
+what a round finds is in text the round before it just wrote?**
+
+Nothing reports this, so a loop that has stopped converging and a loop that is converging normally
+look identical from the counts. `CLAUDE.md` records the diagnosis being reached by hand **twice**,
+for two different cycles and at two different values: v0.37.0's *"24% of the file was forensics each
+repair round had written for the next round to review"*, reached after twelve flat rounds, and
+v0.35.0's *"43% of that cycle's findings sat in text the previous round had just written"*. Two hand
+measurements of one statistic, neither reproducible from the record, neither stating its rule.
+
+This release reports the number. **It gates nothing.**
+
+**Its prerequisite in `spec/1.40.0.md` is the mid-round re-emission counter — and the hash pinning
+matters too, for a second reason an earlier draft of this paragraph denied.** The arithmetic in §1.1
+reads two snapshots and a findings file and never opens `spec_hash`. But §4 item 3 excludes the
+rounds whose snapshot and recorded hash disagree, and that set is defined by exactly the comparison
+the arithmetic never makes. `spec/1.40.0.md` §2 pins the hash at emit, which empties that set for
+every round recorded after it, while its Non-Goal 1 leaves the existing mismatches alone. So the
+pinning retires the exclusion rule going forward and repairs none of the rounds §1.1 drops.
+
+**The counter is read for the pair, not for the round.** A re-emission overwrites a round's snapshot
+in place, so the earlier bytes exist nowhere — `spec/1.40.0.md` §3 names the field that records it,
+`spec_moved_mid_round`. Round *N*'s locality is computed from snapshots *N−1* and *N*, so a
+re-emission of **either** falsifies it, and a re-emission of *N−1* leaves round *N*'s own counter
+absent. Whatever consumes the counter reads it for both members of the pair. The same asymmetry
+decides §4 item 3, and it is worth two rounds in the table: excluding a pair when either snapshot
+mismatches drops 4 of v0.35.0's rounds, excluding only on the round's own hash drops 2.
+
+### 1.1 Measured over 40 recorded rounds
+
+**The derivation is the script, and the script is what to run.** Every choice the numbers turn on is
+in it: a section is any heading of level ≥ 2 whose text opens with a section id, at *any* depth
+(`#### 3.1.1` is a section); a section is changed when the line diff attributes a changed line to it
+**in the new snapshot**; the changed-section denominator is the new snapshot's section count; a
+finding is inside when its parsed id equals a changed id or descends from one; the cycle figures are
+**medians over that cycle's rounds** and the `all` row is the median over all 40 pooled rounds, not a
+median of medians; the ratio divides the two unrounded medians and is rounded once, at the end.
+
+```
+python3 - <<'PY'
+import json, os, re, difflib, hashlib, statistics as st
+HEAD = re.compile(r'^#{2,}\s+(\d+[a-z]?(?:\.\d+[a-z]?)*)[.\s]')   # any heading level >= 2
+LOC  = re.compile(r'^§(\d+[a-z]?(?:\.\d+[a-z]?)*)')               # leading section id of a location
+def owners(lines):                       # line index -> id of the section that owns it
+    hs = [(m.group(1), i) for i, l in enumerate(lines) if (m := HEAD.match(l))]
+    starts = [i for _, i in hs]; own = [None] * len(lines)
+    for k, (s, i) in enumerate(hs):
+        for j in range(i, starts[k + 1] if k + 1 < len(starts) else len(lines)): own[j] = s
+    return [s for s, _ in hs], own
+def sha(p): return "sha256:" + hashlib.sha256(open(p, 'rb').read()).hexdigest()
+def cycle(c):
+    b = f"spec/.tp-review/{c}"
+    by = {r["round"]: r for r in json.load(open(b + "/state.json"))["review_rounds"]}
+    shares, secs, rounds, unparsed = [], [], [], 0
+    for n in sorted(by):
+        pa, pb = f"{b}/snapshot-round-{n-1}.md", f"{b}/snapshot-round-{n}.md"
+        fp = f"{b}/review-round-{n}.ndjson"
+        if n - 1 not in by or not all(map(os.path.exists, (pa, pb, fp))): continue
+        rows = [json.loads(l) for l in open(fp) if l.strip()]
+        if not rows: continue                                                          # empty file
+        if sha(pa) != by[n-1]["spec_hash"] or sha(pb) != by[n]["spec_hash"]: continue   # §4 item 3
+        old, new = open(pa).read().splitlines(), open(pb).read().splitlines()
+        ids, own = owners(new); changed = set()
+        for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(None, old, new, autojunk=False).get_opcodes():
+            if tag != 'equal':
+                for j in range(j1, j2):
+                    if own[j]: changed.add(own[j])
+        inside = located = 0
+        for r in rows:
+            m = LOC.match(str(r.get("location", "")).strip())
+            if not m: unparsed += 1; continue
+            located += 1; x = m.group(1)
+            if any(x == s or x.startswith(s + ".") for s in changed): inside += 1
+        if located and ids:
+            rounds.append(n); shares.append(100 * inside / located)
+            secs.append(100 * len(changed) / len(set(ids)))
+    return rounds, shares, secs, unparsed
+allS, allC, tot, unp = [], [], 0, 0
+for c in ("0.35.0", "0.36.0", "0.37.0"):
+    R, S, C, u = cycle(c); allS += S; allC += C; tot += len(R); unp += u
+    s, k = st.median(S), st.median(C)
+    print(f"| v{c} | {len(R)} | {s:.1f}% | {k:.1f}% | {s/k:.2f}x |")
+s, k = st.median(allS), st.median(allC)
+print(f"| all | {tot} | {s:.1f}% | {k:.1f}% | {s/k:.2f}x |   unparseable locations: {unp}")
+PY
+```
+
+| cycle | rounds | findings in changed text | sections changed | concentration |
+|---|---|---|---|---|
+| v0.35.0 | 15 | 40.7% | 18.4% | 2.21× |
+| v0.36.0 | 14 | **79.9%** | **22.2%** | **3.59×** |
+| v0.37.0 | 11 | 92.6% | 71.4% | 1.30× |
+| **all** | **40** | **72.1%** | **34.0%** | **2.12×** |
+
+Of the 1,453 finding rows these 40 rounds filed, **7 yield no section id** and leave both sides of
+the share — the script prints that count as `unparseable locations`, and §3.1 is the decision.
+
+**Two earlier readings of this table are downstream and are corrected here.** Deleting the
+`sha(pa) != …` line — running *without* §4 item 3's exclusion — gives 19 / 14 / 11 = **44** rounds and
+45.2% / 79.9% / 92.6%, 21.9% / 22.2% / 71.4%, `all` 70.2% / 30.1% / 2.33×. Those are the figures the
+first draft of this file printed, and **`spec/1.0.0.md` §8 quotes them** — *"a median of 70.2% across
+44 rounds"*, *"45.2% → 79.9% → 92.5%"*, crediting *"the repair-locality spec §1.1"*. Two things are
+wrong there and neither changes anything that rests on the table: the 44-round set includes four
+rounds §4 item 3 excludes, and `92.5%` is `92.5925…` truncated where every other cell in the row was
+rounded. **That spec must be updated when this one is implemented**; it is the only outward citation
+of these cells.
+
+**A grounding round could not reproduce any of the eight percentage cells across 288 configurations,
+and the reason is worth keeping.** Its sweep varied heading level over `{2}`, `{3}`, `{2,3}` and
+`{1,2,3}` — this repository's specs carry `####` sections (`8a.3`, `4.2.3.1`, `3.1.1`), so the
+configuration that reproduces the table was outside the space swept. Under the script above, the
+44-round form reproduces seven of the eight cells exactly, and the eighth to 0.1. **The cells were
+never wrong; the derivation was never stated**, which is the same defect §3.1 names one paragraph on
+and the reason the script is printed here rather than described.
+
+### 1.2 A grounding round measured this at 100%, and it changes what a round is for
+
+**The review corpus above measures repair locality after the fact. `tp ground` produced a case where
+it was the whole of a round.** On 2026-09-04 the grounding programme ran the first *third* round in
+its corpus, deliberately as a measurement: eleven specs had two rounds, and their asked-only non-`PASS`
+rate fell from a mean of 32.9% to 19.6%, ten of eleven falling — so the question was whether a third
+round continues the trend. `spec/1.49.0.md` was chosen because its round 2 was the cleanest recorded,
+2 non-`PASS` of 30 asked.
+
+**Round 3 returned 4 non-`PASS`, above both of its own earlier rounds.** Counting rule: rows with no
+`carried_from` over `spec/.tp-review/1.49.0/ground-round-{1,2,3}.ndjson` gives **25.0% → 6.7% →
+30.8%** (8/32, 2/30, 4/13). The round's own report said 36.4%, counting only the 11 floor units it
+owed and excluding the 2 rows it filed against cut units, both `PASS`. **Both readings are defensible
+and they differ by 5.6 points, so the rule is the figure**; this section uses the corpus-wide one so
+the three rounds are comparable with every other spec.
+
+**And every one of the four sat in text the repair wrote between rounds.** Round 3 carried 47 units
+forward and nothing older resurfaced. **An earlier draft of this paragraph called those 47 "round 2's
+carried units" — round 2 carried 20; 47 is round 3's carry**, and the two are different quantities
+one sentence apart. That error is the same class this section is about, committed while writing it. So the rate did not measure slow convergence — it measured
+that a repair pass is new ungraded prose, and that grading it is what a later round mostly does.
+
+**The instance is worth keeping because of what the repaired text was.** Round 2 had faulted two
+universals a preamble asserted over its own seven-row table. The repair withdrew both — correctly —
+and added a paragraph explaining *why line-pinning a derivation is unsafe*. That paragraph then
+carried a wrong section pointer, a line count reachable only from an uncommitted draft, and a `[1-7]`
+character class that asserts a denominator of seven rather than deriving one: appending an eighth row
+leaves it printing `1` and `7` where the truth is `2` and `8`. **A passage written to close a class
+re-committed it one level up**, and a round caught it rather than a reader.
+
+**What that argues for is a budget rule rather than a round count.** A round is worth running when the
+previous round's repair touched prose, and its budget is the repaired units — not the floor, and not a
+fixed N. On the same evidence, a repair that had made only the two withdrawals would plausibly have
+produced a clean third round; the 260 words of self-forensics are where all four findings live. That is
+this repository's standing rule — *a repair that introduces a new abstraction belongs to the next
+version* — arriving from the grounding side, and it is why §3 reports the share rather than gating on
+it: the number is a prompt to look at what the last repair wrote, not a verdict on the document.
+
+## 2. One number ranks the cycles backwards
+
+**The share alone says v0.37.0 (93%) is the most repair-local cycle. By concentration it is the
+least (1.3×).** Its rounds rewrote a median of 71% of the spec's sections, so almost anything a
+reviewer found was necessarily in changed text. v0.36.0 put 80% of its findings into 22% of the file —
+a genuinely local loop — and scores lower on the share.
+
+**So the release reports both, and derives the ratio.** A single percentage is not reportable here: it
+is a share of findings divided by nothing, and the denominator moves.
+
+**They are two different pathologies and an operator needs to tell them apart:**
+
+| | high concentration | low concentration |
+|---|---|---|
+| **high share** | the loop is chasing its own repairs in a small area | the repairs are rewriting most of the spec each round |
+| **low share** | healthy — findings are spread over text the loop did not just write | — |
+
+v0.36.0 is the top-left, v0.37.0 the top-right, and `CLAUDE.md` records the second being diagnosed by
+hand as *"24% of the file was forensics each repair round had written for the next round to review."*
+That figure is a share of the *file*, not of findings nor of sections — it corroborates the
+placement and is neither of the two numbers this release reports.
+
+**This ordering is the release's reason for existing, and it is the part that does not depend on the
+cells.** It holds under the table above, under the 44-round form, and under an independent
+reimplementation by a grounding round that reproduced none of the printed percentages: in all three,
+v0.37.0 is first by share and last by concentration, and v0.36.0 is first by concentration.
+
+## 3. What is reported
+
+`--status` and `--record` carry, for a round whose predecessor exists **and has a snapshot**: the
+share, the changed-section share, the derived ratio, the four integers the two percentages are
+computed from — `findings_in_changed`, `findings_located`, `sections_changed`, `sections_total` —
+and `location_parse_failures`.
+
+**The raw counts travel with the percentages.** A repository has already been misled by a bare figure
+whose counting rule was unstated, and by one whose denominator had moved while its numerator had not.
+Two percentages and the five integers behind them cost nothing and cannot rot into a claim.
+`location_parse_failures` is also how *approximate* reaches the output rather than only this
+document: a consumer that sees it non-zero knows the share was computed over fewer rows than the
+round filed.
+
+**Round 1 reports nothing.** There is no predecessor, and a first round trivially scores zero, which
+reads as a healthy loop rather than as no data.
+
+**A round whose predecessor has no snapshot reports nothing**, rather than falling back to the
+current spec, which would report a locality describing the operator's later edits. **This guard has
+no instance in the population the release reads**: 0 of 172 recorded review rounds lack a snapshot,
+while 20 of 108 audit rounds do, and §4 item 5 keeps the audit phase out. It exists for the case
+`spec/1.40.0.md` test row 3 names — a round recorded with no preceding emission. Derivation:
+
+```
+python3 -c 'import json,glob,os,collections
+c=collections.Counter()
+for s in glob.glob("spec/.tp-review/*/state.json"):
+    d=json.load(open(s)); b=os.path.dirname(s)
+    for ph,k,f in (("review","review_rounds","snapshot-round-%d.md"),("audit","audit_rounds","snapshot-audit-round-%d.md")):
+        for r in d.get(k) or []: c[ph, os.path.exists(os.path.join(b,f%r["round"]))]+=1
+print(sorted(c.items()))'
+```
+
+### 3.1 Locations are parsed
+**Locations are parsed, not matched, and one review row in eight needs it.** Every one of the 3,883
+recorded review-round rows carries a `location`, but **485 of them (12.49%) are not a bare section
+id**: letter-suffixed sections (`§8a`, `§2.0a`, `§8a.1`), multi-section values (`§12.1 / §12.4`,
+`§8.6 vs §9.1`), values with trailing annotation (`§10.2 (line 120)`), and free prose. Under a naive
+prefix match every one of those scores as **outside** the changed text, biasing the share
+**downward** — the direction that makes a repair-chasing loop look healthy, which is the one failure
+§1 says nothing reports. So the value is parsed: take the leading `§N[a](.N[a])*`, and for a
+multi-section value take the first id. That parses 3,761 of 3,883; the remaining **122 (3.14%)**
+yield no id and are excluded from the numerator **and** the denominator and counted in
+`location_parse_failures`. Derivation:
+
+```
+python3 -c 'import json,glob,re
+v=[str(json.loads(l).get("location","")).strip() for f in glob.glob("spec/.tp-review/*/review-round-*.ndjson") for l in open(f) if l.strip()]
+strict=re.compile(r"^§[0-9]+(\.[0-9]+)*$"); lead=re.compile(r"^§\d+[a-z]?(\.\d+[a-z]?)*")
+print(len(v), "not-bare:", sum(not strict.match(x) for x in v), "unparseable:", sum(not lead.match(x) for x in v))'
+```
+
+**No review row lacks a `location` at all, so the missing-`location` case is a guard and not a
+limit.** Split by phase over `spec/.tp-review/*/*.ndjson`: review-round files 3,883 rows with 0
+missing; audit-round files 12,970 rows with 3,048 missing; ground-round files carry no `location` key
+at all. **The entire shortfall is in phases this release does not read.** An earlier draft printed
+the corpus-wide rate — 16.6% when written, 18.9% now — as a limitation of *this* measurement; its
+actual rate on the measured population is 0%. The guard stays, because nothing enforces that a future
+review row carries the field. The lesson is the one this repository already carries about a key-name
+search reported as a claim about data — **a borrowed figure must be re-derived against the question
+it is being made to answer** — with the half that draft still missed: a re-derived figure must also
+be measured over the population that answers it. Derivation:
+
+```
+python3 -c 'import json,glob,os,re,collections
+c=collections.Counter()
+for f in glob.glob("spec/.tp-review/*/*.ndjson"):
+    b=os.path.basename(f)
+    k=("review-round" if re.match(r"review-round-\d+\.ndjson$",b) else "review-role" if re.match(r"review-r\d+-",b)
+       else "audit-round" if re.match(r"audit-round-\d+\.ndjson$",b) else "audit-role" if re.match(r"audit-r\d+-",b) else "ground")
+    for l in open(f):
+        if l.strip():
+            v=json.loads(l).get("location"); c[k, bool(isinstance(v,str) and v.strip())]+=1
+print(sorted(c.items()))'
+```
+
+**The section attribution is approximate and is labelled so.** A parsed id is matched against the
+changed sections by prefix **downward only**: `§3.2` counts as inside a changed `§3`, and a changed
+`§3.2` does not make a finding at `§3` inside. Sub-section granularity in the other direction would
+need every finding to carry one.
+
+## 4. Non-Goals
+
+1. **No gate, no threshold, no `next_action` branch.** A number nobody has acted on yet is not a rule.
+   `CLAUDE.md`'s own precedent is narrower than this caution — a `workflow.checks` entry registered
+   before its subject existed, which for eight rounds suppressed the finding class it was meant to
+   measure — but it is the recorded case of a mechanism reading a signal too early.
+2. **No single "locality score".** §2 is why: any one number here ranks the two known pathologies
+   against each other rather than reporting both.
+3. **No repair of the 35 review rounds whose snapshot and recorded hash disagree.** They are excluded
+   and counted as excluded, **per pair**: a round is dropped when *either* snapshot it is measured
+   from mismatches, which is what §1's last paragraph is about and what takes v0.35.0 from 19 rounds
+   to 15. Re-derive the census with
+   `python3 -c 'import json,glob,os,hashlib;print(sum(1 for s in glob.glob("spec/.tp-review/*/state.json") for r in (json.load(open(s)).get("review_rounds") or []) if os.path.exists(p:=os.path.join(os.path.dirname(s),"snapshot-round-%d.md"%r["round"])) and "sha256:"+hashlib.sha256(open(p,"rb").read()).hexdigest()!=r["spec_hash"]))'`
+   — 35 of 172 review rounds at the time of writing.
+4. **No attribution to *who* wrote the text.** Whether the operator, a repair unit or a role wrote a
+   section is not recorded, and the commit-authorship fallback carries **zero** signal here rather
+   than merely being a different feature: `git log --format=%an -- spec/ | sort -u` returns one name
+   over 1,177 commits, because subagents commit as the operator.
+5. **No audit-phase figure in this release.** Not because the snapshots are missing — 88 of 108 audit
+   rounds have one. The measurement would be structurally uninformative there: of the 76 consecutive
+   audit snapshot pairs, **49 are byte-identical**, so in nearly two thirds of audit round transitions
+   the changed-section set is empty and the share is 0 by construction rather than by the loop being
+   healthy; and 3,048 of 12,970 audit rows (23.5%) carry no `location`, against 0 of 3,883 review
+   rows, so the denominator would be missing a quarter of what the phase filed. Use the
+   snapshot-census command in §3 for the first figure and the phase-split command in §3.1 for the
+   third; the pair comparison is below.
+
+```
+python3 -c 'import json,glob,os
+P=[(os.path.dirname(s),r["round"]) for s in glob.glob("spec/.tp-review/*/state.json") for r in json.load(open(s)).get("audit_rounds") or []]
+h=lambda b,n: os.path.join(b,"snapshot-audit-round-%d.md"%n)
+Q=[(b,n) for b,n in P if os.path.exists(h(b,n)) and os.path.exists(h(b,n-1))]
+print("pairs:",len(Q),"differing:",sum(open(h(b,n),"rb").read()!=open(h(b,n-1),"rb").read() for b,n in Q))'
+```
+
+## 4a. An open question carried in from `spec/candidates.md`
+
+**This section takes no decision.** It is an *Undecided* entry moved out of `spec/candidates.md` —
+where every row names the decision nobody has taken — into the release that owns its subject, which
+is what a round's findings owe to the round before them. It is recorded here as a question. §5 does
+not depend on it and no row of §5 tests it.
+
+### 4a.1 A prior-round section for `tp review`
+
+**The decision nobody has taken is whether `tp review` should have one at all.**
+
+**What the audit phase does.** `loadAuditPriorRound` (`internal/cli/audit.go`) reads the previous
+recorded audit round and returns, per role, that role's **own** non-PASS rows;
+`renderPriorRoundSection` (`internal/cli/audit_roles.go`) renders them into a round-2+ prompt under
+the heading *"Prior Round: context to re-check, not a verdict to repeat"*, with the instruction
+*"Re-check each item against the code and record your own status. Do NOT repeat the prior verdict
+without verifying."* It returns the empty string when the role has no prior non-PASS rows, so a
+round-1 prompt and an all-PASS role carry no section at all. `filesChangedSince` in the same file
+tells the role whether its evidence file moved since that round, which is what makes the re-check
+answerable rather than rhetorical.
+
+So the audit phase hands a role a bounded, role-scoped set of its own judgements and forces a
+commitment on each. That is the shape whose absence on the review side is the question.
+
+### 4a.2 The correction: review carries something, of a different kind
+
+**The entry says `tp review` "carries nothing", and that does not survive re-derivation at `HEAD`.**
+What is true is the narrow reading behind it: a search for prior-round machinery by that name in the
+review path returns **0** — `rg -n -i 'priorRound|prior round|prior-round|PriorRow' internal/cli/review.go internal/cli/review_*.go`.
+But `buildFindingsSummary` (`internal/cli/review.go`) does put previous rounds into every review
+prompt, under a heading that asks for the opposite of a re-check:
+
+> `UNRESOLVED findings from previous rounds — DO NOT re-report:`
+
+and a second block, `Resolved high/critical (DO NOT regress):`. Both are locatable with
+`rg -n 'DO NOT re-report|DO NOT regress' internal/cli/review.go`. Its shape differs from the audit
+section on every axis: it is **panel-wide rather than role-scoped**, it is capped at 50 rows with the
+remainder reported only as a count, each finding is truncated to 80 characters and a `wontfix`
+row's evidence to 40, and its input is the `--findings` file or the loaded round state rather than
+the recorded round read per role.
+
+**So the two phases differ in kind, not in presence.** The audit returns a role its own rows and
+obliges it to re-verify each; review shows the whole panel everyone's rows and obliges it to stay
+quiet about them. A re-verification ask and a suppression ask are not the same instrument, and this
+repository has already measured what an unexamined suppression costs elsewhere in the loop.
+
+**No measurement says which way that cuts, and this release does not supply one.** The figures §3
+reports are about the adjacent surface — findings sitting in text the round before wrote — but a
+share and a ratio cannot say whether returning a reviewer its own prior rows would raise that share
+(the role re-treads its own ground) or lower it (the role withdraws instead of re-filing). §4's first
+non-goal governs here too: a number nobody has acted on yet is not a rule, and it is not an argument
+for a mechanism either.
+
+## 5. Tests
+
+Every row derives from a numbered decision, names the input it runs against, and names a mutant that
+must fail it.
+
+| # | from | assertion | the mutant that must fail it |
+|---|---|---|---|
+| 1 | §1.1 | over two snapshots and a findings file written into `t.TempDir()`, where one of four sections changed and 8 of 10 located findings fall in it: share 80%, sections 25%, ratio 3.2 | report the share alone, which cannot distinguish this from a round that rewrote everything |
+| 2 | §2 | two such fixtures with **identical** shares and different changed-section counts produce different ratios | derive the ratio from the share, making the second input unreachable |
+| 3 | §3 *counts* | the `--record` envelope carries `findings_in_changed`, `findings_located`, `sections_changed`, `sections_total` and `location_parse_failures`, and each percentage equals its quotient of the first four | emit percentages only, which is the shape this repository has twice been misled by |
+| 4 | §3 *round 1* | round 1 of a fresh cycle emits no locality key at all | emit 0, which reads as a perfectly healthy loop |
+| 5 | §3 *no snapshot* | with `snapshot-round-(N-1).md` deleted from the fixture, round *N* emits nothing and names the missing file | fall back to the current spec, reporting the operator's later edits as the round's locality |
+| 6 | §3.1 *parse* | run over this repository's own `spec/.tp-review/*/review-round-*.ndjson`: 3,883 rows yield 3,761 parsed ids and 122 failures, the failures leave both numerator and denominator, and the count is reported | require a bare `^§[0-9]+(\.[0-9]+)*$`, which discards 485 rows (12.49%) as *outside* the changed text and biases every share downward |
+| 7 | §3.1 *prefix* | a fixture whose two section ids are `§1` and `§10`, asserting first that they collide — `"§10".startswith("§1")` and `§10` is not a descendant of `§1` — then that a finding at `§10` is **not** inside a changed `§1` while one at `§1.1` is | match by string prefix without the separator, so `§1` swallows `§10` |
+| 8 | §4 item 1 | replayed over a recorded cycle, `consecutive_clean`, `clean` and `--check`'s exit code are byte-identical with and without the fields | let it gate, which is the suppression precedent §4 item 1 names |
+
+**Row 7 is the one a hand-written fixture will miss, and the pair has to be one the corpus
+produces.** An earlier draft used `§3` against `§30`, invoking this repository's rule that a
+fixture's incidental property must be asserted rather than chosen — and then chose a pair with the
+property it was warning about: **`§30` appears in zero recorded rows**, no spec here has thirty
+sections, while `§1` against `§10`–`§19` is one of **28 separator-less prefix pairs among the review
+corpus's 100 distinct section ids** (77 across all recorded phases). Hence the assertion on the
+collision itself, before the behaviour. Derivation:
+
+```
+python3 -c 'import json,glob,re,itertools
+s=re.compile(r"^§[0-9]+(\.[0-9]+)*$")
+ids=sorted({x for f in glob.glob("spec/.tp-review/*/review-round-*.ndjson") for l in open(f) if l.strip()
+            for x in [str(json.loads(l).get("location","")).strip()] if s.match(x)})
+print(len(ids), sum(1 for a,b in itertools.permutations(ids,2) if b.startswith(a) and not b[len(a):].startswith(".")),
+      sum(1 for x in ids if x.startswith("§30")))'
+```
