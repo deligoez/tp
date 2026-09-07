@@ -88,3 +88,28 @@ func TestResolveRolePanel_ReturnsTheCorpusErrorInsteadOfExiting(t *testing.T) {
 	assert.Empty(t, panel.Roles, "a panel that could not be resolved is not a panel with roles in it")
 }
 
+// TestResolveRolePanel_ReturnsWarningsWithoutWritingThem is §7's third table row
+// at the engine layer, and the row a reader would miss: the two unconditional
+// output.Notice loops belong to the wrapper. The resolver returns the same
+// strings as data and writes nothing, so a caller that must not gain an
+// advisory stderr channel — tp lint — can have the panel without the notices.
+//
+// The order is asserted too, because the wrapper emits the corpus warnings and
+// the override warnings in two separate loops and the concatenation here is what
+// keeps that byte sequence unchanged.
+func TestResolveRolePanel_ReturnsWarningsWithoutWritingThem(t *testing.T) {
+	specPath := rolePanelProject(t,
+		"domain: software\ntp:\n  review_roles:\n    nosuch:\n      enabled: false",
+		map[string]string{"prose-only": `{"id":"prose-only","title":"P","instructions":"You review.","domains":["prose"]}`})
+
+	var panel RolePanel
+	var err error
+	stderr := captureStderr(t, func() { panel, err = ResolveRolePanel(specPath, PhaseReviewers) })
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{
+		`domain "software" filtered out every reviewers role; using the embedded default panel`,
+		`tp.review_roles override for "nosuch" matches no active reviewers role; ignored`,
+	}, panel.Warnings, "corpus warnings first, override warnings second — the wrapper's two loops in one slice")
+	assert.Empty(t, stderr, "the resolver writes nothing; emitting is the wrapper's job")
+}
