@@ -7,35 +7,54 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/deligoez/tp/internal/engine"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// The two reviewer roles §6 row 2's fixture is built from. Exactly one of them
-// declares `domains`, and the test asserts that rather than trusting these two
-// literals: a second `domains` role would leave the surviving panel empty, tp
-// would fall back to the embedded default corpus, and the row would be decided
-// on the wrong population.
+// The two reviewer roles §6 row 2's fixture is built from, plus the domain its
+// spec declares. Exactly one role declares `domains`, and the test asserts that
+// rather than trusting these literals: a second `domains` role would leave the
+// surviving panel empty, tp would fall back to the embedded default corpus, and
+// the row would be decided on the wrong population.
+//
+// The spec's domain must NOT be the one ParseFrontmatter supplies by default.
+// An earlier fixture had the spec declare `software` and the role `prose`, and
+// `software` is exactly the value a spec carrying no frontmatter at all resolves
+// to, so the frontmatter block was live but not load-bearing: a mutant resolving
+// the corpus against a hardcoded "software" instead of the spec's own domain
+// left this row green. Polarising the fixture puts the red on the field the row
+// is about under that mutant too. The polarity is asserted against
+// engine.DomainSoftware rather than restated in prose, so it cannot drift back
+// onto the default.
 const (
-	domainFixtureProseRole     = `{"id":"prose-only","title":"P","instructions":"You review.","domains":["prose"]}`
+	domainFixtureSpecDomain    = "prose"
+	domainFixtureSoftwareRole  = `{"id":"software-only","title":"S","instructions":"You review.","domains":["software"]}`
 	domainFixtureUniversalRole = `{"id":"universal","title":"U","instructions":"You review."}`
 )
 
 // writeDomainMismatchFixture builds §6 row 2's fixture: a temporary corpus whose
-// only `domains`-declaring reviewer asks for `prose`, beside a spec whose
-// frontmatter says `tp.domain: software`. The domain filter therefore drops
-// `prose-only` and leaves `universal`, which is the whole of what the row turns
-// on.
+// only `domains`-declaring reviewer asks for `software`, beside a spec whose
+// frontmatter says `tp.domain: prose`. The domain filter therefore drops
+// `software-only` and leaves `universal`, which is the whole of what the row
+// turns on.
+//
+// `prose` is a domain tp ships an embedded corpus for, so the mismatch draws no
+// unknown-domain notice and the row's `lintErr` assertion still measures the
+// absence of the wrapper's advisory channel rather than the absence of a warning
+// about the fixture itself.
 func writeDomainMismatchFixture(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
-	writeReviewerRole(t, dir, "prose-only.json", domainFixtureProseRole)
+	writeReviewerRole(t, dir, "software-only.json", domainFixtureSoftwareRole)
 	writeReviewerRole(t, dir, "universal.json", domainFixtureUniversalRole)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"),
-		[]byte("---\ntp:\n  domain: software\n---\n# Spec\n## 1. A\ncontent here.\n"), 0o600))
+		[]byte("---\ntp:\n  domain: "+domainFixtureSpecDomain+"\n---\n# Spec\n## 1. A\ncontent here.\n"), 0o600))
 
-	require.True(t, strings.Contains(domainFixtureProseRole, `"domains"`),
+	require.NotEqual(t, engine.DomainSoftware, domainFixtureSpecDomain,
+		"the spec's domain must differ from the parser's default, or a mutant that ignores the frontmatter resolves the same panel and the row stays green under it")
+	require.True(t, strings.Contains(domainFixtureSoftwareRole, `"domains"`),
 		"the fixture's mismatching role must declare domains, or nothing is filtered")
 	require.False(t, strings.Contains(domainFixtureUniversalRole, `"domains"`),
 		"exactly one role may declare domains: a second one empties the panel and tp falls back to the embedded corpus")
@@ -121,6 +140,13 @@ func reviewEmissionRoles(t *testing.T, dir string) []string {
 // there. A mutant that gives lint a second derivation of its own moves only one
 // side, and the equality fails.
 //
+// A third mutant is why the fixture is polarised the way it is: resolving the
+// corpus against a hardcoded "software" rather than the spec's own domain, so
+// that the frontmatter is not read at all. Measured, with the fixture the way
+// it is now: `["universal"]` at HEAD and `["software-only", "universal"]` under
+// each of the two mutants that touch the domain, both red on this test's own
+// NotContains.
+//
 // The order matters and is asserted: the requirement is that the two lists are
 // equal, not that they hold the same set, since an agent reading `review_panel`
 // reads it as the panel the emission would carry.
@@ -142,9 +168,9 @@ func TestLintReviewPanelOmitsADomainMismatchedRole(t *testing.T) {
 
 	assert.Equal(t, emitted, panel,
 		"`review_panel` is the role ids a round-1 `tp review` emission of the same spec carries")
-	assert.NotContains(t, panel, "prose-only",
+	assert.NotContains(t, panel, "software-only",
 		"and the domain-mismatched role is omitted from it")
-	assert.NotContains(t, emitted, "prose-only",
+	assert.NotContains(t, emitted, "software-only",
 		"as it is from the emission the panel is compared against: the domain filter is what removes it from both")
 
 	assert.Empty(t, lintErr,
