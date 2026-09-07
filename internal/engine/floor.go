@@ -520,6 +520,38 @@ func FloorIndexRows(text string, anchorOf func(unitIndex int) string) []FloorInd
 	return rows
 }
 
+// FloorSize is the uncut floor population of an index: how many of its rows
+// carry a hash, and so how many units a round owes a disposition for before
+// §8's carry is taken off. It is §2's `floor_size`, and `len(rows)` less this
+// is §2's `cut`.
+//
+// It reads the ABSENCE of the hash as the cut, which is §2.2's convention and
+// the only reading available: FloorIndexRow has no Cut flag, deliberately.
+//
+// Two exported functions here look like this one and neither is. FloorUnits
+// returns §2.1's CANDIDATE units, the arms' cuts included; FloorIndexRows gives
+// every candidate a row unconditionally, because §2.2 announces the cut set. So
+// their difference is identically zero and cannot be the cut count — §2 carries
+// the measurement, over five specs with real cut counts. Nothing exported
+// returned the uncut population before this.
+//
+// GroundCoverageOf does not call this, and that is a decision rather than an
+// omission. Its Emitted is the size of the emitted-id SET it must build anyway
+// for the off-floor branch, and a set is not a row count: an index carrying one
+// id twice would make this function's answer the larger of the two, and
+// Dispositioned — which counts units — could then never reach it, breaking the
+// bound its own doc states. Two quantities that agree on every index tp emits
+// are still two questions.
+func FloorSize(rows []FloorIndexRow) int {
+	n := 0
+	for _, r := range rows {
+		if r.TextSHA != "" {
+			n++
+		}
+	}
+	return n
+}
+
 // FormatFloorIndex renders the index: the commit line, one row per line, and a
 // summary, each line terminated.
 //
