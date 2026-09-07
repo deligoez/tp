@@ -426,12 +426,10 @@ invocation:
 | `cut` | The floor-index rows the derivation's arms dropped, so a small floor is not read as a cheap round when it is a narrow one |
 | `review_panel` | The reviewer role ids a round-1 `tp review <spec>` would emit, resolved without emitting a round |
 
-`cut` is the one with no alternative at all: it is the floor index's row count less `floor_size`, so
-it needs an index only an emission freezes — `tp ground <spec> --status` refuses on a spec with no
-emitted round. `review_panel` is the one lint reaches with **neither** an emitted round nor a task
-file: `tp review` gets it by emitting the round, and `tp resume` gets it from the same resolver far
-more cheaply but refuses without a task file, which a spec still being written does not have —
-`tp init` runs after `tp lint`. `floor_size` is the number `tp ground <spec> --units` already gives
+`cut` is the floor index's row count less `floor_size`, so it needs an index an emission freezes —
+`tp ground <spec> --status` refuses on a spec with no emitted round. `review_panel` is resolved
+without emitting one: `tp review` gets it by emitting the round, and `tp resume` gets it from the
+same resolver far more cheaply. `floor_size` is the number `tp ground <spec> --units` already gives
 without writing anything, moved to the moment a spec is being written rather than after a round
 exists. tp now spells `floor_size` in three payloads that count the same quantity over different
 text; which text each one reads is in [REFERENCE.md](skills/tp/REFERENCE.md).
