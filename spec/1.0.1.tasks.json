@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.0.1.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-07T14:53:12.654715Z",
+  "updated_at": "2026-09-07T15:04:29.190386Z",
   "workflow": {
     "review_max_rounds": 2
   },
@@ -51,7 +51,7 @@
     {
       "id": "lint-floor-fields",
       "title": "tp lint reports the two floor quantities",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "lint"
@@ -65,11 +65,22 @@
         "## 2. What `tp lint` adds",
         "## 6. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-07T14:54:43.015497Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-07T15:04:29.164321Z",
+      "closed_reason": "- tp lint emits floor_size and cut as siblings of structured_elements, both from engine.FloorSize over engine.FloorIndexRows(text, engine.FloorAnchorOf(text)) -- the one derivation tp ground reads, so no second definition of floor_size exists.\n- All three tests were written first and observed RED against the unfixed code, failing on the absent key. After implementing, the mutant §6 row 1 names -- floorSize := len(floorRows) -- was applied and run: TestLintFloorSizeIsTheUnitsListingsLineCount failed 'expected 2, actual 4' and TestLintCutIsTheFloorIndexRowCountLessFloorSize failed 'expected 2, actual 0', the exact collapse §2 records. The mutant was reverted and the file verified byte-identical to its pre-mutant copy.\n- The shared fixture is groundUnitsFixtureSpec: 4 candidate units, 2 cut, no frontmatter. Both halves of the precondition are asserted, not assumed -- require.False on a leading triple-dash and require.Greater(candidates, printed).\n- Measured rather than copied: two six-line frontmatter blocks over that same fixture, one moved the --units listing from 2 units to 3 while the other moved nothing, so whether frontmatter separates the two commands depends on its content. Both comments say that instead of restating the spec's figure.\n- TestLintPayloadIsByteIdenticalUnderCompactAndQuiet compares stdout BYTES under plain, --compact and --quiet; re-measured rather than trusting round 2's figure: 851 bytes on the fixture and 3408 on spec/1.0.1.md, identical md5 in all three forms.\n- On spec/1.0.1.md: floor_size 83, cut 41, and tp ground spec/1.0.1.md --units prints 83 lines. Swept every spec/*.md and spec/backlog/*.md: lint's floor_size equals the --units line count on all of them, no exceptions.\n- §2's cells now name the two lint tests. The cell filled in advance named TestFloorSizeIsTheUnitsListingsLineCount, which pins engine.FloorSize and never runs tp lint -- measured green under row 1's own mutant while both lint tests went red, so the cell was corrected rather than defended. The --compact/--quiet sentence names the third test. The spec still lints at 0 errors 0 warnings; a section-size warning the first draft introduced was removed by trimming the added prose.\n- Gate green in four separately-run steps, each exit code read on its own: check-suite-state.sh 0, golangci-lint run 0 (0 issues), check-deadcode.sh 0, check-complexity.sh 0. runLint was already in scripts/baseline-funlen.txt, so no new or stale ratchet entry.",
+      "gate_passed_at": "2026-09-07T15:04:29.164321Z",
+      "commit_sha": "8f18fa97",
+      "commit_shas": [
+        "8f18fa97",
+        "c5ee8a1d",
+        "7d82b3ab"
+      ],
+      "commit_files": [
+        "internal/cli/lint.go",
+        "internal/cli/lint_floor_test.go",
+        "spec/1.0.1.md"
+      ]
     },
     {
       "id": "resolver-split",
