@@ -1,15 +1,20 @@
-// role_panel.go holds the role-panel machinery shared by tp review and tp
-// audit: corpus resolution plus override layering (§2.3), the drop set both
-// phases report as disabled-by-spec (§2.4), the two emission-only refusals
-// (§2.5), and the order they are decided in (§2.6). It lives in its own file
-// because both command files consume it; neither owns it.
+// role_panel.go holds the REFUSING half of the role-panel machinery shared by
+// tp review and tp audit: the two emission-only refusals (§2.5), the abort on a
+// malformed role file, the advisory notices, and the order they are decided in
+// (§2.6). It lives in its own file because both command files consume it;
+// neither owns it.
+//
+// The resolution itself is engine.ResolveRolePanel (1.0.1 §7). It moved to
+// engine rather than staying here because engine.roleUnits — tp resume's
+// read-only oracle — already resolved the same panel, so a shared half in cli
+// would have left that copy standing and made tp lint's the third. Everything
+// this file adds is what a read-only caller must NOT inherit.
 
 package cli
 
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -58,9 +63,13 @@ func refuseSpecCoverageDeactivated(disabled []string) {
 	}
 }
 
-// rolePanel is one phase's resolved role panel: the spec frontmatter plus the
-// active roles that survived corpus resolution, override layering and §2.3's
-// enabled: false drop.
+// rolePanel is one phase's resolved role panel as the two emitting commands
+// consume it: the spec frontmatter plus the active roles that survived corpus
+// resolution, override layering and §2.3's enabled: false drop.
+//
+// It is engine.RolePanel minus the warnings, which the wrapper has already
+// emitted by the time it builds this. Keeping it is what lets tp review and tp
+// audit stay byte-for-byte unchanged across the split (1.0.1 §7).
 type rolePanel struct {
 	fm    *engine.Frontmatter
 	roles []model.Role
@@ -70,8 +79,12 @@ type rolePanel struct {
 	disabled []string
 }
 
-// resolveRolePanel resolves a phase's role panel and decides both §2.5
-// refusals for it. Callers must invoke it ahead of every write their emission
+// resolveRolePanel is the refusing wrapper over engine.ResolveRolePanel: it
+// resolves a phase's role panel and decides both §2.5 refusals for it. Both
+// callers — tp review and tp audit — keep this rather than the resolver,
+// because both emit a round and a round that cannot be emitted must refuse.
+//
+// Callers must invoke it ahead of every write their emission
 // path performs (§2.5 item 2): ahead of EnsureReviewState in tp review — which
 // creates .tp-review/<spec>/ and state.json before the round snapshot — and
 // ahead of the round snapshot in tp audit. A refused run then leaves nothing on
@@ -81,41 +94,35 @@ type rolePanel struct {
 // inside the resolvers, then the spec-coverage refusal (auditors only, because
 // it names a single entry to remove), then the empty-phase refusal.
 func resolveRolePanel(specPath, phase string) rolePanel {
-	fm := engine.ParseFrontmatter(specPath)
+	// The resolution itself is engine.ResolveRolePanel, shared with tp resume's
+	// oracle and tp lint (1.0.1 §7). Everything below is the refusing half: the
+	// abort, the two notice loops and the two §2.5 refusals, in §2.6's order.
+	panel, err := engine.ResolveRolePanel(specPath, phase)
 	// A malformed role file aborts its own phase (§3.6, exit 3) and never the
 	// other one; the phase word doubles as the corpus directory name, so the
 	// hint points at the phase that failed.
-	roles, corpusWarnings, corpusErr := engine.ResolveActiveCorpus(filepath.Dir(specPath), fm.Domain, phase)
-	if corpusErr != nil {
-		output.Error(ExitFile, corpusErr.Error(), "repair or delete the offending role file under .tp/"+phase+"/")
+	if err != nil {
+		output.Error(ExitFile, err.Error(), "repair or delete the offending role file under .tp/"+phase+"/")
 		os.Exit(ExitFile)
 	}
-	// Notice for the same reason as the override warnings below: an unknown
-	// domain or a domain that filtered out every role means the panel the spec
-	// asked for is not the panel that ran.
-	for _, w := range corpusWarnings {
-		output.Notice(w)
-	}
-	// Layer the spec-frontmatter overrides (tp.review_roles / tp.audit_roles,
-	// plus the legacy tp: lens shim) onto each active role's corpus focus.
-	roles, overrideWarnings, disabled := engine.ResolveOverrideFocus(roles, fm, phase)
-	// Notice, not Info: every one of these says a frontmatter entry was
-	// ignored — an id matching no active role, an unknown legacy lens key. Info
-	// returns early in JSON mode and JSON mode is on whenever stdout is not a
-	// terminal, so on that channel the advisory is invisible in exactly the
+	// Notice, not Info: every one of these says the panel the spec asked for is
+	// not the panel that resolved — an unknown domain, a domain that filtered
+	// out every role, an id matching no active role, an unknown legacy lens key.
+	// Info returns early in JSON mode and JSON mode is on whenever stdout is not
+	// a terminal, so on that channel the advisory is invisible in exactly the
 	// agent-driven runs where a typo'd role id silently costs a sub-agent round.
-	for _, w := range overrideWarnings {
+	//
+	// The loop stays HERE rather than inside the resolver, which is most of what
+	// the split is for: tp lint resolves the same panel and must not gain an
+	// advisory stderr channel it has never had (§7's third row).
+	for _, w := range panel.Warnings {
 		output.Notice(w)
 	}
 	if phase == engine.PhaseAuditors {
-		refuseSpecCoverageDeactivated(disabled)
+		refuseSpecCoverageDeactivated(panel.Disabled)
 	}
-	// Apply the enabled: false drop here — outside ResolveActiveCorpus and after
-	// its domain filtering — so deactivating every user role empties the panel
-	// instead of falling back to the embedded default corpus (§2.3).
-	roles = engine.DropDisabledRoles(roles, disabled)
-	if len(disabled) > 0 && len(roles) == 0 {
-		refuseEmptyPhase(phase, disabled)
+	if len(panel.Disabled) > 0 && len(panel.Roles) == 0 {
+		refuseEmptyPhase(phase, panel.Disabled)
 	}
-	return rolePanel{fm: fm, roles: roles, disabled: disabled}
+	return rolePanel{fm: panel.Frontmatter, roles: panel.Roles, disabled: panel.Disabled}
 }
