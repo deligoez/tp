@@ -74,3 +74,17 @@ func TestResolveRolePanel_ResolvesAnEmptiedPhaseWithoutRefusing(t *testing.T) {
 	assert.NotNil(t, panel.Frontmatter, "the frontmatter is part of the panel both phases carry forward")
 }
 
+// TestResolveRolePanel_ReturnsTheCorpusErrorInsteadOfExiting pins the pure half
+// of §7's second table row. The wrapper turns this into exit 3 with a hint
+// naming the corpus directory; the resolver hands the error back so a read-only
+// caller can decide for itself.
+func TestResolveRolePanel_ReturnsTheCorpusErrorInsteadOfExiting(t *testing.T) {
+	specPath := rolePanelProject(t, "", map[string]string{"broken": `{ not json`})
+
+	panel, err := ResolveRolePanel(specPath, PhaseReviewers)
+
+	require.Error(t, err, "a malformed role file is reported, not swallowed")
+	assert.Contains(t, err.Error(), "broken.json")
+	assert.Empty(t, panel.Roles, "a panel that could not be resolved is not a panel with roles in it")
+}
+
