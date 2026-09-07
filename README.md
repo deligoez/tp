@@ -416,6 +416,22 @@ per-spec focus comes from the spec's `tp:` frontmatter, and a recurring finding 
 mechanized into a check. The round-by-round recipe is in [SKILL.md](skills/tp/SKILL.md); the roles,
 frontmatter and finding contract are in [REFERENCE.md](skills/tp/REFERENCE.md).
 
+`tp lint` also reports what a round-1 grading of the spec will read, and makes no judgement about it
+— no threshold, no warning, no gate. Three keys sit beside `structured_elements` on every
+invocation:
+
+| Key | What it reports |
+|-----|-----------------|
+| `floor_size` | The spec's uncut floor units — the sentences a grading round reads. Equal to the line count of `tp ground <spec> --units` |
+| `cut` | The floor-index rows the derivation's arms dropped, so a small floor is not read as a cheap round when it is a narrow one |
+| `review_panel` | The reviewer role ids a round-1 `tp review <spec>` would emit, resolved without emitting a round |
+
+`review_panel` is the one with no cheap alternative: seeing a round-1 panel used to mean emitting the
+round. `floor_size` and `cut` are numbers `tp ground <spec> --units` already gives, moved to the
+moment a spec is being written rather than after a round exists. tp now spells `floor_size` in three
+payloads that count the same quantity over different text; which text each one reads is in
+[REFERENCE.md](skills/tp/REFERENCE.md).
+
 `tp validate` checks line coverage — verifying that task `source_lines` cover the entire spec:
 
 ```bash
