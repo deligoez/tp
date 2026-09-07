@@ -83,6 +83,15 @@ saving one.
     path.
 - **The body is ADR-shaped**: decision, why, consequences, and a link to the supplemental material —
   the same split and the same reason, which is that the decision must stand without the material.
+- **A citation convention holds only as far as a check travels.** These rules leave a spec full of
+  references — named artifacts instead of figures, code citations, derivation cells filled at
+  implementation time — and every one of them rots silently when the thing it names moves. tp's own
+  repository mechanises the class rather than trusting the convention: `.tp/config.json` registers a
+  `code-citation-drift` entry in `workflow.checks`, so a citation checker runs over the active spec
+  **every review round** and `tp review <spec> --status --check` will not exit 0 while it fails. If
+  you adopt these rules, register an equivalent check for your own project —
+  `tp set --workflow checks='[{"class":"<slug>","cmd":"<detector>"}]'`, see Class & Checks Guidance
+  — rather than relying on the convention alone.
 
 #### Test rows
 
