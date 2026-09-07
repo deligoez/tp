@@ -276,6 +276,48 @@ alone. There is simply no instance of one, and a rule with no demonstrated indep
 ship. It would also have needed `spec/.tp-review/` excluded, since almost every raw hit is inside a
 round snapshot: a frozen photograph whose references were correct when it was taken.
 
+### `spec_bytes` — a lint field whose only use was a product tp does not support
+
+**What was tried.** `tp lint` was to report the spec's byte size beside `review_panel`, so that a
+reader could multiply the two and get what one review round reads. Designed and drafted into
+`spec/1.0.1.md` §2; refuted in that spec's third grounding round before any code was written.
+
+**Why it died.** tp's role prompts **name the spec path and do not inline the spec**, so the product
+measures nothing tp actually sends. Measured against the real prompt bytes for a round-1 emission:
+on a five-line probe spec the product under-states the read by roughly forty times, and on
+`spec/1.0.1.md` it over-states it by roughly three. Wrong in both directions and by different
+factors, which is worse than wrong by a constant — a reader cannot calibrate it away.
+
+**It reopens** if tp ever inlines spec text into a role prompt, at which point the product becomes
+the right arithmetic rather than a coincidence. Nothing in the current emitter does.
+
+### `floor_figure_share` — a counter that penalised the behaviour its own release exists to encourage
+
+**What was tried.** The share of uncut floor units whose text carries a digit or a code span,
+reported by `tp lint` beside `floor_size`. The intent was to say how much of a round's grading cost
+is re-derivation of figures, which `spec/1.0.1.md` §4 argues is the least valuable kind of finding.
+
+**Why it died, in two measurements.** The numerator was **two of the three arms of the floor's own
+admission predicate** (`inFloor` = digit ∨ code span ∨ measurement verb, `internal/engine/floor.go`),
+so the field could only ever report a high number: across six of this repository's specs it stayed
+inside a narrow band near the top of its range. (The measurement is over each spec's latest emitted
+floor; `tp ground --units` emits a round when the spec has moved, so it was taken in a copy.) And the direction is inverted — §4's shipped rule
+replaces a figure with a *reference*, references are code spans, and a code span is in the
+numerator. **A spec scores higher for obeying the rule.**
+
+**A narrower variant does discriminate, and was still not shipped.** Restricting the numerator to
+`floorHasDigit` alone, measured over the same six specs, gives a spread roughly twice as wide as the
+two-arm form, and the spec that obeys the reference rule most closely scores *lowest* — the correct
+direction. It was left out anyway, because discrimination is not the open question: what a figure
+share *means* rests on one spec's `kind` table, n = 1, so shipping it would publish a contract for
+an unmeasured hypothesis. That is the class `class_median_rounds` was removed for in the same
+release.
+
+**It reopens** when a second cycle's `kind`-by-finding-rate table exists, at which point the
+narrow-numerator variant is the one to implement, not the two-arm one. The measurement command is in
+`spec/1.0.1-measurements.md`.
+
+---
 ---
 
 ## Survived, unscheduled
