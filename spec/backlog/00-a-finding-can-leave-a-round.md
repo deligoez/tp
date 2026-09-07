@@ -168,6 +168,15 @@ plausible integers — measured on a live tree, the third exit in §4 moved `cle
 `next_action` follows the same set: when every non-`PASS` row in the latest round carries a
 disposition, it says the round is disposed and the next step is to re-audit.
 
+**The two predicates already disagree, at `HEAD`, about `duplicate`.** `roundPayload` in
+`internal/engine/resumepayload.go` counts a row as unresolved unless `resolved.status` is exactly
+`"wontfix"`; `reviewFindingResolvedAway` in `internal/engine/reviewclean.go` subtracts `wontfix`
+**and** `duplicate`. Measured at `5058fc99` on a one-finding round resolved `duplicate` with
+evidence: `tp review <spec> --status` reports the round clean with `consecutive_clean: 1`, while
+`tp resume` in the same tree reports `next_action.payload.unresolved_findings: 1` and the summary
+*"run review round 2 (1 unresolved from the previous round)"*. One round, two surfaces, opposite
+answers — and neither is reading the other's predicate.
+
 ## 6. tp names every file it writes
 
 | surface | today | after |
