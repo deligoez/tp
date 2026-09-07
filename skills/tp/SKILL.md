@@ -75,9 +75,12 @@ saving one.
   - **The interpreter.** Invoke each block as `bash -c '<block>'`. One block here printed seventeen
     rows under `bash` and nothing at all, at exit 0, under `zsh`, which reads `"$tag:…"` as a
     history modifier — so "prints something" is not a property of the command alone.
-  - **The binary.** A bare `tp` in a block resolves against `PATH`, which lags the tree, so the
-    block certifies a release the spec is not about. Build the tree's own binary and call it by
-    path — `go build -o /tmp/tp-dev/tp ./cmd/tp`, then `/tmp/tp-dev/tp …`.
+  - **The binary.** A block must name the binary it means rather than inherit whatever `PATH`
+    resolves. Usually the `tp` on `PATH` *is* the binary meant, and the block is right as written —
+    record the `tp --version` it was run against, so a later reader knows what produced the output.
+    The exception is a spec written about a tp that is not the installed one: there `PATH`
+    certifies a release the spec is not describing, so call the intended binary by an explicit
+    path.
 - **The body is ADR-shaped**: decision, why, consequences, and a link to the supplemental material —
   the same split and the same reason, which is that the decision must stand without the material.
 
