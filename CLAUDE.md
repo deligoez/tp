@@ -218,14 +218,18 @@ So `Lived: 0` next to `Not covered: 6` is honestly reachable, and the "stronger"
 
 ### Where the next work is (read this before starting anything)
 
-**Two releases are in flight, in this order.** `spec/1.0.1.md` — *tp says what a round will read*:
-`tp lint` reports one round's grading cost (`floor_size`, its per-section split, the share of units
-carrying a figure, spec bytes × active roles) plus the author-declared `class` and that class's median
-rounds **derived live from this repository's corpus**. No threshold and no gate — a floor-budget
-warning was designed and dropped because round-1 floor does **not** predict cycle length; the
-derivation is in `spec/1.0.1-measurements.md` §1. It also ships the spec-writing rules to
-`skills/tp/SKILL.md`. Then `spec/1.0.2.md` — *a finding can leave a round* — which is ground round 2
-recorded and repaired, and is loop-class.
+**`spec/1.0.1.md` is done and tagged** — *tp says what round 1 will read*: `tp lint` reports
+`floor_size`, `cut` and `review_panel`, with no threshold and no gate. Three candidate fields
+(`floor_by_section`, `spec_bytes`, `floor_figure_share`) were designed into it and dropped, each by a
+measurement that refuted its own purpose; `spec/undecided.md` carries all three with reopen
+conditions. It also shipped the spec-writing rules to `skills/tp/SKILL.md` as **Step 0.5**, repaired
+`vague-language`'s fence and inline-span blindness, exported `engine.FloorSize`, and split
+`resolveRolePanel` into a pure resolver plus a refusing wrapper — which put `engine.roleUnits`'s
+duplicate copy onto the shared one, so two derivations became one. Its cycle is the evidence behind
+the repair rule and the anchored-figure rule below, and `spec/1.0.1-measurements.md` is the forensics.
+
+**Next is `spec/1.0.2.md`** — *a finding can leave a round* — which is ground round 2 recorded and
+repaired, and is loop-class, so budget it at roughly twice a comparable release.
 
 **Everything else is `spec/backlog/README.md`, now the roadmap**: twenty-one unreleased specs named by
 **priority** rather than version (`01-checklist-covers-what-changed.md` …), plus the order, the reason
