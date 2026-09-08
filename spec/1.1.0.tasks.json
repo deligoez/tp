@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.1.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-08T09:15:05.542415Z",
+  "updated_at": "2026-09-08T09:23:29.594903Z",
   "workflow": {
     "review_max_rounds": 3
   },
@@ -319,7 +319,7 @@
     {
       "id": "verify-prompt-output-contract",
       "title": "Give the verify prompt an output contract",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "review"
@@ -333,11 +333,20 @@
         "## 5. Tests"
       ],
       "source_lines": "151-151",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-08T09:16:50.623121Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-08T09:23:29.579327Z",
+      "closed_reason": "- tp review \u003cspec\u003e --verify now ends with an output format whose JSON object line names exactly the four keys both gates require — severity, finding, location, evidence — the set requiredFindingFields declares in internal/cli/review_record.go; verifyOutputFormat in internal/cli/review_verify.go replaces the prose-only 'Respond with one JSON finding per line' tail that carried no object line at all.\n- Verified as §5 row 8 asks, by emitting and parsing rather than searching: a git clone --no-hardlinks outside the repository, built with this change, ran tp review spec.md --verify --findings findings.ndjson and its prompt held exactly one line parsing as a JSON object, with keys ['severity','finding','location','evidence'].\n- A row copied from that key list survives both gates, run with the same clone binary outside the repository: --merge reported that input parsed 1 / skipped 0 at merged_count 1, and --record exited 0 recording it as findings 1 (round 1).\n- The role: \"verifier\" stamp stays the separate instruction the builder already wrote and is absent from the key list; the emitted prompt still carries that instruction, and the parsed key set does not carry role.\n- internal/cli/verify_prompt_contract_test.go asserts on the parsed set, never a substring: it collects every prompt line that parses as a JSON object, requires exactly one, checks the four keys and role's absence, and pins the reason for parsing by asserting the word evidence still occurs in the prompt with the object line removed — its fixture's fixed finding carries resolution evidence, so a substring search is green with no contract present. Red under three mutants, each at its own assertion: evidence dropped from the key list (line 64), HEAD's prose-only tail restored so no object line is emitted (line 57), role added to the key list (line 66); all three reverted and the revert confirmed with git -c diff.external= diff --no-ext-diff.\n- Gate green, four exit codes read separately: check-suite-state.sh 0 (0 lines matching '^--- FAIL: ' and 0 packages reporting 'build failed'), golangci-lint run 0, check-deadcode.sh 0, check-complexity.sh 0.\nOut of scope: findingFormat at internal/cli/review.go:804 — the panel prompts' object line — still names severity, category, location, finding, suggestion and no evidence, and codeAuditOutputFormat at :1766 likewise; that is the open task prompt-formats-name-required-keys, not this fence.",
+      "gate_passed_at": "2026-09-08T09:23:29.579327Z",
+      "commit_sha": "9abea9d6",
+      "commit_shas": [
+        "9abea9d6",
+        "17ebb12d"
+      ],
+      "commit_files": [
+        "internal/cli/review_verify.go",
+        "internal/cli/verify_prompt_contract_test.go"
+      ]
     },
     {
       "id": "prompt-formats-name-required-keys",
