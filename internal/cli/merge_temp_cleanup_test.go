@@ -113,6 +113,10 @@ func TestReviewMerge_NamesTheTemporaryItCouldNotRemove(t *testing.T) {
 			"the operator cannot delete a file tp never names")
 		assert.Contains(t, msg, "could not be removed either",
 			"a message that reports only the rename leaves the survivor unexplained")
+		assert.Contains(t, msg, "rename",
+			"the cause of the failed write survives the wrapping: dropping the %w "+
+				"verb from mergeWriteFailure leaves only the cleanup clause, and the "+
+				"rename EPERM the operator has to act on disappears")
 	})
 
 	t.Run("the removal succeeds: the write error stands alone", func(t *testing.T) {
