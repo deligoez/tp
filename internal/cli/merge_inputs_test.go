@@ -188,26 +188,185 @@ func TestAuditMerge_BlankAndZeroByteInputsExitZero(t *testing.T) {
 	assert.Equal(t, [2]int{0, 0}, inputs[empty])
 }
 
-// TestMerge_DroppedInputStillWritesOutput pins that the exit-1 path is a report,
-// not an abort: the surviving roles' findings are still merged and still written
-// to -o, so an operator can read what did parse while the driver reads the
-// non-zero code.
-func TestMerge_DroppedInputStillWritesOutput(t *testing.T) {
+// TestMerge_RefusedMergeLeavesOutputPathUntouched pins §5 row 10, and replaces
+// the rule this test asserted through v1.0.1 — that the exit-1 path is a report
+// which still writes -o. It is not: `-o` is the file the next command in a
+// review loop reads, so a merge that exits non-zero creates no file at that
+// path and modifies no file already there. What an operator reads is still the
+// summary on stdout, which the refusal does not withhold.
+//
+// The mutant is HEAD, which writes the surviving row before it refuses: the
+// absent path exists after the first run, and the seed is gone after the second.
+func TestMerge_RefusedMergeLeavesOutputPathUntouched(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	// The first input's only row omits location, so that input parses no row
+	// and the merge refuses at exit 1; the second is legal on all four keys, so
+	// there is a surviving row for a non-refusing merge to write.
+	droppedInput := writeFindingsFile(t, dir, "dropped.ndjson", []string{
+		`{"role":"implementer","severity":"high","finding":"missing bound","evidence":"read the cited section"}`,
+	})
+	legalInput := writeFindingsFile(t, dir, "legal.ndjson", []string{goodFinding2})
+	out := filepath.Join(dir, "merged.ndjson")
+
+	const seed = "SEED LINE THE REFUSED MERGE MUST NOT TOUCH\n"
+
+	// The three runs share one -o path and run in order: absent, then seeded,
+	// then seeded again against a missing input.
+	t.Run("exit 1 creates no file at an absent -o", func(t *testing.T) {
+		stdout, stderr, code := runTPMerge(t, dir, "review", "--merge", "-o", out, droppedInput, legalInput)
+		require.Equal(t, 1, code, "the dropped input refuses the merge: %s", stderr)
+
+		// The refusal withholds the file, not the accounting: the summary is
+		// still emitted and still counts the surviving row.
+		var summary map[string]any
+		require.NoError(t, json.Unmarshal([]byte(stdout), &summary), "the refused merge still emits its summary: %s", stdout)
+		assert.Equal(t, float64(1), summary["merged_count"], "the surviving role's row is still counted")
+		assert.NotContains(t, summary, "output_path", "no file was written, so the summary names no output path")
+
+		_, err := os.Stat(out)
+		require.Error(t, err, "a refused merge creates no file at -o")
+		assert.True(t, os.IsNotExist(err), "the -o path must still not exist, got: %v", err)
+	})
+
+	t.Run("exit 1 leaves a seeded -o byte-identical", func(t *testing.T) {
+		require.NoError(t, os.WriteFile(out, []byte(seed), 0o600))
+		before, err := os.ReadFile(out)
+		require.NoError(t, err)
+
+		_, stderr, code := runTPMerge(t, dir, "review", "--merge", "-o", out, droppedInput, legalInput)
+		require.Equal(t, 1, code, "the dropped input refuses the merge: %s", stderr)
+
+		after, err := os.ReadFile(out)
+		require.NoError(t, err, "the seeded file is still there")
+		assert.Equal(t, string(before), string(after), "a refused merge modifies no file already at -o")
+	})
+
+	t.Run("exit 3 leaves a seeded -o byte-identical", func(t *testing.T) {
+		require.NoError(t, os.WriteFile(out, []byte(seed), 0o600))
+		missing := filepath.Join(dir, "never-written.ndjson")
+		require.NoFileExists(t, missing, "the fixture's point is that this input is absent")
+
+		_, stderr, code := runTPMerge(t, dir, "review", "--merge", "-o", out, missing, legalInput)
+		require.Equal(t, 3, code, "a missing input refuses at exit 3: %s", stderr)
+
+		after, err := os.ReadFile(out)
+		require.NoError(t, err)
+		assert.Equal(t, seed, string(after), "non-zero is pinned by more than exit 1")
+	})
+}
+
+// TestMerge_CleanRoundStillWritesOutput pins the case that would turn §5 row 10
+// into a defect. A converged round's inputs hold no content line at all — a
+// role that found nothing writes a zero-byte file — and the loop reads the
+// zero-byte -o that merge writes as exactly that. The refusal is keyed on a
+// dropped input, which neither shape produces, so it must not reach here.
+//
+// The mutant is a refusal keyed on the merged row count instead: both shapes
+// merge zero rows, so both would be refused and a clean round would stop
+// converging.
+func TestMerge_CleanRoundStillWritesOutput(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name    string
+		content []byte
+	}{
+		{"two zero-byte inputs", nil},
+		{"two blank-line-only inputs", []byte("\n   \n\t\n")},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			in1 := filepath.Join(dir, "r1.ndjson")
+			in2 := filepath.Join(dir, "r2.ndjson")
+			require.NoError(t, os.WriteFile(in1, tc.content, 0o600))
+			require.NoError(t, os.WriteFile(in2, tc.content, 0o600))
+			out := filepath.Join(dir, "merged.ndjson")
+
+			stdout, stderr, code := runTPMerge(t, dir, "review", "--merge", "-o", out, in1, in2)
+			require.Equal(t, 0, code, "a clean round is not a refusal: %s", stderr)
+
+			content, err := os.ReadFile(out)
+			require.NoError(t, err, "a clean round still writes -o")
+			assert.Empty(t, content, "the loop reads a zero-byte -o as nothing found")
+
+			var summary map[string]any
+			require.NoError(t, json.Unmarshal([]byte(stdout), &summary), "summary must be JSON: %s", stdout)
+			assert.Equal(t, out, summary["output_path"], "the summary names the file it wrote")
+		})
+	}
+}
+
+// TestMerge_UnwritableOutputLeavesNoPartialFile pins the other half of §5 row
+// 10: the -o write itself goes to a temporary path and is renamed on success,
+// so a write that fails leaves neither a truncated -o nor the temporary file
+// beside it. The fixture makes the rename fail by naming a directory as -o.
+//
+// The mutant is a write path that leaves its temporary file behind when the
+// rename fails: the directory's parent then holds one more entry than it did.
+func TestMerge_UnwritableOutputLeavesNoPartialFile(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 
 	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{goodFinding1, goodFinding2})
-	f2 := writeFindingsFile(t, dir, "f2.ndjson", []string{`{bad`})
+	// -o names a directory, so the rename onto it cannot succeed.
 	out := filepath.Join(dir, "merged.ndjson")
+	require.NoError(t, os.Mkdir(out, 0o700))
 
-	stdout, stderr, code := runTPMerge(t, dir, "review", "--merge", "-o", out, f1, f2)
-	require.Equal(t, 1, code, "the dropped input still fails the merge: %s", stderr)
+	before, err := os.ReadDir(dir)
+	require.NoError(t, err)
 
-	var summary map[string]any
-	require.NoError(t, json.Unmarshal([]byte(stdout), &summary))
-	assert.Equal(t, float64(2), summary["merged_count"], "the surviving role's findings still merge")
+	_, stderr, code := runTPMerge(t, dir, "review", "--merge", "-o", out, f1)
+	require.Equal(t, 3, code, "an unwritable -o is a file error: %s", stderr)
 
-	content, err := os.ReadFile(out)
-	require.NoError(t, err, "-o file is still written")
-	assert.Len(t, parseNDJSON(t, string(content)), 2)
+	after, err := os.ReadDir(dir)
+	require.NoError(t, err)
+	assert.Equal(t, len(before), len(after), "no partial or temporary file is left behind: %v", after)
+
+	entries, err := os.ReadDir(out)
+	require.NoError(t, err, "the directory named as -o is still a directory")
+	assert.Empty(t, entries, "nothing was written inside it either")
+}
+
+// TestMerge_OutputGoesThroughATemporaryFile pins the mechanism rather than one
+// of its consequences. Leaving no partial file behind is not enough to tell
+// temp-and-rename from a plain os.WriteFile — an open that fails truncates
+// nothing either — so this fixture separates them where they actually differ:
+// the destination directory is not writable while the seeded -o inside it is.
+// A temporary file cannot be created there, so the merge fails at exit 3 and
+// the seed survives; os.WriteFile would open the existing file and replace it.
+//
+// The mutant is that os.WriteFile.
+func TestMerge_OutputGoesThroughATemporaryFile(t *testing.T) {
+	t.Parallel()
+	if os.Geteuid() == 0 {
+		t.Skip("root writes into a directory whose mode forbids it, so the fixture cannot separate the two")
+	}
+	dir := t.TempDir()
+
+	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{goodFinding1})
+
+	locked := filepath.Join(dir, "locked")
+	require.NoError(t, os.Mkdir(locked, 0o700))
+	out := filepath.Join(locked, "merged.ndjson")
+	const seed = "SEED LINE IN AN UNWRITABLE DIRECTORY\n"
+	require.NoError(t, os.WriteFile(out, []byte(seed), 0o600))
+
+	require.NoError(t, os.Chmod(locked, 0o500))
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o700) })
+	// The fixture's point is that the file itself is still writable: only the
+	// directory forbids creating a new entry.
+	f, err := os.OpenFile(out, os.O_WRONLY, 0o600)
+	require.NoError(t, err, "the seeded file must stay writable, or this measures the wrong permission")
+	require.NoError(t, f.Close())
+
+	_, stderr, code := runTPMerge(t, dir, "review", "--merge", "-o", out, f1)
+	require.Equal(t, 3, code, "a directory that admits no temporary file is a file error: %s", stderr)
+
+	after, err := os.ReadFile(out)
+	require.NoError(t, err)
+	assert.Equal(t, seed, string(after), "the merge never opened the destination itself")
 }
