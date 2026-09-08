@@ -115,3 +115,38 @@ registrations rather than a third-party tool's convention tp merely observes.
 The measured behaviour this ends is in `spec/undecided.md` under that entry: at `c75e5c3d`, a
 schema-valid check registered as `exit 2` is reported `"passed": false` and still stamps
 `do NOT report findings of these classes:` into all four role prompts of the same emission.
+
+## Routed here from v1.1.0's audit round 3 (2026-09-08)
+
+This sidecar carried no routed section before — it had *Decided at the 2026-09-08 decision pass*
+above, but was not part of the sweep that wrote `## Routed here at the 2026-09-08 re-verification`
+into other sidecars, so this heading names where the items came from instead of claiming membership
+in that sweep. The items are recorded here; the spec body is not edited.
+
+- **A registered check resolves its subject through the active pointer, not the spec on the command
+  line — the motivating instance for the `{spec}` substitution decided above.**
+  `internal/cli/review_status.go:199` is
+  `res := engine.RunCommand(c.Cmd, dir, timeout, gateOutputTailLines)`: the spec path is not an
+  argument, and there is no environment seam through which the command could learn it. So a check
+  runs against whatever `tp resume` currently points at. Measured in a clone: the script run directly
+  on `spec/1.0.1.md` exits **1** naming a real violation, while
+  `tp review spec/1.0.1.md --status --check` reports `passed: true` — a PASS about one spec, reported
+  under another. The second half is what makes it more than a wrong number: tp stamps
+  `do NOT report findings of these classes:` into the role prompts of the spec named on the command
+  line, so the class is suppressed for the spec the check never read. Root predates v1.1.0.
+  (Citation read at `e8477464`; the two exit codes are quoted from the audit round's measurement.)
+- **`scripts/check-test-rows-cite-sidecar.py:87` collides a crash with a result.** The line is
+  `lines = spec.read_text(encoding="utf-8").splitlines()`, unguarded, inside `check_spec`. A
+  non-UTF-8 or unreadable spec raises there, nothing catches it, and Python exits **1** with a
+  traceback — the same code the docstring reserves for two *findings* meanings (lines 34–35: "1 when
+  a cell cites it, and 1 when nothing was scanned at all"), while `main()`'s own I/O failures exit
+  **2** (lines 148 and 156). The script therefore already keeps the contract on the paths its author
+  wrote and breaks it on the path nobody wrote. An instance of the exit contract decided above: `2`
+  or more means cannot run.
+- **The zero-row guard is global, so a degraded table is caught only when it is alone.**
+  `check_spec` returns a per-spec row count, `main()` sums it across every argument
+  (`rows += n`, line 159), and the guard is `if rows == 0` (line 169). So a Tests table that has
+  emptied itself — the plural header, the suffixed heading, or the unclosed fence its own message
+  names — exits 1 when it is the only table, and **0** the moment any sibling argument contributes a
+  single scanned row. Its citing cells then reach nobody while tp goes on telling every reviewer that
+  `method-only-in-ungraded-sidecar` is mechanically checked. Read at `e8477464`.
