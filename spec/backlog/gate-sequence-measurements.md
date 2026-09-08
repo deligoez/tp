@@ -187,3 +187,19 @@ fix from a reword. Reproducing it needs the input stated exactly: the `echo` mus
 `./scripts/check-suite-state.sh`. The guard is a substring match, so a bare `check-suite-state.sh`
 reddens it — and a naive reproduction then looks like a refutation of §1.1 rather than a
 misconstruction of its fixture.
+
+## Decided at the 2026-09-08 decision pass
+
+From `spec/undecided.md`, *`NewRootCmd` writes package globals*, which was moved out of this spec
+because it took no decision on it. It comes back as a task.
+
+**Decided: the fence, not the rewrite.** `NewRootCmd` refuses a second in-process call — a guarded
+once, with a panic that names the caller. Fresh per-call storage waits until a second production
+caller exists; at `13bfde30` there is one, `Execute()` in `internal/cli/root.go`, which
+`cmd/tp/main.go` calls once.
+
+The rewrite is the wider change — it moves how every flag's default is read — and buys nothing while
+the production caller count is one. The fence buys the thing that was actually missing: **nothing
+says** the globals are single-writer, so a second in-process caller would share them silently, the
+way the two parallel tests did at 30 races per run before `3b9204e1` closed it test-side with
+`newRootCmdForTest()`.
