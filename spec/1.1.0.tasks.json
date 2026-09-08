@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.1.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-08T07:15:03.929386Z",
+  "updated_at": "2026-09-08T07:32:41.723478Z",
   "workflow": {
     "review_max_rounds": 3
   },
@@ -19,7 +19,7 @@
     {
       "id": "fixture-migration",
       "title": "Migrate review finding fixtures to four keys",
-      "status": "open",
+      "status": "done",
       "tags": [
         "test",
         "fixtures"
@@ -31,11 +31,48 @@
         "## 1. The decision"
       ],
       "source_lines": "44-48",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-08T07:16:00.738796Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-08T07:32:41.705091Z",
+      "closed_reason": "Every review-finding fixture the suite feeds to tp review --merge or tp review \u003cspec\u003e --record now carries a non-empty severity, finding, location and evidence: 145 row literals swept across 25 files plus 10 hand-edited rows in merge_inputs, record_status_named, review_record, output_flag_scope, spec_hash_hint and audit_signal.\n- Helper-built fixtures were migrated at the helper, not the call site: classRow (report_class_test.go, reached by nine record tests through review_suppression_test.go:58) and longFindingLine (ndjson_read_contract_test.go); rows the census rule cannot see were migrated too - rows carrying a resolved block and rows shaped for both phases at once.\n- Verified outcome-shaped rather than census-shaped: with §1 decision 5's parity change applied on top (evidence appended to missingFindingFields in review_merge.go, plus a strings.TrimSpace check on the top-level evidence in parseRecordRows), go test -count=1 ./... went from 68 failing test functions and 0 build failures to 0 and 0; the probe was then reverted and both production files are byte-identical to HEAD (git checkout confirmed, git status shows no non-test change).\n- Deliberately incomplete fixtures were left incomplete, each still omitting exactly the key it tests: merge_inputs_test.go:60 (no location, so TestReviewMerge_InputsReportPerFileCounts still measures 2 parsed / 2 skipped), review_merge_test.go's empty-severity and no_severity rows, and review_test.go:595 (TestReviewMissingSeverityDefaultsToUnknown). Audit rows and the --findings-only fixtures were left alone as out of the gate scope.\n- The project gate was run with the four step exit codes read separately and all four are 0: check-suite-state.sh 0 (race suite green, spec/.tp-review and .tp/rounds digests unchanged), golangci-lint run 0 with '0 issues.', check-deadcode.sh 0, check-complexity.sh 0.",
+      "gate_passed_at": "2026-09-08T07:32:41.705091Z",
+      "commit_sha": "6d774973",
+      "commit_shas": [
+        "6d774973",
+        "277704e4"
+      ],
+      "commit_files": [
+        "internal/cli/audit_signal_test.go",
+        "internal/cli/budget_test.go",
+        "internal/cli/finding_class_test.go",
+        "internal/cli/ground_state_untouched_test.go",
+        "internal/cli/harness_note_test.go",
+        "internal/cli/integration_test.go",
+        "internal/cli/location_clusters_test.go",
+        "internal/cli/merge_inputs_test.go",
+        "internal/cli/ndjson_read_contract_test.go",
+        "internal/cli/nextaction_test.go",
+        "internal/cli/output_flag_scope_test.go",
+        "internal/cli/record_idempotent_test.go",
+        "internal/cli/record_status_named_test.go",
+        "internal/cli/regression_autoinclude_test.go",
+        "internal/cli/report_class_test.go",
+        "internal/cli/review_converge_live_test.go",
+        "internal/cli/review_exclusion_test.go",
+        "internal/cli/review_merge_test.go",
+        "internal/cli/review_record_advisory_test.go",
+        "internal/cli/review_record_test.go",
+        "internal/cli/review_regression_test.go",
+        "internal/cli/review_report_test.go",
+        "internal/cli/review_resolve_positionals_test.go",
+        "internal/cli/review_state_rounds_test.go",
+        "internal/cli/review_test.go",
+        "internal/cli/review_verify_test.go",
+        "internal/cli/reviewconvergeon_clean_test.go",
+        "internal/cli/role_attribution_transparency_test.go",
+        "internal/cli/role_mode_test.go",
+        "internal/cli/spec_hash_hint_test.go"
+      ]
     },
     {
       "id": "record-required-fields",
