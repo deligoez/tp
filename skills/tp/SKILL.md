@@ -252,6 +252,18 @@ advisory: review's exit code is identical with and without it.
 
 ### Step 2: Review loop (explicit recipe)
 
+**A spec that changes a validation rule, a gate or a record schema is sized by the fixtures it
+breaks — build it and run the suite before the first counted round.** A review round reads the
+spec; the fixtures are in the suite, so no round will report them. Make the minimal code change in
+a `git clone --no-hardlinks` outside the repository, run the full suite there, and count two things
+separately: lines matching `^--- FAIL: `, and packages that print `FAIL … [build failed]`, which
+emit no `--- FAIL: ` line at all and are invisible to a grep for one. That total is the release's
+real size, and it belongs in §1 as a decision that decomposition gives the fixture migration **a
+task of its own** with the task that changes the rule depending on it — not as an acceptance
+criterion hung on the task making the change. Then discard the clone; the count is what you keep.
+tp's own worked instance, with the counting rule it stated before counting, is *The release's size
+is the suite, and nobody had run it* in `spec/1.1.0-measurements.md`.
+
 Repeat until `tp review <spec> --status --check` exits 0:
 
 1. `tp review <spec>` — tp auto-numbers the round (R = recorded rounds + 1), snapshots the spec, and injects previous findings + the changed-sections diff into every role prompt. A 4th **regression** prompt is auto-appended from round 2 when the spec changed or fixed findings exist — process it first.
