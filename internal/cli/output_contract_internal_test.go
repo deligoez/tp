@@ -67,3 +67,14 @@ func TestOutputContractStampsEvidenceOnTheReviewBranchOnly(t *testing.T) {
 	assert.NotContains(t, auditStamp, "- evidence:",
 		"the audit branch is fenced out of this release and must not gain the key")
 }
+
+// TestCodeAuditOutputFormatDoesNotAskForAnEmptyArray is the prompt half of the
+// `[]` repair. The subject here is the whole of a bounded artifact — the const
+// is the entire prompt block — so an absence assertion over it has no
+// "elsewhere" a restatement could go to, which is what makes it worth writing.
+// The behavioural half is TestReviewMerge_ALineOfJustAnEmptyArrayIsNotADroppedRole.
+func TestCodeAuditOutputFormatDoesNotAskForAnEmptyArray(t *testing.T) {
+	t.Parallel()
+	assert.NotContains(t, codeAuditOutputFormat, "[]",
+		"a role told to answer `[]` writes a line --merge cannot parse, and one clean role then drops the panel")
+}
