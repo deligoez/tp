@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -123,6 +124,92 @@ func runBrief(t *testing.T, kind UnitKind, mergedExists bool) []string {
 		}
 	}
 	return calls
+}
+
+// TestUnitKind_BriefCommand_ReviewRecordFencesRecordBehindTheMerge runs both
+// record briefs through /bin/sh against a fake tp that fails the merge step,
+// and asserts on which commands the shell actually reached.
+//
+// Measured against the real binary before this test existed: a role file whose
+// every content line is malformed makes `tp review --merge` exit 1 and write no
+// `-o` at all (§5 row 10), and the `;` chain then ran `--record` on a file that
+// is not there — exit 3, "cannot read findings file", reporting a missing path
+// instead of the merge failure that caused it. The review chain is fenced with
+// `&&` so the record step is not reached; the audit phase keeps `;`, because §4
+// fences this release out of it and its merge still writes `-o` before refusing.
+func TestUnitKind_BriefCommand_ReviewRecordFencesRecordBehindTheMerge(t *testing.T) {
+	t.Run("review: a failed merge stops the chain", func(t *testing.T) {
+		calls, exitCode := runBriefWithFailingMerge(t, UnitReviewRecord)
+		require.Len(t, calls, 1, "the record step must not run after a failed merge")
+		assert.Contains(t, calls[0], "--merge ")
+		assert.NotEqual(t, 0, exitCode, "the chain reports the merge's own failure")
+	})
+	t.Run("audit: the chain continues past a failed merge", func(t *testing.T) {
+		calls, _ := runBriefWithFailingMerge(t, UnitAuditRecord)
+		require.Len(t, calls, 2, "the audit phase keeps ';' — §4 fences it out of this release")
+		assert.Contains(t, calls[1], "--record ")
+	})
+}
+
+// runBriefWithFailingMerge is runBrief with a fake tp that exits 1 on any
+// invocation carrying --merge, and without the zero-exit requirement: the exit
+// code is what the caller is measuring.
+func runBriefWithFailingMerge(t *testing.T, kind UnitKind) (calls []string, exitCode int) {
+	t.Helper()
+	dir := t.TempDir()
+	roundDir := filepath.Join(dir, "round")
+	require.NoError(t, os.MkdirAll(roundDir, 0o755))
+	writeUnitFile(t, RoleFindingsPath(roundDir, "implementer"), "{}\n")
+
+	bin := filepath.Join(dir, "bin")
+	require.NoError(t, os.MkdirAll(bin, 0o755))
+	log := filepath.Join(dir, "calls.log")
+	fake := "#!/bin/sh\necho \"$@\" >> " + log + "\n" +
+		"for a in \"$@\"; do [ \"$a\" = \"--merge\" ] && exit 1; done\nexit 0\n"
+	require.NoError(t, os.WriteFile(filepath.Join(bin, "tp"), []byte(fake), 0o700))
+
+	brief := kind.BriefCommand(UnitTarget{Spec: filepath.Join(dir, "spec.md"), RoundDir: roundDir})
+	cmd := exec.Command("/bin/sh", "-c", brief)
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"), "TP_ROUND_DIR="+roundDir)
+	out, err := cmd.CombinedOutput()
+	var exitErr *exec.ExitError
+	switch {
+	case err == nil:
+		exitCode = 0
+	case errors.As(err, &exitErr):
+		exitCode = exitErr.ExitCode()
+	default:
+		require.NoError(t, err, "the brief could not be run: %s", out)
+	}
+
+	data, err := os.ReadFile(log)
+	require.NoError(t, err, "the brief invoked tp at least once")
+	calls = make([]string, 0)
+	for line := range strings.SplitSeq(strings.TrimSpace(string(data)), "\n") {
+		if strings.TrimSpace(line) != "" {
+			calls = append(calls, "tp "+line)
+		}
+	}
+	return calls, exitCode
+}
+
+// TestUnitKind_BriefCommand_RecordChainsDifferOnlyByVerbAndFence derives one
+// record brief from the other rather than restating both, so the two cannot
+// drift apart in any way except the two this release intends: the tp
+// subcommand, and the separator that fences the record step behind the merge.
+// A change to the shared shape — the `[ -f … ] ||` guard, the glob, the `-o`
+// path — fails here whichever phase it lands in.
+func TestUnitKind_BriefCommand_RecordChainsDifferOnlyByVerbAndFence(t *testing.T) {
+	t.Parallel()
+	target := UnitTarget{Spec: "spec/1.1.0.md", RoundDir: "/repo/rounds/review-r1"}
+	audit := UnitAuditRecord.BriefCommand(target)
+	review := UnitReviewRecord.BriefCommand(target)
+
+	require.Contains(t, audit, "; tp audit ", "the audit chain is the unfenced one")
+	derived := strings.Replace(strings.ReplaceAll(audit, "tp audit ", "tp review "), "; tp review ", " && tp review ", 1)
+	assert.Equal(t, derived, review,
+		"the review chain is the audit chain with its verb renamed and its record step fenced")
 }
 
 // TestUnitKind_Succeeded is test 51: a unit succeeded when it exited 0 AND its
