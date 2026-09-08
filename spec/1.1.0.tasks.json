@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.1.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-08T07:56:53.420827Z",
+  "updated_at": "2026-09-08T08:05:05.860371Z",
   "workflow": {
     "review_max_rounds": 3
   },
@@ -211,7 +211,7 @@
     {
       "id": "shared-trim-predicate",
       "title": "Trim decides emptiness for all four keys",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "review"
@@ -225,11 +225,21 @@
         "## 2. The evidence field on a review finding",
         "## 5. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-08T07:58:32.555962Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-08T08:05:05.845137Z",
+      "closed_reason": "- One predicate, called from both gates (§2): missingFindingFields now lives beside requiredFindingFields in internal/cli/review_record.go, iterates that one four-key list, and decides emptiness after strings.TrimSpace; review_merge.go's own copy — which tested equality to the empty string over its own key list — is deleted and its call site now reaches the shared one. Verified with a freshly built binary in a temp dir outside the repo: one two-row file whose first row carries a single space in severity, location and finding made --merge warn 'skipping incomplete line (missing severity, finding, location)' at exit 0 with that input parsed 1 / skipped 1, and --record refuse at exit 1 with 'line 1: missing required fields severity, finding, location' — the same three keys in the same order at both gates.\n- §5 row 9 (evidence of one space, judged missing at both gates) and row 11 (location of one space, skipped by --merge exactly as an absent location is) are pinned in internal/cli/shared_trim_predicate_test.go, each on a two-row file so merge exits 0 and the skip shows as a warning rather than a dropped input. Both assert the exact set of keys the warning names and the per-input parsed/skipped counts, because row 11's stated mutant — HEAD's equality-to-empty test — gives exit 0 either way.\n- The predicate is pinned over all four keys rather than two: a third test feeds a row carrying a single space in severity, location and finding at once and asserts the warning names all three. Both mutants were built and run. Row 11's mutant is the pre-task tree, and all three new tests were red against it before the production change (measured, not predicted). The second mutant — trimming only evidence and location, leaving severity and finding on equality-to-empty — was applied and the whole internal/cli package run: exactly one test red, TestReviewMerge_TrimDecidesEmptinessForEveryRequiredKey, confirming the acceptance's claim that such a build is green across every other §5 row and that this fixture is its only discriminator. The mutant was then reverted.\n- Project gate green, four exit codes read separately: check-suite-state.sh 0, golangci-lint run 0 (0 issues), check-deadcode.sh 0, check-complexity.sh 0. No existing test turned red; no package failed to build. Deadcode is the step that would have caught a leftover missingRequiredFields, which is why one of the two functions was deleted rather than left as an alias.\n- Out of scope: internal/cli/audit_merge.go:184 writes the same 'skipping incomplete line (missing %s)' warning from its own audit-side missing-fields predicate, which is unrelated to §2's review-finding set and was left untouched. Also: the brief's corpus figure is now 331 canonical round files / 20,159 rows rather than 330 / 20,130 — the conclusion is unchanged, zero rows carry a whitespace-only severity, location, finding or evidence, so this change alters no recorded data.",
+      "gate_passed_at": "2026-09-08T08:05:05.845137Z",
+      "commit_sha": "29183d46",
+      "commit_shas": [
+        "29183d46",
+        "948ccbc1"
+      ],
+      "commit_files": [
+        "internal/cli/review_merge.go",
+        "internal/cli/review_record.go",
+        "internal/cli/shared_trim_predicate_test.go"
+      ]
     },
     {
       "id": "merge-representative-evidence",
