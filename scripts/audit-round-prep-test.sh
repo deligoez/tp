@@ -148,7 +148,9 @@ if [ ! -s "$summary" ]; then
 else
 	check_eq "tree is the clone" "$built/tree" "$(field '["tree"]')"
 	check_eq "binary is inside the clone" "$built/tree/tp" "$(field '["binary"]')"
-	if [ -x "$built/tree/tp" ]; then
+	# The reported path, not a path this test recomputes: the brief's whole
+	# value is that a role can run what it names without checking.
+	if [ -x "$(field '["binary"]')" ]; then
 		pass "the binary the brief names exists and is executable"
 	else
 		fail "the binary the brief names exists and is executable" "$(ls -l "$built/tree" 2>&1)"
