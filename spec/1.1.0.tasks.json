@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.1.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-08T08:05:05.860371Z",
+  "updated_at": "2026-09-08T08:11:46.931934Z",
   "workflow": {
     "review_max_rounds": 3
   },
@@ -244,7 +244,7 @@
     {
       "id": "merge-representative-evidence",
       "title": "Merge representative carries its own evidence",
-      "status": "open",
+      "status": "done",
       "tags": [
         "test",
         "review"
@@ -258,11 +258,18 @@
         "## 5. Tests"
       ],
       "source_lines": "147-147",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-08T08:06:41.889741Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-08T08:11:46.921692Z",
+      "closed_reason": "- §5 row 4, asserted end to end rather than by a field read: internal/cli/merge_representative_evidence_test.go merges two rows sharing (location, class) and severity but differing in finding text and in evidence, then runs tp review spec.md --record against the file --merge wrote. The merge exits 0 with merged_count 1 and duplicates_removed 1, the one emitted row carries role implementer, found_by 2 and the implementer's own evidence text, and --record accepts that file unchanged at exit 0 with round 1 and findings 1.\n- The row was already green at HEAD in both halves, so the test ships as a regression guard rather than as an acceptance: clusterMergeFindings emits allFindings[c.Representative(cfs)] verbatim and never projects the row onto a field list, so evidence survives by construction. What the guard now catches is any future merge path that rebuilds the representative instead of passing it through, which would silently make --merge's own output unrecordable.\n- Red under the row's stated mutant, built and run: delete(row, \"evidence\") inserted after the representative lookup in clusterMergeFindings made the field assertion fail on a nil evidence AND --record refuse the merged file with 'line 1: missing required field evidence' at exit 1; the mutant was reverted (git diff clean on review_merge.go) before the gate ran.\n- The fixture pins the properties the verdict rests on rather than assuming them: merged_count 1 and found_by 2 prove the two rows really clustered, since two unclustered rows would each carry their own evidence under the mutant too; the two evidence texts are asserted unequal; and the finding texts are ordered so that role, not finding text, is the key §8.4 uses to choose the representative.\n- Quality gate green, four exit codes read separately: check-suite-state.sh 0, golangci-lint run 0, check-deadcode.sh 0, check-complexity.sh 0; zero '--- FAIL:' lines and zero 'build failed' lines in the suite output. No production file changed.",
+      "gate_passed_at": "2026-09-08T08:11:46.921692Z",
+      "commit_sha": "3e710bd4",
+      "commit_shas": [
+        "3e710bd4"
+      ],
+      "commit_files": [
+        "internal/cli/merge_representative_evidence_test.go"
+      ]
     },
     {
       "id": "merge-refusal-leaves-output-untouched",
