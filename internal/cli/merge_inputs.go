@@ -73,8 +73,7 @@ func droppedInputs(inputs []mergeInputCounts) []string {
 //   - The usable `-o` basename is 235, not the filesystem's 255: tp appends
 //     `.tp-merge-` plus os.CreateTemp's random suffix, which is 9 or 10 digits.
 //     235 succeeded on 20 runs of 20; 236 failed on 16 of 20 — the boundary is
-//     intermittent, not sharp, because the suffix length varies. 237 always
-//     fails.
+//     intermittent, not sharp, because the suffix length varies.
 //   - A writable `-o` inside a NON-writable directory merged at v1.0.1 and now
 //     exits 3: the temporary has to be created in that directory.
 //   - A read-only (0444) `-o` was refused at v1.0.1 and is now replaced: rename
