@@ -179,34 +179,40 @@ kinds and no others; `(kind, id)` identifies a unit, and `id` is its durable sub
 |------|------|---------------|-------------|-----------------|
 | `implement` | task id | the task's `status` is `done` | alone | `tp next --brief` |
 | `review-role` | role id | `$TP_ROUND_DIR/role-$TP_UNIT_ID.ndjson` exists and every content line parses | parallel with sibling roles | `tp review <spec>` |
-| `review-record` | round number | `$TP_ROUND_DIR/merged.ndjson` **and** a review round file for `$TP_ROUND` exist | alone | `[ -f $TP_ROUND_DIR/merged.ndjson ] \|\| tp review --merge $TP_ROUND_DIR/role-*.ndjson -o $TP_ROUND_DIR/merged.ndjson && tp review <spec> --record $TP_ROUND_DIR/merged.ndjson` |
+| `review-record` | round number | `$TP_ROUND_DIR/merged.ndjson` **and** a review round file for `$TP_ROUND` exist | alone | `[ -f "$TP_ROUND_DIR/merged.ndjson" ] \|\| tp review --merge "$TP_ROUND_DIR"/role-*.ndjson -o "$TP_ROUND_DIR/merged.ndjson" && tp review <spec> --record "$TP_ROUND_DIR/merged.ndjson"` |
 | `review-resolve` | spec base name | every finding in `$TP_ROUND_DIR/merged.ndjson` carries a disposition | alone | `tp review <spec> --status` |
 | `decompose` | spec base name | the task file holds at least one task | alone | `tp resume` |
 | `audit-role` | role id | `$TP_ROUND_DIR/role-$TP_UNIT_ID.ndjson` exists and every content line parses | parallel with sibling roles | `tp audit <spec>` |
-| `audit-record` | round number | `$TP_ROUND_DIR/merged.ndjson` **and** an audit round file for `$TP_ROUND` exist | alone | the `tp audit` form of the review-record command above |
+| `audit-record` | round number | `$TP_ROUND_DIR/merged.ndjson` **and** an audit round file for `$TP_ROUND` exist | alone | the `tp audit` form of the review-record command above, with `;` in place of `&&` — see below |
 | `audit-fix` | the finding's `role:item_id` | that row carries a disposition in the round's results file | alone | `tp audit <spec> --status` |
 
 An attempt **succeeded** when the child exited 0 **and** the kind's durable write is present; either
 alone is a failed attempt. Every predicate is a state, never a delta, which is what lets the `Stop`
 hook and the driver test the same condition. The merge step of a record brief is guarded by the
 merged file's absence, so a retried record unit never merges over the dispositions `review-resolve`
-and `audit-fix` accumulate in that file, and the record step is chained onto it with `&&`, so a
-merge that refuses ends the unit at its own stderr diagnosis instead of walking into `--record`. The
-`[ -f X ] || merge -o X && record X` form reaches `record` on both live paths, because a shell reads
-it as `(A || B) && C`: the guarded path (`X` present, merge skipped) and the merged path (`X`
-absent, merge exits 0) each run the record, and only a refused merge stops the chain. For
-`review-record` that is a real fence — `tp review --merge` leaves nothing at `-o` when it refuses.
-For `audit-record` the `&&` still stops the chain, but `tp audit --merge` writes `-o` before
-exiting 1 (§4 of v1.1.0 fences the audit phase out), so the leftover file is what the `[ -f ]` guard
-sees on the retry: re-run an audit record unit from a clean round directory rather than over it.
+and `audit-fix` accumulate in that file. On the **review** side the record step is chained onto it
+with `&&`, so a merge that refuses ends the unit at its own stderr diagnosis instead of walking into
+`--record`. The `[ -f X ] || merge -o X && record X` form reaches `record` on both live paths,
+because a shell reads it as `(A || B) && C`: the guarded path (`X` present, merge skipped) and the
+merged path (`X` absent, merge exits 0) each run the record, and only a refused merge stops the
+chain. That is a real fence — `tp review --merge` leaves nothing at `-o` when it refuses. The
+**audit** side chains with `;` instead, because `tp audit --merge` writes `-o` before exiting 1 (§4
+of v1.1.0 fences the audit phase out): the record step runs against that leftover, and the `[ -f ]`
+guard sees it again on a retry, so re-run an audit record unit from a clean round directory rather
+than over it.
 
-**At v1.1.0 the `&&` is the documented command, not yet the emitted one.** `recordBriefCommand` in
-`internal/engine/briefcommand.go` renders one template for both record kinds and still joins the two
-steps with `;`, so a `tp run` child that reads its `brief_command` verbatim gets the `;` form and,
-on a refused review merge, ends on tp's missing-findings-file error at exit 3 rather than on the
-merge's own diagnosis at exit 1. The unit still records nothing either way — that is what the
-declined `-o` write buys — so the divergence costs a reader the diagnosis, not a round. Run the `&&`
-form above; the emitted string is single-sourced there and is what a later release has to change.
+**The emitted brief differs from the form above in one way, and no longer in two.**
+`recordBriefCommand` in `internal/engine/briefcommand.go` renders one template for both record kinds
+and picks the separator by phase — review joins the two steps with `&&` since v1.1.0, audit keeps
+`;` for the reason above — so on the review side the emitted string and the documented one now
+agree on the chaining. They still differ on quoting: the emitted string leaves `$TP_ROUND_DIR` bare.
+Measured under `sh`: with the variable unset, `[ -f $TP_ROUND_DIR/merged.ndjson ]` is simply false
+and the merge runs with `-o /merged.ndjson`; with a space in the value the test dies with
+`[: a: binary operator expected` and exits **2**, which the chain reads as an ordinary false, and
+`$TP_ROUND_DIR/role-*.ndjson` splits into two argv entries (`a` and `b/role-*.ndjson`, the second
+unexpanded). The form above quotes the variable and leaves the glob outside the quotes
+(`"$TP_ROUND_DIR"/role-*.ndjson`), which is what makes both correct while still expanding. Run that
+form; the emitted string is single-sourced in that file and is what a later release has to change.
 
 A role unit writes `role-<id>.ndjson.part`; the **driver's rename** to the final name on exit 0 is
 what completes the durable write, so a crashed unit's partial file is never mistaken for a clean
