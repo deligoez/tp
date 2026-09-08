@@ -1130,8 +1130,9 @@ func generateCorpusReviewPrompt(role *model.Role, elems *engine.StructuredElemen
 // outputContractInstruction returns the §7.3 output-contract block for a phase,
 // naming the role every finding must be stamped with (Principle 2 — tp owns the
 // contract). Review findings carry role, location (a §<section> anchor per §8.2,
-// which is what makes dedup and the overlap report possible), class, and
-// severity; audit findings additionally carry status ∈ PASS/PARTIAL/FAIL, and
+// which is what makes dedup and the overlap report possible), class, severity
+// and evidence — §2's four required keys plus the role stamp; audit findings
+// additionally carry status ∈ PASS/PARTIAL/FAIL, and
 // take their severity vocabulary from the audit Output Schema (error|warning|
 // info) rather than the review one — see the comment on the branch below.
 func outputContractInstruction(role, phase string) string {
@@ -1156,6 +1157,7 @@ func outputContractInstruction(role, phase string) string {
 		b.WriteString("- status: one of PASS, PARTIAL, FAIL\n")
 	} else {
 		b.WriteString("- severity: one of critical, high, medium, low\n")
+		b.WriteString("- evidence: what you ran or read to reach this finding — a row without it is skipped by tp review --merge and makes tp review <spec> --record refuse the whole file\n")
 	}
 	return b.String()
 }
