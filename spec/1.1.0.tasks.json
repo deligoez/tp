@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.1.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-08T10:04:36.034146Z",
+  "updated_at": "2026-09-08T10:17:01.910131Z",
   "workflow": {
     "review_max_rounds": 3
   },
@@ -483,7 +483,7 @@
     {
       "id": "release-note",
       "title": "Write the v1.1.0 release note",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs",
         "release"
@@ -501,11 +501,18 @@
       "source_sections": [
         "## 3. What ships in the skill documents"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-08T10:06:42.966993Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-08T10:17:01.899604Z",
+      "closed_reason": "- spec/1.1.0-release-notes.md states in English what a user gets at the tag, every claim bound to a command I ran with the freshly built binary in temp dirs outside the repository. The four required keys at both gates: a five-row file (one row per missing key, plus an evidence of three spaces) made `tp review spec.md --record` exit 1 with 'line 1: missing required field severity; line 2: missing required field finding; line 3: missing required field location; line 4: missing required field evidence; line 5: missing required field evidence' and write no round file — every offending line named in one exit; the same missing-evidence row at the merge gate printed 'warning: skipping incomplete line (missing evidence)' with that input parsed 0 / skipped 1.\n- The -o path untouched by a refused merge, run three times against one path: absent -\u003e still absent at exit 1; seeded -\u003e sha256 33b32dce… before and after, exit 1; a missing input named instead -\u003e same sha, exit 3. The note carries those three runs as a table.\n- The --verify output contract, emitted rather than read: `tp review spec.md --verify --findings f.ndjson` now ends in the object line {\"severity\",\"finding\",\"location\",\"evidence\"}. The code-audit format was emitted the same way (`--perspective=code-audit --affected-files a.go`) and carries location as well as evidence; the panel object line was read out of `tp review spec.md --role implementer`. The regression prompt needs --diff-from, which my probe lacked, so its coverage rests on TestReviewPromptOutputFormatsNameRequiredKeys, which I ran (PASS) and which grades all five listed commands against a named decoy sentence per path.\n- Rounds recorded before this release still load: a pre-v1.1.0 round file copied under a temp spec reported consecutive_clean 0 at exit 0 and exit 1 under --check. The note names engine.LoadRoundRows and its seven read paths (status, --report, --regression, resume, audit, the clean computation, record's prior-round read) rather than asserting the property. The 90-of-4059 evidence figure ships with its own python one-liner, which I ran from the repo root: it prints '4059 90'.\n- The upgrade danger is run end to end, not described: merging spec/.tp-review/1.0.0/review-round-4.ndjson skipped 46 of 46 rows for missing evidence (parsed 0 / skipped 46, exit 1, no -o written), and 'tp review --merge role-old.ndjson \u003e merged.ndjson; tp review spec.md --record merged.ndjson' twice on a fresh spec gave record exit 0 both times, converged true and --status --check exit 0 — two zero-byte records declaring convergence. The note says the remedy is to re-emit the round's findings with evidence, and adds the correction the acceptance's wording invites: with -o the ';' chain now exits 3 because no file is written, so the false-convergence path needs the '\u003e' redirect (or the audit phase), which is why the note shows the redirect form.\n- Section 3's four SKILL.md rules are named one by one; the note records that they landed at 4914215f and that the release distributes them, and that the same commit bumped .claude-plugin/plugin.json to 1.1.0 — verified with git log -L3,3:.claude-plugin/plugin.json v1.0.1..HEAD, which shows exactly that one change — so the manifest bump precedes the tag and no bump is outstanding.\n- The three deliberately-unchanged limits are named as known limits with the check behind each: 'tp audit --merge bad.ndjson -o aout.ndjson' exits 1 and leaves a zero-byte aout.ndjson; outputContractInstruction (internal/cli/review.go:1137) stamps role, location, class, severity and status and no evidence; engine.recordBriefCommand (internal/engine/briefcommand.go:68) emits ';' for both phases.\n- Both fenced derivation commands in the note were run from the repo root and print exactly what the prose beside them claims: '4059 90' and '23 48'.\n- Quality gate run as four separate invocations, each exit code read on its own: ./scripts/check-suite-state.sh 0, golangci-lint run 0 (0 issues), ./scripts/check-deadcode.sh 0, ./scripts/check-complexity.sh 0. The suite log holds zero '--- FAIL:' lines and zero '[build failed]' packages, counted separately.\n\nOut of scope: skills/tp/REFERENCE.md:182 and its paragraph at 191-195 now document the review-record unit brief_command as chaining with '\u0026\u0026', but engine.recordBriefCommand still emits ';' for both phases — internal/engine/nextunits_test.go:421 pins the ';' form byte for byte. So the reference describes a brief tp does not emit. On the review side the divergence is currently harmless (row 10 leaves no -o, so the ';' record step exits 3), but on the audit side the leftover -o is still there to be walked into. The release note records the divergence in its known-limits section rather than papering over it.",
+      "gate_passed_at": "2026-09-08T10:17:01.899604Z",
+      "commit_sha": "76155d78",
+      "commit_shas": [
+        "76155d78"
+      ],
+      "commit_files": [
+        "spec/1.1.0-release-notes.md"
+      ]
     },
     {
       "id": "skill-pre-review-build",
