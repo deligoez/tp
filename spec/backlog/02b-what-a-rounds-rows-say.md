@@ -176,6 +176,14 @@ says anything.
 `PASS`-with-note row to its own author next round closes the same gap from the other end. Neither
 needs the other, and both are cheap.
 
+**A second field instance, and a second shape of the same defect.** `spec/1.1.0.md`'s ground round 1
+recorded a `PASS` whose note described a disposition the spec cut two rounds later. The verdict was right
+when it was written and the note was not, and because the sentence it grades never changed, the carry
+brought the stale reading forward unexamined into rounds 2 and 3. The class is therefore wider than a note
+naming a defect its verdict does not: **a note whose justification cites text the spec no longer contains**
+is equally invisible to every count a clean streak is read from. Both shapes are prose a reader has to open
+the row to see, which is the argument §3 already makes for emitting the count at all.
+
 ## 4. A role that does not decide the question stops gating
 
 `audit_converge_roles` — a list of role ids whose rows gate convergence.
