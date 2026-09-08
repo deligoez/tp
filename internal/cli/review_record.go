@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -70,6 +72,17 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 	}
 
 	findings, dirty, incomplete, parseHint, parseErr := parseRecordRows(recordPath, data)
+	if errors.Is(parseErr, bufio.ErrTooLong) {
+		// A row past the shared NDJSON cap is a fault of the FILE, not of the
+		// row's content, and it is the same exit every sibling reader gives
+		// it (3). Reporting it as a validation error would leave --record the
+		// one command in the family that answers differently to the one input
+		// it is uniquely placed to refuse: it writes review-round-<R>.ndjson,
+		// which --resolve and --report then read at this same cap.
+		output.Error(ExitFile, fmt.Sprintf("cannot read findings file: %s: %v", recordPath, parseErr), ndjsonReadHint(parseErr))
+		os.Exit(ExitFile)
+		return nil
+	}
 	if parseErr != nil {
 		// A malformed row is a fault in the file read from disk, not the
 		// invocation, so it is a validation error (exit 1), not a usage error
@@ -261,7 +274,9 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 
 // parseRecordRows applies the row rules: blank lines skipped, every remaining
 // line a JSON object, pre-resolved wontfix needs evidence and does not dirty
-// the round, pre-resolved fixed aborts, pre-resolved duplicate dirties.
+// the round, pre-resolved fixed aborts, pre-resolved duplicate dirties. A line
+// past ndjsonLineCap aborts too, and is the one abort the caller reports as a
+// file error rather than a validation error — see the sink.
 //
 // §2's required set is the one rule that does not abort here. Its offenders
 // come back in incomplete, one entry per offending line, for the caller to
@@ -271,9 +286,16 @@ func parseRecordRows(path string, data []byte) (findings, dirty int, incomplete 
 	lineNum := 0
 	var rl rolelessRows
 	incomplete = make([]string, 0)
-	for line := range strings.SplitSeq(string(data), "\n") {
+	// Scanned at ndjsonLineCap rather than split on newlines, because
+	// --record is the only writer in this family: a row it accepts becomes
+	// review-round-<R>.ndjson, and every reader of that file — --resolve,
+	// --report — applies the cap. Accepting a longer row recorded a round
+	// that could not then be dispositioned by either of them.
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	scanner.Buffer(make([]byte, 0, 64*1024), ndjsonLineCap)
+	for scanner.Scan() {
 		lineNum++
-		trimmed := strings.TrimSpace(line)
+		trimmed := strings.TrimSpace(scanner.Text())
 		if trimmed == "" {
 			continue
 		}
@@ -305,6 +327,11 @@ func parseRecordRows(path string, data []byte) (findings, dirty int, incomplete 
 		if missing := missingFindingFields(row); len(missing) > 0 {
 			incomplete = append(incomplete, fmt.Sprintf("line %d: %s", lineNum, missingFieldsClause(missing)))
 		}
+	}
+	if scanErr := scanner.Err(); scanErr != nil {
+		// The line the scanner gave up on is the one after the last it
+		// delivered, so the refusal can name it even though bufio cannot.
+		return 0, 0, nil, "", fmt.Errorf("line %d: %w", lineNum+1, scanErr)
 	}
 	// Same reason the aborting rules skip it: a file the caller will refuse
 	// records nothing, so its roleless tally would advise about rows no state
