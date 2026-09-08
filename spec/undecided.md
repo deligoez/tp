@@ -1,6 +1,6 @@
 # Undecided — and refuted
 
-**Not a release, and not a spec.** Four kinds of thing live here, and the distinction is the point:
+**Not a release, and not a spec.** Three kinds of thing live here, and the distinction is the point:
 
 - **Refuted** — a candidate that was prototyped and did not survive. It is recorded so it is not
   re-proposed, with the measurement that killed it. **A refuted predicate is not a backlog item.**
@@ -9,11 +9,9 @@
   measurement pointer it was registered with.
 - **Decided — closed** — a decision was taken and nothing carries it forward, because the answer is
   *no* or *not yet worth it*. Each names why, and the condition that would reopen it.
-- **Undecided — waits on the operator** — the design has an answer, but the answer is a policy call
-  that is the operator's to make. Each carries the recommendation rather than an open question.
 
 **The 2026-09-08 decision pass.** Every entry that stood under *Undecided* and *Survived, unscheduled*
-was decided that day. The decision text was appended to each named backlog sidecar under *Decided at
+was decided that day, the last of them (*Cross-repo specs*) by the operator. The decision text was appended to each named backlog sidecar under *Decided at
 the 2026-09-08 decision pass*, and the decisions with no pending spec are listed in
 `spec/backlog/README.md` under *Decided, awaiting a spec*. This file records the decision; the spec
 that takes it is where it is implemented.
@@ -857,29 +855,19 @@ v0.33.0 Non-Goal 1, `spec/0.34.0-candidates.md` item 1, `spec/0.35.0-candidates.
 `audit_converge_on` on the argument that the knob depends on a scope label, and v0.37.0 shipped that
 knob keyed on **`severity`** instead.
 
----
-
-## Undecided — waits on the operator
-
-**One entry.** The design has an answer, but the answer is a policy call about what tp is for, which
-is the operator's to make. Each entry states the recommendation rather than leaving the question open.
-
 ### Cross-repo specs
 
-**The decision: whether a spec may name tasks in another repository at all, and if so where its task
-file lives.** Routed from `spec/0.33.0-candidates.md` item 7, which records that at least one team
-already works this way — plan in one repo, run agents in both — and that the file-selection and
-`commit_shas` paths both assume one repo root.
+**Closed by the operator on 2026-09-08: a spec does not name tasks in another repository.** Routed
+from `spec/0.33.0-candidates.md` item 7, which records that at least one team already works this way —
+plan in one repo, run agents in both — and that the file-selection and `commit_shas` paths both assume
+one repo root. The cost of the feature is a second repository root threaded through both, and nothing
+in this repository's own use exercises it, so prototyping here would measure a corpus of one that does
+not need it. The only adjacent statement in the corpus is a non-goal: `spec/0.31.2.md` names
+*"Cross-repository task execution"* and defers a per-task working directory and quality gate to a
+separate release.
 
-**Recommendation: no, until a field cycle asks for it.** The cost is a second repository root
-threaded through file selection and through `commit_shas`, both of which are single-root today, and
-nothing in this repository's own use exercises it — so prototyping here would measure a corpus of one
-that does not need the feature.
-
-**No design pass exists.** The only adjacent statement anywhere in the corpus is a non-goal:
-`spec/0.31.2.md` names *"Cross-repository task execution"* and says a per-task working directory and
-quality gate are a separate release. That defers the work; it does not answer either half of the
-decision.
+**It reopens** when a field cycle asks for it with a task file that names a second root — a request
+rather than a design, because no design pass exists.
 
 ---
 
