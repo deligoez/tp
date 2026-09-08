@@ -1,16 +1,364 @@
 {
   "version": 1,
   "spec": "spec/1.1.0.md",
-  "created_at": "2026-09-08T00:12:43.587965Z",
-  "updated_at": "2026-09-08T04:52:00.151586Z",
+  "created_at": "0001-01-01T00:00:00Z",
+  "updated_at": "2026-09-08T07:15:03.929386Z",
   "workflow": {
     "review_max_rounds": 3
   },
   "coverage": {
-    "total_sections": 0,
-    "mapped_sections": 0,
-    "context_only": [],
+    "total_sections": 6,
+    "mapped_sections": 4,
+    "context_only": [
+      "# tp v1.1.0 — The spec follows tested behaviour",
+      "## 4. Non-Goals"
+    ],
     "unmapped": []
   },
-  "tasks": []
+  "tasks": [
+    {
+      "id": "fixture-migration",
+      "title": "Migrate review finding fixtures to four keys",
+      "status": "open",
+      "tags": [
+        "test",
+        "fixtures"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 15,
+      "acceptance": "Every review-finding fixture the suite feeds to `tp review --merge` or to `tp review \u003cspec\u003e --record` carries a non-empty `severity`, `finding`, `location` and `evidence`, with no production file touched by this task, and fixtures built by helpers count as much as single-line literals (`classRow` in `report_class_test.go` feeds nine record tests through `review_suppression_test.go:58`). The acceptance is outcome-shaped rather than census-shaped: the migration is complete when `go test -count=1 ./...` is green with §1 decision 5's parity change applied on top — applied locally, measured, then reverted — rather than when some number of rows has been edited. A deliberately incomplete fixture stays incomplete, measured: a mechanical sweep that repaired the row omitting `location` in `merge_inputs_test.go` turned `TestReviewMerge_InputsReportPerFileCounts` red at 3/1 against an expected 2/2, and this task closes green under the full project gate on its own with the four step exit codes read separately.",
+      "source_sections": [
+        "## 1. The decision"
+      ],
+      "source_lines": "44-48",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "record-required-fields",
+      "title": "Record refuses a row missing a required field",
+      "status": "open",
+      "tags": [
+        "cli",
+        "review"
+      ],
+      "depends_on": [
+        "fixture-migration"
+      ],
+      "estimate_minutes": 14,
+      "acceptance": "§1 decisions 1 and 2 at the record gate, plus §2's table row: `evidence` is a mandatory non-empty free-text key beside `severity`, `finding` and `location`, `tp review \u003cspec\u003e --record` refuses a file holding a row missing any of the four, it names every offending line in one exit rather than stopping at the first, and tp does not look at what the evidence text says. §5 row 1 — WHEN a four-row file, one row per required key with each row legal on the other three, is recorded against a spec that already holds one recorded round → exit 1 naming lines 1, 2, 3 and 4, no round file written, `review_rounds` unchanged, the discriminating assertion being the SET of lines named because the stated mutant (a record-side check testing only `evidence`) also exits 1 and also names line 4 — and §5 row 2, WHEN the file's only row is `{}` → exit 1, no round file, `review_rounds` unchanged. The four test functions this change turns red are repaired inside this task and named in the closure — measured in a clone on the migrated tree they are `TestAuditSignal_AbsentFromPromptMergeAndReviewOutputs`, `TestReviewRecord_CleanAndDirty`, `TestReviewRecord_RowRules` and `TestSpecHashFailureNamesTheRealCause`, of which the last two are ordering rather than fixtures (the new check must not pre-empt the pre-resolved-`fixed` abort's message or the unreadable-spec exit 3), so the closure states which ordering was chosen.",
+      "source_sections": [
+        "## 2. The evidence field on a review finding",
+        "## 5. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "record-legal-file-records",
+      "title": "Record a file legal on four keys",
+      "status": "open",
+      "tags": [
+        "test",
+        "review"
+      ],
+      "depends_on": [
+        "record-required-fields"
+      ],
+      "estimate_minutes": 7,
+      "acceptance": "§5 row 3 — WHEN a three-row file legal on all four keys, carrying no `resolved` block, its three severities `high`, `medium` and `low`, is recorded against a spec with no prior round → the round records with `findings: 3` and `consecutive_clean: 0`, no row's `evidence` length being load-bearing and any non-empty text serving. The test is written first and observed red against row 3's stated mutant — `--record` testing `resolved.evidence`, the key the record path already reads, in place of the top-level `evidence` — which exits 1 on that legal file while the implementation exits 0.",
+      "source_sections": [
+        "## 5. Tests"
+      ],
+      "source_lines": "146-146",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "record-preresolved-boundary",
+      "title": "Pin the pre-resolved fixed boundary",
+      "status": "open",
+      "tags": [
+        "test",
+        "review"
+      ],
+      "depends_on": [
+        "record-legal-file-records"
+      ],
+      "estimate_minutes": 7,
+      "acceptance": "§5 row 6 — WHEN one file holds one row legal on all four required keys whose `resolved` carries `status: fixed` and its own evidence → `--merge` still emits it at exit 0 and `--record` still exits 1 naming its line, because §2's parity is over the required-field set and does not reach `--record`'s pre-resolved rules. The test is red against the stated mutant, which unifies the two gates by routing `--record` through `missingFindingFields` alone and so drops the pre-resolved `fixed` abort, taking `--record` to exit 0.",
+      "source_sections": [
+        "## 5. Tests"
+      ],
+      "source_lines": "149-149",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "status-reads-pre-release-rounds",
+      "title": "Status reads rounds recorded before this release",
+      "status": "open",
+      "tags": [
+        "test",
+        "review"
+      ],
+      "depends_on": [
+        "record-required-fields"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "§5 row 7, which is §1 decision 3 — WHEN `tp review \u003cspec\u003e --status` reads a round recorded before this release, whose rows carry no `evidence` → exit 0 with `consecutive_clean: 0`, and exit 1 under `--check` as before, because the requirement is enforced when a round is recorded and never when one is loaded. The fixture is a pre-`1.1.0` round file copied under `testdata` holding one undispositioned `high` row and no `evidence` key, rather than the live corpus, which stops being uniformly pre-`1.1.0` at this release's own first recorded round, and the test is red against row 7's mutant, a status path applying the record-time check on load.",
+      "source_sections": [
+        "## 1. The decision",
+        "## 5. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "merge-required-fields",
+      "title": "Merge skips a row missing a required field",
+      "status": "open",
+      "tags": [
+        "cli",
+        "review"
+      ],
+      "depends_on": [
+        "fixture-migration",
+        "record-required-fields"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "§1 decision 2 at the merge gate: `evidence` joins `location`, `severity` and `finding` in `missingFindingFields`, so `--merge` skips a row missing it, names the missing key in the stderr warning it already writes for the other three, and counts it as skipped. §5 row 5 — WHEN the row omitting `evidence` sits alone in its own input file, beside a second file holding one row legal on all four keys → `--merge` skips it and exits 1, that input having parsed no row under the existing dropped-input rule which the legal second file does not lift, while `--record` exits 1 naming its line. The offending key must be `evidence` rather than one of the other three, because with `location` omitted instead `--record` accepts the row and the mutant becomes indistinguishable from the shipped rule, and the one test function this change adds to the red set is repaired here — measured in a clone, `TestRecordIdempotent_RetryAfterPartialFailureConverges` is green under the record change alone and red only once both gates carry the rule.",
+      "source_sections": [
+        "## 2. The evidence field on a review finding",
+        "## 5. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "shared-trim-predicate",
+      "title": "Trim decides emptiness for all four keys",
+      "status": "open",
+      "tags": [
+        "cli",
+        "review"
+      ],
+      "depends_on": [
+        "merge-required-fields"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "§2's one-predicate paragraph: both gates decide missing-or-empty by the same rule, and a value that is empty once `strings.TrimSpace` has run counts as empty for `severity`, `location` and `finding` as much as for `evidence`. The predicate is pinned over all four keys rather than two, because a build trimming only `evidence` and `location` while leaving `severity` and `finding` on an equality-to-empty test was measured green across every §5 row, so one fixture row carries a single space in each of `severity`, `location` and `finding` and the test goes red when the trim reaches fewer than four keys. §5 row 9 — WHEN one file holds two rows, the first carrying an `evidence` of one space and legal on the other three, the second legal on all four → `--merge` exits 0, skips the first, and warns naming `evidence`, while `--record` exits 1 naming its line — and §5 row 11, the same two-row shape with a `location` of one space → `--merge` exits 0, skips it, warns naming `location`, exactly as for a missing `location`, both rows asserting merge exit 0 because the file still parses its second row, which is what separates them from row 5, with `HEAD`'s equality-to-empty test standing as row 11's mutant.",
+      "source_sections": [
+        "## 2. The evidence field on a review finding",
+        "## 5. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "merge-representative-evidence",
+      "title": "Merge representative carries its own evidence",
+      "status": "open",
+      "tags": [
+        "test",
+        "review"
+      ],
+      "depends_on": [
+        "merge-required-fields"
+      ],
+      "estimate_minutes": 7,
+      "acceptance": "§5 row 4 — WHEN `tp review --merge` clusters two rows sharing `(location, class)` whose `evidence` texts differ → the representative row carries its own `evidence` and the merged output is itself recordable, asserted by an end-to-end merge-then-record run rather than by a field read. The fixture is two input files with identical `location`, `class` and `severity`, different finding text and different `evidence` text, the roles sorting `implementer` before `tester` so the representative is fixed by the fixture, and the test is red against the stated mutant, a merge emitting the representative with `evidence` dropped, after which `--record` refuses the merged file.",
+      "source_sections": [
+        "## 5. Tests"
+      ],
+      "source_lines": "147-147",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "merge-refusal-leaves-output-untouched",
+      "title": "Refuse the merge before writing its output",
+      "status": "open",
+      "tags": [
+        "cli",
+        "review"
+      ],
+      "depends_on": [
+        "shared-trim-predicate"
+      ],
+      "estimate_minutes": 13,
+      "acceptance": "§5 row 10 — WHEN `tp review --merge` exits non-zero → it creates no file at the `-o` path and modifies no file already there, `HEAD` being the mutant because it writes the surviving row before it refuses. The fixture is two input files, the first's only row omitting `location` so that input parses no row and the merge refuses at exit 1, the second legal on all four keys, run three times against one `-o` path: once with the path absent, once with it already holding a seed line whose bytes are pinned before the run, and once with a missing input file named in place of the first, which refuses at exit 3 against the same seeded path so that non-zero is pinned by more than exit 1 — while a clean round stays untouched, two zero-byte inputs and two blank-line-only inputs still merging at exit 0 and still writing the zero-byte `-o` the loop depends on. The `-o` write leaves no partial file behind when the write itself fails, by writing to a temporary path and renaming on success, `internal/cli/merge_inputs.go`'s `finishMerge` doc comment is rewritten to state the new rule and to say what supersedes v0.35.0 §8a.4's stated rationale, and `TestMerge_DroppedInputStillWritesOutput` — measured in a clone as the single test this change turns red — is rewritten to the new rule rather than deleted.",
+      "source_sections": [
+        "## 5. Tests"
+      ],
+      "source_lines": "153-153",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "verify-prompt-output-contract",
+      "title": "Give the verify prompt an output contract",
+      "status": "open",
+      "tags": [
+        "cli",
+        "review"
+      ],
+      "depends_on": [
+        "shared-trim-predicate"
+      ],
+      "estimate_minutes": 11,
+      "acceptance": "`tp review \u003cspec\u003e --verify` emits an output-format JSON object line, which its prompt carries none of at `HEAD` (`review_verify.go:267`), and that line names the four required keys `severity`, `finding`, `location` and `evidence`, so a row copied from it survives both gates. The whole contract is authored rather than one key, because a verifier findings file reaches `--merge` and `--record` like any other, so once the required set lands a verifier file whose rows lack `evidence` parses zero rows and trips the dropped-input exit 1. The `role` stamp with the value `verifier` stays the separate stamp the builder already writes and is not added to the output format's key list, and the assertion is made by emitting the prompt in a `git clone --no-hardlinks` outside the repository and parsing that object line, never by a substring search.",
+      "source_sections": [
+        "## 5. Tests"
+      ],
+      "source_lines": "151-151",
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "prompt-formats-name-required-keys",
+      "title": "Prompt output formats name the required keys",
+      "status": "open",
+      "tags": [
+        "cli",
+        "review"
+      ],
+      "depends_on": [
+        "verify-prompt-output-contract"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "§5 row 8, which is §1 decision 1's last clause — WHEN a review role prompt is emitted → the key list in the prompt's output format, the JSON object line a reviewer copies, names `evidence`. The fixture is the five commands the row names rather than a count — `tp review \u003cspec\u003e`, `tp review \u003cspec\u003e --role \u003cr\u003e`, `tp review \u003cspec\u003e --perspective code-audit`, `tp review \u003cspec\u003e --perspective regression` and `tp review \u003cspec\u003e --verify` — each emitted and its output-format object line parsed, with a whole-prompt substring search ruled out because the word already occurs in a panel prompt's instruction text and in whatever an `--affected-files` excerpt contains, and with a listed path carrying no object line failing the check rather than being skipped. Every listed format carries all four required keys rather than `evidence` alone, since `codeAuditOutputFormat`'s eleven keys carry no `location` and a reviewer copying that line verbatim with only `evidence` added still produces a row `--merge` skips and `--record` refuses — and, measured in a clone, this change turns no existing test red, so the closure names what it ran rather than what it repaired.",
+      "source_sections": [
+        "## 1. The decision",
+        "## 5. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "reference-recipe-scope",
+      "title": "Scope the overlap recipe to post-release rounds",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [
+        "shared-trim-predicate"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "The *Measuring whether a second model earns its cost* recipe in `skills/tp/REFERENCE.md` has its required-field set corrected to the four keys of §2, the sentence at line 685 today stating that `--merge` requires only `location`, `severity` and `finding`. The recipe as a whole gains a caveat that it applies to rounds recorded at or after v1.1.0, because a pre-`1.1.0` pair fed to `--merge` skips every row and yields no `overlap_report` at all, so the tag would otherwise ship a procedure that cannot be run on the corpus it was written for.",
+      "source_sections": [
+        "## 3. What ships in the skill documents"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "reference-required-versus-attribution",
+      "title": "Separate required keys from attribution keys",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [
+        "reference-recipe-scope"
+      ],
+      "estimate_minutes": 9,
+      "acceptance": "The *Finding `class` and Report* output contract at `skills/tp/REFERENCE.md:722` is repaired on its own grounds rather than as a consequence of §2: it names which keys the gates require — `severity`, `finding`, `location` and `evidence` — and which are attribution and cluster keys no gate requires, namely `role` and `class`. That site is not falsified by §2 and the repair says so, the shipped sentence listing `role`, `location`, `class` and `severity` while omitting `finding`, so it disagrees with `missingFindingFields` in two directions at `HEAD`. The reference also states this release's meaning of whitespace, which §2's predicate has and no acceptance row can pin — the whitespace `strings.TrimSpace` recognises, and nothing outside that set — while `skills/tp/SKILL.md`'s four *What a spec is about* rules, in the tree since `4914215f`, are verified present unchanged rather than rewritten, which is §1 decision 4.",
+      "source_sections": [
+        "## 1. The decision",
+        "## 3. What ships in the skill documents"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "review-record-unit-command",
+      "title": "Rewrite the review-record unit command chain",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [
+        "merge-refusal-leaves-output-untouched",
+        "reference-required-versus-attribution"
+      ],
+      "estimate_minutes": 9,
+      "acceptance": "The `review-record` unit `brief_command` at `skills/tp/REFERENCE.md:182` chains merge into record with `\u0026\u0026` rather than with `;` behind an `[ -f ]` guard, so a refused merge stops the chain and the merge's own stderr diagnosis is the unit's last output instead of tp's missing-findings-file error, which also brings the command into line with the rule stated at `SKILL.md:260` that it breaks today. That rule — `-o` writes only after the merge succeeds, so a failed merge leaves nothing and `--record` exits 3 on the missing file — is settled by running it against the tree this task lands on rather than by reading it, and the sentence is edited only where the run shows it false. At the tagged tree no superseded sentence survives in either document, neither `REFERENCE.md` statement nor the `;` chain behind its `[ -f ]` guard nor `SKILL.md`'s merge-step sentence, a task editing `SKILL.md` alone not satisfying this, and the closure names each site with the run that settled it.",
+      "source_sections": [
+        "## 3. What ships in the skill documents",
+        "## 5. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "release-note",
+      "title": "Write the v1.1.0 release note",
+      "status": "open",
+      "tags": [
+        "docs",
+        "release"
+      ],
+      "depends_on": [
+        "record-preresolved-boundary",
+        "status-reads-pre-release-rounds",
+        "merge-representative-evidence",
+        "prompt-formats-name-required-keys",
+        "review-record-unit-command"
+      ],
+      "estimate_minutes": 6,
+      "acceptance": "The release note is in English and states what a user gets at the tag: the four required keys enforced at both gates, `--merge` skipping and `--record` refusing with every offending line named, the `-o` path untouched by a refused merge, the `--verify` prompt's new output contract, and that rounds recorded before this release still load, clean and converge. It names the upgrade danger this release creates rather than inherits — a findings file written before v1.1.0 fails the merge gate on every row, and chaining a refused merge into `--record` with `;` records a zero-byte file as a clean round — and says the remedy is to re-emit the round's findings with `evidence`. §3's four `skills/tp/SKILL.md` rules reach a user at this tag rather than at their commit so the note names them, and with `.claude-plugin/plugin.json` already carrying `1.1.0` from `4914215f`, the note records that the bump precedes the tag rather than repeating it.",
+      "source_sections": [
+        "## 3. What ships in the skill documents"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ]
 }
