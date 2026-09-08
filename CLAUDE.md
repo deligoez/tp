@@ -425,7 +425,8 @@ to it survive in shipped artifacts that must not be edited.
   `103 / 104` a round later, while the paragraph beside it, anchored to `492a0691`, still reproduced
   exactly — and fifteen lines above, the same document says *"the number itself is deliberately not
   written here"*. Separately, `README.md` shipped eight grounding figures **copied from
-  `spec/backlog/ground-command-friction.md`, where they carry a commit anchor**; the copy lost the
+  `spec/backlog/what-the-record-does-not-say-measurements.md` §1, where they carry a commit anchor**
+  (until the 2026-09-08 split, `spec/backlog/ground-command-friction.md`); the copy lost the
   anchor and none of the eight reproduced. The defect is never the derivation, it is the copy.
 - **The fenced-command rule is blind to a command that prints the wrong thing.** *"Every fenced command
   runs and prints something"* was satisfied by the README block above, which printed numbers matching

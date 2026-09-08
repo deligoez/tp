@@ -8,8 +8,8 @@ Class: tool
 `tp ground <spec> --status --check` exits 0 when every emitted floor unit carries a disposition and
 gates on nothing else, so a recorded round whose rows hold `FAIL`s — refuted claims standing in the
 spec — reports go. Both field reports on `tp ground` v1.0.0 stopped their loop on that exit code,
-and a two-unit fixture reproduces the exit (`ground-command-friction-measurements.md`, "§9 `--check`
-exits 0 with `FAIL`s standing"). The same `--status` payload carries no `next_action`, where
+and a two-unit fixture reproduces the exit (`what-the-record-does-not-say-measurements.md`, "§9
+`--check` exits 0 with `FAIL`s standing"). The same `--status` payload carries no `next_action`, where
 review's and audit's both do, so a driver that wants the branch re-derives it from `by_verdict`. In
 the review loop the shape repeats: the uncounted regression delta pass,
 `tp review <spec> --perspective regression`, ships, and the emitted loop instruction recommends it
@@ -28,7 +28,7 @@ perspectives (§5).
 than with false claims in the spec. `tp run` schedules no grounding unit today, so the gate's
 beneficiary is that driver when it exists and any script branching on `$?` until then. The gate ships
 with one hole that clears it without a repair — a byte-identical sentence in two sections — which
-`ground-command-friction.md` §9.3 states and its row 24 guards; it is not closed here. The review
+`what-the-record-does-not-say.md` §2.1 states and its §8 row 1 guards; it is not closed here. The review
 branch is a string in a payload and gates nothing, and under `TP_RUN_ID` it names the counted round
 instead, because no unit kind runs a delta pass.
 
@@ -54,9 +54,9 @@ is SKILL.md's decision and is not taken here.
 
 **One unconditional exit, one hole.** Repairing the unit's text moves its hash, so the unit leaves the
 carry and is re-asked; re-deciding a carried unit in a later round is the override
-`ground-command-friction.md` §11 makes sayable, permitted only when the ground beneath it moved. The
-hole — an identical sentence in two sections, the failing copy cleared by editing the other — is
-`ground-command-friction.md` §9.3's, ships as characterised behaviour under its row 24, and is closed
+`what-the-record-does-not-say.md` §3 makes sayable, permitted only when the ground beneath it moved.
+The hole — an identical sentence in two sections, the failing copy cleared by editing the other — is
+`what-the-record-does-not-say.md` §2.1's, ships as characterised behaviour under its §8 row 1, and is closed
 by `spec/backlog/what-the-carry-can-promise.md` §2.2's multiplicity fence.
 
 ## 3. `tp ground --status` carries `next_action`

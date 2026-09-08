@@ -4,7 +4,7 @@ Supplemental material for `next-action-and-check-tell-the-truth.md`; the spec st
 
 The blocks below moved verbatim from the delta-pass draft this spec absorbed. The grounding
 measurement behind the `--check` gate — the recorded round with `FAIL`s standing that exits 0, and
-the two-unit fixture reproducing it — is in `ground-command-friction-measurements.md` under
+the two-unit fixture reproducing it — is in `what-the-record-does-not-say-measurements.md` under
 "§9 `--check` exits 0 with `FAIL`s standing". `git show <ref>:<path>` commands keep the path at
 that ref; every other citation was rewritten to the file's current name.
 

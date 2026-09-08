@@ -321,7 +321,7 @@ derives its counts there rather than asserting them in the prose beside it, whic
 ## A sentence rewritten in answer to a finding is exempt from the cut for one round
 
 **The three instances, measured on `spec/1.1.0.md`'s grounding.** Recorded in
-`spec/backlog/ground-command-friction-measurements.md` under "§11.1": a repair removed a quantifier,
+`spec/backlog/what-the-record-does-not-say-measurements.md` under "§11.1": a repair removed a quantifier,
 the shortened sentence fell below the arms' cut threshold, and the claim left the floor in the same
 edit that answered the finding — nothing in the round reports that. A third instance in the same
 document wrote a new requirement as a short standalone sentence that never entered the floor at all.

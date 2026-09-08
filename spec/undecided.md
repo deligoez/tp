@@ -253,7 +253,8 @@ wrong count and loses a section key entirely passes it. Separately it was the on
 candidate fields unbounded in output size, and the only one whose row named no decision it would feed.
 
 **The six anchor defects it kept trying to describe are real and are now owned elsewhere**, with
-fixtures, in `spec/backlog/ground-command-friction.md`. That is the useful residue: the field was
+fixtures, in `spec/backlog/floor-anchors-need-fixtures.md` §2 (until 2026-09-08 a section of
+`spec/backlog/ground-command-friction.md`). That is the useful residue: the field was
 an attempt to publish a quantity whose keys nobody had checked, and checking them is the actual work.
 
 **It reopens** when `engine.FloorAnchorOf`'s anchors are pinned by fixtures rather than by arithmetic,
@@ -518,11 +519,11 @@ were rewritten since the previous round — so a repair is visible once without 
 exemption was the expensive form of the same want; the delta is the cheap one and does not touch the
 floor's arms.
 
-**Who carries it.** `spec/backlog/ground-command-friction.md`; the decision is appended to its
-sidecar.
+**Who carries it.** `spec/backlog/the-floor-names-what-it-cut.md`; the decision is appended to its
+sidecar, under *Decided at the 2026-09-08 decision pass*.
 
-**Where the measurements are.** `spec/backlog/ground-command-friction-measurements.md` under "§11.1"
-carries the three instances; `spec/undecided-measurements.md` §A sentence rewritten in answer to a
+**Where the measurements are.** `spec/backlog/what-the-record-does-not-say-measurements.md` under
+"§11.1" carries the three instances; `spec/undecided-measurements.md` §A sentence rewritten in answer to a
 finding is exempt from the cut for one round summarises why the cheaper form is the one to cost first.
 
 ### Claim enumeration in the grounding floor
@@ -530,9 +531,9 @@ finding is exempt from the cut for one round summarises why the cheaper form is 
 **Decided: the floor's own arms define a claim.** Intuition counts — 11 where a spec carried 17, and
 10 where another carried 17 again after a second read — are not a measurement and are retired. The one
 measured leftover, a bare ordered-list marker becoming a floor unit, is
-`spec/backlog/ground-command-friction.md` §5 and stays there.
+`spec/backlog/the-floor-names-what-it-cut.md` §3 and stays there.
 
-**Who carries it.** `spec/backlog/ground-command-friction-measurements.md` §5 keeps the measured
+**Who carries it.** `spec/backlog/the-floor-names-what-it-cut-measurements.md` §5 keeps the measured
 piece; the decision is appended to that sidecar as a one-line note.
 
 ### A durable home for an accepted finding
