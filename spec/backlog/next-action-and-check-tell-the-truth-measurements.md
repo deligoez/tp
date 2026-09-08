@@ -95,3 +95,23 @@ So the inverting draft would **not** have passed row 1 written with one and ten:
 comparator inverts every verdict, and any pair straddling the threshold catches it. What one and ten
 cannot separate is `> 3` from `>= 3` — the boundary — which is what row 2's own mutant column says and
 what row 2 exists to close.
+
+## Decided at the 2026-09-08 decision pass
+
+From `spec/undecided.md`, *A registered check that outlives its release*. It lands on this spec
+because its subject is checks telling the truth.
+
+**Decided: `checks[].cmd` gains `{spec}` and `{round}` substitution and nothing else.** No other
+placeholder is introduced. The substitution replaces the subshell workaround that reaches the spec
+path through `tp resume`, which fails silently when `tp resume` cannot answer.
+
+**Decided: a check's exit code is a contract tp defines for its own registrations** — `0` passed, `1`
+found violations, `2` or higher cannot run. **A check that cannot run neither passes nor suppresses
+its class**: it is reported as `ran: false`. Defining the status this way is legitimate here where it
+was not for `gocognit` — `CLAUDE.md` records that gocognit's exit code cannot discriminate a result
+from a failure, so its guard reads stderr instead — because `checks[].cmd` entries are tp's own
+registrations rather than a third-party tool's convention tp merely observes.
+
+The measured behaviour this ends is in `spec/undecided.md` under that entry: at `c75e5c3d`, a
+schema-valid check registered as `exit 2` is reported `"passed": false` and still stamps
+`do NOT report findings of these classes:` into all four role prompts of the same emission.
