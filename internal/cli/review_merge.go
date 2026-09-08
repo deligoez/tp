@@ -184,12 +184,13 @@ func loadMergeFindings(args []string) ([]map[string]any, []mergeInputCounts) {
 	return allFindings, inputs
 }
 
-// missingFindingFields returns the review-finding fields that are absent or empty
-// in the row (§3.2). role is attribution metadata that the rest of the pipeline
-// (record/resolve) treats as optional, so it is not a merge gate.
+// missingFindingFields returns the review-finding fields that are absent or
+// empty in the row: v1.1.0 §2's required set, the fields --record refuses a row
+// for rather than skipping it. role is attribution metadata that the rest of the
+// pipeline (record/resolve) treats as optional, so it is not a merge gate.
 func missingFindingFields(row map[string]any) []string {
-	missing := make([]string, 0, 3)
-	for _, k := range []string{"location", "severity", "finding"} {
+	missing := make([]string, 0, 4)
+	for _, k := range []string{"location", "severity", "finding", "evidence"} {
 		if s, _ := row[k].(string); s == "" {
 			missing = append(missing, k)
 		}
