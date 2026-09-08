@@ -402,6 +402,34 @@ with `tp review --resolve`-style evidence, name the version that will take them,
 audit repairs minimal for the same reason — a repair that introduces a new abstraction is the next
 version's task, not this audit's.
 
+**Run the round cheaply — four brief rules, none of them tp code (measured on v1.1.0's audit,
+2026-09-08).** One audit round measured 44.9 minutes record-to-record: 20.3 in a two-unit repair batch
+of which one unit idled 7.9 waiting on the other, 13.8 in four concurrent roles (11.5–13.8 each, 55–72
+tool calls each), 10.8 in emission, merge, record and the orchestrator's own turns; the gate was 41 s
+and no mutation run happened in any round. A role's minutes buy probes — clones, mode matrices,
+mutants, repetition loops — and the probes are what found every `FAIL`, so the saving is in not
+repeating them, never in cutting them.
+
+1. **One clone, one binary, built by the orchestrator before the role stage.** `git clone
+   --no-hardlinks` HEAD once, `go build -o` inside it once, and hand every role the path with "do not
+   clone, do not build". Four roles were each cloning and building the same tree against each other's
+   CPU. A role that wants a mutant copies that tree with `rsync`.
+2. **One repair unit per independent item.** Two items share a unit only when they edit the same lines
+   of the same file. A unit carrying four independent items is the 7.9 idle minutes above.
+3. **Delta re-grade.** On a round with no repairs, the brief lists the previous round's `PASS` rows and
+   the role re-records them verbatim — `evidence_file` and `evidence_lines` carried — and re-measures
+   only the non-`PASS` rows. On a round after repairs, only rows whose `evidence_file` is untouched by
+   `git -c diff.external= diff --name-only <previous record sha>..HEAD` are carried; the orchestrator
+   derives that list, the role does not guess it. This is the brief form of
+   `spec/backlog/checklist-covers-what-changed.md`, which makes tp do the derivation.
+4. **The class-to-slug table goes into the brief before round 1.** A finding matching a class already
+   routed is recorded `PARTIAL` with its slug in the note and expects no repair; only a class the table
+   lacks reaches the orchestrator. The gap between one round's record and the next round's emission was
+   the orchestrator's dispositions, and it was longer than the role stage.
+
+The after-figure is not written here until a round has run under all four; when one has, anchor it to
+that round's record commit.
+
 ### `audit_converge_on` — what an audit round has to be clean of (v0.37.0)
 
 A workflow field taking `all` or `blocking`, resolving **task override > project config > built-in**
