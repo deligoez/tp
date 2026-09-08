@@ -223,3 +223,57 @@ by an identity; the accepted-blocking count joins them there rather than arrivin
 it closes is measured in `spec/undecided-measurements.md` §From the rows spec — the three-tree probe
 at `5058fc99`, where a round whose only finding is a `critical` resolved `wontfix` returns a payload
 whose key set is identical to a round recorded from an empty findings file.
+
+## Routed here from v1.1.0's audit round 3 (2026-09-08)
+
+Three items land on this spec's subject — two exits, or two sites, disagreeing about one field. They
+are recorded in this sidecar; the spec body is not edited.
+
+- **`findingIdentityKey` slices bytes where its own comment promises characters.**
+  `internal/cli/review.go:1262-1273`: the doc comment at :1265 says *"finding_prefix is the first 80
+  characters of the finding field"*, and the body is `if len(prefix) > findingPrefixLen { prefix =
+  prefix[:findingPrefixLen] }` — `len` and the slice are both **bytes**. So two findings that differ
+  well inside the first 80 characters collapse to one whenever the differing text sits past byte 80,
+  which any non-ASCII prefix reaches sooner than a reader expects. **Run at `e8477464`** in a scratch
+  git repository, three two-row files differing only in the `finding` text, each recorded as round 1
+  and the carried-forward count read from round 2's emission:
+
+  | control | first 80 chars | first 80 bytes | `previous_findings` | |
+  |---|---|---|---|---|
+  | 30 `ş` + 20 `x`, then `ALPHA-tail` / `BETA-tail` | differ | identical | **1** | **wrong** |
+  | `A`/`B` + 120 `z` (differs at byte 1) | differ | differ | 2 | correct |
+  | 80 `q`, then `ALPHA` / `BETA` | identical | identical | 1 | correct |
+
+  The middle row is what makes the first row evidence rather than a coincidence: an input that
+  differs early still separates, so the collapse is the byte boundary and not a broken key. The
+  fixture is built so that 30 `ş` (2 bytes each) + 20 `x` is exactly 50 characters and exactly 80
+  bytes — the tail is inside the promised character window and outside the actual byte window.
+  Pre-existing, not release-created.
+
+  **Two corrections to how this was first written up, both found by running it.** (1) The key does
+  **not** drive `--merge` dedup. `runReviewMerge` (`internal/cli/review_merge.go:42`) clusters through
+  `clusterMergeFindings`, the `(location, class)` clustering; run against all three files above,
+  `tp review --merge` returned `merged_count=1, duplicates_removed=1` for **every** one, including the
+  ASCII pair differing at byte 1 — so `--merge` cannot discriminate any of these controls and is the
+  wrong surface to measure the bug on. (2) `previous_findings` as reported by
+  `--verify --findings` is a raw row count with no dedup at all (`readVerifyFindings` appends
+  unconditionally); all three files returned **2** there. The surface that does exercise the key is
+  `dedupFindings` (`internal/cli/review.go:1294-1306`), reached from `review.go:622`, `:1309` and
+  `:2020` — the last being the carried-forward previous-findings set measured in the table — plus
+  `review_report.go`'s cross-round tracking at `:229`, `:358`, `:444` and `:468`. Five call sites, one
+  identity predicate, two surfaces; the "same key across merge and report" framing was wrong on its
+  merge half.
+- **`findings` is an `int` on the audit side and an array on the review side.**
+  `internal/cli/audit_merge.go:93` is `"findings": findingsCount, // rows whose status is not PASS`,
+  while `tp review --merge --json` emits `findings` as the array of merged finding objects. One key,
+  two JSON types, across two commands a caller reaches through the same `--merge --json` spelling —
+  and documented nowhere, though `skills/tp/REFERENCE.md:695` already documents the analogous
+  `by_severity` collision, so the pattern of documenting such a clash exists and this one was missed.
+  Read at `e8477464`.
+- **Two output-format constants still promise an empty array where the third promises an empty file.**
+  `internal/cli/review.go:1691` and `:1736` both end *"If no changes needed, respond with an empty
+  array (just `[]`)"* / *"If no tests needed, respond with an empty array (just `[]`)"*, while `:1797`
+  says *"If no issues found, write nothing at all — an empty file is how a role reports a clean
+  result."* Harmless today because the guard accepts an empty array, so this is a consistency finding
+  rather than a defect: three sibling sites telling a role two different things about the same clean
+  result. Read at `e8477464`.
