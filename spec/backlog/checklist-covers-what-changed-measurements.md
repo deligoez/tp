@@ -311,7 +311,8 @@ verbatim, and only the rest is re-measured (47 of 63 rows carried against `v1.1.
   the row byte-identical and `agents/tp-auditor.md` tells the role to re-record it unchanged, so the
   corpus cannot tell a `PASS` the role ran from one it copied. When tp derives the carry itself it
   stamps `carried_from: <round>` on the row, the field ground rounds already carry
-  (`internal/engine/groundrecord.go`), and `--record` accepts it: audit rows are parsed leniently
+  (`CarriedFrom` in `internal/engine/groundrow.go`, computed in `internal/engine/groundcarry.go`), and
+  `--record` accepts it: audit rows are parsed leniently
   (no `DisallowUnknownFields` in `internal/cli/audit*.go`), measured at `808dd375`.
 - **The derivation's inputs are the script's, not the spec's.** `changed` is the record commit's diff
   to `HEAD` plus the dirty tree; a row with no `evidence_file` is never carried; a round with no
