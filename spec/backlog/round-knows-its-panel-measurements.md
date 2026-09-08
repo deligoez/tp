@@ -229,3 +229,35 @@ naming where the item came from. The item is recorded here; the spec body is not
   that role then leaves `tp review <spec> --status` reporting `roles_stale: false`. The corpus changed,
   the round cannot say so, and nothing in the payload distinguishes that from an unchanged corpus.
   Source: v1.1.0 audit round 2.
+
+## Routed here from v1.1.0's audit round 3 (2026-09-08)
+
+One item, and it is a correction to the round-2 bullet immediately above rather than a new subject.
+
+- **The discarded `ComputeRolesHash` error is at FIVE call sites, not two.** The round-2 bullet named
+  `internal/cli/review_record.go:134` and `internal/cli/review_status.go:68` — the two review-side
+  ones — and stopped there. Searched at `e8477464` (`faster_search 'ComputeRolesHash'` over
+  `internal/`), the production call sites are:
+
+  | file:line | phase | form |
+  |---|---|---|
+  | `internal/cli/review_record.go:134` | `PhaseReviewers` | `rolesHash, _ := …` |
+  | `internal/cli/review_status.go:68` | `PhaseReviewers` | `rolesHash, _ := …` |
+  | `internal/cli/audit_record.go:211` | `PhaseAuditors` | `rolesHash, _ = …` (assignment, not declaration) |
+  | `internal/cli/audit_record.go:388` | `PhaseAuditors` | `rolesHash, _ := …` |
+  | `internal/cli/run_status.go:146` | `PhaseAuditors` | `rolesHash, _ := …` |
+
+  Every other occurrence in the tree is a `_test.go` file or the definition itself
+  (`internal/engine/rolehash.go:24`). So the defect is **not review-specific**: the audit phase
+  discards it twice and `tp run --status` once, and `engine.RolesStale` treats the empty string every
+  one of them stores as **matching**. The behavioural half is the round-2 measurement above and is not
+  re-run here — what changes is the size of the repair, from a two-line fix on one phase to a
+  five-site one spanning review, audit and the run driver.
+
+  **Recorded because the miss is the auditor's own.** Round 2 graded `review_record.go` and reported
+  the discarded error there; round 3 found the same predicate at three further sites the round-2 read
+  had passed over, in files it had marked `PASS` the round before. The searchable name was identical
+  at both rounds — nothing was hidden — so what separated the two readings was searching for the
+  *symbol* across the tree rather than reading the file the finding was already about. That is the
+  `CLAUDE.md` quantifier rule landing on this sidecar's own prose: the round-2 bullet's "the identical
+  line" is a claim of exhaustiveness over a set its author had not enumerated, and it was false.
