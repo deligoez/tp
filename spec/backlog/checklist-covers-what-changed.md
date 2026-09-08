@@ -1,0 +1,201 @@
+# tp — The checklist covers what changed
+
+A backlog spec, named by slug; its priority number and its release number are assigned later. Its
+measurements are in `checklist-covers-what-changed-measurements.md` beside it; this file stands
+without them. It was written by reading `internal/engine/auditfiles.go` and re-emitting v0.37.0's
+round 7, not from the prose of the release it replaces.
+
+Class: **tool** — it changes which files a checklist names and what tp says about the cut, and no
+convergence signal. Budget it at the tool-class median in `CLAUDE.md`'s *What a cycle costs* table.
+
+## 1. Overview
+
+`tp audit` hands its three code-lens roles a file list that is **truncated alphabetically**, and tells
+nobody but the roles that *this* cut happened. On v0.37.0's own audit each of `go-safety`,
+`ax-contract` and `maintainability-conventions` received a prompt headed
+`## Affected Files (10 of 46)` — the same ten files in rounds 2 through 7, differing from round 1 by
+one file.
+
+The cut is unreported, not unnoticed: the only notice the run writes is about a *different* cut, the
+`maxAutoDetectFiles` gate of §4, and where the pool is under fifty that gate stays quiet too. The
+probe, and the draft corrections it forced, are in the sidecar under *The 77-byte probe and the
+draft corrections*. **Probe it in a `git clone`, never an `rsync -a --exclude .git` copy**: with no
+`.git`, `tp audit` exits 4 before selection ever runs.
+
+Three deliverables. **Two of them are inside `engine.selectCodeFiles`; the third is not, and this
+section says so rather than rounding it off.** `selectCodeFiles` has exactly one caller —
+`SelectAuditFiles` at `internal/engine/auditfiles.go:71`, and no other in the tree, tests included
+(`faster_search selectCodeFiles` over `*.go` returns the definition, that call, and nothing else).
+`SelectAuditFiles` returns a struct and emits nothing, so §4's notice and §4's payload field both land
+in `internal/cli/audit.go`, where that struct is consumed.
+
+1. **Rank by churn, not by filename** (§2). The data is already on `AuditFileInputs`.
+2. **A universe the operator named is not truncated** (§3). tp already records that it happened.
+3. **Say so when it truncates** (§4). tp already computes the pre-cap size.
+
+**This is a stopgap and says so.** Ranking the ten better does not audit the other thirty-six.
+Covering an N-file surface with a bounded per-prompt count is the divisible round's subject, and that
+release is not numbered because its split key is undecided. This one makes the ten the ten that
+matter and stops this cut going unreported.
+
+## 2. Rank the non-priority group by churn
+
+`selectCodeFiles` (`internal/engine/auditfiles.go:173`) partitions the filtered universe into a
+priority group — paths matching `lock`, `validate`, `auth`, `secret` or `perm` — and everything else,
+takes them in that order, and stops at `CodeFileCap` = 10. Neither group is ranked: the universe was
+sorted once, alphabetically, by `filterAuditUniverse`'s closing `sort.Strings` (`internal/engine/auditfiles.go:93`),
+and nothing reorders it afterwards.
+
+**Both groups are now ordered by churn, descending — `DiffStats[path][0] + DiffStats[path][1]` — ties
+broken by path so the order stays total.** `AuditFileInputs.DiffStats` already carries `{added,
+deleted}` per path (`internal/engine/auditfiles.go:56`) and `diffSummaryOf` already renders it into every emitted
+entry, which is how the round-7 prompt above could print `(diff: +272/-0)`. **No new input is
+collected, no new field is stored, and no new failure mode is introduced** — the release re-uses a
+value that was already computed, already carried and already displayed, and only ever ignored.
+
+**The priority group survives, and the two keys are orthogonal.** The five substrings encode *this is
+dangerous when it changes*; churn encodes *how much it changed*. A file that is both should outrank a
+file that is only one, which is exactly what a stable partition with a churn sort inside each group
+gives. Collapsing to a single churn ranking would demote a small change to a locking path beneath an
+unrelated churn spike, which is the trade the substrings exist to refuse.
+
+**A path with no `DiffStats` entry sorts last, not first.** An absent entry means one of **three**
+things — the file did not change; `DiffUnmeasured` says no comparison covers it; or the
+`git diff --numstat` probe failed, which empties `DiffStats` for *every* path at once. None of the
+three is evidence of churn, so ranking an unmeasured file ahead of a measured one would promote
+precisely the files tp knows least about.
+
+**The third case is degenerate rather than partial, and this section names it because §6.8 and §7 row
+8 both rest on it.** Measured with a `git` shim on `PATH` exiting 128 whenever an argument is
+`--numstat`, at `c0777dc6`: `tp audit spec/0.37.0.md` exits 0, every emitted entry renders `+0/-0`,
+the `--name-only` universe survives intact, stderr carries
+`warning: git diff --numstat failed: exit status 128`, and the emitted ten are byte-identical to the
+unshimmed alphabetical ten. So a probe failure does not corrupt the ranking — it removes it, falling
+all the way back to the shipped order, and the only signal is that one stderr line.
+
+**What this is worth:** `internal/cli/unattended.go` — the file v0.37.0's four hardest audit rounds
+were about — was cut from the checklist in 7 of 7 v0.37.0 rounds alphabetically and would have ranked
+in the top ten by churn in every one; the derivation, its validation against the real emission, and
+the limits of the ranking are in the sidecar under *What churn ranking is worth, measured*. Two of
+those limits shape this release: the ranking reorders the files that survive the 50-cap, not the
+release diff above it, which is why §1 calls this a stopgap; and a mechanical sweep whose files differ
+in churn only by how many lines each received is not something any ordering of ten can surface.
+
+## 3. A universe the operator named is not truncated
+
+`AuditFileInputs.DiffUnmeasured` is set at `internal/cli/audit.go:335` when `--affected-files` or
+`--affected-from-tasks` replaced the universe. **When it is true, `CodeFileCap` does not apply.**
+
+An operator naming files is a statement that *these are the files*. Truncating that list to ten
+alphabetically discards the one input tp holds that is better than its own heuristic — and today it
+does exactly that, because the operator's list replaces the universe *upstream* of `SelectAuditFiles`
+and is then capped like any other.
+
+**Measured at v0.37.0's round-7 record commit.** `tp audit spec/0.37.0.md --affected-files <25 named
+`.go` paths>` exits 0 with **zero bytes of stderr**, every code-lens prompt reads
+`## Affected Files (10 of 25)`, and the payload's `file_summary` reports `"truncated": false`. Fifteen
+of the operator's own twenty-five never reach a role, and the one field that speaks to truncation says
+none happened. This is the clean silent case; v0.37.0's own audit is not it, being noisy about a
+different cut (§4).
+
+**This makes the notice at `internal/cli/audit.go:777` true for the first time.** That notice already tells the
+operator to *"name the rest with `--affected-files`"*; following the advice currently cannot work past
+the tenth file. The advice is live rather than hypothetical — the notice fired on every one of
+v0.37.0's seven audit rounds, so an operator who obeyed it would have hit the ten-file wall each time.
+
+**No cap replaces it.** A prompt built from two hundred named files may exceed what a role can read,
+and this release does not know that bound — measuring it is the divisible round's job. What ships here
+is the narrower claim: tp stops silently overriding an explicit instruction. If a named list is too
+large, the operator is the party who can see it and split it.
+
+## 4. Say so when it truncates
+
+`SelectAuditFiles` already computes `CodeFilesTotal: len(universe)` (`internal/engine/auditfiles.go:79`), and
+`buildRolePrompt` already renders `## Affected Files (10 of 46)` into the prompt
+(`internal/cli/audit_roles.go:254-257`). **The role is told; the operator is not.**
+
+The only truncation notice tp emits is the one at `internal/cli/audit.go:777`, gated on
+`maxAutoDetectFiles` = 50 (`internal/cli/audit.go:100`). It is about a different cut and cannot stand
+in for this one in either direction. Where the pool exceeds fifty it fires and still says nothing
+about what follows it: on v0.37.0's audit it fired in **all seven** rounds while 46 → 10 dropped 36
+files without a word each time. Where the pool does not exceed fifty the gate is false and nothing is
+printed at all. §3's `10 of 25` run (zero bytes of stderr) is silent for a second, stronger reason on
+top of that one — an `--affected-files` universe never reaches `detectChangedFiles`, so the notice's
+code is not merely un-fired but unreached. Two paths, one silence; the release is about the cut
+neither of them reports.
+
+**A notice fires whenever `len(sel.CodeFiles) < sel.CodeFilesTotal`**, naming both numbers and the
+remedy §3 has just made real. It is `output.Notice`, so it writes to stderr and leaves the JSON
+payload alone.
+
+**The emission payload carries the same two numbers**, and §7 row 5 asserts that separately. `--quiet`
+erases stderr — measured, same tree, same commit — and a driver reading the payload must still be able
+to tell that the audit was partial. Today it cannot: `file_summary` carries `total_files`,
+`total_changed` and a `truncated` flag that reports the 50-gate only (`internal/cli/audit.go` derives
+it from the pre/post 50-gate counts), so on §3's 25-file run it reads `false` while fifteen named
+files were discarded.
+
+**The missing number is the pre-cap total, not the applied count.** The applied count *is* a payload
+field: `prompts[].checklist_count` is `10` on the round-7 emission, and `len(prompts[].affected_files)`
+is `10` beside it. The pre-cap `46` appears in no field — so a driver can read how many files a role
+got and cannot read how many it should have got, which is exactly the comparison that decides whether
+the audit was partial. **A guard written from the literal sentence — assert that `10` and `46` are
+both absent from the payload JSON — fails on an unmodified tree**, so §7 row 5 asserts the presence of
+the pre-cap total, never the absence of a digit.
+
+## 5. Withdrawn: a file carrying last round's open finding
+
+An earlier draft proposed a fourth decision — *a file named by an unresolved non-`PASS` row from the
+preceding round is added to the selection of the role that filed it, before the cap* — and grounding
+refuted it on three of four grounds. It is withdrawn rather than repaired; the grounds, the one
+refutation that did not hold, and what survives for whoever takes it next are in the sidecar under
+*Withdrawn: a file carrying last round's open finding*. What survives in one sentence: a deferred
+finding *can* stop being asked about, `--status` cannot distinguish that from a repair, and the
+mechanism has to key on `evidence_file` and start from the prior-round section that already exists
+rather than from file selection — a different release from this one.
+
+## 6. Non-Goals
+
+1. **No new workflow field** — not the cap, not the ranking key, not the notice threshold. A workflow
+   field is a fenced surface with four write sinks and its own resolution order; this release is a sort
+   key, a conditional and a notice.
+2. **No change to `spec-coverage`'s selection.** On the same round-7 emission its heading reads
+   `max 20` where the other three read `10 of 46` — its own cap did not bite there, and
+   `internal/cli/audit_roles.go:254` prints the counted form only when it does. It ranks by
+   task-mapping count (`selectSpecCoverage`, `internal/engine/auditfiles.go:128`), which is the
+   right key for a conformance lens; `AuditFileCap` = 20 is unchanged either way.
+3. **No raise of `CodeFileCap`, and no change to `maxAutoDetectFiles`.** Raising the first trades a
+   coverage hole for a prompt-size hole this release has not measured. The second is the larger hole,
+   and it is fenced here so that it is not read as covered: it cut the pool to 50 in **every** round of
+   v0.37.0's audit before `selectCodeFiles` saw anything — the sidecar's *What churn ranking is worth,
+   measured* carries the per-round pool sizes. What ships here reorders the files that survived.
+4. **No change to `filterAuditUniverse`'s drop rules.** Binaries, fixtures and deleted files stay
+   dropped, and the universe stays sorted before selection so the partition is deterministic.
+5. **No retroactive effect.** Rounds already recorded keep the lists they were emitted with.
+6. **No carry of a prior round's findings into file selection.** §5 proposed one and is withdrawn;
+   its two non-goals went with it. The need is real and the mechanism is not this release's — it keys
+   on `evidence_file` and belongs with the prior-round section that already carries those rows.
+7. **No change to the diff base.** Ranking inter-round diffs rather than the release diff would shrink
+   the universe — the sidecar measures by how much — but it is a separate decision with its own
+   failure mode (a round's own repair commit becomes the whole audited surface), and the measured
+   inter-round sets do not all fit under `CodeFileCap`.
+8. **No repair of the `--numstat` probe.** §2 names the failure and §7 row 8 pins its consequence.
+   Routing a probe failure into the payload the way §4 routes truncation is a second mechanism on a
+   second channel, and this release does not add one.
+
+## 7. Tests
+
+Every row derives from a numbered decision, names the artifact it depends on, and names a mutant that
+must fail it. Every fourth column names a change to production code; a widening of a test's own
+fixture is a fixture hazard, not a mutant.
+
+| # | from | assertion | the mutant that must fail it |
+|---|---|---|---|
+| 1 | §2 | over a universe whose alphabetically-first files have the least churn, `selectCodeFiles` emits the highest-churn `CodeFileCap` paths, ties by path. **The fixture's own properties are asserted first**: the test `require`s that the alphabetical and churn orders differ before asserting which one the code produced, and `require`s that no path matches `priorityPathSubstrings` — one such path is promoted under both orderings, so the two tens would not be disjoint | keep the alphabetical order — the shipped behaviour, which returns a disjoint set on this fixture |
+| 2 | §2 *priority* | a path matching one of `priorityPathSubstrings` outranks a higher-churn path matching none, and within the priority group churn still decides | drop the partition and sort the whole universe by churn, which demotes a `lock` file beneath an unrelated churn spike |
+| 3 | §2 *absent* | a path with no `DiffStats` entry sorts **last** | treat a missing entry as zero and sort ascending, or as `MaxInt` — either puts unmeasured files at the head |
+| 4 | §3 | with `DiffUnmeasured` set, a 25-file named universe reaches every code-lens role entire | apply `CodeFileCap` regardless — the shipped behaviour, which discards 15 of the operator's own files |
+| 5 | §4 | truncation emits a notice naming both numbers, **and** the payload carries them — asserted separately, with `--quiet` and without | route the fact through `output.Notice` alone, which `--quiet` erases, leaving a driver unable to see the audit was partial |
+| 6 | §4 | the notice fires on a universe below `maxAutoDetectFiles`, where the existing gate stays quiet — the 25-file `--affected-files` case §3 measured at `10 of 25`, zero bytes of stderr, `"truncated": false` | keep the existing gate, which is the defect |
+| 7 | §6.2 | `spec-coverage`'s list is byte-identical before and after, on a fixture where the code list changes | apply the churn key to `selectSpecCoverage`, reordering a lens whose key is task coverage |
+| 8 | §2 *absent*, §6.8 | under a `git` shim that exits 128 whenever an argument is `--numstat`, `DiffStats` is empty, the `--name-only` universe survives, and the emitted list is the alphabetical one at exit 0 — pinned as the documented degenerate case, not a silent regression of row 1 | make the probe failure fatal — propagate it out of `detectChangedFiles` instead of warning, which is the repair §6.8 declines — so the run exits non-zero with no prompts and both `exit 0` and the ten-file list fail |
