@@ -66,9 +66,8 @@ func droppedInputs(inputs []mergeInputCounts) []string {
 // between create and rename. The first now names the temporary in the error;
 // nothing can report the second.
 //
-// Four further consequences of writing this way, measured against v1.0.1 —
-// accepted rather than repaired, and recorded here so they are not rediscovered
-// as defects:
+// Further consequences of writing this way, measured against v1.0.1 —
+// accepted rather than repaired:
 //
 //   - The usable `-o` basename is 235, not the filesystem's 255: tp appends
 //     `.tp-merge-` plus os.CreateTemp's random suffix, which is 9 or 10 digits.
