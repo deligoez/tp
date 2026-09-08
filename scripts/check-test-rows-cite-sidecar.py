@@ -19,12 +19,11 @@ The counting rule, stated so a disagreement is about the rule and not the code:
   of the same or shallower level.
 * Inside it, a scanned row is a table line — first non-space character `|` —
   that is neither the header row nor a `|---|` separator.
-* The scanned cells are the columns whose header cell contains the word
-  `fixture` or the word `mutant` once lowercased. Containment rather than
-  equality, because this corpus writes the column as `the mutant that must fail
-  it` and `the fixture that separates them` far more often than as a bare word:
-  an equality match scans one file of twenty-six. A table with neither header
-  names no cells and contributes no rows to the scanned count.
+* The scanned cells are the columns with `fixture` or `mutant` among the
+  lowercased alphabetic words of their header cell. Whole words, not
+  substrings: `the mutant that must fail it` names a cell and `mutants` does
+  not. A table with neither header names no cells and contributes no rows to
+  the scanned count.
 * A cell cites the sidecar when it contains `measurements file` or
   `-measurements.md`. The bare word `measurements` is deliberately NOT the
   trigger: it produces a false positive on prose that merely mentions
@@ -32,9 +31,15 @@ The counting rule, stated so a disagreement is about the rule and not the code:
 * Fenced code blocks are skipped, so a sample table inside a fence is prose.
 
 Usage: check-test-rows-cite-sidecar.py <spec.md> [<spec.md> ...]
-Exit 0 when no scanned cell cites the sidecar, 1 otherwise. `--stats` adds the
-scanned-row and scanned-file counts to stdout, which is what makes a corpus run
-reportable.
+Exit 0 when rows were scanned and no scanned cell cites the sidecar, 1 when a
+cell cites it, and 1 when nothing was scanned at all. That last case is the
+point: the three ways this scan empties itself — a plural header, a Tests
+heading carrying a suffix, an unclosed fence anywhere above the section — each
+returned success over an input whose fixture cell did cite the sidecar, so a
+zero-row run certifies nothing and must not pass.
+`scripts/check-test-rows-cite-sidecar-test.sh` holds one fixture per way.
+`--stats` adds the scanned-row and scanned-file counts to stdout, which is what
+makes a corpus run reportable.
 """
 
 from __future__ import annotations
@@ -160,6 +165,14 @@ def main(argv: list[str]) -> int:
         print(f"scanned {rows} Tests-table row(s) across {files} file(s) with a Tests table")
     if problems:
         print(f"{len(problems)} Tests row cell(s) citing the measurements sidecar")
+        return 1
+    if rows == 0:
+        print(
+            f"scanned 0 Tests-table rows across {len(args)} file(s) — a clean exit here "
+            "would certify nothing. Check the Tests heading (its text must end at `Tests`), "
+            "the column headers (`fixture`/`mutant` as whole words, not `fixtures`/`mutants`), "
+            "and every code fence above the section for one that is never closed."
+        )
         return 1
     return 0
 
