@@ -1,8 +1,8 @@
 # The trim pass, and the scope pass it turned into — a note
 
 **Not a release, and not yet a design.** This holds what has been measured about removing what a spec
-carries, so nothing is re-derived when it is taken up. Deferred deliberately behind `spec/1.0.1.md`,
-which is written and ready to ground.
+carries, so nothing is re-derived when it is taken up. Its decision is registered in `spec/undecided.md` under
+*The scope pass*; this file is that entry's measurements and is not a backlog spec.
 
 **The note started with the wrong subject, and the correction is the most useful thing in it.** The
 first version proposed a pass that removes, after a spec converges, the text the loop wrote about

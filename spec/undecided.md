@@ -871,6 +871,16 @@ want stopped at. An `accepted_blocking` count — rows excluded from the survivi
 blocking — would close it. It is review-side, true at `HEAD`, and depends on nothing any pending spec
 proposes.
 
+### The scope pass — whether a section should exist
+
+**The decision: whether to build a scope pass at the front of the cycle, and what signal it would
+run on.** Ground and review both presuppose the spec's scope; neither can ask whether a section should
+exist. Three internal signals were tested and all three failed — finding density is uninformative in
+both directions, cross-role agreement is a coin flip, goal-entailment self-confirms when §1 was written
+in the same sitting. A forensics trim was the first proposal and was refuted by a field report that
+classified its own diffs. The measurements, the refuted reading and the open questions are in
+`spec/trim-pass.md`, which is this entry's measurements file and not a backlog spec.
+
 ---
 
 ## Fog — in scope, not yet sharp enough to state as a question
