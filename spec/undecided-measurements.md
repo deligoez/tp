@@ -266,6 +266,27 @@ spec-coverage` across `spec/.tp-review/0.37.0/audit-round-*.ndjson`, against how
 non-`PASS` status in any round. At `13bfde30` that is 6 of 97, so splitting the items by *count*
 gives two shards each about 94% `PASS` and neither shard is informative about where the findings are.
 
+**That rule as a runnable derivation, and the six items it names** — moved here when the register's
+routed section became an index:
+
+```bash
+python3 - <<'PY'
+import json,glob
+ids=set(); bad=set()
+for f in sorted(glob.glob("spec/.tp-review/0.37.0/audit-round-*.ndjson")):
+    for l in open(f):
+        if not l.strip(): continue
+        r=json.loads(l)
+        if r.get("role")!="spec-coverage" or r.get("item_id") is None: continue
+        ids.add(r["item_id"])
+        if r.get("status")!="PASS": bad.add(r["item_id"])
+print("%d distinct items, %d non-PASS: %s" % (len(ids), len(bad), sorted(bad)))
+PY
+```
+
+At `13bfde30` the six are `list-0-2`, `table-2-1`, `table-2-13`, `table-2-14`,
+`task-document-the-field` and `task-fence-change-rule`.
+
 ## The evidence contract
 
 **The channel is not one, which is why no decision names a site.** Three sites inject previous-round
@@ -292,6 +313,26 @@ had come back. The project-layer registration closes that for `code-citation-dri
 `test-inventory-drift` is registered in one task file only (`0.31.2.tasks.json`), so the same hazard
 stands for it. The task-layer registrations are `0.31.2.tasks.json` for `test-inventory-drift`, and
 `0.33.0.tasks.json` and `0.34.0.tasks.json` each for `code-citation-drift` against their own specs.
+
+The two paragraphs below were moved from the register when its routed section became an index.
+
+**Why the workaround works, and how it fails.** `engine.RunCommand` hands its command string to
+`sh -c` verbatim and substitutes nothing, so a project-layer registration reaches its spec through the
+shell instead: each `cmd` ends in
+`"$(tp resume 2>/dev/null | python3 -c 'import sys,json;print(json.load(sys.stdin)["spec"])')"`, which
+resolves at `13bfde30` to `spec/1.1.0.md`. Two checks are registered that way today —
+`code-citation-drift` and `method-only-in-ungraded-sidecar`, both reported by `tp config --resolved`
+with `"source": "project"` — and the same absence of substitution is why every task-file registration
+hardcodes a path. A subshell in a committed config **fails silently when `tp resume` cannot answer.**
+
+**The cannot-run half, measured.** `internal/engine/mechanized.go:34-36` states the governing
+principle — an entry tp will never run is not evidence that its class is mechanically checked — and
+applies it to schema validity alone, so a check that is schema-valid and fails to execute suppresses
+its class anyway: measured at `c75e5c3d` in a clone with `{"class":"my-broken-class","cmd":"exit 2"}`
+registered at the project layer, one `tp review <spec>` emission reports
+`mechanical_checks: [{… "exit_code": 2, "passed": false}]` and stamps
+`do NOT report findings of these classes: my-broken-class` into all four role prompts in the same
+payload. That is the behaviour the exit-code contract in the sidecar ends.
 
 ## `frontmatter-key-namespace`
 
@@ -344,7 +385,21 @@ been measured.
 
 Row 1 was already stale when it was written: `findingFormat`'s example has carried `evidence` since
 before `a4fd187f`. Row 3 became stale after `a4fd187f`, when `evidence` was added to the review branch
-of `outputContractInstruction`. The register carries the reading at `13bfde30`.
+of `outputContractInstruction`.
+
+**The same three sites, read at `13bfde30`** — moved from the register when its routed section became
+an index:
+
+| site | keys it names |
+|---|---|
+| `findingFormat`'s JSON example (`internal/cli/review.go`) | `severity`, `category`, `location`, `finding`, `evidence`, `suggestion` |
+| the optional-`class` sentence beside it | `class` |
+| `outputContractInstruction`, review branch | `role`, `location`, `class`, `severity`, `evidence` |
+
+`evidence` is common to the first and third (it reached the contract block *after* `a4fd187f`); what
+still differs is `category`, `finding` and `suggestion` in the example alone, against `role` and
+`class` in the contract alone. `outputContractInstruction` is shared with the audit phase, which is
+why the decision states the audit vocabulary separately rather than equalising the two phases.
 
 **What each way of equalising the three costs.** `outputContractInstruction` is shared with the audit
 phase — called from `review.go`, `review_regression.go` and `audit_roles.go`, and all four auditor
@@ -389,6 +444,9 @@ package's own tests once per mutant, and `CLAUDE.md` records the same package at
 against **88** idle, with default settings driving load average from **8** to **177**
 (`grep -n 'load average' CLAUDE.md`). `t.Parallel()` multiplies concurrency inside each mutant by
 gremlins' own `--workers`.
+
+**The call count is a derivation, not a figure to quote** — moved from the register when its routed
+section became an index: `rg -c 't\.Parallel\(\)' -g '*_test.go' --no-filename | paste -sd+ | bc`.
 
 ## A prior-round section for `tp review`
 
