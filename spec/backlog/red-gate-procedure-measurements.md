@@ -1,10 +1,11 @@
-# tp v1.48.0 — The red gate
+# red-gate-procedure — measurements
 
-> **This file is decisions.** It ships **text in a brief and enforces nothing**, which is the decision
-> rather than a shortfall — §4 records the three mechanical proxies considered and why each was
-> rejected.
+Supplemental material for `red-gate-procedure.md`; the spec stands without it.
 
-## 1. Overview
+The text below is the release draft this procedure was cut from, kept verbatim. Section numbers are
+the draft's own.
+
+## Overview (the draft's §1)
 
 A unit handed a red gate today gets two things and nothing between them: **the wall** — `tp brief`
 carries the resolved gate command verbatim (`engine.CloseRecipeText`) and `last_failure` when a
@@ -37,29 +38,11 @@ is **runner-conditional**: the default runner is `claude` (`engine.RunnerDefault
 for at least one shipped runner and is unmeasured for the default. Nothing in this release depends on
 which.
 
-**This release needs the gate sequence.** Step 1 below runs *one entry*, which is only a name once
-`quality_gate` is an ordered array of named entries. Under the string form that step is the manual
-split the sequence release exists to remove.
+**This release needs the gate sequence** (`spec/backlog/gate-sequence.md`). Step 1 below runs *one
+entry*, which is only a name once `quality_gate` is an ordered array of named entries. Under the string
+form that step is the manual split the sequence release exists to remove.
 
-## 2. The procedure
-
-The brief gains an ordered procedure. **Every step is a rule this repository already paid for; the
-contribution is the sequence and the bound, not the steps.**
-
-1. **Isolate, then reproduce.** Run the failing entry alone, not the gate. A failure that does not
-   reproduce is a finding about the gate, not about the change.
-2. **Observe the failure before editing it.** `CLAUDE.md`'s rule read in the other direction: a fix
-   accepted without watching the failure first proves nothing, and an assertion never seen failing
-   may be a tautology that passes identically either way.
-3. **Name three to five falsifiable causes and rank them, before testing any.** Each states its
-   prediction: *if X is the cause, then changing Y removes it.* A cause with no prediction is a
-   guess. Then **show the ranked list and carry on** — the operator often re-ranks it instantly from
-   knowledge the unit does not have, and a unit that stops to wait has turned a checkpoint into an
-   escalation.
-4. **Re-run the entry, then the whole gate.** Both, in that order. In v0.31.2 a red `golangci-lint`
-   stood behind a green test suite across **ten task closes**, which is what this step exists to
-   catch — and which is not what an earlier draft of this line said (below).
-5. **Exit by name when the investigation ends.**
+## Step 4's incident, derived
 
 **Step 4's incident, derived.** Counting rule: one row per JSON object in
 `spec/.tp-review/0.31.2/audit-round-N.ndjson` for N = 1..7, a row counted when its serialized JSON
@@ -75,7 +58,7 @@ rounds.** An earlier draft of step 4 said the lint *"stood behind a green test s
 rounds"*; under the rule above it stood for one, and that round is what caught it. The corrected
 incident still motivates the step, because the audience is the unit doing the closing.
 
-### 2.1 Why the ranked list is a step and not advice
+## Why the ranked list is a step and not advice
 
 **Single-cause reasoning anchors on the first plausible idea, and this repository has a receipt with
 a dated home.** `CLAUDE.md` records v0.36.0's audit round 1 measuring `scripts/check-complexity.sh`
@@ -100,24 +83,7 @@ be checked, and it has one.
 enumerating causes feels like delay. That is exactly the shape of the premature completion §3's bound
 is written against.
 
-## 3. When it ends, and how
-
-**It ends on a condition, not a count.** Either the next step would be a user-only decision, or an
-attempt produced no new information about the failure. An attempt count is the first of the three
-gameable proxies §4 rejects — a unit that must finish in three attempts learns to declare victory on
-the third.
-
-**And it ends on a minimal reproduction, which is a checkable bound rather than a feeling.** Once the
-entry is red, cut inputs, config and steps one at a time, re-running after each cut. **Done when every
-remaining element is load-bearing: removing any one of them turns the entry green.** That test is what
-stops "I have reproduced it" from being the kind of fuzzy criterion this section opened against — a
-feeling rather than a checkable bound — and the minimal case is also the regression test, so the work
-is not thrown away.
-
-**Where no seam can hold that test, the absence is itself the finding.** A red gate whose failure
-cannot be pinned at any available seam is reporting something about the codebase, not about the
-change; the unit records that rather than writing a test at a seam too shallow to catch it, which
-would hand back false confidence.
+## The escalate probe (the draft's §3 transcript)
 
 **The exit differs by context and the brief resolves which one applies**, because naming a command
 that exits 2 on the path the unit is on is worse than naming none. Measured:
@@ -128,12 +94,7 @@ $ tp escalate --decision skip-gate --evidence "probe"
  "hint":"...outside a run there is no unit to stop, so make the decision directly"}
 ```
 
-| context | the exit |
-|---|---|
-| under `tp run` | `tp escalate --decision skip-gate --evidence <text>`; the run stops with `stop_reason: escalation` and the operator answers |
-| outside a run | a hand-back: stop, leave the task `wip`, report the wall **in the unit's own report, which is the only carrier** — no `last_failure` is written on this path |
-
-### 3.1 The hand-back, and what it does not carry
+## The hand-back, and what it does not carry (the draft's §3.1)
 
 **The hand-back row names no file, because on that path there is no writer.** Measured outside the
 repository, one open task, `quality_gate` = `exit 7`: `tp done t1 "…" --commit HEAD` with no `TP_*`
@@ -157,7 +118,7 @@ only on a non-nil pointer, so an absent record is an absent key rather than an e
 `at`; the gate command reaches the next unit only inside the free-text `summary`, and a *named* entry
 waits on the gate sequence exactly as §1 says.
 
-## 4. Why this is not a check, stated so it is not re-proposed
+## Why this is not a check, stated so it is not re-proposed (the draft's §4)
 
 **Whether an investigation was systematic is not observable from its output.** Three proxies were
 considered and all three are rejected — two because a unit that must pass the proxy learns to pass
@@ -177,7 +138,7 @@ a unit reports is not neutral about what the unit finds.
 **What tp can do instead is put the procedure and its exit in front of a unit that has lost the
 previous attempt's context, every time.** That is the whole release.
 
-## 5. Non-Goals
+## Non-Goals (the draft's §5)
 
 1. **No enforcement, no gate, no exit code.** Nothing here changes what a green close means or what
    any command returns.
@@ -199,7 +160,7 @@ previous attempt's context, every time.** That is the whole release.
    part §3.1 depends on and states there: outside a run it is not written at all. This release adds no
    field and no writer.
 
-## 6. Tests
+## Tests (the draft's §6) — for the close-recipe emission, when that ships
 
 Every row derives from a numbered decision, names the artifact it depends on, and names a mutant that
 must fail it.
