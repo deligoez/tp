@@ -350,3 +350,75 @@ The asymmetry this removes: `invalidCategoryRows` in `internal/cli/audit_record.
 **`category`** alone today. The reader that makes severity load-bearing is
 `spec/backlog/a-finding-can-leave-an-audit-round.md`, whose test row 1b grades acceptance from the
 row's `severity` under `audit_converge_on: blocking`.
+
+## Routed here from v1.1.0's audit round 3 (2026-09-08)
+
+Three further items land on this spec's subject. They are recorded in this sidecar; the spec body is
+not edited. The two items round 2 contributed — the over-long-line heading parse and `--report`
+reading a spec as a findings file — are in the section above and are not repeated here.
+
+- **`walkDocTree` refuses the coarse failure and stays silent on the partial one.** Second named
+  instance of the swallow class. `internal/cli/review.go:1426-1437` discards `filepath.WalkDir`'s
+  return (`_ = filepath.WalkDir(...)`) *and* returns `nil` from the callback on the per-entry error
+  (`if err != nil || d.IsDir() { return nil }`), so an unreadable subtree is skipped rather than
+  reported. **Run at `e8477464`** on a `docs/` holding `a.md` and `sub/b.md`, via
+  `tp review spec.md --perspective documentation --docs-path docs`: readable → exit **0**, tree
+  `docs/ ├ a.md └ sub/b.md`; `chmod 000 docs/sub` → exit **0**, **empty stderr**, tree `docs/ └ a.md`;
+  a missing docs root → exit **3** with
+  `docs path not found or not a directory` and a hint. So the failure that removes everything refuses,
+  and the failure that removes half of it is indistinguishable from a smaller `docs/`. The reviewer is
+  handed a doc tree with a file missing and no reason to doubt it.
+- **`--verify` has no zero-parse refusal where `--merge` does — and the parse path is *not* silent,
+  which is the correction.** `readVerifyFindings` (`internal/cli/review_verify.go:167-201`) makes the
+  **read** error fatal (`output.Error(ExitFile, …)` at :170) and warns per malformed line at :184, but
+  has no guard for *every* line failing to parse. **Run at `e8477464`** on one two-line file with a
+  trailing comma on each line, through one binary: `tp review --merge bad.ndjson` exits **1** with
+  `{"error":"no line parsed in bad.ndjson: every content line was skipped, so that input contributed
+  nothing to the merge"}` and a re-emit hint; `tp review spec.md --verify --findings bad.ndjson` exits
+  **0** with `previous_findings: 0` and a prompt opening *"Previous review rounds produced 0
+  findings"*. **Both printed the identical two `warning: skipping malformed line (invalid JSON)`
+  lines** — so the difference is the *refusal*, not the warning, and any description of the verify
+  parse path as silent is wrong at this revision. What is missing is the guard that turns "every line
+  dropped" into a refusal; without it the verifier is told 0 as a *result*. The function's own doc
+  comment (:160-166) already forbids this — *"Neither failure may come back as an empty set"* — so the
+  contract is stated and half-kept. `--merge` carries `droppedInputs`/`mergeInputCounts`; `--verify`
+  populates no counts at all, so nothing in the payload distinguishes a genuinely empty findings file
+  from one every line of which was dropped.
+- **`engine.UnitKinds` is reachable only from tests — the `IsValidCategory` shape.**
+  `internal/engine/unitkind.go:48`. Its doc comment says it exists "for callers that need to name the
+  set rather than test one value", and there is no such caller: **all fourteen call sites are in
+  `_test.go` files** (`faster_search 'UnitKinds()'` over the repository at `e8477464` — `nextunits_test.go`,
+  `briefcommand_test.go`, `hooks_stop_test.go`, `driver_spend_test.go`, `runnertemplate_test.go`,
+  `runneragent_test.go`, `unitkind_test.go`). `deadcode ./...` **without** `-test` reports it; the
+  project gate runs deadcode with `-test`, which is why the gate is green. As with `IsValidCategory`,
+  the question to ask is whether the production caller is missing rather than whether the test is.
+
+### Not findings — one withdrawal and one pre-empted class
+
+Recorded in this sidecar because both are about the swallow class this spec owns, and both cost a
+round to settle. Neither is a defect; the point of writing them down is that the next reader of
+`internal/cli/` does not re-derive them.
+
+- **Withdrawn: `internal/cli/review_merge.go:47-50`'s bare `continue`.** The lines are
+  `line, err := json.Marshal(f); if err != nil { continue }` — a discarded error with no channel, so
+  it matches the class on its face, and it was reported as a finding at round 2. **Two roles
+  independently withdrew it at round 3**, on the same ground: neither could construct an input that
+  reaches the branch. The rows being marshalled are `reviewFinding` values that tp itself built by
+  unmarshalling each input line, so they are marshalable by construction, and the one candidate that
+  would not be — a float literal like `1e400`, which `encoding/json` refuses to marshal — never
+  survives to that point, because it is rejected at **unmarshal** and the row is dropped earlier. Two
+  independent withdrawals of one row is worth more than the row was: it is the *unreachable* case of
+  the swallow class, and a spec that fences the class should say so rather than leaving a reader to
+  find the same branch and file it a third time.
+- **Pre-empted, so it is not filed: the `ResolveWorkflow` and `runMechanicalChecks` call sites are
+  not swallowed errors.** Both functions return a second value that is discarded at most call sites,
+  which reads exactly like `x, _ := f()` over an `error` — and neither second value is an error.
+  `engine.ResolveWorkflow` (`internal/engine/workflow_resolve.go:16`) is
+  `func ResolveWorkflow(specPath, explicitFile string) (wf model.Workflow, source string)` — the
+  discarded value is the **layer name**, for diagnostics. `runMechanicalChecks`
+  (`internal/cli/review_status.go:186`) is
+  `func runMechanicalChecks(wf *model.Workflow, taskFilePath string) (results []map[string]any, allPass bool)`
+  — the discarded value is a **bool**. The signature is the anchor here and the count is deliberately
+  not: an attempt to state one produced 14 non-test call sites against the 13 the finding had claimed,
+  and 10 under the narrower "discards with `, _`" rule, so the number depends on a counting rule
+  nobody had fixed. Read the signature, not a tally.
