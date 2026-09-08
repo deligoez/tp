@@ -55,13 +55,14 @@ At record time, `spec_hash` is `sha256` of the round's snapshot file rather than
 atomic, already named per round and phase, and already read back by the regression path. The release
 changes **two arguments at two record-time hash calls, in two files**:
 
+```bash
+git grep -n 'SpecHash(specPath)' -- internal/cli/review_record.go internal/cli/audit_record.go
 ```
-grep -rn 'SpecHash(specPath)' internal/cli/review_record.go internal/cli/audit_record.go
-  review_record.go:91    record, review phase   -> change
-  audit_record.go:102    record, audit phase    -> change
-  audit_record.go:375    --status, audit phase  -> leave: this is the CURRENT-spec side of
-                                                   Converged/StateStale and must keep hashing the path
-```
+
+The two `--record` calls (review phase in `review_record.go`, audit phase in `audit_record.go`)
+change; the `--status` call in `audit_record.go` stays, because it is the CURRENT-spec side of
+`Converged`/`StateStale` and must keep hashing the path. Line numbers are deliberately not written:
+the first draft of this block cited one, and it was stale within a day.
 
 Two, not one, and the distinction is load-bearing rather than pedantic: §6 row 2 exists *because* a
 fix applied to one phase passes rows 1 and 3, which is a hazard only if there are two sites. The
