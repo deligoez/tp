@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.1.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-08T08:43:48.326239Z",
+  "updated_at": "2026-09-08T08:54:22.507723Z",
   "workflow": {
     "review_max_rounds": 3
   },
@@ -393,7 +393,7 @@
     {
       "id": "reference-required-versus-attribution",
       "title": "Separate required keys from attribution keys",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -406,11 +406,18 @@
         "## 1. The decision",
         "## 3. What ships in the skill documents"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-08T08:45:56.639409Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-08T08:52:10.687455Z",
+      "closed_reason": "- The *Finding `class` and Report* contract at skills/tp/REFERENCE.md now separates the four keys both gates require — severity, finding, location, evidence — from role and class, which no gate requires; the required half is bound to what I ran, not to the code text: --record refused a one-row file missing evidence (exit 1, 'line 1: missing required field evidence'), --merge skipped a row missing evidence with the stderr warning and reported that input parsed 0 / skipped 1, and a row carrying neither role nor class recorded at exit 0 with one stderr advisory naming the absent role.\n- Repaired on its own grounds and the paragraph says so: the shipped sentence named role, location, class and severity, so it disagreed with the gates in two directions before evidence joined the set — it named two keys neither gate checked, and omitted finding, which --merge required at v1.0.1 (git show v1.0.1:internal/cli/review_merge.go, missingFindingFields over {location, severity, finding} at line 192). The doc anchors that claim to that ref and line rather than asserting it of all history.\n- The reference now states this release's meaning of whitespace, enumerated from unicode.IsSpace by a Go probe outside the repo (25 runes: tab, newline, vertical tab, form feed, carriage return, space, U+0085, U+00A0, U+1680, U+2000-U+200A, U+2028, U+2029, U+202F, U+205F, U+3000) and pinned by a boundary a reader can re-run: a one-row file whose evidence is a single U+00A0 makes --record exit 1 naming line 1, and the same file with U+200B records at exit 0 — measured with the freshly built binary in /tmp, not in the repo.\n- skills/tp/SKILL.md's four *What a spec is about (v1.1.0)* rules are verified present unchanged, not rewritten: the section from '#### What a spec is about' to '### Step 1: Init' hashes to sha256 023d7a6731716c6e86408b80e8c827e80a3b3434caf05f1a0396e31d69db0d59 at both 4914215f and HEAD, and holds exactly four bulleted rules. The one hunk SKILL.md gained since 4914215f is in Step 1.5, outside that range.\n- No test was added, deliberately. The subject is a paragraph of unbounded prose, where a Contains/NotContains guard is a local assertion whose complement is free — this cycle measured both polarities passing while the deleted promise was re-added in a neighbouring paragraph — and no bounded-artifact or read-back shape is available here. What the change buys is narrow and stated as such: the tag no longer ships a reference whose output contract contradicts the gates it documents, in either direction.\n- Quality gate green, four exit codes read separately: check-suite-state.sh 0 (0 '--- FAIL:' lines and 0 'build failed' lines), golangci-lint run 0, check-deadcode.sh 0, check-complexity.sh 0.\nOut of scope: skills/tp/SKILL.md's merge step still states §5 row 10's '-o writes only after the merge succeeds' as shipped fact; that belongs to review-record-unit-command. Separately, tp review --merge exits 1 with 'no line parsed in \u003cfile\u003e' when every line of one input was skipped, so an all-incomplete input fails the merge rather than being skipped quietly — observed, not a defect I was asked to judge.",
+      "gate_passed_at": "2026-09-08T08:52:10.687455Z",
+      "commit_sha": "fb729c17",
+      "commit_shas": [
+        "fb729c17"
+      ],
+      "commit_files": [
+        "skills/tp/REFERENCE.md"
+      ]
     },
     {
       "id": "review-record-unit-command",
@@ -448,10 +455,31 @@
         "status-reads-pre-release-rounds",
         "merge-representative-evidence",
         "prompt-formats-name-required-keys",
-        "review-record-unit-command"
+        "review-record-unit-command",
+        "skill-pre-review-build"
       ],
       "estimate_minutes": 6,
       "acceptance": "The release note is in English and states what a user gets at the tag: the four required keys enforced at both gates, `--merge` skipping and `--record` refusing with every offending line named, the `-o` path untouched by a refused merge, the `--verify` prompt's new output contract, and that rounds recorded before this release still load, clean and converge. It names the upgrade danger this release creates rather than inherits — a findings file written before v1.1.0 fails the merge gate on every row, and chaining a refused merge into `--record` with `;` records a zero-byte file as a clean round — and says the remedy is to re-emit the round's findings with `evidence`. §3's four `skills/tp/SKILL.md` rules reach a user at this tag rather than at their commit so the note names them, and with `.claude-plugin/plugin.json` already carrying `1.1.0` from `4914215f`, the note records that the bump precedes the tag rather than repeating it.",
+      "source_sections": [
+        "## 3. What ships in the skill documents"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "skill-pre-review-build",
+      "title": "Ship the pre-review build rule",
+      "status": "open",
+      "tags": [
+        "docs",
+        "skill"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 9,
+      "acceptance": "`skills/tp/SKILL.md` gains one rule, as a single item at the end of Step 1.5 or the head of Step 2: a spec that changes a validation rule, a gate or a record schema has its minimal change built in a clone and the full suite run before it enters review, with packages that fail to build counted separately from `--- FAIL:` lines, and the count of tests that break is the release's real size — entering §1 as a task of its own rather than as another task's acceptance criterion. The rule points at the suite-build section of `spec/1.1.0-measurements.md` for the measurement instead of restating a figure, per this repository's anchored-figure rule, and it is written as guidance for the next cycle rather than as a report on this one. `tp lint skills/tp/SKILL.md` reports no more warnings after the edit than before it, and `go test ./internal/cli -run TestPluginVersion -count=1` stays green.",
       "source_sections": [
         "## 3. What ships in the skill documents"
       ],
