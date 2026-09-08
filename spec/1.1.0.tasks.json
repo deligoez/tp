@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.1.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-08T08:26:21.350636Z",
+  "updated_at": "2026-09-08T08:32:57.40751Z",
   "workflow": {
     "review_max_rounds": 3
   },
@@ -357,7 +357,7 @@
     {
       "id": "reference-recipe-scope",
       "title": "Scope the overlap recipe to post-release rounds",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -369,11 +369,18 @@
       "source_sections": [
         "## 3. What ships in the skill documents"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-08T08:28:27.183121Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-08T08:32:57.398498Z",
+      "closed_reason": "- The *Measuring whether a second model earns its cost* recipe in skills/tp/REFERENCE.md now names the four required keys: its step 2 said `--merge` requires only location, severity and finding, and reads \"requires severity, finding, location and evidence\" — the set requiredFindingFields declares at internal/cli/review_record.go:321 and the shared predicate at :329 applies, which review_merge.go:166 calls, so the sentence and the gate now agree. The rest of that step, that role is attribution --merge never checks against the corpus, is retained and re-checked: no corpus resolution appears anywhere in review_merge.go.\n- The recipe gains a scope caveat, placed before its numbered steps because step 1 is prospective advice while the caveat governs whether the corpus already on disk can be used at all: it applies to rounds recorded at or after v1.1.0. Measured with a freshly built binary in a temp dir outside the repo, merging this repository's own spec/.tp-review/0.37.0 rounds 1 and 2 — every content line of both skipped (parsed 0 / skipped 65 and 0 / skipped 56, each warned 'missing evidence'), and exit 1 with 'no line parsed in a.ndjson, b.ndjson'.\n- Two corrections to the acceptance's own prediction, both measured. A pre-1.1.0 pair does not yield 'no overlap_report at all': the key is present and empty, overlap_report: []. And the decisive failure is earlier than the read — v0.35.0's zero-parsed rule makes the merge exit 1 naming both files, so step 3 never gets to be read. The caveat states both facts rather than the predicted one.\n- No test was added and none is warranted: the change is prose, and a Contains/NotContains guard over prose cannot pin what a document claims — both polarities pass while a neighbouring paragraph re-adds the promise. What the tree gains is that the tag no longer ships a reference contradicting its own release, and a reader no longer follows a procedure that exits 1 on every round this repository has recorded. Corpus check, for the caveat's 'as a rule carries none': 90 of 4,059 recorded review rows carry a non-empty evidence, and all 90 are v1.1.0's own rounds 1-3 — the figure is deliberately not written into the document, only the mechanism that produces it.\nOut of scope: the same probe showed `--merge` writing its `-o` file even on the exit-1 refusal (merged.ndjson existed, merged_count 0) — that is §5 row 10, and REFERENCE.md:722's own required/attribution key list is reference-required-versus-attribution's task, not this one; neither was touched.",
+      "gate_passed_at": "2026-09-08T08:32:57.398498Z",
+      "commit_sha": "16468d11",
+      "commit_shas": [
+        "16468d11"
+      ],
+      "commit_files": [
+        "skills/tp/REFERENCE.md"
+      ]
     },
     {
       "id": "reference-required-versus-attribution",
