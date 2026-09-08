@@ -67,9 +67,25 @@ func roleArg(id string) string {
 // every other occurrence names one file.
 func recordBriefCommand(phase, spec string) string {
 	merged := "$TP_ROUND_DIR/" + mergedFindingsName
+	// The review chain fences its record step behind the merge; the audit
+	// chain does not. A review merge that refuses leaves `-o` untouched (§5
+	// row 10), so with `;` the record step ran against a file that is not
+	// there and reported "cannot read findings file" (exit 3) — a missing
+	// path, in place of the merge failure that caused it. `&&` ends the chain
+	// at the merge's own exit instead. Precedence makes this work with the
+	// `||` guard in front: sh reads `A || B && C` as `(A || B) && C`, so a
+	// merged file that already exists still records.
+	//
+	// The audit phase keeps `;` because §4 fences this release out of it: its
+	// merge still writes `-o` before refusing, so the record step there has a
+	// file to read.
+	separator := "; "
+	if phase == PhaseReview {
+		separator = " && "
+	}
 	return fmt.Sprintf(
-		"[ -f %s ] || tp %s --merge $TP_ROUND_DIR/role-*.ndjson -o %s; tp %s %s --record %s",
-		merged, phase, merged, phase, spec, merged,
+		"[ -f %s ] || tp %s --merge $TP_ROUND_DIR/role-*.ndjson -o %s%stp %s %s --record %s",
+		merged, phase, merged, separator, phase, spec, merged,
 	)
 }
 
