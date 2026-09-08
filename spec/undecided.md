@@ -845,7 +845,7 @@ first proposal and was refuted by a field report that classified its own diffs.
 
 **It reopens** when a signal beats a coin flip on the recorded corpus.
 
-**Where the measurements are.** `spec/trim-pass.md` — this entry's measurements file, and not a
+**Where the measurements are.** `spec/undecided-measurements.md` §The scope pass — folded in from the former `spec/trim-pass.md` on 2026-09-08, and not a
 backlog spec.
 
 ### `scope` on audit rows
