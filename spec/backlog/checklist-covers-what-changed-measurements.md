@@ -282,3 +282,20 @@ spec body is not edited.
   `spec/0.35.0-candidates.md` item 5, whose other two thirds are settled: the lock-timeout boundary
   guard shipped as `internal/engine/lock_timeout_range_test.go`, and the two plan builders stay
   separate by `spec/backlog/refusals-that-name-nothing.md` Non-Goals 3 and 5.
+
+## Decided at the 2026-09-08 decision pass
+
+From `spec/undecided.md`, *The divisible round*.
+
+**Decided: the split key is spec location — the section.** A round is divided into shards by section,
+each shard one prompt carrying that section's checklist items; per-item convergence is unchanged.
+
+**It is not folded into this spec.** This spec bounds a per-prompt checklist at ten items and names
+the divisible round as its real answer, but taking both in one release would double a spec already
+ranked second. The divisible round becomes a follow-on **tool** spec, *round-divides-by-section*, to
+be written after this one ships; `spec/backlog/README.md` carries it under *Decided, awaiting a spec*
+until it has a file.
+
+The measurement the decision rests on — 6 of 97 `spec-coverage` items non-`PASS` at `13bfde30`, so a
+split by *count* gives two shards that are each overwhelmingly `PASS` — is in `spec/undecided.md`
+under that entry, with its counting rule.
