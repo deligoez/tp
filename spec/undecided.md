@@ -434,6 +434,19 @@ evidence has no per-line carrier*, and *what would gate this*.
 forced-commitment brief, and mutation score as a documented gate entry. What is left is the part with
 no design.
 
+**A third open question joined it at `spec/1.1.0.md`'s review round 3: who reads a stored
+`evidence`.** That release ships the carrier and nothing reads it back — `reviewFinding`
+(`internal/cli/review.go:131-139`) has no such field, so the previous-round injection drops it. A
+decision saying the injection carries it was written and cut, because the channel is not one: three
+sites inject previous-round findings (`review.go:1345`, `review_regression.go:178`,
+`review_verify.go:250`), the panel block caps its detailed rows at 50 and truncates its three
+free-text renders at 80, 60 and 40 characters, and two of the three sites already print
+`resolved.evidence` under the name *evidence*. Any decision here has to name a site, a bound and a
+label; naming a site is an implementation sentence, which is what `1.1.0` exists to keep out of a
+spec. `spec/1.1.0-measurements.md`'s *`evidence` is write-only: the three injection sites, and where
+the reading half went* carries the runs. **No backlog file holds this** — `05-forced-commitment-in-the-brief.md`
+§2 is the *audit* prior-round injection, not the review one.
+
 ### A registered check that outlives its release
 
 **This entry was stale at `HEAD` and the correction is the substance.** Two of its measurements are
