@@ -12,14 +12,14 @@ seams.
 
 | what it held | where it is now |
 |---|---|
-| **the ten findings carried out of v1.0.0's audit** | deleted — each was verified present in the release that took it before its entry was removed. They are `spec/1.38.0.md`, `spec/1.54.0.md`, `spec/1.55.0.md`, `spec/1.56.0.md` and `spec/1.57.0.md` |
-| **its ground-related material**, plus three defects the grounding programme measured in `tp ground` itself | **`spec/1.0.1.md`** — the ground command's own friction |
+| **the ten findings carried out of v1.0.0's audit** | deleted — each was verified present in the release that took it before its entry was removed. They are, by today's names, `spec/backlog/checklist-covers-what-changed.md`, `spec/backlog/refusals-that-name-nothing.md` (which took both guard specs), `spec/backlog/ground-command-friction.md` and `spec/backlog/what-the-carry-can-promise.md` |
+| **its ground-related material**, plus three defects the grounding programme measured in `tp ground` itself | **`spec/backlog/ground-command-friction.md`** — the ground command's own friction (the file was numbered `1.0.1` before that number shipped as a different release) |
 | **the refuted candidates** — the unexecutable-split rule, the contradictory-comparator rule, the example-table rule, the corpus-replay gate as a procedure, the identifier pass, and `broken-cross-ref` extended across files | **`spec/undecided.md`**, `## Refuted` |
 | **the undecided rows with no release** — the divisible round, the test-file fence, class families, the evidence contract, a registered check that outlives its release, the write-deny fence's reach | **`spec/undecided.md`**, `## Undecided` |
-| **`t.Parallel()` in the test suite** | **`spec/1.46.0.md`** — the `internal/cli` half is applied; `internal/engine` stays open because that is the package gremlins mutates |
-| **a durable home for an accepted finding**, **making `severity` checkable**, **an audit-side `nonblocking_open`** | **`spec/1.50.0.md`** |
-| **a prior-round section for `tp review`** | **`spec/1.52.0.md`** |
-| **the `forward-spec-ref` prototype**, the one lint rule that survived | **`spec/1.58.0.md`** |
+| **`t.Parallel()` in the test suite** | `spec/undecided.md`, *`t.Parallel()` in the engine package* — the `internal/cli` half is applied; the mutation check itself is `spec/backlog/mutation-run-check.md` |
+| **a durable home for an accepted finding**, **making `severity` checkable**, **an audit-side `nonblocking_open`** | **`spec/backlog/a-finding-can-leave-an-audit-round.md`** (the accepted finding) and **`spec/backlog/round-knows-its-panel.md`** (role-scoped convergence); the audit-side `nonblocking_open` is in the latter's sidecar as a dropped counter |
+| **a prior-round section for `tp review`** | **`spec/undecided.md`**, *A prior-round section for `tp review`* |
+| **the `forward-spec-ref` prototype**, the one lint rule that survived | dropped on 2026-09-08 — its population vanished with the version numbers; **`spec/undecided.md`**, `## Refuted` |
 | **the pre-registered forced-commitment trial**, which had run | `CLAUDE.md`, with the result |
 
 **Coverage was checked before this file was emptied**, not asserted: every bolded table row and every
