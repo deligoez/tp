@@ -1,35 +1,13 @@
-# tp v1.43.0 — The loop's own state writes
+# tp — The loop's own state writes
 
-> **This file is decisions.** Two defects in how the loop writes and watches its own state. Each was
-> **re-run against `HEAD` while writing this file**, and again at its ground round, rather than
-> carried forward from any handover text — a deferred defect is a claim about a tree that has since
-> moved, and v0.37.0 and v1.0.0 both shipped in between.
->
-> **Only §3 is a v0.36.0 handover.** Its blind spot is that cycle's `task-suite-state-assert` item;
-> §2 was found by measurement while this file was being written, and **no row in the v0.36.0 corpus
-> concerns the round findings file's write**. Derive it:
-> `python3 -c 'import glob,json,re;[print(f.split("/")[-1], json.loads(l).get("class") or json.loads(l).get("item_id")) for f in glob.glob("spec/.tp-review/0.36.0/*.ndjson") for l in open(f) if l.strip() and re.search(r"atomic|WriteFile", l, re.I)]'`
-> Read the rows it returns, not the count, and note the counting rule: *rows the command prints*, not
-> distinct findings. **Three** review rows match, not two. Two are round 1's
-> `atomicity-mechanism-unspecified` and `partial-write-policy-unstated`, both about the `--out-dir`
-> prompt set; the third is round 10's `cross-package-suite-races-shared-state`, an `implementer`
-> finding about concurrently-running test packages writing `snapshot-round-N.md` through
-> `engine.WriteSnapshotAtomic`. On the audit side the matching rows are round 7's
-> `snapshot-tmp-race-under-parallel-role-units` — `WriteSnapshotAtomic`'s fixed temp name, recorded
-> fixed inside that same cycle — together with round 8's rows verifying that same fix, which is one
-> subject across several rows. So every matching row is about the **snapshot** write or the `--out-dir`
-> prompt set, and **none is about the round findings file's write**. An earlier draft of this paragraph
-> said "two" review rows and "the only audit atomicity row"; both were counted off the command printed
-> above, and both are refuted by its output.
->
-> **`tp lint` reports three `section-size` warnings on this file, and they are deliberate.** §2, §2.1
-> and §3.1 sit over the 50-line advisory threshold; the growth is round 2's additions, and the sections
-> were compressed once already (§2 from 103 lines to its current size). Getting under the threshold
-> means deleting a decision or a derivation, or splitting §2 — and splitting renumbers §2.1 and §2.2,
-> which are the anchors **both recorded ground rounds filed their units against**. This repository has
-> paid for renumbering three times, each leaving stale cross-references behind, so the warnings are
-> cheaper than the rename. `errors` stays 0 and `tp lint` exits 0; re-derive with
-> `tp lint spec/1.43.0.md`.
+Class: tool
+
+> **This file is decisions.** Two defects in how the loop writes and watches its own state, each
+> re-run against `HEAD` while this file was written and again at its ground round rather than
+> carried forward from any handover text. What the v0.36.0 corpus does and does not say about them,
+> and why this file's `section-size` warnings were left standing, are in
+> `loops-own-state-writes-measurements.md` under "What the v0.36.0 corpus says" and "The
+> section-size warnings".
 
 ## 1. Overview
 
@@ -44,9 +22,11 @@ mechanism:
    script documents in its own comment and does not close. Note the wording: files under a watched
    path are still caught, emptying a directory included.
 
-Neither adds a command, a flag or a workflow field. A third defect in the same area — a refused
-`--role` invocation still writes state — is **not fixed and not here**; `spec/1.0.1.md` owns it and
-has not shipped (§4 non-goal 2).
+Neither adds a command, a flag or a workflow field. `state.json` is already written atomically at
+`HEAD` — `engine.SaveReviewState` in `internal/engine/reviewstate.go` goes through a unique temp file
+and a rename — so the round findings file is the last plain write in that directory. A third defect
+in the same area — a refused `--role` invocation still writes state — is owned by
+`spec/backlog/a-findings-exits-agree.md` and is not in this file.
 
 ## 2. The round's findings file is written atomically
 
@@ -75,21 +55,11 @@ is *designed* to read what `--resolve` writes: `ReviewRoundClean`'s doc comment 
 it and the writers do not share one: the record sites run under `engine.WithReviewStateLock`, which is
 `WithFileLock` on *`state.json`*, while the resolve sites take `WithFileLock` on the *round file*
 (`git grep -n 'WithFileLock\|WithReviewStateLock' -- internal/ | grep -v _test.go`), so they do not
-exclude each other and the readers take neither. (c) It is the normal path rather than a misuse: over
-the file set §2.2 profiles, count the rows carrying a `resolved` dict by adding
-`sum(1 for f in fs for l in open(f) if l.strip() and isinstance(json.loads(l).get("resolved"),dict))`.
-Fencing it out would make this heading false — the round file would still be rewritten non-atomically
-on the path the corpus uses most, leaving §2.1's chain unbroken through it — and the repair is the same
-change as at the record sites, so it adds no abstraction and no new surface.
-
-**Cited by symbol on purpose.** `reviewstate.go:378` was exact at four commits:
-`git show <c>:internal/engine/reviewstate.go | sed -n '378p'` returns the `func WriteSnapshotAtomic`
-line at 3a7118b3, 9614e907, c670b18e and e73788ab. At `HEAD` the symbol has drifted nineteen lines down
-(`git grep -n 'func WriteSnapshotAtomic'`) and line 378 is a **blank line**, between the previous
-function's closing brace and this one's doc comment — not, as an intermediate draft of this paragraph
-claimed, inside another function. That strengthens the argument rather than weakening it: a drifted
-line is worst when it resolves to something harmless, and a reader following `:378` today sees
-whitespace and no signal that anything moved. Cite by symbol.
+exclude each other and the readers take neither. (c) It is the normal path rather than a misuse: the
+rows carrying a `resolved` dict are counted in the sidecar under "Why an operator cannot catch it by
+looking". Fencing it out would make this heading false — the round file would still be rewritten
+non-atomically on the path the corpus uses most, leaving §2.1's chain unbroken through it — and the
+repair is the same change as at the record sites, so it adds no abstraction and no new surface.
 
 **Which readers — derived, not hand-listed.** `engine.LoadRoundRows` is the round file's reader; get
 its call sites from
@@ -166,50 +136,11 @@ argument does not mention it and should not be read as denying that any signal s
 
 ### 2.2 Why an operator cannot catch it by looking
 
-**The severity is in the indistinguishability rather than the odds.** Derive the size profile of the
-recorded round files with
-
-```
-python3 -c 'import glob,os,re,statistics; fs=[f for f in glob.glob("spec/.tp-review/*/*.ndjson") if re.search(r"/(review|audit)-round-\d+\.ndjson$",f)]; sz=[os.path.getsize(f) for f in fs]; print("files",len(fs),"median",statistics.median(sz),"max",max(sz),"over4k",sum(1 for s in sz if s>4096),"zero",sum(1 for s in sz if s==0))'
-```
-
-The median is tens of kilobytes and roughly nine in ten exceed a single 4 KB page, so a partial write
-is a real shape and not a theoretical one. **No exact measured integer is stated here** — the hedged
-ratio and the page size are deliberate, and the earlier wording "no figure is stated here" stood beside
-three of them. This section once quoted four exact figures, each correct at its own commit; compare
-`git show e73788ab:spec/1.43.0.md` against the command above at `HEAD` and one of the four still stands,
-the rest having moved when v1.0.0's round files entered the corpus. Run the command.
-
-Its last field counts the round files that are **zero bytes**. Reading each one's entry out of its
-`state.json`, and asking at the same time whether it is the last round of its phase:
-
-```
-python3 -c 'import glob,os,json,re
-last = {}
-for f in glob.glob("spec/.tp-review/*/*.ndjson"):
-    m = re.search(r"/(review|audit)-round-(\d+)\.ndjson$", f)
-    if m: last[(os.path.dirname(f), m.group(1))] = max(last.get((os.path.dirname(f), m.group(1)), 0), int(m.group(2)))
-for f in sorted(glob.glob("spec/.tp-review/*/*.ndjson")):
-    m = re.search(r"/(review|audit)-round-(\d+)\.ndjson$", f)
-    if not m or os.path.getsize(f): continue
-    d, ph, n = os.path.dirname(f), m.group(1), int(m.group(2))
-    st = json.load(open(os.path.join(d, "state.json")))
-    ent = [(r.get("findings"), r.get("clean")) for r in st[ph + "_rounds"] if r.get("round") == n]
-    print(f, ent, "last-of-phase" if n == last[(d, ph)] else "NOT-last (last is %d)" % last[(d, ph)])'
-```
-
-Every zero-byte round comes back `(0, True)`. Those are **legitimate** — a round in which every role
-found nothing writes an empty file, and that is what convergence looks like. But run the command
-before repeating the second half of the old claim: they are **trailing clean rounds, not necessarily
-terminal ones**, and a substantial minority come back `NOT-last`, which is exactly what a
-two-clean-round convergence rule produces. An earlier draft of this file called every one of them the
-last round of its cycle; the command refutes it. Nothing in the argument needs "terminal", only
-"legitimately empty".
-
-That is why this matters: **a truncated write lands in a state the corpus already holds honest examples
-of.** Fewer rows read as a cleaner round, an empty file reads as a converged one, and nothing
-distinguishes the two. A defect whose signature is identical to success is not one an operator can
-catch by looking.
+An empty round file is legitimate — a round in which every role found nothing writes one, and that is
+what convergence looks like — and a truncated write lands in a state the corpus already holds honest
+examples of, so nothing distinguishes the two by inspection; the size profile of the recorded round
+files and the census of the zero-byte ones are in the sidecar under "Why an operator cannot catch it
+by looking".
 
 **Ordering is unchanged.** The round file is written before the index entry, and that stays: an
 orphaned round file is rebuildable and an index entry pointing at nothing is not.
@@ -269,27 +200,9 @@ differently.** They have to be kept apart or the refutation is ambiguous:
 | parenthesised `find "$dir" \( -type f -o -type d \) -print0` | no change | no change | detected |
 | sorted path listing **+** file content hashes | **changes** | **returns to baseline** | detected |
 
-The naive form is the sharper refutation, and it is worse than merely insufficient: `-print0` binds to
-the second branch of the `-o` only, so `find` prints directories alone, `shasum` errors on every one
-of them, and the digest is `sha256` of the empty string in **every** fixture state — including the one
-where a file's contents changed. As a digest it stops measuring anything at all. **The errors are not
-swallowed**: nothing in the script discards output — `git grep -c 'dev/null' -- scripts/check-suite-state.sh`
-returns no match — and `before=$(state_digest)` captures stdout only, so `shasum: <dir>: Is a directory`
-reaches the operator's terminal once per directory. (Claim only what that grep tests. The script *does*
-redirect — `git grep -c '>&2' -- scripts/check-suite-state.sh` counts the FAIL diagnostic block, every
-line of it deliberately on stderr.) Under the script's own `set -euo pipefail` it does not get that far
-— `xargs` exits non-zero, `pipefail` propagates it, and the `before=$(...)` assignment fails, measured
-by running the assignment under the same shell options.
-
-The parenthesised form is the quieter refutation: directories go to stderr, only file hashes reach
-stdout, and the digest is **byte-identical to the shipped walk** in every fixture state. It is not that
-it fails to notice the added directory; it changes nothing whatsoever. That is a sharper claim than
-"no change in either direction", and it is the one to assert.
-
-**A comment naming a blind spot is not a mitigation, and this release deletes the comment by closing
-it.** `CLAUDE.md` already carries the general form — a gate step that certifies itself in text is the
-failure this project has measured ten ways — and a script that documents its own gap is the same shape
-one level down.
+Why each rejected row fails the way it does — the naive form loudly, the parenthesised form by changing
+nothing at all — is in the sidecar under "The two refuted walks". This release deletes the script's
+`KNOWN BLIND SPOT` comment by closing it: a comment naming a blind spot is not a mitigation.
 
 **The `.tp/rounds` arm gets the same walk.** The two arms are already one `WATCHED` array and one loop,
 and the break-and-control run confirms they are equally blind today; making them differ would leave the
@@ -306,30 +219,18 @@ arm can be created *during* the bracketed run, not only before it.
 
 1. **The other v0.36.0 handovers are not here.** Two CI guards narrower than their own claims, and a
    load-sensitive gate test, are about what CI certifies rather than what the loop writes; they belong
-   with the gate sequence.
-2. **The refused-invocation defect is out of scope because another spec owns it, not because it is
-   fixed.** `spec/1.0.1.md` specifies it and has **not shipped**: `git tag -l 'v0.37*'` returns
-   `v0.37.0` alone, `gh release list` goes from v0.37.0 straight to v1.0.0, and there is no
-   `spec/0.37.1.tasks.json`, so it was never decomposed. The defect is live at `HEAD` — a `--role`
-   invocation naming an unknown role exits 2 and still leaves `snapshot-audit-round-1.md` behind on
-   the audit side, and `snapshot-round-1.md` plus `state.json` on the review side. Re-provoked at
-   `HEAD` in throwaway directories: the audit side needs a git repository *and* `--affected-files` to
-   reach the refusal at all — outside a repository it exits 4 first and writes nothing — which whoever
-   writes 0.37.1's test needs to know before concluding the defect is gone. **If 0.37.1 slips,
-   this item is unowned.** An earlier draft of this file dropped it on the grounds that it had
-   already shipped in v0.37.1, a release that does not exist; nothing becomes fixed by being listed
-   in a Non-Goal.
-3. **No cleanup command, no `--prune`, no GC.** Deciding what an orphaned state directory means is a
+   with `spec/backlog/gate-sequence.md`.
+2. **No cleanup command, no `--prune`, no GC.** Deciding what an orphaned state directory means is a
    judgement tp cannot make from disk.
-4. **No lock added, removed or re-keyed.** `engine.WithReviewStateLock` — a thin `WithFileLock` on the
+3. **No lock added, removed or re-keyed.** `engine.WithReviewStateLock` — a thin `WithFileLock` on the
    state path — already guards both record paths, and the `--resolve` paths take `WithFileLock` on the
    round file itself. Those are different keys, so a record and a resolve do not exclude each other
    today and will not after this release: §2 changes how bytes land inside each critical section, not
    who may write. Note what the locks do *not* do: readers take none at all, which is the whole reason
    the atomic write is needed.
-5. **No change to what the gate hashes, only to what the walk can see.** The watched set stays
+4. **No change to what the gate hashes, only to what the walk can see.** The watched set stays
    `spec/.tp-review` and `.tp/rounds` — the `WATCHED` array in `scripts/check-suite-state.sh`.
-6. **No retroactive repair of round files already written non-atomically.** They are complete or they
+5. **No retroactive repair of round files already written non-atomically.** They are complete or they
    are not, and rewriting them would fabricate their history.
 
 ## 5. Tests
@@ -348,7 +249,7 @@ own commit and three were stale two days later.
 | 2 | §2 *ordering* | the round file lands before its index entry, unchanged by this release | swap them, producing an index entry pointing at a file that does not exist |
 | 3 | §2 *empty* | a round whose every role found nothing still writes its empty file and records `findings: 0, clean: true` | treat an empty write as a failure, which breaks the legitimate empty rounds the corpus already holds |
 | 4 | §3 | the wrapper's digest **differs** when the suite creates an empty directory under a watched path | `-type f`, the shipped walk, which reports the two states identical — this is the assertion the script's own comment says is missing |
-| 5 | §3 *the refuted shapes, kept apart* | neither `-type d` variant is enough, and the fixture must still fail under **each**, for different reasons: the naive `-type f -o -type d -print0` digests empty input in every state, and the parenthesised `\( -type f -o -type d \) -print0` is byte-identical to the shipped walk in every state | ship either variant — one looks like the fix and stops the digest measuring anything, the other looks like the fix and changes nothing at all. The first is **not** silent, and this cell must not say it is: `shasum` prints `Is a directory` once per directory, and under the script's own `set -euo pipefail` the `before=$(state_digest)` assignment fails and the step exits 1 before the suite runs. It fails closed and loudly, as §3.1 states |
+| 5 | §3 *the refuted shapes, kept apart* | neither `-type d` variant is enough, and the fixture must still fail under **each**, for different reasons: the naive `-type f -o -type d -print0` digests empty input in every state, and the parenthesised `\( -type f -o -type d \) -print0` is byte-identical to the shipped walk in every state | ship either variant — one looks like the fix and stops the digest measuring anything, the other looks like the fix and changes nothing at all. The first is **not** silent, and this cell must not say it is: `shasum` prints `Is a directory` once per directory, and under the script's own `set -euo pipefail` the `before=$(state_digest)` assignment fails and the step exits 1 before the suite runs. It fails closed and loudly, as the sidecar's "The two refuted walks" records |
 | 5b | §3 *removal* | the digest differs when an empty directory is removed, and **returns to the exact baseline value** | the shipped file-content-only digest, which yields the same value in the added state and the removed state, so the removal direction is untested under it. The path listing is `LC_ALL=C sort`ed so the digest is a function of the *set* of paths rather than of the order `find` emits them — the same reason the shipped file-content pipeline already sorts, and this release's only new term that could otherwise be order-dependent. Without the sort the failure direction is a **false** difference over an unchanged tree, never a missed change, since reordering cannot hide a name that is present or absent. An earlier draft justified the sort as *an unsorted listing can change on addition without returning to baseline on removal*; probed on APFS that did not reproduce — readdir order there is a function of the name set alone, two directories built from the same names in opposite insertion orders walk identically, and add-then-remove returns to the exact baseline listing — so do not restate it |
 | 6 | §3 *both arms* | `.tp/rounds` gets the same walk as `spec/.tp-review`, asserted on both | widen one arm, leaving the untested one to drift |
 
@@ -363,9 +264,9 @@ accident, which is exactly why it has to be injected rather than waited for.
 
 **Row 3 is the one an implementer will get backwards.** An empty round file is not a failed write —
 the corpus already holds legitimate ones, every one carrying `findings: 0, clean: true`; enumerate
-them with §2's second command rather than trusting a count in prose. They are **trailing clean
-rounds, not necessarily terminal ones**, and the same command says which are not, so the fixture may
-be built from any of them. So the atomic write must produce an empty file
+them with the sidecar's zero-byte census command rather than trusting a count in prose. They are
+**trailing clean rounds, not necessarily terminal ones**, and the same command says which are not, so
+the fixture may be built from any of them. So the atomic write must produce an empty file
 where the old one produced an empty file, and the test has to say so or the fix will "helpfully"
 reject it. The hazard is sharper still: the empty file the shipped code produces and a
 truncated-to-nothing file are the same bytes, so no assertion on the file alone can separate them —
