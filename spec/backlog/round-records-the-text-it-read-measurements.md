@@ -1,33 +1,12 @@
-# tp v1.40.0 — The round carries the text it read
+# round-records-the-text-it-read — measurements
 
-> **This file is decisions.** Every figure names the command that derives it, and cites code by what
-> the search finds rather than by a line number. That is not style: this spec's first grounding round
-> found one of its two line citations pointing 37 lines above its subject after three unrelated
-> commits, and its own re-derived corpus table stale by the very mechanism its header warned about.
+Supplemental material for `round-records-the-text-it-read.md`; the spec stands without it.
 
-## 1. Overview
+Two drafts were merged into that spec: *the round carries the text it read* (the hash) and *the
+spec-hash reset* (the streak). Blocks below are verbatim from whichever draft carried them, and section
+numbers inside a block are that draft's own.
 
-A round's snapshot is written **at emission**, in both phases. `engine.WriteSnapshotAtomic` is called
-from `internal/cli/review.go` under the comment *"snapshot the spec at round start (prompt
-emission)"*, and from `internal/cli/audit.go` with `engine.PhaseAudit`:
-
-```
-grep -rn 'WriteSnapshotAtomic' internal/cli/ --include='*.go' | grep -v _test.go   # exactly two
-```
-
-A round's `spec_hash` is computed **at record**, by `engine.SpecHash(specPath)`, which re-reads the
-file from disk. There are two such record-time call sites, one per phase — see §2 for the list and
-for the third site that must be left alone.
-
-Between those two moments the spec is edited — that is what a review round is *for*. So the round ends
-up carrying two artifacts that describe different texts: a snapshot of what the roles were given, and
-a hash of whatever the file said when the operator got round to recording.
-
-**`spec_hash` becomes the hash of the round's own snapshot**, which makes the two agree by
-construction rather than by the operator's timing — wherever a snapshot exists. Where none does, §2's
-fallback applies and there is no second artifact to disagree with.
-
-### 1.1 The corpus, re-derived
+## The corpus, re-derived
 
 Over every recorded round in `spec/.tp-review/`, measured at `d7aad3b7`:
 
@@ -70,30 +49,25 @@ The audit phase's **20 rounds with no snapshot at all** predate snapshotting on 
 (`git log --reverse -S WriteSnapshotAtomic -- internal/cli/audit.go`). They are not mismatches and are
 not fixed here; §2 states what they resolve to.
 
-## 2. `spec_hash` is the snapshot's hash
-
-At record time, `spec_hash` is `sha256` of the round's snapshot file rather than of the spec path.
-
-**This is not a new artifact, a new field or a new write.** The snapshot is already written, already
-atomic, already named per round and phase, and already read back by the regression path. The release
-changes **two arguments at two record-time hash calls, in two files**:
+The per-phase count of rounds carrying a snapshot whose sha256 differs from the recorded hash — the
+reset draft's Non-Goal 3 quoted it as review 35 of 172 and audit 3 of 88, all three audit ones in
+v0.35.0 — derives with:
 
 ```
-grep -rn 'SpecHash(specPath)' internal/cli/review_record.go internal/cli/audit_record.go
-  review_record.go:91    record, review phase   -> change
-  audit_record.go:102    record, audit phase    -> change
-  audit_record.go:375    --status, audit phase  -> leave: this is the CURRENT-spec side of
-                                                   Converged/StateStale and must keep hashing the path
+python3 -c '
+import json,glob,hashlib,os
+for k,p in (("review","snapshot-round-%d.md"),("audit","snapshot-audit-round-%d.md")):
+    m=t=0
+    for f in glob.glob("spec/.tp-review/*/state.json"):
+        d=os.path.dirname(f)
+        for r in json.load(open(f))[k+"_rounds"]:
+            s=os.path.join(d,p%r["round"])
+            if not os.path.exists(s): continue
+            t+=1; m+= "sha256:"+hashlib.sha256(open(s,"rb").read()).hexdigest()!=r["spec_hash"]
+    print(k,m,"of",t)'
 ```
 
-Two, not one, and the distinction is load-bearing rather than pedantic: §6 row 2 exists *because* a
-fix applied to one phase passes rows 1 and 3, which is a hazard only if there are two sites. The
-invariant this buys — *a round's `spec_hash` is the hash of the text stored beside it* — then holds
-for every round recorded afterwards **that has a snapshot**, with no operator discipline; the
-fallback below exempts the rest, vacuously, since there is then no snapshot to disagree with.
-
-**A round whose snapshot is missing keeps today's behaviour and is not failed.** `spec_hash` for such
-a round falls back to hashing the spec path, exactly as now.
+## Why the fallback is about the live path, and the overwrite measured
 
 **The reason is the live path, not backward compatibility** — and the backward-compatibility reason an
 earlier draft gave was measured false. A recorded round's `spec_hash` is never recomputed: it is read
@@ -126,7 +100,12 @@ returns — one path per `(phase, round)`, no history — so **the first emissio
 unrecoverable**. That is why §2 cannot promise more than it does, and why §3 counts the event rather
 than trying to reconstruct it. It is the only residue.
 
-## 3. A re-emission that changes the text is recorded
+## `spec_moved_mid_round`, handed to reconcile
+
+This was the hash draft's §3. Its consumer is `spec/backlog/reconcile.md`, which is why it left the
+spec; the design is kept here for that release.
+
+### 3. A re-emission that changes the text is recorded
 
 When `tp review` or `tp audit` writes a snapshot for a round that already has one, and the bytes
 differ, the round records that it happened: **`spec_moved_mid_round`**, a count of such re-emissions,
@@ -174,7 +153,15 @@ snapshot's bytes are what the answer is *about*, and hashing a re-read spec woul
 the timing dependence §2 exists to remove — but it costs a read, and an earlier draft claimed it cost
 nothing.
 
-## 4. Why not the other two shapes
+### Tests that went with `spec_moved_mid_round`
+
+| # | from | assertion | the mutant that must fail it |
+|---|---|---|---|
+| 4 | §3 | emit, edit, emit, record — `spec_moved_mid_round` is 1; a third differing emission makes it 2 | store a boolean, which reports six repairs in one round identically to one — the distinction the field exists to make, and one no recorded round can supply today (§3) |
+| 5 | §3 *identical* | a re-emission whose bytes are unchanged does **not** increment the count | compare timestamps or always increment, so re-running `tp review` to re-read a prompt registers as a spec move |
+| 6 | §3 *absent* | a round with no re-emission omits the key rather than recording 0 | emit 0 always, which makes every pre-release round indistinguishable from one measured at zero |
+
+## Why not the other two shapes
 
 Recorded so neither is re-proposed:
 
@@ -201,46 +188,102 @@ NDJSON files named on the command line — and neither reads the round index at 
 overstated the blast radius of an alternative this section is rejecting. That is the direction an
 argument for a decision must never err in.
 
-## 5. Non-Goals
+## The retroactive alternative, costed on v0.35.0
 
-1. **No repair of the 35 existing mismatches.** They are history; a round already recorded keeps its
-   stored hash. Rewriting them would fabricate a claim about what those rounds read.
-2. **No gate, warning or `next_action` on `spec_moved_mid_round`.** §3 produces the number and stops.
-3. **No *edit* to `StateStale`.** It stays `rounds[len(rounds)-1].SpecHash != currentHash`, and every
-   caller already passes a freshly computed `SpecHash(specPath)` as `currentHash`
-   (`grep -rn 'StateStale' internal/ --include='*.go' | grep -v _test.go`), so no call site changes.
-   **Its answers do change, and that is the correction rather than a side effect**: a round emitted,
-   then edited, then recorded reports `stale: false` today — measured in a sandbox, because under
-   shipped behaviour both sides hash the edited file — and will report `stale: true` afterwards. The
-   Non-Goal is "no edit", not "no consequence"; a reader who takes it as the second will be surprised
-   by the first round they record after upgrading.
-4. **The 20 snapshot-less audit rounds are not backfilled.** No snapshot exists to hash, and
-   synthesising one from today's spec would assert exactly the falsehood this release removes.
-5. **No new workflow field.**
+The reset draft's §2 put two options side by side; the spec takes (a). Verbatim:
 
-## 6. Tests
+**(a) Store a per-round vintage byte**, so the reset applies only from this release forward. Cost: a
+schema addition.
 
-Every row derives from a numbered decision, names the artifact it depends on, and names a mutant that
-must fail it.
+**(b) Accept a retroactive reset** and re-measure every claim resting on recorded history. Cost,
+measured on v0.35.0's audit — **9 rounds carrying 7 distinct `spec_hash` values** (r1=r2, r7=r8):
 
-| # | from | assertion | the mutant that must fail it |
-|---|---|---|---|
-| 1 | §2 | emit, edit the spec, record — the recorded `spec_hash` equals sha256 of the round's snapshot and **not** of the edited file | hash the spec path, which is the shipped behaviour and produces the 35 |
-| 2 | §2 | over every round in a fixture repo, `spec_hash` equals its snapshot's sha256 — asserted as an invariant over the set, not on one round | hash the path on the audit phase only, which a single-round review test cannot see |
-| 3 | §2 *fallback* | a round whose snapshot is absent records the spec path's hash and does not error | error on a missing snapshot, which breaks a **new** `--record` that had no preceding emission. Measured live: delete `snapshot-round-N.md`, run `tp review <spec> --record <file>` — exit 0 today, spec path's hash stored. It does **not** break reading old rounds; §2 says why |
-| 4 | §3 | emit, edit, emit, record — `spec_moved_mid_round` is 1; a third differing emission makes it 2 | store a boolean, which reports six repairs in one round identically to one — the distinction the field exists to make, and one no recorded round can supply today (§3) |
-| 5 | §3 *identical* | a re-emission whose bytes are unchanged does **not** increment the count | compare timestamps or always increment, so re-running `tp review` to re-read a prompt registers as a spec move |
-| 6 | §3 *absent* | a round with no re-emission omits the key rather than recording 0 | emit 0 always, which makes every pre-v1.40.0 round indistinguishable from one measured at zero |
-| 7 | §5.1 | a round recorded before this release keeps its stored `spec_hash` byte for byte after upgrade | recompute historical hashes on read, rewriting what past rounds are understood to have covered |
+| | before | after a retroactive reset |
+|---|---|---|
+| `blocking` converges at | round 3 | round 8 |
+| `all` converges at | round 9 | **never** |
 
-**Row 2 is the one that must be stated over the set.** Rows 1 and 3 are single cases and a fix applied
-to one phase passes both — and the audit path is not merely a second phase, it is a second *file*
-(§2), so a reviewer reading only `review_record.go` sees a complete-looking change. Only an assertion
-quantified over every recorded round in the fixture fails when the audit path is left behind, and this
-repository has lost rounds to exactly that shape: a claim about a set checked against one member the
-author chose.
+So a shipped, converged cycle reports `converged: false` on install, and *"six rounds of a nine-round
+phase saved"* becomes one — 9−3 against 9−8. **Whoever takes (b) owns re-deriving those figures**, with:
 
-**That quantifier is vacuous on the audit side unless the fixture holds an audit round** — an
-all-review fixture satisfies "every round" while proving nothing about `audit_record.go`. The
-fixture's audit-round count is therefore *asserted* rather than chosen, the same rule that turned a
-`zz` directory name into a `require.Less` on the sort order.
+```
+python3 -c '
+import json
+d="spec/.tp-review/0.35.0/"; R=json.load(open(d+"state.json"))["audit_rounds"]
+def clean(r,pol):
+    for x in (json.loads(l) for l in open(d+r["file"]) if l.strip()):
+        if x.get("status")=="PASS": continue
+        if pol!="blocking" or x.get("severity") not in ("warning","info"): return 0
+    return 1
+for pol in ("blocking","all"):
+    c=[clean(r,pol) for r in R]
+    def first(reset):
+        n=0
+        for i in range(len(R)):
+            n = 0 if not c[i] else (1 if n and reset and R[i]["spec_hash"]!=R[i-1]["spec_hash"] else n+1)
+            if n>=2: return i+1
+        return "never"
+    print(pol,"before:",first(0)," after:",first(1))'
+```
+
+**That command recomputes `clean` from the round files rather than reading the stored flag, and it has
+to.** Audit `clean` is stamped at record time and never recomputed live — `engine.AuditRowsClean`'s own
+doc comment says so, contrasting itself with its review twin `ReviewRoundClean`, which re-reads on
+every call. **So this table cannot be produced by running shipped tp against the stored history.** The
+same command is the implementer's fixture generator, and the policy must be pinned rather than
+inherited: v0.35.0's stored flags are the `all` grading, and under `blocking` the same history
+converges at round 8 and would report `converged: true`.
+
+### Three of those nine rounds carry a hash their roles did not read
+
+Rounds 5, 6 and 7 carry a recorded `spec_hash` that is not the sha256 of their own snapshot, and those
+three are the whole of tp's audit-phase snapshot/hash divergence. It is not incidental
+here: round 7 is half of the r7=r8 pair that puts `blocking`'s post-reset convergence at round 8. The
+figures above are derived from the recorded hashes, which is the only thing a reset can key on — not
+from the text those rounds' roles read. The per-phase derivation is the last block of "The corpus,
+re-derived" above.
+
+## The legacy marker is not a vintage byte
+
+**There is no third option, and the existing marker does not supply one.** `engine.IsLegacyRound` is
+`r.IDScheme == ""`, and the slug has been stamped on every audit round since v0.30.0 — so it separates
+v0.30.0 from v0.29.0, not this release from its predecessors. **Adding that check changes the trailing
+streak in none of the recorded audit histories.** The number of histories is deliberately not quoted —
+it grows with every cycle. Derive it and the delta together:
+
+```
+python3 -c '
+import json,glob
+def streak(rs,legacy):
+    n=0
+    for i in range(len(rs)-1,-1,-1):
+        if not rs[i]["clean"]: break
+        if n and not (legacy and "" in (rs[i].get("id_scheme",""),rs[i+1].get("id_scheme",""))) \
+             and rs[i]["spec_hash"]!=rs[i+1]["spec_hash"]: n+=1; break
+        n+=1
+    return n
+h=[r for r in (json.load(open(f))["audit_rounds"] for f in glob.glob("spec/.tp-review/*/state.json")) if r]
+print(sum(streak(r,0)!=streak(r,1) for r in h),"of",len(h))'
+```
+
+## The convergence call sites
+
+**Seven non-test call sites, and which ones move is the whole risk.** Derive the list, and cite no line
+numbers here. An earlier draft of this section carried two pairs of them for `audit_record.go`, and
+**neither pair was ever a `Converged` call site** — over the last 80 commits touching that file the two
+calls appear at no such pair, and the pair offered as the *correction* is the `engine.ConsecutiveClean`
+call six lines below each `Converged` call. That is a grep for the wrong one of the two functions this
+section exists to distinguish, inside the sentence telling the reader to re-derive. Run:
+
+```
+grep -rn 'engine\.Converged(\|= Converged(' internal/ --include='*.go' | grep -v _test.go
+```
+
+It returns seven, in this breakdown: `internal/cli/audit_record.go` twice, `internal/cli/budget.go`,
+`internal/cli/run_status.go`, `internal/engine/resume.go` twice, and `internal/cli/review_status.go`.
+The one further raw match is in `internal/cli/audit_signal_test.go` and is correctly excluded.
+Re-run at `HEAD` while merging the two drafts: the same seven, same breakdown.
+
+**`internal/engine/resume.go`'s audit line is the one that gets missed.** It feeds `DetectPhase`'s `release`
+branch, so leaving it on the shared `Converged` makes `tp resume` report `phase: release` on a streak
+the reset just invalidated. **`review_status.go` must not move.**
