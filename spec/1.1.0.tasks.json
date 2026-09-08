@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.1.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-08T08:32:57.40751Z",
+  "updated_at": "2026-09-08T08:43:48.326239Z",
   "workflow": {
     "review_max_rounds": 3
   },
@@ -169,7 +169,7 @@
     {
       "id": "status-reads-pre-release-rounds",
       "title": "Status reads rounds recorded before this release",
-      "status": "open",
+      "status": "done",
       "tags": [
         "test",
         "review"
@@ -183,11 +183,19 @@
         "## 1. The decision",
         "## 5. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-08T08:34:33.300027Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-08T08:43:48.316656Z",
+      "closed_reason": "- §5 row 7, which is §1 decision 3: tp review \u003cspec\u003e --status reads a round recorded before this release, whose one undispositioned high row carries no evidence, at exit 0 with consecutive_clean 0, and still exits 1 under --check. internal/cli/status_pre_release_round_test.go asserts it against internal/cli/testdata/pre-v1.1.0-review-round.ndjson, one row copied byte for byte out of spec/.tp-review/1.0.0/review-round-4.ndjson (sha256 f9c9212c…, verified identical) rather than a read of the live corpus.\n- What I built for the fixture, because a round file alone is not a readable round: the temp dir holds spec.md, .tp-review/spec/review-round-1.ndjson (the copied row) and a hand-written .tp-review/spec/state.json indexing round 1 with the spec's real hash — without the index, --status aborts at exit 3 on a round file beside a missing state.json.\n- Red under row 7's stated mutant, built and run: fourteen lines in runReviewStatus applying missingFindingFields to every row engine.LoadRoundRows returns. The test failed at the plain --status run with exit 1 and {\"error\":\"missing required field evidence\"}. Reverted, and the revert confirmed by git -c diff.external= diff --no-ext-diff (review_status.go byte-identical, codedbpro revision back to e2dc650f).\n- What this row holds that the tree did not: the whole suite under that mutant produced exactly one --- FAIL line, this test, and zero build failures — so nothing else in 240 test files reaches the load path with an evidence-less row. The two paths are different packages: parseRecordRows has one caller, the --record sink, while --status reads through engine.LoadRoundRows, which validates nothing.\n- Four properties pinned so no assertion is vacuous, each a require on the fixture or a read-back: the fixture is one row, severity high, undispositioned and legal on finding/location/severity so evidence is the only required key it lacks; state.json stores clean:true and the payload reports clean:false, which only opening and grading the round file can do; overlap_report credits the row's own role tester with unique 1, a second independent parse of the same bytes; stale is false, so the --check exit 1 is attributable to convergence rather than to a hash that never matched; and the same bytes handed to --record in a separate temp dir are required to exit 1 naming evidence, which pins the fixture on the wrong side of the record-time gate — without it the test would pass against a fixture carrying evidence and prove nothing.\n- Project gate green, four exit codes read separately: check-suite-state.sh 0 (0 --- FAIL lines, 0 build failures), golangci-lint run 0 (0 issues), check-deadcode.sh 0, check-complexity.sh 0.",
+      "gate_passed_at": "2026-09-08T08:43:48.316656Z",
+      "commit_sha": "ed8960c0",
+      "commit_shas": [
+        "ed8960c0"
+      ],
+      "commit_files": [
+        "internal/cli/status_pre_release_round_test.go",
+        "internal/cli/testdata/pre-v1.1.0-review-round.ndjson"
+      ]
     },
     {
       "id": "merge-required-fields",
