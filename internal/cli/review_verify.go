@@ -200,6 +200,19 @@ func readVerifyFindings(path string) []verifyFinding {
 	return findings
 }
 
+// verifyOutputFormat is the verify pass's finding contract. Its object line
+// carries the four keys both gates require — the set requiredFindingFields
+// declares in review_record.go — because a verifier's findings file reaches
+// tp review --merge and tp review <spec> --record like any other file: a row
+// copied from a key list without evidence is skipped by the first and refuses
+// the whole file at the second. The role: "verifier" stamp is written by the
+// instruction that follows this block, not by this key list; no gate requires
+// it, and putting it here would read as a fifth required key.
+const verifyOutputFormat = `Output format — respond with one JSON object per line (NDJSON). If no issues found, respond with zero lines (empty output):
+{"severity":"critical|high|medium|low","finding":"what is wrong","location":"section heading or line number","evidence":"what you ran or read to reach this finding — the command and its output, the query, or the artifact and line"}
+Every key above is required and must be non-empty: a row missing one is skipped by tp review --merge and makes tp review <spec> --record refuse the whole file.
+`
+
 func buildVerifyPrompt(specContent string, fixed, wontfix, unresolved []verifyFinding, affectedFiles []string) string {
 	var b strings.Builder
 
@@ -264,7 +277,7 @@ func buildVerifyPrompt(specContent string, fixed, wontfix, unresolved []verifyFi
 		b.WriteString(engine.BuildAffectedSection(affectedContent))
 	}
 
-	b.WriteString("Respond with one JSON finding per line (NDJSON). If no issues found, respond with zero lines (empty output).\n")
+	b.WriteString(verifyOutputFormat)
 	b.WriteString("Stamp EVERY finding with role: \"verifier\" (so the finding is attributed to this verification pass in the per-role overlap report).\n")
 	b.WriteString("For findings that were reported as fixed but are NOT actually resolved, set category to \"regression\".\n")
 
