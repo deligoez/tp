@@ -86,11 +86,26 @@ func writeMergeOutput(outputPath, ndjson string, dropped []string) bool {
 		err = os.Rename(name, outputPath)
 	}
 	if err != nil {
-		_ = os.Remove(name)
-		failMergeOutput(err)
+		removeErr := os.Remove(name)
+		failMergeOutput(mergeWriteFailure(err, removeErr, name))
 		return false
 	}
 	return true
+}
+
+// mergeWriteFailure composes the error a failed `-o` write reports, naming the
+// temporary when the cleanup failed too.
+//
+// The removal error itself is of no use to the operator — it is the same EPERM
+// the rename already reported — but the PATH is: the temporary carries a name
+// nobody chose and nothing else in tp mentions, so a message that omits it
+// leaves a file that cannot be found except by looking. There is no retry here
+// on purpose: whatever refused the removal will refuse it again.
+func mergeWriteFailure(writeErr, removeErr error, tmpPath string) error {
+	if removeErr == nil {
+		return writeErr
+	}
+	return fmt.Errorf("%w (the temporary %s could not be removed either, and nothing else will remove it)", writeErr, tmpPath)
 }
 
 // failMergeOutput reports an unwritable `-o` at exit 3, the code and hint the
