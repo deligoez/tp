@@ -859,6 +859,18 @@ response to a finding could be exempt from the cut for one round, so that the re
 the arms drop it. Neither the cost of that exemption nor whether it is expressible in the floor's own
 terms has been measured.
 
+**A third instance, and it is the one that shows the cost is not theoretical.** `spec/1.1.0.md`'s
+final repair pass wrote a new requirement into §3 as a short standalone sentence; `cut` went **23 → 25**
+and the requirement was not in the floor at all — the release's own new obligation, ungraded from the
+moment it was written. The unit noticed because the brief obliged it to report `cut` before and after,
+folded the sentence into the surrounding paragraph, deleted the closer, and `cut` returned to 23. So
+across one document the pattern has now cost: a repair removing the claim it repaired (§2's uniqueness
+quantifier), a narrowing removing the sentence the decision was about (§2's shared-rule sentence), and
+a new requirement never entering the floor at all. **All three were invisible without a before/after
+`cut` reading**, which is the cheapest form the exemption proposed above could take: not an exemption
+at all, but a reported delta, since two of the three were repaired by the author the moment they saw
+the number.
+
 ## 12. The coverage ratio's denominator counts non-claims, and the payload cannot be corrected by subtraction
 
 Report A: 84 of 226 units were `NOT-A-CLAIM`; Report B: 59 of 240. Both want a claims-only denominator
