@@ -1097,9 +1097,14 @@ argument order — and exit **1** when an input had at least one content line an
 comma used to be skipped line by line on stderr, merge clean, and let `--record` freeze an
 undercounted round, with `--quiet` able to erase the only signal. Blank and whitespace-only lines are
 neither parsed nor skipped and never trigger it, and a **zero-byte file stays the way a role reports
-nothing found** and keeps exiting 0 — so a clean round is unaffected. The exit-1 path still emits the
-full payload and still writes `-o`: the surviving roles merge, only the exit code changes, because an
-unattended driver reads nothing else.
+nothing found** and keeps exiting 0 — so a clean round is unaffected. Both exit-1 paths still emit
+the full payload — the surviving roles merge, only the exit code changes, and the accounting an
+unattended driver reads reaches stdout either way — but **what they leave at `-o` differs by phase
+from v1.1.0**. `tp review --merge` declines that write: it creates no file at the `-o` path and
+leaves a file already there byte-identical, so a refused review merge cannot be walked into
+`--record` as a round. `tp audit --merge` still writes `-o` and then exits 1, because v1.1.0 is
+fenced out of the audit phase — so an audit chain must branch on the merge's exit code, never on the
+presence of the file.
 
 `tp review --perspective code-audit --findings <file>` exits **2**: that perspective never reads the
 file, and previously accepted the flag while reporting `previous_findings: 0` about it. A
