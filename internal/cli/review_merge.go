@@ -121,7 +121,8 @@ func runReviewMerge(args []string, outputPath string) error {
 // files, skipping blank, malformed (invalid JSON), and incomplete (missing any
 // of location, severity, finding) lines with a stderr warning that names which.
 // It aborts only on a missing/unreadable file (exit 3), and returns the §8a.4
-// per-input accounting beside the findings: blank lines count as neither, so an
+// per-input accounting beside the findings: blank lines and a bare `[]` count
+// as neither, so an
 // all-empty set of inputs is a valid clean result and yields zero findings
 // without failing, and the merge→record chain works on a clean round. An input
 // whose content lines all fail is a dropped role, which runReviewMerge turns
@@ -147,7 +148,15 @@ func loadMergeFindings(args []string) ([]map[string]any, []mergeInputCounts) {
 		scanner.Buffer(make([]byte, 0, 64*1024), ndjsonLineCap)
 		for scanner.Scan() {
 			line := strings.TrimSpace(scanner.Text())
-			if line == "" {
+			// A line that is exactly `[]` counts as neither parsed nor
+			// skipped, like a blank one: it is a role saying it found
+			// nothing. tp's own code-audit prompt asked for exactly that
+			// spelling, and counting it as a skip made the file a dropped
+			// role — which fails the whole merge and, since §5 row 10,
+			// writes no `-o`, so one clean role took the panel down. The
+			// prompt no longer asks for it; this stays for the rounds run
+			// from prompts an older binary emitted.
+			if line == "" || line == "[]" {
 				continue
 			}
 			var finding map[string]any
