@@ -554,6 +554,37 @@ fields that did not exist yet, and `spec/1.1.0-measurements.md` carries it. What
 separate is that text from the acceptance rows in the same documents, which name commands, fields and
 exit codes legitimately; the *Refuted* entries above are what happens when a candidate cannot.
 
+### Cross-site key agreement in the review prompt
+
+**The decision: whether the review prompt's three key-naming sites should name one set, and where the
+source of truth would live.** `spec/1.1.0.md` §5 row 8 carried this as a SHALL for one grading round
+and it was cut — because satisfying it falls outside that release's scope, not because the sites
+disagreeing is desirable.
+
+**Measured at `c407bb7e`**, on `tp review spec/1.1.0.md --role implementer` and on a `tp audit`
+emission:
+
+| site | keys it names |
+|---|---|
+| `findingFormat`'s JSON example (`internal/cli/review.go`) | `severity`, `category`, `location`, `finding`, `suggestion` |
+| the optional-`class` sentence beside it | `class` |
+| `outputContractInstruction` | `role`, `location`, `class`, `severity` |
+
+The three differ by design, and each obvious way to equalise them costs something a release would
+have to decide about first:
+
+- `outputContractInstruction` is **shared with the audit phase** — called from `review.go`,
+  `review_regression.go` and `audit_roles.go`, and all four auditor prompts carry the block. Editing
+  it to match the review example changes the audit prompt too.
+- Dropping `category` from the example to match the contract block empties `by_category`, a key
+  `tp review --report` ships (`internal/cli/review_report.go`).
+- Making the three name one set promotes `class` — labelled *Optional* in the sentence beside the
+  example — to mandatory.
+
+**What has no answer is which set is right**, not how to render one set at three sites. A release
+that takes this fixes the required set for both phases at once, or states why the two phases keep
+different ones; that is the decision nobody has taken.
+
 ---
 
 ## Fog — in scope, not yet sharp enough to state as a question
