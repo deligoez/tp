@@ -315,7 +315,7 @@ func TestResume_NextUnitsRecordUnitOnceEveryRoleAnswered(t *testing.T) {
 		"kind": "review-record",
 		"id":   "1",
 		"brief_command": "[ -f $TP_ROUND_DIR/merged.ndjson ] || " +
-			"tp review --merge $TP_ROUND_DIR/role-*.ndjson -o $TP_ROUND_DIR/merged.ndjson; " +
+			"tp review --merge $TP_ROUND_DIR/role-*.ndjson -o $TP_ROUND_DIR/merged.ndjson && " +
 			"tp review spec.md --record $TP_ROUND_DIR/merged.ndjson",
 	}, units[0], "the id is the round number the driver also passes as TP_ROUND")
 	assert.Equal(t, float64(1), res["round"])

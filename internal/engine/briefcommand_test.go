@@ -23,8 +23,10 @@ func TestUnitKind_BriefCommand_DocumentedPerKind(t *testing.T) {
 		Round:    3,
 		ID:       "implementer",
 	}
+	// The review chain's separator is `&&`, not `;`: a merge that refuses
+	// leaves `-o` untouched, so the record step must not be reached.
 	const reviewRecord = "[ -f $TP_ROUND_DIR/merged.ndjson ] || " +
-		"tp review --merge $TP_ROUND_DIR/role-*.ndjson -o $TP_ROUND_DIR/merged.ndjson; " +
+		"tp review --merge $TP_ROUND_DIR/role-*.ndjson -o $TP_ROUND_DIR/merged.ndjson && " +
 		"tp review spec/0.35.0.md --record $TP_ROUND_DIR/merged.ndjson"
 	const auditRecord = "[ -f $TP_ROUND_DIR/merged.ndjson ] || " +
 		"tp audit --merge $TP_ROUND_DIR/role-*.ndjson -o $TP_ROUND_DIR/merged.ndjson; " +

@@ -394,9 +394,13 @@ func TestBuildNextUnits_RecordUnitOnceEveryRoleAnswered(t *testing.T) {
 		roles []string
 		kind  UnitKind
 		verb  string
+		// sep is the separator between the merge and record steps: the review
+		// chain fences the record step behind the merge, the audit chain does
+		// not. See recordBriefCommand.
+		sep string
 	}{
-		{PhaseReview, []string{"implementer", "tester", "architect"}, UnitReviewRecord, "review"},
-		{PhaseAudit, []string{"spec-coverage", "security", "maintainability-conventions"}, UnitAuditRecord, "audit"},
+		{PhaseReview, []string{"implementer", "tester", "architect"}, UnitReviewRecord, "review", " && "},
+		{PhaseAudit, []string{"spec-coverage", "security", "maintainability-conventions"}, UnitAuditRecord, "audit", "; "},
 	} {
 		t.Run(tc.phase, func(t *testing.T) {
 			root, taskFile, spec := nextUnitsRepo(t)
@@ -418,7 +422,7 @@ func TestBuildNextUnits_RecordUnitOnceEveryRoleAnswered(t *testing.T) {
 				Kind: tc.kind,
 				ID:   "1",
 				BriefCommand: "[ -f $TP_ROUND_DIR/merged.ndjson ] || tp " + tc.verb +
-					" --merge $TP_ROUND_DIR/role-*.ndjson -o $TP_ROUND_DIR/merged.ndjson; tp " +
+					" --merge $TP_ROUND_DIR/role-*.ndjson -o $TP_ROUND_DIR/merged.ndjson" + tc.sep + "tp " +
 					tc.verb + " " + spec + " --record $TP_ROUND_DIR/merged.ndjson",
 			}, units[0])
 			require.NotNil(t, round)
