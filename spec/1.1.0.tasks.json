@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.1.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-08T07:36:28.447579Z",
+  "updated_at": "2026-09-08T07:48:56.857788Z",
   "workflow": {
     "review_max_rounds": 3
   },
@@ -77,7 +77,7 @@
     {
       "id": "record-required-fields",
       "title": "Record refuses a row missing a required field",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "review"
@@ -91,11 +91,20 @@
         "## 2. The evidence field on a review finding",
         "## 5. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-08T07:37:08.2659Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-08T07:48:56.84348Z",
+      "closed_reason": "- tp review \u003cspec\u003e --record now refuses a file holding a row whose severity, finding, location or evidence is missing or empty once strings.TrimSpace has run, naming every offending line in one exit and reading nothing of what the evidence text says: missingRequiredFields plus missingFieldsClause in internal/cli/review_record.go accumulate the offenders, and runReviewRecord raises them with recordRequiredFieldsHint. Verified by running the freshly built binary on a six-row file in a temp dir outside the repo: one exit 1 naming lines 1 through 6, covering the empty object and an evidence of three spaces, with no round file written.\n- Section 5 row 1 is TestReviewRecord_RefusesEveryRowMissingARequiredField and row 2 is TestReviewRecord_RefusesAnEmptyObjectRow, both recorded against a spec that already holds one recorded round; each asserts exit 1, that review-round-2.ndjson does not exist, and that review_rounds still holds one entry. Row 1 rests on the SET of line numbers extracted from the message (ElementsMatch over 1, 2, 3, 4) rather than on the exit code: built and run, its stated mutant, requiredFindingFields reduced to evidence alone, turned it red with the actual set being 4 alone, and row 2 mutant, a check reading only the keys a row actually has, turned row 2 red at exit 0. Both mutants were reverted.\n- The ordering chosen is spec-file errors and every aborting row rule first, required-field refusal last: it is raised after engine.SpecHash and before EnsureReviewState, so an unreadable spec still exits 3 and a pre-resolved fixed row still returns its own message. TestReviewRecord_RequiredFieldRefusalIsRaisedLast is the dedicated assertion that holds both halves, and it was observed red under two further built mutants, one raising the check before SpecHash (exit 1 instead of 3) and one returning on the first offender (line 1 instead of the pre-resolved fixed row line 2), while TestSpecHashFailureNamesTheRealCause stayed green under both, confirming it no longer discriminates the constraint. No existing test went red: go test -count=1 ./... reports 0 failing test functions and 0 build failures both before and after, so the four functions named at decomposition time are green on the tree fixture-migration left, and the four project gate steps each exited 0 read separately.",
+      "gate_passed_at": "2026-09-08T07:48:56.84348Z",
+      "commit_sha": "436a9f5f",
+      "commit_shas": [
+        "436a9f5f",
+        "e9117fe0"
+      ],
+      "commit_files": [
+        "internal/cli/record_required_fields_test.go",
+        "internal/cli/review_record.go"
+      ]
     },
     {
       "id": "record-legal-file-records",
