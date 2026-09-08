@@ -614,7 +614,7 @@ by field kind**, and conflating them has cost two specs a review round each:
 workflow fields   task-file workflow override  >  .tp/config.json  >  built-in default
 output defaults   CLI flag  >  environment  >  .tp/local.json  >  built-in default
 ```
-No workflow field has a CLI flag or a `TP_<FIELD>` environment layer: `engine/configresolve.go`
+No workflow field has a CLI flag or a `TP_<FIELD>` environment layer: `internal/engine/configresolve.go`
 merges exactly two layers over the default for every one of them. Output defaults such as `no_color`
 do have both, which is why the upper two rows exist at all.
 A field in a task file's `workflow` block counts as an override only when present (absent ≠ zero). `checks` uses replace semantics (the winning layer's array wins whole).
