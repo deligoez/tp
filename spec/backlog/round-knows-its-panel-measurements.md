@@ -213,9 +213,9 @@ Both shapes are prose a reader has to open the row to see; the release that retu
 
 ## Routed here from v1.1.0's audit round 2 (2026-09-08)
 
-This sidecar carried no routed section before. Six sidecars under `spec/backlog/` carry a
-`## Routed here at the 2026-09-08 re-verification` section (`faster_search "Routed here at the"`
-returns exactly those six); this follows their form under a heading naming where the item came from. The item is recorded here; the spec body is not edited.
+This sidecar carried no routed section before. Other sidecars under `spec/backlog/` carry a
+`## Routed here at the 2026-09-08 re-verification` section; this follows their form under a heading
+naming where the item came from. The item is recorded here; the spec body is not edited.
 
 - **An unreadable role file makes the round's `roles_hash` empty, and empty reads as matching.**
   `internal/cli/review_record.go:134` is `rolesHash, _ := engine.ComputeRolesHash(filepath.Dir(specPath),
