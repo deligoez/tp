@@ -118,8 +118,8 @@ func runReviewMerge(args []string, outputPath string) error {
 }
 
 // loadMergeFindings reads and validates the review findings from the input
-// files, skipping blank, malformed (invalid JSON), and incomplete (missing any
-// of location, severity, finding) lines with a stderr warning that names which.
+// files, skipping blank, malformed (invalid JSON), and incomplete lines with a
+// stderr warning that names which.
 // It aborts only on a missing/unreadable file (exit 3), and returns the §8a.4
 // per-input accounting beside the findings: blank lines and a bare `[]` count
 // as neither, so an
