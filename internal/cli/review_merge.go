@@ -148,19 +148,29 @@ func loadMergeFindings(args []string) ([]map[string]any, []mergeInputCounts) {
 		scanner.Buffer(make([]byte, 0, 64*1024), ndjsonLineCap)
 		for scanner.Scan() {
 			line := strings.TrimSpace(scanner.Text())
-			// A line that is exactly `[]` counts as neither parsed nor
-			// skipped, like a blank one: it is a role saying it found
-			// nothing. tp's own code-audit prompt asked for exactly that
-			// spelling, and counting it as a skip made the file a dropped
-			// role — which fails the whole merge and, since §5 row 10,
-			// writes no `-o`, so one clean role took the panel down. The
-			// prompt no longer asks for it; this stays for the rounds run
-			// from prompts an older binary emitted.
-			if line == "" || line == "[]" {
+			// A line holding an empty JSON array counts as neither parsed
+			// nor skipped, like a blank one: it is a role saying it found
+			// nothing. tp's own code-audit prompt asked for exactly that,
+			// and counting it as a skip made the file a dropped role —
+			// which fails the whole merge and, since §5 row 10, writes no
+			// `-o`, so one clean role took the panel down. The prompt no
+			// longer asks for it; this stays for the rounds run from
+			// prompts an older binary emitted.
+			//
+			// The test is a parse rather than a comparison against `[]`
+			// because the line is already trimmed above and TrimSpace
+			// removes only the outer padding: `[ ]` survives it unchanged
+			// and was still dropping the role. A NON-empty array is left
+			// where it was — that is a role whose findings would be lost
+			// silently, so it stays a skip.
+			if line == "" {
 				continue
 			}
 			var finding map[string]any
 			if err := json.Unmarshal([]byte(line), &finding); err != nil {
+				if isEmptyJSONArray(line) {
+					continue
+				}
 				fmt.Fprintf(os.Stderr, "warning: skipping malformed line (invalid JSON) in %s\n", path)
 				counts.Skipped++
 				continue
@@ -188,6 +198,14 @@ func loadMergeFindings(args []string) ([]map[string]any, []mergeInputCounts) {
 	}
 
 	return allFindings, inputs
+}
+
+// isEmptyJSONArray reports whether a line is a well-formed JSON array with no
+// elements — the shape a role uses to say it found nothing, in whichever
+// spelling its emitter chose. `[]`, `[]  ` and `[ ]` all reach here.
+func isEmptyJSONArray(line string) bool {
+	var arr []json.RawMessage
+	return json.Unmarshal([]byte(line), &arr) == nil && len(arr) == 0
 }
 
 // clusterMergeFindings clusters the findings by (location key, class) (§8), then
