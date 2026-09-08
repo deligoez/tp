@@ -422,3 +422,34 @@ round to settle. Neither is a defect; the point of writing them down is that the
   not: an attempt to state one produced 14 non-test call sites against the 13 the finding had claimed,
   and 10 under the narrower "discards with `, _`" rule, so the number depends on a counting rule
   nobody had fixed. Read the signature, not a tally.
+
+## Routed here from the v1.1.1 release (2026-09-08)
+
+Not from an audit round — found while releasing, which is why it has its own heading rather than
+being added to a round's list and falsifying that list's own count.
+
+- **A refusal whose remedy names a version that does not fix it.** `hooks/session-start.sh` reads its
+  minimum tp version from `.claude-plugin/plugin.json` (:86) and fails at exit 2 when the installed
+  binary is below it (:97-99). Between the v1.1.0 tag and the v1.1.1 tag the manifest said `1.1.1`
+  while the newest released binary was `v1.1.0`. **Run, with a discriminating control:** manifest
+  1.1.1 and PATH `tp` v1.1.0 → **exit 2**, stdout **empty**, stderr
+  `tp v1.1.0 at … is older than the tp plugin's minimum 1.1.1.`; the same tree with the manifest
+  edited to 1.1.0 → **exit 0** and `tp resume --compact` prints. So the manifest value alone decides
+  it. The refusal is correct and its message is accurate; what names nothing actionable is the
+  **remedy** it prints — `go install github.com/deligoez/tp/cmd/tp@latest`, where `@latest` resolved
+  to `v1.1.0`, the very version being refused. A user following the printed instruction would have
+  stayed refused, with no second thing to try.
+- **The guard pair permits that state by design, so only a shipped binary closes it.**
+  `TestPluginVersionIsNotBehindTheLatestTag` asserts the manifest is **not behind** the newest tag, so
+  a manifest ahead of the released binary satisfies it; `TestPluginVersionIsBumpedWhenPluginContentChanges`
+  *requires* the bump the moment anything under `.claude-plugin/`, `skills/`, `hooks/` or `agents/`
+  differs from the tag. Together they demand the bump and permit the window it opens. Both passed
+  throughout. `CLAUDE.md` already states the rule neither enforces — *"the release must ship a binary
+  at or above it"* — and v1.1.1 is what closed it, the manifest and the binary shipping together.
+- **The window was reachable but never live, and the claim that it was live was wrong.** It was
+  reported as already on `origin/main` on the strength of that branch's SHA; `git show
+  972b62fc:.claude-plugin/plugin.json` is **1.1.0**, because that commit is the revert. The bump
+  commit was local until the v1.1.1 push, so no user was ever offered a manifest ahead of a binary.
+  Recorded because the error is this spec's neighbouring class in the reader rather than the code:
+  **a commit's SHA is not its content**, and checking the pointer instead of what it points at
+  produces a confident answer to a question nobody asked.
