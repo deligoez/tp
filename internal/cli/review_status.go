@@ -181,34 +181,41 @@ func registeredChecksList(wf *model.Workflow) []map[string]any {
 // in the resolved task file's directory with the resolved gate timeout per
 // check. output_tail is present only for failed checks. Entries failing the
 // checks schema are skipped with an info line. When no task file resolves,
-// no checks are registered and none run.
+// none run — and allPass is then false whenever a check was registered,
+// because a check that did not run is not a check that passed.
 func runMechanicalChecks(wf *model.Workflow, taskFilePath string) (results []map[string]any, allPass bool) {
 	results = make([]map[string]any, 0, len(wf.Checks))
 	allPass = true
-	if taskFilePath == "" {
-		return results, allPass
-	}
-	dir := gateDir(taskFilePath)
-	timeout := time.Duration(wf.EffectiveGateTimeoutSeconds()) * time.Second
+	if taskFilePath != "" {
+		dir := gateDir(taskFilePath)
+		timeout := time.Duration(wf.EffectiveGateTimeoutSeconds()) * time.Second
 
-	for i := range wf.Checks {
-		c := wf.Checks[i]
-		if err := engine.ValidateChecks([]model.Check{c}); err != nil {
-			output.Notice(fmt.Sprintf("skipping invalid check %d (%s): %v", i, c.Class, err))
-			continue
+		for i := range wf.Checks {
+			c := wf.Checks[i]
+			if err := engine.ValidateChecks([]model.Check{c}); err != nil {
+				output.Notice(fmt.Sprintf("skipping invalid check %d (%s): %v", i, c.Class, err))
+				continue
+			}
+			res := engine.RunCommand(c.Cmd, dir, timeout, gateOutputTailLines)
+			entry := map[string]any{
+				"class":     c.Class,
+				"cmd":       c.Cmd,
+				"passed":    res.Passed,
+				"exit_code": res.ExitCode,
+			}
+			if !res.Passed {
+				entry["output_tail"] = res.OutputTail
+				allPass = false
+			}
+			results = append(results, entry)
 		}
-		res := engine.RunCommand(c.Cmd, dir, timeout, gateOutputTailLines)
-		entry := map[string]any{
-			"class":     c.Class,
-			"cmd":       c.Cmd,
-			"passed":    res.Passed,
-			"exit_code": res.ExitCode,
-		}
-		if !res.Passed {
-			entry["output_tail"] = res.OutputTail
-			allPass = false
-		}
-		results = append(results, entry)
 	}
-	return results, allPass
+	// A check that did not run is not a check that passed. Both ways of not
+	// running one used to leave allPass true: no task file resolving (a fresh
+	// clone), and an entry the checks schema rejects, which only prints an
+	// info line. Meanwhile tp keeps telling every reviewer that the check's
+	// class is mechanized and should not be reported, so the class is
+	// suppressed and verified by nothing. With no check registered at all
+	// there is nothing to have skipped and the count still agrees.
+	return results, allPass && len(results) == len(wf.Checks)
 }
