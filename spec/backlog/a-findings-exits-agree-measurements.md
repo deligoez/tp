@@ -201,3 +201,25 @@ the spec body is not edited.
   across the two prompts — is registered in `spec/undecided.md`, *Cross-site key agreement in the
   review prompt*; what belongs to this spec is that two exits disagree about the same field. Source:
   `spec/0.35.0-candidates.md` item 13.
+
+## Decided at the 2026-09-08 decision pass
+
+Two entries of `spec/undecided.md` were decided onto this spec.
+
+**From *Cross-site key agreement in the review prompt*.** Decided: the review prompt renders **one
+set at all three key-naming sites, from one Go constant**. The set is the record-required four —
+`severity`, `finding`, `location`, `evidence` — plus `role` and `class`, both **mandatory**: `class`
+is the dedup key, so *Optional* was a fiction. `category` is kept, because `by_category` ships. The
+review-side `category` enum is **validated at the record sink** the way the audit side already is, as
+a **warning**-severity refusal that names the row. The audit phase keeps its own status-based
+vocabulary, stated once — `outputContractInstruction` is shared between the phases, so the decision
+states the two vocabularies separately rather than equalising them. This settles the second item under
+*Routed here at the 2026-09-08 re-verification* above, whose design question was registered in
+`spec/undecided.md`.
+
+**From *A review-side `accepted_blocking`*.** Decided: **one counter**, on the payload §2 of this
+spec already rewrites. §2 fixes the shape of `unresolved_findings` and gives it three siblings bound
+by an identity; the accepted-blocking count joins them there rather than arriving on its own. The gap
+it closes is measured in `spec/undecided-measurements.md` §From the rows spec — the three-tree probe
+at `5058fc99`, where a round whose only finding is a `critical` resolved `wontfix` returns a payload
+whose key set is identical to a round recorded from an empty findings file.
