@@ -45,3 +45,25 @@ func TestOutputContractSeverityEnumAgreesWithTheAuditSchema(t *testing.T) {
 	assert.False(t, strings.Contains(reviewStamp, "warning"),
 		"the audit severity vocabulary must not leak into a reviewer prompt")
 }
+
+// TestOutputContractStampsEvidenceOnTheReviewBranchOnly pins §2's fourth
+// required key into the stamp a reviewer actually reads. The stamp already
+// names role, location, class and severity; evidence is required by the same
+// two gates (tp review --merge skips a row without it, tp review <spec>
+// --record refuses the whole file) and was the one required key the contract
+// block never mentioned, so a role stamping exactly what tp asked for still
+// produced rows the record sink rejects.
+//
+// The audit branch is left alone: §4 fences this release out of the audit
+// phase, and the stamp has branched by phase since the severity-enum repair, so
+// naming evidence on the review side changes nothing an auditor reads.
+func TestOutputContractStampsEvidenceOnTheReviewBranchOnly(t *testing.T) {
+	t.Parallel()
+	reviewStamp := outputContractInstruction("tester", engine.PhaseReviewers)
+	assert.Contains(t, reviewStamp, "- evidence:",
+		"a review finding's evidence is required at both gates, so the contract stamp must ask for it")
+
+	auditStamp := outputContractInstruction("go-safety", engine.PhaseAuditors)
+	assert.NotContains(t, auditStamp, "- evidence:",
+		"the audit branch is fenced out of this release and must not gain the key")
+}
