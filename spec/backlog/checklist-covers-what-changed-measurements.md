@@ -299,3 +299,22 @@ until it has a file.
 The measurement the decision rests on — 6 of 97 `spec-coverage` items non-`PASS` at `13bfde30`, so a
 split by *count* gives two shards that are each overwhelmingly `PASS` — is in `spec/undecided.md`
 under that entry, with its counting rule.
+
+## What v1.1.1 changed under this spec
+
+`v1.1.1` shipped `scripts/audit-round-prep.py`, the brief-level form of this spec's derivation: a
+previous round's `PASS` row whose `evidence_file` is untouched since the record commit is re-recorded
+verbatim, and only the rest is re-measured (47 of 63 rows carried against `v1.1.0`'s round 4, at
+`4f4bdc82`). Two consequences for the release that takes this spec:
+
+- **A carried row is indistinguishable from a measured one in the recorded round.** The script writes
+  the row byte-identical and `agents/tp-auditor.md` tells the role to re-record it unchanged, so the
+  corpus cannot tell a `PASS` the role ran from one it copied. When tp derives the carry itself it
+  stamps `carried_from: <round>` on the row, the field ground rounds already carry
+  (`internal/engine/groundrecord.go`), and `--record` accepts it: audit rows are parsed leniently
+  (no `DisallowUnknownFields` in `internal/cli/audit*.go`), measured at `808dd375`.
+- **The derivation's inputs are the script's, not the spec's.** `changed` is the record commit's diff
+  to `HEAD` plus the dirty tree; a row with no `evidence_file` is never carried; a round with no
+  recorded predecessor carries nothing. Whatever this spec specifies must reproduce those three rules
+  or say which one it changes, because the script's shell test pins them and the brief already
+  promises them to roles.
