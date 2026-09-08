@@ -75,18 +75,18 @@ def check_spec(spec: pathlib.Path, root: pathlib.Path) -> list[str]:
     text = spec.read_text(encoding="utf-8")
     # A fenced block is prose here (message templates, hints) — skip it so a
     # sample payload never reads as a citation.
-    outside_fences: list[str] = []
+    outside_fences: list[tuple[int, str]] = []
     fenced = False
-    for line in text.splitlines():
+    for lineno, line in enumerate(text.splitlines(), start=1):
         if line.lstrip().startswith("```"):
             fenced = not fenced
             continue
         if not fenced:
-            outside_fences.append(line)
+            outside_fences.append((lineno, line))
 
     seen_paths: set[str] = set()
     seen_symbols: set[str] = set()
-    for lineno, line in enumerate(outside_fences, start=1):
+    for lineno, line in outside_fences:
         for span in CODE_SPAN.findall(line):
             span = span.strip()
 
