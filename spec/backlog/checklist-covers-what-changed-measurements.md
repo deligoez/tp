@@ -281,7 +281,8 @@ spec body is not edited.
   reported as whole — on the review side, where it is unmeasured. Source:
   `spec/0.35.0-candidates.md` item 5, whose other two thirds are settled: the lock-timeout boundary
   guard shipped as `internal/engine/lock_timeout_range_test.go`, and the two plan builders stay
-  separate by `spec/backlog/refusals-that-name-nothing.md` Non-Goals 3 and 5.
+  separate by `spec/backlog/an-unreadable-file-is-named.md` Non-Goals 1 and 2 (they were
+  `refusals-that-name-nothing.md`'s Non-Goals 3 and 5 before that file's 2026-09-08 split).
 
 ## Decided at the 2026-09-08 decision pass
 

@@ -1,8 +1,8 @@
 {
-  "silent-swallowed-error": "refusals-that-name-nothing",
-  "zero-parse-exits-zero": "refusals-that-name-nothing",
+  "silent-swallowed-error": "an-unreadable-file-is-named",
+  "zero-parse-exits-zero": "an-invalid-task-file-is-reported",
   "refusal-hint-misdiagnoses": "refusals-that-name-nothing",
-  "test-only-symbol-with-claimed-callers": "refusals-that-name-nothing",
+  "test-only-symbol-with-claimed-callers": "guards-read-what-production-reads",
   "raw-stderr-advisory": "two-advisories",
   "degraded-scan-channel": "two-advisories",
   "merge-output-write-surface": "loops-own-state-writes",
