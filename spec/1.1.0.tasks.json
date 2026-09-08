@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.1.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-08T09:23:29.594903Z",
+  "updated_at": "2026-09-08T09:38:22.495723Z",
   "workflow": {
     "review_max_rounds": 3
   },
@@ -351,7 +351,7 @@
     {
       "id": "prompt-formats-name-required-keys",
       "title": "Prompt output formats name the required keys",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "review"
@@ -365,11 +365,20 @@
         "## 1. The decision",
         "## 5. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-08T09:26:06.549076Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-08T09:38:22.480986Z",
+      "closed_reason": "- §5 row 8: the object line a reviewer copies now names all four required keys on every one of the five commands the row lists. findingFormat (internal/cli/review.go), carried by every panel role prompt and by the regression prompt, gains `evidence`; codeAuditOutputFormat gains `location` as well, since its eleven keys named file and line but no spec anchor, so `evidence` alone would still have produced a row --merge skips and --record refuses. Both formats now state beneath the line that severity, finding, location and evidence are required and non-empty.\n- Verified by parsing, not by searching: internal/cli/prompt_required_keys_test.go emits `tp review \u003cspec\u003e`, `--role tester`, `--perspective code-audit`, `--perspective regression` and `--verify`, requires exactly one JSON object line per emitted prompt — so a listed path carrying none fails rather than being skipped, and the keys asserted are provably that line's — and asserts the four keys on the parsed key set. Seven prompts are graded across the five commands and the count is pinned: the default panel must emit more than one prompt and --role exactly one.\n- The substring search is ruled out by measurement rather than by assertion. With the object line excised the word `evidence` still reaches every listed prompt, by a different route each: the panel prompts from tp's own read-only instruction ('report it with its evidence instead of making the edit'), code-audit from its --affected-files excerpt, regression from the changed-section body, verify from the rendered resolution evidence of the fixed finding. Each case names its sentence and requires it to survive excision, so an edit that removes a decoy fails loudly instead of leaving the rebuttal vacuous.\n- Six mutants built and each watched go red, then reverted (confirmed with git -c diff.external= diff --no-ext-diff): evidence dropped from findingFormat reddened the default panel, --role and regression rows; location dropped from codeAuditOutputFormat reddened code-audit; evidence dropped from verifyOutputFormat reddened verify, so this test grades that path too and not only its sibling; a second object line added to findingFormat reddened the exactly-one assertion; codeAuditOutputFormat's object line replaced by prose that still names all thirteen keys reddened the same assertion, which a key-name search would have passed; and removing the excerpt decoy from the fixture reddened the substring rebuttal.\n- The acceptance's prediction that this turns no existing test red was measured rather than assumed and held: the full suite under ./scripts/check-suite-state.sh exits 0 with zero '--- FAIL: ' lines and zero 'build failed' packages, counted separately. All four gate steps exit 0 — check-suite-state.sh 0, golangci-lint run 0 (0 issues), check-deadcode.sh 0, check-complexity.sh 0.\n- Honest limit: the bare-word rebuttal no longer discriminates, and the test says so where it would otherwise mislead. Since this change both formats name the four keys in prose beneath the object line, a require.Contains(rest, \"evidence\") could not fail whatever the fixture does, so that assertion was removed in favour of the per-case named sentences.\n- Out of scope: outputContractInstruction is shared with all four auditor prompts and §4 forbids changing the audit phase, so it was not touched. It still tells every review role to stamp role, location, class and severity and names no evidence, which means a reviewer reading the stamp block rather than the object line is told a four-key contract that omits the key both gates now require. docOutputFormat and testOutputFormat emit plan items rather than findings and reach neither gate, so they are untouched by design.",
+      "gate_passed_at": "2026-09-08T09:38:22.480986Z",
+      "commit_sha": "3eedb2cd",
+      "commit_shas": [
+        "3eedb2cd",
+        "08933080"
+      ],
+      "commit_files": [
+        "internal/cli/prompt_required_keys_test.go",
+        "internal/cli/review.go"
+      ]
     },
     {
       "id": "reference-recipe-scope",
