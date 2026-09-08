@@ -139,3 +139,52 @@ third. They are recorded in this sidecar; the spec body is not edited.
   `o.ndjson` still a symlink; `tp review --merge a.ndjson -o o.ndjson` exits 0 with `target.txt`
   unchanged and `o.ndjson` now a regular file. Pre-existing on both sides at v1.0.1 and out of v1.1.0's
   scope, since §4 fences that release out of the audit phase. Source: v1.1.0 audit round 2.
+
+## Routed here from v1.1.0's audit round 3 (2026-09-08)
+
+Three further items land on this spec's subject. They are recorded in this sidecar; the spec body is
+not edited. The symlink half of the first item is already in the section above, from round 2; what
+follows is the rest of the same divergence and the guard that would close it.
+
+- **The `-o` divergence has a second half the symlink finding did not name: the file MODE.**
+  `internal/cli/audit_merge.go:119` applies its `0o600` **only on create**, so an existing `-o` keeps
+  whatever mode it had; the review twin renames a fresh temporary over the destination, so the result
+  carries `os.CreateTemp`'s mode from any starting mode. **Run at `e8477464`**, same fixture built for
+  each side, an existing `-o` at 0644 and then a fresh one:
+
+  | | existing 0644 `-o` | fresh `-o` |
+  |---|---|---|
+  | `tp review --merge` | **0600** | 0600 |
+  | `tp audit --merge` | **0644** | 0600 |
+
+  This is already written down on the review side — `writeMergeOutput`'s doc comment
+  (`internal/cli/merge_inputs.go:80-84`) records exactly this contrast, *"0644 → 0600 and 0666 → 0600
+  here, against 0644 → 0644 under the WriteFile equivalent"* — so the asymmetry is known and only the
+  audit side has not adopted the fix. **Migrating `audit_merge.go:119` to `writeMergeOutput`
+  (`internal/cli/merge_inputs.go:85`) closes the symlink half and the mode half in one repair.** Said
+  honestly: the review side's symlink safety is a **side effect of the temp+rename shape** adopted for
+  a different reason, not a symlink guard anyone specified — which is why it is worth stating as a
+  property to preserve rather than assuming it is defended.
+- **Hardlink asymmetry, the same pair, the opposite direction from the symlink one.** **Run at
+  `e8477464`** with a second hardlink `alias` pointing at the `-o` target: `tp review --merge` leaves
+  `o.ndjson` and `alias` at **1 link each** with `alias` holding the **stale** pre-merge content — the
+  rename broke the link — while `tp audit --merge` leaves **2 links** with `alias` carrying the merged
+  row. So on symlinks the review side is the safe one and on hardlinks it is the surprising one: a
+  caller who hardlinked the output finds it silently detached. Worth naming because the migration
+  above propagates this behaviour to the audit side too, and it should be a decision rather than a
+  side effect noticed afterwards.
+- **The `assert.ErrorIs` restoration `merge_temp_cleanup_test.go` needs, and the mutant that shows
+  why.** `mergeWriteFailure` (`internal/cli/merge_inputs.go:132-137`) wraps with `%w` at **:136**
+  (the item was first cited as `:137`, which is the closing brace). Three mutants against the test as
+  it stands: dropping `%w` and its clause entirely is **caught** — the `assert.Contains(t, msg,
+  "rename", …)` at `merge_temp_cleanup_test.go:116` goes red; swallowing `removeErr` is **caught**;
+  changing `%w` to `%v` is **not**. The file contains no `assert.ErrorIs` at `e8477464` — its
+  assertions are `require.Len` on the surviving temporary and `Contains` over the formatted message —
+  and `mergeWriteFailure`'s only consumer, `failMergeOutput` (`:141-144`), formats with `%s`, so `%w`
+  and `%v` render byte-identically and no string assertion can separate them. That last step is
+  established by reading the two functions and the test's assertion list, not by running the mutant.
+  Production impact today is **nil** for the same reason — nothing unwraps this error — so the
+  restoration buys the contract rather than a behaviour change, which is exactly the case where a
+  mutant is the only thing that can argue for it. The over-claiming clause in the assertion message
+  was already deleted at `fec2a8e8` (*"test(merge): drop an over-claiming clause from an assertion
+  message"*); the `ErrorIs` assertion is the part that would close the `%v` mutant.
