@@ -224,8 +224,11 @@ form of `spec/backlog/checklist-covers-what-changed.md`, which makes tp do the d
 class-to-slug table goes into the brief before round 1**: a finding matching a routed class is recorded
 `PARTIAL` with its slug in the note and expects no repair, so only a class the table lacks reaches the
 orchestrator — the round-3-to-round-4 gap was the orchestrator's dispositions, longer than the role
-stage. The after-figure is deliberately not written here until a round has run under all four; the
-skill carries it once one has.
+stage. Rules 1, 3 and 4 are
+`scripts/audit-round-prep.py <spec> [--out <dir>]`: previous round, carried rows from the record
+commit's diff, one clone and binary, the table from `.tp/routed-classes.json`, a brief fragment per
+role; its shell test is beside it. The after-figure is deliberately not written here until a round
+has run under all four; the skill carries it once one has.
 
 **Honest boundaries.** The orchestrator's own context is NOT reset in this model — only the units are.
 
