@@ -828,3 +828,20 @@ three the defect itself fails. Row 8 is **green** against `dbf7fdeb` and red onl
 mutant, because the production string is correct today; that is the whole point of it, and stating
 the difference is what keeps a row that pins working text from being read as a row that repairs
 broken text.
+
+## Decided at the 2026-09-08 decision pass
+
+Two entries of `spec/undecided.md` were decided onto this spec.
+
+**From *A sentence rewritten in answer to a finding is exempt from the cut for one round*.** Decided:
+**no exemption.** `tp ground --status` reports a `cut` **delta** per round — units cut that were
+rewritten since the previous round — so a repair is visible once without being graded twice. The
+exemption was the expensive form of the same want and would have had to be expressed in the floor's
+arms; the delta is the cheap form and touches only the report. The three instances behind it are
+under "§11.1" above.
+
+**From *Claim enumeration in the grounding floor*.** Decided: **the floor's own arms define a claim.**
+Intuition counts — 11 where a spec carried 17, and 10 where another carried 17 again after a second
+read — are not a measurement and are retired. The one measured leftover is §5 above, a bare
+ordered-list marker becoming a floor unit, and it stays there as a defect of the arms rather than as
+evidence about what a claim is.
