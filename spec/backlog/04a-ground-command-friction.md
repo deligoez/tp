@@ -828,6 +828,37 @@ carry when another unit changes — tp cannot know that §1 is *why* §2 was `PA
 `note` is the only place that lives — and does not touch the `(text_sha, ordinal)` join. It makes the
 override sayable and visible; deciding when it is right stays the reader's.
 
+**Produced in the field again, by exactly the route this section predicts.** `spec/1.1.0.md`'s ground
+round 3 carried a `PASS` whose note described a disposition the spec had since cut. The grading unit was
+briefed to re-decide it, wrote a row for the carried unit, and `--record` took it at exit 0 with `carried`
+falling from 11 to 10 — the override, reached the way §11 says it is reached, by a reader who did not
+follow the prompt. Two things follow. The instruction to use the hatch must not be written into
+`skills/tp/SKILL.md` while the prompt still forbids it: a skill saying *write the row* beside a prompt
+saying *write no row for them* turns an undocumented gap into a documented contradiction, and §11's own
+decision is what closes it. And the round that used the hatch reported the mechanism as unmeasured, a
+reading that was relayed onward before this section was checked — it is measured here, and has been since
+this file was written.
+
+### 11.1 Two properties of the carry that the field instance exposed
+
+**A plan expressed in unit ids cannot survive an emission.** Ids are re-assigned every time the floor is
+emitted, while the carry is keyed on `(text_sha, ordinal)` — which §11 already notes it does not touch. An
+id is therefore a coordinate in one round's index and nothing more. Measured on `spec/1.1.0.md`: the unit
+holding the stale note was `u35` in round 2's index; in round 3 `u35` names a different sentence and is
+`(cut)`, while the stale note's own text is `u46`. A sidecar had recorded the repair plan as *left for
+round 3 to re-ask*, naming the id — and round 3 re-asks it under neither id, because the text was
+unchanged and so it carried, as it would have into every round after. **Write a plan against the
+`text_sha`, or against the sentence; never against the id.**
+
+**A repair can remove the sentence it repairs from every future floor.** Round 2 filed a finding against a
+uniqueness quantifier in `spec/1.1.0.md`'s only appeal to a source outside this repository. The repair
+removed the quantifier; the shortened sentence fell below the arms' cut threshold; the sentence now sits
+in no round's ask set. The finding was answered and the claim left the floor in the same edit, and nothing
+in the round reports that. **Undecided, and not proposed as a decision here:** a sentence rewritten in
+response to a finding could be exempt from the cut for one round, so that the repair is graded once before
+the arms drop it. Neither the cost of that exemption nor whether it is expressible in the floor's own
+terms has been measured.
+
 ## 12. The coverage ratio's denominator counts non-claims, and the payload cannot be corrected by subtraction
 
 Report A: 84 of 226 units were `NOT-A-CLAIM`; Report B: 59 of 240. Both want a claims-only denominator
