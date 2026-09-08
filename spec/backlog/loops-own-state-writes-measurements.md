@@ -108,3 +108,23 @@ it fails to notice the added directory; it changes nothing whatsoever. That is a
 **A comment naming a blind spot is not a mitigation.** `CLAUDE.md` already carries the general form —
 a gate step that certifies itself in text is the failure this project has measured ten ways — and a
 script that documents its own gap is the same shape one level down.
+
+## Routed here at the 2026-09-08 re-verification
+
+Two items from the candidates files land on this spec's subject. They are recorded in this sidecar;
+the spec body is not edited.
+
+- **Two spellings of one path take two locks.** `LockFilePath` in `internal/engine/lock.go` resolves
+  its target with `filepath.Abs` alone (line 140 at `dd89c566`) and never `filepath.EvalSymlinks`, so
+  a symlinked task-file path and its physical path produce two different lock files and two writers
+  proceed at once. No production file calls `EvalSymlinks`: all **fifteen** call sites under
+  `internal/` are in `_test.go` files, which resolve their temp directory before exercising the lock
+  — `internal/engine/runlock_test.go`, `internal/cli/lock_timeout_test.go`,
+  `internal/cli/init_lock_test.go` and `import_lock_test.go` among them. A workaround that every test
+  performs and no caller does is the shape this spec exists to close. Source:
+  `spec/0.35.0-candidates.md` item 9.
+- **`runResult` is declared twice.** `internal/cli/init_lock_test.go` and
+  `internal/cli/import_lock_test.go` each declare a function-local `type runResult struct { stderr
+  string; code int }` — byte-identical bodies, legal because the scope is the test function, and two
+  copies that can drift apart. Source:
+  `spec/0.35.0-candidates.md` item 11.
