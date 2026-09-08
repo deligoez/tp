@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.1.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-08T07:32:41.723478Z",
+  "updated_at": "2026-09-08T07:34:52.369643Z",
   "workflow": {
     "review_max_rounds": 3
   },
@@ -86,7 +86,7 @@
         "fixture-migration"
       ],
       "estimate_minutes": 14,
-      "acceptance": "§1 decisions 1 and 2 at the record gate, plus §2's table row: `evidence` is a mandatory non-empty free-text key beside `severity`, `finding` and `location`, `tp review \u003cspec\u003e --record` refuses a file holding a row missing any of the four, it names every offending line in one exit rather than stopping at the first, and tp does not look at what the evidence text says. §5 row 1 — WHEN a four-row file, one row per required key with each row legal on the other three, is recorded against a spec that already holds one recorded round → exit 1 naming lines 1, 2, 3 and 4, no round file written, `review_rounds` unchanged, the discriminating assertion being the SET of lines named because the stated mutant (a record-side check testing only `evidence`) also exits 1 and also names line 4 — and §5 row 2, WHEN the file's only row is `{}` → exit 1, no round file, `review_rounds` unchanged. The four test functions this change turns red are repaired inside this task and named in the closure — measured in a clone on the migrated tree they are `TestAuditSignal_AbsentFromPromptMergeAndReviewOutputs`, `TestReviewRecord_CleanAndDirty`, `TestReviewRecord_RowRules` and `TestSpecHashFailureNamesTheRealCause`, of which the last two are ordering rather than fixtures (the new check must not pre-empt the pre-resolved-`fixed` abort's message or the unreadable-spec exit 3), so the closure states which ordering was chosen.",
+      "acceptance": "§1 decisions 1 and 2 at the record gate, plus §2's table row: `evidence` is a mandatory non-empty free-text key beside `severity`, `finding` and `location`, `tp review \u003cspec\u003e --record` refuses a file holding a row missing any of the four, it names every offending line in one exit rather than stopping at the first, and tp does not look at what the evidence text says. §5 row 1 — WHEN a four-row file, one row per required key with each row legal on the other three, is recorded against a spec that already holds one recorded round → exit 1 naming lines 1, 2, 3 and 4, no round file written, `review_rounds` unchanged, the discriminating assertion being the SET of lines named because the stated mutant (a record-side check testing only `evidence`) also exits 1 and also names line 4 — and §5 row 2, WHEN the file's only row is `{}` → exit 1, no round file, `review_rounds` unchanged. Every test function this change turns red is repaired inside this task and named in the closure, measured on the tree as `fixture-migration` left it: the four named at decomposition time are all green there, because that measurement used a narrower migration than the one that shipped. The ordering constraint stays pinned by a DEDICATED assertion written in this task — the new check must not pre-empt the pre-resolved-`fixed` abort's message nor the unreadable-spec exit 3 — because `spec_hash_hint_test.go` no longer discriminates it once its fixture is legal on all four keys; the closure states which ordering was chosen and names the assertion that holds it.",
       "source_sections": [
         "## 2. The evidence field on a review finding",
         "## 5. Tests"
