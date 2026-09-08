@@ -11,13 +11,14 @@ Writing a release spec for something whose design has no answer is the failure t
 prevent. An entry here is not a draft of a spec and must not be read as one.
 
 **No item carries a version number.** A number that moves leaves stale references and this repository
-has paid for that repeatedly; the roadmap table in `CLAUDE.md` is the one place the numbers belong.
-Name a candidate by its subject.
+has paid for that repeatedly; the roadmap in `spec/backlog/README.md` is where ordering belongs.
 
-**Every figure below was re-derived at `HEAD` and states its counting rule.** Where a figure could
-not be re-derived, the entry says so instead of repeating it. Measurements are taken at commit
-`27f84468` unless the entry names another ref, and where a corpus was moving under the measurement it
-was read from `git archive` rather than from the working tree.
+**This file is a register, not a forensics document.** Every entry is three things and nothing else:
+the decision or the refutation, the reopen condition or the settling bar, and a pointer to where the
+measurement lives — **`spec/undecided-measurements.md` §<entry title>** unless the entry names a
+backlog sidecar or a commit instead. Nothing was deleted when the forensics moved: a figure that is
+not below is in the sidecar, with its counting rule. A figure that moves with the tree is a fenced
+derivation command; a literal is anchored to a commit or a tag, `13bfde30` unless stated.
 
 ---
 
@@ -25,21 +26,12 @@ was read from `git archive` rather than from the working tree.
 
 ### Six requirements-smell lint rules — the whole adjacent family
 
-**What was tried.** `vague-language` is one member of a family the requirements literature and
-ISO/IEC/IEEE 29148 name: subjective, ambiguous, non-verifiable, vague, superlative, comparative,
-loophole, vague pronoun. Six candidates were prototyped against this repository's own corpus — 67
-files (`spec/*.md` and `spec/backlog/*.md`), 19,715 prose lines, **1,529 candidate findings judged**.
-The bar was the one this repository already applies: zero false positives at warning severity, at
-least one true positive, and it must catch the defect that motivates it.
-
 **All six are refuted, and the reason is a property of the corpus rather than of the patterns.** These
-specs are *forensic documents*: they argue from measurements, so their superlatives, pronouns,
-percentages and non-verifiable adjectives live in **evidence prose, not in requirements**. *"the
-strongest finding of that audit round"* is a claim about a measurement, not an acceptance property,
-and no line-scoped pattern separates the two. `vague-language` survives here because its eight words
-happen to be rare in that register; every neighbouring family is not.
-
-Each is refuted by its own measurement, phrased so it cannot be re-proposed without new evidence:
+specs are *forensic documents*, so their superlatives, pronouns, percentages and non-verifiable
+adjectives live in **evidence prose, not in requirements**, and no line-scoped pattern separates a
+claim about a measurement from an acceptance property. `vague-language` survives here because its
+eight words happen to be rare in that register; every neighbouring family is not. Each candidate is
+refuted by its own measurement, phrased so it cannot be re-proposed without new evidence:
 
 | candidate | what killed it |
 |---|---|
@@ -50,26 +42,18 @@ Each is refuted by its own measurement, phrased so it cannot be re-proposed with
 | **open-ended enumeration** (`and more`, `such as`) | All five `and more` hits are comparative conjunctions (`and more narrowly`, `and more strictly`), firing on the correct line for a mechanism that is not the smell. |
 | **percentage with no denominator** | The derivation lives at *section* scope while the rule is *line*-scoped, so it flags table rows whose deriving command sits above them, and every figure in the file that exists to derive them. Not re-proposable at line scope. |
 
-**The one condition under which this reopens.** These rules were measured against specs written in the
-style this repository is now leaving behind. If the sidecar rule works — forensics move to
-`<base>-measurements.md` and the body keeps decisions — the register the rules drown in is no longer in
-the body. **Reopen only after the sidecar rule has been applied to a stated number of specs, and then
-re-run the same six candidates against the same corpus.** Until that condition is met this stays
-refuted; "it might work later" is not a reason to re-propose it.
+**The one condition under which this reopens, and it has now half fired.** These rules were measured
+against specs written in the style this repository is leaving behind; the reopen condition was that
+the sidecar rule be applied to a stated number of specs and the same six candidates re-run against the
+same corpus. **The trigger fired on 2026-09-08**: every file under `spec/backlog/` was cut to its
+decisions with the forensics moved to a `<slug>-measurements.md` beside it (`spec/backlog/README.md`
+records the pass). **The re-run has not happened.** Until it does this stays refuted — the trigger
+condition is not the result.
 
-**Two predictions were on record before the run and the scorecard is worth keeping**, because it is
-this repository's own rule applied to a forecast rather than to a role: one clause of four was right in
-its verdict, and **that one's stated mechanism was wrong**. `non-verifiable` was predicted to die from
-the corpus mixing English and Turkish — measured, the corpus carries Turkish letters on **5 lines in 2
-files**, and the apostrophe-suffix trap yields **zero** tokens. It dies for an unrelated reason.
-`vague pronoun` was predicted to duplicate `vague-language` — measured, **0 of 369 lines are shared**,
-and the same holds for every candidate. Both predictions reached a defensible verdict *through a
-mechanism the corpus does not contain*, which is precisely the failure mode this file exists to record.
-
-**One real defect surfaced while prototyping and is not part of this entry** — it went to the release
-that was being written at the time: `CheckVagueLanguage` is the only rule in `internal/engine/vague.go`
-that does not track fenced code blocks, so a share of its corpus findings fire *inside* fences, on
-examples of its own output.
+**Where the measurements are.** `spec/undecided-measurements.md` §Six requirements-smell lint rules —
+the whole adjacent family carries the corpus size, the prediction scorecard, and the `vague-language`
+fence defect the prototyping surfaced (which shipped, and is pinned by
+`internal/engine/vague_fence_test.go`).
 
 ### The unexecutable-split lint rule
 
@@ -78,49 +62,46 @@ task.* A graph that puts a change in one task and the test it breaks in the next
 and cannot be executed — the gate runs at the earlier close and that close is already red.
 
 **The predicate is refuted.** The proposed shape was *a task whose only work is tests, depending on
-exactly one task, where both anchor to the same spec section.*
+exactly one task, where both anchor to the same spec section.* The broad form fires on roughly a
+quarter of this repository's tasks, unusable at any bar; the `tags: [test]` narrowing fires on a
+handful, and the one hit that has been classified is a false positive.
 
-Counting rule, re-derived over every `spec/*.tasks.json` at `HEAD` — for each task `t` with exactly
-one entry in `depends_on` that names a task in the same file, `t` is a candidate when
+**Counting rule, over every `spec/*.tasks.json`** — for each task `t` with exactly one entry in
+`depends_on` that names a task in the same file, `t` is a candidate when
 `set(t.source_sections) & set(parent.source_sections)` is non-empty:
 
-| form | fires on | true positives |
-|---|---|---|
-| depends on exactly 1 task sharing a `source_section` | **128 of 551 (23.2%)** | unusable at that rate |
-| …and `tags` contains `test` | **1** | **0** |
-
-The corpus grew since the original run — **551 tasks in 27 task files** at `HEAD` against the 520 in
-26 recorded then, and the rate moved from 21.9% to 23.2%. The tag-form hit is the same task.
-
-**The middle row of the original table did not reproduce and is dropped rather than repeated.** It
-recorded 11 hits for *"title or acceptance mentions a test"* with roughly two true positives; its
-counting rule was never written down, and no reading of that phrase lands near 11. A `test` substring
-over title and acceptance gives **77**; a word-boundary `\btests?\b` in the title alone gives **2**,
-in the acceptance alone **74**.
-
-**The single tag-form hit is a false positive.** `mechanize-candidates-retained` in
-`spec/0.25.0.tasks.json` is tagged `test` and depends on `per-role-overlap-report` in the same
-section, but it is not a test-only task — its acceptance is *"keep the existing output exactly as-is,
-adding no per-round signal"* and its closure reads *"No production change"*. It is a
-negative-requirement task whose deliverable is a guard, and it executed without the gate ever going
-red.
+```bash
+python3 - <<'PY'
+import json,glob
+tot=cand=tagform=0
+for f in sorted(glob.glob("spec/*.tasks.json")):
+    ts=json.load(open(f)).get("tasks",[]); byid={t["id"]:t for t in ts}
+    for t in ts:
+        tot+=1
+        d=t.get("depends_on") or []
+        if len(d)==1 and d[0] in byid and \
+           set(t.get("source_sections") or []) & set(byid[d[0]].get("source_sections") or []):
+            cand+=1
+            if "test" in (t.get("tags") or []): tagform+=1
+print("tasks %d  candidates %d  and tags contains test %d" % (tot,cand,tagform))
+PY
+```
 
 **Two structural reasons it cannot be repaired by tightening:**
 
-1. **`tags` is optional and sparse.** Re-derived at `HEAD`: present on **216 of 551 tasks (39%)**,
-   with `test` on **15**. A rule whose trigger depends on whether the decomposing agent happened to
-   tag is not a check; it fires arbitrarily and its silence means nothing.
+1. **`tags` is optional and sparse** — present on well under half the corpus, `test` on a fraction of
+   that. A rule whose trigger depends on whether the decomposing agent happened to tag is not a
+   check; it fires arbitrarily and its silence means nothing.
+   `python3 -c 'import json,glob;t=[x for f in glob.glob("spec/*.tasks.json") for x in json.load(open(f)).get("tasks",[])];print(len(t),"tasks,",sum(1 for x in t if x.get("tags")),"tagged,",sum(1 for x in t if "test" in (x.get("tags") or [])),"tagged test")'`
 2. **Every stronger signal is post-hoc.** `commit_files` would identify a test-only task precisely,
    and it exists only after the task closes — `tp validate` runs at decomposition.
 
-**One confound, stated rather than hidden.** tp's own task files are decomposed by an agent following
-`CLAUDE.md`, which already carries the rule — so the absence of true positives may mean the rule is
-already obeyed here rather than that the failure does not occur. That weakens *"the failure never
-happens"*; it does not weaken *"this predicate finds a false positive and no true one on 551 tasks"*,
-which is what a zero-false-positive bar decides on.
-
 **What could revive it:** a corpus from a project that does *not* follow the rule, or a required
 task-kind field that makes "test-only" a fact rather than an inference. Neither exists today.
+
+**Where the measurements are.** `spec/undecided-measurements.md` §The unexecutable-split lint rule —
+the dropped middle row of the original table, the classification of the one tag-form hit, and the
+confound that tp's own decomposer already obeys the rule.
 
 ### The contradictory-comparator lint rule
 
@@ -130,15 +111,7 @@ by `(number, noun)` and flagged a group carrying both a greater-family and a les
 comparator.
 
 **Its claimed true positive could not be reproduced, and its false positives are systematic.** The
-original run reported 2 flags with 0 true positives over the spec corpus at both the `v0.36.0` and
-`v0.37.0` tags — the two states the candidate described as *before this cycle's repairs* — and zero
-flags when grouping was narrowed to a single section.
-
-**The prototype is not committed anywhere in the tree, so the flag counts cannot be re-derived.**
-What does re-derive is the corpus size — `git ls-tree -r --name-only <tag> spec/` restricted to
-top-level `spec/*.md` returns **46** at `v0.36.0` and **46** at `v0.37.0`, against **59** at `HEAD`.
-The original's *"47 spec files today"* was true when it was written and is not today, which is the
-ordinary fate of a figure with no derivation beside it.
+prototype is committed nowhere, so its flag counts cannot be re-derived at all.
 
 **The false-positive instance is checkable and still stands.** In `spec/0.31.0.md`,
 `mechanize_candidates` fires on *"a class appearing in at least two rounds"* while `harness_stale` is
@@ -147,8 +120,8 @@ exactly what the candidate's own text said the design work owed: *"a correct pre
 establish that the two statements govern the same subject."* No predicate was named, and none is
 available at lint time.
 
-**The obvious narrowing removes the false positives by removing everything.** Grouping within a
-section instead of a file flagged zero across the whole corpus. A rule that has never fired on
+**The obvious narrowing removes the false positives by removing everything**: grouping within a
+section instead of a file flagged zero across the whole corpus, and a rule that has never fired on
 anything cannot be shown to work.
 
 **What could revive it:** a reproducible instance. The candidate asserted it *"caught the defect that
@@ -156,52 +129,39 @@ motivated it"*; that defect is in no tagged state of the repository, so either i
 uncommitted draft or the prototype differed from the one described. Either way the claim is not
 checkable, and a lint rule whose only evidence is unreproducible is not a release.
 
+**Where the measurements are.** `spec/undecided-measurements.md` §The contradictory-comparator lint
+rule — the relayed flag counts marked as relayed, and the corpus-size derivation that shows why a
+bare "spec files today" figure rots.
+
 ### The example-table lint rule
 
-Refuted in both forms its spec named: the keyword-and-shape heuristic fired on **3.9–22.6%** of this
-repository's spec sections against a shipped bar of *zero* false positives, and the narrower form
-reads task acceptance criteria — data that does not exist when `tp lint` runs, since lint is workflow
-step 2 and decomposition is step 5. The second half is structural and needs no corpus to check.
+**Refuted in both forms its spec named.** The keyword-and-shape heuristic fires on a double-digit
+share of this repository's spec sections against a shipped bar of *zero* false positives; and the
+narrower form reads task acceptance criteria, **data that does not exist when `tp lint` runs, since
+lint is workflow step 2 and decomposition is step 5**. The second half is structural, needs no corpus
+to check, and is what makes this refuted rather than untested. The firing rates are carried as relayed
+and must not be re-quoted as measurements.
 
-**Neither firing rate is re-derivable and the denominator has moved.** No prototype is committed. The
-original's 1,032 sections does not reproduce under the nearest stated rule: heading lines at any
-level across `spec/*.md` at `HEAD`, fenced blocks not excluded, count **1,251**. The rates above are
-carried as relayed and must not be re-quoted as measurements.
+**It reopens** only if `tp lint` ever runs after decomposition, which would give the narrow form its
+input; or if the shape heuristic is prototyped against this repository's own `spec/*.md` and returns
+zero false positives at warning severity.
+
+**Where the measurements are.** `spec/undecided-measurements.md` §The example-table lint rule.
 
 ### The identifier pass
 
 **What it was.** A `tp lint` pass over a spec's inline code spans. An identifier is an
-environment-variable-shaped token, a path-like token, or a `--flag`, extracted from *within* a span
-rather than from spans that consist of one. A span is an **introduction** when it sits in a table's
-first column, in a heading, or on the left of an `is`/`are` clause; every other appearance is a
-**reference**. A reference with no introduction anywhere in the file reports
-`unintroduced-identifier`; an introduction with no reference reports `unreferenced-identifier`.
+environment-variable-shaped token, a path-like token, or a `--flag`, extracted from *within* a span.
+A span is an **introduction** in a table's first column, in a heading, or on the left of an `is`/`are`
+clause; every other appearance is a **reference**. A reference with no introduction in the file
+reports `unintroduced-identifier`; an introduction with no reference reports
+`unreferenced-identifier`.
 
 **Why it is here rather than under Undecided.** Its own spec made *"neither pass produces a finding
 on any shipped spec"* a precondition for shipping, while its own Non-Goal forbade resolving an
-identifier introduced in one spec and referenced in another. Those two cannot both hold on this
-corpus, and the measurement below is what settles it: the pass fires on **58 of 59** shipped specs.
-The gate can never pass, and a candidate whose gate can never pass is refuted, not undecided.
-
-**Re-derived, with the counting rule stated.** The pass was reimplemented from its own specification
-and run over `git archive HEAD` and `git archive v0.37.0`. Corpus: top-level `spec/*.md` only. Spans:
-inline backtick spans outside fenced blocks. One finding per `(file, identifier, kind)`:
-
-| corpus | files | `unintroduced` | `unreferenced` | files with a finding |
-|---|---|---|---|---|
-| `HEAD` | 59 | **1,425** | 116 | **58** |
-| `v0.37.0` | 46 | **997** | 94 | 45 |
-
-The relayed figure was 979 over 46 specs. At the same corpus size this rule gives **997** — 1.8%
-apart, which identifies the relayed count as `unintroduced-identifier` alone over the `v0.37.0`
-corpus. The figure is reproduced; the conclusion does not turn on which of the two numbers is used.
-
-**The other half of the entry was overstated and is corrected.** *"All references to things that
-exist elsewhere in the repository"* is not what the corpus says. Counting rule: an identifier
-resolves when its literal text appears in at least one git-tracked file outside `spec/`, or names a
-path that exists. **1,260 of 1,425 (88.4%)** resolve at `HEAD`; **850 of 997 (85.3%)** at `v0.37.0`.
-The remainder are mostly illustrative paths in the older specs (`docs/foo.md`, `spec-r1.md`) and bare
-basenames of files that exist under a directory the spec did not spell.
+identifier introduced in one spec and referenced in another. Those two cannot both hold here:
+reimplemented from its own specification and run over `git archive v0.37.0`, the pass fires on **45 of
+that tag's 46 top-level `spec/*.md` files**. A candidate whose gate can never pass is refuted.
 
 **What could revive it:** a known-identifier set seeded from tp's own surface — its flags, its
 environment variables, its real paths — so that a reference resolving outside the file is not a
@@ -209,72 +169,68 @@ finding. That is a different predicate rather than a tightening of this one, it 
 prototyped, and it would have to answer where the set comes from and what keeps it current. Until it
 is built and run, nothing here is a backlog item.
 
+**Where the measurements are.** `spec/undecided-measurements.md` §The identifier pass — the full
+counting rule, both corpus rows, the reconciliation of the relayed 979, and the corrected resolution
+share.
+
 ### The corpus-replay gate, as a procedure
 
 A gate phrased *"replay the recorded rounds in `spec/.tp-review/`"* cannot run: a recorded round's
 snapshot is written at emission and its `spec_hash` is re-read at record, so a fraction of the corpus
 is not the text its round reviewed, and a replay compares against the wrong spec and reports clean.
 
-**Re-derived at `HEAD`.** Counting rule: for every `spec/.tp-review/*/state.json`, compare each
-round's `spec_hash` against `sha256` of the snapshot file tp names for that round.
-
-| phase | rounds recorded | with a snapshot | hash mismatch |
-|---|---|---|---|
-| review | 172 | 172 | **35** |
-| audit | 108 | 88 | **3** |
-
-**The defect is bounded rather than endemic, and the distribution is nothing like uniform.** The 35
-sit in six cycles — `0.31.0` carries **19** of them, then `0.32.0` 7, `0.24.0` 4, `0.31.2` 2,
-`0.35.0` 2, `0.29.0` 1. **No cycle after `0.35.0` carries one**: the 31 review rounds recorded for
-`0.36.0`, `0.37.0` and `1.0.0` are all clean.
-
-**Quote the count, not the percentage.** The numerator has not moved while every denominator has, so
-the ratio improves without the defect changing. Re-derive it rather than reading a figure here.
-
-**Two things about this were previously stated wrong and stay corrected.** Three specs withdrew the
-gate citing a missing disposition; the disposition exists. Counting rule — every `resolved` object
-across `spec/.tp-review/*/*.ndjson` — gives **1,566 rows** at `HEAD`, `fixed` **1,467** and `wontfix`
-**99** (the entry that carried 1,406 / 1,308 / 98 was right about the shape and is simply older):
-
-```
-python3 -c 'import json,glob,collections;c=collections.Counter(json.loads(l)["resolved"]["status"] for f in glob.glob("spec/.tp-review/*/*.ndjson") for l in open(f) if l.strip() and isinstance(json.loads(l).get("resolved"),dict));print(c)'
-```
+**The defect is bounded rather than endemic.** At `13bfde30` the divergent review rounds sit in six
+cycles, `0.31.0` carrying more than half, and no cycle after `0.35.0` carries one. So the honest
+argument is not *"a quarter of the corpus is wrong"* but **"the record cannot distinguish a corrupt
+round from a clean one, so a low rate and a high rate look identical to a reader"** — which survives
+the rate falling to zero. Quote the count, not the percentage.
 
 **So the honest form is narrower than a withdrawal.** A replay *cannot gate the release that
 introduces the mechanism it would test*, because it must wait for rounds to accumulate. The
 replacement that works is a gate stated as an invariant checkable against a live tree — which is what
 pinning the round's hash at emission makes structurally possible.
 
-### Refuted alongside `forward-spec-ref`: `broken-cross-ref` extended across files
+**One thing three specs stated wrong stays corrected here**: they withdrew the gate citing a missing
+`disposition`, and the disposition exists. Counting rule — every `resolved` object across both
+round-directory globs:
+
+```bash
+python3 -c 'import json,glob,collections;c=collections.Counter(json.loads(l)["resolved"]["status"] for p in ("spec/.tp-review/*/*.ndjson","spec/backlog/.tp-review/*/*.ndjson") for f in glob.glob(p) for l in open(f) if l.strip() and isinstance(json.loads(l).get("resolved"),dict));print(c, sum(c.values()))'
+```
+
+**It settles** when `spec/backlog/round-records-the-text-it-read.md` ships, after which a replay of
+any round recorded from then on is well-defined. That spec does not repair the divergent rounds
+already recorded, so a replay over the historical corpus stays undefined whatever ships.
+
+**Where the measurements are.** `spec/undecided-measurements.md` §The corpus-replay gate, as a
+procedure — the snapshot-hash derivation with its per-cycle breakdown, and the disposition counts at
+three successive readings.
+
+### `broken-cross-ref` extended across files
 
 The obvious companion to the one lint rule that survived prototyping — flag `spec/X.md §Y` where `X`
-has no `§Y` — was prototyped and **its marginal yield over `forward-spec-ref` is zero.**
+has no `§Y` — was prototyped and **its marginal yield over the cheaper rule is zero.**
 
-**Re-derived at `HEAD`, with the counting rule stated.** Every `.md` file in the tree, snapshots
+**The counting rule, and the one row that decides it.** Every `.md` file in the tree, snapshots
 included; a hit is one occurrence of `spec/<version>.md` followed within 80 characters by `§<number>`
 on a line outside a fenced block; a hit is *broken* when the target file exists and no heading in it
-carries that number as its first token:
+carries that number as its first token. Measured at `27f84468`:
 
 | | |
 |---|---|
-| `.md` files scanned | 378 |
-| raw hits | 643 |
-| of those inside `spec/.tp-review/` snapshots | **603 (93.8%)** |
-| target file no longer exists (unresolvable, not broken) | 242 |
-| broken with the target present | 5 |
-| of those, target ≤ referrer — the only case `forward-spec-ref` cannot see | **0** |
-
-**The absolute counts do not reproduce; the load-bearing one does.** The original recorded 312 broken
-refs and 163 of 173 raw hits inside snapshots. Neither is reachable under this rule and the original
-rule was not recorded — most of the gap is that the original appears to have counted a missing target
-file as broken. What reproduces exactly is the zero: **every broken section reference in the corpus
-points at a higher-numbered spec**, so the cheaper rule — which never opens the target file — catches
-all of them, and the snapshot share reproduces in shape (93.8% here against 94.2% there).
+| broken with the target present, target ≤ referrer — the only case the cheaper rule cannot see | **0** |
 
 **It is not refuted in principle** — a mistyped section reference into a shipped spec would be its
 alone. There is simply no instance of one, and a rule with no demonstrated independent case does not
-ship. It would also have needed `spec/.tp-review/` excluded, since almost every raw hit is inside a
-round snapshot: a frozen photograph whose references were correct when it was taken.
+ship.
+
+**It reopens** on a single demonstrated instance: one broken `§` reference whose target spec is at or
+below the referrer's number, outside `spec/.tp-review/`. Until one exists the rule has no independent
+population.
+
+**Where the measurements are.** `spec/undecided-measurements.md` §`broken-cross-ref` extended across
+files — the full six-row table, the reconciliation of the original's 312 broken refs, and why
+`spec/.tp-review/` would have to be excluded.
 
 ### `floor_by_section` — an assertion no mutant of its own field can fail
 
@@ -282,15 +238,10 @@ round snapshot: a frozen photograph whose references were correct when it was ta
 could see which section a round's grading cost sits in. Drafted into `spec/1.0.1.md` §2 across three
 rounds; dropped in review round 1 and confirmed dead in round 2.
 
-**Why it died, in three independent measurements.** Its only assertion was that the values sum to
-`floor_size`, and that sum is **invariant under every possible anchor misassignment**: each uncut
-unit receives exactly one anchor whatever the mapping, so any grouping totals the same. A tester
-built the mutant and ran it — correct versus mutant on `spec/1.0.1.md` gives seven keys against six,
-both summing to 62. A field whose sole claim passes an implementation that assigns every section the
-wrong count and loses a section key entirely is not pinned by anything. Separately it was the only
-one of the four candidate fields **unbounded in output size** (about 149 bytes at seven anchors and
-1,641 at ninety-one, on a command that honours neither `--compact` nor `--quiet`), and the only one
-whose row named no decision it would feed.
+**Why it died.** Its only assertion was that the values sum to `floor_size`, and that sum is
+**invariant under every possible anchor misassignment** — so a mutant that assigns every section the
+wrong count and loses a section key entirely passes it. Separately it was the only one of the four
+candidate fields unbounded in output size, and the only one whose row named no decision it would feed.
 
 **The six anchor defects it kept trying to describe are real and are now owned elsewhere**, with
 fixtures, in `spec/backlog/ground-command-friction.md`. That is the useful residue: the field was
@@ -298,6 +249,9 @@ an attempt to publish a quantity whose keys nobody had checked, and checking the
 
 **It reopens** when `engine.FloorAnchorOf`'s anchors are pinned by fixtures rather than by arithmetic,
 and when an assertion exists that a wrong grouping can fail — a per-key expectation, not a total.
+
+**Where the measurements are.** `spec/undecided-measurements.md` §`floor_by_section` — the mutant's
+key counts and their equal sums, and the output-size figures.
 
 ### `spec_bytes` — a lint field whose only use was a product tp does not support
 
@@ -322,23 +276,21 @@ is re-derivation of figures, which `spec/1.0.1.md` §4 argues is the least valua
 
 **Why it died, in two measurements.** The numerator was **two of the three arms of the floor's own
 admission predicate** (`inFloor` = digit ∨ code span ∨ measurement verb, `internal/engine/floor.go`),
-so the field could only ever report a high number: across six of this repository's specs it stayed
-inside a narrow band near the top of its range. (The measurement is over each spec's latest emitted
-floor; `tp ground --units` emits a round when the spec has moved, so it was taken in a copy.) And the direction is inverted — §4's shipped rule
-replaces a figure with a *reference*, references are code spans, and a code span is in the
-numerator. **A spec scores higher for obeying the rule.**
+so the field could only ever report a high number. And the direction is inverted — §4's shipped rule
+replaces a figure with a *reference*, references are code spans, and a code span is in the numerator.
+**A spec scores higher for obeying the rule.**
 
 **A narrower variant does discriminate, and was still not shipped.** Restricting the numerator to
-`floorHasDigit` alone, measured over the same six specs, gives a spread roughly twice as wide as the
-two-arm form, and the spec that obeys the reference rule most closely scores *lowest* — the correct
-direction. It was left out anyway, because discrimination is not the open question: what a figure
-share *means* rests on one spec's `kind` table, n = 1, so shipping it would publish a contract for
-an unmeasured hypothesis. That is the class `class_median_rounds` was removed for in the same
-release.
+`floorHasDigit` alone gives a spread roughly twice as wide and the correct direction. It was left out
+because discrimination is not the open question: what a figure share *means* rests on one spec's
+`kind` table, n = 1, so shipping it would publish a contract for an unmeasured hypothesis — the class
+`class_median_rounds` was removed for in the same release.
 
 **It reopens** when a second cycle's `kind`-by-finding-rate table exists, at which point the
-narrow-numerator variant is the one to implement, not the two-arm one. The measurement command is in
-`spec/1.0.1-measurements.md`.
+narrow-numerator variant is the one to implement, not the two-arm one.
+
+**Where the measurements are.** `spec/undecided-measurements.md` §`floor_figure_share`; the
+measurement command itself is in `spec/1.0.1-measurements.md`.
 
 ### `forward-spec-ref` — the rule's population vanished with the version numbers
 
@@ -346,20 +298,19 @@ narrow-numerator variant is the one to implement, not the two-arm one. The measu
 forward reference to a release that may be renumbered before it ships. It survived prototyping once
 and had a backlog spec; the spec was dropped, not shipped.
 
-**Why it died.** Its population is gone. `python3 scripts/forward-spec-ref-prototype.py spec 1.0.1`
-finds **1** reference at `HEAD` (`spec/1.0.1.md` citing `spec/1.0.2.md`, a file that no longer
-exists), and the same command over `spec/backlog` finds **0** — because pending specs are no longer
-numbered at all. The replacement predicate, *"a backlog spec is named by slug, never by priority
-number"*, had no clean positive set to prototype against: every citation carried the priority number
-in the filename it cited, which is why the filenames are now slug-only rather than why a lint should
-exist. `scripts/forward-spec-ref-prototype.py` is now referenced by nothing but this entry.
+**Why it died.** Its population is gone: pending specs are no longer numbered at all, so the rule has
+nothing to fire on, and the replacement predicate — *"a backlog spec is named by slug, never by
+priority number"* — had no clean positive set, since every citation carried the priority number in the
+filename it cited. `scripts/forward-spec-ref-prototype.py` is referenced by no live file; three frozen
+round files under `spec/backlog/.tp-review/10-forward-spec-ref-lint/` still name it.
 
-**What the corpus actually needs is a dead-path check** — a `spec/…md` citation whose target does
-not exist — and that is exactly what the dropped spec's §4.2 forbade. Measured at `HEAD` before this
-cleanup, counting rule *occurrences of `spec/<version>.md` outside `.tp-review/` across `spec/**`,
-`skills/**`, `CLAUDE.md` and `README.md`, minus files that exist*: 81 to `spec/1.3x–1.5x.md`, 6 to
-`spec/1.0.2.md`, 1 to `spec/0.37.1.md` — every one resolvable a rename ago. Prototype-first, against
-this repository's own `spec/*.md`; zero false positives at warning severity before it reaches a spec.
+**It reopens as a different rule, and only that way: a dead-path check** — a `spec/…md` citation whose
+target does not exist — which is exactly what the dropped spec's §4.2 forbade. That is the check the
+corpus actually needs, and the condition on it is this repository's standing one: prototype it against
+`spec/*.md` first, zero false positives at warning severity, before it reaches a spec.
+
+**Where the measurements are.** `spec/undecided-measurements.md` §`forward-spec-ref` — the dead-path
+population measured before the rename cleanup, with its counting rule.
 
 ### A single whitespace set for the floor — corpus-free
 
@@ -369,14 +320,15 @@ at the collapse, `isFloorSpaceByte` at the split and `unicode.IsSpace` at the tr
 (`spec/backlog/what-the-carry-can-promise.md`, its former second decision) named the six ASCII
 whitespace bytes as the one set at every site.
 
-**Why it died.** Zero floor units in the corpus carry a byte the predicates disagree on — none carries
-TAB, VT, FF, CR, U+00A0 or U+0085 — so the change has no input to fire on; and of ten single-byte
-inputs run under both binaries, the change moves hashes only on an interior U+000B. A behaviour change
-that moves nothing in the corpus is not worth a loop-class cycle. The measurements, the fixtures and
-the withdrawn test rows are in `spec/backlog/what-the-carry-can-promise-measurements.md`.
+**Why it died.** Zero floor units in the corpus carry a byte the predicates disagree on, and of ten
+single-byte inputs run under both binaries the change moves hashes only on an interior U+000B. A
+behaviour change that moves nothing in the corpus is not worth a loop-class cycle.
 
 **It reopens** if a floor unit in the corpus is found to carry one of those bytes, or if a second
 implementation of §2.1 in another language disagrees with tp on a `text_sha`.
+
+**Where the measurements are.** `spec/backlog/what-the-carry-can-promise-measurements.md` — the byte
+enumeration, the fixtures and the withdrawn test rows.
 
 ---
 
@@ -384,50 +336,60 @@ implementation of §2.1 in another language disagrees with tp on a `text_sha`.
 
 ### Inferring a spec's class
 
-**The claim it refutes.** A draft release proposed a `class: loop | tool` frontmatter field, declared by
-the author, on the stated ground that *tp cannot infer it*. A unit told to construct a counter-example
-built three predicates against 23 hand-labelled specs and **refuted the "cannot"**: a density predicate
-— loop-lexicon occurrences per thousand words — scores **87% leave-one-out with zero false positives**,
-the threshold refitted with each item held out.
-
-**What makes it worth keeping rather than filing as a curiosity.** Applied to the seventeen shipped
-cycles' round-1 snapshots, the predicate reproduces `CLAUDE.md`'s published loop/tool round medians
-**exactly**, and yields `r(class, rounds) = +0.40`. The same unit's own hand-labels of those same
-seventeen give `r ≈ 0` and do **not** reproduce the published split. So two independent human labellings
-disagree, and the thing that tracks cycle length is the predicate rather than the label.
-
-**That is also why the frontmatter field was cut from the release.** `class:` is a hand label; a median
-computed over hand labels reports measured noise, and the field would have been empty on the day it
-shipped — one of sixty-six specs carried it, and no recorded round carried a class at all.
+**The claim it refutes.** A draft release proposed a `class: loop | tool` frontmatter field, declared
+by the author, on the stated ground that *tp cannot infer it*. A unit told to construct a
+counter-example built three predicates against 23 hand-labelled specs and **refuted the "cannot"**: a
+density predicate — loop-lexicon occurrences per thousand words — scores 87% leave-one-out with zero
+false positives, and it reproduces `CLAUDE.md`'s published loop/tool round medians exactly where two
+independent hand-labellings do not.
 
 **The design when a release takes this**: tp derives the class from the predicate and reports it,
 frontmatter overrides, both are visible. It is deliberately not in the release that discovered it,
-because the lexicon is a new surface that will drift and be argued over for rounds — this repository's
-rule is that a new abstraction belongs to the next version.
+because the lexicon is a new surface that will drift and be argued over for rounds — this
+repository's rule is that a new abstraction belongs to the next version.
 
-**Honest limits, recorded so the next attempt does not overclaim**: n = 23; the two label sources are
-two separate hand-assignments rather than one rule; and leave-one-out fixes the threshold but not the
-lexicon, which was chosen after seeing the corpus.
+**It is scheduled** when a release needs the class to budget rounds *before* its own review opens —
+that is, when `CLAUDE.md`'s loop/tool round medians are used to pick a cap rather than to explain one
+after the fact. Nothing before that point spends the lexicon's drift cost usefully.
+
+**Where the measurements are.** `spec/undecided-measurements.md` §Inferring a spec's class — the
+correlations, why the frontmatter field was cut, and the three honest limits.
 
 ## Undecided — each names the decision nobody has taken
 
 ### The divisible round
 
-**The decision: the split key.**
+**The decision: the split key.** The key the data recommends is **spec location**, and none of the
+three candidates named so far is that.
 
-Counting rule, re-derived over `spec/.tp-review/0.37.0/audit-round-*.ndjson` — distinct `item_id`
-values carrying `role: spec-coverage`, and how many of them hold a non-`PASS` status in any round:
-**6 of 97 distinct items (6.2%)** across that cycle's seven audit rounds. Splitting 74 items by
-*count* therefore gives two shards that are each about 97% `PASS`.
+Counting rule, over `spec/.tp-review/0.37.0/audit-round-*.ndjson` — distinct `item_id` values carrying
+`role: spec-coverage`, against how many hold a non-`PASS` status in any round:
 
-The key the data recommends is **spec location**, and none of the three candidates named so far is
-that. The six items are `list-0-2`, `table-2-1`, `table-2-13`, `table-2-14`,
-`task-document-the-field` and `task-fence-change-rule`.
+```bash
+python3 - <<'PY'
+import json,glob
+ids=set(); bad=set()
+for f in sorted(glob.glob("spec/.tp-review/0.37.0/audit-round-*.ndjson")):
+    for l in open(f):
+        if not l.strip(): continue
+        r=json.loads(l)
+        if r.get("role")!="spec-coverage" or r.get("item_id") is None: continue
+        ids.add(r["item_id"])
+        if r.get("status")!="PASS": bad.add(r["item_id"])
+print("%d distinct items, %d non-PASS: %s" % (len(ids), len(bad), sorted(bad)))
+PY
+```
 
-**One sub-claim did not reproduce, and both readings of it strengthen the conclusion rather than
-weaken it.** The original said *"four of the six in one section"*. By the rows' own `location` field,
-**all six** carry at least one row at `§3`; by item-id prefix, **three** share `table-2-`. Neither is
-four, and either says the findings cluster by location.
+At `13bfde30` that is 6 of 97, and the six are `list-0-2`, `table-2-1`, `table-2-13`, `table-2-14`,
+`task-document-the-field` and `task-fence-change-rule`. Splitting the items by *count* therefore gives
+two shards that are each overwhelmingly `PASS` and neither tells a reader where the findings are.
+
+**It unblocks `spec/backlog/checklist-covers-what-changed.md`**, which names this entry as its real
+answer: that release bounds a per-prompt checklist at ten items and says outright that measuring the
+bound is the divisible round's job.
+
+**Where the measurements are.** `spec/undecided-measurements.md` §The divisible round — the sub-claim
+that did not reproduce and why both readings of it strengthen the conclusion.
 
 ### The test-file fence
 
@@ -435,32 +397,33 @@ four, and either says the findings cluster by location.
 precomputed into the child environment at spawn.
 
 **And the list-layer semantics of `test_globs`**, because the one precedent is not a merge.
-Re-derived at `HEAD`: `pickChecks` in `internal/engine/configresolve.go` returns the first present
-layer and stops, so a present slice — an explicit empty array included — replaces the layer beneath
-it rather than merging with it. Its own doc comment says so, and the pointer-to-slice type exists for
-that reason: `Checks *[]Check` in `model.WorkflowOverride` is the **only** list-typed override field
-in the struct; every other field there is a scalar pointer or raw JSON. A second list field has no
-precedent to inherit beyond this one.
+`pickChecks` in `internal/engine/configresolve.go` returns the first present layer and stops, so a
+present slice — an explicit empty array included — replaces the layer beneath it rather than merging
+with it. Its own doc comment says so, and the pointer-to-slice type exists for that reason:
+`Checks *[]Check` in `model.WorkflowOverride` is the **only** list-typed override field in the struct;
+every other field there is a scalar pointer or raw JSON. A second list field has no precedent to
+inherit beyond this one.
+
+**It settles** when a second list-typed override exists in `model.WorkflowOverride`, because the
+resolution site is then chosen once for both rather than argued for one field against a sample of one.
 
 ### The identifier set behind class families
 
 **The decision: its own yield — what result would make it worth shipping.** The bar is unset, which
 is what makes this undecided rather than refuted: a low yield is not an impossibility.
 
-Measured over six cycles, the normaliser grouped **0–8.7% of findings, median 0.5%**; on `v0.37.0` it
-formed one family of three findings.
-
 **Only the denominator re-derives.** `v0.37.0`'s review rounds hold **630** recorded rows in total
 (counting rule: non-blank lines across `spec/.tp-review/0.37.0/review-round-*.ndjson`), which matches
 the original. The grouping does not re-derive, because **the normaliser is in no committed file** — a
-search for its name across the whole tree returns only the candidates document. The percentages above
-are carried as relayed and are not measurements anyone can reproduce today; a release that wants them
-has to rebuild the normaliser first.
+search for its name across the whole tree returns nothing. The relayed grouping figures (0–8.7% of
+findings, median 0.5% over six cycles; one family of three findings on `v0.37.0`) are carried as
+relayed and are not measurements anyone can reproduce today; a release that wants them has to rebuild
+the normaliser first.
 
 ### The evidence contract
 
 **The decision: what the open sections would have to name.** Its sections state a rule and no field,
-no writer and no arithmetic — which is why it is here and not numbered.
+no writer and no arithmetic — which is why it is here and not scheduled.
 
 The draft is reachable as `git show a4b70c3e:spec/0.49.0.md` (that number now belongs to a different
 subject entirely, which is why the commit is the citation). Counting rule: headings whose text begins
@@ -473,47 +436,46 @@ forced-commitment brief, and mutation score as a documented gate entry. What is 
 no design.
 
 **A third open question joined it at `spec/1.1.0.md`'s review round 3: who reads a stored
-`evidence`.** That release ships the carrier and nothing reads it back — `reviewFinding`
-(`internal/cli/review.go:131-139`) has no such field, so the previous-round injection drops it. A
-decision saying the injection carries it was written and cut, because the channel is not one: three
-sites inject previous-round findings (`review.go:1345`, `review_regression.go:178`,
-`review_verify.go:250`), the panel block caps its detailed rows at 50 and truncates its three
-free-text renders at 80, 60 and 40 characters, and two of the three sites already print
-`resolved.evidence` under the name *evidence*. Any decision here has to name a site, a bound and a
-label; naming a site is an implementation sentence, which is what `1.1.0` exists to keep out of a
-spec. `spec/1.1.0-measurements.md`'s *`evidence` is write-only: the three injection sites, and where
-the reading half went* carries the runs. **No backlog file holds this** — `brief-carries-the-forcing-sentences.md`
-kept only its forcing sentences at the 2026-09-08 re-verification, and the section it dropped was the
-*audit* prior-round injection, not the review one.
+`evidence`.** That release ships the carrier and nothing reads it back — `reviewFinding` in
+`internal/cli/review.go` has no such field. A decision saying the previous-round injection carries it
+was written and cut, because the channel is not one: three sites inject previous-round findings —
+`buildFindingsSummary` (`review.go`), `buildRegressionPrompt` (`review_regression.go`) and
+`buildVerifyPrompt` (`review_verify.go`) — with different caps and labels, and only the last prints
+`resolved.evidence` under the name *evidence*. Any decision has to name a site, a bound and a label,
+and naming a site is the implementation sentence `1.1.0` exists to keep out of a spec. **No backlog
+file holds this** — `brief-carries-the-forcing-sentences.md` kept only its forcing sentences at the
+2026-09-08 re-verification, and the section it dropped was the *audit* injection, not the review one.
+
+**Where the measurements are.** `spec/1.1.0-measurements.md`, *`evidence` is write-only: the three
+injection sites, and where the reading half went*, carries the caps and the runs;
+`spec/undecided-measurements.md` §The evidence contract summarises which site labels what.
 
 ### A registered check that outlives its release
 
-**This entry was stale at `HEAD` and the correction is the substance.** Two of its measurements are
-now false, and the third is what makes the workaround work.
+**The decision narrows to one thing, and it is the sharpest live item in this file.** It is no longer
+*whether a registration can outlive its release* — one does. It is whether `checks[].cmd` should gain
+a first-class `{spec}` substitution in place of a subshell in a config field, which placeholders the
+set should hold, and whether the round number is exposed.
 
-**False as written.** `.tp/config.json` *does* register a check today — `code-citation-drift`, added
-at the project layer in commit `4d155a88` — and `tp config --resolved` reports it with
-`"source": "project"`, not `checks: []`.
+**Why the workaround works, and how it fails.** `engine.RunCommand` hands its command string to
+`sh -c` verbatim and substitutes nothing, so a project-layer registration reaches its spec through the
+shell instead: each `cmd` ends in
+`"$(tp resume 2>/dev/null | python3 -c 'import sys,json;print(json.load(sys.stdin)["spec"])')"`, which
+resolves at `13bfde30` to `spec/1.1.0.md`. Two checks are registered that way today —
+`code-citation-drift` and `method-only-in-ungraded-sidecar`, both reported by `tp config --resolved`
+with `"source": "project"` — and the same absence of substitution is why every task-file registration
+hardcodes a path. A subshell in a committed config **fails silently when `tp resume` cannot answer.**
 
-**True, re-derived, and the reason the registration works.** `engine.RunCommand` hands its command
-string to `sh -c` verbatim and substitutes nothing, so the project registration reaches its spec
-through the shell instead: its `cmd` ends in
-`"$(tp resume 2>/dev/null | python3 -c 'import sys,json;print(json.load(sys.stdin)["spec"])')"`,
-which resolves at `HEAD` to `spec/1.0.0.md`. The same absence of substitution is why every task-file
-registration hardcodes a path — `0.31.2.tasks.json` registers `test-inventory-drift` against its own
-spec, `0.33.0.tasks.json` and `0.34.0.tasks.json` each register `code-citation-drift` against theirs.
+**The suppression hazard is real history and is only half closed.** The project-layer registration
+closes it for `code-citation-drift`; `test-inventory-drift` is still registered in one task file only,
+so the same hazard stands for it.
 
-**So the decision narrows, and it is the sharpest live item in this file.** It is no longer *whether a
-registration can outlive its release* — one now does. It is whether `checks[].cmd` should gain a
-first-class `{spec}` substitution in place of a subshell in a config field, which placeholders the set
-should hold, and whether the round number is exposed. A shell subshell in a committed config is a
-workaround that works and fails silently when `tp resume` cannot answer.
+**It settles** when a release takes `checks[].cmd` substitution. No pending spec under `spec/backlog/`
+proposes one — `spec/backlog/repair-locality.md` names `workflow.checks` once, in passing, and takes
+no decision on it — so nothing is currently scheduled to settle it.
 
-**The suppression hazard the entry names is real history and is only half closed.** tp tells every
-reviewer to stop reporting a mechanized class, so during the two releases `code-citation-drift` was
-registered per task file the class was suppressed, and when the registration died with the release
-nobody was told it had come back. The project-layer registration closes that for this class.
-`test-inventory-drift` is still registered in one task file only, so the same hazard stands for it.
+**Where the measurements are.** `spec/undecided-measurements.md` §A registered check that outlives its
+release — the two measurements that were false as written, and the per-task-file registrations.
 
 ### The write-deny fence's reach
 
@@ -525,9 +487,19 @@ Re-derived by running the hook rather than by reading it. `denied()` in
 a `Write` payload naming `/private/tmp/throwaway-copy/spec/.tp-review/1.0.0/state.json` — a path in no
 repository at all — the hook prints its scope-fence message and exits **2**.
 
+**The reach is wider than "writes", and wider than one file.** During the 2026-09-08 pass the
+installed hook refused two **read-only** MCP calls whose payloads merely *named* `.tp/config.json` and
+`spec/0.25.0.tasks.json`, one of them a batch whose other five operations touched neither. So the
+fence matches on any argument string in the payload: it reaches reads, and one fenced path in a
+batched multi-file call refuses the whole call.
+
 **Not a defect.** The fence is fail-closed and correct where it is meant to apply, and the reach costs
-a workaround rather than a wrong result. What has to be weighed is the other direction: an anchor that
-is wrong is a fence that silently stops fencing, and that is a worse failure than the one it removes.
+a workaround rather than a wrong result. What has to be weighed is the other direction: a wrong anchor
+is a fence that silently stops fencing, a worse failure than the one it removes.
+
+**It settles** when the hook matches on the tool's write *target* rather than on any argument string —
+at which point both halves of the reach close at once, and the anchor question becomes answerable
+against a target rather than against a payload.
 
 ### `frontmatter-key-namespace` — a fixture whose frontmatter configures nothing
 
@@ -547,49 +519,38 @@ repository during 1.0.1's audit:
    above and fixed by polarising the fixture — see `spec/1.0.1-measurements.md` §16 for the mutant
    that survived and the three panels measured.
 
-**Predicate 1 is the obvious one and it misses the defect that matters.** The second instance's key
-is *inside* `tp:`; a namespace check reads it as correct. Only a default-value check reaches it, and
-that is the one that cost a round to find, because a fixture in class 2 is green under a mutant that
-deletes the whole frontmatter read. Class 1 is the cheaper check and the shallower defect.
+**Prototype first, and expect it to die there.** Two things to measure before it reaches a spec:
 
-**Prototype first, and expect it to die there.** This repository's rule is that most candidate rules
-do. Two things to measure before it reaches a spec:
-
-- **The corpus is Go string literals, not markdown.** Swept at `HEAD`: **78** lines across **19** Go
-  files carry a literal `\n---`, and **zero** `.md` files under `internal/` carry a frontmatter
-  block. So the rule cannot be a `tp lint` rule over spec files — its subject is test source, which
-  puts it in the same family as `scripts/check-test-inventory.py` rather than in the lint table. Both
-  the file set and the parse are harder than a lint rule's.
+- **The corpus is Go string literals, not markdown.** Swept at `27f84468`: **78** lines across **19**
+  Go files carry a literal `\n---`, and **zero** `.md` files under `internal/` carry a frontmatter
+  block. Its subject is test source, which puts it in the same family as
+  `scripts/check-test-inventory.py` rather than in the lint table.
 - **Predicate 2's false-positive rate is unmeasured, and it has an obvious source**: a fixture may
   declare the default *on purpose*, as the control arm of a pair. A rule that cannot tell a control
   from a dud fires on both.
 
-**One instance of class 2 is not a class.** Predicate 1 has three; predicate 2 has one, and one
-instance is a bug report, not a rule. What would change that is a sweep of the other 18 files for
-fixtures whose declared value equals the parser's default — not run, and the honest reason the entry
-is here rather than in a release.
+**It settles** when the sweep of the other 18 files is run and predicate 2 has more than one instance.
+One instance is a bug report, not a rule.
+
+**Where the measurements are.** `spec/undecided-measurements.md` §`frontmatter-key-namespace`.
 
 ### A fenced command that runs and prints the wrong thing
 
 **The decision: what a fenced-command check compares its output against.** §4.1 of `spec/1.0.1.md`
 asks that every fenced command run and print something. That is a liveness check, and liveness is
-not truth.
+not truth: the instance that motivated this ran, exited 0, and printed a full set of numbers, not one
+of which was a figure the prose beside it stated. The repair to that instance has shipped — `README.md`
+now globs both round directories inside the fenced command and derives its counts there — which
+removes the instance and not the gap in the rule.
 
-**The instance, from this release's own audit round 3.** `README.md`'s *"What grounding finds"*
-block, added at `8dfa6fb3`, globbed only `spec/.tp-review/*/` — while this repository's ground rounds
-also live under `spec/backlog/.tp-review/*/`, the two-glob trap `CLAUDE.md` documents. The command
-ran, exited 0 and printed a full set of numbers; not one of them was a figure the prose beside it
-stated, and adding the second glob printed a third set again. Nothing in §4.1's rule can see that,
-because the rule's subject is whether output appeared. The repair was to add the second glob and
-delete the prose figures, which is what §4's own *"a number does not live in a spec, a reference
-does"* already asks for.
+**Prototype first, and expect it to die there.** The obvious predicate — compare each fenced command's
+output against the figures in the surrounding prose — needs a mapping from a figure in prose to a
+position in a command's output, and that mapping exists nowhere. The weaker one, *"a fenced derivation
+must not sit beside a literal number the prose asserts"*, is checkable and would fire across much of
+this corpus; whether it fires anywhere it should is unmeasured, against a bar of zero false positives.
 
-**Prototype first, and expect it to die there.** The obvious predicate — re-run each fenced command
-and compare its output against the figures in the surrounding prose — needs a mapping from a figure
-in prose to a position in a command's output, and that mapping exists nowhere. The weaker one, *"a
-fenced derivation must not sit beside a literal number the prose asserts"*, is checkable and would
-fire across much of this corpus; whether it fires anywhere it should is unmeasured, and this
-repository's bar is zero false positives at warning severity.
+**Where the measurements are.** `spec/undecided-measurements.md` §A fenced command that runs and
+prints the wrong thing.
 
 ### The `implementation-detail` lint over spec prose
 
@@ -618,16 +579,16 @@ measured piece of it; the rest is not.
 
 ### A sentence rewritten in answer to a finding is exempt from the cut for one round
 
-**The decision: whether a repair is graded once before the arms drop it, and in what form.** Measured
-on `spec/1.1.0.md`'s grounding and recorded in `spec/backlog/ground-command-friction-measurements.md`
-under "§11.1": a repair removed a quantifier, the shortened sentence fell below the arms' cut
-threshold, and the claim left the floor in the same edit that answered the finding — nothing in the
-round reports that. A third instance in the same document wrote a new requirement as a short
-standalone sentence that never entered the floor at all. The proposal is that a sentence rewritten in
-response to a finding is exempt from the cut for one round, so the repair is graded once; the cheapest
-form is not an exemption but a reported `cut` delta, since two of the three instances were repaired by
-the author the moment they saw the number. Neither the cost of the exemption nor whether it is
-expressible in the floor's own terms has been measured.
+**The decision: whether a repair is graded once before the arms drop it, and in what form.** The
+proposal is that a sentence rewritten in response to a finding is exempt from the cut for one round,
+so the repair is graded once; the cheapest form is not an exemption but a reported `cut` delta.
+Neither the cost of the exemption nor whether it is expressible in the floor's own terms has been
+measured, and that is what keeps it undecided.
+
+**Where the measurements are.** `spec/backlog/ground-command-friction-measurements.md` under "§11.1"
+carries the three instances; `spec/undecided-measurements.md` §A sentence rewritten in answer to a
+finding is exempt from the cut for one round summarises why the cheaper form is the one to cost first.
+
 ### Cross-site key agreement in the review prompt
 
 **The decision: whether the review prompt's three key-naming sites should name one set, and where the
@@ -635,29 +596,36 @@ source of truth would live.** `spec/1.1.0.md` §5 row 8 carried this as a SHALL 
 and it was cut — because satisfying it falls outside that release's scope, not because the sites
 disagreeing is desirable.
 
-**Measured at `c407bb7e`**, on `tp review spec/1.1.0.md --role implementer` and on a `tp audit`
-emission:
+**Re-measured at `13bfde30`** by reading the three sites, since the reading recorded at `c407bb7e`
+predates two changes to them:
 
 | site | keys it names |
 |---|---|
-| `findingFormat`'s JSON example (`internal/cli/review.go`) | `severity`, `category`, `location`, `finding`, `suggestion` |
+| `findingFormat`'s JSON example (`internal/cli/review.go`) | `severity`, `category`, `location`, `finding`, `evidence`, `suggestion` |
 | the optional-`class` sentence beside it | `class` |
-| `outputContractInstruction` | `role`, `location`, `class`, `severity` |
+| `outputContractInstruction`, review branch | `role`, `location`, `class`, `severity`, `evidence` |
 
-The three differ by design, and each obvious way to equalise them costs something a release would
-have to decide about first:
+`evidence` is common to the first and third (it reached the contract block *after* `a4fd187f`); what
+still differs is `category`, `finding` and `suggestion` in the example alone, against `role` and
+`class` in the contract alone. Each obvious way to equalise them costs something a release would have
+to decide first: `outputContractInstruction` is shared with the audit phase, so editing it changes the
+audit prompt too; dropping `category` from the example empties `by_category`, a key
+`tp review --report` ships; and naming one set promotes `class` from *Optional* to mandatory.
 
-- `outputContractInstruction` is **shared with the audit phase** — called from `review.go`,
-  `review_regression.go` and `audit_roles.go`, and all four auditor prompts carry the block. Editing
-  it to match the review example changes the audit prompt too.
-- Dropping `category` from the example to match the contract block empties `by_category`, a key
-  `tp review --report` ships (`internal/cli/review_report.go`).
-- Making the three name one set promotes `class` — labelled *Optional* in the sentence beside the
-  example — to mandatory.
+**One more thing belongs to this same decision, routed from `spec/0.35.0-candidates.md` item 13**: the
+review-side `category` enum is a bare string literal inside the prompt template, with no constant, no
+validator and no sink check, while the audit side declares typed constants with a validator
+(`internal/engine/audit_category.go`) and rejects anything else at the record sink. One field name,
+two disjoint vocabularies, two standards — and whether the review enum should be validated is not
+separable from which set the three sites should name.
 
 **What has no answer is which set is right**, not how to render one set at three sites. A release
 that takes this fixes the required set for both phases at once, or states why the two phases keep
 different ones; that is the decision nobody has taken.
+
+**Where the measurements are.** `spec/undecided-measurements.md` §Cross-site key agreement in the
+review prompt — the `c407bb7e` reading, why both stale rows went stale, and the cost of each way of
+equalising the three.
 
 ### `NewRootCmd` writes package globals
 
@@ -665,37 +633,25 @@ different ones; that is the decision nobody has taken.
 the package globals become explicitly single-writer with the constructor refusing a second call.** The
 first is the real repair and is a wider change than it looks — it changes how every flag's default is
 read; the second is a fence and would have caught the instance below on the first parallel test rather
-than the thirtieth. Neither has been taken. It was recorded in `spec/backlog/gate-sequence.md` as a
-gate step that is green on the first run and red on the second — the same class as that spec's
-load-sensitive test, arriving by a different route — and moved here because that spec takes no
-decision on it and no row of its tests depends on it.
+than the thirtieth. Neither has been taken.
 
-**Measured during `spec/1.0.1.md`'s implementation.** A unit ran the four-step gate, got four zeroes,
-made an unrelated edit, ran it again, and step 1 failed with data races in tests it had never
-touched. Isolated: the two tests `TestSkillFlagInventoryIsComplete` and
-`TestSkillFlagInventoryRecordsOnlyWhatExists` each construct a root command, both are `t.Parallel()`,
-and `NewRootCmd()` binds tp's **package-level** flag variables through pflag. Run alone under `-race`
-the pair reports **30 races per run**. It reproduces on a tree five commits earlier and originates at
-`fa68051b`, *"mark every eligible top-level test parallel — 50.9s to ~14s"*: the parallelism was the
-speedup, and the shared globals were already there.
+**Provenance.** Recorded in `spec/backlog/gate-sequence.md` as a gate step that is green on the first
+run and red on the second, and moved here because that spec takes no decision on it and no row of its
+tests depends on it. The gate-defect argument stays there and is not re-made here.
 
-**Why it is a gate defect and not only a test defect.** The defect is invisible without `-race` and
-timing-dependent with it, so whether the gate reddens is a property of machine load rather than of the
-code under test. A gate that passes once and fails once teaches its operator to re-run rather than to
-look.
+**The instance, in two sentences.** Two parallel tests that each construct a root command report **30
+races per run** under `-race`, because `NewRootCmd()` binds tp's package-level flag variables through
+pflag. It was **closed test-side, not at the source**: `3b9204e1` added a mutex-guarded
+`newRootCmdForTest()` and the races went to zero, leaving the design smell — a constructor that writes
+package globals — for every future parallel test to inherit.
 
-**Closed test-side, not at the source.** `3b9204e1` added a mutex-guarded `newRootCmdForTest()` and
-the races went to zero. The design smell stands: **a constructor that writes package globals**, so
-every future parallel test that builds a root command inherits the same trap, and the fix is a
-convention nothing enforces.
+**Is this only a test problem? Answered by counting rather than left open.** At `13bfde30`,
+`NewRootCmd` is defined in `internal/cli/root.go` and called from exactly one production site,
+`Execute()` in the same file, which `cmd/tp/main.go` calls once — so today it is test-only. What makes
+it a design defect rather than a test defect is that **nothing says so**: a second in-process caller
+would share the flag variables silently, and would find out the way the gate did.
 
-**Is this only a test problem? Answered by counting rather than left open.** At `HEAD`, `NewRootCmd`
-is defined in `internal/cli/root.go` and called from exactly one production site, `Execute()` in the
-same file, which `cmd/tp/main.go` calls once — so a shipped `tp` process constructs one root command
-and the globals are never contended. Today it is test-only. What makes it a design defect rather than
-a test defect is that **nothing says so**: a second in-process caller — an embedding host, an
-in-process driver, a future `tp` subcommand that shells to itself in-process — would share the flag
-variables silently, and would find out the way the gate did.
+**Where the measurements are.** `spec/undecided-measurements.md` §`NewRootCmd` writes package globals.
 
 ### `t.Parallel()` in the engine package
 
@@ -707,170 +663,137 @@ efficacy and the timeout count rather than on wall time.** Until that measuremen
 decision on it and no row of its tests depends on it.
 
 **The undecided part is `internal/engine` alone**, for one reason: that is the package
-`gremlins unleash ./internal/engine` mutates, and the expensive one. The `internal/cli` half is not
-part of this question: `fa68051b`, *"mark every eligible top-level test parallel — 50.9s to ~14s"*,
-applied it, and the count of `t.Parallel()` calls in the repository is a derivation rather than a
-figure to quote — `rg -c 't\.Parallel\(\)' -g '*_test.go' --no-filename | paste -sd+ | bc` — because
-it moves with every test added. What the candidate entry claimed for that half, re-derived at the
-time it was moved, with the counting rule beside each figure and the ones that did not reproduce
-marked as such:
+`gremlins unleash ./internal/engine` mutates. gremlins runs the mutated package's own tests once per
+mutant, those runs are already measured as load-sensitive, and `t.Parallel()` multiplies concurrency
+*inside* each mutant by gremlins' own `--workers`. The `internal/cli` half is settled — `fa68051b`
+applied it there — and the call count is a derivation, not a figure to quote:
+`rg -c 't\.Parallel\(\)' -g '*_test.go' --no-filename | paste -sd+ | bc`.
 
-| the entry's figure | re-derived | how it was derived |
-|---|---|---|
-| `internal/cli` is **1,743** serial test functions | **does not reproduce as an `internal/cli` figure.** The package holds **1,051** top-level `func Test…`; **1,781** is the *repository-wide* count, which is what 1,743 tracks | `rg '^func Test' internal/cli --no-filename \| wc -l` against `rg '^func Test' -g '*_test.go' --no-filename \| wc -l` |
-| **1,116** of them fork the tp binary | **the counting rule decides which number this is.** `runTP(` appears at **1,120** *call sites*; **736** top-level test *functions* have a body calling any `runTP*` helper | `rg -o 'runTP\(' internal/cli --no-filename \| wc -l`, against a `re.split(r'(?m)^func ', src)` walk over `internal/cli/*_test.go` counting bodies matching `\brunTP[A-Za-z]*\(` |
-| I/O-bound at **8%** of ten cores — **39.7 s** CPU inside **50.5 s** wall | **holds in shape.** First run in a fresh copy: `real 47.37 user 16.14 sys 20.75` — **36.9 s** CPU inside **47.4 s** wall, **7.8%** of ten cores | `/usr/bin/time -p go test ./internal/cli -count=1` in an `rsync -a --exclude .git` copy |
-| the **7** files that `t.Chdir` are skipped, because Go panics on the pair | **holds exactly: 7** | `rg -l 't\.Chdir' internal/cli \| wc -l` |
-| **zero** `os.Setenv` in the package | **holds: 0.** The package-level-variable-write half of that claim was not re-derived | `rg -c 'os\.Setenv' internal/cli \| wc -l` |
-| **54 s → 14 s**, and **15.8 s** under `-race`, four consecutive green runs, `go vet` clean | **borrowed, not re-run.** Measured in an `rsync` copy at v1.0.0's audit round 5; that copy is gone, and the 54 s baseline reads 47.0 s in row 3 | — |
+**The protocol that paired run needs.** Each arm must be the **first** gremlins run in its own fresh
+`rsync -a --exclude .git` copy — one for the serial tree, one for the parallelized tree, neither
+directory reused. Without that the "after" arm is confounded by run order: it returns the corruption
+signature and reads as a mutation signal `t.Parallel()` destroyed. Watching for `Lived: 0` beside
+`Not covered > 0` is **not** a substitute — that signature is necessary under the corruption and not
+sufficient, and the argv does not settle it either. The mechanism is unknown, and a protocol that
+works without one is what the paired run needs.
 
-**Why `internal/engine` is the half that stays undecided.** gremlins runs the mutated package's
-**own** tests once per mutant. This repository has already measured those runs as load-sensitive —
-`CLAUDE.md` records the same package at **92** timeouts busy against **88** idle, and default settings
-driving load average from **8** to **177** (`grep -n 'load average' CLAUDE.md`) — and `t.Parallel()`
-multiplies concurrency *inside* each mutant by gremlins' own `--workers`. So the question is whether
-parallelizing `internal/engine` leaves the mutation signal intact.
-
-**The protocol that paired run needs, which the candidate entry did not state.** The entry closed by
-telling the reader to watch for `Lived: 0` beside `Not covered > 0`. That instruction is stale:
-`spec/backlog/mutation-run-check-measurements.md` measures both halves under "Neither the file nor
-the argv settles it" — the signature is **necessary under the corruption and not sufficient**, an
-honest two-file probe reaches it with no flags at all, and **the argv does not settle it either**,
-because a later run in a directory that already held one returns the refused signature with no
-`--test-cpu` anywhere in it. **So each arm must be the FIRST gremlins run in its own fresh
-`rsync -a --exclude .git` copy** — one copy for the serial tree, one for the parallelized tree,
-neither directory reused. Without that the "after" arm is confounded by run order and the experiment
-answers nothing: it would return the refused signature and read as a mutation signal that
-`t.Parallel()` destroyed. The mechanism behind the run-order effect is unknown; it was not chased past
-ruling out the test cache, and nothing here proposes one. A protocol that works without a mechanism
-is what the paired run needs; a guess at the mechanism is not.
+**Where the measurements are.** `spec/backlog/mutation-run-check-measurements.md` under "Neither the
+file nor the argv settles it"; `spec/undecided-measurements.md` §`t.Parallel()` in the engine package
+holds the six-row re-derivation of the `internal/cli` figures, which audit the half this decision
+excludes.
 
 ### A prior-round section for `tp review`
 
-**The decision nobody has taken is whether `tp review` should have one at all.** Carried in from
-`spec/candidates.md` by way of the repair-locality spec, which took no decision on it and whose tests
-do not depend on it.
+**The decision nobody has taken is whether `tp review` should have one at all.** Routed from
+`spec/candidates.md`, whose forwarding table points here; `spec/backlog/repair-locality.md` names the
+question and explicitly declines to decide it.
 
-**What the audit phase does.** `loadAuditPriorRound` (`internal/cli/audit.go`) reads the previous
-recorded audit round and returns, per role, that role's **own** non-PASS rows;
-`renderPriorRoundSection` (`internal/cli/audit_roles.go`) renders them into a round-2+ prompt under
-the heading *"Prior Round: context to re-check, not a verdict to repeat"*, with the instruction
-*"Re-check each item against the code and record your own status. Do NOT repeat the prior verdict
-without verifying."* It returns the empty string when the role has no prior non-PASS rows, so a
-round-1 prompt and an all-PASS role carry no section at all. `filesChangedSince` in the same file
-tells the role whether its evidence file moved since that round, which is what makes the re-check
-answerable rather than rhetorical. So the audit phase hands a role a bounded, role-scoped set of its
-own judgements and forces a commitment on each. That is the shape whose absence on the review side is
-the question.
+**What the two phases do, in one sentence each.** The audit phase hands a role its **own** prior
+non-PASS rows and forces a commitment on each — `loadAuditPriorRound` (`internal/cli/audit.go`)
+selects them, `renderPriorRoundSection` (`internal/cli/audit_roles.go`) renders them under *"Prior
+Round: context to re-check, not a verdict to repeat"*. Review shows the whole panel everyone's rows
+and asks for the opposite — `buildFindingsSummary` (`internal/cli/review.go`) emits `UNRESOLVED
+findings from previous rounds — DO NOT re-report:`, panel-wide, capped and truncated.
 
-**Review carries something, of a different kind.** A search for prior-round machinery by that name in
-the review path returns **0** — `rg -n -i 'priorRound|prior round|prior-round|PriorRow' internal/cli/review.go internal/cli/review_*.go`.
-But `buildFindingsSummary` (`internal/cli/review.go`) does put previous rounds into every review
-prompt, under a heading that asks for the opposite of a re-check — `UNRESOLVED findings from previous
-rounds — DO NOT re-report:` — and a second block, `Resolved high/critical (DO NOT regress):`, both
-locatable with `rg -n 'DO NOT re-report|DO NOT regress' internal/cli/review.go`. Its shape differs
-from the audit section on every axis: it is **panel-wide rather than role-scoped**, it is capped at 50
-rows with the remainder reported only as a count, each finding is truncated to 80 characters and a
-`wontfix` row's evidence to 40, and its input is the `--findings` file or the loaded round state
-rather than the recorded round read per role.
+**So the two phases differ in kind, not in presence.** A re-verification ask and a suppression ask are
+not the same instrument, and this repository has already measured what an unexamined suppression costs
+elsewhere in the loop.
 
-**So the two phases differ in kind, not in presence.** The audit returns a role its own rows and
-obliges it to re-verify each; review shows the whole panel everyone's rows and obliges it to stay
-quiet about them. A re-verification ask and a suppression ask are not the same instrument, and this
-repository has already measured what an unexamined suppression costs elsewhere in the loop.
+**It settles** only on a measurement that does not exist: whether returning a reviewer its own prior
+rows raises the share of findings sitting in text the round before wrote, or lowers it. A number
+nobody has acted on yet is not a rule, and it is not an argument for a mechanism either.
 
-**No measurement says which way that cuts.** The repair-locality figures are about the adjacent
-surface — findings sitting in text the round before wrote — but a share and a ratio cannot say whether
-returning a reviewer its own prior rows would raise that share (the role re-treads its own ground) or
-lower it (the role withdraws instead of re-filing). A number nobody has acted on yet is not a rule,
-and it is not an argument for a mechanism either.
-### From the rows spec: four questions
+**Where the measurements are.** `spec/undecided-measurements.md` §A prior-round section for
+`tp review` — both mechanics in full, and why the repair-locality figures cannot settle it.
 
-**This entry takes no decision.** Four questions were carried in `02b-what-a-rounds-rows-say.md` §5a,
-which moved them out of `spec/candidates.md` into the release that owned their subject; that file is
-now a forwarding stub and the questions live here. A spec that presented one of these as settled would
-be worse than not moving it: their *design* has no answer.
+### A durable home for an accepted finding
 
-**A durable home for an accepted finding.** The decision nobody has taken is the target shape. An
-accepted finding stops blocking (`a-finding-can-leave-an-audit-round.md`) — this is the durability
-half: an audit finding has three ends (fix it, reject it, accept it as backlog), tp records all three
-the same way in `.tp-review/<spec>/`, and that directory is archived at release along with the spec.
-There is no supported path from *accepted* to something a maintainer trips over later. A deferral
-whose stated reason is self-renewing can be re-derived every round forever, and its only record is
-scheduled for archival on the very release it is deferred past. This repository has been working
-around it by hand for four cycles: the candidates files are that durable target, maintained by an
-operator. Three options were named and none chosen; the candidates row records only their number, and
-the three themselves survive in git, in the pre-2026-09-02 spec that carried this subject —
-`git show 3a83be30:spec/0.41.0.md`, whose §2 is *Mechanism*. That filename corresponds to no file
-under `spec/` or `spec/backlog/` today — the 2026-09-02 renumbering moved every number and the slug
-sweep removed them — which is why the commit is cited rather than a path at `HEAD`. The three: a
-checklist file at a stable path, appended to rather than rewritten; an issue template written to disk
-for the operator to file; a `TODO` entry with an owner and the finding's `item_id`. What decides
-between them is a property rather than a preference, and it is the part already agreed: *the target
-must be readable by the next cycle's decomposition without a human remembering it exists.* An option
-that only works when someone happens to open it is not better than the round directory it replaces.
+**The decision: the target shape.** An audit finding has three ends — fix it, reject it, accept it as
+backlog — tp records all three the same way in `.tp-review/<spec>/`, a directory archived at release
+along with the spec. There is no supported path from *accepted* to something a maintainer trips over
+later. Three target shapes were named and none chosen.
 
-**Making `severity` checkable.** The decision nobody has taken is what could check it that is not the
-row's author. A non-`PASS` row's severity is self-declared: the prompt renders the requirement and
-nothing validates what comes back. `internal/cli/audit_record.go` validates **`category`** alone,
-through `invalidCategoryRows` — there is no severity equivalent. One clause of the original entry was
-stale and is corrected here rather than carried: it said *"nothing on the audit path reads the
-field"*. At `HEAD` two paths read it: `internal/engine/auditclean.go`'s `AuditSeverityBucket` and
-`advisoryAuditSeverities` grade on it whenever `audit_converge_on` is `blocking` (v0.37.0), and
-`tp audit --merge` buckets `by_severity` through the same classifier. What survives is narrower and
-still the point: **nothing validates it**, and under the resolved default — `tp config --resolved`
-reports `audit_converge_on` at `all`, source `default` — no grading path reads it at all. Two
-mechanisms were drafted and both withdrawn within a round. Rejecting an out-of-enum severity at
-`--record` inverts its own precedent: the category sink returns early on an *empty* category —
-`if category == "" || engine.IsValidCategory(category)` in `invalidCategoryRows.observe` — and that
-early return is pinned deliberately by `TestParseAuditRows_AcceptsTheEnumAndAbsentCategory` in
-`internal/cli/audit_category_sink_test.go`, whose comment gives the reason: *"treating that as invalid
-would reject every clean round."* (Cite the symbol and the test name, not a line.) And it would refuse
-fifteen of this repository's own recorded round files — **15 of 108** at `HEAD`, counting an audit
-round file `spec/.tp-review/*/audit-round-*.ndjson` holding at least one row whose `severity` is
-present and outside the audit vocabulary `{error, warning, info}` that `auditclean.go` defines. The
-offending values are the *review* vocabulary leaking into audit files, and the fifteen are 0.29.0
-rounds 1–2, 0.30.0 round 1, 0.31.0 round 1, 0.31.2 rounds 1–5 and 0.32.0 rounds 1–6. The review side
-is clean under its own vocabulary: **0 of 172** review round files carry a severity outside
-`{critical, high, medium, low}`. And validation cannot deliver what it was introduced for: it makes a
-label well-formed, never truthful, and it cannot make an unrun round run.
+**What is already agreed, and is the property that decides between them**: the target must be readable
+by the next cycle's decomposition without a human remembering it exists.
 
-**An audit-side `nonblocking_open`.** The decision nobody has taken is whether to invert a guard that
-pins the key's absence. Under `audit_converge_on=blocking` a clean round can carry `warning` and
-`info` rows — `clean: true` with `findings: 1` is a built fixture — so the audit phase now has the
-accepted-open state the review-side field was built to make visible. The count is already emitted;
-what is missing is the breakdown. `role_streaks[].open` is that count and it is **severity-blind**:
-`engine.RoleStreak`'s `Open` is documented in `internal/engine/rolestreaks.go` as the role's *non-PASS
-row count in that latest round*, with no reference to severity. It reaches both `tp audit --status`
-and `tp audit --record`, and `tp run --status` on an audit-phase stop, through `auditSignalFields` in
-`internal/cli/audit_record.go` — anchor on that function, not a line. Four places pin the key's
-absence by name, and all four are present at `HEAD`: `spec/0.31.0.md` §8.4 — *"`nonblocking_open` is
-review-only (audit convergence has no non-blocking notion, §4.4) and is never an audit field"*; that
-spec's test 18, which repeats it as an acceptance row; `skills/tp/REFERENCE.md`'s `--compact`
-disposition paragraph, which marks the field *"(review-only, emitted only on an accepted-open clean
-round)"* — cited by that phrase, because its line number has moved; and
-`TestReviewNonBlockingOpen_AuditUnaffected` in `internal/cli/reviewconvergeon_clean_test.go`, which
-asserts that neither `tp audit --record` nor `tp audit --status` emits the key. A fifth statement
-exists and is a comment rather than a guard: `internal/engine/reviewclean.go`'s *"Review-only: no
-audit payload carries nonblocking_open."* No release has decided to invert any of them. The
-`tp audit --merge` breakdown is a different surface and shipped separately — it buckets `by_severity`
-through `engine.AuditSeverityBucket` in `internal/cli/audit_merge.go`, on the merged payload rather
-than on the round's convergence signal.
+**It would extend `spec/backlog/a-finding-can-leave-an-audit-round.md`**, which ships only the
+stops-blocking half of the same subject: that release makes an accepted finding stop gating a round
+and says nothing about where it then lives.
 
-**A review-side `accepted_blocking`.** The decision nobody has taken is whether an accepted blocking
-finding gets a counter of its own. The review side already emits `nonblocking_open`, and it fires only
-for the case that does not matter. Measured at `5058fc99` on three one-round trees built from the same
-spec: a round recorded from a zero-byte findings file — `clean: true`, `consecutive_clean: 1`; a round
-holding one `critical` finding resolved `wontfix` with evidence — `clean: true`,
-`consecutive_clean: 1`; a round holding one **open** `medium` finding — `clean: true`,
-`consecutive_clean: 1`, and `nonblocking_open: 1`. `tp review <spec> --status` on the first two returns
-payloads whose **key sets are identical** — the symmetric difference is empty — so no key names the
-accepted critical. The only value that moves is `review_rounds[].findings`, 0 against 1, which says
-nothing about severity or disposition. The third differs from the first by exactly one key,
-`nonblocking_open`. So the surface announces the harmless case and is silent on the one a reader would
-want stopped at. An `accepted_blocking` count — rows excluded from the surviving set whose severity is
-blocking — would close it. It is review-side, true at `HEAD`, and depends on nothing any pending spec
-proposes.
+**Where the measurements are.** `spec/undecided-measurements.md` §From the rows spec — the three
+options as they survive in `git show 3a83be30:spec/0.41.0.md` §2.
+
+### Making `severity` checkable
+
+**The decision: what could check a severity that is not the row's author.** A non-`PASS` row's severity
+is self-declared: the prompt renders the requirement and nothing validates what comes back.
+`invalidCategoryRows` in `internal/cli/audit_record.go` validates **`category`** alone — that
+asymmetry is the current behaviour this entry pins. Two mechanisms were drafted and both withdrawn
+within a round: a `--record` rejection inverts the category sink's own precedent, and would refuse a
+measurable share of this repository's recorded round files.
+
+Counting rule for that share — a round file holding at least one row whose `severity` is present and
+outside its phase's vocabulary:
+
+```bash
+python3 - <<'PY'
+import json,glob
+def scan(globs, vocab):
+    files=[f for g in globs for f in sorted(glob.glob(g))]
+    bad=[f for f in files if any(json.loads(l).get("severity") and
+         json.loads(l).get("severity") not in vocab for l in open(f) if l.strip())]
+    return len(files), len(bad)
+print("audit round files %d, off-vocabulary %d" % scan(
+    ["spec/.tp-review/*/audit-round-*.ndjson","spec/backlog/.tp-review/*/audit-round-*.ndjson"],
+    {"error","warning","info"}))
+print("review round files %d, off-vocabulary %d" % scan(
+    ["spec/.tp-review/*/review-round-*.ndjson","spec/backlog/.tp-review/*/review-round-*.ndjson"],
+    {"critical","high","medium","low"}))
+PY
+```
+
+**Its acceptance channel is `spec/backlog/a-finding-can-leave-an-audit-round.md`**, whose test row 1b
+grades acceptance from the row's `severity` under `audit_converge_on: blocking` — so that release
+makes severity load-bearing without making it checkable. `spec/backlog/refusals-that-name-nothing.md`
+is the secondary reader.
+
+**Where the measurements are.** `spec/undecided-measurements.md` §From the rows spec — the category
+sink's early return and the test that pins it, the corrected "nothing reads the field" clause, and the
+fifteen offending round files by cycle.
+
+### An audit-side `nonblocking_open`
+
+**The decision: whether to invert a guard that pins the key's absence.** Under
+`audit_converge_on=blocking` a clean round can carry `warning` and `info` rows, so the audit phase now
+has the accepted-open state the review-side field was built to make visible. The count is emitted;
+what is missing is the breakdown. `engine.RoleStreak`'s `Open` (`internal/engine/rolestreaks.go`) is
+that count and it is **severity-blind** — documented there as the role's non-PASS row count in the
+latest round, with no reference to severity — and it reaches the payloads through `auditSignalFields`
+in `internal/cli/audit_record.go`. Four places pin the key's absence by name and a fifth states it in
+a comment; no release has decided to invert any of them.
+
+**It is unowned.** `nonblocking_open` appears nowhere under `spec/backlog/` — a regex sweep of every
+file there returns zero matches — so no pending spec proposes, forbids or schedules this. It is the
+only one of these four questions with no adjacent release at all.
+
+**Where the measurements are.** `spec/undecided-measurements.md` §From the rows spec — the four
+pinning places and the fifth comment, each cited by symbol or by phrase rather than by line.
+
+### A review-side `accepted_blocking`
+
+**The decision: whether an accepted blocking finding gets a counter of its own.** The review side
+already emits `nonblocking_open` and it fires only for the case that does not matter: a probe on three
+one-round trees found a round whose only finding is a `critical` resolved `wontfix` returning a
+payload whose **key set is identical** to a round recorded from an empty findings file, while a round
+holding one open `medium` gains a key. The surface announces the harmless case and is silent on the
+one a reader would want stopped at.
+
+**Where it would sit.** `spec/backlog/a-findings-exits-agree.md` §2 rewrites `unresolved_findings` on
+exactly the payload an `accepted_blocking` count would join, and gives it three siblings bound by an
+identity — so that release fixes the shape of the payload without adding this counter to it.
+
+**Where the measurements are.** `spec/undecided-measurements.md` §From the rows spec — the three-tree
+probe at `5058fc99`, with each tree's `clean`, `consecutive_clean` and key-set difference.
 
 ### The scope pass — whether a section should exist
 
@@ -881,6 +804,61 @@ both directions, cross-role agreement is a coin flip, goal-entailment self-confi
 in the same sitting. A forensics trim was the first proposal and was refuted by a field report that
 classified its own diffs. The measurements, the refuted reading and the open questions are in
 `spec/trim-pass.md`, which is this entry's measurements file and not a backlog spec.
+
+### `scope` on audit rows
+
+**The decision: whether an audit row carries `scope: spec | codebase`, and who assigns it.** Three
+shapes have been named and none costed — a second role classifying independently, a mechanical rule
+derived from the checklist item rather than from the finding, or an operator confirmation per label.
+The objection that has deferred it four times: `scope` is a judgement made by the very sub-agent that
+wrote the row, so one row mislabelled `codebase` lets a genuine spec violation ship — strictly worse
+than today's rule of over-counting and wasting rounds.
+
+**Deferred four times, each time on the record**: v0.33.0 Non-Goal 1, `spec/0.34.0-candidates.md` item
+1, `spec/0.35.0-candidates.md` item 14, and `spec/0.37.0.md` §2/§5. Current behaviour is pinned by the
+row schema in `internal/cli/audit_schema.go`, which declares `category` and `severity` and no `scope`.
+
+**One premise it was carried on has since been falsified.** It was paired with `audit_converge_on` on
+the argument that the knob depends on a scope label; v0.37.0 shipped that knob keyed on **`severity`**
+instead, so the two are no longer one decision.
+
+**It unblocks two backlog specs.** `spec/backlog/round-knows-its-panel.md` §4a scopes convergence by
+**role** (`audit_converge_roles`); a trustworthy `scope` is the field convergence would be scoped on
+instead. `spec/backlog/a-finding-can-leave-an-audit-round.md` is the other: an accepted finding's
+scope is what a maintainer needs when the acceptance is re-read. It sits beside *Making `severity`
+checkable* above, and for the same reason — both ask what makes a self-declared label trustworthy
+enough to gate on.
+
+### Cross-repo specs
+
+**The decision: whether a spec may name tasks in another repository at all, and if so where its task
+file lives.** Routed from `spec/0.33.0-candidates.md` item 7, which records that at least one team
+already works this way — plan in one repo, run agents in both — and that the file-selection and
+`commit_shas` paths both assume one repo root.
+
+**No design pass exists.** The only adjacent statement anywhere in the corpus is a non-goal:
+`spec/0.31.2.md` names *"Cross-repository task execution"* and says a per-task working directory and
+quality gate are a separate release. That defers the work; it does not answer either half of the
+decision.
+
+**It reopens** when a field cycle asks for it. Nothing in this repository's own use exercises it, so
+prototyping here would measure a corpus of one that does not need the feature.
+
+### Which channel a degraded scan reports on
+
+**The decision: one rule for the channel a degraded result reports on.** Two repairs of the same defect
+class — a scan that could not be performed reporting as one that came back clean — chose different
+channels, and both shipped. `internal/cli/validate_project.go` reports an incomplete scan on **both**:
+an `output.Notice` on stderr *and* a `skipped` entry in the payload. `runStateOf` in
+`internal/cli/run_status.go` reports an unprobeable run lock as a **notice only**, returning
+`in_flight` with no payload field — so under `--quiet` it is indistinguishable from a live run.
+
+**Routed from `spec/0.35.0-candidates.md` item 17**, which measured the second half by making
+`.tp/locks` a regular file and running `tp run --status --quiet`.
+
+**It settles with *The evidence contract* above**, which owns the general question of which channel a
+loop signal travels on; deciding this one alone would fix a rule for two call sites while leaving the
+principle unstated.
 
 ---
 
@@ -894,3 +872,16 @@ into confident-looking entries it does not yet deserve.
 - **Whether the emission's prohibitions are worth sweeping.** 14% of the review prompt and 12% of
   `CLAUDE.md` steer by ban. A few of those are hard guardrails that earn it. No measurement separates
   the two, and a rewrite without one is prose churn.
+- **No instrument exists for a duplicated Go doc comment.** tp's own `duplicate-paragraph` lint
+  reports exactly this shape in a spec and cannot see it in the language tp is written in: `dupl`
+  reads tokens rather than comments, and no other enabled linter looks at comment text. Routed from
+  `spec/0.35.0-candidates.md` item 12, which found a live instance in `internal/model/io.go` that had
+  shipped since v0.29.0. What is not yet statable is whether the subject is comments, doc comments, or
+  any duplicated span a token-based linter cannot see.
+- **No sentence-level "two homes" instrument exists.** The count that scores how much one statement is
+  duplicated across two documents reads **headings**, while the duplications it is meant to find live
+  in bullets inside sections both documents legitimately keep — so cutting twelve duplicated statements
+  moved the figure by one. Routed from `spec/0.35.0-candidates.md` item 10. The number is a floor and a
+  weak one; a sentence-level comparison is what actually found the duplicates, and what a future check
+  should run. What is not yet statable is the unit it would compare and what makes two sentences the
+  same statement.
