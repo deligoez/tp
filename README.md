@@ -487,6 +487,8 @@ tp is designed for AI agents first (AX), not humans (DX):
 | **Honest merges** | `--merge` reports `inputs` per file and exits 1 when a role's whole file failed to parse |
 | **One prompt per unit** | `tp review`/`tp audit --role <name>` emit a single role's prompt, so a lost sub-agent costs one role, not the round |
 | **Honest audits** | `file_summary.truncated`/`total_changed` put the 50-file cap in the payload, where `--quiet` cannot erase it |
+| **Evidence at record** | every finding row needs `severity`, `finding`, `location` and `evidence`, each non-empty after `strings.TrimSpace`; `--record` refuses the whole file and names every offending line, `--merge` drops the row and counts it under `inputs[].skipped` |
+| **A refused merge writes nothing** | `tp review --merge -o <path>` declines the write when an input parsed nothing, so a refused merge leaves no file there and an existing one byte-identical, and `--record` then exits 3 on the missing input |
 
 ## Claude Code Integration
 
