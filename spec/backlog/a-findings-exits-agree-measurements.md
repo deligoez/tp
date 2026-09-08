@@ -181,3 +181,23 @@ and the spec must not claim the wording is the mechanism:
 4. Reader inattention.
 
 Cause 3 also contradicts the spec's earlier §7 usage line, which offered `fixed` among the dispositions.
+
+## Routed here at the 2026-09-08 re-verification
+
+Two items from the candidates files land on this spec's subject. They are recorded in this sidecar;
+the spec body is not edited.
+
+- **`tp review --resolve-all --severity <sev>` does not exist.** `internal/cli/review.go` registers
+  `--resolve-all` as a bare bool (`cmd.Flags().BoolVar(&resolveAllMode, "resolve-all", false, …)`)
+  and rejects modifier flags in that mode, so the only way to accept a subset is one `--resolve` per
+  index. This bears on the exit `a-finding-can-leave-an-audit-round.md` proposes: that exit rests on
+  a shared-justification `--resolve-all`, and a severity filter is what makes it cheap enough to use
+  — accept the advisory rows in one call, leave the blocking ones open. Source:
+  `spec/0.33.0-candidates.md` item 6.
+- **The review-side category enum is unvalidated at every sink.** The audit side validates through
+  `internal/engine/audit_category.go`; the review side carries its enum only as a prompt literal in
+  `internal/cli/review.go`, `findingFormat`, and nothing at `--merge`, `--record` or `--status`
+  checks what comes back against it. The design question — whether one vocabulary should be shared
+  across the two prompts — is registered in `spec/undecided.md`, *Cross-site key agreement in the
+  review prompt*; what belongs to this spec is that two exits disagree about the same field. Source:
+  `spec/0.35.0-candidates.md` item 13.
