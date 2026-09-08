@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/deligoez/tp/internal/output"
@@ -39,12 +40,71 @@ func droppedInputs(inputs []mergeInputCounts) []string {
 	return dropped
 }
 
-// finishMerge applies §8a.4's exit rule after the merge has already emitted its
-// payload: the surviving roles still merge and `-o` is still written, because
-// the accounting an operator reads is in that payload — only the exit code
-// changes, since an unattended driver reads nothing else. encodeErr is the
-// payload's own write error and is reported first: a merge that could not emit
-// has nothing to say about its inputs.
+// writeMergeOutput writes `tp review --merge`'s NDJSON to `-o`, or refuses to
+// touch that path at all when the merge is already going to exit non-zero (§5
+// row 10). It reports whether it wrote, so the caller names `output_path` in
+// the summary only when a file is actually there. `tp audit --merge` does not
+// call it: §4 fences this release out of the audit phase, so that merge still
+// writes before it refuses.
+//
+// The refusal is keyed on `dropped`, never on how many rows survived: a
+// converged round's inputs hold no content line, drop nothing, and still get
+// the zero-byte `-o` the review loop reads as "nothing found".
+//
+// The write itself goes to a temporary file in the destination's own directory
+// and is renamed on success, so a failed write leaves neither a truncated `-o`
+// nor the temporary beside it.
+func writeMergeOutput(outputPath, ndjson string, dropped []string) bool {
+	if len(dropped) > 0 {
+		return false
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(outputPath), filepath.Base(outputPath)+".tp-merge-*")
+	if err != nil {
+		failMergeOutput(err)
+		return false
+	}
+	// One failure path, so the temporary file is removed however the write
+	// ends: a partial temporary left beside `-o` is the thing this shape is
+	// here to prevent.
+	name := tmp.Name()
+	_, err = tmp.WriteString(ndjson)
+	if closeErr := tmp.Close(); err == nil {
+		err = closeErr
+	}
+	if err == nil {
+		err = os.Rename(name, outputPath)
+	}
+	if err != nil {
+		_ = os.Remove(name)
+		failMergeOutput(err)
+		return false
+	}
+	return true
+}
+
+// failMergeOutput reports an unwritable `-o` at exit 3, the code and hint the
+// single os.WriteFile call this replaced already used.
+func failMergeOutput(err error) {
+	output.Error(ExitFile, fmt.Sprintf("cannot write output file: %s", err), outputFileHint)
+	os.Exit(ExitFile)
+}
+
+// finishMerge applies §8a.4's exit rule once the merge has emitted its payload,
+// and both merges still reach it the same way. What changed under it is what a
+// caller has already written: for `tp review --merge`, §5 row 10 makes the
+// payload the summary alone, because `-o` is the file the next command in a
+// review loop reads — so a refused review merge leaves that path exactly as it
+// found it, writeMergeOutput having declined to write it.
+//
+// That supersedes §8a.4's stated rationale for the review side, which kept the
+// write because "the accounting an operator reads is in that payload": the
+// accounting reaches stdout either way, and it was the file, not the
+// accounting, that let a refused merge be chained into `--record` as a clean
+// round. The rationale still stands for `tp audit --merge`, which §4 fences
+// out of this release and which therefore still writes `-o` before refusing.
+//
+// encodeErr is the payload's own write error and is reported first: a merge
+// that could not emit has nothing to say about its inputs.
 func finishMerge(encodeErr error, dropped []string) error {
 	if encodeErr != nil {
 		return encodeErr

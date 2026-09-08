@@ -91,13 +91,12 @@ func runReviewMerge(args []string, outputPath string) error {
 
 	// Write output based on mode
 	if outputPath != "" {
-		// -o: NDJSON to file, JSON summary to stdout
-		if err := os.WriteFile(outputPath, []byte(ndjsonOutput), 0o600); err != nil {
-			output.Error(ExitFile, fmt.Sprintf("cannot write output file: %s", err), outputFileHint)
-			os.Exit(ExitFile)
-			return nil
+		// -o: NDJSON to file, JSON summary to stdout. §5 row 10: a merge that is
+		// about to exit non-zero writes nothing at that path, so output_path is
+		// named only when a file is there to name.
+		if writeMergeOutput(outputPath, ndjsonOutput, dropped) {
+			summary["output_path"] = outputPath
 		}
-		summary["output_path"] = outputPath
 		return finishMerge(output.JSON(summary), dropped)
 	}
 

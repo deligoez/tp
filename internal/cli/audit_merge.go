@@ -112,6 +112,10 @@ func runAuditMerge(args []string, outputPath string) error {
 	}
 
 	if outputPath != "" {
+		// Still §8a.4's write-then-report rule, deliberately: §5 row 10 is
+		// stated for `tp review --merge`, and §4 fences this release out of the
+		// audit phase. See writeMergeOutput for what the review merge does
+		// instead, and finishMerge for the difference this leaves behind.
 		if err := os.WriteFile(outputPath, []byte(ndjson), 0o600); err != nil {
 			output.Error(ExitFile, fmt.Sprintf("cannot write output file: %s", err), outputFileHint)
 			os.Exit(ExitFile)
