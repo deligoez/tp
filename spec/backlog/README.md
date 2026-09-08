@@ -1,95 +1,99 @@
-# Backlog — unreleased work, deliberately without version numbers
+# Backlog — unreleased work, named by slug, ordered here
 
-These files were named after releases (`1.38.0`, `1.44.0`, …) and the numbers were a liability. A
-number is a promise about ordering, and this set has been renumbered three times; `CLAUDE.md` records
-the last sweep finding **47 citations to renumbered specs, of which ~35 were stale**. The numbers here
-are a **priority**, not a version: `01` ships before `02`, and nothing else is implied. A release
-number is assigned at the tag, once.
+Every file in this directory is a pending spec named by its **subject**. The order lives in this
+file and nowhere else. The files used to carry a priority number in their name (`01-…`, `02a-…`);
+that number rotted every citation the moment the order changed — a sweep at the last reordering found
+that every one of the citations to these files carried the number, so none could survive a
+re-prioritisation. Two files keep their old numbered name as a forwarding stub because a shipped
+artifact cites that path; nothing else does. A release number is assigned at the tag, once.
 
-**These are not release-ready specs.** Each one was written against the tree and ground, none has been
-reviewed, and several are marked below for merging or cutting. The plan is to re-split them by
-priority — merge the ones that share a subject, delete what does not survive the cut — and only then
-put one through `lint → ground → review → decompose → implement → audit`.
+**These are not release-ready specs.** Each was written against the tree and grounded, none has been
+reviewed. On 2026-09-08 every one was re-verified against `HEAD` after `v1.0.1`, cut to its decisions
+(the measurements moved to a `<slug>-measurements.md` beside it), split or merged on the seams the
+verification found, and ordered by measured benefit. The survey behind that is summarised under
+*What the re-verification changed* below; its per-file records are in each sidecar.
 
 ## What decides the order
 
 The operator's complaint is the ordering rule, in their own words: **tp's cycles drag on, and they
-jump into things they should not be solving.** Two field reports measured both halves:
+jump into things they should not be solving.** Two field reports measured both halves, and the
+`v1.0.1` and `v1.1.0` cycles measured them again on this repository:
 
-- **drags on** — a cycle recorded **584 findings and 0 dispositions** over 8 rounds. The acceptance
-  channel was never used, so every finding's only exit was editing the spec; the document grew
-  852 → 1547 lines and **seven of round 8's eight heaviest findings sat inside round 7's own repairs**.
-  Zero tasks were decomposed.
-- **jumps into the wrong things** — over v0.37.0's seven audit rounds, **13 files ever reached a code
-  lens while 29 that `spec-coverage` cited never did**, among them that release's own new engine file.
-  `internal/cli/unattended.go`, where the release's hardest four rounds were spent, changed in 6 of 6
-  inter-round diffs and was on the generated checklist in **0 of 7 rounds**.
+- **drags on** — a field cycle recorded hundreds of findings and not one disposition over eight
+  rounds, so every finding's only exit was editing the spec; the document nearly doubled and zero
+  tasks were decomposed. On this repository the audit channel cannot accept a finding at all: a
+  `wontfix` written into the recorded round changes nothing in `--status` (measured at `HEAD`, see
+  `a-finding-can-leave-an-audit-round-measurements.md`). Five grading rounds of `v1.0.1` refuted five
+  sets of sentences about unbuilt behaviour; the implementing tasks then found what the rounds could
+  not, by building.
+- **jumps into the wrong things** — over one release's seven audit rounds, thirteen files reached a
+  code lens while twenty-nine the spec cited never did; the file its hardest rounds were spent on was
+  on the generated checklist in none of them. The cut is live at `HEAD`: a plain `tp audit` on this
+  tree hands each code role ten files of forty-nine, silently.
 
-So `01` and `02` are the second half, `03` and `05` the first. Everything from `06` down is tp's own
-housekeeping: real, measured, and not what the operator is paying for right now.
+A spec ranks by whether it has a **measurement against one of those two halves**, then by class
+(tool before loop, because a loop-class cycle costs about twice a tool-class one — the derivation is
+`CLAUDE.md`'s *What a cycle costs*), then by size. A spec with no measured benefit ranks below every
+one that has one, whatever its subject.
 
 ## The order
 
-| # | file | subject | class | note |
+| # | file | subject | class | measured benefit |
 |---|---|---|---|---|
-| 00 | `00-a-finding-can-leave-a-round.md` | the audit side of the acceptance channel: a finding accepted with recorded justification counts toward `clean` | loop | first after `1.1.0`, which takes the review side. Formerly `spec/1.0.2.md`; two ground rounds are recorded, a third was emitted and never graded. Its sidecar is `00-a-finding-can-leave-a-round-measurements.md` — the first backlog file to carry one |
-| 01 | `01-checklist-covers-what-changed.md` | rank the audit checklist by churn, never truncate what the operator named, say so when it truncates | tool | the "wrong things" half, measured above |
-| 02a | `02a-round-knows-its-panel.md` | the round records the panel it expected; a round missing an expected role is not clean | loop | absorbs 02b |
-| 02b | `02b-what-a-rounds-rows-say.md` | **to be absorbed by 02a, then deleted** | — | see *Merges* |
-| 03 | `03-next-action-recommends-delta-pass.md` | one branch on a shipped surface after a repair touching more than three sections | tool | the review-side analogue of ground's carry |
-| 04a | `04a-ground-command-friction.md` | four measured defects in `tp ground`'s own surfaces | tool | 987 lines; needs cutting before it is worth a cycle |
-| 04b | `04b-ask-and-envelope-two-zeros.md` | `# 0 in floor, 0 cut` and `# 0 in floor, N cut` produce byte-identical asks | tool | merge into 04a; its round 1 was never repaired |
-| 05 | `05-forced-commitment-in-the-brief.md` | three sentences tp emits, so an unattended run gets the brief a human writes by hand | loop | briefed roles filed 15 and 23 against a control of 35, both rounds |
-| 06a | `06a-round-records-the-text-it-read.md` | the round's `spec_hash` is written at emit, not at record | loop | merge with 06b |
-| 06b | `06b-spec-hash-reset.md` | `consecutive_clean` resets when the spec it is a claim about changes | loop | same mechanism's other half |
-| 07a | `07a-gate-sequence.md` | `quality_gate` as an ordered array of named entries | tool | merge with 07b, 07c |
-| 07b | `07b-mutation-score-gate-entry.md` | establish a run completed and over which mutants before reading a score | tool | one input type of 07a |
-| 07c | `07c-red-gate-procedure.md` | the bounded procedure a unit follows when the gate goes red | — | **not a release**: text in a brief, enforcing nothing. A `SKILL.md` section |
-| 08a | `08a-binary-not-built-from-head.md` | advisory when the running binary is not built from `HEAD` | tool | merge with 08b |
-| 08b | `08b-untracked-task-file.md` | a second advisory, once, at `PhaseRelease` | tool | two triggers, two sections, one cycle |
-| 09 | `09-loops-own-state-writes.md` | the round findings file is not atomic; the gate's walk cannot see an empty watched directory | tool | its third defect moved to the hotfix — see *Already taken* |
-| 10 | `10-forward-spec-ref-lint.md` | a spec must not name a spec numbered above itself that has not yet shipped | tool | **re-check whether this survives**: the backlog no longer carries version numbers, which may remove the rule's whole subject |
-| 11 | `11-reconcile.md` | records why the spec moved between rounds without overwriting what the round read | loop | needs 06a |
-| 12 | `12-repair-locality.md` | the share of a round's findings sitting in text the previous round wrote, reported and gating nothing | loop | measures the "drags on" half; reports only |
-| 13a | `13a-guards-read-what-production-reads.md` | three test helpers re-parse Markdown while production toggles on fences | tool | merge with 13b |
-| 13b | `13b-refusals-that-name-nothing.md` | refusals that do not name the set they refused against | tool | same subject; §9 adds two silent-failure findings routed here by `v1.0.1`'s audit round 2 |
-| 14 | `14-what-the-carry-can-promise.md` | deleting the earlier of two identical units carries the `PASS` onto the survivor | loop | keep separate: it changes carry semantics |
+| 1 | `a-finding-can-leave-an-audit-round.md` | audit `--resolve` re-stamps the recorded round, so an accepted finding clears it | loop | drags on — the audit channel accepts nothing today (probe in its sidecar); the field cycle above |
+| 2 | `checklist-covers-what-changed.md` | rank the audit checklist by churn, never cap an operator-named list, say so when it truncates | tool | wrong things — the measurement above; live at `HEAD` |
+| 3 | `brief-carries-the-forcing-sentences.md` | the audit framing emits the two sentences a human brief carries by hand | loop | drags on — the only controlled measurement in this directory: briefed roles filed 15 and 23 against a control of 35, both rounds |
+| 4 | `decomposition-is-built-before-import.md` | one probe round builds each task's smallest change in a clone before `tp import` | loop | drags on — three of ten code tasks in `v1.1.0` needed no code; sixty-eight broken tests that five grading rounds never saw |
+| 5 | `a-findings-exits-agree.md` | one predicate for open findings across `--status`, `tp resume`, `--check`; refusals write nothing; payloads name the file they wrote | tool | a refused `--role` still writes state at `HEAD`; `duplicate` disagrees between two surfaces |
+| 6 | `repair-locality.md` | report the share of a round's findings sitting in text the previous repair wrote | tool | drags on — the number the complaint is made of, reported by nothing today |
+| 7 | `next-action-and-check-tell-the-truth.md` | `tp ground --status --check` exits 1 over a standing `FAIL`; ground gains `next_action`; review's `next_action` recommends the delta pass after a wide repair | tool | a driver stops on exit 0 with `FAIL`s standing — both field reports, reproduced |
+| 8 | `round-knows-its-panel.md` | the round records the panel it expected; a round missing an expected role is not clean; `--status` reports the round in flight; role-scoped convergence as a seam | loop | `--check` exits 0 today on two rounds where two of three roles never ran (measured); `--check` is not the ship signal until this ships |
+| 9 | `round-records-the-text-it-read.md` | `spec_hash` is the hash of the emission snapshot; the clean streak resets when consecutive rounds read different text | loop | thirty-five of one hundred seventy-seven recorded review rounds carry a hash the round did not read |
+| 10 | `gate-sequence.md` | `quality_gate` as an ordered array of named entries, `tp gate` runs it, CI invokes it; two narrow guards widened | tool | five of one release's thirteen audit rounds went to CI restating the gate |
+| 11 | `loops-own-state-writes.md` | the round findings file is written atomically; the gate's digest sees a directory-only change | tool | housekeeping; no field instance |
+| 12 | `reconcile.md` | `--reconcile --note` records why the spec moved, as a typed field; absorbs `spec_moved_mid_round` | tool | one fabricated zero-byte round in the corpus |
+| 13 | `refusals-that-name-nothing.md` | refusals name the set they refused against; an invalid task file is reported instead of yielding zero findings | tool | a silent wrong answer, measured |
+| 14 | `two-advisories.md` | the binary is not built from `HEAD`; the task file is untracked at release | tool | none measured |
+| 15 | `ground-command-friction.md` | the remaining `tp ground` surface defects, plus the two-zeros tasks | tool | none against either complaint |
+| 16 | `what-the-carry-can-promise.md` | a multiplicity fence on the carry's join | loop | none fired in forty-three recorded rounds |
 
-## Merges
+## Not releases
 
-Each merge is one cycle instead of two or three. The split rule — *if a piece can be released
-independently, it is its own release* — is not violated by merging a spec with its own dependency, and
-the measured cost of a cycle is set by its **class** (loop ≈ 23 rounds, tool ≈ 11) rather than by its
-length, so folding three loop-class specs into one cycle is cheaper than three.
+- `red-gate-procedure.md` — a `skills/tp/SKILL.md` section; ships as a doc task of `gate-sequence`.
+  The section does not exist in the skill at `HEAD`, whatever an earlier version of this file said.
+- `mutation-run-check.md` — a script plus one `CLAUDE.md` line; it excludes itself from the per-task
+  gate and needs no tp code.
 
-- **02a + 02b.** 02b's three parts split cleanly: the accepted-finding half went to the hotfix (see
-  below), and its other two — a fenced list field reading `expected_roles`, and reporting a `PASS` row
-  that carries a note — belong with 02a's panel record. The `PASS`-note half does not technically need
-  `expected_roles`; it goes there for subject, not dependency.
-- **04a + 04b.** Both are `tp ground`'s own surfaces.
-- **06a + 06b.** The emit-time hash and the reset that consumes it are one mechanism. `11` stays out:
-  it adds a command and takes a design decision.
-- **07a + 07b + 07c.** 07b is an input type of 07a; 07c is not a release at all.
-- **08a + 08b.** The roadmap kept these apart because the triggers differ. A different trigger is not a
-  release boundary when a release costs 4–8 rounds of fixed overhead.
-- **13a + 13b.** One subject: a guard or a refusal that does not carry its own claim. **14 stays out**
-  — it is loop-class, and merging it would make the whole cycle run at loop price.
+## What the re-verification changed
 
-## Already taken by the hotfix
+- **Three items this file called "already taken by the hotfix" were not.** `v1.0.1` shipped none of
+  them: `unresolved_findings` still counts the complement of the answer, a refused `--role` still
+  writes a snapshot, and an accepted audit finding still gates. They are rows 1 and 5 above.
+- **Dropped:** the forward-spec-ref lint — its population vanished with the version numbers (one
+  finding on `spec/`, none here) and its replacement predicate had no positive set; what the corpus
+  needs is a dead-path check, recorded in `spec/undecided.md`. The PASS-note counter — it measures a
+  constant. The whitespace set for the floor — no unit in the corpus is affected. The flip rows in the
+  brief spec — no recorded round measures what returning them would do.
+- **Merged:** the emit-time hash with the reset it enables (row 9); the two advisories (row 14); the
+  two-zeros tasks into the ground friction spec (row 15); the guard-helper spec into the refusals
+  spec as tasks (row 13). Rejected: the mutation check into the gate sequence — it is not an entry
+  of that gate.
+- **Split:** the old hotfix file into rows 1 and 5 (a loop-class change and a tool-class one); the
+  ground friction spec's `--check` and `next_action` decisions into row 7, where the delta-pass
+  branch joins them.
+- **Forwarding stubs** at `02b-what-a-rounds-rows-say.md` and `12-repair-locality.md`, because shipped
+  sidecars cite those paths.
 
-Do not re-specify these; they ship in `spec/1.0.1.md`:
+## Ground records
 
-- `unresolved_findings` returning the complement of the answer, plus the two counters.
-- A refused `--role` invocation writing a snapshot before refusing — **this was `09`'s first defect**.
-  Drop it from `09` when the hotfix ships, or two releases claim the same repair.
-- An accepted audit finding blocking convergence forever — **this was `02b`'s headline**.
-
-## Deferred with a reason
-
-`04a` is the largest file here and it is deliberately not near the top: the operator's complaint is
-about the review and audit loops, and `tp ground` is neither. It moves up once the first four ship.
+A spec's ground rounds live under `.tp-review/<slug>/` beside this file and moved with the file when it
+was renamed or merged. Directories of absorbed or dropped specs stay as history — they are rows in the
+corpus derivations. Every cleaned spec changed its text, so its next ground round starts with no carry;
+that is the expected cost of the cut, not a defect. Several directories hold a round that was emitted
+and never recorded; `scripts/clean-emissions.sh` names them, and they are not deleted by hand.
 
 ## How to pick one up
 
-Read the file, cut what the round-1 grounding already answered, apply the merge above, and **then**
-give it a version number — at the tag, not before.
+Read the file and its sidecar, apply Step 0.5 of `skills/tp/SKILL.md`, build the change in a clone
+and run the suite before the first review round, and **then** give it a version number — at the tag,
+not before.
