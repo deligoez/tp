@@ -204,6 +204,29 @@ So `Lived: 0` next to `Not covered: 6` is honestly reachable, and the "stronger"
 
 **Brief the unit, don't retype its context (v0.30.0).** `skills/tp/SKILL.md` describes what the brief carries and why the orchestrator produces it rather than remembering it. In this repo the unit's first call is `/tmp/tp-dev/tp next --brief`, and the orchestrator injects only what tp cannot know: native Read/Edit/Write/grep are hook-blocked → use codedbpro (same-file range/insert edits apply in **list order**); run the quality gate yourself before `tp done`; the `TP_HC` env seam gives tests a deterministic strategy.
 
+**Run the round cheaply — four brief rules, measured before they existed (2026-09-08, v1.1.0's
+audit).** Where a round's wall clock went, from each unit's reported duration: round 3 was 44.9 min
+record-to-record, of which the repair batch was 20.3 (two units, the docs unit idle 7.9 of them
+waiting on a go unit carrying four independent items), the four concurrent roles 13.8 (11.5–13.8 each,
+55–72 tool calls each, no straggler), and 10.8 emission, merge, record and orchestration turns. The
+gate was 41 s. **No gremlins run happened in any round**; what a role's minutes buy is probes — clones,
+mode matrices, mutants, an 80-run filename loop — and the probes are what found every FAIL, so the
+saving is in not repeating them, never in cutting them. The rules, each a brief sentence and none tp
+code: (1) **one clone, one binary, built by the orchestrator before the role stage** and handed to
+every role as a path — four roles were each cloning and building the same tree against each other's
+CPU; a role wanting a mutant copies that tree with `rsync`. (2) **One repair unit per independent
+item**; two items share a unit only when they edit the same lines of the same file. (3) **Delta
+re-grade**: on a no-repair round the brief lists the previous round's PASS rows and the role re-records
+them verbatim, `evidence_file` and `evidence_lines` carried, and re-measures only non-PASS rows; on a
+round after repairs, only rows whose `evidence_file` is untouched by
+`git -c diff.external= diff --name-only <previous record sha>..HEAD` are carried. This is the brief
+form of `spec/backlog/checklist-covers-what-changed.md`, which makes tp do the derivation. (4) **The
+class-to-slug table goes into the brief before round 1**: a finding matching a routed class is recorded
+`PARTIAL` with its slug in the note and expects no repair, so only a class the table lacks reaches the
+orchestrator — the round-3-to-round-4 gap was the orchestrator's dispositions, longer than the role
+stage. The after-figure is deliberately not written here until a round has run under all four; the
+skill carries it once one has.
+
 **Honest boundaries.** The orchestrator's own context is NOT reset in this model — only the units are.
 
 **Budget the subagents before starting a long run (v0.32.0 lesson).** Claude Code caps subagents per *session* (`CLAUDE_CODE_MAX_SUBAGENTS_PER_SESSION`, 200 by default) and the cost is `rounds × roles`: a 4-role audit is 4 per round, a 5-role review 5 per round, so 23 rounds alone is ~100. v0.32.0 exhausted the cap at audit round 11 and the last repairs had to be done by the orchestrator itself — which still works, but trades away the independence that makes the loop worth running. Estimate `rounds × roles + tasks + repairs` up front; if it approaches the cap, either raise it or plan a `/clear` + `tp resume` handoff to a fresh session at a phase boundary.
