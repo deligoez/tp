@@ -50,10 +50,10 @@ one that has one, whatever its subject.
 | 8 | `round-knows-its-panel.md` | the round records the panel it expected; a round missing an expected role is not clean; `--status` reports the round in flight; role-scoped convergence as a seam | loop | `--check` exits 0 today on two rounds where two of three roles never ran (measured); `--check` is not the ship signal until this ships |
 | 9 | `round-records-the-text-it-read.md` | `spec_hash` is the hash of the emission snapshot; the clean streak resets when consecutive rounds read different text | loop | thirty-five of one hundred seventy-seven recorded review rounds carry a hash the round did not read |
 | 10 | `gate-sequence.md` | `quality_gate` as an ordered array of named entries, `tp gate` runs it, CI invokes it; two narrow guards widened | tool | five of one release's thirteen audit rounds went to CI restating the gate |
-| 11 | `loops-own-state-writes.md` | the round findings file is written atomically; the gate's digest sees a directory-only change | tool | housekeeping; no field instance |
-| 12 | `reconcile.md` | `--reconcile --note` records why the spec moved, as a typed field; absorbs `spec_moved_mid_round` | tool | one fabricated zero-byte round in the corpus |
-| 13 | `refusals-that-name-nothing.md` | refusals name the set they refused against; an invalid task file is reported instead of yielding zero findings | tool | a silent wrong answer, measured |
-| 14 | `two-advisories.md` | the binary is not built from `HEAD`; the task file is untracked at release | tool | none measured |
+| 11 | `refusals-that-name-nothing.md` | refusals name the set they refused against; an invalid task file is reported instead of yielding zero findings | tool | a silent wrong answer, measured; plus four more routed at the re-verification (its sidecar) |
+| 12 | `two-advisories.md` | the binary is not built from `HEAD`; the task file is untracked at release | tool | raw-stderr sites `--quiet` cannot silence, counted with its counting rule in its sidecar |
+| 13 | `loops-own-state-writes.md` | the round findings file is written atomically; the gate's digest sees a directory-only change | tool | housekeeping; no field instance |
+| 14 | `reconcile.md` | `--reconcile --note` records why the spec moved, as a typed field; absorbs `spec_moved_mid_round` | tool | one fabricated zero-byte round in the corpus |
 | 15 | `ground-command-friction.md` | the remaining `tp ground` surface defects, plus the two-zeros tasks | tool | none against either complaint |
 | 16 | `what-the-carry-can-promise.md` | a multiplicity fence on the carry's join | loop | none fired in forty-three recorded rounds |
 
@@ -63,6 +63,29 @@ one that has one, whatever its subject.
   The section does not exist in the skill at `HEAD`, whatever an earlier version of this file said.
 - `mutation-run-check.md` — a script plus one `CLAUDE.md` line; it excludes itself from the per-task
   gate and needs no tp code.
+
+## Registered questions, ranked by what they unblock
+
+`spec/undecided.md` is the register — every entry there names the decision nobody has taken — and
+`spec/undecided-measurements.md` is its forensics. Neither is a spec, and an entry is not a draft of
+one. The entries below are the ones that stand in front of a file in this directory: **the third
+column names the backlog spec each unblocks, and *The order* above is what ranks those.** An entry
+listed here cannot be settled by writing its spec first.
+
+| # | registered question | unblocks |
+|---|---|---|
+| 1 | *The divisible round* | `checklist-covers-what-changed.md`, which names it as its real answer |
+| 2 | *`NewRootCmd` writes package globals* | `gate-sequence.md` |
+| 3 | *A registered check that outlives its release* | `gate-sequence.md` |
+| 4 | *`scope` on audit rows* | `round-knows-its-panel.md` §4a, and `a-finding-can-leave-an-audit-round.md` |
+| 5 | *A durable home for an accepted finding*, with *Making `severity` checkable* | `a-finding-can-leave-an-audit-round.md` |
+| 6 | *A review-side `accepted_blocking`* | `a-findings-exits-agree.md` |
+| 7 | *Claim enumeration in the grounding floor*, with the one-round exemption for a sentence rewritten in answer to a finding | `ground-command-friction.md` |
+| 8 | *`t.Parallel()` in the engine package* | `mutation-run-check.md` |
+| 9 | *A prior-round section for `tp review`* | `repair-locality.md` — it changes how that spec's number is read |
+
+The remaining entries of `spec/undecided.md` unblock nothing in this directory and are ranked on
+their own merit in that file.
 
 ## What the re-verification changed
 
@@ -83,6 +106,14 @@ one that has one, whatever its subject.
   branch joins them.
 - **Forwarding stubs** at `02b-what-a-rounds-rows-say.md` and `12-repair-locality.md`, because shipped
   sidecars cite those paths.
+
+The three candidates files — `spec/0.33.0-candidates.md`, `spec/0.34.0-candidates.md` and
+`spec/0.35.0-candidates.md` — were re-verified against `HEAD` the same day, and each now opens with a
+dated block saying what shipped, what moved and what is still open. Most of their items had shipped.
+Twelve open ones were routed into the sidecars those blocks name — the refusals, advisory,
+findings-exits, state-writes, checklist and mutation-check sidecars — so nothing open is carried by a
+candidates file alone. The items whose *design* has no answer had no spec to go to and are registered
+in `spec/undecided.md` instead; *Registered questions, ranked by what they unblock* above lists them.
 
 ## Ground records
 
