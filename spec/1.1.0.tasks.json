@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.1.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-08T07:48:56.857788Z",
+  "updated_at": "2026-09-08T07:56:53.420827Z",
   "workflow": {
     "review_max_rounds": 3
   },
@@ -178,7 +178,7 @@
     {
       "id": "merge-required-fields",
       "title": "Merge skips a row missing a required field",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "review"
@@ -193,11 +193,20 @@
         "## 2. The evidence field on a review finding",
         "## 5. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-08T07:50:35.110222Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-08T07:56:53.406405Z",
+      "closed_reason": "- §1 decision 2 at the merge gate: evidence joins location, severity and finding in missingFindingFields (internal/cli/review_merge.go), so --merge skips a row missing it, names the key in the stderr warning it already writes for the other three, and counts it as skipped. Verified with a freshly built binary in a temp dir outside the repo: a two-file merge printed 'warning: skipping incomplete line (missing evidence) in f1.ndjson' and reported that input as parsed 0 / skipped 1.\n- §5 row 5: TestReviewMerge_SkipsRowMissingEvidence (internal/cli/merge_required_fields_test.go) puts the row omitting evidence alone in its own input file beside a second file legal on all four keys, and asserts merge exit 1, the stderr warning naming evidence, per-input counts 0/1 and 1/0, and --record exit 1 naming line 1. Written first and observed red against row 5's stated mutant, which is exactly the pre-task tree: merge exited 0 because it parsed the offending row.\n- The offending key is evidence rather than one of the other three, as the acceptance requires; --record's rules were not touched and missingFindingFields keeps its equality-to-empty test, since unifying the two gates on strings.TrimSpace is shared-trim-predicate's acceptance, not this one.\n- Nothing entered the red set. go test -count=1 ./... is green with 0 '--- FAIL:' lines and 0 build failures, and the four gate steps each exit 0.\nOut of scope: this task's acceptance and the brief both state that TestRecordIdempotent_RetryAfterPartialFailureConverges is red once both gates carry the rule and must be repaired here. Measured on the tree fixture-migration left, it is green before and after this change: its 'disposed' fixture row at record_idempotent_test.go:126 already carries a non-empty top-level evidence, and it never invokes --merge (recordUnitRound calls only 'review spec.md --record'). The decomposition-time measurement was taken against a narrower migration than the one that shipped.",
+      "gate_passed_at": "2026-09-08T07:56:53.406405Z",
+      "commit_sha": "7af4a740",
+      "commit_shas": [
+        "7af4a740",
+        "49b7da73"
+      ],
+      "commit_files": [
+        "internal/cli/merge_required_fields_test.go",
+        "internal/cli/review_merge.go"
+      ]
     },
     {
       "id": "shared-trim-predicate",
