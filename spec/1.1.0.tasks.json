@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.1.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-08T08:18:23.142181Z",
+  "updated_at": "2026-09-08T08:26:21.350636Z",
   "workflow": {
     "review_max_rounds": 3
   },
@@ -139,7 +139,7 @@
     {
       "id": "record-preresolved-boundary",
       "title": "Pin the pre-resolved fixed boundary",
-      "status": "open",
+      "status": "done",
       "tags": [
         "test",
         "review"
@@ -153,11 +153,18 @@
         "## 5. Tests"
       ],
       "source_lines": "149-149",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-08T08:19:50.725662Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-08T08:26:21.341266Z",
+      "closed_reason": "- §5 row 6, the boundary of §2's parity: a row pre-resolved resolved.status fixed and legal on all four required keys is still emitted by tp review --merge at exit 0 and still refused by tp review \u003cspec\u003e --record at exit 1 naming line 1, because the parity is over the required-field set and does not reach --record's pre-resolved rules. internal/cli/record_preresolved_boundary_test.go asserts it end to end: --merge writes the row to -o with merged_count 1, the merged row is read back for resolved.status fixed and its own top-level evidence, and --record then runs against those exact bytes.\n- Red against the row's stated mutant, built and run: deleting the case \"fixed\" abort from parseRecordRows so --record routes through missingFindingFields alone took --record to exit 0 and turned two assertions red — the exit code and os.IsNotExist on review-round-1.ndjson, the read-back ordered before the exit-code require so both are reached. Reverted and confirmed byte-identical with git -c diff.external= diff --no-ext-diff.\n- Green at HEAD before the change, so the guard's value is its non-vacuity, and three properties are pinned deliberately: a control run records the SAME row with the resolved block removed and nothing else changed (exit 0, findings 1), which proves the four keys legal and rules out the trap of passing for a required-field refusal; both rows are built from one shared base literal so a second difference cannot creep in; the row sits alone in its input file, so a --merge that skipped it would drop the input and refuse at exit 1 rather than pass unnoticed.\n- Gate green, four exit codes read separately: check-suite-state.sh 0, golangci-lint run 0, check-deadcode.sh 0, check-complexity.sh 0; 0 lines matching '^--- FAIL: ' and 0 build failures.\nOut of scope: the same mutant also turns TestReviewRecord_CleanAndDirty, TestReviewRecord_RowRules and TestReviewRecord_RequiredFieldRefusalIsRaisedLast red, so the pre-resolved fixed abort was not unguarded before this row; what none of them held is the boundary against §2's required-field set.",
+      "gate_passed_at": "2026-09-08T08:26:21.341266Z",
+      "commit_sha": "2f0858e9",
+      "commit_shas": [
+        "2f0858e9"
+      ],
+      "commit_files": [
+        "internal/cli/record_preresolved_boundary_test.go"
+      ]
     },
     {
       "id": "status-reads-pre-release-rounds",
