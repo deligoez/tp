@@ -145,3 +145,25 @@ under a different `audit_converge_on` moves the verdict. Measured — round 1 `c
 weaker: it reaches only non-`error` severities, `blocking` is human-only under `TP_UNATTENDED`, and it
 costs a round of budget. **It also moved `clean` while leaving `role_streaks` at `{0, open 1}`** — the
 two-predicate split `a-findings-exits-agree.md` §5 closes, visible on a live tree.
+
+## Decided at the 2026-09-08 decision pass
+
+Two entries of `spec/undecided.md` were decided onto this spec, which ships the stops-blocking half
+of the same subject.
+
+**From *A durable home for an accepted finding*.** Decided: a repository-level
+**`.tp/accepted.ndjson`**, appended by the audit resolve that accepts, surfaced by `tp resume` and
+`tp status` as **`accepted_open`** until a task file's `covered_by` names the finding id. Of the three
+target shapes named and never chosen, this is the one that satisfies the property already agreed —
+readable by the next cycle's decomposition **without a human remembering it exists**. The three
+options as they survive are in `spec/undecided-measurements.md` §From the rows spec, from
+`git show 3a83be30:spec/0.41.0.md` §2.
+
+**From *An audit-side `nonblocking_open`*.** Decided: **emit it**, and invert the guards that pin the
+key's absence — **under `audit_converge_on: blocking` only**. Under that setting a clean round can
+carry `warning` and `info` rows, so the audit phase has the accepted-open state the review-side field
+was built to make visible; the count exists and only the breakdown is missing.
+`engine.RoleStreak`'s `Open` (`internal/engine/rolestreaks.go`) is severity-blind and reaches the
+payloads through `auditSignalFields` in `internal/cli/audit_record.go`. Four places pin the key's
+absence by name and a fifth states it in a comment; those five are what the decision inverts, and they
+are cited by symbol or phrase in `spec/undecided-measurements.md` §From the rows spec.
