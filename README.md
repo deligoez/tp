@@ -108,7 +108,8 @@ grounding. Ground is the one loop you have to remember.
 
 ```mermaid
 flowchart TD
-    SPEC["spec/my-feature.md"] --> LINT["tp lint<br/>does the document hold together?"]
+    SPEC["spec/my-feature.md<br/>decisions and test rows"] --> LINT["tp lint<br/>does the document hold together?"]
+    SIDECAR["spec/my-feature-measurements.md<br/>measurements and derivations"] -.->|"cited by the spec, graded by nothing"| SPEC
     LINT --> GROUND["tp ground<br/>do its claims hold in the world?"]
     GROUND -->|"repair the spec"| GROUND
     GROUND --> REVIEW
@@ -385,6 +386,16 @@ scratch.
 undispositioned, and its exit code is the same with it and without it. The loop is in
 [SKILL.md](skills/tp/SKILL.md); the row schema, the kind-tier sets and the exit codes are in
 [REFERENCE.md](skills/tp/REFERENCE.md).
+
+**Writing the spec.** The body a round grades is a decision record: decisions, why, non-goals, and
+test rows that name the mutant that would make them red. Measurements, derivations and the history
+of how a decision was reached live beside it in `<base>-measurements.md`, which no round grades and
+which the body cites instead of quoting a figure — a figure copied into a spec is a claim every grader
+re-derives, and that finding class was measured to be the most expensive and the least valuable. A
+sentence that would have to change if the implementation changed is not spec either; it belongs to
+the task that builds it. The rules are Step 0.5 of [SKILL.md](skills/tp/SKILL.md). References rot
+silently, so this repository registers a `code-citation-drift` entry in `.tp/config.json`'s
+`workflow.checks` and `tp review` runs it every round.
 
 **What grounding finds.** Over this repository's own corpus, rows come back `FAIL` and `PARTIAL`
 that a document review structurally cannot reach. Grounding reaches them because it is allowed to
