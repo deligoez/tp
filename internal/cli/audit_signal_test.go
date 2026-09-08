@@ -377,7 +377,13 @@ func TestAuditSignal_AbsentFromPromptMergeAndReviewOutputs(t *testing.T) {
 	require.Equal(t, 0, code, "stderr: %s", stderr)
 	assertNoSignal("tp audit --merge", merged)
 
-	reviewRecord, stderr, code := runTP(t, dir, "review", "spec.md", "--record", rows)
+	// review --record reads review findings, so it gets a review-shaped file:
+	// the audit rows above carry no evidence and the review record gate refuses
+	// them, which would test the gate rather than the divergence signal.
+	reviewRows := filepath.Join(dir, "review-rows.ndjson")
+	require.NoError(t, os.WriteFile(reviewRows,
+		[]byte(`{"evidence":"read the cited section","severity":"low","location":"§1","finding":"f"}`+"\n"), 0o600))
+	reviewRecord, stderr, code := runTP(t, dir, "review", "spec.md", "--record", reviewRows)
 	require.Equal(t, 0, code, "stderr: %s", stderr)
 	assertNoSignal("tp review <spec> --record", reviewRecord)
 
