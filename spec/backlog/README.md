@@ -64,18 +64,14 @@ one that has one, whatever its subject.
 - `mutation-run-check.md` — a script plus one `CLAUDE.md` line; it excludes itself from the per-task
   gate and needs no tp code.
 
-## Registered questions, ranked by what they unblock
+## Registered questions
 
 `spec/undecided.md` is the register and `spec/undecided-measurements.md` is its forensics. Neither is
 a spec, and an entry is not a draft of one. **On 2026-09-08 a decision pass took every registered
-question but one**; each decision is recorded in `spec/undecided.md` and appended to the sidecar of
-the spec that takes it under *Decided at the 2026-09-08 decision pass*, so no entry in that register
-now stands in front of a file in this directory. What remains is the one entry only the operator can
-settle:
-
-| # | registered question | recommendation |
-|---|---|---|
-| 1 | *Cross-repo specs* — whether a spec may name tasks in another repository, and where its task file lives | **no, until a field cycle asks**: the cost is a second repository root threaded through file selection and `commit_shas`, and nothing in this repository's own use exercises it |
+question**; each decision is recorded in `spec/undecided.md` and appended to the sidecar of the spec
+that takes it under *Decided at the 2026-09-08 decision pass*, so no entry in that register stands in
+front of a file in this directory. The last one, *Cross-repo specs*, was closed by the operator the
+same day: no. Nothing waits on a decision; what waits is a spec, listed next.
 
 ## Decided, awaiting a spec
 
