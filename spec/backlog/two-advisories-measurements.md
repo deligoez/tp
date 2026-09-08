@@ -97,3 +97,21 @@ a fact about `git ls-files`. Every test row is a fact about a mechanism a test c
 The stronger assertion, that the reframed sentence *would* have prevented the deletion, is
 unfalsifiable and is nowhere relied on. A test can show the advisory fires with the right numbers at
 the right moment; no test can show it would have been obeyed.
+
+## Routed here at the 2026-09-08 re-verification
+
+One item from the candidates files lands on this spec's subject. It is recorded in this sidecar; the
+spec body is not edited.
+
+- **The raw-stderr advisory sweep.** A run of advisories is written straight to `os.Stderr` rather
+  than through `output.Notice`, so `--quiet` cannot silence them and no test can intercept them at
+  the helper. Ten files carry them: `internal/cli/review_merge.go`, `audit_merge.go`,
+  `review_verify.go`, `config.go`, `done.go`, `commit.go`, `commitstrategy.go`, `changewarn.go`, and
+  `internal/engine/configresolve.go`, `discover.go`. **The counting rule decides the number, so it is
+  written down rather than the number alone:** `fmt.Fprint*(os.Stderr` over exactly those ten files
+  returns **18** call sites at `dd89c566` — 3, 4, 1, 1, 2, 1, 2, 1, 2, 1 in the order listed. A bare
+  `os.Stderr` grep over the same ten returns more, because `cmd.Stderr = os.Stderr` and stream
+  restores match it; the re-verification survey reported **14** under a rule it did not state, and 14
+  is not reproducible by either command. Re-run the `fmt.Fprint*` form rather than quoting any of the
+  three figures. Source: `spec/0.33.0-candidates.md` item 3 and `spec/0.35.0-candidates.md` item 15,
+  whose own "roughly twenty" is the right order of magnitude.
