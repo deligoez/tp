@@ -1,0 +1,153 @@
+# tp v1.1.0 — The spec follows tested behaviour
+
+The release after `v1.0.1`, written before any backlog file is opened, from what that cycle measured
+and from a survey of how other tools and communities write and review specifications. Its
+measurements and the survey's sources are in `spec/1.1.0-measurements.md`; this file states the
+decision and stands without it.
+
+Class: **loop**. `CLAUDE.md`'s *What a cycle costs* table names the expensive class as a release whose
+subject is the review/audit loop itself, its signals, its convergence or its prompts. Two of those
+are met here: §2 changes what `tp review --record` accepts, and §5's last row changes the review role
+prompt tp emits. Budget it at that table's *loop reviews itself* median of 23 rounds.
+
+## 1. The decision
+
+**Context.** A review finding today leaves a round in exactly two ways: the spec changes, or the
+finding is dispositioned `wontfix`/`duplicate` with evidence. Both exits keep the loop on the
+document. The `v1.0.1` cycle measured what happens when the document's subject is code that does not
+exist yet: five grading rounds refuted five successive sets of sentences about `tp lint`'s new
+fields, each set written by the repair for the round before, while the first five implementing tasks
+each corrected something a previous unit had asserted — every correction from a run, none from a
+reading. Two field cycles measured the same shape from the other side: one recorded hundreds of
+findings and not a single disposition over eight rounds, its spec growing by most of its length with
+zero tasks decomposed; the other spent its hardest rounds on files the audit checklist never showed
+it. A study of adversarial review agents found the loop optimises for agreement until each finding
+must cite an artifact that confirms or refutes it.
+
+**Decision.**
+
+1. **A review finding carries its evidence into the record.** `evidence` is a mandatory, non-empty
+   free-text key: `tp review <spec> --record` refuses a file holding a row whose `evidence` is
+   missing or empty, and names every such row rather than stopping at the first. The review role
+   prompt tp emits names the key. tp does not look at what the text says.
+2. **`--merge` and `--record` require the same fields.** The set is `severity`, `finding`,
+   `location` and `evidence`. `--merge` skips a row missing one of them with a warning on stderr, as
+   it already does for the first three; `--record` refuses it. Today the two diverge — `--record`
+   requires none of the four — which is how a row holding only `{}` records as a finding at exit 0.
+3. **The record stays readable.** Rounds recorded before this release load, clean and converge as
+   they did. The requirement is enforced when a round is recorded, never when one is loaded — under
+   it every recorded review row would be refused, which the measurements file counts.
+4. **The skill states what a spec is about.** A sentence that would have to change if the
+   implementation changed is not spec. The reviewed document carries decisions, alternatives,
+   non-goals and executable acceptance rows; function names, derivation paths and exit-code branches
+   of behaviour the release will create are filled in by the implementing task, not predicted by the
+   author.
+5. **A recorded finding's evidence is read back.** The previous-round findings tp injects into the
+   next round's prompt carry each finding's `evidence` beside its finding text. Without this half
+   the field is write-only — recorded to the round file, and absent from every prompt that reads
+   that file back, so the round after never sees how the round before justified anything.
+6. **The release is sized by the fixtures it breaks, not by §5's rows.** Adding `evidence` to the
+   required-field set invalidates the hand-written finding fixtures throughout the existing suite —
+   the measurements file counts them — so decomposition gives the **fixture migration a task of its
+   own and makes the task that changes either gate depend on it**: migration first, suite green,
+   then the parity change. A unit meeting a red gate does not reach for `--skip-gate`; that is the
+   operator's decision, not the unit's.
+
+**Consequences.** A finding that does not name what was done to reach it does not enter the record at
+all. What this does not do is verify the evidence — that is the undecided *evidence contract* in
+`spec/undecided.md`, and this release ships the carrier only.
+
+**Alternatives considered.** Typing the evidence — an `evidence_kind` key drawn from ground's `tier`
+vocabulary: rejected. Ground reads a row's `tier` beside a `kind` cell saying what the row is about,
+and its corpus carries the two together; no recorded review row carries a `kind` or a `tier`. A
+review finding has no `kind` to read a tier against, so the vocabulary does not cross the phase
+boundary and stays in ground. The counts are in the measurements file. A `kind` label on
+findings (`decision | behaviour | text`) with convergence counting only the first two: rejected
+because a label is a reading and the cycle showed readings are what fail. A lexical
+`implementation-detail` lint over spec prose: not taken, because it has not been prototyped, and this
+repository's rule is that a lint candidate is prototyped against its own corpus before a spec names
+it; this candidate has been through neither, and is recorded under *Undecided* in
+`spec/undecided.md`. A fixed round count in place of convergence, as the surveyed tools use: not
+taken here, because `review_max_rounds` already provides the cap and changing what `tp import`
+accepts at a cap stop is the operator's fence, not this release's.
+
+## 2. The evidence field on a review finding
+
+A row handed to `tp review <spec> --record` carries one new key beside `severity`, `finding` and
+`location`:
+
+| key | type | rule |
+|---|---|---|
+| `evidence` | string | non-empty; what was run or read to reach the finding — the command and the output it produced, the query, the probe that was built, or the artifact and line that was read |
+
+Those four keys are one required set, and both gates enforce it. `--merge` already skips a row
+missing `severity`, `finding` or `location`, warning on stderr and counting it as skipped; `evidence`
+joins that list. `--record` refuses such a row instead of skipping it, and names every offending line
+in one exit rather than stopping at the first. The parity is over this set only: `--record`'s
+existing rules for a pre-resolved row — `fixed` aborts, `wontfix` needs its own evidence — are
+unchanged and have no `--merge` counterpart.
+
+**One predicate, called from both gates.** The two gates decide *missing or empty* by the same rule. A
+value that is empty once `strings.TrimSpace` has run counts as empty, so a whitespace-only string is a
+missing key at both gates — for `severity`, `location` and `finding` as much as for `evidence`.
+Whitespace `TrimSpace` does not recognise — a zero-width space, say — is not whitespace for this
+purpose and is not judged.
+
+**tp does not look at the content of `evidence`.** It records that a reviewer said what it did;
+whether that text bears on the claim beside it is the open *evidence contract* in
+`spec/undecided.md`.
+
+Under this rule every review round file and every per-role findings file this repository has recorded
+exits 1 at `--merge`, because no row in any of them carries an `evidence` key. The counts and the
+rule they were counted under are in the measurements file.
+
+## 3. What ships in the skill documents
+
+The four rules are already in the tree, under `skills/tp/SKILL.md`'s *What a spec is about (v1.1.0)*,
+landed by commit `4914215f` before this spec's first grading round. What this release does with them
+is distribute them: they reach a user at the tag, not at the commit. The survey sources behind each
+are in the measurements file.
+
+`skills/tp/REFERENCE.md` is in scope for the same task. It states the superseded required-field set
+and the superseded output contract as present fact — the first under its *Measuring whether a second
+model earns its cost* recipe, the second under *Finding `class` and Report* — and §2 makes both
+false. Naming only the skill file would ship, in one tag, a reference that contradicts the release.
+
+## 4. Non-Goals
+
+- **tp does not verify evidence.** It records that a reviewer named what it did; it does not re-run
+  the command or open the file. That is the *evidence contract* in `spec/undecided.md` and it has no
+  design yet.
+- **No taxonomy on findings, and no type on the evidence.** There is no `kind` label and no
+  `evidence_kind`; the field is free text, for the reasons under *Alternatives considered*.
+- **No change to what `tp import` accepts at a cap stop.** `--force` stays the operator's decision;
+  this release changes what the operator can say about the findings before taking it.
+- **No lexical lint for implementation detail in spec prose**, for the reason under *Alternatives
+  considered*.
+- **No change to the audit phase.** Audit rows already carry `evidence_file` and `evidence_lines`.
+  The audit side of the acceptance channel is `spec/backlog/00-a-finding-can-leave-a-round.md`.
+- **No change to ground.** Ground rows already carry `tier` and `evidence`; this release adds nothing
+  to ground and takes nothing from it.
+- **The survey's other findings each already have a backlog file.** The panel record, the checklist
+  cap, the emit-time hash and the brief's forced sentences; the survey changed none of their order.
+
+## 5. Tests
+
+Each row names its fixture, its mutant, and what the mutant changes. A row whose mutant cannot make it
+red is not in this table. **The fixture cell names the value the mutant turns on, and any count a
+SHALL asserts is stated against that value** — a mutant that fires on a length, a threshold or a
+choice of key is red only against a fixture that pins it, so the row pins it rather than leaving it to
+whoever writes the test.
+
+| # | WHEN | tp SHALL | fixture | mutant |
+|---|---|---|---|---|
+| 1 | a findings file handed to `tp review <spec> --record` holds rows whose `evidence` is missing or empty | exit 1 naming **every** offending line, write no round file, leave `review_rounds` unchanged | a four-row file: the second omits `evidence`, the fourth carries `"evidence": ""`, the other two are legal on all four keys | a check that names the first offender and stops: the fourth line goes unnamed while the assertion on the second still passes |
+| 2 | the file's only row is `{}` | exit 1, write no round file, leave `review_rounds` unchanged | a one-line file holding `{}` — at `HEAD` this records at exit 0 as one finding and advances the round, which is the defect this row closes | a check that reads only the keys a row actually has, so a row with no keys at all passes it |
+| 3 | every row carries `severity`, `finding`, `location` and a non-empty `evidence` | record the round, with the same `findings` count and `consecutive_clean` the previous binary reports for the same file | a three-row file, legal on all four keys and carrying no `resolved` block, recorded against a spec with no prior round; no row's `evidence` length is load-bearing here and any non-empty text serves | `--record` tests `resolved.evidence` — the key the record path already reads — in place of the top-level `evidence`, so every row of the legal file is refused: exit 1, no round written |
+| 4 | `tp review --merge` clusters two rows sharing `(location, class)` whose `evidence` texts differ | the representative row carries its own `evidence`, and the merged output is itself recordable | two input files with identical `location`, `class` and `severity`, different finding text and different `evidence` text, the roles sorting `implementer` before `tester` | the merge emits the representative with `evidence` dropped, so `--record` on the merged file refuses it |
+| 5 | a row omits `evidence` | `--merge` skips it, naming the missing key in the stderr warning it already writes for the other three, and **exits 1** — that input then parses no row at all, which is `--merge`'s existing dropped-input rule rather than a new one, and the legal second file does not lift it; `--record` exits 1 naming its line | the offending row is the one missing **`evidence`**, not one of the other three: with `location` omitted instead, `--record` accepts the row and the mutant becomes indistinguishable from the shipped rule at both gates — the four-cell run is in the measurements file. It sits **alone in its own input file**, so the skip is observable — that file then contributes zero rows — rather than masked by a legal row beside it in the same file; a second file holds one row legal on all four keys | `evidence` is added to `--record`'s check only and not to `missingFindingFields`, so `--merge` parses the offending row and the two sets diverge again |
+| 6 | a row is pre-resolved `resolved.status: fixed` and legal on all four required keys | `--merge` still emits it at exit 0 and `--record` still exits 1 naming its line: §2's parity is over the required-field set and does not reach `--record`'s pre-resolved rules | one file, one row, all four keys legal, `resolved` carrying `status: fixed` and its own evidence | the two gates are unified by routing `--record` through `missingFindingFields` alone, which drops the pre-resolved `fixed` abort: `--record` exits 0 |
+| 7 | `tp review <spec> --status` reads a round recorded before this release, whose rows carry no `evidence` | exit 0 (or 1 under `--check`, as before) and the same `consecutive_clean` the previous binary reports — the requirement is enforced when a round is recorded, never when one is loaded | a pre-`1.1.0` round file copied under `testdata` — not the live corpus, which stops being uniformly pre-`1.1.0` at this release's own first recorded round | a status path that applies the record-time check on load: exit 1 |
+| 8 | a review role prompt is emitted | the key list in the prompt's output format — the JSON object line a reviewer copies — names `evidence` | every review emission path whose rows reach the same `--record`: `tp review <spec>`, `tp review <spec> --role <r>` and `tp review <spec> --perspective code-audit`; the check parses each path's JSON object line, and a substring search of the whole prompt is not the check | one path's output format lacks the key — which is `HEAD`'s `code-auditor`, an eleven-key format naming no `evidence`, while `evidence` already occurs in the surrounding prose of the panel prompts, so a substring check is green with nothing built |
+| 9 | a row's `evidence` is `" "` — present, a non-empty string, empty once trimmed | both gates judge it missing: `--merge` skips it with its stderr warning naming `evidence`, `--record` exits 1 naming its line | one file, two rows — the first carries `"evidence": " "` and is legal on the other three keys, the second is legal on all four, so the file still parses one row and the skip shows as a warning rather than as a dropped input | each gate keeps the emptiness test the shipped tree already gives it — `--merge`'s `x == ""` and `--record`'s `strings.TrimSpace(x) == ""` — so `--merge` emits both rows with no warning while `--record` still refuses the first |
+| 10 | a round is recorded, and the role prompts for the round after it are emitted | each previous-round finding reaches the prompt with its `evidence` text beside its finding text | a recorded round holding one row whose `evidence` is a sentinel string occurring nowhere else in the spec or in the prompt scaffolding | the recorded row is parsed into a finding struct carrying no `evidence` field — which is `HEAD` — where the sentinel occurs zero times across the emitted prompts although the finding text occurs |
