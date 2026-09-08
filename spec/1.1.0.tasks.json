@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.1.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-08T09:54:16.941968Z",
+  "updated_at": "2026-09-08T10:04:36.034146Z",
   "workflow": {
     "review_max_rounds": 3
   },
@@ -451,7 +451,7 @@
     {
       "id": "review-record-unit-command",
       "title": "Rewrite the review-record unit command chain",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -465,11 +465,20 @@
         "## 3. What ships in the skill documents",
         "## 5. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-08T09:56:05.228645Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-08T10:04:36.019327Z",
+      "closed_reason": "- skills/tp/REFERENCE.md:182's review-record brief_command now chains merge into record with \u0026\u0026 behind the same [ -f ] guard: `[ -f X ] || tp review --merge ... -o X \u0026\u0026 tp review \u003cspec\u003e --record X`. Settled by running all three branches under /bin/sh with the freshly built binary in a temp dir outside the repo: guard miss + refused merge stops at exit 1 with the merge's own 'no line parsed in ...' diagnosis last and no round recorded, where the shipped ';' form ran on and ended at exit 3 on 'cannot read findings file'; guard miss + clean merge reached --record at exit 0 and wrote review-round-1.ndjson; guard hit (X already present, merge skipped) also reached --record at exit 0 and recorded the round, so the (A || B) \u0026\u0026 C precedence keeps the retry path that protects the dispositions review-resolve accumulates in merged.ndjson.\n- SKILL.md:272's merge-step rule was settled by running it on this tree, not read: a refused review merge created no file at an absent -o path (ls: no such file) and left a seeded one byte-identical (sha256 33b32dce... before and after), and --record on the missing file exited 3. Both outcome halves hold, so only the stale mechanism was edited — '(the write is the last step)' is replaced by what writeMergeOutput actually does, decline the write when an input parsed nothing, which is also why the promise was false before this release. The clean-round path was re-run to be sure the edit does not overclaim: two zero-byte inputs still merge at exit 0 and still write a zero-byte -o.\n- REFERENCE.md's exit-code statement at the old line 1084, 'The exit-1 path still emits the full payload and still writes -o', covered both phases and is now only half true, so it is split rather than made uniform: review declines the write, audit still writes it. Measured for the audit half on the same tree — tp audit --merge with a dropped input created a 51-byte results file at an absent -o path and replaced a seeded one (33b32dce... -\u003e f6d91df0...) while exiting 1 — so the sentence names tp audit --merge as the phase v1.1.0 §4 fences out and tells an audit chain to branch on the exit code, not on the file's presence.\n- No superseded sentence survives in either document: a repo-wide regex for 'merged.ndjson;|results.ndjson;|writes `-o`|still writes' and a literal search for 'the write is the last step' now return, in skills/, only the two rewritten phase-split sentences and SKILL.md's deliberately-quoted field-cycle failure (the '\u003e' redirect example, which must keep its ';').\n- No test was added. Both changes are prose, and a Contains/NotContains guard over prose cannot pin what a document claims: two rounds of this cycle measured both polarities passing while the promise was re-added in a neighbouring paragraph. The claims above are pinned by the runs, not by a guard.\n- Quality gate green, four exit codes read separately: ./scripts/check-suite-state.sh 0, golangci-lint run 0 (0 issues), ./scripts/check-deadcode.sh 0, ./scripts/check-complexity.sh 0; 0 lines matching '^--- FAIL: ' and 0 packages printing 'build failed'.\nOut of scope: the emitted brief_command still uses ';'. engine.recordBriefCommand (internal/engine/briefcommand.go:71) renders ONE template for both record kinds, so switching it to \u0026\u0026 would change the audit brief too, which §4's 'No change to the audit phase' forbids and which §5 gives no test row; the task is tagged docs and its acceptance names document sites. Rather than let REFERENCE.md's brief_command column silently diverge from tp's output, the paragraph under the table states the divergence, its cost (a tp run child gets tp's exit-3 missing-file error instead of the merge's exit-1 diagnosis; no round is recorded either way, because the declined -o write already prevents that) and where the single source is. Three tests pin the ';' string byte-for-byte: internal/engine/briefcommand_test.go:27,30, internal/engine/nextunits_test.go:421, internal/cli/resume_next_units_test.go:318.",
+      "gate_passed_at": "2026-09-08T10:04:36.019327Z",
+      "commit_sha": "746edf26",
+      "commit_shas": [
+        "746edf26",
+        "6b78bd02"
+      ],
+      "commit_files": [
+        "skills/tp/REFERENCE.md",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "release-note",
