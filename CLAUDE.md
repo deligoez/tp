@@ -453,7 +453,7 @@ is required to read.
 - ✅ **Broken cross-reference lint** (`broken-cross-ref`) — **shipped.** Flags `§X.Y step N` when section X.Y has fewer than N numbered steps. Kept conservative to hold the false-positive rate down: fires only when the section is a heading whose content holds a numbered list and N exceeds the largest such list (sized by both item count and highest literal number, so `1. 1. 1.` markdown numbering counts correctly); refs into listless or unknown sections, and refs inside code blocks, are never reported. Zero false positives across tp's own specs.
 - ✅ **Duplicate paragraph lint** (`duplicate-paragraph`) — **shipped.** Flags two consecutive identical blank-line-separated paragraphs (a copy-paste artifact `duplicate-line` misses); a code block between two blocks breaks their adjacency, and single-line heading or horizontal-rule paragraphs are skipped to avoid double-reporting.
 - ✅ **Project-level workflow config** (`.tp/config.json`) — **shipped in v0.24.0.** Repo-root `.tp/config.json` holds workflow **defaults** (committed); each `<base>.tasks.json` `workflow` block holds only explicit **overrides**; effective values **resolve at read time** (**task override > project config > built-in** — there is
-  no CLI layer and no `TP_<FIELD>` environment layer for a workflow field: `engine/configresolve.go`
+  no CLI layer and no `TP_<FIELD>` environment layer for a workflow field: `internal/engine/configresolve.go`
   merges two layers over the default and a search for `TP_REVIEW_CONVERGE_ON` returns zero. This line
   carried the five-layer form until v0.37.0's review round 4, and `spec/0.35.0.md` §7 records the same
   claim being removed from that spec after its audit spent two rounds unable to verify the top two
