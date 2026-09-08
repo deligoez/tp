@@ -482,8 +482,9 @@ free-text renders at 80, 60 and 40 characters, and two of the three sites alread
 `resolved.evidence` under the name *evidence*. Any decision here has to name a site, a bound and a
 label; naming a site is an implementation sentence, which is what `1.1.0` exists to keep out of a
 spec. `spec/1.1.0-measurements.md`'s *`evidence` is write-only: the three injection sites, and where
-the reading half went* carries the runs. **No backlog file holds this** — `05-forced-commitment-in-the-brief.md`
-§2 is the *audit* prior-round injection, not the review one.
+the reading half went* carries the runs. **No backlog file holds this** — `brief-carries-the-forcing-sentences.md`
+kept only its forcing sentences at the 2026-09-08 re-verification, and the section it dropped was the
+*audit* prior-round injection, not the review one.
 
 ### A registered check that outlives its release
 
