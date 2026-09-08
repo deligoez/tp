@@ -133,6 +133,9 @@ and never recorded; `scripts/clean-emissions.sh` names them, and they are not de
 
 ## How to pick one up
 
-Read the file and its sidecar, apply Step 0.5 of `skills/tp/SKILL.md`, build the change in a clone
-and run the suite before the first review round, and **then** give it a version number — at the tag,
-not before.
+Read the file and its sidecar, then **rewrite the body under Step 0.5 of `skills/tp/SKILL.md` before
+ground round 1**: every body here predates those rules (graded 2026-09-08: two at the shape, twelve
+need their forensics, figures and implementation sentences moved to the sidecar, four are decisions
+written as symbol names and need a fresh body). Moving text to the sidecar loses nothing; a sentence
+about how unbuilt code works is not kept. Build the change in a clone and run the suite before the
+first review round, and **then** give it a version number — at the tag, not before.
