@@ -17,7 +17,7 @@ func roleModeFixture(t *testing.T) (dir, spec, ndjson string) {
 	dir = filepath.Dir(spec)
 	ndjson = filepath.Join(dir, "findings.ndjson")
 	require.NoError(t, os.WriteFile(ndjson,
-		[]byte(`{"severity":"low","location":"§1","class":"c","finding":"f"}`+"\n"), 0o600))
+		[]byte(`{"evidence":"read the cited section","severity":"low","location":"§1","class":"c","finding":"f"}`+"\n"), 0o600))
 	return dir, filepath.Base(spec), filepath.Base(ndjson)
 }
 

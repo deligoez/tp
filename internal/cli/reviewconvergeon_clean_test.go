@@ -32,7 +32,7 @@ func TestReviewConvergeOn_BlockingCleanAllUnclean(t *testing.T) {
 	dir := setupConvergeOnProject(t)
 
 	out, stderr, code := recordRound(t, dir,
-		`{"severity":"medium","category":"ambiguity","location":"L1","finding":"soft","suggestion":"clarify"}`+"\n")
+		`{"evidence":"read the cited section","severity":"medium","category":"ambiguity","location":"L1","finding":"soft","suggestion":"clarify"}`+"\n")
 	require.Equal(t, 0, code, "record failed: %s", stderr)
 	assert.Equal(t, true, out["clean"], "a medium-only survivor is clean under blocking")
 	assert.Equal(t, true, out["converged"], "one clean round converges (review_clean_rounds=1)")
@@ -70,7 +70,7 @@ func TestReviewConvergeOn_ResolveWontfixAfterRecordCleans(t *testing.T) {
 	dir := setupConvergeOnProject(t)
 
 	out, stderr, code := recordRound(t, dir,
-		`{"severity":"high","category":"completeness","location":"L1","finding":"missing","suggestion":"add"}`+"\n")
+		`{"evidence":"read the cited section","severity":"high","category":"completeness","location":"L1","finding":"missing","suggestion":"add"}`+"\n")
 	require.Equal(t, 0, code, "record failed: %s", stderr)
 	assert.Equal(t, false, out["clean"], "a surviving high finding blocks under blocking")
 
@@ -103,8 +103,8 @@ func TestReviewNonBlockingOpen_AcceptedOpen(t *testing.T) {
 	dir := setupConvergeOnProject(t)
 
 	out, stderr, code := recordRound(t, dir,
-		`{"severity":"medium","category":"ambiguity","location":"L1","finding":"soft","suggestion":"clarify"}`+"\n"+
-			`{"severity":"low","category":"style","location":"L2","finding":"nit","suggestion":"tweak"}`+"\n")
+		`{"evidence":"read the cited section","severity":"medium","category":"ambiguity","location":"L1","finding":"soft","suggestion":"clarify"}`+"\n"+
+			`{"evidence":"read the cited section","severity":"low","category":"style","location":"L2","finding":"nit","suggestion":"tweak"}`+"\n")
 	require.Equal(t, 0, code, "record failed: %s", stderr)
 	assert.Equal(t, true, out["clean"], "medium+low survivors are clean under blocking")
 	assert.Equal(t, float64(2), out["nonblocking_open"], "both non-blocking survivors counted on --record")
@@ -126,8 +126,8 @@ func TestReviewNonBlockingOpen_AbsentOnNonClean(t *testing.T) {
 	dir := setupConvergeOnProject(t)
 
 	out, stderr, code := recordRound(t, dir,
-		`{"severity":"high","category":"completeness","location":"L1","finding":"missing","suggestion":"add"}`+"\n"+
-			`{"severity":"medium","category":"ambiguity","location":"L2","finding":"soft","suggestion":"clarify"}`+"\n")
+		`{"evidence":"read the cited section","severity":"high","category":"completeness","location":"L1","finding":"missing","suggestion":"add"}`+"\n"+
+			`{"evidence":"read the cited section","severity":"medium","category":"ambiguity","location":"L2","finding":"soft","suggestion":"clarify"}`+"\n")
 	require.Equal(t, 0, code, "record failed: %s", stderr)
 	assert.Equal(t, false, out["clean"], "a surviving high blocks")
 	_, ok := out["nonblocking_open"]
@@ -169,7 +169,7 @@ func TestReviewNonBlockingOpen_AbsentUnderAll(t *testing.T) {
 
 	// A medium-only round is UNCLEAN under all (any survivor blocks) — absent.
 	out, stderr, code := recordRound(t, dir,
-		`{"severity":"medium","category":"ambiguity","location":"L1","finding":"soft","suggestion":"clarify"}`+"\n")
+		`{"evidence":"read the cited section","severity":"medium","category":"ambiguity","location":"L1","finding":"soft","suggestion":"clarify"}`+"\n")
 	require.Equal(t, 0, code, "record failed: %s", stderr)
 	assert.Equal(t, false, out["clean"], "under all a surviving medium is unclean")
 	_, ok := out["nonblocking_open"]

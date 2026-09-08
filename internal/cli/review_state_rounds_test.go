@@ -37,7 +37,7 @@ func TestReviewStateRounds_Lifecycle(t *testing.T) {
 
 	// Record round 1 with a finding; round 2 injects it into role prompts
 	_, _, code = recordRound(t, dir,
-		`{"severity":"high","category":"consistency","location":"L1","finding":"distinctive-previous-finding","suggestion":"fix"}`+"\n")
+		`{"evidence":"read the cited section","severity":"high","category":"consistency","location":"L1","finding":"distinctive-previous-finding","suggestion":"fix"}`+"\n")
 	require.Equal(t, 0, code)
 
 	stdout, _, code = runTP(t, dir, "review", "spec.md")

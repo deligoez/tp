@@ -16,7 +16,7 @@ import (
 // bytes long — the shape that used to divide the readers: --resolve rewrote it
 // at a 1MB cap while --merge and --report read it at bufio's 64KB default.
 func longFindingLine(n int) string {
-	return fmt.Sprintf(`{"severity":"high","category":"correctness","location":"## API","finding":%q}`,
+	return fmt.Sprintf(`{"evidence":"read the cited section","severity":"high","category":"correctness","location":"## API","finding":%q}`,
 		strings.Repeat("x", n))
 }
 

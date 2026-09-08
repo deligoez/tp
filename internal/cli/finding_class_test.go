@@ -20,11 +20,11 @@ func TestFindingClass_MergeClustersSameClassKeepsHighestSeverity(t *testing.T) {
 	// class is its own cluster and keeps its class.
 	r1 := filepath.Join(dir, "r1.ndjson")
 	require.NoError(t, os.WriteFile(r1, []byte(
-		`{"severity":"low","category":"consistency","location":"L1","finding":"dup finding","suggestion":"fix","class":"code-citation-drift"}`+"\n"), 0o600))
+		`{"evidence":"read the cited section","severity":"low","category":"consistency","location":"L1","finding":"dup finding","suggestion":"fix","class":"code-citation-drift"}`+"\n"), 0o600))
 	r2 := filepath.Join(dir, "r2.ndjson")
 	require.NoError(t, os.WriteFile(r2, []byte(
-		`{"severity":"high","category":"consistency","location":"L1","finding":"dup finding","suggestion":"fix","class":"code-citation-drift"}`+"\n"+
-			`{"severity":"low","category":"ambiguity","location":"L9","finding":"solo finding","suggestion":"fix","class":"vague-wording"}`+"\n"), 0o600))
+		`{"evidence":"read the cited section","severity":"high","category":"consistency","location":"L1","finding":"dup finding","suggestion":"fix","class":"code-citation-drift"}`+"\n"+
+			`{"evidence":"read the cited section","severity":"low","category":"ambiguity","location":"L9","finding":"solo finding","suggestion":"fix","class":"vague-wording"}`+"\n"), 0o600))
 
 	out := filepath.Join(dir, "merged.ndjson")
 	_, stderr, code := runTP(t, dir, "review", "--merge", r1, r2, "-o", out)
@@ -59,7 +59,7 @@ func TestFindingClass_MergePreservesOverSpecification(t *testing.T) {
 	dir := t.TempDir()
 	f := filepath.Join(dir, "f.ndjson")
 	require.NoError(t, os.WriteFile(f, []byte(
-		`{"severity":"low","category":"redundancy","location":"§5.2","finding":"SQL pinned in spec belongs in acceptance","suggestion":"push detail to task acceptance","class":"over-specification"}`+"\n"), 0o600))
+		`{"evidence":"read the cited section","severity":"low","category":"redundancy","location":"§5.2","finding":"SQL pinned in spec belongs in acceptance","suggestion":"push detail to task acceptance","class":"over-specification"}`+"\n"), 0o600))
 
 	out := filepath.Join(dir, "merged.ndjson")
 	_, stderr, code := runTP(t, dir, "review", "--merge", f, "-o", out)
@@ -78,7 +78,7 @@ func TestFindingClass_ResolvePreservesClass(t *testing.T) {
 	dir := t.TempDir()
 	findings := filepath.Join(dir, "findings.ndjson")
 	require.NoError(t, os.WriteFile(findings, []byte(
-		`{"severity":"low","category":"consistency","location":"L1","finding":"classed finding","suggestion":"fix","class":"code-citation-drift"}`+"\n"), 0o600))
+		`{"evidence":"read the cited section","severity":"low","category":"consistency","location":"L1","finding":"classed finding","suggestion":"fix","class":"code-citation-drift"}`+"\n"), 0o600))
 
 	_, stderr, code := runTP(t, dir, "review", "--resolve", findings, "0", "fixed", "evidence: adjusted the citation")
 	require.Equal(t, 0, code, "resolve failed: %s", stderr)

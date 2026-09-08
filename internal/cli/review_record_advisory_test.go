@@ -14,6 +14,6 @@ import (
 func TestReviewRecordRolelessRowsAdviseOnce(t *testing.T) {
 	t.Parallel()
 	assertRolelessRowsAdviseOnce(t, "review",
-		`{"severity":"low","category":"consistency","location":"L1","finding":"f","suggestion":"s"}`,
+		`{"evidence":"read the cited section","severity":"low","category":"consistency","location":"L1","finding":"f","suggestion":"s"}`,
 		"findings")
 }

@@ -311,8 +311,8 @@ func TestReviewRound2WithFindings(t *testing.T) {
 	require.NoError(t, os.WriteFile(specPath, []byte("# Simple Spec\nDo the thing.\n"), 0o600))
 
 	findingsPath := filepath.Join(dir, "findings.ndjson")
-	require.NoError(t, os.WriteFile(findingsPath, []byte(`{"severity":"high","category":"completeness","location":"## Problem","finding":"Missing edge case","suggestion":"Add edge case section"}
-{"severity":"medium","category":"ambiguity","location":"line 2","finding":"Vague requirement","suggestion":"Be specific"}
+	require.NoError(t, os.WriteFile(findingsPath, []byte(`{"evidence":"read the cited section","severity":"high","category":"completeness","location":"## Problem","finding":"Missing edge case","suggestion":"Add edge case section"}
+{"evidence":"read the cited section","severity":"medium","category":"ambiguity","location":"line 2","finding":"Vague requirement","suggestion":"Be specific"}
 `), 0o600))
 
 	stdout, _, code := runTP(t, dir, "review", "--no-state", "--round", "2", "--findings", findingsPath, specPath)
@@ -388,9 +388,9 @@ func TestReviewFindingsDedup(t *testing.T) {
 	require.NoError(t, os.WriteFile(specPath, []byte("# Simple Spec\nDo the thing.\n"), 0o600))
 
 	findingsPath := filepath.Join(dir, "findings.ndjson")
-	require.NoError(t, os.WriteFile(findingsPath, []byte(`{"severity":"high","category":"completeness","location":"## Problem","finding":"Missing edge case","suggestion":"Add section"}
-{"severity":"medium","category":"completeness","location":"## Problem","finding":"Missing edge case","suggestion":"Add section v2"}
-{"severity":"low","category":"ambiguity","location":"## Problem","finding":"Same location different category","suggestion":"Clarify"}
+	require.NoError(t, os.WriteFile(findingsPath, []byte(`{"evidence":"read the cited section","severity":"high","category":"completeness","location":"## Problem","finding":"Missing edge case","suggestion":"Add section"}
+{"evidence":"read the cited section","severity":"medium","category":"completeness","location":"## Problem","finding":"Missing edge case","suggestion":"Add section v2"}
+{"evidence":"read the cited section","severity":"low","category":"ambiguity","location":"## Problem","finding":"Same location different category","suggestion":"Clarify"}
 `), 0o600))
 
 	stdout, _, code := runTP(t, dir, "review", "--findings", findingsPath, specPath)
@@ -412,7 +412,7 @@ func TestReviewFindingsCappedAt50(t *testing.T) {
 	findingsPath := filepath.Join(dir, "findings.ndjson")
 	var lines []byte
 	for i := range 55 {
-		lines = append(lines, fmt.Appendf(nil, `{"severity":"low","category":"completeness","location":"line %d","finding":"Issue number %d","suggestion":"Fix it"}
+		lines = append(lines, fmt.Appendf(nil, `{"evidence":"read the cited section","severity":"low","category":"completeness","location":"line %d","finding":"Issue number %d","suggestion":"Fix it"}
 `, i, i)...)
 	}
 	require.NoError(t, os.WriteFile(findingsPath, lines, 0o600))
@@ -437,7 +437,7 @@ func TestReviewFindingsLongText(t *testing.T) {
 
 	longFinding := strings.Repeat("x", 100)
 	findingsPath := filepath.Join(dir, "findings.ndjson")
-	require.NoError(t, os.WriteFile(findingsPath, fmt.Appendf(nil, `{"severity":"high","category":"completeness","location":"## Problem","finding":"%s","suggestion":"Fix it"}
+	require.NoError(t, os.WriteFile(findingsPath, fmt.Appendf(nil, `{"evidence":"read the cited section","severity":"high","category":"completeness","location":"## Problem","finding":"%s","suggestion":"Fix it"}
 `, longFinding), 0o600))
 
 	stdout, _, code := runTP(t, dir, "review", "--findings", findingsPath, specPath)
@@ -458,7 +458,7 @@ func TestReviewFindingsInvalidLines(t *testing.T) {
 
 	findingsPath := filepath.Join(dir, "findings.ndjson")
 	require.NoError(t, os.WriteFile(findingsPath, []byte(`not json at all
-{"severity":"high","category":"completeness","location":"## Problem","finding":"Valid finding","suggestion":"Fix it"}
+{"evidence":"read the cited section","severity":"high","category":"completeness","location":"## Problem","finding":"Valid finding","suggestion":"Fix it"}
 also not json
 `), 0o600))
 
@@ -502,7 +502,7 @@ func TestReviewRound1WithFindings(t *testing.T) {
 	require.NoError(t, os.WriteFile(specPath, []byte("# Simple Spec\nDo the thing.\n"), 0o600))
 
 	findingsPath := filepath.Join(dir, "findings.ndjson")
-	require.NoError(t, os.WriteFile(findingsPath, []byte(`{"severity":"high","category":"completeness","location":"## Problem","finding":"Missing edge case","suggestion":"Fix it"}
+	require.NoError(t, os.WriteFile(findingsPath, []byte(`{"evidence":"read the cited section","severity":"high","category":"completeness","location":"## Problem","finding":"Missing edge case","suggestion":"Fix it"}
 `), 0o600))
 
 	stdout, _, code := runTP(t, dir, "review", "--round", "1", "--findings", findingsPath, specPath)
@@ -532,10 +532,10 @@ func TestReviewSeveritySortOrder(t *testing.T) {
 	require.NoError(t, os.WriteFile(specPath, []byte("# Simple Spec\nDo the thing.\n"), 0o600))
 
 	findingsPath := filepath.Join(dir, "findings.ndjson")
-	require.NoError(t, os.WriteFile(findingsPath, []byte(`{"severity":"low","category":"ambiguity","location":"L3","finding":"Low finding","suggestion":"Fix"}
-{"severity":"critical","category":"consistency","location":"L1","finding":"Critical finding","suggestion":"Fix"}
-{"severity":"high","category":"completeness","location":"L2","finding":"High finding","suggestion":"Fix"}
-{"severity":"medium","category":"feasibility","location":"L4","finding":"Med finding","suggestion":"Fix"}
+	require.NoError(t, os.WriteFile(findingsPath, []byte(`{"evidence":"read the cited section","severity":"low","category":"ambiguity","location":"L3","finding":"Low finding","suggestion":"Fix"}
+{"evidence":"read the cited section","severity":"critical","category":"consistency","location":"L1","finding":"Critical finding","suggestion":"Fix"}
+{"evidence":"read the cited section","severity":"high","category":"completeness","location":"L2","finding":"High finding","suggestion":"Fix"}
+{"evidence":"read the cited section","severity":"medium","category":"feasibility","location":"L4","finding":"Med finding","suggestion":"Fix"}
 `), 0o600))
 
 	stdout, _, code := runTP(t, dir, "review", "--findings", findingsPath, specPath)
@@ -720,7 +720,7 @@ func TestReviewPerspectiveMutuallyExclusiveFindings(t *testing.T) {
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
 	findingsPath := filepath.Join(dir, "f.ndjson")
-	require.NoError(t, os.WriteFile(findingsPath, []byte(`{"severity":"high","category":"x","location":"y","finding":"z","suggestion":"w"}
+	require.NoError(t, os.WriteFile(findingsPath, []byte(`{"evidence":"read the cited section","severity":"high","category":"x","location":"y","finding":"z","suggestion":"w"}
 `), 0o600))
 
 	_, stderr, code := runTP(t, dir, "review", specPath, "--perspective", "testing", "--test-path", dir, "--findings", findingsPath)
@@ -921,7 +921,7 @@ func TestReviewAffectedFilesWithRoundFindings(t *testing.T) {
 	aPath := filepath.Join(dir, "a.go")
 	require.NoError(t, os.WriteFile(aPath, []byte("package main\nfunc main() {}\n"), 0o600))
 	findingsPath := filepath.Join(dir, "f.ndjson")
-	require.NoError(t, os.WriteFile(findingsPath, []byte(`{"severity":"high","category":"x","location":"y","finding":"z","suggestion":"w"}
+	require.NoError(t, os.WriteFile(findingsPath, []byte(`{"evidence":"read the cited section","severity":"high","category":"x","location":"y","finding":"z","suggestion":"w"}
 `), 0o600))
 
 	stdout, _, code := runTP(t, dir, "review", specPath, "--no-state", "--affected-files", aPath, "--round", "2", "--findings", findingsPath)
@@ -1394,7 +1394,7 @@ func TestReviewCodeAuditWithRoundAndFindings(t *testing.T) {
 	aPath := filepath.Join(dir, "a.go")
 	require.NoError(t, os.WriteFile(aPath, []byte("package main\n"), 0o600))
 	findingsPath := filepath.Join(dir, "findings.ndjson")
-	require.NoError(t, os.WriteFile(findingsPath, []byte(`{"severity":"high","finding":"test finding"}`+"\n"), 0o600))
+	require.NoError(t, os.WriteFile(findingsPath, []byte(`{"evidence":"read the cited section","severity":"high","finding":"test finding"}`+"\n"), 0o600))
 
 	stdout, _, code := runTP(t, dir, "review", specPath, "--perspective", "code-audit",
 		"--no-state", "--affected-files", aPath, "--round", "2")
@@ -1514,8 +1514,8 @@ func TestReviewFindingsSummaryContent(t *testing.T) {
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n"), 0o600))
 	findingsPath := filepath.Join(dir, "findings.ndjson")
 	require.NoError(t, os.WriteFile(findingsPath, []byte(
-		`{"severity":"high","category":"gap","location":"sec1","finding":"missing error handler"}`+"\n"+
-			`{"severity":"medium","category":"ambiguity","location":"sec2","finding":"unclear timeout behavior"}`+"\n",
+		`{"evidence":"read the cited section","severity":"high","category":"gap","location":"sec1","finding":"missing error handler"}`+"\n"+
+			`{"evidence":"read the cited section","severity":"medium","category":"ambiguity","location":"sec2","finding":"unclear timeout behavior"}`+"\n",
 	), 0o600))
 
 	stdout, _, code := runTP(t, dir, "review", specPath, "--no-state", "--round", "2", "--findings", findingsPath)
@@ -1594,7 +1594,7 @@ func TestReviewMergeRejectsModifierFlags(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	fPath := filepath.Join(dir, "f.ndjson")
-	require.NoError(t, os.WriteFile(fPath, []byte(`{"severity":"high","finding":"x"}`+"\n"), 0o600))
+	require.NoError(t, os.WriteFile(fPath, []byte(`{"evidence":"read the cited section","severity":"high","finding":"x"}`+"\n"), 0o600))
 
 	tests := []struct {
 		name string

@@ -55,7 +55,7 @@ func TestOutputFlagRequiresMerge(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := writeSpec(t)
 			require.NoError(t, os.WriteFile(filepath.Join(dir, "in.ndjson"),
-				[]byte(`{"role":"r","severity":"low","location":"§1","finding":"f","item_id":"i","status":"PASS"}`+"\n"), 0o600))
+				[]byte(`{"role":"r","evidence":"read the cited section","severity":"low","location":"§1","finding":"f","item_id":"i","status":"PASS"}`+"\n"), 0o600))
 			_, _, code := runTP(t, dir, tc.args...)
 			require.Equal(t, 0, code)
 			require.FileExists(t, filepath.Join(dir, "merged.ndjson"))

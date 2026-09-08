@@ -39,9 +39,9 @@ func mergeInputsOf(t *testing.T, stdout string) map[string][2]int {
 }
 
 const (
-	goodFinding1 = `{"role":"implementer","severity":"high","class":"gap","location":"§1","finding":"missing bound","suggestion":"state it"}`
-	goodFinding2 = `{"role":"implementer","severity":"low","class":"nit","location":"§2","finding":"wording","suggestion":"reword"}`
-	goodFinding3 = `{"role":"tester","severity":"medium","class":"test","location":"§3","finding":"no boundary test","suggestion":"add one"}`
+	goodFinding1 = `{"role":"implementer","evidence":"read the cited section","severity":"high","class":"gap","location":"§1","finding":"missing bound","suggestion":"state it"}`
+	goodFinding2 = `{"role":"implementer","evidence":"read the cited section","severity":"low","class":"nit","location":"§2","finding":"wording","suggestion":"reword"}`
+	goodFinding3 = `{"role":"tester","evidence":"read the cited section","severity":"medium","class":"test","location":"§3","finding":"no boundary test","suggestion":"add one"}`
 
 	goodAuditRow1 = `{"role":"go-safety","item_id":"a","status":"PASS"}`
 	goodAuditRow2 = `{"role":"go-safety","item_id":"b","status":"FAIL","finding":"unchecked error"}`
@@ -84,7 +84,7 @@ func TestReviewMerge_DroppedRoleExitsOne(t *testing.T) {
 	// The measured failure: a reviewer emitted every line with a trailing comma.
 	f2 := writeFindingsFile(t, dir, "f2.ndjson", []string{
 		goodFinding3 + `,`,
-		`{"role":"tester","severity":"low","class":"nit","location":"§4","finding":"x"},`,
+		`{"role":"tester","evidence":"read the cited section","severity":"low","class":"nit","location":"§4","finding":"x"},`,
 	})
 
 	stdout, stderr, code := runTPMerge(t, dir, "review", "--merge", "--json", f1, f2)

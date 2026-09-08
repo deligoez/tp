@@ -45,8 +45,8 @@ func TestReviewRecord_CleanAndDirty(t *testing.T) {
 	t.Run("all pre-resolved wontfix rows record a clean round", func(t *testing.T) {
 		dir := setup(t)
 		out, _, code := recordRound(t, dir,
-			`{"finding":"a","resolved":{"status":"wontfix","evidence":"verifier: not real"}}`+"\n"+
-				`{"finding":"b","resolved":{"status":"wontfix","evidence":"verifier: duplicate concern"}}`+"\n")
+			`{"evidence":"read the cited section","severity":"high","location":"L1","finding":"a","resolved":{"status":"wontfix","evidence":"verifier: not real"}}`+"\n"+
+				`{"evidence":"read the cited section","severity":"high","location":"L2","finding":"b","resolved":{"status":"wontfix","evidence":"verifier: duplicate concern"}}`+"\n")
 		require.Equal(t, 0, code)
 		assert.Equal(t, true, out["clean"])
 		assert.Equal(t, float64(2), out["findings"])
@@ -54,7 +54,7 @@ func TestReviewRecord_CleanAndDirty(t *testing.T) {
 
 	t.Run("pre-resolved fixed row exits 1 with re-review hint", func(t *testing.T) {
 		dir := setup(t)
-		_, stderr, code := recordRound(t, dir, `{"role":"tester","finding":"a","resolved":{"status":"fixed","evidence":"e"}}`+"\n")
+		_, stderr, code := recordRound(t, dir, `{"role":"tester","evidence":"read the cited section","severity":"high","location":"L1","finding":"a","resolved":{"status":"fixed","evidence":"e"}}`+"\n")
 		// The fault is the file content read from disk, not the invocation, so
 		// it is a validation error (exit 1), not a usage error, and it carries a
 		// hint to re-review the changed spec (§3.3/§3.5).
@@ -71,7 +71,7 @@ func TestReviewRecord_CleanAndDirty(t *testing.T) {
 
 	t.Run("wontfix with empty evidence exits 1", func(t *testing.T) {
 		dir := setup(t)
-		_, stderr, code := recordRound(t, dir, `{"finding":"a","resolved":{"status":"wontfix","evidence":""}}`+"\n")
+		_, stderr, code := recordRound(t, dir, `{"evidence":"read the cited section","severity":"high","location":"L1","finding":"a","resolved":{"status":"wontfix","evidence":""}}`+"\n")
 		assert.Equal(t, 1, code)
 		assert.Contains(t, stderr, "evidence")
 	})
@@ -81,7 +81,7 @@ func TestReviewRecord_CleanAndDirty(t *testing.T) {
 		// so a round with only that row has zero survivors and is clean under
 		// the live predicate (both blocking and all).
 		dir := setup(t)
-		out, _, code := recordRound(t, dir, `{"finding":"a","severity":"high","resolved":{"status":"duplicate","evidence":"dup"}}`+"\n")
+		out, _, code := recordRound(t, dir, `{"evidence":"read the cited section","finding":"a","severity":"high","location":"L1","resolved":{"status":"duplicate","evidence":"dup"}}`+"\n")
 		require.Equal(t, 0, code)
 		assert.Equal(t, true, out["clean"])
 	})

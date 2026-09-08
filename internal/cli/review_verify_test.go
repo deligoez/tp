@@ -42,8 +42,8 @@ func TestReviewVerifySpecNotFoundHint(t *testing.T) {
 
 func TestReviewVerifyAllFixed(t *testing.T) {
 	t.Parallel()
-	specPath, findingsPath := setupVerifyTest(t, `{"severity":"high","category":"completeness","location":"## A","finding":"missing X","resolved":{"status":"fixed","evidence":"added in section 2"}}
-{"severity":"medium","category":"ambiguity","location":"## B","finding":"unclear Y","resolved":{"status":"fixed","evidence":"clarified"}}
+	specPath, findingsPath := setupVerifyTest(t, `{"evidence":"read the cited section","severity":"high","category":"completeness","location":"## A","finding":"missing X","resolved":{"status":"fixed","evidence":"added in section 2"}}
+{"evidence":"read the cited section","severity":"medium","category":"ambiguity","location":"## B","finding":"unclear Y","resolved":{"status":"fixed","evidence":"clarified"}}
 `)
 
 	stdout, _, code := runTP(t, filepath.Dir(specPath), "review", "--verify", "--findings", findingsPath, specPath)
@@ -69,9 +69,9 @@ func TestReviewVerifyAllFixed(t *testing.T) {
 
 func TestReviewVerifyMixed(t *testing.T) {
 	t.Parallel()
-	specPath, findingsPath := setupVerifyTest(t, `{"severity":"high","category":"completeness","location":"## A","finding":"fixed one","resolved":{"status":"fixed","evidence":"done"}}
-{"severity":"medium","category":"ambiguity","location":"## B","finding":"wontfix one","resolved":{"status":"wontfix","evidence":"out of scope"}}
-{"severity":"low","category":"consistency","location":"## C","finding":"still open"}
+	specPath, findingsPath := setupVerifyTest(t, `{"evidence":"read the cited section","severity":"high","category":"completeness","location":"## A","finding":"fixed one","resolved":{"status":"fixed","evidence":"done"}}
+{"evidence":"read the cited section","severity":"medium","category":"ambiguity","location":"## B","finding":"wontfix one","resolved":{"status":"wontfix","evidence":"out of scope"}}
+{"evidence":"read the cited section","severity":"low","category":"consistency","location":"## C","finding":"still open"}
 `)
 
 	stdout, _, code := runTP(t, filepath.Dir(specPath), "review", "--verify", "--findings", findingsPath, specPath)
@@ -101,7 +101,7 @@ func TestReviewVerifyNoFindings(t *testing.T) {
 
 func TestReviewVerifyModeField(t *testing.T) {
 	t.Parallel()
-	specPath, findingsPath := setupVerifyTest(t, `{"severity":"high","category":"completeness","location":"## A","finding":"test","resolved":{"status":"fixed","evidence":"done"}}
+	specPath, findingsPath := setupVerifyTest(t, `{"evidence":"read the cited section","severity":"high","category":"completeness","location":"## A","finding":"test","resolved":{"status":"fixed","evidence":"done"}}
 `)
 
 	stdout, _, code := runTP(t, filepath.Dir(specPath), "review", "--verify", "--findings", findingsPath, specPath)
@@ -121,7 +121,7 @@ func TestReviewVerifyWithAffectedFiles(t *testing.T) {
 	specPath := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(specPath, []byte("# Spec\n\n## Section\nContent.\n"), 0o600))
 	findingsPath := filepath.Join(dir, "findings.ndjson")
-	require.NoError(t, os.WriteFile(findingsPath, []byte(`{"severity":"high","category":"completeness","location":"## A","finding":"test"}`+"\n"), 0o600))
+	require.NoError(t, os.WriteFile(findingsPath, []byte(`{"evidence":"read the cited section","severity":"high","category":"completeness","location":"## A","finding":"test"}`+"\n"), 0o600))
 	aPath := filepath.Join(dir, "code.go")
 	require.NoError(t, os.WriteFile(aPath, []byte("package main\nfunc Check() {}\n"), 0o600))
 
@@ -138,7 +138,7 @@ func TestReviewVerifyWithAffectedFiles(t *testing.T) {
 func TestReviewVerifyEmptyCategories(t *testing.T) {
 	t.Parallel()
 	// All unresolved — no fixed or wontfix sections
-	specPath, findingsPath := setupVerifyTest(t, `{"severity":"high","category":"completeness","location":"## A","finding":"still open"}
+	specPath, findingsPath := setupVerifyTest(t, `{"evidence":"read the cited section","severity":"high","category":"completeness","location":"## A","finding":"still open"}
 `)
 
 	stdout, _, code := runTP(t, filepath.Dir(specPath), "review", "--verify", "--findings", findingsPath, specPath)
@@ -155,7 +155,7 @@ func TestReviewVerifyEmptyCategories(t *testing.T) {
 
 func TestReviewVerifyRegressionGuidance(t *testing.T) {
 	t.Parallel()
-	specPath, findingsPath := setupVerifyTest(t, `{"severity":"high","category":"completeness","location":"## A","finding":"test","resolved":{"status":"fixed","evidence":"done"}}
+	specPath, findingsPath := setupVerifyTest(t, `{"evidence":"read the cited section","severity":"high","category":"completeness","location":"## A","finding":"test","resolved":{"status":"fixed","evidence":"done"}}
 `)
 
 	stdout, _, code := runTP(t, filepath.Dir(specPath), "review", "--verify", "--findings", findingsPath, specPath)

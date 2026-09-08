@@ -51,13 +51,13 @@ func TestReviewMergeTwoFilesDedup(t *testing.T) {
 	dir := t.TempDir()
 
 	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{
-		`{"severity":"low","category":"ambiguity","class":"ambiguity","location":"## API","finding":"unclear endpoint","suggestion":"specify path"}`,
-		`{"severity":"high","category":"completeness","location":"## Models","finding":"missing field validation","suggestion":"add validation"}`,
+		`{"evidence":"read the cited section","severity":"low","category":"ambiguity","class":"ambiguity","location":"## API","finding":"unclear endpoint","suggestion":"specify path"}`,
+		`{"evidence":"read the cited section","severity":"high","category":"completeness","location":"## Models","finding":"missing field validation","suggestion":"add validation"}`,
 	})
 	f2 := writeFindingsFile(t, dir, "f2.ndjson", []string{
 		// Duplicate of f1 line 1 but with higher severity
-		`{"severity":"high","category":"ambiguity","class":"ambiguity","location":"## API","finding":"unclear endpoint","suggestion":"be more specific"}`,
-		`{"severity":"medium","category":"consistency","location":"## Tests","finding":"test naming inconsistent","suggestion":"use convention"}`,
+		`{"evidence":"read the cited section","severity":"high","category":"ambiguity","class":"ambiguity","location":"## API","finding":"unclear endpoint","suggestion":"be more specific"}`,
+		`{"evidence":"read the cited section","severity":"medium","category":"consistency","location":"## Tests","finding":"test naming inconsistent","suggestion":"use convention"}`,
 	})
 
 	stdout, stderr, code := runTPMerge(t, dir, "review", "--merge", f1, f2)
@@ -87,13 +87,13 @@ func TestReviewMergeThreeFilesAllUniqueSorted(t *testing.T) {
 	dir := t.TempDir()
 
 	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{
-		`{"severity":"low","category":"redundancy","location":"## A","finding":"finding one","suggestion":"fix"}`,
+		`{"evidence":"read the cited section","severity":"low","category":"redundancy","location":"## A","finding":"finding one","suggestion":"fix"}`,
 	})
 	f2 := writeFindingsFile(t, dir, "f2.ndjson", []string{
-		`{"severity":"critical","category":"completeness","location":"## B","finding":"finding two","suggestion":"fix"}`,
+		`{"evidence":"read the cited section","severity":"critical","category":"completeness","location":"## B","finding":"finding two","suggestion":"fix"}`,
 	})
 	f3 := writeFindingsFile(t, dir, "f3.ndjson", []string{
-		`{"severity":"medium","category":"ambiguity","location":"## C","finding":"finding three","suggestion":"fix"}`,
+		`{"evidence":"read the cited section","severity":"medium","category":"ambiguity","location":"## C","finding":"finding three","suggestion":"fix"}`,
 	})
 
 	stdout, stderr, code := runTPMerge(t, dir, "review", "--merge", f1, f2, f3)
@@ -115,11 +115,11 @@ func TestReviewMergeInvalidLinesSkipped(t *testing.T) {
 	dir := t.TempDir()
 
 	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{
-		`{"severity":"high","category":"completeness","location":"## A","finding":"valid finding","suggestion":"fix"}`,
+		`{"evidence":"read the cited section","severity":"high","category":"completeness","location":"## A","finding":"valid finding","suggestion":"fix"}`,
 		`not json at all`,
-		`{"severity":"","finding":"missing severity value"}`,
+		`{"evidence":"read the cited section","severity":"","finding":"missing severity value"}`,
 		``,
-		`{"severity":"medium","category":"ambiguity","location":"## B","finding":"another valid","suggestion":"fix"}`,
+		`{"evidence":"read the cited section","severity":"medium","category":"ambiguity","location":"## B","finding":"another valid","suggestion":"fix"}`,
 	})
 
 	stdout, stderr, code := runTPMerge(t, dir, "review", "--merge", f1)
@@ -137,10 +137,10 @@ func TestReviewMergeSingleFileNormalize(t *testing.T) {
 	dir := t.TempDir()
 
 	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{
-		`{"severity":"low","category":"zzz","class":"redundancy","location":"## A","finding":"finding one","suggestion":"fix"}`,
-		`{"severity":"high","category":"aaa","location":"## B","finding":"finding two","suggestion":"fix"}`,
+		`{"evidence":"read the cited section","severity":"low","category":"zzz","class":"redundancy","location":"## A","finding":"finding one","suggestion":"fix"}`,
+		`{"evidence":"read the cited section","severity":"high","category":"aaa","location":"## B","finding":"finding two","suggestion":"fix"}`,
 		// Duplicate of first
-		`{"severity":"medium","category":"zzz","class":"redundancy","location":"## A","finding":"finding one","suggestion":"different suggestion"}`,
+		`{"evidence":"read the cited section","severity":"medium","category":"zzz","class":"redundancy","location":"## A","finding":"finding one","suggestion":"different suggestion"}`,
 	})
 
 	stdout, stderr, code := runTPMerge(t, dir, "review", "--merge", f1)
@@ -183,7 +183,7 @@ func TestReviewMerge_RejectsSpecPositionalExit2(t *testing.T) {
 	spec := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(spec, []byte("# Spec\n## 1. A\nbody\n"), 0o600))
 	f1 := writeFindingsFile(t, dir, "a.ndjson", []string{
-		`{"severity":"low","location":"## 1. A","finding":"x","class":"x"}`,
+		`{"evidence":"read the cited section","severity":"low","location":"## 1. A","finding":"x","class":"x"}`,
 	})
 
 	// Spec mixed in among real inputs is rejected.
@@ -204,7 +204,7 @@ func TestReviewMergePreservesExtraFields(t *testing.T) {
 	dir := t.TempDir()
 
 	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{
-		`{"severity":"high","category":"completeness","location":"## A","finding":"some finding","suggestion":"fix","resolved":"fixed","custom_field":"hello","round":2}`,
+		`{"evidence":"read the cited section","severity":"high","category":"completeness","location":"## A","finding":"some finding","suggestion":"fix","resolved":"fixed","custom_field":"hello","round":2}`,
 	})
 
 	stdout, stderr, code := runTPMerge(t, dir, "review", "--merge", f1)
@@ -224,7 +224,7 @@ func TestReviewMergeOutputFile(t *testing.T) {
 	dir := t.TempDir()
 
 	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{
-		`{"severity":"high","category":"completeness","location":"## A","finding":"some finding","suggestion":"fix"}`,
+		`{"evidence":"read the cited section","severity":"high","category":"completeness","location":"## A","finding":"some finding","suggestion":"fix"}`,
 	})
 	outPath := filepath.Join(dir, "merged.ndjson")
 
@@ -321,9 +321,9 @@ func TestReviewMergeClustersByLocationClass(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{
-		`{"severity":"high","role":"implementer","class":"dedup-gap","location":"§8.2 detail","finding":"empty key collapses"}`,
-		`{"severity":"low","role":"tester","class":"dedup-gap","location":"§8.2 other words","finding":"same cluster paraphrase"}`,
-		`{"severity":"medium","role":"architect","class":"attribution","location":"§8.2 yet more","finding":"different class stays apart"}`,
+		`{"evidence":"read the cited section","severity":"high","role":"implementer","class":"dedup-gap","location":"§8.2 detail","finding":"empty key collapses"}`,
+		`{"evidence":"read the cited section","severity":"low","role":"tester","class":"dedup-gap","location":"§8.2 other words","finding":"same cluster paraphrase"}`,
+		`{"evidence":"read the cited section","severity":"medium","role":"architect","class":"attribution","location":"§8.2 yet more","finding":"different class stays apart"}`,
 	})
 	stdout, stderr, code := runTPMerge(t, dir, "review", "--merge", f1)
 	require.Equal(t, 0, code, "merge failed: %s", stderr)
@@ -353,8 +353,8 @@ func TestReviewMergeAbsentClassNotMerged(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{
-		`{"severity":"high","role":"implementer","location":"§8.2","finding":"first no-class finding"}`,
-		`{"severity":"high","role":"tester","location":"§8.2","finding":"second no-class finding"}`,
+		`{"evidence":"read the cited section","severity":"high","role":"implementer","location":"§8.2","finding":"first no-class finding"}`,
+		`{"evidence":"read the cited section","severity":"high","role":"tester","location":"§8.2","finding":"second no-class finding"}`,
 	})
 	stdout, stderr, code := runTPMerge(t, dir, "review", "--merge", f1)
 	require.Equal(t, 0, code, "merge failed: %s", stderr)
@@ -387,12 +387,12 @@ func TestReviewMergeOverlapReport(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	f1 := writeFindingsFile(t, dir, "f1.ndjson", []string{
-		`{"severity":"high","role":"implementer","class":"A","location":"§1","finding":"impl unique"}`,
-		`{"severity":"high","role":"implementer","class":"B","location":"§2","finding":"impl shared b"}`,
-		`{"severity":"low","role":"tester","class":"B","location":"§2 words","finding":"tester shared b"}`,
-		`{"severity":"medium","role":"architect","class":"C","location":"§3","finding":"arch shared c"}`,
-		`{"severity":"low","role":"tester","class":"C","location":"§3 more","finding":"tester shared c"}`,
-		`{"severity":"high","role":"regression","class":"D","location":"§4","finding":"regression only"}`,
+		`{"evidence":"read the cited section","severity":"high","role":"implementer","class":"A","location":"§1","finding":"impl unique"}`,
+		`{"evidence":"read the cited section","severity":"high","role":"implementer","class":"B","location":"§2","finding":"impl shared b"}`,
+		`{"evidence":"read the cited section","severity":"low","role":"tester","class":"B","location":"§2 words","finding":"tester shared b"}`,
+		`{"evidence":"read the cited section","severity":"medium","role":"architect","class":"C","location":"§3","finding":"arch shared c"}`,
+		`{"evidence":"read the cited section","severity":"low","role":"tester","class":"C","location":"§3 more","finding":"tester shared c"}`,
+		`{"evidence":"read the cited section","severity":"high","role":"regression","class":"D","location":"§4","finding":"regression only"}`,
 	})
 	stdout, stderr, code := runTPMerge(t, dir, "review", "--merge", "--json", f1)
 	require.Equal(t, 0, code, "merge failed: %s", stderr)

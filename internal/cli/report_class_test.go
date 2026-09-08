@@ -13,7 +13,7 @@ import (
 )
 
 func classRow(location, finding, class string) string {
-	row := fmt.Sprintf(`{"severity":"low","category":"consistency","location":%q,"finding":%q,"suggestion":"fix"`, location, finding)
+	row := fmt.Sprintf(`{"evidence":"read the cited section","severity":"low","category":"consistency","location":%q,"finding":%q,"suggestion":"fix"`, location, finding)
 	if class != "" {
 		row += fmt.Sprintf(`,"class":%q`, class)
 	}
@@ -115,13 +115,13 @@ func TestReport_MechanizeRetainedNoFoundByThreshold(t *testing.T) {
 	// found_by would be 2 after clustering — and two-rounds-class appears once.
 	r1 := filepath.Join(dir, "r1.ndjson")
 	require.NoError(t, os.WriteFile(r1, []byte(
-		`{"severity":"low","role":"implementer","class":"overlap-class","location":"§5","finding":"a"}`+"\n"+
-			`{"severity":"low","role":"tester","class":"overlap-class","location":"§5 more","finding":"b"}`+"\n"+
-			`{"severity":"low","role":"implementer","class":"two-rounds-class","location":"§6","finding":"c"}`+"\n"), 0o600))
+		`{"evidence":"read the cited section","severity":"low","role":"implementer","class":"overlap-class","location":"§5","finding":"a"}`+"\n"+
+			`{"evidence":"read the cited section","severity":"low","role":"tester","class":"overlap-class","location":"§5 more","finding":"b"}`+"\n"+
+			`{"evidence":"read the cited section","severity":"low","role":"implementer","class":"two-rounds-class","location":"§6","finding":"c"}`+"\n"), 0o600))
 	// Round 2: two-rounds-class recurs -> a candidate purely by round frequency.
 	r2 := filepath.Join(dir, "r2.ndjson")
 	require.NoError(t, os.WriteFile(r2, []byte(
-		`{"severity":"low","role":"implementer","class":"two-rounds-class","location":"§7","finding":"d"}`+"\n"), 0o600))
+		`{"evidence":"read the cited section","severity":"low","role":"implementer","class":"two-rounds-class","location":"§7","finding":"d"}`+"\n"), 0o600))
 
 	stdout, stderr, code := runTP(t, dir, "review", "--report", r1, r2)
 	require.Equal(t, 0, code, "report failed: %s", stderr)

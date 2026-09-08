@@ -15,7 +15,7 @@ import (
 // review_converge_on=blocking no surviving finding blocks, so the live
 // severity-aware predicate treats the round as clean. This is precisely the
 // case where the frozen flag and the live recompute disagree.
-const mediumRow = `{"severity":"medium","category":"c","location":"L1","finding":"nit","suggestion":"s"}` + "\n"
+const mediumRow = `{"evidence":"read the cited section","severity":"medium","category":"c","location":"L1","finding":"nit","suggestion":"s"}` + "\n"
 
 // TestReviewConvergeLive_BudgetAndPromptGen asserts that, for a
 // review_converge_on=blocking sequence whose only survivors are medium/low, the

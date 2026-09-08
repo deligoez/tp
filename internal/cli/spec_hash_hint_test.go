@@ -47,7 +47,10 @@ func TestSpecHashFailureNamesTheRealCause(t *testing.T) {
 			require.Equal(t, 0, code)
 
 			results := filepath.Join(dir, "results.ndjson")
-			require.NoError(t, os.WriteFile(results, []byte(`{"role":"r","item_id":"i","status":"PASS"}`+"\n"), 0o600))
+			// The row is legal for both phases: the audit keys the audit --record
+			// case needs, and the four review-finding keys review --record needs,
+			// so the exit under test is the unreadable spec and not a refused row.
+			require.NoError(t, os.WriteFile(results, []byte(`{"role":"r","item_id":"i","status":"PASS","evidence":"read the cited section","severity":"low","location":"§1","finding":"f"}`+"\n"), 0o600))
 
 			require.NoError(t, os.Chmod(specPath, 0o000))
 			t.Cleanup(func() { _ = os.Chmod(specPath, 0o600) })

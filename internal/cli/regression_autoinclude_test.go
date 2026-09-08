@@ -63,7 +63,7 @@ func TestRegressionPrompt_AutoInclusion(t *testing.T) {
 		_, _, code := runTP(t, dir, "review", "spec.md")
 		require.Equal(t, 0, code)
 		_, _, code = recordRound(t, dir,
-			`{"severity":"high","category":"consistency","location":"L1","finding":"was broken","suggestion":"s"}`+"\n")
+			`{"evidence":"read the cited section","severity":"high","category":"consistency","location":"L1","finding":"was broken","suggestion":"s"}`+"\n")
 		require.Equal(t, 0, code)
 		roundFile := filepath.Join(dir, ".tp-review", "spec", "review-round-1.ndjson")
 		_, _, code = runTP(t, dir, "review", "--resolve", roundFile, "0", "fixed", "fixed in place")

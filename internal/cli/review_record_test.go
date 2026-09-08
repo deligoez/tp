@@ -31,8 +31,8 @@ func TestReviewRecord_Lifecycle(t *testing.T) {
 	// Under review_converge_on=blocking the surviving high finding blocks a
 	// clean round; the duplicate-with-evidence row is out of the surviving set.
 	out, stderr, code := recordRound(t, dir,
-		`{"severity":"high","category":"consistency","location":"L1","finding":"f1","suggestion":"s"}`+"\n"+
-			`{"severity":"low","category":"consistency","location":"L2","finding":"f2","suggestion":"s","resolved":{"status":"duplicate","evidence":"dup of f1"}}`+"\n")
+		`{"evidence":"read the cited section","severity":"high","category":"consistency","location":"L1","finding":"f1","suggestion":"s"}`+"\n"+
+			`{"evidence":"read the cited section","severity":"low","category":"consistency","location":"L2","finding":"f2","suggestion":"s","resolved":{"status":"duplicate","evidence":"dup of f1"}}`+"\n")
 	require.Equal(t, 0, code, "record failed: %s", stderr)
 	assert.Equal(t, float64(1), out["round"])
 	assert.Equal(t, float64(2), out["findings"])
@@ -48,7 +48,7 @@ func TestReviewRecord_Lifecycle(t *testing.T) {
 
 	// Round 3: clean via all-wontfix rows -> converged (default 2 clean rounds)
 	out, _, code = recordRound(t, dir,
-		`{"severity":"low","category":"x","location":"L","finding":"rejected","suggestion":"s","resolved":{"status":"wontfix","evidence":"verifier: false positive"}}`+"\n")
+		`{"evidence":"read the cited section","severity":"low","category":"x","location":"L","finding":"rejected","suggestion":"s","resolved":{"status":"wontfix","evidence":"verifier: false positive"}}`+"\n")
 	require.Equal(t, 0, code)
 	assert.Equal(t, float64(3), out["round"])
 	assert.Equal(t, true, out["clean"], "all-wontfix rows record a clean round")
@@ -75,14 +75,14 @@ func TestReviewRecord_RowRules(t *testing.T) {
 
 	t.Run("invalid JSON aborts with line number", func(t *testing.T) {
 		dir := setup(t)
-		_, stderr, code := recordRound(t, dir, `{"ok":"row"}`+"\n"+`not json`+"\n")
+		_, stderr, code := recordRound(t, dir, `{"evidence":"read the cited section","severity":"low","location":"L1","finding":"ok row"}`+"\n"+`not json`+"\n")
 		assert.Equal(t, 1, code)
 		assert.Contains(t, stderr, "line 2")
 	})
 
 	t.Run("pre-resolved fixed aborts", func(t *testing.T) {
 		dir := setup(t)
-		_, stderr, code := recordRound(t, dir, `{"finding":"f","resolved":{"status":"fixed","evidence":"e"}}`+"\n")
+		_, stderr, code := recordRound(t, dir, `{"evidence":"read the cited section","severity":"high","location":"L1","finding":"f","resolved":{"status":"fixed","evidence":"e"}}`+"\n")
 		assert.Equal(t, 1, code)
 		assert.Contains(t, stderr, "line 1")
 		assert.Contains(t, stderr, "fixed")
@@ -90,7 +90,7 @@ func TestReviewRecord_RowRules(t *testing.T) {
 
 	t.Run("wontfix with empty evidence aborts", func(t *testing.T) {
 		dir := setup(t)
-		_, stderr, code := recordRound(t, dir, `{"finding":"f","resolved":{"status":"wontfix","evidence":"  "}}`+"\n")
+		_, stderr, code := recordRound(t, dir, `{"evidence":"read the cited section","severity":"high","location":"L1","finding":"f","resolved":{"status":"wontfix","evidence":"  "}}`+"\n")
 		assert.Equal(t, 1, code)
 		assert.Contains(t, stderr, "line 1")
 		assert.Contains(t, stderr, "evidence")
@@ -126,9 +126,9 @@ func TestReviewRecord_MechanizeCandidatesInOutput(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 
-	_, _, code := recordRound(t, dir, `{"severity":"low","category":"c","location":"L1","finding":"f1","suggestion":"s","class":"repeat-class"}`+"\n")
+	_, _, code := recordRound(t, dir, `{"evidence":"read the cited section","severity":"low","category":"c","location":"L1","finding":"f1","suggestion":"s","class":"repeat-class"}`+"\n")
 	require.Equal(t, 0, code)
-	out, _, code := recordRound(t, dir, `{"severity":"low","category":"c","location":"L2","finding":"f2","suggestion":"s","class":"repeat-class"}`+"\n")
+	out, _, code := recordRound(t, dir, `{"evidence":"read the cited section","severity":"low","category":"c","location":"L2","finding":"f2","suggestion":"s","class":"repeat-class"}`+"\n")
 	require.Equal(t, 0, code)
 
 	candidates := out["mechanize_candidates"].([]any)
@@ -146,8 +146,8 @@ func TestReviewRecord_RoleMissingWarns(t *testing.T) {
 
 	// Line 1 carries `role`; line 2 omits it. The round still records (exit 0)
 	// and the warning names the offending line and the findings file.
-	ndjson := `{"severity":"low","category":"c","location":"L1","finding":"f1","suggestion":"s","role":"implementer"}` + "\n" +
-		`{"severity":"low","category":"c","location":"L2","finding":"f2","suggestion":"s"}` + "\n"
+	ndjson := `{"evidence":"read the cited section","severity":"low","category":"c","location":"L1","finding":"f1","suggestion":"s","role":"implementer"}` + "\n" +
+		`{"evidence":"read the cited section","severity":"low","category":"c","location":"L2","finding":"f2","suggestion":"s"}` + "\n"
 	out, stderr, code := recordRound(t, dir, ndjson)
 	require.Equal(t, 0, code, "round still records despite the role-less row")
 	assert.Equal(t, float64(1), out["round"])

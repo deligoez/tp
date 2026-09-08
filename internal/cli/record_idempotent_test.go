@@ -123,7 +123,7 @@ func TestRecordIdempotent_AuditRewritesRecordedRound(t *testing.T) {
 // which the retry must preserve rather than re-open.
 func TestRecordIdempotent_RetryAfterPartialFailureConverges(t *testing.T) {
 	t.Parallel()
-	const disposed = `{"severity":"high","category":"c","location":"L1","finding":"f","suggestion":"s",` +
+	const disposed = `{"evidence":"read the cited section","severity":"high","category":"c","location":"L1","finding":"f","suggestion":"s",` +
 		`"resolved":{"status":"wontfix","evidence":"verifier: false positive"}}` + "\n"
 
 	dir := specOnlyProject(t)

@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const fixedRow = `{"severity":"high","category":"consistency","location":"L1","finding":"settled decision text","suggestion":"s","resolved":{"status":"fixed","evidence":"rewrote section 2"}}` + "\n"
+const fixedRow = `{"evidence":"read the cited section","severity":"high","category":"consistency","location":"L1","finding":"settled decision text","suggestion":"s","resolved":{"status":"fixed","evidence":"rewrote section 2"}}` + "\n"
 
 func TestRegression_StandaloneStateMode(t *testing.T) {
 	t.Parallel()
@@ -22,7 +22,7 @@ func TestRegression_StandaloneStateMode(t *testing.T) {
 	_, _, code := runTP(t, dir, "review", "spec.md")
 	require.Equal(t, 0, code)
 	_, _, code = recordRound(t, dir,
-		`{"severity":"high","category":"consistency","location":"L1","finding":"settled decision text","suggestion":"s"}`+"\n")
+		`{"evidence":"read the cited section","severity":"high","category":"consistency","location":"L1","finding":"settled decision text","suggestion":"s"}`+"\n")
 	require.Equal(t, 0, code)
 	roundFile := filepath.Join(dir, ".tp-review", "spec", "review-round-1.ndjson")
 	_, _, code = runTP(t, dir, "review", "--resolve", roundFile, "0", "fixed", "rewrote section 2")

@@ -23,7 +23,7 @@ func writeBareSpec(t *testing.T, dir string) {
 // dirties the record round but the live severity-aware predicate keeps the round
 // clean, so it feeds the mechanize signal without blocking convergence.
 func classedMediumRow(class, loc string) string {
-	return `{"severity":"medium","category":"style","location":"` + loc + `","finding":"f","suggestion":"s","class":"` + class + `"}`
+	return `{"evidence":"read the cited section","severity":"medium","category":"style","location":"` + loc + `","finding":"f","suggestion":"s","class":"` + class + `"}`
 }
 
 func naStr(t *testing.T, m map[string]any) string {
@@ -73,7 +73,7 @@ func TestNextAction_ReviewBlocking(t *testing.T) {
 	dir := t.TempDir()
 	writeBareSpec(t, dir) // default review_clean_rounds=2
 	out, stderr, code := recordRound(t, dir,
-		`{"severity":"high","category":"completeness","location":"L1","finding":"missing","suggestion":"add"}`+"\n")
+		`{"evidence":"read the cited section","severity":"high","category":"completeness","location":"L1","finding":"missing","suggestion":"add"}`+"\n")
 	require.Equal(t, 0, code, "record failed: %s", stderr)
 	require.Equal(t, false, out["clean"], "a surviving high blocks")
 	na := naStr(t, out)
@@ -159,7 +159,7 @@ func TestNextAction_ReviewGatesNoExitCode(t *testing.T) {
 	dir := t.TempDir()
 	writeBareSpec(t, dir)
 	_, stderr, code := recordRound(t, dir,
-		`{"severity":"high","category":"completeness","location":"L1","finding":"missing","suggestion":"add"}`+"\n")
+		`{"evidence":"read the cited section","severity":"high","category":"completeness","location":"L1","finding":"missing","suggestion":"add"}`+"\n")
 	require.Equal(t, 0, code, "record failed: %s", stderr)
 
 	// Plain --status: exit 0, next_action present.

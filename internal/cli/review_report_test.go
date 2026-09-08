@@ -24,21 +24,21 @@ func TestReviewReportThreeFiles(t *testing.T) {
 	dir := t.TempDir()
 
 	r1 := writeRoundFile(t, dir, "r1.ndjson", []string{
-		`{"severity":"high","category":"completeness","location":"## API","finding":"missing auth endpoint","suggestion":"add auth"}`,
-		`{"severity":"medium","category":"ambiguity","location":"## Models","finding":"unclear field type for status","suggestion":"specify enum"}`,
-		`{"severity":"low","category":"consistency","location":"## Tests","finding":"test naming inconsistent","suggestion":"use convention"}`,
+		`{"evidence":"read the cited section","severity":"high","category":"completeness","location":"## API","finding":"missing auth endpoint","suggestion":"add auth"}`,
+		`{"evidence":"read the cited section","severity":"medium","category":"ambiguity","location":"## Models","finding":"unclear field type for status","suggestion":"specify enum"}`,
+		`{"evidence":"read the cited section","severity":"low","category":"consistency","location":"## Tests","finding":"test naming inconsistent","suggestion":"use convention"}`,
 	})
 
 	// R2: one resolved (test naming gone), one new
 	r2 := writeRoundFile(t, dir, "r2.ndjson", []string{
-		`{"severity":"high","category":"completeness","location":"## API","finding":"missing auth endpoint","suggestion":"add auth"}`,
-		`{"severity":"medium","category":"ambiguity","location":"## Models","finding":"unclear field type for status","suggestion":"specify enum"}`,
-		`{"severity":"medium","category":"completeness","location":"## Docs","finding":"missing migration guide","suggestion":"add guide"}`,
+		`{"evidence":"read the cited section","severity":"high","category":"completeness","location":"## API","finding":"missing auth endpoint","suggestion":"add auth"}`,
+		`{"evidence":"read the cited section","severity":"medium","category":"ambiguity","location":"## Models","finding":"unclear field type for status","suggestion":"specify enum"}`,
+		`{"evidence":"read the cited section","severity":"medium","category":"completeness","location":"## Docs","finding":"missing migration guide","suggestion":"add guide"}`,
 	})
 
 	// R3: two resolved, one remains
 	r3 := writeRoundFile(t, dir, "r3.ndjson", []string{
-		`{"severity":"high","category":"completeness","location":"## API","finding":"missing auth endpoint","suggestion":"add auth"}`,
+		`{"evidence":"read the cited section","severity":"high","category":"completeness","location":"## API","finding":"missing auth endpoint","suggestion":"add auth"}`,
 	})
 
 	stdout, stderr, code := runTP(t, dir, "review", "--report", r1, r2, r3)
@@ -83,11 +83,11 @@ func TestReviewReportFromDirectory(t *testing.T) {
 
 	// Write files with names that sort alphabetically (b before c)
 	writeRoundFile(t, roundsDir, "b-round2.ndjson", []string{
-		`{"severity":"high","category":"completeness","location":"## API","finding":"missing endpoint","suggestion":"add"}`,
+		`{"evidence":"read the cited section","severity":"high","category":"completeness","location":"## API","finding":"missing endpoint","suggestion":"add"}`,
 	})
 	writeRoundFile(t, roundsDir, "a-round1.ndjson", []string{
-		`{"severity":"high","category":"completeness","location":"## API","finding":"missing endpoint","suggestion":"add"}`,
-		`{"severity":"low","category":"style","location":"## Code","finding":"formatting issue","suggestion":"fix"}`,
+		`{"evidence":"read the cited section","severity":"high","category":"completeness","location":"## API","finding":"missing endpoint","suggestion":"add"}`,
+		`{"evidence":"read the cited section","severity":"low","category":"style","location":"## Code","finding":"formatting issue","suggestion":"fix"}`,
 	})
 
 	stdout, stderr, code := runTP(t, dir, "review", "--report", roundsDir)
@@ -114,7 +114,7 @@ func TestReviewReportConverged(t *testing.T) {
 	dir := t.TempDir()
 
 	r1 := writeRoundFile(t, dir, "r1.ndjson", []string{
-		`{"severity":"high","category":"completeness","location":"## API","finding":"missing endpoint","suggestion":"add"}`,
+		`{"evidence":"read the cited section","severity":"high","category":"completeness","location":"## API","finding":"missing endpoint","suggestion":"add"}`,
 	})
 	// R2 and R3 are empty (0 findings)
 	r2 := writeRoundFile(t, dir, "r2.ndjson", []string{})
@@ -136,10 +136,10 @@ func TestReviewReportNotConverged(t *testing.T) {
 	dir := t.TempDir()
 
 	r1 := writeRoundFile(t, dir, "r1.ndjson", []string{
-		`{"severity":"high","category":"completeness","location":"## API","finding":"missing endpoint","suggestion":"add"}`,
+		`{"evidence":"read the cited section","severity":"high","category":"completeness","location":"## API","finding":"missing endpoint","suggestion":"add"}`,
 	})
 	r2 := writeRoundFile(t, dir, "r2.ndjson", []string{
-		`{"severity":"medium","category":"style","location":"## Code","finding":"naming issue","suggestion":"rename"}`,
+		`{"evidence":"read the cited section","severity":"medium","category":"style","location":"## Code","finding":"naming issue","suggestion":"rename"}`,
 	})
 
 	stdout, stderr, code := runTP(t, dir, "review", "--report", r1, r2)
@@ -157,13 +157,13 @@ func TestReviewReportBySeverityAndCategory(t *testing.T) {
 	dir := t.TempDir()
 
 	r1 := writeRoundFile(t, dir, "r1.ndjson", []string{
-		`{"severity":"high","category":"completeness","location":"## API","finding":"missing auth","suggestion":"add"}`,
-		`{"severity":"medium","category":"ambiguity","location":"## Models","finding":"unclear type","suggestion":"specify"}`,
-		`{"severity":"low","category":"consistency","location":"## Tests","finding":"naming issue","suggestion":"fix"}`,
+		`{"evidence":"read the cited section","severity":"high","category":"completeness","location":"## API","finding":"missing auth","suggestion":"add"}`,
+		`{"evidence":"read the cited section","severity":"medium","category":"ambiguity","location":"## Models","finding":"unclear type","suggestion":"specify"}`,
+		`{"evidence":"read the cited section","severity":"low","category":"consistency","location":"## Tests","finding":"naming issue","suggestion":"fix"}`,
 	})
 	// R2: only high remains
 	r2 := writeRoundFile(t, dir, "r2.ndjson", []string{
-		`{"severity":"high","category":"completeness","location":"## API","finding":"missing auth","suggestion":"add"}`,
+		`{"evidence":"read the cited section","severity":"high","category":"completeness","location":"## API","finding":"missing auth","suggestion":"add"}`,
 	})
 
 	stdout, stderr, code := runTP(t, dir, "review", "--report", r1, r2)
@@ -199,7 +199,7 @@ func TestReviewReportDeltaPercentNullForR1(t *testing.T) {
 	dir := t.TempDir()
 
 	r1 := writeRoundFile(t, dir, "r1.ndjson", []string{
-		`{"severity":"high","category":"completeness","location":"## API","finding":"missing endpoint","suggestion":"add"}`,
+		`{"evidence":"read the cited section","severity":"high","category":"completeness","location":"## API","finding":"missing endpoint","suggestion":"add"}`,
 	})
 
 	stdout, stderr, code := runTP(t, dir, "review", "--report", r1)
@@ -238,10 +238,10 @@ func TestReviewReportWithResolvedField(t *testing.T) {
 	dir := t.TempDir()
 
 	r1 := writeRoundFile(t, dir, "r1.ndjson", []string{
-		`{"severity":"high","category":"completeness","location":"## API","finding":"missing auth","suggestion":"add","resolved":"fixed"}`,
-		`{"severity":"medium","category":"ambiguity","location":"## Models","finding":"unclear type","suggestion":"specify","resolved":"wontfix"}`,
-		`{"severity":"low","category":"style","location":"## Code","finding":"naming","suggestion":"rename","resolved":"duplicate"}`,
-		`{"severity":"high","category":"security","location":"## Auth","finding":"no rate limit","suggestion":"add"}`,
+		`{"evidence":"read the cited section","severity":"high","category":"completeness","location":"## API","finding":"missing auth","suggestion":"add","resolved":"fixed"}`,
+		`{"evidence":"read the cited section","severity":"medium","category":"ambiguity","location":"## Models","finding":"unclear type","suggestion":"specify","resolved":"wontfix"}`,
+		`{"evidence":"read the cited section","severity":"low","category":"style","location":"## Code","finding":"naming","suggestion":"rename","resolved":"duplicate"}`,
+		`{"evidence":"read the cited section","severity":"high","category":"security","location":"## Auth","finding":"no rate limit","suggestion":"add"}`,
 	})
 
 	stdout, stderr, code := runTP(t, dir, "review", "--report", r1)

@@ -48,7 +48,7 @@ func exclusionFixture(t *testing.T, checksJSON string) string {
 
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "baseline.md"), []byte("# Spec\n\n## One\nolder content\n"), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "regression-findings.ndjson"),
-		[]byte(`{"severity":"low","category":"consistency","location":"L1","finding":"f","suggestion":"fix","resolved":{"status":"fixed","evidence":"e"}}`+"\n"), 0o600))
+		[]byte(`{"evidence":"read the cited section","severity":"low","category":"consistency","location":"L1","finding":"f","suggestion":"fix","resolved":{"status":"fixed","evidence":"e"}}`+"\n"), 0o600))
 	return dir
 }
 

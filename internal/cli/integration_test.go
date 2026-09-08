@@ -128,7 +128,7 @@ func TestSelfLoop_ReviewToImport(t *testing.T) {
 	// record a dirty round
 	dirtyFile := filepath.Join(dir, "r1.ndjson")
 	require.NoError(t, os.WriteFile(dirtyFile,
-		[]byte(`{"severity":"high","category":"consistency","location":"L1","finding":"issue","suggestion":"fix"}`+"\n"), 0o600))
+		[]byte(`{"evidence":"read the cited section","severity":"high","category":"consistency","location":"L1","finding":"issue","suggestion":"fix"}`+"\n"), 0o600))
 	_, _, code = runTP(t, dir, "review", "spec.md", "--record", dirtyFile)
 	require.Equal(t, 0, code)
 

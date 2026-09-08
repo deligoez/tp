@@ -39,11 +39,11 @@ func TestReviewMerge_LocationClusters(t *testing.T) {
 		// ONE role; §3 carries one. If clusters fed the arithmetic, merged_count
 		// would read 3 (one per location) instead of 5.
 		f1 := writeFindingsFile(t, dir, "clusters.ndjson", []string{
-			`{"severity":"high","role":"implementer","class":"A","location":"§1","finding":"impl at one"}`,
-			`{"severity":"low","role":"tester","class":"B","location":"§1 trailing words","finding":"tester at one"}`,
-			`{"severity":"medium","role":"implementer","class":"C","location":"§2","finding":"impl at two"}`,
-			`{"severity":"high","role":"implementer","class":"D","location":"§2 more","finding":"impl at two again"}`,
-			`{"severity":"critical","role":"architect","class":"E","location":"§3","finding":"arch at three"}`,
+			`{"evidence":"read the cited section","severity":"high","role":"implementer","class":"A","location":"§1","finding":"impl at one"}`,
+			`{"evidence":"read the cited section","severity":"low","role":"tester","class":"B","location":"§1 trailing words","finding":"tester at one"}`,
+			`{"evidence":"read the cited section","severity":"medium","role":"implementer","class":"C","location":"§2","finding":"impl at two"}`,
+			`{"evidence":"read the cited section","severity":"high","role":"implementer","class":"D","location":"§2 more","finding":"impl at two again"}`,
+			`{"evidence":"read the cited section","severity":"critical","role":"architect","class":"E","location":"§3","finding":"arch at three"}`,
 		})
 		stdout, stderr, code := runTPMerge(t, dir, "review", "--merge", "--json", f1)
 		require.Equal(t, 0, code, "merge failed: %s", stderr)
@@ -69,8 +69,8 @@ func TestReviewMerge_LocationClusters(t *testing.T) {
 	t.Run("empty array when every location has a single role", func(t *testing.T) {
 		dir := t.TempDir()
 		f1 := writeFindingsFile(t, dir, "single-role.ndjson", []string{
-			`{"severity":"high","role":"implementer","class":"A","location":"§1","finding":"only role"}`,
-			`{"severity":"low","role":"implementer","class":"B","location":"§1 again","finding":"same role again"}`,
+			`{"evidence":"read the cited section","severity":"high","role":"implementer","class":"A","location":"§1","finding":"only role"}`,
+			`{"evidence":"read the cited section","severity":"low","role":"implementer","class":"B","location":"§1 again","finding":"same role again"}`,
 		})
 		stdout, stderr, code := runTPMerge(t, dir, "review", "--merge", "--json", f1)
 		require.Equal(t, 0, code, "merge failed: %s", stderr)
@@ -85,8 +85,8 @@ func TestReviewMerge_LocationClusters(t *testing.T) {
 		// Same location key AND class: merge collapses these into one record
 		// carrying found_by_roles, so the location is multi-role with count 1.
 		f1 := writeFindingsFile(t, dir, "collapsed.ndjson", []string{
-			`{"severity":"high","role":"implementer","class":"A","location":"§1","finding":"same class one"}`,
-			`{"severity":"low","role":"tester","class":"A","location":"§1 words","finding":"same class two"}`,
+			`{"evidence":"read the cited section","severity":"high","role":"implementer","class":"A","location":"§1","finding":"same class one"}`,
+			`{"evidence":"read the cited section","severity":"low","role":"tester","class":"A","location":"§1 words","finding":"same class two"}`,
 		})
 		stdout, stderr, code := runTPMerge(t, dir, "review", "--merge", "--json", f1)
 		require.Equal(t, 0, code, "merge failed: %s", stderr)
@@ -106,8 +106,8 @@ func TestReviewMerge_LocationClusters(t *testing.T) {
 	t.Run("omitted under --compact while overlap_report stays", func(t *testing.T) {
 		dir := t.TempDir()
 		f1 := writeFindingsFile(t, dir, "compact.ndjson", []string{
-			`{"severity":"high","role":"implementer","class":"A","location":"§1","finding":"impl"}`,
-			`{"severity":"low","role":"tester","class":"B","location":"§1 words","finding":"tester"}`,
+			`{"evidence":"read the cited section","severity":"high","role":"implementer","class":"A","location":"§1","finding":"impl"}`,
+			`{"evidence":"read the cited section","severity":"low","role":"tester","class":"B","location":"§1 words","finding":"tester"}`,
 		})
 		stdout, stderr, code := runTPMerge(t, dir, "review", "--merge", "--json", "--compact", f1)
 		require.Equal(t, 0, code, "merge failed: %s", stderr)
@@ -142,9 +142,9 @@ func TestReviewStatus_LocationClusters(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## 1. A\ncontent\n"), 0o600))
 	merged := writeFindingsFile(t, dir, "merged.ndjson", []string{
-		`{"severity":"high","role":"implementer","class":"A","location":"§1","finding":"impl"}`,
-		`{"severity":"medium","role":"tester","class":"B","location":"§1 words","finding":"tester"}`,
-		`{"severity":"low","role":"architect","class":"C","location":"§1 more","finding":"arch"}`,
+		`{"evidence":"read the cited section","severity":"high","role":"implementer","class":"A","location":"§1","finding":"impl"}`,
+		`{"evidence":"read the cited section","severity":"medium","role":"tester","class":"B","location":"§1 words","finding":"tester"}`,
+		`{"evidence":"read the cited section","severity":"low","role":"architect","class":"C","location":"§1 more","finding":"arch"}`,
 	})
 	recordOut, _, code := runTP(t, dir, "review", "spec.md", "--record", merged)
 	require.Equal(t, 0, code)
@@ -200,8 +200,8 @@ func TestReviewStatus_LocationClustersEmpty(t *testing.T) {
 	assert.Equal(t, []any{}, status["location_clusters"], "no recorded round → [] , never null")
 
 	merged := writeFindingsFile(t, dir, "one-role.ndjson", []string{
-		`{"severity":"high","role":"implementer","class":"A","location":"§1","finding":"impl"}`,
-		`{"severity":"low","role":"implementer","class":"B","location":"§1 words","finding":"impl again"}`,
+		`{"evidence":"read the cited section","severity":"high","role":"implementer","class":"A","location":"§1","finding":"impl"}`,
+		`{"evidence":"read the cited section","severity":"low","role":"implementer","class":"B","location":"§1 words","finding":"impl again"}`,
 	})
 	_, _, code = runTP(t, dir, "review", "spec.md", "--record", merged)
 	require.Equal(t, 0, code)

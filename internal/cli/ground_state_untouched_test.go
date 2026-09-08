@@ -37,7 +37,7 @@ const groundFutureStateKey = "ground_rounds"
 func seedReviewStateWithAFutureKey(t *testing.T, dir string) []byte {
 	t.Helper()
 	_, stderr, code := recordRound(t, dir,
-		`{"severity":"low","category":"consistency","location":"L1","finding":"f1","suggestion":"s"}`+"\n")
+		`{"evidence":"read the cited section","severity":"low","category":"consistency","location":"L1","finding":"f1","suggestion":"s"}`+"\n")
 	require.Equal(t, 0, code, "the fixture needs a real state.json: %s", stderr)
 
 	path := groundStatePath(dir, "state.json")

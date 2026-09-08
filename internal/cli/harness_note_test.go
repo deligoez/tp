@@ -313,7 +313,7 @@ func TestCompact_AuditOmitsHarnessKeepsNextAction(t *testing.T) {
 func TestCompact_ReviewRetainsNonBlockingOpen(t *testing.T) {
 	t.Parallel()
 	dir := setupConvergeOnProject(t) // a single clean round converges
-	medium := `{"severity":"medium","category":"ambiguity","location":"L1","finding":"soft","suggestion":"clarify"}` + "\n"
+	medium := `{"evidence":"read the cited section","severity":"medium","category":"ambiguity","location":"L1","finding":"soft","suggestion":"clarify"}` + "\n"
 	f := filepath.Join(dir, "findings.ndjson")
 	require.NoError(t, os.WriteFile(f, []byte(medium), 0o600))
 

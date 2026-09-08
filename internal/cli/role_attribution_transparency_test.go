@@ -116,8 +116,8 @@ func TestReviewMerge_AttributionExcludes(t *testing.T) {
 
 	t.Run("present when a regression-only finding drops from overlap", func(t *testing.T) {
 		f1 := writeFindingsFile(t, dir, "attr-reg.ndjson", []string{
-			`{"severity":"high","role":"implementer","class":"A","location":"§1","finding":"impl unique"}`,
-			`{"severity":"high","role":"regression","class":"D","location":"§4","finding":"regression only"}`,
+			`{"evidence":"read the cited section","severity":"high","role":"implementer","class":"A","location":"§1","finding":"impl unique"}`,
+			`{"evidence":"read the cited section","severity":"high","role":"regression","class":"D","location":"§4","finding":"regression only"}`,
 		})
 		stdout, stderr, code := runTPMerge(t, dir, "review", "--merge", "--json", f1)
 		require.Equal(t, 0, code, "merge: %s", stderr)
@@ -129,8 +129,8 @@ func TestReviewMerge_AttributionExcludes(t *testing.T) {
 
 	t.Run("absent when counts already match", func(t *testing.T) {
 		f1 := writeFindingsFile(t, dir, "attr-noreg.ndjson", []string{
-			`{"severity":"high","role":"implementer","class":"A","location":"§1","finding":"impl shared"}`,
-			`{"severity":"high","role":"tester","class":"A","location":"§1 same","finding":"tester shared"}`,
+			`{"evidence":"read the cited section","severity":"high","role":"implementer","class":"A","location":"§1","finding":"impl shared"}`,
+			`{"evidence":"read the cited section","severity":"high","role":"tester","class":"A","location":"§1 same","finding":"tester shared"}`,
 		})
 		stdout, _, code := runTPMerge(t, dir, "review", "--merge", "--json", f1)
 		require.Equal(t, 0, code)
@@ -142,7 +142,7 @@ func TestReviewMerge_AttributionExcludes(t *testing.T) {
 
 	t.Run("omitted under --compact while overlap_report stays", func(t *testing.T) {
 		f1 := writeFindingsFile(t, dir, "attr-compact.ndjson", []string{
-			`{"severity":"high","role":"regression","class":"D","location":"§4","finding":"regression only"}`,
+			`{"evidence":"read the cited section","severity":"high","role":"regression","class":"D","location":"§4","finding":"regression only"}`,
 		})
 		stdout, _, code := runTPMerge(t, dir, "review", "--merge", "--json", "--compact", f1)
 		require.Equal(t, 0, code)
@@ -163,8 +163,8 @@ func TestReviewStatus_AttributionExcludes(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n## 1. A\ncontent\n"), 0o600))
 	merged := writeFindingsFile(t, dir, "merged.ndjson", []string{
-		`{"severity":"high","role":"implementer","class":"A","location":"§1","finding":"impl unique"}`,
-		`{"severity":"high","role":"regression","class":"D","location":"§4","finding":"regression only"}`,
+		`{"evidence":"read the cited section","severity":"high","role":"implementer","class":"A","location":"§1","finding":"impl unique"}`,
+		`{"evidence":"read the cited section","severity":"high","role":"regression","class":"D","location":"§4","finding":"regression only"}`,
 	})
 	_, _, code := runTP(t, dir, "review", "spec.md", "--record", merged)
 	require.Equal(t, 0, code)

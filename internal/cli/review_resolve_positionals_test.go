@@ -20,7 +20,7 @@ func TestReviewResolve_RejectsSpecPositionalExit2(t *testing.T) {
 	spec := filepath.Join(dir, "spec.md")
 	require.NoError(t, os.WriteFile(spec, []byte("# Spec\n## 1. A\nbody\n"), 0o600))
 	findings := filepath.Join(dir, "f.ndjson")
-	require.NoError(t, os.WriteFile(findings, []byte(`{"severity":"low","finding":"x"}`+"\n"), 0o600))
+	require.NoError(t, os.WriteFile(findings, []byte(`{"evidence":"read the cited section","severity":"low","finding":"x"}`+"\n"), 0o600))
 
 	// Old broken form: spec as positional, findings among the trailing args.
 	_, stderr, code := runTP(t, dir, "review", spec, "--resolve", findings, "0", "fixed", "why")
@@ -38,7 +38,7 @@ func TestReviewResolve_NonNumericIndexNamesExpectedForm(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	findings := filepath.Join(dir, "f.ndjson")
-	require.NoError(t, os.WriteFile(findings, []byte(`{"severity":"low","finding":"x"}`+"\n"), 0o600))
+	require.NoError(t, os.WriteFile(findings, []byte(`{"evidence":"read the cited section","severity":"low","finding":"x"}`+"\n"), 0o600))
 
 	_, stderr, code := runTP(t, dir, "review", findings, "--resolve", "abc", "fixed", "why")
 	require.Equal(t, 2, code, "non-numeric index must exit 2: %s", stderr)
@@ -54,7 +54,7 @@ func TestReviewResolve_HappyPathUnchanged(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	findings := filepath.Join(dir, "f.ndjson")
-	require.NoError(t, os.WriteFile(findings, []byte(`{"severity":"low","finding":"x"}`+"\n"), 0o600))
+	require.NoError(t, os.WriteFile(findings, []byte(`{"evidence":"read the cited section","severity":"low","finding":"x"}`+"\n"), 0o600))
 
 	stdout, stderr, code := runTP(t, dir, "review", findings, "--resolve", "0", "fixed", "done")
 	require.Equal(t, 0, code, "happy path must still work: %s", stderr)
@@ -93,7 +93,7 @@ func TestSpecScopedModesStillRequireSpec(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	findings := filepath.Join(dir, "f.ndjson")
-	require.NoError(t, os.WriteFile(findings, []byte(`{"severity":"low","finding":"x"}`+"\n"), 0o600))
+	require.NoError(t, os.WriteFile(findings, []byte(`{"evidence":"read the cited section","severity":"low","finding":"x"}`+"\n"), 0o600))
 
 	for _, args := range [][]string{
 		{"review", "--verify", "--findings", findings},
