@@ -799,9 +799,18 @@ func validateReviewInputs(perspective string, round int, findingsPath string, af
 	return affectedFiles
 }
 
+// findingFormat is the finding contract of every panel role prompt and of the
+// regression prompt. Its object line carries the four keys both gates require —
+// the set requiredFindingFields declares in review_record.go — because the file
+// a reviewer writes from this line reaches tp review --merge and tp review
+// <spec> --record: a row copied without evidence is skipped by the first and
+// refuses the whole file at the second. category, suggestion and the optional
+// class below are not in that set and stay optional.
 const findingFormat = `
 For each issue found, respond with one JSON object per line (NDJSON):
-{"severity":"critical|high|medium|low","category":"completeness|ambiguity|consistency|feasibility|redundancy|regression","location":"section heading or line number","finding":"what is wrong","suggestion":"how to fix it"}
+{"severity":"critical|high|medium|low","category":"completeness|ambiguity|consistency|feasibility|redundancy|regression","location":"section heading or line number","finding":"what is wrong","evidence":"what you ran or read to reach this finding — the command and its output, the query, or the artifact and line","suggestion":"how to fix it"}
+
+The keys severity, finding, location and evidence are required and must each be non-empty: a row missing one is skipped by tp review --merge and makes tp review <spec> --record refuse the whole file.
 
 Optional "class" field: add "class":"<kebab-case-slug>" (example: "code-citation-drift") when the finding is an instance of a pattern a script could check across the whole corpus; omit it otherwise.
 
@@ -1761,9 +1770,16 @@ C5. SIDE EFFECTS
 - Are there implicit contracts that could break?
 `
 
+// codeAuditOutputFormat is the finding contract of the code-audit review
+// perspective. Its file/line pair says where in the CODE the finding is; the
+// location key added beside it is the spec anchor both gates require and the
+// key --merge dedups on, so a row copied from this line survives them. evidence
+// is required for the same reason — see findingFormat.
 const codeAuditOutputFormat = `
 Output format — respond with one JSON object per line (NDJSON):
-{"role":"code-audit","id":"ca-001","file":"path/to/file","line":42,"pattern":":disabled","current_behavior":"isFormLocked || isPhoneCheckInProgress","spec_coverage":"partial","finding":"spec removes isPhoneCheckInProgress but phone input still references it","suggestion":"Add acceptance: phone input :disabled only when isFormLocked","severity":"high","category":"gap"}
+{"role":"code-audit","id":"ca-001","file":"path/to/file","line":42,"location":"the spec section this bears on, such as §3.2","pattern":":disabled","current_behavior":"isFormLocked || isPhoneCheckInProgress","spec_coverage":"partial","finding":"spec removes isPhoneCheckInProgress but phone input still references it","evidence":"what you ran or read to reach this finding — the command and its output, or the file and lines you opened","suggestion":"Add acceptance: phone input :disabled only when isFormLocked","severity":"high","category":"gap"}
+
+The keys severity, finding, location and evidence are required and must each be non-empty: a row missing one is skipped by tp review --merge and makes tp review <spec> --record refuse the whole file.
 
 Stamp EVERY finding with role: "code-audit" (so the finding is attributed to this perspective in the per-role overlap report).
 Severity: critical, high, medium, low
