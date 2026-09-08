@@ -203,3 +203,38 @@ evidence, and `reviewFinding` (`internal/cli/review.go`) has no `evidence` field
 record-time `evidence` is write-only there: nothing carries it forward into a later round's prompt.
 Derive with `grep -rn '\.Evidence' internal/cli --include='*.go' | grep -v _test.go`. Reading it
 back is the natural follow-up to this release and is a Non-Goal of it.
+
+## Routed here from v1.1.0's audit round 3 (2026-09-08)
+
+This sidecar carried no routed section before, and it was not part of the sweep that wrote
+`## Routed here at the 2026-09-08 re-verification` into other sidecars — so this heading names where
+the item came from rather than claiming membership in that sweep. One item; the spec body is not
+edited.
+
+- **`$TP_ROUND_DIR` is concatenated bare into the emitted record brief, and the deferral pointing at
+  the fix names no release.** `internal/engine/briefcommand.go:86-88` builds the brief with
+
+  ```
+  "[ -f %s ] || tp %s --merge $TP_ROUND_DIR/role-*.ndjson -o %s%stp %s %s --record %s"
+  ```
+
+  and `merged` at `:69` is `"$TP_ROUND_DIR/" + mergedFindingsName` — every occurrence of the variable
+  is unquoted. **The existing comment justifies only the glob**, not the variable: `:66-67` reads *"The
+  `role-*.ndjson` glob is deliberately unquoted so the shell expands it; every other occurrence names
+  one file"* — which explains why the `*` is bare and is silent on why the `$TP_ROUND_DIR` around it
+  is. The two need opposite treatments, and quoting the variable while leaving the glob outside the
+  quotes (`"$TP_ROUND_DIR"/role-*.ndjson`) satisfies both.
+
+  `skills/tp/REFERENCE.md:204-215` documents the gap **accurately** — it names the bare variable at
+  :208 and carries the failing behaviour under `sh` at :209-212 (unset → the `[ -f ]` test is simply
+  false and the merge runs with `-o /merged.ndjson`; a value containing a space → `[: a: binary
+  operator expected`, exit **2**, which the chain reads as an ordinary false, and the glob argument
+  splits into two argv entries). So this is not an undocumented defect. What it lacks is an owner:
+  :215 ends *"the emitted string is single-sourced in that file and is what a later release has to
+  change"*, and **searched at `e8477464` across `spec/backlog/*.md`, `spec/1.1.0*.md` and
+  `spec/undecided.md` for `TP_ROUND_DIR`, no pending spec takes that change.** The hits in the backlog
+  are about other subjects — `next-action-and-check-tell-the-truth.md:110` on where delta findings go,
+  `round-knows-its-panel.md:197` and `ground-command-friction.md:114` on the `.part` filename — and
+  `spec/1.1.0-release-notes.md:283` routes the item onward rather than taking it. This slug is what
+  that dangling deferral lacked, which is why it is recorded here rather than left as a comment
+  pointing at nobody.
