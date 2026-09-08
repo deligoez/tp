@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.1.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-08T08:54:22.507723Z",
+  "updated_at": "2026-09-08T09:15:05.542415Z",
   "workflow": {
     "review_max_rounds": 3
   },
@@ -472,7 +472,7 @@
     {
       "id": "skill-pre-review-build",
       "title": "Ship the pre-review build rule",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs",
         "skill"
@@ -483,11 +483,18 @@
       "source_sections": [
         "## 3. What ships in the skill documents"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-08T09:09:44.039547Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-08T09:15:05.530463Z",
+      "closed_reason": "- skills/tp/SKILL.md gains one item at the head of Step 2: a spec that changes a validation rule, a gate or a record schema has its minimal change built in a git clone --no-hardlinks outside the repository and the full suite run there before the first counted round, with packages printing 'FAIL … [build failed]' counted separately from '^--- FAIL: ' lines because they emit no such line, and that total named as the release's real size belonging in §1 as a decision that decomposition gives the fixture migration a task of its own with the rule-changing task depending on it — written as guidance for a next cycle, naming no figure from this one.\n- The item cites the measurement instead of restating it, per the anchored-figure rule: the cited string was parsed out of the shipped SKILL.md with whitespace normalized and compared byte for byte against a heading of spec/1.1.0-measurements.md — it equals '### The release's size is the suite, and nobody had run it' exactly; a scan of the inserted item for standalone digits returns only the '1' of '§1', so no measured figure was copied.\n- tp lint skills/tp/SKILL.md reports 7 warnings after the edit and 7 before it (5 vague-language, 2 section-size, 0 errors, 33 info both times); the new item sits in Step 2, which was not among the two section-size warnings and is not now. The comparison was proved able to discriminate rather than assumed: a scratch copy of the edited file with the word 'some' inserted into the new paragraph lints at 8 warnings with a sixth vague-language row on the inserted line, so a lint-raising edit would have been caught.\n- go test ./internal/cli -run TestPluginVersion -count=1 is green (ok, 0.655s), and the whole project gate is green read step by step: check-suite-state.sh 0, golangci-lint run 0 (0 issues), check-deadcode.sh 0, check-complexity.sh 0. The suite log holds 0 lines matching '^--- FAIL: ' and 0 '[build failed]' packages, counted separately.\n- No test turned red and none was added: the change is prose in a skill document. The three test files that read SKILL.md (docs_contract_test.go, docs_flag_inventory_test.go, plugin_test.go) ran green inside step 1.\nOut of scope: skills/tp/SKILL.md Step 1.5 is 92 lines and already carries a section-size warning; it was left untouched.",
+      "gate_passed_at": "2026-09-08T09:15:05.530463Z",
+      "commit_sha": "4aa3e12d",
+      "commit_shas": [
+        "4aa3e12d"
+      ],
+      "commit_files": [
+        "skills/tp/SKILL.md"
+      ]
     }
   ]
 }
