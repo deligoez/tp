@@ -58,6 +58,17 @@ func writeMergeOutput(outputPath, ndjson string, dropped []string) bool {
 	if len(dropped) > 0 {
 		return false
 	}
+	// The single os.WriteFile this replaced refused an `-o` naming an existing
+	// directory with "open <path>: is a directory". Written through a
+	// temporary and a rename, the same path gets as far as the rename and
+	// reports "rename <path>.tp-merge-NNN <path>: file exists" — which names
+	// tp's own temporary and diagnoses nothing, beside a standing hint whose
+	// every word is true of that path. Checked up front, so the message is the
+	// old one and no temporary is created to leave behind.
+	if fi, statErr := os.Stat(outputPath); statErr == nil && fi.IsDir() {
+		failMergeOutput(fmt.Errorf("open %s: is a directory", outputPath))
+		return false
+	}
 	tmp, err := os.CreateTemp(filepath.Dir(outputPath), filepath.Base(outputPath)+".tp-merge-*")
 	if err != nil {
 		failMergeOutput(err)
