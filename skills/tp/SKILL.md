@@ -232,8 +232,8 @@ positive, because `0 < 0` is false and coverage alone would certify a document w
 the arms dropped. So exit 1 here is not always undercoverage: read `cut` before hunting for
 undispositioned units that may not exist. `emitted: 0, cut: 0` is honestly covered and exits 0, and
 so does a round of nothing but `FAIL`s — a fully covered round. **Measured on this repository:**
-`spec/.tp-review/1.56.0/ground-round-1.ndjson` records 4 `FAIL` rows, and
-`tp ground spec/1.56.0.md --status --check` exits **0**. That is why `--status` reports the
+`spec/.tp-review/1.1.0/ground-round-3.ndjson` records a `FAIL` row, and
+`tp ground spec/1.1.0.md --status --check` exits **0**. That is why `--status` reports the
 per-verdict breakdown beside the ratio, and why the loop condition above names both: coverage answers
 *did anyone look*, the breakdown answers *what did they find*. Read the `NOT-A-CLAIM` share first,
 because it bounds what the ratio can mean on a decisions document.
