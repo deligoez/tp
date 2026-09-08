@@ -143,61 +143,68 @@ func loadMergeFindings(args []string) ([]map[string]any, []mergeInputCounts) {
 			output.Error(ExitFile, fmt.Sprintf("cannot open file: %s", path), ndjsonInputFileHint)
 			os.Exit(ExitFile)
 		}
-		counts := mergeInputCounts{Path: path}
-		scanner := bufio.NewScanner(f)
-		scanner.Buffer(make([]byte, 0, 64*1024), ndjsonLineCap)
-		for scanner.Scan() {
-			line := strings.TrimSpace(scanner.Text())
-			// A line holding an empty JSON array counts as neither parsed
-			// nor skipped, like a blank one: it is a role saying it found
-			// nothing. tp's own code-audit prompt asked for exactly that,
-			// and counting it as a skip made the file a dropped role —
-			// which fails the whole merge and, since §5 row 10, writes no
-			// `-o`, so one clean role took the panel down. The prompt no
-			// longer asks for it; this stays for the rounds run from
-			// prompts an older binary emitted.
-			//
-			// The test is a parse rather than a comparison against `[]`
-			// because the line is already trimmed above and TrimSpace
-			// removes only the outer padding: `[ ]` survives it unchanged
-			// and was still dropping the role. A NON-empty array is left
-			// where it was — that is a role whose findings would be lost
-			// silently, so it stays a skip.
-			if line == "" {
-				continue
-			}
-			var finding map[string]any
-			if err := json.Unmarshal([]byte(line), &finding); err != nil {
-				if isEmptyJSONArray(line) {
-					continue
-				}
-				fmt.Fprintf(os.Stderr, "warning: skipping malformed line (invalid JSON) in %s\n", path)
-				counts.Skipped++
-				continue
-			}
-			// §2's one predicate, shared with the --record gate: see
-			// missingFindingFields in review_record.go.
-			if missing := missingFindingFields(finding); len(missing) > 0 {
-				fmt.Fprintf(os.Stderr, "warning: skipping incomplete line (missing %s) in %s\n", strings.Join(missing, ", "), path)
-				counts.Skipped++
-				continue
-			}
-			counts.Parsed++
-			allFindings = append(allFindings, finding)
-		}
-		if err := scanner.Err(); err != nil {
+		rows, counts, scanErr := scanMergeInput(f, path)
+		f.Close()
+		if scanErr != nil {
 			// Aborting, not warning: see loadAuditMergeRows — zero findings is
 			// also what a clean round looks like, so a swallowed read error
 			// lets an unread input record one.
-			f.Close()
-			output.Error(ExitFile, fmt.Sprintf("cannot read %s: %v", path, err), ndjsonReadHint(err))
+			output.Error(ExitFile, fmt.Sprintf("cannot read %s: %v", path, scanErr), ndjsonReadHint(scanErr))
 			os.Exit(ExitFile)
 		}
-		f.Close()
+		allFindings = append(allFindings, rows...)
 		inputs = append(inputs, counts)
 	}
 
 	return allFindings, inputs
+}
+
+// scanMergeInput reads one already-opened input and returns its usable rows
+// beside that input's §8a.4 accounting. It warns on stderr about each line it
+// skips and returns the scanner's read error, if any, for the caller to act on.
+func scanMergeInput(f *os.File, path string) ([]map[string]any, mergeInputCounts, error) {
+	counts := mergeInputCounts{Path: path}
+	rows := make([]map[string]any, 0)
+	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 0, 64*1024), ndjsonLineCap)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		// A line holding an empty JSON array counts as neither parsed nor
+		// skipped, like a blank one: it is a role saying it found nothing.
+		// tp's own code-audit prompt asked for exactly that, and counting it
+		// as a skip made the file a dropped role — which fails the whole
+		// merge and, since §5 row 10, writes no `-o`, so one clean role took
+		// the panel down. The prompt no longer asks for it; this stays for
+		// the rounds run from prompts an older binary emitted.
+		//
+		// The test is a parse rather than a comparison against `[]` because
+		// the line is already trimmed above and TrimSpace removes only the
+		// outer padding: `[ ]` survives it unchanged and was still dropping
+		// the role. A NON-empty array is left where it was — that is a role
+		// whose findings would be lost silently, so it stays a skip.
+		if line == "" {
+			continue
+		}
+		var finding map[string]any
+		if err := json.Unmarshal([]byte(line), &finding); err != nil {
+			if isEmptyJSONArray(line) {
+				continue
+			}
+			fmt.Fprintf(os.Stderr, "warning: skipping malformed line (invalid JSON) in %s\n", path)
+			counts.Skipped++
+			continue
+		}
+		// §2's one predicate, shared with the --record gate: see
+		// missingFindingFields in review_record.go.
+		if missing := missingFindingFields(finding); len(missing) > 0 {
+			fmt.Fprintf(os.Stderr, "warning: skipping incomplete line (missing %s) in %s\n", strings.Join(missing, ", "), path)
+			counts.Skipped++
+			continue
+		}
+		counts.Parsed++
+		rows = append(rows, finding)
+	}
+	return rows, counts, scanner.Err()
 }
 
 // isEmptyJSONArray reports whether a line is a well-formed JSON array with no
