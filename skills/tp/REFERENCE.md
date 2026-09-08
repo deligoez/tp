@@ -1101,7 +1101,7 @@ Both `--merge` modes report **`inputs`** — one `{path, parsed, skipped}` entry
 argument order — and exit **1** when an input had at least one content line and parsed none of them
 (v0.35.0). That is the shape a dropped role takes: a reviewer emitting every line with a trailing
 comma used to be skipped line by line on stderr, merge clean, and let `--record` freeze an
-undercounted round, with `--quiet` able to erase the only signal. Blank and whitespace-only lines are
+undercounted round. Blank and whitespace-only lines are
 neither parsed nor skipped and never trigger it — and from v1.1.0 `tp review --merge` reads a line
 holding an empty JSON array the same way, while `tp audit --merge` still counts it as a malformed skip, so
 the same one-line file merges clean under the one and exits 1 under the other. A **zero-byte file
