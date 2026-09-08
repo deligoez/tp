@@ -146,8 +146,7 @@ So `Lived: 0` next to `Not covered: 6` is honestly reachable, and the "stronger"
   whose note names a doc comment "claims more than its body delivers", inside a round counted toward
   the `spec_coverage_clean_rounds: 4` that release shipped on. **Read the notes of PASS rows before
   reading a clean streak as clean**, and treat a PASS carrying such a note as unresolved.
-  `spec/backlog/02b-what-a-rounds-rows-say.md` carries it, and `spec/backlog/README.md` merges that
-  half into `02a`. On that rule v0.36.0's counter was 3, not 4 — the shipping condition still held,
+  `spec/backlog/round-knows-its-panel.md` carries it. On that rule v0.36.0's counter was 3, not 4 — the shipping condition still held,
   which is luck about the margin and not a defence of the counter.
 
 - **Three measurement traps this repo has now hit, all of which look like a clean result.** `git diff` from a non-TTY child returns *near-empty* output under this machine's `~/.gitconfig`, which sets `diff.external difft` — exit 0, empty stderr, and a unit auditing a diff programmatically concludes the file is unchanged. Use `git -c diff.external= diff --no-ext-diff`. Second: a **"comment-only" edit still changes the binary**, because the line table moves; the way to check it is `go build -gcflags=-S` over both trees with `file.go:NNN` normalized (v0.37.0's audit measured 207,386 identical lines and one byte of pcdata delta, exactly the comment's +3 growth) and then a command matrix under both binaries — and then a **mutant, to prove the matrix is not a tautology**. Third: a fixture's own *filename* can decide the result — a guard blocking a directory named `zz` proved nothing about a stopped scan, because `zz` sorts after every `*.tasks.json` and `WalkDir` had already collected them; renaming it `A-blocked` falsified the test's own doc comment. **When a fixture's incidental property could carry the verdict, assert the property** (`require.Less` on the sort order), do not choose the name and move on.
@@ -232,14 +231,15 @@ the repair rule and the anchored-figure rule below, and `spec/1.0.1-measurements
 in ground's own `tier` vocabulary. Ground round 1 cut the `routed` disposition and re-classed the
 release from loop to **tool**, so budget it as a comparable release rather than at twice one; the
 skill's four writing rules landed at `4914215f` and the release ships rather than writes them. The
-audit side of the same acceptance channel is the first backlog file,
-`spec/backlog/00-a-finding-can-leave-a-round.md`, formerly `spec/1.0.2.md` — two ground rounds are
-recorded with it and a third was emitted and never graded.
+audit side of the same acceptance channel is `spec/backlog/a-finding-can-leave-an-audit-round.md`,
+formerly `spec/1.0.2.md`, first in the backlog's order.
 
-**Everything else is `spec/backlog/README.md`, now the roadmap**: twenty-one unreleased specs named by
-**priority** rather than version (`01-checklist-covers-what-changed.md` …), plus the order, the reason
-for it with both field measurements, the merges, the two entries that are not releases at all, and what
-the hotfixes already took. Do not restate any of it here — that duplication is what this section was.
+**Everything else is `spec/backlog/README.md`, now the roadmap**: the pending specs are named by
+**slug** and ordered by measured benefit in that file only — a priority number in a filename rotted
+every citation at the last two reorderings, so no filename carries one. The README holds the order,
+the reason for it with both field measurements, what was merged, split or dropped at the 2026-09-08
+re-verification, and the two entries that are not releases. Do not restate any of it here — that
+duplication is what this section was.
 
 **A spec carries its own forensics in `<base>-measurements.md`, which ground does not grade.** The
 body takes decisions and derivation commands; a figure in the body obliges every grader to re-derive
@@ -264,7 +264,7 @@ earlier ones predate the tracked names, so cite the sweep rather than a count:
 `git log --diff-filter=R --name-status -- 'spec/*.md'`.
 
 **`--check` is not the ship signal** until the panel-record spec
-(`spec/backlog/02a-round-knows-its-panel.md`) ships. `consecutive_clean` counts rounds clean across
+(`spec/backlog/round-knows-its-panel.md`) ships. `consecutive_clean` counts rounds clean across
 *every* role, while this file's shipping rule is phrased on `spec_coverage_clean_rounds` plus no-FAIL;
 the two measure different things and the operator has adjudicated the difference in writing twice.
 Severity parity provably does not close it — the divergence is **role** scoping, not severity scoping.
@@ -337,14 +337,14 @@ clean trailing run (42 rounds at this writing; last divergence v0.35.0 round 10)
 argument is not "a quarter of the corpus is wrong" but **"the record cannot distinguish a corrupt round
 from a clean one, so 4% and 86% look identical to a reader"** — which survives the rate falling to
 zero. **Quote the count, not the percentage, and re-derive it**: every denominator here has moved and
-every numerator has not. `spec/backlog/06a-round-records-the-text-it-read.md` closes it forward by
+every numerator has not. `spec/backlog/round-records-the-text-it-read.md` closes it forward by
 hashing at emit; it does not repair the 35. Pending specs withdrew a replay gate citing a missing
 disposition, and **that was never the reason** — the baseline is buildable (review rows carrying
 `resolved.status: fixed` plus both `class` and `location`: **1,276**, canonical round files, both
 globs). A second variant, checking that each finding's `class` still reaches its role, needs a
 `class` → checklist-item mapping that exists nowhere in tp, and **1,984 of 16,853 recorded rows carry
 neither `role` nor `class`**. What the corpus genuinely lacks is the **section a repair edited**, the
-input `spec/backlog/12-repair-locality.md` §1.1 actually needs.
+input `spec/backlog/repair-locality.md` actually needs.
 
 **The gate that replaced it is a test, not a procedure** (`spec/0.36.0.md` §6.2.2 properties 7–8, and
 §7 for why breadth is what a fixture cannot buy), and the lesson generalises to any release writing a
@@ -399,7 +399,7 @@ to it survive in shipped artifacts that must not be edited.
   `103 / 104` a round later, while the paragraph beside it, anchored to `492a0691`, still reproduced
   exactly — and fifteen lines above, the same document says *"the number itself is deliberately not
   written here"*. Separately, `README.md` shipped eight grounding figures **copied from
-  `spec/backlog/04a-ground-command-friction.md`, where they carry a commit anchor**; the copy lost the
+  `spec/backlog/ground-command-friction.md`, where they carry a commit anchor**; the copy lost the
   anchor and none of the eight reproduced. The defect is never the derivation, it is the copy.
 - **The fenced-command rule is blind to a command that prints the wrong thing.** *"Every fenced command
   runs and prints something"* was satisfied by the README block above, which printed numbers matching
