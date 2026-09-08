@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.1.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-08T08:11:46.931934Z",
+  "updated_at": "2026-09-08T08:18:23.142181Z",
   "workflow": {
     "review_max_rounds": 3
   },
@@ -109,7 +109,7 @@
     {
       "id": "record-legal-file-records",
       "title": "Record a file legal on four keys",
-      "status": "open",
+      "status": "done",
       "tags": [
         "test",
         "review"
@@ -123,11 +123,18 @@
         "## 5. Tests"
       ],
       "source_lines": "146-146",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-08T08:13:49.581067Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-08T08:18:23.132101Z",
+      "closed_reason": "- §5 row 3, the positive half of §2's required set: a three-row file legal on all four keys and carrying no resolved block, its severities high, medium and low, records against a spec with no prior round at exit 0 with round 1, findings 3 and consecutive_clean 0. internal/cli/record_legal_file_test.go is a guard only — the row was green at HEAD, since rows 1 and 2 pin what --record refuses and nothing pinned what it must still accept; what it now catches is a future check that over-refuses a legal row.\n- Observed red under the row's stated mutant before it was trusted: parseRecordRows was made to test resolved.evidence — the key the record path already reads for a pre-resolved wontfix row — in place of the top-level evidence, and the legal file was then refused on all three lines at exit 1 with 'missing required field evidence'; the mutant was reverted and git diff --no-ext-diff confirms internal/cli/review_record.go unchanged.\n- Kept non-vacuous rather than resting on the exit code: findings 3 is read back against review-round-1.ndjson holding three rows, so the count cannot pass with a subset; consecutive_clean 0 is pinned by a fixture that is dirty under either converge_on policy (the high severity under blocking, the three survivors under all); and the three evidence texts run one character, a phrase and a sentence, so a check keyed on evidence length rather than emptiness is red — the row's 'no row's evidence length is load-bearing' clause.\n- Gate green, four exit codes read separately: check-suite-state.sh 0 (0 '--- FAIL:' lines and 0 build failures), golangci-lint run 0, check-deadcode.sh 0, check-complexity.sh 0.",
+      "gate_passed_at": "2026-09-08T08:18:23.132101Z",
+      "commit_sha": "15bbab2c",
+      "commit_shas": [
+        "15bbab2c"
+      ],
+      "commit_files": [
+        "internal/cli/record_legal_file_test.go"
+      ]
     },
     {
       "id": "record-preresolved-boundary",
