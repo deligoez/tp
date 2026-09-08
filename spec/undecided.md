@@ -293,7 +293,7 @@ one of the four candidate fields **unbounded in output size** (about 149 bytes a
 whose row named no decision it would feed.
 
 **The six anchor defects it kept trying to describe are real and are now owned elsewhere**, with
-fixtures, in `spec/backlog/04a-ground-command-friction.md`. That is the useful residue: the field was
+fixtures, in `spec/backlog/ground-command-friction.md`. That is the useful residue: the field was
 an attempt to publish a quantity whose keys nobody had checked, and checking them is the actual work.
 
 **It reopens** when `engine.FloorAnchorOf`'s anchors are pinned by fixtures rather than by arithmetic,
@@ -339,6 +339,44 @@ release.
 **It reopens** when a second cycle's `kind`-by-finding-rate table exists, at which point the
 narrow-numerator variant is the one to implement, not the two-arm one. The measurement command is in
 `spec/1.0.1-measurements.md`.
+
+### `forward-spec-ref` — the rule's population vanished with the version numbers
+
+**What was tried.** A lint rule flagging a citation of a spec numbered *above* the citing one — a
+forward reference to a release that may be renumbered before it ships. It survived prototyping once
+and had a backlog spec; the spec was dropped, not shipped.
+
+**Why it died.** Its population is gone. `python3 scripts/forward-spec-ref-prototype.py spec 1.0.1`
+finds **1** reference at `HEAD` (`spec/1.0.1.md` citing `spec/1.0.2.md`, a file that no longer
+exists), and the same command over `spec/backlog` finds **0** — because pending specs are no longer
+numbered at all. The replacement predicate, *"a backlog spec is named by slug, never by priority
+number"*, had no clean positive set to prototype against: every citation carried the priority number
+in the filename it cited, which is why the filenames are now slug-only rather than why a lint should
+exist. `scripts/forward-spec-ref-prototype.py` is now referenced by nothing but this entry.
+
+**What the corpus actually needs is a dead-path check** — a `spec/…md` citation whose target does
+not exist — and that is exactly what the dropped spec's §4.2 forbade. Measured at `HEAD` before this
+cleanup, counting rule *occurrences of `spec/<version>.md` outside `.tp-review/` across `spec/**`,
+`skills/**`, `CLAUDE.md` and `README.md`, minus files that exist*: 81 to `spec/1.3x–1.5x.md`, 6 to
+`spec/1.0.2.md`, 1 to `spec/0.37.1.md` — every one resolvable a rename ago. Prototype-first, against
+this repository's own `spec/*.md`; zero false positives at warning severity before it reaches a spec.
+
+### A single whitespace set for the floor — corpus-free
+
+**What was tried.** `spec/1.0.0.md` §2.1 names no whitespace set, and `internal/engine/floor.go`
+implements its five steps with three predicates that disagree on exactly one byte, U+000B: RE2 `\s`
+at the collapse, `isFloorSpaceByte` at the split and `unicode.IsSpace` at the trim. A draft release
+(`spec/backlog/what-the-carry-can-promise.md`, its former second decision) named the six ASCII
+whitespace bytes as the one set at every site.
+
+**Why it died.** Zero floor units in the corpus carry a byte the predicates disagree on — none carries
+TAB, VT, FF, CR, U+00A0 or U+0085 — so the change has no input to fire on; and of ten single-byte
+inputs run under both binaries, the change moves hashes only on an interior U+000B. A behaviour change
+that moves nothing in the corpus is not worth a loop-class cycle. The measurements, the fixtures and
+the withdrawn test rows are in `spec/backlog/what-the-carry-can-promise-measurements.md`.
+
+**It reopens** if a floor unit in the corpus is found to carry one of those bytes, or if a second
+implementation of §2.1 in another language disagrees with tp on a `text_sha`.
 
 ---
 
@@ -567,6 +605,28 @@ fields that did not exist yet, and `spec/1.1.0-measurements.md` carries it. What
 separate is that text from the acceptance rows in the same documents, which name commands, fields and
 exit codes legitimately; the *Refuted* entries above are what happens when a candidate cannot.
 
+### Claim enumeration in the grounding floor
+
+**The decision: what a claim is, before the floor's arms decide which sentences reach it.** The
+weakest step of the grounding protocol, inherited from `spec/candidates.md` by
+`spec/backlog/ground-command-friction.md` and carried here because it has no design. Intuition counted
+11 where a spec carried 17, and 10 where another carried 17 again after a second read. Whether that is
+a parsing problem, a definition problem, or irreducibly a reading problem is not yet clear.
+`ground-command-friction.md` §5 — a bare ordered-list marker becoming a floor unit — is one small,
+measured piece of it; the rest is not.
+
+### A sentence rewritten in answer to a finding is exempt from the cut for one round
+
+**The decision: whether a repair is graded once before the arms drop it, and in what form.** Measured
+on `spec/1.1.0.md`'s grounding and recorded in `spec/backlog/ground-command-friction-measurements.md`
+under "§11.1": a repair removed a quantifier, the shortened sentence fell below the arms' cut
+threshold, and the claim left the floor in the same edit that answered the finding — nothing in the
+round reports that. A third instance in the same document wrote a new requirement as a short
+standalone sentence that never entered the floor at all. The proposal is that a sentence rewritten in
+response to a finding is exempt from the cut for one round, so the repair is graded once; the cheapest
+form is not an exemption but a reported `cut` delta, since two of the three instances were repaired by
+the author the moment they saw the number. Neither the cost of the exemption nor whether it is
+expressible in the floor's own terms has been measured.
 ### Cross-site key agreement in the review prompt
 
 **The decision: whether the review prompt's three key-naming sites should name one set, and where the
@@ -597,6 +657,219 @@ have to decide about first:
 **What has no answer is which set is right**, not how to render one set at three sites. A release
 that takes this fixes the required set for both phases at once, or states why the two phases keep
 different ones; that is the decision nobody has taken.
+
+### `NewRootCmd` writes package globals
+
+**The decision: whether `NewRootCmd` returns a command bound to *fresh* per-call storage, or whether
+the package globals become explicitly single-writer with the constructor refusing a second call.** The
+first is the real repair and is a wider change than it looks — it changes how every flag's default is
+read; the second is a fence and would have caught the instance below on the first parallel test rather
+than the thirtieth. Neither has been taken. It was recorded in `spec/backlog/gate-sequence.md` as a
+gate step that is green on the first run and red on the second — the same class as that spec's
+load-sensitive test, arriving by a different route — and moved here because that spec takes no
+decision on it and no row of its tests depends on it.
+
+**Measured during `spec/1.0.1.md`'s implementation.** A unit ran the four-step gate, got four zeroes,
+made an unrelated edit, ran it again, and step 1 failed with data races in tests it had never
+touched. Isolated: the two tests `TestSkillFlagInventoryIsComplete` and
+`TestSkillFlagInventoryRecordsOnlyWhatExists` each construct a root command, both are `t.Parallel()`,
+and `NewRootCmd()` binds tp's **package-level** flag variables through pflag. Run alone under `-race`
+the pair reports **30 races per run**. It reproduces on a tree five commits earlier and originates at
+`fa68051b`, *"mark every eligible top-level test parallel — 50.9s to ~14s"*: the parallelism was the
+speedup, and the shared globals were already there.
+
+**Why it is a gate defect and not only a test defect.** The defect is invisible without `-race` and
+timing-dependent with it, so whether the gate reddens is a property of machine load rather than of the
+code under test. A gate that passes once and fails once teaches its operator to re-run rather than to
+look.
+
+**Closed test-side, not at the source.** `3b9204e1` added a mutex-guarded `newRootCmdForTest()` and
+the races went to zero. The design smell stands: **a constructor that writes package globals**, so
+every future parallel test that builds a root command inherits the same trap, and the fix is a
+convention nothing enforces.
+
+**Is this only a test problem? Answered by counting rather than left open.** At `HEAD`, `NewRootCmd`
+is defined in `internal/cli/root.go` and called from exactly one production site, `Execute()` in the
+same file, which `cmd/tp/main.go` calls once — so a shipped `tp` process constructs one root command
+and the globals are never contended. Today it is test-only. What makes it a design defect rather than
+a test defect is that **nothing says so**: a second in-process caller — an embedding host, an
+in-process driver, a future `tp` subcommand that shells to itself in-process — would share the flag
+variables silently, and would find out the way the gate did.
+
+### `t.Parallel()` in the engine package
+
+**The decision: whether `internal/engine`'s tests may be marked `t.Parallel()` — and the only answer
+that will be accepted is a paired gremlins run, `--workers` pinned, before and after, compared on
+efficacy and the timeout count rather than on wall time.** Until that measurement exists,
+`internal/cli` is free to parallelize and `internal/engine` is not. It was carried in
+`spec/backlog/mutation-run-check.md` as an open question and moved here because that check takes no
+decision on it and no row of its tests depends on it.
+
+**The undecided part is `internal/engine` alone**, for one reason: that is the package
+`gremlins unleash ./internal/engine` mutates, and the expensive one. The `internal/cli` half is not
+part of this question: `fa68051b`, *"mark every eligible top-level test parallel — 50.9s to ~14s"*,
+applied it, and the count of `t.Parallel()` calls in the repository is a derivation rather than a
+figure to quote — `rg -c 't\.Parallel\(\)' -g '*_test.go' --no-filename | paste -sd+ | bc` — because
+it moves with every test added. What the candidate entry claimed for that half, re-derived at the
+time it was moved, with the counting rule beside each figure and the ones that did not reproduce
+marked as such:
+
+| the entry's figure | re-derived | how it was derived |
+|---|---|---|
+| `internal/cli` is **1,743** serial test functions | **does not reproduce as an `internal/cli` figure.** The package holds **1,051** top-level `func Test…`; **1,781** is the *repository-wide* count, which is what 1,743 tracks | `rg '^func Test' internal/cli --no-filename \| wc -l` against `rg '^func Test' -g '*_test.go' --no-filename \| wc -l` |
+| **1,116** of them fork the tp binary | **the counting rule decides which number this is.** `runTP(` appears at **1,120** *call sites*; **736** top-level test *functions* have a body calling any `runTP*` helper | `rg -o 'runTP\(' internal/cli --no-filename \| wc -l`, against a `re.split(r'(?m)^func ', src)` walk over `internal/cli/*_test.go` counting bodies matching `\brunTP[A-Za-z]*\(` |
+| I/O-bound at **8%** of ten cores — **39.7 s** CPU inside **50.5 s** wall | **holds in shape.** First run in a fresh copy: `real 47.37 user 16.14 sys 20.75` — **36.9 s** CPU inside **47.4 s** wall, **7.8%** of ten cores | `/usr/bin/time -p go test ./internal/cli -count=1` in an `rsync -a --exclude .git` copy |
+| the **7** files that `t.Chdir` are skipped, because Go panics on the pair | **holds exactly: 7** | `rg -l 't\.Chdir' internal/cli \| wc -l` |
+| **zero** `os.Setenv` in the package | **holds: 0.** The package-level-variable-write half of that claim was not re-derived | `rg -c 'os\.Setenv' internal/cli \| wc -l` |
+| **54 s → 14 s**, and **15.8 s** under `-race`, four consecutive green runs, `go vet` clean | **borrowed, not re-run.** Measured in an `rsync` copy at v1.0.0's audit round 5; that copy is gone, and the 54 s baseline reads 47.0 s in row 3 | — |
+
+**Why `internal/engine` is the half that stays undecided.** gremlins runs the mutated package's
+**own** tests once per mutant. This repository has already measured those runs as load-sensitive —
+`CLAUDE.md` records the same package at **92** timeouts busy against **88** idle, and default settings
+driving load average from **8** to **177** (`grep -n 'load average' CLAUDE.md`) — and `t.Parallel()`
+multiplies concurrency *inside* each mutant by gremlins' own `--workers`. So the question is whether
+parallelizing `internal/engine` leaves the mutation signal intact.
+
+**The protocol that paired run needs, which the candidate entry did not state.** The entry closed by
+telling the reader to watch for `Lived: 0` beside `Not covered > 0`. That instruction is stale:
+`spec/backlog/mutation-run-check-measurements.md` measures both halves under "Neither the file nor
+the argv settles it" — the signature is **necessary under the corruption and not sufficient**, an
+honest two-file probe reaches it with no flags at all, and **the argv does not settle it either**,
+because a later run in a directory that already held one returns the refused signature with no
+`--test-cpu` anywhere in it. **So each arm must be the FIRST gremlins run in its own fresh
+`rsync -a --exclude .git` copy** — one copy for the serial tree, one for the parallelized tree,
+neither directory reused. Without that the "after" arm is confounded by run order and the experiment
+answers nothing: it would return the refused signature and read as a mutation signal that
+`t.Parallel()` destroyed. The mechanism behind the run-order effect is unknown; it was not chased past
+ruling out the test cache, and nothing here proposes one. A protocol that works without a mechanism
+is what the paired run needs; a guess at the mechanism is not.
+
+### A prior-round section for `tp review`
+
+**The decision nobody has taken is whether `tp review` should have one at all.** Carried in from
+`spec/candidates.md` by way of the repair-locality spec, which took no decision on it and whose tests
+do not depend on it.
+
+**What the audit phase does.** `loadAuditPriorRound` (`internal/cli/audit.go`) reads the previous
+recorded audit round and returns, per role, that role's **own** non-PASS rows;
+`renderPriorRoundSection` (`internal/cli/audit_roles.go`) renders them into a round-2+ prompt under
+the heading *"Prior Round: context to re-check, not a verdict to repeat"*, with the instruction
+*"Re-check each item against the code and record your own status. Do NOT repeat the prior verdict
+without verifying."* It returns the empty string when the role has no prior non-PASS rows, so a
+round-1 prompt and an all-PASS role carry no section at all. `filesChangedSince` in the same file
+tells the role whether its evidence file moved since that round, which is what makes the re-check
+answerable rather than rhetorical. So the audit phase hands a role a bounded, role-scoped set of its
+own judgements and forces a commitment on each. That is the shape whose absence on the review side is
+the question.
+
+**Review carries something, of a different kind.** A search for prior-round machinery by that name in
+the review path returns **0** — `rg -n -i 'priorRound|prior round|prior-round|PriorRow' internal/cli/review.go internal/cli/review_*.go`.
+But `buildFindingsSummary` (`internal/cli/review.go`) does put previous rounds into every review
+prompt, under a heading that asks for the opposite of a re-check — `UNRESOLVED findings from previous
+rounds — DO NOT re-report:` — and a second block, `Resolved high/critical (DO NOT regress):`, both
+locatable with `rg -n 'DO NOT re-report|DO NOT regress' internal/cli/review.go`. Its shape differs
+from the audit section on every axis: it is **panel-wide rather than role-scoped**, it is capped at 50
+rows with the remainder reported only as a count, each finding is truncated to 80 characters and a
+`wontfix` row's evidence to 40, and its input is the `--findings` file or the loaded round state
+rather than the recorded round read per role.
+
+**So the two phases differ in kind, not in presence.** The audit returns a role its own rows and
+obliges it to re-verify each; review shows the whole panel everyone's rows and obliges it to stay
+quiet about them. A re-verification ask and a suppression ask are not the same instrument, and this
+repository has already measured what an unexamined suppression costs elsewhere in the loop.
+
+**No measurement says which way that cuts.** The repair-locality figures are about the adjacent
+surface — findings sitting in text the round before wrote — but a share and a ratio cannot say whether
+returning a reviewer its own prior rows would raise that share (the role re-treads its own ground) or
+lower it (the role withdraws instead of re-filing). A number nobody has acted on yet is not a rule,
+and it is not an argument for a mechanism either.
+### From the rows spec: four questions
+
+**This entry takes no decision.** Four questions were carried in `02b-what-a-rounds-rows-say.md` §5a,
+which moved them out of `spec/candidates.md` into the release that owned their subject; that file is
+now a forwarding stub and the questions live here. A spec that presented one of these as settled would
+be worse than not moving it: their *design* has no answer.
+
+**A durable home for an accepted finding.** The decision nobody has taken is the target shape. An
+accepted finding stops blocking (`a-finding-can-leave-an-audit-round.md`) — this is the durability
+half: an audit finding has three ends (fix it, reject it, accept it as backlog), tp records all three
+the same way in `.tp-review/<spec>/`, and that directory is archived at release along with the spec.
+There is no supported path from *accepted* to something a maintainer trips over later. A deferral
+whose stated reason is self-renewing can be re-derived every round forever, and its only record is
+scheduled for archival on the very release it is deferred past. This repository has been working
+around it by hand for four cycles: the candidates files are that durable target, maintained by an
+operator. Three options were named and none chosen; the candidates row records only their number, and
+the three themselves survive in git, in the pre-2026-09-02 spec that carried this subject —
+`git show 3a83be30:spec/0.41.0.md`, whose §2 is *Mechanism*. That filename corresponds to no file
+under `spec/` or `spec/backlog/` today — the 2026-09-02 renumbering moved every number and the slug
+sweep removed them — which is why the commit is cited rather than a path at `HEAD`. The three: a
+checklist file at a stable path, appended to rather than rewritten; an issue template written to disk
+for the operator to file; a `TODO` entry with an owner and the finding's `item_id`. What decides
+between them is a property rather than a preference, and it is the part already agreed: *the target
+must be readable by the next cycle's decomposition without a human remembering it exists.* An option
+that only works when someone happens to open it is not better than the round directory it replaces.
+
+**Making `severity` checkable.** The decision nobody has taken is what could check it that is not the
+row's author. A non-`PASS` row's severity is self-declared: the prompt renders the requirement and
+nothing validates what comes back. `internal/cli/audit_record.go` validates **`category`** alone,
+through `invalidCategoryRows` — there is no severity equivalent. One clause of the original entry was
+stale and is corrected here rather than carried: it said *"nothing on the audit path reads the
+field"*. At `HEAD` two paths read it: `internal/engine/auditclean.go`'s `AuditSeverityBucket` and
+`advisoryAuditSeverities` grade on it whenever `audit_converge_on` is `blocking` (v0.37.0), and
+`tp audit --merge` buckets `by_severity` through the same classifier. What survives is narrower and
+still the point: **nothing validates it**, and under the resolved default — `tp config --resolved`
+reports `audit_converge_on` at `all`, source `default` — no grading path reads it at all. Two
+mechanisms were drafted and both withdrawn within a round. Rejecting an out-of-enum severity at
+`--record` inverts its own precedent: the category sink returns early on an *empty* category —
+`if category == "" || engine.IsValidCategory(category)` in `invalidCategoryRows.observe` — and that
+early return is pinned deliberately by `TestParseAuditRows_AcceptsTheEnumAndAbsentCategory` in
+`internal/cli/audit_category_sink_test.go`, whose comment gives the reason: *"treating that as invalid
+would reject every clean round."* (Cite the symbol and the test name, not a line.) And it would refuse
+fifteen of this repository's own recorded round files — **15 of 108** at `HEAD`, counting an audit
+round file `spec/.tp-review/*/audit-round-*.ndjson` holding at least one row whose `severity` is
+present and outside the audit vocabulary `{error, warning, info}` that `auditclean.go` defines. The
+offending values are the *review* vocabulary leaking into audit files, and the fifteen are 0.29.0
+rounds 1–2, 0.30.0 round 1, 0.31.0 round 1, 0.31.2 rounds 1–5 and 0.32.0 rounds 1–6. The review side
+is clean under its own vocabulary: **0 of 172** review round files carry a severity outside
+`{critical, high, medium, low}`. And validation cannot deliver what it was introduced for: it makes a
+label well-formed, never truthful, and it cannot make an unrun round run.
+
+**An audit-side `nonblocking_open`.** The decision nobody has taken is whether to invert a guard that
+pins the key's absence. Under `audit_converge_on=blocking` a clean round can carry `warning` and
+`info` rows — `clean: true` with `findings: 1` is a built fixture — so the audit phase now has the
+accepted-open state the review-side field was built to make visible. The count is already emitted;
+what is missing is the breakdown. `role_streaks[].open` is that count and it is **severity-blind**:
+`engine.RoleStreak`'s `Open` is documented in `internal/engine/rolestreaks.go` as the role's *non-PASS
+row count in that latest round*, with no reference to severity. It reaches both `tp audit --status`
+and `tp audit --record`, and `tp run --status` on an audit-phase stop, through `auditSignalFields` in
+`internal/cli/audit_record.go` — anchor on that function, not a line. Four places pin the key's
+absence by name, and all four are present at `HEAD`: `spec/0.31.0.md` §8.4 — *"`nonblocking_open` is
+review-only (audit convergence has no non-blocking notion, §4.4) and is never an audit field"*; that
+spec's test 18, which repeats it as an acceptance row; `skills/tp/REFERENCE.md`'s `--compact`
+disposition paragraph, which marks the field *"(review-only, emitted only on an accepted-open clean
+round)"* — cited by that phrase, because its line number has moved; and
+`TestReviewNonBlockingOpen_AuditUnaffected` in `internal/cli/reviewconvergeon_clean_test.go`, which
+asserts that neither `tp audit --record` nor `tp audit --status` emits the key. A fifth statement
+exists and is a comment rather than a guard: `internal/engine/reviewclean.go`'s *"Review-only: no
+audit payload carries nonblocking_open."* No release has decided to invert any of them. The
+`tp audit --merge` breakdown is a different surface and shipped separately — it buckets `by_severity`
+through `engine.AuditSeverityBucket` in `internal/cli/audit_merge.go`, on the merged payload rather
+than on the round's convergence signal.
+
+**A review-side `accepted_blocking`.** The decision nobody has taken is whether an accepted blocking
+finding gets a counter of its own. The review side already emits `nonblocking_open`, and it fires only
+for the case that does not matter. Measured at `5058fc99` on three one-round trees built from the same
+spec: a round recorded from a zero-byte findings file — `clean: true`, `consecutive_clean: 1`; a round
+holding one `critical` finding resolved `wontfix` with evidence — `clean: true`,
+`consecutive_clean: 1`; a round holding one **open** `medium` finding — `clean: true`,
+`consecutive_clean: 1`, and `nonblocking_open: 1`. `tp review <spec> --status` on the first two returns
+payloads whose **key sets are identical** — the symmetric difference is empty — so no key names the
+accepted critical. The only value that moves is `review_rounds[].findings`, 0 against 1, which says
+nothing about severity or disposition. The third differs from the first by exactly one key,
+`nonblocking_open`. So the surface announces the harmless case and is silent on the one a reader would
+want stopped at. An `accepted_blocking` count — rows excluded from the surviving set whose severity is
+blocking — would close it. It is review-side, true at `HEAD`, and depends on nothing any pending spec
+proposes.
 
 ---
 
