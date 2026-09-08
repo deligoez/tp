@@ -282,3 +282,28 @@ false claim lived in this section's opening sentence, and a sentence introducing
 what §2.1's arms cut — so grounding filed it against a **cut** unit rather than a floor one.
 **A release about guards that re-parse a document lost its own strongest claim to the part of the
 document its splitter drops.**
+
+## Routed here at the 2026-09-08 re-verification
+
+Four items from the candidates files land on this spec's subject — a refusal or an omission that
+names nothing the caller can act on. They are recorded in this sidecar; the spec body is not edited.
+
+- **A mistyped override key is minted and then dropped.** `internal/engine/frontmatter.go` puts a
+  mistyped `tp:` frontmatter key into `fm.Warnings`, and `internal/cli/lint.go` is the only consumer
+  — three reads, against zero in `review.go` and `audit.go`. So `tp lint` reports the typo and
+  `tp review` / `tp audit` run the whole round under the default the typo silently left in place.
+  Source: `spec/0.33.0-candidates.md` item 4.
+- **No guard covers the invalid-check sink.** v0.33.0 test 34 says a registered check that cannot run
+  must surface in `mechanize_candidates`; at `HEAD` no test registers an invalid check and asserts
+  that it does. The citation half of the item shipped — `review_suppression_test.go` now names
+  v0.33.0 — and the sink half did not. Source: `spec/0.35.0-candidates.md` item 6.
+- **The hint guard's two blind spots.** `internal/cli/hint_coverage_test.go` exempts four files by
+  name — `config.go`, `config_extract.go`, `set_local.go`, `set_project.go` — with the reason
+  recorded in the comment above `taskFileCommands`, and it says nothing at all about bare
+  `os.Exit(ExitValidation)` sites, of which there are **51** across `internal/` at `dd89c566`
+  (`faster_search 'os.Exit(ExitValidation)'`, counting call sites). The exemption is honest; the
+  second gap is unnamed. Source: `spec/0.35.0-candidates.md` item 8.
+- **`validate --project` under-reports twice.** `skipped` is omitted from the payload when empty, so a
+  consumer cannot distinguish "nothing skipped" from "this build does not report skips", and
+  `--strict` promotes deviations only, leaving the other advisory classes at their default severity.
+  Source: `spec/0.35.0-candidates.md` item 10.
