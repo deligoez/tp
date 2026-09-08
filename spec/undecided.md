@@ -680,6 +680,24 @@ failure than the one it removes.
 
 ### Inferring a spec's class
 
+**The doc table understates the matcher, found at v1.1.0's audit round 3 (2026-09-08).** The reach
+measured above has a second, purely documentary half: `skills/tp/REFERENCE.md:461` gives the
+`PreToolUse` matcher as `Write\|Edit\|MultiEdit\|NotebookEdit` — four tools — while
+`hooks/hooks.json:18` registers **nine**, the four above plus `mcp__codedbpro__create`,
+`mcp__codedbpro__edit`, `mcp__codedbpro__patch`, `mcp__codedbpro__replace` and
+`mcp__codedbpro__batch` (both read at `e8477464`). The five MCP entries are the ones that matter for
+the reach: `mcp__codedbpro__batch` is matched, and because `denied()` tests any `file`/`path` string
+in the payload with no notion of which operation it belongs to, a **read-only** batch is refused —
+which is the mechanism behind the two read-only refusals recorded above, stated here as a property of
+the registration rather than as an observation. A reader consulting the table would conclude no MCP
+tool is matched at all and that a refused read must have some other cause.
+
+**The table is corrected when `hooks-fence-the-target` ships, not now.** The row will be wrong in a
+different way once the fence matches on the write target, so editing it today buys one release of
+accuracy and then needs editing again; and the row is a symptom of the decision above rather than an
+independent defect. Recorded here so the correction is not rediscovered as a fresh finding in the
+meantime.
+
 **Decided: `tp lint` reports a derived `class`** beside `floor_size` and `review_panel` — no gate, and
 no frontmatter override until one is argued for. It is scheduled with the next release that touches
 lint's report, rather than given a release of its own.
