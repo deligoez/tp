@@ -1777,6 +1777,12 @@ C5. SIDE EFFECTS
 // location key added beside it is the spec anchor both gates require and the
 // key --merge dedups on, so a row copied from this line survives them. evidence
 // is required for the same reason — see findingFormat.
+//
+// It used to close by asking for `[]` on a clean result. That line is not an
+// NDJSON object, so --merge counted it as a skipped line and the file as a
+// dropped role — failing the whole merge and, since §5 row 10, writing no
+// `-o` — which let one role's clean result take the panel down. The empty file
+// is what --merge already reads as nothing found.
 const codeAuditOutputFormat = `
 Output format — respond with one JSON object per line (NDJSON):
 {"role":"code-audit","id":"ca-001","file":"path/to/file","line":42,"location":"the spec section this bears on, such as §3.2","pattern":":disabled","current_behavior":"isFormLocked || isPhoneCheckInProgress","spec_coverage":"partial","finding":"spec removes isPhoneCheckInProgress but phone input still references it","evidence":"what you ran or read to reach this finding — the command and its output, or the file and lines you opened","suggestion":"Add acceptance: phone input :disabled only when isFormLocked","severity":"high","category":"gap"}
@@ -1788,7 +1794,7 @@ Severity: critical, high, medium, low
 Category: gap, drift, side-effect, removal
 spec_coverage: missing, partial, full
 
-Only report real issues. If no issues found, respond with an empty array (just []).
+Only report real issues. If no issues found, write nothing at all — an empty file is how a role reports a clean result.
 `
 
 func buildDiffSpecContent(diff *engine.DiffResult) string {
