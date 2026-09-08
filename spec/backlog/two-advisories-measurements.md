@@ -115,3 +115,19 @@ spec body is not edited.
   is not reproducible by either command. Re-run the `fmt.Fprint*` form rather than quoting any of the
   three figures. Source: `spec/0.33.0-candidates.md` item 3 and `spec/0.35.0-candidates.md` item 15,
   whose own "roughly twenty" is the right order of magnitude.
+
+## Decided at the 2026-09-08 decision pass
+
+From `spec/undecided.md`, *Which channel a degraded scan reports on*.
+
+**Decided: a payload field always; the notice is additional.** A payload field survives `--quiet` and
+a driver reads payloads, which a notice on stderr gives neither. Concretely, `runStateOf` in
+`internal/cli/run_status.go` gains a **`lock_unreadable`** payload field: today it reports an
+unprobeable run lock as a notice only, returning `in_flight` with no payload field, so under `--quiet`
+it is indistinguishable from a live run. `internal/cli/validate_project.go` already reports on both
+channels — an `output.Notice` and a `skipped` entry — and is the precedent the rule generalises.
+
+**This also answers the channel question *The evidence contract* was holding**, which is why that
+entry could be closed rather than left to state a general principle first. Routed from
+`spec/0.35.0-candidates.md` item 17, which measured the second half by making `.tp/locks` a regular
+file and running `tp run --status --quiet`.
