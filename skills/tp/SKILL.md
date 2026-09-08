@@ -427,8 +427,11 @@ repeating them, never in cutting them.
    lacks reaches the orchestrator. The gap between one round's record and the next round's emission was
    the orchestrator's dispositions, and it was longer than the role stage.
 
-The after-figure is not written here until a round has run under all four; when one has, anchor it to
-that round's record commit.
+Rules 1, 3 and 4 are mechanized in tp's own repository by `scripts/audit-round-prep.py <spec>`: it
+finds the previous recorded round, derives the carried rows from the record commit's diff, clones and
+builds once, reads the class-to-slug table from `.tp/routed-classes.json`, and prints one brief
+fragment per role. On v1.1.0's round 4 it carries 47 of 63 rows. The after-figure is not written here
+until a round has run under all four; when one has, anchor it to that round's record commit.
 
 ### `audit_converge_on` — what an audit round has to be clean of (v0.37.0)
 
