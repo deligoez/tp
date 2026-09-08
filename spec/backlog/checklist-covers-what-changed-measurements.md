@@ -268,3 +268,17 @@ fixture mutation and cannot test production at all. Its stated consequence was w
 at `c0777dc6` under exactly that shim, `tp audit spec/0.37.0.md` exits **4** with `no changed files
 detected` and emits no prompts, so a test carrying row 8's assertion **fails** under it rather than
 passing while measuring nothing. Keep the widened shim as a fixture hazard to avoid, not as a mutant.
+
+## Routed here at the 2026-09-08 re-verification
+
+One item from the candidates files lands on this spec's subject. It is recorded in this sidecar; the
+spec body is not edited.
+
+- **The review per-file cap has no guard on its marker.** `maxPerFile` in `internal/cli/review.go`
+  truncates a file's excerpt and appends `\n[...truncated]` (line 1565 at `dd89c566`; a second,
+  distinct marker `[...truncated by total cap]` follows at 1570), and no test asserts either marker
+  appears. That is the same defect this spec closes on the audit side — a set silently cut and
+  reported as whole — on the review side, where it is unmeasured. Source:
+  `spec/0.35.0-candidates.md` item 5, whose other two thirds are settled: the lock-timeout boundary
+  guard shipped as `internal/engine/lock_timeout_range_test.go`, and the two plan builders stay
+  separate by `spec/backlog/refusals-that-name-nothing.md` Non-Goals 3 and 5.
