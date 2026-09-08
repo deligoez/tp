@@ -69,7 +69,7 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 		return nil
 	}
 
-	findings, dirty, parseHint, parseErr := parseRecordRows(recordPath, data)
+	findings, dirty, incomplete, parseHint, parseErr := parseRecordRows(recordPath, data)
 	if parseErr != nil {
 		// A malformed row is a fault in the file read from disk, not the
 		// invocation, so it is a validation error (exit 1), not a usage error
@@ -92,6 +92,22 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 	if err != nil {
 		output.Error(ExitFile, fmt.Sprintf("cannot hash spec: %s", specPath), err.Error())
 		os.Exit(ExitFile)
+		return nil
+	}
+
+	// §2: a row handed to --record carries a non-empty severity, finding,
+	// location and evidence, and a file holding a row that does not is refused
+	// rather than skipped, with every offending line named in one exit. tp does
+	// not look at what the evidence text says.
+	//
+	// Raised here, last of the refusals and before any state write, so it
+	// pre-empts nothing that already reports a different cause: the aborting row
+	// rules return from the loop above, and an unreadable spec is still a file
+	// error (exit 3) from the SpecHash call just above.
+	// TestReviewRecord_RequiredFieldRefusalIsRaisedLast holds both halves.
+	if len(incomplete) > 0 {
+		output.Error(ExitValidation, strings.Join(incomplete, "; "), recordRequiredFieldsHint)
+		os.Exit(ExitValidation)
 		return nil
 	}
 
@@ -246,9 +262,15 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 // parseRecordRows applies the row rules: blank lines skipped, every remaining
 // line a JSON object, pre-resolved wontfix needs evidence and does not dirty
 // the round, pre-resolved fixed aborts, pre-resolved duplicate dirties.
-func parseRecordRows(path string, data []byte) (findings, dirty int, hint string, err error) {
+//
+// §2's required set is the one rule that does not abort here. Its offenders
+// come back in incomplete, one entry per offending line, for the caller to
+// raise in a single exit after the spec hash — so a row that owes a field
+// pre-empts neither an aborting row rule nor a spec tp cannot read.
+func parseRecordRows(path string, data []byte) (findings, dirty int, incomplete []string, hint string, err error) {
 	lineNum := 0
 	var rl rolelessRows
+	incomplete = make([]string, 0)
 	for line := range strings.SplitSeq(string(data), "\n") {
 		lineNum++
 		trimmed := strings.TrimSpace(line)
@@ -257,7 +279,7 @@ func parseRecordRows(path string, data []byte) (findings, dirty int, hint string
 		}
 		var row map[string]any
 		if jsonErr := json.Unmarshal([]byte(trimmed), &row); jsonErr != nil {
-			return 0, 0, "", fmt.Errorf("line %d: invalid JSON: %w", lineNum, jsonErr)
+			return 0, 0, nil, "", fmt.Errorf("line %d: invalid JSON: %w", lineNum, jsonErr)
 		}
 		findings++
 
@@ -266,19 +288,57 @@ func parseRecordRows(path string, data []byte) (findings, dirty int, hint string
 		status, evidence := resolvedStatusOf(row)
 		switch status {
 		case "fixed":
-			return 0, 0, "re-review the changed spec", fmt.Errorf("line %d: row arrives pre-resolved fixed — a fix means the spec changed; record the round without it and re-review", lineNum)
+			return 0, 0, nil, "re-review the changed spec", fmt.Errorf("line %d: row arrives pre-resolved fixed — a fix means the spec changed; record the round without it and re-review", lineNum)
 		case "wontfix":
 			if strings.TrimSpace(evidence) == "" {
-				return 0, 0, "", fmt.Errorf("line %d: pre-resolved wontfix row requires non-empty resolved.evidence", lineNum)
+				return 0, 0, nil, "", fmt.Errorf("line %d: pre-resolved wontfix row requires non-empty resolved.evidence", lineNum)
 			}
 			// verified-rejected rows do not dirty the round
 		default:
 			// unresolved and pre-resolved duplicate rows dirty the round
 			dirty++
 		}
+
+		// §2's required set is checked after the rules that abort, and the
+		// offenders are accumulated rather than returned: the refusal names
+		// every offending line in one exit rather than stopping at the first.
+		if missing := missingRequiredFields(row); len(missing) > 0 {
+			incomplete = append(incomplete, fmt.Sprintf("line %d: %s", lineNum, missingFieldsClause(missing)))
+		}
 	}
-	rl.notice(path)
-	return findings, dirty, "", nil
+	// Same reason the aborting rules skip it: a file the caller will refuse
+	// records nothing, so its roleless tally would advise about rows no state
+	// ever kept.
+	if len(incomplete) == 0 {
+		rl.notice(path)
+	}
+	return findings, dirty, incomplete, "", nil
+}
+
+// requiredFindingFields is §2's required set, in the order the message names
+// them. `role` is attribution metadata the rest of the pipeline treats as
+// optional and is deliberately absent.
+var requiredFindingFields = []string{"severity", "finding", "location", "evidence"}
+
+// missingRequiredFields returns the required keys the row lacks or leaves
+// empty. A value that is empty once strings.TrimSpace has run counts as empty,
+// so a whitespace-only string is a missing key.
+func missingRequiredFields(row map[string]any) []string {
+	missing := make([]string, 0, len(requiredFindingFields))
+	for _, k := range requiredFindingFields {
+		if s, _ := row[k].(string); strings.TrimSpace(s) == "" {
+			missing = append(missing, k)
+		}
+	}
+	return missing
+}
+
+// missingFieldsClause renders one row's missing keys for the refusal message.
+func missingFieldsClause(missing []string) string {
+	if len(missing) == 1 {
+		return "missing required field " + missing[0]
+	}
+	return "missing required fields " + strings.Join(missing, ", ")
 }
 
 // resolvedStatusOf extracts resolved.status and resolved.evidence from a row.
@@ -329,6 +389,12 @@ func (r *rolelessRows) notice(path string) {
 		"warning: %d row(s) in %s are missing the role field (first at line %d); they will not appear in the per-role overlap report",
 		r.count, path, r.firstLine))
 }
+
+// recordRequiredFieldsHint answers §2's refusal. recordRowHint, the code-1
+// fallback, gives singular advice ("fix the line the message names") for a
+// message that can name many and says nothing about what a row owes; this one
+// names the set, so the reader needs neither the spec nor a second command.
+const recordRequiredFieldsHint = "every row in the --record NDJSON carries a non-empty severity, finding, location and evidence: fix or drop each line the message names"
 
 // vanishedStateReason is the StateCorruptError reason both record paths raise
 // when the state directory disappears between EnsureReviewState and the write
