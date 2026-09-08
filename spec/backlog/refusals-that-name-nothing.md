@@ -1,26 +1,9 @@
-# tp v1.55.0 — The refusals that name nothing
+# tp — The refusals that name nothing
 
-> **This file is decisions.** What v1.0.0's audit measured and did not repair — the split
-> `spec/candidates.md` files them under, and §1 keeps it. Each of v1.0.0's defects was re-run
-> against `HEAD` while writing this file rather than
-> carried forward from the handover text, because a deferred finding is a claim about a tree that has
-> since moved. **§6 is the exception and is not a re-derivation**: `spec/candidates.md` already
-> carries that routing correction, in the same words and with the same search, and already re-routes
-> the finding to this release. §6 says so.
->
-> Every mutant below was built and run in `rsync -a --exclude .git ./ <copy>/`, outside the
-> repository. **The check that the repository is unchanged has to have the repository as its
-> subject**, and the one this preamble first carried did not:
-> `diff -r --brief <copy>/internal ./internal` compares the copy against the tree, so it goes red
-> whenever the *copy* still holds a mutant — and it did, on `internal/cli/review.go`, when it was
-> re-run. What is asserted instead is `git status --porcelain -- internal/` printing nothing, beside
-> a control on a path that *is* edited, which prints ` M <path>`: the empty output is then a reading
-> rather than a silence.
->
-> **No line number is cited anywhere below.** Round 1 found three line-anchored citations in this
-> document pointing at the wrong text — one off by eleven lines, one at a doc comment rather than the
-> assertion it names, one naming the wrong test entirely — so every citation here names a symbol or a
-> quoted string and the file it lives in.
+Class: **tool** — no command, no flag, no workflow field; three seams in what a refusal says, plus
+three test-only tasks. Its measurements are in `refusals-that-name-nothing-measurements.md` beside it;
+this file stands without them. Every citation below names a symbol or a quoted string and the file it
+lives in, never a line number.
 
 ## 1. Overview
 
@@ -35,24 +18,25 @@ written to close the first of them and closes a weaker claim instead:
    sentence is wrong in two independent ways rather than one.
 4. **`rankFilesBySpecTerms` drops an unreadable file in silence** (§5) while the next function in the
    same file documents the opposite convention as a convention.
-5. **`checkTaskFileQuality` swallows both of its failures** (§9.1) — an unreadable task file and an
+5. **`checkTaskFileQuality` swallows both of its failures** (§6) — an unreadable task file and an
    unparseable one each produce zero findings, empty stderr and exit 0, indistinguishable from clean.
-6. **`vague.go` truncates a finding's `Context` by bytes** (§9.2), so a multi-byte rune on the
+6. **`vague.go` truncates a finding's `Context` by bytes** (§7), so a multi-byte rune on the
    boundary reaches the reader as `U+FFFD` — text that is in no document. The two tests pinning the
    cap assert a byte length, which the corruption satisfies.
 
 They share a subject and not a mechanism: in each, the failing party already holds the answer. §2 has
 `groundAcceptableTiers[kind]` one lookup away, §3 has the listing it was handed, §4 has a spec-reading
-helper in the same file, §5 has the file path and the `error`, §9.1 has the `error` twice over, and
-§9.2 has the rune boundary `utf8.DecodeLastRuneInString` would give it.
-
-No command, no flag, no workflow field.
+helper in the same file, §5 has the file path and the `error`, §6 has the `error` twice over, and
+§7 has the rune boundary `utf8.DecodeLastRuneInString` would give it.
 
 **§3 exists because a guard was written whose mutant nobody ran in the other direction.** The four
 enum refusals were repaired and a test was written to hold them; the test was checked by *removing*
-values and never by *adding* them. That is the shape this release is about one level up, and §8 says
+values and never by *adding* them. That is the shape this release is about one level up, and §9 says
 so as a rule: every row of the test table names the mutant that must fail it, and the §3 rows carry
 one in each direction.
+
+§10 carries three test-only tasks absorbed from the guard-helper spec, which shared this release's
+subject: a guard that re-parses a document by hand holds a weaker answer than production does.
 
 ## 2. The pairing refusal names the set §4.1 grants
 
@@ -86,19 +70,13 @@ for `PASS`, `PARTIAL` and `FAIL` and false for `UNVERIFIABLE`, `QUESTION` and `N
 `{behaviour, read}` is accepted and never sees this message at all. A unit that reads the enum listing
 and picks a legal tier is *more* likely to land here than one that mistypes.
 
-**The recovery costs a re-read of the emitted prompt, which is the argument v1.0.0 already accepted
-for the other four cells.** The prompt does carry the per-kind sets — `groundPromptEvidence` in
-`internal/cli/ground.go` renders them from `TierAcceptableFor` — so the information is reachable and
-the cost is the round trip. **How many bytes that round trip is, this file quotes nowhere**, because
-the figure is a property of the spec being grounded and not of tp. Derive it in the copy, since
-`tp ground` writes a round snapshot beside the spec:
-`tp ground spec/1.0.0.md --json | python3 -c 'import sys,json; print(len(json.load(sys.stdin)["prompt"].encode()))'`
-— and note the path, because `tp ground 1.0.0.md`, the form this paragraph first carried, exits 3 with
-`spec not found` and prints no number at all. The value moved at each of the six most recent commits
-touching `spec/1.0.0.md` while `git log <that range> -- internal/` is empty, so the renderer never
-changed and the figure tracks the spec's own growth. `internal/engine/groundrow_test.go`'s
-enum-refusal doc comment states a **third** figure for the same quantity, measured at a third moment;
-§4 edits that comment, and the stale figure is deleted with it rather than re-measured.
+The recovery costs a re-read of the emitted prompt, which is the argument v1.0.0 already accepted for
+the other four cells; the prompt does carry the per-kind sets, rendered by `groundPromptEvidence` in
+`internal/cli/ground.go` from `TierAcceptableFor`. How many bytes that round trip is, this file quotes
+nowhere, because the figure is a property of the spec being grounded and not of tp — the sidecar's
+*§2 — the cost of the round trip* gives the derivation. `internal/engine/groundrow_test.go`'s
+enum-refusal doc comment states a figure for that quantity; §4 edits that comment, and the stale
+figure is deleted with it rather than re-measured.
 
 ### 2.1 The message, and the one derivation behind it
 
@@ -128,7 +106,7 @@ caller rather than riding on one.** The tree's only direct calls to `validateGro
 `ParseGroundRow` are the two in `TestAVerdictOutsideTheSixIsHeldToTheTierRule`
 (`internal/engine/groundtierrule_test.go`), and both pass `Kind: KindBehaviour`, whose acceptable set
 is `{run, red-green}`; the out-of-enum value there is the *verdict*, not the kind. The branch says
-that no tier is acceptable for that kind, and §8 pins it.
+that no tier is acceptable for that kind, and §9 pins it.
 
 **`skills/tp/REFERENCE.md` quotes this message verbatim and nothing binds the quote to the code.** It
 sits there in §7.2's per-verdict table, in the `PASS`, `PARTIAL` or `FAIL` row. Measured: rewording
@@ -152,45 +130,21 @@ artifact.
 
 `TestAnEnumRefusalNamesTheValuesItWouldHaveAccepted` (`internal/engine/groundrow_test.go`) loops over
 the four enum cells and, for each, asserts `assert.Contains(err.Error(), want)` **once per value of
-that cell's listing** — the rule, because there is no one per-cell count to state: probing the copy
-for `len(GroundVerdicts())`, `len(GroundKinds())`, `len(GroundTiers())` and
-`len(GroundPartialKinds())` gives `6 7 6 3`, so no cell gets four. The next table is the same fact
-from the other side — `GroundTiers()[:2]` costs the `tier` cell four of its six values, hence four
-failures. Nothing is asserted about what else the message says.
+that cell's listing** — the rule, because there is no one per-cell count to state. Nothing is asserted
+about what else the message says.
 
-**Measured, both directions, on the shipped guard:**
-
-| mutant at the production call site | `internal/engine` | `internal/cli` |
-|---|---|---|
-| `GroundTiers()[:2]` — truncate the listing | **red**, four failures naming `run`, `probe`, `red-green`, `break-and-control` | — |
-| the same truncation on **all four** call sites at once | **red**, and *counted*: each of the four subtests fails on its own | — |
-| `append(GroundTiers(), "document", "corpus", "vibes")` | **green** | **green** |
-| the same append on **all four** call sites at once | **green** | **green** |
-
-The mutated refusal reads, in full:
-
-```
-field "tier": "squinted" is not one of the values the spec lists: read, query, run, probe, red-green, break-and-control, document, corpus, vibes
-```
-
-A refusal telling a unit that `document` is a legal tier — while `document` is a *kind*, and the row
-that pairs it with a tier is exactly what §2 is about — and the guard written to make this message
-informative passes it.
+Measured in both directions on the shipped guard, truncating any listing at its production call site
+reddens it and appending values to any listing leaves it green, so a refusal telling a unit that
+`document` — a *kind* — is a legal tier passes the guard written to make the message informative; the
+runs are in the sidecar under *§3 — measured, both directions*.
 
 **The immune shape is available, because the message is a bounded artifact.** One string, one
 listing, no elsewhere. But the obvious repair does not work, and it was measured before being
-rejected:
-
-| assertion | shipped message | listing appended | listing prepended |
-|---|---|---|---|
-| `Contains(msg, ": " + strings.Join(names, ", "))` | pass | **pass** | fail |
-| `HasSuffix(msg, ": " + strings.Join(names, ", "))` | pass | **fail** | fail |
-
-`Contains` over the joined string is green on the exact mutant it would be written for, because
-appending leaves the joined string a substring. **The assertion is on the message's tail**:
-the refusal must *end* with `": "` followed by the listing the call site passed, joined with `", "`.
-That is exhaustive against appending, prepending and insertion, and it pins no word of the sentence
-before the colon.
+rejected: `Contains` over the joined string is green on the exact mutant it would be written for,
+because appending leaves the joined string a substring (the sidecar's second §3 table). **The
+assertion is on the message's tail**: the refusal must *end* with `": "` followed by the listing the
+call site passed, joined with `", "`. That is exhaustive against appending, prepending and insertion,
+and it pins no word of the sentence before the colon.
 
 **Its one cost, named because it is the correct direction.** A future message that adds a clause
 *after* the listing turns the guard red and forces whoever adds it to re-derive the assertion. That is
@@ -213,17 +167,9 @@ The expectation derives from `GroundPartialKinds()`, a Go listing, and nothing r
 the document.
 
 **The sentence is wrong twice, and the second error is the one that decides the fix.** §7.2's table
-does not hold the values for three of the four cells the test covers. Reading the four `meaning` cells
-of §7.2's field table in `spec/1.0.0.md` — the rows whose first cell is `verdict`, `kind`, `tier` and
-`partial_kind`, named rather than cited by line because the range this paragraph first carried was
-eleven lines off and pointed at §7.2's heading instead of its table:
-
-| cell | what §7.2's `meaning` column says | enum values present there |
-|---|---|---|
-| `verdict` | *one of §3's six* | none |
-| `kind` | *one of §4.1's seven*, plus `` `NOT-A-CLAIM` ``, `` `tier` ``, `` `evidence` ``, `` `note` `` | **none** — the backticked tokens are one *verdict* value and three field names |
-| `tier` | *one of §4.1's tier table* | none |
-| `partial_kind` | `two-readings`, `reason-not-conclusion`, `true-when-written` | all three |
+does not hold the values for three of the four cells the test covers: reading the four `meaning`
+cells of §7.2's field table in `spec/1.0.0.md`, only `partial_kind`'s cell lists its values; the
+sidecar's *§4 — §7.2's `meaning` column* has the cell-by-cell reading.
 
 **One cell of four.** The values for the other three live in §3's disposition table and §4.1's two
 tables. So "a value added to §7.2's table" names a place that holds the values for a quarter of the
@@ -242,6 +188,8 @@ binding.
   **`TestTheCauseBoundIsTheOneTheSpecStates`**, which extracts number words with two regexps and
   compares them to `groundCausesMin`/`groundCausesMax` — **not**
   `TestSection11Row21OnThisReleasesOwnSpec`, whose every assertion is structural, as its doc says.
+  The three helpers are the subject of §10's first task, and the reader this bullet adds goes through
+  the helper that task introduces.
 - The comment then says what is true: three of the four listings are pinned to §3 and §4.1 by the
   code's own tables and by nothing in this test, and `partial_kind`'s is pinned to §7.2.
 
@@ -283,35 +231,17 @@ is `len(ranked)` in both `runReviewDocPlan` and `runReviewTestPlan`, so the emit
 files were reviewed and says nothing about why. **What the drop removes is the body and the fact of
 the drop — not the path**, and this paragraph first claimed the opposite. The emitted prompt falsifies
 it: `walkDocTree` builds the `Documentation structure:` tree *upstream* of the ranking and hands it to
-the prompt generator, so the dropped filename survives. Measured through the shipped command on §5.1's
-fixture under `--spec-inline`: the tree carries `locked.md` once while `reviewed_files` reports 2 of 3.
+the prompt generator, so the dropped filename survives.
 
-### 5.1 How far the drop reaches through the shipped command
+### 5.1 The decision
 
-**The function-level table above does not say how far it reaches, and the answer bounds the finding.**
-`rankFilesBySpecTerms` returns every candidate **unread** when the spec content carries no `## `/`### `
-heading, so the drop site is never entered; and
-`resolveReviewSpecContent`'s default arm returns `buildSpecRefContent`, whose headings are rendered
-as bullets. An ordinary `tp review` therefore finds zero terms and cannot drop. Measured on one
-fixture — three `docs/*.md`, one `chmod 000`, asserted unreadable first — with
-`tp review spec.md --perspective documentation --docs-path docs --no-state`:
-
-| invocation | `reviewed_files` | stderr |
-|---|---|---|
-| as written (spec-ref content) | 3 | `readFilesContent`'s warning |
-| `--spec-inline` | **2** | empty |
-| `--diff-from base.md` | **2** | empty |
-
-The control is counted, not assumed: the matrix is 3 × 2 — all three invocations were run again with
-`locked.md` readable, and every one reports 3 with empty stderr. **So the silent drop is reachable
-through `tp review` only under `--spec-inline` or `--diff-from`**, whose rendered sections carry real
-`## `/`### ` headings. That narrows the blast radius and does not withdraw the finding: those are the
-two modes in which a role is handed the spec's own text, and they are the runs whose count is wrong.
-
-**The fix is the sibling's channel, at the drop site.** Measured in the copy: with an
-`output.Notice` at the `continue`, the same input gives `in=3 ranked=2 kept=2 drops=1 notices=1` —
-exactly one notice, because a file dropped from the ranking never reaches `readFilesContent`, so
-there is no double report. The full `internal/cli` suite stays green.
+**The drop site gets the sibling's channel, `output.Notice`, and exactly one notice per
+unreadable file** — a file dropped from the ranking never reaches `readFilesContent`, so there is no
+double report. The silent drop is reachable through `tp review` only under `--spec-inline` or
+`--diff-from`, whose rendered sections carry real `## `/`### ` headings — a plain `tp review` finds
+zero terms and never enters the drop site — which narrows the blast radius and does not withdraw the
+finding, since those are the two modes in which a role is handed the spec's own text; the sidecar's
+*§5.1 — how far the drop reaches through the shipped command* is the run.
 
 **Two limits, both stated rather than fixed here.** `output.Notice` returns early under `--quiet`
 (`internal/output/output.go`), so under a quiet run the notice is suppressed — the sibling has the
@@ -329,48 +259,47 @@ would occupy one of the fifteen slots whenever fewer than fifteen files outscore
 is about what a refusal says, not about what a selection returns. The count stays wrong; the operator
 now learns why.
 
-## 6. A routing correction, and who actually made it
+## 6. An invalid task file is reported by `tp lint`, not swallowed
 
-`spec/candidates.md` routes §5 to **the release that reworks the audit checklist**, *"which already
-owns the file-selection channel"*. **That routing is wrong, the check is one search — and
-`candidates.md` has already run it.** The correction is in the same file, in the same words and with
-the same search, in its table of judgements that did not survive checking; the same file's
-where-each-finding-lives table already re-routes this one here. So what follows is a restatement with
-its derivation attached, not a discovery — and it is not one of the three findings §0 says were
-re-run against `HEAD`. It is worth restating because the *wrong* routing is still in the file too, in
-the table of defects — sitting between the correction above it and the re-route below it, so a reader
-who stops at the defect table gets the wrong answer with nothing to warn them.
+`checkTaskFileQuality` (`internal/cli/lint.go`) resolves the spec's task file and returns `nil` on
+both of its failure paths — `os.ReadFile` erroring and `json.Unmarshal` erroring. A missing file
+returning `nil` is correct and is a third, separate branch; the other two are not the same case.
+Measured against a control at `HEAD`: an unparseable task file and an unreadable one each yield zero
+`acceptance-quality` findings, zero bytes on stderr and exit 0, against the control's one finding —
+the sidecar's *§6 of the spec — `checkTaskFileQuality`, measured* is the table, with the precondition
+that the unreadable file is asserted unreadable first.
 
-`rankFilesBySpecTerms` has exactly two call sites, both in `internal/cli/review.go`:
-`runReviewDocPlan`, which walks `.md` files, and `runReviewTestPlan`, which walks `_test.go` files.
-Both are **review**-phase perspectives, dispatched from `runReview`'s `perspective` switch. They
-select docs and tests.
+Nothing in the payload, on stderr or in the exit code separates a swallowed failure from a clean
+lint, so an operator who corrupts a task file is told their spec is fine. It is §5's mechanism in a
+different command: the failing party holds the `error` and drops it. The defect predates `v1.0.0`.
 
-The audit checklist is a different function in a different package: `selectCodeFiles`
-(`internal/engine/auditfiles.go`), bounded by `CodeFileCap`, reached through `SelectAuditFiles`,
-whose only consumer outside its own tests is `internal/cli/audit.go`. A search for
-`SelectAuditFiles|AuditFileInputs` across `internal/` returns three files —
-`cli/audit.go`, `engine/auditfiles.go`, `engine/auditfiles_test.go` — and `internal/cli/review.go` is
-not among them.
+**The decision.** Both failure paths become one `error`-severity finding, rule `task-file-invalid`,
+naming the task file's path and the underlying error, so `tp lint` exits non-zero on it; the
+`acceptance-quality` walk is skipped for that file, since there is nothing to walk. The missing-file
+branch is unchanged: a spec with no task file is the ordinary state before decomposition, and it stays
+silent. The check's own read error is reported through the same finding rather than through stderr,
+because `--json` consumers read findings and not stderr, and a lint failure that only one channel
+carries is the class §5 closes.
 
-**Zero overlap.** The two channels share the word "file selection" and nothing else, and a release
-scoped to the audit checklist would not touch the function this finding is about. The finding belongs
-here, with the other three, because what is wrong with it is what is wrong with them: the code holds
-the answer and does not say it.
+## 7. `Context` is truncated on a rune boundary
 
-**Why this is worth a section rather than a footnote — and the reason it first gave was falsified by
-its own subject.** `candidates.md` is where a finding waits, and a routing that names the wrong
-release is one way a finding waits forever: the release it was routed to ships without it. The
-mechanism this paragraph first named — *"nobody re-derives the routing because the file already says
-where it goes"* — is exactly what did **not** happen here. Somebody did re-derive it, in
-`candidates.md` itself, before this spec was written. What survives is narrower and still worth a
-section: one file states this routing three times, wrong once and corrected twice, and nothing in the
-wrong statement points at either correction. That is the argument for naming a release by its subject
-in one place only — the roadmap — and §6 is what the rule costs where it was not followed. The same
-file's own record carries the general form: a deferred finding *"read as resolved for exactly the
-round it was absent"*.
+`internal/engine/vague.go` caps a finding's `Context` at 80 with `ctx = ctx[:80]` in two rules,
+`duplicate-line` and `duplicate-paragraph`. The slice is by **byte**, so a multi-byte rune straddling
+the boundary is cut in half and the reader receives `U+FFFD` — measured at `HEAD` with a duplicated
+line of 78 ASCII characters and an em dash, whose emitted `context` ends in `U+FFFD` and, once the
+encoder has rendered the orphaned bytes, no longer honours the cap the guard believes it is checking.
+The two tests pinning the cap in `internal/engine/lint_test.go` assert `len(f.Context) <= 80`, and
+`len` on a Go string is bytes, so the corrupt value passes both. It fires on no document this
+repository has; the sidecar's *§7 of the spec — `Context` truncated by bytes, measured* is the run and
+the sweep. What makes it worth a row is the guard, not the frequency: a byte-length assertion over a
+character-length claim passes identically whether the truncation is correct or not.
 
-## 7. Non-Goals
+**The decision.** The cap stays 80 bytes, and the cut lands on the last rune boundary at or before
+it, so the emitted `Context` is always valid UTF-8 and never longer than 80 bytes in the payload.
+`utf8.DecodeLastRuneInString`, or slicing on a rune boundary, is one call away in both places, and
+the two guards gain a `utf8.ValidString` assertion beside the length they already check.
+
+## 8. Non-Goals
 
 1. **No general validation of message text.** Two messages get a guard, both because they are bounded
    artifacts ending in a listing derived from a shipped table. Every other refusal in `groundrow.go`
@@ -378,11 +307,13 @@ round it was absent"*.
    and is stronger than any assertion over a sentence.
 2. **Nothing changes what any refusal accepts.** `groundAcceptableTiers`, `groundTierRuleBinds`,
    `TierAcceptableFor` and the four enum listings are unchanged; the same rows are rejected before and
-   after. §2.1 changes what a rejection *says*, and §8 pins that the accepted and rejected sets are
+   after. §2.1 changes what a rejection *says*, and §9 pins that the accepted and rejected sets are
    identical across the change.
-3. **The audit-side file selection is untouched.** `selectCodeFiles`, `CodeFileCap`,
-   `SelectAuditFiles` and `internal/engine/auditfiles.go` are not edited here — see §6 for why they
-   were ever in the frame.
+3. **The audit-side file selection is untouched.** `rankFilesBySpecTerms`'s two call sites are the
+   review-phase `runReviewDocPlan` and `runReviewTestPlan` in `internal/cli/review.go`; the audit
+   checklist is `selectCodeFiles` in `internal/engine/auditfiles.go`, reached through
+   `SelectAuditFiles`, and the two share nothing but the words "file selection". `selectCodeFiles`,
+   `CodeFileCap`, `SelectAuditFiles` and `internal/engine/auditfiles.go` are not edited here.
 4. **§3's and §4.1's tables are not bound to the code's enums.** Available, precedented, and a
    different claim from the one §3's guard makes (§4). A guard asserting both fails without saying
    which broke.
@@ -393,12 +324,19 @@ round it was absent"*.
 6. **`ReviewedFiles` is not corrected.** §5 makes the drop audible; the count still reports the
    post-drop list. Correcting it means deciding whether an unreadable file was "reviewed", which is a
    contract question about the emitted JSON and not a channel question.
-7. **The other findings v1.0.0's audit carried are not here.** The guard/production parser split, the
-   `FAIL`-not-permanent-in-the-deletion-direction spec claim, and the empty-floor ask's collapsed
-   zeros each name their own release in `candidates.md`; none of the three is a refusal that names
-   nothing.
+7. **`tp lint` does not validate the task file's schema.** §6 reports a file that cannot be read or
+   parsed as JSON; a file that parses and violates `tp validate`'s rules is `tp validate`'s to report,
+   as today.
+8. **The `Context` cap is not raised, and is not made a character count.** §7 keeps 80 bytes and
+   makes the cut honest; what the cap should be is a contract question this release does not open.
+9. **The other findings v1.0.0's audit carried are not here.** The `FAIL`-not-permanent-in-the-
+   deletion-direction claim is `spec/backlog/what-the-carry-can-promise.md`'s, and the empty-floor
+   ask's collapsed zeros are `spec/backlog/ground-command-friction.md`'s; neither is a refusal that
+   names nothing. The guard/production parser split is §10's, as tasks.
+10. **§10's tasks change no production code.** `floorBlocks`, `floorAnchorsByLine` and the fence
+    regexp are read, not rewritten; nothing is exported; the diff of those tasks is `*_test.go` only.
 
-## 8. Tests
+## 9. Tests
 
 Every row derives from a numbered decision, names the artifact it depends on, and names a mutant that
 must fail it. **§3 gets three rows — 3a, 3b, 3c — and the first two are one mutant in each
@@ -421,6 +359,11 @@ direction**, because §3 exists precisely because the guard it replaces was only
 | 8b | §5 *no double report* | exactly one notice per unreadable file across the ranking and the read that follows it | notice at both sites, which reports twice for one anomaly and makes the count in row 8 wrong in the other direction |
 | 8c | §5 *the fixture is valid* | the probe asserts the locked file is unreadable **before** it concludes anything from an empty stderr | run the probe as a user that can read a `chmod 000` file, under which the silent-drop finding cannot occur and the test passes for the wrong reason |
 | 8d | §5 *the branch is entered* | the fixture's spec lines carry at least one `## `/`### ` heading, asserted before the drop is counted, so `rankFilesBySpecTerms` does not take its zero-terms early return | a fixture whose spec content is `buildSpecRefContent`'s bullet headings, under which zero terms are found, every candidate is returned **unread**, the drop site is never entered, and the test passes with no drop and no notice |
+| 9 | §6 *unparseable* | on a spec whose task file is `{ this is not json`, `tp lint` reports one `task-file-invalid` finding at `error` severity naming the task file's path, and exits non-zero | the shipped `return nil` after `json.Unmarshal`, under which the run is indistinguishable from the control |
+| 9b | §6 *unreadable* | on a spec whose task file is `chmod 000` — asserted unreadable first, as in row 8c — `tp lint` reports the same finding naming the read error, and exits non-zero | the shipped `return nil` after `os.ReadFile` |
+| 9c | §6 *the control and the missing file* | a valid task file with one short acceptance still yields exactly one `acceptance-quality` finding and no `task-file-invalid`; a spec with no task file yields neither | report the missing-file branch too, which turns every undecomposed spec's lint red |
+| 10 | §7 *the cut* | on a duplicated line of 78 ASCII characters and an em dash, both `duplicate-line` and `duplicate-paragraph` emit a `Context` that is valid UTF-8 (`utf8.ValidString`) and at most 80 bytes | the shipped `ctx[:80]`, whose `Context` on that input is 80 bytes of which the last two are an orphaned rune prefix |
+| 10b | §7 *the guard* | the two existing cap assertions in `lint_test.go` are joined by `utf8.ValidString` on the same fixture, and the fixture's 80th byte is asserted to fall inside a rune before the assertion runs | a fixture of 80 ASCII characters, under which byte and rune truncation agree and the guard proves nothing |
 
 **Row 5 is the one an implementer will be tempted to skip.** §2 is described everywhere above as a
 message change, and a message change is exactly what an accidental edit to `groundAcceptableTiers`
@@ -429,63 +372,32 @@ refusal accepts" (Non-Goal 2) a checked claim instead of an intention.
 
 **Row 8c is not decoration.** The `chmod 000` fixture decides the result of §5's entire measurement,
 and under a user that can read the file the probe returns three files, empty stderr, and a green test
-that has established nothing. The property the verdict rests on is asserted, not assumed.
+that has established nothing. The property the verdict rests on is asserted, not assumed. Rows 9b and
+10b carry the same rule for their own fixtures.
 
-## 9. Two more of the same shape, added by `v1.0.1`'s audit round 2
+## 10. Tasks taken from the guard spec
 
-Both are **pre-existing**, both were out of scope for the release that found them, and both were
-re-run against `HEAD` (`6d9be576`) while this section was written rather than relayed. **§7's
-Non-Goals and §8's test table were written before these arrived and do not cover them**: the cycle
-that implements this file extends both, and the rows below are findings, not requirements.
+Three test helpers in `internal/engine` — `floorSection21Verbs` (`floor_test.go`),
+`groundSection72Fields` (`groundrow_test.go`) and `groundSection72VerdictRule`
+(`groundtierrule_test.go`) — re-parse a Markdown section of `spec/1.0.0.md` by hand, and none of
+them knows what a fence is, while production parses the same document with a block scanner that
+toggles on fences. The guard-helper spec measured fifteen inputs against them, four silent and three
+false failures; the table and what it taught are in the sidecar under *From the guard spec*. Its
+decisions land here as three tasks, all `*_test.go` only (Non-Goal 10):
 
-### 9.1 `checkTaskFileQuality` swallows an unreadable file and an unparseable one
+1. **One shared test helper over production's block and anchor derivation replaces the three
+   hand-parsing helpers** — `specTableRowsUnder(t, rel, anchor)` in a new
+   `internal/engine/specsection_test.go`, built on `floorBlocks` and `floorAnchorsByLine`, returning
+   the raw table-row lines production places under the anchor, and failing by naming the anchor when
+   the section is absent or fenced.
+2. **§2.1's verb row reads every backticked span** — the row is selected from the helper's rows,
+   exactly one unfenced `**verb**` row may match, and the verbs are every `` `…` `` span in it rather
+   than the spans a character class can spell.
+3. **§7.2's field rows and verdict rows partition one row set, and an unspellable field fails
+   loudly** — a row whose first cell is a single backticked span is a field row unless the span
+   parses as a §3 verdict, and a first cell that is neither a verdict nor `^[a-z][a-z_]*$` is a
+   failure with a message, not a silent omission from a list whose length is then asserted.
 
-`checkTaskFileQuality` (`internal/cli/lint.go`) resolves the spec's task file and returns `nil` on
-both of its failure paths — `os.ReadFile` erroring and `json.Unmarshal` erroring. A missing file
-returning `nil` is correct and is a third, separate branch; the other two are not the same case.
-
-Measured with a control and a precondition, on one spec with one task whose acceptance is under ten
-words, so the check has something to report when it runs:
-
-| task file | `acceptance-quality` findings | stderr | exit |
-|---|---|---|---|
-| valid (**control**) | 1 | 0 bytes | 0 |
-| unparseable (`{ this is not json`) | **0** | 0 bytes | 0 |
-| unreadable (`chmod 000`) | **0** | 0 bytes | 0 |
-
-The control is what makes the two zeros readable: without it, zero findings is equally consistent
-with a task file that has nothing wrong. The unreadable arm asserts the file is genuinely unreadable
-before concluding anything, for the reason §8 row 8c gives.
-
-Nothing in the payload, on stderr or in the exit code separates a swallowed failure from a clean
-lint, so an operator who corrupts a task file is told their spec is fine. It is §5's mechanism in a
-different command: the failing party holds the `error` and drops it. Introduced at `8c2555a7`,
-`2026-04-02`, which `git merge-base --is-ancestor 8c2555a7 v1.0.0` confirms is an ancestor of
-`v1.0.0` — so it predates every release that could have been expected to catch it.
-
-### 9.2 `Context` is truncated by bytes, and the guard measures bytes too
-
-`internal/engine/vague.go` caps a finding's `Context` at 80 with `ctx = ctx[:80]` in two rules,
-`duplicate-line` and `duplicate-paragraph`. The slice is by **byte**, so a multi-byte rune straddling
-the boundary is cut in half and the reader receives `U+FFFD`.
-
-Built and run: a line of 78 ASCII characters followed by an em dash, duplicated so `duplicate-line`
-fires. Byte 79 begins `\xe2\x80\x94`; the cut lands after `\xe2\x80`. `tp lint --json` emits a
-`context` **ending in `U+FFFD`** — a character in no document, which is exactly the class round 1 of
-that release repaired one function up, where `blankInlineCode`'s working copy was reaching
-`Finding.Context`.
-
-**The two tests that pin the cap cannot see it.** `internal/engine/lint_test.go` asserts
-`assert.LessOrEqual(t, len(f.Context), 80)` for `duplicate-line` and again for
-`duplicate-paragraph`. `len` on a Go string is bytes, so the corrupt value is exactly 80 and both
-assertions pass. Note the emitted JSON is **84 bytes / 80 characters** — the encoder renders each of
-the two orphaned bytes as `U+FFFD` — so the shipped output does not even honour the cap the guard
-believes it is checking.
-
-**Scope, so the finding is not oversold: it fires on no document this repository has.** Swept all
-67 files under `spec/` and `spec/backlog/` at `6d9be576` for a `duplicate-line` or
-`duplicate-paragraph` context containing `U+FFFD`: **0**. The defect needs a duplicated line whose
-80th byte falls inside a rune, which is why it survived. What makes it worth a row is the guard, not
-the frequency: a byte-length assertion over a character-length claim passes identically whether the
-truncation is correct or not, so nothing in the suite would notice the day a spec produced one.
-`utf8.DecodeLastRuneInString`, or slicing on a rune boundary, is one call away in both places.
+The three false sentences the guard spec named — the two helper doc comments and
+`TestTheVerbArmIsExactlyTheTwelveListedVerbs`' *"a later release's work"* — are corrected by the
+tasks that change them, not reworded around.
