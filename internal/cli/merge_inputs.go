@@ -13,6 +13,13 @@ import (
 // content lines became a usable row, and how many were skipped as malformed or
 // incomplete. Blank and whitespace-only lines are neither parsed nor skipped, so
 // a file padded with newlines never reads as a dropped role.
+//
+// From v1.1.0 a line holding an empty JSON array joins them — but under
+// `tp review --merge` only. `tp audit --merge` is fenced out of this release
+// and still counts that line as a malformed skip, so a role file whose one
+// content line is empty-array merges clean at exit 0 through the review gate
+// and exits 1 through the audit gate. Measured on the same one-line file, all
+// four spellings (`[]`, `[]  `, `[ ]`, `[<tab>]`): review 0, audit 1.
 type mergeInputCounts struct {
 	Path    string `json:"path"`
 	Parsed  int    `json:"parsed"`
@@ -59,7 +66,7 @@ func droppedInputs(inputs []mergeInputCounts) []string {
 // between create and rename. The first now names the temporary in the error;
 // nothing can report the second.
 //
-// Three further consequences of writing this way, measured against v1.0.1 —
+// Four further consequences of writing this way, measured against v1.0.1 —
 // accepted rather than repaired, and recorded here so they are not rediscovered
 // as defects:
 //
@@ -72,6 +79,11 @@ func droppedInputs(inputs []mergeInputCounts) []string {
 //     exits 3: the temporary has to be created in that directory.
 //   - A read-only (0444) `-o` was refused at v1.0.1 and is now replaced: rename
 //     needs permission on the directory, not on the file it overwrites.
+//   - An existing `-o` comes out at 0600 whatever mode it had. The renamed file
+//     carries os.CreateTemp's mode, not the destination's; the v1.0.1
+//     os.WriteFile(path, data, 0o600) passed its mode only on create and left
+//     an existing file's own. Measured both ways: 0644 → 0600 and 0666 → 0600
+//     here, against 0644 → 0644 under the WriteFile equivalent.
 func writeMergeOutput(outputPath, ndjson string, dropped []string) bool {
 	if len(dropped) > 0 {
 		return false
