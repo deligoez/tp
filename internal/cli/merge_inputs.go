@@ -52,8 +52,26 @@ func droppedInputs(inputs []mergeInputCounts) []string {
 // the zero-byte `-o` the review loop reads as "nothing found".
 //
 // The write itself goes to a temporary file in the destination's own directory
-// and is renamed on success, so a failed write leaves neither a truncated `-o`
-// nor the temporary beside it.
+// and is renamed on success, so a failed write leaves no truncated `-o`. It
+// does not always leave no temporary, and there are two cases it cannot clean:
+// a removal that fails for the same reason the rename did (measured in the
+// field as EPERM on both, with the temporary locked mid-write), and a SIGKILL
+// between create and rename. The first now names the temporary in the error;
+// nothing can report the second.
+//
+// Three further consequences of writing this way, measured against v1.0.1 —
+// accepted rather than repaired, and recorded here so they are not rediscovered
+// as defects:
+//
+//   - The usable `-o` basename is 235, not the filesystem's 255: tp appends
+//     `.tp-merge-` plus os.CreateTemp's random suffix, which is 9 or 10 digits.
+//     235 succeeded on 20 runs of 20; 236 failed on 16 of 20 — the boundary is
+//     intermittent, not sharp, because the suffix length varies. 237 always
+//     fails.
+//   - A writable `-o` inside a NON-writable directory merged at v1.0.1 and now
+//     exits 3: the temporary has to be created in that directory.
+//   - A read-only (0444) `-o` was refused at v1.0.1 and is now replaced: rename
+//     needs permission on the directory, not on the file it overwrites.
 func writeMergeOutput(outputPath, ndjson string, dropped []string) bool {
 	if len(dropped) > 0 {
 		return false
