@@ -180,6 +180,9 @@ stops with false claims standing in the spec. Each round:
    needs to know where a unit ends. The prompt's own isolation clause is the ground one: it permits
    copying what a probe needs to a directory **outside** the repository and writing freely inside
    that copy, because half the tiers are evidence about an artifact the unit builds.
+   **When a phase runs more than one unit at a time, give each its own `mktemp -d`.** Two units writing
+   probe files into one shared scratch directory collide silently: measured here, where one unit's fixture
+   was overwritten mid-run by another's and the round had to be repeated.
 3. `tp ground <spec> --record <file>` — the whole payload is validated before anything is opened, so
    **one bad row writes no round file at all** and the state directory is left as the emission made it.
 4. Repair the spec against the `FAIL` and `PARTIAL` rows, then run the next round. A `QUESTION` does
