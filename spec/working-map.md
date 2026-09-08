@@ -6,6 +6,12 @@ repository has already paid for that four times.
 
 Not a release. It carries no version number so it cannot be mistaken for one.
 
+**Archived 2026-09-08.** The effort it maps finished: `tp ground` shipped as `v1.0.0`, the hotfix it
+waited on became `spec/backlog/a-finding-can-leave-an-audit-round.md`, and the pending specs were
+re-verified and reordered in `spec/backlog/README.md`. What stays useful here is the record — the ground
+protocol's four runs and the `v1.0.0` review loop's pre-registered decision rules — so the file is kept
+as history and its work-item table is corrected below rather than maintained.
+
 ## Destination
 
 **Reached: `spec/1.0.0.md` — `tp ground` — is written**, from three pilot runs over 44 claims. The
@@ -21,9 +27,9 @@ nothing here starts a tp cycle.
 | # | work | state |
 |---|---|---|
 | W1 | **Ground the pending specs.** Rules in `spec/1.0.0.md` §2–§6; log below | 4 fully ground, `1.0.0` by its own rules; the citation and numeric classes ground across all 18 |
-| W2 | Route the skills-examination findings into the specs that own them | **done** — 1.48.0, 1.41.0, 1.50.0, candidates |
-| W3 | **v0.37.1 ships.** Spec written and ground, both fixes built and green in a scratch copy | ready — waiting only on the operator |
-| W4 | `forward-spec-ref` lint rule — survived prototyping (18 findings pre-repair, 0 today, 0 false positives) | needs a decision: it wants the shipped boundary, which `tp lint` has no git access for |
+| W2 | Route the skills-examination findings into the specs that own them | **done** — today `red-gate-procedure.md`, `brief-carries-the-forcing-sentences.md`, `a-finding-can-leave-an-audit-round.md` under `spec/backlog/`, and `candidates.md` |
+| W3 | **The hotfix ships.** | superseded — `v1.0.1` and `v1.1.0` took other subjects; the hotfix is `spec/backlog/a-finding-can-leave-an-audit-round.md`, first in the backlog's order |
+| W4 | `forward-spec-ref` lint rule | **dropped 2026-09-08** — its population vanished with the version numbers; `spec/undecided.md`, `## Refuted` |
 | W5 | CLAUDE.md carries **326 of 632 lines (53%)** of planning reference in an always-loaded document | separate effort; sized, not started |
 | W6 | tp's emitted prompts steer by prohibition — **14%** of the review prompt, **12%** of CLAUDE.md | routed into 1.41.0; the CLAUDE.md half is W5 |
 
