@@ -167,3 +167,17 @@ before the release tag — and never while task gates are running.
 written — its `--test-cpu` comparison table's unflagged row is `49 + 5 + 0 + 26`
 (`grep -n 'no flag |' CLAUDE.md`) — while the same package carries **81** at `HEAD`. The figure is
 dated; the conclusion is not.
+
+## Routed here at the 2026-09-08 re-verification
+
+One item from the candidates files lands on this spec's subject. It is recorded in this sidecar; the
+spec body is not edited.
+
+- **`internal/engine/bookkeeping.go` is the standing survivor cluster nothing carries.** v0.35.0's
+  pre-release run measured it at **0 killed / 4 lived / 17 not covered** — a file with no mutant
+  killed at all, which is the one reading that separates "the suite tests this weakly" from "the
+  suite does not reach this". The record in `spec/0.35.0-candidates.md` item 16 is accurate and its
+  `CLAUDE.md` correction was applied, but the figure itself has been carried by no file since; it
+  belongs with this spec's other standing figure. Re-derive rather than quote — the rule for that
+  run, including the fresh-copy requirement, is under *How the figures were produced* above. Source:
+  `spec/0.35.0-candidates.md` item 16.
