@@ -181,3 +181,20 @@ spec body is not edited.
   belongs with this spec's other standing figure. Re-derive rather than quote — the rule for that
   run, including the fresh-copy requirement, is under *How the figures were produced* above. Source:
   `spec/0.35.0-candidates.md` item 16.
+
+## Decided at the 2026-09-08 decision pass
+
+From `spec/undecided.md`, *`t.Parallel()` in the engine package*, which was moved out of this check
+because it took no decision on it.
+
+**Decided: `internal/engine` stays serial.** `internal/cli` remains free to parallelize — `fa68051b`
+applied it there.
+
+**The paired run that could change that is the first execution of this check**, which is when it is
+cheapest: someone is already running gremlins and reading its output, so the second arm costs one
+extra copy rather than a dedicated session. The protocol is the one under *How the figures were
+produced* and *Neither the file nor the argv settles it* above — each arm the **first** gremlins run
+in its own fresh `rsync -a --exclude .git` copy, one serial tree and one parallelized tree, neither
+directory reused, `--workers` pinned, compared on **efficacy and the timeout count** rather than on
+wall time. Without the fresh-copy rule the "after" arm returns the corruption signature and reads as
+a mutation signal `t.Parallel()` destroyed.
