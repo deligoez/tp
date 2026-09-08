@@ -7,6 +7,10 @@
       {
         "class": "code-citation-drift",
         "cmd": "python3 scripts/check-spec-code-citations.py \"$(tp resume 2\u003e/dev/null | python3 -c 'import sys,json;print(json.load(sys.stdin)[\"spec\"])')\""
+      },
+      {
+        "class": "method-only-in-ungraded-sidecar",
+        "cmd": "python3 scripts/check-test-rows-cite-sidecar.py \"$(tp resume 2\u003e/dev/null | python3 -c 'import sys,json;print(json.load(sys.stdin)[\"spec\"])')\""
       }
     ]
   }
