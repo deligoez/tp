@@ -302,7 +302,7 @@ func parseRecordRows(path string, data []byte) (findings, dirty int, incomplete 
 		// §2's required set is checked after the rules that abort, and the
 		// offenders are accumulated rather than returned: the refusal names
 		// every offending line in one exit rather than stopping at the first.
-		if missing := missingRequiredFields(row); len(missing) > 0 {
+		if missing := missingFindingFields(row); len(missing) > 0 {
 			incomplete = append(incomplete, fmt.Sprintf("line %d: %s", lineNum, missingFieldsClause(missing)))
 		}
 	}
@@ -315,15 +315,18 @@ func parseRecordRows(path string, data []byte) (findings, dirty int, incomplete 
 	return findings, dirty, incomplete, "", nil
 }
 
-// requiredFindingFields is §2's required set, in the order the message names
+// requiredFindingFields is §2's required set, in the order both gates name
 // them. `role` is attribution metadata the rest of the pipeline treats as
 // optional and is deliberately absent.
 var requiredFindingFields = []string{"severity", "finding", "location", "evidence"}
 
-// missingRequiredFields returns the required keys the row lacks or leaves
-// empty. A value that is empty once strings.TrimSpace has run counts as empty,
-// so a whitespace-only string is a missing key.
-func missingRequiredFields(row map[string]any) []string {
+// missingFindingFields returns the required keys the row lacks or leaves
+// empty. It is §2's one predicate: both gates decide missing-or-empty by this
+// rule, and a value that is empty once strings.TrimSpace has run counts as
+// empty — for severity, location and finding as much as for evidence — so a
+// whitespace-only string is a missing key at `--merge`, which skips the row
+// and warns, and at `--record`, which refuses it.
+func missingFindingFields(row map[string]any) []string {
 	missing := make([]string, 0, len(requiredFindingFields))
 	for _, k := range requiredFindingFields {
 		if s, _ := row[k].(string); strings.TrimSpace(s) == "" {
