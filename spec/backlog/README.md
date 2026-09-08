@@ -66,26 +66,37 @@ one that has one, whatever its subject.
 
 ## Registered questions, ranked by what they unblock
 
-`spec/undecided.md` is the register — every entry there names the decision nobody has taken — and
-`spec/undecided-measurements.md` is its forensics. Neither is a spec, and an entry is not a draft of
-one. The entries below are the ones that stand in front of a file in this directory: **the third
-column names the backlog spec each unblocks, and *The order* above is what ranks those.** An entry
-listed here cannot be settled by writing its spec first.
+`spec/undecided.md` is the register and `spec/undecided-measurements.md` is its forensics. Neither is
+a spec, and an entry is not a draft of one. **On 2026-09-08 a decision pass took every registered
+question but one**; each decision is recorded in `spec/undecided.md` and appended to the sidecar of
+the spec that takes it under *Decided at the 2026-09-08 decision pass*, so no entry in that register
+now stands in front of a file in this directory. What remains is the one entry only the operator can
+settle:
 
-| # | registered question | unblocks |
+| # | registered question | recommendation |
 |---|---|---|
-| 1 | *The divisible round* | `checklist-covers-what-changed.md`, which names it as its real answer |
-| 2 | *`NewRootCmd` writes package globals* | `gate-sequence.md` |
-| 3 | *A registered check that outlives its release* | `gate-sequence.md` |
-| 4 | *`scope` on audit rows* | `round-knows-its-panel.md` §4a, and `a-finding-can-leave-an-audit-round.md` |
-| 5 | *A durable home for an accepted finding*, with *Making `severity` checkable* | `a-finding-can-leave-an-audit-round.md` |
-| 6 | *A review-side `accepted_blocking`* | `a-findings-exits-agree.md` |
-| 7 | *Claim enumeration in the grounding floor*, with the one-round exemption for a sentence rewritten in answer to a finding | `ground-command-friction.md` |
-| 8 | *`t.Parallel()` in the engine package* | `mutation-run-check.md` |
-| 9 | *A prior-round section for `tp review`* | `repair-locality.md` — it changes how that spec's number is read |
+| 1 | *Cross-repo specs* — whether a spec may name tasks in another repository, and where its task file lives | **no, until a field cycle asks**: the cost is a second repository root threaded through file selection and `commit_shas`, and nothing in this repository's own use exercises it |
 
-The remaining entries of `spec/undecided.md` unblock nothing in this directory and are ranked on
-their own merit in that file.
+## Decided, awaiting a spec
+
+Three decisions have no pending spec carrying them, because the release that would take them does not
+exist yet. They are listed here so the order above picks them up rather than rediscovering them.
+
+- **`round-divides-by-section`** — *the divisible round* is decided: the split key is spec **location**
+  (the section). A round is divided into shards by section, each shard one prompt carrying that
+  section's checklist items; per-item convergence is unchanged. A **tool** spec, written after
+  `checklist-covers-what-changed.md` ships — folding it into that one would double a spec already
+  ranked second. Recorded in `checklist-covers-what-changed-measurements.md`.
+- **`hooks-fence-the-target`** — *the test-file fence* and *the write-deny fence's reach* are decided
+  together as one small **tool** spec. The write-deny hook matches on the tool's write **target** (the
+  file path argument of a write-capable tool) rather than on any argument string, so reads and batched
+  multi-file calls stop being refused; the test-file fence resolves its permission **precomputed into
+  the child environment at spawn**, never a `tp` call per write inside the hook; and `test_globs`
+  follows `pickChecks` — a present list replaces the layer beneath it. Recorded in
+  `spec/undecided.md`; no sidecar carries it.
+- **A derived `class` in `tp lint`'s report** — `tp lint` reports a derived `class` beside `floor_size`
+  and `review_panel`, no gate and no frontmatter override until one is argued for; scheduled with the
+  next release that touches lint's report rather than given one of its own.
 
 ## What the re-verification changed
 
@@ -112,8 +123,9 @@ The three candidates files — `spec/0.33.0-candidates.md`, `spec/0.34.0-candida
 dated block saying what shipped, what moved and what is still open. Most of their items had shipped.
 Twelve open ones were routed into the sidecars those blocks name — the refusals, advisory,
 findings-exits, state-writes, checklist and mutation-check sidecars — so nothing open is carried by a
-candidates file alone. The items whose *design* has no answer had no spec to go to and are registered
-in `spec/undecided.md` instead; *Registered questions, ranked by what they unblock* above lists them.
+candidates file alone. The items whose *design* had no answer had no spec to go to and were registered
+in `spec/undecided.md` instead; the 2026-09-08 decision pass then decided all but one of them, and
+*Registered questions* and *Decided, awaiting a spec* above say where each one went.
 
 ## Ground records
 
