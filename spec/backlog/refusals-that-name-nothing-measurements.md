@@ -329,3 +329,24 @@ this sidecar; the spec body is not edited.
   `{file: probe-spec.md, in_file: 0, new: 0, resolved: 0, unresolved: 0}`, while
   `tp review --merge probe-spec.md` exits **2** naming the spec. The number a caller reads from the
   first is a count of nothing, and no channel says so. Source: v1.1.0 audit round 2.
+
+## Decided at the 2026-09-08 decision pass
+
+From `spec/undecided.md`, *Making `severity` checkable*. It lands on this spec because a refusal that
+names the row is its subject.
+
+**Decided: severity stays self-declared.** What makes it trustworthy enough to gate on is the forced
+commitment in the brief, not a validator — the mechanism this repository has measured repeatedly, and
+the one `spec/backlog/brief-carries-the-forcing-sentences.md` ships.
+
+**Decided: the vocabulary is validated at the record sink, as a warning that names the row** — not a
+rejection. Rejection would refuse history: **fifteen of one hundred twelve** audit round files are
+off-vocabulary today, under the counting rule carried with the entry in `spec/undecided.md` (a round
+file holding at least one row whose `severity` is present and outside its phase's vocabulary). That is
+the same shape as this spec's other refusals — say what was refused and against which set — rather
+than a silent drop or a hard stop.
+
+The asymmetry this removes: `invalidCategoryRows` in `internal/cli/audit_record.go` validates
+**`category`** alone today. The reader that makes severity load-bearing is
+`spec/backlog/a-finding-can-leave-an-audit-round.md`, whose test row 1b grades acceptance from the
+row's `severity` under `audit_converge_on: blocking`.
