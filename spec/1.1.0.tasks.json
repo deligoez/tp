@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.1.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-09-08T09:38:22.495723Z",
+  "updated_at": "2026-09-08T09:54:16.941968Z",
   "workflow": {
     "review_max_rounds": 3
   },
@@ -296,7 +296,7 @@
     {
       "id": "merge-refusal-leaves-output-untouched",
       "title": "Refuse the merge before writing its output",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "review"
@@ -310,11 +310,22 @@
         "## 5. Tests"
       ],
       "source_lines": "153-153",
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-09-08T09:40:19.503547Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-09-08T09:54:16.924333Z",
+      "closed_reason": "- §5 row 10: `tp review --merge` now creates no file at the `-o` path and modifies no file already there when it exits non-zero. writeMergeOutput (internal/cli/merge_inputs.go) declines the write when an input was dropped and reports whether it wrote, so review_merge.go names `output_path` in the summary only when a file is there to name; the accounting still reaches stdout. Verified with a freshly built binary in a temp dir outside the repo, three runs against one -o path: absent -\u003e exit 1 and `ls` reports no such file; seeded -\u003e exit 1 and sha256 245edd73... unchanged; missing input named in place of the dropped one -\u003e exit 3 and the same sha unchanged. At HEAD the same three runs left a 149-byte file, replaced the seed, and left it unchanged respectively.\n- The rule does not reach a clean round: the refusal is keyed on the dropped input, never on the merged row count. Measured, two zero-byte inputs and two blank-line-only inputs each still exit 0 and still write the zero-byte -o the loop reads as nothing found; TestMerge_CleanRoundStillWritesOutput pins both shapes and goes red under a mutant keying the refusal on an empty payload.\n- The -o write goes to os.CreateTemp in the destination's own directory and is renamed on success, with one failure path removing the temporary however the write ends. TestMerge_UnwritableOutputLeavesNoPartialFile pins the no-leftover half (red when the os.Remove is dropped) and TestMerge_OutputGoesThroughATemporaryFile pins the mechanism itself, since the first cannot tell temp-and-rename from a plain os.WriteFile: a destination directory at mode 0500 holding a still-writable seeded file makes the merge exit 3 with the seed intact, and is red under an os.WriteFile mutant.\n- finishMerge's doc comment is rewritten: it states the new rule for the review merge, quotes v0.35.0 §8a.4's superseded rationale and says what supersedes it (the accounting reaches stdout either way; it was the file, not the accounting, that let a refused merge be chained into --record as a clean round), and records that the rationale still stands for `tp audit --merge`. The stale copy of the old comment that survived above the rewritten function was deleted, checked by counting the phrase in the file.\n- TestMerge_DroppedInputStillWritesOutput was rewritten, not deleted, as TestMerge_RefusedMergeLeavesOutputPathUntouched, with the three runs the row's fixture names. Measured red set of this change: that one test plus TestAuditMerge_OnlyMalformedFails when the change was first applied to both merges — the acceptance predicted one. Dogfooded on spec/.tp-review/0.37.0/review-round-1.ndjson, 65 rows, none carrying evidence: the merge refuses at exit 1 and writes nothing, so REFERENCE.md:182's `[ -f ]`-guarded `;` chain now stops instead of recording a zero-byte file as a converged round.\n- Quality gate green on the final tree, four exit codes read separately: check-suite-state.sh 0, golangci-lint 0, check-deadcode.sh 0, check-complexity.sh 0; 0 '--- FAIL:' lines and 0 'build failed' packages.\nOut of scope: `tp audit --merge` still writes -o before it refuses, identically to the defect fixed here — measured, a seeded outC.ndjson was replaced at exit 1. It is left alone deliberately because spec/1.1.0.md §4 says 'No change to the audit phase'; the audit side of the acceptance channel is spec/backlog/00-a-finding-can-leave-a-round.md, which is where this belongs.",
+      "gate_passed_at": "2026-09-08T09:54:16.924333Z",
+      "commit_sha": "bcf5bf3b",
+      "commit_shas": [
+        "bcf5bf3b",
+        "4705c124"
+      ],
+      "commit_files": [
+        "internal/cli/audit_merge.go",
+        "internal/cli/merge_inputs.go",
+        "internal/cli/merge_inputs_test.go",
+        "internal/cli/review_merge.go"
+      ]
     },
     {
       "id": "verify-prompt-output-contract",
