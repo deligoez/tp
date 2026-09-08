@@ -161,6 +161,36 @@ this repository's standing rule — *a repair that introduces a new abstraction 
 version* — arriving from the grounding side, and it is why §3 reports the share rather than gating on
 it: the number is a prompt to look at what the last repair wrote, not a verdict on the document.
 
+
+### 1.3 A third hand measurement, this one reproducible and with its rule stated
+
+`spec/1.1.0.md`'s review cycle gives the statistic a third value, and unlike the two in §1 it can be
+re-derived from committed artifacts: both snapshots and both round files are in the repository.
+
+**The rule, stated before the count.** Diff `snapshot-round-1.md` against `snapshot-round-2.md`;
+every added or replaced line is attributed to its enclosing `## N.` heading; a round-2 finding counts
+as *in repair-written text* when the leading `§N` of its `location` is one of those headings. That is
+**section granularity, and it is biased upward** — §5 holds half the findings and the repair rewrote
+only part of it, so a finding against an untouched part of a touched section still counts.
+
+At that granularity: the repair changed 24 lines across **§1, §3 and §5**, and **26 of 28** round-2
+findings (92.9%) land in those three sections; only §2 and §4 carry one each. No row's `location`
+failed to parse.
+
+**Tightened one level, where the document allows it.** §5 is a numbered table, so a finding can be
+attributed to a row rather than to the section. The repair rewrote or added rows **3, 5, 8 and 10**.
+Of §5's fourteen findings, **ten name a rewritten row, four name no row at all, and none names only
+a row the repair left alone.** Treating the four as unattributable in both directions gives a band of
+**78.6%–92.9%** rather than a point.
+
+So the three measurements read 24%, 43% and 78.6–92.9% — and the third is the only one whose rule and
+bias direction are written down, which is §1's complaint about the first two. Two things follow that
+the number alone does not carry. The qualitative fact is sharper than the percentage: **every §5
+finding that names a row names one the repair had just rewritten**, so the round did not merely
+concentrate on new text, it found nothing to say about the old. And a cycle at this value is not
+thereby failing — the same cycle's repairs also closed defects that were verified closed by
+construction; what the value says is that the round's *ask* had been almost entirely replaced by the
+round before it, which is the condition §1 says nothing reports.
 ## 2. One number ranks the cycles backwards
 
 **The share alone says v0.37.0 (93%) is the most repair-local cycle. By concentration it is the
