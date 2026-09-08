@@ -26,10 +26,9 @@ and `tp set --workflow` do not say which file they wrote (§6). And the emitted 
 write is fenced. Every write names its file. The instruction names its commands.
 
 **Consequences.** Three keys join `next_action.payload` (§2.1), an agent-facing contract, so
-`skills/tp/REFERENCE.md` is owed an update. The snapshot write moves later in `runAudit` (§3).
-`--resolve` and `--resolve-all` become operator decisions under `TP_UNATTENDED=1`, and an empty
-evidence string is refused at the write and treated as open at the record (§4). The one grading
-change on the audit side is the sibling spec's, and it depends on §4 shipping with or before it.
+`skills/tp/REFERENCE.md` is owed an update. The snapshot write moves later in `runAudit` (§3). The
+disposition fence this spec used to carry ships with the sibling spec instead, for the reason §4
+gives.
 
 **Alternatives.** Validating `--role` earlier instead of moving the snapshot write — buildable, and
 rejected in §3 because it repairs one branch and loses the hint. Two payload counters instead of the
@@ -97,36 +96,15 @@ row cannot fail (§9 row 6).
 **Why it matters more than a stray file.** A round on disk because someone mistyped a flag is a round
 about nothing, `--status` reports a directory's existence, and a typo is the likeliest cause.
 
-## 4. The disposition write is fenced
+## 4. The disposition write is fenced elsewhere
 
-**A second invocation that writes state it should refuse: a `wontfix` with no evidence.** Measured on a
-fresh one-finding recorded round, `tp review <round file> --resolve 0 wontfix` with no evidence
-argument accepts the write, exits 0, and writes an empty evidence string into the row; the record then
-requires non-empty evidence, so the row stays open and `consecutive_clean` stays at 0 — accepted,
-reported as resolved, and silently ignored, the failure mode the operator cannot see. `spec/1.1.0.md`
-cited this case as already refused; the citation was false and has been removed, and the refusal
-belongs here, in the release that owns the disposition channel. The transcript is in the sidecar
-under *A `wontfix` with no evidence*.
-
-**And no fence stops an unattended agent from writing the disposition.** `internal/cli/audit_resolve.go`
-does not call `engine.Unattended()`, and `tp audit <round file> --resolve` under `TP_UNATTENDED=1`
-exits 0 — with a reason and with an empty one (sidecar, *The fence that does not exist*). Once
-`a-finding-can-leave-an-audit-round.md` makes a disposition clear a round, that write is exactly the
-escape hatch `skills/tp/SKILL.md`'s *"a disposition is not an escape hatch from the gate"* exists to
-deny, while removing the only thing that currently stops it.
-
-**Therefore this release carries the fence.** Two sinks, both new work:
-
-1. `tp audit --resolve` / `--resolve-all` become user-approved decisions under `TP_UNATTENDED=1`,
-   refused at exit 2 with an escalation hint, like every other decision `CLAUDE.md` reserves for the
-   operator.
-2. **`resolved.evidence` must be non-empty** — both at the write, which accepts `""` today, and at
-   record time, where §2's predicate reads it. An acceptance without a stated reason is
-   indistinguishable from a deletion. tp does not judge the reason; it requires one.
-
-**So a disposition closes a finding only when it carries non-empty `evidence` and only for
-`wontfix`/`duplicate`.** A rule enforced by making a recorded decision meaningless is enforced in the
-wrong place — but it has to be enforced somewhere, and this release is where.
+The two sinks this section carried — `tp audit --resolve` and `--resolve-all` refused under
+`TP_UNATTENDED=1`, and `resolved.evidence` required non-empty both at the write and at the record —
+ship with `a-finding-can-leave-an-audit-round.md` §3, together with their three test rows and the two
+transcripts behind them. They belong there because that spec is what makes a disposition clear a
+round: the fence and the thing it fences are one release, and shipping them apart would put the
+escape hatch in a user's hands one release before the lock. Nothing in this spec depends on them
+landing here.
 
 ## 5. One predicate, not two
 
@@ -218,15 +196,12 @@ replaces. Every other row is written, not yet watched.
 | 6 | §3 *scope* | a `--role` invocation that emits at least one prompt still writes its snapshot, and **on a fixture whose spec carries frontmatter** the bytes equal the spec before blanking | move the write after `BlankFrontmatter`. **The fixture is the assertion here**: that call returns its input byte-identically when there is no frontmatter, so on a frontmatter-free spec — the one §3's transcript used — the mutant is a no-op and the row certifies itself |
 | 7 | §3 *other refusals* | the same holds for every argument tp rejects before emitting — asserted over a hand-built list, because the set is not enumerable in tp | fix the `--role` branch alone, leaving every sibling refusal writing state |
 | 8 | §2.1 | the payload carries `rows_recorded`, `findings_total` and `findings_closed`, and `unresolved_findings == findings_total - findings_closed` holds on every fixture in this table | emit `rows_recorded` and `findings_closed` alone — measured, that pair leaves the shipped loop's answer arithmetically consistent with the round it miscounted |
-| 9 | §4 *write* | `tp audit <round file> --resolve <n> wontfix ""`, and the same with the evidence argument absent, is refused at exit 2 and writes nothing | accept the status alone — `HEAD`, which writes `evidence: ""` |
-| 10 | §4 *record* | a `wontfix` row whose evidence is empty or missing counts as open in `unresolved_findings`, in `open` and in the sibling spec's stamp | drop the evidence requirement at record, making an acceptance indistinguishable from a deletion |
-| 11 | §4 *fence* | `TP_UNATTENDED=1 tp audit <round file> --resolve 0 wontfix "reason"` exits 2 with an escalation hint, and `--resolve-all` likewise; both exit 0 without the variable | leave `--resolve` unfenced — `HEAD`, which accepts it at exit 0 and makes the sibling spec an agent-writable escape hatch |
-| 12 | §5 | on a round with one disposed and one open finding, `open` is 1, `role_streaks[].open` is 1, `--check` exits 1, and `clean` is false — each named, not "agree" | give `open` its own predicate. Measured on a live tree: re-recording under a changed policy moved `clean` while leaving `role_streaks` at `{0, open 1}` |
-| 13 | §5 *duplicate* | a one-finding round resolved `duplicate` with evidence gives the same answer from `tp review --status` and from `tp resume` | keep `roundPayload`'s `!= "wontfix"` test — `HEAD`, where the two surfaces disagree |
-| 14 | §5 *next_action* | with every non-`PASS` row disposed, `next_action` names re-auditing rather than addressing findings | leave the string static |
-| 15 | §6 | `--record`'s `file` names the round file it wrote — **not `state.json`, not the lock** — and re-reading that path returns the rows just recorded; `tp set --workflow`'s `file` names the task file whose `workflow` block changed | assert the key's presence alone, which a constant string passes |
-| 16 | §7 *emission* | the emitted `instruction` names `--resolve` **and** `--verify` as commands | name `--resolve` alone, leaving `verify` bare and reproducing the ambiguity for the other flag |
-| 17 | §7 *usage* | `--help`'s usage line carries the positional order, and the dispositions it offers are `wontfix\|duplicate` | offer `fixed` there — `spec/0.31.0.md` §3.5 makes `--record` reject a file carrying `fixed` rows, so the usage line would document an error |
+| 9 | §5 | on a round with one disposed and one open finding, `open` is 1, `role_streaks[].open` is 1, `--check` exits 1, and `clean` is false — each named, not "agree" | give `open` its own predicate. Measured on a live tree: re-recording under a changed policy moved `clean` while leaving `role_streaks` at `{0, open 1}` |
+| 10 | §5 *duplicate* | a one-finding round resolved `duplicate` with evidence gives the same answer from `tp review --status` and from `tp resume` | keep `roundPayload`'s `!= "wontfix"` test — `HEAD`, where the two surfaces disagree |
+| 11 | §5 *next_action* | with every non-`PASS` row disposed, `next_action` names re-auditing rather than addressing findings | leave the string static |
+| 12 | §6 | `--record`'s `file` names the round file it wrote — **not `state.json`, not the lock** — and re-reading that path returns the rows just recorded; `tp set --workflow`'s `file` names the task file whose `workflow` block changed | assert the key's presence alone, which a constant string passes |
+| 13 | §7 *emission* | the emitted `instruction` names `--resolve` **and** `--verify` as commands | name `--resolve` alone, leaving `verify` bare and reproducing the ambiguity for the other flag |
+| 14 | §7 *usage* | `--help`'s usage line carries the positional order, and the dispositions it offers are `wontfix\|duplicate` | offer `fixed` there — `spec/0.31.0.md` §3.5 makes `--record` reject a file carrying `fixed` rows, so the usage line would document an error |
 
 **Row 7 is quantified over the refusal set deliberately, and it guards against regression rather than
 sweeping extant siblings.** §3's transcript is one refusal, chosen because it is the one that was

@@ -113,33 +113,6 @@ that role exits **0** with `prompts: []`, writes the snapshot, and `--status` th
 perspective, which refuses without a state directory holding a recorded round. The copy must carry
 `spec/.tp-review`.
 
-## A `wontfix` with no evidence
-
-Measured at `5058fc99` on a fresh one-finding recorded round, `tp review <round file> --resolve 0
-wontfix` with no evidence argument prints `resolved finding 0 as wontfix`, exits **0**, and writes
-`"evidence": ""` into the row. `reviewFindingResolvedAway` then requires non-empty evidence, so the
-row stays in the surviving set and `consecutive_clean` stays at 0: accepted, reported as resolved, and
-silently ignored — the failure mode the operator cannot see.
-
-## The fence that does not exist
-
-An earlier draft of the rows spec argued that the agent-safety property survives because *"recording
-a disposition is a user-approved decision under `TP_UNATTENDED=1`"*. **That fence does not exist.**
-Measured at HEAD:
-
-- a search for `Unattended` in `internal/cli/audit_resolve.go` returns **0** matches; the call sites
-  of `engine.Unattended()` in `internal/cli` are `unattended.go`, `config_extract.go`, `set.go`,
-  `set_project.go`, `set_local.go`, `importcmd.go`, `done.go` and `close.go` — `audit_resolve.go` is
-  not among them;
-- `TP_UNATTENDED=1 tp audit raw.ndjson --resolve 0 wontfix "accepted for now"` exits **0** and writes
-  `resolved.status: "wontfix"` into the file;
-- `TP_UNATTENDED=1 tp audit raw.ndjson --resolve 0 wontfix ""` also exits **0**, writing
-  `resolved.evidence: ""`.
-
-So an unattended agent can today write the exact row the sibling spec would make non-gating, with an
-empty reason. The `Unattended` search was repeated at the head this file was split at and still
-returns 0.
-
 ## Two predicates disagree about `duplicate`
 
 Measured at `5058fc99` on a one-finding round resolved `duplicate` with evidence: `tp review <spec>

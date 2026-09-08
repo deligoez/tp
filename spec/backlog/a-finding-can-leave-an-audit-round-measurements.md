@@ -133,8 +133,8 @@ the line number moved twice on 2026-09-03:
 A second passage, in the `divergence` paragraph, carries the policy half rather than repeating the
 mechanism — *accepting findings outside spec conformance is a user-approved decision, never the
 agent's.* **The fear is correct**: a disposition an agent can write is a way for an agent to make its
-own findings stop counting — which is why the write fence in `a-findings-exits-agree.md` §4 must ship
-with or before the spec. Both `SKILL.md` passages are rewritten by the release, identified by their
+own findings stop counting — which is why this release carries the write fence itself (§3), rather
+than leaving it to the sibling spec it was drafted in. Both `SKILL.md` passages are rewritten by the release, identified by their
 anchor phrases and not by line number.
 
 ## The third exit
@@ -167,3 +167,33 @@ was built to make visible; the count exists and only the breakdown is missing.
 payloads through `auditSignalFields` in `internal/cli/audit_record.go`. Four places pin the key's
 absence by name and a fifth states it in a comment; those five are what the decision inverts, and they
 are cited by symbol or phrase in `spec/undecided-measurements.md` §From the rows spec.
+
+## A `wontfix` with no evidence
+
+Moved here with §3 from `a-findings-exits-agree-measurements.md`, where it was measured.
+
+Measured at `5058fc99` on a fresh one-finding recorded round, `tp review <round file> --resolve 0
+wontfix` with no evidence argument prints `resolved finding 0 as wontfix`, exits **0**, and writes
+`"evidence": ""` into the row. `reviewFindingResolvedAway` then requires non-empty evidence, so the
+row stays in the surviving set and `consecutive_clean` stays at 0: accepted, reported as resolved, and
+silently ignored — the failure mode the operator cannot see.
+
+## The fence that does not exist
+
+Moved here with §3 from `a-findings-exits-agree-measurements.md`, where it was measured.
+
+An earlier draft of the rows spec argued that the agent-safety property survives because *"recording
+a disposition is a user-approved decision under `TP_UNATTENDED=1`"*. **That fence does not exist.**
+Measured at HEAD:
+
+- a search for `Unattended` in `internal/cli/audit_resolve.go` returns **0** matches; the call sites
+  of `engine.Unattended()` in `internal/cli` are `unattended.go`, `config_extract.go`, `set.go`,
+  `set_project.go`, `set_local.go`, `importcmd.go`, `done.go` and `close.go` — `audit_resolve.go` is
+  not among them;
+- `TP_UNATTENDED=1 tp audit raw.ndjson --resolve 0 wontfix "accepted for now"` exits **0** and writes
+  `resolved.status: "wontfix"` into the file;
+- `TP_UNATTENDED=1 tp audit raw.ndjson --resolve 0 wontfix ""` also exits **0**, writing
+  `resolved.evidence: ""`.
+
+So an unattended agent can today write the exact row §2 would make non-gating, with an empty reason.
+The `Unattended` search was repeated at the head this file was split at and still returns 0.

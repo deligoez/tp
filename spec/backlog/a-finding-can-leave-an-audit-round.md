@@ -85,7 +85,38 @@ nothing when handed any other file. This turns *resolve into the file `--record`
 into a precondition. `a-findings-exits-agree.md` §6 gives `--record` the key that names the file it
 wrote, which is what makes the precondition usable rather than a trap.
 
-## 3. Non-Goals
+## 3. The disposition write is fenced
+
+**A second invocation that writes state it should refuse: a `wontfix` with no evidence.** Measured on a
+fresh one-finding recorded round, `tp review <round file> --resolve 0 wontfix` with no evidence
+argument accepts the write, exits 0, and writes an empty evidence string into the row; the record then
+requires non-empty evidence, so the row stays open and `consecutive_clean` stays at 0 — accepted,
+reported as resolved, and silently ignored, the failure mode the operator cannot see. `spec/1.1.0.md`
+cited this case as already refused; the citation was false and has been removed, and the refusal
+belongs here, in the release that owns the disposition channel. The transcript is in the sidecar
+under *A `wontfix` with no evidence*.
+
+**And no fence stops an unattended agent from writing the disposition.** The audit resolve path does
+not ask whether it is running unattended, and `tp audit <round file> --resolve` under
+`TP_UNATTENDED=1` exits 0 — with a reason and with an empty one (sidecar, *The fence that does not
+exist*). Once §2 makes a disposition clear a round, that write is exactly the escape hatch
+`skills/tp/SKILL.md`'s *"a disposition is not an escape hatch from the gate"* exists to deny, while
+removing the only thing that currently stops it.
+
+**Therefore this release carries the fence.** Two sinks, both new work:
+
+1. `tp audit --resolve` / `--resolve-all` become user-approved decisions under `TP_UNATTENDED=1`,
+   refused at exit 2 with an escalation hint, like every other decision `CLAUDE.md` reserves for the
+   operator.
+2. **`resolved.evidence` must be non-empty** — both at the write, which accepts `""` today, and at
+   record time, where §2's predicate reads it. An acceptance without a stated reason is
+   indistinguishable from a deletion. tp does not judge the reason; it requires one.
+
+**So a disposition closes a finding only when it carries non-empty `evidence` and only for
+`wontfix`/`duplicate`.** A rule enforced by making a recorded decision meaningless is enforced in the
+wrong place — but it has to be enforced somewhere, and this release is where.
+
+## 4. Non-Goals
 
 1. **No new recorded field, no new flag, no config.** §2.1 takes the design that needs none.
 2. **One convergence change, scoped to one signal.** §2 changes which rows survive into the audit
@@ -108,7 +139,7 @@ wrote, which is what makes the precondition usable rather than a trap.
    channel. **Reopen condition:** a cycle that runs `blocking` and cannot see what its clean round
    accepted.
 
-## 4. Tests
+## 5. Tests
 
 Every row derives from a numbered decision and names a mutant that must fail it. **Every row here is
 written, not yet watched**: none has been run red against `HEAD`, and row 1 is the acceptance, so it
@@ -127,3 +158,6 @@ pair to the implementing task's acceptance; it does not belong to a grading roun
 | 6 | §2.1 *partial* | under `blocking`, a round with its `error` finding accepted and its `warning` finding open still stamps not clean, and `--resolve-all` with a shared justification clears it | clear on the blocking rows alone, which is the rejected design's conservative case and not this one's |
 | 7 | §2.1 *precondition* | `--resolve` handed a findings file that is not a recorded round writes the disposition and re-stamps nothing | derive the round from the current directory's active spec, which re-stamps a round the file does not belong to |
 | 8 | §2 *visible* | the accepted row still appears in `tp audit --merge` output with its `resolved` block | drop it from the round, which is the record destruction this release exists to remove |
+| 9 | §3 *write* | `tp audit <round file> --resolve <n> wontfix ""`, and the same with the evidence argument absent, is refused at exit 2 and writes nothing | accept the status alone — `HEAD`, which writes an empty evidence string |
+| 10 | §3 *record* | a `wontfix` row whose evidence is empty or missing counts as open in the round's open count and does not clear §2's stamp | drop the evidence requirement at record, making an acceptance indistinguishable from a deletion |
+| 11 | §3 *fence* | `TP_UNATTENDED=1 tp audit <round file> --resolve 0 wontfix "reason"` exits 2 with an escalation hint, and `--resolve-all` likewise; both exit 0 without the variable | leave `--resolve` unfenced — `HEAD`, which accepts it at exit 0 and makes §2 an agent-writable escape hatch |
