@@ -121,8 +121,8 @@ func runReviewMerge(args []string, outputPath string) error {
 // files, skipping blank, malformed (invalid JSON), and incomplete lines with a
 // stderr warning that names which.
 // It aborts only on a missing/unreadable file (exit 3), and returns the §8a.4
-// per-input accounting beside the findings: blank lines and a bare `[]` count
-// as neither, so an
+// per-input accounting beside the findings: blank lines and any empty JSON
+// array (isEmptyJSONArray) count as neither, so an
 // all-empty set of inputs is a valid clean result and yields zero findings
 // without failing, and the merge→record chain works on a clean round. An input
 // whose content lines all fail is a dropped role, which runReviewMerge turns
