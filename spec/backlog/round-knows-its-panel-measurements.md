@@ -210,3 +210,22 @@ therefore wider than a note naming a defect its verdict does not: **a note whose
 text the spec no longer contains** is equally invisible to every count a clean streak is read from.
 Both shapes are prose a reader has to open the row to see; the release that returns a
 `PASS`-with-note row to its own author next round closes the gap from the prompt's end.
+
+## Routed here from v1.1.0's audit round 2 (2026-09-08)
+
+This sidecar carried no routed section before. Six sidecars under `spec/backlog/` carry a
+`## Routed here at the 2026-09-08 re-verification` section (`faster_search "Routed here at the"`
+returns exactly those six); this follows their form under a heading naming where the item came from. The item is recorded here; the spec body is not edited.
+
+- **An unreadable role file makes the round's `roles_hash` empty, and empty reads as matching.**
+  `internal/cli/review_record.go:134` is `rolesHash, _ := engine.ComputeRolesHash(filepath.Dir(specPath),
+  engine.PhaseReviewers)` — the error is discarded and `""` is stored on the round entry.
+  `internal/cli/review_status.go:68` is the identical line. `engine.RolesStale` treats an empty stored
+  hash as matching, so the round that could not read the corpus is the round that can never be called
+  stale. Measured at `c75e5c3d` in a `git clone --no-hardlinks` of this repository, on a scratch spec
+  with a recorded round 1: `chmod 000 .tp/reviewers/tester.json`, then
+  `tp review <spec> --record <empty.ndjson>` exits **0** and writes round 2 with **no `roles_hash` key
+  at all** (round 1 carries `sha256:53bf392c…`); restoring the file and appending a focus question to
+  that role then leaves `tp review <spec> --status` reporting `roles_stale: false`. The corpus changed,
+  the round cannot say so, and nothing in the payload distinguishes that from an unchanged corpus.
+  Source: v1.1.0 audit round 2.

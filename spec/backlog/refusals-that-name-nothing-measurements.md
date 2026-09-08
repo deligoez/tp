@@ -286,7 +286,8 @@ document its splitter drops.**
 ## Routed here at the 2026-09-08 re-verification
 
 Four items from the candidates files land on this spec's subject — a refusal or an omission that
-names nothing the caller can act on. They are recorded in this sidecar; the spec body is not edited.
+names nothing the caller can act on — and v1.1.0's audit round 2 added two more. They are recorded in
+this sidecar; the spec body is not edited.
 
 - **A mistyped override key is minted and then dropped.** `internal/engine/frontmatter.go` puts a
   mistyped `tp:` frontmatter key into `fm.Warnings`, and `internal/cli/lint.go` is the only consumer
@@ -307,3 +308,24 @@ names nothing the caller can act on. They are recorded in this sidecar; the spec
   consumer cannot distinguish "nothing skipped" from "this build does not report skips", and
   `--strict` promotes deviations only, leaving the other advisory classes at their default severity.
   Source: `spec/0.35.0-candidates.md` item 10.
+- **One over-long line blinds the heading parse, and the verify prompt reports the blindness as a
+  result.** `engine.ParseHeadings` (`internal/engine/lint.go:28`) hands a default `bufio.NewScanner`
+  to `ParseHeadingsFromScanner` (`internal/engine/lint.go:32`), so a line past the scanner's 64KB
+  default token cap ends the parse with `bufio.Scanner: token too long`. Two call sites discard that
+  error — `internal/cli/review_verify.go:111` and `internal/cli/review.go:1921`, both
+  `headings, _ := engine.ParseHeadings(specPath)` feeding `buildSpecRefContent`. Measured at
+  `c75e5c3d` on a 15-line spec carrying three `##` headings and one 70,000-character line:
+  `tp review <spec>` and `tp lint <spec>` both refuse at exit **3** with `bufio.Scanner: token too
+  long` (under a hint about the spec path, which names the wrong cause), while
+  `tp review <spec> --verify --findings f.ndjson` exits **0** and emits
+  `Spec file: /…/big-probe.md (16 lines, 0 sections)` above an empty `Focus your review on:` list. The
+  reviewer is told the spec has no sections and is given no reason to doubt it. A silent wrong answer
+  older than v1.1.0. Source: v1.1.0 audit round 2.
+- **`--report` reads a spec as a findings file where `--merge` and `--resolve` refuse one.**
+  `isSpecLookingPath` (`internal/cli/mode_positionals.go:19`) rejects a `.md`/`.markdown` positional
+  at entry, and §4.1 states that fence for `--merge` and `--resolve`/`--resolve-all` only, so
+  `--report` is outside it by design rather than by oversight. Measured at `c75e5c3d`:
+  `tp review probe-spec.md --report` exits **0** and prints a report whose single round is
+  `{file: probe-spec.md, in_file: 0, new: 0, resolved: 0, unresolved: 0}`, while
+  `tp review --merge probe-spec.md` exits **2** naming the spec. The number a caller reads from the
+  first is a count of nothing, and no channel says so. Source: v1.1.0 audit round 2.

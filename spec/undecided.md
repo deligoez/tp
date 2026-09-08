@@ -470,6 +470,18 @@ hardcodes a path. A subshell in a committed config **fails silently when `tp res
 closes it for `code-citation-drift`; `test-inventory-drift` is still registered in one task file only,
 so the same hazard stands for it.
 
+**A registered check that CANNOT RUN still suppresses its class, and that half is a design question
+rather than a one-liner.** `internal/engine/mechanized.go:34-36` states the governing principle — an
+entry tp will never run is not evidence that its class is mechanically checked — and applies it to
+schema validity alone, so a check that is schema-valid and fails to execute suppresses its class
+anyway: measured at `c75e5c3d` in a clone with `{"class":"my-broken-class","cmd":"exit 2"}` registered
+at the project layer, one `tp review <spec>` emission reports
+`mechanical_checks: [{… "exit_code": 2, "passed": false}]` and stamps
+`do NOT report findings of these classes: my-broken-class` into all four role prompts in the same
+payload. Extending the principle needs a way to separate cannot-run from found-violations, which an
+exit code alone does not give — the same discrimination problem `CLAUDE.md` records for `gocognit`,
+where the answer was a second signal (stderr) rather than a threshold on the status.
+
 **It settles** when a release takes `checks[].cmd` substitution. No pending spec under `spec/backlog/`
 proposes one — `spec/backlog/repair-locality.md` names `workflow.checks` once, in passing, and takes
 no decision on it — so nothing is currently scheduled to settle it.

@@ -111,8 +111,8 @@ script that documents its own gap is the same shape one level down.
 
 ## Routed here at the 2026-09-08 re-verification
 
-Two items from the candidates files land on this spec's subject. They are recorded in this sidecar;
-the spec body is not edited.
+Two items from the candidates files land on this spec's subject, and v1.1.0's audit round 2 added a
+third. They are recorded in this sidecar; the spec body is not edited.
 
 - **Two spellings of one path take two locks.** `LockFilePath` in `internal/engine/lock.go` resolves
   its target with `filepath.Abs` alone (line 140 at `dd89c566`) and never `filepath.EvalSymlinks`, so
@@ -128,3 +128,14 @@ the spec body is not edited.
   string; code int }` — byte-identical bodies, legal because the scope is the test function, and two
   copies that can drift apart. Source:
   `spec/0.35.0-candidates.md` item 11.
+- **`tp audit --merge -o` follows a symlink out of the round directory; the review twin no longer
+  does.** `internal/cli/audit_merge.go:119` writes the merged rows with a single `os.WriteFile`, which
+  follows a symlink at the `-o` path. `tp review --merge` goes through `writeMergeOutput`
+  (`internal/cli/merge_inputs.go:87`), which creates a temporary beside `-o` and renames over it, so
+  the link is replaced rather than followed — a side effect of the shape adopted for §5 row 10's
+  declined write, not a symlink guard anyone specified. Measured at `c75e5c3d` on the same fixture
+  built twice — a round directory holding `o.ndjson -> ../outside/target.txt` and one valid input:
+  `tp audit --merge a.ndjson -o o.ndjson` exits 0 with `target.txt` overwritten by the merged row and
+  `o.ndjson` still a symlink; `tp review --merge a.ndjson -o o.ndjson` exits 0 with `target.txt`
+  unchanged and `o.ndjson` now a regular file. Pre-existing on both sides at v1.0.1 and out of v1.1.0's
+  scope, since §4 fences that release out of the audit phase. Source: v1.1.0 audit round 2.
