@@ -1,154 +1,183 @@
-# tp — `--reconcile`
+# tp — A rewritten spec starts a new epoch
 
-Class: tool
+A backlog spec, named by slug; its priority number and its release number are assigned later. Its
+measurements are in `reconcile-measurements.md` beside it, and this file stands without them. The slug
+is the file's earlier subject — a `--reconcile` note that cleared nothing — and stays because
+citations use it; the subject changed on 2026-09-11. It absorbs the emit-time hash from
+`round-records-the-text-it-read`, which is now a forwarding stub.
 
-> **This file is decisions.** The motivating instance is dated and measured from inside this
-> repository's own v0.35.0 cycle (§1.1): an operator reached a fork where the correct action and the
-> cheap mechanical one pointed in opposite directions, and took the cheap one.
+Class: **tool** — it changes what an emission carries from earlier rounds and which text a round's
+recorded hash names; no convergence rule changes, and the one answer that moves — `stale`, and
+`converged` with it — moves on a round recorded after the text it read was edited, which the existing
+rule then reports correctly.
 
-## 1. Overview
+## 1. The decision
 
-A round records the hash of the text it read. When the spec is then repaired — which is what a review
-round is *for* — the round reads stale, and **every mechanical way to clear that costs the record
-something.** Overwriting the hash a round read destroys it. The cheaper exit destroys nothing and is
-worse for a different reason: it **fabricates a round.**
+**Context.** When a spec is rewritten, its recorded rounds describe a document that no longer exists,
+and tp has no way to say so. A field report (WB-3155) rewrote a spec after eight review rounds, and
+three things it met reproduce at `HEAD` (sidecar, *Field report WB-3155, verified 2026-09-11*):
 
-Measured on a fixture outside this repository, against the freshly built binary. Record a clean round 1,
-edit the spec, and `tp review spec.md --status` reports `stale: true`. Emit a further round and
-`--record` an **empty** findings file: `stale` goes to `false`, `converged` to `true`,
-`--status --check` exits **0**, and round 1's entry is **byte-identical** — `state.json` only gained a
-row. The round that bought all that is one nobody ran: `findings: 0`, `clean: true`, from a zero-byte
-file.
+- `tp resume` raises the `spec-stale` escalation with a message that says *reconcile it* and names no
+  command, while its `next_action` says to claim the next ready task. An exit exists: one review round
+  emitted and recorded against the current text clears `stale`.
+- The next review round's prompts carry every earlier round's findings under *"DO NOT re-report"* —
+  every one of them about the old text.
+- The only tool at hand makes both worse. Resolving each earlier round file `wontfix` leaves the rows
+  in the prompt, now tagged `[WONTFIX]`, and turns those rounds clean — so one round against the new
+  text converges, on a streak most of whose rounds read a document that no longer exists.
 
-**This repository did exactly that.** Commit `52290c32` — *"chore(tp): record the round that cleared
-the staleness"*, 2026-08-13 — adds `spec/.tp-review/0.35.0/review-round-21.ndjson` at **zero bytes**
-and appends one `clean: true` entry (`git show --stat 52290c32`, and
-`git cat-file -s 52290c32:spec/.tp-review/0.35.0/review-round-21.ndjson` returns `0`). That is the
-v0.35.0 cycle clearing its own staleness a week before the episode §1.1 describes, by the cheap exit,
-and it is the strongest argument this release has: **what is missing is not a way to clear staleness
-but an honest one.**
+Underneath all three: a round's recorded hash is computed when the round is recorded, not when it was
+emitted. A round emitted from the old text and recorded after the rewrite carries the new text's hash,
+and clears `spec-stale` without having read the text it certifies.
 
-**The invariant this protects, stated as narrowly as it holds: a recorded round's entry in `state.json`
-is a frozen fact.** It is *not* true of the round's recorded findings file, which tp rewrites in place
-through `tp review --resolve` / `--resolve-all` (`internal/cli/review_resolve.go`), whose `--force`
-overwrites a disposition already there; how many recorded rows carry such a post-hoc `resolved` object
-is derived in `reconcile-measurements.md` under "The rows the invariant does not cover". This release
-stores its rows in `state.json`, which is the half that holds. Any surface that makes destroying or
-fabricating a recorded round the path of least resistance is a defect in tp, not in the operator.
+**Decision.** Three changes:
 
-`tp review <spec> --reconcile --note "<text>"` records a reconciliation entry. The hash the round read
-is preserved; the note stating why the spec moved is added as **its own row**, overwriting nothing.
-Uncounted, gating nothing — accounting, not convergence.
+1. The `spec-stale` blocker names what clears it (§2).
+2. `tp review <spec> --rewritten "<evidence>"` starts an epoch: rounds recorded before it stop feeding
+   any list of earlier findings an emission carries, in review and in audit; nothing recorded
+   changes; `--status` reports the epoch (§3).
+3. A round's `spec_hash` is the hash of its own snapshot — the text its prompts were emitted from (§4).
 
-With the emit-time hash release (`spec/backlog/round-records-the-text-it-read.md`) shipped, "the hash
-the round read" is exact; without it, it is the record-time hash, and the row says which.
+**Consequences.** Only a round that read the current text clears staleness. A rewrite costs one call
+instead of one resolve per round file, and writes no disposition. No convergence rule changes; what a
+rewrite of an already converged spec still permits is Non-Goal 1, with its register entry.
 
-### 1.1 The instance
+**Alternatives.**
 
-**This repository's v0.35.0 cycle.** Mid-implementation, verifying the converged spec against shipped
-code found gaps; the spec was repaired, and the repair went through the uncounted regression pass, which
-found more. **The two counts are recorded nowhere and are stated here as unrecorded** — an uncounted
-pass writes no artifact by design, and `git grep` for either returns this file alone. The dating is
-recorded and does check out: review round 21 was recorded 2026-08-13, five commits land on
-`spec/0.35.0.md` on 2026-08-20 with two task-file commits beside them, bracketed by task closures, and
-audit round 1 opened 2026-08-30 against a different hash
-(`git log --date=iso-strict --format='%h %ad %s' -- spec/0.35.0.md`). The blocker then had no honest
-exit — `--reconcile` does not exist (`tp review --help` lists `--merge`, `--resolve`/`--resolve-all`,
-`--verify` and `--report`), and the two exits that do exist are the ones §1 names.
+- **Void the rounds** — the field report's proposal: one call that marks every earlier finding
+  `wontfix`, clears `spec-stale` and leaves a note on `--status`. Rejected three times over. A
+  `wontfix` asserts that someone read the finding and chose not to fix it, which is false for every
+  row it would be written into, and it would stand in the record as that decision. Disposing the rows
+  makes their rounds clean, which manufactures convergence — measured with `--resolve-all`, the
+  hand-driven form of the same call. And clearing `spec-stale` without a round that read the new text
+  is the fabricated-round exit the earlier draft of this spec was written against (sidecar, *The
+  zero-byte round*).
+- **The earlier draft's `tp review <spec> --reconcile --note "<text>"`**, an uncounted note beside a
+  stale round. Dropped: it cleared nothing by design, so the blocker could not name it as its exit;
+  `--harness-note` already stores free text on a recorded round; and its one motivating instance was a
+  zero-byte round recorded to clear staleness — a round nobody ran — for which the answer is to name
+  the honest exit, as §2 does, rather than a note beside the stale one. The note survives as the
+  epoch's required evidence.
 
-That cycle proceeded to audit with the blocker standing; the reasoning, and what a re-review would
-have cost instead, are in the sidecar under "Why that cycle proceeded to audit".
+## 2. `spec-stale` names what clears it
 
-**What was missing was not a way to re-review. It was a way to record why the spec moved without lying
-— about what the rounds read, or about a round having happened.**
+**The decision: the blocker carries the command that clears it, as data and in its message** — emit a
+review round with `tp review <spec>`, run its roles, and record their findings with
+`tp review <spec> --record <file>`. It names `--rewritten` beside that, as the call to make first when
+the spec was rewritten rather than edited: tp cannot tell an edit from a rewrite, and the operator can.
 
-## 2. The entry
+**When a round is already in flight, the blocker names both ways past it.** Once
+`emitting-does-not-lose-a-round` ships, emitting over an unrecorded round whose spec has since changed
+is refused, so the bare emission is not an exit then. The blocker names recording the in-flight round
+and then emitting, or discarding it with that emission's `--force` — and says which of the two leaves
+the in-flight round's grading on record.
 
-`--reconcile` appends a reconciliation row to the spec's state, carrying the note, the round it
-reconciles, the hash that round read, the hash now, and a timestamp.
+**Only a round that read the current text clears it.** After §4, a round emitted before the edit and
+recorded after it leaves `stale` true, so the named command is the one exit, and naming it is honest.
+The epoch does not clear staleness: it records why the old rounds are about a different document; the
+round that reads the new one is still owed.
 
-**It is a row, not a field on the round.** A field would be one note per round and would invite the
-next repair to overwrite it — the same shape one level down. Rows accumulate, so a spec repaired three
-times carries three.
+## 3. A rewrite starts an epoch
 
-**The rows are a typed field on the state**: a `reconciliations` list on `engine.ReviewState`
-(`internal/engine/reviewstate.go:49-53`), marshalled by `SaveReviewState` (`:275`) like the two round
-lists beside it, so they need neither an unknown-key round-trip nor the emit-time hash release. A
-binary older than this release saving the file would drop the list — a downgrade hazard, not a design
-blocker.
+**The call.** `tp review <spec> --rewritten "<evidence>"` appends an epoch to the spec's round state:
+its evidence, when it was declared, and the last recorded round of each phase it follows. **The
+evidence is required and must be non-empty**: the epoch's whole content is the operator's statement
+of why the earlier rounds read a different document. tp does not judge the statement; it requires one.
+The call is uncounted — no round, no streak, no exit code beyond usage errors.
 
-**`--note` is required and must be non-empty.** A reconciliation with no stated reason records that
-something changed, which the hashes already say. The note is the entire contribution.
+**What reads it.** Every list of earlier rounds' findings that an emission builds reads only rounds
+recorded after the latest epoch: review's carried findings, open, accepted and resolved alike; the
+regression prompt's previously fixed findings; audit's Prior Round block. A round recorded after the
+epoch is read exactly as today.
 
-**It records; it does not clear.** Staleness stays true — the spec *has* moved. `--reconcile` makes
-the movement explicable, not invisible. An operator reading a stale round now finds out why beside it.
+**What it does not touch.** No round file, no round entry and no disposition changes. The rounds
+before it stay on disk and in the state, and convergence is computed over every recorded round as
+today. That is sufficient in the field's case without writing anything: a round before the epoch
+that holds open findings breaks the clean streak by itself, so the streak starts over at the first
+clean round against the new text.
 
-**Uncounted, and it touches no counter.** Not a round, not a clean streak, no effect on `--check`, no
-exit code beyond usage errors.
+**`--status` reports it.** `tp review <spec> --status` and `tp audit <spec> --status` carry each epoch
+— the rounds it follows and its evidence, of the form *rounds 1–8 precede a rewrite: \<evidence\>* —
+under a key, so a reader of a history full of stale-looking rounds finds out why beside them.
 
-**A `TP_ROUND` re-record never touches the list.** Recording is idempotent on `TP_ROUND`
-(`engine.RecordTargetRound`, `internal/engine/recordround.go`): a record unit that retries rewrites
-its own round's entry in place rather than appending one. That rewrite replaces one element of
-`review_rounds` and nothing else; the reconciliation list before and after it is byte-identical.
+**It is not fenced under `TP_UNATTENDED`.** It removes nothing from convergence and writes no
+disposition. What it stops is tp telling reviewers what earlier rounds found, so the worst an
+unattended unit can do with it is have a finding reported again.
 
-### 2.1 A re-emission that changes the text is counted
+### 3.1 Both loop phases, not ground
 
-When `tp review` or `tp audit` writes a snapshot for a round that already has one, and the bytes
-differ, the round's entry records that it happened: **`spec_moved_mid_round`**, a count of such
-re-emissions, absent on rounds where it never occurred. The signal lives here because this release is
-its consumer — a reconciliation row is the honest account of a spec that moved, and the counter says
-which rounds moved under it. Counted rather than flagged: a boolean cannot distinguish one repair from
-six, and the count costs the same. Nothing warns, blocks, resets a streak or recommends on it.
+**The epoch covers review and audit, and one call declares it for both.** It belongs to the text, not
+to a phase: an audit round before a rewrite graded code against checklist items derived from sections
+that no longer exist, and its Prior Round block would ask the next auditor to re-check them. In the
+common case — a rewrite before implementation — no audit round exists yet and the coverage costs
+nothing.
 
-## 3. How it composes with the streak reset
+**Ground is out.** Its carry is keyed on each unit's own text, so a rewritten sentence is asked afresh
+already, and a sentence the rewrite kept byte for byte keeps the verdict that sentence earned.
 
-The release that resets the audit streak when the spec hash changes makes the loop **re-earn** its
-streak; this one **explains** the movement for a reader, preserving the hash the round read.
+## 4. A round's `spec_hash` is the hash of its snapshot
 
-**Neither substitutes for the other and neither is a prerequisite.** A reset with no explanation tells
-an operator to redo work without saying why; an explanation with no reset lets a stale claim stand. Two
-different readers — the loop and the person.
+**The decision: at record time, a round's `spec_hash` is the sha256 of the round's own snapshot**
+rather than of the spec file as it stands when the round is recorded, in both review and audit. The
+snapshot is already written at emission, already per round and per phase; no new artifact, field or
+write. `stale` still compares the latest round's hash with the spec as it stands; what changes is that
+the round's side names the text the round was given.
 
-## 4. Non-Goals
+**Why here.** It is what makes §2's named exit the only one, and what lets a reader tell which
+recorded rounds read a text that no longer exists. Once `emitting-does-not-lose-a-round` refuses a
+re-emission over an unrecorded round whose text changed, a round has one snapshot and it is the text
+every role was given; until then it is the last text emitted for that round, and the sidecar of
+`round-records-the-text-it-read` measures the difference.
 
-1. **No overwrite of anything, ever.** Not the hash, not the findings, not a prior reconciliation.
-   That is the defect, not the feature.
-2. **No convergence effect.** It does not clear staleness, reset a streak, advance a round or change
-   an exit code.
-3. **No automatic reconciliation.** tp does not infer why a spec moved; the note is the operator's.
-4. **No `--reconcile` on the audit phase in this release — a scope cut, not an absence of instances.**
-   `ReviewRound` is the type of both `review_rounds` and `audit_rounds`
-   (`internal/engine/reviewstate.go:17`), so an audit round carries a `spec_hash` and goes stale under
-   the same rule; and `spec-stale` fires **only** at `PhaseImplement` or `PhaseAudit`
-   (`internal/engine/resumeblockers.go:94`), never during review — so even §1.1's review-round instance
-   was met on the audit side of the loop. v0.35.0's own audit went stale repeatedly across its rounds
-   (derivation in the sidecar under "The audit side's instance"), so the release that takes the audit
-   side inherits a measured instance rather than a guessed shape.
-5. **No repair of rounds already cleared by overwriting.** Those records are gone; this stops the next
-   one.
-6. **No gate, warning or `next_action` on `spec_moved_mid_round`.** §2.1 produces the number and stops.
+**A round whose snapshot is absent hashes the spec path, as today, and does not fail.** That is the
+live case of a `--record` with no preceding emission.
 
-## 5. Tests
+## 5. Non-Goals
 
-Every row derives from a numbered decision, names the artifact it depends on, and names a mutant that
-must fail it.
+1. **The epoch does not reset the clean streak, and no convergence rule changes.** The streak spanning
+   a rewrite is real: a converged spec, rewritten, converges again after one round against the new
+   text (sidecar, *A converged spec, rewritten*). It is the declared-event case of a question already
+   parked as `spec/undecided.md`'s *Resetting the clean streak when consecutive rounds read different
+   text*. Taking it here would make this a loop-class release touching every reader of convergence;
+   the epoch's record is what a later release would key such a reset on.
+2. **No streak reset when consecutive rounds carry different hashes** — the former §3 of
+   `round-records-the-text-it-read`. It is parked in the same register entry, which records why it is
+   not worth a cycle: a single historical instance in the recorded audit corpus, and no new mismatch
+   on the review side since v0.35.0.
+3. **The escalation stands.** The blocker's class, the phases it fires in and `tp resume`'s
+   `next_action` are unchanged. Whether `next_action` should defer to an escalation is a question about
+   every escalate blocker, not this one.
+4. **Nothing recorded is rewritten or deleted, and no disposition is written**, by any part of this
+   release.
+5. **No automatic epoch.** tp does not infer a rewrite from a diff; the operator declares it.
+6. **No repair of rounds already recorded with a record-time hash.** Rewriting them would fabricate a
+   claim about what those rounds read.
+7. **No `spec_moved_mid_round`.** The earlier draft counted re-emissions that changed a round's
+   snapshot; `emitting-does-not-lose-a-round` refuses that re-emission instead, and took the section.
+
+## 6. Tests
+
+Every row derives from a numbered decision and names a mutant that must fail it. Rows 2, 3, 5, 10 and
+12 read a value that exists at `HEAD`, and the sidecar quotes it; the other rows' subjects do not
+exist yet, so their two counts belong to the implementing task's acceptance.
 
 | # | from | assertion | the mutant that must fail it |
 |---|---|---|---|
-| 1 | §2 | after `--reconcile`, the reconciled round's `spec_hash` is **byte-identical** to what it was before | write the current hash onto the round, which is exactly the overwrite this release exists to prevent |
-| 2 | §2 *rows* | three reconciliations of one spec produce three rows, none replacing another | store it as a field on the round, keeping only the last |
-| 3 | §2 *note* | an empty or missing `--note` is a usage error | accept it, recording that something changed — which the two hashes already say |
-| 4 | §2 *uncounted* | round count, clean streak, `converged` and `--status --check`'s exit are identical before and after | let it touch a counter, making a note a way to advance the loop |
-| 5 | §2 *staleness* | the spec still reads stale after reconciling | clear staleness, which hides a real movement behind an explanation of it |
-| 6 | §1 | the recorded row names both hashes — the one the round read and the one now — and they differ | record one, leaving a reader unable to see what moved |
-| 7 | §2 *re-record* | with two reconciliation rows recorded, a `--record` under `TP_ROUND=N` for an already-recorded `N` rewrites round `N`'s entry and leaves the `reconciliations` list byte-identical | the rewrite path truncates the list — rebuilding the state from the round lists alone, which is what a rewrite that reconstructs `ReviewState` from scratch does |
-| 8 | §2.1 | emit, edit, emit, record — `spec_moved_mid_round` is 1; a third differing emission makes it 2; a round emitted once carries no key | store a boolean, which reports six repairs in one round identically to one |
+| 1 | §2 | at the implement phase, with the spec edited after the last recorded review round, the `spec-stale` blocker's data names the clearing command — asserted on the key, not on the message | the shipped blocker, whose data carries only the spec |
+| 2 | §2 *clears* | running exactly the named command — emit, then record the round's findings, which in a roleless fixture is a file with no rows — removes the blocker | name a command that does not clear it, such as `--rewritten` alone, which leaves `stale` true |
+| 2b | §2 *in flight* | a round emitted, the spec then edited, the round unrecorded: the blocker names recording that round first or discarding it with the emission's `--force`, and each named sequence removes the blocker. *Deferred* until `emitting-does-not-lose-a-round` ships | name the bare emission, which that release refuses at exit 3 |
+| 3 | §3 | after `--rewritten`, no prompt of the next review emission contains a marker string from a finding recorded before the epoch, and a finding recorded after the epoch appears in the emission after it | read every recorded round, as `HEAD` does — its next prompts carry both pre-rewrite findings |
+| 4 | §3 *nothing recorded* | every round file and every round entry is byte-identical before and after `--rewritten` | implement the epoch as the void — a `wontfix` into every earlier row, which turns those rounds clean |
+| 5 | §3 *convergence* | on two clean rounds, a rewrite and one more clean round, `consecutive_clean`, `converged` and `--status --check`'s exit are the same with and without an epoch — a characterisation of Non-Goal 1, whose test's doc comment names the register entry as what retires it | reset the streak at the epoch, changing convergence in a release that says it does not |
+| 6 | §3 *evidence* | `--rewritten` with empty or absent evidence is a usage error and writes nothing | accept it, recording that something changed — which the hashes already say |
+| 7 | §3 *status* | two epochs produce two entries in `--status`, each naming the rounds it follows and its evidence | keep only the latest, so a second rewrite erases the account of the first |
+| 8 | §3.1 *audit* | with an audit round recorded before the epoch, the next audit emission carries no Prior Round block; an audit round recorded after it is carried as today | apply the epoch to the review phase only |
+| 9 | §3.1 *ground* | on a rewrite that kept one sentence byte-identical, a ground emission carries the same units with and without an epoch | let the epoch clear ground's carry, re-asking a sentence whose verdict still holds |
+| 10 | §4 | emit, edit the spec, record: the recorded `spec_hash` equals the round's snapshot hash, and `--status` reports `stale: true` | hash the spec path, as `HEAD` does — it records the edited file's hash and reports `stale: false` |
+| 11 | §4 *both phases* | over every round of a fixture holding review and audit rounds — the audit count asserted non-zero rather than chosen — each `spec_hash` equals its snapshot's hash | move the review record path alone, which a single-round review test cannot see |
+| 12 | §4 *fallback* | a round with no snapshot on disk records the spec path's hash and exits 0 | fail on a missing snapshot, which breaks a `--record` with no preceding emission |
+| 13 | §4 *history* | a round recorded before this release keeps its stored `spec_hash` byte for byte after upgrade | recompute stored hashes on read, rewriting what past rounds are understood to have read |
 
-**Row 1 is the acceptance and row 5 is the one an implementer will want to skip.** Making staleness go
-away is the operator's felt need in §1.1's instance, where it is measured: commit `52290c32` cleared it
-with a zero-byte round. Satisfying that need directly is how this release would become the defect it
-was written against.
-
-**Row 7 is the ground round-2 FAIL.** The re-record path already exists and already rewrites a round
-entry; a list that lives beside the round lists is one `st = &ReviewState{...}` away from being dropped
-by a retry, so the row pins the retry rather than the happy path.
+**Row 5 pins a hole on purpose.** A green test asserting that a rewritten spec re-converges after one
+round is the shape most likely to be tidied away as a bug in the test, so its name and doc comment
+say it is deliberate and name the parked question whose answer would turn it red.
