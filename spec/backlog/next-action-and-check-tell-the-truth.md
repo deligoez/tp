@@ -1,41 +1,57 @@
 # tp — `next_action` and `--check` tell the truth
 
-Class: tool
+A backlog spec, named by slug; its priority number and its release number are assigned later. Its
+measurements are in `next-action-and-check-tell-the-truth-measurements.md` beside it, and this file
+stands without them.
 
-## 1. Overview
+Class: **tool** — it changes what three status surfaces report and what one gate reads, and no rule
+by which a round is graded.
 
-**Context.** Two status surfaces answer a driver's question with something other than the answer.
-`tp ground <spec> --status --check` exits 0 when every emitted floor unit carries a disposition and
-gates on nothing else, so a recorded round whose rows hold `FAIL`s — refuted claims standing in the
-spec — reports go. Both field reports on `tp ground` v1.0.0 stopped their loop on that exit code,
-and a two-unit fixture reproduces the exit (`what-the-record-does-not-say-measurements.md`, "§9
-`--check` exits 0 with `FAIL`s standing"). The same `--status` payload carries no `next_action`, where
-review's and audit's both do, so a driver that wants the branch re-derives it from `by_verdict`. In
-the review loop the shape repeats: the uncounted regression delta pass,
-`tp review <spec> --perspective regression`, ships, and the emitted loop instruction recommends it
-whenever a regression prompt is included (`buildReviewLoopInstruction`, `internal/cli/review.go`,
-around line 2057) with no condition on what the repairs touched — while `next_action`, the surface a
-driver reads, never names it, and the rule for when it is worth running lives only in
-`skills/tp/SKILL.md`'s review loop, step 6.
+## 1. The decision
 
-**Decision.** Three reporting changes and one help-text fix, none of which adds a flag, a unit kind or
-a workflow field: grounding's `--check` gains a third condition on a standing `FAIL` (§2); grounding's
-`--status` carries `next_action` (§3); review's `next_action` gains one advisory branch recommending
-the delta pass, suppressed under a run (§4); and `tp review --help` names `regression` among the
-perspectives (§5).
+**Context.** Three surfaces answer a driver's question with something other than the answer.
 
-**Consequences.** A driver that branches on `--check`'s exit code stops with no `FAIL` standing rather
-than with false claims in the spec. `tp run` schedules no grounding unit today, so the gate's
-beneficiary is that driver when it exists and any script branching on `$?` until then. The gate ships
-with one hole that clears it without a repair — a byte-identical sentence in two sections — which
-`what-the-record-does-not-say.md` §2.1 states and its §8 row 1 guards; it is not closed here. The review
-branch is a string in a payload and gates nothing, and under `TP_RUN_ID` it names the counted round
-instead, because no unit kind runs a delta pass.
+- `tp ground <spec> --status --check` exits 0 over a recorded round whose rows hold `FAIL`s —
+  refuted claims standing in the spec — because it gates on coverage and nothing else. Two field
+  reports on `tp ground` stopped their loop on that exit code, and a fixture reproduces it at `HEAD`
+  (sidecar). The same `--status` payload carries no `next_action`, where review's and audit's both do.
+- Between a repair and the next ground round, `--status` is identical to what it was before the
+  repair. Nothing says that the repaired sentences carry no disposition yet, and a field report
+  (WB-3155) reported a repair taking several rounds to settle with nothing budgeting them.
+- A registered check that could not run is reported `passed: false`, like a check that found
+  violations, and its class is still stamped into every role prompt under *"do NOT report findings of
+  these classes"* — so reviewers are told a class is mechanically checked when no check ran. And a
+  check's command has no way to name the spec under review: it reaches a spec through whatever the
+  active pointer names, so a check can pass about one spec while another spec's reviewers are told its
+  class is mechanized (sidecar).
+
+**Decision.** Three changes to what tp reports and one help-text fix, none adding a flag, a unit kind
+or a workflow field: grounding's `--check` exits 1 over a standing `FAIL` (§2); grounding's `--status`
+carries `next_action` and the count of units a repair left ungraded (§3); a registered check's exit
+code is a contract, a check that could not run suppresses nothing, and a check's command can name the
+spec and round the loop is grading (§4); `tp review --help` names `regression` among the perspectives
+(§5).
+
+**Consequences.** A driver branching on grounding's exit code stops with no `FAIL` standing rather than
+with false claims in the spec; `tp run` schedules no grounding unit today, so the beneficiary is that
+driver when it exists and any script branching on `$?` until then. The gate has one hole that clears
+it without a repair — deleting one of two byte-identical sentences can hand the survivor the deleted
+copy's `PASS`. `what-the-record-does-not-say` closes it with a multiplicity fence on the carry,
+shipped together with its carried-verdict override because the two share one sentence of the ground
+prompt. That spec no longer carries a test characterising the hole, so if this release ships first
+the hole stands, with no test naming it, until that one does. A class whose check cannot run goes
+back to the reviewers until the check runs again.
+
+**Cut on 2026-09-11.** An earlier draft carried a fifth change: an advisory `next_action` branch in
+review recommending the uncounted regression delta pass after a large repair. It had no measured cost,
+it needed a three-condition branch and a carve-out under `tp run`, and the rule it would have
+recommended is already `skills/tp/SKILL.md`'s review loop, step 6. The sidecar keeps its history
+(*Cut on 2026-09-11: the delta-pass branch*).
 
 ## 2. `tp ground --status --check` exits 1 on a standing `FAIL`
 
 **The decision: `--check` exits 1 when the latest *recorded* round carries a row whose `verdict` is
-`FAIL`.** The two conditions it already has are unchanged, and `skills/tp/SKILL.md`'s command-table
+`FAIL`.** The two conditions it already has are unchanged, and `skills/tp/SKILL.md`'s Step 1.5
 sentence saying a round of nothing but `FAIL`s is fully covered and exits 0 goes with the behaviour it
 describes.
 
@@ -54,114 +70,110 @@ is SKILL.md's decision and is not taken here.
 
 **One unconditional exit, one hole.** Repairing the unit's text moves its hash, so the unit leaves the
 carry and is re-asked; re-deciding a carried unit in a later round is the override
-`what-the-record-does-not-say.md` §3 makes sayable, permitted only when the ground beneath it moved.
-The hole — an identical sentence in two sections, the failing copy cleared by editing the other — is
-`what-the-record-does-not-say.md` §2.1's, ships as characterised behaviour under its §8 row 1, and is closed
-by `spec/backlog/what-the-carry-can-promise.md` §2.2's multiplicity fence.
+`what-the-record-does-not-say` makes sayable, permitted only when the ground beneath it moved. The
+hole — two byte-identical sentences, the failing one cleared when the other is deleted — is closed
+by that spec's multiplicity fence, not here.
 
-## 3. `tp ground --status` carries `next_action`
+## 3. `tp ground --status` carries `next_action` and what a repair left ungraded
 
 **The decision: `--status` carries `next_action`, under that name and in that role.** Review's and
 audit's `--status` both carry it — *"the single next step"*, in SKILL.md's words for each — and
 grounding's payload does not. It is a pair with the gate above: the exit code says *not yet*; the key
-says *what to do*, which is how a driver branches without parsing prose. No new vocabulary: it names
-the same step SKILL.md's ground loop names, and it is reporting, so a driver that ignores it is
-exactly as correct as one that reads it.
+says *what to do*, which is how a driver branches without parsing prose. It names the step SKILL.md's
+ground loop names for the state it reads — repair a standing `FAIL`, run the next round, or leave the
+loop — and it is reporting, so a driver that ignores it is exactly as correct as one that reads it.
 
-## 4. Review's `next_action` recommends the delta pass
+**And `--status` reports `ungraded`: how many current floor units the next emission would ask rather
+than carry.** That is the text written since the last recorded round — a repaired sentence has a new
+hash and an added one has none on record — and every such unit owes a disposition. The number already
+exists at emission as the floor less what was carried; what is missing is the report *before* the
+emission, when the operator is deciding whether the repair is finished. When `ungraded` is non-zero,
+`next_action` names the next ground round.
 
-Any `fixed` disposition voids a round — `--record` refuses it, correctly, because a fix means the spec
-changed and the round's findings were read against older text. The cost is that a one-section repair
-forces a full panel. The pass that solves this already ships: `tp review <spec> --perspective
-regression` emits the regression role alone, derives its scope from the newest earlier snapshot
-through `DiffSections` (`internal/engine/diff.go:41`), and reports `Round: 0`, *"This pass records no
-state"* and `Convergence: "uncounted delta pass — counted rounds stay full-panel"`
-(`internal/cli/review_regression.go:126`).
+**It is reported at `--status`, not at `--record`.** The field report asked for the count after
+`--record`; at that moment the repair has not happened yet, so the only honest number there is zero.
 
-**The decision: `next_action` learns to recommend it — one advisory branch, no flag.** It fires when
-all three hold:
+**`ungraded` gates nothing.** A repair of a `FAIL` already keeps `--check` at 1 through §2, until a
+round re-decides the unit. A gate on `ungraded` itself would read the working tree rather than the
+record, and would make `--check` a staleness gate that every later edit to the spec trips — a
+different signal from *no refuted claim stands*.
 
-- the last recorded round produced findings, and
-- the repairs since touched **more than three** sections, and
-- no section was added or removed.
+## 4. A registered check's exit code is a contract
 
-Outside that, `next_action` is unchanged; `ReviewNextAction` (`internal/engine/nextaction.go`) has
-four branches and the converged one names no round at all.
+**The decision: a `workflow.checks` entry exits `0` when it passed, `1` when it found violations, and
+`2` or higher when it could not run.** A check the shell cannot start, or that tp stops at its
+timeout, is in the third state too.
 
-**No flag.** A `--delta` flag would be a second spelling of a shipped feature: the scope derivation is
-already the default, and taking the scope (`--diff-from` + `--findings`) is the shipped opt-in. What
-is missing is a recommendation, not a capability.
+**A check that could not run neither passes nor suppresses its class.** Its entry is reported
+`ran: false`. Its class leaves the *"do NOT report findings of these classes"* list of every role
+prompt of that emission and stops being withheld from `--status`'s `next_action`, so reviewers are
+asked for the class as though no check were registered. It does not pass: `tp review <spec> --status
+--check` still exits 1 while it stands. A check that ran and found violations keeps suppressing its
+class, which is registration doing its job and the behaviour
+`TestReviewSuppression_FailingCheckStillSuppressesItsClass` pins.
 
-**The threshold direction is SKILL.md's.** `skills/tp/SKILL.md` has carried *"when a fix batch
-touched **more than 3 sections**, run the standalone regression delta pass"* since `f747c354`
-(`git log --reverse -S'more than 3 sections' -- skills/tp/SKILL.md`), and the direction has a reason:
-a large repair is what needs the cheap look, while a one-section repair is small enough that the next
-counted round covers it. The rule has one home and this spec agrees with it rather than restating it.
-The threshold is not configurable, because a workflow field would give the rule a second home — the
-condition under which an earlier draft inverted it undetected (sidecar, "One draft, not two").
+**Why tp may define the status here and not elsewhere.** `CLAUDE.md` records that `gocognit`'s exit
+code cannot tell a result from a failure, which is why that guard reads stderr. A `checks[].cmd` entry
+is different in kind: it is tp's own registration, written for tp, so tp states what its exit code
+means rather than observing a third-party convention.
 
-**The added/removed clause is not a refinement.** `DiffSections` reports an addition or removal as a
-change with no counterpart to compare against, so a regression pass over it has nothing to regress.
-That is a different question from *did this repair drift*, and it belongs to a counted round.
+### 4.1 A check names the spec and round it grades
 
-**A delta pass can never move the loop toward convergence** — because it writes no state, not because
-of anything about panels: `--record` on a single role's row advances the count, so *"counted rounds
-are always full-panel"* is `SKILL.md`'s policy and not the mechanism's (sidecar, "§3 The branch").
-Delta findings go to stdout and never into `$TP_ROUND_DIR`; `-o` is not the mechanism
-(`-o/--output requires --merge`, `internal/cli/review.go:311`), and an operator who wants the payload
-in a file redirects stdout.
+**The decision: `checks[].cmd` gains two placeholders, `{spec}` and `{round}`, and nothing else.**
+Wherever tp runs a registered check, it replaces `{spec}` with the path of the spec the command was
+invoked on and `{round}` with the round the loop is collecting — the round an emission emits, or at
+`--status` the one after the latest recorded round. Each is substituted as a single shell-quoted word,
+so a path with a space or a shell metacharacter reaches the check as one argument.
 
-**The branch is omitted while a run is driving.** When `TP_RUN_ID` is set, `next_action` names the
-counted round instead. `internal/engine/unitkind.go` fixes eight unit kinds and none runs a delta
-pass, so an unattended driver reaching the recommendation would be told to run work it has no unit
-for — the failure already recorded for the branch that recommended a registration the phase could not
-honour. A ninth unit kind is not on the table: it would reopen a review-converged spec
-mid-implementation to buy a recommendation a human can already read.
+**Why.** A check grades a spec, and today its command can learn which one only by asking the active
+pointer, typically through `tp resume` in a subshell. That answers for the pointer's spec rather than
+for the one on the command line, and when `tp resume` cannot answer the check receives an empty path.
+With the placeholder the spec under review is what the check reads, and a `PASS` is about that spec.
+
+**Nothing else is substituted.** Braces are ordinary shell and awk syntax, so only the two exact
+tokens are replaced and every other `{…}` reaches the shell untouched. A check that names neither runs
+exactly as today.
 
 ## 5. `tp review --help` names `regression`
 
 **The decision, as a task: the `--perspective` flag's help text names `regression`.** It reads
-*"documentation, testing, or code-audit"* (`internal/cli/review.go:391`) while `reviewPerspectives`
-(`internal/cli/review.go:512`) accepts `regression`. The absorbed draft named the defect and declined
-it; it is why the pass goes unrun, and it is one line.
+*"documentation, testing, or code-audit"* while `--perspective regression` is accepted. It is one
+line, and it is why the pass goes unrun.
 
 ## 6. Non-Goals
 
-1. **No new flag and no new unit kind** (§4).
-2. **No convergence effect from `next_action`.** The recommendation gates nothing, counts nothing, and
-   records nothing; `next_action` has never gated an exit code and does not begin here.
-3. **No change to `--perspective regression` itself.** Its scope derivation, its round-zero reporting
-   and its output destination are unchanged.
-4. **The threshold is not configurable** (§4).
-5. **No change to grounding's carry, its `(text_sha, ordinal)` join or its recorded filename**, and no
+1. **No new flag, no new unit kind and no workflow field.** Nothing here adds a knob to
+   `.tp/config.json` or to a task file's `workflow` block, and nothing reads one.
+2. **`next_action` and `ungraded` gate nothing.** Neither has an exit code of its own.
+3. **No change to grounding's carry, its `(text_sha, ordinal)` join or its recorded filename**, and no
    gate on `PARTIAL` (§2).
-6. **The §9.3 hole is not closed** — it is `spec/backlog/what-the-carry-can-promise.md`'s.
-7. **No workflow field.** Nothing here adds a knob to `.tp/config.json` or to a task file's `workflow`
-   block, and nothing reads one.
+4. **The byte-identical-sentence hole is not closed here** — it is `what-the-record-does-not-say`'s.
+5. **No change to `--record`'s candidate list for registered classes.** It reads the registration
+   without running the check, so it cannot know whether the check can run; §4 applies where tp runs it.
 
 ## 7. Tests
 
-Every row derives from a numbered decision and names an input that must fail it. Where the mutant is a
-change to the test rather than to the product, the row says so. Rows 1–4 are
-`ground-command-friction.md`'s former §15 rows 10–13; rows 5–11 are the absorbed draft's.
+Every row derives from a numbered decision and names a mutant that must fail it. Rows 1, 2, 7, 9 and
+10 read a value that exists at `HEAD`, and the sidecar quotes it under *Re-verified 2026-09-11*; the
+other rows' subjects do not exist yet, so their two counts belong to the implementing task's
+acceptance.
 
 | # | from | assertion | the mutant that must fail it |
 |---|---|---|---|
 | 1 | §2 | a round whose rows are fully covered and hold at least one `FAIL` exits **1** from `--status --check` | keep the two shipped conditions, under which a fully covered round holding `FAIL`s exits 0 |
 | 2 | §2 *bounded* | the same fixture with the `FAIL` replaced by a `PARTIAL` and by a `QUESTION`, each in turn, exits **0** | gate on any non-`PASS` verdict, which passes row 1 and makes every recorded `PARTIAL` row blocking |
-| 3 | §2 *no deadlock* | a round-2 payload that decides a `FAIL`-carrying unit afresh records at exit 0 and `--check` then exits 0, on a fixture whose spec text did not change | carry the `FAIL` unconditionally, which is the accepted-finding release's audit defect reproduced here |
+| 3 | §2 *no deadlock* | a round-2 payload that decides a `FAIL`-carrying unit afresh records at exit 0 and `--check` then exits 0, on a fixture whose spec text did not change | carry the `FAIL` unconditionally, so a unit once refuted can never be re-decided |
 | 4 | §3 | `--status`'s payload carries `next_action`, asserted by naming the key rather than by matching its text | assert on the sentence, which pins prose a rewording breaks while the key survives — a test-side mutant |
-| 5 | §4 | a repair touching **four** sections after a round with findings recommends the delta pass; **three** does not | invert the comparator — the draft's own error, which recommends the cheap look for small repairs and the full panel for large ones |
-| 6 | §4 *boundary* | exactly three sections does **not** fire, and exactly four does — both asserted | test with one and ten, which passes whether the bound is inclusive or exclusive; this repository has already checked a documented 1–60 range with the value 999 (`internal/engine/lock_timeout_range_test.go:13-33`) |
-| 7 | §4 *added* | a repair that adds or removes a section does **not** fire the branch, even at ten sections changed | ignore the clause, recommending a regression pass over text with nothing to regress against |
-| 8 | §4 *clean* | a last round with **no** findings does **not** fire the branch, whatever the section count — asserted on not-firing, because what `next_action` says instead depends on whether the spec converged | fire on section count alone, recommending a delta pass after a clean round |
-| 9 | §4 *under a run* | with `TP_RUN_ID` set, the branch never fires — asserted on the same input that fires without it | emit it unconditionally, telling a driver to run a unit kind that does not exist |
-| 10 | §6 item 2 | the command's exit code and the recorded round are identical with and without the branch — `next_action` is a string in the payload and has no exit code of its own | let it record or gate, turning a recommendation into a step |
-| 11 | §4 *no flag* | no new flag is registered — asserted against the command's flag set, not its help text | add `--delta`, shipping a second spelling of `--perspective regression` |
-| 12 | §5 | `--perspective`'s help text names every value `reviewPerspectives` accepts, derived from that slice rather than from a literal list | append a perspective to the slice and leave the help text alone — the derived guard fails naming it, a literal list passes |
+| 5 | §3 *ungraded* | after a recorded round, editing one unit's sentence and adding one new sentence makes `--status` report `ungraded: 2` before any emission, and the emission that follows carries exactly the floor less those two | report the count the last emission computed, which reads 0 after a repair until the next emission |
+| 6 | §3 *no gate* | on a recorded round with no `FAIL`, editing only a `PASS` unit's sentence leaves `--status --check` at exit 0 while `ungraded` is 1 | gate on `ungraded`, turning `--check` into a staleness gate |
+| 7 | §4 | with two checks registered, one `exit 1` and one `exit 2`, the emission reports the second `ran: false`, and every role prompt's suppression list names the first class and not the second | the shipped suppression, which names both classes in every role prompt |
+| 8 | §4 *not a pass* | with only the `exit 2` check registered and nothing else failing, `tp review <spec> --status --check` exits 1 | treat a check that could not run as skipped, which lets `--check` pass on a check nobody ran |
+| 9 | §4 *boundary* | an `exit 127` check — a command the shell cannot find — is reported `ran: false` like `exit 2` | read only exit `2` as could-not-run, which leaves the commonest cannot-run case suppressing its class |
+| 10 | §4.1 | two specs in one repository, the marker string in the second only, the active pointer on the second: reviewing the first with a check `grep -q <marker> {spec}` reports it `passed: false`, and the same check reviewing the second reports `passed: true` | substitute the active pointer's spec — the subshell workaround's behaviour, under which reviewing the first passes |
+| 11 | §4.1 *round* | an emission of round 3 runs a check `test {round} = 3` and reports it passed; `--status` after round 3 is recorded runs `test {round} = 4` and reports it passed | substitute the latest recorded round, which fails the emission case |
+| 12 | §4.1 *quoted* | with the spec at a path containing a space, a check `test -f {spec}` reports passed | substitute the bare path, which splits it into two words and fails `test` |
+| 13 | §4.1 *nothing else* | a check `echo b \| awk '{print}' \| grep -qx b` reports passed | replace any `{word}` token, which rewrites the awk program into one that prints nothing |
+| 14 | §5 | `--perspective`'s help text names every value the flag accepts, derived from the accepted set rather than from a literal list | add a perspective to the accepted set and leave the help text alone — the derived guard fails naming it, a literal list passes |
 
-**Rows 5 and 6 assert the same proposition, and the difference is the mutant column.** Row 6's names
-an implementation of row 5 with one and ten that passes whichever way the bound goes, so row 6
-constrains how row 5 is written; the comparator matrix that shows it is in the sidecar ("§6 Tests —
-the comparator matrix"). Row 2 is the one a `PARTIAL` gate would fail, and it is what keeps §2
-narrower than SKILL.md's loop.
+**Row 2 is what keeps §2 narrower than SKILL.md's loop**, and row 6 is what keeps §3 a report: each is
+the row a broader implementation of its section passes everything else with.

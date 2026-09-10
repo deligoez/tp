@@ -2,6 +2,72 @@
 
 Supplemental material for `next-action-and-check-tell-the-truth.md`; the spec stands without it.
 
+## Cut on 2026-09-11: the delta-pass branch
+
+The spec was rewritten on 2026-09-11. Its former §4 — an advisory branch in review's `next_action`
+recommending `tp review <spec> --perspective regression` when a repair touched more than three
+sections, with none added or removed, suppressed under `TP_RUN_ID` — was cut with its seven test rows
+(the former rows 5–11). Three reasons, from the backlog survey of that date: nothing measured what the
+missing recommendation costs; it needed a three-condition branch plus a carve-out for `tp run`, which
+has no unit kind for the pass; and `skills/tp/SKILL.md`'s review loop, step 6, already states the rule
+it would have recommended. The cut text is `git show 18032abe:spec/backlog/next-action-and-check-tell-the-truth.md`.
+
+The sections *One draft, not two*, *§3 The branch — the panel is not the mechanism* and both
+*§6 Tests* sections below belong to that branch and stay as its history; the rows they count are no
+longer in the spec. The former §5 and its row survive as the spec's §5 and row 14.
+
+Promoted at the same rewrite: the exit contract decided at the 2026-09-08 pass (below) is now the
+spec's §4, the `{spec}`/`{round}` substitution decided beside it is §4.1 — the fix for the routed
+class `check-grades-wrong-spec` (`.tp/routed-classes.json`) and for the wrong-spec item
+`spec/1.1.0-release-notes.md` routes here — and WB-3155's #10 is §3's `ungraded` count.
+
+## Re-verified 2026-09-11
+
+Measured against a binary built from `18032abe`, each fixture in a fresh directory outside the
+repository.
+
+- **§2, row 1.** A two-section spec of three sentences, each naming a number, in a fresh git repo;
+  `tp init`, `tp ground spec.md`, then `--record` of a payload deciding the floor's three units as two
+  `FAIL` and one `PASS`. `tp ground spec.md --status` reports `by_verdict` `{"FAIL": 2, "PASS": 1, …}`
+  with `emitted: 3`, `dispositioned: 3`, and no `next_action` key; `--status --check` exits **0**.
+- **§2, row 2.** The same fixture with one unit decided `PARTIAL` (`partial_kind: true-when-written`,
+  `held_at` set) and the rest `PASS` exits **0** from `--status --check`; with one unit decided
+  `QUESTION` (three `{cause, prediction}` objects) it exits **0** as well.
+- **§3, the missing count.** On row 1's fixture, after `--record`, editing one `FAIL` sentence's number
+  leaves `--status` byte-identical to its pre-edit output and `--status --check` at exit 0. The next
+  emission then reports `floor_size: 3`, `carried: 2` — the count exists, but only once emitted.
+- **§4, rows 7 and 9.** A one-section spec with `tp set --workflow checks=` registering three entries
+  across two fixtures — `exit 1`, `exit 2`, and a command the shell cannot find. The emission's
+  `mechanical_checks` reports `exit_code` 1, 2 and 127, every one `passed: false`, and the suppression
+  line *"Mechanically checked classes — do NOT report findings of these classes:"* appears in all
+  three role prompts naming every registered class. `tp review spec.md --status --check` exits 1.
+  Source: the prefix is `mechanizedExclusionPrefix` in `internal/cli/review.go`; the exit code and
+  `Passed` come from `engine.RunCommand` in `internal/engine/runcmd.go`, which sets `Passed` only on a
+  nil error and reports a timeout as a failure.
+- **§4.1, row 10.** One repository, two specs `a.md` and `b.md`, both `tp init`-ed, a marker string in
+  `b.md` only, and `tp use b.tasks.json`. Two project-level checks: one reaching its spec the way this
+  repository's own registrations do — `grep -q <marker> "$(tp resume … | python3 … ["spec"])"` — and
+  one written `grep -q <marker> {spec}`. `tp review a.md --status --check` reports the first
+  `exit_code: 0`, `passed: true` — a pass about `b.md` while `a.md` lacks the marker — and the second
+  `exit_code: 2` with `grep: {spec}: No such file or directory`: the token reaches the shell as
+  written. The emission of `a.md` names both classes in its suppression line. With the pointer left
+  naming a spec path instead of a task file, `tp resume` exits 3 and the first check greps an empty
+  path, exit 2 — the silent failure the 2026-09-08 decision names.
+
+## Field report WB-3155, verified 2026-09-11
+
+**#10 — "a repair's own grading takes three rounds, and the tool does not say so."** The reporter
+counted `FAIL`s of 5, 2 and 1 across three ground rounds before a clean one, and asked that `--record`
+say how many units the next round will ask fresh. **Verdict: PARTLY.** The round counts are the
+reporter's and were not re-derived. The reporter already saw `carried` at emission, and the number
+they want is the floor less that; what reproduces is that nothing reports it *before* the emission,
+when the operator decides whether the repair is done, and that `--check` cannot tell them either —
+at `HEAD` a `FAIL`, repaired or not, never moves its exit code (reproductions above, *§2, row 1* and
+*§3, the missing count*). The proposed channel cannot work as stated: at `--record` the repair has
+not been written yet, so a count taken there describes none of the text the repair will write. The
+spec takes the count at `--status` (§3) and relies on §2 for the gate. Source: the ground status payload is the struct in
+`internal/cli/ground.go` carrying `emitted`, `dispositioned`, `reader_added`, `off_floor` and `cut`.
+
 The blocks below moved verbatim from the delta-pass draft this spec absorbed. The grounding
 measurement behind the `--check` gate — the recorded round with `FAIL`s standing that exits 0, and
 the two-unit fixture reproducing it — is in `what-the-record-does-not-say-measurements.md` under
