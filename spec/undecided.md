@@ -208,8 +208,9 @@ round-directory globs:
 python3 -c 'import json,glob,collections;c=collections.Counter(json.loads(l)["resolved"]["status"] for p in ("spec/.tp-review/*/*.ndjson","spec/backlog/.tp-review/*/*.ndjson") for f in glob.glob(p) for l in open(f) if l.strip() and isinstance(json.loads(l).get("resolved"),dict));print(c, sum(c.values()))'
 ```
 
-**It settles** when `spec/backlog/round-records-the-text-it-read.md` ships, after which a replay of
-any round recorded from then on is well-defined. That spec does not repair the divergent rounds
+**It settles** when the emit-time hash ships — `spec/backlog/round-records-the-text-it-read.md` §2,
+folded into `spec/backlog/reconcile.md` on 2026-09-11 — after which a replay of any round recorded
+from then on is well-defined. That spec does not repair the divergent rounds
 already recorded, so a replay over the historical corpus stays undefined whatever ships.
 
 **Where the measurements are.** `spec/undecided-measurements.md` §The corpus-replay gate, as a
@@ -254,8 +255,9 @@ wrong count and loses a section key entirely passes it. Separately it was the on
 candidate fields unbounded in output size, and the only one whose row named no decision it would feed.
 
 **The six anchor defects it kept trying to describe are real and are now owned elsewhere**, with
-fixtures, in `spec/backlog/floor-anchors-need-fixtures.md` §2 (until 2026-09-08 a section of
-`spec/backlog/ground-command-friction.md`). That is the useful residue: the field was
+fixtures, as one test task of `spec/backlog/the-floor-names-what-it-cut.md` (folded there on
+2026-09-11 from `spec/backlog/floor-anchors-need-fixtures.md` §2, itself until 2026-09-08 a section
+of `spec/backlog/ground-command-friction.md`). That is the useful residue: the field was
 an attempt to publish a quantity whose keys nobody had checked, and checking them is the actual work.
 
 **It reopens** when `engine.FloorAnchorOf`'s anchors are pinned by fixtures rather than by arithmetic,
@@ -341,6 +343,25 @@ implementation of §2.1 in another language disagrees with tp on a `text_sha`.
 **Where the measurements are.** `spec/backlog/what-the-carry-can-promise-measurements.md` — the byte
 enumeration, the fixtures and the withdrawn test rows.
 
+### An `as_of` field and a "today" lint rule for measurement sentences
+
+**What was tried.** A field report (WB-3155, 2026-09-11) asked for an `as_of` field on corpus claims and
+a `tp lint` rule warning on "today"/"now"/"bugün" in a measurement sentence, because a count over a
+growing population turned its whole battery of rows into `true-when-written` PARTIALs. The rule was
+prototyped over `spec/*.md` the same day.
+
+**Why it died.** Narrowed to "today" beside a digit outside tables, the rule fired on sentences of which
+a sample judged one by one held a single count over a growing set; the rest were motivation sentences
+("Today X does Y") and test conditions ("passes today") — roughly one hit in ten. The field's own
+remedy already exists twice: a `true-when-written` PARTIAL must carry `held_at`, and Step 0.5's *"a
+number does not live in a spec"* moves the count out of the graded body. The corpus holds no Turkish
+spec to test "bugün" against.
+
+**It reopens** if a narrower predicate reaches zero false positives at warning severity on `spec/*.md`.
+
+**Where the measurements are.** `spec/undecided-measurements.md` §An `as_of` field and a "today" lint
+rule — the counts at each narrowing and how the sample was judged.
+
 ---
 
 ## Decided — routed to a pending spec
@@ -352,36 +373,38 @@ not have to come back here. The register keeps one sentence, the carrier and the
 the counting rules, derivation commands and readings that earned each verdict are in
 `spec/undecided-measurements.md` under the entry's own title, or in the sidecar the row names.
 
-The two entries **after** the table are not in it, because no sidecar carries them. Both are recorded
-in `spec/backlog/README.md` under *Decided, awaiting a spec*, and this file is their only long-form
-home until the spec that takes them has a file.
+The two entries **after** the table keep their long form here. The first gained its spec file on
+2026-09-11 and is now also a table row; its long form stays because the re-derivation of the hook's
+reach is recorded nowhere else. The second is recorded in `spec/backlog/README.md` under *Decided,
+awaiting a spec*, and this file is its only long-form home until the spec that takes it has a file.
 
 | entry | decision | carried by | measurements |
 |---|---|---|---|
 | The divisible round | the split key is spec location — the section | `spec/backlog/checklist-covers-what-changed.md`, sidecar *Decided at the 2026-09-08 decision pass*; the follow-on `round-divides-by-section` in `spec/backlog/README.md` | `spec/undecided-measurements.md` §The divisible round |
 | A registered check that outlives its release | `checks[].cmd` gains `{spec}` and `{round}` substitution and nothing else, and a check's exit code is a contract tp defines for its own registrations | `spec/backlog/next-action-and-check-tell-the-truth.md`, sidecar *Decided at the 2026-09-08 decision pass* | `spec/undecided-measurements.md` §A registered check that outlives its release |
-| Cross-site key agreement in the review prompt | the review prompt renders one set at all three sites, from one Go constant | `spec/backlog/a-findings-exits-agree.md`, sidecar *Decided at the 2026-09-08 decision pass* | `spec/undecided-measurements.md` §Cross-site key agreement in the review prompt |
-| `NewRootCmd` writes package globals | the fence, not the rewrite | `spec/backlog/gate-sequence.md`, sidecar *Decided at the 2026-09-08 decision pass* | `spec/undecided-measurements.md` §`NewRootCmd` writes package globals |
+| Cross-site key agreement in the review prompt | the review prompt renders one set at all three sites, from one Go constant | **no release since 2026-09-11** — kept out of `spec/backlog/a-findings-exits-agree.md`'s body so its hotfix part stays small; the decision stays in that spec's sidecar, *Decided at the 2026-09-08 decision pass* | `spec/undecided-measurements.md` §Cross-site key agreement in the review prompt |
+| `NewRootCmd` writes package globals | the fence, not the rewrite | a chore under `spec/backlog/gate-sequence.md`'s Non-Goals since 2026-09-11 — a plain commit, no cycle; the decision stays in that spec's sidecar, *Decided at the 2026-09-08 decision pass* | `spec/undecided-measurements.md` §`NewRootCmd` writes package globals |
 | `t.Parallel()` in the engine package | `internal/engine` stays serial | `spec/backlog/mutation-run-check.md`, sidecar *Decided at the 2026-09-08 decision pass* | `spec/undecided-measurements.md` §`t.Parallel()` in the engine package |
-| A sentence rewritten in answer to a finding is exempt from the cut for one round | no exemption — `tp ground --status` reports a `cut` delta per round instead | `spec/backlog/the-floor-names-what-it-cut.md`, sidecar *Decided at the 2026-09-08 decision pass* | `spec/backlog/what-the-record-does-not-say-measurements.md` under "§11.1"; `spec/undecided-measurements.md` §A sentence rewritten in answer to a finding is exempt from the cut for one round |
+| A sentence rewritten in answer to a finding is exempt from the cut for one round | no exemption — `tp ground --status` reports a `cut` delta per round instead | `spec/backlog/a-round-can-be-driven-from-the-envelope.md` since 2026-09-11; the decision text stays in `spec/backlog/the-floor-names-what-it-cut-measurements.md`, *Decided at the 2026-09-08 decision pass* | `spec/backlog/what-the-record-does-not-say-measurements.md` under "§11.1"; `spec/undecided-measurements.md` §A sentence rewritten in answer to a finding is exempt from the cut for one round |
 | Claim enumeration in the grounding floor | the floor's own arms define a claim | `spec/backlog/the-floor-names-what-it-cut.md`, sidecar *Decided at the 2026-09-08 decision pass* | `spec/backlog/the-floor-names-what-it-cut-measurements.md` §5 |
 | A durable home for an accepted finding | a repository-level `.tp/accepted.ndjson`, surfaced as `accepted_open` until a task file's `covered_by` names the finding id | `spec/backlog/a-finding-can-leave-an-audit-round.md`, sidecar *Decided at the 2026-09-08 decision pass* | `spec/undecided-measurements.md` §From the rows spec |
 | An audit-side `nonblocking_open` | emit it, and invert the guards that pin the key's absence — under `audit_converge_on: blocking` only | `spec/backlog/a-finding-can-leave-an-audit-round.md`, sidecar *Decided at the 2026-09-08 decision pass* | `spec/undecided-measurements.md` §From the rows spec |
-| A review-side `accepted_blocking` | one counter, on the payload `spec/backlog/a-findings-exits-agree.md` §2 already rewrites | `spec/backlog/a-findings-exits-agree.md`, sidecar *Decided at the 2026-09-08 decision pass* | `spec/undecided-measurements.md` §From the rows spec |
+| A review-side `accepted_blocking` | one counter, on the payload `spec/backlog/a-findings-exits-agree.md` §2 already rewrites | **no release since 2026-09-11** — kept out of that spec's body for the same reason; the decision stays in its sidecar, *Decided at the 2026-09-08 decision pass* | `spec/undecided-measurements.md` §From the rows spec |
 | Making `severity` checkable | severity stays self-declared; the vocabulary is validated at the record sink as a warning that names the row | `spec/backlog/refusals-that-name-nothing.md`, sidecar *Decided at the 2026-09-08 decision pass* | `spec/undecided-measurements.md` §From the rows spec |
-| Which channel a degraded scan reports on | a payload field always, because it survives `--quiet` and a driver reads payloads; the notice is additional | `spec/backlog/two-advisories.md`, sidecar *Decided at the 2026-09-08 decision pass* | `spec/backlog/two-advisories-measurements.md`, same section |
+| Which channel a degraded scan reports on | a payload field always, because it survives `--quiet` and a driver reads payloads; the notice is additional | `spec/backlog/an-unreadable-file-is-named.md` since 2026-09-11 (`two-advisories.md` folded); the decision text stays in `spec/backlog/two-advisories-measurements.md`, sidecar *Decided at the 2026-09-08 decision pass* | `spec/backlog/two-advisories-measurements.md`, same section |
+| The test-file fence and the write-deny fence's reach | the fence matches the write target; the test-file permission is precomputed at spawn; `test_globs` follows `pickChecks` | `spec/backlog/hooks-fence-the-target.md`, written 2026-09-11 | the long form below, and that spec's sidecar |
 
 ### The test-file fence and the write-deny fence's reach
 
-**Decided together, as one small tool spec — `hooks-fence-the-target` — which has no file yet.** Three
-parts, one subject: the write-deny hook matches on the tool's write **target** (the file path argument
+**Decided together, as one small tool spec — `spec/backlog/hooks-fence-the-target.md`, written on
+2026-09-11 after a field report (WB-3155) hit the read-only half of the reach.** Three parts, one
+subject: the write-deny hook matches on the tool's write **target** (the file path argument
 of a write-capable tool), not on any argument string, so reads and batched multi-file calls stop being
 refused; the test-file fence resolves its permission **precomputed into the child environment at
 spawn**, never a `tp` call per write inside the hook; and `test_globs` follows `pickChecks` — a present
 list replaces the layer beneath it rather than merging with it.
 
-**Who carries it.** `spec/backlog/README.md` under *Decided, awaiting a spec*, until the spec is
-written.
+**Who carries it.** `spec/backlog/hooks-fence-the-target.md`.
 
 **The reach, re-derived by running the hook rather than by reading it.** `denied()` in
 `hooks/pre-tool-use-write-deny.sh` matches `*/.tp-review/?* | .tp-review/?*`, an unanchored glob. Fed
@@ -555,8 +578,17 @@ Round: context to re-check, not a verdict to repeat"*. Review shows the whole pa
 and asks for the opposite — `buildFindingsSummary` (`internal/cli/review.go`) emits `UNRESOLVED
 findings from previous rounds — DO NOT re-report:`, panel-wide, capped and truncated.
 
-**It reopens** only if `spec/backlog/repair-locality.md`, once shipped, shows the share of findings
-sitting in repaired text **rising** with the suppression list on.
+**It reopens** only if the repair-locality measurement — no longer a release since 2026-09-11, a
+script whose source is in `spec/backlog/repair-locality-measurements.md` — shows the share of
+findings sitting in repaired text **rising** with the suppression list on.
+
+**What the field changed, and what it did not (2026-09-11).** A field report (WB-3155) found the
+header lying: accepted `[WONTFIX]` rows sit under *"UNRESOLVED … DO NOT re-report"*. The header is a
+defect and `spec/backlog/a-findings-exits-agree.md` takes it; suppressing accepted rows is this
+decision and stands. The same report's claim that fixed findings are also suppressed was refuted —
+they are listed as resolved with *"DO NOT regress"*, and the regression prompt carries each fix's
+evidence. On the audit side, where this entry's contrast lives, the prior-round rows carry no
+disposition at all; `spec/backlog/a-finding-can-leave-an-audit-round.md` takes that.
 
 **Where the measurements are.** `spec/undecided-measurements.md` §A prior-round section for
 `tp review` — both mechanics in full, and why the repair-locality figures cannot settle it.
@@ -615,6 +647,36 @@ separate release.
 
 **It reopens** when a field cycle asks for it with a task file that names a second root — a request
 rather than a design, because no design pass exists.
+
+**A field instance arrived on 2026-09-11 and is recorded, not acted on.** A field report (WB-3155)
+carried frontend tasks for a second repository in its backend task file, and a changelog task
+depending on them could not close. Its task file names no second repository root, so the condition as
+written is not met; whether a request without one reopens it is the operator's call, and this pass
+does not take it. The workaround needs no design — drop the edge
+(`tp set <id> 'depends_on=[]'`, verified) or split the unit — and
+`spec/backlog/a-task-file-write-names-its-target-measurements.md` records the reproduction.
+
+### A check library from the field
+
+**Closed for now: no script, no spec.** A field report (WB-3155) proposed a library of ready registered
+checks with two of its own scripts as the first candidates, and believed tp had taken them; nothing in
+the tree records that. A check is a detector plus its false-positive bill, and neither script is in
+hand. **It reopens** when the scripts are contributed and a prototype over `spec/*.md` reaches zero
+false positives at warning severity — this repository's standing bar for a check.
+
+**Where the measurements are.** `spec/undecided-measurements.md` §A check library from the field.
+
+### Resetting the clean streak when consecutive rounds read different text
+
+**Closed for now: not worth a cycle.** Parked from `spec/backlog/round-records-the-text-it-read.md`
+§3 when that spec folded into `spec/backlog/reconcile.md` on 2026-09-11; its §2 (a round's hash is
+the hash of the text it read) went with the fold. The streak reset reproduces in a fixture and has
+one instance in the recorded audit corpus, and the review-side mismatch count has not moved since
+v0.35.0. **It reopens** when a recorded round after `spec/backlog/emitting-does-not-lose-a-round.md`
+ships reads a text its successor did not.
+
+**Where the measurements are.** `spec/undecided-measurements.md` §Resetting the clean streak when
+consecutive rounds read different text.
 
 ---
 

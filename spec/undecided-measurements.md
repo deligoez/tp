@@ -806,3 +806,38 @@ note wanted — somewhere for a derivation to live that is not the spec's own fl
   finding* in the register is the same question for findings.
 - **Decomposition evidence is absent on the field side.** The reporter's spec has not reached
   `tp import`, so the 19→20 / 8→0 precedent is confirmed by nothing outside this repository.
+
+## An `as_of` field and a "today" lint rule
+
+Prototyped on 2026-09-11 at `18032abe` by the unit that verified a field report (WB-3155) item by
+item. The population is sentences in `spec/*.md`; each narrowing was counted by a script, the last
+one was sampled and the sample judged **one by one**.
+
+| narrowing | sentences |
+|---|---|
+| contains *today*, *now* or *currently* | 231 |
+| of which the word is *now* (read: almost all aspectual — "now reports", "is now") | 127 |
+| *today* beside a digit, outside tables | 26 |
+| sample of 10 of those 26 that state a count over a growing set | 1 (already in a measurements file) |
+
+The other nine sampled were motivation sentences ("Today X does Y") or test conditions ("passes
+today"). No `spec/*.md` carries "bugün", so the Turkish form had no population here. `as_of` does not
+exist anywhere in the tree; its grader-side twin does — `held_at` is required on a `true-when-written`
+PARTIAL by the ground row validator.
+
+## A check library from the field
+
+A field report (WB-3155) listed, among items it had already sent on 2026-09-09, a library of ready
+registered checks, with two of its own scripts — `numeric-claim-drift` and `broken-closure-promise` —
+as the first candidates, and said tp had taken them. At `18032abe` neither name appears anywhere in the
+tree (a search for `code-citation-drift`, which is registered, matched on the same run), and no commit
+after 2026-09-08 other than `18032abe` exists. So the intake was never recorded; it is recorded now, in
+the register, as closed for now until the scripts themselves are in hand.
+
+## Resetting the clean streak when consecutive rounds read different text
+
+Parked from `spec/backlog/round-records-the-text-it-read.md` §3 on 2026-09-11. Its predicate reproduces
+in a fixture — two clean audit rounds either side of a spec edit converge, and emit → edit → record
+reads `stale: false` — but the recorded corpus holds one instance in its audit rounds (0.35.0 round 8 →
+round 9), and the review-side hash mismatch count has not moved since v0.35.0. The derivation commands
+and the per-cycle table are in `spec/backlog/round-records-the-text-it-read-measurements.md`.
