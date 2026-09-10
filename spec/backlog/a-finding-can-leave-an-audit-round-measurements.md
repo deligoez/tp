@@ -197,3 +197,66 @@ Measured at HEAD:
 
 So an unattended agent can today write the exact row §2 would make non-gating, with an empty reason.
 The `Unattended` search was repeated at the head this file was split at and still returns 0.
+
+## Rewritten 2026-09-11: what changed in the body
+
+**Added:** §4 (the Prior Round block carries disposition and evidence, field item #31) and §5 (every
+audit count reads the surviving set, `dispositioned` on `--status`, and `next_action` — moved here from
+`a-findings-exits-agree.md` §5 with its two test rows, now rows 14 and 16). **Changed:** row 7 keeps
+*re-stamps nothing* and no longer says the write is silent; the notice for a resolve into a file that
+is not a recorded round, and the correction of a resolve's re-record `next_step`, ship in
+`audit-records-what-was-graded`. **Trimmed:** the split-history lines at the top, §2's paragraph on
+reversing `spec/0.37.0.md` §2 (it repeated §1 *Consequences*; the argument stays here under *Why the
+reversal is not a gap being filled*), and the test-table preamble.
+
+## Field report WB-3155, verified 2026-09-11
+
+A field report (WB-3155), from a project on tp v1.1.1, was checked claim by claim against a binary
+built from `18032abe`. Fixtures were built in throwaway git repositories outside this tree.
+
+### #30 — "`--status`'s `open` counter never reads a disposition": CONFIRMED, INTENDED at `HEAD`
+
+The report resolved 75 rows of an audit round into the recorded round file and `tp audit --status`
+still showed the same `role_streaks` open counts as before. Reproduced on a two-role fixture (one
+`main.go`, the embedded default corpus, round 1 recorded with the security row `FAIL` / `warning` and
+the other role's row `PASS`), then `tp audit .tp-review/spec/audit-round-1.ndjson --resolve 0 wontfix
+"<reason>"`:
+
+- the resolve exits 0 and prints `{"file": ".tp-review/spec/audit-round-1.ndjson", "status":
+  "wontfix", …}`;
+- `--status` before and after differs only in `in_flight_round`, which the probe's own round-2
+  emission set; `role_streaks` stays `security: consecutive_clean 0, open 1`, and the round stays
+  `clean: false`.
+
+This is documented behaviour, not a bug: `skills/tp/SKILL.md` Workflow D states *"A disposition is
+not an escape hatch from the gate"* and that parking a finding leaves the count, the streak and
+`--status --check` where they were. Source: `auditRoundOpenByRole`
+(`internal/engine/rolestreaks.go:128-143`), which counts every non-`PASS` row per role and reads no
+`resolved` key. The body's §5 reverses the documented behaviour together with §2's stamp.
+
+### #31 — "the audit Prior Round block carries no disposition": CONFIRMED, covered by no spec before this
+
+The report generated its round-3 prompts before and after writing 75 dispositions and got
+byte-identical output. Reproduced on the fixture above: the round-2 emission before and after the
+`wontfix` is byte-identical (`cmp` exit 0), and the security prompt's block reads
+
+```
+## Prior Round: context to re-check, not a verdict to repeat
+These are your own non-PASS rows from the previous round. Re-check each item against the code and record your own status. Do NOT repeat the prior verdict without verifying.
+
+{"role":"security","item_id":"file-security-main-go-apply-the-security-role-rules-to","status":"FAIL","evidence_file":"main.go","changed_since":false}
+```
+
+Source: `priorAuditRow` (`internal/cli/audit_roles.go:170-176`) has `role`, `item_id`, `status`,
+`evidence_file` and `changed_since` and no disposition or evidence field; `renderPriorRoundSection`
+(`audit_roles.go:193-210`) marshals it as is; the rows are selected in `internal/cli/audit.go:563-585`.
+The report's own workaround — attaching a 175-line disposition file to each prompt by hand — is the
+cost §4 removes. Its observation that a visible disposition would have exposed #29 in the first round
+is plausible and was not tested.
+
+### #29 — "`--resolve` writes into any file it is given": CONFIRMED on both phases, routed
+
+A resolve into the merge output after `--record` exits 0 and never reaches the recorded round;
+outside `tp run`, following the success output's `next_step` can record a duplicate round. Both halves,
+and the `skills/tp/SKILL.md` step that names the merge output, are
+`audit-records-what-was-graded`'s. This spec keeps only row 7's *re-stamps nothing*.
