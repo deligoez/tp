@@ -1,263 +1,155 @@
-# tp — The gate sequence
+# tp — The gate can be run, checked and set per spec
 
 A backlog spec, named by slug; its priority number and its release number are assigned later. Its
-measurements are in `gate-sequence-measurements.md` beside it; this file stands without them.
+measurements are in `gate-sequence-measurements.md` beside it; this file stands without them. The
+slug predates the 2026-09-11 rescope and stays because shipped artifacts cite it.
 
-Class: **tool** — it changes a config field, adds a verb and rewires CI; the loop that reviews it is
-not the thing it changes. Budget it at the tool-class median in `CLAUDE.md`'s *What a cycle costs*
-table.
+Class: **tool** — it adds a verb, a check at the writes that set a gate, and one settable field; the
+loop that reviews it is not the thing it changes. Budget it at the tool-class median in `CLAUDE.md`'s
+*What a cycle costs*.
 
-**This file is decisions.** Its central one is not the array — it is that **CI stops restating the
-gate**. v0.36.0's audit returned to that restatement across several rounds and closed none of it; the
-round-by-round record is in the sidecar under "Why the restatement goes: the five-round record". A
-repaired guard *is* available, so the reason for removing the restatement is not that guarding it is
-impossible. It is that a guarded restatement is still two definitions of the gate, now with a third
-artifact keeping them in step.
+## 1. The decision
 
-## 1. Overview
+**Context.** A field report (WB-3155) met the quality gate three ways, and each reproduces at `HEAD`
+(sidecar, *Field report WB-3155, verified 2026-09-11*):
 
-`quality_gate` is a shell string, `.tp/config.json` holds it, and **CI restates it** as four separate
-`run:` steps (`grep -n 'run:' .github/workflows/ci.yml` returns exactly four keys; `checkout` and
-`setup-go` are `uses:` steps and are not among them). `TestCIRunsEveryStepOfTheProjectGate` ties the
-two by splitting the string on `&&` and asserting each step appears in `ci.yml`.
+- **A gate that cannot run is accepted wherever it is written and discovered at the first close.**
+  `tp init --quality-gate` and `tp import` take a gate whose first command does not exist and exit
+  0, and `tp validate` exits 0 over it. The first `tp done` exits 4 with the shell's own
+  *command not found* code in `exit_code` and a hint offering `--skip-gate` — advice for closing
+  over a failing check, given when no check ran.
+- **One spec's gate cannot be set.** `tp set --workflow quality_gate=` is refused as *authored by tp
+  init*; the project-layer write lands in `.tp/config.json`, which every other spec resolves, and is
+  shadowed by a task-layer value already present. `skills/tp/SKILL.md`'s Step 1 tells the reader a
+  spec may deviate from the shared gate; after `tp init`, tp offers no supported way to make it.
+- **There is no way to ask tp to run the gate.** `tp gate` is an unknown command, so the only run
+  tp offers is a close, and checking a gate beforehand means copying its string out of the config.
 
-That guard does not work **as written**: it is a `strings.Contains` over the whole file
-(`internal/cli/ci_gate_test.go`), and every input §1.1 summarises defeats it. A better-scoped
-assertion is available — the sidecar records the two that were built and the matrix they produced — so
-what this release does is remove the second definition of the gate, leaving nothing for any guard to
-keep *in step*. That is narrower than it first read here, and the difference is §4's: removing the
-restatement removes what two definitions can drift apart on, and removes nothing of CI's dependency on
-the gate. `ci.yml` still has to invoke `tp gate`, and §4 measures that nothing in the release noticed
-when it stopped.
+**Decision.**
 
-Four deliverables:
+1. `tp gate` runs the gate that resolves for the task file, through the one executor every closing
+   command uses (§2).
+2. Every write that sets a gate checks once that its first command resolves, and warns when it does
+   not (§3).
+3. A close whose gate exits 126 or 127 gets a hint naming the command that could not run, and not
+   `--skip-gate` (§4).
+4. `tp set --workflow quality_gate=<cmd>` writes the task-layer value, and under `TP_UNATTENDED=1` a
+   `quality_gate` write is refused at either layer (§5).
 
-1. **`quality_gate` becomes an ordered array of named entries** (§2), the string form still accepted.
-2. **`tp gate` runs it** (§3) — a verb that does not exist today, which is what makes restating the
-   gate in CI convenient rather than necessary.
-3. **CI invokes `tp gate`** (§4), so there is no restatement left to certify.
-4. **A doc task:** the red-gate procedure section for `skills/tp/SKILL.md`, specified in
-   `spec/backlog/red-gate-procedure.md`, ships as a task of this release — it is what consumes the
-   entry name §3 introduces, and a procedure with nothing to name it is prose.
+**Consequences.** Workflow A gains a step: run `tp gate` once after `tp import`, before the first
+close. The §3 check catches a command that does not exist; only a run catches one that exists and
+rejects its arguments, which is the shape the field report describes. `skills/tp/SKILL.md`'s Step 1
+line on per-spec deviation becomes true, and `skills/tp/REFERENCE.md`'s `TP_UNATTENDED` table gains a
+`quality_gate` row. The string form of `quality_gate` is unchanged.
 
-### 1.1 What the shipped guard measures, and what it does not
+**Alternatives.** Running the whole gate at `tp import` was rejected: at import nothing is
+implemented yet, so a red gate cannot be told from a gate that cannot run, and a suite run is too
+expensive to be a side effect of writing a plan. The ordered array of named entries this spec used to
+lead with is deferred (§6).
 
-The shipped guard is a `strings.Contains` over the whole of `ci.yml`, and every input the sidecar
-records — a deleted step with a TODO comment naming it, a wrapper replaced by a bare `go test` beside
-a comment naming the full path, an `echo` naming the wrapper above a bare `go test`, `if: false`,
-`continue-on-error: true` — leaves it green while CI runs less than the gate. Deleting only the
-`echo` turns it red, which is the control: the guard tracks text, not execution, and restricting the
-search to executable lines does not help because the mention is itself executable. Two repaired
-assertions were built and run against the same inputs. **A** — equality over parsed run-blocks —
-reddens the text inputs and stays green on the YAML keys; **B** — a prefix blacklist over lines
-beginning `if:` or `continue-on-error:` — reddens the keys and nothing else, and is defeated by
-quoting the key (`"if": false`), so the sound form of its intent is a parser reading each step's key
-set back. The rule is about scope, not polarity: a local assertion inside an unbounded text is
-satisfied by any mention whichever direction it points, and A is the shape §4 ships. So the honest
-claim is narrower than "the guard cannot work": a guarded restatement is still two definitions of the
-gate, and deleting one is the only option that removes work. The full matrix is in the sidecar under
-"What the shipped guard measures, and what it does not".
+## 2. `tp gate` runs the resolved gate
 
-## 2. `quality_gate` is an ordered array of named entries
+**`tp gate` resolves the gate the way a close does** — the same task-file discovery, the same
+layers, the same working directory and the same `gate_timeout_seconds` — and runs it once. It reports
+the resolved command, the layer it resolved from, the gate's exit code and its output tail: the keys a
+failing close already carries, plus the layer, so a driver reads one shape from both and an operator
+facing a masked gate sees which layer won.
 
-```json
-"quality_gate": [
-  {"name": "suite",      "cmd": "./scripts/check-suite-state.sh"},
-  {"name": "lint",       "cmd": "golangci-lint run"},
-  {"name": "deadcode",   "cmd": "./scripts/check-deadcode.sh"},
-  {"name": "complexity", "cmd": "./scripts/check-complexity.sh"}
-]
-```
+**Exit 0 when the gate passes and 4 when it fails**, with the gate's own code in `exit_code` — the
+exit a failing close already uses. Propagating the gate's code as tp's would let a gate that exits 2
+read as a tp usage error. **When no gate resolves, `tp gate` fails** with a hint naming the project
+setter: a run of nothing is not a green gate, and a CI step that invokes `tp gate` must not pass on an
+empty config.
 
-**Entries run in order and stop at the first failure**, which is what `&&` already means. The array
-makes the sequence data instead of syntax.
+**One executor.** tp runs the gate today through two code paths that do not call each other — one for
+`tp done --batch`, the other for `tp done <id>`, `tp done <id1> <id2>` and `tp close` (sidecar, *The
+two executors*). `tp gate` does not add a third: it and every closing command share one, so the
+directory and the timeout a gate runs under cannot differ between asking and closing.
 
-**What the array buys is the entry NAME and a per-entry record — not the exit code.** The string form
-already carries the code, and this is the claim that had to be measured rather than assumed:
-`sh -c '(exit 3) && (exit 9)'` returns **3**, not 1, and the second command never runs; codes 1, 2,
-3, 4, 5 and 42 each come back unchanged from the middle of a chain. End to end through tp, a
-four-link gate whose third link exits 33 produces `exit_code: 33` with
-`output_tail: ["step1-ok","step2-ok","step3-failing"]`. So a red gate today does **not** say only
-*something failed* — it says *the third thing to print exited 33*. What it cannot say is **which
-entry** that was, or what the entries before it did: `&&` is syntax, and syntax has no names.
+**`tp gate` writes nothing** — no task-file write, no round, no failure record, inside a unit or out.
+It runs and reports.
 
-**The string form is still accepted and resolves to a single unnamed entry.** Every existing task
-file and project config keeps working, and `tp config --resolved` reports the array form for both.
-That last half is an **output-contract** change as well as an input compatibility one: a reader that
-unmarshals `quality_gate` into a string breaks on a config it never edited.
-`internal/cli/ci_gate_test.go` does exactly that today and is the in-tree instance.
+## 3. A gate is checked when it is written
 
-**No `continue-on-error` and no per-entry skip.** A gate entry that may fail without failing the gate
-is not a gate entry, and the sidecar's fifth input is what that flag does to CI. This is about a
-per-*entry* skip; tp's per-*invocation* one, `--skip-gate`, is untouched (§7 item 5), and the two are
-easy to conflate.
+**Every write that sets a gate checks once that the gate's first command resolves**: `tp init`, over
+the gate that resolves for the file it creates, whether or not `--quality-gate` supplied it;
+`tp import`; and `tp set --workflow quality_gate=` at either layer. *Resolves* means what the shell
+that runs the gate would find from the gate's working directory: a builtin, an executable path, or a
+name on `PATH`.
 
-## 3. `tp gate` runs the resolved gate
+**It warns and does not refuse.** A notice on stderr names the command, the payload names it too, and
+the write's exit code is unchanged. The check measures this machine at write time while the gate runs
+later and perhaps elsewhere — a CI runner, a machine that installs its tools after planning — so a
+refusal would make installing the tools a precondition of writing a plan.
 
-**There is no way to ask tp to run the gate.** `tp gate` exits 2 with
-`unknown command "gate" for "tp"`. That makes restating the gate in CI convenient; it does not make
-it necessary, and the honest form of the argument is the one §4 gives.
+**Only the first command, and the limit is stated rather than hidden.** A later command in an `&&`
+chain, and a first command that exists but rejects its arguments, both pass. Checking the whole string
+is parsing shell; running it is §2's job, and §1's Workflow A step is where that run happens.
 
-**And tp already runs the gate through two executors.** `internal/cli/gate.go` builds
-`engine.RunCommand(wf.QualityGate, gateDir(taskFilePath), …)` at two independent call sites after
-two independent calls to `engine.EffectiveWorkflowForTaskFile`:
+## 4. A gate that cannot run says so at close
 
-- `executeQualityGate`, which returns a `RunResult` — reached from exactly one place, the
-  **`tp done --batch <file>`** path in `internal/cli/done.go` (the call sits inside `runDoneBatch`),
-  whose own comment says that path "does not exit through `runQualityGatePreFlock`";
-- `runQualityGatePreFlock`, which prints the error object and calls `os.Exit(ExitState)` — reached
-  from **`tp done <id>`** (`runDoneSingle`), **`tp done <id1> <id2>`**'s surviving tasks
-  (`runDoneMulti`), and **`tp close`**.
+**When a close's gate exits 126 or 127, the hint says the gate could not run a command** — naming it
+when the §3 check identifies it — and points at fixing the gate, not at `--skip-gate`. Those are the
+shell's codes for *not executable* and *not found*, and a close over them records a skipped check that
+never ran, which is the wrong record. Under `TP_UNATTENDED=1` the hint points at `tp escalate`
+instead, because §5 refuses the gate write on that path and a hint naming a command that exits 2 there
+is worse than none. Every other exit keeps the hint it has, and `--skip-gate` itself is unchanged.
 
-**The multi-ID form is not the batch path, and an earlier revision of this section said it was.**
-`runDone` dispatches `--batch` before it parses positional IDs and only then splits one ID from many,
-so `tp done <id1> <id2>` is `runDoneMulti` and reaches `runQualityGatePreFlock` — never
-`executeQualityGate`. The tree draws the same line in its own error text: *"--auto-commit is not
-supported with multiple task IDs. Use `tp done --batch` for multi-task auto-commit."* The structural
-conclusion is unaffected — two executors, no overlap — but §8 row 3 asks an implementer to assert on
-every call site the merged executor has, and the wrong command name sends them to the wrong one.
+## 5. A spec can set its own gate
 
-They do not call each other: searching the tree for `executeQualityGate` returns one call site, and
-`runQualityGatePreFlock` is not it. So the drift this release exists to remove **already exists**,
-unmentioned, between two paths that differ in whether they return or exit.
+**`tp set --workflow quality_gate=<cmd>` writes the task-layer value** for the task file the command
+resolves, as `--project` already writes the project one, and `tp config --resolved` reports it with
+source `override`. A spec that needs a different gate gets one without `tp import --force` and
+without changing the gate every other spec resolves.
 
-`tp gate` resolves the gate through the existing layers, runs the entries in order, and reports each
-entry's name, command, exit code and duration. Exit 0 when every entry passed; the failing entry's
-exit code otherwise.
+**Under `TP_UNATTENDED=1`, a `quality_gate` write is refused at either layer**, on the field alone and
+with an escalation hint — the rule the `runner` field already follows, and for the same reason: the
+value is a command tp executes. A unit that can rewrite its own gate can close over anything, which is
+`--skip-gate`'s effect without its record. The project-layer write is not fenced at `HEAD` (sidecar,
+*Observed while verifying item 3*), so the fence closes a route that exists as well as the one this
+release opens.
 
-**One executor, not three.** The two above collapse into the one `tp gate` uses, and every existing
-call site moves onto it. Two code paths that run "the gate" are a second thing to keep in step —
-which is why `tp gate` cannot simply be bolted onto whichever of them is nearer.
+`commit_strategy` stays authored by `tp init` alone; this release moves `quality_gate` only.
 
-**`--json` reports the per-entry results, and the entry NAME is what that buys.** A driver reading a
-red gate today is not told *nothing* about which step failed: the shipped string gate already emits
-`exit_code` — the failing link's own code, measured at 33 for a four-link gate whose third link exits
-33 — alongside `gate_cmd` and an `output_tail` truncated at that step. What it cannot do is **name**
-the step, so the driver must infer it from unstructured output, and a step with no name cannot be
-reported, retried or branched on. The red-gate procedure (`spec/backlog/red-gate-procedure.md`,
-deliverable 4) is what consumes the name.
+## 6. Non-Goals
 
-## 4. CI invokes `tp gate`
+1. **The ordered array of named entries is deferred.** Its benefit is unmeasured, and the string form
+   already identifies the failing step: a failing close carries that step's own `exit_code` and an
+   `output_tail` that ends at it. The sidecar keeps the decision and its rows verbatim under
+   *Deferred at the 2026-09-11 rescope: the named-entry array*. **Reopen condition:** a driver or a
+   skill procedure that must branch on which gate step failed and cannot do so from `exit_code` and
+   `output_tail`.
+2. **Chores, not this release — plain commits, no cycle:** CI invoking `tp gate` instead of restating
+   the gate (once this release ships), the workflow pin guard's `.yaml` and per-file coverage, the
+   load-sensitive hook-timing test's constant, and the `NewRootCmd` second-call fence. Each is this
+   repository's own tooling and none changes what tp does for a user; their decisions are in the
+   sidecar under *Chores moved out at the 2026-09-11 rescope* and *Decided at the 2026-09-08 decision
+   pass*.
+3. **No change to when a close runs the gate, or to `--skip-gate`.** §4 changes a hint, not the flag.
+4. **The mutation-run check is not a gate step.** It lives in `spec/backlog/mutation-run-check.md`
+   as a script, and excludes itself from the per-task gate.
+5. **No gate procedure ships here.** The red-gate procedure (`spec/backlog/red-gate-procedure.md`) is
+   a doc note that runs on today's `&&` gate and no longer waits for this release.
 
-`.github/workflows/ci.yml`'s four `run:` steps become **two**: one that installs the tools, one that
-runs `tp gate`. The installations stay — `golangci-lint`, `deadcode` and `gocognit` must be on `PATH`
-before the gate runs, and that is CI's job, not the gate's — but they cannot stay *as they are*.
-Three of today's four steps are named "Install and run X" and each also invokes its tool, so a
-post-change `ci.yml` that keeps any of them whole still restates that step's gate command. Measured
-on both: a file keeping two such steps beside `run: tp gate` is **red** under the replacement guard
-below, while install-only steps plus `run: tp gate` are **green**.
+## 7. Tests
 
-**`TestCIRunsEveryStepOfTheProjectGate` is deleted, not repaired.** With no restatement there is
-nothing left to compare, and a guard whose subject has been removed is not a guard. That is the whole
-argument. §1.1 is not part of it — §1.1 records a repair that *works*, and the case for deleting the
-restatement is that a guarded restatement is still a second definition of the gate.
-
-**What replaces it is narrower and sound:** a test asserting that `ci.yml` **nowhere contains** a gate
-entry's command — a whole-file assertion, not one scoped to `run:` steps. The distinction is not a
-wording quibble, and it was measured on one fixture: a post-change `ci.yml` carrying a historical
-comment that names three gate commands is **green** under the scoped reading and **red** under the
-whole-file one. The whole-file reading is the one that ships, for §1.1's reason — its subject is the
-whole of a bounded artifact, so a mention has nowhere to go. Its cost is stated here rather than
-discovered later: `ci.yml`'s surviving comments must avoid every gate command verbatim.
-
-**Absence of the restatement is not presence of the gate, and that needs a second assertion.** The
-replacement guard is sound for the property it states and for nothing else. A post-change `ci.yml`
-with the `run: tp gate` step **deleted** — CI running no gate at all — is green under *both* readings
-of it, and green under every other row of §8 as this section first wrote them: nothing in the release
-asserted that CI invokes the gate. That is the sidecar's first input reopened against the guard
-shipped to replace the one that input defeated — delete the step, everything stays green — with only
-the shape of the deletion changed, from a missing `run: ./scripts/check-deadcode.sh` to a missing
-`run: tp gate`. §8 row 10 asserts the other half. It is stated as equality over the parsed set of
-run-blocks, in A's shape, rather than as a substring over the file, because a presence assertion
-inherits §1.1's lesson whichever direction it points.
-
-## 5. Two guards narrower than their claims
-
-**`ci_pin_test.go` walks only `*.yml`.** GitHub Actions accepts `.yaml` identically, so a
-`release.yaml` installing `golangci-lint@latest` is invisible while the guard passes. Measured: a
-`nightly.yaml` carrying three floating installs passes; the same bytes renamed `nightly.yml` fail on
-all three refs by name. The extension alone decides the verdict, and the walk covers both.
-
-**The regex scope is what lets `release.yml`'s floating refs through — the counter is not.** Floating
-**every** ref in `release.yml` leaves `TestWorkflowToolsArePinned` passing, and the reason is not the
-global counter: `goInstallRef` matches only `go install`, and `release.yml` has none of those
-(`grep -cE 'go install[[:space:]]+[^[:space:]]+@[^[:space:]]+' .github/workflows/release.yml` → 0,
-`ci.yml` → 3), so the guard never looks at the refs that were floated. The counter half built on its
-own was run twice — against a fully floated `release.yml` and against the shipped, fully pinned one —
-and returned the **identical** verdict, `release.yml contributed zero matches`. It cannot tell them
-apart either.
-
-**So the two halves are one change, not two.** `goInstallRef` extends to `uses:` refs, a third
-pattern covers `go-version:` (which is not a `module@ref` at all and no `uses:` pattern can reach),
-**and** `checked` becomes per file — which is what turns a workflow contributing nothing from a
-silence into a failure.
-
-**The extension reddens the shipped tree, so repinning both workflows is part of this release.**
-Built as described and run against the untouched workflows: **7** floating refs — `ci.yml`
-`checkout@v4`, `setup-go@v5`, `go-version: stable`; `release.yml` those same three plus
-`goreleaser-action@v6` (`grep -nE 'uses:|go-version:' .github/workflows/*.yml`). Every one is pinned
-to an exact version here. A release does not ship a guard that is red on its own tree.
-
-**Scope, measured rather than assumed.** `release.yml` is not worse *in kind* than `ci.yml` — same
-mutable major tags, same `go-version: stable` line. It is worse in *impact*, because its output is
-what users install rather than a pass/fail signal.
-
-## 6. A load-sensitive gate test
-
-`TestRoleWriteHookStaysCheapOnADeepMissingPath` (`internal/cli/role_write_symlink_test.go`) asserts
-a ratio of deep to shallow wall-clock and failed one full gate run during v0.36.0's implementation;
-the failing figures live in the `closed_reason` of task `instruction-test` in
-`spec/0.36.0.tasks.json`, and no repetition since has reproduced them. **The design stays and the
-constant moves.** A ratio rather than a deadline, fastest-of-N each side, is right; what was wrong
-was the reason first given for widening — the constant does not sit at the noise floor, the problem
-is a tail, and a sample maximum is not a bound because the maximum is exactly the statistic a tail
-moves. The constant moves to **4** — above the recorded outlier and still below the unbounded walk
-the test's own comment records — and the sample grows from three iterations per side to nine, because
-a fastest-of-N estimate is what a tail defeats and N is the only knob that answers it. It is fixed
-here because a gate that randomly reddens is a gate people learn to re-run, which is the habit that
-makes *temporarily skipping (flaky on CI)* a thing someone writes. The repetitions, the timings and
-the rejected mechanism are in the sidecar under "A load-sensitive gate test".
-
-A gate step that is green on the first run and red on the second — `NewRootCmd` binding package-level
-flag variables, found when two parallel tests built a root command under `-race` — is the same class
-by a different route and takes no decision here; `spec/undecided.md` carries it as "`NewRootCmd`
-writes package globals".
-
-## 7. Non-Goals
-
-1. **No new gate entries.** The four stay exactly what they are; only their representation and their
-   caller change.
-2. **No per-entry timeout, retry or parallelism.** Entries run in order, once, sequentially.
-3. **No `continue-on-error` equivalent, at any layer.** §2 states why.
-4. **`tp gate` does not record anything.** No round, no state, no task-file write. It runs and reports.
-   Satisfiable but not free: `runQualityGatePreFlock` reaches `recordGateFailure`
-   (`internal/cli/gate.go`) whenever its `recordFailure` argument is true, and that writes
-   `.tp/last_failure-<base>.json` under `TP_UNIT_KIND`. `tp close` already passes false for this
-   reason; the merged executor must let `tp gate` do the same.
-5. **No change to when a task close runs the gate**, or to `--skip-gate`, which remains a user-approved
-   decision and remains fenced under `TP_UNATTENDED=1`.
-6. **The mutation-run check is not an entry of this gate.** It excludes itself from the per-task
-   `quality_gate` — the engine package's mutant set is not something to run hundreds of times — and
-   lives in `spec/backlog/mutation-run-check.md` as a script and a `CLAUDE.md` line, not as a release.
-
-## 8. Tests
-
-Every row derives from a numbered decision, names the artifact it depends on, and names a mutant that
-must fail it.
+Every row derives from a numbered decision and names a mutant that must fail it. Rows 6, 9, 12 and 14
+quote their `HEAD` value, observed on the fixture the sidecar describes; the other rows' subjects do
+not exist at `HEAD`, so their pairs of counts belong to the implementing task's acceptance.
 
 | # | from | assertion | the mutant that must fail it |
 |---|---|---|---|
-| 1 | §2 | a four-entry array **names** the entry that failed and records a per-entry result for every entry that ran | collapse to `&&`, which has no names and no per-entry record, so nothing can satisfy the assertion |
-| 2 | §2 *compat* | a string `quality_gate` resolves to one entry and behaves identically at a task close | accept only the array — which breaks `.tp/config.json`, the only string gate in this repository, and every other repo's config and task files |
-| 3 | §3 | `tp gate` and a task close run the same resolved entries through **one** executor — asserted on recorded argv under a stub, at every call site the merged executor has | give `tp gate` its own executor, making three where the tree already has two |
-| 4 | §3 *exit* | `tp gate` exits with the failing entry's code; 0 when all pass | exit 1 always — a regression, because the shipped string gate already propagates the failing link's own code |
-| 5 | §4 | the sidecar's third input — an `echo` naming a gate command above a bare `go test` — is **rejected** by the replacement guard | keep a presence assertion, which the sidecar measured green on every shipped guard for that input |
-| 6 | §4 *immunity* | the replacement guard is the **whole-file** reading: a comment naming a gate command leaves it red | scope it to `run:` steps, which the same comment leaves green — measured, both readings, on the same fixture |
-| 7 | §5 | a `release.yaml` with every ref floating fails the pin guard | keep `*.yml` and the global counter, the shipped behaviour, measured to pass |
-| 8 | §5 *per-file* | **with §5's `uses:` and `go-version:` patterns in place**, a fully pinned `ci.yml` does not rescue an unpinned second workflow | keep `checked > 0`, satisfied by `ci.yml` alone |
-| 9 | §6 | the widened constant passes the runs the sidecar records **and still reddens on an unbounded walk** | keep `3*shallow`; or widen past the unbounded signal, which passes a bounded and an unbounded hook alike |
-| 10 | §4 *presence* | `ci.yml`'s parsed set of run-blocks contains one **equal** to the gate invocation — deleting the `run: tp gate` step reddens it | ship rows 1–9 alone: a post-change `ci.yml` with that step deleted was measured green under every one of them, and under both readings of row 6's guard |
-
-Rows 5 and 8 each depend on a recorded fixture — row 8 on §5's two halves landing together, row 5
-on the `echo` spelling the wrapper's full `./scripts/` path — and the sidecar states both under
-"Notes on rows 5 and 8".
+| 1 | §2 | with a gate that writes its working directory to a file, run from a shell whose directory is not the task file's, `tp gate`, `tp done <id>`, `tp done <id1> <id2>`, `tp done --batch` and `tp close` all record the same directory | give `tp gate` its own executor running in the process's working directory |
+| 2 | §2 *timeout* | with `gate_timeout_seconds` at 1 and a gate that sleeps longer, `tp gate` stops the gate and reports a failure, as a close does | an executor for `tp gate` that ignores the resolved timeout |
+| 3 | §2 *exit* | `tp gate` exits 0 on a gate of `true`; on `exit 33` it exits 4 with `exit_code: 33`, and on `exit 2` it exits 4, not 2; its `gate_cmd`, `exit_code` and `output_tail` equal a failing close's on the same gate, and it names the layer | propagate the gate's code as tp's exit code, so a gate exiting 2 reads as a usage error |
+| 4 | §2 *empty* | with no gate resolving, `tp gate` exits non-zero and its hint names the project setter | exit 0 on an empty gate, which lets a CI step invoking `tp gate` pass on an empty config |
+| 5 | §2 *writes nothing* | a failing `tp gate` with `TP_UNIT_KIND` set leaves the task file and every file under `.tp/` byte-identical | record the failure as a close does |
+| 6 | §3 | `tp import` of a task file whose `workflow.quality_gate` is `no-such-gate-cmd --check && true` names `no-such-gate-cmd` on stderr and in the payload, and exits 0; at `HEAD` it exits 0 and names nothing | `HEAD`, which checks nothing |
+| 7 | §3 *builtin* | a gate of `cd . && true` passes the check with no notice | resolve through `PATH` alone, which flags the builtin `cd` |
+| 8 | §3 *layers* | `tp init` without `--quality-gate`, in a project whose `.tp/config.json` gate's first command does not resolve, names that command | check only a value given on the command line, which misses the gate the new file resolves |
+| 9 | §4 | on row 6's fixture, `tp done t1 <reason> --commit <sha>` and a `tp done --batch` row for `t1` each carry a hint naming `no-such-gate-cmd` and not `--skip-gate`; at `HEAD` both offer `--skip-gate` | `HEAD`'s hint, unchanged for 126 and 127 |
+| 10 | §4 *unattended* | the same close under `TP_UNATTENDED=1` carries a hint naming `tp escalate` and not the gate setter | the attended hint on both paths, which names a command §5 refuses there |
+| 11 | §4 *scope* | a gate exiting 1 keeps the `--skip-gate` hint | give every failing exit the new hint |
+| 12 | §5 | `tp set --workflow quality_gate="true"` exits 0 and `tp config --resolved` reports `true` with source `override`; at `HEAD` the set exits 2 | `HEAD`'s read-only field set, which still holds `quality_gate` |
+| 13 | §5 *scoped* | after row 12, a second task file in the same project still resolves the project gate | write the value into `.tp/config.json`, which every spec resolves |
+| 14 | §5 *fence* | under `TP_UNATTENDED=1`, `tp set --workflow quality_gate=true` and `tp set --workflow --project quality_gate=true` both exit 2 with an escalation hint and leave the task file and `.tp/config.json` byte-identical; at `HEAD` the project write exits 0 and writes | fence only the task-layer write this release adds, leaving the project-layer route open |
