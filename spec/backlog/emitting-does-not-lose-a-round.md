@@ -1,101 +1,113 @@
 # tp — Emitting does not lose a round
 
-Class: tool
+A backlog spec, named by slug; its priority number and its release number are assigned later. Its
+measurements are in `emitting-does-not-lose-a-round-measurements.md` beside it, and this file stands
+without them. It absorbs `scratch-name-is-unique-per-spec.md` whole and `reconcile.md` §2.1 as it
+stood before 2026-09-11.
 
-## 1. Overview
+Class: **tool** — it changes what an emission refuses and which file it names, and no convergence
+signal.
 
-Two things an emission can do to a round in flight, one of them measured on this repository's own
-work. Re-emitting an unrecorded round is **idempotent**, and the fear that it is not cost one field
-reporter six briefs of workarounds — but nothing in the output says so, and the same call advances a
-recorded round (§2). And emitting over an unrecorded round whose text has since changed **overwrites
-its floor without a word**, which cost this repository one full round of grading (§3). Split out of
-`ground-command-friction.md` on 2026-09-08, where these were §14 and *The silent overwrite*, with the
-two test rows that belong to §2. Every claim below was run rather than reasoned about; the
-measurements and the commands that derive them are in
-`emitting-does-not-lose-a-round-measurements.md`, and no figure from that file is restated here. The
-grounding programme and the two field reports are described in
-`what-the-record-does-not-say-measurements.md` under *§1 The evidence base* and *§1.1 The second
-evidence base*.
+## 1. The decision
 
-From the original file's own cost order:
+**Context.** Two things an emission can do to work in flight, both silently, both at exit 0.
 
-10. **A fear the tree refutes** (§2): re-emitting an unrecorded round is idempotent. The ask survives
-    the refutation, because nothing in the **output** says so and the same call advances a recorded
-    round.
+- **It names a scratch file two specs share.** The file an emission tells a unit to write carries the
+  round and, on review and audit, the role — never the spec. Two units working on two specs at once
+  are told the same filename, and the second overwrites the first at exit 0 (sidecar of
+  `scratch-name-is-unique-per-spec`).
+- **It replaces an unrecorded round.** Re-emitting a round nobody has recorded yet rewrites that
+  round's snapshot — and on `tp ground`, its floor — from the spec as it stands now. When the text is
+  unchanged that is the idempotent re-emission the loop relies on. When the spec was repaired between
+  the emission and the record, the round's graded work no longer matches anything on disk, and nothing
+  says so. This repository lost a full round of grading to it on `tp ground`; the same overwrite
+  reproduces on `tp review` and `tp audit` (sidecar, *The silent overwrite* and *Re-verified
+  2026-09-11*).
 
-## 2. A fear the tree refutes, and the ask that survives the refutation
+**Decision.** The scratch file an emission names carries the spec's base (§2). An emission over an
+unrecorded round whose text has changed refuses, on all three phases (§3).
 
-Report B feared that a sub-agent running bare `tp ground <spec>` to fetch its own prompt would open a
-new round and orphan the one in flight. It worked around this with saved envelopes and explicit
-warnings in six briefs.
+**Consequences.** Emission gains an exit code it did not have (§3), and an operator who repaired a
+spec mid-round records the round or discards it explicitly rather than having it discarded for them.
+`reconcile.md` §2.1's `spec_moved_mid_round` counter becomes unnecessary (§3.1). The documentation
+owes an update wherever it names a scratch file or describes re-emission: `skills/tp/SKILL.md`'s
+ground loop and its role-output naming, its *order inside a round* (which says a new emission
+overwrites an unrecorded round silently), and `skills/tp/REFERENCE.md`'s re-emission and role-output
+passages. The implementing task finds every passage by searching both files for the scratch-name
+patterns and for "overwrite", rather than trusting a list.
 
-**The fear is false.** Two consecutive bare emissions on an unrecorded round return the same round
-number, the same floor size and a byte-identical floor file (measurements file, "§14").
-**Re-emitting an unrecorded round is idempotent** — `NextGroundRound` answers *recorded rounds + 1*,
-and the emission rewrites the same two files. `skills/tp/SKILL.md`'s ground loop now says so.
+**Alternatives.** A guard at `--record` instead of at emission — rejected: on `tp ground`, `--record`
+matches rows against the floor file on disk rather than against the spec's current text, which is what
+made recording a rescued round possible at all, so by the time a record runs the overwritten floor is
+already gone. A read-only way to re-print a round's prompt — dropped (Non-Goal 3).
 
-**The ask survives the correction.** Nothing in the **output** says it is idempotent, and once a round
-is recorded a bare emit legitimately opens round N+1, so the same call is safe in one state and
-round-advancing in the next, with no way to ask which state you are in from the emission's own
-output. `--status` and the state directory both answer, at the cost of a call the reader that matters
-cannot make — the sub-agent holding only its prompt — and none of `tp ground`'s flags re-prints a
-prompt.
+## 2. The scratch name carries the spec
 
-**The decision: a read-only way to re-print the current round's prompt**, which emits nothing, writes
-nothing, advances no round, and refuses rather than emitting when there is no round in flight. Named
-here as a decision and not as a design: whether it is a flag on `ground` or a mode of `--status` is
-the implementing task's call, and the property that matters is that it cannot be the same call as the
-emission — a mode that is safe or destructive depending on state is the shape the report was right to
-be afraid of even though its specific fear was wrong.
+**The scratch file an emission names carries the base the state directory already uses**
+(`spec/.tp-review/<base>/`): `ground-<base>-r<N>.ndjson` on ground, and on review and audit outside a
+run `<phase>-<base>-r<N>-<role>.ndjson`. Nothing new is derived, and no two specs collide. A default
+every caller must override is the tell: the grounding programme that measured this carried a
+hand-written override in every brief (sidecar of `scratch-name-is-unique-per-spec`).
 
-This is the second report claim the tree contradicts. The first is the escape hatch in
-`spec/backlog/what-the-record-does-not-say.md` §3: it exists in the mechanism and is closed by the
-prompt. Both are recorded with the measurement rather than quietly corrected, on the same rule
-`spec/backlog/the-floor-names-what-it-cut.md` §3 and the original file's header follow.
+**Two names do not change.** The **recorded** round files — `ground-round-<N>.ndjson` and
+`<phase>-round-<N>.ndjson` — are the files `--record` writes beside the snapshot, a deliberate and
+different name, and stay. **Under `tp run`** a role's path is `$TP_ROUND_DIR/role-<role>.ndjson.part`,
+the one path the run's write fence allows; it does not collide and stays.
 
-## 3. The silent overwrite: emitting over an unrecorded round
+## 3. An emission does not replace an unrecorded round whose text changed
 
-**Measured on this repository's own hotfix cycle** (measurements file, "The silent overwrite"): a
-round was graded, the spec repaired before the round was recorded, and `tp ground <spec>` re-emitted
-round 1 against the repaired text, **overwriting the unrecorded round's floor file without a word**;
-`--status` then reported a round with no dispositions — indistinguishable, from the record alone, from
-a round nobody has graded yet. Recovery was possible only by accident, and the cost of the missing
-guard was one full round of grading.
+**When a round has been emitted and not recorded, and the snapshot the current spec would produce —
+on `tp ground`, the floor as well — differs from the one on disk, the emission refuses.** It exits 3,
+tp's file-or-state code, writes nothing, names the round, says it is unrecorded, and names the two
+ways on: record the round, or re-emit with `--force` to discard it. `--force` is a new flag on
+`tp ground` and a new meaning, at emission, for the flag `tp review` and `tp audit` already carry for
+`--resolve`.
 
-**Review and audit already have the signal ground lacks.** Both expose `in_flight_round` — a snapshot
-with no recorded round file — and `tp resume` routes to `record-round` on it. Ground records by
-filename rather than through `state.json`, so it has no equivalent and nothing notices.
+**An identical re-emission stays silent.** Same text, same round number, same bytes, exit 0 — the
+re-emission the loop and its sub-agents rely on is unchanged. A recorded round is not in flight, so
+the next emission opens round N+1 whatever the text says.
 
-**What this release should do**: when a floor exists for a round that carries no recorded findings
-file, and the floor the current text would produce differs from it, refuse the emission, name the
-round, and say the earlier one is unrecorded. `--force` overwrites. An identical floor is the
-idempotent re-emission the loop relies on and must stay silent.
+**It holds on all three phases** because the overwrite does. Review and audit already report an
+unrecorded round as `in_flight_round`; ground has no such field and records by filename, which is why
+nothing noticed there first. The refusal reads the same on-disk state each phase already uses to find
+the round in flight.
 
-One fact worth carrying into the design, measured during the recovery: **`--record` matches rows
-against the floor file rather than against the spec's current hash.** That is what made recording a
-rescued round possible at all, and it means the guard belongs on the emit path rather than the record
-path.
+### 3.1 `spec_moved_mid_round` is no longer needed
+
+`reconcile.md` §2.1 proposed counting re-emissions whose bytes differed, on the round's entry. Once
+this refusal ships, such a re-emission cannot happen silently: a refused one writes nothing, and a
+forced one discards the round, so the round later recorded read exactly the text its snapshot holds.
+The counter would measure nothing and is dropped. A spec that changes between emission and record
+**without** a re-emission is a different gap — the recorded hash is read at record, not at emit — and
+it is `reconcile`'s.
 
 ## 4. Non-Goals
 
-1. **No new workflow field and no convergence effect.** Nothing here adds a knob to
-   `.tp/config.json` or to a task file's `workflow` block, nothing reads one, and nothing changes
-   `clean`, a streak or coverage — the `--check` gate is
-   `spec/backlog/next-action-and-check-tell-the-truth.md`'s. This is the one part of the split where
-   the original Non-Goal 5's *"and no exit code"* clause does **not** hold: §3's refusal is an
-   exit-code change, taken deliberately, and §2's re-print refuses rather than emitting when there is
-   no round in flight.
-2. **No change to the recorded round's filename or to `--record`'s atomicity.** §3's guard sits on
-   the emit path, for the reason its last paragraph gives.
+1. **No new workflow field and no convergence effect.** Nothing here adds a knob, reads one, or
+   changes `clean`, a streak or coverage. §3's refusal is the one exit-code change, taken
+   deliberately.
+2. **No change to `--record`.** The guard sits on the emit path, for the reason §1 *Alternatives*
+   gives; the recorded filenames stay (§2).
+3. **No read-only re-print of a round's prompt.** Proposed from one field report whose fear — that a
+   bare re-emission opens a new round — the tree refuted; `skills/tp/SKILL.md`'s ground loop already
+   states that re-emitting an unrecorded round costs nothing, and one report does not carry a new
+   mode.
+4. **No repair of a round already overwritten.** Its floor or snapshot is gone; this stops the next
+   one.
 
 ## 5. Tests
 
-Every row derives from a numbered decision and names an input that must fail it. §3 carries no row:
-it arrived in the original file after §15's table was written and never got one, and the implementing
-task owes the first — an emission over an unrecorded round whose floor differs is refused and names
-the round, while an identical floor re-emits silently.
+Every row derives from a numbered decision and names a mutant that must fail it. Every row is
+written, not yet watched; their subjects do not exist at `HEAD`, so each row's two counts belong to the
+implementing task's acceptance.
 
 | # | from | assertion | the mutant that must fail it |
 |---|---|---|---|
-| 1 | §2 | two bare emissions on an unrecorded round leave the round number and the floor file's bytes identical, asserted on the pair | assert only that the second call exits 0, which is true of a call that opened a new round |
-| 2 | §2 | the read-only re-print emits no round: the state directory is byte-identical before and after, and it refuses when no round is in flight | implement it as a bare emit with the write skipped, which is idempotent on an unrecorded round and advances the round on a recorded one |
+| 1 | §2 | two specs emitted at the same round produce **different** scratch paths — ground's `output_path`, and each review and audit role's path outside a run — asserted on the pair rather than on either alone | keep the round-only name, under which the two are equal |
+| 2 | §2 *base* | the emitted path contains the base the state directory uses, asserted by deriving the base rather than by matching a literal | hardcode a base in the test, which passes for the fixture spec and no other |
+| 3 | §2 *unchanged* | the recorded files are still `ground-round-<N>.ndjson` and `<phase>-round-<N>.ndjson`, and with `TP_ROUND_DIR` set a role's path is still `$TP_ROUND_DIR/role-<role>.ndjson.part` | rename the recorded file to the scratch name, or apply the base to the run path the write fence allows |
+| 4 | §3 | on `tp ground`: emit round 1, edit the spec, emit again — the second emission exits 3, names round 1 as unrecorded, and the snapshot and floor are byte-identical to the first emission's | `HEAD`, which rewrites both at exit 0 |
+| 5 | §3 *phases* | the same sequence on `tp review` and on `tp audit`, each asserted on its own snapshot | guard `tp ground` alone, leaving the two phases that reproduce the overwrite unguarded |
+| 6 | §3 *identical* | two emissions with the text unchanged return the same round number and byte-identical snapshot and floor, exit 0, nothing on stderr — asserted on the pair | refuse whenever a round is in flight, which breaks the idempotent re-emission the loop relies on |
+| 7 | §3 *recorded* | after round 1 is recorded, editing the spec and emitting opens round 2 at exit 0 | compare against the last recorded round's snapshot, which refuses every emission after a repair |
+| 8 | §3 *force* | `--force` over an unrecorded round whose text changed replaces its snapshot and floor and exits 0 | accept `--force` and still refuse, leaving no way on but deleting state by hand |
