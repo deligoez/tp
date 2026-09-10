@@ -1,159 +1,134 @@
 # tp — What the record does not say
 
-Class: tool
+A backlog spec, named by slug; its priority number and its release number are assigned later. Its
+measurements are in `what-the-record-does-not-say-measurements.md` beside it, and this file stands
+without them. That sidecar also holds the shared provenance of the 2026-09-08 split of
+`ground-command-friction.md` (*§1 The evidence base*, *§1.1 The second evidence base*), which every
+sibling split cites. On 2026-09-11 it absorbed `what-the-carry-can-promise.md`'s multiplicity fence,
+because the fence and §3 rewrite the same sentence of the emitted ask; that file is now a forwarding
+stub.
 
-## 1. Overview
+Class: **tool** — §2's fence changes what `tp ground` carries, but it cannot fire on a floor with no
+duplicated unit, which every recorded floor is (sidecar, *The carry's exposure, re-derived*), so the
+ground loop that grades this spec runs exactly as it does today.
 
-Four things a ground round does and does not report. A `FAIL` cleared by an edit to an unrelated
-section, with the record showing a clean round (§2); a carried disposition displaced by a payload
-row, with the envelope reporting `carried: 0` and nothing saying an inherited disposition was
-overridden (§3); a coverage ratio whose denominator counts non-claims, with no key a reader can
-correct it by (§4); and a verdict the code exports that the document the operator drives the loop from
-never named (§5). Split out of `ground-command-friction.md` on 2026-09-08, where these were §9/§9.3,
-§11, §12 and §13, with the non-goals, the open question and the five test rows that belong to them.
-Three of the four came from two independent field reports; §3's report claim is right in effect and
-wrong in mechanism, which is the whole of §3's decision. Every claim below about tp's own behaviour
-was re-derived on a freshly built binary; the measurements and the commands that derive them are in
-`what-the-record-does-not-say-measurements.md`, and no figure from that file is restated here. That
-file is also where the split's shared provenance lives — *§1 The evidence base*, the grounding
-programme this repository ran, and *§1.1 The second evidence base*, the two field reports — and every
-sibling split cites it rather than restating it.
+## 1. The decision
 
-From the original file's own cost order:
+**Context.** Three things a ground round does and does not report. A disposition carried by
+`(text_sha, ordinal)` can move onto a different copy of a repeated sentence when one copy is deleted,
+and the round reports itself complete with the `FAIL` gone (§2). A carried disposition can be
+overridden by writing a row for its unit, the prompt forbids exactly that, and `--record` reports an
+override as `carried: 0` with nothing saying an inherited disposition was displaced (§3). And the
+coverage ratio's denominator counts units that assert nothing, with no key a reader can correct it by
+(§4). A fourth item, a verdict the operator-facing skill once did not name, is closed and needs only a
+guard (§5).
 
-7. **A carried disposition has no escape hatch the protocol permits** (§3) — the hatch exists, the
-   prompt closes it, and the sink does not report an override.
-8. **The coverage denominator counts non-claims** (§4), and the payload cannot be corrected by
-   subtraction because it mixes a unit count with a row count.
-9. **`SKILL.md` did not name `UNVERIFIABLE`** (§5) — five verdicts of six reached the document the
-   operator drives the loop from. **Closed by commit** while §9–§14 were being written; §5 routes
-   the durable form to a derived guard.
+**Decision.** The carry gains a multiplicity fence (§2). The emitted ask states the fenced promise
+and permits the override it currently forbids, and `--record` counts the override (§3). `--status`
+reports a claims-only denominator (§4). A test derives the verdict list `SKILL.md` must name from the
+code (§5).
 
-## 2. `--check` exits 0 with `FAIL`s standing
+**Consequences.** §2 and §3 change one sentence of the ground prompt between them, so they ship
+together or the second overwrites the first. No recorded round is rewritten, no gate changes, and no
+workflow field is added. Once §3 ships, `SKILL.md` may document the override; before it, a skill
+saying *write the row* beside a prompt saying *write no row* would turn an undocumented gap into a
+documented contradiction.
 
-The original §9.1 (the gate: `--status --check` exits 1 when the latest recorded round holds a
-`FAIL`) and §9.2 (`--status` carries `next_action`) are
-`spec/backlog/next-action-and-check-tell-the-truth.md`'s §2 and §3, with the former rows 10–13; the
-measurement that motivated them is the measurements file's "§9" and "§9.1". What stays here is the
-limitation, because the record is what it is a limitation of.
+**Alternatives.** Re-keying the carry on `unit_id` or `anchor`, correcting the promise without the
+fence, and refusing a duplicated unit at `--record` were each considered for §2 and rejected; the
+argument is in `what-the-carry-can-promise-measurements.md` under *§2.3 — the roads not taken*.
 
-### 2.1 The limitation the gate ships with, and why it ships anyway
+## 2. The carry is fenced by multiplicity
 
-The gate has a hole that runs the other way from a deadlock: on a spec whose two sections hold a
-byte-identical sentence, editing the section that does *not* carry the `FAIL` shifts the
-`(text_sha, ordinal)` join onto the `PASS` row, and the `FAIL` is cleared with no repair at all
-(constructed and run in the measurements file's "§9.3", with the two exposure counts over this
-repository). `spec/backlog/what-the-carry-can-promise.md` §2.2 takes that defect.
+`ordinal` is a unit's 1-based index among the units sharing its `text_sha`, in emission order, so it
+is positional: deleting one of two byte-identical sentences renumbers the survivor. On a spec holding
+one sentence twice, graded `PASS` then `FAIL`, deleting the **first** copy — an editorial act that
+touches nothing about the failing sentence — lets the survivor join the deleted copy's `PASS`. The
+round records complete, `by_verdict.FAIL` falls to 0, and `--status --check` exits 0. Inserting a copy
+instead is loud: the round owes a disposition and says so. The grounding spec's §8 says the carry
+*"makes an unrepaired `FAIL` permanent while its text stands"*; in the silent direction it does not.
 
-**The decision: the gate ships before that fence, with this limitation stated and guarded by §8
-row 1, and the test implementing row 1 carries the characterisation in its own name and doc
-comment, the doc comment naming the mutant that must retire it** — the multiplicity fence. A green
-test asserting that a `FAIL` is cleared by editing an unrelated section, with nothing at the test
-saying the green is deliberate, is the shape most likely to be tidied away by someone who reads it as
-a bug in the test.
+**Decision.** A unit inherits a disposition only when the number of units carrying its `text_sha` is
+the same in round N as in round N−1, counted over distinct join keys in round N−1 and never over rows.
+When that count moves, no unit under that hash carries, and each is re-asked. The join key stays
+`(text_sha, ordinal)`. Wherever tp states the carry's promise — the emitted ask and the grounding
+spec's §8 — it states the fenced one: *a disposition is carried while its unit's text stands and the
+number of units carrying that text has not changed.*
 
-## 3. A carried disposition has no escape hatch the protocol permits
+The exposure today is zero — no recorded floor holds a duplicated `text_sha` (sidecar, *The carry's
+exposure, re-derived*) — which is the reason to repair the mechanism before its record can be harmed,
+and the reason the fence costs nothing on any floor recorded so far.
 
-Report B. A `PARTIAL` on unit X whose *cause* lives in section Y: fix Y, X's own text is unchanged, so
-X carries its stale `PARTIAL` forward indefinitely. Their concrete case is a test-case unit flagged
-because §4's window bound said `23:59` while the test said `23:59:59`; they fixed §4 and the unit
-still carried the old `PARTIAL`. Constructed and confirmed in the reporter's own shape on a fixture
-outside this repository (measurements file, "§11"): the repaired unit is asked about, the unit the
-repair was for carries its stale `PARTIAL`, and the prompt tells the reader *"do not decide those
-units again, and write no row for them."*
+## 3. A carried disposition can be overridden, and the override is counted
 
-**The report's claim is right in effect and wrong in mechanism, and the difference is the whole
-decision.** A hatch exists: a row naming a carried unit **overrides the carry** and records at exit 0 —
-`groundCarryForward` takes the round's own payload as `decided` and does not carry what the round
-decides, which is the documented behaviour: *"A unit it decides is not also carried."* So the
-mechanism has the hatch and **the protocol closes it**. Two sentences do: the ask states the unit is
-not owed, and the prompt says to write no row for it. A reader following the prompt cannot reach the
-override; a reader who ignores the prompt gets it silently, and the `--record` envelope reports
-`carried: 0` with nothing saying an inherited disposition was displaced. The field produced exactly
-that route once more, on `spec/1.1.0.md`'s round 3 (measurements file, "§11").
+A `PARTIAL` on unit X whose cause lives in section Y: repair Y, X's own text is unchanged, and X
+carries its stale `PARTIAL` into every later round. The ask then tells the reader *"do not decide those
+units again, and write no row for them."* A row naming the carried unit does override the carry and
+records at exit 0 — the documented behaviour is that a unit the round decides is not also carried — so
+the mechanism has the exit and the protocol closes it. A reader following the prompt cannot reach it; a
+reader ignoring the prompt reaches it silently. The field reached it that second way once, on
+`spec/1.1.0.md`'s ground round 3, and a field report (WB-3155) met the same shape in `PARTIAL`s that
+were true when written and went stale while their text stood (sidecar).
 
-**The decision, in two parts.** The prompt **names the override** — a carried disposition may be
-re-decided by writing a row for that unit, and the round that does so says why in `note` — replacing
-the unconditional *"write no row for them"* with the condition it means: do not re-decide a carried
-unit **to repeat its verdict**; re-decide it when the ground beneath it moved. And `--record`'s
-envelope **reports the displacement**: a count of carried dispositions the payload overrode, beside
-`rows` and `carried`, so an override is never silent at the sink. Both are needed by the gate in
-`spec/backlog/next-action-and-check-tell-the-truth.md`: a gate on a standing `FAIL` needs an exit that
-the protocol permits and the record shows.
+**Decision, in two parts.** The ask **names the override**: do not re-decide a carried unit to repeat
+its verdict; when the ground beneath it moved, write a row for it and say why in `note`, and that row
+replaces the carried one. Together with §2 the sentence becomes one statement — the fenced promise,
+then the condition under which a carried unit is re-decided — emitted in every round in which at least
+one unit carries, stated on the carried count rather than on the round number. And `--record`'s
+envelope **reports the displacement**: beside `rows` and `carried`, a count of carried dispositions the
+payload overrode, so an override is never silent at the sink.
 
-**What this does not do.** It does not make the carry re-derive a disposition, does not invalidate a
-carry when another unit changes — tp cannot know that §1 is *why* §2 was `PARTIAL`, and the fixture's
-`note` is the only place that lives — and does not touch the `(text_sha, ordinal)` join. It makes the
-override sayable and visible; deciding when it is right stays the reader's. The instruction to use the
-hatch must not be written into `skills/tp/SKILL.md` while the prompt still forbids it: a skill saying
-*write the row* beside a prompt saying *write no row for them* turns an undocumented gap into a
-documented contradiction, and this decision is what closes it. Two further properties of the carry
-the field instance exposed — a plan written against unit ids does not survive an emission, and a
-repair can remove the sentence it repairs from every future floor — are the measurements file's
-"§11.1"; the second is an entry in `spec/undecided.md`.
+**What this does not do.** It does not invalidate a carry when another unit changes — tp cannot know
+that Y is why X was `PARTIAL`; only the reader's `note` holds that. It makes the override sayable and
+visible; deciding when it is right stays the reader's.
 
-## 4. The coverage ratio's denominator counts non-claims, and the payload cannot be corrected by subtraction
+## 4. The coverage denominator counts claims
 
-Both reports want a claims-only denominator beside the raw one, on the ground that a ratio over a
-floor a sizeable share of which asserts nothing is not the number it looks like. Derived over this
-repository's own corpus (measurements file, "§12"), the `NOT-A-CLAIM` share of a round-1 floor varies
-by an order of magnitude document by document — not a constant a reader can mentally correct for,
-which is why it has to be reported.
-
-**And the payload cannot be corrected by hand, which is the measured half.** `emitted` and
-`dispositioned` count **units**; `by_verdict` counts **rows** — `GroundStatus`'s own doc says so
-(*"the breakdown's total is the round's row count and need not equal `Dispositioned`"*) — so
+A ratio over a floor, a share of which asserts nothing, is not the number it looks like, and the share
+varies too widely document by document to correct for mentally. Nor can the payload be corrected by
+hand: `emitted` and `dispositioned` count units while `by_verdict` counts rows, so
 `emitted − by_verdict["NOT-A-CLAIM"]` subtracts a row count from a unit count and is wrong by exactly
-the reader-added and off-floor rows, which move neither side of the ratio. Nothing in the payload
-labels it as unavailable — the two counts sit adjacent and read as commensurable.
+the reader-added and off-floor rows.
 
-**The decision: `--status` reports the claims-only denominator itself** — the count of **emitted floor
-units** whose disposition is `NOT-A-CLAIM` — beside `emitted` and `dispositioned`, under a name that
-cannot be confused with `by_verdict`'s row count. The raw ratio stays exactly as it is: the ground
-spec's §8 *did anyone look* is a question about the floor, and narrowing its denominator would change
-what coverage means. This adds the second reading; it replaces nothing.
+**Decision.** `--status` reports the count of emitted floor units disposed `NOT-A-CLAIM`, beside
+`emitted` and `dispositioned`, under a name that cannot be confused with `by_verdict`'s row count. The
+raw ratio stays as it is; this adds the second reading and replaces nothing.
 
-## 5. `SKILL.md` did not name `UNVERIFIABLE` — closed by commit, and here is what keeps it closed
+## 5. `SKILL.md` names every verdict, and a guard keeps it so
 
-**Recorded as closed rather than dropped**, on the rule the marker-unit and idempotence findings
-follow: an entry deleted once someone fixes it leaves nothing that would notice the fix being undone.
-At `v1.0.0`, the state both reports read, `skills/tp/SKILL.md` named five of the six verdicts; the
-commit *"name all six verdicts where the loop is driven, `UNVERIFIABLE` included"* closed it
-(measurements file, "§13").
-
-**The decision is therefore not the paragraph but the guard**: §8 row 5 asserts that every verdict
-in the set the code exports appears in `SKILL.md`, derived from `GroundVerdicts()` rather than from a
-literal list. The guard is one-directional — it does not fail when a verdict is deleted from
-`groundVerdictOrder`, because the assertion quantifies over the code's set — and closing that third
-direction needs a second, opposite assertion this release does not take.
+`SKILL.md` at `v1.0.0` named five of the six verdicts; a commit closed it. **Decision:** a test
+asserts that every verdict the code exports appears in `SKILL.md`, derived from the exported set rather
+than from a literal list. The open question inherited as *"What `UNVERIFIABLE` costs"* is closed by
+measurement (sidecar, §7).
 
 ## 6. Non-Goals
 
-1. **No change to `--record`'s atomicity or to §7.2's table.** The corpus exercised both and they
-   held; §3 leaves the `(text_sha, ordinal)` join and the inheritance untouched and changes what the
-   prompt permits and what `--record`'s envelope reports about an override.
-2. **No new workflow field, no gate and no convergence effect.** Nothing here adds a knob to
-   `.tp/config.json` or to a task file's `workflow` block, nothing reads one, and nothing changes
-   `clean`, a streak, coverage or an exit code — the `--check` gate is
-   `spec/backlog/next-action-and-check-tell-the-truth.md`'s.
+1. **No change to `--record`'s atomicity or to the row table.** §2 changes which units carry and §3
+   what the prompt permits and what the envelope counts; `--record` still accepts more than one row
+   for one unit, and the carry still resolves the repeat first-wins.
+2. **No gate, no convergence effect, no workflow field.** Nothing here changes `clean`, a streak or an
+   exit code; the fence is not configurable. The `--check` gate is
+   `next-action-and-check-tell-the-truth`'s.
+3. **No recorded round is re-graded, re-hashed or rewritten.** The fence reads round N−1 and decides
+   what round N carries.
 
-## 7. Open questions inherited when `spec/candidates.md` was split
+## 7. Tests
 
-The item that arrived here, *"What `UNVERIFIABLE` costs"*, is closed by measurement rather than by a
-decision (measurements file, "§7").
-
-## 8. Tests
-
-Every row derives from a numbered decision and names an input that must fail it. Where a row's mutant
-is a change to the test rather than to the product, the row says so; that is row 3. Row 1 is the one
-**characterisation** row: it asserts a defect this release does not close, and its named mutant is
-the fix that closes it. The mutant-column reasoning trimmed from rows 1 and 5 is in the measurements
-file's "§15".
+Every row derives from a numbered decision and names the mutant that must fail it. The fence, the
+sentence and the envelope count do not exist at `HEAD`, so where a row quotes a count it is the `HEAD`
+observable the fix changes; the count under the finished code is the implementing task's acceptance,
+per Step 0.5. The characterisation row the old §2.1 carried is deleted, because the fence it
+characterised ships here.
 
 | # | from | assertion | the mutant that must fail it |
 |---|---|---|---|
-| 1 | §2 *the limitation* | on a fixture whose §1 and §2 hold **byte-identical** sentences, a round-1 `FAIL` recorded against the §2 copy is cleared at exit 0 by editing §1 alone and grading nothing — asserted as the shipped behaviour this release does **not** close (§2.1), so the row states the hole rather than denying it | land `spec/backlog/what-the-carry-can-promise.md` §2.2's multiplicity fence, under which the unit is re-asked, the `FAIL` survives, and this row goes red — its purpose |
-| 2 | §3 | a row naming a carried unit displaces the inherited disposition, and `--record`'s envelope reports the displacement count as 1 | report only `rows` and `carried`, under which the override records silently — the shipped behaviour |
-| 3 | §3 *the stale carry* | on the §3 fixture, after §1's repair, `u2` is still marked `(carried)` and is still not in the ask | assert that repairing §1 clears `u2`'s disposition, which no join in tp can do and which this section explicitly does not decide — a test-side mutant, and the row that keeps §3 from being read as more than it is |
-| 4 | §4 | the claims-only count equals the number of **emitted floor units** disposed `NOT-A-CLAIM`, on a round carrying a reader-added and an off-floor `NOT-A-CLAIM` row as well | derive it as `emitted - by_verdict["NOT-A-CLAIM"]`, which returns 0 where the answer is 2 on exactly that fixture |
-| 5 | §5 | all six of the ground spec's §3 verdicts appear in `SKILL.md`, derived from the verdict set the code exports rather than from a literal list | append a seventh verdict to `groundVerdictOrder` and leave `SKILL.md` alone — the derived guard fails naming it, the literal-list version passes |
+| 1 | §2 *deletion* | two byte-identical floor units graded `#1 PASS` / `#2 FAIL`; the first deleted: the survivor is owed and `--status --check` exits 1. `HEAD`: `carried` 2 of 2, exit 0 | the shipped carry |
+| 2 | §2 *insertion* | a copy inserted above a `FAIL`ed unit leaves both copies owed and no row carries the `FAIL` | fence only the shrinking direction, which lets the insertion migrate the `FAIL` onto text nobody graded and leaves row 1 green |
+| 3 | §2 *keys, not rows* | round N−1 holding two rows under one `(text_sha, ordinal)`, text unchanged: the unit still carries, and carries the first row | count round N−1's rows instead of its distinct keys, which reads a repeated row as a second unit |
+| 4 | §2 *inert and local* | five identical units among others, unedited across two rounds, all carry; delete one of the five and exactly the four survivors are owed while every other unit carries | fence on the presence of a duplicate, which never carries a repeated unit; or fence per round, which drops the whole carry when any count moves |
+| 5 | §2 *no rewrite* | after round N records under the fence, round N−1's file is byte-identical | have the carry normalise round N−1 in place so the counts agree |
+| 6 | §2, §3 *the sentence* | in a round where at least one unit carries, the ask states the count condition, permits the override with a `note`, and contains neither the unfenced promise nor *"write no row"*. `HEAD`: both present | correct the grounding spec and leave the emitted sentence — no shipped test asserts it |
+| 7 | §3 *the count* | a row naming a carried unit displaces the inherited disposition and `--record` reports a displacement count of 1. `HEAD`: `rows: 2, carried: 0`, no such key | report only `rows` and `carried` |
+| 8 | §3 *the stale carry* | after a repair to the section that caused a carried `PARTIAL`, the unit is still carried and still not in the ask | assert that the repair clears the carried unit — a test-side mutant, and the row that keeps §3 from being read as more than it is |
+| 9 | §4 | the claims-only count equals the emitted floor units disposed `NOT-A-CLAIM`, on a round also carrying a reader-added and an off-floor `NOT-A-CLAIM` row. On that fixture the subtraction gives 0 where the answer is 2 | derive it as `emitted − by_verdict["NOT-A-CLAIM"]` |
+| 10 | §5 | every verdict the code exports appears in `SKILL.md`, the list derived from the exported set | append a seventh verdict to the exported set and leave `SKILL.md` alone: the derived guard fails naming it, a literal-list guard passes |

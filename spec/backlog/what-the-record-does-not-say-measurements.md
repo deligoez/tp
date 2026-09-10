@@ -420,3 +420,119 @@ nothing but a derived assertion notices a map going stale again.
 Row 21: append a seventh verdict to `groundVerdictOrder` and leave `SKILL.md` alone — the derived guard fails naming it, the literal-list version passes. The row's earlier mutant, *"write the six as a literal in the test"*, was built and run against both and **passes under both**, so it was replaced by one that discriminates.
 
 Row 24: land `spec/backlog/what-the-carry-can-promise.md` §2.2's multiplicity fence: under it the unit is re-asked instead, the `FAIL` survives, and this row goes red — which is its purpose. It is a characterisation row, and the only one here: it exists so the limitation §9.3 states is retired by a failing test rather than left standing unnoticed.
+
+## Rewritten on 2026-09-11 — what moved
+
+The body was rewritten under `skills/tp/SKILL.md` Step 0.5 and absorbed
+`what-the-carry-can-promise.md`'s fence. The section numbers in the headings above are the original
+`ground-command-friction.md`'s and are unchanged; the body's own numbering moved as follows.
+
+| before | after |
+|---|---|
+| §1's inherited cost list (items 7–9) | deleted — the order lives in `spec/backlog/README.md` |
+| §2 pointer to `next-action-and-check-tell-the-truth` | Non-Goal 2 |
+| §2.1 the limitation, and test row 1 (its characterisation) | deleted — the fence that retires them ships here as §2 |
+| — | §2, the multiplicity fence, from `what-the-carry-can-promise.md` §2.2.1 and §2.2.2 |
+| §3 | §3, with the fenced promise folded into the same sentence |
+| §4 | §4, shortened |
+| §5 | §5, one test row |
+| §7 | deleted — closed by measurement, above under *§7*; §5 names it |
+| §8 rows 2, 3, 4, 5 | §7 rows 7, 8, 9, 10 |
+| `what-the-carry-can-promise.md` §5 rows 1–7 | §7 rows 1–6 (its rows 4 and 5 merged into row 4) |
+
+**Why the two ship together.** Both rewrite the same sentence of the ground ask. At `18032abe` it is
+the tail of `groundPromptAsk`'s carried branch in `internal/cli/ground.go`:
+
+> A carried disposition stands while its unit's text stands (§8) — do not decide those units again,
+> and write no row for them.
+
+The fence rewrites its first clause and §3 its second. Shipped separately, the second to land would
+either overwrite the first's clause or carry a promise the mechanism under it does not keep. The
+sentence is reached only when at least one unit carries — the `carried == 0` and empty-floor branches
+return earlier — which is why §3 states the condition on the carried count. No shipped test asserts
+the sentence: `internal/cli/ground_ask_test.go`'s ask assertion stops before it.
+
+## The carry's exposure, re-derived
+
+At `18032abe`, over both round directories, every `floor-ground-round-*.txt`, counting a floor that
+holds any `text_sha` twice among its `u<N> <anchor> <sha> #<ordinal>` lines:
+
+```
+python3 -c '
+import glob,re,collections
+fl=glob.glob("spec/.tp-review/*/floor-ground-round-*.txt")+glob.glob("spec/backlog/.tp-review/*/floor-ground-round-*.txt")
+n=d=0
+for f in fl:
+    h=[m.group(1) for l in open(f) for m in [re.match(r"^u\d+ \S+ ([0-9a-f]{12}) #\d+",l)] if m]
+    n+=len(h); d+=any(v>1 for v in collections.Counter(h).values())
+print(len(fl),n,d)'
+```
+
+It printed `52 3733 0`: fifty-two emitted floors, 3,733 floor units, no floor holding a duplicated hash,
+across 43 recorded ground rounds of which 19 are a round 2 or later. The regex must match: the same
+run counts 3,733 units, so a zero is not the regex failing. `what-the-carry-can-promise-measurements.md`
+recorded the same zero at 2026-09-08 over 43 rounds and 52 floors.
+
+## Re-verified at `18032abe` (2026-09-11)
+
+Every fixture ran with the `HEAD` binary (`tp version v1.1.2-0.20260910212136-18032abe405f`) in a
+scratch `git init` directory outside the repository, because an emission is a state write.
+
+**§2, deletion.** Spec: `## 1. A` / `The gate ran 3 times.`, `## 2. B` / `The suite has 12 tests.`,
+`## 3. C` / `The gate ran 3 times.` — the `[copy, other, copy]` arrangement, the two copies both
+hashing to `912597aa446a` at ordinals 1 and 2. Round 1 records `u1 PASS` (evidence `u1 read`), `u2
+PASS`, `u3 FAIL`. §1's sentence is then replaced by `First section.`, which the arms cut. Round 2
+emits `floor_size 2, carried 2`; an empty payload records `rows: 0, carried: 2`; `--status` reports
+`by_verdict.FAIL 0`, `dispositioned 2 of 2`; `--status --check` exits **0**. Round 2's file carries
+`u3 … "verdict":"PASS" … "evidence":"u1 read" … "ordinal":1,"carried_from":1` — the failing sentence,
+untouched, now holding the deleted copy's `PASS` and its evidence.
+
+**§3, the override.** Spec: `## 1. Window` / `The window closes at 23:59 on the last day.`, `## 2.
+Test` / `The test asserts a submission at 23:59:59 is inside the window.` Round 1 records `u1 PASS`
+and `u2 PARTIAL/two-readings`. §1 is repaired to `23:59:59`. Round 2 emits `carried: 1`, and the ask
+reads, verbatim:
+
+> This round owes a disposition for 1 of the 2 floor units above: the other one already carries
+> one from round 1, and its row ends in `(carried)`. A carried disposition stands while
+> its unit's text stands (§8) — do not decide those units again, and write no
+> row for them.
+
+Recording a fresh `u1 PASS` and a fresh `u2 PASS` (with a `note` naming the repair) returns `{"rows": 2,
+"carried": 0}` at exit 0 — the key set is `spec, round, floor, file, rows, carried`, with no count of
+the displaced disposition — and `--status` reports `PARTIAL 0, PASS 2`.
+
+**§3, the field instance.** In `spec/.tp-review/1.1.0/`, round 2 holds 39 rows and round 3 holds 43,
+of which 10 carry `carried_from`. Exactly one round-3 row was written fresh for a
+`(text_sha, ordinal)` key round 2 had recorded: `u46`, `PARTIAL`, whose note opens *"Same verdict as the
+carry, different and now-standing reason — which is the point of re-asking it."* That is the override,
+reached by a reader briefed to re-decide, as §11 above describes.
+
+**§4.** `tp ground <spec> --status --json` returns the keys `by_verdict, cut, dispositioned, emitted,
+off_floor, reader_added, round, spec` — no claims-only count.
+
+**§5.** `skills/tp/SKILL.md` contains `UNVERIFIABLE` (one match). No test under `internal/` reads
+`SKILL.md` and a verdict name together: a scan of every `_test.go` for both `SKILL.md` and `Verdict`
+or `UNVERIFIABLE` returns none, so the guard is new work. `engine.GroundVerdicts()` in
+`internal/engine/groundverdict.go` is the exported set it derives from.
+
+## Field report WB-3155, verified 2026-09-11
+
+**Claim #9 — "sliding-window counts invalidate a round by themselves".** The report: most `PARTIAL`s
+in its rounds 8–9 were `true-when-written`, because a measurement said "D = today" or counted a
+growing population, and adding 22 records to the local corpus turned a whole battery of claims false
+on the day it was graded. It proposed an `as_of` field for corpus claims and a `tp lint` rule warning
+on "today"-type wording in a measurement sentence. **Verdict: PARTLY.**
+
+- **The phenomenon is real and already has a vocabulary.** `partial_kind: true-when-written` exists,
+  and `internal/engine/groundrow.go` requires a `held_at` cell exactly when it is present
+  (`groundRowIff("held_at", …, row.PartialKind == PartialTrueWhenWritten, …)`). The proposed `as_of`
+  duplicates `held_at`; and `skills/tp/SKILL.md` Step 0.5 already moves a measured figure out of a
+  spec body into its sidecar, which is the source-side answer to a figure that goes stale.
+- **The part that lands here.** A disposition that was right when recorded and went stale while its
+  unit's text stood is carried until the text moves, and the only other exit — re-deciding it — is the
+  override §3 makes permitted and counted.
+- **REFUTED: the lint rule.** The verification pass prototyped it over this repository's specs: 26
+  sentences carrying "today" beside a digit, of which 1 of the 10 examined was a true positive —
+  roughly 10% precision. The verification note does not record how the 10 were chosen, so the figure
+  is a sample and not a judgement of all 26; at that rate the rule would be noise on every spec it
+  fired on. Recorded for `spec/undecided.md` as refuted; not proposed here.
