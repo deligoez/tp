@@ -253,12 +253,15 @@ conditions. It also shipped the spec-writing rules to `skills/tp/SKILL.md` as **
 duplicate copy onto the shared one, so two derivations became one. Its cycle is the evidence behind
 the repair rule and the anchored-figure rule below, and `spec/1.0.1-measurements.md` is the forensics.
 
-**Next is `spec/1.1.0.md`** — *the spec follows tested behaviour*: evidence demanded at record, named
-in ground's own `tier` vocabulary. Ground round 1 cut the `routed` disposition and re-classed the
-release from loop to **tool**, so budget it as a comparable release rather than at twice one; the
-skill's four writing rules landed at `4914215f` and the release ships rather than writes them. The
-audit side of the same acceptance channel is `spec/backlog/a-finding-can-leave-an-audit-round.md`,
-formerly `spec/1.0.2.md`, first in the backlog's order.
+**`spec/1.1.0.md` is done and tagged** — *the spec follows tested behaviour*: `evidence` is a
+required, non-empty key on every review finding, and `--merge` and `--record` enforce the required set
+through one predicate; `spec/1.1.0-release-notes.md` carries the rest. **`v1.1.1`** followed the same
+day without a spec: `scripts/audit-round-prep.py`, the mechanized form of the round-speed rules below.
+
+**Next is the first row of `spec/backlog/README.md`'s order** — at `6f8e8564`,
+`a-finding-can-leave-an-audit-round.md`: the audit side of the acceptance channel `1.1.0` opened for
+review, formerly `spec/1.0.2.md`. Its body was rewritten under Step 0.5 after its ground rounds were
+recorded, so those rounds graded a different text.
 
 **Everything else is `spec/backlog/README.md`, now the roadmap**: the pending specs are named by
 **slug** and ordered by measured benefit in that file only — a priority number in a filename rotted
