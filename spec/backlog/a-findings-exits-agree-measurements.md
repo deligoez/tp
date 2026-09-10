@@ -250,3 +250,125 @@ are recorded in this sidecar; the spec body is not edited.
   result."* Harmless today because the guard accepts an empty array, so this is a consistency finding
   rather than a defect: three sibling sites telling a role two different things about the same clean
   result. Read at `e8477464`.
+
+## Rewritten 2026-09-11: what changed in the body, and why
+
+**`fixed` is no longer closed on any counting surface — this reverses *Why `fixed` must close a row*
+above.** The earlier body defined *closed* three ways at once: §1 said `wontfix`/`duplicate` with
+evidence, §2 added `fixed`, and §5 said every surface reads the sibling spec's surviving set, in which
+`fixed` stays open. One definition had to win, and the survey that found the contradiction (2026-09-11)
+showed which: the review side's convergence predicate (`reviewFindingResolvedAway`,
+`internal/engine/reviewclean.go`) subtracts `wontfix` and `duplicate` with non-empty evidence and
+nothing else, and `a-finding-can-leave-an-audit-round.md` grades the audit side the same way. Closing
+`fixed` in `tp resume`'s count would make `tp resume` report nothing unresolved for a round `tp review
+--status --check` still fails — the one-round-two-answers class the spec exists to remove. The share
+argument above (most recorded dispositions are `fixed`) is answered by the new `dispositioned` count,
+which includes `fixed`, rather than by the closure predicate.
+
+**Moved out:** the audit `open`/`role_streaks`/`--check`/`next_action` half of the old §5 went to
+`a-finding-can-leave-an-audit-round.md` §5, together with its test rows (old rows 9 and 11).
+**Absorbed:** `loops-own-state-writes.md` §2 (atomic round-file writes, now §6.3; its probes and the
+`tp audit --merge -o` symlink, mode and hardlink measurements stay in
+`loops-own-state-writes-measurements.md`) and `round-knows-its-panel.md` §2.2 (unknown `state.json`
+keys, now §6.2; its measurements stay in `round-knows-its-panel-measurements.md` under *Three fields
+shipped erasable* and *The trigger is a stray `--record`, and what the fix does not buy*).
+**Routed on:** the `findingIdentityKey` byte-slicing item above goes to `an-unreadable-file-is-named`,
+with the other rune-boundary cut. The other routed extras above (`--resolve-all --severity`, the
+review-side category enum, the key-set constant, `accepted_blocking`, the `[]` wording) stay recorded
+here and out of the body.
+
+**Test-row watch status.** The earlier table recorded rows 1, 2, 3 and 5 watched red against `HEAD`
+and green after a built fix, with row 4 green in both. Renumbered, those are rows 1, 2, 6 and 4; the
+old row 3 asserted the reverse of today's `fixed` decision, so its run no longer counts for the
+reworded row.
+
+## Field report WB-3155, verified 2026-09-11
+
+A field report (WB-3155), from a project on tp v1.1.1, was checked claim by claim against a binary
+built from `18032abe`. Fixtures were built in throwaway git repositories outside this tree; the shapes
+are described here because the scratch paths will not survive.
+
+### Surveyed at `HEAD`: the defects the body already carried
+
+- **A clean audit round reports its checklist as unresolved — CONFIRMED.** An audit round recorded
+  from three `PASS` rows: `tp resume` reports `next_action.payload.unresolved_findings: 3`. Source:
+  `roundPayload`, `internal/engine/resumepayload.go:95-110`, which counts every row whose
+  `resolved.status` is not `wontfix`.
+- **`duplicate` disagrees between `tp review --status` and `tp resume` — CONFIRMED**, as in *Two
+  predicates disagree about `duplicate`* above: `reviewclean.go:32-43` closes `duplicate`,
+  `resumepayload.go:105` does not.
+- **A refused `--role` still writes a snapshot — CONFIRMED.** `tp audit <spec> --role bogus` exits 2
+  and `snapshot-audit-round-1.md` exists afterwards.
+- **`--record` names no file — CONFIRMED.** A review `--record` payload's keys are `clean`,
+  `consecutive_clean`, `converged`, `findings`, `harness_stale`, `mechanize_candidates`,
+  `mechanized_classes`, `next_action`, `required_clean_rounds`, `round`, `stale` — no `file`. (The
+  `--status` round entry does carry `file`, as a bare filename.) `tp set --workflow
+  review_clean_rounds=3` prints `{"updated": {"review_clean_rounds": 3}}`.
+
+### #16 — "review convergence is unreachable without dispositions, and nothing says so": PARTLY
+
+**What holds.** `tp review --status` carries no disposition count, and the emitted instruction still
+says *"Merge findings (tp review --merge), verify and resolve them, then record the round"*
+(`internal/cli/review.go:2058`). The `skills/tp/SKILL.md` step that pointed at `merged.ndjson` was
+already corrected in `b853fb46` (2026-09-07).
+
+**What the trap actually is: timing.** Reproduced on a one-finding review round, two arms:
+
+| arm | sequence | recorded row's `resolved` | `--status` |
+|---|---|---|---|
+| before | `--resolve 0 wontfix "<reason>"` on the merge file, then `--record` it | `{status: wontfix, evidence: …}` | `clean: true`, `consecutive_clean: 1` |
+| after | `--record` the merge file, then `--resolve 0 wontfix "<reason>"` on it | absent | `clean: false`, `consecutive_clean: 0` |
+
+In the *after* arm the resolve exits 0 and prints `{"file": "m.ndjson", "next_step": "tp review
+--verify <spec> --findings m.ndjson", …}` — it names the file it wrote, which is not the recorded
+round, and nothing downstream notices.
+
+**Refuted part.** *"Convergence is unreachable"* is overstated: a disposition written into the merge
+file before `--record` is carried into the recorded round and clears it. The reporter's cycle lost its
+dispositions to the ordering, not to a missing mechanism. What the report is right about is that no
+surface shows the difference, which is what `dispositioned` and the instruction's wording fix.
+
+### #17 — "`wontfix` findings still enter the prompt under UNRESOLVED": header CONFIRMED, suppression INTENDED
+
+`buildFindingsSummary` (`internal/cli/review.go:1314-1390`) writes *"UNRESOLVED findings from previous
+rounds — DO NOT re-report:"* and lists `[WONTFIX]` rows beneath it. The header is false for those rows.
+`duplicate` rows are not listed there — they are counted with `fixed` in the *"RESOLVED (fixed or
+duplicate)"* line — so the lie is about `wontfix` alone.
+
+**The ask to stop suppressing accepted rows is not taken**: `spec/undecided.md` *A prior-round section
+for `tp review`* closed that question no, and the field report carries no measurement of that entry's
+reopen condition. **The "60% of the prompt" figure is overstated as a general claim**: the list is
+capped at 50 rows (`review.go:1358`) with an omitted-count line, so its share of a prompt is bounded;
+the reporter's percentage came from comparing against a `--no-state` emission and was not re-measured
+here.
+
+### #20 — "the carry-forward tells a verification round not to look at fixed findings": REFUTED, with a residue
+
+`fixed` rows are counted as resolved and, at high or critical severity, listed under *"Resolved
+high/critical (DO NOT regress)"* (`review.go:1392-1415`); the regression prompt carries previously
+fixed findings with their evidence (`internal/cli/review_regression.go:178-193`). The claim that
+`fixed` rows sit under the UNRESOLVED header is false.
+
+**The residue, CONFIRMED:** `tp review <spec> --role architect` on a round that would emit the
+regression prompt drops it and reports `skipped_roles: []`. The filter keeps exactly the one prompt
+whose role matches (`filterReviewPrompts`, `internal/cli/rolefilter.go:154-168`, called at
+`review.go:620`) and `skipped_roles` is built before it runs, so the dropped regression prompt is
+neither emitted nor listed.
+
+### #21 — "`--record` and `--round` are mutually exclusive, learned only by trying": CONFIRMED, and narrower than the report
+
+`validateModeFlags` (`internal/cli/review.go:463-465`) tests `round != 1` — the flag's value against
+its default — not whether the flag was set. So `tp review <spec> --record f.ndjson --round 1` exits 0
+and records the next round, while `--round 9` exits 2 with
+`{"error":"--record is mutually exclusive with --round","hint":"see 'tp --help' or the subcommand's
+'--help' for usage"}`. `tp review --help`'s *Modes (mutually exclusive)* list names `--merge`,
+`--resolve`/`--resolve-all`, `--verify` and `--report`, and not `--record` or `--status`, and nowhere
+says the recorded round's number is derived from state. The report's wider ask — split `tp review`
+into subcommands — is not taken; the mode list is.
+
+### Absorbed from the audit-side items
+
+#29 (a resolve into a file that is not a recorded round) and #30 (`--status` reads no disposition)
+are recorded in `a-finding-can-leave-an-audit-round-measurements.md` and in
+`audit-records-what-was-graded`; this spec takes only the review-side `dispositioned` count and the
+instruction wording they share a cause with.

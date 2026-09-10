@@ -2,214 +2,211 @@
 
 A backlog spec, named by slug; its priority number and its release number are assigned later. Its
 measurements are in `a-findings-exits-agree-measurements.md` beside it; this file stands without
-them. It is the non-convergence half of the hotfix spec formerly numbered `1.0.2`; the audit-side acceptance channel
-is `a-finding-can-leave-an-audit-round.md`, and nothing here changes what any round grades.
+them. Its audit-side sibling is `a-finding-can-leave-an-audit-round.md`, which decides what clears an
+audit round; nothing here changes what any round grades.
 
 Class: **tool** — it changes what tp counts, writes, refuses and says, and no convergence signal.
-Budget it at the tool-class median in `CLAUDE.md`'s *What a cycle costs* table.
 
 ## 1. The decision
 
-**Context.** A finding leaves a round either as a spec change or as a `--resolve` disposition, there
-is no third way out, and `--status` says which happened. Two field reports and this repository's own
-loop measured the places that sentence is false today. `unresolved_findings` counts rows rather than
-findings, so a clean audit round reports its whole checklist as open (§2). A refused `tp audit`
-invocation has already written a round snapshot by the time it refuses (§3). A `wontfix` with no
-evidence is accepted at the write and ignored at the record, and an unattended agent can write one
-(§4). Two predicates decide what *open* means and already disagree about `duplicate` (§5). `--record`
-and `tp set --workflow` do not say which file they wrote (§6). And the emitted instruction names
-`resolve` and `verify` as bare verbs where both are flags (§7).
+**Context.** A finding leaves a round either as a change to what it is about or as a `--resolve`
+disposition, and every surface that reports the round should say which happened. Today the surfaces
+disagree. `tp resume` counts rows rather than findings, so an audit round of nothing but `PASS` rows
+reports its whole checklist as unresolved; and it closes only `wontfix`, while `tp review --status`
+also closes `duplicate`, so one round gives two opposite answers (§2). No surface says whether the
+dispositions written for a round reached the file that is graded, and the emitted instruction does not
+say which file that is (§3, §8). The carry-forward list files accepted findings under a header that
+calls them unresolved, and a `--role` filter drops the regression prompt without listing it (§4).
+Writes of the loop's own state name no file, drop keys they do not know, and are not atomic (§6). A
+refused `tp audit` invocation has already written a round snapshot (§7). And `--record` refuses
+`--round` by its value rather than by its presence (§8). A field report (WB-3155) and this
+repository's own loop measured each of these; the sidecar carries the reproductions.
 
-**Decision.** One predicate defines a closed finding — a non-`PASS` row whose `resolved.status` is
-`wontfix` or `duplicate` with non-empty evidence — and every surface reads it: the count, `open`,
-`role_streaks`, `--check`, `next_action` and `tp resume`. A refusal writes nothing. The disposition
-write is fenced. Every write names its file. The instruction names its commands.
+**Decision.** One predicate defines a closed finding, and every counting surface reads it (§2).
+Dispositions are counted where the round is reported (§3). The carry-forward says what it carries
+(§4). A write of the loop's state names its file, keeps what it does not know, and lands whole (§6).
+A refusal writes nothing (§7). The emitted instruction and `--help` name their commands, their
+target and their positional (§8).
 
-**Consequences.** Three keys join `next_action.payload` (§2.1), an agent-facing contract, so
-`skills/tp/REFERENCE.md` is owed an update. The snapshot write moves later in `runAudit` (§3). The
-disposition fence this spec used to carry ships with the sibling spec instead, for the reason §4
-gives.
+**Consequences.** Output keys join four payloads — three on `next_action.payload` (§2.1),
+`dispositioned` on `tp review --status` (§3), `file` on `--record` and `tp set --workflow` (§6.1) —
+each an agent-facing contract, so `skills/tp/REFERENCE.md` is owed an update. `--record` becomes
+refusable on a flag it silently accepts today (§8). The fence on who may write a disposition ships
+with `a-finding-can-leave-an-audit-round.md` §3, because the fence and the thing it fences are one
+release.
 
-**Alternatives.** Validating `--role` earlier instead of moving the snapshot write — buildable, and
-rejected in §3 because it repairs one branch and loses the hint. Two payload counters instead of the
-three that give an identity — built, and rejected in §2.1. Judging the content of
-`resolved.evidence` — not attempted; tp requires a reason and does not read it (Non-Goal 3).
+**Alternatives.** Validating `--role` earlier instead of moving the snapshot write — built, and
+rejected in §7 because it repairs one branch and loses the hint. Two payload counters instead of the
+three that give an identity — built, and rejected in §2.1. Closing `fixed` on the counting surfaces —
+rejected in §2, because it re-creates the disagreement this spec removes. Judging the content of
+`resolved.evidence` — not attempted (Non-Goal 3).
 
-## 2. `unresolved_findings` counts open findings
+## 2. One predicate for a closed finding
 
-`roundPayload` counts every row in the last round whose `resolved.status` is not `"wontfix"`. Every
-audit checklist item is a row, so a clean round reports its whole checklist as unresolved.
+**A finding is a row whose `status` is absent or not exactly `PASS`**, tp's documented rule. Recorded
+review rows carry no `status`, so each is a finding and that phase's count is unchanged (Non-Goal 6);
+an audit checklist item graded `PASS` is not a finding and never counts as unresolved.
 
-**A row counts as unresolved when it is a finding and is not closed.** A finding is a row whose
-`status` is absent or not exactly `PASS` — tp's own documented rule, so review rows all remain findings
-and that phase's count is unchanged (Non-Goal 6). **Closed** means `resolved.status` is `wontfix`
-**or** `duplicate`, with non-empty evidence (§4) — the same predicate `a-finding-can-leave-an-audit-round.md`
-§2 grades by — **or** `fixed`; omitting `fixed` left the overwhelming majority of recorded closures
-inert.
+**A finding is closed when its `resolved.status` is `wontfix` or `duplicate` and its
+`resolved.evidence` is non-empty.** This is the predicate the review side's convergence already
+applies and the one `a-finding-can-leave-an-audit-round.md` §2 grades an audit round by. An
+unrecognised `resolved.status` counts as open, fail-closed.
 
-**An unrecognised `resolved.status` counts as open.** Fail-closed, matching `AuditRowsClean`'s
-treatment of a severity it cannot grade.
+**`fixed` is not closed on any surface.** A repair is a claim about the text or code, and the round
+that tests it is the next one — which is why `fixed` does not clear a round on either side. A count
+that subtracted `fixed` would report nothing unresolved for a round that `tp review --status --check`
+still reports not clean: the same one-round-two-answers defect this section exists to remove, moved
+from `duplicate` to `fixed`. What a `fixed` disposition does get is visibility: §3 counts it as
+dispositioned, so an operator who marks every finding `fixed` sees that the dispositions landed while
+the round stays open until the next round tests the repairs.
 
-The measurement this rests on — including the fact that it needs the round **as it stands at `HEAD`**,
-because the dispositions were written after the tag — is in the sidecar under
-*`unresolved_findings` on v0.37.0's round 7*.
+**Every counting surface reads it**: `tp resume`'s `next_action` and its payload, and `tp review
+--status`'s `clean` and `consecutive_clean`. The audit phase's `open`, `role_streaks` and `--check`
+read the same surviving set; that half ships with `a-finding-can-leave-an-audit-round.md` §5.
 
 ### 2.1 The payload says what it counted
 
-`unresolved_findings` gains three siblings in the same payload: **`rows_recorded`**,
-**`findings_total`** and **`findings_closed`**. All four fall out of the single pass §2 already makes;
-nothing is read twice.
+`unresolved_findings` gains three siblings: **`rows_recorded`**, **`findings_total`** and
+**`findings_closed`**, all from the single pass §2 already makes. `findings_total` turns a
+plausibility judgement into an identity — `unresolved_findings == findings_total - findings_closed`,
+exactly, by construction. Two counters cannot do this; the sidecar's *Why three counters and not two*
+gives the round that proves it. They are reported, not gated.
 
-**`findings_total` is what makes the count checkable, because it replaces a plausibility judgement
-with an identity**: `unresolved_findings == findings_total - findings_closed`, exactly, by
-construction. Two counters cannot do this — the sidecar's *Why three counters and not two* gives the
-round that proves it, built rather than argued.
+## 3. `--status` says whether the dispositions landed
 
-**They are reported, not gated.** They are here rather than in a minor because they are the same
-field's trustworthiness: the fix makes the number right, these make it checkable.
+**`tp review --status` reports `dispositioned: k/n` on every recorded round** — `n` the round's
+findings, `k` those carrying any disposition, `fixed` included. It is computed from the recorded
+round file on read, so it tells an operator whether dispositions reached the file that is graded:
+today a disposition written into the merge output after `--record` exits 0 and never reaches the
+recorded round, and nothing `--status` reports shows the difference. The audit phase's `--status`
+carries the same key, from `a-finding-can-leave-an-audit-round.md` §5.
 
-**This release owes `skills/tp/REFERENCE.md` an update.** Its `next_action` row documents the payload
-as `{round, unresolved_findings}`; that row must name the three new keys, because `next_action.payload`
-is an agent-facing contract (Non-Goal 1).
+## 4. The carry-forward says what it carries
 
-## 3. A refused invocation writes no state
+**The list of prior findings splits its header.** Rows with no disposition stay under a header that
+says they are unresolved; rows accepted `wontfix` move under their own header — *accepted: do not
+re-report unless the text it cites changed*. Today both sit under one header that calls them all
+unresolved. **Suppressing accepted rows is intended and stays**: `spec/undecided.md` *A prior-round
+section for `tp review`* closed that question no, and this section changes the header, not the set.
+`fixed` rows keep their existing *resolved, do not regress* listing.
 
-`tp audit <spec> --role <unknown>` refuses with exit 2 and **creates a state directory anyway**: the
-refusal sits at `internal/cli/audit.go:379`, after the snapshot write `loadAuditSpec` makes at
-`internal/cli/audit.go:518`. The transcript is in the sidecar under *The refused `--role`
-invocation*.
+**A `--role` filter that drops the regression prompt lists it in `skipped_roles`.** Today a
+narrowed emission drops that prompt and reports `skipped_roles: []`, so the caller cannot tell the
+regression pass was not emitted.
 
-**The snapshot write moves**, from `loadAuditSpec` — which writes it while merely *loading* the spec —
-to just past the role filter, the last point at which a refusal can still occur before the payload is
-assembled. `loadAuditSpec` returns the bytes rather than writing them.
+## 5. The audit phase's counts — moved
 
-**"Validate earlier" is buildable and is not what ships.** An earlier guard resting on
-`engine.RoleIsRecognised` compiles and works; it trades the refusal's diagnostic hint for a bare
-refusal and repairs the `--role` branch alone, while moving the write keeps the hint and covers every
-refusal ahead of it.
+Audit `open`, `role_streaks`, `--status --check` and `next_action` reading the surviving set ship
+with `a-finding-can-leave-an-audit-round.md` §5; that spec's §2 defines the set.
 
-**The bytes must be the pre-blanking spec.** `engine.BlankFrontmatter` runs immediately after the
-current write site, so they are copied before that call rather than re-read at the new one. **The
-fixture must carry frontmatter** — without it that call is a byte-identical no-op and the acceptance
-row cannot fail (§9 row 6).
+## 6. A write of the loop's state
 
-**Why it matters more than a stray file.** A round on disk because someone mistyped a flag is a round
-about nothing, `--status` reports a directory's existence, and a typo is the likeliest cause.
-
-## 4. The disposition write is fenced elsewhere
-
-The two sinks this section carried — `tp audit --resolve` and `--resolve-all` refused under
-`TP_UNATTENDED=1`, and `resolved.evidence` required non-empty both at the write and at the record —
-ship with `a-finding-can-leave-an-audit-round.md` §3, together with their three test rows and the two
-transcripts behind them. They belong there because that spec is what makes a disposition clear a
-round: the fence and the thing it fences are one release, and shipping them apart would put the
-escape hatch in a user's hands one release before the lock. Nothing in this spec depends on them
-landing here.
-
-## 5. One predicate, not two
-
-`open`, `role_streaks`, `spec_coverage_clean_rounds` and `--check` must all derive from the surviving
-set §2 defines and `a-finding-can-leave-an-audit-round.md` §2 grades. Two predicates are two things
-to drift, and the drift is invisible because both produce plausible integers — measured on a live
-tree, re-recording under a changed policy moved `clean` while leaving `role_streaks` at
-`{0, open 1}`.
-
-`next_action` follows the same set: when every non-`PASS` row in the latest round carries a
-disposition, it says the round is disposed and the next step is to re-audit.
-
-**The two predicates already disagree, at `HEAD`, about `duplicate`.** `roundPayload` in
-`internal/engine/resumepayload.go` counts a row as unresolved unless `resolved.status` is exactly
-`"wontfix"`; `reviewFindingResolvedAway` in `internal/engine/reviewclean.go` subtracts `wontfix`
-**and** `duplicate`. One round, two surfaces, opposite answers — `tp review --status` and `tp resume`
-on the same tree — and neither is reading the other's predicate. The transcript is in the sidecar
-under *Two predicates disagree about `duplicate`*.
-
-## 6. tp names every file it writes
+### 6.1 It names its file
 
 | surface | today | after |
 |---|---|---|
-| `tp review\|audit <spec> --record <f>` | `{round, findings, clean, …}` | the same plus **`file`** |
-| `tp set --workflow <k>=<v>` | `{"updated": {…}}` | the same plus **`file`** |
+| `tp review\|audit <spec> --record <f>` | `{round, findings, clean, …}` | the same plus **`file`**, the recorded round file |
+| `tp set --workflow <k>=<v>` | `{"updated": {…}}` | the same plus **`file`**, the task file whose block changed |
 
-The `--project` branch of `tp set --workflow` already prints the path it wrote and warns when the value
-is shadowed; the task branch prints neither, and a field report traced a `checks` value silently
-landing in **another spec's** task file to that asymmetry.
+The `--project` branch of `tp set --workflow` already names the path it wrote. `--record`'s `file`
+is what makes resolving into the recorded round usable without knowing the path shape by heart. Every
+other task-file write naming its target is `a-task-file-write-names-its-target`.
 
-`--record`'s `file` is what makes the sibling spec's `--resolve` precondition usable: without it a
-reader must know the path shape by heart.
+### 6.2 It keeps the keys it does not know
 
-## 7. The emitted instruction names its commands
+**`--record` preserves `state.json` keys it does not understand**, at the top level and on a round
+entry, and where a typed field and a preserved key share a name the typed field wins. Today one
+`--record` drops every key the binary does not know, silently, and shipped round fields have been
+erasable since they landed. The fix buys durability against binaries at or after this release and
+nothing against an older one; `round-knows-its-panel-measurements.md` carries both measurements and
+names the fields. Any release that adds a key to `state.json` — `round-knows-its-panel`'s panel
+record among them — depends on this one shipping first.
 
-A field report describes a cycle that ran review rounds without ever calling `--resolve`. The emitted
-`instruction` names `tp review --merge`, `--record` and `--status --check` as commands, and then says
-*"verify and **resolve** them"* — **two bare verbs, and both are also flags**: `--verify` is listed
-beside `--resolve`/`--resolve-all` under `Modes (mutually exclusive)`.
+### 6.3 It lands whole
 
-The line names both: `tp <phase> <findings> --resolve <idx> <wontfix|duplicate> <evidence>` and
-`tp <phase> <spec> --verify`. And `--help` gains the usage line — today the flag's description carries
-the selector shape but the positional order appears only after you trigger the error.
+**The recorded round file is written atomically at all three of its writers** — `tp review --record`,
+`tp audit --record`, and the rewrite behind `--resolve`/`--resolve-all` on both phases — through a
+temporary file in the same directory and a rename, the shape the snapshot beside it already uses. tp's
+readers of that file take no lock and skip an unparseable line, so a partial read is reachable without
+a crash and can grade a round on a truncated subset of its findings. **`tp audit --merge -o` writes
+through the same temporary-and-rename path `tp review --merge -o` already uses**, so a symlinked `-o`
+is replaced rather than followed and the output's mode no longer depends on a pre-existing file; a
+hardlinked `-o` is detached, as on the review side, and that is accepted. **Ordering is unchanged**:
+the round file lands before its index entry. The probes are in `loops-own-state-writes-measurements.md`
+and this spec's sidecar.
 
-**The wording is one cause among four and this release does not claim it is the mechanism.** Two others
-carry committed evidence: `skills/tp/SKILL.md` step 5 pointed at `merged.ndjson`, where a disposition
-records nothing, until one commit before this spec; and `spec/0.31.0.md` §3.5 makes `--record` **reject**
-a file carrying `fixed` rows, so a cycle disposing everything `fixed` records zero dispositions by
-construction. The sidecar's *What the emitted instruction actually says* ranks them.
+## 7. A refused invocation writes no state
 
-**That last fact fences the usage line above**: it offers `wontfix|duplicate` and not `fixed`, because
-`fixed` at `--record` is an error and `fixed` post-record does not clear a round.
+`tp audit <spec> --role <unknown>` refuses at exit 2 and has already written the round's snapshot,
+so a mistyped flag leaves a snapshot on disk for a round nobody emitted. **The snapshot is written
+after the last refusal, not while the spec is loaded.** "Validate earlier" is buildable and is not
+what ships: it trades the refusal's diagnostic hint for a bare refusal and repairs the `--role`
+branch alone, while moving the write keeps the hint and covers every refusal ahead of it. **The
+snapshot still holds the spec as written, frontmatter included** — so the acceptance fixture must
+carry frontmatter, or the row cannot tell a correct move from one that snapshots the blanked text
+(§10 row 7).
 
-## 8. Non-Goals
+## 8. `tp review`'s instruction and `--help` name their commands
 
-1. **No new recorded field, no new flag, no config.** §2.1 is the one contract change: three keys on
-   `next_action.payload`, agent-facing and documented in `skills/tp/REFERENCE.md`.
-2. **No convergence change.** Nothing here changes which rows survive into a grade; §5 makes every
-   surface read the surviving set the sibling spec defines, and §3 changes when a file is written.
-3. **No judgement of `resolved.evidence`'s content.** §4 requires it to be non-empty at both sinks and
-   reads no further.
-4. **Not the review side's discoverability beyond the emitted string.** §7 fixes what tp *says*; the
-   two causes with committed evidence behind them are named there and not repaired here.
-5. **No repair of past state.** `unresolved_findings` is computed on read, so every recorded round
-   reports correctly the moment this ships. A state directory an earlier refusal created is
-   indistinguishable from a legitimately emitted round that was never recorded, and is left alone.
-6. **The review phase's count is unchanged, and the reason is the corpus rather than the code.** §2's
-   finding clause is vacuous over every review row that exists — no review row carries a `status` key.
-   It is **not** vacuous by construction: `internal/cli/review_record.go` validates no key set, so a
-   review row carrying `status: "PASS"` would be accepted today and would stop counting under §2's
-   clause. This release does not make the vacuity structural, and row 4 measures the corpus rather than
-   a guarantee.
+**The emitted instruction names its commands and its target.** Today `tp review`'s says *"verify and
+resolve them, then record"* — two bare verbs that are both flags, and a sequence that is right only
+if the resolve comes first. It names
+`tp review <findings> --resolve <idx> <wontfix|duplicate> <evidence>` and
+`tp review <spec> --verify`, and says: **resolve before `--record`, or afterwards into the file
+`--record` names.** The dispositions it offers are `wontfix|duplicate` because `--record` refuses a
+file carrying `fixed` rows (`spec/0.31.0.md` §3.5). This release does not claim the wording is the
+whole mechanism; the sidecar ranks the causes.
 
-## 9. Tests
+**`tp review --help` names each mode's positional.** Its mode list names `--record` and `--status`
+beside the modes it lists today, with the positional each takes, the order `--resolve` takes its
+arguments in, and that a recorded round's number is derived from state.
 
-Every row derives from a numbered decision and names a mutant that must fail it. **Watched red against
-`HEAD` and green after the fix: rows 1, 2, 3 and 5, with row 4 green in both states.** Row 8 was
-**not**: it was reworded after that run from two counters to three plus the identity, and
-`findings_total` was never emitted or asserted in either colour — the run belongs to the row this one
-replaces. Every other row is written, not yet watched.
+**`--record` refuses `--round` by its presence, not its value.** Today
+`tp review <spec> --record <f> --round 1` passes and records the next round, while `--round 9` is
+refused with a hint pointing to `--help`, which does not state the rule.
+
+## 9. Non-Goals
+
+1. **No new recorded field, no new flag, no config.** The contract changes are the output keys
+   §1 *Consequences* lists, each documented in `skills/tp/REFERENCE.md`.
+2. **No convergence change.** Nothing here changes which rows survive into a grade; §2 makes the
+   counting surfaces read the set the review side already grades by.
+3. **No judgement of `resolved.evidence`'s content.** It must be non-empty; tp reads no further.
+4. **The carry-forward's suppression is unchanged** (§4), and `fixed` does not become closed (§2).
+5. **No repair of past state.** Every count here is computed on read, so recorded rounds report
+   correctly the moment this ships; a state directory an earlier refusal created, and a round file
+   an earlier non-atomic write produced, are left alone.
+6. **The review phase's `unresolved_findings` is unchanged**, because no recorded review row carries
+   a `status` key. That is a property of the corpus, not a guarantee — row 4 measures it.
+7. **No lock added, removed or re-keyed.** §6.3 changes how bytes land inside each critical section,
+   not who may write.
+
+## 10. Tests
+
+Every row derives from a numbered decision and names a mutant that must fail it. Rows 1, 2 and 6 were
+watched red against `HEAD` and green under a built fix, and row 4 green in both; row 3 was reversed
+with §2's `fixed` decision, and every other row is written, not yet watched. Rows whose subject does
+not exist at `HEAD` defer their two counts to the implementing task's acceptance.
 
 | # | from | assertion | the mutant that must fail it |
 |---|---|---|---|
-| 1 | §2 | v0.37.0's round 7 **as it stands at `HEAD`** — every non-`PASS` row dispositioned — reports **0**, with the fixture's own properties (row count, non-`PASS` count, disposition count) asserted at test time | the shipped `!= "wontfix"` loop, which returns the round's `PASS` count |
+| 1 | §2 | v0.37.0's audit round 7 **as it stands at `HEAD`** — every non-`PASS` row dispositioned `wontfix` with evidence — reports **0** unresolved, with the fixture's own properties asserted at test time | the shipped loop that closes only `wontfix` and counts `PASS` rows, which returns the round's `PASS` count |
 | 2 | §2 *finding* | an audit round of N `PASS` rows and zero findings reports 0 for every N | count rows rather than findings, making the number a function of checklist size |
-| 3 | §2 *fixed* | a non-`PASS` row with `resolved.status: "fixed"` does not count | keep `wontfix` as the only closing value |
-| 4 | §2 *review* | a review round's count is byte-identical before and after | apply the `PASS` filter to review rows, which carry no `status` and would all be dropped |
-| 5 | §3 | after a `--role` refusal in a repo with no state directory, none exists | the shipped order, which writes the snapshot first |
-| 6 | §3 *scope* | a `--role` invocation that emits at least one prompt still writes its snapshot, and **on a fixture whose spec carries frontmatter** the bytes equal the spec before blanking | move the write after `BlankFrontmatter`. **The fixture is the assertion here**: that call returns its input byte-identically when there is no frontmatter, so on a frontmatter-free spec — the one §3's transcript used — the mutant is a no-op and the row certifies itself |
-| 7 | §3 *other refusals* | the same holds for every argument tp rejects before emitting — asserted over a hand-built list, because the set is not enumerable in tp | fix the `--role` branch alone, leaving every sibling refusal writing state |
-| 8 | §2.1 | the payload carries `rows_recorded`, `findings_total` and `findings_closed`, and `unresolved_findings == findings_total - findings_closed` holds on every fixture in this table | emit `rows_recorded` and `findings_closed` alone — measured, that pair leaves the shipped loop's answer arithmetically consistent with the round it miscounted |
-| 9 | §5 | on a round with one disposed and one open finding, `open` is 1, `role_streaks[].open` is 1, `--check` exits 1, and `clean` is false — each named, not "agree" | give `open` its own predicate. Measured on a live tree: re-recording under a changed policy moved `clean` while leaving `role_streaks` at `{0, open 1}` |
-| 10 | §5 *duplicate* | a one-finding round resolved `duplicate` with evidence gives the same answer from `tp review --status` and from `tp resume` | keep `roundPayload`'s `!= "wontfix"` test — `HEAD`, where the two surfaces disagree |
-| 11 | §5 *next_action* | with every non-`PASS` row disposed, `next_action` names re-auditing rather than addressing findings | leave the string static |
-| 12 | §6 | `--record`'s `file` names the round file it wrote — **not `state.json`, not the lock** — and re-reading that path returns the rows just recorded; `tp set --workflow`'s `file` names the task file whose `workflow` block changed | assert the key's presence alone, which a constant string passes |
-| 13 | §7 *emission* | the emitted `instruction` names `--resolve` **and** `--verify` as commands | name `--resolve` alone, leaving `verify` bare and reproducing the ambiguity for the other flag |
-| 14 | §7 *usage* | `--help`'s usage line carries the positional order, and the dispositions it offers are `wontfix\|duplicate` | offer `fixed` there — `spec/0.31.0.md` §3.5 makes `--record` reject a file carrying `fixed` rows, so the usage line would document an error |
-
-**Row 7 is quantified over the refusal set deliberately, and it guards against regression rather than
-sweeping extant siblings.** §3's transcript is one refusal, chosen because it is the one that was
-reported; a fix scoped to it passes rows 5 and 6 and leaves the class open. Measured at `HEAD` the
-class has exactly one open member — an unreadable `--findings` path (exit 3), a nonexistent
-`--affected-files` path (exit 3) and an unsafe `--base` (exit 2) all abort before `loadAuditSpec` and
-already write nothing. And "the refusal set" is not enumerable anywhere in tp: the exit sites are
-spread across `audit.go`, `rolefilter.go` and `role_panel.go`, so the test hand-builds its list, which
-is the shape `CLAUDE.md` calls a quantifier you did not count. Both facts belong in the row, because
-together they say what it is worth — a later release adding a refusal ahead of the write cannot
-silently reopen the class.
+| 3 | §2 *fixed* | a finding resolved `fixed` counts as unresolved in `tp resume`, and `tp review --status` reports its round not clean | close on `fixed`, which reports 0 unresolved for a round `--status --check` still fails |
+| 4 | §2 *review* | a review round's `unresolved_findings` is byte-identical before and after | apply the `PASS` filter to review rows, which carry no `status` and would all be dropped |
+| 5 | §2 *duplicate* | a one-finding round resolved `duplicate` with evidence gives the same answer from `tp review --status` and from `tp resume` | close only `wontfix` — `HEAD`, where the two surfaces disagree |
+| 6 | §7 | after a `--role` refusal in a repo with no state directory, none exists | the shipped order, which writes the snapshot first |
+| 7 | §7 *bytes* | a `--role` invocation that emits a prompt still writes its snapshot, and **on a fixture whose spec carries frontmatter** the bytes equal the spec as written | snapshot the blanked spec; on a frontmatter-free fixture the two are byte-identical, so the fixture is the assertion |
+| 8 | §7 *other refusals* | every argument tp rejects before emitting leaves no state — asserted over a hand-built list, because the refusal set is not enumerable in tp | fix the `--role` branch alone |
+| 9 | §2.1 | the payload carries `rows_recorded`, `findings_total` and `findings_closed`, and the identity holds on every fixture in this table | emit `rows_recorded` and `findings_closed` alone, which leaves the shipped loop's miscount arithmetically consistent |
+| 10 | §3 | on a one-finding recorded round, `dispositioned` reads `0/1`, then `1/1` after a `--resolve` into the recorded file, and stays `0/1` after a `--resolve` into the merge output | read the disposition count from the merge output, or report the finding count alone |
+| 11 | §4 *header* | a carried `wontfix` row appears under the accepted header and under no header that calls it unresolved, and it is still listed | drop accepted rows from the list, which reverses a decision `spec/undecided.md` closed |
+| 12 | §4 *regression* | `--role <x>` on a round that would emit the regression prompt lists it in `skipped_roles` | the shipped filter, which drops it and reports `skipped_roles: []` |
+| 13 | §6.1 | `--record`'s `file` names the round file it wrote — not `state.json`, not the lock — and re-reading it returns the rows just recorded; `tp set --workflow`'s `file` names the task file whose block changed | assert the key's presence alone, which a constant string passes |
+| 14 | §6.2 | a state file carrying an unknown top-level key and an unknown round-entry key keeps both across a `--record`, and a typed field sharing a name with a preserved key wins | marshal the typed struct alone — `HEAD`, which drops both; and merge the preserved map last, which lets a stale value resurface |
+| 15 | §6.3 | with lock-free readers against repeated writes of a round file, no read observes a partial file and every whole read is byte-identical to what was written — at `--record` and at `--resolve` | the shipped plain write at either site; a fix covering only `--record` fails the `--resolve` arm |
+| 16 | §6.3 *ordering, empty* | the round file lands before its index entry, and a round whose every role found nothing still writes an empty file and records `findings: 0, clean: true` | swap the order; or treat an empty write as a failure |
+| 17 | §6.3 *merge `-o`* | `tp audit --merge -o` over a symlink leaves the link's target byte-identical, and over an existing `0644` file yields the mode `tp review --merge -o` yields | the shipped single write, which follows the link and keeps the old mode |
+| 18 | §8 *instruction* | the emitted instruction names `--resolve` and `--verify` as commands and says to resolve before `--record` or into the file `--record` names | name `--resolve` alone, leaving `verify` bare |
+| 19 | §8 *usage* | `--help` names every mode's positional, including `--record`'s and `--status`'s, and offers `wontfix\|duplicate` | offer `fixed`, which `--record` refuses |
+| 20 | §8 *round* | `--record <f> --round 1` is refused at exit 2, the same as `--round 9`, and neither records a round | test the value against its default — `HEAD`, where `--round 1` records |
