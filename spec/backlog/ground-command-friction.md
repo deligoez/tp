@@ -5,6 +5,11 @@ recorded ground rounds under `spec/backlog/.tp-review/ground-command-friction/` 
 Its ten defects were split into seven specs, each of which can ship alone. Its measurements file,
 `ground-command-friction-measurements.md`, is a stub of the same shape.
 
+**The section numbers below are those of 2026-09-08.** The 2026-09-11 pass rewrote most of these
+specs and folded several into others, so a number may no longer name the same section. Follow the
+slug: a folded spec is itself a forwarding stub naming its host, and `README.md` beside this file
+lists every stub.
+
 | original section | now |
 |---|---|
 | header blockquote | `the-floor-names-what-it-cut-measurements.md`, *Header: the count of decisions and why the file did not split* |
@@ -34,10 +39,10 @@ Its ten defects were split into seven specs, each of which can ship alone. Its m
 | §11 A carried disposition has no escape hatch | `what-the-record-does-not-say.md` §3 |
 | §12 The coverage ratio's denominator | `what-the-record-does-not-say.md` §4 |
 | §13 `SKILL.md` did not name `UNVERIFIABLE` | `what-the-record-does-not-say.md` §5 |
-| §14 A fear the tree refutes | `emitting-does-not-lose-a-round.md` §2 |
+| §14 A fear the tree refutes | `emitting-does-not-lose-a-round.md` §2 until 2026-09-11, when that re-print mode was dropped; the fact stays in `emitting-does-not-lose-a-round-measurements.md` |
 | §15 rows 14–17 | `a-round-can-be-driven-from-the-envelope.md` §4, rows 1–4 |
 | §15 rows 18–21 | `what-the-record-does-not-say.md` §8, rows 2–5 |
-| §15 rows 22–23 | `emitting-does-not-lose-a-round.md` §5, rows 1–2 |
+| §15 rows 22–23 | `emitting-does-not-lose-a-round.md` §5, rows 1–2 until 2026-09-11; dropped with the re-print mode |
 | §15 row 24 | `what-the-record-does-not-say.md` §8, row 1 |
 | The silent overwrite | `emitting-does-not-lose-a-round.md` §3 |
 | `FloorAnchorOf` bills six kinds of unit… | `floor-anchors-need-fixtures.md` §2 |
