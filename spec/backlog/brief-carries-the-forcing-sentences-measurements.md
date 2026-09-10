@@ -238,3 +238,68 @@ edited.
   `spec/1.1.0-release-notes.md:283` routes the item onward rather than taking it. This slug is what
   that dangling deferral lacked, which is why it is recorded here rather than left as a comment
   pointing at nobody.
+
+**Where the item above belongs (2026-09-11).** It is off this spec's subject — a record-unit command
+string the driver runs, not a sentence a role reads — and stays in this sidecar only until an owner
+takes it. The nearest owner is `next-action-and-check-tell-the-truth`, whose subject is the commands
+tp emits for a driver to run; the `.part` hit it cites in `round-knows-its-panel.md` went with that
+spec's §4, cut on 2026-09-11.
+
+## Trimmed on 2026-09-11 — what left the body
+
+| what | where |
+|---|---|
+| the opening *"This file is decisions"* blockquote | folded into §1's first paragraph |
+| §1's paragraph on the third instance belonging to a peer repository's cycle | deleted — the table cell still says *a peer cycle's* role, and `CLAUDE.md` is the source |
+| §1.1's arm figures | the arm table above, *The controlled measurement: arms and derivation*, already carried them |
+| §2's paragraph on the mechanism's name outside this repository | below, verbatim |
+| §2's paragraph naming the state-index fields the count reads | deleted — implementation |
+| Non-Goal 7 | below, verbatim |
+| — | §2's sentence moved from the framing block to the *Prior Round* block; *Sequencing* names the release that also edits it |
+| — | §2 records why the count stays although it is nearly constant; below, *How constant N of M is* |
+
+**§2's deleted paragraph.** *The mechanism has a name outside this repository, and it sharpens what
+the sentence has to do. A completion criterion carries **demand**: how much it requires. "Every
+modified file accounted for" forces work that "produce a change list" does not, and the digging that
+demand provokes is latent in the wording rather than written as its own step. The count is the demand;
+without it the sentence states a caveat and asks for nothing — an instruction the role already believes
+it follows pays load and changes no behaviour.*
+
+**Non-Goal 7, deleted.** *No claim that emitting them reproduces the measured effects. Six instances is
+what exists, all hand-written, one of them in a peer repository's cycle. The release ships the
+sentences because they are free and the evidence points one way — not because six hand-run instances
+establish a rate.* §1.1's two limits say the same without a count.
+
+**Why the *Prior Round* block and not the framing.** The draft put both sentences in the framing
+block every role prompt carries. The first is about repairs a role is reading, and the block where a
+role reads last round's rows — which `a-finding-can-leave-an-audit-round` makes carry their disposition
+and evidence — is where those repairs are in front of it. The block is absent on round 1 and for a role
+with no prior non-`PASS` row, which delivers §2's round-1 rule by construction; a role that was
+all-`PASS` last round gets the third sentence and not the first. The block's opening line today is
+*"Re-check each item against the code and record your own status. Do NOT repeat the prior verdict
+without verifying."* (`internal/cli/audit_roles.go`, `renderPriorRoundSection`), a prohibition in a
+line this release touches, which is why §4 names it.
+
+## How constant N of M is
+
+Over every recorded audit round of a release at or after `v0.32.0`, counting a round that holds at
+least one non-`PASS` row, at `18032abe`:
+
+```
+python3 -c '
+import json,glob,re,os
+t=w=0
+for d in glob.glob("spec/.tp-review/*"):
+    m=re.match(r"(\d+)\.(\d+)\.(\d+)$",os.path.basename(d))
+    if not m or tuple(map(int,m.groups()))<(0,32,0): continue
+    for f in glob.glob(d+"/audit-round-*.ndjson"):
+        if not re.search(r"audit-round-\d+\.ndjson$",f): continue
+        t+=1; w+=any(json.loads(l).get("status")!="PASS" for l in open(f) if l.strip())
+print(t,w)'
+```
+
+It prints `79 77`: 77 of 79 rounds produced a non-`PASS` row, and the same split comes from each
+`state.json`'s recorded `findings`. The two exceptions are `v0.35.0`'s audit rounds 8 and 9 — the two
+clean rounds that ended that audit. So *N* < *M* is reached in the corpus only by a clean round, and a
+prompt emitted after one and before convergence is the only place the fraction differs from *M of M*.
+The 2026-09-11 survey's shorthand, *every round from `v0.32.0` on*, is two rounds too strong.
