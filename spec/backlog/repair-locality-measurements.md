@@ -1,6 +1,136 @@
 # repair-locality — measurements
 
-Supplemental material for `repair-locality.md`; the spec stands without it.
+Supplemental material for `repair-locality.md`; the note stands without it.
+
+## Became a note on 2026-09-11
+
+`repair-locality.md` was a tool-class release spec that reported the two numbers on `--status` and
+`--record`. On 2026-09-11 it left the backlog order and became a note plus a script: the backlog survey
+of that date re-ran the script on the three most recent cycles and found the share saturated (below),
+the number gates nothing, and no `next_action` would read it. The release text is
+`git show 18032abe:spec/backlog/repair-locality.md`. Section references inside the blocks below —
+*§1.1*, *§3.1*, *§4 item 3* — are that release's own.
+
+## The script
+
+Moved verbatim from the release's §1.1, where it was *the derivation*. Run from the repository root;
+at `18032abe` it prints the table below exactly. To run it on other cycles, replace the tuple in the
+`for c in (…)` line with the names of their directories under `spec/.tp-review/`.
+
+```
+python3 - <<'PY'
+import json, os, re, difflib, hashlib, statistics as st
+HEAD = re.compile(r'^#{2,}\s+(\d+[a-z]?(?:\.\d+[a-z]?)*)[.\s]')   # any heading level >= 2
+LOC  = re.compile(r'^§(\d+[a-z]?(?:\.\d+[a-z]?)*)')               # leading section id of a location
+def owners(lines):                       # line index -> id of the section that owns it
+    hs = [(m.group(1), i) for i, l in enumerate(lines) if (m := HEAD.match(l))]
+    starts = [i for _, i in hs]; own = [None] * len(lines)
+    for k, (s, i) in enumerate(hs):
+        for j in range(i, starts[k + 1] if k + 1 < len(starts) else len(lines)): own[j] = s
+    return [s for s, _ in hs], own
+def sha(p): return "sha256:" + hashlib.sha256(open(p, 'rb').read()).hexdigest()
+def cycle(c):
+    b = f"spec/.tp-review/{c}"
+    by = {r["round"]: r for r in json.load(open(b + "/state.json"))["review_rounds"]}
+    shares, secs, rounds, unparsed = [], [], [], 0
+    for n in sorted(by):
+        pa, pb = f"{b}/snapshot-round-{n-1}.md", f"{b}/snapshot-round-{n}.md"
+        fp = f"{b}/review-round-{n}.ndjson"
+        if n - 1 not in by or not all(map(os.path.exists, (pa, pb, fp))): continue
+        rows = [json.loads(l) for l in open(fp) if l.strip()]
+        if not rows: continue                                                          # empty file
+        if sha(pa) != by[n-1]["spec_hash"] or sha(pb) != by[n]["spec_hash"]: continue   # §4 item 3
+        old, new = open(pa).read().splitlines(), open(pb).read().splitlines()
+        ids, own = owners(new); changed = set()
+        for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(None, old, new, autojunk=False).get_opcodes():
+            if tag != 'equal':
+                for j in range(j1, j2):
+                    if own[j]: changed.add(own[j])
+        inside = located = 0
+        for r in rows:
+            m = LOC.match(str(r.get("location", "")).strip())
+            if not m: unparsed += 1; continue
+            located += 1; x = m.group(1)
+            if any(x == s or x.startswith(s + ".") for s in changed): inside += 1
+        if located and ids:
+            rounds.append(n); shares.append(100 * inside / located)
+            secs.append(100 * len(changed) / len(set(ids)))
+    return rounds, shares, secs, unparsed
+allS, allC, tot, unp = [], [], 0, 0
+for c in ("0.35.0", "0.36.0", "0.37.0"):
+    R, S, C, u = cycle(c); allS += S; allC += C; tot += len(R); unp += u
+    s, k = st.median(S), st.median(C)
+    print(f"| v{c} | {len(R)} | {s:.1f}% | {k:.1f}% | {s/k:.2f}x |")
+s, k = st.median(allS), st.median(allC)
+print(f"| all | {tot} | {s:.1f}% | {k:.1f}% | {s/k:.2f}x |   unparseable locations: {unp}")
+PY
+```
+
+| cycle | rounds | findings in changed text | sections changed | concentration |
+|---|---|---|---|---|
+| v0.35.0 | 15 | 40.7% | 18.4% | 2.21× |
+| v0.36.0 | 14 | **79.9%** | **22.2%** | **3.59×** |
+| v0.37.0 | 11 | 92.6% | 71.4% | 1.30× |
+| **all** | **40** | **72.1%** | **34.0%** | **2.12×** |
+
+Of the 1,453 finding rows these 40 rounds filed, **7 yield no section id** and leave both sides of the
+share — the script prints that count as `unparseable locations`.
+
+**The ordering is what does not depend on the cells.** It holds under this table, under the 44-round
+form below, and under an independent reimplementation by a grounding round that reproduced none of the
+printed percentages: in all three, v0.37.0 is first by share and last by concentration, and v0.36.0 is
+first by concentration.
+
+## Re-verified 2026-09-11
+
+At `18032abe` the script above prints the table above unchanged. With the tuple replaced by
+`("1.0.0", "1.0.1", "1.1.0")` — every review cycle recorded from v1.0.0 on — it prints:
+
+| cycle | rounds | findings in changed text | sections changed | concentration |
+|---|---|---|---|---|
+| v1.0.0 | 3 | 98.1% | 75.0% | 1.31× |
+| v1.0.1 | 1 | 100.0% | 100.0% | 1.00× |
+| v1.1.0 | 2 | 93.0% | 60.0% | 1.55× |
+| all | 6 | 95.6% | 67.5% | 1.42× |
+
+No location was unparseable. All three sit in the top-right quadrant: nearly every finding in changed
+text because most sections changed, and concentration close to one. **The rounds are few** — six in
+all — so the saturation is a reading of small cycles rather than a trend, and it is the reason the
+number was not worth a release: on the cycles tp now produces it has nothing to separate.
+
+A variant of the same function looping over every `state.json` under both `spec/.tp-review/` and
+`spec/backlog/.tp-review/` found no measurable pair in any backlog directory, so these three are every
+cycle after v0.37.0 that the script can read.
+
+## The two hand measurements, and a third
+
+Moved from the release's §1. The diagnosis was reached by hand twice, for two cycles and at two
+values: v0.37.0's *"24% of the file was forensics each repair round had written for the next round to
+review"*, reached after twelve flat rounds and still in `CLAUDE.md`, and v0.35.0's *"43% of that
+cycle's findings sat in text the previous round had just written"*, which `CLAUDE.md` carried until
+`00d466b8` (`git show 00d466b8~1:CLAUDE.md` has it). The first is a share of the *file*, not of
+findings nor of sections — it corroborates v0.37.0's top-right placement and is neither of the two
+numbers the script reports.
+
+**The third, from `spec/1.1.0.md`'s review cycle, moved from the release's §1.3.** It can be
+re-derived from committed artifacts: both snapshots and both round files are in the repository.
+
+**The rule, stated before the count.** Diff `snapshot-round-1.md` against `snapshot-round-2.md`;
+every added or replaced line is attributed to its enclosing `## N.` heading; a round-2 finding counts
+as *in repair-written text* when the leading `§N` of its `location` is one of those headings. That is
+**section granularity, and it is biased upward** — §5 holds half the findings and the repair rewrote
+only part of it, so a finding against an untouched part of a touched section still counts.
+
+At that granularity: the repair changed 24 lines across **§1, §3 and §5**, and **26 of 28** round-2
+findings (92.9%) land in those three sections; only §2 and §4 carry one each. No row's `location`
+failed to parse.
+
+**Tightened one level, where the document allows it.** §5 is a numbered table, so a finding can be
+attributed to a row rather than to the section. The repair rewrote or added rows **3, 5, 8 and 10**.
+Of §5's fourteen findings, **ten name a rewritten row, four name no row at all, and none names only
+a row the repair left alone.** Treating the four as unattributable in both directions gives a band of
+**78.6%–92.9%** rather than a point. **Every §5 finding that names a row names one the repair had just
+rewritten**: the round did not merely concentrate on new text, it found nothing to say about the old.
 
 ## Two earlier readings of the table
 
