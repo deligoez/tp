@@ -420,8 +420,10 @@ repeating them, never in cutting them.
    the role re-records them verbatim — `evidence_file` and `evidence_lines` carried — and re-measures
    only the non-`PASS` rows. On a round after repairs, only rows whose `evidence_file` is untouched by
    `git -c diff.external= diff --name-only <previous record sha>..HEAD` are carried; the orchestrator
-   derives that list, the role does not guess it. This is the brief form of
-   `spec/backlog/checklist-covers-what-changed.md`, which makes tp do the derivation.
+   derives that list, the role does not guess it; tp does not derive it yet. **Carry by file, not by
+   id alone:** a `file_check` id is a path prefix cut short plus a positional suffix, so in a tree
+   whose paths share a long prefix the same id can name a different file next round — carry a row
+   only when its `evidence_file` is the file the item names now.
 4. **The class-to-slug table goes into the brief before round 1.** A finding matching a class already
    routed is recorded `PARTIAL` with its slug in the note and expects no repair; only a class the table
    lacks reaches the orchestrator. The gap between one round's record and the next round's emission was
