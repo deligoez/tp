@@ -17,39 +17,34 @@ package's own tests); counts and timings are in the sidecar under "How the figur
 
 ## 2. The check reads the machine-readable output, never stdout
 
-`gremlins unleash -o <file>` writes JSON with eleven top-level keys: `go_module`,
-`files[{file_name, mutations[{type, status, line, column}]}]`, `test_efficacy`, `mutations_coverage`,
-`elapsed_time`, `mutator_statistics`, `mutants_total`, `mutants_killed`, `mutants_lived`,
-`mutants_not_viable`, `mutants_not_covered`. **stdout is not parsed.** Not because the streams carry
-different mutants — stdout prints the whole `files[]` list, and the sidecar's "The set comparison of
-stdout against the JSON" shows the two equal — but because the JSON's shape is a Go struct with
-eleven json-tagged fields (`internal/report/internal/structure.go`, gremlins v0.6.0) while stdout's is
-a presentation (`fullRunReport` in the same package's `report.go`) that changes with it.
+`gremlins unleash -o <file>` writes JSON, and **stdout is not parsed.** Not because the streams carry
+different mutants — the sidecar's "The set comparison of stdout against the JSON" shows the two equal
+— but because the JSON's shape is a Go struct with json-tagged fields while stdout's is a presentation
+that changes with it. The key inventory and the upstream source it is read from are in the sidecar
+under "The JSON's keys and the counter reasoning (moved from the body, 2026-09-11)".
 
 ## 3. `mutants_total` is not the total, and the check must not use it
 
-**The check's mutant count is the length of `files[].mutations[]`.** `mutants_total` is
-`killed + lived + not_viable` and **excludes not-covered mutants**, so it names the *tested* subset
-while reading as the population, and the direction is flattering: the excluded mutants are exactly
-the ones nothing tested. On `./internal/model` the field reads 55 against 81 rows.
+**The check's mutant count is the length of `files[].mutations[]`.** `mutants_total` excludes
+not-covered mutants, so it names the *tested* subset while reading as the population, and the
+direction is flattering: the excluded mutants are exactly the ones nothing tested.
 
-**The second derivation is a `--dry-run` of the same package, never a sum of counters.** A dry run
-enumerates the mutants without testing them, in a separate process, and its row count agrees with
-the real run to the digit on both packages measured. **So the check invokes gremlins twice per
-package and requires the two `files[].mutations[]` lengths to be equal.** It never sums status
-counters: the JSON exports counters for four statuses while `mutations[]` also carries `TIMED OUT`,
-`SKIPPED` and `RUNNABLE` rows, and counters and rows are one pass counted twice, so a sum inside one
-file is a tautology (sidecar, "The second derivation is not another field of this file" and "The dry
-run's cost"). What that gives up: the dry run cross-checks the *population*, not the *statuses*, so
-the check **records** the per-status histogram of `files[].mutations[]` (§5) and checks nothing
-against it — the honest limit of a format fixed by upstream, not a gap to be closed by a cleverer sum.
+**The second derivation is a `--dry-run` of the same package, never a sum of counters.** The check
+invokes gremlins twice per package and requires the two `files[].mutations[]` lengths to be equal. It
+never sums status counters: counters and rows are one pass counted twice, so a sum inside one file is
+a tautology. What that gives up: the dry run cross-checks the *population*, not the *statuses*, so the
+check **records** the per-status histogram of `files[].mutations[]` (§5) and checks nothing against it
+— the honest limit of a format fixed by upstream, not a gap to be closed by a cleverer sum. The
+reasoning is in the sidecar under the heading §2 names, "The second derivation is not another field of
+this file" and "The dry run's cost".
 
 ## 4. The corruption tell is checked, because the timeout count is not in the file
 
 `CLAUDE.md` records a measured corruption: `--test-cpu N` makes gremlins pass `-cpu N` to
 `exec.Command` as a single argument, so `go test` never starts, every real survivor becomes
-`TIMED OUT`, and efficacy reads **100.00%**. No key in §2's list counts timeouts, so a check reading
-the file cannot see that directly. **What it can see is the signature: the check refuses to report a
+`TIMED OUT`, and efficacy reads **100.00%**. No key in the JSON counts timeouts (§2's sidecar
+heading), so a check reading the file cannot see that directly. **What it can see is the signature:
+the check refuses to report a
 score when `mutants_lived == 0 && mutants_not_covered > 0`.** Under the corruption every survivor
 moves out of `lived` while `not_covered` is untouched — the coverage profile is collected before any
 mutant runs — so the pair is exactly the fingerprint.

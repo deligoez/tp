@@ -198,3 +198,37 @@ in its own fresh `rsync -a --exclude .git` copy, one serial tree and one paralle
 directory reused, `--workers` pinned, compared on **efficacy and the timeout count** rather than on
 wall time. Without the fresh-copy rule the "after" arm returns the corruption signature and reads as
 a mutation signal `t.Parallel()` destroyed.
+
+## The JSON's keys and the counter reasoning (moved from the body, 2026-09-11)
+
+At the 2026-09-11 backlog pass the body's §2 key inventory and §3 counter figures moved here so the
+body carries decisions only. Verbatim, section numbers the body's.
+
+The body's §2, verbatim:
+
+> `gremlins unleash -o <file>` writes JSON with eleven top-level keys: `go_module`,
+> `files[{file_name, mutations[{type, status, line, column}]}]`, `test_efficacy`, `mutations_coverage`,
+> `elapsed_time`, `mutator_statistics`, `mutants_total`, `mutants_killed`, `mutants_lived`,
+> `mutants_not_viable`, `mutants_not_covered`. **stdout is not parsed.** Not because the streams carry
+> different mutants — stdout prints the whole `files[]` list, and the sidecar's "The set comparison of
+> stdout against the JSON" shows the two equal — but because the JSON's shape is a Go struct with
+> eleven json-tagged fields (`internal/report/internal/structure.go`, gremlins v0.6.0) while stdout's is
+> a presentation (`fullRunReport` in the same package's `report.go`) that changes with it.
+
+The body's §3, verbatim:
+
+> **The check's mutant count is the length of `files[].mutations[]`.** `mutants_total` is
+> `killed + lived + not_viable` and **excludes not-covered mutants**, so it names the *tested* subset
+> while reading as the population, and the direction is flattering: the excluded mutants are exactly
+> the ones nothing tested. On `./internal/model` the field reads 55 against 81 rows.
+>
+> **The second derivation is a `--dry-run` of the same package, never a sum of counters.** A dry run
+> enumerates the mutants without testing them, in a separate process, and its row count agrees with
+> the real run to the digit on both packages measured. **So the check invokes gremlins twice per
+> package and requires the two `files[].mutations[]` lengths to be equal.** It never sums status
+> counters: the JSON exports counters for four statuses while `mutations[]` also carries `TIMED OUT`,
+> `SKIPPED` and `RUNNABLE` rows, and counters and rows are one pass counted twice, so a sum inside one
+> file is a tautology (sidecar, "The second derivation is not another field of this file" and "The dry
+> run's cost"). What that gives up: the dry run cross-checks the *population*, not the *statuses*, so
+> the check **records** the per-status histogram of `files[].mutations[]` (§5) and checks nothing
+> against it — the honest limit of a format fixed by upstream, not a gap to be closed by a cleverer sum.

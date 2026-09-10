@@ -215,3 +215,37 @@ measured with an md5 of the task file around each call, `tp brief t1` leaves it 
 this release and is what the command is for. A test written to the old clause fails on `tp next`; a
 test that quietly narrows to `tp brief` passes while asserting less than the row claims. The row now
 says what is actually at stake: the procedure adds no write of its own.
+
+## Cut to a doc note, 2026-09-11
+
+The body was cut to a short doc note decoupled from `gate-sequence`, whose named-entry array was
+deferred the same day. Two consequences for the material above: *Overview*'s paragraph "This release
+needs the gate sequence" no longer holds — step 1 now runs the failing command of the `&&` gate — and
+*Why the ranked list is a step and not advice* is history, because the ranked list is no longer a step.
+The draft's *Non-Goals* and *Tests* sections above are the release draft's and were not carried into
+the note. The pre-cut body's steps 1–3, verbatim:
+
+> 1. **Isolate, then reproduce.** Run the failing entry alone, not the gate. A failure that does not
+>    reproduce is a finding about the gate, not about the change.
+> 2. **Observe the failure before editing it.** `CLAUDE.md`'s rule read in the other direction: a fix
+>    accepted without watching the failure first proves nothing, and an assertion never seen failing
+>    may be a tautology that passes identically either way.
+> 3. **Name three to five falsifiable causes and rank them, before testing any.** Each states its
+>    prediction: *if X is the cause, then changing Y removes it.* A cause with no prediction is a
+>    guess. Then **show the ranked list and carry on** — the operator often re-ranks it instantly from
+>    knowledge the unit does not have, and a unit that stops to wait has turned a checkpoint into an
+>    escalation.
+
+Where the dropped steps already live: step 2 is `CLAUDE.md`'s *Prove a fix by running it, not by
+reading it — write the test first and watch it fail*; step 3 is the ground prompt's instruction to
+"name three to five falsifiable causes with their predictions and test them in rank order"
+(`internal/cli/ground.go:1010-1011` at `18032abe`).
+
+The pre-cut body's minimal-reproduction bound, verbatim, condensed to one sentence in the note's step 3:
+
+> **And it ends on a minimal reproduction, which is a checkable bound rather than a feeling.** Once the
+> entry is red, cut inputs, config and steps one at a time, re-running after each cut. **Done when every
+> remaining element is load-bearing: removing any one of them turns the entry green.** The minimal case
+> is also the regression test, so the work is not thrown away. Where no seam can hold that test, the
+> absence is itself the finding: the unit records it rather than writing a test at a seam too shallow
+> to catch it.
