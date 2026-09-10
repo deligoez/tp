@@ -261,3 +261,91 @@ One item, and it is a correction to the round-2 bullet immediately above rather 
   *symbol* across the tree rather than reading the file the finding was already about. That is the
   `CLAUDE.md` quantifier rule landing on this sidecar's own prose: the round-2 bullet's "the identical
   line" is a claim of exhaustiveness over a set its author had not enumerated, and it was false.
+
+## Trimmed on 2026-09-11 — what left the body
+
+| what | where it went |
+|---|---|
+| §1.1's paragraph on which round an emission opened | below, *Only round 1 was opened by an emission* |
+| §2's paragraph naming the existing producers (`runAudit`, `auditRoundOpenByRole`) | deleted — implementation, for the implementing task |
+| §2.1's paragraph on the panel file beside the snapshot, and the `RolesStale` comparison | deleted — implementation |
+| §2.2, `state.json` round-trips unknown keys, and rows 4b/4c | `a-findings-exits-agree`; the measurements stay here |
+| §3's paragraph on a surplus role | deleted — row 7 now tests the rule's one-sidedness directly |
+| §4, `--status` reports the round in flight, and rows 8–10 | cut; the design is below under *§4 in-flight progress (cut)* |
+| Non-Goal 3 (`--status` does not spawn or wait) | deleted with §4 |
+| Non-Goal 6 (no PASS-note counter) | deleted — the counter was already dropped; its derivation is *PASS rows carrying a note (dropped counter)* above |
+| — | §4a gains a precondition: check `audit_converge_on: blocking` first; below, *Would `blocking` have sufficed?* |
+
+`CLAUDE.md` still says of the PASS-note reading rule that `spec/backlog/round-knows-its-panel.md`
+"carries it"; after this trim the body no longer does, and this sidecar's *PASS rows carrying a note*
+section is where it lives.
+
+## Only round 1 was opened by an emission
+
+Moved from §1.1. **One detail of the transcript matters for §2 and is easy to miss: only round 1 was
+opened by an emission.** Recording the same file twice produced round 2 with no emission in between,
+and the state directory afterwards holds `snapshot-audit-round-1.md` and no round-2 snapshot. Under §2
+that second round therefore has no recorded panel and stays *unknown*, so §3 fires on round 1 alone —
+which is enough to break the streak and take `--check` off zero. That is why §6 row 1 asserts the
+**exit code** rather than each round's `clean` byte, and why its fixture emits before every round it
+wants §3 to see.
+
+## Would `blocking` have sufficed?
+
+Survey B of the 2026-09-11 pass asked whether the shipped `audit_converge_on: blocking` already covers
+the *too strict* direction §4a exists for. Replayed at `18032abe` over `v1.0.0`'s eleven recorded audit
+rounds, `spec/.tp-review/1.0.0/audit-round-N.ndjson`, grading each round's non-`PASS` rows the way
+`AuditRowsClean` does (under `blocking`, a row blocks unless its `severity` is exactly `warning` or
+`info`) with `audit_clean_rounds: 2`, this repository's value:
+
+| round | non-PASS rows by `(status, severity)` | clean `all` | clean `blocking` | `blocking` streak | `spec-coverage` non-PASS |
+|---|---|---|---|---|---|
+| 1 | FAIL/error 3, FAIL/warning 4, FAIL/info 1, PARTIAL/error 1, PARTIAL/warning 2, PARTIAL/info 3 | no | no | 0 | 3 |
+| 2 | FAIL/error 2, FAIL/warning 1, PARTIAL/error 1, PARTIAL/warning 9, PARTIAL/info 2 | no | no | 0 | 7 |
+| 3 | FAIL/error 3, PARTIAL/warning 9, PARTIAL/info 2 | no | no | 0 | 8 |
+| 4 | FAIL/error 1, PARTIAL/warning 10, PARTIAL/info 9 | no | no | 0 | 7 |
+| 5 | PARTIAL/warning 5, PARTIAL/info 1 | no | yes | 1 | 2 |
+| 6 | PARTIAL/warning 4, PARTIAL/info 3 | no | yes | **2 — converged** | 2 |
+| 7 | PARTIAL/error 2, PARTIAL/warning 5, PARTIAL/info 5 | no | no | 0 | 5 |
+| 8 | PARTIAL/warning 2, PARTIAL/info 7 | no | yes | 1 | 1 |
+| 9 | PARTIAL/warning 2, PARTIAL/info 8 | no | yes | 2 | 0 |
+| 10 | PARTIAL/warning 7 | no | yes | 3 | 0 |
+| 11 | PARTIAL/warning 7, PARTIAL/info 3 | no | yes | 4 | 2 |
+
+So `blocking` would have converged `v1.0.0` at **round 6 of 11**, while every round is unclean under
+`all` (and `state.json` stamps all eleven `clean: false`). Two readings, both for the precondition to
+weigh rather than settle here: round 6 still carried two advisory `spec-coverage` rows, so `blocking`
+converges on a policy about severity, not on the conformance role `CLAUDE.md`'s shipping rule names;
+and round 7 then found two `PARTIAL/error` rows, which a loop stopping at round 6 would never have
+seen.
+With the replay above for v0.36.0 (`blocking` exit 1, its shipping round holding two `FAIL/error`) and
+v0.37.0 (`blocking` exit 0), `blocking` closes two of the three cases measured. Derivation:
+
+```
+python3 -c '
+import json,glob,re
+f=lambda p:int(re.search(r"(\d+)\.ndjson$",p).group(1))
+s=0
+for p in sorted([p for p in glob.glob("spec/.tp-review/1.0.0/audit-round-*.ndjson") if re.search(r"round-\d+\.ndjson$",p)],key=f):
+    np=[r for r in (json.loads(l) for l in open(p) if l.strip()) if r.get("status")!="PASS"]
+    c=not any(r.get("severity") not in ("warning","info") for r in np); s=s+1 if c else 0
+    print(f(p),len(np),c,s)'
+```
+
+## §4 in-flight progress (cut)
+
+The design the body carried until 2026-09-11, kept as the record of what was considered. It was cut
+because nothing measured a cost for its absence: the interactive fallback it served can read the role
+output files itself.
+
+`--status` already names the round being worked — `in_flight_round`, the next round number when that
+round's snapshot exists. The cut section added an `in_flight` object hung off it: the panel §2's
+emission recorded for the round, and per role whether its output file is present and how many rows it
+holds, a partially written file being the expected state of a running role, since every role prompt
+asks for each row to be written as it is decided. It named two file-resolution worlds: inside a run,
+`$TP_ROUND_DIR/role-<role>.ndjson.part` renamed on exit 0, so `.part` means running and the final name
+means finished; outside one, a bare filename relative to wherever the operator stands, so `--status`
+would look in the current directory and the round directory and report a role found in neither as
+`unknown`, never `not-started`. Its three test rows: two of three files present reports both row counts
+and the third absent; a file in neither place is `unknown` and found files name their directory;
+under `TP_ROUND_DIR`, `.part` reads as running and the renamed form as finished.
