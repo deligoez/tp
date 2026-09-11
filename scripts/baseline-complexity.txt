@@ -16,7 +16,6 @@ cli checkAffectedFilesScope
 cli computeReport
 cli computeRoundStats
 cli computeSeverityBreakdown
-cli loadAuditMergeRows
 cli newAuditCmd
 cli newReviewCmd
 cli printReportTTY

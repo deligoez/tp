@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -11,6 +10,14 @@ import (
 	"github.com/deligoez/tp/internal/engine"
 	"github.com/deligoez/tp/internal/output"
 )
+
+// reviewMergeRule is §2's required set as `tp review --merge` applies it,
+// through the one predicate the --record gate shares (missingFindingFields).
+var reviewMergeRule = mergeRowRule{
+	noun:     "review finding",
+	required: requiredFindingFields,
+	missing:  missingFindingFields,
+}
 
 func runReviewMerge(args []string, outputPath string) error {
 	if len(args) == 0 {
@@ -34,7 +41,7 @@ func runReviewMerge(args []string, outputPath string) error {
 	}
 
 	totalFiles := len(args)
-	allFindings, inputs := loadMergeFindings(args)
+	allFindings, inputs := loadMergeRows(args, reviewMergeRule)
 	// §8a.4: an input whose every content line was skipped drops a whole role
 	// from the merged set. The payload names the counts; the exit code is what
 	// an unattended driver reads.
@@ -97,14 +104,14 @@ func runReviewMerge(args []string, outputPath string) error {
 		if writeMergeOutput(outputPath, ndjsonOutput, dropped) {
 			summary["output_path"] = outputPath
 		}
-		return finishMerge(output.JSON(summary), dropped)
+		return finishMerge(output.JSON(summary), dropped, reviewMergeRule)
 	}
 
 	if IsJSONOutput() {
 		// --json without -o: JSON with findings array
 		summary["output_path"] = "stdout"
 		summary["findings"] = unique
-		return finishMerge(output.JSON(summary), dropped)
+		return finishMerge(output.JSON(summary), dropped, reviewMergeRule)
 	}
 
 	// Default: raw NDJSON to stdout
@@ -114,97 +121,7 @@ func runReviewMerge(args []string, outputPath string) error {
 	fmt.Fprintf(os.Stderr, "merged: %d unique findings from %d files (%d duplicates removed); line indices are 0-based (use with tp review --resolve)\n",
 		len(unique), totalFiles, duplicatesRemoved)
 
-	return finishMerge(nil, dropped)
-}
-
-// loadMergeFindings reads and validates the review findings from the input
-// files, skipping blank, malformed (invalid JSON), and incomplete lines with a
-// stderr warning that names which.
-// It aborts only on a missing/unreadable file (exit 3), and returns the §8a.4
-// per-input accounting beside the findings: blank lines and any empty JSON
-// array (isEmptyJSONArray) count as neither, so an
-// all-empty set of inputs is a valid clean result and yields zero findings
-// without failing, and the merge→record chain works on a clean round. An input
-// whose content lines all fail is a dropped role, which runReviewMerge turns
-// into exit 1.
-func loadMergeFindings(args []string) ([]map[string]any, []mergeInputCounts) {
-	for _, path := range args {
-		if _, err := os.Stat(path); os.IsNotExist(err) {
-			output.Error(ExitFile, fmt.Sprintf("file not found: %s", path), ndjsonInputFileHint)
-			os.Exit(ExitFile)
-		}
-	}
-
-	allFindings := make([]map[string]any, 0)
-	inputs := make([]mergeInputCounts, 0, len(args))
-	for _, path := range args {
-		f, err := os.Open(path)
-		if err != nil {
-			output.Error(ExitFile, fmt.Sprintf("cannot open file: %s", path), ndjsonInputFileHint)
-			os.Exit(ExitFile)
-		}
-		rows, counts, scanErr := scanMergeInput(f, path)
-		f.Close()
-		if scanErr != nil {
-			// Aborting, not warning: see loadAuditMergeRows — zero findings is
-			// also what a clean round looks like, so a swallowed read error
-			// lets an unread input record one.
-			output.Error(ExitFile, fmt.Sprintf("cannot read %s: %v", path, scanErr), ndjsonReadHint(scanErr))
-			os.Exit(ExitFile)
-		}
-		allFindings = append(allFindings, rows...)
-		inputs = append(inputs, counts)
-	}
-
-	return allFindings, inputs
-}
-
-// scanMergeInput reads one already-opened input and returns its usable rows
-// beside that input's §8a.4 accounting. It warns on stderr about each line it
-// skips and returns the scanner's read error, if any, for the caller to act on.
-func scanMergeInput(f *os.File, path string) ([]map[string]any, mergeInputCounts, error) {
-	counts := mergeInputCounts{Path: path}
-	rows := make([]map[string]any, 0)
-	scanner := bufio.NewScanner(f)
-	scanner.Buffer(make([]byte, 0, 64*1024), ndjsonLineCap)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		// A line holding an empty JSON array counts as neither parsed nor
-		// skipped, like a blank one: it is a role saying it found nothing.
-		// tp's own code-audit prompt asked for exactly that, and counting it
-		// as a skip made the file a dropped role — which fails the whole
-		// merge and, since §5 row 10, writes no `-o`, so one clean role took
-		// the panel down. The prompt no longer asks for it; this stays for
-		// the rounds run from prompts an older binary emitted.
-		//
-		// The test is a parse rather than a comparison against `[]` because
-		// the line is already trimmed above and TrimSpace removes only the
-		// outer padding: `[ ]` survives it unchanged and was still dropping
-		// the role. A NON-empty array is left where it was — that is a role
-		// whose findings would be lost silently, so it stays a skip.
-		if line == "" {
-			continue
-		}
-		var finding map[string]any
-		if err := json.Unmarshal([]byte(line), &finding); err != nil {
-			if isEmptyJSONArray(line) {
-				continue
-			}
-			fmt.Fprintf(os.Stderr, "warning: skipping malformed line (invalid JSON) in %s\n", path)
-			counts.Skipped++
-			continue
-		}
-		// §2's one predicate, shared with the --record gate: see
-		// missingFindingFields in review_record.go.
-		if missing := missingFindingFields(finding); len(missing) > 0 {
-			fmt.Fprintf(os.Stderr, "warning: skipping incomplete line (missing %s) in %s\n", strings.Join(missing, ", "), path)
-			counts.Skipped++
-			continue
-		}
-		counts.Parsed++
-		rows = append(rows, finding)
-	}
-	return rows, counts, scanner.Err()
+	return finishMerge(nil, dropped, reviewMergeRule)
 }
 
 // dropEmptyArrayLines removes every line that is an empty JSON array

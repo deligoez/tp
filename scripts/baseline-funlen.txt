@@ -23,7 +23,6 @@ internal/cli claimBatch
 internal/cli computeReport
 internal/cli computeRoundStats
 internal/cli computeSeverityBreakdown
-internal/cli loadAuditMergeRows
 internal/cli newAuditCmd
 internal/cli newReviewCmd
 internal/cli printReportTTY

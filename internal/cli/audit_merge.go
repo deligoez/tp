@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -40,7 +39,7 @@ func runAuditMerge(args []string, outputPath string) error {
 	}
 
 	totalFiles := len(args)
-	rows, inputs := loadAuditMergeRows(args)
+	rows, inputs := loadMergeRows(args, auditMergeRule)
 	// §8a.4: the same rule as the review merge — an input whose every content
 	// line was skipped drops a whole role, and an unattended driver reads only
 	// the exit code.
@@ -129,96 +128,43 @@ func runAuditMerge(args []string, outputPath string) error {
 			return nil
 		}
 		summary["output_path"] = outputPath
-		return finishMerge(output.JSON(summary), dropped)
+		return finishMerge(output.JSON(summary), dropped, auditMergeRule)
 	}
 
 	if IsJSONOutput() {
 		summary["output_path"] = "stdout"
 		summary["rows"] = unique
-		return finishMerge(output.JSON(summary), dropped)
+		return finishMerge(output.JSON(summary), dropped, auditMergeRule)
 	}
 
 	fmt.Print(ndjson)
 	fmt.Fprintf(os.Stderr, "merged: %d rows from %d files (%d duplicates removed, %d non-PASS)\n",
 		len(unique), totalFiles, duplicatesRemoved, findingsCount)
-	return finishMerge(nil, dropped)
+	return finishMerge(nil, dropped, auditMergeRule)
 }
 
-// loadAuditMergeRows reads and validates audit-result rows from the input files,
-// skipping blank, malformed (invalid JSON), and incomplete (missing item_id or
-// status) lines with a stderr warning that names which. It aborts only on a
-// missing/unreadable file (exit 3), and returns the §8a.4 per-input accounting
-// beside the rows: blank lines count as neither, so an all-empty set of inputs
-// is a valid clean result and yields zero rows without failing. An input whose
-// content lines all fail is a dropped role, which runAuditMerge turns into
-// exit 1.
-func loadAuditMergeRows(args []string) ([]map[string]any, []mergeInputCounts) {
-	for _, path := range args {
-		if _, err := os.Stat(path); os.IsNotExist(err) {
-			output.Error(ExitFile, fmt.Sprintf("file not found: %s", path), ndjsonInputFileHint)
-			os.Exit(ExitFile)
+// auditRequiredFields is what every audit-result row must carry, each as a
+// non-empty string, for `tp audit --merge` to keep it.
+var auditRequiredFields = []string{"item_id", "status"}
+
+// missingAuditFields returns the required keys an audit row lacks, leaves
+// empty, or holds as a non-string. Unlike the review predicate it does not
+// trim: a whitespace-only value is kept, as it always has been.
+func missingAuditFields(row map[string]any) []string {
+	missing := make([]string, 0, len(auditRequiredFields))
+	for _, k := range auditRequiredFields {
+		if s, _ := row[k].(string); s == "" {
+			missing = append(missing, k)
 		}
 	}
+	return missing
+}
 
-	rows := make([]map[string]any, 0)
-	inputs := make([]mergeInputCounts, 0, len(args))
-	for _, path := range args {
-		f, err := os.Open(path)
-		if err != nil {
-			output.Error(ExitFile, fmt.Sprintf("cannot open file: %s", path), ndjsonInputFileHint)
-			os.Exit(ExitFile)
-		}
-		counts := mergeInputCounts{Path: path}
-		scanner := bufio.NewScanner(f)
-		scanner.Buffer(make([]byte, 0, 64*1024), ndjsonLineCap) // audit notes can be long
-		for scanner.Scan() {
-			line := strings.TrimSpace(scanner.Text())
-			if line == "" {
-				continue
-			}
-			var row map[string]any
-			if err := json.Unmarshal([]byte(line), &row); err != nil {
-				// An empty array is a role saying it found nothing, read
-				// the way tp review --merge reads it (scanMergeInput).
-				if isEmptyJSONArray(line) {
-					continue
-				}
-				fmt.Fprintf(os.Stderr, "warning: skipping malformed line (invalid JSON) in %s\n", path)
-				counts.Skipped++
-				continue
-			}
-			itemID, idOK := row["item_id"].(string)
-			status, stOK := row["status"].(string)
-			if !idOK || !stOK || itemID == "" || status == "" {
-				var missing []string
-				if !idOK || itemID == "" {
-					missing = append(missing, "item_id")
-				}
-				if !stOK || status == "" {
-					missing = append(missing, "status")
-				}
-				fmt.Fprintf(os.Stderr, "warning: skipping incomplete line (missing %s) in %s\n", strings.Join(missing, ", "), path)
-				counts.Skipped++
-				continue
-			}
-			counts.Parsed++
-			rows = append(rows, row)
-		}
-		if err := scanner.Err(); err != nil {
-			// Aborting, not warning: a read that failed produces zero rows, and
-			// zero rows records a clean round under either audit_converge_on
-			// value — so a swallowed error here lets an input tp never read
-			// record a clean round. The old warning also named one cause (an
-			// over-long line) for every failure, including reading a directory.
-			f.Close()
-			output.Error(ExitFile, fmt.Sprintf("cannot read %s: %v", path, err), ndjsonReadHint(err))
-			os.Exit(ExitFile)
-		}
-		f.Close()
-		inputs = append(inputs, counts)
-	}
-
-	return rows, inputs
+// auditMergeRule is the row rule `tp audit --merge` loads its inputs by.
+var auditMergeRule = mergeRowRule{
+	noun:     "audit row",
+	required: auditRequiredFields,
+	missing:  missingAuditFields,
 }
 
 // auditConflict names one (role, item_id) whose rows carry disagreeing
