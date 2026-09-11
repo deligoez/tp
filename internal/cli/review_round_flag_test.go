@@ -14,13 +14,15 @@ import (
 )
 
 // roundFlagFixture is a fresh project holding a spec, an empty findings file
-// --record accepts, a one-row findings file the positional modes accept, and
-// the docs/ and tests/ directories the documentation and testing perspectives
-// require, so every refusing invocation would run if not refused.
+// --record accepts, a one-row findings file the positional modes accept, the
+// docs/ and tests/ directories the documentation and testing perspectives
+// require, and the base.md baseline standalone regression diffs against, so
+// every refusing invocation would run if not refused.
 func roundFlagFixture(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n\n## One\n\ntext\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "base.md"), []byte("# Spec\n\n## One\n\nold\n"), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "empty.ndjson"), nil, 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "findings.ndjson"),
 		[]byte(`{"evidence":"read the cited section","severity":"low","location":"§1","class":"c","finding":"f"}`+"\n"), 0o600))
@@ -71,17 +73,19 @@ var roundRefusals = map[string]roundRefusal{
 		"--perspective is mutually exclusive with --round/--findings (except code-audit)", "documentation"},
 	"perspective-testing": {[]string{"review", "spec.md", "--perspective", "testing", "--test-path", "tests"},
 		"--perspective is mutually exclusive with --round/--findings (except code-audit)", "testing"},
+	"perspective-regression": {[]string{"review", "spec.md", "--perspective", "regression", "--diff-from", "base.md", "--findings", "findings.ndjson"},
+		"--perspective regression is mutually exclusive with --round", "regression"},
 }
 
 // TestReviewModesRefuseRoundWhenPassed pins that an invocation refusing
 // --round refuses the flag being passed, not a value other than the default.
 // The refusal used to test `round != 1`, so `--record f --round 1` recorded
 // round 1 and exited 0 while `--round 9` was refused: --round 1 is the value
-// that separates the two rules, and --round 2 keeps the old refusal pinned.
+// that separates the two rules, and --round 5 keeps the old refusal pinned.
 func TestReviewModesRefuseRoundWhenPassed(t *testing.T) {
 	t.Parallel()
 	for name, tc := range roundRefusals {
-		for _, value := range []string{"1", "2"} {
+		for _, value := range []string{"1", "5"} {
 			t.Run(name+"/round="+value, func(t *testing.T) {
 				t.Parallel()
 				dir := roundFlagFixture(t)
@@ -124,8 +128,8 @@ func TestReviewRoundHelpNamesTheRefusingModes(t *testing.T) {
 
 // TestReviewEmissionsStillEmit is the control: the default panel and
 // --perspective code-audit take --round, and on a fresh spec --round 1 agrees
-// with the state-derived round; the documentation and testing perspectives
-// still emit without it. Refusing too much fails here.
+// with the state-derived round; the documentation, testing and regression
+// perspectives still emit without it. Refusing too much fails here.
 func TestReviewEmissionsStillEmit(t *testing.T) {
 	t.Parallel()
 	cases := map[string][]string{
@@ -133,6 +137,7 @@ func TestReviewEmissionsStillEmit(t *testing.T) {
 		"code-audit --round 1": {"review", "spec.md", "--perspective", "code-audit", "--affected-files", "spec.md", "--round", "1"},
 		"documentation":        {"review", "spec.md", "--perspective", "documentation", "--docs-path", "docs"},
 		"testing":              {"review", "spec.md", "--perspective", "testing", "--test-path", "tests"},
+		"regression":           {"review", "spec.md", "--perspective", "regression", "--diff-from", "base.md", "--findings", "findings.ndjson"},
 	}
 	for name, args := range cases {
 		t.Run(name, func(t *testing.T) {

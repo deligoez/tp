@@ -438,7 +438,7 @@ Modes (mutually exclusive):
 	}
 
 	// Default review flags
-	cmd.Flags().IntVar(&round, "round", 1, "Current review round number (1-indexed), for the default panel and --perspective code-audit; --merge, --resolve, --resolve-all, --verify, --report, --record, --status and --perspective documentation/testing refuse it")
+	cmd.Flags().IntVar(&round, "round", 1, "Current review round number (1-indexed), for the default panel and --perspective code-audit; --merge, --resolve, --resolve-all, --verify, --report, --record, --status and --perspective documentation/testing/regression refuse it")
 	cmd.Flags().StringVar(&findingsPath, "findings", "", "Path to NDJSON file with previous round findings")
 	cmd.Flags().StringVar(&roleFilter, "role", "", "Emit only this role's prompt (§4.2); one name, not repeatable")
 	cmd.Flags().StringVar(&perspective, "perspective", "", "Review perspective: documentation, testing, or code-audit")
@@ -580,6 +580,17 @@ func invalidPerspectiveMessage(got string) string {
 	return fmt.Sprintf("invalid perspective: %q (must be %s)", got, list)
 }
 
+// refuseRegressionRound exits 2 when --round was passed to --perspective
+// regression. Standalone regression is an uncounted delta pass that never
+// reads the round, so the flag used to be accepted and silently dropped at any
+// value.
+func refuseRegressionRound(cmd *cobra.Command) {
+	if cmd.Flags().Changed("round") {
+		output.Error(ExitUsage, "--perspective regression is mutually exclusive with --round (a regression pass is not a numbered round)")
+		os.Exit(ExitUsage)
+	}
+}
+
 func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, perspective, docsPath, testPath string, affectedFiles []string, finalRound bool, diffFrom, roleFilter string, roleGiven, specInline, noState bool) error {
 	if perspective != "" && !slices.Contains(reviewPerspectives, perspective) {
 		output.Error(ExitUsage, invalidPerspectiveMessage(perspective))
@@ -588,6 +599,7 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 	}
 
 	if perspective == "regression" {
+		refuseRegressionRound(cmd)
 		return runReviewRegression(specPath, diffFrom, findingsPath, roleQueryFor(specPath, roleFilter, roleGiven))
 	}
 
