@@ -147,6 +147,7 @@ func runReviewResolve(args []string, force bool) error {
 	if allFindingsResolved(findings) {
 		result["next_step"] = fmt.Sprintf("tp review --verify <spec> --findings %s", filePath)
 	}
+	addRecordedRoundStatement(result, filePath)
 
 	return output.JSON(result)
 }
@@ -216,13 +217,15 @@ func runReviewResolveAll(args []string, force bool) error {
 
 	// Success output
 	fmt.Fprintf(os.Stderr, "resolved %d findings as %s (%d already resolved, skipped)\n", resolvedCount, status, skippedCount)
-	return output.JSON(map[string]any{
+	result := map[string]any{
 		"resolved_count": resolvedCount,
 		"skipped_count":  skippedCount,
 		"status":         status,
 		"file":           filePath,
 		"next_step":      fmt.Sprintf("tp review --verify <spec> --findings %s", filePath),
-	})
+	}
+	addRecordedRoundStatement(result, filePath)
+	return output.JSON(result)
 }
 
 // resolveEveryFinding writes the disposition onto every finding --resolve-all

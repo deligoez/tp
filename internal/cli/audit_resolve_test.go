@@ -208,8 +208,8 @@ func TestAuditResolve_ForceFlag(t *testing.T) {
 }
 
 // TestAuditResolveAll_DisposesEveryUndisposedRow mirrors tp review --resolve-all:
-// undisposed rows take the status, already-disposed rows are skipped, and
-// --force overwrites them.
+// undisposed findings take the status, already-disposed ones are skipped,
+// --force overwrites them, and a PASS row is never touched.
 func TestAuditResolveAll_DisposesEveryUndisposedRow(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
@@ -220,19 +220,19 @@ func TestAuditResolveAll_DisposesEveryUndisposedRow(t *testing.T) {
 
 	stdout, stderr, code := runTP(t, dir, "audit", path, "--resolve-all", "wontfix", "out of scope for this round")
 	require.Equal(t, 0, code, "%s", stderr)
-	assert.Contains(t, stdout, `"resolved_count": 2`)
+	assert.Contains(t, stdout, `"resolved_count": 1`)
 	assert.Contains(t, stdout, `"skipped_count": 1`)
 
 	rows := readAuditRows(t, path)
-	assert.Equal(t, "wontfix", resolvedOf(t, rows[0])["status"])
+	assert.NotContains(t, rows[0], "resolved", "a PASS row is not a finding and takes no disposition")
 	assert.Equal(t, "fixed", resolvedOf(t, rows[1])["status"], "an already-disposed row is skipped")
 	assert.Equal(t, "already done", resolvedOf(t, rows[1])["evidence"])
 	assert.Equal(t, "wontfix", resolvedOf(t, rows[2])["status"])
 
 	_, stderr, code = runTP(t, dir, "audit", path, "--resolve-all", "duplicate", "all dupes", "--force")
 	require.Equal(t, 0, code, "%s", stderr)
-	for i, row := range readAuditRows(t, path) {
-		assert.Equal(t, "duplicate", resolvedOf(t, row)["status"], "row %d under --force", i)
+	for i, row := range readAuditRows(t, path)[1:] {
+		assert.Equal(t, "duplicate", resolvedOf(t, row)["status"], "row %d under --force", i+1)
 	}
 }
 

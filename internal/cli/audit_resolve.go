@@ -87,9 +87,10 @@ func runAuditResolve(args []string, force bool) error {
 		"evidence": evidence,
 		"file":     filePath,
 	}
-	if allFindingsResolved(rows) {
-		result["next_step"] = auditResolveNextStep(filePath)
+	if next, ok := auditResolveNextStep(filePath, rows); ok {
+		result["next_step"] = next
 	}
+	addRecordedRoundStatement(result, filePath)
 	return output.JSON(result)
 }
 
@@ -119,22 +120,15 @@ func runAuditResolveAll(args []string, force bool) error {
 
 	resolvedCount := 0
 	skippedCount := 0
+	var rows []map[string]any
 
 	lockErr := engine.WithFileLock(filePath, func() error {
-		rows, readErr := readNDJSON(filePath)
+		var readErr error
+		rows, readErr = readNDJSON(filePath)
 		if readErr != nil {
 			return readErr
 		}
-
-		for _, row := range rows {
-			if _, ok := row["resolved"]; ok && !force {
-				skippedCount++
-				continue
-			}
-			row["resolved"] = disposition(status, evidence)
-			resolvedCount++
-		}
-
+		resolvedCount, skippedCount = disposeAuditFindings(rows, status, evidence, force)
 		return writeNDJSON(filePath, rows)
 	})
 
@@ -143,14 +137,37 @@ func runAuditResolveAll(args []string, force bool) error {
 		return nil
 	}
 
-	fmt.Fprintf(os.Stderr, "resolved %d audit rows as %s (%d already resolved, skipped)\n", resolvedCount, status, skippedCount)
-	return output.JSON(map[string]any{
+	fmt.Fprintf(os.Stderr, "resolved %d audit rows as %s (%d already resolved, skipped; PASS rows are not findings)\n", resolvedCount, status, skippedCount)
+	result := map[string]any{
 		"resolved_count": resolvedCount,
 		"skipped_count":  skippedCount,
 		"status":         status,
 		"file":           filePath,
-		"next_step":      auditResolveNextStep(filePath),
-	})
+	}
+	if next, ok := auditResolveNextStep(filePath, rows); ok {
+		result["next_step"] = next
+	}
+	addRecordedRoundStatement(result, filePath)
+	return output.JSON(result)
+}
+
+// disposeAuditFindings writes the disposition onto every non-PASS row that
+// carries none (every non-PASS row under force) and returns how many it wrote
+// and how many it skipped as already disposed. A PASS row is not a finding, so
+// it takes no disposition and is counted in neither.
+func disposeAuditFindings(rows []map[string]any, status, evidence string, force bool) (resolved, skipped int) {
+	for _, row := range rows {
+		if engine.AuditRowIsPass(row) {
+			continue
+		}
+		if _, ok := row["resolved"]; ok && !force {
+			skipped++
+			continue
+		}
+		row["resolved"] = disposition(status, evidence)
+		resolved++
+	}
+	return resolved, skipped
 }
 
 // auditRowIndices maps a selector onto the rows it names, returning a usage
@@ -274,9 +291,35 @@ func requireResultsFileExists(path string) {
 	}
 }
 
-// auditResolveNextStep names what the round's results file is for once every row
-// carries a disposition: the audit-record unit re-records the round from it
-// (§6.3), which is why a re-run record unit merges nothing over it.
-func auditResolveNextStep(path string) string {
-	return fmt.Sprintf("tp audit <spec> --record %s", path)
+// auditResolveNextStep names what the round's results file is for once every
+// finding in it carries a disposition: the audit-record unit re-records the
+// round from it (§6.3). It is offered only for the driver round's exact copy
+// (engine.DriverRoundCopy), where the recorder rewrites that round in place; by
+// hand the same command appends a new round built from the old round's rows
+// with no emission behind it.
+func auditResolveNextStep(path string, rows []map[string]any) (string, bool) {
+	for _, row := range rows {
+		if engine.AuditRowIsPass(row) {
+			continue
+		}
+		if _, ok := row["resolved"]; !ok {
+			return "", false
+		}
+	}
+	if !engine.DriverRoundCopy(engine.PhaseAudit, rows) {
+		return "", false
+	}
+	return fmt.Sprintf("tp audit <spec> --record %s", path), true
+}
+
+// addRecordedRoundStatement says, on stderr and as recorded_round:false, that
+// a --resolve or --resolve-all wrote into a file no round state lists: the
+// loop verdict reads the recorded round files, so the write changed no round.
+// A write into a recorded round file adds nothing.
+func addRecordedRoundStatement(result map[string]any, path string) {
+	if engine.RoundStateListsFile(path) {
+		return
+	}
+	result["recorded_round"] = false
+	output.Notice(fmt.Sprintf("%s is not a recorded round; no round state changed", path))
 }
