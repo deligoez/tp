@@ -54,6 +54,62 @@ func TestAuditMerge_DedupAndStatusSummary(t *testing.T) {
 	assert.Equal(t, 4, count, "the merged file holds exactly the 4 unique rows")
 }
 
+// TestAuditMerge_DisagreeingRowsOnOneItemAreKept: two shards gave one
+// (role, item_id) two verdicts. Keeping the first row chose, silently, which
+// verdict was the round's: an error-severity FAIL vanished behind a PASS and
+// the round recorded clean. Rows collapse only when their verdict (status,
+// severity, disposition) agrees; every disagreeing row is kept and the group
+// is named under conflicts.
+func TestAuditMerge_DisagreeingRowsOnOneItemAreKept(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	a := filepath.Join(dir, "a.ndjson")
+	b := filepath.Join(dir, "b.ndjson")
+	require.NoError(t, os.WriteFile(a,
+		[]byte(`{"role":"go-safety","item_id":"x","status":"PASS","evidence_file":"one.go"}`+"\n"+
+			`{"role":"go-safety","item_id":"y","status":"FAIL","severity":"warning"}`+"\n"+
+			`{"role":"go-safety","item_id":"z","status":"PASS"}`+"\n"), 0o600))
+	require.NoError(t, os.WriteFile(b,
+		[]byte(`{"role":"go-safety","item_id":"x","status":"FAIL","severity":"error","evidence_file":"two.go"}`+"\n"+
+			`{"role":"go-safety","item_id":"y","status":"FAIL","severity":"error"}`+"\n"+
+			`{"role":"go-safety","item_id":"z","status":"PASS","notes":"same verdict, other words"}`+"\n"), 0o600))
+
+	out := filepath.Join(dir, "merged.ndjson")
+	stdout, stderr, code := runTP(t, dir, "audit", "--merge", a, b, "-o", out)
+	require.Equal(t, 0, code, "merge failed: %s", stderr)
+
+	var summary map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &summary))
+	assert.Equal(t, float64(5), summary["merged_count"], "x and y keep both rows; z collapses")
+	assert.Equal(t, float64(1), summary["duplicates_removed"], "only z's agreeing pair collapses")
+	assert.Equal(t, float64(3), summary["findings"], "the error FAIL behind the PASS survives")
+
+	conflicts, ok := summary["conflicts"].([]any)
+	require.True(t, ok, "disagreeing groups are reported: %s", stdout)
+	require.Len(t, conflicts, 2)
+	first := conflicts[0].(map[string]any)
+	assert.Equal(t, "go-safety", first["role"])
+	assert.Equal(t, "x", first["item_id"])
+	assert.Equal(t, float64(2), first["rows"])
+	assert.Contains(t, stderr, "2 (role, item_id) groups carry disagreeing verdicts")
+}
+
+// TestAuditMerge_NoConflictsNoKey: a merge with no disagreeing group carries
+// no conflicts key at all.
+func TestAuditMerge_NoConflictsNoKey(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	a := filepath.Join(dir, "a.ndjson")
+	require.NoError(t, os.WriteFile(a,
+		[]byte(`{"role":"go-safety","item_id":"x","status":"PASS"}`+"\n"+
+			`{"role":"go-safety","item_id":"x","status":"PASS"}`+"\n"), 0o600))
+	stdout, stderr, code := runTP(t, dir, "audit", "--merge", a, "-o", filepath.Join(dir, "m.ndjson"))
+	require.Equal(t, 0, code, "merge failed: %s", stderr)
+	var summary map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &summary))
+	assert.NotContains(t, summary, "conflicts")
+}
+
 // TestAuditMerge_EmptyInputSucceeds covers §3.3 row 2 for the audit phase: a
 // present-but-empty input file succeeds (exit 0), creates a zero-byte -o file,
 // and reports merged_count 0.

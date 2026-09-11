@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 
@@ -44,7 +45,7 @@ func runAuditMerge(args []string, outputPath string) error {
 	// line was skipped drops a whole role, and an unattended driver reads only
 	// the exit code.
 	dropped := droppedInputs(inputs)
-	unique := dedupAuditRows(rows)
+	unique, conflicts := dedupAuditRows(rows)
 
 	var buf strings.Builder
 	for _, r := range unique {
@@ -103,6 +104,12 @@ func runAuditMerge(args []string, outputPath string) error {
 	// It is decision-critical, so unlike overlap_report it survives --compact.
 	if findingsCount > 0 {
 		summary["by_severity"] = bySeverity
+	}
+	// Absent, not empty, when every key holds one verdict: it is a warning,
+	// and the rows are all in the output either way.
+	if len(conflicts) > 0 {
+		summary["conflicts"] = conflicts
+		fmt.Fprintf(os.Stderr, "warning: %d (role, item_id) groups carry disagreeing verdicts; every row is kept (see conflicts)\n", len(conflicts))
 	}
 	// §9.3 / §8.4: the audit overlap_report gives a trim-candidate signal over
 	// non-PASS rows clustered by (item_id, category); it is explanatory and is
@@ -209,20 +216,34 @@ func loadAuditMergeRows(args []string) ([]map[string]any, []mergeInputCounts) {
 	return rows, inputs
 }
 
-// dedupAuditRows drops exact (role, item_id) duplicates, keeping the first
-// occurrence, and returns the rows sorted by (role, item_id) for deterministic
-// output.
-func dedupAuditRows(rows []map[string]any) []map[string]any {
-	seen := make(map[string]bool)
+// auditConflict names one (role, item_id) whose rows carry disagreeing
+// verdicts: every such row is kept, and the group is reported so the caller
+// sees that one item holds more than one verdict.
+type auditConflict struct {
+	Role     string   `json:"role"`
+	ItemID   string   `json:"item_id"`
+	Rows     int      `json:"rows"`
+	Statuses []string `json:"statuses"`
+}
+
+// dedupAuditRows collapses (role, item_id) duplicates whose verdict agrees
+// (auditVerdictKey), keeping the first, and keeps every row whose verdict
+// differs from the rows kept before it. Keeping only the first row of a key
+// chose, silently, which of two verdicts on one item was the round's: a second
+// shard's error-severity FAIL vanished behind the first shard's PASS and the
+// round recorded clean. It returns the rows sorted by (role, item_id), input
+// order kept within a key, and one auditConflict per key holding more than one
+// row, in that order.
+func dedupAuditRows(rows []map[string]any) ([]map[string]any, []auditConflict) {
+	kept := make(map[string][]string)
 	unique := make([]map[string]any, 0, len(rows))
 	for _, r := range rows {
-		role, _ := r["role"].(string)
-		itemID, _ := r["item_id"].(string)
-		key := role + "\x00" + itemID
-		if seen[key] {
+		key := auditRowKey(r)
+		verdict := auditVerdictKey(r)
+		if slices.Contains(kept[key], verdict) {
 			continue
 		}
-		seen[key] = true
+		kept[key] = append(kept[key], verdict)
 		unique = append(unique, r)
 	}
 	sort.SliceStable(unique, func(i, j int) bool {
@@ -235,5 +256,46 @@ func dedupAuditRows(rows []map[string]any) []map[string]any {
 		ij, _ := unique[j]["item_id"].(string)
 		return ii < ij
 	})
-	return unique
+	return unique, auditConflicts(unique, kept)
+}
+
+// auditConflicts lists the keys of sorted rows that kept more than one row.
+func auditConflicts(sorted []map[string]any, kept map[string][]string) []auditConflict {
+	conflicts := make([]auditConflict, 0)
+	for _, r := range sorted {
+		key := auditRowKey(r)
+		if len(kept[key]) < 2 {
+			continue
+		}
+		role, _ := r["role"].(string)
+		itemID, _ := r["item_id"].(string)
+		status, _ := r["status"].(string)
+		if n := len(conflicts); n > 0 && conflicts[n-1].Role == role && conflicts[n-1].ItemID == itemID {
+			conflicts[n-1].Rows++
+			conflicts[n-1].Statuses = append(conflicts[n-1].Statuses, status)
+			continue
+		}
+		conflicts = append(conflicts, auditConflict{Role: role, ItemID: itemID, Rows: 1, Statuses: []string{status}})
+	}
+	return conflicts
+}
+
+// auditRowKey is the (role, item_id) an audit row answers.
+func auditRowKey(r map[string]any) string {
+	role, _ := r["role"].(string)
+	itemID, _ := r["item_id"].(string)
+	return role + "\x00" + itemID
+}
+
+// auditVerdictKey is what two rows on one item must share to be one verdict:
+// the status, the severity and the disposition's status. Notes and evidence
+// may differ between two agreeing rows.
+func auditVerdictKey(r map[string]any) string {
+	status, _ := r["status"].(string)
+	severity, _ := r["severity"].(string)
+	disposition := ""
+	if resolved, ok := r["resolved"].(map[string]any); ok {
+		disposition, _ = resolved["status"].(string)
+	}
+	return status + "\x00" + severity + "\x00" + disposition
 }
