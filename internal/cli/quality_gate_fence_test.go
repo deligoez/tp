@@ -91,6 +91,70 @@ func TestQualityGateFence_SetRefusedAtBothLayers(t *testing.T) {
 	require.Equal(t, 0, code, "attended, the project gate is the operator's to set: %s", stderr)
 }
 
+// TestSetWorkflow_QualityGateTaskLayerIsTheOperatorsToSet pins the route a spec
+// that genuinely deviates from the project gate takes: an attended
+// tp set --workflow quality_gate=<cmd> writes that base's task-layer override
+// and the base then resolves it. The unattended fence is the only thing that
+// refuses the write, so an attended operator is not collateral damage of it —
+// and under TP_UNATTENDED the same write is refused with the task file left
+// byte-identical, since a refusal asserted on the resolved value alone cannot
+// tell a sink that refuses from one that refuses after writing.
+func TestSetWorkflow_QualityGateTaskLayerIsTheOperatorsToSet(t *testing.T) {
+	t.Parallel()
+	const projectGate = "echo project"
+	const specGate = "echo spec-deviates"
+	shell := func(t *testing.T) (dir string, taskFile, projectFile []byte) {
+		t.Helper()
+		dir = fenceShell(t, `{}`, `{"quality_gate":"`+projectGate+`"}`)
+		require.Equal(t, projectGate, gateResolved(t, dir, "s.tasks.json"),
+			"precondition: before the write the base resolves the project gate")
+		var err error
+		taskFile, err = os.ReadFile(filepath.Join(dir, "s.tasks.json"))
+		require.NoError(t, err)
+		projectFile, err = os.ReadFile(filepath.Join(dir, ".tp", "config.json"))
+		require.NoError(t, err)
+		return dir, taskFile, projectFile
+	}
+
+	t.Run("attended, the write lands in the task layer and resolves", func(t *testing.T) {
+		t.Parallel()
+		dir, _, projectBefore := shell(t)
+		out, stderr, code := runTPFence(t, dir, false, "set", "--workflow", "quality_gate="+specGate)
+		require.Equal(t, 0, code, "attended, a spec may deviate from the project gate: %s", stderr)
+
+		var res map[string]any
+		require.NoError(t, json.Unmarshal([]byte(out), &res), "stdout is the JSON reply: %s", out)
+		assert.Equal(t, map[string]any{"quality_gate": specGate}, res["updated"], "the reply names what was written")
+
+		data, err := os.ReadFile(filepath.Join(dir, "s.tasks.json"))
+		require.NoError(t, err)
+		var tf map[string]any
+		require.NoError(t, json.Unmarshal(data, &tf))
+		assert.Equal(t, map[string]any{"quality_gate": specGate}, tf["workflow"],
+			"the override is written to the task layer alone, with no sibling materialized")
+		assert.Equal(t, specGate, gateResolved(t, dir, "s.tasks.json"), "the gate a close runs is the spec's own")
+
+		projectAfter, err := os.ReadFile(filepath.Join(dir, ".tp", "config.json"))
+		require.NoError(t, err)
+		assert.Equal(t, string(projectBefore), string(projectAfter), "the task-layer write does not touch the project layer")
+	})
+
+	t.Run("unattended, the same write is refused and reaches no file", func(t *testing.T) {
+		t.Parallel()
+		dir, taskBefore, projectBefore := shell(t)
+		_, stderr, code := runTPFence(t, dir, true, "set", "--workflow", "quality_gate="+specGate)
+		assertGateFenceRefused(t, stderr, code, "set --workflow (task layer)")
+
+		taskAfter, err := os.ReadFile(filepath.Join(dir, "s.tasks.json"))
+		require.NoError(t, err)
+		assert.Equal(t, string(taskBefore), string(taskAfter), "the refused write left the task file byte-identical")
+		projectAfter, err := os.ReadFile(filepath.Join(dir, ".tp", "config.json"))
+		require.NoError(t, err)
+		assert.Equal(t, string(projectBefore), string(projectAfter), "and the project config too")
+		assert.Equal(t, projectGate, gateResolved(t, dir, "s.tasks.json"), "the gate a close runs is unchanged")
+	})
+}
+
 func TestQualityGateFence_ImportRefusesOnlyAChange(t *testing.T) {
 	t.Parallel()
 	doc := func(workflow string) string {

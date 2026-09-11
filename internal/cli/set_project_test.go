@@ -34,7 +34,7 @@ func TestRunSetProjectWorkflow_QualityGateAuthorable(t *testing.T) {
 	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
 	t.Chdir(root)
 
-	// quality_gate is read-only per task but authorable at the project level.
+	// quality_gate is authorable at the project level as well as per task.
 	require.NoError(t, runSetProjectWorkflow([]string{"quality_gate=go test ./..."}))
 	pc, _, err := engine.LoadProjectConfig(filepath.Join(root, ".tp"))
 	require.NoError(t, err)

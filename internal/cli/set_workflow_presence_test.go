@@ -53,8 +53,11 @@ func TestSetWorkflow_ErrorTaxonomyAndPresence(t *testing.T) {
 
 	t.Run("non-settable field exits 2", func(t *testing.T) {
 		dir := setup(t)
-		_, _, code := runTP(t, dir, "set", "--workflow", "quality_gate=go test ./...")
-		assert.Equal(t, 2, code, "quality_gate is init-only, a usage error")
+		// commit_strategy is the task layer's one read-only field. quality_gate
+		// used to be pinned here and is now writable attended — see
+		// TestSetWorkflow_QualityGateTaskLayerIsTheOperatorsToSet.
+		_, _, code := runTP(t, dir, "set", "--workflow", "commit_strategy=hc")
+		assert.Equal(t, 2, code, "commit_strategy is init-only, a usage error")
 		assert.Empty(t, readWorkflow(t, dir))
 	})
 

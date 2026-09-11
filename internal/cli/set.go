@@ -60,8 +60,11 @@ var (
 		"run_max_budget_usd":      true,
 		"run_max_unit_budget_usd": true,
 	}
+	// readOnlyWorkflowFields are refused at the task layer whoever writes
+	// them. quality_gate is not one of them: a spec that genuinely deviates
+	// from the project gate carries its own override, and the only thing that
+	// refuses that write is the unattended fence in runSetWorkflow.
 	readOnlyWorkflowFields = map[string]bool{
-		"quality_gate":    true,
 		"commit_strategy": true,
 	}
 )
@@ -342,6 +345,7 @@ func runSetWorkflow(args []string) error {
 	convergeOnSet := false
 	var auditConvergeOnValue string
 	auditConvergeOnSet := false
+	var qualityGateValue *string
 	for _, arg := range args {
 		parts := strings.SplitN(arg, "=", 2)
 		if len(parts) != 2 {
@@ -351,18 +355,17 @@ func runSetWorkflow(args []string) error {
 		}
 		field, valueStr := parts[0], parts[1]
 
-		// The gate is fenced before the read-only reply below, so an
-		// unattended unit learns that the value is out of its reach rather
-		// than only which other layer it could write it to.
+		// The gate is fenced before it is accepted: under TP_UNATTENDED any
+		// write of it is refused (exit 2) as the user-approved decision it
+		// is. Attended, it is the operator's task-layer override to write.
 		if engine.FencedGateField(field) {
 			fenceQualityGateSet("tp set --workflow quality_gate")
+			v := valueStr
+			qualityGateValue = &v
+			continue
 		}
 		if readOnlyWorkflowFields[field] {
-			msg := fmt.Sprintf("%s is not settable via tp set --workflow; the task-level value is authored by tp init, and the project default is settable with `tp set --workflow --project %s=<value>`", field, field)
-			if field == "commit_strategy" {
-				msg = fmt.Sprintf("%s is not settable via tp set --workflow; it is authored only by tp init — set the project default with `tp set --workflow --project commit_strategy=<builtin|auto|hc>`", field)
-			}
-			output.Error(ExitUsage, msg)
+			output.Error(ExitUsage, fmt.Sprintf("%s is not settable via tp set --workflow; it is authored only by tp init — set the project default with `tp set --workflow --project commit_strategy=<builtin|auto|hc>`", field))
 			os.Exit(ExitUsage)
 			return nil
 		}
@@ -535,6 +538,10 @@ func runSetWorkflow(args []string) error {
 			v := auditConvergeOnValue
 			tf.Workflow.AuditConvergeOn = &v
 			updated["audit_converge_on"] = auditConvergeOnValue
+		}
+		if qualityGateValue != nil {
+			tf.Workflow.QualityGate = qualityGateValue
+			updated["quality_gate"] = *qualityGateValue
 		}
 
 		if err := model.WriteTaskFile(taskFilePath, tf); err != nil {

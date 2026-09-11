@@ -17,7 +17,7 @@ import (
 
 // runSetProjectWorkflow implements `tp set --workflow --project field=value`,
 // writing project-wide workflow defaults to the .tp/config.json workflow block.
-// Unlike per-task set, quality_gate is authorable here; out-of-range integer
+// Unlike per-task set, commit_strategy is authorable here; out-of-range integer
 // values are rejected with exit 1. Writes acquire the standard flock.
 func runSetProjectWorkflow(args []string) error {
 	if len(args) == 0 {
