@@ -18,7 +18,7 @@ import (
 // would put the round's arithmetic in front of them for no reason.
 func groundTestPrompt() string {
 	return buildGroundPrompt("spec.md", ".tp-review/spec/snapshot-ground-round-7.md",
-		"# commit unknown\nu1 §1 0123456789ab #1 12B\n# 1 in floor, 0 cut\n", "ground-r7.ndjson", 7, 1, 0)
+		"# commit unknown\nu1 §1 0123456789ab #1 12B\n# 1 in floor, 0 cut\n", "ground-spec-r7.ndjson", 7, 1, 0)
 }
 
 // TestTheEmittedGroundPromptEndsWithItsOwnSuffix pins §4.2 at the emission:
@@ -34,7 +34,7 @@ func TestTheEmittedGroundPromptEndsWithItsOwnSuffix(t *testing.T) {
 	t.Parallel()
 	prompt := groundTestPrompt()
 
-	assert.True(t, strings.HasSuffix(prompt, "ground-r7.ndjson"+groundClauseSuffix()),
+	assert.True(t, strings.HasSuffix(prompt, "ground-spec-r7.ndjson"+groundClauseSuffix()),
 		"the body's last line names the output file and the ground suffix follows it directly")
 	assert.NotContains(t, prompt, isolationClause,
 		"§4.2: the review/audit clause forbids the copy the tier table requires, so a ground prompt must not carry it")

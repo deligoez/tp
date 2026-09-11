@@ -44,8 +44,7 @@ func groundedFixture(t *testing.T, dispositioned int) string {
 // and the index's length agree and the difference between them is untested.
 func groundFixtureRound(t *testing.T, dir string, dispositioned int) {
 	t.Helper()
-	_, stderr, code := runTP(t, dir, "ground", "spec.md")
-	require.Equal(t, 0, code, "ground: %s", stderr)
+	outputPath, _ := groundEmitSpec(t, dir, "spec.md")
 
 	index, err := os.ReadFile(filepath.Join(dir, ".tp-review", "spec", "floor-ground-round-1.txt"))
 	require.NoError(t, err)
@@ -70,8 +69,10 @@ func groundFixtureRound(t *testing.T, dir string, dispositioned int) {
 		fmt.Fprintf(&b, `{"unit_id":%q,"anchor":%q,"text_sha":%q,"ordinal":%d,"verdict":"NOT-A-CLAIM"}`+"\n",
 			r.ID, r.Anchor, r.TextSHA, r.Ordinal)
 	}
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "ground-r1.ndjson"), []byte(b.String()), 0o600))
-	_, stderr, code = runTP(t, dir, "ground", "spec.md", "--record", "ground-r1.ndjson")
+	// The rows go to the file the emission named, so this fixture records
+	// through the scratch name a unit is actually told to write.
+	require.NoError(t, os.WriteFile(filepath.Join(dir, outputPath), []byte(b.String()), 0o600))
+	_, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", outputPath)
 	require.Equal(t, 0, code, "record: %s", stderr)
 }
 

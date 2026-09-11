@@ -189,10 +189,11 @@ var ErrGroundRoundEmpty = errors.New("the record holds no rows, so there is noth
 // groundRoundFileName is the name a recorded ground round takes in the state
 // directory (§7.3).
 //
-// It is deliberately not the prompt's `output_path`: `ground-rN.ndjson` is the
-// scratch file a unit writes and an operator collects, and this is what
-// `--record` writes beside the snapshot and the floor. The shipped convention
-// is the same one `roleOutputPath` follows for review and audit.
+// It is deliberately not the prompt's `output_path`: GroundScratchName's
+// `ground-<base>-rN.ndjson` is the scratch file a unit writes and an operator
+// collects, and this is what `--record` writes beside the snapshot and the
+// floor. The shipped convention is the same one `roleOutputPath` follows for
+// review and audit.
 func groundRoundFileName(round int) string {
 	return fmt.Sprintf("ground-round-%d.ndjson", round)
 }

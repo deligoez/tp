@@ -23,7 +23,7 @@ func groundFloorSectionOf(t *testing.T, specPath string) string {
 	t.Helper()
 	index := "# commit unknown\nu1 §1 0123456789ab #1 12B\nu2 §1 (cut)\n# 1 in floor, 1 cut\n"
 	prompt := buildGroundPrompt(specPath, ".tp-review/spec/snapshot-ground-round-1.md",
-		index, "ground-r1.ndjson", 1, 1, 0)
+		index, "ground-spec-r1.ndjson", 1, 1, 0)
 	i := strings.Index(prompt, "## The floor")
 	require.GreaterOrEqual(t, i, 0, "the prompt must still carry a floor section")
 	return prompt[i:]

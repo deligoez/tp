@@ -344,7 +344,7 @@ func groundModesPassed(units, status, record bool) int {
 }
 
 // runGround emits one ground round: it writes the snapshot and the floor index
-// derived from it (§7.3), and prints the prompt naming ground-r<N>.ndjson.
+// derived from it (§7.3), and prints the prompt naming ground-<base>-r<N>.ndjson.
 func runGround(specPath string, force bool) error {
 	data, err := os.ReadFile(specPath)
 	if err != nil {
@@ -402,7 +402,7 @@ func runGround(specPath string, force bool) error {
 	carried := groundCarriedUnits(specPath, round, rows)
 
 	snapshotPath := engine.GroundSnapshotPath(specPath, round)
-	outputPath := fmt.Sprintf("ground-r%d.ndjson", round)
+	outputPath := engine.GroundScratchName(specPath, round)
 	// The snapshot and the floor are already on disk, and a re-emission of an
 	// unrecorded round over the same spec rewrites the same two files, so the
 	// recovery here is simply to run it again with a stdout that works — which

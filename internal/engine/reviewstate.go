@@ -107,9 +107,7 @@ func IsRebuildableStateIndex(err error) bool {
 
 // ReviewStateDir returns <spec-dir>/.tp-review/<spec-base> for a spec path.
 func ReviewStateDir(specPath string) string {
-	dir := filepath.Dir(specPath)
-	base := strings.TrimSuffix(filepath.Base(specPath), filepath.Ext(specPath))
-	return filepath.Join(dir, ".tp-review", base)
+	return filepath.Join(filepath.Dir(specPath), ".tp-review", SpecBaseName(specPath))
 }
 
 // reviewStatePath returns the state.json path for a spec.

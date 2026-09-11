@@ -118,10 +118,11 @@ func TestGroundEmitCreatesTheStateDirectoryAndWritesTheSnapshotAndTheFloor(t *te
 }
 
 // TestGroundEmitNamesTheScratchFileAndNotTheRecordedRound pins §7.3's two
-// filenames apart: the prompt's output_path is ground-r<N>.ndjson, the scratch
-// file a unit writes, while ground-round-<N>.ndjson is what --record writes
-// into the state directory. A reader deriving the emitted name from §7.1's
-// table alone gets it wrong, so the recorded name is the mutant this fails on.
+// filenames apart: the prompt's output_path is ground-<base>-r<N>.ndjson, the
+// scratch file a unit writes, while ground-round-<N>.ndjson is what --record
+// writes into the state directory. A reader deriving the emitted name from
+// §7.1's table alone gets it wrong, so the recorded name is the mutant this
+// fails on.
 //
 // The second round is what makes the assertion say anything: r1 and round-1
 // differ by four characters that a fixture at round 1 could still confuse with
@@ -132,11 +133,11 @@ func TestGroundEmitNamesTheScratchFileAndNotTheRecordedRound(t *testing.T) {
 	dir := writeGroundFixture(t)
 
 	out := groundEmit(t, dir)
-	assert.Equal(t, "ground-r1.ndjson", out["output_path"])
+	assert.Equal(t, "ground-spec-r1.ndjson", out["output_path"])
 	prompt, ok := out["prompt"].(string)
 	require.True(t, ok, "one prompt, as a string, not a panel: %T", out["prompt"])
 	assert.NotContains(t, out, "prompts", "grounding emits one prompt, never an array of role prompts")
-	assert.Contains(t, prompt, "ground-r1.ndjson", "the prompt body names the file it writes")
+	assert.Contains(t, prompt, "ground-spec-r1.ndjson", "the prompt body names the file it writes")
 
 	// A recorded round 1 — the only artifact that numbers a round.
 	require.NoError(t, os.WriteFile(
@@ -144,12 +145,78 @@ func TestGroundEmitNamesTheScratchFileAndNotTheRecordedRound(t *testing.T) {
 
 	out = groundEmit(t, dir)
 	assert.Equal(t, float64(2), out["round"])
-	assert.Equal(t, "ground-r2.ndjson", out["output_path"])
+	assert.Equal(t, "ground-spec-r2.ndjson", out["output_path"])
 	assert.Equal(t, []string{
 		"floor-ground-round-1.txt", "floor-ground-round-2.txt",
 		"ground-round-1.ndjson",
 		"snapshot-ground-round-1.md", "snapshot-ground-round-2.md",
 	}, stateDirNames(t, dir), "round 2's emission writes beside round 1's artifacts, not over them")
+}
+
+// groundEmitSpec runs one emission over the named spec in dir and returns the
+// scratch path and the prompt it printed.
+func groundEmitSpec(t *testing.T, dir, spec string) (outputPath, prompt string) {
+	t.Helper()
+	stdout, stderr, code := runTP(t, dir, "ground", spec)
+	require.Equal(t, 0, code, "ground %s: %s", spec, stderr)
+	var out map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+	outputPath, _ = out["output_path"].(string)
+	prompt, _ = out["prompt"].(string)
+	return outputPath, prompt
+}
+
+// TestTwoSpecsInOneDirectoryEachGetTheirOwnScratchFile is the collision the
+// scratch name used to have: the snapshot and the floor are already per spec,
+// under .tp-review/<base>/, but the file a unit writes sits where tp runs and
+// carried only the round, so grounding a.md and b.md from one directory at
+// round 1 named ground-r1.ndjson twice and the second unit's rows overwrote the
+// first's.
+//
+// The recorded half is what makes the name usable rather than merely distinct:
+// the file a.md's prompt names is written and handed to --record, and the next
+// emission for a.md moves on to round 2 while b.md stays at round 1.
+func TestTwoSpecsInOneDirectoryEachGetTheirOwnScratchFile(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	for _, spec := range []string{"a.md", "b.md"} {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, spec), []byte(groundFixtureSpec), 0o600))
+	}
+
+	pathA, promptA := groundEmitSpec(t, dir, "a.md")
+	pathB, promptB := groundEmitSpec(t, dir, "b.md")
+	assert.NotEqual(t, pathA, pathB, "two specs in one directory never share a scratch file")
+	assert.Equal(t, "ground-a-r1.ndjson", pathA, "the scratch name carries the spec's base, as its state directory does")
+	assert.Equal(t, "ground-b-r1.ndjson", pathB)
+	assert.Contains(t, promptA, "Write this round's rows to: "+pathA, "a.md's prompt names a.md's file")
+	assert.NotContains(t, promptA, pathB, "and never b.md's")
+	assert.Contains(t, promptB, "Write this round's rows to: "+pathB, "b.md's prompt names b.md's file")
+	assert.NotContains(t, promptB, pathA, "and never a.md's")
+
+	data, err := os.ReadFile(filepath.Join(dir, ".tp-review", "a", "floor-ground-round-1.txt"))
+	require.NoError(t, err)
+	rows, err := engine.ParseFloorIndex(string(data))
+	require.NoError(t, err)
+	var b strings.Builder
+	for _, r := range rows {
+		if r.TextSHA == "" {
+			continue
+		}
+		line, err := json.Marshal(map[string]any{
+			"unit_id": r.ID, "anchor": r.Anchor, "text_sha": r.TextSHA, "ordinal": r.Ordinal, "verdict": "NOT-A-CLAIM",
+		})
+		require.NoError(t, err)
+		b.Write(append(line, '\n'))
+	}
+	require.NotEmpty(t, b.String(), "the fixture's floor must hold a unit to disposition")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, pathA), []byte(b.String()), 0o600))
+	_, stderr, code := runTP(t, dir, "ground", "a.md", "--record", pathA)
+	require.Equal(t, 0, code, "the file a.md's prompt named records: %s", stderr)
+
+	next, _ := groundEmitSpec(t, dir, "a.md")
+	assert.Equal(t, "ground-a-r2.ndjson", next, "a.md's next round names its own round-2 file")
+	still, _ := groundEmitSpec(t, dir, "b.md")
+	assert.Equal(t, "ground-b-r1.ndjson", still, "b.md's round is untouched by a.md's record")
 }
 
 // TestTheFloorOnDiskIsFrozenUntilTheNextEmission is §11 row 19: the snapshot

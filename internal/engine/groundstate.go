@@ -101,6 +101,20 @@ func GroundFloorPath(specPath string, round int) string {
 	return filepath.Join(ReviewStateDir(specPath), fmt.Sprintf("floor-ground-round-%d.txt", round))
 }
 
+// GroundScratchName is the file a ground round's prompt tells its unit to
+// write, the emission's `output_path`: ground-<base>-rN.ndjson, relative to
+// where tp runs.
+//
+// The spec's base is in the name because this file, unlike the snapshot and
+// the floor, is not under the per-spec state directory: with the round alone,
+// two specs grounded from one directory at the same round named one file and
+// the second unit's rows overwrote the first's. The base is SpecBaseName, the
+// slug ReviewStateDir names that directory by, so the two agree about which
+// spec a round belongs to.
+func GroundScratchName(specPath string, round int) string {
+	return fmt.Sprintf("ground-%s-r%d.ndjson", SpecBaseName(specPath), round)
+}
+
 // GroundRoundPath is where a recorded ground round lives:
 // spec/.tp-review/<base>/ground-round-N.ndjson.
 //
