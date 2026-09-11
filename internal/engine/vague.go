@@ -141,7 +141,7 @@ func CheckDuplicateConsecutiveLines(lines []string) []Finding {
 		if !prevEmpty && trimmed == prevLine {
 			ctx := trimmed
 			if len(ctx) > 80 {
-				ctx = ctx[:80]
+				ctx = ctx[:RuneBoundaryAtOrBefore(ctx, 80)]
 			}
 			findings = append(findings, Finding{
 				Line:     i + 1,
@@ -343,7 +343,7 @@ func CheckDuplicateParagraphs(lines []string) []Finding {
 		if prev != nil && equalLines(prev, cur) && !skipDuplicateParagraph(cur) {
 			ctx := strings.Join(cur, " ")
 			if len(ctx) > 80 {
-				ctx = ctx[:80]
+				ctx = ctx[:RuneBoundaryAtOrBefore(ctx, 80)]
 			}
 			findings = append(findings, Finding{
 				Line:     curStart,

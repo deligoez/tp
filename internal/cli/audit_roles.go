@@ -80,7 +80,7 @@ func specItemOf(e *checklistEntry, taskToFiles map[string][]string) ChecklistIte
 	case "finding":
 		text := e.Text
 		if len(text) > 120 {
-			text = text[:120]
+			text = text[:engine.RuneBoundaryAtOrBefore(text, 120)]
 		}
 		evidence = "verify the fix for: " + text
 	}

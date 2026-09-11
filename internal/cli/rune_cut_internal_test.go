@@ -79,3 +79,18 @@ func TestFirstLineCappedCutsOnRuneBoundary(t *testing.T) {
 	assert.True(t, utf8.ValidString(got), "the capped detail is valid UTF-8: %q", got[max(0, len(got)-6):])
 	assert.Equal(t, detail[:noticeDetailCap-1]+"...", got, "the cut backs off to the rune boundary before the cap")
 }
+
+// TestFindingEvidenceCutsOnRuneBoundary: a finding's checklist item quoted
+// its text into expected_evidence as text[:120], keeping the lead byte of a
+// rune split there.
+func TestFindingEvidenceCutsOnRuneBoundary(t *testing.T) {
+	t.Parallel()
+	// Bytes 119-120 are one "ı".
+	text := strings.Repeat("a", 119) + strings.Repeat("ı", 20)
+
+	item := specItemOf(&checklistEntry{ID: "finding-1", Type: "finding", Text: text}, nil)
+
+	got := item.ExpectedEvidence
+	assert.True(t, utf8.ValidString(got), "the evidence is valid UTF-8: %q", got[max(0, len(got)-6):])
+	assert.Equal(t, "verify the fix for: "+text[:119], got, "the cut backs off to the rune boundary before byte 120")
+}
