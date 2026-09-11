@@ -70,3 +70,52 @@ func TestImport_ForceSkipsTheCheckGate(t *testing.T) {
 	stderr, code := importBare(t, dir, "--force")
 	assert.Equal(t, 0, code, "--force imports over a failing check: %s", stderr)
 }
+
+// TestImport_ACheckThatWritesTheTaskFileCompletes: import ran the registered
+// checks while it held the task-file write lock, so a check that itself runs a
+// tp write against that task file waited on the lock import held and timed
+// out, failing the check and refusing the import. The checks run before the
+// lock is taken. The lock timeout is cut to one second so the old behaviour
+// fails fast rather than slowly.
+func TestImport_ACheckThatWritesTheTaskFileCompletes(t *testing.T) {
+	t.Parallel()
+	dir := convergedWithCheck(t, binaryPath+" set --workflow gate_timeout_seconds=600")
+	_, stderr, code := runTP(t, dir, "set", "--workflow", "lock_timeout_seconds=1")
+	require.Equal(t, 0, code, "cutting the lock timeout: %s", stderr)
+
+	stderr, code = importBare(t, dir)
+	assert.Equal(t, 0, code, "a check writing the task file completes during tp import: %s", stderr)
+}
+
+// TestImport_ChecksThatMovedUnderTheImportAreRetried: the checks' verdict is
+// taken before the lock, so the locked enforcement confirms it was taken over
+// the registration still in force. Here the one registered check replaces
+// itself with a passing one when it runs: the verdict answers for a check no
+// longer registered, and the import is refused with a retry, not decided on
+// it. The retry then runs the check now registered and imports.
+func TestImport_ChecksThatMovedUnderTheImportAreRetried(t *testing.T) {
+	t.Parallel()
+	passing, err := json.Marshal([]map[string]string{{"class": "vague-number", "cmd": "exit 0"}})
+	require.NoError(t, err)
+	rewrite := binaryPath + " set --workflow 'checks=" + string(passing) + "'"
+	checks, err := json.Marshal([]map[string]string{{"class": "vague-number", "cmd": rewrite}})
+	require.NoError(t, err)
+
+	dir := setupEnforceProject(t)
+	_, stderr, code := runTP(t, dir, "init", "spec.md")
+	require.Equal(t, 0, code, "init: %s", stderr)
+	for range 2 {
+		_, stderr, code = recordRound(t, dir, "")
+		require.Equal(t, 0, code, "a clean round records: %s", stderr)
+	}
+	// Registered after the rounds, so no --record runs the rewrite first.
+	_, stderr, code = runTP(t, dir, "set", "--workflow", "checks="+string(checks))
+	require.Equal(t, 0, code, "registering the check: %s", stderr)
+
+	stderr, code = importBare(t, dir)
+	assert.Equal(t, 4, code, "the registered checks moved while they ran: %s", stderr)
+	assert.Contains(t, stderr, "run the same tp import again")
+
+	stderr, code = importBare(t, dir)
+	assert.Equal(t, 0, code, "the retry runs the check now registered and imports: %s", stderr)
+}

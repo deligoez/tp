@@ -150,6 +150,16 @@ func runImport(_ *cobra.Command, args []string) error {
 	// lock_timeout_seconds; a lock held past it returns *LockTimeoutError,
 	// which Execute maps to exit 4 (STATE) with a hint naming the lock path and
 	// the elapsed wait. The success path is unchanged.
+	//
+	// The registered review checks run first, outside the lock: a check may
+	// itself run a tp write against this task file, and under the lock it
+	// would wait on the lock this import holds. The locked enforcement below
+	// decides on their verdict, and refuses with a retry if the loop or the
+	// registered checks moved in between. --force skips both.
+	var checkGate *importCheckGate
+	if !importForce {
+		checkGate = runImportChecks(targetPath, tf)
+	}
 	var loopVerdict *engine.LoopDone
 	if lockErr := engine.WithFileLock(targetPath, func() error {
 		// Workflow preservation (§9.3): when the target exists and the imported
@@ -166,7 +176,7 @@ func runImport(_ *cobra.Command, args []string) error {
 		// guard so a stale or unconverged spec blocks with exit 1 even when the
 		// target already holds tasks. --force bypasses both checks.
 		if !importForce {
-			loopVerdict = enforceImportConvergence(targetPath, tf)
+			loopVerdict = enforceImportConvergence(targetPath, tf, checkGate)
 		}
 
 		// Check if exists — a zero-task init shell may be overwritten without
