@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -34,18 +35,34 @@ func TestDefaultCorpus_MatchesTable(t *testing.T) {
 	}
 }
 
-// TestDefaultCorpus_SoftwarePersonasNeutral spot-checks that the software
-// reviewer instructions carry the pre-v0.25.0 persona text verbatim, so emission
-// stays neutral (§13.1).
+// reviewerReportRule is the paragraph every software reviewer's instructions end
+// with: a review reports only what would make the implementation wrong, detail
+// the code will settle is not a finding, and a high finding carries a
+// counterexample.
+const reviewerReportRule = "Report only what would make the implementation wrong: a requirement that contradicts another, contradicts the spec's stated goal, or cannot be satisfied. Detail the code will settle — exact exit codes, JSON field names, error hints, helper names — is not a finding: the implementation decides it and its tests pin it. A `high` finding must carry a counterexample in `evidence`: two quoted spec lines that contradict each other, or a command and its output. Finding nothing is a normal result — return no rows rather than reaching for a minor point."
+
+// TestDefaultCorpus_SoftwarePersonasNeutral pins the software reviewer
+// instructions verbatim, so a change to the persona text every project without
+// role files receives is deliberate, and emission stays neutral (§13.1): the
+// architect's embedded focus asks generic questions, never tp's own invariants.
 func TestDefaultCorpus_SoftwarePersonasNeutral(t *testing.T) {
 	roles, err := DefaultCorpus("software", PhaseReviewers)
 	require.NoError(t, err)
 	byID := map[string]string{}
+	focusByID := map[string][]string{}
 	for i := range roles {
 		byID[roles[i].ID] = roles[i].Instructions
+		focusByID[roles[i].ID] = roles[i].Focus
+		assert.True(t, strings.HasSuffix(roles[i].Instructions, " "+reviewerReportRule),
+			"%s instructions end with the report rule", roles[i].ID)
 	}
-	assert.Equal(t, "You are a senior engineer who must implement this spec tomorrow. Your goal is to find requirements that are missing, underspecified, or impossible to implement as stated.", byID["implementer"])
-	assert.Equal(t, "You are a QA engineer who must write tests from this spec. Your goal is to find requirements that are ambiguous (two testers would write contradictory tests) or non-verifiable (cannot write a pass/fail test).", byID["tester"])
+	assert.Equal(t, "You are a senior engineer who will build this tomorrow. Find the requirements that cannot be built as written — ones that contradict each other, contradict the stated goal, or depend on something the spec itself says does not exist. Cite a § location for every finding. "+reviewerReportRule, byID["implementer"])
+	assert.Equal(t, "You are the engineer who will write the acceptance tests. Find requirements where two correct implementations would still fail each other's tests — a real ambiguity about what the behaviour is, not about how it is spelled. Cite a § location for every finding. "+reviewerReportRule, byID["tester"])
+	assert.Equal(t, []string{
+		"Does any section contradict another, or change existing behaviour without saying so?",
+		"Which existing behaviour would break that the spec does not say it changes?",
+		"Which section could be removed without changing a decision?",
+	}, focusByID["architect"])
 }
 
 // TestDefaultCorpus_DomainsAndErrors covers the domain listing and the unknown

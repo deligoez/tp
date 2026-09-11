@@ -72,10 +72,10 @@ func TestDomainLens_SoftwareDomainUnchanged(t *testing.T) {
 	require.Equal(t, 0, code)
 	byRole := reviewPromptsByRole(t, stdout)
 
-	assert.Contains(t, byRole["implementer"], "senior engineer who must implement this spec tomorrow")
-	assert.Contains(t, byRole["implementer"], "happy path fails")
-	assert.Contains(t, byRole["architect"], "backward compatibility section")
-	assert.Contains(t, byRole["architect"], "performance or scalability")
+	assert.Contains(t, byRole["implementer"], "senior engineer who will build this tomorrow")
+	assert.Contains(t, byRole["implementer"], "Which requirement cannot be satisfied as written?")
+	assert.Contains(t, byRole["architect"], "change existing behaviour without saying so")
+	assert.Contains(t, byRole["architect"], "Which existing behaviour would break")
 }
 
 func TestDomainLens_RegressionRejectsLens(t *testing.T) {
@@ -186,7 +186,7 @@ func TestReview_FrontmatterOverrideFocus(t *testing.T) {
 	require.Equal(t, 0, code, "stderr: %s", stderr)
 	byRole := reviewPromptsByRole(t, stdout)
 	assert.Contains(t, byRole["implementer"], "OVERRIDE FOCUS QUESTION", "the override focus is appended")
-	assert.Contains(t, byRole["implementer"], "happy path fails", "the corpus focus is retained (additive)")
+	assert.Contains(t, byRole["implementer"], "Which requirement cannot be satisfied as written?", "the corpus focus is retained (additive)")
 }
 
 // TestReview_EnabledTrueIsNoOp: enabled: true is accepted as a no-op — the role
@@ -203,7 +203,7 @@ func TestReview_EnabledTrueIsNoOp(t *testing.T) {
 	byRole := reviewPromptsByRole(t, stdout)
 	require.Contains(t, byRole, "implementer", "enabled: true leaves the role active")
 	assert.Contains(t, byRole["implementer"], "ENABLED TRUE FOCUS", "the override focus is still layered")
-	assert.Contains(t, byRole["implementer"], "happy path fails", "the corpus focus is retained")
+	assert.Contains(t, byRole["implementer"], "Which requirement cannot be satisfied as written?", "the corpus focus is retained")
 }
 
 // TestReview_OverrideUnknownIDIgnored: an override id matching no active role is
