@@ -79,6 +79,10 @@ func TestAuditRoleLeavesEveryOtherTopLevelKeyUnchanged(t *testing.T) {
 		if k == "prompts" {
 			continue
 		}
+		if k == "skipped_roles" {
+			assertSkippedRolesNarrowed(t, v, single[k], order, order[0])
+			continue
+		}
 		// tp audit emits no review_loop, so property 12's exception has no
 		// subject here: every other key is compared whole.
 		assert.Equal(t, v, single[k], "top-level key %q is unchanged by --role", k)

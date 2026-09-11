@@ -150,39 +150,48 @@ func applyRoleFilter(q roleQuery, emitted []string, skipped []engine.SkippedRole
 	}
 }
 
-// filterReviewPrompts applies §4.2's rule to a review payload.
-func filterReviewPrompts(prompts []reviewPrompt, q roleQuery, skipped []engine.SkippedRole) []reviewPrompt {
-	emitted := make([]string, 0, len(prompts))
-	for i := range prompts {
-		emitted = append(emitted, prompts[i].Role)
-	}
-	idx, emit := applyRoleFilter(q, emitted, skipped)
-	switch {
-	case idx >= 0:
-		return prompts[idx : idx+1]
-	case !emit:
-		return []reviewPrompt{}
-	default:
-		return prompts
-	}
+// filterReviewPrompts applies §4.2's rule to a review payload. It returns the
+// kept prompts and skipped extended by every emitted role the filter narrowed
+// away (filterByRole).
+func filterReviewPrompts(prompts []reviewPrompt, q roleQuery, skipped []engine.SkippedRole) ([]reviewPrompt, []engine.SkippedRole) {
+	return filterByRole(prompts, func(p *reviewPrompt) string { return p.Role }, q, skipped)
 }
 
 // filterAuditPrompts is filterReviewPrompts for the audit payload; the two
 // commands carry different prompt structs over the same role names.
-func filterAuditPrompts(prompts []auditPrompt, q roleQuery, skipped []engine.SkippedRole) []auditPrompt {
+func filterAuditPrompts(prompts []auditPrompt, q roleQuery, skipped []engine.SkippedRole) ([]auditPrompt, []engine.SkippedRole) {
+	return filterByRole(prompts, func(p *auditPrompt) string { return p.Role }, q, skipped)
+}
+
+// filterByRole is the body both filters share: classify the name against the
+// emission, slice the prompt it selects, and name every other emitted prompt
+// in skipped_roles with reason role-filter.
+//
+// The narrowed-away roles are appended AFTER classification, so classifyRole
+// and unknownRoleHint see the skip list the round produced, never the filter's
+// own entries. Without them a one-role payload reported `skipped_roles: []`
+// for a round that emitted four prompts, regression among them, and a caller
+// holding it could not tell it had been handed a slice of the panel.
+func filterByRole[P any](prompts []P, roleOf func(*P) string, q roleQuery, skipped []engine.SkippedRole) ([]P, []engine.SkippedRole) {
 	emitted := make([]string, 0, len(prompts))
 	for i := range prompts {
-		emitted = append(emitted, prompts[i].Role)
+		emitted = append(emitted, roleOf(&prompts[i]))
 	}
 	idx, emit := applyRoleFilter(q, emitted, skipped)
-	switch {
-	case idx >= 0:
-		return prompts[idx : idx+1]
-	case !emit:
-		return []auditPrompt{}
-	default:
-		return prompts
+	if idx < 0 && emit {
+		return prompts, skipped
 	}
+	dropped := make([]string, 0, len(emitted))
+	for i, role := range emitted {
+		if i != idx {
+			dropped = append(dropped, role)
+		}
+	}
+	skipped = append(skipped, engine.RoleFilterSkippedRoles(dropped)...)
+	if idx < 0 {
+		return []P{}, skipped
+	}
+	return prompts[idx : idx+1], skipped
 }
 
 // skippedRolesSurviveCompact answers §8.4's question for one emission: does
@@ -198,9 +207,15 @@ func filterAuditPrompts(prompts []auditPrompt, q roleQuery, skipped []engine.Ski
 // payload the reason stops being commentary on the payload and becomes the
 // payload, which is §8.4's own criterion for surviving --compact.
 //
+// The same holds for a payload --role narrowed without emptying it: once the
+// filter drops prompts, a non-empty skipped_roles is what says the payload is
+// a slice of the round rather than all of it -- the role-filter entries, and
+// the round's own skips beside them. Without --role nothing is narrowed and
+// §8.4 applies unchanged.
+//
 // It lives here rather than inline in each command because both ask it, and
 // because the condition is the kind that reads as a typo when it is spelled
 // twice.
-func skippedRolesSurviveCompact(roleGiven bool, prompts int) bool {
-	return !IsCompact() || (roleGiven && prompts == 0)
+func skippedRolesSurviveCompact(roleGiven bool, prompts, skipped int) bool {
+	return !IsCompact() || (roleGiven && (prompts == 0 || skipped > 0))
 }

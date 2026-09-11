@@ -132,8 +132,9 @@ func TestAnEmptyPayloadDirectsNothing(t *testing.T) {
 
 // TestCompactKeepsTheReasonWhenRoleEmptiesThePayload pins §8.4's own criterion
 // applied to §4.2.1's exit-0-empty case: an empty payload flips skipped_roles
-// from explanatory to decision-critical, so --compact keeps it there and only
-// there.
+// from explanatory to decision-critical, so --compact keeps it there -- and, as
+// the role-filter entries made it, wherever --role narrowed the payload, while
+// an emission without --role still loses it.
 //
 // The fixture is a ROUND-1 spec and the role is `regression`, and both halves
 // matter. Audit round 4 found the first version of this test asserting only
@@ -187,10 +188,18 @@ func TestCompactKeepsTheReasonWhenRoleEmptiesThePayload(t *testing.T) {
 	assert.Equal(t, engine.SkipNoBaseline, emptyReasons["regression"],
 		"and keeps the REASON, not an empty box: the reason is the payload here, not commentary on it")
 
-	_, fullPresent, fullPrompts := read("review", base, "--compact", "--role", "implementer", "--json")
-	require.Equal(t, 1, fullPrompts)
-	assert.False(t, fullPresent,
-		"--compact still omits skipped_roles when there is a prompt to explain: §8.4 is not repealed")
+	// A --role that keeps one prompt still narrowed the others away, and the
+	// role-filter entries naming them are what says the payload is a slice of
+	// the round, so a non-empty list survives --compact here too -- beside the
+	// round's own reasons, not in place of them.
+	narrowedReasons, narrowedPresent, narrowedPrompts := read("review", base, "--compact", "--role", "implementer", "--json")
+	require.Equal(t, 1, narrowedPrompts)
+	require.True(t, narrowedPresent, "--compact keeps skipped_roles when --role narrowed the payload")
+	assert.Equal(t, map[string]string{
+		"regression": engine.SkipNoBaseline,
+		"tester":     engine.SkipRoleFilter,
+		"architect":  engine.SkipRoleFilter,
+	}, narrowedReasons, "the round's own reason and the filter's, each once")
 
 	_, plainPresent, plainPrompts := read("review", base, "--compact", "--json")
 	require.Positive(t, plainPrompts)

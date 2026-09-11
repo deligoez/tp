@@ -674,7 +674,7 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 	prompts = appendClausesReview(prompts)
 	// An unknown --role exits 2 here, so the round snapshot is written only
 	// after it: a refusal leaves the state directory exactly as it found it.
-	prompts = filterReviewPrompts(prompts, roleQueryFor(specPath, roleFilter, roleGiven), skippedRoles)
+	prompts, skippedRoles = filterReviewPrompts(prompts, roleQueryFor(specPath, roleFilter, roleGiven), skippedRoles)
 	if !noState {
 		writeReviewRoundSnapshot(cmd, specPath, round)
 	}
@@ -746,7 +746,7 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 
 	// §9.1: skipped_roles names every non-emitted role. Whether it survives
 	// --compact is skippedRolesSurviveCompact's question, not this function's.
-	if skippedRolesSurviveCompact(roleGiven, len(prompts)) {
+	if skippedRolesSurviveCompact(roleGiven, len(prompts), len(skippedRoles)) {
 		if skippedRoles == nil {
 			skippedRoles = []engine.SkippedRole{}
 		}
@@ -930,7 +930,7 @@ func reviewCodeAuditResult(specPath, specContent string, affectedFiles []string,
 	affectedContent := engine.ReadAffectedFiles(affectedFiles)
 	summary := engine.BuildAffectedSummary(affectedFiles, affectedContent)
 	prompt := generateCodeAuditPrompt(specContent, affectedContent)
-	selected := filterReviewPrompts([]reviewPrompt{prompt}, q, nil)
+	selected, _ := filterReviewPrompts([]reviewPrompt{prompt}, q, nil)
 	return &reviewResult{
 		Spec:            specPath,
 		Perspective:     "code-audit",
@@ -955,7 +955,7 @@ func reviewDocPlanResult(specPath, specContent, docsPath string, affectedFiles [
 		maps.Copy(docContent, engine.ReadAffectedFiles(affectedFiles))
 	}
 	prompt := generateDocPlanPrompt(specContent, structureMap, docContent)
-	selected := filterReviewPrompts([]reviewPrompt{prompt}, q, nil)
+	selected, _ := filterReviewPrompts([]reviewPrompt{prompt}, q, nil)
 	return &reviewResult{
 		Spec:            specPath,
 		Perspective:     "documentation",
@@ -982,7 +982,7 @@ func reviewTestPlanResult(specPath, specContent, testPath string, affectedFiles 
 		maps.Copy(testContent, engine.ReadAffectedFiles(affectedFiles))
 	}
 	prompt := generateTestPlanPrompt(specContent, structureMap, testContent)
-	selected := filterReviewPrompts([]reviewPrompt{prompt}, q, nil)
+	selected, _ := filterReviewPrompts([]reviewPrompt{prompt}, q, nil)
 	return &reviewResult{
 		Spec:            specPath,
 		Perspective:     "testing",

@@ -379,7 +379,7 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	// both measured false — the classification itself is unaffected, since
 	// classifyRole falls through to engine.RoleIsRecognised, which reads the
 	// corpus directly. The diagnostic is what the ordering buys.
-	prompts = filterAuditPrompts(prompts, roleQueryFor(specPath, roleFilter, roleGiven), auditSkipped)
+	prompts, auditSkipped = filterAuditPrompts(prompts, roleQueryFor(specPath, roleFilter, roleGiven), auditSkipped)
 	// An unknown --role exits 2 inside the filter, so the snapshot is written
 	// only after it: a refusal leaves the state directory as it found it.
 	snap.write(specPath)
@@ -419,7 +419,7 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 
 	// §9.1: skipped_roles names every non-emitted role. Whether it survives
 	// --compact is skippedRolesSurviveCompact's question, not this function's.
-	if skippedRolesSurviveCompact(roleGiven, len(prompts)) {
+	if skippedRolesSurviveCompact(roleGiven, len(prompts), len(auditSkipped)) {
 		if auditSkipped == nil {
 			auditSkipped = []engine.SkippedRole{}
 		}

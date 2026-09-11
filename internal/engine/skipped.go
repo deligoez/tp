@@ -18,6 +18,8 @@ import (
 //     snapshot-round-0.md to diff against
 //   - disabled-by-spec:   the spec frontmatter deactivated the role with an
 //     enabled: false override (§2.4)
+//   - role-filter:        the round emitted the role and --role narrowed the
+//     payload to another one
 type SkippedRole struct {
 	Role   string `json:"role"`
 	Reason string `json:"reason"`
@@ -30,7 +32,25 @@ const (
 	SkipDomainMismatch   = "domain-mismatch"
 	SkipNoBaseline       = "no-baseline"
 	SkipDisabledBySpec   = "disabled-by-spec"
+	SkipRoleFilter       = "role-filter"
 )
+
+// RoleFilterSkippedRoles names the emitted roles a --role filter narrowed
+// away (reason role-filter), so a one-role payload says which prompts the
+// round carried besides it — the built-in regression role included, which a
+// caller holding the narrowed payload has no other way to learn was emitted.
+func RoleFilterSkippedRoles(dropped []string) []SkippedRole {
+	return skippedFor(dropped, SkipRoleFilter)
+}
+
+// skippedFor names each id as skipped for one reason.
+func skippedFor(ids []string, reason string) []SkippedRole {
+	out := make([]SkippedRole, 0, len(ids))
+	for _, id := range ids {
+		out = append(out, SkippedRole{Role: id, Reason: reason})
+	}
+	return out
+}
 
 // DisabledSkippedRoles names the roles a spec deactivated with enabled: false,
 // so a deactivated role stays visible in the emission payload instead of
@@ -40,11 +60,7 @@ const (
 // active after domain filtering. A role domains had already removed contributes
 // no drop, so it is reported once — with domain-mismatch — and never twice.
 func DisabledSkippedRoles(disabled []string) []SkippedRole {
-	out := make([]SkippedRole, 0, len(disabled))
-	for _, id := range disabled {
-		out = append(out, SkippedRole{Role: id, Reason: SkipDisabledBySpec})
-	}
-	return out
+	return skippedFor(disabled, SkipDisabledBySpec)
 }
 
 // DomainSkippedRoles returns the user corpus roles for a phase that were dropped

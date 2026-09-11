@@ -104,7 +104,9 @@ func TestPerRoleEmissionsConcatenateToTheWholePanel(t *testing.T) {
 }
 
 // TestRoleSelectionLeavesEveryOtherTopLevelKeyUnchanged is property 4's second
-// half: only prompts[] and review_loop.instruction may differ.
+// half: only prompts[], review_loop.instruction and skipped_roles may differ,
+// and skipped_roles only by the role-filter entries --role appends
+// (assertSkippedRolesNarrowed).
 //
 // review_loop is exempted at its `instruction` member rather than as a whole
 // key, because property 12 governs that member alone and leaving the rest of
@@ -126,6 +128,10 @@ func TestRoleSelectionLeavesEveryOtherTopLevelKeyUnchanged(t *testing.T) {
 		}
 		if k == "review_loop" {
 			assertLoopEqualExceptInstruction(t, v, single[k])
+			continue
+		}
+		if k == "skipped_roles" {
+			assertSkippedRolesNarrowed(t, v, single[k], order, order[0])
 			continue
 		}
 		assert.Equal(t, v, single[k], "top-level key %q is unchanged by --role", k)

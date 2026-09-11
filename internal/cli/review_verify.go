@@ -118,7 +118,7 @@ func runReviewVerify(specPath, findingsPath string, affectedFiles []string, diff
 
 	// Build result
 	absPath, _ := filepath.Abs(specPath)
-	selected := filterReviewPrompts([]reviewPrompt{{
+	selected, _ := filterReviewPrompts([]reviewPrompt{{
 		Role:     "verifier",
 		Category: "verification",
 		Prompt:   prompt,
