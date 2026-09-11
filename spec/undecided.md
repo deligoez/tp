@@ -1,5 +1,8 @@
 # Undecided — and refuted
 
+> **2026-09-11:** most `spec/backlog/` files cited below were archived. `spec/backlog/ARCHIVE.md`
+> gives the sha to read each at and what became of it; open defects are in `BUGS.md`.
+
 **Not a release, and not a spec.** Three kinds of thing live here, and the distinction is the point:
 
 - **Refuted** — a candidate that was prototyped and did not survive. It is recorded so it is not

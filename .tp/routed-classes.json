@@ -1,21 +1,4 @@
 {
-  "silent-swallowed-error": "an-unreadable-file-is-named",
-  "zero-parse-exits-zero": "an-unreadable-file-is-named",
-  "refusal-hint-misdiagnoses": "refusals-that-name-nothing",
-  "test-only-symbol-with-claimed-callers": "refusals-that-name-nothing",
-  "raw-stderr-advisory": "an-unreadable-file-is-named",
-  "degraded-scan-channel": "an-unreadable-file-is-named",
-  "merge-output-write-surface": "a-findings-exits-agree",
-  "lock-path-identity": "loops-own-state-writes",
-  "check-exit-contract": "next-action-and-check-tell-the-truth",
-  "check-grades-wrong-spec": "next-action-and-check-tell-the-truth",
-  "check-cannot-run-suppresses-class": "next-action-and-check-tell-the-truth",
-  "roles-hash-staleness": "round-knows-its-panel",
-  "cross-surface-payload-shape": "a-findings-exits-agree",
-  "prompt-key-set-disagreement": "a-findings-exits-agree",
-  "dedup-identity-prefix": "an-unreadable-file-is-named",
-  "brief-command-quoting": "brief-carries-the-forcing-sentences",
-  "hook-matches-argument-string": "hooks-fence-the-target",
   "audit-file-truncation-marker": "checklist-covers-what-changed",
-  "mutation-coverage-gap": "mutation-run-check"
+  "refusal-hint-misdiagnoses": "BUGS.md"
 }

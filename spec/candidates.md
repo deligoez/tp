@@ -1,5 +1,8 @@
 # Candidates — split, and forwarded
 
+> **2026-09-11:** most `spec/backlog/` files cited below were archived. `spec/backlog/ARCHIVE.md`
+> gives the sha to read each at and what became of it; open defects are in `BUGS.md`.
+
 **This file holds no content. It is a forwarding note, and it exists only so the references to it do
 not break.**
 
