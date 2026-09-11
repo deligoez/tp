@@ -7,13 +7,13 @@ verification, with its reproduction and source citations, is in the sidecar unde
 WB-3155, verified 2026-09-11*.
 
 Class: **tool** — it changes which id a checklist item carries, which files the conformance role is
-given and what the disposition path says, and no convergence rule. Budget it at the tool-class
-median in `CLAUDE.md`'s *What a cycle costs*.
+given and what the disposition path says, and no convergence rule. Budget it at the median
+`CLAUDE.md`'s *What a cycle costs* gives a release whose subject is not the loop.
 
 ## 1. Overview
 
 Three defects with one shape: **the recorded round holds something other than what was graded, and
-nothing says so.** Each runs at exit 0 with nothing on stderr and a payload that reads normally.
+nothing says so.** Each runs at exit 0 with no warning and a payload that reads normally.
 
 1. **An item id can name a different file in a different round or shard** (§2).
 2. **A task's second closing commit is not read** by the one role that measures conformance (§3).
@@ -73,11 +73,11 @@ under `audit_converge_on: blocking` it decides whether the round is clean.
 - A `role:item_id` selector passed to `--resolve` can no longer dispose one file's row while another
   file's verdict under the same id stays open. Under `tp run`, a conflicting pair stops the run at the
   unit that records the round.
-- `skills/tp/REFERENCE.md`'s sentence on item ids, and `skills/tp/SKILL.md`'s sentences on the
-  positional suffix and on `--merge` keeping the first row, are rewritten to the new behaviour.
-- `scripts/audit-round-prep.py` carries rows between rounds by id, so it inherits the fix; since a
-  carried row would bring an old-scheme id into a new-scheme round, it carries nothing from a round
-  whose `id_scheme` differs from the current one.
+- `skills/tp/REFERENCE.md` on item ids and `skills/tp/SKILL.md` on the positional suffix, on
+  `--merge`'s dedup and on what `--resolve-all` disposes are rewritten to the new behaviour.
+- `scripts/audit-round-prep.py` passes a carried row's id along verbatim and lists the rows to
+  re-measure by id, so it inherits the fix; since a carried row would bring an old-scheme id into a
+  new-scheme round, it carries nothing from a round whose `id_scheme` differs from the current one.
 
 ## 3. Every closing commit counts
 
@@ -137,7 +137,7 @@ reason `CLAUDE.md` gives about `Contains` guards over prose; the audit reads it.
 
 ## 5. Non-Goals
 
-1. **No ranking change.** Which files a role receives and in what order is
+1. **No ranking change.** How the code roles' files are ranked and cut is
    `checklist-covers-what-changed`.
 2. **No acceptance or convergence change.** A disposition changes no recorded verdict here; that,
    and any refusal of a disposition into a non-recorded file, is `a-finding-can-leave-an-audit-round`.
@@ -169,7 +169,7 @@ exist at `HEAD`, so both counts belong to that acceptance.
 | 9 | §3 *agreement* | same fixture with `--affected-from-tasks`: the audited universe and spec-coverage's list are the same set. At `HEAD`: 2 and 1 | read the first sha only in the task mapping |
 | 9b | §3 *`commit_sha` only* | a done task carrying `commit_sha` and no `commit_shas`: `--affected-from-tasks` audits that commit's files. At `HEAD`: exit 4, no done task carries `commit_shas` | read `commit_shas` only in the universe derivation |
 | 10 | §4 d2 *outside a run* | `--resolve-all` into a file with `TP_ROUND` unset: the payload names no `--record`. At `HEAD` it does, and following it takes the recorded round count 1 → 2 with no emission | offer the step unconditionally, the shipped behaviour |
-| 10b | §4 d2 *stale round* | the same, with `TP_ROUND` naming a round that is not the one the file's rows match: the payload names no `--record`. At `HEAD` it does, and following it appends a round | offer the step whenever `TP_ROUND` is set |
+| 10b | §4 d2 *stale round* | the same, with `TP_ROUND` naming a round that is not the one the file's rows match: the payload names no `--record`. At `HEAD` it does | offer the step whenever `TP_ROUND` is set |
 | 11 | §4 d2 *inside a run* | with `TP_ROUND` naming the recorded round the file's rows match, the step is offered. At `HEAD`: offered | drop the step altogether, which breaks the driver |
 | 12 | §4 d3 | after `--record`, `--resolve 0 wontfix "<evidence>"` into the merge output exits 0, writes the disposition, and its payload says the file is not a recorded round, that state is unchanged, and names the recorded round file. At `HEAD` the payload carries none of the three | omit the statement, the shipped payload |
 | 12b | §4 d3 *pointer* | two specs each with a recorded audit round, the `tp use` pointer naming the other spec: the resolve into the first spec's merge output names the first spec's round file. *Deferred* | find the round through the active-file pointer, which names the other spec's round |

@@ -339,3 +339,16 @@ own rounds.
 spec): the digest and its length, the `id_scheme` string — which `scripts/audit-round-prep.py` must
 read from the same constant the binary uses — the refusal's wording, and the resolve payload's key
 names.
+
+## Ground round 1
+
+`spec/backlog/.tp-review/audit-records-what-was-graded/ground-round-1.ndjson` holds the round. Its
+six `PARTIAL` rows were each repaired by narrowing or deleting the sentence; one of them measured
+something worth keeping.
+
+**A stale `TP_ROUND` does worse than append.** Row 10b once said that following the step under a
+`TP_ROUND` the file does not match *appends a round*. That holds only when `TP_ROUND` is past the last
+recorded round. When it names an **earlier** recorded round, following the `next_step` rewrites that
+round's file: with two rounds recorded and `TP_ROUND=1`, round 1's file was replaced by round 2's
+rows. The row now asserts only what decision 2 changes — that the payload names no `--record` — since
+both outcomes are what the mutant restores.
