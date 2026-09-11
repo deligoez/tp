@@ -11,6 +11,12 @@
 # would see no growth and exit 0. Each case is built so the wrong reading fails
 # it, which is the only way a passing case says anything.
 #
+# An untracked round-1 snapshot (its state between emission and --record) and
+# a missing git take the two untracked arms: at round 1 the sidecar is measured
+# against itself, and from round 2 on it is not checked and the check says so.
+# The no-git fixture's snapshot is committed and its sidecar grown, so the same
+# input fails with git on PATH — the no-git verdicts are git's absence.
+#
 # Exit codes are tp's `workflow.checks` contract (engine.CheckRan): 0 clean,
 # 1 grew, anything else could not run — so every usage error must be 2, never 1.
 #
@@ -50,6 +56,14 @@ check_has() {
 	case "$(cat "$3")" in
 	*"$2"*) pass "$1" ;;
 	*) fail "$1" "$(cat "$3")" ;;
+	esac
+}
+
+check_lacks() {
+	# check_lacks <label> <needle> <file>
+	case "$(cat "$3")" in
+	*"$2"*) fail "$1" "$(cat "$3")" ;;
+	*) pass "$1" ;;
 	esac
 }
 
@@ -142,15 +156,80 @@ check_eq "sidecar added after round 1 exit code" 1 "$code"
 check_has "sidecar added after round 1 counts from 0" "(body 1->1, sidecar 0->1)" "$tmp/out.txt"
 check_eq "an absent sidecar is not a fallback" "" "$(cat "$tmp/err.txt")"
 
-# An untracked snapshot: the sidecar baseline falls back to 0, and says so.
+# An untracked round-1 snapshot, round 1 the latest emitted: tp has just
+# written it and --record has not committed it yet. The sidecar's baseline is
+# its working-tree size, because growth against round 1 at round 1 is zero by
+# definition — so a sidecar present at round 1 is not reported as growth.
 mkdir -p spec/.tp-review/z
 printf '# z\n' >spec/z.md
 printf 'derivation\n' >spec/z-measurements.md
 cp spec/z.md spec/.tp-review/z/snapshot-round-1.md
 growth spec/z.md
-check_eq "untracked snapshot exit code" 1 "$code"
-check_has "untracked snapshot fallback is said on stderr" "sidecar baseline taken as 0" "$tmp/err.txt"
-check_has "untracked snapshot names why" "untracked" "$tmp/err.txt"
+check_eq "round 1, untracked snapshot, sidecar present exit code" 0 "$code"
+check_has "round 1, untracked snapshot reports no growth" \
+	"baseline 2, now 2, delta +0 (body 1->1, sidecar 1->1)" "$tmp/out.txt"
+check_lacks "round 1, untracked snapshot is not a sidecar-not-checked notice" \
+	"sidecar not checked" "$tmp/err.txt"
+
+# Round 2 emitted and round 1's snapshot still untracked: the sidecar's round-1
+# size cannot be known. It is left out of both sides and the check says so on
+# stderr and in its line; the body alone decides the exit.
+cp spec/z.md spec/.tp-review/z/snapshot-round-2.md
+printf 'derivation two\nderivation three\n' >>spec/z-measurements.md
+growth spec/z.md
+check_eq "round 2, untracked round-1 snapshot exit code" 0 "$code"
+check_has "round 2, untracked round-1 snapshot is said on stderr" \
+	"sidecar not checked: the round-1 snapshot is not committed" "$tmp/err.txt"
+check_has "round 2, untracked round-1 snapshot is said in the line" \
+	"sidecar not checked: the round-1 snapshot is not committed" "$tmp/out.txt"
+check_has "round 2, the sidecar is not counted" "baseline 1, now 1, delta +0" "$tmp/out.txt"
+printf 'A second requirement.\n' >>spec/z.md
+growth spec/z.md
+check_eq "round 2, untracked round-1 snapshot, grown body exit code" 1 "$code"
+check_has "round 2, the grown body is what is reported" "baseline 1, now 2, delta +1" "$tmp/out.txt"
+
+# git unavailable reads as an untracked snapshot, under the same two arms. The
+# fixture's round-1 snapshot IS committed and its sidecar has grown since, so
+# with git the check fails: the no-git verdicts below come from the missing
+# git, not from a fixture that could not fail.
+mkdir -p spec/.tp-review/w "$tmp/nogit"
+ln -s "$(command -v python3)" "$tmp/nogit/python3"
+printf '# w\n' >spec/w.md
+printf 'derivation\n' >spec/w-measurements.md
+cp spec/w.md spec/.tp-review/w/snapshot-round-1.md
+git add spec/w.md spec/w-measurements.md spec/.tp-review/w
+git commit -qm "record review round 1 of w"
+printf 'derivation two\n' >>spec/w-measurements.md
+nogit() {
+	PATH="$tmp/nogit" "$tmp/nogit/python3" "$script" "$@" >"$tmp/out.txt" 2>"$tmp/err.txt"
+	code=$?
+}
+growth spec/w.md
+check_eq "with git, the committed fixture's grown sidecar exit code" 1 "$code"
+nogit spec/w.md
+check_eq "no git, round 1 exit code" 0 "$code"
+check_has "no git, round 1 takes the working-tree sidecar" "(body 1->1, sidecar 2->2)" "$tmp/out.txt"
+check_has "no git is said on stderr" "git is not available" "$tmp/err.txt"
+cp spec/w.md spec/.tp-review/w/snapshot-round-2.md
+nogit spec/w.md
+check_eq "no git, round 2 exit code" 0 "$code"
+check_has "no git, round 2 is a sidecar-not-checked notice" \
+	"sidecar not checked: the round-1 snapshot is not committed" "$tmp/err.txt"
+printf 'A second requirement.\n' >>spec/w.md
+nogit spec/w.md
+check_eq "no git, round 2, grown body exit code" 1 "$code"
+
+# A repository with no commit yet tracks nothing, so its round 1 is the
+# untracked arm — not a git failure, although `git log` exits 128 there.
+fresh="$tmp/fresh"
+mkdir -p "$fresh/spec/.tp-review/f"
+git -C "$fresh" init -q .
+printf '# f\n' >"$fresh/spec/f.md"
+printf 'derivation\n' >"$fresh/spec/f-measurements.md"
+cp "$fresh/spec/f.md" "$fresh/spec/.tp-review/f/snapshot-round-1.md"
+growth "$fresh/spec/f.md"
+check_eq "round 1 in a repository with no commit exit code" 0 "$code"
+check_has "round 1 in a repository with no commit counts the sidecar" "(body 1->1, sidecar 1->1)" "$tmp/out.txt"
 
 # 6. Bad usage: every form exits 2, so tp reads it as "could not run".
 growth
