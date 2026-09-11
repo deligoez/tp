@@ -287,7 +287,7 @@ stateDiagram-v2
 ```
 
 The file's `workflow` block carries the gate and the convergence policy. Every field with its type,
-default and range, the accepted acceptance-criteria delimiters, and the JSON field aliases are in
+default and range, how acceptance criteria are counted, and the JSON field aliases are in
 [REFERENCE.md](skills/tp/REFERENCE.md); how to write `source_sections` is in
 [SKILL.md](skills/tp/SKILL.md).
 
@@ -344,7 +344,7 @@ Every rule identifier tp can put in a `findings[].rule` field, and the command t
 | `empty-section` | `tp lint` | error | A leaf heading with no body content (container headings — whose next heading is deeper — are skipped) |
 | `duplicate-heading` | `tp lint` | error | Two headings with identical text under the same parent |
 | `orphan-reference` | `tp lint` | error | `[text](#anchor)` whose anchor matches no heading |
-| `frontmatter` | `tp lint` | error/warning | `tp:` frontmatter that is unclosed or unparseable (error), or whose shape is wrong (warning) |
+| `frontmatter` | `tp lint` | error/warning | `tp:` frontmatter that is unclosed or unparseable (error), or whose shape is wrong or that carries an unknown key under `tp:` (warning); `tp review` and `tp audit` print the same on stderr |
 | `section-size` | `tp lint` | warning | A section longer than 50 lines — consider splitting |
 | `long-spec` | `tp lint` | info | Spec longer than 500 lines — consider modular sub-specs |
 | `vague-language` | `tp lint` | warning | Vague wording: `appropriate`, `relevant`, `as needed`, `etc.`, `various`, `some`, `proper`, `properly` |
@@ -496,16 +496,16 @@ tp is designed for AI agents first (AX), not humans (DX):
 | **Audit file hint** | `tp audit` suggests files from done tasks' commits when none are detected |
 | **Loop budget** | `--status` shows `max_rounds`/`rounds_remaining`/`in_flight_round`; at the cap (default 3) a loop ends once every finding carries a disposition, reported as `done_by: cap` |
 | **Divergence signal** | `tp audit --status`/`--record` report `role_streaks`, `spec_coverage_clean_rounds` and a `divergence` object |
-| **Candidate retirement** | a registered check retires its mechanize candidate; `mechanized_classes` names what was withheld |
+| **Candidate retirement** | a registered check that ran retires its mechanize candidate; `mechanized_classes` names what was withheld |
 | **Unattended run** | `tp run` drives the whole cycle; exit 0 means converged, exit 4 names one of the other eight stop reasons |
 | **Fail-closed decisions** | under `TP_UNATTENDED` the user-only decisions exit 2 and `tp escalate` records what needs deciding |
 | **Audit convergence policy** | `audit_converge_on` (default `all`) decides what an audit round must be clean of; `blocking` is human-only, fenced at all four write paths |
 | **Accepted rows are visible** | `tp audit --merge` breaks the round's non-`PASS` rows down as `by_severity`, and `next_action` names the accepted count |
 | **Honest merges** | `--merge` reports `inputs` per file and exits 1 when a role's whole file failed to parse |
 | **One prompt per unit** | `tp review`/`tp audit --role <name>` emit a single role's prompt, so a lost sub-agent costs one role, not the round |
-| **Honest audits** | `file_summary.truncated`/`total_changed` put the 50-file cap in the payload, where `--quiet` cannot erase it |
+| **Honest audits** | `file_summary.truncated`/`total_changed` put the 50-file cap in the payload, where `--quiet` cannot erase it, and `spec_truncated` names a spec cut at 10,000 bytes |
 | **Evidence at record** | every finding row needs `severity`, `finding`, `location` and `evidence`, each non-empty after `strings.TrimSpace`; `--record` refuses the whole file and names every offending line, `--merge` drops the row and counts it under `inputs[].skipped` |
-| **A refused merge writes nothing** | `tp review --merge -o <path>` declines the write when an input parsed nothing, so a refused merge leaves no file there and an existing one byte-identical, and `--record` then exits 3 on the missing input |
+| **A refused merge writes nothing** | `tp review --merge` and `tp audit --merge` decline the `-o` write when an input parsed nothing, so a refused merge leaves no file there and an existing one byte-identical, and `--record` then exits 3 on the missing input |
 
 ## Claude Code Integration
 

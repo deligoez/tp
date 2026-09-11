@@ -48,14 +48,14 @@ This spec passes both `tp lint` (the container headings `## 1`/`## 2`/`## 3` no 
 
 **All output is JSON when piped. Use `| python3 -c "import sys,json; ..."` to parse.**
 
-**Note:** `tp add` prints `{"added":["<id>"]}` on success; check the exit code on failure.
+**Note:** `tp add` prints `{"added":["<id>"],"criteria":{"<id>":N},"file":"spec.tasks.json"}` on success, `N` being the acceptance criteria it counted; check the exit code on failure.
 
 | Area | Commands to test | What to verify |
 |------|-----------------|----------------|
 | **Basics** | `--version`, `--help`, `lint spec.md` | Version shows, help lists all commands, lint runs |
 | **Status/Query** | `status`, `ready`, `ready --first`, `blocked`, `show <id>`, `list`, `list --status open`, `list --tag`, `list --ids`, `list --compact` | Correct counts, correct filtering, compact strips fields |
 | **Plan** | `plan`, `plan --compact`, `plan --from <id>`, `plan --level 0` | Topo order, WIP first, excerpt present, compact strips excerpt |
-| **Next** | `next` (claim), `next` again (WIP resume), `next --peek` | Same task returned twice, peek doesn't claim |
+| **Next** | `next` (claim), `next` again (WIP resume), `next --peek` | Same task returned twice; peek claims nothing and shows the next ready task, not the WIP one |
 | **Done single** | `done <id> "reason"`, `done <id> "reason" --gate-passed --commit sha` | has_next correct, gate_passed_at/commit_sha set |
 | **Done batch** | Write NDJSON, `done --batch file` | closed/failed counts, partial failure works |
 | **Claim batch** | `claim id1 id2`, `claim --all-ready` | claimed array, failures with hint |
