@@ -224,9 +224,9 @@ func runMechanicalChecks(wf *model.Workflow, taskFilePath string) (results []map
 	// A check that did not run is not a check that passed. Both ways of not
 	// running one used to leave allPass true: no task file resolving (a fresh
 	// clone), and an entry the checks schema rejects, which only prints an
-	// info line. Meanwhile tp keeps telling every reviewer that the check's
-	// class is mechanized and should not be reported, so the class is
-	// suppressed and verified by nothing. With no check registered at all
-	// there is nothing to have skipped and the count still agrees.
+	// info line. Prompt emission reads the same results, so a class whose
+	// check did not run here is not suppressed either (mechanizedExclusion).
+	// With no check registered at all there is nothing to have skipped and
+	// the count still agrees.
 	return results, allPass && len(results) == len(wf.Checks)
 }

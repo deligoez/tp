@@ -37,21 +37,27 @@ const mechanizedExclusionPrefix = "\n\nMechanically checked classes — do NOT r
 // mechanizedExclusion renders the reviewer exclusion sentence for one
 // emission, from the registered checks and what the runner reported for them.
 //
-// It names engine.ReviewerExclusionClasses less the class of every entry the
-// runner reported `ran: false` — a check that could not run verified nothing,
-// so its class stays reportable (engine.CheckRan states the contract). A check
-// that ran keeps suppressing its class whichever verdict it reached. When no
-// class survives it returns "", so no sentence is appended rather than one
-// ending in an empty list.
+// It names the classes of engine.ReviewerExclusionClasses that a check ran for
+// in this emission: a class needs an entry the runner reported `ran: true`, and
+// no entry of that class reported `ran: false`. A check that could not run
+// verified nothing (engine.CheckRan states the contract), and neither did one
+// that never started — no task file resolving leaves the runner with no entry
+// at all — so either way its class stays reportable. A check that ran keeps
+// suppressing its class whichever verdict it reached. When no class survives
+// it returns "", so no sentence is appended rather than one ending in an
+// empty list.
 func mechanizedExclusion(checks []model.Check, results []map[string]any) string {
+	ranFor := make(map[string]bool)
 	notRun := make(map[string]bool)
 	for _, entry := range results {
-		if ran, _ := entry["ran"].(bool); !ran {
-			class, _ := entry["class"].(string)
+		class, _ := entry["class"].(string)
+		if ran, _ := entry["ran"].(bool); ran {
+			ranFor[class] = true
+		} else {
 			notRun[class] = true
 		}
 	}
-	classes := slices.DeleteFunc(engine.ReviewerExclusionClasses(checks), func(c string) bool { return notRun[c] })
+	classes := slices.DeleteFunc(engine.ReviewerExclusionClasses(checks), func(c string) bool { return !ranFor[c] || notRun[c] })
 	if len(classes) == 0 {
 		return ""
 	}
@@ -675,7 +681,8 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 		mechChecks, _ = runMechanicalChecks(&wfChecks, checksTaskFile)
 	}
 	// The exclusion sentence is written only now, so a check that could not
-	// run leaves its class reportable in every prompt (engine.CheckRan).
+	// run, or never started, leaves its class reportable in every prompt
+	// (engine.CheckRan).
 	prompts = insertMechanizedExclusion(prompts, mechanizedExclusion(wfChecks.Checks, mechChecks))
 
 	uniqueCount := len(dedupFindings(findings))

@@ -102,8 +102,8 @@ func runReviewRegression(specPath, diffFrom, findingsPath string, q roleQuery) e
 		mechChecks, _ = runMechanicalChecks(&wfChecks, checksTaskFile)
 	}
 	// §3.2: the exclusion sentence carries the mechanized classes, a narrower set
-	// than the registered entries — see engine.ReviewerExclusionClasses — less
-	// every class whose check could not run this time (engine.CheckRan). It is
+	// than the registered entries — see engine.ReviewerExclusionClasses — kept
+	// only where a check of the class ran this time (engine.CheckRan). It is
 	// outside the guard above, so that a workflow whose every entry is invalid
 	// still runs the checks and still emits each entry's skip notice while
 	// appending no sentence at all.
