@@ -299,3 +299,36 @@ func TestAudit_TaskFileMappingWarnsOnUnknownCommit(t *testing.T) {
 	assert.Empty(t, specCoverageTasksFor(t, stdout, "auth_helper.go"),
 		"the fallback list carries no task attribution")
 }
+
+// TestAudit_EveryCommitSHAOfATaskIsRead: a task closed with a production
+// commit and a test commit maps both commits' files. GitTaskFileMapping read
+// commit_sha, which mirrors commit_shas[0] only, so the second commit's files
+// carried no task attribution in spec-coverage's list.
+func TestAudit_EveryCommitSHAOfATaskIsRead(t *testing.T) {
+	t.Parallel()
+	dir, specPath := newAuditRepo(t)
+	sha1 := commitFile(t, dir, "a.go", "add a")
+	sha2 := commitFile(t, dir, "b.go", "add b")
+	closeTaskFile(t, dir, doneTaskJSON(t, sha1, sha2))
+
+	stdout, stderr, code := runTP(t, dir, "audit", specPath, "--affected-files", "a.go", "--affected-files", "b.go")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.Equal(t, []string{"t1"}, specCoverageTasksFor(t, stdout, "a.go"))
+	assert.Equal(t, []string{"t1"}, specCoverageTasksFor(t, stdout, "b.go"), "the second commit_shas entry is read")
+}
+
+// TestAudit_ALoneCommitSHAIsRead: a task file written by hand or by an older
+// tp carries commit_sha with no commit_shas. --affected-from-tasks read
+// commit_shas only, so such a task derived no files and the refusal said no
+// done task carries a sha.
+func TestAudit_ALoneCommitSHAIsRead(t *testing.T) {
+	t.Parallel()
+	dir, specPath := newAuditRepo(t)
+	sha := commitFile(t, dir, "a.go", "add a")
+	closeTaskFile(t, dir, fmt.Sprintf(
+		`[{"id":"t1","title":"T","status":"done","depends_on":[],"estimate_minutes":5,"acceptance":"x done","source_sections":[],"commit_sha":%q,"closed_at":"2020-01-01T00:00:00Z","gate_passed_at":"2020-01-01T00:00:00Z"}]`, sha))
+
+	stdout, stderr, code := runTP(t, dir, "audit", specPath, "--affected-from-tasks")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.Equal(t, []string{"t1"}, specCoverageTasksFor(t, stdout, "a.go"))
+}

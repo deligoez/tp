@@ -1220,10 +1220,8 @@ func suggestFilesFromTasks(specPath string) []string {
 		if tasks[i].Status != model.StatusDone {
 			continue
 		}
-		for _, sha := range tasks[i].CommitSHAs {
-			if sha != "" {
-				shas[sha] = true
-			}
+		for _, sha := range engine.TaskCommitSHAs(&tasks[i]) {
+			shas[sha] = true
 		}
 	}
 	specDir := filepath.Dir(specPath)
@@ -1250,10 +1248,8 @@ func auditTasksCarryAnySHA(specPath string) bool {
 		if tasks[i].Status != model.StatusDone {
 			continue
 		}
-		for _, sha := range tasks[i].CommitSHAs {
-			if sha != "" {
-				return true
-			}
+		if len(engine.TaskCommitSHAs(&tasks[i])) > 0 {
+			return true
 		}
 	}
 	return false

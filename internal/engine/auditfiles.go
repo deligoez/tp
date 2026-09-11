@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -203,9 +204,11 @@ func matchesPriorityPath(s string) bool {
 }
 
 // GitTaskFileMapping maps each universe file to the sorted ids of tasks whose
-// recorded commit_sha changed it, resolving every revision in dir — the
-// repository holding the audited spec, not the process cwd. Tasks without a
-// commit_sha, or whose sha is unknown to git, map to zero files.
+// recorded commits changed it, resolving every revision in dir — the
+// repository holding the audited spec, not the process cwd. Every sha a task
+// records is read (TaskCommitSHAs), so a task closed with a production commit
+// and a test commit maps both commits' files. Tasks without a sha, or whose
+// shas are unknown to git, map to zero files.
 func GitTaskFileMapping(dir string, tasks []model.Task, universe []string) map[string][]string {
 	inUniverse := make(map[string]bool, len(universe))
 	for _, p := range universe {
@@ -214,40 +217,16 @@ func GitTaskFileMapping(dir string, tasks []model.Task, universe []string) map[s
 
 	byFile := make(map[string]map[string]bool)
 	for i := range tasks {
-		if tasks[i].CommitSHA == nil || *tasks[i].CommitSHA == "" {
-			continue
-		}
-		// The task file is written by import and add as well as by done, so a
-		// stored sha is not guaranteed to have passed an entry-point check.
-		if !SafeGitRev(*tasks[i].CommitSHA) {
-			continue
-		}
-		// cmd.Dir, like every other git call the audit path makes: without it
-		// the revision is resolved against the PROCESS cwd rather than against
-		// the repository holding the spec, so auditing a spec in another
-		// checkout maps every task to zero files. That empty mapping is not
-		// distinguishable from "no task has a usable commit_sha", so
-		// spec-coverage silently takes its fallback file list at exit 0.
-		cmd := exec.Command("git", "show", "--name-only", "--pretty=format:", *tasks[i].CommitSHA)
-		cmd.Dir = dir
-		out, err := cmd.Output()
-		if err != nil {
-			// git failing is not the same as a commit that touched nothing.
-			// Swallowing it hands spec-coverage a file list derived from a
-			// mapping nothing could build, with nothing in the payload or on
-			// stderr naming the loss.
-			output.Notice(fmt.Sprintf("warning: git show %s failed; task %s contributes no file mapping (%v)", *tasks[i].CommitSHA, tasks[i].ID, err))
-			continue
-		}
-		for line := range strings.SplitSeq(string(bytes.TrimSpace(out)), "\n") {
-			f := strings.TrimSpace(line)
-			if f == "" || !inUniverse[f] {
-				continue
+		for _, sha := range TaskCommitSHAs(&tasks[i]) {
+			for _, f := range commitChangedFiles(dir, sha, tasks[i].ID) {
+				if !inUniverse[f] {
+					continue
+				}
+				if byFile[f] == nil {
+					byFile[f] = make(map[string]bool)
+				}
+				byFile[f][tasks[i].ID] = true
 			}
-			if byFile[f] == nil {
-				byFile[f] = make(map[string]bool)
-			}
-			byFile[f][tasks[i].ID] = true
 		}
 	}
 
@@ -261,4 +240,55 @@ func GitTaskFileMapping(dir string, tasks []model.Task, universe []string) map[s
 		result[f] = sorted
 	}
 	return result
+}
+
+// TaskCommitSHAs returns every sha a task records, in order and without
+// duplicates: each commit_shas entry, or commit_sha when that is all the task
+// carries (a task file written by hand or by an older tp). An empty value is
+// dropped.
+func TaskCommitSHAs(t *model.Task) []string {
+	shas := make([]string, 0, len(t.CommitSHAs)+1)
+	for _, s := range t.CommitSHAs {
+		if s != "" && !slices.Contains(shas, s) {
+			shas = append(shas, s)
+		}
+	}
+	if len(shas) == 0 && t.CommitSHA != nil && *t.CommitSHA != "" {
+		shas = append(shas, *t.CommitSHA)
+	}
+	return shas
+}
+
+// commitChangedFiles lists the paths one task commit changed, or nil, with a
+// notice, when git cannot answer.
+func commitChangedFiles(dir, sha, taskID string) []string {
+	// The task file is written by import and add as well as by done, so a
+	// stored sha is not guaranteed to have passed an entry-point check.
+	if !SafeGitRev(sha) {
+		return nil
+	}
+	// cmd.Dir, like every other git call the audit path makes: without it
+	// the revision is resolved against the PROCESS cwd rather than against
+	// the repository holding the spec, so auditing a spec in another
+	// checkout maps every task to zero files. That empty mapping is not
+	// distinguishable from "no task has a usable commit_sha", so
+	// spec-coverage silently takes its fallback file list at exit 0.
+	cmd := exec.Command("git", "show", "--name-only", "--pretty=format:", sha)
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		// git failing is not the same as a commit that touched nothing.
+		// Swallowing it hands spec-coverage a file list derived from a
+		// mapping nothing could build, with nothing in the payload or on
+		// stderr naming the loss.
+		output.Notice(fmt.Sprintf("warning: git show %s failed; task %s contributes no file mapping (%v)", sha, taskID, err))
+		return nil
+	}
+	files := make([]string, 0)
+	for line := range strings.SplitSeq(string(bytes.TrimSpace(out)), "\n") {
+		if f := strings.TrimSpace(line); f != "" {
+			files = append(files, f)
+		}
+	}
+	return files
 }
