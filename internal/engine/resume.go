@@ -136,7 +136,7 @@ func AssembleResume(start, taskFilePath, specPath string, tf *model.TaskFile) (R
 		NextUnits:   nextUnits,
 		Round:       round,
 		LastFailure: ReadLastFailure(start, taskFilePath),
-		NextAction:  renderNextAction(BuildNextAction(phase, specPath, tf, st), nextUnits),
+		NextAction:  renderNextAction(BuildNextAction(phase, specPath, tf, st), nextUnits, blockers),
 		Blockers:    blockers,
 	}, nil
 }

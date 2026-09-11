@@ -209,16 +209,38 @@ func TestBuildNextUnits_NonConcurrentKindIsNeverAlongsideAnother(t *testing.T) {
 func TestRenderNextAction_RendersFirstUnit(t *testing.T) {
 	base := NextAction{Summary: "s", Payload: map[string]any{"round": 2}}
 
-	unchanged := renderNextAction(base, nil)
+	unchanged := renderNextAction(base, nil, nil)
 	assert.Equal(t, map[string]any{"round": 2}, unchanged.Payload)
 
 	rendered := renderNextAction(base, []NextUnit{
 		{Kind: UnitReviewRole, ID: "implementer", BriefCommand: "tp review spec.md"},
 		{Kind: UnitReviewRole, ID: "tester", BriefCommand: "tp review spec.md"},
-	})
+	}, nil)
 	assert.Equal(t, map[string]any{"kind": "review-role", "id": "implementer"}, rendered.Payload["unit"])
 	assert.Equal(t, 2, rendered.Payload["round"], "the phase payload survives")
 	assert.Equal(t, map[string]any{"round": 2}, base.Payload, "the caller's payload is not mutated")
+}
+
+// TestRenderNextAction_DefersToTheFirstEscalateBlocker: §4.1 — an escalate
+// blocker empties next_units, and next_action then names what the phase waits
+// for: the first escalate blocker's message, with a null command. An
+// agent-clearable blocker ahead of it is skipped, and one alone changes nothing.
+func TestRenderNextAction_DefersToTheFirstEscalateBlocker(t *testing.T) {
+	t.Parallel()
+	cmd := "tp next"
+	base := NextAction{Command: &cmd, Summary: "claim the next ready task t1", Payload: map[string]any{"wip": false}}
+	clearable := Blocker{Code: "unexplained-changes", Class: ClassAgentClearable, Message: "commit them"}
+	stale := Blocker{Code: "spec-stale", Class: ClassEscalate, Message: "the spec changed"}
+	capped := Blocker{Code: "audit-budget-exhausted", Class: ClassEscalate, Message: "audit reached its cap"}
+
+	deferred := renderNextAction(base, nil, []Blocker{clearable, stale, capped})
+	assert.Equal(t, "the spec changed", deferred.Summary, "the first escalate blocker, not the first blocker")
+	assert.Nil(t, deferred.Command, "nothing runs until the operator answers")
+	assert.Equal(t, &cmd, base.Command, "the caller's next action is not mutated")
+
+	kept := renderNextAction(base, []NextUnit{{Kind: UnitImplement, ID: "t1"}}, []Blocker{clearable})
+	assert.Equal(t, base.Summary, kept.Summary, "an agent-clearable blocker leaves next_action to its unit")
+	assert.Equal(t, &cmd, kept.Command)
 }
 
 // TestBuildNextUnits_OmitsRolesWhoseFindingsSatisfyThePredicate is test 45's

@@ -208,12 +208,18 @@ func collectingRound(recorded int) *int {
 
 // hasEscalateBlocker reports whether any blocker is one only a human can clear.
 func hasEscalateBlocker(blockers []Blocker) bool {
+	return firstEscalateBlocker(blockers) != nil
+}
+
+// firstEscalateBlocker returns the first blocker only a human can clear, in the
+// blockers' fixed code order, or nil when none stands.
+func firstEscalateBlocker(blockers []Blocker) *Blocker {
 	for i := range blockers {
 		if blockers[i].Class == ClassEscalate {
-			return true
+			return &blockers[i]
 		}
 	}
-	return false
+	return nil
 }
 
 // SpecBaseName is the spec's base name without its extension — the durable
@@ -281,8 +287,18 @@ func soloIfNotConcurrent(units []NextUnit) []NextUnit {
 // phase-level forms, which already address that same unit: they are the human
 // half of the contract, and the round qualifier they carry for a reader lives on
 // the machine surface as `round`.
-func renderNextAction(na NextAction, units []NextUnit) NextAction {
+//
+// When an escalate blocker has emptied the array, there is no unit to render,
+// and §4.1 has the summary name what the phase is waiting for: the first
+// escalate blocker's message, with a null command, since nothing runs until the
+// operator answers. An array empty for any other reason (release, a role panel
+// that cannot be resolved) keeps its phase form.
+func renderNextAction(na NextAction, units []NextUnit, blockers []Blocker) NextAction {
 	if len(units) == 0 {
+		if b := firstEscalateBlocker(blockers); b != nil {
+			na.Command = nil
+			na.Summary = b.Message
+		}
 		return na
 	}
 	payload := make(map[string]any, len(na.Payload)+1)
