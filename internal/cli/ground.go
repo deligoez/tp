@@ -259,7 +259,7 @@ change the floor the round is graded against.`,
 	}
 	cmd.Flags().StringVar(&recordPath, "record", "", "Record a ground round from an NDJSON dispositions file")
 	cmd.Flags().BoolVar(&statusMode, "status", false, "Report the latest emitted round's coverage and per-verdict breakdown")
-	cmd.Flags().BoolVar(&checkMode, "check", false, "With --status: exit 0 only when every emitted floor unit carries a disposition")
+	cmd.Flags().BoolVar(&checkMode, "check", false, "With --status: exit 0 only when every emitted floor unit carries a disposition and the round holds no FAIL or PARTIAL row")
 	cmd.Flags().BoolVar(&unitsMode, "units", false, "Print the floor's units with their full text, one per line")
 	return cmd
 }
@@ -516,16 +516,18 @@ func runGroundUnits(specPath string, jsonAsked bool) error {
 // siblings give, because the emit hint would otherwise name a command built out
 // of the operator's own typo.
 //
-// check is §7.1's fifth invocation, and it has TWO conditions. Exit 1 when a
+// check is §7.1's fifth invocation, and it has THREE conditions. Exit 1 when a
 // unit of the emitted floor carries no disposition; exit 1 also when the
 // emitted floor is empty and the arms cut units to empty it, which is the one
-// state coverage certifies falsely. It gates on nothing else — a round of
-// nothing but FAILs is fully covered and exits 0, because coverage answers *did
-// anyone look* and the verdicts beside it answer *what did they find*.
+// state coverage certifies falsely; and exit 1 when the round holds a FAIL or
+// PARTIAL row. The third was a repair: the check once gated on coverage alone,
+// so a round of nothing but FAILs exited 0 and a driver stopping on the code
+// stopped with the refuted claims standing. QUESTION and UNVERIFIABLE do not
+// fail it.
 //
-// Both conditions read a key of the payload — `dispositioned` against
-// `emitted`, then `emitted` against `cut` — so the code is reconstructible from
-// what the invocation printed. The branch is taken AFTER the payload is
+// All three read a key of the payload — `dispositioned` against `emitted`,
+// `emitted` against `cut`, then `by_verdict` — so the code is reconstructible
+// from what the invocation printed. The branch is taken AFTER the payload is
 // written, so the invocation a gated driver actually runs prints exactly what
 // `--status` prints (Non-Goal 3: the code is a read-back, never a refusal).
 func runGroundStatus(specPath string, check bool) error {
@@ -582,10 +584,17 @@ func runGroundStatus(specPath string, check bool) error {
 		return nil
 	}
 
-	if !check {
-		return nil
+	if check {
+		exitGroundCheck(specPath, status)
 	}
+	return nil
+}
 
+// exitGroundCheck is --check's read-back over the status runGroundStatus has
+// already printed: it exits 1 on the first of the three conditions that holds
+// and returns when none does. It is its own function because the three
+// conditions and the reasons for them made runGroundStatus too long to read.
+func exitGroundCheck(specPath string, status *engine.GroundStatus) {
 	// §8's ratio, read back as one bit. Dispositioned is derived by asking of
 	// each EMITTED floor unit whether a row decided it, so it cannot exceed
 	// Emitted and the comparison needs no upper guard.
@@ -628,7 +637,25 @@ func runGroundStatus(specPath string, check bool) error {
 			status.Round, status.Cut, specPath, engine.GroundFloorPath(specPath, status.Round)))
 		os.Exit(ExitValidation)
 	}
-	return nil
+
+	// The third condition, and the one a driver actually stops on: a covered
+	// round that refuted the spec. Coverage answers *did anyone look*; a round
+	// of nothing but FAILs is fully covered, and exiting 0 over it let a loop
+	// branching on the code stop with the false claims standing. FAIL and
+	// PARTIAL are the two verdicts Step 1.5 says to repair; QUESTION and
+	// UNVERIFIABLE are answers that do not block, so they do not fail it.
+	// ByVerdict counts the round's own file, carried rows included, so an
+	// unrepaired FAIL carried into a later round keeps this at 1. Both counts
+	// are `by_verdict` keys of the payload just printed, so the code stays
+	// reconstructible under `--quiet`, where the notice is suppressed.
+	fail, partial := status.ByVerdict[engine.VerdictFail], status.ByVerdict[engine.VerdictPartial]
+	if fail+partial > 0 {
+		output.Notice(fmt.Sprintf(
+			"ground round %d holds %d FAIL and %d PARTIAL rows: %s has claims the round refuted, "+
+				"so repair them and run the next round — --check exits 0 only on a covered round holding neither",
+			status.Round, fail, partial, specPath))
+		os.Exit(ExitValidation)
+	}
 }
 
 // runGroundRecord implements `tp ground <spec> --record <file>`: validate every

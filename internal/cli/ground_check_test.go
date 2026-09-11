@@ -88,31 +88,93 @@ func TestCheckExitsZeroOnCompleteCoverageAndOneOtherwise(t *testing.T) {
 	})
 }
 
-// TestCheckGatesOnCoverageAndNotOnWhatTheRoundFound is the acceptance's "gates
-// nothing else", and §8's reason for it: coverage answers *did anyone look*,
-// never *did the premises hold*. A spec whose every claim was refuted is 100%
-// covered, so it exits 0.
+// TestCheckExitsOneWhileTheRoundCarriesARefutedClaim is the defect this gate
+// shipped with: a round of nothing but FAILs is fully covered, so a check that
+// gated on coverage alone exited 0 over it, and a driver stopping on exit 0
+// stopped with the false claims standing in the spec.
 //
-// The round is FAIL and UNVERIFIABLE rather than a single verdict, so a gate
-// keyed on either one alone still reddens here. The FAIL count is read back
-// from the same payload, which is what makes the exit code's silence about it
-// visible: the round tp reports as two failures is the round tp exits 0 on.
-func TestCheckGatesOnCoverageAndNotOnWhatTheRoundFound(t *testing.T) {
+// Every arm is FULLY covered — `dispositioned == emitted` is required before the
+// code is read — so no exit 1 below can come from the coverage condition, and
+// each arm's verdict pair is what decides it. FAIL and PARTIAL are the two
+// verdicts SKILL.md's Step 1.5 says to repair; QUESTION and UNVERIFIABLE are
+// settled-or-parked answers that do not block. Each blocking arm pairs its
+// verdict with a non-blocking one, so a gate keyed on "any non-PASS" passes the
+// blocking arms and reddens the non-blocking one, and a gate keyed on FAIL alone
+// reddens the PARTIAL arm.
+//
+// The payload is compared whole against `--status`'s, because the gate adds a
+// bit to the exit status and nothing to what tp prints: `by_verdict` already
+// carries the counts the code turns on, so the code is reconstructible from the
+// payload it just printed.
+func TestCheckExitsOneWhileTheRoundCarriesARefutedClaim(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name     string
+		verdicts []string
+		want     int
+	}{
+		{"two FAIL rows", []string{"FAIL", "FAIL"}, 1},
+		{"a FAIL beside an UNVERIFIABLE", []string{"FAIL", "UNVERIFIABLE"}, 1},
+		{"a PARTIAL beside a PASS", []string{"PARTIAL", "PASS"}, 1},
+		{"a PARTIAL beside a QUESTION", []string{"PARTIAL", "QUESTION"}, 1},
+		{"a QUESTION beside an UNVERIFIABLE", []string{"QUESTION", "UNVERIFIABLE"}, 0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			dir := writeGroundFixture(t)
+			groundEmit(t, dir)
+			emitted, _ := groundFloorIDs(t, dir, 1)
+			require.Len(t, emitted, 2)
+			lines := make([]string, 0, len(emitted))
+			for i, id := range emitted {
+				switch tc.verdicts[i] {
+				case "QUESTION":
+					lines = append(lines, groundQuestionRow(t, dir, id))
+				case "PARTIAL":
+					// §7.2 requires partial_kind on a PARTIAL row; the
+					// shared builder carries no such field.
+					row := groundVerdictRow(t, dir, id, "PARTIAL")
+					lines = append(lines, strings.TrimSuffix(row, "}")+`,"partial_kind":"two-readings"}`)
+				default:
+					lines = append(lines, groundVerdictRow(t, dir, id, tc.verdicts[i]))
+				}
+			}
+			_, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", writeGroundRows(t, dir, lines...))
+			require.Equal(t, 0, code, "stderr: %s", stderr)
+
+			payload, code := groundStatusCheck(t, dir)
+			require.Equal(t, payload["emitted"], payload["dispositioned"],
+				"the floor is fully dispositioned, so coverage cannot be what decides the code")
+			assert.Equal(t, groundStatus(t, dir), payload, "--check changes nothing tp prints")
+			assert.Equal(t, tc.want, code,
+				"--check exits 1 while the round holds a FAIL or PARTIAL, and 0 over QUESTION and UNVERIFIABLE")
+		})
+	}
+}
+
+// TestCheckStillExitsOneWhenTheRefutedClaimIsCarried closes the path a driver
+// takes after round 1: re-emit without repairing, hand in the empty payload the
+// carry makes legal, record. The FAIL is not re-asked — it is carried into round
+// 2's own file — so a gate that read only what the latest payload handed in
+// would exit 0 over a claim nobody repaired.
+func TestCheckStillExitsOneWhenTheRefutedClaimIsCarried(t *testing.T) {
 	t.Parallel()
 	dir := writeGroundFixture(t)
 	groundEmit(t, dir)
 	emitted, _ := groundFloorIDs(t, dir, 1)
 	require.Len(t, emitted, 2)
-	recordGroundRound(t, dir, emitted, []string{"FAIL", "UNVERIFIABLE"})
+	recordGroundRound(t, dir, emitted, []string{"FAIL", "PASS"})
+
+	require.Equal(t, float64(2), groundEmit(t, dir)["round"])
+	_, stderr, code := runTP(t, dir, "ground", "spec.md", "--record", writeGroundRows(t, dir))
+	require.Equal(t, 0, code, "an empty payload is legal when every unit carries: %s", stderr)
 
 	payload, code := groundStatusCheck(t, dir)
-	require.Equal(t, payload["emitted"], payload["dispositioned"], "the floor is fully dispositioned")
-
-	byVerdict := groundStatusVerdicts(t, payload)
-	require.Equal(t, float64(1), byVerdict["FAIL"], "the round refuted a claim")
-	require.Equal(t, float64(1), byVerdict["UNVERIFIABLE"], "and could not reach another")
-	assert.Equal(t, 0, code,
-		"a FAIL is a disposition: --check gates on coverage and says nothing about the verdicts (§8)")
+	require.Equal(t, float64(2), payload["round"])
+	require.Equal(t, payload["emitted"], payload["dispositioned"], "every unit carried, so the floor is covered")
+	require.Equal(t, float64(1), groundStatusVerdicts(t, payload)["FAIL"], "the FAIL carried into round 2")
+	assert.Equal(t, 1, code, "an unrepaired FAIL carries forward, and so does the exit 1")
 }
 
 // TestNothingRefusesOnCoverage is Non-Goal 3 in the direction it can be
