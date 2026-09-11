@@ -49,7 +49,7 @@ var shellNotFound = regexp.MustCompile(`([^\s:]+): (?:command not found|not foun
 // gateSegmentHeads returns the first command word of every segment of gate.
 func gateSegmentHeads(gate string) []string {
 	heads := make([]string, 0)
-	for _, seg := range strings.Split(segmentSeparators.Replace(gate), "\n") {
+	for seg := range strings.SplitSeq(segmentSeparators.Replace(gate), "\n") {
 		if head := segmentHead(seg); head != "" {
 			heads = append(heads, head)
 		}
@@ -60,7 +60,7 @@ func gateSegmentHeads(gate string) []string {
 // segmentHead is the first word of seg that is not an environment assignment,
 // with subshell or group brackets and surrounding quotes stripped.
 func segmentHead(seg string) string {
-	for _, word := range strings.Fields(seg) {
+	for word := range strings.FieldsSeq(seg) {
 		if envAssignment.MatchString(word) {
 			continue
 		}

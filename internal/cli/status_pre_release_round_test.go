@@ -38,7 +38,7 @@ func readPreReleaseRow(t *testing.T) []byte {
 	require.NoError(t, err)
 
 	lines := make([]string, 0, 1)
-	for _, l := range strings.Split(string(data), "\n") {
+	for l := range strings.SplitSeq(string(data), "\n") {
 		if strings.TrimSpace(l) != "" {
 			lines = append(lines, l)
 		}

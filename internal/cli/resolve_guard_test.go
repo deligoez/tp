@@ -3,6 +3,7 @@ package cli_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,11 +14,11 @@ import (
 func resolveFixture(t *testing.T, name string, lines ...string) (dir, file string) {
 	t.Helper()
 	dir = t.TempDir()
-	body := ""
+	var body strings.Builder
 	for _, l := range lines {
-		body += l + "\n"
+		body.WriteString(l + "\n")
 	}
-	require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(body.String()), 0o600))
 	return dir, name
 }
 

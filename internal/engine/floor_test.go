@@ -1292,7 +1292,7 @@ func TestSection11Row4TheIndexIsBoundedAndCarriesNoUnitText(t *testing.T) {
 		require.Len(t, unit, 1045, "a four-digit byte length is the worst case for the length field")
 
 		var text strings.Builder
-		for i := 0; i < count; i++ {
+		for range count {
 			text.WriteString(unit)
 			text.WriteString("\n\n")
 		}

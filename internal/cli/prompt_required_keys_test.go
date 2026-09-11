@@ -61,7 +61,7 @@ func promptContractFixture(t *testing.T) string {
 // jsonObjectLines returns every line of s that parses as a JSON object, with the
 // lines themselves alongside so a caller can excise them.
 func jsonObjectLines(s string) (objects []map[string]any, lines []string) {
-	for _, line := range strings.Split(s, "\n") {
+	for line := range strings.SplitSeq(s, "\n") {
 		var obj map[string]any
 		if err := json.Unmarshal([]byte(strings.TrimSpace(line)), &obj); err == nil && obj != nil {
 			objects = append(objects, obj)

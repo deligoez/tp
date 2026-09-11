@@ -53,7 +53,7 @@ func TestReviewRecord_RecordsAFileLegalOnAllFourKeys(t *testing.T) {
 	data, err := os.ReadFile(roundFile) //nolint:gosec // path built from t.TempDir()
 	require.NoError(t, err, "an accepted file writes its round")
 	rows := make([]string, 0, 3)
-	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(string(data)), "\n") {
 		if strings.TrimSpace(line) != "" {
 			rows = append(rows, line)
 		}

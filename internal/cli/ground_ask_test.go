@@ -53,7 +53,7 @@ var groundIndexRowRe = regexp.MustCompile(`^u\d+ `)
 // the order it lists them.
 func groundPromptIndexRows(prompt string) []string {
 	rows := make([]string, 0, 16)
-	for _, line := range strings.Split(prompt, "\n") {
+	for line := range strings.SplitSeq(prompt, "\n") {
 		if groundIndexRowRe.MatchString(line) {
 			rows = append(rows, line)
 		}

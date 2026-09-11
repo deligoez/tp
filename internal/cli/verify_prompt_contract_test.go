@@ -47,7 +47,7 @@ func TestVerifyPromptOutputContractNamesRequiredKeys(t *testing.T) {
 	// collects came from the output contract.
 	var objects []map[string]any
 	var objectLines []string
-	for _, line := range strings.Split(prompt, "\n") {
+	for line := range strings.SplitSeq(prompt, "\n") {
 		var obj map[string]any
 		if err := json.Unmarshal([]byte(strings.TrimSpace(line)), &obj); err == nil && obj != nil {
 			objects = append(objects, obj)

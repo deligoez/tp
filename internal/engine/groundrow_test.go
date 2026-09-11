@@ -3,6 +3,7 @@ package engine
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -24,12 +25,8 @@ import (
 func groundWireRow(t *testing.T, base, set map[string]any, omit []string) []byte {
 	t.Helper()
 	row := make(map[string]any, len(base))
-	for k, v := range base {
-		row[k] = v
-	}
-	for k, v := range set {
-		row[k] = v
-	}
+	maps.Copy(row, base)
+	maps.Copy(row, set)
 	for _, k := range omit {
 		delete(row, k)
 	}

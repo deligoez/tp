@@ -23,7 +23,7 @@ func keysNamedBySkipWarning(t *testing.T, stderr string) []string {
 	t.Helper()
 	out := make([]string, 0, 4)
 	for _, m := range mergeSkipPattern.FindAllStringSubmatch(stderr, -1) {
-		for _, k := range strings.Split(m[1], ",") {
+		for k := range strings.SplitSeq(m[1], ",") {
 			out = append(out, strings.TrimSpace(k))
 		}
 	}

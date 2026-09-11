@@ -55,11 +55,11 @@ func groundFixtureTextSHA(n int) string {
 // trailing line.
 func writeGroundRows(t *testing.T, dir string, lines ...string) string {
 	t.Helper()
-	body := ""
+	var body strings.Builder
 	for _, line := range lines {
-		body += line + "\n"
+		body.WriteString(line + "\n")
 	}
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "rows.ndjson"), []byte(body), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "rows.ndjson"), []byte(body.String()), 0o600))
 	return "rows.ndjson"
 }
 

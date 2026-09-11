@@ -94,7 +94,7 @@ func nonBlankLines(t *testing.T, path string) []string {
 	data, err := os.ReadFile(path) //nolint:gosec // test-owned path under t.TempDir()
 	require.NoError(t, err)
 	out := make([]string, 0, 2)
-	for _, l := range strings.Split(string(data), "\n") {
+	for l := range strings.SplitSeq(string(data), "\n") {
 		if strings.TrimSpace(l) != "" {
 			out = append(out, l)
 		}
