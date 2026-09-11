@@ -33,7 +33,7 @@ This is the reset-native contract: `tp resume` is the single source of truth bet
 |---|---|---|
 | **Fix** | a defect with a reproduction | Workflow F |
 | **Decision** | a choice between alternatives with user-visible consequences | a note of at most two pages — the decision, the alternatives, the non-goals — with the change built in a clone first; then Workflow A without the ground loop, 2 reviewer roles (`enabled: false` on the rest) and at most 2 review rounds (`review_max_rounds=2`). A finding about detail the code will settle is deferred to task acceptance |
-| **Full** | a new capability too large to build in a clone first | Workflow A with the ground loop, `review_max_rounds`/`audit_max_rounds` set at `tp init`, and the spec's growth checked between rounds |
+| **Full** | a new capability too large to build in a clone first | Workflow A with the ground loop, `review_max_rounds`/`audit_max_rounds` set at `tp init`, and the spec's growth checked between rounds (a registered check; tp's own repository runs `scripts/check-spec-growth.py`, failing when body plus sidecar outgrows the round-1 snapshot) |
 
 On both spec tracks a repair to the spec after its first round deletes or narrows; it does not add
 requirements.

@@ -470,7 +470,8 @@ seconds** and exits non-zero rather than hanging.
 only** — role content stays in the corpus and reaches the unit through the prompt `tp review`/`tp
 audit` already emits. The reviewer and auditor register their own `PreToolUse` allowlist permitting
 exactly `$TP_ROUND_DIR/role-$TP_UNIT_ID.ndjson.part` and `$TP_RUN_DIR/$TP_UNIT_SEQ-escalation.json`
-and refusing every other path; the implementer registers none, because an implement unit's durable
+and refusing every other path, with a `batch` judged op by op as the plugin hook judges it (both use
+`hooks/drop-batch-reads.awk`; without it a hook keeps the whole payload); the implementer registers none, because an implement unit's durable
 write is code. A runner that cannot load a plugin gets no agent definitions and the unit runs without
 them: the restrictions are defence in depth, and the durable contract is the brief and the tp
 commands the unit runs, which are identical in both paths.
