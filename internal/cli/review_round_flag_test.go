@@ -14,8 +14,9 @@ import (
 )
 
 // roundFlagFixture is a fresh project holding a spec, an empty findings file
-// --record accepts, and a one-row findings file the positional modes accept,
-// so every refusing mode gets its own arguments and would run if not refused.
+// --record accepts, a one-row findings file the positional modes accept, and
+// the docs/ and tests/ directories the documentation and testing perspectives
+// require, so every refusing invocation would run if not refused.
 func roundFlagFixture(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
@@ -23,6 +24,8 @@ func roundFlagFixture(t *testing.T) string {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "empty.ndjson"), nil, 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "findings.ndjson"),
 		[]byte(`{"evidence":"read the cited section","severity":"low","location":"§1","class":"c","finding":"f"}`+"\n"), 0o600))
+	require.NoError(t, os.Mkdir(filepath.Join(dir, "docs"), 0o750))
+	require.NoError(t, os.Mkdir(filepath.Join(dir, "tests"), 0o750))
 	return dir
 }
 
@@ -45,36 +48,49 @@ func topLevelBytes(t *testing.T, dir string) map[string]string {
 	return listing
 }
 
-// roundRefusingModes maps each tp review mode that refuses --round to its own
-// arguments, so the mode would run if the refusal were missing.
-var roundRefusingModes = map[string][]string{
-	"merge":       {"review", "--merge", "findings.ndjson", "-o", "merged.ndjson"},
-	"resolve":     {"review", "findings.ndjson", "--resolve", "0", "fixed", "e"},
-	"resolve-all": {"review", "findings.ndjson", "--resolve-all", "fixed", "e"},
-	"report":      {"review", "--report", "findings.ndjson"},
-	"record":      {"review", "spec.md", "--record", "empty.ndjson"},
-	"status":      {"review", "spec.md", "--status"},
-	"verify":      {"review", "--verify", "spec.md", "--findings", "findings.ndjson"},
+// roundRefusal is one tp review invocation that refuses --round: its own
+// arguments, the refusal it must print, and the word the flag's help line uses
+// to name it.
+type roundRefusal struct {
+	args     []string
+	message  string
+	helpWord string
 }
 
-// TestReviewModesRefuseRoundWhenPassed pins that a mode refusing --round
-// refuses the flag being passed, not a value other than the default. The
-// refusal used to test `round != 1`, so `--record f --round 1` recorded round 1
-// and exited 0 while `--round 9` was refused: --round 1 is the value that
-// separates the two rules, and --round 2 keeps the old refusal pinned.
+// roundRefusals lists every tp review invocation that refuses --round, each
+// with the arguments it needs to run if the refusal were missing.
+var roundRefusals = map[string]roundRefusal{
+	"merge":       {[]string{"review", "--merge", "findings.ndjson", "-o", "merged.ndjson"}, "--merge is mutually exclusive with --round", "--merge"},
+	"resolve":     {[]string{"review", "findings.ndjson", "--resolve", "0", "fixed", "e"}, "--resolve is mutually exclusive with --round", "--resolve"},
+	"resolve-all": {[]string{"review", "findings.ndjson", "--resolve-all", "fixed", "e"}, "--resolve-all is mutually exclusive with --round", "--resolve-all"},
+	"report":      {[]string{"review", "--report", "findings.ndjson"}, "--report is mutually exclusive with --round", "--report"},
+	"record":      {[]string{"review", "spec.md", "--record", "empty.ndjson"}, "--record is mutually exclusive with --round", "--record"},
+	"status":      {[]string{"review", "spec.md", "--status"}, "--status is mutually exclusive with --round", "--status"},
+	"verify":      {[]string{"review", "--verify", "spec.md", "--findings", "findings.ndjson"}, "--verify is mutually exclusive with --round", "--verify"},
+	"perspective-documentation": {[]string{"review", "spec.md", "--perspective", "documentation", "--docs-path", "docs"},
+		"--perspective is mutually exclusive with --round/--findings (except code-audit)", "documentation"},
+	"perspective-testing": {[]string{"review", "spec.md", "--perspective", "testing", "--test-path", "tests"},
+		"--perspective is mutually exclusive with --round/--findings (except code-audit)", "testing"},
+}
+
+// TestReviewModesRefuseRoundWhenPassed pins that an invocation refusing
+// --round refuses the flag being passed, not a value other than the default.
+// The refusal used to test `round != 1`, so `--record f --round 1` recorded
+// round 1 and exited 0 while `--round 9` was refused: --round 1 is the value
+// that separates the two rules, and --round 2 keeps the old refusal pinned.
 func TestReviewModesRefuseRoundWhenPassed(t *testing.T) {
 	t.Parallel()
-	for mode, args := range roundRefusingModes {
+	for name, tc := range roundRefusals {
 		for _, value := range []string{"1", "2"} {
-			t.Run(mode+"/round="+value, func(t *testing.T) {
+			t.Run(name+"/round="+value, func(t *testing.T) {
 				t.Parallel()
 				dir := roundFlagFixture(t)
 				before := topLevelBytes(t, dir)
 
-				_, stderr, code := runTP(t, dir, append(slices.Clone(args), "--round", value)...)
+				_, stderr, code := runTP(t, dir, append(slices.Clone(tc.args), "--round", value)...)
 
-				assert.Equal(t, 2, code, "--%s must refuse a passed --round; stderr: %s", mode, stderr)
-				assert.Contains(t, stderr, "--"+mode+" is mutually exclusive with --round")
+				assert.Equal(t, 2, code, "%s must refuse a passed --round; stderr: %s", name, stderr)
+				assert.Contains(t, stderr, tc.message)
 				assert.Equal(t, before, topLevelBytes(t, dir), "a refused --round must write nothing")
 				assert.Nil(t, stateTreeBytes(t, dir), "a refused --round must record no round")
 			})
@@ -83,7 +99,7 @@ func TestReviewModesRefuseRoundWhenPassed(t *testing.T) {
 }
 
 // TestReviewRoundHelpNamesTheRefusingModes binds the flag's help text to the
-// table above: the --round line names every mode that refuses the flag.
+// table above: the --round line names every invocation that refuses the flag.
 func TestReviewRoundHelpNamesTheRefusingModes(t *testing.T) {
 	t.Parallel()
 	stdout, stderr, code := runTP(t, t.TempDir(), "review", "--help")
@@ -97,31 +113,54 @@ func TestReviewRoundHelpNamesTheRefusingModes(t *testing.T) {
 	}
 	require.NotEmpty(t, roundLine, "tp review --help lists --round")
 	named := map[string]bool{}
-	for _, token := range regexp.MustCompile(`--[a-z][a-z-]*`).FindAllString(roundLine, -1) {
+	for _, token := range regexp.MustCompile(`(?:--)?[a-z][a-z-]*`).FindAllString(roundLine, -1) {
 		named[token] = true
 	}
-	for mode := range roundRefusingModes {
-		assert.True(t, named["--"+mode], "the --round help names --%s as refusing it: %s", mode, roundLine)
+	require.True(t, named["--perspective"], "the --round help names --perspective: %s", roundLine)
+	for name, tc := range roundRefusals {
+		assert.True(t, named[tc.helpWord], "the --round help names %s (%q) as refusing it: %s", name, tc.helpWord, roundLine)
 	}
 }
 
-// TestReviewEmissionAcceptsRoundOne is the control: plain emission is the mode
-// that takes --round, and on a fresh spec --round 1 agrees with the
-// state-derived round, so refusing the flag everywhere would fail here.
+// TestReviewEmissionsStillEmit is the control: the default panel and
+// --perspective code-audit take --round, and on a fresh spec --round 1 agrees
+// with the state-derived round; the documentation and testing perspectives
+// still emit without it. Refusing too much fails here.
+func TestReviewEmissionsStillEmit(t *testing.T) {
+	t.Parallel()
+	cases := map[string][]string{
+		"default --round 1":    {"review", "spec.md", "--round", "1"},
+		"code-audit --round 1": {"review", "spec.md", "--perspective", "code-audit", "--affected-files", "spec.md", "--round", "1"},
+		"documentation":        {"review", "spec.md", "--perspective", "documentation", "--docs-path", "docs"},
+		"testing":              {"review", "spec.md", "--perspective", "testing", "--test-path", "tests"},
+	}
+	for name, args := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			stdout, stderr, code := runTP(t, roundFlagFixture(t), args...)
+
+			require.Equal(t, 0, code, "%s must emit; stderr: %s", name, stderr)
+			var out struct {
+				Prompts []any `json:"prompts"`
+			}
+			require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+			assert.NotEmpty(t, out.Prompts, "%s emits its prompts", name)
+		})
+	}
+}
+
+// TestReviewEmissionAcceptsRoundOne pins the default panel's round number:
+// the accepted --round 1 is the round the payload reports.
 func TestReviewEmissionAcceptsRoundOne(t *testing.T) {
 	t.Parallel()
-	dir := roundFlagFixture(t)
-
-	stdout, stderr, code := runTP(t, dir, "review", "spec.md", "--round", "1")
+	stdout, stderr, code := runTP(t, roundFlagFixture(t), "review", "spec.md", "--round", "1")
 
 	require.Equal(t, 0, code, "plain emission must accept --round 1; stderr: %s", stderr)
 	var out struct {
 		ReviewLoop struct {
 			Round int `json:"round"`
 		} `json:"review_loop"`
-		Prompts []any `json:"prompts"`
 	}
 	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
 	assert.Equal(t, 1, out.ReviewLoop.Round)
-	assert.NotEmpty(t, out.Prompts, "the accepted --round 1 emits the round's prompts")
 }

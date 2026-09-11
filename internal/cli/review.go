@@ -437,7 +437,7 @@ Modes (mutually exclusive):
 	}
 
 	// Default review flags
-	cmd.Flags().IntVar(&round, "round", 1, "Current review round number (1-indexed); prompt emission only: --merge, --resolve, --resolve-all, --verify, --report, --record and --status refuse it")
+	cmd.Flags().IntVar(&round, "round", 1, "Current review round number (1-indexed), for the default panel and --perspective code-audit; --merge, --resolve, --resolve-all, --verify, --report, --record, --status and --perspective documentation/testing refuse it")
 	cmd.Flags().StringVar(&findingsPath, "findings", "", "Path to NDJSON file with previous round findings")
 	cmd.Flags().StringVar(&roleFilter, "role", "", "Emit only this role's prompt (§4.2); one name, not repeatable")
 	cmd.Flags().StringVar(&perspective, "perspective", "", "Review perspective: documentation, testing, or code-audit")
@@ -590,7 +590,7 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 		return runReviewRegression(specPath, diffFrom, findingsPath, roleQueryFor(specPath, roleFilter, roleGiven))
 	}
 
-	affectedFiles = validateReviewInputs(perspective, round, findingsPath, affectedFiles, docsPath, testPath, finalRound, diffFrom, specPath)
+	affectedFiles = validateReviewInputs(perspective, round, cmd.Flags().Changed("round"), findingsPath, affectedFiles, docsPath, testPath, finalRound, diffFrom, specPath)
 
 	specContent := resolveReviewSpecContent(specPath, diffFrom, specInline)
 
@@ -752,8 +752,11 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 // default review path (mutual exclusion, round budget, docs/test paths,
 // final-round, diff baseline, affected files) and returns the deduplicated
 // affected-file list. It os.Exit()s with a usage or file error on any failure.
-func validateReviewInputs(perspective string, round int, findingsPath string, affectedFiles []string, docsPath, testPath string, finalRound bool, diffFrom, specPath string) []string {
-	if perspective != "" && perspective != "code-audit" && (round != 1 || findingsPath != "") {
+//
+// roundGiven is whether --round was passed: the documentation and testing
+// perspectives refuse the flag at any value, the default 1 included.
+func validateReviewInputs(perspective string, round int, roundGiven bool, findingsPath string, affectedFiles []string, docsPath, testPath string, finalRound bool, diffFrom, specPath string) []string {
+	if perspective != "" && perspective != "code-audit" && (roundGiven || findingsPath != "") {
 		output.Error(ExitUsage, "--perspective is mutually exclusive with --round/--findings (except code-audit)")
 		os.Exit(ExitUsage)
 		return nil
