@@ -290,14 +290,17 @@ func soloIfNotConcurrent(units []NextUnit) []NextUnit {
 //
 // When an escalate blocker has emptied the array, there is no unit to render,
 // and §4.1 has the summary name what the phase is waiting for: the first
-// escalate blocker's message, with a null command, since nothing runs until the
-// operator answers. An array empty for any other reason (release, a role panel
-// that cannot be resolved) keeps its phase form.
+// escalate blocker's message. Nothing in next_action then points at a step,
+// since nothing runs until the operator answers: command and brief_command are
+// null and the payload drops its step preview, keeping what describes the
+// blocker. An array empty for any other reason (release, a role panel that
+// cannot be resolved) keeps its phase form.
 func renderNextAction(na NextAction, units []NextUnit, blockers []Blocker) NextAction {
 	if len(units) == 0 {
 		if b := firstEscalateBlocker(blockers); b != nil {
-			na.Command = nil
+			na.Command, na.BriefCommand = nil, nil
 			na.Summary = b.Message
+			na.Payload = withoutStepPreview(na.Payload)
 		}
 		return na
 	}
@@ -306,4 +309,18 @@ func renderNextAction(na NextAction, units []NextUnit, blockers []Blocker) NextA
 	payload["unit"] = map[string]any{"kind": string(units[0].Kind), "id": units[0].ID}
 	na.Payload = payload
 	return na
+}
+
+// withoutStepPreview copies a next_action payload without the keys that preview
+// the phase's own next step — the task tp next would claim (task, wip) and the
+// round tp review or tp audit would run or record (round, action) — keeping the
+// rest, such as the latest round's unresolved_findings a budget blocker asks to
+// disposition. The copy is never nil, so the payload stays a JSON object.
+func withoutStepPreview(payload map[string]any) map[string]any {
+	out := make(map[string]any, len(payload))
+	maps.Copy(out, payload)
+	for _, key := range [...]string{"task", "wip", "round", "action"} {
+		delete(out, key)
+	}
+	return out
 }

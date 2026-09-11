@@ -227,8 +227,9 @@ func TestRenderNextAction_RendersFirstUnit(t *testing.T) {
 // agent-clearable blocker ahead of it is skipped, and one alone changes nothing.
 func TestRenderNextAction_DefersToTheFirstEscalateBlocker(t *testing.T) {
 	t.Parallel()
-	cmd := "tp next"
-	base := NextAction{Command: &cmd, Summary: "claim the next ready task t1", Payload: map[string]any{"wip": false}}
+	cmd, brief := "tp review spec.md", "tp review spec.md --round 3"
+	base := NextAction{Command: &cmd, BriefCommand: &brief, Summary: "run review round 3",
+		Payload: map[string]any{"round": 3, "unresolved_findings": 1}}
 	clearable := Blocker{Code: "unexplained-changes", Class: ClassAgentClearable, Message: "commit them"}
 	stale := Blocker{Code: "spec-stale", Class: ClassEscalate, Message: "the spec changed"}
 	capped := Blocker{Code: "audit-budget-exhausted", Class: ClassEscalate, Message: "audit reached its cap"}
@@ -236,11 +237,20 @@ func TestRenderNextAction_DefersToTheFirstEscalateBlocker(t *testing.T) {
 	deferred := renderNextAction(base, nil, []Blocker{clearable, stale, capped})
 	assert.Equal(t, "the spec changed", deferred.Summary, "the first escalate blocker, not the first blocker")
 	assert.Nil(t, deferred.Command, "nothing runs until the operator answers")
+	assert.Nil(t, deferred.BriefCommand, "no brief for a step that does not run")
+	assert.Equal(t, map[string]any{"unresolved_findings": 1}, deferred.Payload,
+		"the step preview goes; what describes the blocker stays")
 	assert.Equal(t, &cmd, base.Command, "the caller's next action is not mutated")
+	assert.Equal(t, map[string]any{"round": 3, "unresolved_findings": 1}, base.Payload, "the caller's payload is not mutated")
+
+	implement := NextAction{Summary: "claim the next ready task t1", Payload: map[string]any{"task": map[string]any{"id": "t1"}, "wip": false}}
+	assert.Equal(t, map[string]any{}, renderNextAction(implement, nil, []Blocker{stale}).Payload,
+		"the task preview goes, and the payload stays an object")
 
 	kept := renderNextAction(base, []NextUnit{{Kind: UnitImplement, ID: "t1"}}, []Blocker{clearable})
 	assert.Equal(t, base.Summary, kept.Summary, "an agent-clearable blocker leaves next_action to its unit")
 	assert.Equal(t, &cmd, kept.Command)
+	assert.Equal(t, &brief, kept.BriefCommand)
 }
 
 // TestBuildNextUnits_OmitsRolesWhoseFindingsSatisfyThePredicate is test 45's

@@ -58,46 +58,71 @@ func firstEscalateMessage(t *testing.T, res map[string]any) string {
 	return ""
 }
 
+// stepPreviewKeys are the next_action payload keys that preview the phase's own
+// next step: the task tp next would claim (task, wip) and the round tp review or
+// tp audit would run or record (round, action).
+var stepPreviewKeys = []string{"task", "wip", "round", "action"}
+
 // assertNextActionDefersToTheBlocker is the rule: with an escalate blocker
-// standing, next_action's summary is that blocker's message and its command is
-// null, since nothing runs until the operator answers.
-func assertNextActionDefersToTheBlocker(t *testing.T, res map[string]any, code string) {
+// standing, next_action's summary is that blocker's message, and nothing in it
+// points at a step — command and brief_command are null and the payload holds
+// no step preview — since nothing runs until the operator answers.
+func assertNextActionDefersToTheBlocker(t *testing.T, res map[string]any, code string) map[string]any {
 	t.Helper()
 	require.NotNil(t, blockerByCode(res, code), "%s stands", code)
 	na := res["next_action"].(map[string]any)
 	assert.Equal(t, firstEscalateMessage(t, res), na["summary"], "the summary is the escalate blocker's message")
-	cmd, present := na["command"]
-	assert.True(t, present, "command stays a key")
-	assert.Nil(t, cmd, "nothing runs until the operator answers")
+	for _, key := range []string{"command", "brief_command"} {
+		v, present := na[key]
+		assert.True(t, present, "%s stays a key", key)
+		assert.Nil(t, v, "%s: nothing runs until the operator answers", key)
+	}
+	payload, ok := na["payload"].(map[string]any)
+	require.True(t, ok, "payload stays an object, never null")
+	for _, key := range stepPreviewKeys {
+		assert.NotContains(t, payload, key, "payload previews no step")
+	}
+	return payload
 }
 
 // TestResume_SpecStaleNextActionIsTheBlocker: a stale spec in implement stops
-// next_action from offering the next task.
+// next_action from offering the next task, its brief, or its preview.
 func TestResume_SpecStaleNextActionIsTheBlocker(t *testing.T) {
 	t.Parallel()
 	res := resumeResult(t, staleSpecRepo(t))
 	require.Equal(t, "implement", res["phase"])
-	assertNextActionDefersToTheBlocker(t, res, "spec-stale")
+	payload := assertNextActionDefersToTheBlocker(t, res, "spec-stale")
+	assert.Nil(t, res["next_action"].(map[string]any)["brief_command"], "no tp next --brief")
+	assert.NotContains(t, payload, "task", "no task preview")
 }
 
 // TestResume_BudgetExhaustedNextActionIsTheBlocker: a review stopped at its cap
-// stops next_action from offering another review round.
+// stops next_action from offering another review round or its brief, while the
+// count of the latest round's open findings — what the blocker asks to
+// disposition — stays.
 func TestResume_BudgetExhaustedNextActionIsTheBlocker(t *testing.T) {
 	t.Parallel()
 	res := resumeResult(t, budgetExhaustedRepo(t))
 	require.Equal(t, "review", res["phase"])
-	assertNextActionDefersToTheBlocker(t, res, "review-budget-exhausted")
+	payload := assertNextActionDefersToTheBlocker(t, res, "review-budget-exhausted")
+	assert.Nil(t, res["next_action"].(map[string]any)["brief_command"], "no tp review --round brief")
+	assert.NotContains(t, payload, "round", "no round-step preview")
+	assert.Equal(t, float64(1), payload["unresolved_findings"], "the open findings the blocker names stay")
 }
 
 // TestResume_NoBlockerNextActionIsUnchanged is the control: with no blocker,
-// next_action keeps the phase's own command and summary.
+// next_action keeps the phase's own command, brief, summary and task preview.
 func TestResume_NoBlockerNextActionIsUnchanged(t *testing.T) {
 	t.Parallel()
 	res := resumeResult(t, newPayloadRepo(t, oneOpenTask))
 	require.Empty(t, res["blockers"])
 	na := res["next_action"].(map[string]any)
 	assert.Equal(t, "tp next", na["command"])
+	assert.Equal(t, "tp next --brief", na["brief_command"])
 	assert.Equal(t, "claim the next ready task t1", na["summary"])
+	payload := na["payload"].(map[string]any)
+	assert.Equal(t, map[string]any{"id": "t1"}, payload["task"])
+	assert.Equal(t, false, payload["wip"])
 }
 
 // TestResume_EmptyNextUnitsSummaryNamesWhatThePhaseAwaits pins spec/0.35.0.md
