@@ -30,8 +30,7 @@ func mechanicalChecksByClass(t *testing.T, stdout string) map[string]map[string]
 // of these classes", so the class was verified by nothing and reported by
 // nobody.
 //
-// The exit-code contract is the one spec/backlog/next-action-and-check-tell-
-// the-truth.md §4 states: 0 passed, 1 found violations, and anything else —
+// The exit-code contract is the one CheckRan states: 0 passed, 1 found violations, and anything else —
 // 2 or higher, which takes in the shell's 126 (cannot execute) and 127
 // (command not found), a start failure or a timeout — could not run. A check
 // that could not run is reported `ran: false` and its class leaves the list;

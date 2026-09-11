@@ -53,8 +53,7 @@ func IsMechanizedClass(checks []model.Check, class string) bool {
 // death by signal, a failure to start, or tp stopping it at its timeout.
 //
 // The contract is tp's to state because a check entry is tp's own
-// registration, written for tp; spec/backlog/next-action-and-check-tell-the-
-// truth.md §4 records the decision. A check that could not run does not pass,
+// registration, written for tp. A check that could not run does not pass,
 // and it mechanizes nothing for that emission: its class leaves the reviewer
 // exclusion list, because a class no check verified must stay reportable.
 func CheckRan(res *RunResult) bool {

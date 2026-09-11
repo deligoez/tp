@@ -47,8 +47,8 @@ func writeTargetSpec(t *testing.T, dir, name string) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte("# "+name+"\n\n## 1. One\nText.\n"), 0o600))
 }
 
-// TestActivePointerWriteNamesItsFile is the BUGS P1 reproduction, row 1 of
-// spec/backlog/a-task-file-write-names-its-target.md §8: a pointer left behind
+// TestActivePointerWriteNamesItsFile is the BUGS.md reproduction of the leftover
+// pointer: a pointer left behind
 // by `tp use a.tasks.json` survived `tp init b.md`, and the next `tp remove a1`
 // rewrote a.tasks.json with exit 0, a payload of {"removed":"a1"} and nothing
 // on stderr. The write must now name its file in the payload and, because the
