@@ -1,5 +1,11 @@
 # tp — An audit round records what was graded
 
+**Closed 2026-09-11: landed via the fix track, not this spec's loop**, at `45d7858d` (stable
+`file_check` ids), `666ab808` (`--merge` keeps disagreeing verdicts), `719f932c` (a key disposes every
+finding under it), `ca2159ad` (every closing sha is read), `e650b1ac` (a resolve says when it changed
+no round), `1d50e220` (the prep script) and `fcb57b4e` (an empty array is no findings). The loop was
+stopped after two ground and four review rounds; the body below is the text those rounds read.
+
 A backlog spec, named by slug; its priority number and its release number are assigned later. Its
 measurements are in `audit-records-what-was-graded-measurements.md` beside it, and this file stands
 without them. It comes from a field report (WB-3155) verified claim by claim on 2026-09-11; each
