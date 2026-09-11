@@ -567,6 +567,8 @@ func loadAuditSpec(specPath string, force bool) (specLines []string, specContent
 // changed-since flag per row is true when a commit touching that row's
 // evidence_file landed after the prior round's recorded_at; it is omitted
 // for rows with no file path (spec-derived or FAIL rows with no evidence).
+// A row resolved in the prior round's recorded file carries its disposition
+// and evidence (priorRowDisposition), so an acceptance is not re-opened blind.
 func loadAuditPriorRound(specPath string) map[string]*auditPriorRound {
 	st, err := engine.LoadReviewState(specPath)
 	if err != nil {
@@ -602,6 +604,7 @@ func loadAuditPriorRound(specPath string) map[string]*auditPriorRound {
 		itemID, _ := row["item_id"].(string)
 		ef, _ := row["evidence_file"].(string)
 		pr := priorAuditRow{Role: role, ItemID: itemID, Status: status}
+		pr.Disposition, pr.DispositionEvidence = priorRowDisposition(row)
 		if ef != "" {
 			pr.EvidenceFile = ef
 			changed := changedFiles[ef]
@@ -612,7 +615,7 @@ func loadAuditPriorRound(specPath string) map[string]*auditPriorRound {
 			entry = &auditPriorRound{legacy: legacy}
 			byRole[role] = entry
 		}
-		entry.add(pr)
+		entry.add(&pr)
 	}
 	return byRole
 }

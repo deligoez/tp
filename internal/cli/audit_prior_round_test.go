@@ -11,16 +11,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// writeRecordedAuditRound writes a state.json + round NDJSON directly, giving
-// full control over recorded_at and id_scheme — for legacy-round and
+// writeRecordedAuditRound writes a state.json + audit-round-1.ndjson directly,
+// giving full control over recorded_at and id_scheme — for legacy-round and
 // changed-since tests the real --record (which stamps now + slug) cannot
-// express.
-func writeRecordedAuditRound(t *testing.T, dir, stateJSON, roundFile, roundContent string) {
+// express. stateJSON names the round file audit-round-1.ndjson.
+func writeRecordedAuditRound(t *testing.T, dir, stateJSON, roundContent string) {
 	t.Helper()
 	stateDir := filepath.Join(dir, ".tp-review", "spec")
 	require.NoError(t, os.MkdirAll(stateDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(stateDir, "state.json"), []byte(stateJSON), 0o600))
-	require.NoError(t, os.WriteFile(filepath.Join(stateDir, roundFile), []byte(roundContent), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(stateDir, "audit-round-1.ndjson"), []byte(roundContent), 0o600))
 }
 
 // TestAuditPriorRound_Round1HasNone: a round-1 audit prompt (no recorded
@@ -117,7 +117,7 @@ func auditPriorChangedSince(t *testing.T, dir, specPath, recordedAt string) stri
 		`"file":"audit-round-1.ndjson","spec_hash":"sha256:x","id_scheme":"slug"}]}`
 	round := `{"item_id":"file-maintainability-conventions-code","status":"FAIL",` +
 		`"role":"maintainability-conventions","evidence_file":"code.go"}` + "\n"
-	writeRecordedAuditRound(t, dir, state, "audit-round-1.ndjson", round)
+	writeRecordedAuditRound(t, dir, state, round)
 	stdout, stderr, code := runTP(t, dir, "audit", specPath, "--affected-files", "code.go")
 	require.Equal(t, 0, code, "stderr: %s", stderr)
 	byRole := auditPromptsByRole(t, stdout)
@@ -142,7 +142,7 @@ func TestAuditPriorRound_LegacyRoundDisclaimer(t *testing.T) {
 		`{"round":1,"findings":1,"clean":false,"recorded_at":"2024-01-01T00:00:00Z",` +
 		`"file":"audit-round-1.ndjson","spec_hash":"sha256:legacy"}]}`
 	round := `{"item_id":"file-security-2","status":"FAIL","role":"security","evidence_file":"auth_helper.go"}` + "\n"
-	writeRecordedAuditRound(t, dir, state, "audit-round-1.ndjson", round)
+	writeRecordedAuditRound(t, dir, state, round)
 
 	stdout, stderr, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "auth_helper.go")
 	require.Equal(t, 0, code, "stderr: %s", stderr)
@@ -171,7 +171,7 @@ func TestAuditPriorRound_EarlierDerivationRowsAreListedApart(t *testing.T) {
 	round := `{"item_id":"file-security-auth-helper-go-apply-the-security-2","status":"FAIL","role":"security","evidence_file":"auth_helper.go"}` + "\n" +
 		`{"item_id":"file-security-auth-helper-go-apply-the-security.0123456789abcdef","status":"FAIL","role":"security","evidence_file":"auth_helper.go"}` + "\n" +
 		`{"item_id":"spec-steps-1","status":"PARTIAL","role":"security"}` + "\n"
-	writeRecordedAuditRound(t, dir, state, "audit-round-1.ndjson", round)
+	writeRecordedAuditRound(t, dir, state, round)
 
 	stdout, stderr, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "auth_helper.go")
 	require.Equal(t, 0, code, "stderr: %s", stderr)
@@ -244,4 +244,85 @@ func TestAuditPriorRound_MissingRoundFileIsAnnounced(t *testing.T) {
 		require.Equal(t, 0, code, "stderr: %s", stderr)
 		assert.NotContains(t, stderr, want, "--quiet is the opt-out for the Notice channel")
 	})
+}
+
+// auditPriorSecurityPrompt records a slug-scheme audit round 1 of the given
+// rows directly and returns round 2's security prompt. Not a git repo, so a
+// file-bearing row's changed_since is false.
+func auditPriorSecurityPrompt(t *testing.T, round string) string {
+	t.Helper()
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "auth_helper.go"), []byte("package main\n"), 0o600))
+	_, _, code := runTP(t, dir, "init", "spec.md")
+	require.Equal(t, 0, code)
+
+	state := `{"spec":"spec.md","review_rounds":[],"audit_rounds":[` +
+		`{"round":1,"findings":1,"clean":false,"recorded_at":"2024-01-01T00:00:00Z",` +
+		`"file":"audit-round-1.ndjson","spec_hash":"sha256:x","id_scheme":"slug"}]}`
+	writeRecordedAuditRound(t, dir, state, round)
+
+	stdout, stderr, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "auth_helper.go")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	sec, ok := auditPromptsByRole(t, stdout)["security"]
+	require.True(t, ok, "security prompt is emitted")
+	return sec["prompt"].(string)
+}
+
+// TestAuditPriorRound_AcceptedRowCarriesItsDisposition: a prior row accepted
+// wontfix with evidence carries that disposition and evidence into the next
+// round's block, keeps its changed_since, and is framed as closed unless
+// changed_since is true — an acceptance the next auditor cannot see is
+// re-opened, and the re-opened row makes that round unclean again.
+func TestAuditPriorRound_AcceptedRowCarriesItsDisposition(t *testing.T) {
+	t.Parallel()
+	sec := auditPriorSecurityPrompt(t,
+		`{"item_id":"prior-accepted","status":"FAIL","role":"security","evidence_file":"auth_helper.go",`+
+			`"resolved":{"status":"wontfix","evidence":"vendored code, out of scope","resolved_at":"2024-01-02T00:00:00Z"}}`+"\n")
+
+	assert.Contains(t, sec, `{"role":"security","item_id":"prior-accepted","status":"FAIL","evidence_file":"auth_helper.go",`+
+		`"changed_since":false,"disposition":"wontfix","disposition_evidence":"vendored code, out of scope"}`,
+		"the accepted row carries its disposition and evidence beside changed_since")
+	assert.NotContains(t, sec, "resolved_at", "the block carries the disposition, not the whole resolved record")
+	assert.Contains(t, sec, "keep it closed unless changed_since is true",
+		"an accepted row is framed as closed unless changed_since is true")
+	assert.NotContains(t, sec, "verify the repair held", "no fixed row, so no fixed framing")
+}
+
+// TestAuditPriorRound_FixedRowAsksForTheRepairToBeVerified: a prior row
+// dispositioned fixed carries "fixed" and its evidence, framed as a repair to
+// verify — without the evidence the repair it claims cannot be checked.
+func TestAuditPriorRound_FixedRowAsksForTheRepairToBeVerified(t *testing.T) {
+	t.Parallel()
+	sec := auditPriorSecurityPrompt(t,
+		`{"item_id":"prior-fixed","status":"PARTIAL","role":"security",`+
+			`"resolved":{"status":"fixed","evidence":"abc1234 escapes the token","resolved_at":"2024-01-02T00:00:00Z"}}`+"\n")
+
+	assert.Contains(t, sec, `{"role":"security","item_id":"prior-fixed","status":"PARTIAL",`+
+		`"disposition":"fixed","disposition_evidence":"abc1234 escapes the token"}`,
+		"the fixed row carries its disposition and evidence")
+	assert.Contains(t, sec, "verify the repair held", "a fixed row is framed as a repair to verify")
+	assert.NotContains(t, sec, "keep it closed", "no accepted row, so no accepted framing")
+}
+
+// TestAuditPriorRound_UndisposedRowRendersAsBefore: a prior row with no
+// disposition renders exactly as it did before dispositions were carried, and
+// so does a wontfix whose evidence is blank — it clears nothing (§2), so it is
+// still open and is re-checked like any undisposed row. With no disposition in
+// the block, neither disposition framing is added.
+func TestAuditPriorRound_UndisposedRowRendersAsBefore(t *testing.T) {
+	t.Parallel()
+	sec := auditPriorSecurityPrompt(t,
+		`{"item_id":"prior-open","status":"FAIL","role":"security","evidence_file":"auth_helper.go"}`+"\n"+
+			`{"item_id":"prior-blank","status":"FAIL","role":"security",`+
+			`"resolved":{"status":"wontfix","evidence":"  ","resolved_at":"2024-01-02T00:00:00Z"}}`+"\n")
+
+	assert.Contains(t, sec, "## Prior Round: context to re-check, not a verdict to repeat\n"+
+		"These are your own non-PASS rows from the previous round. Re-check each item against the code and record your own status. Do NOT repeat the prior verdict without verifying.\n\n"+
+		`{"role":"security","item_id":"prior-open","status":"FAIL","evidence_file":"auth_helper.go","changed_since":false}`+"\n"+
+		`{"role":"security","item_id":"prior-blank","status":"FAIL"}`+"\n",
+		"an undisposed block is byte-identical to the one emitted before dispositions were carried")
+	assert.NotContains(t, sec, "disposition_evidence", "no row carries a disposition that counts")
+	assert.NotContains(t, sec, "keep it closed", "no accepted row, so no accepted framing")
+	assert.NotContains(t, sec, "verify the repair held", "no fixed row, so no fixed framing")
 }

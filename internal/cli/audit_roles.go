@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -190,13 +191,32 @@ func invertTaskFiles(taskFiles map[string][]string) map[string][]string {
 // recorded audit round, carried into that role's next-round prompt (§10.2):
 // the auditor re-checks each item rather than repeating the prior verdict.
 // ChangedSince is nil (omitted) for rows with no file path; it is non-nil
-// (true or false) when the row carries an evidence_file.
+// (true or false) when the row carries an evidence_file. Disposition and
+// DispositionEvidence are the row's recorded resolved.status and
+// resolved.evidence, omitted unless the disposition counts
+// (engine.RowDispositioned), so the next round sees what was accepted or fixed.
 type priorAuditRow struct {
-	Role         string `json:"role"`
-	ItemID       string `json:"item_id"`
-	Status       string `json:"status"`
-	EvidenceFile string `json:"evidence_file,omitempty"`
-	ChangedSince *bool  `json:"changed_since,omitempty"`
+	Role                string `json:"role"`
+	ItemID              string `json:"item_id"`
+	Status              string `json:"status"`
+	EvidenceFile        string `json:"evidence_file,omitempty"`
+	ChangedSince        *bool  `json:"changed_since,omitempty"`
+	Disposition         string `json:"disposition,omitempty"`
+	DispositionEvidence string `json:"disposition_evidence,omitempty"`
+}
+
+// priorRowDisposition returns a recorded row's disposition status and
+// evidence, or two empty strings when it carries none that counts: a wontfix
+// or duplicate whose evidence is blank clears nothing, so it stays an open row
+// to re-check rather than an acceptance to keep closed.
+func priorRowDisposition(row map[string]any) (status, evidence string) {
+	if !engine.RowDispositioned(row) {
+		return "", ""
+	}
+	resolved, _ := row["resolved"].(map[string]any)
+	status, _ = resolved["status"].(string)
+	evidence, _ = resolved["evidence"].(string)
+	return status, evidence
 }
 
 // auditPriorRound is the role-scoped prior-round context embedded in a
@@ -214,26 +234,60 @@ type auditPriorRound struct {
 }
 
 // add files one prior row under rows or earlier by its id's derivation.
-func (p *auditPriorRound) add(r priorAuditRow) {
+func (p *auditPriorRound) add(r *priorAuditRow) {
 	if strings.HasPrefix(r.ItemID, "file-") && !isCurrentFileCheckID(r.ItemID) {
-		p.earlier = append(p.earlier, r)
+		p.earlier = append(p.earlier, *r)
 		return
 	}
-	p.rows = append(p.rows, r)
+	p.rows = append(p.rows, *r)
+}
+
+// The framing of a prior row that carries a disposition. Each is written once,
+// and only when some row of the section carries that kind, so a block with no
+// disposition reads exactly as it did before dispositions were carried.
+const (
+	priorAcceptedFraming = "A row with disposition wontfix or duplicate is accepted, for the reason in its disposition_evidence: keep it closed unless changed_since is true, and re-check it only then.\n"
+	priorFixedFraming    = "A row with disposition fixed was repaired as its disposition_evidence says: verify the repair held.\n"
+)
+
+// dispositionFraming returns the framing lines for the dispositions the
+// section's rows carry: accepted (wontfix, duplicate) and fixed.
+func (p *auditPriorRound) dispositionFraming() string {
+	var accepted, fixed bool
+	for _, r := range slices.Concat(p.rows, p.earlier) {
+		switch r.Disposition {
+		case "wontfix", "duplicate":
+			accepted = true
+		case "fixed":
+			fixed = true
+		}
+	}
+	var s string
+	if accepted {
+		s += priorAcceptedFraming
+	}
+	if fixed {
+		s += priorFixedFraming
+	}
+	return s
 }
 
 // renderPriorRoundSection renders the role-scoped prior-round section for a
 // round-2+ audit prompt (§10.2): that role's own non-PASS rows from the
 // previous recorded round, framed as context to re-check — not a verdict to
-// repeat. Returns "" when the role has no prior non-PASS rows, so a round-1
-// prompt (or a role that was all-PASS) carries no section at all.
+// repeat — unless a row carries a disposition: an accepted row stays closed
+// unless changed_since is true, a fixed row's repair is verified. Returns ""
+// when the role has no prior non-PASS rows, so a round-1 prompt (or a role
+// that was all-PASS) carries no section at all.
 func renderPriorRoundSection(prior *auditPriorRound) string {
 	if prior == nil || len(prior.rows)+len(prior.earlier) == 0 {
 		return ""
 	}
 	var b strings.Builder
 	b.WriteString("\n## Prior Round: context to re-check, not a verdict to repeat\n")
-	b.WriteString("These are your own non-PASS rows from the previous round. Re-check each item against the code and record your own status. Do NOT repeat the prior verdict without verifying.\n\n")
+	b.WriteString("These are your own non-PASS rows from the previous round. Re-check each item against the code and record your own status. Do NOT repeat the prior verdict without verifying.\n")
+	b.WriteString(prior.dispositionFraming())
+	b.WriteString("\n")
 	if prior.legacy {
 		b.WriteString("Note: the prior round was recorded before stable item ids, so these ids are positional (file-<role>-<n>) and NOT comparable to this round's stable ids.\n\n")
 	}
