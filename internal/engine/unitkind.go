@@ -260,14 +260,17 @@ func auditRowKey(row map[string]any) string {
 	return AuditRowRole(row) + ":" + itemID
 }
 
-// rowIsDisposed reports whether the row selected by a `role:item_id` key
+// rowIsDisposed reports whether every finding under a `role:item_id` key
 // carries a disposition in the round's results file — the audit-fix kind's
 // predicate. That is the whole predicate: a finding correctly closed as wontfix
 // or duplicate, with no code change at all, satisfies it (§3.3.1).
 //
-// The selector splits on the first colon, since a role id never contains one.
-// A key naming no row in the file is false — a unit cannot have disposed a row
-// that is not there.
+// Every row under the key is read, because --merge keeps disagreeing verdicts
+// on one item: reading the first match kept the unit open forever when a PASS
+// came first, and closed it over an open finding when a disposed one did. PASS
+// rows are not findings and are skipped. The selector splits on the first
+// colon, since a role id never contains one. A key naming no finding is false:
+// a unit cannot have disposed a row that is not there.
 func rowIsDisposed(path, key string) bool {
 	role, itemID, found := strings.Cut(key, ":")
 	if !found {
@@ -277,16 +280,20 @@ func rowIsDisposed(path, key string) bool {
 	if !ok {
 		return false
 	}
+	findings := 0
 	for _, row := range rows {
-		if AuditRowRole(row) != role {
+		if AuditRowRole(row) != role || AuditRowIsPass(row) {
 			continue
 		}
 		if id, _ := row["item_id"].(string); id != itemID {
 			continue
 		}
-		return rowDisposed(row)
+		if !rowDisposed(row) {
+			return false
+		}
+		findings++
 	}
-	return false
+	return findings > 0
 }
 
 // readNDJSONRows reads an NDJSON artifact into its content rows, reporting

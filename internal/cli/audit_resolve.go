@@ -51,7 +51,8 @@ func runAuditResolve(args []string, force bool) error {
 	requireResultsFileExists(filePath)
 
 	var rows []map[string]any
-	index := -1
+	var indices []int
+	disposed := 0
 
 	lockErr := engine.WithFileLock(filePath, func() error {
 		var readErr error
@@ -61,23 +62,14 @@ func runAuditResolve(args []string, force bool) error {
 		}
 
 		var selErr string
-		index, selErr = auditRowIndex(rows, selector)
+		indices, selErr = auditRowIndices(rows, selector)
 		if selErr != "" {
 			output.Error(ExitUsage, selErr)
 			os.Exit(ExitUsage)
 			return nil
 		}
 
-		row := rows[index]
-		if existing, ok := row["resolved"]; ok && !force {
-			output.Error(ExitValidation,
-				fmt.Sprintf("row %s already resolved as %s", selector, dispositionStatusOf(existing)),
-				"use --force to re-resolve")
-			os.Exit(ExitValidation)
-			return nil
-		}
-
-		row["resolved"] = disposition(status, evidence)
+		disposed = disposeSelectedRows(rows, indices, selector, status, evidence, force)
 		return writeNDJSON(filePath, rows)
 	})
 
@@ -88,7 +80,8 @@ func runAuditResolve(args []string, force bool) error {
 
 	fmt.Fprintf(os.Stderr, "resolved audit row %s as %s\n", selector, status)
 	result := map[string]any{
-		"index":    index,
+		"index":    indices[0],
+		"disposed": disposed,
 		"selector": selector,
 		"status":   status,
 		"evidence": evidence,
@@ -160,35 +153,72 @@ func runAuditResolveAll(args []string, force bool) error {
 	})
 }
 
-// auditRowIndex maps a selector onto a row index, returning a usage message
-// instead when it names no row. A selector carrying a colon is a `role:item_id`
-// key — a role id never contains one, which is what lets the two forms be told
-// apart without a flag — and anything else must be the 0-based index the review
-// counterpart takes.
-func auditRowIndex(rows []map[string]any, selector string) (index int, usageErr string) {
+// auditRowIndices maps a selector onto the rows it names, returning a usage
+// message instead when it names none. A selector carrying a colon is a
+// `role:item_id` key (a role id never contains one, which is what lets the two
+// forms be told apart without a flag) and names every non-PASS row under the
+// key: --merge keeps disagreeing verdicts on one item, so a key can hold a
+// finding from each of two shards, and disposing only the first left the
+// other open. A PASS row is not a finding, so a key holding only PASS rows is
+// refused. Anything else must be the 0-based index the review counterpart
+// takes, naming one row.
+func auditRowIndices(rows []map[string]any, selector string) (indices []int, usageErr string) {
 	if role, itemID, isKey := strings.Cut(selector, ":"); isKey {
+		matched := false
 		for i, row := range rows {
 			if engine.AuditRowRole(row) != role {
 				continue
 			}
-			if id, _ := row["item_id"].(string); id == itemID {
-				return i, ""
+			if id, _ := row["item_id"].(string); id != itemID {
+				continue
+			}
+			matched = true
+			if !engine.AuditRowIsPass(row) {
+				indices = append(indices, i)
 			}
 		}
-		return -1, fmt.Sprintf("no row matches selector %q in the results file", selector)
+		if len(indices) > 0 {
+			return indices, ""
+		}
+		if matched {
+			return nil, fmt.Sprintf("every row under %q is PASS; a PASS row is not a finding and takes no disposition", selector)
+		}
+		return nil, fmt.Sprintf("no row matches selector %q in the results file", selector)
 	}
 
 	index, err := strconv.Atoi(selector)
 	if err != nil {
-		return -1, fmt.Sprintf(
+		return nil, fmt.Sprintf(
 			"invalid selector %q: must be a 0-based integer or role:item_id; expected %s",
 			selector, auditResolveUsageForm,
 		)
 	}
 	if index < 0 || index >= len(rows) {
-		return -1, fmt.Sprintf("row index %d out of range (0-%d)", index, len(rows)-1)
+		return nil, fmt.Sprintf("row index %d out of range (0-%d)", index, len(rows)-1)
 	}
-	return index, ""
+	return []int{index}, ""
+}
+
+// disposeSelectedRows writes the disposition onto every selected row that
+// carries none (every selected row under force) and returns how many it
+// wrote. When every selected row is already disposed and force is off it
+// exits 1, naming the first row's disposition.
+func disposeSelectedRows(rows []map[string]any, indices []int, selector, status, evidence string, force bool) int {
+	disposed := 0
+	for _, i := range indices {
+		if _, ok := rows[i]["resolved"]; ok && !force {
+			continue
+		}
+		rows[i]["resolved"] = disposition(status, evidence)
+		disposed++
+	}
+	if disposed == 0 {
+		output.Error(ExitValidation,
+			fmt.Sprintf("row %s already resolved as %s", selector, dispositionStatusOf(rows[indices[0]]["resolved"])),
+			"use --force to re-resolve")
+		os.Exit(ExitValidation)
+	}
+	return disposed
 }
 
 // disposition builds the `resolved` object both resolve paths write. It is the

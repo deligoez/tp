@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// selectorRows exercises the shapes auditRowIndex has to tell apart: a plain
+// selectorRows exercises the shapes auditRowIndices has to tell apart: a plain
 // role, a role AuditRowRole trims, and an item_id that itself carries a colon.
 var selectorRows = []map[string]any{
 	{"role": "spec-coverage", "item_id": "item-1", "status": "PASS"},
@@ -15,36 +15,37 @@ var selectorRows = []map[string]any{
 	{"item_id": "orphan", "status": "FAIL"},
 }
 
-// TestAuditRowIndex_SelectorForms covers §3.3's two selector forms and every way
+// TestAuditRowIndices_SelectorForms covers §3.3's two selector forms and every way
 // a selector can fail to name a row. The boundary rows are the point: index 0
 // and the last index resolve, one past the end does not, and a key is told from
 // an index by the colon alone.
-func TestAuditRowIndex_SelectorForms(t *testing.T) {
+func TestAuditRowIndices_SelectorForms(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name     string
 		selector string
-		want     int
+		want     []int
 		wantErr  string
 	}{
-		{"first index", "0", 0, ""},
-		{"last index", "3", 3, ""},
-		{"one past the end", "4", -1, "out of range"},
-		{"negative index", "-1", -1, "out of range"},
-		{"key", "go-safety:3.4:step-2", 2, ""},
-		{"key splits on the first colon only", "go-safety:3.4", -1, "no row matches"},
-		{"role is trimmed the way AuditRowRole trims it", "ax-contract:item-9", 1, ""},
-		{"an untrimmed role does not match", " ax-contract :item-9", -1, "no row matches"},
-		{"a row with no role has the empty role", ":orphan", 3, ""},
-		{"unknown role", "nobody:item-1", -1, "no row matches"},
-		{"unknown item", "spec-coverage:item-99", -1, "no row matches"},
-		{"neither form", "abc", -1, "invalid selector"},
-		{"empty selector", "", -1, "invalid selector"},
+		{"first index", "0", []int{0}, ""},
+		{"last index", "3", []int{3}, ""},
+		{"one past the end", "4", nil, "out of range"},
+		{"negative index", "-1", nil, "out of range"},
+		{"key", "go-safety:3.4:step-2", []int{2}, ""},
+		{"key splits on the first colon only", "go-safety:3.4", nil, "no row matches"},
+		{"role is trimmed the way AuditRowRole trims it", "ax-contract:item-9", []int{1}, ""},
+		{"an untrimmed role does not match", " ax-contract :item-9", nil, "no row matches"},
+		{"a row with no role has the empty role", ":orphan", []int{3}, ""},
+		{"a key over PASS rows only names no finding", "spec-coverage:item-1", nil, "is PASS"},
+		{"unknown role", "nobody:item-1", nil, "no row matches"},
+		{"unknown item", "spec-coverage:item-99", nil, "no row matches"},
+		{"neither form", "abc", nil, "invalid selector"},
+		{"empty selector", "", nil, "invalid selector"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			index, usageErr := auditRowIndex(selectorRows, tc.selector)
-			assert.Equal(t, tc.want, index)
+			indices, usageErr := auditRowIndices(selectorRows, tc.selector)
+			assert.Equal(t, tc.want, indices)
 			if tc.wantErr == "" {
 				assert.Empty(t, usageErr)
 				return
@@ -54,19 +55,19 @@ func TestAuditRowIndex_SelectorForms(t *testing.T) {
 	}
 }
 
-// TestAuditRowIndex_EmptyResultsFile: every selector fails against a results
+// TestAuditRowIndices_EmptyResultsFile: every selector fails against a results
 // file holding no rows, and the index message stays readable rather than
 // pointing at a row that cannot exist.
-func TestAuditRowIndex_EmptyResultsFile(t *testing.T) {
+func TestAuditRowIndices_EmptyResultsFile(t *testing.T) {
 	t.Parallel()
 	empty := make([]map[string]any, 0)
 
-	index, usageErr := auditRowIndex(empty, "0")
-	assert.Equal(t, -1, index)
+	indices, usageErr := auditRowIndices(empty, "0")
+	assert.Nil(t, indices)
 	assert.Contains(t, usageErr, "out of range")
 
-	index, usageErr = auditRowIndex(empty, "role:item")
-	assert.Equal(t, -1, index)
+	indices, usageErr = auditRowIndices(empty, "role:item")
+	assert.Nil(t, indices)
 	assert.Contains(t, usageErr, "no row matches")
 }
 

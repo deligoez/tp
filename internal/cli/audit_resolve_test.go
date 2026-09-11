@@ -102,6 +102,68 @@ func TestAuditResolve_RoleItemIDSelector(t *testing.T) {
 	assert.False(t, disposed, "only the named row is disposed")
 }
 
+// sharedKeyRows is a round whose one (role, item_id) holds three rows: a
+// PASS from one shard and two findings from others. --merge keeps disagreeing
+// verdicts, so a key can name more than one row.
+const sharedKeyRows = `{"role":"go-safety","item_id":"item-4","status":"PASS","evidence_file":"a.go"}
+{"role":"go-safety","item_id":"item-4","status":"FAIL","severity":"error","evidence_file":"b.go"}
+{"role":"go-safety","item_id":"item-4","status":"PARTIAL","evidence_file":"c.go"}
+{"role":"go-safety","item_id":"item-7","status":"FAIL"}
+`
+
+// TestAuditResolve_KeyDisposesEveryFindingUnderIt: the role:item_id selector
+// disposes every non-PASS row under the key, never a PASS row, and never a
+// row under another key. Disposing only the first match left the second
+// shard's FAIL open while the unit's predicate read the first row and said
+// done.
+func TestAuditResolve_KeyDisposesEveryFindingUnderIt(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	roundDir := filepath.Join(dir, "round")
+	require.NoError(t, os.MkdirAll(roundDir, 0o755))
+	path := engine.MergedFindingsPath(roundDir)
+	require.NoError(t, os.WriteFile(path, []byte(sharedKeyRows), 0o600))
+
+	target := engine.UnitTarget{RoundDir: roundDir, ID: "go-safety:item-4"}
+	require.False(t, engine.UnitAuditFix.DurableWrite(target))
+
+	stdout, stderr, code := runTP(t, dir, "audit", path, "--resolve", "go-safety:item-4", "fixed", "checked both")
+	require.Equal(t, 0, code, "%s", stderr)
+	assert.Contains(t, stdout, `"disposed": 2`)
+
+	rows := readAuditRows(t, path)
+	assert.NotContains(t, rows[0], "resolved", "a PASS row is not a finding")
+	assert.Equal(t, "fixed", resolvedOf(t, rows[1])["status"])
+	assert.Equal(t, "fixed", resolvedOf(t, rows[2])["status"])
+	assert.NotContains(t, rows[3], "resolved", "another key's row is untouched")
+	assert.True(t, engine.UnitAuditFix.DurableWrite(target), "every finding under the key is disposed")
+}
+
+// TestAuditFixUnit_DoneOnlyWhenEveryFindingUnderTheKeyIsDisposed: the
+// audit-fix predicate reads every row under its key. Reading the first match
+// was wrong both ways: a PASS first kept the unit open forever, and a disposed
+// FAIL first closed it over an open one.
+func TestAuditFixUnit_DoneOnlyWhenEveryFindingUnderTheKeyIsDisposed(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	roundDir := filepath.Join(dir, "round")
+	require.NoError(t, os.MkdirAll(roundDir, 0o755))
+	path := engine.MergedFindingsPath(roundDir)
+	target := engine.UnitTarget{RoundDir: roundDir, ID: "go-safety:item-4"}
+
+	passFirst := `{"role":"go-safety","item_id":"item-4","status":"PASS"}
+{"role":"go-safety","item_id":"item-4","status":"FAIL","resolved":{"status":"fixed","evidence":"e"}}
+`
+	require.NoError(t, os.WriteFile(path, []byte(passFirst), 0o600))
+	assert.True(t, engine.UnitAuditFix.DurableWrite(target), "a PASS before the disposed finding does not keep it open")
+
+	disposedFirst := `{"role":"go-safety","item_id":"item-4","status":"FAIL","resolved":{"status":"fixed","evidence":"e"}}
+{"role":"go-safety","item_id":"item-4","status":"PARTIAL"}
+`
+	require.NoError(t, os.WriteFile(path, []byte(disposedFirst), 0o600))
+	assert.False(t, engine.UnitAuditFix.DurableWrite(target), "a disposed first row does not close an open second")
+}
+
 // TestAuditFixUnit_DisposesWithoutACodeChange is test 53's second half: an
 // audit-fix unit whose whole output is a disposition — no code change at all —
 // satisfies §3.3's durable-write predicate for its own row.
