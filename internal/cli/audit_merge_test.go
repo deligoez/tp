@@ -156,8 +156,10 @@ func TestAuditMerge_EmptyInputSucceeds(t *testing.T) {
 
 // TestAuditMerge_OnlyMalformedFails covers §8a.4 for the audit phase, reversing
 // the old "only-malformed is a clean result" contract: files holding only
-// malformed/incomplete lines now exit 1, while still creating the -o file,
-// reporting merged_count 0, and emitting a stderr warning per skipped line.
+// malformed/incomplete lines now exit 1, reporting merged_count 0 and emitting
+// a stderr warning per skipped line. Through v1.2.0 this refusal still created
+// the -o file at zero bytes, which `--record` then read as a clean round; like
+// the review merge's (§5 row 10), it now writes nothing there.
 func TestAuditMerge_OnlyMalformedFails(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
@@ -175,9 +177,8 @@ func TestAuditMerge_OnlyMalformedFails(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(stdout), &summary))
 	assert.Equal(t, float64(0), summary["merged_count"])
 
-	info, err := os.Stat(out)
-	require.NoError(t, err)
-	assert.Equal(t, int64(0), info.Size(), "no rows survive -> empty output file")
+	assert.NotContains(t, summary, "output_path", "no file was written, so the summary names no output path")
+	assert.NoFileExists(t, out, "a refused merge creates no file at -o")
 
 	assert.Contains(t, stderr, "warning: skipping malformed")
 	assert.Contains(t, stderr, "warning: skipping incomplete")

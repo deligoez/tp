@@ -118,16 +118,13 @@ func runAuditMerge(args []string, outputPath string) error {
 	}
 
 	if outputPath != "" {
-		// Still §8a.4's write-then-report rule, deliberately: §5 row 10 is
-		// stated for `tp review --merge`, and §4 fences this release out of the
-		// audit phase. See writeMergeOutput for what the review merge does
-		// instead, and finishMerge for the difference this leaves behind.
-		if err := os.WriteFile(outputPath, []byte(ndjson), 0o600); err != nil {
-			output.Error(ExitFile, fmt.Sprintf("cannot write output file: %s", err), outputFileHint)
-			os.Exit(ExitFile)
-			return nil
+		// §5 row 10, as the review merge applies it: a merge about to exit
+		// non-zero writes nothing at `-o`, because the zero-byte file it used
+		// to leave chained into `tp audit <spec> --record` as a clean round.
+		// output_path is named only when a file is there to name.
+		if writeMergeOutput(outputPath, ndjson, dropped) {
+			summary["output_path"] = outputPath
 		}
-		summary["output_path"] = outputPath
 		return finishMerge(output.JSON(summary), dropped, auditMergeRule)
 	}
 

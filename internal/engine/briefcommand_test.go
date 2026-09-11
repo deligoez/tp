@@ -135,8 +135,8 @@ func runBrief(t *testing.T, kind UnitKind, mergedExists bool) []string {
 // `-o` at all (§5 row 10), and the `;` chain then ran `--record` on a file that
 // is not there — exit 3, "cannot read findings file", reporting a missing path
 // instead of the merge failure that caused it. The review chain is fenced with
-// `&&` so the record step is not reached; the audit phase keeps `;`, because §4
-// fences this release out of it and its merge still writes `-o` before refusing.
+// `&&` so the record step is not reached; the audit phase keeps `;` (see
+// recordBriefCommand).
 func TestUnitKind_BriefCommand_ReviewRecordFencesRecordBehindTheMerge(t *testing.T) {
 	t.Run("review: a failed merge stops the chain", func(t *testing.T) {
 		calls, exitCode := runBriefWithFailingMerge(t, UnitReviewRecord)
@@ -146,7 +146,7 @@ func TestUnitKind_BriefCommand_ReviewRecordFencesRecordBehindTheMerge(t *testing
 	})
 	t.Run("audit: the chain continues past a failed merge", func(t *testing.T) {
 		calls, _ := runBriefWithFailingMerge(t, UnitAuditRecord)
-		require.Len(t, calls, 2, "the audit phase keeps ';' — §4 fences it out of this release")
+		require.Len(t, calls, 2, "the audit phase keeps ';'")
 		assert.Contains(t, calls[1], "--record ")
 	})
 }

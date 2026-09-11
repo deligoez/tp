@@ -76,9 +76,10 @@ func recordBriefCommand(phase, spec string) string {
 	// `||` guard in front: sh reads `A || B && C` as `(A || B) && C`, so a
 	// merged file that already exists still records.
 	//
-	// The audit phase keeps `;` because §4 fences this release out of it: its
-	// merge still writes `-o` before refusing, so the record step there has a
-	// file to read.
+	// The audit phase keeps `;`, which v1.1.0 chose while its merge still
+	// wrote `-o` before refusing. It no longer does, so a refused audit merge
+	// now ends this chain the way the review one used to: the record step
+	// finds no file and exits 3, recording nothing.
 	separator := "; "
 	if phase == PhaseReview {
 		separator = " && "

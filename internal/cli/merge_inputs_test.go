@@ -257,6 +257,45 @@ func TestMerge_RefusedMergeLeavesOutputPathUntouched(t *testing.T) {
 	})
 }
 
+// TestAuditMerge_RefusedMergeLeavesOutputPathUntouched is §5 row 10 for the
+// audit merge, which v1.1.0 fenced out and left writing `-o` before refusing.
+// The file it left is the loss: a zero-byte `-o` from a merge whose only input
+// parsed nothing chains into `tp audit <spec> --record` as a clean round.
+//
+// The mutant is the os.WriteFile the audit merge used, which creates the
+// absent path at zero bytes and truncates the seed.
+func TestAuditMerge_RefusedMergeLeavesOutputPathUntouched(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	// The only input's only row lacks status, so it parses nothing and the
+	// merge refuses at exit 1.
+	droppedInput := writeFindingsFile(t, dir, "dropped.ndjson", []string{`{"role":"go-safety","item_id":"a"}`})
+	out := filepath.Join(dir, "merged.ndjson")
+
+	// The two runs share one -o path and run in order: absent, then seeded.
+	t.Run("exit 1 creates no file at an absent -o", func(t *testing.T) {
+		stdout, stderr, code := runTPMerge(t, dir, "audit", "--merge", "-o", out, droppedInput)
+		require.Equal(t, 1, code, "the dropped input refuses the merge: %s", stderr)
+
+		var summary map[string]any
+		require.NoError(t, json.Unmarshal([]byte(stdout), &summary), "the refused merge still emits its summary: %s", stdout)
+		assert.NotContains(t, summary, "output_path", "no file was written, so the summary names no output path")
+		assert.NoFileExists(t, out, "a refused merge creates no file at -o")
+	})
+
+	t.Run("exit 1 leaves a seeded -o byte-identical", func(t *testing.T) {
+		const seed = "SEED LINE THE REFUSED AUDIT MERGE MUST NOT TOUCH\n"
+		require.NoError(t, os.WriteFile(out, []byte(seed), 0o600))
+
+		_, stderr, code := runTPMerge(t, dir, "audit", "--merge", "-o", out, droppedInput)
+		require.Equal(t, 1, code, "the dropped input refuses the merge: %s", stderr)
+
+		after, err := os.ReadFile(out)
+		require.NoError(t, err, "the seeded file is still there")
+		assert.Equal(t, seed, string(after), "a refused merge modifies no file already at -o")
+	})
+}
+
 // TestMerge_CleanRoundStillWritesOutput pins the case that would turn §5 row 10
 // into a defect. A converged round's inputs hold no content line at all — a
 // role that found nothing writes a zero-byte file — and the loop reads the

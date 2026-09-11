@@ -262,16 +262,16 @@ func joinAnd(items []string) string {
 	return strings.Join(items[:len(items)-1], ", ") + " and " + items[len(items)-1]
 }
 
-// writeMergeOutput writes `tp review --merge`'s NDJSON to `-o`, or refuses to
-// touch that path at all when the merge is already going to exit non-zero (§5
-// row 10). It reports whether it wrote, so the caller names `output_path` in
-// the summary only when a file is actually there. `tp audit --merge` does not
-// call it: §4 fences this release out of the audit phase, so that merge still
-// writes before it refuses.
+// writeMergeOutput writes a merge's NDJSON to `-o`, or refuses to touch that
+// path at all when the merge is already going to exit non-zero (§5 row 10). It
+// reports whether it wrote, so the caller names `output_path` in the summary
+// only when a file is actually there. Both merges call it: v1.1.0 fenced the
+// audit phase out, and `tp audit --merge` kept writing a zero-byte `-o` before
+// it refused, which `tp audit <spec> --record` then read as a clean round.
 //
 // The refusal is keyed on `dropped`, never on how many rows survived: a
 // converged round's inputs hold no content line, drop nothing, and still get
-// the zero-byte `-o` the review loop reads as "nothing found".
+// the zero-byte `-o` the loop reads as "nothing found".
 //
 // The write itself goes to a temporary file in the destination's own directory
 // and is renamed on success, so a failed write leaves no truncated `-o`. It
@@ -359,18 +359,16 @@ func failMergeOutput(err error) {
 }
 
 // finishMerge applies §8a.4's exit rule once the merge has emitted its payload,
-// and both merges still reach it the same way. What changed under it is what a
-// caller has already written: for `tp review --merge`, §5 row 10 makes the
-// payload the summary alone, because `-o` is the file the next command in a
-// review loop reads — so a refused review merge leaves that path exactly as it
-// found it, writeMergeOutput having declined to write it.
+// and both merges reach it the same way. What changed under it is what a
+// caller has already written: §5 row 10 makes the payload the summary alone,
+// because `-o` is the file the next command in a loop reads — so a refused
+// merge, review or audit, leaves that path exactly as it found it,
+// writeMergeOutput having declined to write it.
 //
-// That supersedes §8a.4's stated rationale for the review side, which kept the
-// write because "the accounting an operator reads is in that payload": the
-// accounting reaches stdout either way, and it was the file, not the
-// accounting, that let a refused merge be chained into `--record` as a clean
-// round. The rationale still stands for `tp audit --merge`, which §4 fences
-// out of this release and which therefore still writes `-o` before refusing.
+// That supersedes §8a.4's stated rationale, which kept the write because "the
+// accounting an operator reads is in that payload": the accounting reaches
+// stdout either way, and it was the file, not the accounting, that let a
+// refused merge be chained into `--record` as a clean round.
 //
 // encodeErr is the payload's own write error and is reported first: a merge
 // that could not emit has nothing to say about its inputs. The hint is always
