@@ -29,6 +29,19 @@ the working tree, not `HEAD` — but the clone this script builds is of `HEAD`,
 so the summary reports `working_tree_dirty` and leaves the discrepancy to the
 operator rather than papering over it by copying the dirt into the clone.
 
+The previous record sha is the commit that first ADDED the round file
+(`git log --diff-filter=A`, the oldest if there are several), not the last
+commit to touch it. A round file is written again after its record — `tp audit
+--resolve` puts dispositions into it — and committing that must not move the
+base of the delta past the repairs the disposition answers, or a repaired
+evidence file reads as untouched and its row is carried unverified.
+
+A round is refused when any of its `file_check` rows (an `item_id` starting
+`file-`) carries an id of the earlier derivation: `file-<role>-<slug>`,
+optionally with a positional `-2`/`-3` suffix, rather than one ending in `.`
+and a 16-hex digest of the path. Such an id names no item of the next round, so
+there is nothing to carry and every role measures from scratch.
+
 Usage:
   audit-round-prep.py <spec.md> [--previous-record <sha>] [--out <dir>]
                       [--no-build] [--routed <json>]
@@ -44,8 +57,9 @@ Stdout on success is ONE JSON object: `previous_round`, `previous_record_sha`,
 and `brief` — the last a ready-to-paste paragraph per role.
 
 Exit 0 when the prep succeeded; 2 when there is nothing to carry (no round
-directory, no recorded audit round, a round file git does not track, or bad
-arguments) — a first round carries nothing and must be briefed by hand; 3 when
+directory, no recorded audit round, a round file git does not track, a round
+holding an earlier-derivation `file_check` id, or bad arguments) — a first
+round carries nothing and must be briefed by hand; 3 when
 the clone or the build failed, with the failing step named. Errors are a JSON
 object on stderr so stdout stays parseable either way.
 """
@@ -62,6 +76,9 @@ import sys
 import tempfile
 
 ROUND_RE = re.compile(r"^audit-round-(\d+)\.ndjson$")
+# A current file_check id ends in `.` and a 16-hex digest of the path; the `.`
+# never occurs in an earlier-derivation slug, so the suffix alone tells them apart.
+CURRENT_FILE_CHECK_RE = re.compile(r"\.[0-9a-f]{16}$")
 
 
 def fail(code: int, **payload: object) -> None:
@@ -150,6 +167,36 @@ def rows_of(path: pathlib.Path) -> list[tuple[bytes, dict]]:
             fail(2, error="unparseable-row", file=str(path), line=lineno, detail="not an object")
         out.append((line, row))
     return out
+
+
+def earlier_derivation_ids(rows: list[tuple[bytes, dict]]) -> list[str]:
+    """The file_check item ids of the earlier derivation, in row order."""
+    earlier: list[str] = []
+    for _, row in rows:
+        item = row.get("item_id")
+        if (isinstance(item, str) and item.startswith("file-")
+                and not CURRENT_FILE_CHECK_RE.search(item)):
+            earlier.append(item)
+    return earlier
+
+
+def record_sha(root: pathlib.Path, round_rel: str) -> str:
+    """The commit that first added the round file, or exit 2 when none did.
+
+    `git log` lists newest first, so the oldest add is the last line; a later
+    commit that only rewrites the file (a disposition) is not an add and cannot
+    move it.
+    """
+    adds = git(root, "log", "--diff-filter=A", "--format=%H", "--", round_rel).split()
+    if not adds:
+        fail(
+            2,
+            error="unrecorded-round",
+            file=round_rel,
+            detail="git tracks no commit adding this round file; an unrecorded "
+                   "round carries nothing",
+        )
+    return adds[-1]
 
 
 def split_rows(
@@ -269,7 +316,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument("spec", help="the spec the audit is grading, e.g. spec/1.1.0.md")
     parser.add_argument("--previous-record", metavar="SHA",
                         help="commit the delta is measured from; defaults to the commit "
-                             "that last touched the previous round file")
+                             "that first added the previous round file")
     parser.add_argument("--out", metavar="DIR", help="where the carried/re-measure files and "
                                                      "the clone go")
     parser.add_argument("--no-build", action="store_true",
@@ -286,24 +333,28 @@ def main(argv: list[str]) -> int:
     round_n, round_file = previous_round(spec.parent / ".tp-review" / spec.stem)
     round_rel = os.path.relpath(round_file.resolve(), root)
 
-    sha = args.previous_record
-    if not sha:
-        sha = git(root, "log", "-1", "--format=%H", "--", round_rel).strip()
-        if not sha:
-            fail(
-                2,
-                error="unrecorded-round",
-                file=round_rel,
-                detail="git tracks no commit touching this round file; an unrecorded "
-                       "round carries nothing",
-            )
+    rows = rows_of(round_file)
+    earlier = earlier_derivation_ids(rows)
+    if earlier:
+        fail(
+            2,
+            error="earlier-derivation-file-check-ids",
+            file=round_rel,
+            count=len(earlier),
+            example_item_id=earlier[0],
+            detail="nothing to carry: the previous round's file_check ids were derived "
+                   "under an earlier scheme and name no item of the next round, so every "
+                   "role measures from scratch without this script's carry",
+        )
+
+    sha = args.previous_record or record_sha(root, round_rel)
 
     dirty_paths = status_paths(root)
     changed = set(git(root, "diff", "--name-only", f"{sha}..HEAD").split("\n"))
     changed.discard("")
     changed.update(dirty_paths)
 
-    roles = split_rows(rows_of(round_file), changed)
+    roles = split_rows(rows, changed)
 
     out = pathlib.Path(
         args.out

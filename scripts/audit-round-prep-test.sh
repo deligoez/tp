@@ -17,8 +17,23 @@
 # through json.dumps would pass every count assertion while escaping it, so the
 # test diffs the carried file against a grep of the source rather than counting.
 #
+# The two go-safety rows that name a file carry `file_check` ids of the current
+# derivation (`file-<role>-<slug>.<16 hex>`) and the rest carry spec ids, so the
+# main fixture is a round recorded under the current derivation. Two further
+# fixtures follow it: a round whose `file_check` ids are of the earlier
+# derivation (no digest), which must be refused on a tree where one of its rows
+# would otherwise be carried, and a round file committed again after its record
+# (a disposition), which must not move the commit the delta is measured from.
+#
+# Everything happens in a throwaway repository under mktemp. The git variables
+# a caller's own repository can export (GIT_DIR, GIT_INDEX_FILE, ... — set, for
+# one, inside a git hook) are cleared first, or the fixture's `git add -A` and
+# `git commit` would land in that repository instead.
+#
 # Run: scripts/audit-round-prep-test.sh
 set -u
+# shellcheck disable=SC2046
+unset $(git rev-parse --local-env-vars)
 
 here=$(cd "$(dirname "$0")" && pwd)
 script="$here/audit-round-prep.py"
@@ -65,9 +80,11 @@ printf 'module example.invalid/x\n\ngo 1.21\n' >go.mod
 printf 'package main\n\nfunc main() { println("x") }\n' >cmd/tp/main.go
 
 round=spec/.tp-review/x/audit-round-1.ndjson
+id_untouched=file-go-safety-src-untouched-go.0123456789abcdef
+id_touched=file-go-safety-src-touched-go.fedcba9876543210
 {
-	printf '%s\n' '{"role":"go-safety","status":"PASS","item_id":"gs-untouched","evidence_file":"src/untouched.go","evidence_lines":"1-1","notes":"carried — this note holds an em dash on purpose"}'
-	printf '%s\n' '{"role":"go-safety","status":"PASS","item_id":"gs-touched","evidence_file":"src/touched.go","evidence_lines":"1-1","notes":"its evidence file moves after the record"}'
+	printf '%s\n' '{"role":"go-safety","status":"PASS","item_id":"'"$id_untouched"'","evidence_file":"src/untouched.go","evidence_lines":"1-1","notes":"carried — this note holds an em dash on purpose"}'
+	printf '%s\n' '{"role":"go-safety","status":"PASS","item_id":"'"$id_touched"'","evidence_file":"src/touched.go","evidence_lines":"1-1","notes":"its evidence file moves after the record"}'
 	printf '%s\n' '{"role":"go-safety","status":"PASS","item_id":"gs-no-evidence","evidence_file":"","evidence_lines":"","notes":"PASS naming no evidence file"}'
 	printf '%s\n' '{"role":"ax-contract","status":"PARTIAL","item_id":"ax-partial","evidence_file":"src/untouched.go","evidence_lines":"1-1","notes":"not PASS"}'
 	printf '%s\n' '{"status":"PASS","item_id":"orphan-row","evidence_file":"src/untouched.go","evidence_lines":"1-1","notes":"no role key at all"}'
@@ -76,6 +93,7 @@ round=spec/.tp-review/x/audit-round-1.ndjson
 
 git add -A
 git commit -qm "record audit round 1"
+record_sha=$(git rev-parse HEAD)
 
 # The repair the round provoked: one evidence file changes, one does not.
 printf 'package src // touched, after the record\n' >src/touched.go
@@ -105,16 +123,16 @@ check_eq "clean tree is not dirty" False "$(field '["working_tree_dirty"]')"
 check_eq "no tree under --no-build" None "$(field '["tree"]')"
 check_eq "no binary under --no-build" None "$(field '["binary"]')"
 check_eq "previous_round" 1 "$(field '["previous_round"]')"
-check_eq "previous_record_sha" "$(git log -1 --format=%H -- "$round")" "$(field '["previous_record_sha"]')"
+check_eq "previous_record_sha" "$record_sha" "$(field '["previous_record_sha"]')"
 
 # The re-measure list names the item ids of exactly the rows that were not carried.
-check_eq "go-safety re-measure ids" "['gs-no-evidence', 'gs-touched']" \
+check_eq "go-safety re-measure ids" "['$id_touched', 'gs-no-evidence']" \
 	"$(python3 -c 'import json,sys;print(sorted(json.load(open(sys.argv[1]))))' "$out/remeasure-go-safety.json")"
 check_eq "ax-contract re-measure ids" "['ax-fail', 'ax-partial']" \
 	"$(python3 -c 'import json,sys;print(sorted(json.load(open(sys.argv[1]))))' "$out/remeasure-ax-contract.json")"
 
 # Byte-identity: the carried line is the source line, em dash and all.
-grep -F '"item_id":"gs-untouched"' "$round" >"$tmp/want-go-safety.ndjson"
+grep -F "\"item_id\":\"$id_untouched\"" "$round" >"$tmp/want-go-safety.ndjson"
 if diff -q "$tmp/want-go-safety.ndjson" "$out/carried-go-safety.ndjson" >/dev/null; then
 	pass "carried go-safety line is byte-identical to its source line"
 else
@@ -156,7 +174,7 @@ else
 		fail "the binary the brief names exists and is executable" "$(ls -l "$built/tree" 2>&1)"
 	fi
 	brief=$(field '["brief"]["go-safety"]')
-	for want in "do not clone, do not build" "verbatim" "gs-touched" \
+	for want in "do not clone, do not build" "verbatim" "$id_touched" \
 		"silent-swallowed-error -> refusals-that-name-nothing" "expects no repair"; do
 		case "$brief" in
 		*"$want"*) pass "go-safety brief names '$want'" ;;
@@ -206,6 +224,93 @@ check_eq "dirty run exit code" 0 "$?"
 check_eq "dirty tree is reported" True "$(field '["working_tree_dirty"]')"
 check_eq "dirty path is changed" "['src/touched.go', 'src/untouched.go']" "$(field '["changed_files"]')"
 check_eq "the dirty evidence file is no longer carried" 0 "$(field '["roles"]["go-safety"]["carried"]')"
+
+# Nothing to carry: a round whose file_check ids are of the earlier derivation
+# (`file-<role>-<slug>`, no digest) names no item of the next round. Its PASS row
+# cites a file untouched since the record, so without the refusal that row would
+# be carried: a refusal tested on a tree where nothing would be carried anyway
+# passes whether or not the rule exists. The spec-id row beside it is not what
+# triggers the refusal; the main fixture's spec ids already run without one.
+git checkout -q -- src/untouched.go
+mkdir -p spec/.tp-review/o
+printf '# o\n' >spec/o.md
+{
+	printf '%s\n' '{"role":"go-safety","status":"PASS","item_id":"file-go-safety-src-untouched-go","evidence_file":"src/untouched.go","evidence_lines":"1-1","notes":"earlier derivation: a slug and no digest"}'
+	printf '%s\n' '{"role":"spec-coverage","status":"PASS","item_id":"spec-1-thing","evidence_file":"src/untouched.go","evidence_lines":"1-1","notes":"a spec item, not a file_check"}'
+} >spec/.tp-review/o/audit-round-1.ndjson
+git add -A
+git commit -qm "record audit round 1 of o under the earlier derivation"
+python3 "$script" spec/o.md --no-build --out "$out" >"$tmp/out-o.txt" 2>"$tmp/err-o.txt"
+check_eq "earlier-derivation file_check ids exit 2" 2 "$?"
+if [ -s "$tmp/out-o.txt" ]; then
+	fail "the earlier-derivation refusal leaves stdout empty" "$(cat "$tmp/out-o.txt")"
+else
+	pass "the earlier-derivation refusal leaves stdout empty"
+fi
+case "$(cat "$tmp/err-o.txt")" in
+*'"error": "earlier-derivation-file-check-ids"'*) pass "the refusal names why nothing is carried" ;;
+*) fail "the refusal names why nothing is carried" "$(cat "$tmp/err-o.txt")" ;;
+esac
+case "$(cat "$tmp/err-o.txt")" in
+*'"file-go-safety-src-untouched-go"'*) pass "the refusal names the earlier-derivation id" ;;
+*) fail "the refusal names the earlier-derivation id" "$(cat "$tmp/err-o.txt")" ;;
+esac
+
+# The record commit is the one that ADDED the round file. A disposition written
+# into it afterwards (`tp audit --resolve`) and committed must not move the
+# delta's base past the repair it disposes of, or the repaired file reads as
+# untouched and its row is carried without being re-measured.
+mkdir -p spec/.tp-review/d
+printf '# d\n' >spec/d.md
+printf 'package src // before the repair\n' >src/x.go
+d_round=spec/.tp-review/d/audit-round-1.ndjson
+id_x=file-go-safety-src-x-go.00112233445566ff
+{
+	printf '%s\n' '{"role":"go-safety","status":"PASS","item_id":"'"$id_x"'","evidence_file":"src/x.go","evidence_lines":"1-1","notes":"its evidence file is repaired after the record"}'
+	printf '%s\n' '{"role":"go-safety","status":"FAIL","item_id":"spec-1-thing","evidence_file":null,"evidence_lines":null,"notes":"the finding the repair answers"}'
+} >"$d_round"
+git add -A
+git commit -qm "record audit round 1 of d"
+d_record_sha=$(git rev-parse HEAD)
+printf 'package src // repaired\n' >src/x.go
+git add -A
+git commit -qm "repair src/x.go"
+python3 - "$d_round" <<'PY'
+import json, sys
+
+path = sys.argv[1]
+rows = [json.loads(line) for line in open(path, encoding="utf-8") if line.strip()]
+for row in rows:
+    if row["status"] == "FAIL":
+        row["resolved"] = {"status": "fixed", "evidence": "repaired src/x.go",
+                           "resolved_at": "2026-09-11T00:00:00Z"}
+with open(path, "w", encoding="utf-8") as fh:
+    for row in rows:
+        fh.write(json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n")
+PY
+git add -A
+git commit -qm "dispose of round 1's finding"
+python3 "$script" spec/d.md --no-build --out "$out" >"$summary" 2>"$out/err.txt"
+check_eq "disposition run exit code" 0 "$?"
+check_eq "the record sha is the commit that added the round file" "$d_record_sha" "$(field '["previous_record_sha"]')"
+check_eq "the repair committed before the disposition is changed" True \
+	"$(field '["changed_files"] and "src/x.go" in d["changed_files"]')"
+check_eq "the repaired evidence file is not carried" 0 "$(field '["roles"]["go-safety"]["carried"]')"
+check_eq "go-safety re-measure ids after a disposition" "['$id_x', 'spec-1-thing']" \
+	"$(python3 -c 'import json,sys;print(sorted(json.load(open(sys.argv[1]))))' "$out/remeasure-go-safety.json")"
+
+# A round file deleted and added back has two adds; the oldest is the record.
+cp "$d_round" "$tmp/d-round.ndjson"
+git rm -q "$d_round"
+git commit -qm "drop round 1 of d"
+mkdir -p spec/.tp-review/d
+cp "$tmp/d-round.ndjson" "$d_round"
+git add -A
+git commit -qm "restore round 1 of d"
+python3 "$script" spec/d.md --no-build --out "$out" >"$summary" 2>"$out/err.txt"
+check_eq "re-added round run exit code" 0 "$?"
+check_eq "the record sha is the oldest add of a re-added round file" "$d_record_sha" "$(field '["previous_record_sha"]')"
+check_eq "the repair before the re-add is still not carried" 0 "$(field '["roles"]["go-safety"]["carried"]')"
 
 if [ "$failures" != 0 ]; then
 	printf '%s assertion(s) failed\n' "$failures"
