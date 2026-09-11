@@ -19,11 +19,12 @@
 #
 # The two go-safety rows that name a file carry `file_check` ids of the current
 # derivation (`file-<role>-<slug>.<16 hex>`) and the rest carry spec ids, so the
-# main fixture is a round recorded under the current derivation. Two further
+# main fixture is a round recorded under the current derivation. Further
 # fixtures follow it: a round whose `file_check` ids are of the earlier
 # derivation (no digest), which must be refused on a tree where one of its rows
-# would otherwise be carried, and a round file committed again after its record
-# (a disposition), which must not move the commit the delta is measured from.
+# would otherwise be carried; and a round file committed again after its record
+# (a disposition), deleted and added back, or moved with its directory — none of
+# which may move the commit the delta is measured from.
 #
 # Everything happens in a throwaway repository under mktemp. The git variables
 # a caller's own repository can export (GIT_DIR, GIT_INDEX_FILE, ... — set, for
@@ -311,6 +312,33 @@ python3 "$script" spec/d.md --no-build --out "$out" >"$summary" 2>"$out/err.txt"
 check_eq "re-added round run exit code" 0 "$?"
 check_eq "the record sha is the oldest add of a re-added round file" "$d_record_sha" "$(field '["previous_record_sha"]')"
 check_eq "the repair before the re-add is still not carried" 0 "$(field '["roles"]["go-safety"]["carried"]')"
+
+# A round directory moved after its record keeps its record commit. This
+# repository moved unreleased specs and their .tp-review/ under spec/backlog/;
+# the move adds the round file under its new path, and measuring from the move
+# would carry a row whose evidence file the repair before the move changed.
+mkdir -p spec/.tp-review/m
+printf '# m\n' >spec/m.md
+printf 'package src // m, before the repair\n' >src/m.go
+id_m=file-go-safety-src-m-go.0000aaaa1111bbbb
+printf '%s\n' '{"role":"go-safety","status":"PASS","item_id":"'"$id_m"'","evidence_file":"src/m.go","evidence_lines":"1-1","notes":"its evidence file is repaired before the move"}' \
+	>spec/.tp-review/m/audit-round-1.ndjson
+git add -A
+git commit -qm "record audit round 1 of m"
+m_record_sha=$(git rev-parse HEAD)
+printf 'package src // m, repaired\n' >src/m.go
+git add -A
+git commit -qm "repair src/m.go"
+mkdir -p spec/backlog/.tp-review
+git mv spec/m.md spec/backlog/m.md
+git mv spec/.tp-review/m spec/backlog/.tp-review/m
+git commit -qm "move m under spec/backlog"
+python3 "$script" spec/backlog/m.md --no-build --out "$out" >"$summary" 2>"$out/err.txt"
+check_eq "moved round run exit code" 0 "$?"
+check_eq "the record sha of a moved round is its original record" "$m_record_sha" "$(field '["previous_record_sha"]')"
+check_eq "the repair before the move is changed" True \
+	"$(field '["changed_files"] and "src/m.go" in d["changed_files"]')"
+check_eq "the evidence file repaired before the move is not carried" 0 "$(field '["roles"]["go-safety"]["carried"]')"
 
 if [ "$failures" != 0 ]; then
 	printf '%s assertion(s) failed\n' "$failures"

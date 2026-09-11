@@ -30,11 +30,12 @@ so the summary reports `working_tree_dirty` and leaves the discrepancy to the
 operator rather than papering over it by copying the dirt into the clone.
 
 The previous record sha is the commit that first ADDED the round file
-(`git log --diff-filter=A`, the oldest if there are several), not the last
-commit to touch it. A round file is written again after its record — `tp audit
---resolve` puts dispositions into it — and committing that must not move the
-base of the delta past the repairs the disposition answers, or a repaired
-evidence file reads as untouched and its row is carried unverified.
+(`git log --follow --diff-filter=A`, the oldest if there are several), not the
+last commit to touch it. A round file is written again after its record — `tp
+audit --resolve` puts dispositions into it — and committing that must not move
+the base of the delta past the repairs the disposition answers, or a repaired
+evidence file reads as untouched and its row is carried unverified. A move of
+the round directory must not move it either, hence `--follow`.
 
 A round is refused when any of its `file_check` rows (an `item_id` starting
 `file-`) carries an id of the earlier derivation: `file-<role>-<slug>`,
@@ -185,9 +186,12 @@ def record_sha(root: pathlib.Path, round_rel: str) -> str:
 
     `git log` lists newest first, so the oldest add is the last line; a later
     commit that only rewrites the file (a disposition) is not an add and cannot
-    move it.
+    move it. `--follow` carries the search across a rename, so a round
+    directory moved after its record (as under spec/backlog/) reports its
+    original record rather than the move, which is a rename and not an add.
     """
-    adds = git(root, "log", "--diff-filter=A", "--format=%H", "--", round_rel).split()
+    adds = git(root, "log", "--follow", "--diff-filter=A", "--format=%H", "--",
+               round_rel).split()
     if not adds:
         fail(
             2,
