@@ -123,6 +123,47 @@ func TestTheTierRuleIsPerVerdict(t *testing.T) {
 	}
 }
 
+// TestTheTierRefusalNamesTheTiersTheKindAccepts pins what a unit reads when
+// its pairing is refused: the way out, and nothing it cannot act on.
+//
+// The refusal used to say only that the tier "says nothing about" the kind and
+// cite "(§4.1)", a section of tp's own design document the unit has never
+// seen, so the unit had to go back to the prompt to learn which tier would do.
+// The accepted tiers are read here from groundAcceptableTiers itself, so a
+// message listing a hand-copied set goes red the day the set moves.
+//
+// Each tier is matched as a whole token: "read" must not be satisfied by a
+// longer word, and "red-green" must not be satisfied by "red".
+func TestTheTierRefusalNamesTheTiersTheKindAccepts(t *testing.T) {
+	cases := []struct {
+		kind GroundKind
+		tier GroundTier
+	}{
+		{KindCorpus, TierRead},
+		{KindBehaviour, TierQuery},
+	}
+	for _, tc := range cases {
+		t.Run(string(tc.kind)+"/"+string(tc.tier), func(t *testing.T) {
+			require.False(t, TierAcceptableFor(tc.kind, tc.tier),
+				"the case must be a refused pairing, or it tests nothing")
+
+			_, err := ParseGroundRow(groundTierRuleRow(t, string(tc.kind), string(tc.tier), string(VerdictPass)))
+			require.Error(t, err)
+			msg := err.Error()
+
+			accepted := groundAcceptableTiers[tc.kind]
+			require.NotEmpty(t, accepted, "every kind accepts at least one tier")
+			for tier := range accepted {
+				token := regexp.MustCompile(`(^|[^a-z-])` + regexp.QuoteMeta(string(tier)) + `([^a-z-]|$)`)
+				assert.Regexp(t, token, msg,
+					"the refusal names %q, a tier %q accepts, so the unit knows where to go", tier, tc.kind)
+			}
+			assert.NotContains(t, msg, "§",
+				"the refusal cites no section of tp's design document: the unit has never read it")
+		})
+	}
+}
+
 // TestEveryVerdictHasAWrittenAnswerToTheTierRule is the guard the map's own
 // comment claims: every verdict's answer is written down, none is the zero
 // value of a lookup.

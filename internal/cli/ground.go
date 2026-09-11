@@ -148,7 +148,7 @@ const groundRecordRowHint = "fix the row the message names in the --record NDJSO
 // after a set with no members. That state is not an error to repair: §2.1 cut
 // every unit, so there is nothing to ground and --status --check says so
 // permanently.
-const groundRecordEmptyHint = "record a file holding at least one row: the round carried nothing from a preceding round, so an empty payload would record nothing at all. If the prompt asked for no dispositions because every unit was cut (§2.1), there is no round to record and --status --check reports that floor instead"
+const groundRecordEmptyHint = "record a file holding at least one row: the round carried nothing from a preceding round, so an empty payload would record nothing at all. If the prompt asked for no dispositions because every unit was cut, there is no round to record and --status --check reports that floor instead"
 
 // groundRecordFileHint is the third of --record's hints to be carved out of the
 // shared constant, and it is carved out for the reason the two above it were.
@@ -893,7 +893,7 @@ var groundKindSubject = map[engine.GroundKind]string{
 // groundTierDid is §4.1's second table: what each tier means the unit did.
 var groundTierDid = map[engine.GroundTier]string{
 	engine.TierRead:            "read the artifact",
-	engine.TierQuery:           "ran a query over the corpus",
+	engine.TierQuery:           "ran a read-only command over the corpus (a search, a query, a listing)",
 	engine.TierRun:             "ran the shipped command",
 	engine.TierProbe:           "built a probe and ran it",
 	engine.TierRedGreen:        "wrote the test, watched it red, fixed, watched it green",
@@ -1009,8 +1009,8 @@ unit_id is null on a claim you add that the floor did not carry; supply the
 // anything about which kind of claim, and §7.2's per-verdict reading of that
 // rule.
 //
-// The kind–tier column is derived from TierAcceptableFor rather than written
-// out, because that predicate is what rejects a row at --record: a prompt
+// The kind–tier column is derived from engine.AcceptableTiers rather than
+// written out, because the same set is what rejects a row at --record: a prompt
 // stating the rule in its own words can drift from the recorder, and the unit
 // pays for the drift with a refused round.
 func groundPromptEvidence() string {
@@ -1034,10 +1034,8 @@ examine the real one. So acceptability is a set per kind, not a threshold:
 `)
 	for _, kind := range engine.GroundKinds() {
 		acceptable := make([]string, 0, len(engine.GroundTiers()))
-		for _, tier := range engine.GroundTiers() {
-			if engine.TierAcceptableFor(kind, tier) {
-				acceptable = append(acceptable, string(tier))
-			}
+		for _, tier := range engine.AcceptableTiers(kind) {
+			acceptable = append(acceptable, string(tier))
 		}
 		fmt.Fprintf(&b, "  %-15s %-36s %s\n", kind, groundKindSubject[kind], strings.Join(acceptable, ", "))
 	}
@@ -1190,7 +1188,7 @@ func groundPromptAsk(round, floorSize, carried int) string {
 		// headings reaches this with nothing wrong. Asking for "each of the 0"
 		// names a set that does not exist, and the reader who writes the empty
 		// file that ask implies is then refused by --record.
-		return "This round owes no dispositions: every unit in this document was cut (§2.1), so\nthere is no floor to ground.\n"
+		return "This round owes no dispositions: every unit in this document was cut, so\nthere is no floor to ground.\n"
 	case carried == 0 && floorSize == 1:
 		return "This round owes a disposition for the 1 floor unit above.\n"
 	case carried == 0:
@@ -1213,7 +1211,7 @@ func groundPromptAsk(round, floorSize, carried int) string {
 	}
 	return fmt.Sprintf(`This round owes a disposition for %d of the %d %s above: %s
 one from round %d, and %s `+"`(carried)`"+`. A carried disposition stands while
-its unit's text stands (§8) — do not decide those units again, and write no
+its unit's text stands — do not decide those units again, and write no
 row for them.
 `, floorSize-carried, floorSize, units, who, round-1, rows)
 }

@@ -41,6 +41,43 @@ func TestTheEmittedGroundPromptEndsWithItsOwnSuffix(t *testing.T) {
 	assert.Contains(t, prompt, incrementalClause, "§3.2's clause is carried unchanged")
 }
 
+// TestTheAskAndTheEmptyRecordHintCiteNoSection keeps tp's own design sections
+// out of what a unit or an operator reads about the round's ask.
+//
+// "(§2.1)" and "(§8)" name sections of a document neither reader has, so they
+// cost bytes and explain nothing. Every count combination the ask can reach is
+// walked, because each branch writes its own sentence, and the --record hint
+// that tells an all-cut operator there is no round to record is held to the
+// same rule.
+func TestTheAskAndTheEmptyRecordHintCiteNoSection(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct{ floorSize, carried int }{
+		{0, 0}, {1, 0}, {2, 0}, {1, 1}, {2, 1}, {2, 2}, {3, 2},
+	} {
+		assert.NotContains(t, groundPromptAsk(2, c.floorSize, c.carried), "§",
+			"the ask for a floor of %d with %d carried cites no section", c.floorSize, c.carried)
+	}
+	assert.NotContains(t, groundRecordEmptyHint, "§",
+		"the empty-record hint cites no section either")
+}
+
+// TestThePromptGlossesQueryAsAnyReadOnlyCommand pins the tier table's reading
+// of `query`: any read-only command over the corpus, not only something called
+// a query. A unit that ran a search or a listing otherwise reads its own work
+// as `read` and records a corpus claim at a tier the kind refuses.
+func TestThePromptGlossesQueryAsAnyReadOnlyCommand(t *testing.T) {
+	t.Parallel()
+	line := ""
+	for l := range strings.SplitSeq(groundTestPrompt(), "\n") {
+		if strings.HasPrefix(strings.TrimSpace(l), string(engine.TierQuery)+" ") {
+			line = l
+			break
+		}
+	}
+	require.NotEmpty(t, line, "the prompt's tier table must carry a row for query")
+	assert.Contains(t, line, "read-only command", "query's gloss says any read-only command: %q", line)
+}
+
 // TestThePromptsPartialKindListNamesEveryValueTheRecorderAccepts is the
 // kind-tier test's rule applied to §7.2's third enum: the values the prompt
 // tells a unit to choose between are exactly the values ParseGroundPartialKind

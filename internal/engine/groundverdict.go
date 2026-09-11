@@ -206,6 +206,22 @@ func TierAcceptableFor(kind GroundKind, tier GroundTier) bool {
 	return groundAcceptableTiers[kind][tier]
 }
 
+// AcceptableTiers lists the tiers §4.1 grants kind, in GroundTiers' table order.
+//
+// It is groundAcceptableTiers read out, never a second statement of it: the
+// prompt's kind–tier table and the recorder's pairing refusal both name the
+// set from here, so neither can tell a unit a tier TierAcceptableFor rejects.
+// The order is only for a stable rendering and carries no rank.
+func AcceptableTiers(kind GroundKind) []GroundTier {
+	out := make([]GroundTier, 0, len(groundAcceptableTiers[kind]))
+	for _, tier := range groundTierOrder {
+		if groundAcceptableTiers[kind][tier] {
+			out = append(out, tier)
+		}
+	}
+	return out
+}
+
 // groundEnumListing copies an enum's ordered listing, so a caller mutating what
 // it got back cannot reorder the package's own table.
 func groundEnumListing[T ~string](order []T) []T {

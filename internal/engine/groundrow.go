@@ -381,6 +381,10 @@ var groundTierRuleBinds = map[GroundVerdict]bool{
 // from it. The enum is closed by ParseGroundVerdict so no such row reaches
 // here, and the direction is the same one TierAcceptableFor fails in: nothing
 // unrecognised is certified as evidence.
+//
+// The refusal ends on the tiers the kind accepts, read from AcceptableTiers,
+// because that is the way out and the unit should not have to go back to the
+// prompt for it. It cites no section: the unit has never read tp's design.
 func validateGroundRowTier(row *GroundRow) error {
 	if binds, listed := groundTierRuleBinds[row.Verdict]; listed && !binds {
 		return nil
@@ -388,9 +392,13 @@ func validateGroundRowTier(row *GroundRow) error {
 	if TierAcceptableFor(row.Kind, row.Tier) {
 		return nil
 	}
+	accepted := make([]string, 0, len(groundTierOrder))
+	for _, tier := range AcceptableTiers(row.Kind) {
+		accepted = append(accepted, string(tier))
+	}
 	return groundRowErr("tier", fmt.Sprintf(
-		"%q says nothing about a %q claim (§4.1), and a %s row must be reached at a tier that does",
-		row.Tier, row.Kind, row.Verdict))
+		"%q says nothing about a %q claim, and a %s row must be reached at a tier that does: %s",
+		row.Tier, row.Kind, row.Verdict, strings.Join(accepted, ", ")))
 }
 
 // groundUnknownKey rejects a top-level key that is no cell of §7.2's table.
