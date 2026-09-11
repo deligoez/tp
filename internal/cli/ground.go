@@ -211,6 +211,7 @@ func newGroundCmd() *cobra.Command {
 		statusMode bool
 		checkMode  bool
 		unitsMode  bool
+		forceMode  bool
 	)
 
 	cmd := &cobra.Command{
@@ -239,6 +240,7 @@ change the floor the round is graded against.`,
 			// the one a mode is chosen by.
 			recordPassed := cmd.Flags().Changed("record")
 			groundRefuseUsage(unitsMode, statusMode, checkMode, recordPassed, recordPath)
+			groundRefuseForce(forceMode, unitsMode, statusMode, recordPassed)
 
 			if unitsMode {
 				// Same question as recordPassed above, asked of --json:
@@ -254,13 +256,14 @@ change the floor the round is graded against.`,
 			if recordPassed {
 				return runGroundRecord(args[0], recordPath)
 			}
-			return runGround(args[0])
+			return runGround(args[0], forceMode)
 		},
 	}
 	cmd.Flags().StringVar(&recordPath, "record", "", "Record a ground round from an NDJSON dispositions file")
 	cmd.Flags().BoolVar(&statusMode, "status", false, "Report the latest emitted round's coverage and per-verdict breakdown")
 	cmd.Flags().BoolVar(&checkMode, "check", false, "With --status: exit 0 only when every emitted floor unit carries a disposition and the round holds no FAIL row")
 	cmd.Flags().BoolVar(&unitsMode, "units", false, "Print the floor's units with their full text, one per line")
+	cmd.Flags().BoolVar(&forceMode, "force", false, "Discard an unrecorded round's emission when the spec changed since it, and emit over the spec as it now stands")
 	return cmd
 }
 
@@ -311,6 +314,18 @@ func groundRefuseUsage(units, status, check, recordPassed bool, recordPath strin
 	}
 }
 
+// groundRefuseForce refuses --force on every mode but the emission. It
+// discards an in-flight round's emission, and only the emission writes one: on
+// --record, --status or --units it would override nothing, so accepting it
+// would claim a discard that never happened.
+func groundRefuseForce(force, units, status, recordPassed bool) {
+	if force && groundModesPassed(units, status, recordPassed) > 0 {
+		output.Error(ExitUsage, "--force applies only to the emission",
+			"run tp ground <spec> --force to discard an unrecorded round's emission over a changed spec")
+		os.Exit(ExitUsage)
+	}
+}
+
 // groundModesPassed counts how many of §7.1's three mode-selecting flags the
 // operator passed. --check is not one of them: it modifies --status's answer
 // rather than choosing a mode, and its own refusal is stated separately.
@@ -330,7 +345,7 @@ func groundModesPassed(units, status, record bool) int {
 
 // runGround emits one ground round: it writes the snapshot and the floor index
 // derived from it (§7.3), and prints the prompt naming ground-r<N>.ndjson.
-func runGround(specPath string) error {
+func runGround(specPath string, force bool) error {
 	data, err := os.ReadFile(specPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -354,6 +369,10 @@ func runGround(specPath string) error {
 		groundStateDirError(specPath, err)
 		return nil
 	}
+	// Refused before anything is written: the in-flight round's floor is what
+	// its units are grading against, and --record validates against it.
+	overwrites, owErr := engine.GroundEmissionOverwrites(specPath, round, data)
+	guardInFlightEmission("ground", specPath, round, overwrites, owErr, force)
 
 	// The index is derived from the bytes handed to WriteGroundEmission as the
 	// snapshot, so THIS process's floor is over the same read of the spec as
@@ -385,9 +404,9 @@ func runGround(specPath string) error {
 	snapshotPath := engine.GroundSnapshotPath(specPath, round)
 	outputPath := fmt.Sprintf("ground-r%d.ndjson", round)
 	// The snapshot and the floor are already on disk, and a re-emission of an
-	// unrecorded round rewrites the same two files, so the recovery here is
-	// simply to run it again with a stdout that works — which is why this
-	// carries the shared hint and --record's carries its own.
+	// unrecorded round over the same spec rewrites the same two files, so the
+	// recovery here is simply to run it again with a stdout that works — which
+	// is why this carries the shared hint and --record's carries its own.
 	if err := output.JSON(groundResult{
 		Spec:       specPath,
 		Round:      round,

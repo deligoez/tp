@@ -45,7 +45,10 @@ func TestGroundRefusesAnEmptyRecordPathRatherThanEmitting(t *testing.T) {
 	assert.Equal(t, string(before), string(after),
 		"a refused invocation emits nothing: the round's floor is what its own emission froze")
 
-	groundEmit(t, dir)
+	// --force: the round is in flight and the spec moved, so a plain
+	// re-emission is itself refused (exit 3) and would prove nothing here.
+	_, stderr, code = runTPFence(t, dir, false, "ground", "spec.md", "--force")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
 	reemitted, err := os.ReadFile(groundStatePath(dir, "floor-ground-round-1.txt"))
 	require.NoError(t, err)
 	require.NotEqual(t, string(before), string(reemitted),

@@ -174,12 +174,14 @@ Use --findings to also verify review findings were addressed.`,
 				}
 				return runAuditResolveAll(args, forceFlag)
 			}
-			// --force is read only by the two resolve modes. Accepting it
-			// elsewhere would let a caller believe an emission or record run had
-			// overridden something it never looked at.
-			if cmd.Flags().Changed("force") {
-				output.Error(ExitUsage, "--force requires --resolve or --resolve-all",
-					"--force re-resolves an audit row that already carries a disposition")
+			// --force is read by the two resolve modes and by the emission,
+			// which it lets discard an unrecorded round's emission over a
+			// changed spec. Accepting it on --merge/--record/--status would let
+			// a caller believe that run had overridden something it never
+			// looked at.
+			if cmd.Flags().Changed("force") && (mergeMode || recordPath != "" || statusMode) {
+				output.Error(ExitUsage, "--force requires --resolve, --resolve-all or an emission",
+					"--force re-resolves an audit row that already carries a disposition, or discards an unrecorded round's emission over a changed spec")
 				os.Exit(ExitUsage)
 				return nil
 			}
@@ -244,7 +246,7 @@ Use --findings to also verify review findings were addressed.`,
 			if statusMode {
 				return runAuditStatus(args[0], checkFlag)
 			}
-			return runAudit(cmd, args[0], affectedFiles, base, findingsPath, roleFilter, cmd.Flags().Changed("role"), affectedFromTasks)
+			return runAudit(cmd, args[0], affectedFiles, base, findingsPath, roleFilter, cmd.Flags().Changed("role"), affectedFromTasks, forceFlag)
 		},
 	}
 
@@ -260,13 +262,13 @@ Use --findings to also verify review findings were addressed.`,
 	cmd.Flags().BoolVar(&mergeMode, "merge", false, "Merge and deduplicate audit-result NDJSON files")
 	cmd.Flags().BoolVar(&resolveMode, "resolve", false, "Dispose one audit row as fixed/wontfix/duplicate (selector: 0-based index or role:item_id; results NDJSON is the positional)")
 	cmd.Flags().BoolVar(&resolveAllMode, "resolve-all", false, "Dispose every undisposed audit row with a status (results NDJSON is the positional)")
-	cmd.Flags().BoolVar(&forceFlag, "force", false, "With --resolve/--resolve-all: re-resolve rows that already carry a disposition")
+	cmd.Flags().BoolVar(&forceFlag, "force", false, "With --resolve/--resolve-all: re-resolve rows that already carry a disposition; on an emission: discard an unrecorded round's emission when the spec changed since it")
 	cmd.Flags().StringVarP(&outputPath, "output", "o", "", "Output file path (for --merge)")
 
 	return cmd
 }
 
-func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, findingsPath, roleFilter string, roleGiven, affectedFromTasks bool) error {
+func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, findingsPath, roleFilter string, roleGiven, affectedFromTasks, force bool) error {
 	if _, err := os.Stat(specPath); os.IsNotExist(err) {
 		// First contact with the path: a spec-path mistake, so the shared
 		// hint. The code-3 default names the TASK file — 'tp use' / 'tp init'
@@ -305,7 +307,7 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	// filter below; a refusal decided after that write would leave it on disk.
 	panel := resolveRolePanel(specPath, engine.PhaseAuditors)
 
-	specLines, specContent, snap := loadAuditSpec(specPath)
+	specLines, specContent, snap := loadAuditSpec(specPath, force)
 
 	priorByRole := loadAuditPriorRound(specPath)
 
@@ -482,15 +484,21 @@ func determineAuditFiles(specPath string, affectedFiles []string, base string, a
 // snapshot-audit-round-N.md on disk — an in-flight round opened by a typo that
 // no prompt ever came from, and over an edited spec, a snapshot replaced by
 // text no auditor read.
+//
+// force is --force: without it, a write that would replace an in-flight
+// round's snapshot with different text is refused (guardInFlightEmission).
 type auditRoundSnapshot struct {
 	round int
 	data  []byte
+	force bool
 }
 
 // write snapshots the raw spec at audit round start (§10.2), mirroring review —
 // atomically, so a partial snapshot is never left on disk, and an interrupted
 // round is visible to --status and tp resume.
 func (s auditRoundSnapshot) write(specPath string) {
+	overwrites, owErr := engine.EmissionOverwrites(specPath, engine.PhaseAudit, s.round, s.data)
+	guardInFlightEmission("audit", specPath, s.round, overwrites, owErr, s.force)
 	if snapErr := engine.WriteSnapshotAtomic(specPath, engine.PhaseAudit, s.round, s.data); snapErr != nil {
 		// Post-stat failure: the hint carries the real cause, not spec-path
 		// advice — the path was already proven readable by loadAuditSpec.
@@ -504,7 +512,7 @@ func (s auditRoundSnapshot) write(specPath string) {
 // plus the (possibly truncated) spec content used for prompt emission. Read and
 // state errors abort via ExitFile / exitStateError, matching runAudit's exit
 // contract.
-func loadAuditSpec(specPath string) (specLines []string, specContent string, snap auditRoundSnapshot) {
+func loadAuditSpec(specPath string, force bool) (specLines []string, specContent string, snap auditRoundSnapshot) {
 	specData, err := os.ReadFile(specPath)
 	if err != nil {
 		// Carry the cause: a permission or IO failure is otherwise
@@ -541,7 +549,7 @@ func loadAuditSpec(specPath string) (specLines []string, specContent string, sna
 	if auditSt != nil {
 		auditRecorded = len(auditSt.AuditRounds)
 	}
-	snap = auditRoundSnapshot{round: auditRecorded + 1, data: specData}
+	snap = auditRoundSnapshot{round: auditRecorded + 1, data: specData, force: force}
 	specData = engine.BlankFrontmatter(specData)
 	specLines = strings.Split(string(specData), "\n")
 	specContent = string(specData)

@@ -403,7 +403,7 @@ Modes (mutually exclusive):
 	cmd.Flags().StringVarP(&outputPath, "output", "o", "", "Output file path (for --merge)")
 	cmd.Flags().StringVar(&diffFrom, "diff-from", "", "Baseline spec for diff-based review (requires --round >= 2)")
 	cmd.Flags().BoolVar(&specInline, "spec-inline", false, "Embed full spec content inline (default: reference by path)")
-	cmd.Flags().BoolVar(&forceFlag, "force", false, "Force re-resolve already resolved findings")
+	cmd.Flags().BoolVar(&forceFlag, "force", false, "With --resolve/--resolve-all: re-resolve already resolved findings; on an emission: discard an unrecorded round's emission when the spec changed since it")
 	cmd.Flags().StringVar(&recordPath, "record", "", "Record a review round from an NDJSON findings file")
 	cmd.Flags().BoolVar(&statusMode, "status", false, "Show recorded review rounds and convergence state")
 	cmd.Flags().BoolVar(&checkFlag, "check", false, "With --status: run registered mechanical checks")
@@ -616,7 +616,7 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 	// after it: a refusal leaves the state directory exactly as it found it.
 	prompts = filterReviewPrompts(prompts, roleQueryFor(specPath, roleFilter, roleGiven), skippedRoles)
 	if !noState {
-		writeReviewRoundSnapshot(specPath, round)
+		writeReviewRoundSnapshot(cmd, specPath, round)
 	}
 
 	// Mechanical checks: workflow-derived (not state-derived), run even under
@@ -2016,11 +2016,7 @@ func loadReviewRoundState(cmd *cobra.Command, specPath string, round int, findin
 // came from, and over an edited spec, a round-N snapshot replaced by text no
 // reviewer read. The changed-sections baseline does not need it first:
 // newestEarlierSnapshot searches only the rounds below the one being emitted.
-func writeReviewRoundSnapshot(specPath string, round int) {
-	if _, err := engine.EnsureReviewState(specPath); err != nil {
-		exitStateError(err)
-		return
-	}
+func writeReviewRoundSnapshot(cmd *cobra.Command, specPath string, round int) {
 	specBytes, readErr := os.ReadFile(specPath)
 	if readErr != nil {
 		// POST-read failure: resolveReviewSpecContent already read this same
@@ -2029,6 +2025,15 @@ func writeReviewRoundSnapshot(specPath string, round int) {
 		// task-file default a hintless site would inherit.
 		output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath), readErr.Error())
 		os.Exit(ExitFile)
+		return
+	}
+	// Ahead of EnsureReviewState, so a refused re-emission writes nothing, and
+	// over the very bytes written below.
+	overwrites, owErr := engine.EmissionOverwrites(specPath, engine.PhaseReview, round, specBytes)
+	force, _ := cmd.Flags().GetBool("force")
+	guardInFlightEmission("review", specPath, round, overwrites, owErr, force)
+	if _, err := engine.EnsureReviewState(specPath); err != nil {
+		exitStateError(err)
 		return
 	}
 	// §10.2: snapshot the spec at round start (prompt emission) atomically —

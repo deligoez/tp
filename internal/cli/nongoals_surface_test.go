@@ -39,7 +39,10 @@ import (
 // `--units` are all listed below, each added by the task that registered it,
 // and §7.1's table names no fifth. The baseline is checked in both directions,
 // so a flag written here before the command registers it fails this guard
-// rather than waiting for it.
+// rather than waiting for it. `--force` came later, with the refusal to
+// re-emit over an unrecorded round whose spec changed: it is ground's explicit
+// discard of that emission, the reading review's and audit's `--force` also
+// take on their emission modes.
 const v100Surface = `
 : color compact file json no-color no-compact no-quiet quiet
 add: bulk spec stdin
@@ -53,7 +56,7 @@ config: dry-run extract force resolved
 done: auto-commit batch commit covered-by files gate-passed reason-file skip-gate stdin
 escalate: decision evidence option
 graph: from tag
-ground: check record status units
+ground: check force record status units
 import: force spec
 init: commit-strategy domain eject-roles force quality-gate
 keep: list remove

@@ -201,7 +201,12 @@ func TestAuditResolve_UsageErrors(t *testing.T) {
 		{"resolve with --record", []string{"audit", path, "--resolve", "1", "fixed", "why", "--record", path}, "cannot be combined"},
 		{"resolve with --merge", []string{"audit", path, "--resolve", "1", "fixed", "why", "--merge"}, "cannot be combined"},
 		{"both resolve modes", []string{"audit", path, "--resolve", "--resolve-all", "fixed", "why"}, "mutually exclusive"},
-		{"force without a resolve mode", []string{"audit", spec, "--force"}, "--force requires"},
+		// --force is also the emission's discard of an in-flight round, so a
+		// bare `audit <spec> --force` emits; the modes that write no emission
+		// and resolve nothing still refuse it.
+		{"force on --status", []string{"audit", spec, "--status", "--force"}, "--force requires"},
+		{"force on --record", []string{"audit", spec, "--record", path, "--force"}, "--force requires"},
+		{"force on --merge", []string{"audit", path, "--merge", "--force"}, "--force requires"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -27,13 +27,20 @@ func TestReviewStateRounds_Lifecycle(t *testing.T) {
 	require.NoError(t, err, "snapshot written at prompt generation")
 	assert.Equal(t, "# Spec\ncontent\n", string(snap1), "byte copy of the spec")
 
-	// Regenerating before recording overwrites the same round's snapshot
+	// Regenerating before recording over a CHANGED spec is refused (exit 3)
+	// and leaves the round's snapshot alone; --force discards that emission
+	// and overwrites the same round's snapshot.
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\nedited\n"), 0o600))
-	_, _, code = runTP(t, dir, "review", "spec.md")
-	require.Equal(t, 0, code)
+	_, stderr, code = runTP(t, dir, "review", "spec.md")
+	require.Equal(t, 3, code, "stderr: %s", stderr)
+	snap1a, err := os.ReadFile(filepath.Join(stateDir, "snapshot-round-1.md"))
+	require.NoError(t, err)
+	assert.Equal(t, "# Spec\ncontent\n", string(snap1a), "a refused re-emission keeps the round's snapshot")
+	_, stderr, code = runTPFence(t, dir, false, "review", "spec.md", "--force")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
 	snap1b, err := os.ReadFile(filepath.Join(stateDir, "snapshot-round-1.md"))
 	require.NoError(t, err)
-	assert.Equal(t, "# Spec\nedited\n", string(snap1b), "same-round snapshot overwritten")
+	assert.Equal(t, "# Spec\nedited\n", string(snap1b), "same-round snapshot overwritten under --force")
 
 	// Record round 1 with a finding; round 2 injects it into role prompts
 	_, _, code = recordRound(t, dir,

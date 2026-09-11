@@ -113,6 +113,22 @@ func GroundRoundPath(specPath string, round int) string {
 	return filepath.Join(ReviewStateDir(specPath), groundRoundFileName(round))
 }
 
+// GroundEmissionOverwrites is EmissionOverwrites for a ground round, which
+// emits two files: when the in-flight round's snapshot holds text other than
+// data, re-emitting replaces the floor that round is graded against as well
+// as the snapshot, and both are named. The floor is listed first because it is
+// the file --record validates against — the one whose loss is the harm.
+func GroundEmissionOverwrites(specPath string, round int, data []byte) ([]string, error) {
+	files, err := EmissionOverwrites(specPath, groundSnapshotPhase, round, data)
+	if err != nil || files == nil {
+		return nil, err
+	}
+	if _, statErr := os.Stat(GroundFloorPath(specPath, round)); statErr == nil {
+		files = append([]string{GroundFloorPath(specPath, round)}, files...)
+	}
+	return files, nil
+}
+
 // WriteGroundEmission writes the two files §7.3 says an emission writes: the
 // spec's text as this round read it, and the index derived from that text. The
 // state directory is created when absent, which is the ordering this release

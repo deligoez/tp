@@ -31,6 +31,12 @@ const (
 	EscalateImportForce     = "import-force"
 	EscalateAuditConvergeOn = "audit-converge-on"
 	EscalateAcceptFinding   = "accept-finding"
+	// EscalateDiscardEmission is --force on a review, audit or ground emission
+	// that would overwrite an unrecorded round's snapshot (and ground's floor)
+	// with a changed spec. Under a run, sibling role units grade that one
+	// emission concurrently, so a unit's discard pulls the text out from under
+	// the others; recovering a crashed round is the operator's call.
+	EscalateDiscardEmission = "discard-emission"
 	EscalateOther           = "other"
 )
 
@@ -43,6 +49,7 @@ var escalationDecisions = []string{
 	EscalateImportForce,
 	EscalateAuditConvergeOn,
 	EscalateAcceptFinding,
+	EscalateDiscardEmission,
 	EscalateOther,
 }
 

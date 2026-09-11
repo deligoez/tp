@@ -183,10 +183,19 @@ func TestTheFloorOnDiskIsFrozenUntilTheNextEmission(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, groundFixtureSpec, string(snapshot), "the snapshot still holds the text the round read")
 
-	// The one thing that does move it: emitting again. Nothing has been
-	// recorded, so this is round 1 a second time, and both artifacts are
-	// rewritten from the spec as it now stands.
-	groundEmit(t, dir)
+	// Emitting again does not move it either: nothing has been recorded, so
+	// this is round 1 a second time, over a spec that changed since, and it is
+	// refused rather than silently re-flooring a round in flight.
+	_, stderr, code := runTP(t, dir, "ground", "spec.md")
+	require.Equal(t, 3, code, "stderr: %s", stderr)
+	refused, err := os.ReadFile(floorPath)
+	require.NoError(t, err)
+	assert.Equal(t, string(emitted), string(refused), "a refused re-emission leaves the frozen floor alone")
+
+	// The one thing that does move it: an explicit --force, which discards the
+	// round's emission and rewrites both artifacts from the spec as it stands.
+	_, stderr, code = runTPFence(t, dir, false, "ground", "spec.md", "--force")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
 	reEmitted, err := os.ReadFile(floorPath)
 	require.NoError(t, err)
 	assert.Equal(t, expectedFloorIndex(edited), string(reEmitted), "a re-emission of the same round re-floors it")

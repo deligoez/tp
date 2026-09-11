@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
@@ -439,6 +440,31 @@ func InFlightRound(specPath, phase string, recordedRounds int) int {
 		return 0
 	}
 	return next
+}
+
+// EmissionOverwrites names the file an emission of round for phase would
+// replace with different text: the round's snapshot, when one is already on
+// disk and its bytes are not data. Emission numbers a round one past the last
+// recorded one, so a snapshot at that number is an unrecorded, in-flight
+// round, and its units were handed the text that snapshot holds.
+//
+// It returns nil for the two re-emissions that are safe — no snapshot yet (a
+// fresh round) and a byte-identical one (the idempotent re-emission every
+// concurrent role sibling performs). An unreadable snapshot is an error rather
+// than nil: whether overwriting it discards a round cannot be answered.
+func EmissionOverwrites(specPath, phase string, round int, data []byte) ([]string, error) {
+	snap := filepath.Join(ReviewStateDir(specPath), snapshotFilename(phase, round))
+	existing, err := os.ReadFile(snap)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	if bytes.Equal(existing, data) {
+		return nil, nil
+	}
+	return []string{snap}, nil
 }
 
 // SpecHash returns "sha256:<hex>" of the spec file's bytes.
