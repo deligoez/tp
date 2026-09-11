@@ -396,7 +396,7 @@ func hookFailClosedCases() map[string][]hookFailClosedCase {
 			return payload
 		}
 	}
-	batchPayload := func(content, lastEdit string) func(*testing.T) []byte {
+	batchPayload := func(created, lastEdit string) func(*testing.T) []byte {
 		return func(t *testing.T) []byte {
 			t.Helper()
 			op := func(tool string, args map[string]any) map[string]any {
@@ -407,7 +407,7 @@ func hookFailClosedCases() map[string][]hookFailClosedCase {
 				"tool_name":       "mcp__codedbpro__batch",
 				"tool_input": map[string]any{"ops": []any{
 					op("read", map[string]any{"file": "spec/.tp-review/1.1.0/snapshot-round-1.md"}),
-					op("create", map[string]any{"file": "docs/notes.md", "content": content}),
+					op("create", map[string]any{"file": created, "content": strings.Repeat(`"{payload}" \`, 174763)}),
 					op("faster_search", map[string]any{"path": ".tp/config.json", "pattern": "gate"}),
 					op("edit", map[string]any{"file": lastEdit, "content": "{}"}),
 				}},
@@ -417,6 +417,19 @@ func hookFailClosedCases() map[string][]hookFailClosedCase {
 			return payload
 		}
 	}
+	// roleUnit is a role unit's environment with its directories named
+	// relative to the hook's cwd, so the payload can name its files without
+	// knowing a temporary directory.
+	roleUnit := func(*testing.T) []string {
+		return []string{
+			"PATH=/usr/bin:/bin",
+			"TP_ROUND_DIR=.tp/rounds/0.35.0/review-r1",
+			"TP_UNIT_ID=implementer",
+			"TP_RUN_DIR=.tp/runs/01JB0000000000000000000000",
+			"TP_UNIT_SEQ=1",
+		}
+	}
+	const roleFindings = ".tp/rounds/0.35.0/review-r1/role-implementer.ndjson.part"
 	stopPayload := func(*testing.T) []byte {
 		return []byte(`{"hook_event_name":"Stop","stop_hook_active":false}`)
 	}
@@ -447,7 +460,7 @@ func hookFailClosedCases() map[string][]hookFailClosedCase {
 				// it must be classified without the walk grinding past the margin.
 				name:     "a batched fenced write behind 2 MiB of escaped content",
 				env:      minimal,
-				payload:  batchPayload(strings.Repeat(`"{payload}" \`, 174763), "spec/.tp-review/1.1.0/state.json"),
+				payload:  batchPayload("docs/notes.md", "spec/.tp-review/1.1.0/state.json"),
 				wantExit: 2,
 			},
 			{
@@ -458,16 +471,37 @@ func hookFailClosedCases() map[string][]hookFailClosedCase {
 				// classified them.
 				name:     "a batch whose fenced paths are all reads, behind 2 MiB of escaped content",
 				env:      minimal,
-				payload:  batchPayload(strings.Repeat(`"{payload}" \`, 174763), "internal/cli/run.go"),
+				payload:  batchPayload("docs/notes.md", "internal/cli/run.go"),
 				wantExit: 0,
 			},
 		},
-		roleWriteHookPath: {{
-			name:     "no round environment to build the allowlist from",
-			env:      minimal,
-			payload:  writePayload("internal/cli/root.go", "package cli"),
-			wantExit: 2,
-		}},
+		roleWriteHookPath: {
+			{
+				name:     "no round environment to build the allowlist from",
+				env:      minimal,
+				payload:  writePayload("internal/cli/root.go", "package cli"),
+				wantExit: 2,
+			},
+			{
+				// The allowlist walks a batch through the same classifier, so the
+				// same two experiments hold here: a write outside the unit's two
+				// files behind two megabytes of escaped content is still refused
+				// inside the margin...
+				name:     "a batched write outside the unit's files behind 2 MiB of escaped content",
+				env:      roleUnit,
+				payload:  batchPayload(roleFindings, "spec/0.35.0.md"),
+				wantExit: 2,
+			},
+			{
+				// ...and a batch whose only writes are the unit's own passes, which
+				// only a finished walk can decide, since its reads name files the
+				// unit may not write.
+				name:     "a batch writing only the unit's own files, behind 2 MiB of escaped content",
+				env:      roleUnit,
+				payload:  batchPayload(roleFindings, ".tp/runs/01JB0000000000000000000000/1-escalation.json"),
+				wantExit: 0,
+			},
+		},
 		stopHookPath: {
 			{
 				name:     "a role unit that wrote no findings file",

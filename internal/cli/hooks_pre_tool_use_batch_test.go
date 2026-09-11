@@ -28,13 +28,25 @@ var batchReadOps = []string{"read", "faster_search", "meta_search", "diff", "lin
 // per-call reading the same classification.
 func batchWriteOps(t *testing.T) []string {
 	t.Helper()
+	return codedbproWritesIn(t, pluginWriteMatcher(t))
+}
+
+// pluginWriteMatcher is the write-deny hook's matcher in hooks/hooks.json.
+func pluginWriteMatcher(t *testing.T) string {
+	t.Helper()
 	var manifest pluginHooksManifest
 	require.NoError(t, json.Unmarshal([]byte(readRepoDoc(t, pluginHooksManifestPath)), &manifest))
 	groups := manifest.Hooks["PreToolUse"]
 	require.Len(t, groups, 1)
+	return groups[0].Matcher
+}
 
+// codedbproWritesIn lists the codedbpro tools a matcher names, the carrier
+// aside: the operations a batch carries that the matcher would judge alone.
+func codedbproWritesIn(t *testing.T, matcher string) []string {
+	t.Helper()
 	var ops []string
-	for _, alt := range strings.Split(groups[0].Matcher, "|") {
+	for _, alt := range strings.Split(matcher, "|") {
 		name, ok := strings.CutPrefix(alt, "mcp__codedbpro__")
 		if ok && alt != batchTool {
 			ops = append(ops, name)
@@ -287,22 +299,30 @@ func TestPreToolUseHookPassesABatchedWriteOutsideTheFence(t *testing.T) {
 	}
 }
 
-// TestBatchReadOpsStayOutsideTheMatcher ties the hook's read set to the
-// matcher's: a codedbpro tool the matcher names is a write, so it can never be
-// a read inside a batch. A tool that gains the ability to write joins the
-// matcher and fails here until the hook stops treating it as a read.
+// TestBatchReadOpsStayOutsideTheMatcher ties the hooks' read set to their
+// matchers: a codedbpro tool a matcher names is a write, so it can never be a
+// read inside a batch. A tool that gains the ability to write joins the
+// matchers and fails here until the shared classifier stops treating it as a
+// read. Both hooks read batches through that one classifier, so the plugin's
+// matcher and each role agent's are checked alike.
 func TestBatchReadOpsStayOutsideTheMatcher(t *testing.T) {
 	t.Parallel()
-	var manifest pluginHooksManifest
-	require.NoError(t, json.Unmarshal([]byte(readRepoDoc(t, pluginHooksManifestPath)), &manifest))
-	matcher, err := regexp.Compile("^(?:" + manifest.Hooks["PreToolUse"][0].Matcher + ")$")
-	require.NoError(t, err)
-
-	for _, op := range batchReadOps {
-		assert.False(t, matcher.MatchString("mcp__codedbpro__"+op),
-			"%s is in the write matcher, so a batch must not pass it as a read", op)
+	matchers := map[string]string{pluginHooksManifestPath: pluginWriteMatcher(t)}
+	for _, rel := range []string{agentReviewerFile, agentAuditorFile} {
+		groups := readAgentDefinition(t, rel).Hooks["PreToolUse"]
+		require.Len(t, groups, 1, "%s", rel)
+		matchers[rel] = groups[0].Matcher
 	}
-	for _, op := range batchWriteOps(t) {
-		assert.NotContains(t, batchReadOps, op)
+
+	for rel, raw := range matchers {
+		matcher, err := regexp.Compile("^(?:" + raw + ")$")
+		require.NoError(t, err, "%s", rel)
+		for _, op := range batchReadOps {
+			assert.False(t, matcher.MatchString("mcp__codedbpro__"+op),
+				"%s: %s is in the write matcher, so a batch must not pass it as a read", rel, op)
+		}
+		for _, op := range codedbproWritesIn(t, raw) {
+			assert.NotContains(t, batchReadOps, op, "%s", rel)
+		}
 	}
 }

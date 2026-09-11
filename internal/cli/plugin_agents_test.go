@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"os"
@@ -185,11 +184,19 @@ func runRoleWriteHook(t *testing.T, unit roleUnitEnv, toolName string, toolInput
 	})
 	require.NoError(t, err)
 
+	return runRoleWriteHookRaw(t, unit, string(payload))
+}
+
+// runRoleWriteHookRaw feeds the allowlist hook a payload byte for byte, for the
+// cases json.Marshal cannot write: duplicate keys and escaped key spellings.
+func runRoleWriteHookRaw(t *testing.T, unit roleUnitEnv, payload string) preToolUseRun {
+	t.Helper()
+
 	script := filepath.Join(repoRoot(t), filepath.FromSlash(roleWriteHookPath))
 	cmd := exec.Command(script) //nolint:gosec // a fixed path inside the repo under test
 	cmd.Env = unit.env()
 	cmd.Dir = repoRoot(t)
-	cmd.Stdin = bytes.NewReader(payload)
+	cmd.Stdin = strings.NewReader(payload)
 
 	var stdout, stderr strings.Builder
 	cmd.Stdout = &stdout

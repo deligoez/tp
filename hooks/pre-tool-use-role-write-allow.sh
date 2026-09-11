@@ -145,6 +145,26 @@ same_path() {
 	return 1
 }
 
+# A codedbpro batch is judged op by op, each as the same call made alone would
+# be, through drop-batch-reads.awk - the classifier the deny fence beside this
+# script uses too, so the two hooks cannot disagree about what a read is. It
+# cuts every read op out of the payload, and the extraction below holds what is
+# left - every write, every op it cannot classify - to the unit's two files, as
+# before. Without this a role unit that batched a read of the spec it was
+# spawned to review was refused as "not this unit's to write", while the same
+# read made as its own call never reaches this hook.
+#
+# Only a batch is walked. A walk that fails, finds nothing to drop, or cannot
+# find the classifier at all leaves `payload` as it arrived, so the allowlist
+# can loosen only by the reads it positively identified.
+case $payload in
+*'"mcp__codedbpro__batch"'*)
+	if reduced=$(printf '%s\n' "$payload" | awk -f "${0%/*}/drop-batch-reads.awk" 2>/dev/null); then
+		payload=$reduced
+	fi
+	;;
+esac
+
 # Write, Edit and MultiEdit name their target `file_path`. Notebook payloads
 # have been seen under both `file_path` and `notebook_path`, so both are read
 # and one hook covers all four tools in the matcher. codedbpro's create, edit
