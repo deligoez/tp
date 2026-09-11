@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -29,6 +30,7 @@ func TestRuneBoundaryAtOrBefore(t *testing.T) {
 		{"four-byte rune ending at n", "a😀b", 5, 5},
 		{"stray continuation bytes stay", "a\x80\x80\x80\x80b", 5, 5},
 		{"invalid lead byte stays", "a\xffb", 2, 2},
+		{"a rune split at the start of the string backs off to 0", "ıx", 1, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -57,4 +59,14 @@ func TestCapSpecContent(t *testing.T) {
 	assert.Equal(t, SpecCut{Path: "/specs/s.md", KeptBytes: SpecContentCap - 1, TotalBytes: len(over)}, *cut)
 	assert.Equal(t, over[:SpecContentCap-1]+"\n[...spec truncated at 9999 of 10001 bytes; read the rest at /specs/s.md]", got)
 	assert.True(t, utf8.ValidString(got))
+}
+
+// TestCapSpecContent_ARelativePathIsNamedAbsolute: the cut names the spec by
+// its absolute path, so a role reading the rest can open it from anywhere.
+func TestCapSpecContent_ARelativePathIsNamedAbsolute(t *testing.T) {
+	t.Parallel()
+	_, cut := CapSpecContent(strings.Repeat("a", SpecContentCap+1), "specs/s.md")
+	require.NotNil(t, cut)
+	assert.True(t, filepath.IsAbs(cut.Path), "a relative spec path is named absolute: %s", cut.Path)
+	assert.True(t, strings.HasSuffix(cut.Path, filepath.Join("specs", "s.md")))
 }

@@ -55,3 +55,15 @@ func TestReadFilesCappedCutsOnRuneBoundary(t *testing.T) {
 		assert.Equal(t, strings.Repeat("y", 149), head, "the cut backs off to the rune boundary before the cap")
 	})
 }
+
+// TestReadFilesCapped_AFileExactlyAtThePerFileCapIsWhole: the per-file cap
+// cuts only past it; a file of exactly the cap is read whole, with no marker.
+func TestReadFilesCapped_AFileExactlyAtThePerFileCapIsWhole(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "exact.go")
+	body := strings.Repeat("a", 64)
+	require.NoError(t, os.WriteFile(path, []byte(body), 0o600))
+	got := ReadFilesCapped([]string{path}, 64, 1000, "file")
+	assert.Equal(t, body, got[path], "a file exactly at the cap carries no truncation marker")
+}
