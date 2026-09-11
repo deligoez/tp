@@ -57,6 +57,28 @@ func TestBuildBlockers_SpecStaleEscalate(t *testing.T) {
 	assert.Equal(t, "spec.md", bs[0].Data["spec"])
 }
 
+// TestBuildBlockers_SpecStaleNamesTheClearingSequence: the spec-stale message
+// fills this spec's path into the two steps that clear it — emit a review round
+// over the new text, then record it — in both phases the blocker fires in.
+func TestBuildBlockers_SpecStaleNamesTheClearingSequence(t *testing.T) {
+	t.Parallel()
+	const spec = "docs/specs/feature.md"
+	for _, tc := range []struct {
+		phase string
+		tf    *model.TaskFile
+	}{
+		{PhaseImplement, &model.TaskFile{Tasks: []model.Task{{ID: "t", Status: model.StatusOpen}}}},
+		{PhaseAudit, &model.TaskFile{Tasks: []model.Task{{ID: "t", Status: model.StatusDone}}}},
+	} {
+		bs := BuildBlockers(&BlockerInputs{Phase: tc.phase, ReviewStale: true, SpecPath: spec, TaskFile: tc.tf})
+		require.Len(t, bs, 1, tc.phase)
+		assert.Equal(t, "spec-stale", bs[0].Code, tc.phase)
+		assert.Equal(t, spec, bs[0].Data["spec"], tc.phase)
+		assert.Contains(t, bs[0].Message, "tp review "+spec+",", "%s: names the emission", tc.phase)
+		assert.Contains(t, bs[0].Message, "tp review "+spec+" --record <file>", "%s: names the recording", tc.phase)
+	}
+}
+
 func TestBuildBlockers_FixedEmissionOrder(t *testing.T) {
 	tf := &model.TaskFile{Tasks: []model.Task{{ID: "t", Status: model.StatusWIP}}}
 	bs := BuildBlockers(&BlockerInputs{Phase: PhaseImplement, Changes: []string{"x"}, ReviewStale: true, SpecPath: "s.md", TaskFile: tf})

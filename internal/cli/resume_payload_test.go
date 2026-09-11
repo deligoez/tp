@@ -81,6 +81,29 @@ func TestResume_ImplementPayloadNoReadyBlocker(t *testing.T) {
 	assert.Equal(t, []any{"missing"}, b["data"].(map[string]any)["blocked_by"])
 }
 
+// TestResume_SpecStaleBlockerNamesTheClearingSequence: a spec edited after its
+// last recorded review round raises spec-stale, and the blocker names the two
+// steps that clear it for this spec — emit a review round over the new text,
+// then record it — instead of a bare "reconcile it".
+func TestResume_SpecStaleBlockerNamesTheClearingSequence(t *testing.T) {
+	t.Parallel()
+	dir := newPayloadRepo(t, `[{"id":"t1","title":"T","status":"open","depends_on":[],"estimate_minutes":5,"acceptance":"a","source_sections":["x"]}]`)
+	writeConvergedRounds(t, dir, 2, 0)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# S\n\nedited after review\n"), 0o600))
+
+	res := resumeResult(t, dir)
+	assert.Equal(t, "implement", res["phase"])
+	b := blockerByCode(res, "spec-stale")
+	require.NotNil(t, b, "the edited spec raises spec-stale")
+	spec, ok := b["data"].(map[string]any)["spec"].(string)
+	require.True(t, ok, "data.spec names the spec")
+	assert.Equal(t, res["spec"], spec, "data.spec is the resolved spec path")
+	msg, ok := b["message"].(string)
+	require.True(t, ok, "the blocker carries a message")
+	assert.Contains(t, msg, "tp review "+spec+",", "the message names the emission for this spec")
+	assert.Contains(t, msg, "tp review "+spec+" --record <file>", "the message names the recording for this spec")
+}
+
 func TestResume_ReviewPayloadFirstRound(t *testing.T) {
 	t.Parallel()
 	dir := newPayloadRepo(t, `[]`)

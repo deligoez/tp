@@ -98,13 +98,17 @@ func BuildBlockers(in *BlockerInputs) []Blocker {
 		})
 	}
 
-	// spec-stale — escalate: the spec changed since the last review round while implementing/auditing.
+	// spec-stale — escalate: the spec changed since the last review round while
+	// implementing/auditing. The message names the step that re-reads the new
+	// text — emit a review round, then record it — with <file> left literal, as
+	// in the review loop's own next_action.
 	if in.ReviewStale && (in.Phase == PhaseImplement || in.Phase == PhaseAudit) {
 		blockers = append(blockers, Blocker{
-			Code:    "spec-stale",
-			Class:   ClassEscalate,
-			Message: "the spec changed after the last recorded review round; reconcile it before continuing",
-			Data:    map[string]any{"spec": in.SpecPath},
+			Code:  "spec-stale",
+			Class: ClassEscalate,
+			Message: fmt.Sprintf("the spec changed after the last recorded review round; run a review round over the new text: tp review %s, then tp review %s --record <file>",
+				in.SpecPath, in.SpecPath),
+			Data: map[string]any{"spec": in.SpecPath},
 		})
 	}
 
