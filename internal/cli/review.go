@@ -875,10 +875,15 @@ Optional "class" field: add "class":"<kebab-case-slug>" (example: "code-citation
 
 Only report real issues. Do not generate findings just to appear thorough.`
 
+// overSpecificationInstruction names the one finding class whose fix is a
+// deletion. Nothing but this text caps its severity, so it says the cap: the
+// class must not hold a round open on its own.
+const overSpecificationInstruction = "  Canonical class `over-specification`: a detail whose correctness can only be established against code, prescribed in the spec where it belongs in task acceptance instead. Raise it when the spec pins mechanism a task's acceptance should own. Record it at most medium: it is an altitude smell, and it never blocks a round by itself.\n"
+
 const specOnlyDisclaimer = `
 IMPORTANT: This is a SPEC REVIEW. Review ONLY the spec document text.
 Do NOT check implementation code or report "not implemented" findings.
-Focus on: completeness, ambiguity, contradictions, missing edge cases, testability.
+Focus on: requirements that contradict each other or the stated goal, cannot be satisfied, or read two ways that two correct implementations would disagree on.
 `
 
 func appendAffectedChecklist(b *strings.Builder, n int, hasAffectedFiles bool) {
@@ -1196,7 +1201,7 @@ func outputContractInstruction(role, phase string) string {
 	b.WriteString("- location: a section anchor such as \"§3.2\" — the first §<n>(.<n>)* token — so findings dedup by section\n")
 	b.WriteString("- class: a kebab-case slug naming the failure class (the dedup/cluster key)\n")
 	if phase == engine.PhaseReviewers {
-		b.WriteString("  Canonical class `over-specification`: a detail whose correctness can only be established against code, prescribed in the spec where it belongs in task acceptance instead. Raise it (typically low/medium — an altitude smell, not a blocking defect) when the spec pins mechanism a task's acceptance should own.\n")
+		b.WriteString(overSpecificationInstruction)
 	}
 	if phase == engine.PhaseAuditors {
 		// The severity vocabularies differ by phase on purpose, and this
