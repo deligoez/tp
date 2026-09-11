@@ -74,6 +74,13 @@ func resolveCycle(args []string) (taskFilePath, specPath string, tf *model.TaskF
 	} else {
 		// No spec argument: discover the active task file and derive the spec.
 		discovered, err := engine.DiscoverTaskFile(".", flagFile)
+		if errors.Is(err, engine.ErrMultipleTaskFiles) {
+			// Several task files: name them and --file / TP_FILE, as every
+			// other command does, rather than claiming none was found.
+			output.Error(ExitFile, err.Error())
+			os.Exit(ExitFile)
+			return "", "", nil
+		}
 		if err != nil {
 			output.Error(ExitFile, "no task file found", "run tp init <spec> or pass a spec path")
 			os.Exit(ExitFile)

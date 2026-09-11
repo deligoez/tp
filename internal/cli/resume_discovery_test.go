@@ -17,6 +17,33 @@ func TestResume_NoTaskFileNoArgExit3(t *testing.T) {
 	_, stderr, code := runTP(t, dir, "resume")
 	assert.Equal(t, 3, code)
 	assert.Contains(t, stderr, "no task file found")
+	assert.Contains(t, stderr, "or pass a spec path", "the no-file hint stays (spec/0.28.0.md §4.1)")
+	assert.NotContains(t, stderr, "multiple task files")
+}
+
+// TestResume_SeveralTaskFilesNoArgNamesTheCandidates: with two task files and
+// no active pointer, the no-argument form said "no task file found" whatever
+// discovery failed on. It must report the discovery error the other commands
+// give — both candidates and how to pick one — at the same exit 3.
+func TestResume_SeveralTaskFilesNoArgNamesTheCandidates(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	for _, base := range []string{"a", "b"} {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, base+".md"), []byte("# "+base+"\n"), 0o600))
+		_, stderr, code := runTP(t, dir, "init", base+".md")
+		require.Equal(t, 0, code, stderr)
+	}
+
+	_, statusErr, statusCode := runTP(t, dir, "status")
+	require.Equal(t, 3, statusCode, statusErr)
+
+	_, stderr, code := runTP(t, dir, "resume")
+	assert.Equal(t, 3, code, stderr)
+	assert.Contains(t, stderr, "multiple task files", "resume must report the discovery error")
+	assert.Contains(t, stderr, "a.tasks.json", "the error names the first candidate")
+	assert.Contains(t, stderr, "b.tasks.json", "the error names the second candidate")
+	assert.NotContains(t, stderr, "no task file found", "task files exist, so not-found is wrong")
+	assert.Equal(t, statusErr, stderr, "resume reports the same discovery error as tp status")
 }
 
 func TestResume_SpecArgumentWinsOverDiscovered(t *testing.T) {
