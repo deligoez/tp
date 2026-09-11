@@ -48,6 +48,21 @@ func findingResolvedAway(row map[string]any) bool {
 	return status == "wontfix" || status == "duplicate"
 }
 
+// findingOpen is the one predicate for whether a recorded row of a phase's
+// round is a finding still open: every review row is a finding, an audit row
+// only when it is non-PASS, and a finding stays open until it is resolved
+// wontfix or duplicate with non-empty evidence. A finding resolved fixed stays
+// open, because its round is not clean until a later round re-reads the
+// repair. The review and audit clean graders and tp resume's
+// unresolved_findings all read it, so no two surfaces can count one row
+// differently.
+func findingOpen(phase string, row map[string]any) bool {
+	if phase == PhaseAudit && AuditRowIsPass(row) {
+		return false
+	}
+	return !findingResolvedAway(row)
+}
+
 // ReviewRoundClean recomputes a recorded review round's cleanliness live from
 // its recorded findings under review_converge_on (§3.4, §4.1). The surviving
 // set is the round's recorded findings minus those resolved wontfix/duplicate
@@ -67,7 +82,7 @@ func ReviewRoundClean(specPath string, entry *ReviewRound, convergeOn string) bo
 	survivingBlocking := 0
 	surviving := 0
 	for _, row := range rows {
-		if findingResolvedAway(row) {
+		if !findingOpen(PhaseReview, row) {
 			continue
 		}
 		surviving++
@@ -110,7 +125,7 @@ func ReviewRoundNonBlockingOpen(specPath string, entry *ReviewRound, convergeOn 
 	}
 	n := 0
 	for _, row := range rows {
-		if findingResolvedAway(row) {
+		if !findingOpen(PhaseReview, row) {
 			continue
 		}
 		if !reviewSeverityBlocking(row) {

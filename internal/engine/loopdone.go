@@ -131,14 +131,15 @@ func AuditRoundClean(specPath string, entry *ReviewRound) bool {
 	return AuditRowsCleanLive(rows, policy)
 }
 
-// AuditRowsCleanLive grades rows as AuditRowsClean does after dropping the
-// rows accepted wontfix/duplicate with evidence. --record stamps with it, so
-// a row that arrives already accepted does not dirty the round it is recorded
-// in, matching review.
+// AuditRowsCleanLive grades the round's open findings (findingOpen) as
+// AuditRowsClean does: the rows accepted wontfix/duplicate with evidence are
+// dropped, and so are PASS rows, which AuditRowsClean never grades. --record
+// stamps with it, so a row that arrives already accepted does not dirty the
+// round it is recorded in, matching review.
 func AuditRowsCleanLive(rows []map[string]any, convergeOn string) bool {
 	live := make([]map[string]any, 0, len(rows))
 	for _, row := range rows {
-		if !findingResolvedAway(row) {
+		if findingOpen(PhaseAudit, row) {
 			live = append(live, row)
 		}
 	}

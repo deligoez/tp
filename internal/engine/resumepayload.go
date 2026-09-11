@@ -90,9 +90,11 @@ func ImplementPreview(tf *model.TaskFile) (id string, wip, hasTask bool) {
 
 // roundPayload computes {round, unresolved_findings} for a review/audit
 // sequence: round is len(rounds)+1, and unresolved is the count of the last
-// round's findings whose resolved.status is absent or is a value other than
-// "wontfix" — 0 for the first round, which has no previous round (§4.4).
-func roundPayload(specPath string, rounds []ReviewRound) (round, unresolved int) {
+// round's open findings (findingOpen) — the set the phase's clean grading
+// reads, so a finding `tp review --status` has taken out of a round is not
+// counted here and one it still grades is. 0 for the first round, which has no
+// previous round (§4.4).
+func roundPayload(specPath, phase string, rounds []ReviewRound) (round, unresolved int) {
 	round = len(rounds) + 1
 	if len(rounds) == 0 {
 		return round, 0
@@ -102,22 +104,11 @@ func roundPayload(specPath string, rounds []ReviewRound) (round, unresolved int)
 		return round, 0
 	}
 	for _, r := range rows {
-		if findingResolvedStatus(r) != "wontfix" {
+		if findingOpen(phase, r) {
 			unresolved++
 		}
 	}
 	return round, unresolved
-}
-
-// findingResolvedStatus returns a finding row's resolved.status, or "" when the
-// row has no resolved object or no status string.
-func findingResolvedStatus(row map[string]any) string {
-	resolved, ok := row["resolved"].(map[string]any)
-	if !ok {
-		return ""
-	}
-	s, _ := resolved["status"].(string)
-	return s
 }
 
 // reviewRoundsOf and auditRoundsOf read a phase's rounds from a possibly-nil
@@ -164,7 +155,7 @@ func BuildNextAction(phase, specPath string, tf *model.TaskFile, st *ReviewState
 				Payload:      map[string]any{"action": "record-round", "round": inFlight},
 			}
 		}
-		round, unresolved := roundPayload(specPath, rounds)
+		round, unresolved := roundPayload(specPath, PhaseReview, rounds)
 		return NextAction{
 			Command:      cmd("tp review " + specPath),
 			BriefCommand: cmd(fmt.Sprintf("tp review %s --round %d", specPath, round)),
@@ -182,7 +173,7 @@ func BuildNextAction(phase, specPath string, tf *model.TaskFile, st *ReviewState
 				Payload:      map[string]any{"action": "record-round", "round": inFlight},
 			}
 		}
-		round, unresolved := roundPayload(specPath, rounds)
+		round, unresolved := roundPayload(specPath, PhaseAudit, rounds)
 		return NextAction{
 			Command:      cmd("tp audit " + specPath),
 			BriefCommand: cmd("tp audit " + specPath),
