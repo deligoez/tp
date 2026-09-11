@@ -60,7 +60,7 @@ One line per task:
 - `id` and `reason`: required. For N ≥ 2 acceptance criteria, `reason` must contain ≥ N lines each starting with `- ` (the `\n` in the string is literal). An optional trailing line beginning `Out of scope:` is accepted, preserved verbatim in `closed_reason`, and surfaced by `tp report` — the home for a problem found outside the task's acceptance (the scope fence forbids fixing it; record it instead).
 - `skip_gate`: optional string; when non-empty, that entry closes with `gate_skipped_reason` recorded and does not require the gate to pass (needs user approval). Present-but-empty fails the entry.
 - `started_at`: ISO 8601 timestamp when you began the task (optional, enables `tp report`).
-- `commit`: git commit SHA (optional).
+- `commit`: a git commit SHA, or an array of them (optional). `commit_shas` is accepted too; a row naming both fails and the other rows still close. A row that does not parse is reported by its line number.
 - `gate_passed`: gate-less projects only; the gate now runs automatically once per batch invocation.
 
 The batch gate runs once before any entry is processed, iff at least one surviving entry does not carry `skip_gate`. On gate failure, `skip_gate` entries still close and every other entry fails.
@@ -68,6 +68,8 @@ The batch gate runs once before any entry is processed, iff at least one survivi
 ## Task File Discovery
 
 Priority: `--file` flag > `TP_FILE` env var > `.tp/local.json` active pointer > auto-detect (current dir, then one level of subdirs). The legacy `.tp-active` marker was removed in v0.25.0.
+
+Every task-file write reports the file it wrote as `file`, relative to the directory the command ran in. A write the pointer resolved while another task file is in reach (the cwd, its subdirectories, the file's own directory) prints one stderr notice naming the file, the pointer and the candidates; `tp init` and `tp import` warn when the pointer names another existing task file, and leave it where it is.
 
 Set active task file persistently:
 ```bash
@@ -95,7 +97,7 @@ Resolves the task file by the discovery order (a spec argument wins and uses its
 | `kept` | byte-sorted `{path, reason}` — uncommitted paths matched by the keep-list |
 | `bookkeeping` | `[]` of `{path, kind, ref}` — tp-owned dirty files that need committing (§5.2). `kind` ∈ `closure` (the task file; `ref` = task id) / `round` (a `.tp-review/` round or snapshot file; `ref` = round number) / `config` (any other dirty `.tp/` state; `ref` = basename). Reported separately from `changes` and never an `unexplained-changes` blocker. Under `commit_strategy: hc` a close legitimately leaves these modified |
 | `guidance` | one-line implement-phase note (run each unit in a fresh subagent/context); absent outside `implement` |
-| `next_action` | `{command, brief_command, summary, payload}`; `command` is null for `decompose`/`release`. `brief_command` names the command that produces the brief for this phase. Payload: review/audit `{round, unresolved_findings}` (round = recorded+1, 0 unresolved on round 1), implement `{task: {id}|null, wip}`, `{action:"record-round", round:N}` when a snapshot exists without its recorded round, decompose/release `{}` |
+| `next_action` | `{command, brief_command, summary, payload}`; `command` is null for `decompose`/`release`. `brief_command` names the command that produces the brief for this phase. Payload: review/audit `{round, unresolved_findings}` (round = recorded+1, 0 unresolved on round 1; `unresolved_findings` counts the last round's open findings — every review row and every non-`PASS` audit row not resolved `wontfix`/`duplicate` with evidence, so a `fixed` row still counts), implement `{task: {id}|null, wip}`, `{action:"record-round", round:N}` when a snapshot exists without its recorded round, decompose/release `{}` |
 | `blockers` | `{code, class, message, data}` in fixed code order |
 | `next_units` (v0.35.0) | ordered `[]` of `{kind, id, brief_command}` — the units a driver should execute **now**. `[]` when the phase is blocked, awaiting an operator decision, or `release`. Concurrency is not repeated per entry: it is fixed per kind (see [Unattended Run](#unattended-run-v0350)) |
 | `round` (v0.35.0) | the round `next_units` belongs to — the round being collected for role units, the round just recorded for the resolve/fix kinds — and `null` outside a round-based phase |
@@ -105,7 +107,7 @@ Resolves the task file by the discovery order (a spec argument wins and uses its
 
 `--compact` drops `next_action.summary`, each `kept[].reason`, and each `blockers[].message`; keeps every `data` plus `bookkeeping`, `guidance` and `next_units` (all decision-critical — §8.4).
 
-Blocker vocabulary (fixed order): `unexplained-changes` (**agent-clearable**, `{count}`), `no-ready-task` (escalate, `{blocked_by}`), `review-budget-exhausted` / `audit-budget-exhausted` (escalate, `{cap}`; 0 = no cap, never fires), `spec-stale` (escalate, `{spec}`).
+Blocker vocabulary (fixed order): `unexplained-changes` (**agent-clearable**, `{count}`), `no-ready-task` (escalate, `{blocked_by}`), `review-budget-exhausted` / `audit-budget-exhausted` (escalate, `{cap, blocking_fixed_at_cap}`; fires when the cap is reached and the loop is not done, never under cap 0), `spec-stale` (escalate, `{spec}`).
 
 ### `commit_strategy` — `builtin` / `auto` / `hc`
 
@@ -184,7 +186,7 @@ kinds and no others; `(kind, id)` identifies a unit, and `id` is its durable sub
 | `decompose` | spec base name | the task file holds at least one task | alone | `tp resume` |
 | `audit-role` | role id | `$TP_ROUND_DIR/role-$TP_UNIT_ID.ndjson` exists and every content line parses | parallel with sibling roles | `tp audit <spec>` |
 | `audit-record` | round number | `$TP_ROUND_DIR/merged.ndjson` **and** an audit round file for `$TP_ROUND` exist | alone | the `tp audit` form of the review-record command above, with `;` in place of `&&` — see below |
-| `audit-fix` | the finding's `role:item_id` | that row carries a disposition in the round's results file | alone | `tp audit <spec> --status` |
+| `audit-fix` | the finding's `role:item_id` | every non-`PASS` row under that key carries a disposition in the round's results file | alone | `tp audit <spec> --status` |
 
 An attempt **succeeded** when the child exited 0 **and** the kind's durable write is present; either
 alone is a failed attempt. Every predicate is a state, never a delta, which is what lets the `Stop`
@@ -196,23 +198,15 @@ with `&&`, so a merge that refuses ends the unit at its own stderr diagnosis ins
 because a shell reads it as `(A || B) && C`: the guarded path (`X` present, merge skipped) and the
 merged path (`X` absent, merge exits 0) each run the record, and only a refused merge stops the
 chain. That is a real fence — `tp review --merge` leaves nothing at `-o` when it refuses. The
-**audit** side chains with `;` instead, because `tp audit --merge` writes `-o` before exiting 1 (§4
-of v1.1.0 fences the audit phase out): the record step runs against that leftover, and the `[ -f ]`
+**audit** side chains with `;` instead, because `tp audit --merge` writes `-o` before exiting 1: the
+record step runs against that leftover, and the `[ -f ]`
 guard sees it again on a retry, so re-run an audit record unit from a clean round directory rather
 than over it.
 
-**The emitted brief differs from the form above in one way, and no longer in two.**
-`recordBriefCommand` in `internal/engine/briefcommand.go` renders one template for both record kinds
-and picks the separator by phase — review joins the two steps with `&&` since v1.1.0, audit keeps
-`;` for the reason above — so on the review side the emitted string and the documented one now
-agree on the chaining. They still differ on quoting: the emitted string leaves `$TP_ROUND_DIR` bare.
-Measured under `sh`: with the variable unset, `[ -f $TP_ROUND_DIR/merged.ndjson ]` is simply false
-and the merge runs with `-o /merged.ndjson`; with a space in the value the test dies with
-`[: a: binary operator expected` and exits **2**, which the chain reads as an ordinary false, and
-`$TP_ROUND_DIR/role-*.ndjson` splits into two argv entries (`a` and `b/role-*.ndjson`, the second
-unexpanded). The form above quotes the variable and leaves the glob outside the quotes
-(`"$TP_ROUND_DIR"/role-*.ndjson`), which is what makes both correct while still expanding. Run that
-form; the emitted string is single-sourced in that file and is what a later release has to change.
+**The emitted brief differs from the form above in its quoting.** `recordBriefCommand` in
+`internal/engine/briefcommand.go` leaves `$TP_ROUND_DIR` bare, so an unset variable merges into
+`/merged.ndjson` and a value with a space splits into two arguments. The form above quotes the
+variable and leaves the glob outside the quotes (`"$TP_ROUND_DIR"/role-*.ndjson`); run that form.
 
 A role unit writes `role-<id>.ndjson.part`; the **driver's rename** to the final name on exit 0 is
 what completes the durable write, so a crashed unit's partial file is never mistaken for a clean
@@ -340,6 +334,8 @@ agent:
 | `tp set --workflow review_max_rounds=` / `audit_max_rounds=` **above** the resolved value | exit 2, same shape |
 | `tp set --workflow run_max_*=` **above** the resolved value | exit 2, same shape |
 | `tp import --force` | exit 2, same shape |
+| accepting a finding without a change — `wontfix`/`duplicate` on a critical or high review finding, or on any audit finding, at `--resolve` or `--resolve-all` | exit 2, escalates under `--decision accept-finding`; `fixed` is not fenced |
+| `--force` on a `tp ground`/`tp review`/`tp audit` emission that would discard an unrecorded round | exit 2, escalates under `--decision discard-emission`: sibling role units grade one emission concurrently |
 | `tp set --workflow runner=` / `tp set --local notify_cmd=`, at **any** layer | exit 2, `names a command the driver executes and cannot be set under TP_UNATTENDED, at any layer` |
 | a change of `quality_gate` — **any** `tp set --workflow quality_gate=` write, at either layer; at `tp import`, `tp init --quality-gate` and `tp config --extract`, a write that **changes the gate that resolves** (carrying the current gate forward passes) | exit 2, `<what> changes the quality gate every close runs, which is a user-approved decision refused under TP_UNATTENDED`; the hint names that sink's own exit and escalates under `--decision skip-gate`, since a rewritten gate is a skipped one |
 | a write of `audit_converge_on` that relaxes the audit gate (v0.37.0) — at `tp set --workflow`, `tp import` and `tp config --extract`, one that **changes the resolved value to `blocking`**; at `tp set --workflow --project`, **any** write of `blocking` | exit 2. The three change-rule sinks say `<what> changes the resolved audit_converge_on from <before> to blocking, which relaxes the audit gate and is a user-approved decision refused under TP_UNATTENDED`; the `--project` sink names no resolved value and says `<what> writes blocking into the layer every base resolves through, including bases tp cannot enumerate; blocking is the value that relaxes the audit gate, …`. Each hint names that sink's own exits and escalates under `--decision audit-converge-on` |
@@ -349,9 +345,7 @@ and exits 0, since lowering a budget cannot manufacture convergence. The excepti
 means *disabled* for both budget fields rather than *lowest*: setting either to 0 while the resolved
 value is non-zero is a **raise** and is refused, while setting 0 where 0 already resolves is
 accepted. Under the variable the fence applies to
-every write path a fenced field has. (An earlier version of this sentence named `TP_RUN_MAX_UNITS`
-and `TP_REVIEW_MAX_ROUNDS` as an env layer the fence ignores; neither variable exists in any
-non-test source, and workflow fields have no env layer to ignore.)
+every write path a fenced field has.
 
 **`audit_converge_on` is fenced under `TP_UNATTENDED=1` at all four write paths, and the rule differs
 by sink (v0.37.0).** At `tp set --workflow`, `tp import` and `tp config --extract` it is a **change
@@ -409,7 +403,7 @@ An escalation is a normal, expected outcome, not a crash. `tp escalate --decisio
 ```
 
 `decision` is one of `skip-gate`, `raise-review-cap`, `raise-audit-cap`, `import-force`,
-`audit-converge-on`, `other`;
+`audit-converge-on`, `accept-finding`, `discard-emission`, `other`;
 `--option` is repeatable and `options` is `[]` when none is given. Outside a run (`TP_RUN_DIR` unset)
 the command is a **usage error**, so it cannot be used to fabricate a record.
 
@@ -459,7 +453,7 @@ the `SessionStart` hook fails with the install command rather than degrading qui
 | Event | Matcher | Behaviour |
 |---|---|---|
 | `SessionStart` | `*` | preflight `tp`'s presence and version, then inject `tp resume --compact` as additional context |
-| `PreToolUse` | `Write\|Edit\|MultiEdit\|NotebookEdit` | deny writes to `.tp-review/` contents, `*.tasks.json`, `.tp/config.json` and `.tp/local.json` |
+| `PreToolUse` | `Write\|Edit\|MultiEdit\|NotebookEdit` and codedbpro's `create`/`edit`/`patch`/`replace`/`batch` | deny writes to `.tp-review/` contents, `*.tasks.json`, `.tp/config.json` and `.tp/local.json`; a `batch` is judged op by op, so one whose ops are all reads passes |
 | `Stop` | — | inside a role unit whose findings file fails its predicate and with no escalation record, block **once** with the reason |
 
 The session hook deliberately does not branch on the matcher (`clear` is not reliably reported on
@@ -534,16 +528,16 @@ spec/
 
 | Field | Type | Default | Range | `tp set --workflow` |
 |-------|------|---------|-------|---------------------|
-| `quality_gate` | string | `""` | — | task-level read-only (author at `tp init --quality-gate`); the project default is settable with `tp set --workflow --project` |
+| `quality_gate` | string | `""` | — | settable at both layers, attended only; at the task layer `quality_gate=` removes the override (reply `"removed": ["quality_gate"]`) rather than storing an empty gate. Switching a spec's gate off is `--skip-gate` with a recorded reason |
 | `gate_timeout_seconds` | int | 600 | 30-3600 | settable |
 | `lock_timeout_seconds` | int | 5 | 1-60 | settable (§12.1: write-lock retry/backoff window; timeout exits 4) |
-| `checks` | array of `{class, cmd}` | `[]` | — | settable (replace semantics) |
+| `checks` | array of `{class, cmd}` | `[]` | — | settable (replace semantics). A check exits 0 when it passed and 1 when it found violations; anything else — 2 or higher, 126/127, a signal, a start failure, a timeout — could not run, is reported `ran: false` in `mechanical_checks`, and does not suppress its class |
 | `review_clean_rounds` | int | 2 | 1-10 | settable |
 | `audit_clean_rounds` | int | 2 | 1-10 | settable |
 | `review_converge_on` | string | `blocking` | `blocking`\|`all` | settable (a review round is **clean** when no surviving finding is critical/high under `blocking`, or when no finding survives under `all`; audit never reads it) |
 | `audit_converge_on` | string | `all` | `blocking`\|`all` | settable, and the one **fenced under `TP_UNATTENDED`** — by a change rule at `tp set --workflow`, `tp import` and `tp config --extract`, and by a value rule at `tp set --workflow --project` (v0.37.0; an audit round is **clean** when it has no non-`PASS` row under `all`, or when no non-`PASS` row carries a blocking severity under `blocking`; review never reads it) |
-| `review_max_rounds` | int | 0 | 0-50 | settable (0 = no cap) |
-| `audit_max_rounds` | int | 0 | 0-50 | settable (0 = no cap) |
+| `review_max_rounds` | int | 3 | 0-50 | settable (0 = no cap); at the cap the loop is done once every finding of the latest round carries a disposition |
+| `audit_max_rounds` | int | 3 | 0-50 | settable (0 = no cap); as `review_max_rounds` |
 | `run_max_units` | int | 100 | 1-10000 | settable (v0.35.0; `tp run` cap) |
 | `run_max_wall_clock_seconds` | int | 28800 | 60-604800 | settable (v0.35.0) |
 | `run_max_budget_usd` | number | 0 (disabled) | 0-10000 | settable (v0.35.0; decimal dollars) |
@@ -577,11 +571,12 @@ read by the other phase: review grades `critical`/`high` as blocking, audit grad
 being clean under `blocking`. `severity` on an audit row is self-declared and nothing on the audit
 path validates it, which is why the default is not `blocking`.
 
-An audit round's `clean` verdict is **stamped at record time, not recomputed live** (the review twin
-recomputes). Setting the knob therefore governs rounds recorded *after* it is set, in both
-directions: a round recorded under `blocking` keeps `clean: true` when the knob returns to `all`, so
-one approved round of `blocking` relaxes that cycle's streak permanently — re-record the round to
-undo it. `role_streaks[].open`, `consecutive_clean` and `spec_coverage_clean_rounds` stay
+An audit round is graded under the policy it was **recorded with** (stored as `converge_on`), so
+setting the knob governs rounds recorded *after* it is set, in both directions: a round recorded
+under `blocking` keeps `clean: true` when the knob returns to `all`, so one approved round of
+`blocking` relaxes that cycle's streak permanently — re-record the round to undo it. Dispositions
+are read live, as on the review side: an evidenced `wontfix`/`duplicate` written after the record
+clears its round. `role_streaks[].open`, `consecutive_clean` and `spec_coverage_clean_rounds` stay
 severity-blind, so under `blocking` a round can record `clean: true` beside a non-zero `open`.
 
 Illegal values are refused at both ends with the same hint as `review_converge_on`
@@ -593,7 +588,7 @@ The four write paths are `tp set --workflow`, its `--project` form, `tp import` 
 form, both described in [`TP_UNATTENDED`](#tp_unattended--user-only-decisions-fail-closed) — and an
 attended operator writes `blocking` at any of them with no refusal.
 
-Out-of-range `tp set --workflow` writes are rejected with exit 1. Out-of-range values in a hand-edited task file fall back at read time (`gate_timeout_seconds`→600, caps→0) and `tp validate` warns.
+Out-of-range `tp set --workflow` writes are rejected with exit 1. Out-of-range values in a hand-edited task file fall back at read time (`gate_timeout_seconds`→600, caps→0, uncapped) and `tp validate` warns.
 
 These are the **defaults** a project-level `.tp/config.json` supplies and a task file's `workflow` block overrides — see [Project Configuration](#project-configuration-v0240). `tp set --workflow --project <field>=<value>` writes to the project config instead of the task file.
 
@@ -645,7 +640,16 @@ tp owns the review/audit round lifecycle in `<spec-dir>/.tp-review/<spec-base>/`
 | `floor-ground-round-<N>.txt` | The floor index that emission derived from that snapshot |
 | `ground-round-<N>.ndjson` | Recorded ground round N dispositions |
 
-Each round entry is `{round, findings, clean, recorded_at, file, spec_hash}`. `spec_hash` is `sha256:<hex>` of the spec bytes at record time and powers the staleness rule. tp writes `snapshot-round-<N>.md` **atomically** (write to a `.tmp` then rename) when round N begins (prompt emission) and `review-round-<N>.ndjson`/`audit-round-<N>.ndjson` when the round is recorded; a snapshot with no round file means a round was started and never recorded, and `--status` reports it as `in_flight_round: N` (`tp resume` then points at `{action:"record-round", round:N}`). A directory holding round files with no `state.json` aborts state-reading commands with exit 3 and a `repair or delete <path>` hint — that index referenced recorded history, and tp never rebuilds over it. A directory holding only snapshots is the in-flight window between emitting a round and recording it: nothing was ever recorded there, so the next `--record` rebuilds the index rather than refusing.
+Each round entry is `{round, findings, clean, recorded_at, file, spec_hash}`. `spec_hash` is `sha256:<hex>` of the spec bytes at record time and powers the staleness rule. tp writes `snapshot-round-<N>.md` **atomically** (write to a `.tmp` then rename) when round N begins (prompt emission) and `review-round-<N>.ndjson`/`audit-round-<N>.ndjson` when the round is recorded; a snapshot with no round file means a round was started and never recorded, and `--status` reports it as `in_flight_round: N` (`tp resume` then points at `{action:"record-round", round:N}`). Re-emitting an unrecorded round is idempotent while the spec is unchanged; if the spec changed since the emission, `tp ground`, `tp review` and `tp audit` exit 3 naming the round and the files they would overwrite, and `--force` discards the emission (exit 2 under `TP_UNATTENDED`). A refused `--role` writes nothing to the state directory. A directory holding round files with no `state.json` aborts state-reading commands with exit 3 and a `repair or delete <path>` hint — that index referenced recorded history, and tp never rebuilds over it. A directory holding only snapshots is the in-flight window between emitting a round and recording it: nothing was ever recorded there, so the next `--record` rebuilds the index rather than refusing.
+
+**Dispositions.** `--resolve`/`--resolve-all` write `resolved: {status, evidence, resolved_at}` onto
+rows in place. The loop verdict reads the recorded round files, so a resolve into a file no
+`state.json` lists reports `recorded_round: false` and says so on stderr. A `wontfix`/`duplicate`
+with blank evidence exits 2 in both phases. `tp audit --resolve <role:item_id>` disposes every
+non-`PASS` row under the key and reports the count as `disposed`; `tp audit --resolve-all` skips
+`PASS` rows. `tp audit --resolve` offers a re-record `next_step` only inside a driver round
+(`TP_ROUND`, `TP_FILE`) for an exact copy of that recorded round, where the recorder rewrites it in
+place.
 
 The three ground artifacts are a separate prefix list: they carry no round entry in `state.json`, a directory holding only them loads cleanly rather than reading as review state with a missing index, and their round numbering is its own sequence. Their formats are in the Grounding section below.
 
@@ -691,7 +695,9 @@ Validation: `tp lint` validates both phases, `tp review` validates reviewers, `t
 
 **`location_clusters` (v0.35.0, `tp review --merge`/`--status`):** the same merged records cut by `location` instead of by `(location, class)`. Roles compose their class slugs independently, so two roles naming one defect almost never collide and the merged count reads as "more to do" — this array says how much of it is one place seen through several lenses. One entry `{location, roles[], severities[], count}` per location key **two or more roles** reported: `roles[]` is the distinct contributing roles sorted (`found_by_roles` where the merge attributed the record, its own `role` otherwise; `regression` and blank excluded), `severities[]` the distinct severities most-severe-first, and `count` the number of merged **records** at that location — not pre-merge rows, since `(location, class)` duplicates have already collapsed. A location every finding of which came from one role produces no entry; the key is always present and `[]` when nothing clusters. It is **reporting only** — convergence arithmetic, the stored `clean` flag and the `--status --check` exit code are untouched — and on `--status` it is recomputed from the latest recorded round at read time, never stored. Being explanatory it is omitted under `--compact` (§8.4).
 
-**`inputs` (v0.35.0, both `tp review --merge` and `tp audit --merge`):** one entry per input file, in argument order — `{path, parsed, skipped}` — beside the existing `input_files` count. A malformed line is warned about on stderr and counted in `skipped`; blank and whitespace-only lines are neither parsed nor skipped and never contribute to either number. An input with **at least one content line and zero parsed** makes the merge **exit 1**, naming that file: a role that emitted a trailing comma per line has every line skipped, and without this the merged set was silently short one role while the exit code stayed 0 and `--record` froze the undercount. A **zero-byte** file stays the documented way a role reports nothing found and keeps exiting 0, so a clean round is unaffected. The zero-parsed rule itself is identical in both merges, because an unattended driver reads the exit code alone — but **what counts as a content line is not, from v1.1.0**: `tp review --merge` reads a line holding an empty JSON array (`[]`, with or without interior whitespace — `isEmptyJSONArray`) as neither parsed nor skipped, like a blank one, while `tp audit --merge`, fenced out of v1.1.0, still counts it as a malformed skip. So a role file whose only content line is `[]` merges clean at exit 0 under `tp review --merge` and exits 1 under `tp audit --merge`. `TestReviewMerge_ALineOfJustAnEmptyArrayIsNotADroppedRole` in `internal/cli/merge_empty_array_test.go` pins the review half and its control: a genuinely malformed line still drops the merge at exit 1 with no `-o`.
+**`inputs` (v0.35.0, both `tp review --merge` and `tp audit --merge`):** one entry per input file, in argument order — `{path, parsed, skipped}` — beside the existing `input_files` count. A malformed line is warned about on stderr and counted in `skipped`; blank and whitespace-only lines are neither parsed nor skipped and never contribute to either number. An input with **at least one content line and zero parsed** makes the merge **exit 1**, naming that file: a role that emitted a trailing comma per line has every line skipped, and without this the merged set was silently short one role while the exit code stayed 0 and `--record` froze the undercount. A **zero-byte** file stays the documented way a role reports nothing found and keeps exiting 0, so a clean round is unaffected. The zero-parsed rule is identical in both merges, because an unattended driver reads the exit code alone. A line holding only `[]` is a role that found nothing: neither parsed nor skipped at either merge, and dropped before parsing at either `--record`.
+
+**`conflicts` (`tp audit --merge`):** rows sharing `(role, item_id)` collapse only when their verdict — status, severity, disposition status — agrees. Otherwise every row is kept, and each group is listed as `{role, item_id, rows, statuses}` with a stderr warning. The key is absent when every group holds one verdict.
 
 **`by_severity` (v0.37.0, `tp audit --merge`):** a breakdown of the round's **non-`PASS`** rows by severity, beside `by_status` and `by_role`. It is emitted whenever the round holds at least one non-`PASS` row and omitted on an all-`PASS` round — a property of the rows and of nothing else, so it appears under `audit_converge_on: all` exactly as it does under `blocking`, and `--merge` reads no policy (it takes NDJSON inputs and rejects a spec positional). It is decision-critical and **survives `--compact`**, unlike the audit `overlap_report`. Every row lands in a named bucket: `error`, `warning` and `info` key on themselves, and everything else — a string outside the enum, JSON `null`, an absent key, a value that is not a string — keys on **`unrecognised`**. That is the same population the clean predicate blocks on, so `error` + `unrecognised` sums the round's blocking rows and the two cannot drift apart; `""` is deliberately not a bucket. Under `blocking` this is how an agent reading `clean: true` sees what was accepted. The review-side `by_severity` on `tp review --merge` is a different, unconditional field over review severities.
 
@@ -724,7 +730,7 @@ one role. Its exact form and the reasoning are in [SKILL.md](SKILL.md); what the
 |---|---|---|---|
 | in the emitted set | 0 | exactly one entry, **byte-identical** to that role's entry in the same invocation without the flag | unchanged, except `review_loop.instruction` (below) |
 | recognised, not emitted this round | 0 | `[]` — an array, never `null` | when the name is one *this* phase skipped, `skipped_roles` carries its own reason. A name recognised only through the **other** phase's corpus appears nowhere in `skipped_roles` — `tp review <spec> --role spec-coverage` exits 0, and the array holds whatever else the round skipped (at round 1, `regression`/`no-baseline`). `--perspective` and `--verify` carry no `skipped_roles` key at all. Under `--compact` the key is kept **only for this case** — an empty `--role` payload — because there the reason is the payload rather than commentary on it (§8.4's own criterion); with a prompt present `--compact` omits it as before |
-| recognised nowhere | 2 | — | stderr carries `{"error":"unknown role: <name>","code":2,"hint":"this invocation emits: …"}`; the hint is built from the invocation's own emitted set plus `skipped_roles`, not from the corpus, because `regression` is emitted and belongs to no corpus |
+| recognised nowhere | 2 | — | stderr carries `{"error":"unknown role: <name>","code":2,"hint":"this invocation emits: …"}`; the hint is built from the invocation's own emitted set plus `skipped_roles`, not from the corpus, because `regression` is emitted and belongs to no corpus. Nothing is written to the state directory |
 
 Recognition spans the user corpus **and** the embedded default corpus for **both** phases, plus the
 built-in `regression`. `tp review` never emits an auditor id, so a set built from one phase's
@@ -764,7 +770,7 @@ Finding text and `class` slugs are written in **English** whatever language the 
 | `prompts[].checklist_items` | absent | `[]ChecklistItem` (`item_id`, `type`, `spec_line`, `section`, `text`, `expected_evidence`) |
 | `prompts[].affected_files` | absent | `[]{path, tasks, diff_summary}` |
 
-Item ids are deterministic: `table-<t>-<r>`, `list-<l>-<n>`, `task-<id>`, `file-<role-id>-<slug>` (the slug derives from the file path plus the item text, truncated to 40 characters, so the same file keeps the same id across rounds), `finding-<n>`. Sub-agents return one NDJSON row per checklist item: `{item_id, status(PASS|PARTIAL|FAIL), evidence_file, evidence_lines, category, severity, notes, class?}`. `category`/`severity` are `null` for PASS and one of the enum values for PARTIAL/FAIL. Finding category enum: `security > concurrency > error-handling > correctness > contract` (resolution precedence when several apply — the auditor picks one, tp does not resolve for it). **`tp audit --record` enforces the enum (v0.34.1):** a row carrying anything else aborts the record at exit 1, naming every offending line at once and listing the five, and no round file is written. A row with no `category`, which is every PASS row, is untouched.
+Item ids are deterministic: `table-<t>-<r>`, `list-<l>-<n>`, `task-<id>`, `file-<role-id>-<slug>.<digest>` (the slug derives from the file path plus the item text, cut to 40 characters, and the digest is the first 16 hex characters of the sha256 of the cleaned path, so an id is a function of the role and the path alone; `--affected-files` paths are cleaned, made repo-relative and deduped first. A prior round's ids of the earlier form, with no digest, name no item of this round, and the prompt lists them apart to be matched by `evidence_file`), `finding-<n>`. Sub-agents return one NDJSON row per checklist item: `{item_id, status(PASS|PARTIAL|FAIL), evidence_file, evidence_lines, category, severity, notes, class?}`. `category`/`severity` are `null` for PASS and one of the enum values for PARTIAL/FAIL. Finding category enum: `security > concurrency > error-handling > correctness > contract` (resolution precedence when several apply — the auditor picks one, tp does not resolve for it). **`tp audit --record` enforces the enum (v0.34.1):** a row carrying anything else aborts the record at exit 1, naming every offending line at once and listing the five, and no round file is written. A row with no `category`, which is every PASS row, is untouched.
 
 **`file_summary` (v0.35.0):** `{total_files, total_lines, chars_included, truncated, total_changed}`. Auto-detect caps the audited set at **50** files. `total_files` stays the **audited** count, `total_changed` is the **pre-cap** count, and `truncated` is true exactly when the cap bit. The stderr notice names both numbers — `63 files changed, auditing first 50 — name the rest with --affected-files` — but the flag lives in the payload, so `--quiet`, which erases that line, cannot hide the truncation from a driver. `--compact` drops `file_summary` in its entirety, and the flag with it, so a `--compact` audit is not the place to read truncation from.
 
@@ -782,13 +788,13 @@ its place in Workflow A are in [SKILL.md](SKILL.md); this section is the record'
 | `--units` | **plain text** | one line per floor unit, `<unit_id>\t<text_sha>\t<text>`, in emission order. It writes nothing and emits no round, and it derives from the spec as it stands rather than from a snapshot — which is why every line carries its own hash: a spec edited since the emission disagrees with the index visibly |
 | `--record <file>` | JSON | `{spec, round, floor, file, rows, carried}` — `rows` counts the payload's rows, `carried` the dispositions the carry brought forward |
 | `--status` | JSON | `{spec, round, emitted, dispositioned, reader_added, off_floor, cut, by_verdict}` for the latest **emitted** round. `emitted` is the same quantity `tp review`'s `ungrounded.floor_size` reports — one number, two names, and the `ungrounded` section below says where they meet |
-| `--status --check` | the same JSON | exit 0 when `dispositioned == emitted` **and** the floor is not one the arms emptied; 1 otherwise. Both conditions are `emitted`, `dispositioned` and `cut`, so the exit code is reconstructible from the payload it just printed |
+| `--status --check` | the same JSON | exit 0 when `dispositioned == emitted`, the floor is not one the arms emptied, and `by_verdict` counts no `FAIL`; 1 otherwise. Every condition reads a key the payload prints, so the exit code is reconstructible from it |
 
 A round exists from its **emission**, not from its record, so `--status` reports a round nobody has
 come back to as wholly undispositioned rather than reporting the previous round's completeness. N is
 the highest existing `ground-round-<N>` plus one and a gap is preserved (rounds 1 and 3 present
-yields 4, never 2), so re-emitting before recording rewrites that round's snapshot and floor instead
-of consuming a new number.
+yields 4, never 2), so re-emitting before recording reuses that round's number: idempotent while
+the spec is unchanged, exit 3 when it changed, unless `--force` discards the emission.
 
 **`carried` is the only machine-readable sign of a carry that FAILED.** A preceding round tp cannot
 read back does not refuse the emission: it emits at exit 0 with an envelope of the same shape, asking
@@ -819,7 +825,7 @@ emitted as `(cut)`. Neither moves either side of the ratio, and they are two cou
 because they are evidence about different halves of the derivation: *the arms never produced this
 unit* against *the arms produced it and then cut it*.
 
-**`cut` is the key `--check`'s second condition reads, and it is why exit 1 is not always undercoverage.**
+**`cut` is the key `--check`'s empty-floor condition reads, and it is why exit 1 is not always undercoverage.**
 It counts the units §2.1 produced that the arms dropped, and it is no part of the ratio — a cut unit
 owes no disposition. A floor of no units makes `dispositioned < emitted` read `0 < 0`, which is
 false, so coverage alone certifies a document nobody checked. `cut` is what tells the two zeros
@@ -921,8 +927,8 @@ A row carrying no `kind` on a claim verdict is rejected naming `kind`, before th
 |------|---------|
 | 0 | the invocation completed |
 | 1 | a row failed validation, **or** the round would record no row at all — the payload's rows plus the carried rows both zero. An empty payload whose every unit carries is not this case and exits 0 |
-| 2 | usage: `--check` without `--status`, two of `--units`/`--status`/`--record` together, or `--record` with no path argument |
-| 3 | file or corrupt state: a `--record` path that does not exist, no prior emission for the round, an unreadable preceding round, or a state directory holding an unparseable `state.json`. An unreadable preceding round is a **notice at emit** (exit 0) and a refusal at `--record` — the round is decided at the record |
+| 2 | usage: `--check` without `--status`, two of `--units`/`--status`/`--record` together, `--record` with no path argument, `--force` on a mode other than the emission, or a discarding `--force` under `TP_UNATTENDED` |
+| 3 | file or corrupt state: an emission over an unrecorded round whose spec changed (without `--force`), a `--record` path that does not exist, no prior emission for the round, an unreadable preceding round, or a state directory holding an unparseable `state.json`. An unreadable preceding round is a **notice at emit** (exit 0) and a refusal at `--record` — the round is decided at the record |
 | 4 | the write lock could not be taken within `lock_timeout_seconds` |
 
 The lock's target is the **spec path**, not the state file: `.tp/locks/<spec-file>-<hash>.lock`,
@@ -983,15 +989,7 @@ units** — so what separates them is not the arithmetic but the *text* it was c
   snapshot; its `floor_size` is the line count of `tp ground <spec> --units` on the same file —
   **while that file carries no frontmatter**. Lint counts `parseSpecFile`'s frontmatter-blanked
   text and `--units` counts the raw bytes, so a frontmatter block can become a floor unit of its
-  own. Measured on a copy of `spec/1.0.1.md` prefixed with a six-line `tp:` block: `--units` printed
-  **exactly one line more** than lint's `floor_size`, the extra one being the block itself, and the
-  same block with no digit in it left the two equal — so *whether* the block adds a unit depends on
-  its content. Only the difference is quoted, because the pair itself moves with every edit to the
-  spec, exactly as the paragraph above this section warns: it read 96 / 97 when this was written and
-  98 / 99 at `6d9be576`, with the +1 holding at both. Re-derive it rather than trusting either pair.
-  The condition costs nothing across this repository — `tp lint`'s `frontmatter.present`
-  is `false` for all 67 files under `spec/` and `spec/backlog/`, and the two commands agree on
-  every one of them.
+  own, depending on its content.
 - **`tp review <spec>`'s `ungrounded.floor_size`** counts the **latest emitted round's frozen
   index**, whatever the spec says now — the same number `--status` prints as `emitted`, by the
   identity above.
@@ -1102,19 +1100,16 @@ Both `--merge` modes report **`inputs`** — one `{path, parsed, skipped}` entry
 argument order — and exit **1** when an input had at least one content line and parsed none of them
 (v0.35.0). That is the shape a dropped role takes: a reviewer emitting every line with a trailing
 comma used to be skipped line by line on stderr, merge clean, and let `--record` freeze an
-undercounted round. Blank and whitespace-only lines are
-neither parsed nor skipped and never trigger it — and from v1.1.0 `tp review --merge` reads a line
-holding an empty JSON array the same way, while `tp audit --merge` still counts it as a malformed skip, so
-the same one-line file merges clean under the one and exits 1 under the other. A **zero-byte file
+undercounted round. Blank and whitespace-only lines, and a line holding only `[]`, are
+neither parsed nor skipped and never trigger it. A **zero-byte file
 stays the way a role reports nothing found** and keeps exiting 0 — so a clean round is unaffected.
 Both exit-1 paths still emit
 the full payload — the surviving roles merge, only the exit code changes, and the accounting an
-unattended driver reads reaches stdout either way — but **what they leave at `-o` differs by phase
-from v1.1.0**. `tp review --merge` declines that write: it creates no file at the `-o` path and
-leaves a file already there byte-identical, so a refused review merge cannot be walked into
-`--record` as a round. `tp audit --merge` still writes `-o` and then exits 1, because v1.1.0 is
-fenced out of the audit phase — so an audit chain must branch on the merge's exit code, never on the
-presence of the file.
+unattended driver reads reaches stdout either way — but **what they leave at `-o` differs by
+phase**. `tp review --merge` declines that write: it creates no file at the `-o` path and leaves a
+file already there byte-identical, so a refused review merge cannot be walked into `--record` as a
+round. `tp audit --merge` still writes `-o` and then exits 1, so an audit chain must branch on the
+merge's exit code, never on the presence of the file.
 
 `tp review --perspective code-audit --findings <file>` exits **2**: that perspective never reads the
 file, and previously accepted the flag while reporting `previous_findings: 0` about it. A
@@ -1151,7 +1146,7 @@ the current decision rests on, not every role ever seen).
 |-------|------|---------|
 | `role` | string | the role id |
 | `consecutive_clean` | int | trailing recorded rounds in which the role is clean |
-| `open` | int | that role's non-PASS row count in the latest recorded round |
+| `open` | int | that role's open findings in the latest recorded round: non-PASS rows not accepted `wontfix`/`duplicate` with evidence |
 
 ```json
 "role_streaks": [
