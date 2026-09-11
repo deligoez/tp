@@ -257,3 +257,85 @@ readable prefix and adding a digest of the whole path. It satisfies decision 1; 
 eight characters or more, and which hash, belong to the implementing task. A residual digest collision
 is not silent under decision 2: the two rows it would produce share an id and name different files,
 which is the conflict `--merge` and `--record` refuse.
+
+## Built before review
+
+On 2026-09-11 the spec as written at `bd4a18f1` was built in a `git clone --no-hardlinks` of that
+commit (17 files, +597/−120), per `spec/backlog/README.md`'s *How to pick one up*. Every §6 row's
+fixture was run against a binary built from `bd4a18f1` and one built from the clone, and every named
+mutant was applied in the clone, built, run and reverted. All the rows that existed then reproduced
+their quoted `HEAD` values, all changed under the build, and every mutant reddened its row — with the
+two exceptions below. The clone, the diff and the fixture harness were scratch and are not kept; the
+findings are.
+
+**What building changed in the spec.**
+
+- *§6's preamble* said the value under a mutant is the `HEAD` value. Not for row 3: with decision 2
+  built, restoring the positional suffix makes `--merge` exit 1 on the colliding pair, where `HEAD`
+  exits 0 and records a clean round. The row still reddens; the clause was dropped.
+- *§2's "Why both"* said decision 2 ends tp's silent choice between two verdicts. It did not while the
+  conflict key was `evidence_file` and `status`: two rows with the same id, file and `FAIL`, one
+  `severity: error` and one `warning`, under `audit_converge_on=blocking`, merged at exit 0 with
+  `duplicates_removed 1, by_severity {warning: 1}` and recorded `findings 1, clean: true` — at `HEAD`
+  and under the build alike. Severity joined the key; row 4b is that input.
+- *§2's consequence* said an older-scheme round gets "the disclaimer marker-less rounds already get".
+  That disclaimer calls the ids *"positional (file-<role>-<n>)"*, false for a `"slug"` round, so it
+  cannot be reused verbatim; the spec now says only that such a round is not comparable.
+- *Decision 1* said "whole path". A digest over the path as given gave `app/a.go`, `./app/a.go` and
+  `app//a.go` three ids where `HEAD`'s slug gave one, because `--affected-files` does not normalise. The
+  spec now says the path is taken cleaned; row 1b.
+- *Decision 1* said rounds "recorded under it" carry the new `id_scheme`. The recorder stamps its own
+  scheme, so a round emitted by the old binary and recorded by the new one was stamped with the new
+  value and the next prompt showed an id from no checklist without the disclaimer. tp's own rule —
+  rebuild the dev binary after every implementing commit — makes that sequence routine here. The spec
+  now says the scheme is the emission's; row 7b.
+- *Decision 1* had no uniqueness clause. A birthday search over one deep directory found two paths
+  whose 8-hex SHA-256 digests coincide (`…/F42057Test.php`, `…/F48508Test.php`): emission exited 0 and
+  handed out one id twice, and `--merge`/`--record` then refused a pair of which neither row is wrong,
+  with no way through but dropping a verdict. The spec now says no emission hands out one id for two
+  files; row 1c.
+- *§3* said "the mapped set can only grow", true of the set and false of what spec-coverage receives:
+  a task whose first commit touched only a doc and whose second touched `app/x.go` maps nothing at
+  `HEAD`, so spec-coverage fell back to all three named files; under the build it received `app/x.go`
+  alone. The sentence went; the consequence now says so.
+- *§3 row 9* held only on its fixture. A done task carrying `commit_sha` and no `commit_shas` mapped
+  under the build while `--affected-from-tasks` exited 4 (*"no done task carries commit_shas"*), so
+  the two derivations disagreed in the other direction. The decision now binds both; row 9b.
+- *§4 decision 2* said "when `TP_ROUND` is set". With `TP_ROUND=7` and one recorded round the step was
+  still offered, and following it appended round 2. The decision now requires `TP_ROUND` to be the
+  round the file's rows match; row 10b.
+- *§4 decision 3* said "the recorded round whose rows the file's rows match". Built as equality, a
+  resolve into one role's findings file — whose rows are all in round 1 — read "matches no recorded
+  round". The decision now says containment; row 12d. Built from the working directory alone, the
+  search also gave a false "no match" when resolving a file in another repository from a parent
+  directory; searching from the file's own project root as well fixed it.
+- *§6 row 11*'s "following it leaves the round count unchanged" could not be reddened by its mutant:
+  the count holds because the recorder is idempotent on `TP_ROUND`, which this spec does not touch.
+  The clause went.
+
+**Existing tests the build changed**, each a consequence of a decision rather than a sign against it:
+`TestIDScheme_RecordedOnAuditOnly` and `TestIDScheme_LegacyRoundStaysMarkerless` (expect `"slug"`),
+`TestIsLegacyRound_DetectionByMarker` (a `"slug"` round is comparable), `TestFileCheckItems_CollisionSuffix`
+(asserts `-2`), `TestAuditResolveAll_DisposesEveryUndisposedRow` (a `PASS` row gets a disposition),
+`TestAuditPriorRound_LegacyRoundDisclaimer` (asserts `"positional"`), and ten assertions of
+`scripts/audit-round-prep-test.sh`, whose fixture has no `state.json` and so reads as scheme `""`.
+The shell test is in no gate. Two assertions a probe added to it stayed green under their mutant
+because the case ran on a tree where nothing would be carried anyway — the implementing task must
+run the older-scheme case on a tree where something would be.
+
+**Surfaces the build found beyond the spec's own list.** `skills/tp/SKILL.md` Workflow D's rule 3
+(*"a `file_check` id is a path prefix cut short plus a positional suffix"*), its step 3 (*"dedups by
+`role`+`item_id`"*) and the `--resolve-all` inventory line (*"every undisposed audit row"*);
+`runAuditResolve`'s doc comment and `auditResolveNextStep`, which name `$TP_ROUND_DIR/merged.ndjson`;
+and `internal/cli/docs_contract_test.go`, whose guard `Contains "file-<role-id>-<slug>"` stays green
+whether or not `REFERENCE.md` is rewritten, since the new form contains the old one. No test at
+`bd4a18f1` asserts a resolve payload's `next_step`.
+
+**Corpus check for decision 2.** Over both round globs, 115 recorded audit rounds and 13,420 rows
+hold 13,420 distinct `(role, item_id)` keys at `bd4a18f1`: decision 2 would have refused none of tp's
+own rounds.
+
+**Left to the implementing tasks** (a sentence that would change with the implementation is not
+spec): the digest and its length, the `id_scheme` string — which `scripts/audit-round-prep.py` must
+read from the same constant the binary uses — the refusal's wording, and the resolve payload's key
+names.
