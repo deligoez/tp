@@ -77,6 +77,33 @@ func TestDiscoverTaskFile(t *testing.T) {
 	}
 }
 
+// TestDiscoverTaskFile_NotFoundAndMultipleHaveIdentity pins the two auto-detect
+// failures as sentinels, so a caller that must treat them differently — tp add
+// offers --spec only when no task file exists — tells them apart with errors.Is
+// rather than by matching the message.
+func TestDiscoverTaskFile_NotFoundAndMultipleHaveIdentity(t *testing.T) {
+	t.Parallel()
+
+	none := t.TempDir()
+	_, err := DiscoverTaskFile(none, "")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrNoTaskFile)
+	assert.NotErrorIs(t, err, ErrMultipleTaskFiles)
+	assert.Equal(t, "no task file found. Run tp init <spec.md> or set TP_FILE=<path>", err.Error())
+
+	several := t.TempDir()
+	for _, name := range []string{"a.tasks.json", "b.tasks.json"} {
+		require.NoError(t, os.WriteFile(filepath.Join(several, name), []byte("{}"), 0o600))
+	}
+	_, err = DiscoverTaskFile(several, "")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrMultipleTaskFiles)
+	assert.NotErrorIs(t, err, ErrNoTaskFile)
+	want := "multiple task files: " + filepath.Join(several, "a.tasks.json") + ", " + filepath.Join(several, "b.tasks.json") +
+		". Set TP_FILE=<path> or use tp --file <path> <command>"
+	assert.Equal(t, want, err.Error())
+}
+
 func TestResolveSpecPath(t *testing.T) {
 	tests := []struct {
 		name       string

@@ -1,10 +1,20 @@
 package engine
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+)
+
+// The two ways auto-detect fails, as sentinels so a caller tells them apart
+// with errors.Is. They call for different advice: tp add offers --spec to
+// create a task file only when none exists; when several do, the way out is
+// --file or TP_FILE, and --spec would only collide with a file already there.
+var (
+	ErrNoTaskFile        = errors.New("no task file found")
+	ErrMultipleTaskFiles = errors.New("multiple task files")
 )
 
 // DiscoverTaskFile finds the task file in the given directory.
@@ -56,11 +66,11 @@ func DiscoverTaskFileVia(dir, explicit string) (path string, viaPointer bool, er
 
 	switch len(matches) {
 	case 0:
-		return "", false, fmt.Errorf("no task file found. Run tp init <spec.md> or set TP_FILE=<path>")
+		return "", false, fmt.Errorf("%w. Run tp init <spec.md> or set TP_FILE=<path>", ErrNoTaskFile)
 	case 1:
 		return matches[0], false, nil
 	default:
-		return "", false, fmt.Errorf("multiple task files: %s. Set TP_FILE=<path> or use tp --file <path> <command>", strings.Join(matches, ", "))
+		return "", false, fmt.Errorf("%w: %s. Set TP_FILE=<path> or use tp --file <path> <command>", ErrMultipleTaskFiles, strings.Join(matches, ", "))
 	}
 }
 

@@ -3,6 +3,7 @@ package cli
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -170,6 +171,13 @@ func addTasks(tasks []model.Task) error {
 
 	taskFilePath, err := discoverWriteTarget()
 	if err != nil {
+		// Several task files: --spec cannot help (it would collide with one
+		// or add a third), so report the candidates and --file / TP_FILE.
+		if errors.Is(err, engine.ErrMultipleTaskFiles) {
+			output.Error(ExitFile, err.Error())
+			os.Exit(ExitFile)
+			return nil
+		}
 		if addSpec == "" {
 			output.Error(ExitFile, "no task file found. Use --spec to create one, or run tp init first")
 			os.Exit(ExitFile)
