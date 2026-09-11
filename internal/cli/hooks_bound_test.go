@@ -396,6 +396,27 @@ func hookFailClosedCases() map[string][]hookFailClosedCase {
 			return payload
 		}
 	}
+	batchPayload := func(content, lastEdit string) func(*testing.T) []byte {
+		return func(t *testing.T) []byte {
+			t.Helper()
+			op := func(tool string, args map[string]any) map[string]any {
+				return map[string]any{"tool": tool, "args": args}
+			}
+			payload, err := json.Marshal(map[string]any{
+				"hook_event_name": "PreToolUse",
+				"tool_name":       "mcp__codedbpro__batch",
+				"tool_input": map[string]any{"ops": []any{
+					op("read", map[string]any{"file": "spec/.tp-review/1.1.0/snapshot-round-1.md"}),
+					op("create", map[string]any{"file": "docs/notes.md", "content": content}),
+					op("faster_search", map[string]any{"path": ".tp/config.json", "pattern": "gate"}),
+					op("edit", map[string]any{"file": lastEdit, "content": "{}"}),
+				}},
+			})
+			require.NoError(t, err)
+			require.Greater(t, len(payload), 2<<20, "the large batch case must actually be large")
+			return payload
+		}
+	}
 	stopPayload := func(*testing.T) []byte {
 		return []byte(`{"hook_event_name":"Stop","stop_hook_active":false}`)
 	}
@@ -410,14 +431,37 @@ func hookFailClosedCases() map[string][]hookFailClosedCase {
 			payload:  func(*testing.T) []byte { return []byte(`{"hook_event_name":"SessionStart","source":"startup"}`) },
 			wantExit: 2,
 		}},
-		preToolUseHookPath: {{
-			// The fenced path sits after two megabytes of content, so a hook that
-			// gave up on the payload rather than scanning it would fall open here.
-			name:     "a fenced path behind 2 MiB of content",
-			env:      minimal,
-			payload:  writePayload(".tp/config.json", strings.Repeat("payload ", 262144)),
-			wantExit: 2,
-		}},
+		preToolUseHookPath: {
+			{
+				// The fenced path sits after two megabytes of content, so a hook that
+				// gave up on the payload rather than scanning it would fall open here.
+				name:     "a fenced path behind 2 MiB of content",
+				env:      minimal,
+				payload:  writePayload(".tp/config.json", strings.Repeat("payload ", 262144)),
+				wantExit: 2,
+			},
+			{
+				// A batch is read operation by operation, so its whole payload is
+				// walked rather than grepped: two megabytes of escaped quotes and
+				// braces precede the one write into the fence, and the reads beside
+				// it must be classified without the walk grinding past the margin.
+				name:     "a batched fenced write behind 2 MiB of escaped content",
+				env:      minimal,
+				payload:  batchPayload(strings.Repeat(`"{payload}" \`, 174763), "spec/.tp-review/1.1.0/state.json"),
+				wantExit: 2,
+			},
+			{
+				// The same batch with its last write moved out of the fence. The
+				// refusal above cannot tell a finished walk from one that gave up
+				// and judged the whole payload; only a pass can, because the reads
+				// still name fenced paths and pass only once the walk has
+				// classified them.
+				name:     "a batch whose fenced paths are all reads, behind 2 MiB of escaped content",
+				env:      minimal,
+				payload:  batchPayload(strings.Repeat(`"{payload}" \`, 174763), "internal/cli/run.go"),
+				wantExit: 0,
+			},
+		},
 		roleWriteHookPath: {{
 			name:     "no round environment to build the allowlist from",
 			env:      minimal,
