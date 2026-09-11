@@ -40,6 +40,13 @@ func RowDispositioned(row map[string]any) bool {
 	return findingResolvedAway(row) || rowFixed(row)
 }
 
+// RowAccepted reports whether a finding row was accepted: wontfix or
+// duplicate with non-blank evidence, the one disposition that takes a row out
+// of the graded set (findingResolvedAway). fixed is not an acceptance.
+func RowAccepted(row map[string]any) bool {
+	return findingResolvedAway(row)
+}
+
 func rowFixed(row map[string]any) bool {
 	resolved, ok := row["resolved"].(map[string]any)
 	if !ok {

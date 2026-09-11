@@ -271,9 +271,9 @@ func auditPriorSecurityPrompt(t *testing.T, round string) string {
 
 // TestAuditPriorRound_AcceptedRowCarriesItsDisposition: a prior row accepted
 // wontfix with evidence carries that disposition and evidence into the next
-// round's block, keeps its changed_since, and is framed as closed unless
-// changed_since is true — an acceptance the next auditor cannot see is
-// re-opened, and the re-opened row makes that round unclean again.
+// round's block and keeps its changed_since. Unless changed_since is true the
+// auditor records it as before and tp carries the acceptance at --record; a
+// FAIL recorded without that framing reads as a re-opened finding.
 func TestAuditPriorRound_AcceptedRowCarriesItsDisposition(t *testing.T) {
 	t.Parallel()
 	sec := auditPriorSecurityPrompt(t,
@@ -284,8 +284,10 @@ func TestAuditPriorRound_AcceptedRowCarriesItsDisposition(t *testing.T) {
 		`"changed_since":false,"disposition":"wontfix","disposition_evidence":"vendored code, out of scope"}`,
 		"the accepted row carries its disposition and evidence beside changed_since")
 	assert.NotContains(t, sec, "resolved_at", "the block carries the disposition, not the whole resolved record")
-	assert.Contains(t, sec, "keep it closed unless changed_since is true",
-		"an accepted row is framed as closed unless changed_since is true")
+	assert.Contains(t, sec, "Unless changed_since is true: if it still stands, record it as before; tp carries the acceptance.",
+		"an unchanged accepted row is recorded as before and carried by tp")
+	assert.Contains(t, sec, "When changed_since is true, re-check it: the acceptance is not carried.",
+		"a changed accepted row is re-checked, because tp does not carry it")
 	assert.NotContains(t, sec, "verify the repair held", "no fixed row, so no fixed framing")
 }
 
@@ -302,7 +304,7 @@ func TestAuditPriorRound_FixedRowAsksForTheRepairToBeVerified(t *testing.T) {
 		`"disposition":"fixed","disposition_evidence":"abc1234 escapes the token"}`,
 		"the fixed row carries its disposition and evidence")
 	assert.Contains(t, sec, "verify the repair held", "a fixed row is framed as a repair to verify")
-	assert.NotContains(t, sec, "keep it closed", "no accepted row, so no accepted framing")
+	assert.NotContains(t, sec, "tp carries the acceptance", "no accepted row, so no accepted framing")
 }
 
 // TestAuditPriorRound_UndisposedRowRendersAsBefore: a prior row with no
@@ -323,6 +325,6 @@ func TestAuditPriorRound_UndisposedRowRendersAsBefore(t *testing.T) {
 		`{"role":"security","item_id":"prior-blank","status":"FAIL"}`+"\n",
 		"an undisposed block is byte-identical to the one emitted before dispositions were carried")
 	assert.NotContains(t, sec, "disposition_evidence", "no row carries a disposition that counts")
-	assert.NotContains(t, sec, "keep it closed", "no accepted row, so no accepted framing")
+	assert.NotContains(t, sec, "tp carries the acceptance", "no accepted row, so no accepted framing")
 	assert.NotContains(t, sec, "verify the repair held", "no fixed row, so no fixed framing")
 }

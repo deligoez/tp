@@ -86,6 +86,10 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 		os.Exit(ExitValidation)
 		return nil
 	}
+	// The carry runs before the stamp, so a re-recorded finding the operator
+	// accepted in the round before is graded with that acceptance, and the
+	// round file written below holds it.
+	data, carried := carryAuditAcceptances(specPath, preRounds, data, rows)
 	// §2: `clean` is stamped here, once, under the policy in force at record
 	// time, and nothing downstream recomputes it. The policy comes from wfPre
 	// and not from the wf resolved after recordAuditRoundEntry, for the reason
@@ -135,6 +139,9 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 		"required_clean_rounds": wf.AuditCleanRounds,
 		"converged":             converged,
 		"stale":                 stale,
+		// Present at zero, as ground's `carried` is: nothing carried is the
+		// answer that says an accepted finding's file moved.
+		"carried": carried,
 	}
 	// §2.5: the signal is computed AFTER the round is stored, so "the latest
 	// recorded round" is the round just recorded — the convention harness_stale

@@ -246,7 +246,7 @@ func (p *auditPriorRound) add(r *priorAuditRow) {
 // and only when some row of the section carries that kind, so a block with no
 // disposition reads exactly as it did before dispositions were carried.
 const (
-	priorAcceptedFraming = "A row with disposition wontfix or duplicate is accepted, for the reason in its disposition_evidence: keep it closed unless changed_since is true, and re-check it only then.\n"
+	priorAcceptedFraming = "A row with disposition wontfix or duplicate is accepted, for the reason in its disposition_evidence. Unless changed_since is true: if it still stands, record it as before; tp carries the acceptance. When changed_since is true, re-check it: the acceptance is not carried.\n"
 	priorFixedFraming    = "A row with disposition fixed was repaired as its disposition_evidence says: verify the repair held.\n"
 )
 
@@ -275,8 +275,9 @@ func (p *auditPriorRound) dispositionFraming() string {
 // renderPriorRoundSection renders the role-scoped prior-round section for a
 // round-2+ audit prompt (§10.2): that role's own non-PASS rows from the
 // previous recorded round, framed as context to re-check — not a verdict to
-// repeat — unless a row carries a disposition: an accepted row stays closed
-// unless changed_since is true, a fixed row's repair is verified. Returns ""
+// repeat — unless a row carries a disposition: an accepted row is recorded as
+// before and tp carries its acceptance (carryAuditAcceptances) unless
+// changed_since is true, and a fixed row's repair is verified. Returns ""
 // when the role has no prior non-PASS rows, so a round-1 prompt (or a role
 // that was all-PASS) carries no section at all.
 func renderPriorRoundSection(prior *auditPriorRound) string {
