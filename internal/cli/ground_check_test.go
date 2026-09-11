@@ -95,12 +95,12 @@ func TestCheckExitsZeroOnCompleteCoverageAndOneOtherwise(t *testing.T) {
 //
 // Every arm is FULLY covered — `dispositioned == emitted` is required before the
 // code is read — so no exit 1 below can come from the coverage condition, and
-// each arm's verdict pair is what decides it. FAIL and PARTIAL are the two
-// verdicts SKILL.md's Step 1.5 says to repair; QUESTION and UNVERIFIABLE are
-// settled-or-parked answers that do not block. Each blocking arm pairs its
-// verdict with a non-blocking one, so a gate keyed on "any non-PASS" passes the
-// blocking arms and reddens the non-blocking one, and a gate keyed on FAIL alone
-// reddens the PARTIAL arm.
+// each arm's verdict pair is what decides it. Only FAIL blocks. PARTIAL does
+// not: a PARTIAL is often true-when-written (a count over a growing
+// population), which no repair makes permanently true, so a gate on it could
+// leave the loop with no end. The payload counts it and Step 1.5 still says to
+// repair it. A gate keyed on "any non-PASS" reddens every non-FAIL arm, and a
+// gate keyed on FAIL or PARTIAL reddens the PARTIAL arms.
 //
 // The payload is compared whole against `--status`'s, because the gate adds a
 // bit to the exit status and nothing to what tp prints: `by_verdict` already
@@ -115,8 +115,9 @@ func TestCheckExitsOneWhileTheRoundCarriesARefutedClaim(t *testing.T) {
 	}{
 		{"two FAIL rows", []string{"FAIL", "FAIL"}, 1},
 		{"a FAIL beside an UNVERIFIABLE", []string{"FAIL", "UNVERIFIABLE"}, 1},
-		{"a PARTIAL beside a PASS", []string{"PARTIAL", "PASS"}, 1},
-		{"a PARTIAL beside a QUESTION", []string{"PARTIAL", "QUESTION"}, 1},
+		{"a FAIL beside a PARTIAL", []string{"FAIL", "PARTIAL"}, 1},
+		{"a PARTIAL beside a PASS", []string{"PARTIAL", "PASS"}, 0},
+		{"a PARTIAL beside a QUESTION", []string{"PARTIAL", "QUESTION"}, 0},
 		{"a QUESTION beside an UNVERIFIABLE", []string{"QUESTION", "UNVERIFIABLE"}, 0},
 	}
 	for _, tc := range cases {
@@ -148,7 +149,7 @@ func TestCheckExitsOneWhileTheRoundCarriesARefutedClaim(t *testing.T) {
 				"the floor is fully dispositioned, so coverage cannot be what decides the code")
 			assert.Equal(t, groundStatus(t, dir), payload, "--check changes nothing tp prints")
 			assert.Equal(t, tc.want, code,
-				"--check exits 1 while the round holds a FAIL or PARTIAL, and 0 over QUESTION and UNVERIFIABLE")
+				"--check exits 1 while the round holds a FAIL, and 0 over PARTIAL, QUESTION and UNVERIFIABLE")
 		})
 	}
 }

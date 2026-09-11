@@ -259,7 +259,7 @@ change the floor the round is graded against.`,
 	}
 	cmd.Flags().StringVar(&recordPath, "record", "", "Record a ground round from an NDJSON dispositions file")
 	cmd.Flags().BoolVar(&statusMode, "status", false, "Report the latest emitted round's coverage and per-verdict breakdown")
-	cmd.Flags().BoolVar(&checkMode, "check", false, "With --status: exit 0 only when every emitted floor unit carries a disposition and the round holds no FAIL or PARTIAL row")
+	cmd.Flags().BoolVar(&checkMode, "check", false, "With --status: exit 0 only when every emitted floor unit carries a disposition and the round holds no FAIL row")
 	cmd.Flags().BoolVar(&unitsMode, "units", false, "Print the floor's units with their full text, one per line")
 	return cmd
 }
@@ -519,11 +519,11 @@ func runGroundUnits(specPath string, jsonAsked bool) error {
 // check is §7.1's fifth invocation, and it has THREE conditions. Exit 1 when a
 // unit of the emitted floor carries no disposition; exit 1 also when the
 // emitted floor is empty and the arms cut units to empty it, which is the one
-// state coverage certifies falsely; and exit 1 when the round holds a FAIL or
-// PARTIAL row. The third was a repair: the check once gated on coverage alone,
-// so a round of nothing but FAILs exited 0 and a driver stopping on the code
-// stopped with the refuted claims standing. QUESTION and UNVERIFIABLE do not
-// fail it.
+// state coverage certifies falsely; and exit 1 when the round holds a FAIL
+// row. The third was a repair: the check once gated on coverage alone, so a
+// round of nothing but FAILs exited 0 and a driver stopping on the code
+// stopped with the refuted claims standing. PARTIAL, QUESTION and
+// UNVERIFIABLE do not fail it.
 //
 // All three read a key of the payload — `dispositioned` against `emitted`,
 // `emitted` against `cut`, then `by_verdict` — so the code is reconstructible
@@ -641,19 +641,19 @@ func exitGroundCheck(specPath string, status *engine.GroundStatus) {
 	// The third condition, and the one a driver actually stops on: a covered
 	// round that refuted the spec. Coverage answers *did anyone look*; a round
 	// of nothing but FAILs is fully covered, and exiting 0 over it let a loop
-	// branching on the code stop with the false claims standing. FAIL and
-	// PARTIAL are the two verdicts Step 1.5 says to repair; QUESTION and
-	// UNVERIFIABLE are answers that do not block, so they do not fail it.
-	// ByVerdict counts the round's own file, carried rows included, so an
-	// unrepaired FAIL carried into a later round keeps this at 1. Both counts
-	// are `by_verdict` keys of the payload just printed, so the code stays
-	// reconstructible under `--quiet`, where the notice is suppressed.
-	fail, partial := status.ByVerdict[engine.VerdictFail], status.ByVerdict[engine.VerdictPartial]
-	if fail+partial > 0 {
+	// branching on the code stop with the false claims standing. Only FAIL
+	// blocks. A PARTIAL is often true-when-written (a count over a growing
+	// population), which no repair makes permanently true, so gating on it
+	// would leave the loop no end; the payload counts it and Step 1.5 still
+	// says to repair it. ByVerdict counts the round's own file, carried rows
+	// included, so an unrepaired FAIL carried into a later round keeps this at
+	// 1. The count is a `by_verdict` key of the payload just printed, so the
+	// code stays reconstructible under `--quiet`, where the notice is suppressed.
+	if fail := status.ByVerdict[engine.VerdictFail]; fail > 0 {
 		output.Notice(fmt.Sprintf(
-			"ground round %d holds %d FAIL and %d PARTIAL rows: %s has claims the round refuted, "+
-				"so repair them and run the next round — --check exits 0 only on a covered round holding neither",
-			status.Round, fail, partial, specPath))
+			"ground round %d holds %d FAIL rows: %s has claims the round refuted, "+
+				"so repair them and run the next round — --check exits 0 only on a covered round holding no FAIL",
+			status.Round, fail, specPath))
 		os.Exit(ExitValidation)
 	}
 }
