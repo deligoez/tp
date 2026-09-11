@@ -1,7 +1,7 @@
 # Archived backlog
 
-On 2026-09-11 the backlog was cut to the three decision candidates still in this directory
-(`reconcile`, `checklist-covers-what-changed`, `gate-sequence`). Reproduced defects live in
+On 2026-09-11 the backlog was cut to the decision candidates still in this directory
+(`checklist-covers-what-changed`, `reconcile`; `gate-sequence` followed after v1.2.0). Reproduced defects live in
 `BUGS.md` and are fixed test-first; everything else was removed. Each row names the files and the
 last commit that touched them: read one with `git show <sha>:spec/backlog/<file>`. The ground and
 review rounds under `.tp-review/` stay, as rows of the corpus derivations.
@@ -40,4 +40,5 @@ review rounds under `.tp-review/` stay, as rows of the corpus derivations.
 | `context-is-cut-on-a-rune-boundary` | `context-is-cut-on-a-rune-boundary-measurements.md`, `context-is-cut-on-a-rune-boundary.md` | `76a343bc` | forwarding stub for `an-unreadable-file-is-named` |
 | `two-advisories` | `two-advisories-measurements.md`, `two-advisories.md` | `ae1ef2fd` | forwarding stub, split on 2026-09-11 |
 | `ground-command-friction` | `ground-command-friction-measurements.md`, `ground-command-friction.md` | `b73ce3f3` | forwarding stub, split on 2026-09-08 into the ground specs |
-| `README` | `README.md` | `7b9f6444` | the roadmap; replaced by `BUGS.md` and the three decision candidates in this directory |
+| `README` | `README.md` | `7b9f6444` | the roadmap; replaced by `BUGS.md` and the decision candidates in this directory |
+| `gate-sequence` | `gate-sequence-measurements.md`, `gate-sequence.md` | `7b9f6444` | archived after v1.2.0: its field half shipped there (the unrunnable-gate warning at init/import, the per-spec `quality_gate` setter); what remains, a `tp gate` convenience verb and an internal executor merge, has no measured cost |

@@ -353,8 +353,9 @@ func docSectionBody(t *testing.T, doc, heading string) string {
 // Not ci_gate_test.go, which an earlier draft of this comment cited and which
 // an auditor caught: it derives the step list from .tp/config.json and then
 // asserts Contains over the whole of ci.yml, so only the left side is derived.
-// The gate-sequence release records that shape measured — `if: false` on a step, or
-// continue-on-error: true, leaves every guard green. No claim is made here
+// The archived gate-sequence sidecar (spec/backlog/ARCHIVE.md gives the sha)
+// records that shape measured — `if: false` on a step, or continue-on-error:
+// true, leaves every guard green. No claim is made here
 // about shapes nobody has enumerated.
 //
 // So what the guards above catch is a document that stops saying what it says

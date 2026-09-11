@@ -77,9 +77,8 @@ Triage every piece of work before touching it; the operator confirms the track.
 A fix that turns out to need a design choice stops and becomes a decision. Repairs to a spec after
 its first round delete or narrow; they do not add requirements.
 
-Open work is `BUGS.md` (the fix track) and the three decision candidates in `spec/backlog/` —
-`reconcile.md`, `checklist-covers-what-changed.md` and `gate-sequence.md`; `spec/backlog/ARCHIVE.md`
-holds the rest.
+Open work is `BUGS.md` (the fix track) and the two decision candidates in `spec/backlog/` —
+`checklist-covers-what-changed.md`, then `reconcile.md`; `spec/backlog/ARCHIVE.md` holds the rest.
 
 ## Rules
 
