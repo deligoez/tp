@@ -118,10 +118,12 @@ func ComputeAuditRoleStreaks(specPath string, rounds []ReviewRound) (streaks []R
 }
 
 // auditRoundOpenByRole tallies one round's rows by role id: every role with at
-// least one row in the round is a key, mapped to how many of its rows are
-// non-PASS. A role is clean in the round exactly when it is a key with the
-// value 0, which keeps "measured and all-PASS" distinguishable from "not
-// measured" — the distinction a role absent from a round turns on.
+// least one row in the round is a key, mapped to how many of its rows are still
+// open — non-PASS and not accepted wontfix/duplicate with evidence. A role is
+// clean in the round exactly when it is a key with the value 0, which keeps
+// "measured and all-PASS" distinguishable from "not measured" — the distinction
+// a role absent from a round turns on. An accepted row is not open, so the
+// streak agrees with the round's live clean verdict.
 //
 // Rows carrying no role are excluded, since they attribute to nothing; a round
 // whose rows all carry no role therefore tallies empty and closes every streak.
@@ -135,7 +137,7 @@ func auditRoundOpenByRole(rows []map[string]any) map[string]int {
 		if _, seen := open[role]; !seen {
 			open[role] = 0
 		}
-		if !AuditRowIsPass(row) {
+		if !AuditRowIsPass(row) && !findingResolvedAway(row) {
 			open[role]++
 		}
 	}

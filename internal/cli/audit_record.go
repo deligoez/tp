@@ -97,7 +97,7 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 	// is non-zero, which is exactly the accepted-rows case §2 describes — so
 	// the pre-release equality `clean := findings == 0` is not a shortcut worth
 	// keeping beside this call.
-	clean := engine.AuditRowsClean(rows, wfPre.AuditConvergeOn)
+	clean := engine.AuditRowsCleanLive(rows, wfPre.AuditConvergeOn)
 
 	specHash, err := engine.SpecHash(specPath)
 	if err != nil {
@@ -111,7 +111,7 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 		return nil
 	}
 
-	st, round, roundRolesHash, lockErr := recordAuditRoundEntry(specPath, data, findings, clean, specHash, harnessNote)
+	st, round, roundRolesHash, lockErr := recordAuditRoundEntry(specPath, data, findings, clean, specHash, harnessNote, wfPre.AuditConvergeOn)
 	if lockErr != nil {
 		exitStateError(lockErr)
 		return nil
@@ -120,14 +120,17 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 	wf, _ := engine.ResolveWorkflow(specPath, flagFile)
 	// converged and stale are computed once, so the payload and §2.4's
 	// conditions 3 and 4 read the same two values and the divergence object can
-	// never be emitted beside a payload that contradicts it.
-	converged := engine.Converged(st.AuditRounds, wf.AuditCleanRounds, specHash)
-	stale := engine.StateStale(st.AuditRounds, specHash)
+	// never be emitted beside a payload that contradicts it. Both read each
+	// round's live verdict: a disposition written into a recorded round file
+	// after it was recorded counts, as it does for review.
+	liveRounds := engine.LiveAuditRounds(specPath, st.AuditRounds)
+	converged := engine.Converged(liveRounds, wf.AuditCleanRounds, specHash)
+	stale := engine.StateStale(liveRounds, specHash)
 	result := map[string]any{
 		"round":                 round,
 		"findings":              findings,
 		"clean":                 clean,
-		"consecutive_clean":     engine.ConsecutiveClean(st.AuditRounds),
+		"consecutive_clean":     engine.ConsecutiveClean(liveRounds),
 		"required_clean_rounds": wf.AuditCleanRounds,
 		"converged":             converged,
 		"stale":                 stale,
@@ -137,7 +140,7 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 	// already follows on this path. Condition 5 reads back the corpus hash
 	// recordAuditRoundEntry just stamped on this round rather than hashing the
 	// corpus a second time, so the equality holds by construction here.
-	auditSignalFields(result, specPath, st.AuditRounds, wf.AuditCleanRounds, stale, converged, roundRolesHash)
+	auditSignalFields(result, specPath, liveRounds, wf.AuditCleanRounds, stale, converged, roundRolesHash)
 	// §8.4: harness_stale and harness_note are explanatory and are omitted under
 	// --compact; next_action is decision-critical and survives it. When emitted,
 	// harness_note is the verbatim stored note; --record reports staleness AFTER
@@ -151,10 +154,12 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 	// §8.1/§8.2: next_action names the single next step by the audit precedence.
 	// Advisory/read-only — it changes nothing and never gates the exit code. The
 	// just-recorded round is the latest, and v0.37.0 §2 makes its two facts two
-	// arguments: the stamped `clean` verdict picks the branch, while `findings`
-	// — the raw non-PASS count, positive on a clean round under `blocking` — is
-	// what the converged and clean-but-not-converged branches render.
-	result["next_action"] = engine.AuditNextAction(specPath, converged, clean, findings)
+	// arguments: the `clean` verdict picks the branch, while `findings` — the raw
+	// non-PASS count, positive on a clean round under `blocking` — is what the
+	// converged and clean-but-not-converged branches render.
+	done := engine.AuditLoopDone(specPath, st.AuditRounds, wf.AuditCleanRounds, wf.AuditMaxRounds, specHash)
+	addLoopDone(result, done)
+	result["next_action"] = engine.AuditNextAction(specPath, done, clean, findings, engine.LatestRoundFile(specPath, st.AuditRounds))
 	return output.JSON(result)
 }
 
@@ -206,7 +211,7 @@ func auditSignalFields(result map[string]any, specPath string, rounds []engine.R
 // §2.4's condition 5 can compare the stored hash against the value this one
 // computation produced instead of hashing the corpus a second time on the
 // --record path.
-func recordAuditRoundEntry(specPath string, data []byte, findings int, clean bool, specHash, harnessNote string) (st *engine.ReviewState, round int, rolesHash string, err error) {
+func recordAuditRoundEntry(specPath string, data []byte, findings int, clean bool, specHash, harnessNote, convergeOn string) (st *engine.ReviewState, round int, rolesHash string, err error) {
 	// Auditor corpus hash at record time (§9.2), stored on the round entry.
 	rolesHash, _ = engine.ComputeRolesHash(filepath.Dir(specPath), engine.PhaseAuditors)
 	err = engine.WithReviewStateLock(specPath, func() error {
@@ -245,6 +250,7 @@ func recordAuditRoundEntry(specPath string, data []byte, findings int, clean boo
 			SpecHash:    specHash,
 			RolesHash:   rolesHash,
 			IDScheme:    engine.IDSchemeSlug,
+			ConvergeOn:  convergeOn,
 			HarnessNote: harnessNote,
 		}
 		if rewrite {
@@ -381,9 +387,12 @@ func runAuditStatus(specPath string, check bool) error {
 
 	rounds := []engine.ReviewRound{}
 	if st != nil {
-		rounds = st.AuditRounds
+		// Each round's live verdict, not its record-time stamp, so a disposition
+		// written into a recorded round file clears it as it does for review.
+		rounds = engine.LiveAuditRounds(specPath, st.AuditRounds)
 	}
 	converged := engine.Converged(rounds, wf.AuditCleanRounds, specHash)
+	done := engine.AuditLoopDone(specPath, rounds, wf.AuditCleanRounds, wf.AuditMaxRounds, specHash)
 	stale := engine.StateStale(rounds, specHash)
 	rolesHash, _ := engine.ComputeRolesHash(filepath.Dir(specPath), engine.PhaseAuditors)
 
@@ -395,6 +404,7 @@ func runAuditStatus(specPath string, check bool) error {
 		"stale":                 stale,
 		"roles_stale":           engine.RolesStale(rounds, rolesHash),
 	}
+	addLoopDone(result, done)
 	// §2.5: the three fields are written HERE, before the --check exit-code
 	// branch at the end of this function, so `--status --check` — the invocation
 	// a gated driver actually runs — carries exactly the payload `--status`
@@ -424,7 +434,7 @@ func runAuditStatus(specPath string, check bool) error {
 		result["max_rounds"] = wf.AuditMaxRounds
 		remaining := max(wf.AuditMaxRounds-len(rounds), 0)
 		result["rounds_remaining"] = remaining
-		result["budget_exhausted"] = len(rounds) >= wf.AuditMaxRounds && !converged
+		result["budget_exhausted"] = len(rounds) >= wf.AuditMaxRounds && !done.Done
 	} else {
 		result["max_rounds"] = nil
 		result["rounds_remaining"] = nil
@@ -451,7 +461,7 @@ func runAuditStatus(specPath string, check bool) error {
 	if n := len(rounds); n > 0 {
 		latestClean, latestFindings = rounds[n-1].Clean, rounds[n-1].Findings
 	}
-	result["next_action"] = engine.AuditNextAction(specPath, converged, latestClean, latestFindings)
+	result["next_action"] = engine.AuditNextAction(specPath, done, latestClean, latestFindings, engine.LatestRoundFile(specPath, rounds))
 
 	if jsonErr := output.JSON(result); jsonErr != nil {
 		// Exiting, not falling through: without this the process printed a
@@ -461,7 +471,9 @@ func runAuditStatus(specPath string, check bool) error {
 		os.Exit(ExitFile)
 	}
 
-	if check && !converged {
+	// --check reads the same verdict tp resume does, so a driver never loops
+	// on an audit the cap has already ended.
+	if check && !done.Done {
 		os.Exit(ExitValidation)
 	}
 	return nil

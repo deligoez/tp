@@ -24,33 +24,42 @@ const OverSpecificationClass = "over-specification"
 const MechanizePhaseQualifier = "only worth registering when the artifact it measures already exists in the review phase"
 
 // ReviewNextAction returns the advisory next_action string for the review loop,
-// chosen by the fixed §8.2 precedence, total over reachable states (first match
-// wins):
+// chosen by a fixed precedence, total over reachable states (first match wins):
 //
-//  1. converged → the phase's forward step: decompose, then
-//     tp import <base>.tasks.json (<base> resolved from the spec base name).
-//  2. a convergence-blocking finding survives in the latest recorded round →
-//     revise the spec and re-review. It never names --resolve/--resolve-all/
-//     --verify: disposing of a blocking finding is an operator decision, never
-//     auto-advised (§3.1, §3.5, Principle 3).
-//  3. a mechanizable mechanize_candidates class is present and none is blocking →
+//  1. done (converged, or ended at the cap with every finding dispositioned) →
+//     the phase's forward step: decompose, then tp import <base>.tasks.json.
+//  2. the cap is reached and a finding still carries no disposition → the only
+//     way out: disposition it in the recorded round file, then import. No
+//     further round is named, because the cap admits none.
+//  3. a convergence-blocking finding survives in the latest recorded round →
+//     revise the spec, or disposition the finding in the recorded round file,
+//     then re-review. Both exits are named: a directive naming only the edit is
+//     what turned every finding into spec text. Accepting a blocking finding is
+//     named as the operator's decision, and --resolve-all is never advised.
+//  4. a mechanizable mechanize_candidates class is present and none is blocking →
 //     the compound directive: register a check, then run the next round. It
-//     carries MechanizePhaseQualifier, so the driver is told what registering
-//     costs when the check's subject is not yet in the spec (§8a.2). The
-//     un-mechanizable over-specification class is excluded and does not fire this
-//     branch (it falls through to branch 4).
-//  4. clean but not yet converged (the lowest-precedence default) → run the next
+//     carries MechanizePhaseQualifier (§8a.2). The un-mechanizable
+//     over-specification class does not fire this branch.
+//  5. clean but not yet converged (the lowest-precedence default) → run the next
 //     review round.
 //
 // next_action is advisory/read-only: it changes nothing and gates no exit code
-// (§8.1). <spec> is resolved to specPath; <file> stays a literal placeholder
-// because tp cannot know the operator's chosen findings filename (§8.2).
-func ReviewNextAction(specPath string, converged, blockingUnresolved bool, mechanizeClasses []string) string {
+// (§8.1). <spec> is resolved to specPath and roundFile names the latest recorded
+// round's file; <file> stays a literal placeholder because tp cannot know the
+// operator's chosen findings filename (§8.2).
+func ReviewNextAction(specPath string, done LoopDone, blockingUnresolved bool, mechanizeClasses []string, roundFile string) string {
+	importStep := "tp import " + specTaskBase(specPath)
 	switch {
-	case converged:
-		return "decompose the spec into tasks, then tp import " + specTaskBase(specPath)
+	case done.Done && done.By == DoneByCap:
+		return "decompose the spec into tasks, then " + importStep + " — the round cap ended review with every finding dispositioned"
+	case done.Done:
+		return "decompose the spec into tasks, then " + importStep
+	case done.CapReached:
+		return "the review round cap is reached: disposition each remaining finding in " + roundFile +
+			" — tp review " + roundFile + " --resolve <index> fixed|wontfix|duplicate \"<evidence>\"; accepting a critical or high finding is the operator's decision — then " + importStep
 	case blockingUnresolved:
-		return "revise the spec to address the blocking findings, then run the next review round"
+		return "revise the spec where a blocking finding is a defect, or disposition it — tp review " + roundFile +
+			" --resolve <index> wontfix|duplicate \"<evidence>\", the operator's decision for a critical or high finding — then run the next review round"
 	default:
 		if cls := firstMechanizableClass(mechanizeClasses); cls != "" {
 			return fmt.Sprintf(
@@ -62,40 +71,37 @@ func ReviewNextAction(specPath string, converged, blockingUnresolved bool, mecha
 }
 
 // AuditNextAction returns the advisory next_action string for the audit loop by
-// the §8.2 three-state precedence, using audit's own commands (first match wins):
+// a fixed precedence, using audit's own commands (first match wins):
 //
-//  1. converged → the terminal proceed-to-release marker; it names no further tp
-//     command (release is outside tp).
-//  2. the latest recorded round is unclean → the fix-and-re-audit directive.
-//  3. clean but not yet converged (the default) → run the next audit round.
+//  1. done → the terminal proceed-to-release marker; it names no further tp
+//     command. A loop the cap ended says so instead of "converged".
+//  2. the cap is reached and a finding still carries no disposition →
+//     disposition it in the recorded round file; no further round is named.
+//  3. the latest recorded round is unclean → fix and re-audit, or, for a
+//     finding that needs no code change, disposition it (the operator's call).
+//  4. clean but not yet converged (the default) → run the next audit round.
 //
-// v0.37.0 §2 splits the single boolean this took — latestRoundHasFindings, the
-// callers' `!clean` — into the two questions audit_converge_on separates, and
-// drops it: latestRoundClean is the round's STORED verdict, whether the resolved
-// policy lets the phase end, and it alone picks the branch; latestRoundFindings
-// is the count of that round's non-PASS rows, which under `blocking` is positive
-// on rounds that are clean. Branches 1 and 3 — the two §2's table names — render
-// that count as a numeral, so the string differs observably from an empty
-// round's and an operator reading either audit sink learns that the round closed
-// over accepted rows. Branch 2 is unchanged: an unclean round's rows are what the
-// fix directive already sends the reader to. Under the default `all` the two
-// inputs agree, latestRoundFindings is zero on every clean round, and all three
-// branches read exactly as they did before this release.
-//
-// The review revise-and-re-review and mechanize_candidates branches do not apply
-// to audit: audit findings are PASS/FAIL rows with no --resolve/--verify path and
-// audit --record surfaces no mechanize_candidates. Advisory/read-only; gates no
-// exit code (§8.1).
-func AuditNextAction(specPath string, converged, latestRoundClean bool, latestRoundFindings int) string {
+// latestRoundClean is the round's live verdict; latestRoundFindings is the count
+// of its non-PASS rows, which under `blocking` is positive on rounds that are
+// clean, and branches 1 and 4 render it as a numeral (v0.37.0 §2). Under the
+// default `all` the two agree and the numeral never appears. Advisory/read-only;
+// gates no exit code (§8.1).
+func AuditNextAction(specPath string, done LoopDone, latestRoundClean bool, latestRoundFindings int, roundFile string) string {
 	switch {
-	case converged:
+	case done.Done && done.By == DoneByCap:
+		return "the audit round cap ended the loop with every finding dispositioned — proceed to release"
+	case done.Done:
 		if latestRoundFindings > 0 {
 			return "converged over " + acceptedRows(latestRoundFindings) +
 				" — implementation verified, proceed to release"
 		}
 		return "converged — implementation verified, proceed to release"
+	case done.CapReached:
+		return "the audit round cap is reached: disposition each remaining finding in " + roundFile +
+			" — tp audit " + roundFile + " --resolve <role:item_id> fixed|wontfix|duplicate \"<evidence>\"; accepting a finding without a code change is the operator's decision"
 	case !latestRoundClean:
-		return "address the findings, then re-audit: tp audit " + specPath + " --record <file>"
+		return "address the findings, then re-audit: tp audit " + specPath + " --record <file> — or, for a finding that needs no code change, tp audit " +
+			roundFile + " --resolve <role:item_id> wontfix|duplicate \"<evidence>\" (the operator's decision)"
 	default:
 		if latestRoundFindings > 0 {
 			return acceptedRows(latestRoundFindings) + " carried forward — run the next audit round: tp audit " +
@@ -103,6 +109,15 @@ func AuditNextAction(specPath string, converged, latestRoundClean bool, latestRo
 		}
 		return "run the next audit round: tp audit " + specPath + " --record <file>"
 	}
+}
+
+// LatestRoundFile returns the recorded round file of the latest round in
+// rounds, as the path an agent passes to --resolve, or "" with no round.
+func LatestRoundFile(specPath string, rounds []ReviewRound) string {
+	if len(rounds) == 0 {
+		return ""
+	}
+	return filepath.Join(ReviewStateDir(specPath), rounds[len(rounds)-1].File)
 }
 
 // acceptedRows renders the accepted-row count as the numeral §2 asks for, with

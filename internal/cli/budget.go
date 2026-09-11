@@ -8,9 +8,11 @@ import (
 	"github.com/deligoez/tp/internal/output"
 )
 
-// budgetEscalationHint names the ways forward when a round budget is
-// exhausted: uncounted passes first, then user-approved escapes only.
-const budgetEscalationHint = "exhaust the tail with uncounted passes (delta pass, class sweep); then, with user approval, raise the cap via tp set --workflow review_max_rounds/audit_max_rounds for the confirming full-panel rounds, or import with user-approved --force"
+// budgetEscalationHint names the way out when a round cap is reached: the
+// cap admits no further round, so the remaining findings of the latest round
+// are dispositioned in its recorded file, then the loop ends and import or
+// release proceeds. Raising the cap stays a user-approved decision.
+const budgetEscalationHint = "disposition each remaining finding in the latest recorded round file — tp review|audit <round file> --resolve <selector> fixed|wontfix|duplicate \"<evidence>\" (accepting a blocking finding is the operator's decision); raising review_max_rounds/audit_max_rounds or import --force stay user-approved"
 
 // refuseIfBudgetExhausted exits 4 when a round cap is set, recorded rounds
 // have reached it, and the sequence is not converged. Evaluated before line

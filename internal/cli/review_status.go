@@ -65,6 +65,10 @@ func runReviewStatus(specPath string, check bool) error {
 	}
 
 	converged := engine.Converged(rounds, wf.ReviewCleanRounds, specHash)
+	// done is the one verdict import, next_action, tp resume and --check read:
+	// converged, or the cap reached with every finding of the latest round
+	// dispositioned. converged stays the narrower fact it always reported.
+	done := engine.ReviewLoopDone(specPath, rounds, wf.ReviewCleanRounds, wf.ReviewMaxRounds, specHash, wf.ReviewConvergeOn)
 	rolesHash, _ := engine.ComputeRolesHash(filepath.Dir(specPath), engine.PhaseReviewers)
 
 	var mechChecks []map[string]any
@@ -96,6 +100,7 @@ func runReviewStatus(specPath string, check bool) error {
 		"mechanical_checks":     mechChecks,
 		"overlap_report":        overlapReport,
 	}
+	addLoopDone(result, done)
 	if !IsCompact() {
 		result["location_clusters"] = locationClusters
 	}
@@ -119,7 +124,7 @@ func runReviewStatus(specPath string, check bool) error {
 		result["max_rounds"] = wf.ReviewMaxRounds
 		remaining := max(wf.ReviewMaxRounds-len(rounds), 0)
 		result["rounds_remaining"] = remaining
-		result["budget_exhausted"] = len(rounds) >= wf.ReviewMaxRounds && !converged
+		result["budget_exhausted"] = len(rounds) >= wf.ReviewMaxRounds && !done.Done
 	} else {
 		result["max_rounds"] = nil
 		result["rounds_remaining"] = nil
@@ -153,7 +158,8 @@ func runReviewStatus(specPath string, check bool) error {
 	// mechanize candidates are derived here from the recorded rounds by the same
 	// threshold --record uses, so branch 3 is reachable on --status too.
 	blockingUnresolved := len(rounds) > 0 && !rounds[len(rounds)-1].Clean
-	result["next_action"] = engine.ReviewNextAction(specPath, converged, blockingUnresolved, mechanizeClassesFromRounds(specPath, rounds, wf.Checks))
+	result["next_action"] = engine.ReviewNextAction(specPath, done, blockingUnresolved,
+		mechanizeClassesFromRounds(specPath, rounds, wf.Checks), engine.LatestRoundFile(specPath, rounds))
 
 	if jsonErr := output.JSON(result); jsonErr != nil {
 		// Exiting, not falling through: see runAuditStatus. A code-3 envelope
@@ -162,7 +168,9 @@ func runReviewStatus(specPath string, check bool) error {
 		os.Exit(ExitFile)
 	}
 
-	if check && (!converged || !allPass) {
+	// --check reads the same verdict import does, so a driver never loops on a
+	// spec import already accepts.
+	if check && (!done.Done || !allPass) {
 		os.Exit(ExitValidation)
 	}
 	return nil

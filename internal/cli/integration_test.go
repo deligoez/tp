@@ -112,6 +112,10 @@ func TestSelfLoop_ReviewToImport(t *testing.T) {
 	dir := t.TempDir()
 	spec := "# Feature\nOverview of the feature.\n## 1. Goal\ndo something useful\n## 2. Detail\nmore detail here\n"
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec), 0o600))
+	// Convergence lands on round 3, the default cap, where a stale spec is
+	// waived with a note (TestImport_AtTheCap). This test is about the
+	// converged-then-edited block, so the loop runs uncapped.
+	uncapLoops(t, dir)
 
 	// lint
 	_, _, code := runTP(t, dir, "lint", "spec.md")

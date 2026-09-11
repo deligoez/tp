@@ -46,6 +46,8 @@ func runAuditResolve(args []string, force bool) error {
 
 	requireResultsPositional(filePath, "--resolve", auditResolveUsageForm)
 	requireResolveStatus(status)
+	requireAcceptanceEvidence(status, evidence)
+	fenceAuditAcceptance(status)
 	requireResultsFileExists(filePath)
 
 	var rows []map[string]any
@@ -118,6 +120,8 @@ func runAuditResolveAll(args []string, force bool) error {
 
 	requireResultsPositional(filePath, "--resolve-all", auditResolveAllUsageForm)
 	requireResolveStatus(status)
+	requireAcceptanceEvidence(status, evidence)
+	fenceAuditAcceptance(status)
 	requireResultsFileExists(filePath)
 
 	resolvedCount := 0

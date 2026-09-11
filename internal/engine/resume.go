@@ -83,8 +83,11 @@ func AssembleResume(start, taskFilePath, specPath string, tf *model.TaskFile) (R
 	specHash, _ := SpecHash(specPath)
 	reviewRounds := reviewRoundsOf(st)
 	auditRounds := auditRoundsOf(st)
-	reviewConverged := Converged(reviewRounds, wf.ReviewCleanRounds, specHash)
-	auditConverged := Converged(auditRounds, wf.AuditCleanRounds, specHash)
+	// The same verdict import and --status --check read: converged, or the cap
+	// reached with every finding of the latest round dispositioned. Reading the
+	// stored flags here kept the oracle escalating on a loop import accepted.
+	reviewConverged := ReviewLoopDone(specPath, reviewRounds, wf.ReviewCleanRounds, wf.EffectiveReviewMaxRounds(), specHash, wf.ReviewConvergeOn).Done
+	auditConverged := AuditLoopDone(specPath, auditRounds, wf.AuditCleanRounds, wf.EffectiveAuditMaxRounds(), specHash).Done
 	reviewStale := StateStale(reviewRounds, specHash)
 
 	numDone := 0

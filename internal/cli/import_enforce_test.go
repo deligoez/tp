@@ -78,7 +78,7 @@ func TestImport_ConvergenceEnforced(t *testing.T) {
 		assert.Equal(t, 0, code, "converged import blocked: %s", stderr)
 	})
 
-	t.Run("exhausted budget swaps the hint to the escalation sequence", func(t *testing.T) {
+	t.Run("at the cap an open finding blocks and the hint names disposition", func(t *testing.T) {
 		dir := setupEnforceProject(t)
 		_, _, code := runTP(t, dir, "init", "spec.md")
 		require.Equal(t, 0, code)
@@ -88,8 +88,8 @@ func TestImport_ConvergenceEnforced(t *testing.T) {
 		require.Equal(t, 0, code)
 
 		stderr, code2 := importBare(t, dir)
-		assert.Equal(t, 1, code2, "cap never relaxes enforcement")
-		assert.Contains(t, stderr, "raise the cap", "hint names the escalation sequence")
+		assert.Equal(t, 1, code2, "an undispositioned finding at the cap still blocks")
+		assert.Contains(t, stderr, "--resolve", "the hint names disposition, the way out at the cap")
 	})
 }
 
@@ -111,4 +111,31 @@ func TestImport_ShellOverwriteNoForce(t *testing.T) {
 
 	_, code4 := importBare(t, dir, "--force")
 	assert.Equal(t, 0, code4)
+}
+
+// TestImport_AtTheCap: the default cap ends review once every finding of the
+// latest round carries a disposition. Before that, import names the way out;
+// after it, import passes and says what the cap waived — a spec changed after
+// the last round, which no round has read.
+func TestImport_AtTheCap(t *testing.T) {
+	t.Parallel()
+	dir := setupEnforceProject(t)
+	for range 3 {
+		_, stderr, code := recordRound(t, dir, dirtyRow)
+		require.Equal(t, 0, code, stderr)
+	}
+
+	stderr, code := importBare(t, dir)
+	assert.Equal(t, 1, code, "an open finding at the cap still blocks: %s", stderr)
+	assert.Contains(t, stderr, "--resolve", "the hint names disposition, the only way out at the cap")
+
+	round3 := filepath.Join(".tp-review", "spec", "review-round-3.ndjson")
+	_, stderr, code = runTP(t, dir, "review", round3, "--resolve", "0", "wontfix", "accepted by the operator: out of scope")
+	require.Equal(t, 0, code, stderr)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(normSpec+"\nedited after round 3\n"), 0o600))
+
+	stderr, code = importBare(t, dir)
+	assert.Equal(t, 0, code, "the cap ended review: %s", stderr)
+	assert.Contains(t, stderr, "round cap")
+	assert.Contains(t, stderr, "spec changed since round 3", "the waived staleness is said, not hidden")
 }

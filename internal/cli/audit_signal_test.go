@@ -58,25 +58,6 @@ func recordSignalRound(t *testing.T, dir string, flags []string, rows ...string)
 	return stdout, stderr
 }
 
-// ndjsonRows parses recorded audit rows out of an NDJSON file, so a test can
-// hand a shipped engine predicate the very bytes an invocation was given rather
-// than a hand-built restatement of them.
-func ndjsonRows(t *testing.T, path string) []map[string]any {
-	t.Helper()
-	data, err := os.ReadFile(path)
-	require.NoError(t, err)
-	rows := make([]map[string]any, 0)
-	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
-		if line == "" {
-			continue
-		}
-		var row map[string]any
-		require.NoError(t, json.Unmarshal([]byte(line), &row), "line: %s", line)
-		rows = append(rows, row)
-	}
-	return rows
-}
-
 // decodeSignal parses an audit payload.
 func decodeSignal(t *testing.T, stdout string) map[string]any {
 	t.Helper()
@@ -424,7 +405,7 @@ func TestAuditGate_DivergenceReachesNeitherConvergenceNorNextAction(t *testing.T
 	assert.Equal(t, false, recordOut["converged"])
 	assert.Equal(t, float64(0), recordOut["consecutive_clean"],
 		"and still counts toward no streak")
-	assert.Equal(t, fixDirective, recordOut["next_action"],
+	assert.Contains(t, recordOut["next_action"], fixDirective,
 		"next_action gains no divergence branch on the invocation that emits divergence")
 
 	// --status --check over the same state: still exit 1, still the same
@@ -436,7 +417,7 @@ func TestAuditGate_DivergenceReachesNeitherConvergenceNorNextAction(t *testing.T
 		"the exit code and the object are asserted on one invocation: %s", checked)
 	assert.Equal(t, false, status["converged"])
 	assert.Equal(t, float64(0), status["consecutive_clean"])
-	assert.Equal(t, fixDirective, status["next_action"])
+	assert.Contains(t, status["next_action"], fixDirective)
 
 	// The stored per-round clean flag, read from state.json rather than from a
 	// payload, so an implementation that only rewrote the reported value fails.
@@ -454,8 +435,8 @@ func TestAuditGate_DivergenceReachesNeitherConvergenceNorNextAction(t *testing.T
 	assert.Equal(t, 0, engine.ConsecutiveClean(st.AuditRounds))
 	assert.False(t, engine.Converged(st.AuditRounds, 2, specHash),
 		"two rounds, the latest of them unclean, is not two consecutive clean rounds")
-	assert.Equal(t, fixDirective, engine.AuditNextAction("spec.md", false, false /*unclean*/, 1),
-		"branch 2 of the three-state audit precedence is unchanged")
+	assert.Contains(t, engine.AuditNextAction("spec.md", engine.LoopDone{}, false /*unclean*/, 1, engine.LatestRoundFile("spec.md", st.AuditRounds)),
+		fixDirective, "branch 3 of the audit precedence still names the fix-and-re-audit directive")
 }
 
 // Test 30 (Non-Goal 10) — tp resume is unchanged. The fixture is taken all the
@@ -495,87 +476,61 @@ func TestAuditGate_ResumeIsUnchangedByTheDivergence(t *testing.T) {
 		"resume still names the next audit round beside a diverging state")
 }
 
-// Test 30 (Non-Goals 1, 5 and 6) — the gate has no escape hatch and the signal
-// carries no gate input. v0.37.0 §2 ships the audit_converge_on knob v0.33.0's
-// Non-Goal 2 held back and v0.34.0 §11 deferred again, so §6.1 reverses the two
-// assertions naming it: the field is settable, and what this test still guards
-// is that setting it is not an escape hatch. A per-role streak entry carries the
-// three keys of §2.2 and nothing else, so neither a per-role threshold
-// (Non-Goal 6) nor a scope label (Non-Goal 1) can arrive unnoticed.
+// Test 30 (Non-Goals 1, 5 and 6) — setting audit_converge_on is not an escape
+// hatch, and a per-role streak entry carries the three keys of §2.2 and nothing
+// else, so neither a per-role threshold (Non-Goal 6) nor a scope label
+// (Non-Goal 1) can arrive unnoticed.
 //
-// v0.35.0 §3.3 adds the audit-side --resolve this test used to pin as absent,
-// because audit-fix has no other way to record the no-code-change outcome. What
-// Non-Goal 5 actually protects survives that and is what is asserted here
-// instead: a disposition is not a way to park a finding past the gate.
-// v0.35.0 §6.3 states the mechanism — tp audit --record counts every row whose
-// status is not exactly PASS and reads no disposition at all — so disposing the
-// open row leaves the round's finding, the role streak and --check exactly
-// where they were.
-func TestAuditGate_NoEscapeHatchFromTheGate(t *testing.T) {
+// v1.2.0 reverses what this test used to pin about dispositions. It asserted
+// that a wontfix written into an audit round cleared nothing, which left the
+// audit loop no exit but code changes and made a capped audit end only in
+// escalation. An audit finding accepted wontfix/duplicate WITH evidence now
+// leaves its round the way a review finding does; what still guards the gate is
+// that the acceptance needs evidence, that TP_UNATTENDED refuses it (the
+// operator's decision), and that the loop ends only when every finding of the
+// latest round carries one.
+func TestAuditGate_AnAcceptedFindingLeavesTheRound(t *testing.T) {
 	t.Parallel()
 	dir, record := divergingFixture(t)
 
-	// §6.1 / §7 row 18 — reversed, not deleted: a deletion leaves the rest of
-	// this test passing and no assertion anywhere that the field is legal at the
-	// write sink this guard drives. require, because everything below now runs
-	// under the policy this write installs.
-	//
 	// The write runs with TP_UNATTENDED removed from the child rather than
-	// inherited (§7's closing note). §3 fences a write that changes the resolved
-	// value to blocking under that variable, and this is exactly such a write —
-	// so a suite run under TP_UNATTENDED=1, which is what tp run gives the
-	// quality gate, would otherwise redden this guard for a reason it is not
-	// about. What it guards is that the field is a known one at this sink; the
-	// operator writing it here is a human.
+	// inherited (§7's closing note): §3 fences a write that changes the resolved
+	// value to blocking under that variable, and the operator writing it here
+	// is a human.
 	stdout, stderr, code := runTPFence(t, dir, false, "set", "--workflow", "--project", "audit_converge_on=blocking")
 	require.Equal(t, 0, code, "audit_converge_on is a known workflow field (§2): %s", stderr)
 	assert.NotContains(t, stdout+stderr, "unknown workflow field: audit_converge_on",
 		"the project write sink recognises the field rather than refusing it as unknown")
-
-	// §7 row 18's second half. The reversal above changes what the rest of this
-	// test runs under: while the write was refused every round here was graded
-	// under the built-in `all`, and now the project layer resolves to `blocking`
-	// and the round re-recorded below is stamped under it.
 	assert.Equal(t, engine.AuditConvergeOnBlocking, resolvedAuditConvergeOn(t, dir)["value"],
 		"the reversed write takes effect, so what follows is graded under blocking")
 
 	// divergingFixture left the second round's rows in results.ndjson: one PASS
-	// and go-safety's open FAIL. Dispose the FAIL and re-record from the same
-	// file the round was recorded from.
+	// and go-safety's open FAIL. An acceptance with blank evidence is refused —
+	// it would read as a disposition and clear nothing.
 	results := filepath.Join(dir, "results.ndjson")
-	_, stderr, code = runTP(t, dir, "audit", results, "--resolve", "go-safety:go-safety-item", "wontfix", "parked")
-	require.Equal(t, 0, code, "v0.35.0 §3.3 exposes an audit-side --resolve: %s", stderr)
+	_, stderr, code = runTPFence(t, dir, false, "audit", results, "--resolve", "go-safety:go-safety-item", "wontfix", "  ")
+	assert.Equal(t, 2, code, "a wontfix with blank evidence is refused: %s", stderr)
 
-	// What keeps the assertions below green under `blocking` is §2's fail-closed
-	// rule rather than the disposition: signalRow states no severity at all, and
-	// a row tp cannot grade is a row tp must not stop counting. Both halves are
-	// asserted, because the premise is invisible in the fixture and the rule is
-	// invisible in the payload.
-	rows := ndjsonRows(t, results)
-	for _, row := range rows {
-		assert.NotContains(t, row, "severity",
-			"the fixture states no severity, so the fail-closed rule is what grades it: %v", row)
-	}
-	assert.False(t, engine.AuditRowsClean(rows, engine.AuditConvergeOnBlocking),
-		"an ungradeable non-PASS row blocks under blocking")
-
-	reRecord, stderr, code := runTP(t, dir, "audit", "spec.md", "--record", results)
+	// With evidence it lands, and re-recording the file records it accepted.
+	_, stderr, code = runTPFence(t, dir, false, "audit", results, "--resolve", "go-safety:go-safety-item", "wontfix", "measured: unreachable from any caller")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	reRecord, stderr, code := runTPFence(t, dir, false, "audit", "spec.md", "--record", results)
 	require.Equal(t, 0, code, "stderr: %s", stderr)
 	assert.Contains(t, decodeSignal(t, reRecord)["role_streaks"],
-		map[string]any{"role": "go-safety", "consecutive_clean": float64(0), "open": float64(1)},
-		"a wontfix disposition does not clear go-safety's open finding")
+		map[string]any{"role": "go-safety", "consecutive_clean": float64(1), "open": float64(0)},
+		"an accepted finding is not open, so go-safety's streak restarts clean")
 
-	_, stderr, code = runTP(t, dir, "audit", "spec.md", "--status", "--check")
-	assert.Equal(t, 1, code, "the gate is still shut over the disposed finding: %s", stderr)
-
-	// And the round tp itself stamped under `blocking` is unclean, read from
-	// state.json rather than from a payload, so a reporting path that re-graded
-	// on read could not hide it.
 	st, err := engine.LoadReviewState(filepath.Join(dir, "spec.md"))
 	require.NoError(t, err)
 	require.Len(t, st.AuditRounds, 3, "the re-record above is this fixture's third round")
-	assert.False(t, st.AuditRounds[2].Clean,
-		"the round recorded under blocking is stamped unclean by the fail-closed rule")
+	assert.True(t, st.AuditRounds[2].Clean,
+		"the round recorded from an accepted row is stamped clean, even under blocking's fail-closed severity rule")
+
+	// Three rounds is the default cap, and every finding of the latest round
+	// carries a disposition, so the loop has ended — and says the cap ended it.
+	checked, stderr, code := runTPFence(t, dir, false, "audit", "spec.md", "--status", "--check")
+	assert.Equal(t, 0, code, "the loop ended at the cap: %s", stderr)
+	assert.Equal(t, engine.DoneByCap, decodeSignal(t, checked)["done_by"])
 
 	streaks, ok := decodeSignal(t, record)["role_streaks"].([]any)
 	require.True(t, ok, "record payload: %s", record)

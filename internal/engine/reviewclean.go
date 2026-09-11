@@ -24,12 +24,18 @@ func reviewSeverityBlocking(row map[string]any) bool {
 	return !nonBlockingReviewSeverities[norm]
 }
 
-// reviewFindingResolvedAway reports whether a recorded finding is out of the
+// ReviewRowBlocking reports whether a review finding row's severity blocks a
+// clean round: critical, high, or anything tp cannot grade.
+func ReviewRowBlocking(row map[string]any) bool {
+	return reviewSeverityBlocking(row)
+}
+
+// findingResolvedAway reports whether a recorded finding is out of the
 // surviving set: resolved wontfix or duplicate with non-empty evidence (§3.4,
 // §4.3). The resolution is read live from the round's recorded row, so a
 // later --resolve/--resolve-all edit re-evaluates the round without
 // re-recording.
-func reviewFindingResolvedAway(row map[string]any) bool {
+func findingResolvedAway(row map[string]any) bool {
 	resolved, ok := row["resolved"].(map[string]any)
 	if !ok {
 		return false
@@ -61,7 +67,7 @@ func ReviewRoundClean(specPath string, entry *ReviewRound, convergeOn string) bo
 	survivingBlocking := 0
 	surviving := 0
 	for _, row := range rows {
-		if reviewFindingResolvedAway(row) {
+		if findingResolvedAway(row) {
 			continue
 		}
 		surviving++
@@ -104,7 +110,7 @@ func ReviewRoundNonBlockingOpen(specPath string, entry *ReviewRound, convergeOn 
 	}
 	n := 0
 	for _, row := range rows {
-		if reviewFindingResolvedAway(row) {
+		if findingResolvedAway(row) {
 			continue
 		}
 		if !reviewSeverityBlocking(row) {

@@ -66,8 +66,10 @@ func TestNextAction_ReviewConvergedWithNonBlockingOpen(t *testing.T) {
 	assert.NotContains(t, na, "--resolve")
 }
 
-// TestNextAction_ReviewBlocking: branch 2 — a surviving blocking (high) finding
-// names the revise-and-re-review directive and never --resolve/--verify.
+// TestNextAction_ReviewBlocking: branch 3 — a surviving blocking (high) finding
+// names the spec change AND disposition in the recorded round file as equal
+// exits, calls accepting it the operator's decision, and never advises the
+// blanket --resolve-all or --verify.
 func TestNextAction_ReviewBlocking(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
@@ -78,7 +80,8 @@ func TestNextAction_ReviewBlocking(t *testing.T) {
 	require.Equal(t, false, out["clean"], "a surviving high blocks")
 	na := naStr(t, out)
 	assert.Contains(t, na, "revise the spec")
-	assert.NotContains(t, na, "--resolve")
+	assert.Contains(t, na, "review-round-1.ndjson --resolve", "disposition names the recorded round file")
+	assert.Contains(t, na, "operator")
 	assert.NotContains(t, na, "--resolve-all")
 	assert.NotContains(t, na, "--verify")
 

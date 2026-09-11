@@ -30,10 +30,11 @@ func TestRoundBudget_Escalates(t *testing.T) {
 		require.Equal(t, 0, rc)
 	}
 
-	// Review prompt generation exits 4 with the escalation hint
+	// Review prompt generation exits 4, and the hint names the way out at the
+	// cap: disposition the remaining findings.
 	_, stderr, code := runTP(t, dir, "review", "spec.md")
 	assert.Equal(t, 4, code)
-	assert.Contains(t, stderr, "raise the cap")
+	assert.Contains(t, stderr, "--resolve")
 
 	// Further --record beyond the exhausted cap is refused (review and audit)
 	_, stderr, code = recordRound(t, dir, "")
@@ -60,11 +61,11 @@ func TestRoundBudget_Escalates(t *testing.T) {
 	assert.Equal(t, 4, code)
 	assert.Contains(t, stderr, "audit round budget exhausted")
 
-	// Import enforcement unchanged: unconverged spec stays blocked (exit 1,
-	// not relaxed by the cap)
+	// At the cap import passes only once every finding of the latest round
+	// carries a disposition; an open one still blocks (exit 1).
 	importPath := filepath.Join(dir, "import.json")
 	require.NoError(t, os.WriteFile(importPath, []byte(`[`+enforceTask+`]`), 0o600))
 	_, stderr, code = runTP(t, dir, "import", importPath, "--spec", "spec.md")
-	assert.Equal(t, 1, code, "cap never changes import enforcement")
-	assert.Contains(t, stderr, "review not converged")
+	assert.Equal(t, 1, code, "an undispositioned finding at the cap blocks import")
+	assert.Contains(t, stderr, "carrying no disposition")
 }

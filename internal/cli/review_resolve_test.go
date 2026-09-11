@@ -190,6 +190,10 @@ func TestRunReviewResolve_PreservesOtherFields(t *testing.T) {
 	assert.True(t, ok, "resolved field should exist")
 }
 
+// TestRunReviewResolve_OmittedEvidence: evidence stays optional for fixed,
+// which says the spec changed. A wontfix or duplicate without it is refused
+// before anything is written (TestResolve_AnAcceptanceNeedsEvidence, run as a
+// subprocess because the refusal exits).
 func TestRunReviewResolve_OmittedEvidence(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
@@ -198,13 +202,13 @@ func TestRunReviewResolve_OmittedEvidence(t *testing.T) {
 	})
 
 	// Only 3 args — no evidence
-	err := runReviewResolve([]string{path, "0", "wontfix"}, false)
+	err := runReviewResolve([]string{path, "0", "fixed"}, false)
 	require.NoError(t, err)
 
 	findings := readFindingsFile(t, path)
 	resolved, ok := findings[0]["resolved"].(map[string]any)
 	require.True(t, ok)
-	assert.Equal(t, "wontfix", resolved["status"])
+	assert.Equal(t, "fixed", resolved["status"])
 	assert.Equal(t, "", resolved["evidence"])
 }
 

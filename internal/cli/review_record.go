@@ -189,8 +189,9 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 
 	// Mechanize candidates across all recorded rounds including this one
 	roundFindings := make([][]map[string]any, 0, len(st.ReviewRounds))
-	for _, r := range st.ReviewRounds {
-		rows, found := engine.LoadRoundRows(specPath, &r)
+	for i := range st.ReviewRounds {
+		r := &st.ReviewRounds[i]
+		rows, found := engine.LoadRoundRows(specPath, r)
 		if !found {
 			output.Notice(fmt.Sprintf("round %d file %s is missing; skipping its rows", r.Round, r.File))
 			continue
@@ -265,10 +266,13 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 	}
 	// §8.1/§8.2: next_action names the single next step by the fixed precedence.
 	// Advisory/read-only — it changes nothing and never gates the exit code. The
-	// just-recorded round is the latest, so branch 2's "convergence-blocking
-	// finding survives in the latest round" is exactly !liveClean; branch 3 reads
+	// just-recorded round is the latest, so branch 3's "convergence-blocking
+	// finding survives in the latest round" is exactly !liveClean; branch 4 reads
 	// the same mechanize candidates surfaced above.
-	result["next_action"] = engine.ReviewNextAction(specPath, converged, !liveClean, mechanizeCandidateClasses(candidates))
+	done := engine.ReviewLoopDone(specPath, st.ReviewRounds, wf.ReviewCleanRounds, wf.ReviewMaxRounds, specHash, wf.ReviewConvergeOn)
+	addLoopDone(result, done)
+	result["next_action"] = engine.ReviewNextAction(specPath, done, !liveClean,
+		mechanizeCandidateClasses(candidates), engine.LatestRoundFile(specPath, st.ReviewRounds))
 	return output.JSON(result)
 }
 

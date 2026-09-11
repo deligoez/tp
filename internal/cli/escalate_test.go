@@ -172,6 +172,7 @@ func TestEscalateAcceptsTheDocumentedDecisions(t *testing.T) {
 		"raise-audit-cap",
 		"import-force",
 		"audit-converge-on",
+		"accept-finding",
 		"other",
 	}
 	assert.Equal(t, documented, engine.EscalationDecisions(),

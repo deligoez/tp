@@ -11,10 +11,11 @@ import (
 )
 
 // enforceImportConvergence blocks an import whose spec has recorded review
-// rounds but is not converged or is stale. The spec path is pinned to the
-// import target's directory, matching how workflow resolution reads the spec
-// field after the write. The round budget never relaxes enforcement — an
-// unconverged spec stays blocked regardless of budget.
+// rounds and whose review loop has not ended. It reads engine.ReviewLoopDone,
+// the verdict --status --check, next_action and tp resume read: converged, or
+// the round cap reached with every finding of the latest round dispositioned.
+// The spec path is pinned to the import target's directory, matching how
+// workflow resolution reads the spec field after the write.
 func enforceImportConvergence(targetPath string, tf *model.TaskFile) {
 	stateSpec := filepath.Join(filepath.Dir(targetPath), filepath.Base(tf.Spec))
 
@@ -34,17 +35,25 @@ func enforceImportConvergence(targetPath string, tf *model.TaskFile) {
 		return
 	}
 
-	// Enforcement uses the resolved (project-layered) clean-rounds value, so a
-	// thinned task file inherits the project requirement rather than reading the
-	// raw task-file block alone.
+	// Enforcement uses the resolved (project-layered) values, so a thinned task
+	// file inherits the project requirement rather than reading the raw
+	// task-file block alone.
 	wfResolved, _ := engine.ResolveWorkflow(stateSpec, flagFile)
-	required := wfResolved.ReviewCleanRounds
+	specHash, hashErr := engine.SpecHash(stateSpec)
+	if hashErr != nil {
+		output.Error(ExitFile, fmt.Sprintf("cannot hash spec: %s", stateSpec), hashErr.Error())
+		os.Exit(ExitFile)
+		return
+	}
+	done := engine.ReviewLoopDone(stateSpec, st.ReviewRounds, wfResolved.ReviewCleanRounds, wfResolved.ReviewMaxRounds, specHash, wfResolved.ReviewConvergeOn)
+	lastRound := st.ReviewRounds[len(st.ReviewRounds)-1].Round
 
-	hint := "record the remaining clean rounds with tp review --record, or import with user-approved --force"
-	if wfResolved.ReviewMaxRounds > 0 && len(st.ReviewRounds) >= wfResolved.ReviewMaxRounds {
-		hint = budgetEscalationHint
+	if settledByLoopVerdict(done, wfResolved.ReviewMaxRounds, lastRound) {
+		return
 	}
 
+	required := wfResolved.ReviewCleanRounds
+	hint := "record the remaining clean rounds with tp review --record, or import with user-approved --force"
 	// Review-convergence enforcement uses the live severity-aware predicate so a
 	// blocking-policy round whose only survivors are medium/low counts clean,
 	// consistent with tp review --status/--record.
@@ -54,11 +63,38 @@ func enforceImportConvergence(targetPath string, tf *model.TaskFile) {
 		os.Exit(ExitValidation)
 		return
 	}
-
-	if specHash, hashErr := engine.SpecHash(stateSpec); hashErr == nil && engine.StateStale(st.ReviewRounds, specHash) {
-		lastRound := st.ReviewRounds[len(st.ReviewRounds)-1].Round
+	if engine.StateStale(st.ReviewRounds, specHash) {
 		output.Error(ExitValidation, fmt.Sprintf("spec changed since round %d was recorded", lastRound), hint)
 		os.Exit(ExitValidation)
 		return
 	}
+}
+
+// settledByLoopVerdict handles the states the loop verdict decides on its own
+// and reports whether it did: a converged loop imports; a loop the cap ended
+// imports with a note naming what the cap waived, since no round verified it;
+// a loop at the cap with a finding still open is refused with the way out.
+// Anything else falls through to the clean-rounds and staleness checks.
+func settledByLoopVerdict(done engine.LoopDone, maxRounds, lastRound int) bool {
+	switch {
+	case done.Done && done.By == engine.DoneByCap:
+		note := fmt.Sprintf("importing at the review round cap: every finding of round %d carries a disposition", lastRound)
+		if done.FixedAtCap > 0 {
+			note += fmt.Sprintf("; %d dispositioned fixed, which no round re-read", done.FixedAtCap)
+		}
+		if done.StaleWaived {
+			note += fmt.Sprintf("; spec changed since round %d, not reviewed", lastRound)
+		}
+		output.Notice(note)
+		return true
+	case done.Done:
+		return true
+	case done.CapReached:
+		output.Error(ExitValidation,
+			fmt.Sprintf("review reached its %d-round cap with %d finding(s) of round %d carrying no disposition", maxRounds, done.Undisposed, lastRound),
+			budgetEscalationHint)
+		os.Exit(ExitValidation)
+		return true
+	}
+	return false
 }

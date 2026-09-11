@@ -70,22 +70,24 @@ func BuildBlockers(in *BlockerInputs) []Blocker {
 		}
 	}
 
-	// review-budget-exhausted — escalate: review capped without convergence (cap 0 never fires).
+	// review-budget-exhausted — escalate: the cap is reached and a finding of the
+	// latest round still carries no disposition (cap 0 never fires). ReviewConverged
+	// is the loop verdict, so a review the cap ended does not fire it.
 	if in.Phase == PhaseReview && in.ReviewMaxRounds != 0 && in.ReviewRounds >= in.ReviewMaxRounds && !in.ReviewConverged {
 		blockers = append(blockers, Blocker{
 			Code:    "review-budget-exhausted",
 			Class:   ClassEscalate,
-			Message: fmt.Sprintf("review reached its %d-round cap without converging; raising the cap is a user decision", in.ReviewMaxRounds),
+			Message: fmt.Sprintf("review reached its %d-round cap; disposition the remaining findings of the latest round (accepting a blocking one is the operator's decision)", in.ReviewMaxRounds),
 			Data:    map[string]any{"cap": in.ReviewMaxRounds},
 		})
 	}
 
-	// audit-budget-exhausted — escalate: audit capped without convergence (cap 0 never fires).
+	// audit-budget-exhausted — escalate: the same at the audit cap (cap 0 never fires).
 	if in.Phase == PhaseAudit && in.AuditMaxRounds != 0 && in.AuditRounds >= in.AuditMaxRounds && !in.AuditConverged {
 		blockers = append(blockers, Blocker{
 			Code:    "audit-budget-exhausted",
 			Class:   ClassEscalate,
-			Message: fmt.Sprintf("audit reached its %d-round cap without converging; raising the cap is a user decision", in.AuditMaxRounds),
+			Message: fmt.Sprintf("audit reached its %d-round cap; disposition the remaining findings of the latest round (accepting one without a code change is the operator's decision)", in.AuditMaxRounds),
 			Data:    map[string]any{"cap": in.AuditMaxRounds},
 		})
 	}

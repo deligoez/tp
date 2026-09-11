@@ -73,6 +73,7 @@ func runReviewResolve(args []string, force bool) error {
 		os.Exit(ExitUsage)
 		return nil
 	}
+	requireAcceptanceEvidence(status, evidence)
 
 	// Check file exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
@@ -102,6 +103,7 @@ func runReviewResolve(args []string, force bool) error {
 		}
 
 		finding := findings[index]
+		fenceReviewAcceptance(status, []map[string]any{finding})
 
 		// Check already resolved
 		if existingResolved, ok := finding["resolved"]; ok && !force {
@@ -182,6 +184,7 @@ func runReviewResolveAll(args []string, force bool) error {
 		os.Exit(ExitUsage)
 		return nil
 	}
+	requireAcceptanceEvidence(status, evidence)
 
 	// Check file exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
@@ -200,29 +203,7 @@ func runReviewResolveAll(args []string, force bool) error {
 			return readErr
 		}
 
-		now := time.Now().UTC().Format(time.RFC3339)
-
-		for _, finding := range findings {
-			if _, ok := finding["resolved"]; ok {
-				if force {
-					finding["resolved"] = map[string]any{
-						"status":      status,
-						"evidence":    evidence,
-						"resolved_at": now,
-					}
-					resolvedCount++
-				} else {
-					skippedCount++
-				}
-			} else {
-				finding["resolved"] = map[string]any{
-					"status":      status,
-					"evidence":    evidence,
-					"resolved_at": now,
-				}
-				resolvedCount++
-			}
-		}
+		resolvedCount, skippedCount = resolveEveryFinding(findings, status, evidence, force)
 
 		// Write back
 		return writeNDJSON(filePath, findings)
@@ -242,6 +223,31 @@ func runReviewResolveAll(args []string, force bool) error {
 		"file":           filePath,
 		"next_step":      fmt.Sprintf("tp review --verify <spec> --findings %s", filePath),
 	})
+}
+
+// resolveEveryFinding writes the disposition onto every finding --resolve-all
+// reaches — the undisposed ones, or all of them under force — once the
+// unattended fence has seen exactly those rows. It returns how many it wrote
+// and how many it skipped as already resolved.
+func resolveEveryFinding(findings []map[string]any, status, evidence string, force bool) (resolved, skipped int) {
+	targeted := make([]map[string]any, 0, len(findings))
+	for _, finding := range findings {
+		if _, ok := finding["resolved"]; ok && !force {
+			skipped++
+			continue
+		}
+		targeted = append(targeted, finding)
+	}
+	fenceReviewAcceptance(status, targeted)
+	now := time.Now().UTC().Format(time.RFC3339)
+	for _, finding := range targeted {
+		finding["resolved"] = map[string]any{
+			"status":      status,
+			"evidence":    evidence,
+			"resolved_at": now,
+		}
+	}
+	return len(targeted), skipped
 }
 
 // allFindingsResolved checks if all findings in the slice have a "resolved" field.

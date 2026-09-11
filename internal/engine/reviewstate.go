@@ -33,6 +33,12 @@ type ReviewRound struct {
 	// legacy (marker-less) rounds. Recorded on audit rounds only — review rounds
 	// dedup on (location, class) and neither carry nor consume the marker.
 	IDScheme string `json:"id_scheme,omitempty"`
+	// ConvergeOn is the audit_converge_on policy an audit round was graded
+	// under when it was recorded. A disposition written into the round later is
+	// graded under this policy, never under the one in force when it is read,
+	// so changing the knob does not reach back into recorded rounds. Empty on a
+	// round recorded before v1.2.0, which is graded under the stricter `all`.
+	ConvergeOn string `json:"converge_on,omitempty"`
 	// HarnessNote is an optional free-text note the orchestrator records per
 	// round via --harness-note (§6.2/§6.3). It is stored verbatim and is empty
 	// when the operator omitted the flag or the round predates the field. The

@@ -30,6 +30,7 @@ const (
 	EscalateRaiseAuditCap   = "raise-audit-cap"
 	EscalateImportForce     = "import-force"
 	EscalateAuditConvergeOn = "audit-converge-on"
+	EscalateAcceptFinding   = "accept-finding"
 	EscalateOther           = "other"
 )
 
@@ -41,6 +42,7 @@ var escalationDecisions = []string{
 	EscalateRaiseAuditCap,
 	EscalateImportForce,
 	EscalateAuditConvergeOn,
+	EscalateAcceptFinding,
 	EscalateOther,
 }
 

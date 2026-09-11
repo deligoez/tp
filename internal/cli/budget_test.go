@@ -36,11 +36,11 @@ func TestRoundBudget_ReviewRefusals(t *testing.T) {
 		require.Equal(t, 0, code, "round %d: %s", i+1, stderr)
 	}
 
-	// Prompt generation refuses with exit 4 and the escalation hint
+	// Prompt generation refuses with exit 4, and the hint names disposition
 	_, stderr, code := runTP(t, dir, "review", "spec.md")
 	assert.Equal(t, 4, code)
 	assert.Contains(t, stderr, "budget exhausted")
-	assert.Contains(t, stderr, "raise the cap")
+	assert.Contains(t, stderr, "--resolve")
 
 	// A further --record is refused before any write
 	_, stderr, code = recordRound(t, dir, "")
