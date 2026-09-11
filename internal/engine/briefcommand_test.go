@@ -24,13 +24,13 @@ func TestUnitKind_BriefCommand_DocumentedPerKind(t *testing.T) {
 		Round:    3,
 		ID:       "implementer",
 	}
-	// The review chain's separator is `&&`, not `;`: a merge that refuses
+	// Both record chains' separator is `&&`, not `;`: a merge that refuses
 	// leaves `-o` untouched, so the record step must not be reached.
 	const reviewRecord = "[ -f $TP_ROUND_DIR/merged.ndjson ] || " +
 		"tp review --merge $TP_ROUND_DIR/role-*.ndjson -o $TP_ROUND_DIR/merged.ndjson && " +
 		"tp review spec/0.35.0.md --record $TP_ROUND_DIR/merged.ndjson"
 	const auditRecord = "[ -f $TP_ROUND_DIR/merged.ndjson ] || " +
-		"tp audit --merge $TP_ROUND_DIR/role-*.ndjson -o $TP_ROUND_DIR/merged.ndjson; " +
+		"tp audit --merge $TP_ROUND_DIR/role-*.ndjson -o $TP_ROUND_DIR/merged.ndjson && " +
 		"tp audit spec/0.35.0.md --record $TP_ROUND_DIR/merged.ndjson"
 
 	want := map[UnitKind]string{
@@ -126,29 +126,26 @@ func runBrief(t *testing.T, kind UnitKind, mergedExists bool) []string {
 	return calls
 }
 
-// TestUnitKind_BriefCommand_ReviewRecordFencesRecordBehindTheMerge runs both
-// record briefs through /bin/sh against a fake tp that fails the merge step,
-// and asserts on which commands the shell actually reached.
+// TestUnitKind_BriefCommand_RecordFencesRecordBehindTheMerge runs both record
+// briefs through /bin/sh against a fake tp that fails the merge step, and
+// asserts on which commands the shell actually reached.
 //
 // Measured against the real binary before this test existed: a role file whose
 // every content line is malformed makes `tp review --merge` exit 1 and write no
 // `-o` at all (§5 row 10), and the `;` chain then ran `--record` on a file that
 // is not there — exit 3, "cannot read findings file", reporting a missing path
-// instead of the merge failure that caused it. The review chain is fenced with
-// `&&` so the record step is not reached; the audit phase keeps `;` (see
-// recordBriefCommand).
-func TestUnitKind_BriefCommand_ReviewRecordFencesRecordBehindTheMerge(t *testing.T) {
-	t.Run("review: a failed merge stops the chain", func(t *testing.T) {
-		calls, exitCode := runBriefWithFailingMerge(t, UnitReviewRecord)
-		require.Len(t, calls, 1, "the record step must not run after a failed merge")
-		assert.Contains(t, calls[0], "--merge ")
-		assert.NotEqual(t, 0, exitCode, "the chain reports the merge's own failure")
-	})
-	t.Run("audit: the chain continues past a failed merge", func(t *testing.T) {
-		calls, _ := runBriefWithFailingMerge(t, UnitAuditRecord)
-		require.Len(t, calls, 2, "the audit phase keeps ';'")
-		assert.Contains(t, calls[1], "--record ")
-	})
+// instead of the merge failure that caused it. `tp audit --merge` now declines
+// its `-o` the same way, so both chains are fenced with `&&` and neither
+// reaches the record step.
+func TestUnitKind_BriefCommand_RecordFencesRecordBehindTheMerge(t *testing.T) {
+	for _, kind := range []UnitKind{UnitReviewRecord, UnitAuditRecord} {
+		t.Run(string(kind)+": a failed merge stops the chain", func(t *testing.T) {
+			calls, exitCode := runBriefWithFailingMerge(t, kind)
+			require.Len(t, calls, 1, "the record step must not run after a failed merge")
+			assert.Contains(t, calls[0], "--merge ")
+			assert.NotEqual(t, 0, exitCode, "the chain reports the merge's own failure")
+		})
+	}
 }
 
 // runBriefWithFailingMerge is runBrief with a fake tp that exits 1 on any
@@ -194,22 +191,20 @@ func runBriefWithFailingMerge(t *testing.T, kind UnitKind) (calls []string, exit
 	return calls, exitCode
 }
 
-// TestUnitKind_BriefCommand_RecordChainsDifferOnlyByVerbAndFence derives one
-// record brief from the other rather than restating both, so the two cannot
-// drift apart in any way except the two this release intends: the tp
-// subcommand, and the separator that fences the record step behind the merge.
-// A change to the shared shape — the `[ -f … ] ||` guard, the glob, the `-o`
-// path — fails here whichever phase it lands in.
-func TestUnitKind_BriefCommand_RecordChainsDifferOnlyByVerbAndFence(t *testing.T) {
+// TestUnitKind_BriefCommand_RecordChainsDifferOnlyByVerb derives one record
+// brief from the other rather than restating both, so the two cannot drift
+// apart in any way except the tp subcommand. A change to the shared shape — the
+// `[ -f … ] ||` guard, the glob, the `-o` path, the `&&` that fences the
+// record step behind the merge — fails here whichever phase it lands in.
+func TestUnitKind_BriefCommand_RecordChainsDifferOnlyByVerb(t *testing.T) {
 	t.Parallel()
 	target := UnitTarget{Spec: "spec/1.1.0.md", RoundDir: "/repo/rounds/review-r1"}
 	audit := UnitAuditRecord.BriefCommand(target)
 	review := UnitReviewRecord.BriefCommand(target)
 
-	require.Contains(t, audit, "; tp audit ", "the audit chain is the unfenced one")
-	derived := strings.Replace(strings.ReplaceAll(audit, "tp audit ", "tp review "), "; tp review ", " && tp review ", 1)
-	assert.Equal(t, derived, review,
-		"the review chain is the audit chain with its verb renamed and its record step fenced")
+	require.Contains(t, audit, " && tp audit ", "the audit chain fences its record step too")
+	assert.Equal(t, strings.ReplaceAll(audit, "tp audit ", "tp review "), review,
+		"the review chain is the audit chain with its verb renamed")
 }
 
 // TestUnitKind_Succeeded is test 51: a unit succeeded when it exited 0 AND its
