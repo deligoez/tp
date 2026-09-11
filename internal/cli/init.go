@@ -121,6 +121,7 @@ func runInit(_ *cobra.Command, args []string) error {
 		return nil
 	}
 
+	warnUnresolvedGate(taskFilePath)
 	warnPointerNamesAnother(taskFilePath)
 	output.Success(fmt.Sprintf("created %s", taskFilePath))
 	return output.JSON(map[string]string{"created": taskFilePath, "file": taskFileLabel(taskFilePath)})

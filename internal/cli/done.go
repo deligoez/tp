@@ -764,7 +764,8 @@ func runDoneBatch() error {
 				hasSkip = true
 			}
 			if gateFailed && !hasSkip {
-				failures = append(failures, batchFailure{ID: entry.ID, Error: gateFailureMessage(&gateWf, gateRes), Hint: gateSkipHint})
+				msg, hint := gateFailureText(&gateWf, gateRes, gateDir(taskFilePath))
+				failures = append(failures, batchFailure{ID: entry.ID, Error: msg, Hint: hint})
 				continue
 			}
 

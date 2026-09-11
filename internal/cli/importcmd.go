@@ -231,6 +231,7 @@ func runImport(_ *cobra.Command, args []string) error {
 		return lockErr
 	}
 
+	warnUnresolvedGate(targetPath)
 	warnPointerNamesAnother(targetPath)
 	output.Success(fmt.Sprintf("imported %d tasks to %s", len(tf.Tasks), targetPath))
 	result := map[string]any{"imported": len(tf.Tasks), "path": targetPath, "file": taskFileLabel(targetPath)}

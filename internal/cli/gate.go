@@ -19,6 +19,50 @@ const gateOutputTailLines = 20
 // gateSkipHint tells the agent how to proceed after a gate failure.
 const gateSkipHint = "fix the gate failure and retry, or close with --skip-gate '<why>' (recorded on the task)"
 
+// gateCannotRunHint replaces gateSkipHint when sh itself could not run a
+// command (exit 126 or 127). Such a gate never measured the work, the usual
+// cause is a typo, and --skip-gate is an operator's decision — so the hint
+// names the fix and never the escalation.
+const gateCannotRunHint = "fix the gate command: %s is not on PATH or not an executable file from the project root; correct quality_gate at the layer that sets it (tp config --resolved), then retry"
+
+// gateCouldNotRun reports whether res is sh's own "could not run" status:
+// 127 (command not found) or 126 (found but not executable).
+func gateCouldNotRun(res engine.RunResult) bool {
+	return !res.TimedOut && res.ExitCode != nil && (*res.ExitCode == 126 || *res.ExitCode == 127)
+}
+
+// gateFailureText is the error and hint a failed gate is reported with. A gate
+// that ran and failed keeps gateFailureMessage and gateSkipHint; a gate sh
+// could not run names the command that could not run, from dir (the directory
+// the gate ran in), and points at the gate command instead of --skip-gate.
+func gateFailureText(wf *model.Workflow, res engine.RunResult, dir string) (msg, hint string) {
+	if !gateCouldNotRun(res) {
+		return gateFailureMessage(wf, res), gateSkipHint
+	}
+	why := "command not found"
+	if *res.ExitCode == 126 {
+		why = "not executable"
+	}
+	cmd := engine.GateMissingCommand(wf.QualityGate, dir, res.OutputTail)
+	named := "one of its commands"
+	if cmd != "" {
+		named = fmt.Sprintf("%q", cmd)
+	}
+	return fmt.Sprintf("quality gate could not run %s (exit %d: %s)", named, *res.ExitCode, why),
+		fmt.Sprintf(gateCannotRunHint, named)
+}
+
+// warnUnresolvedGate is init's and import's notice for a gate whose first
+// command does not resolve: without it the typo imports at exit 0 and the
+// agent first meets it as a red close. A notice, not a refusal — the exit code
+// is unchanged, and only the first word of the first segment is checked.
+func warnUnresolvedGate(taskFilePath string) {
+	gate := engine.EffectiveWorkflowForTaskFile(taskFilePath).QualityGate
+	if cmd := engine.UnresolvedGateHead(gate, gateDir(taskFilePath)); cmd != "" {
+		output.Notice(fmt.Sprintf("warning: quality gate command %q is not on PATH or not an executable file from the project root; tp done will fail until quality_gate is fixed", cmd))
+	}
+}
+
 // gateDir returns the directory a project-level command (the quality gate or a
 // mechanical check) runs in: the git repository root discovered by walking up
 // from the task file's directory, so "go test ./..." runs from the repo root
@@ -132,20 +176,22 @@ func runQualityGatePreFlock(taskFilePath string, recordFailure bool) bool {
 	if wf.QualityGate == "" {
 		return false
 	}
-	res := engine.RunCommand(wf.QualityGate, gateDir(taskFilePath), time.Duration(wf.EffectiveGateTimeoutSeconds())*time.Second, gateOutputTailLines)
+	dir := gateDir(taskFilePath)
+	res := engine.RunCommand(wf.QualityGate, dir, time.Duration(wf.EffectiveGateTimeoutSeconds())*time.Second, gateOutputTailLines)
 	if res.Passed {
 		return true
 	}
 	if recordFailure {
 		recordGateFailure(taskFilePath, &wf, res)
 	}
+	msg, hint := gateFailureText(&wf, res, dir)
 	errOut := map[string]any{
-		"error":       gateFailureMessage(&wf, res),
+		"error":       msg,
 		"code":        ExitState,
 		"gate_cmd":    wf.QualityGate,
 		"exit_code":   res.ExitCode,
 		"output_tail": res.OutputTail,
-		"hint":        gateSkipHint,
+		"hint":        hint,
 	}
 	data, _ := json.Marshal(errOut)
 	fmt.Fprintln(os.Stderr, string(data))
