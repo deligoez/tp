@@ -68,8 +68,21 @@ func relocatedSpec(t *testing.T, rel string) string {
 	srcState := filepath.Join(filepath.Dir(src), ".tp-review", base)
 	if _, statErr := os.Stat(srcState); statErr == nil {
 		copyTree(t, srcState, filepath.Join(dir, ".tp-review", base))
+		uncapLoops(t, dir)
 	}
 	return dst
+}
+
+// uncapLoops writes a project config that leaves both loops uncapped. The
+// relocated histories were recorded before the 3-round default cap existed and
+// most run far past it, so without this every emission from them would be
+// refused at the cap — which is not what the tests copying them measure. The
+// cap's own tests build their histories from scratch.
+func uncapLoops(t *testing.T, dir string) {
+	t.Helper()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".tp"), 0o750))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".tp", "config.json"),
+		[]byte(`{"workflow":{"review_max_rounds":0,"audit_max_rounds":0}}`+"\n"), 0o600))
 }
 
 // copyTree copies a directory's regular files one level deep, which is the

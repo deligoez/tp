@@ -26,8 +26,8 @@ func TestReviewStatus_EmptyStateFullShape(t *testing.T) {
 	assert.Equal(t, false, out["converged"])
 	assert.Equal(t, false, out["stale"])
 	assert.Equal(t, []any{}, out["mechanical_checks"])
-	_, hasBudget := out["budget_exhausted"]
-	assert.False(t, hasBudget, "budget_exhausted only when a cap is set")
+	assert.Equal(t, float64(3), out["max_rounds"], "each loop is capped at 3 by default")
+	assert.Equal(t, false, out["budget_exhausted"], "no round recorded, so the cap is not reached")
 }
 
 func TestReviewStatus_RoundsAndConvergence(t *testing.T) {

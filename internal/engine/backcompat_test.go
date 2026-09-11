@@ -81,6 +81,6 @@ func TestNonGoals_NoUserHomeConfig(t *testing.T) {
 	// No project config and no task override: only the built-in default applies;
 	// the user-home config is ignored.
 	wf := EffectiveWorkflowForTaskFile("nonexistent.tasks.json")
-	assert.Equal(t, 0, wf.ReviewMaxRounds, "a user-home config is not consulted; the built-in default applies")
+	assert.Equal(t, DefaultMaxRounds, wf.ReviewMaxRounds, "a user-home config is not consulted; the built-in default applies")
 	assert.Equal(t, 2, wf.ReviewCleanRounds, "resolution stays two-layer with no user-global source")
 }

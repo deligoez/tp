@@ -229,13 +229,17 @@ func ResolveEffectiveWorkflow(start string, taskOverride *model.WorkflowOverride
 // notify_cmd is not resolved here: it is per-operator and comes from
 // .tp/local.json only (§7), which the layers this function sees do not carry.
 func ResolveWorkflowLayers(taskOverride, project *model.WorkflowOverride) model.Workflow {
-	// The built-in default layer: 2 clean rounds, no round caps, 600s gate
-	// timeout, 5s lock timeout, no checks, blocking-severity review convergence,
-	// every-row audit convergence, and §7's run caps and runner. The two
-	// convergence defaults differ deliberately: v0.37.0 §2.1 measures why.
+	// The built-in default layer: 2 clean rounds, a 3-round cap on each loop,
+	// 600s gate timeout, 5s lock timeout, no checks, blocking-severity review
+	// convergence, every-row audit convergence, and §7's run caps and runner.
+	// The two convergence defaults differ deliberately: v0.37.0 §2.1 measures
+	// why. The caps are finite because unoracled review stops paying for itself
+	// within a few rounds; an explicit 0 at any layer still means uncapped.
 	def := model.Workflow{
 		ReviewCleanRounds:      2,
 		AuditCleanRounds:       2,
+		ReviewMaxRounds:        DefaultMaxRounds,
+		AuditMaxRounds:         DefaultMaxRounds,
 		GateTimeoutSeconds:     600,
 		LockTimeoutSeconds:     5,
 		Checks:                 []model.Check{},

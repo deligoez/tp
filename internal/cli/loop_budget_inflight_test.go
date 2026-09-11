@@ -68,6 +68,9 @@ func TestReviewStatus_BudgetNullWhenUncapped(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 	_, _, code := runTP(t, dir, "init", "spec.md")
 	require.Equal(t, 0, code)
+	// The built-in default caps each loop at 3; uncapped is an explicit 0.
+	_, stderr, code := runTP(t, dir, "set", "--workflow", "review_max_rounds=0")
+	require.Equal(t, 0, code, stderr)
 
 	stdout, _, code := runTP(t, dir, "review", "spec.md", "--status")
 	require.Equal(t, 0, code)
@@ -106,6 +109,9 @@ func TestAuditStatus_BudgetNullWhenUncapped(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
 	_, _, code := runTP(t, dir, "init", "spec.md")
 	require.Equal(t, 0, code)
+	// The built-in default caps each loop at 3; uncapped is an explicit 0.
+	_, stderr, code := runTP(t, dir, "set", "--workflow", "audit_max_rounds=0")
+	require.Equal(t, 0, code, stderr)
 
 	stdout, _, code := runTP(t, dir, "audit", "spec.md", "--status")
 	require.Equal(t, 0, code)

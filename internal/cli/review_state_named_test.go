@@ -23,6 +23,7 @@ func TestReviewState_RoundLifecycle(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
+	uncapLoops(t, dir) // four rounds, and the lifecycle is the subject here, not the cap
 
 	// clean, dirty, clean, clean -> consecutive_clean 2
 	sequence := []string{"", dirtyRow, "", ""}
