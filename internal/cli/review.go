@@ -563,13 +563,14 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 
 	// §2.5 item 2: resolve the reviewer panel — and with it decide the
 	// empty-phase refusal — ahead of every write the emission path performs.
-	// The state lifecycle below calls EnsureReviewState, which creates
+	// writeReviewRoundSnapshot below calls EnsureReviewState, which creates
 	// .tp-review/<spec>/ and state.json before the round snapshot, so a
 	// refusal decided any later would leave all three on disk.
 	panel := resolveRolePanel(specPath, engine.PhaseReviewers)
 
 	// State-backed round lifecycle (default three-role mode): tp numbers the
 	// round, snapshots the spec, and injects previous findings automatically.
+	// This is the read half; the snapshot is written after the --role filter.
 	statePrevFindings := make([]reviewFinding, 0)
 	var stateRequired, stateConsecutive *int
 	var stateConverged, stateStale *bool
@@ -606,18 +607,27 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 		affectedContent = engine.ReadAffectedFilesBudgetAware(affectedFiles, summary, specContent)
 	}
 
-	// Mechanical checks: workflow-derived (not state-derived), run before
-	// prompt generation even under --no-state; failures never abort generation
 	wfChecks, checksTaskFile := engine.ResolveWorkflow(specPath, flagFile)
-	var mechChecks []map[string]any
-	if len(wfChecks.Checks) > 0 {
-		mechChecks, _ = runMechanicalChecks(&wfChecks, checksTaskFile)
-	}
 
 	prompts, regressionIncluded, skippedRoles := buildReviewPrompts(specPath, &panel, elems, specContent, round, summary, affectedFiles, finalRound, &wfChecks, diffFrom, noState, reviewSt)
 
 	prompts = appendClausesReview(prompts)
+	// An unknown --role exits 2 here, so the round snapshot is written only
+	// after it: a refusal leaves the state directory exactly as it found it.
 	prompts = filterReviewPrompts(prompts, roleQueryFor(specPath, roleFilter, roleGiven), skippedRoles)
+	if !noState {
+		writeReviewRoundSnapshot(specPath, round)
+	}
+
+	// Mechanical checks: workflow-derived (not state-derived), run even under
+	// --no-state; failures never abort generation. They run after the
+	// snapshot write, as they did when the write came first, so a check that
+	// reads the round's snapshot still finds it — and a refused --role runs
+	// no registered command.
+	var mechChecks []map[string]any
+	if len(wfChecks.Checks) > 0 {
+		mechChecks, _ = runMechanicalChecks(&wfChecks, checksTaskFile)
+	}
 
 	uniqueCount := len(dedupFindings(findings))
 	convergence, instruction := buildReviewLoopInstruction(round, findings, findingsPath, specPath, specInline, noState, stateRequired, regressionIncluded, len(wfChecks.Checks) > 0)
@@ -1934,10 +1944,12 @@ type reviewRoundState struct {
 	prevFindings []reviewFinding
 }
 
-// loadReviewRoundState runs the state-backed round lifecycle for the default
-// review path: it derives the round number from recorded state, snapshots the
-// spec, computes the review_loop convergence fields, and gathers previous
-// findings from rounds 1..R-1. It os.Exit()s on a state or IO error.
+// loadReviewRoundState runs the read half of the state-backed round lifecycle
+// for the default review path: it derives the round number from recorded
+// state, computes the review_loop convergence fields, and gathers previous
+// findings from rounds 1..R-1. It writes nothing — writeReviewRoundSnapshot is
+// the write half, and runReview calls it only once every refusal the emission
+// can make has been decided. It os.Exit()s on a state or IO error.
 func loadReviewRoundState(cmd *cobra.Command, specPath string, round int, findingsPath string) reviewRoundState {
 	statePrevFindings := make([]reviewFinding, 0)
 	st, stErr := engine.LoadReviewState(specPath)
@@ -1961,33 +1973,6 @@ func loadReviewRoundState(cmd *cobra.Command, specPath string, round int, findin
 		return reviewRoundState{}
 	}
 	round = stateRound
-
-	if _, err := engine.EnsureReviewState(specPath); err != nil {
-		exitStateError(err)
-		return reviewRoundState{}
-	}
-	specBytes, readErr := os.ReadFile(specPath)
-	if readErr != nil {
-		// POST-read failure: resolveReviewSpecContent already read this same
-		// path above, so the hint carries the real cause — not
-		// specFileMissingHint (the caller did not mistype), and not the code-3
-		// task-file default a hintless site would inherit.
-		output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath), readErr.Error())
-		os.Exit(ExitFile)
-		return reviewRoundState{}
-	}
-	// §10.2: snapshot the spec at round start (prompt emission) atomically —
-	// write to snapshot-round-N.md.tmp then rename — so a partial snapshot is
-	// never left on disk.
-	if writeErr := engine.WriteSnapshotAtomic(specPath, engine.PhaseReview, stateRound, specBytes); writeErr != nil {
-		// POST-read failure: resolveReviewSpecContent already read this same
-		// path, and what failed is a state-directory write. The hint carries the
-		// real cause — not specFileMissingHint (the caller did not mistype), and
-		// not the code-3 task-file default a hintless site would inherit.
-		output.Error(ExitFile, fmt.Sprintf("cannot write review round snapshot for %s", specPath), writeErr.Error())
-		os.Exit(ExitFile)
-		return reviewRoundState{}
-	}
 
 	rs := reviewRoundState{round: round, st: st, prevFindings: statePrevFindings}
 	// State-derived review_loop fields
@@ -2020,6 +2005,43 @@ func loadReviewRoundState(cmd *cobra.Command, specPath string, round int, findin
 		rs.prevFindings = dedupFindings(statePrevFindings)
 	}
 	return rs
+}
+
+// writeReviewRoundSnapshot is the write half of the round lifecycle: it creates
+// the state index and snapshots the spec for the round being emitted.
+//
+// It is separate from loadReviewRoundState so the write can come after the
+// --role filter. A refusal decided after it left state.json and
+// snapshot-round-N.md on disk — a round opened by a typo that no prompt ever
+// came from, and over an edited spec, a round-N snapshot replaced by text no
+// reviewer read. The changed-sections baseline does not need it first:
+// newestEarlierSnapshot searches only the rounds below the one being emitted.
+func writeReviewRoundSnapshot(specPath string, round int) {
+	if _, err := engine.EnsureReviewState(specPath); err != nil {
+		exitStateError(err)
+		return
+	}
+	specBytes, readErr := os.ReadFile(specPath)
+	if readErr != nil {
+		// POST-read failure: resolveReviewSpecContent already read this same
+		// path above, so the hint carries the real cause — not
+		// specFileMissingHint (the caller did not mistype), and not the code-3
+		// task-file default a hintless site would inherit.
+		output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath), readErr.Error())
+		os.Exit(ExitFile)
+		return
+	}
+	// §10.2: snapshot the spec at round start (prompt emission) atomically —
+	// write to snapshot-round-N.md.tmp then rename — so a partial snapshot is
+	// never left on disk.
+	if writeErr := engine.WriteSnapshotAtomic(specPath, engine.PhaseReview, round, specBytes); writeErr != nil {
+		// POST-read failure: resolveReviewSpecContent already read this same
+		// path, and what failed is a state-directory write. The hint carries the
+		// real cause — not specFileMissingHint (the caller did not mistype), and
+		// not the code-3 task-file default a hintless site would inherit.
+		output.Error(ExitFile, fmt.Sprintf("cannot write review round snapshot for %s", specPath), writeErr.Error())
+		os.Exit(ExitFile)
+	}
 }
 
 // buildReviewLoopInstruction builds the review_loop convergence description and

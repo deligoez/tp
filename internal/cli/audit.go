@@ -301,11 +301,11 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 
 	// §2.5 item 2: resolve the auditor panel — and with it decide the
 	// spec-coverage and empty-phase refusals — ahead of every write the
-	// emission path performs. loadAuditSpec below writes the round snapshot, so
-	// a refusal decided any later would leave it on disk.
+	// emission path performs. The round snapshot is written after the --role
+	// filter below; a refusal decided after that write would leave it on disk.
 	panel := resolveRolePanel(specPath, engine.PhaseAuditors)
 
-	specLines, specContent := loadAuditSpec(specPath)
+	specLines, specContent, snap := loadAuditSpec(specPath)
 
 	priorByRole := loadAuditPriorRound(specPath)
 
@@ -377,6 +377,9 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	// classifyRole falls through to engine.RoleIsRecognised, which reads the
 	// corpus directly. The diagnostic is what the ordering buys.
 	prompts = filterAuditPrompts(prompts, roleQueryFor(specPath, roleFilter, roleGiven), auditSkipped)
+	// An unknown --role exits 2 inside the filter, so the snapshot is written
+	// only after it: a refusal leaves the state directory as it found it.
+	snap.write(specPath)
 
 	summary := engine.BuildAffectedSummary(files, nil)
 
@@ -471,11 +474,37 @@ func determineAuditFiles(specPath string, affectedFiles []string, base string, a
 	return resolved, totalChanged
 }
 
-// loadAuditSpec reads the spec, snapshots its raw bytes at audit-round start
-// (§10.2), and returns the frontmatter-blanked line slice plus the (possibly
-// truncated) spec content used for prompt emission. Read, state, and snapshot
-// errors abort via ExitFile / exitStateError, matching runAudit's exit contract.
-func loadAuditSpec(specPath string) (specLines []string, specContent string) {
+// auditRoundSnapshot is the round snapshot loadAuditSpec prepares and runAudit
+// writes: the raw spec bytes and the round they open.
+//
+// Preparing and writing are split so the write can come after the --role
+// filter. Written inside loadAuditSpec, a refused --role left
+// snapshot-audit-round-N.md on disk — an in-flight round opened by a typo that
+// no prompt ever came from, and over an edited spec, a snapshot replaced by
+// text no auditor read.
+type auditRoundSnapshot struct {
+	round int
+	data  []byte
+}
+
+// write snapshots the raw spec at audit round start (§10.2), mirroring review —
+// atomically, so a partial snapshot is never left on disk, and an interrupted
+// round is visible to --status and tp resume.
+func (s auditRoundSnapshot) write(specPath string) {
+	if snapErr := engine.WriteSnapshotAtomic(specPath, engine.PhaseAudit, s.round, s.data); snapErr != nil {
+		// Post-stat failure: the hint carries the real cause, not spec-path
+		// advice — the path was already proven readable by loadAuditSpec.
+		output.Error(ExitFile, fmt.Sprintf("cannot write audit round snapshot for %s", specPath), snapErr.Error())
+		os.Exit(ExitFile)
+	}
+}
+
+// loadAuditSpec reads the spec, prepares the round snapshot of its raw bytes
+// (§10.2) without writing it, and returns the frontmatter-blanked line slice
+// plus the (possibly truncated) spec content used for prompt emission. Read and
+// state errors abort via ExitFile / exitStateError, matching runAudit's exit
+// contract.
+func loadAuditSpec(specPath string) (specLines []string, specContent string, snap auditRoundSnapshot) {
 	specData, err := os.ReadFile(specPath)
 	if err != nil {
 		// Carry the cause: a permission or IO failure is otherwise
@@ -486,18 +515,15 @@ func loadAuditSpec(specPath string) (specLines []string, specContent string) {
 		// default, the wrong object entirely.
 		output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath), err.Error())
 		os.Exit(ExitFile)
-		return nil, ""
+		return nil, "", auditRoundSnapshot{}
 	}
-	// §10.2: snapshot the raw spec at audit round start (prompt emission),
-	// mirroring review — write atomically so a partial snapshot is never left
-	// on disk, and an interrupted round is visible to --status and tp resume.
 	auditSt, stErr := engine.LoadReviewState(specPath)
 	if stErr != nil {
 		if engine.IsRebuildableStateIndex(stErr) {
 			// A prior emission wrote a snapshot that --record has not yet
 			// indexed: the normal in-flight round (§10.2, InFlightRound), not
-			// corruption. Treat as no recorded state and re-snapshot below;
-			// only genuine corruption (unparseable state.json) or an IO error
+			// corruption. Treat as no recorded state and re-snapshot; only
+			// genuine corruption (unparseable state.json) or an IO error
 			// aborts.
 			//
 			// Rebuildable only. Under the broader predicate a round file with
@@ -508,27 +534,21 @@ func loadAuditSpec(specPath string) (specLines []string, specContent string) {
 			auditSt = nil
 		} else {
 			exitStateError(stErr)
-			return nil, ""
+			return nil, "", auditRoundSnapshot{}
 		}
 	}
 	auditRecorded := 0
 	if auditSt != nil {
 		auditRecorded = len(auditSt.AuditRounds)
 	}
-	if snapErr := engine.WriteSnapshotAtomic(specPath, engine.PhaseAudit, auditRecorded+1, specData); snapErr != nil {
-		// Post-stat failure: the hint carries the real cause, not spec-path
-		// advice — the path was already proven readable above.
-		output.Error(ExitFile, fmt.Sprintf("cannot write audit round snapshot for %s", specPath), snapErr.Error())
-		os.Exit(ExitFile)
-		return nil, ""
-	}
+	snap = auditRoundSnapshot{round: auditRecorded + 1, data: specData}
 	specData = engine.BlankFrontmatter(specData)
 	specLines = strings.Split(string(specData), "\n")
 	specContent = string(specData)
 	if len(specContent) > engine.SpecContentCap {
 		specContent = specContent[:engine.SpecContentCap] + "\n[...spec truncated]"
 	}
-	return specLines, specContent
+	return specLines, specContent, snap
 }
 
 // loadAuditPriorRound reads the previous recorded audit round and returns,
