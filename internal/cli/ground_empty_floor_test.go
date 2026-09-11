@@ -142,4 +142,6 @@ func TestTheEmptiedFloorRefusalSaysWhyOnStderr(t *testing.T) {
 	require.Equal(t, 1, code)
 	assert.Contains(t, strings.ToLower(stderr), "cut",
 		"the notice names what the payload cannot: units existed and the arms dropped every one")
+	assert.NotContains(t, stderr, "§",
+		"and says so in plain words: the operator cannot open a section of tp's design")
 }

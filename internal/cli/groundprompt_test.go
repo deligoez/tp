@@ -41,15 +41,19 @@ func TestTheEmittedGroundPromptEndsWithItsOwnSuffix(t *testing.T) {
 	assert.Contains(t, prompt, incrementalClause, "§3.2's clause is carried unchanged")
 }
 
-// TestTheAskAndTheEmptyRecordHintCiteNoSection keeps tp's own design sections
-// out of what a unit or an operator reads about the round's ask.
+// TestTheMessagesAUnitOrOperatorReadsCiteNoSection keeps tp's own design
+// sections out of what a unit or an operator reads.
 //
-// "(§2.1)" and "(§8)" name sections of a document neither reader has, so they
-// cost bytes and explain nothing. Every count combination the ask can reach is
-// walked, because each branch writes its own sentence, and the --record hint
-// that tells an all-cut operator there is no round to record is held to the
-// same rule.
-func TestTheAskAndTheEmptyRecordHintCiteNoSection(t *testing.T) {
+// "(§2.1)", "§8 carries" and "(§4.2)" name sections of a document neither
+// reader has, so they cost bytes and explain nothing; each sentence has to say
+// its rule in plain words. Every count combination the ask can reach is walked,
+// because each branch writes its own sentence; the two --record hints an
+// operator meets are held to the same rule, and so is the --role usage line
+// both panel commands print in --help.
+//
+// The --status --check notice is held to it where it is printed, in
+// TestTheEmptiedFloorRefusalSaysWhyOnStderr.
+func TestTheMessagesAUnitOrOperatorReadsCiteNoSection(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct{ floorSize, carried int }{
 		{0, 0}, {1, 0}, {2, 0}, {1, 1}, {2, 1}, {2, 2}, {3, 2},
@@ -59,6 +63,31 @@ func TestTheAskAndTheEmptyRecordHintCiteNoSection(t *testing.T) {
 	}
 	assert.NotContains(t, groundRecordEmptyHint, "§",
 		"the empty-record hint cites no section either")
+	assert.NotContains(t, groundCarrySourceHint, "§",
+		"nor does the hint for an unreadable preceding round")
+	for _, cmd := range []string{"review", "audit"} {
+		f := roleFlagOn(t, cmd)
+		require.NotNil(t, f, "tp %s must register --role", cmd)
+		assert.NotContains(t, f.Usage, "§", "tp %s --help's --role line cites no section", cmd)
+	}
+}
+
+// TestNoGroundMessageTextCitesASection is the guard over the text itself, so a
+// citation in a branch no fixture above reaches is caught too. The list is the
+// messages that once cited a section, named constant by constant — a bounded
+// set, not a scan of the package's strings.
+func TestNoGroundMessageTextCitesASection(t *testing.T) {
+	t.Parallel()
+	for name, text := range map[string]string{
+		"groundRecordEmptyHint":       groundRecordEmptyHint,
+		"groundCarrySourceHint":       groundCarrySourceHint,
+		"groundEmptiedFloorNoticeFmt": groundEmptiedFloorNoticeFmt,
+		"groundAllCutAsk":             groundAllCutAsk,
+		"groundCarriedAskFmt":         groundCarriedAskFmt,
+		"roleFlagUsage":               roleFlagUsage,
+	} {
+		assert.NotContains(t, text, "§", "%s cites no section of tp's design", name)
+	}
 }
 
 // TestThePromptGlossesQueryAsAnyReadOnlyCommand pins the tier table's reading

@@ -169,7 +169,14 @@ const groundRecordFileHint = "check the --record path — this flag takes the ND
 // It names the recovery rather than the cell, because there is no cell to fix —
 // the round file was written by an earlier --record and the operator's only
 // levers are the artifact itself and re-recording the round that wrote it.
-const groundCarrySourceHint = "the preceding ground round's file is tp's own artifact and could not be read back: restore or re-record spec/.tp-review/<base>/ground-round-<N-1>.ndjson — §8 carries its dispositions into this round"
+const groundCarrySourceHint = "the preceding ground round's file is tp's own artifact and could not be read back: restore or re-record spec/.tp-review/<base>/ground-round-<N-1>.ndjson — this round carries its dispositions forward from that file"
+
+// groundEmptiedFloorNoticeFmt is what --status --check prints when every unit
+// of the spec was cut: the payload's `emitted: 0, dispositioned: 0` reads as
+// complete, so the notice says why it is not.
+const groundEmptiedFloorNoticeFmt = "ground round %d has no floor to cover: the spec splits into %d units and every one was cut, " +
+	"so nothing in %s has been checked against the world — the cut units are listed by id " +
+	"and anchor in %s, and --units prints nothing here because it prints floor units"
 
 // groundStateDirError is the one refusal both writing modes make for the same
 // reason: NextGroundRound would not answer, so neither the emission nor the
@@ -649,10 +656,7 @@ func exitGroundCheck(specPath string, status *engine.GroundStatus) {
 	// carries the id and the anchor of every one (§2.2's announcement of the
 	// cut set), which is what an operator needs to go and look.
 	if status.Coverage.Emitted == 0 && status.Cut > 0 {
-		output.Notice(fmt.Sprintf(
-			"ground round %d has no floor to cover: §2.1 produced %d units and the arms cut every one, "+
-				"so nothing in %s has been checked against the world — the cut units are listed by id "+
-				"and anchor in %s, and --units prints nothing here because it prints floor units",
+		output.Notice(fmt.Sprintf(groundEmptiedFloorNoticeFmt,
 			status.Round, status.Cut, specPath, engine.GroundFloorPath(specPath, status.Round)))
 		os.Exit(ExitValidation)
 	}
@@ -1188,7 +1192,7 @@ func groundPromptAsk(round, floorSize, carried int) string {
 		// headings reaches this with nothing wrong. Asking for "each of the 0"
 		// names a set that does not exist, and the reader who writes the empty
 		// file that ask implies is then refused by --record.
-		return "This round owes no dispositions: every unit in this document was cut, so\nthere is no floor to ground.\n"
+		return groundAllCutAsk
 	case carried == 0 && floorSize == 1:
 		return "This round owes a disposition for the 1 floor unit above.\n"
 	case carried == 0:
@@ -1209,9 +1213,16 @@ func groundPromptAsk(round, floorSize, carried int) string {
 	case carried == 1:
 		who, rows = "the other one already carries", "its row ends in"
 	}
-	return fmt.Sprintf(`This round owes a disposition for %d of the %d %s above: %s
-one from round %d, and %s `+"`(carried)`"+`. A carried disposition stands while
+	return fmt.Sprintf(groundCarriedAskFmt, floorSize-carried, floorSize, units, who, round-1, rows)
+}
+
+// The two ask sentences that once cited a section, named so
+// TestNoGroundMessageTextCitesASection can hold them to plain words.
+const (
+	groundAllCutAsk     = "This round owes no dispositions: every unit in this document was cut, so\nthere is no floor to ground.\n"
+	groundCarriedAskFmt = `This round owes a disposition for %d of the %d %s above: %s
+one from round %d, and %s ` + "`(carried)`" + `. A carried disposition stands while
 its unit's text stands — do not decide those units again, and write no
 row for them.
-`, floorSize-carried, floorSize, units, who, round-1, rows)
-}
+`
+)

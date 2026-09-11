@@ -145,15 +145,18 @@ func groundRowMatchesFloor(row *GroundRow, byID map[string]groundJoinKey) error 
 			*row.UnitID, want.textSHA, row.TextSHA))
 	}
 	if want.ordinal != row.Ordinal {
-		return groundRowErr("ordinal", fmt.Sprintf(
-			"the emitted floor gives %s the ordinal %d, and this row carries %d: "+
-				"copy ordinal from the index row for the unit the row names — §8 carries a "+
-				"disposition forward on (text_sha, ordinal), so the hash alone does not identify "+
-				"the unit when several share it",
+		return groundRowErr("ordinal", fmt.Sprintf(groundOrdinalMismatchFmt,
 			*row.UnitID, want.ordinal, row.Ordinal))
 	}
 	return nil
 }
+
+// groundOrdinalMismatchFmt is the ordinal half of the join-key refusal, named
+// like groundrow.go's refusals for TestNoGroundRefusalTextCitesASection.
+const groundOrdinalMismatchFmt = "the emitted floor gives %s the ordinal %d, and this row carries %d: " +
+	"copy ordinal from the index row for the unit the row names — a disposition " +
+	"carries into the next round by (text_sha, ordinal), so the hash alone does not " +
+	"identify the unit when several share it"
 
 // ErrGroundRoundEmpty is what RecordGroundRound refuses a round that would write
 // no row at all with — the payload's rows plus §8's carried rows both zero

@@ -396,10 +396,19 @@ func validateGroundRowTier(row *GroundRow) error {
 	for _, tier := range AcceptableTiers(row.Kind) {
 		accepted = append(accepted, string(tier))
 	}
-	return groundRowErr("tier", fmt.Sprintf(
-		"%q says nothing about a %q claim, and a %s row must be reached at a tier that does: %s",
+	return groundRowErr("tier", fmt.Sprintf(groundTierRefusalFmt,
 		row.Tier, row.Kind, row.Verdict, strings.Join(accepted, ", ")))
 }
+
+// The refusals a unit reads at --record, named so TestNoGroundRefusalTextCitesASection
+// can hold each to plain words: a unit repairing its row has never seen tp's
+// design document, so a sentence that cites one of its sections instead of
+// stating the rule leaves the unit nothing to act on.
+const (
+	groundTierRefusalFmt = "%q says nothing about a %q claim, and a %s row must be reached at a tier that does: %s"
+	groundUnknownKeyMsg  = "is not a field a ground row takes"
+	groundUnitIDShapeMsg = "must be an index row's u<N>, or null for a claim the index does not carry"
+)
 
 // groundUnknownKey rejects a top-level key that is no cell of §7.2's table.
 //
@@ -418,7 +427,7 @@ func groundUnknownKey(raw map[string]json.RawMessage) error {
 		return nil
 	}
 	slices.Sort(unknown)
-	return groundRowErr(unknown[0], "is not a field §7.2's table names")
+	return groundRowErr(unknown[0], groundUnknownKeyMsg)
 }
 
 // groundUnitID decodes §7.2's one nullable cell. The key is required; its
@@ -437,7 +446,7 @@ func groundUnitID(raw map[string]json.RawMessage) (*string, error) {
 		return nil, groundRowErr("unit_id", "must be a string or null")
 	}
 	if !groundUnitIDRe.MatchString(s) {
-		return nil, groundRowErr("unit_id", "must be u<N> over every unit §2.1 produces, or null")
+		return nil, groundRowErr("unit_id", groundUnitIDShapeMsg)
 	}
 	return &s, nil
 }

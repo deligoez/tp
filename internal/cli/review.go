@@ -269,6 +269,10 @@ const (
 	promptBudget       = engine.PromptBudget
 )
 
+// roleFlagUsage is --role's line in `tp review --help` and `tp audit --help`,
+// one constant so the two commands cannot describe the same flag two ways.
+const roleFlagUsage = "Emit only this role's prompt; one name, not repeatable"
+
 func newReviewCmd() *cobra.Command {
 	var round int
 	var findingsPath string
@@ -431,7 +435,7 @@ Modes (mutually exclusive):
 	// Default review flags
 	cmd.Flags().IntVar(&round, "round", 1, "Current review round number (1-indexed), for the default panel and --perspective code-audit; --merge, --resolve, --resolve-all, --verify, --report, --record, --status and --perspective documentation/testing/regression refuse it")
 	cmd.Flags().StringVar(&findingsPath, "findings", "", "Path to NDJSON file with previous round findings")
-	cmd.Flags().StringVar(&roleFilter, "role", "", "Emit only this role's prompt (§4.2); one name, not repeatable")
+	cmd.Flags().StringVar(&roleFilter, "role", "", roleFlagUsage)
 	cmd.Flags().StringVar(&perspective, "perspective", "", "Review perspective: documentation, testing, or code-audit")
 	cmd.Flags().StringVar(&docsPath, "docs-path", "", "Path to documentation directory (required with --perspective documentation)")
 	cmd.Flags().StringVar(&testPath, "test-path", "", "Path to test directory (required with --perspective testing)")
