@@ -352,3 +352,20 @@ recorded round. When it names an **earlier** recorded round, following the `next
 round's file: with two rounds recorded and `TP_ROUND=1`, round 1's file was replaced by round 2's
 rows. The row now asserts only what decision 2 changes — that the payload names no `--record` — since
 both outcomes are what the mutant restores.
+
+## Ground round 2
+
+Two of the six repaired sentences were still `PARTIAL`, and both repairs were subtractions.
+
+- **The budget sentence went.** It named the median `CLAUDE.md` gives a release that is not about the
+  loop. The grader measured that `spec/1.1.0.md` was re-classed a loop release because it changed what
+  `--record` accepts and what the emitted prompt says — and decisions 1 and 2 here do both — while
+  `spec/backlog/README.md` lists this spec as tool. Which class holds is a budgeting call the spec does
+  not need to make; the class line stays as the README's.
+- **The documentation list went.** Its four named passages exist, but read as the list of text the
+  decisions make false it was short by the `REFERENCE.md` passages that say a refused `tp audit
+  --merge` still writes `-o` before exiting 1 (lines 1109–1116, and 186 with 199–202 on the record
+  step that runs against that leftover). Decision 2 adds an exit-1 path that writes nothing. The spec
+  now says only that documentation describing replaced behaviour is rewritten; the passages found so
+  far, for the documentation task: `REFERENCE.md` 766, 186, 199–202, 1109–1116; `SKILL.md` 385, 423–426,
+  675, 678 (line numbers at `30965923`).

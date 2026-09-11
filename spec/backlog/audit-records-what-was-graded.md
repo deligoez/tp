@@ -7,8 +7,7 @@ verification, with its reproduction and source citations, is in the sidecar unde
 WB-3155, verified 2026-09-11*.
 
 Class: **tool** — it changes which id a checklist item carries, which files the conformance role is
-given and what the disposition path says, and no convergence rule. Budget it at the median
-`CLAUDE.md`'s *What a cycle costs* gives a release whose subject is not the loop.
+given and what the disposition path says, and no convergence rule.
 
 ## 1. Overview
 
@@ -73,8 +72,8 @@ under `audit_converge_on: blocking` it decides whether the round is clean.
 - A `role:item_id` selector passed to `--resolve` can no longer dispose one file's row while another
   file's verdict under the same id stays open. Under `tp run`, a conflicting pair stops the run at the
   unit that records the round.
-- `skills/tp/REFERENCE.md` on item ids and `skills/tp/SKILL.md` on the positional suffix, on
-  `--merge`'s dedup and on what `--resolve-all` disposes are rewritten to the new behaviour.
+- Text in `skills/tp/SKILL.md` and `skills/tp/REFERENCE.md` that describes the replaced behaviour
+  is rewritten with it.
 - `scripts/audit-round-prep.py` passes a carried row's id along verbatim and lists the rows to
   re-measure by id, so it inherits the fix; since a carried row would bring an old-scheme id into a
   new-scheme round, it carries nothing from a round whose `id_scheme` differs from the current one.
