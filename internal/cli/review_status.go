@@ -71,10 +71,18 @@ func runReviewStatus(specPath string, check bool) error {
 	done := engine.ReviewLoopDone(specPath, rounds, wf.ReviewCleanRounds, wf.ReviewMaxRounds, specHash, wf.ReviewConvergeOn)
 	rolesHash, _ := engine.ComputeRolesHash(filepath.Dir(specPath), engine.PhaseReviewers)
 
+	// Plain --status runs no check, so it keeps §3.2's registration rule and
+	// cannot know whether --check passes (Unverified). --check knows: a class is
+	// mechanized only by a check of it that ran, and next_action names the
+	// first check that did not pass instead of an import step.
 	var mechChecks []map[string]any
 	allPass := true
+	mechanized := registeredMechanized(wf.Checks)
+	verdict := engine.CheckVerdict{Unverified: len(wf.Checks) > 0}
 	if check {
 		mechChecks, allPass = runMechanicalChecks(&wf, taskFilePath)
+		mechanized = ranMechanized(wf.Checks, mechChecks)
+		verdict = checkVerdict(wf.Checks, mechChecks, taskFilePath)
 	} else {
 		mechChecks = registeredChecksList(&wf)
 	}
@@ -156,10 +164,10 @@ func runReviewStatus(specPath string, check bool) error {
 	// blockingUnresolved is the latest recorded round holding a surviving
 	// convergence-blocking finding (its live severity-aware clean flag is false);
 	// mechanize candidates are derived here from the recorded rounds by the same
-	// threshold --record uses, so branch 3 is reachable on --status too.
+	// threshold --record uses, so the mechanize branch is reachable on --status too.
 	blockingUnresolved := len(rounds) > 0 && !rounds[len(rounds)-1].Clean
 	result["next_action"] = engine.ReviewNextAction(specPath, done, blockingUnresolved,
-		mechanizeClassesFromRounds(specPath, rounds, wf.Checks), engine.LatestRoundFile(specPath, rounds))
+		mechanizeClassesFromRounds(specPath, rounds, mechanized), engine.LatestRoundFile(specPath, rounds), verdict)
 
 	if jsonErr := output.JSON(result); jsonErr != nil {
 		// Exiting, not falling through: see runAuditStatus. A code-3 envelope

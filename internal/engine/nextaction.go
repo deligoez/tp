@@ -47,13 +47,97 @@ const MechanizePhaseQualifier = "only worth registering when the artifact it mea
 // (§8.1). <spec> is resolved to specPath and roundFile names the latest recorded
 // round's file; <file> stays a literal placeholder because tp cannot know the
 // operator's chosen findings filename (§8.2).
-func ReviewNextAction(specPath string, done LoopDone, blockingUnresolved bool, mechanizeClasses []string, roundFile string) string {
+// CheckVerdict is what the caller of ReviewNextAction knows about the
+// registered workflow checks. The zero value — no check registered, or every
+// registered check ran and passed — leaves next_action as it reads without
+// checks.
+type CheckVerdict struct {
+	// Unverified is set when checks are registered and the caller did not run
+	// them. It cannot know whether `tp review <spec> --status --check` passes,
+	// so every step naming import is gated on that command instead.
+	Unverified bool
+	// Failing lists the registered checks that did not pass. While any is
+	// present `--status --check` exits 1, so the first one replaces every step
+	// that would name import.
+	Failing []CheckFailure
+}
+
+// CheckFailure is one registered check that did not pass.
+type CheckFailure struct {
+	Class string
+	// Ran is the CheckRan verdict: true for a check that ran and found
+	// violations, false for one that could not run or never started.
+	Ran bool
+	// Outcome says what the check did, as the predicate of "it …": "exited 1",
+	// "exited 2", "never started: no task file resolves".
+	Outcome string
+}
+
+// fixClause names the check to fix and what it did.
+func (f *CheckFailure) fixClause() string {
+	if f.Ran {
+		return fmt.Sprintf("fix what the registered %q check reports — it %s: violations found", f.Class, f.Outcome)
+	}
+	return fmt.Sprintf("fix the registered %q check — it %s and verified nothing", f.Class, f.Outcome)
+}
+
+// failure returns the first entry of Failing for class.
+func (v *CheckVerdict) failure(class string) (CheckFailure, bool) {
+	for _, f := range v.Failing {
+		if f.Class == class {
+			return f, true
+		}
+	}
+	return CheckFailure{}, false
+}
+
+// ReviewNextAction returns the advisory next_action string for the review loop,
+// chosen by a fixed precedence, total over reachable states (first match wins):
+//
+//  0. done or at the cap, and a registered check failed or did not run → fix
+//     that check. Branches 1 and 2 name import, and `--status --check` exits 1
+//     until every registered check passes, so no import step is named.
+//  1. done (converged, or ended at the cap with every finding dispositioned) →
+//     the phase's forward step: decompose, then tp import <base>.tasks.json.
+//  2. the cap is reached and a finding still carries no disposition → the only
+//     way out: disposition it in the recorded round file, then import. No
+//     further round is named, because the cap admits none.
+//  3. a convergence-blocking finding survives in the latest recorded round →
+//     revise the spec, or disposition the finding in the recorded round file,
+//     then re-review. Both exits are named: a directive naming only the edit is
+//     what turned every finding into spec text. Accepting a blocking finding is
+//     named as the operator's decision, and --resolve-all is never advised.
+//  4. a mechanizable mechanize_candidates class is present and none is blocking →
+//     the compound directive: register a check, then run the next round. It
+//     carries MechanizePhaseQualifier (§8a.2). The un-mechanizable
+//     over-specification class does not fire this branch. A class whose
+//     registered check did not run is named with that check to fix instead.
+//  5. clean but not yet converged (the lowest-precedence default) → run the next
+//     review round.
+//
+// When checks.Unverified, branches 1 and 2 name `--status --check` ahead of
+// their import step: the caller ran no check, so it cannot claim one passes.
+//
+// next_action is advisory/read-only: it changes nothing and gates no exit code
+// (§8.1). <spec> is resolved to specPath and roundFile names the latest recorded
+// round's file; <file> stays a literal placeholder because tp cannot know the
+// operator's chosen findings filename (§8.2).
+func ReviewNextAction(specPath string, done LoopDone, blockingUnresolved bool, mechanizeClasses []string, roundFile string, checks CheckVerdict) string {
+	if (done.Done || done.CapReached) && len(checks.Failing) > 0 {
+		return checks.Failing[0].fixClause() + "; tp review " + specPath + " --status --check exits 1 until every registered check passes"
+	}
 	importStep := "tp import " + specTaskBase(specPath)
+	forward := "decompose the spec into tasks, then " + importStep
+	if checks.Unverified {
+		gate := "run tp review " + specPath + " --status --check (--status alone runs no check) and on exit 0 "
+		importStep = gate + importStep
+		forward = gate + forward
+	}
 	switch {
 	case done.Done && done.By == DoneByCap:
-		return "decompose the spec into tasks, then " + importStep + " — the round cap ended review with every finding dispositioned"
+		return forward + " — the round cap ended review with every finding dispositioned"
 	case done.Done:
-		return "decompose the spec into tasks, then " + importStep
+		return forward
 	case done.CapReached && done.BlockingFixedAtCap > 0:
 		return blockingFixedAtCap(done.BlockingFixedAtCap) + " — tp review " + roundFile + " --resolve <index> wontfix \"<evidence>\" --force — then " + importStep
 	case done.CapReached:
@@ -63,13 +147,23 @@ func ReviewNextAction(specPath string, done LoopDone, blockingUnresolved bool, m
 		return "revise the spec where a blocking finding is a defect, or disposition it — tp review " + roundFile +
 			" --resolve <index> wontfix|duplicate \"<evidence>\", the operator's decision for a critical or high finding — then run the next review round"
 	default:
-		if cls := firstMechanizableClass(mechanizeClasses); cls != "" {
-			return fmt.Sprintf(
-				"register a check for the recurring %q class — %s (tp set --workflow checks='[{\"class\":%q,\"cmd\":\"…\"}]'), then run the next review round: tp review %s --record <file>",
-				cls, MechanizePhaseQualifier, cls, specPath)
-		}
-		return "run the next review round: tp review " + specPath + " --record <file>"
+		return mechanizeOrNextRound(specPath, mechanizeClasses, &checks)
 	}
+}
+
+// mechanizeOrNextRound is ReviewNextAction's branches 4 and 5.
+func mechanizeOrNextRound(specPath string, mechanizeClasses []string, checks *CheckVerdict) string {
+	nextRound := "run the next review round: tp review " + specPath + " --record <file>"
+	cls := firstMechanizableClass(mechanizeClasses)
+	if cls == "" {
+		return nextRound
+	}
+	if f, ok := checks.failure(cls); ok {
+		return f.fixClause() + ", so the recurring class stays reportable; then " + nextRound
+	}
+	return fmt.Sprintf(
+		"register a check for the recurring %q class — %s (tp set --workflow checks='[{\"class\":%q,\"cmd\":\"…\"}]'), then %s",
+		cls, MechanizePhaseQualifier, cls, nextRound)
 }
 
 // AuditNextAction returns the advisory next_action string for the audit loop by

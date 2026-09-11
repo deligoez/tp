@@ -47,17 +47,8 @@ const mechanizedExclusionPrefix = "\n\nMechanically checked classes — do NOT r
 // it returns "", so no sentence is appended rather than one ending in an
 // empty list.
 func mechanizedExclusion(checks []model.Check, results []map[string]any) string {
-	ranFor := make(map[string]bool)
-	notRun := make(map[string]bool)
-	for _, entry := range results {
-		class, _ := entry["class"].(string)
-		if ran, _ := entry["ran"].(bool); ran {
-			ranFor[class] = true
-		} else {
-			notRun[class] = true
-		}
-	}
-	classes := slices.DeleteFunc(engine.ReviewerExclusionClasses(checks), func(c string) bool { return !ranFor[c] || notRun[c] })
+	ran := checkRanClasses(results)
+	classes := slices.DeleteFunc(engine.ReviewerExclusionClasses(checks), func(c string) bool { return !ran[c] })
 	if len(classes) == 0 {
 		return ""
 	}

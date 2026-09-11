@@ -201,11 +201,15 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 	}
 	candidates := computeMechanizeCandidates(roundFindings)
 
-	wf, _ := engine.ResolveWorkflow(specPath, flagFile)
-	// §3.2 candidate suppression, mode 1: a class mechanized by a valid `checks`
-	// entry is withheld from all three of this mode's sinks — the emitted
-	// mechanize_candidates array, the register-a-check hint that accompanies it,
-	// and the class list handed to next_action below. The filter runs after the
+	wf, taskFilePath := engine.ResolveWorkflow(specPath, flagFile)
+	done := engine.ReviewLoopDone(specPath, st.ReviewRounds, wf.ReviewCleanRounds, wf.ReviewMaxRounds, specHash, wf.ReviewConvergeOn)
+	// §3.2 candidate suppression, mode 1: a mechanized class is withheld from
+	// all three of this mode's sinks — the emitted mechanize_candidates array,
+	// the register-a-check hint that accompanies it, and the class list handed
+	// to next_action below. A class is mechanized here only by a registered
+	// check of it that ran: recordChecks runs the checks wherever the answer
+	// matters, and a check that could not run leaves its class a candidate,
+	// which next_action names with the check to fix. The filter runs after the
 	// frequency threshold rather than inside it, so suppressing one class never
 	// changes whether another crosses it, and it keeps candidates a non-nil
 	// slice so the array stays [] and never null on a round it empties.
@@ -216,7 +220,8 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 	// one decision. It lists the intersection: a registered class that never
 	// reached candidate frequency was never a candidate, so the filter never saw
 	// it and it is absent here.
-	candidates, mechanizedClasses := filterMechanizedCandidates(candidates, wf.Checks)
+	mechanized, verdict := recordChecks(&wf, taskFilePath, candidates, done)
+	candidates, mechanizedClasses := filterMechanizedCandidates(candidates, mechanized)
 	// clean/consecutive_clean/converged are recomputed live from the round's
 	// recorded findings under the current review_converge_on (§3.4) — the
 	// stored ReviewRound.Clean stays the frozen record-time value. This is the
@@ -269,11 +274,11 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 	// Advisory/read-only — it changes nothing and never gates the exit code. The
 	// just-recorded round is the latest, so branch 3's "convergence-blocking
 	// finding survives in the latest round" is exactly !liveClean; branch 4 reads
-	// the same mechanize candidates surfaced above.
-	done := engine.ReviewLoopDone(specPath, st.ReviewRounds, wf.ReviewCleanRounds, wf.ReviewMaxRounds, specHash, wf.ReviewConvergeOn)
+	// the same mechanize candidates surfaced above, and a check recordChecks saw
+	// fail replaces any step that would name import.
 	addLoopDone(result, done)
 	result["next_action"] = engine.ReviewNextAction(specPath, done, !liveClean,
-		mechanizeCandidateClasses(candidates), engine.LatestRoundFile(specPath, st.ReviewRounds))
+		mechanizeCandidateClasses(candidates), engine.LatestRoundFile(specPath, st.ReviewRounds), verdict)
 	return output.JSON(result)
 }
 

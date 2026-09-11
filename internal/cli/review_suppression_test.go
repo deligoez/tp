@@ -176,17 +176,17 @@ func TestReviewStatus_SuppressionReachesNextAction(t *testing.T) {
 	assert.Equal(t, nextRoundAction, payload["next_action"])
 }
 
-// Test 40: whether the registered check passes is irrelevant — registration is
-// the trigger. Asserting only on --record would prove nothing, since that mode
-// executes no check and a failing entry is indistinguishable from a passing one
-// there; `--status --check` is the mode that actually runs it.
+// Test 40: whether a registered check that ran passes is irrelevant — a check
+// exiting 1 ran and found violations, and it suppresses its class exactly as a
+// passing one does. Only a check that could not run mechanizes nothing
+// (next_action_checks_test.go). Both modes that run the check are asserted.
 func TestReviewSuppression_FailingCheckStillSuppressesItsClass(t *testing.T) {
 	t.Parallel()
 	dir := suppressionFixture(t, `[{"class":"failing-class","cmd":"echo tail-marker; exit 1"}]`)
 	recordOut := recordSuppressionRound(t, dir, fiveRowsOfClass("failing-class")...)
-	assert.Empty(t, candidateClasses(t, recordOut), "--record withholds the class without running the check")
+	assert.Empty(t, candidateClasses(t, recordOut), "--record withholds the class: its check ran")
 	assert.Equal(t, []string{"failing-class"}, mechanizedClasses(t, recordOut),
-		"and names it in mechanized_classes: registration is the trigger, not the check's exit status")
+		"and names it in mechanized_classes: a check that ran mechanizes its class whatever it found")
 
 	stdout, stderr, code := runTP(t, dir, "review", "spec.md", "--status", "--check")
 	require.Equal(t, 1, code, "a failing mechanical check still gates the exit code: %s", stderr)
@@ -310,10 +310,11 @@ func TestReviewRecord_MechanizedClassesSurvivesCompact(t *testing.T) {
 // precondition is what makes this half assertable, since the array holds
 // withheld candidates. The fixture writes the block directly because
 // `tp set --workflow checks=` validates the whole slice and rejects the
-// duplicate class this test needs.
+// duplicate class this test needs. Both commands run, because --record
+// mechanizes a class only by a check of it that ran.
 func TestReviewRecord_ClassNamedByTwoEntriesWithheldOnce(t *testing.T) {
 	t.Parallel()
-	dir := exclusionFixture(t, `[{"class":"twice-class","cmd":"check-a"},{"class":"twice-class","cmd":"check-b"}]`)
+	dir := exclusionFixture(t, `[{"class":"twice-class","cmd":"true"},{"class":"twice-class","cmd":"exit 0"}]`)
 	stdout := recordSuppressionRound(t, dir, fiveRowsOfClass("twice-class")...)
 
 	assert.Equal(t, []string{"twice-class"}, mechanizedClasses(t, stdout), "named once, not once per entry")
