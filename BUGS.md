@@ -16,6 +16,12 @@ fix needs a design choice leaves this file for a decision note.
 
 ## Wrong or missing guidance
 
+- **The audit carry's `changed_since` is second-granular.** It asks git for commits since the prior
+  round's `recorded_at`, so a commit landing in the same second as that record counts as a change and
+  the acceptance is not carried. Conservative (never a false carry) and rare outside scripted flows.
+  Fix: when the round file is tracked, diff from the parent of the commit that added it instead of
+  `--since`. Test: an init commit in the same second as round 1's record still lets an unchanged file
+  carry.
 - **`tp resume` can move to decompose while a registered review check fails.** Its phase and
   `next_action` read the loop verdict alone. Running the checks on every driver tick is a real cost, and
   doing it properly needs the check verdict stamped at `--record` (a new state field), so it is a
