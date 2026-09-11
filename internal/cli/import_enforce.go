@@ -16,7 +16,7 @@ import (
 // the round cap reached with every finding of the latest round dispositioned.
 // The spec path is pinned to the import target's directory, matching how
 // workflow resolution reads the spec field after the write.
-func enforceImportConvergence(targetPath string, tf *model.TaskFile) {
+func enforceImportConvergence(targetPath string, tf *model.TaskFile) *engine.LoopDone {
 	stateSpec := filepath.Join(filepath.Dir(targetPath), filepath.Base(tf.Spec))
 
 	st, err := engine.LoadReviewState(stateSpec)
@@ -26,13 +26,13 @@ func enforceImportConvergence(targetPath string, tf *model.TaskFile) {
 		// every other state reader now accepts. Lost history still aborts.
 		if !engine.IsRebuildableStateIndex(err) {
 			exitStateError(err)
-			return
+			return nil
 		}
 		st = nil
 	}
 	if st == nil || len(st.ReviewRounds) == 0 {
 		output.Info("review convergence not verified (no recorded rounds)")
-		return
+		return nil
 	}
 
 	// Enforcement uses the resolved (project-layered) values, so a thinned task
@@ -43,13 +43,13 @@ func enforceImportConvergence(targetPath string, tf *model.TaskFile) {
 	if hashErr != nil {
 		output.Error(ExitFile, fmt.Sprintf("cannot hash spec: %s", stateSpec), hashErr.Error())
 		os.Exit(ExitFile)
-		return
+		return nil
 	}
 	done := engine.ReviewLoopDone(stateSpec, st.ReviewRounds, wfResolved.ReviewCleanRounds, wfResolved.ReviewMaxRounds, specHash, wfResolved.ReviewConvergeOn)
 	lastRound := st.ReviewRounds[len(st.ReviewRounds)-1].Round
 
 	if settledByLoopVerdict(done, wfResolved.ReviewMaxRounds, lastRound) {
-		return
+		return &done
 	}
 
 	required := wfResolved.ReviewCleanRounds
@@ -61,13 +61,14 @@ func enforceImportConvergence(targetPath string, tf *model.TaskFile) {
 	if consecutive < required {
 		output.Error(ExitValidation, fmt.Sprintf("review not converged: %d consecutive clean rounds, %d required", consecutive, required), hint)
 		os.Exit(ExitValidation)
-		return
+		return nil
 	}
 	if engine.StateStale(st.ReviewRounds, specHash) {
 		output.Error(ExitValidation, fmt.Sprintf("spec changed since round %d was recorded", lastRound), hint)
 		os.Exit(ExitValidation)
-		return
+		return nil
 	}
+	return &done
 }
 
 // settledByLoopVerdict handles the states the loop verdict decides on its own
@@ -75,6 +76,7 @@ func enforceImportConvergence(targetPath string, tf *model.TaskFile) {
 // imports with a note naming what the cap waived, since no round verified it;
 // a loop at the cap with a finding still open is refused with the way out.
 // Anything else falls through to the clean-rounds and staleness checks.
+// The verdict is returned to the caller for the import payload.
 func settledByLoopVerdict(done engine.LoopDone, maxRounds, lastRound int) bool {
 	switch {
 	case done.Done && done.By == engine.DoneByCap:
@@ -90,9 +92,11 @@ func settledByLoopVerdict(done engine.LoopDone, maxRounds, lastRound int) bool {
 	case done.Done:
 		return true
 	case done.CapReached:
-		output.Error(ExitValidation,
-			fmt.Sprintf("review reached its %d-round cap with %d finding(s) of round %d carrying no disposition", maxRounds, done.Undisposed, lastRound),
-			budgetEscalationHint)
+		msg := fmt.Sprintf("review reached its %d-round cap with %d finding(s) of round %d carrying no disposition", maxRounds, done.Undisposed, lastRound)
+		if done.BlockingFixedAtCap > 0 {
+			msg += fmt.Sprintf(" and %d blocking finding(s) marked fixed that no round re-read: the operator accepts them with evidence or raises the cap by one for a verification round", done.BlockingFixedAtCap)
+		}
+		output.Error(ExitValidation, msg, budgetEscalationHint)
 		os.Exit(ExitValidation)
 		return true
 	}

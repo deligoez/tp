@@ -39,6 +39,12 @@ type BlockerInputs struct {
 	AuditMaxRounds  int
 	AuditConverged  bool
 	ReviewStale     bool
+
+	// ReviewBlockingFixedAtCap and AuditBlockingFixedAtCap count the latest
+	// round's blocking findings marked fixed at the cap (LoopDone): the state
+	// only the operator can end, named in the budget blocker's message.
+	ReviewBlockingFixedAtCap int
+	AuditBlockingFixedAtCap  int
 }
 
 // BuildBlockers derives the blockers array in the fixed code order of §4.6:
@@ -77,8 +83,8 @@ func BuildBlockers(in *BlockerInputs) []Blocker {
 		blockers = append(blockers, Blocker{
 			Code:    "review-budget-exhausted",
 			Class:   ClassEscalate,
-			Message: fmt.Sprintf("review reached its %d-round cap; disposition the remaining findings of the latest round (accepting a blocking one is the operator's decision)", in.ReviewMaxRounds),
-			Data:    map[string]any{"cap": in.ReviewMaxRounds},
+			Message: budgetBlockerMessage("review", in.ReviewMaxRounds, in.ReviewBlockingFixedAtCap),
+			Data:    map[string]any{"cap": in.ReviewMaxRounds, "blocking_fixed_at_cap": in.ReviewBlockingFixedAtCap},
 		})
 	}
 
@@ -87,8 +93,8 @@ func BuildBlockers(in *BlockerInputs) []Blocker {
 		blockers = append(blockers, Blocker{
 			Code:    "audit-budget-exhausted",
 			Class:   ClassEscalate,
-			Message: fmt.Sprintf("audit reached its %d-round cap; disposition the remaining findings of the latest round (accepting one without a code change is the operator's decision)", in.AuditMaxRounds),
-			Data:    map[string]any{"cap": in.AuditMaxRounds},
+			Message: budgetBlockerMessage("audit", in.AuditMaxRounds, in.AuditBlockingFixedAtCap),
+			Data:    map[string]any{"cap": in.AuditMaxRounds, "blocking_fixed_at_cap": in.AuditBlockingFixedAtCap},
 		})
 	}
 
@@ -103,6 +109,16 @@ func BuildBlockers(in *BlockerInputs) []Blocker {
 	}
 
 	return blockers
+}
+
+// budgetBlockerMessage words a *-budget-exhausted blocker: what is left at the
+// cap, and — when blocking findings were marked fixed there — that only the
+// operator can end it.
+func budgetBlockerMessage(phase string, capRounds, blockingFixed int) string {
+	if blockingFixed > 0 {
+		return fmt.Sprintf("%s reached its %d-round cap; %s", phase, capRounds, blockingFixedAtCap(blockingFixed))
+	}
+	return fmt.Sprintf("%s reached its %d-round cap; disposition the remaining findings of the latest round (accepting a blocking one without a change is the operator's decision)", phase, capRounds)
 }
 
 // unmetDeps returns the sorted, de-duplicated dependency ids that are not done

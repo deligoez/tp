@@ -235,3 +235,18 @@ func TestFirstMechanizableClass(t *testing.T) {
 	// sanity: none of the review directives leak an audit command and vice versa.
 	assert.False(t, strings.Contains(ReviewNextAction("s.md", notDone, false, nil, roundFile), "tp audit"))
 }
+
+// TestNextAction_ABlockingFixedAtTheCap: the one state at the cap only the
+// operator can end is named as such in both phases, with the acceptance
+// command pointed at the recorded round file.
+func TestNextAction_ABlockingFixedAtTheCap(t *testing.T) {
+	d := LoopDone{CapReached: true, BlockingFixedAtCap: 2}
+	review := ReviewNextAction("spec.md", d, true, nil, roundFile)
+	assert.Contains(t, review, "2 blocking findings were marked fixed")
+	assert.Contains(t, review, "raises the cap by one")
+	assert.Contains(t, review, "tp review "+roundFile+" --resolve")
+
+	audit := AuditNextAction("spec.md", LoopDone{CapReached: true, BlockingFixedAtCap: 1}, false, 1, auditRoundFile)
+	assert.Contains(t, audit, "1 blocking finding was marked fixed")
+	assert.Contains(t, audit, "tp audit "+auditRoundFile+" --resolve")
+}

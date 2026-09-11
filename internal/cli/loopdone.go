@@ -19,4 +19,7 @@ func addLoopDone(result map[string]any, d engine.LoopDone) {
 		result["fixed_at_cap"] = d.FixedAtCap
 		result["stale_waived"] = d.StaleWaived
 	}
+	if d.BlockingFixedAtCap > 0 {
+		result["blocking_fixed_at_cap"] = d.BlockingFixedAtCap
+	}
 }

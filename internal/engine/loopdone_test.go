@@ -33,6 +33,8 @@ const (
 	highOpen      = `{"severity":"high","finding":"h"}`
 	mediumOpen    = `{"severity":"medium","finding":"m"}`
 	highFixed     = `{"severity":"high","finding":"h","resolved":{"status":"fixed","evidence":"spec edited"}}`
+	highWontfix   = `{"severity":"high","finding":"h","resolved":{"status":"wontfix","evidence":"accepted by the operator"}}`
+	mediumFixed   = `{"severity":"medium","finding":"m","resolved":{"status":"fixed","evidence":"spec edited"}}`
 	mediumWontfix = `{"severity":"medium","finding":"m","resolved":{"status":"wontfix","evidence":"out of scope"}}`
 	mediumBareWF  = `{"severity":"medium","finding":"m","resolved":{"status":"wontfix","evidence":"  "}}`
 )
@@ -50,21 +52,37 @@ func TestReviewLoopDone_ConvergedWins(t *testing.T) {
 func TestReviewLoopDone_AtTheCapEveryFindingDispositioned(t *testing.T) {
 	t.Parallel()
 	spec := filepath.Join(t.TempDir(), "spec.md")
-	rounds := loopRounds(t, spec, []string{highOpen}, []string{highOpen}, []string{highFixed, mediumWontfix})
+	rounds := loopRounds(t, spec, []string{highOpen}, []string{highOpen}, []string{highWontfix, mediumFixed, mediumWontfix})
 
 	d := ReviewLoopDone(spec, rounds, 2, 3, "changed", ReviewConvergeOnBlocking)
 	assert.True(t, d.Done, "at the cap, a fully dispositioned latest round ends the loop")
 	assert.Equal(t, DoneByCap, d.By)
 	assert.True(t, d.CapReached)
-	assert.Equal(t, 1, d.FixedAtCap, "the fixed row no round re-read is counted")
+	assert.Equal(t, 1, d.FixedAtCap, "the non-blocking fixed row no round re-read is counted")
 	assert.True(t, d.StaleWaived, "the spec changed after the last round and that is reported, not hidden")
 	assert.Equal(t, 0, d.Undisposed)
+}
+
+// TestReviewLoopDone_ABlockingFixedAtTheCapKeepsItOpen: fixed says the spec
+// changed, but at the cap no round will re-read it, so for a blocking finding
+// it would be an acceptance nobody made — and a unit may write fixed under
+// TP_UNATTENDED. Only a blocking finding accepted with evidence ends the loop.
+func TestReviewLoopDone_ABlockingFixedAtTheCapKeepsItOpen(t *testing.T) {
+	t.Parallel()
+	spec := filepath.Join(t.TempDir(), "spec.md")
+	rounds := loopRounds(t, spec, []string{highOpen}, []string{highOpen}, []string{highFixed, mediumWontfix})
+
+	d := ReviewLoopDone(spec, rounds, 2, 3, "h", ReviewConvergeOnBlocking)
+	assert.False(t, d.Done, "a blocking finding marked fixed at the cap is not an acceptance")
+	assert.True(t, d.CapReached)
+	assert.Equal(t, 1, d.BlockingFixedAtCap)
+	assert.Equal(t, 0, d.FixedAtCap, "the blocking fixed row is not counted as a waived fixed row")
 }
 
 func TestReviewLoopDone_AtTheCapAnOpenFindingKeepsItOpen(t *testing.T) {
 	t.Parallel()
 	spec := filepath.Join(t.TempDir(), "spec.md")
-	rounds := loopRounds(t, spec, []string{highOpen}, []string{highOpen}, []string{highFixed, mediumOpen})
+	rounds := loopRounds(t, spec, []string{highOpen}, []string{highOpen}, []string{highWontfix, mediumOpen})
 
 	d := ReviewLoopDone(spec, rounds, 2, 3, "h", ReviewConvergeOnBlocking)
 	assert.False(t, d.Done)
@@ -123,13 +141,31 @@ func TestAuditLoopDone_PassRowsNeedNoDisposition(t *testing.T) {
 	open := `{"role":"r","item_id":"x","status":"FAIL","severity":"error"}`
 	rounds := loopRounds(t, spec, []string{open}, []string{open}, []string{
 		`{"role":"r","item_id":"p","status":"PASS","severity":null}`,
-		`{"role":"r","item_id":"x","status":"FAIL","severity":"error","resolved":{"status":"fixed","evidence":"code changed"}}`,
+		`{"role":"r","item_id":"w","status":"FAIL","severity":"warning","resolved":{"status":"fixed","evidence":"code changed"}}`,
 	})
+	rounds[2].ConvergeOn = AuditConvergeOnBlocking // a warning does not block under blocking
 
 	d := AuditLoopDone(spec, rounds, 2, 3, "h")
 	assert.True(t, d.Done)
 	assert.Equal(t, DoneByCap, d.By)
 	assert.Equal(t, 1, d.FixedAtCap)
+}
+
+// TestAuditLoopDone_ABlockingFixedAtTheCapKeepsItOpen: the audit twin of the
+// review rule, graded under the latest round's recorded policy — under `all`
+// every non-PASS row blocks, so an error FAIL marked fixed at the cap keeps
+// the loop open until the operator accepts it.
+func TestAuditLoopDone_ABlockingFixedAtTheCapKeepsItOpen(t *testing.T) {
+	t.Parallel()
+	spec := filepath.Join(t.TempDir(), "spec.md")
+	open := `{"role":"r","item_id":"x","status":"FAIL","severity":"error"}`
+	rounds := loopRounds(t, spec, []string{open}, []string{open}, []string{
+		`{"role":"r","item_id":"x","status":"FAIL","severity":"error","resolved":{"status":"fixed","evidence":"code changed"}}`,
+	})
+
+	d := AuditLoopDone(spec, rounds, 2, 3, "h")
+	assert.False(t, d.Done)
+	assert.Equal(t, 1, d.BlockingFixedAtCap)
 }
 
 func TestLiveAuditRounds_RecomputesTheStoredFlag(t *testing.T) {

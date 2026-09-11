@@ -54,6 +54,8 @@ func ReviewNextAction(specPath string, done LoopDone, blockingUnresolved bool, m
 		return "decompose the spec into tasks, then " + importStep + " — the round cap ended review with every finding dispositioned"
 	case done.Done:
 		return "decompose the spec into tasks, then " + importStep
+	case done.CapReached && done.BlockingFixedAtCap > 0:
+		return blockingFixedAtCap(done.BlockingFixedAtCap) + " — tp review " + roundFile + " --resolve <index> wontfix \"<evidence>\" --force — then " + importStep
 	case done.CapReached:
 		return "the review round cap is reached: disposition each remaining finding in " + roundFile +
 			" — tp review " + roundFile + " --resolve <index> fixed|wontfix|duplicate \"<evidence>\"; accepting a critical or high finding is the operator's decision — then " + importStep
@@ -96,6 +98,8 @@ func AuditNextAction(specPath string, done LoopDone, latestRoundClean bool, late
 				" — implementation verified, proceed to release"
 		}
 		return "converged — implementation verified, proceed to release"
+	case done.CapReached && done.BlockingFixedAtCap > 0:
+		return blockingFixedAtCap(done.BlockingFixedAtCap) + " — tp audit " + roundFile + " --resolve <role:item_id> wontfix \"<evidence>\" --force"
 	case done.CapReached:
 		return "the audit round cap is reached: disposition each remaining finding in " + roundFile +
 			" — tp audit " + roundFile + " --resolve <role:item_id> fixed|wontfix|duplicate \"<evidence>\"; accepting a finding without a code change is the operator's decision"
@@ -109,6 +113,16 @@ func AuditNextAction(specPath string, done LoopDone, latestRoundClean bool, late
 		}
 		return "run the next audit round: tp audit " + specPath + " --record <file>"
 	}
+}
+
+// blockingFixedAtCap names the one state at the cap that only the operator can
+// end: blocking findings marked fixed that no round will re-read.
+func blockingFixedAtCap(n int) string {
+	noun := "findings were"
+	if n == 1 {
+		noun = "finding was"
+	}
+	return fmt.Sprintf("%d blocking %s marked fixed at the round cap and no round re-read them: the operator accepts them with evidence or raises the cap by one for a verification round", n, noun)
 }
 
 // LatestRoundFile returns the recorded round file of the latest round in

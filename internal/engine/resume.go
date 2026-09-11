@@ -86,8 +86,9 @@ func AssembleResume(start, taskFilePath, specPath string, tf *model.TaskFile) (R
 	// The same verdict import and --status --check read: converged, or the cap
 	// reached with every finding of the latest round dispositioned. Reading the
 	// stored flags here kept the oracle escalating on a loop import accepted.
-	reviewConverged := ReviewLoopDone(specPath, reviewRounds, wf.ReviewCleanRounds, wf.EffectiveReviewMaxRounds(), specHash, wf.ReviewConvergeOn).Done
-	auditConverged := AuditLoopDone(specPath, auditRounds, wf.AuditCleanRounds, wf.EffectiveAuditMaxRounds(), specHash).Done
+	reviewDone := ReviewLoopDone(specPath, reviewRounds, wf.ReviewCleanRounds, wf.EffectiveReviewMaxRounds(), specHash, wf.ReviewConvergeOn)
+	auditDone := AuditLoopDone(specPath, auditRounds, wf.AuditCleanRounds, wf.EffectiveAuditMaxRounds(), specHash)
+	reviewConverged, auditConverged := reviewDone.Done, auditDone.Done
 	reviewStale := StateStale(reviewRounds, specHash)
 
 	numDone := 0
@@ -115,6 +116,9 @@ func AssembleResume(start, taskFilePath, specPath string, tf *model.TaskFile) (R
 		AuditMaxRounds:  wf.EffectiveAuditMaxRounds(),
 		AuditConverged:  auditConverged,
 		ReviewStale:     reviewStale,
+
+		ReviewBlockingFixedAtCap: reviewDone.BlockingFixedAtCap,
+		AuditBlockingFixedAtCap:  auditDone.BlockingFixedAtCap,
 	})
 
 	// The units come after the blockers because an escalate blocker is what
