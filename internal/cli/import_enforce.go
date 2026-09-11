@@ -15,7 +15,9 @@ import (
 // the verdict --status --check, next_action and tp resume read: converged, or
 // the round cap reached with every finding of the latest round dispositioned.
 // The spec path is pinned to the import target's directory, matching how
-// workflow resolution reads the spec field after the write.
+// workflow resolution reads the spec field after the write. Where the loop
+// lets the import go ahead, the registered checks decide last, as they do for
+// --status --check (refuseImportOnChecks).
 func enforceImportConvergence(targetPath string, tf *model.TaskFile) *engine.LoopDone {
 	stateSpec := filepath.Join(filepath.Dir(targetPath), filepath.Base(tf.Spec))
 
@@ -38,7 +40,7 @@ func enforceImportConvergence(targetPath string, tf *model.TaskFile) *engine.Loo
 	// Enforcement uses the resolved (project-layered) values, so a thinned task
 	// file inherits the project requirement rather than reading the raw
 	// task-file block alone.
-	wfResolved, _ := engine.ResolveWorkflow(stateSpec, flagFile)
+	wfResolved, checksTaskFile := engine.ResolveWorkflow(stateSpec, flagFile)
 	specHash, hashErr := engine.SpecHash(stateSpec)
 	if hashErr != nil {
 		output.Error(ExitFile, fmt.Sprintf("cannot hash spec: %s", stateSpec), hashErr.Error())
@@ -49,6 +51,7 @@ func enforceImportConvergence(targetPath string, tf *model.TaskFile) *engine.Loo
 	lastRound := st.ReviewRounds[len(st.ReviewRounds)-1].Round
 
 	if settledByLoopVerdict(done, wfResolved.ReviewMaxRounds, lastRound) {
+		refuseImportOnChecks(stateSpec, &wfResolved, checksTaskFile)
 		return &done
 	}
 
@@ -68,7 +71,32 @@ func enforceImportConvergence(targetPath string, tf *model.TaskFile) *engine.Loo
 		os.Exit(ExitValidation)
 		return nil
 	}
+	refuseImportOnChecks(stateSpec, &wfResolved, checksTaskFile)
 	return &done
+}
+
+// refuseImportOnChecks runs the registered checks at the moment the loop lets
+// the import go ahead — the done moment --record runs them at — and refuses
+// the import when one failed or could not run, as `tp review --status --check`
+// exits 1 on it: exit 1, naming the first such check and what it did. With no
+// check registered it runs nothing, and with every check passing it returns.
+// --force never reaches it: the caller skips every convergence check.
+func refuseImportOnChecks(specPath string, wf *model.Workflow, taskFilePath string) {
+	if len(wf.Checks) == 0 {
+		return
+	}
+	results, _ := runMechanicalChecks(wf, taskFilePath)
+	failing := checkVerdict(wf.Checks, results, taskFilePath).Failing
+	if len(failing) == 0 {
+		return
+	}
+	msg := "review checks do not pass: " + failing[0].FixClause()
+	if more := len(failing) - 1; more > 0 {
+		msg += fmt.Sprintf(" (and %d more)", more)
+	}
+	hint := "tp review " + specPath + " --status --check shows each check's output and exits 0 once every registered check passes; or import with user-approved --force"
+	output.Error(ExitValidation, msg, hint)
+	os.Exit(ExitValidation)
 }
 
 // settledByLoopVerdict handles the states the loop verdict decides on its own

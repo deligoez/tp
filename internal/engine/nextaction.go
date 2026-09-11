@@ -73,8 +73,9 @@ type CheckFailure struct {
 	Outcome string
 }
 
-// fixClause names the check to fix and what it did.
-func (f *CheckFailure) fixClause() string {
+// FixClause names the check to fix and what it did. next_action and tp
+// import's refusal both render a failing check through it.
+func (f *CheckFailure) FixClause() string {
 	if f.Ran {
 		return fmt.Sprintf("fix what the registered %q check reports — it %s: violations found", f.Class, f.Outcome)
 	}
@@ -124,7 +125,7 @@ func (v *CheckVerdict) failure(class string) (CheckFailure, bool) {
 // operator's chosen findings filename (§8.2).
 func ReviewNextAction(specPath string, done LoopDone, blockingUnresolved bool, mechanizeClasses []string, roundFile string, checks CheckVerdict) string {
 	if (done.Done || done.CapReached) && len(checks.Failing) > 0 {
-		return checks.Failing[0].fixClause() + "; tp review " + specPath + " --status --check exits 1 until every registered check passes"
+		return checks.Failing[0].FixClause() + "; tp review " + specPath + " --status --check exits 1 until every registered check passes"
 	}
 	importStep := "tp import " + specTaskBase(specPath)
 	forward := "decompose the spec into tasks, then " + importStep
@@ -159,7 +160,7 @@ func mechanizeOrNextRound(specPath string, mechanizeClasses []string, checks *Ch
 		return nextRound
 	}
 	if f, ok := checks.failure(cls); ok {
-		return f.fixClause() + ", so the recurring class stays reportable; then " + nextRound
+		return f.FixClause() + ", so the recurring class stays reportable; then " + nextRound
 	}
 	return fmt.Sprintf(
 		"register a check for the recurring %q class — %s (tp set --workflow checks='[{\"class\":%q,\"cmd\":\"…\"}]'), then %s",
