@@ -647,6 +647,74 @@ type batchFailure struct {
 	Hint       string `json:"hint,omitempty"`
 }
 
+// batchRefusalContext is the batch-wide state checkBatchRow reads: the tasks
+// done so far (file and batch), the ids the batch carries, and the effective
+// commit_strategy.
+type batchRefusalContext struct {
+	doneSet  map[string]bool
+	batchIDs map[string]bool
+	strategy string
+}
+
+// checkBatchRow runs every refusal a row can meet once the gate has settled —
+// a blocking dependency, covered_by, closure verification, the commit shas and
+// the hc rule, in that order — without touching the task. It returns the shas
+// to record, or the failure that refuses the row. Validating first is what
+// lets a refused row leave its task exactly as it was read: the implicit claim
+// used to run before these checks and a refused open task stayed wip.
+func checkBatchRow(tf *model.TaskFile, task *model.Task, entry *batchEntry, rc batchRefusalContext) ([]string, *batchFailure) {
+	if task.Status == model.StatusOpen {
+		if f := batchRowBlocker(tf, task, rc); f != nil {
+			return nil, f
+		}
+	}
+	if entry.CoveredBy != "" {
+		ref, _, refErr := model.FindTask(tf, entry.CoveredBy)
+		if refErr != nil {
+			return nil, &batchFailure{ID: entry.ID, Error: fmt.Sprintf("covered_by: %v", refErr), Hint: coveredByHint(tf, entry.CoveredBy)}
+		}
+		if ref.Status != model.StatusDone {
+			return nil, &batchFailure{ID: entry.ID, Error: fmt.Sprintf("covered_by: task %s is %s (must be done)", ref.ID, ref.Status)}
+		}
+	}
+	if verifyErr := engine.VerifyClosure(task.Acceptance, entry.Reason, entry.CoveredBy != ""); verifyErr != nil {
+		return nil, &batchFailure{
+			ID:         entry.ID,
+			Error:      fmt.Sprintf("closure verification failed: %v", verifyErr),
+			Acceptance: task.Acceptance,
+			Hint:       engine.ClosureHint(verifyErr, "Fix reason to address all acceptance criteria."),
+		}
+	}
+	shas, commitErr := batchRowCommitSHAs(entry)
+	if commitErr != nil {
+		return nil, &batchFailure{ID: entry.ID, Error: commitErr.Error()}
+	}
+	if rc.strategy == engine.CommitStrategyHC && len(shas) == 0 && entry.CoveredBy == "" {
+		return nil, &batchFailure{ID: entry.ID, Error: "commit_strategy is hc: row needs commit_shas or covered_by", Hint: hcCommitHint}
+	}
+	return shas, nil
+}
+
+// batchRowBlocker is the failure for an open task's first dependency that is
+// not done, or nil when none blocks it.
+func batchRowBlocker(tf *model.TaskFile, task *model.Task, rc batchRefusalContext) *batchFailure {
+	for _, dep := range task.DependsOn {
+		if rc.doneSet[dep] {
+			continue
+		}
+		hint := fmt.Sprintf("Close %s first.", dep)
+		if depTask, _, depErr := model.FindTask(tf, dep); depErr == nil {
+			if depTask.Status == model.StatusWIP {
+				hint = fmt.Sprintf("%s is wip, not done", dep)
+			} else if !rc.batchIDs[dep] {
+				hint = fmt.Sprintf("close %s first (not in batch)", dep)
+			}
+		}
+		return &batchFailure{ID: task.ID, Error: fmt.Sprintf("blocked by %s", dep), Hint: hint}
+	}
+	return nil
+}
+
 func runDoneBatch() error {
 	// Read NDJSON file
 	entries, err := readBatchEntries(doneBatch)
@@ -769,78 +837,26 @@ func runDoneBatch() error {
 				continue
 			}
 
+			// Every refusal runs before the row touches its task, so a
+			// refused row is written back exactly as it was read.
+			shas, refusal := checkBatchRow(tf, task, &entry, batchRefusalContext{doneSet: doneSet, batchIDs: batchIDs, strategy: batchStrategy})
+			if refusal != nil {
+				failures = append(failures, *refusal)
+				continue
+			}
+			isBatchCoveredBy := entry.CoveredBy != ""
+
 			// Implicit claim
 			if task.Status == model.StatusOpen {
-				blocked := false
-				for _, dep := range task.DependsOn {
-					if doneSet[dep] {
-						continue
-					}
-					hint := fmt.Sprintf("Close %s first.", dep)
-					depTask, _, depErr := model.FindTask(tf, dep)
-					if depErr == nil {
-						if depTask.Status == model.StatusWIP {
-							hint = fmt.Sprintf("%s is wip, not done", dep)
-						} else if !batchIDs[dep] {
-							hint = fmt.Sprintf("close %s first (not in batch)", dep)
-						}
-					}
-					failures = append(failures, batchFailure{
-						ID:    entry.ID,
-						Error: fmt.Sprintf("blocked by %s", dep),
-						Hint:  hint,
-					})
-					blocked = true
-					break
-				}
-				if blocked {
-					continue
-				}
 				task.Status = model.StatusWIP
 				if entry.StartedAt != nil {
 					task.StartedAt = entry.StartedAt
 				} else {
 					task.StartedAt = &now
 				}
-				if entry.CoveredBy == "" {
+				if !isBatchCoveredBy {
 					task.DurationSource = model.DurationSourceImplicit
 				}
-			}
-
-			// Verify covered-by reference if provided
-			isBatchCoveredBy := entry.CoveredBy != ""
-			if isBatchCoveredBy {
-				ref, _, refErr := model.FindTask(tf, entry.CoveredBy)
-				if refErr != nil || ref.Status != model.StatusDone {
-					if refErr != nil {
-						hint := coveredByHint(tf, entry.CoveredBy)
-						failures = append(failures, batchFailure{ID: entry.ID, Error: fmt.Sprintf("covered_by: %v", refErr), Hint: hint})
-					} else {
-						failures = append(failures, batchFailure{ID: entry.ID, Error: fmt.Sprintf("covered_by: task %s is %s (must be done)", ref.ID, ref.Status)})
-					}
-					continue
-				}
-			}
-
-			// Closure verification
-			if verifyErr := engine.VerifyClosure(task.Acceptance, entry.Reason, isBatchCoveredBy); verifyErr != nil {
-				failures = append(failures, batchFailure{
-					ID:         entry.ID,
-					Error:      fmt.Sprintf("closure verification failed: %v", verifyErr),
-					Acceptance: task.Acceptance,
-					Hint:       engine.ClosureHint(verifyErr, "Fix reason to address all acceptance criteria."),
-				})
-				continue
-			}
-
-			shas, commitErr := batchRowCommitSHAs(&entry)
-			if commitErr != nil {
-				failures = append(failures, batchFailure{ID: entry.ID, Error: commitErr.Error()})
-				continue
-			}
-			if batchStrategy == engine.CommitStrategyHC && len(shas) == 0 && entry.CoveredBy == "" {
-				failures = append(failures, batchFailure{ID: entry.ID, Error: "commit_strategy is hc: row needs commit_shas or covered_by", Hint: hcCommitHint})
-				continue
 			}
 
 			task.Status = model.StatusDone
