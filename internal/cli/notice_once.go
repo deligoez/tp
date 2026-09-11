@@ -4,6 +4,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/deligoez/tp/internal/engine"
 	"github.com/deligoez/tp/internal/output"
 )
 
@@ -35,14 +36,14 @@ func noticeOnce(key, msg string) {
 }
 
 // firstLineCapped reduces an unbounded, possibly multi-line detail to the one
-// bounded line an advisory can afford.
+// bounded line an advisory can afford, cut on a rune boundary.
 func firstLineCapped(s string) string {
 	s = strings.TrimSpace(s)
 	if i := strings.IndexByte(s, '\n'); i >= 0 {
 		s = strings.TrimSpace(s[:i])
 	}
 	if len(s) > noticeDetailCap {
-		s = s[:noticeDetailCap] + "..."
+		s = s[:engine.RuneBoundaryAtOrBefore(s, noticeDetailCap)] + "..."
 	}
 	return s
 }

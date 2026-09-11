@@ -1631,39 +1631,16 @@ func rankFilesBySpecTerms(files, specLines []string) []string {
 }
 
 // readFilesContent reads the docs/test files selected for a perspective
-// prompt. A file it cannot read is named on stderr rather than dropped in
-// silence: the caller's paths came from a directory walk, so an unreadable one
-// is an anomaly, and a role that never sees the body would otherwise judge the
+// prompt through engine.ReadFilesCapped, the affected files' reader: the same
+// byte caps cut on a rune boundary, the same markers, and an unreadable file
+// named on stderr — the caller's paths came from a directory walk, so one is
+// an anomaly, and a role that never sees the body would otherwise judge the
 // file from its absence.
 func readFilesContent(files []string, maxTotal int) map[string]string {
 	// maxPerFile truncates one file; maxTotal caps the prompt and differs per
 	// perspective, so it stays a parameter.
 	const maxPerFile = 5000
-
-	result := make(map[string]string)
-	total := 0
-	for _, f := range files {
-		content, err := os.ReadFile(f)
-		if err != nil {
-			output.Notice(fmt.Sprintf("warning: cannot read %s; its contents were dropped from the prompt (%v)", f, err))
-			continue
-		}
-		s := string(content)
-		if len(s) > maxPerFile {
-			s = s[:maxPerFile] + "\n[...truncated]"
-		}
-		if total+len(s) > maxTotal {
-			remaining := maxTotal - total
-			if remaining > 100 {
-				s = s[:remaining] + "\n[...truncated by total cap]"
-				result[f] = s
-			}
-			break
-		}
-		result[f] = s
-		total += len(s)
-	}
-	return result
+	return engine.ReadFilesCapped(files, maxPerFile, maxTotal, "file")
 }
 
 // generatePlanPrompt assembles a planning prompt. The documentation and test

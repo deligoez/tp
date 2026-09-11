@@ -85,7 +85,8 @@ func LineSet(ranges []LineRange) map[int]bool {
 
 // ExtractSpecExcerpt reads lines from a spec file based on source_lines.
 // Supports single range "15-42" and multi-range "15-42,50-60".
-// Returns the excerpt capped at maxExcerptChars, with a truncation note if exceeded.
+// Returns the excerpt capped at maxExcerptChars bytes, cut on a rune boundary,
+// with a truncation note if exceeded.
 func ExtractSpecExcerpt(specPath, sourceLines string) string {
 	if sourceLines == "" || specPath == "" {
 		return ""
@@ -134,7 +135,7 @@ func ExtractSpecExcerpt(specPath, sourceLines string) string {
 
 	excerpt := strings.Join(lines, "\n")
 	if len(excerpt) > maxExcerptChars {
-		excerpt = excerpt[:maxExcerptChars] + fmt.Sprintf("\n[...truncated, see spec lines %s]", sourceLines)
+		excerpt = excerpt[:RuneBoundaryAtOrBefore(excerpt, maxExcerptChars)] + fmt.Sprintf("\n[...truncated, see spec lines %s]", sourceLines)
 	}
 
 	return excerpt
@@ -209,7 +210,7 @@ func extractSectionsExcerpt(specPath string, sourceSections []string) string {
 
 	excerpt := strings.Join(sections, "\n\n")
 	if len(excerpt) > maxExcerptChars {
-		excerpt = excerpt[:maxExcerptChars] + fmt.Sprintf("\n[...truncated, see spec sections %s]", strings.Join(sourceSections, ", "))
+		excerpt = excerpt[:RuneBoundaryAtOrBefore(excerpt, maxExcerptChars)] + fmt.Sprintf("\n[...truncated, see spec sections %s]", strings.Join(sourceSections, ", "))
 	}
 	return excerpt
 }

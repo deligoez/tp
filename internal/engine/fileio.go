@@ -88,7 +88,7 @@ func DedupPaths(paths []string) []string {
 }
 
 func ReadAffectedFiles(paths []string) map[string]string {
-	return ReadAffectedFilesRaw(paths, AffectedPerFileCap, AffectedTotalCap)
+	return ReadFilesCapped(paths, AffectedPerFileCap, AffectedTotalCap, "affected file")
 }
 
 func ReadAffectedFilesBudgetAware(paths []string, otherContent ...string) map[string]string {
@@ -105,22 +105,23 @@ func ReadAffectedFilesBudgetAware(paths []string, otherContent ...string) map[st
 		return ReadAffectedFiles(paths)
 	}
 
-	return ReadAffectedFilesRaw(paths, AffectedPerFileCap, remaining)
+	return ReadFilesCapped(paths, AffectedPerFileCap, remaining, "affected file")
 }
 
-// ReadAffectedFilesRaw reads the affected-file set for a prompt, capped per
-// file and in total, in bytes; either cut backs off to a rune boundary, and
-// its marker names the bytes kept and the file's size. A file it cannot read
-// is named on stderr rather than dropped in silence: callers stat these paths
-// up front, so an unreadable one is an anomaly, and its absence from the map
-// is indistinguishable from a file that was never requested.
-func ReadAffectedFilesRaw(paths []string, maxPerFile, maxTotal int) map[string]string {
+// ReadFilesCapped reads a file set for a prompt — the affected files, or a
+// perspective's docs or tests — capped per file and in total, in bytes;
+// either cut backs off to a rune boundary, and its marker names the bytes kept
+// and the file's size. A file it cannot read is named on stderr, as a noun
+// such as "affected file", rather than dropped in silence: callers stat or
+// walk these paths up front, so an unreadable one is an anomaly, and its
+// absence from the map is indistinguishable from a file never requested.
+func ReadFilesCapped(paths []string, maxPerFile, maxTotal int, noun string) map[string]string {
 	result := make(map[string]string)
 	total := 0
 	for _, f := range paths {
 		content, err := os.ReadFile(f)
 		if err != nil {
-			output.Notice(fmt.Sprintf("warning: cannot read affected file %s; its contents were dropped from the prompt (%v)", f, err))
+			output.Notice(fmt.Sprintf("warning: cannot read %s %s; its contents were dropped from the prompt (%v)", noun, f, err))
 			continue
 		}
 		raw := string(content)

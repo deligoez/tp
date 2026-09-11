@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// affectedHead splits a ReadAffectedFilesRaw value at its cut marker and checks
+// affectedHead splits a ReadFilesCapped value at its cut marker and checks
 // the marker counts bytes.
 func affectedHead(t *testing.T, got string) string {
 	t.Helper()
@@ -23,10 +23,10 @@ func affectedHead(t *testing.T, got string) string {
 	return got[:at]
 }
 
-// TestReadAffectedFilesRawCutsOnRuneBoundary: both caps sliced bytes — the
+// TestReadFilesCappedCutsOnRuneBoundary: both caps sliced bytes — the
 // per-file cap at s[:maxPerFile] and the total cap at s[:remaining] — so a cap
 // inside a multi-byte rune kept its lead byte alone.
-func TestReadAffectedFilesRawCutsOnRuneBoundary(t *testing.T) {
+func TestReadFilesCappedCutsOnRuneBoundary(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 
@@ -36,7 +36,7 @@ func TestReadAffectedFilesRawCutsOnRuneBoundary(t *testing.T) {
 		// Bytes 3-4 are one "ı": a cap of 4 splits it.
 		require.NoError(t, os.WriteFile(p, []byte("abc"+strings.Repeat("ı", 50)), 0o600))
 
-		head := affectedHead(t, ReadAffectedFilesRaw([]string{p}, 4, 1000)[p])
+		head := affectedHead(t, ReadFilesCapped([]string{p}, 4, 1000, "affected file")[p])
 		assert.True(t, utf8.ValidString(head), "the head is valid UTF-8: %q", head)
 		assert.Equal(t, "abc", head, "the cut backs off to the rune boundary before the cap")
 	})
@@ -49,7 +49,7 @@ func TestReadAffectedFilesRawCutsOnRuneBoundary(t *testing.T) {
 		// 150 bytes remain for the second file; its bytes 149-150 are one "ı".
 		require.NoError(t, os.WriteFile(second, []byte(strings.Repeat("y", 149)+strings.Repeat("ı", 100)), 0o600))
 
-		got := ReadAffectedFilesRaw([]string{first, second}, 1000, 300)
+		got := ReadFilesCapped([]string{first, second}, 1000, 300, "affected file")
 		head := affectedHead(t, got[second])
 		assert.True(t, utf8.ValidString(head), "the head is valid UTF-8: %q", head[max(0, len(head)-6):])
 		assert.Equal(t, strings.Repeat("y", 149), head, "the cut backs off to the rune boundary before the cap")

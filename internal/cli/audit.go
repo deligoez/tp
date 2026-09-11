@@ -711,8 +711,8 @@ func refuseAuditIfBudgetExhausted(specPath string) {
 // bytes, which is why --compact was measurably a no-op here.
 func compactAuditChecklist(result *auditResult) {
 	for i := range result.Checklist {
-		if len(result.Checklist[i].Text) > 80 {
-			result.Checklist[i].Text = result.Checklist[i].Text[:77] + "..."
+		if text := result.Checklist[i].Text; len(text) > 80 {
+			result.Checklist[i].Text = text[:engine.RuneBoundaryAtOrBefore(text, 77)] + "..."
 		}
 	}
 	result.FileSummary = nil
