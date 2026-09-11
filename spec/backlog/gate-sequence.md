@@ -33,14 +33,13 @@ loop that reviews it is not the thing it changes. Budget it at the tool-class me
    not (§3).
 3. A close whose gate exits 126 or 127 gets a hint naming the command that could not run, and not
    `--skip-gate` (§4).
-4. `tp set --workflow quality_gate=<cmd>` writes the task-layer value, and under `TP_UNATTENDED=1` a
-   `quality_gate` write is refused at either layer (§5).
+4. `tp set --workflow quality_gate=<cmd>` writes the task-layer value; the unattended fence that
+   already refuses a `quality_gate` write stays in force over it (§5).
 
 **Consequences.** Workflow A gains a step: run `tp gate` once after `tp import`, before the first
 close. The §3 check catches a command that does not exist; only a run catches one that exists and
 rejects its arguments, which is the shape the field report describes. `skills/tp/SKILL.md`'s Step 1
-line on per-spec deviation becomes true, and `skills/tp/REFERENCE.md`'s `TP_UNATTENDED` table gains a
-`quality_gate` row. The string form of `quality_gate` is unchanged.
+line on per-spec deviation becomes true. The string form of `quality_gate` is unchanged.
 
 **Alternatives.** Running the whole gate at `tp import` was rejected: at import nothing is
 implemented yet, so a red gate cannot be told from a gate that cannot run, and a suite run is too
@@ -102,12 +101,12 @@ resolves, as `--project` already writes the project one, and `tp config --resolv
 source `override`. A spec that needs a different gate gets one without `tp import --force` and
 without changing the gate every other spec resolves.
 
-**Under `TP_UNATTENDED=1`, a `quality_gate` write is refused at either layer**, on the field alone and
-with an escalation hint — the rule the `runner` field already follows, and for the same reason: the
-value is a command tp executes. A unit that can rewrite its own gate can close over anything, which is
-`--skip-gate`'s effect without its record. The project-layer write is not fenced at `HEAD` (sidecar,
-*Observed while verifying item 3*), so the fence closes a route that exists as well as the one this
-release opens.
+**The unattended fence already covers the write this release opens.** Since 2026-09-11 every
+`tp set --workflow quality_gate=` write under `TP_UNATTENDED=1` is refused at either layer, and it is
+checked before the read-only reply this release removes; `tp import`, `tp init --quality-gate` and
+`tp config --extract` refuse a change to the resolved gate. That landed on its own, outside this
+spec, once the project-layer route was found open (sidecar, *Observed while verifying item 3*), so
+this release only keeps it true: making the task layer writable must not reach around it.
 
 `commit_strategy` stays authored by `tp init` alone; this release moves `quality_gate` only.
 
@@ -152,4 +151,4 @@ not exist at `HEAD`, so their pairs of counts belong to the implementing task's 
 | 11 | §4 *scope* | a gate exiting 1 keeps the `--skip-gate` hint | give every failing exit the new hint |
 | 12 | §5 | `tp set --workflow quality_gate="true"` exits 0 and `tp config --resolved` reports `true` with source `override`; at `HEAD` the set exits 2 | `HEAD`'s read-only field set, which still holds `quality_gate` |
 | 13 | §5 *scoped* | after row 12, a second task file in the same project still resolves the project gate | write the value into `.tp/config.json`, which every spec resolves |
-| 14 | §5 *fence* | under `TP_UNATTENDED=1`, `tp set --workflow quality_gate=true` and `tp set --workflow --project quality_gate=true` both exit 2 with an escalation hint and leave the task file and `.tp/config.json` byte-identical; at `HEAD` the project write exits 0 and writes | fence only the task-layer write this release adds, leaving the project-layer route open |
+| 14 | §5 *fence* | after the task layer becomes writable, `TestQualityGateFence_SetRefusedAtBothLayers` stays green: under `TP_UNATTENDED=1` both layers exit 2 and write nothing | check the unattended fence after the read-only field set, so removing `quality_gate` from that set lets the task-layer write through |
