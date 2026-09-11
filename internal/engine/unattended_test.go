@@ -74,6 +74,16 @@ func TestFencedFields_CoverEveryFieldTheFenceNames(t *testing.T) {
 	assert.False(t, FencedCommandField("quality_gate"))
 }
 
+// The quality gate is fenced by its own predicate rather than joining the
+// command fields: tp done runs it, not the driver, so the command fields'
+// refusal would say something false about it.
+func TestFencedGateField_IsTheQualityGateAlone(t *testing.T) {
+	assert.True(t, FencedGateField("quality_gate"))
+	for _, field := range []string{"runner", "notify_cmd", "review_max_rounds", "gate_timeout_seconds"} {
+		assert.False(t, FencedGateField(field), "%s is not the gate", field)
+	}
+}
+
 // ResolvedCapValue reads the fenced field out of an already-resolved workflow,
 // which is what makes the comparison layer-agnostic: the fence never re-reads a
 // layer of its own, so the environment cannot supply the number it compares to.

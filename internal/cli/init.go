@@ -89,6 +89,7 @@ func runInit(_ *cobra.Command, args []string) error {
 			Tasks: []model.Task{},
 		}
 
+		fenceQualityGateInit(initQualityGate)
 		if initQualityGate != "" {
 			qg := initQualityGate
 			tf.Workflow.QualityGate = &qg

@@ -48,6 +48,9 @@ func runSetProjectWorkflow(args []string) error {
 			refuseUnattendedCommandField(field)
 			return nil
 		}
+		if engine.FencedGateField(field) {
+			fenceQualityGateSet("tp set --workflow --project quality_gate")
+		}
 		switch {
 		case field == "quality_gate":
 			v := valueStr

@@ -67,6 +67,16 @@ func FencedCommandField(field string) bool {
 	return field == "runner" || field == "notify_cmd"
 }
 
+// FencedGateField reports whether field is the quality gate. Under the variable
+// a unit may not change the command every close runs: replacing it with one
+// that always passes is --skip-gate by another route, and --skip-gate is fenced.
+// It is deliberately not a FencedCommandField — tp done runs the gate, not the
+// driver — so its refusal says what the gate is rather than borrowing the
+// command fields' wording.
+func FencedGateField(field string) bool {
+	return field == "quality_gate"
+}
+
 // UnattendedRaise reports whether setting a fenced cap field to requested is a
 // raise against the currently resolved value. An equal or lower value is not,
 // since lowering a budget cannot manufacture convergence; 0 is treated as

@@ -351,6 +351,12 @@ func runSetWorkflow(args []string) error {
 		}
 		field, valueStr := parts[0], parts[1]
 
+		// The gate is fenced before the read-only reply below, so an
+		// unattended unit learns that the value is out of its reach rather
+		// than only which other layer it could write it to.
+		if engine.FencedGateField(field) {
+			fenceQualityGateSet("tp set --workflow quality_gate")
+		}
 		if readOnlyWorkflowFields[field] {
 			msg := fmt.Sprintf("%s is not settable via tp set --workflow; the task-level value is authored by tp init, and the project default is settable with `tp set --workflow --project %s=<value>`", field, field)
 			if field == "commit_strategy" {

@@ -53,6 +53,90 @@ func refuseUnattendedCommandField(field string) {
 	os.Exit(ExitUsage)
 }
 
+// refuseUnattendedQualityGate reports a write that would change the quality
+// gate under TP_UNATTENDED and exits 2. what names the attempt; unintended is
+// the exit its own sink offers a unit that did not mean to change the gate —
+// only tp import and tp init have a form that lands and leaves the gate alone,
+// so the tp set layers and tp config --extract offer none.
+//
+// It escalates as skip-gate: a gate the unit rewrote is a gate the unit
+// skipped, and the operator's answer is the same decision.
+func refuseUnattendedQualityGate(what, unintended string) {
+	output.Error(ExitUsage,
+		fmt.Sprintf("%s changes the quality gate every close runs, which is a user-approved decision refused under TP_UNATTENDED", what),
+		fmt.Sprintf("if you did not mean to change it, %s; if you did, escalate: tp escalate --decision %s --evidence <what you found>",
+			unintended, engine.EscalateSkipGate))
+	os.Exit(ExitUsage)
+}
+
+// fenceQualityGateSet refuses a tp set --workflow write of quality_gate under
+// TP_UNATTENDED, at either layer. tp set names the value itself, so no form of
+// the write both lands and leaves the gate alone — the reason the --project
+// layer takes a value rule for audit_converge_on too.
+func fenceQualityGateSet(what string) {
+	if !engine.Unattended() {
+		return
+	}
+	refuseUnattendedQualityGate(what, "do not make this write: it names the gate itself")
+}
+
+// fenceQualityGateImport applies the change rule to tp import: refused only
+// when the incoming block would make targetPath resolve a different gate. A
+// value rule here would refuse the plain tp import every decompose unit ends
+// in, which carries the existing block forward. incoming is the block after
+// tp import's preservation step, as in fenceAuditConvergeOnImport.
+func fenceQualityGateImport(targetPath string, incoming *model.WorkflowOverride) {
+	if !engine.Unattended() {
+		return
+	}
+	project := engine.ProjectWorkflowOverride()
+	var existing model.WorkflowOverride
+	if o, err := engine.LoadTaskWorkflowOverride(targetPath); err == nil {
+		existing = o
+	}
+	before := engine.ResolveWorkflowLayers(&existing, &project).QualityGate
+	after := engine.ResolveWorkflowLayers(incoming, &project).QualityGate
+	if before != after {
+		refuseUnattendedQualityGate("tp import", fmt.Sprintf(
+			`the document is the fix: omit its top-level "workflow" key to carry the current block forward, or write "quality_gate": %q into it`,
+			before))
+	}
+}
+
+// fenceQualityGateInit applies the change rule to tp init --quality-gate. A
+// new task file resolves the project layer's gate without the flag, so naming
+// that same gate changes nothing and naming any other one is refused.
+func fenceQualityGateInit(gate string) {
+	if !engine.Unattended() || gate == "" {
+		return
+	}
+	var empty model.WorkflowOverride
+	project := engine.ProjectWorkflowOverride()
+	if gate != engine.ResolveWorkflowLayers(&empty, &project).QualityGate {
+		refuseUnattendedQualityGate("tp init --quality-gate",
+			"omit --quality-gate and the new task file inherits the resolved gate")
+	}
+}
+
+// fenceQualityGateExtract applies the change rule to tp config --extract.
+// Every scanned task file already carries the gate being hoisted, so each
+// resolves the same gate before and after; what the hoist moves is every base
+// with no task-level override, which resolves the project layer. One empty
+// override stands for all of them, for the reason fenceAuditConvergeOnExtract
+// gives.
+func fenceQualityGateExtract(project, common *model.WorkflowOverride) {
+	if !engine.Unattended() || common.QualityGate == nil {
+		return
+	}
+	var empty model.WorkflowOverride
+	after := *project
+	mergeCommon(&after, common)
+	if engine.ResolveWorkflowLayers(&empty, project).QualityGate != engine.ResolveWorkflowLayers(&empty, &after).QualityGate {
+		refuseUnattendedQualityGate("tp config --extract",
+			"do not run this hoist: it moves every field the task files share in one write, so no form of it lands while the gate still resolves as it does")
+	}
+}
+
 // fenceSink names which of §3's four write paths is refusing, because the
 // unintended-case exits are not the same at all four and a message that offered
 // all of them everywhere would send a unit at tp set to go and re-author a

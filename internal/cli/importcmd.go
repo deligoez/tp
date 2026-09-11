@@ -190,6 +190,7 @@ func runImport(_ *cobra.Command, args []string) error {
 		// the carried-forward block it will actually become rather than as the
 		// empty one it parsed to.
 		fenceAuditConvergeOnImport(targetPath, &tf.Workflow)
+		fenceQualityGateImport(targetPath, &tf.Workflow)
 
 		// Resolve spec, normalize source_sections to canonical form (lenient — accepts
 		// plain-text headings from tp lint output), then auto-fill coverage.

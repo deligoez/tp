@@ -376,6 +376,7 @@ func runConfigExtract() error {
 		// above: --dry-run writes nothing, so it changes no resolved value
 		// and §3's rule has nothing to refuse.
 		fenceAuditConvergeOnExtract(overrides, &pc.Workflow, &common, fields)
+		fenceQualityGateExtract(&pc.Workflow, &common)
 		mergeCommon(&pc.Workflow, &common)
 		if err := engine.WriteProjectConfig(tpDir, &pc); err != nil {
 			output.Error(ExitFile, err.Error())
