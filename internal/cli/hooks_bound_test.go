@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,27 +23,32 @@ import (
 // (v0.35.0 §6.1).
 const pluginHooksDir = "hooks"
 
-// hookBoundMargin is what these tests give a hook to finish. It is half of
-// §6.4's declared timeout, deliberately: the timeout is the runtime's backstop
-// for a hook that has already gone wrong, so a hook that needs most of it on a
-// quiet machine has nothing left on a loaded one and is not bounded in any
-// useful sense.
+// hookBoundMargin is the CPU time these tests give a hook for one case. It is
+// half of §6.4's declared timeout, deliberately: the timeout is the runtime's
+// backstop for a hook that has already gone wrong, and it runs on the wall
+// clock, so a hook whose work alone needs most of it has nothing left once it
+// shares a CPU, and is not bounded in any useful sense.
+//
+// The measure is CPU, not wall clock, because only CPU is a fact about the
+// hook. This suite runs with -race beside every other package, often beside
+// other agents' gates, and wall clock reports that load as much as the hook: on
+// a 10-core machine with 120 busy processes beside it, the 1 MB single-line case
+// took 10.4s of wall clock and failed the old 5s wall deadline in every retry,
+// while its CPU read 0.57s unloaded and 0.80s loaded, far inside the margin
+// both times. What is counted is the hook's own CPU plus that of
+// every child it waited for, which is where a shell hook's work happens: on
+// Linux and darwin the usage wait4 and waitid return for a process includes its
+// reaped descendants, and TestHookBoundJudgesCPUNotWallClock checks it on
+// whichever of them it runs on. A child a hook starts and never waits for would
+// escape the count; no shipped hook starts one.
 const hookBoundMargin = hookTimeoutSeconds * time.Second / 2
 
-// hookBoundAttempts is how many times a bounded case is run before its cost is
-// judged, and the judged figure is the FASTEST run.
-//
-// The margin above reasons about a quiet machine, but this suite is not one: it
-// runs with -race, alongside other packages, and during this release's own audit
-// it ran beside four concurrent agents. The 1 MB single-line case measured
-// 0.54-0.79s unloaded and 5.54s under that load, failing a 5s deadline it clears
-// tenfold — a report about the machine, not about the hook.
-//
-// The minimum is the honest estimate because contention only ever adds time. A
-// hook that is genuinely too slow is slow in every attempt, so this cannot hide
-// a real regression; it only removes the load artifact. If every attempt is over
-// the margin, the failure stands.
-const hookBoundAttempts = 3
+// hookHangDeadline is the wall clock after which a hook is killed as hung. It is
+// not the bound, only the detector for a hook that never ends, which no CPU
+// measure can see: a hook blocked on a read or a sleep spends none. It is six
+// times §6.4's timeout so that load cannot reach it — the loaded run above used
+// a sixth of it — and the price is paid only by a hook that really hangs.
+const hookHangDeadline = 6 * hookTimeoutSeconds * time.Second
 
 // shippedHookDecl is one registration of one hook script: the script, the event
 // it fires on, the bound declared for it, and the file that declares it.
@@ -199,50 +205,39 @@ type hookStdin struct {
 // hookBoundRun is one bounded execution of a hook.
 type hookBoundRun struct {
 	exitCode int
-	elapsed  time.Duration
+	// cpu is user plus system time of the hook and every child it waited for,
+	// as the kernel reported it with the exit status.
+	cpu time.Duration
+	// elapsed is wall clock, which the verdict reports and never judges.
+	elapsed time.Duration
+	// timedOut is a hook that did not end on its own: it was killed at the
+	// deadline, or it exited leaving a child that held its output open.
 	timedOut bool
 	stderr   string
 }
 
-// runBoundedHook executes one shipped hook under a deadline. The deadline is the
-// experiment: a hook that has to be killed reports exit -1 and told nobody
-// anything, which is precisely the failure §6.4 names — the driver cannot
-// observe it from outside, so the test observes it from here.
-// runBoundedHook runs one case hookBoundAttempts times and returns the fastest
-// run, for the reason hookBoundAttempts documents. A run that had to be killed
-// is never preferred over one that finished, so a genuine hang still surfaces;
-// if every attempt hangs, the last one is returned and the assertion fires.
-func runBoundedHook(t *testing.T, rel string, env []string, in hookStdin) hookBoundRun {
+// runBoundedHook executes one hook script, a shipped one or a stub, and reports
+// what it cost. The deadline only stops a hook that never ends: a killed hook
+// reports exit -1 and has told nobody anything, which is precisely the failure
+// §6.4 names — the driver cannot observe it from outside, so the test observes
+// it from here.
+//
+// WaitDelay gives a hook that was killed, or has exited, the same span again to
+// release its output, then closes it. A hook's children inherit that output, so
+// without it the wait outlasts the kill by as long as a child keeps running:
+// under the old 5s kill the 1 MB case was reported at 10.3s, a child still
+// holding the pipe.
+func runBoundedHook(t *testing.T, script string, env []string, in hookStdin, deadline time.Duration) hookBoundRun {
+	t.Helper()
 	t.Helper()
 
-	var best hookBoundRun
-	for i := 0; i < hookBoundAttempts; i++ {
-		run := runBoundedHookOnce(t, rel, env, in)
-		switch {
-		case i == 0:
-			best = run
-		case best.timedOut && !run.timedOut:
-			best = run
-		case run.timedOut == best.timedOut && run.elapsed < best.elapsed:
-			best = run
-		}
-		if !best.timedOut && best.elapsed < hookBoundMargin {
-			// Already inside the margin — further attempts can only cost time.
-			break
-		}
-	}
-	return best
-}
-
-func runBoundedHookOnce(t *testing.T, rel string, env []string, in hookStdin) hookBoundRun {
-	t.Helper()
-
-	ctx, cancel := context.WithTimeout(context.Background(), hookBoundMargin)
+	ctx, cancel := context.WithTimeout(context.Background(), deadline)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, filepath.Join(repoRoot(t), filepath.FromSlash(rel))) //nolint:gosec // a fixed path inside the repo under test
+	cmd := exec.CommandContext(ctx, script) //nolint:gosec // a fixed path inside the repo under test, or a stub the test wrote
 	cmd.Env = env
 	cmd.Dir = repoRoot(t)
+	cmd.WaitDelay = deadline
 
 	switch {
 	case in.devNull:
@@ -264,29 +259,38 @@ func runBoundedHookOnce(t *testing.T, rel string, env []string, in hookStdin) ho
 	started := time.Now()
 	runErr := cmd.Run()
 
-	run := hookBoundRun{elapsed: time.Since(started), stderr: stderr.String(), timedOut: ctx.Err() != nil}
-	if runErr != nil {
-		var exitErr *exec.ExitError
-		if errors.As(runErr, &exitErr) {
-			run.exitCode = exitErr.ExitCode()
-		} else {
-			require.True(t, run.timedOut, "the hook must exit rather than fail to start: %v", runErr)
-		}
+	state := cmd.ProcessState
+	require.NotNil(t, state, "the hook must exit rather than fail to start: %v", runErr)
+	return hookBoundRun{
+		exitCode: state.ExitCode(),
+		cpu:      state.UserTime() + state.SystemTime(),
+		elapsed:  time.Since(started),
+		timedOut: ctx.Err() != nil || errors.Is(runErr, exec.ErrWaitDelay),
+		stderr:   stderr.String(),
 	}
-	return run
 }
 
-// assertHookBounded is §6.4's second clause for one run: the hook ended on its
-// own, inside the margin, with a status the harness can act on. wantExit of -1
-// means the case does not pin one, only that it is a status Claude Code defines:
-// 0 allow, 1 a non-blocking error, 2 the refusal.
+// hookBoundVerdict is §6.4's second clause for one run, returned rather than
+// asserted so the stubs below can show that it discriminates: "" when the hook
+// ended on its own having spent less CPU than margin, otherwise why not.
+func hookBoundVerdict(run hookBoundRun, margin time.Duration) string {
+	if run.timedOut {
+		return fmt.Sprintf("had not ended on its own after %s of wall clock; §6.4 says a hook exits rather than hangs", run.elapsed)
+	}
+	if run.cpu >= margin {
+		return fmt.Sprintf("spent %s of CPU (in %s of wall clock), which leaves no margin inside §6.4's %ds bound", run.cpu, run.elapsed, hookTimeoutSeconds)
+	}
+	return ""
+}
+
+// assertHookBounded holds one run of a shipped hook to the verdict at
+// hookBoundMargin, and to a status the harness can act on. wantExit of -1 means
+// the case does not pin one, only that it is a status Claude Code defines: 0
+// allow, 1 a non-blocking error, 2 the refusal.
 func assertHookBounded(t *testing.T, rel, name string, run hookBoundRun, wantExit int) {
 	t.Helper()
 
-	require.False(t, run.timedOut,
-		"%s (%s): still running after %s and had to be killed; §6.4 says a hook exits rather than hangs", rel, name, run.elapsed)
-	assert.Less(t, run.elapsed, hookBoundMargin,
-		"%s (%s): took %s, which leaves no margin inside §6.4's %ds bound", rel, name, run.elapsed, hookTimeoutSeconds)
+	require.Empty(t, hookBoundVerdict(run, hookBoundMargin), "%s (%s)", rel, name)
 
 	if wantExit >= 0 {
 		assert.Equal(t, wantExit, run.exitCode, "%s (%s): stderr=%s", rel, name, run.stderr)
@@ -294,6 +298,58 @@ func assertHookBounded(t *testing.T, rel, name string, run hookBoundRun, wantExi
 	}
 	assert.Contains(t, []int{0, 1, 2}, run.exitCode,
 		"%s (%s): a hook reports 0, 1 or 2; anything else is a crash or a kill, stderr=%s", rel, name, run.stderr)
+}
+
+// TestHookBoundJudgesCPUNotWallClock shows the verdict discriminates, on stub
+// hooks written here rather than shipped ones, at a margin scaled down so the
+// experiment costs a fraction of a second of CPU rather than five seconds.
+func TestHookBoundJudgesCPUNotWallClock(t *testing.T) {
+	t.Parallel()
+	const margin = 100 * time.Millisecond
+	env := []string{"PATH=/usr/bin:/bin"}
+	stub := func(t *testing.T, body string) string {
+		t.Helper()
+		path := filepath.Join(t.TempDir(), "hook.sh")
+		require.NoError(t, os.WriteFile(path, []byte("#!/bin/sh\n"+body), 0o700)) //nolint:gosec // a stub hook the test executes
+		return path
+	}
+
+	t.Run("time off the CPU is not the hook's cost", func(t *testing.T) {
+		t.Parallel()
+		// A sleeping hook is off the CPU just as a runnable one is while a
+		// loaded machine gives its core to someone else, and it needs no load to
+		// show it. Its wall clock is ten times the margin; a verdict that read
+		// wall clock would fail it, as the old one failed shipped cases under
+		// load.
+		run := runBoundedHook(t, stub(t, "sleep 1\nexit 2\n"), env, hookStdin{}, hookHangDeadline)
+		require.Greater(t, run.elapsed, margin, "the experiment needs a run whose wall clock alone exceeds the margin")
+		assert.Empty(t, hookBoundVerdict(run, margin))
+		assert.Equal(t, 2, run.exitCode, "stderr=%s", run.stderr)
+	})
+
+	t.Run("CPU spent in a child the hook waited for counts against it", func(t *testing.T) {
+		t.Parallel()
+		// The grind runs in awk, as the shipped hooks' parsing does, so a hook
+		// that grinds past the margin fails here — and on whatever OS this runs
+		// on, it is the check that the kernel's usage for the hook includes the
+		// CPU of a child it waited for. Were it only the shell's own, this would
+		// read a few milliseconds and pass the verdict.
+		run := runBoundedHook(t, stub(t, "awk 'BEGIN { for (i = 0; i < 20000000; i++) s += i }'\nexit 0\n"), env, hookStdin{}, hookHangDeadline)
+		require.False(t, run.timedOut, "the grind ends on its own; only its cost is under test")
+		assert.GreaterOrEqual(t, run.cpu, margin, "awk's CPU must reach the hook's measure")
+		assert.NotEmpty(t, hookBoundVerdict(run, margin))
+	})
+
+	t.Run("a hook that never ends is killed at the deadline", func(t *testing.T) {
+		t.Parallel()
+		// sleep runs as a child, so killing the hook leaves it holding the
+		// hook's output; the wait must still end a WaitDelay after the kill
+		// rather than when the child does.
+		run := runBoundedHook(t, stub(t, "sleep 60\nexit 0\n"), env, hookStdin{}, time.Second)
+		assert.True(t, run.timedOut)
+		assert.NotEmpty(t, hookBoundVerdict(run, margin))
+		assert.Less(t, run.elapsed, 30*time.Second, "the wait must not last as long as the orphaned sleep holding the hook's output")
+	})
 }
 
 // hookAdverseStdin are the inputs a well-formed payload never exercises. Each is
@@ -336,7 +392,8 @@ func TestEveryShippedHookTerminatesOnAdverseInput(t *testing.T) {
 	for _, rel := range shippedHookScripts(t) {
 		for _, in := range hookAdverseStdin(t) {
 			t.Run(rel+" "+in.name, func(t *testing.T) {
-				assertHookBounded(t, rel, in.name, runBoundedHook(t, rel, env, in), -1)
+				run := runBoundedHook(t, filepath.Join(repoRoot(t), filepath.FromSlash(rel)), env, in, hookHangDeadline)
+				assertHookBounded(t, rel, in.name, run, -1)
 			})
 		}
 	}
@@ -543,7 +600,8 @@ func TestEveryShippedHookFailsClosedInsideTheBound(t *testing.T) {
 
 		for _, tc := range entries {
 			t.Run(rel+" "+tc.name, func(t *testing.T) {
-				run := runBoundedHook(t, rel, tc.env(t), hookStdin{name: tc.name, payload: tc.payload(t)})
+				script := filepath.Join(repoRoot(t), filepath.FromSlash(rel))
+				run := runBoundedHook(t, script, tc.env(t), hookStdin{name: tc.name, payload: tc.payload(t)}, hookHangDeadline)
 				assertHookBounded(t, rel, tc.name, run, tc.wantExit)
 			})
 		}
