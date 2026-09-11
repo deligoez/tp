@@ -196,8 +196,8 @@ names no repair, which is what sent the report to `--force`.
 A changelog task depends on tasks whose work lives in another repository and is waiting on a design
 decision; the report asks for a task scope marking a unit as external. `spec/undecided.md`'s
 *Cross-repo specs* was closed by the operator on 2026-09-08 and reopens *"when a field cycle asks for
-it with a task file that names a second root"*. This report asks; its task file names no second
-root. Whether that meets the condition is the operator's call, and this spec reopens nothing.
+it with a task file that names a second root"*. The operator reconfirmed on 2026-09-11 that
+cross-repository work stays out of scope; the workaround is to drop the edge or split the unit.
 
 ## The write set
 

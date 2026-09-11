@@ -94,8 +94,8 @@ shipped specs, round files or `CLAUDE.md` cite the path. The stub says what move
 `spec/undecided.md` is the register and `spec/undecided-measurements.md` is its forensics. Neither is
 a spec, and an entry is not a draft of one. The 2026-09-08 decision pass took every registered
 question; the 2026-09-11 pass added three closed entries (a check library from the field, the parked
-streak reset, and a refuted `as_of` lint) and recorded a field instance against *Cross-repo specs*
-without reopening it. Nothing in this order waits on a decision.
+streak reset, and a refuted `as_of` lint), and the operator reconfirmed *Cross-repo specs* closed
+after a field report asked again. Nothing in this order waits on a decision.
 
 ## Decided, awaiting a spec
 

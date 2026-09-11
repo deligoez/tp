@@ -648,13 +648,8 @@ separate release.
 **It reopens** when a field cycle asks for it with a task file that names a second root — a request
 rather than a design, because no design pass exists.
 
-**A field instance arrived on 2026-09-11 and is recorded, not acted on.** A field report (WB-3155)
-carried frontend tasks for a second repository in its backend task file, and a changelog task
-depending on them could not close. Its task file names no second repository root, so the condition as
-written is not met; whether a request without one reopens it is the operator's call, and this pass
-does not take it. The workaround needs no design — drop the edge
-(`tp set <id> 'depends_on=[]'`, verified) or split the unit — and
-`spec/backlog/a-task-file-write-names-its-target-measurements.md` records the reproduction.
+**Reconfirmed by the operator on 2026-09-11: not now.** A field report (WB-3155) asked again; the
+workaround needs no design — drop the edge (`tp set <id> 'depends_on=[]'`) or split the unit.
 
 ### A check library from the field
 
