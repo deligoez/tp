@@ -8,43 +8,40 @@ fix needs a design choice leaves this file for a decision note.
 
 ## Silent loss of work, or output that lies
 
-- **`tp review --check` converges with roles that never ran.** Test: a 3-role panel whose rounds
-  hold one role's rows is not clean. Repro: record two rounds of only one role's rows → converged.
-- **Named `--affected-files` beyond 10 are cut per code role with no notice.** Test: a named list
-  is graded whole, or the payload says `graded 10 of 25`. Repro: name 25 files → `truncated:false`,
-  empty stderr, prompts carry 10.
-- **spec-coverage sees only the first 10 KB of the spec, cut mid-character, with no notice.**
-  Test: the payload states the cut and the cut lands on a rune boundary. Repro: a 110 KB Turkish spec.
-- **A `tp done --batch` row refused for a validation error has already claimed its task and leaves it
-  wip.** Test: after a refused row the task's status and `started_at` are unchanged.
-- **A registered check still suppresses its class when no task file resolves.** No check runs then,
-  so nothing verifies the class and no reviewer reports it. Test: with no task file, the prompts carry
-  no "do NOT report" sentence for a registered class. (The not-run fix covers the case where the check
-  runs and fails to start.)
+- **Recording an empty file with no fresh emission clears `spec-stale`.** A round nobody ran against
+  the edited text then counts as the round that re-read it. Repro: converge, edit the spec, run
+  `tp review <spec> --record empty.ndjson` without `tp review <spec>` first, and `stale` becomes
+  false. The honest fix is `reconcile.md`'s emit-time hash (a round records the text it read), which is
+  a decision; this line waits on it.
 
 ## Wrong or missing guidance
 
-- **`--merge` blames JSON format when every row misses a required field.** Test: the error names
-  the field and the lines. Repro: three valid rows without `evidence` → "trailing comma or wrapping array".
-- **The ground pairing refusal names no accepted tier and cites "(§4.1)"**, tp's own design section.
-  Test: it lists the accepted tiers and cites no section; the prompt glosses `query` as any read-only
-  command over the corpus.
-- **`--record` with `--round` is refused by value, not by flag.** Test: `--round 1` with `--record`
-  is refused like `--round 9`, and `--help` states it.
-- **The review carry lists `[WONTFIX]` rows under "UNRESOLVED — DO NOT re-report".** Test: accepted
-  rows sit under their own header.
-- **`--role <x>` drops the regression prompt with `skipped_roles: []`.** Test: it is listed.
-- **The audit Prior Round block carries no disposition or evidence**, so an accepted row is reopened
-  next round. Test: rows carry both. An acceptance invisible to the next round lasts one round.
-- **`tp review --status`'s `next_action` withholds a class by its registration alone**, without
-  running the check, so a class whose check cannot run is still hidden there. Test: a registered
-  `exit 2` check leaves its class in `next_action`.
-- **`spec-stale` names no command that clears it.** Test: the blocker names emit + record.
-- **`--peek` ignores WIP.** Test: it previews what plain `tp next` returns.
-- **A mistyped `tp.lens` frontmatter key is silently ignored by `tp review`** (lint reports it).
-  Test: review warns in the payload.
-- **Acceptance bullets are split again on `; ` and `. `.** Test: a `- ` list gives one criterion
-  per bullet; `tp add`/`tp import` report the count.
-- **The ground scratch file `ground-r<N>.ndjson` is not unique per spec.** Test: it carries the base.
-- **`tp add` in a directory with several task files says "no task file found. Use --spec".**
-  Test: it names the candidates.
+- **`tp resume` can move to decompose while a registered review check fails.** Its phase and
+  `next_action` read the loop verdict alone. Running the checks on every driver tick is a real cost, and
+  doing it properly needs the check verdict stamped at `--record` (a new state field), so it is a
+  decision. Bounded since v1.2.1: `tp import` refuses while a check fails and names it, so a run that
+  moves on stops there. Test: a converged spec with a failing check is not reported as ready to import.
+- **Review and audit role files collide across specs run by hand in one directory.** `tp review a.md`
+  and `tp review b.md` both name `review-r1-<role>.ndjson` (the audit names follow the same shape).
+  The names are documented and merge-globbed, so carrying the spec's base in them is a contract change.
+  Test: two specs emitted in one directory name different role files.
+- **The single-prompt modes carry no `skipped_roles`.** `--perspective regression --role implementer`
+  (and `code-audit`, `documentation`, `testing`, `--verify`) drop a role with nothing saying so. Test:
+  each names what `--role` narrowed away, as the panel does under `role-filter`.
+- **`tp add` with a `--file`/`TP_FILE` naming a missing file gives the `--spec` advice and drops the
+  path.** Test: the error names the path it could not open.
+- **Two specs with the same base in different directories share the ground scratch file** when
+  grounded from one working directory (`x/a.md` and `y/a.md` both write `ground-a-r1.ndjson`; their
+  state directories do not collide). Test: they get different scratch names.
+- **`tp run` never spawns a regression unit.** A round the panel emits with a regression prompt is
+  driven without it. Whether a run should grade regression, and as which unit kind, is the open question.
+
+## Decided elsewhere, not a fix
+
+- **`tp review --check` converges with roles that never ran.** A role that found nothing writes no
+  rows, and `[]` records as no rows, so "ran and found nothing" cannot be told from "never ran" without
+  a recorded per-role presence marker: a new state field and a contract, so a decision. The lax half was
+  seen only in fixtures; schedule it on a field case.
+- **Named `--affected-files` beyond 10 are cut per code role, and spec-coverage reads the spec only to
+  10 KB.** The prompt header says `10 of 25` and, since v1.2.1, the spec cut is named in the payload
+  and lands on a rune boundary. Whether to cut at all is `spec/backlog/checklist-covers-what-changed.md`.
