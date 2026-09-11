@@ -23,6 +23,7 @@ func TestArity_EveryCommandExitsTwo(t *testing.T) {
 		{"show with two ids", []string{"show", "a", "b"}},
 		{"remove with no id", []string{"remove"}},
 		{"reopen with no id", []string{"reopen"}},
+		{"unclaim with no id", []string{"unclaim"}},
 		{"close with no id", []string{"close"}},
 		{"commit with three positionals", []string{"commit", "a", "b", "c"}},
 		{"lint with no spec", []string{"lint"}},

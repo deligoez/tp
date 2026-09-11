@@ -98,6 +98,8 @@ INCREMENTAL (1 task at a time):
 	closeCmd.GroupID = "state"
 	reopenCmd := newReopenCmd()
 	reopenCmd.GroupID = "state"
+	unclaimCmd := newUnclaimCmd()
+	unclaimCmd.GroupID = "state"
 	removeCmd := newRemoveCmd()
 	removeCmd.GroupID = "state"
 	setCmd := newSetCmd()
@@ -144,7 +146,7 @@ INCREMENTAL (1 task at a time):
 	useCmd.GroupID = "data"
 
 	cmd.AddCommand(planCmd, doneCmd, nextCmd, briefCmd, commitCmd, resumeCmd, runCmd, escalateCmd)
-	cmd.AddCommand(claimCmd, closeCmd, reopenCmd, removeCmd, setCmd, keepCmd)
+	cmd.AddCommand(claimCmd, unclaimCmd, closeCmd, reopenCmd, removeCmd, setCmd, keepCmd)
 	cmd.AddCommand(listCmd, statusCmd, readyCmd, blockedCmd, showCmd, graphCmd, statsCmd, reportCmd, lintCmd, reviewCmd, auditCmd, groundCmd, validateCmd)
 	cmd.AddCommand(initCmd, addCmd, importCmd, useCmd)
 	cmd.AddCommand(newConfigCmd())

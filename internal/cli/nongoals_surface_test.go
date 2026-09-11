@@ -72,6 +72,7 @@ set: bulk local project workflow
 show:
 stats:
 status:
+unclaim:
 use: clear
 validate: project strict
 `

@@ -21,6 +21,16 @@ func newReopenCmd() *cobra.Command {
 	}
 }
 
+// backToOpenHint names the command that returns task to open, which depends on
+// where it is: a wip task is unclaimed, a done task is reopened. A hint that
+// named tp reopen for a wip task sent the caller to a command that refuses it.
+func backToOpenHint(task *model.Task) string {
+	if task.Status == model.StatusWIP {
+		return fmt.Sprintf("Use `tp unclaim %s` to return the wip task to open.", task.ID)
+	}
+	return fmt.Sprintf("Use `tp reopen %s` to return the done task to open.", task.ID)
+}
+
 func runReopen(_ *cobra.Command, args []string) error {
 	taskFilePath, err := engine.DiscoverTaskFile(".", flagFile)
 	if err != nil {
@@ -45,7 +55,11 @@ func runReopen(_ *cobra.Command, args []string) error {
 		}
 
 		if !model.ValidTransition(task.Status, model.StatusOpen) {
-			output.Error(ExitState, fmt.Sprintf("cannot reopen: task %s is %s (must be done)", task.ID, task.Status))
+			hint := make([]string, 0, 1)
+			if task.Status == model.StatusWIP {
+				hint = append(hint, backToOpenHint(task))
+			}
+			output.Error(ExitState, fmt.Sprintf("cannot reopen: task %s is %s (must be done)", task.ID, task.Status), hint...)
 			os.Exit(ExitState)
 			return nil
 		}

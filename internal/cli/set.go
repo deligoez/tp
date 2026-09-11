@@ -17,7 +17,7 @@ import (
 
 var (
 	managedFields = map[string]string{
-		"status":              "use `tp claim`, `tp close`, or `tp reopen`",
+		"status":              "use `tp claim`, `tp close`, `tp unclaim` (wip → open), or `tp reopen` (done → open)",
 		"started_at":          "set automatically by `tp claim` / `tp done` / `tp next`",
 		"duration_source":     "set automatically by `tp claim` / `tp next` / `tp done` / `tp commit`",
 		"closed_at":           "set automatically by `tp close` / `tp done`",

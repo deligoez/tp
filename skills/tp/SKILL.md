@@ -612,6 +612,7 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 |---------|---------|
 | `tp claim <id> [id...]` | open -> wip (batch: multiple IDs) |
 | `tp claim --all-ready` | Claim all ready tasks at once |
+| `tp unclaim <id> [id...]` | wip -> open (clears `started_at`; batch; an open id is a no-op in `already_open`) |
 | `tp close <id> <reason>` | wip -> done (low-level, prefer tp done) |
 | `tp close <id> --reason-file reason.md` / `--stdin` | Read the closure reason from a file / from stdin |
 | `tp close <id> --skip-gate "why"` | Skip gate execution, recording `gate_skipped_reason` on the closed task (needs user approval) |

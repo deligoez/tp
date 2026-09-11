@@ -152,6 +152,7 @@ func taskFileCommands(t *testing.T) map[string]bool {
 		"show.go":           "task-file command",
 		"stats.go":          "task-file command",
 		"status.go":         "task-file command",
+		"unclaim.go":        "task-file command",
 		"use.go":            "task-file pointer",
 		"validate.go":       "task-file command",
 	}

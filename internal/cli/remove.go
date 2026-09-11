@@ -49,7 +49,7 @@ func runRemove(_ *cobra.Command, args []string) error {
 
 		task := &tf.Tasks[idx]
 		if task.Status != model.StatusOpen {
-			output.Error(ExitState, fmt.Sprintf("cannot remove: task %s is %s (must be open)", task.ID, task.Status), "Use `tp reopen` first to reset to open, then retry.")
+			output.Error(ExitState, fmt.Sprintf("cannot remove: task %s is %s (must be open)", task.ID, task.Status), backToOpenHint(task)+" Then retry.")
 			os.Exit(ExitState)
 			return nil
 		}
