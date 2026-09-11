@@ -1417,10 +1417,10 @@ type carriedFindings struct {
 	unresolved, accepted, resolved []reviewFinding
 }
 
-// classifyCarried sorts findings by disposition. A wontfix with evidence is
-// accepted; one with blank evidence accepts nothing — the clean grading reads
-// it as open — so it stays unresolved, like a row with no disposition. fixed
-// and duplicate are resolved.
+// classifyCarried sorts findings by disposition, as findingOpen does. A
+// wontfix or duplicate with evidence is accepted; one with blank evidence
+// accepts nothing, so it stays unresolved, like a row with no disposition.
+// Only fixed is resolved.
 func classifyCarried(findings []reviewFinding) carriedFindings {
 	var c carriedFindings
 	for i := range findings {
@@ -1428,9 +1428,9 @@ func classifyCarried(findings []reviewFinding) carriedFindings {
 		switch {
 		case f.Resolved == nil:
 			c.unresolved = append(c.unresolved, *f)
-		case f.Resolved.Status == "fixed" || f.Resolved.Status == "duplicate":
+		case f.Resolved.Status == "fixed":
 			c.resolved = append(c.resolved, *f)
-		case f.Resolved.Status == "wontfix" && strings.TrimSpace(f.Resolved.Evidence) != "":
+		case acceptanceStatus(f.Resolved.Status) && strings.TrimSpace(f.Resolved.Evidence) != "":
 			c.accepted = append(c.accepted, *f)
 		default:
 			c.unresolved = append(c.unresolved, *f)
@@ -1484,8 +1484,11 @@ func unresolvedCarryRow(f *reviewFinding) string {
 	return carryRow(tag, f)
 }
 
+// acceptedCarryRow tags the row with its disposition, wontfix or duplicate,
+// and ends it with the reason.
 func acceptedCarryRow(f *reviewFinding) string {
-	return carryRow("[WONTFIX]", f) + " (wontfix: " + carryCut(f.Resolved.Evidence, 40) + ")"
+	status := f.Resolved.Status
+	return carryRow("["+strings.ToUpper(status)+"]", f) + " (" + status + ": " + carryCut(f.Resolved.Evidence, 40) + ")"
 }
 
 // writeCarryListing writes rows under header, at most limit of them in full,
@@ -1507,13 +1510,13 @@ func writeCarryListing(b *strings.Builder, header string, rows []reviewFinding, 
 	return shown
 }
 
-// writeResolvedCarry counts the resolved findings and lists up to ten high or
+// writeResolvedCarry counts the fixed findings and lists up to ten high or
 // critical ones, so a round does not regress them.
 func writeResolvedCarry(b *strings.Builder, resolved []reviewFinding) {
 	if len(resolved) == 0 {
 		return
 	}
-	fmt.Fprintf(b, "Additionally, %d findings from previous rounds were RESOLVED (fixed or duplicate).\n", len(resolved))
+	fmt.Fprintf(b, "Additionally, %d findings from previous rounds were RESOLVED (fixed).\n", len(resolved))
 	shown := 0
 	for i := range resolved {
 		f := &resolved[i]

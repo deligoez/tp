@@ -60,3 +60,24 @@ func TestBuildFindingsSummary_WontfixWithoutEvidenceStaysUnresolved(t *testing.T
 	assert.Contains(t, got, "UNRESOLVED findings from previous rounds — DO NOT re-report:\n  [HIGH] c — L1: f\n")
 	assert.NotContains(t, got, "ACCEPTED")
 }
+
+// TestBuildFindingsSummary_DuplicateFollowsFindingOpen: the carry sorts a
+// duplicate the way findingOpen does. With evidence it is accepted, so it is
+// listed under the accepted header with its reason; with blank evidence it is
+// open, so it is unresolved. The resolved list keeps only fixed rows.
+func TestBuildFindingsSummary_DuplicateFollowsFindingOpen(t *testing.T) {
+	t.Parallel()
+	got := buildFindingsSummary([]reviewFinding{
+		{Severity: "high", Category: "c", Location: "L1", Finding: "evidenced duplicate", Resolved: &resolvedStatus{Status: "duplicate", Evidence: "same as L9"}},
+		{Severity: "high", Category: "c", Location: "L2", Finding: "blank duplicate", Resolved: &resolvedStatus{Status: "duplicate", Evidence: " "}},
+		{Severity: "high", Category: "c", Location: "L3", Finding: "fixed row", Resolved: &resolvedStatus{Status: "fixed", Evidence: "rewrote the section"}},
+	})
+	assert.Equal(t, "UNRESOLVED findings from previous rounds — DO NOT re-report:\n"+
+		"  [HIGH] c — L2: blank duplicate\n\n"+
+		"ACCEPTED findings from previous rounds — DO NOT re-report; each was accepted for the reason given:\n"+
+		"  [DUPLICATE] c — L1: evidenced duplicate (duplicate: same as L9)\n\n"+
+		"Additionally, 1 findings from previous rounds were RESOLVED (fixed).\n"+
+		"Resolved high/critical (DO NOT regress):\n"+
+		"  [RESOLVED] L3: fixed row\n\n"+
+		"Do not re-report resolved issues. Focus ONLY on NEW issues in the current spec.\n", got)
+}
