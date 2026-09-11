@@ -442,3 +442,33 @@ while its own durable-write predicate reads that file. The statement now appears
 unset, and on stderr. The search also covers the working directory's repository again, since this
 project's own merge outputs live in a scratch directory outside any repository — a half of the
 pre-review build the round-1 text had dropped.
+
+## Review round 3
+
+`spec/backlog/.tp-review/audit-records-what-was-graded/review-round-3.ndjson` holds the round: five
+prompts, 41 findings, and four of its highs are one defect found by four roles.
+
+**Ranking verdicts was the wrong move, and the reason is the clean check.** Round 2's *keep the worse
+verdict* ranked `status` before `severity` and a missing severity lowest. Under
+`audit_converge_on: blocking` tp treats `FAIL` and `PARTIAL` alike and blocks on a missing or
+unrecognised severity (`internal/engine/auditclean.go`), so the order could keep a non-blocking row
+over a blocking one and record a blocking round clean. Four roles measured it: a `FAIL` with no
+severity records `clean: false`, a `FAIL`/`warning` records `clean: true`. No order written into the
+merge can agree with both convergence settings, so the merge no longer ranks at all: rows whose
+verdicts differ are all kept and reported, `--record` records every row as it always has, and the
+round's own clean check — which already fails a round on any one unclean row — decides. This also
+retired `--record`'s duplicate refusal, which round 2 had added for a count the round file no longer
+distorts. What remained of the choice tp made silently was `--resolve role:item_id` disposing the first
+of two rows; that selector now refuses.
+
+**The digest's shape and width moved into the spec.** Round 2 required that new ids never equal an old
+one and that two paths never share an id, with no row able to break either. Both are properties of the
+digest: a fixed-length suffix tells an earlier id apart row by row, which also retires round 2's
+`id_scheme` value and the non-goal about rounds emitted before the upgrade; and the width decides
+collisions, where *A candidate derivation* above — an 8-hex digest — is the width *Built before review*
+measured colliding. It is superseded by decision 1's lower bound; row 1d is that pair.
+
+**`audit-round-prep.py` exits instead of briefing an empty round.** Carrying nothing from an
+earlier-derivation round would have left its brief saying *"nothing is left to re-measure"* over a
+checklist whose every `file_check` id is new. The script now exits as it does with nothing to carry,
+so the first round after the upgrade is graded in full.
