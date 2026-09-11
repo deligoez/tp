@@ -93,3 +93,63 @@ func TestFrontmatterTypo_WarnsInLintAndOnReviewStderr(t *testing.T) {
 		})
 	}
 }
+
+// TestFrontmatterError_NoticedByReviewAndAudit closes the error half of the same
+// class: a frontmatter block that never closes, or whose YAML does not parse,
+// reached tp lint alone while tp review and tp audit ran on the defaults. A spec
+// whose tp: overrides were meant to apply then ran the default panel and nobody
+// was told. The fallback stays — both commands still run — but each now says
+// on its notice channel that the frontmatter was ignored and the defaults apply,
+// and a valid frontmatter earns no notice at all.
+func TestFrontmatterError_NoticedByReviewAndAudit(t *testing.T) {
+	t.Parallel()
+	const ignored = "the frontmatter is ignored and the defaults apply"
+	cases := []struct {
+		name        string
+		frontmatter string // the spec's text above "# Spec"
+		want        []string
+	}{
+		{
+			name:        "unclosed block",
+			frontmatter: "---\ntp:\n  review_roles:\n    tester:\n      enabled: false\n",
+			want:        []string{"never closed", ignored},
+		},
+		{
+			name:        "invalid YAML",
+			frontmatter: "---\ntp: [unclosed\n---\n",
+			want:        []string{"frontmatter YAML parse failed", ignored},
+		},
+		{
+			name:        "valid control",
+			frontmatter: "---\ntp:\n  domain: software\n---\n",
+		},
+	}
+	for _, tc := range cases {
+		for _, command := range [][]string{
+			{"review", "spec.md", "--no-state"},
+			{"audit", "spec.md", "--affected-files", "a.go"},
+		} {
+			t.Run(tc.name+"/"+command[0], func(t *testing.T) {
+				t.Parallel()
+				dir := t.TempDir()
+				require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
+				require.NoError(t, os.WriteFile(filepath.Join(dir, "a.go"), []byte("package a\n"), 0o600))
+				spec := tc.frontmatter + "# Spec\n## 1. A\ncontent here.\n"
+				require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(spec), 0o600))
+
+				stdout, stderr, code := runTP(t, dir, command...)
+				require.Equal(t, 0, code, "the fallback still runs the command; stderr: %s", stderr)
+				var payload map[string]any
+				require.NoError(t, json.Unmarshal([]byte(stdout), &payload), "stdout stays parseable JSON")
+
+				if len(tc.want) == 0 {
+					assert.Empty(t, stderr, "a valid frontmatter earns no notice")
+					return
+				}
+				for _, w := range tc.want {
+					assert.Contains(t, stderr, w, "the notice names the problem and the fallback")
+				}
+			})
+		}
+	}
+}

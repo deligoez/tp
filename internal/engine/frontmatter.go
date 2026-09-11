@@ -54,6 +54,12 @@ func ParseFrontmatter(specPath string) *Frontmatter {
 	return ParseFrontmatterBytes(data)
 }
 
+// frontmatterIgnored ends both structural errors, which are the two cases where
+// tp reads none of the frontmatter. The error reaches tp lint as a finding and
+// tp review and tp audit as a notice, and in the latter two the command still
+// runs, so the message itself has to say what the run falls back to.
+const frontmatterIgnored = "the frontmatter is ignored and the defaults apply"
+
 // ParseFrontmatterBytes parses frontmatter from raw spec bytes.
 // Structural failures degrade safely: an unterminated block is treated as
 // content with a lint error; a closed block whose YAML fails to parse stays
@@ -78,7 +84,7 @@ func ParseFrontmatterBytes(data []byte) *Frontmatter {
 			Severity: "error",
 			Rule:     "frontmatter",
 			Line:     1,
-			Message:  "frontmatter opened with --- at line 1 but never closed; treating all lines as content",
+			Message:  "frontmatter opened with --- at line 1 but never closed; treating all lines as content, so " + frontmatterIgnored,
 		})
 		return fm
 	}
@@ -93,7 +99,7 @@ func ParseFrontmatterBytes(data []byte) *Frontmatter {
 			Severity: "error",
 			Rule:     "frontmatter",
 			Line:     1,
-			Message:  fmt.Sprintf("frontmatter YAML parse failed: %v", err),
+			Message:  fmt.Sprintf("frontmatter YAML parse failed: %v; %s", err, frontmatterIgnored),
 		})
 		return fm
 	}

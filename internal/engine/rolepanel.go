@@ -29,9 +29,10 @@ import (
 // resolution produced.
 //
 // Warnings are carried rather than emitted, and their order is part of the
-// contract: the frontmatter's shape warnings first, then the corpus warnings
-// ahead of the override warnings, which is the byte sequence the wrapper's two
-// output.Notice loops wrote when resolution and refusal were one function.
+// contract: the frontmatter's errors and shape warnings first, then the corpus
+// warnings ahead of the override warnings, which is the byte sequence the
+// wrapper's two output.Notice loops wrote when resolution and refusal were one
+// function.
 type RolePanel struct {
 	// Frontmatter is the parsed spec frontmatter, never nil on a successful
 	// resolution — both phases carry it forward past the panel.
@@ -43,10 +44,10 @@ type RolePanel struct {
 	// wrapper's refusals do, and each phase's emission reports them as
 	// skipped_roles with reason disabled-by-spec (§2.4).
 	Disabled []string
-	// Warnings are advisory: a frontmatter key or value the parser ignored,
-	// an unknown domain, a domain that filtered out every role, a frontmatter
-	// override matching no active role. Every one says the panel the spec
-	// asked for is not the panel that resolved.
+	// Warnings are advisory: a frontmatter block, key or value the parser
+	// ignored, an unknown domain, a domain that filtered out every role, a
+	// frontmatter override matching no active role. Every one says the panel
+	// the spec asked for is not the panel that resolved.
 	Warnings []string
 }
 
@@ -68,10 +69,15 @@ func ResolveRolePanel(specPath, corpusPhase string) (RolePanel, error) {
 	}
 	roles, overrideWarnings, disabled := ResolveOverrideFocus(roles, fm, corpusPhase)
 
-	// The frontmatter's own shape warnings lead: parsing precedes resolution,
-	// and a key the parser ignored changes the panel as surely as an override
-	// that matched no role. Without them a typo reached tp lint alone.
-	warnings := make([]string, 0, len(fm.Warnings)+len(corpusWarnings)+len(overrideWarnings))
+	// The frontmatter's own findings lead: parsing precedes resolution, and a
+	// key the parser ignored changes the panel as surely as an override that
+	// matched no role. Its structural errors travel here too, as advisories:
+	// an unclosed or unparseable block leaves the run on the defaults rather
+	// than failing it, and without them that fallback reached tp lint alone.
+	warnings := make([]string, 0, len(fm.Errors)+len(fm.Warnings)+len(corpusWarnings)+len(overrideWarnings))
+	for _, f := range fm.Errors {
+		warnings = append(warnings, f.Message)
+	}
 	for _, w := range fm.Warnings {
 		warnings = append(warnings, w.Message)
 	}
