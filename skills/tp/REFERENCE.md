@@ -28,16 +28,15 @@ the flag exists to save. Parse stdout as JSON and read stderr separately — the
 
 ## Acceptance Criteria Format
 
-Acceptance criteria support three delimiters:
+tp counts acceptance criteria for closure verification and atomicity checking:
 
-| Delimiter | Example |
-|-----------|---------|
-| Period + space | `"Model exists. Migration runs. Tests pass."` |
-| Semicolon + space | `"Model exists; migration runs; tests pass"` |
-| Bullet list | `"- Model exists\n- Migration runs\n- Tests pass"` |
-| JSON array | `["Model exists", "Migration runs", "Tests pass"]` |
+| Form | Example | Counted as |
+|------|---------|------------|
+| Prose | `"Model exists. Migration runs; tests pass."` | split on `. ` and `; ` — 3 |
+| Bullet list | `"Setup.\n- Model exists; with a note\n- Migration runs"` | one per column-0 `- ` line, never re-split, plus one for any prose before the first bullet — 3 |
+| JSON array | `["Model exists", "Migration runs"]` | one per element (stored joined with `\n- `) — 2 |
 
-All delimiters are equivalent — tp parses them into individual criteria for closure verification and atomicity checking. JSON array is joined with `\n- ` on import.
+A non-bullet line after a bullet continues that bullet. `tp add` and `tp import` report the count per task as `criteria: {"<id>": N}`.
 
 **Max 3 criteria per task.** If exceeded, `tp validate` warns with a split hint:
 ```
@@ -97,7 +96,7 @@ Resolves the task file by the discovery order (a spec argument wins and uses its
 | `kept` | byte-sorted `{path, reason}` — uncommitted paths matched by the keep-list |
 | `bookkeeping` | `[]` of `{path, kind, ref}` — tp-owned dirty files that need committing (§5.2). `kind` ∈ `closure` (the task file; `ref` = task id) / `round` (a `.tp-review/` round or snapshot file; `ref` = round number) / `config` (any other dirty `.tp/` state; `ref` = basename). Reported separately from `changes` and never an `unexplained-changes` blocker. Under `commit_strategy: hc` a close legitimately leaves these modified |
 | `guidance` | one-line implement-phase note (run each unit in a fresh subagent/context); absent outside `implement` |
-| `next_action` | `{command, brief_command, summary, payload}`; `command` is null for `decompose`/`release`. `brief_command` names the command that produces the brief for this phase. Payload: review/audit `{round, unresolved_findings}` (round = recorded+1, 0 unresolved on round 1; `unresolved_findings` counts the last round's open findings — every review row and every non-`PASS` audit row not resolved `wontfix`/`duplicate` with evidence, so a `fixed` row still counts), implement `{task: {id}|null, wip}`, `{action:"record-round", round:N}` when a snapshot exists without its recorded round, decompose/release `{}` |
+| `next_action` | `{command, brief_command, summary, payload}`; `command` is null for `decompose`/`release`. `brief_command` names the command that produces the brief for this phase. Payload: review/audit `{round, unresolved_findings}` (round = recorded+1, 0 unresolved on round 1; `unresolved_findings` counts the last round's open findings — every review row and every non-`PASS` audit row not resolved `wontfix`/`duplicate` with evidence, so a `fixed` row still counts), implement `{task: {id}|null, wip}`, `{action:"record-round", round:N}` when a snapshot exists without its recorded round, decompose/release `{}`. While an escalate blocker stands and `next_units` is empty, `summary` is the first escalate blocker's message, `command` and `brief_command` are null, and `payload` drops its step preview (`task`/`wip`, `round`/`action`) but keeps `unresolved_findings` |
 | `blockers` | `{code, class, message, data}` in fixed code order |
 | `next_units` (v0.35.0) | ordered `[]` of `{kind, id, brief_command}` — the units a driver should execute **now**. `[]` when the phase is blocked, awaiting an operator decision, or `release`. Concurrency is not repeated per entry: it is fixed per kind (see [Unattended Run](#unattended-run-v0350)) |
 | `round` (v0.35.0) | the round `next_units` belongs to — the round being collected for role units, the round just recorded for the resolve/fix kinds — and `null` outside a round-based phase |
@@ -105,9 +104,9 @@ Resolves the task file by the discovery order (a spec argument wins and uses its
 
 `next_units`, `round` and `phase` are the whole machine surface — a driver parses those three and nothing else. `next_action` stays the human-facing summary, and its `command`/`brief_command`/`payload` render `next_units[0]` when the array is non-empty. `tp brief` surfaces `last_failure` too, so a fresh unit sees the wall the previous attempt hit.
 
-`--compact` drops `next_action.summary`, each `kept[].reason`, and each `blockers[].message`; keeps every `data` plus `bookkeeping`, `guidance` and `next_units` (all decision-critical — §8.4).
+`--compact` drops `next_action.summary`, each `kept[].reason`, and each `blockers[].message`; keeps every `data` plus `bookkeeping`, `guidance` and `next_units` (all decision-critical — §8.4). Under an escalate blocker a `--compact` reader therefore reads `blockers[].code` and `data`.
 
-Blocker vocabulary (fixed order): `unexplained-changes` (**agent-clearable**, `{count}`), `no-ready-task` (escalate, `{blocked_by}`), `review-budget-exhausted` / `audit-budget-exhausted` (escalate, `{cap, blocking_fixed_at_cap}`; fires when the cap is reached and the loop is not done, never under cap 0), `spec-stale` (escalate, `{spec}`).
+Blocker vocabulary (fixed order): `unexplained-changes` (**agent-clearable**, `{count}`), `no-ready-task` (escalate, `{blocked_by}`), `review-budget-exhausted` / `audit-budget-exhausted` (escalate, `{cap, blocking_fixed_at_cap}`; fires when the cap is reached and the loop is not done, never under cap 0), `spec-stale` (escalate, `{spec}`; its message names the round that clears it: `tp review <spec>`, then `tp review <spec> --record <file>`).
 
 ### `commit_strategy` — `builtin` / `auto` / `hc`
 
@@ -185,23 +184,19 @@ kinds and no others; `(kind, id)` identifies a unit, and `id` is its durable sub
 | `review-resolve` | spec base name | every finding in `$TP_ROUND_DIR/merged.ndjson` carries a disposition | alone | `tp review <spec> --status` |
 | `decompose` | spec base name | the task file holds at least one task | alone | `tp resume` |
 | `audit-role` | role id | `$TP_ROUND_DIR/role-$TP_UNIT_ID.ndjson` exists and every content line parses | parallel with sibling roles | `tp audit <spec>` |
-| `audit-record` | round number | `$TP_ROUND_DIR/merged.ndjson` **and** an audit round file for `$TP_ROUND` exist | alone | the `tp audit` form of the review-record command above, with `;` in place of `&&` — see below |
+| `audit-record` | round number | `$TP_ROUND_DIR/merged.ndjson` **and** an audit round file for `$TP_ROUND` exist | alone | the `tp audit` form of the review-record command above |
 | `audit-fix` | the finding's `role:item_id` | every non-`PASS` row under that key carries a disposition in the round's results file | alone | `tp audit <spec> --status` |
 
 An attempt **succeeded** when the child exited 0 **and** the kind's durable write is present; either
 alone is a failed attempt. Every predicate is a state, never a delta, which is what lets the `Stop`
 hook and the driver test the same condition. The merge step of a record brief is guarded by the
 merged file's absence, so a retried record unit never merges over the dispositions `review-resolve`
-and `audit-fix` accumulate in that file. On the **review** side the record step is chained onto it
-with `&&`, so a merge that refuses ends the unit at its own stderr diagnosis instead of walking into
+and `audit-fix` accumulate in that file. In both phases the record step is chained onto it with
+`&&`, so a merge that refuses ends the unit at its own stderr diagnosis instead of walking into
 `--record`. The `[ -f X ] || merge -o X && record X` form reaches `record` on both live paths,
 because a shell reads it as `(A || B) && C`: the guarded path (`X` present, merge skipped) and the
 merged path (`X` absent, merge exits 0) each run the record, and only a refused merge stops the
-chain. That is a real fence — `tp review --merge` leaves nothing at `-o` when it refuses. The
-**audit** side chains with `;` instead, because `tp audit --merge` writes `-o` before exiting 1: the
-record step runs against that leftover, and the `[ -f ]`
-guard sees it again on a retry, so re-run an audit record unit from a clean round directory rather
-than over it.
+chain. That is a real fence — neither merge leaves anything at `-o` when it refuses.
 
 **The emitted brief differs from the form above in its quoting.** `recordBriefCommand` in
 `internal/engine/briefcommand.go` leaves `$TP_ROUND_DIR` bare, so an unset variable merges into
@@ -334,7 +329,7 @@ agent:
 | `tp set --workflow review_max_rounds=` / `audit_max_rounds=` **above** the resolved value | exit 2, same shape |
 | `tp set --workflow run_max_*=` **above** the resolved value | exit 2, same shape |
 | `tp import --force` | exit 2, same shape |
-| accepting a finding without a change — `wontfix`/`duplicate` on a critical or high review finding, or on any audit finding, at `--resolve` or `--resolve-all` | exit 2, escalates under `--decision accept-finding`; `fixed` is not fenced |
+| accepting a finding without a change — `wontfix`/`duplicate` on a critical or high review finding, or on any audit finding, at `--resolve` or `--resolve-all` | exit 2, escalates under `--decision accept-finding`; `fixed` is not fenced, nor is `tp audit --record` carrying an earlier acceptance forward (see Dispositions) |
 | `--force` on a `tp ground`/`tp review`/`tp audit` emission that would discard an unrecorded round | exit 2, escalates under `--decision discard-emission`: sibling role units grade one emission concurrently |
 | `tp set --workflow runner=` / `tp set --local notify_cmd=`, at **any** layer | exit 2, `names a command the driver executes and cannot be set under TP_UNATTENDED, at any layer` |
 | a change of `quality_gate` — **any** `tp set --workflow quality_gate=` write, at either layer; at `tp import`, `tp init --quality-gate` and `tp config --extract`, a write that **changes the gate that resolves** (carrying the current gate forward passes) | exit 2, `<what> changes the quality gate every close runs, which is a user-approved decision refused under TP_UNATTENDED`; the hint names that sink's own exit and escalates under `--decision skip-gate`, since a rewritten gate is a skipped one |
@@ -523,7 +518,7 @@ spec/
 
 **Cleanup after review converges**: Delete review artifacts (snapshots `*-r0.md`, `*-r1.md`, etc. and findings `*.ndjson`). Keep the spec `.md` and task file `.tasks.json`.
 
-**Injection caps**: an injected source file is capped at 8000 chars (50000 chars across all files), and a single emitted prompt is capped at 60000 chars.
+**Injection caps**: an injected source file is capped at 8000 bytes (50000 bytes across all files), cut on a rune boundary under a marker naming the bytes kept and the file's size, and a single emitted prompt is capped at 60000 chars.
 
 ## Workflow Fields (v0.23.0)
 
@@ -532,7 +527,7 @@ spec/
 | `quality_gate` | string | `""` | — | settable at both layers, attended only; at the task layer `quality_gate=` removes the override (reply `"removed": ["quality_gate"]`) rather than storing an empty gate. Switching a spec's gate off is `--skip-gate` with a recorded reason |
 | `gate_timeout_seconds` | int | 600 | 30-3600 | settable |
 | `lock_timeout_seconds` | int | 5 | 1-60 | settable (§12.1: write-lock retry/backoff window; timeout exits 4) |
-| `checks` | array of `{class, cmd}` | `[]` | — | settable (replace semantics). A check exits 0 when it passed and 1 when it found violations; anything else — 2 or higher, 126/127, a signal, a start failure, a timeout — could not run, is reported `ran: false` in `mechanical_checks`, and does not suppress its class |
+| `checks` | array of `{class, cmd}` | `[]` | — | settable (replace semantics). A check exits 0 when it passed and 1 when it found violations; anything else — 2 or higher, 126/127, a signal, a start failure, a timeout — could not run and is reported `ran: false` in `mechanical_checks`. A prompt suppresses a class only when its check reported `ran: true` in that emission; with no task file resolving no check runs, so nothing is suppressed |
 | `review_clean_rounds` | int | 2 | 1-10 | settable |
 | `audit_clean_rounds` | int | 2 | 1-10 | settable |
 | `review_converge_on` | string | `blocking` | `blocking`\|`all` | settable (a review round is **clean** when no surviving finding is critical/high under `blocking`, or when no finding survives under `all`; audit never reads it) |
@@ -577,7 +572,8 @@ setting the knob governs rounds recorded *after* it is set, in both directions: 
 under `blocking` keeps `clean: true` when the knob returns to `all`, so one approved round of
 `blocking` relaxes that cycle's streak permanently — re-record the round to undo it. Dispositions
 are read live, as on the review side: an evidenced `wontfix`/`duplicate` written after the record
-clears its round. `role_streaks[].open`, `consecutive_clean` and `spec_coverage_clean_rounds` stay
+clears its round, and the next `--record` carries it forward while its file is unchanged (see
+Dispositions). `role_streaks[].open`, `consecutive_clean` and `spec_coverage_clean_rounds` stay
 severity-blind, so under `blocking` a round can record `clean: true` beside a non-zero `open`.
 
 Illegal values are refused at both ends with the same hint as `review_converge_on`
@@ -652,6 +648,16 @@ non-`PASS` row under the key and reports the count as `disposed`; `tp audit --re
 (`TP_ROUND`, `TP_FILE`) for an exact copy of that recorded round, where the recorder rewrites it in
 place.
 
+**Audit acceptance across rounds.** The next audit prompt's Prior Round block carries each row's
+`disposition` and `disposition_evidence` beside `status` and `changed_since`: an accepted row
+(`wontfix`/`duplicate` with evidence) is to be recorded as before if it still stands, unless
+`changed_since` is true; a `fixed` row asks for the repair to be verified. `tp audit <spec> --record`
+then gives a new non-`PASS` row with no disposition of its own the accepted disposition its
+`(role, item_id)` carried in the immediately prior round, while the prior row's `evidence_file` has
+no commit since that round was recorded (a row with no `evidence_file` carries until re-decided).
+The `resolved` block is copied with `carried_from` naming the round it was first decided in, the
+payload reports the count as `carried` (present at `0`), and `fixed` is never carried.
+
 The three ground artifacts are a separate prefix list: they carry no round entry in `state.json`, a directory holding only them loads cleanly rather than reading as review state with a missing index, and their round numbering is its own sequence. Their formats are in the Grounding section below.
 
 ## Spec Frontmatter (`tp:` mapping)
@@ -672,9 +678,9 @@ tp:
 ```
 
 - `tp.review_roles` / `tp.audit_roles`: each maps a role id to an object whose permitted keys are `focus` (a string array, **appended** to that role's corpus focus at emission, project focus first) and `enabled` (a boolean, v0.32.0). Any other override key is a lint warning — `tp.<field>.<id>.<key> is not a permitted override key (only focus and enabled); ignored`; an override id matching no active role is ignored with a lint warning; the built-in `regression` role accepts no overrides.
-- **Per-spec deactivation (v0.32.0):** `enabled: true` is accepted and is a no-op — it does not resurrect a role `domains` removed; a non-boolean value warns (`tp.<field>.<id>.enabled is not a boolean (got %T); ignored`) and leaves the role active; `enabled: null` or a valueless `enabled:` is unset. The deactivated role is named in `skipped_roles` with the reason `disabled-by-spec`, omitted under `--compact` like every other `skipped_roles` entry. Two refusals fire **on prompt emission only** — never under `tp review --record`/`--status`/`--merge`/`--resolve`/`--resolve-all`/`--verify`/`--report`, `tp audit --record`/`--status`/`--merge`, nor `tp review --perspective`, which short-circuits before the corpus is resolved — and each exits 2 before any prompt is emitted or any state is written: the **empty-phase** refusal `every <phase> role is deactivated by this spec: <ids>` (phase rendered from `PhaseReviewers`/`PhaseAuditors`, ids sorted and comma-separated and naming only what this spec deactivated; hint `re-enable at least one role, or remove the enabled: false entries`), and the **`spec-coverage`** refusal `spec-coverage cannot be deactivated: it carries the entire spec-derived checklist` (hint `remove the enabled: false entry for spec-coverage`), which is reported first when a spec trips both. Toggling `enabled` changes the recorded round's `spec_hash` and leaves its `roles_hash` unchanged. An entry whose id matches no active role is ignored with a stderr warning that `--quiet` suppresses but JSON mode does **not**, so a typo'd role id stays visible in a piped, agent-driven run.
+- **Per-spec deactivation (v0.32.0):** `enabled: true` is accepted and is a no-op — it does not resurrect a role `domains` removed; a non-boolean value warns (`tp.<field>.<id>.enabled is not a boolean (got %T); ignored`) and leaves the role active; `enabled: null` or a valueless `enabled:` is unset. The deactivated role is named in `skipped_roles` with the reason `disabled-by-spec`, omitted under `--compact` like every other `skipped_roles` entry unless `--role` is passed. Two refusals fire **on prompt emission only** — never under `tp review --record`/`--status`/`--merge`/`--resolve`/`--resolve-all`/`--verify`/`--report`, `tp audit --record`/`--status`/`--merge`, nor `tp review --perspective`, which short-circuits before the corpus is resolved — and each exits 2 before any prompt is emitted or any state is written: the **empty-phase** refusal `every <phase> role is deactivated by this spec: <ids>` (phase rendered from `PhaseReviewers`/`PhaseAuditors`, ids sorted and comma-separated and naming only what this spec deactivated; hint `re-enable at least one role, or remove the enabled: false entries`), and the **`spec-coverage`** refusal `spec-coverage cannot be deactivated: it carries the entire spec-derived checklist` (hint `remove the enabled: false entry for spec-coverage`), which is reported first when a spec trips both. Toggling `enabled` changes the recorded round's `spec_hash` and leaves its `roles_hash` unchanged. An entry whose id matches no active role is ignored with a stderr warning that `--quiet` suppresses but JSON mode does **not**, so a typo'd role id stays visible in a piped, agent-driven run.
 - The standalone `tp: lens` block is **retired** (see Role Corpus). A legacy `lens` with no new overrides auto-translates to review-role focus (`lens.all` → every review role except regression; `lens.<id>` → that role) with a deprecation warning; the new form wins when both are present.
-- `tp lint --json` reports a `frontmatter` object `{present, lines, domain, lens_roles}`. Malformed YAML is a lint error; unknown lens keys, non-list values, disallowed override keys, and unknown override ids are lint warnings.
+- `tp lint --json` reports a `frontmatter` object `{present, lines, domain, lens_roles}`. An unclosed block and malformed YAML are lint errors; an unknown key directly under `tp:` (the known ones are `domain`, `lens`, `review_roles`, `audit_roles`), unknown lens keys, non-list values, disallowed override keys, and unknown override ids are lint warnings. `tp review` and `tp audit` print the same errors and warnings on stderr; on an error the frontmatter is ignored and the defaults apply.
 
 ## Role Corpus (v0.25.0)
 
@@ -696,7 +702,7 @@ Validation: `tp lint` validates both phases, `tp review` validates reviewers, `t
 
 **`location_clusters` (v0.35.0, `tp review --merge`/`--status`):** the same merged records cut by `location` instead of by `(location, class)`. Roles compose their class slugs independently, so two roles naming one defect almost never collide and the merged count reads as "more to do" — this array says how much of it is one place seen through several lenses. One entry `{location, roles[], severities[], count}` per location key **two or more roles** reported: `roles[]` is the distinct contributing roles sorted (`found_by_roles` where the merge attributed the record, its own `role` otherwise; `regression` and blank excluded), `severities[]` the distinct severities most-severe-first, and `count` the number of merged **records** at that location — not pre-merge rows, since `(location, class)` duplicates have already collapsed. A location every finding of which came from one role produces no entry; the key is always present and `[]` when nothing clusters. It is **reporting only** — convergence arithmetic, the stored `clean` flag and the `--status --check` exit code are untouched — and on `--status` it is recomputed from the latest recorded round at read time, never stored. Being explanatory it is omitted under `--compact` (§8.4).
 
-**`inputs` (v0.35.0, both `tp review --merge` and `tp audit --merge`):** one entry per input file, in argument order — `{path, parsed, skipped}` — beside the existing `input_files` count. A malformed line is warned about on stderr and counted in `skipped`; blank and whitespace-only lines are neither parsed nor skipped and never contribute to either number. An input with **at least one content line and zero parsed** makes the merge **exit 1**, naming that file: a role that emitted a trailing comma per line has every line skipped, and without this the merged set was silently short one role while the exit code stayed 0 and `--record` froze the undercount. A **zero-byte** file stays the documented way a role reports nothing found and keeps exiting 0, so a clean round is unaffected. The zero-parsed rule is identical in both merges, because an unattended driver reads the exit code alone. A line holding only `[]` is a role that found nothing: neither parsed nor skipped at either merge, and dropped before parsing at either `--record`.
+**`inputs` (v0.35.0, both `tp review --merge` and `tp audit --merge`):** one entry per input file, in argument order — `{path, parsed, skipped}` — beside the existing `input_files` count. A line that is invalid JSON or lacks a required field is warned about on stderr, the warning ending in `<path>:<line>`, and counted in `skipped`; blank and whitespace-only lines are neither parsed nor skipped and never contribute to either number. An input with **at least one content line and zero parsed** makes the merge **exit 1**: the error names each such input with its reasons and lines (the missing fields, invalid JSON), and the hint carries the JSON-format advice only when a line was invalid JSON. A role that emitted a trailing comma per line has every line skipped, so without this the merged set would be silently short one role. A **zero-byte** file stays the documented way a role reports nothing found and keeps exiting 0, so a clean round is unaffected. The zero-parsed rule is identical in both merges, because an unattended driver reads the exit code alone. A line holding only `[]` is a role that found nothing: neither parsed nor skipped at either merge, and dropped before parsing at either `--record`.
 
 **`conflicts` (`tp audit --merge`):** rows sharing `(role, item_id)` collapse only when their verdict — status, severity, disposition status — agrees. Otherwise every row is kept, and each group is listed as `{role, item_id, rows, statuses}` with a stderr warning. The key is absent when every group holds one verdict.
 
@@ -721,7 +727,7 @@ tp does **not** guard against deactivating a role that has open findings — no 
 
 `--merge` is the read because `tp review --status`/`--report` compute `overlap_report` over the **latest recorded round only** and therefore can never span the two rounds. The relabelled `role` travels into whatever you `--record`, so record a copy with the corpus id restored if round history should keep it. No flag or config supports the recipe — it is the existing instrument read along a second axis.
 
-**Transparency fields (v0.29.0, §9):** prompt emission (`tp review`/`tp audit`) reports `skipped_roles: [{role, reason}]` naming every corpus role it did not emit (`reason` ∈ `no-checklist-items` / `no-spec-change` / `domain-mismatch` / `no-baseline` / `disabled-by-spec`; `[]` when none skipped). Merge/`--status` summary adds `attribution_excludes: ["regression"]` **only** when excluding the built-in `regression` role causes `merged_count` to exceed the overlap-report finding count (omitted otherwise). `tp audit --merge`/`--status` emit their own `overlap_report` over non-PASS rows clustered by `(item_id, category)` with the same `{role, unique, shared, trim_candidate}` shape.
+**Transparency fields (v0.29.0, §9):** prompt emission (`tp review`/`tp audit`) reports `skipped_roles: [{role, reason}]` naming every corpus role it did not emit (`reason` ∈ `no-checklist-items` / `no-spec-change` / `domain-mismatch` / `no-baseline` / `disabled-by-spec`, plus `role-filter` for each emitted role `--role` narrowed away; `[]` when none skipped). Merge/`--status` summary adds `attribution_excludes: ["regression"]` **only** when excluding the built-in `regression` role causes `merged_count` to exceed the overlap-report finding count (omitted otherwise). `tp audit --merge`/`--status` emit their own `overlap_report` over non-PASS rows clustered by `(item_id, category)` with the same `{role, unique, shared, trim_candidate}` shape.
 
 
 **`--role` payload contract (v0.36.0).** `--role <name>` narrows a `tp review`/`tp audit` emission to
@@ -729,8 +735,8 @@ one role. Its exact form and the reasoning are in [SKILL.md](SKILL.md); what the
 
 | Name class | Exit | `prompts[]` | Other keys |
 |---|---|---|---|
-| in the emitted set | 0 | exactly one entry, **byte-identical** to that role's entry in the same invocation without the flag | unchanged, except `review_loop.instruction` (below) |
-| recognised, not emitted this round | 0 | `[]` — an array, never `null` | when the name is one *this* phase skipped, `skipped_roles` carries its own reason. A name recognised only through the **other** phase's corpus appears nowhere in `skipped_roles` — `tp review <spec> --role spec-coverage` exits 0, and the array holds whatever else the round skipped (at round 1, `regression`/`no-baseline`). `--perspective` and `--verify` carry no `skipped_roles` key at all. Under `--compact` the key is kept **only for this case** — an empty `--role` payload — because there the reason is the payload rather than commentary on it (§8.4's own criterion); with a prompt present `--compact` omits it as before |
+| in the emitted set | 0 | exactly one entry, **byte-identical** to that role's entry in the same invocation without the flag | unchanged, except `review_loop.instruction` (below) and the `role-filter` entries `skipped_roles` gains |
+| recognised, not emitted this round | 0 | `[]` — an array, never `null` | when the name is one *this* phase skipped, `skipped_roles` carries its own reason. A name recognised only through the **other** phase's corpus appears nowhere in `skipped_roles` — `tp review <spec> --role spec-coverage` exits 0, and the array holds whatever else the round skipped (at round 1, `regression`/`no-baseline`) plus a `role-filter` entry for every role the round emitted. `--perspective` and `--verify` carry no `skipped_roles` key at all |
 | recognised nowhere | 2 | — | stderr carries `{"error":"unknown role: <name>","code":2,"hint":"this invocation emits: …"}`; the hint is built from the invocation's own emitted set plus `skipped_roles`, not from the corpus, because `regression` is emitted and belongs to no corpus. Nothing is written to the state directory |
 
 Recognition spans the user corpus **and** the embedded default corpus for **both** phases, plus the
@@ -743,9 +749,10 @@ mode. **A one-prompt payload gets a sentence-subset**, described next. Unrestric
 addressed to a caller holding the whole panel (spawn a sub-agent per prompt, `--merge`, `--record`, `--status --check`,
 the regression ordering, the uncounted delta pass); under `--role` it is a **sentence-subset** of
 that string containing no directive a single-prompt payload cannot support. Nothing else moves:
-`prompts[]` and `review_loop.instruction` are the only differences between a `--role` payload and
-the unrestricted one, `review_loop`'s other members included.
-**`--compact` disposition (§8.4):** decision-critical new fields survive `--compact` — `bookkeeping`, `suggested_files`, `max_rounds`/`rounds_remaining`/`in_flight_round`, `next_action`, `nonblocking_open` (review-only, emitted only on an accepted-open clean round), the audit `by_severity` (v0.37.0, emitted only on a round holding a non-`PASS` row); explanatory fields are omitted — `skipped_roles`, `attribution_excludes`, `location_clusters`, the audit `overlap_report`, the report `note`, and the wrapper-drift diagnostics `harness_note`/`harness_stale`. **One exception, v0.36.0:** `skipped_roles` survives `--compact` when `--role` reduced `prompts[]` to empty, because an empty payload is exactly where the reason stops being explanatory — it is the only content the payload has. `tp audit --compact` also omits `prompts[].checklist_items` and `prompts[].affected_files`: both duplicate content already rendered into `prompts[].prompt`, and together they are about a fifth of the audit payload (a 3-role/5-file run drops from ~24 KB to ~17 KB). Default output is unchanged — both stay arrays, never `null`.
+`prompts[]`, `review_loop.instruction` and the `role-filter` entries in `skipped_roles` are the only
+differences between a `--role` payload and the unrestricted one, `review_loop`'s other members
+included.
+**`--compact` disposition (§8.4):** decision-critical new fields survive `--compact` — `bookkeeping`, `suggested_files`, `max_rounds`/`rounds_remaining`/`in_flight_round`, `next_action`, `nonblocking_open` (review-only, emitted only on an accepted-open clean round), the audit `by_severity` (v0.37.0, emitted only on a round holding a non-`PASS` row), `spec_truncated` (emitted only when the spec was cut); explanatory fields are omitted — `skipped_roles`, `attribution_excludes`, `location_clusters`, the audit `overlap_report`, the report `note`, and the wrapper-drift diagnostics `harness_note`/`harness_stale`. **One exception:** under `--role`, `skipped_roles` survives `--compact` when it is non-empty or `prompts[]` is empty, because a narrowed payload is where the reason stops being explanatory — it says what the payload leaves out. `tp audit --compact` also omits `prompts[].checklist_items` and `prompts[].affected_files`: both duplicate content already rendered into `prompts[].prompt`, and together they are about a fifth of the audit payload (a 3-role/5-file run drops from ~24 KB to ~17 KB). Default output is unchanged — both stay arrays, never `null`.
 
 **Role staleness** (`tp review --status`/`tp audit --status`): each recorded round stores `roles_hash` (`"builtin"` on the defaults, else a clone-stable sha256 over the phase's user files). `--status` reports `roles_stale` beside the spec `stale` flag; a pre-v0.25.0 round with no stored hash is treated as matching.
 
@@ -774,6 +781,12 @@ Finding text and `class` slugs are written in **English** whatever language the 
 Item ids are deterministic: `table-<t>-<r>`, `list-<l>-<n>`, `task-<id>`, `file-<role-id>-<slug>.<digest>` (the slug derives from the file path plus the item text, cut to 40 characters, and the digest is the first 16 hex characters of the sha256 of the cleaned path, so an id is a function of the role and the path alone; `--affected-files` paths are cleaned, made repo-relative and deduped first. A prior round's ids of the earlier form, with no digest, name no item of this round, and the prompt lists them apart to be matched by `evidence_file`), `finding-<n>`. Sub-agents return one NDJSON row per checklist item: `{item_id, status(PASS|PARTIAL|FAIL), evidence_file, evidence_lines, category, severity, notes, class?}`. `category`/`severity` are `null` for PASS and one of the enum values for PARTIAL/FAIL. Finding category enum: `security > concurrency > error-handling > correctness > contract` (resolution precedence when several apply — the auditor picks one, tp does not resolve for it). **`tp audit --record` enforces the enum (v0.34.1):** a row carrying anything else aborts the record at exit 1, naming every offending line at once and listing the five, and no round file is written. A row with no `category`, which is every PASS row, is untouched.
 
 **`file_summary` (v0.35.0):** `{total_files, total_lines, chars_included, truncated, total_changed}`. Auto-detect caps the audited set at **50** files. `total_files` stays the **audited** count, `total_changed` is the **pre-cap** count, and `truncated` is true exactly when the cap bit. The stderr notice names both numbers — `63 files changed, auditing first 50 — name the rest with --affected-files` — but the flag lives in the payload, so `--quiet`, which erases that line, cannot hide the truncation from a driver. `--compact` drops `file_summary` in its entirety, and the flag with it, so a `--compact` audit is not the place to read truncation from.
+
+**`spec_truncated`:** `{path, kept_bytes, total_bytes}`, present only when the spec a role reads
+inline was cut at `engine.SpecContentCap` (10,000 bytes) — at the top level of the `tp audit`
+payload (the spec-coverage excerpt) and of the `tp review` payload in every `--spec-inline` mode (the
+panel, `--verify`, and the `code-audit`, `documentation` and `testing` perspectives). The cut lands
+on a rune boundary, the prompt's marker names the same counts, and the key survives `--compact`.
 
 ## Grounding (`tp ground`, v1.0.0)
 
@@ -906,7 +919,7 @@ while `read`, `query` and `run` examine the real one.
 | `tier` | what was done |
 |--------|---------------|
 | `read` | read the artifact |
-| `query` | ran a query over the corpus |
+| `query` | ran a read-only command over the corpus (a search, a query, a listing) |
 | `run` | ran the shipped command |
 | `probe` | built a probe and ran it |
 | `red-green` | wrote the test, watched it red, fixed, watched it green |
@@ -916,7 +929,7 @@ Acceptability is enforced **per verdict**, at record:
 
 | the row says | and the rule reads |
 |--------------|--------------------|
-| `PASS`, `PARTIAL` or `FAIL` | `tier` **must** be acceptable for `kind`, or the row is rejected naming `tier` (`"read" says nothing about a "behaviour" claim (§4.1), and a PASS row must be reached at a tier that does`) |
+| `PASS`, `PARTIAL` or `FAIL` | `tier` **must** be acceptable for `kind`, or the row is rejected naming `tier` and listing the kind's accepted tiers (`"read" says nothing about a "behaviour" claim, and a PASS row must be reached at a tier that does: run, red-green`) |
 | `QUESTION` | **no constraint** — either relation is legal, and which one holds *is* the question's shape: an acceptable tier means the unit got there and the result did not settle it, an unacceptable one means it did not get there |
 | `UNVERIFIABLE` | no constraint — `tier` names the deepest tier attempted, and the point is that none is reachable |
 
@@ -1106,11 +1119,9 @@ neither parsed nor skipped and never trigger it. A **zero-byte file
 stays the way a role reports nothing found** and keeps exiting 0 — so a clean round is unaffected.
 Both exit-1 paths still emit
 the full payload — the surviving roles merge, only the exit code changes, and the accounting an
-unattended driver reads reaches stdout either way — but **what they leave at `-o` differs by
-phase**. `tp review --merge` declines that write: it creates no file at the `-o` path and leaves a
-file already there byte-identical, so a refused review merge cannot be walked into `--record` as a
-round. `tp audit --merge` still writes `-o` and then exits 1, so an audit chain must branch on the
-merge's exit code, never on the presence of the file.
+unattended driver reads reaches stdout either way — and both decline the `-o` write: a refused merge
+creates no file at the `-o` path and leaves a file already there byte-identical, so it cannot be
+walked into `--record` as a round.
 
 `tp review --perspective code-audit --findings <file>` exits **2**: that perspective never reads the
 file, and previously accepted the flag while reporting `previous_findings: 0` about it. A
@@ -1277,9 +1288,15 @@ Type: an array of strings.
 mechanized_classes names the candidate classes withheld because they are mechanized, and is [] when none were.
 Each class appears once and the array is sorted ascending;
 every member equals a valid `checks` entry's `class` and is therefore lowercase kebab-case, so byte
-order and a case-insensitive sort cannot differ. It lists the intersection of the round's mechanize
-candidates with the registered classes, not the whole registered set (read that from `tp config` or
-a bare `tp review <spec> --status`).
+order and a case-insensitive sort cannot differ. It lists the round's mechanize candidates whose
+registered check ran in this `--record` (exit 0 or 1), not the whole registered set (read that from
+`tp config` or a bare `tp review <spec> --status`); a check that could not run, or never started,
+withholds nothing.
+
+`--record` runs the registered checks only when their result can change its output — a candidate
+class has a registered check, or the loop is done or at its cap — and then carries
+`mechanical_checks` in the `--status --check` shape (`[]` when no task file resolves); a record that
+ran none carries no `mechanical_checks` key.
 
 ```json
 "mechanize_candidates": [],
@@ -1290,7 +1307,12 @@ It is always an array on the output that carries it — `[]` when nothing was wi
 and never an omitted key — and the filtered `mechanize_candidates` beside it keeps that shape too.
 The same filtering applies to all three of the record path's sinks: the emitted
 `mechanize_candidates` array, the register-a-check hint, and `next_action`'s mechanize branch, so a
-registered check retires its mechanize candidate and the class is named here instead of vanishing.
+registered check that ran retires its mechanize candidate and the class is named here instead of
+vanishing. A candidate whose check did not run stays a candidate, and `next_action` names that check
+to fix instead of a check to register (`fix the registered "<class>" check — it exited 2 and verified
+nothing`). At done or at the cap, the first check that failed (`fix what the registered "<class>"
+check reports — it exited 1: violations found`) or did not run replaces every import step; SKILL.md's
+`next_action` section has the precedence.
 
 ### `--compact`
 
