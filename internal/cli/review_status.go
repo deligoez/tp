@@ -205,10 +205,13 @@ func runMechanicalChecks(wf *model.Workflow, taskFilePath string) (results []map
 				continue
 			}
 			res := engine.RunCommand(c.Cmd, dir, timeout, gateOutputTailLines)
+			// ran is the exit-code contract's third state: a check that
+			// could not run neither passes nor suppresses its class.
 			entry := map[string]any{
 				"class":     c.Class,
 				"cmd":       c.Cmd,
 				"passed":    res.Passed,
+				"ran":       engine.CheckRan(&res),
 				"exit_code": res.ExitCode,
 			}
 			if !res.Passed {

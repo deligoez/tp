@@ -34,6 +34,46 @@ const findingsFileMissingHint = "a review round that converged with zero finding
 // one instructs the reviewers whose findings decide convergence.
 const mechanizedExclusionPrefix = "\n\nMechanically checked classes — do NOT report findings of these classes: "
 
+// mechanizedExclusion renders the reviewer exclusion sentence for one
+// emission, from the registered checks and what the runner reported for them.
+//
+// It names engine.ReviewerExclusionClasses less the class of every entry the
+// runner reported `ran: false` — a check that could not run verified nothing,
+// so its class stays reportable (engine.CheckRan states the contract). A check
+// that ran keeps suppressing its class whichever verdict it reached. When no
+// class survives it returns "", so no sentence is appended rather than one
+// ending in an empty list.
+func mechanizedExclusion(checks []model.Check, results []map[string]any) string {
+	notRun := make(map[string]bool)
+	for _, entry := range results {
+		if ran, _ := entry["ran"].(bool); !ran {
+			class, _ := entry["class"].(string)
+			notRun[class] = true
+		}
+	}
+	classes := slices.DeleteFunc(engine.ReviewerExclusionClasses(checks), func(c string) bool { return notRun[c] })
+	if len(classes) == 0 {
+		return ""
+	}
+	return mechanizedExclusionPrefix + strings.Join(classes, ", ")
+}
+
+// insertMechanizedExclusion places the exclusion sentence into each panel
+// prompt at the offset buildReviewPrompts marked for it. The sentence is
+// written after the checks run, so it can leave out a class whose check could
+// not run, while its place in the prompt stays where it was before the
+// framing and the clause suffix — both of which only append after the mark.
+func insertMechanizedExclusion(prompts []reviewPrompt, exclusion string) []reviewPrompt {
+	if exclusion == "" {
+		return prompts
+	}
+	for i := range prompts {
+		at := min(prompts[i].exclusionAt, len(prompts[i].Prompt))
+		prompts[i].Prompt = prompts[i].Prompt[:at] + exclusion + prompts[i].Prompt[at:]
+	}
+	return prompts
+}
+
 // ndjsonInputFileHint is the hint for a path handed to a mode that reads loose
 // NDJSON files — --merge and --report. Left hintless these sites inherit the
 // code-3 default, which is TASK-file advice ("run 'tp use <file>' … 'tp init
@@ -149,6 +189,12 @@ type reviewPrompt struct {
 	Category   string `json:"category"`
 	Prompt     string `json:"prompt"`
 	OutputPath string `json:"output_path"`
+
+	// exclusionAt is the byte offset in Prompt where the reviewer exclusion
+	// sentence belongs — the end of the role body, before the framing. It is
+	// marked while the prompt is built and filled after the mechanical checks
+	// run; see insertMechanizedExclusion.
+	exclusionAt int
 }
 
 type reviewLoop struct {
@@ -628,6 +674,9 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 	if len(wfChecks.Checks) > 0 {
 		mechChecks, _ = runMechanicalChecks(&wfChecks, checksTaskFile)
 	}
+	// The exclusion sentence is written only now, so a check that could not
+	// run leaves its class reportable in every prompt (engine.CheckRan).
+	prompts = insertMechanizedExclusion(prompts, mechanizedExclusion(wfChecks.Checks, mechChecks))
 
 	uniqueCount := len(dedupFindings(findings))
 	convergence, instruction := buildReviewLoopInstruction(round, findings, findingsPath, specPath, specInline, noState, stateRequired, regressionIncluded, len(wfChecks.Checks) > 0)
@@ -996,20 +1045,15 @@ func buildReviewPrompts(specPath string, panel *rolePanel, elems *engine.Structu
 	}
 
 	// Prompt exclusion: reviewers stop looking for mechanized classes (§3.2).
-	// engine.ReviewerExclusionClasses applies the membership rule — drop the
-	// entries the validator rejects, drop over-specification under §3.1's
-	// exemption, then collapse duplicates keeping the first survivor, in that
-	// order and registration order otherwise. Its own guard is the emptiness of
-	// that result, not len(wfChecks.Checks): a workflow whose every entry is
-	// invalid still runs its checks above and still emits each entry's skip
-	// notice, while no sentence is appended here rather than one ending in an
-	// empty list. The review_loop addendum about failing checks keeps its own
-	// guard (buildReviewLoopInstruction) and is unchanged.
-	if classes := engine.ReviewerExclusionClasses(wfChecks.Checks); len(classes) > 0 {
-		exclusion := mechanizedExclusionPrefix + strings.Join(classes, ", ")
-		for i := range prompts {
-			prompts[i].Prompt += exclusion
-		}
+	// The sentence belongs here, at the end of each role body, but it cannot be
+	// written yet: the checks run after the round snapshot, and a class whose
+	// check could not run must be left out of it. So the place is marked and
+	// runReview fills it through insertMechanizedExclusion once the checks
+	// have run; mechanizedExclusion applies the membership rule. The
+	// review_loop addendum about failing checks keeps its own guard
+	// (buildReviewLoopInstruction) and is unchanged.
+	for i := range prompts {
+		prompts[i].exclusionAt = len(prompts[i].Prompt)
 	}
 
 	// §9.1: name every non-emitted corpus role. Domain filtering (when a user

@@ -176,10 +176,12 @@ func TestReviewExclusion_InvalidEntryDoesNotShadowAValidOne(t *testing.T) {
 }
 
 // Test 35's exclusion-list half at prompt emission: a class named by two valid
-// entries is registered, not rejected, and the list names it once.
+// entries is registered, not rejected, and the list names it once. Both
+// commands must run: a command the shell cannot find exits 127, could not run,
+// and would take the class off the list (engine.CheckRan).
 func TestReviewExclusion_ClassNamedByTwoEntriesListedOnce(t *testing.T) {
 	t.Parallel()
-	dir := exclusionFixture(t, `[{"class":"twice-class","cmd":"check-a"},{"class":"twice-class","cmd":"check-b"}]`)
+	dir := exclusionFixture(t, `[{"class":"twice-class","cmd":"true"},{"class":"twice-class","cmd":"exit 0"}]`)
 	assertExclusionAtBothSites(t, dir, []string{"twice-class"})
 }
 

@@ -46,6 +46,24 @@ func IsMechanizedClass(checks []model.Check, class string) bool {
 	return false
 }
 
+// CheckRan reports whether a registered check ran to a verdict under the
+// `workflow.checks` exit-code contract: 0 means it passed, 1 that it found
+// violations, and anything else means it could not run — 2 or higher (which
+// takes in the shell's 126, cannot execute, and 127, command not found), a
+// death by signal, a failure to start, or tp stopping it at its timeout.
+//
+// The contract is tp's to state because a check entry is tp's own
+// registration, written for tp; spec/backlog/next-action-and-check-tell-the-
+// truth.md §4 records the decision. A check that could not run does not pass,
+// and it mechanizes nothing for that emission: its class leaves the reviewer
+// exclusion list, because a class no check verified must stay reportable.
+func CheckRan(res *RunResult) bool {
+	if res.TimedOut || res.ExitCode == nil {
+		return false
+	}
+	return *res.ExitCode == 0 || *res.ExitCode == 1
+}
+
 // ReviewerExclusionClasses returns the classes prompt emission lists under
 // "Mechanically checked classes — do NOT report findings of these classes:"
 // (§3.2). Membership takes three changes in this order and no others: entries the
