@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 // §2.1 step 1's drop list, as it is applied. `scripts/floor-prototype.py` is
@@ -21,6 +23,9 @@ var (
 	floorWhitespaceRe = regexp.MustCompile(`\s+`)
 	floorBlockquoteRe = regexp.MustCompile(`^\s*>\s?`)
 	floorListMarkerRe = regexp.MustCompile(`^\s*(?:[-*+]\s+|\d+\.\s+)`)
+	// floorNumberedItemRe is the numbered half of floorListMarkerRe alone: the
+	// marker that opens a list glued to a line ending in `:` (see floorBlocks).
+	floorNumberedItemRe = regexp.MustCompile(`^\s*\d+\.\s+`)
 )
 
 // floorBlock is one block of §2.1 step 2: the lines that survived step 1's
@@ -69,6 +74,14 @@ func isFloorHorizontalRule(line string) bool {
 // Dropping is not splitting: a heading between two prose lines that carry no
 // blank line leaves those lines in one block, because step 2 splits on blank
 // lines and the heading is gone by the time it runs.
+//
+// One line break splits without a blank line: a numbered item on the line after
+// one ending in `:` opens its own block, so a list glued to the sentence that
+// introduces it blocks exactly as it would with a blank line between them. In
+// one block the introducing line is the first, step 3's gate then keeps every
+// marker, and step 4 cuts after each — the sentence ends in `1.` and the later
+// markers come back as bare `2.`, `3.` units. The colon is the gate: without it
+// an ordinal opening a line is hard-wrapped prose, which §11 row 20 keeps whole.
 func floorBlocks(text string) []floorBlock {
 	blocks := make([]floorBlock, 0)
 	var current []string
@@ -100,6 +113,9 @@ func floorBlocks(text string) []floorBlock {
 		case floorAtxHeadingRe.MatchString(line) || isFloorHorizontalRule(line):
 			// dropped
 		default:
+			if len(current) > 0 && floorOpensGluedList(current[len(current)-1], line) {
+				flush()
+			}
 			if len(current) == 0 {
 				currentLine = lineNo
 			}
@@ -108,6 +124,13 @@ func floorBlocks(text string) []floorBlock {
 	}
 	flush()
 	return blocks
+}
+
+// floorOpensGluedList reports whether line is a numbered item that opens a list
+// directly under prev, a line ending in `:` — floorBlocks' one split without a
+// blank line.
+func floorOpensGluedList(prev, line string) bool {
+	return strings.HasSuffix(strings.TrimSpace(prev), ":") && floorNumberedItemRe.MatchString(line)
 }
 
 // floorTableCells splits a table data row's body at each pipe that is not
@@ -217,6 +240,9 @@ func floorCanonicalise(lines []string) string {
 // both readings of that were live long enough for the spec to record the repair:
 // they agree on the segmentation and disagree on every `text_sha`.
 //
+// One terminator does not split: an ordinal — a `.` closing a bare number — whose
+// next word starts lowercase is inside the sentence (floorOrdinalContinues).
+//
 // Bytes are safe to compare here: every terminator and every space is ASCII, and
 // no ASCII byte occurs inside a multi-byte UTF-8 sequence.
 func floorSplitUnits(joined string) []string {
@@ -239,12 +265,41 @@ func floorSplitUnits(joined string) []string {
 		if j == i+1 {
 			continue // no whitespace follows, so this terminator does not split
 		}
+		if floorOrdinalContinues(joined, i, j) {
+			continue
+		}
 		keep(joined[start : i+1])
 		start = j
 		i = j - 1
 	}
 	keep(joined[start:])
 	return units
+}
+
+// floorOrdinalContinues reports whether the `.` at joined[i], followed by
+// whitespace up to joined[j], is an ordinal inside its sentence rather than the
+// sentence's end: the `.` closes a run of digits that starts the string or
+// follows whitespace, and the word at j opens with a lowercase letter.
+//
+// Both halves are needed. `Step 6. writes` and `ise 6. adımdan` are one
+// sentence; `exit 1. The caller` is two, and only the capital tells them apart.
+// The bare-number half keeps `§2.5. tp ships` — a section reference ending a
+// sentence before a lowercase identifier — splitting where it always did. The
+// letter test decodes a rune, because the lowercase word a Turkish spec puts
+// there can open with `ı` or `ş`.
+func floorOrdinalContinues(joined string, i, j int) bool {
+	if joined[i] != '.' || j >= len(joined) {
+		return false
+	}
+	k := i
+	for k > 0 && joined[k-1] >= '0' && joined[k-1] <= '9' {
+		k--
+	}
+	if k == i || (k > 0 && !isFloorSpaceByte(joined[k-1])) {
+		return false
+	}
+	r, _ := utf8.DecodeRuneInString(joined[j:])
+	return unicode.IsLower(r)
 }
 
 // isFloorSpaceByte reports whether one byte is whitespace for §2.1 step 4's

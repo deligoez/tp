@@ -469,6 +469,94 @@ func TestProseSplitsAtATerminatorFollowedByWhitespace(t *testing.T) {
 	}
 }
 
+// TestAnOrdinalBeforeALowercaseWordDoesNotEndTheSentence is the ordinal
+// exception to step 4: a `.` closing a bare number and followed by a lowercase
+// word is an ordinal inside the sentence, not the sentence's end.
+//
+// The defect it pins cost a claim its floor membership. `§6.2 ise 6. adımdan
+// itibaren …` split after `6.`, and the half carrying the claim held no digit,
+// no span and no listed verb, so the arms cut it: the unit a grader had to rule
+// on never reached the round. The Turkish case is here because the corpus that
+// reported it is Turkish and its lowercase letters (`ı`, `ş`) are not ASCII —
+// a byte-range test for "lowercase" would pass the English case and miss it.
+//
+// The third case is the boundary the exception must not cross: a number closing
+// a sentence before a capitalised one still splits, so the exception is decided
+// by the word after the ordinal and not by the ordinal alone.
+func TestAnOrdinalBeforeALowercaseWordDoesNotEndTheSentence(t *testing.T) {
+	tests := []struct {
+		name string
+		text string
+		want []string
+	}{
+		{
+			name: "a Turkish ordinal step reference is one unit",
+			text: "§6.2 ise 6. adımdan itibaren her şey yazılır.",
+			want: []string{"§6.2 ise 6. adımdan itibaren her şey yazılır."},
+		},
+		{
+			name: "an English ordinal step reference is one unit",
+			text: "Step 6. writes the floor.",
+			want: []string{"Step 6. writes the floor."},
+		},
+		{
+			name: "a number ending a sentence before a capital still splits",
+			text: "It returns exit 1. The caller stops.",
+			want: []string{"It returns exit 1.", "The caller stops."},
+		},
+		{
+			// spec/0.28.0.md's own sentence: a section number is not a bare
+			// number, so a lowercase identifier after it still starts a unit.
+			name: "a section number ending a sentence still splits",
+			text: "Embedding it would break §2.5. tp ships the oracle.",
+			want: []string{"Embedding it would break §2.5.", "tp ships the oracle."},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, FloorUnits(tt.text))
+		})
+	}
+	// The consequence the defect had, asserted on the reported line: the one
+	// unit carries the section number, so the claim reaches the floor with it.
+	assert.True(t, inFloor("§6.2 ise 6. adımdan itibaren her şey yazılır."))
+	assert.False(t, inFloor("adımdan itibaren her şey yazılır."),
+		"the fixture discriminates only if the claim half alone is cut")
+}
+
+// TestANumberedListGluedToAColonLineSplitsLikeOneBelowABlankLine is step 2's
+// list exception: a numbered list that opens on the line after one ending in
+// `:` starts its own block, exactly as it would with a blank line above it.
+//
+// Without it the colon line and the list share a block whose first line is
+// prose, so step 3's gate keeps every marker, and step 4 then cuts after each
+// one — the introducing sentence ends in `1.` and the later markers come back as
+// bare `2.`, `3.` units. `spec/0.21.0-skill-interview.md`'s "The agent MUST:"
+// is the corpus's instance of exactly that. The assertion is parity with the
+// blank-line form, stated in full, so neither side can drift alone.
+//
+// The last case is the gate's other side: a line NOT ending in `:` followed by
+// an ordinal line is hard-wrapped prose and stays one block (§11 row 20).
+func TestANumberedListGluedToAColonLineSplitsLikeOneBelowABlankLine(t *testing.T) {
+	const glued = "The steps are:\n1. Alpha holds one.\n2. Beta holds two.\n3. Gamma holds three."
+	const spaced = "The steps are:\n\n1. Alpha holds one.\n2. Beta holds two.\n3. Gamma holds three."
+	want := []string{"The steps are:", "Alpha holds one.", "Beta holds two.", "Gamma holds three."}
+
+	assert.Equal(t, want, FloorUnits(spaced), "the blank-line form is the reference")
+	assert.Equal(t, want, FloorUnits(glued), "the glued form splits like the blank-line form")
+	for _, u := range FloorUnits(glued) {
+		assert.NotRegexp(t, bareFloorMarkerRe, u, "no unit is a bare marker fragment")
+	}
+
+	assert.Equal(t, renderBlocks(floorBlocks(spaced)), renderBlocks(floorBlocks(glued)),
+		"the two forms block identically")
+
+	assert.Equal(t,
+		[]string{"The rule was refuted by input 2. of the six built here."},
+		FloorUnits("The rule was refuted by input\n2. of the six built here."),
+		"a line that does not end in a colon does not open a list")
+}
+
 // TestStep5TrimsAndDropsEmpties asserts §2.1 step 5 at the seam rather than
 // through FloorUnits, and says why: step 3 has already collapsed and trimmed
 // everything FloorUnits can reach, so no spec text produces a segment needing
@@ -525,14 +613,14 @@ func TestAListMarkerIsStrippedOnlyWhenTheBlockOpensAList(t *testing.T) {
 			// strip the unit silently loses it, and the two units here become
 			// one that reads "…by input of the six built here.".
 			//
-			// The `2.` then splits the sentence, because step 4 is a terminator
-			// followed by whitespace and knows nothing about ordinals. That is
-			// the rule as written and it is what the prototype does on §7.1's
-			// own paragraph; §11 row 20 calls the result "the same single unit",
-			// which no input of this shape can produce.
+			// The `2.` no longer splits the sentence: it closes a bare number and
+			// the next word is lowercase, so step 4 reads it as an ordinal
+			// (TestAnOrdinalBeforeALowercaseWordDoesNotEndTheSentence). Before
+			// that exception this case pinned two units, "…by input 2." and
+			// "of the six built here.".
 			name: "a block that does not open a list keeps a later line's marker",
 			text: "The rule was refuted by input\n2. of the six built here.",
-			want: []string{"The rule was refuted by input 2.", "of the six built here."},
+			want: []string{"The rule was refuted by input 2. of the six built here."},
 		},
 		{
 			name: "a marker needs whitespace after it",
