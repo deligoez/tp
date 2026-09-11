@@ -69,6 +69,7 @@ func runReviewVerify(specPath, findingsPath string, affectedFiles []string, diff
 
 	// Build spec content
 	var specContent string
+	var specCut *engine.SpecCut
 	switch {
 	case diffFrom != "":
 		if _, err := os.Stat(diffFrom); os.IsNotExist(err) {
@@ -92,7 +93,7 @@ func runReviewVerify(specPath, findingsPath string, affectedFiles []string, diff
 		specContent = buildDiffSpecContent(&dr)
 	case specInline:
 		var err error
-		specContent, err = readSpecContent(specPath)
+		specContent, specCut, err = readSpecContent(specPath)
 		if err != nil {
 			output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath), err.Error())
 			os.Exit(ExitFile)
@@ -124,8 +125,9 @@ func runReviewVerify(specPath, findingsPath string, affectedFiles []string, diff
 	}}, q, nil)
 
 	result := reviewResult{
-		Spec:    specPath,
-		Prompts: selected,
+		Spec:          specPath,
+		SpecTruncated: specCut,
+		Prompts:       selected,
 		ReviewLoop: reviewLoop{
 			Round:            0,
 			Convergence:      "verification pass",

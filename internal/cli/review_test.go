@@ -1382,7 +1382,7 @@ func TestReviewTestPromptDeterministic(t *testing.T) {
 // Test: --perspective code-audit with --round and --findings should work
 // TestReviewCodeAuditWithRoundAndFindings: --round is exempt from the
 // perspective exclusion and code-audit reports it, so that arm still succeeds.
-// --findings is NOT: runReviewCodeAudit never opens the file and answers
+// --findings is NOT: reviewCodeAuditResult never opens the file and answers
 // previous_findings 0 about it, so the invocation used to exit 0 asserting a
 // count over a file tp never read. This test used to pin that acceptance while
 // asserting nothing about the findings; the refusal replaces it.

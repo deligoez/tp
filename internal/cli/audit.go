@@ -84,6 +84,7 @@ type auditResult struct {
 	Spec             string                `json:"spec"`
 	Files            []string              `json:"files"`
 	FileSummary      *auditFileSummary     `json:"file_summary,omitempty"`
+	SpecTruncated    *engine.SpecCut       `json:"spec_truncated,omitempty"`
 	Checklist        []checklistEntry      `json:"checklist"`
 	ChecklistSummary checklistSummary      `json:"checklist_summary"`
 	SkippedRoles     *[]engine.SkippedRole `json:"skipped_roles,omitempty"`
@@ -307,7 +308,7 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	// filter below; a refusal decided after that write would leave it on disk.
 	panel := resolveRolePanel(specPath, engine.PhaseAuditors)
 
-	specLines, specContent, snap := loadAuditSpec(specPath, force)
+	specLines, specContent, specCut, snap := loadAuditSpec(specPath, force)
 
 	priorByRole := loadAuditPriorRound(specPath)
 
@@ -391,9 +392,13 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	}
 
 	result := auditResult{
-		Spec:      specPath,
-		Files:     files,
-		Checklist: checklist,
+		Spec:  specPath,
+		Files: files,
+		// Present only when spec-coverage's excerpt holds part of the spec.
+		// compactAuditChecklist keeps it: the role judged a partial spec,
+		// which decides what its verdicts are worth.
+		SpecTruncated: specCut,
+		Checklist:     checklist,
 		ChecklistSummary: checklistSummary{
 			Total:  len(checklist),
 			ByType: byType,
@@ -509,10 +514,11 @@ func (s auditRoundSnapshot) write(specPath string) {
 
 // loadAuditSpec reads the spec, prepares the round snapshot of its raw bytes
 // (§10.2) without writing it, and returns the frontmatter-blanked line slice
-// plus the (possibly truncated) spec content used for prompt emission. Read and
-// state errors abort via ExitFile / exitStateError, matching runAudit's exit
-// contract.
-func loadAuditSpec(specPath string, force bool) (specLines []string, specContent string, snap auditRoundSnapshot) {
+// plus the spec content used for prompt emission, capped by
+// engine.CapSpecContent, and the cut it reports (nil when nothing was cut).
+// Read and state errors abort via ExitFile / exitStateError, matching
+// runAudit's exit contract.
+func loadAuditSpec(specPath string, force bool) (specLines []string, specContent string, cut *engine.SpecCut, snap auditRoundSnapshot) {
 	specData, err := os.ReadFile(specPath)
 	if err != nil {
 		// Carry the cause: a permission or IO failure is otherwise
@@ -523,7 +529,7 @@ func loadAuditSpec(specPath string, force bool) (specLines []string, specContent
 		// default, the wrong object entirely.
 		output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath), err.Error())
 		os.Exit(ExitFile)
-		return nil, "", auditRoundSnapshot{}
+		return nil, "", nil, auditRoundSnapshot{}
 	}
 	auditSt, stErr := engine.LoadReviewState(specPath)
 	if stErr != nil {
@@ -542,7 +548,7 @@ func loadAuditSpec(specPath string, force bool) (specLines []string, specContent
 			auditSt = nil
 		} else {
 			exitStateError(stErr)
-			return nil, "", auditRoundSnapshot{}
+			return nil, "", nil, auditRoundSnapshot{}
 		}
 	}
 	auditRecorded := 0
@@ -552,11 +558,8 @@ func loadAuditSpec(specPath string, force bool) (specLines []string, specContent
 	snap = auditRoundSnapshot{round: auditRecorded + 1, data: specData, force: force}
 	specData = engine.BlankFrontmatter(specData)
 	specLines = strings.Split(string(specData), "\n")
-	specContent = string(specData)
-	if len(specContent) > engine.SpecContentCap {
-		specContent = specContent[:engine.SpecContentCap] + "\n[...spec truncated]"
-	}
-	return specLines, specContent, snap
+	specContent, cut = engine.CapSpecContent(string(specData), specPath)
+	return specLines, specContent, cut, snap
 }
 
 // loadAuditPriorRound reads the previous recorded audit round and returns,

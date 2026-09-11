@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/deligoez/tp/internal/output"
 )
@@ -17,6 +19,53 @@ const (
 	SpecContentCap     = 10000
 	FindingsSummaryCap = 5000
 )
+
+// SpecCut names a spec whose inline excerpt holds only its head: the path to
+// read the rest from, the bytes the excerpt kept and the bytes there are in
+// all. Both counts are over the text the prompt embeds, which is the spec with
+// its frontmatter blanked.
+type SpecCut struct {
+	Path       string `json:"path"`
+	KeptBytes  int    `json:"kept_bytes"`
+	TotalBytes int    `json:"total_bytes"`
+}
+
+// CapSpecContent is the one cut every inline spec excerpt takes. Content that
+// fits SpecContentCap comes back whole with a nil SpecCut. Longer content is cut
+// to the last complete rune at or before the cap — a byte slice there kept
+// the lead byte of a split rune, invalid UTF-8 the JSON encoder turned into
+// U+FFFD — and followed by a marker line naming both counts and the path, so
+// the role reading the prompt knows what it did not see and where it is. The
+// SpecCut is what the caller puts in its payload.
+func CapSpecContent(content, path string) (string, *SpecCut) {
+	if len(content) <= SpecContentCap {
+		return content, nil
+	}
+	if abs, err := filepath.Abs(path); err == nil {
+		path = abs
+	}
+	cut := &SpecCut{Path: path, KeptBytes: runeBoundaryAtOrBefore(content, SpecContentCap), TotalBytes: len(content)}
+	return content[:cut.KeptBytes] + fmt.Sprintf("\n[...spec truncated at %d of %d bytes; read the rest at %s]", cut.KeptBytes, cut.TotalBytes, cut.Path), cut
+}
+
+// runeBoundaryAtOrBefore returns the largest n' <= n at which s[:n'] ends on a
+// rune boundary: n itself unless the rune starting just before it needs bytes
+// past n. Bytes that are not UTF-8 to begin with are left where they are,
+// since no boundary exists to back off to.
+func runeBoundaryAtOrBefore(s string, n int) int {
+	// The last rune start is at most utf8.UTFMax-1 bytes back; FullRuneInString
+	// is false only for a valid prefix of a longer encoding, so an invalid byte
+	// is never mistaken for a split rune.
+	for start := n - 1; start >= 0 && start > n-utf8.UTFMax; start-- {
+		if utf8.RuneStart(s[start]) {
+			if utf8.FullRuneInString(s[start:n]) {
+				return n
+			}
+			return start
+		}
+	}
+	return n
+}
 
 type AffectedSummary struct {
 	TotalFiles    int `json:"total_files"`

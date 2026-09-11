@@ -219,6 +219,7 @@ type reviewResult struct {
 	Spec               string                     `json:"spec"`
 	SpecRef            bool                       `json:"spec_ref,omitempty"`
 	SpecPath           string                     `json:"spec_path,omitempty"`
+	SpecTruncated      *engine.SpecCut            `json:"spec_truncated,omitempty"`
 	StructuredElements *engine.StructuredElements `json:"structured_elements,omitempty"`
 	Perspective        string                     `json:"perspective,omitempty"`
 	DocsPath           string                     `json:"docs_path,omitempty"`
@@ -592,15 +593,15 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 
 	affectedFiles = validateReviewInputs(perspective, round, cmd.Flags().Changed("round"), findingsPath, affectedFiles, docsPath, testPath, finalRound, diffFrom, specPath)
 
-	specContent := resolveReviewSpecContent(specPath, diffFrom, specInline)
+	specContent, specCut := resolveReviewSpecContent(specPath, diffFrom, specInline)
 
 	switch perspective {
 	case "code-audit":
-		return runReviewCodeAudit(specPath, specContent, affectedFiles, round, roleQueryFor(specPath, roleFilter, roleGiven))
+		return emitSinglePass(reviewCodeAuditResult(specPath, specContent, affectedFiles, round, roleQueryFor(specPath, roleFilter, roleGiven)), specCut)
 	case "documentation":
-		return runReviewDocPlan(specPath, specContent, docsPath, affectedFiles, roleQueryFor(specPath, roleFilter, roleGiven))
+		return emitSinglePass(reviewDocPlanResult(specPath, specContent, docsPath, affectedFiles, roleQueryFor(specPath, roleFilter, roleGiven)), specCut)
 	case "testing":
-		return runReviewTestPlan(specPath, specContent, testPath, affectedFiles, roleQueryFor(specPath, roleFilter, roleGiven))
+		return emitSinglePass(reviewTestPlanResult(specPath, specContent, testPath, affectedFiles, roleQueryFor(specPath, roleFilter, roleGiven)), specCut)
 	}
 
 	if round < 1 {
@@ -702,7 +703,11 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 	}
 
 	result := reviewResult{
-		Spec:               specPath,
+		Spec: specPath,
+		// tp audit's key of the same name, present only when --spec-inline
+		// embedded part of the spec. It survives --compact, as audit's does:
+		// the roles judged a partial spec.
+		SpecTruncated:      specCut,
 		StructuredElements: elems,
 		MechanicalChecks:   mechChecks,
 		Prompts:            prompts,
@@ -763,7 +768,7 @@ func validateReviewInputs(perspective string, round int, roundGiven bool, findin
 	}
 
 	// code-audit is exempt from that rule for --round, which it reports, but
-	// NOT for --findings: runReviewCodeAudit never reads the file and answers
+	// NOT for --findings: reviewCodeAuditResult never reads the file and answers
 	// previous_findings 0 about it, so accepting the flag asserted a count over
 	// a file tp never opened — the accepted-then-silently-dropped shape the
 	// -o/--output and --merge guards exist to refuse.
@@ -910,13 +915,20 @@ func appendFinalRoundInstruction(b *strings.Builder) {
 	b.WriteString("\nMANDATORY: Read every file in the Affected Files section line-by-line. For each state-dependent behavior (disabled, loading, conditional rendering, class binding, error handling), verify the spec explicitly addresses it. Do NOT report \"spec is solid\" unless you have verified every state-dependent element.\n")
 }
 
-// runReviewCodeAudit emits the single-pass code-audit perspective prompt.
-func runReviewCodeAudit(specPath, specContent string, affectedFiles []string, round int, q roleQuery) error {
+// emitSinglePass writes a single-pass perspective's payload, adding the
+// spec_truncated key for the cut its inline spec took (nil when none).
+func emitSinglePass(r *reviewResult, specCut *engine.SpecCut) error {
+	r.SpecTruncated = specCut
+	return output.JSON(r)
+}
+
+// reviewCodeAuditResult builds the single-pass code-audit perspective payload.
+func reviewCodeAuditResult(specPath, specContent string, affectedFiles []string, round int, q roleQuery) *reviewResult {
 	affectedContent := engine.ReadAffectedFiles(affectedFiles)
 	summary := engine.BuildAffectedSummary(affectedFiles, affectedContent)
 	prompt := generateCodeAuditPrompt(specContent, affectedContent)
 	selected := filterReviewPrompts([]reviewPrompt{prompt}, q, nil)
-	return output.JSON(reviewResult{
+	return &reviewResult{
 		Spec:            specPath,
 		Perspective:     "code-audit",
 		AffectedFiles:   affectedFiles,
@@ -928,11 +940,11 @@ func runReviewCodeAudit(specPath, specContent string, affectedFiles []string, ro
 			PreviousFindings: 0,
 			Instruction:      instructionForPayload("Spawn a sub-agent with this prompt. Collect NDJSON findings. Feed findings back into spec revision or task acceptance updates.", len(selected)),
 		},
-	})
+	}
 }
 
-// runReviewDocPlan emits the single-pass documentation-plan perspective prompt.
-func runReviewDocPlan(specPath, specContent, docsPath string, affectedFiles []string, q roleQuery) error {
+// reviewDocPlanResult builds the single-pass documentation-plan perspective payload.
+func reviewDocPlanResult(specPath, specContent, docsPath string, affectedFiles []string, q roleQuery) *reviewResult {
 	structureMap, files := walkDocTree(docsPath, ".md")
 	ranked := rankFilesBySpecTerms(files, strings.Split(specContent, "\n"))
 	docContent := readFilesContent(ranked, 30000)
@@ -941,7 +953,7 @@ func runReviewDocPlan(specPath, specContent, docsPath string, affectedFiles []st
 	}
 	prompt := generateDocPlanPrompt(specContent, structureMap, docContent)
 	selected := filterReviewPrompts([]reviewPrompt{prompt}, q, nil)
-	return output.JSON(reviewResult{
+	return &reviewResult{
 		Spec:            specPath,
 		Perspective:     "documentation",
 		DocsPath:        docsPath,
@@ -955,11 +967,11 @@ func runReviewDocPlan(specPath, specContent, docsPath string, affectedFiles []st
 			PreviousFindings: 0,
 			Instruction:      instructionForPayload("Spawn a sub-agent with this prompt. Collect the NDJSON plan. Review the plan for completeness, then append the plan to the spec.", len(selected)),
 		},
-	})
+	}
 }
 
-// runReviewTestPlan emits the single-pass test-plan perspective prompt.
-func runReviewTestPlan(specPath, specContent, testPath string, affectedFiles []string, q roleQuery) error {
+// reviewTestPlanResult builds the single-pass test-plan perspective payload.
+func reviewTestPlanResult(specPath, specContent, testPath string, affectedFiles []string, q roleQuery) *reviewResult {
 	structureMap, files := walkDocTree(testPath, "_test.go")
 	ranked := rankFilesBySpecTerms(files, strings.Split(specContent, "\n"))
 	testContent := readFilesContent(ranked, 20000)
@@ -968,7 +980,7 @@ func runReviewTestPlan(specPath, specContent, testPath string, affectedFiles []s
 	}
 	prompt := generateTestPlanPrompt(specContent, structureMap, testContent)
 	selected := filterReviewPrompts([]reviewPrompt{prompt}, q, nil)
-	return output.JSON(reviewResult{
+	return &reviewResult{
 		Spec:            specPath,
 		Perspective:     "testing",
 		TestPath:        testPath,
@@ -982,7 +994,7 @@ func runReviewTestPlan(specPath, specContent, testPath string, affectedFiles []s
 			PreviousFindings: 0,
 			Instruction:      instructionForPayload("Spawn a sub-agent with this prompt. Collect the NDJSON plan. Review the plan for completeness, then append the plan to the spec.", len(selected)),
 		},
-	})
+	}
 }
 
 // buildReviewPrompts emits the round's review prompts: one per active reviewer
@@ -1929,52 +1941,53 @@ func buildSpecRefContent(absPath string, lineCount int, headings []*engine.Headi
 // returned what it had, so `--spec-inline` on a spec with one long line exited
 // 0 emitting a spec whose tail was silently absent — the swallowed read this
 // contract rules out, arriving through the line cap instead of the open.
-func readSpecContent(path string) (string, error) {
+//
+// The content is capped by engine.CapSpecContent, tp audit's cut, and the cut
+// it reports is returned for the payload's spec_truncated (nil when whole).
+func readSpecContent(path string) (string, *engine.SpecCut, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	lines := engine.BlankFrontmatterLines(strings.Split(string(data), "\n"))
-	content := strings.Join(lines, "\n")
-	if len(content) > specContentCap {
-		content = content[:specContentCap] + fmt.Sprintf("\n[...truncated at %d chars]", specContentCap)
-	}
-	return content, nil
+	content, cut := engine.CapSpecContent(strings.Join(lines, "\n"), path)
+	return content, cut, nil
 }
 
 // resolveReviewSpecContent builds the spec-content block for a review prompt in
 // the selected mode: diff-based (--diff-from), inline (--spec-inline), or the
-// default reference mode. It os.Exit()s with a file error on a read failure.
-func resolveReviewSpecContent(specPath, diffFrom string, specInline bool) string {
+// default reference mode, plus the cut the inline mode reports (nil otherwise).
+// It os.Exit()s with a file error on a read failure.
+func resolveReviewSpecContent(specPath, diffFrom string, specInline bool) (string, *engine.SpecCut) {
 	switch {
 	case diffFrom != "":
 		baseData, err := os.ReadFile(diffFrom)
 		if err != nil {
 			output.Error(ExitFile, fmt.Sprintf("cannot read diff baseline: %s", diffFrom), specFileMissingHint)
 			os.Exit(ExitFile)
-			return ""
+			return "", nil
 		}
 		currData, err := os.ReadFile(specPath)
 		if err != nil {
 			output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath), specFileMissingHint)
 			os.Exit(ExitFile)
-			return ""
+			return "", nil
 		}
 		dr := engine.DiffSections(engine.BlankFrontmatterLines(strings.Split(string(baseData), "\n")), engine.BlankFrontmatterLines(strings.Split(string(currData), "\n")))
 		content := buildDiffSpecContent(&dr)
 		if len(dr.Changed) == 0 && len(dr.Removed) == 0 {
 			output.Info("no changes detected between baseline and current spec — review may be unnecessary")
 		}
-		return content
+		return content, nil
 	case specInline:
-		content, err := readSpecContent(specPath)
+		content, cut, err := readSpecContent(specPath)
 		if err != nil {
 			output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath), specFileMissingHint)
 			os.Exit(ExitFile)
-			return ""
+			return "", nil
 		}
-		return content
+		return content, cut
 	default:
 		// Default: reference mode (spec-ref) — omit inline content.
 		// PRE-stat site: unlike tp audit (whose os.Stat guard runs first, so
@@ -1987,12 +2000,12 @@ func resolveReviewSpecContent(specPath, diffFrom string, specInline bool) string
 		if err != nil {
 			output.Error(ExitFile, fmt.Sprintf("cannot read spec: %s", specPath), specFileMissingHint)
 			os.Exit(ExitFile)
-			return ""
+			return "", nil
 		}
 		lineCount := strings.Count(string(specData), "\n") + 1
 		absPath, _ := filepath.Abs(specPath)
 		headings, _ := engine.ParseHeadings(specPath)
-		return buildSpecRefContent(absPath, lineCount, headings)
+		return buildSpecRefContent(absPath, lineCount, headings), nil
 	}
 }
 
