@@ -3,9 +3,12 @@ package cli
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -108,7 +111,7 @@ func runDone(cmd *cobra.Command, args []string) error {
 
 	// Normalize --commit into an ordered, de-duplicated commit list; a repeated
 	// sha is a validation error (§6.1).
-	cleanedCommits, commitErr := resolveCommitSHAs(doneCommits, "")
+	cleanedCommits, commitErr := resolveCommitSHAs(doneCommits)
 	if commitErr != nil {
 		output.Error(ExitValidation, commitErr.Error())
 		os.Exit(ExitValidation)
@@ -590,14 +593,49 @@ func runDoneMulti(taskFilePath string, taskIDs []string, reason string) error {
 }
 
 type batchEntry struct {
-	ID         string     `json:"id"`
-	Reason     string     `json:"reason"`
-	GatePassed bool       `json:"gate_passed"`
-	Commit     string     `json:"commit"`
-	CommitSHAs []string   `json:"commit_shas"`
-	StartedAt  *time.Time `json:"started_at"`
-	CoveredBy  string     `json:"covered_by"`
-	SkipGate   *string    `json:"skip_gate"`
+	ID         string      `json:"id"`
+	Reason     string      `json:"reason"`
+	GatePassed bool        `json:"gate_passed"`
+	Commit     batchCommit `json:"commit"`
+	CommitSHAs []string    `json:"commit_shas"`
+	StartedAt  *time.Time  `json:"started_at"`
+	CoveredBy  string      `json:"covered_by"`
+	SkipGate   *string     `json:"skip_gate"`
+}
+
+// batchCommit is a batch row's "commit": one sha or an array of them — the
+// same values one --commit or a repeated --commit carries.
+type batchCommit []string
+
+func (c *batchCommit) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" {
+		return nil
+	}
+	var one string
+	if json.Unmarshal(data, &one) == nil {
+		*c = batchCommit{one}
+		return nil
+	}
+	var many []string
+	if json.Unmarshal(data, &many) != nil {
+		return errors.New(`"commit" must be a sha string or an array of sha strings`)
+	}
+	*c = many
+	return nil
+}
+
+// batchRowCommitSHAs resolves a row's commit and commit_shas into the shas to
+// record, under resolveCommitSHAs' validation. A row filling both is refused:
+// recording one would drop the other without a word.
+func batchRowCommitSHAs(e *batchEntry) ([]string, error) {
+	if hasSHA(e.Commit) && hasSHA(e.CommitSHAs) {
+		return nil, errors.New(`row carries both "commit" and "commit_shas"; put every sha in one of them`)
+	}
+	return resolveCommitSHAs(append(slices.Clone(e.CommitSHAs), e.Commit...))
+}
+
+func hasSHA(list []string) bool {
+	return slices.ContainsFunc(list, func(s string) bool { return strings.TrimSpace(s) != "" })
 }
 
 type batchFailure struct {
@@ -611,7 +649,7 @@ func runDoneBatch() error {
 	// Read NDJSON file
 	entries, err := readBatchEntries(doneBatch)
 	if err != nil {
-		output.Error(ExitFile, err.Error())
+		output.Error(ExitFile, err.Error(), batchReadHint(err))
 		os.Exit(ExitFile)
 		return nil
 	}
@@ -792,7 +830,7 @@ func runDoneBatch() error {
 				continue
 			}
 
-			shas, commitErr := resolveCommitSHAs(entry.CommitSHAs, entry.Commit)
+			shas, commitErr := batchRowCommitSHAs(&entry)
 			if commitErr != nil {
 				failures = append(failures, batchFailure{ID: entry.ID, Error: commitErr.Error()})
 				continue
@@ -924,14 +962,10 @@ func resolveMultiReason(args []string, useStdin bool, reasonFile string) (ids []
 }
 
 // resolveCommitSHAs returns the ordered, de-duplicated commit SHAs to record on
-// a close, preferring an explicit list over a single legacy value. A repeated
-// sha is a validation error ("duplicate commit sha", §6.1); blank entries are
-// dropped. An empty result records no commit — a --covered-by or bare close.
-func resolveCommitSHAs(list []string, single string) ([]string, error) {
-	raw := list
-	if len(raw) == 0 && strings.TrimSpace(single) != "" {
-		raw = []string{single}
-	}
+// a close. A repeated sha is a validation error ("duplicate commit sha", §6.1);
+// blank entries are dropped. An empty result records no commit — a
+// --covered-by or bare close.
+func resolveCommitSHAs(raw []string) ([]string, error) {
 	seen := make(map[string]bool, len(raw))
 	out := make([]string, 0, len(raw))
 	for _, s := range raw {
@@ -955,6 +989,20 @@ func resolveCommitSHAs(list []string, single string) ([]string, error) {
 	return out, nil
 }
 
+// batchRowSchemaHint names every key a --batch row may carry, for the error a
+// row that does not parse reports: the file-error default hint is about the
+// task file, which is not the file that failed.
+const batchRowSchemaHint = `each line is one JSON object: {"id": "<task>", "reason": "<evidence>", "commit": "<sha>" or ["<sha>", ...] (or "commit_shas": [...], not both), "covered_by": "<task>", "gate_passed": bool, "started_at": "<RFC3339>", "skip_gate": "<reason>"}`
+
+// batchReadHint picks the hint for a readBatchEntries error: an unopenable
+// path is about the --batch argument, anything else about a row's shape.
+func batchReadHint(err error) string {
+	if pathErr := new(fs.PathError); errors.As(err, &pathErr) {
+		return "check the --batch path: it names an NDJSON file of rows to close"
+	}
+	return batchRowSchemaHint
+}
+
 func readBatchEntries(path string) ([]batchEntry, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -965,14 +1013,16 @@ func readBatchEntries(path string) ([]batchEntry, error) {
 	var entries []batchEntry
 	scanner := bufio.NewScanner(f)
 	scanner.Buffer(make([]byte, 0, 64*1024), ndjsonLineCap) // tolerate long NDJSON lines
+	lineNo := 0
 	for scanner.Scan() {
+		lineNo++
 		line := scanner.Text()
 		if line == "" {
 			continue
 		}
 		var e batchEntry
 		if err := json.Unmarshal([]byte(line), &e); err != nil {
-			return nil, fmt.Errorf("invalid NDJSON line: %w", err)
+			return nil, fmt.Errorf("invalid NDJSON line %d: %w", lineNo, err)
 		}
 		entries = append(entries, e)
 	}
