@@ -220,7 +220,7 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 	// one decision. It lists the intersection: a registered class that never
 	// reached candidate frequency was never a candidate, so the filter never saw
 	// it and it is absent here.
-	mechanized, verdict := recordChecks(&wf, taskFilePath, candidates, done)
+	mechanized, verdict, mechChecks := recordChecks(&wf, taskFilePath, candidates, done)
 	candidates, mechanizedClasses := filterMechanizedCandidates(candidates, mechanized)
 	// clean/consecutive_clean/converged are recomputed live from the round's
 	// recorded findings under the current review_converge_on (§3.4) — the
@@ -243,6 +243,12 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 		"stale":                 engine.StateStale(st.ReviewRounds, specHash),
 		"mechanize_candidates":  candidates,
 		"mechanized_classes":    mechanizedClasses,
+	}
+	// The checks recordChecks ran, in the --status --check shape, so a reader
+	// sees what moved mechanized_classes and next_action. Absent when it ran
+	// none; [] when it tried and no task file resolved for them to run in.
+	if mechChecks != nil {
+		result["mechanical_checks"] = mechChecks
 	}
 	// §8.4: harness_stale and harness_note are explanatory and are omitted under
 	// --compact; next_action and nonblocking_open are decision-critical and

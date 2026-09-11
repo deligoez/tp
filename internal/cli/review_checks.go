@@ -76,18 +76,20 @@ func checkVerdict(checks []model.Check, results []map[string]any, taskFilePath s
 }
 
 // recordChecks runs the registered checks for --record where their result can
-// change its payload, and returns the membership rule and the verdict it reads.
-// A candidate class with a registered check needs the result to know whether
-// the check mechanizes it, and a loop that is done or at its cap needs it
-// before next_action names an import step. Anywhere else nothing runs: with no
-// candidate registered both rules keep every candidate, and no next_action
-// branch that reads the verdict can fire.
-func recordChecks(wf *model.Workflow, taskFilePath string, candidates []mechanizeCandidate, done engine.LoopDone) (mechanized func(string) bool, verdict engine.CheckVerdict) {
+// change its payload, and returns the membership rule and the verdict it reads,
+// plus the runner's results for the payload's mechanical_checks — nil when
+// nothing ran. A candidate class with a registered check needs the result to
+// know whether the check mechanizes it, and a loop that is done or at its cap
+// needs it before next_action names an import step. Anywhere else nothing
+// runs: with no candidate registered both rules keep every candidate, and no
+// next_action branch that reads the verdict can fire. With no check registered
+// there is nothing to run at all.
+func recordChecks(wf *model.Workflow, taskFilePath string, candidates []mechanizeCandidate, done engine.LoopDone) (mechanized func(string) bool, verdict engine.CheckVerdict, results []map[string]any) {
 	registered := registeredMechanized(wf.Checks)
 	candidateRegistered := slices.ContainsFunc(candidates, func(c mechanizeCandidate) bool { return registered(c.Class) })
-	if !done.Done && !done.CapReached && !candidateRegistered {
-		return registered, engine.CheckVerdict{}
+	if len(wf.Checks) == 0 || (!done.Done && !done.CapReached && !candidateRegistered) {
+		return registered, engine.CheckVerdict{}, nil
 	}
-	results, _ := runMechanicalChecks(wf, taskFilePath)
-	return ranMechanized(wf.Checks, results), checkVerdict(wf.Checks, results, taskFilePath)
+	results, _ = runMechanicalChecks(wf, taskFilePath)
+	return ranMechanized(wf.Checks, results), checkVerdict(wf.Checks, results, taskFilePath), results
 }

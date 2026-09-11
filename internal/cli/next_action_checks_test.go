@@ -148,3 +148,32 @@ func TestReviewNextAction_APassingCheckStillDecomposes(t *testing.T) {
 	require.Equal(t, 0, code, "a passing check over a converged loop is the ship signal")
 	assert.Equal(t, forward, reviewNextActionOf(checked), "--status --check")
 }
+
+// TestReviewRecord_ReportsTheChecksItRan: when --record runs the registered
+// checks, its payload carries what they did as mechanical_checks, in the
+// --status --check shape, so a reader can see why the verdict moved. A record
+// that ran none carries no such key.
+func TestReviewRecord_ReportsTheChecksItRan(t *testing.T) {
+	t.Parallel()
+
+	t.Run("ran: each entry reports ran and passed", func(t *testing.T) {
+		t.Parallel()
+		payload := recordPayload(t, checkedClassFixture(t, "exit 2"), fiveRowsOfClass(checkedClass)...)
+		checks, ok := payload["mechanical_checks"].([]any)
+		require.True(t, ok, "--record ran the check, so it reports it: %v", payload)
+		require.Len(t, checks, 1)
+		entry, _ := checks[0].(map[string]any)
+		assert.Equal(t, checkedClass, entry["class"])
+		assert.Equal(t, false, entry["ran"], "exit 2 could not run")
+		assert.Equal(t, false, entry["passed"])
+		assert.Equal(t, float64(2), entry["exit_code"])
+	})
+
+	t.Run("ran none: no key", func(t *testing.T) {
+		t.Parallel()
+		// One clean round with no candidate: nothing the checks could change.
+		payload := recordPayload(t, checkedClassFixture(t, "exit 0"), "")
+		require.Equal(t, false, payload["done"])
+		assert.NotContains(t, payload, "mechanical_checks")
+	})
+}
