@@ -179,3 +179,25 @@ func TestAudit_ContentKeywordDoesNotPromote(t *testing.T) {
 	assert.Equal(t, []string{"a_one.go", "m_notes.go", "z_two.go"}, paths,
 		"a content-only auth match is ranked alphabetically, not promoted")
 }
+
+// TestAuditAffectedFiles_OneFileNamedTwoWaysIsAuditedOnce: --affected-files
+// is cleaned and made repo-relative before anything else reads it, so a file
+// named by its absolute path and again as ./path is one checklist item under
+// one id, and the id matches the one auto-detection (git diff's repo-relative
+// paths) gives the same file.
+func TestAuditAffectedFiles_OneFileNamedTwoWaysIsAuditedOnce(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "app"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "app", "plain.go"), []byte("package main\n"), 0o600))
+	initGitRepo(t, dir)
+
+	stdout, stderr, code := runTP(t, dir, "audit", "spec.md",
+		"--affected-files", filepath.Join(dir, "app", "plain.go"), "--affected-files", "./app//plain.go")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	items := auditPromptsByRole(t, stdout)["security"]["checklist_items"].([]any)
+	require.Len(t, items, 1, "one file named two ways is one item")
+	assert.Equal(t, "app/plain.go", items[0].(map[string]any)["section"], "the path is repo-relative and clean")
+}

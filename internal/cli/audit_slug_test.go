@@ -6,6 +6,7 @@ import (
 
 	"github.com/deligoez/tp/internal/engine"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSlugifySubject(t *testing.T) {
@@ -64,19 +65,47 @@ func TestFileCheckItems_StableAcrossReorder(t *testing.T) {
 	assert.Equal(t, setOf(a), setOf(b), "same subjects keep same ids regardless of order")
 }
 
-func TestFileCheckItems_CollisionSuffix(t *testing.T) {
+// TestFileCheckItems_IDIsAFunctionOfRoleAndPathAlone: a file's id is the same
+// whether it is emitted alone, beside a file whose slug collides with it, or
+// after a file that sorts before it. The old positional -2 suffix made the id
+// depend on the neighbours, so two shards of one round could give one id to
+// two different files, and --merge kept one row of each such pair.
+func TestFileCheckItems_IDIsAFunctionOfRoleAndPathAlone(t *testing.T) {
 	t.Parallel()
-	files := []engine.AuditFileEntry{
-		{Path: "a_b.go"},
-		{Path: "a-b.go"},
+	alone := func(p string) string {
+		return fileCheckItems([]engine.AuditFileEntry{{Path: p}}, "security")[0].ItemID
 	}
-	items := fileCheckItems(files, "security")
-	assert.Len(t, items, 2)
-	ids := map[string]bool{items[0].ItemID: true, items[1].ItemID: true}
-	slug := slugifySubject("a_b.go Apply the security role rules to a_b.go")
-	base := "file-security-" + slug
-	assert.Contains(t, ids, base, "first item keeps base slug")
-	assert.Contains(t, ids, base+"-2", "collision gets -2 suffix")
+	items := fileCheckItems([]engine.AuditFileEntry{{Path: "0.go"}, {Path: "a_b.go"}, {Path: "a-b.go"}}, "security")
+	require.Len(t, items, 3)
+	assert.NotEqual(t, items[1].ItemID, items[2].ItemID, "a slug collision is told apart by the path digest")
+	for _, it := range items {
+		assert.Equal(t, alone(it.Section), it.ItemID, "%s keeps its id whatever else is in the list", it.Section)
+	}
+}
+
+// TestFileCheckItems_IDShape pins the derivation: the readable slug, then a
+// "." (a character the slug never holds, so an id tells its derivation by
+// shape), then 16 hex characters of the SHA-256 of the cleaned path.
+func TestFileCheckItems_IDShape(t *testing.T) {
+	t.Parallel()
+	id := fileCheckItems([]engine.AuditFileEntry{{Path: "internal/cli/audit.go"}}, "go-safety")[0].ItemID
+	assert.Regexp(t, `^file-go-safety-[a-z0-9-]{1,40}\.[0-9a-f]{16}$`, id)
+	assert.True(t, isCurrentFileCheckID(id))
+	assert.False(t, isCurrentFileCheckID("file-go-safety-internal-cli-audit-go-apply-the-go"),
+		"an id derived before the digest carries no suffix")
+	assert.False(t, isCurrentFileCheckID("file-go-safety-internal-cli-audit-go-apply-the-go-2"),
+		"nor does one carrying the old positional suffix")
+}
+
+// TestFileCheckItems_OneFileOneIDAcrossSpellings: a path spelled with a
+// leading ./ or a doubled slash is the same file, so it gets the same id.
+func TestFileCheckItems_OneFileOneIDAcrossSpellings(t *testing.T) {
+	t.Parallel()
+	id := func(p string) string {
+		return fileCheckItems([]engine.AuditFileEntry{{Path: p}}, "security")[0].ItemID
+	}
+	assert.Equal(t, id("app/a.go"), id("./app/a.go"))
+	assert.Equal(t, id("app/a.go"), id("app//a.go"))
 }
 
 func TestFileCheckItems_AlwaysContainsLetter(t *testing.T) {

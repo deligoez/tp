@@ -612,7 +612,7 @@ func loadAuditPriorRound(specPath string) map[string]*auditPriorRound {
 			entry = &auditPriorRound{legacy: legacy}
 			byRole[role] = entry
 		}
-		entry.rows = append(entry.rows, pr)
+		entry.add(pr)
 	}
 	return byRole
 }
@@ -716,6 +716,49 @@ func compactAuditChecklist(result *auditResult) {
 	}
 }
 
+// repoRelativePaths puts each named path in the form auto-detection gives it
+// (git diff's repo-relative path) and drops duplicates, so one file named two
+// ways is one checklist item under one id. A path is cleaned; it is rewritten
+// relative to the repository root only when that form names the same file
+// from the working directory, since every later read resolves against it. A
+// path outside the repository, or in a directory that is not one, stays
+// cleaned as given.
+func repoRelativePaths(specDir string, paths []string) []string {
+	root := engine.FindGitBoundary(specDir)
+	if resolved, err := filepath.EvalSymlinks(root); root != "" && err == nil {
+		root = resolved
+	}
+	out := make([]string, 0, len(paths))
+	for _, p := range paths {
+		out = append(out, auditPathFromRoot(root, filepath.Clean(p)))
+	}
+	return engine.DedupPaths(out)
+}
+
+// auditPathFromRoot is repoRelativePaths for one cleaned path.
+func auditPathFromRoot(root, clean string) string {
+	if root == "" {
+		return filepath.ToSlash(clean)
+	}
+	abs, err := filepath.Abs(clean)
+	if err == nil {
+		abs, err = filepath.EvalSymlinks(abs)
+	}
+	if err != nil {
+		return filepath.ToSlash(clean)
+	}
+	rel, err := filepath.Rel(root, abs)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return filepath.ToSlash(clean)
+	}
+	named, errNamed := os.Stat(clean)
+	here, errHere := os.Stat(rel)
+	if errNamed != nil || errHere != nil || !os.SameFile(named, here) {
+		return filepath.ToSlash(clean)
+	}
+	return filepath.ToSlash(rel)
+}
+
 func resolveAuditFiles(specPath string, affectedFiles []string, base string) (files []string, totalChanged int, err error) {
 	if len(affectedFiles) > 0 {
 		affectedFiles = engine.DedupPaths(affectedFiles)
@@ -734,6 +777,7 @@ func resolveAuditFiles(specPath string, affectedFiles []string, base string) (fi
 				return nil, 0, fmt.Errorf("%w: %s", errAffectedPathIsDir, f)
 			}
 		}
+		affectedFiles = repoRelativePaths(filepath.Dir(specPath), affectedFiles)
 		// The cap belongs to auto-detection: a named set is audited whole, so
 		// its pre-cap count is its own length and it never reads as truncated.
 		return affectedFiles, len(affectedFiles), nil

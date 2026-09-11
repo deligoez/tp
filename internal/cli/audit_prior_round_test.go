@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -149,6 +150,41 @@ func TestAuditPriorRound_LegacyRoundDisclaimer(t *testing.T) {
 	assert.Contains(t, sec, "## Prior Round")
 	assert.Contains(t, sec, "positional", "legacy prior round states its ids are positional")
 	assert.Contains(t, sec, "NOT comparable", "legacy prior round states its ids are not comparable")
+}
+
+// TestAuditPriorRound_EarlierDerivationRowsAreListedApart: a file_check row
+// whose id was derived before the path digest names no item of this round, so
+// it is listed after one line saying so, and a role matches it by
+// evidence_file. Rows of the current derivation, and spec items, stay above
+// that line, where their ids are this round's ids.
+func TestAuditPriorRound_EarlierDerivationRowsAreListedApart(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "auth_helper.go"), []byte("package main\n"), 0o600))
+	_, _, code := runTP(t, dir, "init", "spec.md")
+	require.Equal(t, 0, code)
+
+	state := `{"spec":"spec.md","review_rounds":[],"audit_rounds":[` +
+		`{"round":1,"findings":3,"clean":false,"recorded_at":"2024-01-01T00:00:00Z",` +
+		`"file":"audit-round-1.ndjson","spec_hash":"sha256:x","id_scheme":"slug"}]}`
+	round := `{"item_id":"file-security-auth-helper-go-apply-the-security-2","status":"FAIL","role":"security","evidence_file":"auth_helper.go"}` + "\n" +
+		`{"item_id":"file-security-auth-helper-go-apply-the-security.0123456789abcdef","status":"FAIL","role":"security","evidence_file":"auth_helper.go"}` + "\n" +
+		`{"item_id":"spec-steps-1","status":"PARTIAL","role":"security"}` + "\n"
+	writeRecordedAuditRound(t, dir, state, "audit-round-1.ndjson", round)
+
+	stdout, stderr, code := runTP(t, dir, "audit", "spec.md", "--affected-files", "auth_helper.go")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	sec := auditPromptsByRole(t, stdout)["security"]["prompt"].(string)
+
+	apart := strings.Index(sec, "earlier file_check id derivation")
+	require.Positive(t, apart, "the earlier-derivation rows are introduced by one line")
+	old := strings.Index(sec, "apply-the-security-2")
+	current := strings.Index(sec, ".0123456789abcdef")
+	specRow := strings.Index(sec, "spec-steps-1")
+	assert.Greater(t, old, apart, "the earlier-derivation row is listed under that line")
+	assert.Less(t, current, apart, "a current-derivation row stays with this round's ids")
+	assert.Less(t, specRow, apart, "a spec item's row stays with this round's ids")
 }
 
 // TestAuditPriorRound_MissingRoundFileIsAnnounced: when state.json names a

@@ -1,12 +1,15 @@
 package cli
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -91,25 +94,21 @@ func specItemOf(e *checklistEntry, taskToFiles map[string][]string) ChecklistIte
 }
 
 // fileCheckItems builds one synthetic checklist item per affected file. Each
-// item's id is file-<roleID>-<slug>, where <slug> derives from the item's
-// subject (file path + checklist text) so the same file keeps the same id
-// across rounds regardless of position (§10.3). Collisions — two items
-// yielding the same slug — get a -2, -3, … suffix.
+// item's id is a function of the role and the file's path and of nothing else
+// (not its position in the list, not which other files share the list, not
+// the shard it was emitted in): file-<roleID>-<slug>.<digest>, where <slug> is
+// the readable prefix slugifySubject derives from the subject (path +
+// checklist text, cut to 40 characters) and <digest> is fileCheckDigest(path).
+// Two files whose slugs collide are told apart by the digest, so there is no
+// positional suffix. The old -2, -3 suffix depended on the neighbours, and two
+// shards of one round could give one id to two different files.
 func fileCheckItems(files []engine.AuditFileEntry, roleID string) []ChecklistItem {
 	items := make([]ChecklistItem, 0, len(files))
-	seen := make(map[string]int)
 	prefix := "file-" + roleID + "-"
 	for _, f := range files {
 		text := fmt.Sprintf("Apply the %s role rules to %s", roleID, f.Path)
-		slug := slugifySubject(f.Path + " " + text)
-		count := seen[slug]
-		seen[slug] = count + 1
-		itemID := prefix + slug
-		if count > 0 {
-			itemID = fmt.Sprintf("%s%s-%d", prefix, slug, count+1)
-		}
 		items = append(items, ChecklistItem{
-			ItemID:           itemID,
+			ItemID:           prefix + slugifySubject(f.Path+" "+text) + "." + fileCheckDigest(f.Path),
 			Type:             "file_check",
 			SpecLine:         0,
 			Section:          f.Path,
@@ -118,6 +117,31 @@ func fileCheckItems(files []engine.AuditFileEntry, roleID string) []ChecklistIte
 		})
 	}
 	return items
+}
+
+// fileCheckDigestLen is how many hex characters of the path's SHA-256 a
+// file_check id carries: 64 bits, so two files sharing a 40-character slug
+// and a digest is not a case worth a code path.
+const fileCheckDigestLen = 16
+
+// currentFileCheckID matches the tail only the current derivation writes: a
+// "." (slugifySubject never emits one) and fileCheckDigestLen hex characters.
+var currentFileCheckID = regexp.MustCompile(`\.[0-9a-f]{16}$`)
+
+// fileCheckDigest is the first fileCheckDigestLen hex characters of the
+// SHA-256 of the file's cleaned, slash-separated path, so one file spelled
+// "app/a.go", "./app/a.go" or "app//a.go" keeps one id.
+func fileCheckDigest(p string) string {
+	sum := sha256.Sum256([]byte(filepath.ToSlash(filepath.Clean(p))))
+	return hex.EncodeToString(sum[:])[:fileCheckDigestLen]
+}
+
+// isCurrentFileCheckID reports whether a file_check id was derived by
+// fileCheckItems as it is now. An id without the digest tail was derived
+// before it, names no item of a round emitted now, and matches this round's
+// ids only by accident.
+func isCurrentFileCheckID(id string) bool {
+	return currentFileCheckID.MatchString(id)
 }
 
 // slugifySubject derives a stable slug from an audit item's subject text
@@ -181,8 +205,21 @@ type priorAuditRow struct {
 // before stable item ids (no id_scheme marker, §10.9), so its ids are
 // positional and not comparable to this round's.
 type auditPriorRound struct {
-	rows   []priorAuditRow
-	legacy bool
+	rows []priorAuditRow
+	// earlier holds the file_check rows whose ids were derived before the
+	// path digest (isCurrentFileCheckID): they name no item of this round, so
+	// they are listed apart and matched by evidence_file.
+	earlier []priorAuditRow
+	legacy  bool
+}
+
+// add files one prior row under rows or earlier by its id's derivation.
+func (p *auditPriorRound) add(r priorAuditRow) {
+	if strings.HasPrefix(r.ItemID, "file-") && !isCurrentFileCheckID(r.ItemID) {
+		p.earlier = append(p.earlier, r)
+		return
+	}
+	p.rows = append(p.rows, r)
 }
 
 // renderPriorRoundSection renders the role-scoped prior-round section for a
@@ -191,7 +228,7 @@ type auditPriorRound struct {
 // repeat. Returns "" when the role has no prior non-PASS rows, so a round-1
 // prompt (or a role that was all-PASS) carries no section at all.
 func renderPriorRoundSection(prior *auditPriorRound) string {
-	if prior == nil || len(prior.rows) == 0 {
+	if prior == nil || len(prior.rows)+len(prior.earlier) == 0 {
 		return ""
 	}
 	var b strings.Builder
@@ -200,13 +237,22 @@ func renderPriorRoundSection(prior *auditPriorRound) string {
 	if prior.legacy {
 		b.WriteString("Note: the prior round was recorded before stable item ids, so these ids are positional (file-<role>-<n>) and NOT comparable to this round's stable ids.\n\n")
 	}
-	for _, r := range prior.rows {
+	writePriorRows(&b, prior.rows)
+	if len(prior.earlier) > 0 {
+		b.WriteString("\nThese rows were recorded under an earlier file_check id derivation, so their ids name no item of this round: match each to this round's checklist by its evidence_file, never by id.\n")
+		writePriorRows(&b, prior.earlier)
+	}
+	b.WriteString("\n")
+	return b.String()
+}
+
+// writePriorRows writes one JSON line per prior row.
+func writePriorRows(b *strings.Builder, rows []priorAuditRow) {
+	for _, r := range rows {
 		data, _ := json.Marshal(r)
 		b.Write(data)
 		b.WriteString("\n")
 	}
-	b.WriteString("\n")
-	return b.String()
 }
 
 // buildRolePrompt renders the §3.1 body order for one role, drawing its Role
