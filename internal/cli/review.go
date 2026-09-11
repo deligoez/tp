@@ -394,7 +394,7 @@ Modes (mutually exclusive):
 				}
 				return runReview(cmd, args[0], round, findingsPath, perspective, docsPath, testPath, affectedFiles, finalRound, diffFrom, roleFilter, cmd.Flags().Changed("role"), specInline, noState)
 			}
-			if err := validateModeFlags(mode, round, findingsPath, affectedFiles, finalRound, diffFrom, specInline, perspective); err != nil {
+			if err := validateModeFlags(mode, cmd.Flags().Changed("round"), findingsPath, affectedFiles, finalRound, diffFrom, specInline, perspective); err != nil {
 				output.Error(ExitUsage, err.Error())
 				os.Exit(ExitUsage)
 				return nil
@@ -437,7 +437,7 @@ Modes (mutually exclusive):
 	}
 
 	// Default review flags
-	cmd.Flags().IntVar(&round, "round", 1, "Current review round number (1-indexed)")
+	cmd.Flags().IntVar(&round, "round", 1, "Current review round number (1-indexed); prompt emission only: --merge, --resolve, --resolve-all, --verify, --report, --record and --status refuse it")
 	cmd.Flags().StringVar(&findingsPath, "findings", "", "Path to NDJSON file with previous round findings")
 	cmd.Flags().StringVar(&roleFilter, "role", "", "Emit only this role's prompt (§4.2); one name, not repeatable")
 	cmd.Flags().StringVar(&perspective, "perspective", "", "Review perspective: documentation, testing, or code-audit")
@@ -500,7 +500,11 @@ func detectReviewMode(merge, resolve, resolveAll, verify, report, record, status
 }
 
 // validateModeFlags checks that modifier flags are compatible with the active mode.
-func validateModeFlags(mode string, round int, findingsPath string, affectedFiles []string, finalRound bool, diffFrom string, specInline bool, perspective string) error {
+//
+// roundGiven is whether --round was passed, not its value: the flag defaults to
+// 1, so testing `round != 1` let `--record f --round 1` record a round while
+// `--round 2` was refused. A mode that refuses the flag refuses it at any value.
+func validateModeFlags(mode string, roundGiven bool, findingsPath string, affectedFiles []string, finalRound bool, diffFrom string, specInline bool, perspective string) error {
 	if after, ok := strings.CutPrefix(mode, "conflict:"); ok {
 		pair := after
 		return fmt.Errorf("--%s are mutually exclusive", strings.Replace(pair, "+", " and --", 1))
@@ -513,7 +517,7 @@ func validateModeFlags(mode string, round int, findingsPath string, affectedFile
 
 	// Merge, resolve, resolve-all, report, record, status reject modifier flags
 	if mode == "merge" || mode == "resolve" || mode == "resolve-all" || mode == "report" || mode == "record" || mode == "status" {
-		if round != 1 {
+		if roundGiven {
 			return fmt.Errorf("--%s is mutually exclusive with --round", mode)
 		}
 		if findingsPath != "" {
@@ -535,7 +539,7 @@ func validateModeFlags(mode string, round int, findingsPath string, affectedFile
 
 	// Verify rejects --round, --final-round, and --perspective but allows --findings, --affected-files, --diff-from, --spec-inline
 	if mode == "verify" {
-		if round != 1 {
+		if roundGiven {
 			return fmt.Errorf("--verify is mutually exclusive with --round (verification is not a numbered round)")
 		}
 		if finalRound {
