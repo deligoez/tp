@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -222,13 +223,15 @@ type hookBoundRun struct {
 // §6.4 names — the driver cannot observe it from outside, so the test observes
 // it from here.
 //
-// WaitDelay gives a hook that was killed, or has exited, the same span again to
-// release its output, then closes it. A hook's children inherit that output, so
-// without it the wait outlasts the kill by as long as a child keeps running:
-// under the old 5s kill the 1 MB case was reported at 10.3s, a child still
-// holding the pipe.
+// The hook runs as the leader of its own process group, and the deadline kills
+// the whole group. A hook's children inherit its output, so killing only the
+// hook leaves the wait open for as long as a child keeps running — under the
+// old 5s kill the 1 MB case was reported at 10.3s, a child still holding the
+// pipe — and leaves that child running after the test. The test's cleanup kills
+// the group again, for a child the hook left behind when it exited on its own.
+// WaitDelay remains for a child that left the group: after the same span again
+// the output is closed rather than waited for.
 func runBoundedHook(t *testing.T, script string, env []string, in hookStdin, deadline time.Duration) hookBoundRun {
-	t.Helper()
 	t.Helper()
 
 	ctx, cancel := context.WithTimeout(context.Background(), deadline)
@@ -237,6 +240,8 @@ func runBoundedHook(t *testing.T, script string, env []string, in hookStdin, dea
 	cmd := exec.CommandContext(ctx, script) //nolint:gosec // a fixed path inside the repo under test, or a stub the test wrote
 	cmd.Env = env
 	cmd.Dir = repoRoot(t)
+	ownProcessGroup(cmd)
+	cmd.Cancel = func() error { return killHookGroup(cmd.Process.Pid) }
 	cmd.WaitDelay = deadline
 
 	switch {
@@ -257,10 +262,12 @@ func runBoundedHook(t *testing.T, script string, env []string, in hookStdin, dea
 	cmd.Stderr = &stderr
 
 	started := time.Now()
-	runErr := cmd.Run()
+	require.NoError(t, cmd.Start(), "the hook must start")
+	t.Cleanup(func() { _ = killHookGroup(cmd.Process.Pid) })
+	runErr := cmd.Wait()
 
 	state := cmd.ProcessState
-	require.NotNil(t, state, "the hook must exit rather than fail to start: %v", runErr)
+	require.NotNil(t, state, "the hook must be waited for: %v", runErr)
 	return hookBoundRun{
 		exitCode: state.ExitCode(),
 		cpu:      state.UserTime() + state.SystemTime(),
@@ -340,16 +347,50 @@ func TestHookBoundJudgesCPUNotWallClock(t *testing.T) {
 		assert.NotEmpty(t, hookBoundVerdict(run, margin))
 	})
 
-	t.Run("a hook that never ends is killed at the deadline", func(t *testing.T) {
+	t.Run("a hook that never ends is killed at the deadline, children and all", func(t *testing.T) {
 		t.Parallel()
-		// sleep runs as a child, so killing the hook leaves it holding the
-		// hook's output; the wait must still end a WaitDelay after the kill
-		// rather than when the child does.
-		run := runBoundedHook(t, stub(t, "sleep 60\nexit 0\n"), env, hookStdin{}, time.Second)
+		// sleep runs as a child holding the hook's output. The kill has to reach
+		// it too: a hung hook's children are as hung as it is, and one left
+		// behind outlives the test on every run. The deadline leaves the stub
+		// seconds to record the pid, which takes it milliseconds, before the
+		// kill.
+		pidfile := filepath.Join(t.TempDir(), "child.pid")
+		run := runBoundedHook(t, stub(t, "sleep 60 &\necho $! > '"+pidfile+"'\nwait\nexit 0\n"), env, hookStdin{}, 5*time.Second)
 		assert.True(t, run.timedOut)
 		assert.NotEmpty(t, hookBoundVerdict(run, margin))
-		assert.Less(t, run.elapsed, 30*time.Second, "the wait must not last as long as the orphaned sleep holding the hook's output")
+		assert.Less(t, run.elapsed, 30*time.Second, "the wait must end at the kill, not when the child would")
+		assertChildGone(t, pidfile)
 	})
+
+	t.Run("a child a hook leaves running does not outlive the test", func(t *testing.T) {
+		t.Parallel()
+		// The hook exits on its own and its child keeps no output open, so
+		// nothing is killed at a deadline; the test's cleanup is what ends it.
+		// Registered first, this check runs after runBoundedHook's cleanup.
+		pidfile := filepath.Join(t.TempDir(), "child.pid")
+		t.Cleanup(func() { assertChildGone(t, pidfile) })
+		run := runBoundedHook(t, stub(t, "sleep 60 >/dev/null 2>&1 &\necho $! > '"+pidfile+"'\nexit 0\n"), env, hookStdin{}, hookHangDeadline)
+		require.False(t, run.timedOut, "the hook exits on its own; only what it leaves behind is under test")
+	})
+}
+
+// assertChildGone checks that the process whose pid a stub hook wrote to pidfile
+// has ended, allowing a moment for an orphan's reaper to collect it.
+func assertChildGone(t *testing.T, pidfile string) {
+	t.Helper()
+
+	raw, err := os.ReadFile(pidfile) //nolint:gosec // a file inside the test's own temporary directory
+	if !assert.NoError(t, err, "the stub records its child's pid before anything can kill it") {
+		return
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(raw)))
+	if !assert.NoError(t, err) {
+		return
+	}
+	for deadline := time.Now().Add(5 * time.Second); processAlive(pid) && time.Now().Before(deadline); {
+		time.Sleep(20 * time.Millisecond)
+	}
+	assert.False(t, processAlive(pid), "process %d, started by the hook, is still running after the hook was done with", pid)
 }
 
 // hookAdverseStdin are the inputs a well-formed payload never exercises. Each is
