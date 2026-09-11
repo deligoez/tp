@@ -157,9 +157,11 @@ func TestImport_LockContentionTimeoutExitsFour(t *testing.T) {
 
 // TestImport_SuccessPathUnchanged pins §3's third claim: the lock added no flag
 // and no output change to the success path. A plain import into the init shell
-// still exits 0 with exactly {"imported": N, "path": ..., "file": ...} on
-// stdout. "file" came later, when task-file writes began naming the file they
-// wrote (write_target_file_test.go).
+// still exits 0 with exactly {"imported": N, "path": ..., "file": ...,
+// "criteria": {...}} on stdout. "file" came later, when task-file writes began
+// naming the file they wrote (write_target_file_test.go), and "criteria" when
+// import began reporting each task's acceptance criteria count
+// (acceptance_criteria_test.go).
 func TestImport_SuccessPathUnchanged(t *testing.T) {
 	t.Parallel()
 	dir, importPath, taskFilePath := importLockSetup(t)
@@ -172,6 +174,7 @@ func TestImport_SuccessPathUnchanged(t *testing.T) {
 	assert.Equal(t, float64(1), payload["imported"])
 	assert.Equal(t, "spec.tasks.json", payload["path"])
 	assert.Equal(t, "spec.tasks.json", payload["file"])
-	assert.Len(t, payload, 3, "no other field was added to the success payload")
+	assert.Equal(t, map[string]any{"t1": float64(1)}, payload["criteria"])
+	assert.Len(t, payload, 4, "no other field was added to the success payload")
 	assert.Equal(t, 1, importLockTaskCount(t, taskFilePath))
 }

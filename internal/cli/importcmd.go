@@ -234,7 +234,7 @@ func runImport(_ *cobra.Command, args []string) error {
 	warnUnresolvedGate(targetPath)
 	warnPointerNamesAnother(targetPath)
 	output.Success(fmt.Sprintf("imported %d tasks to %s", len(tf.Tasks), targetPath))
-	result := map[string]any{"imported": len(tf.Tasks), "path": targetPath, "file": taskFileLabel(targetPath)}
+	result := map[string]any{"imported": len(tf.Tasks), "path": targetPath, "file": taskFileLabel(targetPath), "criteria": criteriaCounts(tf.Tasks)}
 	// Which verdict let review end, and what the cap waived, as payload keys:
 	// drivers read the payload, and many harnesses drop stderr.
 	if loopVerdict != nil {

@@ -1,10 +1,13 @@
 package engine
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/deligoez/tp/internal/model"
 )
 
 func TestParseAcceptanceCriteria(t *testing.T) {
@@ -38,6 +41,26 @@ func TestParseAcceptanceCriteria(t *testing.T) {
 			acceptance: "- item1\n- item2\n- item3",
 			want:       []string{"item1", "item2", "item3"},
 		},
+		{
+			name:       "prose only still splits on both delimiters",
+			acceptance: "Model exists; migration runs. Tests pass.",
+			want:       []string{"Model exists", "migration runs", "Tests pass"},
+		},
+		{
+			name:       "a bullet is never re-split on a semicolon or a period",
+			acceptance: "- first criterion; with a semicolon\n- second. With a period",
+			want:       []string{"first criterion; with a semicolon", "second. With a period"},
+		},
+		{
+			name:       "prose before the first bullet is one criterion",
+			acceptance: "Intro one. Intro two; still intro\n- a\n- b",
+			want:       []string{"Intro one. Intro two; still intro", "a", "b"},
+		},
+		{
+			name:       "a non-bullet line continues the bullet before it",
+			acceptance: "- first\n  continued. here\n- second",
+			want:       []string{"first continued. here", "second"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -50,6 +73,15 @@ func TestParseAcceptanceCriteria(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestAcceptanceArrayCountsOneCriterionPerElement: the JSON-array form is
+// stored as a bullet list, so an element's own "; " or ". " never adds a
+// criterion.
+func TestAcceptanceArrayCountsOneCriterionPerElement(t *testing.T) {
+	var task model.Task
+	require.NoError(t, json.Unmarshal([]byte(`{"id":"t1","acceptance":["first; with a semicolon","second. With a period"]}`), &task))
+	assert.Equal(t, []string{"first; with a semicolon", "second. With a period"}, ParseAcceptanceCriteria(task.Acceptance))
 }
 
 func TestVerifyClosure(t *testing.T) {
@@ -100,6 +132,12 @@ func TestVerifyClosure(t *testing.T) {
 			reason:     "deferred to next sprint",
 			wantErr:    true,
 			errMsg:     "deferral is forbidden",
+		},
+		{
+			name:       "two bullets with inner delimiters need two evidence lines",
+			acceptance: "- first criterion; with a semicolon\n- second. With a period",
+			reason:     "- first verified at internal/a.go:1\n- second verified at internal/b.go:2",
+			wantErr:    false,
 		},
 		{
 			name:       "covered-by skips verification",

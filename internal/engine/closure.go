@@ -4,27 +4,70 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 )
 
 // ParseAcceptanceCriteria splits the acceptance field into individual criteria.
-// Supports three delimiters: ". " (period), "; " (semicolon), "\n- " (bullet list).
+//
+// Text with bullet lines ("- " at column 0, the form a JSON-array acceptance is
+// stored in) yields one criterion per bullet, never re-split, plus one for any
+// prose before the first bullet; a later line that is not a bullet continues
+// the bullet above it. Prose-only text splits on ". " and "; ".
 func ParseAcceptanceCriteria(acceptance string) []string {
-	// First split on bullet list delimiter
-	parts := strings.Split(acceptance, "\n- ")
+	lines := strings.Split(acceptance, "\n")
+	first := slices.IndexFunc(lines, isBulletLine)
+	if first < 0 {
+		return splitProseCriteria(acceptance)
+	}
 	var result []string
-	for _, p := range parts {
-		// Then split on ". " and "; "
-		for sub := range strings.SplitSeq(p, ". ") {
-			for sub2 := range strings.SplitSeq(sub, "; ") {
-				trimmed := strings.TrimSpace(sub2)
-				// Remove trailing period and leading "- " prefix
-				trimmed = strings.TrimRight(trimmed, ".")
-				trimmed = strings.TrimPrefix(trimmed, "- ")
-				trimmed = strings.TrimSpace(trimmed)
-				if trimmed != "" {
-					result = append(result, trimmed)
-				}
+	appendCriterion := func(block []string) {
+		if c := joinCriterion(block); c != "" {
+			result = append(result, c)
+		}
+	}
+	appendCriterion(lines[:first])
+	start := first
+	for i := first + 1; i < len(lines); i++ {
+		if isBulletLine(lines[i]) {
+			appendCriterion(lines[start:i])
+			start = i
+		}
+	}
+	appendCriterion(lines[start:])
+	return result
+}
+
+func isBulletLine(line string) bool {
+	return strings.HasPrefix(line, "- ")
+}
+
+// joinCriterion folds a bullet (or the prose before the first bullet) and its
+// continuation lines into one criterion.
+func joinCriterion(block []string) string {
+	var parts []string
+	for i, line := range block {
+		if i == 0 {
+			line = strings.TrimPrefix(line, "- ")
+		}
+		if line = strings.TrimSpace(line); line != "" {
+			parts = append(parts, line)
+		}
+	}
+	return strings.TrimSpace(strings.TrimRight(strings.Join(parts, " "), "."))
+}
+
+func splitProseCriteria(acceptance string) []string {
+	var result []string
+	for sub := range strings.SplitSeq(acceptance, ". ") {
+		for sub2 := range strings.SplitSeq(sub, "; ") {
+			trimmed := strings.TrimSpace(sub2)
+			// Remove trailing period and leading "- " prefix
+			trimmed = strings.TrimRight(trimmed, ".")
+			trimmed = strings.TrimPrefix(trimmed, "- ")
+			trimmed = strings.TrimSpace(trimmed)
+			if trimmed != "" {
+				result = append(result, trimmed)
 			}
 		}
 	}

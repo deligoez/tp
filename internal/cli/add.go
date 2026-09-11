@@ -275,6 +275,17 @@ func addTasks(tasks []model.Task) error {
 		} else {
 			output.Success(fmt.Sprintf("added %d tasks: %s", len(ids), strings.Join(ids, ", ")))
 		}
-		return output.JSON(map[string]any{"added": ids, "file": taskFileLabel(taskFilePath)})
+		return output.JSON(map[string]any{"added": ids, "file": taskFileLabel(taskFilePath), "criteria": criteriaCounts(tasks)})
 	})
+}
+
+// criteriaCounts maps each task id to its acceptance criteria count — the
+// count tp validate's max-3 rule and tp done's evidence-line match read — so
+// tp add and tp import show the agent how its acceptance was parsed.
+func criteriaCounts(tasks []model.Task) map[string]int {
+	counts := make(map[string]int, len(tasks))
+	for i := range tasks {
+		counts[tasks[i].ID] = len(engine.ParseAcceptanceCriteria(tasks[i].Acceptance))
+	}
+	return counts
 }
