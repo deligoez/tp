@@ -149,13 +149,15 @@ What ends each loop is not the same condition, and that difference is the point:
 
 | loop | `--status --check` exits 0 when |
 |------|--------------------------------|
-| `tp ground` | **coverage**: every emitted floor unit carries one of the six verdicts, and the floor is not empty |
-| `tp review` | **absence**: `review_clean_rounds` trailing rounds carry no finding that `review_converge_on` counts, the spec has not moved since the last one, and every registered `checks` entry passes |
-| `tp audit` | **absence**: `audit_clean_rounds` trailing rounds carry no row that `audit_converge_on` counts, under the same staleness rule |
+| `tp ground` | **coverage**: every emitted floor unit carries one of the six verdicts, the floor is not empty, and the latest round holds no `FAIL` |
+| `tp review` | **absence**: `review_clean_rounds` trailing rounds carry no finding that `review_converge_on` counts and the spec has not moved since — **or disposition**: at `review_max_rounds`, every finding of the latest round carries a disposition. Either way every registered `checks` entry passes |
+| `tp audit` | the same with `audit_clean_rounds`, `audit_converge_on` and `audit_max_rounds`; audit runs no `checks` |
 
-The built-in defaults are 2 clean rounds for both, `blocking` for `review_converge_on` and `all` for
-`audit_converge_on`; `tp config --resolved` prints what actually resolves in your repo and where each
-value came from.
+A finding leaves a round as a change or as a recorded disposition (`--resolve`). `--status` reports
+which condition ended the loop as `done_by` — `converged` or `cap` — and `tp import`, `next_action`
+and `tp resume` read the same verdict. The built-in defaults are 2 clean rounds and a cap of 3 rounds
+for both (0 uncaps), `blocking` for `review_converge_on` and `all` for `audit_converge_on`;
+`tp config --resolved` prints what actually resolves in your repo and where each value came from.
 
 ## Commands
 
@@ -183,6 +185,7 @@ tp next                        # Resume WIP or claim the next ready task (--mini
 ### Task State
 ```bash
 tp claim <id> [id...]          # open → wip (--all-ready)
+tp unclaim <id> [id...]        # wip → open (undo a claim)
 tp close <id> <reason>         # wip → done (low-level, prefer tp done)
 tp reopen <id>                 # done → open (clears timestamps + SHAs)
 tp remove <id>                 # Remove a task (--force cleans dependents)
@@ -206,7 +209,7 @@ tp report                      # Per-task duration + estimation accuracy
 ```bash
 tp lint spec.md                # Spec quality + structured element detection
 tp ground spec.md              # Check the spec's claims against the world (--units, --record, --status --check)
-tp review spec.md              # Adversarial review prompts, rounds, merge/resolve/record/status
+tp review spec.md              # Review prompts, rounds, merge/resolve/record/status
 tp review spec.md --role NAME  # Emit one role's prompt only (also on tp audit)
 tp audit spec.md               # Post-implementation: verify the code matches the spec
 tp validate                    # Task file + coverage + atomicity (--strict, --project)
@@ -264,13 +267,14 @@ Each task is atomic — one commit, one verb, ≤15 minutes:
 }
 ```
 
-Status is three values and no more — `open`, `wip`, `done` (`internal/model/task.go`) — with one
-legal transition each way. Nothing writes a fourth:
+Status is three values and no more — `open`, `wip`, `done` (`internal/model/task.go`). Nothing
+writes a fourth:
 
 ```mermaid
 stateDiagram-v2
     [*] --> open
     open --> wip: tp claim, tp next
+    wip --> open: tp unclaim
     wip --> done: tp done, tp close
     done --> open: tp reopen
     done --> [*]
@@ -312,7 +316,8 @@ caps, and repeats. A unit's result is whatever it wrote to disk: tp reads a chil
 one spend number, never its prose. The run exits **0** only when the cycle converged and **4** on
 every other stop reason, so a caller never has to read the output to know what happened. Units run
 with `TP_UNATTENDED=1`, under which the decisions reserved for a human — skipping the quality gate,
-raising a round or run cap, forcing an import, relaxing the audit convergence policy — fail closed; a
+raising a round or run cap, forcing an import, relaxing the audit convergence policy, accepting a
+blocking finding, discarding an emission — fail closed; a
 unit records what it needs decided with `tp escalate` and the run stops for the operator. Which
 runner to spawn, the caps, and the notification command are configuration, so the loop stays
 runtime-neutral: built-in templates for `claude` and `opencode`, and a runner object for anything
@@ -373,12 +378,10 @@ for a disposition for each — `PASS`, `PARTIAL`, `FAIL`, `UNVERIFIABLE`, `QUEST
 with the `kind` of claim and the `tier` of evidence actually reached. A `PASS` whose tier says
 nothing about that kind of claim, such as a behavioural claim confirmed by reading rather than by
 running, is rejected at record. Convergence here is **coverage**, not absence:
-`tp ground <spec> --status --check` exits 0 when every emitted floor unit carries a disposition —
-with one further condition, because an empty floor makes that comparison vacuous: a document whose
-every sentence the derivation's arms dropped exits 1 rather than certifying itself, and `--status`
-reports the `cut` count the exit code turns on, so a driver can tell the two apart with the notice
-suppressed. `--status` also reports the per-verdict breakdown beside the ratio — a spec whose every
-claim was refuted is also 100% covered. From the second round a disposition carries forward for every
+`tp ground <spec> --status --check` exits 0 when every emitted floor unit carries a disposition
+and the latest round holds no `FAIL`. A document whose every sentence the derivation's arms dropped
+exits 1 rather than certifying itself, and `--status` reports the `cut` count that decides it beside
+the per-verdict breakdown. From the second round a disposition carries forward for every
 unit whose text has not moved, so a repaired spec is re-grounded where it changed rather than from
 scratch.
 
@@ -422,9 +425,10 @@ print(len(R), collections.Counter(r["verdict"] for r in R))
 print(len(T), sum(r["tier"] in D for r in T), len(F), sum(r.get("tier") in D for r in F))'
 ```
 
-`tp review` generates the adversarial review prompts an agent feeds to sub-agents, records each
-round, and makes convergence a recorded fact rather than a judgement. Roles are project-owned files,
-per-spec focus comes from the spec's `tp:` frontmatter, and a recurring finding class can be
+`tp review` generates the review prompts an agent feeds to sub-agents, records each round, and
+makes convergence a recorded fact rather than a judgement. Reviewers report only what would make the
+implementation wrong; detail the code will settle is left to its tests. Roles are project-owned
+files, per-spec focus comes from the spec's `tp:` frontmatter, and a recurring finding class can be
 mechanized into a check. The round-by-round recipe is in [SKILL.md](skills/tp/SKILL.md); the roles,
 frontmatter and finding contract are in [REFERENCE.md](skills/tp/REFERENCE.md).
 
@@ -459,7 +463,9 @@ per auditor role over a spec-derived checklist and the affected files, records e
 reports whether the implementation diverges from the spec or the general lenses are simply reading
 the rest of the repository. What a round must be clean **of** is `audit_converge_on`: the default
 `all` counts every non-`PASS` row, and `blocking` — which stops advisory rows from holding a phase
-open — is opt-in, human-only, and fenced at all four of its write paths under `TP_UNATTENDED`. The
+open — is opt-in, human-only, and fenced at all four of its write paths under `TP_UNATTENDED`. An
+evidenced `wontfix`/`duplicate` clears its round, and accepting a finding without a code change is
+the operator's decision. The
 round-by-round recipe is in
 [SKILL.md](skills/tp/SKILL.md); the fields and the audit JSON schema are in
 [REFERENCE.md](skills/tp/REFERENCE.md).
@@ -488,7 +494,7 @@ tp is designed for AI agents first (AX), not humans (DX):
 | **Entry validation** | `tp add` rejects bad tasks at entry (no id/title/acceptance/anchor), normalizes slices to `[]` |
 | **Coverage on write** | `tp add`/`set`/`remove` recompute coverage, so init+add+validate is clean |
 | **Audit file hint** | `tp audit` suggests files from done tasks' commits when none are detected |
-| **Loop budget** | `--status` shows `max_rounds`/`rounds_remaining`/`in_flight_round` |
+| **Loop budget** | `--status` shows `max_rounds`/`rounds_remaining`/`in_flight_round`; at the cap (default 3) a loop ends once every finding carries a disposition, reported as `done_by: cap` |
 | **Divergence signal** | `tp audit --status`/`--record` report `role_streaks`, `spec_coverage_clean_rounds` and a `divergence` object |
 | **Candidate retirement** | a registered check retires its mechanize candidate; `mechanized_classes` names what was withheld |
 | **Unattended run** | `tp run` drives the whole cycle; exit 0 means converged, exit 4 names one of the other eight stop reasons |
