@@ -69,3 +69,20 @@ func TestBuildBlockers_CleanIsEmptyNotNil(t *testing.T) {
 	assert.NotNil(t, bs)
 	assert.Empty(t, bs)
 }
+
+// TestBudgetBlockerMessage_NamesTheOperatorOnlyForABlockingFixed: at the cap
+// the blocker names the operator's two exits only when a blocking finding was
+// marked fixed there. With none, the remaining findings are dispositioned like
+// any other, and the message says so; with one, it says a fix no round re-read
+// is the operator's to accept or to verify with one more round.
+func TestBudgetBlockerMessage_NamesTheOperatorOnlyForABlockingFixed(t *testing.T) {
+	t.Parallel()
+	none := budgetBlockerMessage("review", 3, 0)
+	assert.Contains(t, none, "disposition the remaining findings")
+	assert.NotContains(t, none, "marked fixed")
+
+	one := budgetBlockerMessage("review", 3, 1)
+	assert.Contains(t, one, "1 blocking finding")
+	assert.Contains(t, one, "marked fixed")
+	assert.NotContains(t, one, "disposition the remaining findings")
+}

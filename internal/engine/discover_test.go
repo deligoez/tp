@@ -217,3 +217,26 @@ func TestOtherTaskFiles_SeesSiblingsRootAndSubdirs(t *testing.T) {
 	}
 	assert.ElementsMatch(t, []string{"b.tasks.json", "root.tasks.json", "c.tasks.json"}, names)
 }
+
+// TestOtherTaskFiles_ARelativePathIsNotItsOwnSibling: the file named by path is
+// never among the others, however path is spelled. Every other file is
+// compared by its absolute path, so path must be made absolute too; kept
+// relative, the file came back as its own sibling.
+func TestOtherTaskFiles_ARelativePathIsNotItsOwnSibling(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	self := filepath.Join(root, "a.tasks.json")
+	require.NoError(t, os.WriteFile(self, []byte("{}"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "b.tasks.json"), []byte("{}"), 0o600))
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+	rel, err := filepath.Rel(cwd, self)
+	require.NoError(t, err)
+	require.False(t, filepath.IsAbs(rel), "the fixture must hand in a relative path")
+
+	names := make([]string, 0)
+	for _, p := range OtherTaskFiles(root, rel) {
+		names = append(names, filepath.Base(p))
+	}
+	assert.Equal(t, []string{"b.tasks.json"}, names)
+}

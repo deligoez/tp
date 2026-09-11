@@ -228,3 +228,14 @@ func TestReviewConsecutiveCleanAndConverged_SeverityAware(t *testing.T) {
 	assert.False(t, ReviewConverged(specPath, rounds, 2, "sha256:edited", ReviewConvergeOnBlocking),
 		"a stale spec unconverges regardless of severity")
 }
+
+// TestFindingOpen_APassRowIsAFindingOnlyOutsideTheAudit: an audit row that
+// PASSes is not a finding and never open; a review row is a finding whatever
+// keys it carries, so a review row that happens to say PASS stays open.
+func TestFindingOpen_APassRowIsAFindingOnlyOutsideTheAudit(t *testing.T) {
+	t.Parallel()
+	pass := map[string]any{"status": "PASS"}
+	assert.False(t, findingOpen(PhaseAudit, pass), "an audit PASS row is not a finding")
+	assert.True(t, findingOpen(PhaseReview, pass), "every review row is a finding")
+	assert.True(t, findingOpen(PhaseAudit, map[string]any{"status": "FAIL"}), "an audit FAIL row with no disposition is open")
+}

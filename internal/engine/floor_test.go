@@ -524,6 +524,32 @@ func TestAnOrdinalBeforeALowercaseWordDoesNotEndTheSentence(t *testing.T) {
 		"the fixture discriminates only if the claim half alone is cut")
 }
 
+// TestTheOrdinalExceptionHoldsAtItsBoundaries pins the edges of
+// floorOrdinalContinues' contract, "a run of digits that starts the string or
+// follows whitespace": a digit run at the very start of the text, the digits 0
+// and 9 at either end of the range, and a letter glued to the digits, which
+// makes the number not bare, so the sentence still ends there.
+func TestTheOrdinalExceptionHoldsAtItsBoundaries(t *testing.T) {
+	tests := []struct {
+		name string
+		text string
+		want []string
+	}{
+		{"an ordinal holding a 0", "Step 10. writes the floor.", []string{"Step 10. writes the floor."}},
+		{"an ordinal holding a 9", "Step 9. writes the floor.", []string{"Step 9. writes the floor."}},
+		{"a letter glued to the digits", "It checks rule v6. writes follow.", []string{"It checks rule v6.", "writes follow."}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, FloorUnits(tt.text))
+		})
+	}
+	// A digit run that starts the joined text. FloorUnits strips a leading
+	// list marker before splitting, so only the helper reaches this edge.
+	assert.True(t, floorOrdinalContinues("6. adımdan", 1, 3), "a digit run starting the text is bare")
+	assert.False(t, floorOrdinalContinues("6. Then", 1, 3), "and still splits before a capital")
+}
+
 // TestANumberedListGluedToAColonLineSplitsLikeOneBelowABlankLine is step 2's
 // list exception: a numbered list that opens on the line after one ending in
 // `:` starts its own block, exactly as it would with a blank line above it.
