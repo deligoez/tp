@@ -1393,117 +1393,163 @@ func dedupFindings(findings []reviewFinding) []reviewFinding {
 	return result
 }
 
+// The carry's two listing headers. A finding accepted as it stands is not
+// unresolved, so it is listed under its own header, with its reason.
+const (
+	carryUnresolvedHeader = "UNRESOLVED findings from previous rounds — DO NOT re-report:\n"
+	carryAcceptedHeader   = "ACCEPTED findings from previous rounds — DO NOT re-report; each was accepted for the reason given:\n"
+)
+
+// carryListCap bounds the rows the two listings print in full, together;
+// unresolved rows take it first.
+const carryListCap = 50
+
+var (
+	carrySeverityOrder = map[string]int{"critical": 0, "high": 1, "medium": 2, "low": 3, "unknown": 4}
+	carrySeverityTag   = map[string]string{
+		"critical": "[CRIT]", "high": "[HIGH]", "medium": "[MED]", "low": "[LOW]", "unknown": "[???]",
+	}
+)
+
+// carriedFindings is a previous round's findings sorted into the carry's
+// sections.
+type carriedFindings struct {
+	unresolved, accepted, resolved []reviewFinding
+}
+
+// classifyCarried sorts findings by disposition. A wontfix with evidence is
+// accepted; one with blank evidence accepts nothing — the clean grading reads
+// it as open — so it stays unresolved, like a row with no disposition. fixed
+// and duplicate are resolved.
+func classifyCarried(findings []reviewFinding) carriedFindings {
+	var c carriedFindings
+	for i := range findings {
+		f := &findings[i]
+		switch {
+		case f.Resolved == nil:
+			c.unresolved = append(c.unresolved, *f)
+		case f.Resolved.Status == "fixed" || f.Resolved.Status == "duplicate":
+			c.resolved = append(c.resolved, *f)
+		case f.Resolved.Status == "wontfix" && strings.TrimSpace(f.Resolved.Evidence) != "":
+			c.accepted = append(c.accepted, *f)
+		default:
+			c.unresolved = append(c.unresolved, *f)
+		}
+	}
+	return c
+}
+
+// findingCell is the cell a carried row prints after its tag: the category,
+// or the class when the row has no category.
+func findingCell(f *reviewFinding) string {
+	if f.Category != "" {
+		return f.Category
+	}
+	return f.Class
+}
+
+// carryCut shortens s to at most n bytes, cut on a rune boundary, and marks
+// the cut.
+func carryCut(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:engine.RuneBoundaryAtOrBefore(s, n)] + "..."
+}
+
+func sortCarried(rows []reviewFinding) {
+	sort.SliceStable(rows, func(i, j int) bool {
+		si, sj := carrySeverityOrder[rows[i].Severity], carrySeverityOrder[rows[j].Severity]
+		if si != sj {
+			return si < sj
+		}
+		return findingCell(&rows[i]) < findingCell(&rows[j])
+	})
+}
+
+// carryRow renders "<tag> <cell> — <location>: <text>". A row with neither a
+// category nor a class prints no cell rather than an empty one.
+func carryRow(tag string, f *reviewFinding) string {
+	if cell := findingCell(f); cell != "" {
+		tag += " " + cell
+	}
+	return fmt.Sprintf("  %s — %s: %s", tag, f.Location, carryCut(f.Finding, 80))
+}
+
+func unresolvedCarryRow(f *reviewFinding) string {
+	tag := carrySeverityTag[f.Severity]
+	if tag == "" {
+		tag = "[???]"
+	}
+	return carryRow(tag, f)
+}
+
+func acceptedCarryRow(f *reviewFinding) string {
+	return carryRow("[WONTFIX]", f) + " (wontfix: " + carryCut(f.Resolved.Evidence, 40) + ")"
+}
+
+// writeCarryListing writes rows under header, at most limit of them in full,
+// and returns how many it printed. An empty listing writes nothing.
+func writeCarryListing(b *strings.Builder, header string, rows []reviewFinding, limit int, render func(*reviewFinding) string) int {
+	if len(rows) == 0 {
+		return 0
+	}
+	b.WriteString(header)
+	shown := min(len(rows), limit)
+	for i := range rows[:shown] {
+		b.WriteString(render(&rows[i]))
+		b.WriteString("\n")
+	}
+	if omitted := len(rows) - shown; omitted > 0 {
+		fmt.Fprintf(b, "\n  ... and %d more (omitted for brevity)\n", omitted)
+	}
+	b.WriteString("\n")
+	return shown
+}
+
+// writeResolvedCarry counts the resolved findings and lists up to ten high or
+// critical ones, so a round does not regress them.
+func writeResolvedCarry(b *strings.Builder, resolved []reviewFinding) {
+	if len(resolved) == 0 {
+		return
+	}
+	fmt.Fprintf(b, "Additionally, %d findings from previous rounds were RESOLVED (fixed or duplicate).\n", len(resolved))
+	shown := 0
+	for i := range resolved {
+		f := &resolved[i]
+		if shown == 10 {
+			break
+		}
+		if f.Severity != "critical" && f.Severity != "high" {
+			continue
+		}
+		if shown == 0 {
+			b.WriteString("Resolved high/critical (DO NOT regress):\n")
+		}
+		fmt.Fprintf(b, "  [RESOLVED] %s: %s\n", f.Location, carryCut(f.Finding, 60))
+		shown++
+	}
+	if shown > 0 {
+		b.WriteString("\n")
+	}
+}
+
+// buildFindingsSummary is the carry a round's prompts get from the previous
+// rounds: the unresolved findings, the accepted ones with their reasons, and
+// the resolved ones as a count plus the high and critical to keep fixed.
 func buildFindingsSummary(findings []reviewFinding) string {
 	deduped := dedupFindings(findings)
 	if len(deduped) == 0 {
 		return ""
 	}
-
-	// Classify findings by resolution status
-	var unresolved, wontfix []reviewFinding
-	resolvedCount := 0
-
-	for _, f := range deduped {
-		if f.Resolved == nil {
-			// No resolved field — treat as unresolved (backward compat)
-			unresolved = append(unresolved, f)
-			continue
-		}
-		switch f.Resolved.Status {
-		case "fixed", "duplicate":
-			resolvedCount++
-		case "wontfix":
-			wontfix = append(wontfix, f)
-		default:
-			unresolved = append(unresolved, f)
-		}
-	}
-
-	// Combine unresolved + wontfix for the detailed listing
-	detailed := make([]reviewFinding, 0, len(unresolved)+len(wontfix))
-	detailed = append(detailed, unresolved...)
-	detailed = append(detailed, wontfix...)
-
-	severityOrder := map[string]int{"critical": 0, "high": 1, "medium": 2, "low": 3, "unknown": 4}
-	sort.SliceStable(detailed, func(i, j int) bool {
-		si, sj := severityOrder[detailed[i].Severity], severityOrder[detailed[j].Severity]
-		if si != sj {
-			return si < sj
-		}
-		return detailed[i].Category < detailed[j].Category
-	})
-
-	sevAbbr := map[string]string{
-		"critical": "[CRIT]", "high": "[HIGH]", "medium": "[MED]", "low": "[LOW]", "unknown": "[???]",
-	}
+	c := classifyCarried(deduped)
+	sortCarried(c.unresolved)
+	sortCarried(c.accepted)
 
 	var b strings.Builder
-
-	// Section 1: Unresolved + wontfix findings (full detail)
-	if len(detailed) > 0 {
-		b.WriteString("UNRESOLVED findings from previous rounds — DO NOT re-report:\n")
-
-		findingsCap := 50
-		shown := detailed
-		omitted := 0
-		if len(detailed) > findingsCap {
-			shown = detailed[:findingsCap]
-			omitted = len(detailed) - findingsCap
-		}
-
-		for _, f := range shown {
-			abbr := sevAbbr[f.Severity]
-			if abbr == "" {
-				abbr = "[???]"
-			}
-			text := f.Finding
-			if len(text) > 80 {
-				text = text[:80] + "..."
-			}
-			if f.Resolved != nil && f.Resolved.Status == "wontfix" {
-				evidence := f.Resolved.Evidence
-				if len(evidence) > 40 {
-					evidence = evidence[:40] + "..."
-				}
-				fmt.Fprintf(&b, "  [WONTFIX] %s — %s: %s (wontfix: %s)\n", f.Category, f.Location, text, evidence)
-			} else {
-				fmt.Fprintf(&b, "  %s %s — %s: %s\n", abbr, f.Category, f.Location, text)
-			}
-		}
-
-		if omitted > 0 {
-			fmt.Fprintf(&b, "\n  ... and %d more (omitted for brevity)\n", omitted)
-		}
-		b.WriteString("\n")
-	}
-
-	// Section 2: Resolved findings — show high/critical to prevent regression
-	if resolvedCount > 0 {
-		fmt.Fprintf(&b, "Additionally, %d findings from previous rounds were RESOLVED (fixed or duplicate).\n", resolvedCount)
-
-		// List high/critical resolved findings briefly to prevent regression
-		var highResolved []reviewFinding
-		for _, f := range deduped {
-			if f.Resolved != nil && (f.Resolved.Status == "fixed" || f.Resolved.Status == "duplicate") {
-				if f.Severity == "critical" || f.Severity == "high" {
-					highResolved = append(highResolved, f)
-				}
-			}
-		}
-		if len(highResolved) > 0 {
-			b.WriteString("Resolved high/critical (DO NOT regress):\n")
-			maxShow := min(len(highResolved), 10)
-			for _, f := range highResolved[:maxShow] {
-				text := f.Finding
-				if len(text) > 60 {
-					text = text[:60] + "..."
-				}
-				fmt.Fprintf(&b, "  [RESOLVED] %s: %s\n", f.Location, text)
-			}
-			b.WriteString("\n")
-		}
-	}
-
+	shown := writeCarryListing(&b, carryUnresolvedHeader, c.unresolved, carryListCap, unresolvedCarryRow)
+	writeCarryListing(&b, carryAcceptedHeader, c.accepted, carryListCap-shown, acceptedCarryRow)
+	writeResolvedCarry(&b, c.resolved)
 	b.WriteString("Do not re-report resolved issues. Focus ONLY on NEW issues in the current spec.\n")
 	return b.String()
 }

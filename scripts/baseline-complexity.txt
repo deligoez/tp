@@ -10,7 +10,6 @@
 # format: <package> <function>
 
 cli addTasks
-cli buildFindingsSummary
 cli buildReviewPrompts
 cli checkAffectedFilesScope
 cli computeReport

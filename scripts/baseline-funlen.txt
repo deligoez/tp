@@ -13,7 +13,6 @@
 
 internal/cli NewRootCmd
 internal/cli addTasks
-internal/cli buildFindingsSummary
 internal/cli buildReviewPrompts
 internal/cli buildRolePrompt
 internal/cli buildVerifyPrompt
