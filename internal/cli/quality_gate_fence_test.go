@@ -155,6 +155,76 @@ func TestSetWorkflow_QualityGateTaskLayerIsTheOperatorsToSet(t *testing.T) {
 	})
 }
 
+// TestSetWorkflow_EmptyQualityGateRemovesTheTaskOverride pins what an empty
+// value means at the task layer: tp set --workflow quality_gate= removes the
+// spec's override so the base falls back to the project gate. It never stores
+// an empty gate — a spec-local way to switch the gate off is --skip-gate with
+// a recorded reason, not a blank value. With no override to remove the write
+// is a no-op that leaves the file's bytes alone, and under TP_UNATTENDED the
+// removal is refused, because it changes the gate that resolves.
+func TestSetWorkflow_EmptyQualityGateRemovesTheTaskOverride(t *testing.T) {
+	t.Parallel()
+	const projectGate = "echo project"
+	const specGate = "echo spec-own"
+	withOverride := `{"quality_gate":"` + specGate + `","review_max_rounds":7}`
+	project := `{"quality_gate":"` + projectGate + `"}`
+	readTask := func(t *testing.T, dir string) []byte {
+		t.Helper()
+		data, err := os.ReadFile(filepath.Join(dir, "s.tasks.json"))
+		require.NoError(t, err)
+		return data
+	}
+	reply := func(t *testing.T, out string) map[string]any {
+		t.Helper()
+		var res map[string]any
+		require.NoError(t, json.Unmarshal([]byte(out), &res), "stdout is the JSON reply: %s", out)
+		return res
+	}
+
+	t.Run("attended, an empty value removes the override", func(t *testing.T) {
+		t.Parallel()
+		dir := fenceShell(t, withOverride, project)
+		require.Equal(t, specGate, gateResolved(t, dir, "s.tasks.json"), "precondition: the spec's own gate resolves")
+
+		out, stderr, code := runTPFence(t, dir, false, "set", "--workflow", "quality_gate=")
+		require.Equal(t, 0, code, "attended, removing the spec's override is the operator's to do: %s", stderr)
+		res := reply(t, out)
+		assert.Equal(t, []any{"quality_gate"}, res["removed"], "the reply says the override was removed")
+		assert.Equal(t, map[string]any{}, res["updated"], "nothing was written in its place")
+
+		var tf map[string]any
+		require.NoError(t, json.Unmarshal(readTask(t, dir), &tf))
+		assert.Equal(t, map[string]any{"review_max_rounds": float64(7)}, tf["workflow"],
+			"the quality_gate key is gone, never stored empty, and its sibling survives")
+		assert.Equal(t, projectGate, gateResolved(t, dir, "s.tasks.json"), "the spec falls back to the project gate")
+	})
+
+	t.Run("attended, with no override an empty value is a no-op", func(t *testing.T) {
+		t.Parallel()
+		dir := fenceShell(t, `{"review_max_rounds":7}`, project)
+		before := readTask(t, dir)
+
+		out, stderr, code := runTPFence(t, dir, false, "set", "--workflow", "quality_gate=")
+		require.Equal(t, 0, code, "there is nothing to remove, which is not an error: %s", stderr)
+		res := reply(t, out)
+		assert.Equal(t, []any{}, res["removed"], "the reply's shape is the removal's, with nothing in it")
+		assert.Equal(t, map[string]any{}, res["updated"])
+		assert.Equal(t, string(before), string(readTask(t, dir)), "the file is left byte-identical")
+		assert.Equal(t, projectGate, gateResolved(t, dir, "s.tasks.json"))
+	})
+
+	t.Run("unattended, removing the override is refused", func(t *testing.T) {
+		t.Parallel()
+		dir := fenceShell(t, withOverride, project)
+		before := readTask(t, dir)
+
+		_, stderr, code := runTPFence(t, dir, true, "set", "--workflow", "quality_gate=")
+		assertGateFenceRefused(t, stderr, code, "set --workflow quality_gate= (task layer)")
+		assert.Equal(t, string(before), string(readTask(t, dir)), "the refused removal left the task file byte-identical")
+		assert.Equal(t, specGate, gateResolved(t, dir, "s.tasks.json"), "the gate a close runs is unchanged")
+	})
+}
+
 func TestQualityGateFence_ImportRefusesOnlyAChange(t *testing.T) {
 	t.Parallel()
 	doc := func(workflow string) string {

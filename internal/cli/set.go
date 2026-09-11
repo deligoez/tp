@@ -357,7 +357,9 @@ func runSetWorkflow(args []string) error {
 
 		// The gate is fenced before it is accepted: under TP_UNATTENDED any
 		// write of it is refused (exit 2) as the user-approved decision it
-		// is. Attended, it is the operator's task-layer override to write.
+		// is — a removal included, since it changes the gate that resolves.
+		// Attended, a value is the operator's task-layer override to write
+		// and an empty one removes it (applyTaskQualityGate).
 		if engine.FencedGateField(field) {
 			fenceQualityGateSet("tp set --workflow quality_gate")
 			v := valueStr
@@ -539,9 +541,18 @@ func runSetWorkflow(args []string) error {
 			tf.Workflow.AuditConvergeOn = &v
 			updated["audit_converge_on"] = auditConvergeOnValue
 		}
+		reply := map[string]any{"updated": updated, "file": taskFileLabel(taskFilePath)}
 		if qualityGateValue != nil {
-			tf.Workflow.QualityGate = qualityGateValue
-			updated["quality_gate"] = *qualityGateValue
+			removed := applyTaskQualityGate(&tf.Workflow, *qualityGateValue, updated)
+			if removed != nil {
+				reply["removed"] = removed
+				if len(updated) == 0 && len(removed) == 0 {
+					// An empty quality_gate with no override to remove, and
+					// nothing else asked for: no change, so the file's bytes
+					// are left as they are.
+					return output.JSON(reply)
+				}
+			}
 		}
 
 		if err := model.WriteTaskFile(taskFilePath, tf); err != nil {
@@ -550,8 +561,31 @@ func runSetWorkflow(args []string) error {
 			return nil
 		}
 
-		return output.JSON(map[string]any{"updated": updated, "file": taskFileLabel(taskFilePath)})
+		return output.JSON(reply)
 	})
+}
+
+// applyTaskQualityGate applies a tp set --workflow quality_gate write to the
+// task layer. A non-empty value is the spec's own override and lands in
+// updated. An empty value REMOVES the override so the spec falls back to the
+// project gate; it never stores an empty gate, because a spec-local way to
+// switch the gate off is --skip-gate with a recorded reason, not a blank
+// value.
+//
+// It returns nil for a non-empty value, and otherwise the fields removed:
+// ["quality_gate"] when there was an override, [] when there was none — so the
+// reply carries "removed" exactly when a removal was asked for.
+func applyTaskQualityGate(wf *model.WorkflowOverride, value string, updated map[string]any) []string {
+	if value != "" {
+		wf.QualityGate = &value
+		updated["quality_gate"] = value
+		return nil
+	}
+	if wf.QualityGate == nil {
+		return []string{}
+	}
+	wf.QualityGate = nil
+	return []string{"quality_gate"}
 }
 
 // workflowFieldRange returns the valid write range for an editable workflow field.
