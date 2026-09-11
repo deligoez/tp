@@ -403,3 +403,42 @@ case Non-Goal 3 says the release makes merge honestly. The comparison is now sco
 items, gained the disposition's status, and `--merge` keeps writing `-o` on the conflict exit, as on
 its existing exit-1 path, so the driver's `;`-chained audit record unit reaches `--record`'s refusal
 instead of a missing file.
+
+## Review round 2
+
+`spec/backlog/.tp-review/audit-records-what-was-graded/review-round-2.ndjson` holds the round: five
+prompts including regression, 45 findings. Two of round 1's repairs did not survive, and the
+replacements are simpler than what they replace. **§6 was renumbered in this round**, so a row number
+cited in an earlier section of this file names the table as it stood then.
+
+**Matching a prior row by `evidence_file` dropped the rows it was meant to save.** The audit output
+schema tells a grader to leave `evidence_file` null on a `FAIL` (`internal/cli/audit_schema.go`), and
+four roles measured the corpus independently: in `slug`-stamped rounds most `file_check` `FAIL` rows
+carry none, and a few dozen non-`PASS` rows cite a file other than the item's — usually a document the
+code contradicts. Round 1's by-file rule would have listed every schema-conforming `FAIL` as answering
+nothing and filed the citing rows under the wrong item. The id is the right key once decision 1 makes
+it stable; the only rounds whose ids are wrong are those recorded before the release, and decision 1
+now requires that its ids never equal an earlier one, so those rows answer nothing instead of
+answering the wrong file. The cost is one re-measure of `file_check` items after the upgrade.
+
+**Refusing a conflicting pair deadlocked the driver and every full-panel shard.** The driver's audit
+record unit runs `[ -f $TP_ROUND_DIR/merged.ndjson ] || tp audit --merge …; tp audit <spec> --record
+…`: once a refused merge had written `-o`, every retry skipped the merge and refused again, and the
+oracle never re-spawns role units, so the hint's *re-grade* could not happen. And spec-coverage sees a
+different file list in each hand shard, so its verdicts on one item legitimately differ; re-grading
+returns the same answer. Keeping the worse verdict and reporting the group answers both: no finding is
+dropped, nothing waits on a re-grade, and the choice is deterministic and visible. `--record` refuses
+duplicates outright because its round file is a byte copy of its input — measured, two identical
+`FAIL` rows record as two findings at `HEAD`.
+
+**Containment was right for naming a round and wrong for re-recording one.** Measured at `HEAD`:
+`TP_ROUND=1 tp audit spec.md --record empty.ndjson` turned round 1 from `findings 1, clean false` into
+a zero-byte, clean round. Decision 2 in §4 now offers the re-record step only for a file whose rows
+are exactly the round's; decision 3 keeps containment for `matching_rounds`, which only informs.
+
+**The statement is for the interactive loop.** Review's resolve payload offers `--verify`, never a
+re-record, so under a run every review-resolve unit would have been told its write reached nothing
+while its own durable-write predicate reads that file. The statement now appears only with `TP_ROUND`
+unset, and on stderr. The search also covers the working directory's repository again, since this
+project's own merge outputs live in a scratch directory outside any repository — a half of the
+pre-review build the round-1 text had dropped.

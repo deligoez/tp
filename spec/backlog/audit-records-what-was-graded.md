@@ -49,59 +49,55 @@ sufficiently deep directory does. Two failures follow, both reproduced (sidecar,
 
 **Decision 1.** A `file_check` item's id is a function of the role and the file's path **relative to
 the repository root**, and of nothing else — not its position in the list, not which other files
-share the list, not the shard it was emitted in, not where the checkout lives. The path is taken
-cleaned and relative, so a leading `./`, a doubled separator or an absolute spelling of a file inside
-the repository does not make a second id. The id keeps a readable prefix derived from the path and
-carries no positional suffix.
+share the list, not the shard it was emitted in, not where the checkout lives or which directory tp
+runs from. The path is taken cleaned and relative, so a leading `./`, a doubled separator, an
+absolute spelling or a spelling relative to a subdirectory does not make a second id. Two different
+paths get two different ids. The id keeps a readable prefix derived from the path and carries no
+positional suffix, and no id it produces equals an id of the derivation it replaces.
 
-**Decision 1b.** A prior round's `file_check` row answers the current item that decision 1 gives its
-`role` and `evidence_file`, whatever id it was recorded under; a row without an `evidence_file`
-answers none. The prior-round section lists each such row under that item's id. Spec-derived rows are
-matched by id, and a round without an `id_scheme` marker is not comparable, both as today.
+**Decision 1b.** A prior round's row answers the current item whose id it carries, as today. Since
+decision 1's ids are stable from this release on and never equal an earlier id, a `file_check` row
+recorded before the release answers no current item, and the prior-round section lists it as such
+instead of attaching it to another file. Rounds recorded under decision 1 carry a new `id_scheme`
+value.
 
-**Why by file.** The id a row was recorded under is the one fact the defect corrupts, and
-`evidence_file` is the file the grader read. Matching on it makes every round recorded before this
-release usable at once, with no marker to trust: a round's `id_scheme` is stamped by the binary that
-records it, which need not be the one whose checklist the rows answer.
+**Why by id.** The recorded id is the one fact the defect corrupts, and only in rounds recorded
+before this release. `evidence_file` cannot stand in for it: the audit output schema tells a grader
+to leave it null on a `FAIL`, and on other rows it can cite a file other than the one the item names
+(sidecar, *Review round 2*).
 
 **Consequences.**
 
-- Recorded rounds keep their ids; tp does not rewrite them, and the `id_scheme` value is unchanged.
-- `scripts/audit-round-prep.py` already chooses carried rows by `evidence_file`; it now also lists a
-  `file_check` row to re-measure by its `evidence_file`, not by its id alone, and its shell test runs
-  in the project gate.
-- A residual collision — two paths that decision 1 maps to one id — is not silent: decision 2 refuses
-  the pair wherever it meets.
+- Recorded rounds keep their ids; tp does not rewrite them. The first round after the upgrade
+  re-measures its `file_check` items once, because no earlier row answers them.
+- `scripts/audit-round-prep.py` carries nothing from a round whose `id_scheme` is not the current
+  value, since a carried row would bring an id no item holds into the new round. A test holds the
+  script's copy of the current value equal to the binary's, and a Go test in the suite runs the
+  script's shell test.
 
 ### 2.2 Two verdicts on one item
 
-**Decision 2.** Two rows with the same `(role, item_id)` **conflict** when they carry different
-verdicts — `status`, `severity`, or a disposition's status — or, for a `file_check` item, name
-different files in `evidence_file`, compared as decision 1 takes a path. For a spec-derived item
-`evidence_file` is the grader's citation rather than the item's subject, and every shard carries
-spec-coverage's items, so it is not compared.
+**Decision 2.** When rows share `(role, item_id)`, `tp audit --merge` keeps the one with the **worse
+verdict** — the worse `status` (`FAIL`, then `PARTIAL`, then `PASS`), then the higher `severity` in
+tp's audit severity order with a missing one lowest, then the row without a disposition — instead of
+the first. It reports every group of such rows whose verdicts differ under a `conflicts` key naming
+each row's input and line, and exits as it would without them. Rows whose verdicts agree are one row,
+the first kept. `tp audit <spec> --record` refuses a file holding two rows with one
+`(role, item_id)`, whatever they say: exit 1, every pair named by line at once, no round written, and
+a hint naming `--merge`.
 
-- `tp audit --merge` does not deduplicate a conflicting pair. It names every pair by input and line,
-  exits 1 and, like its existing exit-1 path, still writes `-o`, holding both rows of each pair.
-- `tp audit <spec> --record` refuses a file holding a conflicting pair: exit 1, every pair named by
-  line at once, no round written. Its hint says a checklist item takes one row and that a pair is
-  settled by re-grading the item, not by deleting either row.
-- Rows with the same `(role, item_id)` that do not conflict are one row: `--merge` keeps the first,
-  and `--record` records the first.
+**Why.** Decision 1 removes the known cause. Decision 2 ends the silent choice at every other one — a
+role that misnames an id or writes two rows for one item, a hand-concatenated results file, one file
+named in two overlapping shards, a spec-coverage item graded `PASS` in one shard and `PARTIAL` in
+another because each shard saw different files. Keeping the worse verdict never drops a finding, and
+it is deterministic and reported, so the driver's chain still records and nothing needs re-grading
+first. Severity is part of the verdict because under `audit_converge_on: blocking` it decides whether
+the round is clean; a disposition is, because `a-finding-can-leave-an-audit-round` makes it decide
+the round. `--record` refuses rather than merges because its round file is a copy of its input: a
+round holding two rows for one item counts it twice.
 
-**Why.** Decision 1 removes the known cause. Decision 2 makes every other cause loud — a role that
-misnames an id or writes two rows for one item, a hand-concatenated results file, one file named in two
-overlapping shards, a residual collision — and ends a choice tp was never entitled to make silently:
-which of two disagreeing verdicts on one item is the round's. Severity is part of a verdict because
-under `audit_converge_on: blocking` it decides whether the round is clean; a disposition is, because
-`a-finding-can-leave-an-audit-round` makes it decide the round. `--merge` keeps writing `-o` on this
-exit so that a chain which records after the merge whatever its exit code — the driver's audit record
-unit is one — ends in `--record`'s refusal naming the pair, not in a missing file.
-
-**Consequences.** A `role:item_id` selector passed to `--resolve` can no longer dispose one file's row
-while another file's verdict under the same id stays open. Text in `skills/tp/SKILL.md` and
-`skills/tp/REFERENCE.md` that describes the replaced behaviour is rewritten with it.
-
+**Consequences.** Text in `skills/tp/SKILL.md` and `skills/tp/REFERENCE.md` that describes the
+replaced behaviour is rewritten with it.
 ## 3. Every closing commit counts
 
 **Context.** A task closed with more than one commit — a production commit and a test commit, the
@@ -135,22 +131,26 @@ is reproduced in the sidecar under field report #29.
 1. Workflow D step 4 names the **recorded round file** by its path shape — the round file under the
    spec's `.tp-review/` directory that step 3 recorded — as where a disposition written after step 3
    goes, and says that a disposition written into the merge output before step 3 is recorded with it.
-   It is the interactive loop's step: a unit under `tp run` follows its own brief, which disposes rows
-   in the round directory's merge output and re-records it through decision 2. The step needs no key a
-   later release adds; when `--record` gains a `file` key (`a-findings-exits-agree`), it may cite that.
-2. The re-record `next_step` is offered only when a driver round is set (`TP_ROUND`), it names one of
-   the recorded rounds the file's rows match (decision 3), and every non-`PASS` row in the file
-   carries a disposition. Otherwise no resolve payload names `--record`.
+   It is the interactive loop's step; a unit under `tp run` follows its own brief. The step needs no
+   key a later release adds; when `--record` gains a `file` key (`a-findings-exits-agree`), it may
+   cite that.
+2. The re-record `next_step` is offered only when a driver round is set (`TP_ROUND`), the file's rows
+   are exactly the rows of that round of the spec the driver runs, dispositions aside, and every
+   non-`PASS` row in the file carries a disposition. A file holding part of a round — one role's
+   rows, or none — is never offered it, since recording it would replace the round with that part.
+   Otherwise no resolve payload names `--record`.
 3. A `--resolve` or `--resolve-all` into a file that is **not a recorded round** still writes. Its
-   payload carries `recorded_round: false` and `matching_rounds`, the recorded round files whose rows
-   include every row of the file, dispositions aside — empty when none does. When the payload offers
-   decision 2's step, that step is what carries the disposition into the round; otherwise the payload
-   says in words that the file is not a recorded round and that no round state changed. The search
-   reads the recorded rounds of every spec whose round state lives in the repository holding the file,
-   never through the active-file pointer, which can name another spec, and names in the payload any
-   round state it cannot read rather than skipping it. A recorded round is a file its spec's round
-   state lists as a round's file, compared after resolving symlinks; a resolve into one carries
-   `recorded_round: true`. **`tp review --resolve` and `--resolve-all` do the same**, because the same
+   payload carries `recorded_round: false` and `matching_rounds`: the recorded round files, each as a
+   path relative to its repository's root, whose rows include every row of the file, dispositions
+   aside — empty when none does. Outside a driver round (`TP_ROUND` unset) it also says on stderr,
+   with the command's other human-readable line, that the file is not a recorded round and that no
+   round state changed; inside one the unit's brief decides where dispositions go, and it says
+   nothing. The search reads the recorded rounds of every spec whose round state lives in the
+   repository holding the working directory or the one holding the file, never through the
+   active-file pointer, which can name another spec; a round state it cannot read is named on stderr,
+   never skipped in silence. A recorded round is a file its spec's round state lists as a round's
+   file, compared after resolving symlinks; a resolve into one carries `recorded_round: true` and no
+   `matching_rounds`. **`tp review --resolve` and `--resolve-all` do the same**, because the same
    write into the same kind of file is lost the same way on the review side. Whether such a write
    should be refused, and what a disposition in a recorded round does to its verdict, stay with
    `a-finding-can-leave-an-audit-round`.
@@ -172,48 +172,53 @@ reason `CLAUDE.md` gives about `Contains` guards over prose; the audit reads it.
 3. **No section sharding.** Dividing a round is `round-divides-by-section`. This release makes a
    hand-sharded round merge honestly; it does not make sharding a tp feature.
 4. **Spec-derived item ids are unchanged.** Only `file_check` ids change derivation.
+5. **A round emitted before the upgrade and recorded after it is not detected.** Its `id_scheme`
+   names the binary that recorded it, and tp keeps no record of which binary emitted a round.
 
 ## 6. Tests
 
-Every row derives from a numbered decision and names a mutant that must fail it. Rows whose fixture
-runs at `HEAD` quote the value measured there; the value under the fix is the row's assertion, and
-seeing it is the implementing task's acceptance. Rows marked *deferred* have a subject that does not
-exist at `HEAD`, so both counts belong to that acceptance.
+Every row derives from the decision or consequence its `from` column names, and names a mutant that
+must fail it. A row runs with `TP_ROUND` unset unless it sets it. Rows whose fixture runs at `HEAD`
+quote the value measured there; the value under the fix is the row's assertion, and seeing it is the
+implementing task's acceptance. Rows marked *deferred* have a subject that does not exist at `HEAD`,
+so both counts belong to that acceptance.
 
 | # | from | assertion | the mutant that must fail it |
 |---|---|---|---|
-| 1 | §2.1 d1 *rounds* | two files in one directory whose path slugs share their cut prefix, emitted in round 1; round 2 adds a third file that sorts before both. Each file's id is identical in both emissions. At `HEAD`: 2 of round 1's 2 ids name a different file in round 2 | restore the positional suffix |
-| 1b | §2.1 d1 *spelling* | one file named four ways — plain, with a leading `./`, with a doubled separator, by its absolute path — each alone with `--affected-files`, gets one id. At `HEAD`: the absolute spelling gets an id of its own | derive the id from the path as given |
-| 2 | §2.1 d1 *prior round* | same fixture as row 1, round 1 recording a `FAIL` on the first file: in round 2's prompt, the prior-round row and the checklist item carrying the same id name the same file. At `HEAD` they name different files | restore the positional suffix |
-| 3 | §2.1 d1 *shards* | four files in one deep directory, emitted as two shards of two with `--affected-files`; shard 2 carries an `error` `FAIL`. The merged output holds four distinct ids and the `FAIL`. At `HEAD`: `merged_count` 2, `duplicates_removed` 2, `findings` 0, exit 0, and the recorded round is clean | restart the suffix per emission |
-| 4 | §2.1 d1b *old round* | a prior round recorded at `HEAD` whose `file_check` row's id names, under decision 1, no current item: the prior-round section lists the row under the id decision 1 gives its `evidence_file`. At `HEAD`: listed under its recorded id | match prior rows by recorded id |
-| 4b | §2.1 d1b *no file* | a prior `file_check` row without `evidence_file` is listed as answering no item. *Deferred* | fall back to the recorded id |
-| 4c | §2.1 d1b *marker-less* | a prior round without an `id_scheme` marker is listed as not comparable as a whole. At `HEAD`: the same | match a marker-less round's rows by file too |
-| 4d | §2.1 *prep* | `scripts/audit-round-prep.py` over a previous round holding a `FAIL` `file_check` row lists it to re-measure with its `evidence_file`. At `HEAD`: listed by id only | list re-measured rows by id, the shipped listing |
-| 5 | §2.2 d2 *file* | `--merge` over two inputs sharing one `file_check` `(role, item_id)`, `status` and `severity`, naming different `evidence_file`s: exit 1, both input lines named, and `-o` holds both rows. At `HEAD`: exit 0, first row kept | compare `status` and `severity` only |
-| 5b | §2.2 d2 *severity* | two inputs sharing one `(role, item_id)`, `evidence_file` and `status: FAIL`, one `severity: warning` and one `error`: `--merge` exits 1 naming both. At `HEAD`: exit 0, `duplicates_removed` 1, the `warning` row kept | leave `severity` out of the comparison |
-| 5c | §2.2 d2 *disposition* | two inputs agreeing on every compared field but one carrying a `wontfix` disposition: `--merge` exits 1 naming both. At `HEAD`: exit 0, first row kept | leave the disposition out of the comparison |
-| 5d | §2.2 d2 *citation* | two inputs sharing one spec-derived `(role, item_id)`, `status` and `severity`, citing different `evidence_file`s: `--merge` keeps one and exits 0. At `HEAD`: the same | compare `evidence_file` on every item |
-| 6 | §2.2 d2 *record* | `--record` of one file holding the pair of row 5 exits 1, names both lines, and writes no round file. At `HEAD`: exit 0, both rows recorded under one id | record without the check |
-| 6b | §2.2 d2 *record agreeing* | `--record` of one file holding the same `FAIL` row twice records one finding. At `HEAD`: `findings` 2 | record both rows |
-| 7 | §2.2 d2 *agreeing* | `--merge` over two inputs holding the same row identically keeps one and exits 0. At `HEAD`: `merged_count` 1, `duplicates_removed` 1 | refuse on `(role, item_id)` alone, which would refuse any results file merged twice |
-| 7b | §2.2 d2 *other fields* | two inputs agreeing on every compared field and differing in `note`: `--merge` keeps the first and exits 0. At `HEAD`: the same | compare whole rows |
+| 1 | §2.1 d1 *rounds* | two files in one directory whose path slugs share their cut prefix, emitted in round 1; round 2 adds a third file that sorts before both. Each file's id is identical in both emissions. At `HEAD`: 2 of round 1's 2 ids name a different file in round 2 | the shipped derivation |
+| 1b | §2.1 d1 *spelling* | one file named five ways — plain, with a leading `./`, with a doubled separator, by its absolute path, and relative to a subdirectory run from there — each alone with `--affected-files`, gets one id. At `HEAD`: the absolute and subdirectory spellings each get an id of their own | derive the id from the path as given |
+| 1c | §2.1 d1 *checkout* | the same file in two clones at different locations, named by absolute path in each, gets one id. At `HEAD`: two ids | derive the id from the absolute path |
+| 2 | §2.1 d1 *prior round* | same fixture as row 1, round 1 recording a `FAIL` on the first file: in round 2's prompt, the prior-round row and the checklist item carrying the same id name the same file. At `HEAD` they name different files | the shipped derivation |
+| 3 | §2.1 d1 *shards* | four files in one deep directory, emitted as two shards of two with `--affected-files`; shard 2 carries an `error` `FAIL`. The merged output holds four distinct ids and the `FAIL`. At `HEAD`: `merged_count` 2, `duplicates_removed` 2, `findings` 0, exit 0, and the recorded round is clean | the shipped derivation |
+| 4 | §2.1 d1b *old round* | a prior round recorded at `HEAD` holding a `FAIL` `file_check` row whose id carried no collision suffix: the prior-round section lists the row as answering no current item. At `HEAD`: listed as the current item with that id | keep the earlier id for a file whose id carried no suffix |
+| 4b | §2.1 *prep* | `scripts/audit-round-prep.py` over a previous round recorded at `HEAD` carries none of its rows. At `HEAD`: carries its `PASS` rows whose evidence files are untouched | carry whatever the round's `id_scheme` |
+| 5 | §2.2 d2 *status* | `--merge` over two inputs sharing one `(role, item_id)`, one `PASS` and one `FAIL`: the output holds the `FAIL`, `conflicts` names both input lines, exit 0. At `HEAD`: the first (`PASS`) kept, nothing reported | keep the first, the shipped dedup |
+| 5b | §2.2 d2 *severity* | two `FAIL` inputs sharing one `(role, item_id)`, one `severity: warning` and one `error`: the `error` row is kept and the pair reported. At `HEAD`: the `warning` row kept | leave `severity` out of the order |
+| 5c | §2.2 d2 *disposition* | two inputs with the same verdict, one carrying a `wontfix` disposition: the row without it is kept and the pair reported. At `HEAD`: the first kept | leave the disposition out of the order |
+| 5d | §2.2 d2 *three rows* | three inputs sharing one `(role, item_id)` with three verdicts: the worst is kept and `conflicts` names all three lines. *Deferred* | report pairs only |
+| 5e | §2.2 d2 *agreeing* | two inputs holding the same verdict and differing in `note` and `evidence_file`: the first is kept and nothing is reported. At `HEAD`: the first kept | compare whole rows |
+| 5f | §2.2 d2 *spec-coverage shards* | two shards whose spec-coverage rows on one spec-derived item are `PASS` and `PARTIAL`: the merge keeps the `PARTIAL`, exits 0, and `--record` of its output records one row for the item. At `HEAD`: the first kept | refuse a conflicting pair |
+| 6 | §2.2 d2 *record* | `--record` of one file holding two rows with one `(role, item_id)` and different verdicts exits 1, names both lines, and writes no round file. At `HEAD`: exit 0, both rows recorded | record without the check |
+| 6b | §2.2 d2 *record identical* | `--record` of one file holding the same `FAIL` row twice exits 1 the same way. At `HEAD`: `findings` 2 | refuse only rows whose verdicts differ |
 | 8 | §3 | a task closed with a production and a test commit: spec-coverage's `affected_files` and its task item's evidence both hold both files. At `HEAD`: 1 of 2, the production file only | read the first sha only |
 | 9 | §3 *agreement* | same fixture with `--affected-from-tasks`: the audited universe and spec-coverage's list are the same set. At `HEAD`: 2 and 1 | read the first sha only in the task mapping |
 | 9b | §3 *`commit_sha` only* | a done task carrying `commit_sha` and no `commit_shas`: `--affected-from-tasks` audits that commit's files. At `HEAD`: exit 4, no done task carries `commit_shas` | read `commit_shas` only in the universe derivation |
 | 9c | §3 *exit-4 reason* | a done task carrying only a `commit_sha` that does not resolve: `--affected-from-tasks` exits 4 with the reason it gives an unresolvable `commit_shas` entry. At `HEAD`: the reason says no done task carries `commit_shas` | read `commit_shas` only when choosing the reason |
-| 10 | §4 d2 *outside a run* | `--resolve-all` into a file with `TP_ROUND` unset: the payload names no `--record`. At `HEAD` it does, and following it takes the recorded round count 1 → 2 with no emission | offer the step unconditionally, the shipped behaviour |
-| 10b | §4 d2 *stale round* | the same, with `TP_ROUND` naming a round that is not one the file's rows match: the payload names no `--record`. At `HEAD` it does | offer the step whenever `TP_ROUND` is set |
-| 11 | §4 d2 *inside a run* | `--resolve-all` with `TP_ROUND` naming the recorded round the file's rows match: the step is offered. At `HEAD`: offered | drop the step altogether |
-| 11b | §4 d2 *`PASS` rows* | `--resolve 0` on a file of one `FAIL` and one undisposed `PASS`, `TP_ROUND` naming its round: the step is offered. At `HEAD`: not offered | require a disposition on `PASS` rows too, the shipped condition |
-| 12 | §4 d3 | after `--record`, `--resolve 0 wontfix "<evidence>"` into the merge output exits 0, writes the disposition, and carries `recorded_round: false`, `matching_rounds` naming the recorded round file, and the no-state-changed statement. At `HEAD` the payload carries none of them | omit them, the shipped payload |
+| 10 | §4 d2 *outside a run* | `--resolve-all` into a copy of a recorded round: the payload names no `--record`. At `HEAD` it does, and following it takes the recorded round count 1 → 2 with no emission | offer the step unconditionally, the shipped behaviour |
+| 10b | §4 d2 *stale round* | the same, with `TP_ROUND` naming a round the file's rows are not: no `--record`. At `HEAD` it does | offer the step whenever `TP_ROUND` is set |
+| 10c | §4 d2 *part of a round* | `--resolve-all` into one role's rows of round 1 with `TP_ROUND=1`: no `--record`. At `HEAD` it is offered, and recording an empty file under `TP_ROUND=1` turns round 1 into a clean round of zero rows | offer the step when the round contains the file's rows |
+| 11 | §4 d2 *inside a run* | `--resolve-all` into a copy of round 1 with `TP_ROUND=1`: the step is offered. At `HEAD`: offered | drop the step altogether |
+| 11b | §4 d2 *`PASS` rows* | `--resolve 0` on a copy of round 1 holding one `FAIL` and one undisposed `PASS`, `TP_ROUND=1`: the step is offered. At `HEAD`: not offered | require a disposition on `PASS` rows too, the shipped condition |
+| 12 | §4 d3 | after `--record`, `--resolve 0 wontfix "<evidence>"` into the merge output exits 0, writes the disposition, carries `recorded_round: false` and `matching_rounds` naming the recorded round file, and says on stderr that no round state changed. At `HEAD` it carries none of them | omit them, the shipped payload |
 | 12b | §4 d3 *pointer* | two specs each with a recorded audit round, the `tp use` pointer naming the other spec: the resolve into the first spec's merge output names the first spec's round file. *Deferred* | find the round through the active-file pointer |
-| 12c | §4 d3 *review* | after `tp review <spec> --record merged.ndjson`, `tp review merged.ndjson --resolve 0 wontfix "<evidence>"` carries `recorded_round: false` and names the recorded review round file. At `HEAD` the payload carries neither | leave the review resolve payload as shipped |
-| 12d | §4 d3 *review all* | the same with `tp review merged.ndjson --resolve-all wontfix "<evidence>"`. At `HEAD` the payload carries neither | leave the review resolve-all payload as shipped |
-| 12e | §4 d3 *one role's file* | a resolve into one role's findings file, whose rows are a subset of the recorded round's, names that recorded round. *Deferred* | match only a file whose rows equal a round's |
+| 12c | §4 d3 *review* | after `tp review <spec> --record merged.ndjson`, `tp review merged.ndjson --resolve 0 wontfix "<evidence>"` carries `recorded_round: false` and names the recorded review round file. At `HEAD` it carries neither | leave the review resolve payload as shipped |
+| 12d | §4 d3 *review all* | the same with `tp review merged.ndjson --resolve-all wontfix "<evidence>"`. At `HEAD` it carries neither | leave the review resolve-all payload as shipped |
+| 12e | §4 d3 *one role's file* | a resolve into one role's findings file, whose rows are a subset of the recorded round's, names that round. *Deferred* | match only a file whose rows equal a round's |
 | 12f | §4 d3 *several* | a resolve into a file whose rows are in two recorded rounds names both. *Deferred* | name the first match |
-| 12g | §4 d3 *in a run* | with `TP_ROUND` naming the round the file matches, the payload offers the step and does not say that no round state changed. *Deferred* | say it whenever the file is not a recorded round |
-| 13 | §4 d3 *recorded* | the same resolve into the recorded round file carries `recorded_round: true` and no not-a-recorded-round statement. *Deferred* | make the statement unconditional |
+| 12g | §4 d3 *in a run* | the resolve of row 12 with `TP_ROUND` set carries the keys and says nothing on stderr about round state. *Deferred* | say it whenever the file is not a recorded round |
+| 12h | §4 d3 *outside the repository* | the merge output kept in a directory outside any repository, resolved from the repository's root: `matching_rounds` names the round. *Deferred* | search only the repository holding the file |
+| 12i | §4 d3 *unreadable state* | another spec's round state made unreadable: the resolve exits 0, writes the disposition, and names that state on stderr. *Deferred* | skip an unreadable round state |
+| 13 | §4 d3 *recorded* | the resolve into the recorded round file carries `recorded_round: true` and says nothing on stderr about round state. *Deferred* | make the statement unconditional |
 | 13b | §4 d3 *symlink* | the recorded round file named through a symlinked directory carries `recorded_round: true`. *Deferred* | compare paths as text |
 | 14 | §4 d4 | `--resolve-all` over one `FAIL` and one `PASS` row: `resolved_count` 1, the `PASS` row carries no `resolved` block. At `HEAD`: `resolved_count` 2 | disposition every row, the shipped loop |
-| 14b | §4 d4 *force* | `--resolve-all --force` over a `PASS` row already carrying a disposition leaves that disposition byte-identical. At `HEAD`: overwritten | let `--force` reach `PASS` rows |
+| 14b | §4 d4 *force* | `--resolve-all --force` over a `PASS` row already carrying a disposition leaves its `resolved` block unchanged. At `HEAD`: overwritten | let `--force` reach `PASS` rows |
