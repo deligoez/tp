@@ -121,8 +121,9 @@ func runInit(_ *cobra.Command, args []string) error {
 		return nil
 	}
 
+	warnPointerNamesAnother(taskFilePath)
 	output.Success(fmt.Sprintf("created %s", taskFilePath))
-	return output.JSON(map[string]string{"created": taskFilePath})
+	return output.JSON(map[string]string{"created": taskFilePath, "file": taskFileLabel(taskFilePath)})
 }
 
 // runEjectRoles writes the selected default role corpus into .tp/reviewers and

@@ -32,7 +32,7 @@ func runClaim(_ *cobra.Command, args []string) error {
 		return nil
 	}
 
-	taskFilePath, err := engine.DiscoverTaskFile(".", flagFile)
+	taskFilePath, err := discoverWriteTarget()
 	if err != nil {
 		output.Error(ExitFile, err.Error())
 		os.Exit(ExitFile)
@@ -132,7 +132,7 @@ func claimSingle(tf *model.TaskFile, taskFilePath, id string) error {
 	}
 
 	output.Success(fmt.Sprintf("claimed %s", task.ID))
-	return output.JSON(task)
+	return output.JSON(taskWritten{Task: task, File: taskFileLabel(taskFilePath)})
 }
 
 type claimFailure struct {
@@ -199,6 +199,7 @@ func claimBatch(tf *model.TaskFile, taskFilePath string, ids []string) error {
 	result := map[string]any{
 		"claimed": claimed,
 		"failed":  failures,
+		"file":    taskFileLabel(taskFilePath),
 	}
 
 	if jsonErr := output.JSON(result); jsonErr != nil {

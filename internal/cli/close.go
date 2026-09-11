@@ -90,7 +90,7 @@ func runClose(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	taskFilePath, err := engine.DiscoverTaskFile(".", flagFile)
+	taskFilePath, err := discoverWriteTarget()
 	if err != nil {
 		output.Error(ExitFile, err.Error())
 		os.Exit(ExitFile)
@@ -183,6 +183,6 @@ func runClose(cmd *cobra.Command, args []string) error {
 		warnUnexplainedChanges(unexplainedChangeCount(taskFilePath))
 
 		output.Success(fmt.Sprintf("closed %s", task.ID))
-		return output.JSON(task)
+		return output.JSON(taskWritten{Task: task, File: taskFileLabel(taskFilePath)})
 	})
 }

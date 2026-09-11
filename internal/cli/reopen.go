@@ -32,7 +32,7 @@ func backToOpenHint(task *model.Task) string {
 }
 
 func runReopen(_ *cobra.Command, args []string) error {
-	taskFilePath, err := engine.DiscoverTaskFile(".", flagFile)
+	taskFilePath, err := discoverWriteTarget()
 	if err != nil {
 		output.Error(ExitFile, err.Error())
 		os.Exit(ExitFile)
@@ -84,6 +84,6 @@ func runReopen(_ *cobra.Command, args []string) error {
 		}
 
 		output.Success(fmt.Sprintf("reopened %s", task.ID))
-		return output.JSON(map[string]string{"reopened": task.ID})
+		return output.JSON(map[string]string{"reopened": task.ID, "file": taskFileLabel(taskFilePath)})
 	})
 }

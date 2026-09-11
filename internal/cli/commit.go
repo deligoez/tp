@@ -43,7 +43,7 @@ Output: {id, sha, message}`,
 }
 
 func runCommit(_ *cobra.Command, args []string) error {
-	taskFilePath, err := engine.DiscoverTaskFile(".", flagFile)
+	taskFilePath, err := discoverWriteTarget()
 	if err != nil {
 		output.Error(ExitFile, err.Error())
 		os.Exit(ExitFile)
@@ -172,6 +172,7 @@ func runCommit(_ *cobra.Command, args []string) error {
 			"id":      task.ID,
 			"sha":     sha,
 			"message": strings.SplitN(msg, "\n", 2)[0],
+			"file":    taskFileLabel(taskFilePath),
 		})
 	})
 }

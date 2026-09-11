@@ -25,7 +25,7 @@ func newRemoveCmd() *cobra.Command {
 }
 
 func runRemove(_ *cobra.Command, args []string) error {
-	taskFilePath, err := engine.DiscoverTaskFile(".", flagFile)
+	taskFilePath, err := discoverWriteTarget()
 	if err != nil {
 		output.Error(ExitFile, err.Error())
 		os.Exit(ExitFile)
@@ -99,6 +99,6 @@ func runRemove(_ *cobra.Command, args []string) error {
 		}
 
 		output.Success(fmt.Sprintf("removed %s", args[0]))
-		return output.JSON(map[string]string{"removed": args[0]})
+		return output.JSON(map[string]string{"removed": args[0], "file": taskFileLabel(taskFilePath)})
 	})
 }

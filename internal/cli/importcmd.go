@@ -230,6 +230,7 @@ func runImport(_ *cobra.Command, args []string) error {
 		return lockErr
 	}
 
+	warnPointerNamesAnother(targetPath)
 	output.Success(fmt.Sprintf("imported %d tasks to %s", len(tf.Tasks), targetPath))
-	return output.JSON(map[string]any{"imported": len(tf.Tasks), "path": targetPath})
+	return output.JSON(map[string]any{"imported": len(tf.Tasks), "path": targetPath, "file": taskFileLabel(targetPath)})
 }

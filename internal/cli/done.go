@@ -37,8 +37,8 @@ func newDoneCmd() *cobra.Command {
 		Use:   "done <id> [reason]",
 		Short: "Close task with verification (preferred over tp close)",
 		Long: `Close task(s) with closure verification. Implicitly claims open tasks.
-Single-ID output: {closed: "id", remaining: {...}, has_next: bool}
-Multi-ID output:  {closed: ["id1","id2"], failed: [...], remaining: {...}, has_next: bool}
+Single-ID output: {closed: "id", file, remaining: {...}, has_next: bool}
+Multi-ID output:  {closed: ["id1","id2"], failed: [...], file, remaining: {...}, has_next: bool}
 On error: {error, code, acceptance, hint} on stderr. Task unchanged.`,
 		Example: `  tp done auth-model "evidence"
   tp done auth-model "evidence" --gate-passed --commit abc123
@@ -126,7 +126,7 @@ func runDone(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	taskFilePath, err := engine.DiscoverTaskFile(".", flagFile)
+	taskFilePath, err := discoverWriteTarget()
 	if err != nil {
 		output.Error(ExitFile, err.Error())
 		os.Exit(ExitFile)
@@ -353,6 +353,7 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 
 		result := map[string]any{
 			"closed": task.ID,
+			"file":   taskFileLabel(taskFilePath),
 			"remaining": map[string]any{
 				"total": len(tf.Tasks),
 				"open":  openCount,
@@ -565,6 +566,7 @@ func runDoneMulti(taskFilePath string, taskIDs []string, reason string) error {
 		result := map[string]any{
 			"closed": closedIDs,
 			"failed": failed,
+			"file":   taskFileLabel(taskFilePath),
 			"remaining": map[string]any{
 				"total": len(tf.Tasks),
 				"open":  openCount,
@@ -664,7 +666,7 @@ func runDoneBatch() error {
 		}
 	}
 
-	taskFilePath, err := engine.DiscoverTaskFile(".", flagFile)
+	taskFilePath, err := discoverWriteTarget()
 	if err != nil {
 		output.Error(ExitFile, err.Error())
 		os.Exit(ExitFile)
@@ -899,6 +901,7 @@ func runDoneBatch() error {
 			"failed":    len(failures),
 			"skipped":   skippedCount,
 			"reordered": reordered,
+			"file":      taskFileLabel(taskFilePath),
 			"remaining": map[string]any{
 				"total": len(tf.Tasks),
 				"open":  openCount,

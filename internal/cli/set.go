@@ -123,7 +123,7 @@ func runSet(_ *cobra.Command, args []string) error {
 		return nil
 	}
 
-	taskFilePath, err := engine.DiscoverTaskFile(".", flagFile)
+	taskFilePath, err := discoverWriteTarget()
 	if err != nil {
 		output.Error(ExitFile, err.Error())
 		os.Exit(ExitFile)
@@ -166,12 +166,12 @@ func runSet(_ *cobra.Command, args []string) error {
 		}
 
 		output.Success(fmt.Sprintf("updated %s.%s", task.ID, field))
-		return output.JSON(task)
+		return output.JSON(taskWritten{Task: task, File: taskFileLabel(taskFilePath)})
 	})
 }
 
 func runSetBulk() error {
-	taskFilePath, err := engine.DiscoverTaskFile(".", flagFile)
+	taskFilePath, err := discoverWriteTarget()
 	if err != nil {
 		output.Error(ExitFile, err.Error())
 		os.Exit(ExitFile)
@@ -282,7 +282,7 @@ func runSetBulk() error {
 		}
 
 		output.Success(fmt.Sprintf("bulk set: %d updated, %d failed", updated, failed))
-		return output.JSON(map[string]any{"updated": updated, "failed": failed, "results": results})
+		return output.JSON(map[string]any{"updated": updated, "failed": failed, "results": results, "file": taskFileLabel(taskFilePath)})
 	})
 }
 
@@ -472,7 +472,7 @@ func runSetWorkflow(args []string) error {
 		pairs[field] = val
 	}
 
-	taskFilePath, err := engine.DiscoverTaskFile(".", flagFile)
+	taskFilePath, err := discoverWriteTarget()
 	if err != nil {
 		output.Error(ExitFile, err.Error())
 		os.Exit(ExitFile)
@@ -543,7 +543,7 @@ func runSetWorkflow(args []string) error {
 			return nil
 		}
 
-		return output.JSON(map[string]any{"updated": updated})
+		return output.JSON(map[string]any{"updated": updated, "file": taskFileLabel(taskFilePath)})
 	})
 }
 

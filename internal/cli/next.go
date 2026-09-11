@@ -46,7 +46,12 @@ func runNext(_ *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	taskFilePath, err := engine.DiscoverTaskFile(".", flagFile)
+	// --peek never writes, so it resolves without the write notice.
+	discover := discoverWriteTarget
+	if nextPeek {
+		discover = func() (string, error) { return engine.DiscoverTaskFile(".", flagFile) }
+	}
+	taskFilePath, err := discover()
 	if err != nil {
 		output.Error(ExitFile, err.Error())
 		os.Exit(ExitFile)
@@ -222,6 +227,7 @@ func outputNextTask(tf *model.TaskFile, task *model.Task, taskFilePath, specPath
 		"blocks":       blocks,
 		"remaining":    map[string]any{"total": len(tf.Tasks), "open": openCount, "wip": wipCount, "done": doneCount},
 		"quality_gate": tf.Workflow.QualityGate,
+		"file":         taskFileLabel(taskFilePath),
 	}
 
 	if !flagCompact {

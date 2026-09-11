@@ -166,3 +166,54 @@ func TestDiscoverTaskFile_PrecedenceAndTPActiveIgnored(t *testing.T) {
 		assert.Contains(t, err.Error(), "multiple task files")
 	})
 }
+
+// TestDiscoverTaskFileVia_ReportsOnlyThePointer pins the flag write commands
+// key their notice on: true when .tp/local.json's active pointer chose the
+// file, false for --file and auto-detect, which resolve the same paths.
+func TestDiscoverTaskFileVia_ReportsOnlyThePointer(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
+	spec := filepath.Join(root, "spec")
+	require.NoError(t, os.Mkdir(spec, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(spec, "a.tasks.json"), []byte("{}"), 0o600))
+
+	got, via, err := DiscoverTaskFileVia(root, "")
+	require.NoError(t, err)
+	assert.Equal(t, "a.tasks.json", filepath.Base(got))
+	assert.False(t, via, "auto-detect found the file, not the pointer")
+
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".tp"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".tp", "local.json"), []byte(`{"active":"spec/a.tasks.json"}`), 0o600))
+	got, via, err = DiscoverTaskFileVia(root, "")
+	require.NoError(t, err)
+	assert.Equal(t, "a.tasks.json", filepath.Base(got))
+	assert.True(t, via, "the pointer chose the file")
+
+	_, via, err = DiscoverTaskFileVia(root, filepath.Join(spec, "a.tasks.json"))
+	require.NoError(t, err)
+	assert.False(t, via, "--file outranks the pointer")
+}
+
+// TestOtherTaskFiles_SeesSiblingsRootAndSubdirs covers the three places the
+// scan looks — the pointer file's own directory, the directory the command
+// runs from, and that directory's non-hidden subdirectories — and that it
+// never counts the file itself or a hidden directory.
+func TestOtherTaskFiles_SeesSiblingsRootAndSubdirs(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
+	for _, d := range []string{"spec", filepath.Join("spec", "backlog"), "other", ".hidden"} {
+		require.NoError(t, os.MkdirAll(filepath.Join(root, d), 0o755))
+	}
+	nested := filepath.Join(root, "spec", "backlog", "a.tasks.json")
+	for _, f := range []string{nested, filepath.Join(root, "spec", "backlog", "b.tasks.json"), filepath.Join(root, "root.tasks.json"), filepath.Join(root, "other", "c.tasks.json"), filepath.Join(root, ".hidden", "h.tasks.json")} {
+		require.NoError(t, os.WriteFile(f, []byte("{}"), 0o600))
+	}
+
+	names := make([]string, 0)
+	for _, p := range OtherTaskFiles(root, nested) {
+		names = append(names, filepath.Base(p))
+	}
+	assert.ElementsMatch(t, []string{"b.tasks.json", "root.tasks.json", "c.tasks.json"}, names)
+}

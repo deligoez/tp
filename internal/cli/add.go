@@ -168,7 +168,7 @@ func addTasks(tasks []model.Task) error {
 		return nil
 	}
 
-	taskFilePath, err := engine.DiscoverTaskFile(".", flagFile)
+	taskFilePath, err := discoverWriteTarget()
 	if err != nil {
 		if addSpec == "" {
 			output.Error(ExitFile, "no task file found. Use --spec to create one, or run tp init first")
@@ -275,6 +275,6 @@ func addTasks(tasks []model.Task) error {
 		} else {
 			output.Success(fmt.Sprintf("added %d tasks: %s", len(ids), strings.Join(ids, ", ")))
 		}
-		return output.JSON(map[string]any{"added": ids})
+		return output.JSON(map[string]any{"added": ids, "file": taskFileLabel(taskFilePath)})
 	})
 }
