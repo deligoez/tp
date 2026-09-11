@@ -70,6 +70,7 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 		os.Exit(ExitFile)
 		return nil
 	}
+	data = dropEmptyArrayLines(data)
 
 	findings, dirty, incomplete, parseHint, parseErr := parseRecordRows(recordPath, data)
 	if errors.Is(parseErr, bufio.ErrTooLong) {

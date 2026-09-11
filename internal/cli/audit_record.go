@@ -75,6 +75,7 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 		os.Exit(ExitFile)
 		return nil
 	}
+	data = dropEmptyArrayLines(data)
 
 	rows, findings, parseErr := parseAuditRows(recordPath, data)
 	if parseErr != nil {

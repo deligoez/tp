@@ -207,6 +207,26 @@ func scanMergeInput(f *os.File, path string) ([]map[string]any, mergeInputCounts
 	return rows, counts, scanner.Err()
 }
 
+// dropEmptyArrayLines removes every line that is an empty JSON array
+// (isEmptyJSONArray) from a --record input, so a role that found nothing
+// records the way a zero-byte file does, and the stored round file holds only
+// JSON objects, which every reader of a round file requires. Input with no
+// such line is returned unchanged.
+func dropEmptyArrayLines(data []byte) []byte {
+	lines := strings.Split(string(data), "\n")
+	kept := make([]string, 0, len(lines))
+	for _, line := range lines {
+		if isEmptyJSONArray(strings.TrimSpace(line)) {
+			continue
+		}
+		kept = append(kept, line)
+	}
+	if len(kept) == len(lines) {
+		return data
+	}
+	return []byte(strings.Join(kept, "\n"))
+}
+
 // isEmptyJSONArray reports whether a line is a well-formed JSON array with no
 // elements — the shape a role uses to say it found nothing, in whichever
 // spelling its emitter chose. `[]`, `[]  ` and `[ ]` all reach here.

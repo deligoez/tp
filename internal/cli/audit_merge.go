@@ -178,6 +178,11 @@ func loadAuditMergeRows(args []string) ([]map[string]any, []mergeInputCounts) {
 			}
 			var row map[string]any
 			if err := json.Unmarshal([]byte(line), &row); err != nil {
+				// An empty array is a role saying it found nothing, read
+				// the way tp review --merge reads it (scanMergeInput).
+				if isEmptyJSONArray(line) {
+					continue
+				}
 				fmt.Fprintf(os.Stderr, "warning: skipping malformed line (invalid JSON) in %s\n", path)
 				counts.Skipped++
 				continue

@@ -110,6 +110,28 @@ func TestAuditMerge_NoConflictsNoKey(t *testing.T) {
 	assert.NotContains(t, summary, "conflicts")
 }
 
+// TestAuditMerge_AnEmptyArrayIsARoleThatFoundNothing: a role that found
+// nothing may write `[]` (or `[ ]`). tp review --merge has read that as an
+// empty input since the prompt once asked for it; tp audit --merge counted it
+// as a skipped line, made the file a dropped role and failed the merge.
+func TestAuditMerge_AnEmptyArrayIsARoleThatFoundNothing(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	empty := filepath.Join(dir, "empty.ndjson")
+	spaced := filepath.Join(dir, "spaced.ndjson")
+	full := filepath.Join(dir, "full.ndjson")
+	require.NoError(t, os.WriteFile(empty, []byte("[]\n"), 0o600))
+	require.NoError(t, os.WriteFile(spaced, []byte("[ ]\n"), 0o600))
+	require.NoError(t, os.WriteFile(full, []byte(`{"role":"go-safety","item_id":"a","status":"PASS"}`+"\n"), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "audit", "--merge", empty, spaced, full, "-o", filepath.Join(dir, "m.ndjson"))
+	require.Equal(t, 0, code, "an empty array is not a dropped role: %s", stderr)
+	var summary map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &summary))
+	assert.Equal(t, float64(1), summary["merged_count"])
+	assert.NotContains(t, stderr, "malformed")
+}
+
 // TestAuditMerge_EmptyInputSucceeds covers §3.3 row 2 for the audit phase: a
 // present-but-empty input file succeeds (exit 0), creates a zero-byte -o file,
 // and reports merged_count 0.

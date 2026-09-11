@@ -193,3 +193,40 @@ func TestAuditRecord_RoleMissingWarns(t *testing.T) {
 	assert.Contains(t, stderr, "results.ndjson", "warning must name the results file")
 	assert.NotContains(t, stderr, "line 2", "a row carrying role must not warn")
 }
+
+// TestAuditRecord_AnEmptyArrayRecordsNoFindings: a merged file that is one
+// empty array, what a single role that found nothing writes, records a round
+// with no findings. It was refused as invalid JSON, while a zero-byte file
+// recorded clean.
+func TestAuditRecord_AnEmptyArrayRecordsNoFindings(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
+
+	for _, content := range []string{"", "[]\n"} {
+		out, stderr, code := auditRecord(t, dir, content)
+		require.Equal(t, 0, code, "content %q: %s", content, stderr)
+		assert.Equal(t, float64(0), out["findings"], "content %q", content)
+		assert.Equal(t, true, out["clean"], "content %q", content)
+	}
+}
+
+// TestReviewRecord_AnEmptyArrayRecordsNoFindings: the review recorder takes
+// the same reading, and the stored round file holds no array line, since every
+// reader of a round file requires one JSON object per line.
+func TestReviewRecord_AnEmptyArrayRecordsNoFindings(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n"), 0o600))
+	f := filepath.Join(dir, "findings.ndjson")
+	require.NoError(t, os.WriteFile(f, []byte("[]\n"), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "review", "spec.md", "--record", f)
+	require.Equal(t, 0, code, "%s", stderr)
+	var out map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out))
+	assert.Equal(t, float64(0), out["findings"])
+	stored, err := os.ReadFile(filepath.Join(dir, ".tp-review", "spec", "review-round-1.ndjson"))
+	require.NoError(t, err)
+	assert.NotContains(t, string(stored), "[]")
+}
