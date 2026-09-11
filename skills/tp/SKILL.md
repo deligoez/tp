@@ -16,20 +16,46 @@ A short resume intent — "continue with tp", "resume tp" — is a sufficient st
 1. **Orient**: `tp resume` → `{phase, blockers, next_action}`. (PATH `tp`; in tp's own self-development use the freshly-built dogfood binary instead.)
 2. **Clear agent-clearable blockers**: `unexplained-changes` → commit the changes via the project's commit tool, or `tp keep <path> "<reason>"` for intentionally-uncommitted files; then re-run `tp resume`. Stop and report human-only blockers (`*-budget-exhausted`, `no-ready-task`).
 3. **Work ONLY the reported phase** — do not run the next phase in the same session:
-   - **review** → Workflow A Step 2 (review loop until `tp review <spec> --status --check` exits 0; `wontfix`/`duplicate` are terminal and may be set pre-record, `fixed` implies a spec change and forces a re-review). An `ungrounded` key in `tp review`'s envelope says the spec's own claims have not been checked against the world — no phase reports that, so run the ground loop (Step 1.5) before the counted rounds.
+   - **review** → Workflow A Step 2 (review loop until `tp review <spec> --status --check` exits 0 — converged, or at the round cap with every finding of the latest round dispositioned; `wontfix`/`duplicate` are terminal and may be set pre-record, `fixed` implies a spec change and forces a re-review). An `ungrounded` key in `tp review`'s envelope says the spec's own claims have not been checked against the world — no phase reports that; on the Full track run the ground loop (Step 1.5) before the counted rounds.
    - **decompose** → Workflow A Step 3 (atomic tasks: 1 verb, ≤8-word title, ≤3 acceptance, `source_sections` for EVERY task; backward-pass every table row + numbered list item into some task's acceptance; `tp validate` until clean; `tp import tasks.json` plain, no `--force`).
    - **implement** → Workflow B/C (one fresh subagent PER task, injecting a durable-state pointer `tp next`, the close recipe for the effective `commit_strategy`, and live lessons; close per `commit_strategy`: `hc` → `hc run` then `tp done <id> --commit <sha>`; `builtin` → `tp commit`/`tp done --auto-commit`).
-   - **audit** → Workflow D (until `tp audit <spec> --status --check` exits 0; ALWAYS 2 consecutive clean rounds, never cut short by a cap).
+   - **audit** → Workflow D (until `tp audit <spec> --status --check` exits 0).
    - **release** → report and stop.
 4. **Stop at the phase boundary**: print (1) what changed on disk, (2) the next `tp resume` next_action. The human clears context and re-sends the trigger for the next phase.
 
 This is the reset-native contract: `tp resume` is the single source of truth between context resets.
 
-## Workflow A: Decompose (spec exists, no .tasks.json)
+## Triage: pick the track first
 
-Order (v0.23.0; grounding inserted v1.0.0, the spec-writing rules v1.0.1): **interview → write the spec body → `tp lint` → `tp init` → `tp set --workflow` → ground loop → review loop → decompose → `tp import`**.
+**Triage every piece of work before starting it; the operator confirms the track.**
 
-Running `tp init` **before** the review loop creates the spec-adjacent task file that supplies the loop's workflow parameters (convergence counts, round budgets, checks). The quality gate is authored once at the project layer with `tp set --workflow --project quality_gate="<cmd>"` (writes `.tp/config.json`), not with `tp init --quality-gate`: a task-file override masks the project gate, so a later change to the project gate never reaches the task files carrying one. The task-level setter stays read-only (`tp set --workflow quality_gate=…` exits 2).
+| Track | The work is | What runs |
+|---|---|---|
+| **Fix** | a defect with a reproduction | Workflow F |
+| **Decision** | a choice between alternatives with user-visible consequences | a note of at most two pages — the decision, the alternatives, the non-goals — with the change built in a clone first; then Workflow A without the ground loop, 2 reviewer roles (`enabled: false` on the rest) and at most 2 review rounds (`review_max_rounds=2`). A finding about detail the code will settle is deferred to task acceptance |
+| **Full** | a new capability too large to build in a clone first | Workflow A with the ground loop, `review_max_rounds`/`audit_max_rounds` set at `tp init`, and the spec's growth checked between rounds |
+
+On both spec tracks a repair to the spec after its first round deletes or narrows; it does not add
+requirements.
+
+## Workflow F: Fix (a defect with a reproduction)
+
+The input is a reproduction: a `BUGS.md` entry, a field report, a red test. No spec, no ground, no
+review rounds.
+
+1. Write the failing test from the reproduction; run it and watch it fail for the stated reason.
+2. Fix.
+3. Run the quality gate.
+4. One review of the diff.
+5. Commit.
+
+A fix that turns out to need a design choice stops and becomes a Decision.
+
+## Workflow A: Decision or full track (spec exists, no .tasks.json)
+
+Order: **interview → write the spec body → `tp lint` → `tp init` → `tp set --workflow` → ground loop (Full track only) → review loop → decompose → `tp import`**.
+
+Running `tp init` **before** the review loop creates the spec-adjacent task file that supplies the loop's workflow parameters (convergence counts, round budgets, checks). The quality gate is authored once at the project layer with `tp set --workflow --project quality_gate="<cmd>"` (writes `.tp/config.json`), not with `tp init --quality-gate`: a task-file override masks the project gate, so a later change to the project gate never reaches the task files carrying one. A spec that genuinely deviates sets its own with `tp set --workflow quality_gate="<cmd>"` (attended only; `quality_gate=` removes the override). Switching a spec's gate off is `--skip-gate` with a recorded reason, never a blank value.
 
 ### Step 0: Interview
 
@@ -42,13 +68,13 @@ Before writing or editing a spec, resolve all ambiguities:
 5. **Prefer codebase** — if answerable by reading code, explore (≤5 files) instead of asking. Architectural/product decisions always go to user.
 6. **Recommend answers** — provide a recommended answer for each question based on codebase context.
 7. **Handle non-answers** — if user says "skip"/"whatever"/empty, accept recommended answer.
-8. **Termination** — complete when: (a) every behavioral claim is verified or confirmed, (b) every design choice with user-visible impact (CLI output, file format, command behavior) is decided, (c) no new questions arise.
+8. **Termination** — complete when every decision with user-visible impact (CLI output, file format, command behavior) is decided and no new questions arise.
 
 Then collect workflow parameters (hold in memory until `tp init` / `tp set --workflow`):
 - Quality gate command (e.g. `"go test -race ./... && golangci-lint run"`) — authored at the project layer in Step 1. For a Go project, run the suite under `-race`: the race detector is off by default, so a data race can never fail a gate without it, and on a suite this size it costs between a tenth and a half again of the wall time. Note: `golangci-lint run` (v2) checks formatters like `gofmt` only when a `formatters:` section enables them, so enable one in `.golangci.yml` (or add `gofmt -l .` to the gate) or a gofmt-dirty file slips through.
 - Consecutive clean **review** rounds (default 2) — integer 1-10; re-ask once if invalid, then use default.
 - Consecutive clean **audit** rounds (default 2) — same rules.
-- Optional round budgets `review_max_rounds` / `audit_max_rounds` (default 0 = no cap) — a hard ceiling on counted rounds before escalation.
+- Round budgets `review_max_rounds` / `audit_max_rounds` (default 3; an explicit 0 = uncapped) — after that many counted rounds a loop ends by disposition rather than by clean rounds (Gate, Budget & Escalation Policy).
 
 Announce: "I will review until N clean rounds, audit until M clean rounds." If new ambiguities arise during spec writing, pause and return to step 3. Do not re-ask parameters.
 
@@ -56,9 +82,8 @@ Announce: "I will review until N clean rounds, audit until M clean rounds." If n
 
 `tp lint` checks the document's form; the ground loop (Step 1.5) checks its claims against the
 world. Neither writes the spec. The rules below govern what goes into it, and **none of them needs a
-grading round to settle** — each is answerable while you write, bar the one exception named under
-Test rows. That is the point: a rule you can only judge after a round costs a round rather than
-saving one.
+grading round to settle** — each is answerable while you write. That is the point: a rule you can
+only judge after a round costs a round rather than saving one.
 
 #### Numbers, commands, shape
 
@@ -66,15 +91,14 @@ saving one.
   which grounding does not grade; the spec names that artifact and does not quote the figure, and a
   rationale that cites a figure is a figure. The test is whether a reader can re-derive the number
   from something the spec names. So a count of a named artifact's own items stays — it is a
-  reference in numeral form — and so does a number that *is* the decision: an exit code, a round
-  count, a test row's two counts. What leaves is a measurement only the author's run supports.
+  reference in numeral form — and so does a number that *is* the decision: an exit code or a round
+  count. What leaves is a measurement only the author's run supports.
 - **Every fenced command in a spec runs under `bash` at `HEAD` and prints something.** A command that
   prints nothing is a finding, not a citation. Run every block mechanically before the round rather
   than after it: it costs a minute and no grading token. The block must inherit neither of these
   from whoever runs it.
-  - **The interpreter.** Invoke each block as `bash -c '<block>'`. One block here printed seventeen
-    rows under `bash` and nothing at all, at exit 0, under `zsh`, which reads `"$tag:…"` as a
-    history modifier — so "prints something" is not a property of the command alone.
+  - **The interpreter.** Invoke each block as `bash -c '<block>'`: `zsh` reads `"$tag:…"` as a
+    history modifier, so the same block can print rows under `bash` and nothing under `zsh`.
   - **The binary.** A block must name the binary it means rather than inherit whatever `PATH`
     resolves. Usually the `tp` on `PATH` *is* the binary meant, and the block is right as written —
     record the `tp --version` it was run against, so a later reader knows what produced the output.
@@ -93,19 +117,10 @@ saving one.
   `tp set --workflow checks='[{"class":"<slug>","cmd":"<detector>"}]'`, see Class & Checks Guidance
   — rather than relying on the convention alone.
 
-#### Test rows
-
-- **Write a test row's mutant before its assertion, and drop the row if the mutant cannot make it
-  red.** EARS shape alone does not achieve this: a correctly shaped row can still name a mutant that
-  survives. The shape helps a reader; the ordering is what makes the row a test. The row also quotes
-  its fixture and **both** counts — the value at `HEAD` and the value under the mutant — because a
-  mutant paired with the wrong fixture reads exactly like a mutant that works, and those two counts
-  are the only place the difference shows. This is the one rule with an exception to
-  check-while-writing: for a row whose subject does not exist at `HEAD` yet, the two counts are
-  confirmable only once the code lands. That is still before the first grading round, so it belongs
-  in the implementing task's acceptance and never in a round's rows.
-
 #### Sentences, briefs, prototypes
+
+- **A test row's mutant and its two counts belong in the implementing task's acceptance, not in the
+  spec** — Decomposition Rules, rule 8.
 
 - **A sentence describing behaviour the release does not change is a test name, or it is not in the
   spec.** Scope is what the rule turns on. A sentence stating what the release *will make* true is a
@@ -133,31 +148,30 @@ are in `spec/1.1.0-measurements.md`.
   task, which names it after its test is green.
 - **The reviewed document is a decision record; behaviour is verified by executing, not by reading.**
   The review loop's subject is whether the decisions are right and consistent with each other. Whether
-  the behaviour is right is the audit's subject, on code. Five grading rounds in one cycle refuted
-  five successive sets of sentences about unbuilt behaviour; the first five implementing tasks each
-  corrected something a round had asserted, every time by running it.
+  the behaviour is right is the audit's subject, on code.
 - **A repair subtracts before it adds.** The safest output of a repair is fewer claims. A repair that
   writes a new sentence about behaviour in place of the one it removed has written a claim nobody has
-  run; if it must be written, run it before committing. This is the runtime-sentence rule above at
-  its point of application, and the cycle that shipped that rule broke it in four consecutive
-  repairs before a subtracting repair ended the loop.
-- **A review round ends at its cap by design, not only by failure.** The surveyed tools gate on a
-  fixed number of approvals rather than on a clean round. When `review_max_rounds` is reached and the
-  open findings are about behaviour the release will create, the next step is decomposition with those
-  findings as task acceptance; the operator's `--force` at import is the acknowledgement that the
-  review ended on decisions, and the audit is the verification round that follows, on code.
+  run; if it must be written, run it before committing. After the first round a repair deletes or
+  narrows; it does not add requirements.
+- **A review loop ends at its cap by design, not only by failure.** The surveyed tools gate on a
+  fixed number of approvals rather than on a clean round. At `review_max_rounds` (default 3) the loop
+  is done once every finding of the latest round carries a disposition in its recorded round file
+  (`done_by: cap`), and `tp import` then passes without `--force`. Open findings about behaviour the
+  release will create go into task acceptance; the audit, on code, is the verification round.
 
 ### Step 1: Init the task file and workflow
 
 1. `tp lint <spec.md>` — fix issues; review `structured_elements` and the `frontmatter` object, and read `floor_size`, `cut` and `review_panel`: what a round-1 grading of this spec will read, and which reviewer roles a round-1 emission would carry. They are reports, not gates — no threshold, no warning, nothing fails on them. REFERENCE.md defines each and says which text it counts.
-2. `tp init <spec.md>` — creates the spec-adjacent `<base>.tasks.json` shell (zero tasks) with an empty `workflow` block. Author the gate one layer up: `tp set --workflow --project quality_gate="<cmd>"` (writes `.tp/config.json`, resolved by every task file); passing `--quality-gate` here writes a task-file override that masks it.
-3. `tp set --workflow review_clean_rounds=N audit_clean_rounds=M` — convergence counts (only if non-default). `review_converge_on`/`audit_converge_on` belong here too if either is non-default: an audit round's `clean` verdict is stamped at record time, so `audit_converge_on` has to resolve **before audit round 1** to be worth anything (Workflow D).
-4. `tp set --workflow review_max_rounds=R audit_max_rounds=A` — round budgets (only if capping).
+2. `tp init <spec.md>` — creates the spec-adjacent `<base>.tasks.json` shell (zero tasks) with an empty `workflow` block. Author the gate one layer up: `tp set --workflow --project quality_gate="<cmd>"` (writes `.tp/config.json`, resolved by every task file); passing `--quality-gate` here writes a task-file override that masks it. `tp init` and `tp import` print a notice when the resolved gate's first command does not resolve (not a builtin, not on `PATH`, not an executable from the project root); the exit code is unchanged.
+3. `tp set --workflow review_clean_rounds=N audit_clean_rounds=M` — convergence counts (only if non-default). `review_converge_on`/`audit_converge_on` belong here too if either is non-default: an audit round is graded under the policy it was recorded with, so `audit_converge_on` has to resolve **before audit round 1** to be worth anything (Workflow D).
+4. `tp set --workflow review_max_rounds=R audit_max_rounds=A` — round budgets (only if not the default 3; `0` uncaps).
 5. `tp set --workflow checks='[{"class":"<slug>","cmd":"<detector>"}]'` — register mechanical checks (see Class & Checks Guidance).
 
 **Multi-spec repos:** put the shared gate/convergence policy in a repo-root `.tp/config.json` once (see [Project configuration](#project-configuration-tpconfigjson)) and leave each `tp init` shell's `workflow` block empty except where a spec genuinely deviates — that keeps one source of truth instead of copying policy into every `<base>.tasks.json`.
 
 ### Step 1.5: Ground loop (v1.0.0) — after `tp lint`, before the first review round
+
+**Full track only.** The Decision and Fix tracks skip it.
 
 `tp lint` checks the document's form and `tp review` argues about its design — but every review role
 is handed the line *"the spec content above is complete and authoritative"*. **Review is told the
@@ -165,11 +179,10 @@ premises hold.** `tp ground` is what makes that true first, which is why it runs
 the review rounds that rewrite a spec are exactly the rounds whose new sentences nobody has checked,
 so grounding after review grounds the text the loop has already finished arguing with.
 
-Repeat until **both** hold: `tp ground <spec> --status --check` exits 0, **and** the latest round's
-`by_verdict` breakdown carries no `FAIL` or `PARTIAL` you have not repaired. They are two conditions,
-not one — `--check` answers *did every floor unit get a disposition* and gates on nothing else, so a
-round of nothing but `FAIL`s is fully covered and exits 0. A driver that stops on the exit code alone
-stops with false claims standing in the spec. Each round:
+Repeat until `tp ground <spec> --status --check` exits 0. It exits 1 while a floor unit carries no
+disposition, while the floor is empty but `cut` is positive, and while the latest round holds a
+`FAIL`; `PARTIAL`, `QUESTION` and `UNVERIFIABLE` do not fail it, so read `by_verdict` for the
+`PARTIAL` rows still to repair. Each round:
 
 1. `tp ground <spec>` — emits **one** prompt (the envelope carries `prompt`, a string, where review
    and audit carry `prompts[]`: grounding asks one question of every unit, so there is no panel and
@@ -181,8 +194,7 @@ stops with false claims standing in the spec. Each round:
    copying what a probe needs to a directory **outside** the repository and writing freely inside
    that copy, because half the tiers are evidence about an artifact the unit builds.
    **When a phase runs more than one unit at a time, give each its own `mktemp -d`.** Two units writing
-   probe files into one shared scratch directory collide silently: measured here, where one unit's fixture
-   was overwritten mid-run by another's and the round had to be repeated.
+   probe files into one shared scratch directory collide silently.
 3. `tp ground <spec> --record <file>` — the whole payload is validated before anything is opened, so
    **one bad row writes no round file at all** and the state directory is left as the emission made it.
 4. Repair the spec against the `FAIL` and `PARTIAL` rows, then run the next round. A `QUESTION` does
@@ -211,39 +223,29 @@ carry both empty), and an unrepaired `FAIL` carries forward for as long as its s
 Carrying is not forgetting: a carried unit is deliberately not re-asked, which is that same rule seen
 from the emitting end.
 
-**Re-emitting an unrecorded round costs nothing — it does not burn a round number.** A bare
-`tp ground <spec>` run twice on a round nobody has recorded returns the same `round` and the same
-`floor_size` and rewrites the snapshot and floor in place; measured byte-identical, prompt included.
-Round numbers are consumed by `--record`, not by emission, so re-running the emit to re-read the
-prompt needs no guard. Once the round **is** recorded, the next bare emit legitimately opens round
-N+1.
+**Re-emitting an unrecorded round is idempotent while the spec is unchanged.** A bare
+`tp ground <spec>` run twice returns the same `round` and rewrites the snapshot and floor
+byte-identically; round numbers are consumed by `--record`, not by emission. If the spec changed
+since the emission, the emit exits 3 naming the round and the files it would overwrite: record the
+round first, or pass `--force` to discard it (exit 2 under `TP_UNATTENDED`, decision
+`discard-emission`). `tp review` and `tp audit` follow the same rule.
 
 **A recorded round file is longer than the payload you handed in.** `--record` reports `rows` and
 `carried` as two counts — `rows` is your payload, `carried` is what the carry added — and
 `ground-round-N.ndjson` holds **`rows + carried`** lines, every carried one stamped `carried_from`.
-Measured: `spec/.tp-review/1.49.0/ground-round-2.ndjson` holds 50 lines of which 20 carry
-`carried_from` — a round recorded as `rows 30, carried 20`. So **any share computed over a round
+So **any share computed over a round
 file has two possible denominators** — the payload this round asked for, or the whole round
 including the carry — and a figure quoted without naming which one it used is ambiguous. Name it.
 
-**`--check` gates on two conditions and on nothing else.** Exit 1 when a unit of the emitted floor
-carries no disposition — and exit 1 **also** when the emitted floor is empty while `cut` is
-positive, because `0 < 0` is false and coverage alone would certify a document whose every sentence
-the arms dropped. So exit 1 here is not always undercoverage: read `cut` before hunting for
-undispositioned units that may not exist. `emitted: 0, cut: 0` is honestly covered and exits 0, and
-so does a round of nothing but `FAIL`s — a fully covered round. **Measured on this repository:**
-`spec/.tp-review/1.1.0/ground-round-3.ndjson` records a `FAIL` row, and
-`tp ground spec/1.1.0.md --status --check` exits **0**. That is why `--status` reports the
-per-verdict breakdown beside the ratio, and why the loop condition above names both: coverage answers
-*did anyone look*, the breakdown answers *what did they find*. Read the `NOT-A-CLAIM` share first,
-because it bounds what the ratio can mean on a decisions document.
+**Exit 1 is not always undercoverage.** An emitted floor that is empty while `cut` is positive
+exits 1 too — a document whose every sentence the arms dropped was not checked — so read `cut`
+before hunting for undispositioned units that may not exist; `emitted: 0, cut: 0` is honestly
+covered. Read the `NOT-A-CLAIM` share first, because it bounds what the ratio can mean on a
+decisions document.
 
-**Ground's `--status` has no `next_action`, and a driver must not wait for one.** Its keys are exactly
-`spec`, `round`, `emitted`, `dispositioned`, `reader_added`, `off_floor`, `cut` and `by_verdict`;
-`tp review --status` and `tp audit --status` both carry `next_action` and ground's does not. A loop
-written by pattern-matching on the review loop therefore finds nothing to branch on and falls back to
-`--check`'s exit code, which is the one thing not to branch on alone. **Branch on `by_verdict`** for
-what the round found, and on `dispositioned` against `emitted` (with `cut`) for whether it is covered.
+**Ground's `--status` has no `next_action`.** Its keys are exactly `spec`, `round`, `emitted`,
+`dispositioned`, `reader_added`, `off_floor`, `cut` and `by_verdict`. Branch on `--check`'s exit
+code, and on `by_verdict` for the `PARTIAL` rows it does not gate on.
 
 **Grounding is a command an operator runs, not a phase.** `tp resume` reports no `ground` phase and
 `tp run` has no ground unit kind, by design — so nothing schedules a round for you. The signal that a
@@ -268,34 +270,29 @@ Repeat until `tp review <spec> --status --check` exits 0:
 
 1. `tp review <spec>` — tp auto-numbers the round (R = recorded rounds + 1), snapshots the spec, and injects previous findings + the changed-sections diff into every role prompt. A 4th **regression** prompt is auto-appended from round 2 when the spec changed or fixed findings exist — process it first.
 2. Spawn one sub-agent per prompt; collect NDJSON findings.
-   - **Every finding row needs four keys — `severity`, `finding`, `location`, `evidence`** — each non-empty once `strings.TrimSpace` has run (v1.1.0; `internal/cli/review_record.go:348`). `tp review <spec> --record` refuses the whole file and names every offending line in one exit; `tp review --merge` drops the incomplete row with a stderr warning and counts it under `inputs[].skipped`, so a row short one key leaves the round without ever having been a finding. `role` and `class` are attribution and cluster keys — neither gate requires either. Full contract in [REFERENCE.md](REFERENCE.md) under *Finding `class` and Report*.
+   - **Every finding row needs four keys — `severity`, `finding`, `location`, `evidence`** — each non-empty once `strings.TrimSpace` has run (v1.1.0; `requiredFindingFields` in `internal/cli/review_record.go`). `tp review <spec> --record` refuses the whole file and names every offending line in one exit; `tp review --merge` drops the incomplete row with a stderr warning and counts it under `inputs[].skipped`, so a row short one key leaves the round without ever having been a finding. `role` and `class` are attribution and cluster keys — neither gate requires either. Full contract in [REFERENCE.md](REFERENCE.md) under *Finding `class` and Report*.
 3. `tp review --merge r1.ndjson ... -o merged.ndjson` — dedup across prompts. An all-empty (converged) input set still merges cleanly: empty inputs exit 0 and write a zero-byte `-o` file, so the merge → record chain works unchanged on a clean round (no manual file creation). The payload's `inputs` array reports `{path, parsed, skipped}` per input file, and an input with content lines of which **none** parsed exits **1** (v0.35.0) — that is a role whose whole file was mis-emitted, not a clean round, and recording it would freeze an undercounted round.
-   - **A line holding an empty JSON array — `[]`, with or without interior whitespace, per `isEmptyJSONArray` in `internal/cli/review_merge.go` — diverges by phase from v1.1.0, and the divergence is deliberate.** `tp review --merge` reads it as neither parsed nor skipped, like a blank line, so a role file whose only content line is `[]` is a clean role rather than a dropped one — `TestReviewMerge_ALineOfJustAnEmptyArrayIsNotADroppedRole` in `internal/cli/merge_empty_array_test.go` pins that and its control, a genuinely malformed line still dropping the merge at exit 1 with no `-o`. `tp audit --merge` is fenced out of v1.1.0 and still counts `[]` as a malformed skip, so a file holding only that line makes the audit merge exit 1 naming it. Measured on the same one-line file: `tp review --merge` exits 0 and reports `{parsed: 0, skipped: 0}` for it, `tp audit --merge` exits 1. Note the argument shape — `tp audit --merge <a.ndjson> <b.ndjson>` takes no spec positional.
-   - **Always `-o`, never `>`, and `&&` rather than `;` between merge and record.** A shell redirect creates the file *before* the process starts, so a merge that then exits non-zero leaves a zero-byte file behind and a `;` walks straight into `--record` with it — which records a **clean** round, because a zero-byte input is exactly how a converged round reports itself. `-o` writes only when the merge succeeds: since v1.1.0 `tp review --merge` **declines** that write when an input parsed nothing, instead of writing the surviving roles and then exiting 1, so a refused merge creates no file at that path (and leaves a file already there byte-identical) and `--record` exits 3 on the missing one. This is not hypothetical: a field cycle ran `tp review --merge … > merged.ndjson; tp review <spec> --record merged.ndjson`, lost the merge to one absent role file, and recorded an empty round as clean. Two of those in a row declare convergence — verified end to end on a spec nobody had reviewed: two `--record` calls on a zero-byte file give `converged: true` and `--status --check` exit **0**. So write it as `tp review --merge r*.ndjson -o merged.ndjson && tp review <spec> --record merged.ndjson`.
+   - **A line holding only `[]` is a role that found nothing**, at merge and at record, in both phases.
+   - **Always `-o`, never `>`, and `&&` rather than `;` between merge and record.** A shell redirect creates the file *before* the process starts, so a merge that then exits non-zero leaves a zero-byte file behind and a `;` walks straight into `--record` with it — which records a **clean** round, because a zero-byte input is exactly how a converged round reports itself. `tp review --merge -o` declines the write when an input parsed nothing, so a refused merge creates no file at that path (and leaves a file already there byte-identical) and `--record` exits 3 on the missing one. So write it as `tp review --merge r*.ndjson -o merged.ndjson && tp review <spec> --record merged.ndjson`.
 4. `tp review <spec> --record merged.ndjson` — record the round. Under the default `review_converge_on=blocking` a round is **clean** when no surviving finding is **critical or high** (medium/low are surfaced as `nonblocking_open`, not gated); `review_converge_on=all` keeps the strict any-severity rule. `--record` returns a `next_action` (the single next step); add `--harness-note "<text>"` to record, on this round, any standing framing the orchestrator's wrapper carried (see "Where judgement-shaping text belongs").
 5. Fix the spec; mark each addressed finding with `tp review --resolve <the recorded round file> <idx> fixed "evidence"` — indices are **0-based** (read them from `--merge ... -o` output or `--status`; a non-numeric index exits 2).
-   - **Resolve into the file `--record` wrote, not into `merged.ndjson`.** `engine.ReviewRoundClean` recomputes a recorded round's cleanliness live from that round's own recorded copy — `spec/.tp-review/<base>/review-round-<N>.ndjson`, named in `--status`'s `review_rounds[].file`. `merged.ndjson` is the input you handed `--record`; a disposition written there reaches nothing and the round never clears. Measured on a one-finding round: the same `wontfix` takes `consecutive_clean` to **1** applied to the recorded file and leaves it at **0** applied to `merged.ndjson`.
+   - **Resolve into the file `--record` wrote, not into `merged.ndjson`.** The loop verdict reads the recorded round file — `spec/.tp-review/<base>/review-round-<N>.ndjson`, named in `--status`'s `review_rounds[].file`. A resolve into any other file changes no round and says so: `recorded_round: false` in the payload and a line on stderr.
    - **`fixed` does not clean the round it is applied to; `wontfix` and `duplicate` do.** Only `wontfix`/`duplicate` carrying evidence are subtracted from a round's surviving set. That is deliberate rather than an oversight: a repair is a claim about the spec, and the round that tests it is the next one — which is also why a row that arrives at `--record` **already** marked `fixed` aborts the record (`row arrives pre-resolved fixed — a fix means the spec changed; record the round without it and re-review`), while one already marked `wontfix` with evidence records and does not dirty the round.
-   - **Dispose of MANY findings in one call** with `tp review --resolve-all <the recorded round file> <fixed|wontfix|duplicate> "evidence"` (evidence optional; add `--force` to also re-resolve already-resolved findings). This is how you **accept all surviving non-blocking findings as `wontfix` under one shared justification** once no critical/high remains — the severity-aware convergence permits accepting low/medium with recorded justification (see Gate, Budget & Escalation Policy).
-   - **`wontfix` + evidence is the annotation channel, and using it is what keeps a spec from growing without bound.** When the honest answer to a finding is *why the text is already right* rather than *a change to the text*, that answer belongs in the disposition's evidence, not in the spec: prose written to satisfy a reviewer becomes the next round's review surface. **The commonest failure is not using it at all.** A field cycle that ran 8 review rounds without converging recorded **584 findings and 0 dispositions** — `--resolve` was never called once, in either spelling, because the emitted `instruction` line (`review.go`, the round-emission payload) names `tp review --merge`, `tp review <spec> --record <findings.ndjson>` and `tp review <spec> --status --check` as commands and then says only *"verify and **resolve** them"* — the one step in the sentence that is a bare verb is the one step that is also a flag, and its author read it as ordinary English for eight rounds. So state it as a step, not as a word: **a finding leaves a round either as a spec change or as a `--resolve` disposition, and there is no third way out.** Two measurements from this repository and one from the field: 24% of `spec/0.37.0.md` was forensics each repair round had written for the next round to review, and cutting it took decomposition from 19 tasks with 8 blocked to 20 with **0**; a deliberate third grounding round returned a *higher* non-PASS rate than either predecessor with **all four** of its findings sitting in text the repair had written between rounds; and a field cycle that ran 8 review rounds without converging measured **seven of its eight heaviest round-8 findings inside its own round-7 repairs**, its spec growing 852 → 1547 lines with zero tasks decomposed. So: **the spec takes changes, the disposition takes explanations, and a repair should not be longer than the finding it answers.**
+   - **Dispose of MANY findings in one call** with `tp review --resolve-all <the recorded round file> <fixed|wontfix|duplicate> "evidence"` (a `wontfix`/`duplicate` needs evidence — a blank one exits 2, since it would clear nothing; add `--force` to also re-resolve already-resolved findings). This is how you **accept all surviving non-blocking findings as `wontfix` under one shared justification** once no critical/high remains — the severity-aware convergence permits accepting low/medium with recorded justification (see Gate, Budget & Escalation Policy). Under `TP_UNATTENDED`, accepting a critical or high finding exits 2 and escalates as `accept-finding`; `fixed` is not fenced.
+   - **`wontfix` + evidence is the annotation channel, and using it is what keeps a spec from growing without bound.** When the honest answer to a finding is *why the text is already right* rather than *a change to the text*, that answer belongs in the disposition's evidence, not in the spec: prose written to satisfy a reviewer becomes the next round's review surface. **A finding leaves a round either as a spec change or as a `--resolve` disposition, and there is no third way out.** The spec takes changes, the disposition takes explanations, and a repair should not be longer than the finding it answers.
 6. When a fix batch touched **more than 3 sections**, run the standalone regression delta pass (`tp review <spec> --perspective regression`) as an uncounted check before the next counted round.
-7. Repeat. `tp review <spec> --status` shows `consecutive_clean`, `converged`, `stale`, plus `max_rounds`/`rounds_remaining` (null when uncapped) and `budget_exhausted` (present only when the cap is above 0, so absent by default — read it with a default), `in_flight_round` (a snapshot with no recorded round file — `tp resume` then points at `record-round` to complete it), `next_action` (the single next step), `nonblocking_open` (count of accepted-open medium/low findings, only on a clean round that has them), and `harness_stale` (+ the latest `harness_note` when the wrapper framing changed between the last two recorded rounds). Prompt emission also reports `skipped_roles` (`[{role, reason}]`) naming every corpus role it did not emit.
+7. Repeat. `tp review <spec> --status` shows `consecutive_clean`, `converged`, `done`/`done_by` (the loop verdict — `converged`, or `cap` when the round cap ended the loop with every finding of the latest round dispositioned; `--check`, `--record`, `next_action`, `tp resume` and `tp import` all read it), `stale`, `max_rounds`/`rounds_remaining`/`budget_exhausted` (`max_rounds` null and `budget_exhausted` absent only when uncapped), `in_flight_round` (a snapshot with no recorded round file — `tp resume` then points at `record-round` to complete it), `next_action` (the single next step), `nonblocking_open` (count of accepted-open medium/low findings, only on a clean round that has them), and `harness_stale` (+ the latest `harness_note` when the wrapper framing changed between the last two recorded rounds). Prompt emission also reports `skipped_roles` (`[{role, reason}]`) naming every corpus role it did not emit.
 
 **Convergence is a recorded fact, not a judgment.** Do not skip rounds, summarize findings as "minor", or declare convergence before `--status --check` exits 0. Counted rounds are always full-panel; the regression delta pass and the tail class-sweep (below) are uncounted.
 
 ### Step 2a: The order inside a round
 
-**Grade → record → repair → emit, and the three "not"s are the rule.** Do
-not repair before recording, and do not re-emit before recording. A round's findings are a record of
-judgements about a text; once the text changes they cannot be recorded against it, and once a new
-emission runs it overwrites the unrecorded round's floor **silently** — `--status` then shows a round
-with zero dispositions and nothing says why. Measured, on this repository's own hotfix: an unrecorded
-round was recovered only because an `rsync` copy taken for unrelated work happened to hold the
-pre-repair floor and most of the grader's rows; recording it made the next round ask 38 units instead
-of 44. The cost of the wrong order is a full round of grading spent re-deriving judgements that
-already existed.
+**Grade → record → repair → emit.** Do not repair before recording, and do not re-emit before
+recording. A round's findings are judgements about a text; once the text changes they cannot be
+recorded against it. An emission over an unrecorded round whose spec changed exits 3 naming the
+round, and `--force` discards that emission together with the grading done against it.
 
-Two corollaries, both paid for:
+Two corollaries:
 
 - **Do not `rm` a round's findings file by hand.** `scripts/clean-emissions.sh` exists for this and
   carries three guards, one of which is *the round is unrecorded*. A manual tidy has none of them.
@@ -303,26 +300,11 @@ Two corollaries, both paid for:
   taken mid-run holds a partial findings file, and the rows missing from it are invisible until
   coverage is computed.
 
-**The tool does not stop you, and that is a known gap rather than a design.** Review and audit expose
-`in_flight_round` for exactly this state; ground has no counterpart, so a re-emission over an
-unrecorded round is not refused. Until that ships, the order above is the only guard.
-
-**A brief names the record and repeats no figure from it.** A number copied out of a round's report
-into the next unit's brief travels with whatever is wrong with it: measured on this repository's own
-hotfix, a brief carried a verdict breakdown the recorded round contradicts, and the grading unit
-reported the same wrong figures back — the error propagated *upward*, into the artifact the next
-decision reads. Give the unit the path to the round file and let it count.
-
-**Every fenced command in a spec runs and prints something.** A command that prints nothing is a
-finding, not a citation. Two shipped into a graded round here: one broken by a shell error that
-`|| continue` swallowed, and one whose output the release's own repair had removed. Run each before
-the round, not after.
-
 ### Step 3: Decompose and import
 
 1. Decompose into tasks — **you are the decomposer, tp validates your output.**
 2. Backward pass — every table row and numbered list item → some task's acceptance; `tp validate` for line coverage.
-3. `tp import tasks.json` — **plain, no `--force`.** The init shell holds zero tasks, so the overwrite needs no `--force` and the §9.1 convergence checks stay armed (an unconverged or stale spec blocks the import with exit 1). Reserve `--force` for overwriting a file that already has real tasks — and only with explicit user approval.
+3. `tp import tasks.json` — **plain, no `--force`.** The init shell holds zero tasks, so the overwrite needs no `--force` and the §9.1 convergence checks stay armed: a review loop that is not done blocks the import with exit 1. A loop the cap ended passes without `--force`, and the payload says so (`done_by`, `fixed_at_cap`, `stale_waived`). Reserve `--force` for overwriting a file that already has real tasks — and only with explicit user approval.
 
 ### Decomposition Rules
 
@@ -337,7 +319,8 @@ the round, not after.
 5. **Source anchors**: every task MUST have `source_sections` (canonical headings, e.g. `"## 4. Backend Migration"`). `source_lines` (`"15-42"` or `"15-42,50-60"`) is **optional precision** — sections are the primary anchor because line numbers die on every spec rewrite while heading anchors survive. A task with neither anchor is a validation error. When `source_lines` is absent, `spec_excerpt` (in `tp plan`/`show`/`next`/`next --peek`) is assembled from the section text — so the mandatory anchor also carries the spec content and removes a round trip.
 6. **Dependencies**: types before logic, logic before CLI, CLI before tests
 7. **A change and the test it invalidates belong to the SAME task.** The quality gate runs at every `tp done`, so "a later task fixes that test" is impossible — the earlier close is already red. A dependency graph that separates them looks correct and cannot be executed. Decompose by *what the gate sees*, not by concern.
-8. **Preview before import**: list proposed tasks and ask for confirmation
+8. **A test task's acceptance names its mutant and both counts.** Write the mutant before the assertion, and drop the test if the mutant cannot make it red. The acceptance quotes the fixture and **both** counts — the value at `HEAD` and the value under the mutant — because a mutant paired with the wrong fixture reads exactly like one that works, and the two counts are the only place the difference shows. They are confirmable only once the code lands, which is why they live here and not in the spec.
+9. **Preview before import**: list proposed tasks and ask for confirmation
 
 ### source_sections format
 
@@ -365,10 +348,10 @@ plan=$(tp plan --minimal --json)  # ONE call for full plan
 # For each task: implement, then commit per the effective commit_strategy:
 #   builtin: tp commit <id> "evidence"   (or tp done <id> "evidence" --auto-commit)
 #   hc:      commit with hc, then tp done <id> "evidence" --commit <sha> [--commit <sha> …]
-# Batch close: tp done --batch results.ndjson  (each row carries a commit_shas array or covered_by)
+# Batch close: tp done --batch results.ndjson  (each row carries commit — a sha or an array — or covered_by)
 ```
 
-**The quality gate runs automatically at `tp done`** (and `tp close`): when `workflow.quality_gate` is set, closing a task runs the command once per invocation; a failing gate blocks the close (exit 4) and no task closes. There is no `--gate-passed` step to perform — the flag is ignored when a gate is configured. On a gate-less project, `--gate-passed` still records an attestation.
+**The quality gate runs automatically at `tp done`** (and `tp close`): when `workflow.quality_gate` is set, closing a task runs the command once per invocation; a failing gate blocks the close (exit 4) and no task closes. A gate that exits 126 or 127 names the command it could not run and hints to fix the gate command, never `--skip-gate`. There is no `--gate-passed` step to perform — the flag is ignored when a gate is configured. On a gate-less project, `--gate-passed` still records an attestation.
 
 After all tasks done, run the audit loop (see Workflow D) until convergence.
 
@@ -382,60 +365,51 @@ Repeat until `tp audit <spec> --status --check` exits 0:
 
 1. `tp audit <spec>` — emits one prompt per active auditor role from the corpus (defaults: `spec-coverage`, `security`, `maintainability-conventions`) with an embedded JSON-array checklist and its affected files. **spec-coverage is the only auditor id that changes routing** — it alone takes the spec-derived checklist and its own file selection; every other role, built-in or user-defined, receives one `file_check` item per file over the same shared, ranked, capped code-file list. Auto-detects changed files via git diff; `--affected-files` overrides, or `--affected-from-tasks` audits exactly the files touched by done tasks' `commit_shas` (the common post-implementation case needs no manual list). When no audit-able file is found it exits 4 with `suggested_files` (the same commit-derived list) and a hint.
 2. Spawn one sub-agent per role prompt; each returns one NDJSON line per checklist item (`status` ∈ PASS/PARTIAL/FAIL).
-3. Merge the per-role files: `tp audit --merge r1.ndjson r2.ndjson ... -o results.ndjson` (no spec positional — `--merge` takes NDJSON inputs only and rejects a spec with exit 2) (dedups by `role`+`item_id`, reports a status/role breakdown and the same per-input `inputs` accounting, exiting 1 on an input whose content rows all failed to parse), then record: `tp audit <spec> --record results.ndjson` — a row counts as a finding when `status` is absent or ≠ `PASS`, under either `audit_converge_on` value; whether a round holding findings is nonetheless **clean** is that field's answer, not the finding count's (see below). The audit round sequence is independent of review rounds.
-4. Fix the code for every non-PASS item, then record how each was closed: `tp audit results.ndjson --resolve <0-based index|role:item_id> <fixed|wontfix|duplicate> "<evidence>"` (`--resolve-all` for the whole file, `--force` to overwrite a disposition already there). A row closed with no code change at all — a `wontfix` or a `duplicate` — is recorded the same way, which is the only way that outcome becomes durable. **A disposition is not an escape hatch from the gate:** `tp audit --record` counts every row whose `status` is not exactly `PASS` and reads no disposition at all, so parking a finding leaves the round's finding count, the role streak and `--status --check` exactly where they were.
-5. Repeat. `tp audit <spec> --status` shows `consecutive_clean`, `converged`, `stale`, `max_rounds`/`rounds_remaining` (null when uncapped), `budget_exhausted` (**present only when the cap is above 0** — uncapped is the default, so the key is absent in the common case; read it with a default, not with `payload["budget_exhausted"]`), `in_flight_round`, and (with `--merge`/`--status`) an `overlap_report` — the audit-side signal for trimming a redundant auditor.
+3. Merge the per-role files: `tp audit --merge r1.ndjson r2.ndjson ... -o results.ndjson` (no spec positional — `--merge` takes NDJSON inputs only and rejects a spec with exit 2). Rows sharing `role`+`item_id` collapse only when their verdict agrees; disagreeing rows are all kept and named under `conflicts`, with a stderr warning. The payload carries a status/role breakdown and the same per-input `inputs` accounting, exiting 1 on an input whose content rows all failed to parse. Then record: `tp audit <spec> --record results.ndjson` — a row counts as a finding when `status` is absent or ≠ `PASS`, under either `audit_converge_on` value; whether a round holding findings is nonetheless **clean** is that field's answer, not the finding count's (see below). The audit round sequence is independent of review rounds.
+4. Fix the code for every non-PASS item, then record how each was closed in the recorded round file `--status` names (`audit_rounds[].file`): `tp audit <round file> --resolve <0-based index|role:item_id> <fixed|wontfix|duplicate> "<evidence>"`. A `role:item_id` selector disposes every non-PASS row under the key and reports how many as `disposed`; `--resolve-all` disposes every undisposed non-PASS row and skips PASS rows; `--force` overwrites a disposition already there. A resolve into a file no round lists changes nothing and says `recorded_round: false`. **An evidenced `wontfix` or `duplicate` clears its round**, live on `--status` and `--check`; `fixed` does not — the next round re-reads the repair. A `wontfix`/`duplicate` with blank evidence exits 2. Accepting an audit finding without a code change is the operator's decision: under `TP_UNATTENDED` it exits 2 and escalates as `accept-finding`, while `fixed` stays unfenced.
+5. Repeat. `tp audit <spec> --status` shows `consecutive_clean`, `converged`, `done`/`done_by`, `stale`, `max_rounds`/`rounds_remaining`/`budget_exhausted` (`max_rounds` null and `budget_exhausted` absent only when uncapped), `in_flight_round`, and (with `--merge`/`--status`) an `overlap_report` — the audit-side signal for trimming a redundant auditor.
 6. **Read the divergence signal (v0.33.0).** `tp audit <spec> --status` and `tp audit <spec> --record <file>` also carry `role_streaks` (each role's `consecutive_clean`/`open` in the latest recorded round — the streak lengths show whether the remaining findings are backlog or a regression), `spec_coverage_clean_rounds` (that role's streak, or `null` when the latest round measured no conformance at all — `null` ≠ `0`, so an absent `divergence` beside it proves nothing), and `divergence`, emitted only when spec-coverage has reached the clean-round threshold while other roles still hold open findings. All three survive `--compact`; the emission conditions and field shapes are in [REFERENCE.md](REFERENCE.md).
 
-   **`divergence` gates nothing — it is reporting only.** Emitting it changes no convergence arithmetic, no stored per-round `clean` flag, no `next_action` and no `--status --check` exit code: audit convergence counts every non-PASS row the resolved policy does not accept, and under the default `audit_converge_on: all` that is every one of them — so `--check` still exits 1 and `next_action` still reads fix-and-re-audit. When `divergence` appears, **surface it and stop** — accepting findings outside spec conformance is a user-approved decision, never the agent's.
+   **`divergence` gates nothing — it is reporting only.** Emitting it changes no convergence arithmetic, no stored per-round `clean` flag, no `next_action` and no `--status --check` exit code: audit convergence counts every non-PASS row the resolved policy does not accept, less the rows accepted `wontfix`/`duplicate` with evidence — so `--check` still exits 1 and `next_action` still names the next audit step. When `divergence` appears, **surface it and stop** — accepting findings outside spec conformance is a user-approved decision, never the agent's.
 
-**Scope the audit, or it will not converge (v0.32.0 lesson, the hard way).** Neither value of
-`audit_converge_on` reads whether a row is about the spec or about the codebase at large: under `all`
-every non-`PASS` row counts against convergence, and under `blocking` a general lens's `error` counts
-exactly as a spec-coverage `error` does. General lenses (`go-safety`, `maintainability-conventions`,
-`ax-contract`) always find *something* in a real codebase, so there is no fixed point: tp's own
-v0.32.0 audit ran 11 rounds while `spec-coverage` — the only role measuring spec conformance — was
-55/55 clean from round 2 onward, and every repair round created fresh surface for the next round to
-audit. **Watch `spec-coverage` separately — since v0.33.0 tp reports it as `spec_coverage_clean_rounds` and names the split as `divergence`, so this is no longer hand-tracking.** Once it is clean for two rounds and no round has ever
-produced a FAIL, findings outside the spec's surface are backlog, not a release gate: record them
-with `tp review --resolve`-style evidence, name the version that will take them, and ship. Keep
-audit repairs minimal for the same reason — a repair that introduces a new abstraction is the next
-version's task, not this audit's.
+**Scope the audit, or it will not converge.** Neither value of `audit_converge_on` reads whether a
+row is about the spec or about the codebase at large: under `all` every non-`PASS` row counts against
+convergence, and under `blocking` a general lens's `error` counts exactly as a spec-coverage `error`
+does. General lenses (`go-safety`, `maintainability-conventions`, `ax-contract`) always find
+*something* in a real codebase, so there is no fixed point, and every repair round creates fresh
+surface for the next. **Watch `spec-coverage` separately** — tp reports it as
+`spec_coverage_clean_rounds` and names the split as `divergence`. Once it is clean for two rounds and
+no round has ever produced a FAIL, findings outside the spec's surface are backlog, not a release
+gate: the operator accepts them with `tp audit <round file> --resolve <role:item_id> wontfix
+"<evidence>"`, naming the version that will take them, and ships. Keep audit repairs minimal for the
+same reason — a repair that introduces a new abstraction is the next version's task, not this
+audit's.
 
-**Run the round cheaply — four brief rules, none of them tp code (measured on v1.1.0's audit,
-2026-09-08).** One audit round measured 44.9 minutes record-to-record: 20.3 in a two-unit repair batch
-of which one unit idled 7.9 waiting on the other, 13.8 in four concurrent roles (11.5–13.8 each, 55–72
-tool calls each), 10.8 in emission, merge, record and the orchestrator's own turns; the gate was 41 s
-and no mutation run happened in any round. A role's minutes buy probes — clones, mode matrices,
-mutants, repetition loops — and the probes are what found every `FAIL`, so the saving is in not
-repeating them, never in cutting them.
+**Run the round cheaply — four brief rules, none of them tp code.** A role's minutes buy probes —
+clones, mode matrices, mutants, repetition loops — and the probes are what find every `FAIL`, so the
+saving is in not repeating them, never in cutting them.
 
 1. **One clone, one binary, built by the orchestrator before the role stage.** `git clone
    --no-hardlinks` HEAD once, `go build -o` inside it once, and hand every role the path with "do not
-   clone, do not build". Four roles were each cloning and building the same tree against each other's
-   CPU. A role that wants a mutant copies that tree with `rsync`.
+   clone, do not build". A role that wants a mutant copies that tree with `rsync`.
 2. **One repair unit per independent item.** Two items share a unit only when they edit the same lines
-   of the same file. A unit carrying four independent items is the 7.9 idle minutes above.
+   of the same file.
 3. **Delta re-grade.** On a round with no repairs, the brief lists the previous round's `PASS` rows and
    the role re-records them verbatim — `evidence_file` and `evidence_lines` carried — and re-measures
    only the non-`PASS` rows. On a round after repairs, only rows whose `evidence_file` is untouched by
-   `git -c diff.external= diff --name-only <previous record sha>..HEAD` are carried; the orchestrator
-   derives that list, the role does not guess it; tp does not derive it yet. **Carry by file, not by
-   id alone:** a `file_check` id is a path prefix cut short plus a positional suffix, so in a tree
-   whose paths share a long prefix the same id can name a different file next round — carry a row
-   only when its `evidence_file` is the file the item names now.
+   `git -c diff.external= diff --name-only <previous record sha>..HEAD` are carried, where the
+   previous record sha is the commit that first added the round file, followed across renames
+   (`git log --follow --diff-filter=A`). The orchestrator derives that list, the role does not guess
+   it; tp does not derive it yet.
 4. **The class-to-slug table goes into the brief before round 1.** A finding matching a class already
    routed is recorded `PARTIAL` with its slug in the note and expects no repair; only a class the table
-   lacks reaches the orchestrator. The gap between one round's record and the next round's emission was
-   the orchestrator's dispositions, and it was longer than the role stage.
+   lacks reaches the orchestrator.
 
 Rules 1, 3 and 4 are mechanized in tp's own repository by `scripts/audit-round-prep.py <spec>`: it
 finds the previous recorded round, derives the carried rows from the record commit's diff, clones and
 builds once, reads the class-to-slug table from `.tp/routed-classes.json`, and prints one brief
-fragment per role. Run it against `spec/1.1.0.md` at `v1.1.1` and round 4's checklist comes back 47
-carried of 63 - the count is a function of what changed since the record commit, so re-derive it
-rather than quoting this one. The after-figure is not written here until a round has run under all
-four; when one has, anchor it to that round's record commit.
+fragment per role. It exits 2 with nothing to carry when the previous round holds `file_check` ids of
+the earlier derivation (no `.<16 hex>` digest), since such an id names no item of the next round.
 
 ### `audit_converge_on` — what an audit round has to be clean of (v0.37.0)
 
@@ -453,10 +427,11 @@ what any gate decides.
 **Blocking severity is `error`** — audit rows use `error`/`warning`/`info`, a different vocabulary
 from review's `critical`/`high`, and neither field is read by the other phase. **A severity tp cannot
 grade is blocking, not ignored**: `severity: null`, an absent key, a non-string value, or a string
-outside the enum all keep the round unclean under `blocking`. The `clean` verdict is **stamped at
-record time**, so setting the knob governs rounds recorded afterwards and never re-grades recorded
-history — and symmetrically, one approved round of `blocking` keeps its `clean: true` after the knob
-returns to `all`. `role_streaks[].open`, `consecutive_clean` and `spec_coverage_clean_rounds` stay
+outside the enum all keep the round unclean under `blocking`. A round is graded under the policy
+it was **recorded with** (stored as `converge_on`), so setting the knob governs rounds recorded
+afterwards and never re-grades recorded history — and symmetrically, one approved round of
+`blocking` keeps its `clean: true` after the knob returns to `all`. A disposition written later
+still clears a round, live. `role_streaks[].open`, `consecutive_clean` and `spec_coverage_clean_rounds` stay
 severity-blind, so under `blocking` a round can read `clean: true` beside a non-zero `open`; that is
 correct — `open` counts findings, `clean` answers whether the phase may end.
 
@@ -534,7 +509,7 @@ repeat until phase == release
 
 **`tp run [spec]` — tp now ships that driver (v0.35.0).** It reads the cycle through the same path `tp resume` uses, stops if the cycle is releasable, takes `next_units`, spawns one runner process per unit — the two role kinds concurrently, every other kind alone — re-reads the state **from disk**, checks the caps, and loops. A unit's result is whatever it wrote to disk: the driver reads a child's exit code and one spend number, and nothing else it said. It exits **0** only on `stop_reason: converged` and **4** on every other stop reason, and holds a run-scoped lock at `.tp/locks/run-<base>.lock` for the whole run, so a second `tp run` over the same task file exits 4. `tp run --dry-run` prints the batch it would spawn without spawning anything or taking the lock; `tp run --status` reports the current or last run. The eight unit kinds, the nine stop reasons, the run state file, the child environment, the `runner` field and `notify_cmd` are in [REFERENCE.md](REFERENCE.md).
 
-**Unattended units cannot take the user's decisions.** Every child is spawned with `TP_UNATTENDED=1`, and under it the four user-only decisions fail closed with exit 2 and a hint naming `tp escalate`: `tp done --skip-gate` (and its other sinks — a `--batch` row's `skip_gate`, `tp close --skip-gate`), `tp import --force`, and a `tp set --workflow` **raise** of `review_max_rounds`/`audit_max_rounds` or of any `run_max_*` cap. An equal or lower value is accepted; `runner` and `notify_cmd` name commands the driver executes and are refused at **every** layer rather than only above the resolved value. A change of `quality_gate` is refused too, escalating as `skip-gate` — a unit that rewrote the gate skipped it: any `tp set --workflow` write of it, and at `tp import`, `tp init --quality-gate` and `tp config --extract` a write that changes the gate that resolves. A unit that reaches such a decision records it instead of taking it — `tp escalate --decision <name> --evidence <text> [--option <text>]…` writes `$TP_RUN_DIR/$TP_UNIT_SEQ-escalation.json` and exits 2, the run stops with `stop_reason: escalation`, and the operator makes the decision and runs `tp run` again. Nothing is replayed, and an escalating unit is not counted as a failed attempt.
+**Unattended units cannot take the user's decisions.** Every child is spawned with `TP_UNATTENDED=1`, and under it the user-only decisions fail closed with exit 2 and a hint naming `tp escalate`: `tp done --skip-gate` (and its other sinks — a `--batch` row's `skip_gate`, `tp close --skip-gate`), `tp import --force`, a `tp set --workflow` **raise** of `review_max_rounds`/`audit_max_rounds` or of any `run_max_*` cap, accepting (`wontfix`/`duplicate`) a critical or high review finding or any audit finding (`accept-finding`), and an emission's `--force` that would discard an unrecorded round (`discard-emission`). An equal or lower value is accepted; `runner` and `notify_cmd` name commands the driver executes and are refused at **every** layer rather than only above the resolved value. A change of `quality_gate` is refused too, escalating as `skip-gate` — a unit that rewrote the gate skipped it: any `tp set --workflow` write of it, and at `tp import`, `tp init --quality-gate` and `tp config --extract` a write that changes the gate that resolves. A unit that reaches such a decision records it instead of taking it — `tp escalate --decision <name> --evidence <text> [--option <text>]…` writes `$TP_RUN_DIR/$TP_UNIT_SEQ-escalation.json` and exits 2, the run stops with `stop_reason: escalation`, and the operator makes the decision and runs `tp run` again. Nothing is replayed, and an escalating unit is not counted as a failed attempt.
 
 **The plugin.** tp publishes a Claude Code plugin at the repository root: `.claude-plugin/plugin.json` beside `marketplace.json`, this `skills/tp`, plus `hooks/` and `agents/`. **The Go binary is not in it** — installation stays Homebrew or `go install`, and the `SessionStart` hook preflights `tp`'s presence and version and fails with the install command rather than degrading quietly. The other two hooks hold the unit fence: `PreToolUse` denies hand-writes to `.tp-review/` contents, `*.tasks.json`, `.tp/config.json` and `.tp/local.json`, and `Stop` refuses a role unit's stop once, when its findings file is still missing and it wrote no escalation record. `agents/` declares `tp-implementer`, `tp-reviewer` and `tp-auditor`, carrying **tool restrictions only** — the role's content stays in the corpus and reaches the unit through the prompt `tp review`/`tp audit` emits. Every hook declares a `timeout` of 10 seconds. A runtime that cannot load a plugin runs the same units without them: the restrictions are defence in depth, and the brief plus the tp commands are the durable contract.
 
@@ -587,7 +562,7 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp done <id> --commit <sha>` | Record implementing commit SHA |
 | `tp done id1 id2 "reason"` | Multi-ID close (shared reason) |
 | `tp done <id> --commit a --commit b` | Record multiple commits (hc flow); repeatable, duplicate exits 1; `commit_sha` mirrors `commit_shas[0]` |
-| `tp done --batch file.ndjson` | Batch close from NDJSON |
+| `tp done --batch file.ndjson` | Batch close from NDJSON; a row's `commit` is a sha or an array of shas, and a row naming both `commit` and `commit_shas` fails while the other rows close |
 | `tp done <id> --reason-file reason.md` | Read the closure reason from a file instead of an argument |
 | `tp done <id> --stdin` | Read the closure reason from stdin |
 | `tp resume [spec]` | Report phase + next action from durable state (reset-native, read-only; `--compact`) |
@@ -596,7 +571,7 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp run [spec]` | Drive the cycle unattended, one unit at a time |
 | `tp run --status` | Report the current or last run: phase, units done, the accrual against each cap, the last unit's exit code and log path, `stop_reason`, and `run_state` (`in_flight`/`crashed`/`stopped`); takes no run lock; exits 3 when no run state exists |
 | `tp run --dry-run` | List the units the driver would execute next as `{phase, round, next_units}` and exit 0; spawns nothing, writes no run state, takes no run lock |
-| `tp escalate --decision <name> --evidence <text>` | Record a decision only the operator can take and stop the unit: writes `$TP_RUN_DIR/$TP_UNIT_SEQ-escalation.json` and exits 2; `--decision` is one of `skip-gate`, `raise-review-cap`, `raise-audit-cap`, `import-force`, `audit-converge-on`, `other`; outside a run (no `TP_RUN_DIR`) it is a usage error |
+| `tp escalate --decision <name> --evidence <text>` | Record a decision only the operator can take and stop the unit: writes `$TP_RUN_DIR/$TP_UNIT_SEQ-escalation.json` and exits 2; `--decision` is one of `skip-gate`, `raise-review-cap`, `raise-audit-cap`, `import-force`, `audit-converge-on`, `accept-finding`, `discard-emission`, `other`; outside a run (no `TP_RUN_DIR`) it is a usage error |
 | `tp escalate ... --option <text>` | Add a way forward the unit saw; repeatable, and `options` is `[]` when none is given |
 
 ### Incremental
@@ -619,7 +594,7 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp reopen <id>` | done -> open (clears timestamps + SHAs) |
 | `tp remove <id>` | Remove task (--force cleans deps) |
 | `tp set <id> field=value` | Update field (managed fields protected) |
-| `tp set --workflow field=value` | Update workflow fields: `review_clean_rounds`/`audit_clean_rounds`, `review_converge_on`, `audit_converge_on` (default `all`; a write that changes the resolved value to `blocking` is fenced under `TP_UNATTENDED`), `gate_timeout_seconds`, `review_max_rounds`/`audit_max_rounds`, `lock_timeout_seconds`, and the five run caps `run_max_units`, `run_max_wall_clock_seconds`, `run_max_budget_usd`, `run_max_unit_budget_usd`, `run_max_unit_retries` |
+| `tp set --workflow field=value` | Update workflow fields: `quality_gate` (attended only; `quality_gate=` removes the task override), `review_clean_rounds`/`audit_clean_rounds`, `review_converge_on`, `audit_converge_on` (default `all`; a write that changes the resolved value to `blocking` is fenced under `TP_UNATTENDED`), `gate_timeout_seconds`, `review_max_rounds`/`audit_max_rounds`, `lock_timeout_seconds`, and the five run caps `run_max_units`, `run_max_wall_clock_seconds`, `run_max_budget_usd`, `run_max_unit_budget_usd`, `run_max_unit_retries` |
 | `tp set --workflow runner=…` / `notify_cmd` | **Not settable.** `runner` is `unknown workflow field` (exit 2) — hand-write it under `workflow` in `.tp/config.json` or a task file; `notify_cmd` is a top-level key of `.tp/local.json` only. Both name a command the driver executes |
 | `tp set --workflow checks='[{"class":"s","cmd":"c"}]'` | Replace the mechanical-checks list (JSON array; `class` kebab-case unique, `cmd` non-empty) |
 | `tp set --workflow --project <field>=<value>` | Edit a project-level workflow field (writes `.tp/config.json`) |
@@ -644,7 +619,7 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | Command | Purpose |
 |---------|---------|
 | `tp lint spec.md` | Spec quality + structured elements + duplicate lines/paragraphs + numbering gaps + orphan list items + broken cross-refs. Also reports `floor_size`, `cut` and `review_panel` on every invocation — one round's grading cost and the round-1 reviewer panel, with no threshold and no gate; REFERENCE.md carries what each one counts |
-| `tp review spec.md` | Adversarial review prompts (one per active reviewer role) |
+| `tp review spec.md` | Review prompts (one per active reviewer role) |
 | `tp review spec.md --perspective code-audit --affected-files src/a.go` | Code audit with source file injection (never reads `--findings`; passing it exits 2) |
 | `tp review spec.md --round N --findings file.ndjson` | Multi-round with previous findings exclusion |
 | `tp review spec.md --round N --final-round --affected-files src/a.go` | Final round with mandatory code read-through |
@@ -652,37 +627,37 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp review --merge r1.ndjson r2.ndjson -o merged.ndjson` | Merge + dedup findings (`-o` is short for `--output`); reports `inputs` as `{path, parsed, skipped}` per file. All-empty inputs (a converged round) exit 0 and write a zero-byte `-o` file; an input with content lines and zero parsed exits 1; a missing input exits 3; no inputs exit 2 |
 | `tp review spec.md --perspective documentation --docs-path docs/` | Documentation perspective; `--docs-path` is required with it |
 | `tp review spec.md --perspective testing --test-path internal/` | Testing perspective; `--test-path` is required with it |
-| `tp review --resolve findings.ndjson <idx> <disposition> "evidence"` | Mark one finding fixed/wontfix/duplicate; `<idx>` is **0-based** |
-| `tp review --resolve-all findings.ndjson <fixed\|wontfix\|duplicate> "evidence"` | Dispose of **many** findings in one call (evidence optional) — the way to accept all surviving non-blocking findings under one justification |
-| `tp review --resolve ... --force` | Force re-resolve already resolved findings. On an emission, `--force` discards an unrecorded round whose spec changed (else exit 3) |
+| `tp review --resolve findings.ndjson <idx> <disposition> "evidence"` | Mark one finding fixed/wontfix/duplicate; `<idx>` is **0-based**; a file no round lists reports `recorded_round: false` |
+| `tp review --resolve-all findings.ndjson <fixed\|wontfix\|duplicate> "evidence"` | Dispose of **many** findings in one call (evidence required for wontfix/duplicate) — the way to accept all surviving non-blocking findings under one justification |
+| `tp review --resolve ... --force` | Force re-resolve already resolved findings. On an emission, `--force` discards an unrecorded round whose spec changed (else exit 3; exit 2 under `TP_UNATTENDED`) |
 | `tp review --verify spec.md --findings all.ndjson` | Lightweight verification (verifier role) |
 | `tp review --report r1.ndjson r2.ndjson` | Cross-round convergence report |
 | `tp review spec.md --diff-from old-spec.md` | Diff-based review; overrides the snapshot baseline and forces the inline diff block at any round |
 | `tp review spec.md --spec-inline` | Embed full spec inline (default is reference mode) |
 | `tp review spec.md --record merged.ndjson` | Record a review round; auto-numbers R, freezes the count + clean flag, returns `next_action` |
 | `tp review spec.md --record ... --harness-note "<text>"` | Record the round's orchestrator-wrapper framing (requires `--record`; alone → exit 2) |
-| `tp review spec.md --status` / `--status --check` | Convergence state / exit 0 only when converged AND every check passes |
+| `tp review spec.md --status` / `--status --check` | Loop state / exit 0 only when the loop is `done` AND every check passes |
 | `tp review spec.md --perspective regression` | Standalone regression pass (needs state R≥2, or `--diff-from` + `--findings`) |
 | `tp review spec.md --no-state` | Disable all state reads/writes; restores pre-0.23.0 manual `--round` numbering |
-| `tp review spec.md --role <name>` | Emit only that role's prompt. A name the round does not emit but tp recognises exits 0 with an empty `prompts[]`; a name it recognises nowhere exits 2 |
+| `tp review spec.md --role <name>` | Emit only that role's prompt. A name the round does not emit but tp recognises exits 0 with an empty `prompts[]`; a name it recognises nowhere exits 2 and writes nothing |
 | `tp audit spec.md` | Post-implementation audit: verify code matches spec. No audit-able file → exit 4 with `suggested_files` + hint |
-| `tp audit spec.md --affected-files src/a.go` | Manual file selection (comma or repeated) |
+| `tp audit spec.md --affected-files src/a.go` | Manual file selection (comma or repeated; each path cleaned, made repo-relative and deduped) |
 | `tp audit spec.md --affected-from-tasks` | Audit exactly the files touched by done tasks' `commit_shas` |
 | `tp audit spec.md --role <name>` | Emit only that role's prompt; same three name classes as `tp review --role` |
 | `tp audit spec.md --findings review.ndjson` | Also verify review findings were addressed (routed to spec-coverage) |
 | `tp audit spec.md --record results.ndjson` | Record an audit round (non-PASS rows = findings); independent sequence |
 | `tp audit spec.md --base <git-ref>` | Diff against a git ref to detect the audited files (omit for staged + unstaged) |
 | `tp audit spec.md --record ... --harness-note "<text>"` | Record the round's orchestrator-wrapper framing (requires `--record`) |
-| `tp audit --merge r1.ndjson r2.ndjson -o results.ndjson` | Merge + dedup per-role audit results by `role`+`item_id` (`-o` is short for `--output`); same `inputs` accounting and same exit 1 on an input that parsed nothing; adds `by_severity` over the non-`PASS` rows on any round holding one (survives `--compact`) |
-| `tp audit spec.md --status` / `--status --check` | Audit convergence state / exit 0 only when converged |
-| `tp audit results.ndjson --resolve <selector> <disposition> "<evidence>"` | Dispose one audit row — selector is a 0-based index or the row's `role:item_id` key; disposition is fixed/wontfix/duplicate (results NDJSON is the positional, a spec → exit 2) |
-| `tp audit results.ndjson --resolve-all <disposition> "<evidence>"` | Dispose every undisposed audit row; add `--force` to re-resolve rows already carrying a disposition. On an emission, `--force` discards an unrecorded round whose spec changed (else exit 3) |
+| `tp audit --merge r1.ndjson r2.ndjson -o results.ndjson` | Merge per-role audit results; rows sharing `role`+`item_id` collapse only when their verdict agrees, and disagreeing groups are named under `conflicts` (`-o` is short for `--output`); same `inputs` accounting and same exit 1 on an input that parsed nothing; adds `by_severity` over the non-`PASS` rows on any round holding one (survives `--compact`) |
+| `tp audit spec.md --status` / `--status --check` | Audit loop state / exit 0 only when the loop is `done` |
+| `tp audit results.ndjson --resolve <selector> <disposition> "<evidence>"` | Dispose audit rows — a 0-based index names one row, a `role:item_id` key every non-PASS row under it (`disposed` counts them); disposition is fixed/wontfix/duplicate (results NDJSON is the positional, a spec → exit 2) |
+| `tp audit results.ndjson --resolve-all <disposition> "<evidence>"` | Dispose every undisposed non-PASS row (PASS rows are skipped); add `--force` to re-resolve rows already carrying a disposition. On an emission, `--force` discards an unrecorded round whose spec changed (else exit 3) |
 | `tp ground spec.md` | Check the spec's claims against the world before review is told they hold: emits one prompt carrying the floor's index, and writes the snapshot plus the floor derived from it. From round 2 on, the prompt asks only for what the round owes: a unit whose text has not changed since the round before decided it is marked `(carried)` in the index and is not asked about again. The index still lists every unit — the narrowing is the ask, never the floor — and the floor file on disk stays the unmarked index the round is graded against |
-| `tp ground spec.md --force` | Discard an unrecorded round whose spec changed and emit over it (without it, exit 3); exit 2 under `TP_UNATTENDED` |
+| `tp ground spec.md --force` | Discard an unrecorded round whose spec changed and emit over it (without it, exit 3); exit 2 under `TP_UNATTENDED` and on every mode but the emission |
 | `tp ground spec.md --record rows.ndjson` | Record a ground round: validates every row, then writes `ground-round-N.ndjson` beside the floor that emission froze — never re-deriving one from the spec as it now stands. A round that would record **nothing at all** — no payload rows and nothing carried — exits 1; an empty payload whose every unit carries is legal and exits 0. No prior emit exits 3 |
 | `tp ground spec.md --units` | Print the floor's units with their full text, one per line: `<unit_id>\t<text_sha>\t<text>`, in emission order. The index in the prompt carries no unit text, so this is the one call that says where each unit ends. It derives from the spec **as it now stands**, not from the round's frozen snapshot, so the two join on `unit_id` only while the spec has not been edited since the emission — one inserted sentence renumbers every unit below it. Compare each line's `text_sha` against the index row of the same id before grading; a row carrying the index's own cells records at exit 0 whatever text was read, so nothing downstream can catch the mismatch. Plain text on stdout, not JSON, and it writes nothing — no round is emitted |
 | `tp ground spec.md --status` | Report the latest EMITTED round's coverage — dispositioned over emitted floor units — with the reader-added and off-floor counts that move neither side, the `cut` count of units the arms dropped, and the per-verdict breakdown that says what the round found. No emitted round exits 3 |
-| `tp ground spec.md --status --check` | The same report, read back as an exit code. **Two conditions, both on keys the payload prints.** Exit 1 when a unit of the emitted floor carries no disposition, and exit 1 also when the emitted floor is empty while `cut` is positive — a document whose every sentence the arms dropped is not a document that was checked, and `0 < 0` is false so coverage alone would exit 0 there. `emitted: 0, cut: 0` is honestly covered and exits 0. It gates on nothing else — a round of nothing but `FAIL`s is fully covered and exits 0 — and `--check` without `--status` exits 2 |
+| `tp ground spec.md --status --check` | The same report, read back as an exit code: 1 while a floor unit carries no disposition, while the emitted floor is empty but `cut` is positive, or while the latest round holds a `FAIL` (`PARTIAL`, `QUESTION` and `UNVERIFIABLE` do not fail it); `--check` without `--status` exits 2 |
 | `tp validate` | Task file validation + line coverage + atomicity |
 | `tp validate --strict` | Atomicity warnings become errors |
 | `tp validate --project` | Cross-spec workflow drift (informational; `--strict` → exit 1) |
@@ -699,7 +674,7 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp add --bulk tasks.ndjson` | Bulk add from NDJSON |
 | `tp import file.json` | Import + validate (`--force` to overwrite + relax atomicity) |
 | `tp import tasks.json --spec spec.md` | Import bare JSON array (auto-wraps into a TaskFile) |
-| `tp use <file>` / `--clear` / bare | Set / clear / show the active task file (`.tp/local.json`) |
+| `tp use <file>` / `--clear` / bare | Set / clear / show the active task file (`.tp/local.json`). Every task-file write reports the `file` it wrote; a write the pointer resolved while another task file is in reach prints a notice |
 
 ### Global flags
 | Flag | Purpose |
@@ -726,16 +701,16 @@ Before closing a task (`tp done`):
 ## Gate, Budget & Escalation Policy — user-approval gates
 
 - **The gate runs automatically at `tp done`.** `--skip-gate "<reason>"` skips it and records `gate_skipped_reason` on each closed task. **`--skip-gate` requires explicit user approval — it is never the agent's own decision.**
-- **Round-budget exhaustion (`review_max_rounds` / `audit_max_rounds`):** when the cap is reached and the sequence is not converged, `tp review` / `tp audit` prompt generation and `--record` refuse with exit 4 and an escalation hint. **The agent STOPS and escalates.** Raising the cap with `tp set --workflow`, and importing with `--force`, are user-approved decisions — never the agent's own.
-- **Convergence criteria differ by phase (v0.28.0+).** A **spec review** is converged only when a counted round surfaces **no blocking findings** — the blocking severities are **critical and high** (the built-in `review_converge_on=blocking` policy; `review_converge_on=all` opts into the strict any-severity rule): never declare review convergence or accept a round cap while a critical or high finding is open (medium/low findings may be accepted with recorded justification once none blocking remain). An **implementation audit** always runs to the full **2 consecutive clean rounds and is never cut short by an early cap** — a hit `audit_max_rounds` means fix the findings and continue (with a user-approved cap raise), never ship with them open. Implementation correctness is not negotiable. What an audit round must be clean *of* is `audit_converge_on` (v0.37.0), whose built-in default `all` counts every non-`PASS` row — deliberately the opposite of `review_converge_on`'s default. Setting it to `blocking`, so only `error` (and any severity tp cannot grade) blocks, is a **user-approved decision**, taken per cycle on the previous cycle's severity mix and never as a standing repo default; see "`audit_converge_on`" in Workflow D for the fence, the escalation name and the one-liner that derives the mix.
-- **Under `tp run` the policy is enforced, not merely stated (v0.35.0).** Every unit a run spawns carries `TP_UNATTENDED=1`, and the decisions above stop being available to it: `--skip-gate` at any of its sinks, `tp import --force`, a `tp set --workflow` raise of `review_max_rounds`/`audit_max_rounds` or any `run_max_*` cap, — since v0.37.0 — `audit_converge_on` reaching `blocking`, at all four of its sinks, and a change of `quality_gate` at any of its write paths, each exit 2 with a hint naming `tp escalate`. The rule differs by sink and the difference matters: `tp set --workflow --project` refuses **any** write of `blocking`, on its value alone, because it writes the layer every base resolves through including bases tp cannot enumerate; `tp set --workflow` (task layer), `tp import` and `tp config --extract` refuse a write that **changes what resolves** to `blocking`. See the `audit_converge_on` section of Workflow D. Record the decision with `tp escalate --decision <skip-gate|raise-review-cap|raise-audit-cap|import-force|audit-converge-on|other> --evidence "<what you found>" [--option "<a way forward>"]` — the run stops with `stop_reason: escalation`, the operator decides, and `tp run` is started again. **An escalation is a normal outcome, not a crash**, and it is neither a failed attempt nor a recorded round.
+- **The round cap (`review_max_rounds` / `audit_max_rounds`, default 3; 0 = uncapped):** once the cap is reached, prompt generation and `--record` refuse with exit 4. The loop is **done** (`done_by: cap`) when every finding of the latest round carries a disposition in its recorded round file — `fixed`, or `wontfix`/`duplicate` with evidence. A blocking finding marked `fixed` at the cap keeps the loop open (`blocking_fixed_at_cap`): no round will re-read the repair, so the operator accepts it with evidence or raises the cap by one for a verification round. A done loop needs no `--force` at `tp import`. Raising a cap and importing with `--force` stay user-approved decisions — never the agent's own.
+- **Convergence criteria differ by phase (v0.28.0+).** A **spec review** is converged only when a counted round surfaces **no blocking findings** — the blocking severities are **critical and high** (the built-in `review_converge_on=blocking` policy; `review_converge_on=all` opts into the strict any-severity rule): accepting a critical or high finding without a spec change is the operator's decision (medium/low findings may be accepted with recorded justification once none blocking remain). An **implementation audit** ends on 2 consecutive clean rounds, or at `audit_max_rounds` with every finding dispositioned; accepting any audit finding without a code change is the operator's decision. What an audit round must be clean *of* is `audit_converge_on` (v0.37.0), whose built-in default `all` counts every non-`PASS` row — deliberately the opposite of `review_converge_on`'s default. Setting it to `blocking`, so only `error` (and any severity tp cannot grade) blocks, is a **user-approved decision**, taken per cycle on the previous cycle's severity mix and never as a standing repo default; see "`audit_converge_on`" in Workflow D for the fence, the escalation name and the one-liner that derives the mix.
+- **Under `tp run` the policy is enforced, not merely stated (v0.35.0).** Every unit a run spawns carries `TP_UNATTENDED=1`, and the decisions above stop being available to it: `--skip-gate` at any of its sinks, `tp import --force`, a `tp set --workflow` raise of `review_max_rounds`/`audit_max_rounds` or any `run_max_*` cap, — since v0.37.0 — `audit_converge_on` reaching `blocking`, at all four of its sinks, a change of `quality_gate` at any of its write paths, accepting a critical/high review finding or any audit finding, and an emission's discarding `--force`, each exit 2 with a hint naming `tp escalate`. The rule differs by sink and the difference matters: `tp set --workflow --project` refuses **any** write of `blocking`, on its value alone, because it writes the layer every base resolves through including bases tp cannot enumerate; `tp set --workflow` (task layer), `tp import` and `tp config --extract` refuse a write that **changes what resolves** to `blocking`. See the `audit_converge_on` section of Workflow D. Record the decision with `tp escalate --decision <skip-gate|raise-review-cap|raise-audit-cap|import-force|audit-converge-on|accept-finding|discard-emission|other> --evidence "<what you found>" [--option "<a way forward>"]` — the run stops with `stop_reason: escalation`, the operator decides, and `tp run` is started again. **An escalation is a normal outcome, not a crash**, and it is neither a failed attempt nor a recorded round.
 - **Verify the gate with separate exit codes, never a `&&` chain.** `<tests> && <linter> && echo OK` prints nothing when it fails, and a missing `OK` does not catch the eye. Run each command on its own and read each exit code (`<tests>; echo $?`, then `<linter>; echo $?`) before you close the task.
 
 ## Class & Checks Guidance
 
 - **Fill `class`** on a review finding when it is an instance of a pattern a script could check across the whole corpus (example: `code-citation-drift`); omit it otherwise.
 - **Mechanization candidate:** a class that appears in ≥ 2 distinct rounds OR ≥ 5 times in a single round (`tp review --report` and `--record` output list `mechanize_candidates`). When one appears, write a detector command and register it: `tp set --workflow checks='[{"class":"<slug>","cmd":"<detector>"}]'`. A check is **only worth registering when the artifact it measures already exists in the review phase** — registered checks run in the review phase only, so a check whose subject a later phase writes can never verify it, while tp still tells every reviewer to stop reporting that class. When the subject is written later, make running the check the acceptance of the task that creates it instead.
-- Once registered, tp runs the check every review round, reports pass/fail in `mechanical_checks`, and tells reviewers to stop reporting that class. `tp review --status --check` requires every check to pass before exiting 0.
+- Once registered, tp runs the check every review round, reports it in `mechanical_checks`, and tells reviewers to stop reporting that class. A check's exit code is its contract: **0** passed, **1** found violations, anything else — 2 or higher, 126/127, a signal, a start failure, a timeout — could not run and is reported `ran: false`. A check that could not run does not suppress its class. `tp review --status --check` requires every check to pass before exiting 0.
 - **Registration retires the suggestion (v0.33.0):** a registered check retires its mechanize candidate — the class is dropped from `mechanize_candidates`, from the register-a-check `hint`, and from `next_action`'s mechanize branch, and `tp review <spec> --record <file>` names the withheld classes in `mechanized_classes`. Registration is the trigger, not the check's result — a failing check is still reported in `mechanical_checks` and still blocks `tp review --status --check`. Class matching is byte-for-byte.
 - `over-specification` is the one exception, scoped to a single sink: registering a check for it suppresses it from the candidates like any other class, but it never joins the `Mechanically checked classes — do NOT report findings of these classes:` sentence, because tp's own review prompts ask reviewers to raise it.
 
@@ -777,20 +752,20 @@ rules and the two trim levers are in [REFERENCE.md](REFERENCE.md).
 Opening role authoring is a power feature — a project-authored role is only as good as its prompt. Design each role for **high-signal, low-overlap, contract-conformant** findings:
 
 1. **One distinct failure-lens per role.** A role must target a failure mode no other role covers. Overlapping roles waste tokens and get flagged as trim candidates (`overlap_report`) — diversity of lenses beats count.
-2. **Adversarial framing.** "Try to refute this / find where it breaks / enumerate every X and verify each" outperforms "check whether this is fine". LLM reviewers have a leniency bias and underweight negation, so tell the role to actively hunt flaws and test the spec's "DO NOT" constraints.
-3. **Evidence demand.** Every finding carries a `location` (a `§`-anchor) and a why — this is what makes dedup (the overlap report) and audit PASS/FAIL meaningful. A finding with no location is unverifiable.
-4. **Scope boundaries.** State what the role does NOT cover (name the sibling roles' territory), so the panel tiles the problem space with disjoint lenses.
+2. **A reviewer reports what would make the implementation wrong** — a requirement that contradicts another, contradicts the spec's stated goal, or cannot be satisfied. Detail the code will settle (exact exit codes, JSON field names, error hints, helper names) is not a finding: the implementation decides it and its tests pin it. Adversarial probing belongs in the audit, where code exists.
+3. **Evidence demand.** Every finding carries a `location` (a `§`-anchor) and a why — this is what makes dedup (the overlap report) and audit PASS/FAIL meaningful. A `high` review finding carries a counterexample in `evidence`: two quoted spec lines that contradict each other, or a command and its output.
+4. **Finding nothing is a normal result.** A role that returns no rows has done its job; tell it so, or it reaches for a minor point.
 5. **Output-contract adherence.** The role customizes only its `focus`, never the finding schema — tp injects the fixed contract (`role, location, class, severity`, plus `evidence` on a review prompt and `status` on an audit prompt).
 6. **Altitude.** A spec review should push toward **decidable invariants** — behavior a task's acceptance can verify against the quality gate — and away from implementation prose that pins mechanism (SQL, an index, a field layout) whose correctness only code can establish. The canonical finding `class` `over-specification` names exactly this smell: *a detail whose correctness can only be established against code, prescribed in the spec where it belongs in task acceptance instead.* Any reviewer may raise it; it is usually **low or medium** severity (an altitude judgment, not a blocking defect), so it never blocks convergence under `review_converge_on=blocking` unless a reviewer stamps it critical/high — convergence reads severity, not the class. tp does not detect over-specification and never deletes spec content on its own claim of it; the remedy is to revise the over-specified detail down into a task's acceptance where the gate can check it.
 
 **Worked example role sets:**
 
-- **code/software** — *correctness* (does the change actually work: error paths, edge cases, happy-path gaps), *security* (trust boundaries, injection, unsafe defaults, unpaired locks), *performance/contract* (backward-compat, complexity, interface consistency). The ejectable `implementer`/`tester`/`architect` reviewers and `spec-coverage`/`security`/`maintainability-conventions` auditors are worked examples of this guidance.
+- **code/software** — reviewers: *buildability* (`implementer`: a requirement that cannot be built as written), *testability* (`tester`: two correct implementations that would fail each other's tests), *consistency* (`architect`: section against section, and against existing behaviour the spec does not say it changes). Auditors, on code: `spec-coverage`, `security` (trust boundaries, injection, unsafe defaults, unpaired locks), `maintainability-conventions`.
 - **prose** — *narrative continuity* (coherence: does one part contradict, duplicate, or pre-empt another?) vs *expository derivability* (soundness: can each claim be derived from what precedes it without inventing facts?). Prose defaults to the leaner two-reviewer panel because prose flaws surface from many angles at once.
 
 **Other domains** and their characteristic diverging lenses (for custom corpora): **legal/contract** — obligation completeness vs. ambiguity/loophole; **product/PRD** — user-journey completeness vs. measurable acceptance; **data-schema** — referential integrity vs. migration/compat; **academic** — claim support vs. methodology soundness.
 
-The embedded default corpus is authored to exemplify this guidance, so an ejected default role is itself a worked example — run `tp init --eject-roles` to read them.
+The embedded default reviewers follow rules 1–4 — run `tp init --eject-roles` to read them. A corpus ejected before v1.2.0 keeps the older, adversarial reviewer text until it is re-ejected with `--force`.
 
 ## Recording language — read in any language, record in English
 
@@ -839,7 +814,7 @@ neither.
 |---|---|
 | in the emitted set | exit **0**, exactly one `prompts[]` entry, byte-identical to that role's entry in the same invocation without the flag |
 | recognised but not emitted this round | exit **0**, `prompts: []`. A name *this* phase skipped keeps its own `skipped_roles` entry; a name recognised only through the other phase's corpus is in none |
-| recognised nowhere | exit **2**, with a hint naming what the invocation would have emitted |
+| recognised nowhere | exit **2**, with a hint naming what the invocation would have emitted; nothing is written to the state directory |
 
 "Recognised" spans **both phases**: the user corpus and the embedded default corpus for reviewers
 *and* auditors, plus `regression`. So an auditor running `tp audit <spec> --role spec-coverage` and
@@ -882,8 +857,8 @@ The wrapper is only for what tp cannot know — runtime setup (e.g. hook-blocked
 
 `tp review --status`/`--record` and `tp audit --status`/`--record` return a `next_action` naming the one next step the current state calls for, by a fixed precedence (retained under `--compact`):
 
-1. **Converged** → the forward step: review names the directive `decompose the spec into tasks, then tp import <base>.tasks.json`; audit names the terminal `converged — implementation verified, proceed to release`. Convergence wins even when non-blocking findings remain open. Under `audit_converge_on: blocking` the audit string also **names the accepted count as a numeral** (`converged over N accepted rows — …`), so the round that closed over open advisory rows says so.
-2. **Blocking (critical/high) findings open** → `revise the spec to address the blocking findings, then run the next review round` (audit: fix the findings, then re-audit). It never steers toward `--resolve`/`--resolve-all`: disposing a blocking finding is an operator decision, never auto-advised.
+1. **Done** — converged, or the round cap reached with every finding of the latest round dispositioned → the forward step: review names the directive `decompose the spec into tasks, then tp import <base>.tasks.json`; audit names the terminal `converged — implementation verified, proceed to release`, and a loop the cap ended says so instead. Convergence wins even when non-blocking findings remain open. Under `audit_converge_on: blocking` the audit string also **names the accepted count as a numeral** (`converged over N accepted rows — …`), so the round that closed over open advisory rows says so.
+2. **The cap reached with a finding undispositioned, or a blocking finding open** → at the cap, disposition each remaining finding in the recorded round file it names; below it, revise the spec where the finding is a defect or disposition it there (audit: fix the code, or disposition a finding that needs no code change). Disposition is named as an exit equal to a change; accepting a blocking finding is named as the operator's decision, and `--resolve-all` is never advised.
 3. **A `mechanize_candidates` class recurs, none blocking** (review only) → register a check (`tp set --workflow checks='[…]'`), then run the next round. The directive carries the phase qualifier: a check is **only worth registering when the artifact it measures already exists in the review phase**, because registered checks run in that phase alone. The un-mechanizable `over-specification` class never triggers this — it falls through to step 4. Since v0.33.0 a class with a registered check falls through too: it is suppressed from the candidate list, so the driver is never told to write a check that already exists.
 4. **Clean but not yet converged** → run the next round: `tp review <spec> --record <file>` (audit: `tp audit <spec> --record <file>`). Under `audit_converge_on: blocking` the audit string is prefixed with the same numeral (`N accepted rows carried forward — run the next audit round: …`) — this is the branch a `blocking` cycle takes on *every* clean round, where the converged branch fires once.
 
