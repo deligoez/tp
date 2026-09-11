@@ -69,18 +69,35 @@ func TestDoneBatch_RefusedRowLeavesOpenTaskUntouched(t *testing.T) {
 				_, stderr, code := runTP(t, dir, tc.setup...)
 				require.Equal(t, 0, code, "setup: %s", stderr)
 			}
-			before := map[string]string{"t1": rawTaskJSON(t, dir, "t1"), "t2": rawTaskJSON(t, dir, "t2")}
+			before := rawTasksJSON(t, dir, "t1", "t2")
 			res, stderr, code := runBatch(t, dir, tc.rows...)
 			require.Equal(t, 4, code, "every row is refused; stderr: %s", stderr)
 			assert.EqualValues(t, 0, res["closed"])
 			assert.EqualValues(t, 2, res["failed"])
-			for id, raw := range before {
-				task := taskState(t, dir, id)
-				assert.Equal(t, "open", task["status"], "%s: a refused row does not claim its task", id)
-				assert.Nil(t, task["started_at"], "%s: a refused row sets no started_at", id)
-				assert.Equal(t, raw, rawTaskJSON(t, dir, id), "%s: a refused row leaves every field as it was", id)
-			}
+			assertOpenTasksUntouched(t, dir, before)
 		})
+	}
+}
+
+// rawTasksJSON snapshots rawTaskJSON for each id.
+func rawTasksJSON(t *testing.T, dir string, ids ...string) map[string]string {
+	t.Helper()
+	out := make(map[string]string, len(ids))
+	for _, id := range ids {
+		out[id] = rawTaskJSON(t, dir, id)
+	}
+	return out
+}
+
+// assertOpenTasksUntouched: each open task in the snapshot was refused, so it
+// is still open, has no started_at, and its object is byte-identical.
+func assertOpenTasksUntouched(t *testing.T, dir string, before map[string]string) {
+	t.Helper()
+	for id, raw := range before {
+		task := taskState(t, dir, id)
+		assert.Equal(t, "open", task["status"], "%s: a refusal does not claim its task", id)
+		assert.Nil(t, task["started_at"], "%s: a refusal sets no started_at", id)
+		assert.Equal(t, raw, rawTaskJSON(t, dir, id), "%s: a refusal leaves every field as it was", id)
 	}
 }
 

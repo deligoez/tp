@@ -451,64 +451,14 @@ func runDoneMulti(taskFilePath string, taskIDs []string, reason string) error {
 				continue
 			}
 
-			// Implicit claim: open -> wip
+			// Every refusal runs before the target touches its task, so a
+			// refused target is written back exactly as it was read.
+			if refusal := checkMultiTarget(tf, task, reason, doneSet); refusal != nil {
+				failed = append(failed, refusal)
+				continue
+			}
 			if task.Status == model.StatusOpen {
-				blocked := false
-				for _, dep := range task.DependsOn {
-					if !doneSet[dep] {
-						failed = append(failed, map[string]any{
-							"id":    id,
-							"error": fmt.Sprintf("blocked by %s", dep),
-							"hint":  fmt.Sprintf("Close %s first or place it earlier in the argument list.", dep),
-						})
-						blocked = true
-						break
-					}
-				}
-				if blocked {
-					continue
-				}
-				task.Status = model.StatusWIP
-				task.StartedAt = &now
-				if !isCoveredBy {
-					task.DurationSource = model.DurationSourceImplicit
-				}
-			}
-
-			if task.Status == model.StatusDone {
-				failed = append(failed, map[string]any{"id": id, "error": fmt.Sprintf("task %s is already done", id)})
-				continue
-			}
-
-			if task.Status != model.StatusWIP {
-				failed = append(failed, map[string]any{"id": id, "error": fmt.Sprintf("cannot done: task %s is %s", id, task.Status)})
-				continue
-			}
-
-			// Verify covered-by reference if provided
-			if isCoveredBy {
-				ref, _, refErr := model.FindTask(tf, doneCoveredBy)
-				if refErr != nil || ref.Status != model.StatusDone {
-					errMsg := ""
-					if refErr != nil {
-						errMsg = fmt.Sprintf("--covered-by: %v", refErr)
-					} else {
-						errMsg = fmt.Sprintf("--covered-by: task %s is %s (must be done)", ref.ID, ref.Status)
-					}
-					failed = append(failed, map[string]any{"id": id, "error": errMsg})
-					continue
-				}
-			}
-
-			// Closure verification
-			if verifyErr := engine.VerifyClosure(task.Acceptance, reason, isCoveredBy); verifyErr != nil {
-				failed = append(failed, map[string]any{
-					"id":         id,
-					"error":      fmt.Sprintf("closure verification failed: %v", verifyErr),
-					"acceptance": task.Acceptance,
-					"hint":       engine.ClosureHint(verifyErr, "Rewrite reason to address all acceptance criteria."),
-				})
-				continue
+				implicitClaim(task, &now, isCoveredBy)
 			}
 
 			// Close the task
@@ -592,6 +542,62 @@ func runDoneMulti(taskFilePath string, taskIDs []string, reason string) error {
 		}
 		return nil
 	})
+}
+
+// checkMultiTarget runs every refusal one target of `tp done <id>... <reason>`
+// can meet inside the lock — a blocking dependency, an already-done or
+// unclaimable status, --covered-by, closure verification, in that order —
+// without touching the task, and returns the failure row or nil. As in
+// checkBatchRow, validating before the implicit claim is what keeps a refused
+// open task open: the claim used to run first and was written back.
+func checkMultiTarget(tf *model.TaskFile, task *model.Task, reason string, doneSet map[string]bool) map[string]any {
+	id := task.ID
+	if task.Status == model.StatusOpen {
+		for _, dep := range task.DependsOn {
+			if !doneSet[dep] {
+				return map[string]any{
+					"id":    id,
+					"error": fmt.Sprintf("blocked by %s", dep),
+					"hint":  fmt.Sprintf("Close %s first or place it earlier in the argument list.", dep),
+				}
+			}
+		}
+	}
+	if task.Status == model.StatusDone {
+		return map[string]any{"id": id, "error": fmt.Sprintf("task %s is already done", id)}
+	}
+	if task.Status != model.StatusWIP && task.Status != model.StatusOpen {
+		return map[string]any{"id": id, "error": fmt.Sprintf("cannot done: task %s is %s", id, task.Status)}
+	}
+	if doneCoveredBy != "" {
+		ref, _, refErr := model.FindTask(tf, doneCoveredBy)
+		if refErr != nil {
+			return map[string]any{"id": id, "error": fmt.Sprintf("--covered-by: %v", refErr)}
+		}
+		if ref.Status != model.StatusDone {
+			return map[string]any{"id": id, "error": fmt.Sprintf("--covered-by: task %s is %s (must be done)", ref.ID, ref.Status)}
+		}
+	}
+	if verifyErr := engine.VerifyClosure(task.Acceptance, reason, doneCoveredBy != ""); verifyErr != nil {
+		return map[string]any{
+			"id":         id,
+			"error":      fmt.Sprintf("closure verification failed: %v", verifyErr),
+			"acceptance": task.Acceptance,
+			"hint":       engine.ClosureHint(verifyErr, "Rewrite reason to address all acceptance criteria."),
+		}
+	}
+	return nil
+}
+
+// implicitClaim moves an open task that is about to close to wip: started_at is
+// the given time, and the duration is implicit unless the close is
+// --covered-by / covered_by. Callers run it only after every refusal.
+func implicitClaim(task *model.Task, startedAt *time.Time, coveredBy bool) {
+	task.Status = model.StatusWIP
+	task.StartedAt = startedAt
+	if !coveredBy {
+		task.DurationSource = model.DurationSourceImplicit
+	}
 }
 
 type batchEntry struct {
@@ -845,18 +851,12 @@ func runDoneBatch() error {
 				continue
 			}
 			isBatchCoveredBy := entry.CoveredBy != ""
-
-			// Implicit claim
 			if task.Status == model.StatusOpen {
-				task.Status = model.StatusWIP
-				if entry.StartedAt != nil {
-					task.StartedAt = entry.StartedAt
-				} else {
-					task.StartedAt = &now
+				startedAt := entry.StartedAt
+				if startedAt == nil {
+					startedAt = &now
 				}
-				if !isBatchCoveredBy {
-					task.DurationSource = model.DurationSourceImplicit
-				}
+				implicitClaim(task, startedAt, isBatchCoveredBy)
 			}
 
 			task.Status = model.StatusDone
