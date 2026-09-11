@@ -369,3 +369,37 @@ Two of the six repaired sentences were still `PARTIAL`, and both repairs were su
   now says only that documentation describing replaced behaviour is rewritten; the passages found so
   far, for the documentation task: `REFERENCE.md` 766, 186, 199–202, 1109–1116; `SKILL.md` 385, 423–426,
   675, 678 (line numbers at `30965923`).
+
+## Review round 1
+
+`spec/backlog/.tp-review/audit-records-what-was-graded/review-round-1.ndjson` holds the round: four
+roles, 48 findings, every one dispositioned in that file. Three clusters moved the design; the rest
+narrowed wording or added the row a clause lacked.
+
+**The driver disposes rows in the merge output, so §4 had to say where it does not apply.** Under
+`tp run` the round directory's `merged.ndjson` is what the record unit writes and what `review-resolve`
+and `audit-fix` units dispose rows in (`engine.MergedFindingsPath`'s doc comment, `internal/engine/unitkind.go`),
+and the unit's durable-write predicate reads it. Three roles found independently that decision 1's
+step, read as universal, would send a unit away from the file its own predicate reads, and that
+decision 3's statement would fire on every in-run resolve. Decision 1 now names itself the interactive
+loop's step, and decision 3's statement is replaced by decision 2's step whenever that step is offered.
+
+**Scheme stamps were the wrong thing to trust; `evidence_file` is the right one.** Round 1 found
+decision 1's *"the emission's scheme"* had nowhere to live — an audit emission writes only its
+snapshot, and `--record` stamps `id_scheme` — and that throwing away a whole older-scheme round also
+threw away spec-coverage's rows, whose ids do not change. The repair dropped the new `id_scheme` value
+and the emission-scheme clause altogether: a prior `file_check` row now answers the item decision 1
+gives its `role` and `evidence_file`, whatever id it was recorded under. That makes rounds recorded
+before the release usable at once and needs no marker. `scripts/audit-round-prep.py` already chooses
+carried rows by `evidence_file`; only its re-measure list changes. **Rows 1c and 7b, and the
+"no emission hands out one id twice" clause, were withdrawn**: with the id a function of the path
+alone, row 1c's colliding pair could not be given two ids without breaking decision 1, and row 7b
+tested the emission stamp that no longer exists. A residual collision is left to decision 2.
+
+**`evidence_file` is the subject only of a `file_check` item.** For a spec-derived item it is the
+grader's citation, and every hand-sharded emission re-emits spec-coverage's items under the same ids,
+so decision 2 as written would have refused every hand-sharded round run with the full panel — the
+case Non-Goal 3 says the release makes merge honestly. The comparison is now scoped to `file_check`
+items, gained the disposition's status, and `--merge` keeps writing `-o` on the conflict exit, as on
+its existing exit-1 path, so the driver's `;`-chained audit record unit reaches `--record`'s refusal
+instead of a missing file.
