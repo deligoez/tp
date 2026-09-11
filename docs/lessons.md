@@ -1,0 +1,464 @@
+# Lessons
+
+Read on demand; nothing in it is a rule. The rules are in `CLAUDE.md`.
+
+Everything below was moved verbatim from `CLAUDE.md` at `fcec0da0`, under the heading it had
+there. "This file", "above" and "below" in it mean that `CLAUDE.md`, and a path it cites may
+have moved since: it records what was written, not what is current.
+
+## Quick Reference
+
+```bash
+# Sweep round artifacts that belong to no recorded round (dry run by default)
+./scripts/clean-emissions.sh            # report;  --apply to remove
+# An emission writes a snapshot and a floor; `--record` writes the third file and commits all
+# three. An emitted-but-never-recorded round therefore leaves two files nothing references, and
+# re-emitting is idempotent, so removing them costs one command. THREE guards, each mutant-tested:
+# the round is unrecorded, the file is untracked, and it is older than --min-age-hours (default 1)
+# — the last because deleting the floor out from under a unit that is grading against it right now
+# makes its payload unrecordable, and there is no lock to read.
+```
+
+## Project Structure
+
+```
+cmd/tp/              Main entry point
+internal/
+  cli/               Cobra commands (plan, done, next, list, claim, close, commit, report, ...)
+                     review.go          — core review + mode routing + prompt generators
+                     review_merge.go    — --merge mode (dedup, sort, output)
+                     review_resolve.go  — --resolve/--resolve-all mode (flock, in-place update)
+                     review_verify.go   — --verify mode (lightweight verification prompt)
+                     review_report.go   — --report mode (convergence analysis, TTY/JSON output)
+                     audit.go           — tp audit (post-implementation spec verification)
+  engine/            Core logic (toposort, closure, validate, lint, parallel, discover, lock, excerpt, linecoverage, structured)
+                     diff.go            — section-level spec diff (for --diff-from)
+                     fileio.go          — shared file I/O, budget-aware reading, affected summary
+                     suggest.go         — task ID suggestion for covered_by did-you-mean hints
+  model/             Data types (TaskFile, Task, Workflow, Coverage)
+  output/            Formatting (JSON/TTY, compact, colors, hint errors)
+spec/
+  0.1.0.md           Original specification (1431 lines)
+  <version>.md       New feature specs — one file per version/feature
+skills/tp/
+  SKILL.md           Claude Code skill (workflows, decomposition rules, commit format)
+  REFERENCE.md       Exhaustive field, exit-code and schema detail
+.claude-plugin/
+  marketplace.json   Skill distribution manifest
+```
+
+## Self-Development: tp Uses tp
+
+**tp develops itself using its own workflow.** When implementing new features:
+
+1. **Write a spec** in `spec/<version>.md` describing the feature
+2. **Lint the spec**: `tp lint spec/<version>.md`
+3. **Init + workflow**: `tp init spec/<version>.md` (no `--quality-gate` — the repo gate lives in `.tp/config.json`, and a task-file override would mask it), then `tp set --workflow` for convergence counts / round budgets / `checks` (before the review loop, so the loop reads them)
+4. **Review loop**: `tp review spec/<version>.md` → spawn sub-agents → `tp review --merge` → `tp review spec/<version>.md --record merged.ndjson` → resolve findings → repeat until `tp review spec/<version>.md --status --check` exits 0
+5. **Decompose into tasks** with `source_sections` for every task (`source_lines` optional precision)
+6. **Import**: `tp import <tasks.json>` (plain — the init shell holds zero tasks; convergence checks stay armed)
+7. **Validate**: `tp validate` — check coverage gaps
+8. **Implement each task**, then:
+   - `tp done <id> "evidence" --commit <sha>` — the quality gate runs automatically
+9. **Audit loop**: `tp audit spec/<version>.md` → spawn sub-agents → `tp audit spec/<version>.md --record results.ndjson` → fix code → repeat until `tp audit spec/<version>.md --status --check` exits 0
+10. **Report**: Last `tp done` auto-includes report summary. Or: `tp report` for full details
+11. **Release**: tag, push, `gh release edit` with notes
+
+### Rules
+- **Convergence, gate and budget policy live in `skills/tp/SKILL.md`** (Gate, Budget & Escalation Policy, plus Workflow A step 2 and Workflow D). It applies here unchanged: `--skip-gate`, raising `review_max_rounds`/`audit_max_rounds`, and `tp import --force` are **user-approved decisions, never the agent's own**.
+- **The audit's 2-clean-rounds rule is about SPEC CONFORMANCE, not about the codebase at large (v0.32.0 lesson).** SKILL.md's Workflow D carries the rule and the signals that make it measurable (`spec_coverage_clean_rounds`, `role_streaks`, `divergence`). What it cost here: tp's own v0.32.0 audit ran **11 rounds with zero FAIL in any of them** while `spec-coverage`, the only role measuring conformance, was **55/55 clean from round 2 onward** — the rounds went to hint wording, advisory channels and git scoping the spec never mentions, and each repair round created fresh surface for the next. So once `spec-coverage` is clean two rounds running and no round has produced a FAIL, record the out-of-surface findings with justification, name the version that takes them, and ship — never over an open spec-scoped finding, and keep audit repairs minimal, because a repair that introduces a new abstraction (a channel move, a new helper) belongs to the next version rather than to this audit.
+- Quality gate after every task: `./scripts/check-suite-state.sh && golangci-lint run && ./scripts/check-deadcode.sh && ./scripts/check-complexity.sh` — this is the project gate in `.tp/config.json`, and no task file carries a `quality_gate` override that would mask it. **Step 1 is `go test -count=1 -race ./...` wrapped in a before/after hash of `spec/.tp-review/` and `.tp/rounds/`** (v0.36.0 §6.1 S1): the suite invokes `tp review`/`tp audit` many times and both write the round snapshot, so a test that emits against a spec still sitting in the repository advances rounds it does not own while reporting green. It wraps the suite rather than running beside it because hashing around ONE run is what attributes a change to the suite. When it fails, the fix is `relocatedSpec` (copy the spec plus its `.tp-review/<base>` into `t.TempDir()`), never `--no-state` — that flag disables the very state the tests measure. tp's `.golangci.yml` enables the `gofmt` formatter — `skills/tp/SKILL.md` says why that section is required. The third step needs `go install golang.org/x/tools/cmd/deadcode@latest`, the fourth `go install github.com/uudashr/gocognit/cmd/gocognit@latest`. **The gate and CI are the same list, and a test enforces it**: `TestCIRunsEveryStepOfTheProjectGate` splits `.tp/config.json`'s `quality_gate` on `&&` and requires every step to appear in `.github/workflows/ci.yml`, because CI had drifted to `go test ./...` — no race detector, no deadcode — while the local gate ran four steps, so a green badge meant less than it looked. Adding a step to the gate now fails two guard tests until CI and the resolved-gate literal in `internal/cli/quality_gate_config_test.go` are updated with it; that is the mechanism working, not an obstacle. **`-race` and `-count=1` both live inside the wrapper rather than in the gate literal**, and reading the script for them was measured to be insufficient THREE times, each by an input the guard's own author had not built: a bare `Contains` was satisfied by the flag's appearance in a comment; a per-line scan kept the LAST matching line with no notion of the `if`/`else` around it, so inverting the comparator took `-race` off the branch that runs while three guards stayed green. `TestTheWrapperActuallyInvokesTheSuiteItClaims` therefore RUNS the wrapper under a stub `go` first on `PATH` and asserts on the recorded argv, and a sibling covers the narrowed branch, which no guard reached before. `-count=1` is not decoration: `go test` serves a cached PASS for a package it did not run, so without it the before/after digest brackets nothing — measured, a probe mutating `spec/.tp-review/` was caught on run 1 and passed on runs 2 and 3 as `(cached)`, exit 0, with the mutation present each time. **What still does NOT work, so it is not re-attempted here: matching text.** `spec/backlog/gate-sequence-measurements.md` §*§1.1 What the shipped guard measures, and what it does not* carries built-and-run inputs, a control and an A/B matrix showing that a gate step merely NAMED in executable text certifies itself, and that `if: false` and `continue-on-error: true` disable a certified step without changing its text.
+- **Complexity is a ratchet, not a threshold — and it has two halves.** `scripts/check-complexity.sh` runs **`gocognit`** over production code (`_test.go` excluded) at `TP_COGNIT_THRESHOLD` (22) against `scripts/baseline-complexity.txt`, and then **`funlen`** (via `golangci-lint run --default=none --enable=funlen`, 60 lines / 40 statements) against `scripts/baseline-funlen.txt` — 71 committed entries, so step 4 needs golangci-lint on PATH as well as gocognit. Both are keyed on `package function` rather than line, so the baseline survives edits elsewhere in the file. Each fails on a **new** violation and equally on a **stale** baseline entry that no longer violates — so the lists can only shrink, and a function that gets simplified cannot silently re-inflate later. Why a ratchet: the codebase had **54** production functions over the cognitive threshold when this was added, so a plain `gocognit` linter entry would have to fail all 54 on day one or sit at a threshold that measures nothing. Two rejected alternatives, recorded so they are not re-proposed: `golangci-lint --new-from-rev` weakens *every* linter on unchanged code, not just this one, and per-file exclusions were unusable because the 54 functions are spread across 38 files. **Both halves fail CLOSED, and that was a repair, not a design.** v0.36.0's audit round 1 measured the script running each tool inside a `$( … )` pipeline ending in `sort -u`, so `$?` was `sort`'s and `set -e` never fired: with `go` off PATH, golangci-lint died with `context loading failed` and the ratchet cheerfully reported all 71 funlen entries as no-longer-violating and told the operator to delete them — obeying that message disarms half the gate. Each tool is now checked on its own — and by a different signal each, because **`gocognit`'s exit code cannot tell a result from a failure**: measured, it exits 1 on violations, 1 on a parse error and 1 on a missing directory. A first repair guarded on `>1` after recording "127 when it cannot run" as its convention; that 127 was the SHELL's command-not-found, because the experiment took gocognit off PATH rather than breaking gocognit — it measured the shell and the answer was written down as the tool's. What does discriminate, on all four cases: **gocognit writes to stderr only on failure**, so the script tests stderr. `golangci-lint` is different and does separate them — 1 when it reports issues, 3+ when it fails to start — so its guard is on the exit code. Two tools, two signals; do not unify them without re-measuring.
+- **`unused` cannot see an exported symbol, so the gate runs `deadcode` too.** golangci-lint's `unused` skips exported identifiers by design; `deadcode` builds a call graph from every main package and test, so a function nothing reaches is reported whatever its case. It found three uncalled exported accessors in `root.go` that eight audit rounds and four roles had not, and — more usefully — it separates *dead* from *called only by tests*, which is how the audit-category sink gap surfaced: `IsValidCategory` had been written, tested, and never wired, while tp told every auditor that unknown categories are rejected. When a function shows up as test-only, ask whether the production caller is missing rather than whether the test is.
+- **Run the tools before the review rounds, not after.** `deadcode`, `go fix`, `govulncheck` and mutation testing each found something in this codebase that a 17-round review and an 8-round audit had passed over, in under a minute apiece. The reason is structural rather than a failure of the loop: **review reads what is written, and these read what is reachable.** A validator that exists, is tested, and is never called reads perfectly well on the page; only a call graph notices. Every defect they catch first is a defect no reviewer spends a round on. `scripts/check-deadcode.sh` is in the gate; the rest are on triggers — `go fix ./...` after a large implementation push and before a release, `govulncheck ./...` before a release, mutation testing **at least once before any release** (see below). **`go fix`'s own output is not evidence on Go 1.26**: at v0.35.0 it reported "applied 6 of 7 fixes; 5 files updated" on every run while changing **zero bytes** — confirmed by running it in an `rsync` copy and diffing against the original, which is the only way to tell an applied fix from a claimed one. Check `git status`, not the summary line.
+- **Mutation testing: cheap to run, expensive to read, so run it at decision points rather than in the gate.** `gremlins unleash ./internal/engine` (note the path form — gremlins appends `/...` itself) took **53 minutes for 1540 mutants** at v0.35.0 — budget an hour, not the five minutes this line used to claim; the engine package roughly doubled and the old figure sent two cycles into it expecting a coffee break. Interpretation is the cost: v0.34.1's ten survivors in one file were two equivalent mutants, three on an undocumented backoff schedule, and four on a documented contract with no boundary test — only the last group was worth acting on. **Do not treat the survivor count as a score to drive down**; classify them and say which you are deliberately leaving and why. Two rules earned the hard way: a run is **load-sensitive** (a second run on a busy machine turned 75 kills into 80 timeouts — a run full of `TIMED OUT` is not a result), and a **behavioural test can verify a rule and still miss its boundary** — v0.34.0's audit checked a documented 1–60 range with the value 999, which passes whether the bound is inclusive or exclusive. Run it in an `rsync` copy, never the repo. **Pin `--workers`. NEVER pass `--test-cpu` — it silently corrupts the result.** The worker pin is what makes two runs comparable (the default settings drive load average from 8 to 177, and the same package measured 92 timeouts busy and 88 idle — a 7.5% difference, so the parallel work was never the problem). `--test-cpu` is the opposite of a fix. Upstream [PR #273](https://github.com/go-gremlins/gremlins/pull/273) landed after v0.6.0 and is in no release: gremlins passes `-cpu N` to `exec.Command` as a SINGLE argument, so `go test` never starts and no mutant is ever really tested. Measured here on `./internal/model`, same tree, same 80 mutants, only the flag differing:
+
+| | KILLED | LIVED | TIMED OUT | NOT COVERED | efficacy |
+|---|---|---|---|---|---|
+| no flag | 49 | **5** | 0 | 26 | 90.74% |
+| `--test-cpu 2` | 2 | **0** | 52 | 26 | **100.00%** |
+
+All five real survivors became `TIMED OUT`; `NOT COVERED` was untouched, because the coverage profile is collected before any mutant runs. **There is no sufficient signature, and this file used to claim one.** It said the tell is `Lived: 0` beside `Not covered > 0`, on the reasoning that an exhaustive suite can honestly reach `Lived: 0` and 100% but not next to a non-zero not-covered count. **Measured, and it is false.** A two-file package — one function fully killed by a table test, one never called — run with no flags at all:
+
+```
+Killed: 1, Lived: 0, Not covered: 6
+Timed out: 0, Not viable: 0, Skipped: 0
+Test efficacy: 100.00%
+```
+
+So `Lived: 0` next to `Not covered: 6` is honestly reachable, and the "stronger" signature has exactly the false positive the weaker one was rejected for — the paragraph recorded that rejection and then repeated the mistake one sentence later. **The condition is necessary under corruption and not sufficient**: treat it as a prompt, never as a verdict. **And the argv does not settle it either — this file said it did, one correction ago, and a run refutes that too.** Measured in **four** independent `rsync` copies of `HEAD` (three by a grounding unit, one independently, same conclusion): the **first** `gremlins unleash ./internal/model --workers 4` in a fresh directory returns `Killed 50, Lived 5, Not covered 26, Timed out 0, 90.91%`, and **every later run in that same directory — byte-identical argv, no `--test-cpu` anywhere — returns `Killed 2, Lived 0, Not covered 26, Timed out 53, 100.00%`**: the corruption signature with the flag absent. Four clean first runs, six corrupt subsequent ones. Priming the test cache first (`go test ./internal/model` twice before gremlins ever ran) does not prevent it, so the cache is not the mechanism. So `--test-cpu` is **sufficient** for the signature and **not necessary**, and reading the argv proves nothing in either direction. What is left is procedural rather than diagnostic: **run in a fresh copy nothing has touched, and treat any run after the first in that directory as evidence of nothing.** The mechanism is unknown and was not chased past ruling out the cache; the fact is reproducible, which is what a rule needs. The *symptom* is machine-dependent too — a peer measured survivors becoming `KILLED` where this workspace sees `TIMED OUT` — so trust the signature, not the mechanism. And note which direction this fails in: it manufactures exactly the number someone would be pleased by, in a repo whose own rule is that the survivor count is not a score to drive down. **`-D, --diff <branch|commit>` does not work in v0.6.0 — narrow by PACKAGE instead.** It was recorded here as the untried idea most likely to turn "an hour before the tag" into something runnable per task. The experiment has now been run and it fails: on a clean tree, `-D <the current branch>` — an empty diff, which must yield zero mutants — produced all **80**, the unrestricted set. Upstream has three open bugs on it (#278, #296, #301). Narrowing by package name is the replacement and is an EXACT substitute rather than an approximation: in default mode gremlins runs only the mutated package's own tests (`--integration` inverts this), so an unchanged package's mutants cannot change verdict. The same fact has a corollary worth knowing before reading any efficacy number here — a package driven only by another package's tests scores as undetected, so the figure understates detection. What it is worth: the files v0.34.0's manual sweep examined score 96–100% efficacy, the files it did not sit at 25–78%, so the manual work was real — and `internal/engine/validate.go` at **25% with 46 survivors** is the standing backlog. The two decision points, named here so they are not re-derived each cycle and do not die with the orchestrator's context: **when a version's new engine surface is complete, before its audit loop opens**, and **before the release tag** — never while task gates are running, for the load reason above. the mutation-score release is where this becomes a documented gate entry instead of a rule in this file.
+- **Force a commitment in the brief, or the round returns a reading it cannot use.** Six instances
+  across two repositories, three of them this repo's own v0.36.0 audit, all recorded. The pattern is
+  one sentence, and in every case the reading was already available to the role — what the sentence
+  bought was the obligation to conclude something from it.
+
+  | put this in the brief | measured effect |
+  |---|---|
+  | *the inputs behind this repair were chosen by the person who wrote it, which is the condition under which this cycle has been wrong N times — construct one that set does not reach* | round 11 built the input the repair's own six missed and found both gate guards green on a fresh instance of the class the repair claimed to close; round 12 repeated it and returned **two `error`-severity findings** |
+  | *do you still hold this earlier judgement — either answer is fine* | round 13 **withdrew its own** round-12 conclusion that two claims admitted no falsifying input, and built the reconstruction it had said did not exist |
+  | *state what your prose knows that your row cannot carry, **and say what should be done about it*** | a peer cycle's role narrowed its own note from four files to three call sites and retracted its earlier framing; without the second clause the same note sat unactioned for a round |
+
+  **The count is load-bearing in the first one.** "Chosen by the author" reads as a caveat; "the
+  condition under which this cycle has been wrong nine times" reads as a standing defect, and only
+  the second changed what the role did. And note what all three have in common: an unforced record
+  — a tick, a carried-forward ground, a note — is not usable evidence. The same shape appears one
+  level down in tooling: a summarising model asked to tick four claims **confirmed a claim and its
+  negation**, while the same model asked one claim at a time with the verdict forced before the
+  reasoning answered both correctly. So when delegating a reading: one claim per call, verdict
+  first, asked both ways — **a reader that confirms both did not read.** the evidence-contract candidate owns
+  the rule; §1b.1 pre-registers the trial now running on `spec/0.37.0.md`'s review, including the
+  prediction that would embarrass it.
+
+- **A PASS row can carry a defect in its note, and `spec_coverage_clean_rounds` cannot see it.**
+  Measured in two repositories; the sharper case is a peer cycle where a role scored 55/55 PASS in
+  three consecutive rounds while its prose named a real spec defect each time, all three fixed by
+  commit. This repo has one, weaker instance — v0.36.0 round 13's `task-role-mode-test`, PASS,
+  whose note names a doc comment "claims more than its body delivers", inside a round counted toward
+  the `spec_coverage_clean_rounds: 4` that release shipped on. **Read the notes of PASS rows before
+  reading a clean streak as clean**, and treat a PASS carrying such a note as unresolved.
+  No pending spec takes it: the counter was dropped as measuring a constant, and
+  `spec/backlog/round-knows-its-panel-measurements.md` records why. On that rule v0.36.0's counter was 3, not 4 — the shipping condition still held,
+  which is luck about the margin and not a defence of the counter.
+
+- **Three measurement traps this repo has now hit, all of which look like a clean result.** `git diff` from a non-TTY child returns *near-empty* output under this machine's `~/.gitconfig`, which sets `diff.external difft` — exit 0, empty stderr, and a unit auditing a diff programmatically concludes the file is unchanged. Use `git -c diff.external= diff --no-ext-diff`. Second: a **"comment-only" edit still changes the binary**, because the line table moves; the way to check it is `go build -gcflags=-S` over both trees with `file.go:NNN` normalized (v0.37.0's audit measured 207,386 identical lines and one byte of pcdata delta, exactly the comment's +3 growth) and then a command matrix under both binaries — and then a **mutant, to prove the matrix is not a tautology**. Third: a fixture's own *filename* can decide the result — a guard blocking a directory named `zz` proved nothing about a stopped scan, because `zz` sorts after every `*.tasks.json` and `WalkDir` had already collected them; renaming it `A-blocked` falsified the test's own doc comment. **When a fixture's incidental property could carry the verdict, assert the property** (`require.Less` on the sort order), do not choose the name and move on. Fourth, and it is a tool rather than a fixture: **a zero-match search is not data until the search is known to work** — codedbpro's `faster_search` returned 0 for a `\|` alternation over `scripts/` where the plain substring returned 3, 0 for `^`-anchored regexes on markdown, and 0 for `mode:"regex"` with `\[\]` where `grep -nE` returned 10; a shell whose cwd had drifted into `spec/backlog` returned 0 for every relative path. Each zero would have been reported as "no instances". Confirm a zero with a search that must match before quoting it.
+- **Prove a fix by running it, not by reading it — write the test first and watch it fail.** A test
+  that has never been observed failing proves nothing about the code; it may be asserting a
+  tautology, and it passes identically either way. Write the assertion, run it against the unfixed
+  code, confirm it fails *for the reason you expect*, then fix. The same rule at the sink: an
+  auditor that keyword-searches for a term sees a `PASS` line and cannot see the gate discarding the
+  exit status it was meant to report — a real field report, where round 1 returned 75 PASS while
+  three of that project's critical gates were printing `PASS` on error. Reading confirms; only
+  running can refute, so **the informative experiment is the one that could have failed**: inject the
+  failure the code claims to catch, feed the boundary value, break the precondition. When a
+  sink-level check cannot discriminate — the input never contained the case — say so rather than
+  counting it as evidence. the evidence contract would turn this into a checkable rule; until that exists it
+  is a rule here.
+- **Never assert a quantifier you did not count — tie the claim to an artifact, or let a guard enforce it.** v0.36.0's audit spent five rounds falsifying the same shape of sentence, always written by the repair the round before: "the only assertion in this release", "one constructor, so the seven call sites", "`--no-state` is used nowhere in this suite", "no workflow is unpinned", "those four inputs are pinned by the test". Every one is a claim of **uniqueness or exhaustiveness over a set the author did not enumerate**, and every one was false — `--no-state` had 47 uses across 15 files, the constructor governed five of seven, and `clause_once_test.go`'s uniqueness claim survived being *narrowed* and was falsified a second time by a 3×2 mutation matrix.
+  Deleting the claim is the cheap fix and it is not the rule. The rule is what separated the sentences that survived audit from the ones that did not:
+  **a claim bound to a named artifact cannot rot silently** — `.golangci.yml`'s "71 production functions" is `scripts/baseline-funlen.txt`'s entry count, `audit.go`'s "50-file prefix" is `maxAutoDetectFiles` in the same file, and `ci_gate_test.go` re-derives the gate from `.tp/config.json` instead of restating it; and **a claim a test's own guard enforces cannot drift** — `brief_runs_test.go` says "the fixture must actually be divergent" as a `require.NotEmpty`, not as a sentence. Prefer either to prose, and prefer prose to a number.
+  Two corollaries, both paid for. **A measured constant in a comment goes stale faster than a release**: four were deleted in one round and a fifth found in the next, and three separate re-measurements of the same figure disagreed. And **replacing a stale number with a recipe can be worse than the number**: the recipe that replaced them returned a null result when run as written, so a reader following it would have concluded the setting it defends is unnecessary and deleted it. It took two rounds to find why, and the first answer was wrong — the effect turns on `uniq-by-line`, the setting under test, which the recipe never told the reader to flip; a first repair blamed the threshold instead and reproduced the null result. A wrong number is falsifiable and was caught in one round; an under-specified recipe appears to confirm the opposite of what it defends, and nothing catches that.
+- **When `tp review --record` names the same `mechanize_candidates` class for a third round, write the check instead of the prose fix — but only if the thing the check measures already exists in the phase the check runs in.** A class that survived three prose corrections will survive the fourth, so the prose fix is not the answer; the phase is what decides whether a check can be the answer instead. Registered `workflow.checks` run in the **review phase only**, so a check whose subject is an artifact a later phase produces cannot verify that subject in any round. Registering it early is not a harmless head start: tp tells every reviewer to stop reporting a mechanized class, so a check registered before its subject exists suppresses that finding class for every reviewer while verifying only whatever part of its subject already exists — which may be nothing. v0.34.0 §7.1 is the worked instance: a check over a guard-test list that implementation writes was registered for eight rounds, could never compare the list against its derivation, and the first round after unregistering it surfaced three stale measured claims the suppression had hidden. So — subject already in the spec: register it with `tp set --workflow checks='[{"class":"...","cmd":"..."}]'` and `tp review` runs it every round (`scripts/check-test-inventory.py` is the worked example). Subject written by a later phase: keep it out of `checks`, and make running it the acceptance of the task that creates the subject. Either way, test the check itself before trusting it — check-test-inventory's first version mis-parsed the spec and its literal set was both too broad and too narrow. **Prototype a candidate rule against this repository's own `spec/*.md` before it reaches a spec, and against the pre-repair text of the defect that motivated it; budget for most candidates dying there.** Measured while drafting a lint-rule spec: five candidate lint rules were written and run, and **four were refuted** — one whose entire yield was its own parser bug, one blind to the very defect that motivated it, one whose counter mis-parsed the corpus, and one that reached the right line through a comparison that was not the claim being made. That last is the failure mode to watch, because it passes a weak test: a rule can report the correct defect for the wrong reason and look like a success.
+- **A `Contains`/`NotContains` guard over prose cannot pin what a document claims — and the dividing line is SCOPE, not polarity.** Measured in v0.37.0's audit, twice: an auditor built two `REFERENCE.md` paragraphs that re-added the exact promise a guard was written to delete, both keeping the anchor *and* every qualifier substring, and **both passed green**; then it inserted a paragraph declaring a quoted constant obsolete, immediately after the constant, and the constant guard missed that too. Absence is **not** the safe direction — a windowed `NotContains` is a presence assertion over a finite blacklist, and both it and `Contains` are *local* assertions inside an *unbounded* text, so the complement is free and a negation simply goes there. No phrase exists that a negation cannot restate, which is why no rewording fixes one. Two shapes survive: a subject that is the whole of a **bounded artifact** (`assert.NotContains(engine.DivergenceHint, "severity")` — there is no elsewhere), and a verdict resting on **bounded read-backs** rather than on matched text (the eight-tree fence test decides on the exit code, the envelope's `code`, and `os.IsNotExist`). Note what that does not say: that test *also* runs five `Contains` over its message — what rescues it is that they are not what the verdict rests on. **`ci_gate_test.go` is not an example of the immune shape** and was cited as one in three drafts of the comment that explains this: it derives the step list from `.tp/config.json` and then asserts `Contains` over the whole of `ci.yml`, so only the left side is derived, and `spec/backlog/gate-sequence-measurements.md` §*§1.1 What the shipped guard measures, and what it does not* already records `if: false` and `continue-on-error: true` leaving every guard green. When a doc guard cannot be made sound, **document the limit and route the replacement** rather than reword it — and check that the sentence documenting a limit is not itself an over-claim, because two consecutive drafts of that one were.
+- **Guard a dangerous value at the sink, not at the entry point.** A `tp done --commit` check does not protect `commit_shas` written by `tp import`/`tp add`; `engine.SafeGitRev` is applied wherever a caller-supplied string becomes a git argument. When an audit finding says a fix is incomplete, re-derive the claim rather than defending it.
+- **This repo's role corpus (custom since v0.26.0)** — tp dogfoods a custom 4+4 corpus: `.tp/reviewers/{implementer,tester,architect,ax-economist}.json` + `.tp/auditors/{spec-coverage,go-safety,maintainability-conventions,ax-contract}.json` — the three tuned defaults plus two tp-specific lenses (`ax-economist` = token/round-trip/knob economy in spec review; `ax-contract` = the agent-facing JSON output contract in code audit). `domains` is omitted (tp is single-domain). Every `tp review`/`tp audit` therefore dogfoods corpus emission, `(location,class)` dedup, the per-role overlap report and per-phase `roles_hash` staleness. The corpus format, the frontmatter overrides and per-spec deactivation are documented in `skills/tp/SKILL.md`.
+- **Dogfood the in-progress binary** — during self-development, always run tp against its OWN repo with a freshly built binary (`go build -o /tmp/tp-dev/tp ./cmd/tp`), never the PATH-installed release (it lags and hides new behavior). Rebuild after every implementing commit, and once a task adds a new command/flag, immediately exercise that new capability on tp's own spec/task files to surface bugs the unit tests miss (real dogfooding). When a version's new feature can manage tp's own workflow (e.g. a new config file), adopt it for the remaining development of that same version. This applies to the **review and audit loops too**: run every `tp review` / `tp audit` (including `--record` / `--status`) through the current, to-be-released binary so each round dogfoods the exact code being shipped — never a lagging PATH release. Once a version's own feature can drive review/audit (e.g. user-defined reviewer roles), the remaining rounds of that version use it. Before implementation starts (spec + review phase) the current version is simply the latest release — no behavioral difference — but still route every tp call (`lint` / `init` / `review`) through the freshly-built binary.
+- **English everywhere in committed artifacts** — commit messages, `tp commit`/`tp done` closure reasons (they land in `commit_sha` bodies and `closed_reason`), code comments, docs, **and release notes** (they live on the GitHub release, an outward-facing artifact) are ALWAYS in English, regardless of the conversation language. **The loop's own recorded rows are on this list too and were the half nobody enforced**: finding text, audit row text and `class` slugs in `spec/.tp-review/*/review-round-N.ndjson` are committed like any other file, and a mixed-language corpus also breaks `--merge`'s `(location, class)` clustering, which matches slugs byte-for-byte. What a unit *reads* is the author's language — a Turkish spec stays Turkish; what it *records* is English. `skills/tp/SKILL.md`'s "Recording language" section owns the rule and the reasons. Author notes/thinking may be in any language, but nothing committed to the repo (or posted to its releases) may be. If a Turkish (or other non-English) message slips into history, fix it with `hc rewrite` (commit messages) or by editing the artifact (closure reasons, docs, release notes) before release.
+- **Task-closing commits follow `commit_strategy`** (v0.28.0) — under `builtin`, close through `tp commit` (records `commit_shas`) or `tp done --auto-commit`; under `hc` (tp's own default, since `hc` is installed here), the agent commits with `hc` and then records the SHA(s) via `tp done --commit <sha> [--commit <sha> …]` (stored in `commit_shas`, `commit_sha` mirrors `[0]`). Never raw `git commit`; and under `hc`, `tp commit`/`tp done --auto-commit`/a bare `tp done` are rejected (exit 2) — a close needs `--commit` or `--covered-by`
+- Every other commit (spec progression, docs, tooling, changes outside a task) goes through the `hc` skill (hunk-based atomic commits) — never raw `git commit`
+- **Update `skills/tp/SKILL.md` before every release** — new commands, flags, lint rules, and workflow changes MUST be reflected in the skill file before creating the release tag
+- **Pre-release checklist** — before running `gh release create`, verify:
+  1. `skills/tp/SKILL.md` reflects all new commands, flags, lint rules, and workflow changes
+  2. `CLAUDE.md` Self-Development Rules reflect any new conventions or process changes
+  3. `README.md` reflects all new commands, flags, and features
+  4. All three files are committed and included in the release tag
+  4b. **Bump `.claude-plugin/plugin.json`'s `version` BEFORE tagging, every release.** Claude Code resolves a plugin's version from that field first, and a set field *pins* it: users are offered an update only when the field changes, however many commits or tags ship. Anthropic's documented remedy — omit the field and let git tags drive it — is closed to tp, because `hooks/session-start.sh` reads the same field as the minimum tp version (§6.1). The field is load-bearing twice, so the bump is mandatory. `TestPluginVersionIsNotBehindTheLatestTag` fails the gate when a tag has overtaken the manifest, and the order is bump → commit → tag (the `>=` comparison exists so that window is legal). Bumping it also raises the minimum tp version, which is why the release must ship a binary at or above it.
+  5. **Dogfood any migration the release introduces on tp's own repo.** When a version adds a config/layout that makes an existing file or duplicated data redundant, migrate tp's own repo as part of the release: adopt the new mechanism, delete the now-redundant files, and commit the result (so tp ships already using its own new feature). For v0.24.0: write `.tp/config.json` with the shared workflow policy, remove the duplicated `workflow` blocks from every `spec/*.tasks.json`, migrate the active pointer with `tp use` (writes `.tp/local.json`, git-ignored), and delete the deprecated `.tp-active`; commit `.tp/config.json` + `.tp/.gitignore` + the thinned task files. For **v0.25.0: no repo migration** — tp kept zero role files and stayed on the embedded default corpus (§13.3), which still dogfooded the new emission/dedup/staleness paths. For **v0.26.0** (presence-preserving workflow): thin `spec/0.25.0.tasks.json`'s materialized `workflow` block to `{}` (verify `tp config --resolved` reports identical values before/after), and adopt the tuned custom 4+4 role corpus under `.tp/reviewers/` + `.tp/auditors/` — so tp now **dogfoods user-defined roles** rather than the embedded defaults.
+  6. **v0.34.0 only** — refresh `spec/0.34.0-release-counts.md` at the tag (re-run its four commands with `REF=v0.34.0`, re-derive the fact table under the same rule) and paste that section into the release notes. §2.3 of `spec/0.34.0.md` asks for the counts *in the release notes*; the file is where they are derived, not where they are published.
+- **Post-release commands** — after `gh release create`, run these (in order):
+  ```bash
+  go install github.com/deligoez/tp/cmd/tp@v<VERSION>
+  claude plugin update tp@tp   # Claude Code users: the plugin carries the hooks and agents
+  npx skills update -g         # other agents: updates every installed global skill source
+  ```
+  Use the exact version tag (e.g., `v0.17.0`), not `@latest` — the Go module proxy and skill registry may not update immediately. Then verify by running rather than assuming: `claude plugin details tp@tp` must report the new version and the full inventory (Skills 1 / Agents 3 / Hooks 3). **A plugin that installs is not a plugin that loads** — v0.35.0 shipped a manifest that installed cleanly and then failed to load, so `claude plugin validate` passing is not evidence; only `install` + `details` is.
+- **Two distribution channels, one source.** `skills/tp/` is the only copy of the skill in the repo: the plugin finds it by convention (`strict: false`, no component keys in the marketplace entry) and the `npx skills` package publishes the same directory. So the skill costs nothing extra to keep and reaches the 30+ agents that implement the Agent Skills standard, while the plugin adds the hooks and agents that only Claude Code can run. Ship both; install exactly one per machine, because a plugin skill and a standalone skill of the same name both load rather than one overriding the other.
+
+### Reset-native self-development: `tp run` first, subagent-per-unit as the fallback (v0.35.0)
+
+**The primary model is `tp run`.** tp ships the driver now, so the default way to advance a cycle here is `/tmp/tp-dev/tp run` — it reads the cycle through the same path `tp resume` uses, spawns one runner process per unit (role siblings concurrently, everything else alone), re-reads the state from disk, checks its caps, and loops until the oracle says `release`. Exit **0** means `stop_reason: converged` and exit **4** names one of the other eight stop reasons, so the orchestrator branches on the exit code rather than on the transcript. `tp run --dry-run` shows the batch it would spawn without spawning it or taking the lock, and `tp run --status` reports the run in flight or the last one that stopped. The five `run_max_*` caps, `runner` and `notify_cmd` configure it; the eight unit kinds, nine stop reasons, run state, child environment and the plugin's hooks are in `skills/tp/REFERENCE.md`.
+
+**Under a run the policy is enforced, not merely stated.** Every child gets `TP_UNATTENDED=1`, and the user-approved decisions this file reserves for the operator — `--skip-gate` at any sink, `tp import --force`, a raise of `review_max_rounds`/`audit_max_rounds`, a raise of any `run_max_*` cap, since v0.37.0 `audit_converge_on` reaching `blocking`, and since 2026-09-11 a change of `quality_gate` (any `tp set --workflow` write of it, at either layer; at `tp import`, `tp init --quality-gate` and `tp config --extract`, a write that changes the gate that resolves) — exit 2 under it. A unit that could rewrite the gate could replace it with one that always passes, which is `--skip-gate` by another route. **The audit-converge fence's rule differs by sink and the difference is load-bearing**: `tp set --workflow --project` refuses *any* write of `blocking`, on its value alone, because it writes the layer every base resolves through including bases tp cannot enumerate; `tp set --workflow` (task layer), `tp import` and `tp config --extract` refuse a write that *changes what resolves*. A value rule at the other three would deadlock `tp import`, which carries the block forward; a change rule at `--project` cannot see the bases it would need. Four audit rounds were spent on that before the diagnosis landed, and the diagnosis was that §7 row 13's carve-out — written when the fence was single-base — was the wrong requirement, not the implementation. A unit that reaches one records it with `tp escalate --decision <name> --evidence <text> [--option <text>]…`, the run stops with `stop_reason: escalation`, and **the operator answers and starts `tp run` again**. That is the same rule as before; it is now a fence rather than an instruction.
+
+**Budget a run before starting it.** The caps are the budget: `run_max_units` (default 100), `run_max_wall_clock_seconds` (28800) and `run_max_budget_usd` (0 = disabled). Caps are checked **between iterations**, so a run can overshoot wall-clock and budget by at most one iteration. A cap stop is a report to a human, never an acceptance — it never records a round or marks a phase converged.
+
+**Interactive fallback — subagent-per-unit (v0.28.0+).** When a run is not appropriate — no runner configured, a unit that wants a human in the loop, or a one-off repair — run each **unit** in a **fresh subagent context** (Agent/Task tool), not inline in the orchestrator: one implementation task, or one review/audit round's per-role reviewers/auditors. (Verified: a fresh subagent implemented, gated, committed, and closed a task end-to-end from injected context alone.)
+
+**Brief the unit, don't retype its context (v0.30.0).** `skills/tp/SKILL.md` describes what the brief carries and why the orchestrator produces it rather than remembering it. In this repo the unit's first call is `/tmp/tp-dev/tp next --brief`, and the orchestrator injects only what tp cannot know: native Read/Edit/Write/grep are hook-blocked → use codedbpro (same-file range/insert edits apply in **list order**); run the quality gate yourself before `tp done`; the `TP_HC` env seam gives tests a deterministic strategy.
+
+**Run the round cheaply — four brief rules, measured before they existed (2026-09-08, v1.1.0's
+audit).** Where a round's wall clock went, from each unit's reported duration: round 3 was 44.9 min
+record-to-record, of which the repair batch was 20.3 (two units, the docs unit idle 7.9 of them
+waiting on a go unit carrying four independent items), the four concurrent roles 13.8 (11.5–13.8 each,
+55–72 tool calls each, no straggler), and 10.8 emission, merge, record and orchestration turns. The
+gate was 41 s. **No gremlins run happened in any round**; what a role's minutes buy is probes — clones,
+mode matrices, mutants, an 80-run filename loop — and the probes are what found every FAIL, so the
+saving is in not repeating them, never in cutting them. The rules, each a brief sentence and none tp
+code: (1) **one clone, one binary, built by the orchestrator before the role stage** and handed to
+every role as a path — four roles were each cloning and building the same tree against each other's
+CPU; a role wanting a mutant copies that tree with `rsync`. (2) **One repair unit per independent
+item**; two items share a unit only when they edit the same lines of the same file. (3) **Delta
+re-grade**: on a no-repair round the brief lists the previous round's PASS rows and the role re-records
+them verbatim, `evidence_file` and `evidence_lines` carried, and re-measures only non-PASS rows; on a
+round after repairs, only rows whose `evidence_file` is untouched by
+`git -c diff.external= diff --name-only <previous record sha>..HEAD` are carried. No pending spec
+makes tp do this derivation yet; `spec/backlog/checklist-covers-what-changed-measurements.md` §What
+v1.1.1 changed under this spec records the three rules a spec taking it must reproduce. A carried row
+is keyed by `item_id`, which at `HEAD` can name a different file in the next round on a tree whose
+paths share a long prefix — `spec/backlog/audit-records-what-was-graded.md` removes that. (4) **The
+class-to-slug table goes into the brief before round 1**: a finding matching a routed class is recorded
+`PARTIAL` with its slug in the note and expects no repair, so only a class the table lacks reaches the
+orchestrator — the round-3-to-round-4 gap was the orchestrator's dispositions, longer than the role
+stage. Rules 1, 3 and 4 are
+`scripts/audit-round-prep.py <spec> [--out <dir>]`: previous round, carried rows from the record
+commit's diff, one clone and binary, the table from `.tp/routed-classes.json`, a brief fragment per
+role; its shell test is beside it. The after-figure is deliberately not written here until a round
+has run under all four; the skill carries it once one has.
+
+**Honest boundaries.** The orchestrator's own context is NOT reset in this model — only the units are.
+
+**Budget the subagents before starting a long run (v0.32.0 lesson).** Claude Code caps subagents per *session* (`CLAUDE_CODE_MAX_SUBAGENTS_PER_SESSION`, 200 by default) and the cost is `rounds × roles`: a 4-role audit is 4 per round, a 5-role review 5 per round, so 23 rounds alone is ~100. v0.32.0 exhausted the cap at audit round 11 and the last repairs had to be done by the orchestrator itself — which still works, but trades away the independence that makes the loop worth running. Estimate `rounds × roles + tasks + repairs` up front; if it approaches the cap, either raise it or plan a `/clear` + `tp resume` handoff to a fresh session at a phase boundary.
+
+### Continuous Improvement
+- After each implementation cycle, note friction points and AX issues
+- If a tp command is awkward to use during self-development, fix it immediately
+- If a workflow step is error-prone, add tooling or guidance to prevent it
+- Agent feedback from other projects is high-priority — real-world usage reveals blind spots
+- Every improvement should be evaluated: does this reduce token overhead or agent friction?
+
+### Where the next work is (read this before starting anything)
+
+**`spec/1.0.1.md` is done and tagged** — *tp says what round 1 will read*: `tp lint` reports
+`floor_size`, `cut` and `review_panel`, with no threshold and no gate. Three candidate fields
+(`floor_by_section`, `spec_bytes`, `floor_figure_share`) were designed into it and dropped, each by a
+measurement that refuted its own purpose; `spec/undecided.md` carries all three with reopen
+conditions. It also shipped the spec-writing rules to `skills/tp/SKILL.md` as **Step 0.5**, repaired
+`vague-language`'s fence and inline-span blindness, exported `engine.FloorSize`, and split
+`resolveRolePanel` into a pure resolver plus a refusing wrapper — which put `engine.roleUnits`'s
+duplicate copy onto the shared one, so two derivations became one. Its cycle is the evidence behind
+the repair rule and the anchored-figure rule below, and `spec/1.0.1-measurements.md` is the forensics.
+
+**`spec/1.1.0.md` is done and tagged** — *the spec follows tested behaviour*: `evidence` is a
+required, non-empty key on every review finding, and `--merge` and `--record` enforce the required set
+through one predicate; `spec/1.1.0-release-notes.md` carries the rest. **`v1.1.1`** followed the same
+day without a spec: `scripts/audit-round-prep.py`, the mechanized form of the round-speed rules below.
+
+**Next is the first row of `spec/backlog/README.md`'s order.** The 2026-09-11 pass re-verified every
+pending spec and a field report (WB-3155) item by item, and put a **hotfix tier** first: specs where
+tp at `HEAD` silently loses the agent's work or reports something false, each admitted on a
+reproduction. The first row is `audit-records-what-was-graded.md`. The acceptance channel
+(`a-finding-can-leave-an-audit-round.md`, formerly first) follows the hotfix tier; the README says why.
+
+**Everything else is `spec/backlog/README.md`, now the roadmap**: the pending specs are named by
+**slug** and ordered by measured benefit in that file only — a priority number in a filename rotted
+every citation at the last two reorderings, so no filename carries one. The README holds the order,
+the reason for it, what each re-verification merged, split or dropped, and the entries that are not
+releases. Do not restate any of it here — that duplication is what this section was.
+
+**A spec carries its own forensics in `<base>-measurements.md`, which ground does not grade.** The
+body takes decisions and derivation commands; a figure in the body obliges every grader to re-derive
+it, and that class of finding was measured to be the most expensive and the least valuable. `1.0.1`
+is the first instance of its own rule — 41 floor units against a converged-spec median of 90.
+
+**Why the numbers went away, and the naming rule that replaces them.** A version number in a backlog is
+a promise about ordering, and this set has been renumbered repeatedly; the last sweep found **47
+citations to renumbered specs, ~35 of them stale** — six inside shipped specs, twenty in this file,
+three in Go comments — and **none was caught by checking that the target file exists**: every one
+resolved, and every one had moved. So **name a pending release by its subject and a backlog file by its
+slug, never by its priority number**, which moves on the next re-prioritisation exactly as a version
+number did; a release number is assigned once, at the tag. A shipped spec states what it did not do;
+which release takes it is the README's job. After any rename sweep, re-read every surviving reference
+for whether it still *means* what it says — one that resolves is not thereby correct. **The sharpest
+instance is `spec/0.36.0.md`'s own paragraph on this hazard**, which says *"naming a file that does not
+contain the question is worse than naming none"* and carried two filenames a renumbering falsified: the
+rule refuting itself in place. **The ordinal is not checkable either, and this file asserted one** —
+v1.0.0's grounding found `CLAUDE.md` saying *fourth* while `spec/candidates.md` said *fifth*, and a
+repair unit refused to pick a side. Git records two rename sweeps, `e73788ab` and `3aa992fd`, and
+earlier ones predate the tracked names, so cite the sweep rather than a count:
+`git log --diff-filter=R --name-status -- 'spec/*.md'`.
+
+**`--check` is not the ship signal** until the panel-record spec
+(`spec/backlog/round-knows-its-panel.md`) ships. `consecutive_clean` counts rounds clean across
+*every* role, while this file's shipping rule is phrased on `spec_coverage_clean_rounds` plus no-FAIL;
+the two measure different things and the operator has adjudicated the difference in writing twice.
+Severity parity provably does not close it — the divergence is **role** scoping, not severity scoping.
+Derive a round's open FAIL rows from its `*-round-N.ndjson` rather than trusting either gate.
+
+#### What a cycle costs
+
+**Spec length at round 1 predicts almost nothing; final length predicts a lot *because it is an
+outcome*.** This file once published r ≈ +0.56 without saying when the length was measured. Re-derived
+over the seventeen cycles that have a `state.json` (round counts from `spec/.tp-review/*/state.json`;
+lengths from that cycle's `snapshot-round-1.md`, its last `snapshot-round-N.md`, and the spec today):
+
+| length measured | r against total rounds |
+|---|---|
+| **at round 1 — the length you can choose** | **+0.22** |
+| at the last round | +0.55 |
+| today | +0.45 |
+
+A spec grows because the rounds grew it, so the published figure was largely reverse causation, and
+*today* is worst of the three because it also absorbs post-cycle edits. The outliers agree: **v0.36.0
+was 107 lines at round 1 and cost 28 rounds**, the dearest cycle in the corpus and one of the shortest
+specs; v0.23.0 was 769 lines and cost 17.
+
+**What does predict cost is what the spec is about** — whether its subject is the review/audit loop
+itself, its signals, its convergence, its prompts. Over the sixteen cycles recorded before v1.0.0:
+
+| class | n | median rounds | range | median lines at round 1 |
+|---|---|---|---|---|
+| **the loop reviews itself** | 9 | **23** | 4–30 | 129 |
+| everything else | 7 | **11** | 8–25 | 185 |
+
+**2.1× the cost, from shorter specs**, because a release that changes the loop is reviewed by the
+mechanism it is changing. Budget a self-referential release at roughly twice a comparable one, and
+**split on seams rather than on line count**: splitting buys predictability and reviewable surface, not
+fewer rounds. The floor for a small tool spec is 4 rounds (v0.31.1, 56 lines at round 1), not 11.
+
+#### The round corpus, and two things this file got wrong about it
+
+**Every derivation over the round corpus needs BOTH globs** — `spec/.tp-review/*/*.ndjson` and
+`spec/backlog/.tp-review/*/*.ndjson` — since the unreleased specs' round directories moved under
+`spec/backlog/`. Measured at the move, over canonical `*-round-N.ndjson` files:
+
+| | one glob | both |
+|---|---|---|
+| review rounds | 172 | **172** |
+| audit rounds | 108 | **108** |
+| `resolved` rows | 1,467 `fixed` / 99 `wontfix` | **identical** |
+| **ground rounds** | **1** | **36** |
+| rows | 18,707 | 21,147 |
+
+The two figures quoted most often are untouched: the backlog carries **ground** rounds, and no review
+or audit round moved. What one glob gets catastrophically wrong is anything counting ground rounds.
+
+**WRONG, and corrected here:** this file used to say *"no recorded row carries a `disposition` — 0 of
+12,958; the `resolved` key holds `{evidence, resolved_at}` with no verdict."* The corpus carries the
+verdict: `resolved` has three sub-keys wherever it appears — `evidence`, `resolved_at` and **`status`**
+— and tp writes it (`tp audit <file> --resolve <id> <fixed|wontfix|duplicate>`,
+`internal/cli/audit_resolve.go`). The counts move with every recorded round, so **run the command
+rather than reading a number**; the share does not move, ~93–94% `fixed`. The old sentence was a search
+for the *key name* `disposition` reported as a claim about the *data* — 0 is the honest answer to that
+search and to no other question. **The derivation, so it cannot rot again:**
+`python3 -c 'import json,glob,collections;c=collections.Counter(json.loads(l)["resolved"]["status"] for p in ("spec/.tp-review/*/*.ndjson","spec/backlog/.tp-review/*/*.ndjson") for f in glob.glob(p) for l in open(f) if l.strip() and isinstance(json.loads(l).get("resolved"),dict));print(c)'`
+
+**A gate phrased "replay the recorded rounds" cannot run.** The snapshot is written at emission and the
+`spec_hash` re-read at record, so a round's snapshot need not be the text its round reviewed.
+Re-derived today — strip the `sha256:` prefix before comparing, or every round looks divergent — **35
+of 172 review rounds** and **3 of 108 audit rounds** diverge, 20 further audit rounds predate snapshots
+entirely, and the distribution is nothing like uniform: **19 of the 35 are v0.31.0 alone**, with a
+clean trailing run (42 rounds at this writing; last divergence v0.35.0 round 10). So the honest
+argument is not "a quarter of the corpus is wrong" but **"the record cannot distinguish a corrupt round
+from a clean one, so 4% and 86% look identical to a reader"** — which survives the rate falling to
+zero. **Quote the count, not the percentage, and re-derive it**: every denominator here has moved and
+every numerator has not. `spec/backlog/reconcile.md` closes it forward by hashing at emit (a
+decision it took from `round-records-the-text-it-read.md` on 2026-09-11); it does not repair the 35. Pending specs withdrew a replay gate citing a missing
+disposition, and **that was never the reason** — the baseline is buildable (review rows carrying
+`resolved.status: fixed` plus both `class` and `location`: **1,276**, canonical round files, both
+globs). A second variant, checking that each finding's `class` still reaches its role, needs a
+`class` → checklist-item mapping that exists nowhere in tp, and **1,984 of 16,853 recorded rows carry
+neither `role` nor `class`**. What the corpus genuinely lacks is the **section a repair edited**, the
+input `spec/backlog/repair-locality.md` actually needs.
+
+**The gate that replaced it is a test, not a procedure** (`spec/0.36.0.md` §6.2.2 properties 7–8, and
+§7 for why breadth is what a fixture cannot buy), and the lesson generalises to any release writing a
+gate: **three drafts specified that one as its own mechanism and each drew more findings than the last
+— 3, then 8, then 11 across rounds 3–5 — while §2, the release's actual clause, went 11 → 2 → 1.** The
+diverging section was the one describing *how to verify* rather than *what must be true*.
+
+#### Refuted, not deferred — a refuted predicate is not a backlog item
+
+**Prototype a candidate rule against this repository's own artifacts before it reaches a spec, and
+budget for most candidates dying there** — each cost minutes; shipping one would have cost a cycle to
+discover in review. `spec/undecided.md` holds what carries no number, in two sections that must not be
+confused: *refuted* (prototyped, did not survive, recorded with the measurement that killed it) and
+*undecided* (a real need whose design has no answer, each naming the decision nobody has taken).
+`spec/candidates.md` is a forwarding stub, not a file to read for content; it stays because references
+to it survive in shipped artifacts that must not be edited.
+
+- **The unexecutable-split rule.** The broad predicate fired on 21.9% of this repository's tasks, the
+  keyword form on 11 with ~9 false positives, and the `tags: [test]` form on **exactly one task, which
+  is a false positive** — a negative-requirement task whose closure reads *"No production change"*. It
+  cannot be tightened: `tags` is optional and present on well under half the corpus (216 of 551 tasks
+  today), and every stronger signal (`commit_files`) exists only after the task closes, while
+  `tp validate` runs at decomposition.
+- **The contradictory-comparator rule**, prototyped over every `spec/*.md` at `v0.36.0` and `v0.37.0`:
+  **2 groups, both false positives, zero true positives**, and the same-section narrowing flags zero on
+  anything. Its claimed true positive is in no tagged state of the repository, and the false positives
+  are systematic rather than incidental, so it would have kept firing.
+- **The example-table lint rule**, in both forms its spec named: the keyword-and-shape heuristic fires
+  on 3.9–22.6% of this repository's spec sections against a shipped bar of *zero* false positives, and
+  the narrower form reads task acceptance criteria — data that does not exist when `tp lint` runs,
+  since lint is workflow step 2 and decomposition is step 5.
+- **The corpus-replay gate**, for the snapshot reason above.
+
+#### Lessons that outlived their release
+
+- **A repair that REPLACES a claim is unverified by construction; one that SUBTRACTS cannot be wrong.
+  Measured five times in one cycle, on one sentence.** v1.0.1's economic claim for a lint field was
+  repaired in three grounding rounds and two audit rounds. Every repair but the last wrote a
+  *replacement* — *"no command reaches the panel without an emitted round"* → *"`tp resume` needs a
+  task file"* → and each was refuted by the next round running **one more command**, the last one by
+  two roles independently who both landed on the **uniqueness quantifier** rather than on the
+  measured comparison underneath it. The fifth repair deleted the quantifier and wrote nothing in its
+  place; it held. So: **`SKILL.md`'s "a sentence about behaviour the release does not change is a test
+  name or it is not in the spec" governs the repair too** — the sentence a repair writes to replace
+  the one it drops is subject to the same rule, and the repairing unit must run it before committing.
+  A repair's safest output is fewer claims. Pre-register it when it matters: v1.0.1's last audit
+  repair was briefed *"subtraction only; if you write even one new claim, a fourth round is
+  required"*, which made the ship decision mechanical rather than a judgement.
+- **A figure bound to a commit survives; the same figure copied without the anchor rots — twice in one
+  cycle, in two files, one of them warning against it fifteen lines earlier.** `skills/tp/REFERENCE.md`
+  carried `96 / 97` for a demonstration and measured `98 / 99` by the end of its own release and
+  `103 / 104` a round later, while the paragraph beside it, anchored to `492a0691`, still reproduced
+  exactly — and fifteen lines above, the same document says *"the number itself is deliberately not
+  written here"*. Separately, `README.md` shipped eight grounding figures **copied from
+  `spec/backlog/what-the-record-does-not-say-measurements.md` §1, where they carry a commit anchor**
+  (until the 2026-09-08 split, `spec/backlog/ground-command-friction.md`); the copy lost the
+  anchor and none of the eight reproduced. The defect is never the derivation, it is the copy.
+- **The fenced-command rule is blind to a command that prints the wrong thing.** *"Every fenced command
+  runs and prints something"* was satisfied by the README block above, which printed numbers matching
+  nothing in its own prose — its glob covered `spec/.tp-review/` and this repository's ground rounds
+  are **35 of 40** under `spec/backlog/.tp-review/`. "Runs and prints" is not "prints the truth", and
+  no rewording closes that; `spec/undecided.md` carries it as a candidate, prototype-first.
+- **Four measurement traps this cycle added, all of which look like a clean result.** (1) An `rsync -a`
+  copy and a `git clone --no-hardlinks` give **different audit file sets** — a fresh `git init`
+  resolves no task sha, so `spec-coverage` takes a fallback branch and receives every named file,
+  while the clone gives it the task-mapped subset. Measure `tp audit` in a clone, not a copy. (2)
+  **`tp audit` without `--record` still writes the round snapshot**, so any audit probe belongs outside
+  the repository. (3) `internal/engine/auditfiles.go` sets `AuditFileCap = 20` and **`CodeFileCap = 10`**:
+  naming twenty files in `--affected-files` gives each code role the **alphabetical first ten** and the
+  rest reach nobody. Pass ten. (4) **A race is red 4 of 5, not 5 of 5** — a green run proves nothing, so
+  a reproducer's claim needs the weaker form.
+- **`t.Parallel()` added in bulk can create a race in a helper that was safe for years.** `fa68051b`
+  marked every eligible top-level test parallel — 223 files, 1,027 added lines, every one literally
+  `t.Parallel()` — and two of them called a helper that swaps the process-global `os.Stderr`. The
+  helper predates `v1.0.0` and the `v1.0.0` tree is clean under `-race`; the parallelism created the
+  defect. The gate found it by being **red on one run and green on the next**, which is the failure
+  mode that teaches an operator to re-run. Counted: four helpers assign `os.Stderr`, twenty tests call
+  one, exactly two were parallel. **A sweep of that size is unreviewable through the audit's file
+  selector** — the offending file ranked 145 of 240 alphabetically and 125 of 240 by churn, and
+  `CodeFileCap` is 10.
+- **When a repair's own defect is found three rounds running, suspect the requirement.** Four of
+  v0.37.0's audit rounds chased an implementation defect that was a requirement defect: a carve-out
+  written when the fence was single-base, incompatible with per-base correctness. Each of three repairs
+  had its own defect found by the round after; the fix *deleted* code once the diagnosis moved from the
+  sink to the row.
+- **A review loop can stop converging on count, and the rule that ends it must be written before the
+  round that tests it.** v0.37.0's counts ran 65, 56, 51, 47, 48, 60, 42, 40, 45, 53, 54, 69 — flat.
+  What ended it came from outside the loop's own inputs: ~50 findings a round against its shipped
+  twin's ~5 for normative sections **8% smaller**, with 24% of the file forensics each repair round had
+  written for the next round to review. `implementer` then answered the only question that mattered —
+  19 tasks with 8 blocked became 20 with **0** — and the pre-registered rule fired as written.
+- **Field feedback arrives with the reporter's environment baked in, so verify each claim against the
+  source before routing it to a spec.** Two did not survive that check: *diagnostics poison `--json`*
+  (false — `output.Notice` has written to stderr since v0.31.2; their runtime merged the child's
+  streams) and *`--record` accepts a missing file* (false — `review_record.go` exits `ExitFile`).
+
+**Findings already routed, so do not re-derive them.** `spec/0.35.0.md` §8a carries the five things an
+unattended driver amplifies. `spec/0.35.0-candidates.md` §0 names what v0.34.1 and v0.34.2 already
+closed and what moved to a spec; its §16 (the pre-release mutation run) and §17 (two degraded-scan
+repairs choosing different channels) are deliberate non-fixes — read them before opening a release.
+`spec/feedback.md` is gone: field feedback lands in the spec that will answer it, not in a file nobody
+is required to read.
+
+### Deferred Ideas (evaluate when agent feedback warrants)
+- 📋 **Next version's candidates live in `spec/0.35.0-candidates.md`** — read it before writing a new spec. It carries what the v0.34.0 cycle accepted with recorded justification because its own Non-Goals fenced it out, rather than judged harmless.
+- ✅ **Full audit NDJSON parser** (`tp audit --merge`) — **shipped.** Merges + dedups per-role audit-result files (by `role`+`item_id`) with a status/role breakdown, mirroring `tp review --merge`; `--record` still counts non-PASS rows for convergence.
+- ✅ **Broken cross-reference lint** (`broken-cross-ref`) — **shipped.** Flags `§X.Y step N` when section X.Y has fewer than N numbered steps. Kept conservative to hold the false-positive rate down: fires only when the section is a heading whose content holds a numbered list and N exceeds the largest such list (sized by both item count and highest literal number, so `1. 1. 1.` markdown numbering counts correctly); refs into listless or unknown sections, and refs inside code blocks, are never reported. Zero false positives across tp's own specs.
+- ✅ **Duplicate paragraph lint** (`duplicate-paragraph`) — **shipped.** Flags two consecutive identical blank-line-separated paragraphs (a copy-paste artifact `duplicate-line` misses); a code block between two blocks breaks their adjacency, and single-line heading or horizontal-rule paragraphs are skipped to avoid double-reporting.
+- ✅ **Project-level workflow config** (`.tp/config.json`) — **shipped in v0.24.0.** Repo-root `.tp/config.json` holds workflow **defaults** (committed); each `<base>.tasks.json` `workflow` block holds only explicit **overrides**; effective values **resolve at read time** (**task override > project config > built-in** — there is
+  no CLI layer and no `TP_<FIELD>` environment layer for a workflow field: `internal/engine/configresolve.go`
+  merges two layers over the default and a search for `TP_REVIEW_CONVERGE_ON` returns zero. This line
+  carried the five-layer form until v0.37.0's review round 4, and `spec/0.35.0.md` §7 records the same
+  claim being removed from that spec after its audit spent two rounds unable to verify the top two
+  layers. A spec drafted from this line inherited the error, which is what makes it worth the sentence). `.tp/local.json` (git-ignored) holds the `active` pointer + CLI flag `defaults`. See "Project Configuration" in `skills/tp/REFERENCE.md`.

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Prepare one audit round: one prebuilt tree, and a delta re-grade per role.
 
-Mechanizes rules 1, 3 and 4 of CLAUDE.md's "Run the round cheaply" (and
+Mechanizes rules 1, 3 and 4 of docs/lessons.md's "Run the round cheaply" (and
 `skills/tp/SKILL.md` Workflow D's matching subsection), which were measured on
 v1.1.0's audit and until now were prose an orchestrator had to remember:
 

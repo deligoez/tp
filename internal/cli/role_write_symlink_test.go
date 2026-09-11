@@ -21,7 +21,7 @@ import (
 // Found by audit round 4, and reachable in this repo's own documented workflow.
 // The driver hands TP_ROUND_DIR by whatever spelling the project was reached
 // through, while the child it spawns reports a physical $PWD. On macOS /tmp is
-// a symlink to /private/tmp and CLAUDE.md's Manual QA recipe puts projects under
+// a symlink to /private/tmp and docs/qa.md's Manual QA recipe puts projects under
 // /tmp, so the two spellings differ for every QA run. A textual comparison then
 // denied the role's own findings file; the role wrote nothing, the Stop hook
 // blocked it for having written nothing, and every retry failed the same way.
