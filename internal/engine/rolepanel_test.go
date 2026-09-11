@@ -113,3 +113,20 @@ func TestResolveRolePanel_ReturnsWarningsWithoutWritingThem(t *testing.T) {
 	}, panel.Warnings, "corpus warnings first, override warnings second — the wrapper's two loops in one slice")
 	assert.Empty(t, stderr, "the resolver writes nothing; emitting is the wrapper's job")
 }
+
+// TestResolveRolePanel_CarriesFrontmatterWarningsFirst pins the frontmatter's
+// shape warnings into the panel's warnings, ahead of the corpus and override
+// ones: they come from parsing, which precedes resolution. Without them a
+// mistyped frontmatter key reached tp lint and never the emitting commands.
+func TestResolveRolePanel_CarriesFrontmatterWarningsFirst(t *testing.T) {
+	specPath := rolePanelProject(t,
+		"tp:\n  review_role: {}\n  review_roles:\n    nosuch:\n      enabled: false", nil)
+
+	panel, err := ResolveRolePanel(specPath, PhaseReviewers)
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{
+		`tp key "review_role" is unknown (known: domain, lens, review_roles, audit_roles); ignored`,
+		`tp.review_roles override for "nosuch" matches no active reviewers role; ignored`,
+	}, panel.Warnings)
+}

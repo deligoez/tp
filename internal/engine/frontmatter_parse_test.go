@@ -96,6 +96,26 @@ content
 	assert.Contains(t, joined.String(), `tp.lens key "mystery" is unknown`)
 }
 
+// TestParseFrontmatter_UnknownTPKey covers a mistyped key directly under tp:.
+// It is warned about and ignored, and the warning names every key the parser
+// accepts, so a typo'd review_roles cannot silently leave a spec unconfigured.
+func TestParseFrontmatter_UnknownTPKey(t *testing.T) {
+	fm := ParseFrontmatterBytes([]byte("---\ntp:\n  domain: prose\n  review_role:\n    implementer:\n      focus: [\"q\"]\n  lenz: {}\n---\n"))
+	assert.Equal(t, "prose", fm.Domain, "the known sibling still parses")
+	assert.Empty(t, fm.ReviewRoles, "the mistyped key configures nothing")
+	msgs := make([]string, 0, len(fm.Warnings))
+	for _, w := range fm.Warnings {
+		msgs = append(msgs, w.Message)
+	}
+	assert.Equal(t, []string{
+		`tp key "lenz" is unknown (known: domain, lens, review_roles, audit_roles); ignored`,
+		`tp key "review_role" is unknown (known: domain, lens, review_roles, audit_roles); ignored`,
+	}, msgs, "one warning per unknown key, sorted")
+
+	all := ParseFrontmatterBytes([]byte("---\ntp:\n  domain: prose\n  lens: {}\n  review_roles: {}\n  audit_roles: {}\n---\n"))
+	assert.Empty(t, all.Warnings, "every accepted key is known")
+}
+
 func TestParseFrontmatter_NonMappingLensAndTP(t *testing.T) {
 	fm := ParseFrontmatterBytes([]byte("---\ntp:\n  domain: prose\n  lens: \"nope\"\n---\n"))
 	assert.Equal(t, "prose", fm.Domain)

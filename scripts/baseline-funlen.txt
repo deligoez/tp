@@ -76,7 +76,6 @@ internal/engine DiffSections
 internal/engine ExtractNumberedItems
 internal/engine ExtractTableRows
 internal/engine LoadLocalConfig
-internal/engine ParseFrontmatterBytes
 internal/engine Validate
 internal/engine ValidateLineCoverage
 internal/engine parseRoleOverrides

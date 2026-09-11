@@ -3,6 +3,7 @@ package engine
 import (
 	"fmt"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 
@@ -107,31 +108,69 @@ func ParseFrontmatterBytes(data []byte) *Frontmatter {
 		return fm
 	}
 
-	if domainVal, exists := tpMap["domain"]; exists {
-		if s, isStr := domainVal.(string); isStr {
-			fm.Domain = s
-		} else {
-			fm.warn(fmt.Sprintf("tp.domain is not a string (got %T); default %q applies", domainVal, DomainSoftware))
+	for _, k := range tpKeys {
+		if val, exists := tpMap[k.key]; exists {
+			k.parse(fm, k.key, val)
 		}
 	}
-
-	if lensVal, exists := tpMap["lens"]; exists {
-		lensMap, isMap := lensVal.(map[string]any)
-		if !isMap {
-			fm.warn(fmt.Sprintf("tp.lens is not a mapping (got %T); no lens applies", lensVal))
-		} else {
-			fm.parseLens(lensMap)
-		}
-	}
-
-	if rrVal, exists := tpMap["review_roles"]; exists {
-		fm.ReviewRoles = fm.parseRoleOverrides("review_roles", rrVal)
-	}
-	if arVal, exists := tpMap["audit_roles"]; exists {
-		fm.AuditRoles = fm.parseRoleOverrides("audit_roles", arVal)
-	}
+	fm.warnUnknownTPKeys(tpMap)
 
 	return fm
+}
+
+// tpKeys is every key tp accepts directly under tp:, each with its parser, in
+// the order they are parsed and named. It is the one list of those keys: the
+// parse loop dispatches on it and the unknown-key warning names it, so a key
+// the parser learns is a key the warning knows.
+var tpKeys = []struct {
+	key   string
+	parse func(fm *Frontmatter, key string, val any)
+}{
+	{"domain", (*Frontmatter).parseDomain},
+	{"lens", (*Frontmatter).parseLensValue},
+	{"review_roles", func(fm *Frontmatter, key string, val any) { fm.ReviewRoles = fm.parseRoleOverrides(key, val) }},
+	{"audit_roles", func(fm *Frontmatter, key string, val any) { fm.AuditRoles = fm.parseRoleOverrides(key, val) }},
+}
+
+// warnUnknownTPKeys warns about and ignores every key under tp: that no entry
+// of tpKeys parses, naming the keys that are accepted. A mistyped key is
+// otherwise indistinguishable from an absent one.
+func (fm *Frontmatter) warnUnknownTPKeys(tpMap map[string]any) {
+	known := make([]string, 0, len(tpKeys))
+	for _, k := range tpKeys {
+		known = append(known, k.key)
+	}
+	unknown := make([]string, 0)
+	for key := range tpMap {
+		if !slices.Contains(known, key) {
+			unknown = append(unknown, key)
+		}
+	}
+	sort.Strings(unknown)
+	for _, key := range unknown {
+		fm.warn(fmt.Sprintf("tp key %q is unknown (known: %s); ignored", key, strings.Join(known, ", ")))
+	}
+}
+
+// parseDomain sets the spec domain from a string tp.domain, warning about and
+// ignoring any other value.
+func (fm *Frontmatter) parseDomain(_ string, val any) {
+	if s, isStr := val.(string); isStr {
+		fm.Domain = s
+		return
+	}
+	fm.warn(fmt.Sprintf("tp.domain is not a string (got %T); default %q applies", val, DomainSoftware))
+}
+
+// parseLensValue parses a tp.lens mapping, warning about and ignoring any
+// other value.
+func (fm *Frontmatter) parseLensValue(_ string, val any) {
+	lensMap, isMap := val.(map[string]any)
+	if !isMap {
+		fm.warn(fmt.Sprintf("tp.lens is not a mapping (got %T); no lens applies", val))
+		return
+	}
+	fm.parseLens(lensMap)
 }
 
 // parseRoleOverrides parses a tp.review_roles or tp.audit_roles mapping (§10.2):
