@@ -8,6 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/deligoez/tp/internal/engine"
 )
 
 // roleFilterReason is the wire value of the skipped_roles reason the --role
@@ -22,11 +24,26 @@ type narrowedEmission struct {
 	present bool
 }
 
-// readNarrowedEmission runs one emission in dir and returns its prompt roles,
-// its skipped_roles by role, and whether the skipped_roles key was present.
+// readNarrowedEmission runs one emission in dir by hand and returns its prompt
+// roles, its skipped_roles by role, and whether the skipped_roles key was
+// present.
 func readNarrowedEmission(t *testing.T, dir string, args ...string) narrowedEmission {
 	t.Helper()
-	stdout, stderr, code := runTP(t, dir, args...)
+	return readEmissionIn(t, dir, nil, args...)
+}
+
+// readEmissionIn is readNarrowedEmission with extra environment entries; nil
+// runs the child by hand (runTP drops an inherited TP_RUN_ID), anything else
+// goes through runTPEnv, whose entries come last and win.
+func readEmissionIn(t *testing.T, dir string, env []string, args ...string) narrowedEmission {
+	t.Helper()
+	var stdout, stderr string
+	var code int
+	if env == nil {
+		stdout, stderr, code = runTP(t, dir, args...)
+	} else {
+		stdout, stderr, code = runTPEnv(t, dir, env, args...)
+	}
 	require.Equal(t, 0, code, "stderr: %s", stderr)
 	var payload struct {
 		Prompts []struct {
@@ -49,6 +66,10 @@ func readNarrowedEmission(t *testing.T, dir string, args ...string) narrowedEmis
 	}
 	return out
 }
+
+// drivenUnit is the environment entry a tp run driver hands every unit it
+// spawns (engine.EnvRunID); tp reads only whether it is set.
+var drivenUnit = []string{engine.EnvRunID + "=01JTESTRUN0000000000000000"}
 
 // roundTwoWithFixedFinding builds a review whose round 2 emits the built-in
 // regression role: round 1 is recorded with one finding, which is then
@@ -161,6 +182,57 @@ func TestAuditRoleFilterNamesEveryNarrowedRole(t *testing.T) {
 
 	compact := readNarrowedEmission(t, dir, append(append([]string{}, args...), "--compact")...)
 	assert.False(t, compact.present, "--compact without --role still omits skipped_roles")
+}
+
+// TestReviewRoleFilterUnderDriverNamesOnlyUncoveredPrompts: a tp run driver
+// partitions the panel across sibling units on purpose, so a driven unit's
+// `--role implementer` names under role-filter only the prompt no sibling
+// covers -- regression, which belongs to no corpus and is never a unit --
+// and not tester or architect, each of which is its own unit. The same call
+// by hand still names all three.
+func TestReviewRoleFilterUnderDriverNamesOnlyUncoveredPrompts(t *testing.T) {
+	t.Parallel()
+	dir := roundTwoWithFixedFinding(t)
+	narrow := []string{"review", "spec.md", "--role", "implementer"}
+
+	byHand := readNarrowedEmission(t, dir, narrow...)
+	require.Equal(t, map[string]string{
+		"tester":     roleFilterReason,
+		"architect":  roleFilterReason,
+		"regression": roleFilterReason,
+	}, byHand.skipped, "by hand every narrowed-away role is named")
+
+	for _, extra := range [][]string{nil, {"--compact"}} {
+		driven := readEmissionIn(t, dir, drivenUnit, append(append([]string{}, narrow...), extra...)...)
+		require.Equal(t, []string{"implementer"}, driven.roles, "%v", extra)
+		require.True(t, driven.present, "%v: the uncovered prompt keeps skipped_roles in the payload", extra)
+		assert.Equal(t, map[string]string{"regression": roleFilterReason}, driven.skipped,
+			"%v: a driven unit names only the prompt no sibling unit covers", extra)
+	}
+}
+
+// TestAuditRoleFilterUnderDriverNamesNoSibling: every prompt tp audit emits
+// belongs to an active auditor role, and the driver runs each of those as a
+// unit, so audit has no prompt that no unit covers. A driven `--role
+// spec-coverage` therefore names nothing under role-filter, and under
+// --compact the empty list is omitted as it always was.
+func TestAuditRoleFilterUnderDriverNamesNoSibling(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte(routingSpec), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "plain.go"), []byte("package main\n"), 0o600))
+	narrow := []string{"audit", "spec.md", "--affected-files", "plain.go", "--role", "spec-coverage"}
+
+	byHand := readNarrowedEmission(t, dir, narrow...)
+	require.NotEmpty(t, byHand.skipped, "by hand the other auditors are named, so the driven arm has something to drop")
+
+	driven := readEmissionIn(t, dir, drivenUnit, narrow...)
+	require.Equal(t, []string{"spec-coverage"}, driven.roles)
+	assert.True(t, driven.present, "without --compact skipped_roles is always present")
+	assert.Empty(t, driven.skipped, "every other auditor is a sibling unit, so none is named")
+
+	compact := readEmissionIn(t, dir, drivenUnit, append(append([]string{}, narrow...), "--compact")...)
+	assert.False(t, compact.present, "an empty skipped_roles is omitted under --compact, as before")
 }
 
 // assertSkippedRolesNarrowed is property 4's skipped_roles clause as the

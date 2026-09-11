@@ -170,7 +170,7 @@ func runTPIn(t *testing.T, workdir string, args ...string) (stdout, stderr strin
 	t.Helper()
 	cmd := exec.Command(binaryPath, append([]string{"--json"}, args...)...)
 	cmd.Dir = workdir
-	cmd.Env = append(os.Environ(), "NO_COLOR=1", "TP_HC=0")
+	cmd.Env = append(byHandEnv(), "NO_COLOR=1", "TP_HC=0")
 
 	var outBuf, errBuf bytes.Buffer
 	cmd.Stdout = &outBuf

@@ -6,10 +6,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/deligoez/tp/internal/engine"
 )
 
 var binaryPath string
@@ -33,6 +36,22 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
+// byHandEnv is the inherited environment minus TP_RUN_ID, so a child runs as
+// an invocation by hand even when the suite itself was started inside a tp run
+// unit (the quality gate runs in one). tp review/audit --role narrow
+// skipped_roles differently for a driven unit; a test that wants that arm
+// passes the variable through runTPEnv, whose extra entries come last and win.
+func byHandEnv() []string {
+	inherited := os.Environ()
+	env := make([]string, 0, len(inherited))
+	for _, kv := range inherited {
+		if !strings.HasPrefix(kv, engine.EnvRunID+"=") {
+			env = append(env, kv)
+		}
+	}
+	return env
+}
+
 // runTP runs the tp binary with the given args in the given directory.
 // It always passes --json for parseable output.
 func runTP(t *testing.T, dir string, args ...string) (stdout, stderr string, exitCode int) {
@@ -44,7 +63,7 @@ func runTP(t *testing.T, dir string, args ...string) (stdout, stderr string, exi
 	// exercise tp commit / bare tp done / tp close / --auto-commit are
 	// deterministic regardless of whether hc is installed on the host (§5.2).
 	// A test needing effective hc sets commit_strategy=hc explicitly.
-	cmd.Env = append(os.Environ(), "NO_COLOR=1", "TP_HC=0")
+	cmd.Env = append(byHandEnv(), "NO_COLOR=1", "TP_HC=0")
 
 	var stderrBuf bytes.Buffer
 	cmd.Stderr = &stderrBuf

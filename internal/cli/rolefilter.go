@@ -45,6 +45,30 @@ type roleQuery struct {
 	given   bool
 	specDir string
 	domain  string
+	// siblings holds the roles a tp run driver runs as this unit's sibling
+	// units, and is nil by hand (withSiblingUnits).
+	siblings map[string]bool
+}
+
+// withSiblingUnits records the panel's active roles as the ones a driver
+// covers with sibling units, when a driver runs this invocation (TP_RUN_ID
+// set). By hand it returns q unchanged.
+//
+// The driver partitions the panel across role units on purpose -- one unit
+// per active role, resolved by the same engine.ResolveRolePanel -- so naming
+// the siblings under role-filter in every unit's brief is per-unit noise. What
+// a driven unit cannot learn from any sibling is a prompt NO unit covers, which
+// today is review's built-in regression role: it is emitted and belongs to no
+// corpus. filterByRole lists only those.
+func (q roleQuery) withSiblingUnits(panel *rolePanel) roleQuery {
+	if os.Getenv(engine.EnvRunID) == "" {
+		return q
+	}
+	q.siblings = make(map[string]bool, len(panel.roles))
+	for i := range panel.roles {
+		q.siblings[panel.roles[i].ID] = true
+	}
+	return q
 }
 
 // roleQueryFor builds the query from a spec path, so every emitting mode
@@ -171,7 +195,8 @@ func filterAuditPrompts(prompts []auditPrompt, q roleQuery, skipped []engine.Ski
 // and unknownRoleHint see the skip list the round produced, never the filter's
 // own entries. Without them a one-role payload reported `skipped_roles: []`
 // for a round that emitted four prompts, regression among them, and a caller
-// holding it could not tell it had been handed a slice of the panel.
+// holding it could not tell it had been handed a slice of the panel. A role a
+// sibling unit covers is left out when a driver runs this one (q.siblings).
 func filterByRole[P any](prompts []P, roleOf func(*P) string, q roleQuery, skipped []engine.SkippedRole) ([]P, []engine.SkippedRole) {
 	emitted := make([]string, 0, len(prompts))
 	for i := range prompts {
@@ -183,7 +208,7 @@ func filterByRole[P any](prompts []P, roleOf func(*P) string, q roleQuery, skipp
 	}
 	dropped := make([]string, 0, len(emitted))
 	for i, role := range emitted {
-		if i != idx {
+		if i != idx && !q.siblings[role] {
 			dropped = append(dropped, role)
 		}
 	}
