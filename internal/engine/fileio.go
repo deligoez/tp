@@ -44,15 +44,17 @@ func CapSpecContent(content, path string) (string, *SpecCut) {
 	if abs, err := filepath.Abs(path); err == nil {
 		path = abs
 	}
-	cut := &SpecCut{Path: path, KeptBytes: runeBoundaryAtOrBefore(content, SpecContentCap), TotalBytes: len(content)}
+	cut := &SpecCut{Path: path, KeptBytes: RuneBoundaryAtOrBefore(content, SpecContentCap), TotalBytes: len(content)}
 	return content[:cut.KeptBytes] + fmt.Sprintf("\n[...spec truncated at %d of %d bytes; read the rest at %s]", cut.KeptBytes, cut.TotalBytes, cut.Path), cut
 }
 
-// runeBoundaryAtOrBefore returns the largest n' <= n at which s[:n'] ends on a
+// RuneBoundaryAtOrBefore returns the largest n' <= n at which s[:n'] ends on a
 // rune boundary: n itself unless the rune starting just before it needs bytes
 // past n. Bytes that are not UTF-8 to begin with are left where they are,
-// since no boundary exists to back off to.
-func runeBoundaryAtOrBefore(s string, n int) int {
+// since no boundary exists to back off to. It is the one back-off every byte
+// cap that cuts prompt text takes: a slice at the cap kept the lead byte of a
+// split rune, invalid UTF-8 the JSON encoder emits as U+FFFD.
+func RuneBoundaryAtOrBefore(s string, n int) int {
 	// The last rune start is at most utf8.UTFMax-1 bytes back; FullRuneInString
 	// is false only for a valid prefix of a longer encoding, so an invalid byte
 	// is never mistaken for a split rune.
@@ -107,10 +109,11 @@ func ReadAffectedFilesBudgetAware(paths []string, otherContent ...string) map[st
 }
 
 // ReadAffectedFilesRaw reads the affected-file set for a prompt, capped per
-// file and in total. A file it cannot read is named on stderr rather than
-// dropped in silence: callers stat these paths up front, so an unreadable one
-// is an anomaly, and its absence from the map is indistinguishable from a file
-// that was never requested.
+// file and in total, in bytes; either cut backs off to a rune boundary, and
+// its marker names the bytes kept and the file's size. A file it cannot read
+// is named on stderr rather than dropped in silence: callers stat these paths
+// up front, so an unreadable one is an anomaly, and its absence from the map
+// is indistinguishable from a file that was never requested.
 func ReadAffectedFilesRaw(paths []string, maxPerFile, maxTotal int) map[string]string {
 	result := make(map[string]string)
 	total := 0
@@ -120,15 +123,17 @@ func ReadAffectedFilesRaw(paths []string, maxPerFile, maxTotal int) map[string]s
 			output.Notice(fmt.Sprintf("warning: cannot read affected file %s; its contents were dropped from the prompt (%v)", f, err))
 			continue
 		}
-		s := string(content)
-		if len(s) > maxPerFile {
-			s = s[:maxPerFile] + fmt.Sprintf("\n[...truncated at %d chars]", maxPerFile)
+		raw := string(content)
+		s, kept := raw, len(raw)
+		if kept > maxPerFile {
+			kept = RuneBoundaryAtOrBefore(raw, maxPerFile)
+			s = raw[:kept] + fmt.Sprintf("\n[...truncated at %d of %d bytes]", kept, len(raw))
 		}
 		if total+len(s) > maxTotal {
-			remaining := maxTotal - total
-			if remaining > 100 {
-				s = s[:remaining] + "\n[...truncated by total cap]"
-				result[f] = s
+			// Cut the file's own bytes, never into the per-file marker.
+			if remaining := maxTotal - total; remaining > 100 {
+				k := RuneBoundaryAtOrBefore(raw, min(remaining, kept))
+				result[f] = raw[:k] + fmt.Sprintf("\n[...truncated by total cap at %d of %d bytes]", k, len(raw))
 			}
 			break
 		}

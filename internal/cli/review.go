@@ -1915,8 +1915,9 @@ func buildDiffSpecContent(diff *engine.DiffResult) string {
 	}
 
 	content := b.String()
-	if len(content) > specContentCap {
-		content = content[:specContentCap] + "\n[...diff truncated]"
+	if total := len(content); total > specContentCap {
+		kept := engine.RuneBoundaryAtOrBefore(content, specContentCap)
+		content = content[:kept] + fmt.Sprintf("\n[...diff truncated at %d of %d bytes]", kept, total)
 	}
 	return content
 }

@@ -32,7 +32,7 @@ func TestRuneBoundaryAtOrBefore(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got := runeBoundaryAtOrBefore(tc.s, tc.n)
+			got := RuneBoundaryAtOrBefore(tc.s, tc.n)
 			assert.Equal(t, tc.want, got)
 			if utf8.ValidString(tc.s) {
 				assert.True(t, utf8.ValidString(tc.s[:got]), "a valid spec keeps a valid head")

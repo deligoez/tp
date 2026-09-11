@@ -12,12 +12,13 @@ import (
 
 const (
 	diffBlockSectionLineCap = 40
-	diffBlockTotalCharCap   = 6000
+	diffBlockTotalByteCap   = 6000
 )
 
 // buildChangedSectionsBlock renders the changed-sections block injected into
 // every prompt: changed/added/removed heading list plus per-section new
-// content capped at 40 lines per section and 6000 characters total.
+// content capped at 40 lines per section and 6000 bytes total, cut on a rune
+// boundary.
 func buildChangedSectionsBlock(dr *engine.DiffResult, sinceLabel string) string {
 	if len(dr.Changed) == 0 && len(dr.Removed) == 0 {
 		return ""
@@ -39,11 +40,11 @@ func buildChangedSectionsBlock(dr *engine.DiffResult, sinceLabel string) string 
 			lines = append(lines[:diffBlockSectionLineCap], fmt.Sprintf("[...section truncated at %d lines]", diffBlockSectionLineCap))
 		}
 		sect := fmt.Sprintf("\n### %s\n%s\n", s.Heading, strings.Join(lines, "\n"))
-		if total+len(sect) > diffBlockTotalCharCap {
-			if remaining := diffBlockTotalCharCap - total; remaining > 0 {
-				b.WriteString(sect[:remaining])
+		if total+len(sect) > diffBlockTotalByteCap {
+			if remaining := diffBlockTotalByteCap - total; remaining > 0 {
+				b.WriteString(sect[:engine.RuneBoundaryAtOrBefore(sect, remaining)])
 			}
-			fmt.Fprintf(&b, "\n[...diff content truncated at %d chars]\n", diffBlockTotalCharCap)
+			fmt.Fprintf(&b, "\n[...diff content truncated at %d bytes]\n", diffBlockTotalByteCap)
 			break
 		}
 		b.WriteString(sect)
