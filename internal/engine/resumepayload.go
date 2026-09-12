@@ -139,7 +139,11 @@ func auditRoundsOf(st *ReviewState) []ReviewRound {
 // for implement, tp review <spec> --round N for review, tp audit <spec> for audit),
 // so an orchestrator following next_action reaches a full brief without knowing
 // the phase. Decompose and release carry a null brief_command.
-func BuildNextAction(phase, specPath string, tf *model.TaskFile, st *ReviewState) NextAction {
+//
+// checksRegistered says whether the resolved workflow registers at least one
+// mechanical check; it is the decompose phase's only input beside the spec
+// path (see decomposeNextAction).
+func BuildNextAction(phase, specPath string, tf *model.TaskFile, st *ReviewState, checksRegistered bool) NextAction {
 	cmd := func(s string) *string { return &s }
 	switch phase {
 	case PhaseReview:
@@ -193,12 +197,38 @@ func BuildNextAction(phase, specPath string, tf *model.TaskFile, st *ReviewState
 			Payload:      map[string]any{"task": task, "wip": wip},
 		}
 	case PhaseDecompose:
-		return NextAction{Summary: "decompose the converged spec into tasks and tp import", Payload: map[string]any{}}
+		return decomposeNextAction(specPath, checksRegistered)
 	default:
 		// PhaseRelease is the only value that reaches here: DetectPhase returns
 		// exactly one of the five phase constants and the other four are cased
 		// above.
 		return NextAction{Summary: "audit converged; proceed to the human-approved release", Payload: map[string]any{}}
+	}
+}
+
+// decomposeNextAction is BuildNextAction's decompose arm. Decomposition is
+// agent work with no tp command of its own — except that the step after it,
+// tp import, is refused while a registered check fails, so a converged loop is
+// not on its own a licence to decompose. With a check registered the action is
+// the gate that runs the checks, and the summary carries CheckGateClause ahead
+// of the decomposition exactly as tp review --status does ahead of its import
+// step. resume runs no check and stores no verdict: a verdict recorded here
+// would be stale the moment the tree moved, and running the checks on every
+// tick would bill every driver iteration for them. tp import stays the
+// authoritative gate.
+//
+// With no check registered there is nothing to gate and the action is what it
+// always was.
+func decomposeNextAction(specPath string, checksRegistered bool) NextAction {
+	const step = "decompose the converged spec into tasks and tp import"
+	if !checksRegistered {
+		return NextAction{Summary: step, Payload: map[string]any{}}
+	}
+	gate := CheckGateCommand(specPath)
+	return NextAction{
+		Command: &gate,
+		Summary: CheckGateClause(specPath) + step,
+		Payload: map[string]any{},
 	}
 }
 

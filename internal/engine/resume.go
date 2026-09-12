@@ -136,7 +136,10 @@ func AssembleResume(start, taskFilePath, specPath string, tf *model.TaskFile) (R
 		NextUnits:   nextUnits,
 		Round:       round,
 		LastFailure: ReadLastFailure(start, taskFilePath),
-		NextAction:  renderNextAction(BuildNextAction(phase, specPath, tf, st), nextUnits, blockers),
-		Blockers:    blockers,
+		// len(wf.Checks) is read, never run: the decompose action names the
+		// gate that runs the registered checks (decomposeNextAction), and
+		// resume itself stays the read-only oracle §4.8 requires.
+		NextAction: renderNextAction(BuildNextAction(phase, specPath, tf, st, len(wf.Checks) > 0), nextUnits, blockers),
+		Blockers:   blockers,
 	}, nil
 }

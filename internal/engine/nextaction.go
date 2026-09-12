@@ -82,6 +82,22 @@ func (f *CheckFailure) FixClause() string {
 	return fmt.Sprintf("fix the registered %q check — it %s and verified nothing", f.Class, f.Outcome)
 }
 
+// CheckGateCommand is the one invocation that runs every registered check and
+// reports the loop verdict with them: `--status` alone runs none. It is the
+// gate every step naming decompose or import sits behind while a check is
+// registered and unverified.
+func CheckGateCommand(specPath string) string {
+	return "tp review " + specPath + " --status --check"
+}
+
+// CheckGateClause names CheckGateCommand as the step to take first, worded once
+// for every surface that has to say it: ReviewNextAction's unverified branches
+// and tp resume's decompose next_action both prefix their forward step with it,
+// so the two read the same.
+func CheckGateClause(specPath string) string {
+	return "run " + CheckGateCommand(specPath) + " (--status alone runs no check) and on exit 0 "
+}
+
 // failure returns the first entry of Failing for class.
 func (v *CheckVerdict) failure(class string) (CheckFailure, bool) {
 	for _, f := range v.Failing {
@@ -125,12 +141,12 @@ func (v *CheckVerdict) failure(class string) (CheckFailure, bool) {
 // operator's chosen findings filename (§8.2).
 func ReviewNextAction(specPath string, done LoopDone, blockingUnresolved bool, mechanizeClasses []string, roundFile string, checks CheckVerdict) string {
 	if (done.Done || done.CapReached) && len(checks.Failing) > 0 {
-		return checks.Failing[0].FixClause() + "; tp review " + specPath + " --status --check exits 1 until every registered check passes"
+		return checks.Failing[0].FixClause() + "; " + CheckGateCommand(specPath) + " exits 1 until every registered check passes"
 	}
 	importStep := "tp import " + specTaskBase(specPath)
 	forward := "decompose the spec into tasks, then " + importStep
 	if checks.Unverified {
-		gate := "run tp review " + specPath + " --status --check (--status alone runs no check) and on exit 0 "
+		gate := CheckGateClause(specPath)
 		importStep = gate + importStep
 		forward = gate + forward
 	}
