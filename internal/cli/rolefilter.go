@@ -244,3 +244,28 @@ func filterByRole[P any](prompts []P, roleOf func(*P) string, q roleQuery, skipp
 func skippedRolesSurviveCompact(roleGiven bool, prompts, skipped int) bool {
 	return !IsCompact() || (roleGiven && (prompts == 0 || skipped > 0))
 }
+
+// skippedRolesForPayload renders one emission's skipped_roles value: the list
+// the round computed, or nil when §8.4's --compact rule omits the key. A nil
+// list becomes an empty array, so the key is never `null` — "this round skipped
+// nothing" and "this payload does not say" are different answers and must not
+// share a spelling.
+//
+// Every emitting mode goes through it, the five single-prompt ones included.
+// They used to discard the filter's skip list entirely (`selected, _ :=`), so
+// `--perspective regression --role implementer` dropped the regression prompt
+// and the payload carried no skipped_roles key at all — the same narrowing the
+// panel reports under role-filter, reported nowhere. The driver half of the
+// panel's rule (withSiblingUnits) does not apply to them: §3.3's brief commands
+// spawn review-role units as `tp review <spec> --role <id>`, the default panel
+// mode, and no unit kind runs --perspective or --verify, so a single-prompt
+// emission has no sibling unit whose prompt could be left out.
+func skippedRolesForPayload(roleGiven bool, prompts int, skipped []engine.SkippedRole) *[]engine.SkippedRole {
+	if !skippedRolesSurviveCompact(roleGiven, prompts, len(skipped)) {
+		return nil
+	}
+	if skipped == nil {
+		skipped = []engine.SkippedRole{}
+	}
+	return &skipped
+}

@@ -118,7 +118,7 @@ func runReviewVerify(specPath, findingsPath string, affectedFiles []string, diff
 
 	// Build result
 	absPath, _ := filepath.Abs(specPath)
-	selected, _ := filterReviewPrompts([]reviewPrompt{{
+	selected, skipped := filterReviewPrompts([]reviewPrompt{{
 		Role:     "verifier",
 		Category: "verification",
 		Prompt:   prompt,
@@ -127,6 +127,7 @@ func runReviewVerify(specPath, findingsPath string, affectedFiles []string, diff
 	result := reviewResult{
 		Spec:          specPath,
 		SpecTruncated: specCut,
+		SkippedRoles:  skippedRolesForPayload(q.given, len(selected), skipped),
 		Prompts:       selected,
 		ReviewLoop: reviewLoop{
 			Round:            0,

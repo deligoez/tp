@@ -749,13 +749,8 @@ func runReview(cmd *cobra.Command, specPath string, round int, findingsPath, per
 	}
 
 	// §9.1: skipped_roles names every non-emitted role. Whether it survives
-	// --compact is skippedRolesSurviveCompact's question, not this function's.
-	if skippedRolesSurviveCompact(roleGiven, len(prompts), len(skippedRoles)) {
-		if skippedRoles == nil {
-			skippedRoles = []engine.SkippedRole{}
-		}
-		result.SkippedRoles = &skippedRoles
-	}
+	// --compact is skippedRolesForPayload's question, not this function's.
+	result.SkippedRoles = skippedRolesForPayload(roleGiven, len(prompts), skippedRoles)
 
 	return output.JSON(result)
 }
@@ -934,12 +929,13 @@ func reviewCodeAuditResult(specPath, specContent string, affectedFiles []string,
 	affectedContent := engine.ReadAffectedFiles(affectedFiles)
 	summary := engine.BuildAffectedSummary(affectedFiles, affectedContent)
 	prompt := generateCodeAuditPrompt(specContent, affectedContent)
-	selected, _ := filterReviewPrompts([]reviewPrompt{prompt}, q, nil)
+	selected, skipped := filterReviewPrompts([]reviewPrompt{prompt}, q, nil)
 	return &reviewResult{
 		Spec:            specPath,
 		Perspective:     "code-audit",
 		AffectedFiles:   affectedFiles,
 		AffectedSummary: summary,
+		SkippedRoles:    skippedRolesForPayload(q.given, len(selected), skipped),
 		Prompts:         selected,
 		ReviewLoop: reviewLoop{
 			Round:            round,
@@ -950,23 +946,40 @@ func reviewCodeAuditResult(specPath, specContent string, affectedFiles []string,
 	}
 }
 
-// reviewDocPlanResult builds the single-pass documentation-plan perspective payload.
-func reviewDocPlanResult(specPath, specContent, docsPath string, affectedFiles []string, q roleQuery) *reviewResult {
-	structureMap, files := walkDocTree(docsPath, ".md")
+// planPerspective is everything that separates tp review's two single-pass
+// planning perspectives: the tree suffix each walks, the byte budget it inlines
+// the ranked files at, the prompt it builds, and the name it reports. The rest
+// of the two payloads — the ranking, the affected-files merge, the loop block —
+// is the same, which is what reviewPlanResult owns.
+type planPerspective struct {
+	name   string
+	suffix string
+	budget int
+	prompt func(specContent, structureMap string, fileContents map[string]string) reviewPrompt
+}
+
+// reviewPlanResult builds the payload the documentation and testing
+// perspectives share, returning the walked structure separately because each
+// perspective reports it under its own key (docs_structure / test_structure).
+//
+// The two used to be spelled out twice, close enough that `dupl` reported them
+// as one clone the moment both grew a skipped_roles line. Written once, a rule
+// added to the planning payload cannot land in one perspective and miss the
+// other.
+func reviewPlanResult(p planPerspective, specPath, specContent, treePath string, affectedFiles []string, q roleQuery) (*reviewResult, *docStructure) {
+	structureMap, files := walkDocTree(treePath, p.suffix)
 	ranked := rankFilesBySpecTerms(files, strings.Split(specContent, "\n"))
-	docContent := readFilesContent(ranked, 30000)
+	content := readFilesContent(ranked, p.budget)
 	if len(affectedFiles) > 0 {
-		maps.Copy(docContent, engine.ReadAffectedFiles(affectedFiles))
+		maps.Copy(content, engine.ReadAffectedFiles(affectedFiles))
 	}
-	prompt := generateDocPlanPrompt(specContent, structureMap, docContent)
-	selected, _ := filterReviewPrompts([]reviewPrompt{prompt}, q, nil)
+	selected, skipped := filterReviewPrompts([]reviewPrompt{p.prompt(specContent, structureMap, content)}, q, nil)
 	return &reviewResult{
 		Spec:            specPath,
-		Perspective:     "documentation",
-		DocsPath:        docsPath,
+		Perspective:     p.name,
 		AffectedFiles:   affectedFiles,
 		AffectedSummary: engine.BuildAffectedSummary(affectedFiles, nil),
-		DocsStructure:   &docStructure{TotalFiles: len(files), ReviewedFiles: len(ranked), StructureMap: structureMap},
+		SkippedRoles:    skippedRolesForPayload(q.given, len(selected), skipped),
 		Prompts:         selected,
 		ReviewLoop: reviewLoop{
 			Round:            1,
@@ -974,34 +987,27 @@ func reviewDocPlanResult(specPath, specContent, docsPath string, affectedFiles [
 			PreviousFindings: 0,
 			Instruction:      instructionForPayload("Spawn a sub-agent with this prompt. Collect the NDJSON plan. Review the plan for completeness, then append the plan to the spec.", len(selected)),
 		},
-	}
+	}, &docStructure{TotalFiles: len(files), ReviewedFiles: len(ranked), StructureMap: structureMap}
+}
+
+// reviewDocPlanResult builds the single-pass documentation-plan perspective payload.
+func reviewDocPlanResult(specPath, specContent, docsPath string, affectedFiles []string, q roleQuery) *reviewResult {
+	result, structure := reviewPlanResult(planPerspective{
+		name: "documentation", suffix: ".md", budget: 30000, prompt: generateDocPlanPrompt,
+	}, specPath, specContent, docsPath, affectedFiles, q)
+	result.DocsPath = docsPath
+	result.DocsStructure = structure
+	return result
 }
 
 // reviewTestPlanResult builds the single-pass test-plan perspective payload.
 func reviewTestPlanResult(specPath, specContent, testPath string, affectedFiles []string, q roleQuery) *reviewResult {
-	structureMap, files := walkDocTree(testPath, "_test.go")
-	ranked := rankFilesBySpecTerms(files, strings.Split(specContent, "\n"))
-	testContent := readFilesContent(ranked, 20000)
-	if len(affectedFiles) > 0 {
-		maps.Copy(testContent, engine.ReadAffectedFiles(affectedFiles))
-	}
-	prompt := generateTestPlanPrompt(specContent, structureMap, testContent)
-	selected, _ := filterReviewPrompts([]reviewPrompt{prompt}, q, nil)
-	return &reviewResult{
-		Spec:            specPath,
-		Perspective:     "testing",
-		TestPath:        testPath,
-		AffectedFiles:   affectedFiles,
-		AffectedSummary: engine.BuildAffectedSummary(affectedFiles, nil),
-		TestStructure:   &docStructure{TotalFiles: len(files), ReviewedFiles: len(ranked), StructureMap: structureMap},
-		Prompts:         selected,
-		ReviewLoop: reviewLoop{
-			Round:            1,
-			Convergence:      "single-pass plan generation",
-			PreviousFindings: 0,
-			Instruction:      instructionForPayload("Spawn a sub-agent with this prompt. Collect the NDJSON plan. Review the plan for completeness, then append the plan to the spec.", len(selected)),
-		},
-	}
+	result, structure := reviewPlanResult(planPerspective{
+		name: "testing", suffix: "_test.go", budget: 20000, prompt: generateTestPlanPrompt,
+	}, specPath, specContent, testPath, affectedFiles, q)
+	result.TestPath = testPath
+	result.TestStructure = structure
+	return result
 }
 
 // buildReviewPrompts emits the round's review prompts: one per active reviewer

@@ -418,13 +418,8 @@ func runAudit(_ *cobra.Command, specPath string, affectedFiles []string, base, f
 	}
 
 	// §9.1: skipped_roles names every non-emitted role. Whether it survives
-	// --compact is skippedRolesSurviveCompact's question, not this function's.
-	if skippedRolesSurviveCompact(roleGiven, len(prompts), len(auditSkipped)) {
-		if auditSkipped == nil {
-			auditSkipped = []engine.SkippedRole{}
-		}
-		result.SkippedRoles = &auditSkipped
-	}
+	// --compact is skippedRolesForPayload's question, not this function's.
+	result.SkippedRoles = skippedRolesForPayload(roleGiven, len(prompts), auditSkipped)
 
 	if flagCompact {
 		compactAuditChecklist(&result)

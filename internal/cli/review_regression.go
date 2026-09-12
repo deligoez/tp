@@ -109,7 +109,7 @@ func runReviewRegression(specPath, diffFrom, findingsPath string, q roleQuery) e
 	// appending no sentence at all.
 	prompt += mechanizedExclusion(wfChecks.Checks, mechChecks)
 
-	selected, _ := filterReviewPrompts([]reviewPrompt{{
+	selected, skipped := filterReviewPrompts([]reviewPrompt{{
 		Role:     "regression",
 		Category: "regression",
 		Prompt:   prompt,
@@ -119,6 +119,7 @@ func runReviewRegression(specPath, diffFrom, findingsPath string, q roleQuery) e
 		Spec:             specPath,
 		Perspective:      "regression",
 		MechanicalChecks: mechChecks,
+		SkippedRoles:     skippedRolesForPayload(q.given, len(selected), skipped),
 		Prompts:          selected,
 		ReviewLoop: reviewLoop{
 			Round:            0,
