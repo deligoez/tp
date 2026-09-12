@@ -15,6 +15,16 @@ fix needs a design choice leaves this file for a decision note.
   so recording without emitting no longer clears staleness there. Closing this case too flips the
   seven tests that pin the staleness contract for hand-driven fixtures, so it is a decision.
 
+- **The project config layer resolves from the process working directory, not from the task file.**
+  `ProjectWorkflowOverride` discovers `.tp/` from `.`, so with `--file` (or `TP_FILE`) naming a task
+  file in another project tree, that plan is driven by the *current* project's `quality_gate`, round
+  caps, `commit_strategy` and registered checks: `tp done --file ../other/x.tasks.json` runs this
+  project's gate command against that plan, the same silent-wrong-target family as the stale pointer
+  fixed in v1.2.0. Seen from a test: with no `.tp/` beside the task file, resume still named the check
+  gate, because discovery reached tp's own `.tp/config.json` from the test process. The option —
+  resolve the project layer from the task file's directory — changes documented resolution precedence,
+  so it is a decision.
+
 ## Wrong or missing guidance
 
 - **Two specs with the same base in different directories share the ground scratch file** when
