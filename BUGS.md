@@ -8,34 +8,15 @@ fix needs a design choice leaves this file for a decision note.
 
 ## Silent loss of work, or output that lies
 
-- **Recording an empty file with no fresh emission clears `spec-stale`.** A round nobody ran against
-  the edited text then counts as the round that re-read it. Repro: converge, edit the spec, run
-  `tp review <spec> --record empty.ndjson` without `tp review <spec>` first, and `stale` becomes
-  false. The honest fix is `reconcile.md`'s emit-time hash (a round records the text it read), which is
-  a decision; this line waits on it.
+- **A phase whose entire recorded history was hand-recorded, with no emission, still clears
+  `spec-stale` at `--record`.** With no round that ever read text, staleness falls back to comparing
+  the last recorded round's stored hash, which is the pre-v1.2.2 answer. The field case is closed: a
+  converged loop always emits, and since v1.2.2 a round carries the hash of its own emission snapshot,
+  so recording without emitting no longer clears staleness there. Closing this case too flips the
+  seven tests that pin the staleness contract for hand-driven fixtures, so it is a decision.
 
 ## Wrong or missing guidance
 
-- **The audit carry's `changed_since` is second-granular.** It asks git for commits since the prior
-  round's `recorded_at`, so a commit landing in the same second as that record counts as a change and
-  the acceptance is not carried. Conservative (never a false carry) and rare outside scripted flows.
-  Fix: when the round file is tracked, diff from the parent of the commit that added it instead of
-  `--since`. Test: an init commit in the same second as round 1's record still lets an unchanged file
-  carry.
-- **`tp resume` can move to decompose while a registered review check fails.** Its phase and
-  `next_action` read the loop verdict alone. Running the checks on every driver tick is a real cost, and
-  doing it properly needs the check verdict stamped at `--record` (a new state field), so it is a
-  decision. Bounded since v1.2.1: `tp import` refuses while a check fails and names it, so a run that
-  moves on stops there. Test: a converged spec with a failing check is not reported as ready to import.
-- **Review and audit role files collide across specs run by hand in one directory.** `tp review a.md`
-  and `tp review b.md` both name `review-r1-<role>.ndjson` (the audit names follow the same shape).
-  The names are documented and merge-globbed, so carrying the spec's base in them is a contract change.
-  Test: two specs emitted in one directory name different role files.
-- **The single-prompt modes carry no `skipped_roles`.** `--perspective regression --role implementer`
-  (and `code-audit`, `documentation`, `testing`, `--verify`) drop a role with nothing saying so. Test:
-  each names what `--role` narrowed away, as the panel does under `role-filter`.
-- **`tp add` with a `--file`/`TP_FILE` naming a missing file gives the `--spec` advice and drops the
-  path.** Test: the error names the path it could not open.
 - **Two specs with the same base in different directories share the ground scratch file** when
   grounded from one working directory (`x/a.md` and `y/a.md` both write `ground-a-r1.ndjson`; their
   state directories do not collide). Test: they get different scratch names.
