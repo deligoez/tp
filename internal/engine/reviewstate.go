@@ -496,6 +496,32 @@ func SpecHash(specPath string) (string, error) {
 	return fmt.Sprintf("sha256:%x", sha256.Sum256(data)), nil
 }
 
+// SnapshotReadError marks a round snapshot that is on disk and cannot be read.
+// It is not the missing-snapshot fallback: the bytes exist, so what the round
+// was emitted from is knowable and unread, and hashing the spec file instead
+// would answer the question with text the round may never have seen. The
+// message names the file and the hint names the way out, because the generic
+// state-write advice sends a reader to repair a directory that is fine.
+type SnapshotReadError struct {
+	Path  string
+	Phase string
+	Spec  string
+	Round int
+	Err   error
+}
+
+func (e *SnapshotReadError) Error() string {
+	return fmt.Sprintf("cannot read round %d's spec snapshot %s: %v", e.Round, e.Path, e.Err)
+}
+
+func (e *SnapshotReadError) Unwrap() error { return e.Err }
+
+// Hint is the actionable message accompanying the abort.
+func (e *SnapshotReadError) Hint() string {
+	return fmt.Sprintf("that snapshot is the text round %d was emitted from, and its hash is what the round records: remove or repair it, then re-emit the round with tp %s %s, run its roles and record their findings",
+		e.Round, e.Phase, e.Spec)
+}
+
 // RoundSpecHash returns the spec_hash to record for round `round` of `phase`,
 // and the hash_scheme marker naming which text that hash is of.
 //
@@ -523,7 +549,7 @@ func RoundSpecHash(specPath, phase string, round int) (hash, scheme string, err 
 		// Not the fallback: a snapshot that exists but cannot be read leaves
 		// "which text did this round read" unanswerable, and guessing the spec
 		// file would answer it with the very text the round may not have seen.
-		return "", "", readErr
+		return "", "", &SnapshotReadError{Path: snap, Phase: phase, Spec: specPath, Round: round, Err: readErr}
 	}
 	hash, err = SpecHash(specPath)
 	return hash, HashSchemeNoEmission, err

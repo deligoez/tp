@@ -458,12 +458,23 @@ const recordRequiredFieldsHint = "every row in the --record NDJSON carries a non
 const vanishedStateReason = "it disappeared while a round was being recorded"
 
 // exitStateError reports state-layer failures: corrupt state exits 3 with the
-// repair hint, write-lock contention exits 4 with the lock hint, and anything
+// repair hint, an unreadable round snapshot exits 3 naming the file and the
+// re-emission, write-lock contention exits 4 with the lock hint, and anything
 // else exits 3 with the raw error.
 func exitStateError(err error) {
 	var ce *engine.StateCorruptError
 	if errors.As(err, &ce) {
 		output.Error(ExitFile, ce.Error(), ce.Hint())
+		os.Exit(ExitFile)
+		return
+	}
+	// A round snapshot that cannot be read is neither corruption of the index
+	// nor a failed write, and stateWriteHint below would tell the operator to
+	// check that a healthy state directory is writable. The hint names the one
+	// file and the round to re-emit instead.
+	var snapErr *engine.SnapshotReadError
+	if errors.As(err, &snapErr) {
+		output.Error(ExitFile, snapErr.Error(), snapErr.Hint())
 		os.Exit(ExitFile)
 		return
 	}
