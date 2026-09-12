@@ -74,9 +74,10 @@ func resolveCycle(args []string) (taskFilePath, specPath string, tf *model.TaskF
 	} else {
 		// No spec argument: discover the active task file and derive the spec.
 		discovered, err := engine.DiscoverTaskFile(".", flagFile)
-		if errors.Is(err, engine.ErrMultipleTaskFiles) {
-			// Several task files: name them and --file / TP_FILE, as every
-			// other command does, rather than claiming none was found.
+		if errors.Is(err, engine.ErrMultipleTaskFiles) || errors.Is(err, engine.ErrExplicitTaskFileMissing) {
+			// Several task files, or an explicit --file / TP_FILE that is
+			// not there: name the candidates or the path, as every other
+			// command does, rather than claiming none was found.
 			output.Error(ExitFile, err.Error())
 			os.Exit(ExitFile)
 			return "", "", nil

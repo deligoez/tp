@@ -104,6 +104,30 @@ func TestDiscoverTaskFile_NotFoundAndMultipleHaveIdentity(t *testing.T) {
 	assert.Equal(t, want, err.Error())
 }
 
+// TestDiscoverTaskFile_ExplicitMissingHasIdentity pins the third failure: a
+// --file or TP_FILE path that cannot be opened. It is neither of the
+// auto-detect failures — the caller named the file, so the way out is the path,
+// not --spec and not the candidate list — and a caller tells it apart with
+// errors.Is rather than by matching the message.
+func TestDiscoverTaskFile_ExplicitMissingHasIdentity(t *testing.T) {
+	dir := t.TempDir()
+	missing := filepath.Join(dir, "missing.tasks.json")
+
+	_, err := DiscoverTaskFile(dir, missing)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrExplicitTaskFileMissing)
+	assert.NotErrorIs(t, err, ErrNoTaskFile)
+	assert.NotErrorIs(t, err, ErrMultipleTaskFiles)
+	assert.Equal(t, "task file not found: "+missing, err.Error())
+
+	t.Setenv("TP_FILE", missing)
+	_, err = DiscoverTaskFile(dir, "")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrExplicitTaskFileMissing)
+	assert.NotErrorIs(t, err, ErrNoTaskFile)
+	assert.Equal(t, "TP_FILE task file not found: "+missing, err.Error())
+}
+
 func TestResolveSpecPath(t *testing.T) {
 	tests := []struct {
 		name       string

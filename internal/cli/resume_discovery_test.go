@@ -46,6 +46,23 @@ func TestResume_SeveralTaskFilesNoArgNamesTheCandidates(t *testing.T) {
 	assert.Equal(t, statusErr, stderr, "resume reports the same discovery error as tp status")
 }
 
+// TestResume_MissingExplicitFileNamesThePath: the no-argument form discarded
+// the explicit-path failure too, answering "no task file found" when --file or
+// TP_FILE named a path that was not there. It must name that path.
+func TestResume_MissingExplicitFileNamesThePath(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	_, statusErr, statusCode := runTP(t, dir, "--file", "missing.tasks.json", "status")
+	require.Equal(t, 3, statusCode, statusErr)
+
+	_, stderr, code := runTP(t, dir, "--file", "missing.tasks.json", "resume")
+	assert.Equal(t, 3, code, stderr)
+	assert.Contains(t, stderr, "missing.tasks.json", "the error names the path it could not open")
+	assert.NotContains(t, stderr, "no task file found", "the caller named a file, so not-found-at-all is wrong")
+	assert.Equal(t, statusErr, stderr, "resume reports the same discovery error as tp status")
+}
+
 func TestResume_SpecArgumentWinsOverDiscovered(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()

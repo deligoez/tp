@@ -171,9 +171,13 @@ func addTasks(tasks []model.Task) error {
 
 	taskFilePath, err := discoverWriteTarget()
 	if err != nil {
-		// Several task files: --spec cannot help (it would collide with one
-		// or add a third), so report the candidates and --file / TP_FILE.
-		if errors.Is(err, engine.ErrMultipleTaskFiles) {
+		// Several task files, or an explicit --file / TP_FILE naming a path
+		// that is not there: --spec cannot help either case — it would
+		// collide with one of the candidates, or create a file under the
+		// spec's name rather than the one the caller asked for — so report
+		// the discovery error the read commands give, which names the
+		// candidates or the path.
+		if errors.Is(err, engine.ErrMultipleTaskFiles) || errors.Is(err, engine.ErrExplicitTaskFileMissing) {
 			output.Error(ExitFile, err.Error())
 			os.Exit(ExitFile)
 			return nil

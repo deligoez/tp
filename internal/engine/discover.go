@@ -8,13 +8,17 @@ import (
 	"strings"
 )
 
-// The two ways auto-detect fails, as sentinels so a caller tells them apart
+// The three ways discovery fails, as sentinels so a caller tells them apart
 // with errors.Is. They call for different advice: tp add offers --spec to
 // create a task file only when none exists; when several do, the way out is
-// --file or TP_FILE, and --spec would only collide with a file already there.
+// --file or TP_FILE, and --spec would only collide with a file already there;
+// and when --file or TP_FILE names a path that cannot be opened, the way out is
+// that path, which the error names — --spec would create a file under the
+// spec's name rather than the one the caller asked for.
 var (
-	ErrNoTaskFile        = errors.New("no task file found")
-	ErrMultipleTaskFiles = errors.New("multiple task files")
+	ErrNoTaskFile              = errors.New("no task file found")
+	ErrMultipleTaskFiles       = errors.New("multiple task files")
+	ErrExplicitTaskFileMissing = errors.New("task file not found")
 )
 
 // DiscoverTaskFile finds the task file in the given directory.
@@ -34,14 +38,14 @@ func DiscoverTaskFile(dir, explicit string) (string, error) {
 func DiscoverTaskFileVia(dir, explicit string) (path string, viaPointer bool, err error) {
 	if explicit != "" {
 		if _, err := os.Stat(explicit); err != nil {
-			return "", false, fmt.Errorf("task file not found: %s", explicit)
+			return "", false, fmt.Errorf("%w: %s", ErrExplicitTaskFileMissing, explicit)
 		}
 		return explicit, false, nil
 	}
 
 	if envFile := os.Getenv("TP_FILE"); envFile != "" {
 		if _, err := os.Stat(envFile); err != nil {
-			return "", false, fmt.Errorf("TP_FILE task file not found: %s", envFile)
+			return "", false, fmt.Errorf("TP_FILE %w: %s", ErrExplicitTaskFileMissing, envFile)
 		}
 		return envFile, false, nil
 	}
