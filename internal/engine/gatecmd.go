@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strings"
 )
 
@@ -116,8 +117,8 @@ func GateMissingCommand(gate, dir string, outputTail []string) string {
 			return head
 		}
 	}
-	for i := len(outputTail) - 1; i >= 0; i-- {
-		if m := shellNotFound.FindStringSubmatch(outputTail[i]); m != nil {
+	for _, o := range slices.Backward(outputTail) {
+		if m := shellNotFound.FindStringSubmatch(o); m != nil {
 			return m[1]
 		}
 	}

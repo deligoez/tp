@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -558,7 +559,9 @@ func RoundSpecHash(specPath, phase string, round int) (hash, scheme string, err 
 // ConsecutiveClean returns the length of the trailing run of clean rounds.
 func ConsecutiveClean(rounds []ReviewRound) int {
 	n := 0
-	for i := len(rounds) - 1; i >= 0; i-- {
+	// Indexed, not by value: a ReviewRound is 152 bytes and gocritic's
+	// rangeValCopy fails the gate on the copy.
+	for i := range slices.Backward(rounds) {
 		if !rounds[i].Clean {
 			break
 		}

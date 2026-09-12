@@ -23,7 +23,7 @@ type tpError struct {
 func lastJSONError(t *testing.T, stderr string) tpError {
 	t.Helper()
 	var line string
-	for _, l := range strings.Split(stderr, "\n") {
+	for l := range strings.SplitSeq(stderr, "\n") {
 		if strings.HasPrefix(strings.TrimSpace(l), "{") {
 			line = strings.TrimSpace(l)
 		}
