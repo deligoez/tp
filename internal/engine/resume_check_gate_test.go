@@ -18,6 +18,10 @@ func TestBuildNextAction_DecomposeGatesOnRegisteredChecks(t *testing.T) {
 	gated := BuildNextAction(PhaseDecompose, "spec.md", tf, nil, true)
 	require.NotNil(t, gated.Command)
 	assert.Equal(t, "tp review spec.md --status --check", *gated.Command)
+	// §9.3: a phase carrying a tp command carries the command that briefs it.
+	// The gate is read-only and idempotent, so it briefs itself.
+	require.NotNil(t, gated.BriefCommand, "a gated step carries a brief_command")
+	assert.Equal(t, *gated.Command, *gated.BriefCommand, "the same command in both fields")
 	assert.Equal(t, CheckGateClause("spec.md")+"decompose the converged spec into tasks and tp import",
 		gated.Summary, "the gate reads as it does in tp review --status")
 

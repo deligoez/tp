@@ -35,6 +35,12 @@ func TestResume_DecomposeNamesTheCheckGate(t *testing.T) {
 
 	assert.Equal(t, "tp review spec.md --status --check", na["command"],
 		"the command is the gate that runs the registered checks")
+	// §9.3 is a contract: a phase carrying a tp command carries the command
+	// that briefs it. The gate is read-only and idempotent, so it is its own
+	// brief — a unit spawned on brief_command gets the check result rather
+	// than nothing.
+	assert.Equal(t, na["command"], na["brief_command"],
+		"a gated step carries the same read-only command in both fields")
 	summary, _ := na["summary"].(string)
 	gate := strings.Index(summary, "tp review spec.md --status --check")
 	require.GreaterOrEqual(t, gate, 0, "the summary names the gate: %s", summary)

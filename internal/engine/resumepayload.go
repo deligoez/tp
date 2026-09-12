@@ -138,7 +138,9 @@ func auditRoundsOf(st *ReviewState) []ReviewRound {
 // the exact command that emits the brief for that phase's action (tp next --brief
 // for implement, tp review <spec> --round N for review, tp audit <spec> for audit),
 // so an orchestrator following next_action reaches a full brief without knowing
-// the phase. Decompose and release carry a null brief_command.
+// the phase. Release carries a null brief_command, and so does decompose
+// unless its action is the check gate, which briefs itself
+// (decomposeNextAction).
 //
 // checksRegistered says whether the resolved workflow registers at least one
 // mechanical check; it is the decompose phase's only input beside the spec
@@ -224,11 +226,17 @@ func decomposeNextAction(specPath string, checksRegistered bool) NextAction {
 	if !checksRegistered {
 		return NextAction{Summary: step, Payload: map[string]any{}}
 	}
-	gate := CheckGateCommand(specPath)
+	// brief_command is the same command: §9.3 is a contract — a phase carrying
+	// a tp command carries the command that briefs its action — and the gate
+	// is read-only and idempotent, so it is its own brief. A driver that
+	// spawns a unit on brief_command then gets the check result rather than
+	// nothing.
+	gate, brief := CheckGateCommand(specPath), CheckGateCommand(specPath)
 	return NextAction{
-		Command: &gate,
-		Summary: CheckGateClause(specPath) + step,
-		Payload: map[string]any{},
+		Command:      &gate,
+		BriefCommand: &brief,
+		Summary:      CheckGateClause(specPath) + step,
+		Payload:      map[string]any{},
 	}
 }
 
