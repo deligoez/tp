@@ -29,7 +29,14 @@ fix needs a design choice leaves this file for a decision note.
 
 - **Two specs with the same base in different directories share the ground scratch file** when
   grounded from one working directory (`x/a.md` and `y/a.md` both write `ground-a-r1.ndjson`; their
-  state directories do not collide). Test: they get different scratch names.
+  state directories do not collide, since those are per spec directory). The base in the name already
+  separates two different bases; separating two directories needs something derived from the path,
+  and that is the decision: a path-derived slug makes the same spec reached as `x/a.md`, `./x/a.md`
+  and an absolute path name three different scratch files, which `--record` then cannot find, and
+  moving the file under the per-spec state directory changes what the dirty-state classifier and
+  `--record` each treat as a round artifact, and refusing when the scratch file already on disk
+  belongs to a different spec path needs the file to say whose it is, which is a change to its own
+  format. All three cost a contract; the decision is which one.
 - **`tp run` never spawns a regression unit.** A round the panel emits with a regression prompt is
   driven without it. Whether a run should grade regression, and as which unit kind, is the open question.
 
