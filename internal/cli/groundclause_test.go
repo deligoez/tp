@@ -111,8 +111,8 @@ func TestEachCommandCarriesItsOwnSuffix(t *testing.T) {
 	const body = head + "\n"
 
 	emitted := map[string]string{
-		"review": appendClausesReview([]reviewPrompt{{Role: "r", OutputPath: "review-r1-r.ndjson", Prompt: body}})[0].Prompt,
-		"audit":  appendClausesAudit([]auditPrompt{{Role: "r", OutputPath: "audit-r1-r.ndjson", Prompt: body}})[0].Prompt,
+		"review": appendClausesReview([]reviewPrompt{{Role: "r", OutputPath: "review-spec-r1-r.ndjson", Prompt: body}})[0].Prompt,
+		"audit":  appendClausesAudit([]auditPrompt{{Role: "r", OutputPath: "audit-spec-r1-r.ndjson", Prompt: body}})[0].Prompt,
 		"ground": appendClausesGround(body),
 	}
 

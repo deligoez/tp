@@ -46,9 +46,10 @@ func emittedPrompts(t *testing.T, dir string, env []string, args ...string) []ma
 // Under TP_ROUND_DIR, tp review and tp audit emit
 // $TP_ROUND_DIR/role-<that role's id>.ndjson.part per role — the single path
 // §6.2's write allowlist grants the unit and the driver renames on exit 0 — so
-// the prompt and the allowlist name one filename rather than two. The legacy
-// <phase>-r<N>-<role>.ndjson name must be gone from the prompt entirely: a role
-// told two filenames writes the one the allowlist denies.
+// the prompt and the allowlist name one filename rather than two. The
+// cwd-relative <phase>-<base>-r<N>-<role>.ndjson name must be gone from the
+// prompt entirely: a role told two filenames writes the one the allowlist
+// denies.
 func TestRoleOutputPathIsRoundScopedUnderARun(t *testing.T) {
 	t.Parallel()
 	dir, specPath, codePath := emissionFixture(t)
@@ -74,18 +75,19 @@ func TestRoleOutputPathIsRoundScopedUnderARun(t *testing.T) {
 				body := pm["prompt"].(string)
 				assert.Contains(t, body, "Write this round's findings to: "+want,
 					"§10.4's line names the round-scoped path, not a second one")
-				assert.NotContains(t, body, tc.phase+"-r1-"+role+".ndjson",
+				assert.NotContains(t, body, tc.phase+"-spec-r1-"+role+".ndjson",
 					"the cwd-relative name must not survive anywhere in the prompt")
 			}
 		})
 	}
 }
 
-// TestRoleOutputPathIsUnchangedOutsideARun is §6.3's last sentence: outside a
-// run the emitted filename is unchanged, so the interactive loop that has always
-// collected <phase>-r<N>-<role>.ndjson in the working directory keeps working.
-// It is the arm that fails if the round-scoped path is emitted unconditionally.
-func TestRoleOutputPathIsUnchangedOutsideARun(t *testing.T) {
+// TestRoleOutputPathIsCwdRelativeOutsideARun is §6.3's last sentence: outside a
+// run the emitted filename stays cwd-relative, so the interactive loop that
+// collects <phase>-<base>-r<N>-<role>.ndjson in the working directory keeps
+// working. It is the arm that fails if the round-scoped path is emitted
+// unconditionally.
+func TestRoleOutputPathIsCwdRelativeOutsideARun(t *testing.T) {
 	t.Parallel()
 	dir, specPath, codePath := emissionFixture(t)
 
@@ -104,8 +106,8 @@ func TestRoleOutputPathIsUnchangedOutsideARun(t *testing.T) {
 			prompts := emittedPrompts(t, dir, []string{engine.EnvRoundDir + "="}, tc.args...)
 			for _, pm := range prompts {
 				role := pm["role"].(string)
-				assert.Equal(t, tc.phase+"-r1-"+role+".ndjson", pm["output_path"].(string),
-					"with no TP_ROUND_DIR in the environment the name is the one tp always emitted")
+				assert.Equal(t, tc.phase+"-spec-r1-"+role+".ndjson", pm["output_path"].(string),
+					"with no TP_ROUND_DIR in the environment the name is the cwd-relative, spec-scoped one")
 			}
 		})
 	}

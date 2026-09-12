@@ -34,18 +34,28 @@ type promptFraming struct {
 // roleOutputPath returns the file one role writes this round's findings to —
 // the emitted prompt's output_path and the path §10.4's line names in its body.
 //
-// Outside a run the name is unchanged: <phase>-r<round>-<role>.ndjson, relative
-// to wherever the operator is standing, which is what the interactive loop has
-// always collected. Inside a run TP_ROUND_DIR is set, and §6.3 puts a role's
-// findings at $TP_ROUND_DIR/role-<role>.ndjson.part — the single path the
-// reviewer and auditor agents may write, which the driver renames to the final
-// name on exit 0 — so the prompt and the write allowlist name one filename
-// rather than two. Each role is told its own id's file and no other.
-func roleOutputPath(phase string, round int, role string) string {
+// Outside a run the name is <phase>-<base>-r<round>-<role>.ndjson, relative to
+// wherever the operator is standing, which is what the interactive loop
+// collects. The spec's base is in the name for the reason it is in
+// engine.GroundScratchName: this file is not under the per-spec state
+// directory, so with the phase, the round and the role alone, two specs
+// reviewed or audited from one directory named one file per role and the
+// second panel's findings overwrote the first's with no error anywhere. The
+// base is engine.SpecBaseName, the slug ReviewStateDir names the state
+// directory by, so the scratch file and the recorded round agree about which
+// spec they belong to.
+//
+// Inside a run TP_ROUND_DIR is set, and §6.3 puts a role's findings at
+// $TP_ROUND_DIR/role-<role>.ndjson.part — the single path the reviewer and
+// auditor agents may write, which the driver renames to the final name on exit
+// 0 — so the prompt and the write allowlist name one filename rather than two.
+// The round directory is already per spec and per round, so it needs no base.
+// Each role is told its own id's file and no other.
+func roleOutputPath(phase, specPath string, round int, role string) string {
 	if roundDir := os.Getenv(engine.EnvRoundDir); roundDir != "" {
 		return engine.RoleFindingsPartPath(roundDir, role)
 	}
-	return fmt.Sprintf("%s-r%d-%s.ndjson", phase, round, role)
+	return fmt.Sprintf("%s-%s-r%d-%s.ndjson", phase, engine.SpecBaseName(specPath), round, role)
 }
 
 // renderFraming produces the framing block appended to a role prompt. It states

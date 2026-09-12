@@ -1133,7 +1133,7 @@ func buildReviewPrompts(specPath string, panel *rolePanel, elems *engine.Structu
 	}
 	inlinerDone := false
 	for i := range prompts {
-		outputPath := roleOutputPath("review", round, prompts[i].Role)
+		outputPath := roleOutputPath("review", specPath, round, prompts[i].Role)
 		prompts[i].OutputPath = outputPath
 		f := promptFraming{
 			phase:            "review",

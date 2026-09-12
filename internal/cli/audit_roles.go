@@ -410,7 +410,7 @@ func buildRolePrompt(role string, rules []string, items []ChecklistItem, files [
 // selection; every other role takes the shared arm. A role whose routed
 // checklist is empty produces no prompt and is named in skipped_roles
 // with reason no-checklist-items (§9.1).
-func generateRoleAuditPrompts(auditorRoles []model.Role, specItems []ChecklistItem, sel *engine.AuditFileSelection, specContent, claudeExcerpt string, priorByRole map[string]*auditPriorRound, round, requiredClean, consecutiveClean, maxRounds int) ([]auditPrompt, []engine.SkippedRole) {
+func generateRoleAuditPrompts(auditorRoles []model.Role, specItems []ChecklistItem, sel *engine.AuditFileSelection, specPath, specContent, claudeExcerpt string, priorByRole map[string]*auditPriorRound, round, requiredClean, consecutiveClean, maxRounds int) ([]auditPrompt, []engine.SkippedRole) {
 	prompts := make([]auditPrompt, 0, len(auditorRoles))
 	skipped := make([]engine.SkippedRole, 0)
 	// §10.7 per-role inliner: the first emitted role whose files fit whole under
@@ -446,7 +446,7 @@ func generateRoleAuditPrompts(auditorRoles []model.Role, specItems []ChecklistIt
 			requiredClean:    requiredClean,
 			consecutiveClean: consecutiveClean,
 			maxRounds:        maxRounds,
-			outputPath:       roleOutputPath("audit", round, role.ID),
+			outputPath:       roleOutputPath("audit", specPath, round, role.ID),
 			hasFiles:         len(filePaths) > 0,
 		}
 		inlinedContent := ""
