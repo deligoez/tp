@@ -3,7 +3,6 @@ package cli
 import (
 	"encoding/json"
 	"maps"
-	"path/filepath"
 	"strings"
 
 	"github.com/deligoez/tp/internal/engine"
@@ -101,7 +100,7 @@ func acceptedAuditRows(specPath string, prev *engine.ReviewRound) map[auditCarry
 		seen[key] = true
 		if ef, _ := row["evidence_file"].(string); ef != "" {
 			if changed == nil {
-				changed = filesChangedSince(filepath.Dir(specPath), prev.RecordedAt)
+				changed = filesChangedSinceRound(specPath, prev)
 			}
 			if changed[ef] {
 				continue

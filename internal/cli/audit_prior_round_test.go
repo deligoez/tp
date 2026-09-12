@@ -110,7 +110,33 @@ func TestAuditPriorRound_ChangedSinceFlag(t *testing.T) {
 		"no commit after recorded_at leaves changed_since false")
 }
 
+// TestAuditPriorRound_ChangedSinceIsMeasuredFromTheRecordCommit: once the round
+// file is committed, changed_since is measured from that record commit's parent
+// rather than from recorded_at, so a commit landing in the SAME SECOND as the
+// record does not mark an untouched evidence file changed. The Prior Round flag
+// and the acceptance carry read one helper, so they cannot disagree.
+func TestAuditPriorRound_ChangedSinceIsMeasuredFromTheRecordCommit(t *testing.T) {
+	t.Parallel()
+	dir, specPath := newAuditRepo(t)
+	commitFile(t, dir, "code.go", "add code")
+	// Every test commit is dated 2020-01-01T00:00:00Z, so recording the round at
+	// that instant puts code.go's commit inside the inclusive --since window.
+	writePriorChangedSinceRound(t, dir, "2020-01-01T00:00:00Z")
+	commitRoundFile(t, dir, carryRoundRel)
+
+	assert.Contains(t, auditPriorPrompt(t, dir, specPath),
+		`"evidence_file":"code.go","changed_since":false`,
+		"a commit sharing the record's second is not a change to code.go")
+}
+
 func auditPriorChangedSince(t *testing.T, dir, specPath, recordedAt string) string {
+	t.Helper()
+	writePriorChangedSinceRound(t, dir, recordedAt)
+	return auditPriorPrompt(t, dir, specPath)
+}
+
+// writePriorChangedSinceRound records one FAIL on code.go as audit round 1.
+func writePriorChangedSinceRound(t *testing.T, dir, recordedAt string) {
 	t.Helper()
 	state := `{"spec":"spec.md","review_rounds":[],"audit_rounds":[` +
 		`{"round":1,"findings":1,"clean":false,"recorded_at":"` + recordedAt + `",` +
@@ -118,6 +144,12 @@ func auditPriorChangedSince(t *testing.T, dir, specPath, recordedAt string) stri
 	round := `{"item_id":"file-maintainability-conventions-code","status":"FAIL",` +
 		`"role":"maintainability-conventions","evidence_file":"code.go"}` + "\n"
 	writeRecordedAuditRound(t, dir, state, round)
+}
+
+// auditPriorPrompt returns the maintainability-conventions prompt of a fresh
+// `tp audit` run over code.go.
+func auditPriorPrompt(t *testing.T, dir, specPath string) string {
+	t.Helper()
 	stdout, stderr, code := runTP(t, dir, "audit", specPath, "--affected-files", "code.go")
 	require.Equal(t, 0, code, "stderr: %s", stderr)
 	byRole := auditPromptsByRole(t, stdout)

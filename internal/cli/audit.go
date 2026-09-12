@@ -590,7 +590,7 @@ func loadAuditPriorRound(specPath string) map[string]*auditPriorRound {
 		output.Notice(fmt.Sprintf("round %d file %s is missing; skipping its rows", prior.Round, prior.File))
 		return nil
 	}
-	changedFiles := filesChangedSince(filepath.Dir(specPath), prior.RecordedAt)
+	changedFiles := filesChangedSinceRound(specPath, prior)
 	byRole := make(map[string]*auditPriorRound)
 	legacy := engine.IsLegacyRound(prior)
 	for _, row := range rows {
@@ -618,11 +618,94 @@ func loadAuditPriorRound(specPath string) map[string]*auditPriorRound {
 	return byRole
 }
 
+// filesChangedSinceRound returns the set of repo-relative paths that changed
+// since round was recorded — the changed-since basis BOTH readers of a prior
+// audit round use: the prior-round section's changed_since flag (§10.2) and the
+// acceptance carry (audit_carry.go). One helper, so the flag the auditor is
+// shown and the carry the record applies cannot disagree.
+//
+// When git tracks the round file, the delta is measured from the PARENT of the
+// commit that added it. That commit IS the record, so its parent is the tree as
+// it stood when the round was recorded. Measuring from recorded_at instead is
+// second-granular and `git log --since` is inclusive, so a commit landing in the
+// same second as the record counted as a change and an untouched evidence file
+// failed to carry.
+//
+// When git tracks no such commit — the round file is not committed, the project
+// does not commit round state at all, or git cannot answer — it falls back to
+// the recorded_at window, which is what a project without committed round state
+// has always had.
+func filesChangedSinceRound(specPath string, round *engine.ReviewRound) map[string]bool {
+	dir := filepath.Dir(specPath)
+	if base := roundRecordBase(dir, specPath, round); base != "" {
+		changed := make(map[string]bool)
+		// -c diff.external= for the same reason scripts/audit-round-prep.py sets
+		// it: under a configured external differ, `git diff` from a non-TTY child
+		// can answer near-empty, and a delta built on that carries every row.
+		for _, f := range execGitDiff(dir, "-c", "diff.external=", "diff", "--name-only", base+"..HEAD") {
+			changed[f] = true
+		}
+		return changed
+	}
+	return filesChangedSince(dir, round.RecordedAt)
+}
+
+// roundRecordBase returns the revision the round's delta is measured from, or
+// "" when git tracks no commit adding the round file (so the caller falls back
+// to recorded_at).
+//
+// The record commit is the one that first ADDED the round file — the same rule
+// scripts/audit-round-prep.py applies, `--follow` and all: a round file is
+// written again after its record (`tp audit --resolve` puts dispositions into
+// it), and a later rewrite must not move the base past the repairs a
+// disposition answers; `--follow` carries the search across a move of the round
+// directory, which is a rename and not an add. `git log` lists newest first, so
+// the oldest add is the last line.
+//
+// The base is that commit's parent. A record commit with NO parent is the
+// repository's first commit: there is no earlier tree, so the base is the empty
+// tree and every tracked path reads as added. That is the honest answer — it
+// never carries a row over code nobody re-verified.
+func roundRecordBase(dir, specPath string, round *engine.ReviewRound) string {
+	if round.File == "" {
+		return ""
+	}
+	roundFile := filepath.Join(engine.ReviewStateDir(specPath), round.File)
+	out, err := gitQuiet(dir, "log", "--follow", "--diff-filter=A", "--format=%H", "--", roundFile)
+	if err != nil {
+		return ""
+	}
+	adds := strings.Fields(out)
+	if len(adds) == 0 {
+		return ""
+	}
+	record := adds[len(adds)-1]
+	if _, err := gitQuiet(dir, "rev-parse", "--verify", "-q", record+"^"); err == nil {
+		return record + "^"
+	}
+	empty, err := gitQuiet(dir, "hash-object", "-t", "tree", "--stdin")
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(empty)
+}
+
+// gitQuiet runs git in dir and returns its stdout. Unlike execGitDiff it emits
+// no advisory: its callers read a git failure as "git cannot answer this" and
+// fall back to the recorded_at window, where a warning would only be noise.
+func gitQuiet(dir string, args ...string) (string, error) {
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	return string(out), err
+}
+
 // filesChangedSince returns the set of repo-relative paths touched by any
 // commit whose commit date is at or after since (an RFC3339 timestamp) — the
-// changed-since basis for the audit prior-round section (§10.2). Returns an
-// empty set when since is empty or git is unavailable (e.g. not a repo), so
-// the changed-since flag defaults to false rather than aborting emission.
+// fallback changed-since basis, used when git tracks no commit adding the round
+// file (filesChangedSinceRound). Returns an empty set when since is empty or
+// git is unavailable (e.g. not a repo), so the changed-since flag defaults to
+// false rather than aborting emission.
 func filesChangedSince(dir, since string) map[string]bool {
 	changed := make(map[string]bool)
 	if since == "" {
