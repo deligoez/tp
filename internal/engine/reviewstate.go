@@ -40,6 +40,16 @@ type ReviewRound struct {
 	// so changing the knob does not reach back into recorded rounds. Empty on a
 	// round recorded before v1.2.0, which is graded under the stricter `all`.
 	ConvergeOn string `json:"converge_on,omitempty"`
+	// HashScheme marks which text this round's SpecHash names, the way
+	// IDScheme marks which id scheme its rows use. Value "snapshot" when the
+	// hash is of the round's own emission snapshot — the text its prompts were
+	// emitted from; "no-emission" when no snapshot was on disk at record time,
+	// so the hash is of the spec file as it stood then and names text no prompt
+	// of this round carried. EMPTY on a round recorded before this field
+	// existed, whose hash was always the spec file's at record time: tp never
+	// rewrites a recorded round, so those keep the meaning they were written
+	// with and are read exactly as they were before this field existed.
+	HashScheme string `json:"hash_scheme,omitempty"`
 	// HarnessNote is an optional free-text note the orchestrator records per
 	// round via --harness-note (§6.2/§6.3). It is stored verbatim and is empty
 	// when the operator omitted the flag or the round predates the field. The
@@ -51,6 +61,18 @@ type ReviewRound struct {
 // IDSchemeSlug is the marker value recorded on a v0.30.0+ audit round, whose
 // rows carry stable slug ids (§10.9).
 const IDSchemeSlug = "slug"
+
+const (
+	// HashSchemeSnapshot marks a round whose spec_hash is the sha256 of the
+	// round's own emission snapshot — the text its prompts were emitted from.
+	HashSchemeSnapshot = "snapshot"
+	// HashSchemeNoEmission marks a round recorded with no snapshot on disk:
+	// nothing was emitted for it, so its spec_hash is the spec file as it
+	// stood at record time and certifies no reading of that text. Such a round
+	// records and exits 0 (reconcile.md §4) — it simply answers for no text,
+	// which is what StateStale reads the marker for.
+	HashSchemeNoEmission = "no-emission"
+)
 
 // ReviewState is the round index stored in state.json.
 type ReviewState struct {
@@ -474,6 +496,39 @@ func SpecHash(specPath string) (string, error) {
 	return fmt.Sprintf("sha256:%x", sha256.Sum256(data)), nil
 }
 
+// RoundSpecHash returns the spec_hash to record for round `round` of `phase`,
+// and the hash_scheme marker naming which text that hash is of.
+//
+// The hash is of the round's OWN emission snapshot — the bytes every prompt of
+// that round was emitted from — rather than of the spec as it stands when the
+// round is recorded. Hashing at record time let a round emitted before an edit,
+// or a round nobody emitted at all, be stamped with the edited text's hash and
+// clear staleness it had never read (BUGS.md; reconcile.md §4). The snapshot is
+// already written at emission, per round and per phase, so this adds no
+// artifact and no write. v1.2.0's re-emission guard is what makes the snapshot
+// the text the round's roles were given: re-emitting over an unrecorded round
+// whose text changed is refused, and the operator's --force over it is the one
+// declared way the bytes move (escalation discard-emission).
+//
+// A round with no snapshot on disk falls back to the spec file and does not
+// fail — the live case of a --record with no preceding emission (§4). The
+// marker is what keeps that hash from being read as text the round saw.
+func RoundSpecHash(specPath, phase string, round int) (hash, scheme string, err error) {
+	snap := filepath.Join(ReviewStateDir(specPath), snapshotFilename(phase, round))
+	data, readErr := os.ReadFile(snap) //nolint:gosec // a path built from the spec's own state dir
+	if readErr == nil {
+		return fmt.Sprintf("sha256:%x", sha256.Sum256(data)), HashSchemeSnapshot, nil
+	}
+	if !os.IsNotExist(readErr) {
+		// Not the fallback: a snapshot that exists but cannot be read leaves
+		// "which text did this round read" unanswerable, and guessing the spec
+		// file would answer it with the very text the round may not have seen.
+		return "", "", readErr
+	}
+	hash, err = SpecHash(specPath)
+	return hash, HashSchemeNoEmission, err
+}
+
 // ConsecutiveClean returns the length of the trailing run of clean rounds.
 func ConsecutiveClean(rounds []ReviewRound) int {
 	n := 0
@@ -486,14 +541,46 @@ func ConsecutiveClean(rounds []ReviewRound) int {
 	return n
 }
 
-// StateStale reports whether the current spec hash differs from the last
-// recorded round's spec_hash (the spec changed after that round). With no
-// recorded rounds nothing can be stale.
+// StateStale reports whether the current spec hash differs from the spec_hash
+// of the last recorded round that read text (the spec changed after that
+// round). With no recorded rounds nothing can be stale.
+//
+// A round marked HashSchemeNoEmission cannot answer for the current text:
+// nothing was emitted for it, so it read none, and letting it answer is what
+// made recording an empty file with no emission clear spec-stale (BUGS.md).
+// The round still records; the reading it certifies is the one the round
+// before it did. A round recorded before the marker existed is NOT skipped —
+// its stored hash keeps the meaning it was written with, the spec as it stood
+// at its record time, and is compared exactly as before.
+//
+// When NO round of the phase ever read text — a whole history recorded by hand
+// with no emission, which the fixtures in this repository do — there is no
+// reading to compare with, so the comparison falls back to the last recorded
+// round's stored hash: the answer tp gave before this marker existed. It is
+// the best evidence available, and it keeps an edit after the last record
+// visible rather than reporting a spec nothing has read as fresh. The cost is
+// that in such a history a hand --record still clears staleness, which no
+// round tp can see has read anything.
 func StateStale(rounds []ReviewRound, currentHash string) bool {
 	if len(rounds) == 0 {
 		return false
 	}
-	return rounds[len(rounds)-1].SpecHash != currentHash
+	latest := latestRoundThatReadText(rounds)
+	if latest == nil {
+		latest = &rounds[len(rounds)-1]
+	}
+	return latest.SpecHash != currentHash
+}
+
+// latestRoundThatReadText returns the most recently recorded round whose
+// spec_hash names text that round was given, or nil when no round does.
+func latestRoundThatReadText(rounds []ReviewRound) *ReviewRound {
+	for i := len(rounds) - 1; i >= 0; i-- {
+		if rounds[i].HashScheme != HashSchemeNoEmission {
+			return &rounds[i]
+		}
+	}
+	return nil
 }
 
 // RolesStale reports whether the current corpus hash differs from the latest

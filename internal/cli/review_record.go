@@ -161,6 +161,14 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 		// it means, stays additive.
 		var rewrite bool
 		round, rewrite = engine.RecordRound(len(st.ReviewRounds))
+		// The round's own hash, not the spec's as it stands: it names the text
+		// this round's prompts were emitted from, which is known only once the
+		// round number is (reconcile.md §4). specHash above stays the CURRENT
+		// text, which is what the payload's staleness compares against.
+		roundHash, hashScheme, hashErr := engine.RoundSpecHash(specPath, engine.PhaseReview, round)
+		if hashErr != nil {
+			return hashErr
+		}
 		fileName := fmt.Sprintf("review-round-%d.ndjson", round)
 		// Round file first, index entry second
 		if writeErr := os.WriteFile(filepath.Join(engine.ReviewStateDir(specPath), fileName), data, 0o600); writeErr != nil {
@@ -172,7 +180,8 @@ func runReviewRecord(specPath, recordPath, harnessNote string) error {
 			Clean:       clean,
 			RecordedAt:  time.Now().UTC().Format(time.RFC3339),
 			File:        fileName,
-			SpecHash:    specHash,
+			SpecHash:    roundHash,
+			HashScheme:  hashScheme,
 			RolesHash:   rolesHash,
 			HarnessNote: harnessNote,
 		}

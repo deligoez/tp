@@ -116,7 +116,7 @@ func runAuditRecord(specPath, recordPath, harnessNote string) error {
 		return nil
 	}
 
-	st, round, roundRolesHash, lockErr := recordAuditRoundEntry(specPath, data, findings, clean, specHash, harnessNote, wfPre.AuditConvergeOn)
+	st, round, roundRolesHash, lockErr := recordAuditRoundEntry(specPath, data, findings, clean, harnessNote, wfPre.AuditConvergeOn)
 	if lockErr != nil {
 		exitStateError(lockErr)
 		return nil
@@ -219,7 +219,7 @@ func auditSignalFields(result map[string]any, specPath string, rounds []engine.R
 // §2.4's condition 5 can compare the stored hash against the value this one
 // computation produced instead of hashing the corpus a second time on the
 // --record path.
-func recordAuditRoundEntry(specPath string, data []byte, findings int, clean bool, specHash, harnessNote, convergeOn string) (st *engine.ReviewState, round int, rolesHash string, err error) {
+func recordAuditRoundEntry(specPath string, data []byte, findings int, clean bool, harnessNote, convergeOn string) (st *engine.ReviewState, round int, rolesHash string, err error) {
 	// Auditor corpus hash at record time (§9.2), stored on the round entry.
 	rolesHash, _ = engine.ComputeRolesHash(filepath.Dir(specPath), engine.PhaseAuditors)
 	err = engine.WithReviewStateLock(specPath, func() error {
@@ -245,6 +245,13 @@ func recordAuditRoundEntry(specPath string, data []byte, findings int, clean boo
 		// applies: idempotent on TP_ROUND, additive by hand.
 		var rewrite bool
 		round, rewrite = engine.RecordRound(len(st.AuditRounds))
+		// The same rule the review recorder applies (reconcile.md §4, both
+		// phases): the stamped hash is of this round's own emission snapshot —
+		// snapshot-audit-round-N.md — and not of the spec as it stands now.
+		roundHash, hashScheme, hashErr := engine.RoundSpecHash(specPath, engine.PhaseAudit, round)
+		if hashErr != nil {
+			return hashErr
+		}
 		fileName := fmt.Sprintf("audit-round-%d.ndjson", round)
 		if writeErr := os.WriteFile(filepath.Join(engine.ReviewStateDir(specPath), fileName), data, 0o600); writeErr != nil {
 			return writeErr
@@ -255,7 +262,8 @@ func recordAuditRoundEntry(specPath string, data []byte, findings int, clean boo
 			Clean:       clean,
 			RecordedAt:  time.Now().UTC().Format(time.RFC3339),
 			File:        fileName,
-			SpecHash:    specHash,
+			SpecHash:    roundHash,
+			HashScheme:  hashScheme,
 			RolesHash:   rolesHash,
 			IDScheme:    engine.IDSchemeSlug,
 			ConvergeOn:  convergeOn,
