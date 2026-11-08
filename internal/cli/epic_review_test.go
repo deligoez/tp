@@ -79,3 +79,30 @@ func TestEpicReview_BothSliceFlagsOrNeitherIsAUsageError(t *testing.T) {
 	assert.True(t, os.IsNotExist(err), "a usage error creates no state directory")
 }
 
+// TestEpicReview_BuiltInRolesRunUntilTheDirectoryReplacesThem is §9 row 22:
+// three prompts named by the built-in roles with no .tp/epic-reviewers/, and
+// one prompt by the one role file once the directory holds it — never merged.
+func TestEpicReview_BuiltInRolesRunUntilTheDirectoryReplacesThem(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChain)
+
+	out := runEpicReview(t, dir, "--epic", "b")
+	assert.Equal(t, []string{"dod-satisfiability", "why-auditor", "phase-economist"}, promptRoles(&out))
+	assert.Equal(t, []string{"epic:b"}, out.Units)
+	assert.Equal(t, []string{"a", "c"}, out.Context)
+	for _, p := range out.Prompts {
+		assert.Contains(t, p.Prompt, "epic: b\n", "%s asks b's block", p.Role)
+		assert.Contains(t, p.Prompt, "epic: a\n", "%s carries a as context", p.Role)
+		assert.NotContains(t, p.Prompt, "epic: d\n", "%s carries no block for d", p.Role)
+		assert.NotEmpty(t, p.OutputPath)
+	}
+
+	rolesDir := filepath.Join(dir, ".tp", "epic-reviewers")
+	require.NoError(t, os.Mkdir(rolesDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(rolesDir, "edge-reader.json"),
+		[]byte(`{"id": "edge-reader", "title": "Edge reader", "instructions": "Read every edge."}`), 0o600))
+
+	out = runEpicReview(t, dir, "--epic", "b")
+	assert.Equal(t, []string{"edge-reader"}, promptRoles(&out))
+}
+
