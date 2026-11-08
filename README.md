@@ -366,6 +366,17 @@ Every rule identifier tp can put in a `findings[].rule` field, and the command t
 | `coverage` | `tp validate` | error/warning | Wrong `total_sections`, unmapped sections, coverage arithmetic that does not add up (error); spec missing or unparseable (warning) |
 | `section-anchor` | `tp validate` | warning | A `source_sections` entry that matches no heading, or is ambiguous between several |
 | `line-coverage` | `tp validate` | warning/info | Uncovered spec lines, unusable or invalid `source_lines` (warning); the "…and N more gap(s)" continuation (info) |
+| `cycle` | `tp epic lint` | error | The epic dependency graph has a cycle; one finding per strongly connected component |
+| `dangling-reference` | `tp epic lint` | error | A `depends_on` id, a gate member or deferrable, or a `provided_by` names no epic; a `gates` key names no milestone |
+| `duplicate-name` | `tp epic lint` | error | An epic id or a milestone name appears twice |
+| `unknown-key` | `tp epic lint` | error | A key outside the epic graph file's schema |
+| `missing-why` | `tp epic lint` | error | An edge has no `why`, or one that is empty once trimmed |
+| `unknown-milestone` | `tp epic lint` | error | An epic's `milestone` is absent or in no track |
+| `later-milestone-dependency` | `tp epic lint` | error | An epic depends on one in a later milestone of the same track; edges across tracks are free |
+| `gate-member-outside-milestone` | `tp epic lint` | error | A gate's member is not in that milestone |
+| `unprovided-tag-check` | `tp epic lint` | error | An epic carries a tag whose `provided_by` is not in its transitive dependencies; the provider itself is exempt |
+| `no-dependencies` | `tp epic lint` | warning | An epic outside the first milestone of its track has no dependencies |
+| `thin-why` | `tp epic lint` | warning | A `why`, trimmed and case-folded, is non-empty and contained in the target epic's id or title |
 
 `tp import` runs the same task-file checks as `tp validate`, so it emits that half of the table too.
 
