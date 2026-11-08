@@ -491,6 +491,33 @@ it with the numbers above in front of you, per cycle, never as a standing repo d
 exits 2 before any prompt is emitted and before any state is written — so `--record`, `--status`,
 `--merge` and the rest are unaffected, and a refused run leaves no `.tp-review/<spec>/` behind.
 
+## Workflow E: Epic graph (plan above the spec, v1.3.0)
+
+The input is a project's plan of epics, kept in `.tp/epics.json` beside `config.json` and committed
+like it. The file is primary: tp lints, reviews and writes it, and `tp epic export --md` prints the
+table a prose document embeds. Build it one topic at a time, each topic through five steps:
+
+1. **Interview the topic** — its milestones, the epics in them, and for each edge *why* that
+   dependency exists. `id`s stay the project's own; `title`, `acceptance` and `why` keep their
+   language.
+2. **`tp epic set milestones='<json>'`** — the tracks, each an ordered list of milestone names (and
+   `tp epic set gates=<json>` / `tag_checks=<json>` when the topic has them). This creates an absent
+   file.
+3. **`tp epic add --bulk <ndjson>`** — the topic's epics, one per line, every row or none. A write
+   whose after-state holds a lint error the before-state did not exits 1 and writes nothing, so a
+   refused batch names exactly what to fix.
+4. **`tp epic lint`** — read the warnings (`no-dependencies`, `thin-why`) the writers do not refuse;
+   exit 0 means no error-severity finding.
+5. **`tp epic review --milestone <m>` (or `--epic <id>`) over the touched slice** — spawn one
+   sub-agent per role prompt, merge their rows into one file, `--record` it, fix the graph or
+   `--resolve` each finding, and repeat until `tp epic review <slice> --status --check` exits 0.
+   Unchanged units carry from round to round, so a round after a small edit asks only what moved.
+
+Then take the next topic. Every writer (`add`, `set`, `remove`, `import`) and `--record` exits 2
+under `TP_UNATTENDED`: changing the plan is the operator's, so a unit that finds the need records it
+with `tp escalate --decision other`. The file's schema, the lint rules, the state directory and the
+exit codes are in [REFERENCE.md](REFERENCE.md).
+
 ## Reset-native workflow & commit strategy (v0.28.0)
 
 Every unit — a review round, decomposition, one task, one audit round — is designed to run in a **fresh context**; tp is the durable state machine between resets. The reset is the orchestrator's job (a CLI cannot clear its caller's context); tp guarantees resumability.
