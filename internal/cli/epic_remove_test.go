@@ -66,3 +66,23 @@ func TestEpicRemove_DependedOnEpicNeedsForceWhichDropsItsEdgesAndGates(t *testin
 	assert.Zero(t, out.Errors, "the file lints clean after the forced remove")
 }
 
+// TestEpicRemove_ForceRefusesATagCheckProvider is D8: --force does not remove
+// an epic a tag_checks entry names as provider, and writes nothing.
+func TestEpicRemove_ForceRefusesATagCheckProvider(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{
+  "version": 1,
+  "milestones": [["A"]],
+  "tag_checks": {"ui": {"provided_by": "p"}},
+  "epics": [
+    {"id": "p", "title": "P", "milestone": "A"}
+  ]
+}
+`)
+	before := readEpicGraphFile(t, dir)
+
+	_, stderr, code := runTP(t, dir, "epic", "remove", "p", "--force")
+	require.Equal(t, 1, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "ui", "the refusal names the tag check")
+	assert.Equal(t, before, readEpicGraphFile(t, dir), "a refused remove writes nothing")
+}
