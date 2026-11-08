@@ -15,6 +15,11 @@ import (
 // epicRecordRowHint answers a findings file tp epic review --record refused.
 const epicRecordRowHint = "fix every line the message names: each row carries severity, finding, location and evidence, and location is epic:<id> for a unit of the slice or gate:<m> for its gate unit"
 
+// epicRecordFileHint answers an unreadable --record path. The shared
+// recordFileMissingHint names the reviewers'/auditors' results file and rules
+// out a spec or task file, none of which tp epic review takes.
+const epicRecordFileHint = "check the --record path — it takes the epic review findings NDJSON, one row per finding with severity, finding, location (epic:<id> or gate:<m>) and evidence"
+
 // epicRecordResult is tp epic review --record's payload.
 type epicRecordResult struct {
 	StateDir   string `json:"state_dir"`
@@ -36,7 +41,7 @@ func runEpicReviewRecord(key engine.EpicSliceKey, recordPath string) {
 	refuseEpicReviewAtCap(&run)
 	data, err := os.ReadFile(recordPath) //nolint:gosec // the caller names the findings file
 	if err != nil {
-		output.Error(ExitFile, fmt.Sprintf("cannot read findings file: %s: %v", recordPath, err), recordFileMissingHint)
+		output.Error(ExitFile, fmt.Sprintf("cannot read findings file: %s: %v", recordPath, err), epicRecordFileHint)
 		os.Exit(ExitFile)
 	}
 	findings, problems := epicRecordProblems(data, run.all)
