@@ -56,6 +56,7 @@ func newEpicReviewCmd() *cobra.Command {
 	cmd.Flags().String("milestone", "", "Review every epic of this milestone, plus its gate")
 	cmd.Flags().String("epic", "", "Review this one epic")
 	cmd.Flags().String("role", "", "Emit only this role's prompt")
+	cmd.Flags().String("record", "", "Record this NDJSON findings file as the slice's next round")
 	return cmd
 }
 
@@ -63,6 +64,11 @@ func newEpicReviewCmd() *cobra.Command {
 // slice flags is a usage error decided before anything is read or written.
 func runEpicReview(cmd *cobra.Command, _ []string) error {
 	key := epicReviewSliceKey(cmd)
+	if cmd.Flags().Changed("record") {
+		recordPath, _ := cmd.Flags().GetString("record")
+		runEpicReviewRecord(key, recordPath)
+		return nil
+	}
 	run := loadEpicReviewRun(key)
 	roles, err := engine.ResolveEpicRoleCorpus(filepath.Dir(run.tpDir))
 	if err != nil {
