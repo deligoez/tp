@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.3.0.md",
   "created_at": "2026-11-08T20:45:28.723149Z",
-  "updated_at": "2026-11-08T21:59:32.239254Z",
+  "updated_at": "2026-11-08T22:02:37.923874Z",
   "workflow": {
     "review_max_rounds": 3,
     "audit_max_rounds": 3
@@ -521,7 +521,7 @@
       "id": "epic-review-state-dir",
       "title": "Hash slice keys into state directories",
       "description": "engine: each slice's state directory is .tp/epic-review/\u003clowercase hex hash of the slice key\u003e, where the key distinguishes kind and value; round files and snapshots live there (D13).",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "review"
@@ -535,11 +535,21 @@
         "## 5. `tp epic review`",
         "## 9. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-08T21:59:48.717501Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-08T22:02:37.891899Z",
+      "closed_reason": "- Section 9 row 14 with D13: engine.EpicReviewStateDir (internal/engine/epicstatedir.go) names a slice's directory .tp/epic-review/\u003clowercase hex SHA-256 of kind+NUL+value\u003e, so --milestone xyz and --epic xyz get two distinct directories, neither containing the id, verified by TestEpicReviewStateDir_MilestoneAndEpicOfOneNameNeverShare (internal/engine/epicstatedir_test.go), which failed against an id-text stub first; the derivation takes only the key, so the fixture is the key xyz rather than a full graph (smallest reading of D13)\n- An epic id ../x yields a lowercase-hex direct child of .tp/epic-review/, verified by TestEpicReviewStateDir_PathLikeIDStaysUnderTheStateRoot (internal/engine/epicstatedir_test.go)",
+      "gate_passed_at": "2026-11-08T22:02:37.891899Z",
+      "commit_sha": "7e933255",
+      "commit_shas": [
+        "7e933255",
+        "70a2e8c6",
+        "7b25c097"
+      ],
+      "commit_files": [
+        "internal/engine/epicstatedir.go",
+        "internal/engine/epicstatedir_test.go"
+      ]
     },
     {
       "id": "epic-graph-role-corpus",
