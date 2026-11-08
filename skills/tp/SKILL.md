@@ -670,6 +670,8 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp epic set <milestones\|gates\|tag_checks>=<json>` | Replace that whole top-level object, creating an absent file; the same lint rule applies |
 | `tp epic remove <id>` | Remove epic `<id>` from `.tp/epics.json` under its lock; prints `{file, epics}`. An epic another epic depends on exits 1 naming the dependents and writes nothing; an absent epic exits 4 |
 | `tp epic remove <id> --force` | Also drop the edges into it and its gate memberships (`members` and `deferrable`); an epic a `tag_checks` entry names as provider is refused even so (exit 1, writes nothing) — repoint the check with `tp epic set tag_checks=<json>` first |
+| `tp epic import <file>` | Replace `.tp/epics.json` with `<file>`, a graph in the file's own shape (keys outside it exit 2), under its lock, creating an absent file; prints `{file, epics, findings}`. The payload is written whatever lint errors it holds and they are reported in `findings`; a file that already holds epics exits 1 and writes nothing |
+| `tp epic import <file> --force` | Replace a file that already holds epics |
 
 ### Data
 | Command | Purpose |
