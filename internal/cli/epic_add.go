@@ -44,6 +44,7 @@ func newEpicAddCmd() *cobra.Command {
 // runEpicAdd implements tp epic add (spec/1.3.0.md §3).
 func runEpicAdd(cmd *cobra.Command, args []string) error {
 	fenceEpicWrite("tp epic add")
+	refuseTwoEpicInputs(cmd, args)
 	bulk, _ := cmd.Flags().GetString("bulk")
 	var epics []model.Epic
 	if bulk != "" {
@@ -65,6 +66,30 @@ func runEpicAdd(cmd *cobra.Command, args []string) error {
 		return nil
 	})
 	return nil
+}
+
+// refuseTwoEpicInputs exits 2 when more than one of the argument, --stdin and
+// --bulk is given: reading one would silently drop the other epic.
+func refuseTwoEpicInputs(cmd *cobra.Command, args []string) {
+	stdin, _ := cmd.Flags().GetBool("stdin")
+	bulk, _ := cmd.Flags().GetString("bulk")
+	sources := []struct {
+		on   bool
+		name string
+	}{
+		{len(args) > 0, "an epic JSON argument"},
+		{stdin, "--stdin"},
+		{bulk != "", "--bulk"},
+	}
+	for i := range sources {
+		for j := i + 1; j < len(sources); j++ {
+			if sources[i].on && sources[j].on {
+				output.Error(ExitUsage, sources[i].name+" cannot be combined with "+sources[j].name,
+					"pass the epic exactly one way: as an argument, via --stdin, or as --bulk <ndjson>")
+				os.Exit(ExitUsage)
+			}
+		}
+	}
 }
 
 // decodeEpicArg reads the single epic from the argument or stdin; invalid
