@@ -118,6 +118,31 @@ func TestEpicGraph_UnknownKeysCarryTheirPaths(t *testing.T) {
 	}, unknown)
 }
 
+// TestEpicGraph_NestedUnknownKeysCarryTheirPaths: §2 bounds every object of the
+// schema, so a key inside a gate, a tag check or a dependency edge is as
+// unknown as one at the top level; a check of the top level and the epics
+// alone would return none of these.
+func TestEpicGraph_NestedUnknownKeysCarryTheirPaths(t *testing.T) {
+	tpDir := epicGraphDir(t, `{
+  "version": 1,
+  "milestones": [["A"]],
+  "gates": {"A": {"members": ["a"], "extra": 1}},
+  "tag_checks": {"ui": {"provided_by": "a", "command": "x"}},
+  "epics": [
+    {"id": "a", "title": "A", "milestone": "A"},
+    {"id": "b", "title": "B", "milestone": "A", "depends_on": [{"id": "a", "why": "b reads a", "weight": 2}]}
+  ]
+}`)
+
+	_, unknown, err := LoadEpicGraph(tpDir)
+	require.NoError(t, err)
+	assert.Equal(t, []EpicGraphUnknownKey{
+		{Path: "gates.A.extra", Key: "extra"},
+		{Path: "tag_checks.ui.command", Key: "command"},
+		{Path: "epics[1].depends_on[0].weight", Key: "weight", EpicID: "b"},
+	}, unknown)
+}
+
 func TestEpicGraph_MissingFileIsNotAParseError(t *testing.T) {
 	_, _, err := LoadEpicGraph(epicGraphDir(t, ""))
 	require.Error(t, err)
