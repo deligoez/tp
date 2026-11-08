@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.3.0.md",
   "created_at": "2026-11-08T20:45:28.723149Z",
-  "updated_at": "2026-11-08T21:31:29.463013Z",
+  "updated_at": "2026-11-08T21:38:17.67075Z",
   "workflow": {
     "review_max_rounds": 3,
     "audit_max_rounds": 3
@@ -275,7 +275,7 @@
       "id": "epic-add-command",
       "title": "Add the tp epic add writer",
       "description": "`tp epic add \u003cjson\u003e|--stdin|--bulk`: create an absent file, per-file lock, refuse a new error (exit 1, nothing written), report `file`; a bulk row with an existing id replaces it. SKILL.md inventory rows.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "writer"
@@ -289,11 +289,31 @@
         "## 3. The writers",
         "## 9. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-08T21:31:51.875562Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-08T21:38:17.62326Z",
+      "closed_reason": "- Section 9 row 1: tp epic add (internal/cli/epic_add.go over engine.UpdateEpicGraph in internal/engine/epicwrite.go) lints the after-state before writing under the epics.json file lock; an added edge without why exits 1 naming missing-why and the file stays byte-identical, verified by TestEpicAdd_EdgeWithoutWhyIsRefusedAndWritesNothing (internal/cli/epic_add_test.go)\n- Section 9 row 2: the refusal compares errors with engine.NewEpicErrors, so on a hand-written file holding a -\u003e absent z, add c -\u003e b exits 0 (printing {file, epics}) and add e -\u003e absent y exits 1 naming dangling-reference [e, y] with the file unchanged, verified by TestEpicAdd_PreExistingErrorDoesNotBlockButANewOneDoes\n- Section 9 row 20 second half: with --bulk a row whose id the file holds replaces that epic in place (engine.AddEpics replace mode), so two --bulk calls with id x leave one epic titled Second, verified by TestEpicAdd_BulkRowWithAnExistingIDReplacesIt; SKILL.md inventory rows, README command index and the pinned flag surface (nongoals_surface_test.go) updated\n- Smallest readings chosen: a non-bulk add of an id the file holds is refused as a new duplicate-name; payload keys outside the epic schema exit 2; keys outside the schema already in the file are not carried into a written file (the typed model drops them), so the after-state is linted without them; the TP_UNATTENDED fence is left to epic-writers-unattended-fence",
+      "gate_passed_at": "2026-11-08T21:38:17.62326Z",
+      "commit_sha": "6565299a",
+      "commit_shas": [
+        "6565299a",
+        "6622016b",
+        "99f3739b",
+        "c90bc0d0",
+        "d500d37e",
+        "3ea9a058",
+        "25a22725",
+        "1834f026"
+      ],
+      "commit_files": [
+        "README.md",
+        "internal/cli/epic.go",
+        "internal/cli/epic_add.go",
+        "internal/cli/epic_add_test.go",
+        "internal/cli/nongoals_surface_test.go",
+        "internal/engine/epicwrite.go",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "epic-set-command",
