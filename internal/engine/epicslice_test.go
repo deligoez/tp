@@ -62,3 +62,15 @@ func TestEpicReviewSlice_EpicAsksItselfWithNeighboursAsContext(t *testing.T) {
 	assert.NotContains(t, s.Context[1].Block, "D step", "d's own block never appears")
 }
 
+func TestEpicReviewSlice_EditingAWhyChangesTheSourceAndItsDependents(t *testing.T) {
+	before := unitHashes(t, epicChainGraph())
+	g := epicChainGraph()
+	g.Epics[1].DependsOn[0].Why = "b needs c's schema"
+	after := unitHashes(t, g)
+
+	assert.NotEqual(t, before["epic:a"], after["epic:a"], "a's hash covers b's block")
+	assert.NotEqual(t, before["epic:b"], after["epic:b"])
+	assert.Equal(t, before["epic:c"], after["epic:c"])
+	assert.Equal(t, before["epic:d"], after["epic:d"])
+}
+
