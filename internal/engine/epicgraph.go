@@ -20,8 +20,9 @@ const EpicGraphFile = "epics.json"
 // is distinct from a parse error, which is a *MalformedConfigError.
 var ErrEpicGraphNotFound = errors.New("epic graph not found")
 
-// knownEpicGraphKeys and knownEpicKeys are this release's schema; any other
-// key is returned to the caller for the lint to report.
+// knownEpicGraphKeys, knownEpicKeys, knownEpicGateKeys, knownEpicTagCheckKeys
+// and knownEpicDepKeys are this release's schema; any other key is returned
+// to the caller for the lint to report.
 var (
 	knownEpicGraphKeys = map[string]bool{
 		"version": true, "milestones": true, "gates": true, "tag_checks": true, "epics": true,
@@ -29,11 +30,15 @@ var (
 	knownEpicKeys = map[string]bool{
 		"id": true, "title": true, "milestone": true, "tags": true, "depends_on": true, "acceptance": true,
 	}
+	knownEpicGateKeys     = map[string]bool{"members": true, "deferrable": true}
+	knownEpicTagCheckKeys = map[string]bool{"provided_by": true}
+	knownEpicDepKeys      = map[string]bool{"id": true, "why": true}
 )
 
 // EpicGraphUnknownKey is a key outside the schema. Path locates it
-// ("owner" at the top level, "epics[1].trigger" on an epic); EpicID is the
-// carrying epic's id, empty at the top level.
+// ("owner" at the top level, "gates.A.extra" in a gate, "epics[1].trigger" on
+// an epic, "epics[1].depends_on[0].weight" on an edge); EpicID is the
+// carrying epic's id, empty outside the epics.
 type EpicGraphUnknownKey struct {
 	Path   string
 	Key    string
@@ -42,8 +47,9 @@ type EpicGraphUnknownKey struct {
 
 // LoadEpicGraph reads tpDir/epics.json. A missing file wraps
 // ErrEpicGraphNotFound; an unreadable or unparsable one is a
-// *MalformedConfigError. Unknown top-level and per-epic keys are returned with
-// their paths, top-level first, then by epic index, each group sorted by key.
+// *MalformedConfigError. Unknown keys are returned with their paths: the top
+// level, then each gate and each tag check by sorted name, then each epic by
+// index with its edges after it, each object's keys sorted.
 func LoadEpicGraph(tpDir string) (*model.EpicGraph, []EpicGraphUnknownKey, error) {
 	path := filepath.Join(tpDir, EpicGraphFile)
 	data, err := os.ReadFile(path)
@@ -57,22 +63,43 @@ func LoadEpicGraph(tpDir string) (*model.EpicGraph, []EpicGraphUnknownKey, error
 	if err := json.Unmarshal(data, &g); err != nil {
 		return nil, nil, &MalformedConfigError{Path: path, Err: err}
 	}
-	// The typed parse above already proved both shapes, so these cannot fail.
+	// The typed parse above already proved every shape, so these cannot fail.
 	var top map[string]json.RawMessage
 	_ = json.Unmarshal(data, &top)
-	var epics []map[string]json.RawMessage
-	if rawEpics, ok := top["epics"]; ok {
-		_ = json.Unmarshal(rawEpics, &epics)
-	}
 	unknown := unknownKeys(top, knownEpicGraphKeys, "", "")
+	unknown = append(unknown, unknownNamedKeys(top["gates"], knownEpicGateKeys, "gates.")...)
+	unknown = append(unknown, unknownNamedKeys(top["tag_checks"], knownEpicTagCheckKeys, "tag_checks.")...)
+	var epics []map[string]json.RawMessage
+	_ = json.Unmarshal(top["epics"], &epics)
 	for i, e := range epics {
 		var id string
-		if raw, ok := e["id"]; ok {
-			_ = json.Unmarshal(raw, &id)
+		_ = json.Unmarshal(e["id"], &id)
+		prefix := fmt.Sprintf("epics[%d].", i)
+		unknown = append(unknown, unknownKeys(e, knownEpicKeys, prefix, id)...)
+		var deps []map[string]json.RawMessage
+		_ = json.Unmarshal(e["depends_on"], &deps)
+		for j, d := range deps {
+			unknown = append(unknown, unknownKeys(d, knownEpicDepKeys, fmt.Sprintf("%sdepends_on[%d].", prefix, j), id)...)
 		}
-		unknown = append(unknown, unknownKeys(e, knownEpicKeys, fmt.Sprintf("epics[%d].", i), id)...)
 	}
 	return &g, unknown, nil
+}
+
+// unknownNamedKeys returns the unknown keys of each object in the name-keyed
+// map raw (gates, tag_checks), by sorted name; an absent map holds none.
+func unknownNamedKeys(raw json.RawMessage, known map[string]bool, prefix string) []EpicGraphUnknownKey {
+	var objs map[string]map[string]json.RawMessage
+	_ = json.Unmarshal(raw, &objs)
+	names := make([]string, 0, len(objs))
+	for name := range objs {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	var out []EpicGraphUnknownKey
+	for _, name := range names {
+		out = append(out, unknownKeys(objs[name], known, prefix+name+".", "")...)
+	}
+	return out
 }
 
 // unknownKeys returns obj's keys outside known, sorted, each prefixed into a path.
