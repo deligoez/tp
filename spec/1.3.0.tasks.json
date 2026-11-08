@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.3.0.md",
   "created_at": "2026-11-08T20:45:28.723149Z",
-  "updated_at": "2026-11-08T22:02:37.923874Z",
+  "updated_at": "2026-11-08T22:10:14.073977Z",
   "workflow": {
     "review_max_rounds": 3,
     "audit_max_rounds": 3
@@ -599,7 +599,7 @@
       "id": "epic-review-emit",
       "title": "Emit tp epic review prompts per role",
       "description": "`tp epic review --milestone|--epic` (exactly one, else exit 2): one prompt per graph role with asked blocks and context; lint errors over the whole file as mechanical_checks and mechanized_classes; --role narrowing; writes the snapshot. Inventory rows.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "review"
@@ -615,11 +615,33 @@
         "## 5. `tp epic review`",
         "## 9. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-08T22:02:53.80682Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-08T22:10:14.027606Z",
+      "closed_reason": "- tp epic review (internal/cli/epic_review.go, internal/cli/epic_review_prompt.go, wired in internal/cli/epic.go) decides the slice from --milestone/--epic before reading or writing anything; neither or both exits 2 and .tp/epic-review/ is never created, verified by TestEpicReview_BothSliceFlagsOrNeitherIsAUsageError (internal/cli/epic_review_test.go; it read red only as an unknown command before the command existed, so the exit-2 path is the new code)\n- Section 9 row 22: over the chain with --epic b and no .tp/epic-reviewers/ the emission carries three prompts named dod-satisfiability, why-auditor, phase-economist (units [epic:b], context [a, c], no block for d); after one role file is written into the directory it carries exactly that one prompt, verified by TestEpicReview_BuiltInRolesRunUntilTheDirectoryReplacesThem\n- engine.EpicMechanicalChecks (internal/engine/epicreview.go) runs every error rule over the whole file at emission as mechanical_checks {class, ran, passed, findings}; with a separate cycle x \u003c-\u003e y outside --epic b the emission still exits 0, cycle reads passed false, and all nine error slugs are in mechanized_classes and in each prompt's do-not-report sentence, verified by TestEpicReview_LintErrorsAreMechanicalChecksWithheldFromThePrompts; --role reuses filterByRole (TestEpicReview_RoleNarrowsTheEmissionToOnePrompt); SKILL.md inventory, README index and the nongoals surface baseline carry the three flags\n- Smallest readings: every unit is asked (carry is epic-review-carry's); round is one past the last consecutive round-\u003cn\u003e.ndjson in the state dir and the emission writes snapshot-round-\u003cn\u003e.json of unit hashes there by atomic rename; output_path is cwd-relative epic-review-\u003c12 hex of state dir\u003e-r\u003cn\u003e-\u003crole\u003e.ndjson (the role part file under TP_ROUND_DIR); an absent epic or milestone exits 4",
+      "gate_passed_at": "2026-11-08T22:10:14.027606Z",
+      "commit_sha": "93406d18",
+      "commit_shas": [
+        "93406d18",
+        "3ffb96cd",
+        "a6172e5c",
+        "08a286e0",
+        "5f9aaced",
+        "60f988e5",
+        "8e6aa280",
+        "3b0c6d1a",
+        "10e724e8"
+      ],
+      "commit_files": [
+        "README.md",
+        "internal/cli/epic.go",
+        "internal/cli/epic_review.go",
+        "internal/cli/epic_review_prompt.go",
+        "internal/cli/epic_review_test.go",
+        "internal/cli/nongoals_surface_test.go",
+        "internal/engine/epicreview.go",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "epic-review-carry",
