@@ -664,6 +664,8 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp validate --project` | Cross-spec workflow drift (informational; `--strict` → exit 1) |
 | `tp epic lint` | Lint `.tp/epics.json` and write nothing: `{errors, warnings, findings[]}`, each finding `{rule, severity, epics, message}`; exit 0 with no error-severity finding, 1 with one, 3 with no graph file. The rules are in README.md's lint rule table |
 | `tp epic export --md` | Print `.tp/epics.json` as one Markdown table per milestone, in track order — columns id, title, tags, depends on (`id: why`, `; `-separated) — and write nothing; epics in no track's milestone follow in their own tables. Exit 2 without `--md`, 3 with no graph file |
+| `tp epic add '<json>'` / `tp epic add --stdin` | Add one epic (`{id, title, milestone, tags?, depends_on?: [{id, why}], acceptance?}`; keys outside it exit 2) to `.tp/epics.json` under its lock, creating an absent file; prints `{file, epics}`. A write whose after-state holds a lint error the before-state did not exits 1 naming each one and writes nothing, so a file already holding an error is repaired one write at a time; an id the file holds is a new `duplicate-name` |
+| `tp epic add --bulk <ndjson>` | The same, one epic per line, every row or none; a row whose `id` exists replaces that epic in place |
 
 ### Data
 | Command | Purpose |
