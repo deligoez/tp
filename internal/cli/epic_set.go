@@ -28,6 +28,7 @@ func newEpicSetCmd() *cobra.Command {
 
 // runEpicSet implements tp epic set (spec/1.3.0.md §3).
 func runEpicSet(_ *cobra.Command, args []string) error {
+	fenceEpicWrite("tp epic set")
 	key, value, ok := strings.Cut(args[len(args)-1], "=")
 	if !ok {
 		epicSetUsageExit("expected <field>=<value>, got " + args[len(args)-1])

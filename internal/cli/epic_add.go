@@ -41,6 +41,7 @@ func newEpicAddCmd() *cobra.Command {
 
 // runEpicAdd implements tp epic add (spec/1.3.0.md §3).
 func runEpicAdd(cmd *cobra.Command, args []string) error {
+	fenceEpicWrite("tp epic add")
 	bulk, _ := cmd.Flags().GetString("bulk")
 	var epics []model.Epic
 	if bulk != "" {

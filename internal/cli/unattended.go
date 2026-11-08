@@ -42,6 +42,15 @@ func refuseUnattended(what, decision string) {
 	os.Exit(ExitUsage)
 }
 
+// fenceEpicWrite refuses every tp epic writer under TP_UNATTENDED (spec/1.3.0.md
+// §3): the epic graph is the operator's plan, so a unit never changes it, and it
+// runs before any payload is read so the refusal holds whatever the write is.
+func fenceEpicWrite(what string) {
+	if engine.Unattended() {
+		refuseUnattended(what+" changes the epic graph, which", engine.EscalateOther)
+	}
+}
+
 // refuseUnattendedCommandField reports an attempt to set runner or notify_cmd
 // under TP_UNATTENDED and exits 2. These are fenced more strictly than the
 // caps: they name commands the driver executes, so no value at any layer is

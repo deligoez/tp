@@ -23,6 +23,7 @@ func newEpicRemoveCmd() *cobra.Command {
 
 // runEpicRemove implements tp epic remove (spec/1.3.0.md §3, D8).
 func runEpicRemove(cmd *cobra.Command, args []string) error {
+	fenceEpicWrite("tp epic remove")
 	force, _ := cmd.Flags().GetBool("force")
 	writeEpicGraph(args, engine.RemoveEpic(args[0], force))
 	return nil

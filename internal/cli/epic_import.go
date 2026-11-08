@@ -38,6 +38,7 @@ func newEpicImportCmd() *cobra.Command {
 // runEpicImport implements tp epic import (spec/1.3.0.md §3, D4): the
 // payload is written whatever lint errors it holds, and they are reported.
 func runEpicImport(cmd *cobra.Command, args []string) error {
+	fenceEpicWrite("tp epic import")
 	force, _ := cmd.Flags().GetBool("force")
 	g := readEpicImportPayload(args[0])
 	path, findings, err := engine.ImportEpicGraph(engine.ProjectConfigDir("."), g, force)
