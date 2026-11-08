@@ -666,6 +666,8 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp epic export --md` | Print `.tp/epics.json` as one Markdown table per milestone, in track order — columns id, title, tags, depends on (`id: why`, `; `-separated) — and write nothing; epics in no track's milestone follow in their own tables. Exit 2 without `--md`, 3 with no graph file |
 | `tp epic add '<json>'` / `tp epic add --stdin` | Add one epic (`{id, title, milestone, tags?, depends_on?: [{id, why}], acceptance?}`; keys outside it exit 2) to `.tp/epics.json` under its lock, creating an absent file; prints `{file, epics}`. A write whose after-state holds a lint error the before-state did not exits 1 naming each one and writes nothing, so a file already holding an error is repaired one write at a time; an id the file holds is a new `duplicate-name` |
 | `tp epic add --bulk <ndjson>` | The same, one epic per line, every row or none; a row whose `id` exists replaces that epic in place |
+| `tp epic set <id> <field>=<value>` | Set one field of epic `<id>` in `.tp/epics.json` under its lock: `title`, `milestone` and `acceptance` take the value as written, `tags` and `depends_on` take JSON (the id is not settable); prints `{file, epics}`. An unknown field or bad JSON exits 2, an absent epic 4; a write whose after-state holds a lint error the before-state did not exits 1 naming it and writes nothing |
+| `tp epic set <milestones\|gates\|tag_checks>=<json>` | Replace that whole top-level object, creating an absent file; the same lint rule applies |
 
 ### Data
 | Command | Purpose |
