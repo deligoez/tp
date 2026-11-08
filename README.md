@@ -216,6 +216,7 @@ tp validate                    # Task file + coverage + atomicity (--strict, --p
 tp epic lint                   # Lint the epic graph in .tp/epics.json (exit 1 on an error, 3 with no file)
 tp epic export --md            # One Markdown table per milestone of .tp/epics.json, in track order
 tp epic add '<json>'           # Add an epic (--stdin, --bulk); a write adding a lint error exits 1, writes nothing
+tp epic set <id> field=value   # Set an epic field, or milestones|gates|tag_checks=<json> whole; same lint rule
 ```
 
 ### Data
