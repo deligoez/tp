@@ -237,3 +237,21 @@ func TestSkillFlagInventoryRecordsOnlyWhatExists(t *testing.T) {
 	registered, globals := registeredFlags()
 	assert.Empty(t, inventoryDrift(documentedFlags(t, registered), registered, globals))
 }
+
+// TestSkillFlagInventoryReportsAFlagUnderTheWrongEpicSubcommand pins the
+// attribution grain: `tp epic remove` registers --force and `tp epic set` does
+// not, so an inventory row documenting `tp epic set --force` is drift even
+// though some epic subcommand registers the flag.
+func TestSkillFlagInventoryReportsAFlagUnderTheWrongEpicSubcommand(t *testing.T) {
+	t.Parallel()
+	registered, globals := registeredFlags()
+	doc := flagInventoryHeading + "\n\n" +
+		"| Form | Purpose |\n|---|---|\n" +
+		"| `tp epic set <id> <field>=<value> --force` | Set one field |\n"
+
+	drift := inventoryDrift(parseInventory(t, doc, registered), registered, globals)
+
+	assert.Equal(t, []string{
+		"SKILL.md's inventory documents `tp epic set --force`, which the CLI does not register",
+	}, drift)
+}
