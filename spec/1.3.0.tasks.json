@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.3.0.md",
   "created_at": "2026-11-08T20:45:28.723149Z",
-  "updated_at": "2026-11-08T20:51:17.611847Z",
+  "updated_at": "2026-11-08T20:56:12.15934Z",
   "workflow": {
     "review_max_rounds": 3,
     "audit_max_rounds": 3
@@ -51,7 +51,7 @@
       "id": "epic-graph-model",
       "title": "Add the epic graph file model",
       "description": "Model and load/write the §2 schema from the .tp/ dir DiscoverTPDir finds; keep unknown keys visible to the lint (D3); a missing file is distinct from a parse error; write 2-space JSON.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -63,11 +63,24 @@
       "source_sections": [
         "## 2. The graph file"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-08T20:51:33.583845Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-08T20:56:12.051597Z",
+      "closed_reason": "- Round-trip: TestEpicGraph_RoundTripIsByteIdentical loads a .tp/epics.json holding every §2 field (version, milestones, gates members/deferrable, tag_checks.provided_by, epic id/title/milestone/tags/depends_on id+why/acceptance, non-ASCII and spaced ids, unescaped \u003c and \u0026) and WriteEpicGraph rewrites it byte-identically (internal/model/epic.go, internal/engine/epicgraph.go, internal/engine/epicgraph_test.go)\n- Unknown keys: LoadEpicGraph returns EpicGraphUnknownKey{Path, Key, EpicID} for top-level keys (path 'owner') and per-epic keys (path 'epics[1].trigger', with the epic id), sorted, verified by TestEpicGraph_UnknownKeysCarryTheirPaths\n- Missing file: LoadEpicGraph wraps ErrEpicGraphNotFound when epics.json is absent and returns *MalformedConfigError on a parse error; TestEpicGraph_MissingFileIsNotAParseError asserts each is not the other\n- Design reading: optional collections (gates, tag_checks, tags, depends_on, deferrable, acceptance) are omitempty so a file leaving them out is not rewritten; nested keys inside gates/depends_on are not scanned, as the criterion names top-level and per-epic keys only",
+      "gate_passed_at": "2026-11-08T20:56:12.051597Z",
+      "commit_sha": "dfcb0849",
+      "commit_shas": [
+        "dfcb0849",
+        "948a2fbc",
+        "92c5d1e7",
+        "e4b96762",
+        "de65b7dd"
+      ],
+      "commit_files": [
+        "internal/engine/epicgraph.go",
+        "internal/engine/epicgraph_test.go",
+        "internal/model/epic.go"
+      ]
     },
     {
       "id": "epic-lint-structure-rules",
