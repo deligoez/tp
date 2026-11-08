@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.3.0.md",
   "created_at": "2026-11-08T20:45:28.723149Z",
-  "updated_at": "2026-11-08T21:38:17.67075Z",
+  "updated_at": "2026-11-08T21:43:18.677509Z",
   "workflow": {
     "review_max_rounds": 3,
     "audit_max_rounds": 3
@@ -319,7 +319,7 @@
       "id": "epic-set-command",
       "title": "Add the tp epic set writer",
       "description": "`tp epic set \u003cid\u003e \u003cfield\u003e=\u003cvalue\u003e` for epic fields and `tp epic set \u003cmilestones|gates|tag_checks\u003e=\u003cjson\u003e` for the whole top-level object; same lock, new-error refusal and `file` report as add; creates an absent file. Inventory rows.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "writer"
@@ -333,11 +333,32 @@
         "## 3. The writers",
         "## 9. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-08T21:38:33.627286Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-08T21:43:18.631641Z",
+      "closed_reason": "- Section 9 row 20 first half: tp epic set milestones='[[\"A\"]]' (internal/cli/epic_set.go over engine.ParseEpicGraphSet in internal/engine/epicset.go and engine.UpdateEpicGraph) with no graph file creates .tp/epics.json holding tracks [[A]] and prints {file, epics}, verified by TestEpicSet_MilestonesWithNoFileCreatesIt (internal/cli/epic_set_test.go)\n- tp epic set a milestone=Z adds unknown-milestone, exits 1 naming it and leaves the file byte-identical because UpdateEpicGraph lints the after-state before writing, verified by TestEpicSet_FieldAddingAnErrorIsRefusedAndWritesNothing (internal/cli/epic_set_test.go)\n- tp epic set gates=\u003cjson\u003e and tag_checks=\u003cjson\u003e replace the whole object (gate A and tag check det are gone), verified by TestEpicSet_GatesAndTagChecksReplaceTheWholeObject (internal/cli/epic_set_test.go); rows added to skills/tp/SKILL.md inventory and README.md command index\n- Smallest reading chosen: settable epic fields are title, milestone, acceptance (raw value) and tags, depends_on (JSON); id is not settable; an unknown field or bad JSON exits 2, an absent epic exits 4 (ExitState, as tp set does for an unknown task); UpdateEpicGraph's mutate now returns an error so an absent epic writes nothing",
+      "gate_passed_at": "2026-11-08T21:43:18.631641Z",
+      "commit_sha": "b3b2b321",
+      "commit_shas": [
+        "b3b2b321",
+        "4a207b84",
+        "685f747b",
+        "c2eb673a",
+        "2dabbf9f",
+        "9987696d",
+        "b871a593",
+        "f6241e68"
+      ],
+      "commit_files": [
+        "README.md",
+        "internal/cli/epic.go",
+        "internal/cli/epic_add.go",
+        "internal/cli/epic_set.go",
+        "internal/cli/epic_set_test.go",
+        "internal/engine/epicset.go",
+        "internal/engine/epicwrite.go",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "epic-remove-command",
