@@ -118,3 +118,15 @@ func TestEpicGraph_UnknownKeysCarryTheirPaths(t *testing.T) {
 	}, unknown)
 }
 
+func TestEpicGraph_MissingFileIsNotAParseError(t *testing.T) {
+	_, _, err := LoadEpicGraph(epicGraphDir(t, ""))
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrEpicGraphNotFound)
+	var malformed *MalformedConfigError
+	assert.False(t, errors.As(err, &malformed), "a missing file is not a parse error")
+
+	_, _, err = LoadEpicGraph(epicGraphDir(t, `{"epics": [`))
+	require.Error(t, err)
+	assert.NotErrorIs(t, err, ErrEpicGraphNotFound)
+	assert.True(t, errors.As(err, &malformed), "a parse error is MalformedConfigError")
+}
