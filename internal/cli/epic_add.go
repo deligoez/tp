@@ -114,6 +114,11 @@ func decodeEpic(raw []byte) (model.Epic, error) {
 // for epic rows.
 const epicBulkFileHint = "check the --bulk path — it takes an NDJSON file, one epic JSON object per line"
 
+// epicBulkLineTooLongHint answers a --bulk line over ndjsonLineCap. The shared
+// ndjsonLineTooLongHint asks for one finding per line and a shorter note,
+// neither of which a file of epic rows holds.
+const epicBulkLineTooLongHint = "a --bulk line exceeded the 1MB NDJSON read cap — write one epic JSON object per line and shorten the oversized one"
+
 // readBulkEpics reads one epic per non-blank NDJSON line; any bad line aborts
 // the whole add, naming it.
 func readBulkEpics(path string) []model.Epic {
@@ -137,7 +142,11 @@ func readBulkEpics(path string) []model.Epic {
 		epics = append(epics, e)
 	}
 	if err := scanner.Err(); err != nil {
-		output.Error(ExitFile, fmt.Sprintf("cannot read %s: %v", path, err), ndjsonReadHint(err))
+		hint := epicBulkFileHint
+		if errors.Is(err, bufio.ErrTooLong) {
+			hint = epicBulkLineTooLongHint
+		}
+		output.Error(ExitFile, fmt.Sprintf("cannot read %s: %v", path, err), hint)
 		os.Exit(ExitFile)
 	}
 	return epics
