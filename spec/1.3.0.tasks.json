@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.3.0.md",
   "created_at": "2026-11-08T20:45:28.723149Z",
-  "updated_at": "2026-11-08T21:15:11.574677Z",
+  "updated_at": "2026-11-08T21:21:16.511109Z",
   "workflow": {
     "review_max_rounds": 3,
     "audit_max_rounds": 3
@@ -192,7 +192,7 @@
       "id": "epic-lint-command",
       "title": "Wire the tp epic lint command",
       "description": "`tp epic` parent and `tp epic lint`: read-only, payload {errors, warnings, findings[]}, exit 0/1/3. Add SKILL.md inventory rows and README rule table rows (both are test-enforced).",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "lint"
@@ -206,11 +206,31 @@
         "## 4. `tp epic lint`",
         "## 9. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-08T21:15:28.101035Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-08T21:21:16.459818Z",
+      "closed_reason": "- Section 9 row 3: tp epic lint (internal/cli/epic.go, internal/cli/epic_lint.go, wired in internal/cli/root.go) runs engine.LintEpicGraph over .tp/epics.json and writes nothing; on a hand-written file with one defect per error rule it exits 1 with errors 9 and each of the nine error slugs exactly once, verified by TestEpicLint_OneDefectPerErrorRuleReportsEveryRuleOnce (internal/cli/epic_lint_test.go), which also asserts the file is byte-identical after the run\n- TestEpicLint_NoGraphFileExits3 verifies exit 3 when .tp/ holds no epics.json (also exit 3 with a hint when no .tp/ directory exists up to the git boundary, or the file is unparsable), and TestEpicLint_CleanGraphExits0 verifies exit 0 with errors 0, warnings 0 and findings [] on the chain a -\u003e b -\u003e c -\u003e d (internal/cli/epic_lint_test.go)\n- skills/tp/SKILL.md's inventory gains a tp epic lint row and README.md gains the command index row plus eleven tp epic lint rows in the lint rule table (every new rule); TestEpicLintRulesAreInTheReadmeRuleTable (internal/cli/epic_lint_docs_test.go) enforces a row per epic rule constant because the rule census only sees engine.Finding literals, and the pinned surface in internal/cli/nongoals_surface_test.go lists the new tp epic parent",
+      "gate_passed_at": "2026-11-08T21:21:16.459818Z",
+      "commit_sha": "1259e011",
+      "commit_shas": [
+        "1259e011",
+        "1cdeac7d",
+        "fcb77238",
+        "e6e29ee3",
+        "e94f75c8",
+        "920dc22c",
+        "901b2805"
+      ],
+      "commit_files": [
+        "README.md",
+        "internal/cli/epic.go",
+        "internal/cli/epic_lint.go",
+        "internal/cli/epic_lint_docs_test.go",
+        "internal/cli/epic_lint_test.go",
+        "internal/cli/nongoals_surface_test.go",
+        "internal/cli/root.go",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "epic-error-identity",
