@@ -180,3 +180,28 @@ func TestEpicAdd_TrailingDataAfterTheEpicIsAUsageError(t *testing.T) {
 		})
 	}
 }
+
+// TestEpicAdd_BulkListsARepeatedIDOnce: two rows sharing an id write one
+// epic, so a payload echoing every row would list z twice.
+func TestEpicAdd_BulkListsARepeatedIDOnce(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{
+  "version": 1,
+  "milestones": [["A"]],
+  "epics": []
+}
+`)
+	bulk := filepath.Join(dir, "rows.ndjson")
+	rows := `{"id": "z", "title": "First", "milestone": "A"}` + "\n" +
+		`{"id": "y", "title": "Y", "milestone": "A"}` + "\n" +
+		`{"id": "z", "title": "Second", "milestone": "A"}` + "\n"
+	require.NoError(t, os.WriteFile(bulk, []byte(rows), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "epic", "add", "--bulk", bulk)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var out struct {
+		Epics []string `json:"epics"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out), "stdout: %s", stdout)
+	assert.Equal(t, []string{"z", "y"}, out.Epics)
+}
