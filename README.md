@@ -213,6 +213,7 @@ tp review spec.md              # Review prompts, rounds, merge/resolve/record/st
 tp review spec.md --role NAME  # Emit one role's prompt only (also on tp audit)
 tp audit spec.md               # Post-implementation: verify the code matches the spec
 tp validate                    # Task file + coverage + atomicity (--strict, --project)
+tp epic lint                   # Lint the epic graph in .tp/epics.json (exit 1 on an error, 3 with no file)
 ```
 
 ### Data
