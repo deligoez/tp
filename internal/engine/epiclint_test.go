@@ -65,3 +65,18 @@ func TestLintEpicGraph_SelfLoopIsACycle(t *testing.T) {
 	assert.Equal(t, []string{"c"}, cycles[0].Epics)
 }
 
+func TestLintEpicGraph_DanglingReferencesAreOneFindingEach(t *testing.T) {
+	g := cleanEpicGraph()
+	g.Epics[2].DependsOn = []model.EpicDep{{ID: "z", Why: "absent"}}
+	g.Gates["A"] = model.EpicGate{Members: []string{"y"}, Deferrable: []string{"x"}}
+	g.Gates["Q"] = model.EpicGate{Members: []string{"a"}}
+	g.TagChecks["ui"] = model.EpicTagCheck{ProvidedBy: "w"}
+	dangling := findingsOf(t, LintEpicGraph(g, nil), EpicRuleDanglingReference)
+	require.Len(t, dangling, 5)
+	var epics [][]string
+	for _, f := range dangling {
+		epics = append(epics, f.Epics)
+	}
+	assert.ElementsMatch(t, [][]string{{"c", "z"}, {"y"}, {"x"}, {"w"}, {}}, epics)
+}
+
