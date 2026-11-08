@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.3.0.md",
   "created_at": "2026-11-08T20:45:28.723149Z",
-  "updated_at": "2026-11-08T22:32:15.377083Z",
+  "updated_at": "2026-11-08T22:35:17.372631Z",
   "workflow": {
     "review_max_rounds": 3,
     "audit_max_rounds": 3
@@ -876,7 +876,7 @@
       "id": "suite-state-watches-epics",
       "title": "Watch epic state in check-suite-state",
       "description": "scripts/check-suite-state.sh WATCHED gains .tp/epics.json and .tp/epic-review (D12, spec/1.3.0-corrections.md); a file path must hash like a directory's files.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "scripts"
       ],
@@ -888,11 +888,20 @@
       "source_sections": [
         "## 7. Documents and the plugin"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-08T22:32:31.376911Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-08T22:35:17.357367Z",
+      "closed_reason": "- scripts/check-suite-state.sh WATCHED now lists spec/.tp-review .tp/rounds .tp/epics.json .tp/epic-review (D12), and state_digest tests -e instead of -d so the single-file epic graph is hashed; verified by TestSuiteStateWrapperCatchesEpicStateWrites (internal/cli/suite_state_watch_test.go), which runs a copy of the script in a temp tree under a stub go writing each path and requires exit non-zero, red on both cases before the change\n- ./scripts/check-suite-state.sh exits 0 on the current suite (go test -count=1 -race ./...), and golangci-lint, check-deadcode.sh and check-complexity.sh each exit 0; the script keeps mode 100755",
+      "gate_passed_at": "2026-11-08T22:35:17.357367Z",
+      "commit_sha": "98d2fc95",
+      "commit_shas": [
+        "98d2fc95",
+        "a7df0181"
+      ],
+      "commit_files": [
+        "internal/cli/suite_state_watch_test.go",
+        "scripts/check-suite-state.sh"
+      ]
     },
     {
       "id": "docs-workflow-e",
