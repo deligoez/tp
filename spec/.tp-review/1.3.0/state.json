@@ -32,5 +32,18 @@
       "hash_scheme": "snapshot"
     }
   ],
-  "audit_rounds": []
+  "audit_rounds": [
+    {
+      "round": 1,
+      "findings": 5,
+      "clean": false,
+      "recorded_at": "2026-11-08T22:47:34Z",
+      "file": "audit-round-1.ndjson",
+      "spec_hash": "sha256:1ddf1697bc2baff9a388acffaee4f96fba83ac932789418674dec2a0abcb284f",
+      "roles_hash": "sha256:730320c4db9d73cde41740c32ebcacba23380e89d7964db005f25085a432b9fd",
+      "id_scheme": "slug",
+      "converge_on": "all",
+      "hash_scheme": "snapshot"
+    }
+  ]
 }
