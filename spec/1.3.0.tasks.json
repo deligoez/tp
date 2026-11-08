@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.3.0.md",
   "created_at": "2026-11-08T20:45:28.723149Z",
-  "updated_at": "2026-11-08T21:21:16.511109Z",
+  "updated_at": "2026-11-08T21:26:50.567689Z",
   "workflow": {
     "review_max_rounds": 3,
     "audit_max_rounds": 3
@@ -592,7 +592,7 @@
       "id": "epic-export-md",
       "title": "Add tp epic export --md",
       "description": "Read-only: one markdown table per milestone in track order, one row per epic with id, title, tags and each dependency with its why. Inventory row.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli"
       ],
@@ -605,11 +605,31 @@
         "## 6. `tp epic export`",
         "## 9. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-08T21:21:34.542172Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-08T21:26:50.526783Z",
+      "closed_reason": "- Section 9 row 13: tp epic export --md (internal/cli/epic_export.go over engine.EpicGraphMarkdown in internal/engine/epicexport.go) prints one Markdown table per milestone in track order; on tracks [[A, B], [L1]] with two epics per milestone listed out of order in the file it prints exactly the tables A, B, L1 with every epic in one row (id, title, tags, depends on as 'id: why'), verified by the golden TestEpicExport_OneTablePerMilestoneInTrackOrder (internal/cli/epic_export_test.go), which a group-by-tag mutant fails\n- The command writes no file: the same test asserts .tp/epics.json is byte-identical after the run and .tp/ holds only that file; without --md it exits 2 (TestEpicExport_WithoutMdIsAUsageError), Markdown being the only format per section 8 non-goal 3\n- Smallest readings chosen where the spec is silent: a milestone named twice gets one table, epics whose milestone is in no track follow in tables of their own so each epic stays in exactly one row, and pipes and line breaks are escaped inside cells; docs rows in skills/tp/SKILL.md inventory and README.md command index\n- The flag-inventory and surface tests only saw top-level flags, so registeredFlags now folds subcommand flags into their top-level command (internal/cli/docs_flag_inventory_test.go) and the baseline line reads 'epic: md' (internal/cli/nongoals_surface_test.go); gate green (check-suite-state, golangci-lint, deadcode, complexity all exit 0)",
+      "gate_passed_at": "2026-11-08T21:26:50.526783Z",
+      "commit_sha": "cbd03283",
+      "commit_shas": [
+        "cbd03283",
+        "7fe5c169",
+        "c17bfe7b",
+        "90b94ca5",
+        "91c87edb",
+        "419ffab7",
+        "bc4eb6f9"
+      ],
+      "commit_files": [
+        "README.md",
+        "internal/cli/docs_flag_inventory_test.go",
+        "internal/cli/epic.go",
+        "internal/cli/epic_export.go",
+        "internal/cli/epic_export_test.go",
+        "internal/cli/nongoals_surface_test.go",
+        "internal/engine/epicexport.go",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "hook-fences-epic-state",
