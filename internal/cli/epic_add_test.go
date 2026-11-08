@@ -222,3 +222,50 @@ func TestEpicAdd_BulkMissingFileHintNamesEpicRows(t *testing.T) {
 	assert.Contains(t, stderr, "one epic JSON object per line")
 	assert.NotContains(t, stderr, "reviewers/auditors")
 }
+
+// TestEpicAdd_TwoInputSourcesAreAUsageError: a reader that picked one source
+// would write it and silently drop the other epic, so any two of the
+// argument, --stdin and --bulk are refused before anything is written.
+func TestEpicAdd_TwoInputSourcesAreAUsageError(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		args func(bulk string) []string
+	}{
+		{"argument and --bulk", func(bulk string) []string {
+			return []string{`{"id": "a", "title": "A", "milestone": "A"}`, "--bulk", bulk}
+		}},
+		{"--stdin and --bulk", func(bulk string) []string { return []string{"--stdin", "--bulk", bulk} }},
+		{"argument and --stdin", func(string) []string {
+			return []string{`{"id": "a", "title": "A", "milestone": "A"}`, "--stdin"}
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			dir := epicGraphDir(t, `{
+  "version": 1,
+  "milestones": [["A"]],
+  "epics": []
+}
+`)
+			bulk := filepath.Join(dir, "rows.ndjson")
+			require.NoError(t, os.WriteFile(bulk, []byte(`{"id": "b", "title": "B", "milestone": "A"}`+"\n"), 0o600))
+			before := readEpicGraphFile(t, dir)
+			cmd := exec.Command(binaryPath, append([]string{"--json", "epic", "add"}, tc.args(bulk)...)...)
+			cmd.Dir = dir
+			cmd.Env = append(byHandEnv(), "NO_COLOR=1", "TP_HC=0")
+			cmd.Stdin = strings.NewReader(`{"id": "c", "title": "C", "milestone": "A"}` + "\n")
+			var errBuf bytes.Buffer
+			cmd.Stderr = &errBuf
+			code := 0
+			if err := cmd.Run(); err != nil {
+				var exitErr *exec.ExitError
+				require.ErrorAs(t, err, &exitErr)
+				code = exitErr.ExitCode()
+			}
+			require.Equal(t, 2, code, "stderr: %s", errBuf.String())
+			assert.Contains(t, errBuf.String(), "cannot be combined with")
+			assert.Equal(t, before, readEpicGraphFile(t, dir), "a refused add writes nothing")
+		})
+	}
+}
