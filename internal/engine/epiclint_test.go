@@ -103,3 +103,49 @@ func TestLintEpicGraph_UnknownKeysAreOneFindingEach(t *testing.T) {
 	assert.Equal(t, []string{"b"}, keys[1].Epics)
 	assert.Contains(t, keys[1].Message, "epics[1].trigger")
 }
+
+func TestLintEpicGraph_LaterMilestoneDependencyFiresWithinATrackOnly(t *testing.T) {
+	g := &model.EpicGraph{
+		Version:    1,
+		Milestones: [][]string{{"A", "B"}, {"L1"}},
+		Epics: []model.Epic{
+			{ID: "a", Title: "A", Milestone: "A", DependsOn: []model.EpicDep{{ID: "b", Why: "b first"}, {ID: "l", Why: "l first"}}},
+			{ID: "b", Title: "B", Milestone: "B"},
+			{ID: "l", Title: "L", Milestone: "L1"},
+		},
+	}
+	later := findingsOf(t, LintEpicGraph(g, nil), EpicRuleLaterMilestoneDependency)
+	require.Len(t, later, 1, "the edge to l in another track is free")
+	assert.Equal(t, []string{"a", "b"}, later[0].Epics)
+}
+
+func TestLintEpicGraph_MissingWhyFiresOnAbsentAndBlankWhy(t *testing.T) {
+	g := cleanEpicGraph()
+	g.Epics[0].DependsOn = []model.EpicDep{{ID: "b"}}
+	g.Epics[1].DependsOn = []model.EpicDep{{ID: "c", Why: " \t\n "}}
+	missing := findingsOf(t, LintEpicGraph(g, nil), EpicRuleMissingWhy)
+	require.Len(t, missing, 2)
+	assert.Equal(t, []string{"a", "b"}, missing[0].Epics)
+	assert.Equal(t, []string{"b", "c"}, missing[1].Epics)
+}
+
+func TestLintEpicGraph_UnknownMilestoneFiresOnAbsentAndUntrackedMilestone(t *testing.T) {
+	g := cleanEpicGraph()
+	g.Epics[1].Milestone = ""
+	g.Epics[2].Milestone = "Z"
+	unknown := findingsOf(t, LintEpicGraph(g, nil), EpicRuleUnknownMilestone)
+	require.Len(t, unknown, 2)
+	assert.Equal(t, []string{"b"}, unknown[0].Epics)
+	assert.Equal(t, []string{"c"}, unknown[1].Epics)
+	assert.Contains(t, unknown[1].Message, `"Z"`)
+}
+
+func TestLintEpicGraph_GateMemberOutsideMilestoneFiresOnTheMember(t *testing.T) {
+	g := cleanEpicGraph()
+	g.Epics = append(g.Epics, model.Epic{ID: "d", Title: "D", Milestone: "B"})
+	g.Gates["A"] = model.EpicGate{Members: []string{"a", "d"}}
+	outside := findingsOf(t, LintEpicGraph(g, nil), EpicRuleGateMemberOutsideMilestone)
+	require.Len(t, outside, 1)
+	assert.Equal(t, []string{"d"}, outside[0].Epics)
+	assert.Contains(t, outside[0].Message, `"A"`)
+}
