@@ -143,12 +143,17 @@ func epicRoleOutputPath(run *epicReviewRun, role string) string {
 	return fmt.Sprintf("epic-review-%s-r%d-%s.ndjson", filepath.Base(run.stateDir)[:12], run.round, role)
 }
 
+// epicReviewStateDirOut renders the slice's state directory relative to the
+// project root, as every tp epic review payload prints it.
+func epicReviewStateDirOut(run *epicReviewRun) string {
+	if rel, err := filepath.Rel(filepath.Dir(run.tpDir), run.stateDir); err == nil {
+		return rel
+	}
+	return run.stateDir
+}
+
 // epicReviewPayload assembles the emission from the run and the kept prompts.
 func epicReviewPayload(run *epicReviewRun, prompts []epicReviewPrompt) epicReviewResult {
-	stateDir := run.stateDir
-	if rel, err := filepath.Rel(filepath.Dir(run.tpDir), run.stateDir); err == nil {
-		stateDir = rel
-	}
 	contextIDs := make([]string, 0, len(run.slice.Context))
 	for _, c := range run.slice.Context {
 		contextIDs = append(contextIDs, c.ID)
@@ -159,7 +164,7 @@ func epicReviewPayload(run *epicReviewRun, prompts []epicReviewPrompt) epicRevie
 		next = fmt.Sprintf("no unit is asked this round: record an empty file with tp epic review %s --record <empty file>", epicSliceLabel(run.key))
 	}
 	return epicReviewResult{
-		StateDir:          stateDir,
+		StateDir:          epicReviewStateDirOut(run),
 		Round:             run.round,
 		Units:             engine.EpicUnitKeys(run.slice.Units),
 		Context:           contextIDs,
