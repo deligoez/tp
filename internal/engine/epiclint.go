@@ -10,7 +10,8 @@ import (
 
 // Severities of an epic lint finding.
 const (
-	EpicSeverityError = "error"
+	EpicSeverityError   = "error"
+	EpicSeverityWarning = "warning"
 )
 
 // Structure rules of the epic graph lint (spec/1.3.0.md §4).
@@ -29,6 +30,13 @@ const (
 	EpicRuleGateMemberOutsideMilestone = "gate-member-outside-milestone"
 )
 
+// Tag and warning rules of the epic graph lint (spec/1.3.0.md §4).
+const (
+	EpicRuleUnprovidedTagCheck = "unprovided-tag-check"
+	EpicRuleNoDependencies     = "no-dependencies"
+	EpicRuleThinWhy            = "thin-why"
+)
+
 // EpicLintFinding is one lint result. Epics holds the sorted, distinct ids the
 // finding names, a dangling id included; it is never nil, so it encodes as [].
 type EpicLintFinding struct {
@@ -38,7 +46,8 @@ type EpicLintFinding struct {
 	Message  string   `json:"message"`
 }
 
-// LintEpicGraph runs the structure, edge and milestone rules over g and the
+// LintEpicGraph runs the structure, edge, milestone and tag rules, then the
+// warnings, over g and the
 // unknown keys LoadEpicGraph returned. A cycle finding is one strongly
 // connected component; every other rule yields one finding per offending item.
 func LintEpicGraph(g *model.EpicGraph, unknown []EpicGraphUnknownKey) []EpicLintFinding {
@@ -50,6 +59,9 @@ func LintEpicGraph(g *model.EpicGraph, unknown []EpicGraphUnknownKey) []EpicLint
 	out = append(out, lintEpicMissingWhy(g)...)
 	out = append(out, lintEpicMilestones(g)...)
 	out = append(out, lintEpicGateMembers(g)...)
+	out = append(out, lintEpicTagChecks(g)...)
+	out = append(out, lintEpicNoDependencies(g)...)
+	out = append(out, lintEpicThinWhy(g)...)
 	return out
 }
 
