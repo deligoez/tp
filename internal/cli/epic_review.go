@@ -57,6 +57,8 @@ func newEpicReviewCmd() *cobra.Command {
 	cmd.Flags().String("epic", "", "Review this one epic")
 	cmd.Flags().String("role", "", "Emit only this role's prompt")
 	cmd.Flags().String("record", "", "Record this NDJSON findings file as the slice's next round")
+	cmd.Flags().Bool("status", false, "Print the slice's convergence status")
+	cmd.Flags().Bool("check", false, "With --status: exit 0 only when the loop is done and every mechanical check passes")
 	return cmd
 }
 
@@ -69,7 +71,13 @@ func runEpicReview(cmd *cobra.Command, _ []string) error {
 		runEpicReviewRecord(key, recordPath)
 		return nil
 	}
+	if status, _ := cmd.Flags().GetBool("status"); status {
+		check, _ := cmd.Flags().GetBool("check")
+		runEpicReviewStatus(key, check)
+		return nil
+	}
 	run := loadEpicReviewRun(key)
+	refuseEpicReviewAtCap(&run)
 	roles, err := engine.ResolveEpicRoleCorpus(filepath.Dir(run.tpDir))
 	if err != nil {
 		output.Error(ExitFile, err.Error(), "fix the role files under .tp/epic-reviewers/")

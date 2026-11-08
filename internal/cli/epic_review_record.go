@@ -33,6 +33,7 @@ func runEpicReviewRecord(key engine.EpicSliceKey, recordPath string) {
 		refuseUnattended("tp epic review --record writes a graph review round, which", engine.EscalateOther)
 	}
 	run := loadEpicReviewRun(key)
+	refuseEpicReviewAtCap(&run)
 	data, err := os.ReadFile(recordPath) //nolint:gosec // the caller names the findings file
 	if err != nil {
 		output.Error(ExitFile, fmt.Sprintf("cannot read findings file: %s: %v", recordPath, err), recordFileMissingHint)
