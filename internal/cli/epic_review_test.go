@@ -1,0 +1,81 @@
+package cli_test
+
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// epicChain is §9's chain a → b → c → d, all in milestone A of tracks
+// [[A, B], [L1]], every why distinct.
+const epicChain = `{
+  "version": 1,
+  "milestones": [["A", "B"], ["L1"]],
+  "epics": [
+    {"id": "a", "title": "A", "milestone": "A", "depends_on": [{"id": "b", "why": "a needs b"}]},
+    {"id": "b", "title": "B", "milestone": "A", "depends_on": [{"id": "c", "why": "b needs c"}]},
+    {"id": "c", "title": "C", "milestone": "A", "depends_on": [{"id": "d", "why": "c needs d"}]},
+    {"id": "d", "title": "D", "milestone": "A"}
+  ]
+}
+`
+
+// epicReviewPayload is the part of tp epic review's emission these tests read.
+type epicReviewPayload struct {
+	StateDir string   `json:"state_dir"`
+	Round    int      `json:"round"`
+	Units    []string `json:"units"`
+	Context  []string `json:"context"`
+	Prompts  []struct {
+		Role       string `json:"role"`
+		Prompt     string `json:"prompt"`
+		OutputPath string `json:"output_path"`
+	} `json:"prompts"`
+	MechanicalChecks []struct {
+		Class    string `json:"class"`
+		Passed   bool   `json:"passed"`
+		Findings int    `json:"findings"`
+	} `json:"mechanical_checks"`
+	MechanizedClasses []string `json:"mechanized_classes"`
+	NextAction        string   `json:"next_action"`
+}
+
+// runEpicReview runs tp epic review in dir and decodes its payload on exit 0.
+func runEpicReview(t *testing.T, dir string, args ...string) epicReviewPayload {
+	t.Helper()
+	stdout, stderr, code := runTP(t, dir, append([]string{"epic", "review"}, args...)...)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var out epicReviewPayload
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out), "stdout: %s", stdout)
+	return out
+}
+
+func promptRoles(p *epicReviewPayload) []string {
+	roles := []string{}
+	for _, pr := range p.Prompts {
+		roles = append(roles, pr.Role)
+	}
+	return roles
+}
+
+// TestEpicReview_BothSliceFlagsOrNeitherIsAUsageError is §9 row 15: a command
+// that picked the first flag and emitted would exit 0 and open a state
+// directory.
+func TestEpicReview_BothSliceFlagsOrNeitherIsAUsageError(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChain)
+	for _, args := range [][]string{
+		{"epic", "review"},
+		{"epic", "review", "--milestone", "A", "--epic", "b"},
+	} {
+		_, stderr, code := runTP(t, dir, args...)
+		assert.Equal(t, 2, code, "%v: stderr: %s", args, stderr)
+	}
+	_, err := os.Stat(filepath.Join(dir, ".tp", "epic-review"))
+	assert.True(t, os.IsNotExist(err), "a usage error creates no state directory")
+}
+
