@@ -81,3 +81,12 @@ func cycleEpicGraph(wide bool) *model.EpicGraph {
 	return g
 }
 
+func TestNewEpicErrors_ShrinkingACycleIsNotNew(t *testing.T) {
+	wide := LintEpicGraph(cycleEpicGraph(true), nil)
+	narrow := LintEpicGraph(cycleEpicGraph(false), nil)
+	assert.Empty(t, NewEpicErrors(wide, narrow), "a <-> b is a subset of the a, b, c component")
+
+	grown := NewEpicErrors(narrow, wide)
+	require.Len(t, grown, 1, "growing the cycle is new")
+	assert.Equal(t, []string{"a", "b", "c"}, grown[0].Epics)
+}
