@@ -26,6 +26,7 @@ type epicReviewResult struct {
 	Round             int                          `json:"round"`
 	Units             []string                     `json:"units"`
 	Context           []string                     `json:"context"`
+	Carried           []string                     `json:"carried,omitempty"`
 	MechanicalChecks  []engine.EpicMechanicalCheck `json:"mechanical_checks"`
 	MechanizedClasses []string                     `json:"mechanized_classes"`
 	SkippedRoles      *[]engine.SkippedRole        `json:"skipped_roles,omitempty"`
@@ -39,7 +40,9 @@ type epicReviewRun struct {
 	tpDir    string
 	stateDir string
 	round    int
-	slice    engine.EpicSlice
+	slice    engine.EpicSlice // the asked units and their context
+	all      []engine.EpicReviewUnit
+	carry    engine.EpicCarry
 	checks   []engine.EpicMechanicalCheck
 }
 
@@ -71,7 +74,7 @@ func runEpicReview(cmd *cobra.Command, _ []string) error {
 	roleName, _ := cmd.Flags().GetString("role")
 	q := roleQuery{name: roleName, given: cmd.Flags().Changed("role"), specDir: filepath.Dir(run.tpDir)}
 	prompts, skipped := filterByRole(prompts, func(p *epicReviewPrompt) string { return p.Role }, q, nil)
-	if err := engine.WriteEpicReviewSnapshot(run.stateDir, run.round, run.slice.Units); err != nil {
+	if err := engine.WriteEpicReviewSnapshot(run.stateDir, run.round, run.all); err != nil {
 		output.Error(ExitFile, "cannot write the epic review snapshot: "+err.Error(), stateWriteHint)
 		os.Exit(ExitFile)
 		return nil
@@ -115,8 +118,15 @@ func loadEpicReviewRun(key engine.EpicSliceKey) epicReviewRun {
 		os.Exit(ExitState)
 	}
 	stateDir := engine.EpicReviewStateDir(tpDir, key)
+	round := engine.EpicReviewNextRound(stateDir)
+	carry, err := engine.EpicReviewCarry(stateDir, round, slice.Units)
+	if err != nil {
+		output.Error(ExitFile, err.Error(), stateWriteHint)
+		os.Exit(ExitFile)
+	}
 	return epicReviewRun{
-		key: key, tpDir: tpDir, stateDir: stateDir, round: engine.EpicReviewNextRound(stateDir), slice: slice,
+		key: key, tpDir: tpDir, stateDir: stateDir, round: round, all: slice.Units, carry: carry,
+		slice:  engine.EpicSlice{Units: carry.Asked, Context: engine.EpicCarriedContext(g, carry.Asked)},
 		checks: engine.EpicMechanicalChecks(engine.LintEpicGraph(g, unknown)),
 	}
 }

@@ -19,24 +19,61 @@ const epicFindingContract = "\n\nOutput contract — write one JSON object per l
 	"- evidence: the block text you read to reach this finding\n" +
 	"Locate findings on asked units only; a context epic is not reviewed. No finding is a normal result: write an empty file.\n"
 
-// buildEpicReviewPrompts renders one prompt per role, in corpus order.
+// buildEpicReviewPrompts renders one prompt per role, in corpus order, and
+// the built-in regression prompt last when the round has something to guard.
+// A round asking no unit emits no prompt (§5).
 func buildEpicReviewPrompts(run *epicReviewRun, roles []model.Role) []epicReviewPrompt {
+	if len(run.slice.Units) == 0 {
+		return []epicReviewPrompt{}
+	}
 	body := epicReviewSliceText(run)
-	exclusion := mechanizedExclusionPrefix + strings.Join(engine.EpicErrorRules(), ", ")
-	prompts := make([]epicReviewPrompt, 0, len(roles))
+	prompts := make([]epicReviewPrompt, 0, len(roles)+1)
 	for i := range roles {
 		role := &roles[i]
-		path := epicRoleOutputPath(run, role.ID)
 		var b strings.Builder
 		b.WriteString(role.Instructions + "\n\n")
 		b.WriteString(body)
 		writeEpicFocus(&b, role.Focus)
-		b.WriteString(exclusion)
-		b.WriteString(epicFindingContract)
-		fmt.Fprintf(&b, "\nWrite this round's findings to: %s\nProduce findings for this round only, write them to that file, then stop.\n", path)
-		prompts = append(prompts, epicReviewPrompt{Role: role.ID, Prompt: b.String(), OutputPath: path})
+		prompts = append(prompts, epicPromptWithTail(run, role.ID, &b))
+	}
+	if run.round >= 2 && run.carry.Regression() {
+		prompts = append(prompts, epicRegressionPrompt(run, body))
 	}
 	return prompts
+}
+
+// epicRegressionInstructions frame the built-in regression role over a graph.
+const epicRegressionInstructions = "You guard an epic graph against regressions from the round before. " +
+	"An asked unit changed since that round or carried a finding that was resolved fixed. " +
+	"Check that each change kept what the unit's acceptance, edges and whys needed, and that each fixed finding below " +
+	"is resolved in the current text without breaking a neighbour. Report only what a change lost or broke; " +
+	"finding nothing is a normal result.\n\n"
+
+// epicRegressionPrompt renders the regression role's prompt: the slice text
+// and the findings the round before resolved fixed.
+func epicRegressionPrompt(run *epicReviewRun, body string) epicReviewPrompt {
+	var b strings.Builder
+	b.WriteString(epicRegressionInstructions)
+	b.WriteString(body)
+	if len(run.carry.Fixed) > 0 {
+		fmt.Fprintf(&b, "\nFindings round %d resolved fixed — confirm each fix holds:\n", run.round-1)
+		for _, row := range run.carry.Fixed {
+			loc, _ := row["location"].(string)
+			finding, _ := row["finding"].(string)
+			fmt.Fprintf(&b, "- %s: %s\n", loc, finding)
+		}
+	}
+	return epicPromptWithTail(run, engine.RegressionRoleID, &b)
+}
+
+// epicPromptWithTail closes a role's prompt with the mechanized exclusion,
+// the finding contract and the role's output path.
+func epicPromptWithTail(run *epicReviewRun, role string, b *strings.Builder) epicReviewPrompt {
+	path := epicRoleOutputPath(run, role)
+	b.WriteString(mechanizedExclusionPrefix + strings.Join(engine.EpicErrorRules(), ", "))
+	b.WriteString(epicFindingContract)
+	fmt.Fprintf(b, "\nWrite this round's findings to: %s\nProduce findings for this round only, write them to that file, then stop.\n", path)
+	return epicReviewPrompt{Role: role, Prompt: b.String(), OutputPath: path}
 }
 
 // epicReviewSliceText renders the asked units, then the context blocks.
@@ -54,7 +91,26 @@ func epicReviewSliceText(run *epicReviewRun) string {
 		}
 		b.WriteString("---\n")
 	}
+	if ids := epicCarriedByID(run); len(ids) > 0 {
+		fmt.Fprintf(&b, "\nCarried — unchanged since round %d and not asked again: %s\n", run.round-1, strings.Join(ids, ", "))
+	}
 	return b.String()
+}
+
+// epicCarriedByID returns the carried units no context block shows: a gate,
+// or an epic adjacent to no asked unit, which appears by its key only (D5).
+func epicCarriedByID(run *epicReviewRun) []string {
+	shown := map[string]bool{}
+	for _, c := range run.slice.Context {
+		shown["epic:"+c.ID] = true
+	}
+	ids := []string{}
+	for _, u := range run.carry.Carried {
+		if !shown[u.Key] {
+			ids = append(ids, u.Key)
+		}
+	}
+	return ids
 }
 
 // writeEpicFocus appends the role's focus questions as a numbered list.
@@ -97,15 +153,20 @@ func epicReviewPayload(run *epicReviewRun, prompts []epicReviewPrompt) epicRevie
 	for _, c := range run.slice.Context {
 		contextIDs = append(contextIDs, c.ID)
 	}
+	next := fmt.Sprintf("run each prompt, concatenate the rows of every output_path into one NDJSON file, then tp epic review %s --record <file>",
+		epicSliceLabel(run.key))
+	if len(run.slice.Units) == 0 {
+		next = fmt.Sprintf("no unit is asked this round: record an empty file with tp epic review %s --record <empty file>", epicSliceLabel(run.key))
+	}
 	return epicReviewResult{
 		StateDir:          stateDir,
 		Round:             run.round,
 		Units:             engine.EpicUnitKeys(run.slice.Units),
 		Context:           contextIDs,
+		Carried:           engine.EpicUnitKeys(run.carry.Carried),
 		MechanicalChecks:  run.checks,
 		MechanizedClasses: engine.EpicErrorRules(),
 		Prompts:           prompts,
-		NextAction: fmt.Sprintf("run each prompt, concatenate the rows of every output_path into one NDJSON file, then tp epic review %s --record <file>",
-			epicSliceLabel(run.key)),
+		NextAction:        next,
 	}
 }
