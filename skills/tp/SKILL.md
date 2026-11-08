@@ -668,6 +668,8 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp epic add --bulk <ndjson>` | The same, one epic per line, every row or none; a row whose `id` exists replaces that epic in place |
 | `tp epic set <id> <field>=<value>` | Set one field of epic `<id>` in `.tp/epics.json` under its lock: `title`, `milestone` and `acceptance` take the value as written, `tags` and `depends_on` take JSON (the id is not settable); prints `{file, epics}`. An unknown field or bad JSON exits 2, an absent epic 4; a write whose after-state holds a lint error the before-state did not exits 1 naming it and writes nothing |
 | `tp epic set <milestones\|gates\|tag_checks>=<json>` | Replace that whole top-level object, creating an absent file; the same lint rule applies |
+| `tp epic remove <id>` | Remove epic `<id>` from `.tp/epics.json` under its lock; prints `{file, epics}`. An epic another epic depends on exits 1 naming the dependents and writes nothing; an absent epic exits 4 |
+| `tp epic remove <id> --force` | Also drop the edges into it and its gate memberships (`members` and `deferrable`); an epic a `tag_checks` entry names as provider is refused even so (exit 1, writes nothing) — repoint the check with `tp epic set tag_checks=<json>` first |
 
 ### Data
 | Command | Purpose |
