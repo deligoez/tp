@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.3.0.md",
   "created_at": "2026-11-08T20:45:28.723149Z",
-  "updated_at": "2026-11-08T21:43:18.677509Z",
+  "updated_at": "2026-11-08T21:48:11.696456Z",
   "workflow": {
     "review_max_rounds": 3,
     "audit_max_rounds": 3
@@ -364,7 +364,7 @@
       "id": "epic-remove-command",
       "title": "Add the tp epic remove writer",
       "description": "`tp epic remove \u003cid\u003e [--force]`: refuses an epic another depends on without --force; --force drops edges into it and its gate memberships; an epic a tag_checks entry names as provider is refused even with --force (D8). Inventory rows.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "writer"
@@ -378,11 +378,31 @@
         "## 3. The writers",
         "## 9. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-08T21:43:35.104089Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-08T21:48:11.656063Z",
+      "closed_reason": "- Section 9 row 21: tp epic remove (internal/cli/epic_remove.go over engine.RemoveEpic in internal/engine/epicremove.go and engine.UpdateEpicGraph) exits 1 on the chain for b without --force, naming dependent a and leaving the file byte-identical; with --force b, the edge a -\u003e b and b's gates.A.members entry are gone and tp epic lint reports zero errors, verified by TestEpicRemove_DependedOnEpicNeedsForceWhichDropsItsEdgesAndGates (internal/cli/epic_remove_test.go)\n- D8: remove --force of an epic a tag_checks entry names as provider exits 1 naming the tag and writes nothing, verified by TestEpicRemove_ForceRefusesATagCheckProvider (internal/cli/epic_remove_test.go); per D8 the spec's 'drops any tag_checks entry naming it' is not implemented, and --force also drops the epic from gate deferrable lists (smallest reading of 'gate memberships'); inventory rows in skills/tp/SKILL.md, README.md command index, and the pinned surface in internal/cli/nongoals_surface_test.go",
+      "gate_passed_at": "2026-11-08T21:48:11.656063Z",
+      "commit_sha": "e15203fa",
+      "commit_shas": [
+        "e15203fa",
+        "676c6bb6",
+        "0c5ffcca",
+        "8eb5b54d",
+        "7a04b138",
+        "17554a18",
+        "33819822"
+      ],
+      "commit_files": [
+        "README.md",
+        "internal/cli/epic.go",
+        "internal/cli/epic_add.go",
+        "internal/cli/epic_remove.go",
+        "internal/cli/epic_remove_test.go",
+        "internal/cli/nongoals_surface_test.go",
+        "internal/engine/epicremove.go",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "epic-import-command",
