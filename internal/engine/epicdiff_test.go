@@ -40,3 +40,15 @@ func TestNewEpicErrors_PreExistingDanglingEdgeIsNotNewButASecondOneIs(t *testing
 	assert.Equal(t, []string{"e", "y"}, added[0].Epics)
 }
 
+func TestNewEpicErrors_SecondUnknownTopLevelKeyIsNew(t *testing.T) {
+	before := LintEpicGraph(cleanEpicGraph(), []EpicGraphUnknownKey{{Path: "owner", Key: "owner"}})
+	after := LintEpicGraph(cleanEpicGraph(), []EpicGraphUnknownKey{
+		{Path: "owner", Key: "owner"},
+		{Path: "extra", Key: "extra"},
+	})
+	added := NewEpicErrors(before, after)
+	require.Len(t, added, 1, "both keys name no epic; the key name tells them apart")
+	assert.Equal(t, EpicRuleUnknownKey, added[0].Rule)
+	assert.Contains(t, added[0].Message, "extra")
+}
+
