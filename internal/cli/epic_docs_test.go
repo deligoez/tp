@@ -60,3 +60,13 @@ func TestReferenceCarriesTheEpicGraphContract(t *testing.T) {
 		assert.Contains(t, codes, row, "the exit code table has a %s row", row)
 	}
 }
+
+// TestReadmeIndexListsEveryEpicSubcommand pins §7's README.md half against the
+// command tree itself, so a subcommand added later without a row fails here.
+func TestReadmeIndexListsEveryEpicSubcommand(t *testing.T) {
+	t.Parallel()
+	readme := readRepoDoc(t, "README.md")
+	for _, sub := range newEpicCmd().Commands() {
+		assert.Contains(t, readme, "\ntp epic "+sub.Name()+" ", "README.md's command index has a `tp epic %s` row", sub.Name())
+	}
+}
