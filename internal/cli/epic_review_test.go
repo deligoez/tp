@@ -106,3 +106,45 @@ func TestEpicReview_BuiltInRolesRunUntilTheDirectoryReplacesThem(t *testing.T) {
 	assert.Equal(t, []string{"edge-reader"}, promptRoles(&out))
 }
 
+// TestEpicReview_LintErrorsAreMechanicalChecksWithheldFromThePrompts is §5's
+// mechanized classes: a cycle outside the slice does not refuse the emission,
+// mechanical_checks reports cycle failing, and every error rule's slug is in
+// mechanized_classes and in each prompt's do-not-report sentence.
+func TestEpicReview_LintErrorsAreMechanicalChecksWithheldFromThePrompts(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{
+  "version": 1,
+  "milestones": [["A", "B"], ["L1"]],
+  "epics": [
+    {"id": "a", "title": "A", "milestone": "A", "depends_on": [{"id": "b", "why": "a needs b"}]},
+    {"id": "b", "title": "B", "milestone": "A", "depends_on": [{"id": "c", "why": "b needs c"}]},
+    {"id": "c", "title": "C", "milestone": "A", "depends_on": [{"id": "d", "why": "c needs d"}]},
+    {"id": "d", "title": "D", "milestone": "A"},
+    {"id": "x", "title": "X", "milestone": "A", "depends_on": [{"id": "y", "why": "x needs y"}]},
+    {"id": "y", "title": "Y", "milestone": "A", "depends_on": [{"id": "x", "why": "y needs x"}]}
+  ]
+}
+`)
+	out := runEpicReview(t, dir, "--epic", "b")
+
+	passed := map[string]bool{}
+	for _, c := range out.MechanicalChecks {
+		passed[c.Class] = c.Passed
+	}
+	require.Contains(t, passed, "cycle")
+	assert.False(t, passed["cycle"], "the cycle x <-> y fails its check")
+	assert.True(t, passed["dangling-reference"], "a rule with no finding passes")
+
+	errorRules := []string{
+		"cycle", "dangling-reference", "duplicate-name", "gate-member-outside-milestone",
+		"later-milestone-dependency", "missing-why", "unknown-key", "unknown-milestone",
+		"unprovided-tag-check",
+	}
+	assert.Equal(t, errorRules, out.MechanizedClasses)
+	for _, p := range out.Prompts {
+		for _, rule := range errorRules {
+			assert.Contains(t, p.Prompt, rule, "%s withholds %s", p.Role, rule)
+		}
+	}
+}
+
