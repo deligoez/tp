@@ -52,7 +52,10 @@ func runEpicAdd(cmd *cobra.Command, args []string) error {
 	for i := range epics {
 		ids = append(ids, epics[i].ID)
 	}
-	writeEpicGraph(ids, func(g *model.EpicGraph) { engine.AddEpics(g, epics, bulk != "") })
+	writeEpicGraph(ids, func(g *model.EpicGraph) error {
+		engine.AddEpics(g, epics, bulk != "")
+		return nil
+	})
 	return nil
 }
 
@@ -122,8 +125,9 @@ func readBulkEpics(path string) []model.Epic {
 }
 
 // writeEpicGraph runs one locked, lint-checked write of .tp/epics.json and
-// reports it: exit 1 naming the new errors, 3 on a file error.
-func writeEpicGraph(ids []string, mutate func(*model.EpicGraph)) {
+// reports it: exit 1 naming the new errors, 4 naming an absent epic, 3 on a
+// file error.
+func writeEpicGraph(ids []string, mutate func(*model.EpicGraph) error) {
 	path, err := engine.UpdateEpicGraph(engine.ProjectConfigDir("."), mutate)
 	var refused *engine.EpicWriteRefusedError
 	var mce *engine.MalformedConfigError

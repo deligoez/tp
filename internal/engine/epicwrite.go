@@ -28,11 +28,12 @@ func (e *EpicWriteRefusedError) Error() string {
 // UpdateEpicGraph applies mutate to tpDir/epics.json under the file's write
 // lock and writes the result, unless the after-state holds an error the
 // before-state did not: then it writes nothing and returns an
-// *EpicWriteRefusedError. An absent file starts as an empty version-1 graph,
-// so any writer creates it. Keys outside the schema are not carried into the
+// *EpicWriteRefusedError. An error from mutate also writes nothing and is
+// returned as is. An absent file starts as an empty version-1 graph, so any
+// writer creates it. Keys outside the schema are not carried into the
 // written file, so the after-state is linted without them. It returns the
 // path of the graph file.
-func UpdateEpicGraph(tpDir string, mutate func(*model.EpicGraph)) (string, error) {
+func UpdateEpicGraph(tpDir string, mutate func(*model.EpicGraph) error) (string, error) {
 	path := filepath.Join(tpDir, EpicGraphFile)
 	if err := os.MkdirAll(tpDir, 0o755); err != nil {
 		return path, fmt.Errorf("create %s: %w", tpDir, err)
@@ -46,7 +47,9 @@ func UpdateEpicGraph(tpDir string, mutate func(*model.EpicGraph)) (string, error
 			return err
 		}
 		before := LintEpicGraph(g, unknown)
-		mutate(g)
+		if err := mutate(g); err != nil {
+			return err
+		}
 		if added := NewEpicErrors(before, LintEpicGraph(g, nil)); len(added) > 0 {
 			return &EpicWriteRefusedError{New: added}
 		}
