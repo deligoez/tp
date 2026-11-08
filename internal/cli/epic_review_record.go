@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -50,6 +51,11 @@ func runEpicReviewRecord(key engine.EpicSliceKey, recordPath string) {
 		os.Exit(ExitValidation)
 	}
 	round, err := engine.RecordEpicReviewRound(run.stateDir, data)
+	var lockErr *engine.LockTimeoutError
+	if errors.As(err, &lockErr) {
+		output.Error(ExitState, lockErr.Error(), lockErr.Hint())
+		os.Exit(ExitState)
+	}
 	if err != nil {
 		output.Error(ExitFile, "cannot write the epic review round: "+err.Error(), epicReviewStateHint)
 		os.Exit(ExitFile)
