@@ -80,3 +80,14 @@ func TestLintEpicGraph_DanglingReferencesAreOneFindingEach(t *testing.T) {
 	assert.ElementsMatch(t, [][]string{{"c", "z"}, {"y"}, {"x"}, {"w"}, {}}, epics)
 }
 
+func TestLintEpicGraph_DuplicateNamesAreOneFindingEach(t *testing.T) {
+	g := cleanEpicGraph()
+	g.Milestones = [][]string{{"A", "B"}, {"L1", "B"}}
+	g.Epics = append(g.Epics, model.Epic{ID: "c", Title: "C again", Milestone: "A"}, model.Epic{ID: "c", Title: "C thrice", Milestone: "A"})
+	dups := findingsOf(t, LintEpicGraph(g, nil), EpicRuleDuplicateName)
+	require.Len(t, dups, 2)
+	assert.Equal(t, []string{"c"}, dups[0].Epics)
+	assert.Equal(t, []string{}, dups[1].Epics)
+	assert.Contains(t, dups[1].Message, `"B"`)
+}
+
