@@ -109,8 +109,10 @@ func newRootCmdForTest() *cobra.Command {
 }
 
 // registeredFlags walks the command tree and returns the long flags tp declares
-// on each command, plus the root's persistent (global) flags. A command's set
-// excludes the globals, since LocalFlags() already drops inherited ones.
+// on each top-level command, plus the root's persistent (global) flags. A
+// command's set excludes the globals, since LocalFlags() already drops
+// inherited ones, and includes its subcommands' flags: the inventory attributes
+// a `tp epic export --md` row to `epic`, the first word after `tp`.
 func registeredFlags() (perCommand map[string]map[string]bool, globals map[string]bool) {
 	root := newRootCmdForTest()
 
@@ -125,15 +127,24 @@ func registeredFlags() (perCommand map[string]map[string]bool, globals map[strin
 			continue
 		}
 		flags := map[string]bool{}
-		sub.LocalFlags().VisitAll(func(f *pflag.Flag) {
-			if cobraGeneratedFlags[f.Name] {
-				return
-			}
-			flags[f.Name] = true
-		})
+		collectLocalFlags(sub, flags)
 		perCommand[sub.Name()] = flags
 	}
 	return perCommand, globals
+}
+
+// collectLocalFlags adds cmd's own long flags and its subcommands' into flags.
+func collectLocalFlags(cmd *cobra.Command, flags map[string]bool) {
+	cmd.LocalFlags().VisitAll(func(f *pflag.Flag) {
+		if !cobraGeneratedFlags[f.Name] {
+			flags[f.Name] = true
+		}
+	})
+	for _, sub := range cmd.Commands() {
+		if !cobraGeneratedCommands[sub.Name()] {
+			collectLocalFlags(sub, flags)
+		}
+	}
 }
 
 // sortedKeys keeps the reported drift deterministic, so a failing run names the
