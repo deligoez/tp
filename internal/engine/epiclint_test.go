@@ -91,3 +91,15 @@ func TestLintEpicGraph_DuplicateNamesAreOneFindingEach(t *testing.T) {
 	assert.Contains(t, dups[1].Message, `"B"`)
 }
 
+func TestLintEpicGraph_UnknownKeysAreOneFindingEach(t *testing.T) {
+	unknown := []EpicGraphUnknownKey{
+		{Path: "owner", Key: "owner"},
+		{Path: "epics[1].trigger", Key: "trigger", EpicID: "b"},
+	}
+	keys := findingsOf(t, LintEpicGraph(cleanEpicGraph(), unknown), EpicRuleUnknownKey)
+	require.Len(t, keys, 2)
+	assert.Equal(t, []string{}, keys[0].Epics)
+	assert.Contains(t, keys[0].Message, "owner")
+	assert.Equal(t, []string{"b"}, keys[1].Epics)
+	assert.Contains(t, keys[1].Message, "epics[1].trigger")
+}
