@@ -148,3 +148,29 @@ const epicChainWithCycle = `{
 }
 `
 
+// TestEpicReviewStatus_ALintErrorOutsideTheSliceKeepsCheckFailing is §9 row 11
+// with D9: both clean rounds record and converge, but the cycle x ↔ y fails
+// the cycle mechanical check, so --check stays at 1. Refusing emission on a
+// lint error, or linting the slice only, fails it.
+func TestEpicReviewStatus_ALintErrorOutsideTheSliceKeepsCheckFailing(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChainWithCycle)
+	slice := []string{"--epic", "b"}
+
+	for range 2 {
+		out := runEpicReview(t, dir, slice...)
+		failing := []string{}
+		for _, c := range out.MechanicalChecks {
+			if !c.Passed {
+				failing = append(failing, c.Class)
+			}
+		}
+		assert.Equal(t, []string{"cycle"}, failing)
+		recordEpicRound(t, dir, "", slice...)
+	}
+	st := epicStatus(t, dir, slice...)
+	assert.True(t, st.Converged, "the slice itself converged")
+	assert.True(t, st.Done)
+	assert.Contains(t, st.NextAction, "tp epic lint", "next_action names the failing checks' source")
+	assert.Equal(t, 1, epicCheckCode(t, dir, slice...))
+}
