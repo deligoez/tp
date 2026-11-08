@@ -2,6 +2,7 @@ package engine
 
 import (
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -148,4 +149,83 @@ func TestLintEpicGraph_GateMemberOutsideMilestoneFiresOnTheMember(t *testing.T) 
 	require.Len(t, outside, 1)
 	assert.Equal(t, []string{"d"}, outside[0].Epics)
 	assert.Contains(t, outside[0].Message, `"A"`)
+}
+
+// providerGraph is section 9 row 4's fixture: p tagged ui and named its
+// provider, x → p, and screen tagged ui with screen → x.
+func providerGraph() *model.EpicGraph {
+	return &model.EpicGraph{
+		Version:    1,
+		Milestones: [][]string{{"A"}},
+		TagChecks:  map[string]model.EpicTagCheck{"ui": {ProvidedBy: "p"}},
+		Epics: []model.Epic{
+			{ID: "p", Title: "Provider", Milestone: "A", Tags: []string{"ui"}},
+			{ID: "x", Title: "Middle", Milestone: "A", DependsOn: []model.EpicDep{{ID: "p", Why: "needs the checker"}}},
+			{ID: "screen", Title: "Screen", Milestone: "A", Tags: []string{"ui"}, DependsOn: []model.EpicDep{{ID: "x", Why: "renders its data"}}},
+		},
+	}
+}
+
+func TestLintEpicGraph_UnprovidedTagCheckFollowsTransitiveDependencies(t *testing.T) {
+	assert.Empty(t, LintEpicGraph(providerGraph(), nil), "a transitive path and the provider itself do not fire")
+
+	g := providerGraph()
+	g.Epics[2].DependsOn = nil
+	unprovided := findingsOf(t, LintEpicGraph(g, nil), EpicRuleUnprovidedTagCheck)
+	require.Len(t, unprovided, 1)
+	assert.Equal(t, []string{"screen"}, unprovided[0].Epics)
+	assert.Equal(t, EpicSeverityError, unprovided[0].Severity)
+}
+
+// severityCount counts the findings at the given severity.
+func severityCount(findings []EpicLintFinding, severity string) int {
+	n := 0
+	for _, f := range findings {
+		if f.Severity == severity {
+			n++
+		}
+	}
+	return n
+}
+
+// warningGraph is section 9 row 23's fixture as D10 fixes it: tracks [[A, B]],
+// a and c in A, b in B with no dependencies, a → c whose why is " STEP " while
+// c's title is "c step".
+func warningGraph() *model.EpicGraph {
+	return &model.EpicGraph{
+		Version:    1,
+		Milestones: [][]string{{"A", "B"}},
+		Epics: []model.Epic{
+			{ID: "a", Title: "First", Milestone: "A", DependsOn: []model.EpicDep{{ID: "c", Why: " STEP "}}},
+			{ID: "b", Title: "Later", Milestone: "B"},
+			{ID: "c", Title: "c step", Milestone: "A"},
+		},
+	}
+}
+
+func TestLintEpicGraph_OneInstanceOfEachWarning(t *testing.T) {
+	g := warningGraph()
+	findings := LintEpicGraph(g, nil)
+	assert.Equal(t, 2, severityCount(findings, EpicSeverityWarning))
+	assert.Equal(t, 0, severityCount(findings, EpicSeverityError))
+
+	noDeps := findingsOf(t, findings, EpicRuleNoDependencies)
+	require.Len(t, noDeps, 1)
+	assert.Equal(t, []string{"b"}, noDeps[0].Epics)
+	thin := findingsOf(t, findings, EpicRuleThinWhy)
+	require.Len(t, thin, 1)
+	assert.Equal(t, []string{"a", "c"}, thin[0].Epics)
+
+	// The fixture separates the folded comparison from a case-sensitive one,
+	// which would find "STEP" in neither "c" nor "c step" and yield warnings 1.
+	why := strings.TrimSpace(g.Epics[0].DependsOn[0].Why)
+	assert.False(t, strings.Contains(g.Epics[2].ID, why) || strings.Contains(g.Epics[2].Title, why))
+}
+
+func TestLintEpicGraph_EmptyWhyDoesNotFireThinWhy(t *testing.T) {
+	g := warningGraph()
+	g.Epics[0].DependsOn[0].Why = "  "
+	findings := LintEpicGraph(g, nil)
+	assert.Empty(t, findingsOf(t, findings, EpicRuleThinWhy), "an empty why is missing-why's finding")
+	assert.Len(t, findingsOf(t, findings, EpicRuleMissingWhy), 1)
 }
