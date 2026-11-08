@@ -161,7 +161,11 @@ func writeEpicGraph(ids []string, mutate func(*model.EpicGraph) error) {
 	var notFound *engine.EpicNotFoundError
 	var removeRefused *engine.EpicRemoveRefusedError
 	var mce *engine.MalformedConfigError
+	var lockErr *engine.LockTimeoutError
 	switch {
+	case errors.As(err, &lockErr):
+		output.Error(ExitState, lockErr.Error(), lockErr.Hint())
+		os.Exit(ExitState)
 	case errors.As(err, &removeRefused):
 		output.Error(ExitValidation, removeRefused.Error(), epicRemoveRefusedHint)
 		os.Exit(ExitValidation)
