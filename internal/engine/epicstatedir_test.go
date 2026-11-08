@@ -29,3 +29,17 @@ func TestEpicReviewStateDir_MilestoneAndEpicOfOneNameNeverShare(t *testing.T) {
 	}
 }
 
+// TestEpicReviewStateDir_PathLikeIDStaysUnderTheStateRoot is §9 row 14's
+// second graph: an epic id ../x never reaches the file system, so its
+// directory is a direct child of .tp/epic-review/.
+func TestEpicReviewStateDir_PathLikeIDStaysUnderTheStateRoot(t *testing.T) {
+	tpDir := filepath.Join(t.TempDir(), ".tp")
+	root := filepath.Join(tpDir, "epic-review")
+
+	dir := EpicReviewStateDir(tpDir, EpicSliceKey{Epic: "../x"})
+
+	rel, err := filepath.Rel(root, dir)
+	require.NoError(t, err)
+	assert.False(t, strings.Contains(rel, string(filepath.Separator)) || strings.HasPrefix(rel, ".."), "dir %s escapes %s", dir, root)
+	assert.Regexp(t, lowerHex, rel)
+}
