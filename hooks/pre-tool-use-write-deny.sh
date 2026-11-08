@@ -57,15 +57,19 @@ normalize() {
 }
 
 # denied reports whether one path is inside the fence. `?*` requires a non-empty
-# remainder, so the `.tp-review` directory itself is not a denied write - its
-# contents are. The patterns are all lowercase because they are matched against
-# the normalized spelling, never the raw argument.
+# remainder, so the `.tp-review` and `.tp/epic-review` directories themselves
+# are not denied writes - their contents are. `.tp/epics.json` and
+# `.tp/epic-review/` are the epic graph and its rounds (1.3.0 section 7).
+# The patterns are all lowercase because they are matched against the
+# normalized spelling, never the raw argument.
 denied() {
 	case $(normalize "$1") in
 	*/.tp-review/?* | .tp-review/?*) return 0 ;;
 	*.tasks.json) return 0 ;;
 	*/.tp/config.json | .tp/config.json) return 0 ;;
 	*/.tp/local.json | .tp/local.json) return 0 ;;
+	*/.tp/epics.json | .tp/epics.json) return 0 ;;
+	*/.tp/epic-review/?* | .tp/epic-review/?*) return 0 ;;
 	esac
 	return 1
 }
@@ -155,8 +159,8 @@ for path in $paths; do
 	printf '%s\n' \
 		"tp scope fence: $path is tp's own state and must not be hand-edited (v0.35.0 §6.2)." \
 		'Change it with the tp command that owns it: task files through tp done / tp set / tp import / tp remove,' \
-		'.tp/config.json through tp config, .tp/local.json through tp use, and the round files under .tp-review/' \
-		'through tp review / tp audit. A finding outside your scope belongs in the closure evidence, not in an edit.' >&2
+		'.tp/config.json through tp config, .tp/local.json through tp use, .tp/epics.json and .tp/epic-review/' \
+		'through tp epic, and the round files under .tp-review/ through tp review / tp audit. A finding outside your scope belongs in the closure evidence, not in an edit.' >&2
 	exit 2
 done
 
