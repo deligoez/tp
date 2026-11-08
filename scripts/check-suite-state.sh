@@ -29,7 +29,11 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-WATCHED=(spec/.tp-review .tp/rounds)
+# .tp/epics.json and .tp/epic-review/ are the epic graph and its review rounds
+# (v1.3.0 D12): a test that runs `tp epic` against the repository instead of a
+# temp tree writes one of them. The graph is a single file, so the digest below
+# hashes a watched regular file as itself.
+WATCHED=(spec/.tp-review .tp/rounds .tp/epics.json .tp/epic-review)
 
 # Hash names and contents together: a file added or removed changes the digest
 # even when every surviving file is untouched. Missing directories are legal —
@@ -40,14 +44,14 @@ WATCHED=(spec/.tp-review .tp/rounds)
 # So a run that creates a directory and leaves it empty is NOT caught, and
 # engine.clearUnitArtifacts does exactly that MkdirAll. An earlier version of
 # this comment claimed the opposite. The blindness is to directory-only changes:
-# every file written under either path is still caught, and review state lives in
+# every file written under a watched path is still caught, and review state lives in
 # files, so S1's actual hazard — a test advancing a round it does not own — is
 # detected. Routed to a later release rather than repaired here; what could not
 # stand was the claim.
 state_digest() {
 	local dir
 	for dir in "${WATCHED[@]}"; do
-		if [ -d "$dir" ]; then
+		if [ -e "$dir" ]; then
 			find "$dir" -type f -print0 | LC_ALL=C sort -z | xargs -0 shasum -a 256
 		fi
 	done | shasum -a 256 | cut -d' ' -f1
