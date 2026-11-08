@@ -1,0 +1,64 @@
+package engine
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/deligoez/tp/internal/model"
+)
+
+// epicChainGraph is spec/1.3.0.md §9's "chain": a -> b -> c -> d, all in
+// milestone A of tracks [[A, B], [L1]], every why distinct.
+func epicChainGraph() *model.EpicGraph {
+	return &model.EpicGraph{
+		Version:    1,
+		Milestones: [][]string{{"A", "B"}, {"L1"}},
+		Epics: []model.Epic{
+			{ID: "a", Title: "A step", Milestone: "A", DependsOn: []model.EpicDep{{ID: "b", Why: "a reads what b writes"}}},
+			{ID: "b", Title: "B step", Milestone: "A", DependsOn: []model.EpicDep{{ID: "c", Why: "b extends c's model"}}},
+			{ID: "c", Title: "C step", Milestone: "A", DependsOn: []model.EpicDep{{ID: "d", Why: "c ships on d's runner"}}},
+			{ID: "d", Title: "D step", Milestone: "A"},
+		},
+	}
+}
+
+func unitKeys(units []EpicReviewUnit) []string {
+	keys := make([]string, 0, len(units))
+	for _, u := range units {
+		keys = append(keys, u.Key)
+	}
+	return keys
+}
+
+func unitHashes(t *testing.T, g *model.EpicGraph) map[string]string {
+	t.Helper()
+	s, err := EpicReviewSlice(g, EpicSliceKey{Milestone: "A"})
+	require.NoError(t, err)
+	hashes := map[string]string{}
+	for _, u := range s.Units {
+		hashes[u.Key] = u.Hash
+	}
+	return hashes
+}
+
+// §9 row 6 with D11: b is the only asked unit, the context holds a and c, and
+// d appears only as an edge target id inside c's block.
+func TestEpicReviewSlice_EpicAsksItselfWithNeighboursAsContext(t *testing.T) {
+	s, err := EpicReviewSlice(epicChainGraph(), EpicSliceKey{Epic: "b"})
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"epic:b"}, unitKeys(s.Units))
+	ctx := make([]string, 0, len(s.Context))
+	for _, c := range s.Context {
+		ctx = append(ctx, c.ID)
+	}
+	assert.Equal(t, []string{"a", "c"}, ctx)
+
+	assert.NotContains(t, s.Units[0].Block, "D step", "b's own block holds no block of d")
+	assert.NotContains(t, s.Context[0].Block, "D step")
+	assert.Contains(t, s.Context[1].Block, "- d: c ships on d's runner", "d is an edge target id in c's block")
+	assert.NotContains(t, s.Context[1].Block, "D step", "d's own block never appears")
+}
+
