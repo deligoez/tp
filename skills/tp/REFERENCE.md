@@ -1329,3 +1329,97 @@ That includes `message`, `hint`, and the `spec_coverage_clean_rounds` key when i
 is the mode an agent driver runs in, and these fields are the conclusion rather than a restatement
 of it. The audit fields `--compact` already drops — `harness_stale`, `harness_note`,
 `overlap_report` — are unchanged.
+
+## Epic Graph (v1.3.0)
+
+The commands that read and write it are the `tp epic` rows of the inventory in [SKILL.md](SKILL.md);
+the loop that uses them is SKILL.md's Workflow E.
+
+### The graph file (`.tp/epics.json`)
+
+The file lives in the project layer — the `.tp/` directory at the `.git` boundary, beside
+`config.json` — and is committed like it. The plugin's write-deny hook fences it with `config.json`,
+so it changes only through the `tp epic` writers.
+
+```json
+{
+  "version": 1,
+  "milestones": [["A", "B", "C"], ["L1", "L2"]],
+  "gates": {"A": {"members": ["money-type", "rounding"], "deferrable": ["ledger-export"]}},
+  "tag_checks": {"ui": {"provided_by": "ui-rule-checker"}},
+  "epics": [
+    {"id": "money-type", "title": "Money type", "milestone": "A", "tags": ["det"],
+     "depends_on": [{"id": "event-store", "why": "amounts are event payload"}],
+     "acceptance": "…"}
+  ]
+}
+```
+
+| Key | Shape | Meaning |
+|-----|-------|---------|
+| `milestones` | list of tracks, each an ordered list of names | a name appears once across all tracks; order matters within a track only |
+| `gates.<milestone>` | `{members, deferrable}` | the milestone's gate unit, reviewed with it; every member must be in that milestone |
+| `tag_checks.<tag>.provided_by` | epic id | every epic carrying the tag must depend on this epic, directly or transitively |
+| `epics[].id` | non-empty string | opaque and unique in the file; spaces and non-ASCII stay as written |
+| `epics[].milestone` | milestone name | required; names one of `milestones` |
+| `epics[].tags` | list of strings | opaque to tp, read only by `tag_checks` |
+| `epics[].depends_on` | list of `{id, why}` | `why` is required and is content, like `title` and `acceptance` |
+
+Any key outside this schema is the lint error `unknown-key`. The writers rewrite the file with
+2-space indentation and leave `<`, `>` and `&` unescaped, so a file loaded and written unchanged is
+byte-identical.
+
+### Lint rules (`tp epic lint`)
+
+`tp epic lint` reads the file and writes nothing. Its payload is `{errors, warnings, findings[]}`,
+each finding `{rule, severity, epics, message}`, `epics` the sorted ids it names. Every writer runs
+the error rules over the file as it would be after the write and refuses one adding an error; an
+error's identity is its rule, its sorted epic ids and the milestone, gate or key names it involves,
+so an error already in the file does not block an unrelated write. Every rule but `cycle` reports
+one finding per offending item.
+
+| Rule | Severity | Fires when |
+|------|----------|------------|
+| `cycle` | error | the dependency graph has a cycle; one finding per strongly connected component |
+| `dangling-reference` | error | a `depends_on` id, a gate member or deferrable, or a `provided_by` names no epic; a `gates` key names no milestone |
+| `duplicate-name` | error | an epic id or a milestone name appears twice |
+| `unknown-key` | error | a key outside the graph file's schema |
+| `missing-why` | error | an edge has no `why`, or one that is empty once trimmed |
+| `unknown-milestone` | error | an epic's `milestone` is absent or in no track |
+| `later-milestone-dependency` | error | an epic depends on one in a later milestone of the same track; edges across tracks are free |
+| `gate-member-outside-milestone` | error | a gate's member is not in that milestone |
+| `unprovided-tag-check` | error | an epic carries a tag whose `provided_by` is not in its transitive dependencies; the provider itself is exempt |
+| `no-dependencies` | warning | an epic outside the first milestone of its track has no dependencies |
+| `thin-why` | warning | a `why`, trimmed and case-folded, is non-empty and contained in the target epic's id or title |
+
+`tp epic review` runs the error rules over the whole file at every emission as `mechanical_checks`
+and names their slugs in `mechanized_classes`, withheld from the role prompts.
+
+### State directory (`.tp/epic-review/`)
+
+Each review slice has its own directory, `.tp/epic-review/<key hash>/`, where the key hash is the
+lowercase hex SHA-256 of the slice kind, a NUL byte and its value — so `--milestone A` and
+`--epic A` never share a directory and no id reaches the file system. `--status` names it as
+`state_dir`.
+
+| File | Written by | Content |
+|------|------------|---------|
+| `snapshot-round-<N>.json` | emission | each unit's hash as round N read it; a unit's hash covers its own block and, for an epic, the blocks of its direct dependencies |
+| `round-<N>.ndjson` | `--record` | the round's findings, each with `severity`, `finding`, `location` (`epic:<id>` or `gate:<m>`) and `evidence`; `--resolve` writes dispositions into the last one |
+
+From round 2 a unit whose hash equals the round before's and that holds no open finding is carried
+and not asked; a unit with no recorded hash is asked and makes the slice stale. Convergence and the
+cap resolve `review_clean_rounds`, `review_converge_on` and `review_max_rounds` from the project
+layer over the built-in default, with no task file layer. With no `.tp/epic-reviewers/` the three
+built-in graph roles run (`dod-satisfiability`, `why-auditor`, `phase-economist`); a populated
+directory replaces them.
+
+### Exit codes (`tp epic`)
+
+| code | outcome |
+|------|---------|
+| 0 | the command completed; for `tp epic lint`, no error-severity finding; for `--status --check`, the loop is `done` and every mechanical check passes |
+| 1 | `tp epic lint` found an error; a write whose after-state adds a lint error; `tp epic remove` of an epic another depends on without `--force`, or of a `tag_checks` provider even with it; `tp epic import` over a file holding epics without `--force`; a `--record` row missing a required key or locating outside the slice (the whole file is refused); `--status --check` not done; `--resolve` of an already resolved finding without `--force` |
+| 2 | usage: a payload key outside the schema, an unknown `set` field or bad JSON, `export` without `--md`, `review` with neither or both of `--milestone`/`--epic`, an unknown `--role`, an invalid `--resolve` status, an out-of-range index or a `wontfix`/`duplicate` without evidence; and every writer and `--record` under `TP_UNATTENDED` |
+| 3 | file: no graph file, a malformed one, unreadable slice state, a project config that does not parse, or `--resolve` with no recorded round |
+| 4 | state: an absent epic (`set`, `remove`, `review --epic`) or milestone (`review --milestone`); a reached cap — `review_max_rounds` rounds recorded and not converged — refuses emission and `--record` with `tp review`'s escalation hint |
