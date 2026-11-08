@@ -93,3 +93,58 @@ func TestEpicReviewStatus_TwoCleanRoundsConvergeUntilTheGraphChanges(t *testing.
 	assert.Equal(t, 1, epicCheckCode(t, dir, slice...))
 }
 
+// TestEpicReviewStatus_ACapWithAHighFindingRefusesUntilDispositioned is §9 row
+// 10: with review_max_rounds 1, a recorded high finding reaches the cap, so
+// emission and record exit 4 with the escalation hint and --check exits 1;
+// once the finding is resolved wontfix with evidence, --check exits 0.
+// Emitting round 2, or treating the cap alone as done, fails it.
+func TestEpicReviewStatus_ACapWithAHighFindingRefusesUntilDispositioned(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChain)
+	writeEpicProjectConfig(t, dir, `{"review_max_rounds": 1}`)
+	slice := []string{"--epic", "b"}
+	row := `{"severity":"high","finding":"b's acceptance names no checker","location":"epic:b","evidence":"b"}`
+
+	r1 := runEpicReview(t, dir, slice...)
+	recordEpicRound(t, dir, row+"\n", slice...)
+
+	_, stderr, code := runTP(t, dir, append([]string{"epic", "review"}, slice...)...)
+	require.Equal(t, 4, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "--resolve", "the refusal carries tp review's escalation hint")
+	_, err := os.Stat(filepath.Join(dir, r1.StateDir, "snapshot-round-2.json"))
+	assert.True(t, os.IsNotExist(err), "a refused emission opens no round 2")
+
+	path := epicRecordFile(t, dir, "")
+	_, stderr, code = runTP(t, dir, append(append([]string{"epic", "review"}, slice...), "--record", path)...)
+	require.Equal(t, 4, code, "stderr: %s", stderr)
+	assert.Len(t, epicRoundFiles(t, dir), 1, "a refused record writes no round")
+
+	capped := epicStatus(t, dir, slice...)
+	assert.False(t, capped.Done, "the cap alone is not done")
+	assert.Equal(t, 1, epicCheckCode(t, dir, slice...))
+
+	r1.Round = 1
+	writeEpicRound(t, dir, &r1, `{"severity":"high","finding":"b's acceptance names no checker","location":"epic:b","evidence":"b","resolved":{"status":"wontfix","evidence":"the checker ships in a later milestone"}}`+"\n")
+	resolved := epicStatus(t, dir, slice...)
+	assert.True(t, resolved.Done)
+	assert.Equal(t, "cap", resolved.DoneBy)
+	assert.False(t, resolved.Converged)
+	assert.Equal(t, 0, epicCheckCode(t, dir, slice...))
+}
+
+// epicChainWithCycle is row 11's fixture under D9: the chain plus a separate
+// cycle x ↔ y that the slice --epic b does not reach.
+const epicChainWithCycle = `{
+  "version": 1,
+  "milestones": [["A", "B"], ["L1"]],
+  "epics": [
+    {"id": "a", "title": "A", "milestone": "A", "depends_on": [{"id": "b", "why": "a needs b"}]},
+    {"id": "b", "title": "B", "milestone": "A", "depends_on": [{"id": "c", "why": "b needs c"}]},
+    {"id": "c", "title": "C", "milestone": "A", "depends_on": [{"id": "d", "why": "c needs d"}]},
+    {"id": "d", "title": "D", "milestone": "A"},
+    {"id": "x", "title": "X", "milestone": "B", "depends_on": [{"id": "y", "why": "x needs y"}]},
+    {"id": "y", "title": "Y", "milestone": "B", "depends_on": [{"id": "x", "why": "y needs x"}]}
+  ]
+}
+`
+
