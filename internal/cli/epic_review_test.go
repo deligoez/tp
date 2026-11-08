@@ -148,3 +148,15 @@ func TestEpicReview_LintErrorsAreMechanicalChecksWithheldFromThePrompts(t *testi
 	}
 }
 
+// TestEpicReview_RoleNarrowsTheEmissionToOnePrompt is §5's --role: the name of
+// an emitted role keeps its prompt alone, and a name tp knows nowhere exits 2.
+func TestEpicReview_RoleNarrowsTheEmissionToOnePrompt(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChain)
+	out := runEpicReview(t, dir, "--milestone", "A", "--role", "why-auditor")
+	assert.Equal(t, []string{"why-auditor"}, promptRoles(&out))
+	assert.Equal(t, []string{"epic:a", "epic:b", "epic:c", "epic:d"}, out.Units)
+
+	_, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A", "--role", "no-such-role")
+	assert.Equal(t, 2, code, "stderr: %s", stderr)
+}
