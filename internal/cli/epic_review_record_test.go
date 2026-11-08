@@ -47,3 +47,18 @@ func TestEpicReviewRecord_RowsOutsideTheSliceRefuseTheFile(t *testing.T) {
 	assert.Empty(t, epicRoundFiles(t, dir), "a refused file writes no round")
 }
 
+// TestEpicReviewRecord_UnattendedExitsTwoAndWritesNothing is §9 row 12 for
+// --record: a legal one-row file over --epic b is refused under TP_UNATTENDED
+// and no state directory is opened.
+func TestEpicReviewRecord_UnattendedExitsTwoAndWritesNothing(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChain)
+	path := epicRecordFile(t, dir, `{"severity":"low","finding":"f1","location":"epic:b","evidence":"e1"}`+"\n")
+
+	_, stderr, code := runTPFence(t, dir, true, "epic", "review", "--epic", "b", "--record", path)
+	require.Equal(t, 2, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "tp escalate --decision other")
+	_, err := os.Stat(filepath.Join(dir, ".tp", "epic-review"))
+	assert.True(t, os.IsNotExist(err), "a refused record writes nothing")
+}
+
