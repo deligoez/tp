@@ -62,3 +62,32 @@ func TestEpicReviewRecord_UnattendedExitsTwoAndWritesNothing(t *testing.T) {
 	assert.True(t, os.IsNotExist(err), "a refused record writes nothing")
 }
 
+// TestEpicReviewRecord_ALegalFileRecordsTheRoundAndAdvancesIt: a file whose
+// rows carry the four keys and name units of the slice records round 1, and
+// the next emission opens round 2.
+func TestEpicReviewRecord_ALegalFileRecordsTheRoundAndAdvancesIt(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChainWithGate)
+	r1 := runEpicReview(t, dir, "--milestone", "A")
+	path := epicRecordFile(t, dir,
+		`{"severity":"medium","finding":"f1","location":"epic:a","evidence":"e1"}`+"\n"+
+			`{"severity":"low","finding":"f2","location":"gate:A","evidence":"e2"}`+"\n")
+
+	stdout, stderr, code := runTP(t, dir, "epic", "review", "--milestone", "A", "--record", path)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var out struct {
+		StateDir string `json:"state_dir"`
+		Round    int    `json:"round"`
+		Findings int    `json:"findings"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out), "stdout: %s", stdout)
+	assert.Equal(t, r1.StateDir, out.StateDir)
+	assert.Equal(t, 1, out.Round)
+	assert.Equal(t, 2, out.Findings)
+	data, err := os.ReadFile(filepath.Join(dir, out.StateDir, "round-1.ndjson")) //nolint:gosec // path built from t.TempDir()
+	require.NoError(t, err)
+	assert.Contains(t, string(data), `"location":"gate:A"`)
+
+	r2 := runEpicReview(t, dir, "--milestone", "A")
+	assert.Equal(t, 2, r2.Round, "the recorded round advances the next emission")
+}
