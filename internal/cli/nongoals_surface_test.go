@@ -48,7 +48,7 @@ import (
 // their own tasks; a subcommand's flags sit on the parent's line, so `epic`
 // holds `tp epic export --md`, `tp epic add --stdin --bulk` and `tp epic
 // remove --force`, `tp epic review --milestone --epic --role --record --status
-// --check` (`tp epic lint`
+// --check --resolve --resolve-all --force` (`tp epic lint`
 // registers no flag of its own).
 const v100Surface = `
 : color compact file json no-color no-compact no-quiet quiet
@@ -61,7 +61,7 @@ close: reason-file skip-gate stdin
 commit: files
 config: dry-run extract force resolved
 done: auto-commit batch commit covered-by files gate-passed reason-file skip-gate stdin
-epic: bulk check epic force md milestone record role status stdin
+epic: bulk check epic force md milestone record resolve resolve-all role status stdin
 escalate: decision evidence option
 graph: from tag
 ground: check force record status units
