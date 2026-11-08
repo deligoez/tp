@@ -1,9 +1,12 @@
 package cli_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -132,4 +135,48 @@ func TestEpicAdd_NamesTheKeysItDropped(t *testing.T) {
 	stdout, stderr, code = runTP(t, dir, "epic", "add", `{"id": "c", "title": "C", "milestone": "A"}`)
 	require.Equal(t, 0, code, "stderr: %s", stderr)
 	assert.Contains(t, stdout, `"dropped_keys": []`, "nothing dropped is an empty list, not an absent key")
+}
+
+// TestEpicAdd_TrailingDataAfterTheEpicIsAUsageError: a decoder reading only
+// the first JSON value would add a and silently drop b, through the argument,
+// --stdin and a --bulk line alike.
+func TestEpicAdd_TrailingDataAfterTheEpicIsAUsageError(t *testing.T) {
+	t.Parallel()
+	two := `{"id": "a", "title": "A", "milestone": "A"} {"id": "b", "title": "B", "milestone": "A"}`
+	for _, via := range []string{"argument", "stdin", "bulk"} {
+		t.Run(via, func(t *testing.T) {
+			t.Parallel()
+			dir := epicGraphDir(t, `{
+  "version": 1,
+  "milestones": [["A"]],
+  "epics": []
+}
+`)
+			before := readEpicGraphFile(t, dir)
+			var stderr string
+			var code int
+			switch via {
+			case "argument":
+				_, stderr, code = runTP(t, dir, "epic", "add", two)
+			case "stdin":
+				cmd := exec.Command(binaryPath, "--json", "epic", "add", "--stdin")
+				cmd.Dir = dir
+				cmd.Env = append(byHandEnv(), "NO_COLOR=1", "TP_HC=0")
+				cmd.Stdin = strings.NewReader(two + "\n")
+				var errBuf bytes.Buffer
+				cmd.Stderr = &errBuf
+				err := cmd.Run()
+				var exitErr *exec.ExitError
+				require.ErrorAs(t, err, &exitErr)
+				stderr, code = errBuf.String(), exitErr.ExitCode()
+			case "bulk":
+				bulk := filepath.Join(dir, "rows.ndjson")
+				require.NoError(t, os.WriteFile(bulk, []byte(two+"\n"), 0o600))
+				_, stderr, code = runTP(t, dir, "epic", "add", "--bulk", bulk)
+			}
+			require.Equal(t, 2, code, "stderr: %s", stderr)
+			assert.Contains(t, stderr, "invalid epic JSON")
+			assert.Equal(t, before, readEpicGraphFile(t, dir), "a refused add writes nothing")
+		})
+	}
 }
