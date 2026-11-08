@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.3.0.md",
   "created_at": "2026-11-08T20:45:28.723149Z",
-  "updated_at": "2026-11-08T21:26:50.567689Z",
+  "updated_at": "2026-11-08T21:31:29.463013Z",
   "workflow": {
     "review_max_rounds": 3,
     "audit_max_rounds": 3
@@ -236,7 +236,7 @@
       "id": "epic-error-identity",
       "title": "Diff lint errors across a write",
       "description": "Return the after-state errors the before-state lacked; identity = rule + sorted epic ids + involved milestone/gate/key names; a cycle component inside a before-state component is not new (D3).",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine"
       ],
@@ -249,11 +249,27 @@
         "## 3. The writers",
         "## 9. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-08T21:27:07.485349Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-08T21:31:29.425039Z",
+      "closed_reason": "- Section 9 row 2 logic: engine.NewEpicErrors(before, after) returns the after-state error findings the before-state does not hold, counted as a multiset by rule, sorted epic ids and involved names; with a pre-existing a -\u003e z dangling edge, adding c -\u003e b yields none and adding e -\u003e y yields one dangling-reference on [e, y], verified by TestNewEpicErrors_PreExistingDanglingEdgeIsNotNewButASecondOneIs (internal/engine/epicdiff.go, internal/engine/epicdiff_test.go)\n- Per D3, EpicLintFinding carries Names (json:\"-\", so the lint payload is unchanged) holding the milestone, gate, tag or key names a finding involves, set by epicNamedError at each sink in internal/engine/epiclint.go, epiclint_milestones.go and epiclint_tags.go; a second unknown top-level key and a second duplicate milestone name each count as new although both name no epic, verified by TestNewEpicErrors_SecondUnknownTopLevelKeyIsNew and TestNewEpicErrors_SecondDuplicateMilestoneNameIsNew, which a rule-plus-ids identity failed\n- A cycle finding whose component is a subset of a before-state cycle component is not new: shrinking a\u003c-\u003eb\u003c-\u003ec to a\u003c-\u003eb yields none, while growing a\u003c-\u003eb to a\u003c-\u003eb\u003c-\u003ec yields one cycle on [a, b, c], verified by TestNewEpicErrors_ShrinkingACycleIsNotNew (internal/engine/epicdiff.go); smallest reading: tag names count as involved names alongside D3's milestone, gate and key names, and the writers that call NewEpicErrors are later tasks",
+      "gate_passed_at": "2026-11-08T21:31:29.425039Z",
+      "commit_sha": "62132991",
+      "commit_shas": [
+        "62132991",
+        "96ca8b6f",
+        "f42552f1",
+        "a862ea7c",
+        "c592af50",
+        "01e3a73f"
+      ],
+      "commit_files": [
+        "internal/engine/epicdiff.go",
+        "internal/engine/epicdiff_test.go",
+        "internal/engine/epiclint.go",
+        "internal/engine/epiclint_milestones.go",
+        "internal/engine/epiclint_tags.go"
+      ]
     },
     {
       "id": "epic-add-command",
