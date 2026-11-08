@@ -86,3 +86,17 @@ func TestEpicImport_PayloadWithACycleIsWrittenAndReported(t *testing.T) {
 	require.Equal(t, 1, code)
 	assert.Equal(t, 1, lint.Errors, "the cycle was written to the file")
 }
+
+// TestEpicImport_TrailingDataAfterTheGraphIsAUsageError: a decoder reading
+// only the first JSON value would import the graph and ignore the junk after it.
+func TestEpicImport_TrailingDataAfterTheGraphIsAUsageError(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, "")
+	payload := epicImportPayload(t, `{"version": 1, "milestones": [["A"]], "epics": []} junk`)
+
+	_, stderr, code := runTP(t, dir, "epic", "import", payload)
+	require.Equal(t, 2, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "invalid epic graph JSON")
+	_, err := os.Stat(filepath.Join(dir, ".tp", "epics.json"))
+	assert.True(t, os.IsNotExist(err), "a refused import writes nothing")
+}
