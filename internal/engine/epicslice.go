@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/deligoez/tp/internal/model"
@@ -90,10 +91,8 @@ func sliceEpicIDs(g *model.EpicGraph, key EpicSliceKey, byID map[string]*model.E
 
 func milestoneDeclared(g *model.EpicGraph, name string) bool {
 	for _, track := range g.Milestones {
-		for _, m := range track {
-			if m == name {
-				return true
-			}
+		if slices.Contains(track, name) {
+			return true
 		}
 	}
 	return false
@@ -129,13 +128,14 @@ func epicSliceContext(g *model.EpicGraph, asked map[string]bool) []EpicContextBl
 // nothing to the hash.
 func epicUnit(e *model.Epic, byID map[string]*model.Epic) EpicReviewUnit {
 	block := epicBlock(e)
-	hashed := block
+	var hashed strings.Builder
+	hashed.WriteString(block)
 	for _, d := range e.DependsOn {
 		if dep, ok := byID[d.ID]; ok {
-			hashed += "\x00" + epicBlock(dep)
+			hashed.WriteString("\x00" + epicBlock(dep))
 		}
 	}
-	return EpicReviewUnit{Key: "epic:" + e.ID, Block: block, Hash: epicHash(hashed)}
+	return EpicReviewUnit{Key: "epic:" + e.ID, Block: block, Hash: epicHash(hashed.String())}
 }
 
 // epicBlock renders an epic's id, title, milestone, tags, acceptance and each

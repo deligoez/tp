@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -138,12 +139,7 @@ func lintEpicCycles(g *model.EpicGraph) []EpicLintFinding {
 }
 
 func selfLoop(id string, adj map[string][]string) bool {
-	for _, to := range adj[id] {
-		if to == id {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(adj[id], id)
 }
 
 // tarjan holds the state of Tarjan's strongly connected components walk.

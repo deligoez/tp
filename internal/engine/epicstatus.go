@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 )
 
 // EpicReviewPolicy is the convergence and cap a slice's loop resolves from the
@@ -78,8 +79,8 @@ func epicRowBlocking(row map[string]any, convergeOn string) bool {
 // epicConsecutiveClean counts the trailing rounds with no open blocking row.
 func epicConsecutiveClean(rounds [][]map[string]any, convergeOn string) int {
 	n := 0
-	for i := len(rounds) - 1; i >= 0; i-- {
-		for _, row := range rounds[i] {
+	for _, round := range slices.Backward(rounds) {
+		for _, row := range round {
 			if findingOpen(PhaseReview, row) && epicRowBlocking(row, convergeOn) {
 				return n
 			}
