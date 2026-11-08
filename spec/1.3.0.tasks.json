@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.3.0.md",
   "created_at": "2026-11-08T20:45:28.723149Z",
-  "updated_at": "2026-11-08T20:45:28.928745Z",
+  "updated_at": "2026-11-08T20:51:17.611847Z",
   "workflow": {
     "review_max_rounds": 3,
     "audit_max_rounds": 3
@@ -22,7 +22,7 @@
       "id": "plugin-version-bump",
       "title": "Bump plugin version to 1.3.0",
       "description": "Plugin content (skills/, hooks/) changes in this release; TestPluginVersionIsBumpedWhenPluginContentChanges reads committed history, so the bump lands first and keeps the gate green for every later task.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -32,11 +32,20 @@
       "source_sections": [
         "## 7. Documents and the plugin"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-08T20:46:08.779389Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-08T20:51:17.586311Z",
+      "closed_reason": "- .claude-plugin/plugin.json version is 1.3.0 (commit fef13f6e, verified by reading the committed file diff)\n- go test ./internal/cli -run 'TestPlugin' passes after internal/cli/plugin_test.go dropped --strict (commit 5f2a43ee); full gate (check-suite-state, golangci-lint, check-deadcode, check-complexity) exits 0",
+      "gate_passed_at": "2026-11-08T20:51:17.586311Z",
+      "commit_sha": "fef13f6e",
+      "commit_shas": [
+        "fef13f6e",
+        "5f2a43ee"
+      ],
+      "commit_files": [
+        ".claude-plugin/plugin.json",
+        "internal/cli/plugin_test.go"
+      ]
     },
     {
       "id": "epic-graph-model",
