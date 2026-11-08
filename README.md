@@ -219,6 +219,7 @@ tp epic add '<json>'           # Add an epic (--stdin, --bulk); a write adding a
 tp epic set <id> field=value   # Set an epic field, or milestones|gates|tag_checks=<json> whole; same lint rule
 tp epic remove <id>            # Remove an epic; one depended on needs --force, a tag_checks provider is refused
 tp epic import <file>          # Replace the graph with a file (--force over one holding epics); reports its lint findings
+tp epic review --epic <id>     # One prompt per graph role over a slice (or --milestone <m>; --role narrows)
 ```
 
 ### Data
