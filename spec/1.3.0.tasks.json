@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.3.0.md",
   "created_at": "2026-11-08T20:45:28.723149Z",
-  "updated_at": "2026-11-08T22:38:22.401323Z",
+  "updated_at": "2026-11-08T22:43:27.35019Z",
   "workflow": {
     "review_max_rounds": 3,
     "audit_max_rounds": 3
@@ -916,7 +916,7 @@
       "id": "docs-workflow-e",
       "title": "Document Workflow E in skill docs",
       "description": "SKILL.md Workflow E (interview -\u003e tp epic set milestones -\u003e add --bulk -\u003e lint -\u003e review until --status --check exits 0 -\u003e next topic); REFERENCE.md file schema, lint rules, state directory and exit codes; README command index rows. Inventory rows are already added by each command task.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "docs"
       ],
@@ -930,11 +930,24 @@
       "source_sections": [
         "## 7. Documents and the plugin"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-08T22:38:38.20186Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-08T22:43:27.312556Z",
+      "closed_reason": "- skills/tp/SKILL.md gains '## Workflow E: Epic graph' naming the five steps in order (interview the topic, tp epic set milestones=, tp epic add --bulk, tp epic lint, tp epic review over the touched slice until --status --check exits 0, then the next topic), verified by TestSkillCarriesWorkflowE (internal/cli/epic_docs_test.go), red on the missing heading first\n- skills/tp/REFERENCE.md gains '## Epic Graph (v1.3.0)' with the .tp/epics.json schema, a row for each of the eleven tp epic lint rules, the .tp/epic-review/\u003cSHA-256 key\u003e/ state directory (snapshot-round-\u003cN\u003e.json, round-\u003cN\u003e.ndjson) and the tp epic exit codes 0-4 taken from internal/cli/epic_*.go, verified by TestReferenceCarriesTheEpicGraphContract (internal/cli/epic_docs_test.go), red on the missing heading first\n- README.md's command index already listed all seven tp epic subcommands (lint, export, add, set, remove, import, review) from the earlier command tasks, so no README change was needed; TestReadmeIndexListsEveryEpicSubcommand (internal/cli/epic_docs_test.go) now enumerates newEpicCmd().Commands() and requires a 'tp epic \u003cname\u003e ' row for each; it was green from the start since the rows predate it",
+      "gate_passed_at": "2026-11-08T22:43:27.312556Z",
+      "commit_sha": "a7371da1",
+      "commit_shas": [
+        "a7371da1",
+        "280443a8",
+        "3b09a62a",
+        "8dfff97d",
+        "f3849771"
+      ],
+      "commit_files": [
+        "internal/cli/epic_docs_test.go",
+        "skills/tp/REFERENCE.md",
+        "skills/tp/SKILL.md"
+      ]
     }
   ]
 }
