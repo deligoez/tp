@@ -54,3 +54,35 @@ func TestEpicSet_FieldAddingAnErrorIsRefusedAndWritesNothing(t *testing.T) {
 	assert.Equal(t, before, readEpicGraphFile(t, dir), "a refused set writes nothing")
 }
 
+// TestEpicSet_GatesAndTagChecksReplaceTheWholeObject: a set merging into the
+// existing object would keep gate A and tag check det.
+func TestEpicSet_GatesAndTagChecksReplaceTheWholeObject(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{
+  "version": 1,
+  "milestones": [["A", "B"]],
+  "gates": {"A": {"members": ["a"]}, "B": {"members": ["b"]}},
+  "tag_checks": {"det": {"provided_by": "b"}, "ui": {"provided_by": "a"}},
+  "epics": [
+    {"id": "a", "title": "A", "milestone": "A"},
+    {"id": "b", "title": "B", "milestone": "B"}
+  ]
+}
+`)
+	_, stderr, code := runTP(t, dir, "epic", "set", `gates={"B": {"members": ["b"]}}`)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	_, stderr, code = runTP(t, dir, "epic", "set", `tag_checks={"ui": {"provided_by": "b"}}`)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	var g struct {
+		Gates     map[string]json.RawMessage `json:"gates"`
+		TagChecks map[string]struct {
+			ProvidedBy string `json:"provided_by"`
+		} `json:"tag_checks"`
+	}
+	require.NoError(t, json.Unmarshal(readEpicGraphFile(t, dir), &g))
+	assert.Len(t, g.Gates, 1)
+	assert.Contains(t, g.Gates, "B")
+	require.Len(t, g.TagChecks, 1)
+	assert.Equal(t, "b", g.TagChecks["ui"].ProvidedBy)
+}
