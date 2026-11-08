@@ -48,3 +48,12 @@ func TestLintEpicGraph_CleanGraphHasNoStructureFindings(t *testing.T) {
 	assert.Empty(t, LintEpicGraph(cleanEpicGraph(), nil))
 }
 
+func TestLintEpicGraph_OverlappingCyclesAreOneFinding(t *testing.T) {
+	g := cleanEpicGraph()
+	g.Epics[1].DependsOn = append(g.Epics[1].DependsOn, model.EpicDep{ID: "a", Why: "back to a"})
+	g.Epics[2].DependsOn = []model.EpicDep{{ID: "b", Why: "back to b"}}
+	cycles := findingsOf(t, LintEpicGraph(g, nil), EpicRuleCycle)
+	require.Len(t, cycles, 1)
+	assert.Equal(t, []string{"a", "b", "c"}, cycles[0].Epics)
+}
+
