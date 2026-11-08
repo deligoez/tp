@@ -216,6 +216,42 @@ func TestPreToolUseHookDeniesTheFencedPaths(t *testing.T) {
 	}
 }
 
+// TestPreToolUseHookDeniesTheEpicState pins the 1.3.0 fence on the epic graph:
+// .tp/epics.json and the round files under .tp/epic-review/ are tp's own state,
+// rewritten only by tp epic, so a hand Write to either is refused. A neighbour
+// that merely shares the prefix, or the directory itself, stays writable.
+func TestPreToolUseHookDeniesTheEpicState(t *testing.T) {
+	t.Parallel()
+	root := repoRoot(t)
+	fenced := []string{
+		".tp/epics.json",
+		filepath.Join(root, ".tp", "epics.json"),
+		".tp/epic-review/b/round-1.ndjson",
+		filepath.Join(root, ".tp", "epic-review", "b", "round-2.ndjson"),
+	}
+	allowed := []string{
+		".tp/epics.json.example",
+		".tp/epic-review",
+		".tp/epic-notes.md",
+	}
+
+	for _, path := range fenced {
+		t.Run("deny "+path, func(t *testing.T) {
+			t.Parallel()
+			run := runPreToolUseHook(t, "Write", map[string]any{"file_path": path, "content": "{}"})
+			assert.True(t, run.denied(), "%s must be denied; exit=%d stderr=%q", path, run.exitCode, run.stderr)
+			assert.Contains(t, run.stderr, path, "the refusal names the path it refused")
+		})
+	}
+	for _, path := range allowed {
+		t.Run("allow "+path, func(t *testing.T) {
+			t.Parallel()
+			run := runPreToolUseHook(t, "Write", map[string]any{"file_path": path, "content": "{}"})
+			assert.Zero(t, run.exitCode, "%s is outside the fence; stderr=%q", path, run.stderr)
+		})
+	}
+}
+
 // TestPreToolUseHookAllowsOrdinaryWrites is the other direction, and the half a
 // deny-only test would pass with a hook that refuses everything: source, specs,
 // docs and the role corpus are all outside the fence, and so is the
