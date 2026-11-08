@@ -52,3 +52,32 @@ func TestNewEpicErrors_SecondUnknownTopLevelKeyIsNew(t *testing.T) {
 	assert.Contains(t, added[0].Message, "extra")
 }
 
+func TestNewEpicErrors_SecondDuplicateMilestoneNameIsNew(t *testing.T) {
+	g := cleanEpicGraph()
+	g.Milestones = [][]string{{"A", "B"}, {"L1", "B"}}
+	before := LintEpicGraph(g, nil)
+	g.Milestones = [][]string{{"A", "B", "L1"}, {"L1", "B"}}
+	added := NewEpicErrors(before, LintEpicGraph(g, nil))
+	require.Len(t, added, 1, "both duplicates name no epic; the milestone name tells them apart")
+	assert.Equal(t, EpicRuleDuplicateName, added[0].Rule)
+	assert.Contains(t, added[0].Message, `"L1"`)
+}
+
+// cycleEpicGraph holds the cycle a <-> b, and b <-> c when wide is set.
+func cycleEpicGraph(wide bool) *model.EpicGraph {
+	g := &model.EpicGraph{
+		Version:    1,
+		Milestones: [][]string{{"A"}},
+		Epics: []model.Epic{
+			{ID: "a", Title: "A", Milestone: "A", DependsOn: []model.EpicDep{{ID: "b", Why: "b first"}}},
+			{ID: "b", Title: "B", Milestone: "A", DependsOn: []model.EpicDep{{ID: "a", Why: "a first"}}},
+			{ID: "c", Title: "C", Milestone: "A"},
+		},
+	}
+	if wide {
+		g.Epics[1].DependsOn = append(g.Epics[1].DependsOn, model.EpicDep{ID: "c", Why: "c first"})
+		g.Epics[2].DependsOn = []model.EpicDep{{ID: "b", Why: "b again"}}
+	}
+	return g
+}
+
