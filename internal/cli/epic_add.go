@@ -89,13 +89,19 @@ func decodeEpicArg(cmd *cobra.Command, args []string) model.Epic {
 	return e
 }
 
-// decodeEpic parses one epic, refusing keys outside the schema.
+// decodeEpic parses one epic, refusing keys outside the schema and anything
+// after the one JSON value.
 func decodeEpic(raw []byte) (model.Epic, error) {
 	var e model.Epic
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields()
-	err := dec.Decode(&e)
-	return e, err
+	if err := dec.Decode(&e); err != nil {
+		return e, err
+	}
+	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
+		return e, errors.New("trailing data after the epic: pass exactly one JSON object")
+	}
+	return e, nil
 }
 
 // readBulkEpics reads one epic per non-blank NDJSON line; any bad line aborts
