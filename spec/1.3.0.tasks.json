@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.3.0.md",
   "created_at": "2026-11-08T20:45:28.723149Z",
-  "updated_at": "2026-11-08T21:48:11.696456Z",
+  "updated_at": "2026-11-08T21:51:47.658847Z",
   "workflow": {
     "review_max_rounds": 3,
     "audit_max_rounds": 3
@@ -408,7 +408,7 @@
       "id": "epic-import-command",
       "title": "Add the tp epic import writer",
       "description": "`tp epic import \u003cfile\u003e [--force]`: refuses to replace a file holding epics without --force; writes whatever lint errors the payload holds and reports them (D4). Inventory rows.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "writer"
@@ -422,11 +422,27 @@
         "## 3. The writers",
         "## 9. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-08T21:48:34.804667Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-08T21:51:47.628693Z",
+      "closed_reason": "- Section 9 row 16: tp epic import (internal/cli/epic_import.go over engine.ImportEpicGraph in internal/engine/epicimport.go, under the epics.json file lock) exits 1 over a file holding the chain without --force, naming --force and leaving the file byte-identical, and with --force replaces it with the one-epic payload, verified by TestEpicImport_ChainNeedsForceToBeReplaced (internal/cli/epic_import_test.go)\n- D4: importing a payload holding the cycle x \u003c-\u003e y into an absent file exits 0, writes it, and prints {file, epics, findings} with exactly one cycle finding on [x, y]; tp epic lint then reports 1 error, verified by TestEpicImport_PayloadWithACycleIsWrittenAndReported (internal/cli/epic_import_test.go). Smallest reading chosen: an import that writes errors still exits 0 (the write succeeded; findings carry them), a file with zero epics is replaced without --force, and payload keys outside the schema exit 2 as tp epic add does; docs rows in skills/tp/SKILL.md and README.md",
+      "gate_passed_at": "2026-11-08T21:51:47.628693Z",
+      "commit_sha": "5a9e5eb3",
+      "commit_shas": [
+        "5a9e5eb3",
+        "0921ef5b",
+        "bd3ac6de",
+        "53b8dd15",
+        "4cd30e02"
+      ],
+      "commit_files": [
+        "README.md",
+        "internal/cli/epic.go",
+        "internal/cli/epic_import.go",
+        "internal/cli/epic_import_test.go",
+        "internal/engine/epicimport.go",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "epic-writers-unattended-fence",
