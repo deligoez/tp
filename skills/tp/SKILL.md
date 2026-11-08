@@ -662,6 +662,7 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp validate` | Task file validation + line coverage + atomicity |
 | `tp validate --strict` | Atomicity warnings become errors |
 | `tp validate --project` | Cross-spec workflow drift (informational; `--strict` → exit 1) |
+| `tp epic lint` | Lint `.tp/epics.json` and write nothing: `{errors, warnings, findings[]}`, each finding `{rule, severity, epics, message}`; exit 0 with no error-severity finding, 1 with one, 3 with no graph file. The rules are in README.md's lint rule table |
 
 ### Data
 | Command | Purpose |
