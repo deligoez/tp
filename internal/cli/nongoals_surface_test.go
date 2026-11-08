@@ -43,6 +43,9 @@ import (
 // re-emit over an unrecorded round whose spec changed: it is ground's explicit
 // discard of that emission, the reading review's and audit's `--force` also
 // take on their emission modes.
+//
+// spec/1.3.0.md adds the `tp epic` parent, whose subcommands are listed by
+// their own tasks; `tp epic lint` registers no flag of its own.
 const v100Surface = `
 : color compact file json no-color no-compact no-quiet quiet
 add: bulk spec stdin
@@ -54,6 +57,7 @@ close: reason-file skip-gate stdin
 commit: files
 config: dry-run extract force resolved
 done: auto-commit batch commit covered-by files gate-passed reason-file skip-gate stdin
+epic:
 escalate: decision evidence option
 graph: from tag
 ground: check force record status units
