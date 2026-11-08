@@ -134,6 +134,8 @@ INCREMENTAL (1 task at a time):
 	groundCmd.GroupID = "query"
 	validateCmd := newValidateCmd()
 	validateCmd.GroupID = "query"
+	epicCmd := newEpicCmd()
+	epicCmd.GroupID = "query"
 
 	// Data commands
 	initCmd := newInitCmd()
@@ -147,7 +149,7 @@ INCREMENTAL (1 task at a time):
 
 	cmd.AddCommand(planCmd, doneCmd, nextCmd, briefCmd, commitCmd, resumeCmd, runCmd, escalateCmd)
 	cmd.AddCommand(claimCmd, unclaimCmd, closeCmd, reopenCmd, removeCmd, setCmd, keepCmd)
-	cmd.AddCommand(listCmd, statusCmd, readyCmd, blockedCmd, showCmd, graphCmd, statsCmd, reportCmd, lintCmd, reviewCmd, auditCmd, groundCmd, validateCmd)
+	cmd.AddCommand(listCmd, statusCmd, readyCmd, blockedCmd, showCmd, graphCmd, statsCmd, reportCmd, lintCmd, reviewCmd, auditCmd, groundCmd, validateCmd, epicCmd)
 	cmd.AddCommand(initCmd, addCmd, importCmd, useCmd)
 	cmd.AddCommand(newConfigCmd())
 
