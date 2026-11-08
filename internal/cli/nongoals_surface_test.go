@@ -46,8 +46,8 @@ import (
 //
 // spec/1.3.0.md adds the `tp epic` parent, whose subcommands are listed by
 // their own tasks; a subcommand's flags sit on the parent's line, so `epic`
-// holds `tp epic export --md` and `tp epic add --stdin --bulk` (`tp epic lint`
-// registers no flag of its own).
+// holds `tp epic export --md`, `tp epic add --stdin --bulk` and `tp epic
+// remove --force` (`tp epic lint` registers no flag of its own).
 const v100Surface = `
 : color compact file json no-color no-compact no-quiet quiet
 add: bulk spec stdin
@@ -59,7 +59,7 @@ close: reason-file skip-gate stdin
 commit: files
 config: dry-run extract force resolved
 done: auto-commit batch commit covered-by files gate-passed reason-file skip-gate stdin
-epic: bulk md stdin
+epic: bulk force md stdin
 escalate: decision evidence option
 graph: from tag
 ground: check force record status units
