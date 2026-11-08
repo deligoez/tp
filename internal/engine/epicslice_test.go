@@ -74,3 +74,24 @@ func TestEpicReviewSlice_EditingAWhyChangesTheSourceAndItsDependents(t *testing.
 	assert.Equal(t, before["epic:d"], after["epic:d"])
 }
 
+func TestEpicReviewSlice_GateUnitOnlyWithAGatesEntry(t *testing.T) {
+	s, err := EpicReviewSlice(epicChainGraph(), EpicSliceKey{Milestone: "A"})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"epic:a", "epic:b", "epic:c", "epic:d"}, unitKeys(s.Units))
+	assert.Empty(t, s.Context)
+
+	g := epicChainGraph()
+	g.Gates = map[string]model.EpicGate{"A": {Members: []string{"a", "b"}, Deferrable: []string{"c"}}}
+	s, err = EpicReviewSlice(g, EpicSliceKey{Milestone: "A"})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"epic:a", "epic:b", "epic:c", "epic:d", "gate:A"}, unitKeys(s.Units))
+	gate := s.Units[4]
+	assert.Contains(t, gate.Block, "members: a, b")
+	assert.Contains(t, gate.Block, "deferrable: c")
+
+	g.Gates["A"] = model.EpicGate{Members: []string{"a"}, Deferrable: []string{"c"}}
+	s2, err := EpicReviewSlice(g, EpicSliceKey{Milestone: "A"})
+	require.NoError(t, err)
+	assert.NotEqual(t, gate.Hash, s2.Units[4].Hash, "the gate hash covers its members")
+}
+
