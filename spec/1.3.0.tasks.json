@@ -1,17 +1,586 @@
 {
   "version": 1,
   "spec": "spec/1.3.0.md",
-  "created_at": "2026-11-08T20:01:31.889592Z",
-  "updated_at": "2026-11-08T20:01:31.893432Z",
+  "created_at": "2026-11-08T20:45:28.723149Z",
+  "updated_at": "2026-11-08T20:45:28.928745Z",
   "workflow": {
     "review_max_rounds": 3,
     "audit_max_rounds": 3
   },
   "coverage": {
-    "total_sections": 0,
-    "mapped_sections": 0,
-    "context_only": [],
+    "total_sections": 10,
+    "mapped_sections": 7,
+    "context_only": [
+      "# tp v1.3.0 — A graph of epics, and the loop that reviews it",
+      "## 1. The decision",
+      "## 8. Non-goals"
+    ],
     "unmapped": []
   },
-  "tasks": []
+  "tasks": [
+    {
+      "id": "plugin-version-bump",
+      "title": "Bump plugin version to 1.3.0",
+      "description": "Plugin content (skills/, hooks/) changes in this release; TestPluginVersionIsBumpedWhenPluginContentChanges reads committed history, so the bump lands first and keeps the gate green for every later task.",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [],
+      "estimate_minutes": 5,
+      "acceptance": "- - `.claude-plugin/plugin.json` `version` is `1.3.0`\n- - `go test ./internal/cli -run 'TestPlugin'` passes",
+      "source_sections": [
+        "## 7. Documents and the plugin"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-graph-model",
+      "title": "Add the epic graph file model",
+      "description": "Model and load/write the §2 schema from the .tp/ dir DiscoverTPDir finds; keep unknown keys visible to the lint (D3); a missing file is distinct from a parse error; write 2-space JSON.",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [
+        "plugin-version-bump"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- - a round-trip test loads and writes a file holding every §2 field byte-identically\n- - unknown top-level and per-epic keys are returned with their paths for the lint\n- - loading with no `epics.json` returns a not-found error distinct from a parse error",
+      "source_sections": [
+        "## 2. The graph file"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-lint-structure-rules",
+      "title": "Lint graph structure rules",
+      "description": "cycle (one finding per strongly connected component), dangling-reference, duplicate-name, unknown-key; findings {rule, severity, epics sorted, message}; one finding per offending item for all but cycle (D3 in spec/1.3.0-corrections.md).",
+      "status": "open",
+      "tags": [
+        "engine",
+        "lint"
+      ],
+      "depends_on": [
+        "epic-graph-model"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- - tests show each of the four rules fires on its defect and not on a clean graph\n- - two overlapping cycles a\u003c-\u003eb, b\u003c-\u003ec yield one cycle finding naming a, b, c\n- - every finding carries rule, severity, sorted epics and message",
+      "source_sections": [
+        "## 4. `tp epic lint`"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-lint-milestone-rules",
+      "title": "Lint edge reasons with milestone order",
+      "description": "missing-why (absent or empty once trimmed), unknown-milestone (absent or in no track), later-milestone-dependency (same track only; cross-track edges free), gate-member-outside-milestone. §9 row 5 fixture.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "lint"
+      ],
+      "depends_on": [
+        "epic-lint-structure-rules"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- - §9 row 5: a in A depending on b in B fires later-milestone-dependency and the edge to l in L1 does not\n- - missing-why fires on an absent and on a whitespace-only why\n- - unknown-milestone and gate-member-outside-milestone each fire on their defect",
+      "source_sections": [
+        "## 4. `tp epic lint`",
+        "## 9. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-lint-tag-and-warnings",
+      "title": "Lint tag providers with two warnings",
+      "description": "unprovided-tag-check (transitive, provider exempt); no-dependencies warning outside a track's first milestone; thin-why on the trimmed, case-folded why against the case-folded target id or title. Rows 4, 23 with D10.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "lint"
+      ],
+      "depends_on": [
+        "epic-lint-milestone-rules"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- - §9 row 4: transitive provider path and the provider itself do not fire; the file without screen -\u003e x fires on screen only\n- - §9 row 23 with the D10 fixture yields warnings 2 and errors 0, and a case-sensitive comparison yields warnings 1\n- - an empty why does not fire thin-why",
+      "source_sections": [
+        "## 4. `tp epic lint`",
+        "## 9. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-lint-command",
+      "title": "Wire the tp epic lint command",
+      "description": "`tp epic` parent and `tp epic lint`: read-only, payload {errors, warnings, findings[]}, exit 0/1/3. Add SKILL.md inventory rows and README rule table rows (both are test-enforced).",
+      "status": "open",
+      "tags": [
+        "cli",
+        "lint"
+      ],
+      "depends_on": [
+        "epic-lint-tag-and-warnings"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- - §9 row 3: one defect per error rule exits 1 with errors equal to the rule count and each slug once\n- - exit 3 with no graph file and exit 0 on a clean graph\n- - SKILL.md inventory and README rule table list the command and every new rule",
+      "source_sections": [
+        "## 4. `tp epic lint`",
+        "## 9. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-error-identity",
+      "title": "Diff lint errors across a write",
+      "description": "Return the after-state errors the before-state lacked; identity = rule + sorted epic ids + involved milestone/gate/key names; a cycle component inside a before-state component is not new (D3).",
+      "status": "open",
+      "tags": [
+        "engine"
+      ],
+      "depends_on": [
+        "epic-lint-command"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- - §9 row 2 logic: with a pre-existing dangling edge, adding c -\u003e b is not new and adding a second dangling edge is\n- - a second unknown top-level key or duplicate milestone name counts as new\n- - shrinking a cycle a\u003c-\u003eb\u003c-\u003ec to a\u003c-\u003eb is not new",
+      "source_sections": [
+        "## 3. The writers",
+        "## 9. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-add-command",
+      "title": "Add the tp epic add writer",
+      "description": "`tp epic add \u003cjson\u003e|--stdin|--bulk`: create an absent file, per-file lock, refuse a new error (exit 1, nothing written), report `file`; a bulk row with an existing id replaces it. SKILL.md inventory rows.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "writer"
+      ],
+      "depends_on": [
+        "epic-error-identity"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- - §9 row 1: an edge without why exits 1 naming missing-why and leaves the file byte-identical\n- - §9 row 2: on a hand-written file with a dangling edge, add c -\u003e b exits 0 and add e -\u003e absent y exits 1\n- - §9 row 20 second half: two --bulk calls with one id leave one epic with the second title",
+      "source_sections": [
+        "## 3. The writers",
+        "## 9. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-set-command",
+      "title": "Add the tp epic set writer",
+      "description": "`tp epic set \u003cid\u003e \u003cfield\u003e=\u003cvalue\u003e` for epic fields and `tp epic set \u003cmilestones|gates|tag_checks\u003e=\u003cjson\u003e` for the whole top-level object; same lock, new-error refusal and `file` report as add; creates an absent file. Inventory rows.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "writer"
+      ],
+      "depends_on": [
+        "epic-add-command"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- - §9 row 20 first half: set milestones='[[\"A\"]]' with no file creates the file holding the tracks\n- - set of an epic field that introduces a new error exits 1 and writes nothing\n- - set gates and tag_checks replace the whole object",
+      "source_sections": [
+        "## 3. The writers",
+        "## 9. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-remove-command",
+      "title": "Add the tp epic remove writer",
+      "description": "`tp epic remove \u003cid\u003e [--force]`: refuses an epic another depends on without --force; --force drops edges into it and its gate memberships; an epic a tag_checks entry names as provider is refused even with --force (D8). Inventory rows.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "writer"
+      ],
+      "depends_on": [
+        "epic-set-command"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- - §9 row 21: remove b on the chain exits 1; with --force b, a -\u003e b and b's gate membership are gone and the file lints clean\n- - remove --force of a tag_checks provider exits 1 and writes nothing",
+      "source_sections": [
+        "## 3. The writers",
+        "## 9. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-import-command",
+      "title": "Add the tp epic import writer",
+      "description": "`tp epic import \u003cfile\u003e [--force]`: refuses to replace a file holding epics without --force; writes whatever lint errors the payload holds and reports them (D4). Inventory rows.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "writer"
+      ],
+      "depends_on": [
+        "epic-remove-command"
+      ],
+      "estimate_minutes": 10,
+      "acceptance": "- - §9 row 16: import over the chain exits 1 and leaves the file byte-identical without --force, and replaces it with --force\n- - importing a payload holding a cycle writes it and reports the cycle finding",
+      "source_sections": [
+        "## 3. The writers",
+        "## 9. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-writers-unattended-fence",
+      "title": "Fence every epic writer under TP_UNATTENDED",
+      "description": "Under TP_UNATTENDED=1 add, set, remove and import exit 2, write nothing, and hint at `tp escalate --decision other`, reusing the existing unattended fence helpers.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "fence"
+      ],
+      "depends_on": [
+        "epic-import-command"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "- - §9 row 12 (writers): one legal payload per writer exits 2 under TP_UNATTENDED=1 with the file byte-identical\n- - the refusal hint names tp escalate --decision other",
+      "source_sections": [
+        "## 3. The writers",
+        "## 9. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-slice-units",
+      "title": "Derive slice units with their hashes",
+      "description": "--milestone (plus a gate unit when gates.m exists) or --epic; epic block per §5; context = neighbours of asked units not asked, each once (D5); hash = own block + direct dependencies' blocks; gate hash = members + deferrables.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "review"
+      ],
+      "depends_on": [
+        "epic-graph-model"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- - §9 row 6 with D11: --epic b asks b only, context holds a and c, d appears only as an edge target id in c's block\n- - editing the why of b -\u003e c changes the hashes of a and b only\n- - a milestone with no gates entry yields no gate unit",
+      "source_sections": [
+        "## 5. `tp epic review`",
+        "## 9. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-review-state-dir",
+      "title": "Hash slice keys into state directories",
+      "description": "engine: each slice's state directory is .tp/epic-review/\u003clowercase hex hash of the slice key\u003e, where the key distinguishes kind and value; round files and snapshots live there (D13).",
+      "status": "open",
+      "tags": [
+        "engine",
+        "review"
+      ],
+      "depends_on": [
+        "epic-slice-units"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "- - §9 row 14 with D13: --milestone A and --epic A on a graph holding epic A give two distinct directories, neither containing the id\n- - an epic id ../x yields a directory under .tp/epic-review/",
+      "source_sections": [
+        "## 5. `tp epic review`",
+        "## 9. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-graph-role-corpus",
+      "title": "Add the built-in graph role corpus",
+      "description": "Three embedded roles dod-satisfiability (direct dependencies, D6), why-auditor, phase-economist in the reviewer file schema; .tp/epic-reviewers/ replaces them when populated, every file active, domains unread; `tp init --eject-roles --graph` writes only that directory. Inventory row for --graph.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "roles"
+      ],
+      "depends_on": [
+        "plugin-version-bump"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- - §9 row 22 at the corpus level: no directory yields the three built-ins, one file yields that role only\n- - tp init --eject-roles --graph writes the three files under .tp/epic-reviewers/ and leaves .tp/reviewers/ untouched",
+      "source_sections": [
+        "## 5. `tp epic review`",
+        "## 9. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-review-emit",
+      "title": "Emit tp epic review prompts per role",
+      "description": "`tp epic review --milestone|--epic` (exactly one, else exit 2): one prompt per graph role with asked blocks and context; lint errors over the whole file as mechanical_checks and mechanized_classes; --role narrowing; writes the snapshot. Inventory rows.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "review"
+      ],
+      "depends_on": [
+        "epic-review-state-dir",
+        "epic-graph-role-corpus",
+        "epic-lint-command"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- - §9 row 15: both flags or neither exits 2 and creates no state directory\n- - §9 row 22: three prompts with no corpus directory and one with one role file\n- - mechanical_checks names failing lint rules and their slugs appear in mechanized_classes",
+      "source_sections": [
+        "## 5. `tp epic review`",
+        "## 9. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-review-carry",
+      "title": "Carry unchanged units across epic rounds",
+      "description": "Carry an unchanged unit with no open finding read at emission; re-ask a unit resolved fixed in the round before or with no recorded hash (D2, D7); a round asking nothing emits no prompts; regression on a changed hash or a fixed resolution.",
+      "status": "open",
+      "tags": [
+        "engine",
+        "review"
+      ],
+      "depends_on": [
+        "epic-review-emit"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- - §9 row 7: round 2 asks nothing and emits no prompts; after editing the why of b -\u003e c round 3 asks exactly a and b\n- - §9 row 18: an open medium on epic:b re-asks b in round 2\n- - §9 row 17: no regression prompt after a clean unedited round 2, one after a fixed resolution",
+      "source_sections": [
+        "## 5. `tp epic review`",
+        "## 9. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-review-record",
+      "title": "Record epic review rounds with location checks",
+      "description": "`tp epic review \u003cslice\u003e --record \u003cndjson\u003e`: review gate's four required keys; location must be epic:\u003cid\u003e for a unit of the slice or gate:\u003cm\u003e for its gate unit; refuse the whole file at exit 1 naming every offending line and write no round; exit 2 under TP_UNATTENDED. Inventory rows.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "review"
+      ],
+      "depends_on": [
+        "epic-review-carry"
+      ],
+      "estimate_minutes": 12,
+      "acceptance": "- - §9 row 8: rows naming epic:d and gate:A on --epic b exit 1 naming both lines and write no round file\n- - §9 row 12 (record): --record under TP_UNATTENDED=1 exits 2 and writes nothing\n- - a legal file records the round and advances round",
+      "source_sections": [
+        "## 5. `tp epic review`",
+        "## 9. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-review-status",
+      "title": "Report epic slice convergence status",
+      "description": "--status/--check over the slice: convergence and cap from the project review_* fields; stale blocks converged and done, at the cap too (D1); cap-done needs every last-round finding dispositioned; a reached cap refuses emit/record with exit 4.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "review"
+      ],
+      "depends_on": [
+        "epic-review-record"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- - §9 rows 9 and 19: two clean rounds converge and check exits 0; editing a's title then reads stale true, converged false\n- - §9 row 10: at cap 1 with a high finding emission exits 4 and check exits 1, then 0 once resolved wontfix\n- - §9 row 11 with D9: a separate cycle x \u003c-\u003e y keeps check at 1 after two clean rounds on --epic b",
+      "source_sections": [
+        "## 5. `tp epic review`",
+        "## 9. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-review-resolve",
+      "title": "Resolve findings in epic review rounds",
+      "description": "--resolve and --resolve-all apply to an epic round file as in tp review (0-based index, fixed/wontfix/duplicate, evidence), and the epic status reads the dispositions.",
+      "status": "open",
+      "tags": [
+        "cli",
+        "review"
+      ],
+      "depends_on": [
+        "epic-review-status"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "- - resolving an epic round's finding wontfix with evidence makes that round clean in --status\n- - an out-of-range index exits non-zero and changes nothing",
+      "source_sections": [
+        "## 5. `tp epic review`"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "epic-export-md",
+      "title": "Add tp epic export --md",
+      "description": "Read-only: one markdown table per milestone in track order, one row per epic with id, title, tags and each dependency with its why. Inventory row.",
+      "status": "open",
+      "tags": [
+        "cli"
+      ],
+      "depends_on": [
+        "epic-lint-command"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "- - §9 row 13: two epics per milestone over [[A, B], [L1]] give three tables in track order, every epic in exactly one row\n- - the command writes no file",
+      "source_sections": [
+        "## 6. `tp epic export`",
+        "## 9. Tests"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "hook-fences-epic-state",
+      "title": "Fence epic state in the write-deny hook",
+      "description": "hooks/pre-tool-use-write-deny.sh denies hand-writes to .tp/epics.json and .tp/epic-review/ beside config.json; extend the hook tests.",
+      "status": "open",
+      "tags": [
+        "plugin"
+      ],
+      "depends_on": [
+        "plugin-version-bump"
+      ],
+      "estimate_minutes": 8,
+      "acceptance": "- - a Write to .tp/epics.json and one under .tp/epic-review/ exit 2 in the hook tests\n- - a Write to an unrelated .tp/ path still exits 0",
+      "source_sections": [
+        "## 7. Documents and the plugin"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "suite-state-watches-epics",
+      "title": "Watch epic state in check-suite-state",
+      "description": "scripts/check-suite-state.sh WATCHED gains .tp/epics.json and .tp/epic-review (D12, spec/1.3.0-corrections.md); a file path must hash like a directory's files.",
+      "status": "open",
+      "tags": [
+        "scripts"
+      ],
+      "depends_on": [
+        "plugin-version-bump"
+      ],
+      "estimate_minutes": 5,
+      "acceptance": "- - WATCHED lists .tp/epics.json and .tp/epic-review\n- - the script still exits 0 on the current suite",
+      "source_sections": [
+        "## 7. Documents and the plugin"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    },
+    {
+      "id": "docs-workflow-e",
+      "title": "Document Workflow E in skill docs",
+      "description": "SKILL.md Workflow E (interview -\u003e tp epic set milestones -\u003e add --bulk -\u003e lint -\u003e review until --status --check exits 0 -\u003e next topic); REFERENCE.md file schema, lint rules, state directory and exit codes; README command index rows. Inventory rows are already added by each command task.",
+      "status": "open",
+      "tags": [
+        "docs"
+      ],
+      "depends_on": [
+        "epic-review-resolve",
+        "epic-export-md",
+        "epic-writers-unattended-fence"
+      ],
+      "estimate_minutes": 15,
+      "acceptance": "- - SKILL.md carries a Workflow E section naming the five steps\n- - REFERENCE.md carries the epics.json schema, the lint rule table, .tp/epic-review/ and the exit codes\n- - README's command index lists every tp epic subcommand",
+      "source_sections": [
+        "## 7. Documents and the plugin"
+      ],
+      "started_at": null,
+      "closed_at": null,
+      "closed_reason": null,
+      "gate_passed_at": null,
+      "commit_sha": null
+    }
+  ]
 }
