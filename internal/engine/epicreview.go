@@ -69,6 +69,16 @@ func EpicReviewNextRound(stateDir string) int {
 	}
 }
 
+// EpicReviewLastRoundPath returns the path of the slice's last recorded round
+// file and its number; round 0 and "" when none is recorded.
+func EpicReviewLastRoundPath(stateDir string) (path string, round int) {
+	round = EpicReviewNextRound(stateDir) - 1
+	if round < 1 {
+		return "", 0
+	}
+	return filepath.Join(stateDir, epicRoundFile(round)), round
+}
+
 // epicSnapshot is the file an emission writes: each unit's hash, by key.
 type epicSnapshot struct {
 	Round int               `json:"round"`
