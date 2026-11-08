@@ -72,3 +72,34 @@ func TestEpicAdd_PreExistingErrorDoesNotBlockButANewOneDoes(t *testing.T) {
 	assert.Equal(t, afterFirst, readEpicGraphFile(t, dir), "a refused add writes nothing")
 }
 
+// TestEpicAdd_BulkRowWithAnExistingIDReplacesIt is the second half of §9 row
+// 20: refusing the second bulk row on duplicate-name would keep the first title.
+func TestEpicAdd_BulkRowWithAnExistingIDReplacesIt(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{
+  "version": 1,
+  "milestones": [["A"]],
+  "epics": []
+}
+`)
+	first := filepath.Join(dir, "first.ndjson")
+	second := filepath.Join(dir, "second.ndjson")
+	require.NoError(t, os.WriteFile(first, []byte(`{"id": "x", "title": "First", "milestone": "A"}`+"\n"), 0o600))
+	require.NoError(t, os.WriteFile(second, []byte(`{"id": "x", "title": "Second", "milestone": "A"}`+"\n"), 0o600))
+
+	for _, bulk := range []string{first, second} {
+		_, stderr, code := runTP(t, dir, "epic", "add", "--bulk", bulk)
+		require.Equal(t, 0, code, "bulk %s stderr: %s", filepath.Base(bulk), stderr)
+	}
+
+	var g struct {
+		Epics []struct {
+			ID    string `json:"id"`
+			Title string `json:"title"`
+		} `json:"epics"`
+	}
+	require.NoError(t, json.Unmarshal(readEpicGraphFile(t, dir), &g))
+	require.Len(t, g.Epics, 1)
+	assert.Equal(t, "x", g.Epics[0].ID)
+	assert.Equal(t, "Second", g.Epics[0].Title)
+}
