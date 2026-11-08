@@ -51,9 +51,14 @@ func runEpicAdd(cmd *cobra.Command, args []string) error {
 	} else {
 		epics = []model.Epic{decodeEpicArg(cmd, args)}
 	}
+	// Rows sharing an id write one epic, so each id is listed once, first-seen.
 	ids := make([]string, 0, len(epics))
+	seen := make(map[string]bool, len(epics))
 	for i := range epics {
-		ids = append(ids, epics[i].ID)
+		if !seen[epics[i].ID] {
+			seen[epics[i].ID] = true
+			ids = append(ids, epics[i].ID)
+		}
 	}
 	writeEpicGraph(ids, func(g *model.EpicGraph) error {
 		engine.AddEpics(g, epics, bulk != "")
