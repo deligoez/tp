@@ -205,3 +205,20 @@ func TestEpicAdd_BulkListsARepeatedIDOnce(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(stdout), &out), "stdout: %s", stdout)
 	assert.Equal(t, []string{"z", "y"}, out.Epics)
 }
+
+// TestEpicAdd_BulkMissingFileHintNamesEpicRows: --bulk takes epic rows, so a
+// missing file's hint must say so instead of pointing at reviewer/auditor
+// NDJSON, the input of the review/audit modes.
+func TestEpicAdd_BulkMissingFileHintNamesEpicRows(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{
+  "version": 1,
+  "milestones": [["A"]],
+  "epics": []
+}
+`)
+	_, stderr, code := runTP(t, dir, "epic", "add", "--bulk", filepath.Join(dir, "missing.ndjson"))
+	require.Equal(t, 3, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "one epic JSON object per line")
+	assert.NotContains(t, stderr, "reviewers/auditors")
+}
