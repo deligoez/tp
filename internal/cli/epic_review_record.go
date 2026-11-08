@@ -46,7 +46,7 @@ func runEpicReviewRecord(key engine.EpicSliceKey, recordPath string) {
 	}
 	round, err := engine.RecordEpicReviewRound(run.stateDir, data)
 	if err != nil {
-		output.Error(ExitFile, "cannot write the epic review round: "+err.Error(), stateWriteHint)
+		output.Error(ExitFile, "cannot write the epic review round: "+err.Error(), epicReviewStateHint)
 		os.Exit(ExitFile)
 	}
 	result := epicRecordResult{

@@ -13,6 +13,11 @@ import (
 // epicReviewUsageHint answers a tp epic review call that names no slice, or two.
 const epicReviewUsageHint = "pass exactly one of --milestone <m> or --epic <id>"
 
+// epicReviewStateHint answers a failed write under the slice's state
+// directory. The shared stateWriteHint names tp review's .tp-review, not the
+// directory tp epic review writes.
+const epicReviewStateHint = "check that the .tp/epic-review/ state directory exists and is writable"
+
 // epicReviewPrompt is one graph role's prompt in a tp epic review emission.
 type epicReviewPrompt struct {
 	Role       string `json:"role"`
@@ -105,7 +110,7 @@ func runEpicReview(cmd *cobra.Command, args []string) error {
 	q := roleQuery{name: roleName, given: cmd.Flags().Changed("role"), specDir: filepath.Dir(run.tpDir)}
 	prompts, skipped := filterByRole(prompts, func(p *epicReviewPrompt) string { return p.Role }, q, nil)
 	if err := engine.WriteEpicReviewSnapshot(run.stateDir, run.round, run.all); err != nil {
-		output.Error(ExitFile, "cannot write the epic review snapshot: "+err.Error(), stateWriteHint)
+		output.Error(ExitFile, "cannot write the epic review snapshot: "+err.Error(), epicReviewStateHint)
 		os.Exit(ExitFile)
 		return nil
 	}
