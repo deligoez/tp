@@ -97,3 +97,24 @@ func TestEpicGraph_RoundTripIsByteIdentical(t *testing.T) {
 	assert.Equal(t, epicGraphEveryField, string(got))
 }
 
+func TestEpicGraph_UnknownKeysCarryTheirPaths(t *testing.T) {
+	tpDir := epicGraphDir(t, `{
+  "version": 1,
+  "milestones": [["A"]],
+  "owner": "x",
+  "epics": [
+    {"id": "a", "title": "A", "milestone": "A"},
+    {"id": "b", "title": "B", "milestone": "A", "trigger": "x", "checks": []}
+  ]
+}`)
+
+	g, unknown, err := LoadEpicGraph(tpDir)
+	require.NoError(t, err)
+	require.Len(t, g.Epics, 2)
+	assert.Equal(t, []EpicGraphUnknownKey{
+		{Path: "owner", Key: "owner"},
+		{Path: "epics[1].checks", Key: "checks", EpicID: "b"},
+		{Path: "epics[1].trigger", Key: "trigger", EpicID: "b"},
+	}, unknown)
+}
+
