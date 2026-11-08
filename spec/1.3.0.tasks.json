@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.3.0.md",
   "created_at": "2026-11-08T20:45:28.723149Z",
-  "updated_at": "2026-11-08T22:21:22.69693Z",
+  "updated_at": "2026-11-08T22:27:07.183529Z",
   "workflow": {
     "review_max_rounds": 3,
     "audit_max_rounds": 3
@@ -728,7 +728,7 @@
       "id": "epic-review-status",
       "title": "Report epic slice convergence status",
       "description": "--status/--check over the slice: convergence and cap from the project review_* fields; stale blocks converged and done, at the cap too (D1); cap-done needs every last-round finding dispositioned; a reached cap refuses emit/record with exit 4.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "review"
@@ -742,11 +742,30 @@
         "## 5. `tp epic review`",
         "## 9. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-08T22:21:38.024664Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-08T22:27:07.142535Z",
+      "closed_reason": "- Section 9 rows 9 and 19: tp epic review --status (internal/cli/epic_review_status.go over engine.EpicReviewLoopStatus in internal/engine/epicstatus.go) resolves review_clean_rounds/review_converge_on/review_max_rounds from the project layer over the built-in default; with review_clean_rounds 2 over --milestone A, --status --check exits 1 after one clean round and 0 after the second (converged, done_by converged), and editing a's title reads stale true, converged false and check 1, verified by TestEpicReviewStatus_TwoCleanRoundsConvergeUntilTheGraphChanges (internal/cli/epic_review_status_test.go), red on an unknown --status flag first\n- Section 9 row 10: with review_max_rounds 1 and a recorded high finding on epic:b, emission and --record both exit 4 with tp review's escalation hint (budgetEscalationHint) and write no round 2 snapshot or round file, --check exits 1, and once the row carries resolved wontfix with evidence check exits 0 with done_by cap, verified by TestEpicReviewStatus_ACapWithAHighFindingRefusesUntilDispositioned; --resolve itself belongs to epic-review-resolve, so the test writes the disposition into round-1.ndjson as the carry tests do (smallest reading); a stale slice is never done at the cap (D1)\n- Section 9 row 11 with D9: over the chain plus a separate cycle x \u003c-\u003e y, --epic b emits and records two clean rounds with mechanical_checks failing only cycle; --status reads converged and done but --status --check exits 1 and next_action names tp epic lint, verified by TestEpicReviewStatus_ALintErrorOutsideTheSliceKeepsCheckFailing; --status/--check rows added to skills/tp/SKILL.md and the surface baseline in internal/cli/nongoals_surface_test.go; gate green",
+      "gate_passed_at": "2026-11-08T22:27:07.142535Z",
+      "commit_sha": "67f149a0",
+      "commit_shas": [
+        "67f149a0",
+        "19e58d91",
+        "d540e291",
+        "611aba07",
+        "88993194",
+        "dc48461d",
+        "8f51a3b5"
+      ],
+      "commit_files": [
+        "internal/cli/epic_review.go",
+        "internal/cli/epic_review_record.go",
+        "internal/cli/epic_review_status.go",
+        "internal/cli/epic_review_status_test.go",
+        "internal/cli/nongoals_surface_test.go",
+        "internal/engine/epicstatus.go",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "epic-review-resolve",
