@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.3.0.md",
   "created_at": "2026-11-08T20:45:28.723149Z",
-  "updated_at": "2026-11-08T20:56:12.15934Z",
+  "updated_at": "2026-11-08T21:02:45.042857Z",
   "workflow": {
     "review_max_rounds": 3,
     "audit_max_rounds": 3
@@ -372,7 +372,7 @@
       "id": "epic-graph-role-corpus",
       "title": "Add the built-in graph role corpus",
       "description": "Three embedded roles dod-satisfiability (direct dependencies, D6), why-auditor, phase-economist in the reviewer file schema; .tp/epic-reviewers/ replaces them when populated, every file active, domains unread; `tp init --eject-roles --graph` writes only that directory. Inventory row for --graph.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "roles"
@@ -386,11 +386,31 @@
         "## 5. `tp epic review`",
         "## 9. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-08T20:56:29.932393Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-08T21:02:45.006241Z",
+      "closed_reason": "- Corpus level of §9 row 22: engine.ResolveEpicRoleCorpus returns the three embedded built-ins (dod-satisfiability, why-auditor, phase-economist, in §5 table order) when .tp/epic-reviewers/ is absent, and exactly the directory's roles when it holds one file, never merged; verified by TestResolveEpicRoleCorpus_NoDirectoryYieldsBuiltIns and TestResolveEpicRoleCorpus_OneFileReplacesBuiltIns (internal/engine/epiccorpus.go, internal/engine/epiccorpus_test.go, internal/engine/corpus/graph/epic-reviewers/*.json); domains is not read because LoadRoleCorpus does not filter by it.\n- tp init --eject-roles --graph writes the three byte-identical role files under .tp/epic-reviewers/ and leaves .tp/reviewers/ byte-identical with no auditors directory created; verified by TestInitEjectRolesGraph_WritesOnlyEpicReviewers (internal/cli/init.go, internal/cli/init_eject_graph_test.go); the flag has a SKILL.md inventory row and is pinned in the nongoals surface baseline. Smallest-reading choices: --domain with --graph is a usage error (exit 2), and --graph without --eject-roles is ignored like --force.",
+      "gate_passed_at": "2026-11-08T21:02:45.006241Z",
+      "commit_sha": "eb8190bd",
+      "commit_shas": [
+        "eb8190bd",
+        "a4efdb63",
+        "f9c8a6ca",
+        "a36c02be",
+        "c370a984",
+        "a865c45b"
+      ],
+      "commit_files": [
+        "internal/cli/init.go",
+        "internal/cli/init_eject_graph_test.go",
+        "internal/cli/nongoals_surface_test.go",
+        "internal/engine/corpus/graph/epic-reviewers/dod-satisfiability.json",
+        "internal/engine/corpus/graph/epic-reviewers/phase-economist.json",
+        "internal/engine/corpus/graph/epic-reviewers/why-auditor.json",
+        "internal/engine/epiccorpus.go",
+        "internal/engine/epiccorpus_test.go",
+        "skills/tp/SKILL.md"
+      ]
     },
     {
       "id": "epic-review-emit",
