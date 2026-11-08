@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.3.0.md",
   "created_at": "2026-11-08T20:45:28.723149Z",
-  "updated_at": "2026-11-08T22:10:14.073977Z",
+  "updated_at": "2026-11-08T22:15:43.60481Z",
   "workflow": {
     "review_max_rounds": 3,
     "audit_max_rounds": 3
@@ -647,7 +647,7 @@
       "id": "epic-review-carry",
       "title": "Carry unchanged units across epic rounds",
       "description": "Carry an unchanged unit with no open finding read at emission; re-ask a unit resolved fixed in the round before or with no recorded hash (D2, D7); a round asking nothing emits no prompts; regression on a changed hash or a fixed resolution.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "review"
@@ -661,11 +661,24 @@
         "## 5. `tp epic review`",
         "## 9. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-08T22:10:30.808378Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-08T22:15:43.580371Z",
+      "closed_reason": "- Section 9 row 7: engine.EpicReviewCarry (internal/engine/epiccarry.go) carries a unit whose hash equals the round before's snapshot and that has no open row; over --milestone A on the chain round 2 asks no unit, emits no prompts and its next_action says to record an empty file, and after editing the why of b -\u003e c round 3 asks exactly epic:a and epic:b with c as context and d by id only, verified by TestEpicReview_UnchangedUnitsAreCarried (internal/cli/epic_review_carry_test.go), red before the carry existed\n- Section 9 row 18: a round-1 medium row on epic:b with no accepting disposition re-asks b in round 2 although its hash is unchanged, verified by TestEpicReview_AnOpenFindingReasksItsUnit (internal/cli/epic_review_carry_test.go)\n- Section 9 row 17 with D2: regression is appended (internal/cli/epic_review_prompt.go epicRegressionPrompt) only when a unit hash changed or the round before holds a fixed row; a round-2 row resolved wontfix gives round 3 no regression prompt, and the same row resolved fixed re-asks epic:a and appends regression naming the fixed finding, verified by TestEpicReview_RegressionFollowsAFixedResolution (internal/cli/epic_review_carry_test.go)\n- Smallest readings: open is read from the round before's rows only (any row not accepted wontfix/duplicate with evidence); the payload gains a carried key list; the round file format read here is round-N.ndjson of the review gate's rows with an optional resolved object, which epic-review-record must write",
+      "gate_passed_at": "2026-11-08T22:15:43.580371Z",
+      "commit_sha": "94f38f46",
+      "commit_shas": [
+        "94f38f46",
+        "995015a7",
+        "89f286b2"
+      ],
+      "commit_files": [
+        "internal/cli/epic_review.go",
+        "internal/cli/epic_review_carry_test.go",
+        "internal/cli/epic_review_prompt.go",
+        "internal/cli/epic_review_test.go",
+        "internal/engine/epiccarry.go"
+      ]
     },
     {
       "id": "epic-review-record",
