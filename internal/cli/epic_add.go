@@ -131,8 +131,12 @@ func writeEpicGraph(ids []string, mutate func(*model.EpicGraph) error) {
 	path, err := engine.UpdateEpicGraph(engine.ProjectConfigDir("."), mutate)
 	var refused *engine.EpicWriteRefusedError
 	var notFound *engine.EpicNotFoundError
+	var removeRefused *engine.EpicRemoveRefusedError
 	var mce *engine.MalformedConfigError
 	switch {
+	case errors.As(err, &removeRefused):
+		output.Error(ExitValidation, removeRefused.Error(), epicRemoveRefusedHint)
+		os.Exit(ExitValidation)
 	case errors.As(err, &notFound):
 		output.Error(ExitState, notFound.Error(), epicNotFoundHint)
 		os.Exit(ExitState)
