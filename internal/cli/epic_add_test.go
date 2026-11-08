@@ -103,3 +103,33 @@ func TestEpicAdd_BulkRowWithAnExistingIDReplacesIt(t *testing.T) {
 	assert.Equal(t, "x", g.Epics[0].ID)
 	assert.Equal(t, "Second", g.Epics[0].Title)
 }
+
+// TestEpicAdd_NamesTheKeysItDropped: a writer carries only the schema into the
+// file it writes, so the keys outside it it leaves behind are named in its
+// payload; one that dropped them silently would print no dropped_keys.
+func TestEpicAdd_NamesTheKeysItDropped(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{
+  "version": 1,
+  "milestones": [["A"]],
+  "owner": "x",
+  "gates": {"A": {"members": ["a"], "extra": 1}},
+  "epics": [
+    {"id": "a", "title": "A", "milestone": "A", "trigger": "y"}
+  ]
+}
+`)
+	type payload struct {
+		DroppedKeys []string `json:"dropped_keys"`
+	}
+	stdout, stderr, code := runTP(t, dir, "epic", "add", `{"id": "b", "title": "B", "milestone": "A"}`)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var out payload
+	require.NoError(t, json.Unmarshal([]byte(stdout), &out), "stdout: %s", stdout)
+	assert.Equal(t, []string{"owner", "gates.A.extra", "epics[0].trigger"}, out.DroppedKeys)
+	assert.NotContains(t, string(readEpicGraphFile(t, dir)), "owner")
+
+	stdout, stderr, code = runTP(t, dir, "epic", "add", `{"id": "c", "title": "C", "milestone": "A"}`)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.Contains(t, stdout, `"dropped_keys": []`, "nothing dropped is an empty list, not an absent key")
+}
