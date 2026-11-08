@@ -45,7 +45,11 @@ func runEpicImport(cmd *cobra.Command, args []string) error {
 	path, findings, err := engine.ImportEpicGraph(engine.ProjectConfigDir("."), g, force)
 	var refused *engine.EpicImportRefusedError
 	var mce *engine.MalformedConfigError
+	var lockErr *engine.LockTimeoutError
 	switch {
+	case errors.As(err, &lockErr):
+		output.Error(ExitState, lockErr.Error(), lockErr.Hint())
+		os.Exit(ExitState)
 	case errors.As(err, &refused):
 		output.Error(ExitValidation, refused.Error(), epicImportRefusedHint)
 		os.Exit(ExitValidation)
