@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.3.0.md",
   "created_at": "2026-11-08T20:45:28.723149Z",
-  "updated_at": "2026-11-08T21:02:45.042857Z",
+  "updated_at": "2026-11-08T21:07:22.403117Z",
   "workflow": {
     "review_max_rounds": 3,
     "audit_max_rounds": 3
@@ -86,7 +86,7 @@
       "id": "epic-lint-structure-rules",
       "title": "Lint graph structure rules",
       "description": "cycle (one finding per strongly connected component), dangling-reference, duplicate-name, unknown-key; findings {rule, severity, epics sorted, message}; one finding per offending item for all but cycle (D3 in spec/1.3.0-corrections.md).",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "lint"
@@ -99,11 +99,25 @@
       "source_sections": [
         "## 4. `tp epic lint`"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-08T21:03:01.401988Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-08T21:07:22.346381Z",
+      "closed_reason": "- engine.LintEpicGraph runs the four structure rules (cycle, dangling-reference, duplicate-name, unknown-key) over a model.EpicGraph plus LoadEpicGraph's unknown keys; each rule fires on its defect and none fires on a clean chain graph with a gate and a tag check, verified by TestLintEpicGraph_CleanGraphHasNoStructureFindings, _SelfLoopIsACycle, _DanglingReferencesAreOneFindingEach (depends_on, gate member, deferrable, provided_by, gates key: 5 findings), _DuplicateNamesAreOneFindingEach and _UnknownKeysAreOneFindingEach (internal/engine/epiclint.go, internal/engine/epiclint_test.go)\n- Cycles are Tarjan strongly connected components: overlapping cycles a\u003c-\u003eb, b\u003c-\u003ec yield one cycle finding with epics [a, b, c] (TestLintEpicGraph_OverlappingCyclesAreOneFinding); every other rule yields one finding per offending item per D3\n- Every finding is EpicLintFinding{rule, severity, epics, message} with epics sorted, deduplicated and never null; findingsOf asserts this on every finding in every test. Smallest reading taken: a dangling finding's epics include the absent id it names beside the carrying epic, and a milestone, gates-key or top-level-key finding names its name in the message with epics []",
+      "gate_passed_at": "2026-11-08T21:07:22.346381Z",
+      "commit_sha": "d397fafb",
+      "commit_shas": [
+        "d397fafb",
+        "a9d9716a",
+        "ccd6c23c",
+        "d55b7170",
+        "981fd835",
+        "b1a5352c",
+        "3de54349"
+      ],
+      "commit_files": [
+        "internal/engine/epiclint.go",
+        "internal/engine/epiclint_test.go"
+      ]
     },
     {
       "id": "epic-lint-milestone-rules",
