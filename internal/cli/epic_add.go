@@ -175,7 +175,7 @@ func writeEpicGraph(ids []string, mutate func(*model.EpicGraph) error) {
 		output.Error(ExitFile, mce.Error(), epicGraphFileHint)
 		os.Exit(ExitFile)
 	case err != nil:
-		output.Error(ExitFile, err.Error(), stateWriteHint)
+		output.Error(ExitFile, err.Error(), epicGraphWriteHint)
 		os.Exit(ExitFile)
 	}
 	if err := output.JSON(epicWriteResult{File: path, Epics: ids, DroppedKeys: dropped}); err != nil {

@@ -53,7 +53,7 @@ func runEpicImport(cmd *cobra.Command, args []string) error {
 		output.Error(ExitFile, mce.Error(), epicGraphFileHint)
 		os.Exit(ExitFile)
 	case err != nil:
-		output.Error(ExitFile, err.Error(), stateWriteHint)
+		output.Error(ExitFile, err.Error(), epicGraphWriteHint)
 		os.Exit(ExitFile)
 	}
 	result := epicImportResult{File: path, Epics: make([]string, 0, len(g.Epics)), Findings: findings}

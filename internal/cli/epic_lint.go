@@ -19,6 +19,11 @@ type epicLintResult struct {
 // epicGraphFileHint answers an absent or unparsable .tp/epics.json.
 const epicGraphFileHint = "create .tp/epics.json with tp epic set or tp epic import, or fix its JSON to the graph file's schema"
 
+// epicGraphWriteHint answers a failed write of .tp/epics.json. The shared
+// stateWriteHint names tp review's .tp-review directory, which a graph write
+// never touches.
+const epicGraphWriteHint = "check that the .tp/ directory is writable — tp writes .tp/epics.json and its lock file there"
+
 func newEpicLintCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "lint",
