@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -59,7 +60,7 @@ func runEpicReviewResolve(key engine.EpicSliceKey, args []string, force bool) {
 		return writeNDJSON(path, findings)
 	})
 	if lockErr != nil {
-		exitResolveError(path, lockErr)
+		exitEpicResolveError(path, lockErr)
 	}
 	result := epicResolvePayload(&run, round, status)
 	result.Index = &index
@@ -85,7 +86,7 @@ func runEpicReviewResolveAll(key engine.EpicSliceKey, args []string, force bool)
 		return writeNDJSON(path, findings)
 	})
 	if lockErr != nil {
-		exitResolveError(path, lockErr)
+		exitEpicResolveError(path, lockErr)
 	}
 	result := epicResolvePayload(&run, round, status)
 	result.ResolvedCount, result.SkippedCount = &resolved, &skipped
@@ -155,4 +156,17 @@ func printEpicResolve(result *epicResolveResult) {
 		output.Error(ExitFile, err.Error(), internalEncodeHint)
 		os.Exit(ExitFile)
 	}
+}
+
+// exitEpicResolveError is exitResolveError for the slice's round file: lock
+// contention keeps its exit 4, but any other failure is about tp's own
+// recorded round, not a path the caller passed, so it carries epicRoundFileHint.
+func exitEpicResolveError(path string, err error) {
+	var lockErr *engine.LockTimeoutError
+	if errors.As(err, &lockErr) {
+		exitResolveError(path, err)
+		return
+	}
+	output.Error(ExitFile, fmt.Sprintf("cannot update %s: %v", path, err), epicRoundFileHint)
+	os.Exit(ExitFile)
 }

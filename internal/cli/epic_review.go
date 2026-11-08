@@ -149,6 +149,11 @@ func epicReviewSliceKey(cmd *cobra.Command) engine.EpicSliceKey {
 	return engine.EpicSliceKey{Milestone: milestone, Epic: epic}
 }
 
+// epicRoundFileHint answers a recorded round tp cannot read back or rewrite.
+// The file is tp's own artifact, so neither stateWriteHint's .tp-review nor
+// ndjsonInputFileHint's "check the path" describes it.
+const epicRoundFileHint = "the file the message names is a recorded epic review round under .tp/epic-review/, tp's own artifact rather than a path you passed: make it readable and writable again, or restore its content"
+
 // loadEpicReviewRun reads the graph and derives the slice and its round. It
 // writes nothing: an absent graph exits 3, a slice the graph does not hold 4.
 func loadEpicReviewRun(key engine.EpicSliceKey) epicReviewRun {
@@ -171,7 +176,7 @@ func loadEpicReviewRun(key engine.EpicSliceKey) epicReviewRun {
 	round := engine.EpicReviewNextRound(stateDir)
 	carry, err := engine.EpicReviewCarry(stateDir, round, slice.Units)
 	if err != nil {
-		output.Error(ExitFile, err.Error(), stateWriteHint)
+		output.Error(ExitFile, err.Error(), epicRoundFileHint)
 		os.Exit(ExitFile)
 	}
 	return epicReviewRun{

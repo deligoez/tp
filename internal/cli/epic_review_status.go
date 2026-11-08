@@ -40,7 +40,7 @@ func epicReviewPolicy(tpDir string) engine.EpicReviewPolicy {
 func epicReviewLoop(run *epicReviewRun) engine.EpicReviewStatus {
 	st, err := engine.EpicReviewLoopStatus(run.stateDir, run.all, epicReviewPolicy(run.tpDir))
 	if err != nil {
-		output.Error(ExitFile, err.Error(), stateWriteHint)
+		output.Error(ExitFile, err.Error(), epicRoundFileHint)
 		os.Exit(ExitFile)
 	}
 	return st
