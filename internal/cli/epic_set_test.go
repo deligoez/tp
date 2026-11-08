@@ -33,3 +33,24 @@ func TestEpicSet_MilestonesWithNoFileCreatesIt(t *testing.T) {
 	assert.Equal(t, [][]string{{"A"}}, g.Milestones)
 }
 
+// TestEpicSet_FieldAddingAnErrorIsRefusedAndWritesNothing: a set moving an epic
+// to a milestone no track names adds unknown-milestone, so it exits 1 and the
+// file stays byte-identical.
+func TestEpicSet_FieldAddingAnErrorIsRefusedAndWritesNothing(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{
+  "version": 1,
+  "milestones": [["A"]],
+  "epics": [
+    {"id": "a", "title": "A", "milestone": "A"}
+  ]
+}
+`)
+	before := readEpicGraphFile(t, dir)
+
+	_, stderr, code := runTP(t, dir, "epic", "set", "a", "milestone=Z")
+	require.Equal(t, 1, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "unknown-milestone")
+	assert.Equal(t, before, readEpicGraphFile(t, dir), "a refused set writes nothing")
+}
+
