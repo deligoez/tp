@@ -57,3 +57,11 @@ func TestLintEpicGraph_OverlappingCyclesAreOneFinding(t *testing.T) {
 	assert.Equal(t, []string{"a", "b", "c"}, cycles[0].Epics)
 }
 
+func TestLintEpicGraph_SelfLoopIsACycle(t *testing.T) {
+	g := cleanEpicGraph()
+	g.Epics[2].DependsOn = []model.EpicDep{{ID: "c", Why: "itself"}}
+	cycles := findingsOf(t, LintEpicGraph(g, nil), EpicRuleCycle)
+	require.Len(t, cycles, 1)
+	assert.Equal(t, []string{"c"}, cycles[0].Epics)
+}
+
