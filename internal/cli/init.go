@@ -20,6 +20,7 @@ var (
 	initEjectRoles     bool
 	initDomain         string
 	initForce          bool
+	initEjectGraph     bool
 )
 
 // taskFileExistsHint replaces the exit-3 default on `tp init`'s already-exists
@@ -40,6 +41,7 @@ func newInitCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&initEjectRoles, "eject-roles", false, "write the default role corpus into .tp/reviewers and .tp/auditors")
 	cmd.Flags().StringVar(&initDomain, "domain", "", "domain corpus to eject with --eject-roles (default: software)")
 	cmd.Flags().BoolVar(&initForce, "force", false, "with --eject-roles: overwrite existing role files")
+	cmd.Flags().BoolVar(&initEjectGraph, "graph", false, "with --eject-roles: write only the graph-review roles into .tp/epic-reviewers")
 	return cmd
 }
 
@@ -133,6 +135,9 @@ func runInit(_ *cobra.Command, args []string) error {
 // known domains; eject refuses to overwrite an existing role file unless
 // --force, which overwrites regardless of the existing file's validity.
 func runEjectRoles() error {
+	if initEjectGraph {
+		return runEjectGraphRoles()
+	}
 	domain := initDomain
 	if domain == "" {
 		domain = "software"
@@ -146,34 +151,13 @@ func runEjectRoles() error {
 	tpDir := engine.ProjectConfigDir(".")
 	written := make([]string, 0)
 	for _, phase := range []string{engine.PhaseReviewers, engine.PhaseAuditors} {
-		phaseDir := filepath.Join(tpDir, phase)
-		if err := os.MkdirAll(phaseDir, 0o755); err != nil {
-			output.Error(ExitFile, err.Error())
-			os.Exit(ExitFile)
-			return nil
-		}
 		files, err := engine.DefaultCorpusFiles(domain, phase)
 		if err != nil {
 			output.Error(ExitFile, err.Error())
 			os.Exit(ExitFile)
 			return nil
 		}
-		for _, f := range files {
-			path := filepath.Join(phaseDir, f.ID+".json")
-			if !initForce {
-				if _, statErr := os.Stat(path); statErr == nil {
-					output.Error(ExitFile, fmt.Sprintf("role file already exists: %s", path), "use --force to overwrite")
-					os.Exit(ExitFile)
-					return nil
-				}
-			}
-			if err := os.WriteFile(path, f.Data, 0o600); err != nil {
-				output.Error(ExitFile, err.Error())
-				os.Exit(ExitFile)
-				return nil
-			}
-			written = append(written, path)
-		}
+		written = append(written, writeEjectedRoles(filepath.Join(tpDir, phase), files)...)
 	}
 
 	output.Success(fmt.Sprintf("ejected %d role files for domain %q", len(written), domain))
@@ -183,4 +167,52 @@ func runEjectRoles() error {
 	// wording names no language, so it is identical for every domain.
 	output.Notice("note: these roles are starting points; rewrite their focus for your project's stack and conventions.")
 	return output.JSON(map[string]any{"ejected": written, "domain": domain})
+}
+
+// runEjectGraphRoles writes the built-in graph-review roles into
+// .tp/epic-reviewers/ only (spec/1.3.0.md §5); the reviewer and auditor
+// corpora are not touched, and --domain does not apply.
+func runEjectGraphRoles() error {
+	if initDomain != "" {
+		output.Error(ExitUsage, "--domain does not apply with --graph: the graph roles have one built-in corpus")
+		os.Exit(ExitUsage)
+		return nil
+	}
+	files, err := engine.DefaultEpicCorpusFiles()
+	if err != nil {
+		output.Error(ExitFile, err.Error())
+		os.Exit(ExitFile)
+		return nil
+	}
+	dir := filepath.Join(engine.ProjectConfigDir("."), engine.PhaseEpicReviewers)
+	written := writeEjectedRoles(dir, files)
+	output.Success(fmt.Sprintf("ejected %d graph role files", len(written)))
+	output.Notice("note: these roles are starting points; rewrite their focus for your project's graph.")
+	return output.JSON(map[string]any{"ejected": written})
+}
+
+// writeEjectedRoles writes each role file into dir, refusing an existing file
+// unless --force (which overwrites regardless of the file's validity). Any
+// failure exits the process with ExitFile.
+func writeEjectedRoles(dir string, files []engine.DefaultRoleFile) []string {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		output.Error(ExitFile, err.Error())
+		os.Exit(ExitFile)
+	}
+	written := make([]string, 0, len(files))
+	for _, f := range files {
+		path := filepath.Join(dir, f.ID+".json")
+		if !initForce {
+			if _, statErr := os.Stat(path); statErr == nil {
+				output.Error(ExitFile, fmt.Sprintf("role file already exists: %s", path), "use --force to overwrite")
+				os.Exit(ExitFile)
+			}
+		}
+		if err := os.WriteFile(path, f.Data, 0o600); err != nil {
+			output.Error(ExitFile, err.Error())
+			os.Exit(ExitFile)
+		}
+		written = append(written, path)
+	}
+	return written
 }
