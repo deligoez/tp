@@ -109,12 +109,17 @@ func decodeEpic(raw []byte) (model.Epic, error) {
 	return e, nil
 }
 
+// epicBulkFileHint answers an unreadable --bulk path. The shared
+// ndjsonInputFileHint names the reviewers'/auditors' files, the wrong input
+// for epic rows.
+const epicBulkFileHint = "check the --bulk path — it takes an NDJSON file, one epic JSON object per line"
+
 // readBulkEpics reads one epic per non-blank NDJSON line; any bad line aborts
 // the whole add, naming it.
 func readBulkEpics(path string) []model.Epic {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		output.Error(ExitFile, err.Error(), ndjsonInputFileHint)
+		output.Error(ExitFile, err.Error(), epicBulkFileHint)
 		os.Exit(ExitFile)
 	}
 	scanner := bufio.NewScanner(bytes.NewReader(data))
