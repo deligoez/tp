@@ -668,6 +668,7 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 |---------|---------|
 | `tp init spec.md` | Create the task file shell (also writes `.tp/.gitignore`, which covers `.tp/locks/` and the run artifacts) |
 | `tp init --eject-roles [--domain <name>] [--force]` | Write the default role corpus into `.tp/reviewers` and `.tp/auditors` |
+| `tp init --eject-roles --graph [--force]` | Write only the built-in graph-review roles (`dod-satisfiability`, `why-auditor`, `phase-economist`) into `.tp/epic-reviewers`; `.tp/reviewers` and `.tp/auditors` are untouched |
 | `tp init spec.md --quality-gate "<cmd>"` | Write a task-file-level `quality_gate` override (otherwise the project default in `.tp/config.json` applies) |
 | `tp init spec.md --commit-strategy <builtin\|auto\|hc>` | Write a task-file-level `commit_strategy` override |
 | `tp add <json>` | Add task (`--stdin` for piped input); entry rules reject missing id/title/acceptance/anchor and unknown deps |
