@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -70,7 +71,8 @@ func runEpicImport(cmd *cobra.Command, args []string) error {
 }
 
 // readEpicImportPayload parses the graph file to import, refusing keys
-// outside the schema as tp epic add does; a missing file exits 3.
+// outside the schema and anything after the one JSON value as tp epic add
+// does; a missing file exits 3.
 func readEpicImportPayload(path string) *model.EpicGraph {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -80,7 +82,11 @@ func readEpicImportPayload(path string) *model.EpicGraph {
 	var g model.EpicGraph
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
-	if err := dec.Decode(&g); err != nil {
+	err = dec.Decode(&g)
+	if _, tokErr := dec.Token(); err == nil && !errors.Is(tokErr, io.EOF) {
+		err = errors.New("trailing data after the graph: pass exactly one JSON object")
+	}
+	if err != nil {
 		output.Error(ExitUsage, "invalid epic graph JSON", err.Error())
 		os.Exit(ExitUsage)
 	}
