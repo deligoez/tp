@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.3.0.md",
   "created_at": "2026-11-08T20:45:28.723149Z",
-  "updated_at": "2026-11-08T21:54:54.121429Z",
+  "updated_at": "2026-11-08T21:59:32.239254Z",
   "workflow": {
     "review_max_rounds": 3,
     "audit_max_rounds": 3
@@ -485,7 +485,7 @@
       "id": "epic-slice-units",
       "title": "Derive slice units with their hashes",
       "description": "--milestone (plus a gate unit when gates.m exists) or --epic; epic block per §5; context = neighbours of asked units not asked, each once (D5); hash = own block + direct dependencies' blocks; gate hash = members + deferrables.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "review"
@@ -499,11 +499,23 @@
         "## 5. `tp epic review`",
         "## 9. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-08T21:55:08.737872Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-08T21:59:32.210071Z",
+      "closed_reason": "- Section 9 row 6 with D11: engine.EpicReviewSlice (internal/engine/epicslice.go) over the chain with --epic b returns epic:b as the only unit and context [a, c]; d appears only as the edge line '- d: \u003cwhy\u003e' inside c's block, never as a block, verified by TestEpicReviewSlice_EpicAsksItselfWithNeighboursAsContext (internal/engine/epicslice_test.go)\n- Hash: a unit hash is sha256 over its own block plus its direct dependencies' blocks; editing the why of b -\u003e c changes epic:a and epic:b hashes and leaves c and d unchanged, verified by TestEpicReviewSlice_EditingAWhyChangesTheSourceAndItsDependents, which fails under the own-block-only mutant (checked by hand)\n- Gate unit: --milestone A over the chain yields only epic units with no gates entry; with gates.A it appends gate:A whose block and hash cover members and deferrables, verified by TestEpicReviewSlice_GateUnitOnlyWithAGatesEntry\n- Design reading: an epic id absent from the graph or a milestone in no track is an error (TestEpicReviewSlice_UnknownEpicOrMilestoneIsAnError); context is computed against the asked set (all slice epics here) so the carry task can pass a narrower set; a dangling dependency adds nothing to a hash; the gate unit is not a context source",
+      "gate_passed_at": "2026-11-08T21:59:32.210071Z",
+      "commit_sha": "109ab169",
+      "commit_shas": [
+        "109ab169",
+        "5281377d",
+        "8c5e0bd5",
+        "224e7bfa",
+        "3682aae4"
+      ],
+      "commit_files": [
+        "internal/engine/epicslice.go",
+        "internal/engine/epicslice_test.go"
+      ]
     },
     {
       "id": "epic-review-state-dir",
