@@ -60,8 +60,8 @@ func lintEpicMilestones(g *model.EpicGraph) []EpicLintFinding {
 	var out []EpicLintFinding
 	for _, e := range g.Epics {
 		if _, ok := pos[e.Milestone]; !ok {
-			out = append(out, epicError(EpicRuleUnknownMilestone,
-				fmt.Sprintf("epic %q has milestone %q, which is in no track", e.ID, e.Milestone), e.ID))
+			out = append(out, epicNamedError(EpicRuleUnknownMilestone,
+				fmt.Sprintf("epic %q has milestone %q, which is in no track", e.ID, e.Milestone), []string{e.Milestone}, e.ID))
 		}
 	}
 	byID := epicMilestones(g)
@@ -84,9 +84,9 @@ func lintLaterMilestoneEdges(e *model.Epic, pos map[string]milestonePos, byID ma
 		m, known := byID[d.ID]
 		to, placed := pos[m]
 		if known && placed && to.track == from.track && to.index > from.index {
-			out = append(out, epicError(EpicRuleLaterMilestoneDependency,
+			out = append(out, epicNamedError(EpicRuleLaterMilestoneDependency,
 				fmt.Sprintf("epic %q in %q depends on %q in the later milestone %q", e.ID, e.Milestone, d.ID, m),
-				e.ID, d.ID))
+				[]string{e.Milestone, m}, e.ID, d.ID))
 		}
 	}
 	return out
@@ -105,8 +105,8 @@ func lintEpicGateMembers(g *model.EpicGraph) []EpicLintFinding {
 		}
 		for _, id := range g.Gates[name].Members {
 			if m, ok := byID[id]; ok && m != name {
-				out = append(out, epicError(EpicRuleGateMemberOutsideMilestone,
-					fmt.Sprintf("gate %q member %q is in milestone %q", name, id, m), id))
+				out = append(out, epicNamedError(EpicRuleGateMemberOutsideMilestone,
+					fmt.Sprintf("gate %q member %q is in milestone %q", name, id, m), []string{name}, id))
 			}
 		}
 	}

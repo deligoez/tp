@@ -39,11 +39,15 @@ const (
 
 // EpicLintFinding is one lint result. Epics holds the sorted, distinct ids the
 // finding names, a dangling id included; it is never nil, so it encodes as [].
+// Names holds the sorted milestone, gate, tag or key names the finding
+// involves: part of its identity across a write (NewEpicErrors), not of the
+// payload, where the message carries them.
 type EpicLintFinding struct {
 	Rule     string   `json:"rule"`
 	Severity string   `json:"severity"`
 	Epics    []string `json:"epics"`
 	Message  string   `json:"message"`
+	Names    []string `json:"-"`
 }
 
 // LintEpicGraph runs the structure, edge, milestone and tag rules, then the
@@ -76,6 +80,15 @@ func epicError(rule, message string, epics ...string) EpicLintFinding {
 	}
 	sort.Strings(ids)
 	return EpicLintFinding{Rule: rule, Severity: EpicSeverityError, Epics: ids, Message: message}
+}
+
+// epicNamedError is epicError for a finding that involves milestone, gate,
+// tag or key names.
+func epicNamedError(rule, message string, names []string, epics ...string) EpicLintFinding {
+	f := epicError(rule, message, epics...)
+	f.Names = append([]string(nil), names...)
+	sort.Strings(f.Names)
+	return f
 }
 
 // epicIDs returns the set of ids the graph defines.
@@ -209,8 +222,8 @@ func lintEpicDangling(g *model.EpicGraph) []EpicLintFinding {
 	}
 	for _, tag := range sortedMapKeys(g.TagChecks) {
 		if p := g.TagChecks[tag].ProvidedBy; !ids[p] {
-			out = append(out, epicError(EpicRuleDanglingReference,
-				fmt.Sprintf("tag_checks %q provided_by %q names no epic", tag, p), p))
+			out = append(out, epicNamedError(EpicRuleDanglingReference,
+				fmt.Sprintf("tag_checks %q provided_by %q names no epic", tag, p), []string{tag}, p))
 		}
 	}
 	return out
@@ -219,8 +232,8 @@ func lintEpicDangling(g *model.EpicGraph) []EpicLintFinding {
 func lintGateDangling(name string, gate model.EpicGate, ids, milestones map[string]bool) []EpicLintFinding {
 	var out []EpicLintFinding
 	if !milestones[name] {
-		out = append(out, epicError(EpicRuleDanglingReference,
-			fmt.Sprintf("gates key %q names no milestone", name)))
+		out = append(out, epicNamedError(EpicRuleDanglingReference,
+			fmt.Sprintf("gates key %q names no milestone", name), []string{name}))
 	}
 	for _, list := range []struct {
 		field string
@@ -228,8 +241,8 @@ func lintGateDangling(name string, gate model.EpicGate, ids, milestones map[stri
 	}{{"members", gate.Members}, {"deferrable", gate.Deferrable}} {
 		for _, id := range list.ids {
 			if !ids[id] {
-				out = append(out, epicError(EpicRuleDanglingReference,
-					fmt.Sprintf("gate %q %s entry %q names no epic", name, list.field, id), id))
+				out = append(out, epicNamedError(EpicRuleDanglingReference,
+					fmt.Sprintf("gate %q %s entry %q names no epic", name, list.field, id), []string{name}, id))
 			}
 		}
 	}
@@ -252,7 +265,8 @@ func lintEpicDuplicates(g *model.EpicGraph) []EpicLintFinding {
 		names = append(names, track...)
 	}
 	for _, name := range repeated(names) {
-		out = append(out, epicError(EpicRuleDuplicateName, fmt.Sprintf("milestone %q appears more than once", name)))
+		out = append(out, epicNamedError(EpicRuleDuplicateName,
+			fmt.Sprintf("milestone %q appears more than once", name), []string{name}))
 	}
 	return out
 }
@@ -275,10 +289,10 @@ func lintEpicUnknownKeys(unknown []EpicGraphUnknownKey) []EpicLintFinding {
 	for _, k := range unknown {
 		msg := fmt.Sprintf("key %q is outside the schema", k.Path)
 		if k.EpicID == "" {
-			out = append(out, epicError(EpicRuleUnknownKey, msg))
+			out = append(out, epicNamedError(EpicRuleUnknownKey, msg, []string{k.Path}))
 			continue
 		}
-		out = append(out, epicError(EpicRuleUnknownKey, msg, k.EpicID))
+		out = append(out, epicNamedError(EpicRuleUnknownKey, msg, []string{k.Path}, k.EpicID))
 	}
 	return out
 }

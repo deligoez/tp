@@ -65,9 +65,9 @@ func lintEpicTagChecks(g *model.EpicGraph) []EpicLintFinding {
 				deps = transitiveDeps(e, byID)
 			}
 			if !deps[check.ProvidedBy] {
-				out = append(out, epicError(EpicRuleUnprovidedTagCheck,
+				out = append(out, epicNamedError(EpicRuleUnprovidedTagCheck,
 					fmt.Sprintf("epic %q carries tag %q but does not depend on its provider %q", e.ID, tag, check.ProvidedBy),
-					e.ID))
+					[]string{tag}, e.ID))
 			}
 		}
 	}
