@@ -50,7 +50,7 @@ func newEpicReviewCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "review",
 		Short: "Emit one prompt per graph role over a milestone's or an epic's slice of .tp/epics.json",
-		Args:  cobra.NoArgs,
+		Args:  epicReviewArgs,
 		RunE:  runEpicReview,
 	}
 	cmd.Flags().String("milestone", "", "Review every epic of this milestone, plus its gate")
@@ -59,13 +59,29 @@ func newEpicReviewCmd() *cobra.Command {
 	cmd.Flags().String("record", "", "Record this NDJSON findings file as the slice's next round")
 	cmd.Flags().Bool("status", false, "Print the slice's convergence status")
 	cmd.Flags().Bool("check", false, "With --status: exit 0 only when the loop is done and every mechanical check passes")
+	cmd.Flags().Bool("resolve", false, "Mark one finding of the last recorded round fixed/wontfix/duplicate (positionals: 0-based index, status, evidence)")
+	cmd.Flags().Bool("resolve-all", false, "Mark every unresolved finding of the last recorded round with a status (positionals: status, evidence)")
+	cmd.Flags().Bool("force", false, "With --resolve or --resolve-all: re-resolve findings that already carry a disposition")
 	return cmd
+}
+
+// epicReviewArgs admits positionals only to --resolve and --resolve-all.
+func epicReviewArgs(cmd *cobra.Command, args []string) error {
+	resolve, _ := cmd.Flags().GetBool("resolve")
+	resolveAll, _ := cmd.Flags().GetBool("resolve-all")
+	if resolve || resolveAll {
+		return nil
+	}
+	return cobra.NoArgs(cmd, args)
 }
 
 // runEpicReview emits a round over the slice the flags name. Neither or both
 // slice flags is a usage error decided before anything is read or written.
-func runEpicReview(cmd *cobra.Command, _ []string) error {
+func runEpicReview(cmd *cobra.Command, args []string) error {
 	key := epicReviewSliceKey(cmd)
+	if runEpicReviewDisposition(cmd, key, args) {
+		return nil
+	}
 	if cmd.Flags().Changed("record") {
 		recordPath, _ := cmd.Flags().GetString("record")
 		runEpicReviewRecord(key, recordPath)
@@ -100,6 +116,21 @@ func runEpicReview(cmd *cobra.Command, _ []string) error {
 		os.Exit(ExitFile)
 	}
 	return nil
+}
+
+// runEpicReviewDisposition runs --resolve or --resolve-all when either is set
+// and reports whether it did.
+func runEpicReviewDisposition(cmd *cobra.Command, key engine.EpicSliceKey, args []string) bool {
+	force, _ := cmd.Flags().GetBool("force")
+	if resolve, _ := cmd.Flags().GetBool("resolve"); resolve {
+		runEpicReviewResolve(key, args, force)
+		return true
+	}
+	if resolveAll, _ := cmd.Flags().GetBool("resolve-all"); resolveAll {
+		runEpicReviewResolveAll(key, args, force)
+		return true
+	}
+	return false
 }
 
 // epicReviewSliceKey reads the slice flags, exiting 2 unless exactly one is set.
