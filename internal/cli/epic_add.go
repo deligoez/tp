@@ -20,11 +20,13 @@ import (
 // epicWriteRefusedHint answers a write that would add a lint error.
 const epicWriteRefusedHint = "fix the payload so it adds no lint error; tp epic lint shows the errors the file already holds"
 
-// epicWriteResult is every epic writer's payload: the file it wrote and the
-// epic ids the write touched.
+// epicWriteResult is every epic writer's payload: the file it wrote, the
+// epic ids the write touched, and the paths of the keys outside the schema it
+// did not carry into the file.
 type epicWriteResult struct {
-	File  string   `json:"file"`
-	Epics []string `json:"epics"`
+	File        string   `json:"file"`
+	Epics       []string `json:"epics"`
+	DroppedKeys []string `json:"dropped_keys"`
 }
 
 func newEpicAddCmd() *cobra.Command {
@@ -129,7 +131,7 @@ func readBulkEpics(path string) []model.Epic {
 // reports it: exit 1 naming the new errors, 4 naming an absent epic, 3 on a
 // file error.
 func writeEpicGraph(ids []string, mutate func(*model.EpicGraph) error) {
-	path, err := engine.UpdateEpicGraph(engine.ProjectConfigDir("."), mutate)
+	path, dropped, err := engine.UpdateEpicGraph(engine.ProjectConfigDir("."), mutate)
 	var refused *engine.EpicWriteRefusedError
 	var notFound *engine.EpicNotFoundError
 	var removeRefused *engine.EpicRemoveRefusedError
@@ -151,7 +153,7 @@ func writeEpicGraph(ids []string, mutate func(*model.EpicGraph) error) {
 		output.Error(ExitFile, err.Error(), stateWriteHint)
 		os.Exit(ExitFile)
 	}
-	if err := output.JSON(epicWriteResult{File: path, Epics: ids}); err != nil {
+	if err := output.JSON(epicWriteResult{File: path, Epics: ids, DroppedKeys: dropped}); err != nil {
 		output.Error(ExitFile, err.Error(), internalEncodeHint)
 		os.Exit(ExitFile)
 	}
