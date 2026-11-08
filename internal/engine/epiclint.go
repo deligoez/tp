@@ -21,6 +21,14 @@ const (
 	EpicRuleUnknownKey        = "unknown-key"
 )
 
+// Edge and milestone rules of the epic graph lint (spec/1.3.0.md §4).
+const (
+	EpicRuleMissingWhy                 = "missing-why"
+	EpicRuleUnknownMilestone           = "unknown-milestone"
+	EpicRuleLaterMilestoneDependency   = "later-milestone-dependency"
+	EpicRuleGateMemberOutsideMilestone = "gate-member-outside-milestone"
+)
+
 // EpicLintFinding is one lint result. Epics holds the sorted, distinct ids the
 // finding names, a dangling id included; it is never nil, so it encodes as [].
 type EpicLintFinding struct {
@@ -30,15 +38,18 @@ type EpicLintFinding struct {
 	Message  string   `json:"message"`
 }
 
-// LintEpicGraph runs the structure rules over g and the unknown keys
-// LoadEpicGraph returned. A cycle finding is one strongly connected
-// component; every other rule yields one finding per offending item.
+// LintEpicGraph runs the structure, edge and milestone rules over g and the
+// unknown keys LoadEpicGraph returned. A cycle finding is one strongly
+// connected component; every other rule yields one finding per offending item.
 func LintEpicGraph(g *model.EpicGraph, unknown []EpicGraphUnknownKey) []EpicLintFinding {
 	var out []EpicLintFinding
 	out = append(out, lintEpicCycles(g)...)
 	out = append(out, lintEpicDangling(g)...)
 	out = append(out, lintEpicDuplicates(g)...)
 	out = append(out, lintEpicUnknownKeys(unknown)...)
+	out = append(out, lintEpicMissingWhy(g)...)
+	out = append(out, lintEpicMilestones(g)...)
+	out = append(out, lintEpicGateMembers(g)...)
 	return out
 }
 
