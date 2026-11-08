@@ -30,6 +30,7 @@ type epicReviewPayload struct {
 	Round    int      `json:"round"`
 	Units    []string `json:"units"`
 	Context  []string `json:"context"`
+	Carried  []string `json:"carried"`
 	Prompts  []struct {
 		Role       string `json:"role"`
 		Prompt     string `json:"prompt"`
