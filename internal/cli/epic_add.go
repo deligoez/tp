@@ -130,8 +130,12 @@ func readBulkEpics(path string) []model.Epic {
 func writeEpicGraph(ids []string, mutate func(*model.EpicGraph) error) {
 	path, err := engine.UpdateEpicGraph(engine.ProjectConfigDir("."), mutate)
 	var refused *engine.EpicWriteRefusedError
+	var notFound *engine.EpicNotFoundError
 	var mce *engine.MalformedConfigError
 	switch {
+	case errors.As(err, &notFound):
+		output.Error(ExitState, notFound.Error(), epicNotFoundHint)
+		os.Exit(ExitState)
 	case errors.As(err, &refused):
 		output.Error(ExitValidation, refused.Error(), epicWriteRefusedHint)
 		os.Exit(ExitValidation)
