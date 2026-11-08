@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"regexp"
 	"sort"
 	"strings"
@@ -38,10 +39,16 @@ var cobraGeneratedCommands = map[string]bool{"help": true, "completion": true}
 // for that command. That is what makes the purpose column load-bearing: a flag
 // mentioned only in prose there is still documented, while a flag mentioned
 // under a command that does not register it is drift this file reports.
-func documentedFlags(t *testing.T) map[string]map[string]bool {
+func documentedFlags(t *testing.T, registered map[string]map[string]bool) map[string]map[string]bool {
+	t.Helper()
+	return parseInventory(t, readRepoDoc(t, "skills/tp/SKILL.md"), registered)
+}
+
+// parseInventory is documentedFlags over an inventory passed as text.
+func parseInventory(t *testing.T, doc string, registered map[string]map[string]bool) map[string]map[string]bool {
 	t.Helper()
 
-	lines := strings.Split(readRepoDoc(t, "skills/tp/SKILL.md"), "\n")
+	lines := strings.Split(doc, "\n")
 	start := -1
 	for i, line := range lines {
 		if strings.TrimSpace(line) == flagInventoryHeading {
@@ -65,9 +72,7 @@ func documentedFlags(t *testing.T) map[string]map[string]bool {
 		var command string
 		switch {
 		case strings.HasPrefix(first, "tp "):
-			// The name is followed by a backtick when the row's form ends
-			// there, as in `tp status`.
-			command = strings.Trim(strings.Fields(first)[1], "`")
+			command = inventoryCommand(strings.Fields(first), registered)
 		case strings.HasPrefix(first, "--"):
 			command = "" // the global-flags table
 		default:
@@ -82,6 +87,50 @@ func documentedFlags(t *testing.T) map[string]map[string]bool {
 		}
 	}
 	return documented
+}
+
+// inventoryCommand names the command a row's form starts with. The name is
+// followed by a backtick when the row's form ends there, as in `tp status`.
+func inventoryCommand(fields []string, registered map[string]map[string]bool) string {
+	command := strings.Trim(fields[1], "`")
+	if len(fields) > 2 {
+		// A parent's row is attributed to the subcommand it names, as in
+		// `tp epic export --md`, so a flag under the wrong subcommand is drift.
+		if sub := command + " " + strings.Trim(fields[2], "`"); registered[sub] != nil {
+			return sub
+		}
+	}
+	return command
+}
+
+// inventoryDrift lists every flag the inventory documents under a command that
+// does not register it, and every command it documents that the CLI lacks.
+func inventoryDrift(documented, registered map[string]map[string]bool, globals map[string]bool) []string {
+	var drift []string
+	for _, command := range sortedKeys(documented) {
+		if command == "" {
+			for _, name := range sortedKeys(documented[""]) {
+				if !globals[name] {
+					drift = append(drift, fmt.Sprintf(
+						"SKILL.md's global-flags table documents --%s, which the CLI does not register as a global flag", name))
+				}
+			}
+			continue
+		}
+
+		flags, known := registered[command]
+		if !known {
+			drift = append(drift, fmt.Sprintf("SKILL.md's inventory documents `tp %s`, which the CLI does not register", command))
+			continue
+		}
+		for _, name := range sortedKeys(documented[command]) {
+			if !flags[name] && !globals[name] {
+				drift = append(drift, fmt.Sprintf(
+					"SKILL.md's inventory documents `tp %s --%s`, which the CLI does not register", command, name))
+			}
+		}
+	}
+	return drift
 }
 
 // rootCmdMu serialises NewRootCmd across parallel tests, and newRootCmdForTest
@@ -109,10 +158,10 @@ func newRootCmdForTest() *cobra.Command {
 }
 
 // registeredFlags walks the command tree and returns the long flags tp declares
-// on each top-level command, plus the root's persistent (global) flags. A
-// command's set excludes the globals, since LocalFlags() already drops
-// inherited ones, and includes its subcommands' flags: the inventory attributes
-// a `tp epic export --md` row to `epic`, the first word after `tp`.
+// on each command, plus the root's persistent (global) flags. A command's set
+// excludes the globals, since LocalFlags() already drops inherited ones. A
+// subcommand is its own entry, keyed by parent and name (`epic export`), the
+// way the inventory attributes a `tp epic export --md` row.
 func registeredFlags() (perCommand map[string]map[string]bool, globals map[string]bool) {
 	root := newRootCmdForTest()
 
@@ -122,29 +171,29 @@ func registeredFlags() (perCommand map[string]map[string]bool, globals map[strin
 	})
 
 	perCommand = map[string]map[string]bool{}
-	for _, sub := range root.Commands() {
-		if cobraGeneratedCommands[sub.Name()] {
+	for _, cmd := range root.Commands() {
+		if cobraGeneratedCommands[cmd.Name()] {
 			continue
 		}
-		flags := map[string]bool{}
-		collectLocalFlags(sub, flags)
-		perCommand[sub.Name()] = flags
+		perCommand[cmd.Name()] = localFlags(cmd)
+		for _, sub := range cmd.Commands() {
+			if !cobraGeneratedCommands[sub.Name()] {
+				perCommand[cmd.Name()+" "+sub.Name()] = localFlags(sub)
+			}
+		}
 	}
 	return perCommand, globals
 }
 
-// collectLocalFlags adds cmd's own long flags and its subcommands' into flags.
-func collectLocalFlags(cmd *cobra.Command, flags map[string]bool) {
+// localFlags returns cmd's own long flags.
+func localFlags(cmd *cobra.Command) map[string]bool {
+	flags := map[string]bool{}
 	cmd.LocalFlags().VisitAll(func(f *pflag.Flag) {
 		if !cobraGeneratedFlags[f.Name] {
 			flags[f.Name] = true
 		}
 	})
-	for _, sub := range cmd.Commands() {
-		if !cobraGeneratedCommands[sub.Name()] {
-			collectLocalFlags(sub, flags)
-		}
-	}
+	return flags
 }
 
 // sortedKeys keeps the reported drift deterministic, so a failing run names the
@@ -163,8 +212,8 @@ func sortedKeys[V any](m map[string]V) []string {
 // inventory, under the command that registers it.
 func TestSkillFlagInventoryIsComplete(t *testing.T) {
 	t.Parallel()
-	documented := documentedFlags(t)
 	registered, globals := registeredFlags()
+	documented := documentedFlags(t, registered)
 
 	for _, command := range sortedKeys(registered) {
 		for _, name := range sortedKeys(registered[command]) {
@@ -185,25 +234,6 @@ func TestSkillFlagInventoryIsComplete(t *testing.T) {
 // here.
 func TestSkillFlagInventoryRecordsOnlyWhatExists(t *testing.T) {
 	t.Parallel()
-	documented := documentedFlags(t)
 	registered, globals := registeredFlags()
-
-	for _, command := range sortedKeys(documented) {
-		if command == "" {
-			for _, name := range sortedKeys(documented[""]) {
-				assert.True(t, globals[name],
-					"SKILL.md's global-flags table documents --%s, which the CLI does not register as a global flag", name)
-			}
-			continue
-		}
-
-		flags, known := registered[command]
-		if !assert.True(t, known, "SKILL.md's inventory documents `tp %s`, which the CLI does not register", command) {
-			continue
-		}
-		for _, name := range sortedKeys(documented[command]) {
-			assert.True(t, flags[name] || globals[name],
-				"SKILL.md's inventory documents `tp %s --%s`, which the CLI does not register", command, name)
-		}
-	}
+	assert.Empty(t, inventoryDrift(documentedFlags(t, registered), registered, globals))
 }
