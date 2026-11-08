@@ -1,0 +1,122 @@
+package cli
+
+import (
+	"os"
+	"path/filepath"
+
+	"github.com/spf13/cobra"
+
+	"github.com/deligoez/tp/internal/engine"
+	"github.com/deligoez/tp/internal/output"
+)
+
+// epicReviewUsageHint answers a tp epic review call that names no slice, or two.
+const epicReviewUsageHint = "pass exactly one of --milestone <m> or --epic <id>"
+
+// epicReviewPrompt is one graph role's prompt in a tp epic review emission.
+type epicReviewPrompt struct {
+	Role       string `json:"role"`
+	Prompt     string `json:"prompt"`
+	OutputPath string `json:"output_path"`
+}
+
+// epicReviewResult is tp epic review's emission payload (spec/1.3.0.md §5).
+type epicReviewResult struct {
+	StateDir          string                       `json:"state_dir"`
+	Round             int                          `json:"round"`
+	Units             []string                     `json:"units"`
+	Context           []string                     `json:"context"`
+	MechanicalChecks  []engine.EpicMechanicalCheck `json:"mechanical_checks"`
+	MechanizedClasses []string                     `json:"mechanized_classes"`
+	SkippedRoles      *[]engine.SkippedRole        `json:"skipped_roles,omitempty"`
+	Prompts           []epicReviewPrompt           `json:"prompts"`
+	NextAction        string                       `json:"next_action"`
+}
+
+// epicReviewRun carries what one emission is built from.
+type epicReviewRun struct {
+	key      engine.EpicSliceKey
+	tpDir    string
+	stateDir string
+	round    int
+	slice    engine.EpicSlice
+	checks   []engine.EpicMechanicalCheck
+}
+
+func newEpicReviewCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "review",
+		Short: "Emit one prompt per graph role over a milestone's or an epic's slice of .tp/epics.json",
+		Args:  cobra.NoArgs,
+		RunE:  runEpicReview,
+	}
+	cmd.Flags().String("milestone", "", "Review every epic of this milestone, plus its gate")
+	cmd.Flags().String("epic", "", "Review this one epic")
+	cmd.Flags().String("role", "", "Emit only this role's prompt")
+	return cmd
+}
+
+// runEpicReview emits a round over the slice the flags name. Neither or both
+// slice flags is a usage error decided before anything is read or written.
+func runEpicReview(cmd *cobra.Command, _ []string) error {
+	key := epicReviewSliceKey(cmd)
+	run := loadEpicReviewRun(key)
+	roles, err := engine.ResolveEpicRoleCorpus(filepath.Dir(run.tpDir))
+	if err != nil {
+		output.Error(ExitFile, err.Error(), "fix the role files under .tp/epic-reviewers/")
+		os.Exit(ExitFile)
+		return nil
+	}
+	prompts := buildEpicReviewPrompts(&run, roles)
+	roleName, _ := cmd.Flags().GetString("role")
+	q := roleQuery{name: roleName, given: cmd.Flags().Changed("role"), specDir: filepath.Dir(run.tpDir)}
+	prompts, skipped := filterByRole(prompts, func(p *epicReviewPrompt) string { return p.Role }, q, nil)
+	if err := engine.WriteEpicReviewSnapshot(run.stateDir, run.round, run.slice.Units); err != nil {
+		output.Error(ExitFile, "cannot write the epic review snapshot: "+err.Error(), stateWriteHint)
+		os.Exit(ExitFile)
+		return nil
+	}
+	result := epicReviewPayload(&run, prompts)
+	result.SkippedRoles = skippedRolesForPayload(q.given, len(prompts), skipped)
+	if err := output.JSON(result); err != nil {
+		output.Error(ExitFile, err.Error(), internalEncodeHint)
+		os.Exit(ExitFile)
+	}
+	return nil
+}
+
+// epicReviewSliceKey reads the slice flags, exiting 2 unless exactly one is set.
+func epicReviewSliceKey(cmd *cobra.Command) engine.EpicSliceKey {
+	milestone, _ := cmd.Flags().GetString("milestone")
+	epic, _ := cmd.Flags().GetString("epic")
+	if (milestone == "") == (epic == "") {
+		output.Error(ExitUsage, "tp epic review takes exactly one of --milestone or --epic", epicReviewUsageHint)
+		os.Exit(ExitUsage)
+	}
+	return engine.EpicSliceKey{Milestone: milestone, Epic: epic}
+}
+
+// loadEpicReviewRun reads the graph and derives the slice and its round. It
+// writes nothing: an absent graph exits 3, a slice the graph does not hold 4.
+func loadEpicReviewRun(key engine.EpicSliceKey) epicReviewRun {
+	tpDir := engine.DiscoverTPDir(".")
+	if tpDir == "" {
+		output.Error(ExitFile, "epic graph not found: no .tp/ directory up to the git boundary", epicGraphFileHint)
+		os.Exit(ExitFile)
+	}
+	g, unknown, err := engine.LoadEpicGraph(tpDir)
+	if err != nil {
+		output.Error(ExitFile, err.Error(), epicGraphFileHint)
+		os.Exit(ExitFile)
+	}
+	slice, err := engine.EpicReviewSlice(g, key)
+	if err != nil {
+		output.Error(ExitState, err.Error(), epicNotFoundHint)
+		os.Exit(ExitState)
+	}
+	stateDir := engine.EpicReviewStateDir(tpDir, key)
+	return epicReviewRun{
+		key: key, tpDir: tpDir, stateDir: stateDir, round: engine.EpicReviewNextRound(stateDir), slice: slice,
+		checks: engine.EpicMechanicalChecks(engine.LintEpicGraph(g, unknown)),
+	}
+}
