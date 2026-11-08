@@ -95,3 +95,9 @@ func TestEpicReviewSlice_GateUnitOnlyWithAGatesEntry(t *testing.T) {
 	assert.NotEqual(t, gate.Hash, s2.Units[4].Hash, "the gate hash covers its members")
 }
 
+func TestEpicReviewSlice_UnknownEpicOrMilestoneIsAnError(t *testing.T) {
+	_, err := EpicReviewSlice(epicChainGraph(), EpicSliceKey{Epic: "zz"})
+	require.Error(t, err)
+	_, err = EpicReviewSlice(epicChainGraph(), EpicSliceKey{Milestone: "Q"})
+	require.Error(t, err)
+}
