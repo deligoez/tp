@@ -159,3 +159,14 @@ func TestReadmeIndexListsEveryEpicSubcommand(t *testing.T) {
 		assert.Contains(t, readme, "\ntp epic "+sub.Name()+" ", "README.md's command index has a `tp epic %s` row", sub.Name())
 	}
 }
+
+// TestReferenceListsEveryEscalationDecision pins the `tp escalate` section to
+// the closed set itself, so a decision the enum gains (v1.5.0 added epic-done,
+// gate-met and epic-binding) fails here until REFERENCE.md names it.
+func TestReferenceListsEveryEscalationDecision(t *testing.T) {
+	t.Parallel()
+	body := docSectionBody(t, readRepoDoc(t, "skills/tp/REFERENCE.md"), "### `tp escalate` — the escalation record")
+	for _, decision := range engine.EscalationDecisions() {
+		assert.Contains(t, body, "`"+decision+"`", "the escalate section lists the %q decision", decision)
+	}
+}
