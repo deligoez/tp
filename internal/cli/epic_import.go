@@ -17,11 +17,11 @@ import (
 // epicImportRefusedHint answers an import over a file that holds epics.
 const epicImportRefusedHint = "pass --force to replace the file; tp epic export --md shows what it holds"
 
-// epicImportResult is tp epic import's payload: the file it wrote, the epic
-// ids it holds, and the lint findings the imported graph carries (D4).
+// epicImportResult is tp epic import's payload: the file it wrote, the number
+// of epics it holds, and the lint findings the imported graph carries (D4).
 type epicImportResult struct {
 	File     string                   `json:"file"`
-	Epics    []string                 `json:"epics"`
+	Epics    int                      `json:"epics"`
 	Findings []engine.EpicLintFinding `json:"findings"`
 }
 
@@ -60,10 +60,7 @@ func runEpicImport(cmd *cobra.Command, args []string) error {
 		output.Error(ExitFile, err.Error(), epicGraphWriteHint)
 		os.Exit(ExitFile)
 	}
-	result := epicImportResult{File: path, Epics: make([]string, 0, len(g.Epics)), Findings: findings}
-	for i := range g.Epics {
-		result.Epics = append(result.Epics, g.Epics[i].ID)
-	}
+	result := epicImportResult{File: path, Epics: len(g.Epics), Findings: findings}
 	if result.Findings == nil {
 		result.Findings = []engine.EpicLintFinding{}
 	}
