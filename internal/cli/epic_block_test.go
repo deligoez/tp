@@ -470,3 +470,30 @@ func TestCommit_RefusesAnOpenTaskOnABlockedFile(t *testing.T) {
 		assert.Equal(t, before, taskFileBytes(t, dir), "t1 stays open")
 	}
 }
+
+// TestNext_OpenMilestoneStillBlocksOnAnUndoneDependency is spec/1.6.0-checks.md
+// C2.8: R is open after a green P while Q is red, yet a file bound to r, which
+// depends on the undone q, starts no task: tp next reports blocked_by_epics [q].
+func TestNext_OpenMilestoneStillBlocksOnAnUndoneDependency(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{
+  "version": 1,
+  "milestones": [["P", "Q", "R"]],
+  "opens_after": {"R": ["P"]},
+  "epics": [
+    {"id": "p", "title": "P", "milestone": "P", "root": true, "done": {"at": "2026-01-02T03:04:05Z", "evidence": "e"}},
+    {"id": "q", "title": "Q", "milestone": "Q", "root": true},
+    {"id": "r", "title": "R", "milestone": "R", "depends_on": [{"id": "q", "why": "w"}]}
+  ]
+}
+`)
+	require.True(t, statusOpensAfter(t, dir)["R"].Open, "R opens after the green P")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.md"), []byte("# Spec\n\n## X\n\nx\n"), 0o600))
+	body := `{"version":1,"spec":"spec.md","epic":"r","tasks":[{"id":"t1","title":"T","status":"open",` +
+		`"depends_on":[],"estimate_minutes":5,"acceptance":"a","source_sections":["## X"]}]}`
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "spec.tasks.json"), []byte(body), 0o600))
+
+	stdout, stderr, code := runTP(t, dir, "next")
+	require.Equal(t, 4, code, "stdout: %s stderr: %s", stdout, stderr)
+	assert.Equal(t, []string{"q"}, blockedByEpics(t, stdout))
+}
