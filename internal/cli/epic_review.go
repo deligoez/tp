@@ -113,8 +113,8 @@ func runEpicReview(cmd *cobra.Command, args []string) error {
 	roleName, _ := cmd.Flags().GetString("role")
 	q := roleQuery{name: roleName, given: cmd.Flags().Changed("role"), specDir: filepath.Dir(run.tpDir)}
 	prompts, skipped := filterByRole(prompts, func(p *epicReviewPrompt) string { return p.Role }, q, nil)
-	if err := engine.WriteEpicReviewSnapshot(run.stateDir, run.round, run.all); err != nil {
-		output.Error(ExitFile, "cannot write the epic review snapshot: "+err.Error(), epicReviewStateHint)
+	if err := writeEpicReviewEmission(&run); err != nil {
+		output.Error(ExitFile, "cannot write the epic review state: "+err.Error(), epicReviewStateHint)
 		os.Exit(ExitFile)
 		return nil
 	}
@@ -125,6 +125,15 @@ func runEpicReview(cmd *cobra.Command, args []string) error {
 		os.Exit(ExitFile)
 	}
 	return nil
+}
+
+// writeEpicReviewEmission records an emission in the slice's state directory:
+// the round's unit snapshot and the slice's key (spec/1.5.0.md §7).
+func writeEpicReviewEmission(run *epicReviewRun) error {
+	if err := engine.WriteEpicReviewSnapshot(run.stateDir, run.round, run.all); err != nil {
+		return err
+	}
+	return engine.WriteEpicSliceKey(run.stateDir, run.key)
 }
 
 // runEpicReviewDisposition runs --resolve or --resolve-all when either is set
