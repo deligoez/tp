@@ -90,3 +90,20 @@ func TestEpicExport_EpicItemsCarryMilestoneConditionDownstreamAndWaits(t *testin
 	assert.Equal(t, []string{}, r.HeldBy)
 	assert.Equal(t, []string{}, r.BlockedBy)
 }
+
+// TestEpicExport_CarriesTheWholeGraphCriticalPath: export holds status's
+// top-level critical_path, so one call shows the whole plan.
+func TestEpicExport_CarriesTheWholeGraphCriticalPath(t *testing.T) {
+	t.Parallel()
+	dir := downstreamDir(t, exportF9Epics(), nil)
+	var status, export struct {
+		CriticalPath *json.RawMessage `json:"critical_path"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(runEpicStatus(t, dir)), &status))
+	stdout, stderr, code := runTP(t, dir, "epic", "export")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	require.NoError(t, json.Unmarshal([]byte(stdout), &export))
+	require.NotNil(t, export.CriticalPath, "stdout: %s", stdout)
+	assert.JSONEq(t, `{"by_count": ["k", "w", "x", "y"]}`, string(*export.CriticalPath))
+	assert.JSONEq(t, string(*status.CriticalPath), string(*export.CriticalPath))
+}
