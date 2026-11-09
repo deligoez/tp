@@ -8,14 +8,20 @@ import (
 	"github.com/deligoez/tp/internal/model"
 )
 
-// lintEpicOpensAfter reports each opens_after name, key or value, that no
-// track lists, by sorted key, then each set of milestones opening after each
-// other (spec/1.6.0.md §1). Cycles are read over the effective opens_after,
-// so an entry closing a loop with a track's default order is one too.
+// lintEpicOpensAfter reports each opens_after value that is null or not a
+// list (LoadEpicGraphForLint decodes both as null) and each name, key or
+// value, that no track lists, by sorted key, then each set of milestones
+// opening after each other (spec/1.6.0.md §1). Cycles are read over the
+// effective opens_after, so an entry closing a loop with a track's default
+// order is one too.
 func lintEpicOpensAfter(g *model.EpicGraph) []EpicLintFinding {
 	pos := milestonePositions(g)
 	var out []EpicLintFinding
 	for _, key := range sortedMapKeys(g.OpensAfter) {
+		if g.OpensAfter[key] == nil {
+			out = append(out, epicNamedError(EpicRuleOpensAfterNotList,
+				fmt.Sprintf("opens_after %q is null or not a list: write [] to open it after nothing, or drop the key to open it after the previous milestone of its track", key), []string{key}))
+		}
 		if _, ok := pos[key]; !ok {
 			out = append(out, epicNamedError(EpicRuleUnknownMilestone,
 				fmt.Sprintf("opens_after names milestone %q, which is in no track", key), []string{key}))

@@ -12,7 +12,7 @@ import (
 var epicErrorRules = []string{
 	EpicRuleCycle, EpicRuleDanglingReference, EpicRuleDuplicateName,
 	EpicRuleGateMemberDeferrable, EpicRuleGateMemberOutsideMilestone, EpicRuleLaterMilestoneDependency,
-	EpicRuleMissingWhy, EpicRuleOpensAfterCycle, EpicRuleUnknownKey, EpicRuleUnknownMilestone,
+	EpicRuleMissingWhy, EpicRuleOpensAfterCycle, EpicRuleOpensAfterNotList, EpicRuleUnknownKey, EpicRuleUnknownMilestone,
 	EpicRuleUnprovidedTagCheck,
 }
 

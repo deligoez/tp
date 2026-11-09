@@ -52,6 +52,10 @@ const (
 	// EpicRuleOpensAfterCycle is the error on milestones that open after
 	// each other, a milestone opening after itself included.
 	EpicRuleOpensAfterCycle = "opens-after-cycle"
+	// EpicRuleOpensAfterNotList is the error on an opens_after value that is
+	// null or not a list, which only a hand edit writes: set and import refuse
+	// it, and a null reads as opening after nothing while it looks absent.
+	EpicRuleOpensAfterNotList = "opens-after-not-list"
 	// EpicRulePartialParallel is the warning, or the info when the
 	// milestone's opens_after entry chose it, on a milestone that does not
 	// open after an earlier milestone of its track while some of its epics

@@ -43,7 +43,7 @@ func runEpicLint(_ *cobra.Command, _ []string) error {
 		os.Exit(ExitFile)
 		return nil
 	}
-	g, unknown, err := engine.LoadEpicGraph(tpDir)
+	g, unknown, err := engine.LoadEpicGraphForLint(tpDir)
 	if err != nil {
 		output.Error(ExitFile, err.Error(), epicGraphFileHint)
 		os.Exit(ExitFile)

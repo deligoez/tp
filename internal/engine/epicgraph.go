@@ -52,6 +52,19 @@ type EpicGraphUnknownKey struct {
 // level, then each gate and each tag check by sorted name, then each epic by
 // index with its edges after it, each object's keys sorted.
 func LoadEpicGraph(tpDir string) (*model.EpicGraph, []EpicGraphUnknownKey, error) {
+	return loadEpicGraph(tpDir, false)
+}
+
+// LoadEpicGraphForLint is LoadEpicGraph for tp epic lint: an opens_after
+// value that is not a list decodes as null instead of failing the parse, so
+// the lint reports it (EpicRuleOpensAfterNotList) rather than exiting on the
+// file. Every other reader and every writer keeps the strict parse, so no
+// write re-encodes the hand-edited value as null.
+func LoadEpicGraphForLint(tpDir string) (*model.EpicGraph, []EpicGraphUnknownKey, error) {
+	return loadEpicGraph(tpDir, true)
+}
+
+func loadEpicGraph(tpDir string, lenientOpensAfter bool) (*model.EpicGraph, []EpicGraphUnknownKey, error) {
 	path := filepath.Join(tpDir, EpicGraphFile)
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -59,6 +72,9 @@ func LoadEpicGraph(tpDir string) (*model.EpicGraph, []EpicGraphUnknownKey, error
 			return nil, nil, fmt.Errorf("%w: %s", ErrEpicGraphNotFound, path)
 		}
 		return nil, nil, &MalformedConfigError{Path: path, Err: err}
+	}
+	if lenientOpensAfter {
+		data = nullNonListOpensAfter(data)
 	}
 	var g model.EpicGraph
 	if err := json.Unmarshal(data, &g); err != nil {
@@ -84,6 +100,36 @@ func LoadEpicGraph(tpDir string) (*model.EpicGraph, []EpicGraphUnknownKey, error
 		}
 	}
 	return &g, unknown, nil
+}
+
+// nullNonListOpensAfter returns data with every opens_after value that is not
+// a JSON array replaced by null. data that is no object, or whose opens_after
+// is no object, comes back as it is, for the typed parse to refuse.
+func nullNonListOpensAfter(data []byte) []byte {
+	var top map[string]json.RawMessage
+	if json.Unmarshal(data, &top) != nil {
+		return data
+	}
+	var after map[string]json.RawMessage
+	if json.Unmarshal(top["opens_after"], &after) != nil || after == nil {
+		return data
+	}
+	changed := false
+	for key, value := range after {
+		if trimmed := bytes.TrimSpace(value); len(trimmed) == 0 || trimmed[0] != '[' {
+			after[key] = json.RawMessage("null")
+			changed = true
+		}
+	}
+	if !changed {
+		return data
+	}
+	top["opens_after"], _ = json.Marshal(after)
+	out, err := json.Marshal(top)
+	if err != nil {
+		return data
+	}
+	return out
 }
 
 // unknownNamedKeys returns the unknown keys of each object in the name-keyed
