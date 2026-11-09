@@ -100,3 +100,25 @@ func TestLintEpicGraph_DependencyOpensLaterIsOneFindingPerGateAndEpic(t *testing
 	assert.Contains(t, found[0].Message, "a1 -> b")
 }
 
+// TestLintEpicGraph_DependencyOpensLaterLeavesTrackOrderToLaterMilestoneDependency:
+// on track [A, B], a's direct edge to b is later-milestone-dependency's
+// error alone; the same reach through x of another track breaks no track
+// order, so it is dependency-opens-later's.
+func TestLintEpicGraph_DependencyOpensLaterLeavesTrackOrderToLaterMilestoneDependency(t *testing.T) {
+	g := &model.EpicGraph{
+		Version:    1,
+		Milestones: [][]string{{"A", "B"}, {"X"}},
+		Epics:      []model.Epic{dependsOn("a", "A", "b"), dependsOn("b", "B")},
+	}
+	findings := LintEpicGraph(g, nil)
+	assert.Len(t, findingsOf(t, findings, EpicRuleLaterMilestoneDependency), 1)
+	assert.Empty(t, findingsOf(t, findings, EpicRuleDependencyOpensLater))
+
+	g.Epics = []model.Epic{dependsOn("a", "A", "x"), dependsOn("x", "X", "b"), dependsOn("b", "B")}
+	findings = LintEpicGraph(g, nil)
+	assert.Empty(t, findingsOf(t, findings, EpicRuleLaterMilestoneDependency))
+	found := findingsOf(t, findings, EpicRuleDependencyOpensLater)
+	require.Len(t, found, 1, "%v", found)
+	assert.Equal(t, EpicSeverityError, found[0].Severity)
+	assert.Contains(t, found[0].Message, "a -> x -> b")
+}
