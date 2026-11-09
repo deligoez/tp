@@ -98,3 +98,18 @@ func TestEpicFlag_TheOnlyFileNotAtReleaseIsUsed(t *testing.T) {
 	assert.Equal(t, "implement", res.Phase)
 	assert.Equal(t, "b2.md", filepath.Base(res.Spec))
 }
+
+// TestEpicFlag_TwoFilesInFlightExit4NamingBoth is F8: neither b1 nor b2 is at
+// release, so tp next --epic b cannot choose and names both.
+func TestEpicFlag_TwoFilesInFlightExit4NamingBoth(t *testing.T) {
+	t.Parallel()
+	dir := epicFileRepo(t)
+	writeEpicFile(t, dir, "b1", "b", "open")
+	writeEpicFile(t, dir, "b2", "b", "open")
+	initGitRepo(t, dir)
+
+	_, stderr, code := runTP(t, dir, "next", "--peek", "--epic", "b")
+	require.Equal(t, 4, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "b1.tasks.json")
+	assert.Contains(t, stderr, "b2.tasks.json")
+}
