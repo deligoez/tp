@@ -116,7 +116,7 @@ func runCommit(_ *cobra.Command, args []string) error {
 
 		// Stage implementation files (selected via --files or auto-detected).
 		if err := gitStage(commitFiles); err != nil {
-			output.Error(ExitFile, fmt.Sprintf("git stage failed: %v", err), gitSubprocessHint)
+			output.Error(ExitFile, fmt.Sprintf("git stage failed: %v", err), gitIndexHint)
 			os.Exit(ExitFile)
 			return nil
 		}
@@ -140,7 +140,7 @@ func runCommit(_ *cobra.Command, args []string) error {
 			return nil
 		}
 		if err := runGit("add", "--", taskFilePath); err != nil {
-			output.Error(ExitFile, fmt.Sprintf("stage task file failed: %v", err), gitSubprocessHint)
+			output.Error(ExitFile, fmt.Sprintf("stage task file failed: %v", err), gitIndexHint)
 			os.Exit(ExitFile)
 			return nil
 		}
