@@ -96,3 +96,10 @@ func TestBrief_AnEmptyTaskFileAnswersNoTasksYet(t *testing.T) {
 	t.Parallel()
 	assertNoTasksYet(t, emptyTaskFileDir(t), "brief")
 }
+
+// TestPlan_AnEmptyTaskFileAnswersNoTasksYet: tp plan on a file with zero
+// tasks answers as tp next does, not that all tasks are complete.
+func TestPlan_AnEmptyTaskFileAnswersNoTasksYet(t *testing.T) {
+	t.Parallel()
+	assertNoTasksYet(t, emptyTaskFileDir(t), "plan")
+}
