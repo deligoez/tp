@@ -94,3 +94,34 @@ func TestCommit_AResultItCannotWriteExitsThree(t *testing.T) {
 	assert.Equal(t, 3, code, "stderr: %s", stderr)
 	assert.Equal(t, 3, envelopeCode(t, stderr), "stderr: %s", stderr)
 }
+
+// TestAFailedAddNamesTheIndexNotTheCommitterIdentity: every `git add` tp
+// commit and tp done --auto-commit run before the implementation commit only
+// updates the index, so a failure there exits 3 with the index hint. Offering
+// the committer-identity hint sends the agent to the wrong fix, and fails.
+func TestAFailedAddNamesTheIndexNotTheCommitterIdentity(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name string
+		nth  int
+		args []string
+	}{
+		{"commit implementation stage", 1, []string{"commit", "t1", "t1 acceptance met completely"}},
+		{"commit task file stage", 2, []string{"commit", "t1", "t1 acceptance met completely"}},
+		{"done implementation stage", 1, []string{"done", "t1", "t1 acceptance met completely", "--gate-passed", "--auto-commit"}},
+		{"done task file stage", 2, []string{"done", "t1", "t1 acceptance met completely", "--gate-passed", "--auto-commit"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			dir := setupCommitProject(t, "t1")
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "f.go"), []byte("package f\n"), 0o600))
+
+			stdout, stderr, code := runTPEnv(t, dir, []string{gitRefusingNthPath(t, "add", tc.nth)}, tc.args...)
+			require.Equal(t, 3, code, "stdout: %s stderr: %s", stdout, stderr)
+			assert.Contains(t, stderr, "shim refuses add")
+			assert.NotContains(t, stdout+stderr, "user.name", "no committer identity is involved in staging")
+			assert.Contains(t, stderr, "index", "the hint names what git could not update")
+		})
+	}
+}
