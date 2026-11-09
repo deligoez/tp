@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.5.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-09T13:42:21.667155Z",
+  "updated_at": "2026-11-09T14:05:47.779319Z",
   "workflow": {
     "review_max_rounds": 4,
     "audit_max_rounds": 5
@@ -261,7 +261,7 @@
       "id": "epic-done-at",
       "title": "Derive an epic's done_at",
       "description": "done_at is the done record's time, else the time of the audit round that most recently brought the last bound file to release; it moves when an epic reopens and is done again.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "status"
@@ -274,11 +274,18 @@
       "source_sections": [
         "## 3. Status"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-09T13:42:31.678194Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-09T14:05:47.76997Z",
+      "closed_reason": "- TestDeriveEpicStates_TasklessDoneAtIsRecordTime: a taskless epic's done_at is its done record's time (251340bc, 341953b5)\n- TestDeriveEpicStates_BoundDoneAtMovesWithConvergence: a bound epic's done_at is the converging audit round's recorded_at, nil after a reopen, and moves to the new round after a new convergence; gate green (0896d7c2)",
+      "gate_passed_at": "2026-11-09T14:05:47.76997Z",
+      "commit_sha": "0896d7c2",
+      "commit_shas": [
+        "0896d7c2"
+      ],
+      "commit_files": [
+        "internal/engine/epicderive_test.go"
+      ]
     },
     {
       "id": "gate-default-members",
