@@ -231,6 +231,28 @@ func TestDoneAutoCommit_AFailedLockUnstageExitsThree(t *testing.T) {
 	assert.NotContains(t, stdout, `"status": "done"`, "the task stays open")
 }
 
+// TestCommit_AFailedLockUnstageExitsThree is tp commit's twin of
+// TestDoneAutoCommit_AFailedLockUnstageExitsThree: a failed unstage of tp's
+// lock files exits 3 and commits nothing. A tp commit that discarded the
+// error exits 0 having committed and fails.
+func TestCommit_AFailedLockUnstageExitsThree(t *testing.T) {
+	t.Parallel()
+	dir := setupCommitProject(t, "t1")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "f.go"), []byte("package f\n"), 0o600))
+	runTP(t, dir, "claim", "t1")
+
+	path := gitRefusingRmPath(t)
+
+	_, stderr, code := runTPEnv(t, dir, []string{path}, "commit", "t1", "t1 acceptance met completely")
+	require.Equal(t, 3, code, "stderr: %s", stderr)
+
+	log := exec.Command("git", "log", "--format=%s")
+	log.Dir = dir
+	out, err := log.Output()
+	require.NoError(t, err)
+	assert.NotContains(t, string(out), "feat(t1)", "nothing is committed")
+}
+
 func TestCommitSequentialTasks(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
