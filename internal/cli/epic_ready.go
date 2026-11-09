@@ -95,7 +95,7 @@ type epicThresholdWait struct {
 func newEpicReadyCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "ready",
-		Short: "List the work epics that can start, the claimed ones with their holder, and what waits on the operator; --all lifts the open-milestone rule",
+		Short: "List the work epics that can start, ranked by downstream (longest_chain, then dependents), the claimed ones with their holder, and what waits on the operator; --all lifts the open-milestone rule",
 		Args:  cobra.NoArgs,
 		RunE:  runEpicReady,
 	}
