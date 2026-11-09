@@ -23,7 +23,13 @@ var allowedRoleKeys = map[string]bool{
 	"instructions": true,
 	"focus":        true,
 	"domains":      true,
+	"context":      true,
 }
+
+// roleContextValues are the values a role's context key may take: absent or
+// "neighbours" shows every neighbour, "dependencies" only what the asked
+// units depend on. Only tp epic review reads the key.
+var roleContextValues = map[string]bool{"": true, model.RoleContextNeighbours: true, model.RoleContextDependencies: true}
 
 // RoleStem returns a role file's id-defining stem: the basename without its
 // .json extension (security.json -> "security").
@@ -60,7 +66,7 @@ func ParseRoleBytes(data []byte, stem string) (model.Role, error) {
 	// Reject any top-level key outside the schema, naming the offender (§3.4).
 	for key := range raw {
 		if !allowedRoleKeys[key] {
-			return model.Role{}, fmt.Errorf("unknown top-level key %q (allowed: id, title, instructions, focus, domains)", key)
+			return model.Role{}, fmt.Errorf("unknown top-level key %q (allowed: id, title, instructions, focus, domains, context)", key)
 		}
 	}
 
@@ -103,6 +109,10 @@ func validateRole(role *model.Role, stem string) error {
 	}
 	if strings.TrimSpace(role.Instructions) == "" {
 		return fmt.Errorf("role %q is missing required field \"instructions\"", role.ID)
+	}
+	if !roleContextValues[role.Context] {
+		return fmt.Errorf("role %q field \"context\" is %q (allowed: %s, %s)", role.ID, role.Context,
+			model.RoleContextNeighbours, model.RoleContextDependencies)
 	}
 	return nil
 }
