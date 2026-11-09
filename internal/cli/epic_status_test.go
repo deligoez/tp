@@ -97,6 +97,35 @@ func TestEpicStatus_ReportsEachMilestone(t *testing.T) {
 	assert.Empty(t, b.Blocked)
 }
 
+// TestEpicStatus_ConditionsAreNotDeliveredWork pins spec/1.6.0.md B2: a done
+// condition counts neither in share_done nor in throughput, the status counts
+// cover work epics only, and counts.conditions_done reports it apart. x is
+// done in 2026-W01 and the condition go in 2026-W02, so a throughput that
+// counted go would list a second week.
+func TestEpicStatus_ConditionsAreNotDeliveredWork(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{"version": 1, "milestones": [["A"]], "epics": [
+    {"id": "x", "title": "X", "milestone": "A", "root": true, "done": {"at": "2026-01-02T03:04:05Z", "evidence": "e"}},
+    {"id": "y", "title": "Y", "milestone": "A", "root": true},
+    {"id": "go", "title": "Go", "milestone": "A", "condition": true, "acceptance": "k", "depends_on": [{"id": "x", "why": "w"}], "done": {"at": "2026-01-09T03:04:05Z", "evidence": "keys issued"}}
+  ]}`)
+	var r struct {
+		Milestones []struct {
+			Counts     map[string]int  `json:"counts"`
+			ShareDone  float64         `json:"share_done"`
+			Throughput json.RawMessage `json:"throughput"`
+		} `json:"milestones"`
+	}
+	stdout := runEpicStatus(t, dir)
+	require.NoError(t, json.Unmarshal([]byte(stdout), &r), "stdout: %s", stdout)
+
+	require.Len(t, r.Milestones, 1)
+	m := r.Milestones[0]
+	assert.Equal(t, map[string]int{"planned": 1, "claimed": 0, "specced": 0, "in_progress": 0, "done": 1, "conditions_done": 1}, m.Counts)
+	assert.InDelta(t, 0.5, m.ShareDone, 1e-9, "x of the work epics x and y is done; go is not work")
+	assert.JSONEq(t, `[{"week": "2026-W01", "done": 1}]`, string(m.Throughput), "go's week is not throughput")
+}
+
 // TestEpicStatus_CompactLeavesOutTheEstimateChainThroughputAndRollup is
 // spec/1.5.0.md §7: under --compact the estimate chain, throughput and the
 // roll-up are left out; without it each is reported.
