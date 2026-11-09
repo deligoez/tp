@@ -81,3 +81,16 @@ func TestEpicClaim_RefusesAConditionADoneAndABoundEpic(t *testing.T) {
 	assert.Equal(t, before, readEpicGraphFile(t, dir), "a refused claim writes nothing")
 }
 
+// TestEpicClaim_ReleaseOnABoundEpicRemovesItsClaim is C6: a claim outlives a
+// binding, and --release removes it from a bound epic, the exit 1 for a bound
+// epic applying to taking a claim only.
+func TestEpicClaim_ReleaseOnABoundEpicRemovesItsClaim(t *testing.T) {
+	t.Parallel()
+	dir := boundEpicDir(t, `{"version": 1, "milestones": [["A"]], "epics": [
+    {"id": "b", "title": "B", "milestone": "A", "root": true, "claimed": {"at": "2026-01-02T03:04:05Z", "by": "agent-1"}}
+  ]}`)
+
+	_, stderr, code := runTP(t, dir, "epic", "claim", "b", "--release")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.Nil(t, epicClaimOfB(t, dir), "--release removes a bound epic's claim")
+}
