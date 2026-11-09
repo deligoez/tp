@@ -1412,7 +1412,9 @@ and not asked; a unit with no recorded hash is asked and makes the slice stale. 
 cap resolve `review_clean_rounds`, `review_converge_on` and `review_max_rounds` from the project
 layer over the built-in default, with no task file layer. With no `.tp/epic-reviewers/` the three
 built-in graph roles run (`dod-satisfiability`, `why-auditor`, `phase-economist`); a populated
-directory replaces them.
+directory replaces them. Each prompt's `output_path` (`epic-review-<hash prefix>-r<N>-<role>.ndjson`)
+is relative to the directory `tp epic review` ran in, as review's is; inside a `tp run` unit it is
+the `$TP_ROUND_DIR` path instead.
 
 ### Exit codes (`tp epic`)
 
