@@ -1404,7 +1404,9 @@ and names their slugs in `mechanized_classes`, withheld from the role prompts.
 
 Each review slice has its own directory, `.tp/epic-review/<key hash>/`, where the key hash is the
 lowercase hex SHA-256 of the slice kind, a NUL byte and its value — so `--milestone A` and
-`--epic A` never share a directory and no id reaches the file system. `--status` names it as
+`--epic A` never share a directory and no id reaches the file system. An unnamed `--epics` set's
+value is its sorted, de-duplicated ids joined by NUL; a `--name`d set's is its name, under a kind of
+its own, so the set may grow without changing directory. `--status` names it as
 `state_dir`.
 
 | File | Written by | Content |
