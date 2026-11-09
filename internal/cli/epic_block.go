@@ -18,6 +18,21 @@ const epicBlockHint = "finish the epics in blocked_by_epics first; a task alread
 // binding the graph ignores prints its notice and returns nil. An unreadable
 // graph or bound file exits 3.
 func epicBlockedBy(tf *model.TaskFile, taskFilePath string) []string {
+	return epicBlockedNoticing(tf, taskFilePath, true)
+}
+
+// epicBlockedUnderLock is epicBlockedBy for tf, the file re-read under the
+// lock after pre, the file read before it: a quality gate that ran in between
+// may have bound the file or changed the graph, so the block is judged again
+// on tf. The notice pre's check printed is not printed twice: only a binding
+// that changed says so again.
+func epicBlockedUnderLock(tf, pre *model.TaskFile, taskFilePath string) []string {
+	return epicBlockedNoticing(tf, taskFilePath, tf.Epic != pre.Epic)
+}
+
+// epicBlockedNoticing is epicBlockedBy, printing an ignored binding's notice
+// only when notice is set.
+func epicBlockedNoticing(tf *model.TaskFile, taskFilePath string, notice bool) []string {
 	block, err := engine.EpicBlockFor(tf, taskFilePath)
 	if err != nil {
 		output.Error(ExitFile, err.Error(), epicBoundFileHint)
@@ -26,7 +41,7 @@ func epicBlockedBy(tf *model.TaskFile, taskFilePath string) []string {
 	if block == nil {
 		return nil
 	}
-	if block.Notice != "" {
+	if notice && block.Notice != "" {
 		output.Notice("notice: " + block.Notice)
 	}
 	if len(block.BlockedBy) == 0 {

@@ -167,8 +167,7 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 	}
 	// §6: a blocked file refuses a task that is not already wip, before the
 	// gate runs and before anything is written.
-	blocked := epicBlockedBy(tfPre, taskFilePath)
-	refuseBlockedDone(tfPre, taskID, blocked)
+	refuseBlockedDone(tfPre, taskID, epicBlockedBy(tfPre, taskFilePath))
 	if doneGatePassed && engine.EffectiveWorkflowForTaskFile(taskFilePath).QualityGate != "" {
 		output.Notice("quality gate is executed by tp; --gate-passed ignored")
 	}
@@ -187,6 +186,7 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 			return nil
 		}
 
+		blocked := epicBlockedUnderLock(tf, tfPre, taskFilePath)
 		task, _, findErr := model.FindTask(tf, taskID)
 		if findErr != nil {
 			output.Error(ExitState, findErr.Error())
@@ -387,7 +387,7 @@ func runDoneMulti(taskFilePath string, taskIDs []string, reason string) error {
 		os.Exit(ExitFile)
 		return nil
 	}
-	blocked := epicBlockedBy(tfPre, taskFilePath)
+	epicBlockedBy(tfPre, taskFilePath) // its notice; the block is judged under the lock
 	// Gate runs once iff at least one target survives the cheap checks (§6.1)
 	assume := make(map[string]bool)
 	survivors := 0
@@ -422,6 +422,7 @@ func runDoneMulti(taskFilePath string, taskIDs []string, reason string) error {
 			return nil
 		}
 
+		blocked := epicBlockedUnderLock(tf, tfPre, taskFilePath)
 		closedIDs := make([]string, 0)
 		failed := make([]map[string]any, 0)
 		now := time.Now().UTC()
@@ -787,7 +788,7 @@ func runDoneBatch() error {
 		return nil
 	}
 	batchStrategy := resolveEffectiveStrategy(taskFilePath)
-	blocked := epicBlockedBy(tfPre, taskFilePath)
+	epicBlockedBy(tfPre, taskFilePath) // its notice; the block is judged under the lock
 
 	// Gate runs once before any entry is processed, iff a surviving entry
 	// without skip_gate exists (§6.1); on failure, skip entries still close
@@ -816,6 +817,7 @@ func runDoneBatch() error {
 			return nil
 		}
 
+		blocked := epicBlockedUnderLock(tf, tfPre, taskFilePath)
 		closedCount := 0
 		skippedCount := 0
 		var failures []batchFailure
