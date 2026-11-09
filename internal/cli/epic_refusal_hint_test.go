@@ -49,3 +49,18 @@ func TestEpicSet_ATagCheckProviderNamingNoEpicGetsItsOwnHint(t *testing.T) {
 	assert.Contains(t, stderr, "point provided_by at an epic the graph holds")
 	assert.NotContains(t, stderr, "drop the edge")
 }
+
+// TestEpicLink_ADependencyOpensLaterGetsItsOwnHint: on tracks [[A], [B]]
+// with B opening after A, an edge from a, a member of A's gate, to b in B is
+// refused with a hint naming both milestones and the three ways out.
+func TestEpicLink_ADependencyOpensLaterGetsItsOwnHint(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{"version": 1, "milestones": [["A"], ["B"]], "opens_after": {"B": ["A"]}, "epics": [
+    {"id": "a", "title": "A", "milestone": "A", "root": true},
+    {"id": "b", "title": "B", "milestone": "B", "root": true}
+  ]}`)
+	_, stderr, code := runTP(t, dir, "epic", "link", "a", "b", "a extends b's model")
+	require.Equal(t, 1, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "dependency-opens-later")
+	assert.Contains(t, stderr, `move the epic of \"B\" the message names to a milestone that opens no later than \"A\", or drop the dependency, or make the member deferrable`)
+}
