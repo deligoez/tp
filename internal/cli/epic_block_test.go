@@ -497,3 +497,40 @@ func TestNext_OpenMilestoneStillBlocksOnAnUndoneDependency(t *testing.T) {
 	require.Equal(t, 4, code, "stdout: %s stderr: %s", stdout, stderr)
 	assert.Equal(t, []string{"q"}, blockedByEpics(t, stdout))
 }
+
+// conditionBlockDir is blockDir with b depending only on the condition c,
+// which only the operator decides.
+func conditionBlockDir(t *testing.T) string {
+	t.Helper()
+	dir := blockDir(t, "b", "open")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".tp", "epics.json"), []byte(`{
+  "version": 1,
+  "milestones": [["A"]],
+  "epics": [
+    {"id": "b", "title": "B", "milestone": "A", "depends_on": [{"id": "c", "why": "w"}]},
+    {"id": "c", "title": "C", "milestone": "A", "root": true, "condition": true, "acceptance": "keys issued"}
+  ]
+}
+`), 0o600))
+	return dir
+}
+
+// epicDoneCommand is the operator's record of condition c.
+const epicDoneCommand = "tp epic done c --evidence <evidence>"
+
+// TestNext_BlockedOnlyByAConditionNamesTheOperatorsRecord: no agent finishes
+// a condition, so tp next names the operator's decision and its command.
+func TestNext_BlockedOnlyByAConditionNamesTheOperatorsRecord(t *testing.T) {
+	t.Parallel()
+	stdout, stderr, code := runTP(t, conditionBlockDir(t), "next")
+	require.Equal(t, 4, code, "stdout: %s stderr: %s", stdout, stderr)
+	var p struct {
+		Operator struct {
+			Decision string   `json:"decision"`
+			Commands []string `json:"commands"`
+		} `json:"operator"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &p), "stdout: %s", stdout)
+	assert.Equal(t, "epic-done", p.Operator.Decision)
+	assert.Equal(t, []string{epicDoneCommand}, p.Operator.Commands)
+}
