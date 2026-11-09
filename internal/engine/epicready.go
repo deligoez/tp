@@ -40,7 +40,7 @@ type EpicReadiness struct {
 func EpicReady(g *model.EpicGraph, states map[string]EpicState, bound map[string][]string, all bool) EpicReadiness {
 	gates := MilestoneGates(g, states)
 	r := EpicReadiness{Ready: []string{}, Claimed: []string{}, Conditions: []string{}, Gates: []string{}}
-	r.Actionable = ConditionsActionable(g, states, gates)
+	r.Actionable = ConditionsActionable(g, states, gates, bound)
 	for i := range g.Epics {
 		e := &g.Epics[i]
 		if e.Condition {
