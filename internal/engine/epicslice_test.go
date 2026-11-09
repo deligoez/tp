@@ -116,3 +116,24 @@ func TestEpicReviewSlice_ABlockCarriesTheAcceptance(t *testing.T) {
 		assert.NotContains(t, c.Block, "acceptance:", "%s has no acceptance", c.ID)
 	}
 }
+
+// TestEpicReviewSlice_BlocksShowConditionAndThreshold: spec/1.5.0.md §8 — an
+// epic block shows condition when true, a gate block shows its threshold, and
+// neither prints a line when unset.
+func TestEpicReviewSlice_BlocksShowConditionAndThreshold(t *testing.T) {
+	g := epicChainGraph()
+	g.Epics[1].Condition = true
+	g.Gates = map[string]model.EpicGate{"A": {Members: []string{"a"}, Threshold: "p95 under 200ms"}}
+	s, err := EpicReviewSlice(g, EpicSliceKey{Milestone: "A"})
+	require.NoError(t, err)
+	require.Len(t, s.Units, 5)
+
+	assert.Contains(t, s.Units[1].Block, "condition: true\n")
+	assert.NotContains(t, s.Units[0].Block, "condition:", "a is not a condition")
+	assert.Contains(t, s.Units[4].Block, "threshold: p95 under 200ms\n")
+
+	g.Gates["A"] = model.EpicGate{Members: []string{"a"}}
+	s, err = EpicReviewSlice(g, EpicSliceKey{Milestone: "A"})
+	require.NoError(t, err)
+	assert.NotContains(t, s.Units[4].Block, "threshold:", "a gate without a threshold prints none")
+}
