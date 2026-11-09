@@ -77,10 +77,10 @@ Triage every piece of work before touching it; the operator confirms the track.
 A fix that turns out to need a design choice stops and becomes a decision. Repairs to a spec after
 its first round delete or narrow; they do not add requirements.
 
-Open work is `BUGS.md` (the fix track), the second release of `spec/backlog/epics.md` (§9; its
-deferred pilot items are in `spec/1.3.0-measurements.md`), and the two decision candidates in
-`spec/backlog/` — `checklist-covers-what-changed.md`, then `reconcile.md`; `spec/backlog/ARCHIVE.md`
-holds the rest.
+Open work is `BUGS.md` (the fix track), the second release of `spec/backlog/epics.md` (in progress as
+`spec/1.5.0.md`; its deferred pilot items are in `spec/1.3.0-measurements.md`), then
+`spec/backlog/dashboard.md`, and the two decision candidates in `spec/backlog/` —
+`checklist-covers-what-changed.md`, then `reconcile.md`; `spec/backlog/ARCHIVE.md` holds the rest.
 
 ## Rules
 
