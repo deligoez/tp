@@ -1421,10 +1421,12 @@ two cycle rules reports one finding per offending item.
 | `unprovided-tag-check` | error | an epic carries a tag whose `provided_by` is not in its transitive dependencies; the provider itself is exempt |
 | `opens-after-cycle` | error | `opens_after`, track defaults applied, has a cycle, a self-reference included |
 | `opens-after-not-list` | error | an `opens_after` value is null or not a list, which only a hand edit writes: `tp epic set` and `tp epic import` refuse it, and every other reader than `tp epic lint` exits 3 on a non-list value (v1.6.0) |
+| `dependency-opens-later` | error, or warning when no gate member reaches the epic | an effective gate member of a milestone that an epic's milestone opens after, transitively over the effective `opens_after`, reaches that epic through `depends_on`: the gate can never go green before that milestone opens; one finding per gate and target, `epics` the reaching members and the target. With no such member, each other epic of such a milestone reaching it is a warning, one per epic and target: it can finish once that milestone opens. An edge `later-milestone-dependency` reports is left to that rule and not followed (v1.6.0) |
 | `no-dependencies` | warning | an epic outside the first milestone of its track has no dependencies and is neither marked `root: true` nor a condition |
 | `root-with-dependencies` | warning | an epic marked `root: true` has dependencies |
 | `thin-why` | warning | a `why`, case-folded and split into words, is non-empty and occurs as a run of whole words in the target epic's id or title |
 | `partial-parallel` | warning, or info when the milestone has an `opens_after` entry | a milestone does not open after an earlier milestone of its track, even transitively, yet some of its epics depend directly on that milestone's epics; one finding per pair, `epics` those dependents |
+| `gate-held-by-condition` | info | an effective gate member reaches an undone condition through epics without a done record; one finding per member and condition, `epics` the two, the path in the message (v1.6.0) |
 
 `tp epic review` runs the error rules over the whole file at every emission as `mechanical_checks`
 and names their slugs in `mechanized_classes`, withheld from the role prompts.
