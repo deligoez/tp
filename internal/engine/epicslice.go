@@ -230,6 +230,9 @@ func epicGateBlock(milestone string, gate model.EpicGate) string {
 	if len(gate.Deferrable) > 0 {
 		block += "deferrable: " + strings.Join(gate.Deferrable, ", ") + "\n"
 	}
+	if gate.Threshold != "" {
+		block += "threshold: " + gate.Threshold + "\n"
+	}
 	return block
 }
 
