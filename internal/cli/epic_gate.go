@@ -89,21 +89,7 @@ func runEpicGate(cmd *cobra.Command, args []string) error {
 		output.Error(ExitUsage, "--evidence and --if-revision write a met record and need --met", epicGateMetUsageHint)
 		os.Exit(ExitUsage)
 	}
-	tpDir := engine.DiscoverTPDir(".")
-	if tpDir == "" {
-		output.Error(ExitFile, "epic graph not found: no .tp/ directory up to the git boundary", epicGraphFileHint)
-		os.Exit(ExitFile)
-	}
-	g, _, err := engine.LoadEpicGraph(tpDir)
-	if err != nil {
-		output.Error(ExitFile, err.Error(), epicGraphFileHint)
-		os.Exit(ExitFile)
-	}
-	states, err := engine.DeriveEpicStates(g, engine.EpicBoundFiles(tpDir))
-	if err != nil {
-		output.Error(ExitFile, err.Error(), epicBoundFileHint)
-		os.Exit(ExitFile)
-	}
+	g, states, _ := loadEpicStates()
 	m := args[0]
 	verdict, tracked := engine.MilestoneGates(g, states)[m]
 	if !tracked {
@@ -120,6 +106,29 @@ func runEpicGate(cmd *cobra.Command, args []string) error {
 		os.Exit(ExitValidation)
 	}
 	return nil
+}
+
+// loadEpicStates reads the graph and the task files bound to its epics, and
+// derives every epic's state once, for the read-only epic commands. It exits
+// 3 with no readable graph or bound file.
+func loadEpicStates() (g *model.EpicGraph, states map[string]engine.EpicState, bound map[string][]string) {
+	tpDir := engine.DiscoverTPDir(".")
+	if tpDir == "" {
+		output.Error(ExitFile, "epic graph not found: no .tp/ directory up to the git boundary", epicGraphFileHint)
+		os.Exit(ExitFile)
+	}
+	g, _, err := engine.LoadEpicGraph(tpDir)
+	if err != nil {
+		output.Error(ExitFile, err.Error(), epicGraphFileHint)
+		os.Exit(ExitFile)
+	}
+	bound = engine.EpicBoundFiles(tpDir)
+	states, err = engine.DeriveEpicStates(g, bound)
+	if err != nil {
+		output.Error(ExitFile, err.Error(), epicBoundFileHint)
+		os.Exit(ExitFile)
+	}
+	return g, states, bound
 }
 
 // epicGateReport lists m's members and deferrable epics with their derived
