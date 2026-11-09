@@ -28,9 +28,11 @@ type EpicReviewStatus struct {
 	InFlightRound    int
 	CapReached       bool
 	Undisposed       int
-	// Open counts the last recorded round's still-open findings by severity,
-	// every severity present, so a slice done under review_converge_on
-	// blocking still shows what it left open.
+	// Open counts the last recorded round's findings that carry no
+	// disposition, by severity, every severity present, so a slice done under
+	// review_converge_on blocking still shows what it left open. A finding
+	// resolved fixed is not counted: it waits for the next round to read the
+	// change, not for a decision.
 	Open map[string]int
 }
 
@@ -59,7 +61,7 @@ func EpicReviewLoopStatus(stateDir string, units []EpicReviewUnit, p EpicReviewP
 	st.Open = map[string]int{"critical": 0, "high": 0, "medium": 0, "low": 0}
 	if len(rounds) > 0 {
 		for _, row := range rounds[len(rounds)-1] {
-			if sev, _ := row["severity"].(string); findingOpen(PhaseReview, row) {
+			if sev, _ := row["severity"].(string); !RowDispositioned(row) {
 				st.Open[sev]++
 			}
 		}
