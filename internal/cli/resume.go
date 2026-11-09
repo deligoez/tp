@@ -14,7 +14,7 @@ import (
 )
 
 func newResumeCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "resume [spec]",
 		Short: "Report the lifecycle phase and the single next action (read-only)",
 		Long: `The phase-agnostic resume oracle. From durable state alone (the task file,
@@ -27,9 +27,12 @@ next_action, blockers}`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: runResume,
 	}
+	addEpicFileFlag(cmd)
+	return cmd
 }
 
 func runResume(_ *cobra.Command, args []string) error {
+	applyEpicFileFlag()
 	taskFilePath, specPath, tf := resolveCycle(args)
 
 	result, err := engine.AssembleResume(".", taskFilePath, specPath, tf)

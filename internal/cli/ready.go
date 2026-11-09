@@ -26,10 +26,12 @@ func newReadyCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&readyFirst, "first", false, "single highest-priority ready task")
 	cmd.Flags().BoolVar(&readyCount, "count", false, "just the count")
 	cmd.Flags().BoolVar(&readyIDs, "ids", false, "just IDs")
+	addEpicFileFlag(cmd)
 	return cmd
 }
 
 func runReady(_ *cobra.Command, _ []string) error {
+	applyEpicFileFlag()
 	taskFilePath, err := engine.DiscoverTaskFile(".", flagFile)
 	if err != nil {
 		output.Error(ExitFile, err.Error())

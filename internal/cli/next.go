@@ -36,6 +36,7 @@ Output: {task, spec_excerpt, blocks, remaining, quality_gate}`,
 	cmd.Flags().BoolVar(&nextPeek, "peek", false, "preview the next ready task without claiming; ignores WIP, unlike plain tp next")
 	cmd.Flags().BoolVar(&nextMinimal, "minimal", false, "minimal output: only id + acceptance (always JSON)")
 	cmd.Flags().BoolVar(&nextBrief, "brief", false, "claim the next ready task and return its implementation brief")
+	addEpicFileFlag(cmd)
 	return cmd
 }
 
@@ -47,6 +48,7 @@ func runNext(_ *cobra.Command, _ []string) error {
 		os.Exit(ExitUsage)
 		return nil
 	}
+	applyEpicFileFlag()
 
 	// --peek never writes, so it resolves without the write notice.
 	discover := discoverWriteTarget
