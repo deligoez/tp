@@ -223,3 +223,20 @@ func TestResume_ReportsAnEpicBlockerAndNoImplementUnit(t *testing.T) {
 	assert.Nil(t, cmd)
 	assert.Nil(t, payload["task"], "no task to start is previewed")
 }
+
+// TestResume_OffersTheWipTaskUnitWhileBlocked is spec/1.5.0.md §10 row 3: with
+// a task wip on b's blocked file, tp resume raises no epic blocker and offers
+// that task's implement unit as it does today. A tp resume that hid the wip
+// task's unit fails.
+func TestResume_OffersTheWipTaskUnitWhileBlocked(t *testing.T) {
+	t.Parallel()
+	dir := blockDir(t, "b", "open", "wip")
+
+	res := resumeResult(t, dir)
+	assert.Nil(t, blockerByCode(res, "epic-blocked"), "blockers: %v", res["blockers"])
+	units, _ := res["next_units"].([]any)
+	require.Len(t, units, 1, "next_units: %v", res["next_units"])
+	unit := units[0].(map[string]any)
+	assert.Equal(t, "implement", unit["kind"])
+	assert.Equal(t, "t2", unit["id"])
+}
