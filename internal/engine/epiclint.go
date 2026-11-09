@@ -9,10 +9,12 @@ import (
 	"github.com/deligoez/tp/internal/model"
 )
 
-// Severities of an epic lint finding.
+// Severities of an epic lint finding. An info finding reports a choice the
+// graph states outright: it is neither an error nor a warning.
 const (
 	EpicSeverityError   = "error"
 	EpicSeverityWarning = "warning"
+	EpicSeverityInfo    = "info"
 )
 
 // Structure rules of the epic graph lint (spec/1.3.0.md §4).
@@ -47,7 +49,8 @@ const (
 	// EpicRuleOpensAfterCycle is the error on milestones that open after
 	// each other, a milestone opening after itself included.
 	EpicRuleOpensAfterCycle = "opens-after-cycle"
-	// EpicRulePartialParallel is the warning on a milestone that does not
+	// EpicRulePartialParallel is the warning, or the info when the
+	// milestone's opens_after entry chose it, on a milestone that does not
 	// open after an earlier milestone of its track while some of its epics
 	// depend directly on that milestone's epics.
 	EpicRulePartialParallel = "partial-parallel"

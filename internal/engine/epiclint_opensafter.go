@@ -62,10 +62,13 @@ func lintOpensAfterCycles(g *model.EpicGraph, pos map[string]milestonePos) []Epi
 	return out
 }
 
-// lintEpicPartialParallel warns once per milestone and earlier milestone of
+// lintEpicPartialParallel reports once per milestone and earlier milestone of
 // its track it does not open after, even transitively, when some of its epics
 // depend directly on that earlier milestone's epics: the epic block still
-// makes them wait (spec/1.6.0.md §1). The warning lists those epics.
+// makes them wait (spec/1.6.0.md §1). The finding lists those epics. It is
+// info when the milestone's opens_after entry is written without naming the
+// earlier one, since the operator chose it, and a warning when the
+// parallelism comes from defaults.
 func lintEpicPartialParallel(g *model.EpicGraph) []EpicLintFinding {
 	after := EffectiveOpensAfter(g)
 	byID := epicMilestones(g)
@@ -83,17 +86,27 @@ func lintEpicPartialParallel(g *model.EpicGraph) []EpicLintFinding {
 					continue
 				}
 				if ids := epicsDependingInto(g, m, earlier, byID); len(ids) > 0 {
-					f := epicWarning(EpicRulePartialParallel, fmt.Sprintf(
-						"milestone %q does not open after the earlier %q, yet %s depend on its epics; the epic block still makes them wait",
-						m, earlier, strings.Join(ids, ", ")), ids...)
-					f.Names = []string{m, earlier}
-					sort.Strings(f.Names)
-					out = append(out, f)
+					out = append(out, partialParallelFinding(g, m, earlier, ids))
 				}
 			}
 		}
 	}
 	return out
+}
+
+// partialParallelFinding is the partial-parallel finding on milestone m and
+// the earlier milestone it does not open after, naming ids: info when m's
+// opens_after entry is written, a warning otherwise.
+func partialParallelFinding(g *model.EpicGraph, m, earlier string, ids []string) EpicLintFinding {
+	f := epicWarning(EpicRulePartialParallel, fmt.Sprintf(
+		"milestone %q does not open after the earlier %q, yet %s depend on its epics; the epic block still makes them wait",
+		m, earlier, strings.Join(ids, ", ")), ids...)
+	if _, chosen := g.OpensAfter[m]; chosen {
+		f.Severity = EpicSeverityInfo
+	}
+	f.Names = []string{m, earlier}
+	sort.Strings(f.Names)
+	return f
 }
 
 // opensAfterClosure returns every milestone m opens after, transitively.

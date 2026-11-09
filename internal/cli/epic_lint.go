@@ -59,9 +59,10 @@ func runEpicLint(_ *cobra.Command, _ []string) error {
 		result.Findings = []engine.EpicLintFinding{}
 	}
 	for _, f := range result.Findings {
-		if f.Severity == engine.EpicSeverityError {
+		switch f.Severity {
+		case engine.EpicSeverityError:
 			result.Errors++
-		} else {
+		case engine.EpicSeverityWarning:
 			result.Warnings++
 		}
 	}
