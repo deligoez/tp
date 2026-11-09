@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -253,6 +254,38 @@ func TestCommit_AFailedLockUnstageExitsThree(t *testing.T) {
 	out, err := log.Output()
 	require.NoError(t, err)
 	assert.NotContains(t, string(out), "feat(t1)", "nothing is committed")
+}
+
+// gitRefusingNthAddPath returns a PATH entry whose git refuses the nth and
+// every later `git add` and hands everything else to the real git.
+func gitRefusingNthAddPath(t *testing.T, n int) string {
+	t.Helper()
+	realGit, err := exec.LookPath("git")
+	require.NoError(t, err)
+	shimDir := t.TempDir()
+	counter := filepath.Join(shimDir, "adds")
+	shim := "#!/bin/sh\nif [ \"$1\" = add ]; then\n" +
+		"  c=$(cat '" + counter + "' 2>/dev/null || echo 0); c=$((c+1)); echo $c > '" + counter + "'\n" +
+		"  if [ $c -ge " + strconv.Itoa(n) + " ]; then echo 'fatal: shim refuses add' >&2; exit 128; fi\n" +
+		"fi\nexec '" + realGit + "' \"$@\"\n"
+	require.NoError(t, os.WriteFile(filepath.Join(shimDir, "git"), []byte(shim), 0o700)) //nolint:gosec // the shim must be executable
+	return "PATH=" + shimDir + string(os.PathListSeparator) + os.Getenv("PATH")
+}
+
+// TestCommit_AFailedClosureStageExitsThree: after the implementation commit,
+// tp commit stages the closed task file to fold it in; tp commit's third
+// `git add` is that one. A failure there exits 3 with git's message, since
+// the closure is on disk but in no commit. A tp commit that discarded the
+// error amends nothing, exits 0 and fails.
+func TestCommit_AFailedClosureStageExitsThree(t *testing.T) {
+	t.Parallel()
+	dir := setupCommitProject(t, "t1")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "f.go"), []byte("package f\n"), 0o600))
+
+	stdout, stderr, code := runTPEnv(t, dir, []string{gitRefusingNthAddPath(t, 3)}, "commit", "t1", "t1 acceptance met completely")
+	require.Equal(t, 3, code, "stdout: %s stderr: %s", stdout, stderr)
+	assert.Contains(t, stderr, "shim refuses add")
+	assert.NotContains(t, stdout+stderr, "user.name", "no committer identity is involved in staging")
 }
 
 func TestCommitSequentialTasks(t *testing.T) {
