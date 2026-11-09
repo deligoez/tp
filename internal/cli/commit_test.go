@@ -243,8 +243,10 @@ func TestCommit_AFailedLockUnstageExitsThree(t *testing.T) {
 
 	path := gitRefusingRmPath(t)
 
-	_, stderr, code := runTPEnv(t, dir, []string{path}, "commit", "t1", "t1 acceptance met completely")
+	stdout, stderr, code := runTPEnv(t, dir, []string{path}, "commit", "t1", "t1 acceptance met completely")
 	require.Equal(t, 3, code, "stderr: %s", stderr)
+	assert.NotContains(t, stdout+stderr, "user.name", "no committer identity is involved in unstaging")
+	assert.Contains(t, stdout+stderr, "index", "the hint names what git could not update")
 
 	log := exec.Command("git", "log", "--format=%s")
 	log.Dir = dir
