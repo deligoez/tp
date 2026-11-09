@@ -135,3 +135,16 @@ func TestNext_ReturnsAWipTaskWhileBlocked(t *testing.T) {
 	assert.Contains(t, stdout, `"id": "t2"`)
 }
 
+// TestNext_AbsentEpicBehavesAsUnboundAndSaysSo is spec/1.5.0.md §6: a file
+// bound to an epic the graph does not hold offers its task as an unbound one
+// does, with a notice on stderr.
+func TestNext_AbsentEpicBehavesAsUnboundAndSaysSo(t *testing.T) {
+	t.Parallel()
+	dir := blockDir(t, "z", "open")
+
+	stdout, stderr, code := runTP(t, dir, "next", "--peek")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.Contains(t, stdout, `"id": "t1"`)
+	assert.Contains(t, stderr, `"z"`)
+	assert.Contains(t, stderr, "behaves as unbound")
+}
