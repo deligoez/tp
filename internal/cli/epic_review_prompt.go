@@ -33,6 +33,11 @@ func buildEpicReviewPrompts(run *epicReviewRun, roles []model.Role) []epicReview
 	}
 	asked := epicAskedText(run) + epicDecidedText(run)
 	prompts := make([]epicReviewPrompt, 0, len(roles)+1)
+	if run.round >= 2 && run.carry.VerifyOnly {
+		// The round before fixed only non-blocking findings and left nothing
+		// open: the change is read, by regression alone.
+		return append(prompts, epicRegressionPrompt(run, asked))
+	}
 	for i := range roles {
 		role := &roles[i]
 		var b strings.Builder
