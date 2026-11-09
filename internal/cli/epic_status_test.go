@@ -145,3 +145,21 @@ func TestEpicStatus_AClaimedEpicShowsItsHolder(t *testing.T) {
 	assert.Equal(t, "agent-1", m.Claimed[0].By, "the claimed epic shows its holder")
 	assert.Equal(t, 1, m.Counts["claimed"])
 }
+
+// TestEpicStatus_ADoneEpicCutsTheCriticalPath is §10 row 12 with C5: on the
+// chain a→b→c→d with b done and A's gate on a, the critical path by count is
+// [a], not [a, b, c, d] or [c, d].
+func TestEpicStatus_ADoneEpicCutsTheCriticalPath(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{"version": 1, "milestones": [["A"]], "gates": {"A": {"members": ["a"]}}, "epics": [
+    {"id": "a", "title": "A", "milestone": "A", "depends_on": [{"id": "b", "why": "w"}]},
+    {"id": "b", "title": "B", "milestone": "A", "depends_on": [{"id": "c", "why": "w"}], "done": {"at": "2026-01-02T03:04:05Z", "evidence": "e"}},
+    {"id": "c", "title": "C", "milestone": "A", "depends_on": [{"id": "d", "why": "w"}]},
+    {"id": "d", "title": "D", "milestone": "A", "root": true}
+  ]}`)
+
+	r := decodeEpicStatus(t, runEpicStatus(t, dir))
+
+	require.Len(t, r.Milestones, 1)
+	assert.Equal(t, []string{"a"}, r.Milestones[0].CriticalPath.ByCount)
+}
