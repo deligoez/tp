@@ -65,29 +65,37 @@ func EpicReviewSlice(g *model.EpicGraph, key EpicSliceKey) (EpicSlice, error) {
 		asked[id] = true
 		s.Units = append(s.Units, epicUnit(byID[id], byID))
 	}
+	after := EffectiveOpensAfter(g)
 	for _, m := range sliceGates(g, key, asked) {
-		block := epicGateBlock(g, m)
+		block := epicGateBlock(g, m, after)
 		s.Units = append(s.Units, EpicReviewUnit{Key: "gate:" + m, Block: block, Hash: epicHash(block)})
 	}
 	s.Context = epicSliceContext(g, asked)
 	return s, nil
 }
 
-// sliceGates names the gate units a slice asks, sorted: a milestone slice's
-// own gate, and for a set slice the gate of every milestone whose every epic
-// the set lists.
+// sliceGates names the gate units a slice asks, sorted: every milestone has a
+// gate, implicit when gates names none, so a milestone slice asks its own,
+// and a set slice the gate of every milestone, tracked or named by gates,
+// whose every epic the set lists.
 func sliceGates(g *model.EpicGraph, key EpicSliceKey, asked map[string]bool) []string {
 	if key.Milestone != "" {
-		if _, ok := g.Gates[key.Milestone]; ok {
-			return []string{key.Milestone}
-		}
-		return nil
+		return []string{key.Milestone}
 	}
 	if len(key.Epics) == 0 {
 		return nil
 	}
+	names := map[string]bool{}
+	for _, track := range g.Milestones {
+		for _, m := range track {
+			names[m] = true
+		}
+	}
+	for m := range g.Gates {
+		names[m] = true
+	}
 	var out []string
-	for _, m := range sortedMapKeys(g.Gates) {
+	for _, m := range sortedMapKeys(names) {
 		listed, held := true, false
 		for i := range g.Epics {
 			e := &g.Epics[i]
@@ -223,26 +231,25 @@ func epicBlock(e *model.Epic) string {
 	return b.String()
 }
 
-// epicGateBlock renders a milestone's gate: its members, deferrables and
-// threshold, then the milestone's opens_after entry when the map names it
-// (spec/1.6.0.md §1), so editing what the milestone opens after re-asks it.
-func epicGateBlock(g *model.EpicGraph, milestone string) string {
+// epicGateBlock renders a milestone's gate, implicit when gates names none:
+// its effective members (GateMembers), deferrables and threshold, then the
+// milestone's effective opens_after (spec/1.6.0.md §1), so editing what the
+// milestone opens after, its own entry or its track's order, re-asks it.
+func epicGateBlock(g *model.EpicGraph, milestone string, after map[string][]string) string {
 	gate := g.Gates[milestone]
-	block := "gate: " + milestone + "\nmembers: " + strings.Join(gate.Members, ", ") + "\n"
+	members, _ := GateMembers(g, milestone)
+	block := "gate: " + milestone + "\nmembers: " + strings.Join(members, ", ") + "\n"
 	if len(gate.Deferrable) > 0 {
 		block += "deferrable: " + strings.Join(gate.Deferrable, ", ") + "\n"
 	}
 	if gate.Threshold != "" {
 		block += "threshold: " + gate.Threshold + "\n"
 	}
-	if after, ok := g.OpensAfter[milestone]; ok {
-		list := "[]"
-		if len(after) > 0 {
-			list = strings.Join(after, ", ")
-		}
-		block += "opens_after: " + list + "\n"
+	list := "[]"
+	if len(after[milestone]) > 0 {
+		list = strings.Join(after[milestone], ", ")
 	}
-	return block
+	return block + "opens_after: " + list + "\n"
 }
 
 func epicHash(s string) string {
