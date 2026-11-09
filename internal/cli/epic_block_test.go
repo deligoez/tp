@@ -108,6 +108,20 @@ func TestNextPeekAndReady_CarryBlockedByEpics(t *testing.T) {
 	assert.Empty(t, ready.Ready)
 }
 
+// TestNextAndReady_ABlockedAnswerTheyCannotWriteExitsThree: a blocked tp next
+// or tp ready whose stdout cannot be written is a file error, exit 3, as in tp
+// ground (TestOneStdoutWriteErrorIsOneClassification). A blocked answer that dropped the write error
+// exits 0 (tp ready) or 4 (tp next) having printed nothing, and fails.
+func TestNextAndReady_ABlockedAnswerTheyCannotWriteExitsThree(t *testing.T) {
+	t.Parallel()
+	dir := blockDir(t, "b", "open", "open")
+
+	for _, args := range [][]string{{"next"}, {"next", "--peek"}, {"ready"}, {"ready", "--first"}} {
+		stderr, code := runTPUnwritableStdout(t, dir, args...)
+		assert.Equal(t, 3, code, "%v stderr: %s", args, stderr)
+	}
+}
+
 // TestClaim_ExitsOneOnABlockedFile is spec/1.5.0.md §6: tp claim exits 1 on
 // a blocked file, names the dependency and writes nothing, by id and with
 // --all-ready.
