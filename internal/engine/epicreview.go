@@ -10,7 +10,7 @@ import (
 // epicErrorRules are §4's error-severity rules, the classes a tp epic review
 // emission checks mechanically, in ascending order.
 var epicErrorRules = []string{
-	EpicRuleCycle, EpicRuleDanglingReference, EpicRuleDuplicateName,
+	EpicRuleCycle, EpicRuleDanglingReference, EpicRuleDependencyOpensLater, EpicRuleDuplicateName,
 	EpicRuleGateMemberDeferrable, EpicRuleGateMemberOutsideMilestone, EpicRuleLaterMilestoneDependency,
 	EpicRuleMissingWhy, EpicRuleOpensAfterCycle, EpicRuleOpensAfterNotList, EpicRuleUnknownKey, EpicRuleUnknownMilestone,
 	EpicRuleUnprovidedTagCheck,
