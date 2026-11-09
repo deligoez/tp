@@ -76,8 +76,9 @@ func warnPointerNamesAnother(written string) {
 
 // taskFileLabel is the form a write payload's "file" key carries: the path
 // relative to the directory the command ran in, so the value works as
-// --file's argument from there. The pointer's stored value is relative to the
-// project root instead, and misses when the command runs in a subdirectory.
+// --file's argument from there, a subdirectory or a symlinked cwd included.
+// The pointer's stored value is relative to the project root instead, and
+// misses when the command runs in a subdirectory.
 func taskFileLabel(path string) string {
 	if !filepath.IsAbs(path) {
 		return filepath.Clean(path)
@@ -86,11 +87,27 @@ func taskFileLabel(path string) string {
 	if err != nil {
 		return path
 	}
-	rel, err := filepath.Rel(wd, path)
+	// Both sides resolve symlinks: git and EpicBoundFiles hand back resolved
+	// paths while Getwd keeps a symlinked cwd (macOS /tmp, /var), and Rel
+	// across the two forms climbs to / and back.
+	rel, err := filepath.Rel(resolvedPath(wd), resolvedPath(path))
 	if err != nil {
 		return path
 	}
 	return rel
+}
+
+// resolvedPath is path with its symlinks resolved, or, for a path that does
+// not exist yet, its directory's, so a label for a file about to be written
+// resolves the same way.
+func resolvedPath(path string) string {
+	if r, err := filepath.EvalSymlinks(path); err == nil {
+		return r
+	}
+	if r, err := filepath.EvalSymlinks(filepath.Dir(path)); err == nil {
+		return filepath.Join(r, filepath.Base(path))
+	}
+	return path
 }
 
 func absPath(path string) string {
