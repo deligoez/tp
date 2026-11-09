@@ -128,6 +128,66 @@ func TestEpicReady_AConditionHoldingAnOpenGateIsActionable(t *testing.T) {
 	assert.Equal(t, map[string]bool{"c": true}, operatorConditions(t, dir))
 }
 
+// readyConditionKeys runs tp epic ready --all in dir and returns each
+// operator.conditions row's raw keys by id.
+func readyConditionKeys(t *testing.T, dir string) map[string]map[string]json.RawMessage {
+	t.Helper()
+	stdout, stderr, code := runTP(t, dir, "epic", "ready", "--all")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var r struct {
+		Operator struct {
+			Conditions []map[string]json.RawMessage `json:"conditions"`
+		} `json:"operator"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &r), "stdout: %s", stdout)
+	out := map[string]map[string]json.RawMessage{}
+	for _, row := range r.Operator.Conditions {
+		var id string
+		require.NoError(t, json.Unmarshal(row["id"], &id))
+		out[id] = row
+	}
+	return out
+}
+
+// TestEpicReady_NotActionableNamesEveryReasonInOrder: under --all each
+// condition that is not actionable carries not_actionable, every reason that
+// holds in the order milestone, dependencies, dependents; an actionable one
+// carries no such key, and no condition carries waiting_on. c1 is in the
+// closed B with its only dependent there unbound; c2 in A waits on the undone
+// x and holds w, which waits on it alone; c3 in A holds y, which also waits on
+// the undone work epic x; c4 in A stands alone.
+func TestEpicReady_NotActionableNamesEveryReasonInOrder(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{"version": 1, "milestones": [["A", "B"]], "epics": [
+    {"id": "x", "title": "X", "milestone": "A", "root": true},
+    {"id": "c2", "title": "C2", "milestone": "A", "condition": true, "acceptance": "legal says yes", "depends_on": [{"id": "x", "why": "legal reads x's report"}]},
+    {"id": "w", "title": "W", "milestone": "A", "depends_on": [{"id": "c2", "why": "w ships once legal agrees"}]},
+    {"id": "c3", "title": "C3", "milestone": "A", "root": true, "condition": true, "acceptance": "the board says yes"},
+    {"id": "y", "title": "Y", "milestone": "A", "depends_on": [{"id": "c3", "why": "y ships once the board agrees"}, {"id": "x", "why": "y extends x's model"}]},
+    {"id": "c4", "title": "C4", "milestone": "A", "root": true, "condition": true, "acceptance": "the auditor signs"},
+    {"id": "c1", "title": "C1", "milestone": "B", "condition": true, "acceptance": "the market opens", "depends_on": [{"id": "x", "why": "the market reads x's launch"}]},
+    {"id": "z", "title": "Z", "milestone": "B", "depends_on": [{"id": "c1", "why": "z ships once the market opens"}]}
+  ]}`)
+	rows := readyConditionKeys(t, dir)
+	reasons := map[string][]string{}
+	for id, row := range rows {
+		assert.NotContains(t, row, "waiting_on", "%s carries no waiting_on", id)
+		raw, ok := row["not_actionable"]
+		if !ok {
+			continue
+		}
+		var list []string
+		require.NoError(t, json.Unmarshal(raw, &list))
+		reasons[id] = list
+	}
+	assert.Equal(t, map[string][]string{
+		"c1": {"milestone", "dependencies", "dependents"},
+		"c2": {"dependencies"},
+		"c3": {"dependents"},
+	}, reasons)
+	assert.Contains(t, rows, "c4", "the actionable c4 is listed without not_actionable")
+}
+
 // TestEpicReady_C3_7_ADoneConditionIsListedInNeitherMode is C3.7.
 func TestEpicReady_C3_7_ADoneConditionIsListedInNeitherMode(t *testing.T) {
 	t.Parallel()
