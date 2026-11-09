@@ -78,6 +78,7 @@ func runNext(_ *cobra.Command, _ []string) error {
 			}
 		}
 	}
+	exitIfNextBlocked(tf, taskFilePath)
 
 	// Find ready tasks with priority ordering
 	done := make(map[string]bool)

@@ -43,6 +43,9 @@ func runReady(_ *cobra.Command, _ []string) error {
 		os.Exit(ExitFile)
 		return nil
 	}
+	if readyBlocked(tf, taskFilePath) {
+		return nil
+	}
 
 	// Find done task IDs
 	done := make(map[string]bool)
