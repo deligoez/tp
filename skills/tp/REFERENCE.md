@@ -1358,7 +1358,7 @@ so it changes only through the `tp epic` writers.
 | Key | Shape | Meaning |
 |-----|-------|---------|
 | `milestones` | list of tracks, each an ordered list of names | a name appears once across all tracks; order matters within a track only |
-| `gates.<milestone>` | `{members, deferrable}` | the milestone's gate unit, reviewed with it; every member must be in that milestone |
+| `gates.<milestone>` | `{members, deferrable}` | the milestone's **exit** gate, reviewed with it: keyed by the milestone whose epics it lists, not the one it opens; every member must be in that milestone |
 | `tag_checks.<tag>.provided_by` | epic id | every epic carrying the tag must depend on this epic, directly or transitively |
 | `epics[].id` | non-empty string | opaque and unique in the file; spaces and non-ASCII stay as written |
 | `epics[].milestone` | milestone name | required; names one of `milestones` |
