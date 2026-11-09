@@ -77,10 +77,11 @@ Triage every piece of work before touching it; the operator confirms the track.
 A fix that turns out to need a design choice stops and becomes a decision. Repairs to a spec after
 its first round delete or narrow; they do not add requirements.
 
-Open work is `BUGS.md` (the fix track), then `spec/backlog/dashboard.md` (`tp dashboard`, reading the
-`tp epic export` contract v1.5.0 shipped), and the two decision candidates in `spec/backlog/` —
-`checklist-covers-what-changed.md`, then `reconcile.md`; `spec/backlog/ARCHIVE.md` holds the rest.
-The epic layer's deferred pilot items are in `spec/1.3.0-measurements.md`.
+Open work is `BUGS.md` (the fix track), then the v1.5.0 pilot's findings in
+`spec/backlog/epics-progress-field.md` (one v1.6.0), then `spec/backlog/dashboard.md` (`tp dashboard`,
+reading the `tp epic export` contract v1.5.0 shipped), and the two decision candidates in
+`spec/backlog/` — `checklist-covers-what-changed.md`, then `reconcile.md`; `spec/backlog/ARCHIVE.md`
+holds the rest. The epic layer's deferred pilot items are in `spec/1.3.0-measurements.md`.
 
 ## Rules
 
