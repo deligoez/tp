@@ -117,6 +117,30 @@ func TestReadWriteTaskFile_NoWorkflowKeyNormalizesToEmpty(t *testing.T) {
 	assert.Contains(t, string(data), `"workflow": {}`, "a missing workflow key normalizes to an empty object, never populated with defaults")
 }
 
+// TestReadWriteTaskFile_EpicBindingRoundTrips: §8's top-level epic is carried
+// through a read and a write, and a file that names none gains no key.
+func TestReadWriteTaskFile_EpicBindingRoundTrips(t *testing.T) {
+	dir := t.TempDir()
+	bound := filepath.Join(dir, "bound.tasks.json")
+	require.NoError(t, os.WriteFile(bound, []byte(`{"version":1,"spec":"s.md","epic":"event store ç","tasks":[]}`), 0o600))
+	tf, err := ReadTaskFile(bound)
+	require.NoError(t, err)
+	assert.Equal(t, "event store ç", tf.Epic)
+	require.NoError(t, WriteTaskFile(bound, tf))
+	data, err := os.ReadFile(bound)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), `"epic": "event store ç"`)
+
+	unbound := filepath.Join(dir, "unbound.tasks.json")
+	require.NoError(t, os.WriteFile(unbound, []byte(`{"version":1,"spec":"s.md","tasks":[]}`), 0o600))
+	tf, err = ReadTaskFile(unbound)
+	require.NoError(t, err)
+	require.NoError(t, WriteTaskFile(unbound, tf))
+	data, err = os.ReadFile(unbound)
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), `"epic"`)
+}
+
 func TestReadTaskFile_NonexistentPath(t *testing.T) {
 	_, err := ReadTaskFile("/nonexistent/path/tasks.json")
 	require.Error(t, err)
