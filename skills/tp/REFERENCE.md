@@ -1530,7 +1530,8 @@ under the repository that cannot be parsed may be bound to any epic, so every co
 an epic's status or looks up its bound files exits 3 naming it rather than guess.
 
 A file holding no task at all has no tasks yet, not all of them complete (v1.6.0). `tp next` and
-`tp next --peek`, with or without `--epic`, answer `{done: false, message, phase, hint, command}` and
+`tp next --peek`, with or without `--epic`, `tp brief` with no id and `tp plan` answer
+`{done: false, message, phase, hint, command}` and
 exit 4, as their other no-task answers: `phase` is the one `tp resume` reports for the file (`review`
 or `decompose`), `hint` its next step and `command` that step's tp command, absent when it has none.
 `tp ready --first` and `tp claim --all-ready` exit 4 with the same message and hint, and `tp ready`'s
