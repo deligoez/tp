@@ -33,3 +33,16 @@ func TestGateMembers_DefaultSkipsConditionsAndDeferrable(t *testing.T) {
 	assert.Empty(t, deferrable)
 }
 
+// TestGateMembers_ExplicitMembersOverrideTheDefault: a gate that names its
+// members is held by exactly those, even when the milestone has other work
+// epics and one of the named members is a condition.
+func TestGateMembers_ExplicitMembersOverrideTheDefault(t *testing.T) {
+	g := epicChainGraph()
+	g.Epics = append(g.Epics, model.Epic{ID: "go", Title: "Go decision", Milestone: "A", Condition: true})
+	g.Gates = map[string]model.EpicGate{"A": {Members: []string{"b", "go"}, Deferrable: []string{"d"}}}
+
+	members, deferrable := GateMembers(g, "A")
+
+	assert.Equal(t, []string{"b", "go"}, members)
+	assert.Equal(t, []string{"d"}, deferrable)
+}
