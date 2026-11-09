@@ -200,3 +200,26 @@ func TestDone_ClosesAWipTaskOnABlockedFileAndCountsNoNext(t *testing.T) {
 	assert.Equal(t, 0, p.Remaining.Ready, "a blocked file's open task is not ready")
 	assert.False(t, p.HasNext)
 }
+
+// TestResume_ReportsAnEpicBlockerAndNoImplementUnit is spec/1.5.0.md §10 row
+// 3: while c is not done and no task is wip, tp resume on b's file reports the
+// block as an escalate blocker naming c and offers no implement unit, so tp
+// run stops instead of driving a unit that cannot move. A tp resume that
+// ignored the graph offers t1's implement unit and fails.
+func TestResume_ReportsAnEpicBlockerAndNoImplementUnit(t *testing.T) {
+	t.Parallel()
+	dir := blockDir(t, "b", "open", "open")
+
+	res := resumeResult(t, dir)
+	assert.Equal(t, "implement", res["phase"])
+	b := blockerByCode(res, "epic-blocked")
+	require.NotNil(t, b, "blockers: %v", res["blockers"])
+	assert.Equal(t, "escalate", b["class"])
+	data := b["data"].(map[string]any)
+	assert.Equal(t, "b", data["epic"])
+	assert.Equal(t, []string{"c"}, jsonStrings(data["blocked_by_epics"]))
+	assert.Empty(t, res["next_units"], "a blocked file offers no implement unit")
+	cmd, payload := nextAction(res)
+	assert.Nil(t, cmd)
+	assert.Nil(t, payload["task"], "no task to start is previewed")
+}
