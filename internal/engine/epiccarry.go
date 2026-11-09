@@ -25,6 +25,10 @@ type EpicCarry struct {
 	Fixed   []map[string]any
 	Decided []EpicDecision
 	Before  map[string]string
+	// VerifyOnly is true when the round before left nothing open and fixed
+	// no blocking finding, at least one non-blocking one: the change must still
+	// be read, but by the regression role alone.
+	VerifyOnly bool
 }
 
 // EpicDecision is one earlier row accepted wontfix or duplicate, and the
@@ -111,15 +115,21 @@ func (c *EpicCarry) readPriorRows(path string) (map[string]bool, error) {
 		return nil, fmt.Errorf("epic review round file %s cannot be read as NDJSON", path)
 	}
 	reask := map[string]bool{}
+	onlyLowFixes := true
 	for _, row := range rows {
-		if rowFixed(row) {
+		fixed := rowFixed(row)
+		if fixed {
 			c.Fixed = append(c.Fixed, row)
+		}
+		if fixed && ReviewRowBlocking(row) || !fixed && !RowAccepted(row) {
+			onlyLowFixes = false
 		}
 		if !RowAccepted(row) {
 			loc, _ := row["location"].(string)
 			reask[loc] = true
 		}
 	}
+	c.VerifyOnly = onlyLowFixes && len(c.Fixed) > 0
 	return reask, nil
 }
 
