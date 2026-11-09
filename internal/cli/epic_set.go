@@ -15,12 +15,12 @@ import (
 const epicNotFoundHint = "tp epic lint lists the file's epics; tp epic add adds one"
 
 // epicSetUsageHint answers a malformed tp epic set call.
-const epicSetUsageHint = "tp epic set <id> <field>=<value> or tp epic set <milestones|opens_after|gates|tag_checks>=<json>"
+const epicSetUsageHint = "tp epic set <id> <field>=<value>, tp epic set <milestones|opens_after|gates|tag_checks>=<json>, or tp epic set gates.<milestone>.<threshold|deferrable|members>=<value>"
 
 func newEpicSetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "set [id] <field>=<value>",
-		Short: "Set an epic field, or replace milestones, opens_after, gates or tag_checks whole; a write that adds a lint error exits 1 and writes nothing",
+		Short: "Set an epic field, replace milestones, opens_after, gates or tag_checks whole, or edit one gate's threshold, deferrable or members; a write that adds a lint error exits 1 and writes nothing",
 		Args:  cobra.RangeArgs(1, 2),
 		RunE:  runEpicSet,
 	}
