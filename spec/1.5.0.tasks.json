@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.5.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-09T14:10:42.210595Z",
+  "updated_at": "2026-11-09T14:16:17.3517Z",
   "workflow": {
     "review_max_rounds": 4,
     "audit_max_rounds": 5
@@ -378,7 +378,7 @@
       "id": "gate-report-command",
       "title": "Report a milestone gate with tp epic gate",
       "description": "tp epic gate \u003cm\u003e reports each member green or red, the deferrable epics apart, the threshold and its met record, and exits 0 only when the gate is green.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "gates"
@@ -391,11 +391,18 @@
       "source_sections": [
         "## 7. Epic commands"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-09T14:10:54.215012Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-09T14:16:17.34263Z",
+      "closed_reason": "- TestEpicGate_ReportsMembersGreenOrRedAndDeferrableApart: members reported green/red with status, deferrable epics listed apart, condition excluded\n- TestEpicGate_ExitsZeroOnlyWhenGreen: unmet threshold exits 1, met exits 0, threshold edited after met shows threshold_changed; TestEpicGate_AbsentMilestoneExits4; gate green",
+      "gate_passed_at": "2026-11-09T14:16:17.34263Z",
+      "commit_sha": "11d425ff",
+      "commit_shas": [
+        "11d425ff"
+      ],
+      "commit_files": [
+        "internal/cli/epic_gate_test.go"
+      ]
     },
     {
       "id": "epic-done-command",
