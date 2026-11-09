@@ -65,3 +65,19 @@ func TestEpicClaim_SecondClaimExitsOneAndReleaseLetsItThrough(t *testing.T) {
 	assert.Equal(t, "agent-2", epicClaimOfB(t, dir).By)
 }
 
+// TestEpicClaim_RefusesAConditionADoneAndABoundEpic is §7: on the chain with
+// b bound, claiming the condition c, the done d or the bound b exits 1 and
+// writes nothing.
+func TestEpicClaim_RefusesAConditionADoneAndABoundEpic(t *testing.T) {
+	t.Parallel()
+	dir := boundEpicDir(t, bindingChain)
+	before := readEpicGraphFile(t, dir)
+
+	for id, names := range map[string]string{"c": "condition", "d": "done", "b": "b.tasks.json"} {
+		_, stderr, code := runTP(t, dir, "epic", "claim", id, "--by", "agent-1")
+		assert.Equal(t, 1, code, "claiming %s is refused; stderr: %s", id, stderr)
+		assert.Contains(t, stderr, names, "the refusal of %s says why", id)
+	}
+	assert.Equal(t, before, readEpicGraphFile(t, dir), "a refused claim writes nothing")
+}
+
