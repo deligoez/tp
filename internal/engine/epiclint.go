@@ -60,13 +60,16 @@ const (
 // finding names, a dangling id included; it is never nil, so it encodes as [].
 // Names holds the sorted milestone, gate, tag or key names the finding
 // involves: part of its identity across a write (NewEpicErrors), not of the
-// payload, where the message carries them.
+// payload, where the message carries them. Gate is the milestone whose gate
+// list (members or deferrable) holds the id a dangling-reference finding
+// names, "" for any other finding: it tells a gate list apart from an edge.
 type EpicLintFinding struct {
 	Rule     string   `json:"rule"`
 	Severity string   `json:"severity"`
 	Epics    []string `json:"epics"`
 	Message  string   `json:"message"`
 	Names    []string `json:"-"`
+	Gate     string   `json:"-"`
 }
 
 // LintEpicGraph runs the structure, edge, milestone and tag rules, then the
@@ -261,8 +264,10 @@ func lintGateDangling(name string, gate model.EpicGate, ids, milestones map[stri
 	}{{"members", gate.Members}, {"deferrable", gate.Deferrable}} {
 		for _, id := range list.ids {
 			if !ids[id] {
-				out = append(out, epicNamedError(EpicRuleDanglingReference,
-					fmt.Sprintf("gate %q %s entry %q names no epic", name, list.field, id), []string{name}, id))
+				f := epicNamedError(EpicRuleDanglingReference,
+					fmt.Sprintf("gate %q %s entry %q names no epic", name, list.field, id), []string{name}, id)
+				f.Gate = name
+				out = append(out, f)
 			}
 		}
 	}

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/deligoez/tp/internal/engine"
@@ -21,6 +22,18 @@ var epicRuleRefusedHints = map[string]string{
 	engine.EpicRuleOpensAfterCycle:            "drop or redirect one opens_after entry of the cycle; a milestone without an entry opens after the previous one of its track",
 }
 
+// epicFindingRefusedHint is one added error's hint: a gate list's own for an
+// id a gate lists that names no epic, else its rule's, else the generic one.
+func epicFindingRefusedHint(f *engine.EpicLintFinding) string {
+	if f.Rule == engine.EpicRuleDanglingReference && f.Gate != "" {
+		return fmt.Sprintf("list only epics of milestone %q that the graph holds", f.Gate)
+	}
+	if hint, ok := epicRuleRefusedHints[f.Rule]; ok {
+		return hint
+	}
+	return epicWriteRefusedHint
+}
+
 // epicRefusedHint is the hint of a refused write: each added error's rule
 // hint, once per rule in the order the errors come, and the generic hint for
 // a rule that has none.
@@ -28,10 +41,7 @@ func epicRefusedHint(refused *engine.EpicWriteRefusedError) string {
 	var hints []string
 	seen := map[string]bool{}
 	for i := range refused.New {
-		hint, ok := epicRuleRefusedHints[refused.New[i].Rule]
-		if !ok {
-			hint = epicWriteRefusedHint
-		}
+		hint := epicFindingRefusedHint(&refused.New[i])
 		if !seen[hint] {
 			seen[hint] = true
 			hints = append(hints, hint)
