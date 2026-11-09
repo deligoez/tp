@@ -417,10 +417,12 @@ Every rule identifier tp can put in a `findings[].rule` field, and the command t
 | `unprovided-tag-check` | `tp epic lint` | error | An epic carries a tag whose `provided_by` is not in its transitive dependencies; the provider itself is exempt |
 | `opens-after-cycle` | `tp epic lint` | error | The milestones' `opens_after`, track defaults applied, has a cycle (a self-reference too) |
 | `opens-after-not-list` | `tp epic lint` | error | An `opens_after` value is null or not a list, which only a hand edit writes (`tp epic set` and `tp epic import` refuse it) |
+| `dependency-opens-later` | `tp epic lint` | error, or warning when no gate member reaches the epic | An effective gate member of a milestone that an epic's milestone opens after, transitively, reaches that epic through `depends_on`, so the gate can never go green first (error); only an epic outside such a gate's members reaches it, and it can finish once that milestone opens (warning). One finding per gate or epic and target, with the path; an edge `later-milestone-dependency` reports is left to that rule |
 | `no-dependencies` | `tp epic lint` | warning | An epic outside the first milestone of its track has no dependencies and is neither marked `root: true` nor a condition |
 | `root-with-dependencies` | `tp epic lint` | warning | An epic marked `root: true` has dependencies |
 | `thin-why` | `tp epic lint` | warning | A `why`, case-folded and split into words, is non-empty and occurs as a run of whole words in the target epic's id or title |
 | `partial-parallel` | `tp epic lint` | warning, or info when the milestone's `opens_after` entry is written | A milestone does not open after an earlier milestone of its track, even transitively, yet some of its epics depend directly on that milestone's epics; one finding per pair, naming them |
+| `gate-held-by-condition` | `tp epic lint` | info | An effective gate member reaches an undone condition through epics without a done record; one finding per member and condition, with the path |
 
 `tp import` runs the same task-file checks as `tp validate`, so it emits that half of the table too.
 
