@@ -25,11 +25,6 @@ fix needs a design choice leaves this file for a decision note.
   resolve the project layer from the task file's directory — changes documented resolution precedence,
   so it is a decision.
 
-- **`tp commit` and single-id `tp claim` still swallow some git and stdout errors** (seen by the
-  v1.5.0 audit, pre-dating it): `gitHasStagedChanges` reads a git error as "changes staged"
-  (`commit.go`), a failed follow-up closure commit only warns, `runCommit`'s final `output.JSON` and
-  `claimSingle`'s do not exit 3 when stdout cannot be written, and a `git add` failure still offers the
-  committer-identity hint. Repro: a git shim refusing `diff --cached`, or `1</dev/null`.
 - **`tp brief` and `tp plan` on a task file with no task still say "All tasks complete"**
   (`brief.go`, `plan.go`), where `tp next` since v1.6.0 says "no tasks yet" and names the phase
   `tp resume` reports. Repro: `tp init spec.md` then `tp brief` / `tp plan`.
