@@ -88,3 +88,15 @@ func TestLintEpicGraph_DependencyOpensLaterSkipsAnEdgeIntoAnAlwaysOpenMilestone(
 	assert.Empty(t, findingsOf(t, LintEpicGraph(g, nil), EpicRuleDependencyOpensLater))
 }
 
+// TestLintEpicGraph_DependencyOpensLaterIsOneFindingPerGateAndEpic: a1 and
+// a2, both members of A's gate, reach b over three paths; that is one error,
+// naming both members and b.
+func TestLintEpicGraph_DependencyOpensLaterIsOneFindingPerGateAndEpic(t *testing.T) {
+	g := opensLaterGraph(dependsOn("a1", "A", "b", "c"), dependsOn("a2", "A", "c"), dependsOn("c", "A", "b"), dependsOn("b", "B"))
+	g.Gates = map[string]model.EpicGate{"A": {Members: []string{"a1", "a2"}}}
+	found := findingsOf(t, LintEpicGraph(g, nil), EpicRuleDependencyOpensLater)
+	require.Len(t, found, 1, "%v", found)
+	assert.Equal(t, []string{"a1", "a2", "b"}, found[0].Epics)
+	assert.Contains(t, found[0].Message, "a1 -> b")
+}
+
