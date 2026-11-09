@@ -659,10 +659,26 @@ func hasSHA(list []string) bool {
 }
 
 type batchFailure struct {
-	ID         string `json:"id"`
-	Error      string `json:"error"`
-	Acceptance string `json:"acceptance,omitempty"`
-	Hint       string `json:"hint,omitempty"`
+	ID             string   `json:"id"`
+	Error          string   `json:"error"`
+	Acceptance     string   `json:"acceptance,omitempty"`
+	BlockedByEpics []string `json:"blocked_by_epics,omitempty"`
+	Hint           string   `json:"hint,omitempty"`
+}
+
+// allRefusedBatchExit is the exit code of a batch whose every row failed: 1
+// when every row was refused by the file's epic block, as tp done by id
+// refuses it (spec/1.5.0.md §6), else 4, an empty batch included.
+func allRefusedBatchExit(failures []batchFailure) int {
+	if len(failures) == 0 {
+		return ExitState
+	}
+	for i := range failures {
+		if failures[i].BlockedByEpics == nil {
+			return ExitState
+		}
+	}
+	return ExitValidation
 }
 
 // batchRefusalContext is the batch-wide state checkBatchRow reads: the tasks
@@ -676,7 +692,8 @@ type batchRefusalContext struct {
 }
 
 // checkBatchRow runs every refusal a row can meet once the gate has settled —
-// a blocking dependency, covered_by, closure verification, the commit shas and
+// an open task of a blocked file (the row then carries blocked_by_epics), a
+// blocking dependency, covered_by, closure verification, the commit shas and
 // the hc rule, in that order — without touching the task. It returns the shas
 // to record, or the failure that refuses the row. Validating first is what
 // lets a refused row leave its task exactly as it was read: the implicit claim
@@ -718,7 +735,7 @@ func checkBatchRow(tf *model.TaskFile, task *model.Task, entry *batchEntry, rc b
 // its first dependency that is not done, or nil when none blocks it.
 func batchRowBlocker(tf *model.TaskFile, task *model.Task, rc batchRefusalContext) *batchFailure {
 	if msg := doneBlockedMessage(tf, task.ID, rc.blocked); msg != "" {
-		return &batchFailure{ID: task.ID, Error: msg, Hint: epicBlockHint}
+		return &batchFailure{ID: task.ID, Error: msg, BlockedByEpics: rc.blocked, Hint: epicBlockHint}
 	}
 	for _, dep := range task.DependsOn {
 		if rc.doneSet[dep] {
@@ -960,7 +977,7 @@ func runDoneBatch() error {
 		}
 
 		if len(failures) == len(entries) {
-			os.Exit(ExitState)
+			os.Exit(allRefusedBatchExit(failures))
 		} else if len(failures) > 0 {
 			os.Exit(ExitValidation)
 		}
