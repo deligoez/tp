@@ -1431,7 +1431,8 @@ line saying gate questions do not apply), the earlier rounds'
 `wontfix`/`duplicate` decisions on them with their round and evidence, the role's focus questions
 and any round input (regression's fixed findings, each asked unit whose own block changed shown as the
 round before read it and as it reads now, and the blocks of the epics a changed unit's title or
-acceptance names, the work it hands on), the output contract and the file to write, then
+acceptance newly names, the work the change hands on; a name the unit's text already held is not
+shown), the output contract and the file to write, then
 the context, and a last line repeating the row keys and the file. A role file's optional `context`
 key scopes that context: `neighbours` (the default) shows every epic one edge away in either
 direction, `dependencies` only the epics an asked unit depends on; `dod-satisfiability` and
