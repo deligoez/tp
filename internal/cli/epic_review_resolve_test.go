@@ -3,6 +3,7 @@ package cli_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -64,4 +65,44 @@ func TestEpicReviewResolve_AnOutOfRangeIndexChangesNothing(t *testing.T) {
 	matches, err := filepath.Glob(filepath.Join(filepath.Dir(files[0]), "*"))
 	require.NoError(t, err)
 	assert.Len(t, matches, 2, "only round-1.ndjson and its snapshot exist")
+}
+
+// TestEpicReviewResolve_SeveralIndicesAtOnce: --resolve 0,2 dispositions both
+// rows and leaves row 1 open; --resolve 0,9 names an index out of range and
+// changes no row at all. Resolving the valid indices before refusing the bad
+// one fails the second half.
+func TestEpicReviewResolve_SeveralIndicesAtOnce(t *testing.T) {
+	t.Parallel()
+	threeRows := `{"severity":"low","finding":"one","location":"epic:b","evidence":"b"}` + "\n" +
+		`{"severity":"low","finding":"two","location":"epic:b","evidence":"b"}` + "\n" +
+		`{"severity":"low","finding":"three","location":"epic:b","evidence":"b"}` + "\n"
+	slice := []string{"--epic", "b"}
+	resolve := func(dir string, args ...string) (string, int) {
+		_, stderr, code := runTP(t, dir, append(append([]string{"epic", "review"}, slice...), args...)...)
+		return stderr, code
+	}
+
+	dir := epicGraphDir(t, epicChain)
+	runEpicReview(t, dir, slice...)
+	recordEpicRound(t, dir, threeRows, slice...)
+	stderr, code := resolve(dir, "--resolve", "0,2", "wontfix", "decided")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	data, err := os.ReadFile(epicRoundFiles(t, dir)[0])
+	require.NoError(t, err)
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	require.Len(t, lines, 3)
+	assert.Contains(t, lines[0], `"wontfix"`)
+	assert.NotContains(t, lines[1], `"resolved"`, "row 1 was not listed")
+	assert.Contains(t, lines[2], `"wontfix"`)
+
+	bad := epicGraphDir(t, epicChain)
+	runEpicReview(t, bad, slice...)
+	recordEpicRound(t, bad, threeRows, slice...)
+	before, err := os.ReadFile(epicRoundFiles(t, bad)[0])
+	require.NoError(t, err)
+	stderr, code = resolve(bad, "--resolve", "0,9", "wontfix", "decided")
+	assert.Equal(t, 2, code, "stderr: %s", stderr)
+	after, err := os.ReadFile(epicRoundFiles(t, bad)[0])
+	require.NoError(t, err)
+	assert.Equal(t, string(before), string(after), "one bad index changes no row")
 }
