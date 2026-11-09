@@ -174,6 +174,9 @@ func TestEscalateAcceptsTheDocumentedDecisions(t *testing.T) {
 		"audit-converge-on",
 		"accept-finding",
 		"discard-emission",
+		"epic-done",
+		"gate-met",
+		"epic-binding",
 		"other",
 	}
 	assert.Equal(t, documented, engine.EscalationDecisions(),
