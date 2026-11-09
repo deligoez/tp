@@ -32,21 +32,24 @@ type epicExportResult struct {
 // epicExportEpic is one epic's title, place, derived state and bound files, and
 // what it waits on and what waits on it (spec/1.6.0.md F9). Downstream is
 // absent on a done epic, which nothing waits on; Actionable is a condition's
-// key alone, false once the condition is done. HeldBy lists the undone
-// conditions among its direct dependencies, BlockedBy every undone direct
-// dependency, both in depends_on order.
+// key alone, false once the condition is done, and NotActionable names why an
+// undone condition is not actionable (engine.ConditionsNotActionable), absent
+// otherwise. HeldBy lists the undone conditions among its direct
+// dependencies, BlockedBy every undone direct dependency, both in depends_on
+// order.
 type epicExportEpic struct {
-	ID         string                 `json:"id"`
-	Title      string                 `json:"title"`
-	Milestone  string                 `json:"milestone"`
-	Condition  bool                   `json:"condition"`
-	Status     string                 `json:"status"`
-	DoneAt     *time.Time             `json:"done_at"`
-	Files      []engine.EpicFileState `json:"files"`
-	Downstream *epicExportDownstream  `json:"downstream,omitempty"`
-	Actionable *bool                  `json:"actionable,omitempty"`
-	HeldBy     []string               `json:"held_by"`
-	BlockedBy  []string               `json:"blocked_by"`
+	ID            string                 `json:"id"`
+	Title         string                 `json:"title"`
+	Milestone     string                 `json:"milestone"`
+	Condition     bool                   `json:"condition"`
+	Status        string                 `json:"status"`
+	DoneAt        *time.Time             `json:"done_at"`
+	Files         []engine.EpicFileState `json:"files"`
+	Downstream    *epicExportDownstream  `json:"downstream,omitempty"`
+	Actionable    *bool                  `json:"actionable,omitempty"`
+	NotActionable []string               `json:"not_actionable,omitempty"`
+	HeldBy        []string               `json:"held_by"`
+	BlockedBy     []string               `json:"blocked_by"`
 }
 
 // epicExportDownstream is F1's downstream without dependents_by_milestone.
@@ -132,7 +135,7 @@ func epicExportEpics(g *model.EpicGraph, states map[string]engine.EpicState, bou
 		ids = append(ids, g.Epics[i].ID)
 	}
 	downs := engine.EpicDownstreams(g, states, gates, ids)
-	actionable := engine.ConditionsActionable(g, states, gates, bound)
+	notActionable := engine.ConditionsNotActionable(g, states, gates, bound)
 	conditions := map[string]bool{}
 	for i := range g.Epics {
 		conditions[g.Epics[i].ID] = g.Epics[i].Condition
@@ -149,8 +152,9 @@ func epicExportEpics(g *model.EpicGraph, states map[string]engine.EpicState, bou
 			item.Downstream = &epicExportDownstream{LongestChain: d.LongestChain, Dependents: d.Dependents, DependentsOpen: d.DependentsOpen}
 		}
 		if e.Condition {
-			yes := actionable[e.ID]
-			item.Actionable = &yes
+			reasons, undone := notActionable[e.ID]
+			yes := undone && len(reasons) == 0
+			item.Actionable, item.NotActionable = &yes, reasons
 		}
 		item.BlockedBy, item.HeldBy = epicUndoneDeps(e, states, conditions)
 		epics = append(epics, item)

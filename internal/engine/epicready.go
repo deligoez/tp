@@ -21,8 +21,8 @@ type EpicReadiness struct {
 	// Conditions holds the conditions waiting on the operator: the
 	// actionable ones, or with all every condition that is not done.
 	Conditions []string
-	// Actionable holds ConditionsActionable's answer for every condition
-	// that is not done.
+	// Actionable holds, for every condition that is not done, whether it is
+	// actionable: NotActionable names no reason.
 	Actionable map[string]bool
 	// NotActionable holds ConditionsNotActionable's reasons for every
 	// condition that is not done, empty for an actionable one.

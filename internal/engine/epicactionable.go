@@ -49,16 +49,6 @@ func ConditionsNotActionable(g *model.EpicGraph, states map[string]EpicState, ga
 	return out
 }
 
-// ConditionsActionable returns, for every condition of g that is not done,
-// whether it is actionable: ConditionsNotActionable names no reason.
-func ConditionsActionable(g *model.EpicGraph, states map[string]EpicState, gates map[string]MilestoneGate, bound map[string][]string) map[string]bool {
-	out := map[string]bool{}
-	for id, reasons := range ConditionsNotActionable(g, states, gates, bound) {
-		out[id] = len(reasons) == 0
-	}
-	return out
-}
-
 // openGateMembers returns the ids that are members of an open milestone's
 // gate.
 func openGateMembers(g *model.EpicGraph, gates map[string]MilestoneGate) map[string]bool {
