@@ -61,12 +61,13 @@ const (
 	// open after an earlier milestone of its track while some of its epics
 	// depend directly on that milestone's epics.
 	EpicRulePartialParallel = "partial-parallel"
-	// EpicRuleDependencyOpensLater is the error on a gate member of a
-	// milestone that an epic's milestone opens after, when the member reaches
-	// that epic through depends_on: the gate can never go green before the
-	// epic's milestone opens. It is the warning when only an epic outside the
-	// gate's members reaches it, which can still finish once that milestone
-	// opens.
+	// EpicRuleDependencyOpensLater is the error on a cycle of the milestone
+	// wait graph: a milestone's opening waits on the gates of the milestones
+	// it opens after, and a gate on the opening of each milestone an undone
+	// epic of which a member reaches through epics without a done record, so
+	// no gate on the cycle can go green. It is the warning when only an epic
+	// outside the gate's members reaches an epic of a milestone opening after
+	// it, which can still finish once that milestone opens.
 	EpicRuleDependencyOpensLater = "dependency-opens-later"
 	// EpicRuleGateHeldByCondition is the info on a gate member that waits,
 	// through epics without a done record, on a condition without one.
@@ -79,8 +80,10 @@ const (
 // involves: part of its identity across a write (NewEpicErrors), not of the
 // payload, where the message carries them. Gate is the milestone whose gate
 // list (members or deferrable) holds the id a dangling-reference finding
-// names, or whose gate a dependency-opens-later error can never turn green,
+// names, or the gate of a dependency-opens-later error's first wait edge,
 // "" for any other finding: it tells a gate list apart from an edge.
+// TargetAt is the index in Epics of the epic that first edge reaches, an
+// index so a finding stays small; 0 and unread on any other finding.
 // Origin tells the other dangling-reference shapes that are not edges apart:
 // DanglingGateKey or DanglingTagCheck, "" otherwise.
 type EpicLintFinding struct {
@@ -91,6 +94,7 @@ type EpicLintFinding struct {
 	Names    []string       `json:"-"`
 	Gate     string         `json:"-"`
 	Origin   DanglingOrigin `json:"-"`
+	TargetAt int32          `json:"-"`
 }
 
 // DanglingOrigin tells apart the dangling-reference shapes that name no

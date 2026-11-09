@@ -68,15 +68,9 @@ func epicRefusedHint(refused *engine.EpicWriteRefusedError) string {
 	return strings.Join(hints, "; ")
 }
 
-// dependencyOpensLaterHint answers a gate member reaching an epic of a
-// milestone that opens after the gate's: the finding's Gate is the gate's
-// milestone, and its other name the later one.
+// dependencyOpensLaterHint answers a milestone wait cycle by one of its
+// edges: the finding's Gate is that edge's gate, and its Target() the epic
+// a member of the gate reaches.
 func dependencyOpensLaterHint(f *engine.EpicLintFinding) string {
-	later := f.Gate
-	for _, name := range f.Names {
-		if name != f.Gate {
-			later = name
-		}
-	}
-	return fmt.Sprintf("move the epic of %q the message names to a milestone that opens no later than %q, or drop the dependency, or make the member deferrable", later, f.Gate)
+	return fmt.Sprintf("move %s to a milestone that opens no later than %q, or drop the dependency, or make the member deferrable", f.Target(), f.Gate)
 }
