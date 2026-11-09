@@ -79,3 +79,25 @@ func TestEpicReview_ALowFixTailIsVerifiedByRegressionAlone(t *testing.T) {
 		})
 	}
 }
+
+// TestEpicReview_RegressionSeesTheEpicAFixHandsWorkTo: b's acceptance is
+// reworded to hand a run to d, an epic outside b's slice and context. The
+// regression prompt shows d's block, so it can check d takes the work; the
+// other roles' prompts do not.
+func TestEpicReview_RegressionSeesTheEpicAFixHandsWorkTo(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChain)
+	r1 := runEpicReview(t, dir, "--epic", "b")
+	writeEpicRound(t, dir, &r1, "")
+	editEpicGraph(t, dir, `{"id": "b", "title": "B", "milestone": "A",`,
+		`{"id": "b", "title": "B", "milestone": "A", "acceptance": "b hands its export run to d",`)
+	r2 := runEpicReview(t, dir, "--epic", "b")
+	for _, p := range r2.Prompts {
+		if p.Role == "regression" {
+			assert.Contains(t, p.Prompt, "epic: d\n", "regression sees the handoff target")
+		} else {
+			assert.NotContains(t, p.Prompt, "epic: d\n", "%s sees no handoff block", p.Role)
+		}
+	}
+	assert.Contains(t, promptRoles(&r2), "regression")
+}
