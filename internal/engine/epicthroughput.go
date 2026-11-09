@@ -18,14 +18,15 @@ type EpicWeek struct {
 // (spec/1.5.0.md §7, spec/1.5.0-corrections.md C4). Only an epic whose status
 // is done now counts, so one that reopened counts in no week until it is done
 // again, then in that later week; a done epic whose done_at cannot be read
-// counts in none. states is DeriveEpicStates' result. Weeks come in order and
-// only weeks with a done epic are listed.
+// counts in none, and a condition is not delivered work and counts in none
+// (spec/1.6.0.md B2). states is DeriveEpicStates' result. Weeks come in order
+// and only weeks with a done epic are listed.
 func EpicThroughput(g *model.EpicGraph, states map[string]EpicState, milestone string) []EpicWeek {
 	counts := map[string]int{}
 	for i := range g.Epics {
 		e := &g.Epics[i]
 		st := states[e.ID]
-		if e.Milestone != milestone || st.Status != EpicStatusDone || st.DoneAt == nil {
+		if e.Milestone != milestone || e.Condition || st.Status != EpicStatusDone || st.DoneAt == nil {
 			continue
 		}
 		year, week := st.DoneAt.UTC().ISOWeek()
