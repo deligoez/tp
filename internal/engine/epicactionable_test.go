@@ -8,8 +8,9 @@ import (
 	"github.com/deligoez/tp/internal/model"
 )
 
-// conditionActionableOf runs ConditionsActionable over g with the epics of
-// done done and bound as the bound-file index, and returns c's answer.
+// conditionActionableOf runs ConditionsNotActionable over g with the epics
+// of done done and bound as the bound-file index, and reports whether c is
+// listed with no reason.
 func conditionActionableOf(g *model.EpicGraph, bound map[string][]string, done ...string) bool {
 	states := map[string]EpicState{}
 	for i := range g.Epics {
@@ -19,7 +20,8 @@ func conditionActionableOf(g *model.EpicGraph, bound map[string][]string, done .
 		states[id] = EpicState{Status: EpicStatusDone}
 	}
 	gates := MilestoneGates(g, states)
-	return ConditionsActionable(g, states, gates, bound)["c"]
+	reasons, undone := ConditionsNotActionable(g, states, gates, bound)["c"]
+	return undone && len(reasons) == 0
 }
 
 // closedDependentGraph is track [A, B]: the condition c and the undone work
