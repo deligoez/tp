@@ -85,9 +85,15 @@ type epicDownstreamReport struct {
 			LongestChain          int            `json:"longest_chain"`
 			Dependents            int            `json:"dependents"`
 			DependentsOpen        int            `json:"dependents_open"`
-			DependentsByMilestone map[string]int `json:"dependents_by_milestone"`
+			DependentsByMilestone []milestoneDependents `json:"dependents_by_milestone"`
 		} `json:"downstream"`
 	} `json:"ready"`
+}
+
+// milestoneDependents is one dependents_by_milestone entry.
+type milestoneDependents struct {
+	Milestone  string `json:"milestone"`
+	Dependents int    `json:"dependents"`
 }
 
 // readyDownstream runs tp epic ready in dir and returns its ready list.
@@ -113,7 +119,7 @@ func (r *epicDownstreamReport) ids() []string {
 }
 
 // item returns the downstream of the ready item id, failing when id is not ready.
-func (r *epicDownstreamReport) item(t *testing.T, id string) (chain, dependents, open int, byMilestone map[string]int) {
+func (r *epicDownstreamReport) item(t *testing.T, id string) (chain, dependents, open int, byMilestone []milestoneDependents) {
 	t.Helper()
 	for _, e := range r.Ready {
 		if e.ID == id {
@@ -167,7 +173,7 @@ func TestEpicReady_DependentsOpenCountsOnlyOpenMilestones(t *testing.T) {
 	_, dependents, open, byMilestone := readyDownstream(t, downstreamDir(t, downstreamEpics(10), nil)).item(t, "r1")
 	assert.Equal(t, 5, dependents)
 	assert.Equal(t, 2, open)
-	assert.Equal(t, map[string]int{"M1": 2, "M2": 3}, byMilestone)
+	assert.Equal(t, []milestoneDependents{{"M1", 2}, {"M2", 3}}, byMilestone)
 }
 
 // TestEpicReady_ADeferrableDependentCountsAndALeafConditionDoesNot is C1.4: r4
@@ -182,7 +188,7 @@ func TestEpicReady_ADeferrableDependentCountsAndALeafConditionDoesNot(t *testing
 	chain, dependents, _, byMilestone := readyDownstream(t, downstreamDir(t, epics, gates)).item(t, "r4")
 	assert.Equal(t, 1, chain)
 	assert.Equal(t, 1, dependents, "f counts, k does not")
-	assert.Equal(t, map[string]int{"M2": 1}, byMilestone)
+	assert.Equal(t, []milestoneDependents{{"M2", 1}}, byMilestone)
 }
 
 // TestEpicStatus_ReportsTheWholeGraphCriticalPath is C1.5: the top-level
