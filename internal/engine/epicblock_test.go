@@ -57,3 +57,24 @@ func TestEpicBlockFor_NamesDepsNotDoneUntilADoneRecord(t *testing.T) {
 	assert.Empty(t, block.BlockedBy)
 }
 
+// TestEpicBlockFor_AbsentEpicOrNoGraphIsUnblockedAndSaysSo is spec/1.5.0.md
+// §6: a file bound to an epic the graph does not hold, or with no graph file,
+// behaves as unbound and says so.
+func TestEpicBlockFor_AbsentEpicOrNoGraphIsUnblockedAndSaysSo(t *testing.T) {
+	root := boundFilesRepo(t)
+	path := filepath.Join(root, "z.tasks.json")
+
+	block, err := EpicBlockFor(&model.TaskFile{Epic: "z"}, path)
+	require.NoError(t, err)
+	require.NotNil(t, block)
+	assert.Empty(t, block.BlockedBy)
+	assert.Contains(t, block.Notice, EpicGraphFile)
+
+	writeBlockGraph(t, root, blockChain(false))
+	block, err = EpicBlockFor(&model.TaskFile{Epic: "z"}, path)
+	require.NoError(t, err)
+	require.NotNil(t, block)
+	assert.Empty(t, block.BlockedBy)
+	assert.Contains(t, block.Notice, `"z"`)
+}
+
