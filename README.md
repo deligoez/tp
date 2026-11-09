@@ -3,6 +3,7 @@
 Spec-to-task lifecycle manager for AI coding agents.
 
 Break specs into atomic, dependency-ordered tasks. Agents execute them with **2 tool calls** instead of hundreds.
+Above the specs, a project's whole plan can live in tp as a reviewed graph of epics, one spec per epic.
 
 > **tp's primary user is the AI coding agent, not the human.** Every command, flag, and output is designed for *AX* (Agent Experience): minimal round-trips, minimal output tokens, deterministic behavior (no prompts), and actionable error hints. The human authors specs and approves releases; the **agent plans and the tool executes**.
 
