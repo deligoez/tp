@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.5.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-09T14:59:22.216389Z",
+  "updated_at": "2026-11-09T15:06:35.571687Z",
   "workflow": {
     "review_max_rounds": 4,
     "audit_max_rounds": 5
@@ -631,7 +631,7 @@
       "id": "epic-critical-path",
       "title": "Derive a milestone's critical path",
       "description": "Longest chain by count of not-done epics joined by dependency edges ending at a not-done gate member; a done epic cuts a chain; chains cross milestones and tracks; the heaviest chain by summed estimate (C2) only when every epic on every such chain has an estimate. §10 row 12 with C5.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "status"
@@ -646,11 +646,18 @@
         "## 7. Epic commands",
         "## 10. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-09T15:01:25.949029Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-09T15:06:35.56259Z",
+      "closed_reason": "- §10 row 12 with C5: TestCriticalPath_DoneEpicCutsTheChain asserts [a] with b done and A's gate on a, [d c b a] once b is not done\n- C2: TestCriticalPath_EstimateChainChosenApartFromCount asserts the count chain [x2 x m] and the estimate chain [y m] at 35 minutes\n- TestCriticalPath_EstimateChainOmittedWhenAnEpicHasNone asserts a nil estimate chain when x2, off the heaviest chain, has no estimate; TestEpicEstimates_OwnElseEveryBoundTaskElseNone covers the estimate source; gate green",
+      "gate_passed_at": "2026-11-09T15:06:35.56259Z",
+      "commit_sha": "06984216",
+      "commit_shas": [
+        "06984216"
+      ],
+      "commit_files": [
+        "internal/engine/epiccriticalpath_test.go"
+      ]
     },
     {
       "id": "epic-throughput-rollup",
