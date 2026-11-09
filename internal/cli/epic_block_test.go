@@ -352,3 +352,20 @@ func TestResume_AbsentEpicBehavesAsUnboundAndSaysSo(t *testing.T) {
 		assert.Contains(t, stderr, "behaves as unbound")
 	}
 }
+
+// TestDone_RefusesABlockedTaskBeforeJudgingItsEvidence is spec/1.5.0.md §6:
+// single-id tp done judges the epic block before the closure evidence, as the
+// multi-id and batch paths do, so an agent learns the task cannot close
+// before it rewrites its evidence. A tp done that verified the evidence first
+// answers with a closure error and fails.
+func TestDone_RefusesABlockedTaskBeforeJudgingItsEvidence(t *testing.T) {
+	t.Parallel()
+	dir := blockDir(t, "b", "open")
+	before := taskFileBytes(t, dir)
+
+	_, stderr, code := runTP(t, dir, "done", "t1", "x")
+	require.Equal(t, 1, code, "stderr: %s", stderr)
+	assert.Equal(t, []string{"c"}, blockedByEpics(t, stderr))
+	assert.NotContains(t, stderr, "closure verification failed")
+	assert.Equal(t, before, taskFileBytes(t, dir), "a refused tp done writes nothing")
+}
