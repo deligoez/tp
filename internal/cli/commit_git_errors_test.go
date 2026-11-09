@@ -81,3 +81,16 @@ func TestCommit_AFailedFollowUpClosureCommitExitsThree(t *testing.T) {
 	assert.Contains(t, hint, `git commit -m "chore(tp): record t1 closure"`)
 	assert.Contains(t, hint, "do not re-run tp commit")
 }
+
+// TestCommit_AResultItCannotWriteExitsThree: tp commit whose stdout cannot be
+// written exits 3, as tp claim's batch does. A tp commit that only returned
+// the write error exits with cobra's code having printed nothing, and fails.
+func TestCommit_AResultItCannotWriteExitsThree(t *testing.T) {
+	t.Parallel()
+	dir := setupCommitProject(t, "t1")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "f.go"), []byte("package f\n"), 0o600))
+
+	stderr, code := runTPUnwritableStdout(t, dir, "commit", "t1", "t1 acceptance met completely")
+	assert.Equal(t, 3, code, "stderr: %s", stderr)
+	assert.Equal(t, 3, envelopeCode(t, stderr), "stderr: %s", stderr)
+}
