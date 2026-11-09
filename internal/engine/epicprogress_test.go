@@ -130,63 +130,6 @@ func progressMoves(p *progressGraph) []string {
 	return moves
 }
 
-// waitCycle reports whether p's undone epics and closed milestones wait on
-// each other in a cycle: an undone epic waits on its undone dependencies and,
-// without a bound file, on its milestone while it is closed; a closed
-// milestone waits on each milestone it opens after that is closed and on that
-// milestone's undone gate members. No decision of the operator breaks such a
-// cycle: the plan's shape does.
-func waitCycle(p *progressGraph) bool {
-	gates := MilestoneGates(p.g, p.states)
-	after := EffectiveOpensAfter(p.g)
-	adj := map[string][]string{}
-	undone := func(id string) bool { return p.states[id].Status != EpicStatusDone }
-	for i := range p.g.Epics {
-		e := &p.g.Epics[i]
-		if !undone(e.ID) {
-			continue
-		}
-		node := "e:" + e.ID
-		for _, d := range e.DependsOn {
-			if undone(d.ID) {
-				adj[node] = append(adj[node], "e:"+d.ID)
-			}
-		}
-		if len(p.bound[e.ID]) == 0 && !gates[e.Milestone].Open {
-			adj[node] = append(adj[node], "m:"+e.Milestone)
-		}
-	}
-	for m, verdict := range gates {
-		if verdict.Open {
-			continue
-		}
-		for _, x := range after[m] {
-			if !gates[x].Open {
-				adj["m:"+m] = append(adj["m:"+m], "m:"+x)
-			}
-			members, _ := GateMembers(p.g, x)
-			for _, id := range members {
-				if undone(id) {
-					adj["m:"+m] = append(adj["m:"+m], "e:"+id)
-				}
-			}
-		}
-	}
-	nodes := make([]string, 0, len(adj))
-	for n, next := range adj {
-		nodes = append(nodes, n)
-		nodes = append(nodes, next...)
-	}
-	slices.Sort(nodes)
-	nodes = slices.Compact(nodes)
-	for _, comp := range stronglyConnected(nodes, adj) {
-		if len(comp) > 1 || selfLoop(comp[0], adj) {
-			return true
-		}
-	}
-	return false
-}
-
 // hasLintError reports whether g carries an error-severity lint finding: a
 // graph the lint refuses is no plan to make progress on.
 func hasLintError(g *model.EpicGraph) bool {
@@ -199,18 +142,16 @@ func hasLintError(g *model.EpicGraph) bool {
 }
 
 // TestEpicProgress_SomethingCanAlwaysMove is the progress invariant over
-// generated plans: whenever the whole graph's critical path holds an undone
-// epic, some ready or claimed epic, actionable condition or workable bound
-// epic exists, so tp epic ready never leaves an unfinished plan with nothing
-// to do. A plan whose own shape waits in a cycle (waitCycle) is left out: an
-// epic depending across tracks on one whose milestone opens only after the
-// dependent's own milestone, which the lint does not report since
-// later-milestone-dependency reads track order. No rule on conditions can
-// unblock it.
+// generated plans: every lint-clean plan can always make progress. Whenever
+// the whole graph's critical path holds an undone epic, some ready or claimed
+// epic, actionable condition or workable bound epic exists, so tp epic ready
+// never leaves an unfinished plan with nothing to do. A plan the lint reports
+// an error on is left out: dependency-opens-later is the error on a plan
+// whose own shape waits on itself.
 func TestEpicProgress_SomethingCanAlwaysMove(t *testing.T) {
 	t.Parallel()
 	const seeds = 1000
-	checked, cycles := 0, 0
+	checked := 0
 	for seed := range uint64(seeds) {
 		p := generateProgressGraph(seed)
 		if hasLintError(p.g) {
@@ -220,10 +161,6 @@ func TestEpicProgress_SomethingCanAlwaysMove(t *testing.T) {
 		if len(GraphCriticalPath(p.g, p.states)) == 0 || len(progressMoves(&p)) > 0 {
 			continue
 		}
-		if waitCycle(&p) {
-			cycles++
-			continue
-		}
 		data, _ := json.Marshal(p.g)
 		t.Errorf("seed %d: the critical path %v is undone but nothing can move\nstates: %v\nbound: %v\ngraph: %s",
 			seed, GraphCriticalPath(p.g, p.states), p.states, p.bound, data)
@@ -231,5 +168,5 @@ func TestEpicProgress_SomethingCanAlwaysMove(t *testing.T) {
 	if checked < seeds/2 {
 		t.Fatalf("only %d of %d generated graphs passed the lint", checked, seeds)
 	}
-	t.Logf("%d plans checked, %d left out for a wait cycle in their shape", checked, cycles)
+	t.Logf("%d lint-clean plans checked", checked)
 }
