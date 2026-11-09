@@ -80,6 +80,22 @@ func TestEpicReview_BothSliceFlagsOrNeitherIsAUsageError(t *testing.T) {
 	assert.True(t, os.IsNotExist(err), "a usage error creates no state directory")
 }
 
+// TestEpicReview_AnUnknownMilestoneHintNamesTheMilestones: --milestone Z,
+// which no track lists, exits 4 with the hint every other command gives for
+// an unknown milestone, pointing at the milestones the message lists.
+func TestEpicReview_AnUnknownMilestoneHintNamesTheMilestones(t *testing.T) {
+	t.Parallel()
+	_, stderr, code := runTP(t, epicGraphDir(t, epicChain), "epic", "review", "--milestone", "Z")
+	require.Equal(t, 4, code, "stderr: %s", stderr)
+	var e struct {
+		Error string `json:"error"`
+		Hint  string `json:"hint"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stderr), &e), "stderr: %s", stderr)
+	assert.Contains(t, e.Error, `milestone "Z" is in no track; the tracks hold`)
+	assert.Contains(t, e.Hint, "name one of the milestones the message lists")
+}
+
 // TestEpicReview_BuiltInRolesRunUntilTheDirectoryReplacesThem is §9 row 22:
 // three prompts named by the built-in roles with no .tp/epic-reviewers/, and
 // one prompt by the one role file once the directory holds it — never merged.
