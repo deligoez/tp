@@ -119,6 +119,24 @@ func TestLintEpicGraph_PartialParallelThroughDefaultsWarns(t *testing.T) {
 	assert.Equal(t, []string{"r"}, warnings[0].Epics)
 }
 
+// TestLintEpicGraph_PartialParallelMessageAgreesInNumber: one dependent
+// "depends", several "depend".
+func TestLintEpicGraph_PartialParallelMessageAgreesInNumber(t *testing.T) {
+	g := opensAfterGraph([][]string{{"P", "Q", "R"}}, map[string][]string{"Q": {}})
+	g.Epics = []model.Epic{
+		{ID: "p", Title: "p", Milestone: "P", Root: true},
+		{ID: "q", Title: "q", Milestone: "Q", Root: true},
+		{ID: "r", Title: "r", Milestone: "R", DependsOn: []model.EpicDep{{ID: "p", Why: "needs p"}}},
+	}
+	one := findingsOf(t, LintEpicGraph(g, nil), EpicRulePartialParallel)
+	require.Len(t, one, 1)
+	assert.Contains(t, one[0].Message, "yet r depends on its epics")
+
+	several := findingsOf(t, LintEpicGraph(partialParallelGraph(true), nil), EpicRulePartialParallel)
+	require.Len(t, several, 1)
+	assert.Contains(t, several[0].Message, "yet r1, r2 depend on its epics")
+}
+
 // TestLintEpicGraph_LaterMilestoneDependencyKeepsTrackOrder is C2.7: an
 // opens_after entry does not reorder a track, so an R→Q edge is no error
 // while a Q epic depending on an R epic is still later-milestone-dependency.
