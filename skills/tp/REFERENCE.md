@@ -1423,13 +1423,15 @@ one resolved `fixed` changed the graph, so the slice is stale until a later roun
 With no `.tp/epic-reviewers/` the three built-in graph roles run (`dod-satisfiability`,
 `why-auditor`, `phase-economist`); a populated directory replaces them. From round 2 the built-in
 `regression` role is appended whenever an asked unit changed or the round before resolved a finding
-`fixed`.
+`fixed`; when that round left nothing open and fixed no blocking finding, regression is the round's
+only role.
 
 Each prompt reads, in order: the role's instructions, the asked units (and, when none is a gate, a
 line saying gate questions do not apply), the earlier rounds'
 `wontfix`/`duplicate` decisions on them with their round and evidence, the role's focus questions
-and any round input (regression's fixed findings, and each asked unit whose own block changed shown
-as the round before read it and as it reads now), the output contract and the file to write, then
+and any round input (regression's fixed findings, each asked unit whose own block changed shown as the
+round before read it and as it reads now, and the blocks of the epics a changed unit's title or
+acceptance names, the work it hands on), the output contract and the file to write, then
 the context, and a last line repeating the row keys and the file. A role file's optional `context`
 key scopes that context: `neighbours` (the default) shows every epic one edge away in either
 direction, `dependencies` only the epics an asked unit depends on; `dod-satisfiability` and
