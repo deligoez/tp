@@ -145,7 +145,7 @@ type epicPlan struct {
 // error.
 func epicPlanStatus(g *model.EpicGraph, states map[string]engine.EpicState, bound map[string][]string, milestones []string, compact bool) (epicPlanResult, error) {
 	readiness := engine.EpicReady(g, states, bound, false)
-	p := epicPlan{g: g, states: states, bound: bound, gates: engine.MilestoneGates(g, states), after: engine.EffectiveOpensAfter(g), ready: epicReadyReport(g, &readiness), conditions: map[string]bool{}, compact: compact}
+	p := epicPlan{g: g, states: states, bound: bound, gates: engine.MilestoneGates(g, states), after: engine.EffectiveOpensAfter(g), ready: epicReadyReport(g, &readiness, compact), conditions: map[string]bool{}, compact: compact}
 	for i := range g.Epics {
 		p.conditions[g.Epics[i].ID] = g.Epics[i].Condition
 	}

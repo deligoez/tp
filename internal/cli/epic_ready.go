@@ -32,11 +32,13 @@ type epicReadyItem struct {
 }
 
 // epicDownstreamCounts is engine.EpicDownstream's payload.
+// DependentsByMilestone is nil under --compact and then left out: the
+// ranking reads the counts, not their split.
 type epicDownstreamCounts struct {
-	LongestChain          int                       `json:"longest_chain"`
-	Dependents            int                       `json:"dependents"`
-	DependentsOpen        int                       `json:"dependents_open"`
-	DependentsByMilestone []epicMilestoneDependents `json:"dependents_by_milestone"`
+	LongestChain          int                        `json:"longest_chain"`
+	Dependents            int                        `json:"dependents"`
+	DependentsOpen        int                        `json:"dependents_open"`
+	DependentsByMilestone *[]epicMilestoneDependents `json:"dependents_by_milestone,omitempty"`
 }
 
 // epicMilestoneDependents is engine.MilestoneDependents' payload.
@@ -45,13 +47,19 @@ type epicMilestoneDependents struct {
 	Dependents int    `json:"dependents"`
 }
 
-// epicDownstreamPayload converts d to its payload.
-func epicDownstreamPayload(d engine.EpicDownstream) epicDownstreamCounts {
+// epicDownstreamPayload converts d to its payload, without the split per
+// milestone when compact.
+func epicDownstreamPayload(d engine.EpicDownstream, compact bool) epicDownstreamCounts {
+	out := epicDownstreamCounts{LongestChain: d.LongestChain, Dependents: d.Dependents, DependentsOpen: d.DependentsOpen}
+	if compact {
+		return out
+	}
 	by := make([]epicMilestoneDependents, 0, len(d.DependentsByMilestone))
 	for _, m := range d.DependentsByMilestone {
 		by = append(by, epicMilestoneDependents(m))
 	}
-	return epicDownstreamCounts{LongestChain: d.LongestChain, Dependents: d.Dependents, DependentsOpen: d.DependentsOpen, DependentsByMilestone: by}
+	out.DependentsByMilestone = &by
+	return out
 }
 
 // epicClaimedEpic is an epic that would be ready but for its claim, with the
@@ -101,15 +109,16 @@ func runEpicReady(cmd *cobra.Command, _ []string) error {
 	all, _ := cmd.Flags().GetBool("all")
 	g, states, bound := loadEpicStates()
 	readiness := engine.EpicReady(g, states, bound, all)
-	if err := output.JSON(epicReadyReport(g, &readiness)); err != nil {
+	if err := output.JSON(epicReadyReport(g, &readiness, flagCompact)); err != nil {
 		output.Error(ExitFile, err.Error(), internalEncodeHint)
 		os.Exit(ExitFile)
 	}
 	return nil
 }
 
-// epicReadyReport turns r's ids into the payload's entries.
-func epicReadyReport(g *model.EpicGraph, r *engine.EpicReadiness) epicReadyResult {
+// epicReadyReport turns r's ids into the payload's entries; compact leaves
+// each ready item's dependents_by_milestone out.
+func epicReadyReport(g *model.EpicGraph, r *engine.EpicReadiness, compact bool) epicReadyResult {
 	byID := make(map[string]*model.Epic, len(g.Epics))
 	for i := range g.Epics {
 		byID[g.Epics[i].ID] = &g.Epics[i]
@@ -124,7 +133,7 @@ func epicReadyReport(g *model.EpicGraph, r *engine.EpicReadiness) epicReadyResul
 		Operator: epicOperatorWait{Conditions: make([]epicOperatorCondition, 0, len(r.Conditions)), Gates: make([]epicThresholdWait, 0, len(r.Gates))},
 	}
 	for _, id := range r.Ready {
-		result.Ready = append(result.Ready, epicReadyItem{epicReadyEpic: entry(id), Downstream: epicDownstreamPayload(r.Downstream[id])})
+		result.Ready = append(result.Ready, epicReadyItem{epicReadyEpic: entry(id), Downstream: epicDownstreamPayload(r.Downstream[id], compact)})
 	}
 	for _, id := range r.Claimed {
 		c := byID[id].Claimed
