@@ -27,12 +27,30 @@ type epicExportResult struct {
 	Slices     []engine.EpicSliceState `json:"slices"`
 }
 
-// epicExportEpic is one epic's derived state and its bound files.
+// epicExportEpic is one epic's place, derived state and bound files, and
+// what it waits on and what waits on it (spec/1.6.0.md F9). Downstream is
+// absent on a done epic, which nothing waits on; Actionable is a condition's
+// key alone, false once the condition is done. HeldBy lists the undone
+// conditions among its direct dependencies, BlockedBy every undone direct
+// dependency, both in depends_on order.
 type epicExportEpic struct {
-	ID     string                 `json:"id"`
-	Status string                 `json:"status"`
-	DoneAt *time.Time             `json:"done_at"`
-	Files  []engine.EpicFileState `json:"files"`
+	ID         string                 `json:"id"`
+	Milestone  string                 `json:"milestone"`
+	Condition  bool                   `json:"condition"`
+	Status     string                 `json:"status"`
+	DoneAt     *time.Time             `json:"done_at"`
+	Files      []engine.EpicFileState `json:"files"`
+	Downstream *epicExportDownstream  `json:"downstream,omitempty"`
+	Actionable *bool                  `json:"actionable,omitempty"`
+	HeldBy     []string               `json:"held_by"`
+	BlockedBy  []string               `json:"blocked_by"`
+}
+
+// epicExportDownstream is F1's downstream without dependents_by_milestone.
+type epicExportDownstream struct {
+	LongestChain   int `json:"longest_chain"`
+	Dependents     int `json:"dependents"`
+	DependentsOpen int `json:"dependents_open"`
 }
 
 func newEpicExportCmd() *cobra.Command {
@@ -98,14 +116,60 @@ func epicExport() (*epicExportResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	epics := epicExportEpics(g, states, bound, files)
+	return &epicExportResult{Version: epicExportVersion, Graph: g, Milestones: plan.Milestones, Epics: epics, Slices: slices}, nil
+}
+
+// epicExportEpics builds every epic's item from one openness verdict, one
+// downstream walk and one actionability answer shared by all of them.
+func epicExportEpics(g *model.EpicGraph, states map[string]engine.EpicState, bound map[string][]string, files map[string][]engine.EpicFileState) []epicExportEpic {
+	gates := engine.MilestoneGates(g, states)
+	ids := make([]string, 0, len(g.Epics))
+	for i := range g.Epics {
+		ids = append(ids, g.Epics[i].ID)
+	}
+	downs := engine.EpicDownstreams(g, states, gates, ids)
+	actionable := engine.ConditionsActionable(g, states, gates, bound)
+	conditions := map[string]bool{}
+	for i := range g.Epics {
+		conditions[g.Epics[i].ID] = g.Epics[i].Condition
+	}
 	epics := make([]epicExportEpic, 0, len(g.Epics))
 	for i := range g.Epics {
-		id := g.Epics[i].ID
-		epicFiles := files[id]
-		if epicFiles == nil {
-			epicFiles = []engine.EpicFileState{}
+		e := &g.Epics[i]
+		item := epicExportEpic{ID: e.ID, Milestone: e.Milestone, Condition: e.Condition,
+			Status: states[e.ID].Status, DoneAt: states[e.ID].DoneAt, Files: files[e.ID]}
+		if item.Files == nil {
+			item.Files = []engine.EpicFileState{}
 		}
-		epics = append(epics, epicExportEpic{ID: id, Status: states[id].Status, DoneAt: states[id].DoneAt, Files: epicFiles})
+		if d, ok := downs[e.ID]; ok {
+			item.Downstream = &epicExportDownstream{LongestChain: d.LongestChain, Dependents: d.Dependents, DependentsOpen: d.DependentsOpen}
+		}
+		if e.Condition {
+			yes := actionable[e.ID]
+			item.Actionable = &yes
+		}
+		item.BlockedBy, item.HeldBy = epicUndoneDeps(e, states, conditions)
+		epics = append(epics, item)
 	}
-	return &epicExportResult{Version: epicExportVersion, Graph: g, Milestones: plan.Milestones, Epics: epics, Slices: slices}, nil
+	return epics
+}
+
+// epicUndoneDeps returns e's undone direct dependencies, each once in
+// depends_on order, and the conditions among them. An id the graph does not
+// hold is not done.
+func epicUndoneDeps(e *model.Epic, states map[string]engine.EpicState, conditions map[string]bool) (blockedBy, heldBy []string) {
+	blockedBy, heldBy = []string{}, []string{}
+	seen := map[string]bool{}
+	for _, d := range e.DependsOn {
+		if seen[d.ID] || states[d.ID].Status == engine.EpicStatusDone {
+			continue
+		}
+		seen[d.ID] = true
+		blockedBy = append(blockedBy, d.ID)
+		if conditions[d.ID] {
+			heldBy = append(heldBy, d.ID)
+		}
+	}
+	return blockedBy, heldBy
 }
