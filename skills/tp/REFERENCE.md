@@ -108,7 +108,7 @@ Resolves the task file by the discovery order (a spec argument wins and uses its
 
 `--compact` drops `next_action.summary`, each `kept[].reason`, and each `blockers[].message`; keeps every `data` plus `bookkeeping`, `guidance` and `next_units` (all decision-critical — §8.4). Under an escalate blocker a `--compact` reader therefore reads `blockers[].code` and `data`.
 
-Blocker vocabulary (fixed order): `unexplained-changes` (**agent-clearable**, `{count}`), `no-ready-task` (escalate, `{blocked_by}`), `review-budget-exhausted` / `audit-budget-exhausted` (escalate, `{cap, blocking_fixed_at_cap}`; fires when the cap is reached and the loop is not done, never under cap 0), `spec-stale` (escalate, `{spec}`; its message names the round that clears it: `tp review <spec>`, then `tp review <spec> --record <file>`).
+Blocker vocabulary (fixed order): `unexplained-changes` (**agent-clearable**, `{count}`), `no-ready-task` (escalate, `{blocked_by}`), `epic-blocked` (escalate, `{epic, blocked_by_epics}`; v1.5.0: the bound file's epic has a dependency not done and no task is `wip`, so no implement unit is offered), `review-budget-exhausted` / `audit-budget-exhausted` (escalate, `{cap, blocking_fixed_at_cap}`; fires when the cap is reached and the loop is not done, never under cap 0), `spec-stale` (escalate, `{spec}`; its message names the round that clears it: `tp review <spec>`, then `tp review <spec> --record <file>`).
 
 ### `commit_strategy` — `builtin` / `auto` / `hc`
 
