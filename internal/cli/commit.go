@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -124,7 +125,7 @@ func runCommit(_ *cobra.Command, args []string) error {
 		unstageLockFilesOrExit()
 
 		// Check if there's anything to commit
-		if !gitHasStagedChanges() {
+		if !gitHasStagedChangesOrExit() {
 			output.Error(ExitState, "no changes to commit")
 			os.Exit(ExitState)
 			return nil
@@ -227,9 +228,25 @@ func gitStage(filesFlag string) error {
 	return nil
 }
 
-func gitHasStagedChanges() bool {
+// gitHasStagedChangesOrExit reports whether the index differs from HEAD. `git diff
+// --cached --quiet` exits 1 for "changes staged" and 0 for "none"; any other
+// exit is git's own failure, which must not read as either answer, so it exits
+// 3 with git's message on stderr. Reading the index involves no committer
+// identity, hence gitIndexHint rather than gitSubprocessHint.
+func gitHasStagedChangesOrExit() bool {
 	cmd := exec.Command("git", "diff", "--cached", "--quiet")
-	return cmd.Run() != nil // exit 1 = has changes
+	cmd.Stderr = os.Stderr
+	err := cmd.Run()
+	if err == nil {
+		return false
+	}
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) && exitErr.ExitCode() == 1 {
+		return true
+	}
+	output.Error(ExitFile, fmt.Sprintf("git diff --cached failed: %v", err), gitIndexHint)
+	os.Exit(ExitFile)
+	return false
 }
 
 func gitCommit(message string) (string, error) {

@@ -267,7 +267,7 @@ func runDoneSingle(taskFilePath, taskID, reason string) error {
 				return nil
 			}
 			unstageLockFilesOrExit()
-			if gitHasStagedChanges() {
+			if gitHasStagedChangesOrExit() {
 				// §5.1a: write the task file in its pre-close (wip) state and
 				// stage it with the implementation files, so C1 carries it.
 				if writeErr := model.WriteTaskFile(taskFilePath, tf); writeErr != nil {
