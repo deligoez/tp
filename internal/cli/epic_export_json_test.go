@@ -2,6 +2,8 @@ package cli_test
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -71,4 +73,22 @@ func TestEpicExport_JSONCarriesVersionBoundFileAndSliceKey(t *testing.T) {
 	assert.JSONEq(t, `{"kind": "epic", "value": "b"}`, string(p.Slices[0].Key))
 	assert.Equal(t, 1, p.Slices[0].Round)
 	assert.Equal(t, "open", p.Slices[0].State, "one clean round does not converge the slice")
+}
+
+// TestEpicExport_ASliceRecordedBeforeV150HasKeyNull is §7: a slice whose
+// state directory holds no key file, as one recorded before v1.5.0, is listed
+// with key null until its next emission.
+func TestEpicExport_ASliceRecordedBeforeV150HasKeyNull(t *testing.T) {
+	t.Parallel()
+	dir := exportWithBRecorded(t)
+	keys, err := filepath.Glob(filepath.Join(dir, ".tp", "epic-review", "*", "key.json"))
+	require.NoError(t, err)
+	require.Len(t, keys, 1)
+	require.NoError(t, os.Remove(keys[0]))
+
+	p := runEpicExportJSON(t, dir)
+
+	require.Len(t, p.Slices, 1)
+	assert.Equal(t, "null", string(p.Slices[0].Key))
+	assert.Equal(t, 1, p.Slices[0].Round)
 }
