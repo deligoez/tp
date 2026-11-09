@@ -34,3 +34,17 @@ func TestEpicStatus_OpenReportsOpenMilestonesOnly(t *testing.T) {
 	assert.Len(t, full.Milestones, 3)
 	assert.JSONEq(t, string(full.CriticalPath), string(open.CriticalPath))
 }
+
+// TestEpicStatus_OpenOnAClosedMilestoneSaysItIsClosed: --milestone B --open
+// asks for an open B; B exists but waits on A, so the call exits 4 saying
+// so rather than answering an empty list that reads as "no such milestone".
+func TestEpicStatus_OpenOnAClosedMilestoneSaysItIsClosed(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{"version": 1, "milestones": [["A", "B"]], "epics": [
+    {"id": "a", "title": "A", "milestone": "A", "root": true},
+    {"id": "b", "title": "B", "milestone": "B", "depends_on": [{"id": "a", "why": "b extends a's model"}]}
+  ]}`)
+	_, stderr, code := runTP(t, dir, "epic", "status", "--milestone", "B", "--open")
+	require.Equal(t, 4, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, `milestone \"B\" is closed: it waits on A`)
+}
