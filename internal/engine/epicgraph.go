@@ -29,6 +29,7 @@ var (
 	}
 	knownEpicKeys = map[string]bool{
 		"id": true, "title": true, "milestone": true, "tags": true, "depends_on": true, "acceptance": true, "root": true,
+		"condition": true, "estimate_minutes": true, "claimed": true, "done": true,
 	}
 	knownEpicGateKeys     = map[string]bool{"members": true, "deferrable": true}
 	knownEpicTagCheckKeys = map[string]bool{"provided_by": true}
