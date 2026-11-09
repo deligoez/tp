@@ -50,3 +50,11 @@ func TestConditionsActionable_ADependentInAClosedMilestoneWithoutABoundFileDoesN
 	assert.False(t, conditionActionableOf(closedDependentGraph(), nil))
 }
 
+// TestConditionsActionable_ADependentInAClosedMilestoneWithABoundFileCounts:
+// the same w with a bound file is worked through its task file, so c holds
+// started work.
+func TestConditionsActionable_ADependentInAClosedMilestoneWithABoundFileCounts(t *testing.T) {
+	bound := map[string][]string{"w": {"/repo/w.tasks.json"}}
+	assert.True(t, conditionActionableOf(closedDependentGraph(), bound))
+}
+
