@@ -270,3 +270,19 @@ func TestLintEpicGraph_ThinWhyMatchesWholeWordsOnly(t *testing.T) {
 		})
 	}
 }
+
+// TestLintEpicGraph_GateHintNamesTheKeyForSeveralMembers: two members both in
+// B still name one key; a hint that required every member to differ from the
+// one before would stay silent here.
+func TestLintEpicGraph_GateHintNamesTheKeyForSeveralMembers(t *testing.T) {
+	g := cleanEpicGraph()
+	g.Epics = append(g.Epics,
+		model.Epic{ID: "d", Title: "D", Milestone: "B"},
+		model.Epic{ID: "e", Title: "E", Milestone: "B"})
+	g.Gates["A"] = model.EpicGate{Members: []string{"d", "e"}}
+	outside := findingsOf(t, LintEpicGraph(g, nil), EpicRuleGateMemberOutsideMilestone)
+	require.Len(t, outside, 2)
+	for _, f := range outside {
+		assert.Contains(t, f.Message, `gates."B"`)
+	}
+}
