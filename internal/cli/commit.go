@@ -23,6 +23,11 @@ import (
 // committer identity, which is how this reached CI.
 const gitSubprocessHint = "git itself failed — its own message is on stderr above; a repository with no user.name/user.email configured is the usual cause"
 
+// gitIndexHint is gitSubprocessHint for a git call that only updates the
+// index (git add, git rm --cached): no committer identity is involved there,
+// so naming one sends the agent to the wrong fix.
+const gitIndexHint = "git could not update the index — its own message is on stderr above; another git process holding .git/index.lock is the usual cause"
+
 var commitFiles string
 
 func newCommitCmd() *cobra.Command {
@@ -274,7 +279,7 @@ func tpLockPathspecs() []string {
 // with git's message on stderr.
 func unstageLockFilesOrExit() {
 	if err := runGit(append([]string{"rm", "--cached", "-r", "--ignore-unmatch", "-q", "--"}, tpLockPathspecs()...)...); err != nil {
-		output.Error(ExitFile, fmt.Sprintf("git rm --cached of tp's lock files failed: %v", err), gitSubprocessHint)
+		output.Error(ExitFile, fmt.Sprintf("git rm --cached of tp's lock files failed: %v", err), gitIndexHint)
 		os.Exit(ExitFile)
 	}
 }
