@@ -89,16 +89,18 @@ func parseInventory(t *testing.T, doc string, registered map[string]map[string]b
 	return documented
 }
 
-// inventoryCommand names the command a row's form starts with. The name is
-// followed by a backtick when the row's form ends there, as in `tp status`.
+// inventoryCommand names the command a row's form starts with: the longest run
+// of the form's leading words that names a registered command, so a parent's
+// row is attributed to the subcommand it names, as in `tp epic export --md` or
+// `tp epic milestone add`, and a flag under the wrong subcommand is drift.
 func inventoryCommand(fields []string, registered map[string]map[string]bool) string {
 	command := strings.Trim(fields[1], "`")
-	if len(fields) > 2 {
-		// A parent's row is attributed to the subcommand it names, as in
-		// `tp epic export --md`, so a flag under the wrong subcommand is drift.
-		if sub := command + " " + strings.Trim(fields[2], "`"); registered[sub] != nil {
-			return sub
+	for i := 2; i < len(fields); i++ {
+		sub := command + " " + strings.Trim(fields[i], "`")
+		if registered[sub] == nil {
+			break
 		}
+		command = sub
 	}
 	return command
 }
@@ -160,8 +162,8 @@ func newRootCmdForTest() *cobra.Command {
 // registeredFlags walks the command tree and returns the long flags tp declares
 // on each command, plus the root's persistent (global) flags. A command's set
 // excludes the globals, since LocalFlags() already drops inherited ones. A
-// subcommand is its own entry, keyed by parent and name (`epic export`), the
-// way the inventory attributes a `tp epic export --md` row.
+// subcommand is its own entry, keyed by its path below the root (`epic export`,
+// `epic milestone add`), the way the inventory attributes a row.
 func registeredFlags() (perCommand map[string]map[string]bool, globals map[string]bool) {
 	root := newRootCmdForTest()
 
@@ -171,17 +173,18 @@ func registeredFlags() (perCommand map[string]map[string]bool, globals map[strin
 	})
 
 	perCommand = map[string]map[string]bool{}
-	for _, cmd := range root.Commands() {
-		if cobraGeneratedCommands[cmd.Name()] {
-			continue
-		}
-		perCommand[cmd.Name()] = localFlags(cmd)
+	var walk func(prefix string, cmd *cobra.Command)
+	walk = func(prefix string, cmd *cobra.Command) {
 		for _, sub := range cmd.Commands() {
-			if !cobraGeneratedCommands[sub.Name()] {
-				perCommand[cmd.Name()+" "+sub.Name()] = localFlags(sub)
+			if cobraGeneratedCommands[sub.Name()] {
+				continue
 			}
+			path := strings.TrimSpace(prefix + " " + sub.Name())
+			perCommand[path] = localFlags(sub)
+			walk(path, sub)
 		}
 	}
+	walk("", root)
 	return perCommand, globals
 }
 
