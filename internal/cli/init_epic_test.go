@@ -56,3 +56,9 @@ func TestInitEpic_ConditionIsRefusedAndCreatesNoFile(t *testing.T) {
 	assertInitBindingRefused(t, "c", "condition")
 }
 
+// TestInitEpic_DoneEpicIsRefusedAndCreatesNoFile is §2: a done epic takes no
+// new task file.
+func TestInitEpic_DoneEpicIsRefusedAndCreatesNoFile(t *testing.T) {
+	t.Parallel()
+	assertInitBindingRefused(t, "d", "done")
+}
