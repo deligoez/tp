@@ -65,3 +65,26 @@ func TestEpicReady_ALaterMilestoneWaitsForTheGateUnlessAll(t *testing.T) {
 	assert.Equal(t, []string{"y"}, runEpicReady(t, dir).readyIDs(), "once A's gate is green y is ready")
 }
 
+// TestEpicReady_AConditionIsListedApartFromTheWorkEpics is §10 row 10: on the
+// chain plus a root condition, the conditions whose dependencies are done, c
+// after the done d and the root go, wait on the operator and are not in the
+// ready list. A condition listed among the work epics turns it red.
+func TestEpicReady_AConditionIsListedApartFromTheWorkEpics(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{"version": 1, "milestones": [["A"]], "epics": [
+    {"id": "a", "title": "A", "milestone": "A", "depends_on": [{"id": "b", "why": "w"}]},
+    {"id": "b", "title": "B", "milestone": "A", "depends_on": [{"id": "c", "why": "w"}]},
+    {"id": "c", "title": "C", "milestone": "A", "condition": true, "acceptance": "x", "depends_on": [{"id": "d", "why": "w"}]},
+    {"id": "d", "title": "D", "milestone": "A", "root": true, "done": {"at": "2026-01-02T03:04:05Z", "evidence": "e"}},
+    {"id": "go", "title": "Go", "milestone": "A", "root": true, "condition": true, "acceptance": "board says yes"}
+  ]}`)
+
+	r := runEpicReady(t, dir)
+	assert.Empty(t, r.readyIDs(), "no work epic has its dependencies done, and no condition is listed as work")
+	conditions := []string{}
+	for _, c := range r.Operator.Conditions {
+		conditions = append(conditions, c.ID)
+	}
+	assert.Equal(t, []string{"c", "go"}, conditions, "the conditions with done dependencies wait on the operator")
+}
+
