@@ -17,7 +17,7 @@ func TestEpicStatus_CompactDropsEachMilestoneCriticalPath(t *testing.T) {
 	stdout, stderr, code := runTP(t, dir, "--compact", "epic", "status")
 	require.Equal(t, 0, code, "stderr: %s", stderr)
 	var out struct {
-		CriticalPath *json.RawMessage            `json:"critical_path"`
+		CriticalPath *json.RawMessage             `json:"critical_path"`
 		Milestones   []map[string]json.RawMessage `json:"milestones"`
 	}
 	require.NoError(t, json.Unmarshal([]byte(stdout), &out), "stdout: %s", stdout)
