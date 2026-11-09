@@ -77,14 +77,15 @@ func lintEpicTagChecks(g *model.EpicGraph) []EpicLintFinding {
 }
 
 // lintEpicNoDependencies warns on each epic outside the first milestone of
-// its track that has no dependencies. An unknown milestone is
-// unknown-milestone's finding.
+// its track that has no dependencies, unless it is marked root or is a
+// condition (spec/1.6.0.md F4). An unknown milestone is unknown-milestone's
+// finding.
 func lintEpicNoDependencies(g *model.EpicGraph) []EpicLintFinding {
 	pos := milestonePositions(g)
 	var out []EpicLintFinding
 	for i := range g.Epics {
 		e := &g.Epics[i]
-		if p, ok := pos[e.Milestone]; ok && p.index > 0 && len(e.DependsOn) == 0 && !e.Root {
+		if p, ok := pos[e.Milestone]; ok && p.index > 0 && len(e.DependsOn) == 0 && !e.Root && !e.Condition {
 			out = append(out, epicWarning(EpicRuleNoDependencies,
 				fmt.Sprintf("epic %q in %q has no dependencies", e.ID, e.Milestone), e.ID))
 		}
