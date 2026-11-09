@@ -1500,6 +1500,7 @@ done whatever lies behind it. While one of a bound file's epic's dependencies is
 | `tp ready` | `{ready: [], blocked_by_epics}` in every mode, `--count` and `--ids` too; `--first` exits 4 |
 | `tp claim` | exit 1, the error object carrying `blocked_by_epics`, when an id it was given is an `open` task (`--all-ready`: when the file holds one); ids none of which is `open` answer as on an unbound file — not open, not found, exit 4 |
 | `tp done` | refuses a task that is not `wip`: by id at exit 1, by several ids and by `--batch` as a failed row carrying `blocked_by_epics`, exit 1 when the block refuses every row; a `wip` task closes, and the next-task counts leave blocked tasks out. The block is judged on the file read under the lock, after the quality gate ran |
+| `tp commit` | its implicit claim would start an `open` task, so it exits 1 with `blocked_by_epics`, staging and writing nothing; a `wip` task commits |
 | `tp resume` | with no `wip` task, the `epic-blocked` blocker and no implement unit |
 
 A file with no `open` task has nothing to start, so `tp next`, `tp ready` and `tp claim` answer it as
