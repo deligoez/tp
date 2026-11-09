@@ -500,15 +500,22 @@ table a prose document embeds. Build it one topic at a time, each topic through 
 1. **Interview the topic** — its milestones, the epics in them, and for each edge *why* that
    dependency exists. `id`s stay the project's own; `title`, `acceptance` and `why` keep their
    language.
-2. **`tp epic set milestones='<json>'`** — the tracks, each an ordered list of milestone names (and
-   `tp epic set gates=<json>` / `tag_checks=<json>` when the topic has them). This creates an absent
-   file.
-3. **`tp epic add --bulk <ndjson>`** — the topic's epics, one per line, every row or none. A write
-   whose after-state holds a lint error the before-state did not exits 1 and writes nothing, so a
-   refused batch names exactly what to fix.
+2. **`tp epic set milestones='<json>'`** — only when the topic needs a milestone the file does not
+   have: the value is every track, each an ordered list of milestone names, and it **replaces the
+   whole list**, so start from the current one (`tp epic export --md` or the file) and insert the new
+   name. `tp epic set gates=<json>` and `tag_checks=<json>` replace whole the same way. The first
+   `set` creates an absent file; a topic that fits existing milestones skips this step.
+3. **`tp epic add --bulk <ndjson>`** — the topic's epics, one per line, every row or none. The lint
+   check runs on the file as the whole batch leaves it, so rows may depend on each other in any
+   order; a single `tp epic add` needs every target it names to exist already. A write whose
+   after-state holds a lint error the before-state did not exits 1 and writes nothing, naming each
+   error by its epic ids.
 4. **`tp epic lint`** — read the warnings (`no-dependencies`, `thin-why`) the writers do not refuse;
    exit 0 means no error-severity finding.
-5. **`tp epic review --milestone <m>` (or `--epic <id>`) over the touched slice** — spawn one
+5. **`tp epic review --milestone <m>` (or `--epic <id>`) over the touched slice** — a milestone
+   slice asks every epic in it, not only the topic's, so a topic spread over several milestones costs
+   a round per milestone; for a topic of a few epics in large milestones, `--epic` per new epic is
+   cheaper and still carries each one's neighbours as context. Spawn one
    sub-agent per role prompt, merge their rows into one file, `--record` it, fix the graph or
    `--resolve` each finding, and repeat until `tp epic review <slice> --status --check` exits 0.
    Unchanged units carry from round to round, so a round after a small edit asks only what moved,
