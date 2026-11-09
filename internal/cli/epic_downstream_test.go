@@ -206,3 +206,16 @@ func TestEpicStatus_ReportsTheWholeGraphCriticalPath(t *testing.T) {
 	require.NotNil(t, r.CriticalPath, "status carries a top-level critical_path")
 	assert.Equal(t, []string{"r1", "a1", "a2", "a3", "a4", "a5"}, r.CriticalPath.ByCount)
 }
+
+// TestEpicReady_DependentsByMilestoneFollowsTrackOrder is pilot fix S1-1: on
+// track [Z, A] the per-milestone counts list Z before A, not alphabetically.
+func TestEpicReady_DependentsByMilestoneFollowsTrackOrder(t *testing.T) {
+	t.Parallel()
+	r := dsEpic("r", "Z")
+	r.Root = true
+	epics := []downstreamEpic{r, dsEpic("a", "A", "r"), dsEpic("z", "Z", "r")}
+	body, err := json.Marshal(map[string]any{"version": 1, "milestones": [][]string{{"Z", "A"}}, "epics": epics})
+	require.NoError(t, err)
+	_, _, _, byMilestone := readyDownstream(t, epicGraphDir(t, string(body))).item(t, "r")
+	assert.Equal(t, []milestoneDependents{{"Z", 1}, {"A", 1}}, byMilestone)
+}
