@@ -51,7 +51,7 @@ func runClaim(_ *cobra.Command, args []string) error {
 		// Determine which IDs to claim
 		ids := args
 		if claimAllReady {
-			ids = allReadyIDs(tf)
+			ids = allReadyIDs(tf, taskFilePath)
 		}
 
 		// Single claim: preserve original output format
@@ -65,8 +65,10 @@ func runClaim(_ *cobra.Command, args []string) error {
 }
 
 // allReadyIDs is what tp claim --all-ready claims: the open tasks of tf whose
-// dependencies are done, in file order. None ready exits 4.
-func allReadyIDs(tf *model.TaskFile) []string {
+// dependencies are done, in file order. A file holding no task, or none ready,
+// exits 4.
+func allReadyIDs(tf *model.TaskFile, taskFilePath string) []string {
+	refuseNoTasks(tf, taskFilePath)
 	done := make(map[string]bool)
 	for i := range tf.Tasks {
 		if tf.Tasks[i].Status == model.StatusDone {

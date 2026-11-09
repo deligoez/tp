@@ -80,6 +80,7 @@ func runNext(_ *cobra.Command, _ []string) error {
 			}
 		}
 	}
+	exitIfNoTasks(tf, taskFilePath)
 	exitIfNextBlocked(tf, taskFilePath)
 
 	// Find ready tasks with priority ordering
