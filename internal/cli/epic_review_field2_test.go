@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -100,4 +101,30 @@ func TestEpicReview_RegressionSeesTheEpicAFixHandsWorkTo(t *testing.T) {
 		}
 	}
 	assert.Contains(t, promptRoles(&r2), "regression")
+}
+
+// TestEpicReviewStatus_NamesWhatIsStillOpen: under the default
+// review_converge_on (blocking) an open medium finding does not hold a round
+// open, so the slice can be done with it still open; --status says so with
+// the policy it converged under and the last round's open findings by
+// severity.
+func TestEpicReviewStatus_NamesWhatIsStillOpen(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicChain)
+	writeEpicProjectConfig(t, dir, `{"review_clean_rounds": 1}`)
+	slice := []string{"--epic", "b"}
+	runEpicReview(t, dir, slice...)
+	recordEpicRound(t, dir, `{"severity":"medium","finding":"b's why is loose","location":"epic:b","evidence":"b needs c"}`+"\n", slice...)
+
+	stdout, stderr, code := runTP(t, dir, append([]string{"epic", "review"}, append(slice, "--status")...)...)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var st struct {
+		Done       bool           `json:"done"`
+		ConvergeOn string         `json:"converge_on"`
+		Open       map[string]int `json:"open"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &st), "stdout: %s", stdout)
+	assert.True(t, st.Done, "a medium finding does not block under blocking")
+	assert.Equal(t, "blocking", st.ConvergeOn)
+	assert.Equal(t, map[string]int{"critical": 0, "high": 0, "medium": 1, "low": 0}, st.Open)
 }
