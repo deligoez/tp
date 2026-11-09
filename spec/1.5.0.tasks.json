@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.5.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-09T12:53:56.590103Z",
+  "updated_at": "2026-11-09T12:59:11.876934Z",
   "workflow": {
     "review_max_rounds": 4,
     "audit_max_rounds": 5
@@ -72,7 +72,7 @@
       "id": "epic-review-block-fields",
       "title": "Show the v1.5.0 fields in review blocks",
       "description": "The epic review block shows condition: true; the gate block shows the gate's threshold, so editing either changes the unit hash and re-asks it.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "review"
@@ -85,11 +85,18 @@
       "source_sections": [
         "## 8. Schema"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-09T12:54:54.028858Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-09T12:59:11.861317Z",
+      "closed_reason": "- TestEpicReviewSlice_BlocksShowConditionAndThreshold: an epic block shows condition: true, a gate block shows threshold, neither when unset\n- TestEpicReviewSlice_EditingAThresholdChangesTheGateHash: the gate unit hash changes on a threshold edit, so it is re-asked; gate green",
+      "gate_passed_at": "2026-11-09T12:59:11.861317Z",
+      "commit_sha": "fcf6da0e31e09b65ee74650754bcb1bcfa7f3189",
+      "commit_shas": [
+        "fcf6da0e31e09b65ee74650754bcb1bcfa7f3189"
+      ],
+      "commit_files": [
+        "internal/engine/epicslice_test.go"
+      ]
     },
     {
       "id": "epic-bound-files-walk",
