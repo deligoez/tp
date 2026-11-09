@@ -1502,6 +1502,11 @@ done whatever lies behind it. While one of a bound file's epic's dependencies is
 | `tp done` | refuses a task that is not `wip`: by id at exit 1, by several ids and by `--batch` as a failed row carrying `blocked_by_epics`, exit 1 when the block refuses every row; a `wip` task closes, and the next-task counts leave blocked tasks out. The block is judged on the file read under the lock, after the quality gate ran |
 | `tp resume` | with no `wip` task, the `epic-blocked` blocker and no implement unit |
 
+A file with no `open` task has nothing to start, so `tp next`, `tp ready` and `tp claim` answer it as
+they answer an unbound file (`tp claim` exits 4) and carry no `blocked_by_epics`. A `*.tasks.json`
+under the repository that cannot be parsed may be bound to any epic, so every command that derives
+an epic's status or looks up its bound files exits 3 naming it rather than guess.
+
 A file bound to an epic the graph does not hold, or with no graph file, behaves as unbound, and
 `tp next`, `tp ready`, `tp claim` and `tp resume` say so on stderr.
 
