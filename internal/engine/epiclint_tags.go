@@ -2,7 +2,9 @@ package engine
 
 import (
 	"fmt"
+	"slices"
 	"strings"
+	"unicode"
 
 	"github.com/deligoez/tp/internal/model"
 )
@@ -89,8 +91,8 @@ func lintEpicNoDependencies(g *model.EpicGraph) []EpicLintFinding {
 	return out
 }
 
-// lintEpicThinWhy warns on each edge whose why, trimmed and case-folded, is
-// non-empty and contained in the target epic's case-folded id or title. An
+// lintEpicThinWhy warns on each edge whose why, case-folded and split into
+// words, appears as a run of whole words in the target epic's id or title. An
 // empty why is missing-why's finding and a dangling target is
 // dangling-reference's.
 func lintEpicThinWhy(g *model.EpicGraph) []EpicLintFinding {
@@ -99,15 +101,32 @@ func lintEpicThinWhy(g *model.EpicGraph) []EpicLintFinding {
 	for _, e := range g.Epics {
 		for _, d := range e.DependsOn {
 			target, ok := byID[d.ID]
-			why := strings.ToLower(strings.TrimSpace(d.Why))
-			if !ok || why == "" {
+			why := epicWords(d.Why)
+			if !ok || len(why) == 0 {
 				continue
 			}
-			if strings.Contains(strings.ToLower(target.ID), why) || strings.Contains(strings.ToLower(target.Title), why) {
+			if containsWordRun(epicWords(target.ID), why) || containsWordRun(epicWords(target.Title), why) {
 				out = append(out, epicWarning(EpicRuleThinWhy,
 					fmt.Sprintf("edge %q -> %q has a why that restates the target's id or title", e.ID, d.ID), e.ID, d.ID))
 			}
 		}
 	}
 	return out
+}
+
+// epicWords splits s, case-folded, into its runs of letters and digits.
+func epicWords(s string) []string {
+	return strings.FieldsFunc(strings.ToLower(s), func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+	})
+}
+
+// containsWordRun reports whether needle occurs in hay as consecutive words.
+func containsWordRun(hay, needle []string) bool {
+	for i := 0; i+len(needle) <= len(hay); i++ {
+		if slices.Equal(hay[i:i+len(needle)], needle) {
+			return true
+		}
+	}
+	return false
 }
