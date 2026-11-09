@@ -1,5 +1,7 @@
 package model
 
+import "time"
+
 // EpicGraph models the committed .tp/epics.json file: the epic graph a project
 // plans against. The file is primary — the one tp lints, reviews and writes —
 // and any prose table is an export of it.
@@ -18,11 +20,22 @@ type EpicGraph struct {
 	Epics     []Epic                  `json:"epics"`
 }
 
-// EpicGate is one milestone's gate: the member epics it requires and the ones
-// it may defer.
+// EpicGate is one milestone's gate: the member epics it requires, the ones it
+// may defer, the exit threshold in the operator's words, and the record of
+// that threshold being met.
 type EpicGate struct {
 	Members    []string `json:"members"`
 	Deferrable []string `json:"deferrable,omitempty"`
+	Threshold  string   `json:"threshold,omitempty"`
+	Met        *GateMet `json:"met,omitempty"`
+}
+
+// GateMet records a gate's threshold as met: when, on what evidence, and the
+// threshold it was judged against, copied so a later edit shows as a change.
+type GateMet struct {
+	At        time.Time `json:"at"`
+	Evidence  string    `json:"evidence"`
+	Threshold string    `json:"threshold"`
 }
 
 // EpicTagCheck names the epic that provides a tag's check.
