@@ -18,8 +18,12 @@ type EpicReadiness struct {
 	Downstream map[string]EpicDownstream
 	// Claimed holds the epics that would be ready but for their claim.
 	Claimed []string
-	// Conditions holds the conditions waiting on the operator.
+	// Conditions holds the conditions waiting on the operator: the
+	// actionable ones, or with all every condition that is not done.
 	Conditions []string
+	// Actionable holds ConditionsActionable's answer for every condition
+	// that is not done.
+	Actionable map[string]bool
 	// Gates holds the milestones whose gate members are done and whose
 	// threshold has no met record.
 	Gates []string
@@ -27,22 +31,28 @@ type EpicReadiness struct {
 
 // EpicReady sorts g's epics into what can start and what waits on the
 // operator. states is DeriveEpicStates' result and bound EpicBoundFiles'.
-// An epic is a candidate when its milestone is in a track and open (any
+// A work epic is a candidate when its milestone is in a track and open (any
 // tracked milestone with all), it is not done, and every direct dependency is
-// done. A candidate work epic with no bound file is ready, or claimed when it
-// carries a claim; a candidate condition waits on the operator. An epic whose
+// done; it is ready when it has no bound file, or claimed when it carries a
+// claim. A condition waits on the operator when it is actionable
+// (spec/1.6.0.md F3), or with all whenever it is not done. An epic whose
 // milestone is in no track is never listed.
 func EpicReady(g *model.EpicGraph, states map[string]EpicState, bound map[string][]string, all bool) EpicReadiness {
 	gates := MilestoneGates(g, states)
 	r := EpicReadiness{Ready: []string{}, Claimed: []string{}, Conditions: []string{}, Gates: []string{}}
+	r.Actionable = ConditionsActionable(g, states, gates)
 	for i := range g.Epics {
 		e := &g.Epics[i]
+		if e.Condition {
+			if listCondition(e, gates, r.Actionable, all) {
+				r.Conditions = append(r.Conditions, e.ID)
+			}
+			continue
+		}
 		if !epicCandidate(e, gates, states, all) {
 			continue
 		}
 		switch {
-		case e.Condition:
-			r.Conditions = append(r.Conditions, e.ID)
 		case len(bound[e.ID]) > 0:
 			// A bound epic is worked through its task file.
 		case e.Claimed != nil:
@@ -69,6 +79,17 @@ func EpicReady(g *model.EpicGraph, states map[string]EpicState, bound map[string
 	return r
 }
 
+// listCondition reports whether the condition e is listed: its milestone is
+// tracked, it is not done (actionable names it), and it is actionable or all
+// is set.
+func listCondition(e *model.Epic, gates map[string]MilestoneGate, actionable map[string]bool, all bool) bool {
+	if _, tracked := gates[e.Milestone]; !tracked {
+		return false
+	}
+	yes, undone := actionable[e.ID]
+	return undone && (all || yes)
+}
+
 // epicCandidate reports whether e's milestone is tracked and open (or all),
 // e is not done, and every direct dependency of e is done.
 func epicCandidate(e *model.Epic, gates map[string]MilestoneGate, states map[string]EpicState, all bool) bool {
@@ -76,12 +97,7 @@ func epicCandidate(e *model.Epic, gates map[string]MilestoneGate, states map[str
 	if !tracked || (!all && !verdict.Open) || states[e.ID].Status == EpicStatusDone {
 		return false
 	}
-	for _, dep := range e.DependsOn {
-		if states[dep.ID].Status != EpicStatusDone {
-			return false
-		}
-	}
-	return true
+	return epicDepsDone(e, states)
 }
 
 // gateAwaitsThreshold reports whether m's gate has a threshold with no met

@@ -62,11 +62,19 @@ type epicClaimedEpic struct {
 	At time.Time `json:"at"`
 }
 
-// epicOperatorWait is what waits on the operator: conditions to decide and
-// gates whose threshold is to be measured.
+// epicOperatorWait is what waits on the operator: conditions to decide (the
+// actionable ones, every one not done with --all) and gates whose threshold
+// is to be measured.
 type epicOperatorWait struct {
-	Conditions []epicReadyEpic     `json:"conditions"`
-	Gates      []epicThresholdWait `json:"gates"`
+	Conditions []epicOperatorCondition `json:"conditions"`
+	Gates      []epicThresholdWait     `json:"gates"`
+}
+
+// epicOperatorCondition is one condition with whether deciding it can
+// unblock work now (spec/1.6.0.md F3).
+type epicOperatorCondition struct {
+	epicReadyEpic
+	Actionable bool `json:"actionable"`
 }
 
 // epicThresholdWait is one gate whose members are done and whose threshold
@@ -83,7 +91,7 @@ func newEpicReadyCmd() *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE:  runEpicReady,
 	}
-	cmd.Flags().Bool("all", false, "list epics of milestones that are not open yet too")
+	cmd.Flags().Bool("all", false, "list epics of milestones that are not open yet too, and every condition not done, actionable or not")
 	return cmd
 }
 
@@ -113,7 +121,7 @@ func epicReadyReport(g *model.EpicGraph, r *engine.EpicReadiness) epicReadyResul
 	result := epicReadyResult{
 		Ready:    make([]epicReadyItem, 0, len(r.Ready)),
 		Claimed:  make([]epicClaimedEpic, 0, len(r.Claimed)),
-		Operator: epicOperatorWait{Conditions: make([]epicReadyEpic, 0, len(r.Conditions)), Gates: make([]epicThresholdWait, 0, len(r.Gates))},
+		Operator: epicOperatorWait{Conditions: make([]epicOperatorCondition, 0, len(r.Conditions)), Gates: make([]epicThresholdWait, 0, len(r.Gates))},
 	}
 	for _, id := range r.Ready {
 		result.Ready = append(result.Ready, epicReadyItem{epicReadyEpic: entry(id), Downstream: epicDownstreamPayload(r.Downstream[id])})
@@ -123,7 +131,7 @@ func epicReadyReport(g *model.EpicGraph, r *engine.EpicReadiness) epicReadyResul
 		result.Claimed = append(result.Claimed, epicClaimedEpic{epicReadyEpic: entry(id), By: c.By, At: c.At})
 	}
 	for _, id := range r.Conditions {
-		result.Operator.Conditions = append(result.Operator.Conditions, entry(id))
+		result.Operator.Conditions = append(result.Operator.Conditions, epicOperatorCondition{epicReadyEpic: entry(id), Actionable: r.Actionable[id]})
 	}
 	for _, m := range r.Gates {
 		result.Operator.Gates = append(result.Operator.Gates, epicThresholdWait{Milestone: m, Threshold: g.Gates[m].Threshold})

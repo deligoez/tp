@@ -168,7 +168,7 @@ func (p *epicPlan) milestone(m string) (epicMilestoneReport, error) {
 		Gate:       gate,
 		Ready:      inMilestone(p.ready.Ready, m, func(e epicReadyItem) string { return e.Milestone }),
 		Operator: epicOperatorWait{
-			Conditions: inMilestone(p.ready.Operator.Conditions, m, func(e epicReadyEpic) string { return e.Milestone }),
+			Conditions: inMilestone(p.ready.Operator.Conditions, m, func(e epicOperatorCondition) string { return e.Milestone }),
 			Gates:      inMilestone(p.ready.Operator.Gates, m, func(w epicThresholdWait) string { return w.Milestone }),
 		},
 	}
