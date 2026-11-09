@@ -3,6 +3,7 @@ package engine
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/deligoez/tp/internal/model"
 )
@@ -45,10 +46,14 @@ type BlockerInputs struct {
 	// only the operator can end, named in the budget blocker's message.
 	ReviewBlockingFixedAtCap int
 	AuditBlockingFixedAtCap  int
+
+	// EpicBlock is the task file's epic block (EpicBlockFor), nil for an
+	// unbound file or outside the implement phase.
+	EpicBlock *EpicBlock
 }
 
 // BuildBlockers derives the blockers array in the fixed code order of §4.6:
-// unexplained-changes, no-ready-task, review-budget-exhausted,
+// unexplained-changes, no-ready-task, epic-blocked, review-budget-exhausted,
 // audit-budget-exhausted, spec-stale. Multiple blockers may coexist. The result
 // is never nil (an empty slice when the agent may run next_action directly).
 func BuildBlockers(in *BlockerInputs) []Blocker {
@@ -74,6 +79,12 @@ func BuildBlockers(in *BlockerInputs) []Blocker {
 				Data:    map[string]any{"blocked_by": unmetDeps(in.TaskFile)},
 			})
 		}
+	}
+
+	// epic-blocked — escalate: implement on a file whose epic is blocked,
+	// with no wip task to resume (spec/1.5.0.md §6).
+	if b := epicBlockedBlocker(in); b != nil {
+		blockers = append(blockers, *b)
 	}
 
 	// review-budget-exhausted — escalate: the cap is reached and a finding of the
@@ -113,6 +124,26 @@ func BuildBlockers(in *BlockerInputs) []Blocker {
 	}
 
 	return blockers
+}
+
+// epicBlockedBlocker is the epic-blocked blocker, or nil: it stands in the
+// implement phase while the file's epic is blocked and no task is wip. A wip
+// task stays resumable, so its implement unit is offered as before; with none,
+// no task can start, and only finishing the dependencies clears it.
+func epicBlockedBlocker(in *BlockerInputs) *Blocker {
+	blk := in.EpicBlock
+	if in.Phase != PhaseImplement || blk == nil || len(blk.BlockedBy) == 0 {
+		return nil
+	}
+	if _, wip, _ := ImplementPreview(in.TaskFile); wip {
+		return nil
+	}
+	return &Blocker{
+		Code:    "epic-blocked",
+		Class:   ClassEscalate,
+		Message: fmt.Sprintf("no task can start: epic %s is blocked by %s; finish those epics first", blk.Epic, strings.Join(blk.BlockedBy, ", ")),
+		Data:    map[string]any{"epic": blk.Epic, "blocked_by_epics": blk.BlockedBy},
+	}
 }
 
 // budgetBlockerMessage words a *-budget-exhausted blocker: what is left at the
