@@ -154,7 +154,7 @@ func TestEpicReview_LintErrorsAreMechanicalChecksWithheldFromThePrompts(t *testi
 
 	errorRules := []string{
 		"cycle", "dangling-reference", "duplicate-name", "gate-member-deferrable", "gate-member-outside-milestone",
-		"later-milestone-dependency", "missing-why", "opens-after-cycle", "unknown-key",
+		"later-milestone-dependency", "missing-why", "opens-after-cycle", "opens-after-not-list", "unknown-key",
 		"unknown-milestone", "unprovided-tag-check",
 	}
 	assert.Equal(t, errorRules, out.MechanizedClasses)
