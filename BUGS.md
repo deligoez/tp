@@ -25,9 +25,6 @@ fix needs a design choice leaves this file for a decision note.
   resolve the project layer from the task file's directory — changes documented resolution precedence,
   so it is a decision.
 
-- **`tp brief` and `tp plan` on a task file with no task still say "All tasks complete"**
-  (`brief.go`, `plan.go`), where `tp next` since v1.6.0 says "no tasks yet" and names the phase
-  `tp resume` reports. Repro: `tp init spec.md` then `tp brief` / `tp plan`.
 - **The tp plugin's scope-fence hook blocks reads and fixture writes it should allow.** A codedbpro
   read of a file under `spec/.tp-review/` is refused as a hand-edit, and an auditor writing a
   `*.tasks.json` fixture into a `mktemp -d` directory outside the repo is refused too. Repro: from a
