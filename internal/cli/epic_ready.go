@@ -79,10 +79,13 @@ type epicOperatorWait struct {
 }
 
 // epicOperatorCondition is one condition with whether deciding it can
-// unblock work now (spec/1.6.0.md F3).
+// unblock work now (spec/1.6.0.md F3) and, when it cannot, every reason why
+// (engine.ConditionsNotActionable); NotActionable is left out on an
+// actionable condition.
 type epicOperatorCondition struct {
 	epicReadyEpic
-	Actionable bool `json:"actionable"`
+	Actionable    bool     `json:"actionable"`
+	NotActionable []string `json:"not_actionable,omitempty"`
 }
 
 // epicThresholdWait is one gate whose members are done and whose threshold
@@ -140,7 +143,7 @@ func epicReadyReport(g *model.EpicGraph, r *engine.EpicReadiness, compact bool) 
 		result.Claimed = append(result.Claimed, epicClaimedEpic{epicReadyEpic: entry(id), By: c.By, At: c.At})
 	}
 	for _, id := range r.Conditions {
-		result.Operator.Conditions = append(result.Operator.Conditions, epicOperatorCondition{epicReadyEpic: entry(id), Actionable: r.Actionable[id]})
+		result.Operator.Conditions = append(result.Operator.Conditions, epicOperatorCondition{epicReadyEpic: entry(id), Actionable: r.Actionable[id], NotActionable: r.NotActionable[id]})
 	}
 	for _, m := range r.Gates {
 		result.Operator.Gates = append(result.Operator.Gates, epicThresholdWait{Milestone: m, Threshold: g.Gates[m].Threshold})

@@ -24,6 +24,9 @@ type EpicReadiness struct {
 	// Actionable holds ConditionsActionable's answer for every condition
 	// that is not done.
 	Actionable map[string]bool
+	// NotActionable holds ConditionsNotActionable's reasons for every
+	// condition that is not done, empty for an actionable one.
+	NotActionable map[string][]string
 	// Gates holds the milestones whose gate members are done and whose
 	// threshold has no met record.
 	Gates []string
@@ -40,7 +43,11 @@ type EpicReadiness struct {
 func EpicReady(g *model.EpicGraph, states map[string]EpicState, bound map[string][]string, all bool) EpicReadiness {
 	gates := MilestoneGates(g, states)
 	r := EpicReadiness{Ready: []string{}, Claimed: []string{}, Conditions: []string{}, Gates: []string{}}
-	r.Actionable = ConditionsActionable(g, states, gates, bound)
+	r.NotActionable = ConditionsNotActionable(g, states, gates, bound)
+	r.Actionable = make(map[string]bool, len(r.NotActionable))
+	for id, reasons := range r.NotActionable {
+		r.Actionable[id] = len(reasons) == 0
+	}
 	for i := range g.Epics {
 		e := &g.Epics[i]
 		if e.Condition {
