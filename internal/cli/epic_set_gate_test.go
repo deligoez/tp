@@ -156,3 +156,14 @@ func TestEpicSet_GateMembersNamingAnUnknownIDGetsTheGateHint(t *testing.T) {
 	assert.NotContains(t, stderr, "depend only on epics the graph holds")
 	assert.Equal(t, before, readEpicGraphFile(t, dir))
 }
+
+// TestEpicSet_GateDeferrableNamingAnUnknownIDGetsTheGateHint: the deferrable
+// list gets the same gate hint as members for an id that names no epic.
+func TestEpicSet_GateDeferrableNamingAnUnknownIDGetsTheGateHint(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicGateFieldGraph(""))
+	_, stderr, code := runTP(t, dir, "epic", "set", "gates.A.deferrable=zz")
+	require.Equal(t, 1, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, `list only epics of milestone \"A\" that the graph holds`)
+	assert.NotContains(t, stderr, "depend only on epics the graph holds")
+}
