@@ -542,9 +542,7 @@ func runDoneMulti(taskFilePath string, taskIDs []string, reason string) error {
 			result["report"] = summary
 		}
 
-		if jsonErr := output.JSON(result); jsonErr != nil {
-			output.Error(ExitFile, jsonErr.Error())
-		}
+		printResultOrExit(result)
 
 		// Exit code: 0 if any closed, 1 if all failed
 		if len(closedIDs) == 0 {
