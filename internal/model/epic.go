@@ -55,6 +55,26 @@ type Epic struct {
 	Acceptance string    `json:"acceptance,omitempty"`
 	// Root says the epic has no dependency on purpose; written only when true.
 	Root bool `json:"root,omitempty"`
+	// Condition marks a precondition the operator decides rather than work;
+	// written only when true.
+	Condition bool `json:"condition,omitempty"`
+	// EstimateMinutes is the epic's own estimate; 0 is unset and not written.
+	EstimateMinutes int `json:"estimate_minutes,omitempty"`
+	// Claimed and Done are written by their commands and by tp epic import.
+	Claimed *EpicClaim `json:"claimed,omitempty"`
+	Done    *EpicDone  `json:"done,omitempty"`
+}
+
+// EpicClaim reserves an epic for one holder.
+type EpicClaim struct {
+	At time.Time `json:"at"`
+	By string    `json:"by"`
+}
+
+// EpicDone records an epic as done on the operator's evidence.
+type EpicDone struct {
+	At       time.Time `json:"at"`
+	Evidence string    `json:"evidence"`
 }
 
 // EpicDep is one dependency edge; Why is required by the schema.
