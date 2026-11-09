@@ -17,12 +17,18 @@ type AncestryChange struct {
 // (spec/1.6.0.md §1), so a writer of opens_after or milestones shows what an
 // edit did beyond the entry it named. Milestones come in after's track order,
 // then those only before lists; lost names in before's track order, gained in
-// after's. Only changed milestones are listed; never nil.
+// after's. Only changed milestones that before's tracks list are listed: a
+// milestone the write adds had no ancestry to change, so a first write of
+// milestones lists none. Never nil.
 func EpicAncestryChanges(before, after *model.EpicGraph) []AncestryChange {
 	was, now := EffectiveOpensAfter(before), EffectiveOpensAfter(after)
 	beforeOrder, afterOrder := milestoneUnion(before, after), milestoneUnion(after, before)
+	existed := milestonePositions(before)
 	out := []AncestryChange{}
 	for _, m := range afterOrder {
+		if _, ok := existed[m]; !ok {
+			continue
+		}
 		old, cur := opensAfterClosure(was, m), opensAfterClosure(now, m)
 		lost, gained := namesNotIn(beforeOrder, old, cur), namesNotIn(afterOrder, cur, old)
 		if len(lost) > 0 || len(gained) > 0 {
