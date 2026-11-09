@@ -27,3 +27,47 @@ func GateMembers(g *model.EpicGraph, milestone string) (members, deferrable []st
 	}
 	return members, deferrable
 }
+
+// MilestoneGate is one milestone's verdict: whether its gate is green and
+// whether the milestone is open.
+type MilestoneGate struct {
+	Green bool
+	Open  bool
+}
+
+// MilestoneGates returns the verdict of every milestone a track lists, so
+// ready, status and the critical path read one answer (spec/1.5.0.md §4).
+// states is DeriveEpicStates' result. A milestone is open when every earlier
+// milestone of its track has a green gate: the first of a track is always
+// open, and tracks do not wait on each other. A milestone gates names no entry
+// for still has its default gate. A milestone listed in no track is absent.
+func MilestoneGates(g *model.EpicGraph, states map[string]EpicState) map[string]MilestoneGate {
+	out := map[string]MilestoneGate{}
+	for _, track := range g.Milestones {
+		open := true
+		for _, m := range track {
+			green := GateGreen(g, m, states)
+			out[m] = MilestoneGate{Green: green, Open: open}
+			open = open && green
+		}
+	}
+	return out
+}
+
+// GateGreen reports whether milestone's gate is green: every member done
+// and, when the gate has a threshold, a met record. Members are read live
+// from states, so one that falls back turns the gate red while its met record
+// stands.
+func GateGreen(g *model.EpicGraph, milestone string, states map[string]EpicState) bool {
+	gate := g.Gates[milestone]
+	if gate.Threshold != "" && gate.Met == nil {
+		return false
+	}
+	members, _ := GateMembers(g, milestone)
+	for _, id := range members {
+		if states[id].Status != EpicStatusDone {
+			return false
+		}
+	}
+	return true
+}
