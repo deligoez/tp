@@ -39,9 +39,11 @@ type epicMilestoneReport struct {
 }
 
 // epicBlockedEpic is a not-done epic with a dependency that is not done,
-// naming each such dependency.
+// naming each such dependency, and the conditions among them, as export's
+// epics do: held_by alone tells a wait on the operator from one on work.
 type epicBlockedEpic struct {
 	epicReadyEpic
+	HeldBy    []string `json:"held_by"`
 	BlockedBy []string `json:"blocked_by"`
 }
 
@@ -132,7 +134,9 @@ type epicPlan struct {
 	after     map[string][]string
 	ready     epicReadyResult
 	estimates map[string]int
-	compact   bool
+	// conditions marks each epic id that is a condition.
+	conditions map[string]bool
+	compact    bool
 }
 
 // epicPlanStatus reports each of milestones over states, DeriveEpicStates'
@@ -140,7 +144,10 @@ type epicPlan struct {
 // error.
 func epicPlanStatus(g *model.EpicGraph, states map[string]engine.EpicState, bound map[string][]string, milestones []string, compact bool) (epicPlanResult, error) {
 	readiness := engine.EpicReady(g, states, bound, false)
-	p := epicPlan{g: g, states: states, bound: bound, gates: engine.MilestoneGates(g, states), after: engine.EffectiveOpensAfter(g), ready: epicReadyReport(g, &readiness), compact: compact}
+	p := epicPlan{g: g, states: states, bound: bound, gates: engine.MilestoneGates(g, states), after: engine.EffectiveOpensAfter(g), ready: epicReadyReport(g, &readiness), conditions: map[string]bool{}, compact: compact}
+	for i := range g.Epics {
+		p.conditions[g.Epics[i].ID] = g.Epics[i].Condition
+	}
 	if !compact {
 		estimates, err := engine.EpicEstimates(g, bound)
 		if err != nil {
@@ -250,14 +257,8 @@ func (p *epicPlan) claimedAndBlocked(m string) (claimed []epicClaimedEpic, block
 		if status == engine.EpicStatusDone {
 			continue
 		}
-		var by []string
-		for _, dep := range e.DependsOn {
-			if p.states[dep.ID].Status != engine.EpicStatusDone {
-				by = append(by, dep.ID)
-			}
-		}
-		if len(by) > 0 {
-			blocked = append(blocked, epicBlockedEpic{epicReadyEpic: entry, BlockedBy: by})
+		if by, held := epicUndoneDeps(e, p.states, p.conditions); len(by) > 0 {
+			blocked = append(blocked, epicBlockedEpic{epicReadyEpic: entry, HeldBy: held, BlockedBy: by})
 		}
 	}
 	return claimed, blocked
