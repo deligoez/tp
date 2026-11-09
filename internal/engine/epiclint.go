@@ -69,21 +69,27 @@ const (
 // Origin tells the other dangling-reference shapes that are not edges apart:
 // DanglingGateKey or DanglingTagCheck, "" otherwise.
 type EpicLintFinding struct {
-	Rule     string   `json:"rule"`
-	Severity string   `json:"severity"`
-	Epics    []string `json:"epics"`
-	Message  string   `json:"message"`
-	Names    []string `json:"-"`
-	Gate     string   `json:"-"`
-	Origin   string   `json:"-"`
+	Rule     string         `json:"rule"`
+	Severity string         `json:"severity"`
+	Epics    []string       `json:"epics"`
+	Message  string         `json:"message"`
+	Names    []string       `json:"-"`
+	Gate     string         `json:"-"`
+	Origin   DanglingOrigin `json:"-"`
 }
 
-// Origins of a dangling-reference finding that names no edge.
+// DanglingOrigin tells apart the dangling-reference shapes that name no
+// edge; a byte, so a finding stays small enough to range over by value.
+type DanglingOrigin uint8
+
+// Origins of a dangling-reference finding.
 const (
+	// DanglingEdge is a depends_on edge, or any other finding: the zero value.
+	DanglingEdge DanglingOrigin = iota
 	// DanglingGateKey is a gates key that names no milestone.
-	DanglingGateKey = "gate-key"
+	DanglingGateKey
 	// DanglingTagCheck is a tag_checks provided_by that names no epic.
-	DanglingTagCheck = "tag-check"
+	DanglingTagCheck
 )
 
 // LintEpicGraph runs the structure, edge, milestone and tag rules, then the

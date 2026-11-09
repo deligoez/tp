@@ -25,7 +25,7 @@ var epicRuleRefusedHints = map[string]string{
 
 // epicDanglingOriginHints answer the dangling-reference shapes that are not
 // edges, by the finding's Origin.
-var epicDanglingOriginHints = map[string]string{
+var epicDanglingOriginHints = map[engine.DanglingOrigin]string{
 	engine.DanglingGateKey:  "key a gate by a milestone a track lists (tp epic status lists the milestones), or drop the key",
 	engine.DanglingTagCheck: "point provided_by at an epic the graph holds (tp epic add adds one), or drop the tag check",
 }
