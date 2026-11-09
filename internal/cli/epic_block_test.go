@@ -369,3 +369,34 @@ func TestDone_RefusesABlockedTaskBeforeJudgingItsEvidence(t *testing.T) {
 	assert.NotContains(t, stderr, "closure verification failed")
 	assert.Equal(t, before, taskFileBytes(t, dir), "a refused tp done writes nothing")
 }
+
+// corruptDepDir returns blockDir(t, "b", "open", "open") as a real git
+// repository holding c/c.tasks.json, a task file that does not parse: it may
+// be the one bound to b's dependency c, so nothing can say whether c is done.
+func corruptDepDir(t *testing.T) string {
+	t.Helper()
+	dir := blockDir(t, "b", "open", "open")
+	require.NoError(t, os.Remove(filepath.Join(dir, ".git")))
+	gitOut(t, dir, "init", "-q", ".")
+	require.NoError(t, os.Mkdir(filepath.Join(dir, "c"), 0o750))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "c", "c.tasks.json"), []byte("{"), 0o600))
+	return dir
+}
+
+// TestNextAndEpicStatus_AnUnparsableTaskFileExitsThree is spec/1.5.0.md §6:
+// a task file under the walk that cannot be parsed may be bound to any epic,
+// so tp next on b's file and tp epic status exit 3 naming it rather than
+// guess its epic's status. A walk that skipped it reads c as planned: tp next
+// exits 4 blocked and tp epic status exits 0, and both fail.
+func TestNextAndEpicStatus_AnUnparsableTaskFileExitsThree(t *testing.T) {
+	t.Parallel()
+	dir := corruptDepDir(t)
+	before := taskFileBytes(t, dir)
+
+	for _, args := range [][]string{{"next"}, {"epic", "status"}} {
+		stdout, stderr, code := runTP(t, dir, args...)
+		require.Equal(t, 3, code, "%v stdout: %s stderr: %s", args, stdout, stderr)
+		assert.Contains(t, stderr, "c.tasks.json", "%v names the file", args)
+	}
+	assert.Equal(t, before, taskFileBytes(t, dir), "tp next claims nothing")
+}
