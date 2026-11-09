@@ -73,13 +73,15 @@ func newEpicStatusCmd() *cobra.Command {
 		RunE:  runEpicStatus,
 	}
 	cmd.Flags().String("milestone", "", "report only this milestone")
+	cmd.Flags().Bool("open", false, "report only open milestones (the whole graph's critical_path is unchanged)")
 	return cmd
 }
 
 // runEpicStatus reads the graph and its bound files, derives every epic's
 // state once, writes nothing, and exits 0; 3 with no readable graph or bound
-// file, 4 for a --milestone no track lists. --compact leaves out the estimate
-// chain, throughput and the roll-up.
+// file, 4 for a --milestone no track lists. --open keeps the open milestones
+// only (spec/1.6.0.md F7). --compact leaves out the estimate chain,
+// throughput and the roll-up.
 func runEpicStatus(cmd *cobra.Command, _ []string) error {
 	only, _ := cmd.Flags().GetString("milestone")
 	g, states, bound := loadEpicStates()
@@ -90,6 +92,10 @@ func runEpicStatus(cmd *cobra.Command, _ []string) error {
 			os.Exit(ExitState)
 		}
 		milestones = []string{only}
+	}
+	if open, _ := cmd.Flags().GetBool("open"); open {
+		gates := engine.MilestoneGates(g, states)
+		milestones = slices.DeleteFunc(milestones, func(m string) bool { return !gates[m].Open })
 	}
 	result, err := epicPlanStatus(g, states, bound, milestones, flagCompact)
 	if err != nil {

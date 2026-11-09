@@ -74,7 +74,7 @@ epic ready: all
 epic remove: force if-revision
 epic review: check epic epics force milestone name record resolve resolve-all role status
 epic set: if-revision
-epic status: milestone
+epic status: milestone open
 epic unlink: if-revision
 escalate: decision evidence option
 graph: from tag
