@@ -100,6 +100,52 @@ func TestEpicImport_NullOpensAfterListExits2(t *testing.T) {
 	assert.Equal(t, before, readEpicGraphFile(t, dir))
 }
 
+// lintOpensAfterNotList hand-writes C2.1's graph with R's opens_after value
+// replaced by value, runs tp epic lint and returns the opens-after-not-list
+// findings, requiring exit 1.
+func lintOpensAfterNotList(t *testing.T, value string) []string {
+	t.Helper()
+	dir := epicGraphDir(t, strings.Replace(opensAfterStatusGraph(false), `{"R": ["P"]}`, `{"R": `+value+`}`, 1))
+	stdout, stderr, code := runTP(t, dir, "epic", "lint")
+	require.Equal(t, 1, code, "stdout: %s stderr: %s", stdout, stderr)
+	var r struct {
+		Findings []struct {
+			Rule     string `json:"rule"`
+			Severity string `json:"severity"`
+			Message  string `json:"message"`
+		} `json:"findings"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &r), "stdout: %s", stdout)
+	var messages []string
+	for _, f := range r.Findings {
+		if f.Rule == "opens-after-not-list" {
+			assert.Equal(t, "error", f.Severity)
+			messages = append(messages, f.Message)
+		}
+	}
+	return messages
+}
+
+// TestEpicLint_NullOpensAfterValueIsAnError: a hand-edited null, which set
+// and import refuse, is a lint error naming the milestone.
+func TestEpicLint_NullOpensAfterValueIsAnError(t *testing.T) {
+	t.Parallel()
+	messages := lintOpensAfterNotList(t, "null")
+	require.Len(t, messages, 1)
+	assert.Contains(t, messages[0], `opens_after "R"`)
+}
+
+// TestEpicLint_NonListOpensAfterValueIsAnError: a string or an object where a
+// list belongs is a lint error naming the milestone, not an unreadable file.
+func TestEpicLint_NonListOpensAfterValueIsAnError(t *testing.T) {
+	t.Parallel()
+	for _, value := range []string{`"P"`, `{"P": true}`, `3`} {
+		messages := lintOpensAfterNotList(t, value)
+		require.Len(t, messages, 1, "value %s", value)
+		assert.Contains(t, messages[0], `opens_after "R"`, "value %s", value)
+	}
+}
+
 // TestEpicSet_OpensAfterCycleRefusalNamesNoEmptyEpicList: a finding that
 // names milestones, not epics, prints no empty "[]" in the refusal.
 func TestEpicSet_OpensAfterCycleRefusalNamesNoEmptyEpicList(t *testing.T) {
