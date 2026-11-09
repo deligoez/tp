@@ -140,3 +140,41 @@ func TestEpicFlag_WithFileIsAUsageError(t *testing.T) {
 	require.Equal(t, 2, code, "stderr: %s", stderr)
 	assert.Contains(t, stderr, "--epic and --file are mutually exclusive")
 }
+
+// symlinkedEpicRepo is epicFileRepo with b1.tasks.json bound to b, reached
+// through a symlink to the repository, the way macOS reaches /var and /tmp.
+func symlinkedEpicRepo(t *testing.T) string {
+	t.Helper()
+	dir := epicFileRepo(t)
+	writeEpicFile(t, dir, "b1", "b", "open")
+	require.NoError(t, os.Mkdir(filepath.Join(dir, "sub"), 0o755))
+	initGitRepo(t, dir)
+	link := filepath.Join(t.TempDir(), "link")
+	require.NoError(t, os.Symlink(dir, link))
+	return link
+}
+
+// epicFileLabel runs tp next --peek --epic b from cwd, its PWD the symlinked
+// path a shell would export, and returns the payload's "file".
+func epicFileLabel(t *testing.T, cwd string) string {
+	t.Helper()
+	stdout, stderr, code := runTPEnv(t, cwd, []string{"PWD=" + cwd}, "next", "--peek", "--epic", "b")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	var res struct {
+		File string `json:"file"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &res), "stdout: %s", stdout)
+	return res.File
+}
+
+// TestEpicFlag_FileLabelRoundTripsFromASymlinkedCwd: the "file" tp prints for
+// --epic, run from a symlinked cwd, is the path --file accepts from there.
+func TestEpicFlag_FileLabelRoundTripsFromASymlinkedCwd(t *testing.T) {
+	t.Parallel()
+	link := symlinkedEpicRepo(t)
+
+	file := epicFileLabel(t, link)
+	assert.Equal(t, "b1.tasks.json", file)
+	_, stderr, code := runTPEnv(t, link, []string{"PWD=" + link}, "claim", "t1", "--file", file)
+	assert.Equal(t, 0, code, "stderr: %s", stderr)
+}
