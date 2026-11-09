@@ -94,3 +94,21 @@ func TestEpicGraph_V150KeysLoadAndWriteBackUnchanged(t *testing.T) {
 	assert.Equal(t, epicGraphV150Fields, rewriteEpicGraph(t, tpDir, g))
 }
 
+// TestEpicGraph_FalseConditionAndUnsetEstimateAreOmitted: condition is
+// written only when true and estimate_minutes only when set, so a work epic
+// without an estimate gains no key.
+func TestEpicGraph_FalseConditionAndUnsetEstimateAreOmitted(t *testing.T) {
+	tpDir := epicGraphDir(t, epicGraphV150Fields)
+	g, _, err := LoadEpicGraph(tpDir)
+	require.NoError(t, err)
+	g.Epics[0].EstimateMinutes = 0
+	g.Epics[1].Condition = false
+	g.Gates["A"] = model.EpicGate{Members: []string{"a"}}
+	g.Epics[0].Claimed, g.Epics[0].Done = nil, &model.EpicDone{At: time.Date(2026, 11, 9, 0, 0, 0, 0, time.UTC), Evidence: "e"}
+
+	got := rewriteEpicGraph(t, tpDir, g)
+	for _, key := range []string{`"condition"`, `"estimate_minutes"`, `"claimed"`, `"threshold"`, `"met"`} {
+		assert.NotContains(t, got, key)
+	}
+	assert.Contains(t, got, `"done"`)
+}
