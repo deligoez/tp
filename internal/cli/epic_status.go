@@ -20,7 +20,8 @@ type epicPlanResult struct {
 }
 
 // epicMilestoneReport is one milestone's state. Throughput, Rollup and the
-// critical path's estimate chain are nil under --compact and then left out.
+// critical path are nil under --compact and then left out: the top-level
+// critical_path carries the chain once.
 type epicMilestoneReport struct {
 	Milestone    string            `json:"milestone"`
 	Open         bool              `json:"open"`
@@ -33,7 +34,7 @@ type epicMilestoneReport struct {
 	Claimed      []epicClaimedEpic `json:"claimed"`
 	Blocked      []epicBlockedEpic `json:"blocked"`
 	Operator     epicOperatorWait  `json:"operator"`
-	CriticalPath epicPathReport    `json:"critical_path"`
+	CriticalPath *epicPathReport   `json:"critical_path,omitempty"`
 	Throughput   *[]epicWeekRow    `json:"throughput,omitempty"`
 	Rollup       *[]epicRollupRow  `json:"rollup,omitempty"`
 }
@@ -82,8 +83,8 @@ func newEpicStatusCmd() *cobra.Command {
 // runEpicStatus reads the graph and its bound files, derives every epic's
 // state once, writes nothing, and exits 0; 3 with no readable graph or bound
 // file, 4 for a --milestone no track lists. --open keeps the open milestones
-// only (spec/1.6.0.md F7). --compact leaves out the estimate chain,
-// throughput and the roll-up.
+// only (spec/1.6.0.md F7). --compact leaves out each milestone's critical
+// path, throughput and the roll-up.
 func runEpicStatus(cmd *cobra.Command, _ []string) error {
 	only, _ := cmd.Flags().GetString("milestone")
 	g, states, bound := loadEpicStates()
@@ -187,12 +188,12 @@ func (p *epicPlan) milestone(m string) (epicMilestoneReport, error) {
 	}
 	rep.Counts, rep.ShareDone = p.counts(m)
 	rep.Claimed, rep.Blocked = p.claimedAndBlocked(m)
-	path := engine.CriticalPath(p.g, p.states, p.estimates, m)
-	rep.CriticalPath = epicPathReport{ByCount: path.ByCount}
 	if p.compact {
 		return rep, nil
 	}
-	rep.CriticalPath.ByEstimate = &epicEstimateChain{Chain: path.ByEstimate, EstimateMinutes: path.EstimateMinutes}
+	path := engine.CriticalPath(p.g, p.states, p.estimates, m)
+	rep.CriticalPath = &epicPathReport{ByCount: path.ByCount,
+		ByEstimate: &epicEstimateChain{Chain: path.ByEstimate, EstimateMinutes: path.EstimateMinutes}}
 	weeks := []epicWeekRow{}
 	for _, w := range engine.EpicThroughput(p.g, p.states, m) {
 		weeks = append(weeks, epicWeekRow{Week: w.Week, Done: w.Done})
