@@ -18,6 +18,7 @@ func newEpicRemoveCmd() *cobra.Command {
 		RunE:  runEpicRemove,
 	}
 	cmd.Flags().Bool("force", false, "also drop the edges into the epic and its gate memberships")
+	epicIfRevisionFlag(cmd)
 	return cmd
 }
 
@@ -25,6 +26,6 @@ func newEpicRemoveCmd() *cobra.Command {
 func runEpicRemove(cmd *cobra.Command, args []string) error {
 	fenceEpicWrite("tp epic remove")
 	force, _ := cmd.Flags().GetBool("force")
-	writeEpicGraph(engine.RemoveEpic(args[0], force))
+	writeEpicGraph(cmd, engine.RemoveEpic(args[0], force))
 	return nil
 }
