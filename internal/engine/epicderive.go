@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/deligoez/tp/internal/model"
 )
@@ -16,9 +17,14 @@ const (
 	EpicStatusDone       = "done"
 )
 
-// EpicState is one epic's derived state.
+// EpicState is one epic's derived state. DoneAt is set only when Status is
+// done: the done record's time for an epic with no bound file, else the time
+// of the audit round that most recently brought its last bound file to
+// release, so it moves when the epic reopens and is done again. It is nil
+// when that round's recorded_at cannot be read.
 type EpicState struct {
 	Status string
+	DoneAt *time.Time
 }
 
 // DeriveEpicStates derives every epic of g's state from bound, the index
@@ -46,25 +52,33 @@ func deriveEpicState(e *model.Epic, files []string) (EpicState, error) {
 	if len(files) == 0 {
 		switch {
 		case e.Done != nil:
-			return EpicState{Status: EpicStatusDone}, nil
+			at := e.Done.At
+			return EpicState{Status: EpicStatusDone, DoneAt: &at}, nil
 		case e.Claimed != nil:
 			return EpicState{Status: EpicStatusClaimed}, nil
 		default:
 			return EpicState{Status: EpicStatusPlanned}, nil
 		}
 	}
-	started, allReleased := false, true
+	started, allReleased, timeKnown := false, true, true
+	var doneAt time.Time
 	for _, path := range files {
-		phase, fileStarted, err := boundFilePhase(path)
+		f, err := readBoundFile(path)
 		if err != nil {
 			return EpicState{}, err
 		}
-		started = started || fileStarted
-		allReleased = allReleased && phase == PhaseRelease
+		started = started || f.started
+		allReleased = allReleased && f.phase == PhaseRelease
+		timeKnown = timeKnown && !f.releasedAt.IsZero()
+		if f.releasedAt.After(doneAt) {
+			doneAt = f.releasedAt
+		}
 	}
 	switch {
-	case allReleased:
+	case allReleased && !timeKnown:
 		return EpicState{Status: EpicStatusDone}, nil
+	case allReleased:
+		return EpicState{Status: EpicStatusDone, DoneAt: &doneAt}, nil
 	case started:
 		return EpicState{Status: EpicStatusInProgress}, nil
 	default:
@@ -72,22 +86,37 @@ func deriveEpicState(e *model.Epic, files []string) (EpicState, error) {
 	}
 }
 
-// boundFilePhase reads one bound task file and returns the phase tp resume
-// reports for it, and whether any of its tasks is wip or done.
-func boundFilePhase(path string) (phase string, started bool, err error) {
+// boundFile is what one bound task file contributes to its epic's state.
+type boundFile struct {
+	phase   string // the phase tp resume reports for the file
+	started bool   // a task of the file is wip or done
+	// releasedAt is the time of the audit round that brought the file to
+	// release, its latest one; zero when the file is not at release.
+	releasedAt time.Time
+}
+
+// readBoundFile reads one bound task file and its review state. A file at
+// release was brought there by its latest audit round: rounds recorded after
+// convergence end no loop, so none follows it.
+func readBoundFile(path string) (boundFile, error) {
 	tf, err := model.ReadTaskFile(path)
 	if err != nil {
-		return "", false, fmt.Errorf("bound task file %s: %w", path, err)
+		return boundFile{}, fmt.Errorf("bound task file %s: %w", path, err)
 	}
 	specPath, _ := ResolveSpecPath(path, tf.Spec)
 	loops, err := readResumeLoops(path, specPath, tf)
 	if err != nil {
-		return "", false, err
+		return boundFile{}, err
 	}
+	f := boundFile{phase: loops.phase}
 	for i := range tf.Tasks {
 		if s := tf.Tasks[i].Status; s == model.StatusWIP || s == model.StatusDone {
-			started = true
+			f.started = true
 		}
 	}
-	return loops.phase, started, nil
+	if n := len(loops.auditRounds); f.phase == PhaseRelease && n > 0 {
+		// An unreadable recorded_at leaves the time unknown, not the status.
+		f.releasedAt, _ = time.Parse(time.RFC3339, loops.auditRounds[n-1].RecordedAt)
+	}
+	return f, nil
 }
