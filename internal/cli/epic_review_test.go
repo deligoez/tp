@@ -93,7 +93,7 @@ func TestEpicReview_BuiltInRolesRunUntilTheDirectoryReplacesThem(t *testing.T) {
 	assert.Equal(t, []string{"a", "c"}, out.Context)
 	for _, p := range out.Prompts {
 		assert.Contains(t, p.Prompt, "epic: b\n", "%s asks b's block", p.Role)
-		assert.Contains(t, p.Prompt, "epic: a\n", "%s carries a as context", p.Role)
+		assert.Contains(t, p.Prompt, "epic: c\n", "%s carries b's dependency c as context", p.Role)
 		assert.NotContains(t, p.Prompt, "epic: d\n", "%s carries no block for d", p.Role)
 		assert.NotEmpty(t, p.OutputPath)
 	}
