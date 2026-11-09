@@ -75,3 +75,16 @@ func TestLintEpicGraph_DependencyOpensLaterSkipsSiblings(t *testing.T) {
 	assert.Empty(t, findingsOf(t, LintEpicGraph(g, nil), EpicRuleDependencyOpensLater))
 }
 
+// TestLintEpicGraph_DependencyOpensLaterSkipsAnEdgeIntoAnAlwaysOpenMilestone
+// is fixture (v): on tracks [[A, B], [L]] with L opening after nothing, b in
+// B depending on l in L is clean, as is a in A reaching l through b.
+func TestLintEpicGraph_DependencyOpensLaterSkipsAnEdgeIntoAnAlwaysOpenMilestone(t *testing.T) {
+	g := &model.EpicGraph{
+		Version:    1,
+		Milestones: [][]string{{"A", "B"}, {"L"}},
+		OpensAfter: map[string][]string{"L": {}},
+		Epics:      []model.Epic{dependsOn("a", "A"), dependsOn("b", "B", "l", "a"), dependsOn("l", "L")},
+	}
+	assert.Empty(t, findingsOf(t, LintEpicGraph(g, nil), EpicRuleDependencyOpensLater))
+}
+
