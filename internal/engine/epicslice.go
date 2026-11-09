@@ -27,9 +27,12 @@ type EpicReviewUnit struct {
 }
 
 // EpicContextBlock is the block of an epic shown below the units as context.
+// Dependency is true when an asked epic depends on it; false, it only depends
+// on an asked epic.
 type EpicContextBlock struct {
-	ID    string
-	Block string
+	ID         string
+	Block      string
+	Dependency bool
 }
 
 // EpicSlice is a slice's units in file order, the gate unit last, and the
@@ -99,13 +102,17 @@ func milestoneDeclared(g *model.EpicGraph, name string) bool {
 }
 
 // epicSliceContext returns the block of every epic one edge away, in either
-// direction, from an asked epic, unless it is asked itself.
+// direction, from an asked epic, unless it is asked itself. Dependency marks a
+// block that some asked epic depends on, as against one that only depends on
+// an asked epic.
 func epicSliceContext(g *model.EpicGraph, asked map[string]bool) []EpicContextBlock {
 	near := map[string]bool{}
+	dependency := map[string]bool{}
 	for _, e := range g.Epics {
 		for _, d := range e.DependsOn {
 			if asked[e.ID] {
 				near[d.ID] = true
+				dependency[d.ID] = true
 			}
 			if asked[d.ID] {
 				near[e.ID] = true
@@ -118,7 +125,7 @@ func epicSliceContext(g *model.EpicGraph, asked map[string]bool) []EpicContextBl
 		e := &g.Epics[i]
 		if near[e.ID] && !asked[e.ID] && !seen[e.ID] {
 			seen[e.ID] = true
-			ctx = append(ctx, EpicContextBlock{ID: e.ID, Block: epicBlock(e)})
+			ctx = append(ctx, EpicContextBlock{ID: e.ID, Block: epicBlock(e), Dependency: dependency[e.ID]})
 		}
 	}
 	return ctx
