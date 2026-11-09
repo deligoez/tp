@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.5.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-09T13:09:34.242064Z",
+  "updated_at": "2026-11-09T13:12:36.362231Z",
   "workflow": {
     "review_max_rounds": 4,
     "audit_max_rounds": 5
@@ -249,7 +249,7 @@
       "id": "gate-default-members",
       "title": "Default a gate's members to its work epics",
       "description": "With no members key, or no gates entry, a milestone's gate members are its epics that are neither conditions nor deferrable; deferrable epics never hold a gate. §10 row 9.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "gates"
@@ -263,11 +263,18 @@
         "## 4. Milestones and gates",
         "## 10. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-09T13:09:42.798896Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-09T13:12:36.347666Z",
+      "closed_reason": "- TestGateMembers_DefaultSkipsConditionsAndDeferrable: §10 row 9, a condition of A is not a default member and a deferrable work epic does not hold A's gate; gate green\n- TestGateMembers_ExplicitMembersOverrideTheDefault: an explicit members list overrides the default (red under a mutant ignoring it); gate green",
+      "gate_passed_at": "2026-11-09T13:12:36.347666Z",
+      "commit_sha": "2c08ff8e",
+      "commit_shas": [
+        "2c08ff8e"
+      ],
+      "commit_files": [
+        "internal/engine/epicgate_test.go"
+      ]
     },
     {
       "id": "gate-green-milestone-open",
