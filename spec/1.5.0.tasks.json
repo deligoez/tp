@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.5.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-09T12:43:48.841028Z",
+  "updated_at": "2026-11-09T12:53:56.590103Z",
   "workflow": {
     "review_max_rounds": 4,
     "audit_max_rounds": 5
@@ -21,7 +21,7 @@
       "id": "epic-schema-new-fields",
       "title": "Add the v1.5.0 schema fields",
       "description": "Epic gains condition (written only when true), estimate_minutes (only when set), claimed {at, by} and done {at, evidence}; a gate gains threshold and met {at, evidence, threshold}; a task file gains epic. The graph loader accepts the new keys; a file without them reads and writes byte-identically.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "model",
         "schema"
@@ -32,11 +32,18 @@
       "source_sections": [
         "## 8. Schema"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-09T12:47:15.639675Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-09T12:53:56.577481Z",
+      "closed_reason": "- TestEpicGraph_V150KeysLoadAndWriteBackUnchanged and TestReadWriteTaskFile_EpicBindingRoundTrips load and write back every new key unchanged\n- TestEpicGraph_RoundTripIsByteIdentical keeps a graph without the new keys byte-identical\n- TestEpicGraph_FalseConditionAndUnsetEstimateAreOmitted asserts no condition/estimate_minutes key on write; gate green",
+      "gate_passed_at": "2026-11-09T12:53:56.577481Z",
+      "commit_sha": "5b833915",
+      "commit_shas": [
+        "5b833915"
+      ],
+      "commit_files": [
+        "internal/engine/epicgraph_v150_test.go"
+      ]
     },
     {
       "id": "epic-writers-carry-records",
