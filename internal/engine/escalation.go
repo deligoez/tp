@@ -37,7 +37,14 @@ const (
 	// emission concurrently, so a unit's discard pulls the text out from under
 	// the others; recovering a crashed round is the operator's call.
 	EscalateDiscardEmission = "discard-emission"
-	EscalateOther           = "other"
+	// EscalateEpicDone, EscalateGateMet and EscalateEpicBinding are
+	// spec/1.5.0.md §7's operator writes: marking an epic done or undone
+	// without its files, deciding a gate's threshold is met, and choosing which
+	// epic a task file starts. tp epic import keeps other (corrections C3).
+	EscalateEpicDone    = "epic-done"
+	EscalateGateMet     = "gate-met"
+	EscalateEpicBinding = "epic-binding"
+	EscalateOther       = "other"
 )
 
 // escalationDecisions is the closed set in the order §5.2 writes it, which is
@@ -50,6 +57,9 @@ var escalationDecisions = []string{
 	EscalateAuditConvergeOn,
 	EscalateAcceptFinding,
 	EscalateDiscardEmission,
+	EscalateEpicDone,
+	EscalateGateMet,
+	EscalateEpicBinding,
 	EscalateOther,
 }
 
