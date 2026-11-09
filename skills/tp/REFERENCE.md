@@ -1425,7 +1425,8 @@ With no `.tp/epic-reviewers/` the three built-in graph roles run (`dod-satisfiab
 `regression` role is appended whenever an asked unit changed or the round before resolved a finding
 `fixed`.
 
-Each prompt reads, in order: the role's instructions, the asked units and the earlier rounds'
+Each prompt reads, in order: the role's instructions, the asked units (and, when none is a gate, a
+line saying gate questions do not apply), the earlier rounds'
 `wontfix`/`duplicate` decisions on them with their evidence, the role's focus questions and any
 round input (regression's fixed findings), the output contract and the file to write, then
 the context, and a last line repeating the row keys and the file. A role file's optional `context`
