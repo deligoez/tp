@@ -72,3 +72,20 @@ func TestMilestoneGates_ThresholdNeedsAMetRecord(t *testing.T) {
 	assert.True(t, gates["B"].Open)
 }
 
+// TestMilestoneGates_MemberFallingBackTurnsTheGateRed: members are read live,
+// so a member that is no longer done turns a met gate red again while its met
+// record stands.
+func TestMilestoneGates_MemberFallingBackTurnsTheGateRed(t *testing.T) {
+	met := &model.GateMet{At: time.Date(2026, 1, 6, 9, 0, 0, 0, time.UTC), Evidence: "dashboard", Threshold: "p95 under 200ms"}
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"A", "B"}}, Epics: []model.Epic{
+		{ID: "x", Title: "X", Milestone: "A", Root: true, Done: epicDoneRecord()},
+		{ID: "y", Title: "Y", Milestone: "B", Root: true},
+	}, Gates: map[string]model.EpicGate{"A": {Threshold: "p95 under 200ms", Met: met}}}
+	require.True(t, gatesOf(t, g)["A"].Green)
+
+	g.Epics[0].Done = nil
+	gates := gatesOf(t, g)
+	assert.False(t, gates["A"].Green, "a member that falls back turns the gate red")
+	assert.False(t, gates["B"].Open)
+	assert.NotNil(t, g.Gates["A"].Met, "the met record stands")
+}
