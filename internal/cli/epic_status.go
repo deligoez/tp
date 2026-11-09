@@ -85,8 +85,8 @@ func newEpicStatusCmd() *cobra.Command {
 // runEpicStatus reads the graph and its bound files, derives every epic's
 // state once, writes nothing, and exits 0; 3 with no readable graph or bound
 // file, 4 for a --milestone no track lists, or a closed one with --open.
-// --open keeps the open milestones only (spec/1.6.0.md F7). --compact leaves out each milestone's critical
-// path, throughput and the roll-up.
+// --open keeps the open milestones only (spec/1.6.0.md F7). --compact
+// leaves out each milestone's critical path, throughput and the roll-up.
 func runEpicStatus(cmd *cobra.Command, _ []string) error {
 	only, _ := cmd.Flags().GetString("milestone")
 	g, states, bound := loadEpicStates()
