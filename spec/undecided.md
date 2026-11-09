@@ -409,6 +409,15 @@ list replaces the layer beneath it rather than merging with it.
 
 **Who carries it.** `spec/backlog/hooks-fence-the-target.md`.
 
+**v1.6.1 settled part of it on the fix track.** A BUGS entry from the v1.5.0 cycle (a read of a round
+file refused as a hand-edit; an auditor's `*.tasks.json` fixture under `mktemp -d` refused) was fixed
+in `hooks/pre-tool-use-write-deny.sh`: a read-only tool passes, and a denied path is refused only
+inside the session's repository (the git top level of `$CLAUDE_PROJECT_DIR`, else of the hook's
+working directory), compared as written and symlink-resolved. Still open here: matching on the write
+target rather than on the payload as a whole for write tools, the test-file fence's spawn-time
+permission, `test_globs`, and the role allow-list hook, which still refuses reviewers' and auditors'
+fixture writes outside the repository.
+
 **The reach, re-derived by running the hook rather than by reading it.** `denied()` in
 `hooks/pre-tool-use-write-deny.sh` matches `*/.tp-review/?* | .tp-review/?*`, an unanchored glob. Fed
 a `Write` payload naming `/private/tmp/throwaway-copy/spec/.tp-review/1.0.0/state.json` — a path in no
