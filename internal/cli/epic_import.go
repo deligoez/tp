@@ -93,6 +93,9 @@ func readEpicImportPayload(path string) *model.EpicGraph {
 	if _, tokErr := dec.Token(); err == nil && !errors.Is(tokErr, io.EOF) {
 		err = errors.New("trailing data after the graph: pass exactly one JSON object")
 	}
+	if err == nil {
+		err = engine.CheckOpensAfterLists(g.OpensAfter)
+	}
 	if err != nil {
 		output.Error(ExitUsage, "invalid epic graph JSON", err.Error())
 		os.Exit(ExitUsage)
