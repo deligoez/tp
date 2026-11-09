@@ -2,6 +2,9 @@ package cli_test
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -111,4 +114,22 @@ func TestEpicMilestoneAdd_ReportsChangedAncestry(t *testing.T) {
 		{Milestone: "G", Lost: []string{}, Gained: []string{"X"}},
 		{Milestone: "H", Lost: []string{}, Gained: []string{"X"}},
 	}, epicAncestryOf(t, dir, "milestone", "add", "X", "--after", "F"))
+}
+
+// TestEpicImport_ReportsChangedAncestry: importing over the default chain a
+// graph where G opens after E2 makes G and H lose F; the same import into a
+// project without a graph lists none.
+func TestEpicImport_ReportsChangedAncestry(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, ancestryGraph)
+	payload := strings.Replace(ancestryGraph, `"epics"`, `"opens_after": {"G": ["E2"]}, "epics"`, 1)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "g.json"), []byte(payload), 0o600))
+	assert.Equal(t, []ancestryChange{
+		{Milestone: "G", Lost: []string{"F"}, Gained: []string{}},
+		{Milestone: "H", Lost: []string{"F"}, Gained: []string{}},
+	}, epicAncestryOf(t, dir, "import", "g.json", "--force"))
+
+	fresh := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(fresh, "g.json"), []byte(payload), 0o600))
+	assert.Equal(t, []ancestryChange{}, epicAncestryOf(t, fresh, "import", "g.json"))
 }
