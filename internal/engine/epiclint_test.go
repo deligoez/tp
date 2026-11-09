@@ -229,3 +229,44 @@ func TestLintEpicGraph_EmptyWhyDoesNotFireThinWhy(t *testing.T) {
 	assert.Empty(t, findingsOf(t, findings, EpicRuleThinWhy), "an empty why is missing-why's finding")
 	assert.Len(t, findingsOf(t, findings, EpicRuleMissingWhy), 1)
 }
+
+// TestLintEpicGraph_GateKeyedByTheNextMilestoneHintsTheRightKey: a gate whose
+// members all sit in one other milestone was keyed by the milestone it opens;
+// the message names the key the members' milestone would take.
+func TestLintEpicGraph_GateKeyedByTheNextMilestoneHintsTheRightKey(t *testing.T) {
+	g := cleanEpicGraph()
+	g.Epics = append(g.Epics, model.Epic{ID: "d", Title: "D", Milestone: "B"})
+	g.Gates["A"] = model.EpicGate{Members: []string{"d"}}
+	outside := findingsOf(t, LintEpicGraph(g, nil), EpicRuleGateMemberOutsideMilestone)
+	require.Len(t, outside, 1)
+	assert.Contains(t, outside[0].Message, `gates."B"`)
+
+	g.Gates["A"] = model.EpicGate{Members: []string{"a", "d"}}
+	mixed := findingsOf(t, LintEpicGraph(g, nil), EpicRuleGateMemberOutsideMilestone)
+	require.Len(t, mixed, 1)
+	assert.NotContains(t, mixed[0].Message, "did you mean", "members in two milestones name no single key")
+}
+
+// TestLintEpicGraph_ThinWhyMatchesWholeWordsOnly: a why that is only a
+// prefix of a word in the target's title is not a restatement of it.
+func TestLintEpicGraph_ThinWhyMatchesWholeWordsOnly(t *testing.T) {
+	for _, tc := range []struct {
+		why  string
+		fire bool
+	}{
+		{"ident", false},
+		{"Service", true},
+		{"identity service", true},
+		{"auth", true},
+		{"needs the token store", false},
+	} {
+		t.Run(tc.why, func(t *testing.T) {
+			g := warningGraph()
+			g.Epics[2].ID = "auth-core"
+			g.Epics[2].Title = "Identity service"
+			g.Epics[0].DependsOn[0] = model.EpicDep{ID: "auth-core", Why: tc.why}
+			thin := findingsOf(t, LintEpicGraph(g, nil), EpicRuleThinWhy)
+			assert.Equal(t, tc.fire, len(thin) == 1, "why %q", tc.why)
+		})
+	}
+}
