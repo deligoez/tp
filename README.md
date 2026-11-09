@@ -110,7 +110,9 @@ grounding. Ground is the one loop you have to remember inside a spec's cycle.
 Above the spec sits the project's plan, when it has one: a graph of epics in `.tp/epics.json`, one
 spec per epic ([Epic Graph](#epic-graph)). Its loop is not a phase either — `tp resume` tracks one
 spec at a time and `tp run` has no epic unit — so the graph is designed and reviewed by hand, slice
-by slice, before and between the specs it plans.
+by slice, before and between the specs it plans. It tracks the work from the specs' side: an epic
+bound to a task file is done when that file reaches `release`, and a milestone opens once the gate
+before it is green.
 
 ```mermaid
 flowchart TD
