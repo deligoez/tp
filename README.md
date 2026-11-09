@@ -195,7 +195,7 @@ tp plan                        # Full execution plan (THE primary command; --min
 tp commit <id> [reason]        # Stage + structured commit + record SHA (--files)
 tp done <id> <reason>          # Close with implicit claim + verification; runs the quality gate
 tp done --batch file.ndjson    # Batch close from NDJSON
-tp resume [spec]               # Report phase + the single next action from durable state (read-only)
+tp resume [spec]               # Report phase + the single next action from durable state (read-only; --epic <id>)
 tp brief [id]                  # The unit brief: identity, scope fence, prior work, close recipe
 tp run [spec]                  # Drive the whole cycle unattended, one unit at a time (--status, --dry-run)
 tp escalate --decision <name>  # Record an operator-only decision from inside a run and stop the unit
@@ -241,7 +241,7 @@ tp validate                    # Task file + coverage + atomicity (--strict, --p
 tp epic lint                   # Lint the epic graph in .tp/epics.json (exit 1 on an error, 3 with no file)
 tp epic export                 # The plan as versioned JSON: graph, derived status, bound files' loops, review slices (--md: tables)
 tp epic add '<json>'           # Add an epic (--stdin, --bulk); a write adding a lint error exits 1, writes nothing
-tp epic set <id> field=value   # Set an epic field, or milestones|gates|tag_checks=<json> whole; same lint rule
+tp epic set <id> field=value   # Set an epic field, milestones|opens_after|gates|tag_checks=<json> whole, or gates.<m>.<field>=<value>
 tp epic remove <id>            # Remove an epic; one depended on needs --force, a tag_checks provider is refused
 tp epic link <from> <to> <why> # Add one edge, or reword its why
 tp epic unlink <from> <to>     # Remove one edge; every writer takes --if-revision <sha256 of the file> and prints revision
@@ -249,8 +249,8 @@ tp epic milestone add <name>   # Insert a milestone --after|--before <m>, or ope
 tp epic gate <m>               # A milestone's gate: members green or red, deferrable apart, threshold; exit 0 only when green
 tp epic done <id> --evidence e # Record an epic with no bound file done (--undo removes it); a condition needs its acceptance
 tp epic claim <id> --by <name> # Reserve an epic (--release frees it); refused when claimed, on a condition, a done or a bound epic
-tp epic ready                  # Work epics that can start; claimed ones with their holder and what waits on the operator apart (--all)
-tp epic status                 # Per milestone: open, counts, gate, ready, blocked, operator waits, holders, critical path (--milestone, --compact)
+tp epic ready                  # Work epics that can start, ranked by downstream; claimed ones and actionable conditions apart (--all)
+tp epic status                 # Critical path; per milestone: open, waiting_on, counts, gate, ready, blocked (--milestone, --open, --compact)
 tp epic import <file>          # Replace the graph with a file (--force over one holding epics); reports its lint findings
 tp epic review --epic <id>     # One prompt per graph role over a slice (or --milestone <m>, --epics <ids> [--name]; --role narrows)
 ```
@@ -410,13 +410,15 @@ Every rule identifier tp can put in a `findings[].rule` field, and the command t
 | `duplicate-name` | `tp epic lint` | error | An epic id or a milestone name appears twice |
 | `unknown-key` | `tp epic lint` | error | A key outside the epic graph file's schema |
 | `missing-why` | `tp epic lint` | error | An edge has no `why`, or one that is empty once trimmed |
-| `unknown-milestone` | `tp epic lint` | error | An epic's `milestone` is absent or in no track |
+| `unknown-milestone` | `tp epic lint` | error | An epic's `milestone` is absent or in no track, or `opens_after` names a milestone in no track |
 | `later-milestone-dependency` | `tp epic lint` | error | An epic depends on one in a later milestone of the same track; edges across tracks are free |
-| `gate-member-outside-milestone` | `tp epic lint` | error | A gate's member is not in that milestone |
+| `gate-member-outside-milestone` | `tp epic lint` | error | A gate member or deferrable epic is not in that milestone |
 | `unprovided-tag-check` | `tp epic lint` | error | An epic carries a tag whose `provided_by` is not in its transitive dependencies; the provider itself is exempt |
-| `no-dependencies` | `tp epic lint` | warning | An epic outside the first milestone of its track has no dependencies and is not marked `root: true` |
+| `opens-after-cycle` | `tp epic lint` | error | The milestones' `opens_after`, track defaults applied, has a cycle (a self-reference too) |
+| `no-dependencies` | `tp epic lint` | warning | An epic outside the first milestone of its track has no dependencies and is neither marked `root: true` nor a condition |
 | `root-with-dependencies` | `tp epic lint` | warning | An epic marked `root: true` has dependencies |
 | `thin-why` | `tp epic lint` | warning | A `why`, case-folded and split into words, is non-empty and occurs as a run of whole words in the target epic's id or title |
+| `partial-parallel` | `tp epic lint` | warning, or info when the milestone's `opens_after` entry is written | A milestone does not open after an earlier milestone of its track, even transitively, yet some of its epics depend directly on that milestone's epics; one finding per pair, naming them |
 
 `tp import` runs the same task-file checks as `tp validate`, so it emits that half of the table too.
 
@@ -535,22 +537,25 @@ owns the spec written for it; the graph is designed and reviewed the way a spec 
   `claimed`, `specced`, `in_progress`, and `done` once every bound file reaches `release`. Nothing is
   stored that the task layer could contradict; an epic finished outside tp, with no file, is closed
   by `tp epic done <id> --evidence`.
-- **Gates open milestones.** A milestone is open when every earlier milestone of its track has a
-  green gate: every member done and, when the gate carries a `threshold`, the operator's evidenced
-  `tp epic gate <m> --met` record. Only an open milestone's epics are ready, and `deferrable` epics
-  never hold a gate.
+- **Gates open milestones.** A milestone is open when every milestone it opens after is open and has
+  a green gate: every member done and, when the gate carries a `threshold`, the operator's evidenced
+  `tp epic gate <m> --met` record. By default a milestone opens after the previous one of its track;
+  `opens_after` names other milestones, of any track, or `[]` for siblings that are always open. Only
+  an open milestone's epics are ready, and `deferrable` epics never hold a gate.
 - **Conditions.** An external precondition is an epic with `condition: true`, its `acceptance`
   saying what it waits for: no task file, no claim, done only by an evidenced record. Work that must
-  wait for it depends on it like any edge.
+  wait for it depends on it like any edge. The operator is asked for a condition only once it is
+  `actionable`, when some epic waits on it and on nothing else undone.
 - **The graph gates the work.** While a bound file's epic has a dependency not done, `tp next`,
   `tp ready` and `tp claim` offer no task and name `blocked_by_epics`, and `tp resume` reports
   `epic-blocked`, so `tp run` stops instead of driving a unit that cannot move; a `wip` task still
   finishes.
-- **Read as one contract.** `tp epic ready` says what can start and who holds a claim; `tp epic
-  status` adds, per milestone, the gate, the blocked list, the critical path, throughput and the
-  estimate roll-up; `tp epic export` prints all of it as versioned JSON, with each bound file's phase
-  and loop states and every review slice, so a view of the plan never parses tp's state files.
-  `--md` keeps the tables; tp renders no map.
+- **Read as one contract.** `tp epic ready` says what can start, ranked by the not-done work that
+  waits on each epic (`downstream`), and who holds a claim; `tp epic status` adds the graph's
+  critical path and, per milestone, the gate, what it opens after and waits on, the blocked list,
+  throughput and the estimate roll-up; `tp epic export` prints all of it as versioned JSON, with each
+  bound file's phase and loop states and every review slice, so a view of the plan never parses tp's
+  state files. `--md` keeps the tables; tp renders no map.
 
 The loop is Workflow E in [SKILL.md](skills/tp/SKILL.md); the file, the lint rules, the prompt
 shape, the state directory, the status table and the payloads are in
