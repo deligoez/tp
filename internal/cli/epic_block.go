@@ -86,8 +86,12 @@ func printBlockedAnswer(answer map[string]any) {
 }
 
 // refuseBlockedClaim is tp claim's block: while tf's epic is blocked it
-// claims nothing and exits 1, carrying blocked_by_epics.
+// claims nothing and exits 1, carrying blocked_by_epics. A file with no open
+// task has nothing to start and answers as an unbound one does.
 func refuseBlockedClaim(tf *model.TaskFile, taskFilePath string) {
+	if !engine.HasOpenTasks(tf) {
+		return
+	}
 	blocked := epicBlockedBy(tf, taskFilePath)
 	if blocked == nil {
 		return
