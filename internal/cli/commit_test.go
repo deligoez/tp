@@ -194,6 +194,18 @@ func TestDoneAutoCommit(t *testing.T) {
 	assert.NotNil(t, show["commit_sha"])
 }
 
+// gitRefusingRmPath returns a PATH entry whose git refuses `git rm` and hands
+// every other subcommand to the real git, so only the lock-file unstage fails.
+func gitRefusingRmPath(t *testing.T) string {
+	t.Helper()
+	realGit, err := exec.LookPath("git")
+	require.NoError(t, err)
+	shimDir := t.TempDir()
+	shim := "#!/bin/sh\nif [ \"$1\" = rm ]; then echo 'fatal: shim refuses rm' >&2; exit 128; fi\nexec '" + realGit + "' \"$@\"\n"
+	require.NoError(t, os.WriteFile(filepath.Join(shimDir, "git"), []byte(shim), 0o700)) //nolint:gosec // the shim must be executable
+	return "PATH=" + shimDir + string(os.PathListSeparator) + os.Getenv("PATH")
+}
+
 // TestDoneAutoCommit_AFailedLockUnstageExitsThree: --auto-commit unstages tp's
 // lock files before it commits, and `git rm --cached --ignore-unmatch` exits 0
 // when nothing matches, so a failure there is a real one: tp done exits 3,
@@ -204,12 +216,7 @@ func TestDoneAutoCommit_AFailedLockUnstageExitsThree(t *testing.T) {
 	dir := setupCommitProject(t, "t1")
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "f.go"), []byte("package f\n"), 0o600))
 
-	realGit, err := exec.LookPath("git")
-	require.NoError(t, err)
-	shimDir := t.TempDir()
-	shim := "#!/bin/sh\nif [ \"$1\" = rm ]; then echo 'fatal: shim refuses rm' >&2; exit 128; fi\nexec '" + realGit + "' \"$@\"\n"
-	require.NoError(t, os.WriteFile(filepath.Join(shimDir, "git"), []byte(shim), 0o700)) //nolint:gosec // the shim must be executable
-	path := "PATH=" + shimDir + string(os.PathListSeparator) + os.Getenv("PATH")
+	path := gitRefusingRmPath(t)
 
 	_, stderr, code := runTPEnv(t, dir, []string{path}, "done", "t1", "t1 acceptance met completely", "--gate-passed", "--auto-commit")
 	require.Equal(t, 3, code, "stderr: %s", stderr)
