@@ -52,3 +52,23 @@ func TestMilestoneGates_ImplicitGateHoldsTheNextMilestone(t *testing.T) {
 	assert.True(t, gates["C"].Open, "C opens once B's gate is green")
 }
 
+// TestMilestoneGates_ThresholdNeedsAMetRecord: a gate carrying a threshold is
+// red with every member done until a met record exists.
+func TestMilestoneGates_ThresholdNeedsAMetRecord(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"A", "B"}}, Epics: []model.Epic{
+		{ID: "x", Title: "X", Milestone: "A", Root: true, Done: epicDoneRecord()},
+		{ID: "y", Title: "Y", Milestone: "B", Root: true},
+	}, Gates: map[string]model.EpicGate{"A": {Threshold: "p95 under 200ms"}}}
+
+	gates := gatesOf(t, g)
+	assert.False(t, gates["A"].Green, "a threshold not yet met holds the gate")
+	assert.False(t, gates["B"].Open)
+
+	gate := g.Gates["A"]
+	gate.Met = &model.GateMet{At: time.Date(2026, 1, 6, 9, 0, 0, 0, time.UTC), Evidence: "dashboard", Threshold: gate.Threshold}
+	g.Gates["A"] = gate
+	gates = gatesOf(t, g)
+	assert.True(t, gates["A"].Green)
+	assert.True(t, gates["B"].Open)
+}
+
