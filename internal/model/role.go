@@ -24,4 +24,14 @@ type Role struct {
 	// Domains restricts the role to the listed spec domains; an empty or absent
 	// list means the role applies to every domain.
 	Domains []string `json:"domains,omitempty"`
+	// Context scopes the context blocks tp epic review shows a graph role:
+	// RoleContextNeighbours (the default when empty) or
+	// RoleContextDependencies. Spec review and audit do not read it.
+	Context string `json:"context,omitempty"`
 }
+
+// The values a graph role's Context may take.
+const (
+	RoleContextNeighbours   = "neighbours"
+	RoleContextDependencies = "dependencies"
+)
