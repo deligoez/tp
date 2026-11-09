@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.5.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-09T14:05:47.779319Z",
+  "updated_at": "2026-11-09T14:10:42.210595Z",
   "workflow": {
     "review_max_rounds": 4,
     "audit_max_rounds": 5
@@ -322,7 +322,7 @@
       "id": "gate-green-milestone-open",
       "title": "Derive milestone openness from gate state",
       "description": "Green: every member done and, with a threshold, a met record. A milestone is open when every earlier milestone of its track has a green gate; the first is always open; tracks do not wait on each other. §10 rows 6 and 7.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "gates"
@@ -337,11 +337,18 @@
         "## 4. Milestones and gates",
         "## 10. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-09T14:07:33.992531Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-09T14:10:42.20151Z",
+      "closed_reason": "- TestMilestoneGates_ImplicitGateHoldsTheNextMilestone: row 7, B opens once A's epics are done (no gates entry for A), C once B's gate is green; second track opens alone\n- TestMilestoneGates_ThresholdNeedsAMetRecord: threshold gate red with every member done until met exists\n- TestMilestoneGates_MemberFallingBackTurnsTheGateRed: undone member turns met gate red, met record stands; each test red under its mutant; gate green",
+      "gate_passed_at": "2026-11-09T14:10:42.20151Z",
+      "commit_sha": "46c1f06b",
+      "commit_shas": [
+        "46c1f06b"
+      ],
+      "commit_files": [
+        "internal/engine/epicopen_test.go"
+      ]
     },
     {
       "id": "gate-met-command",
