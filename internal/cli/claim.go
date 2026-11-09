@@ -46,7 +46,11 @@ func runClaim(_ *cobra.Command, args []string) error {
 			os.Exit(ExitFile)
 			return nil
 		}
-		refuseBlockedClaim(tf, taskFilePath)
+		var targets []string
+		if !claimAllReady {
+			targets = args
+		}
+		refuseBlockedClaim(tf, taskFilePath, targets)
 
 		// Determine which IDs to claim
 		var ids []string

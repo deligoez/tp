@@ -86,10 +86,13 @@ func printBlockedAnswer(answer map[string]any) {
 }
 
 // refuseBlockedClaim is tp claim's block: while tf's epic is blocked it
-// claims nothing and exits 1, carrying blocked_by_epics. A file with no open
-// task has nothing to start and answers as an unbound one does.
-func refuseBlockedClaim(tf *model.TaskFile, taskFilePath string) {
-	if !engine.HasOpenTasks(tf) {
+// claims nothing and exits 1, carrying blocked_by_epics. It judges ids, the
+// ids tp claim was given, as tp done judges each id: only an open one would
+// start, so ids none of which is an open task of tf answer as on an unbound
+// file — not open, not found. A nil ids is --all-ready's, which judges every
+// task: a file with no open task answers as an unbound one does.
+func refuseBlockedClaim(tf *model.TaskFile, taskFilePath string, ids []string) {
+	if !claimsAnOpenTask(tf, ids) {
 		return
 	}
 	blocked := epicBlockedBy(tf, taskFilePath)
@@ -99,6 +102,20 @@ func refuseBlockedClaim(tf *model.TaskFile, taskFilePath string) {
 	output.ErrorExtras(ExitValidation, "cannot claim: "+epicBlockedMessage(tf, blocked),
 		map[string]any{"blocked_by_epics": blocked}, epicBlockHint)
 	os.Exit(ExitValidation)
+}
+
+// claimsAnOpenTask reports whether any of ids is an open task of tf; a nil
+// ids asks whether tf holds any open task at all.
+func claimsAnOpenTask(tf *model.TaskFile, ids []string) bool {
+	if ids == nil {
+		return engine.HasOpenTasks(tf)
+	}
+	for _, id := range ids {
+		if task, _, err := model.FindTask(tf, id); err == nil && task.Status == model.StatusOpen {
+			return true
+		}
+	}
+	return false
 }
 
 // readyBlocked is tp ready's block: while tf's epic is blocked it lists no
