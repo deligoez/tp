@@ -66,6 +66,11 @@ func GateGreen(g *model.EpicGraph, milestone string, states map[string]EpicState
 	if gate.Threshold != "" && gate.Met == nil {
 		return false
 	}
+	return gateMembersDone(g, milestone, states)
+}
+
+// gateMembersDone reports whether every member of milestone's gate is done.
+func gateMembersDone(g *model.EpicGraph, milestone string, states map[string]EpicState) bool {
 	members, _ := GateMembers(g, milestone)
 	for _, id := range members {
 		if states[id].Status != EpicStatusDone {
