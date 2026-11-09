@@ -1426,6 +1426,7 @@ its own, so the set may grow without changing directory. `--status` names it as
 |------|------------|---------|
 | `snapshot-round-<N>.json` | emission | each unit's hash and block text as round N read it; a unit's hash covers its own block and, for an epic, the blocks of its direct dependencies |
 | `round-<N>.ndjson` | `--record` | the round's findings, each with `severity`, `finding`, `location` (`epic:<id>` or `gate:<m>`) and `evidence`; `--resolve` writes dispositions into the last one |
+| `key.json` | emission (v1.5.0) | the slice's key, `{kind, value?, ids?, name?}` with `kind` one of `epic`, `milestone`, `epics`; `tp epic export` lists it |
 
 From round 2 a unit whose hash equals the round before's and that holds no open finding is carried
 and not asked; a unit with no recorded hash is asked and makes the slice stale. Convergence and the
