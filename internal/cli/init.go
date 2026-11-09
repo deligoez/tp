@@ -21,6 +21,7 @@ var (
 	initDomain         string
 	initForce          bool
 	initEjectGraph     bool
+	initEpic           string
 )
 
 // taskFileExistsHint replaces the exit-3 default on `tp init`'s already-exists
@@ -42,6 +43,7 @@ func newInitCmd() *cobra.Command {
 	cmd.Flags().StringVar(&initDomain, "domain", "", "domain corpus to eject with --eject-roles (default: software)")
 	cmd.Flags().BoolVar(&initForce, "force", false, "with --eject-roles: overwrite existing role files")
 	cmd.Flags().BoolVar(&initEjectGraph, "graph", false, "with --eject-roles: write only the graph-review roles into .tp/epic-reviewers")
+	cmd.Flags().StringVar(&initEpic, "epic", "", "bind the created task file to this epic of .tp/epics.json")
 	return cmd
 }
 
@@ -55,6 +57,9 @@ func runInit(_ *cobra.Command, args []string) error {
 		return nil
 	}
 	specPath := args[0]
+	if initEpic != "" {
+		exitOnEpicBindingRefusal(initEpic)
+	}
 
 	// Derive task file path
 	base := strings.TrimSuffix(filepath.Base(specPath), filepath.Ext(specPath))
@@ -89,6 +94,7 @@ func runInit(_ *cobra.Command, args []string) error {
 				Unmapped:    []string{},
 			},
 			Tasks: []model.Task{},
+			Epic:  initEpic,
 		}
 
 		fenceQualityGateInit(initQualityGate)
