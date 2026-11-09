@@ -595,7 +595,8 @@ from a done record.
    milestone's gate, or nothing depends on it, or some undone dependent, in an open milestone or with
    a bound file, waits on conditions alone; `--all` lists the rest with `actionable: false` and
    `not_actionable`, every reason in the order `milestone`, `dependencies`, `dependents`.
-   `gate-held-by-condition` (info) names each gate member waiting on an undone condition, with the path.
+   `gate-held-by-condition` (info) names, per gate and condition outside the gate's own milestone, the
+   members waiting on it, with one path.
 7. **Long-lead epics.** Place an epic that takes long in the earliest milestone where it can start,
    its real dependencies as edges, not in the milestone it must finish by: `tp epic ready` offers it
    as soon as they are done, and `critical_path` shows the chain it lengthens.
