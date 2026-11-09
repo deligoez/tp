@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.5.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-09T13:18:53.56626Z",
+  "updated_at": "2026-11-09T13:23:21.131456Z",
   "workflow": {
     "review_max_rounds": 4,
     "audit_max_rounds": 5
@@ -186,7 +186,7 @@
       "id": "condition-refuses-bound-claimed",
       "title": "Refuse condition on bound or claimed epics",
       "description": "Setting condition: true through any writer is refused (exit 1) on an epic that has a bound file or a claim, so a condition never has either.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "conditions"
@@ -199,11 +199,18 @@
       "source_sections": [
         "## 5. Conditions"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-09T13:19:37.098129Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-09T13:23:21.115695Z",
+      "closed_reason": "- tp epic set b condition=true exits 1 while a file binds b (TestEpicSet_ConditionOnABoundEpicIsRefusedAndWritesNothing)\n- the same exits 1 while b is claimed and writes nothing (TestEpicSet_ConditionOnAClaimedEpicIsRefusedAndWritesNothing; bulk path TestEpicAdd_BulkRowMakingAClaimedEpicAConditionIsRefused; free epic TestEpicSet_ConditionOnAFreeEpicIsWritten); gate green",
+      "gate_passed_at": "2026-11-09T13:23:21.115695Z",
+      "commit_sha": "66389b7c",
+      "commit_shas": [
+        "66389b7c"
+      ],
+      "commit_files": [
+        "internal/cli/epic_add_test.go"
+      ]
     },
     {
       "id": "epic-status-derive",
