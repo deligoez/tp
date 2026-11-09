@@ -57,3 +57,29 @@ func TestEpicRollup_SumsReportPerTaskPerEpic(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []epicRollupRow{{Epic: "x", EstimateMinutes: 5, ActualMinutes: 5, Tracked: 1}}, rows)
 }
+
+// TestEpicRollup_EstimateTotalCoversEveryTask pins spec/1.6.0.md B3: beside
+// the tracked tasks' figures, estimate_total sums estimate_minutes over every
+// task of the bound files, open, wip, done and untracked done alike, so an
+// in-flight epic's remaining work shows.
+func TestEpicRollup_EstimateTotalCoversEveryTask(t *testing.T) {
+	dir := t.TempDir()
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"A"}}, Epics: []model.Epic{
+		{ID: "e", Title: "E", Milestone: "A", Root: true},
+	}}
+	started := time.Date(2026, 11, 2, 9, 0, 0, 0, time.UTC)
+	closed := started.Add(12 * time.Minute)
+	tf := model.TaskFile{Version: 1, Spec: "s.md", Tasks: []model.Task{
+		{ID: "open", Title: "T", Status: model.StatusOpen, EstimateMinutes: 50, Acceptance: "a", DependsOn: []string{}},
+		{ID: "wip", Title: "T", Status: model.StatusWIP, EstimateMinutes: 20, Acceptance: "a", DependsOn: []string{}, StartedAt: &started},
+		{ID: "tracked", Title: "T", Status: model.StatusDone, EstimateMinutes: 10, Acceptance: "a", DependsOn: []string{}, StartedAt: &started, ClosedAt: &closed},
+		{ID: "untracked", Title: "T", Status: model.StatusDone, EstimateMinutes: 7, Acceptance: "a", DependsOn: []string{}},
+	}}
+	path := filepath.Join(dir, "e.tasks.json")
+	require.NoError(t, model.WriteTaskFile(path, &tf))
+
+	rows, err := epicRollup(g, map[string][]string{"e": {path}}, "A")
+
+	require.NoError(t, err)
+	assert.Equal(t, []epicRollupRow{{Epic: "e", EstimateMinutes: 10, ActualMinutes: 12, Tracked: 1, EstimateTotal: 87}}, rows)
+}
