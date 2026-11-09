@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.5.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-09T12:59:11.876934Z",
+  "updated_at": "2026-11-09T13:03:51.28297Z",
   "workflow": {
     "review_max_rounds": 4,
     "audit_max_rounds": 5
@@ -578,7 +578,7 @@
       "id": "epic-review-slice-key",
       "title": "Record each epic review slice's key",
       "description": "Each tp epic review emission writes its slice's key (kind and value or ids and name) into the slice's state directory, so slices can be listed.",
-      "status": "open",
+      "status": "done",
       "tags": [
         "engine",
         "review"
@@ -589,11 +589,18 @@
       "source_sections": [
         "## 7. Epic commands"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-09T12:59:17.985402Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-09T13:03:51.271131Z",
+      "closed_reason": "- TestEpicReview_AnEmissionRecordsTheSliceKey: an emission writes key.json (kind and value, or ids and name) into the slice's state directory\n- TestEpicSliceKey_ASliceWithoutTheFileReadsAsUnknown: a slice without key.json reads as key unknown (nil, no error); gate green",
+      "gate_passed_at": "2026-11-09T13:03:51.271131Z",
+      "commit_sha": "fbb99f31a3113ed3c158d17cd32efce1fe543da3",
+      "commit_shas": [
+        "fbb99f31a3113ed3c158d17cd32efce1fe543da3"
+      ],
+      "commit_files": [
+        "internal/cli/epic_review_test.go"
+      ]
     },
     {
       "id": "epic-export-json",
