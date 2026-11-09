@@ -88,3 +88,20 @@ func TestEpicReady_AConditionIsListedApartFromTheWorkEpics(t *testing.T) {
 	assert.Equal(t, []string{"c", "go"}, conditions, "the conditions with done dependencies wait on the operator")
 }
 
+// TestEpicReady_AClaimedEpicIsListedApartWithItsHolder is C1: a claimed epic
+// that would otherwise be ready is not in the ready list but in the claimed
+// list, naming its holder.
+func TestEpicReady_AClaimedEpicIsListedApartWithItsHolder(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{"version": 1, "milestones": [["A"]], "epics": [
+    {"id": "a", "title": "A", "milestone": "A", "root": true},
+    {"id": "b", "title": "B", "milestone": "A", "root": true, "claimed": {"at": "2026-01-02T03:04:05Z", "by": "agent-1"}}
+  ]}`)
+
+	r := runEpicReady(t, dir)
+	assert.Equal(t, []string{"a"}, r.readyIDs(), "a claimed epic is not ready")
+	require.Len(t, r.Claimed, 1)
+	assert.Equal(t, "b", r.Claimed[0].ID)
+	assert.Equal(t, "agent-1", r.Claimed[0].By, "the claimed list names the holder")
+}
+
