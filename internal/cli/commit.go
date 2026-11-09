@@ -265,6 +265,19 @@ func tpLockPathspecs() []string {
 	}
 }
 
+// unstageLockFilesOrExit drops tp's lock files from the index before a commit.
+// `git rm --cached --ignore-unmatch` is HEAD-independent (it works before the
+// first commit) and exits 0 when nothing matches, so an index holding no lock
+// file is no error; any failure is git's own (a held index.lock, a broken
+// repository) and would leave a lock file staged for the commit, so it exits 3
+// with git's message on stderr.
+func unstageLockFilesOrExit() {
+	if err := runGit(append([]string{"rm", "--cached", "-r", "--ignore-unmatch", "-q", "--"}, tpLockPathspecs()...)...); err != nil {
+		output.Error(ExitFile, fmt.Sprintf("git rm --cached of tp's lock files failed: %v", err), gitSubprocessHint)
+		os.Exit(ExitFile)
+	}
+}
+
 func runGit(args ...string) error {
 	cmd := exec.Command("git", args...)
 	cmd.Stderr = os.Stderr
