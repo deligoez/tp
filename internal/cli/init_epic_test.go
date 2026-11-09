@@ -49,3 +49,10 @@ func TestInitEpic_AbsentIDIsRefusedAndCreatesNoFile(t *testing.T) {
 	assertInitBindingRefused(t, "z", "not in the graph")
 }
 
+// TestInitEpic_ConditionIsRefusedAndCreatesNoFile is §2: no task file builds
+// a condition.
+func TestInitEpic_ConditionIsRefusedAndCreatesNoFile(t *testing.T) {
+	t.Parallel()
+	assertInitBindingRefused(t, "c", "condition")
+}
+
