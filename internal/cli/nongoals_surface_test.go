@@ -70,6 +70,7 @@ epic link: if-revision
 epic lint:
 epic milestone:
 epic milestone add: after before if-revision new-track
+epic ready: all
 epic remove: force if-revision
 epic review: check epic epics force milestone name record resolve resolve-all role status
 epic set: if-revision

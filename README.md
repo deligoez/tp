@@ -241,6 +241,7 @@ tp epic milestone add <name>   # Insert a milestone --after|--before <m>, or ope
 tp epic gate <m>               # A milestone's gate: members green or red, deferrable apart, threshold; exit 0 only when green
 tp epic done <id> --evidence e # Record an epic with no bound file done (--undo removes it); a condition needs its acceptance
 tp epic claim <id> --by <name> # Reserve an epic (--release frees it); refused when claimed, on a condition, a done or a bound epic
+tp epic ready                  # Work epics that can start; claimed ones with their holder and what waits on the operator apart (--all)
 tp epic import <file>          # Replace the graph with a file (--force over one holding epics); reports its lint findings
 tp epic review --epic <id>     # One prompt per graph role over a slice (or --milestone <m>, --epics <ids> [--name]; --role narrows)
 ```
