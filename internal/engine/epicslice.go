@@ -66,7 +66,7 @@ func EpicReviewSlice(g *model.EpicGraph, key EpicSliceKey) (EpicSlice, error) {
 		s.Units = append(s.Units, epicUnit(byID[id], byID))
 	}
 	for _, m := range sliceGates(g, key, asked) {
-		block := epicGateBlock(m, g.Gates[m])
+		block := epicGateBlock(g, m)
 		s.Units = append(s.Units, EpicReviewUnit{Key: "gate:" + m, Block: block, Hash: epicHash(block)})
 	}
 	s.Context = epicSliceContext(g, asked)
@@ -224,14 +224,23 @@ func epicBlock(e *model.Epic) string {
 }
 
 // epicGateBlock renders a milestone's gate: its members, deferrables and
-// threshold.
-func epicGateBlock(milestone string, gate model.EpicGate) string {
+// threshold, then the milestone's opens_after entry when the map names it
+// (spec/1.6.0.md §1), so editing what the milestone opens after re-asks it.
+func epicGateBlock(g *model.EpicGraph, milestone string) string {
+	gate := g.Gates[milestone]
 	block := "gate: " + milestone + "\nmembers: " + strings.Join(gate.Members, ", ") + "\n"
 	if len(gate.Deferrable) > 0 {
 		block += "deferrable: " + strings.Join(gate.Deferrable, ", ") + "\n"
 	}
 	if gate.Threshold != "" {
 		block += "threshold: " + gate.Threshold + "\n"
+	}
+	if after, ok := g.OpensAfter[milestone]; ok {
+		list := "[]"
+		if len(after) > 0 {
+			list = strings.Join(after, ", ")
+		}
+		block += "opens_after: " + list + "\n"
 	}
 	return block
 }
