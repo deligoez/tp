@@ -48,6 +48,9 @@ func ParseEpicGraphSet(key, value string) (func(*model.EpicGraph) error, error) 
 		if err := decodeStrict(value, &after); err != nil {
 			return nil, err
 		}
+		if err := CheckOpensAfterLists(after); err != nil {
+			return nil, err
+		}
 		return func(g *model.EpicGraph) error { g.OpensAfter = after; return nil }, nil
 	case "gates":
 		return parseGatesSet(value)
@@ -214,6 +217,19 @@ func epicFlagSetter(field, value string) (func(*model.Epic), error) {
 		return func(e *model.Epic) { e.Root = on }, nil
 	}
 	return func(e *model.Epic) { e.Condition = on }, nil
+}
+
+// CheckOpensAfterLists refuses an opens_after entry whose value is JSON null:
+// decoded it is a present key with no list, which would read as "opens after
+// nothing" while it looks like "absent" (the previous milestone). [] is the
+// way to write the first.
+func CheckOpensAfterLists(after map[string][]string) error {
+	for _, key := range sortedMapKeys(after) {
+		if after[key] == nil {
+			return fmt.Errorf("opens_after %q is null, not a list: write [] to open it with nothing before it, or drop the key for the previous milestone", key)
+		}
+	}
+	return nil
 }
 
 // decodeStrict decodes one JSON value, refusing keys outside the schema.
