@@ -146,6 +146,19 @@ func TestEpicFlag_NoBoundFileExits4(t *testing.T) {
 	}
 }
 
+// TestEpicFlag_UnknownEpicExits4SayingSo: an id the graph does not hold is
+// not an epic without a binding, so the refusal says the graph lacks it.
+func TestEpicFlag_UnknownEpicExits4SayingSo(t *testing.T) {
+	t.Parallel()
+	dir := epicFileRepo(t)
+	initGitRepo(t, dir)
+
+	_, stderr, code := runTP(t, dir, "next", "--peek", "--epic", "nope")
+	require.Equal(t, 4, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, `epic \"nope\" is not in the graph`)
+	assert.NotContains(t, stderr, "bind one to the epic")
+}
+
 // TestEpicFlag_WithFileIsAUsageError is F8: --epic picks the file --file
 // names, so passing both exits 2.
 func TestEpicFlag_WithFileIsAUsageError(t *testing.T) {
