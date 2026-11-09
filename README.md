@@ -214,6 +214,7 @@ tp close <id> <reason>         # wip → done (low-level, prefer tp done)
 tp reopen <id>                 # done → open (clears timestamps + SHAs)
 tp remove <id>                 # Remove a task (--force cleans dependents)
 tp set <id> field=value        # Update a field (--workflow, --project, --local, --bulk)
+tp set --epic <id>             # Bind the task file to an epic ("" unbinds); its status follows the file
 tp keep <path> "<reason>"      # Keep-list a deliberately-uncommitted file (--remove, --list)
 ```
 
@@ -256,7 +257,7 @@ tp epic review --epic <id>     # One prompt per graph role over a slice (or --mi
 
 ### Data
 ```bash
-tp init spec.md                # Create the task file shell (--eject-roles)
+tp init spec.md                # Create the task file shell (--eject-roles, --epic <id> binds it to an epic)
 tp add <json>                  # Add a task (--stdin, --bulk)
 tp import file.json            # Import + validate (--force, --spec)
 tp use spec.tasks.json         # Set the active task file (--clear)
