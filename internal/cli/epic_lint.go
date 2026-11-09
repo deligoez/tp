@@ -14,6 +14,7 @@ type epicLintResult struct {
 	Errors   int                      `json:"errors"`
 	Warnings int                      `json:"warnings"`
 	Findings []engine.EpicLintFinding `json:"findings"`
+	Revision string                   `json:"revision"`
 }
 
 // epicGraphFileHint answers an absent or unparsable .tp/epics.json.
@@ -48,7 +49,12 @@ func runEpicLint(_ *cobra.Command, _ []string) error {
 		os.Exit(ExitFile)
 		return nil
 	}
-	result := epicLintResult{Findings: engine.LintEpicGraph(g, unknown)}
+	revision, err := engine.EpicGraphRevision(tpDir)
+	if err != nil {
+		output.Error(ExitFile, err.Error(), epicGraphFileHint)
+		os.Exit(ExitFile)
+	}
+	result := epicLintResult{Findings: engine.LintEpicGraph(g, unknown), Revision: revision}
 	if result.Findings == nil {
 		result.Findings = []engine.EpicLintFinding{}
 	}
