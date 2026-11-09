@@ -25,6 +25,15 @@ fix needs a design choice leaves this file for a decision note.
   resolve the project layer from the task file's directory — changes documented resolution precedence,
   so it is a decision.
 
+- **`tp commit` and single-id `tp claim` still swallow some git and stdout errors** (seen by the
+  v1.5.0 audit, pre-dating it): `gitHasStagedChanges` reads a git error as "changes staged"
+  (`commit.go`), a failed follow-up closure commit only warns, `runCommit`'s final `output.JSON` and
+  `claimSingle`'s do not exit 3 when stdout cannot be written, and a `git add` failure still offers the
+  committer-identity hint. Repro: a git shim refusing `diff --cached`, or `1</dev/null`.
+- **The tp plugin's scope-fence hook blocks reads and fixture writes it should allow.** A codedbpro
+  read of a file under `spec/.tp-review/` is refused as a hand-edit, and an auditor writing a
+  `*.tasks.json` fixture into a `mktemp -d` directory outside the repo is refused too. Repro: from a
+  tp session, `mcp__codedbpro__read` on any round file, or `create` of `/tmp/x/spec.tasks.json`.
 ## Wrong or missing guidance
 
 - **Two specs with the same base in different directories share the ground scratch file** when
