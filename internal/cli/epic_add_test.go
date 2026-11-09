@@ -338,3 +338,20 @@ func TestEpicAdd_BulkRowKeepsAnExistingClaimAndDone(t *testing.T) {
 	require.NotNil(t, g.Epics[0].Done, "the done record is carried over")
 	assert.Equal(t, "shipped", g.Epics[0].Done.Evidence)
 }
+
+// TestEpicAdd_BulkRowMakingAClaimedEpicAConditionIsRefused is §5 through the
+// other writer that sets condition: the row carries a's claim over, so a
+// writer checking only tp epic set would write a claimed condition.
+func TestEpicAdd_BulkRowMakingAClaimedEpicAConditionIsRefused(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, epicGraphWithRecords)
+	before := readEpicGraphFile(t, dir)
+	bulk := filepath.Join(dir, "rows.ndjson")
+	require.NoError(t, os.WriteFile(bulk,
+		[]byte(`{"id": "a", "title": "A", "milestone": "A", "condition": true, "acceptance": "the vendor signs"}`+"\n"), 0o600))
+
+	_, stderr, code := runTP(t, dir, "epic", "add", "--bulk", bulk)
+	require.Equal(t, 1, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "claimed")
+	assert.Equal(t, before, readEpicGraphFile(t, dir), "a refused add writes nothing")
+}
