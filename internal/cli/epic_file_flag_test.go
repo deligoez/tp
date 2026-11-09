@@ -178,3 +178,15 @@ func TestEpicFlag_FileLabelRoundTripsFromASymlinkedCwd(t *testing.T) {
 	_, stderr, code := runTPEnv(t, link, []string{"PWD=" + link}, "claim", "t1", "--file", file)
 	assert.Equal(t, 0, code, "stderr: %s", stderr)
 }
+
+// TestEpicFlag_FileLabelIsRelativeToASubdirectory: from a subdirectory of a
+// symlinked cwd the label climbs to the file, and --file accepts it there.
+func TestEpicFlag_FileLabelIsRelativeToASubdirectory(t *testing.T) {
+	t.Parallel()
+	sub := filepath.Join(symlinkedEpicRepo(t), "sub")
+
+	file := epicFileLabel(t, sub)
+	assert.Equal(t, filepath.Join("..", "b1.tasks.json"), file)
+	_, stderr, code := runTPEnv(t, sub, []string{"PWD=" + sub}, "claim", "t1", "--file", file)
+	assert.Equal(t, 0, code, "stderr: %s", stderr)
+}
