@@ -65,7 +65,6 @@ internal/cli runValidateProject
 internal/cli selectBriefTarget
 internal/cli toposortBatchEntries
 internal/cli validateReviewInputs
-internal/engine AssembleResume
 internal/engine CheckNumberingGaps
 internal/engine CheckOrphanListItems
 internal/engine CheckStructuredElements

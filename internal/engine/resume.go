@@ -66,38 +66,11 @@ func AssembleResume(start, taskFilePath, specPath string, tf *model.TaskFile) (R
 	sort.Strings(changes)
 	sort.Slice(kept, func(i, j int) bool { return kept[i].Path < kept[j].Path })
 
-	// Convergence and staleness from the review state and the effective workflow.
-	st, err := LoadReviewState(specPath)
+	loops, err := readResumeLoops(taskFilePath, specPath, tf)
 	if err != nil {
-		// tp resume is the re-orientation oracle, and the window it has to work
-		// in is exactly the gap between emitting a round and recording it —
-		// where an audit emission has written a snapshot and no index yet.
-		// Failing there told the orchestrator to delete the directory holding
-		// its own in-flight round. A lost index still surfaces as an error.
-		if !IsRebuildableStateIndex(err) {
-			return ResumeResult{}, err
-		}
-		st = nil
+		return ResumeResult{}, err
 	}
-	wf := EffectiveWorkflowForTaskFile(taskFilePath)
-	specHash, _ := SpecHash(specPath)
-	reviewRounds := reviewRoundsOf(st)
-	auditRounds := auditRoundsOf(st)
-	// The same verdict import and --status --check read: converged, or the cap
-	// reached with every finding of the latest round dispositioned. Reading the
-	// stored flags here kept the oracle escalating on a loop import accepted.
-	reviewDone := ReviewLoopDone(specPath, reviewRounds, wf.ReviewCleanRounds, wf.EffectiveReviewMaxRounds(), specHash, wf.ReviewConvergeOn)
-	auditDone := AuditLoopDone(specPath, auditRounds, wf.AuditCleanRounds, wf.EffectiveAuditMaxRounds(), specHash)
-	reviewConverged, auditConverged := reviewDone.Done, auditDone.Done
-	reviewStale := StateStale(reviewRounds, specHash)
-
-	numDone := 0
-	for i := range tf.Tasks {
-		if tf.Tasks[i].Status == model.StatusDone {
-			numDone++
-		}
-	}
-	phase := DetectPhase(len(tf.Tasks), numDone, reviewConverged, auditConverged)
+	phase, wf := loops.phase, &loops.wf
 
 	guidance := ""
 	if phase == PhaseImplement {
@@ -109,22 +82,22 @@ func AssembleResume(start, taskFilePath, specPath string, tf *model.TaskFile) (R
 		SpecPath:        specPath,
 		Changes:         changes,
 		TaskFile:        tf,
-		ReviewRounds:    len(reviewRounds),
+		ReviewRounds:    len(loops.reviewRounds),
 		ReviewMaxRounds: wf.EffectiveReviewMaxRounds(),
-		ReviewConverged: reviewConverged,
-		AuditRounds:     len(auditRounds),
+		ReviewConverged: loops.reviewDone.Done,
+		AuditRounds:     len(loops.auditRounds),
 		AuditMaxRounds:  wf.EffectiveAuditMaxRounds(),
-		AuditConverged:  auditConverged,
-		ReviewStale:     reviewStale,
+		AuditConverged:  loops.auditDone.Done,
+		ReviewStale:     loops.reviewStale,
 
-		ReviewBlockingFixedAtCap: reviewDone.BlockingFixedAtCap,
-		AuditBlockingFixedAtCap:  auditDone.BlockingFixedAtCap,
+		ReviewBlockingFixedAtCap: loops.reviewDone.BlockingFixedAtCap,
+		AuditBlockingFixedAtCap:  loops.auditDone.BlockingFixedAtCap,
 	})
 
 	// The units come after the blockers because an escalate blocker is what
 	// empties them (§4.1), and next_action is rendered from the first unit so
 	// the human summary and the machine surface describe the same work.
-	nextUnits, round := BuildNextUnits(start, taskFilePath, specPath, phase, tf, st, blockers)
+	nextUnits, round := BuildNextUnits(start, taskFilePath, specPath, phase, tf, loops.st, blockers)
 
 	return ResumeResult{
 		Phase:       phase,
@@ -139,7 +112,55 @@ func AssembleResume(start, taskFilePath, specPath string, tf *model.TaskFile) (R
 		// len(wf.Checks) is read, never run: the decompose action names the
 		// gate that runs the registered checks (decomposeNextAction), and
 		// resume itself stays the read-only oracle §4.8 requires.
-		NextAction: renderNextAction(BuildNextAction(phase, specPath, tf, st, len(wf.Checks) > 0), nextUnits, blockers),
+		NextAction: renderNextAction(BuildNextAction(phase, specPath, tf, loops.st, len(wf.Checks) > 0), nextUnits, blockers),
 		Blockers:   blockers,
 	}, nil
+}
+
+// resumeLoops is what tp resume reads a task file's phase from: its review
+// state, effective workflow, recorded rounds and the loop verdicts on them.
+type resumeLoops struct {
+	st           *ReviewState
+	wf           model.Workflow
+	reviewRounds []ReviewRound
+	auditRounds  []ReviewRound
+	reviewDone   LoopDone
+	auditDone    LoopDone
+	reviewStale  bool
+	phase        string
+}
+
+// readResumeLoops derives a task file's lifecycle phase the one way tp resume
+// does, so a caller judging a file elsewhere (an epic's bound files) cannot
+// disagree with the oracle about it. It writes nothing. A state index the next
+// record rebuilds reads as no state; any other corrupt state is an error.
+func readResumeLoops(taskFilePath, specPath string, tf *model.TaskFile) (resumeLoops, error) {
+	st, err := LoadReviewState(specPath)
+	if err != nil {
+		// tp resume is the re-orientation oracle, and the window it has to work
+		// in is exactly the gap between emitting a round and recording it —
+		// where an audit emission has written a snapshot and no index yet.
+		// Failing there told the orchestrator to delete the directory holding
+		// its own in-flight round. A lost index still surfaces as an error.
+		if !IsRebuildableStateIndex(err) {
+			return resumeLoops{}, err
+		}
+		st = nil
+	}
+	l := resumeLoops{st: st, wf: EffectiveWorkflowForTaskFile(taskFilePath), reviewRounds: reviewRoundsOf(st), auditRounds: auditRoundsOf(st)}
+	specHash, _ := SpecHash(specPath)
+	// The same verdict import and --status --check read: converged, or the cap
+	// reached with every finding of the latest round dispositioned. Reading the
+	// stored flags here kept the oracle escalating on a loop import accepted.
+	l.reviewDone = ReviewLoopDone(specPath, l.reviewRounds, l.wf.ReviewCleanRounds, l.wf.EffectiveReviewMaxRounds(), specHash, l.wf.ReviewConvergeOn)
+	l.auditDone = AuditLoopDone(specPath, l.auditRounds, l.wf.AuditCleanRounds, l.wf.EffectiveAuditMaxRounds(), specHash)
+	l.reviewStale = StateStale(l.reviewRounds, specHash)
+	numDone := 0
+	for i := range tf.Tasks {
+		if tf.Tasks[i].Status == model.StatusDone {
+			numDone++
+		}
+	}
+	l.phase = DetectPhase(len(tf.Tasks), numDone, l.reviewDone.Done, l.auditDone.Done)
+	return l, nil
 }
