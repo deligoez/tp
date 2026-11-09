@@ -14,3 +14,11 @@
 | F7 | `status --compact` and `export` are large on a big graph, mostly the blocked lists of closed milestones | `tp epic status --open`, or closed milestones' blocked lists summarised |
 | F8 | `tp resume` at the repository root does not find a bound file in a subdirectory | `tp resume/next/ready --epic <id>`, resolving the bound file |
 | F9 | the export's `epics[]` carries only `{id, status, done_at, files}`; a drawing joins against the graph | repeat `milestone` and `condition`, and carry F1's counts, F3's `actionable` and what holds a deferrable epic |
+
+## Batch 2, on the released v1.5.0
+
+| # | finding | proposed answer |
+|---|---|---|
+| B1 | editing one gate's threshold means reading the raw graph, stripping every gate's `met`, and replacing the whole `gates` object | `tp epic set gates.<m>.threshold=<text>` and `gates.<m>.deferrable=<ids>`, carrying `met` like the other whole-object writers |
+| B2 | `share_done` and `throughput` count a condition as delivered work | leave conditions out of both, as they are out of gate membership; report done conditions apart |
+| B3 | the roll-up's estimate covers closed tasks only, so an in-flight epic's remaining work is invisible | add `estimate_total` over every task of the bound files beside the closed-task figures |
