@@ -88,10 +88,15 @@ func epicPromptWithTail(run *epicReviewRun, role string, b *strings.Builder, con
 func epicAskedText(run *epicReviewRun) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "This is epic review round %d of %s.\n\nAsked units:\n", run.round, epicSliceLabel(run.key))
+	gate := false
 	for _, u := range run.slice.Units {
 		b.WriteString("---\n" + u.Block)
+		gate = gate || strings.HasPrefix(u.Key, "gate:")
 	}
 	b.WriteString("---\n")
+	if !gate {
+		b.WriteString("\nNo gate unit is asked this round: every instruction or question about a gate does not apply; judge the epics only.\n")
+	}
 	return b.String()
 }
 
