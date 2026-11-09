@@ -86,3 +86,33 @@ func TestEpicSet_GatesAndTagChecksReplaceTheWholeObject(t *testing.T) {
 	require.Len(t, g.TagChecks, 1)
 	assert.Equal(t, "b", g.TagChecks["ui"].ProvidedBy)
 }
+
+// TestEpicSet_GatesKeepsAnExistingMetRecord is §8: set gates= replaces the
+// object whole, so a writer that did not carry met over would drop A's record.
+func TestEpicSet_GatesKeepsAnExistingMetRecord(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{
+  "version": 1,
+  "milestones": [["A"]],
+  "gates": {"A": {"members": ["a"], "threshold": "ships", "met": {"at": "2026-01-02T03:04:05Z", "evidence": "run 7", "threshold": "ships"}}},
+  "epics": [
+    {"id": "a", "title": "A", "milestone": "A"}
+  ]
+}
+`)
+	_, stderr, code := runTP(t, dir, "epic", "set", `gates={"A": {"members": ["a"], "threshold": "ships twice"}}`)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+
+	var g struct {
+		Gates map[string]struct {
+			Threshold string `json:"threshold"`
+			Met       *struct {
+				Evidence string `json:"evidence"`
+			} `json:"met"`
+		} `json:"gates"`
+	}
+	require.NoError(t, json.Unmarshal(readEpicGraphFile(t, dir), &g))
+	assert.Equal(t, "ships twice", g.Gates["A"].Threshold, "the payload replaces the gate")
+	require.NotNil(t, g.Gates["A"].Met, "the met record is carried over")
+	assert.Equal(t, "run 7", g.Gates["A"].Met.Evidence)
+}
