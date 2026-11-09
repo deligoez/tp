@@ -79,3 +79,18 @@ func TestDeriveEpicStates_BMovesAsItsFileMoves(t *testing.T) {
 	assert.Equal(t, EpicStatusDone, epicStatusIn(t, g, root, "c"), "a taskless epic is done by its record")
 }
 
+// TestDeriveEpicStates_DoneNeedsEveryBoundFileAtRelease: with two files bound
+// to b, one at release and one whose tasks are all done but whose audit has
+// not converged, b is in_progress; it is done once both are at release.
+func TestDeriveEpicStates_DoneNeedsEveryBoundFileAtRelease(t *testing.T) {
+	root := boundFilesRepo(t)
+	g := statusChain()
+	first := writeStatusFile(t, root, "b1", model.StatusDone)
+	second := writeStatusFile(t, root, "b2", model.StatusDone)
+	recordRounds(t, first, 0, 2, true)
+	assert.Equal(t, EpicStatusInProgress, epicStatusIn(t, g, root, "b"))
+
+	recordRounds(t, second, 0, 2, true)
+	assert.Equal(t, EpicStatusDone, epicStatusIn(t, g, root, "b"))
+}
+
