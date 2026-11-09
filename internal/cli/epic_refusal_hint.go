@@ -22,11 +22,22 @@ var epicRuleRefusedHints = map[string]string{
 	engine.EpicRuleOpensAfterCycle:            "drop or redirect one opens_after entry of the cycle; a milestone without an entry opens after the previous one of its track",
 }
 
+// epicDanglingOriginHints answer the dangling-reference shapes that are not
+// edges, by the finding's Origin.
+var epicDanglingOriginHints = map[string]string{
+	engine.DanglingGateKey:  "key a gate by a milestone a track lists (tp epic status lists the milestones), or drop the key",
+	engine.DanglingTagCheck: "point provided_by at an epic the graph holds (tp epic add adds one), or drop the tag check",
+}
+
 // epicFindingRefusedHint is one added error's hint: a gate list's own for an
-// id a gate lists that names no epic, else its rule's, else the generic one.
+// id a gate lists that names no epic, a gates key's or a tag check's own,
+// else its rule's, else the generic one.
 func epicFindingRefusedHint(f *engine.EpicLintFinding) string {
 	if f.Rule == engine.EpicRuleDanglingReference && f.Gate != "" {
 		return fmt.Sprintf("list only epics of milestone %q that the graph holds", f.Gate)
+	}
+	if hint, ok := epicDanglingOriginHints[f.Origin]; ok && f.Rule == engine.EpicRuleDanglingReference {
+		return hint
 	}
 	if hint, ok := epicRuleRefusedHints[f.Rule]; ok {
 		return hint

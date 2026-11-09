@@ -63,6 +63,8 @@ const (
 // payload, where the message carries them. Gate is the milestone whose gate
 // list (members or deferrable) holds the id a dangling-reference finding
 // names, "" for any other finding: it tells a gate list apart from an edge.
+// Origin tells the other dangling-reference shapes that are not edges apart:
+// DanglingGateKey or DanglingTagCheck, "" otherwise.
 type EpicLintFinding struct {
 	Rule     string   `json:"rule"`
 	Severity string   `json:"severity"`
@@ -70,7 +72,16 @@ type EpicLintFinding struct {
 	Message  string   `json:"message"`
 	Names    []string `json:"-"`
 	Gate     string   `json:"-"`
+	Origin   string   `json:"-"`
 }
+
+// Origins of a dangling-reference finding that names no edge.
+const (
+	// DanglingGateKey is a gates key that names no milestone.
+	DanglingGateKey = "gate-key"
+	// DanglingTagCheck is a tag_checks provided_by that names no epic.
+	DanglingTagCheck = "tag-check"
+)
 
 // LintEpicGraph runs the structure, edge, milestone and tag rules, then the
 // warnings, over g and the
@@ -245,8 +256,10 @@ func lintEpicDangling(g *model.EpicGraph) []EpicLintFinding {
 	}
 	for _, tag := range sortedMapKeys(g.TagChecks) {
 		if p := g.TagChecks[tag].ProvidedBy; !ids[p] {
-			out = append(out, epicNamedError(EpicRuleDanglingReference,
-				fmt.Sprintf("tag_checks %q provided_by %q names no epic", tag, p), []string{tag}, p))
+			f := epicNamedError(EpicRuleDanglingReference,
+				fmt.Sprintf("tag_checks %q provided_by %q names no epic", tag, p), []string{tag}, p)
+			f.Origin = DanglingTagCheck
+			out = append(out, f)
 		}
 	}
 	return out
@@ -255,8 +268,10 @@ func lintEpicDangling(g *model.EpicGraph) []EpicLintFinding {
 func lintGateDangling(name string, gate model.EpicGate, ids, milestones map[string]bool) []EpicLintFinding {
 	var out []EpicLintFinding
 	if !milestones[name] {
-		out = append(out, epicNamedError(EpicRuleDanglingReference,
-			fmt.Sprintf("gates key %q names no milestone", name), []string{name}))
+		f := epicNamedError(EpicRuleDanglingReference,
+			fmt.Sprintf("gates key %q names no milestone", name), []string{name})
+		f.Origin = DanglingGateKey
+		out = append(out, f)
 	}
 	for _, list := range []struct {
 		field string
