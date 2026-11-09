@@ -68,6 +68,9 @@ const (
 	// gate's members reaches it, which can still finish once that milestone
 	// opens.
 	EpicRuleDependencyOpensLater = "dependency-opens-later"
+	// EpicRuleGateHeldByCondition is the info on a gate member that waits,
+	// through epics without a done record, on a condition without one.
+	EpicRuleGateHeldByCondition = "gate-held-by-condition"
 )
 
 // EpicLintFinding is one lint result. Epics holds the sorted, distinct ids the
@@ -124,6 +127,7 @@ func LintEpicGraph(g *model.EpicGraph, unknown []EpicGraphUnknownKey) []EpicLint
 	out = append(out, lintEpicRootWithDependencies(g)...)
 	out = append(out, lintEpicPartialParallel(g)...)
 	out = append(out, lintEpicDependencyOpensLater(g)...)
+	out = append(out, lintEpicGateHeldByCondition(g)...)
 	return out
 }
 
