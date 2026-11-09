@@ -90,3 +90,17 @@ func TestNewEpicErrors_ShrinkingACycleIsNotNew(t *testing.T) {
 	require.Len(t, grown, 1, "growing the cycle is new")
 	assert.Equal(t, []string{"a", "b", "c"}, grown[0].Epics)
 }
+
+// TestNewEpicErrors_ShrinkingAnOpensAfterCycleIsNotNew: track [P, Q, R] with
+// P opening after R is a cycle among P, Q, R; P opening after Q narrows it
+// to P, Q, which the write may leave as an improvement.
+func TestNewEpicErrors_ShrinkingAnOpensAfterCycleIsNotNew(t *testing.T) {
+	g := &model.EpicGraph{Version: 1, Milestones: [][]string{{"P", "Q", "R"}}, Epics: []model.Epic{}}
+	g.OpensAfter = map[string][]string{"P": {"R"}}
+	wide := LintEpicGraph(g, nil)
+	g.OpensAfter = map[string][]string{"P": {"Q"}}
+	narrow := LintEpicGraph(g, nil)
+	require.Len(t, narrow, 1, "the narrowed graph still holds a cycle")
+	assert.Empty(t, NewEpicErrors(wide, narrow), "P, Q is within P, Q, R")
+	assert.Len(t, NewEpicErrors(narrow, wide), 1, "growing the cycle is new")
+}
