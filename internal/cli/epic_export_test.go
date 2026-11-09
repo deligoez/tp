@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -68,10 +69,12 @@ func TestEpicExport_OneTablePerMilestoneInTrackOrder(t *testing.T) {
 	assert.Len(t, entries, 1, "tp epic export creates nothing under .tp/")
 }
 
-// TestEpicExport_WithoutMdIsAUsageError: --md is the only format (§8 Non-goal 3
-// rules out a JSON export), so a bare export exits 2.
-func TestEpicExport_WithoutMdIsAUsageError(t *testing.T) {
+// TestEpicExport_WithoutMdPrintsJSON: spec/1.5.0.md §7 makes JSON the
+// format a bare export prints (lifting spec/1.3.0.md §8 Non-goal 3), so it
+// exits 0 with a JSON document instead of the tables.
+func TestEpicExport_WithoutMdPrintsJSON(t *testing.T) {
 	t.Parallel()
-	_, stderr, code := runTP(t, epicGraphDir(t, twoEpicsPerMilestone), "epic", "export")
-	assert.Equal(t, 2, code, "stderr: %s", stderr)
+	stdout, stderr, code := runTP(t, epicGraphDir(t, twoEpicsPerMilestone), "epic", "export")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	assert.True(t, json.Valid([]byte(stdout)), "stdout: %s", stdout)
 }
