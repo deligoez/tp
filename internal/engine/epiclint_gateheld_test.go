@@ -36,3 +36,18 @@ func TestLintEpicGraph_GateHeldByConditionNamesMemberConditionAndPath(t *testing
 	assert.Equal(t, []string{"A"}, found[0].Names)
 	assert.Contains(t, found[0].Message, "a -> w -> c")
 }
+
+// TestLintEpicGraph_GateHeldByConditionSkipsOwnMilestoneCondition: A is led
+// by its own trigger t, a condition in A that every member waits on. That is
+// the intended shape of a trigger-led milestone, not a finding.
+func TestLintEpicGraph_GateHeldByConditionSkipsOwnMilestoneCondition(t *testing.T) {
+	trigger := dependsOn("t", "A")
+	trigger.Condition, trigger.Acceptance = true, "the operator decides"
+	g := &model.EpicGraph{
+		Version:    1,
+		Milestones: [][]string{{"A"}},
+		Gates:      map[string]model.EpicGate{"A": {Members: []string{"a", "b"}}},
+		Epics:      []model.Epic{dependsOn("a", "A", "t"), dependsOn("b", "A", "a"), trigger},
+	}
+	assert.Empty(t, findingsOf(t, LintEpicGraph(g, nil), EpicRuleGateHeldByCondition))
+}
