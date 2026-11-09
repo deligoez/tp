@@ -79,12 +79,15 @@ func UpdateEpicGraph(tpDir string, ifRevision *string, mutate func(*model.EpicGr
 }
 
 // AddEpics appends epics to g in order. With replace, an epic whose id g
-// already holds replaces that epic in place instead (a --bulk row, §3).
+// already holds replaces that epic in place instead (a --bulk row, §3),
+// keeping the claimed and done records the replaced epic carries (§8).
 func AddEpics(g *model.EpicGraph, epics []model.Epic, replace bool) {
 	for k := range epics {
 		e := &epics[k]
 		if i := epicIndex(g, e.ID); replace && i >= 0 {
+			claimed, done := g.Epics[i].Claimed, g.Epics[i].Done
 			g.Epics[i] = *e
+			g.Epics[i].Claimed, g.Epics[i].Done = claimed, done
 			continue
 		}
 		g.Epics = append(g.Epics, *e)
