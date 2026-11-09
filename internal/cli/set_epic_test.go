@@ -98,3 +98,14 @@ func TestSetEpic_DoneEpicIsRefusedAndWritesNothing(t *testing.T) {
 	assertBindingRefused(t, "d", "done")
 }
 
+// TestSetEpic_EmptyRemovesTheBinding is §2: tp set --epic "" removes epic.
+func TestSetEpic_EmptyRemovesTheBinding(t *testing.T) {
+	t.Parallel()
+	dir := bindingDir(t, "b")
+
+	_, stderr, code := runTP(t, dir, "set", "--epic", "")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	data, err := os.ReadFile(filepath.Join(dir, "spec.tasks.json"))
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), `"epic"`)
+}
