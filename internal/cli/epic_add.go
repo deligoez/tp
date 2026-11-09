@@ -19,7 +19,8 @@ import (
 	"github.com/deligoez/tp/internal/output"
 )
 
-// epicWriteRefusedHint answers a write that would add a lint error.
+// epicWriteRefusedHint answers a write that would add a lint error whose
+// rule has no hint of its own (epicRuleRefusedHints).
 const epicWriteRefusedHint = "fix the payload so it adds no lint error; tp epic lint shows the errors the file already holds"
 
 // epicWriteResult is every epic writer's payload: the file it wrote, the
@@ -201,11 +202,10 @@ func epicIfRevision(cmd *cobra.Command) *string {
 // reports, and the ancestry changes a set of opens_after or milestones
 // reports, both of which mutate fills in.
 type epicWriteOpts struct {
-	ifRevision  *string
-	bulkLines   map[string][]int
-	action      *string
-	ancestry    *[]engine.AncestryChange
-	refusedHint string
+	ifRevision *string
+	bulkLines  map[string][]int
+	action     *string
+	ancestry   *[]engine.AncestryChange
 }
 
 // writeEpicGraph runs one locked, lint-checked write of .tp/epics.json with
@@ -262,13 +262,10 @@ func classifyEpicWriteError(err error, opts *epicWriteOpts) (code int, message, 
 	}
 	var refused *engine.EpicWriteRefusedError
 	if errors.As(err, &refused) {
-		switch {
-		case opts.bulkLines != nil:
+		if opts.bulkLines != nil {
 			return ExitValidation, epicBulkRefusedMessage(refused, opts.bulkLines), epicBulkRefusedHint
-		case opts.refusedHint != "":
-			return ExitValidation, refused.Error(), opts.refusedHint
 		}
-		return ExitValidation, refused.Error(), epicWriteRefusedHint
+		return ExitValidation, refused.Error(), epicRefusedHint(refused)
 	}
 	for _, c := range []struct {
 		target any
