@@ -1499,11 +1499,11 @@ done whatever lies behind it. While one of a bound file's epic's dependencies is
 | `tp next`, `tp next --peek` | `{done: false, message, blocked_by_epics}`, exit 4; a `wip` task is still returned |
 | `tp ready` | `{ready: [], blocked_by_epics}` in every mode, `--count` and `--ids` too; `--first` exits 4 |
 | `tp claim` | exit 1, the error object carrying `blocked_by_epics` |
-| `tp done` | exit 1 on a task that is not `wip`; a `wip` task closes, and the next-task counts leave blocked tasks out |
+| `tp done` | refuses a task that is not `wip`: by id at exit 1, by several ids and by `--batch` as a failed row carrying `blocked_by_epics`, exit 1 when the block refuses every row; a `wip` task closes, and the next-task counts leave blocked tasks out. The block is judged on the file read under the lock, after the quality gate ran |
 | `tp resume` | with no `wip` task, the `epic-blocked` blocker and no implement unit |
 
 A file bound to an epic the graph does not hold, or with no graph file, behaves as unbound, and
-`tp next`, `tp ready` and `tp claim` say so on stderr.
+`tp next`, `tp ready`, `tp claim` and `tp resume` say so on stderr.
 
 ### Read payloads and `tp epic export` (v1.5.0)
 
