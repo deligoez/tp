@@ -22,8 +22,9 @@ var EpicGraphSetKeys = []string{"milestones", "gates", "tag_checks"}
 
 // EpicFieldSetKeys are the epic fields tp epic set <id> writes. title,
 // milestone and acceptance take the value as written; tags and depends_on
-// take JSON. The id is not settable: it is the epic's identity.
-var EpicFieldSetKeys = []string{"title", "milestone", "tags", "depends_on", "acceptance"}
+// take JSON; root takes true or false. The id is not settable: it is the
+// epic's identity.
+var EpicFieldSetKeys = []string{"title", "milestone", "tags", "depends_on", "acceptance", "root"}
 
 // ParseEpicGraphSet decodes value for one of EpicGraphSetKeys and returns the
 // mutation that replaces that whole object. A bad key or value is an error
@@ -90,6 +91,11 @@ func epicFieldSetter(field, value string) (func(*model.Epic), error) {
 			return nil, err
 		}
 		return func(e *model.Epic) { e.DependsOn = deps }, nil
+	case "root":
+		if value != "true" && value != "false" {
+			return nil, fmt.Errorf("field \"root\" takes true or false, got %q", value)
+		}
+		return func(e *model.Epic) { e.Root = value == "true" }, nil
 	}
 	return nil, fmt.Errorf("unknown field %q: one of %v", field, EpicFieldSetKeys)
 }
