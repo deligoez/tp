@@ -14,12 +14,14 @@ import (
 // the units asked this round and those carried from the round before, both
 // in slice order. Changed is true when a unit's hash differs from the round
 // before's or has none recorded (D7); Fixed holds the round before's rows
-// resolved fixed. Either one appends the regression role (D2).
+// resolved fixed. Either one appends the regression role (D2). Decided holds
+// every earlier round's rows accepted wontfix or duplicate on an asked unit.
 type EpicCarry struct {
 	Asked   []EpicReviewUnit
 	Carried []EpicReviewUnit
 	Changed bool
 	Fixed   []map[string]any
+	Decided []map[string]any
 }
 
 // Regression reports whether the round appends the built-in regression role.
@@ -55,7 +57,37 @@ func EpicReviewCarry(stateDir string, round int, units []EpicReviewUnit) (EpicCa
 			c.Carried = append(c.Carried, u)
 		}
 	}
+	if err := c.readDecided(stateDir, round); err != nil {
+		return EpicCarry{}, err
+	}
 	return c, nil
+}
+
+// readDecided collects every earlier round's rows accepted wontfix or
+// duplicate on a unit this round asks, so the prompt can say they are
+// decided rather than have a role raise them again.
+func (c *EpicCarry) readDecided(stateDir string, round int) error {
+	asked := map[string]bool{}
+	for _, u := range c.Asked {
+		asked[u.Key] = true
+	}
+	for r := 1; r < round; r++ {
+		path := filepath.Join(stateDir, epicRoundFile(r))
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			continue
+		}
+		rows, ok := readNDJSONRows(path)
+		if !ok {
+			return fmt.Errorf("epic review round file %s cannot be read as NDJSON", path)
+		}
+		for _, row := range rows {
+			loc, _ := row["location"].(string)
+			if asked[loc] && RowAccepted(row) {
+				c.Decided = append(c.Decided, row)
+			}
+		}
+	}
+	return nil
 }
 
 // readPriorRows collects the round before's fixed rows into c and returns the
