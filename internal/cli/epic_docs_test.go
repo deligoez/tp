@@ -96,6 +96,20 @@ func TestSkillWorkflowETracksProgress(t *testing.T) {
 	}
 }
 
+// TestReferenceCarriesTheEpicProgressSchema pins spec/1.5.0.md §8 to the graph
+// file's key table: each new epic and gate key, and the task file's `epic`.
+func TestReferenceCarriesTheEpicProgressSchema(t *testing.T) {
+	t.Parallel()
+	schema := docSectionBody(t, readRepoDoc(t, "skills/tp/REFERENCE.md"), "### The graph file (`.tp/epics.json`)")
+	for _, key := range []string{
+		"| `epics[].condition` |", "| `epics[].estimate_minutes` |", "| `epics[].claimed` |",
+		"| `epics[].done` |", "| `gates.<milestone>.threshold` |", "| `gates.<milestone>.met` |",
+		"| a task file's `epic` |",
+	} {
+		assert.Contains(t, schema, key, "the schema table has a %s row", key)
+	}
+}
+
 // TestReferenceCarriesTheEpicGraphContract pins §7's REFERENCE.md half: the
 // file schema, a row per lint rule, the state directory and the exit codes.
 func TestReferenceCarriesTheEpicGraphContract(t *testing.T) {
