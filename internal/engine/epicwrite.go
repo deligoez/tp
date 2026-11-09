@@ -55,6 +55,21 @@ type EpicWriteOutcome struct {
 // carried into the written file, so the after-state is linted without them;
 // their paths are returned as dropped, an empty list when there were none.
 func UpdateEpicGraph(tpDir string, ifRevision *string, mutate func(*model.EpicGraph) error) (EpicWriteOutcome, error) {
+	return updateEpicGraph(tpDir, ifRevision, mutate, true)
+}
+
+// UpdateEpicRecord is UpdateEpicGraph for an operator's record, a done
+// record or its removal: it writes the after-state whatever lint errors it
+// holds, which tp epic lint then reports. A done --undo can re-create a
+// milestone wait cycle the record had cut; refusing it would refuse the
+// operator's own account of what is done.
+func UpdateEpicRecord(tpDir string, ifRevision *string, mutate func(*model.EpicGraph) error) (EpicWriteOutcome, error) {
+	return updateEpicGraph(tpDir, ifRevision, mutate, false)
+}
+
+// updateEpicGraph is the locked write both share; refuse says whether new
+// lint errors refuse it.
+func updateEpicGraph(tpDir string, ifRevision *string, mutate func(*model.EpicGraph) error, refuse bool) (EpicWriteOutcome, error) {
 	out := EpicWriteOutcome{Path: filepath.Join(tpDir, EpicGraphFile), Dropped: []string{}}
 	if err := os.MkdirAll(tpDir, 0o755); err != nil {
 		return out, fmt.Errorf("create %s: %w", tpDir, err)
@@ -74,7 +89,7 @@ func UpdateEpicGraph(tpDir string, ifRevision *string, mutate func(*model.EpicGr
 		if err := mutate(g); err != nil {
 			return err
 		}
-		if added := NewEpicErrors(before, LintEpicGraph(g, nil)); len(added) > 0 {
+		if added := NewEpicErrors(before, LintEpicGraph(g, nil)); refuse && len(added) > 0 {
 			return &EpicWriteRefusedError{New: added}
 		}
 		if err := WriteEpicGraph(tpDir, g); err != nil {

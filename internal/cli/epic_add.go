@@ -200,12 +200,14 @@ func epicIfRevision(cmd *cobra.Command) *string {
 // epicWriteOpts are what a writer adds to the shared write: the revision it
 // read, the payload lines of a --bulk write, and the action a link or unlink
 // reports, and the ancestry changes a set of opens_after or milestones
-// reports, both of which mutate fills in.
+// reports, both of which mutate fills in. record marks an operator's done
+// record, written without the lint refusal (engine.UpdateEpicRecord).
 type epicWriteOpts struct {
 	ifRevision *string
 	bulkLines  map[string][]int
 	action     *string
 	ancestry   *[]engine.AncestryChange
+	record     bool
 }
 
 // writeEpicGraph runs one locked, lint-checked write of .tp/epics.json with
@@ -231,7 +233,11 @@ func writeEpicGraphWith(opts epicWriteOpts, mutate func(*model.EpicGraph) error)
 		count = len(g.Epics)
 		return nil
 	}
-	out, err := engine.UpdateEpicGraph(engine.ProjectConfigDir("."), opts.ifRevision, counted)
+	update := engine.UpdateEpicGraph
+	if opts.record {
+		update = engine.UpdateEpicRecord
+	}
+	out, err := update(engine.ProjectConfigDir("."), opts.ifRevision, counted)
 	if err != nil {
 		exitEpicWriteError(err, &opts)
 	}

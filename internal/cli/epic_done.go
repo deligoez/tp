@@ -31,7 +31,9 @@ func newEpicDoneCmd() *cobra.Command {
 
 // runEpicDone implements tp epic done (spec/1.5.0.md §5): exactly one of
 // --evidence and --undo (else exit 2), then one locked write that exits 1 on
-// a refusal and 4 for an absent epic.
+// a refusal and 4 for an absent epic. The record is the operator's, so the
+// write runs no lint refusal: an undo that re-creates a milestone wait cycle
+// is written and tp epic lint reports it.
 func runEpicDone(cmd *cobra.Command, args []string) error {
 	fenceEpicOperatorWrite("tp epic done", engine.EscalateEpicDone)
 	evidence, _ := cmd.Flags().GetString("evidence")
@@ -40,10 +42,11 @@ func runEpicDone(cmd *cobra.Command, args []string) error {
 		output.Error(ExitUsage, "exactly one of --evidence and --undo is required", epicDoneUsageHint)
 		os.Exit(ExitUsage)
 	}
+	opts := epicWriteOpts{ifRevision: epicIfRevision(cmd), record: true}
 	if undo {
-		writeEpicGraph(cmd, engine.UndoEpicDone(args[0]))
+		writeEpicGraphWith(opts, engine.UndoEpicDone(args[0]))
 		return nil
 	}
-	writeEpicGraph(cmd, engine.RecordEpicDone(args[0], evidence, ".", time.Now()))
+	writeEpicGraphWith(opts, engine.RecordEpicDone(args[0], evidence, ".", time.Now()))
 	return nil
 }
