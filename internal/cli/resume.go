@@ -43,6 +43,9 @@ func runResume(_ *cobra.Command, args []string) error {
 		os.Exit(ExitFile)
 		return nil
 	}
+	if result.EpicNotice != "" {
+		output.Notice("notice: " + result.EpicNotice)
+	}
 
 	if output.IsJSON() {
 		return output.JSON(resumeJSON(&result, flagCompact))

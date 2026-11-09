@@ -38,6 +38,11 @@ type ResumeResult struct {
 	LastFailure *LastFailure       `json:"last_failure"`
 	NextAction  NextAction         `json:"next_action"`
 	Blockers    []Blocker          `json:"blockers"`
+	// EpicNotice is the epic block's notice (EpicBlock.Notice) of an implement
+	// phase: the file is bound to an epic the graph does not hold, or there is
+	// no graph file, so it behaves as unbound. It is not part of the payload;
+	// tp resume says it on stderr, as tp next, ready and claim do.
+	EpicNotice string `json:"-"`
 }
 
 // AssembleResume builds the read-only resume result from durable state alone:
@@ -77,7 +82,7 @@ func AssembleResume(start, taskFilePath, specPath string, tf *model.TaskFile) (R
 		guidance = "run each task in a fresh subagent/context; keep the orchestrator context clean"
 	}
 
-	blockers, err := resumeBlockers(taskFilePath, specPath, changes, tf, &loops)
+	blockers, epicNotice, err := resumeBlockers(taskFilePath, specPath, changes, tf, &loops)
 	if err != nil {
 		return ResumeResult{}, err
 	}
@@ -102,6 +107,7 @@ func AssembleResume(start, taskFilePath, specPath string, tf *model.TaskFile) (R
 		// resume itself stays the read-only oracle §4.8 requires.
 		NextAction: renderNextAction(BuildNextAction(phase, specPath, tf, loops.st, len(wf.Checks) > 0), nextUnits, blockers),
 		Blockers:   blockers,
+		EpicNotice: epicNotice,
 	}, nil
 }
 
@@ -119,17 +125,22 @@ type resumeLoops struct {
 }
 
 // resumeBlockers derives tp resume's blockers from the loops read for a task
-// file. Only the implement phase reads the epic graph, since a blocked epic
-// stops starting a task and nothing else (spec/1.5.0.md §6); an unbound file
-// reads nothing. A graph or bound file that cannot be read is an error.
-func resumeBlockers(taskFilePath, specPath string, changes []string, tf *model.TaskFile, loops *resumeLoops) ([]Blocker, error) {
+// file, and the epic block's notice. Only the implement phase reads the epic
+// graph, since a blocked epic stops starting a task and nothing else
+// (spec/1.5.0.md §6); an unbound file reads nothing. A graph or bound file that
+// cannot be read is an error.
+func resumeBlockers(taskFilePath, specPath string, changes []string, tf *model.TaskFile, loops *resumeLoops) ([]Blocker, string, error) {
 	var epicBlock *EpicBlock
+	notice := ""
 	if loops.phase == PhaseImplement {
 		block, err := EpicBlockFor(tf, taskFilePath)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		epicBlock = block
+		if block != nil {
+			notice = block.Notice
+		}
 	}
 	wf := &loops.wf
 	return BuildBlockers(&BlockerInputs{
@@ -148,7 +159,7 @@ func resumeBlockers(taskFilePath, specPath string, changes []string, tf *model.T
 
 		ReviewBlockingFixedAtCap: loops.reviewDone.BlockingFixedAtCap,
 		AuditBlockingFixedAtCap:  loops.auditDone.BlockingFixedAtCap,
-	}), nil
+	}), notice, nil
 }
 
 // readResumeLoops derives a task file's lifecycle phase the one way tp resume
