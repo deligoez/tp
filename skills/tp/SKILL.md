@@ -692,7 +692,7 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | `tp set --workflow --project <field>=<value>` | Edit a project-level workflow field (writes `.tp/config.json`) |
 | `tp set --local defaults.<flag>=<bool>` | Set a CLI flag default (`compact`/`quiet`/`no_color`) |
 | `tp set --bulk sets.ndjson` | Bulk update from NDJSON {id, field, value} |
-| `tp set --epic <id>` | Bind the task file to an epic of `.tp/epics.json` (`--epic ""` removes it); an id the graph does not hold, a condition or a done epic exits 1 and writes nothing. A file bound to an epic the graph does not hold, or with no graph file, behaves as unbound, and `tp next`/`ready`/`claim` say so on stderr. Under `TP_UNATTENDED` it exits 2, `--epic ""` too (escalate `epic-binding`) |
+| `tp set --epic <id>` | Bind the task file to an epic of `.tp/epics.json` (`--epic ""` removes it); an id the graph does not hold, a condition or a done epic exits 1 and writes nothing. A file bound to an epic the graph does not hold, or with no graph file, behaves as unbound, and `tp next`/`ready`/`claim`/`resume` say so on stderr. Under `TP_UNATTENDED` it exits 2, `--epic ""` too (escalate `epic-binding`) |
 | `tp keep <path> "<reason>"` | Keep-list a deliberately-uncommitted file (`--remove`, `--list`) |
 
 ### Query
