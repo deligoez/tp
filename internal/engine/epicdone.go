@@ -34,7 +34,11 @@ func RecordEpicDone(id, evidence, start string, at time.Time) func(*model.EpicGr
 		if e.Condition && strings.TrimSpace(e.Acceptance) == "" {
 			return &EpicDoneRefusedError{ID: id, Reason: "it is a condition with an empty acceptance"}
 		}
-		if files := EpicBoundFiles(start)[id]; len(files) > 0 {
+		bound, err := EpicBoundFiles(start)
+		if err != nil {
+			return err
+		}
+		if files := bound[id]; len(files) > 0 {
 			return &EpicDoneRefusedError{ID: id, Reason: files[0] + " is bound to it, so its status is derived"}
 		}
 		e.Done = &model.EpicDone{At: at.UTC(), Evidence: evidence}

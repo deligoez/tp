@@ -47,7 +47,10 @@ func RefuseNewConditions(g *model.EpicGraph, before map[string]bool, start strin
 	if len(unclaimed) == 0 {
 		return nil
 	}
-	bound := EpicBoundFiles(start)
+	bound, err := EpicBoundFiles(start)
+	if err != nil {
+		return err
+	}
 	for _, id := range unclaimed {
 		if files := bound[id]; len(files) > 0 {
 			return &EpicConditionRefusedError{ID: id, Reason: files[0] + " is bound to it"}

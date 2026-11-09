@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"fmt"
 	"os/exec"
 	"path/filepath"
 	"sort"
@@ -9,29 +10,47 @@ import (
 	"github.com/deligoez/tp/internal/model"
 )
 
+// UnreadableTaskFileError is a task file that cannot be read or parsed. Under
+// the bound-file walk it may be bound to any epic, so no epic's bound files,
+// and no status derived from them, can be known.
+type UnreadableTaskFileError struct {
+	Path string
+	Err  error
+}
+
+func (e *UnreadableTaskFileError) Error() string {
+	return fmt.Sprintf("task file %s cannot be read, so the epic it binds is unknown: %v", e.Path, e.Err)
+}
+
+func (e *UnreadableTaskFileError) Unwrap() error { return e.Err }
+
 // EpicBoundFiles indexes the task files bound to each epic (spec/1.5.0.md §2):
 // every tracked or untracked *.tasks.json under the repository root discovered
 // from start, ignore rules respected, keyed by the epic its `epic` field names.
 // Paths are absolute and sorted within each epic. A file with no epic is in no
-// list, and one that cannot be read or parsed binds nothing. When start is not
-// inside a git repository, or git cannot be run, the index is empty.
-func EpicBoundFiles(start string) map[string][]string {
+// list. A file that cannot be read or parsed may bind any epic, so it is an
+// *UnreadableTaskFileError naming the first such path, with no index. When
+// start is not inside a git repository, or git cannot be run, the index is
+// empty.
+func EpicBoundFiles(start string) (map[string][]string, error) {
 	index := map[string][]string{}
 	root := gitToplevel(start)
 	if root == "" {
-		return index
+		return index, nil
 	}
 	for _, path := range repoTaskFiles(root) {
 		tf, err := model.ReadTaskFile(path)
-		if err != nil || tf.Epic == "" {
-			continue
+		if err != nil {
+			return nil, &UnreadableTaskFileError{Path: path, Err: err}
 		}
-		index[tf.Epic] = append(index[tf.Epic], path)
+		if tf.Epic != "" {
+			index[tf.Epic] = append(index[tf.Epic], path)
+		}
 	}
 	for _, paths := range index {
 		sort.Strings(paths)
 	}
-	return index
+	return index, nil
 }
 
 // repoTaskFiles returns the absolute paths of the *.tasks.json files git sees

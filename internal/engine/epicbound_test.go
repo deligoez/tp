@@ -45,7 +45,8 @@ func TestEpicBoundFiles_TrackedAndUntrackedFoundIgnoredNot(t *testing.T) {
 	untracked := writeBoundTaskFile(t, root, "spec/nested/untracked.tasks.json", "b")
 	writeBoundTaskFile(t, root, "scratch/ignored.tasks.json", "b")
 
-	got := EpicBoundFiles(filepath.Join(root, "spec"))
+	got, err := EpicBoundFiles(filepath.Join(root, "spec"))
+	require.NoError(t, err)
 
 	assert.ElementsMatch(t, []string{tracked, untracked}, got["b"])
 }
@@ -60,7 +61,8 @@ func TestEpicBoundFiles_IndexedByEpicUnboundInNone(t *testing.T) {
 	b2 := writeBoundTaskFile(t, root, "spec/b2.tasks.json", "b")
 	writeBoundTaskFile(t, root, "spec/free.tasks.json", "")
 
-	got := EpicBoundFiles(root)
+	got, err := EpicBoundFiles(root)
+	require.NoError(t, err)
 
 	assert.Equal(t, map[string][]string{"a": {a}, "b": {b1, b2}}, got)
 }

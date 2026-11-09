@@ -31,7 +31,11 @@ func ClaimEpic(id, by, start string, at time.Time) func(*model.EpicGraph) error 
 			return &EpicNotFoundError{ID: id}
 		}
 		e := &g.Epics[i]
-		if reason := epicClaimRefusal(e, EpicBoundFiles(start)[id]); reason != "" {
+		bound, err := EpicBoundFiles(start)
+		if err != nil {
+			return err
+		}
+		if reason := epicClaimRefusal(e, bound[id]); reason != "" {
 			return &EpicClaimRefusedError{ID: id, Reason: reason}
 		}
 		e.Claimed = &model.EpicClaim{At: at.UTC(), By: by}

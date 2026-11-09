@@ -281,6 +281,7 @@ func classifyEpicWriteError(err error, opts *epicWriteOpts) (code int, message, 
 		{new(*engine.EpicMilestoneNotFoundError), ExitState, epicMilestoneNotFoundHint},
 		{new(*engine.EpicMilestoneExistsError), ExitValidation, epicMilestoneExistsHint},
 		{new(*engine.MalformedConfigError), ExitFile, epicGraphFileHint},
+		{new(*engine.UnreadableTaskFileError), ExitFile, epicBoundFileHint},
 	} {
 		if errors.As(err, c.target) {
 			return c.code, err.Error(), c.hint

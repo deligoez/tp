@@ -69,7 +69,11 @@ func runEpicGateMet(cmd *cobra.Command, m string) {
 	}
 	opts := epicWriteOpts{ifRevision: epicIfRevision(cmd)}
 	writeEpicGraphWith(opts, func(g *model.EpicGraph) error {
-		states, err := engine.DeriveEpicStates(g, engine.EpicBoundFiles("."))
+		bound, err := engine.EpicBoundFiles(".")
+		if err != nil {
+			return err
+		}
+		states, err := engine.DeriveEpicStates(g, bound)
 		if err != nil {
 			return err
 		}
@@ -123,8 +127,10 @@ func loadEpicStates() (g *model.EpicGraph, states map[string]engine.EpicState, b
 		output.Error(ExitFile, err.Error(), epicGraphFileHint)
 		os.Exit(ExitFile)
 	}
-	bound = engine.EpicBoundFiles(tpDir)
-	states, err = engine.DeriveEpicStates(g, bound)
+	bound, err = engine.EpicBoundFiles(tpDir)
+	if err == nil {
+		states, err = engine.DeriveEpicStates(g, bound)
+	}
 	if err != nil {
 		output.Error(ExitFile, err.Error(), epicBoundFileHint)
 		os.Exit(ExitFile)

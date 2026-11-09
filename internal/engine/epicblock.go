@@ -75,7 +75,11 @@ func epicDepDone(g *model.EpicGraph, id string, bound *boundIndex) (bool, error)
 	if dep.Done != nil {
 		return true, nil
 	}
-	st, err := deriveEpicState(dep, bound.files(id))
+	files, err := bound.files(id)
+	if err != nil {
+		return false, err
+	}
+	st, err := deriveEpicState(dep, files)
 	if err != nil {
 		return false, err
 	}
@@ -89,11 +93,15 @@ type boundIndex struct {
 	index map[string][]string
 }
 
-func (b *boundIndex) files(id string) []string {
+func (b *boundIndex) files(id string) ([]string, error) {
 	if b.index == nil {
-		b.index = EpicBoundFiles(b.dir)
+		index, err := EpicBoundFiles(b.dir)
+		if err != nil {
+			return nil, err
+		}
+		b.index = index
 	}
-	return b.index[id]
+	return b.index[id], nil
 }
 
 // unboundNotice says a file bound to epic behaves as unbound, and why.

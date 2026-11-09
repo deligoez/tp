@@ -48,7 +48,9 @@ func writeStatusFile(t *testing.T, root, base string, statuses ...string) string
 // returns id's status.
 func epicStatusIn(t *testing.T, g *model.EpicGraph, root, id string) string {
 	t.Helper()
-	states, err := DeriveEpicStates(g, EpicBoundFiles(root))
+	bound, err := EpicBoundFiles(root)
+	require.NoError(t, err)
+	states, err := DeriveEpicStates(g, bound)
 	require.NoError(t, err)
 	return states[id].Status
 }
@@ -123,7 +125,9 @@ func TestDeriveEpicStates_SpecEditedAfterReleaseFallsBack(t *testing.T) {
 // returns id's done_at, nil when it has none.
 func epicDoneAtIn(t *testing.T, g *model.EpicGraph, root, id string) *time.Time {
 	t.Helper()
-	states, err := DeriveEpicStates(g, EpicBoundFiles(root))
+	bound, err := EpicBoundFiles(root)
+	require.NoError(t, err)
+	states, err := DeriveEpicStates(g, bound)
 	require.NoError(t, err)
 	return states[id].DoneAt
 }
