@@ -142,16 +142,16 @@ flowchart TD
     end
 ```
 
-Ground, review and audit are loops rather than steps, and they are the *same* loop — one shape, run
-three times against three different questions:
+Ground, review, epic review and audit are loops rather than steps, and they are the *same* loop —
+one shape, run four times against four different questions:
 
 ```mermaid
 flowchart LR
-    EMIT["emit the prompt<br/>one for ground, one per role for review and audit"]
+    EMIT["emit the prompt<br/>one for ground, one per role for review, epic review and audit"]
     GRADE["grade it<br/>one fresh sub-agent context each"]
     RECORD["record the round<br/>--record round.ndjson"]
     CHECK{"--status --check"}
-    REPAIR["repair the spec or the code"]
+    REPAIR["repair the graph, the spec or the code"]
     NEXT["next phase"]
 
     EMIT --> GRADE --> RECORD --> CHECK
@@ -165,6 +165,7 @@ What ends each loop is not the same condition, and that difference is the point:
 | loop | `--status --check` exits 0 when |
 |------|--------------------------------|
 | `tp ground` | **coverage**: every emitted floor unit carries one of the six verdicts, the floor is not empty, and the latest round holds no `FAIL` |
+| `tp epic review` | the same as `tp review`, for one slice of `.tp/epics.json` and from the project layer alone, and no unit of the slice changed since its last recorded round; every error rule of `tp epic lint` passes over the whole file |
 | `tp review` | **absence**: `review_clean_rounds` trailing rounds carry no finding that `review_converge_on` counts and the spec has not moved since — **or disposition**: at `review_max_rounds`, every finding of the latest round carries a disposition. Either way every registered `checks` entry passes |
 | `tp audit` | the same with `audit_clean_rounds`, `audit_converge_on` and `audit_max_rounds`; audit runs no `checks` |
 
