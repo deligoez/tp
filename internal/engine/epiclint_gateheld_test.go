@@ -51,3 +51,23 @@ func TestLintEpicGraph_GateHeldByConditionSkipsOwnMilestoneCondition(t *testing.
 	}
 	assert.Empty(t, findingsOf(t, LintEpicGraph(g, nil), EpicRuleGateHeldByCondition))
 }
+
+// TestLintEpicGraph_GateHeldByConditionGroupsMembersPerCondition: a and b,
+// both members of A's gate, reach the condition c of the earlier P. One
+// finding for (A, c) names both members and one example path.
+func TestLintEpicGraph_GateHeldByConditionGroupsMembersPerCondition(t *testing.T) {
+	c := dependsOn("c", "P")
+	c.Condition, c.Acceptance = true, "the operator decides"
+	g := &model.EpicGraph{
+		Version:    1,
+		Milestones: [][]string{{"P", "A"}},
+		Gates:      map[string]model.EpicGate{"A": {Members: []string{"a", "b"}}},
+		Epics:      []model.Epic{dependsOn("a", "A", "c"), dependsOn("b", "A", "a"), c},
+	}
+	found := findingsOf(t, LintEpicGraph(g, nil), EpicRuleGateHeldByCondition)
+	require.Len(t, found, 1, "%v", found)
+	assert.Equal(t, []string{"a", "b", "c"}, found[0].Epics)
+	assert.Equal(t, []string{"A"}, found[0].Names)
+	assert.Contains(t, found[0].Message, "a, b")
+	assert.Contains(t, found[0].Message, "a -> c")
+}
