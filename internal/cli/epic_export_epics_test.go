@@ -169,3 +169,25 @@ func TestEpicStatus_BlockedConditionsCarryNotActionable(t *testing.T) {
 		assert.NotContains(t, row, "waiting_on", "%s carries no waiting_on", id)
 	}
 }
+
+// TestEpicExport_ConditionItemsCarryNotActionable: the export's item for the
+// condition c, held by its own undone x, says actionable false and why; the
+// actionable k of F9's graph and every work epic carry no not_actionable,
+// and no item carries waiting_on.
+func TestEpicExport_ConditionItemsCarryNotActionable(t *testing.T) {
+	t.Parallel()
+	_, raw := exportEpicItems(t, epicGraphDir(t, conditionBehindWorkGraph))
+	require.Contains(t, raw["c"], "not_actionable")
+	assert.JSONEq(t, `["dependencies"]`, string(raw["c"]["not_actionable"]))
+	assert.JSONEq(t, `false`, string(raw["c"]["actionable"]))
+	for _, id := range []string{"x", "w"} {
+		assert.NotContains(t, raw[id], "not_actionable", "the work epic %s carries no not_actionable", id)
+	}
+
+	_, raw = exportEpicItems(t, downstreamDir(t, exportF9Epics(), nil))
+	assert.JSONEq(t, `true`, string(raw["k"]["actionable"]))
+	assert.NotContains(t, raw["k"], "not_actionable", "an actionable condition carries no not_actionable")
+	for id, keys := range raw {
+		assert.NotContains(t, keys, "waiting_on", "%s carries no waiting_on", id)
+	}
+}
