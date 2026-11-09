@@ -22,3 +22,19 @@ func TestEpicLink_ALaterMilestoneDependencyGetsItsOwnHint(t *testing.T) {
 	assert.Contains(t, stderr, "move the edge's target to this or an earlier milestone of the track, or move this epic to a later milestone")
 	assert.NotContains(t, stderr, "non-empty why")
 }
+
+// refusalHintGraph is track [A] with one root epic a.
+const refusalHintGraph = `{"version": 1, "milestones": [["A"]], "epics": [
+    {"id": "a", "title": "A", "milestone": "A", "root": true}
+  ]}`
+
+// TestEpicSet_AGatesKeyNamingNoMilestoneGetsItsOwnHint: a gates key is not an
+// edge, so its refusal names the milestone to key the gate by.
+func TestEpicSet_AGatesKeyNamingNoMilestoneGetsItsOwnHint(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, refusalHintGraph)
+	_, stderr, code := runTP(t, dir, "epic", "set", `gates={"Nope":{"members":[]}}`)
+	require.Equal(t, 1, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "key a gate by a milestone a track lists")
+	assert.NotContains(t, stderr, "drop the edge")
+}
