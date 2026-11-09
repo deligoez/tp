@@ -56,3 +56,17 @@ func estimateGraph() *model.EpicGraph {
 	}, Gates: map[string]model.EpicGate{"A": {Members: []string{"m"}}}}
 }
 
+// TestCriticalPath_EstimateChainChosenApartFromCount is C2: the estimate
+// chain is the heaviest by summed estimate among the chains ending at a gate
+// member, chosen independently of the longest by count. An estimate chain
+// that summed the count path would report [x2 x m] at 7 minutes.
+func TestCriticalPath_EstimateChainChosenApartFromCount(t *testing.T) {
+	estimates := map[string]int{"m": 5, "x": 1, "x2": 1, "y": 30}
+
+	path := criticalPathOf(t, estimateGraph(), estimates)
+
+	assert.Equal(t, []string{"x2", "x", "m"}, path.ByCount)
+	assert.Equal(t, []string{"y", "m"}, path.ByEstimate)
+	assert.Equal(t, 35, path.EstimateMinutes)
+}
+
