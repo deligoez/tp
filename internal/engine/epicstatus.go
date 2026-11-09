@@ -28,6 +28,10 @@ type EpicReviewStatus struct {
 	InFlightRound    int
 	CapReached       bool
 	Undisposed       int
+	// Open counts the last recorded round's still-open findings by severity,
+	// every severity present, so a slice done under review_converge_on
+	// blocking still shows what it left open.
+	Open map[string]int
 }
 
 // EpicReviewLoopStatus grades the slice's recorded rounds under p. A round is
@@ -52,6 +56,14 @@ func EpicReviewLoopStatus(stateDir string, units []EpicReviewUnit, p EpicReviewP
 		return EpicReviewStatus{}, err
 	}
 	st.Stale = stale
+	st.Open = map[string]int{"critical": 0, "high": 0, "medium": 0, "low": 0}
+	if len(rounds) > 0 {
+		for _, row := range rounds[len(rounds)-1] {
+			if sev, _ := row["severity"].(string); findingOpen(PhaseReview, row) {
+				st.Open[sev]++
+			}
+		}
+	}
 	st.ConsecutiveClean = epicConsecutiveClean(rounds, p.ConvergeOn)
 	st.Converged = st.ConsecutiveClean >= p.CleanRounds && !st.Stale
 	if _, err := os.Stat(filepath.Join(stateDir, epicSnapshotFile(st.Round+1))); err == nil {
