@@ -137,3 +137,37 @@ func TestEpicSet_GatesKeepsAnExistingMetRecord(t *testing.T) {
 	require.NotNil(t, g.Gates["A"].Met, "the met record is carried over")
 	assert.Equal(t, "run 7", g.Gates["A"].Met.Evidence)
 }
+
+// boundEpicDir returns a real git repository holding body as .tp/epics.json
+// and a task file bound to epic b, so tp finds the binding.
+func boundEpicDir(t *testing.T, body string) string {
+	t.Helper()
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".tp"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".tp", "epics.json"), []byte(body), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.tasks.json"),
+		[]byte(`{"version":1,"spec":"b.md","epic":"b","tasks":[]}`), 0o600))
+	initGitRepo(t, dir)
+	return dir
+}
+
+// TestEpicSet_ConditionOnABoundEpicIsRefusedAndWritesNothing is §5: a
+// condition never has a bound file, so a set that did not look for bindings
+// would turn b into a condition a task file still builds.
+func TestEpicSet_ConditionOnABoundEpicIsRefusedAndWritesNothing(t *testing.T) {
+	t.Parallel()
+	dir := boundEpicDir(t, `{
+  "version": 1,
+  "milestones": [["A"]],
+  "epics": [
+    {"id": "b", "title": "B", "milestone": "A"}
+  ]
+}
+`)
+	before := readEpicGraphFile(t, dir)
+
+	_, stderr, code := runTP(t, dir, "epic", "set", "b", "condition=true")
+	require.Equal(t, 1, code, "stderr: %s", stderr)
+	assert.Contains(t, stderr, "b.tasks.json")
+	assert.Equal(t, before, readEpicGraphFile(t, dir), "a refused set writes nothing")
+}
