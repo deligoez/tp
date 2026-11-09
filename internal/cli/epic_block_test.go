@@ -302,3 +302,21 @@ func TestResume_OffersTheWipTaskUnitWhileBlocked(t *testing.T) {
 	assert.Equal(t, "implement", unit["kind"])
 	assert.Equal(t, "t2", unit["id"])
 }
+
+// TestResume_AbsentEpicBehavesAsUnboundAndSaysSo is spec/1.5.0.md §6: tp
+// resume on a file bound to an epic the graph does not hold, or with no graph
+// file, offers the task as on an unbound file and says so on stderr, as tp
+// next, tp ready and tp claim do. A tp resume that kept quiet fails.
+func TestResume_AbsentEpicBehavesAsUnboundAndSaysSo(t *testing.T) {
+	t.Parallel()
+	dir := blockDir(t, "z", "open")
+	noGraph := blockDir(t, "b", "open")
+	require.NoError(t, os.Remove(filepath.Join(noGraph, ".tp", "epics.json")))
+
+	for _, d := range []string{dir, noGraph} {
+		stdout, stderr, code := runTP(t, d, "resume")
+		require.Equal(t, 0, code, "stdout: %s stderr: %s", stdout, stderr)
+		assert.Contains(t, stdout, `"id": "t1"`, "the task's implement unit is offered")
+		assert.Contains(t, stderr, "behaves as unbound")
+	}
+}
