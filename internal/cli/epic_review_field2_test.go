@@ -50,3 +50,32 @@ func TestEpicReview_RegressionSeesWhatChanged(t *testing.T) {
 	assert.Contains(t, after, "- c: b needs c\n", "the block round 1 read")
 	assert.Contains(t, after, "- c: b needs c's parser\n", "the block now")
 }
+
+// TestEpicReview_ALowFixTailIsVerifiedByRegressionAlone: when every finding
+// of the round before is decided and none it fixed was blocking, the next
+// round still reads the change but asks only the regression role; a blocking
+// fix brings the whole panel back. A rule keyed on "any fix" alone would run
+// the panel after a low fix, and one that ignored severity would skip it after
+// a high one.
+func TestEpicReview_ALowFixTailIsVerifiedByRegressionAlone(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		severity string
+		roles    []string
+	}{
+		{"low", []string{"regression"}},
+		{"high", []string{"dod-satisfiability", "why-auditor", "phase-economist", "regression"}},
+	} {
+		t.Run(tc.severity, func(t *testing.T) {
+			t.Parallel()
+			dir := epicGraphDir(t, epicChain)
+			r1 := runEpicReview(t, dir, "--milestone", "A")
+			writeEpicRound(t, dir, &r1,
+				`{"severity":"`+tc.severity+`","finding":"b's why is generic","location":"epic:b","evidence":"b needs c",`+
+					`"resolved":{"status":"fixed","evidence":"reworded"}}`+"\n")
+			editEpicGraph(t, dir, "b needs c", "b needs c's parser")
+			r2 := runEpicReview(t, dir, "--milestone", "A")
+			assert.Equal(t, tc.roles, promptRoles(&r2))
+		})
+	}
+}
