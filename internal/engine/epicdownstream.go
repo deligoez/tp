@@ -2,6 +2,8 @@ package engine
 
 import (
 	"math/bits"
+	"sort"
+	"strconv"
 
 	"github.com/deligoez/tp/internal/model"
 )
@@ -91,7 +93,9 @@ func milestoneOrder(g *model.EpicGraph) []string {
 // GraphCriticalPath returns the longest chain of not-done epics in the whole
 // graph by count of work epics, in work order: it starts at a not-done epic
 // with no not-done dependency and may cross milestones and tracks. Ties go to
-// the earlier epic in graph order; empty when no work epic is left.
+// the earlier epic in graph order; empty when no work epic is left. A
+// dependency cycle on the chain is listed whole where the chain enters it,
+// its other members in graph order.
 func GraphCriticalPath(g *model.EpicGraph, states map[string]EpicState) []string {
 	w := newDownstreamWalk(g, states)
 	head, best := -1, 0
@@ -104,38 +108,50 @@ func GraphCriticalPath(g *model.EpicGraph, states map[string]EpicState) []string
 		}
 	}
 	path := []string{}
-	for i := head; i >= 0; i = w.next[i] {
+	for i := head; i >= 0; {
+		c := w.comp[i]
 		path = append(path, g.Epics[i].ID)
+		for _, j := range w.comps[c] {
+			if j != i {
+				path = append(path, g.Epics[j].ID)
+			}
+		}
+		i = w.compNext[c]
 	}
 	return path
 }
 
 // downstreamWalk walks depends_on edges forwards, from an epic to the
-// not-done epics depending on it, memoizing each epic's chain and reach.
-// Epics are addressed by graph position; a repeated id keeps its first.
+// not-done epics depending on it. Epics are addressed by graph position; a
+// repeated id keeps its first. A dependency cycle, which lint reports, is
+// one strongly connected component: its members depend on each other, so
+// they share one reach and one chain, whatever the order of the epics.
+// Chains and reaches are memoized per component.
 type downstreamWalk struct {
 	g          *model.EpicGraph
 	states     map[string]EpicState
 	index      map[string]int
 	dependents [][]int
 	waits      []bool
-	chain      []int
-	next       []int
-	reached    []epicBits
-	visiting   []bool
+	comp       []int
+	comps      [][]int
+	compWeight []int
+	compChain  []int
+	compNext   []int
+	compReach  []epicBits
+	compWork   []epicBits
 }
 
-// newDownstreamWalk indexes g's reverse edges between not-done epics.
+// newDownstreamWalk indexes g's reverse edges between not-done epics and
+// their strongly connected components.
 func newDownstreamWalk(g *model.EpicGraph, states map[string]EpicState) *downstreamWalk {
 	n := len(g.Epics)
 	w := &downstreamWalk{g: g, states: states, index: make(map[string]int, n),
-		dependents: make([][]int, n), waits: make([]bool, n), chain: make([]int, n),
-		next: make([]int, n), reached: make([]epicBits, n), visiting: make([]bool, n)}
+		dependents: make([][]int, n), waits: make([]bool, n), comp: make([]int, n)}
 	for i := range g.Epics {
 		if _, ok := w.index[g.Epics[i].ID]; !ok {
 			w.index[g.Epics[i].ID] = i
 		}
-		w.chain[i], w.next[i] = -1, -1
 	}
 	for j := range g.Epics {
 		if w.index[g.Epics[j].ID] != j || !w.undone(j) {
@@ -148,7 +164,56 @@ func newDownstreamWalk(g *model.EpicGraph, states map[string]EpicState) *downstr
 			}
 		}
 	}
+	w.condense()
 	return w
+}
+
+// condense groups the epics into strongly connected components over the
+// dependents edges, each component's members in graph order, and sizes the
+// per-component memos.
+func (w *downstreamWalk) condense() {
+	n := len(w.g.Epics)
+	nodes := make([]string, n)
+	adj := make(map[string][]string, n)
+	for i := range n {
+		nodes[i] = strconv.Itoa(i)
+		for _, j := range w.dependents[i] {
+			adj[nodes[i]] = append(adj[nodes[i]], strconv.Itoa(j))
+		}
+	}
+	for c, names := range stronglyConnected(nodes, adj) {
+		members := make([]int, 0, len(names))
+		weight := 0
+		for _, name := range names {
+			i, _ := strconv.Atoi(name)
+			members = append(members, i)
+			w.comp[i] = c
+			weight += w.weight(i)
+		}
+		sort.Ints(members)
+		w.comps = append(w.comps, members)
+		w.compWork = append(w.compWork, w.workOf(members))
+		w.compWeight = append(w.compWeight, weight)
+		w.compChain = append(w.compChain, -1)
+		w.compNext = append(w.compNext, -1)
+		w.compReach = append(w.compReach, nil)
+	}
+}
+
+// workOf returns the work epics of a cycle's members as a set; nil for a
+// single epic, which addWork adds by itself, so an acyclic graph keeps no
+// set per epic.
+func (w *downstreamWalk) workOf(members []int) epicBits {
+	if len(members) == 1 {
+		return nil
+	}
+	set := newEpicBits(len(w.g.Epics))
+	for _, i := range members {
+		if w.weight(i) > 0 {
+			set.add(i)
+		}
+	}
+	return set
 }
 
 // undone reports whether the epic at i is not done.
@@ -165,45 +230,71 @@ func (w *downstreamWalk) weight(i int) int {
 }
 
 // longest returns the most work epics on one path depending on i, i
-// excluded, and records the path's next epic. A dependency cycle, which lint
-// reports, cuts the path where it closes.
+// excluded: the other work members of i's cycle, if any, then the longest
+// chain on from the cycle.
 func (w *downstreamWalk) longest(i int) int {
-	if w.chain[i] >= 0 {
-		return w.chain[i]
+	c := w.comp[i]
+	return w.compWeight[c] - w.weight(i) + w.chainFrom(c)
+}
+
+// chainFrom returns the most work epics on one path of components depending
+// on component c, c excluded, and records the epic the path enters next.
+func (w *downstreamWalk) chainFrom(c int) int {
+	if w.compChain[c] >= 0 {
+		return w.compChain[c]
 	}
-	w.visiting[i] = true
 	best, next := 0, -1
-	for _, j := range w.dependents[i] {
-		if w.visiting[j] {
-			continue
-		}
-		if c := w.weight(j) + w.longest(j); c > best {
-			best, next = c, j
+	for _, i := range w.comps[c] {
+		for _, j := range w.dependents[i] {
+			if d := w.comp[j]; d != c {
+				if n := w.compWeight[d] + w.chainFrom(d); n > best {
+					best, next = n, j
+				}
+			}
 		}
 	}
-	w.visiting[i] = false
-	w.chain[i], w.next[i] = best, next
+	w.compChain[c], w.compNext[c] = best, next
 	return best
 }
 
-// reach returns the work epics depending on i, transitively.
+// reach returns the work epics depending on i, transitively, i excluded.
 func (w *downstreamWalk) reach(i int) epicBits {
-	if w.reached[i] != nil {
-		return w.reached[i]
+	c := w.comp[i]
+	if len(w.comps[c]) == 1 {
+		return w.reachFrom(c)
 	}
-	w.visiting[i] = true
 	set := newEpicBits(len(w.g.Epics))
-	for _, j := range w.dependents[i] {
-		if w.visiting[j] {
-			continue
-		}
-		if w.weight(j) > 0 {
-			set.add(j)
-		}
-		set.union(w.reach(j))
+	set.union(w.reachFrom(c))
+	w.addWork(set, c)
+	set.remove(i)
+	return set
+}
+
+// addWork adds component c's work epics to set.
+func (w *downstreamWalk) addWork(set epicBits, c int) {
+	if w.compWork[c] != nil {
+		set.union(w.compWork[c])
+	} else if i := w.comps[c][0]; w.weight(i) > 0 {
+		set.add(i)
 	}
-	w.visiting[i] = false
-	w.reached[i] = set
+}
+
+// reachFrom returns the work epics of the components depending on component
+// c, transitively, c's own excluded.
+func (w *downstreamWalk) reachFrom(c int) epicBits {
+	if w.compReach[c] != nil {
+		return w.compReach[c]
+	}
+	set := newEpicBits(len(w.g.Epics))
+	for _, i := range w.comps[c] {
+		for _, j := range w.dependents[i] {
+			if d := w.comp[j]; d != c {
+				w.addWork(set, d)
+				set.union(w.reachFrom(d))
+			}
+		}
+	}
+	w.compReach[c] = set
 	return set
 }
 
@@ -213,6 +304,8 @@ type epicBits []uint64
 func newEpicBits(n int) epicBits { return make(epicBits, (n+63)/64) }
 
 func (b epicBits) add(i int) { b[i/64] |= 1 << (i % 64) }
+
+func (b epicBits) remove(i int) { b[i/64] &^= 1 << (i % 64) }
 
 func (b epicBits) union(o epicBits) {
 	for k := range o {
