@@ -441,24 +441,8 @@ build and run things: rows settled at `run`, `probe`, `red-green` or `break-and-
 by reading. Two field reports from unrelated repositories — different languages, different domains —
 converged on the same shape: what failed was rarely a domain rule, it was the author's own
 measurement, quoted from a query they had run themselves, which is exactly why it read as
-authoritative.
-
-Derive the counts. Both round directories are read, because this repository's ground rounds live
-under `spec/.tp-review/` and `spec/backlog/.tp-review/` alike. The tier counts are over the rows
-that carry a `tier`, because a `NOT-A-CLAIM` row may omit one; the verdict counts are over every
-row:
-
-```bash
-python3 -c 'import json,glob,collections,os
-G=sorted(glob.glob("spec/.tp-review/*/ground-round-*.ndjson")
-       + glob.glob("spec/backlog/.tp-review/*/ground-round-*.ndjson"))
-R=[json.loads(l) for f in G for l in open(f) if l.strip()]
-D={"run","probe","red-green","break-and-control"}
-print(len(G), len({os.path.basename(os.path.dirname(f)) for f in G}))
-T=[r for r in R if r.get("tier")]; F=[r for r in R if r["verdict"]=="FAIL"]
-print(len(R), collections.Counter(r["verdict"] for r in R))
-print(len(T), sum(r["tier"] in D for r in T), len(F), sum(r.get("tier") in D for r in F))'
-```
+authoritative. The counts behind this are derived from this repository's round files in
+[docs/lessons.md](docs/lessons.md#what-grounding-found-on-this-corpus).
 
 `tp review` generates the review prompts an agent feeds to sub-agents, records each round, and
 makes convergence a recorded fact rather than a judgement. Reviewers report only what would make the
