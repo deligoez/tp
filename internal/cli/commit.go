@@ -111,11 +111,8 @@ func runCommit(_ *cobra.Command, args []string) error {
 			return nil
 		}
 
-		// Best-effort: drop any accidentally-staged flock files from the index.
-		// `git rm --cached --ignore-unmatch` is HEAD-independent (works before the
-		// first commit) and never errors on a no-match, so ignoring its result
-		// cannot leave a lock file staged for the commit.
-		_ = runGit(append([]string{"rm", "--cached", "-r", "--ignore-unmatch", "-q", "--"}, tpLockPathspecs()...)...)
+		// Drop any accidentally-staged flock files from the index.
+		unstageLockFilesOrExit()
 
 		// Check if there's anything to commit
 		if !gitHasStagedChanges() {
