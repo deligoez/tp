@@ -64,3 +64,16 @@ func TestEpicReady_C3_2_OnceTheWorkIsDoneTheConditionIsActionable(t *testing.T) 
 	assert.Equal(t, map[string]bool{"c": true}, operatorConditions(t, dir, "--all"))
 }
 
+// TestEpicReady_C3_3_AConditionWithAnUndoneDependencyIsNotActionable is C3.3:
+// c itself depends on the undone x.
+func TestEpicReady_C3_3_AConditionWithAnUndoneDependencyIsNotActionable(t *testing.T) {
+	t.Parallel()
+	dir := epicGraphDir(t, `{"version": 1, "milestones": [["A"]], "epics": [
+    {"id": "x", "title": "X", "milestone": "A", "root": true},
+    {"id": "c", "title": "C", "milestone": "A", "condition": true, "acceptance": "the board says yes", "depends_on": [{"id": "x", "why": "the board reads x's report"}]},
+    {"id": "w", "title": "W", "milestone": "A", "depends_on": [{"id": "c", "why": "w ships once the board agrees"}]}
+  ]}`)
+	assert.Empty(t, operatorConditions(t, dir))
+	assert.Equal(t, map[string]bool{"c": false}, operatorConditions(t, dir, "--all"))
+}
+
