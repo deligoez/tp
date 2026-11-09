@@ -54,6 +54,7 @@ func runEpicMilestoneAdd(cmd *cobra.Command, args []string) error {
 		output.Error(ExitUsage, "tp epic milestone add needs exactly one position", epicMilestonePlaceHint)
 		os.Exit(ExitUsage)
 	}
-	writeEpicGraph(cmd, engine.InsertMilestone(args[0], place))
+	action := engine.EpicEdgeAdded
+	writeEpicGraphWith(epicWriteOpts{ifRevision: epicIfRevision(cmd), action: &action}, engine.InsertMilestone(args[0], place))
 	return nil
 }

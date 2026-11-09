@@ -196,9 +196,10 @@ func epicIfRevision(cmd *cobra.Command) *string {
 // read, the payload lines of a --bulk write, and the action a link or unlink
 // reports, which mutate fills in.
 type epicWriteOpts struct {
-	ifRevision *string
-	bulkLines  map[string][]int
-	action     *string
+	ifRevision  *string
+	bulkLines   map[string][]int
+	action      *string
+	refusedHint string
 }
 
 // writeEpicGraph runs one locked, lint-checked write of .tp/epics.json with
@@ -221,7 +222,7 @@ func writeEpicGraphWith(opts epicWriteOpts, mutate func(*model.EpicGraph) error)
 	}
 	out, err := engine.UpdateEpicGraph(engine.ProjectConfigDir("."), opts.ifRevision, counted)
 	if err != nil {
-		exitEpicWriteError(err, opts.bulkLines)
+		exitEpicWriteError(err, &opts)
 	}
 	result := epicWriteResult{File: out.Path, Epics: count, DroppedKeys: out.Dropped, Revision: out.Revision}
 	if opts.action != nil {
@@ -234,8 +235,8 @@ func writeEpicGraphWith(opts epicWriteOpts, mutate func(*model.EpicGraph) error)
 }
 
 // exitEpicWriteError maps a refused or failed graph write to its exit code.
-func exitEpicWriteError(err error, bulkLines map[string][]int) {
-	code, message, hint := classifyEpicWriteError(err, bulkLines)
+func exitEpicWriteError(err error, opts *epicWriteOpts) {
+	code, message, hint := classifyEpicWriteError(err, opts)
 	output.Error(code, message, hint)
 	os.Exit(code)
 }
@@ -243,15 +244,18 @@ func exitEpicWriteError(err error, bulkLines map[string][]int) {
 // classifyEpicWriteError names the exit code, message and hint of a refused
 // or failed graph write: 4 for a lock, a stale revision or something absent,
 // 1 for a refusal, 3 for a file error.
-func classifyEpicWriteError(err error, bulkLines map[string][]int) (code int, message, hint string) {
+func classifyEpicWriteError(err error, opts *epicWriteOpts) (code int, message, hint string) {
 	var lockErr *engine.LockTimeoutError
 	if errors.As(err, &lockErr) {
 		return ExitState, lockErr.Error(), lockErr.Hint()
 	}
 	var refused *engine.EpicWriteRefusedError
 	if errors.As(err, &refused) {
-		if bulkLines != nil {
-			return ExitValidation, epicBulkRefusedMessage(refused, bulkLines), epicBulkRefusedHint
+		switch {
+		case opts.bulkLines != nil:
+			return ExitValidation, epicBulkRefusedMessage(refused, opts.bulkLines), epicBulkRefusedHint
+		case opts.refusedHint != "":
+			return ExitValidation, refused.Error(), opts.refusedHint
 		}
 		return ExitValidation, refused.Error(), epicWriteRefusedHint
 	}
