@@ -422,7 +422,7 @@ Every rule identifier tp can put in a `findings[].rule` field, and the command t
 | `root-with-dependencies` | `tp epic lint` | warning | An epic marked `root: true` has dependencies |
 | `thin-why` | `tp epic lint` | warning | A `why`, case-folded and split into words, is non-empty and occurs as a run of whole words in the target epic's id or title |
 | `partial-parallel` | `tp epic lint` | warning, or info when the milestone's `opens_after` entry is written | A milestone does not open after an earlier milestone of its track, even transitively, yet some of its epics depend directly on that milestone's epics; one finding per pair, naming them |
-| `gate-held-by-condition` | `tp epic lint` | info | An effective gate member reaches an undone condition through epics without a done record; one finding per member and condition, with the path |
+| `gate-held-by-condition` | `tp epic lint` | info | Effective gate members reach an undone condition of another milestone through epics without a done record; one finding per gate milestone and condition, naming every member that reaches it, with one path. A condition in the gate's own milestone is not reported |
 
 `tp import` runs the same task-file checks as `tp validate`, so it emits that half of the table too.
 
