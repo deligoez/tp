@@ -94,6 +94,19 @@ func AddEpics(g *model.EpicGraph, epics []model.Epic, replace bool) {
 	}
 }
 
+// RefuseEpicRecords returns an error when e names a claimed or done record:
+// those are written by tp epic claim, tp epic done and tp epic import only,
+// and a writer replacing the epic carries the existing ones over (§8).
+func RefuseEpicRecords(e *model.Epic) error {
+	switch {
+	case e.Claimed != nil:
+		return fmt.Errorf("epic %q names claimed: tp epic claim writes it, and a write replacing the epic keeps the existing one", e.ID)
+	case e.Done != nil:
+		return fmt.Errorf("epic %q names done: tp epic done writes it, and a write replacing the epic keeps the existing one", e.ID)
+	}
+	return nil
+}
+
 func epicIndex(g *model.EpicGraph, id string) int {
 	for i := range g.Epics {
 		if g.Epics[i].ID == id {

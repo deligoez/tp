@@ -117,8 +117,8 @@ func decodeEpicArg(cmd *cobra.Command, args []string) model.Epic {
 	return e
 }
 
-// decodeEpic parses one epic, refusing keys outside the schema and anything
-// after the one JSON value.
+// decodeEpic parses one epic, refusing keys outside the schema, anything
+// after the one JSON value, and a claimed or done record (§8).
 func decodeEpic(raw []byte) (model.Epic, error) {
 	var e model.Epic
 	dec := json.NewDecoder(bytes.NewReader(raw))
@@ -129,7 +129,8 @@ func decodeEpic(raw []byte) (model.Epic, error) {
 	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
 		return e, errors.New("trailing data after the epic: pass exactly one JSON object")
 	}
-	return e, nil
+	err := engine.RefuseEpicRecords(&e)
+	return e, err
 }
 
 // epicBulkFileHint answers an unreadable --bulk path. The shared
