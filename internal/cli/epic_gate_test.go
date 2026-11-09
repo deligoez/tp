@@ -103,3 +103,52 @@ func TestEpicGate_AbsentMilestoneExits4(t *testing.T) {
 
 	assert.Equal(t, 4, code)
 }
+
+// epicGateMetGraph is §10 row 8's fixture: the chain with a gate on A that
+// carries threshold and names no members, so a, b, c and d all hold it.
+func epicGateMetGraph(threshold, doneThrough string) string {
+	done := `, "done": {"at": "2026-01-05T09:00:00Z", "evidence": "shipped"}`
+	epic := func(id, dep string) string {
+		s := `{"id": "` + id + `", "title": "` + id + `", "milestone": "A"`
+		if dep != "" {
+			s += `, "depends_on": [{"id": "` + dep + `", "why": "` + id + ` needs ` + dep + `"}]`
+		} else {
+			s += `, "root": true`
+		}
+		if id >= doneThrough {
+			s += done
+		}
+		return s + `}`
+	}
+	return `{"version": 1, "milestones": [["A", "B"]], "gates": {"A": {"members": [], "threshold": "` + threshold + `"}},
+  "epics": [` + epic("a", "b") + `, ` + epic("b", "c") + `, ` + epic("c", "d") + `, ` + epic("d", "") + `]}`
+}
+
+// TestEpicGateMet_RefusedUntilMembersDoneAndThresholdSet is §10 row 8: --met
+// exits 1 and writes nothing while a member is not done and while the
+// threshold is empty, and is accepted once both hold; the gate is then green.
+func TestEpicGateMet_RefusedUntilMembersDoneAndThresholdSet(t *testing.T) {
+	t.Parallel()
+	met := []string{"epic", "gate", "A", "--met", "--evidence", "dashboard"}
+
+	notDone := epicGraphDir(t, epicGateMetGraph("p95 under 200ms", "b"))
+	before := readEpicGraphFile(t, notDone)
+	_, stderr, code := runTP(t, notDone, met...)
+	assert.Equal(t, 1, code, "a member not done refuses the met record; stderr: %s", stderr)
+	assert.Contains(t, stderr, `members not done: \"a\"`, "the refusal names the member not done, and only it")
+	assert.Equal(t, before, readEpicGraphFile(t, notDone), "a refused --met writes nothing")
+
+	noThreshold := epicGraphDir(t, epicGateMetGraph("", "a"))
+	before = readEpicGraphFile(t, noThreshold)
+	_, stderr, code = runTP(t, noThreshold, met...)
+	assert.Equal(t, 1, code, "an empty threshold refuses the met record; stderr: %s", stderr)
+	assert.Contains(t, stderr, "threshold")
+	assert.Equal(t, before, readEpicGraphFile(t, noThreshold), "a refused --met writes nothing")
+
+	ready := epicGraphDir(t, epicGateMetGraph("p95 under 200ms", "a"))
+	_, stderr, code = runTP(t, ready, met...)
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	out, code := runEpicGate(t, ready, "A")
+	assert.Equal(t, 0, code)
+	assert.True(t, out.Green, "with every member done and the threshold met the gate is green")
+}
