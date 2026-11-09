@@ -67,3 +67,11 @@ func TestLintEpicGraph_DependencyOpensLaterOutsideTheMembersWarns(t *testing.T) 
 	assert.Contains(t, found[0].Message, "c -> b")
 }
 
+// TestLintEpicGraph_DependencyOpensLaterSkipsSiblings is fixture (iv): A and
+// B both open after nothing, so edges between them either way are clean.
+func TestLintEpicGraph_DependencyOpensLaterSkipsSiblings(t *testing.T) {
+	g := opensLaterGraph(dependsOn("a", "A", "b"), dependsOn("b", "B"), dependsOn("a2", "A"), dependsOn("b2", "B", "a2"))
+	g.OpensAfter = map[string][]string{"A": {}, "B": {}}
+	assert.Empty(t, findingsOf(t, LintEpicGraph(g, nil), EpicRuleDependencyOpensLater))
+}
+
