@@ -138,7 +138,7 @@ func sliceEpicIDs(g *model.EpicGraph, key EpicSliceKey, byID map[string]*model.E
 		return []string{key.Epic}, nil
 	}
 	if !milestoneDeclared(g, key.Milestone) {
-		return nil, fmt.Errorf("milestone %q is in no track", key.Milestone)
+		return nil, NewEpicMilestoneNotFoundError(g, key.Milestone)
 	}
 	var ids []string
 	seen := map[string]bool{}
