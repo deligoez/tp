@@ -73,7 +73,7 @@ type epicWeekRow struct {
 func newEpicStatusCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "status",
-		Short: "Report each milestone: open, counts and share done, gate, ready, blocked with blockers, operator waits, claim holders, critical path, throughput, roll-up; writes nothing",
+		Short: "Report the whole graph's critical_path, then each milestone: open, opens_after and waiting_on, counts and share done, gate, ready by downstream rank, blocked with held_by and blocked_by, operator waits, claim holders, critical path, throughput, roll-up; writes nothing",
 		Args:  cobra.NoArgs,
 		RunE:  runEpicStatus,
 	}
