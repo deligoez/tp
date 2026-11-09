@@ -179,7 +179,6 @@ func unmetDeps(tf *model.TaskFile) []string {
 	return out
 }
 
-// hasOpenTasks reports whether any task in tf is open.
 // HasOpenTasks reports whether any task in tf is open: the only kind the epic
 // block stops from starting, and what tells no-ready-task from all done.
 func HasOpenTasks(tf *model.TaskFile) bool {
