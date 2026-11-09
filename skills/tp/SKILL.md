@@ -693,7 +693,7 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 ### Incremental
 | Command | Purpose |
 |---------|---------|
-| `tp next` | Resume WIP or claim next ready; on a bound file whose epic has a dependency not done it returns a `wip` task, else exits 4 with `{done: false, message, blocked_by_epics}` (`--peek` too), plus `operator: {decision, commands}` when every blocker is a condition |
+| `tp next` | Resume WIP or claim next ready; on a bound file whose epic has a dependency not done it returns a `wip` task, else exits 4 with `{done: false, message, blocked_by_epics}` (`--peek` too), plus `operator: {decision, commands}` when every blocker is a condition; on a file with no task yet it exits 4 with `{done: false, message, phase, hint, command}`, `phase` the one `tp resume` reports |
 | `tp next --minimal` | Minimal output: {id, acceptance} only |
 | `tp next --peek` | Preview the next ready task without claiming; unlike plain `tp next` it ignores WIP |
 | `tp next --brief` | Claim the task and return its brief (identity, scope, prior work, close recipe); `--brief` + `--minimal` exit 2 |
@@ -703,7 +703,7 @@ Every command and flag tp registers, in its exact form. Field ranges, exit codes
 | Command | Purpose |
 |---------|---------|
 | `tp claim <id> [id...]` | open -> wip (batch: multiple IDs); on a bound file whose epic is blocked it exits 1 with `blocked_by_epics` |
-| `tp claim --all-ready` | Claim all ready tasks at once |
+| `tp claim --all-ready` | Claim all ready tasks at once; a file with no task yet exits 4 naming `tp resume`'s phase and next step |
 | `tp unclaim <id> [id...]` | wip -> open (clears `started_at`; batch; an open id is a no-op in `already_open`) |
 | `tp close <id> <reason>` | wip -> done (low-level, prefer tp done) |
 | `tp close <id> --reason-file reason.md` / `--stdin` | Read the closure reason from a file / from stdin |
