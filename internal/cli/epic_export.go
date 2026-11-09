@@ -18,13 +18,15 @@ import (
 const epicExportVersion = 1
 
 // epicExportResult is tp epic export's JSON: the graph as stored, and every
-// field tp derives from it and from the bound files' and slices' state.
+// field tp derives from it and from the bound files' and slices' state,
+// tp epic status's whole-graph critical_path included.
 type epicExportResult struct {
-	Version    int                     `json:"version"`
-	Graph      *model.EpicGraph        `json:"graph"`
-	Milestones []epicMilestoneReport   `json:"milestones"`
-	Epics      []epicExportEpic        `json:"epics"`
-	Slices     []engine.EpicSliceState `json:"slices"`
+	Version      int                     `json:"version"`
+	CriticalPath epicPathReport          `json:"critical_path"`
+	Graph        *model.EpicGraph        `json:"graph"`
+	Milestones   []epicMilestoneReport   `json:"milestones"`
+	Epics        []epicExportEpic        `json:"epics"`
+	Slices       []engine.EpicSliceState `json:"slices"`
 }
 
 // epicExportEpic is one epic's title, place, derived state and bound files, and
@@ -118,7 +120,7 @@ func epicExport() (*epicExportResult, error) {
 		return nil, err
 	}
 	epics := epicExportEpics(g, states, bound, files)
-	return &epicExportResult{Version: epicExportVersion, Graph: g, Milestones: plan.Milestones, Epics: epics, Slices: slices}, nil
+	return &epicExportResult{Version: epicExportVersion, CriticalPath: plan.CriticalPath, Graph: g, Milestones: plan.Milestones, Epics: epics, Slices: slices}, nil
 }
 
 // epicExportEpics builds every epic's item from one openness verdict, one
