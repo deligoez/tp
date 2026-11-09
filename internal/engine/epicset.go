@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"sort"
 
 	"github.com/deligoez/tp/internal/model"
 )
@@ -38,11 +39,7 @@ func ParseEpicGraphSet(key, value string) (func(*model.EpicGraph) error, error) 
 		}
 		return func(g *model.EpicGraph) error { g.Milestones = m; return nil }, nil
 	case "gates":
-		var gates map[string]model.EpicGate
-		if err := decodeStrict(value, &gates); err != nil {
-			return nil, err
-		}
-		return func(g *model.EpicGraph) error { g.Gates = gates; return nil }, nil
+		return parseGatesSet(value)
 	case "tag_checks":
 		var checks map[string]model.EpicTagCheck
 		if err := decodeStrict(value, &checks); err != nil {
@@ -51,6 +48,38 @@ func ParseEpicGraphSet(key, value string) (func(*model.EpicGraph) error, error) 
 		return func(g *model.EpicGraph) error { g.TagChecks = checks; return nil }, nil
 	}
 	return nil, fmt.Errorf("unknown key %q: one of %v", key, EpicGraphSetKeys)
+}
+
+// parseGatesSet decodes a gates= value and returns the mutation replacing the
+// gates whole. A payload naming met is refused: tp epic gate --met and tp
+// epic import write it, and the mutation keeps the met record of every gate
+// the payload still names (§8).
+func parseGatesSet(value string) (func(*model.EpicGraph) error, error) {
+	var gates map[string]model.EpicGate
+	if err := decodeStrict(value, &gates); err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(gates))
+	for name := range gates {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		if gates[name].Met != nil {
+			return nil, fmt.Errorf("gate %q names met: tp epic gate --met writes it, and set gates= keeps the existing one", name)
+		}
+	}
+	return func(g *model.EpicGraph) error {
+		for _, name := range names {
+			if old, ok := g.Gates[name]; ok && old.Met != nil {
+				gate := gates[name]
+				gate.Met = old.Met
+				gates[name] = gate
+			}
+		}
+		g.Gates = gates
+		return nil
+	}, nil
 }
 
 // ParseEpicFieldSet decodes value for one of EpicFieldSetKeys and returns the
