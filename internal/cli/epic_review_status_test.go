@@ -110,7 +110,8 @@ func TestEpicReviewStatus_ACapWithAHighFindingRefusesUntilDispositioned(t *testi
 
 	_, stderr, code := runTP(t, dir, append([]string{"epic", "review"}, slice...)...)
 	require.Equal(t, 4, code, "stderr: %s", stderr)
-	assert.Contains(t, stderr, "--resolve", "the refusal carries tp review's escalation hint")
+	assert.Contains(t, stderr, "tp epic review --epic b --resolve", "the refusal names the slice's own resolve command")
+	assert.Contains(t, stderr, "tp set --workflow --project review_max_rounds=", "the refusal names where the operator raises the cap")
 	_, err := os.Stat(filepath.Join(dir, r1.StateDir, "snapshot-round-2.json"))
 	assert.True(t, os.IsNotExist(err), "a refused emission opens no round 2")
 
