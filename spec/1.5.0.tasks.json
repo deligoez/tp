@@ -2,7 +2,7 @@
   "version": 1,
   "spec": "spec/1.5.0.md",
   "created_at": "0001-01-01T00:00:00Z",
-  "updated_at": "2026-11-09T14:32:23.18699Z",
+  "updated_at": "2026-11-09T14:36:31.654417Z",
   "workflow": {
     "review_max_rounds": 4,
     "audit_max_rounds": 5
@@ -476,7 +476,7 @@
       "id": "next-ready-claim-gating",
       "title": "Gate task selection by the epic block",
       "description": "While the file's epic is blocked, tp next, tp next --peek and tp ready offer no task to start and carry blocked_by_epics; tp claim exits 1; a wip task is still returned by tp next. §10 row 3 (task half).",
-      "status": "open",
+      "status": "done",
       "tags": [
         "cli",
         "gating"
@@ -490,11 +490,18 @@
         "## 6. The graph gates the work",
         "## 10. Tests"
       ],
-      "started_at": null,
-      "closed_at": null,
-      "closed_reason": null,
-      "gate_passed_at": null,
-      "commit_sha": null
+      "started_at": "2026-11-09T14:32:46.523098Z",
+      "duration_source": "claimed",
+      "closed_at": "2026-11-09T14:36:31.645412Z",
+      "closed_reason": "- §10 row 3: tp next reports no task and blocked_by_epics [c] while c is not done and the task once c is done: TestNext_BlockedByEpicUntilItIsDone, TestNextPeekAndReady_CarryBlockedByEpics; gate green\n- tp claim exits 1 on a blocked file and tp next returns an already-wip task: TestClaim_ExitsOneOnABlockedFile, TestNext_ReturnsAWipTaskWhileBlocked, TestNext_AbsentEpicBehavesAsUnboundAndSaysSo; gate green",
+      "gate_passed_at": "2026-11-09T14:36:31.645412Z",
+      "commit_sha": "8869ce62",
+      "commit_shas": [
+        "8869ce62"
+      ],
+      "commit_files": [
+        "internal/cli/epic_block_test.go"
+      ]
     },
     {
       "id": "done-gating",
